@@ -539,10 +539,12 @@ static QVector<PdfLink> slideLinks(const Document &d, const OutputOptions &o, co
     if (o.layout != PrintLayout::Slides) return out;
     const QSizeF page = outputPageSize(d, o);
     LayoutCache cache;
+    RenderOptions drawn;
+    drawn.output = true;   // (as the slides are drawn into the PDF)
     for (int k = 0; k < slides.size(); ++k) {
         const QRectF target = fitInside(d.pageSize(), QRectF(QPointF(0, 0), page));
         const double scale = target.width() / d.pageSize().width();
-        for (const LinkArea &area : linkAreas(d, cache, slides[k])) {
+        for (const LinkArea &area : linkAreas(d, cache, slides[k], drawn)) {
             const office::LinkTarget t = office::parseLink(area.link);
             PdfLink link;
             link.page = k;

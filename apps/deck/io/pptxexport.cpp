@@ -553,6 +553,7 @@ private:
     QString titleOf(const Page &slide, int number) const;
     QByteArray thumbnail() const;
     void note(const QString &text) { m_skipped << text; }
+    int m_droppedLinks = 0;   // links to slides that are gone (see DrawingWriteContext::droppedLinks)
 
     void writeMaster(int i);
     void writeLayout(int i);
@@ -759,6 +760,7 @@ office::DrawingWriteContext Exporter::context(const QString &part)
     };
     ctx.storyDoc = [this](const QString &storyId) { return m_doc.storyDoc(storyId); };
     ctx.slideCount = int(m_doc.pages.size());
+    ctx.droppedLinks = &m_droppedLinks;
     ctx.mediaBytes = [this](const QString &mediaId, QString *contentType, QString *extension) {
         const auto it = m_doc.media.constFind(mediaId);
         if (it == m_doc.media.cend()) return QByteArray();
@@ -1691,6 +1693,8 @@ QByteArray Exporter::run(QString *error)
         m_fonts = writeEmbeddedFonts(m_pkg, kPresentationPart, m_fontUse, m_keptFonts, m_embedFonts);
     }
     writePresentation();
+    if (m_droppedLinks > 0)
+        note(QCoreApplication::translate("PptxExport", "%n link(s) to a slide that is no longer in the presentation were left out.", nullptr, m_droppedLinks));
 
     const QByteArray bytes = m_pkg.finish();
     if (bytes.isEmpty()) {

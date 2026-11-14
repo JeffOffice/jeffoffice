@@ -296,6 +296,11 @@ bool linkClickParts(DrawingWriteContext &ctx, const QString &link, QString *rId,
 {
     action->clear();
     rId->clear();
+    // A writer with no slides (a word processor's or a publication's) writes an address and nothing else, as it always has.
+    if (ctx.slideCount <= 0) {
+        *rId = relateAddress(ctx, link);
+        return !rId->isEmpty();
+    }
     const LinkTarget t = parseLink(link);
     static const QLatin1String jump("ppaction://hlinkshowjump?jump=");
     switch (t.kind) {
@@ -305,13 +310,14 @@ bool linkClickParts(DrawingWriteContext &ctx, const QString &link, QString *rId,
     case LinkKind::Last: *action = jump + QLatin1String("lastslide"); return true;
     case LinkKind::EndShow: *action = jump + QLatin1String("endshow"); return true;
     case LinkKind::Slide:
-        if (ctx.slideCount > 0) {
-            if (t.slide > ctx.slideCount) return false;
-            *rId = relate(ctx, QStringLiteral("slide"), QStringLiteral("/ppt/slides/slide%1.xml").arg(t.slide), false);
-            *action = QStringLiteral("ppaction://hlinksldjump");
-            return !rId->isEmpty();
+        // A jump to a slide that is no longer there can't be written: it is counted, and the save says so.
+        if (t.slide > ctx.slideCount) {
+            if (ctx.droppedLinks) ++*ctx.droppedLinks;
+            return false;
         }
-        break;
+        *rId = relate(ctx, QStringLiteral("slide"), QStringLiteral("/ppt/slides/slide%1.xml").arg(t.slide), false);
+        *action = QStringLiteral("ppaction://hlinksldjump");
+        return !rId->isEmpty();
     case LinkKind::File:
         *action = QStringLiteral("ppaction://hlinkfile");
         break;

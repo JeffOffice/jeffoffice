@@ -61,12 +61,10 @@ void collect(const Document &d, LayoutCache &cache, const RenderOptions &opt, in
 
 } // namespace
 
-QVector<LinkArea> linkAreas(const Document &d, LayoutCache &cache, int slide)
+QVector<LinkArea> linkAreas(const Document &d, LayoutCache &cache, int slide, const RenderOptions &opt)
 {
     QVector<LinkArea> out;
     if (slide < 0 || slide >= d.pages.size()) return out;
-    RenderOptions opt;
-    opt.output = true;
     collect(d, cache, opt, slide, d.pages[slide]->items, out);
     return out;
 }

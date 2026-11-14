@@ -54,6 +54,8 @@ public:
         double fitCut = 0;        // and the percent taken off the lines' spacing with it (a slide's text, fitted in the original's steps)
     };
 
+    // How many layouts of a text box's story this thread has made since the program began (a count for tests of cost: a layout that is in the cache is not made again).
+    static qint64 layoutsMadeForTest();
     // Layout for a text box (and its whole linked chain). pageNumber is used for
     // boxes on master pages, which show the number of the page being drawn.
     FrameLayout textFrame(const Document &doc, const TextItem &frame, int pageNumber, const RenderOptions &opt);

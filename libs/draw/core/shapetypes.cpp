@@ -31,7 +31,9 @@ const Pair kPairs[] = {
     {"fcExtract", 127, true}, {"fcMerge", 128, true}, {"fcStoredData", 130}, {"fcSequential", 131}, {"fcMagneticDisk", 132},
     {"fcDirectAccess", 133}, {"fcDisplay", 134}, {"fcDelay", 135}, {"fcAltProcess", 176}, {"fcOffpage", 177, true},
     {"sun", 183}, {"moon", 184}, {"bracketPair", 185}, {"bracePair", 186}, {"star4", 187}, {"doubleWave", 188},
-    {"actionButtonBlank", 189},
+    {"actionButtonBlank", 189}, {"actionButtonHome", 190}, {"actionButtonHelp", 191}, {"actionButtonInformation", 192}, {"actionButtonForwardNext", 193},
+    {"actionButtonBackPrevious", 194}, {"actionButtonEnd", 195}, {"actionButtonBeginning", 196}, {"actionButtonReturn", 197}, {"actionButtonDocument", 198},
+    {"actionButtonSound", 199}, {"actionButtonMovie", 200},
 };
 
 const Pair kTextArt[] = {

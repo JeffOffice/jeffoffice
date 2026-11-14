@@ -403,6 +403,12 @@ static void fitInSteps(StoryLayout &lay, const QTextDocument *text, const QVecto
     *cut = steps[lo].cut;
 }
 
+namespace {
+thread_local qint64 g_layoutsMade = 0;
+}
+
+qint64 LayoutCache::layoutsMadeForTest() { return g_layoutsMade; }
+
 LayoutCache::FrameLayout LayoutCache::textFrame(const Document &doc, const TextItem &frame, int pageNumber, const RenderOptions &opt)
 {
     FrameLayout out;
@@ -436,6 +442,7 @@ LayoutCache::FrameLayout LayoutCache::textFrame(const Document &doc, const TextI
     const QString key = head->id + QStringLiteral("@") + (doc.find(head->id).page < 0 ? QString::number(pageNumber) : QString());
     Entry &e = m_entries[key];
     if (e.sig != sig || !e.layout) {
+        ++g_layoutsMade;
         auto lay = std::make_shared<StoryLayout>();
         double scale = 1.0, cut = 0;
         if (asStored) {

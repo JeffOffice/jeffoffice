@@ -208,25 +208,36 @@ void DeckWindow::showLinkDialog()
         ed->forEachSelected(tr("Link"), [&](Item *it) { it->hyperlink = link; });
         return;
     }
-    QTextCharFormat f;
+    // Words with a link look like one at once, as they do when a file is opened: in the theme's link color and underlined. Remove Link takes both away.
     if (link.isEmpty()) {
-        f.setAnchor(false);
-        f.setAnchorHref(QString());
-        f.setFontUnderline(false);
-        ed->mergeCharFormat(f, tr("Remove Link"));
+        ed->editCharFormats([](QTextCharFormat &cf) {
+            cf.setAnchor(false);
+            cf.setAnchorHref(QString());
+            cf.clearForeground();
+            cf.clearProperty(tp::ColorRefP);
+            cf.setFontUnderline(false);
+        }, tr("Remove Link"));
         return;
     }
-    f.setAnchor(true);
-    f.setAnchorHref(link);
+    const QColor linkColor = ed->doc()->colors.slot(Hyperlink);
+    auto looksLikeALink = [&](QTextCharFormat &cf) {
+        cf.setAnchor(true);
+        cf.setAnchorHref(link);
+        if (linkColor.isValid()) {
+            cf.setForeground(QBrush(linkColor));
+            cf.setProperty(tp::ColorRefP, ColorRef::rgb(linkColor).toString());
+        }
+        cf.setFontUnderline(true);
+    };
     if (bare) {
         ed->beginChange(tr("Insert Link"));
         QTextCharFormat cf = ed->cursor().charFormat();
-        cf.merge(f);
+        looksLikeALink(cf);
         ed->cursor().insertText(dlg.displayText().isEmpty() ? office::linkAddress(link).isEmpty() ? link : office::linkAddress(link) : dlg.displayText(), cf);
         ed->endChange();
         ed->textEdited();
     } else {
-        ed->mergeCharFormat(f, tr("Insert Link"));
+        ed->editCharFormats(looksLikeALink, tr("Insert Link"));
     }
 }
 

@@ -1,6 +1,10 @@
 #include "office/hyperlink.h"
 
+#include "core/remotepath.h"
+
+#include <QFileInfo>
 #include <QRegularExpression>
+#include <atomic>
 #include <QUrl>
 #include "office/drawingml.h"
 #include "office/package.h"
@@ -37,10 +41,14 @@ LinkTarget parseLink(const QString &linkIn)
         t.kind = LinkKind::Mail;
         t.address = link;
     } else if (link.startsWith(QLatin1String("file:"), Qt::CaseInsensitive) || link.startsWith(QLatin1String("\\\\")) || link.startsWith(QLatin1String("//")) ||
-               QRegularExpression(QStringLiteral("^[A-Za-z]:[\\\\/]")).match(link).hasMatch() ||
-               !QRegularExpression(QStringLiteral("^[A-Za-z][A-Za-z0-9+.-]+:")).match(link).hasMatch()) {
-        // A path; a link with another scheme is nothing that is ever followed.
+               QRegularExpression(QStringLiteral("^[A-Za-z]:[\\\\/]")).match(link).hasMatch()) {
         t.kind = LinkKind::File;
+        t.address = link;
+    } else if (!QRegularExpression(QStringLiteral("^[A-Za-z][A-Za-z0-9+.-]+:")).match(link).hasMatch()) {
+        // No scheme: a path when it looks like one (a slash or backslash, or a dot or tilde in front), else a web address typed without its "https://" (www.example.com),
+        // as it always was.
+        const bool path = link.contains(QLatin1Char('/')) || link.contains(QLatin1Char('\\')) || link.startsWith(QLatin1Char('.')) || link.startsWith(QLatin1Char('~'));
+        t.kind = path ? LinkKind::File : LinkKind::Web;
         t.address = link;
     }
     return t;
@@ -48,19 +56,37 @@ LinkTarget parseLink(const QString &linkIn)
 
 QString slideLink(int number) { return QStringLiteral("#page%1").arg(number); }
 
-bool isRemoteFile(const QString &linkIn)
+bool isRemoteFile(const QString &link) { return isOnAnotherComputer(link); }
+
+namespace {
+std::atomic<int> g_fileLooks{0};
+}
+
+int linkFileLooks() { return g_fileLooks.load(); }
+
+// A file that runs when it is opened: by its name's ending (the ones a computer runs or interprets), or, for a file on this computer, by being marked as one that runs.
+// A file on another computer is judged by its name alone: it is never looked at.
+bool isProgramFile(const QString &link)
 {
-    const QString link = linkIn.trimmed();
-    if (link.startsWith(QLatin1String("\\\\")) || link.startsWith(QLatin1String("//"))) return true;
-    if (!link.startsWith(QLatin1String("file:"), Qt::CaseInsensitive)) return false;
-    // "file:///path" is this computer's; "file://host/path", "file:////host/share", and "file:\\host" are not.
-    QString rest = link.mid(5);
-    rest.replace(QLatin1Char('\\'), QLatin1Char('/'));
-    if (!rest.startsWith(QLatin1String("//"))) return false;
-    rest = rest.mid(2);
-    if (rest.startsWith(QLatin1Char('/'))) return rest.startsWith(QLatin1String("//"));   // empty host: local, unless four slashes
-    const QString host = rest.left(rest.indexOf(QLatin1Char('/'))).toLower();
-    return !host.isEmpty() && host != QLatin1String("localhost");
+    const LinkTarget t = parseLink(link);
+    if (t.kind != LinkKind::File) return false;
+    const bool remote = isOnAnotherComputer(t.address);
+    QString path = t.address;
+    if (path.startsWith(QLatin1String("file:"), Qt::CaseInsensitive)) path = QUrl(path).toLocalFile();
+    static const QStringList endings = {QStringLiteral("exe"), QStringLiteral("bat"), QStringLiteral("cmd"), QStringLiteral("com"), QStringLiteral("msi"), QStringLiteral("ps1"),
+                                        QStringLiteral("vbs"), QStringLiteral("vbe"), QStringLiteral("js"), QStringLiteral("jse"), QStringLiteral("wsf"), QStringLiteral("hta"),
+                                        QStringLiteral("sh"), QStringLiteral("command"), QStringLiteral("app"), QStringLiteral("desktop"), QStringLiteral("jar"),
+                                        QStringLiteral("py"), QStringLiteral("scr"), QStringLiteral("pif"), QStringLiteral("lnk"), QStringLiteral("reg"), QStringLiteral("msc"),
+                                        QStringLiteral("cpl"), QStringLiteral("dll"), QStringLiteral("appimage"), QStringLiteral("run"), QStringLiteral("pl"), QStringLiteral("rb")};
+    QString name = (path.isEmpty() ? t.address : path);
+    name.replace(QLatin1Char('\\'), QLatin1Char('/'));
+    name = name.section(QLatin1Char('/'), -1).trimmed();
+    while (name.endsWith(QLatin1Char('.')) || name.endsWith(QLatin1Char(' '))) name.chop(1);   // (Windows ignores a trailing dot or space)
+    if (name.contains(QLatin1Char('.')) && endings.contains(name.section(QLatin1Char('.'), -1).toLower())) return true;
+    if (remote || path.isEmpty()) return false;
+    ++g_fileLooks;
+    const QFileInfo info(path);
+    return info.isFile() && info.isExecutable();
 }
 
 QString linkAddress(const QString &link) { return parseLink(link).address; }
@@ -70,6 +96,12 @@ QString linkOfClick(const QDomElement &click, const DrawingContext &ctx)
     if (click.isNull()) return QString();
     const QString id = attrNs(click, ns::R, QStringLiteral("id"));
     const QString action = attr(click, QStringLiteral("action"));
+    auto relationship = [&] { return id.isEmpty() || !ctx.package ? Relationship() : ctx.package->relationship(ctx.part, id); };
+    // A reader that has no slides (a word processor's or a publication's) reads an address and nothing else, as it always has.
+    if (!ctx.slideNumberOf) {
+        const Relationship rel = relationship();
+        return !rel.id.isEmpty() && rel.external && !rel.target.isEmpty() ? rel.target : QString();
+    }
     static const QLatin1String jump("ppaction://hlinkshowjump?jump=");
     if (action.startsWith(jump)) {
         const QString what = action.mid(jump.size());
@@ -80,14 +112,16 @@ QString linkOfClick(const QDomElement &click, const DrawingContext &ctx)
         if (what == QLatin1String("endshow")) return QStringLiteral("#end");
         return QString();
     }
-    if (id.isEmpty() || !ctx.package) return QString();
-    const Relationship rel = ctx.package->relationship(ctx.part, id);
+    const Relationship rel = relationship();
     if (rel.id.isEmpty()) return QString();
     if (action == QLatin1String("ppaction://hlinksldjump")) {
-        const int n = !rel.external && ctx.slideNumberOf ? ctx.slideNumberOf(rel.target) : 0;
+        if (rel.external || !rel.type.endsWith(QLatin1String("/slide"))) return QString();
+        const int n = ctx.slideNumberOf(rel.target);
         return n >= 1 ? slideLink(n) : QString();
     }
-    return rel.external ? rel.target : QString();
+    // A plain link, or one to a file: an address. A program, a macro, another presentation, a custom show, a sound or movie, and any other action are not links: they stay text.
+    if (!action.isEmpty() && action != QLatin1String("ppaction://hlinkfile")) return QString();
+    return rel.external && rel.type.endsWith(QLatin1String("/hyperlink")) ? rel.target : QString();
 }
 
 } // namespace jp::office

@@ -542,6 +542,26 @@ private Q_SLOTS:
         QCOMPARE(external, 2);
     }
 
+    // A writer with no slides in its context (a word processor's or a publication's, whatever the link says) writes an address as an address: a relationship, and no action, as it
+    // always has. A scheme-less address is no file.
+    void dmlWriteWithoutSlidesWritesEveryLinkAsAnAddress()
+    {
+        WriteRound r;
+        ItemList items;
+        const QStringList links = {QStringLiteral("www.example.com"), QStringLiteral("C:\\docs\\a.pdf"), QStringLiteral("#next"), QStringLiteral("#page3"), QStringLiteral("\\\\server\\share\\a.pdf")};
+        for (const QString &link : links) {
+            auto shape = std::make_shared<ShapeItem>();
+            shape->rect = QRectF(0, 0, 50, 50);
+            shape->hyperlink = link;
+            items.push_back(shape);
+        }
+        QVERIFY2(r.run(items), qPrintable(r.error));
+        const QVector<QDomElement> clicks = elementsNamed(r.spTree, "hlinkClick");
+        QCOMPARE(int(clicks.size()), int(links.size()));
+        for (const QDomElement &c : clicks) QVERIFY(!c.hasAttribute(QStringLiteral("action")));
+        for (int i = 0; i < links.size(); ++i) QCOMPARE(r.items[i]->hyperlink, links[i]);
+    }
+
     void dmlWriteShapesKeepPresetAndAdjustments_data()
     {
         QTest::addColumn<QString>("shape");

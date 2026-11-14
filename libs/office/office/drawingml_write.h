@@ -44,6 +44,8 @@ struct DrawingWriteContext {
     int nextShapeId = 2;
     // How many slides the presentation has: a link to a slide is written as one only when this is set and the slide is among them.
     int slideCount = 0;
+    // Counts the links to a slide the presentation no longer has, which are not written (the caller says so when it has saved).
+    int *droppedLinks = nullptr;
     // Pictures already written into the package, by image id, so each is
     // stored once (the part name, "/ppt/media/image3.png"); movies and sounds
     // by "media:" and their media id.

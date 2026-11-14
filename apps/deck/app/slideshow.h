@@ -46,6 +46,7 @@
 
 #include "app/rehearsebar.h"
 #include "core/animation.h"
+#include "core/linkareas.h"
 #include "core/ink.h"
 #include "core/showsettings.h"
 #include "core/transition.h"
@@ -58,6 +59,7 @@
 #include <QPointer>
 #include <QTimer>
 #include <QVariantAnimation>
+#include <QUrl>
 #include <QWidget>
 #include <functional>
 #include <memory>
@@ -146,6 +148,11 @@ public:
     // What follows a click on a link to a web address, a mail address, or a file: asked first, with the address, and `remote` when the file is on another computer. The
     // default asks in a box; a test (or the person's own policy) can answer for it.
     void setLinkPrompt(std::function<bool(const QString &address, bool remote)> ask);
+    // What opens an address that was said yes to (the person's browser or program), and what says that a link to a program was refused: a test's to replace.
+    void setLinkOpener(std::function<void(const QUrl &)> open);
+    void setLinkNotice(std::function<void(const QString &)> say);
+    // The address the tip over the link under a point of the window shows (empty for none, and for a jump inside the presentation).
+    QString tipAt(const QPointF &pos) const;
     // What a click on `link` does (see office/hyperlink.h).
     void followLink(const QString &link);
     // Ends the transition that is playing, showing its slide.
@@ -292,6 +299,10 @@ private:
     // The link under a point of the window, if the slide on it has one.
     QString linkAt(const QPointF &pos) const;
     std::function<bool(const QString &, bool)> m_linkPrompt;
+    std::function<void(const QUrl &)> m_linkOpener;
+    std::function<void(const QString &)> m_linkNotice;
+    mutable int m_areasSlide = -1;
+    mutable QVector<deck::LinkArea> m_areas;
     QRectF slideRect() const;
     QPointF pageAt(const QPointF &pos) const;
     // The ink and laser on an image of a slide (a transition plays between these).

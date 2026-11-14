@@ -4,6 +4,7 @@
 // the fill, outline, and effects their styles give them.
 
 #include "io/odpimport_p.h"
+#include "office/hyperlink.h"
 #include "io/odpimport.h"
 
 #include "core/barcodeitem.h"
@@ -101,10 +102,12 @@ bool finiteTransform(const QTransform &t)
 
 } // namespace
 
+// A link that is kept: an address (a web page, a mail address), a file, or a jump the file itself writes ("#next", "#previous", "#first", "#last", "#end", "#page3").
 bool isWebLink(const QString &href)
 {
     const QString scheme = href.section(QLatin1Char(':'), 0, 0).toLower();
-    return href.contains(QLatin1Char(':')) && (scheme == QLatin1String("http") || scheme == QLatin1String("https") || scheme == QLatin1String("mailto") || scheme == QLatin1String("ftp"));
+    if (href.contains(QLatin1Char(':')) && (scheme == QLatin1String("http") || scheme == QLatin1String("https") || scheme == QLatin1String("mailto") || scheme == QLatin1String("ftp"))) return true;
+    return office::parseLink(href).kind != office::LinkKind::None;
 }
 
 QString masterPrompt(const QString &cls)
@@ -209,6 +212,14 @@ ItemPtr Reader::readShape(const QDomElement &e, Scope &sc, const QTransform &t)
                 const QString href = at(l, "xlink:href");
                 if (isWebLink(href)) {
                     it->hyperlink = href;
+                    break;
+                }
+                // The other suite's own actions on a click.
+                static const QHash<QString, QString> actions = {{QStringLiteral("next-page"), QStringLiteral("#next")}, {QStringLiteral("previous-page"), QStringLiteral("#previous")},
+                                                                {QStringLiteral("first-page"), QStringLiteral("#first")}, {QStringLiteral("last-page"), QStringLiteral("#last")},
+                                                                {QStringLiteral("stop"), QStringLiteral("#end")}};
+                if (const QString jump = actions.value(at(l, "presentation:action")); !jump.isEmpty() && at(l, "script:event-name") != QLatin1String("dom:mouseover")) {
+                    it->hyperlink = jump;
                     break;
                 }
             }

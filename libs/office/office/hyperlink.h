@@ -24,6 +24,11 @@ QString slideLink(int number);
 // A file on another computer: a path that starts with two slashes or two backslashes, or a "file:" address with a host (not "localhost"). It is never touched (not looked for,
 // not opened) unless the person agrees.
 bool isRemoteFile(const QString &link);
+// A file that runs when it is opened (a program or a script, by the ending of its name, or on this computer by being marked as one that runs). Following a link to one is
+// refused. A file on another computer is judged by its name alone and is never looked at.
+bool isProgramFile(const QString &link);
+// How many times a file on this computer was looked at to judge a link (a test's counter: a file on another computer never is).
+int linkFileLooks();
 // The address a person is shown and asked about: the target's address, or "" for links inside the presentation.
 QString linkAddress(const QString &link);
 

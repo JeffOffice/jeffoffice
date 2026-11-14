@@ -17,7 +17,8 @@ struct LinkArea {
     const Item *item = nullptr;   // the object it is on
 };
 
-// The areas of slide `slide`, the bottom ones first. Hidden objects have none.
-QVector<LinkArea> linkAreas(const Document &d, LayoutCache &cache, int slide);
+// The areas of slide `slide`, the bottom ones first. Hidden objects have none. The text is laid out with `opt`, the options the slide is drawn with, so that the layout the
+// drawing made is the one used (none is made again).
+QVector<LinkArea> linkAreas(const Document &d, LayoutCache &cache, int slide, const RenderOptions &opt);
 
 } // namespace jp::deck

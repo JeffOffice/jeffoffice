@@ -2,11 +2,12 @@
 #include "deckhelpers.h"
 #include "../withdialog.h"
 #include "core/linkareas.h"
+#include "core/remotepath.h"
+#include "core/shapetypes.h"
 #include "office/hyperlink.h"
 
 #include <QDesktopServices>
 #include <QMessageBox>
-#include <QToolTip>
 
 namespace {
 
@@ -251,12 +252,14 @@ private Q_SLOTS:
         QCOMPARE(again, links);
     }
 
-    // A file that is opened does nothing with its links: no address is opened, no file looked for.
+    // A file that is opened does nothing with its links: shown, pointed at, and drawn, no address is opened, none is asked about, and no file is looked at.
     void openingADeckFollowsNoLink()
     {
         auto d = showDeck(2);
         linkShape(*d->pages[0], QRectF(10, 300, 90, 60), QStringLiteral("https://example.com/a"));
         linkShape(*d->pages[0], QRectF(110, 300, 90, 60), QStringLiteral("\\\\server\\share\\b.pdf"));
+        linkShape(*d->pages[0], QRectF(210, 300, 90, 60), QStringLiteral("/usr/bin/env"));
+        linkShape(*d->pages[0], QRectF(310, 300, 90, 60), QStringLiteral("#end"));
         LinkCatcher catcher;
         QDesktopServices::setUrlHandler(QStringLiteral("https"), &catcher, "open");
         QDesktopServices::setUrlHandler(QStringLiteral("file"), &catcher, "open");
@@ -267,10 +270,26 @@ private Q_SLOTS:
         QString err;
         auto back = deck::importPresentation(deck::exportPresentation(*d, &err), &err);
         QVERIFY2(back, qPrintable(err));
+        const int looked = office::linkFileLooks();
+        int opened = 0, asked = 0, said = 0;
         LayoutCache cache;
         SlideShow show(back.get(), &cache, 0);
+        show.setLinkOpener([&](const QUrl &) { ++opened; });
+        show.setLinkPrompt([&](const QString &, bool) {
+            ++asked;
+            return false;
+        });
+        show.setLinkNotice([&](const QString &) { ++said; });
         show.resize(960, 540);
+        show.show();
+        for (int i = 0; i < 4; ++i) QTest::mouseMove(&show, QPoint(10 + 100 * i + 50, 330));
+        QVERIFY(!show.grab().isNull());
+        QCOMPARE(opened, 0);
+        QCOMPARE(asked, 0);
+        QCOMPARE(said, 0);
+        QCOMPARE(office::linkFileLooks(), looked);
         QVERIFY(catcher.urls.isEmpty());
+        QCOMPARE(show.currentSlide(), 0);
     }
 
     // In the show a click on a link goes to the slide it names, or ends the show; the pointer is a hand over it.
@@ -316,7 +335,7 @@ private Q_SLOTS:
         LayoutCache cache;
         SlideShow show(d.get(), &cache, 0);
         show.resize(960, 540);
-        const QVector<deck::LinkArea> areas = deck::linkAreas(*d, cache, 0);
+        const QVector<deck::LinkArea> areas = deck::linkAreas(*d, cache, 0, RenderOptions());
         QVERIFY(!areas.isEmpty());
         const QPoint at = areas.first().rect.center().toPoint();
         QTest::mouseClick(&show, Qt::LeftButton, Qt::NoModifier, at);
@@ -348,7 +367,11 @@ private Q_SLOTS:
             remote << isRemote;
             return yes;
         });
-        for (int i = 0; i < 3; ++i) QTest::mouseClick(&show, Qt::LeftButton, Qt::NoModifier, QPoint(10 + 100 * i + 50, 330));
+        const int looked = office::linkFileLooks();
+        QTest::mouseClick(&show, Qt::LeftButton, Qt::NoModifier, QPoint(60, 330));
+        QTest::mouseClick(&show, Qt::LeftButton, Qt::NoModifier, QPoint(160, 330));
+        QCOMPARE(office::linkFileLooks(), looked);   // (the file on another computer was not looked at, nor was an address)
+        QTest::mouseClick(&show, Qt::LeftButton, Qt::NoModifier, QPoint(260, 330));
         QCOMPARE(asked, (QStringList{QStringLiteral("https://example.com/a"), QStringLiteral("\\\\server\\share\\b.pdf"), QStringLiteral("/home/user/a.pdf")}));
         QCOMPARE(remote, (QList<bool>{false, true, false}));
         QVERIFY2(catcher.urls.isEmpty(), "nothing opens when the answer is no");
@@ -361,18 +384,20 @@ private Q_SLOTS:
         QVERIFY(catcher.urls.last().startsWith(QStringLiteral("file:")));
     }
 
-    // Hovering a web or file link shows its address.
     void hoverShowsTheAddress()
     {
         auto d = showDeck(2);
         linkShape(*d->pages[0], QRectF(10, 300, 90, 60), QStringLiteral("https://example.com/hover"));
+        linkShape(*d->pages[0], QRectF(110, 300, 90, 60), QStringLiteral("#next"));
         LayoutCache cache;
         SlideShow show(d.get(), &cache, 0);
         show.resize(960, 540);
         show.show();
         QTest::mouseMove(&show, QPoint(50, 330));
         QCOMPARE(show.cursor().shape(), Qt::PointingHandCursor);
-        QTRY_COMPARE(QToolTip::text(), QStringLiteral("https://example.com/hover"));
+        QCOMPARE(show.tipAt(QPointF(50, 330)), QStringLiteral("https://example.com/hover"));
+        QCOMPARE(show.tipAt(QPointF(150, 330)), QString());   // (a jump has no address to show)
+        QCOMPARE(show.tipAt(QPointF(500, 100)), QString());
     }
 
     // An action button starts with the link it is for; the others have none.
@@ -453,11 +478,16 @@ private Q_SLOTS:
         Editor *ed = w.editor();
         auto shape = linkShape(*ed->doc()->pages[0], QRectF(100, 300, 100, 60), QString());
         ed->select(shape->id);
+        const int looked = office::linkFileLooks();
         withDialog([&] { w.act("insert.link")->trigger(); }, QStringLiteral("linkDialog"), [](QDialog *dlg) {
             dlg->findChild<QComboBox *>(QStringLiteral("linkKind"))->setCurrentIndex(3);
             dlg->findChild<QLineEdit *>(QStringLiteral("linkAddress"))->setText(QStringLiteral("\\\\no-such-server\\share\\a.pdf"));
         });
         QCOMPARE(shape->hyperlink, QStringLiteral("\\\\no-such-server\\share\\a.pdf"));
+        QCOMPARE(office::linkFileLooks(), looked);   // nothing was looked at
+        // (and a program file's name is judged by its name alone)
+        QVERIFY(office::isProgramFile(QStringLiteral("\\\\no-such-server\\share\\run.exe")));
+        QCOMPARE(office::linkFileLooks(), looked);
     }
 
     // The slides' PDF has a clickable box for each link: the web ones go to the web, the jumps to the pages; a file and the end of the show have none.
@@ -523,6 +553,245 @@ private Q_SLOTS:
         const QStringList links = pdfLinkDictionaries(fileBytes(path));
         QCOMPARE(links.size(), 1);
         QVERIFY(links.first().contains(QStringLiteral("/Dest [")));
+    }
+
+    // ---------------- what a link may be, and what is refused ----------------
+
+    // Only a plain link, a jump, and a file link are links. A program, a macro, another presentation, and any other action stay text; a relationship that is no hyperlink (a
+    // picture, an embedded object) is no link either.
+    void programsAndMacrosAreNotLinks()
+    {
+        Parts p = samplePptx();
+        int base = 0;
+        for (const Rel &r : p.rels) base += r.source == QLatin1String("/ppt/slides/slide1.xml");
+        auto shape = [](int id, const QString &name, const QString &click, const QString &runLink = QString()) {
+            return QStringLiteral("<p:sp><p:nvSpPr><p:cNvPr id=\"%1\" name=\"%2\">%3</p:cNvPr><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr>").arg(id).arg(name, click) + xfrm(914400 * (id - 49), 914400, 600000, 600000)
+                   + QStringLiteral("<a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></p:spPr><p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr lang=\"en-US\">%1</a:rPr><a:t>words</a:t></a:r></a:p></p:txBody></p:sp>").arg(runLink);
+        };
+        auto click = [&](int rel, const QString &action) { return QStringLiteral("<a:hlinkClick r:id=\"rId%1\"%2/>").arg(rel).arg(action.isEmpty() ? QString() : QStringLiteral(" action=\"%1\"").arg(action)); };
+        QString xml = QString::fromUtf8(p.data["/ppt/slides/slide1.xml"].xml);
+        QString shapes = shape(50, QStringLiteral("plain"), click(base + 1, QString())) + shape(51, QStringLiteral("program"), click(base + 2, QStringLiteral("ppaction://program")))
+                         + shape(52, QStringLiteral("macro"), QStringLiteral("<a:hlinkClick r:id=\"\" action=\"ppaction://macro?name=Run\"/>")) + shape(53, QStringLiteral("image"), click(base + 3, QString()))
+                         + shape(54, QStringLiteral("file"), click(base + 4, QStringLiteral("ppaction://hlinkfile"))) + shape(55, QStringLiteral("other"), click(base + 5, QStringLiteral("ppaction://hlinkpres")))
+                         + shape(56, QStringLiteral("words"), QString(), click(base + 2, QStringLiteral("ppaction://program")));
+        xml.replace(QStringLiteral("</p:spTree>"), shapes + QStringLiteral("</p:spTree>"));
+        p.data["/ppt/slides/slide1.xml"].xml = xml.toUtf8();
+        p.rels << Rel{QStringLiteral("/ppt/slides/slide1.xml"), QStringLiteral("hyperlink"), QStringLiteral("https://ok.example/"), true}
+               << Rel{QStringLiteral("/ppt/slides/slide1.xml"), QStringLiteral("hyperlink"), QStringLiteral("C:\\tools\\run.exe"), true}
+               << Rel{QStringLiteral("/ppt/slides/slide1.xml"), QStringLiteral("image"), QStringLiteral("http://x.example/y.png"), true}
+               << Rel{QStringLiteral("/ppt/slides/slide1.xml"), QStringLiteral("hyperlink"), QStringLiteral("C:\\docs\\a.pdf"), true}
+               << Rel{QStringLiteral("/ppt/slides/slide1.xml"), QStringLiteral("hyperlink"), QStringLiteral("other.pptx"), true};
+        QString err;
+        auto d = deck::importPresentation(pack(p), &err);
+        QVERIFY2(d, qPrintable(err));
+        QHash<QString, QString> links;
+        for (const auto &it : d->pages[0]->items) links.insert(it->name, it->hyperlink);
+        QCOMPARE(links.value(QStringLiteral("plain")), QStringLiteral("https://ok.example/"));
+        QCOMPARE(links.value(QStringLiteral("file")), QStringLiteral("C:\\docs\\a.pdf"));
+        for (const char *none : {"program", "macro", "image", "other"}) QVERIFY2(links.value(QString::fromLatin1(none)).isEmpty(), none);
+        for (const auto &it : d->pages[0]->items)
+            if (it->name == QLatin1String("words")) {
+                const QString story = it->type() == ItemType::Text ? static_cast<TextItem *>(it.get())->storyId : it->type() == ItemType::Shape ? static_cast<ShapeItem *>(it.get())->storyId : QString();
+                const QTextDocument *td = d->storyDoc(story);
+                QVERIFY2(td, "the words are there");
+                for (QTextBlock b = td->begin(); b.isValid(); b = b.next())
+                    for (auto f = b.begin(); !f.atEnd(); ++f) QVERIFY(!f.fragment().charFormat().isAnchor());
+            }
+    }
+
+    // A link to a program or a script is refused, with a message, and nothing is asked or opened; a file marked as one that runs is too; a plain file is asked about.
+    void showRefusesLinksToPrograms()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString tool = dir.filePath(QStringLiteral("tool")), doc = dir.filePath(QStringLiteral("doc.pdf"));
+        for (const QString &path : {tool, doc}) {
+            QFile f(path);
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write("x");
+        }
+        QVERIFY(QFile::setPermissions(tool, QFile::ReadOwner | QFile::WriteOwner | QFile::ExeOwner));
+        QVERIFY(QFile::setPermissions(doc, QFile::ReadOwner | QFile::WriteOwner));
+        QStringList programs = {QStringLiteral("C:\\tools\\Setup.EXE"), QStringLiteral("/home/u/run.sh"), QStringLiteral("\\\\server\\share\\x.bat"), QStringLiteral("file:///tmp/a.ps1"),
+                                QStringLiteral("C:\\x\\a.JAR"), QStringLiteral("/a/b.command"), QStringLiteral("C:\\a\\b.exe.")};
+#ifndef Q_OS_WIN
+        programs << tool;   // (no ending: it is marked as one that runs)
+#endif
+        const QStringList all = programs + QStringList{doc};
+        auto d = showDeck(2);
+        for (int i = 0; i < all.size(); ++i) linkShape(*d->pages[0], QRectF(10 + 100 * (i % 9), 300 + 100 * (i / 9), 90, 60), all[i]);
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        show.resize(960, 540);
+        QStringList notices, asked, opened;
+        show.setLinkNotice([&](const QString &text) { notices << text; });
+        show.setLinkPrompt([&](const QString &address, bool) {
+            asked << address;
+            return true;
+        });
+        show.setLinkOpener([&](const QUrl &url) { opened << url.toString(); });
+        for (int i = 0; i < all.size(); ++i) QTest::mouseClick(&show, Qt::LeftButton, Qt::NoModifier, QPoint(10 + 100 * (i % 9) + 50, 300 + 100 * (i / 9) + 30));
+        QCOMPARE(notices.size(), int(programs.size()));
+        QVERIFY(notices.first().startsWith(QStringLiteral("This link opens a program")));
+        QCOMPARE(asked, QStringList{doc});
+        QCOMPARE(opened.size(), 1);
+        QVERIFY(opened.first().endsWith(QStringLiteral("doc.pdf")));
+        QVERIFY(office::isProgramFile(QStringLiteral("./x.desktop")));
+        QVERIFY(!office::isProgramFile(QStringLiteral("https://example.com/setup.exe")));   // (an address is not a file)
+        QVERIFY(!office::isProgramFile(QStringLiteral("C:\\docs\\a.pdf")));
+    }
+
+    // One check for a file on another computer, for every place that follows a link (a slide's, a workbook's): the forms that a path can take.
+    void isOnAnotherComputerKnowsTheForms()
+    {
+        for (const char *path : {"\\\\host\\share\\x.xlsx", "//host/share/x.xlsx", "file://host/share/x.xlsx", "file://///host/share/x.xlsx", "\\\\?\\UNC\\host\\share\\x.xlsx", "\\\\host@SSL\\share\\x.xlsx",
+                                 "file:///\\\\host\\s\\x.xlsx", "file:///%5C%5Chost/s/x.xlsx", "/\\host\\s\\x.xlsx", "\\/host/s/x.xlsx", "file://///host/s/x.xlsx", "FILE://Host/s/x.xlsx", "file:\\\\host\\s"})
+            QVERIFY2(jp::isOnAnotherComputer(QString::fromLatin1(path)), path);
+        for (const char *path : {"file:///tmp/x%20y.xlsx", "file://localhost/tmp/x.xlsx", "C:\\docs\\a.pdf", "/home/a/b.pdf", "x.xlsx", "https://example.com/a", "mailto:a@example.com", "#next", "", "www.example.com"})
+            QVERIFY2(!jp::isOnAnotherComputer(QString::fromLatin1(path)), path);
+        // The slide's own check is that one.
+        QVERIFY(office::isRemoteFile(QStringLiteral("file:///%5C%5Chost/s/x.pdf")));
+    }
+
+    // Jumps and file links come back from an .odp; so does a link written without a scheme.
+    void odpKeepsJumpAndFileLinks()
+    {
+        auto d = showDeck(3);
+        const QStringList links = {QStringLiteral("#next"), QStringLiteral("#previous"), QStringLiteral("#first"), QStringLiteral("#last"), QStringLiteral("#end"), QStringLiteral("#page2"),
+                                   QStringLiteral("C:\\docs\\a.pdf"), QStringLiteral("/home/a/b.pdf"), QStringLiteral("https://example.com/a"), QStringLiteral("www.example.com")};
+        for (int i = 0; i < links.size(); ++i) linkShape(*d->pages[0], QRectF(10 + 90 * (i % 10), 300, 80, 60), links[i]);
+        auto *title = static_cast<TextItem *>(d->pages[0]->items[0].get());
+        QTextCursor c(d->storyDoc(title->storyId));
+        c.select(QTextCursor::Document);
+        QTextCharFormat f;
+        f.setAnchor(true);
+        f.setAnchorHref(QStringLiteral("#page3"));
+        c.mergeCharFormat(f);
+        QString err;
+        auto back = deck::importOdp(deck::exportOdp(*d, false, &err), &err);
+        QVERIFY2(back, qPrintable(err));
+        QStringList got;
+        for (const auto &it : back->pages[0]->items)
+            if (!it->hyperlink.isEmpty()) got << it->hyperlink;
+        QCOMPARE(got, links);
+        auto *backTitle = static_cast<TextItem *>(back->pages[0]->items[0].get());
+        QTextCursor bc(back->storyDoc(backTitle->storyId));
+        bc.setPosition(1);
+        QCOMPARE(bc.charFormat().anchorHref(), QStringLiteral("#page3"));
+    }
+
+    // An address typed without a scheme stays a web link, written as an address with no file action, as it always was.
+    void anAddressWithoutASchemeIsNotAFile()
+    {
+        QCOMPARE(office::parseLink(QStringLiteral("www.example.com")).kind, office::LinkKind::Web);
+        QCOMPARE(office::parseLink(QStringLiteral("example.com/a")).kind, office::LinkKind::File);   // (it has a slash: a path)
+        auto d = showDeck(2);
+        linkShape(*d->pages[0], QRectF(10, 300, 90, 60), QStringLiteral("www.example.com"));
+        QString err;
+        const QByteArray bytes = deck::exportPresentation(*d, &err);
+        Exported e;
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        const QString xml = part(e, QStringLiteral("/ppt/slides/slide1.xml"));
+        QVERIFY(xml.contains(QStringLiteral("hlinkClick")));
+        QVERIFY2(!xml.contains(QStringLiteral("hlinkfile")), "a scheme-less address is no file");
+        auto back = deck::importPresentation(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        QCOMPARE(back->pages[0]->items.back()->hyperlink, QStringLiteral("www.example.com"));
+    }
+
+    // Insert > Link gives the words the look of a link at once (the theme's link color, underlined), and Remove Link takes both away.
+    void insertLinkGivesTheLinkItsLook()
+    {
+        DeckWindow w;
+        QTextDocument *story = editTitle(w, QStringLiteral("Visit our site"), 6, 9);
+        const QColor linkColor = w.editor()->doc()->colors.slot(Hyperlink);
+        withDialog([&] { w.act("insert.link")->trigger(); }, QStringLiteral("linkDialog"), [](QDialog *dlg) { dlg->findChild<QLineEdit *>(QStringLiteral("linkAddress"))->setText(QStringLiteral("example.com")); });
+        QTextCursor c(story);
+        c.setPosition(7);
+        QVERIFY(c.charFormat().isAnchor());
+        QVERIFY(c.charFormat().fontUnderline());
+        QCOMPARE(c.charFormat().foreground().color(), linkColor);
+        QCOMPARE(c.charFormat().stringProperty(tp::ColorRefP), ColorRef::rgb(linkColor).toString());
+        c.setPosition(2);
+        QVERIFY(!c.charFormat().fontUnderline());
+        // Remove Link, with the words selected again.
+        w.editor()->beginTextEdit(static_cast<TextItem *>(w.editor()->doc()->pages[0]->items[0].get())->id, 6);
+        QTextCursor sel = w.editor()->cursor();
+        sel.setPosition(6);
+        sel.setPosition(9, QTextCursor::KeepAnchor);
+        w.editor()->setCursor(sel);
+        withDialog([&] { w.act("insert.link")->trigger(); }, QStringLiteral("linkDialog"), [](QDialog *dlg) {
+            for (QPushButton *b : dlg->findChildren<QPushButton *>())
+                if (b->text() == QLatin1String("Remove Link")) b->click();
+        });
+        QTextCursor after(story);
+        after.setPosition(7);
+        QVERIFY(!after.charFormat().isAnchor());
+        QVERIFY(!after.charFormat().fontUnderline());
+        QVERIFY(!after.charFormat().hasProperty(QTextFormat::ForegroundBrush));
+        QVERIFY(after.charFormat().stringProperty(tp::ColorRefP).isEmpty());
+    }
+
+    // A jump to a slide that has been deleted is not dropped without a word: the save says so.
+    void aJumpToADeletedSlideIsSaidAtSave()
+    {
+        auto d = showDeck(3);
+        linkShape(*d->pages[0], QRectF(10, 300, 90, 60), QStringLiteral("#page3"));
+        linkShape(*d->pages[0], QRectF(110, 300, 90, 60), QStringLiteral("#page2"));
+        QString err;
+        QStringList skipped;
+        QVERIFY(!deck::exportPresentation(*d, &err, &skipped).isEmpty());
+        QVERIFY2(skipped.filter(QStringLiteral("link")).isEmpty(), "both slides are there");
+        d->pages.erase(d->pages.begin() + 2);
+        skipped.clear();
+        const QByteArray bytes = deck::exportPresentation(*d, &err, &skipped);
+        QVERIFY(!bytes.isEmpty());
+        QStringList said = skipped.filter(QStringLiteral("link"));
+        QCOMPARE(said.size(), 1);
+        QVERIFY2(said.first().contains(QStringLiteral("no longer")), qPrintable(said.first()));
+        auto back = deck::importPresentation(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        QCOMPARE(back->pages[0]->items.back()->hyperlink, QStringLiteral("#page2"));
+    }
+
+    // Pointing at the slide makes no layout: the areas of the slide on the screen are worked out once, from the layout that the drawing made.
+    void hoverDoesNoLayout()
+    {
+        auto d = showDeck(2);
+        auto *title = static_cast<TextItem *>(d->pages[0]->items[0].get());
+        QTextCursor c(d->storyDoc(title->storyId));
+        c.select(QTextCursor::Document);
+        QTextCharFormat f;
+        f.setAnchor(true);
+        f.setAnchorHref(QStringLiteral("#next"));
+        c.mergeCharFormat(f);
+        linkShape(*d->pages[0], QRectF(10, 300, 90, 60), QStringLiteral("https://example.com/a"));
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        show.resize(960, 540);
+        show.show();
+        QVERIFY(!show.grab().isNull());   // (the slide is drawn)
+        const qint64 before = LayoutCache::layoutsMadeForTest();
+        for (int i = 0; i < 30; ++i) QTest::mouseMove(&show, QPoint(20 + 20 * i, 100 + (i % 3) * 5));
+        QTest::mouseMove(&show, QPoint(50, 330));
+        QCOMPARE(show.cursor().shape(), Qt::PointingHandCursor);
+        QCOMPARE(LayoutCache::layoutsMadeForTest(), before);
+    }
+
+    // The eleven action buttons have codes in a publication too, so that saving one there keeps its picture.
+    void actionButtonsHaveShapeCodes()
+    {
+        const QStringList names = {"Home", "Help", "Information", "ForwardNext", "BackPrevious", "End", "Beginning", "Return", "Document", "Sound", "Movie"};
+        QSet<int> codes;
+        for (const QString &name : names) {
+            const QString preset = QStringLiteral("actionButton") + name;
+            const int code = drawingShapeType(preset);
+            QVERIFY2(code >= 190 && code <= 200, qPrintable(preset));
+            QCOMPARE(presetForDrawingShapeType(code), preset);
+            codes << code;
+        }
+        QCOMPARE(int(codes.size()), 11);
+        QCOMPARE(drawingShapeType(QStringLiteral("actionButtonBlank")), 189);
     }
 
     // ---------------- backgrounds ----------------

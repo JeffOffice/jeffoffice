@@ -747,6 +747,7 @@ void SlideShow::showSlide(int pos, int steps)
     m_drawing = m_erasing = false;
     m_pos = m_targetPos = pos;
     m_slide = m_target = slideAt(pos);
+    m_areasSlide = -1;
     m_done = std::min(steps, stepsOf(m_slide));
     m_playing = -1;
     m_nowValid = false;
@@ -1154,7 +1155,12 @@ QString SlideShow::linkAt(const QPointF &pos) const
     // A shape the animations have not shown yet, or have hidden, has no link to click.
     const Play &play = playOf(m_slide);
     const deck::States states = play.timeline.isEmpty() ? deck::States() : deck::statesAt(play.timeline, play.geometry, m_playing >= 0 ? m_playing : m_done, m_playing >= 0 ? m_stepMs : -1);
-    const QVector<deck::LinkArea> areas = deck::linkAreas(*m_doc, *m_cache, m_slide);
+    // The areas of the slide on the screen are worked out once (with the layout the drawing made), not at every move of the mouse.
+    if (m_areasSlide != m_slide) {
+        m_areas = deck::linkAreas(*m_doc, *m_cache, m_slide, RenderOptions());
+        m_areasSlide = m_slide;
+    }
+    const QVector<deck::LinkArea> &areas = m_areas;
     for (auto it = areas.crbegin(); it != areas.crend(); ++it) {
         if (!it->rect.contains(page)) continue;
         const Item &item = *it->item;
@@ -1165,6 +1171,11 @@ QString SlideShow::linkAt(const QPointF &pos) const
 }
 
 void SlideShow::setLinkPrompt(std::function<bool(const QString &address, bool remote)> ask) { m_linkPrompt = std::move(ask); }
+void SlideShow::setLinkOpener(std::function<void(const QUrl &)> open) { m_linkOpener = std::move(open); }
+void SlideShow::setLinkNotice(std::function<void(const QString &)> say) { m_linkNotice = std::move(say); }
+
+// What the tip over the link at `pos` says: the address of a web or file link, else nothing.
+QString SlideShow::tipAt(const QPointF &pos) const { return office::linkAddress(linkAt(pos)); }
 
 // What a click on a link does: a jump moves the show, the end ends it, and a web address, mail address, or file is opened only when the person says yes.
 // A file on another computer is asked about in its own words and never looked for first.
@@ -1182,6 +1193,13 @@ void SlideShow::followLink(const QString &link)
     default: break;
     }
     const bool remote = office::isRemoteFile(t.address);
+    // A program or a script is never run by a link: it is refused, and the person is told.
+    if (t.kind == office::LinkKind::File && office::isProgramFile(t.address)) {
+        const QString text = tr("This link opens a program, so it was not opened.");
+        if (m_linkNotice) m_linkNotice(text);
+        else QMessageBox::warning(this, tr("Open Link"), text);
+        return;
+    }
     QUrl url;
     if (t.kind == office::LinkKind::File) {
         if (remote) url = QUrl(t.address.startsWith(QLatin1String("file:"), Qt::CaseInsensitive) ? t.address : QUrl::fromLocalFile(t.address).toString());
@@ -1205,7 +1223,10 @@ void SlideShow::followLink(const QString &link)
         box.exec();
         yes = box.clickedButton() != no && box.result() != QMessageBox::Cancel;
     }
-    if (yes) QDesktopServices::openUrl(url);
+    if (yes) {
+        if (m_linkOpener) m_linkOpener(url);
+        else QDesktopServices::openUrl(url);
+    }
 }
 
 void SlideShow::mousePressEvent(QMouseEvent *e)
