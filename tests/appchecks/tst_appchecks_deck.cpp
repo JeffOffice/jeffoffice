@@ -239,6 +239,10 @@ private Q_SLOTS:
                  const QString a = addShape(aw, QRectF(60, 300, 120, 80)), b = addShape(aw, QRectF(260, 340, 120, 80));
                  asDeck(aw)->editor()->select(QStringList{a, b});
              }, false},
+            {QStringLiteral("three shapes selected"), [addShape](AppWindow *aw, bool) {
+                 const QString a = addShape(aw, QRectF(60, 300, 120, 80)), b = addShape(aw, QRectF(260, 340, 120, 80)), c = addShape(aw, QRectF(700, 440, 120, 80));
+                 asDeck(aw)->editor()->select(QStringList{a, b, c});
+             }, false},
             {QStringLiteral("a group selected"), [addShape](AppWindow *aw, bool) {
                  const QString a = addShape(aw, QRectF(60, 300, 120, 80)), b = addShape(aw, QRectF(260, 340, 120, 80));
                  asDeck(aw)->editor()->select(QStringList{a, b});

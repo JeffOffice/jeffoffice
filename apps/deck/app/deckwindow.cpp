@@ -324,7 +324,7 @@ void DeckWindow::refreshUi()
     for (const char *id : {"edit.cut", "edit.copy", "edit.delete"}) act(id)->setEnabled(sel || (editing && ed->cursor().hasSelection()));
     for (const char *id : {"arr.front", "arr.forward", "arr.backward", "arr.back", "arr.rotR", "arr.rotL", "arr.flipH", "arr.flipV"}) act(id)->setEnabled(sel);
     for (const char *id : {"arr.alignLeft", "arr.alignCenter", "arr.alignRight", "arr.alignTop", "arr.alignMiddle", "arr.alignBottom"}) act(id)->setEnabled(sel);
-    for (const char *id : {"arr.distH", "arr.distV"}) act(id)->setEnabled(kind == "multi" || (sel && act("arr.alignToSlide")->isChecked()));
+    for (const char *id : {"arr.distH", "arr.distV"}) act(id)->setEnabled(ed->selection().size() > 2 || (sel && act("arr.alignToSlide")->isChecked()));
     act("arr.group")->setEnabled(kind == "multi");
     act("arr.ungroup")->setEnabled(kind == "group");
     for (const char *id : {"fmt.bold", "fmt.italic", "fmt.underline", "fmt.strike", "fmt.shadow", "fmt.grow", "fmt.shrink", "fmt.clear", "para.bullets", "para.numbers",
