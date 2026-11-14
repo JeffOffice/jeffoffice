@@ -16,6 +16,13 @@
 #include <QCloseEvent>
 #include <QCursor>
 #include <QDesktopServices>
+#include <QDir>
+#include <QMessageBox>
+#include <QPushButton>
+#include <QToolTip>
+#include "app/plaintext.h"
+#include "core/linkareas.h"
+#include "office/hyperlink.h"
 #include <QGuiApplication>
 #include <QKeyEvent>
 #include <QMenu>
@@ -1137,7 +1144,7 @@ QPointF SlideShow::pageAt(const QPointF &pos) const
     return at.width() > 0 ? (pos - at.topLeft()) * (m_doc->pageSize().width() / at.width()) : QPointF();
 }
 
-// The address of the first object with a link under `pos`, topmost first.
+// The link of the topmost object or line of text with one under `pos`.
 QString SlideShow::linkAt(const QPointF &pos) const
 {
     if (m_atEnd || m_animating || m_blank.isValid() || m_slide < 0 || m_slide >= m_doc->pages.size()) return QString();
@@ -1147,18 +1154,58 @@ QString SlideShow::linkAt(const QPointF &pos) const
     // A shape the animations have not shown yet, or have hidden, has no link to click.
     const Play &play = playOf(m_slide);
     const deck::States states = play.timeline.isEmpty() ? deck::States() : deck::statesAt(play.timeline, play.geometry, m_playing >= 0 ? m_playing : m_done, m_playing >= 0 ? m_stepMs : -1);
-    const auto find = [&](const auto &self, const ItemList &items) -> QString {
-        for (auto it = items.rbegin(); it != items.rend(); ++it) {
-            const Item &item = **it;
-            if (!item.bounds().contains(page)) continue;
-            if (const auto state = states.constFind(deck::Target{item.sourceId, -1, -1}); item.sourceId > 0 && state != states.constEnd() && (!state->visible || state->opacity <= 0)) continue;
-            if (item.type() == ItemType::Group)
-                if (const QString inside = self(self, static_cast<const GroupItem &>(item).children); !inside.isEmpty()) return inside;
-            if (!item.hyperlink.isEmpty()) return item.hyperlink;
-        }
-        return QString();
-    };
-    return find(find, m_doc->pages[m_slide]->items);
+    const QVector<deck::LinkArea> areas = deck::linkAreas(*m_doc, *m_cache, m_slide);
+    for (auto it = areas.crbegin(); it != areas.crend(); ++it) {
+        if (!it->rect.contains(page)) continue;
+        const Item &item = *it->item;
+        if (const auto state = states.constFind(deck::Target{item.sourceId, -1, -1}); item.sourceId > 0 && state != states.constEnd() && (!state->visible || state->opacity <= 0)) continue;
+        return it->link;
+    }
+    return QString();
+}
+
+void SlideShow::setLinkPrompt(std::function<bool(const QString &address, bool remote)> ask) { m_linkPrompt = std::move(ask); }
+
+// What a click on a link does: a jump moves the show, the end ends it, and a web address, mail address, or file is opened only when the person says yes.
+// A file on another computer is asked about in its own words and never looked for first.
+void SlideShow::followLink(const QString &link)
+{
+    const office::LinkTarget t = office::parseLink(link);
+    switch (t.kind) {
+    case office::LinkKind::Next: next(); return;
+    case office::LinkKind::Previous: previous(); return;
+    case office::LinkKind::First: goToPosition(0); return;
+    case office::LinkKind::Last: goToPosition(count() - 1); return;
+    case office::LinkKind::Slide: goTo(t.slide - 1); return;
+    case office::LinkKind::EndShow: close(); return;
+    case office::LinkKind::None: return;
+    default: break;
+    }
+    const bool remote = office::isRemoteFile(t.address);
+    QUrl url;
+    if (t.kind == office::LinkKind::File) {
+        if (remote) url = QUrl(t.address.startsWith(QLatin1String("file:"), Qt::CaseInsensitive) ? t.address : QUrl::fromLocalFile(t.address).toString());
+        else if (t.address.startsWith(QLatin1String("file:"), Qt::CaseInsensitive)) url = QUrl(t.address);
+        else if (QDir::isAbsolutePath(t.address)) url = QUrl::fromLocalFile(t.address);
+        if (url.isEmpty()) return;
+    } else {
+        url = QUrl::fromUserInput(t.address);
+        if (!url.isValid()) return;
+    }
+    const QString shown = t.address;
+    bool yes = false;
+    if (m_linkPrompt) yes = m_linkPrompt(shown, remote);
+    else {
+        QMessageBox box(QMessageBox::Question, tr("Open Link"), remote ? tr("This link goes to a file on another computer. Open it?") : tr("Open this link?"), QMessageBox::NoButton, this);
+        box.setTextFormat(Qt::PlainText);
+        box.setInformativeText(shown);
+        box.addButton(tr("Open"), QMessageBox::AcceptRole);
+        QPushButton *no = box.addButton(QMessageBox::Cancel);
+        box.setDefaultButton(no);
+        box.exec();
+        yes = box.clickedButton() != no && box.result() != QMessageBox::Cancel;
+    }
+    if (yes) QDesktopServices::openUrl(url);
 }
 
 void SlideShow::mousePressEvent(QMouseEvent *e)
@@ -1178,10 +1225,7 @@ void SlideShow::mousePressEvent(QMouseEvent *e)
         }
         if (!m_animating && !m_atEnd && !m_blank.isValid() && m_media->mousePress(e->position())) return;
         if (const QString link = linkAt(e->position()); !link.isEmpty()) {
-            // A page, a mail address; not a file or a program a slide names.
-            const QUrl url = QUrl::fromUserInput(link);
-            if (url.isValid() && (url.scheme() == QLatin1String("http") || url.scheme() == QLatin1String("https") || url.scheme() == QLatin1String("mailto")))
-                QDesktopServices::openUrl(url);
+            followLink(link);
             return;
         }
         if (isKiosk()) return;
@@ -1214,10 +1258,17 @@ void SlideShow::mouseMoveEvent(QMouseEvent *e)
         setCursor(Qt::ArrowCursor);
         return;
     }
-    const bool link = !linkAt(e->position()).isEmpty();
-    if (link) setCursor(Qt::PointingHandCursor);
-    else if (showsCursor()) unsetCursor();
-    else setCursor(Qt::BlankCursor);
+    const QString link = linkAt(e->position());
+    if (!link.isEmpty()) {
+        setCursor(Qt::PointingHandCursor);
+        // A web or file link shows where it goes.
+        if (const QString address = office::linkAddress(link); !address.isEmpty()) QToolTip::showText(e->globalPosition().toPoint(), jp::plainToolTip(address), this);
+        else QToolTip::hideText();
+    } else {
+        QToolTip::hideText();
+        if (showsCursor()) unsetCursor();
+        else setCursor(Qt::BlankCursor);
+    }
 }
 
 void SlideShow::mouseReleaseEvent(QMouseEvent *e)

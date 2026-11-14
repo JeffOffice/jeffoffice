@@ -4,6 +4,8 @@
 #include "core/appinfo.h"
 #include "core/deck.h"
 #include "core/fonts.h"
+#include "core/linkareas.h"
+#include "office/hyperlink.h"
 #include "core/reuse.h"
 #include "io/pdfbookmarks.h"
 #include "render/pagetags.h"
@@ -528,6 +530,42 @@ void paintOutputPage(QPainter *p, const Document &d, LayoutCache *cache, const O
     else paintPlain(p, d, cache, o, page, paper, textOutputOf(p), tags);
 }
 
+// The clickable boxes of a PDF of printed slides, one to a page: a web or mail address goes to the web, a jump to the next, previous, first, last, or a numbered slide goes to
+// that slide's page. A file's link is never written (what is on another computer must not be touched, and a path means nothing on another's), nor are the end of the show and
+// the rest that only a show does.
+static QVector<PdfLink> slideLinks(const Document &d, const OutputOptions &o, const QVector<int> &slides)
+{
+    QVector<PdfLink> out;
+    if (o.layout != PrintLayout::Slides) return out;
+    const QSizeF page = outputPageSize(d, o);
+    LayoutCache cache;
+    for (int k = 0; k < slides.size(); ++k) {
+        const QRectF target = fitInside(d.pageSize(), QRectF(QPointF(0, 0), page));
+        const double scale = target.width() / d.pageSize().width();
+        for (const LinkArea &area : linkAreas(d, cache, slides[k])) {
+            const office::LinkTarget t = office::parseLink(area.link);
+            PdfLink link;
+            link.page = k;
+            switch (t.kind) {
+            case office::LinkKind::Web:
+            case office::LinkKind::Mail: link.uri = t.address; break;
+            case office::LinkKind::Next: link.toPage = k + 1 < slides.size() ? k + 1 : -1; break;
+            case office::LinkKind::Previous: link.toPage = k - 1; break;
+            case office::LinkKind::First: link.toPage = 0; break;
+            case office::LinkKind::Last: link.toPage = int(slides.size()) - 1; break;
+            case office::LinkKind::Slide: link.toPage = int(slides.indexOf(t.slide - 1)); break;
+            default: continue;
+            }
+            if (link.uri.isEmpty() && link.toPage < 0) continue;
+            const QRectF r = area.rect.intersected(QRectF(QPointF(0, 0), d.pageSize()));
+            if (r.isEmpty()) continue;
+            link.rect = QRectF(QPointF(target.left() + r.left() * scale, page.height() - (target.top() + r.bottom() * scale)), QSizeF(r.width() * scale, r.height() * scale));
+            out.push_back(link);
+        }
+    }
+    return out;
+}
+
 bool exportPdf(const Document &d, const QString &path, const OutputOptions &o, QString *error, const PdfProtection *protect, QString *notTagged)
 {
     auto fail = [&](const QString &why) {
@@ -545,7 +583,8 @@ bool exportPdf(const Document &d, const QString &path, const OutputOptions &o, Q
     const QString title = d.props.title.isEmpty() ? QFileInfo(path).completeBaseName() : d.props.title;
     // The PDF is made in memory when it has a password (the plain PDF is never on the disk) or the bookmarks and the tags are to be added to the finished file; otherwise it goes
     // straight to the file.
-    const bool inMemory = encrypted || tagging || bookmarking;
+    const QVector<PdfLink> links = slideLinks(d, o, outputSlides(d, o));
+    const bool inMemory = encrypted || tagging || bookmarking || !links.isEmpty();
     QBuffer memory;
     if (inMemory) memory.open(QIODevice::WriteOnly);
     auto make = [&](PdfTagger *tagger) {
@@ -598,6 +637,7 @@ bool exportPdf(const Document &d, const QString &path, const OutputOptions &o, Q
             if (!made.tagged && notTagged) *notTagged = made.why;
         }
     }
+    if (!links.isEmpty()) bytes = addPdfLinks(bytes, links);
     if (bookmarking) {
         // One for each slide: its title, or its number, going to the page it is on.
         const QVector<int> slides = outputSlides(d, o);

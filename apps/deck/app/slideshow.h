@@ -143,6 +143,11 @@ public:
     // twice); nothing for a slide the show does not play. goToPosition() goes to a place in the order (0 is the first).
     void goTo(int slide);
     void goToPosition(int pos);
+    // What follows a click on a link to a web address, a mail address, or a file: asked first, with the address, and `remote` when the file is on another computer. The
+    // default asks in a box; a test (or the person's own policy) can answer for it.
+    void setLinkPrompt(std::function<bool(const QString &address, bool remote)> ask);
+    // What a click on `link` does (see office/hyperlink.h).
+    void followLink(const QString &link);
     // Ends the transition that is playing, showing its slide.
     void finishTransition();
     // Black or white screen; the same color again brings the slide back.
@@ -286,6 +291,7 @@ private:
     void openPresenterView(QScreen *on);
     // The link under a point of the window, if the slide on it has one.
     QString linkAt(const QPointF &pos) const;
+    std::function<bool(const QString &, bool)> m_linkPrompt;
     QRectF slideRect() const;
     QPointF pageAt(const QPointF &pos) const;
     // The ink and laser on an image of a slide (a transition plays between these).
