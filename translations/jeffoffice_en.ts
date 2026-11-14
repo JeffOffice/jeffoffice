@@ -143,7 +143,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/crunch/app/crunchwindow_insertobjects.cpp" line="+470"/>
+        <location filename="../apps/crunch/app/crunchwindow_insertobjects.cpp" line="+473"/>
         <source>%n icon(s) inserted</source>
         <translation>
             <numerusform>%n icon inserted</numerusform>
@@ -242,7 +242,7 @@
 <context>
     <name>jp::FindDialog</name>
     <message numerus="yes">
-        <location filename="../apps/crunch/app/finddialog.cpp" line="+211"/>
+        <location filename="../apps/crunch/app/finddialog.cpp" line="+201"/>
         <source>%n cell(s) match.</source>
         <translation>
             <numerusform>%n cell matches.</numerusform>
@@ -253,7 +253,7 @@
 <context>
     <name>jp::FindPane</name>
     <message numerus="yes">
-        <location filename="../apps/pub/app/taskpane.cpp" line="+326"/>
+        <location filename="../apps/pub/app/taskpane.cpp" line="+332"/>
         <source>JeffPub made %n replacement(s).</source>
         <translation>
             <numerusform>JeffPub made %n replacement.</numerusform>
@@ -316,7 +316,7 @@
 <context>
     <name>jp::WriteWindow</name>
     <message numerus="yes">
-        <location filename="../apps/write/app/writewindow.cpp" line="+720"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="+724"/>
         <source>%1 of %n word(s)</source>
         <translation>
             <numerusform>%1 of %n word</numerusform>
@@ -324,7 +324,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/write/app/writewindow_home.cpp" line="+198"/>
+        <location filename="../apps/write/app/writewindow_home.cpp" line="+205"/>
         <source>There are too many paragraphs to sort at once. Select %n paragraph(s) or fewer.</source>
         <translation>
             <numerusform>There are too many paragraphs to sort at once. Select %n paragraph or fewer.</numerusform>
@@ -359,7 +359,7 @@
 <context>
     <name>jp::crunch::EditSession</name>
     <message numerus="yes">
-        <location filename="../apps/crunch/core/editsession.cpp" line="+1074"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="+1089"/>
         <source>Clearing %n cell(s)</source>
         <translation>
             <numerusform>Clearing %n cell</numerusform>
@@ -378,7 +378,7 @@
 <context>
     <name>jp::crunch::SheetObjects</name>
     <message numerus="yes">
-        <location filename="../apps/crunch/core/sheetobjects.cpp" line="+788"/>
+        <location filename="../apps/crunch/core/sheetobjects.cpp" line="+987"/>
         <source>The file stores this object together with %n other(s), so they can&apos;t be deleted one at a time.</source>
         <translation>
             <numerusform>The file stores this object together with %n other object, so they can&apos;t be deleted one at a time.</numerusform>
@@ -386,7 +386,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+1379"/>
+        <location line="+1390"/>
         <source>The file stores this chart together with %n other(s), so it can&apos;t be changed here.</source>
         <translation>
             <numerusform>The file stores this chart together with %n other chart, so it can&apos;t be changed here.</numerusform>
@@ -394,7 +394,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location line="-233"/>
+        <location line="-259"/>
         <source>The file stores this object together with %n other(s), so it can&apos;t be put in another place in the order they are drawn.</source>
         <translation>
             <numerusform>The file stores this object together with %n other object, so it can&apos;t be put in another place in the order they are drawn.</numerusform>
@@ -486,7 +486,7 @@
 <context>
     <name>jp::write::HomeDialogs</name>
     <message numerus="yes">
-        <location filename="../apps/write/app/homedialogs.cpp" line="+528"/>
+        <location filename="../apps/write/app/homedialogs.cpp" line="+526"/>
         <source>%n problem(s) found. Click one to go to it.</source>
         <translation>
             <numerusform>%n problem found. Click it to go to it.</numerusform>
