@@ -119,10 +119,10 @@ QPushButton:focus { border-color: %5; }
 QPushButton:disabled { color: %9; }
 QPushButton[primary="true"] { background: %5; border: 1px solid %5; color: white; font-weight: 600; }
 QPushButton[primary="true"]:hover { background: %7; border-color: %7; }
-QScrollBar:vertical { background: transparent; width: 10px; margin: 2px; }
-QScrollBar:horizontal { background: transparent; height: 10px; margin: 2px; }
-QScrollBar::handle:vertical { background: %10; border-radius: 3px; min-height: 30px; margin: 0 2px; }
-QScrollBar::handle:horizontal { background: %10; border-radius: 3px; min-width: 30px; margin: 2px 0; }
+QScrollBar:vertical { background: transparent; width: 14px; margin: 0; }
+QScrollBar:horizontal { background: transparent; height: 14px; margin: 0; }
+QScrollBar::handle:vertical { background: %10; border-radius: 4px; min-height: 30px; margin: 0 3px; }
+QScrollBar::handle:horizontal { background: %10; border-radius: 4px; min-width: 30px; margin: 3px 0; }
 QScrollBar::handle:hover { background: %11; }
 QScrollBar::add-line, QScrollBar::sub-line { width: 0; height: 0; }
 QScrollBar::add-page, QScrollBar::sub-page { background: transparent; }
