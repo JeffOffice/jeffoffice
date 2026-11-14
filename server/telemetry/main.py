@@ -1008,7 +1008,7 @@ td.spark svg{width:160px;height:30px}
 @media (max-width:32.5rem){td.spark,th.spark{padding-left:.2rem;padding-right:.2rem}td.spark svg{width:64px;height:24px}td.spark circle{display:none}td,th{padding-left:.3rem;padding-right:.3rem}}
 svg{display:block;max-width:100%}
 .mapbox{position:relative;aspect-ratio:2/1;width:100%;margin-bottom:.4rem}.mapbox svg{position:absolute;inset:0;width:100%;height:100%}
-.mapbox p{position:absolute;inset:0;margin:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:1rem}.sphere{fill:none}.c{fill:var(--nodata);stroke:var(--line);stroke-width:.4}
+.mapbox p{position:absolute;inset:0;margin:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:1rem}.mapbox p[hidden]{display:none}.sphere{fill:none}.c{fill:var(--nodata);stroke:var(--line);stroke-width:.4}
 ul.rows{list-style:none;margin:0;padding:0}
 ul.rows li{display:grid;grid-template-columns:minmax(2.5rem,40%) minmax(0,1fr) auto;gap:.5rem;align-items:center;padding:.18rem 0}
 ul.rows.wide li{grid-template-columns:minmax(2.5rem,62%) minmax(0,1fr) auto}

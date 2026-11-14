@@ -822,6 +822,7 @@ class GeoStatus(unittest.TestCase):
         self.assertIn('<div class="mapbox"><svg id="map" viewBox="0 0 960 480"', page)
         self.assertIn("aspect-ratio:2/1", page)
         self.assertIn("Loading the map", page)
+        self.assertIn(".mapbox p[hidden]{display:none}", page)   # display:flex would otherwise beat the hidden attribute
         self.assertNotIn('id="map" style="display:none"', page)
 
     def test_the_list_is_fetched_again_after_a_week(self):
