@@ -4,6 +4,7 @@
 
 #include <QColor>
 #include <QString>
+#include <QVector>
 #include <functional>
 
 class QWidget;
@@ -26,9 +27,13 @@ struct ListLevelLook {
 using SymbolPicker = std::function<bool(QWidget *parent, QString *character, QString *font)>;
 
 // Define New Bullet: a symbol (from `pick`, or typed), its font, size, and color. False when canceled; `look` is then as it was.
-bool defineBulletDialog(QWidget *parent, ListLevelLook *look, const SymbolPicker &pick);
+bool defineBulletDialog(QWidget *parent, ListLevelLook *look, const SymbolPicker &pick, bool plain = false);
 // Define New Number Format: the style (1, 2, 3 / A, B, C / a, b, c / I, II, III / i, ii, iii), the text round the number (with %1 for the number), its alignment, and where it starts.
-bool defineNumberFormatDialog(QWidget *parent, ListLevelLook *look);
+// With `plain` (JeffPub and JeffDeck, whose files hold only a bullet character with its font, size, and color, and the five counting styles with three punctuation forms) there is no alignment, and the
+// number's text is chosen from the forms ("1.", "1)", "(1)", "1") rather than typed; only the first five styles are offered.
+bool defineNumberFormatDialog(QWidget *parent, ListLevelLook *look, bool plain = false);
+// Define New Multilevel List for the apps whose files hold a bullet or a counting style for each of nine levels: per level, a bullet (its character) or a number (style, punctuation, start at).
+bool defineMultilevelPlainDialog(QWidget *parent, QVector<ListLevelLook> *levels, const SymbolPicker &pick);
 // Set Numbering Value: start a new list or continue the previous one (`canContinue`: the item has a list of its kind above it), with a value to give the item. False when canceled.
 struct NumberingValueChoice {
     bool continuePrevious = false;

@@ -12,6 +12,7 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
+#include <QListWidget>
 #include <QPushButton>
 #include <QRadioButton>
 #include <QSpinBox>
@@ -51,7 +52,7 @@ const NumberStyleName *numberStyleNames(int *count)
     return names;
 }
 
-bool defineBulletDialog(QWidget *parent, ListLevelLook *look, const SymbolPicker &pick)
+bool defineBulletDialog(QWidget *parent, ListLevelLook *look, const SymbolPicker &pick, bool plain)
 {
     QDialog d(parent);
     d.setObjectName(QStringLiteral("defineBulletDialog"));
@@ -104,7 +105,7 @@ bool defineBulletDialog(QWidget *parent, ListLevelLook *look, const SymbolPicker
     });
     form->addRow(tr("Color:"), colorButton);
     auto *align = alignmentBox(look->align, &d);
-    form->addRow(tr("Alignment:"), align);
+    if (!plain) form->addRow(tr("Alignment:"), align);
     auto *column = new QVBoxLayout(&d);
     column->addLayout(form);
     column->addWidget(buttons(&d));
@@ -118,7 +119,7 @@ bool defineBulletDialog(QWidget *parent, ListLevelLook *look, const SymbolPicker
     return true;
 }
 
-bool defineNumberFormatDialog(QWidget *parent, ListLevelLook *look)
+bool defineNumberFormatDialog(QWidget *parent, ListLevelLook *look, bool plain)
 {
     QDialog d(parent);
     d.setObjectName(QStringLiteral("defineNumberFormatDialog"));
@@ -128,14 +129,19 @@ bool defineNumberFormatDialog(QWidget *parent, ListLevelLook *look)
     style->setObjectName(QStringLiteral("numberStyle"));
     int count = 0;
     const NumberStyleName *names = numberStyleNames(&count);
-    for (int i = 0; i < count; ++i) style->addItem(QString::fromLatin1(names[i].example), QString::fromLatin1(names[i].id));
+    for (int i = 0; i < (plain ? std::min(count, 5) : count); ++i) style->addItem(QString::fromLatin1(names[i].example), QString::fromLatin1(names[i].id));
     style->setCurrentIndex(std::max(0, style->findData(look->numFmt)));
     form->addRow(tr("Number style:"), style);
     auto *text = new QLineEdit(look->bullet || look->text.isEmpty() ? QStringLiteral("%1.") : look->text, &d);
     text->setObjectName(QStringLiteral("numberFormat"));
-    form->addRow(tr("Number format (%1 is the number):"), text);
+    auto *punctuation = new QComboBox(&d);
+    punctuation->setObjectName(QStringLiteral("numberPunctuation"));
+    for (const char *f : {"%1.", "%1)", "(%1)", "%1"}) punctuation->addItem(QString::fromLatin1(f).replace(QStringLiteral("%1"), QStringLiteral("1")), QString::fromLatin1(f));
+    punctuation->setCurrentIndex(std::max(0, punctuation->findData(look->text)));
+    if (plain) form->addRow(tr("Punctuation:"), punctuation);
+    else form->addRow(tr("Number format (%1 is the number):"), text);
     auto *align = alignmentBox(look->align, &d);
-    form->addRow(tr("Alignment:"), align);
+    if (!plain) form->addRow(tr("Alignment:"), align);
     auto *start = new QSpinBox(&d);
     start->setObjectName(QStringLiteral("numberStart"));
     start->setRange(0, 9999);
@@ -144,9 +150,11 @@ bool defineNumberFormatDialog(QWidget *parent, ListLevelLook *look)
     auto *preview = new QLabel(&d);
     auto update = [&] {
         QString shown = text->text();
+        if (plain) shown = punctuation->currentData().toString();
         shown.replace(QStringLiteral("%1"), style->currentText().section(QLatin1String(", "), 0, 0));
         preview->setText(shown);
     };
+    QObject::connect(punctuation, &QComboBox::currentIndexChanged, &d, update);
     QObject::connect(text, &QLineEdit::textChanged, &d, update);
     QObject::connect(style, &QComboBox::currentIndexChanged, &d, update);
     update();
@@ -155,13 +163,108 @@ bool defineNumberFormatDialog(QWidget *parent, ListLevelLook *look)
     column->addLayout(form);
     column->addWidget(buttons(&d));
     if (d.exec() != QDialog::Accepted) return false;
-    QString format = text->text();
+    QString format = plain ? punctuation->currentData().toString() : text->text();
     if (!format.contains(QLatin1String("%1"))) format += QStringLiteral("%1");   // (a format with no number would number nothing)
     look->bullet = false;
     look->numFmt = style->currentData().toString();
     look->text = format;
     look->align = align->currentData().toString();
     look->start = start->value();
+    return true;
+}
+
+bool defineMultilevelPlainDialog(QWidget *parent, QVector<ListLevelLook> *levels, const SymbolPicker &pick)
+{
+    QVector<ListLevelLook> work = *levels;
+    while (work.size() < 9) work.push_back(work.isEmpty() ? ListLevelLook() : work.last());
+    QDialog d(parent);
+    d.setObjectName(QStringLiteral("defineMultilevelDialog"));
+    d.setWindowTitle(tr("Define New Multilevel List"));
+    auto *list = new QListWidget(&d);
+    list->setObjectName(QStringLiteral("levels"));
+    for (int i = 1; i <= 9; ++i) list->addItem(tr("Level %1").arg(i));
+    list->setMaximumWidth(110);
+    auto *form = new QFormLayout;
+    auto *kind = new QComboBox(&d);
+    kind->setObjectName(QStringLiteral("levelKind"));
+    kind->addItem(tr("Bullet"), true);
+    kind->addItem(tr("Number"), false);
+    form->addRow(tr("Level is a:"), kind);
+    auto *character = new QLineEdit(&d);
+    character->setObjectName(QStringLiteral("bulletCharacter"));
+    character->setMaxLength(2);
+    auto *row = new QHBoxLayout;
+    row->addWidget(character);
+    QString pickedFont;
+    if (pick) {
+        auto *symbol = new QPushButton(tr("Symbol…"), &d);
+        QObject::connect(symbol, &QPushButton::clicked, &d, [&] {
+            QString ch, f;
+            if (!pick(&d, &ch, &f) || ch.isEmpty()) return;
+            character->setText(ch.left(2));
+            pickedFont = f;
+        });
+        row->addWidget(symbol);
+    }
+    form->addRow(tr("Bullet character:"), row);
+    auto *style = new QComboBox(&d);
+    style->setObjectName(QStringLiteral("numberStyle"));
+    int count = 0;
+    const NumberStyleName *names = numberStyleNames(&count);
+    for (int i = 0; i < std::min(count, 5); ++i) style->addItem(QString::fromLatin1(names[i].example), QString::fromLatin1(names[i].id));
+    form->addRow(tr("Number style:"), style);
+    auto *punctuation = new QComboBox(&d);
+    punctuation->setObjectName(QStringLiteral("numberPunctuation"));
+    for (const char *f : {"%1.", "%1)", "(%1)", "%1"}) punctuation->addItem(QString::fromLatin1(f).replace(QStringLiteral("%1"), QStringLiteral("1")), QString::fromLatin1(f));
+    form->addRow(tr("Punctuation:"), punctuation);
+    auto *start = new QSpinBox(&d);
+    start->setObjectName(QStringLiteral("numberStart"));
+    start->setRange(1, 9999);
+    form->addRow(tr("Start at:"), start);
+    int current = 0;
+    bool loading = false;
+    auto store = [&] {
+        if (loading) return;
+        ListLevelLook &l = work[current];
+        l.bullet = kind->currentData().toBool();
+        if (l.bullet) {
+            if (!character->text().isEmpty()) l.text = character->text();
+            if (!pickedFont.isEmpty()) l.font = pickedFont;
+        } else {
+            l.numFmt = style->currentData().toString();
+            l.text = punctuation->currentData().toString();
+            l.start = start->value();
+        }
+    };
+    auto load = [&](int level) {
+        loading = true;
+        current = level;
+        const ListLevelLook &l = work[level];
+        kind->setCurrentIndex(l.bullet ? 0 : 1);
+        character->setText(l.bullet ? l.text : QStringLiteral("•"));
+        style->setCurrentIndex(std::max(0, style->findData(l.numFmt)));
+        punctuation->setCurrentIndex(std::max(0, punctuation->findData(l.bullet ? QStringLiteral("%1.") : l.text)));
+        start->setValue(std::max(1, l.start));
+        loading = false;
+    };
+    QObject::connect(list, &QListWidget::currentRowChanged, &d, [&](int row) {
+        if (row >= 0) load(row);
+    });
+    QObject::connect(kind, &QComboBox::currentIndexChanged, &d, [&] { store(); });
+    QObject::connect(character, &QLineEdit::textChanged, &d, [&] { store(); });
+    QObject::connect(style, &QComboBox::currentIndexChanged, &d, [&] { store(); });
+    QObject::connect(punctuation, &QComboBox::currentIndexChanged, &d, [&] { store(); });
+    QObject::connect(start, &QSpinBox::valueChanged, &d, [&] { store(); });
+    auto *outer = new QHBoxLayout;
+    outer->addWidget(list);
+    outer->addLayout(form, 1);
+    auto *column = new QVBoxLayout(&d);
+    column->addLayout(outer);
+    column->addWidget(buttons(&d));
+    load(0);
+    list->setCurrentRow(0);
+    if (d.exec() != QDialog::Accepted) return false;
+    *levels = work;
     return true;
 }
 

@@ -18,6 +18,7 @@
 #include "app/ribbon.h"
 #include "app/tableedit.h"
 #include "app/ribbonbuilder.h"
+#include "app/listmenus.h"
 #include "app/settings.h"
 #include "app/equationdialog.h"
 #include "app/equationedit.h"
@@ -799,6 +800,9 @@ void MainWindow::ribbonGalleryParts(RibbonParts &parts)
 // open, or that hold more than commands.
 void MainWindow::ribbonMenuParts(RibbonParts &parts)
 {
+    // (A Publisher file keeps a list's bullet or one of five counting styles with three punctuation forms, but no levels and no start: there is no Multilevel List button.)
+    parts.menus[QStringLiteral("bulletsMenu")] = [this](QWidget *owner) { return bulletsMenu(owner, m_ed, act("para.bulletsDialog")); };
+    parts.menus[QStringLiteral("numberingMenu")] = [this](QWidget *owner) { return numberingMenu(owner, m_ed, act("para.bulletsDialog")); };
     parts.menus[QStringLiteral("businessInfoMenu")] = [this](QWidget *owner) {
         auto *m = new QMenu(owner);
         for (const QString &k : BusinessInfo::keys()) m->addAction(act("biz." + k));

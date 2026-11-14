@@ -322,9 +322,18 @@ public:
     void setLineSpacing(int type, double value);
     void setParagraphSpacing(double before, double after);
     void changeIndent(int dir);
+    // Where an app has its own way to change the level of a list item (JeffDeck's placeholders take the layout's bullets), Tab and Shift+Tab at the start of an item call this with 1 or -1.
+    std::function<void(int)> changeListLevelHook;
     // kind 0 none, 1 bullets, 2 numbers; indent: from the bullet to the text
     // (Indent list by), or below 0 for at least the usual 18 points.
     void setList(int kind, int format = 0, const QString &bullet = QString(), int start = 1, double indent = -1);
+    // A list of the look `look` says (a bullet with its character, font, size, and color; or a numbering style with its punctuation and start) on the selected paragraphs; each keeps its level
+    // (a paragraph in no list is on the first). A list just above of the same look is gone on with. One step of Undo.
+    void setListFormat(const QTextListFormat &look, double indent = -1);
+    // The same with a look for each level: `levels[i]` is the look of level i (the last serves the deeper ones), so a paragraph takes the look of its own level.
+    void setMultilevelList(const QVector<QTextListFormat> &levels, double indent = -1);
+    // Puts the list items among the selected paragraphs on level 0 to 8 (one step of Undo).
+    void setListLevel(int level);
     void applyStyle(const QString &name);
     void setDropCap(int lines, int chars = 1, const QString &font = QString());
     void insertText(const QString &t);

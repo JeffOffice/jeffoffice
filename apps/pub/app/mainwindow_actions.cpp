@@ -206,18 +206,6 @@ void MainWindow::createActions()
     mk("para.numbers", tr("Numbering"), "list-ordered", QKeySequence(), [ed] {
         ed->setList(ed->isEditingText() && ed->cursor().block().textList() && !isBulletList(ed->cursor().block().textList()->format().style()) ? 0 : 2, 1);
     }, true);
-    for (const auto &[id, ch] : {std::pair{"bullet.disc", "•"}, {"bullet.circle", "◦"}, {"bullet.square", "▪"}, {"bullet.diamond", "❖"},
-                                 {"bullet.arrow", "➢"}, {"bullet.check", "✔"}, {"bullet.star", "★"}, {"bullet.dash", "–"}}) {
-        const QString c = QString::fromUtf8(ch);
-        mk(id, c, "", QKeySequence(), [ed, c] { ed->setList(1, 0, c); });
-    }
-    const char *numNames[] = {"1. 2. 3.", "a. b. c.", "A. B. C.", "i. ii. iii.", "I. II. III.", "1) 2) 3)", "(1) (2) (3)"};
-    const int numFmt[] = {1, 2, 3, 4, 5, 6, 7};
-    for (int i = 0; i < 7; ++i) {
-        const int f = numFmt[i];
-        mk(QStringLiteral("number.%1").arg(i), QString::fromLatin1(numNames[i]), "", QKeySequence(), [ed, f] { ed->setList(2, f); });
-    }
-    mk("para.listNone", tr("None"), "", QKeySequence(), [ed] { ed->setList(0); });
     mk("para.bulletsDialog", tr("Bullets and Numbering…"), "list-plus", QKeySequence(), [this] { bulletsDialog(this, m_ed, false); });
     // No keys: Ctrl+M is Master Page, and the other program gives these none.
     mk("para.indentDec", tr("Decrease Indent"), "indent-decrease", QKeySequence(), [ed] { ed->changeIndent(-1); });

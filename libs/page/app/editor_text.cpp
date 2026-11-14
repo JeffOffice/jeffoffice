@@ -444,6 +444,98 @@ void Editor::setParagraphSpacing(double before, double after)
     mergeBlockFormat(f, tr("Paragraph Spacing"));
 }
 
+namespace {
+
+// Whether two list formats look the same at a level (the bullet or the numbering, not where it starts).
+bool sameListLook(const QTextListFormat &a, const QTextListFormat &b)
+{
+    return a.style() == b.style() && a.numberPrefix() == b.numberPrefix() && a.numberSuffix() == b.numberSuffix() && a.stringProperty(tp::BulletChar) == b.stringProperty(tp::BulletChar) &&
+           a.stringProperty(tp::BulletFont) == b.stringProperty(tp::BulletFont) && a.intProperty(tp::ListLevel) == b.intProperty(tp::ListLevel);
+}
+
+// Puts the paragraph in the list of this look at this level: the list just above at that level when it looks the same (so the numbers go on), else a new one.
+void putInList(QTextBlock b, QTextListFormat lf, int level)
+{
+    lf.setIndent(0);
+    lf.setProperty(tp::ListLevel, level);
+    QTextList *join = nullptr;
+    for (QTextBlock p = b.previous(); p.isValid(); p = p.previous()) {
+        QTextList *pl = p.textList();
+        if (!pl) break;
+        const int pv = pl->format().intProperty(tp::ListLevel);
+        if (pv == level && sameListLook(pl->format(), lf)) {
+            join = pl;
+            break;
+        }
+        if (pv < level || pv == level) break;   // a shallower item, or another look at this level: a new list
+    }
+    if (QTextList *old = b.textList()) old->remove(b);
+    if (join) join->add(b);
+    else QTextCursor(b).createList(lf);
+}
+
+} // namespace
+
+void Editor::setListFormat(const QTextListFormat &look, double indent)
+{
+    setMultilevelList({look}, indent);
+}
+
+void Editor::setMultilevelList(const QVector<QTextListFormat> &levels, double indent)
+{
+    if (levels.isEmpty()) return;
+    auto targets = formatTargets();
+    if (targets.isEmpty()) return;
+    beginChange(levels.size() > 1 ? tr("Multilevel List") : levels.first().style() == QTextListFormat::ListDisc || levels.first().hasProperty(tp::BulletChar) ? tr("Bullets") : tr("Numbering"));
+    for (QTextCursor c : targets) {
+        QTextDocument *d = c.document();
+        QTextBlock first = d->findBlock(c.selectionStart()), last = d->findBlock(c.selectionEnd());
+        for (QTextBlock b = first; b.isValid(); b = b.next()) {
+            const QTextList *was = b.textList();
+            const int level = was ? std::clamp(was->format().intProperty(tp::ListLevel), 0, 8) : 0;
+            if (!was) {
+                QTextBlockFormat bf = b.blockFormat();
+                bf.setLeftMargin(indent >= 0 ? indent : std::max(bf.leftMargin(), 18.0));
+                bf.setTextIndent(indent >= 0 ? -indent : -18);
+                bf.setIndent(0);
+                QTextCursor(b).setBlockFormat(bf);
+            }
+            putInList(b, levels.at(std::min(level, int(levels.size()) - 1)), level);
+            if (b == last) break;
+        }
+    }
+    endChange();
+    Q_EMIT textCursorChanged();
+}
+
+void Editor::setListLevel(int level)
+{
+    auto targets = formatTargets();
+    if (targets.isEmpty()) return;
+    beginChange(tr("Change List Level"));
+    for (QTextCursor c : targets) {
+        QTextDocument *d = c.document();
+        QTextBlock first = d->findBlock(c.selectionStart()), last = d->findBlock(c.selectionEnd());
+        for (QTextBlock b = first; b.isValid(); b = b.next()) {
+            if (QTextList *l = b.textList()) {
+                const int was = l->format().intProperty(tp::ListLevel), to = std::clamp(level, 0, 8);
+                if (was != to) {
+                    QTextBlockFormat bf = b.blockFormat();
+                    bf.setLeftMargin(std::max(0.0, bf.leftMargin() + (to - was) * 18.0));
+                    QTextListFormat lf = l->format();
+                    lf.setProperty(tp::ListLevel, to);
+                    lf.setStart(1);
+                    QTextCursor(b).setBlockFormat(bf);
+                    putInList(b, lf, to);
+                }
+            }
+            if (b == last) break;
+        }
+    }
+    endChange();
+    Q_EMIT textCursorChanged();
+}
+
 void Editor::changeIndent(int dir)
 {
     auto targets = formatTargets();

@@ -1,5 +1,6 @@
 // JeffPub's tests of text layout: lines, tabs, bullets, and page-number fields.
 #include "pubhelpers.h"
+#include "app/listmenus.h"
 #include "../timing.h"
 #include <libmspub/jp_hooks.h>
 
@@ -2689,6 +2690,99 @@ private Q_SLOTS:
         QCOMPARE(lay.lineBriefs().first().pos, 1);
         QCOMPARE(lay.firstPosition(0), 1);
         QVERIFY2(lay.hitTest(0, QPointF(lines[0].rect.left() + 0.5, lines[0].rect.center().y())) >= 1, "a click at the start of the first line lands after the cap");
+    }
+
+    // The Bullets and Numbering menus' lists are one step of Undo each, and a Publisher file keeps what it can hold of them: the bullet or the counting style with its punctuation (but not where it
+    // starts, and no levels).
+    void listMenusMakeListsThatThePublisherFileKeeps()
+    {
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        auto box = std::static_pointer_cast<jp::TextItem>(ed->newTextBox(QRectF(72, 72, 400, 200), QStringLiteral("one\ntwo\nthree")));
+        ed->addItem(box);
+        ed->beginTextEdit(box->id, 0);
+        QTextCursor all = ed->cursor();
+        all.select(QTextCursor::Document);
+        ed->setCursor(all);
+        jp::ListLevelLook numbers;
+        numbers.bullet = false;
+        numbers.numFmt = QStringLiteral("lowerLetter");
+        numbers.text = QStringLiteral("(%1)");
+        numbers.start = 4;
+        ed->setListFormat(jp::listFormatOf(numbers));
+        QTextDocument *story = ed->editDoc();
+        for (int i = 0; i < 3; ++i) {
+            const QTextList *list = story->findBlockByNumber(i).textList();
+            QVERIFY(list);
+            QCOMPARE(list->format().style(), QTextListFormat::ListLowerAlpha);
+            QCOMPARE(list->format().numberPrefix(), QStringLiteral("("));
+            QCOMPARE(list->format().start(), 4);
+        }
+        const QString storyId = box->storyId;
+        auto storyNow = [&] { return ed->doc()->storyDoc(storyId); };
+        auto selectAll = [&] {
+            if (!ed->isEditingText()) ed->beginTextEdit(box->id, 0);
+            QTextCursor c = ed->cursor();
+            c.select(QTextCursor::Document);
+            ed->setCursor(c);
+        };
+        ed->undo();
+        QVERIFY(!storyNow()->firstBlock().textList());
+        ed->redo();
+        QVERIFY(storyNow()->firstBlock().textList());
+        // The level of an item (Tab at its start does the same): one step.
+        selectAll();
+        ed->setListLevel(2);
+        QCOMPARE(storyNow()->firstBlock().textList()->format().intProperty(jp::tp::ListLevel), 2);
+        ed->undo();
+        QCOMPARE(storyNow()->firstBlock().textList()->format().intProperty(jp::tp::ListLevel), 0);
+        if (ed->isEditingText()) ed->endTextEdit();
+        QTemporaryDir dir;
+        const QString path = dir.filePath(QStringLiteral("lists.pub"));
+        QString err;
+        QVERIFY2(jp::exportPublisher(*ed->doc(), path, &err), qPrintable(err));
+        auto back = jp::importPublisherFile(path, &err);
+        QVERIFY2(back, qPrintable(err));
+        const QTextDocument *after = nullptr;
+        for (const auto &it : back->pages[0]->items)
+            if (it->type() == jp::ItemType::Text)
+                if (const QTextDocument *s = back->storyDoc(static_cast<const jp::TextItem *>(it.get())->storyId); s && s->toPlainText().contains(QStringLiteral("one"))) after = s;
+        QVERIFY(after);
+        for (int i = 0; i < 3; ++i) {
+            const QTextList *list = after->findBlockByNumber(i).textList();
+            QVERIFY(list);
+            QCOMPARE(list->format().style(), QTextListFormat::ListLowerAlpha);
+            QCOMPARE(list->format().numberPrefix(), QStringLiteral("("));
+            QCOMPARE(list->format().numberSuffix(), QStringLiteral(")"));
+            QCOMPARE(list->format().start(), 1);   // (the file has no place for it)
+        }
+    }
+
+    // Tab at the start of a list item moves it down a level, and Shift+Tab back up, each as one step.
+    void tabAtTheStartOfAListItemChangesItsLevel()
+    {
+        jp::MainWindow w;
+        w.show();
+        jp::Editor *ed = w.editor();
+        auto box = std::static_pointer_cast<jp::TextItem>(ed->newTextBox(QRectF(72, 72, 400, 200), QStringLiteral("one\ntwo")));
+        ed->addItem(box);
+        ed->beginTextEdit(box->id, 0);
+        QTextCursor all = ed->cursor();
+        all.select(QTextCursor::Document);
+        ed->setCursor(all);
+        jp::ListLevelLook bullet;
+        ed->setListFormat(jp::listFormatOf(bullet));
+        QTextCursor at(ed->editDoc());
+        at.setPosition(ed->editDoc()->findBlockByNumber(1).position());
+        ed->setCursor(at);
+        const QString storyId = box->storyId;
+        auto levelOfSecond = [&] { return ed->doc()->storyDoc(storyId)->findBlockByNumber(1).textList()->format().intProperty(jp::tp::ListLevel); };
+        QCOMPARE(levelOfSecond(), 0);
+        QTest::keyClick(w.canvas(), Qt::Key_Tab);
+        QCOMPARE(levelOfSecond(), 1);
+        QTest::keyClick(w.canvas(), Qt::Key_Backtab);
+        QCOMPARE(levelOfSecond(), 0);
+        QCOMPARE(ed->doc()->storyDoc(storyId)->toPlainText(), QStringLiteral("one\ntwo"));   // (no tab typed)
     }
 };
 

@@ -2965,6 +2965,16 @@ void Canvas::handleTextKey(QKeyEvent *e)
             m_ed->setCursor(cur);
             return;
         }
+        {
+            // Tab at the start of a list item (and Shift+Tab anywhere in one) moves it a level in or out, as a step of its own.
+            const QTextCursor cur = m_ed->cursor();
+            const bool back = e->key() == Qt::Key_Backtab || shift;
+            if (!cur.hasSelection() && cur.block().textList() && (cur.atBlockStart() || back)) {
+                if (m_ed->changeListLevelHook) m_ed->changeListLevelHook(back ? -1 : 1);
+                else m_ed->changeIndent(back ? -1 : 1);
+                return;
+            }
+        }
         m_ed->insertText(QStringLiteral("\t"));
         return;
     case Qt::Key_A:
