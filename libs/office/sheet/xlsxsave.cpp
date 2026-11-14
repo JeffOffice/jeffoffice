@@ -1234,6 +1234,60 @@ bool patchUpdateLinks(const QByteArray &xml, int mode, QByteArray *out)
     return true;
 }
 
+// The workbook part with entries added to its list of links to other workbooks (the list is made when the file has none).
+bool addExternalReferences(const QByteArray &xml, const std::vector<QString> &relIds, QByteArray *out)
+{
+    static const QByteArray relNs = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
+    Tag root;
+    if (!xmlscan::nextTag(xml, 0, &root) || root.closing) return false;
+    const QByteArray prefix = QByteArray(xmlscan::prefixOf(root.name));
+    QByteArray elements;
+    for (const QString &id : relIds) elements += "<" + prefix + "externalReference xmlns:r=\"" + relNs + "\" r:id=\"" + id.toUtf8() + "\"/>";
+    Tag list;
+    if (findStart(xml, "externalReferences", &list) && !list.selfClosing) {
+        Tag close;
+        if (!findEnd(xml, list, &close)) return false;
+        *out = xml.left(close.start) + elements + xml.mid(close.start);
+        return true;
+    }
+    const qsizetype at = placeAfterNames(xml, false);
+    if (at < 0) return false;
+    *out = xml.left(at) + "<" + prefix + "externalReferences>" + elements + "</" + prefix + "externalReferences>" + xml.mid(at);
+    return true;
+}
+
+// The part for a link made by a formula that was typed.
+QByteArray newExternalLinkPart(const SaveChanges::NewExternalLink &link)
+{
+    QStringList names = link.sheetNames;
+    for (const SaveChanges::ExternalCachedCell &c : link.cells)
+        if (!names.contains(c.sheet, Qt::CaseInsensitive)) names << c.sheet;
+    QByteArray xml = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<externalLink xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\">"
+                     "<externalBook r:id=\"rId1\"><sheetNames>";
+    for (const QString &n : names) xml += "<sheetName val=\"" + xmlscan::escapeAttribute(n) + "\"/>";
+    xml += "</sheetNames><sheetDataSet>";
+    for (int id = 0; id < names.size(); ++id) {
+        std::map<std::pair<quint32, quint32>, const SaveChanges::ExternalCachedCell *> cells;
+        for (const SaveChanges::ExternalCachedCell &c : link.cells)
+            if (c.sheet.compare(names[id], Qt::CaseInsensitive) == 0) cells[{c.row, c.col}] = &c;
+        xml += "<sheetData sheetId=\"" + QByteArray::number(id) + "\">";
+        quint32 row = quint32(-1);
+        for (const auto &[at, c] : cells) {
+            if (at.first != row) {
+                if (row != quint32(-1)) xml += "</row>";
+                row = at.first;
+                xml += "<row r=\"" + QByteArray::number(row + 1) + "\">";
+            }
+            const char *type = c->kind == 's' ? " t=\"str\"" : c->kind == 'b' ? " t=\"b\"" : c->kind == 'e' ? " t=\"e\"" : "";
+            xml += "<cell r=\"" + cellName(c->row, c->col).toUtf8() + "\"" + type + "><v>"
+                   + (c->kind == 'n' || c->kind == 'b' ? QByteArray::number(c->number, 'g', 17) : xmlscan::escapeText(c->text)) + "</v></cell>";
+        }
+        if (row != quint32(-1)) xml += "</row>";
+        xml += "</sheetData>";
+    }
+    return xml + "</sheetDataSet></externalBook></externalLink>";
+}
+
 // ---- the whole file
 
 namespace {
@@ -2661,6 +2715,42 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
         replaced.insert(mainRelsEntry, mainRels);
         replaced.insert(typesEntry, types);
     }
+    // ---- the links to other workbooks that formulas typed made: their parts, relationships, and types, and the workbook's list of them
+    std::vector<QString> newExternalRefs;
+    if (!changes.newExternalLinks.empty() && !changes.dropExternalLinks) {
+        int typesEntry = -1;
+        for (int i = 0; i < directory.size(); ++i)
+            if (plain(directory[i].name) == QLatin1String("[content_types].xml")) {
+                typesEntry = i;
+                break;
+            }
+        QByteArray types;
+        auto bad = [&] { return fail(QCoreApplication::translate("jp::office::sheet::Save", "A link to another workbook could not be put in the file's list of parts.")); };
+        if (typesEntry < 0 || !(replaced.contains(typesEntry) ? (types = replaced.value(typesEntry), true) : inflate(typesEntry, &types))) return bad();
+        auto entryName = [](const QString &part) { return part.startsWith(QLatin1Char('/')) ? part.mid(1) : part; };
+        const QString mainRelsName = relationshipsPartOf(package.entryName(book.mainPart()));
+        const int mainRelsEntry = entryAt.value(plain(entryName(mainRelsName)), -1);
+        QByteArray mainRels;
+        if (mainRelsEntry < 0 || !(replaced.contains(mainRelsEntry) ? (mainRels = replaced.value(mainRelsEntry), true) : inflate(mainRelsEntry, &mainRels))) return bad();
+        int number = 0;
+        for (const SaveChanges::NewExternalLink &link : changes.newExternalLinks) {
+            QString part;
+            do part = QStringLiteral("xl/externalLinks/externalLink%1.xml").arg(++number);
+            while (entryAt.contains(plain(part)));
+            const QString relId = QStringLiteral("rIdExtLink%1").arg(number);
+            QByteArray r2, t2;
+            if (!addRelationship(mainRels, relId, QStringLiteral("externalLink"), QStringLiteral("externalLinks/externalLink%1.xml").arg(number), &r2)) return bad();
+            mainRels = r2;
+            if (!addContentOverride(types, QStringLiteral("/") + part, QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.externalLink+xml"), &t2)) return bad();
+            types = t2;
+            newEntries.emplace_back(part, newExternalLinkPart(link));
+            newEntries.emplace_back(relationshipsPartOf(part), "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">"
+                                                                 + relationshipXml(QStringLiteral("rId1"), QStringLiteral("externalLinkPath"), link.target, true) + "</Relationships>");
+            newExternalRefs.push_back(relId);
+        }
+        replaced.insert(mainRelsEntry, mainRels);
+        replaced.insert(typesEntry, types);
+    }
     // (the objects drawn in another order: the children of the drawing, as what is above leaves them)
     for (const auto &[part, order] : changes.drawingOrder) {
         QByteArray xml, now;
@@ -3252,7 +3342,7 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
         }
         filterNames.push_back(name);
     }
-    if (!newPivotCaches.empty() || changes.dropExternalLinks || changes.fullCalcOnLoad || moves || changes.sheetsChanged || !changes.printNames.empty() || !filterNames.empty() || !changes.nameChanges.empty() || changes.calcChanged || changes.updateLinks >= 0 || changes.setWorkbookProtection || changes.setCustomViews) {
+    if (!newPivotCaches.empty() || changes.dropExternalLinks || changes.fullCalcOnLoad || moves || changes.sheetsChanged || !changes.printNames.empty() || !filterNames.empty() || !changes.nameChanges.empty() || changes.calcChanged || changes.updateLinks >= 0 || !newExternalRefs.empty() || changes.setWorkbookProtection || changes.setCustomViews) {
         const int index = entryOfPart(book.mainPart());
         QByteArray xml, patched;
         if (index >= 0 && inflate(index, &xml)) {
@@ -3280,6 +3370,11 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
             if (changes.calcChanged) {
                 if (!patchCalcPr(xml, changes.calcMode, changes.iterate, changes.iterateCount, changes.iterateDelta, &patched, changes.calcOnSave)) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The workbook part is not in the form this program changes."));
                 changed = changed || patched != xml;
+                xml = patched;
+            }
+            if (!newExternalRefs.empty()) {
+                if (!addExternalReferences(xml, newExternalRefs, &patched)) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The workbook part is not in the form this program changes."));
+                changed = true;
                 xml = patched;
             }
             if (changes.updateLinks >= 0) {

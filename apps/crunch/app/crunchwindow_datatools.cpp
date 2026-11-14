@@ -43,7 +43,7 @@ void CrunchWindow::editLinksCommand()
 // When a workbook that reads others has been opened and worked out: the choice the file has (Startup prompt in Edit Links) decides. Only links whose file is on this computer are asked about.
 void CrunchWindow::linksOnOpen()
 {
-    if (!m_session || !m_loaded || !editingAllowed()) return;
+    if (!m_session || !m_loaded || isReadOnly()) return;
     const crunch::EditSession::UpdateLinks mode = m_session->updateLinksMode();
     if (mode == crunch::EditSession::UpdateLinks::Never) return;
     int sources = 0;

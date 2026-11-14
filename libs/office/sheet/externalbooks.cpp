@@ -771,6 +771,15 @@ std::vector<SaveChanges::ExternalCachedCell> ExternalBooks::readCells(int index)
     return out;
 }
 
+QStringList ExternalBooks::sheetsRead(int index) const
+{
+    QStringList out;
+    const std::lock_guard<std::mutex> guard(d->lock);
+    if (index < 1 || index > int(d->links.size())) return out;
+    for (const auto &[key, entry] : d->links[size_t(index - 1)].reads) out << entry.first;
+    return out;
+}
+
 int ExternalBooks::fileReads() const { return d->reads.load(); }
 
 } // namespace jp::office::sheet

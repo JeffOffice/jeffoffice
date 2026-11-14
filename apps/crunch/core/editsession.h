@@ -1030,6 +1030,12 @@ public:
     void setUpdateLinksValue(int mode);   // (the step of Undo that the choice makes: -1 for what the file has)
     // Updates every link whose file is on this computer (the choice "update" at open); `updated` counts the cells given values.
     Outcome updateAllExternalLinks(int *updated = nullptr);
+    // A formula typed with the name of another open workbook (`'[Book2.xlsx]Sheet1'!A1`, or `[Book2.xlsx]Sheet1!A1`) reads it through a link made then: the finder (set by the window) gives the file
+    // of the open workbook of a file name, or an empty text; the text given back has the number of the link in place of the name. Not changed when no workbook of that name is open.
+    void setOpenBookFinder(std::function<QString(const QString &fileName)> finder) { m_openBookFinder = std::move(finder); }
+    QString linkTypedReferences(const QString &typed);
+    // The links made this way, for the next save.
+    std::vector<jp::office::sheet::SaveChanges::NewExternalLink> newExternalLinksForSave() const;
     // Change Source: the source numbered `index` is another file, `path` (a file on this computer). The formulas are not changed; the file's link to it is, at the next save. One step of Undo.
     Outcome changeExternalSource(int index, const QString &path);
     // Used by the step of Undo that Change Source makes: the address the link has (empty for the one the file has).
@@ -1400,6 +1406,8 @@ private:
     int m_saveGen = 0;                 // how many times the workbook has been saved
     bool m_dropCustomXml = false;
     std::map<int, QString> m_externalTargets;   // the address each source was changed to (Change Source), by its number; the file's own is not in it
+    std::function<QString(const QString &)> m_openBookFinder;
+    std::set<int> m_newLinks;          // the links made by typing the name of an open workbook, by number (after the file's own)
     int m_updateLinks = -1;            // Startup prompt as a person set it (an UpdateLinks), or -1 for the file's
     std::set<int> m_externalUpdated;   // the links whose values were read again (Update Values): the saver puts those values in the links' own parts
     bool m_dropExternalLinks = false;  // the links to other workbooks are taken out at the next save (see breakExternalLinks)

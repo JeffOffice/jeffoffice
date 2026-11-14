@@ -384,6 +384,13 @@ struct SaveChanges {
         QString text;
     };
     std::map<QString, std::vector<ExternalCachedCell>> externalValues;
+    // Links made after the file was opened (a formula typed to read another open workbook): the parts are made, numbered after the file's own in this order.
+    struct NewExternalLink {
+        QString target;              // the address of the other workbook's file
+        QStringList sheetNames;      // the sheets of it the formulas read
+        std::vector<ExternalCachedCell> cells;
+    };
+    std::vector<NewExternalLink> newExternalLinks;
     // The custom XML parts (data other programs added: the workbook's relationships to them, the parts, what they relate to, and their types) are taken out.
     bool dropCustomXml = false;
     // The sheets: when a person added, deleted, renamed, moved, hid, or showed one (the workbook's own list is then made from the Workbook's: names, states, and the order of the tabs, with the

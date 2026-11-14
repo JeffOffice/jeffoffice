@@ -672,7 +672,7 @@ bool EditSession::typedChange(int sheet, quint32 row, quint32 col, const QString
     // (a cell that holds nothing has its row's or its column's format, and a cell typed in takes it)
     const quint32 baseStyle = before.exists ? before.style : implicitStyle(sheet, row, col);
     const QString code = m_book->book->styles().formatCode(baseStyle, m_locale);
-    const EntryResult r = readEntry(typed, entryOptions(sheet, code == QLatin1String("@")));
+    const EntryResult r = readEntry(linkTypedReferences(typed), entryOptions(sheet, code == QLatin1String("@")));
     if (!r.ok) {
         problem->ok = false;
         problem->problem = r.problem;
@@ -1902,6 +1902,7 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why, bool pivotParts)
     }
     changes.replacedParts = book.changedTableParts();
     changes.externalTargets = externalSourceParts();
+    changes.newExternalLinks = newExternalLinksForSave();
     changes.externalValues = externalCachedValues();
     // (a slicer's choice is its table's: when a click or an Undo left the table showing other items than the file's slicer part says, the part is written with the choice)
     for (auto &[part, bytes] : jp::office::sheet::slicerPartPatches(book)) changes.replacedParts[part] = std::move(bytes);
@@ -2084,6 +2085,7 @@ void EditSession::saved(const Snapshot &snapshot, const Package &package)
     if (snapshot.changes.dropExternalLinks) forgetStepsDone();
     m_dropExternalLinks = false;
     m_externalUpdated.clear();
+    m_newLinks.clear();
     m_dropCustomXml = false;
     m_nameTable.rebase([this](const NameEntry &e) {
         QString text;

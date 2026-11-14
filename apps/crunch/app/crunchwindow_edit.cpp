@@ -21,6 +21,8 @@
 #include <algorithm>
 #include <vector>
 #include <QAction>
+#include <QApplication>
+#include <QFileInfo>
 #include <QFontMetrics>
 #include <QKeyEvent>
 #include <QLineEdit>
@@ -35,6 +37,13 @@ void CrunchWindow::createEditing()
 {
     m_session = std::make_unique<crunch::EditSession>(&m_loader, m_loaded, &m_values, nullptr);
     applyCustomListLines();
+    // (a formula typed with the name of another open workbook reads it: the files of the workbooks open in the other windows)
+    m_session->setOpenBookFinder([this](const QString &name) {
+        for (QWidget *top : QApplication::topLevelWidgets())
+            if (auto *w = qobject_cast<CrunchWindow *>(top))
+                if (w != this && !w->filePath().isEmpty() && QFileInfo(w->filePath()).fileName().compare(name, Qt::CaseInsensitive) == 0) return w->filePath();
+        return QString();
+    });
     m_formatShown = FormatShown();   // (a workbook of its own: the buttons show its cell with the cursor)
     connect(m_session.get(), &crunch::EditSession::cellsChanged, this, &CrunchWindow::onCellsChanged);
     connect(m_session.get(), &crunch::EditSession::cellsMoved, this, &CrunchWindow::onCellsMoved);

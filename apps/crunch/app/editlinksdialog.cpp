@@ -190,7 +190,7 @@ bool EditLinksDialog::changeRow(int row)
     }
     reload();
     m_table->selectRow(row);
-    m_note->setText(tr("The link now points to the workbook \"%1\". Use Update Values to read its values.").arg(QFileInfo(path).fileName()));
+    m_note->setText(tr("The link now points to the workbook \"%1\", and its values are read.").arg(QFileInfo(path).fileName()));
     Q_EMIT linksChanged();
     return true;
 }

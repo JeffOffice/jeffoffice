@@ -243,7 +243,11 @@ EditSession::Outcome EditSession::changeExternalSource(int index, const QString 
         return out;
     }
     const QString address = addressOf(path);
+    // (the formulas that read it are worked out from the new file at once, in the same step of Undo; a file that can't be read leaves the stored values)
+    m_undo.beginMacro(tr("Change Source"));
     m_undo.push(new SourceChanged(this, index, sources[size_t(index - 1)].target, address, tr("Change Source")));
+    if (QFileInfo(path).isFile()) updateExternalValues(index, path);
+    m_undo.endMacro();
     return out;
 }
 
@@ -345,6 +349,92 @@ EditSession::Outcome EditSession::updateExternalValues(int index, const QString 
     m_undo.push(new UpdatedMark(&m_externalUpdated, index, m_externalUpdated.count(index) > 0));
     m_undo.push(new LiveMark(links, index, wasLive));
     m_undo.endMacro();
+    return out;
+}
+
+QString EditSession::linkTypedReferences(const QString &typed)
+{
+    if (!m_openBookFinder || !m_book || !m_book->book || m_dropExternalLinks) return typed;
+    const QString trimmed = typed.trimmed();
+    if (!trimmed.startsWith(QLatin1Char('=')) || !trimmed.contains(QLatin1Char('['))) return typed;
+    // the link of an open workbook: the one of its file if there is one, else a new one (read at once)
+    auto numberOf = [&](const QString &path) -> int {
+        auto *links = m_book->externals.get();
+        if (links)
+            for (int i = 1; i <= links->count(); ++i)
+                if (QFileInfo(links->localPath(i)).canonicalFilePath() == QFileInfo(path).canonicalFilePath()) return i;
+        std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold();
+        if (!hold) return 0;
+        if (!links) {
+            m_book->externals = std::make_shared<jp::office::sheet::ExternalBooks>();
+            links = m_book->externals.get();
+            hold->calculation()->setExternals(m_book->externals);
+        }
+        const int n = links->addLink(addressOf(path));
+        links->setLive(n, true);
+        m_newLinks.insert(n);
+        return n;
+    };
+    static const QRegularExpression quoted(QStringLiteral("'\\[([^\\]\\[']*[^\\]\\[\\d'][^\\]\\[']*)\\]((?:[^']|'')+)'!"));
+    static const QRegularExpression plain(QStringLiteral("\\[([^\\]\\[]*[^\\]\\[\\d][^\\]\\[]*)\\]([A-Za-z_][A-Za-z0-9_.]*)!"));
+    auto rewrite = [&](const QString &segment) {
+        QString out;
+        int at = 0;
+        while (at < segment.size()) {
+            QRegularExpressionMatch q = quoted.match(segment, at), p = plain.match(segment, at);
+            QRegularExpressionMatch m = q.hasMatch() && (!p.hasMatch() || q.capturedStart() <= p.capturedStart()) ? q : p;
+            if (!m.hasMatch()) break;
+            const bool isQuoted = m.regularExpression().pattern() == quoted.pattern();
+            const QString book = m.captured(1);
+            const QString path = m_openBookFinder(book);
+            out += segment.mid(at, m.capturedStart() - at);
+            const int n = path.isEmpty() ? 0 : numberOf(path);
+            if (n == 0) {
+                out += m.captured(0);
+            } else {
+                QString sheet = m.captured(2);
+                if (isQuoted) sheet.replace(QStringLiteral("''"), QStringLiteral("'"));
+                const bool simple = QRegularExpression(QStringLiteral("^[A-Za-z_][A-Za-z0-9_.]*$")).match(sheet).hasMatch();
+                out += simple ? QStringLiteral("[%1]%2!").arg(n).arg(sheet) : QStringLiteral("'[%1]%2'!").arg(n).arg(QString(sheet).replace(QLatin1Char('\''), QStringLiteral("''")));
+            }
+            at = m.capturedEnd();
+        }
+        return out + segment.mid(at);
+    };
+    // (the texts in quotes are left as they are)
+    QString result;
+    int from = 0;
+    while (from < typed.size()) {
+        const int open = typed.indexOf(QLatin1Char('"'), from);
+        const int end = open < 0 ? typed.size() : open;
+        result += rewrite(typed.mid(from, end - from));
+        if (open < 0) break;
+        int close = open + 1;
+        while (close < typed.size()) {
+            if (typed[close] == QLatin1Char('"')) {
+                if (close + 1 < typed.size() && typed[close + 1] == QLatin1Char('"')) close += 2;
+                else break;
+            } else {
+                ++close;
+            }
+        }
+        result += typed.mid(open, std::min<int>(typed.size(), close + 1) - open);
+        from = close + 1;
+    }
+    return result;
+}
+
+std::vector<jp::office::sheet::SaveChanges::NewExternalLink> EditSession::newExternalLinksForSave() const
+{
+    std::vector<jp::office::sheet::SaveChanges::NewExternalLink> out;
+    if (m_newLinks.empty() || m_dropExternalLinks || !m_book || !m_book->externals) return out;
+    for (const int n : m_newLinks) {
+        jp::office::sheet::SaveChanges::NewExternalLink l;
+        l.target = m_book->externals->target(n);
+        l.sheetNames = m_book->externals->sheetsRead(n);
+        l.cells = m_book->externals->readCells(n);
+        out.push_back(std::move(l));
+    }
     return out;
 }
 

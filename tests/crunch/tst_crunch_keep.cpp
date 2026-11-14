@@ -477,6 +477,54 @@ private Q_SLOTS:
         QVERIFY2(d.table()->item(0, 2)->text().startsWith(QLatin1String("Not found")), qPrintable(d.table()->item(0, 2)->text()));
     }
 
+    // A formula typed with the name of another open workbook reads it through a link made then (quoted or not), the link is shared by the formulas that name the same workbook, and the saved file has the
+    // link's part with the cells read, so that it opens with the values and the link in Edit Links.
+    void typingTheNameOfAnOpenWorkbookMakesALink()
+    {
+        EditWindow other;
+        QVERIFY(other.open(editBook(), QStringLiteral("other.xlsx")));
+        QVERIFY(other.settle());
+        EditWindow e;
+        QVERIFY(e.open(editBook(), QStringLiteral("main.xlsx")));
+        QVERIFY(e.settle());
+        QCOMPARE(int(e.win.w.session()->externalLinkSources().size()), 0);
+        e.select(QStringLiteral("F1"));
+        e.enter(QStringLiteral("='[other.xlsx]Sheet1'!A1*10"));
+        QVERIFY(e.settle());
+        QTRY_COMPARE(e.valueAt(QStringLiteral("F1")), QStringLiteral("n:10"));
+        e.select(QStringLiteral("F2"));
+        e.enter(QStringLiteral("=SUM([other.xlsx]Sheet1!A1:A3)"));
+        QVERIFY(e.settle());
+        QTRY_COMPARE(e.valueAt(QStringLiteral("F2")), QStringLiteral("n:11.25"));
+        QCOMPARE(e.win.w.session()->editText(0, 0, 5), QStringLiteral("=[1]Sheet1!A1*10"));
+        QCOMPARE(e.win.w.session()->editText(0, 1, 5), QStringLiteral("=SUM([1]Sheet1!A1:A3)"));
+        // a name that no open workbook has is not a link
+        e.select(QStringLiteral("F3"));
+        e.enter(QStringLiteral("=[nobody.xlsx]Sheet1!A1"));
+        QVERIFY(e.win.w.session()->editText(0, 2, 5) != QStringLiteral("=[1]Sheet1!A1"));
+        e.key(Qt::Key_Escape);
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(saved), "the save failed");
+        QFile f(e.path);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        const QByteArray bytes = f.readAll();
+        f.close();
+        Parts now;
+        readZip(bytes, now);
+        const QByteArray part = now.value(QStringLiteral("xl/externalLinks/externalLink1.xml"));
+        QVERIFY2(part.contains("<v>10</v>") && part.contains("<v>0.25</v>") && part.contains("Sheet1"), part.constData());
+        QVERIFY(now.value(QStringLiteral("xl/externalLinks/_rels/externalLink1.xml.rels")).contains("other.xlsx"));
+        QVERIFY(now.value(QStringLiteral("xl/workbook.xml")).contains("externalReference"));
+        // opened again (the other workbook stays open): the link is there, with the values
+        EditWindow again;
+        QVERIFY(again.open(bytes, QStringLiteral("main2.xlsx")));
+        QVERIFY(again.settle());
+        QCOMPARE(int(again.win.w.session()->externalLinkSources().size()), 1);
+        QCOMPARE(again.valueAt(QStringLiteral("F1")), QStringLiteral("n:10"));
+        QCOMPARE(again.valueAt(QStringLiteral("F2")), QStringLiteral("n:11.25"));
+    }
+
     // A workbook with macros opens with no change at all: nothing ran, so there is no step to undo and nothing to save.
     void aMacroWorkbookRunsNothingWhenItOpens()
     {
@@ -854,6 +902,9 @@ private Q_SLOTS:
         QCOMPARE(s->externalLinkSources()[0].shown, source);
         QVERIFY(s->externalLinkSources()[0].local);
         QCOMPARE(d.table()->item(0, 0)->text(), source);
+        // (the values of the new file are read with the change, in the same step)
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("A6")), QStringLiteral("n:7"));
         d.show();
         saveShot(&d, QStringLiteral("edit-links-change-source"));
         QCOMPARE(e.win.w.undoStack()->undoText(), QStringLiteral("Change Source"));
@@ -873,7 +924,7 @@ private Q_SLOTS:
         QCOMPARE(e.win.w.undoStack()->undoText(), QStringLiteral("Update Values"));
         e.win.w.undoStack()->undo();
         QVERIFY(e.settle());
-        QCOMPARE(e.valueAt(QStringLiteral("A6")), QStringLiteral("n:42"));
+        QCOMPARE(e.valueAt(QStringLiteral("A6")), QStringLiteral("n:7"));   // (Change Source read the file's values already)
         e.win.w.undoStack()->redo();
         QVERIFY(e.settle());
         QCOMPARE(e.valueAt(QStringLiteral("A6")), QStringLiteral("n:7"));
