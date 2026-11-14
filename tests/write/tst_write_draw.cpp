@@ -1944,6 +1944,30 @@ private Q_SLOTS:
         QVERIFY(isConnectorGlued(*doc, 2) && isConnectorGlued(*doc, 3));
     }
 
+    void aConnectorIsGluedToTheOutlineOfAShapeNotToItsBoundingBox()
+    {
+        auto doc = textDoc({"Before after"});
+        QTextCursor a(doc->story());
+        a.setPosition(0);
+        QCOMPARE(insertShape(*doc, a, QStringLiteral("star5"), QSizeF(100, 100)), PictureResult::Ok);
+        QTextCursor b(doc->story());
+        b.setPosition(1);
+        QCOMPARE(insertShape(*doc, b, QStringLiteral("rect"), QSizeF(40, 40)), PictureResult::Ok);
+        int made = -1;
+        QCOMPARE(connectObjects(*doc, 0, QRectF(100, 100, 100, 100), 1, QRectF(400, 100, 40, 40), QStringLiteral("straightConnector1"), &made), PictureResult::Ok);
+        const PictureInfo info = pictureAt(*doc, doc->story(), made);
+        // A five-pointed star is narrower at the middle of its height than its box is, so the connector leaves its outline, inside the box.
+        QVERIFY2(info.width > 203 && info.width < 280, qPrintable(QString::number(info.width)));
+        QVERIFY(isConnectorGlued(*doc, made));
+        // A rectangle still has its sides' middles.
+        QTextCursor c(doc->story());
+        c.setPosition(2);
+        QCOMPARE(insertShape(*doc, c, QStringLiteral("rect"), QSizeF(100, 100)), PictureResult::Ok);
+        int second = -1;
+        QCOMPARE(connectObjects(*doc, 2, QRectF(100, 300, 100, 100), 1, QRectF(400, 300, 40, 40), QStringLiteral("straightConnector1"), &second), PictureResult::Ok);
+        QVERIFY(std::abs(pictureAt(*doc, doc->story(), second).width - 200) < 0.01);
+    }
+
     void aConnectorWithAnEmptyFrameGetsAWholeOne()
     {
         auto doc = open(makeDocx("<w:p>" + anchoredGraphic(1, kShapeUri, plainShape(100, 50, "rect"), 100, 100, 100, 50) + anchoredGraphic(2, kShapeUri, plainShape(100, 50, "rect"), 400, 300, 100, 50) +

@@ -2622,8 +2622,31 @@ QVector<QPointF> connectionSites(const QRectF &r, const QString &preset)
         const double x1 = r.left() + r.width() * 0.25, x2 = r.right() - r.width() * 0.25;
         return {QPointF(r.right(), c.y()), QPointF(x2, r.bottom()), QPointF(x1, r.bottom()), QPointF(r.left(), c.y()), QPointF(x1, r.top()), QPointF(x2, r.top())};
     }
-    // (Any other: the middle of each side, as a rectangle has them; a diamond, a rounded rectangle, and the arrows are near enough.)
-    return {QPointF(c.x(), r.top()), QPointF(r.left(), c.y()), QPointF(c.x(), r.bottom()), QPointF(r.right(), c.y())};
+    // (Any other shape of the library: where a line from the middle meets its outline going up, left, down, and right, which for a rectangle, a diamond, and the arrows is the middle of
+    // the side, and for a star, a heart, a cloud, or a callout is on the shape itself and not on the box round it.)
+    QVector<QPointF> sides = {QPointF(c.x(), r.top()), QPointF(r.left(), c.y()), QPointF(c.x(), r.bottom()), QPointF(r.right(), c.y())};
+    const QString id = office::shapeForPreset(preset);
+    if (!id.isEmpty() && r.width() > 0 && r.height() > 0 && shapeDef(id) && !shapeDef(id)->open) {
+        const QPainterPath outline = shapePath(id, r.size());
+        const QPointF dirs[4] = {{0, -1}, {-1, 0}, {0, 1}, {1, 0}};
+        for (int side = 0; side < 4; ++side) {
+            const QPointF origin(r.width() / 2, r.height() / 2);
+            double far = -1;
+            for (const QPolygonF &poly : outline.toFillPolygons()) {
+                for (qsizetype i = 0; i < poly.size(); ++i) {
+                    const QPointF p = poly[i], q = poly[(i + 1) % poly.size()], e = q - p;
+                    // The ray origin + t * dir meets the edge p + u * e: t and u from the two crossing equations.
+                    const double den = dirs[side].x() * e.y() - dirs[side].y() * e.x();
+                    if (std::abs(den) < 1e-9) continue;
+                    const QPointF w = p - origin;
+                    const double t = (w.x() * e.y() - w.y() * e.x()) / den, u = (w.x() * dirs[side].y() - w.y() * dirs[side].x()) / den;
+                    if (t > 0 && u >= -1e-9 && u <= 1 + 1e-9 && t > far) far = t;
+                }
+            }
+            if (far > 0) sides[side] = QPointF(r.left() + origin.x() + dirs[side].x() * far, r.top() + origin.y() + dirs[side].y() * far);
+        }
+    }
+    return sides;
 }
 
 // The place of a site: one a shape does not have (a file from another program counts sites its own way) is the middle of the side that the number falls on, so the connector stays glued.
