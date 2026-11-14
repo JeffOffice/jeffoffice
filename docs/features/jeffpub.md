@@ -314,7 +314,7 @@ What a right-click offers depends on what is under the pointer: text being edite
 - [x] **1.0** Fields: page number, page count, date and time, business information, and mail merge
 - [~] **1.0** Hyphenation (automatic or manual, by language) and optional hyphens (Insert Optional Hyphen, and Add Optional Hyphens for a whole word) *(nonbreaking spaces and hyphens are respected by the line breaker when they are in the text, and the Symbol window can insert them; no command or key was found that inserts them, so that part could not be confirmed)*
 - [x] **1.0** Find and Replace across all stories
-- [x] **1.0** AutoCorrect (replacement list, capitalization rules) and AutoFormat-as-you-type
+- [x] **1.0** AutoCorrect (replacement list, capitalization rules) and AutoFormat-as-you-type *(done November 14, 2026: the AutoCorrect Options window in Options > Proofing edits the replacement list, the exceptions, and the capital-letter switches, shared with JeffWrite and JeffDeck)*
 - [x] **1.0** Right-to-left and complex script text via Qt's shaping engine, with a right-to-left paragraph direction (Home tab and the Paragraph dialog)
 - [x] **1.0** Align text to baseline guides, a paragraph choice that sits lines on the page's baseline guides
 
