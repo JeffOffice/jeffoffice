@@ -35,6 +35,7 @@
 #include <thread>
 #include <QTemporaryDir>
 #include <QUndoStack>
+#include <QCheckBox>
 
 using namespace jp;
 using namespace crunchtest;

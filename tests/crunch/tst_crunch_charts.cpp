@@ -45,6 +45,7 @@
 #include <QTemporaryDir>
 #include <QTimer>
 #include <QToolButton>
+#include <QPushButton>
 
 using namespace crunchtest;
 using namespace drawtest;

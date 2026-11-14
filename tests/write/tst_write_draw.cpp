@@ -59,6 +59,8 @@
 #include <QTimer>
 #include <QTextCursor>
 #include <QTextDocument>
+#include <QCheckBox>
+#include <QPushButton>
 
 using namespace jp;
 using namespace jp::write;

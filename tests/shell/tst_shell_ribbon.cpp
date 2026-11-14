@@ -26,6 +26,7 @@
 #include <QToolButton>
 #include <QTreeWidget>
 #include <QtTest>
+#include <QPainter>
 #include <memory>
 
 using namespace jp;

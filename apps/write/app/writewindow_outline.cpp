@@ -14,6 +14,7 @@
 #include <QSplitter>
 #include <QStatusBar>
 #include <QTimer>
+#include <QVBoxLayout>
 
 namespace jp {
 
