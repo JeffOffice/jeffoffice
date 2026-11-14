@@ -2358,6 +2358,8 @@ void WriteTests::theListBoxesSetUpListsThroughTheWindow()
     QCOMPARE(doc.numbering().startOf(numIdOfBlock(doc, 0), 0), 4);
     // Set Numbering Value on the second item: the list begins again there at 9.
     w.view()->cursor().setPosition(doc.story()->findBlockByNumber(1).position());
+    Q_EMIT w.view()->caretChanged();
+    QVERIFY(w.act(QStringLiteral("list.setValue"))->isEnabled());
     withDialog([&] { w.act(QStringLiteral("list.setValue"))->trigger(); }, QStringLiteral("setNumberingValueDialog"), [&](QDialog *d) {
         d->findChild<QSpinBox *>(QStringLiteral("numberValue"))->setValue(9);
     });

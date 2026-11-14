@@ -130,10 +130,7 @@ void WriteWindow::createListActions()
     mk("list.setValue", tr("Set Numbering Value…"), "", QKeySequence(), [this, edit] {
         edit([this] {
             const QTextBlock block = m_view->cursor().block();
-            if (write::listKindOf(*m_doc, block) != write::ListKind::Numbers) {
-                statusBar()->showMessage(tr("Put the caret in a numbered list item first."), 5000);
-                return;
-            }
+            if (write::listKindOf(*m_doc, block) != write::ListKind::Numbers) return;
             // A list of the same definition above is what can be continued.
             const int definition = m_doc->numbering().definitionOf(block.blockFormat().intProperty(write::prop::NumId));
             bool canContinue = false;

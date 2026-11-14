@@ -559,6 +559,7 @@ void WriteWindow::refreshUi()
     const write::ListKind kind = write::listKindOf(*m_doc, block);
     act("para.bullets")->setChecked(kind == write::ListKind::Bullets);
     act("para.numbers")->setChecked(kind == write::ListKind::Numbers);
+    act("list.setValue")->setEnabled(kind == write::ListKind::Numbers);   // (it sets the number of a numbered item)
 
     // The font and size boxes, and the colors the pickers offer.
     QTextCharFormat cf = c.charFormat();
