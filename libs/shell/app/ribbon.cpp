@@ -1195,6 +1195,7 @@ public:
         for (HeaderButton *b : tabButtons) {
             const bool want = shown.contains(b);
             if (b->isHidden() == want) b->setVisible(want);
+            b->update();   // (the tab left must be drawn as no longer current, and the one chosen as current)
         }
         QWidget *last = m_file;
         for (HeaderButton *b : shown) {

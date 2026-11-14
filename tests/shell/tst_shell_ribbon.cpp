@@ -1,6 +1,7 @@
 // The shared part of "Customize the ribbon": showing and hiding tabs and groups, tabs, groups, and commands of one's own, renaming, reordering, resetting, keeping it for a new window, KeyTips
 // that do not clash, and a settings file that is not to be trusted. A small ribbon built from a file stands for an app's (each app's own test checks that its Ribbon page lists its tabs).
 #include "app/appwindow.h"
+#include "app/icons.h"
 #include "app/keymap.h"
 #include "app/keytips.h"
 #include "app/ribbon.h"
@@ -27,6 +28,7 @@
 #include <QTreeWidget>
 #include <QtTest>
 #include <QPainter>
+#include <QScrollBar>
 #include <memory>
 
 using namespace jp;
@@ -538,6 +540,52 @@ private Q_SLOTS:
             if (jumped && width > 639) moved << QString::number(width);   // (the first only lays the buttons out)
         }
         QVERIFY2(moved.isEmpty(), qPrintable(QStringLiteral("a label moved by a pixel at widths ") + moved.join(QLatin1Char(' '))));
+    }
+
+    // Clicking one tab and then another repaints the first, which is no longer the current tab (its pill stayed filled when only the new one was drawn).
+    void theTabLeftIsRepaintedWhenAnotherTabIsChosen()
+    {
+        struct Counter : QObject {
+            int paints = 0;
+            bool eventFilter(QObject *, QEvent *e) override
+            {
+                if (e->type() == QEvent::Paint) ++paints;
+                return false;
+            }
+        };
+        RibbonWindow w;
+        Ribbon *r = w.ribbon();
+        w.resize(900, 300);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        QWidget *a = r->tabButton(0), *b = r->tabButton(1);
+        QVERIFY(a && b);
+        QTest::mouseClick(a, Qt::LeftButton);
+        QCOMPARE(r->current(), r->tabAt(0));
+        QCoreApplication::processEvents();
+        Counter counter;
+        a->installEventFilter(&counter);
+        QTest::mouseClick(b, Qt::LeftButton);
+        QCOMPARE(r->current(), r->tabAt(1));
+        QTRY_VERIFY(counter.paints > 0);
+    }
+
+    // The styled scroll bars have a thumb at least 8 pixels wide (a 2-pixel one is hard to see and to grab).
+    void aStyledScrollBarHasAnEightPixelThumb()
+    {
+        QScrollBar bar(Qt::Vertical);
+        bar.setStyleSheet(modernStyleSheet());
+        bar.setRange(0, 1000);
+        bar.setPageStep(100);
+        bar.resize(14, 300);
+        bar.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&bar));
+        const QImage img = bar.grab().toImage();
+        const QRgb ground = img.pixel(0, 150);
+        int thumb = 0;
+        for (int x = 0; x < img.width(); ++x)
+            if (img.pixel(x, 10) != ground) ++thumb;
+        QVERIFY2(thumb >= 8, qPrintable(QString::number(thumb)));
     }
 
     void keyTipsOfWhatIsMadeDoNotClash()
