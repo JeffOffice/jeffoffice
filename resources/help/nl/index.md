@@ -1,15 +1,15 @@
 # JeffPub Help
-<!-- keywords: inhoud, help, onderwerpen, start -->
+<!-- keywords: contents, help, topics, start, inhoud, hulp, onderwerpen, beginnen -->
 
-Typ in het zoekvak hierboven om een onderwerp te zoeken, of een opdracht om uit te voeren. Druk op **F1** om op elk moment hulp te krijgen bij wat u aan het doen bent: het linttabblad waarop u staat, het dialoogvenster dat u open hebt, of het object dat u hebt geselecteerd.
+Typ in het zoekvak hierboven om een onderwerp of een opdracht te zoeken. Druk op **F1** om op elk moment hulp te krijgen bij wat u doet: het linttabblad waarop u staat, het dialoogvenster dat u open hebt, of het object dat u hebt geselecteerd.
 
 ## Aan de slag
 
 - [Welkom bij JeffPub](start)
-- [Uw weg vinden in het venster](window)
-- [Een nieuwe publicatie starten](create)
+- [Wegwijs worden in het venster](window)
+- [Een nieuwe publicatie maken](create)
 - [Publicaties openen en opslaan](open-save)
-- [Met .pub-bestanden werken](pub-files)
+- [Werken met .pub-bestanden](pub-files)
 - [Niet-opgeslagen werk herstellen](recover)
 
 ## Tekst
@@ -23,7 +23,8 @@ Typ in het zoekvak hierboven om een onderwerp te zoeken, of een opdracht om uit 
 - [Een vergelijking toevoegen](equations)
 - [Tabellen maken en bewerken](tables)
 - [Inhoudsopgave, voetnoten en eindnoten](references)
-- [Spelling, synoniemenlijst, onderzoek en woordafbreking](proofing)
+- [Spelling, synoniemen, onderzoek en woordafbreking](proofing)
+- [Tekst vertalen](translate)
 - [Tekst zoeken en vervangen](find-replace)
 
 ## Afbeeldingen en objecten
@@ -33,7 +34,7 @@ Typ in het zoekvak hierboven om een onderwerp te zoeken, of een opdracht om uit 
 - [Vormen en lijnen tekenen](shapes)
 - [Grafieken toevoegen](charts)
 - [Pictogrammen, streepjescodes en andere objecten](insert-objects)
-- [Objecten verplaatsen, uitlijnen, groeperen en lagen ordenen](arrange)
+- [Objecten verplaatsen, uitlijnen, groeperen en stapelen](arrange)
 - [Tekst laten teruglopen om objecten](wrap)
 
 ## Pagina's
@@ -61,11 +62,11 @@ Typ in het zoekvak hierboven om een onderwerp te zoeken, of een opdracht om uit 
 - [Schermlezers, hoog contrast en alternatieve tekst](accessibility)
 - [Uw ontwerp controleren](design-checker)
 - [Opmerkingen](comments)
-- [JeffPub-instellingen wijzigen](options)
+- [Instellingen van JeffPub wijzigen](options)
 - [Een taal kiezen](language)
 - [Hulp krijgen en problemen melden](support)
 
 ## De linttabbladen
 
 - [Bestand](tab-file), [Start](tab-home), [Invoegen](tab-insert), [Paginaontwerp](tab-page-design), [Verzendlijsten](tab-mailings), [Controleren](tab-review), [Beeld](tab-view) en [Help](tab-help)
-- Tabbladen die verschijnen wanneer u iets selecteert: [Tekstvak](tab-text-box), [Vormopmaak](tab-shape-format), [Afbeeldingsopmaak](tab-picture-format), [Tabelontwerp en Tabelindeling](tab-table), [Tekstopmaak-indeling](tab-text-art) en [Indeling van model](tab-master-page)
+- Tabbladen die verschijnen wanneer u iets selecteert: [Tekstvak](tab-text-box), [Vormopmaak](tab-shape-format), [Afbeeldingsopmaak](tab-picture-format), [Tabelontwerp en Tabelindeling](tab-table), [Tekstopmaak-indeling](tab-text-art) en [Basispagina](tab-master-page)

@@ -1,4 +1,4 @@
-# Ayuda de JeffPub
+# JeffPub: Ayuda
 <!-- keywords: contenido, ayuda, temas, inicio -->
 
 Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando que ejecutar. Pulse **F1** en cualquier momento para obtener ayuda sobre lo que está haciendo: la pestaña de la cinta de opciones en la que se encuentra, el cuadro de diálogo abierto o el objeto seleccionado.
@@ -24,6 +24,7 @@ Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando 
 - [Crear y modificar tablas](tables)
 - [Contenido, notas al pie y notas al final](references)
 - [Ortografía, sinónimos, investigación y división de palabras](proofing)
+- [Traducir texto](translate)
 - [Buscar y reemplazar texto](find-replace)
 
 ## Imágenes y objetos
@@ -33,13 +34,13 @@ Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando 
 - [Dibujar formas y líneas](shapes)
 - [Agregar gráficos](charts)
 - [Iconos, códigos de barras y otros objetos](insert-objects)
-- [Mover, alinear, agrupar y organizar en capas los objetos](arrange)
-- [Ajustar el texto alrededor de los objetos](wrap)
+- [Mover, alinear, agrupar y superponer objetos](arrange)
+- [Ajustar el texto alrededor de objetos](wrap)
 
 ## Páginas
 
 - [Tamaño de página, márgenes y diseño](page-setup)
-- [Combinaciones de colores y de fuentes](color-schemes)
+- [Combinaciones de colores y fuentes](color-schemes)
 - [Cambiar la plantilla de una publicación](change-template)
 - [Páginas maestras, encabezados y números de página](master-pages)
 - [Agregar, mover y eliminar páginas](pages)

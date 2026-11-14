@@ -1,13 +1,13 @@
 # Ajuda do JeffPub
-<!-- keywords: conteúdo, ajuda, tópicos, início -->
+<!-- keywords: índice, ajuda, tópicos, início -->
 
-Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a executar. Prima **F1** em qualquer altura para obter ajuda sobre o que está a fazer: o separador do friso em que se encontra, a caixa de diálogo aberta ou o objeto selecionado.
+Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a executar. Prima **F1** em qualquer altura para obter ajuda sobre o que está a fazer: o separador do friso em que está, a caixa de diálogo aberta ou o objeto selecionado.
 
 ## Primeiros passos
 
 - [Bem-vindo ao JeffPub](start)
-- [Orientar-se na janela](window)
-- [Criar uma nova publicação](create)
+- [Conheça a janela](window)
+- [Iniciar uma nova publicação](create)
 - [Abrir e guardar publicações](open-save)
 - [Trabalhar com ficheiros .pub](pub-files)
 - [Recuperar trabalho não guardado](recover)
@@ -24,6 +24,7 @@ Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a exe
 - [Criar e editar tabelas](tables)
 - [Índice, notas de rodapé e notas de fim](references)
 - [Ortografia, dicionário de sinónimos, pesquisa e hifenização](proofing)
+- [Traduzir texto](translate)
 - [Localizar e substituir texto](find-replace)
 
 ## Imagens e objetos

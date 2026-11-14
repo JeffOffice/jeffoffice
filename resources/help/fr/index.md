@@ -1,9 +1,9 @@
 # Aide de JeffPub
-<!-- keywords: sommaire, aide, rubriques, démarrer -->
+<!-- keywords: sommaire, aide, rubriques, démarrer, contenu, début -->
 
-Saisissez un terme dans la zone de recherche ci-dessus pour trouver une rubrique ou une commande à exécuter. Appuyez sur **F1** à tout moment pour obtenir de l'aide sur ce que vous faites : l'onglet du ruban affiché, la boîte de dialogue ouverte ou l'objet sélectionné.
+Saisissez un terme dans la zone de recherche ci-dessus pour trouver une rubrique ou une commande à exécuter. Appuyez à tout moment sur **F1** pour obtenir de l'aide sur ce que vous faites : l'onglet du ruban active, la boîte de dialogue ouverte ou l'objet sélectionné.
 
-## Bien démarrer
+## Premiers pas
 
 - [Bienvenue dans JeffPub](start)
 - [Vous repérer dans la fenêtre](window)
@@ -24,6 +24,7 @@ Saisissez un terme dans la zone de recherche ci-dessus pour trouver une rubrique
 - [Créer et modifier des tableaux](tables)
 - [Table des matières, notes de bas de page et notes de fin](references)
 - [Orthographe, dictionnaire des synonymes, recherche et coupure de mots](proofing)
+- [Traduire du texte](translate)
 - [Rechercher et remplacer du texte](find-replace)
 
 ## Images et objets

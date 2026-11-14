@@ -1,13 +1,13 @@
 # Ayuda de JeffWrite
-<!-- keywords: contenido, ayuda, temas, inicio -->
+<!-- keywords: contenido, ayuda, temas, inicio, índice, empezar -->
 
-Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando que ejecutar. Presione **F1** en cualquier momento para obtener ayuda sobre lo que está haciendo: la pestaña de la cinta de opciones en la que se encuentra o la página de la pantalla Archivo en la que está.
+Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando que ejecutar. Pulse **F1** en cualquier momento para obtener ayuda sobre lo que está haciendo: la pestaña de la cinta de opciones en la que se encuentra, o la página de la pantalla Archivo en la que está.
 
 ## Primeros pasos
 
-- [Bienvenida a JeffWrite](start)
+- [Bienvenido a JeffWrite](start)
 - [Abrir, guardar, imprimir y exportar](open-save)
-- [Información: propiedades, contraseñas e Inspeccionar](info)
+- [Información: propiedades, contraseñas e Inspeccionar documento](info)
 - [Abrir y guardar archivos OpenDocument](open-odt)
 - [Abrir archivos RTF](open-rtf)
 - [Imprimir](print)
@@ -15,19 +15,20 @@ Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando 
 ## Trabajar con el texto
 
 - [Comprobar la ortografía](spelling)
-- [Contar palabras, definir el idioma, comprobar la accesibilidad y buscar palabras](proofing-tools)
+- [Contar palabras, establecer el idioma, comprobar la accesibilidad y buscar palabras](proofing-tools)
+- [Traducir texto](translate)
 - [Control de cambios: aceptar o rechazar cambios](track-changes)
 - [Agregar y responder comentarios](comments)
 - [Proteger un documento y bloquear el control de cambios](protect)
 
-## Escribir y cambiar texto
+## Escribir y modificar el texto
 
 - [Cambiar el aspecto del texto](font)
 - [Cambiar mayúsculas y minúsculas, ordenar y pegar de otras formas](home-tools)
 - [Usar estilos](styles)
-- [Copiar un aspecto con Copiar formato](format-painter)
+- [Copiar un formato con Copiar formato](format-painter)
 - [Agregar encabezados, pies de página y números de página](headers-footers)
-- [Crear y cambiar tablas](tables)
+- [Crear y modificar tablas](tables)
 - [Agregar notas al pie y notas al final](footnotes-endnotes)
 - [Crear una tabla de contenido](table-of-contents)
 - [Agregar títulos y una tabla de ilustraciones](captions)

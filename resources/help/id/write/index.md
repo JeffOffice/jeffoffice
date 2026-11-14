@@ -1,13 +1,13 @@
 # Bantuan JeffWrite
-<!-- keywords: isi, bantuan, topik, mulai, daftar isi, cari -->
+<!-- keywords: isi, bantuan, topik, mulai -->
 
 Ketik di kotak pencarian di atas untuk mencari topik, atau perintah yang ingin dijalankan. Tekan **F1** kapan saja untuk mendapatkan bantuan tentang yang sedang Anda kerjakan: tab pita yang sedang Anda buka, atau halaman layar Berkas yang sedang Anda buka.
 
-## Mulai
+## Memulai
 
 - [Selamat datang di JeffWrite](start)
 - [Buka, simpan, cetak, dan ekspor](open-save)
-- [Info: properti, kata sandi, dan Periksa Dokumen](info)
+- [Info: properti, kata sandi, dan Periksa](info)
 - [Buka dan simpan berkas OpenDocument](open-odt)
 - [Buka berkas RTF](open-rtf)
 - [Cetak](print)
@@ -15,15 +15,16 @@ Ketik di kotak pencarian di atas untuk mencari topik, atau perintah yang ingin d
 ## Mengerjakan teks Anda
 
 - [Periksa ejaan Anda](spelling)
-- [Hitung kata, atur bahasa, periksa aksesibilitas, dan cari arti kata](proofing-tools)
-- [Lacak perubahan, dan terima atau tolak perubahan tersebut](track-changes)
-- [Tambah dan balas komentar](comments)
+- [Hitung kata, atur bahasa, periksa aksesibilitas, dan cari kata](proofing-tools)
+- [Terjemahkan teks](translate)
+- [Lacak perubahan, dan terima atau tolak](track-changes)
+- [Tambahkan dan balas komentar](comments)
 - [Lindungi dokumen dan kunci pelacakan](protect)
 
 ## Menulis dan mengubah teks
 
 - [Ubah tampilan teks](font)
-- [Ubah huruf besar/kecil, urutkan, dan tempel dengan cara lain](home-tools)
+- [Ubah huruf, urutkan, dan tempel dengan cara lain](home-tools)
 - [Gunakan gaya](styles)
 - [Salin tampilan dengan Salin Format](format-painter)
 - [Tambahkan header, footer, dan nomor halaman](headers-footers)
@@ -35,7 +36,7 @@ Ketik di kotak pencarian di atas untuk mencari topik, atau perintah yang ingin d
 - [Buat indeks](making-an-index)
 - [Buat daftar rujukan](table-of-authorities)
 - [Gunakan bidang](fields)
-- [Arahkan ke tempat lain dengan referensi silang](cross-references)
+- [Tunjuk tempat lain dengan referensi silang](cross-references)
 - [Tandai tempat dengan penanda](bookmarks)
 - [Cetak surat massal, amplop, dan label](mail-merge)
 - [Tambahkan dan ubah gambar](pictures)
@@ -47,7 +48,7 @@ Ketik di kotak pencarian di atas untuk mencari topik, atau perintah yang ingin d
 - [Sisipkan simbol dan karakter khusus](symbols-special-characters)
 - [Tambahkan tautan dan teks dari berkas lain](links)
 - [Ubah warna dan bingkai halaman](page-look)
-- [Cari jalan dengan panel Navigasi](navigation-pane)
+- [Temukan jalan Anda dengan panel Navigasi](navigation-pane)
 - [Gunakan penggaris](ruler)
 - [Temukan dan ganti kata](find-replace)
 - [Buka suatu tempat dan pindahkan teks](go-to-and-move-text)

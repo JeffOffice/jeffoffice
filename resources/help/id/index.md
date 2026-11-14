@@ -1,7 +1,7 @@
 # Bantuan JeffPub
 <!-- keywords: isi, bantuan, topik, mulai -->
 
-Ketik di kotak pencarian di atas untuk mencari topik, atau perintah yang ingin dijalankan. Tekan **F1** kapan saja untuk mendapatkan bantuan tentang apa yang sedang Anda kerjakan: tab pita yang sedang aktif, kotak dialog yang terbuka, atau objek yang sedang dipilih.
+Ketik di kotak pencarian di atas untuk mencari topik, atau perintah yang ingin dijalankan. Tekan **F1** kapan saja untuk mendapatkan bantuan tentang yang sedang Anda kerjakan: tab pita yang sedang Anda buka, kotak dialog yang sedang terbuka, atau objek yang sedang Anda pilih.
 
 ## Memulai
 
@@ -15,7 +15,7 @@ Ketik di kotak pencarian di atas untuk mencari topik, atau perintah yang ingin d
 ## Teks
 
 - [Menambahkan dan memformat kotak teks](text-boxes)
-- [Mengalirkan teks antarkotak teks](linked-text)
+- [Mengalirkan teks di antara kotak teks](linked-text)
 - [Memformat teks](formatting-text)
 - [Poin, penomoran, dan tab](lists-tabs)
 - [Menggunakan gaya](styles)
@@ -24,7 +24,8 @@ Ketik di kotak pencarian di atas untuk mencari topik, atau perintah yang ingin d
 - [Membuat dan mengedit tabel](tables)
 - [Daftar isi, catatan kaki, dan catatan akhir](references)
 - [Ejaan, tesaurus, riset, dan penyambungan kata](proofing)
-- [Mencari dan mengganti teks](find-replace)
+- [Menerjemahkan teks](translate)
+- [Menemukan dan mengganti teks](find-replace)
 
 ## Gambar dan objek
 
@@ -43,7 +44,7 @@ Ketik di kotak pencarian di atas untuk mencari topik, atau perintah yang ingin d
 - [Mengganti templat publikasi](change-template)
 - [Halaman master, header, dan nomor halaman](master-pages)
 - [Menambahkan, memindahkan, dan menghapus halaman](pages)
-- [Penggaris, panduan, dan penarikan ke panduan](guides)
+- [Penggaris, panduan, dan tarik ke panduan](guides)
 
 ## Surat massal
 
@@ -52,8 +53,8 @@ Ketik di kotak pencarian di atas untuk mencari topik, atau perintah yang ingin d
 ## Cetak dan bagikan
 
 - [Mencetak publikasi](printing)
-- [Berkas PDF dan percetakan komersial](pdf)
-- [Menyimpan sebagai gambar, halaman web, atau e-book](export)
+- [Berkas PDF dan pencetak komersial](pdf)
+- [Simpan sebagai gambar, halaman web, atau e-book](export)
 
 ## Bantuan dan pengaturan
 

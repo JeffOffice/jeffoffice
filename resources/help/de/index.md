@@ -1,12 +1,12 @@
 # JeffPub-Hilfe
 <!-- keywords: Inhalt, Hilfe, Themen, Start -->
 
-Geben Sie oben in das Suchfeld einen Begriff ein, um ein Thema oder einen Befehl zu finden und auszuführen. Drücken Sie jederzeit **F1**, um Hilfe zu dem zu erhalten, was Sie gerade tun: zur Registerkarte des Menübands, auf der Sie sich befinden, zum geöffneten Dialogfeld oder zum ausgewählten Objekt.
+Geben Sie oben im Suchfeld einen Begriff ein, um ein Thema oder einen auszuführenden Befehl zu finden. Drücken Sie jederzeit **F1**, um Hilfe zu Ihrer aktuellen Tätigkeit zu erhalten: zur Registerkarte des Menübands, auf der Sie sich befinden, zum geöffneten Dialogfeld oder zum markierten Objekt.
 
 ## Erste Schritte
 
 - [Willkommen bei JeffPub](start)
-- [So finden Sie sich im Fenster zurecht](window)
+- [Sich im Fenster zurechtfinden](window)
 - [Eine neue Publikation beginnen](create)
 - [Publikationen öffnen und speichern](open-save)
 - [Mit .pub-Dateien arbeiten](pub-files)
@@ -15,15 +15,16 @@ Geben Sie oben in das Suchfeld einen Begriff ein, um ein Thema oder einen Befehl
 ## Text
 
 - [Textfelder hinzufügen und formatieren](text-boxes)
-- [Text zwischen Textfeldern fortsetzen](linked-text)
+- [Text zwischen Textfeldern verknüpfen](linked-text)
 - [Text formatieren](formatting-text)
-- [Aufzählungen, Nummerierung und Tabstopps](lists-tabs)
+- [Aufzählungen, Nummerierungen und Tabstopps](lists-tabs)
 - [Formatvorlagen verwenden](styles)
 - [Textkunst hinzufügen](text-art)
 - [Eine Gleichung hinzufügen](equations)
 - [Tabellen erstellen und bearbeiten](tables)
 - [Inhaltsverzeichnis, Fußnoten und Endnoten](references)
 - [Rechtschreibung, Thesaurus, Recherche und Silbentrennung](proofing)
+- [Text übersetzen](translate)
 - [Text suchen und ersetzen](find-replace)
 
 ## Bilder und Objekte
@@ -33,7 +34,7 @@ Geben Sie oben in das Suchfeld einen Begriff ein, um ein Thema oder einen Befehl
 - [Formen und Linien zeichnen](shapes)
 - [Diagramme hinzufügen](charts)
 - [Symbole, Barcodes und andere Objekte](insert-objects)
-- [Objekte verschieben, ausrichten, gruppieren und übereinander anordnen](arrange)
+- [Objekte verschieben, ausrichten, gruppieren und übereinanderlegen](arrange)
 - [Text um Objekte herum umbrechen](wrap)
 
 ## Seiten
@@ -41,11 +42,11 @@ Geben Sie oben in das Suchfeld einen Begriff ein, um ein Thema oder einen Befehl
 - [Seitengröße, Seitenränder und Layout](page-setup)
 - [Farb- und Schriftartenschemas](color-schemes)
 - [Vorlage einer Publikation ändern](change-template)
-- [Masterseiten, Kopf- und Fußzeilen sowie Seitenzahlen](master-pages)
+- [Masterseiten, Kopf- und Fußzeilen und Seitenzahlen](master-pages)
 - [Seiten hinzufügen, verschieben und löschen](pages)
-- [Lineale, Führungslinien und Einrasten](guides)
+- [Lineale, Führungslinien und Ausrichten am Raster](guides)
 
-## Seriendruck und Sendungen
+## Sendungen
 
 - [Seriendruck und Katalogseriendruck](mail-merge)
 
@@ -58,14 +59,14 @@ Geben Sie oben in das Suchfeld einen Begriff ein, um ein Thema oder einen Befehl
 ## Hilfe und Einstellungen
 
 - [JeffPub mit der Tastatur bedienen](keyboard)
-- [Bildschirmlesegeräte, hoher Kontrast und Alternativtext](accessibility)
+- [Bildschirmleseprogramme, hoher Kontrast und Alternativtext](accessibility)
 - [Entwurf prüfen](design-checker)
 - [Kommentare](comments)
 - [JeffPub-Einstellungen ändern](options)
 - [Sprache auswählen](language)
 - [Hilfe erhalten und Probleme melden](support)
 
-## Die Registerkarten des Menübands
+## Registerkarten des Menübands
 
 - [Datei](tab-file), [Start](tab-home), [Einfügen](tab-insert), [Seitenentwurf](tab-page-design), [Sendungen](tab-mailings), [Überprüfen](tab-review), [Ansicht](tab-view) und [Hilfe](tab-help)
-- Registerkarten, die erscheinen, wenn Sie etwas auswählen: [Textfeld](tab-text-box), [Formformat](tab-shape-format), [Bildformat](tab-picture-format), [Tabellenentwurf und Tabellenlayout](tab-table), [Textkunstformat](tab-text-art) und [Masterseite](tab-master-page)
+- Registerkarten, die erscheinen, wenn Sie etwas markieren: [Textfeld](tab-text-box), [Formformat](tab-shape-format), [Bildformat](tab-picture-format), [Tabellenentwurf und Tabellenlayout](tab-table), [Textkunstformat](tab-text-art) und [Masterseite](tab-master-page)

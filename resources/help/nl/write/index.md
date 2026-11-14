@@ -1,7 +1,7 @@
 # JeffWrite Help
-<!-- keywords: inhoud, help, onderwerpen, starten -->
+<!-- keywords: contents, help, topics, start -->
 
-Typ in het zoekvak hierboven om een onderwerp te zoeken, of een opdracht die u wilt uitvoeren. Druk op **F1** wanneer u maar wilt voor hulp bij wat u aan het doen bent: het linttabblad waarop u staat, of de pagina van het scherm Bestand waarop u staat.
+Typ in het zoekvak hierboven om een onderwerp of een opdracht te zoeken. Druk op **F1** op elk moment voor hulp bij wat u aan het doen bent: het linttabblad waarop u staat, of de pagina van het menu Bestand waarop u staat.
 
 ## Aan de slag
 
@@ -12,30 +12,31 @@ Typ in het zoekvak hierboven om een onderwerp te zoeken, of een opdracht die u w
 - [RTF-bestanden openen](open-rtf)
 - [Afdrukken](print)
 
-## Uw tekst controleren
+## Werken met tekst
 
-- [De spelling controleren](spelling)
-- [Woorden tellen, de taal instellen, de toegankelijkheid controleren en woorden opzoeken](proofing-tools)
+- [Spelling controleren](spelling)
+- [Woorden tellen, de taal instellen, toegankelijkheid controleren en woorden opzoeken](proofing-tools)
+- [Tekst vertalen](translate)
 - [Wijzigingen bijhouden, en wijzigingen accepteren of weigeren](track-changes)
 - [Opmerkingen toevoegen en beantwoorden](comments)
 - [Een document beveiligen en het bijhouden van wijzigingen vergrendelen](protect)
 
 ## Tekst schrijven en wijzigen
 
-- [Wijzigen hoe tekst eruitziet](font)
+- [De opmaak van tekst wijzigen](font)
 - [Hoofdlettergebruik wijzigen, sorteren en op andere manieren plakken](home-tools)
 - [Stijlen gebruiken](styles)
-- [Een opmaak overnemen met Opmaak kopiëren](format-painter)
-- [Koptekst, voettekst en paginanummers toevoegen](headers-footers)
+- [Een opmaak kopiëren met Opmaak kopiëren](format-painter)
+- [Kopteksten, voetteksten en paginanummers toevoegen](headers-footers)
 - [Tabellen maken en wijzigen](tables)
 - [Voetnoten en eindnoten toevoegen](footnotes-endnotes)
 - [Een inhoudsopgave maken](table-of-contents)
 - [Bijschriften en een illustratielijst toevoegen](captions)
-- [Bronnen citeren en een bronnenlijst maken](citations)
+- [Bronnen vermelden en een bronnenlijst maken](citations)
 - [Een register maken](making-an-index)
 - [Een lijst met autoriteiten maken](table-of-authorities)
 - [Velden gebruiken](fields)
-- [Met kruisverwijzingen naar een andere plek verwijzen](cross-references)
+- [Met kruisverwijzingen naar een andere plaats verwijzen](cross-references)
 - [Plaatsen markeren met bladwijzers](bookmarks)
 - [Afdruk samenvoegen, enveloppen en etiketten](mail-merge)
 - [Afbeeldingen toevoegen en wijzigen](pictures)
@@ -43,14 +44,14 @@ Typ in het zoekvak hierboven om een onderwerp te zoeken, of een opdracht die u w
 - [Grafieken](charts)
 - [Vergelijkingen](equations)
 - [De pagina instellen](page-setup)
-- [Einden, kolommen, woordafbreking en regelnummers](breaks-columns)
+- [Pagina-einden, kolommen, woordafbreking en regelnummers](breaks-columns)
 - [Symbolen en speciale tekens invoegen](symbols-special-characters)
 - [Koppelingen en tekst uit andere bestanden toevoegen](links)
 - [De kleur en randen van de pagina's wijzigen](page-look)
 - [Uw weg vinden met het navigatievenster](navigation-pane)
 - [De liniaal gebruiken](ruler)
 - [Woorden zoeken en vervangen](find-replace)
-- [Naar een plek gaan en tekst verplaatsen](go-to-and-move-text)
+- [Naar een plaats gaan en tekst verplaatsen](go-to-and-move-text)
 
 ## Sneller werken
 

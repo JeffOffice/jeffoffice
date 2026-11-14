@@ -1,5 +1,5 @@
 # JeffPub Guida
-<!-- keywords: sommario, guida, argomenti, inizio -->
+<!-- keywords: contenuto, guida, argomenti, inizio -->
 
 Digita nella casella di ricerca qui sopra per trovare un argomento o un comando da eseguire. Premi **F1** in qualsiasi momento per ottenere aiuto su ciò che stai facendo: la scheda della barra multifunzione attiva, la finestra di dialogo aperta o l'oggetto selezionato.
 
@@ -23,7 +23,8 @@ Digita nella casella di ricerca qui sopra per trovare un argomento o un comando 
 - [Aggiungere un'equazione](equations)
 - [Creare e modificare le tabelle](tables)
 - [Sommario, note a piè di pagina e note di chiusura](references)
-- [Controllo ortografia, thesaurus, ricerca e sillabazione](proofing)
+- [Controllo ortografia, thesaurus, ricerche e sillabazione](proofing)
+- [Tradurre il testo](translate)
 - [Trovare e sostituire il testo](find-replace)
 
 ## Immagini e oggetti
@@ -39,7 +40,7 @@ Digita nella casella di ricerca qui sopra per trovare un argomento o un comando 
 ## Pagine
 
 - [Dimensioni pagina, margini e layout](page-setup)
-- [Combinazioni di colori e tipi di carattere](color-schemes)
+- [Combinazioni colori e tipi di carattere](color-schemes)
 - [Cambiare il modello di una pubblicazione](change-template)
 - [Pagine master, intestazioni e numeri di pagina](master-pages)
 - [Aggiungere, spostare ed eliminare pagine](pages)
@@ -57,15 +58,15 @@ Digita nella casella di ricerca qui sopra per trovare un argomento o un comando 
 
 ## Guida e impostazioni
 
-- [Usare JeffPub con la tastiera](keyboard)
+- [Usare JeffPub da tastiera](keyboard)
 - [Lettori di schermo, contrasto elevato e testo alternativo](accessibility)
 - [Verificare la struttura](design-checker)
 - [Commenti](comments)
 - [Modificare le impostazioni di JeffPub](options)
 - [Scegliere una lingua](language)
-- [Ottenere assistenza e segnalare problemi](support)
+- [Ottenere aiuto e segnalare problemi](support)
 
-## Le schede della barra multifunzione
+## Schede della barra multifunzione
 
 - [File](tab-file), [Home](tab-home), [Inserisci](tab-insert), [Progettazione pagina](tab-page-design), [Lettere](tab-mailings), [Revisione](tab-review), [Visualizza](tab-view) e [Guida](tab-help)
 - Schede che compaiono quando selezioni qualcosa: [Casella di testo](tab-text-box), [Formato forma](tab-shape-format), [Formato immagine](tab-picture-format), [Struttura tabella e Layout tabella](tab-table), [Formato testo artistico](tab-text-art) e [Pagina master](tab-master-page)

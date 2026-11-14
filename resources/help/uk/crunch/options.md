@@ -1,82 +1,83 @@
-# Зміна настройок JeffCrunch
-<!-- keywords: відновлення, відновити незбережену роботу, автоматичне відновлення, перевірка, редагування, автозавершення, маркер заповнення, перетягування, перетягнути й вставити, десяткові знаки, параметри, настройки, налаштування, статистика використання, номер встановлення, конфіденційність, повідомлення про конфіденційність, JP_NO_TELEMETRY, видалити статистику, оновлення, про програму, редагування в комірці, колір сітки, масштаб за замовчуванням, стандартна ширина, персональні дані, настроювання клавіатури, настроювання стрічки, настроювання панелі швидкого доступу, панель швидкого доступу, додати команду на панель швидкого доступу, приховати вкладку, приховати групу, додати вкладку, додати групу, перейменувати вкладку, скинути стрічку, змінити комбінації клавіш, призначити клавіші, скинути клавіші -->
+# Змінення параметрів JeffCrunch
+<!-- keywords: відновлення, відновити незбережену роботу, автоматичне відновлення, перевірка, редагування, автозаповнення, маркер заповнення, перетягування, десяткові знаки, параметри, настройки, налаштування, статистика використання, номер встановлення, конфіденційність, повідомлення про конфіденційність, JP_NO_TELEMETRY, видалити статистику, оновлення, про програму, редагувати в комірці, колір сітки, масштаб за замовчуванням, стандартна ширина, персональні дані, настроїти клавіатуру, настроїти стрічку, настроїти панель швидкого доступу, панель швидкого доступу, додати команду на панель швидкого доступу, приховати вкладку, приховати групу, додати вкладку, додати групу, перейменувати вкладку, скинути стрічку, змінити комбінації клавіш, перепризначити клавіші, скинути клавіші -->
 
-Your settings are in the **JeffCrunch Options** window. Click **File > Options** to open it. Click **OK** to keep your changes, or **Cancel** to throw them away.
+Параметри програми зберігаються у вікні **Параметри JeffCrunch**. Щоб відкрити його, натисніть **Файл > Параметри**. Щоб зберегти зміни, натисніть **OK**, щоб їх скасувати, натисніть **Скасувати**.
 
-## Editing
+## Редагування
 
-The **Editing** page changes how typing in cells works.
+Сторінка **Редагування** змінює те, як працює введення в комірках.
 
-- **After pressing Enter, move the selection** says where the selection goes when you finish an entry: down, right, up, left, or nowhere.
-- **Offer to finish a text from the cells above and below** is called AutoComplete. When you type the first letters of a text, and only one text in that column starts with them, JeffCrunch shows the rest of it, selected. Press **Enter** to keep it. Keep typing to ignore it, or press **Backspace** to take it away. It looks only at the block of cells next to the one you are typing in, and only at texts, not numbers.
-- **Use the fill handle, and drag cells to move or copy them** turns on the small square at the corner of the selection and the dragging of the selection's border. Turn it off if you keep moving cells by accident. Copy and Paste still work.
-- **Show a zero in cells that have a zero value (this sheet)** turns zeros on or off for the sheet you are looking at. When it is off, a cell that holds 0 looks empty, but it still holds the 0 and adds up as 0. The choice is saved with the sheet.
-- **Put a decimal point in whole numbers that are typed** is called automatic decimal places. Set **Places** to 2, and typing 1234 enters 12.34. Set it to -2, and typing 5 enters 500. A number you type with a decimal point is entered as typed.
+- **Після натискання Enter переміщувати вибір** визначає, куди переходить виділення після завершення введення: униз, вправо, вгору, вліво або нікуди.
+- **Пропонувати завершення тексту з комірок вище й нижче** називається автозавершенням. Коли ви вводите перші літери тексту, і лише один текст у цьому стовпці починається з них, JeffCrunch показує решту, виділену. Натисніть **Enter**, щоб її залишити. Продовжуйте вводити, щоб ігнорувати її, або натисніть **Backspace**, щоб її прибрати. Програма розглядає лише блок комірок поруч із тією, у якій ви вводите, і лише текст, а не числа.
+- **Використовувати маркер заповнення та перетягувати комірки для переміщення або копіювання** вмикає маленький квадратик у кутку виділення та перетягування рамки виділення. Вимкніть це, якщо ви випадково переміщуєте комірки. Копіювання та вставлення працюють і без цього.
+- **Показувати нуль у комірках із нульовим значенням (цей аркуш)** вмикає або вимикає показ нулів для аркуша, який ви переглядаєте. Коли це вимкнено, комірка з 0 виглядає порожньою, але містить 0 і додається як 0. Вибір зберігається разом з аркушем.
+- **Ставити десятковий роздільник у введених цілих числах** називається автоматичними десятковими знаками. Якщо задати **Знаків** 2, введення 1234 дасть 12,34. Якщо задати -2, введення 5 дасть 500. Число, яке ви вводите з десятковим роздільником, записується так, як ви його ввели.
 
-- **Allow editing directly in cells** is on by default. When you turn it off, a typed entry or F2 goes to the formula bar, and the cell shows the result only when you finish.
+- **Дозволити редагування безпосередньо в комірках** увімкнено за замовчуванням. Коли його вимкнено, введений запис або F2 відкривають рядок формул, а комірка показує результат лише після завершення введення.
 
-## Save options
+## Параметри збереження
 
-**Save automatic recovery information every** sets how often JeffCrunch keeps a copy of a workbook with changes you have not saved, from 1 to 120 minutes. The copy is a .xlsx file in a folder that JeffCrunch keeps for this purpose, made in the background so you can go on typing. It is removed when you save or close the workbook. If JeffCrunch closes by surprise, it offers the copies the next time it starts. You can also click **File > Open > Recover Unsaved Work**. A workbook that is protected with a password is not copied, because the copy would not be protected.
+**Зберігати інформацію для автоматичного відновлення кожні** задає, як часто JeffCrunch створює копію книги зі змінами, які ви ще не зберегли, від 1 до 120 хвилин. Копія є файлом .xlsx у папці, яку JeffCrunch веде для цього, і створюється у фоновому режимі, щоб ви могли продовжувати введення. Копія видаляється, коли ви зберігаєте або закриваєте книгу. Якщо JeffCrunch закрився несподівано, він запропонує копії під час наступного запуску. Також можна натиснути **Файл > Відкрити > Відновити незбережену роботу**. Книга, захищена паролем, не копіюється, адже копія не була б захищена.
 
-## Proofing options
+## Параметри перевірки
 
-The **Proofing** page is shared by the JeffOffice apps. It decides whether spelling is checked as you type in a cell (turn off **Check spelling as you type** to get rid of the red wavy lines in every open window and the other apps; **Spelling** on the Review tab still works), whether words in capital letters and words with numbers are ignored when spelling is checked, whether AutoCorrect fixes words as you type, whether straight quote marks become curly ones, whether dashes, fractions, and ordinals are changed, and whether a web address becomes a link. See [Spelling](notes-links) and [Type in cells](edit-cells).
+Сторінка **Перевірка** є спільною для застосунків JeffOffice. Вона визначає, чи перевіряється правопис під час введення в комірці (вимкніть **Перевіряти правопис під час введення**, щоб прибрати червоні хвилясті лінії в усіх відкритих вікнах і в інших застосунках; **Правопис** на вкладці **Рецензування** працює й далі), чи ігноруються під час перевірки правопису слова великими літерами та слова з цифрами, чи автозаміна виправляє слова під час введення, чи прямі лапки перетворюються на типографські, чи змінюються тире, дроби й порядкові числа, а також чи перетворюється веб-адреса на посилання. Див. [Правопис](notes-links) і [Введення в комірках](edit-cells).
 
-## Display options
+## Параметри відображення
 
-- **Gridline color** is the color of the lines between cells on your screen. It is a choice for your screen only, not saved in the workbook.
-- **Zoom of a new workbook** is how large the sheets of a new workbook look, from 10% to 400%.
-- **Standard column width (this sheet)** is the width of every column of this sheet that has no width of its own. It is the same as **Default Width** on the Home tab.
+- **Колір сітки** — це колір ліній між комірками на екрані. Це вибір лише для вашого екрана, він не зберігається в книзі.
+- **Масштаб нової книги** — наскільки великими виглядають аркуші нової книги, від 10 % до 400 %.
+- **Стандартна ширина стовпця (цей аркуш)** — це ширина кожного стовпця цього аркуша, який не має власної ширини. Це те саме, що **Типова ширина** на вкладці **Основне**.
 
-## Customize
+## Настроювання
 
-The **Customize** tab has three pages, **Ribbon**, **Quick Toolbar**, and **Keyboard**. The **Keyboard** page is where you choose the shortcut keys for JeffCrunch's commands. See "Choose your own shortcut keys" in the keyboard topic.
+Вкладка **Настроювання** має три сторінки: **Стрічка**, **Панель швидкого доступу** і **Клавіатура**. На сторінці **Клавіатура** ви вибираєте комбінації клавіш для команд JeffCrunch. Див. «Вибір власних комбінацій клавіш» у розділі про клавіатуру.
 
-### Customize the ribbon
+### Настроювання стрічки
 
-The **Ribbon** page lists the ribbon's tabs, each with its groups.
+Сторінка **Стрічка** показує вкладки стрічки, кожна з яких має свої групи.
 
-- **Hide or show a tab or a group.** Clear the box beside it to hide it, and tick the box to show it again. A hidden group takes no room, and its commands still work from their shortcut keys. **Home** has no box, because it always stays, and so does the **File** button. A tab that appears only when something is selected, such as a picture or a table, is at the end of the list and has no box.
-- **Make your own tab or group.** Type a name in the **Name** box and click **New Tab**. To make a group, choose a tab and click **New Group**. A group of your own can go on any tab, including a tab that appears only when something is selected.
-- **Put commands in your group.** Choose your group, find a command in the **Commands** list (type in the **Search commands** box to narrow the list), and click **Add Command**. Any command that has a name can go in. A command can be in a group only once.
-- **Rename.** Choose a tab, group, or command of your own, type the new name, and click **Rename**. A command you rename does the same thing, and the new name is only what its button says. Rename a command with an empty name to give it its own name back.
-- **Reorder.** Choose a tab and click **Move Up** or **Move Down**. You can move the ribbon's own tabs as well as yours, but not the tabs that appear only when something is selected. Your groups and your commands move the same way within their tab or group. The ribbon's own groups stay in their order.
-- **Take away.** Choose a tab, group, or command of your own and click **Remove**.
+- **Приховати або показати вкладку чи групу.** Зніміть позначку поруч, щоб приховати, і поставте її, щоб показати знову. Прихована група не займає місця, а її команди працюють за комбінаціями клавіш. **Основне** не має позначки, бо завжди залишається видимою, так само як кнопка **Файл**. Вкладка, яка з'являється лише тоді, коли щось виділено, наприклад малюнок або таблицю, стоїть у кінці списку і не має позначки.
+- **Створити власну вкладку або групу.** Введіть назву в полі **Назва** і натисніть **Нова вкладка**. Щоб створити групу, виберіть вкладку і натисніть **Нова група**. Власну групу можна розмістити на будь-якій вкладці, зокрема на вкладці, яка з'являється лише тоді, коли щось виділено.
+- **Додати команди до своєї групи.** Виберіть свою групу, знайдіть команду в списку **Команди** (щоб звузити список, введіть текст у полі **Пошук команд**) і натисніть **Додати команду**. Можна додати будь-яку команду, яка має назву. Одна команда може бути в групі лише один раз.
+- **Перейменувати.** Виберіть власну вкладку, групу або команду, введіть нову назву і натисніть **Перейменувати**. Перейменована команда виконує те саме, а нова назва лише відображається на її кнопці. Щоб повернути команді її початкову назву, перейменуйте її на порожню.
+- **Змінити порядок.** Виберіть вкладку і натисніть **Перемістити вгору** або **Перемістити вниз**. Можна переміщувати як вбудовані вкладки стрічки, так і свої, але не вкладки, які з'являються лише тоді, коли щось виділено. Ваші групи та команди переміщуються так само, у межах своєї вкладки або групи. Вбудовані групи стрічки зберігають свій порядок.
+- **Вилучити.** Виберіть власну вкладку, групу або команду і натисніть **Видалити**.
 
-**Reset One** puts back the chosen tab: it is shown, its groups are shown, and the groups you added to it are gone. A tab of your own is taken away. **Reset All** puts back the whole ribbon, including the order of the tabs.
+**Скинути один** повертає вибрану вкладку: вона показується, показуються її групи, а додані до неї групи зникають. Власна вкладка видаляється. **Скинути все** повертає всю стрічку, зокрема порядок вкладок.
 
-Nothing changes until you click **OK**. Then every open JeffCrunch window shows your ribbon, and so does every window you open later. JeffCrunch keeps only what differs from the usual ribbon, so a tab or group a later version adds shows up on its own. Your tabs and groups get KeyTips (the letters shown when you press **Alt**) that do not clash with the others. You can have 20 tabs of your own, 30 groups of your own on a tab, and 60 commands in a group.
+Нічого не змінюється, доки ви не натиснете **OK**. Після цього кожне відкрите вікно JeffCrunch показує вашу стрічку, так само як і кожне вікно, яке ви відкриєте пізніше. JeffCrunch зберігає лише те, що відрізняється від звичайної стрічки, тож вкладка або група, яку додасть пізніша версія, з'явиться окремо. Для ваших вкладок і груп створюються підказки клавіш (літери, які з'являються після натискання Alt), що не збігаються з іншими. Можна мати 20 власних вкладок, 30 власних груп на вкладці та 60 команд у групі.
 
-### Customize the quick toolbar
+### Настроювання панелі швидкого доступу
 
-The **Quick Toolbar** page is for the small toolbar at the top left of the window. Its left list shows what is on the toolbar now, and the **Commands** list on the right has every command that has a name (type in the **Search commands** box to narrow it, the same as on the **Ribbon** page).
+Сторінка **Панель швидкого доступу** стосується невеликої панелі у верхньому лівому куті вікна. Ліворуч показано, що є на панелі зараз, а список **Команди** праворуч містить усі команди, які мають назву (щоб звузити список, введіть текст у полі **Пошук команд**, так само як на сторінці **Стрічка**).
 
-- **Add a command.** Choose it in the **Commands** list and click **Add Command**. It goes at the end of the toolbar. A command that opens a menu keeps its menu on the toolbar. A command can be on the toolbar only once.
-- **Right-click.** You can also right-click any command on the ribbon and choose **Add to Quick Toolbar**, or right-click a button on the toolbar and choose **Remove from Quick Toolbar**. The same menu has **Customize the Quick Toolbar** and **Customize the Ribbon**, which open this page.
-- **Add a separator.** Click **Add Separator** to put a thin line at the end, then move it where you want it.
-- **Reorder.** Choose a command or a separator in the left list and click **Move Up** or **Move Down**.
-- **Take away.** Choose it and click **Remove**.
+- **Додати команду.** Виберіть її в списку **Команди** і натисніть **Додати команду**. Вона з'явиться в кінці панелі. Команда, яка відкриває меню, зберігає своє меню на панелі. Одна команда може бути на панелі лише один раз.
+- **Права кнопка миші.** Можна також клацнути правою кнопкою будь-яку команду на стрічці та вибрати **Додати на панель швидкого доступу** або клацнути правою кнопкою кнопку на панелі та вибрати **Вилучити з панелі швидкого доступу**. У цьому самому меню є пункти **Настроїти панель швидкого доступу** і **Настроїти стрічку**, які відкривають цю сторінку.
+- **Перемістити під стрічку.** Позначте **Показувати панель швидкого доступу під стрічкою**, щоб розмістити панель рядком під стрічкою, а не у верхньому лівому куті. Обидва меню правої кнопки миші також мають пункт **Показувати панель швидкого доступу під стрічкою**. JeffCrunch запам'ятовує цей вибір.
+- **Додати роздільник.** Натисніть **Додати роздільник**, щоб додати тонку лінію в кінці, а потім перемістіть її туди, де вона потрібна.
+- **Змінити порядок.** Виберіть команду або роздільник у лівому списку і натисніть **Перемістити вгору** або **Перемістити вниз**.
+- **Вилучити.** Виберіть її і натисніть **Видалити**.
 
-**Reset One** puts back the chosen command: where JeffCrunch usually has it, or off the toolbar when JeffCrunch does not usually have it there. **Reset All** puts back the toolbar JeffCrunch comes with. Reset All on this page does not change your ribbon, and Reset All on the **Ribbon** page does not change your toolbar.
+**Скинути один** повертає вибрану команду: туди, де JeffCrunch зазвичай її розміщує, або прибирає з панелі, якщо зазвичай її там немає. **Скинути все** повертає панель, з якою поставляється JeffCrunch. Скидання всього на цій сторінці не змінює вашу стрічку, а скидання всього на сторінці **Стрічка** не змінює вашу панель.
 
-Nothing changes until you click **OK**. Then every open JeffCrunch window shows your toolbar, and so does every window you open later. The toolbar can have 100 commands and separators in all. When there are more buttons than fit in a third of the window's width, the rest wait behind a **»** button at the end of the toolbar, so the title of the window is never pushed off the screen. JeffCrunch keeps a command in your list when a later version no longer has it, and shows it again if the command comes back. The buttons get KeyTips, the numbers 1 to 9 and then two letters, in the order they are on the toolbar. The toolbar always sits at the top left, beside the **File** button.
+Нічого не змінюється, доки ви не натиснете **OK**. Після цього кожне відкрите вікно JeffCrunch показує вашу панель, так само як і кожне вікно, яке ви відкриєте пізніше. Панель може містити загалом 100 команд і роздільників. Коли кнопок більше, ніж вміщується в третині ширини вікна, решта чекає за кнопкою **»** в кінці панелі, тож заголовок вікна ніколи не зсувається за межі екрана. JeffCrunch зберігає команду у вашому списку, навіть якщо пізніша версія її вже не має, і знову показує її, коли команда повертається. Кнопки отримують підказки клавіш: цифри від 1 до 9, а потім дві літери, у порядку розміщення на панелі. Панель завжди розміщена у верхньому лівому куті, поруч із кнопкою **Файл**.
 
-## Privacy options
+## Параметри конфіденційності
 
-- **Remove personal information from this file when saving** takes out the author, the person who saved the file last, the company, the manager, and the names and times on notes and comments, from the file that is written (a workbook, a copy, and a workbook sent by email). What the file says stays as it is. The file's custom properties are left as they are, and the document you have open is not changed. It is the same choice in every JeffOffice app: change it in one and it changes in all of them. To do this just once, use **Inspect Workbook** in [Info](info). The same box is on the **Info** page.
+- **Видаляти персональні дані з цього файлу під час збереження** прибирає автора, особу, яка востаннє зберегла файл, компанію, керівника, а також імена та часи в примітках і коментарях, з файлу, який записується (книга, копія та книга, надіслана електронною поштою). Те, що написано у файлі, залишається без змін. Користувацькі властивості файлу не змінюються, а відкритий документ не змінюється. Цей прапорець є однаковим у всіх застосунках JeffOffice: змінивши його в одному, ви змінюєте його в усіх. Щоб зробити це один раз, скористайтеся командою **Перевірити книгу** на сторінці [Відомості](info). Той самий прапорець є на сторінці **Відомості**.
 
-## Usage statistics
+## Статистика використання
 
-**Send anonymous usage statistics** lets you share facts about how JeffCrunch is used. Anonymous means the facts say nothing about who you are. When this is on, JeffCrunch sends these facts once a day, and on the day you update: that it is JeffCrunch, its version, your operating system and language, how many times it was started, how often each command is used, and what kind of file you opened or saved. If JeffCrunch ever closes by surprise, it also sends a crash report the next time it starts. JeffCrunch never sends your files, their names, or anything in them, and nothing you typed. If this is off, no crash report is sent either.
+**Надсилати анонімну статистику використання** дозволяє ділитися відомостями про те, як використовується JeffCrunch. Анонімна означає, що відомості нічого не говорять про вас. Коли це ввімкнено, JeffCrunch надсилає такі відомості раз на день і в день оновлення: що це JeffCrunch, його версію, вашу операційну систему та мову, скільки разів програму було запущено, як часто використовується кожна команда і який тип файлу ви відкривали або зберігали. Якщо JeffCrunch закрився несподівано, він також надішле звіт про збій під час наступного запуску. JeffCrunch ніколи не надсилає ваші файли, їхні назви чи будь-що з їхнього вмісту, а також нічого з того, що ви ввели. Якщо це вимкнено, звіт про збій також не надсилається.
 
-The choice belongs to all the JeffOffice apps: change it here and it changes in each of them. JeffCrunch asks about it the first time it starts, in a window called **Help improve JeffCrunch**.
+Цей вибір належить усім застосункам JeffOffice: змінивши його тут, ви змінюєте його в кожному з них. JeffCrunch запитує про це під час першого запуску у вікні **Допоможіть покращити JeffCrunch**.
 
-- **Privacy notice** next to the check box opens our privacy notice at jeffoffice.com/privacy. It says what is sent, where it goes, and how long we keep it. We keep statistics for 24 months.
-- **Install number** is shown under the check box. It is a random number made up for your copy of JeffOffice, the same in every JeffOffice app. It says nothing about you. Click **Copy** to copy it. If statistics are off, or no number has been made yet, it says **none**.
-- To have the statistics we already hold deleted, send your install number to info@jeffoffice.com **before** you turn statistics off. Turning them off erases the number from your computer, and without it we cannot tell which records are yours.
-- To turn statistics off without opening JeffCrunch, set the environment variable `JP_NO_TELEMETRY` to any value before you start it. Nothing is then counted or sent, and JeffCrunch does not ask the first-run question.
+- **Повідомлення про конфіденційність** поруч із прапорцем відкриває нашу політику конфіденційності на сторінці jeffoffice.com/privacy. Там сказано, що надсилається, куди це йде і як довго ми це зберігаємо. Статистику ми зберігаємо 24 місяці.
+- **Номер встановлення** показано під прапорцем. Це випадковий номер, створений для вашої копії JeffOffice, однаковий у всіх застосунках JeffOffice. Він нічого не говорить про вас. Натисніть **Копіювати**, щоб скопіювати його. Якщо статистику вимкнено або номер ще не створено, там буде написано **немає**.
+- Щоб видалити статистику, яку ми вже маємо, надішліть свій номер встановлення на адресу info@jeffoffice.com **до того**, як вимкнете статистику. Вимкнення стирає номер з вашого комп'ютера, і без нього ми не можемо визначити, які записи належать вам.
+- Щоб вимкнути статистику, не відкриваючи JeffCrunch, встановіть змінну середовища `JP_NO_TELEMETRY` з будь-яким значенням перед запуском програми. Тоді нічого не враховується й не надсилається, а JeffCrunch не ставить запитання під час першого запуску.
 
-## Related
+## Пов'язані теми
 
-- [Welcome to JeffCrunch](start)
+- [Ласкаво просимо до JeffCrunch](start)
