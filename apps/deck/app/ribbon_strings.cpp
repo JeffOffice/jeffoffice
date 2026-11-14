@@ -67,6 +67,7 @@
     QT_TRANSLATE_NOOP("Ribbon", "Layout"),
     QT_TRANSLATE_NOOP("Ribbon", "Legend"),
     QT_TRANSLATE_NOOP("Ribbon", "Line Spacing"),
+    QT_TRANSLATE_NOOP("Ribbon", "Multilevel List"),
     QT_TRANSLATE_NOOP("Ribbon", "Links"),
     QT_TRANSLATE_NOOP("Ribbon", "Master Layout"),
     QT_TRANSLATE_NOOP("Ribbon", "Master Views"),
