@@ -685,10 +685,19 @@ bool WriteWindow::printOutput(const WriteOutputOptions &options)
     QPrinter printer(QPrinter::HighResolution);
     printer.setDocName(displayName());
     QString path;
-    // A PDF file is made as the export makes it (with the properties and the bookmarks), and put in place when it is whole, so that a file that is there is not lost to one that fails.
+    // A PDF file is made in a temporary file and put in place when it is whole, as the export does, so that a file that is there is not lost to one that fails.
+    std::unique_ptr<QTemporaryFile> made;
     if (options.toFile) {
         path = pdfPathToWrite(tr("Save as PDF"));
         if (path.isEmpty()) return false;
+        made = std::make_unique<QTemporaryFile>(QDir::tempPath() + QStringLiteral("/jeffwrite-XXXXXX.pdf"));
+        if (!made->open()) {
+            jp::plainWarning(this, tr("Save as PDF"), tr("%1 couldn't make \"%2\".\n%3").arg(appInfo().name, QFileInfo(path).fileName(), made->errorString()));
+            return false;
+        }
+        made->close();
+        printer.setOutputFormat(QPrinter::PdfFormat);
+        printer.setOutputFileName(made->fileName());
     } else if (!options.printer.isEmpty()) {
         printer.setPrinterName(options.printer);
     }
@@ -719,24 +728,36 @@ bool WriteWindow::printOutput(const WriteOutputOptions &options)
     layout.perSheet = options.perSheet;
     layout.paper = options.scaleTo;
     layout.turn = options.turn;
-    bool ok = false;
+    // (a PDF file is tagged as the export's is, one page to a sheet)
+    write::WriteTagger tagger;
+    const bool tagging = options.toFile && write::sheetGrid(options.perSheet) == QSize(1, 1);
+    bool ok = write::paintSheets(*source, &printer, sheets, sourcePages, printer.colorMode() == QPrinter::GrayScale, layout, 0, tagging ? &tagger : nullptr);
     QString err;
-    if (options.toFile) {
-        WriteOutputOptions pdfOptions;
-        pdfOptions.pdfTags = true;
-        QByteArray bytes = pdfSheets(*source, sourcePages, sheets, layout, options.grayscale, pdfOptions, &err, nullptr);
-        ok = !bytes.isEmpty();
+    if (ok && made) {
+        QFile whole(made->fileName());
+        ok = whole.open(QIODevice::ReadOnly);
+        QByteArray bytes = ok ? whole.readAll() : QByteArray();
+        if (ok && tagging) {
+            // (the title is the one the printer wrote: the properties of the document are the export's)
+            QString language = source->proofingLanguage();
+            language.replace(QLatin1Char('_'), QLatin1Char('-'));
+            const PdfTagResult result = tagPdf(bytes, tagger.tags(), {language.isEmpty() ? QStringLiteral("en-US") : language, displayName()});
+            ok = !result.pdf.isEmpty();
+            if (!ok) err = result.why;
+            else bytes = result.pdf;
+        }
+        if (ok) bytes = write::addPdfBookmarks(bytes, write::headingBookmarks(*source, sheets));
         if (ok) {
             QSaveFile file(path);
             ok = file.open(QIODevice::WriteOnly) && file.write(bytes) == bytes.size() && file.commit();
             if (!ok) err = file.errorString();
+        } else if (err.isEmpty()) {
+            err = whole.errorString();
         }
-    } else {
-        ok = write::paintSheets(*source, &printer, sheets, sourcePages, printer.colorMode() == QPrinter::GrayScale, layout);
     }
     QApplication::restoreOverrideCursor();
     if (!ok) {
-        if (options.toFile && !err.isEmpty()) printNotice(this, tr("Save as PDF"), tr("%1 couldn't save \"%2\".\n%3%4").arg(appInfo().name, QFileInfo(path).fileName(), err, saveFailureHint(err)));
+        if (made && !err.isEmpty()) printNotice(this, tr("Save as PDF"), tr("%1 couldn't save \"%2\".\n%3%4").arg(appInfo().name, QFileInfo(path).fileName(), err, saveFailureHint(err)));
         else printNotice(this, tr("Print"), tr("Couldn't print \"%1\" to %2.").arg(displayName(), options.toFile ? QFileInfo(path).fileName() : options.printer.isEmpty() ? printer.printerName() : options.printer));
         return false;
     }

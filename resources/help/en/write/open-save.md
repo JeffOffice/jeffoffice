@@ -84,7 +84,7 @@ Click **File > Export > Export to PDF**. Choose which pages to include: all, the
 - **Create bookmarks from headings** makes each heading a **bookmark**, an entry in the list that a PDF reader shows beside the pages. Click a bookmark to jump to its page.
 - **Document structure tags for accessibility** tags the headings, paragraphs, lists, tables (with their header rows), and pictures (with their alternative text), and names the language, so that a screen reader reads the PDF in order.
 
-Then choose a name. The PDF looks the same on every computer, because the fonts go inside it. The PDF that **Print** makes when you choose a PDF file has the properties, the bookmarks, and the tags too.
+Then choose a name. The PDF looks the same on every computer, because the fonts go inside it. The PDF that **Print** makes when you choose a PDF file has the bookmarks and the tags too.
 
 ## Save as a web page
 

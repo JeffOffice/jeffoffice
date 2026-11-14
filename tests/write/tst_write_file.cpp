@@ -568,16 +568,13 @@ private Q_SLOTS:
         QVERIFY(!run(QStringLiteral("range.pdf"), [](QDialog *d) { QVERIFY(d->findChild<QComboBox *>(QStringLiteral("pdfRange"))); }).isEmpty());
     }
 
-    // The PDF that Print makes to a file has the properties and the bookmarks too.
-    void thePdfThatPrintMakesHasPropertiesAndBookmarks()
+    // The PDF that Print makes to a file has the bookmarks and the tags too.
+    void thePdfThatPrintMakesHasBookmarksAndTags()
     {
         QTemporaryDir dir;
         WriteWindow w;
         Quiet quiet(w);
         openRich(w, dir);
-        office::PackageProps props = w.document()->packageProps();
-        props.creator = QStringLiteral("Zed Author");
-        w.document()->setPackageProps(props);
         const QString target = dir.filePath(QStringLiteral("printed.pdf"));
         w.setSavePathChooser([&](const QString &, const QString &) { return target; });
         WriteOutputOptions o;
@@ -587,7 +584,8 @@ private Q_SLOTS:
         QVERIFY(pdf.startsWith("%PDF"));
         QVERIFY(pdf.contains("/Type /Outlines"));
         QVERIFY(pdf.contains(utf16Hex(QStringLiteral("First part"))));
-        QVERIFY(pdf.contains("Zed Author"));
+        QVERIFY(pdf.contains("/StructTreeRoot"));
+        QCOMPARE(pdfcheck::marksLeft(pdf), 0);
     }
 
     // A tagged PDF: the headings, paragraphs, a list, a table with a header row, and a picture with its alt text are in a structure tree in reading order, the marks are all gone, and the
