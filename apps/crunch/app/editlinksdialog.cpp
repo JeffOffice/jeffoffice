@@ -1,5 +1,6 @@
 #include "app/editlinksdialog.h"
 
+#include "app/linkprogress.h"
 #include "app/plaintext.h"
 
 #include <QComboBox>
@@ -132,11 +133,13 @@ void EditLinksDialog::reload()
 
 QString EditLinksDialog::statusOf(const crunch::EditSession::ExternalSource &s)
 {
+    if (s.state == 4) return tr("Not read: on another computer");
     if (!s.local) return tr("Not checked: it is on the web");
     switch (s.state) {
     case 0: return s.live ? tr("OK: the values are from the source") : tr("OK: the source is there");
     case 2: return tr("Newer: Update Values reads it");
     case 3: return tr("Could not be read: the stored values are shown");
+    case 4: return tr("Not read: on another computer");
     default: return tr("Not found: the stored values are shown");
     }
 }
@@ -154,15 +157,23 @@ bool EditLinksDialog::updateRow(int row)
 {
     if (row < 0 || row >= int(m_sources.size())) return false;
     const crunch::EditSession::ExternalSource s = m_sources[size_t(row)];
-    const QString path = localPath(s, m_baseDir);
+    // (a source on another computer is read only now, because this one was asked for)
+    const QString path = s.network ? s.shown : localPath(s, m_baseDir);
     if (path.isEmpty() || !QFileInfo::exists(path)) {
-        m_note->setText(tr("That workbook can't be found on this computer, so its values are not updated. Use Change Source to point to it."));
+        m_note->setText(tr("That workbook can't be found, so its values are not updated. Use Change Source to point to it."));
         return false;
     }
+    // the file is read on a thread of its own, behind a window with Cancel; the cells are then given their values from what was read
+    if (crunch::EditSession *session = m_session; session->externals()) {
+        jp::office::sheet::ExternalBooks *links = session->externals();
+        if (s.network) links->setAllowNetwork(s.index, true);
+        if (!runLinkReads(this, links, tr("Reading \"%1\"...").arg(QFileInfo(path).fileName()), [&] { links->probe(s.index); })) {
+            m_note->setText(tr("Stopped. Nothing was changed."));
+            return false;
+        }
+    }
     crunch::EditSession::ExternalUpdate done;
-    QGuiApplication::setOverrideCursor(Qt::WaitCursor);
     const crunch::EditSession::Outcome o = m_session->updateExternalValues(s.index, path, &done);
-    QGuiApplication::restoreOverrideCursor();
     if (!o.ok) {
         m_note->setText(o.problem);
         return false;
@@ -179,10 +190,18 @@ bool EditLinksDialog::changeRow(int row)
 {
     if (row < 0 || row >= int(m_sources.size())) return false;
     const crunch::EditSession::ExternalSource s = m_sources[size_t(row)];
-    const QString from = localPath(s, m_baseDir);
+    const QString from = s.network ? QString() : localPath(s, m_baseDir);
     const QString start = !from.isEmpty() ? QFileInfo(from).absolutePath() : m_baseDir;
     const QString path = m_chooser ? m_chooser(start) : QFileDialog::getOpenFileName(this, tr("Change Source"), start, tr("Workbooks (*.xlsx *.xlsm *.xls *.ods);;All files (*)"));
     if (path.isEmpty()) return false;
+    // (the new file is read first, on a thread of its own, behind a window with Cancel)
+    if (jp::office::sheet::ExternalBooks *links = m_session->externals()) {
+        const QString full = QFileInfo(path).absoluteFilePath();
+        if (!runLinkReads(this, links, tr("Reading \"%1\"...").arg(QFileInfo(path).fileName()), [&] { links->prefetch(full); })) {
+            m_note->setText(tr("Stopped. Nothing was changed."));
+            return false;
+        }
+    }
     const crunch::EditSession::Outcome o = m_session->changeExternalSource(s.index, path);
     if (!o.ok) {
         plainWarning(this, windowTitle(), o.problem);

@@ -19,10 +19,12 @@ struct Window {
     QStringList told;
     int linksAsked = 0;          // how many times a file that is opened asked whether to update its links
     bool linksAnswer = false;    // and what it was told
+    std::function<void()> onLinksAsked;   // called at the question, before it is answered
     Window()
     {
         w.setLinksAsker([this](int, int) {
             ++linksAsked;
+            if (onLinksAsked) onLinksAsked();
             return linksAnswer;
         });
         w.setNotifier([this](const QString &title, const QString &text) { told << title + QStringLiteral(": ") + text; });

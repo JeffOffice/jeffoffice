@@ -796,6 +796,7 @@ EditSession::Outcome EditSession::type(int sheet, quint32 row, quint32 col, cons
     if (table >= 0) return typeInHeader(sheet, row, col, table, column, typed);
     CellChange ch;
     bool none = false;
+    PlanScope plan(this);
     if (!typedChange(sheet, row, col, typed, &ch, &none, &out)) return out;
     if (none) return out;
     if (checkRule_) {
@@ -825,6 +826,7 @@ EditSession::Outcome EditSession::type(int sheet, quint32 row, quint32 col, cons
         }
     }
     step.cells.push_back(std::move(ch));
+    commitLinkPlan();
     pushStep(std::move(step), tr("Typing in %1").arg(cellName(row, col)));
     // what typing in a table's cell, or next to one, brings with it: the table grows; a formula typed in an empty column becomes the column's
     growTableAfterEntry(sheet, row, col, entry);
@@ -855,6 +857,7 @@ EditSession::Outcome EditSession::typeInto(int sheet, qint64 row1, qint64 col1, 
     // the entry as the cell with the cursor takes it; a formula of it is moved to each of the others
     CellChange first;
     bool none = false;
+    PlanScope plan(this);
     if (!typedChange(sheet, activeRow, activeCol, typed, &first, &none, &out)) return out;
     // the cells a merged area hides (all but its top left) are left as they are
     std::set<quint64> hidden;
@@ -890,6 +893,7 @@ EditSession::Outcome EditSession::typeInto(int sheet, qint64 row1, qint64 col1, 
         }
     }
     if (step.cells.empty()) return out;
+    commitLinkPlan();
     pushStep(std::move(step), tr("Typing in %1").arg(rangeName(jp::office::sheet::CellRange{quint32(row1), quint32(col1), quint32(row2), quint32(col2), true})));
     return out;
 }
@@ -2085,6 +2089,7 @@ void EditSession::saved(const Snapshot &snapshot, const Package &package)
     if (snapshot.changes.dropExternalLinks) forgetStepsDone();
     m_dropExternalLinks = false;
     m_externalUpdated.clear();
+    m_savedLinks.insert(m_newLinks.begin(), m_newLinks.end());
     m_newLinks.clear();
     m_dropCustomXml = false;
     m_nameTable.rebase([this](const NameEntry &e) {

@@ -47,11 +47,30 @@ public:
     // The address the link points to, as the file (or Change Source) has it; and the file on this computer it names (empty for a web address, or none).
     QString target(int index) const;
     QString localPath(int index) const;
+    // The file's path whether it is on this computer or not (nothing is looked at); isNetwork says it is on another computer (a path or address that names a host). Such a source is never read, or
+    // asked about, until setAllowNetwork says the person asked for it (Update Values, Change Source).
+    QString filePath(int index) const;
+    bool isNetwork(int index) const;
+    bool allowNetwork(int index) const;
+    void setAllowNetwork(int index, bool on);
+    // Reads a file ahead (a thread that is not the window's does it, behind a progress window with Cancel) for a link that is to point at it: probe() then finds it read.
+    bool prefetch(const QString &path, QString *why = nullptr);
+    // Stops the reads that are going (the person pressed Cancel); resetCancel before the next.
+    void cancelReads();
+    void resetCancel();
+    // How many times a file was asked about or opened (a test checks that nothing is touched before the person says yes).
+    int fileTouches() const;
+    // How many times a formula was given the answer another had (a column of formulas over one range share one array), and the thread that read a file last (QThread::currentThreadId): tests.
+    int answersShared() const;
+    quintptr lastReadThread() const;
+    // For tests: the most cells of all the links' stored values, their bytes, the most cells of all the sources read, and the most milliseconds a read takes. Call with the defaults (5000000, 128 MB,
+    // 5000000, 30000) to put them back.
+    static void setCapsForTest(qint64 cacheCells, qint64 cacheBytes, qint64 sourceCells, qint64 readMillis);
     void setBaseDir(const QString &dir);
     // Change Source: the link points at another address from now (the source is read again, and the cache stays as it is).
     void setTarget(int index, const QString &target);
 
-    enum class State { Ok, Missing, Newer, Unreadable };
+    enum class State { Ok, Missing, Newer, Unreadable, Network };   // Network: on another computer, not asked about
     // Ok: the file is there and has not changed since its values were read (or the workbook was last saved); Missing: no such file (not a local one, or none); Newer: the file changed after;
     // Unreadable: it is there and could not be read (too big, damaged, too slow).
     State state(int index) const;
@@ -64,7 +83,8 @@ public:
     // Forgets what was read of the source (it is read again when next asked).
     void invalidate(int index);
     // Reads the source now (when live or not) to see that it can be: true, or false with the reason.
-    bool probe(int index, QString *why = nullptr);
+    // `refresh` reads the source again whatever was read (a person asked for the values); false uses what is read if its file has not changed.
+    bool probe(int index, QString *why = nullptr, bool refresh = true);
 
     // What a reference as a formula writes it is (`[1]Sheet1!A1:B9`, `'[1]My Sheet'!$A:$A`, `[1]!Name`): a value for a cell, an array for a range (a whole column or row is the used part
     // of the sheet; a reference through several sheets stacks them), false when it can't be told (the link has no such source, no cache for it, no such sheet).

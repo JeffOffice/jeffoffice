@@ -7,6 +7,7 @@
 #include <QDir>
 #include <QElapsedTimer>
 #include <QFileInfo>
+#include <QThread>
 #include <QUrl>
 #include <QXmlStreamReader>
 
@@ -21,23 +22,74 @@ using jp::calc::Value;
 namespace {
 
 constexpr int kMostLinks = 1000;
-constexpr qint64 kMostCacheCells = 2000000;
+constexpr qint64 kMostCacheCells = 2000000;           // the cells of one link's stored values
+// What all the links' stored values may come to, and all the sources that are read (a test lowers them).
+struct Caps {
+    qint64 cacheCells = 5000000, cacheBytes = qint64(128) << 20, sourceCells = 5000000;
+    qint64 readMillis = kMaxExternalReadMillis;
+} g_caps;
 constexpr size_t kMostReadRanges = 64;
 
-// The file on this computer an address names (empty for a web address, or none).
+struct Resolved {
+    QString path;          // the file, as a path (empty for a web address, or none)
+    bool network = false;  // on another computer: a path that begins with two slashes (or two backslashes), or a file: address with a host
+    bool web = false;
+};
+
+// What an address names. Nothing is looked at here: no file is touched. A file on another computer (a share) is never read unless the person says so, since opening it sends their credentials to it.
+Resolved resolveTarget(const QString &target, const QString &baseDir)
+{
+    Resolved r;
+    QString t = target.trimmed();
+    if (t.isEmpty()) return r;
+    if (t.startsWith(QLatin1String("http://"), Qt::CaseInsensitive) || t.startsWith(QLatin1String("https://"), Qt::CaseInsensitive) || t.startsWith(QLatin1String("ftp://"), Qt::CaseInsensitive)) {
+        r.web = true;
+        return r;
+    }
+    if (t.startsWith(QLatin1String("file:"), Qt::CaseInsensitive)) {
+        QString rest = t.mid(5);
+        if (rest.startsWith(QLatin1String("//"))) {
+            rest.remove(0, 2);
+            if (!rest.startsWith(QLatin1Char('/')) || rest.startsWith(QLatin1String("//"))) r.network = true;   // (file://host/share/x, and file://///host/share/x)
+        }
+        // (only a file: address is percent-encoded; a plain path is what it is)
+        QString decoded = QUrl::fromPercentEncoding(rest.toUtf8());
+        if (r.network) {
+            while (decoded.startsWith(QLatin1Char('/'))) decoded.remove(0, 1);
+            decoded.prepend(QLatin1String("//"));
+        } else if (decoded.size() > 2 && decoded[0] == QLatin1Char('/') && decoded[2] == QLatin1Char(':')) {
+            decoded.remove(0, 1);   // (file:///C:/x)
+        }
+        r.path = decoded;
+        if (!r.network && !QDir::isAbsolutePath(decoded) && !baseDir.isEmpty()) r.path = QDir(baseDir).filePath(decoded);
+        return r;
+    }
+    if (t.startsWith(QLatin1String("\\\\")) || t.startsWith(QLatin1String("//"))) {
+        r.network = true;   // (\\host\share, \\?\UNC\host\share, \\host@SSL\share, //host/share)
+        r.path = t;
+        return r;
+    }
+    r.path = t;
+    if (!QDir::isAbsolutePath(t) && !baseDir.isEmpty()) r.path = QDir(baseDir).filePath(t);
+    return r;
+}
+
+// The file on this computer an address names (empty for a web address, a file on another computer, or none).
 QString localPathOf(const QString &target, const QString &baseDir)
 {
-    QString t = target.trimmed();
-    if (t.isEmpty()) return {};
-    if (t.startsWith(QLatin1String("http://"), Qt::CaseInsensitive) || t.startsWith(QLatin1String("https://"), Qt::CaseInsensitive) || t.startsWith(QLatin1String("ftp://"), Qt::CaseInsensitive)) return {};
-    if (t.startsWith(QLatin1String("file:///"), Qt::CaseInsensitive)) {
-        t.remove(0, 8);
-        if (!(t.size() > 1 && t[1] == QLatin1Char(':'))) t.prepend(QLatin1Char('/'));
-    }
-    t = QUrl::fromPercentEncoding(t.toUtf8());
-    if (!QDir::isAbsolutePath(t) && !baseDir.isEmpty()) t = QDir(baseDir).filePath(t);
-    return t;
+    const Resolved r = resolveTarget(target, baseDir);
+    return r.network ? QString() : r.path;
 }
+
+// A read that may be stopped: by the clock, and by the person (Cancel).
+struct Control {
+    std::atomic<qint64> deadline{0};
+    std::shared_ptr<std::atomic<bool>> cancel;
+    void start() { deadline.store(QDateTime::currentMSecsSinceEpoch() + g_caps.readMillis); }
+    bool stopped() const { return (cancel && cancel->load()) || (deadline.load() > 0 && QDateTime::currentMSecsSinceEpoch() > deadline.load()); }
+};
+
+constexpr qint64 kMaxSourceSheetBytes = qint64(256) << 20;   // the XML of one sheet of a source
 
 // What a source gives: its sheets and names, read once.
 struct Source {
@@ -45,6 +97,13 @@ struct Source {
     std::vector<std::shared_ptr<Sheet>> sheets;   // read when first asked
     std::vector<std::pair<quint32, quint32>> extents;
     std::mutex lock;
+    std::shared_ptr<Control> control = std::make_shared<Control>();
+    std::shared_ptr<std::atomic<qint64>> total;   // the cells of every source that is read
+    qint64 mine = 0;
+    ~Source()
+    {
+        if (total) total->fetch_sub(mine);
+    }
 
     // The sheet at a place, read; null if it can't be.
     std::shared_ptr<Sheet> sheetAt(int index)
@@ -53,7 +112,13 @@ struct Source {
         if (index < 0 || size_t(index) >= sheets.size()) return nullptr;
         if (!sheets[size_t(index)]) {
             auto s = std::make_shared<Sheet>();
-            if (!book.readSheet(index, s.get())) return nullptr;
+            control->start();
+            const auto progress = [c = control](qint64) { return !c->stopped(); };
+            if (!book.readSheet(index, s.get(), progress)) return nullptr;
+            const qint64 cellsHere = s->cells.cellCount();
+            if (total && total->load() + cellsHere > g_caps.sourceCells) return nullptr;   // (more than the sources may hold: the values the link stores are used)
+            if (total) total->fetch_add(cellsHere);
+            mine += cellsHere;
             quint32 rows = 0, cols = 0;
             s->cells.forEach([&](quint32 r, quint32 c, const Cell &cell) {
                 if (cell.type == CellType::Empty) return;
@@ -102,6 +167,8 @@ struct Link {
     qint64 signSize = -1, signTime = 0;
     qint64 checkedAt = 0;
     bool unreadable = false;
+    bool allowNetwork = false;   // the person asked for this source to be read (it is on another computer)
+    bool capped = false;         // the cache was left unread (the file's links hold more than is read)
     QDateTime readTime;
     // what the formulas read of it: by sheet name (lower), the blocks
     std::map<QString, std::pair<QString, std::vector<CellRange>>> reads;
@@ -240,60 +307,139 @@ struct ExternalBooks::Impl {
     int checkMillis = 500;
     mutable std::atomic<int> reads{0};
 
-    // The source of a link that is live (read now if it is not, or if its file changed): null if it can't be had.
-    std::shared_ptr<Source> sourceOf(int index, bool *tooBig = nullptr) const
+    mutable std::shared_ptr<std::atomic<qint64>> liveCells = std::make_shared<std::atomic<qint64>>(0);
+    std::shared_ptr<std::atomic<bool>> cancelFlag = std::make_shared<std::atomic<bool>>(false);
+    mutable std::atomic<int> touches{0};   // every time a file was asked about or opened
+    mutable std::atomic<int> hits{0};      // answers that were given again
+    mutable std::atomic<quintptr> loadThread{0};   // the thread that read a file last
+    struct Prefetched {
+        std::shared_ptr<Source> source;
+        qint64 size = -1, time = 0;
+    };
+    mutable std::map<QString, Prefetched> prefetched;   // sources read ahead (off the window's thread) for a link that is to point at them
+    // What a formula's reference gave, by link and text (a column of formulas that sum the same range share one array): `tag` says which source it was from (null for the link's stored values).
+    struct Answer {
+        const void *tag = nullptr;
+        Value value;
+    };
+    mutable std::map<QString, Answer> answers;
+    mutable qint64 answerCells = 0;
+
+    void forgetAnswers() const
+    {
+        answers.clear();
+        answerCells = 0;
+    }
+
+    // Reads a file: null, with the reason, if it can't be (too big, damaged, too slow, stopped).
+    std::shared_ptr<Source> load(const QString &path, QString *error) const
+    {
+        auto source = std::make_shared<Source>();
+        source->total = liveCells;
+        source->control->cancel = cancelFlag;
+        source->control->start();
+        Limits limits;
+        limits.cancelled = [c = source->control] { return c->stopped(); };
+        limits.cellsPerSheet = g_caps.sourceCells;
+        limits.sheetBytes = kMaxSourceSheetBytes;
+        touches.fetch_add(1);
+        loadThread.store(quintptr(QThread::currentThreadId()));
+        const bool ok = source->book.openFile(path, error, limits);
+        reads.fetch_add(1);
+        if (!ok) return nullptr;
+        const size_t n = size_t(source->book.info().sheets.size());
+        source->sheets.assign(n, nullptr);
+        source->extents.assign(n, {0, 0});
+        return source;
+    }
+
+    // Reads a file ahead, for a link that is about to point at it (what the person chose: a file on another computer is read too).
+    bool prefetch(const QString &path, QString *why) const
+    {
+        touches.fetch_add(1);
+        const QFileInfo info(path);
+        if (!info.isFile()) {
+            if (why) *why = QStringLiteral("not found");
+            return false;
+        }
+        if (info.size() > kMaxExternalFileBytes) {
+            if (why) *why = QStringLiteral("too big");
+            return false;
+        }
+        QString error;
+        std::shared_ptr<Source> source = load(path, &error);
+        if (!source) {
+            if (why) *why = error;
+            return false;
+        }
+        const std::lock_guard<std::mutex> guard(lock);
+        if (prefetched.size() >= 4) prefetched.clear();
+        prefetched[path] = Prefetched{source, info.size(), info.lastModified().toMSecsSinceEpoch()};
+        return true;
+    }
+
+    // The source of a link that is live (read now if it is not, or if its file changed): null if it can't be had. A file on another computer is not looked at unless the person allowed it.
+    std::shared_ptr<Source> sourceOf(int index) const
     {
         QString path;
         {
             const std::lock_guard<std::mutex> guard(lock);
             Link &l = const_cast<Link &>(links[size_t(index)]);
-            path = localPathOf(l.target, baseDir);
-            if (path.isEmpty()) return nullptr;
-            const QFileInfo info(path);
+            const Resolved r = resolveTarget(l.target, baseDir);
+            if (r.path.isEmpty() || (r.network && !l.allowNetwork)) return nullptr;
+            path = r.path;
             const qint64 now = QDateTime::currentMSecsSinceEpoch();
             if (l.source && now - l.checkedAt < checkMillis) return l.source;
             l.checkedAt = now;
-            if (!info.isFile()) {
+        }
+        // (the file is asked about with the lock let go of: a share that is slow to answer must not hold up the window)
+        touches.fetch_add(1);
+        const QFileInfo info(path);
+        const bool isFile = info.isFile();
+        const qint64 size = info.size(), time = info.lastModified().toMSecsSinceEpoch();
+        {
+            const std::lock_guard<std::mutex> guard(lock);
+            Link &l = const_cast<Link &>(links[size_t(index)]);
+            if (!isFile) {
                 l.source.reset();
                 l.signSize = -1;
                 return nullptr;
             }
-            const qint64 time = info.lastModified().toMSecsSinceEpoch();
-            if ((l.source || l.unreadable) && info.size() == l.signSize && time == l.signTime) return l.source;
+            if ((l.source || l.unreadable) && size == l.signSize && time == l.signTime) return l.source;
             l.source.reset();
             l.unreadable = false;
-            if (info.size() > kMaxExternalFileBytes) {
+            if (size > kMaxExternalFileBytes) {
                 l.unreadable = true;
-                l.signSize = info.size();
+                l.signSize = size;
                 l.signTime = time;
-                if (tooBig) *tooBig = true;
                 return nullptr;
+            }
+            const auto ahead = prefetched.find(path);
+            if (ahead != prefetched.end() && ahead->second.size == size && ahead->second.time == time) {
+                l.source = ahead->second.source;
+                l.signSize = size;
+                l.signTime = time;
+                l.readTime = QDateTime::currentDateTime();
+                prefetched.erase(ahead);
+                forgetAnswers();
+                return l.source;
             }
         }
         // (read with the lock let go of: a big file takes a while, and the window asks for the state of its links meanwhile)
-        auto source = std::make_shared<Source>();
         QString error;
-        QElapsedTimer timer;
-        timer.start();
-        Limits limits;
-        limits.cancelled = [&] { return timer.elapsed() > kMaxExternalReadMillis; };
-        const QFileInfo before(path);
-        const bool ok = before.isFile() && source->book.openFile(path, &error, limits);
-        reads.fetch_add(1);
+        std::shared_ptr<Source> source = load(path, &error);
         const std::lock_guard<std::mutex> guard(lock);
         Link &l = const_cast<Link &>(links[size_t(index)]);
-        l.signSize = before.size();
-        l.signTime = before.lastModified().toMSecsSinceEpoch();
-        if (!ok) {
+        l.signSize = size;
+        l.signTime = time;
+        forgetAnswers();
+        if (!source) {
             l.unreadable = true;
             return nullptr;
         }
-        const size_t n = size_t(source->book.info().sheets.size());
-        source->sheets.assign(n, nullptr);
-        source->extents.assign(n, {0, 0});
         l.source = source;
         l.readTime = QDateTime::currentDateTime();
-        l.reads.clear();
+        // (what the formulas read of the source before stays listed: the cache the next save writes does not shrink because a cell was not read this time)
         return source;
     }
 
@@ -515,7 +661,7 @@ Value cachedValue(const QString &type, const QString &text)
 }
 
 // What a link's own part holds: the names of the sheets, the cells it stored, and the names.
-void readCache(const QByteArray &xml, Link *l)
+void readCache(const QByteArray &xml, Link *l, qint64 *cellBudget)
 {
     QXmlStreamReader r(xml);
     int sheetId = -1;
@@ -523,7 +669,7 @@ void readCache(const QByteArray &xml, Link *l)
     bool inCell = false, inV = false;
     QString ref, type, text;
     qint64 count = 0;
-    while (!r.atEnd() && count < kMostCacheCells) {
+    while (!r.atEnd() && count < kMostCacheCells && *cellBudget > 0) {
         const QXmlStreamReader::TokenType t = r.readNext();
         if (t == QXmlStreamReader::StartElement) {
             const QStringView n = r.name();
@@ -561,9 +707,18 @@ void readCache(const QByteArray &xml, Link *l)
                     e.first = std::max(e.first, rr + 1);
                     e.second = std::max(e.second, cc + 1);
                     ++count;
+                    --*cellBudget;
                 }
             }
         }
+    }
+    // (a link whose values do not all fit is left out whole: part of its values would be a wrong answer)
+    if (*cellBudget <= 0 && !r.atEnd()) {
+        l->cells.clear();
+        l->extents.clear();
+        l->names.clear();
+        l->sheetNames.clear();
+        l->capped = true;
     }
 }
 
@@ -580,6 +735,7 @@ std::shared_ptr<ExternalBooks> ExternalBooks::read(const Workbook &book, const Q
     out->d->baseDir = baseDir;
     out->d->fileTime = fileTime;
     QXmlStreamReader reader(xml);
+    qint64 cellBudget = g_caps.cacheCells, byteBudget = g_caps.cacheBytes;   // (what all the links' stored values may come to: the links past it are not read, and their formulas keep what the file stored)
     while (!reader.atEnd() && int(out->d->links.size()) < kMostLinks) {
         if (reader.readNext() != QXmlStreamReader::StartElement || reader.name() != QLatin1String("externalReference")) continue;
         QString id;
@@ -590,7 +746,13 @@ std::shared_ptr<ExternalBooks> ExternalBooks::read(const Workbook &book, const Q
         if (!rel.id.isEmpty()) {
             const QVector<jp::office::Relationship> paths = package.relationshipsOfType(rel.target, QStringLiteral("/externalLinkPath"));
             if (!paths.isEmpty()) l.target = paths.first().target.left(8192);
-            if (package.partSize(rel.target) < (64 << 20)) readCache(package.part(rel.target), &l);
+            const qint64 size = package.partSize(rel.target);
+            if (size >= 0 && size < (64 << 20) && size <= byteBudget && cellBudget > 0) {
+                byteBudget -= size;
+                readCache(package.part(rel.target), &l, &cellBudget);
+            } else {
+                l.capped = true;
+            }
         }
         out->d->links.push_back(std::move(l));
     }
@@ -626,6 +788,50 @@ QString ExternalBooks::localPath(int index) const
     return index >= 1 && index <= int(d->links.size()) ? localPathOf(d->links[size_t(index - 1)].target, d->baseDir) : QString();
 }
 
+QString ExternalBooks::filePath(int index) const
+{
+    const std::lock_guard<std::mutex> guard(d->lock);
+    return index >= 1 && index <= int(d->links.size()) ? resolveTarget(d->links[size_t(index - 1)].target, d->baseDir).path : QString();
+}
+
+bool ExternalBooks::isNetwork(int index) const
+{
+    const std::lock_guard<std::mutex> guard(d->lock);
+    return index >= 1 && index <= int(d->links.size()) && resolveTarget(d->links[size_t(index - 1)].target, d->baseDir).network;
+}
+
+bool ExternalBooks::allowNetwork(int index) const
+{
+    const std::lock_guard<std::mutex> guard(d->lock);
+    return index >= 1 && index <= int(d->links.size()) && d->links[size_t(index - 1)].allowNetwork;
+}
+
+void ExternalBooks::setAllowNetwork(int index, bool on)
+{
+    const std::lock_guard<std::mutex> guard(d->lock);
+    if (index >= 1 && index <= int(d->links.size())) d->links[size_t(index - 1)].allowNetwork = on;
+}
+
+bool ExternalBooks::prefetch(const QString &path, QString *why) { return d->prefetch(path, why); }
+
+void ExternalBooks::cancelReads() { d->cancelFlag->store(true); }
+
+void ExternalBooks::resetCancel() { d->cancelFlag->store(false); }
+
+int ExternalBooks::fileTouches() const { return d->touches.load(); }
+
+int ExternalBooks::answersShared() const { return d->hits.load(); }
+
+quintptr ExternalBooks::lastReadThread() const { return d->loadThread.load(); }
+
+void ExternalBooks::setCapsForTest(qint64 cacheCells, qint64 cacheBytes, qint64 sourceCells, qint64 readMillis)
+{
+    g_caps.cacheCells = cacheCells;
+    g_caps.cacheBytes = cacheBytes;
+    g_caps.sourceCells = sourceCells;
+    g_caps.readMillis = readMillis;
+}
+
 void ExternalBooks::setBaseDir(const QString &dir)
 {
     const std::lock_guard<std::mutex> guard(d->lock);
@@ -642,18 +848,30 @@ void ExternalBooks::setTarget(int index, const QString &target)
     l.source.reset();
     l.unreadable = false;
     l.signSize = -1;
+    l.allowNetwork = false;
+    d->forgetAnswers();
 }
 
 ExternalBooks::State ExternalBooks::state(int index) const
 {
-    const std::lock_guard<std::mutex> guard(d->lock);
-    if (index < 1 || index > int(d->links.size())) return State::Missing;
-    const Link &l = d->links[size_t(index - 1)];
-    const QString path = localPathOf(l.target, d->baseDir);
+    QString path;
+    bool unreadable = false;
+    QDateTime ref;
+    {
+        const std::lock_guard<std::mutex> guard(d->lock);
+        if (index < 1 || index > int(d->links.size())) return State::Missing;
+        const Link &l = d->links[size_t(index - 1)];
+        const Resolved r = resolveTarget(l.target, d->baseDir);
+        if (r.path.isEmpty()) return State::Missing;
+        if (r.network && !l.allowNetwork) return State::Network;   // (not asked about: that would send the person's credentials to another computer)
+        path = r.path;
+        unreadable = l.unreadable;
+        ref = l.readTime.isValid() ? l.readTime : d->fileTime;
+    }
+    d->touches.fetch_add(1);
     const QFileInfo info(path);
-    if (path.isEmpty() || !info.isFile()) return State::Missing;
-    if (l.unreadable) return State::Unreadable;
-    const QDateTime ref = l.readTime.isValid() ? l.readTime : d->fileTime;
+    if (!info.isFile()) return State::Missing;
+    if (unreadable) return State::Unreadable;
     if (ref.isValid() && info.lastModified().toMSecsSinceEpoch() > ref.toMSecsSinceEpoch() + 2000) return State::Newer;
     return State::Ok;
 }
@@ -668,6 +886,7 @@ void ExternalBooks::setLive(int index, bool on)
 {
     const std::lock_guard<std::mutex> guard(d->lock);
     if (index >= 1 && index <= int(d->links.size())) d->links[size_t(index - 1)].live = on;
+    d->forgetAnswers();
 }
 
 void ExternalBooks::setCheckInterval(int millis)
@@ -685,17 +904,18 @@ void ExternalBooks::invalidate(int index)
     l.unreadable = false;
     l.signSize = -1;
     l.checkedAt = 0;
+    d->forgetAnswers();
 }
 
-bool ExternalBooks::probe(int index, QString *why)
+bool ExternalBooks::probe(int index, QString *why, bool refresh)
 {
     if (index < 1 || index > count()) {
         if (why) *why = QStringLiteral("no such link");
         return false;
     }
-    invalidate(index);
+    if (refresh) invalidate(index);
     const bool ok = d->sourceOf(index - 1) != nullptr;
-    if (!ok && why) *why = state(index) == State::Missing ? QStringLiteral("not found") : QStringLiteral("could not be read");
+    if (!ok && why) *why = state(index) == State::Missing ? QStringLiteral("not found") : state(index) == State::Network ? QStringLiteral("on another computer") : QStringLiteral("could not be read");
     return ok;
 }
 
@@ -717,12 +937,34 @@ bool ExternalBooks::resolve(const QString &text, Value *out, bool *fromFile) con
         live = p.link >= 1 && p.link <= n && d->links[size_t(p.link - 1)].live;
     }
     if (p.link < 1 || p.link > n) return false;
-    if (live && d->fromSource(p.link - 1, p, out)) {
-        if (fromFile) *fromFile = true;
-        return true;
+    // (the answer a formula had for this reference is given to the next that asks the same, from the same source: a column of formulas that sum one range share its array)
+    const void *tag = live ? d->sourceOf(p.link - 1).get() : nullptr;
+    const QString key = QString::number(p.link) + QLatin1Char('|') + text;
+    {
+        const std::lock_guard<std::mutex> guard(d->lock);
+        const auto it = d->answers.find(key);
+        if (it != d->answers.end() && it->second.tag == tag) {
+            *out = it->second.value;
+            d->hits.fetch_add(1);
+            if (fromFile) *fromFile = tag != nullptr;
+            return true;
+        }
     }
-    if (fromFile) *fromFile = false;
-    return d->fromCache(p.link - 1, p, out);
+    bool ok = false, file = false;
+    if (live && d->fromSource(p.link - 1, p, out)) {
+        ok = file = true;
+    } else {
+        ok = d->fromCache(p.link - 1, p, out);
+    }
+    if (fromFile) *fromFile = file;
+    if (ok && out->isArray()) {
+        const std::lock_guard<std::mutex> guard(d->lock);
+        const qint64 cells = qint64(out->rows()) * out->cols();
+        if (d->answerCells + cells > 4000000) d->forgetAnswers();
+        d->answers[key] = Impl::Answer{file ? tag : nullptr, *out};
+        d->answerCells += cells;
+    }
+    return ok;
 }
 
 std::vector<SaveChanges::ExternalCachedCell> ExternalBooks::readCells(int index) const

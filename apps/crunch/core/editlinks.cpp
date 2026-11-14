@@ -6,6 +6,7 @@
 #include "sheet/cellref.h"
 #include "sheet/sheetreader.h"
 
+#include <QDir>
 #include <QFileInfo>
 #include <algorithm>
 #include <set>
@@ -149,7 +150,7 @@ int EditSession::externalLinkCells() const
     return n;
 }
 
-std::vector<EditSession::ExternalSource> EditSession::externalLinkSources() const
+std::vector<EditSession::ExternalSource> EditSession::externalLinkSources(bool withState) const
 {
     std::vector<ExternalSource> out;
     if (m_dropExternalLinks || !m_book || !m_book->book) return out;
@@ -158,6 +159,26 @@ std::vector<EditSession::ExternalSource> EditSession::externalLinkSources() cons
     const QByteArray xml = package.part(main);
     QXmlStreamReader reader(xml);
     constexpr int kMostSources = 1000;
+    // (what is shown of a link: nothing is looked at, whatever the address; only a file: address is percent-encoded)
+    auto fill = [&](ExternalSource &s) {
+        const auto changed = m_externalTargets.find(s.index);
+        if (changed != m_externalTargets.end()) s.target = changed->second;
+        QString shown = s.target;
+        const bool web = shown.startsWith(QLatin1String("http://"), Qt::CaseInsensitive) || shown.startsWith(QLatin1String("https://"), Qt::CaseInsensitive) || shown.startsWith(QLatin1String("ftp://"), Qt::CaseInsensitive);
+        const bool fileUrl = shown.startsWith(QLatin1String("file:"), Qt::CaseInsensitive);
+        if (shown.startsWith(QLatin1String("file:///"), Qt::CaseInsensitive)) {
+            shown.remove(0, 8);
+            if (!(shown.size() > 1 && shown[1] == QLatin1Char(':'))) shown.prepend(QLatin1Char('/'));
+        }
+        s.shown = fileUrl || web ? QUrl::fromPercentEncoding(shown.toUtf8()) : shown;   // (what is shown of an address; a plain path is shown as it is)
+        if (m_book->externals) {
+            s.network = m_book->externals->isNetwork(s.index);
+            if (s.network) s.shown = m_book->externals->filePath(s.index);
+            if (withState) s.state = int(m_book->externals->state(s.index));
+            s.live = m_book->externals->live(s.index);
+        }
+        s.local = !web && !s.network && !s.shown.isEmpty();
+    };
     while (!reader.atEnd() && int(out.size()) < kMostSources) {
         if (reader.readNext() != QXmlStreamReader::StartElement || reader.name() != QLatin1String("externalReference")) continue;
         QString id;
@@ -170,23 +191,32 @@ std::vector<EditSession::ExternalSource> EditSession::externalLinkSources() cons
             const QVector<jp::office::Relationship> paths = package.relationshipsOfType(rel.target, QStringLiteral("/externalLinkPath"));
             if (!paths.isEmpty()) s.target = paths.first().target.left(8192);
         }
-        const auto changed = m_externalTargets.find(s.index);
-        if (changed != m_externalTargets.end()) s.target = changed->second;
-        QString shown = s.target;
-        const bool web = shown.startsWith(QLatin1String("http://"), Qt::CaseInsensitive) || shown.startsWith(QLatin1String("https://"), Qt::CaseInsensitive) || shown.startsWith(QLatin1String("ftp://"), Qt::CaseInsensitive);
-        if (shown.startsWith(QLatin1String("file:///"), Qt::CaseInsensitive)) {
-            shown.remove(0, 8);
-            if (!(shown.size() > 1 && shown[1] == QLatin1Char(':'))) shown.prepend(QLatin1Char('/'));
-        }
-        s.shown = QUrl::fromPercentEncoding(shown.toUtf8());
-        s.local = !web && !s.shown.isEmpty();
-        if (m_book->externals) {
-            s.state = int(m_book->externals->state(s.index));
-            s.live = m_book->externals->live(s.index);
-        }
+        fill(s);
         out.push_back(s);
     }
+    // the links that typing the name of an open workbook made (saved already, or used by a formula now)
+    if (m_book->externals) {
+        const int fileCount = int(out.size());
+        for (int n = fileCount + 1; n <= m_book->externals->count() && int(out.size()) < kMostSources; ++n) {
+            if (!m_savedLinks.count(n) && !newLinkInUse(n)) continue;
+            ExternalSource s;
+            s.index = n;
+            s.target = m_book->externals->target(n);
+            fill(s);
+            out.push_back(s);
+        }
+    }
     return out;
+}
+
+bool EditSession::newLinkInUse(int index) const
+{
+    bool used = false;
+    if (m_book && m_book->calc)
+        m_book->calc->forEachFormulaText([&](int, quint32, quint32, const QString &formula) {
+            if (!used && readsAnotherWorkbook(formula, index)) used = true;
+        });
+    return used;
 }
 
 void EditSession::setExternalTarget(int index, const QString &target)
@@ -236,7 +266,7 @@ EditSession::Outcome EditSession::changeExternalSource(int index, const QString 
         out.problem = why;
         return out;
     }
-    const std::vector<ExternalSource> sources = externalLinkSources();
+    const std::vector<ExternalSource> sources = externalLinkSources(false);
     if (index < 1 || index > int(sources.size()) || path.trimmed().isEmpty()) {
         out.ok = false;
         out.problem = tr("That link is not in this workbook.");
@@ -246,6 +276,7 @@ EditSession::Outcome EditSession::changeExternalSource(int index, const QString 
     // (the formulas that read it are worked out from the new file at once, in the same step of Undo; a file that can't be read leaves the stored values)
     m_undo.beginMacro(tr("Change Source"));
     m_undo.push(new SourceChanged(this, index, sources[size_t(index - 1)].target, address, tr("Change Source")));
+    if (m_book->externals && m_book->externals->isNetwork(index)) m_book->externals->setAllowNetwork(index, true);
     if (QFileInfo(path).isFile()) updateExternalValues(index, path);
     m_undo.endMacro();
     return out;
@@ -271,8 +302,10 @@ EditSession::Outcome EditSession::updateExternalValues(int index, const QString 
         links->setTarget(index, addressOf(path));
         m_externalTargets[index] = addressOf(path);
     }
+    // (the person asked for this source: one on another computer is read now, and only now)
+    if (links->isNetwork(index)) links->setAllowNetwork(index, true);
     QString error;
-    if (!links->probe(index, &error)) return refuse(tr("The workbook \"%1\" could not be opened. %2").arg(path, error));
+    if (!links->probe(index, &error, false)) return refuse(tr("The workbook \"%1\" could not be opened. %2").arg(path, error));
     const bool wasLive = links->live(index);
     links->setLive(index, true);
     // the formulas that read a link: by the number in their text; one that reads it through a name is worked out whichever link is updated
@@ -354,26 +387,21 @@ EditSession::Outcome EditSession::updateExternalValues(int index, const QString 
 
 QString EditSession::linkTypedReferences(const QString &typed)
 {
-    if (!m_openBookFinder || !m_book || !m_book->book || m_dropExternalLinks) return typed;
+    if (m_planDepth == 0 || !m_openBookFinder || !m_book || !m_book->book || m_dropExternalLinks) return typed;
     const QString trimmed = typed.trimmed();
     if (!trimmed.startsWith(QLatin1Char('=')) || !trimmed.contains(QLatin1Char('['))) return typed;
     // the link of an open workbook: the one of its file if there is one, else a new one (read at once)
+    // (the number the link has or will have: the link is made when the entry is committed, not here; no file is asked about)
     auto numberOf = [&](const QString &path) -> int {
         auto *links = m_book->externals.get();
-        if (links)
-            for (int i = 1; i <= links->count(); ++i)
-                if (QFileInfo(links->localPath(i)).canonicalFilePath() == QFileInfo(path).canonicalFilePath()) return i;
-        std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold();
-        if (!hold) return 0;
-        if (!links) {
-            m_book->externals = std::make_shared<jp::office::sheet::ExternalBooks>();
-            links = m_book->externals.get();
-            hold->calculation()->setExternals(m_book->externals);
-        }
-        const int n = links->addLink(addressOf(path));
-        links->setLive(n, true);
-        m_newLinks.insert(n);
-        return n;
+        if (!links) return 0;
+        const QString clean = QDir::cleanPath(path);
+        for (int i = 1; i <= links->count(); ++i)
+            if (!links->isNetwork(i) && QDir::cleanPath(links->localPath(i)) == clean) return i;
+        for (const LinkPlan &p : m_linkPlan)
+            if (p.path == clean) return p.number;
+        m_linkPlan.push_back({clean, links->count() + int(m_linkPlan.size()) + 1});
+        return m_linkPlan.back().number;
     };
     static const QRegularExpression quoted(QStringLiteral("'\\[([^\\]\\[']*[^\\]\\[\\d'][^\\]\\[']*)\\]((?:[^']|'')+)'!"));
     static const QRegularExpression plain(QStringLiteral("\\[([^\\]\\[]*[^\\]\\[\\d][^\\]\\[]*)\\]([A-Za-z_][A-Za-z0-9_.]*)!"));
@@ -424,11 +452,30 @@ QString EditSession::linkTypedReferences(const QString &typed)
     return result;
 }
 
+void EditSession::commitLinkPlan()
+{
+    if (m_linkPlan.empty() || !m_book || !m_book->externals) {
+        m_linkPlan.clear();
+        return;
+    }
+    for (const LinkPlan &p : m_linkPlan) {
+        const int n = m_book->externals->addLink(addressOf(p.path));
+        m_book->externals->setLive(n, true);
+        m_newLinks.insert(n);
+    }
+    m_linkPlan.clear();
+}
+
 std::vector<jp::office::sheet::SaveChanges::NewExternalLink> EditSession::newExternalLinksForSave() const
 {
     std::vector<jp::office::sheet::SaveChanges::NewExternalLink> out;
     if (m_newLinks.empty() || m_dropExternalLinks || !m_book || !m_book->externals) return out;
+    // (a link that no formula reads any more, because the entry was undone, is not written: the ones after the last that is used go, so the numbers stay as they are)
+    int last = 0;
+    for (const int n : m_newLinks)
+        if (newLinkInUse(n)) last = n;
     for (const int n : m_newLinks) {
+        if (n > last) break;
         jp::office::sheet::SaveChanges::NewExternalLink l;
         l.target = m_book->externals->target(n);
         l.sheetNames = m_book->externals->sheetsRead(n);
@@ -444,6 +491,14 @@ EditSession::UpdateLinks EditSession::updateLinksMode() const
     return m_book && m_book->book ? UpdateLinks(int(m_book->book->info().updateLinks)) : UpdateLinks::Ask;
 }
 
+EditSession::UpdateLinks EditSession::openingChoice() const
+{
+    // (what a file says is never enough to read other files: "update" in the file is a question, so that a file cannot make the program open others; only the person's own choice in this session,
+    // made in Edit Links, updates without asking)
+    if (m_updateLinks >= 0) return UpdateLinks(m_updateLinks);
+    return updateLinksMode() == UpdateLinks::Never ? UpdateLinks::Never : UpdateLinks::Ask;
+}
+
 EditSession::Outcome EditSession::setUpdateLinksMode(UpdateLinks mode)
 {
     Outcome out;
@@ -453,7 +508,7 @@ EditSession::Outcome EditSession::setUpdateLinksMode(UpdateLinks mode)
         out.problem = why;
         return out;
     }
-    if (mode == updateLinksMode()) return out;
+    if (m_updateLinks == int(mode)) return out;
     m_undo.push(new UpdateLinksChanged(this, m_updateLinks, int(mode), tr("Startup prompt")));
     return out;
 }
@@ -463,7 +518,7 @@ EditSession::Outcome EditSession::updateAllExternalLinks(int *updated)
     Outcome out;
     if (updated) *updated = 0;
     for (const ExternalSource &s : externalLinkSources()) {
-        if (!s.local || !m_book->externals) continue;
+        if (!s.local || s.network || !m_book->externals) continue;   // (one on another computer is read only when the person asks for that one)
         const QString path = m_book->externals->localPath(s.index);
         if (path.isEmpty() || !QFileInfo(path).isFile()) continue;
         ExternalUpdate one;

@@ -3626,27 +3626,6 @@ namespace jp::office::sheet {
 
 bool Calculation::externalRef(const QString &text, Value *out) const { return m_options.externals && m_options.externals->resolve(text, out); }
 
-qint64 Calculation::refreshExternals()
-{
-    if (!m_options.externals) return 0;
-    abandonNow();
-    std::vector<CellArea> changed;
-    qint64 marked = 0;
-    for (const quint32 id : m_externalNodes) {
-        if (id >= m_nodes.size()) continue;
-        Node &n = m_nodes[id];
-        if ((n.flags & Dead) || n.state != Done) continue;
-        if ((n.flags & Kept) && n.kept == 'E') {
-            n.flags &= quint16(~(Kept | NodeTainted));
-            n.kept = 0;
-        }
-        markDirty(id, &changed);
-        ++marked;
-    }
-    if (!changed.empty()) markDependentsOfIds(&changed);
-    return marked;
-}
-
 void Calculation::forEachExternalFormula(const std::function<void(int sheet, quint32 row, quint32 col)> &f) const
 {
     for (const quint32 id : m_externalNodes) {

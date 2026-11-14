@@ -29,6 +29,7 @@
 #include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QUrl>
+#include <QThread>
 #include <QtTest>
 
 #include <cstring>
@@ -387,39 +388,57 @@ private Q_SLOTS:
         QCOMPARE(again.shownAt(QStringLiteral("A6")), QStringLiteral("24"));
     }
 
-    // What happens to the links when the file opens is what the file says: "always" updates them, "never" leaves the stored values, and the default asks (a "no" leaves the values, a "yes" updates).
+    // What happens to the links when the file opens: the file's "update" is only a question (a file can't make the program read others), "never" leaves the stored values, and the default asks; a "no"
+    // leaves the values, a "yes" updates. Nothing is read or asked about before the answer (a path on a network would be reached by that), and only the person's own choice updates without asking.
     void theStartupChoiceDecidesWhatHappensWhenTheFileOpens()
     {
-        auto opened = [](const char *mode, bool answer, int *asked, QString *shown) {
+        auto opened = [](const char *mode, bool answer, int *asked, int *touched, QString *shown) {
             EditWindow e;
             e.win.linksAnswer = answer;
+            *touched = -1;
+            e.win.onLinksAsked = [&] { *touched = e.win.w.session()->externals()->fileTouches(); };
             e.folder.write(QStringLiteral("prices.xlsx"), bookOfSheets({{"A1=7", "A2=8", "A3=9"}}));
             QByteArray book = moreLinkBook();
             if (mode) book = repack(book, [&](Parts &p) { p[QStringLiteral("xl/workbook.xml")].replace("<sheets>", QByteArray("<workbookPr updateLinks=\"") + mode + "\"/><sheets>"); });
             const bool ok = e.open(book, QStringLiteral("links.xlsx")) && e.settle();
             QCoreApplication::processEvents();
             QCoreApplication::processEvents();
-            if (ok && std::strcmp(mode ? mode : "", "never") != 0 && (mode == nullptr || std::strcmp(mode, "userSet") == 0)) QTRY_COMPARE_WITH_TIMEOUT(e.win.linksAsked, 1, 10000);
-            if (ok && answer && (mode == nullptr || std::strcmp(mode, "userSet") == 0)) QTRY_COMPARE_WITH_TIMEOUT(e.shownAt(QStringLiteral("A6")), QStringLiteral("24"), 10000);
-            if (ok && mode && std::strcmp(mode, "always") == 0) QTRY_COMPARE_WITH_TIMEOUT(e.shownAt(QStringLiteral("A6")), QStringLiteral("24"), 10000);
+            if (ok && (mode == nullptr || std::strcmp(mode, "never") != 0)) QTRY_COMPARE_WITH_TIMEOUT(e.win.linksAsked, 1, 10000);
+            if (ok && answer && (mode == nullptr || std::strcmp(mode, "never") != 0)) QTRY_COMPARE_WITH_TIMEOUT(e.shownAt(QStringLiteral("A6")), QStringLiteral("24"), 10000);
             e.settle();
             *asked = e.win.linksAsked;
             *shown = ok ? e.shownAt(QStringLiteral("A6")) : QStringLiteral("not opened");
         };
-        int asked = -1;
+        int asked = -1, touched = -1;
         QString shown;
-        opened("always", false, &asked, &shown);
-        QCOMPARE(shown, QStringLiteral("24"));
-        QCOMPARE(asked, 0);
-        opened("never", true, &asked, &shown);
-        QCOMPARE(shown, QStringLiteral("6"));
-        QCOMPARE(asked, 0);
-        opened(nullptr, false, &asked, &shown);
+        opened("always", false, &asked, &touched, &shown);
         QCOMPARE(shown, QStringLiteral("6"));
         QCOMPARE(asked, 1);
-        opened(nullptr, true, &asked, &shown);
+        QCOMPARE(touched, 0);
+        opened("always", true, &asked, &touched, &shown);
         QCOMPARE(shown, QStringLiteral("24"));
         QCOMPARE(asked, 1);
+        opened("never", true, &asked, &touched, &shown);
+        QCOMPARE(shown, QStringLiteral("6"));
+        QCOMPARE(asked, 0);
+        opened(nullptr, false, &asked, &touched, &shown);
+        QCOMPARE(shown, QStringLiteral("6"));
+        QCOMPARE(asked, 1);
+        QCOMPARE(touched, 0);
+        opened(nullptr, true, &asked, &touched, &shown);
+        QCOMPARE(shown, QStringLiteral("24"));
+        QCOMPARE(touched, 0);
+        // the file's "update" is a question; the person's own choice made here is the one that updates without asking
+        EditWindow e;
+        QVERIFY(e.open(repack(moreLinkBook(), [](Parts &p) { p[QStringLiteral("xl/workbook.xml")].replace("<sheets>", "<workbookPr updateLinks=\"always\"/><sheets>"); }), QStringLiteral("links.xlsx")));
+        QVERIFY(e.settle());
+        crunch::EditSession *s = e.win.w.session();
+        QCOMPARE(int(s->updateLinksMode()), int(crunch::EditSession::UpdateLinks::Always));   // (written back as it is)
+        QCOMPARE(int(s->openingChoice()), int(crunch::EditSession::UpdateLinks::Ask));
+        QVERIFY(s->setUpdateLinksMode(crunch::EditSession::UpdateLinks::Never).ok);
+        QCOMPARE(int(s->openingChoice()), int(crunch::EditSession::UpdateLinks::Never));
+        QVERIFY(s->setUpdateLinksMode(crunch::EditSession::UpdateLinks::Always).ok);
+        QCOMPARE(int(s->openingChoice()), int(crunch::EditSession::UpdateLinks::Always));
     }
 
     // The choice made for the Startup prompt in Edit Links is one step of Undo, is saved in the file (workbookPr updateLinks), and is what the file asks for when it is opened again.
@@ -523,6 +542,119 @@ private Q_SLOTS:
         QCOMPARE(int(again.win.w.session()->externalLinkSources().size()), 1);
         QCOMPARE(again.valueAt(QStringLiteral("F1")), QStringLiteral("n:10"));
         QCOMPARE(again.valueAt(QStringLiteral("F2")), QStringLiteral("n:11.25"));
+    }
+
+    // A link for a typed name is made when the entry is committed, not when it is checked or previewed; undoing the entry leaves no link that nothing reads, so a save writes no part for it.
+    void aTypedLinkIsMadeOnCommitAndGoneWithTheUndoneEntry()
+    {
+        EditWindow other;
+        QVERIFY(other.open(editBook(), QStringLiteral("other.xlsx")));
+        QVERIFY(other.settle());
+        EditWindow e;
+        QVERIFY(e.open(editBook(), QStringLiteral("main.xlsx")));
+        QVERIFY(e.settle());
+        crunch::EditSession *s = e.win.w.session();
+        // checking an entry (a preview, a replace) does not make the link
+        QCOMPARE(s->linkTypedReferences(QStringLiteral("=[other.xlsx]Sheet1!A1")), QStringLiteral("=[other.xlsx]Sheet1!A1"));
+        QCOMPARE(s->externals()->count(), 0);
+        e.select(QStringLiteral("F1"));
+        e.enter(QStringLiteral("=[other.xlsx]Sheet1!A1*10"));
+        QVERIFY(e.settle());
+        QCOMPARE(s->externals()->count(), 1);
+        QTRY_COMPARE(e.valueAt(QStringLiteral("F1")), QStringLiteral("n:10"));
+        QCOMPARE(int(s->newExternalLinksForSave().size()), 1);
+        s->undoStack()->undo();
+        QVERIFY(e.settle());
+        QCOMPARE(int(s->newExternalLinksForSave().size()), 0);
+        QCOMPARE(int(s->externalLinkSources().size()), 0);
+        e.select(QStringLiteral("F4"));
+        e.enter(QStringLiteral("5"));   // (something to save)
+        QVERIFY(e.settle());
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(saved), "the save failed");
+        QFile f(e.path);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        Parts now;
+        readZip(f.readAll(), now);
+        QVERIFY(!now.contains(QStringLiteral("xl/externalLinks/externalLink1.xml")));
+        QVERIFY(!now.value(QStringLiteral("xl/workbook.xml")).contains("externalReference"));
+    }
+
+    // After a save that added a link part, Edit Links lists the link and Update Values works on it, and a second save writes one part (not two) with the values.
+    void aLinkMadeByTypingIsAfterTheSaveAnOrdinaryLink()
+    {
+        EditWindow other;
+        const QString otherPath = other.folder.write(QStringLiteral("other.xlsx"), editBook());
+        QVERIFY(other.win.open(otherPath));
+        QVERIFY(other.settle());
+        EditWindow e;
+        QVERIFY(e.open(editBook(), QStringLiteral("main.xlsx")));
+        QVERIFY(e.settle());
+        crunch::EditSession *s = e.win.w.session();
+        e.select(QStringLiteral("F1"));
+        e.enter(QStringLiteral("=SUM([other.xlsx]Sheet1!A1:A3)"));
+        QVERIFY(e.settle());
+        QTRY_COMPARE(e.valueAt(QStringLiteral("F1")), QStringLiteral("n:11.25"));
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(saved), "the save failed");
+        QCOMPARE(int(s->externalLinkSources().size()), 1);
+        crunch::EditSession::ExternalUpdate done;
+        QVERIFY(s->updateExternalValues(1, otherPath, &done).ok);
+        QCOMPARE(done.updated, 1);
+        QVERIFY(e.settle());
+        QSignalSpy saved2(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(saved2), "the second save failed");
+        QFile f(e.path);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        Parts now;
+        readZip(f.readAll(), now);
+        int parts = 0;
+        for (auto it = now.begin(); it != now.end(); ++it)
+            if (it.key().startsWith(QLatin1String("xl/externalLinks/externalLink")) && it.key().endsWith(QLatin1String(".xml"))) ++parts;
+        QCOMPARE(parts, 1);
+        QCOMPARE(now.value(QStringLiteral("xl/workbook.xml")).count("<externalReference "), 1);
+    }
+
+    // A link whose target is on another computer is neither asked about nor read when the file opens (the question is asked from the link parts alone), "update" leaves it, and Edit Links says it was not read.
+    void aSourceOnAnotherComputerIsNotTouchedWhenTheFileOpens()
+    {
+        EditWindow e;
+        e.win.linksAnswer = true;
+        int touchedAtAsk = -1;
+        e.win.onLinksAsked = [&] { touchedAtAsk = e.win.w.session()->externals()->fileTouches(); };
+        const QByteArray book = repack(moreLinkBook(), [](Parts &p) { p[QStringLiteral("xl/externalLinks/_rels/externalLink1.xml.rels")].replace("prices.xlsx", "\\\\host\\share\\prices.xlsx"); });
+        QVERIFY(e.open(book, QStringLiteral("links.xlsx")));
+        QVERIFY(e.settle());
+        QTRY_COMPARE_WITH_TIMEOUT(e.win.linksAsked, 1, 10000);
+        QCOMPARE(touchedAtAsk, 0);
+        QVERIFY(e.settle());
+        QCOMPARE(e.win.w.session()->externals()->fileTouches(), 0);   // (not after the answer either)
+        QCOMPARE(e.shownAt(QStringLiteral("A6")), QStringLiteral("6"));
+        const std::vector<crunch::EditSession::ExternalSource> sources = e.win.w.session()->externalLinkSources(false);
+        QCOMPARE(int(sources.size()), 1);
+        QVERIFY(sources[0].network);
+        QVERIFY(!sources[0].local);
+        EditLinksDialog d(e.win.w.session(), e.folder.dir.path());
+        QVERIFY2(d.table()->item(0, 2)->text().startsWith(QLatin1String("Not read: on another computer")), qPrintable(d.table()->item(0, 2)->text()));
+        QCOMPARE(e.win.w.session()->externals()->fileTouches(), 0);
+    }
+
+    // Update Values in Edit Links reads the file on a thread of its own, not the window's.
+    void updateValuesReadsTheFileOnAnotherThread()
+    {
+        EditWindow e;
+        e.folder.write(QStringLiteral("prices.xlsx"), bookOfSheets({{"A1=7", "A2=8", "A3=9"}}));
+        QVERIFY(e.open(moreLinkBook(), QStringLiteral("links.xlsx")));
+        QVERIFY(e.settle());
+        EditLinksDialog d(e.win.w.session(), e.folder.dir.path());
+        QVERIFY(d.updateRow(0));
+        QVERIFY(e.settle());
+        QCOMPARE(e.shownAt(QStringLiteral("A6")), QStringLiteral("24"));
+        QVERIFY(e.win.w.session()->externals()->lastReadThread() != 0);
+        QVERIFY(e.win.w.session()->externals()->lastReadThread() != quintptr(QThread::currentThreadId()));
     }
 
     // A workbook with macros opens with no change at all: nothing ran, so there is no step to undo and nothing to save.

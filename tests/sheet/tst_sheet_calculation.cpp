@@ -1102,7 +1102,8 @@ private Q_SLOTS:
         QCOMPARE(b.at("G1"), QStringLiteral("n:300"));     // 3 * 100
         // live: the source file
         b.links->setLive(1, true);
-        QVERIFY(b.calc->refreshExternals() > 0);
+        const std::pair<const char *, const char *> forms[] = {{"B1", "SUM([1]Sheet1!A1:A3)"}, {"D1", "[1]Sheet1!A2*2+A1"}, {"E1", "SUM([1]Sheet1!A:A)"}, {"F1", "VLOOKUP(\"b\",[1]Sheet1!B1:C3,2,FALSE)"}, {"G1", "[1]!Rate*A1"}, {"H1", "COUNT([1]Sheet1!A1:A3)"}};
+        for (const auto &[ref, f] : forms) QVERIFY(b.setFormula(QString::fromLatin1(ref), QString::fromLatin1(f)));
         settle(b);
         QCOMPARE(b.at("B1"), QStringLiteral("n:60"));
         QCOMPARE(b.at("C1"), QStringLiteral("n:61"));
@@ -1184,7 +1185,8 @@ private Q_SLOTS:
         LinkedBook b;
         QVERIFY(b.openLinked(linkedBook(rows, QStringLiteral("src.xlsx"), QStringLiteral("B1=2")), dir.path()));
         b.links->setLive(1, true);
-        QVERIFY(b.calc->refreshExternals() > 0);
+        QVERIFY(b.setFormula("B1", QStringLiteral("[1]Sheet1!B1+1")));
+        QVERIFY(b.setFormula("C1", QStringLiteral("SUM([1]Sheet1!A1:B1)")));
         settle(b);
         QCOMPARE(b.at("B1"), QStringLiteral("n:6"));
         QCOMPARE(b.at("C1"), QStringLiteral("n:12"));
@@ -1210,6 +1212,189 @@ private Q_SLOTS:
         QCOMPARE(b.at("B1"), QStringLiteral("n:77"));
         QCOMPARE(b.at("C1"), QStringLiteral("n:88"));
         QCOMPARE(b.at("D1"), QStringLiteral("n:99"));
+    }
+
+    // A target on another computer (a path of two slashes or backslashes, a file: address with a host, and the long forms of them) is not a file on this one: it is never asked about or read, however
+    // the link is live, until the person allows that source; its state says so without looking.
+    void aSourceOnAnotherComputerIsNeverTouchedUntilAllowed()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        ExternalBooks books;
+        const QStringList network = {QStringLiteral("\\\\host\\share\\x.xlsx"), QStringLiteral("//host/share/x.xlsx"), QStringLiteral("file://host/share/x.xlsx"), QStringLiteral("file://///host/share/x.xlsx"),
+                                     QStringLiteral("\\\\?\\UNC\\host\\share\\x.xlsx"), QStringLiteral("\\\\host@SSL\\share\\x.xlsx")};
+        for (const QString &t : network) {
+            const int n = books.addLink(t, {QStringLiteral("Sheet1")});
+            QVERIFY2(books.isNetwork(n), qPrintable(t));
+            QVERIFY2(books.localPath(n).isEmpty(), qPrintable(t));
+            QCOMPARE(int(books.state(n)), int(ExternalBooks::State::Network));
+            books.setLive(n, true);
+            Value v;
+            QVERIFY(!books.resolve(QStringLiteral("[%1]Other!A1").arg(n), &v));   // (no such sheet in the link's values, and the file is not asked about)
+            QVERIFY(!books.probe(n));
+        }
+        QCOMPARE(books.fileTouches(), 0);
+        // a file on this computer is not on another
+        const int local = books.addLink(QStringLiteral("file:///tmp/x%20y.xlsx"));
+        QVERIFY(!books.isNetwork(local));
+        QCOMPARE(books.filePath(local), QStringLiteral("/tmp/x y.xlsx"));   // (only a file: address is percent-decoded)
+        const int plain = books.addLink(QStringLiteral("/tmp/x%20y.xlsx"));
+        QCOMPARE(books.filePath(plain), QStringLiteral("/tmp/x%20y.xlsx"));
+        // the person asked for this one: now it is looked at
+        books.setAllowNetwork(1, true);
+        QVERIFY(!books.probe(1));
+        QVERIFY(books.fileTouches() > 0);
+    }
+
+    // The 30-second limit stops the work: a read that is cancelled (or past its time) ends with no values, for a workbook, and for text of delimited values; the formulas then have what the link stores.
+    void aReadThatIsCancelledEndsAndTheStoredValuesAreUsed()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QString rows;
+        for (int r = 1; r <= 12000; ++r) rows += rowXml(r, constant(QStringLiteral("A%1").arg(r), QStringLiteral("1")));
+        QVERIFY(writeFile(dir.filePath(QStringLiteral("big.xlsx")), buildXlsx({worksheet(rows)})));
+        QByteArray csv;
+        for (int r = 1; r <= 12000; ++r) csv += "1,2\n";
+        QVERIFY(writeFile(dir.filePath(QStringLiteral("big.csv")), csv));
+        for (const char *name : {"big.xlsx", "big.csv"}) {
+            ExternalBooks books;
+            const int n = books.addLink(dir.filePath(QString::fromLatin1(name)), {QStringLiteral("Sheet1"), QStringLiteral("big")});
+            books.setCheckInterval(0);
+            books.setLive(n, true);
+            books.cancelReads();
+            Value v;
+            // (the whole column is read: with the person's Cancel, the read stops in its loop, and no source is had)
+            const bool got = (books.resolve(QStringLiteral("[1]Sheet1!A:A"), &v) && v.rows() == 12000) || (books.resolve(QStringLiteral("[1]big!A:A"), &v) && v.rows() == 12000);
+            QVERIFY2(!got, name);
+            books.resetCancel();
+            const bool again = (books.resolve(QStringLiteral("[1]Sheet1!A:A"), &v) && v.rows() == 12000) || (books.resolve(QStringLiteral("[1]big!A:A"), &v) && v.rows() == 12000);
+            QVERIFY2(again, name);
+        }
+    }
+
+    // What all the links store, and all the sources read, is bounded: a link whose values do not fit is left out whole (its formulas keep what the file stored), and a source with more cells than
+    // the sources may hold is not read.
+    void theValuesOfAllTheLinksAreBounded()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString rows = rowXml(1, constant("A1", "1") + cellXml("B1", "SUM([1]Sheet1!A1:A3)+A1", "7"));
+        const QByteArray book = linkedBook(rows, QStringLiteral("src.xlsx"), QStringLiteral("A1=1 A2=2 A3=3"));
+        ExternalBooks::setCapsForTest(2, qint64(128) << 20, 5000000, 30000);
+        {
+            LinkedBook b;
+            QVERIFY(b.openLinked(book, dir.path()));
+            Value v;
+            QVERIFY(!b.links->resolve(QStringLiteral("[1]Sheet1!A1:A3"), &v));   // (three cells do not fit in two)
+            QVERIFY(b.set("A1", Value::number(5)));
+            settle(b);
+            QCOMPARE(b.at("B1"), QStringLiteral("n:7"));   // (the formula keeps what the file stored)
+        }
+        ExternalBooks::setCapsForTest(5000000, qint64(128) << 20, 2, 30000);
+        QVERIFY(writeFile(dir.filePath(QStringLiteral("src.xlsx")), buildXlsx({worksheet(rowXml(1, constant("A1", "10") + constant("B1", "20") + constant("C1", "30")))})));
+        {
+            LinkedBook b;
+            QVERIFY(b.openLinked(book, dir.path()));
+            b.links->setLive(1, true);
+            QVERIFY(b.set("A1", Value::number(5)));
+            settle(b);
+            QCOMPARE(b.at("B1"), QStringLiteral("n:11"));   // (the source has more cells than may be read: the link's values are used: 1 + 2 + 3 + 5)
+        }
+        ExternalBooks::setCapsForTest(5000000, qint64(128) << 20, 5000000, 30000);
+    }
+
+    // A column of formulas that read the same range share one array, and the file is read once.
+    void formulasOverTheSameRangeShareOneArray()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QVERIFY(writeFile(dir.filePath(QStringLiteral("src.xlsx")), buildXlsx({worksheet(rowXml(1, constant("A1", "10")) + rowXml(2, constant("A2", "20")))})));
+        QString rows = rowXml(1, constant("A1", "1"));
+        for (int r = 2; r <= 40; ++r) rows += rowXml(r, cellXml(QStringLiteral("B%1").arg(r), QStringLiteral("SUM([1]Sheet1!A:A)+A1"), QStringLiteral("0")));
+        LinkedBook b;
+        QVERIFY(b.openLinked(linkedBook(rows, QStringLiteral("src.xlsx"), QStringLiteral("A1=10 A2=20")), dir.path()));
+        b.links->setLive(1, true);
+        QVERIFY(b.set("A1", Value::number(2)));
+        settle(b);
+        QCOMPARE(b.at("B40"), QStringLiteral("n:32"));
+        QVERIFY2(b.links->answersShared() >= 38, qPrintable(QString::number(b.links->answersShared())));
+        QCOMPARE(b.links->fileReads(), 1);
+    }
+
+    // The cells the formulas read are kept when the source is read again: the part a save writes does not shrink because some cells were not read this time.
+    void theCellsReadBeforeAreKeptWhenTheSourceIsReadAgain()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString path = dir.filePath(QStringLiteral("src.xlsx"));
+        QVERIFY(writeFile(path, buildXlsx({worksheet(rowXml(1, constant("A1", "10")) + rowXml(2, constant("A2", "20")) + rowXml(3, constant("A3", "30")))})));
+        const QString rows = rowXml(1, constant("A1", "1") + cellXml("B1", "SUM([1]Sheet1!A1:A3)", "6") + cellXml("C1", "[1]Sheet1!A1+A1", "2"));
+        LinkedBook b;
+        QVERIFY(b.openLinked(linkedBook(rows, QStringLiteral("src.xlsx"), QStringLiteral("A1=1 A2=2 A3=3")), dir.path()));
+        b.links->setLive(1, true);
+        QVERIFY(b.setFormula("B1", QStringLiteral("SUM([1]Sheet1!A1:A3)")));
+        settle(b);
+        QCOMPARE(int(b.links->readCells(1).size()), 3);
+        // the file changes, and only the formula that reads one cell is worked out again
+        QVERIFY(writeFile(path, buildXlsx({worksheet(rowXml(1, constant("A1", "11")) + rowXml(2, constant("A2", "21")) + rowXml(3, constant("A3", "31")) + rowXml(4, constant("A4", "41")))})));
+        QVERIFY(b.set("A1", Value::number(2)));
+        settle(b);
+        QCOMPARE(b.at("C1"), QStringLiteral("n:13"));
+        QCOMPARE(b.links->fileReads(), 2);
+        QCOMPARE(int(b.links->readCells(1).size()), 3);   // (A1 to A3 as the new file has them)
+    }
+
+    // A file whose size is the same but whose time changed is read again.
+    void aSourceWithTheSameSizeAndANewTimeIsReadAgain()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString path = dir.filePath(QStringLiteral("src.xlsx"));
+        const QByteArray first = buildXlsx({worksheet(rowXml(1, constant("A1", "10")))});
+        const QByteArray second = first;   // (the same bytes: only the time changes)
+        const int other = 10;
+        QVERIFY(writeFile(path, first));
+        LinkedBook b;
+        QVERIFY(b.openLinked(linkedBook(rowXml(1, constant("A1", "1") + cellXml("B1", "[1]Sheet1!A1+A1", "2")), QStringLiteral("src.xlsx"), QStringLiteral("A1=1")), dir.path()));
+        b.links->setLive(1, true);
+        QVERIFY(b.set("A1", Value::number(2)));
+        settle(b);
+        QCOMPARE(b.at("B1"), QStringLiteral("n:12"));
+        QVERIFY(writeFile(path, second));
+        {
+            QFile f(path);
+            QVERIFY(f.open(QIODevice::ReadWrite));
+            QVERIFY(f.setFileTime(QDateTime::currentDateTime().addSecs(120), QFileDevice::FileModificationTime));
+        }
+        QVERIFY(b.set("A1", Value::number(3)));
+        settle(b);
+        QCOMPARE(b.at("B1"), QStringLiteral("n:%1").arg(other + 3));
+        QCOMPARE(b.links->fileReads(), 2);
+    }
+
+    // Two workbooks that link to each other, both worked out, end: a source is read for the values its file stored, never worked out through its own links.
+    void workbooksThatLinkToEachOtherEnd()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        // main.xlsx: B1 = src A1 + 1 (stored 6); src.xlsx: A1 = main B1 + 100 (stored 5, which main's value would not make: 106)
+        const QByteArray main = linkedBook(rowXml(1, cellXml("B1", "[1]Sheet1!A1+1", "6")), QStringLiteral("src.xlsx"), QStringLiteral("A1=5"));
+        const QByteArray src = linkedBook(rowXml(1, cellXml("A1", "[1]Sheet1!B1+100", "5")), QStringLiteral("main.xlsx"), QStringLiteral("B1=6"));
+        QVERIFY(writeFile(dir.filePath(QStringLiteral("main.xlsx")), main));
+        QVERIFY(writeFile(dir.filePath(QStringLiteral("src.xlsx")), src));
+        LinkedBook a, c;
+        QVERIFY(a.openLinked(main, dir.path()));
+        QVERIFY(c.openLinked(src, dir.path()));
+        a.links->setLive(1, true);
+        c.links->setLive(1, true);
+        // both are worked out again, each reading the other's file
+        QVERIFY(a.setFormula("B1", QStringLiteral("[1]Sheet1!A1+1")));
+        QVERIFY(c.setFormula("A1", QStringLiteral("[1]Sheet1!B1+100")));
+        settle(a);
+        settle(c);
+        QCOMPARE(a.at("B1"), QStringLiteral("n:6"));     // (the source's A1 as its file stored it, 5)
+        QCOMPARE(c.at("A1"), QStringLiteral("n:106"));   // (main's B1 as its file stored it, 6)
     }
 
     // An array formula gives its cells their values, and what reads a cell of the array reads the formula; an edit to what the array reads reaches them.

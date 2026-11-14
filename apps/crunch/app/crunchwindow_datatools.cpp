@@ -3,6 +3,7 @@
 
 #include "app/datatoolsdialogs.h"
 #include "app/editlinksdialog.h"
+#include "app/linkprogress.h"
 #include "app/plaintext.h"
 #include "app/removeduplicatesdialog.h"
 #include "sheet/cellref.h"
@@ -44,17 +45,28 @@ void CrunchWindow::editLinksCommand()
 void CrunchWindow::linksOnOpen()
 {
     if (!m_session || !m_loaded || isReadOnly()) return;
-    const crunch::EditSession::UpdateLinks mode = m_session->updateLinksMode();
+    // (no file is touched before the person says yes: the question is made from the link parts of the workbook alone, since asking whether a file is there would reach a computer on a network)
+    const crunch::EditSession::UpdateLinks mode = m_session->openingChoice();
     if (mode == crunch::EditSession::UpdateLinks::Never) return;
-    int sources = 0;
-    for (const crunch::EditSession::ExternalSource &s : m_session->externalLinkSources())
-        if (s.local && (s.state == 0 || s.state == 2)) ++sources;
-    if (sources == 0) return;
+    const std::vector<crunch::EditSession::ExternalSource> sources = m_session->externalLinkSources(false);
+    if (sources.empty()) return;
     if (mode == crunch::EditSession::UpdateLinks::Ask) {
         const int cells = m_session->externalLinkCells();
-        const bool yes = m_linksAsker ? m_linksAsker(sources, cells)
+        const bool yes = m_linksAsker ? m_linksAsker(int(sources.size()), cells)
                                       : plainQuestion(this, tr("Links"), tr("This workbook reads values from other workbooks. Update them now? You can change this in Edit Links, under Data.")) == QMessageBox::Yes;
         if (!yes) return;
+    }
+    // the files on this computer are read on a thread of its own, behind a window with Cancel (one on another computer is left until it is asked for in Edit Links)
+    if (jp::office::sheet::ExternalBooks *links = m_session->externals()) {
+        std::vector<int> local;
+        for (const crunch::EditSession::ExternalSource &s : sources)
+            if (s.local && !s.network) local.push_back(s.index);
+        if (!runLinkReads(this, links, tr("Reading the workbooks the links point to..."), [&] {
+                for (const int index : local) links->probe(index);
+            })) {
+            setStatus(tr("Links not updated."));
+            return;
+        }
     }
     int updated = 0;
     const crunch::EditSession::Outcome o = m_session->updateAllExternalLinks(&updated);

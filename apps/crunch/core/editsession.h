@@ -1006,8 +1006,12 @@ public:
         bool local = false;   // a file on this computer, not an address on the web
         int state = 0;        // jp::office::sheet::ExternalBooks::State: 0 Ok, 1 Missing, 2 Newer, 3 Unreadable
         bool live = false;    // the formulas read the source file (its values were updated), not what the link stores
+        bool network = false; // on another computer: not read, or asked about, until the person asks for this source
     };
-    std::vector<ExternalSource> externalLinkSources() const;
+    // `withState` asks about the files (it touches them); the list a window makes before the person has said anything is made without.
+    std::vector<ExternalSource> externalLinkSources(bool withState = true) const;
+    jp::office::sheet::ExternalBooks *externals() const { return m_book ? m_book->externals.get() : nullptr; }
+    bool newLinkInUse(int index) const;
     // Breaks the links to one of them (`only`, from 1), or to all (0): each cell that reads it keeps the value it shows, and each name that stands for a place in it is #REF!. When no
     // link is left the saver leaves the link parts out.
     Outcome breakExternalLinks(int *cells = nullptr, int *names = nullptr, int only = 0);
@@ -1025,7 +1029,8 @@ public:
     Outcome updateExternalValues(int index, const QString &path, ExternalUpdate *result = nullptr);
     // What happens to the links when the workbook is opened: ask (the file says userSet), update, or leave the values as stored. Stored in the file (workbookPr updateLinks); one step of Undo.
     enum class UpdateLinks { Ask = 0, Always = 1, Never = 2 };
-    UpdateLinks updateLinksMode() const;
+    UpdateLinks updateLinksMode() const;   // what the file says (and what the person set)
+    UpdateLinks openingChoice() const;     // what happens when it opens: the file's "update" is a question; only the person's own choice here updates without asking
     Outcome setUpdateLinksMode(UpdateLinks mode);
     void setUpdateLinksValue(int mode);   // (the step of Undo that the choice makes: -1 for what the file has)
     // Updates every link whose file is on this computer (the choice "update" at open); `updated` counts the cells given values.
@@ -1034,6 +1039,8 @@ public:
     // of the open workbook of a file name, or an empty text; the text given back has the number of the link in place of the name. Not changed when no workbook of that name is open.
     void setOpenBookFinder(std::function<QString(const QString &fileName)> finder) { m_openBookFinder = std::move(finder); }
     QString linkTypedReferences(const QString &typed);
+    // The links a typed entry needs are made when it is committed, not when it is checked.
+    void commitLinkPlan();
     // The links made this way, for the next save.
     std::vector<jp::office::sheet::SaveChanges::NewExternalLink> newExternalLinksForSave() const;
     // Change Source: the source numbered `index` is another file, `path` (a file on this computer). The formulas are not changed; the file's link to it is, at the next save. One step of Undo.
@@ -1407,6 +1414,21 @@ private:
     bool m_dropCustomXml = false;
     std::map<int, QString> m_externalTargets;   // the address each source was changed to (Change Source), by its number; the file's own is not in it
     std::function<QString(const QString &)> m_openBookFinder;
+    struct LinkPlan {
+        QString path;
+        int number;
+    };
+    std::vector<LinkPlan> m_linkPlan;   // the links the entry being typed will make, with their numbers
+    int m_planDepth = 0;
+    struct PlanScope {
+        explicit PlanScope(EditSession *s) : m_s(s) { ++m_s->m_planDepth; }
+        ~PlanScope()
+        {
+            if (--m_s->m_planDepth == 0) m_s->m_linkPlan.clear();
+        }
+        EditSession *m_s;
+    };
+    std::set<int> m_savedLinks;        // the links that were made this way and are in the file now
     std::set<int> m_newLinks;          // the links made by typing the name of an open workbook, by number (after the file's own)
     int m_updateLinks = -1;            // Startup prompt as a person set it (an UpdateLinks), or -1 for the file's
     std::set<int> m_externalUpdated;   // the links whose values were read again (Update Values): the saver puts those values in the links' own parts
