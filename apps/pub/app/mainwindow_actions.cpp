@@ -8,7 +8,6 @@
 #include "app/appfuncs.h"
 #include "app/pagegoto.h"
 #include "translate/translator.h"
-#include "app/gotonumber.h"
 #include "app/mainwindow.h"
 #include "render/renderer.h"
 #include "app/pagespane.h"
