@@ -890,8 +890,9 @@ void WriteWindow::shapeRibbonParts(RibbonParts &parts)
         b->setToolTip(tr("Shapes"));
         b->setItemsProvider([] { return shapeItems(false); });
         connect(b, &GalleryButton::activated, this, [this](const QString &preset) {
-            if (m_doc) m_view->insertShapeObject(preset);
+            if (m_doc) m_view->beginShapeDraw(preset);
             m_view->setFocus(Qt::OtherFocusReason);
+            statusBar()->showMessage(tr("Drag on the page to draw the shape; click to put in one of its usual size. Shift keeps it in proportion, and Esc stops."), 8000);
         });
         return b;
     };

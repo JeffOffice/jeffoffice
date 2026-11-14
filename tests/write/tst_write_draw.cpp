@@ -473,6 +473,168 @@ private Q_SLOTS:
         QCOMPARE(insertShape(*doc, d, QStringLiteral("nonsense")), PictureResult::Unreadable);
     }
 
+    void dragEndsOrderTheCornersKeepProportionsWithShiftAndGiveTheUsualSizeToAClick()
+    {
+        // A rectangle's corners are put in order whichever way it is dragged.
+        auto ends = shapeDragEnds(QStringLiteral("rect"), QPointF(200, 150), QPointF(100, 50), false);
+        QCOMPARE(ends.first, QPointF(100, 50));
+        QCOMPARE(ends.second, QPointF(200, 150));
+        // Shift makes a shape as wide as it is tall, the larger side winning, from the corner where the drag began.
+        ends = shapeDragEnds(QStringLiteral("ellipse"), QPointF(100, 100), QPointF(180, 130), true);
+        QCOMPARE(ends.second.x() - ends.first.x(), 80.0);
+        QCOMPARE(ends.second.y() - ends.first.y(), 80.0);
+        QCOMPARE(ends.first, QPointF(100, 100));
+        ends = shapeDragEnds(QStringLiteral("ellipse"), QPointF(100, 100), QPointF(60, 30), true);
+        QCOMPARE(ends.first, QPointF(30, 30));
+        QCOMPARE(ends.second, QPointF(100, 100));
+        // A line keeps its direction, and with Shift goes along a multiple of 45 degrees.
+        ends = shapeDragEnds(QStringLiteral("line"), QPointF(100, 100), QPointF(40, 90), false);
+        QCOMPARE(ends.first, QPointF(100, 100));
+        QCOMPARE(ends.second, QPointF(40, 90));
+        ends = shapeDragEnds(QStringLiteral("line"), QPointF(100, 100), QPointF(200, 110), true);
+        QCOMPARE(ends.second.y(), 100.0);
+        QVERIFY(std::abs(ends.second.x() - 100 - std::hypot(100, 10)) < 0.01);
+        ends = shapeDragEnds(QStringLiteral("line"), QPointF(100, 100), QPointF(160, 130), true);
+        QVERIFY(std::abs((ends.second.x() - 100) - (ends.second.y() - 100)) < 0.01);
+        // A click, or a drag of less than four points, is the shape's usual size.
+        ends = shapeDragEnds(QStringLiteral("rect"), QPointF(100, 100), QPointF(101, 102), false);
+        QCOMPARE(ends.first, QPointF(100, 100));
+        QCOMPARE(ends.second, QPointF(208, 172));
+    }
+
+    void aShapeDrawnByDraggingIsFloatingInFrontOfTheTextAtThePlaceDraggedAndIsOneStep()
+    {
+        auto doc = textDoc({"Before after"});
+        QTextCursor c(doc->story());
+        c.setPosition(7);
+        QCOMPARE(insertShapeAt(*doc, c, QStringLiteral("rect"), QPointF(150, 200), QPointF(250, 260)), PictureResult::Ok);
+        PictureInfo info = pictureAt(*doc, doc->story(), 7);
+        QVERIFY(info.floating);
+        QCOMPARE(info.wrap, PictureWrap::InFrontOfText);
+        QCOMPARE(info.preset, QStringLiteral("rect"));
+        QCOMPARE(info.width, 100.0);
+        QCOMPARE(info.height, 60.0);
+        QVERIFY(info.placeIsOffset);
+        QCOMPARE(info.left, 150.0);
+        QCOMPARE(info.top, 200.0);
+        QVERIFY(doc->undo());
+        QVERIFY(!isDrawnObjectAt(doc->story(), 7));
+        QCOMPARE(doc->story()->toPlainText(), QStringLiteral("Before after"));
+        QVERIFY(doc->redo());
+        QCOMPARE(pictureAt(*doc, doc->story(), 7).left, 150.0);
+        // Dragged the other way and with Shift, the box is square from the corner where the drag began; and a wrap asked for is used.
+        QTextCursor d(doc->story());
+        d.setPosition(2);
+        QCOMPARE(insertShapeAt(*doc, d, QStringLiteral("ellipse"), QPointF(300, 300), QPointF(260, 280), true, PictureWrap::Square), PictureResult::Ok);
+        info = pictureAt(*doc, doc->story(), 2);
+        QCOMPARE(info.wrap, PictureWrap::Square);
+        QCOMPARE(info.width, 40.0);
+        QCOMPARE(info.height, 40.0);
+        QCOMPARE(info.left, 260.0);
+        QCOMPARE(info.top, 260.0);
+        // Not a shape of the gallery: nothing is put in.
+        QTextCursor e(doc->story());
+        QCOMPARE(insertShapeAt(*doc, e, QStringLiteral("nonsense"), QPointF(1, 1), QPointF(50, 50)), PictureResult::Unreadable);
+    }
+
+    void aLineDrawnUpAndToTheLeftIsFlippedAndSavedSo()
+    {
+        auto doc = textDoc({"Before after"});
+        QTextCursor c(doc->story());
+        c.setPosition(7);
+        QCOMPARE(insertShapeAt(*doc, c, QStringLiteral("straightConnector1"), QPointF(300, 200), QPointF(200, 120)), PictureResult::Ok);
+        const PictureInfo info = pictureAt(*doc, doc->story(), 7);
+        QCOMPARE(info.width, 100.0);
+        QCOMPARE(info.height, 80.0);
+        QCOMPARE(info.left, 200.0);
+        QCOMPARE(info.top, 120.0);
+        const QByteArray xml = documentXml(doc->toDocx());
+        QVERIFY(xml.contains("flipH=\"1\""));
+        QVERIFY(xml.contains("flipV=\"1\""));
+        QVERIFY(doc->undo());
+        QVERIFY(!isDrawnObjectAt(doc->story(), 7));
+    }
+
+    void theShapesGalleryArmsADrawToolAndADragOnThePageDrawsTheShapeInOneStep()
+    {
+        Win win;
+        write::WriteDoc *doc = win.w.document();
+        win.w.view()->refresh();
+        QVERIFY(!win.w.view()->drawingShape());
+        win.w.view()->beginShapeDraw(QStringLiteral("rect"));
+        QVERIFY(win.w.view()->drawingShape());
+        QWidget *vp = win.w.view()->viewport();
+        const QPoint from(vp->width() / 2 - 60, 260);
+        QTest::mousePress(vp, Qt::LeftButton, Qt::NoModifier, from);
+        QTest::mouseMove(vp, from + QPoint(30, 20));
+        QTest::mouseMove(vp, from + QPoint(90, 60));
+        QTest::mouseRelease(vp, Qt::LeftButton, Qt::NoModifier, from + QPoint(90, 60));
+        QVERIFY(!win.w.view()->drawingShape());
+        int at = -1;
+        for (int i = 0; i < doc->story()->characterCount(); ++i)
+            if (isDrawnObjectAt(doc->story(), i)) at = i;
+        QVERIFY(at >= 0);
+        PictureInfo info = pictureAt(*doc, doc->story(), at);
+        QCOMPARE(info.preset, QStringLiteral("rect"));
+        QCOMPARE(info.wrap, PictureWrap::InFrontOfText);
+        const double s = win.w.view()->zoom() * 96.0 / 72.0;
+        QVERIFY(std::abs(info.width - 90 / s) < 1.5);
+        QVERIFY(std::abs(info.height - 60 / s) < 1.5);
+        QCOMPARE(win.w.view()->selectedPicture(), at);
+        QVERIFY(doc->undo());
+        QVERIFY(!isDrawnObjectAt(doc->story(), at));
+        QVERIFY(doc->redo());
+        // Shift while drawing makes it square; Escape puts the tool down.
+        win.w.view()->beginShapeDraw(QStringLiteral("ellipse"));
+        QTest::mousePress(vp, Qt::LeftButton, Qt::NoModifier, from + QPoint(0, 200));
+        QTest::mouseMove(vp, from + QPoint(100, 230));
+        QTest::mouseRelease(vp, Qt::LeftButton, Qt::ShiftModifier, from + QPoint(100, 230));
+        const int second = win.w.view()->selectedPicture();
+        info = pictureAt(*doc, doc->story(), second);
+        QCOMPARE(info.preset, QStringLiteral("ellipse"));
+        QVERIFY(std::abs(info.width - info.height) < 0.01);
+        win.w.view()->beginShapeDraw(QStringLiteral("rect"));
+        QTest::keyClick(vp, Qt::Key_Escape);
+        QVERIFY(!win.w.view()->drawingShape());
+    }
+
+    void aShapesCornerKeepsItsProportionsWithShiftAndIsFreeWithout()
+    {
+        Win win;
+        write::WriteDoc *doc = win.w.document();
+        QTextCursor c(doc->story());
+        c.setPosition(0);
+        QCOMPARE(insertShape(*doc, c, QStringLiteral("rect"), QSizeF(120, 60)), PictureResult::Ok);
+        QVERIFY(setPicturePlace(*doc, 0, 150, 150));
+        win.w.view()->refresh();
+        win.w.view()->selectPicture(0);
+        QWidget *vp = win.w.view()->viewport();
+        QRectF r;
+        QTRY_VERIFY(win.w.view()->pictureRect(0, &r));
+        const double s = win.w.view()->zoom() * 96.0 / 72.0;
+        // Free at a corner, as it was.
+        QPoint corner = r.bottomRight().toPoint();
+        QTest::mousePress(vp, Qt::LeftButton, Qt::NoModifier, corner);
+        QTest::mouseMove(vp, corner + QPoint(20, 5));
+        QTest::mouseMove(vp, corner + QPoint(60, 0));
+        QTest::mouseRelease(vp, Qt::LeftButton, Qt::NoModifier, corner + QPoint(60, 0));
+        PictureInfo info = pictureAt(*doc, doc->story(), 0);
+        QVERIFY(std::abs(info.width - (120 + 60 / s)) < 1.5);
+        QVERIFY(std::abs(info.height - 60) < 1.5);
+        QVERIFY(doc->undo());
+        // With Shift held at the end, the shape keeps its 2 to 1.
+        win.w.view()->refresh();
+        QTRY_VERIFY(win.w.view()->pictureRect(0, &r));
+        corner = r.bottomRight().toPoint();
+        QTest::mousePress(vp, Qt::LeftButton, Qt::NoModifier, corner);
+        QTest::mouseMove(vp, corner + QPoint(20, 5));
+        QTest::mouseMove(vp, corner + QPoint(60, 0));
+        QTest::mouseRelease(vp, Qt::LeftButton, Qt::ShiftModifier, corner + QPoint(60, 0));
+        info = pictureAt(*doc, doc->story(), 0);
+        QVERIFY(info.width > 150);
+        QVERIFY(std::abs(info.width / info.height - 2.0) < 0.02);
+    }
+
     void aShapesFillLineTurnAndKindAreChangedOneStepEach()
     {
         auto doc = textDoc({"Before after"});

@@ -1618,6 +1618,76 @@ PictureResult insertShape(WriteDoc &doc, QTextCursor &c, const QString &preset, 
     return insertShapeGraphic(doc, c, graphic, made.width(), made.height(), wrap, isLine ? QStringLiteral("Line") : isConnector ? QStringLiteral("Connector") : QStringLiteral("Shape"));
 }
 
+namespace {
+
+void setConnectorFrame(Model &m, const QPointF &p1, const QPointF &p2);
+
+bool isLinePreset(const QString &preset)
+{
+    return preset == QLatin1String("line") || preset == QLatin1String("straightConnector1") || preset == QLatin1String("bentConnector3") || preset == QLatin1String("curvedConnector3");
+}
+
+} // namespace
+
+std::pair<QPointF, QPointF> shapeDragEnds(const QString &preset, const QPointF &from, const QPointF &to, bool keepProportions)
+{
+    const bool line = isLinePreset(preset);
+    if (!std::isfinite(from.x()) || !std::isfinite(from.y()) || !std::isfinite(to.x()) || !std::isfinite(to.y())) return {from, from};
+    QPointF d = to - from;
+    if (std::abs(d.x()) < 4 && std::abs(d.y()) < 4) {
+        // (A click: the shape's usual size, from the point.)
+        const bool straight = preset == QLatin1String("line") || preset == QLatin1String("straightConnector1");
+        const bool elbow = preset == QLatin1String("bentConnector3") || preset == QLatin1String("curvedConnector3");
+        const QStringList squares = {QStringLiteral("ellipse"), QStringLiteral("sun"), QStringLiteral("moon"), QStringLiteral("heart"), QStringLiteral("smileyFace"), QStringLiteral("donut"),
+                                     QStringLiteral("plus"), QStringLiteral("mathPlus"), QStringLiteral("mathMinus"), QStringLiteral("mathMultiply"), QStringLiteral("mathDivide"),
+                                     QStringLiteral("mathEqual"), QStringLiteral("mathNotEqual"), QStringLiteral("flowChartConnector"), QStringLiteral("cube"), QStringLiteral("frame")};
+        const bool square = squares.contains(preset) || preset.startsWith(QLatin1String("star")) || preset.startsWith(QLatin1String("irregularSeal"));
+        const QSizeF usual = straight ? QSizeF(108, 0) : elbow ? QSizeF(108, 40) : square ? QSizeF(86, 86) : QSizeF(108, 72);
+        return {from, from + QPointF(usual.width(), usual.height())};
+    }
+    if (keepProportions) {
+        if (line) {
+            // The nearest multiple of 45 degrees, as long as the drag.
+            const double length = std::hypot(d.x(), d.y());
+            const double step = M_PI / 4;
+            const double angle = std::round(std::atan2(d.y(), d.x()) / step) * step;
+            d = QPointF(length * std::cos(angle), length * std::sin(angle));
+            if (std::abs(d.x()) < 1e-9) d.setX(0);
+            if (std::abs(d.y()) < 1e-9) d.setY(0);
+        } else {
+            const double side = std::max(std::abs(d.x()), std::abs(d.y()));
+            d = QPointF(d.x() < 0 ? -side : side, d.y() < 0 ? -side : side);
+        }
+    }
+    const QPointF end = from + d;
+    if (line) return {from, end};
+    return {QPointF(std::min(from.x(), end.x()), std::min(from.y(), end.y())), QPointF(std::max(from.x(), end.x()), std::max(from.y(), end.y()))};
+}
+
+PictureResult insertShapeAt(WriteDoc &doc, QTextCursor &c, const QString &preset, const QPointF &from, const QPointF &to, bool keepProportions, PictureWrap wrap)
+{
+    bool known = false;
+    for (const ShapeGroup &g : shapeGallery()) known = known || g.presets.contains(preset);
+    if (!known) return PictureResult::Unreadable;
+    const auto [a, b] = shapeDragEnds(preset, from, to, keepProportions);
+    const WriteDoc::StepGroup step(doc);
+    const int at = c.hasSelection() ? c.selectionStart() : c.position();
+    const bool line = isLinePreset(preset);
+    const QSizeF size(std::abs(b.x() - a.x()), std::abs(b.y() - a.y()));
+    const PictureResult result = insertShape(doc, c, preset, line ? QSizeF(std::max(size.width(), 1.0), size.height()) : size, ShapeLook(), wrap);
+    if (result != PictureResult::Ok) return result;
+    const bool done = line ? changePicture(doc, at, [&](Model &m) {
+        setConnectorFrame(m, a, b);
+        return true;
+    }, true)
+                           : setPictureBox(doc, at, size.width(), size.height(), QPointF(a.x(), a.y()));
+    if (!done) {
+        doc.pictureNotice = QCoreApplication::translate("jp::write::Pictures", "That shape can't be put here.");
+        return PictureResult::Refused;
+    }
+    return PictureResult::Ok;
+}
+
 const QVector<TextBoxDesign> &textBoxDesigns()
 {
     static const QVector<TextBoxDesign> designs = [] {

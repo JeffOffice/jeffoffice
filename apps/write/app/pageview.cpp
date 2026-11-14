@@ -812,6 +812,18 @@ void PageView::paintEvent(QPaintEvent *e)
             p.restore();
         }
     }
+    if (m_toolDrag.active && !m_shapeDraw.isEmpty() && m_toolDrag.page >= 0 && m_toolDrag.page < m_rects.size()) {
+        // The shape being drawn: its box (or a line) as the drag would make it now.
+        const double s = scale();
+        const QRectF pr = m_rects[m_toolDrag.page].translated(-horizontalScrollBar()->value(), -verticalScrollBar()->value());
+        const auto ends = shapeDragEnds(m_shapeDraw, m_toolDrag.from, m_toolDrag.to, QApplication::keyboardModifiers() & Qt::ShiftModifier);
+        const QPointF a(pr.left() + ends.first.x() * s, pr.top() + ends.first.y() * s), b(pr.left() + ends.second.x() * s, pr.top() + ends.second.y() * s);
+        p.save();
+        p.setPen(QPen(uiAccent(), 1, Qt::DashLine));
+        if (m_shapeDraw == QLatin1String("line") || m_shapeDraw.endsWith(QLatin1String("Connector1")) || m_shapeDraw.startsWith(QLatin1String("bentConnector")) || m_shapeDraw.startsWith(QLatin1String("curvedConnector"))) p.drawLine(a, b);
+        else p.drawRect(QRectF(a, b).normalized());
+        p.restore();
+    } else
     if (m_toolDrag.active && m_toolDrag.page >= 0 && m_toolDrag.page < m_rects.size()) {
         // What the pen or the eraser is drawing: a rectangle (a new table) or a line.
         const double s = scale();

@@ -264,6 +264,9 @@ public:
     bool insertPictureImage(const QImage &image, PictureWrap wrap = PictureWrap::Inline);
     // A shape of the gallery, or a text box of a design, at the cursor; it is selected when it is in.
     bool insertShapeObject(const QString &preset);
+    // Insert > Shapes: the next drag on the page draws this shape (a click puts in one of its usual size); Escape puts the tool down.
+    void beginShapeDraw(const QString &preset);
+    bool drawingShape() const { return !m_shapeDraw.isEmpty(); }
     bool insertTextBoxObject(const TextBoxDesign &design);
     // Create Link: the selected text box is to be followed by the text box that the next click is on (an empty one); Esc, or a click elsewhere, leaves it. Break Link: the boxes after the selected one
     // become boxes of their own.
@@ -443,8 +446,8 @@ private:
         PictureInfo info;
     };
     bool beginPictureDrag(QMouseEvent *e);
-    void updatePictureDrag(const QPoint &pos);
-    void endPictureDrag(const QPoint &pos);
+    void updatePictureDrag(const QPoint &pos, Qt::KeyboardModifiers modifiers = Qt::NoModifier);
+    void endPictureDrag(const QPoint &pos, Qt::KeyboardModifiers modifiers = Qt::NoModifier);
     bool inlinePictureRect(int position, const PictureInfo &info, QRectF *rect);
     // A picture set at a place on the page: its rectangle on the page (points) and the page, from the items the page was made with; and the position of the picture a point of a page
     // is in (the front-most), -1 for none.
@@ -487,6 +490,8 @@ private:
         QPointF from, to;                   // on that page, in points
     };
     ToolDrag m_toolDrag;
+    QString m_shapeDraw;   // the shape the pointer is drawing (its preset), empty when it is not
+    void finishShapeDraw(const QPoint &viewportPos, Qt::KeyboardModifiers modifiers);
     void finishTableTool(const QPoint &viewportPos);
     // The border of a column or a row of a table on the page under the pointer (within a few pixels of a cell's right or bottom edge, one column or row wide), or false.
     bool columnBorderAt(const QPoint &viewportPos, ColumnDrag *found);

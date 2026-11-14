@@ -425,6 +425,16 @@ void PageView::keyPressEvent(QKeyEvent *e)
         e->accept();
         return;
     }
+    if (e->key() == Qt::Key_Escape && !m_shapeDraw.isEmpty()) {
+        // (the shape tool is put down; a shape begun is let go)
+        m_shapeDraw.clear();
+        m_toolDrag = ToolDrag();
+        m_hoverCursorShape = -1;
+        viewport()->setCursor(Qt::IBeamCursor);
+        viewport()->update();
+        e->accept();
+        return;
+    }
     if (e->key() == Qt::Key_Escape && m_tableTool != TableTool::None) {
         // (the pen or the eraser is put down; a line begun is let go)
         m_toolDrag = ToolDrag();
@@ -523,6 +533,17 @@ void PageView::mousePressEvent(QMouseEvent *e)
             }
             e->accept();
             viewport()->update();
+            return;
+        }
+    }
+    if (!m_shapeDraw.isEmpty() && e->button() == Qt::LeftButton && !m_hf.active && !m_note.active && !m_readOnly) {
+        // Insert > Shapes is waiting for a drag: it begins here, on the page, at a place of the text.
+        const Hit hit = hitAt(e->position().toPoint());
+        const int at = positionAt(hit);
+        if (hit.page >= 0 && at >= 0) {
+            m_toolDrag = {true, hit.page, at, hit.point, hit.point};
+            viewport()->update();
+            e->accept();
             return;
         }
     }
@@ -653,7 +674,7 @@ void PageView::mouseMoveEvent(QMouseEvent *e)
         return;
     }
     if (m_pictureDrag.active) {
-        updatePictureDrag(e->position().toPoint());
+        updatePictureDrag(e->position().toPoint(), e->modifiers());
         return;
     }
     if (m_textDrag.pending) {
@@ -716,6 +737,42 @@ void PageView::setTableTool(TableTool tool)
     Q_EMIT tableToolChanged();
 }
 
+void PageView::beginShapeDraw(const QString &preset)
+{
+    if (!m_doc || m_readOnly) return;
+    setTableTool(TableTool::None);
+    m_shapeDraw = preset;
+    m_toolDrag = ToolDrag();
+    m_hoverCursorShape = -1;
+    viewport()->setCursor(Qt::CrossCursor);
+    viewport()->update();
+}
+
+void PageView::finishShapeDraw(const QPoint &viewportPos, Qt::KeyboardModifiers modifiers)
+{
+    const ToolDrag d = m_toolDrag;
+    const QString preset = m_shapeDraw;
+    m_toolDrag = ToolDrag();
+    m_shapeDraw.clear();
+    m_hoverCursorShape = -1;
+    viewport()->setCursor(Qt::IBeamCursor);
+    viewport()->update();
+    if (!m_doc || d.position < 0 || d.position >= m_doc->story()->characterCount()) return;
+    const Hit hit = hitAt(viewportPos);
+    const QPointF to = hit.page == d.page ? hit.point : d.to;
+    QTextCursor c(m_doc->story());
+    c.setPosition(d.position);
+    m_doc->pictureNotice.clear();
+    const PictureResult result = insertShapeAt(*m_doc, c, preset, d.from, to, modifiers & Qt::ShiftModifier);
+    if (result == PictureResult::Ok) {
+        m_cursor = c;
+        selectPicture(d.position);
+        Q_EMIT contentChanged();
+        return;
+    }
+    Q_EMIT notice(m_doc->pictureNotice.isEmpty() ? QCoreApplication::translate("jp::write::Pictures", "That shape can't be put here.") : m_doc->pictureNotice);
+}
+
 void PageView::finishTableTool(const QPoint &viewportPos)
 {
     const ToolDrag d = m_toolDrag;
@@ -759,6 +816,10 @@ void PageView::finishTableTool(const QPoint &viewportPos)
 
 void PageView::mouseReleaseEvent(QMouseEvent *e)
 {
+    if (m_toolDrag.active && !m_shapeDraw.isEmpty()) {
+        finishShapeDraw(e->position().toPoint(), e->modifiers());
+        return;
+    }
     if (m_toolDrag.active) {
         finishTableTool(e->position().toPoint());
         return;
@@ -784,7 +845,7 @@ void PageView::mouseReleaseEvent(QMouseEvent *e)
     }
     m_columnDrag.pending = false;
     if (m_pictureDrag.active) {
-        endPictureDrag(e->position().toPoint());
+        endPictureDrag(e->position().toPoint(), e->modifiers());
         return;
     }
     if (m_textDrag.pending) {

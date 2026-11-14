@@ -494,7 +494,7 @@ bool PageView::beginPictureDrag(QMouseEvent *e)
     return true;
 }
 
-void PageView::updatePictureDrag(const QPoint &pos)
+void PageView::updatePictureDrag(const QPoint &pos, Qt::KeyboardModifiers modifiers)
 {
     PictureDrag &d = m_pictureDrag;
     if (!d.active) return;
@@ -510,7 +510,7 @@ void PageView::updatePictureDrag(const QPoint &pos)
         const bool right = d.handle == PictureHandle::Right || d.handle == PictureHandle::TopRight || d.handle == PictureHandle::BottomRight;
         const bool top = d.handle == PictureHandle::Top || d.handle == PictureHandle::TopLeft || d.handle == PictureHandle::TopRight;
         const bool bottom = d.handle == PictureHandle::Bottom || d.handle == PictureHandle::BottomLeft || d.handle == PictureHandle::BottomRight;
-        if ((left || right) && (top || bottom) && d.info.kind == DrawnKind::Picture) {
+        if ((left || right) && (top || bottom) && (d.info.kind == DrawnKind::Picture || (modifiers & Qt::ShiftModifier))) {
             // A corner keeps the picture's proportions: the side that moved the farther, in proportion, sets the size.
             const double kx = (d.start.width() + (right ? delta.x() : -delta.x())) / d.start.width();
             const double ky = (d.start.height() + (bottom ? delta.y() : -delta.y())) / d.start.height();
@@ -532,10 +532,10 @@ void PageView::updatePictureDrag(const QPoint &pos)
     viewport()->update();
 }
 
-void PageView::endPictureDrag(const QPoint &pos)
+void PageView::endPictureDrag(const QPoint &pos, Qt::KeyboardModifiers modifiers)
 {
     if (!m_pictureDrag.active) return;
-    updatePictureDrag(pos);
+    updatePictureDrag(pos, modifiers);
     const PictureDrag d = m_pictureDrag;
     m_pictureDrag = PictureDrag();
     viewport()->update();

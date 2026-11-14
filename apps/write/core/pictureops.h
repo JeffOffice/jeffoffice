@@ -201,6 +201,11 @@ const QVector<ShapeGroup> &shapeGallery();
 // that undoes. `size` (points; empty for the usual) is held to the least and most a picture's is. Refused outside the body text. A line or an arrow is as wide as `size` and
 // as high as it says (0 for a flat one).
 PictureResult insertShape(WriteDoc &doc, QTextCursor &c, const QString &preset, const QSizeF &size = QSizeF(), const ShapeLook &look = ShapeLook(), PictureWrap wrap = PictureWrap::Square);
+// A shape drawn by dragging from one point of the page to another (points): the two corners it is made between (a rectangle's, put in order), or, for a line, its two ends; with
+// `keepProportions` (Shift) a shape is as wide as it is tall and a line goes along a multiple of 45 degrees. A drag of less than 4 points either way gives the shape's usual size from `from`.
+std::pair<QPointF, QPointF> shapeDragEnds(const QString &preset, const QPointF &from, const QPointF &to, bool keepProportions);
+// The shape put in at the cursor, set at the place shapeDragEnds gives (on the page of its paragraph), floating in front of the text unless `wrap` says another way, as one step that undoes.
+PictureResult insertShapeAt(WriteDoc &doc, QTextCursor &c, const QString &preset, const QPointF &from, const QPointF &to, bool keepProportions = false, PictureWrap wrap = PictureWrap::InFrontOfText);
 
 // A text box design: how it looks and what it holds at first (paragraphs of a size, a style, and a color of their own).
 struct TextBoxDesign {
