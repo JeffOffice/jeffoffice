@@ -6,7 +6,10 @@
 #include <QMetaObject>
 #include <QPointer>
 #include <QLocale>
-#include <QThreadPool>
+#include <algorithm>
+#include <mutex>
+#include <thread>
+#include <vector>
 
 namespace jp {
 namespace translate {
@@ -18,6 +21,26 @@ qint64 Translator::downloadBytes(const QString &from, const QString &to) const
     qint64 n = 0;
     for (const ModelPair &p : missing(from, to)) n += p.totalBytes();
     return n;
+}
+
+namespace {
+
+// The jobs under way, to cancel at the end of the program (they are on threads of their own that nothing joins).
+std::mutex &jobsLock() { static std::mutex *m = new std::mutex; return *m; }
+std::vector<std::weak_ptr<std::atomic<bool>>> &jobsRunning() { static auto *v = new std::vector<std::weak_ptr<std::atomic<bool>>>; return *v; }
+std::atomic<bool> &shuttingDown() { static auto *a = new std::atomic<bool>(false); return *a; }
+
+} // namespace
+
+void shutdownTranslation()
+{
+    shuttingDown() = true;
+    {
+        std::lock_guard<std::mutex> g(jobsLock());
+        for (const auto &w : jobsRunning())
+            if (auto c = w.lock()) *c = true;
+    }
+    releaseBuiltInBackend();
 }
 
 bool Translator::translatePieces(const QString &from, const QString &to, const QStringList &pieces, bool html, QStringList *out, QString *error, const std::atomic<bool> *cancel) const
@@ -106,15 +129,27 @@ void TranslateJob::start()
     const QString from = m_from, to = m_to;
     const QStringList pieces = m_pieces;
     const bool html = m_html;
-    QThreadPool::globalInstance()->start([self, state, translator, from, to, pieces, html] {
+    if (shuttingDown()) {
+        m_state->running = false;
+        return;
+    }
+    {
+        std::lock_guard<std::mutex> g(jobsLock());
+        auto &v = jobsRunning();
+        v.erase(std::remove_if(v.begin(), v.end(), [](const std::weak_ptr<std::atomic<bool>> &w) { return w.expired(); }), v.end());
+        v.push_back(std::shared_ptr<std::atomic<bool>>(state, &state->cancel));
+    }
+    // A thread of its own that nothing joins (a pool would be waited for when the program ends, and the engine cannot be told to leave a sentence).
+    std::thread([self, state, translator, from, to, pieces, html] {
         QStringList out;
         QString error;
         const bool ok = translator.translatePieces(from, to, pieces, html, &out, &error, &state->cancel);
         const bool canceled = !ok && error.isEmpty();
         state->running = false;
-        // (told on the main thread, by way of the application, which outlives the job; a job that is gone is not told)
-        QMetaObject::invokeMethod(QCoreApplication::instance(), [self, ok, canceled, out, error] { if (self) Q_EMIT self->finished(ok, canceled, out, error); }, Qt::QueuedConnection);
-    });
+        // (told on the main thread, by way of the application, which outlives the job; a job that is gone, or a program that is ending, is not told)
+        if (QCoreApplication *app = QCoreApplication::instance())
+            QMetaObject::invokeMethod(app, [self, ok, canceled, out, error] { if (self) Q_EMIT self->finished(ok, canceled, out, error); }, Qt::QueuedConnection);
+    }).detach();
 }
 
 } // namespace translate

@@ -27,6 +27,10 @@ public:
 
 // The engine built into the program, or null when the program was built without it.
 std::shared_ptr<Backend> builtInBackend();
+// The end of the program (it is connected to aboutToQuit, and a test may call it): every translation under way is canceled, none is waited for, and the engine is let go on a thread of its
+// own and waited for a second at most. Nothing in the library waits for a thread when the program or the library ends.
+void shutdownTranslation();
+void releaseBuiltInBackend();
 
 class Translator {
 public:

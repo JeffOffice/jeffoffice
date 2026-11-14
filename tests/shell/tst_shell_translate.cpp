@@ -30,6 +30,7 @@
 #include <QTcpSocket>
 #include <QTemporaryDir>
 #include <QStandardPaths>
+#include <QProcess>
 #include <QTextBrowser>
 #include <QTextCursor>
 #include <QTextDocument>
@@ -1082,6 +1083,42 @@ private Q_SLOTS:
         pane.translateNow();   // (installed now)
         QTRY_VERIFY_WITH_TIMEOUT(pane.findChild<QPushButton *>(QStringLiteral("translateReplace"))->isEnabled(), 20000);
         QCOMPARE(net.requests, 3);
+    }
+
+    // ---- the end of the program
+    // (run by the next test in a program of its own: leaves a translation stuck in the engine, which cannot be told to leave, and returns)
+    void stuckJobChild()
+    {
+        if (qEnvironmentVariableIsEmpty("JO_STUCK_CHILD")) QSKIP("run by theProgramEndsWhileATranslationIsStuckInTheEngine");
+        static Fixture *fx = new Fixture;
+        static auto stub = std::make_shared<StubBackend>();
+        const Translator t = translatorFor(*fx, stub);
+        QVERIFY(install(*fx, t.missing(QStringLiteral("en"), QStringLiteral("de"))));
+        stub->stubbornMs = 60000;
+        auto *job = new TranslateJob(t, QStringLiteral("en"), QStringLiteral("de"), {QStringLiteral("one")}, true);
+        job->start();
+        QTRY_VERIFY(stub->calls.load() > 0);
+    }
+
+    void theProgramEndsWhileATranslationIsStuckInTheEngine()
+    {
+        QProcess child;
+        child.setProcessEnvironment([] {
+            QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+            env.insert(QStringLiteral("JO_STUCK_CHILD"), QStringLiteral("1"));
+            return env;
+        }());
+        child.setProcessChannelMode(QProcess::MergedChannels);
+        child.start(QCoreApplication::applicationFilePath(), {QStringLiteral("--class"), QStringLiteral("ShellTranslateTests"), QStringLiteral("stuckJobChild")});
+        QVERIFY(child.waitForStarted(10000));
+        QElapsedTimer timer;
+        timer.start();
+        const bool ended = child.waitForFinished(15000);
+        if (!ended) child.kill();
+        const QByteArray output = child.readAll();
+        QVERIFY2(ended, "the program did not end while a translation was stuck: it waits for the job");
+        QVERIFY2(child.exitStatus() == QProcess::NormalExit && child.exitCode() == 0, output.right(600).constData());
+        QVERIFY2(timer.elapsed() < 10000, qPrintable(QString::number(timer.elapsed())));
     }
 
     // ---- the real engine, when a model is at hand

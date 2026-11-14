@@ -12,7 +12,9 @@
 #include <QThread>
 #include <list>
 #include <map>
+#include <future>
 #include <mutex>
+#include <thread>
 #endif
 
 namespace jp {
@@ -107,15 +109,49 @@ private:
 
 } // namespace
 
+namespace {
+
+// The engine lives in a pointer that is never deleted by a static destructor: a destructor of the library's statics runs when the library is unloaded (on Windows under the
+// loader lock), and the engine's would wait for its worker threads there, for ever when one is in the middle of a sentence. It is torn down by shutdownTranslation(), before the
+// program ends.
+std::mutex &holderLock() { static std::mutex *m = new std::mutex; return *m; }
+std::shared_ptr<Backend> *&holder() { static std::shared_ptr<Backend> *h = nullptr; return h; }
+
+} // namespace
+
 std::shared_ptr<Backend> builtInBackend()
 {
-    static std::shared_ptr<Backend> backend = std::make_shared<BergamotBackend>();
-    return backend;
+    std::lock_guard<std::mutex> g(holderLock());
+    if (!holder()) {
+        holder() = new std::shared_ptr<Backend>(std::make_shared<BergamotBackend>());
+        if (QCoreApplication *app = QCoreApplication::instance()) QObject::connect(app, &QCoreApplication::aboutToQuit, app, [] { shutdownTranslation(); });
+    }
+    return *holder();
+}
+
+void releaseBuiltInBackend()
+{
+    std::shared_ptr<Backend> b;
+    {
+        std::lock_guard<std::mutex> g(holderLock());
+        if (holder()) b = std::move(*holder());
+    }
+    if (!b) return;
+    // (the engine ends on a thread of its own, and this waits a moment for it: if a piece is still in the engine, the program ends without it)
+    auto done = std::make_shared<std::promise<void>>();
+    std::future<void> f = done->get_future();
+    std::thread([b, done]() mutable {
+        b.reset();
+        done->set_value();
+    }).detach();
+    b.reset();
+    f.wait_for(std::chrono::milliseconds(1000));
 }
 
 #else
 
 std::shared_ptr<Backend> builtInBackend() { return nullptr; }
+void releaseBuiltInBackend() {}
 
 #endif
 
