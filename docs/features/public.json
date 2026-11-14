@@ -4678,7 +4678,7 @@
       {
        "hide_soon": true,
        "status": "done",
-       "text": "b1f0815eefc2906cc83b26a6e9b7fa1a9f90d83017eb81e1253b2d1de545102b"
+       "text": "aab455fc01bc5bf1c88727ebb370af30d36dba633b7678bc8c1a411adb54eb14"
       },
       {
        "hide_soon": true,
@@ -6469,7 +6469,7 @@
         {
          "hide_soon": true,
          "status": "done",
-         "text": "9af2acdbbf4f845fa407e8467c1389bea1ae9d4d15a01a7f3a0acc7ed7b0c200"
+         "text": "2a1090d5ba16068556d919af95efaec0635d1ae4106ff0da55508f6900ec506a"
         }
        ]
       },
@@ -10654,6 +10654,18 @@
    "en": "Cropped pictures, flips, and turns are drawn and saved. In an `.odp`, a flipped picture is written as a half turn and a mirror.",
    "es": "Las imágenes recortadas, los giros y las rotaciones se dibujan y se guardan. En un `.odp`, una imagen volteada se escribe como un giro de media vuelta y un espejo.",
    "fr": "Les images rognées, les retournements et les rotations sont dessinés et enregistrés. Dans un `.odp`, une image retournée est écrite comme un demi-tour et un miroir.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "2a1090d5ba16068556d919af95efaec0635d1ae4106ff0da55508f6900ec506a": {
+   "drop": false,
+   "en": "Translate the selected text or the paragraph in a pane, on this computer, using small translation models that are downloaded the first time a language is used, after a click. Put the result in place of the text or below it, keeping bold, italic, and underline. For a language pair with no model, an open translation service (LibreTranslate, with a server address you can change) opens.",
+   "es": "Traduzca el texto seleccionado o el párrafo en un panel, en este equipo, con modelos de traducción pequeños que se descargan la primera vez que se usa un idioma, después de un clic. Coloque el resultado en lugar del texto o debajo de él, conservando la negrita, la cursiva y el subrayado. Para un par de idiomas sin modelo, se abre un servicio de traducción abierto (LibreTranslate, con una dirección de servidor que usted puede cambiar).",
+   "fr": "Traduisez le texte sélectionné ou le paragraphe dans un volet, sur cet ordinateur, avec de petits modèles de traduction téléchargés la première fois qu’une langue est utilisée, après un clic. Placez le résultat à la place du texte ou en dessous, en conservant le gras, l’italique et le soulignement. Pour une paire de langues sans modèle, un service de traduction ouvert (LibreTranslate, avec une adresse de serveur modifiable) s’ouvre.",
    "soon": {
     "drop": true,
     "en": "",
@@ -18749,18 +18761,6 @@
     "fr": ""
    }
   },
-  "9af2acdbbf4f845fa407e8467c1389bea1ae9d4d15a01a7f3a0acc7ed7b0c200": {
-   "drop": false,
-   "en": "Translate opens the selected text, or the whole document up to 5,000 letters, in a LibreTranslate service for translation into one of 18 languages. The server address can be changed, and nothing is sent before you confirm with OK.",
-   "es": "Traducir abre el texto seleccionado, o todo el documento hasta 5 000 letras, en un servicio LibreTranslate para traducirlo a uno de 18 idiomas. La dirección del servidor se puede cambiar y no se envía nada antes de confirmar con Aceptar.",
-   "fr": "Traduire ouvre le texte sélectionné, ou tout le document jusqu’à 5 000 lettres, dans un service LibreTranslate pour le traduire dans l’une des 18 langues. L’adresse du serveur peut être modifiée, et rien n’est envoyé avant que vous confirmiez par OK.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "9b391cff0282e4f9e604e8f947a6bebf9a962c0f4022a0a5c4bc8baba6c65de4": {
    "drop": false,
    "en": "Workbook Views",
@@ -19757,6 +19757,18 @@
     "fr": ""
    }
   },
+  "aab455fc01bc5bf1c88727ebb370af30d36dba633b7678bc8c1a411adb54eb14": {
+   "drop": false,
+   "en": "Translate the selected text or the paragraph in a pane, on this computer, using small translation models that are downloaded the first time a language is used, after a click. `Replace` and `Insert Below` keep bold, italic, and underline. For a language pair with no model, an open-source translation service opens instead.",
+   "es": "Traduzca el texto seleccionado o el párrafo en un panel, en este equipo, con modelos de traducción pequeños que se descargan la primera vez que se usa un idioma, después de un clic. `Replace` e `Insert Below` conservan la negrita, la cursiva y el subrayado. Para un par de idiomas sin modelo, se abre en su lugar un servicio de traducción de código abierto.",
+   "fr": "Traduisez le texte sélectionné ou le paragraphe dans un volet, sur cet ordinateur, avec de petits modèles de traduction téléchargés la première fois qu’une langue est utilisée, après un clic. `Replace` et `Insert Below` conservent le gras, l’italique et le soulignement. Pour une paire de langues sans modèle, un service de traduction open source s’ouvre à la place.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "aab8ccdd715e8e1fbb741a3cd4c8e4c593baa6359a1731d7b3cb24fe25bcfd7b": {
    "drop": true,
    "en": "",
@@ -20175,18 +20187,6 @@
     "en": "Security settings for external links, data connections, macros, and files from outside",
     "es": "Ajustes de seguridad para vínculos externos, conexiones de datos, macros y archivos externos",
     "fr": "Paramètres de sécurité pour les liaisons externes, les connexions de données, les macros et les fichiers externes"
-   }
-  },
-  "b1f0815eefc2906cc83b26a6e9b7fa1a9f90d83017eb81e1253b2d1de545102b": {
-   "drop": false,
-   "en": "Open the selected text in LibreTranslate, an open-source translation service.",
-   "es": "Abra el texto seleccionado en LibreTranslate, un servicio de traducción de código abierto.",
-   "fr": "Ouvrez le texte sélectionné dans LibreTranslate, un service de traduction open source.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
    }
   },
   "b2439b963581010bf393c3c808015eb428498c02414b492bfd4ba13c9126b317": {
