@@ -3,6 +3,7 @@
 // written for the place they go to, as if the line were copied there.
 #include "core/editsession.h"
 
+#include "core/sortstate.h"
 #include "sheet/cellref.h"
 #include "sheet/refshift.h"
 
@@ -68,6 +69,7 @@ struct EditSession::SortPlan {
     bool ordered = false;
     qint64 changesAtPlan = 0;
     int undoIndexAtPlan = 0;
+    int owner = -2;                 // the filter or table that keeps the sort's state: -2 none, -1 the sheet's filter, else the table
     std::vector<QStringList> lists; // each level's list, folded to lower case
     // the step, made a slice at a time (see applySort)
     int stage = 0;                  // 0: the cells are read, 1: the changes are made, 2: the merged cells and the move of notes, 3: the step is put in
@@ -178,7 +180,69 @@ std::shared_ptr<EditSession::SortPlan> EditSession::planSort(int sheet, const Ce
     }
     plan->changesAtPlan = m_loader->changesMade();
     plan->undoIndexAtPlan = m_undo.index();
+    // (a sort inside the range of a table, or of the sheet's filter, is what that table or filter keeps in the file)
+    const Workbook &book = *m_book->book;
+    for (int i = 0; i < book.tables().size() && plan->owner == -2; ++i) {
+        const Table &t = book.tables()[i];
+        if (t.sheet == sheet && t.filterButtons && t.headerRows > 0 && range.row1 >= t.row1 && range.row2 <= quint32(std::max<qint64>(t.dataLast(), t.row1)) && range.col1 >= t.col1 && range.col2 <= t.col2)
+            plan->owner = i;
+    }
+    if (plan->owner == -2) {
+        const AutoFilter &f = calc->autoFilterOf(sheet);
+        bool overTable = false;
+        for (const Table &t : book.tables())
+            if (t.sheet == sheet && f.valid() && t.row1 <= f.ref.row2 && t.row2 >= f.ref.row1 && t.col1 <= f.ref.col2 && t.col2 >= f.ref.col1) overTable = true;
+        if (f.valid() && !overTable && range.row1 >= f.ref.row1 && range.row2 <= f.ref.row2 && range.col1 >= f.ref.col1 && range.col2 <= f.ref.col2) plan->owner = -1;
+    }
     return plan;
+}
+
+void EditSession::addSortState(const SortPlan &plan, Step *step)
+{
+    if (plan.owner == -2) return;
+    const QString xml = sortStateXml(plan.data, plan.spec, *m_book->book);
+    if (plan.owner >= 0) {
+        if (plan.owner >= m_book->book->tables().size()) return;
+        const Table &t = m_book->book->tables()[plan.owner];
+        if (t.filter.sortState == xml) return;
+        TableEdit e;
+        e.index = plan.owner;
+        e.before = t;
+        e.after = t;
+        e.after.filter.sortState = xml;
+        step->tables.push_back(std::move(e));
+        return;
+    }
+    const AutoFilter before = m_book->calc->autoFilterOf(plan.sheet);
+    if (before.sortState == xml) return;
+    FilterEdit e;
+    e.sheet = plan.sheet;
+    e.before = before;
+    e.after = before;
+    e.after.sortState = xml;
+    step->filters.push_back(std::move(e));
+}
+
+EditSession::SavedSort EditSession::savedSort(int sheet, int table) const
+{
+    SavedSort out;
+    if (!m_book || !m_book->book || !m_book->calc || sheet < 0 || sheet >= m_book->calc->sheetCount()) return out;
+    const AutoFilter f = table >= 0 ? tableFilter(table) : m_book->calc->autoFilterOf(sheet);
+    if (!f.valid() || f.sortState.isEmpty()) return out;
+    CellRange data;
+    SortSpec spec;
+    if (!parseSortState(f.sortState, m_book->book->styles(), &data, &spec)) return out;
+    // (the cells the state names are inside the filter's: a header row is the filter's first row, which the sort left out)
+    if (data.row1 < f.ref.row1 || data.row2 > f.ref.row2 || data.col1 < f.ref.col1 || data.col2 > f.ref.col2) return out;
+    spec.hasHeader = spec.leftToRight ? data.col1 == f.ref.col1 + 1 : data.row1 == f.ref.row1 + 1;
+    out.range = data;
+    if (spec.hasHeader) {
+        if (spec.leftToRight) --out.range.col1;
+        else --out.range.row1;
+    }
+    out.spec = spec;
+    out.valid = true;
+    return out;
 }
 
 bool EditSession::prepareSort(SortPlan &plan, qint64 budget)
@@ -352,7 +416,10 @@ EditSession::Outcome EditSession::applySort(SortPlan &plan, qint64 budget)
             }
         if (identity) {
             plan.stage = 4;
-            return out;   // (already in order)
+            Step state;
+            addSortState(plan, &state);   // (already in order: only what the filter or the table keeps of the sort changes)
+            if (!state.empty()) pushStep(std::move(state), tr("Sorting"));
+            return out;
         }
         plan.contents.assign(n * width, Calculation::CellContent());
     }
@@ -459,7 +526,8 @@ EditSession::Outcome EditSession::applySort(SortPlan &plan, qint64 budget)
             plan.step.permutes.push_back(std::move(permute));
         }
         plan.stage = 3;
-        if (plan.step.cells.empty() && plan.step.merges.empty()) {
+        addSortState(plan, &plan.step);
+        if (plan.step.empty()) {
             plan.stage = 4;
             return out;
         }

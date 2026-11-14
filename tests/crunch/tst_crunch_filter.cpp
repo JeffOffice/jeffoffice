@@ -995,6 +995,74 @@ private Q_SLOTS:
         QVERIFY(count->text().isEmpty());
     }
 
+    // The sort a person made inside a filter's range is kept with the filter (one step with the sort), saved in the file, read back, and made again by Reapply, and the Sort dialog starts with it.
+    void theSortOfAFilterIsSavedInTheFileAndReappliedAndOffersItself()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookOfSheets({fruit()})));
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(filterWith(e, range()));
+        QVERIFY(!s->savedSort(0).valid);
+        jp::crunch::SortSpec spec = byColumnSpec();
+        spec.levels[0].key = 1;
+        spec.levels[0].descending = true;
+        spec.hasHeader = true;
+        const int before = e.win.w.undoStack()->count();
+        QVERIFY(s->sortRange(0, rangeOf(QStringLiteral("A1:D9")), spec).ok);
+        QCOMPARE(e.win.w.undoStack()->count(), before + 1);
+        QCOMPARE(shown(e, QStringLiteral("B2:B4")), QStringLiteral("20|15|12"));
+        {
+            const crunch::EditSession::SavedSort saved = s->savedSort(0);
+            QVERIFY(saved.valid);
+            QCOMPARE(rangeName(saved.range), QStringLiteral("A1:D9"));
+            QVERIFY(saved.spec.hasHeader);
+            QCOMPARE(saved.spec.levels.size(), 1);
+            QCOMPARE(saved.spec.levels[0].key, 1);
+            QVERIFY(saved.spec.levels[0].descending);
+        }
+        QVERIFY2(saveIt(e), "saved");
+        keepFile(e.path, QStringLiteral("filter-sortstate.xlsx"));
+        QByteArray part;
+        const jp::office::sheet::Sheet saved = savedSheet(e.path, &part);
+        QVERIFY(saved.autoFilter.sortState.contains(QLatin1String("<sortState ref=\"A2:D9\"")));
+        QVERIFY2(saved.autoFilter.sortState.contains(QLatin1String("<sortCondition ref=\"B2:B9\" descending=\"1\"/>")), qPrintable(saved.autoFilter.sortState));
+        QVERIFY(part.indexOf("<autoFilter") < part.indexOf("<sortState"));
+        // opened again, the filter has the sort, and Reapply puts a row that no longer fits where it goes
+        Window second;
+        QVERIFY(second.open(e.copyOfFile()));
+        CrunchWindow &w = second.w;
+        {
+            const crunch::EditSession::SavedSort again = w.session()->savedSort(0);
+            QVERIFY(again.valid);
+            QCOMPARE(rangeName(again.range), QStringLiteral("A1:D9"));
+            QVERIFY(again.spec.hasHeader);
+            QCOMPARE(again.spec.levels[0].key, 1);
+            QVERIFY(again.spec.levels[0].descending);
+        }
+        QVERIFY(w.session()->type(0, 8, 1, QStringLiteral("100")).ok);   // (B9: the last row now has the most)
+        w.act(QStringLiteral("filter.reapply"))->trigger();
+        QTRY_VERIFY(!w.isFiltering());
+        QTRY_COMPARE(w.session()->displayText(0, 1, 1), QStringLiteral("100"));
+        QCOMPARE(w.session()->displayText(0, 2, 1), QStringLiteral("20"));
+        // the Sort dialog starts with the levels the filter keeps
+        jp::crunch::SortSpec asked;
+        w.setSortAsker([&asked](const jp::office::sheet::CellRange &, jp::crunch::SortSpec *given) {
+            asked = *given;
+            return false;
+        });
+        second.w.view()->selectCell(1, 0);
+        w.act(QStringLiteral("sort.custom"))->trigger();
+        QCOMPARE(asked.levels.size(), 1);
+        QCOMPARE(asked.levels[0].key, 1);
+        QVERIFY(asked.levels[0].descending);
+        // Undo takes the sort and what the filter keeps of it away together
+        e.win.w.undoStack()->undo();
+        QVERIFY(!s->savedSort(0).valid);
+        QCOMPARE(shown(e, QStringLiteral("B2:B4")), QStringLiteral("5|12|7"));
+        e.win.w.undoStack()->redo();
+        QVERIFY(s->savedSort(0).valid);
+    }
+
     void aFilterByColorIsSavedWithTheColorsFormat()
     {
         EditWindow e;

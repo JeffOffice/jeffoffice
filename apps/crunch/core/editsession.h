@@ -715,6 +715,14 @@ public:
     Outcome applySort(SortPlan &plan, qint64 budget = 0);
     // All of it at once (for the tools and the tests): a plan, its keys, its order, and the step.
     Outcome sortRange(int sheet, const jp::office::sheet::CellRange &range, const SortSpec &spec);
+    // The sort that a filter (`table` -1: the sheet's) or a table keeps in the file: the cells it was made on, as Sort takes them (with the header row, when the sort left one out), and what each
+    // level asked. A sort made inside the range of a filter or a table is kept (as one step with the sort, and undone with it), saved with the file, and made again by Reapply.
+    struct SavedSort {
+        bool valid = false;
+        jp::office::sheet::CellRange range;
+        SortSpec spec;
+    };
+    SavedSort savedSort(int sheet, int table = -1) const;
     // Whether the first row of the range looks like names of columns: all text, with something that is not text in one of the cells under it.
     bool looksLikeHeader(int sheet, const jp::office::sheet::CellRange &range) const;
     // The distinct colors of the cells (cell colors, or font colors) of a column of the range, in the order they first appear, at most `limit`; with `none` set if some cell has no color.
@@ -1183,6 +1191,8 @@ private:
     Outcome checkRule(int sheet, quint32 row, quint32 col, const jp::calc::Value &value, bool isFormula, const QString &typed) const;
     // The marks kept by cell follow an edit (forward) or its undoing: `edit` is what was done to the cells.
     void followEdit(const jp::office::sheet::StructEdit &edit, StructChange *change, bool forward);
+    // Puts in the step the change a sort makes to the state its filter or its table keeps (nothing if it is not inside one, or the state is as it was).
+    void addSortState(const SortPlan &plan, Step *step);
     // After a save: forgets the steps up to the last one that deleted rows, columns, or cells (the saved file has lost what was in them, and Undo could not give it back to the file). Every
     // other step stays: Undo of it is made against the saved file (the edit that undoes it goes in the list for the file).
     void forgetDeletesInFile();

@@ -1684,6 +1684,63 @@ private Q_SLOTS:
         QVERIFY(!second.w.session()->calculation()->autoFilterOf(0).valid());
     }
 
+    // The count of the rows a table's filter lets through is in the status bar; and a sort inside the table is kept in the table's part, read back, and made again by Reapply.
+    void aTablesFilterShowsItsCountAndItsSortIsKeptInTheFile()
+    {
+        const QString part = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<table xmlns=\"%1\" id=\"1\" name=\"Sales\" displayName=\"Sales\" ref=\"A1:C4\"><autoFilter ref=\"A1:C4\">"
+                                           "<filterColumn colId=\"0\"><filters><filter val=\"East\"/><filter val=\"West\"/></filters></filterColumn></autoFilter><tableColumns count=\"3\">"
+                                           "<tableColumn id=\"1\" name=\"Region\"/><tableColumn id=\"2\" name=\"Q1\"/><tableColumn id=\"3\" name=\"Q2\"/></tableColumns>"
+                                           "<tableStyleInfo name=\"TableStyleMedium2\" showRowStripes=\"1\"/></table>")
+                                 .arg(QStringLiteral("http://schemas.openxmlformats.org/spreadsheetml/2006/main"));
+        QString rows = QStringLiteral("<row r=\"1\">%1%2%3</row>").arg(text(QStringLiteral("A1"), QStringLiteral("Region")), text(QStringLiteral("B1"), QStringLiteral("Q1")), text(QStringLiteral("C1"), QStringLiteral("Q2")));
+        const char *names[] = {"East", "West", "North"};
+        for (int i = 0; i < 3; ++i)
+            rows += QStringLiteral("<row r=\"%1\"%4>%2%3</row>").arg(i + 2).arg(text(QStringLiteral("A%1").arg(i + 2), QLatin1String(names[i])), num(QStringLiteral("B%1").arg(i + 2), i + 1),
+                                                                     i == 2 ? QStringLiteral(" hidden=\"1\"") : QString());
+        EditWindow e;
+        QVERIFY(e.open(withTables(buildXlsx({worksheet(rows)}), {part})));
+        CrunchWindow &w = e.win.w;
+        w.session()->setLocale(kUs);
+        QVERIFY(e.settle());
+        e.select(QStringLiteral("B2"));
+        QLabel *count = w.findChild<QLabel *>(QStringLiteral("filterCount"));
+        QVERIFY(count);
+        QTRY_COMPARE(count->text(), QStringLiteral("2 of 3 records found"));
+        // a sort of the table's rows by Q1, biggest first, is the table's
+        jp::crunch::SortSpec spec;
+        jp::crunch::SortLevel level;
+        level.key = 1;
+        level.descending = true;
+        spec.levels.append(level);
+        spec.hasHeader = true;
+        QVERIFY(!w.session()->savedSort(0, 0).valid);
+        const int before = w.undoStack()->count();
+        QVERIFY(w.session()->sortRange(0, rangeOf(QStringLiteral("A1:C4")), spec).ok);
+        QCOMPARE(w.undoStack()->count(), before + 1);
+        QVERIFY(w.session()->savedSort(0, 0).valid);
+        QVERIFY(!w.session()->savedSort(0).valid);                                      // (not the sheet's: it has no filter)
+        QVERIFY2(saveNow(e), "saved");
+        jp::office::Package pk;
+        QVERIFY(pk.readLazyFile(e.path));
+        const QByteArray tablePart = pk.part(QStringLiteral("xl/tables/table1.xml"));
+        QVERIFY2(tablePart.contains("<sortState ref=\"A2:C4\""), tablePart.constData());
+        QVERIFY(tablePart.contains("<sortCondition ref=\"B2:B4\" descending=\"1\"/>"));
+        Window second;
+        QVERIFY(second.open(e.copyOfFile()));
+        const crunch::EditSession::SavedSort again = second.w.session()->savedSort(0, 0);
+        QVERIFY(again.valid);
+        QCOMPARE(rangeName(again.range), QStringLiteral("A1:C4"));
+        QCOMPARE(again.spec.levels[0].key, 1);
+        QVERIFY(again.spec.levels[0].descending);
+        // Reapply on the table sorts it by what the file kept
+        QVERIFY(second.w.session()->type(0, 1, 1, QStringLiteral("0")).ok);
+        second.w.view()->selectCell(1, 1);
+        second.w.act(QStringLiteral("filter.reapply"))->trigger();
+        QTRY_COMPARE(second.w.session()->displayText(0, 1, 0), QStringLiteral("East"));
+        QCOMPARE(second.w.session()->displayText(0, 2, 0), QStringLiteral("West"));
+        QCOMPARE(second.w.session()->displayText(0, 3, 0), QStringLiteral("North"));       // (the row the filter hides stays where it is)
+    }
+
     // The rows a table's filter hid in a file are the filter's (not a person's): Clear shows them, Reapply hides them again, and a row hidden in a table that has no conditions is a person's.
     void rowsHiddenByATablesFilterInAFileAreTheFilters()
     {

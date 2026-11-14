@@ -36,11 +36,19 @@ void CrunchWindow::createFilterActions()
         if (m_session && m_loaded && currentFilter().valid()) applyFilter(m_session->filterCleared(m_sheet), tr("Clearing the filter"));
     });
     mk("filter.reapply", tr("Reapply"), "refresh-cw", QKeySequence(), [this] {
-        if (const int table = selectedTable(); table >= 0 && m_session && m_loaded) {
-            applyFilter(m_session->tableFilter(table), tr("Applying the filter again"), table);
-            return;
-        }
-        if (m_session && m_loaded && currentFilter().valid()) applyFilter(currentFilter(), tr("Applying the filter again"));
+        if (!m_session || !m_loaded) return;
+        const int table = selectedTable();
+        if (table < 0 && !currentFilter().valid()) return;
+        // the filter is applied again, and then the sort that its range or its table keeps (rows that came in or went out are sorted with the rest)
+        const crunch::EditSession::SavedSort sort = m_session->savedSort(m_sheet, table);
+        QMetaObject::Connection after;
+        if (sort.valid)
+            after = connect(
+                this, &CrunchWindow::filterFinished, this, [this, sort](bool made) {
+                    if (made) sortRange(sort.range, sort.spec);
+                },
+                Qt::SingleShotConnection);
+        if (!applyFilter(table >= 0 ? m_session->tableFilter(table) : currentFilter(), tr("Applying the filter again"), table)) disconnect(after);
     });
     for (const char *id : {"filter.toggle", "filter.clear", "filter.reapply"}) m_opsActions << QString::fromLatin1(id);
     m_filterTimer.setInterval(0);

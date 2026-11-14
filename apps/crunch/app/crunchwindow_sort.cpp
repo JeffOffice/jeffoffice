@@ -125,6 +125,8 @@ void CrunchWindow::sortSelection(int mode)
     level.descending = mode == 1;
     spec.levels.append(level);
     if (mode == 2) {
+        // the sort the filter or the table keeps (from the file, or the last made inside it) is what the dialog starts with
+        if (const crunch::EditSession::SavedSort saved = m_session->savedSort(m_sheet, selectedTable()); saved.valid && saved.range == range) spec = saved.spec;
         if (m_sortAsker) {
             if (!m_sortAsker(range, &spec)) return;
         } else {
