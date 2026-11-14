@@ -419,6 +419,26 @@ private Q_SLOTS:
         QVERIFY(std::static_pointer_cast<jp::TextItem>(ed->newTextBox(QRectF(0, 0, 50, 50)))->hyphenate);
     }
 
+    // The same lists as JeffWrite: the person's own entries, and the arrows and dots.
+    void typingFollowsTheAutoCorrectLists()
+    {
+        jp::MainWindow w;
+        w.editor()->setDocument(jp::Document::blank(QSizeF(612, 792)));
+        jp::Editor *ed = w.editor();
+        auto box = std::static_pointer_cast<jp::TextItem>(ed->newTextBox(QRectF(72, 72, 400, 200)));
+        ed->addItem(box);
+        ed->beginTextEdit(box->id);
+        auto type = [&](const QString &s) { for (QChar c : s) ed->typeText(QString(c)); };
+        type(QStringLiteral("go -> there... "));
+        QCOMPARE(ed->doc()->storyDoc(box->storyId)->toPlainText(), QStringLiteral("Go → there… "));
+        jp::Settings::get().setValue("proof/ac/replace/en", QStringList{QStringLiteral("brb\tbe right back")});
+        type(QStringLiteral("brb teh "));
+        const QString got = ed->doc()->storyDoc(box->storyId)->toPlainText();
+        jp::Settings::get().setValue("proof/ac/replace/en", QStringList());
+        QCOMPARE(got, QStringLiteral("Go → there… be right back teh "));
+        ed->endTextEdit();
+    }
+
     // Dragging across words selects whole words; dragging selected text
     // moves it (Options > Advanced).
     void textMouseSelectAndDrag()

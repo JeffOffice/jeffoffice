@@ -3,6 +3,7 @@
 // edited they apply to all of their text.
 
 #include "app/editor.h"
+#include "app/autocorrectconfig.h"
 #include "app/settings.h"
 
 #include "core/texteffects.h"
@@ -628,12 +629,19 @@ void Editor::insertText(const QString &t)
     textEdited();
 }
 
+// The language that AutoCorrect and smart quotes follow in the text boxes: the one the program shows its words in.
+static QString typingLanguage()
+{
+    const QString ui = Settings::get().value("ui/language").toString();
+    return !ui.isEmpty() ? ui : QLocale().language() == QLocale::C ? QStringLiteral("en-US") : QLocale().name();
+}
+
 void Editor::autoCorrectWord()
 {
     if (!isEditingText() || m_cursor.hasSelection() || !Settings::get().value("proof/autocorrect", true).toBool()) return;
     const QTextBlock b = m_cursor.block();
     const int rel = m_cursor.position() - b.position();
-    const auto fix = autotext::correctWord(b.text(), rel, Settings::get().value("proof/smartQuotes", true).toBool());
+    const auto fix = autotext::correctWord(b.text(), rel, Settings::get().value("proof/smartQuotes", true).toBool(), autoCorrectConfig(typingLanguage()));
     if (!fix) return;
     if (!m_typing) {
         beginChange(tr("Typing"));
@@ -739,7 +747,7 @@ void Editor::typeText(const QString &t)
         const QTextBlock b = m_cursor.block();
         const int rel = m_cursor.selectionStart() - b.position();
         const QChar before = rel > 0 ? b.text().at(rel - 1) : QChar();
-        s = autotext::smartQuote(s, before);
+        s = autotext::smartQuote(s, before, typingLanguage());
     }
     // A word ends: fix it before going on.
     if (s.size() == 1 && (s[0].isSpace() || QStringLiteral(".,;:!?").contains(s[0]))) {
