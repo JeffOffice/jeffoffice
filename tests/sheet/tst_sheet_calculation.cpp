@@ -1222,7 +1222,9 @@ private Q_SLOTS:
         QVERIFY(dir.isValid());
         ExternalBooks books;
         const QStringList network = {QStringLiteral("\\\\host\\share\\x.xlsx"), QStringLiteral("//host/share/x.xlsx"), QStringLiteral("file://host/share/x.xlsx"), QStringLiteral("file://///host/share/x.xlsx"),
-                                     QStringLiteral("\\\\?\\UNC\\host\\share\\x.xlsx"), QStringLiteral("\\\\host@SSL\\share\\x.xlsx")};
+                                     QStringLiteral("\\\\?\\UNC\\host\\share\\x.xlsx"), QStringLiteral("\\\\host@SSL\\share\\x.xlsx"),
+                                     QStringLiteral("file:///\\\\host\\s\\x.xlsx"), QStringLiteral("file:///%5C%5Chost/s/x.xlsx"), QStringLiteral("/\\host\\s\\x.xlsx"), QStringLiteral("\\/host/s/x.xlsx"),
+                                     QStringLiteral("file://///host/s/x.xlsx")};
         for (const QString &t : network) {
             const int n = books.addLink(t, {QStringLiteral("Sheet1")});
             QVERIFY2(books.isNetwork(n), qPrintable(t));
@@ -1234,6 +1236,11 @@ private Q_SLOTS:
             QVERIFY(!books.probe(n));
         }
         QCOMPARE(books.fileTouches(), 0);
+        // a relative name beside the workbook stays on this computer
+        books.setBaseDir(QStringLiteral("/home/folder"));
+        const int relative = books.addLink(QStringLiteral("x.xlsx"));
+        QVERIFY(!books.isNetwork(relative));
+        QCOMPARE(books.filePath(relative), QDir(QStringLiteral("/home/folder")).filePath(QStringLiteral("x.xlsx")));
         // a file on this computer is not on another
         const int local = books.addLink(QStringLiteral("file:///tmp/x%20y.xlsx"));
         QVERIFY(!books.isNetwork(local));

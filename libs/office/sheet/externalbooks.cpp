@@ -37,7 +37,7 @@ struct Resolved {
 };
 
 // What an address names. Nothing is looked at here: no file is touched. A file on another computer (a share) is never read unless the person says so, since opening it sends their credentials to it.
-Resolved resolveTarget(const QString &target, const QString &baseDir)
+Resolved resolveTargetRaw(const QString &target, const QString &baseDir)
 {
     Resolved r;
     QString t = target.trimmed();
@@ -71,6 +71,18 @@ Resolved resolveTarget(const QString &target, const QString &baseDir)
     }
     r.path = t;
     if (!QDir::isAbsolutePath(t) && !baseDir.isEmpty()) r.path = QDir(baseDir).filePath(t);
+    return r;
+}
+
+// What an address names, with one last check on the path that comes out of any branch (a file: address, a plain path, a relative one joined to the folder): whatever way it was written, a path that
+// Windows reads as a name on another computer (two slashes or backslashes, mixed or percent-encoded, in front) is on another computer.
+Resolved resolveTarget(const QString &target, const QString &baseDir)
+{
+    Resolved r = resolveTargetRaw(target, baseDir);
+    if (r.web || r.path.isEmpty()) return r;
+    QString norm = r.path;
+    norm.replace(QLatin1Char('\\'), QLatin1Char('/'));
+    if (norm.startsWith(QLatin1String("//"))) r.network = true;   // ("/" and "//" in front: "///host/share" is one too)
     return r;
 }
 
