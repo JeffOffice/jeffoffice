@@ -160,9 +160,14 @@ jobs:
   build:
     needs: ffmpeg
     # (actions: write, to delete this job's older compiler caches once it has saved a new one)
+    # (id-token: write, for the Windows job that signs: it signs in to Azure with a token GitHub gives it, no password; see "Sign the programs (Windows)")
     permissions:
       contents: read
       actions: write
+      id-token: write
+    # The Windows job that packages, in a run started by hand (the kind a release takes its files from), runs in the "signing" environment: Azure trusts
+    # only that environment of this repository (the managed identity's federated credential), so no other job can sign.
+    environment: ${{ (matrix.name == 'windows' && matrix.part == 'checks' && matrix.shard == 1 && github.event_name == 'workflow_dispatch') && 'signing' || '' }}
     # (Windows and macOS: "build (windows, tests, 1/2)"; Linux runs each part in one job: "build (linux, tests)")
     name: build (${{ matrix.name }}, ${{ matrix.part }}${{ matrix.name != 'linux' && format(', {0}/2', matrix.shard) || '' }})
     env:
@@ -640,6 +645,34 @@ jobs:
           # FFmpeg's notice and license, for the libraries JeffDeck carries.
           Copy-Item -Recurse third_party/ffmpeg/licenses dist/JeffOffice/licenses/ffmpeg
 
+      # Code signing (Azure Artifact Signing, certificate profile jeffoffice-public: "JeffOffice LLC"), only in a run started by hand. The IDs below are not
+      # secrets: the managed identity jeffoffice-github-signer and its tenant; Azure lets it in only from this repository's "signing" environment.
+      - name: Sign in to Azure (Windows)
+        if: runner.os == 'Windows' && matrix.part == 'checks' && matrix.shard == 1 && github.event_name == 'workflow_dispatch'
+        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        with:
+          client-id: 6ede5b11-3a84-4edf-863b-d6701ec316fc
+          tenant-id: d6e7b41a-c8ad-4718-852c-107caf90d7ab
+          allow-no-subscriptions: true
+
+      # Our own programs and the DLL they share; Qt's and the GCC runtime's DLLs are left as their makers built them.
+      - name: Sign the programs (Windows)
+        if: runner.os == 'Windows' && matrix.part == 'checks' && matrix.shard == 1 && github.event_name == 'workflow_dispatch'
+        uses: azure/artifact-signing-action@c7ab2a863ab5f9a846ddb8265964877ef296ee82 # v2.0.0
+        with:
+          endpoint: https://eus.codesigning.azure.net/
+          signing-account-name: jeffofficesigning
+          certificate-profile-name: jeffoffice-public
+          # (JeffWrite and JeffCrunch are here while SHIP_WRITE and SHIP_CRUNCH are "true"; a file that is not there stops the signing)
+          files: |
+            ${{ github.workspace }}/dist/JeffOffice/JeffPub.exe
+            ${{ github.workspace }}/dist/JeffOffice/JeffDeck.exe
+            ${{ github.workspace }}/dist/JeffOffice/JeffWrite.exe
+            ${{ github.workspace }}/dist/JeffOffice/JeffCrunch.exe
+            ${{ github.workspace }}/dist/JeffOffice/libjeffoffice-common.dll
+          description: JeffOffice
+          description-url: https://www.jeffoffice.com
+
       - name: Installer (Windows)
         if: runner.os == 'Windows' && matrix.part == 'checks' && matrix.shard == 1
         shell: pwsh
@@ -652,6 +685,29 @@ jobs:
           ./packaging/windows/build-installer.ps1 @opts
           New-Item -ItemType Directory -Force installer | Out-Null
           Move-Item packaging/windows/JeffOffice-Setup.exe installer/
+
+      - name: Sign the installer (Windows)
+        if: runner.os == 'Windows' && matrix.part == 'checks' && matrix.shard == 1 && github.event_name == 'workflow_dispatch'
+        uses: azure/artifact-signing-action@c7ab2a863ab5f9a846ddb8265964877ef296ee82 # v2.0.0
+        with:
+          endpoint: https://eus.codesigning.azure.net/
+          signing-account-name: jeffofficesigning
+          certificate-profile-name: jeffoffice-public
+          files: ${{ github.workspace }}/installer/JeffOffice-Setup.exe
+          description: JeffOffice Setup
+          description-url: https://www.jeffoffice.com
+
+      # Each signature names JeffOffice LLC and carries a time stamp; a file that is not signed so stops the run.
+      - name: Check the signatures (Windows)
+        if: runner.os == 'Windows' && matrix.part == 'checks' && matrix.shard == 1 && github.event_name == 'workflow_dispatch'
+        shell: pwsh
+        run: |
+          $files = @(Get-ChildItem dist/JeffOffice -File | Where-Object { $_.Name -match '^(JeffPub|JeffDeck|JeffWrite|JeffCrunch)\.exe$|^libjeffoffice-common\.dll$' }) + @(Get-Item installer/JeffOffice-Setup.exe)
+          foreach ($f in $files) {
+            $sig = Get-AuthenticodeSignature $f.FullName
+            Write-Host "$($f.Name): $($sig.Status), $($sig.SignerCertificate.Subject), time stamp $($sig.TimeStamperCertificate -ne $null)"
+            if ($sig.Status -ne 'Valid' -or $sig.SignerCertificate.Subject -notmatch 'O=JeffOffice LLC' -or -not $sig.TimeStamperCertificate) { throw "$($f.Name) is not signed by JeffOffice LLC with a time stamp" }
+          }
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: runner.os == 'Windows' && matrix.part == 'checks' && matrix.shard == 1
