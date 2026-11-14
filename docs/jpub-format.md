@@ -375,6 +375,7 @@ a typed value `[type, value]`:
 | `d` | a number |
 | `s` | a string |
 | `sl` | a list of strings |
+| `ba` | bytes, as base64 (a picture bullet's picture; added in 0.29, older readers skip a property of a type they don't know) |
 | `c` | a color, `#AARRGGBB` |
 | `br` | a fill color, `#AARRGGBB`, or `""` for none |
 | `pen` | an outline: color (or `""` for none) and width |
@@ -454,6 +455,14 @@ Properties from 1048577 (0x100001) up are JeffPub's own:
 | 1048695 | tab leader characters, one per tab stop | `s` |
 | 1048696 | the list marker's own size (list formats) | `d` |
 | 1048697 | a table of contents paragraph: 0 its title, 1-3 an entry's level | `i` |
+
+A list's format (an entry of `lists`) holds the whole list model, so a `.jpub` file keeps what a `.pub` file cannot:
+the level (`list level`, 0 to 8; each level of a multilevel list is a list of its own with its own look), a bullet's
+character, font, size, and color, the counting style (12288), the text before and after the number (12290 and 12291, so
+"Step 1:" or "(a)"), where it starts (12292), and, since 0.29, a bullet's picture (the property after the double
+strike one, type `ba`: the bytes of a PNG or JPEG). Every one of these is optional: a file made before them has none and
+opens with level 0, a start of 1, no color, and no picture, and a reader that doesn't know the picture property ignores it
+(the bullet's character is written beside it and shows instead).
 
 A writer may store any other `QTextFormat` property the same way. A reader
 may ignore properties it doesn't support.

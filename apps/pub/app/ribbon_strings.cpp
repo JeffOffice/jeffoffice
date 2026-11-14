@@ -74,6 +74,7 @@
     QT_TRANSLATE_NOOP("Ribbon", "Legend"),
     QT_TRANSLATE_NOOP("Ribbon", "Ligatures"),
     QT_TRANSLATE_NOOP("Ribbon", "Line Spacing"),
+    QT_TRANSLATE_NOOP("Ribbon", "Multilevel List"),
     QT_TRANSLATE_NOOP("Ribbon", "Lines"),
     QT_TRANSLATE_NOOP("Ribbon", "Linking"),
     QT_TRANSLATE_NOOP("Ribbon", "Links"),

@@ -670,6 +670,26 @@ bool MainWindow::saveTo(const QString &pathIn, bool asCopy)
                                  QMessageBox::Yes | QMessageBox::No, QMessageBox::No) != QMessageBox::Yes)
             return false;
     }
+    // Nor can it keep every list: what would be lost is named, and the person chooses to save anyway, to save as a .jpub instead, or to cancel.
+    if (toPub) {
+        const QStringList lost = publisherListLosses(*m_ed->doc());
+        if (!lost.isEmpty()) {
+            QMessageBox box(QMessageBox::Question, tr("Save"), tr("A .pub file can't keep everything about this publication's lists: %1.\n\nA JeffPub publication (.jpub) keeps all of it.").arg(lost.join(QStringLiteral("; "))),
+                            QMessageBox::NoButton, this);
+            box.setTextFormat(Qt::PlainText);
+            QPushButton *anyway = box.addButton(tr("Save Anyway"), QMessageBox::AcceptRole);
+            QPushButton *asJpub = box.addButton(tr("Save as .jpub"), QMessageBox::ActionRole);
+            box.addButton(QMessageBox::Cancel);
+            box.setDefaultButton(asJpub);
+            box.exec();
+            if (box.clickedButton() == asJpub) {
+                QString other = path;
+                other.chop(4);
+                return saveTo(other + QStringLiteral(".jpub"), asCopy);
+            }
+            if (box.clickedButton() != anyway) return false;
+        }
+    }
     const QString password = m_fileProtected && !toPub ? m_filePassword : QString();
     QString err;
     const QImage thumb = pageThumbnail(0, 256);

@@ -55,6 +55,7 @@
         {"row": [
           {"icon": "para.bullets", "keytip": "U", "split": true, "menu": "@bulletsMenu"},
           {"icon": "para.numbers", "keytip": "N", "split": true, "menu": "@numberingMenu"},
+          {"icon": {"id": "ribbon.multilevel", "text": "Multilevel List", "icon": "list-tree"}, "keytip": "M", "menu": "@multilevelMenu"},
           {"icon": "para.indentDec", "keytip": "AO"},
           {"icon": "para.indentInc", "keytip": "AI"},
           {"icon": "para.special", "keytip": "SC"}]},

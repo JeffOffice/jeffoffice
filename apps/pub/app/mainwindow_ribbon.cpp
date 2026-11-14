@@ -800,9 +800,11 @@ void MainWindow::ribbonGalleryParts(RibbonParts &parts)
 // open, or that hold more than commands.
 void MainWindow::ribbonMenuParts(RibbonParts &parts)
 {
-    // (A Publisher file keeps a list's bullet or one of five counting styles with three punctuation forms, but no levels and no start: there is no Multilevel List button.)
-    parts.menus[QStringLiteral("bulletsMenu")] = [this](QWidget *owner) { return bulletsMenu(owner, m_ed, act("para.bulletsDialog")); };
-    parts.menus[QStringLiteral("numberingMenu")] = [this](QWidget *owner) { return numberingMenu(owner, m_ed, act("para.bulletsDialog")); };
+    // (Its own .jpub file keeps all of a list: the boxes are the full ones unless the publication is a .pub file, which keeps less, and a save to it says what it loses.)
+    const ListBoxesChoice boxes = [this] { return m_ed->filePath().endsWith(QLatin1String(".pub"), Qt::CaseInsensitive) ? ListBoxes::Plain : ListBoxes::Jpub; };
+    parts.menus[QStringLiteral("bulletsMenu")] = [this, boxes](QWidget *owner) { return bulletsMenu(owner, m_ed, act("para.bulletsDialog"), boxes); };
+    parts.menus[QStringLiteral("numberingMenu")] = [this, boxes](QWidget *owner) { return numberingMenu(owner, m_ed, act("para.bulletsDialog"), boxes); };
+    parts.menus[QStringLiteral("multilevelMenu")] = [this, boxes](QWidget *owner) { return multilevelMenu(owner, m_ed, boxes); };
     parts.menus[QStringLiteral("businessInfoMenu")] = [this](QWidget *owner) {
         auto *m = new QMenu(owner);
         for (const QString &k : BusinessInfo::keys()) m->addAction(act("biz." + k));

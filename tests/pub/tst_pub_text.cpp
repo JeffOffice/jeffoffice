@@ -1,6 +1,8 @@
 // JeffPub's tests of text layout: lines, tabs, bullets, and page-number fields.
 #include "pubhelpers.h"
 #include "app/listmenus.h"
+#include <QMessageBox>
+#include <QBuffer>
 #include "../timing.h"
 #include <libmspub/jp_hooks.h>
 
@@ -2905,6 +2907,191 @@ private Q_SLOTS:
         QVERIFY2(all.contains(QStringLiteral("a\u00A0b")), qPrintable(all));
         QVERIFY2(all.contains(QStringLiteral("c\u2011d")), qPrintable(all));
         QVERIFY2(all.contains(QStringLiteral("e\u00ADf")), qPrintable(all));
+    }
+
+    // A .jpub file keeps the whole list model: nine levels, a bullet's character, font, size, color, and picture, a number's style, its text, and where it starts.
+    void jpubKeepsTheWholeListModel()
+    {
+        QImage red(8, 8, QImage::Format_ARGB32);
+        red.fill(Qt::red);
+        QByteArray png;
+        {
+            QBuffer buffer(&png);
+            buffer.open(QIODevice::WriteOnly);
+            red.save(&buffer, "PNG");
+        }
+        auto doc = jp::Document::blank(QSizeF(612, 792));
+        auto box = std::make_shared<jp::TextItem>();
+        box->rect = QRectF(72, 72, 400, 300);
+        box->storyId = doc->createStory(QStringLiteral("b0\nb1\nb2\nb3\nb4"));
+        doc->pages[0]->items.push_back(box);
+        QTextDocument *story = doc->storyDoc(box->storyId);
+        jp::ListLevelLook bullet;
+        bullet.text = QStringLiteral("◆");
+        bullet.font = QStringLiteral("Arial");
+        bullet.sizePoints = 14;
+        bullet.color = QColor(0xC0, 0, 0);
+        bullet.picture = png;
+        jp::ListLevelLook steps;
+        steps.bullet = false;
+        steps.numFmt = QStringLiteral("upperRoman");
+        steps.text = QStringLiteral("Step %1:");
+        steps.start = 5;
+        jp::ListLevelLook letters;
+        letters.bullet = false;
+        letters.numFmt = QStringLiteral("lowerLetter");
+        letters.text = QStringLiteral("(%1)");
+        letters.start = 3;
+        struct Case {
+            jp::ListLevelLook look;
+            int level;
+        };
+        const QVector<Case> cases = {{bullet, 0}, {steps, 0}, {letters, 3}, {bullet, 8}, {steps, 5}};
+        for (int i = 0; i < cases.size(); ++i) {
+            QTextListFormat lf = jp::listFormatOf(cases[i].look);
+            lf.setProperty(jp::tp::ListLevel, cases[i].level);
+            QTextCursor(story->findBlockByNumber(i)).createList(lf);
+        }
+        QTemporaryDir dir;
+        const QString path = dir.filePath(QStringLiteral("lists.jpub"));
+        QString err;
+        QVERIFY2(jp::savePublication(*doc, path, QImage(), &err), qPrintable(err));
+        auto back = jp::loadPublication(path, &err);
+        QVERIFY2(back, qPrintable(err));
+        const QTextDocument *after = nullptr;
+        for (const QTextDocument *s : back->storyDocs())
+            if (s && s->toPlainText().startsWith(QStringLiteral("b0"))) after = s;
+        QVERIFY(after);
+        for (int i = 0; i < cases.size(); ++i) {
+            const QTextList *list = after->findBlockByNumber(i).textList();
+            QVERIFY(list);
+            const jp::ListLevelLook got = jp::listLookOf(list->format());
+            const jp::ListLevelLook &want = cases[i].look;
+            QCOMPARE(list->format().intProperty(jp::tp::ListLevel), cases[i].level);
+            QCOMPARE(got.bullet, want.bullet);
+            QCOMPARE(got.text, want.text);
+            if (want.bullet) {
+                QCOMPARE(got.font, want.font);
+                QCOMPARE(got.sizePoints, want.sizePoints);
+                QCOMPARE(got.color, want.color);
+                QCOMPARE(got.picture, want.picture);
+            } else {
+                QCOMPARE(got.numFmt, want.numFmt);
+                QCOMPARE(got.start, want.start);
+            }
+        }
+    }
+
+    // A .jpub made before the fuller lists, with a list of the old properties alone (a style, the numbering's form, and nothing else), opens as it did: level 0, starting at 1, no color or picture.
+    void anOlderJpubStillOpens()
+    {
+        auto doc = jp::Document::blank(QSizeF(612, 792));
+        auto box = std::make_shared<jp::TextItem>();
+        box->rect = QRectF(72, 72, 400, 200);
+        box->storyId = doc->createStory(QStringLiteral("old one\nold two"));
+        doc->pages[0]->items.push_back(box);
+        QTextListFormat lf;
+        lf.setStyle(QTextListFormat::ListLowerAlpha);
+        lf.setNumberSuffix(QStringLiteral(")"));
+        lf.setProperty(jp::tp::NumberFormat, 6);
+        QTextCursor(doc->storyDoc(box->storyId)->firstBlock()).createList(lf);
+        QTemporaryDir dir;
+        const QString path = dir.filePath(QStringLiteral("old.jpub"));
+        QString err;
+        QVERIFY2(jp::savePublication(*doc, path, QImage(), &err), qPrintable(err));
+        auto back = jp::loadPublication(path, &err);
+        QVERIFY2(back, qPrintable(err));
+        const QTextDocument *after = nullptr;
+        for (const QTextDocument *s : back->storyDocs())
+            if (s && s->toPlainText().startsWith(QStringLiteral("old one"))) after = s;
+        QVERIFY(after);
+        const QTextList *list = after->firstBlock().textList();
+        QVERIFY(list);
+        const jp::ListLevelLook look = jp::listLookOf(list->format());
+        QCOMPARE(look.numFmt, QStringLiteral("lowerLetter"));
+        QCOMPARE(look.text, QStringLiteral("%1)"));
+        QCOMPARE(look.start, 1);
+        QCOMPARE(list->format().intProperty(jp::tp::ListLevel), 0);
+        QVERIFY(list->format().stringProperty(jp::tp::BulletColor).isEmpty());
+        QVERIFY(list->format().property(jp::tp::BulletPicture).toByteArray().isEmpty());
+    }
+
+    // Saving to .pub names what its lists would lose, exactly when something would be lost, and the person can save anyway, save as .jpub, or cancel.
+    void savingAsPubNamesWhatTheListsWouldLose()
+    {
+        jp::MainWindow w;
+        w.show();
+        jp::Editor *ed = w.editor();
+        ed->setDocument(jp::Document::blank(QSizeF(612, 792)));
+        auto box = std::make_shared<jp::TextItem>();
+        box->rect = QRectF(72, 72, 400, 200);
+        box->storyId = ed->doc()->createStory(QStringLiteral("one\ntwo\nthree"));
+        ed->addItem(box);
+        QTextDocument *story = ed->doc()->storyDoc(box->storyId);
+        // A bullet and a numbered list of the forms a .pub file has: nothing is lost, nothing is asked.
+        jp::ListLevelLook bullet;
+        QTextCursor(story->findBlockByNumber(0)).createList(jp::listFormatOf(bullet));
+        jp::ListLevelLook plain;
+        plain.bullet = false;
+        QTextCursor(story->findBlockByNumber(1)).createList(jp::listFormatOf(plain));
+        QVERIFY(jp::publisherListLosses(*ed->doc()).isEmpty());
+        QTemporaryDir dir;
+        QString said;
+        QString press;
+        QTimer timer;
+        QObject::connect(&timer, &QTimer::timeout, [&] {
+            if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                said = box->text();
+                if (press == QLatin1String("Cancel")) box->button(QMessageBox::Cancel)->click();
+                else
+                    for (QAbstractButton *b : box->buttons())
+                        if (b->text() == press) b->click();
+            }
+        });
+        timer.start(20);
+        QVERIFY(w.saveTo(dir.filePath(QStringLiteral("none.pub"))));
+        QVERIFY(said.isEmpty());
+        // Each thing a .pub file can't hold is named.
+        struct Case {
+            std::function<void(QTextListFormat &)> change;
+            const char *word;
+        };
+        const QVector<Case> cases = {{[](QTextListFormat &lf) { lf.setProperty(jp::tp::ListLevel, 2); }, "levels"},
+                                     {[](QTextListFormat &lf) { lf.setProperty(jp::tp::BulletColor, QStringLiteral("#CC0000")); }, "colors"},
+                                     {[](QTextListFormat &lf) { lf.setProperty(jp::tp::BulletPicture, QByteArray("png")); }, "picture"},
+                                     {[](QTextListFormat &lf) { lf.setProperty(jp::tp::BulletChar, QStringLiteral("ab")); }, "symbol font"}};
+        for (const Case &c : cases) {
+            QTextDocument *s = ed->doc()->storyDoc(box->storyId);
+            QTextListFormat lf = jp::listFormatOf(bullet);
+            c.change(lf);
+            QTextCursor edit(s->findBlockByNumber(2));
+            edit.createList(lf);
+            said.clear();
+            press = QStringLiteral("Cancel");
+            const QString target = dir.filePath(QStringLiteral("x.pub"));
+            QVERIFY(!w.saveTo(target));
+            QVERIFY2(said.contains(QLatin1String(c.word)), qPrintable(said));
+            QVERIFY(!QFileInfo::exists(target));
+            edit.block().textList()->remove(edit.block());
+        }
+        QVERIFY(jp::publisherListLosses(*ed->doc()).isEmpty());
+        // Start numbers and number text are named too.
+        jp::ListLevelLook stepped;
+        stepped.bullet = false;
+        stepped.text = QStringLiteral("Step %1:");
+        stepped.start = 3;
+        QTextCursor(story->findBlockByNumber(2)).createList(jp::listFormatOf(stepped));
+        const QStringList lost = jp::publisherListLosses(*ed->doc());
+        QCOMPARE(lost.size(), 2);
+        // The three answers.
+        said.clear();
+        press = QStringLiteral("Save as .jpub");
+        QVERIFY(w.saveTo(dir.filePath(QStringLiteral("b.pub"))));
+        QVERIFY(QFileInfo::exists(dir.filePath(QStringLiteral("b.jpub"))));
+        QVERIFY(!QFileInfo::exists(dir.filePath(QStringLiteral("b.pub"))));
+        press = QStringLiteral("Save Anyway");
+        QVERIFY(w.saveTo(dir.filePath(QStringLiteral("c.pub"))));
+        QVERIFY(QFileInfo::exists(dir.filePath(QStringLiteral("c.pub"))));
     }
 };
 

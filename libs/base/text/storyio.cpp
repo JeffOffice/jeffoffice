@@ -28,6 +28,7 @@ QJsonObject formatToJson(const QTextFormat &f)
         case QMetaType::Double: o[key] = QJsonArray{"d", v.toDouble()}; break;
         case QMetaType::QString: o[key] = QJsonArray{"s", v.toString()}; break;
         case QMetaType::QStringList: o[key] = QJsonArray{"sl", QJsonArray::fromStringList(v.toStringList())}; break;
+        case QMetaType::QByteArray: o[key] = QJsonArray{"ba", QString::fromLatin1(v.toByteArray().toBase64())}; break;
         case QMetaType::QColor: o[key] = QJsonArray{"c", v.value<QColor>().name(QColor::HexArgb)}; break;
         case QMetaType::QBrush: {
             const QBrush b = v.value<QBrush>();
@@ -73,6 +74,7 @@ void formatFromJson(QTextFormat &f, const QJsonObject &o)
         else if (t == "i") f.setProperty(key, a[1].toInt());
         else if (t == "d") f.setProperty(key, a[1].toDouble());
         else if (t == "s") f.setProperty(key, a[1].toString());
+        else if (t == "ba") f.setProperty(key, QByteArray::fromBase64(a[1].toString().toLatin1()));
         else if (t == "sl") {
             QStringList l;
             for (const auto &x : a[1].toArray()) l << x.toString();

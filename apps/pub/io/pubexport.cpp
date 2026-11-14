@@ -3123,6 +3123,47 @@ QByteArray PubWriter::write(QStringList *skipped)
 
 } // namespace
 
+QStringList publisherListLosses(const Document &doc)
+{
+    bool levels = false, colors = false, pictures = false, symbols = false, starts = false, formats = false;
+    for (const QTextDocument *story : doc.storyDocs()) {
+        if (!story) continue;
+        for (QTextBlock b = story->begin(); b.isValid(); b = b.next()) {
+            const QTextList *list = b.textList();
+            if (!list) continue;
+            const QTextListFormat lf = list->format();
+            levels = levels || lf.intProperty(tp::ListLevel) > 0 || b.blockFormat().intProperty(tp::ListLevel) > 0;
+            const QString custom = !b.blockFormat().stringProperty(tp::BulletChar).isEmpty() ? b.blockFormat().stringProperty(tp::BulletChar) : lf.stringProperty(tp::BulletChar);
+            const QTextListFormat::Style style = lf.style();
+            const bool bullet = style == QTextListFormat::ListDisc || style == QTextListFormat::ListCircle || style == QTextListFormat::ListSquare || !custom.isEmpty();
+            if (bullet) {
+                colors = colors || !lf.stringProperty(tp::BulletColor).isEmpty();
+                pictures = pictures || !lf.property(tp::BulletPicture).toByteArray().isEmpty();
+                if (!custom.isEmpty()) {
+                    // (As the writer does it: one character in a symbol font's range, or one a symbol font has; any other comes out as the round bullet.)
+                    const uint u = custom.size() == 1 ? custom[0].unicode() : 0;
+                    QString family;
+                    if (custom.size() > 1 || (u >= 0x100 && !(u >= 0xF020 && u <= 0xF0FF) && !unicodeToSymbol(custom[0], &family))) symbols = true;
+                }
+            } else {
+                starts = starts || lf.start() > 1;
+                const QString pre = lf.numberPrefix(), suf = lf.numberSuffix();
+                const bool known = (pre.isEmpty() && (suf == QLatin1String(".") || suf == QLatin1String(")"))) || (pre == QLatin1String("(") && suf == QLatin1String(")"));
+                formats = formats || !known;
+            }
+        }
+    }
+    auto tr = [](const char *s) { return QCoreApplication::translate("jp::PubExport", s); };
+    QStringList out;
+    if (levels) out << tr("the levels of list items (every item comes out on one level)");
+    if (colors) out << tr("the colors of bullets");
+    if (pictures) out << tr("picture bullets");
+    if (symbols) out << tr("bullets that no symbol font has (they come out as round bullets)");
+    if (starts) out << tr("the number a list starts at (it starts at 1)");
+    if (formats) out << tr("numbers with text of their own (they come out as 1., 1), or (1))");
+    return out;
+}
+
 bool exportPublisher(const Document &doc, const QString &path, QString *error, const QImage &thumbnail)
 {
     QStringList skipped;

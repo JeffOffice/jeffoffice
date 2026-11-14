@@ -55,8 +55,9 @@ const NumberStyleName *numberStyleNames(int *count)
     return names;
 }
 
-bool defineBulletDialog(QWidget *parent, ListLevelLook *look, const SymbolPicker &pick, bool plain)
+bool defineBulletDialog(QWidget *parent, ListLevelLook *look, const SymbolPicker &pick, ListBoxes mode)
 {
+    const bool plain = mode == ListBoxes::Plain;
     QDialog d(parent);
     d.setObjectName(QStringLiteral("defineBulletDialog"));
     d.setWindowTitle(tr("Define New Bullet"));
@@ -99,7 +100,7 @@ bool defineBulletDialog(QWidget *parent, ListLevelLook *look, const SymbolPicker
         picture = bytes;
         pictureButton->setText(tr("Picture… (chosen)"));
     });
-    if (!plain) row->addWidget(pictureButton);
+    if (mode != ListBoxes::Plain) row->addWidget(pictureButton);
     form->addRow(tr("Bullet character:"), row);
     form->addRow(useFont);
     form->addRow(tr("Font:"), font);
@@ -123,7 +124,7 @@ bool defineBulletDialog(QWidget *parent, ListLevelLook *look, const SymbolPicker
     });
     form->addRow(tr("Color:"), colorButton);
     auto *align = alignmentBox(look->align, &d);
-    if (!plain) form->addRow(tr("Alignment:"), align);
+    if (mode == ListBoxes::Full) form->addRow(tr("Alignment:"), align);
     auto *column = new QVBoxLayout(&d);
     column->addLayout(form);
     column->addWidget(buttons(&d));
@@ -138,8 +139,9 @@ bool defineBulletDialog(QWidget *parent, ListLevelLook *look, const SymbolPicker
     return true;
 }
 
-bool defineNumberFormatDialog(QWidget *parent, ListLevelLook *look, bool plain)
+bool defineNumberFormatDialog(QWidget *parent, ListLevelLook *look, ListBoxes mode)
 {
+    const bool plain = mode == ListBoxes::Plain;
     QDialog d(parent);
     d.setObjectName(QStringLiteral("defineNumberFormatDialog"));
     d.setWindowTitle(tr("Define New Number Format"));
@@ -148,7 +150,7 @@ bool defineNumberFormatDialog(QWidget *parent, ListLevelLook *look, bool plain)
     style->setObjectName(QStringLiteral("numberStyle"));
     int count = 0;
     const NumberStyleName *names = numberStyleNames(&count);
-    for (int i = 0; i < (plain ? std::min(count, 5) : count); ++i) style->addItem(QString::fromLatin1(names[i].example), QString::fromLatin1(names[i].id));
+    for (int i = 0; i < (mode != ListBoxes::Full ? std::min(count, 5) : count); ++i) style->addItem(QString::fromLatin1(names[i].example), QString::fromLatin1(names[i].id));
     style->setCurrentIndex(std::max(0, style->findData(look->numFmt)));
     form->addRow(tr("Number style:"), style);
     auto *text = new QLineEdit(look->bullet || look->text.isEmpty() ? QStringLiteral("%1.") : look->text, &d);
@@ -160,7 +162,7 @@ bool defineNumberFormatDialog(QWidget *parent, ListLevelLook *look, bool plain)
     if (plain) form->addRow(tr("Punctuation:"), punctuation);
     else form->addRow(tr("Number format (%1 is the number):"), text);
     auto *align = alignmentBox(look->align, &d);
-    if (!plain) form->addRow(tr("Alignment:"), align);
+    if (mode == ListBoxes::Full) form->addRow(tr("Alignment:"), align);
     auto *start = new QSpinBox(&d);
     start->setObjectName(QStringLiteral("numberStart"));
     start->setRange(0, 9999);
@@ -192,8 +194,9 @@ bool defineNumberFormatDialog(QWidget *parent, ListLevelLook *look, bool plain)
     return true;
 }
 
-bool defineMultilevelPlainDialog(QWidget *parent, QVector<ListLevelLook> *levels, const SymbolPicker &pick)
+bool defineMultilevelPlainDialog(QWidget *parent, QVector<ListLevelLook> *levels, const SymbolPicker &pick, ListBoxes mode)
 {
+    const bool typed = mode == ListBoxes::Jpub;
     QVector<ListLevelLook> work = *levels;
     while (work.size() < 9) work.push_back(work.isEmpty() ? ListLevelLook() : work.last());
     QDialog d(parent);
@@ -235,7 +238,10 @@ bool defineMultilevelPlainDialog(QWidget *parent, QVector<ListLevelLook> *levels
     auto *punctuation = new QComboBox(&d);
     punctuation->setObjectName(QStringLiteral("numberPunctuation"));
     for (const char *f : {"%1.", "%1)", "(%1)", "%1"}) punctuation->addItem(QString::fromLatin1(f).replace(QStringLiteral("%1"), QStringLiteral("1")), QString::fromLatin1(f));
-    form->addRow(tr("Punctuation:"), punctuation);
+    auto *format = new QLineEdit(&d);
+    format->setObjectName(QStringLiteral("numberFormat"));
+    if (typed) form->addRow(tr("Number format (%1 is the number):"), format);
+    else form->addRow(tr("Punctuation:"), punctuation);
     auto *start = new QSpinBox(&d);
     start->setObjectName(QStringLiteral("numberStart"));
     start->setRange(1, 9999);
@@ -251,7 +257,8 @@ bool defineMultilevelPlainDialog(QWidget *parent, QVector<ListLevelLook> *levels
             if (!pickedFont.isEmpty()) l.font = pickedFont;
         } else {
             l.numFmt = style->currentData().toString();
-            l.text = punctuation->currentData().toString();
+            l.text = typed ? format->text() : punctuation->currentData().toString();
+            if (!l.text.contains(QLatin1String("%1"))) l.text += QStringLiteral("%1");
             l.start = start->value();
         }
     };
@@ -263,6 +270,7 @@ bool defineMultilevelPlainDialog(QWidget *parent, QVector<ListLevelLook> *levels
         character->setText(l.bullet ? l.text : QStringLiteral("•"));
         style->setCurrentIndex(std::max(0, style->findData(l.numFmt)));
         punctuation->setCurrentIndex(std::max(0, punctuation->findData(l.bullet ? QStringLiteral("%1.") : l.text)));
+        format->setText(l.bullet ? QStringLiteral("%1.") : l.text);
         start->setValue(std::max(1, l.start));
         loading = false;
     };
@@ -273,6 +281,7 @@ bool defineMultilevelPlainDialog(QWidget *parent, QVector<ListLevelLook> *levels
     QObject::connect(character, &QLineEdit::textChanged, &d, [&] { store(); });
     QObject::connect(style, &QComboBox::currentIndexChanged, &d, [&] { store(); });
     QObject::connect(punctuation, &QComboBox::currentIndexChanged, &d, [&] { store(); });
+    QObject::connect(format, &QLineEdit::textChanged, &d, [&] { store(); });
     QObject::connect(start, &QSpinBox::valueChanged, &d, [&] { store(); });
     auto *outer = new QHBoxLayout;
     outer->addWidget(list);

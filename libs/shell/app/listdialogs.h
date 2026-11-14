@@ -12,6 +12,11 @@ class QWidget;
 
 namespace jp {
 
+// Which boxes an app offers: Full (JeffWrite: everything its files hold), Plain (formats that keep only a bullet character with its font, size, and color, and five counting styles with three
+// punctuation forms: no text of one's own, no picture, no alignment), and Jpub (JeffPub's own files: Plain's styles, but the text round the number as typed, a picture for a bullet, and all nine
+// levels; still no alignment).
+enum class ListBoxes { Full, Plain, Jpub };
+
 // The look of one level of a list, as the boxes say it.
 struct ListLevelLook {
     bool bullet = true;
@@ -29,13 +34,13 @@ struct ListLevelLook {
 using SymbolPicker = std::function<bool(QWidget *parent, QString *character, QString *font)>;
 
 // Define New Bullet: a symbol (from `pick`, or typed), its font, size, and color. False when canceled; `look` is then as it was.
-bool defineBulletDialog(QWidget *parent, ListLevelLook *look, const SymbolPicker &pick, bool plain = false);
+bool defineBulletDialog(QWidget *parent, ListLevelLook *look, const SymbolPicker &pick, ListBoxes mode = ListBoxes::Full);
 // Define New Number Format: the style (1, 2, 3 / A, B, C / a, b, c / I, II, III / i, ii, iii), the text round the number (with %1 for the number), its alignment, and where it starts.
 // With `plain` (JeffPub and JeffDeck, whose files hold only a bullet character with its font, size, and color, and the five counting styles with three punctuation forms) there is no alignment, and the
 // number's text is chosen from the forms ("1.", "1)", "(1)", "1") rather than typed; only the first five styles are offered.
-bool defineNumberFormatDialog(QWidget *parent, ListLevelLook *look, bool plain = false);
+bool defineNumberFormatDialog(QWidget *parent, ListLevelLook *look, ListBoxes mode = ListBoxes::Full);
 // Define New Multilevel List for the apps whose files hold a bullet or a counting style for each of nine levels: per level, a bullet (its character) or a number (style, punctuation, start at).
-bool defineMultilevelPlainDialog(QWidget *parent, QVector<ListLevelLook> *levels, const SymbolPicker &pick);
+bool defineMultilevelPlainDialog(QWidget *parent, QVector<ListLevelLook> *levels, const SymbolPicker &pick, ListBoxes mode = ListBoxes::Plain);
 // Set Numbering Value: start a new list or continue the previous one (`canContinue`: the item has a list of its kind above it), with a value to give the item. False when canceled.
 struct NumberingValueChoice {
     bool continuePrevious = false;

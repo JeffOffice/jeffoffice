@@ -6,6 +6,7 @@
 
 #include <QTextListFormat>
 #include <QVector>
+#include <functional>
 
 class QAction;
 class QMenu;
@@ -31,8 +32,10 @@ QVector<ListLevelLook> numberPicks();   // the counting styles of the library, a
 
 // The menus. `owner` parents the menu and the boxes it opens. With `multilevel` false the Multilevel List menu offers only Change List Level (for a file that keeps no levels).
 // `more`, if given, is the app's own "Bullets and Numbering…" command, added at the end.
-QMenu *bulletsMenu(QWidget *owner, Editor *ed, QAction *more = nullptr);
-QMenu *numberingMenu(QWidget *owner, Editor *ed, QAction *more = nullptr);
-QMenu *multilevelMenu(QWidget *owner, Editor *ed);
+// `mode` says which boxes to open, asked each time (a document's file kind can change under the menu).
+using ListBoxesChoice = std::function<ListBoxes()>;
+QMenu *bulletsMenu(QWidget *owner, Editor *ed, QAction *more = nullptr, const ListBoxesChoice &mode = {});
+QMenu *numberingMenu(QWidget *owner, Editor *ed, QAction *more = nullptr, const ListBoxesChoice &mode = {});
+QMenu *multilevelMenu(QWidget *owner, Editor *ed, const ListBoxesChoice &mode = {});
 
 } // namespace jp

@@ -90,6 +90,8 @@ QVector<QVector<int>> bookletOrder(int pages);   // sheet sides -> page indices 
 // thumbnail: page 1 for the file's preview picture (about 160 pixels across,
 // as Publisher makes it), or none.
 bool exportPublisher(const Document &doc, const QString &path, QString *error, const QImage &thumbnail = QImage());
+// What a .pub file would lose of the publication's lists (empty when nothing): each a short phrase for a message ("the levels of list items"). A .jpub file keeps all of them.
+QStringList publisherListLosses(const Document &doc);
 // A process color's inks as a .pub file keeps them: the values of drawing
 // properties 0x019F and 0x01A6 (0 when not needed).
 QPair<quint32, quint32> packPubInks(const QColor &cmyk);

@@ -108,6 +108,7 @@ QTextListFormat listFormatOf(const ListLevelLook &look)
         if (!look.font.isEmpty()) lf.setProperty(tp::BulletFont, look.font);
         if (look.sizePoints > 0) lf.setProperty(tp::BulletSize, look.sizePoints);
         if (look.color.isValid()) lf.setProperty(tp::BulletColor, ColorRef::rgb(look.color).toString());
+        if (!look.picture.isEmpty()) lf.setProperty(tp::BulletPicture, look.picture);
         return lf;
     }
     if (look.numFmt == QLatin1String("lowerLetter")) lf.setStyle(QTextListFormat::ListLowerAlpha);
@@ -141,6 +142,8 @@ ListLevelLook listLookOf(const QTextListFormat &format)
         if (look.text.isEmpty()) look.text = style == QTextListFormat::ListCircle ? QStringLiteral("◦") : style == QTextListFormat::ListSquare ? QStringLiteral("▪") : QStringLiteral("•");
         look.font = format.stringProperty(tp::BulletFont);
         look.sizePoints = format.doubleProperty(tp::BulletSize);
+        look.picture = format.property(tp::BulletPicture).toByteArray();
+        if (const QString ref = format.stringProperty(tp::BulletColor); !ref.isEmpty()) look.color = ColorRef::fromString(ref).rgbValue();
         return look;
     }
     look.bullet = false;
@@ -177,10 +180,10 @@ QVector<MultilevelPick> multilevelPicks()
             {QStringLiteral("bullets"), tr("Bullets, in three shapes"), cycle({bulletLook(QStringLiteral("•")), bulletLook(QStringLiteral("○")), bulletLook(QStringLiteral("■"))})}};
 }
 
-QMenu *bulletsMenu(QWidget *owner, Editor *ed, QAction *more)
+QMenu *bulletsMenu(QWidget *owner, Editor *ed, QAction *more, const ListBoxesChoice &mode)
 {
     auto *m = new QMenu(owner);
-    QObject::connect(m, &QMenu::aboutToShow, m, [m, owner, ed, more] {
+    QObject::connect(m, &QMenu::aboutToShow, m, [m, owner, ed, more, mode] {
         m->clear();
         auto apply = [ed](const ListLevelLook &look) { ed->setListFormat(listFormatOf(look)); };
         QVector<std::pair<QString, QString>> recent;
@@ -208,10 +211,10 @@ QMenu *bulletsMenu(QWidget *owner, Editor *ed, QAction *more)
         QObject::connect(none, &QAction::triggered, m, [ed] { ed->setList(0); });
         m->addSeparator();
         QAction *define = m->addAction(tr("Define New Bullet…"));
-        QObject::connect(define, &QAction::triggered, m, [owner, ed, apply] {
+        QObject::connect(define, &QAction::triggered, m, [owner, ed, apply, mode] {
             ListLevelLook look = listLookOf(ed->isEditingText() && ed->cursor().block().textList() ? ed->cursor().block().textList()->format() : QTextListFormat());
             if (!look.bullet) look = bulletLook(QStringLiteral("•"));
-            if (!defineBulletDialog(dialogParent(owner), &look, symbolPicker(), true)) return;
+            if (!defineBulletDialog(dialogParent(owner), &look, symbolPicker(), mode ? mode() : ListBoxes::Plain)) return;
             rememberBullet(look.text, look.font);
             apply(look);
         });
@@ -220,7 +223,7 @@ QMenu *bulletsMenu(QWidget *owner, Editor *ed, QAction *more)
     return m;
 }
 
-QMenu *numberingMenu(QWidget *owner, Editor *ed, QAction *more)
+QMenu *numberingMenu(QWidget *owner, Editor *ed, QAction *more, const ListBoxesChoice &mode)
 {
     auto *m = new QMenu(owner);
     m->addSection(tr("Numbering Library"));
@@ -237,20 +240,20 @@ QMenu *numberingMenu(QWidget *owner, Editor *ed, QAction *more)
     QObject::connect(none, &QAction::triggered, m, [ed] { ed->setList(0); });
     m->addSeparator();
     QAction *define = m->addAction(tr("Define New Number Format…"));
-    QObject::connect(define, &QAction::triggered, m, [owner, ed] {
+    QObject::connect(define, &QAction::triggered, m, [owner, ed, mode] {
         ListLevelLook look = numberLook("decimal", "%1.");
         if (ed->isEditingText() && ed->cursor().block().textList()) {
             const ListLevelLook now = listLookOf(ed->cursor().block().textList()->format());
             if (!now.bullet) look = now;
         }
-        if (!defineNumberFormatDialog(dialogParent(owner), &look, true)) return;
+        if (!defineNumberFormatDialog(dialogParent(owner), &look, mode ? mode() : ListBoxes::Plain)) return;
         ed->setListFormat(listFormatOf(look));
     });
     if (more) m->addAction(more);
     return m;
 }
 
-QMenu *multilevelMenu(QWidget *owner, Editor *ed)
+QMenu *multilevelMenu(QWidget *owner, Editor *ed, const ListBoxesChoice &mode)
 {
     auto *m = new QMenu(owner);
     m->addSection(tr("List Library"));
@@ -271,9 +274,9 @@ QMenu *multilevelMenu(QWidget *owner, Editor *ed)
         QObject::connect(a, &QAction::triggered, m, [ed, i] { ed->setListLevel(i); });
     }
     QAction *define = m->addAction(tr("Define New Multilevel List…"));
-    QObject::connect(define, &QAction::triggered, m, [owner, ed] {
+    QObject::connect(define, &QAction::triggered, m, [owner, ed, mode] {
         QVector<ListLevelLook> looks = multilevelPicks().first().levels;
-        if (!defineMultilevelPlainDialog(dialogParent(owner), &looks, symbolPicker())) return;
+        if (!defineMultilevelPlainDialog(dialogParent(owner), &looks, symbolPicker(), mode ? mode() : ListBoxes::Plain)) return;
         QVector<QTextListFormat> formats;
         for (const ListLevelLook &l : looks) formats << listFormatOf(l);
         ed->setMultilevelList(formats);
