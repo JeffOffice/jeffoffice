@@ -38,6 +38,12 @@ public:
     explicit FilterPopup(const Input &input, QWidget *parent = nullptr);
     // The values of the column are listed: the list is filled in, and the menus that depend on it (colors, the kind of filters) are made.
     void setList(const jp::crunch::FilterList &list);
+    // The icons of the conditional formats in the column (as SortLevel::icon has them), and whether some cells have none: Sort by a Color offers them too. Said before the list is.
+    void setIcons(const QStringList &keys, bool none)
+    {
+        m_iconKeys = keys;
+        m_iconNone = none;
+    }
     // The listing is going on (a sentence in place of the list).
     void setLoading(bool on);
     QTreeWidget *tree() const { return m_tree; }
@@ -49,6 +55,7 @@ public:
 Q_SIGNALS:
     void sortRequested(bool descending);
     void sortByColorRequested(bool font, const jp::office::sheet::ColorSpec &color);   // an unset color: the cells with none
+    void sortByIconRequested(const QString &icon);                                      // an icon as SortLevel::icon has it: none, the cells with no icon
     void clearRequested();
     void conditionChosen(const jp::office::sheet::FilterColumn &condition);
     void askRequested(jp::FilterAsk what);
@@ -62,6 +69,8 @@ private:
     Input m_input;
     jp::crunch::FilterList m_list;
     bool m_listed = false;
+    QStringList m_iconKeys;
+    bool m_iconNone = false;
     QLineEdit *m_search = nullptr;
     QTreeWidget *m_tree = nullptr;
     QLabel *m_note = nullptr;

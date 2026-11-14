@@ -1063,6 +1063,62 @@ private Q_SLOTS:
         QVERIFY(s->savedSort(0).valid);
     }
 
+    // The drop-down's Sort by a Color also lists the icons of conditional formats in the column, and sorts by the one that is chosen.
+    void theDropDownSortsByTheIconsOfConditionalFormats()
+    {
+        EditWindow e;
+        const QString icons = QStringLiteral("<conditionalFormatting sqref=\"B2:B6\"><cfRule type=\"iconSet\" priority=\"1\"><iconSet iconSet=\"3Arrows\"><cfvo type=\"percent\" val=\"0\"/>"
+                                             "<cfvo type=\"num\" val=\"3\"/><cfvo type=\"num\" val=\"5\"/></iconSet></cfRule></conditionalFormatting>");
+        QVERIFY(e.open(bookOfSheets({{"A1=Name", "B1=Qty", "A2=e", "B2=5", "A3=a", "B3=1", "A4=c", "B4=3", "A5=b", "B5=2", "A6=d", "B6=4"}}, {{0, icons}})));
+        CrunchWindow &w = e.win.w;
+        e.select(QStringLiteral("A3"));
+        w.act(QStringLiteral("filter.toggle"))->trigger();
+        w.showFilterPopup(0, 1);
+        FilterPopup *popup = w.filterPopup();
+        QTRY_VERIFY(popup->listed());
+        QMenu *sortColors = popup->findChild<QMenu *>(QStringLiteral("filterSortColors"));
+        QVERIFY(sortColors->isEnabled());
+        QAction *middle = nullptr;
+        for (QAction *a : sortColors->actions())
+            if (a->text() == QLatin1String("3 Arrows, icon 2")) middle = a;
+        QVERIFY(middle);
+        middle->trigger();
+        QTRY_VERIFY(!w.isSorting());
+        QCOMPARE(shown(e, QStringLiteral("B2:B6")), QStringLiteral("3|4|5|1|2"));
+        QCOMPARE(w.undoStack()->count(), 2);                                                 // (the filter's buttons, and the sort)
+        // the sort is the filter's: saved with it
+        const crunch::EditSession::SavedSort saved = w.session()->savedSort(0);
+        QVERIFY(saved.valid);
+        QCOMPARE(int(saved.spec.levels[0].by), int(jp::crunch::SortLevel::By::Icon));
+        QCOMPARE(saved.spec.levels[0].icon, QStringLiteral("3Arrows:1"));
+        QVERIFY2(saveIt(e), "saved");
+        const jp::office::sheet::Sheet back = savedSheet(e.path);
+        QVERIFY2(back.autoFilter.sortState.contains(QLatin1String("sortBy=\"icon\" iconSet=\"3Arrows\" iconId=\"1\"")), qPrintable(back.autoFilter.sortState));
+        // the Sort dialog's icon levels and a cell color are kept in the file too
+        jp::crunch::SortSpec spec;
+        jp::crunch::SortLevel level;
+        level.key = 1;
+        level.by = jp::crunch::SortLevel::By::CellColor;
+        level.color = jp::office::sheet::ColorSpec::fromRgb(0xFF0000);
+        level.onTop = false;
+        spec.levels.append(level);
+        spec.hasHeader = true;
+        QVERIFY(w.sortRange(rangeOf(QStringLiteral("A1:B6")), spec));
+        QVERIFY2(saveIt(e), "saved again");
+        QByteArray part, styles;
+        const jp::office::sheet::Sheet second = savedSheet(e.path, &part, &styles);
+        QVERIFY2(second.autoFilter.sortState.contains(QLatin1String("sortBy=\"cellColor\"")), qPrintable(second.autoFilter.sortState));
+        QVERIFY(second.autoFilter.sortState.contains(QLatin1String("descending=\"1\"")));
+        QVERIFY(styles.contains("FFFF0000"));
+        Window third;
+        QVERIFY(third.open(e.copyOfFile()));
+        const crunch::EditSession::SavedSort again = third.w.session()->savedSort(0);
+        QVERIFY(again.valid);
+        QCOMPARE(int(again.spec.levels[0].by), int(jp::crunch::SortLevel::By::CellColor));
+        QCOMPARE(again.spec.levels[0].color.rgb, quint32(0xFF0000));
+        QVERIFY(!again.spec.levels[0].onTop);
+    }
+
     void aFilterByColorIsSavedWithTheColorsFormat()
     {
         EditWindow e;

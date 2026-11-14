@@ -107,6 +107,8 @@ std::shared_ptr<EditSession::SortPlan> EditSession::planSort(int sheet, const Ce
     plan->data = range;
     const quint32 width = plan->columns ? range.row2 - range.row1 + 1 : range.col2 - range.col1 + 1;
     for (const SortLevel &level : spec.levels)
+        if (level.by == SortLevel::By::Icon && !spec.iconAt) return refuse(tr("The icons of the cells are not known here, so the sort by icon can't be made."));
+    for (const SortLevel &level : spec.levels)
         if (level.key < 0 || quint32(level.key) >= width) return refuse(tr("The sort is by %1 that is not in the cells selected.").arg(plan->columns ? tr("a row") : tr("a column")));
     if (spec.hasHeader) {
         if (plan->columns) ++plan->data.col1;
@@ -292,6 +294,8 @@ bool EditSession::prepareSort(SortPlan &plan, qint64 budget)
                         if (at >= 0) k.listIndex = at;
                     }
                 }
+            } else if (level.by == SortLevel::By::Icon) {
+                k.match = plan.spec.iconAt(row, col) == level.icon;
             } else {
                 const Cell *c = s.cells.find(row, col);
                 ColorSpec color;

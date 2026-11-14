@@ -21,9 +21,9 @@ using jp::office::sheet::ColorSpec;
 namespace {
 
 enum Column { LevelColumn, KeyColumn, OnColumn, OrderColumn, WhereColumn };
-constexpr int kListRole = Qt::UserRole, kColorRole = Qt::UserRole + 1, kKindRole = Qt::UserRole + 2;
+constexpr int kListRole = Qt::UserRole, kColorRole = Qt::UserRole + 1, kKindRole = Qt::UserRole + 2, kIconRole = Qt::UserRole + 4;
 // the kinds of item in the order box
-enum Kind { Ascending = 1, Descending, List, Custom, ColorItem, NoColorItem };
+enum Kind { Ascending = 1, Descending, List, Custom, ColorItem, NoColorItem, IconItem };
 
 QIcon swatch(const QColor &color)
 {
@@ -145,7 +145,7 @@ void SortDialog::addLevel(const SortLevel &level)
         m_levels->setCellWidget(row, c, box);
     }
     auto *on = qobject_cast<QComboBox *>(m_levels->cellWidget(row, OnColumn));
-    on->addItems({tr("Values"), tr("Fill color"), tr("Text color")});
+    on->addItems({tr("Values"), tr("Fill color"), tr("Text color"), tr("Cell icon")});
     auto *where = qobject_cast<QComboBox *>(m_levels->cellWidget(row, WhereColumn));
     where->addItems({tr("First"), tr("Last")});
     auto *key = qobject_cast<QComboBox *>(m_levels->cellWidget(row, KeyColumn));
@@ -169,7 +169,7 @@ void SortDialog::addLevel(const SortLevel &level)
         orderBox->setItemData(index, List, kKindRole);
         orderBox->setCurrentIndex(index);
     });
-    where->setAccessibleName(tr("Where to put the color"));
+    where->setAccessibleName(tr("Where to put the color or icon"));
     connect(on, &QComboBox::currentIndexChanged, this, [this, on] {
         for (int r = 0; r < m_levels->rowCount(); ++r)
             if (m_levels->cellWidget(r, OnColumn) == on) fillOrder(r, nullptr);
@@ -209,7 +209,7 @@ void SortDialog::fillRow(int row, const SortLevel &level)
         key->clear();
         key->addItems(names);
         key->setCurrentIndex(std::clamp(level.key, 0, std::max(0, int(names.size()) - 1)));
-        on->setCurrentIndex(level.by == SortLevel::By::CellColor ? 1 : level.by == SortLevel::By::FontColor ? 2 : 0);
+        on->setCurrentIndex(level.by == SortLevel::By::CellColor ? 1 : level.by == SortLevel::By::FontColor ? 2 : level.by == SortLevel::By::Icon ? 3 : 0);
         where->setCurrentIndex(level.onTop ? 0 : 1);
     }
     fillOrder(row, &level);
@@ -257,6 +257,32 @@ void SortDialog::fillOrder(int row, const SortLevel *level)
         order->setCurrentIndex(at);
         return;
     }
+    if (on->currentIndex() == 3) {
+        // the icons in the column (and no icon)
+        const SortDialog::Icons icons = m_provider.icons ? m_provider.icons(std::max(0, key->currentIndex()), m_leftToRight->isChecked()) : Icons();
+        int chosen = -1;
+        for (const QString &icon : icons.keys) {
+            order->addItem(jp::crunch::iconLabel(icon));
+            const int at = order->count() - 1;
+            order->setItemData(at, IconItem, kKindRole);
+            order->setItemData(at, icon, kIconRole);
+            if (level && level->icon == icon) chosen = at;
+        }
+        if (icons.none || icons.keys.isEmpty()) {
+            order->addItem(tr("No icon"));
+            order->setItemData(order->count() - 1, IconItem, kKindRole);
+            order->setItemData(order->count() - 1, QString(), kIconRole);
+            if (level && level->icon.isEmpty()) chosen = order->count() - 1;
+        }
+        if (chosen < 0 && level && !level->icon.isEmpty()) {
+            order->addItem(jp::crunch::iconLabel(level->icon));
+            chosen = order->count() - 1;
+            order->setItemData(chosen, IconItem, kKindRole);
+            order->setItemData(chosen, level->icon, kIconRole);
+        }
+        order->setCurrentIndex(std::max(0, chosen));
+        return;
+    }
     const SortDialog::Colors colors = m_provider.colors ? m_provider.colors(std::max(0, key->currentIndex()), on->currentIndex() == 2, m_leftToRight->isChecked()) : Colors();
     int selected = -1;
     for (const auto &c : colors.colors) {
@@ -289,12 +315,14 @@ SortLevel SortDialog::levelOf(int row) const
     auto *order = qobject_cast<QComboBox *>(m_levels->cellWidget(row, OrderColumn));
     auto *where = qobject_cast<QComboBox *>(m_levels->cellWidget(row, WhereColumn));
     level.key = std::max(0, key->currentIndex());
-    level.by = on->currentIndex() == 1 ? SortLevel::By::CellColor : on->currentIndex() == 2 ? SortLevel::By::FontColor : SortLevel::By::Value;
+    level.by = on->currentIndex() == 1 ? SortLevel::By::CellColor : on->currentIndex() == 2 ? SortLevel::By::FontColor : on->currentIndex() == 3 ? SortLevel::By::Icon : SortLevel::By::Value;
     level.onTop = where->currentIndex() == 0;
     const int kind = order->currentData(kKindRole).toInt();
     if (level.by == SortLevel::By::Value) {
         level.descending = kind == Descending;
         if (kind == List) level.list = order->currentData(kListRole).toStringList();
+    } else if (level.by == SortLevel::By::Icon) {
+        level.icon = order->currentData(kIconRole).toString();
     } else if (kind == ColorItem) {
         level.color = ColorSpec::fromRgb(order->currentData(kColorRole).toUInt());
     }

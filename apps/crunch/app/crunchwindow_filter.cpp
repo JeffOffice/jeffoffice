@@ -265,6 +265,18 @@ void CrunchWindow::showFilterPopup(qint64 row, qint64 col)
     m_listPopup = popup;
     popup->setLoading(true);
     // the column's values are listed a slice at a time
+    // (the icons of the column's cells that conditional formats give, for Sort by a Color)
+    if (m_view->sheet().conditional().any()) {
+        const std::function<QString(quint32, quint32)> iconAt = iconSource();
+        QStringList keys;
+        bool none = false;
+        for (quint32 r = f.ref.row1 + 1, seen = 0; r <= f.ref.row2 && seen < 100000; ++r, ++seen) {
+            const QString icon = iconAt(r, quint32(col));
+            if (icon.isEmpty()) none = true;
+            else if (!keys.contains(icon)) keys.append(icon);
+        }
+        popup->setIcons(keys, none);
+    }
     m_listRun = std::make_unique<crunch::FilterListRun>(m_session.get(), m_sheet, f, column);
     m_listChanges = m_loader.changesMade();
     m_listSteps = m_session->undoStack()->index();
@@ -293,6 +305,17 @@ void CrunchWindow::showFilterPopup(qint64 row, qint64 col)
         level.key = int(column);
         level.by = font ? crunch::SortLevel::By::FontColor : crunch::SortLevel::By::CellColor;
         level.color = color;
+        level.onTop = true;
+        spec.levels.append(level);
+        spec.hasHeader = true;
+        sortRange(f.ref, spec);
+    });
+    connect(popup, &FilterPopup::sortByIconRequested, this, [this, f, column](const QString &icon) {
+        crunch::SortSpec spec;
+        crunch::SortLevel level;
+        level.key = int(column);
+        level.by = crunch::SortLevel::By::Icon;
+        level.icon = icon;
         level.onTop = true;
         spec.levels.append(level);
         spec.hasHeader = true;

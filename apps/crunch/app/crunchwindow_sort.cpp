@@ -15,6 +15,22 @@ using jp::office::sheet::CellRange;
 namespace {
 // The cells a sort does without a thread (it is quicker than the thread's start).
 constexpr size_t kSmallSort = 2000;
+
+// The icon the conditional formats give a cell, as "set:place" (places from 0, the lowest), or nothing.
+QString iconKeyOf(const grid::GridSheet &sheet, quint32 row, quint32 col)
+{
+    const grid::CondCell c = sheet.conditional().at(row, col);
+    if (c.icon < 0 || c.iconSet < 0) return QString();
+    return sheet.conditional().iconSetName(c.iconSet) + QLatin1Char(':') + QString::number(c.icon);
+}
+}
+
+// What a sort or a dropdown asks about the icons of the cells: the conditional formats are worked out first (the sort reads the cells as they are shown).
+std::function<QString(quint32, quint32)> CrunchWindow::iconSource()
+{
+    m_view->sheet().conditional().settle();
+    const grid::GridSheet *sheet = &m_view->sheet();
+    return [sheet](quint32 row, quint32 col) { return iconKeyOf(*sheet, row, col); };
 }
 
 void CrunchWindow::createSortActions()
@@ -151,6 +167,22 @@ void CrunchWindow::sortSelection(int mode)
                 for (const jp::office::sheet::ColorSpec &c : m_session->colorsIn(sheet, line, font, &out.none)) out.colors.append({c, QColor::fromRgb(st.resolve(c, 0x000000))});
                 return out;
             };
+            provider.icons = [this, range, sheet](int key, bool leftToRight) {
+                SortDialog::Icons out;
+                if (sheet != m_sheet) return out;
+                const std::function<QString(quint32, quint32)> iconAt = iconSource();
+                CellRange line = range;
+                if (leftToRight) line.row1 = line.row2 = range.row1 + quint32(key);
+                else line.col1 = line.col2 = range.col1 + quint32(key);
+                qint64 seen = 0;
+                for (quint32 row = line.row1; row <= line.row2 && seen < 100000; ++row)
+                    for (quint32 col = line.col1; col <= line.col2 && ++seen < 100000; ++col) {
+                        const QString icon = iconAt(row, col);
+                        if (icon.isEmpty()) out.none = true;
+                        else if (!out.keys.contains(icon)) out.keys.append(icon);
+                    }
+                return out;
+            };
             SortDialog dialog(provider, spec, this);
             if (dialog.exec() != QDialog::Accepted) return;
             spec = dialog.spec();
@@ -159,8 +191,15 @@ void CrunchWindow::sortSelection(int mode)
     sortRange(range, spec);
 }
 
-bool CrunchWindow::sortRange(const CellRange &given, const crunch::SortSpec &spec)
+bool CrunchWindow::sortRange(const CellRange &given, const crunch::SortSpec &asked)
 {
+    crunch::SortSpec spec = asked;
+    if (!spec.iconAt)
+        for (const crunch::SortLevel &level : spec.levels)
+            if (level.by == crunch::SortLevel::By::Icon) {
+                spec.iconAt = iconSource();
+                break;
+            }
     if (m_edit.active) commitEdit(CellEditor::Way::Stay);
     if (m_edit.active || !editingAllowed() || m_sortPlan) return false;
     CellRange range = given;

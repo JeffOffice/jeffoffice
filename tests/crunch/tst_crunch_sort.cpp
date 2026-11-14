@@ -205,6 +205,76 @@ private Q_SLOTS:
         QCOMPARE(fonts[0].rgb, quint32(0x0000FF));
     }
 
+    // Cells are put in order by the icon a conditional format gives them: one icon first, or last; the icons are the window's to say.
+    void cellsCanBePutInOrderByTheirConditionalFormatIcons()
+    {
+        EditWindow e;
+        const QString icons = QStringLiteral("<conditionalFormatting sqref=\"B1:B5\"><cfRule type=\"iconSet\" priority=\"1\"><iconSet iconSet=\"3Arrows\"><cfvo type=\"percent\" val=\"0\"/>"
+                                             "<cfvo type=\"num\" val=\"3\"/><cfvo type=\"num\" val=\"5\"/></iconSet></cfRule></conditionalFormatting>");
+        QVERIFY(e.open(bookOfSheets({{"A1=a", "B1=1", "A2=e", "B2=5", "A3=c", "B3=3", "A4=b", "B4=2", "A5=d", "B5=4"}}, {{0, icons}})));
+        CrunchWindow &w = e.win.w;
+        SortSpec spec;
+        SortLevel level;
+        level.key = 1;
+        level.by = SortLevel::By::Icon;
+        level.icon = QStringLiteral("3Arrows:2");
+        spec.levels.append(level);
+        // the session does not draw the sheet: without the icons it says so and changes nothing
+        QVERIFY(!sortWith(e, QStringLiteral("A1:B5"), spec).ok);
+        QCOMPARE(w.undoStack()->count(), 0);
+        // the window gives it the icons: the top arrow goes first, the rest stay as they were
+        e.view()->selectCell(0, 0);
+        QVERIFY(w.sortRange(rangeOf(QStringLiteral("A1:B5")), spec));
+        QCOMPARE(shown(e, QStringLiteral("B1:B5")), QStringLiteral("5|1|3|2|4"));
+        spec.levels[0].icon = QStringLiteral("3Arrows:1");
+        QVERIFY(w.sortRange(rangeOf(QStringLiteral("A1:B5")), spec));
+        QCOMPARE(shown(e, QStringLiteral("B1:B5")), QStringLiteral("3|4|5|1|2"));         // (the middle arrow first: 3 and 4, then the others as they were)
+        QCOMPARE(w.undoStack()->count(), 2);
+        // last, not first
+        spec.levels[0].icon = QStringLiteral("3Arrows:0");
+        spec.levels[0].onTop = false;
+        QVERIFY(w.sortRange(rangeOf(QStringLiteral("A1:B5")), spec));
+        QCOMPARE(shown(e, QStringLiteral("B1:B5")), QStringLiteral("3|4|5|1|2"));
+        // a cell with no icon is asked for by the empty icon
+        spec.levels[0].icon = QString();
+        spec.levels[0].onTop = true;
+        QVERIFY(w.sortRange(rangeOf(QStringLiteral("A1:B5")), spec));
+        QCOMPARE(w.undoStack()->count(), 2);                                                 // (every cell has an icon: nothing moves)
+    }
+
+    void theSortDialogOffersTheIconsOfAColumn()
+    {
+        SortDialog::Provider provider;
+        provider.names = [](bool, bool) { return QStringList{QStringLiteral("Name"), QStringLiteral("Qty")}; };
+        provider.icons = [](int key, bool) {
+            SortDialog::Icons out;
+            if (key == 1) out.keys = QStringList{QStringLiteral("3Arrows:2"), QStringLiteral("3Arrows:0")};
+            out.none = true;
+            return out;
+        };
+        SortLevel level;
+        level.key = 1;
+        level.by = SortLevel::By::Icon;
+        level.icon = QStringLiteral("3Arrows:0");
+        level.onTop = false;
+        SortSpec initial;
+        initial.levels.append(level);
+        SortDialog d(provider, initial, nullptr);
+        QComboBox *on = d.findChild<QComboBox *>(QStringLiteral("sortOn0"));
+        QCOMPARE(on->count(), 4);
+        QCOMPARE(on->currentIndex(), 3);
+        QComboBox *order = d.findChild<QComboBox *>(QStringLiteral("sortOrder0"));
+        QCOMPARE(order->count(), 3);                                                        // (the two icons, and no icon)
+        SortSpec got = d.spec();
+        QCOMPARE(int(got.levels[0].by), int(SortLevel::By::Icon));
+        QCOMPARE(got.levels[0].icon, QStringLiteral("3Arrows:0"));
+        QVERIFY(!got.levels[0].onTop);
+        order->setCurrentIndex(0);
+        QCOMPARE(d.spec().levels[0].icon, QStringLiteral("3Arrows:2"));
+        order->setCurrentIndex(2);
+        QVERIFY(d.spec().levels[0].icon.isEmpty());
+    }
+
     void mergedCellsOfOneSizeGoWithTheirRowsAndOtherMergesAreRefused()
     {
         auto book = [](const QString &merges) {

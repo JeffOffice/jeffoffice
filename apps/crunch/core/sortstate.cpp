@@ -12,6 +12,16 @@ namespace jp::crunch {
 
 using namespace jp::office::sheet;
 
+QString iconLabel(const QString &key)
+{
+    const qsizetype colon = key.lastIndexOf(QLatin1Char(':'));
+    if (colon < 0) return QCoreApplication::translate("jp::crunch::SortState", "No icon");
+    static const QRegularExpression boundary(QStringLiteral("(?<=[a-z])(?=[A-Z0-9])|(?<=[0-9])(?=[A-Za-z])"));
+    QString set = key.left(colon);
+    set.replace(boundary, QStringLiteral(" "));
+    return QCoreApplication::translate("jp::crunch::SortState", "%1, icon %2").arg(set).arg(key.mid(colon + 1).toInt() + 1);
+}
+
 QString sortStateXml(const CellRange &data, const SortSpec &spec, Workbook &book)
 {
     if (!data.valid || spec.levels.isEmpty()) return QString();
@@ -25,7 +35,13 @@ QString sortStateXml(const CellRange &data, const SortSpec &spec, Workbook &book
         else line.col1 = line.col2 = data.col1 + quint32(level.key);
         out += QStringLiteral("<sortCondition ref=\"%1\"").arg(rangeName(line));
         bool descending = level.descending;
-        if (level.by == SortLevel::By::Value) {
+        if (level.by == SortLevel::By::Icon) {
+            // (cells with no icon are the set "NoIcons")
+            const qsizetype colon = level.icon.lastIndexOf(QLatin1Char(':'));
+            const QString set = colon < 0 ? QStringLiteral("NoIcons") : level.icon.left(colon), place = colon < 0 ? QStringLiteral("0") : level.icon.mid(colon + 1);
+            out += QStringLiteral(" sortBy=\"icon\" iconSet=\"%1\" iconId=\"%2\"").arg(set.toHtmlEscaped(), place);
+            descending = !level.onTop;
+        } else if (level.by == SortLevel::By::Value) {
             if (!level.list.isEmpty()) {
                 QStringList items;
                 for (const QString &item : level.list) {
@@ -80,6 +96,15 @@ bool parseSortState(const QString &xml, const Styles &styles, CellRange *data, S
                 const DifferentialFormat &d = styles.dxfs[dxf];
                 level.by = font ? SortLevel::By::FontColor : SortLevel::By::CellColor;
                 level.color = font ? d.fontColor : (d.fill.bg.isSet() ? d.fill.bg : d.fill.fg);
+                level.onTop = !level.descending;
+                level.descending = false;
+            } else if (by == QLatin1String("icon")) {
+                const QString set = r.attributes().value(QLatin1String("iconSet")).toString();
+                bool ok = false;
+                const int place = r.attributes().value(QLatin1String("iconId")).toInt(&ok);
+                if (set.isEmpty() || !ok || place < 0) return false;
+                level.by = SortLevel::By::Icon;
+                level.icon = set == QLatin1String("NoIcons") ? QString() : QStringLiteral("%1:%2").arg(set).arg(place);
                 level.onTop = !level.descending;
                 level.descending = false;
             } else if (by.isEmpty() || by == QLatin1String("value")) {

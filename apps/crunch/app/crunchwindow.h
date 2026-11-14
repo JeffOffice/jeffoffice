@@ -1179,6 +1179,7 @@ private:
     // sorting (crunchwindow_sort.cpp)
     void createSortActions();
     void sortSelection(int mode);   // 0 A to Z, 1 Z to A, 2 the dialog
+    std::function<QString(quint32, quint32)> iconSource();
     bool sortRangeOf(jp::office::sheet::CellRange *range, int *key, bool *expanded, int *header = nullptr);
     void stepSort();
     void finishSort(bool ordered);

@@ -194,6 +194,16 @@ void FilterPopup::setList(const FilterList &list)
         m_filterColors->setEnabled(true);
         m_sortColors->setEnabled(true);
     }
+    // the icons of conditional formats can be sorted by (not kept: a filter by icon is not made yet)
+    if (!m_iconKeys.isEmpty() || m_iconNone) {
+        if (!m_sortColors->isEmpty()) m_sortColors->addSeparator();
+        m_sortColors->addAction(tr("Icons"))->setEnabled(false);
+        for (const QString &icon : m_iconKeys) {
+            connect(m_sortColors->addAction(jp::crunch::iconLabel(icon)), &QAction::triggered, this, [this, icon] { Q_EMIT sortByIconRequested(icon); });
+        }
+        if (m_iconNone) connect(m_sortColors->addAction(tr("No icon")), &QAction::triggered, this, [this] { Q_EMIT sortByIconRequested(QString()); });
+        m_sortColors->setEnabled(true);
+    }
     // the filters of the kind of column
     m_kindMenu->clear();
     auto ask = [&](QMenu *menu, const QString &text, FilterAsk what) {
