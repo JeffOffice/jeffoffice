@@ -7,6 +7,7 @@ import ipaddress
 import datetime as dt
 import json
 import os
+import shutil
 import sqlite3
 import tempfile
 import threading
@@ -765,6 +766,54 @@ class Migration(unittest.TestCase):
         main.init()
         with main.db() as con:
             self.assertEqual(con.execute("SELECT app, version, country FROM pings").fetchall(), [("jeffdeck", "1", None)])
+
+
+class GeoStatus(unittest.TestCase):
+    """The stats page's footer says which country list is in use, and flags an old one or none."""
+
+    def setUp(self):
+        self.saved = (main._geo, main._geo_path)
+        self.dir = tempfile.mkdtemp()
+
+    def tearDown(self):
+        main._geo, main._geo_path = self.saved
+        shutil.rmtree(self.dir, ignore_errors=True)
+
+    def use(self, month):
+        path = os.path.join(self.dir, f"dbip-country-lite-{month}.csv.gz")
+        open(path, "wb").close()
+        main._geo, main._geo_path = object(), path
+
+    def test_a_current_list_is_named_plainly(self):
+        self.use("2026-11")
+        g = main.geo_status(dt.date(2026, 11, 20))
+        self.assertFalse(g["stale"])
+        line = main.geo_line(g)
+        self.assertIn("November 2026", line)
+        self.assertIn("every week", line)
+        self.assertNotIn('class="down"', line)
+
+    def test_a_list_over_two_months_old_is_flagged(self):
+        self.use("2026-08")
+        self.assertFalse(main.geo_status(dt.date(2026, 10, 1))["stale"])
+        g = main.geo_status(dt.date(2026, 11, 1))
+        self.assertTrue(g["stale"])
+        self.assertIn('class="down"', main.geo_line(g))
+        self.assertIn("may be failing", main.geo_line(g))
+
+    def test_no_list_is_flagged(self):
+        main._geo, main._geo_path = None, None
+        self.assertIsNone(main.geo_status())
+        self.assertIn("none loaded", main.geo_line(None))
+
+    def test_the_stats_page_shows_the_list_in_its_footer(self):
+        main.init()
+        self.use("2026-11")
+        page = main.render_stats(main.gather_stats(today=dt.date(2026, 11, 20)))
+        self.assertIn("November 2026 list", page)
+
+    def test_the_list_is_fetched_again_after_a_week(self):
+        self.assertEqual(main.GEO_MAX_AGE, 7 * 24 * 3600)
 
 
 if __name__ == "__main__":

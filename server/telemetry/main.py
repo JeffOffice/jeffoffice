@@ -189,10 +189,12 @@ def migrate_crashes(con):
 GEO_DIR = os.path.join(DATA_DIR, "geo")
 GEO_URL = "https://download.db-ip.com/free/dbip-country-lite-{:04d}-{:02d}.csv.gz"   # DB-IP "IP to Country Lite", CC BY 4.0
 GEO_NAME = re.compile(r"^dbip-country-lite-\d{4}-\d{2}\.csv\.gz$")
-GEO_MAX_AGE = 35 * 24 * 3600   # seconds before the file is fetched again (DB-IP publishes monthly)
+GEO_MAX_AGE = 7 * 24 * 3600    # seconds before the file is fetched again: weekly (DB-IP publishes monthly, so a new month shows up within a week)
+GEO_STALE_MONTHS = 2           # the stats page flags a list older than this
 GEO_MIN_ROWS = 50000           # a download with fewer rows than this is refused
 GEO_MAX_BYTES = 64 * 1024 * 1024
 _geo = None                    # the loaded Geo, or None: then every country is NULL
+_geo_path = None               # the file _geo came from
 
 
 class Geo:
@@ -313,19 +315,20 @@ def geo_download(today=None):
 def ensure_geo(today=None):
     """Load the newest file on disk if nothing is loaded, and fetch a newer one when it's missing or old.
     The previous file stays until the new one has loaded."""
-    global _geo
+    global _geo, _geo_path
     files = geo_files()
     if _geo is None:
         for path in reversed(files):
             try:
                 _geo = load_geo(path)
+                _geo_path = path
                 break
             except Exception as e:
                 print(f"geo file unreadable: {type(e).__name__}", flush=True)
     if not files or time.time() - os.path.getmtime(files[-1]) > GEO_MAX_AGE:
         got = geo_download(today)
         if got:
-            _geo = got[1]
+            _geo, _geo_path = got[1], got[0]
             for old in geo_files():
                 if old != got[0]:
                     os.remove(old)
@@ -575,6 +578,33 @@ ATLAS_DATA = "https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-110m.json
 # gather_stats() runs the queries and returns plain data; render_stats() (below) turns it
 # into HTML and knows nothing about SQL, so the page's design can be swapped on its own.
 
+def geo_status(today=None):
+    """Which country list is in use: {"month": date of its month, "fetched": date of the download, "stale": bool}, or None."""
+    path = _geo_path
+    if _geo is None or not path:
+        return None
+    m = re.search(r"(\d{4})-(\d{2})\.csv\.gz$", path)
+    month = dt.date(int(m.group(1)), int(m.group(2)), 1)
+    try:
+        fetched = dt.datetime.fromtimestamp(os.path.getmtime(path), dt.timezone.utc).date()
+    except OSError:
+        fetched = None
+    today = today or utc_today()
+    age = (today.year - month.year) * 12 + today.month - month.month
+    return {"month": month, "fetched": fetched, "stale": age > GEO_STALE_MONTHS}
+
+
+def geo_line(g):
+    """The footer's sentence about the country list."""
+    if g is None:
+        return '<span class="down">Country list: none loaded, so countries aren\'t being recorded.</span>'
+    text = f"Country list: DB-IP's {g['month']:%B %Y} list"
+    if g["fetched"]:
+        text += f", downloaded {g['fetched']:%b} {g['fetched'].day}, {g['fetched'].year}"
+    text += ". It's checked for a new one every week."
+    return f'<span class="down">{html.escape(text)} It\'s more than {GEO_STALE_MONTHS} months old, so downloads may be failing.</span>' if g["stale"] else html.escape(text)
+
+
 def gather_stats(days=DEFAULT_DAYS, today=None):
     """Everything the dashboard shows, as a dict: one row per app plus one for all apps, the
     country, version, system, language, and command lists, and the crash counts by version."""
@@ -626,7 +656,7 @@ def gather_stats(days=DEFAULT_DAYS, today=None):
         crash_versions = q("SELECT version, COUNT(*), COUNT(DISTINCT install) FROM crashes WHERE received >= ? "
                            "GROUP BY version ORDER BY 2 DESC, 1", s)
         data = {
-            "days": days, "today": t, "start": s, "dates": dates, "rows": rows,
+            "days": days, "today": t, "geo": geo_status(today), "start": s, "dates": dates, "rows": rows,
             "countries": latest("country"), "countries_since": one("SELECT MIN(day) FROM pings WHERE country IS NOT NULL"),
             "versions": latest("version", "install, app"), "systems": latest("os"), "langs": latest("lang"),
             "commands": commands, "crash_versions": crash_versions,
@@ -832,7 +862,7 @@ def render_stats(d):
 <div class="cards">{cards}</div>
 {allcmds}
 <section class="card"><h2>Crashes by version, last {days} days</h2>{crashes}<p><a href="/crashes">The newest crash reports</a></p></section>
-<footer>IP geolocation by <a href="https://db-ip.com">DB-IP</a>.<br>{FOOTER_LINKS}</footer>
+<footer>IP geolocation by <a href="https://db-ip.com">DB-IP</a>. {geo_line(d.get("geo"))}<br>{FOOTER_LINKS}</footer>
 </main>
 {"".join(f'<script defer src="{u}"></script>' for u in ATLAS_SCRIPTS)}
 <script>{MAP_JS}</script>
