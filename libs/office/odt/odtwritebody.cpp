@@ -1,6 +1,8 @@
 // .docx to OpenDocument text: the body (paragraphs, lists, tables, fields, pictures, notes).
 
 #include "odt/odtwrite.h"
+#include "office/drawingml.h"
+#include "office/drawingml_geometry.h"
 
 #include "core/fonts.h"
 #include "office/barcodemarker.h"
@@ -818,8 +820,53 @@ QByteArray Writer::drawingXml(const T &t, int drawing, ParaCtx *pc, int depth)
         }
     }
     {
+        // (A name the shape library does not have is not written as a shape: it is left out and the person is told.)
         static const QRegularExpression plain(QStringLiteral("^[A-Za-z0-9]{1,40}$"));
-        if (!plain.match(shapePrst).hasMatch()) shapePrst.clear();
+        const bool lineKind = shapePrst == QLatin1String("line") || shapePrst.startsWith(QLatin1String("straightConnector")) || shapePrst.startsWith(QLatin1String("bentConnector")) ||
+                              shapePrst.startsWith(QLatin1String("curvedConnector"));
+        if (!plain.match(shapePrst).hasMatch() || !(lineKind || office::hasPresetGeometry(shapePrst) || !office::shapeForPreset(shapePrst).isEmpty())) shapePrst.clear();
+    }
+    // A shape's turn, flips, adjustments, and line ends: the turn and the ends in attributes of ours (the format has no plain one), the flips and the adjustments as the format has them.
+    QByteArray shapeAttrs, geomAttrs;
+    if (blip < 0 && txbx < 0 && !shapePrst.isEmpty()) {
+        int xfrm = -1, prstNode = -1, ln = -1;
+        QVector<int> stack{anchor};
+        for (int guard = 0; !stack.isEmpty() && guard < 4000; ++guard) {
+            const int n = stack.takeLast();
+            if (t.localName(n) == "xfrm" && xfrm < 0 && t.localName(t.parent(n)) == "spPr") xfrm = n;
+            else if (t.localName(n) == "prstGeom" && prstNode < 0) prstNode = n;
+            else if (t.localName(n) == "ln" && ln < 0 && t.localName(t.parent(n)) == "spPr") ln = n;
+            for (int k = t.firstChild(n); k >= 0; k = t.next(k)) stack.push_back(k);
+        }
+        if (xfrm >= 0) {
+            const double deg = std::fmod(std::fmod(t.attr(xfrm, "rot").toDouble() / 60000.0, 360.0) + 360.0, 360.0);
+            if (deg > 0.0001) shapeAttrs += " jo:rotation=\"" + QByteArray::number(deg, 'f', 4) + "\"";
+            if (t.attr(xfrm, "flipH") == QLatin1String("1") || t.attr(xfrm, "flipH") == QLatin1String("true")) geomAttrs += " draw:mirror-horizontal=\"true\"";
+            if (t.attr(xfrm, "flipV") == QLatin1String("1") || t.attr(xfrm, "flipV") == QLatin1String("true")) geomAttrs += " draw:mirror-vertical=\"true\"";
+        }
+        if (prstNode >= 0) {
+            const int av = t.child(prstNode, "avLst", t.ns(prstNode));
+            QMap<int, QString> values;   // by the adjustment's number (adj is the first)
+            for (int k = av >= 0 ? t.firstChild(av) : -1; k >= 0; k = t.next(k)) {
+                const QString name = t.attr(k, "name"), fmla = t.attr(k, "fmla").simplified();
+                static const QRegularExpression adjName(QStringLiteral("^adj([0-9]*)$"));
+                const QRegularExpressionMatch m = adjName.match(name);
+                if (m.hasMatch() && fmla.startsWith(QLatin1String("val "))) values.insert(m.captured(1).isEmpty() ? 1 : m.captured(1).toInt(), fmla.mid(4));
+            }
+            if (!values.isEmpty()) {
+                // (Numbered from one; one a shape does not give is its usual: the first numbers that are missing are written as the number the format calls the usual, 0 here and read back as given.)
+                QStringList list;
+                for (int i = 1; i <= values.lastKey(); ++i) list << values.value(i, QStringLiteral("0"));
+                geomAttrs += " draw:modifiers=\"" + esc(list.join(QLatin1Char(' '))) + "\"";
+            }
+        }
+        if (ln >= 0) {
+            const int dash = t.child(ln, "prstDash", t.ns(ln)), head = t.child(ln, "headEnd", t.ns(ln)), tail = t.child(ln, "tailEnd", t.ns(ln));
+            if (dash >= 0 && t.attr(dash, "val") != QLatin1String("solid")) shapeAttrs += " jo:dash=\"" + esc(t.attr(dash, "val")) + "\"";
+            if (head >= 0 && t.attr(head, "type") != QLatin1String("none") && !t.attr(head, "type").isEmpty()) shapeAttrs += " jo:head-end=\"" + esc(t.attr(head, "type")) + "\"";
+            if (tail >= 0 && t.attr(tail, "type") != QLatin1String("none") && !t.attr(tail, "type").isEmpty()) shapeAttrs += " jo:tail-end=\"" + esc(t.attr(tail, "type")) + "\"";
+        }
+        if (!shapeAttrs.isEmpty()) shapeAttrs = " xmlns:jo=\"urn:jeffoffice:names:extension:1.0\"" + shapeAttrs;
     }
     if (blip < 0 && txbx < 0 && shapePrst.isEmpty()) {
         left(QCoreApplication::translate("odt", "drawings, shapes, and charts"));
@@ -940,8 +987,8 @@ QByteArray Writer::drawingXml(const T &t, int drawing, ParaCtx *pc, int depth)
     QByteArray x = "<draw:frame draw:style-name=\"" + esc(style) + "\"" + frameAttrs + " svg:width=\"" + emuLength(cx) + "\"";
     if (blip < 0 && txbx < 0) {
         // A shape with no words: a custom shape that names its preset (the drawing format's), which other programs read as that shape.
-        x = "<draw:custom-shape draw:style-name=\"" + esc(style) + "\"" + frameAttrs + " svg:width=\"" + emuLength(cx) + "\" svg:height=\"" + emuLength(cy) +
-            "\"><draw:enhanced-geometry svg:viewBox=\"0 0 21600 21600\" draw:type=\"ooxml-" + shapePrst.toLatin1() + "\"/>";
+        x = "<draw:custom-shape draw:style-name=\"" + esc(style) + "\"" + frameAttrs + shapeAttrs + " svg:width=\"" + emuLength(cx) + "\" svg:height=\"" + emuLength(cy) +
+            "\"><draw:enhanced-geometry svg:viewBox=\"0 0 21600 21600\" draw:type=\"ooxml-" + shapePrst.toLatin1() + "\"" + geomAttrs + "/>";
         if (!descr.isEmpty()) x += "<svg:desc>" + esc(descr, false) + "</svg:desc>";
         return x + "</draw:custom-shape>";
     }

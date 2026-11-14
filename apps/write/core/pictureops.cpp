@@ -14,6 +14,8 @@
 #include "office/drawingml_write.h"
 #include "render/textart.h"
 #include "render/shapes.h"
+#include "office/drawingml_effects.h"
+#include "core/pathpoints.h"
 #include "office/drawingml.h"
 #include "office/drawingml_geometry.h"
 #include "office/theme.h"
@@ -35,6 +37,7 @@
 #include <QTextFragment>
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <cmath>
 
 namespace jp::write {
@@ -404,6 +407,25 @@ PictureWrap wrapOfShape(const Shape &s)
     }
 }
 
+// Where the w:drawing that begins at `from` ends (the start of its closing tag): a text box may hold drawings of its own, so the first closing tag is not always its own.
+qsizetype closingOfDrawing(const QByteArray &raw, qsizetype from)
+{
+    int depth = 0;
+    qsizetype at = from;
+    while (at < raw.size()) {
+        const qsizetype open = raw.indexOf("<w:drawing", at), close = raw.indexOf("</w:drawing>", at);
+        if (close < 0) return -1;
+        if (open >= 0 && open < close && (raw[open + 10] == '>' || raw[open + 10] == ' ' || raw[open + 10] == '/')) {
+            ++depth;
+            at = open + 10;
+        } else {
+            if (--depth == 0) return close;
+            at = close + 12;
+        }
+    }
+    return -1;
+}
+
 // The atom a character holds, if it is a drawing; empty otherwise.
 bool drawingAtomOf(const QTextCharFormat &cf, Inline *atom)
 {
@@ -419,7 +441,7 @@ bool drawingAtomOf(const QTextCharFormat &cf, Inline *atom)
         const QString raw = QString::fromUtf8(a.raw);
         const QRegularExpressionMatch choice = shapeChoice.match(raw);
         if (!choice.hasMatch()) return false;
-        const qsizetype from = a.raw.indexOf("<w:drawing", choice.capturedStart()), to = from < 0 ? -1 : a.raw.indexOf("</w:drawing>", from);
+        const qsizetype from = a.raw.indexOf("<w:drawing", choice.capturedStart()), to = from < 0 ? -1 : closingOfDrawing(a.raw, from);
         if (from < 0 || to < 0) return false;
         const qsizetype fallback = a.raw.indexOf("Fallback", choice.capturedStart());
         if (fallback >= 0 && fallback < from) return false;
@@ -573,6 +595,15 @@ PictureResult insertPrepared(WriteDoc &doc, QTextCursor &c, const Prepared &p, c
         return PictureResult::Refused;
     }
     return PictureResult::Ok;
+}
+
+// Whether the drawing's own object is a shape (a text box may hold a picture of its own, which is no reason to take the whole for a picture).
+bool isShapeGraphic(const QByteArray &graphic)
+{
+    const qsizetype shape = graphic.indexOf("<wps:wsp");
+    if (shape < 0) return false;
+    const qsizetype picture = graphic.indexOf("<pic:pic");
+    return picture < 0 || shape < picture;
 }
 
 // Gives the character after `position` the picture `change` makes of its model: the element written again and the form the pages show, as one change of its format.
@@ -1430,7 +1461,7 @@ QByteArray geometryElement(const QString &preset) { return "<a:prstGeom prst=\""
 bool changeSpPrOf(WriteDoc &doc, int position, bool shapesOnly, const std::function<bool(SpPr *, const Model &)> &edit)
 {
     return changePicture(doc, position, [&](Model &m) {
-        const bool shape = m.graphic.contains("wsp") && !m.graphic.contains("<pic:pic");
+        const bool shape = isShapeGraphic(m.graphic);
         if (shapesOnly && !shape) return false;
         SpPr sp;
         if (!splitSpPr(m.graphic, &sp)) return false;
@@ -1520,18 +1551,38 @@ PictureResult insertShapeGraphic(WriteDoc &doc, QTextCursor &c, const QByteArray
 }
 
 // The words of a text box's content: its paragraphs, when it holds nothing but words.
+struct BoxRun {
+    QByteArray raw, start, rPr;   // the run as written, its start tag (with its attributes), and its properties
+    QString text;
+};
+struct BoxPara {
+    QByteArray raw, start, pPr;   // the paragraph as written, its start tag, and its properties
+    QVector<BoxRun> runs;
+    QString text;
+};
 struct BoxContent {
     qsizetype begin = -1, end = -1;   // the element's whole text in the graphic
     QByteArray inner;
     QStringList paragraphs;
+    QVector<BoxPara> paras;           // each paragraph as written, to be kept where its words are not changed
     QByteArray pPr, rPr;              // the first paragraph's properties and the first run's, as written
     bool simple = false;
 };
 
+// A start tag from an element as written (an empty element's is written whole).
+QByteArray startTagOf(const QByteArray &raw)
+{
+    const qsizetype gt = raw.indexOf('>');
+    if (gt < 0) return "<w:r>";
+    QByteArray tag = raw.left(gt + 1);
+    if (tag.endsWith("/>")) tag = tag.left(tag.size() - 2) + ">";
+    return tag;
+}
+
 // Whether a shape that holds no text box yet may be given one: a drawn shape (not a picture, a group, a line or connector, or text art).
 bool shapeTakesText(const QByteArray &graphic)
 {
-    if (!graphic.contains("<wps:wsp") || graphic.contains("<pic:pic") || graphic.contains("<wpg:wgp") || graphic.contains("<wps:txbx") || graphic.contains("linkedTxbx") ||
+    if (!isShapeGraphic(graphic) || graphic.contains("<wpg:wgp") || graphic.contains("<wps:txbx") || graphic.contains("linkedTxbx") ||
         graphic.contains("prstTxWarp") || graphic.contains("<wps:cNvCnPr"))
         return false;
     static const QRegularExpression lines(QStringLiteral("prst=\"(line|straightConnector1|bentConnector[0-9]|curvedConnector[0-9])\""));
@@ -1567,32 +1618,136 @@ BoxContent boxContentOf(const QByteArray &graphic)
         }
         QString text;
         bool firstPara = b.paragraphs.isEmpty();
+        BoxPara para;
+        para.raw = t.raw(p);
+        para.start = startTagOf(para.raw);
+        if (para.start == "<w:r>") para.start = "<w:p>";
         for (int r = t.firstChild(p); r >= 0 && b.simple; r = t.next(r)) {
             if (t.is(r, "pPr")) {
                 // (A paragraph in a list or with a numbering is more than words.)
                 if (t.child(r, "numPr") >= 0 || t.child(r, "sectPr") >= 0) b.simple = false;
                 if (firstPara) b.pPr = t.raw(r);
+                para.pPr = t.raw(r);
             } else if (t.is(r, "r")) {
+                BoxRun run;
+                run.raw = t.raw(r);
+                run.start = startTagOf(run.raw);
                 for (int k = t.firstChild(r); k >= 0 && b.simple; k = t.next(k)) {
                     if (t.is(k, "rPr")) {
                         if (b.rPr.isEmpty()) b.rPr = t.raw(k);
+                        if (run.rPr.isEmpty()) run.rPr = t.raw(k);
                     } else if (t.is(k, "t")) {
                         text += t.text(k);
+                        run.text += t.text(k);
                     } else if (t.is(k, "tab")) {
                         text += QLatin1Char('\t');
+                        run.text += QLatin1Char('\t');
                     } else if (t.is(k, "br")) {
                         text += QLatin1Char('\n');
+                        run.text += QLatin1Char('\n');
                     } else {
                         b.simple = false;
                     }
                 }
+                para.runs.push_back(run);
             } else {
                 b.simple = false;
             }
         }
+        para.text = text;
+        b.paras << para;
         b.paragraphs << text;
     }
     return b;
+}
+
+// The children of a run that make its words: text, tabs, and line breaks.
+QByteArray runContent(const QString &text)
+{
+    QByteArray out;
+    const QStringList parts = text.split(QLatin1Char('\t'));
+    for (qsizetype i = 0; i < parts.size(); ++i) {
+        if (i > 0) out += "<w:tab/>";
+        const QStringList lines = parts[i].split(QLatin1Char('\n'));
+        for (qsizetype k = 0; k < lines.size(); ++k) {
+            if (k > 0) out += "<w:br/>";
+            if (!lines[k].isEmpty()) out += "<w:t xml:space=\"preserve\">" + lines[k].toHtmlEscaped().toUtf8() + "</w:t>";
+        }
+    }
+    return out;
+}
+
+// A paragraph with its words changed: the part of the words that did not change (what comes before the change and what comes after it) stays in the runs that held it, with the look
+// they had; what is typed goes in the run that holds the place, and takes its look; a run that is not touched is kept as it was written.
+QByteArray editedParagraph(const BoxPara &old, const QString &now)
+{
+    const QString &was = old.text;
+    qsizetype k = 0;
+    while (k < was.size() && k < now.size() && was[k] == now[k]) ++k;
+    qsizetype l = 0;
+    while (l < was.size() - k && l < now.size() - k && was[was.size() - 1 - l] == now[now.size() - 1 - l]) ++l;
+    const qsizetype deleteFrom = k, deleteTo = was.size() - l;
+    const QString typed = now.mid(k, now.size() - l - k);
+    QVector<BoxRun> runs = old.runs;
+    QVector<QString> texts;
+    QVector<qsizetype> lengths;
+    QVector<bool> touched;
+    for (const BoxRun &r : runs) {
+        texts << r.text;
+        lengths << r.text.size();
+        touched << false;
+    }
+    qsizetype at = 0;
+    for (qsizetype i = 0; i < runs.size(); ++i) {
+        const qsizetype from = std::max(at, deleteFrom), to = std::min(at + lengths[i], deleteTo);
+        if (to > from) {
+            texts[i].remove(from - at, to - from);
+            touched[i] = true;
+        }
+        at += lengths[i];
+    }
+    qsizetype into = -1;
+    if (!typed.isEmpty()) {
+        if (runs.isEmpty()) {
+            runs.push_back(BoxRun{QByteArray(), "<w:r>", QByteArray(), QString()});
+            texts << QString();
+            lengths << 0;
+            touched << true;
+            into = 0;
+            texts[0] = typed;
+        } else {
+            // (The run that holds the character before the change; at the start of the words, the first run.)
+            qsizetype from = 0;
+            into = 0;
+            for (qsizetype i = 0; i < runs.size(); ++i) {
+                if (k > 0 && k - 1 >= from && k - 1 < from + lengths[i]) {
+                    into = i;
+                    break;
+                }
+                from += lengths[i];
+            }
+            if (k > 0 && into == 0 && !(k - 1 < lengths[0])) into = runs.size() - 1;
+            qsizetype runStart = 0;
+            for (qsizetype i = 0; i < into; ++i) runStart += lengths[i];
+            texts[into].insert(std::clamp<qsizetype>(k - runStart, 0, texts[into].size()), typed);
+            touched[into] = true;
+        }
+    }
+    QByteArray out = old.start + old.pPr;
+    for (qsizetype i = 0; i < runs.size(); ++i) {
+        if (!touched[i]) out += runs[i].raw;
+        else if (!texts[i].isEmpty()) out += runs[i].start + runs[i].rPr + runContent(texts[i]) + "</w:r>";
+    }
+    return out + "</w:p>";
+}
+
+// A paragraph made new (by Enter, or in a box that had none): the look of the paragraph it follows.
+QByteArray newParagraph(const BoxPara *like, const QString &text, const QByteArray &defaultPPr)
+{
+    const QByteArray pPr = like ? like->pPr : defaultPPr;
+    QByteArray out = "<w:p>" + pPr;
+    if (!text.isEmpty()) out += "<w:r>" + (like && !like->runs.isEmpty() ? like->runs.last().rPr : QByteArray()) + runContent(text) + "</w:r>";
+    return out + "</w:p>";
 }
 
 } // namespace
@@ -1701,6 +1856,7 @@ PictureResult insertShapeAt(WriteDoc &doc, QTextCursor &c, const QString &preset
     bool known = false;
     for (const ShapeGroup &g : shapeGallery()) known = known || g.presets.contains(preset);
     if (!known) return PictureResult::Unreadable;
+    if (!std::isfinite(from.x()) || !std::isfinite(from.y()) || !std::isfinite(to.x()) || !std::isfinite(to.y())) return PictureResult::Refused;
     const auto [a, b] = shapeDragEnds(preset, from, to, keepProportions);
     const WriteDoc::StepGroup step(doc);
     const int at = c.hasSelection() ? c.selectionStart() : c.position();
@@ -1714,6 +1870,11 @@ PictureResult insertShapeAt(WriteDoc &doc, QTextCursor &c, const QString &preset
     }, true)
                            : setPictureBox(doc, at, size.width(), size.height(), QPointF(a.x(), a.y()));
     if (!done) {
+        // (The shape was put in and could not be set at its place: it is taken out again, so nothing is left behind.)
+        QTextCursor remove(doc.story());
+        remove.setPosition(at);
+        remove.setPosition(at + 1, QTextCursor::KeepAnchor);
+        remove.removeSelectedText();
         doc.pictureNotice = QCoreApplication::translate("jp::write::Pictures", "That shape can't be put here.");
         return PictureResult::Refused;
     }
@@ -1730,9 +1891,21 @@ struct ShapeGeometry {
     QSizeF size;
 };
 
+// How many times a drawing was parsed for its handles or points (the tests count these to see that a large one, or the same one again, is not parsed for nothing).
+std::atomic<quint64> g_shapeParses{0};
+// A drawing is not looked into for its handles or points when it is larger than this (a freeform of thousands of points).
+constexpr qsizetype kMostDrawingBytes = 256 << 10;
+
+bool smallDrawingAt(const WriteDoc &doc, int position, Inline *atom)
+{
+    const QTextDocument *story = doc.story();
+    if (!story || position < 0 || position + 1 > story->characterCount() - 1) return false;
+    return drawingAtomOf(formatAfter(story, position), atom) && atom->raw.size() <= kMostDrawingBytes;
+}
+
 bool shapeGeometryOf(const QByteArray &graphic, qint64 cx, qint64 cy, ShapeGeometry *out)
 {
-    if (!graphic.contains("wsp") || graphic.contains("<pic:pic") || graphic.contains("<wpg:wgp")) return false;
+    if (!isShapeGraphic(graphic) || graphic.contains("<wpg:wgp")) return false;
     static const QRegularExpression flipped(QStringLiteral("\\sflip[HV]=\"(1|true)\""));
     SpPr sp;
     if (!splitSpPr(graphic, &sp)) return false;
@@ -1769,12 +1942,13 @@ QVector<ShapeHandle> handlesOf(const ShapeGeometry &g, QVector<double> *adj, con
 
 } // namespace
 
+quint64 shapeParseCount() { return g_shapeParses.load(); }
+
 QVector<ShapeHandle> shapeAdjustHandles(const WriteDoc &doc, int position)
 {
-    const QTextDocument *story = doc.story();
-    if (!story || position < 0 || position + 1 > story->characterCount() - 1) return {};
     Inline atom;
-    if (!drawingAtomOf(formatAfter(story, position), &atom)) return {};
+    if (!smallDrawingAt(doc, position, &atom)) return {};
+    ++g_shapeParses;
     Model m;
     if (!parseDrawing(atom.raw, &m)) return {};
     ShapeGeometry g;
@@ -1787,6 +1961,7 @@ QVector<ShapeHandle> shapeAdjustHandles(const WriteDoc &doc, int position)
 bool setShapeAdjustment(WriteDoc &doc, int position, int index, const QPointF &at)
 {
     if (!std::isfinite(at.x()) || !std::isfinite(at.y())) return false;
+    if (Inline atom; !smallDrawingAt(doc, position, &atom)) return false;
     return changeSpPrOf(doc, position, true, [&](SpPr *sp, const Model &m) {
         ShapeGeometry g;
         if (!shapeGeometryOf(m.graphic, m.cx, m.cy, &g)) return false;
@@ -1811,322 +1986,210 @@ bool setShapeAdjustment(WriteDoc &doc, int position, int index, const QPointF &a
 
 namespace {
 
-// An outline as the points it is drawn through: a start, then lines and curves (two handles and an end), and the places it is closed.
-struct Seg {
-    enum Kind { Move, Line, Curve } kind = Line;
-    QPointF c1, c2, end;
-    bool close = false;   // the subpath closes after this segment
+// What the outline of a shape is, for Edit Points: its path in the frame's points, whether it is a freeform's already, the text rectangle, and, when the points are not offered for it, why.
+struct Outline {
+    QPainterPath path;
+    bool freeform = false;
+    QRectF textRect;
+    QString problem;
 };
 
-QVector<Seg> segsOf(const QPainterPath &path)
+// False for anything that has no outline (a picture, a group, a line, a drawing that is not a shape). True with an empty path and a `problem` for a shape whose points are not offered.
+bool outlineOf(const QByteArray &graphic, qint64 cx, qint64 cy, Outline *out)
 {
-    QVector<Seg> out;
-    for (int i = 0; i < path.elementCount(); ++i) {
-        const QPainterPath::Element e = path.elementAt(i);
-        Seg g;
-        if (e.type == QPainterPath::MoveToElement) {
-            g.kind = Seg::Move;
-            g.end = QPointF(e.x, e.y);
-        } else if (e.type == QPainterPath::LineToElement) {
-            g.kind = Seg::Line;
-            g.end = QPointF(e.x, e.y);
-        } else if (e.type == QPainterPath::CurveToElement && i + 2 < path.elementCount()) {
-            g.kind = Seg::Curve;
-            g.c1 = QPointF(e.x, e.y);
-            g.c2 = QPointF(path.elementAt(i + 1).x, path.elementAt(i + 1).y);
-            g.end = QPointF(path.elementAt(i + 2).x, path.elementAt(i + 2).y);
-            i += 2;
-        } else {
-            continue;
-        }
-        out.push_back(g);
-    }
-    // (A subpath that ends where it began is closed.)
-    int begin = 0;
-    for (int i = 0; i < out.size(); ++i) {
-        if (out[i].kind == Seg::Move) begin = i;
-        const bool last = i + 1 == out.size() || out[i + 1].kind == Seg::Move;
-        if (last && i > begin && QLineF(out[i].end, out[begin].end).length() < 1e-6) out[i].close = true;
-    }
-    return out;
-}
-
-QPainterPath pathOf(const QVector<Seg> &segs)
-{
-    QPainterPath p;
-    for (const Seg &g : segs) {
-        if (g.kind == Seg::Move) p.moveTo(g.end);
-        else if (g.kind == Seg::Line) p.lineTo(g.end);
-        else p.cubicTo(g.c1, g.c2, g.end);
-    }
-    return p;
-}
-
-// The outline of the shape at a place as its drawing is: the points of a freeform, or a preset's path. False for anything with more than one outline or that is flipped.
-bool outlineOf(const QByteArray &graphic, qint64 cx, qint64 cy, QPainterPath *path, bool *freeform)
-{
-    if (!graphic.contains("<wps:wsp") || graphic.contains("<pic:pic") || graphic.contains("<wpg:wgp") || cx <= 0 || cy <= 0) return false;
+    if (!isShapeGraphic(graphic) || graphic.contains("<wpg:wgp") || cx <= 0 || cy <= 0) return false;
     SpPr sp;
     if (!splitSpPr(graphic, &sp)) return false;
+    auto refuse = [&](const char *why) {
+        out->problem = QCoreApplication::translate("jp::write::Pictures", why);
+        return true;
+    };
     static const QRegularExpression flipped(QStringLiteral("\\sflip[HV]=\"(1|true)\""));
     for (const SpPr::Child &c : sp.children)
-        if (c.local == "xfrm" && flipped.match(QString::fromUtf8(c.raw.left(c.raw.indexOf('>') + 1))).hasMatch()) return false;
+        if (c.local == "xfrm" && flipped.match(QString::fromUtf8(c.raw.left(c.raw.indexOf('>') + 1))).hasMatch()) return refuse(QT_TRANSLATE_NOOP("jp::write::Pictures", "Edit Points is not offered for a shape that is flipped."));
     const QSizeF size(double(cx) / kEmuPerPoint, double(cy) / kEmuPerPoint);
     const QByteArray geometry = childRaw(sp, SlotGeometry);
     if (geometry.contains("<a:custGeom")) {
+        // (Checked before it is read: a custom geometry of a million points is not parsed.)
+        if (geometry.size() > pts::kMostGeometryBytes) return refuse(QT_TRANSLATE_NOOP("jp::write::Pictures", "Edit Points is not offered for this shape: it has too many points."));
         QDomDocument dom;
+        ++g_shapeParses;
         if (!dom.setContent("<x xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\">" + geometry + "</x>", true)) return false;
         const office::Geometry g = office::readCustomGeometry(dom.documentElement().firstChildElement(), size);
-        if (g.paths.size() != 1) return false;
-        *path = g.paths[0].path;
-        *freeform = true;
-        return !path->isEmpty();
+        if (g.paths.size() != 1) return refuse(QT_TRANSLATE_NOOP("jp::write::Pictures", "Edit Points is not offered for this shape: it is drawn in more than one part."));
+        if (!pts::withinCaps(g.paths[0].path)) return refuse(QT_TRANSLATE_NOOP("jp::write::Pictures", "Edit Points is not offered for this shape: it has too many points."));
+        out->path = g.paths[0].path;
+        out->freeform = true;
+        out->textRect = g.textRect;
+        return true;
     }
     ShapeGeometry g;
     if (!shapeGeometryOf(graphic, cx, cy, &g)) return false;
+    ++g_shapeParses;
     const QString id = office::shapeForPreset(g.prst);
     const ShapeDef *def = id.isEmpty() ? nullptr : shapeDef(id);
-    if (!def || def->open) return false;
-    QVector<double> adj = office::libraryAdjustments(g.prst, g.given, g.size);
-    *path = shapePath(id, g.size, adj);
-    *freeform = false;
-    return !path->isEmpty();
-}
-
-QByteArray customGeometryOf(const QPainterPath &path, qint64 cx, qint64 cy)
-{
-    auto pt = [](const QPointF &p) {
-        return "<a:pt x=\"" + QByteArray::number(qint64(std::llround(p.x() * kEmuPerPoint))) + "\" y=\"" + QByteArray::number(qint64(std::llround(p.y() * kEmuPerPoint))) + "\"/>";
-    };
-    QByteArray out = "<a:custGeom><a:avLst/><a:gdLst/><a:ahLst/><a:cxnLst/><a:rect l=\"0\" t=\"0\" r=\"r\" b=\"b\"/><a:pathLst><a:path w=\"" + QByteArray::number(cx) + "\" h=\"" + QByteArray::number(cy) + "\">";
-    const QVector<Seg> segs = segsOf(path);
-    for (int i = 0; i < segs.size(); ++i) {
-        const Seg &g = segs[i];
-        if (g.kind == Seg::Move) out += "<a:moveTo>" + pt(g.end) + "</a:moveTo>";
-        else if (g.kind == Seg::Line) out += "<a:lnTo>" + pt(g.end) + "</a:lnTo>";
-        else out += "<a:cubicBezTo>" + pt(g.c1) + pt(g.c2) + pt(g.end) + "</a:cubicBezTo>";
-        if (g.close) out += "<a:close/>";
+    if (!def) return false;
+    // (A shape drawn in several parts, or with a part that is not filled or not stroked, can't be one outline without changing how it looks.)
+    const office::Geometry parts = office::presetGeometry(g.prst, g.given, g.size);
+    bool simple = !def->open && parts.paths.size() <= 1;
+    for (const office::GeometryPath &part : parts.paths) simple = simple && part.fill != office::GeometryPath::None && part.stroke;
+    if (!simple) return refuse(QT_TRANSLATE_NOOP("jp::write::Pictures", "Edit Points is not offered for this shape: it is drawn in more than one part."));
+    const QVector<double> adj = office::libraryAdjustments(g.prst, g.given, g.size);
+    out->path = shapePath(id, g.size, adj);
+    int subpaths = 0;
+    for (int i = 0; i < out->path.elementCount(); ++i) subpaths += out->path.elementAt(i).type == QPainterPath::MoveToElement;
+    if (subpaths > 1) {
+        // (A shape made of several outlines, a donut, a frame, or a cube's faces, is not one outline.)
+        out->path = QPainterPath();
+        return refuse(QT_TRANSLATE_NOOP("jp::write::Pictures", "Edit Points is not offered for this shape: it is drawn in more than one part."));
     }
-    return out + "</a:path></a:pathLst></a:custGeom>";
+    out->textRect = shapeTextRect(id, g.size, adj);
+    out->freeform = false;
+    return true;
 }
 
-constexpr int kMostShapePoints = 2000;
-
-// The index of each point of the segments (a point is where a segment ends; a closed subpath's last point is its first and is not counted).
-QVector<int> pointSegments(const QVector<Seg> &segs)
+// Changes the outline of the shape at a place: `edit` gets the path and gives the changed one; a preset becomes a custom geometry that keeps the text rectangle and the sides' sites.
+bool editOutline(WriteDoc &doc, int position, const std::function<QPainterPath(const QPainterPath &)> &edit)
 {
-    QVector<int> out;
-    for (int i = 0; i < segs.size(); ++i)
-        if (!(segs[i].close && i > 0 && segs[i].kind != Seg::Move)) out.push_back(i);
-    return out;
-}
-
-// Changes the outline of a shape: `edit` gets the segments and the point numbers' segments and says whether it changed anything.
-bool editShapePath(WriteDoc &doc, int position, const std::function<bool(QVector<Seg> *)> &edit)
-{
+    if (Inline atom; !smallDrawingAt(doc, position, &atom)) return false;
     return changeSpPrOf(doc, position, true, [&](SpPr *sp, const Model &m) {
-        QPainterPath path;
-        bool freeform = false;
-        if (!outlineOf(m.graphic, m.cx, m.cy, &path, &freeform)) return false;
-        QVector<Seg> segs = segsOf(path);
-        if (segs.size() > kMostShapePoints || !edit(&segs)) return false;
-        setSlot(sp, SlotGeometry, "custGeom", customGeometryOf(pathOf(segs), m.cx, m.cy));
+        Outline o;
+        if (!outlineOf(m.graphic, m.cx, m.cy, &o) || o.path.isEmpty()) return false;
+        const QPainterPath changed = edit(o.path);
+        if (changed.isEmpty() || !pts::withinCaps(changed)) return false;
+        bool same = changed.elementCount() == o.path.elementCount();
+        for (int i = 0; same && i < changed.elementCount(); ++i)
+            same = QLineF(QPointF(changed.elementAt(i).x, changed.elementAt(i).y), QPointF(o.path.elementAt(i).x, o.path.elementAt(i).y)).length() < 1e-6;
+        if (same) return false;
+        const QSizeF size(double(m.cx) / kEmuPerPoint, double(m.cy) / kEmuPerPoint);
+        setSlot(sp, SlotGeometry, "custGeom", office::customGeometryXml(changed, size, o.textRect, pts::sideSites(changed, size)));
         return true;
     });
+}
+
+bool outlineAt(const WriteDoc &doc, int position, Outline *o)
+{
+    Inline atom;
+    if (!smallDrawingAt(doc, position, &atom)) return false;
+    ++g_shapeParses;
+    Model m;
+    return parseDrawing(atom.raw, &m) && outlineOf(m.graphic, m.cx, m.cy, o);
 }
 
 } // namespace
 
 QVector<QPointF> shapePoints(const WriteDoc &doc, int position)
 {
-    QVector<QPointF> out;
-    const QTextDocument *story = doc.story();
-    if (!story || position < 0 || position + 1 > story->characterCount() - 1) return out;
-    Inline atom;
-    if (!drawingAtomOf(formatAfter(story, position), &atom)) return out;
-    Model m;
-    QPainterPath path;
-    bool freeform = false;
-    if (!parseDrawing(atom.raw, &m) || !outlineOf(m.graphic, m.cx, m.cy, &path, &freeform)) return out;
-    const QVector<Seg> segs = segsOf(path);
-    if (segs.size() > kMostShapePoints) return out;
-    for (const int i : pointSegments(segs)) out.push_back(segs[i].end);
-    return out;
+    Outline o;
+    if (!outlineAt(doc, position, &o) || o.path.isEmpty()) return {};
+    return pts::vertexPoints(o.path);
 }
 
 bool isFreeformShape(const WriteDoc &doc, int position)
 {
-    const QTextDocument *story = doc.story();
-    if (!story || position < 0 || position + 1 > story->characterCount() - 1) return false;
-    Inline atom;
-    if (!drawingAtomOf(formatAfter(story, position), &atom)) return false;
-    Model m;
-    QPainterPath path;
-    bool freeform = false;
-    return parseDrawing(atom.raw, &m) && outlineOf(m.graphic, m.cx, m.cy, &path, &freeform) && freeform;
+    Outline o;
+    return outlineAt(doc, position, &o) && o.freeform && !o.path.isEmpty();
+}
+
+QString editPointsProblem(const WriteDoc &doc, int position)
+{
+    Outline o;
+    return outlineAt(doc, position, &o) ? o.problem : QString();
 }
 
 bool moveShapePoint(WriteDoc &doc, int position, int index, const QPointF &to)
 {
     if (!std::isfinite(to.x()) || !std::isfinite(to.y())) return false;
-    return editShapePath(doc, position, [&](QVector<Seg> *segs) {
-        const QVector<int> at = pointSegments(*segs);
-        if (index < 0 || index >= at.size()) return false;
-        const int i = at[index];
-        const QPointF delta = to - (*segs)[i].end;
-        if (std::abs(delta.x()) < 1e-6 && std::abs(delta.y()) < 1e-6) return false;
-        // (The point of a closed subpath's end that is also its start moves with it.)
-        auto shift = [&](int k) {
-            (*segs)[k].end += delta;
-            if ((*segs)[k].kind == Seg::Curve) (*segs)[k].c2 += delta;
-            if (k + 1 < segs->size() && (*segs)[k + 1].kind == Seg::Curve) (*segs)[k + 1].c1 += delta;
-        };
-        shift(i);
-        if ((*segs)[i].kind == Seg::Move) {
-            int k = i + 1;
-            while (k < segs->size() && (*segs)[k].kind != Seg::Move) ++k;
-            if (k - 1 > i && (*segs)[k - 1].close) {
-                (*segs)[k - 1].end += delta;
-                if ((*segs)[k - 1].kind == Seg::Curve) (*segs)[k - 1].c2 += delta;
-            }
-        }
-        return true;
+    return editOutline(doc, position, [&](const QPainterPath &path) {
+        const QVector<int> at = pts::vertices(path);
+        if (index < 0 || index >= at.size()) return path;
+        return pts::moved(path, at[index], to - QPointF(path.elementAt(at[index]).x, path.elementAt(at[index]).y));
     });
 }
 
 bool deleteShapePoint(WriteDoc &doc, int position, int index)
 {
-    return editShapePath(doc, position, [&](QVector<Seg> *segs) {
-        const QVector<int> at = pointSegments(*segs);
-        if (index < 0 || index >= at.size() || at.size() <= 3) return false;
-        const int i = at[index];
-        if ((*segs)[i].kind == Seg::Move) {
-            // (The start goes: the next point begins the outline, and the closing point goes to it.)
-            if (i + 1 >= segs->size() || (*segs)[i + 1].kind == Seg::Move) return false;
-            int k = i + 1;
-            while (k < segs->size() && (*segs)[k].kind != Seg::Move) ++k;
-            const bool closed = (*segs)[k - 1].close;
-            const QPointF start = (*segs)[i + 1].end;
-            (*segs)[i + 1] = Seg{Seg::Move, QPointF(), QPointF(), start, false};
-            segs->removeAt(i);
-            if (closed) {
-                (*segs)[k - 2].end = start;
-                if ((*segs)[k - 2].kind == Seg::Curve) (*segs)[k - 2].c2 = start;
-            }
-            return true;
-        }
-        const bool wasClosing = (*segs)[i].close;
-        segs->removeAt(i);
-        if (wasClosing && i - 1 >= 0) (*segs)[i - 1].close = true;
-        return true;
+    return editOutline(doc, position, [&](const QPainterPath &path) {
+        const QVector<int> at = pts::vertices(path);
+        return index < 0 || index >= at.size() ? path : pts::removed(path, at[index]);
     });
 }
 
 bool insertShapePoint(WriteDoc &doc, int position, const QPointF &near, double tolerance, int *inserted)
 {
     if (!std::isfinite(near.x()) || !std::isfinite(near.y()) || !(tolerance > 0)) return false;
-    return editShapePath(doc, position, [&](QVector<Seg> *segs) {
-        if (segs->size() >= kMostShapePoints) return false;
-        // The segment nearest the place, and how far along it.
-        double best = tolerance;
+    return editOutline(doc, position, [&](const QPainterPath &path) {
         int at = -1;
-        double bestT = 0;
-        for (int i = 1; i < segs->size(); ++i) {
-            const Seg &g = (*segs)[i];
-            if (g.kind == Seg::Move) continue;
-            const QPointF from = (*segs)[i - 1].end;
-            QPainterPath one(from);
-            if (g.kind == Seg::Line) one.lineTo(g.end);
-            else one.cubicTo(g.c1, g.c2, g.end);
-            for (int k = 1; k < 32; ++k) {
-                const double t = k / 32.0;
-                const double d = QLineF(one.pointAtPercent(t), near).length();
-                if (d < best) {
-                    best = d;
-                    at = i;
-                    bestT = t;
-                }
-            }
-        }
-        if (at < 0) return false;
-        const Seg g = (*segs)[at];
-        const QPointF from = (*segs)[at - 1].end;
-        Seg first = g, second = g;
-        if (g.kind == Seg::Line) {
-            QPainterPath one(from);
-            one.lineTo(g.end);
-            first.end = one.pointAtPercent(bestT);
-            first.close = false;
-        } else {
-            auto lerp = [](const QPointF &a, const QPointF &b, double t) { return a + (b - a) * t; };
-            const double t = bestT;
-            const QPointF p01 = lerp(from, g.c1, t), p12 = lerp(g.c1, g.c2, t), p23 = lerp(g.c2, g.end, t), p012 = lerp(p01, p12, t), p123 = lerp(p12, p23, t), mid = lerp(p012, p123, t);
-            first = Seg{Seg::Curve, p01, p012, mid, false};
-            second = Seg{Seg::Curve, p123, p23, g.end, g.close};
-            segs->replace(at, first);
-            segs->insert(at + 1, second);
-            if (inserted) *inserted = pointSegments(*segs).indexOf(at);
-            return true;
-        }
-        second = g;
-        second.kind = Seg::Line;
-        segs->replace(at, first);
-        segs->insert(at + 1, second);
-        if (inserted) *inserted = pointSegments(*segs).indexOf(at);
-        return true;
+        const QPainterPath more = pts::inserted(path, near, tolerance, &at);
+        if (at >= 0 && inserted) *inserted = int(pts::vertices(more).indexOf(at));
+        return more;
     });
 }
 
+// ---- Effects
+
 namespace {
 
-ShapeEffect effectOfSpPr(const SpPr &sp)
+office::ShapeEffectKind kindOf(ShapeEffect e)
 {
-    const QByteArray effects = childRaw(sp, SlotEffects);
-    if (effects.contains("<a:outerShdw")) return ShapeEffect::Shadow;
-    if (effects.contains("<a:glow")) return ShapeEffect::Glow;
-    if (effects.contains("<a:reflection")) return ShapeEffect::Reflection;
-    if (effects.contains("<a:softEdge")) return ShapeEffect::SoftEdges;
-    if (childRaw(sp, SlotSolid3d).contains("<a:bevelT")) return ShapeEffect::Bevel;
-    return ShapeEffect::None;
+    switch (e) {
+    case ShapeEffect::Glow: return office::ShapeEffectKind::Glow;
+    case ShapeEffect::Reflection: return office::ShapeEffectKind::Reflection;
+    case ShapeEffect::SoftEdges: return office::ShapeEffectKind::SoftEdges;
+    case ShapeEffect::Bevel: return office::ShapeEffectKind::Bevel;
+    default: return office::ShapeEffectKind::Shadow;
+    }
+}
+
+bool spPrHas(const SpPr &sp, ShapeEffect e)
+{
+    const office::ShapeEffectKind kind = kindOf(e);
+    return kind == office::ShapeEffectKind::Bevel ? office::hasShapeEffect(childRaw(sp, SlotSolid3d), kind) : office::hasShapeEffect(childRaw(sp, SlotEffects), kind);
 }
 
 } // namespace
 
+bool shapeHasEffect(const WriteDoc &doc, int position, ShapeEffect effect)
+{
+    if (effect == ShapeEffect::None) return false;
+    const QTextDocument *story = doc.story();
+    if (!story || position < 0 || position + 1 > story->characterCount() - 1) return false;
+    Inline atom;
+    if (!drawingAtomOf(formatAfter(story, position), &atom)) return false;
+    Model m;
+    if (!parseDrawing(atom.raw, &m) || !isShapeGraphic(m.graphic)) return false;
+    SpPr sp;
+    return splitSpPr(m.graphic, &sp) && spPrHas(sp, effect);
+}
+
 ShapeEffect shapeEffectAt(const WriteDoc &doc, int position)
 {
-    const QTextDocument *story = doc.story();
-    if (!story || position < 0 || position + 1 > story->characterCount() - 1) return ShapeEffect::None;
-    Inline atom;
-    if (!drawingAtomOf(formatAfter(story, position), &atom)) return ShapeEffect::None;
-    Model m;
-    if (!parseDrawing(atom.raw, &m) || !m.graphic.contains("wsp") || m.graphic.contains("<pic:pic")) return ShapeEffect::None;
-    SpPr sp;
-    return splitSpPr(m.graphic, &sp) ? effectOfSpPr(sp) : ShapeEffect::None;
+    for (const ShapeEffect e : {ShapeEffect::Shadow, ShapeEffect::Glow, ShapeEffect::Reflection, ShapeEffect::SoftEdges, ShapeEffect::Bevel})
+        if (shapeHasEffect(doc, position, e)) return e;
+    return ShapeEffect::None;
 }
 
 bool setShapeEffect(WriteDoc &doc, int position, ShapeEffect effect)
 {
     return changeSpPrOf(doc, position, true, [&](SpPr *sp, const Model &) {
-        if (effectOfSpPr(*sp) == effect) return false;
-        QByteArray list, scene, solid;
-        switch (effect) {
-        case ShapeEffect::Shadow:
-            list = "<a:outerShdw blurRad=\"50800\" dist=\"38100\" dir=\"2700000\" algn=\"tl\" rotWithShape=\"0\"><a:prstClr val=\"black\"><a:alpha val=\"40000\"/></a:prstClr></a:outerShdw>";
-            break;
-        case ShapeEffect::Glow: list = "<a:glow rad=\"101600\"><a:srgbClr val=\"5B9BD5\"><a:alpha val=\"40000\"/></a:srgbClr></a:glow>"; break;
-        case ShapeEffect::Reflection:
-            list = "<a:reflection blurRad=\"6350\" stA=\"50000\" endA=\"300\" endPos=\"55000\" dir=\"5400000\" sy=\"-100000\" algn=\"bl\" rotWithShape=\"0\"/>";
-            break;
-        case ShapeEffect::SoftEdges: list = "<a:softEdge rad=\"63500\"/>"; break;
-        case ShapeEffect::Bevel:
-            scene = "<a:scene3d><a:camera prst=\"orthographicFront\"/><a:lightRig rig=\"threePt\" dir=\"t\"/></a:scene3d>";
-            solid = "<a:sp3d><a:bevelT w=\"63500\" h=\"25400\"/></a:sp3d>";
-            break;
-        case ShapeEffect::None: break;
+        const QByteArray list = childRaw(*sp, SlotEffects);
+        office::Solid3d solid{childRaw(*sp, SlotScene), childRaw(*sp, SlotSolid3d)};
+        QByteArray newList = list;
+        office::Solid3d newSolid = solid;
+        if (effect == ShapeEffect::None) {
+            // (No effect takes off the kinds the menu offers and leaves any other the shape has.)
+            for (const office::ShapeEffectKind kind : office::shapeEffectKinds())
+                if (kind != office::ShapeEffectKind::Bevel) newList = office::effectListWith(newList, kind, false);
+            newSolid = office::bevelWith(newSolid, false);
+        } else if (effect == ShapeEffect::Bevel) {
+            newSolid = office::bevelWith(newSolid, true);
+        } else {
+            newList = office::effectListWith(newList, kindOf(effect), true);
         }
-        setSlot(sp, SlotEffects, "effectLst", list.isEmpty() ? QByteArray() : "<a:effectLst>" + list + "</a:effectLst>");
-        setSlot(sp, SlotScene, "scene3d", scene);
-        setSlot(sp, SlotSolid3d, "sp3d", solid);
+        if (newList == list && newSolid.scene == solid.scene && newSolid.solid == solid.solid) return false;
+        setSlot(sp, SlotEffects, "effectLst", newList);
+        setSlot(sp, SlotScene, "scene3d", newSolid.scene);
+        setSlot(sp, SlotSolid3d, "sp3d", newSolid.solid);
         return true;
     });
 }
@@ -2247,30 +2310,31 @@ bool setTextBoxText(WriteDoc &doc, int position, const QStringList &paragraphs)
             box.simple = true;
             box.pPr = "<w:pPr><w:jc w:val=\"center\"/></w:pPr>";
         }
-        if (!box.simple) return false;
+        if (!box.simple) {
+            doc.pictureNotice = QCoreApplication::translate("jp::write::Pictures", "This text box holds more than words (a table, a picture, a field, or a list), so its words can't be edited here.");
+            return false;
+        }
         QStringList clean;
         for (const QString &p : paragraphs) clean << cleanText(p, int(kMostBoxTextLength));
         if (clean.isEmpty()) clean << QString();
         if (clean == (box.paragraphs.isEmpty() ? QStringList{QString()} : box.paragraphs)) return false;
+        // The paragraphs whose words did not change are kept as written; a changed one keeps its own properties and runs; a new one has the look of the one before it.
+        const QVector<BoxPara> &old = box.paras;
+        const qsizetype n = old.size(), count = clean.size();
+        qsizetype head = 0;
+        while (head < n && head < count && old[head].text == clean[head]) ++head;
+        qsizetype tail = 0;
+        while (tail < n - head && tail < count - head && old[n - 1 - tail].text == clean[count - 1 - tail]) ++tail;
         QByteArray content = "<w:txbxContent>";
-        for (const QString &p : clean) {
-            content += "<w:p>" + box.pPr;
-            // (Tabs are tab characters of the run; the words between them are runs of the same look.)
-            const QStringList parts = p.split(QLatin1Char('\t'));
-            for (qsizetype i = 0; i < parts.size(); ++i) {
-                QByteArray run = "<w:r>" + box.rPr;
-                if (i > 0) run += "<w:tab/>";
-                if (!parts[i].isEmpty()) {
-                    QStringList lines = parts[i].split(QLatin1Char('\n'));
-                    for (qsizetype k = 0; k < lines.size(); ++k) {
-                        if (k > 0) run += "<w:br/>";
-                        if (!lines[k].isEmpty()) run += "<w:t xml:space=\"preserve\">" + lines[k].toHtmlEscaped().toUtf8() + "</w:t>";
-                    }
-                }
-                if (run != "<w:r>" + box.rPr) content += run + "</w:r>";
-            }
-            content += "</w:p>";
+        for (qsizetype i = 0; i < head; ++i) content += old[i].raw;
+        const qsizetype pairs = std::min(n - tail - head, count - tail - head);
+        const BoxPara *like = head > 0 ? &old[head - 1] : nullptr;
+        for (qsizetype i = 0; i < pairs; ++i) {
+            content += editedParagraph(old[head + i], clean[head + i]);
+            like = &old[head + i];
         }
+        for (qsizetype i = pairs; i < count - tail - head; ++i) content += newParagraph(like ? like : (n > 0 ? &old[0] : nullptr), clean[head + i], box.pPr);
+        for (qsizetype i = 0; i < tail; ++i) content += old[n - tail + i].raw;
         content += "</w:txbxContent>";
         if (add) {
             const qsizetype body = m.graphic.indexOf("<wps:bodyPr");

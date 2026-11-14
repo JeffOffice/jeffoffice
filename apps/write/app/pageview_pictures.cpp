@@ -461,10 +461,29 @@ QPointF PageView::turnedAboutCenter(const QPointF &p, const QRectF &frame, doubl
     return QPointF(frame.center().x() + v.x() * cs - v.y() * sn, frame.center().y() + v.x() * sn + v.y() * cs);
 }
 
+const PageView::ShapeCache &PageView::shapeCache() const
+{
+    const int position = selectedPicture(), revision = m_doc ? m_doc->story()->revision() : -1;
+    ShapeCache &c = m_shapeCache;
+    if (c.valid && c.position == position && c.revision == revision && c.editPoints == m_editPoints) return c;
+    c = ShapeCache();
+    c.valid = true;
+    c.position = position;
+    c.revision = revision;
+    c.editPoints = m_editPoints;
+    if (m_doc && position >= 0 && !m_readOnly) {
+        c.info = pictureAt(*m_doc, m_doc->story(), position);
+        if (c.info.valid && c.info.editable && (c.info.kind == DrawnKind::Shape || c.info.kind == DrawnKind::TextBox)) {
+            c.handles = shapeAdjustHandles(*m_doc, position);
+            if (m_editPoints) c.points = shapePoints(*m_doc, position);
+        }
+    }
+    return c;
+}
+
 bool PageView::pointsActive() const
 {
-    const int position = selectedPicture();
-    return m_editPoints && m_doc && position >= 0 && !m_readOnly && !m_hf.active && !m_note.active && !shapePoints(*m_doc, position).isEmpty();
+    return m_editPoints && m_doc && !m_readOnly && !m_hf.active && !m_note.active && !shapeCache().points.isEmpty();
 }
 
 void PageView::setEditPoints(bool on)
@@ -481,8 +500,8 @@ QVector<QPointF> PageView::pointViewPositions()
     QRectF r;
     if (m_pictureDrag.active && m_pictureDrag.handle == PictureHandle::Body) r = m_pictureDrag.now;
     else if (!pictureRect(position, &r)) return out;
-    const double s = scale(), rotation = pictureAt(*m_doc, m_doc->story(), position).rotation;
-    const QVector<QPointF> points = shapePoints(*m_doc, position);
+    const double s = scale(), rotation = shapeCache().info.rotation;
+    const QVector<QPointF> &points = shapeCache().points;
     for (int i = 0; i < points.size(); ++i) {
         QPointF at(r.left() + points[i].x() * s, r.top() + points[i].y() * s);
         if (m_pictureDrag.active && m_pictureDrag.handle == PictureHandle::Point && m_pictureDrag.adjust == i) at = turnedAboutCenter(m_pictureDrag.at, r, -rotation);
@@ -496,13 +515,13 @@ QVector<std::pair<int, QPointF>> PageView::adjustHandlePoints()
     QVector<std::pair<int, QPointF>> out;
     const int position = selectedPicture();
     if (!m_doc || position < 0 || m_readOnly || m_hf.active || m_note.active) return out;
-    const PictureInfo info = pictureAt(*m_doc, m_doc->story(), position);
+    const PictureInfo &info = shapeCache().info;
     if (!info.valid || !info.editable || (info.kind != DrawnKind::Shape && info.kind != DrawnKind::TextBox)) return out;
     QRectF r;
     if (m_pictureDrag.active && (m_pictureDrag.handle == PictureHandle::Body || m_pictureDrag.handle == PictureHandle::Rotate)) r = m_pictureDrag.now;
     else if (!pictureRect(position, &r)) return out;
     const double s = scale();
-    for (const ShapeHandle &h : shapeAdjustHandles(*m_doc, position)) {
+    for (const ShapeHandle &h : shapeCache().handles) {
         QPointF at(r.left() + h.at.x() * s, r.top() + h.at.y() * s);
         if (m_pictureDrag.active && m_pictureDrag.handle == PictureHandle::Adjust && m_pictureDrag.adjust == h.index) at = turnedAboutCenter(m_pictureDrag.at, r, -info.rotation);
         out.push_back({h.index, turnedAboutCenter(at, r, info.rotation)});
@@ -514,7 +533,7 @@ bool PageView::rotateHandlePoint(QPointF *point)
 {
     const int position = selectedPicture();
     if (!m_doc || position < 0 || m_readOnly || m_hf.active || m_note.active) return false;
-    const PictureInfo info = pictureAt(*m_doc, m_doc->story(), position);
+    const PictureInfo &info = shapeCache().info;
     if (!info.valid || !info.editable || (info.kind != DrawnKind::Shape && info.kind != DrawnKind::TextBox)) return false;
     QRectF r;
     if (!pictureRect(position, &r)) return false;

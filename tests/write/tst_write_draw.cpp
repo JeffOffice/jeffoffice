@@ -367,6 +367,24 @@ struct Win {
     }
 };
 
+// Where the top left corner of the first page is in a window like Win (the same size and zoom): a shape set at a known place is drawn there.
+QPointF pageOrigin()
+{
+    Win probe;
+    write::WriteDoc *doc = probe.w.document();
+    QTextCursor c(doc->story());
+    c.setPosition(0);
+    insertShape(*doc, c, QStringLiteral("rect"), QSizeF(50, 50));
+    setPicturePlace(*doc, 0, 100, 100);
+    probe.w.view()->refresh();
+    QRectF r;
+    QElapsedTimer waited;
+    waited.start();
+    while (!probe.w.view()->pictureRect(0, &r) && waited.elapsed() < 5000) QCoreApplication::processEvents();
+    const double s = probe.w.view()->zoom() * 96.0 / 72.0;
+    return r.topLeft() - QPointF(100 * s, 100 * s);
+}
+
 } // namespace
 
 class DrawTests : public QObject {
@@ -566,11 +584,15 @@ private Q_SLOTS:
         win.w.view()->beginShapeDraw(QStringLiteral("rect"));
         QVERIFY(win.w.view()->drawingShape());
         QWidget *vp = win.w.view()->viewport();
-        const QPoint from(vp->width() / 2 - 60, 260);
+        // (Where the page is on the screen: from where a shape set at a known place of another window with the same size and zoom is drawn.)
+        const double s = win.w.view()->zoom() * 96.0 / 72.0;
+        const QPointF origin = pageOrigin();
+        auto viewAt = [&](double x, double y) { return (origin + QPointF(x * s, y * s)).toPoint(); };
+        const QPoint from = viewAt(150, 150), toA = viewAt(240, 210);
         QTest::mousePress(vp, Qt::LeftButton, Qt::NoModifier, from);
-        QTest::mouseMove(vp, from + QPoint(30, 20));
-        QTest::mouseMove(vp, from + QPoint(90, 60));
-        QTest::mouseRelease(vp, Qt::LeftButton, Qt::NoModifier, from + QPoint(90, 60));
+        QTest::mouseMove(vp, viewAt(180, 170));
+        QTest::mouseMove(vp, toA);
+        QTest::mouseRelease(vp, Qt::LeftButton, Qt::NoModifier, toA);
         QVERIFY(!win.w.view()->drawingShape());
         int at = -1;
         for (int i = 0; i < doc->story()->characterCount(); ++i)
@@ -579,18 +601,18 @@ private Q_SLOTS:
         PictureInfo info = pictureAt(*doc, doc->story(), at);
         QCOMPARE(info.preset, QStringLiteral("rect"));
         QCOMPARE(info.wrap, PictureWrap::InFrontOfText);
-        const double s = win.w.view()->zoom() * 96.0 / 72.0;
-        QVERIFY(std::abs(info.width - 90 / s) < 1.5);
-        QVERIFY(std::abs(info.height - 60 / s) < 1.5);
+        QVERIFY(std::abs(info.width - 90) < 1.5);
+        QVERIFY(std::abs(info.height - 60) < 1.5);
+        QVERIFY(std::abs(info.left - 150) < 1.5 && std::abs(info.top - 150) < 1.5);
         QCOMPARE(win.w.view()->selectedPicture(), at);
         QVERIFY(doc->undo());
         QVERIFY(!isDrawnObjectAt(doc->story(), at));
         QVERIFY(doc->redo());
         // Shift while drawing makes it square; Escape puts the tool down.
         win.w.view()->beginShapeDraw(QStringLiteral("ellipse"));
-        QTest::mousePress(vp, Qt::LeftButton, Qt::NoModifier, from + QPoint(0, 200));
-        QTest::mouseMove(vp, from + QPoint(100, 230));
-        QTest::mouseRelease(vp, Qt::LeftButton, Qt::ShiftModifier, from + QPoint(100, 230));
+        QTest::mousePress(vp, Qt::LeftButton, Qt::NoModifier, viewAt(150, 330));
+        QTest::mouseMove(vp, viewAt(250, 360));
+        QTest::mouseRelease(vp, Qt::LeftButton, Qt::ShiftModifier, viewAt(250, 360));
         const int second = win.w.view()->selectedPicture();
         info = pictureAt(*doc, doc->story(), second);
         QCOMPARE(info.preset, QStringLiteral("ellipse"));
@@ -617,11 +639,11 @@ private Q_SLOTS:
         // Free at a corner, as it was.
         QPoint corner = r.bottomRight().toPoint();
         QTest::mousePress(vp, Qt::LeftButton, Qt::NoModifier, corner);
-        QTest::mouseMove(vp, corner + QPoint(20, 5));
-        QTest::mouseMove(vp, corner + QPoint(60, 0));
-        QTest::mouseRelease(vp, Qt::LeftButton, Qt::NoModifier, corner + QPoint(60, 0));
+        QTest::mouseMove(vp, corner + QPoint(int(15 * s), int(4 * s)));
+        QTest::mouseMove(vp, corner + QPoint(int(40 * s), 0));
+        QTest::mouseRelease(vp, Qt::LeftButton, Qt::NoModifier, corner + QPoint(int(40 * s), 0));
         PictureInfo info = pictureAt(*doc, doc->story(), 0);
-        QVERIFY(std::abs(info.width - (120 + 60 / s)) < 1.5);
+        QVERIFY(std::abs(info.width - (120 + 40)) < 1.5);
         QVERIFY(std::abs(info.height - 60) < 1.5);
         QVERIFY(doc->undo());
         // With Shift held at the end, the shape keeps its 2 to 1.
@@ -629,9 +651,9 @@ private Q_SLOTS:
         QTRY_VERIFY(win.w.view()->pictureRect(0, &r));
         corner = r.bottomRight().toPoint();
         QTest::mousePress(vp, Qt::LeftButton, Qt::NoModifier, corner);
-        QTest::mouseMove(vp, corner + QPoint(20, 5));
-        QTest::mouseMove(vp, corner + QPoint(60, 0));
-        QTest::mouseRelease(vp, Qt::LeftButton, Qt::ShiftModifier, corner + QPoint(60, 0));
+        QTest::mouseMove(vp, corner + QPoint(int(15 * s), int(4 * s)));
+        QTest::mouseMove(vp, corner + QPoint(int(40 * s), 0));
+        QTest::mouseRelease(vp, Qt::LeftButton, Qt::ShiftModifier, corner + QPoint(int(40 * s), 0));
         info = pictureAt(*doc, doc->story(), 0);
         QVERIFY(info.width > 150);
         QVERIFY(std::abs(info.width / info.height - 2.0) < 0.02);
@@ -813,7 +835,7 @@ private Q_SLOTS:
         QVERIFY(!win.w.view()->editingShapeText());
     }
 
-    void aShapeTakesOneEffectAtATimeSavedInTheFilesForm()
+    void aShapeTakesSeveralEffectsAndEachIsPutInAndTakenOutWithoutTouchingTheOthers()
     {
         auto doc = textDoc({"Before after"});
         QTextCursor c(doc->story());
@@ -822,33 +844,54 @@ private Q_SLOTS:
         QCOMPARE(shapeEffectAt(*doc, 7), ShapeEffect::None);
         QVERIFY(!setShapeEffect(*doc, 7, ShapeEffect::None));
         QVERIFY(setShapeEffect(*doc, 7, ShapeEffect::Shadow));
-        QCOMPARE(shapeEffectAt(*doc, 7), ShapeEffect::Shadow);
-        QVERIFY(documentXml(doc->toDocx()).contains("<a:outerShdw"));
         QVERIFY(!setShapeEffect(*doc, 7, ShapeEffect::Shadow));
         QVERIFY(setShapeEffect(*doc, 7, ShapeEffect::Glow));
         QByteArray xml = documentXml(doc->toDocx());
-        QVERIFY(xml.contains("<a:glow") && !xml.contains("<a:outerShdw"));
+        QVERIFY2(xml.contains("<a:glow") && xml.contains("<a:outerShdw"), "a glow is put in and the shadow stays");
+        QVERIFY(xml.indexOf("<a:glow") < xml.indexOf("<a:outerShdw"));
+        QVERIFY(shapeHasEffect(*doc, 7, ShapeEffect::Shadow) && shapeHasEffect(*doc, 7, ShapeEffect::Glow));
         QVERIFY(setShapeEffect(*doc, 7, ShapeEffect::Reflection));
-        QVERIFY(documentXml(doc->toDocx()).contains("<a:reflection"));
         QVERIFY(setShapeEffect(*doc, 7, ShapeEffect::SoftEdges));
-        QVERIFY(documentXml(doc->toDocx()).contains("<a:softEdge"));
         QVERIFY(setShapeEffect(*doc, 7, ShapeEffect::Bevel));
         xml = documentXml(doc->toDocx());
-        QVERIFY(xml.contains("<a:bevelT") && xml.contains("<a:scene3d") && !xml.contains("<a:softEdge"));
-        QCOMPARE(shapeEffectAt(*doc, 7), ShapeEffect::Bevel);
-        QVERIFY(setShapeEffect(*doc, 7, ShapeEffect::Shadow));
-        xml = documentXml(doc->toDocx());
-        QVERIFY(xml.contains("<a:outerShdw") && !xml.contains("<a:bevelT"));
+        QVERIFY(xml.contains("<a:bevelT") && xml.contains("<a:scene3d") && xml.contains("<a:softEdge") && xml.contains("<a:reflection") && xml.contains("<a:outerShdw"));
         QVERIFY(setShapeEffect(*doc, 7, ShapeEffect::None));
         xml = documentXml(doc->toDocx());
-        QVERIFY(!xml.contains("<a:outerShdw") && !xml.contains("<a:effectLst"));
+        QVERIFY(!xml.contains("<a:outerShdw") && !xml.contains("<a:effectLst") && !xml.contains("<a:bevelT") && !xml.contains("<a:sp3d"));
         // One step each.
         QVERIFY(doc->undo());
-        QCOMPARE(shapeEffectAt(*doc, 7), ShapeEffect::Shadow);
-        QVERIFY(doc->undo());
-        QCOMPARE(shapeEffectAt(*doc, 7), ShapeEffect::Bevel);
-        // A picture takes none.
+        QVERIFY(shapeHasEffect(*doc, 7, ShapeEffect::Shadow) && shapeHasEffect(*doc, 7, ShapeEffect::Bevel));
         QVERIFY(!setShapeEffect(*doc, 3, ShapeEffect::Glow));
+    }
+
+    void anEffectOfAFileKeepsTheEffectsTheMenuDoesNotOfferAndTheShapesOwnThreeDSettings()
+    {
+        const QByteArray shape = "<wps:wsp><wps:cNvSpPr/><wps:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"1270000\" cy=\"635000\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom>"
+                                 "<a:solidFill><a:srgbClr val=\"3366FF\"/></a:solidFill><a:effectLst><a:innerShdw blurRad=\"11\"/><a:outerShdw blurRad=\"22\"/></a:effectLst>"
+                                 "<a:scene3d><a:camera prst=\"perspectiveFront\"/><a:lightRig rig=\"soft\" dir=\"t\"/></a:scene3d><a:sp3d extrusionH=\"12700\"><a:extrusionClr><a:srgbClr val=\"FF0000\"/></a:extrusionClr></a:sp3d>"
+                                 "</wps:spPr><wps:bodyPr/></wps:wsp>";
+        auto doc = open(makeDocx("<w:p><w:r><w:t>Before</w:t></w:r>" + anchoredGraphic(5, kShapeUri, shape, 100, 100, 100, 50) + "</w:p>"));
+        QVERIFY(doc);
+        int at = -1;
+        for (int i = 0; i < doc->story()->characterCount(); ++i)
+            if (isDrawnObjectAt(doc->story(), i)) at = i;
+        QVERIFY(at >= 0);
+        // A reflection is put in: the file's inner shadow and its own shadow stay, and so do the camera, the light, and the extrusion.
+        QVERIFY(setShapeEffect(*doc, at, ShapeEffect::Reflection));
+        QByteArray xml = documentXml(doc->toDocx());
+        QVERIFY(xml.contains("<a:innerShdw blurRad=\"11\"/>") && xml.contains("<a:outerShdw blurRad=\"22\"/>") && xml.contains("<a:reflection"));
+        QVERIFY(xml.contains("perspectiveFront") && xml.contains("extrusionH=\"12700\"") && xml.contains("<a:extrusionClr>"));
+        // A shadow the file has is put in again as the usual one (one shadow, not two); a bevel goes in the extrusion's element.
+        QVERIFY(setShapeEffect(*doc, at, ShapeEffect::Shadow));
+        QCOMPARE(documentXml(doc->toDocx()).count("<a:outerShdw"), 1);
+        QVERIFY(setShapeEffect(*doc, at, ShapeEffect::Bevel));
+        xml = documentXml(doc->toDocx());
+        QVERIFY(xml.contains("<a:bevelT") && xml.contains("extrusionH=\"12700\"") && xml.contains("perspectiveFront"));
+        // No effect takes off what the menu offers and nothing else.
+        QVERIFY(setShapeEffect(*doc, at, ShapeEffect::None));
+        xml = documentXml(doc->toDocx());
+        QVERIFY(xml.contains("<a:innerShdw blurRad=\"11\"/>") && !xml.contains("<a:outerShdw") && !xml.contains("<a:reflection") && !xml.contains("<a:bevelT"));
+        QVERIFY(xml.contains("extrusionH=\"12700\"") && xml.contains("perspectiveFront"));
     }
 
     void distributeSpreadsThreeObjectsToEqualGapsInOneStep()
@@ -1027,7 +1070,7 @@ private Q_SLOTS:
     void aShapeInAChoiceOfAlternateContentIsSelectableAndEditableAndKeptAsTheFileHadItUntilEdited()
     {
         const QByteArray run = anchoredGraphic(7, kShapeUri, plainShape(120, 60, "star5"), 200, 150, 120, 60);
-        // (Word writes its own id attributes on the anchor, in a prefix the drawing does not declare.)
+        // (A newer program writes its own id attributes on the anchor, in a prefix the drawing does not declare.)
         QByteArray drawing = run.mid(run.indexOf("<w:drawing>"), run.indexOf("</w:drawing>") + 12 - run.indexOf("<w:drawing>"));
         drawing.replace("<wp:anchor ", "<wp:anchor wp14:anchorId=\"33B7E180\" wp14:editId=\"305BEF9A\" ");
         const QByteArray wrapped = "<w:r><mc:AlternateContent xmlns:mc=\"http://schemas.openxmlformats.org/markup-compatibility/2006\"><mc:Choice Requires=\"wps\">" + drawing +
@@ -1063,6 +1106,167 @@ private Q_SLOTS:
         QVERIFY(xml.contains("mc:Fallback"));
         // A diagram's choice is not a shape: it is left alone.
         QCOMPARE(doc->story()->toPlainText().remove(QChar::ObjectReplacementCharacter), QStringLiteral("Beforeafter"));
+    }
+
+    void editingTheWordsOfARichBoxKeepsEveryParagraphsAndRunsLook()
+    {
+        const QByteArray p1 = "<w:p><w:pPr><w:jc w:val=\"center\"/></w:pPr><w:r><w:rPr><w:b/><w:color w:val=\"FF0000\"/><w:sz w:val=\"40\"/></w:rPr><w:t>Hello</w:t></w:r></w:p>";
+        const QByteArray p2 = "<w:p><w:pPr><w:jc w:val=\"right\"/></w:pPr><w:r><w:t xml:space=\"preserve\">Plain </w:t></w:r><w:r><w:rPr><w:i/></w:rPr><w:t>italic</w:t></w:r></w:p>";
+        const QByteArray shape = "<wps:wsp><wps:cNvSpPr txBox=\"1\"/><wps:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"2540000\" cy=\"1270000\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></wps:spPr>"
+                                 "<wps:txbx><w:txbxContent>" + p1 + p2 + "</w:txbxContent></wps:txbx><wps:bodyPr/></wps:wsp>";
+        auto doc = open(makeDocx("<w:p><w:r><w:t>Before</w:t></w:r>" + anchoredGraphic(5, kShapeUri, shape, 100, 100, 200, 100) + "</w:p>"));
+        QVERIFY(doc);
+        int at = -1;
+        for (int i = 0; i < doc->story()->characterCount(); ++i)
+            if (isDrawnObjectAt(doc->story(), i)) at = i;
+        QVERIFY(at >= 0);
+        QCOMPARE(textBoxText(*doc, at)->join(QLatin1Char('|')), QStringLiteral("Hello|Plain italic"));
+        // A stray key and Escape that leave the words as they were make no step and change nothing.
+        QVERIFY(!setTextBoxText(*doc, at, {QStringLiteral("Hello"), QStringLiteral("Plain italic")}));
+        // One character typed at the end of the first paragraph: it takes the bold red 20 pt of its run, and nothing else changes.
+        QVERIFY(setTextBoxText(*doc, at, {QStringLiteral("Hello!"), QStringLiteral("Plain italic")}));
+        QByteArray xml = documentXml(doc->toDocx());
+        QVERIFY2(xml.contains("<w:jc w:val=\"center\"/>") && xml.contains("<w:jc w:val=\"right\"/>"), "each paragraph keeps its own properties");
+        QVERIFY2(xml.contains("<w:rPr><w:b/><w:color w:val=\"FF0000\"/><w:sz w:val=\"40\"/></w:rPr><w:t xml:space=\"preserve\">Hello!</w:t>"), "the typed character takes its run's look");
+        QVERIFY2(xml.contains(p2), "a paragraph whose words did not change is kept byte for byte");
+        // A character typed in the middle of the italic run goes in that run; the run before it is kept.
+        QVERIFY(setTextBoxText(*doc, at, {QStringLiteral("Hello!"), QStringLiteral("Plain itXalic")}));
+        xml = documentXml(doc->toDocx());
+        QVERIFY(xml.contains("<w:r><w:t xml:space=\"preserve\">Plain </w:t></w:r>"));
+        QVERIFY(xml.contains("<w:rPr><w:i/></w:rPr><w:t xml:space=\"preserve\">itXalic</w:t>"));
+        QVERIFY(xml.contains("<w:jc w:val=\"right\"/>"));
+        // A paragraph made by Enter has the look of the one it was made in; a paragraph taken away is gone.
+        QVERIFY(setTextBoxText(*doc, at, {QStringLiteral("Hello!"), QStringLiteral("Plain"), QStringLiteral("itXalic")}));
+        QCOMPARE(textBoxText(*doc, at)->join(QLatin1Char('|')), QStringLiteral("Hello!|Plain|itXalic"));
+        xml = documentXml(doc->toDocx());
+        QCOMPARE(xml.count("<w:jc w:val=\"right\"/>"), 2);
+        QVERIFY(setTextBoxText(*doc, at, {QStringLiteral("Hello!")}));
+        QCOMPARE(textBoxText(*doc, at)->join(QLatin1Char('|')), QStringLiteral("Hello!"));
+        QVERIFY(documentXml(doc->toDocx()).contains("<w:jc w:val=\"center\"/>"));
+    }
+
+    void aTextBoxThatHoldsAPictureInsideAChoiceIsSelectableAndEditable()
+    {
+        // (The text box's own drawing, a picture in line, ends with a closing tag of the same name as the text box's.)
+        const QByteArray picture = "<w:p><w:r><w:drawing><wp:inline distT=\"0\" distB=\"0\" distL=\"0\" distR=\"0\"><wp:extent cx=\"127000\" cy=\"127000\"/><wp:docPr id=\"9\" name=\"P\"/>"
+                                   "<a:graphic><a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/picture\"><pic:pic xmlns:pic=\"http://schemas.openxmlformats.org/drawingml/2006/picture\">"
+                                   "<pic:nvPicPr><pic:cNvPr id=\"9\" name=\"P\"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip/></pic:blipFill><pic:spPr/></pic:pic></a:graphicData></a:graphic>"
+                                   "</wp:inline></w:drawing></w:r></w:p>";
+        const QByteArray shape = "<wps:wsp><wps:cNvSpPr txBox=\"1\"/><wps:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"2540000\" cy=\"1270000\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom>"
+                                 "<a:solidFill><a:srgbClr val=\"FFFFFF\"/></a:solidFill></wps:spPr><wps:txbx><w:txbxContent>" + picture + "</w:txbxContent></wps:txbx><wps:bodyPr/></wps:wsp>";
+        const QByteArray run = anchoredGraphic(7, kShapeUri, shape, 100, 100, 200, 100);
+        const QByteArray drawing = run.mid(run.indexOf("<w:drawing>"), run.lastIndexOf("</w:drawing>") + 12 - run.indexOf("<w:drawing>"));
+        const QByteArray wrapped = "<w:r><mc:AlternateContent xmlns:mc=\"http://schemas.openxmlformats.org/markup-compatibility/2006\"><mc:Choice Requires=\"wps\">" + drawing +
+                                   "</mc:Choice><mc:Fallback><w:pict xmlns:v=\"urn:schemas-microsoft-com:vml\"><v:rect id=\"f\" style=\"width:200pt;height:100pt\"/></w:pict></mc:Fallback></mc:AlternateContent></w:r>";
+        auto doc = open(makeDocx("<w:p><w:r><w:t>Before</w:t></w:r>" + wrapped + "</w:p>"));
+        QVERIFY(doc);
+        int at = -1;
+        for (int i = 0; i < doc->story()->characterCount(); ++i)
+            if (isDrawnObjectAt(doc->story(), i)) at = i;
+        QVERIFY2(at >= 0, "the text box with a picture in it is a drawn object");
+        QVERIFY(pictureAt(*doc, doc->story(), at).editable);
+        QVERIFY(setShapeFill(*doc, at, QStringLiteral("00AA00")));
+        const QByteArray xml = documentXml(doc->toDocx());
+        QVERIFY(xml.contains("00AA00") && xml.contains("<pic:pic") && xml.contains("</w:txbxContent>"));
+    }
+
+    // A freeform of a million points is never parsed for its points: Edit Points, the handles, and the ribbon's questions return at once (counted by the drawing parsed, not timed).
+    void aHugeFreeformIsNotParsedForItsPointsOrHandles()
+    {
+        auto freeform = [](int points) {
+            QByteArray path = "<a:moveTo><a:pt x=\"0\" y=\"0\"/></a:moveTo>";
+            for (int i = 1; i < points; ++i) path += "<a:lnTo><a:pt x=\"" + QByteArray::number(i % 1000) + "\" y=\"" + QByteArray::number((i / 1000) % 1000) + "\"/></a:lnTo>";
+            return QByteArray("<wps:wsp><wps:cNvSpPr/><wps:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"1270000\" cy=\"635000\"/></a:xfrm><a:custGeom><a:avLst/><a:gdLst/><a:ahLst/><a:cxnLst/>"
+                              "<a:rect l=\"0\" t=\"0\" r=\"r\" b=\"b\"/><a:pathLst><a:path w=\"1000\" h=\"1000\">") + path + "<a:close/></a:path></a:pathLst></a:custGeom></wps:spPr><wps:bodyPr/></wps:wsp>";
+        };
+        // 30,000 and 8,000 points make a drawing of more than 256 KB, which is not looked into; 2,500 are a smaller drawing, past the cap of 2,000 points.
+        for (const int points : {30000, 8000, 2500}) {
+            auto doc = open(makeDocx("<w:p><w:r><w:t>Before</w:t></w:r>" + anchoredGraphic(5, kShapeUri, freeform(points), 100, 100, 100, 50) + "</w:p>"));
+            QVERIFY(doc);
+            int at = -1;
+            for (int i = 0; i < doc->story()->characterCount(); ++i)
+                if (isDrawnObjectAt(doc->story(), i)) at = i;
+            QVERIFY(at >= 0);
+            const quint64 before = shapeParseCount();
+            QVERIFY(shapePoints(*doc, at).isEmpty());
+            QVERIFY(!isFreeformShape(*doc, at));
+            QVERIFY(!moveShapePoint(*doc, at, 1, QPointF(5, 5)));
+            QVERIFY(!deleteShapePoint(*doc, at, 1));
+            QVERIFY(!insertShapePoint(*doc, at, QPointF(5, 5), 5));
+            QVERIFY(shapeAdjustHandles(*doc, at).isEmpty());
+            if (points >= 8000) QCOMPARE(shapeParseCount(), before);   // (nothing was parsed)
+            if (points < 8000) QVERIFY(!editPointsProblem(*doc, at).isEmpty());
+        }
+    }
+
+    void editPointsIsNotOfferedForAShapeDrawnInSeveralPartsAndAConvertedShapeKeepsItsTextRectangle()
+    {
+        auto doc = textDoc({"Before after"});
+        for (const char *preset : {"cube", "can", "donut", "frame", "bevel"}) {
+            QTextCursor c(doc->story());
+            c.setPosition(7);
+            QCOMPARE(insertShape(*doc, c, QString::fromLatin1(preset)), PictureResult::Ok);
+            const QString name = QString::fromLatin1(preset);
+            QVERIFY2(shapePoints(*doc, 7).isEmpty(), qPrintable(name));
+            QVERIFY2(!editPointsProblem(*doc, 7).isEmpty(), qPrintable(name));
+            QVERIFY2(!moveShapePoint(*doc, 7, 0, QPointF(5, 5)), qPrintable(name));
+            QVERIFY(doc->undo());
+        }
+        // A shape of one part is offered, and the text rectangle it had stays (an ellipse's is inside its box), as the sites of its sides.
+        QTextCursor c(doc->story());
+        c.setPosition(7);
+        QCOMPARE(insertShape(*doc, c, QStringLiteral("ellipse"), QSizeF(100, 100)), PictureResult::Ok);
+        QVERIFY(editPointsProblem(*doc, 7).isEmpty());
+        const QVector<QPointF> points = shapePoints(*doc, 7);
+        QVERIFY(moveShapePoint(*doc, 7, 0, points[0] + QPointF(0, 5)));
+        const QByteArray xml = documentXml(doc->toDocx());
+        QVERIFY2(!xml.contains("<a:rect l=\"0\" t=\"0\" r=\"1270000\" b=\"1270000\"/>"), "the text rectangle is the ellipse's own, not the whole box");
+        QVERIFY(xml.contains("<a:rect l=\"") && xml.contains("<a:cxn ang=\"16200000\">"));
+    }
+
+    void aShapeThatCantBeSetAtItsPlaceLeavesNothingBehind()
+    {
+        auto doc = textDoc({"Before after"});
+        const QString text = doc->story()->toPlainText();
+        QTextCursor c(doc->story());
+        c.setPosition(7);
+        QVERIFY(insertShapeAt(*doc, c, QStringLiteral("rect"), QPointF(std::numeric_limits<double>::quiet_NaN(), 5), QPointF(100, 100)) != PictureResult::Ok);
+        QVERIFY(!isDrawnObjectAt(doc->story(), 7));
+        QCOMPARE(doc->story()->toPlainText(), text);
+        QVERIFY(insertShapeAt(*doc, c, QStringLiteral("rect"), QPointF(5, 5), QPointF(100, std::numeric_limits<double>::infinity())) != PictureResult::Ok);
+        QVERIFY(!isDrawnObjectAt(doc->story(), 7));
+        QCOMPARE(doc->story()->toPlainText(), text);
+    }
+
+    void theHandlesAndPointsOfASelectedShapeAreParsedOnceForASelectionNotOnEveryMoveAndPaint()
+    {
+        Win win;
+        write::WriteDoc *doc = win.w.document();
+        QTextCursor c(doc->story());
+        c.setPosition(0);
+        QCOMPARE(insertShape(*doc, c, QStringLiteral("roundRect"), QSizeF(160, 100)), PictureResult::Ok);
+        QVERIFY(setPicturePlace(*doc, 0, 150, 150));
+        win.w.view()->refresh();
+        win.w.view()->selectPicture(0);
+        win.w.refreshNow();
+        win.w.act("shape.editPoints")->trigger();
+        QWidget *vp = win.w.view()->viewport();
+        QRectF r;
+        QTRY_VERIFY(win.w.view()->pictureRect(0, &r));
+        // (The window's own pending refreshes and the first paint fill the cache once.)
+        for (int i = 0; i < 4; ++i) {
+            QTest::mouseMove(vp, QPoint(int(r.left()) + i * 3, int(r.center().y())));
+            vp->repaint();
+            QCoreApplication::processEvents();
+        }
+        const quint64 before = shapeParseCount();
+        for (int i = 0; i < 30; ++i) QTest::mouseMove(vp, QPoint(int(r.left()) + 12 + i * 3, int(r.center().y())));
+        for (int i = 0; i < 6; ++i) vp->repaint();
+        QCOMPARE(shapeParseCount(), before);
+        // A change of the text is a new revision: the next ask parses again.
+        QVERIFY(setShapeFill(*doc, 0, QStringLiteral("00AA00")));
+        vp->repaint();
+        QVERIFY(shapeParseCount() > before);
     }
 
     void aShapesFillLineTurnAndKindAreChangedOneStepEach()

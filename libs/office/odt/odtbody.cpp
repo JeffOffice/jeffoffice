@@ -342,14 +342,42 @@ QByteArray Reader::drawing(const Odf &o, int frame, ParaCtx *pc, bool *ok)
         QByteArray fill = "<a:noFill/>";
         if (sg("draw:fill") == QLatin1String("solid") && !colorHex(sg("draw:fill-color")).isEmpty()) fill = "<a:solidFill><a:srgbClr val=\"" + colorHex(sg("draw:fill-color")).toLatin1() + "\"/></a:solidFill>";
         QByteArray line = "<a:ln><a:noFill/></a:ln>";
+        const int jo = t.namespaceId("urn:jeffoffice:names:extension:1.0");
+        auto joAttr = [&](const char *name) { return jo >= 0 ? t.attr(frame, name, jo) : QString(); };
+        static const QRegularExpression plainWord(QStringLiteral("^[A-Za-z0-9]{1,24}$"));
+        auto word = [&](const QString &v) { return plainWord.match(v).hasMatch() ? v.toLatin1() : QByteArray(); };
         if (!sg("draw:stroke").isEmpty() && sg("draw:stroke") != QLatin1String("none")) {
             const QString c = colorHex(sg("svg:stroke-color"));
             bool okw = false;
             const qint64 w = lengthToEmu(sg("svg:stroke-width"), &okw);
-            line = "<a:ln w=\"" + num(okw && w > 0 ? std::min<qint64>(w, 1270000) : 9525) + "\"><a:solidFill><a:srgbClr val=\"" + (c.isEmpty() ? QByteArray("000000") : c.toLatin1()) + "\"/></a:solidFill></a:ln>";
+            QByteArray ends;
+            if (const QByteArray dash = word(joAttr("dash")); !dash.isEmpty()) ends += "<a:prstDash val=\"" + dash + "\"/>";
+            if (const QByteArray head = word(joAttr("head-end")); !head.isEmpty()) ends += "<a:headEnd type=\"" + head + "\"/>";
+            if (const QByteArray tail = word(joAttr("tail-end")); !tail.isEmpty()) ends += "<a:tailEnd type=\"" + tail + "\"/>";
+            line = "<a:ln w=\"" + num(okw && w > 0 ? std::min<qint64>(w, 1270000) : 9525) + "\"><a:solidFill><a:srgbClr val=\"" + (c.isEmpty() ? QByteArray("000000") : c.toLatin1()) + "\"/></a:solidFill>" + ends + "</a:ln>";
         }
-        const QByteArray graphic = "<a:graphic><a:graphicData uri=\"http://schemas.microsoft.com/office/word/2010/wordprocessingShape\"><wps:wsp><wps:cNvSpPr/><wps:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"" +
-                                   num(cx) + "\" cy=\"" + num(cy) + "\"/></a:xfrm><a:prstGeom prst=\"" + shapePrst.toLatin1() + "\"><a:avLst/></a:prstGeom>" + fill + line +
+        // The turn, the flips, and the adjustments.
+        QByteArray xfrmAttrs;
+        if (const double turn = joAttr("rotation").toDouble(); turn > 0 && turn < 360) xfrmAttrs += " rot=\"" + num(qint64(std::llround(turn * 60000.0))) + "\"";
+        QByteArray adjust = "<a:avLst/>";
+        if (const int geom = o.child(frame, "draw:enhanced-geometry"); geom >= 0) {
+            if (o.at(geom, "draw:mirror-horizontal") == QLatin1String("true")) xfrmAttrs += " flipH=\"1\"";
+            if (o.at(geom, "draw:mirror-vertical") == QLatin1String("true")) xfrmAttrs += " flipV=\"1\"";
+            const QStringList values = o.at(geom, "draw:modifiers").simplified().split(QLatin1Char(' '), Qt::SkipEmptyParts);
+            if (!values.isEmpty() && values.size() <= 16) {
+                QByteArray gds;
+                bool all = true;
+                for (qsizetype i = 0; i < values.size(); ++i) {
+                    bool okv = false;
+                    const qint64 v = values[i].toLongLong(&okv);
+                    all = all && okv;
+                    if (okv) gds += "<a:gd name=\"" + (values.size() == 1 ? QByteArray("adj") : "adj" + QByteArray::number(i + 1)) + "\" fmla=\"val " + num(v) + "\"/>";
+                }
+                if (all) adjust = "<a:avLst>" + gds + "</a:avLst>";
+            }
+        }
+        const QByteArray graphic = "<a:graphic><a:graphicData uri=\"http://schemas.microsoft.com/office/word/2010/wordprocessingShape\"><wps:wsp><wps:cNvSpPr/><wps:spPr><a:xfrm" + xfrmAttrs + "><a:off x=\"0\" y=\"0\"/><a:ext cx=\"" +
+                                   num(cx) + "\" cy=\"" + num(cy) + "\"/></a:xfrm><a:prstGeom prst=\"" + shapePrst.toLatin1() + "\">" + adjust + "</a:prstGeom>" + fill + line +
                                    "</wps:spPr><wps:bodyPr rot=\"0\" vert=\"horz\" wrap=\"square\" anchor=\"ctr\"><a:noAutofit/></wps:bodyPr></wps:wsp></a:graphicData></a:graphic>";
         *ok = true;
         return anchorXml(o, frame, QString(), cx, cy, graphic, id);

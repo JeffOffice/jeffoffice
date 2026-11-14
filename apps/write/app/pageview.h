@@ -462,6 +462,16 @@ private:
     bool m_editPoints = false;
     int m_pointHit = -1;
     bool pointsActive() const;
+    // What the selected shape is, its yellow handles, and its points, worked out once for a selection and a revision of the text and kept (the pages ask on every mouse move and every paint).
+    struct ShapeCache {
+        bool valid = false, editPoints = false;
+        int position = -1, revision = -1;
+        PictureInfo info;
+        QVector<ShapeHandle> handles;
+        QVector<QPointF> points;
+    };
+    mutable ShapeCache m_shapeCache;
+    const ShapeCache &shapeCache() const;
     QVector<QPointF> pointViewPositions();
     // The yellow handles of the selected shape in the window (the shape's own number of each and its place), and the turning handle above the shape.
     QVector<std::pair<int, QPointF>> adjustHandlePoints();

@@ -2,6 +2,7 @@
 // core/pictureops.h and core/equationops.h).
 
 #include "app/writewindow.h"
+#include "app/plaintext.h"
 #include "app/chartedit.h"
 
 #include "app/icons.h"
@@ -1076,7 +1077,18 @@ void WriteWindow::refreshShapeUi()
             a->setChecked(art && art->warp == t.id);
         }
     }
-    act("shape.editPoints")->setEnabled(editable && m_doc && !write::shapePoints(*m_doc, at).isEmpty());
+    {
+        // (Edit Points says why it is not offered for a shape drawn in more than one part, a flipped one, or one with too many points.)
+        const QString problem = editable && m_doc ? write::editPointsProblem(*m_doc, at) : QString();
+        act("shape.editPoints")->setEnabled(editable && m_doc && problem.isEmpty() && !write::shapePoints(*m_doc, at).isEmpty());
+        act("shape.editPoints")->setToolTip(jp::plainToolTip(problem.isEmpty() ? tr("Edit Points") : problem));
+        for (const char *id : {"shadow", "glow", "reflection", "softEdges", "bevel"}) {
+            static const QHash<QString, write::ShapeEffect> kinds = {{QStringLiteral("shadow"), write::ShapeEffect::Shadow}, {QStringLiteral("glow"), write::ShapeEffect::Glow},
+                                                                    {QStringLiteral("reflection"), write::ShapeEffect::Reflection}, {QStringLiteral("softEdges"), write::ShapeEffect::SoftEdges},
+                                                                    {QStringLiteral("bevel"), write::ShapeEffect::Bevel}};
+            act(QStringLiteral("shape.effect.") + QLatin1String(id))->setChecked(editable && m_doc && write::shapeHasEffect(*m_doc, at, kinds.value(QLatin1String(id))));
+        }
+    }
     if (!act("shape.editPoints")->isEnabled() || !m_view->editingPoints()) act("shape.editPoints")->setChecked(m_view->editingPoints());
     act("shape.editText")->setEnabled(editable && write::textBoxText(*m_doc, at).has_value());
     act("shape.createLink")->setEnabled(info.valid && info.editable && info.kind == write::DrawnKind::TextBox && write::canLinkTextBoxFrom(*m_doc, at));

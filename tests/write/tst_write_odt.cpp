@@ -287,6 +287,70 @@ private Q_SLOTS:
         QVERIFY(std::abs(info.left - 150) < 0.5 && std::abs(info.top - 200) < 0.5);
     }
 
+    // A shape's turn, flips, adjustments, line width, dash, and arrowheads are saved in an .odt and come back as they were: a line drawn up and to the left still points that way.
+    void aShapesTurnFlipsAdjustmentsAndLineAreKeptByAnOdt()
+    {
+        QString err;
+        auto doc = WriteDoc::fromFile(makeOdt("<text:p>Hello world</text:p>"), &err);
+        QVERIFY(doc);
+        QTextCursor c(doc->story());
+        c.setPosition(5);
+        QCOMPARE(insertShapeAt(*doc, c, QStringLiteral("straightConnector1"), QPointF(300, 200), QPointF(200, 120)), PictureResult::Ok);
+        QVERIFY(setShapeLine(*doc, 5, QStringLiteral("CC0000"), 3, QStringLiteral("dash")));
+        QTextCursor d(doc->story());
+        d.setPosition(1);
+        QCOMPARE(insertShape(*doc, d, QStringLiteral("roundRect"), QSizeF(120, 60)), PictureResult::Ok);
+        QVERIFY(setPicturePlace(*doc, 1, 150, 300));
+        QVERIFY(setShapeAdjustment(*doc, 1, 0, QPointF(30, 0)));
+        QVERIFY(setShapeRotation(*doc, 1, 30));
+        QStringList notes;
+        const QByteArray odt = doc->toOdt(&err, &notes);
+        QVERIFY2(!odt.isEmpty(), qPrintable(err));
+        QVERIFY2(notes.isEmpty(), qPrintable(notes.join(QLatin1Char('|'))));
+        auto back = WriteDoc::fromFile(odt, &err);
+        QVERIFY2(back, qPrintable(err));
+        int line = -1, box = -1;
+        for (int i = 0; i < back->story()->characterCount(); ++i) {
+            if (!isDrawnObjectAt(back->story(), i)) continue;
+            (pictureAt(*back, back->story(), i).preset == QLatin1String("roundRect") ? box : line) = i;
+        }
+        QVERIFY(line >= 0 && box >= 0);
+        const QByteArray xml = QByteArray(); Q_UNUSED(xml);
+        const PictureInfo l = pictureAt(*back, back->story(), line), b = pictureAt(*back, back->story(), box);
+        QCOMPARE(int(l.kind), int(DrawnKind::Line));
+        QVERIFY(std::abs(l.width - 100) < 0.5 && std::abs(l.height - 80) < 0.5);
+        QCOMPARE(l.lineColor, QStringLiteral("CC0000"));
+        QVERIFY(std::abs(l.lineWeight - 3) < 0.2);
+        QCOMPARE(l.lineDash, QStringLiteral("dash"));
+        QVERIFY(std::abs(b.rotation - 30) < 0.05);
+        QVERIFY(std::abs(shapeAdjustHandles(*back, box)[0].at.x() - 30) < 0.2);
+        // The saved .docx of what came back still has the flips and the arrowhead of the line.
+        office::Package pkg;
+        QVERIFY(pkg.read(back->toDocx()));
+        const QByteArray body = pkg.part(QStringLiteral("/word/document.xml"));
+        QVERIFY2(body.contains("flipH=\"1\"") && body.contains("flipV=\"1\""), "a line drawn up and to the left points the same way");
+        QVERIFY(body.contains("<a:tailEnd type=\"triangle\"/>"));
+    }
+
+    void aShapeThatTheLibraryDoesNotHaveIsLeftOutOfAnOdtAndTheNoticeSaysSo()
+    {
+        QString err;
+        QStringList readNotes;
+        const QByteArray styles = "<style:style style:name=\"gr1\" style:family=\"graphic\"><style:graphic-properties draw:fill=\"solid\" draw:fill-color=\"#3366ff\"/></style:style>";
+        const QByteArray body = "<text:p>Before<draw:custom-shape draw:style-name=\"gr1\" text:anchor-type=\"paragraph\" svg:width=\"2in\" svg:height=\"1in\" svg:x=\"1in\" svg:y=\"2in\">"
+                                "<draw:enhanced-geometry svg:viewBox=\"0 0 21600 21600\" draw:type=\"ooxml-madeUpShape\"/></draw:custom-shape> after</text:p>";
+        auto doc = WriteDoc::fromFile(makeOdt(body, styles), &err, &readNotes);
+        QVERIFY2(doc, qPrintable(err));
+        QStringList notes;
+        const QByteArray odt = doc->toOdt(&err, &notes);
+        QVERIFY2(!odt.isEmpty(), qPrintable(err));
+        QVERIFY2(!notes.isEmpty(), "the shape that was left out is reported");
+        bool found = false;
+        for (const ZipScanEntry &e : scanZip(odt))
+            if (e.name == QLatin1String("content.xml")) found = e.data.contains("madeUpShape") || e.data.contains("custom-shape");
+        QVERIFY(!found);
+    }
+
     void theMacroNoticeNamesTheFormatSavedTo()
     {
         const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");

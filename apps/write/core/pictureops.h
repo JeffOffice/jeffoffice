@@ -262,6 +262,11 @@ bool setShapeAdjustment(WriteDoc &doc, int position, int index, const QPointF &a
 // Edit Points: the points of a shape's outline, in the frame's points from its top left corner (before the turn): the corners of a freeform, or the points a preset's outline is drawn through (a
 // curve's point is where it ends). Empty for anything that is not a shape with one outline, a shape that is flipped, or one with more than 2,000 points.
 QVector<QPointF> shapePoints(const WriteDoc &doc, int position);
+// Why Edit Points is not offered for the shape at a place (a shape drawn in more than one part, a flipped one, or one with too many points), or empty when it is or the object is no shape. The
+// caps: a drawing of more than 256 KB is never parsed for its points or handles, and a shape of more than 2,000 points is not offered Edit Points.
+QString editPointsProblem(const WriteDoc &doc, int position);
+// How many times a drawing was parsed for its handles or points; the tests count these.
+quint64 shapeParseCount();
 // Whether the shape's outline is already a freeform's (a file's custom geometry, or one Edit Points made).
 bool isFreeformShape(const WriteDoc &doc, int position);
 // Moves point `index` to `to` (its curve handles with it); a preset becomes a freeform with the first change. Delete takes a point away (a shape keeps at least three); Insert puts a point on the
@@ -270,10 +275,12 @@ bool moveShapePoint(WriteDoc &doc, int position, int index, const QPointF &to);
 bool deleteShapePoint(WriteDoc &doc, int position, int index);
 bool insertShapePoint(WriteDoc &doc, int position, const QPointF &near, double tolerance, int *inserted = nullptr);
 
-// The effect a shape or text box has (one at a time: a new one takes the place of the last): a shadow, a glow, a reflection, soft edges, or a bevel; None for no effect. One step each; false
-// where nothing changes or the object is no shape.
+// The effects a shape or text box has: a shadow, a glow, a reflection, soft edges, and a bevel, each put in without taking away the others (and the shape's other 3-D settings stay); None takes off
+// these five. One step each; false where nothing changes or the object is no shape. shapeEffectAt gives the first it finds.
 enum class ShapeEffect { None, Shadow, Glow, Reflection, SoftEdges, Bevel };
 ShapeEffect shapeEffectAt(const WriteDoc &doc, int position);
+// Whether the shape has that effect (it may have several: setShapeEffect puts one in and leaves the others).
+bool shapeHasEffect(const WriteDoc &doc, int position, ShapeEffect effect);
 bool setShapeEffect(WriteDoc &doc, int position, ShapeEffect effect);
 // Distribute: the floating objects at these places (each with its rectangle on the page, in points) are spread so that the gaps between them across (or down) are the same, the first and last
 // where they are; at least three; one step. False where there are fewer, or the gaps are the same already.
