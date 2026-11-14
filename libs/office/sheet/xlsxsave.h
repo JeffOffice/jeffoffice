@@ -177,6 +177,8 @@ struct SheetChanges {
     // Form controls that changed or were made (see formcontrol.h): `controlsNow` are they as they are, `controlsWas` (the same controls, in the same order, for those the file has) as the file has them.
     // Their shapes in the drawing, and their properties parts, are changed where they differ; a new control is a shape put at the end of the sheet's legacy drawing (made if it has none).
     std::vector<FormControl> controlsWas, controlsNow;
+    // Told back: the shape numbers the new controls were given where the ones they asked for were taken (asked number to number given).
+    std::shared_ptr<std::map<qint64, qint64>> controlIdsOut;
     // Links: those of the file with exactly the ranges of `unlinks` are taken out, and `links` put in. For one that goes outside the workbook `relId` is the id of the relationship that
     // names its address (saving sets it).
     std::vector<CellRange> unlinks;

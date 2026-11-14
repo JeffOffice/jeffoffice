@@ -2748,8 +2748,9 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
             const SheetChanges &sc = found->second;
             const QString controlsFail = QCoreApplication::translate("jp::office::sheet::Save", "The form controls of a sheet could not be saved.");
             QByteArray now;
+            std::map<qint64, qint64> assigned;
             if (w.newVml) {
-                if (!patchControlsVml(newControlsDrawing(), sc.controlsWas, sc.controlsNow, &now, &why)) return fail(why.isEmpty() ? controlsFail : why);
+                if (!patchControlsVml(newControlsDrawing(), sc.controlsWas, sc.controlsNow, &now, &why, &assigned)) return fail(why.isEmpty() ? controlsFail : why);
                 newEntries.emplace_back(entryName(w.vmlPart), now);
                 QByteArray t2;
                 if (!addContentOverride(types, w.vmlPart, QStringLiteral("application/vnd.openxmlformats-officedocument.vmlDrawing"), &t2)) return bad();
@@ -2759,17 +2760,18 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
                 for (auto &e : newEntries)
                     if (e.first == entryName(w.vmlPart)) {
                         QByteArray patched;
-                        if (!patchControlsVml(e.second, sc.controlsWas, sc.controlsNow, &patched, &why)) return fail(why.isEmpty() ? controlsFail : why);
+                        if (!patchControlsVml(e.second, sc.controlsWas, sc.controlsNow, &patched, &why, &assigned)) return fail(why.isEmpty() ? controlsFail : why);
                         e.second = patched;
                     }
             } else {
                 QByteArray xml;
                 const int index = partBytes(w.vmlPart, &xml);
-                if (index < 0 || !patchControlsVml(xml, sc.controlsWas, sc.controlsNow, &now, &why)) return fail(why.isEmpty() ? controlsFail : why);
+                if (index < 0 || !patchControlsVml(xml, sc.controlsWas, sc.controlsNow, &now, &why, &assigned)) return fail(why.isEmpty() ? controlsFail : why);
                 if (now != xml) replaced.insert(index, now);
             }
+            if (sc.controlIdsOut) *sc.controlIdsOut = assigned;
             for (const FormControl &c : sc.controlsNow) {
-                if (c.isNew || c.ctrlPart.isEmpty()) continue;
+                if (c.isNew || c.removed || c.ctrlPart.isEmpty()) continue;
                 QByteArray xml;
                 const int index = partBytes(c.ctrlPart, &xml);
                 if (index < 0) continue;

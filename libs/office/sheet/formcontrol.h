@@ -14,6 +14,7 @@
 #include <QString>
 #include <QVector>
 
+#include <map>
 #include <vector>
 
 namespace jp::office { class Package; }
@@ -54,6 +55,8 @@ struct FormControl {
     // For a control that was made here: where it goes, in points from the sheet's top left (the file's drawing needs the place as well as the cells).
     bool isNew = false;
     QRectF place;
+    // For a control of the file that was taken away (deleted, or its cells were): saving drops its shape, and its entry in the sheet.
+    bool removed = false;
 };
 
 // The controls of the sheet whose part is `sheetPart`, in the order the file draws them (the first at the back). `truncated`, if given, says a limit stopped the read.
@@ -70,7 +73,9 @@ const char *controlPropType(ControlKind kind);
 QByteArray newControlsDrawing();
 // The shapes of the drawing's bytes with the controls put in: each control that is not new and is not as `was` says (matched by shape id) has its shape's properties changed; each control that
 // is new gets a shape at the end. Nothing else changes (and nothing at all, byte for byte, when no control differs). `was` are the controls as the file has them.
-bool patchControlsVml(const QByteArray &vml, const std::vector<FormControl> &was, const std::vector<FormControl> &now, QByteArray *out, QString *why = nullptr);
+// A control made here that was given another shape number (the one it asked for was taken, by a note's shape, say) is in `assigned`: asked number to number given.
+bool patchControlsVml(const QByteArray &vml, const std::vector<FormControl> &was, const std::vector<FormControl> &now, QByteArray *out, QString *why = nullptr,
+                      std::map<qint64, qint64> *assigned = nullptr);
 // A properties part with the control's state put in (its attributes of the same names as the shape's elements); the bytes as they were when nothing differs.
 QByteArray patchControlProp(const QByteArray &xml, const FormControl &control);
 // The shape of one new control, with the id given.

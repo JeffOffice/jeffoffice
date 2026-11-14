@@ -477,6 +477,11 @@ const Field kFields[] = {
     {"DropLines", [](const FormControl &a, const FormControl &b) { return a.dropLines != b.dropLines; }, [](const FormControl &c) -> std::optional<QByteArray> { return num(c.dropLines); }},
 };
 
+bool sameCells(const DrawingAnchor &a, const DrawingAnchor &b)
+{
+    return a.from.col == b.from.col && a.from.row == b.from.row && a.to.col == b.to.col && a.to.row == b.to.row;
+}
+
 QByteArray anchorText(const DrawingAnchor &a)
 {
     auto px = [](qint64 emu) { return emu / kPxEmu; };
@@ -509,7 +514,7 @@ const char *controlPropType(ControlKind kind)
 bool sameControlState(const FormControl &a, const FormControl &b)
 {
     return a.kind == b.kind && a.link == b.link && a.range == b.range && a.checked == b.checked && a.val == b.val && a.min == b.min && a.max == b.max && a.inc == b.inc && a.page == b.page && a.sel == b.sel
-           && a.dropLines == b.dropLines && a.text == b.text && a.hidden == b.hidden;
+           && a.dropLines == b.dropLines && a.text == b.text && a.hidden == b.hidden && sameCells(a.anchor, b.anchor) && a.removed == b.removed;
 }
 
 QVector<FormControl> readFormControls(const Package &package, const QString &sheetPart, bool *truncated)
@@ -627,7 +632,7 @@ QByteArray controlShapeXml(const FormControl &c, qint64 id)
     return x;
 }
 
-bool patchControlsVml(const QByteArray &vml, const std::vector<FormControl> &was, const std::vector<FormControl> &now, QByteArray *out, QString *why)
+bool patchControlsVml(const QByteArray &vml, const std::vector<FormControl> &was, const std::vector<FormControl> &now, QByteArray *out, QString *why, std::map<qint64, qint64> *assigned)
 {
     *out = vml;
     QMap<qint64, const FormControl *> before;
@@ -647,8 +652,19 @@ bool patchControlsVml(const QByteArray &vml, const std::vector<FormControl> &was
         if (!xmlscan::nextTag(body, 0, &first)) continue;
         const qint64 id = shapeIdOf(body.sliced(first.start, first.end - first.start));
         const auto a = after.constFind(id), b = before.constFind(id);
+        if (a != after.constEnd() && (*a)->removed) {
+            // (a control that was taken away: its shape goes)
+            result += vml.mid(at, shape.start - at);
+            at = shape.end;
+            changed = true;
+            continue;
+        }
         if (a == after.constEnd() || b == before.constEnd() || sameControlState(**a, **b)) continue;
         QByteArray piece = vml.mid(shape.start, shape.end - shape.start);
+        if (!sameCells((*a)->anchor, (*b)->anchor) && !setChild(&piece, "Anchor", anchorText((*a)->anchor))) {
+            if (why) *why = QCoreApplication::translate("jp::office::sheet::Save", "A form control's shape could not be changed.");
+            return false;
+        }
         for (const Field &f : kFields) {
             if (!f.differs(**a, **b)) continue;
             // (only the fields that mean something for the kind)
@@ -682,6 +698,7 @@ bool patchControlsVml(const QByteArray &vml, const std::vector<FormControl> &was
         for (const FormControl &c : now) {
             if (!c.isNew) continue;
             qint64 use = c.shapeId > 0 && !taken.contains(c.shapeId) ? c.shapeId : ++id;
+            if (assigned && use != c.shapeId) (*assigned)[c.shapeId] = use;
             taken.insert(use);
             id = std::max(id, use);
             added += controlShapeXml(c, use);

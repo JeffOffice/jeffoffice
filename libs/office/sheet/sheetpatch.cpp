@@ -1027,6 +1027,63 @@ QByteArray tailWithLegacyDrawing(const QByteArray &after, const QByteArray &relI
     return after.left(e.insertAt) + element + after.mid(e.insertAt);
 }
 
+// The tail without the entries of the sheet's `controls` for the shapes given (the whole element when none is left).
+QByteArray tailWithoutControls(const QByteArray &after, const std::vector<qint64> &shapeIds)
+{
+    const TopElement e = findTopElement(after, "controls", {});
+    if (e.start < 0 || e.end < 0 || shapeIds.empty()) return after;
+    const QByteArray whole = after.mid(e.start, e.end - e.start);
+    Tag open;
+    if (!xmlscan::nextTag(whole, 0, &open) || open.selfClosing) return after;
+    // the direct children, each with the shape numbers its `control` elements name
+    QByteArray kept;
+    int depth = 0, children = 0, keptCount = 0;
+    qsizetype childStart = 0, closeAt = whole.size();
+    bool drop = false;
+    Tag t;
+    qsizetype pos = open.end;
+    while (xmlscan::nextTag(whole, pos, &t)) {
+        pos = t.end;
+        if (t.closing) {
+            if (depth == 0) {
+                closeAt = t.start;
+                break;
+            }
+            if (--depth == 0) {
+                ++children;
+                if (!drop) {
+                    kept += whole.mid(childStart, t.end - childStart);
+                    ++keptCount;
+                }
+            }
+            continue;
+        }
+        if (depth == 0) {
+            childStart = t.start;
+            drop = false;
+        }
+        if (t.local == "control") {
+            bool has = false;
+            const QByteArrayView id = xmlscan::attribute(QByteArrayView(whole).sliced(t.start, t.end - t.start), "shapeId", &has);
+            if (has && std::find(shapeIds.begin(), shapeIds.end(), QByteArray(id).toLongLong()) != shapeIds.end()) drop = true;
+        }
+        if (t.selfClosing) {
+            if (depth == 0) {
+                ++children;
+                if (!drop) {
+                    kept += whole.mid(childStart, t.end - childStart);
+                    ++keptCount;
+                }
+            }
+        } else {
+            ++depth;
+        }
+    }
+    if (keptCount == children) return after;
+    const QByteArray element = keptCount == 0 ? QByteArray() : whole.left(open.end) + kept + whole.mid(closeAt);
+    return after.left(e.start) + element + after.mid(e.end);
+}
+
 // Generated elements (written with no prefix) in the sheet's own: "<cfRule" becomes "<x:cfRule" when the sheet's elements have the prefix "x:".
 QByteArray withPrefix(const QByteArray &xml, const QByteArray &prefix)
 {
@@ -1747,6 +1804,8 @@ public:
         if (changes.replaceSparklines) m_sparklines = &changes.sparklines;
         if (changes.condEdit) m_cond = &changes;
         m_legacyId = changes.legacyRelId.toLatin1();
+        for (const FormControl &c : changes.controlsNow)
+            if (c.removed && !c.isNew) m_dropControls.push_back(c.shapeId);
         if (!changes.unlinks.empty() || !changes.links.empty()) {
             m_unlinks = &changes.unlinks;
             m_links = &changes.links;
@@ -2258,7 +2317,7 @@ private:
     // ---- what follows the rows
     bool tail()
     {
-        if (m_merges || m_validations || m_ignored || m_scenarios || m_page || m_filter || !m_drawingId.isEmpty() || m_hfSet || !m_legacyId.isEmpty() || m_links || m_protection || m_sparklines || m_cond || !m_addTables->empty() || !m_removeTables->empty()) {
+        if (m_merges || m_validations || m_ignored || m_scenarios || m_page || m_filter || !m_drawingId.isEmpty() || m_hfSet || !m_legacyId.isEmpty() || m_links || m_protection || m_sparklines || m_cond || !m_dropControls.empty() || !m_addTables->empty() || !m_removeTables->empty()) {
             // (what follows the cells is held whole to change its merged ranges, its filter, its page setup, and its drawing)
             while (fill()) {
                 if (cancelled()) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The save was stopped."));
@@ -2281,6 +2340,7 @@ private:
                 if (m_links) tail = tailWithLinks(tail, *m_unlinks, *m_links, m_prefix);
                 if (m_hfSet) tail = tailWithHeaderDrawing(tail, m_hfRel, m_prefix);
                 if (!m_addTables->empty() || !m_removeTables->empty()) tail = tailWithTableParts(tail, *m_addTables, *m_removeTables, m_prefix);
+                if (!m_dropControls.empty()) tail = tailWithoutControls(tail, m_dropControls);
                 if (m_cond) tail = tailWithCondEdit(tail, *m_cond, m_prefix);
                 if (m_sparklines) tail = tailWithSparklines(tail, *m_sparklines, m_prefix);
                 return tail;
@@ -2344,6 +2404,7 @@ private:
     bool m_hfSet = false;
     QByteArray m_hfRel;
     QByteArray m_legacyId;
+    std::vector<qint64> m_dropControls;
     const std::vector<CellRange> *m_unlinks = nullptr;
     const std::vector<LinkSpec> *m_links = nullptr;
     const SheetProtection *m_protection = nullptr;

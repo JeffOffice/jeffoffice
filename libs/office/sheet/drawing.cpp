@@ -187,6 +187,22 @@ DrawingAnchor movedAnchor(const DrawingAnchor &a, int sheet, const std::vector<S
     return out;
 }
 
+bool anchorSurvives(const DrawingAnchor &a, int sheet, const std::vector<StructEdit> &edits)
+{
+    using K = StructEdit::Kind;
+    if (a.kind == AnchorKind::Absolute || a.editAs == AnchorKind::Absolute) return true;
+    quint32 row = a.from.row, col = a.from.col;
+    for (const StructEdit &e : edits) {
+        if (e.sheet != sheet) continue;
+        if (e.kind == K::DeleteRows && row >= e.first && row < e.first + e.count) return false;
+        if (e.kind == K::DeleteColumns && col >= e.first && col < e.first + e.count) return false;
+        const std::vector<StructEdit> one = {e};
+        row = movedPoint(one, sheet, true, row);
+        col = movedPoint(one, sheet, false, col);
+    }
+    return true;
+}
+
 QString drawingPartOf(const Package &package, const QString &sheetPart)
 {
     if (sheetPart.isEmpty()) return QString();

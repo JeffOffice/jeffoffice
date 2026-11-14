@@ -78,6 +78,9 @@ struct SheetDrawing {
 // anchor moves; an absolute one stays.
 DrawingAnchor movedAnchor(const DrawingAnchor &anchor, int sheet, const std::vector<StructEdit> &edits);
 
+// Whether the anchor's first cell is still there after the edits (a row or column that holds it was not deleted); an absolute anchor always is.
+bool anchorSurvives(const DrawingAnchor &anchor, int sheet, const std::vector<StructEdit> &edits);
+
 // An equation of a drawing: an object whose text is math that can be laid out (a text box with a14:m, the form a spreadsheet keeps equations in).
 struct SheetEquation {
     DrawingAnchor anchor;

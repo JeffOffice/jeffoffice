@@ -1,5 +1,7 @@
 // The parts of a file as rows, columns, and cells are inserted and deleted: see structsave.h.
 #include "sheet/structsave.h"
+
+#include "sheet/drawing.h"
 #include "sheet/xlsxsave.h"
 #include "sheet/structref.h"
 #include "sheet/namerefs.h"
@@ -384,6 +386,7 @@ QByteArray rewriteValueFormulas(const QByteArray &xml, const std::function<QStri
 
 // ---- the part after a sheet's cells
 
+QByteArray movedControlEntry(const QByteArray &piece, const MoveContext &c, int sheet);
 QByteArray movedTop(const QByteArray &xml, const Elem &e, const MoveContext &c, int sheet);
 
 // Replaces the bytes of the children of a container with the ones given (a child gone is an empty one), and says how many are left in `kept`.
@@ -625,6 +628,9 @@ QByteArray movedTop(const QByteArray &xml, const Elem &e, const MoveContext &c, 
         }
         return result;
     }
+    if (name == "controls") {
+        return movedContainer(xml, e, [&](const QByteArray &x, const Elem &g) { return movedControlEntry(x.mid(g.open.start, g.end - g.open.start), c, sheet); }, nullptr);
+    }
     if (name == "autoFilter") return movedAutoFilter(xml, e, c, sheet);
     if (name == "sortState") return movedSortState(xml, e, c, sheet);
     if (name == "ignoredErrors" || name == "protectedRanges") {
@@ -646,6 +652,53 @@ QByteArray movedTop(const QByteArray &xml, const Elem &e, const MoveContext &c, 
         return out;
     }
     return whole;
+}
+
+// One entry of a sheet's `controls` (an AlternateContent holding a `control` with its anchor): the anchor follows the edits as a drawing's does; empty when the cell it begins at is deleted.
+QByteArray movedControlEntry(const QByteArray &piece, const MoveContext &c, int sheet)
+{
+    struct Slot {
+        qsizetype start, end;
+        bool to, row;
+    };
+    std::vector<Slot> slots;
+    DrawingAnchor a;
+    bool inFrom = false, inTo = false, any = false;
+    Tag t;
+    qsizetype pos = 0;
+    while (xmlscan::nextTag(piece, pos, &t)) {
+        pos = t.end;
+        if (t.local == "anchor" && !t.closing) {
+            const QByteArray tag = piece.mid(t.start, t.end - t.start);
+            bool has = false;
+            const QByteArrayView move = xmlscan::attribute(tag, "moveWithCells", &has), size = xmlscan::attribute(tag, "sizeWithCells", &has);
+            const bool m = move == "1" || move == "true", z = size == "1" || size == "true";
+            a.kind = AnchorKind::TwoCell;
+            a.editAs = z ? AnchorKind::TwoCell : m ? AnchorKind::OneCell : AnchorKind::Absolute;
+            any = true;
+        } else if (t.local == "from" || t.local == "to") {
+            inFrom = !t.closing && t.local == "from";
+            inTo = !t.closing && t.local == "to";
+        } else if ((inFrom || inTo) && !t.closing && !t.selfClosing && (t.local == "col" || t.local == "row")) {
+            qsizetype e = piece.indexOf('<', t.end);
+            if (e < 0) return piece;
+            const quint32 v = quint32(std::max(0, piece.mid(t.end, e - t.end).trimmed().toInt()));
+            const bool row = t.local == "row";
+            AnchorPoint &p = inTo ? a.to : a.from;
+            (row ? p.row : p.col) = v;
+            slots.push_back({t.end, e, inTo, row});
+        }
+    }
+    if (!any || slots.empty()) return piece;
+    if (!anchorSurvives(a, sheet, c.edits)) return QByteArray();
+    const DrawingAnchor now = movedAnchor(a, sheet, c.edits);
+    QByteArray out = piece;
+    for (size_t i = slots.size(); i-- > 0;) {
+        const Slot &sl = slots[i];
+        const quint32 v = sl.row ? (sl.to ? now.to.row : now.from.row) : (sl.to ? now.to.col : now.from.col);
+        out.replace(sl.start, sl.end - sl.start, QByteArray::number(v));
+    }
+    return out;
 }
 
 // What follows a sheet's cells (from after "</sheetData>" to the end), with the cells they name followed.

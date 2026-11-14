@@ -18,6 +18,7 @@
 #include <QStringList>
 
 #include <functional>
+#include <map>
 #include <memory>
 #include <optional>
 #include <vector>
@@ -62,6 +63,12 @@ public:
     void open(const std::shared_ptr<jp::office::sheet::Workbook> &book);
     // Where the value of a cell is asked (as the grid shows it).
     void setValueSource(ValueSource source) { m_values = std::move(source); }
+    // Where the edits of rows and columns made since the file was read or saved are kept: a control moves with them (its anchor, and the cell and range it names), and one whose first cell is
+    // deleted is gone until Undo brings the cells back.
+    using EditsSource = std::function<const std::vector<jp::office::sheet::StructEdit> &()>;
+    void setEditsSource(EditsSource edits) { m_edits = std::move(edits); }
+    // Rows or columns were inserted or deleted (or that was undone): every listed control is where the edits put it.
+    void cellsMoved();
 
     // The sheet's controls as the layer has them (the sheet's are read if they have not been); `forPrint` leaves out those that do not print and those that are hidden.
     std::vector<jp::grid::LayerObject> layerObjects(int sheet, bool forPrint = false);
@@ -83,6 +90,8 @@ public:
     // Gives the control a state (a step of Undo is done, undone, or done again); `deleted` takes it away (a made control that was undone). The layer is told through `changed`.
     void apply(int sheet, int id, const jp::office::sheet::FormControl &state, bool deleted);
     bool isDeleted(int sheet, int id) const;
+    // Whether the control is not shown: taken away by a person, or its cells were deleted.
+    bool isGone(int sheet, int id) const;
     // Makes a control of a kind at a place (the cells it is anchored to and where that is in points); it is there but taken away until a step gives it a state with `deleted` false. The id, or -1
     // with the reason.
     int make(int sheet, jp::office::sheet::ControlKind kind, const jp::office::sheet::DrawingAnchor &anchor, const QRectF &placePt, QString *why = nullptr);
@@ -111,7 +120,12 @@ private:
     struct Item {
         int id = 0;
         jp::office::sheet::FormControl now, was;
-        bool deleted = false;
+        bool deleted = false;          // taken away by a person
+        bool dropped = false;          // the cell it is anchored at was deleted
+        bool inFile = true;            // the file the program last read or wrote has its shape
+        jp::office::sheet::DrawingAnchor baseAnchor;   // where it is as the file has it (the edits from `baseAt` on are worked in to give `now`)
+        QString baseLink, baseRange;                   // the cell and range as they were when the edits from `refsAt` on began
+        int baseAt = 0, refsAt = 0;
         bool seenKnown = false;
         QString seen;           // what its cell held when last looked at (a Value's debug text)
     };
@@ -121,6 +135,7 @@ private:
         int nextId = kControlIdBase;
     };
     Sheet &sheetState(int sheet);
+    void recompute(int sheet, Item &item);
     const Item *find(int sheet, int id) const;
     Item *find(int sheet, int id);
     void list(int sheet, Sheet &s);
@@ -136,6 +151,8 @@ private:
 
     std::shared_ptr<jp::office::sheet::Workbook> m_book;
     ValueSource m_values;
+    EditsSource m_edits;
+    std::map<int, std::shared_ptr<std::map<qint64, qint64>>> m_ids;   // by sheet: the shape numbers the last save gave the controls made here
     std::vector<Sheet> m_sheets;
 };
 

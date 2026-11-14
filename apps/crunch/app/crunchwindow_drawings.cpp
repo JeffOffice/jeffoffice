@@ -193,7 +193,14 @@ void CrunchWindow::deleteObject(int id)
 {
     if (!m_session || m_edit.active || m_saving) return;
     if (crunch::isControlId(id)) {
-        setStatus(tr("A form control can't be deleted here yet."));
+        // (a form control is taken away as one step; the saved file has neither its shape nor its entry)
+        if (!m_objects || !m_objects->controls()->owns(m_sheet, id) || m_objects->controls()->isGone(m_sheet, id)) return;
+        const crunch::ObjectState before = m_objects->stateOf(m_sheet, id);
+        crunch::ObjectState after = before;
+        after.deleted = true;
+        const crunch::EditSession::Outcome o = m_session->deleteObject(m_sheet, id, tr("Delete Form Control"), before, after);
+        if (!o.ok) notice(tr("Delete"), o.problem);
+        else m_objects->layer()->select(-1);
         return;
     }
     QString why;

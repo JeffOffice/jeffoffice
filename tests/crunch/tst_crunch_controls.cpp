@@ -132,6 +132,31 @@ class CrunchControlTests : public QObject {
     // How many objects the layer has for the first sheet (-1 until it is shown).
     static int shownCount(EditWindow &e) { return e.win.w.objects() && e.win.w.objects()->shownSheet() == 0 ? e.win.w.objects()->layer()->count() : -1; }
 
+private:
+    // The shapes of the first drawing of a saved file: shape number to its bytes.
+    static QMap<int, QByteArray> savedShapes(const QString &path, QByteArray *sheetXml = nullptr)
+    {
+        QMap<int, QByteArray> out;
+        const QMap<QString, QByteArray> parts = partsOf(path);
+        if (sheetXml) *sheetXml = parts.value(kSheet);
+        for (auto it = parts.begin(); it != parts.end(); ++it) {
+            if (!it.key().endsWith(QLatin1String(".vml"))) continue;
+            static const QRegularExpression shapeRe(QStringLiteral("<v:shape id=\"_x0000_s(\\d+)\".*?</v:shape>"), QRegularExpression::DotMatchesEverythingOption);
+            const QString text = QString::fromUtf8(it.value());
+            for (auto m = shapeRe.globalMatch(text); m.hasNext();) {
+                const QRegularExpressionMatch hit = m.next();
+                out.insert(hit.captured(1).toInt(), hit.captured(0).toUtf8());
+            }
+        }
+        return out;
+    }
+    static void letRun()
+    {
+        QCoreApplication::processEvents();
+        QCoreApplication::sendPostedEvents(nullptr, 0);
+        QCoreApplication::processEvents();
+    }
+
 private Q_SLOTS:
     void initTestCase() { jp::initCore(); }
 
@@ -530,6 +555,145 @@ private Q_SLOTS:
         pressRedo(e.view());
         e.win.w.objects()->layer()->prepareAll();
         QVERIFY(shot(e) != unchecked);
+    }
+
+    // A note and a control made in one session take shapes of their own in the one drawing, also in the saves that follow (the control is found by the number the first save gave it).
+    void aNoteAndAControlHaveShapesOfTheirOwn()
+    {
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        QTRY_VERIFY(e.win.w.objects() && e.win.w.objects()->shownSheet() == 0);
+        e.select(QStringLiteral("G5"));
+        e.win.w.act(QStringLiteral("insert.control.checkBox"))->trigger();
+        QTRY_COMPARE(e.win.w.objects()->layer()->count(), 1);
+        QVERIFY(e.win.w.session()->setNote(0, 0, 2, QStringLiteral("hello"), QStringLiteral("me"), false, QStringLiteral("Note")).ok);
+        {
+            QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+            QVERIFY(e.win.w.save());
+            QVERIFY2(savedOk(saved, 20000), "the first save failed");
+        }
+        QMap<int, QByteArray> shapes = savedShapes(e.path);
+        QCOMPARE(shapes.size(), 2);
+        // the box is checked and saved again: its own shape, and not the note's, has the state
+        e.win.w.objects()->layer()->prepareAll();
+        const int id = e.win.w.objects()->layer()->object(0).id;
+        click(e, e.win.w.objects()->layer()->deviceRect(id, jp::grid::Pane::Body).center());
+        {
+            QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+            QVERIFY(e.win.w.save());
+            QVERIFY2(savedOk(saved, 20000), "the second save failed");
+        }
+        shapes = savedShapes(e.path);
+        QCOMPARE(shapes.size(), 2);
+        int boxes = 0, notes = 0;
+        for (auto it = shapes.begin(); it != shapes.end(); ++it) {
+            if (it.value().contains("ObjectType=\"Checkbox\"")) {
+                ++boxes;
+                QVERIFY(it.value().contains("<x:Checked>1</x:Checked>"));
+            } else if (it.value().contains("ObjectType=\"Note\"")) {
+                ++notes;
+                QVERIFY(!it.value().contains("<x:Checked>"));
+            }
+        }
+        QCOMPARE(boxes, 1);
+        QCOMPARE(notes, 1);
+    }
+
+    // Rows inserted above a control move it, and the cell it is linked to; saved, its shape and its properties name them.
+    void controlsFollowRowsInserted()
+    {
+        EditWindow e;
+        QVERIFY(e.open(controlBook()));
+        QTRY_COMPARE(shownCount(e), 10);
+        const QRect before = rectOf(e, QStringLiteral("Spinner 5"));
+        const grid::GridLayout &L = e.view()->sheet().layout();
+        QVERIFY(e.win.w.session()->insertRows(0, 0, 1).ok);
+        letRun();
+        const int shift = L.rangeRect(1, 0, 1, 0).top() - L.rangeRect(0, 0, 0, 0).top();
+        QTRY_COMPARE(rectOf(e, QStringLiteral("Spinner 5")).top(), before.top() + shift);
+        // its cell was E4: it is E5 now
+        const QRect spin = rectOf(e, QStringLiteral("Spinner 5"));
+        click(e, QPoint(spin.center().x(), spin.top() + 3));
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("E5")), QStringLiteral("n:3"));
+        QCOMPARE(e.valueAt(QStringLiteral("E4")), QStringLiteral("-"));
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        const QByteArray shape = savedShapes(e.path).value(1029);
+        QVERIFY2(shape.contains("<x:Anchor>9, 2, 3, 2, 9, 22, 5, 2</x:Anchor>"), shape.constData());
+        QVERIFY2(QRegularExpression(QStringLiteral("<x:FmlaLink>[^<]*\\$?E\\$?5</x:FmlaLink>")).match(QString::fromUtf8(shape)).hasMatch(), shape.constData());
+    }
+
+    // A control whose cell is deleted is gone, saved without it, and Undo brings it back.
+    void aControlWhoseRowIsDeletedIsDropped()
+    {
+        EditWindow e;
+        QVERIFY(e.open(controlBook()));
+        QTRY_COMPARE(shownCount(e), 10);
+        const int box = idOf(e, QStringLiteral("Check Box 1"));
+        QVERIFY(!rectOf(e, QStringLiteral("Check Box 1")).isEmpty());
+        QVERIFY(e.win.w.session()->deleteRows(0, 0, 2).ok);   // (rows 1 and 2: the check box begins in the first)
+        letRun();
+        QTRY_VERIFY(e.win.w.objects()->layer()->isDeleted(box));
+        QVERIFY(rectOf(e, QStringLiteral("Check Box 1")).isEmpty());
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QByteArray sheetXml;
+        const QMap<int, QByteArray> shapes = savedShapes(e.path, &sheetXml);
+        QVERIFY(!shapes.contains(1025));
+        QVERIFY(shapes.contains(1026));
+        QVERIFY(!sheetXml.contains("shapeId=\"1025\""));
+        QVERIFY2(shapes.value(1026).contains("<x:Anchor>5, 2, 0, 2, 7, 0, 1, 0</x:Anchor>"), shapes.value(1026).constData());
+    }
+
+    void deletedRowsUndoneBringTheControlBack()
+    {
+        EditWindow e;
+        QVERIFY(e.open(controlBook()));
+        QTRY_COMPARE(shownCount(e), 10);
+        const int box = idOf(e, QStringLiteral("Check Box 1"));
+        QVERIFY(e.win.w.session()->deleteRows(0, 0, 2).ok);
+        letRun();
+        QTRY_VERIFY(e.win.w.objects()->layer()->isDeleted(box));
+        pressUndo(e.view());
+        letRun();
+        QTRY_VERIFY(!e.win.w.objects()->layer()->isDeleted(box));
+        QVERIFY(!rectOf(e, QStringLiteral("Check Box 1")).isEmpty());
+    }
+
+    // A control picked (Ctrl and a click) and Delete: it goes, as one step of Undo, and the saved file lacks it.
+    void aControlIsDeletedWithTheDeleteKey()
+    {
+        EditWindow e;
+        QVERIFY(e.open(controlBook()));
+        QTRY_COMPARE(shownCount(e), 10);
+        const int box = idOf(e, QStringLiteral("Check Box 1"));
+        QTest::mouseClick(e.view()->viewport(), Qt::LeftButton, Qt::ControlModifier, rectOf(e, QStringLiteral("Check Box 1")).center());
+        QCOMPARE(e.win.w.objects()->layer()->selectedId(), box);
+        QTest::keyClick(e.view(), Qt::Key_Delete);
+        QVERIFY(e.win.w.objects()->layer()->isDeleted(box));
+        QVERIFY(e.win.w.isModified());
+        pressUndo(e.view());
+        QVERIFY(!e.win.w.objects()->layer()->isDeleted(box));
+        QVERIFY(!e.win.w.isModified());
+        pressRedo(e.view());
+        QVERIFY(e.win.w.objects()->layer()->isDeleted(box));
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QByteArray sheetXml;
+        const QMap<int, QByteArray> shapes = savedShapes(e.path, &sheetXml);
+        QVERIFY(!shapes.contains(1025));
+        QCOMPARE(shapes.size(), 9);
+        QVERIFY(!sheetXml.contains("shapeId=\"1025\""));
+        // and the file opens with nine
+        EditWindow again;
+        QFile f(e.path);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        QVERIFY(again.open(f.readAll()));
+        QTRY_COMPARE(shownCount(again), 9);
     }
 
     // Format Control: the cell, the range, and the limits of a control are changed (one step), and written.

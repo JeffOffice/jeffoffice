@@ -78,7 +78,11 @@ public:
     void open(const std::shared_ptr<jp::office::sheet::Workbook> &book);
     // The workbook is whole: charts read its cells (`source` has the sheets, `values` the results worked out). Until then, and for what cannot be resolved, a chart has its stored numbers.
     void setCells(const jp::office::sheet::WorkbookSource *source, const jp::grid::ValueStore *values);
-    void setEditsSource(EditsSource edits) { m_edits = std::move(edits); }
+    void setEditsSource(EditsSource edits)
+    {
+        m_edits = std::move(edits);
+        m_controls.setEditsSource(m_edits);
+    }
     void setSheetOpsSource(SheetOpsSource ops) { m_sheetOps = std::move(ops); }
     // Where the text of a cell is asked (as a barcode linked to the cell holds it).
     using CellTextSource = std::function<QString(int sheet, quint32 row, quint32 col)>;

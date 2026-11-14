@@ -1354,6 +1354,7 @@ void CrunchWindow::objectContextMenu(int id, const QPoint &global)
         controlMenu->setAttribute(Qt::WA_DeleteOnClose);
         controlMenu->setObjectName(QStringLiteral("objectMenu"));
         connect(controlMenu->addAction(tr("Format Control…")), &QAction::triggered, this, [this, id] { formatControlDialog(id); });
+        connect(controlMenu->addAction(tr("Delete")), &QAction::triggered, this, [this, id] { deleteObject(id); });
         controlMenu->popup(global);
         return;
     }

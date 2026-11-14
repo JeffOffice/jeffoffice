@@ -2,6 +2,7 @@
 
 #include "core/controlpaint.h"
 #include "sheet/cellref.h"
+#include "sheet/chartdata.h"
 #include "sheet/xlsxsave.h"
 #include "office/package.h"
 
@@ -62,8 +63,41 @@ void SheetControls::list(int sheet, Sheet &s)
         item->now = c;
         if (item->now.name.isEmpty()) item->now.name = kindName(c.kind) + QLatin1Char(' ') + QString::number(c.shapeId % 1024 > 0 ? c.shapeId % 1024 : c.shapeId);
         item->was = item->now;
+        item->baseAnchor = item->now.anchor;
+        item->baseLink = item->now.link;
+        item->baseRange = item->now.range;
         s.items.push_back(item);
+        recompute(sheet, *item);   // (the edits made before the sheet was listed)
     }
+}
+
+void SheetControls::recompute(int sheet, Item &item)
+{
+    static const std::vector<StructEdit> none;
+    const std::vector<StructEdit> &all = m_edits ? m_edits() : none;
+    auto from = [&](int at) { return std::vector<StructEdit>(all.begin() + std::min<size_t>(size_t(std::max(0, at)), all.size()), all.end()); };
+    const std::vector<StructEdit> forAnchor = from(item.baseAt), forRefs = from(item.refsAt);
+    const DrawingAnchor anchorBefore = item.now.anchor;
+    const bool droppedBefore = item.dropped;
+    item.now.anchor = movedAnchor(item.baseAnchor, sheet, forAnchor);
+    item.dropped = !anchorSurvives(item.baseAnchor, sheet, forAnchor);
+    QStringList names;
+    if (m_book)
+        for (const SheetEntry &e : m_book->info().sheets) names << (e.deleted ? QString() : e.name);
+    const QString linkBefore = item.now.link;
+    item.now.link = forRefs.empty() ? item.baseLink : movedChartRef(item.baseLink, names, forRefs, sheet);
+    item.now.range = forRefs.empty() ? item.baseRange : movedChartRef(item.baseRange, names, forRefs, sheet);
+    if (item.now.link != linkBefore) item.seenKnown = false;
+    const bool moved = item.now.anchor.from.col != anchorBefore.from.col || item.now.anchor.from.row != anchorBefore.from.row || item.now.anchor.to.col != anchorBefore.to.col
+                       || item.now.anchor.to.row != anchorBefore.to.row;
+    if (moved || droppedBefore != item.dropped) Q_EMIT changed(sheet, item.id);
+}
+
+void SheetControls::cellsMoved()
+{
+    for (size_t sheet = 0; sheet < m_sheets.size(); ++sheet)
+        if (m_sheets[sheet].listed)
+            for (const std::shared_ptr<Item> &i : m_sheets[sheet].items) recompute(int(sheet), *i);
 }
 
 const SheetControls::Item *SheetControls::find(int sheet, int id) const
@@ -99,6 +133,12 @@ bool SheetControls::isDeleted(int sheet, int id) const
 {
     const Item *i = find(sheet, id);
     return i && i->deleted;
+}
+
+bool SheetControls::isGone(int sheet, int id) const
+{
+    const Item *i = find(sheet, id);
+    return i && (i->deleted || i->dropped);
 }
 
 // ---- cells
@@ -234,7 +274,7 @@ std::vector<jp::grid::LayerObject> SheetControls::layerObjects(int sheet, bool f
     Sheet &s = sheetState(sheet);
     refresh(sheet);
     for (const std::shared_ptr<Item> &i : s.items) {
-        if (i->deleted || i->now.hidden || (forPrint && !i->now.prints)) continue;
+        if (i->deleted || i->dropped || i->now.hidden || (forPrint && !i->now.prints)) continue;
         out.push_back(layerObject(sheet, i));
     }
     return out;
@@ -245,7 +285,7 @@ std::optional<jp::grid::LayerObject> SheetControls::layerObjectOf(int sheet, int
     if (sheet < 0 || size_t(sheet) >= m_sheets.size()) return std::nullopt;
     for (const std::shared_ptr<Item> &i : m_sheets[size_t(sheet)].items)
         if (i->id == id) {
-            if (i->deleted || i->now.hidden) return std::nullopt;
+            if (i->deleted || i->dropped || i->now.hidden) return std::nullopt;
             return layerObject(sheet, i);
         }
     return std::nullopt;
@@ -295,7 +335,7 @@ std::vector<int> SheetControls::refresh(int sheet)
     for (const std::shared_ptr<Item> &i : s.items) {
         int cs = 0;
         quint32 row = 0, col = 0;
-        if (i->deleted || !linkOf(sheet, i->id, &cs, &row, &col)) continue;
+        if (i->deleted || i->dropped || !linkOf(sheet, i->id, &cs, &row, &col)) continue;
         const jp::calc::Value v = m_values(cs, row, col);
         const QString key = v.debug();
         if (!i->seenKnown) {
@@ -318,9 +358,20 @@ void SheetControls::apply(int sheet, int id, const FormControl &state, bool dele
 {
     Item *i = find(sheet, id);
     if (!i) return;
+    static const std::vector<StructEdit> none;
+    const size_t edits = m_edits ? m_edits().size() : 0;
+    // (a cell or range a person gave is where the edits from now on are counted from)
+    if (state.link != i->now.link || state.range != i->now.range) {
+        i->baseLink = state.link;
+        i->baseRange = state.range;
+        i->refsAt = int(edits);
+    }
     i->now = state;
     i->deleted = deleted;
+    // (a control the file lost with a save, and is back: it is written again as a new shape)
+    if (!deleted && !i->inFile) i->now.isNew = true;
     i->seenKnown = false;
+    recompute(sheet, *i);
     Q_EMIT changed(sheet, id);
 }
 
@@ -366,6 +417,11 @@ int SheetControls::make(int sheet, ControlKind kind, const DrawingAnchor &anchor
     c.max = kind == ControlKind::Scroll ? 100 : 30000;
     item->was = c;
     item->deleted = true;
+    item->inFile = false;
+    item->baseAnchor = c.anchor;
+    item->baseLink = c.link;
+    item->baseRange = c.range;
+    item->baseAt = item->refsAt = m_edits ? int(m_edits().size()) : 0;
     s.items.push_back(item);
     return item->id;
 }
@@ -377,7 +433,15 @@ void SheetControls::addToSave(SaveChanges *changes)
         if (!s.listed) continue;
         std::vector<FormControl> was, now;
         for (const std::shared_ptr<Item> &i : s.items) {
-            if (i->deleted) continue;
+            if (i->deleted || i->dropped) {
+                // (a control of the file that was taken away: its shape and its entry go; one made here and taken away again was never written)
+                if (i->now.isNew || !i->inFile) continue;
+                FormControl gone = i->now;
+                gone.removed = true;
+                was.push_back(i->was);
+                now.push_back(gone);
+                continue;
+            }
             if (i->now.isNew) {
                 now.push_back(i->now);
                 continue;
@@ -390,17 +454,35 @@ void SheetControls::addToSave(SaveChanges *changes)
         SheetChanges &sc = changes->sheets[int(sheet)];
         sc.controlsWas = std::move(was);
         sc.controlsNow = std::move(now);
+        sc.controlIdsOut = m_ids[int(sheet)] = std::make_shared<std::map<qint64, qint64>>();
     }
 }
 
 void SheetControls::saved()
 {
-    for (Sheet &s : m_sheets)
-        for (const std::shared_ptr<Item> &i : s.items) {
-            if (i->deleted) continue;
+    for (size_t sheet = 0; sheet < m_sheets.size(); ++sheet) {
+        const auto ids = m_ids.find(int(sheet));
+        for (const std::shared_ptr<Item> &i : m_sheets[sheet].items) {
+            if (i->deleted || i->dropped) {
+                // (what the file now lacks stays away: a cell deleted is a control deleted)
+                i->deleted = true;
+                i->inFile = false;
+                continue;
+            }
+            if (i->now.isNew && ids != m_ids.end() && ids->second) {
+                const auto given = ids->second->find(i->now.shapeId);
+                if (given != ids->second->end()) i->now.shapeId = given->second;
+            }
             i->now.isNew = false;
+            i->inFile = true;
             i->was = i->now;
+            i->baseAnchor = i->now.anchor;
+            i->baseLink = i->now.link;
+            i->baseRange = i->now.range;
+            i->baseAt = i->refsAt = 0;
         }
+    }
+    m_ids.clear();
 }
 
 bool SheetControls::formatted(int sheet, int id, const FormControl &after, ControlOperation *out) const

@@ -138,9 +138,10 @@ SheetObjects::SheetObjects(QObject *parent) : QObject(parent), m_doc(std::make_u
         const jp::grid::ObjectLayer &layer = m_layer;
         bool inLayer = false;
         for (int i = 0; i < layer.count() && !inLayer; ++i) inLayer = layer.object(i).id == id;
-        const bool gone = m_controls.isDeleted(sheet, id);
+        const bool gone = m_controls.isGone(sheet, id);
         if (inLayer) {
             m_layer.setDeleted(id, gone);
+            m_layer.setAnchor(id, m_controls.controlOf(sheet, id).anchor);
             m_layer.invalidate(id);
         } else if (!gone) {
             if (const std::optional<jp::grid::LayerObject> lo = m_controls.layerObjectOf(sheet, id)) m_layer.addObject(*lo);
@@ -1039,6 +1040,7 @@ void SheetObjects::cellsChanged(const std::vector<jp::grid::ValueStore::Item> &c
 void SheetObjects::cellsMoved()
 {
     ++m_linkEpoch;
+    m_controls.cellsMoved();
     if (!m_edits) return;
     const std::vector<StructEdit> &edits = m_edits();
     if (m_cells) m_cells->sizesChanged();   // (a hidden row moves with the rows inserted or deleted above it)
