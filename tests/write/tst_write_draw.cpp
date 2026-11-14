@@ -1236,6 +1236,19 @@ private Q_SLOTS:
         QVERIFY(insertShapeAt(*doc, c, QStringLiteral("rect"), QPointF(5, 5), QPointF(100, std::numeric_limits<double>::infinity())) != PictureResult::Ok);
         QVERIFY(!isDrawnObjectAt(doc->story(), 7));
         QCOMPARE(doc->story()->toPlainText(), text);
+        // Finite ends, and the place step fails after the shape was put in: the shape is taken out again, in the shape's own kind and as a line.
+        failShapePlaceForTests(true);
+        for (const char *preset : {"rect", "straightConnector1"}) {
+            QTextCursor d(doc->story());
+            d.setPosition(7);
+            QVERIFY(insertShapeAt(*doc, d, QString::fromLatin1(preset), QPointF(5, 5), QPointF(100, 90)) != PictureResult::Ok);
+            QVERIFY(!isDrawnObjectAt(doc->story(), 7));
+            QCOMPARE(doc->story()->toPlainText(), text);
+        }
+        failShapePlaceForTests(false);
+        QTextCursor ok(doc->story());
+        ok.setPosition(7);
+        QCOMPARE(insertShapeAt(*doc, ok, QStringLiteral("rect"), QPointF(5, 5), QPointF(100, 90)), PictureResult::Ok);
     }
 
     void theHandlesAndPointsOfASelectedShapeAreParsedOnceForASelectionNotOnEveryMoveAndPaint()

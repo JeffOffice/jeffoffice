@@ -1851,6 +1851,9 @@ std::pair<QPointF, QPointF> shapeDragEnds(const QString &preset, const QPointF &
     return {QPointF(std::min(from.x(), end.x()), std::min(from.y(), end.y())), QPointF(std::max(from.x(), end.x()), std::max(from.y(), end.y()))};
 }
 
+static bool g_failShapePlace = false;
+void failShapePlaceForTests(bool on) { g_failShapePlace = on; }
+
 PictureResult insertShapeAt(WriteDoc &doc, QTextCursor &c, const QString &preset, const QPointF &from, const QPointF &to, bool keepProportions, PictureWrap wrap)
 {
     bool known = false;
@@ -1864,11 +1867,11 @@ PictureResult insertShapeAt(WriteDoc &doc, QTextCursor &c, const QString &preset
     const QSizeF size(std::abs(b.x() - a.x()), std::abs(b.y() - a.y()));
     const PictureResult result = insertShape(doc, c, preset, line ? QSizeF(std::max(size.width(), 1.0), size.height()) : size, ShapeLook(), wrap);
     if (result != PictureResult::Ok) return result;
-    const bool done = line ? changePicture(doc, at, [&](Model &m) {
+    const bool done = !g_failShapePlace && (line ? changePicture(doc, at, [&](Model &m) {
         setConnectorFrame(m, a, b);
         return true;
     }, true)
-                           : setPictureBox(doc, at, size.width(), size.height(), QPointF(a.x(), a.y()));
+                           : setPictureBox(doc, at, size.width(), size.height(), QPointF(a.x(), a.y())));
     if (!done) {
         // (The shape was put in and could not be set at its place: it is taken out again, so nothing is left behind.)
         QTextCursor remove(doc.story());

@@ -206,6 +206,8 @@ PictureResult insertShape(WriteDoc &doc, QTextCursor &c, const QString &preset, 
 std::pair<QPointF, QPointF> shapeDragEnds(const QString &preset, const QPointF &from, const QPointF &to, bool keepProportions);
 // The shape put in at the cursor, set at the place shapeDragEnds gives (on the page of its paragraph), floating in front of the text unless `wrap` says another way, as one step that undoes.
 PictureResult insertShapeAt(WriteDoc &doc, QTextCursor &c, const QString &preset, const QPointF &from, const QPointF &to, bool keepProportions = false, PictureWrap wrap = PictureWrap::InFrontOfText);
+// For the tests: while on, setting a shape's place after insertShapeAt put it in fails, to see that the shape is taken out again.
+void failShapePlaceForTests(bool on);
 
 // A text box design: how it looks and what it holds at first (paragraphs of a size, a style, and a color of their own).
 struct TextBoxDesign {
