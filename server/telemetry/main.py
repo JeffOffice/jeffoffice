@@ -699,7 +699,9 @@ td.r,th.r{text-align:right;font-variant-numeric:tabular-nums}
 .delta{display:block;font-size:.75rem;color:var(--muted)}.up{color:var(--up)}.down{color:var(--down)}
 td.spark svg{width:160px;height:30px}
 @media (max-width:32.5rem){td.spark,th.spark{padding-left:.2rem;padding-right:.2rem}td.spark svg{width:64px;height:24px}td.spark circle{display:none}td,th{padding-left:.3rem;padding-right:.3rem}}
-svg{display:block;max-width:100%}.sphere{fill:none}.c{fill:var(--nodata);stroke:var(--line);stroke-width:.4}
+svg{display:block;max-width:100%}
+.mapbox{position:relative;aspect-ratio:2/1;width:100%;margin-bottom:.4rem}.mapbox svg{position:absolute;inset:0;width:100%;height:100%}
+.mapbox p{position:absolute;inset:0;margin:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:1rem}.sphere{fill:none}.c{fill:var(--nodata);stroke:var(--line);stroke-width:.4}
 ul.rows{list-style:none;margin:0;padding:0}
 ul.rows li{display:grid;grid-template-columns:minmax(2.5rem,40%) minmax(0,1fr) auto;gap:.5rem;align-items:center;padding:.18rem 0}
 ul.rows.wide li{grid-template-columns:minmax(2.5rem,62%) minmax(0,1fr) auto}
@@ -712,9 +714,12 @@ footer{color:var(--muted);font-size:.8rem;margin:1.2rem 0 .5rem}
 """
 
 MAP_JS = """
-window.addEventListener('load',function(){
- var el=document.getElementById('map');
- if(!el||!window.d3||!window.topojson)return;
+document.addEventListener('DOMContentLoaded',function(){
+ var el=document.getElementById('map'),status=document.getElementById('map-status');
+ if(!el)return;
+ function fail(){if(status&&!status.hidden)status.textContent='The map could not load (it needs scripts from cdn.jsdelivr.net). The list beside it shows the same numbers.'}
+ if(!window.d3||!window.topojson){fail();return}
+ var timer=setTimeout(fail,15000);
  var data=JSON.parse(document.getElementById('country-data').textContent);
  fetch(%s).then(function(r){return r.json()}).then(function(w){
   var feats=topojson.feature(w,w.objects.countries).features.filter(function(f){return +f.id!==10});
@@ -731,8 +736,8 @@ window.addEventListener('load',function(){
   }
   draw();
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change',draw);
-  el.style.display='block';document.getElementById('map-fallback').hidden=true;
- }).catch(function(){});
+  clearTimeout(timer);if(status)status.hidden=true;
+ }).catch(function(){clearTimeout(timer);fail()});
 });
 """ % json.dumps(ATLAS_DATA)
 
@@ -812,8 +817,8 @@ def render_map(d):
     note = f"Countries are known for pings since {e(since)}." if since else "No country is known yet: it is recorded for pings from now on."
     rows = bar_list(top, "no countries yet", lambda c: COUNTRIES[c][1])
     return (f'<div class="two"><section class="card"><h2>Installs by country</h2>'
-            f'<svg id="map" style="display:none" role="img" aria-label="World map of installs by country"></svg>'
-            f'<p id="map-fallback" class="muted">The map could not load (it needs scripts from cdn.jsdelivr.net). The list shows the same numbers.</p>'
+            f'<div class="mapbox"><svg id="map" viewBox="0 0 960 480" role="img" aria-label="World map of installs by country"></svg>'
+            f'<p id="map-status" class="muted small">Loading the map…</p></div>'
             f'<script type="application/json" id="country-data">{payload}</script>'
             f'<p class="muted small">{note} Installs active in the period, by the country of their newest ping.</p></section>'
             f'<section class="card"><h2>Top countries</h2>{rows}<p>Unknown: {unknown}</p></section></div>')

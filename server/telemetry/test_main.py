@@ -812,6 +812,14 @@ class GeoStatus(unittest.TestCase):
         page = main.render_stats(main.gather_stats(today=dt.date(2026, 11, 20)))
         self.assertIn("November 2026 list", page)
 
+    def test_the_map_keeps_its_space_while_it_loads(self):
+        main.init()
+        page = main.render_stats(main.gather_stats(today=dt.date(2026, 11, 20)))
+        self.assertIn('<div class="mapbox"><svg id="map" viewBox="0 0 960 480"', page)
+        self.assertIn("aspect-ratio:2/1", page)
+        self.assertIn("Loading the map", page)
+        self.assertNotIn('id="map" style="display:none"', page)
+
     def test_the_list_is_fetched_again_after_a_week(self):
         self.assertEqual(main.GEO_MAX_AGE, 7 * 24 * 3600)
 
