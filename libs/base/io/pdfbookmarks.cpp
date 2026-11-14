@@ -62,10 +62,23 @@ qint64 objectOffset(const QByteArray &pdf, qint64 xref, int n)
     return -1;
 }
 
+// Like objectOffset, but follows the file's chain of updates (each table's /Prev) to the table that has the object.
+qint64 objectOffsetChain(const QByteArray &pdf, qint64 xref, int n)
+{
+    for (int guard = 0; guard < 64 && xref > 0 && xref + 4 < pdf.size() && pdf.mid(xref, 4) == "xref"; ++guard) {
+        const qint64 at = objectOffset(pdf, xref, n);
+        if (at >= 0) return at;
+        const int trailerAt = pdf.indexOf("trailer", xref), end = pdf.indexOf("startxref", xref);
+        if (trailerAt < 0 || end < trailerAt) return -1;
+        xref = numberAfter(pdf.mid(trailerAt, end - trailerAt), "/Prev");
+    }
+    return -1;
+}
+
 // The dictionary of object `n`: from its "<<" to the matching ">>" (strings with a parenthesis are not read; the objects looked at here have none).
 QByteArray dictionaryOf(const QByteArray &pdf, qint64 xref, int n, qint64 *objectStart = nullptr)
 {
-    const qint64 at = objectOffset(pdf, xref, n);
+    const qint64 at = objectOffsetChain(pdf, xref, n);
     if (at < 0 || at >= pdf.size()) return {};
     const QByteArray label = QByteArray::number(n) + " 0 obj";
     if (pdf.mid(at, label.size()) != label) return {};
@@ -220,6 +233,127 @@ QByteArray addPdfBookmarks(const QByteArray &pdf, const QVector<PdfBookmark> &ma
         t = s.toLatin1();
     }
     x += "trailer\n<<" + t + " /Size " + QByteArray::number(outlinesObj + 1 + int(e.size())) + " /Prev " + QByteArray::number(xref) + " >>\nstartxref\n" + QByteArray::number(newXref) + "\n%%EOF\n";
+    return pdf + tail + x;
+}
+
+QByteArray addPdfLinks(const QByteArray &pdf, const QVector<PdfLink> &linksIn)
+{
+    if (linksIn.isEmpty() || !pdf.startsWith("%PDF-")) return pdf;
+    const int sx = pdf.lastIndexOf("startxref");
+    if (sx < 0) return pdf;
+    const qint64 xref = pdf.mid(sx + 9, 24).trimmed().split('\n').value(0).trimmed().toLongLong();
+    if (xref <= 0 || xref >= pdf.size() || pdf.mid(xref, 4) != "xref") return pdf;
+    const int trailerAt = pdf.indexOf("trailer", xref);
+    if (trailerAt < 0 || trailerAt > sx) return pdf;
+    const int tOpen = pdf.indexOf("<<", trailerAt), tClose = pdf.lastIndexOf(">>", sx);
+    if (tOpen < 0 || tClose < tOpen) return pdf;
+    const QByteArray trailer = pdf.mid(tOpen + 2, tClose - tOpen - 2);
+    const int size = numberAfter(trailer, "/Size");
+    const int root = numberAfter(trailer, "/Root");
+    if (size < 3 || root < 1 || root >= size) return pdf;
+    const int pagesRef = numberAfter(dictionaryOf(pdf, xref, root), "/Pages");
+    if (pagesRef < 1) return pdf;
+    const QByteArray pagesDict = dictionaryOf(pdf, xref, pagesRef);
+    const int kidsAt = pagesDict.indexOf("/Kids");
+    if (kidsAt < 0) return pdf;
+    const int open = pagesDict.indexOf('[', kidsAt), close = pagesDict.indexOf(']', kidsAt);
+    if (open < 0 || close < open) return pdf;
+    QVector<int> pageObjects;
+    static const QRegularExpression ref(QStringLiteral("(\\d+)\\s+0\\s+R"));
+    const QString kids = QString::fromLatin1(pagesDict.mid(open + 1, close - open - 1));
+    for (auto it = ref.globalMatch(kids); it.hasNext();) pageObjects << it.next().captured(1).toInt();
+    if (pageObjects.isEmpty()) return pdf;
+    QVector<QByteArray> pageDicts;
+    for (int k : pageObjects) {
+        const QByteArray d = dictionaryOf(pdf, xref, k);
+        if (d.isEmpty() || d.contains("/Kids")) return pdf;   // (a page tree with levels of its own is not read)
+        pageDicts << d;
+    }
+
+    // The links, as the objects they are, and which page each is on
+    QVector<QByteArray> annots;
+    QVector<QVector<int>> mine(pageObjects.size());
+    const int firstNew = size;
+    auto number = [](double v) { return QByteArray::number(v, 'f', 2); };
+    for (const PdfLink &l : linksIn) {
+        if (annots.size() >= kMostPdfLinks) break;
+        if (l.page < 0 || l.page >= pageObjects.size() || l.rect.isEmpty() || (l.uri.isEmpty() && (l.toPage < 0 || l.toPage >= pageObjects.size()))) continue;
+        QByteArray a = QByteArray::number(firstNew + int(annots.size())) + " 0 obj\n<< /Type /Annot /Subtype /Link /Rect [" + number(l.rect.left()) + ' ' + number(l.rect.top()) + ' ' +
+                       number(l.rect.right()) + ' ' + number(l.rect.bottom()) + "] /Border [0 0 0] ";
+        if (!l.uri.isEmpty()) {
+            // (an address is 7-bit text: anything else, and the characters a string needs escaped, are written as %xx)
+            a += "/A << /S /URI /URI (" + l.uri.toUtf8().toPercentEncoding("-._~:/?#[]@!$&'*+,;=%") + ") >>";
+        } else
+            a += "/Dest [" + QByteArray::number(pageObjects[l.toPage]) + " 0 R /Fit]";
+        a += " >>\nendobj\n";
+        mine[l.page] << firstNew + int(annots.size());
+        annots << a;
+    }
+    if (annots.isEmpty()) return pdf;
+
+    // Each page's list of annotations: what it has that is not a link, then the new ones
+    struct Replaced { int number; QByteArray object; };
+    QVector<Replaced> replaced;
+    for (int pg = 0; pg < pageObjects.size(); ++pg) {
+        const QByteArray &dict = pageDicts[pg];
+        QByteArray list;
+        auto keepOthers = [&](const QByteArray &array) {
+            const QString text = QString::fromLatin1(array);
+            for (auto it = ref.globalMatch(text); it.hasNext();) {
+                const int n = it.next().captured(1).toInt();
+                if (!dictionaryOf(pdf, xref, n).contains("/Subtype /Link")) list += QByteArray::number(n) + " 0 R ";
+            }
+        };
+        const int at = dict.indexOf("/Annots");
+        int arrayObject = 0;
+        if (at >= 0) {
+            if (dict.mid(at + 7).trimmed().startsWith('[')) return pdf;   // (a list kept in the page itself isn't rewritten)
+            arrayObject = numberAfter(dict, "/Annots");
+            const qint64 off = arrayObject > 0 ? objectOffsetChain(pdf, xref, arrayObject) : -1;
+            const int end = off >= 0 ? pdf.indexOf("endobj", off) : -1;
+            if (end < 0) return pdf;   // (a list that can't be read: nothing is guessed)
+            keepOthers(pdf.mid(off, end - int(off)));
+        }
+        if (mine[pg].isEmpty() && list.isEmpty() && at < 0) continue;
+        for (int n : std::as_const(mine[pg])) list += QByteArray::number(n) + " 0 R ";
+        if (arrayObject > 0) replaced.push_back({arrayObject, QByteArray::number(arrayObject) + " 0 obj\n[ " + list + "]\nendobj\n"});
+        else {
+            const int closeAt = dict.lastIndexOf(">>");
+            replaced.push_back({pageObjects[pg], QByteArray::number(pageObjects[pg]) + " 0 obj\n" + dict.left(closeAt) + " /Annots [ " + list + "] >>\nendobj\n"});
+        }
+    }
+
+    QByteArray tail;
+    qint64 at = pdf.size();
+    if (!pdf.endsWith('\n')) {
+        tail += '\n';
+        at += 1;
+    }
+    QVector<std::pair<int, qint64>> rows;   // (object number, offset) of everything this update writes
+    for (const Replaced &r : std::as_const(replaced)) {
+        rows << std::make_pair(r.number, at);
+        tail += r.object;
+        at += r.object.size();
+    }
+    for (int i = 0; i < annots.size(); ++i) {
+        rows << std::make_pair(firstNew + i, at);
+        tail += annots[i];
+        at += annots[i].size();
+    }
+    std::sort(rows.begin(), rows.end());
+    const qint64 newXref = at;
+    QByteArray x = "xref\n";
+    for (int i = 0; i < rows.size();) {
+        int j = i + 1;
+        while (j < rows.size() && rows[j].first == rows[j - 1].first + 1) ++j;
+        x += QByteArray::number(rows[i].first) + ' ' + QByteArray::number(j - i) + '\n';
+        for (int k = i; k < j; ++k) x += QByteArray::number(rows[k].second).rightJustified(10, '0') + " 00000 n \n";
+        i = j;
+    }
+    QString t = QString::fromLatin1(trailer);
+    t.replace(QRegularExpression(QStringLiteral("/Size\\s+\\d+")), QString());
+    t.replace(QRegularExpression(QStringLiteral("/Prev\\s+\\d+")), QString());
+    x += "trailer\n<<" + t.toLatin1() + " /Size " + QByteArray::number(firstNew + int(annots.size())) + " /Prev " + QByteArray::number(xref) + " >>\nstartxref\n" + QByteArray::number(newXref) + "\n%%EOF\n";
     return pdf + tail + x;
 }
 

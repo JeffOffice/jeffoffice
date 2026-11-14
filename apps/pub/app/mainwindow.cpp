@@ -1231,6 +1231,48 @@ static QByteArray pdfXmp(const DocProps &pr, const QString &title)
     return x;
 }
 
+// What a page links to, for a PDF: each linked object's box, and each line fragment of linked text, in the page's own units from its top left. A link is a web address, an email address,
+// or "#pageN" (a page of the publication, in `toPage` counted from 0); any other is left out.
+struct PageLink {
+    QRectF rect;
+    QString uri;
+    int toPage = -1;
+};
+
+static QVector<PageLink> pageLinks(Document *d, LayoutCache &cache, const RenderOptions &opt, int pageIndex)
+{
+    QVector<PageLink> out;
+    auto add = [&](const QRectF &r, const QString &hrefIn) {
+        const QString href = hrefIn.trimmed();
+        if (r.isEmpty() || href.isEmpty()) return;
+        if (href.startsWith(QLatin1String("#page"))) {
+            bool ok = false;
+            const int n = href.mid(5).toInt(&ok);
+            if (ok && n >= 1 && n <= d->pages.size()) out.push_back({r, QString(), n - 1});
+        } else if (href.startsWith(QLatin1String("http://"), Qt::CaseInsensitive) || href.startsWith(QLatin1String("https://"), Qt::CaseInsensitive) ||
+                   href.startsWith(QLatin1String("mailto:"), Qt::CaseInsensitive))
+            out.push_back({r, href, -1});
+    };
+    walkItems(d->pages[pageIndex]->items, [&](const ItemPtr &it) {
+        if (it->hidden) return;
+        add(it->bounds(), it->hyperlink);
+        if (it->type() != ItemType::Text) return;
+        auto *t = static_cast<TextItem *>(it.get());
+        QTextDocument *td = d->storyDoc(t->storyId);
+        if (!td) return;
+        const auto fl = cache.textFrame(*d, *t, pageIndex + 1, opt);
+        if (!fl.layout) return;
+        for (QTextBlock b = td->begin(); b.isValid(); b = b.next())
+            for (auto f = b.begin(); !f.atEnd(); ++f) {
+                const QTextCharFormat cf = f.fragment().charFormat();
+                if (!cf.isAnchor() || cf.anchorHref().isEmpty()) continue;
+                for (const QRectF &r : fl.layout->rangeRects(fl.frame, f.fragment().position(), f.fragment().position() + f.fragment().length()))
+                    add(t->transform().mapRect(r), cf.anchorHref());
+            }
+    });
+    return out;
+}
+
 bool MainWindow::exportPdfTo(const QString &path, const PdfSettings &sIn)
 {
     m_ed->endTextEdit();
@@ -1252,6 +1294,7 @@ bool MainWindow::exportPdfTo(const QString &path, const PdfSettings &sIn)
     const bool press = s.preset == PdfSettings::CommercialPress;
     const bool tagging = s.tags && !s.pdfx;
     const double margin = press ? kMarksMargin : 0;
+    double mediaHeight = 0;   // of the PDF's pages, for the links
     // PDF/X-4 needs its printing condition's color profile before anything.
     const PdfXCondition &xcond = pdfXConditions().value(s.pdfxCondition, pdfXConditions().first());
     const bool x4 = s.pdfx && xcond.x4;
@@ -1307,6 +1350,7 @@ bool MainWindow::exportPdfTo(const QString &path, const PdfSettings &sIn)
     const bool topFold = ps.width() > ps.height();
     pdf.setPageSize(QPageSize(impose ? (topFold ? QSizeF(ps.width(), 2 * ps.height()) : QSizeF(2 * ps.width(), ps.height())) : ps + QSizeF(2 * margin, 2 * margin),
                               QPageSize::Point, QString(), QPageSize::ExactMatch));
+    mediaHeight = impose ? (topFold ? 2 * ps.height() : ps.height()) : ps.height() + 2 * margin;
     pdf.setPageMargins(QMarginsF(0, 0, 0, 0));
     pdf.setResolution(1200);
     QPainter p;
@@ -1328,6 +1372,23 @@ bool MainWindow::exportPdfTo(const QString &path, const PdfSettings &sIn)
     if (tagging) pageTags.install(&ctx);
     QVector<PdfBookmark> bookmarks;   // a page's, by the number of the PDF page it is on
     int pdfPage = -1;
+    // The links of the pages (PDF/X has no annotations; a catalog's merged pages are not given any).
+    QVector<PdfLink> links;
+    QVector<int> internalTarget;                  // of each link: the publication's page it goes to, or -1
+    QVector<int> pdfPageOfPage(d->pages.size(), -1);
+    auto linkPage = [&](int page, const QPointF &at) {
+        pdfPageOfPage[page] = pdfPage;
+        if (s.pdfx || catalogPages || s.merged) return;
+        for (const PageLink &l : pageLinks(d, m_ed->cache(), ctx.opt, page)) {
+            PdfLink k;
+            k.page = pdfPage;
+            const QRectF r = l.rect.translated(at);
+            k.rect = QRectF(QPointF(r.left(), mediaHeight - r.bottom()), QPointF(r.right(), mediaHeight - r.top()));
+            k.uri = l.uri;
+            links.push_back(k);
+            internalTarget.push_back(l.toPage);
+        }
+    };
     auto bookmarkPage = [&](int page) {
         const QString name = d->pages[page]->title.trimmed();
         bookmarks.push_back({name.isEmpty() ? tr("Page %1").arg(page + 1) : name, 0, pdfPage});
@@ -1350,6 +1411,7 @@ bool MainWindow::exportPdfTo(const QString &path, const PdfSettings &sIn)
                 for (int k = 0; k < 2; ++k) {
                     if (side[k] < 0) continue;
                     bookmarkPage(side[k]);
+                    linkPage(side[k], QPointF(topFold ? 0 : k * ps.width(), topFold ? k * ps.height() : 0));
                     if (tagging) pageTags.beginSection();
                     p.save();
                     p.scale(scale, scale);
@@ -1366,6 +1428,7 @@ bool MainWindow::exportPdfTo(const QString &path, const PdfSettings &sIn)
             first = false;
             ++pdfPage;
             bookmarkPage(i);
+            linkPage(i, QPointF(margin, margin));
             if (tagging) pageTags.beginSection();
             p.save();
             p.scale(scale, scale);
@@ -1418,7 +1481,10 @@ bool MainWindow::exportPdfTo(const QString &path, const PdfSettings &sIn)
     }
     QString notTagged;   // why a PDF that was to be tagged is not
     // The bookmarks and the tags are added to the finished file (as Qt's writer makes neither).
-    if (!s.pdfx && ((s.bookmarks && !bookmarks.isEmpty()) || tagging)) {
+    for (int k = 0; k < links.size(); ++k)
+        if (internalTarget[k] >= 0) links[k].toPage = pdfPageOfPage[internalTarget[k]];
+    links.erase(std::remove_if(links.begin(), links.end(), [](const PdfLink &l) { return l.uri.isEmpty() && l.toPage < 0; }), links.end());
+    if (!s.pdfx && ((s.bookmarks && !bookmarks.isEmpty()) || tagging || !links.isEmpty())) {
         QByteArray bytes = encrypted ? memory.data() : QByteArray();
         if (!encrypted) {
             QFile in(path);
@@ -1440,6 +1506,7 @@ bool MainWindow::exportPdfTo(const QString &path, const PdfSettings &sIn)
                 if (!made.tagged) notTagged = made.why;
             }
             if (s.bookmarks) bytes = addPdfBookmarks(bytes, bookmarks);
+            bytes = addPdfLinks(bytes, links);
             if (encrypted) memory.buffer() = bytes;
             else {
                 QSaveFile out(path);

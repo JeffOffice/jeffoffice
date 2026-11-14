@@ -966,6 +966,110 @@ private Q_SLOTS:
         QVERIFY2(kept.contains("GTS_PDFA1"), "no PDF/A output intent");
     }
 
+    void exportedPdfHasClickableLinks()
+    {
+        QTemporaryDir dir;
+        jp::MainWindow w;
+        auto doc = jp::Document::blank(QSizeF(612, 792));
+        doc->pages.clear();
+        for (int i = 0; i < 2; ++i) doc->pages.push_back(std::make_shared<jp::Page>());
+        auto text = [&](int page, const QString &words, const QString &href, const QRectF &r) {
+            auto t = std::make_shared<jp::TextItem>();
+            t->rect = r;
+            t->storyId = doc->createStory(words + QStringLiteral(" "));
+            QTextCursor c(doc->storyDoc(t->storyId));
+            c.movePosition(QTextCursor::End);
+            QTextCharFormat f;
+            f.setAnchor(true);
+            f.setAnchorHref(href);
+            c.insertText(QStringLiteral("our site"), f);
+            doc->pages[page]->items.push_back(t);
+            return t;
+        };
+        auto web = text(0, QStringLiteral("Visit"), QStringLiteral("https://example.org/text"), QRectF(72, 100, 300, 60));
+        text(0, QStringLiteral("Back to"), QStringLiteral("#page2"), QRectF(72, 200, 300, 60));
+        auto shape = std::make_shared<jp::ShapeItem>();
+        shape->rect = QRectF(72, 400, 100, 50);
+        shape->hyperlink = QStringLiteral("mailto:office@example.com");
+        doc->pages[0]->items.push_back(shape);
+        w.editor()->setDocument(std::move(doc));
+        jp::MainWindow::PdfSettings s;
+        const QString path = dir.filePath(QStringLiteral("links.pdf"));
+        QVERIFY(w.exportPdfTo(path, s));
+        QFile f(path);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        const QByteArray bytes = f.readAll();
+        f.close();
+        jp::PdfDocument pdf(bytes);
+        QVERIFY(pdf.isValid());
+        QCOMPARE(pdf.pageCount(), 2);
+        QCOMPARE(pdf.outline().size(), 2);   // the bookmarks are still there after the links
+        QVERIFY(pdf.isTagged());
+        // The annotations the pages hold now (the newest version of each object counts; links Qt made for text, left behind in the file, are on no page)
+        auto annotationsOf = [](const QByteArray &file, int *count) {
+            auto latest = [&](int n) {
+                const QByteArray head = "\n" + QByteArray::number(n) + " 0 obj\n";
+                const int at = int(file.lastIndexOf(head));
+                return at < 0 ? QByteArray() : file.mid(at, int(file.indexOf("endobj", at)) - at);
+            };
+            QString all;
+            *count = 0;
+            for (int n = 1; n < 200; ++n) {
+                const QByteArray page = latest(n);
+                if (!page.contains("/Type /Page\n")) continue;
+                const QByteArray list = latest(jp::QtPdf::ref(page, "/Annots"));
+                for (auto it = QRegularExpression(QStringLiteral("(\\d+) 0 R")).globalMatch(QString::fromLatin1(list)); it.hasNext();) {
+                    all += QString::fromLatin1(latest(it.next().captured(1).toInt())) + QLatin1Char('\n');
+                    ++*count;
+                }
+            }
+            return all;
+        };
+        int linkCount = 0;
+        const QString live = annotationsOf(bytes, &linkCount);
+        QCOMPARE(linkCount, 3);
+        QCOMPARE(live.count(QStringLiteral("/Subtype /Link")), 3);
+        QRegularExpression uri(QStringLiteral("/Rect \\[([-0-9. ]+)\\][^>]*/URI \\(([^)]*)\\)"));
+        QMap<QString, QVector<double>> rects;
+        for (auto it = uri.globalMatch(live); it.hasNext();) {
+            const auto m = it.next();
+            QVector<double> v;
+            for (const QString &n : m.captured(1).split(' ', Qt::SkipEmptyParts)) v << n.toDouble();
+            rects[m.captured(2)] = v;
+        }
+        QVERIFY2(rects.contains(QStringLiteral("https://example.org/text")), "no web link");
+        QVERIFY2(rects.contains(QStringLiteral("mailto:office@example.com")), "no email link");
+        // over the linked words: the box of the text, from the line's own metrics
+        const auto fl = w.editor()->cache().textFrame(*w.editor()->doc(), *web, 1, jp::RenderOptions());
+        QVERIFY(fl.layout);
+        const QVector<QRectF> where = fl.layout->rangeRects(fl.frame, 6, 14);
+        QVERIFY(!where.isEmpty());
+        const QRectF expected = web->transform().mapRect(where.first());
+        const QVector<double> r = rects[QStringLiteral("https://example.org/text")];
+        QCOMPARE(r.size(), 4);
+        QVERIFY(qAbs(r[0] - expected.left()) < 1.5);
+        QVERIFY(qAbs(r[2] - expected.right()) < 1.5);
+        QVERIFY(qAbs(r[1] - (792 - expected.bottom())) < 1.5);
+        QVERIFY(qAbs(r[3] - (792 - expected.top())) < 1.5);
+        const QVector<double> sr = rects[QStringLiteral("mailto:office@example.com")];
+        QCOMPARE(sr.size(), 4);
+        QVERIFY(qAbs(sr[0] - 72) < 1.5 && qAbs(sr[2] - 172) < 1.5 && qAbs(sr[1] - (792 - 450)) < 1.5 && qAbs(sr[3] - (792 - 400)) < 1.5);
+        // a link to the publication's second page goes to it
+        QVERIFY2(live.contains(QRegularExpression(QStringLiteral("/Subtype /Link[^>]*/Dest \\[\\d+ 0 R"))), "no link to a page");
+        // PDF/X has no annotations
+        jp::MainWindow::PdfSettings x;
+        x.pdfx = true;
+        const QString xpath = dir.filePath(QStringLiteral("x.pdf"));
+        QVERIFY(w.exportPdfTo(xpath, x));
+        QFile xf(xpath);
+        QVERIFY(xf.open(QIODevice::ReadOnly));
+        const QByteArray xbytes = xf.readAll();
+        QVERIFY(xbytes.startsWith("%PDF"));
+        int xCount = -1;
+        annotationsOf(xbytes, &xCount);
+        QCOMPARE(xCount, 0);
+    }
+
     // A publication for the tag tests: two pages with words, the second with a page title, a master page with a shape, a page color, and a table.
     static std::unique_ptr<jp::Document> taggedSample()
     {

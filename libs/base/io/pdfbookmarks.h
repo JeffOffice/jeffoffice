@@ -3,6 +3,7 @@
 // update appended at its end (the pages are not touched).
 
 #include <QByteArray>
+#include <QRectF>
 #include <QString>
 #include <QVector>
 
@@ -18,6 +19,19 @@ constexpr int kMostPdfBookmarks = 5000;
 
 // The PDF with the bookmarks in it. The PDF as it was if it has none to add, already has an outline, or is made in a way this doesn't know how to extend (nothing is guessed).
 QByteArray addPdfBookmarks(const QByteArray &pdf, const QVector<PdfBookmark> &marks);
+
+struct PdfLink {
+    int page = 0;        // the page it is on, counted from 0 in the PDF
+    QRectF rect;         // the area to click, in the page's own units (points), from its bottom left, as a PDF counts
+    QString uri;         // a web or email address; empty for a link to a page of the file
+    int toPage = -1;     // for a link to a page of the file: the page it goes to, counted from 0
+};
+
+constexpr int kMostPdfLinks = 20000;
+
+// The PDF with a link annotation over each area (an update appended at its end: only the annotation lists are replaced). The links Qt's writer makes for text are dropped from every
+// page, as the ones given cover them; the PDF as it was if there are none, or it is made in a way this doesn't know how to extend (nothing is guessed).
+QByteArray addPdfLinks(const QByteArray &pdf, const QVector<PdfLink> &links);
 
 // The document's properties as the metadata a PDF reader shows (title, author, subject, keywords, and the program that made it).
 QByteArray pdfPropertiesXmp(const QString &title, const QString &author, const QString &subject, const QString &keywords, const QString &program, bool archive = false);
