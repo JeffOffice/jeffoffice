@@ -339,6 +339,12 @@ target_link_libraries(jpfonttest PRIVATE jeffoffice-common)
 set_target_properties(jpfonttest PROPERTIES WIN32_EXECUTABLE OFF MACOSX_BUNDLE OFF)
 add_dependencies(jptests jpfonttest)
 target_compile_definitions(jptests PRIVATE JP_FONTTEST="$<TARGET_FILE:jpfonttest>")
+# Checks grammar from many threads at once, as a program of its own (the first use of the rules' word lists).
+qt_add_executable(jpgrammarprobe tests/grammarprobe.cpp)
+target_link_libraries(jpgrammarprobe PRIVATE jeffoffice-common)
+set_target_properties(jpgrammarprobe PROPERTIES WIN32_EXECUTABLE OFF MACOSX_BUNDLE OFF)
+add_dependencies(jptests jpgrammarprobe)
+target_compile_definitions(jptests PRIVATE JP_GRAMMARPROBE="$<TARGET_FILE:jpgrammarprobe>")
 add_test(NAME jptests COMMAND jptests)
 set_tests_properties(jptests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
