@@ -3,6 +3,11 @@
 
 #include <QAbstractButton>
 #include <QCoreApplication>
+#include <QDragEnterEvent>
+#include <QDragMoveEvent>
+#include <QDropEvent>
+#include <QMimeData>
+#include <functional>
 #include <QDialogButtonBox>
 #include <QCheckBox>
 #include <QComboBox>
@@ -40,6 +45,57 @@ QString functionLabel(const QString &fn)
     return QCoreApplication::translate("jp::PivotFieldsPane", "Varp (all the values)");
 }
 
+// A list whose entries are dragged: a field of the list of fields, or an entry of one of the four boxes. The boxes take what is dropped on them (the text says what: "F:2" the field 2 of the list, "B:1:0" the
+// first entry of the Columns box), and the pane does what it asks.
+const char kFieldMime[] = "application/x-jeffcrunch-pivot-field";
+
+class DragList : public QListWidget {
+public:
+    DragList(QWidget *parent, int box, std::function<void(int, const QString &, int)> onDrop) : QListWidget(parent), m_box(box), m_drop(std::move(onDrop))
+    {
+        setDragEnabled(true);
+        setDefaultDropAction(Qt::CopyAction);   // (the entry stays where it is until the pane changes the table: a Move would take it out of the list)
+        setDragDropMode(m_drop ? QAbstractItemView::DragDrop : QAbstractItemView::DragOnly);
+        if (m_drop) setAcceptDrops(true);
+    }
+
+protected:
+    QStringList mimeTypes() const override { return {QString::fromLatin1(kFieldMime)}; }
+    QMimeData *mimeData(const QList<QListWidgetItem *> &items) const override
+    {
+        if (items.isEmpty()) return nullptr;
+        auto *mime = new QMimeData;
+        const int at = row(items.first());
+        mime->setData(QString::fromLatin1(kFieldMime), (m_box < 0 ? QStringLiteral("F:%1").arg(at) : QStringLiteral("B:%1:%2").arg(m_box).arg(at)).toUtf8());
+        return mime;
+    }
+    void dragEnterEvent(QDragEnterEvent *e) override
+    {
+        if (m_drop && e->mimeData()->hasFormat(QString::fromLatin1(kFieldMime))) e->acceptProposedAction();
+        else e->ignore();
+    }
+    void dragMoveEvent(QDragMoveEvent *e) override
+    {
+        if (m_drop && e->mimeData()->hasFormat(QString::fromLatin1(kFieldMime))) e->acceptProposedAction();
+        else e->ignore();
+    }
+    void dropEvent(QDropEvent *e) override
+    {
+        if (!m_drop || !e->mimeData()->hasFormat(QString::fromLatin1(kFieldMime))) {
+            e->ignore();
+            return;
+        }
+        const QByteArray what = e->mimeData()->data(QString::fromLatin1(kFieldMime));
+        e->setDropAction(Qt::CopyAction);
+        e->accept();
+        m_drop(m_box, QString::fromUtf8(what.left(40)), indexAt(e->position().toPoint()).row());
+    }
+
+private:
+    int m_box;
+    std::function<void(int, const QString &, int)> m_drop;
+};
+
 } // namespace
 
 PivotFieldsPane::PivotFieldsPane(QWidget *parent) : QWidget(parent)
@@ -58,7 +114,7 @@ PivotFieldsPane::PivotFieldsPane(QWidget *parent) : QWidget(parent)
     m_search->setAccessibleName(tr("Search fields"));
     layout->addWidget(m_search);
     connect(m_search, &QLineEdit::textChanged, this, [this](const QString &text) { search(text); });
-    m_fields = new QListWidget(this);
+    m_fields = new DragList(this, -1, nullptr);
     m_fields->setObjectName(QStringLiteral("pivot.fields"));
     m_fields->setAccessibleName(tr("Pivot table fields"));
     layout->addWidget(m_fields, 3);
@@ -66,7 +122,7 @@ PivotFieldsPane::PivotFieldsPane(QWidget *parent) : QWidget(parent)
     const char *titles[4] = {QT_TR_NOOP("Filters"), QT_TR_NOOP("Columns"), QT_TR_NOOP("Rows"), QT_TR_NOOP("Values")};
     for (int i = 0; i < 4; ++i) {
         auto *label = new QLabel(tr(titles[i]), this);
-        m_boxes[i] = new QListWidget(this);
+        m_boxes[i] = new DragList(this, i, [this](int box, const QString &what, int place) { dropOn(box, what, place); });
         m_boxes[i]->setObjectName(QStringLiteral("pivot.box%1").arg(i));
         m_boxes[i]->setAccessibleName(tr(titles[i]));
         m_boxes[i]->setSelectionMode(QAbstractItemView::SingleSelection);
@@ -391,6 +447,67 @@ void PivotFieldsPane::moveSelected(int target)
         t.dataFields.append(newValue(t, field));
     }
     changed(t, tr("Move Field in Pivot Table"));
+}
+
+// A field dropped on a box: one from the list of fields is added to the box (or moved there when the table has it), one from a box is moved to this one, or put at the place dropped on when it is this one.
+bool PivotFieldsPane::dropOn(int target, const QString &what, int place)
+{
+    if (target < 0 || target > 3) return false;
+    const QStringList parts = what.split(QLatin1Char(':'));
+    bool ok = false;
+    if (parts.size() == 2 && parts[0] == QLatin1String("F")) {
+        const int field = parts[1].toInt(&ok);
+        if (!ok || field < 0 || field >= m_names.size()) return false;
+        // (a field the table has is moved from the first box that holds it)
+        int from = -1, at = -1;
+        auto find = [&](int box, const auto &list, auto fieldOf) {
+            if (from >= 0) return;
+            for (int i = 0; i < list.size(); ++i)
+                if (fieldOf(list[i]) == field) {
+                    from = box;
+                    at = i;
+                    return;
+                }
+        };
+        find(2, m_table.rowFields, [](int f) { return f; });
+        find(1, m_table.colFields, [](int f) { return f; });
+        find(0, m_table.pageFields, [](const PivotPageField &p) { return p.fld; });
+        find(3, m_table.dataFields, [](const PivotDataField &d) { return d.fld; });
+        if (from >= 0) return from == target ? false : (select(from, at) && (moveSelected(target), true));
+        PivotTable t = m_table;
+        if (target == 0) {
+            PivotPageField p;
+            p.fld = field;
+            t.pageFields.append(p);
+        } else if (target == 1) {
+            t.colFields.append(field);
+        } else if (target == 2) {
+            t.rowFields.append(field);
+        } else {
+            t.dataFields.append(newValue(t, field));
+        }
+        changed(t, tr("Add Field to Pivot Table"));
+        return true;
+    }
+    if (parts.size() == 3 && parts[0] == QLatin1String("B")) {
+        const int box = parts[1].toInt(&ok);
+        const int row = ok ? parts[2].toInt(&ok) : 0;
+        if (!ok || box < 0 || box > 3 || row < 0 || row >= m_boxes[box]->count()) return false;
+        if (box != target) return select(box, row) && (moveSelected(target), true);
+        // the same box: the entry goes to the place dropped on (the end for a drop below the entries)
+        const int to = place < 0 ? m_boxes[box]->count() - 1 : std::min(place, m_boxes[box]->count() - 1);
+        if (to == row) return false;
+        PivotTable t = m_table;
+        auto shift = [&](auto &list) {
+            if (row >= list.size() || to >= list.size()) return false;
+            list.move(row, to);
+            return true;
+        };
+        const bool done = box == 0 ? shift(t.pageFields) : box == 1 ? shift(t.colFields) : box == 2 ? shift(t.rowFields) : shift(t.dataFields);
+        if (done) changed(t, tr("Move Field in Pivot Table"));
+        return done;
+    }
+    return false;
 }
 
 void PivotFieldsPane::shiftSelected(int by)

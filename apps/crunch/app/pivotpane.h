@@ -32,6 +32,8 @@ public:
     void removeSelected();
     void shiftSelected(int by);
     bool select(int box, int row);
+    // A field dropped on a box (a drag from the list of fields, "F:2", or from a box, "B:1:0"), and the place it was dropped on (-1 below the entries): the same as the pane does for a drop.
+    bool dropOn(int target, const QString &what, int place);
     QListWidget *fieldList() const { return m_fields; }
     QListWidget *box(int box) const { return m_boxes[box]; }
     // The field of the entry chosen in the Filters, Columns, or Rows box (-1 when none, or when the entry is the values).

@@ -23,6 +23,9 @@
 
 #include <QAbstractButton>
 #include <QAction>
+#include <QApplication>
+#include <QDropEvent>
+#include <QMimeData>
 #include <QDateTime>
 #include <QDir>
 #include <QFile>
@@ -611,6 +614,116 @@ private Q_SLOTS:
         }
         QCOMPARE(pivotShown(e), QStringLiteral("Sum of Amount|Month||\nRegion|Jan|Feb|Grand Total\nEast|15|20|35\nWest|7|7|14\nGrand Total|22|27|49"));
         QCOMPARE(valueOf(e, QStringLiteral("E1")), QStringLiteral("-"));
+    }
+
+    // A field is dragged from the list to a box, or from a box to another, or to another place of its box: a drop does what the buttons do, as one step of Undo each (the drop is sent to the box as the
+    // system sends it).
+    void fieldsAreDraggedBetweenTheBoxes()
+    {
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook()));
+        crunch::EditSession *s = e.win.w.session();
+        e.select(QStringLiteral("F5"));
+        e.win.w.act(QStringLiteral("pivot.fieldList"))->trigger();
+        PivotFieldsPane *pane = e.win.w.pivotPane();
+        QVERIFY(pane);
+        const int steps = s->undoStack()->count();
+        // Month from the Columns box to the Rows box: sent as a drop on the box
+        auto *rows = pane->box(2);
+        QMimeData mime;
+        mime.setData(QStringLiteral("application/x-jeffcrunch-pivot-field"), QByteArray("B:1:0"));
+        QDropEvent drop(QPointF(5, rows->viewport()->height() - 2), Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
+        const QPoint at(5, rows->viewport()->height() - 2);
+        QDragEnterEvent enter(at, Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
+        QApplication::sendEvent(rows->viewport(), &enter);
+        QVERIFY(enter.isAccepted());
+        QApplication::sendEvent(rows->viewport(), &drop);
+        finish(e);
+        QCOMPARE(s->undoStack()->count(), steps + 1);
+        QCOMPARE(pane->box(1)->count(), 0);
+        QCOMPARE(pane->box(2)->count(), 2);
+        QCOMPARE(pane->box(2)->item(1)->text(), QStringLiteral("Month"));
+        // Month to the top of its box
+        QVERIFY(pane->dropOn(2, QStringLiteral("B:2:1"), 0));
+        finish(e);
+        QCOMPARE(s->undoStack()->count(), steps + 2);
+        QCOMPARE(pane->box(2)->item(0)->text(), QStringLiteral("Month"));
+        // a drop where it came from changes nothing
+        QVERIFY(!pane->dropOn(2, QStringLiteral("B:2:0"), 0));
+        QCOMPARE(s->undoStack()->count(), steps + 2);
+        // a field of the list to the filters: Amount is in the values already, so it moves there
+        QVERIFY(pane->dropOn(0, QStringLiteral("F:2"), -1));
+        finish(e);
+        QCOMPARE(s->undoStack()->count(), steps + 3);
+        QCOMPARE(pane->box(0)->count(), 1);
+        QCOMPARE(pane->box(3)->count(), 0);
+        // a bad drop is refused
+        QVERIFY(!pane->dropOn(1, QStringLiteral("F:9"), -1));
+        QVERIFY(!pane->dropOn(7, QStringLiteral("F:0"), -1));
+        QVERIFY(!pane->dropOn(1, QStringLiteral("junk"), -1));
+        // a field taken out, then dragged back from the list to the values: it is totaled
+        pane->checkField(2, false);
+        finish(e);
+        QVERIFY(pane->dropOn(3, QStringLiteral("F:2"), -1));
+        finish(e);
+        QCOMPARE(pane->box(3)->count(), 1);
+        while (s->undoStack()->count() > steps && s->undoStack()->canUndo()) {
+            s->undoStack()->undo();
+            finish(e);
+        }
+        QCOMPARE(pivotShown(e), QStringLiteral("Sum of Amount|Month||\nRegion|Jan|Feb|Grand Total\nEast|15|20|35\nWest|7|7|14\nGrand Total|22|27|49"));
+    }
+
+    // A pivot table made from a table, and rows put in under the table: Refresh reads them, since the table grew with them.
+    void aRefreshReadsRowsAddedBelowATableSource()
+    {
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook()));
+        crunch::EditSession *s = e.win.w.session();
+        int table = -1;
+        QVERIFY(s->makeTable(0, rangeOf(QStringLiteral("A1:C7")), true, QString(), &table).ok);
+        QVERIFY(e.settle());
+        const QString name = s->workbook()->tables().at(table).name;
+        int made = -1;
+        const auto c = s->createPivot(name, 0, rowOf(QStringLiteral("J10")), colOf(QStringLiteral("J10")), &made);
+        QVERIFY2(c.ok, qPrintable(c.problem));
+        finish(e);
+        QCOMPARE(s->pivotSourceText(made), name);
+        e.select(QStringLiteral("J10"));
+        e.win.w.act(QStringLiteral("pivot.fieldList"))->trigger();
+        PivotFieldsPane *pane = e.win.w.pivotPane();
+        QVERIFY(pane);
+        pane->checkField(0, true);
+        finish(e);
+        pane->checkField(2, true);
+        finish(e);
+        const QString before = pivotShown(e, QStringLiteral("J10:K15"));
+        QVERIFY2(before.contains(QStringLiteral("Grand Total|49")), qPrintable(before));
+        // rows typed under the table: it grows over them
+        e.select(QStringLiteral("A8"));
+        e.enter(QStringLiteral("North"));
+        QVERIFY(e.settle());
+        e.select(QStringLiteral("B8"));
+        e.enter(QStringLiteral("Mar"));
+        e.select(QStringLiteral("C8"));
+        e.enter(QStringLiteral("9"));
+        QVERIFY(e.settle());
+        QCOMPARE(s->workbook()->tables().at(table).row2, quint32(7));
+        QCOMPARE(pivotShown(e, QStringLiteral("J10:K15")), before);   // (until it is refreshed it shows what it was made from)
+        const int steps = s->undoStack()->count();
+        const auto o = s->refreshPivot(made);
+        QVERIFY2(o.ok, qPrintable(o.problem));
+        finish(e);
+        QCOMPARE(s->undoStack()->count(), steps + 1);
+        const QString after = pivotShown(e, QStringLiteral("J10:K16"));
+        QVERIFY2(after.contains(QStringLiteral("North|9")) && after.contains(QStringLiteral("Grand Total|58")), qPrintable(after));
+        // Refresh All reads the same, and Undo takes the refresh back
+        s->undoStack()->undo();
+        finish(e);
+        QCOMPARE(pivotShown(e, QStringLiteral("J10:K15")), before);
+        QVERIFY(s->refreshAllPivots().ok);
+        finish(e);
+        QVERIFY(pivotShown(e, QStringLiteral("J10:K16")).contains(QStringLiteral("Grand Total|58")));
     }
 
     // Value Field Settings: a value shown as a share of the total, or against another item, with a number format of its own; the cells take the format, one step of Undo each, and the saved
