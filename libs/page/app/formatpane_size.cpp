@@ -231,33 +231,11 @@ void buildSizePage(FormatPane *pane, PanePage *page)
             t.vertical = i >= 1;
             t.turnedBack = i == 2;
         });
-        // Shrinking text to fit and growing the box to fit are a text box's; a shape's text keeps its size.
+        // Shrinking text to fit and growing the box to fit, for a text box and for a shape.
         bindChoice(pane, autofit, label, [](const Item &it) -> std::optional<int> {
-            if (it.type() == ItemType::Text) {
-                const auto a = static_cast<const TextItem &>(it).autofit;
-                return a == TextItem::GrowBox ? 2 : a == TextItem::NoAutofit ? 0 : 1;
-            }
-            return it.type() == ItemType::Shape ? std::optional<int>(static_cast<const ShapeItem &>(it).shrinks ? 1 : 0) : nullopt;
-        }, [ed](Item &it, int i) {
-            if (it.type() == ItemType::Text) {
-                auto &t = static_cast<TextItem &>(it);
-                t.autofit = i == 2 ? TextItem::GrowBox : i == 1 ? TextItem::ShrinkOnOverflow : TextItem::NoAutofit;
-                t.fitAsStored = false;
-                t.fitScale = 1.0;
-                t.fitLineCut = 0;
-                if (i == 2) ed->autoGrowText(&t);
-            } else if (it.type() == ItemType::Shape && i == 0) {
-                static_cast<ShapeItem &>(it).shrinks = false;
-            }
-        });
-        // (What a shape can't do is turned off in the list.)
-        s->enroll([=] {
-            bool shapes = false;
-            for (const Item *it : s->items()) shapes = shapes || it->type() == ItemType::Shape;
-            if (auto *model = qobject_cast<QStandardItemModel *>(autofit->model()))
-                for (int i = 1; i < 3; ++i)
-                    if (QStandardItem *item = model->item(i)) item->setEnabled(!shapes);
-        });
+            const int how = Editor::textFitOf(it);
+            return how < 0 ? nullopt : std::optional<int>(how);
+        }, [ed](Item &it, int i) { ed->setTextFit(it, i); });
         auto insetsOf = [](const Item &it) -> std::optional<QMarginsF> {
             if (it.type() == ItemType::Text) return static_cast<const TextItem &>(it).insets;
             if (it.type() == ItemType::Shape) return static_cast<const ShapeItem &>(it).insets;

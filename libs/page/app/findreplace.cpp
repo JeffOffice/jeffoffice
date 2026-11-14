@@ -180,6 +180,8 @@ void refitFoundStories(Editor *ed, const QVector<FindStory> &changed)
         if (it->type() == ItemType::Text) {
             for (TextItem *f : ed->doc()->chainOf(it->id))
                 if (f->autofit == TextItem::GrowBox) ed->autoGrowText(f);
+        } else if (it->type() == ItemType::Shape) {
+            ed->autoGrowShape(static_cast<ShapeItem *>(it));
         } else if (it->type() == ItemType::Table) {
             ed->fitTableRows(static_cast<TableItem *>(it));
         }

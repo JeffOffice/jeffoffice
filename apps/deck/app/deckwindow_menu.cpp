@@ -7,6 +7,7 @@
 #include "app/proofingdialogs.h"
 
 #include <QAction>
+#include <QActionGroup>
 #include <QMenu>
 #include <memory>
 
@@ -45,6 +46,25 @@ QMenu *DeckWindow::slideContextMenu(QWidget *parent)
         const bool holdsText = one && (one->type() == ItemType::Text || one->type() == ItemType::Shape || one->type() == ItemType::Table || one->type() == ItemType::TextArt);
         act("edit.text")->setEnabled(holdsText);
         if (holdsText) add(nullptr, {"edit.text"});
+        // How the text fits: for the text boxes and shapes selected.
+        int fit = -2;
+        for (const Item *it : m_ed->selectedItems()) {
+            const int how = Editor::textFitOf(*it);
+            if (how >= 0) fit = fit == -2 || fit == how ? how : -1;
+        }
+        if (fit != -2) {
+            QMenu *fits = menu->addMenu(tr("Text Fit"));
+            fits->menuAction()->setObjectName(QStringLiteral("text.fit"));
+            auto *group = new QActionGroup(fits);
+            const QStringList names = {tr("Do not autofit"), tr("Shrink text on overflow"), tr("Resize shape to fit text")};
+            for (int how = 0; how < 3; ++how) {
+                QAction *a = fits->addAction(names[how], fits, [this, how] { setTextFit(how); });
+                a->setObjectName(QStringLiteral("text.fit%1").arg(how));
+                a->setCheckable(true);
+                a->setChecked(fit == how);
+                group->addAction(a);
+            }
+        }
         if (kind == "multi") add(nullptr, {"arr.group"});
         if (kind == "group") add(nullptr, {"arr.ungroup"});
         QMenu *order = menu->addMenu(act("arr.front")->icon(), tr("Order"));
@@ -74,6 +94,13 @@ QMenu *DeckWindow::slideContextMenu(QWidget *parent)
         add(nullptr, {"comment.new"});
     }
     return menu;
+}
+
+void DeckWindow::setTextFit(int how)
+{
+    m_ed->beginChange(tr("Text Fit"));
+    for (Item *it : m_ed->selectedItems()) m_ed->setTextFit(*it, how);
+    m_ed->endChange();
 }
 
 void DeckWindow::showSlideContextMenu(const QPoint &global)

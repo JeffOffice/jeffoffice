@@ -876,6 +876,8 @@ void writeForm(QXmlStreamWriter &w, const ShapeItem &s, DrawingWriteContext &ctx
         body.autofit = TextItem::ShrinkOnOverflow;
         body.fitScale = s.fitScale;
         body.fitLineCut = s.fitLineCut;
+    } else if (s.growsBox) {
+        body.autofit = TextItem::GrowBox;
     }
     writeBody(w, body, storyOf(s.storyId, ctx), ph.is, ctx);
     w.writeEndElement();

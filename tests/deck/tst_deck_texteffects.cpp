@@ -1227,6 +1227,57 @@ private Q_SLOTS:
         QVERIFY(std::abs(fl.fitScale * 100 - scale) < 0.01);
     }
 
+    // A shape's text shrinks as it is typed in the same steps, and the steps are saved; a shape that grows with its text keeps spAutoFit.
+    void typedShrinkingShapeTextIsSavedInTheOriginalsSteps()
+    {
+        Parts p = samplePptx();
+        QString xml = QString::fromUtf8(p.data["/ppt/slides/slide1.xml"].xml);
+        xml.replace(QStringLiteral("</p:spTree>"), QStringLiteral("<p:sp><p:nvSpPr><p:cNvPr id=\"30\" name=\"Fitting\"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr>")
+                                                       + xfrm(0, 0, 4572000, 914400).replace(QStringLiteral("\"rect\""), QStringLiteral("\"roundRect\"")) + QStringLiteral("<a:solidFill><a:srgbClr val=\"FF0000\"/></a:solidFill><a:ln w=\"12700\"><a:solidFill><a:srgbClr val=\"000000\"/></a:solidFill></a:ln>")
+                                                       + QStringLiteral("</p:spPr><p:txBody><a:bodyPr><a:normAutofit/></a:bodyPr><a:lstStyle/>")
+                                                       + para(QStringLiteral("One line")) + QStringLiteral("</p:txBody></p:sp>")
+                                                       + QStringLiteral("<p:sp><p:nvSpPr><p:cNvPr id=\"31\" name=\"Growing\"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr>")
+                                                       + xfrm(0, 2000000, 4572000, 914400).replace(QStringLiteral("\"rect\""), QStringLiteral("\"roundRect\"")) + QStringLiteral("<a:solidFill><a:srgbClr val=\"FF0000\"/></a:solidFill><a:ln w=\"12700\"><a:solidFill><a:srgbClr val=\"000000\"/></a:solidFill></a:ln>")
+                                                       + QStringLiteral("</p:spPr><p:txBody><a:bodyPr><a:spAutoFit/></a:bodyPr><a:lstStyle/>")
+                                                       + para(QStringLiteral("One line")) + QStringLiteral("</p:txBody></p:sp></p:spTree>"));
+        p.data["/ppt/slides/slide1.xml"].xml = xml.toUtf8();
+        QString err;
+        DeckWindow w;
+        w.editor()->replaceDocument(deck::importPresentation(pack(p), &err), QString());
+        Editor *ed = w.editor();
+        ShapeItem *box = nullptr, *grow = nullptr;
+        for (const auto &it : ed->doc()->pages[0]->items) {
+            if (it->name == QLatin1String("Fitting")) box = static_cast<ShapeItem *>(it.get());
+            if (it->name == QLatin1String("Growing")) grow = static_cast<ShapeItem *>(it.get());
+        }
+        QVERIFY(box && grow);
+        QVERIFY2(box->shrinks && box->fitAsStored && grow->growsBox, qPrintable(QStringLiteral("%1 %2 %3 type %4").arg(box->shrinks).arg(box->fitAsStored).arg(grow->growsBox).arg(int(box->type()))));
+        QString more;
+        for (int i = 0; i < 14; ++i) more += QStringLiteral("\nAnother line of the list %1").arg(i);
+        ed->select(box->id);
+        ed->beginTextEdit(box->id, 0);
+        ed->insertText(more);
+        QVERIFY(!box->fitAsStored);
+        ed->select(grow->id);
+        const double was = grow->rect.height();
+        ed->beginTextEdit(grow->id, 0);
+        ed->insertText(more);
+        QVERIFY2(grow->rect.height() > was, qPrintable(QString::number(grow->rect.height())));
+        Exported e;
+        QVERIFY(unpack(deck::exportPresentation(*ed->doc(), &err), &e, &err));
+        const QString slide = part(e, QStringLiteral("/ppt/slides/slide1.xml"));
+        QVERIFY(slide.contains(QStringLiteral("<a:spAutoFit")));
+        const int at = slide.indexOf(QStringLiteral("<a:normAutofit"));
+        QVERIFY(at >= 0);
+        const QString tag = slide.mid(at, slide.indexOf(QLatin1Char('>'), at) - at);
+        const int k = tag.indexOf(QStringLiteral("fontScale=\""));
+        QVERIFY2(k >= 0, qPrintable(tag));
+        const double scale = tag.mid(k + 11, tag.indexOf(QLatin1Char('"'), k + 11) - k - 11).toDouble() / 1000;
+        const double steps = (100 - scale) / 7.5;
+        QVERIFY2(scale < 100 && std::abs(steps - std::round(steps)) < 1e-9, qPrintable(tag));
+        QVERIFY(tag.contains(QStringLiteral("lnSpcReduction=\"20000\"")) || tag.contains(QStringLiteral("lnSpcReduction=\"10000\"")));
+    }
+
     // Text the presentation program shrank to fit is drawn in whole points: each size times the scale, rounded to the nearest point
     // (halves up, 1 at least), and a line is 1.2 times that size. Probed in the program: 28 pt at 85 percent is 24, not 23.8.
     // Other layouts (JeffPub's) keep the exact product.

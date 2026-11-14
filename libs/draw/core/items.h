@@ -227,7 +227,9 @@ public:
     // The text shrinks to fit the shape (a slide's, as a text box's does: TextItem::ShrinkOnOverflow), drawn at fitScale of its size with fitLineCut
     // percent taken off its line spacing, as the presentation program stored them.
     bool shrinks = false;
+    bool fitAsStored = false;   // the fit is the one the file stored, kept until the text is edited here (see TextItem::fitAsStored)
     double fitScale = 1.0, fitLineCut = 0;
+    bool growsBox = false;      // the shape grows and shrinks in height to hold its text (a:spAutoFit)
     // The text in columns (one when it is not), and the space between them in points.
     int columns = 1;
     double columnGap = 0;

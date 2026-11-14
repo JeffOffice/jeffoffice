@@ -671,6 +671,8 @@ ItemPtr Reader::drawn(const QDomElement &e, const QDomElement &nv, const QVector
     base.columnGap = props.columnGap;
     // Text the program shrank to fit keeps the scale it was given (a:normAutofit's fontScale and lnSpcReduction).
     base.shrinks = props.autofit == TextItem::ShrinkOnOverflow;
+    base.fitAsStored = base.shrinks;
+    base.growsBox = props.autofit == TextItem::GrowBox;
     base.fitScale = props.fitScale;
     base.fitLineCut = props.fitLineCut;
     base.shape = QStringLiteral("rect");

@@ -360,6 +360,49 @@ QString LayoutCache::fieldsKey(const Document &doc, const Story &story, const Fi
     return fieldValuesKey(n.fields, ctx) + QString::number(n.notes);
 }
 
+// Whether text doesn't fit its frames: none is left over and the frame holds its lines. A line taller than the box (a banner's headline grown to
+// fill its width) doesn't fit, though the layout still places it. The line spacing under the last line doesn't count.
+static bool framesOverflow(const StoryLayout &lay, const QVector<FrameSpec> &specs)
+{
+    if (lay.overflow()) return true;
+    for (int f = 0; f < specs.size(); ++f) {
+        const auto lines = lay.lineInfo(f);
+        if (lines.isEmpty()) continue;
+        double top = lines.first().rect.top(), bottom = lines.first().rect.bottom() - lines.first().below;
+        for (const auto &li : lines) {
+            top = std::min(top, li.rect.top());
+            bottom = std::max(bottom, li.rect.bottom() - li.below);
+        }
+        if (bottom - top > specs[f].size.height() - specs[f].insets.top() - specs[f].insets.bottom() + 0.5) return true;
+    }
+    return false;
+}
+
+// A slide's text shrinks in the steps the presentation program takes (so that a saved file opens the same elsewhere): the lines 10 and then 20
+// percent closer, then the size down by 7.5 percent of itself at a time to a quarter. The first step that fits is built into `lay`.
+static void fitInSteps(StoryLayout &lay, const QTextDocument *text, const QVector<FrameSpec> &specs, LayoutEnv &env, double *scale, double *cut)
+{
+    struct Step { double scale, cut; };
+    static const Step steps[] = {{1, 0}, {1, 10}, {1, 20}, {0.925, 20}, {0.85, 20}, {0.775, 20}, {0.7, 20}, {0.625, 20}, {0.55, 20}, {0.475, 20}, {0.4, 20}, {0.325, 20}, {0.25, 20}};
+    auto build = [&](const Step &s) {
+        env.fontScale = s.scale;
+        env.lineCut = s.cut;
+        lay.build(text, specs, env);
+    };
+    int lo = 0, hi = int(std::size(steps)) - 1;
+    build(steps[0]);
+    if (framesOverflow(lay, specs)) {
+        while (lo < hi) {
+            const int mid = (lo + hi) / 2;
+            build(steps[mid]);
+            if (framesOverflow(lay, specs)) lo = mid + 1; else hi = mid;
+        }
+        build(steps[lo]);
+    }
+    *scale = steps[lo].scale;
+    *cut = steps[lo].cut;
+}
+
 LayoutCache::FrameLayout LayoutCache::textFrame(const Document &doc, const TextItem &frame, int pageNumber, const RenderOptions &opt)
 {
     FrameLayout out;
@@ -406,42 +449,9 @@ LayoutCache::FrameLayout LayoutCache::textFrame(const Document &doc, const TextI
             // its width) doesn't fit, though the layout still places it. The
             // line spacing under the last line doesn't count (Publisher keeps
             // signs' one-line headlines at 125-130% spacing at their size).
-            auto overflows = [&] {
-                if (lay->overflow()) return true;
-                for (int f = 0; f < specs.size(); ++f) {
-                    const auto lines = lay->lineInfo(f);
-                    if (lines.isEmpty()) continue;
-                    double top = lines.first().rect.top(), bottom = lines.first().rect.bottom() - lines.first().below;
-                    for (const auto &li : lines) {
-                        top = std::min(top, li.rect.top());
-                        bottom = std::max(bottom, li.rect.bottom() - li.below);
-                    }
-                    if (bottom - top > specs[f].size.height() - specs[f].insets.top() - specs[f].insets.bottom() + 0.5) return true;
-                }
-                return false;
-            };
+            auto overflows = [&] { return framesOverflow(*lay, specs); };
             if (doc.slideText && head->autofit == TextItem::ShrinkOnOverflow) {
-                // A slide's text shrinks in the steps the presentation program takes (so that a saved file opens the same elsewhere): the lines
-                // 10 and then 20 percent closer, then the size down by 7.5 percent of itself at a time to a quarter. The first that fits.
-                struct Step { double scale, cut; };
-                static const Step steps[] = {{1, 0}, {1, 10}, {1, 20}, {0.925, 20}, {0.85, 20}, {0.775, 20}, {0.7, 20}, {0.625, 20}, {0.55, 20}, {0.475, 20}, {0.4, 20}, {0.325, 20}, {0.25, 20}};
-                auto build = [&](const Step &s) {
-                    env.fontScale = s.scale;
-                    env.lineCut = s.cut;
-                    lay->build(story->doc.get(), specs, env);
-                };
-                int lo = 0, hi = int(std::size(steps)) - 1;
-                build(steps[0]);
-                if (overflows()) {
-                    while (lo < hi) {
-                        const int mid = (lo + hi) / 2;
-                        build(steps[mid]);
-                        if (overflows()) lo = mid + 1; else hi = mid;
-                    }
-                    build(steps[lo]);
-                }
-                scale = steps[lo].scale;
-                cut = steps[lo].cut;
+                fitInSteps(*lay, story->doc.get(), specs, env, &scale, &cut);
             } else {
             // Binary search the largest font scale that fits.
             double lo = 0.05, hi = head->autofit == TextItem::BestFit && !head->fitAsStored ? 8.0 : 1.0;
@@ -500,6 +510,23 @@ const StoryLayout *LayoutCache::storyBox(const Document &doc, const QString &sto
         e.layout->build(story->doc.get(), {spec}, env);
         e.sig = sig;
     }
+    return e.layout.get();
+}
+
+const StoryLayout *LayoutCache::storyBoxFit(const Document &doc, const QString &storyId, const FrameSpec &spec, const QString &key, double *fitScale, double *fitCut)
+{
+    Story *story = doc.story(storyId);
+    if (!story) return nullptr;
+    LayoutEnv env = Renderer::layoutEnv(doc);
+    const QString sig = QStringLiteral("%1/%2/fit/").arg(story->serial).arg(story->doc->revision()) + specSig(spec, false) + fieldsKey(doc, *story, spec.ctx) + env.key();
+    Entry &e = m_entries[key + QStringLiteral("#") + storyId];
+    if (e.sig != sig || !e.layout) {
+        e.layout = std::make_shared<StoryLayout>();
+        fitInSteps(*e.layout, story->doc.get(), {spec}, env, &e.fitScale, &e.fitCut);
+        e.sig = sig;
+    }
+    if (fitScale) *fitScale = e.fitScale;
+    if (fitCut) *fitCut = e.fitCut;
     return e.layout.get();
 }
 
@@ -1064,7 +1091,7 @@ static void paintShape(QPainter *p, const PaintContext &ctx, const ShapeItem &s)
     }
 }
 
-const StoryLayout *Renderer::shapeTextLayout(const PaintContext &ctx, const ShapeItem &s, QPointF *origin)
+const StoryLayout *Renderer::shapeTextLayout(const PaintContext &ctx, const ShapeItem &s, QPointF *origin, double *fitScale, double *fitCut)
 {
     const QRectF r(QPointF(0, 0), s.rect.size());
     const QRectF tr = s.customPath.isEmpty() ? shapeTextRect(s.shape, r.size(), s.adj) : r;
@@ -1087,6 +1114,8 @@ const StoryLayout *Renderer::shapeTextLayout(const PaintContext &ctx, const Shap
     if (origin) *origin = tr.topLeft();
     // A shape that says its text shrinks to fit has it at the scale the file gives (and the spacing taken off), as a text box's does.
     const bool shrunk = ctx.doc->slideText && s.shrinks;
+    // (Unless the file's own fit is kept, it is fitted here, in the program's steps.)
+    if (shrunk && !s.fitAsStored && !s.storyId.isEmpty()) return ctx.cache->storyBoxFit(*ctx.doc, s.storyId, spec, s.id + QString::number(ctx.pageNumber), fitScale, fitCut);
     return ctx.cache->storyBox(*ctx.doc, s.storyId, spec, s.id + QString::number(ctx.pageNumber), shrunk ? std::clamp(s.fitScale, 0.01, 1.0) : 1.0, shrunk ? std::clamp(s.fitLineCut, 0.0, 99.0) : 0.0);
 }
 

@@ -1102,7 +1102,7 @@ private Q_SLOTS:
     }
 
     // Every command in the menu is the very action the ribbon has (so it is enabled and checked as the ribbon's is, and counts the
-    // same); Reset Slide is the ribbon's Reset under a clearer name, and calls it.
+    // same); Reset Slide is the ribbon's Reset under a clearer name, and calls it; the Text Fit choices are the menu's own.
     void slideMenuCommandsAreTheRibbonsActions()
     {
         DeckWindow w;
@@ -1111,7 +1111,7 @@ private Q_SLOTS:
             for (QAction *a : menu->actions()) {
                 if (a->menu()) {
                     check(a->menu());
-                } else if (!a->isSeparator() && !a->objectName().isEmpty() && a->objectName() != QLatin1String("slide.reset")) {
+                } else if (!a->isSeparator() && !a->objectName().isEmpty() && a->objectName() != QLatin1String("slide.reset") && !a->objectName().startsWith(QLatin1String("text.fit"))) {
                     QVERIFY2(w.act(a->objectName()), qPrintable(a->objectName()));
                     QCOMPARE(a, w.act(a->objectName()));
                 }

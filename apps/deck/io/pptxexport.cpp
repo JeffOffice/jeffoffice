@@ -1713,6 +1713,7 @@ PresentationKind kindOfFileName(const QString &path)
 // text a file shrank keeps what the file said until it is edited.
 static bool shrinksLive(const Item &it)
 {
+    if (it.type() == ItemType::Shape) return static_cast<const ShapeItem &>(it).shrinks && !static_cast<const ShapeItem &>(it).fitAsStored;
     return it.type() == ItemType::Text && static_cast<const TextItem &>(it).autofit == TextItem::ShrinkOnOverflow && !static_cast<const TextItem &>(it).fitAsStored;
 }
 
@@ -1721,7 +1722,15 @@ static void settleFits(Document &doc)
     LayoutCache cache;
     for (int i = 0; i < doc.pages.size(); ++i)
         for (const auto &it : doc.pages[i]->items)
-            if (shrinksLive(*it)) {
+            if (shrinksLive(*it) && it->type() == ItemType::Shape) {
+                auto &sh = static_cast<ShapeItem &>(*it);
+                PaintContext ctx;
+                ctx.doc = &doc;
+                ctx.cache = &cache;
+                ctx.pageNumber = i + 1;
+                ctx.pageCount = int(doc.pages.size());
+                Renderer::shapeTextLayout(ctx, sh, nullptr, &sh.fitScale, &sh.fitLineCut);
+            } else if (shrinksLive(*it)) {
                 auto &t = static_cast<TextItem &>(*it);
                 const auto fl = cache.textFrame(doc, t, i + 1, RenderOptions());
                 t.fitScale = fl.fitScale;

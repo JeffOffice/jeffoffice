@@ -842,6 +842,7 @@ ItemPtr Reader::readCustomShape(const QDomElement &e, Scope &sc, const QTransfor
     base.noWrap = bag.get(Graphic, "fo:wrap-option") == QLatin1String("no-wrap");
     // Text that shrinks to fit is read at the size it was shrunk to, as a text box's is (see readTextBox).
     base.shrinks = bag.get(Graphic, "style:shrink-to-fit") == QLatin1String("true") || bag.get(Graphic, "draw:fit-to-size") == QLatin1String("shrink");
+    base.growsBox = !base.shrinks && bag.get(Graphic, "draw:auto-grow-height") == QLatin1String("true");
     base.columns = std::clamp(bag.get(Graphic, "jo:columns").toInt(), 1, 16);
     if (base.columns > 1) base.columnGap = std::clamp(lengthOr(bag.get(Graphic, "jo:column-gap"), 0), 0.0, 1000.0);
     base.shape = QStringLiteral("rect");
@@ -924,6 +925,7 @@ ItemPtr Reader::readBasicShape(const QDomElement &e, Scope &sc, const QTransform
     s->centerBlock = bag.get(Graphic, "draw:textarea-horizontal-align") == QLatin1String("center");
     s->noWrap = bag.get(Graphic, "fo:wrap-option") == QLatin1String("no-wrap");
     s->shrinks = bag.get(Graphic, "style:shrink-to-fit") == QLatin1String("true");
+    s->growsBox = !s->shrinks && bag.get(Graphic, "draw:auto-grow-height") == QLatin1String("true");
     s->columns = std::clamp(bag.get(Graphic, "jo:columns").toInt(), 1, 16);
     if (s->columns > 1) s->columnGap = std::clamp(lengthOr(bag.get(Graphic, "jo:column-gap"), 0), 0.0, 1000.0);
     if (tag == QLatin1String("draw:rect") || tag == QLatin1String("draw:caption")) {

@@ -13,6 +13,7 @@
 #include "text/storyio.h"
 #include "core/comments.h"
 #include "text/textprops.h"
+#include "render/shapes.h"
 
 #include <QApplication>
 #include <QBuffer>
@@ -639,6 +640,8 @@ void Editor::textEdited()
         if (it->type() == ItemType::Text) {
             for (TextItem *f : m_doc->chainOf(it->id))
                 if (f->autofit == TextItem::GrowBox) autoGrowText(f);
+        } else if (it->type() == ItemType::Shape) {
+            autoGrowShape(static_cast<ShapeItem *>(it));
         } else if (it->type() == ItemType::Table) {
             fitTableRows(static_cast<TableItem *>(it));
         }
@@ -1408,6 +1411,61 @@ void Editor::autoGrowText(TextItem *t)
     lay.build(s->doc.get(), {spec}, env);
     const double need = std::max(18.0, lay.usedHeight(0));
     if (std::abs(need - t->rect.height()) > 0.5) t->rect.setHeight(need);
+}
+
+int Editor::textFitOf(const Item &it)
+{
+    if (it.type() == ItemType::Text) {
+        const auto a = static_cast<const TextItem &>(it).autofit;
+        return a == TextItem::GrowBox ? 2 : a == TextItem::NoAutofit ? 0 : 1;
+    }
+    if (it.type() == ItemType::Shape) {
+        const auto &s = static_cast<const ShapeItem &>(it);
+        return s.growsBox ? 2 : s.shrinks ? 1 : 0;
+    }
+    return -1;
+}
+
+void Editor::setTextFit(Item &it, int how)
+{
+    if (it.type() == ItemType::Text) {
+        auto &t = static_cast<TextItem &>(it);
+        t.autofit = how == 2 ? TextItem::GrowBox : how == 1 ? TextItem::ShrinkOnOverflow : TextItem::NoAutofit;
+        t.fitAsStored = false;
+        t.fitScale = 1.0;
+        t.fitLineCut = 0;
+        if (how == 2) autoGrowText(&t);
+    } else if (it.type() == ItemType::Shape) {
+        auto &s = static_cast<ShapeItem &>(it);
+        s.shrinks = how == 1;
+        s.growsBox = how == 2;
+        s.fitAsStored = false;
+        s.fitScale = 1.0;
+        s.fitLineCut = 0;
+        if (how == 2) autoGrowShape(&s);
+    }
+}
+
+void Editor::autoGrowShape(ShapeItem *s)
+{
+    if (!s || !s->growsBox || s->storyId.isEmpty()) return;
+    // The text is set in a copy as tall as can be, and the shape is as tall as that text and what the shape keeps around its text rectangle.
+    const QRectF r(QPointF(0, 0), s->rect.size());
+    const QRectF tr = s->customPath.isEmpty() ? shapeTextRect(s->shape, r.size(), s->adj) : r;
+    ItemPtr copy = s->clone();
+    auto *c = static_cast<ShapeItem *>(copy.get());
+    c->id = s->id + QStringLiteral("#grow");
+    c->rect.setHeight(1e5);
+    c->valign = VAlign::Top;
+    PaintContext ctx;
+    ctx.doc = m_doc.get();
+    ctx.cache = &m_cache;
+    ctx.opt = renderOptions();
+    ctx.pageNumber = surfacePageNumber();
+    const StoryLayout *lay = Renderer::shapeTextLayout(ctx, *c, nullptr);
+    if (!lay) return;
+    const double need = std::max(18.0, lay->usedHeight(0) + (r.height() - tr.height()));
+    if (std::abs(need - s->rect.height()) > 0.5) s->rect.setHeight(need);
 }
 
 void Editor::fitTableRows(TableItem *t)

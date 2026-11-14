@@ -415,6 +415,7 @@ private Q_SLOTS:
             f.setFontPointSize(24);
             c.mergeCharFormat(f);
             s->shrinks = shrinks;
+            s->fitAsStored = shrinks;   // (as a file stored it)
             s->fitScale = 0.625;
             s->fitLineCut = 10;
             d->pages[0]->items.push_back(s);

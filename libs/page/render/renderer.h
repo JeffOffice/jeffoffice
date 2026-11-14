@@ -58,6 +58,9 @@ public:
     // Layout for a single story in one box (shape text, table cells).
     // `fitScale` and `lineCut` are what a shape's text that shrinks to fit is drawn at (see ShapeItem::shrinks).
     const StoryLayout *storyBox(const Document &doc, const QString &storyId, const FrameSpec &spec, const QString &key, double fitScale = 1.0, double lineCut = 0);
+    // Likewise for a slide's shape whose text shrinks on overflow and isn't kept as a file had it: the first of the program's steps that fits,
+    // returned in `fitScale` and `fitCut`.
+    const StoryLayout *storyBoxFit(const Document &doc, const QString &storyId, const FrameSpec &spec, const QString &key, double *fitScale, double *fitCut);
     void clear() { m_entries.clear(); m_fields.clear(); m_passFrames.clear(); }
     // While a Pass is alive the publication is not changed (a page being painted), so the layout of each text box is worked out once: a chain of
     // boxes is set up whole for each of its boxes otherwise, the square of the chain's length.
@@ -155,7 +158,7 @@ public:
     static QVector<QPolygonF> wrapObstacles(const Document &doc, const TextItem &frame, bool *covered = nullptr);   // covered: an object in front wraps around the whole box
     static FrameSpec frameSpec(const Document &doc, const TextItem &t, int pageNumber, const RenderOptions &opt);
     // Layout of the text inside a shape or a table cell, with its frame-local origin.
-    static const StoryLayout *shapeTextLayout(const PaintContext &ctx, const ShapeItem &s, QPointF *origin);
+    static const StoryLayout *shapeTextLayout(const PaintContext &ctx, const ShapeItem &s, QPointF *origin, double *fitScale = nullptr, double *fitCut = nullptr);
     // half: 0, or 1 for the second half of a cell divided by a diagonal.
     static const StoryLayout *cellLayout(const PaintContext &ctx, const TableItem &t, int row, int col, QPointF *origin, int half = 0);
     static void strokePath(QPainter *p, const QPainterPath &path, const Stroke &s, const ColorScheme &cs);

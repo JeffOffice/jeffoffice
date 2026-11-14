@@ -262,6 +262,11 @@ public:
     // height, in proportion (0 or less leaves that size), as one change.
     void resizeTable(TableItem *t, double width, double height);
     void autoGrowText(TextItem *t);
+    // How a text box's or a shape's text fits it: 0 not at all, 1 shrinking on overflow, 2 the box growing with the text (-1: not for this item).
+    // Setting it is for a change already begun.
+    static int textFitOf(const Item &it);
+    void setTextFit(Item &it, int how);
+    void autoGrowShape(ShapeItem *s);   // a shape that grows with its text (growsBox): its height is set to the text's
 
     // ---- clipboard ----
     void copy();

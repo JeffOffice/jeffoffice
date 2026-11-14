@@ -383,7 +383,7 @@ void Exporter::writeShape(X &x, Scope &sc, const ShapeItem &s)
     QString extra;
     extra += attrOf("fo:padding-top", cm(s.insets.top())) + attrOf("fo:padding-bottom", cm(s.insets.bottom())) + attrOf("fo:padding-left", cm(s.insets.left())) + attrOf("fo:padding-right", cm(s.insets.right()));
     extra += attrOf("draw:textarea-vertical-align", s.valign == VAlign::Middle ? QStringLiteral("middle") : s.valign == VAlign::Bottom ? QStringLiteral("bottom") : QStringLiteral("top"));
-    extra += attrOf("draw:textarea-horizontal-align", s.centerBlock ? QStringLiteral("center") : QStringLiteral("justify")) + attrOf("draw:auto-grow-height", QStringLiteral("false")) + attrOf("draw:auto-grow-width", QStringLiteral("false"));
+    extra += attrOf("draw:textarea-horizontal-align", s.centerBlock ? QStringLiteral("center") : QStringLiteral("justify")) + attrOf("draw:auto-grow-height", s.growsBox ? QStringLiteral("true") : QStringLiteral("false")) + attrOf("draw:auto-grow-width", QStringLiteral("false"));
     extra += attrOf("fo:wrap-option", s.noWrap ? QStringLiteral("no-wrap") : QStringLiteral("wrap"));
     // Text that shrinks to fit keeps doing so, written at the size it was shrunk to, as a text box's is (see writeTextBox).
     const bool shrunk = m_doc.slideText && s.shrinks;
@@ -405,7 +405,8 @@ void Exporter::writeShape(X &x, Scope &sc, const ShapeItem &s)
         TextOpts opts;
         opts.behind = sc.background;
         opts.shape = s.sourceId;
-        FitGuard fit(m_fitScale, m_fitCut, shrunk ? std::clamp(s.fitScale, 0.01, 1.0) : 1.0, shrunk ? std::clamp(s.fitLineCut, 0.0, 99.0) : 0.0);
+        const bool kept = shrunk && s.fitAsStored;
+        FitGuard fit(m_fitScale, m_fitCut, kept ? std::clamp(s.fitScale, 0.01, 1.0) : 1.0, kept ? std::clamp(s.fitLineCut, 0.0, 99.0) : 0.0);
         writeStory(x, sc, story, opts);
     }
     x.open("draw:enhanced-geometry");

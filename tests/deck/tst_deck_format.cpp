@@ -946,9 +946,84 @@ private Q_SLOTS:
         QVERIFY(text()->layoutPoint(QPointF(50, 290)).x() < 40);
     }
 
-    // A shape has the margins, wrap, vertical alignment, and columns too; its text can't shrink or grow it yet, and says so by offering no
-    // choice but none.
-    void shapeTextOptionsAreKeptAndShrinkingIsNotOffered()
+    // A shape has the three fit choices too, as a text box does: each is one step, and both files keep it. Resizing sets the shape's height to its
+    // text's; the same three are on the right-click menu.
+    void shapeTextFitChoicesAreOneStepEachAndKept()
+    {
+        Rig r(1);
+        r.shape(0)->storyId = r.ed.doc()->createStory(QStringLiteral("One two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen"));
+        r.shape(0)->rect = QRectF(40, 60, 120, 200);
+        r.shape(0)->shape = QStringLiteral("roundRect");
+        r.shape(0)->fill.type = Fill::Solid;
+        r.shape(0)->fill.color = ColorRef::rgb(Qt::red);
+        r.select({0});
+        pane_page(r, FormatPane::Tab::SizeProperties);
+        auto *autofit = r.find<QComboBox>("textAutofit");
+        const int base = r.steps();
+        autofit->setCurrentIndex(1);
+        QVERIFY(r.shape(0)->shrinks && !r.shape(0)->growsBox);
+        QCOMPARE(r.steps(), base + 1);
+        for (int how = 0; how < 2; ++how) {
+            std::unique_ptr<Document> d = how ? r.viaOdp() : r.viaPptx();
+            QVERIFY(d);
+            QVERIFY2(static_cast<ShapeItem *>(Rig::named(*d, QStringLiteral("Shape 1")))->shrinks, how ? "odp" : "pptx");
+        }
+        autofit->setCurrentIndex(2);
+        QVERIFY(r.shape(0)->growsBox && !r.shape(0)->shrinks);
+        QCOMPARE(r.steps(), base + 2);
+        QVERIFY2(r.shape(0)->rect.height() < 120, "the shape is as tall as its text");
+        for (int how = 0; how < 2; ++how) {
+            std::unique_ptr<Document> d = how ? r.viaOdp() : r.viaPptx();
+            QVERIFY(d);
+            QVERIFY2(static_cast<ShapeItem *>(Rig::named(*d, QStringLiteral("Shape 1")))->growsBox, how ? "odp" : "pptx");
+        }
+        r.ed.undo();
+        QVERIFY(r.shape(0)->shrinks && !r.shape(0)->growsBox && r.shape(0)->rect.height() == 200);
+        r.ed.redo();
+        // Words typed in it make it taller.
+        const double was = r.shape(0)->rect.height();
+        r.ed.beginTextEdit(r.shape(0)->id, 0);
+        r.ed.insertText(QStringLiteral(" more words more words more words more words more words more words"));
+        QVERIFY(r.shape(0)->rect.height() > was);
+    }
+
+    void textFitIsOnTheRightClickMenu()
+    {
+        PaneGuard guard;
+        DeckWindow w;
+        w.show();
+        QVERIFY(QTest::qWaitForWindowActive(&w));
+        Editor *ed = w.editor();
+        ed->surfaceItems().clear();
+        auto shape = std::make_shared<ShapeItem>();
+        shape->rect = QRectF(100, 100, 200, 100);
+        shape->storyId = ed->doc()->createStory(QStringLiteral("Words"));
+        ed->addItem(shape, true);
+        {
+            std::unique_ptr<QMenu> menu(w.slideContextMenu());
+            int found = 0;
+            for (QAction *a : menu->actions())
+                if (a->menu())
+                    for (QAction *c : a->menu()->actions())
+                        if (c->objectName().startsWith(QLatin1String("text.fit"))) ++found;
+            QCOMPARE(found, 3);
+        }
+        const int steps = ed->undoStack()->index();
+        w.setTextFit(1);
+        QVERIFY(shape->shrinks);
+        QCOMPARE(ed->undoStack()->index(), steps + 1);
+        std::unique_ptr<QMenu> menu(w.slideContextMenu());
+        QAction *checked = nullptr;
+        for (QAction *a : menu->actions())
+            if (a->menu())
+                for (QAction *c : a->menu()->actions())
+                    if (c->isChecked() && c->objectName().startsWith(QLatin1String("text.fit"))) checked = c;
+        QVERIFY(checked);
+        QCOMPARE(checked->objectName(), QStringLiteral("text.fit1"));
+    }
+
+    // A shape has the margins, wrap, vertical alignment, and columns too.
+    void shapeTextOptionsAreKept()
     {
         Rig r(1);
         r.select({0});
@@ -963,7 +1038,7 @@ private Q_SLOTS:
         auto *autofit = r.find<QComboBox>("textAutofit");
         auto *model = qobject_cast<QStandardItemModel *>(autofit->model());
         QVERIFY(model);
-        QVERIFY(model->item(0)->isEnabled() && !model->item(1)->isEnabled() && !model->item(2)->isEnabled());
+        QVERIFY(model->item(0)->isEnabled() && model->item(1)->isEnabled() && model->item(2)->isEnabled());
         QVERIFY(!r.find<QComboBox>("textDirection")->isEnabled());
         for (int how = 0; how < 2; ++how) {
             const QByteArray label = how ? "odp" : "pptx";

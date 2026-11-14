@@ -133,6 +133,7 @@ DeckWindow::DeckWindow(QWidget *parent) : AppWindow(parent)
             m_fitWatch = {target.itemId, revision};
         } else if (changed && revision != m_fitWatch.second) {
             if (Item *it = m_ed->doc()->item(target.itemId); it && it->type() == ItemType::Text) static_cast<TextItem *>(it)->fitAsStored = false;
+            else if (Item *sh = m_ed->doc()->item(target.itemId); sh && sh->type() == ItemType::Shape) static_cast<ShapeItem *>(sh)->fitAsStored = false;
             m_fitWatch.second = revision;
         }
     };

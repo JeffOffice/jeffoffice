@@ -510,6 +510,8 @@ QJsonObject ShapeItem::toJson() const
         o["columns"] = columns;
         o["columnGap"] = columnGap;
     }
+    if (growsBox) o["growsBox"] = true;
+    if (fitAsStored) o["fitStored"] = true;
     if (shrinks) {
         o["shrinks"] = true;
         if (fitScale != 1.0) o["fitScale"] = fitScale;
@@ -541,6 +543,8 @@ void ShapeItem::fromJson(const QJsonObject &o)
     columns = std::clamp(o["columns"].toInt(1), 1, 16);
     columnGap = std::clamp(o["columnGap"].toDouble(), 0.0, 1000.0);
     shrinks = o["shrinks"].toBool();
+    growsBox = o["growsBox"].toBool();
+    fitAsStored = o["fitStored"].toBool();
     fitScale = o["fitScale"].toDouble(1.0);
     fitLineCut = o["fitLineCut"].toDouble();
 }

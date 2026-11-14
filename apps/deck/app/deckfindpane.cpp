@@ -222,6 +222,7 @@ void DeckFindPane::replaceAll()
         // Words a program shrank to fit are not kept at that size once they change: the box is fitted here from now on.
         for (const FindStory &story : changed)
             if (Item *it = story.itemId.isEmpty() ? nullptr : ed->doc()->item(story.itemId); it && it->type() == ItemType::Text) static_cast<TextItem *>(it)->fitAsStored = false;
+            else if (Item *sh = story.itemId.isEmpty() ? nullptr : ed->doc()->item(story.itemId); sh && sh->type() == ItemType::Shape) static_cast<ShapeItem *>(sh)->fitAsStored = false;
     });
     m_status->setText(n == 0   ? tr("JeffDeck made no replacements. \"%1\" was not found.").arg(findTextForMessage(q))
                       : n == 1 ? tr("JeffDeck made 1 replacement.")
