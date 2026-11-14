@@ -70,7 +70,8 @@ namespace {
 
 const char kNs[] = "xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" "
                    "xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" "
-                   "xmlns:wps=\"http://schemas.microsoft.com/office/word/2010/wordprocessingShape\" xmlns:wpg=\"http://schemas.microsoft.com/office/word/2010/wordprocessingGroup\"";
+                   "xmlns:wps=\"http://schemas.microsoft.com/office/word/2010/wordprocessingShape\" xmlns:wpg=\"http://schemas.microsoft.com/office/word/2010/wordprocessingGroup\" "
+                   "xmlns:wp14=\"http://schemas.microsoft.com/office/word/2010/wordprocessingDrawing\"";
 
 QByteArray makeDocx(const QByteArray &body)
 {
@@ -1021,6 +1022,47 @@ private Q_SLOTS:
         // Escape ends it.
         QTest::keyClick(vp, Qt::Key_Escape);
         QVERIFY(!win.w.view()->editingPoints());
+    }
+
+    void aShapeInAChoiceOfAlternateContentIsSelectableAndEditableAndKeptAsTheFileHadItUntilEdited()
+    {
+        const QByteArray run = anchoredGraphic(7, kShapeUri, plainShape(120, 60, "star5"), 200, 150, 120, 60);
+        // (Word writes its own id attributes on the anchor, in a prefix the drawing does not declare.)
+        QByteArray drawing = run.mid(run.indexOf("<w:drawing>"), run.indexOf("</w:drawing>") + 12 - run.indexOf("<w:drawing>"));
+        drawing.replace("<wp:anchor ", "<wp:anchor wp14:anchorId=\"33B7E180\" wp14:editId=\"305BEF9A\" ");
+        const QByteArray wrapped = "<w:r><mc:AlternateContent xmlns:mc=\"http://schemas.openxmlformats.org/markup-compatibility/2006\"><mc:Choice Requires=\"wps\">" + drawing +
+                                   "</mc:Choice><mc:Fallback><w:pict xmlns:v=\"urn:schemas-microsoft-com:vml\"><v:rect id=\"f\" style=\"width:120pt;height:60pt\"/></w:pict></mc:Fallback></mc:AlternateContent></w:r>";
+        const QByteArray file = makeDocx("<w:p><w:r><w:t>Before</w:t></w:r>" + wrapped + "<w:r><w:t>after</w:t></w:r></w:p>");
+        auto doc = open(file);
+        QVERIFY(doc);
+        int at = -1;
+        for (int i = 0; i < doc->story()->characterCount(); ++i)
+            if (isDrawnObjectAt(doc->story(), i)) at = i;
+        QVERIFY(at >= 0);
+        PictureInfo info = pictureAt(*doc, doc->story(), at);
+        QCOMPARE(info.preset, QStringLiteral("star5"));
+        QVERIFY(info.editable && info.floating);
+        // Untouched, it is saved as the file had it, fallback and all.
+        QByteArray xml = documentXml(doc->toDocx());
+        QVERIFY(xml.contains("mc:AlternateContent") && xml.contains("mc:Fallback"));
+        // One edit makes it a plain drawing with the change.
+        QVERIFY(setShapeFill(*doc, at, QStringLiteral("00AA00")));
+        QCOMPARE(pictureAt(*doc, doc->story(), at).fillColor, QStringLiteral("00AA00"));
+        xml = documentXml(doc->toDocx());
+        QVERIFY(xml.contains("00AA00") && !xml.contains("mc:Fallback"));
+        auto back = open(doc->toDocx());
+        QVERIFY(back);
+        int again = -1;
+        for (int i = 0; i < back->story()->characterCount(); ++i)
+            if (isDrawnObjectAt(back->story(), i)) again = i;
+        QCOMPARE(pictureAt(*back, back->story(), again).preset, QStringLiteral("star5"));
+        QCOMPARE(pictureAt(*back, back->story(), again).fillColor, QStringLiteral("00AA00"));
+        // Undo gives the file's own form back.
+        QVERIFY(doc->undo());
+        xml = documentXml(doc->toDocx());
+        QVERIFY(xml.contains("mc:Fallback"));
+        // A diagram's choice is not a shape: it is left alone.
+        QCOMPARE(doc->story()->toPlainText().remove(QChar::ObjectReplacementCharacter), QStringLiteral("Beforeafter"));
     }
 
     void aShapesFillLineTurnAndKindAreChangedOneStepEach()

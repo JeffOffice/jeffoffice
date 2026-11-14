@@ -411,7 +411,25 @@ bool drawingAtomOf(const QTextCharFormat &cf, Inline *atom)
     const QByteArray bytes = storedBytes(cf, prop::Atom);
     if (!bytes.contains("drawing")) return false;
     const Inline a = unpackAtom(bytes);
-    if (a.kind != Inline::RunAtom || a.tag != QLatin1String("drawing")) return false;
+    if (a.kind != Inline::RunAtom) return false;
+    if (a.tag == QLatin1String("AlternateContent")) {
+        // A shape or text box that a newer program wrote with a fallback for older ones: the choice that names the shape format is the drawing, and the fallback goes when it is changed (until
+        // then the character keeps the file's own form, so the saved file is as it was).
+        static const QRegularExpression shapeChoice(QStringLiteral("<(?:mc:)?Choice\\s[^>]*Requires=\"[^\"]*\\bwp[sg]\\b[^\"]*\""));
+        const QString raw = QString::fromUtf8(a.raw);
+        const QRegularExpressionMatch choice = shapeChoice.match(raw);
+        if (!choice.hasMatch()) return false;
+        const qsizetype from = a.raw.indexOf("<w:drawing", choice.capturedStart()), to = from < 0 ? -1 : a.raw.indexOf("</w:drawing>", from);
+        if (from < 0 || to < 0) return false;
+        const qsizetype fallback = a.raw.indexOf("Fallback", choice.capturedStart());
+        if (fallback >= 0 && fallback < from) return false;
+        Inline drawing = a;
+        drawing.tag = QStringLiteral("drawing");
+        drawing.raw = a.raw.mid(from, to + 12 - from);
+        *atom = drawing;
+        return true;
+    }
+    if (a.tag != QLatin1String("drawing")) return false;
     *atom = a;
     return true;
 }
