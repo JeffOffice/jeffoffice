@@ -351,7 +351,20 @@
                 "arr.rotR",
                 "arr.rotL",
                 "arr.flipH",
-                "arr.flipV"
+                "arr.flipV",
+                "-",
+                "arr.alignLeft",
+                "arr.alignCenter",
+                "arr.alignRight",
+                "-",
+                "arr.alignTop",
+                "arr.alignMiddle",
+                "arr.alignBottom",
+                "-",
+                "arr.distH",
+                "arr.distV",
+                "-",
+                "arr.alignToSlide"
               ]
             },
             {
@@ -1546,6 +1559,34 @@
                   "widget": "shapeWidth",
                   "keytip": "SW"
                 }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Arrange",
+          "keytip": "ZR",
+          "items": [
+            {
+              "large": {
+                "id": "ribbon.align",
+                "text": "Align",
+                "icon": "align-start-vertical"
+              },
+              "keytip": "AL",
+              "menu": [
+                "arr.alignLeft",
+                  "arr.alignCenter",
+                  "arr.alignRight",
+                  "-",
+                  "arr.alignTop",
+                  "arr.alignMiddle",
+                  "arr.alignBottom",
+                  "-",
+                  "arr.distH",
+                  "arr.distV",
+                  "-",
+                  "arr.alignToSlide"
               ]
             }
           ]

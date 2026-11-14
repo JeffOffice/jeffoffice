@@ -9,6 +9,7 @@
     QT_TRANSLATE_NOOP("Ribbon", "Adjust"),
     QT_TRANSLATE_NOOP("Ribbon", "Advanced Animation"),
     QT_TRANSLATE_NOOP("Ribbon", "Align Text"),
+    QT_TRANSLATE_NOOP("Ribbon", "Align"),
     QT_TRANSLATE_NOOP("Ribbon", "Alignment"),
     QT_TRANSLATE_NOOP("Ribbon", "Animation"),
     QT_TRANSLATE_NOOP("Ribbon", "Animations"),

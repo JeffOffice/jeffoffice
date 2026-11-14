@@ -3,6 +3,7 @@
 #include "app/editor.h"
 #include "app/icons.h"
 #include "app/sectionui.h"
+#include "app/slideclipboard.h"
 #include "app/theme.h"
 #include "core/sections.h"
 #include "render/renderer.h"
@@ -303,6 +304,13 @@ void SlidesPane::contextMenuEvent(QContextMenuEvent *e)
     menu.addAction(tr("Duplicate Slide"), this, &SlidesPane::duplicateWanted);
     menu.addAction(tr("Delete Slide"), this, &SlidesPane::deleteWanted);
     menu.addSeparator();
+    menu.addAction(tr("Cut"), QKeySequence::Cut, this, &SlidesPane::cutWanted);
+    menu.addAction(tr("Copy"), QKeySequence::Copy, this, &SlidesPane::copyWanted);
+    QAction *paste = menu.addAction(tr("Paste"), QKeySequence::Paste, this, [this] { Q_EMIT pasteWanted(true); });
+    QAction *pasteTheme = menu.addAction(tr("Paste (Use Destination Theme)"), this, [this] { Q_EMIT pasteWanted(false); });
+    paste->setEnabled(deck::slidesOnClipboard());
+    pasteTheme->setEnabled(deck::slidesOnClipboard());
+    menu.addSeparator();
     menu.addAction(tr("Hide Slide"), this, &SlidesPane::hideWanted);
     menu.addSeparator();
     menu.addAction(tr("Add Section"), this, [this, slide] { Q_EMIT addSectionWanted(slide); });
@@ -311,7 +319,10 @@ void SlidesPane::contextMenuEvent(QContextMenuEvent *e)
 
 void SlidesPane::keyPressEvent(QKeyEvent *e)
 {
-    if (e->key() == Qt::Key_Delete || e->key() == Qt::Key_Backspace) Q_EMIT deleteWanted();
+    if (e->matches(QKeySequence::Cut)) Q_EMIT cutWanted();
+    else if (e->matches(QKeySequence::Copy)) Q_EMIT copyWanted();
+    else if (e->matches(QKeySequence::Paste)) Q_EMIT pasteWanted(true);
+    else if (e->key() == Qt::Key_Delete || e->key() == Qt::Key_Backspace) Q_EMIT deleteWanted();
     else if (e->key() == Qt::Key_Return || e->key() == Qt::Key_Enter) Q_EMIT newSlideWanted();
     else if (e->key() == Qt::Key_Up || e->key() == Qt::Key_Down || e->key() == Qt::Key_Home || e->key() == Qt::Key_End) {
         // From slide to slide, whatever the list has laid out (the slides of a section folded away are passed).

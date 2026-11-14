@@ -69,6 +69,9 @@ public:
     void moveSlides(const QList<int> &slides, int before, int into = -1);
     void deleteSelected();      // all but one slide when all are selected
     void duplicateSelected();   // each copy right after its slide
+    void copySelected();        // the slides to the clipboard (app/slideclipboard.h)
+    void cutSelected();         // copied, then deleted: one step (all but one slide when all are selected)
+    void pasteSlides(bool keepFormatting);   // the clipboard's slides after the current slide, as one step; they become the selection
     void toggleHiddenSelected();   // hides them, or shows them when all are hidden
     void newSlideAfterSelection();   // asks for it through newSlideWanted()
 
@@ -122,6 +125,7 @@ private:
     QList<QByteArray> slideKeys() const;
     QStringList pageIds() const;
     QList<int> validSelection() const;
+    void deleteSlides(QList<int> doomed, const QString &one, const QString &many);
     void currentChanged();
     void rebaseSelection();
     void setCurrent(int slide);

@@ -65,6 +65,9 @@ Q_SIGNALS:
     void newSlideWanted();
     void duplicateWanted();
     void deleteWanted();
+    void cutWanted();
+    void copyWanted();
+    void pasteWanted(bool keepFormatting);
     void hideWanted();
     void addSectionWanted(int slide);
     void renameSectionWanted(int section);

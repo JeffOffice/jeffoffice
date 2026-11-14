@@ -15,7 +15,9 @@
 #include "app/ribbon.h"
 #include "app/ribbonbuilder.h"
 #include "app/settings.h"
+#include "app/slideclipboard.h"
 #include "app/slideshow.h"
+#include "app/slidesorter.h"
 #include "app/slidespane.h"
 #include "app/telemetry.h"
 #include "app/widgets.h"
@@ -166,6 +168,9 @@ DeckWindow::DeckWindow(QWidget *parent) : AppWindow(parent)
     connect(m_slides, &SlidesPane::newSlideWanted, this, [this] { newSlide(); });
     connect(m_slides, &SlidesPane::duplicateWanted, this, &DeckWindow::duplicateSlide);
     connect(m_slides, &SlidesPane::deleteWanted, this, &DeckWindow::deleteSlide);
+    connect(m_slides, &SlidesPane::cutWanted, this, &DeckWindow::cutSlides);
+    connect(m_slides, &SlidesPane::copyWanted, this, &DeckWindow::copySlides);
+    connect(m_slides, &SlidesPane::pasteWanted, this, &DeckWindow::pasteSlides);
     connect(m_slides, &SlidesPane::hideWanted, this, &DeckWindow::toggleHidden);
     // Pictures dropped on the slide.
     connect(m_canvas, &Canvas::insertFilesWanted, this, [this](const QStringList &paths, const QPointF &at) {
@@ -243,9 +248,9 @@ void DeckWindow::createActions()
     mk("file.close", tr("Close"), "circle-x", QKeySequence::Close, [this] { close(); });
     mk("edit.undo", tr("Undo"), "undo-2", QKeySequence::Undo, [ed] { ed->undo(); });   // while cropping, takes the crop back, as Esc does
     mk("edit.redo", tr("Redo"), "redo-2", QKeySequence::Redo, [ed] { ed->redo(); });
-    mk("edit.cut", tr("Cut"), "scissors", QKeySequence::Cut, [ed] { ed->cut(); });
-    mk("edit.copy", tr("Copy"), "copy", QKeySequence::Copy, [ed] { ed->copy(); });
-    mk("edit.paste", tr("Paste"), "clipboard-paste", QKeySequence::Paste, [ed] { ed->paste(); });
+    mk("edit.cut", tr("Cut"), "scissors", QKeySequence::Cut, [this, ed] { if (slideListFocused()) cutSlides(); else ed->cut(); });
+    mk("edit.copy", tr("Copy"), "copy", QKeySequence::Copy, [this, ed] { if (slideListFocused()) copySlides(); else ed->copy(); });
+    mk("edit.paste", tr("Paste"), "clipboard-paste", QKeySequence::Paste, [this, ed] { if (slideListFocused()) pasteSlides(true); else ed->paste(); });
     mk("edit.pasteText", tr("Keep Text Only"), "clipboard-type", QKeySequence(), [ed] { ed->paste(true); });
     mk("edit.pasteSpecial", tr("Paste Special…"), "clipboard-list", QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_V), [this, ed] { pasteSpecialDialog(this, ed); });
     mk("edit.delete", tr("Delete"), "trash-2", QKeySequence(), [ed] { ed->deleteSelection(); });
@@ -318,6 +323,8 @@ void DeckWindow::refreshUi()
     const QTextBlockFormat bf = textish ? ed->currentBlockFormat() : QTextBlockFormat();
     for (const char *id : {"edit.cut", "edit.copy", "edit.delete"}) act(id)->setEnabled(sel || (editing && ed->cursor().hasSelection()));
     for (const char *id : {"arr.front", "arr.forward", "arr.backward", "arr.back", "arr.rotR", "arr.rotL", "arr.flipH", "arr.flipV"}) act(id)->setEnabled(sel);
+    for (const char *id : {"arr.alignLeft", "arr.alignCenter", "arr.alignRight", "arr.alignTop", "arr.alignMiddle", "arr.alignBottom"}) act(id)->setEnabled(sel);
+    for (const char *id : {"arr.distH", "arr.distV"}) act(id)->setEnabled(kind == "multi" || (sel && act("arr.alignToSlide")->isChecked()));
     act("arr.group")->setEnabled(kind == "multi");
     act("arr.ungroup")->setEnabled(kind == "group");
     for (const char *id : {"fmt.bold", "fmt.italic", "fmt.underline", "fmt.strike", "fmt.shadow", "fmt.grow", "fmt.shrink", "fmt.clear", "para.bullets", "para.numbers",
@@ -489,6 +496,47 @@ void DeckWindow::duplicateSlide()
     const int index = deck::duplicateSlide(*m_ed->doc(), m_ed->currentPage());
     m_ed->endChange();
     if (index >= 0) m_ed->setCurrentPage(index);
+}
+
+// The slides pane or the Slide Sorter has the keyboard: Cut, Copy, and Paste are for whole slides there.
+bool DeckWindow::slideListFocused() const
+{
+    const QWidget *f = QApplication::focusWidget();
+    return f && ((m_slides && (f == m_slides || m_slides->isAncestorOf(f))) || (m_sorter && (f == m_sorter || m_sorter->isAncestorOf(f))));
+}
+
+void DeckWindow::copySlides()
+{
+    if (m_sorter->isVisible()) { m_sorter->copySelected(); return; }
+    m_notes->commit();
+    if (m_outline) m_outline->commit();
+    m_ed->endTextEdit();
+    deck::copySlidesToClipboard(*m_ed->doc(), {m_ed->currentPage()});
+}
+
+void DeckWindow::cutSlides()
+{
+    if (m_sorter->isVisible()) { m_sorter->cutSelected(); return; }
+    if (m_ed->doc()->pages.size() < 2) return;
+    copySlides();
+    m_ed->beginChange(tr("Cut Slide"));
+    deck::slideRemoved(*m_ed->doc(), m_ed->currentPage());
+    m_ed->deletePage(m_ed->currentPage());
+    m_ed->endChange();
+}
+
+void DeckWindow::pasteSlides(bool keepFormatting)
+{
+    if (m_sorter->isVisible()) { m_sorter->pasteSlides(keepFormatting); return; }
+    if (!deck::slidesOnClipboard()) return;
+    m_notes->commit();
+    if (m_outline) m_outline->commit();
+    m_ed->endTextEdit();
+    m_ed->beginChange(tr("Paste Slides"));
+    const int at = m_ed->currentPage() + 1;
+    const int made = deck::pasteSlidesFromClipboard(*m_ed->doc(), at, keepFormatting);
+    m_ed->endChange();
+    if (made > 0) m_ed->setCurrentPage(at + made - 1);
 }
 
 void DeckWindow::deleteSlide()

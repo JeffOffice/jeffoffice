@@ -1778,6 +1778,74 @@ private Q_SLOTS:
         QVERIFY(alt->isExpanded());
         QTRY_VERIFY(w.formatPane()->findChild<TextField *>(QStringLiteral("altDescription"))->hasFocus());
     }
+
+    // Align and Distribute are on the Arrange menu: each moves the chosen
+    // shapes as one step that undoes, to the selection or to the slide.
+    void arrangeMenuAlignsAndDistributesShapes()
+    {
+        DeckWindow w;
+        w.resize(1280, 800);
+        w.show();
+        Editor *ed = w.editor();
+        QStringList ids;
+        const QRectF rects[3] = {QRectF(100, 50, 100, 60), QRectF(300, 200, 50, 80), QRectF(700, 120, 120, 40)};
+        QVector<std::shared_ptr<ShapeItem>> shapes;
+        for (const QRectF &r : rects) {
+            auto s = std::make_shared<ShapeItem>();
+            s->rect = r;
+            ed->addItem(s, false);
+            shapes << s;
+            ids << s->id;
+        }
+        ed->undoStack()->clear();
+        // (an undo puts back the items as they were, so the shapes are read from the document)
+        auto R = [&](int k) { return ed->doc()->item(ids[k])->bounds(); };
+        auto run = [&](const char *id) {
+            QAction *a = w.act(QString::fromLatin1(id));
+            QVERIFY2(a, id);
+            ed->select(ids);
+            QTRY_VERIFY2(a->isEnabled(), id);
+            a->trigger();
+            QCOMPARE(ed->undoStack()->count(), 1);
+        };
+        run("arr.alignLeft");
+        for (int k = 0; k < 3; ++k) QCOMPARE(R(k).left(), 100.0);
+        ed->undo();
+        QCOMPARE(R(2).left(), 700.0);
+        run("arr.alignRight");
+        for (int k = 0; k < 3; ++k) QCOMPARE(R(k).right(), 820.0);
+        ed->undo();
+        run("arr.alignTop");
+        for (int k = 0; k < 3; ++k) QCOMPARE(R(k).top(), 50.0);
+        ed->undo();
+        run("arr.alignBottom");
+        for (int k = 0; k < 3; ++k) QCOMPARE(R(k).bottom(), 280.0);
+        ed->undo();
+        run("arr.alignCenter");
+        for (int k = 0; k < 3; ++k) QCOMPARE(R(k).center().x(), 460.0);
+        ed->undo();
+        run("arr.alignMiddle");
+        for (int k = 0; k < 3; ++k) QCOMPARE(R(k).center().y(), 165.0);
+        ed->undo();
+        run("arr.distH");
+        QCOMPARE(R(1).left() - R(0).right(), R(2).left() - R(1).right());
+        ed->undo();
+        run("arr.distV");
+        QCOMPARE(R(2).top() - R(0).bottom(), R(1).top() - R(2).bottom());
+        ed->undo();
+        // To the slide: Align Left puts the shapes at the slide's left edge.
+        QAction *toSlide = w.act(QStringLiteral("arr.alignToSlide"));
+        QVERIFY(toSlide);
+        QVERIFY(!toSlide->isChecked());
+        toSlide->trigger();
+        QVERIFY(toSlide->isChecked());
+        run("arr.alignLeft");
+        for (int k = 0; k < 3; ++k) QCOMPARE(R(k).left(), 0.0);
+        ed->undo();
+        run("arr.alignCenter");
+        for (int k = 0; k < 3; ++k) QCOMPARE(R(k).center().x(), ed->doc()->pageSize().width() / 2);
+        ed->undo();
+    }
 };
 
 JP_TEST_CLASS(DeckFormatTests)

@@ -1,5 +1,9 @@
 // JeffDeck's tests of the slide sorter, sections, and the outline view.
 #include "deckhelpers.h"
+#include "app/slideclipboard.h"
+
+#include <QClipboard>
+#include <QGuiApplication>
 
 class DeckSlideListTests : public QObject {
     Q_OBJECT
@@ -265,6 +269,114 @@ private Q_SLOTS:
         QCOMPARE(ed->currentPage(), 2);
         QTRY_COMPARE(s->selection(), QList<int>({2}));
         QTRY_COMPARE(s->slideCount(), 5);
+    }
+
+    // Copy and paste whole slides in the sorter: the copies go after the
+    // current slide with their text, and a paste is one step that undoes.
+    void slideSorterCopiesAndPastesSlides()
+    {
+        DeckWindow w;
+        w.resize(1280, 800);
+        w.show();
+        fillSlides(w, {"One", "Two", "Three", "Four"}, {{"a"}, {"b"}, {"c"}, {"d"}});
+        Editor *ed = w.editor();
+        Document *d = ed->doc();
+        w.act("view.sorter")->trigger();
+        SlideSorter *s = w.slideSorter();
+        QGuiApplication::clipboard()->clear();
+        s->select({1, 2}, 2);
+        s->copySelected();
+        QVERIFY(deck::slidesOnClipboard());
+        QCOMPARE(titlesOf(*d), (QStringList{"One", "Two", "Three", "Four"}));
+        QCOMPARE(ed->undoStack()->count(), 0);
+        ed->setCurrentPage(3);
+        s->pasteSlides(true);
+        QCOMPARE(titlesOf(*d), (QStringList{"One", "Two", "Three", "Four", "Two", "Three"}));
+        QCOMPARE(bodyOfSlide(*d, 4)->toPlainText(), QStringLiteral("b"));
+        QCOMPARE(bodyOfSlide(*d, 5)->toPlainText(), QStringLiteral("c"));
+        QCOMPARE(s->selection(), QList<int>({4, 5}));
+        QCOMPARE(ed->undoStack()->count(), 1);
+        ed->undo();
+        QCOMPARE(titlesOf(*d), (QStringList{"One", "Two", "Three", "Four"}));
+        // Pasting again after the first slide, without the source formatting.
+        ed->setCurrentPage(0);
+        s->pasteSlides(false);
+        QCOMPARE(titlesOf(*d), (QStringList{"One", "Two", "Three", "Two", "Three", "Four"}));
+        QCOMPARE(ed->undoStack()->count(), 1);
+    }
+
+    // Cut takes the slides out and keeps them for a paste, as one step; the
+    // last slide of a presentation can't be cut.
+    void slideSorterCutsSlides()
+    {
+        DeckWindow w;
+        w.resize(1280, 800);
+        w.show();
+        fillSlides(w, {"One", "Two", "Three", "Four"});
+        Editor *ed = w.editor();
+        Document *d = ed->doc();
+        w.act("view.sorter")->trigger();
+        SlideSorter *s = w.slideSorter();
+        s->select({0, 1}, 1);
+        s->cutSelected();
+        QCOMPARE(titlesOf(*d), (QStringList{"Three", "Four"}));
+        QCOMPARE(ed->undoStack()->count(), 1);
+        ed->setCurrentPage(1);
+        s->pasteSlides(true);
+        QCOMPARE(titlesOf(*d), (QStringList{"Three", "Four", "One", "Two"}));
+        QCOMPARE(ed->undoStack()->count(), 2);
+        ed->undo();
+        ed->undo();
+        QCOMPARE(titlesOf(*d), (QStringList{"One", "Two", "Three", "Four"}));
+        s->select({0, 1, 2, 3}, 3);
+        s->cutSelected();
+        QCOMPARE(titlesOf(*d), (QStringList{"One"}));
+    }
+
+    // The keys do it when the sorter has the focus; the slides, with their
+    // pictures, go through the system clipboard to another window.
+    void slidesPasteIntoAnotherWindowWithTheirPictures()
+    {
+        DeckWindow w;
+        w.resize(1280, 800);
+        w.show();
+        fillSlides(w, {"One", "Two"});
+        Editor *ed = w.editor();
+        Document *d = ed->doc();
+        ed->change(QStringLiteral("picture"), [&] {
+            auto picture = std::make_shared<PictureItem>();
+            picture->imageId = d->addImage(tinyPng(), QStringLiteral("png"));
+            picture->rect = QRectF(10, 10, 100, 100);
+            picture->imgRect = QRectF(0, 0, 100, 100);
+            d->pages[1]->items.push_back(picture);
+        });
+        w.act("view.sorter")->trigger();
+        SlideSorter *s = w.slideSorter();
+        QVERIFY(QTest::qWaitForWindowActive(&w));
+        s->setFocus();
+        QTRY_VERIFY(s->hasFocus());
+        s->select({1}, 1);
+        QGuiApplication::clipboard()->clear();
+        const QKeyCombination copy = QKeySequence(QKeySequence::Copy)[0], paste = QKeySequence(QKeySequence::Paste)[0];
+        QTest::keyClick(s, copy.key(), copy.keyboardModifiers());
+        QVERIFY(deck::slidesOnClipboard());
+        DeckWindow other;
+        other.resize(1280, 800);
+        other.show();
+        other.pasteSlides(true);
+        Document *od = other.editor()->doc();
+        QCOMPARE(int(od->pages.size()), 2);
+        QCOMPARE(titleOfSlide(*od, 1), QStringLiteral("Two"));
+        const PictureItem *pic = nullptr;
+        for (const auto &it : od->pages[1]->items)
+            if (it->type() == ItemType::Picture) pic = static_cast<const PictureItem *>(it.get());
+        QVERIFY(pic);
+        QVERIFY(!od->image(pic->imageId).isNull());
+        QCOMPARE(other.editor()->undoStack()->count(), 1);
+        // Ctrl+V in the first window's sorter pastes there too.
+        ed->setCurrentPage(0);
+        QTest::keyClick(s, paste.key(), paste.keyboardModifiers());
+        QCOMPARE(titlesOf(*d), (QStringList{"One", "Two", "Two"}));
     }
 
     // Moving slides (what a drag does) puts them before another slide, in

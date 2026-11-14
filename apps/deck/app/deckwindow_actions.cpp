@@ -180,6 +180,17 @@ void DeckWindow::createFormatActions()
     mk("arr.forward", tr("Bring Forward"), "arrow-up-from-line", QKeySequence(), [ed] { ed->arrange(Editor::Order::Forward); });
     mk("arr.backward", tr("Send Backward"), "arrow-down-to-line", QKeySequence(), [ed] { ed->arrange(Editor::Order::Backward); });
     mk("arr.back", tr("Send to Back"), "send-to-back", QKeySequence(Qt::ALT | Qt::SHIFT | Qt::Key_F6), [ed] { ed->arrange(Editor::Order::Back); });
+    // (the slide has no margins, so "relative to the slide" is the margin rectangle of the shared editor)
+    mk("arr.alignToSlide", tr("Align to Slide"), "", QKeySequence(), [this] { refreshUi(); }, true);
+    auto toSlide = [this] { return act("arr.alignToSlide")->isChecked(); };
+    mk("arr.alignLeft", tr("Align Left"), "align-start-vertical", QKeySequence(), [ed, toSlide] { ed->align(Editor::Align::Left, toSlide()); });
+    mk("arr.alignCenter", tr("Align Center"), "align-center-vertical", QKeySequence(), [ed, toSlide] { ed->align(Editor::Align::Center, toSlide()); });
+    mk("arr.alignRight", tr("Align Right"), "align-end-vertical", QKeySequence(), [ed, toSlide] { ed->align(Editor::Align::Right, toSlide()); });
+    mk("arr.alignTop", tr("Align Top"), "align-start-horizontal", QKeySequence(), [ed, toSlide] { ed->align(Editor::Align::Top, toSlide()); });
+    mk("arr.alignMiddle", tr("Align Middle"), "align-center-horizontal", QKeySequence(), [ed, toSlide] { ed->align(Editor::Align::Middle, toSlide()); });
+    mk("arr.alignBottom", tr("Align Bottom"), "align-end-horizontal", QKeySequence(), [ed, toSlide] { ed->align(Editor::Align::Bottom, toSlide()); });
+    mk("arr.distH", tr("Distribute Horizontally"), "align-horizontal-distribute-center", QKeySequence(), [ed, toSlide] { ed->distribute(true, toSlide()); });
+    mk("arr.distV", tr("Distribute Vertically"), "align-vertical-distribute-center", QKeySequence(), [ed, toSlide] { ed->distribute(false, toSlide()); });
     mk("arr.selectionPane", tr("Selection Pane"), "layers", QKeySequence(), [this] { showPageSelectionPane(this, m_ed, &m_selectionPane); });
     mk("arr.group", tr("Group"), "group", QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_G), [ed] { ed->groupSelection(); });
     mk("arr.ungroup", tr("Ungroup"), "ungroup", QKeySequence(), [ed] { ed->ungroupSelection(); });

@@ -162,6 +162,11 @@ public:
     // the current slide's layout, or Title and Content after a title slide).
     void newSlide(const QString &layoutType = QString());
     void duplicateSlide();
+    // Whole slides on the clipboard (app/slideclipboard.h): the selected slides of the Slide Sorter when it shows, else the current slide.
+    void copySlides();
+    void cutSlides();
+    void pasteSlides(bool keepFormatting);
+    bool slideListFocused() const;
     void deleteSlide();
     void toggleHidden();
     // Comments: the pane beside the slide and the markers on it, together.

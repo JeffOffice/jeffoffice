@@ -3,6 +3,7 @@
 #include "app/editor.h"
 #include "app/icons.h"
 #include "app/sectionui.h"
+#include "app/slideclipboard.h"
 #include "app/theme.h"
 #include "core/deck.h"
 #include "core/sections.h"
@@ -914,6 +915,13 @@ void SlideSorter::contextMenuEvent(QContextMenuEvent *e)
     menu.addAction(tr("Duplicate Slide"), QKeySequence(Qt::CTRL | Qt::Key_D), this, &SlideSorter::duplicateSelected);
     menu.addAction(tr("Delete Slide"), QKeySequence(Qt::Key_Delete), this, &SlideSorter::deleteSelected);
     menu.addSeparator();
+    menu.addAction(tr("Cut"), QKeySequence::Cut, this, &SlideSorter::cutSelected);
+    menu.addAction(tr("Copy"), QKeySequence::Copy, this, &SlideSorter::copySelected);
+    QAction *paste = menu.addAction(tr("Paste"), QKeySequence::Paste, this, [this] { pasteSlides(true); });
+    QAction *pasteTheme = menu.addAction(tr("Paste (Use Destination Theme)"), this, [this] { pasteSlides(false); });
+    paste->setEnabled(deck::slidesOnClipboard());
+    pasteTheme->setEnabled(deck::slidesOnClipboard());
+    menu.addSeparator();
     menu.addAction(tr("Hide Slide"), this, &SlideSorter::toggleHiddenSelected);
     menu.addSeparator();
     const QList<int> chosen = validSelection();
@@ -927,6 +935,9 @@ void SlideSorter::keyPressEvent(QKeyEvent *e)
 {
     const int n = slideCount(), cur = m_ed->currentPage();
     const bool shift = e->modifiers() & Qt::ShiftModifier;
+    if (e->matches(QKeySequence::Cut)) { cutSelected(); return; }
+    if (e->matches(QKeySequence::Copy)) { copySelected(); return; }
+    if (e->matches(QKeySequence::Paste)) { pasteSlides(true); return; }
     switch (e->key()) {
     case Qt::Key_A:
         if (e->modifiers() & Qt::ControlModifier) {
@@ -1033,17 +1044,54 @@ void SlideSorter::moveSlides(const QList<int> &slides, int before, int into)
     ensureVisible(cur);
 }
 
-void SlideSorter::deleteSelected()
+void SlideSorter::copySelected()
+{
+    const QList<int> slides = validSelection();
+    if (!slides.isEmpty()) deck::copySlidesToClipboard(*m_ed->doc(), slides);
+}
+
+void SlideSorter::cutSelected()
+{
+    const QList<int> slides = validSelection();
+    if (slides.isEmpty()) return;
+    deck::copySlidesToClipboard(*m_ed->doc(), slides);
+    deleteSlides(slides, tr("Cut Slide"), tr("Cut Slides"));
+}
+
+void SlideSorter::pasteSlides(bool keepFormatting)
+{
+    if (!deck::slidesOnClipboard()) return;
+    Document *d = m_ed->doc();
+    const int at = std::clamp(m_ed->currentPage(), 0, std::max(0, int(d->pages.size()) - 1)) + 1;
+    m_ed->endTextEdit();
+    m_ed->clearSelection();
+    m_ed->beginChange(tr("Paste Slides"));
+    const int made = deck::pasteSlidesFromClipboard(*d, at, keepFormatting);
+    if (made > 0) {
+        m_sel.clear();
+        for (int k = 0; k < made; ++k) m_sel << at + k;
+        m_selBasis = pageIds();
+        m_anchor = at + made - 1;
+        setCurrent(at + made - 1);
+    }
+    m_ed->endChange();
+    if (made <= 0) return;
+    updateAccessibleText();
+    ensureVisible(at + made - 1);
+}
+
+void SlideSorter::deleteSelected() { deleteSlides(validSelection(), tr("Delete Slide"), tr("Delete Slides")); }
+
+void SlideSorter::deleteSlides(QList<int> doomed, const QString &one, const QString &many)
 {
     Document *d = m_ed->doc();
     const int n = slideCount();
-    QList<int> doomed = validSelection();
     // A presentation keeps at least one slide: the first stays when all are selected.
     if (doomed.size() >= n && !doomed.isEmpty()) doomed.removeFirst();
     if (doomed.isEmpty()) return;
     m_ed->endTextEdit();
     m_ed->clearSelection();
-    m_ed->beginChange(doomed.size() == 1 ? tr("Delete Slide") : tr("Delete Slides"));
+    m_ed->beginChange(doomed.size() == 1 ? one : many);
     for (int k = int(doomed.size()) - 1; k >= 0; --k) {
         d->pages.removeAt(doomed[k]);
         deck::slideRemoved(*d, doomed[k]);
