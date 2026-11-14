@@ -470,10 +470,25 @@ private Q_SLOTS:
         editTitle(w, kAnTest, 0, 0);
         const QString message = jp::grammarCheck(kAnTest).first().message;
         QString shown;
+        // (the box takes what the as-you-type check found: how fast this machine checks has no part in it)
+        QTRY_VERIFY(!w.editor()->grammarIssuesIn(static_cast<TextItem *>(w.editor()->doc()->pages[0]->items[0].get())->storyId).isEmpty());
         withDialog([&] { w.act(QStringLiteral("review.spelling"))->trigger(); }, QStringLiteral("pageSpellingDialog"), [&](QDialog *d) {
             shown = d->findChild<QLabel *>(QStringLiteral("spellingNotIn"))->text();
         }, false);
         QVERIFY2(shown.contains(message.toHtmlEscaped()), qPrintable(shown));
+    }
+
+    // A command that turns the event loop before it shows its box does not make the helper give up on the box.
+    void withDialogKeepsLookingWhileTheCommandSpinsTheEventLoop()
+    {
+        QString title;
+        withDialog([&] {
+            QCoreApplication::processEvents();
+            QDialog dlg;
+            dlg.setObjectName(QStringLiteral("lateBox"));
+            dlg.exec();
+        }, QStringLiteral("lateBox"), [&](QDialog *d) { title = d->objectName(); });
+        QCOMPARE(title, QStringLiteral("lateBox"));
     }
 
     // Speaker notes get the same: the issue is found in what is typed, and the menu offers its suggestion.

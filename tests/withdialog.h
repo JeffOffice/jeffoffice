@@ -26,6 +26,11 @@ inline void withDialog(const std::function<void()> &open, const QString &objectN
     watchdog.setSingleShot(true);
     QObject::connect(&once, &QTimer::timeout, [&] {
         auto *dlg = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+        // (the command may spin the event loop before it shows the box, as the spelling check does between its slices of grammar work: keep looking)
+        if (!dlg && !leftOpen) {
+            once.start(20);
+            return;
+        }
         if (dlg) opened = dlg->objectName();
         if (dlg && opened == objectName) fill(dlg);
         closeAll(accept && opened == objectName);
