@@ -679,12 +679,11 @@ const struct { const char *prst; const char *shape; } kShapes[] = {
     {"wedgeRectCallout", "wedgeRectCallout"}, {"wedgeRoundRectCallout", "wedgeRoundRectCallout"}, {"wedgeEllipseCallout", "wedgeEllipseCallout"},
     {"cloudCallout", "cloudCallout"}, {"borderCallout1", "borderCallout1"}, {"borderCallout2", "borderCallout2"}, {"accentCallout1", "accentCallout1"},
     {"callout1", "callout1"},
-    // The library has one blank button; the pictures on the others are not drawn.
-    {"actionButtonBlank", "actionButtonBlank"}, {"actionButtonHome", "actionButtonBlank"}, {"actionButtonHelp", "actionButtonBlank"},
-    {"actionButtonInformation", "actionButtonBlank"}, {"actionButtonForwardNext", "actionButtonBlank"},
-    {"actionButtonBackPrevious", "actionButtonBlank"}, {"actionButtonEnd", "actionButtonBlank"}, {"actionButtonBeginning", "actionButtonBlank"},
-    {"actionButtonReturn", "actionButtonBlank"}, {"actionButtonDocument", "actionButtonBlank"}, {"actionButtonSound", "actionButtonBlank"},
-    {"actionButtonMovie", "actionButtonBlank"},
+    {"actionButtonBlank", "actionButtonBlank"}, {"actionButtonHome", "actionButtonHome"}, {"actionButtonHelp", "actionButtonHelp"},
+    {"actionButtonInformation", "actionButtonInformation"}, {"actionButtonForwardNext", "actionButtonForwardNext"},
+    {"actionButtonBackPrevious", "actionButtonBackPrevious"}, {"actionButtonEnd", "actionButtonEnd"}, {"actionButtonBeginning", "actionButtonBeginning"},
+    {"actionButtonReturn", "actionButtonReturn"}, {"actionButtonDocument", "actionButtonDocument"}, {"actionButtonSound", "actionButtonSound"},
+    {"actionButtonMovie", "actionButtonMovie"},
 };
 
 } // namespace

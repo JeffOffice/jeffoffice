@@ -22,6 +22,49 @@ QPainterPath poly(std::initializer_list<QPointF> pts)
     return p;
 }
 
+// An action button: the frame of the blank one with a small picture inside it, in the middle third of the button.
+QPainterPath actionButton(double w, double h, const char *kind)
+{
+    QPainterPath p;
+    p.addRect(0, 0, w, h);
+    const double d = std::min(w, h) * 0.08;
+    p.addRect(d, d, w - 2 * d, h - 2 * d);
+    const double s = std::min(w, h) * 0.5, x0 = (w - s) / 2, y0 = (h - s) / 2;
+    auto pt = [&](double x, double y) { return QPointF(x0 + x * s, y0 + y * s); };
+    auto shape = [&](std::initializer_list<QPointF> pts) { p.addPath(poly(pts)); };
+    const QString k = QLatin1String(kind);
+    if (k == QLatin1String("Home")) {
+        shape({pt(0.5, 0), pt(1, 0.45), pt(0, 0.45)});
+        shape({pt(0.12, 0.45), pt(0.88, 0.45), pt(0.88, 1), pt(0.12, 1)});
+    } else if (k == QLatin1String("Help")) {
+        p.addEllipse(QRectF(pt(0.15, 0), pt(0.85, 0.6)));
+        shape({pt(0.4, 0.7), pt(0.6, 0.7), pt(0.6, 0.9), pt(0.4, 0.9)});
+    } else if (k == QLatin1String("Information")) {
+        shape({pt(0.4, 0), pt(0.6, 0), pt(0.6, 0.2), pt(0.4, 0.2)});
+        shape({pt(0.4, 0.35), pt(0.6, 0.35), pt(0.6, 1), pt(0.4, 1)});
+    } else if (k == QLatin1String("ForwardNext")) {
+        shape({pt(0.1, 0), pt(0.95, 0.5), pt(0.1, 1)});
+    } else if (k == QLatin1String("BackPrevious")) {
+        shape({pt(0.9, 0), pt(0.05, 0.5), pt(0.9, 1)});
+    } else if (k == QLatin1String("End")) {
+        shape({pt(0, 0), pt(0.75, 0.5), pt(0, 1)});
+        shape({pt(0.8, 0), pt(1, 0), pt(1, 1), pt(0.8, 1)});
+    } else if (k == QLatin1String("Beginning")) {
+        shape({pt(0, 0), pt(0.2, 0), pt(0.2, 1), pt(0, 1)});
+        shape({pt(1, 0), pt(0.25, 0.5), pt(1, 1)});
+    } else if (k == QLatin1String("Return")) {
+        shape({pt(0.1, 0.7), pt(0.1, 0.3), pt(0.7, 0.3), pt(0.7, 0.1), pt(1, 0.4), pt(0.7, 0.7), pt(0.7, 0.5), pt(0.3, 0.5), pt(0.3, 0.7)});
+    } else if (k == QLatin1String("Document")) {
+        shape({pt(0.15, 0), pt(0.6, 0), pt(0.85, 0.25), pt(0.85, 1), pt(0.15, 1)});
+    } else if (k == QLatin1String("Sound")) {
+        shape({pt(0, 0.35), pt(0.3, 0.35), pt(0.7, 0.05), pt(0.7, 0.95), pt(0.3, 0.65), pt(0, 0.65)});
+    } else if (k == QLatin1String("Movie")) {
+        shape({pt(0, 0.2), pt(0.7, 0.2), pt(0.7, 0.8), pt(0, 0.8)});
+        shape({pt(0.75, 0.4), pt(1, 0.2), pt(1, 0.8), pt(0.75, 0.6)});
+    }
+    return p;
+}
+
 QPainterPath polyV(const QVector<QPointF> &pts)
 {
     QPainterPath p;
@@ -591,6 +634,39 @@ static QVector<ShapeDef> build()
     // ---------------- Action / misc ----------------
     add("actionButtonBlank", QT_TRANSLATE_NOOP("Render", "Action Button: Blank"), QT_TRANSLATE_NOOP("Render", "Action Buttons"), [](double w, double h, V) {
         QPainterPath p; p.addRect(0, 0, w, h); const double d = mn(w, h) * 0.08; p.addRect(d, d, w - 2 * d, h - 2 * d); return p; }, {}, {}, 0.1);
+    add("actionButtonHome", QT_TRANSLATE_NOOP("Render", "Action Button: Home"), QT_TRANSLATE_NOOP("Render", "Action Buttons"), [](double w, double h, V) { return actionButton(w, h, "Home"); }, {}, {}, 0.1);
+    L.back().slideAction = true;
+    L.back().link = QStringLiteral("#first");
+    add("actionButtonHelp", QT_TRANSLATE_NOOP("Render", "Action Button: Help"), QT_TRANSLATE_NOOP("Render", "Action Buttons"), [](double w, double h, V) { return actionButton(w, h, "Help"); }, {}, {}, 0.1);
+    L.back().slideAction = true;
+    L.back().link = QStringLiteral("");
+    add("actionButtonInformation", QT_TRANSLATE_NOOP("Render", "Action Button: Information"), QT_TRANSLATE_NOOP("Render", "Action Buttons"), [](double w, double h, V) { return actionButton(w, h, "Information"); }, {}, {}, 0.1);
+    L.back().slideAction = true;
+    L.back().link = QStringLiteral("");
+    add("actionButtonForwardNext", QT_TRANSLATE_NOOP("Render", "Action Button: Forward or Next"), QT_TRANSLATE_NOOP("Render", "Action Buttons"), [](double w, double h, V) { return actionButton(w, h, "ForwardNext"); }, {}, {}, 0.1);
+    L.back().slideAction = true;
+    L.back().link = QStringLiteral("#next");
+    add("actionButtonBackPrevious", QT_TRANSLATE_NOOP("Render", "Action Button: Back or Previous"), QT_TRANSLATE_NOOP("Render", "Action Buttons"), [](double w, double h, V) { return actionButton(w, h, "BackPrevious"); }, {}, {}, 0.1);
+    L.back().slideAction = true;
+    L.back().link = QStringLiteral("#previous");
+    add("actionButtonEnd", QT_TRANSLATE_NOOP("Render", "Action Button: End"), QT_TRANSLATE_NOOP("Render", "Action Buttons"), [](double w, double h, V) { return actionButton(w, h, "End"); }, {}, {}, 0.1);
+    L.back().slideAction = true;
+    L.back().link = QStringLiteral("#last");
+    add("actionButtonBeginning", QT_TRANSLATE_NOOP("Render", "Action Button: Beginning"), QT_TRANSLATE_NOOP("Render", "Action Buttons"), [](double w, double h, V) { return actionButton(w, h, "Beginning"); }, {}, {}, 0.1);
+    L.back().slideAction = true;
+    L.back().link = QStringLiteral("#first");
+    add("actionButtonReturn", QT_TRANSLATE_NOOP("Render", "Action Button: Return"), QT_TRANSLATE_NOOP("Render", "Action Buttons"), [](double w, double h, V) { return actionButton(w, h, "Return"); }, {}, {}, 0.1);
+    L.back().slideAction = true;
+    L.back().link = QStringLiteral("#previous");
+    add("actionButtonDocument", QT_TRANSLATE_NOOP("Render", "Action Button: Document"), QT_TRANSLATE_NOOP("Render", "Action Buttons"), [](double w, double h, V) { return actionButton(w, h, "Document"); }, {}, {}, 0.1);
+    L.back().slideAction = true;
+    L.back().link = QStringLiteral("");
+    add("actionButtonSound", QT_TRANSLATE_NOOP("Render", "Action Button: Sound"), QT_TRANSLATE_NOOP("Render", "Action Buttons"), [](double w, double h, V) { return actionButton(w, h, "Sound"); }, {}, {}, 0.1);
+    L.back().slideAction = true;
+    L.back().link = QStringLiteral("");
+    add("actionButtonMovie", QT_TRANSLATE_NOOP("Render", "Action Button: Movie"), QT_TRANSLATE_NOOP("Render", "Action Buttons"), [](double w, double h, V) { return actionButton(w, h, "Movie"); }, {}, {}, 0.1);
+    L.back().slideAction = true;
+    L.back().link = QStringLiteral("");
     add("tab", QT_TRANSLATE_NOOP("Render", "Tab"), QT_TRANSLATE_NOOP("Render", "Basic Shapes"), [](double w, double h, V) { return poly({{w * 0.15, 0}, {w * 0.85, 0}, {w, h}, {0, h}}); }, {}, {}, 0.18);
     add("flowArrow", QT_TRANSLATE_NOOP("Render", "Flow Arrow"), QT_TRANSLATE_NOOP("Render", "Block Arrows"), [](double w, double h, V) {
         return poly({{0, h * 0.2}, {w * 0.6, h * 0.2}, {w * 0.6, 0}, {w, h / 2}, {w * 0.6, h}, {w * 0.6, h * 0.8}, {0, h * 0.8}, {w * 0.15, h / 2}}); }, {}, {}, 0.2);

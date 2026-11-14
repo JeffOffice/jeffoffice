@@ -154,10 +154,11 @@ void writeRunProperties(QXmlStreamWriter &w, const char *tag, const QTextCharFor
         }
     }
     if (link && cf.isAnchor() && !cf.anchorHref().isEmpty()) {
-        const QString rId = relateAddress(ctx, cf.anchorHref());
-        if (!rId.isEmpty()) {
+        QString rId, linkAction;
+        if (linkClickParts(ctx, cf.anchorHref(), &rId, &linkAction)) {
             begin(w, "a:hlinkClick");
             attribute(w, "r:id", rId);
+            if (!linkAction.isEmpty()) attribute(w, "action", linkAction);
             // A link in the text's own color, not the theme's link color, says so.
             const QColor linkColor = ctx.theme.colors[Theme::Hyperlink];
             if (color.isValid() && linkColor.isValid() && color.rgb() != linkColor.rgb()) {

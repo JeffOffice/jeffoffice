@@ -725,6 +725,7 @@ private:
     QHash<QString, MasterCtx *> m_masterByPart;   // by lower-cased part name; null for one that couldn't be read
     QHash<QString, LayoutCtx *> m_layoutByPart;   // by lower-cased part name; null for one that couldn't be read
     QHash<QString, std::shared_ptr<const ThemeCtx>> m_themes;   // by lower-cased part name
+    QHash<QString, int> m_slideNumbers;           // by lower-cased part name: the place in the presentation (from 1) of each slide a link may jump to
     QHash<QString, int> m_slideByPart;            // by lower-cased part name: the number of the slide that has it
     QSet<QString> m_notesParts;                   // the notes parts read, by lower-cased name
     QHash<QString, QDomElement> m_notesStyles;    // by notes master part
@@ -836,6 +837,7 @@ office::DrawingContext Importer::contextFor(const MasterCtx &master, const offic
     };
     ctx.newStory = [this] { return m_doc.createStory(); };
     ctx.storyDoc = [this](const QString &id) { return m_doc.storyDoc(id); };
+    ctx.slideNumberOf = [this](const QString &target) { return m_slideNumbers.value(target.toLower(), 0); };
     return ctx;
 }
 
@@ -1811,6 +1813,15 @@ bool Importer::run(const QString &mainPart, QString *error)
 
     QHash<qint64, int> pageOfSlideId;
     QHash<QString, int> pageOfRel;   // for the custom shows, which name slides by relationship
+    {
+        int place = 0;
+        for (const QDomElement &id : office::children(pChild(root, "sldIdLst"), office::ns::P, QStringLiteral("sldId"))) {
+            if (place >= kMaxSlides) break;
+            const office::Relationship rel = m_pkg.relationship(mainPart, office::attrNs(id, office::ns::R, QStringLiteral("id")));
+            if (rel.id.isEmpty() || rel.external || m_slideNumbers.contains(rel.target.toLower())) continue;
+            m_slideNumbers.insert(rel.target.toLower(), ++place);
+        }
+    }
     int number = 0;
     for (const QDomElement &id : office::children(pChild(root, "sldIdLst"), office::ns::P, QStringLiteral("sldId"))) {
         if (++number > kMaxSlides) {

@@ -12,6 +12,7 @@
 #include "office/drawingml_geometry.h"
 #include "office/drawingml_style.h"
 #include "office/drawingml_styleref.h"
+#include "office/hyperlink.h"
 #include "office/xml.h"
 #include "render/shapes.h"
 #include "wml/wmlmathedit.h"
@@ -421,11 +422,7 @@ void Reader::join()
 
 QString Reader::hyperlinkOf(const QDomElement &cNvPr) const
 {
-    const QDomElement click = childNamed(cNvPr, "hlinkClick");
-    const QString id = attrNs(click, ns::R, QStringLiteral("id"));
-    if (id.isEmpty() || !m_ctx.package) return QString();
-    const Relationship rel = m_ctx.package->relationship(m_ctx.part, id);
-    return !rel.id.isEmpty() && rel.external ? rel.target : QString();
+    return linkOfClick(childNamed(cNvPr, "hlinkClick"), m_ctx);
 }
 
 void Reader::remember(const QDomElement &cNvPr, const ItemPtr &it)

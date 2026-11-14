@@ -494,10 +494,12 @@ void writeIdentity(QXmlStreamWriter &w, const Item &it, int id, const QString &f
     if (!it.altText.isEmpty()) attribute(w, "descr", clean(it.altText));
     if (!it.altTitle.isEmpty()) attribute(w, "title", clean(it.altTitle));
     if (it.hidden) attribute(w, "hidden", QStringLiteral("1"));
-    const QString rId = it.hyperlink.isEmpty() ? QString() : relateAddress(ctx, it.hyperlink);
-    if (!rId.isEmpty()) {
+    QString rId, linkAction;
+    const bool linked = !it.hyperlink.isEmpty() && linkClickParts(ctx, it.hyperlink, &rId, &linkAction);
+    if (linked) {
         begin(w, "a:hlinkClick");
         attribute(w, "r:id", rId);
+        if (!linkAction.isEmpty()) attribute(w, "action", linkAction);
         w.writeEndElement();
     } else if (playsMedia) {
         begin(w, "a:hlinkClick");

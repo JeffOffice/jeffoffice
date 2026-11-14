@@ -2456,6 +2456,7 @@ void Canvas::finishDraw(const QRectF &rIn, bool clicked)
         s->shape = m_ed->toolShape();
         s->rect = r;
         if (const ShapeDef *sd = shapeDef(s->shape); sd && sd->open) s->fill = Fill::none();
+        if (const ShapeDef *sd = shapeDef(s->shape); sd && sd->slideAction) s->hyperlink = sd->link;
         m_ed->addItem(s);
         break;
     }

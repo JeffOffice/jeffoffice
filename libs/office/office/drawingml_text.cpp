@@ -3,6 +3,7 @@
 // through the list styles to a concrete format (the engine never sees the
 // stack).
 
+#include "office/hyperlink.h"
 #include "office/drawingml.h"
 #include "office/package.h"
 
@@ -696,18 +697,15 @@ void Reader::stack(int level)
 
 // A run with a link looks like one, as the presentation program draws it:
 // in the theme's link color and underlined, unless the link says the text's
-// own color stays. Only a link to an address is read (a jump to a slide has
-// none); the slide-jump and action links stay text.
+// own color stays. A link to an address, a slide, or a place in the show is read; a program or a macro stays text.
 QTextCharFormat Reader::linkFormat(QTextCharFormat cf, const QDomElement &rPr) const
 {
     const QDomElement click = firstChild(rPr, QLatin1String("hlinkClick"));
     if (click.isNull() || !m_ctx.package) return cf;
-    const QString id = attrNs(click, ns::R, QStringLiteral("id"));
-    if (id.isEmpty()) return cf;
-    const Relationship rel = m_ctx.package->relationship(m_ctx.part, id);
-    if (rel.id.isEmpty() || !rel.external || rel.target.isEmpty()) return cf;
+    const QString target = linkOfClick(click, m_ctx);
+    if (target.isEmpty()) return cf;
     cf.setAnchor(true);
-    cf.setAnchorHref(rel.target);
+    cf.setAnchorHref(target);
     bool keepsColor = false;
     for (QDomElement ext = firstChild(click, QLatin1String("extLst")).firstChildElement(); !ext.isNull(); ext = ext.nextSiblingElement())
         for (QDomElement e = ext.firstChildElement(); !e.isNull(); e = e.nextSiblingElement())

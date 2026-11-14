@@ -42,6 +42,8 @@ struct DrawingWriteContext {
     std::function<QByteArray(const QString &mediaId, QString *contentType, QString *extension)> mediaBytes;
     // The next shape id in the part (p:cNvPr id): unique within the part.
     int nextShapeId = 2;
+    // How many slides the presentation has: a link to a slide is written as one only when this is set and the slide is among them.
+    int slideCount = 0;
     // Pictures already written into the package, by image id, so each is
     // stored once (the part name, "/ppt/media/image3.png"); movies and sounds
     // by "media:" and their media id.

@@ -33,6 +33,9 @@ struct ShapeDef {
     RectFn textRect = nullptr;   // nullptr = inset by `inset`
     double inset = 0.0;
     bool open = false;           // stroke only (arcs, brackets)
+    // An action button: only a presentation offers it, and a new one starts with the link it is for ("#next" and the like; none for the rest).
+    bool slideAction = false;
+    QString link;
 };
 
 const QVector<ShapeDef> &shapeLibrary();

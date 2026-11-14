@@ -758,6 +758,7 @@ office::DrawingWriteContext Exporter::context(const QString &part)
         return it->bytes;
     };
     ctx.storyDoc = [this](const QString &storyId) { return m_doc.storyDoc(storyId); };
+    ctx.slideCount = int(m_doc.pages.size());
     ctx.mediaBytes = [this](const QString &mediaId, QString *contentType, QString *extension) {
         const auto it = m_doc.media.constFind(mediaId);
         if (it == m_doc.media.cend()) return QByteArray();

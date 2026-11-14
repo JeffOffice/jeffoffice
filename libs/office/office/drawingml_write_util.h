@@ -56,6 +56,9 @@ QString relatePicture(DrawingWriteContext &ctx, const QString &imageId);
 QString relateSvg(DrawingWriteContext &ctx, const QString &imageId);
 // The relationship to an address a hyperlink goes to.
 QString relateAddress(DrawingWriteContext &ctx, const QString &address);
+// What an a:hlinkClick for a link says: its relationship (empty for a jump inside the show) and its action. False when the link can't be written: a jump to a slide
+// the presentation doesn't have, or a link with no address.
+bool linkClickParts(DrawingWriteContext &ctx, const QString &link, QString *rId, QString *action);
 // The relationships of the movie or sound a picture plays: `link` for its
 // a:videoFile or a:audioFile, and `copy` for the p14:media that says the file
 // holds it (empty when the picture links to it outside). Both empty when it

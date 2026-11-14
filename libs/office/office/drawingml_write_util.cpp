@@ -1,6 +1,7 @@
 // What the files that write DrawingML share (drawingml_write_util.h).
 
 #include "office/drawingml_write_util.h"
+#include "office/hyperlink.h"
 #include "office/package.h"
 
 #include "office/drawingml_style.h"
@@ -289,6 +290,37 @@ QString relateSvg(DrawingWriteContext &ctx, const QString &imageId)
 QString relateAddress(DrawingWriteContext &ctx, const QString &address)
 {
     return relate(ctx, QStringLiteral("hyperlink"), address, true);
+}
+
+bool linkClickParts(DrawingWriteContext &ctx, const QString &link, QString *rId, QString *action)
+{
+    action->clear();
+    rId->clear();
+    const LinkTarget t = parseLink(link);
+    static const QLatin1String jump("ppaction://hlinkshowjump?jump=");
+    switch (t.kind) {
+    case LinkKind::Next: *action = jump + QLatin1String("nextslide"); return true;
+    case LinkKind::Previous: *action = jump + QLatin1String("previousslide"); return true;
+    case LinkKind::First: *action = jump + QLatin1String("firstslide"); return true;
+    case LinkKind::Last: *action = jump + QLatin1String("lastslide"); return true;
+    case LinkKind::EndShow: *action = jump + QLatin1String("endshow"); return true;
+    case LinkKind::Slide:
+        if (ctx.slideCount > 0) {
+            if (t.slide > ctx.slideCount) return false;
+            *rId = relate(ctx, QStringLiteral("slide"), QStringLiteral("/ppt/slides/slide%1.xml").arg(t.slide), false);
+            *action = QStringLiteral("ppaction://hlinksldjump");
+            return !rId->isEmpty();
+        }
+        break;
+    case LinkKind::File:
+        *action = QStringLiteral("ppaction://hlinkfile");
+        break;
+    default:
+        break;
+    }
+    *rId = relateAddress(ctx, link);
+    if (rId->isEmpty()) action->clear();
+    return !rId->isEmpty();
 }
 
 MediaRelations relateMedia(DrawingWriteContext &ctx, const PictureItem &p)

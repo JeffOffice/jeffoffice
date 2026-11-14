@@ -100,6 +100,8 @@ struct DrawingContext {
     // A new empty story's id, and a story's document by id.
     std::function<QString()> newStory;
     std::function<QTextDocument *(const QString &id)> storyDoc;
+    // The number (from 1) of the slide in a part, for a link to a slide; 0 when it is none.
+    std::function<int(const QString &part)> slideNumberOf;
 };
 
 // The list styles a text body inherits, lowest priority first. Each is an

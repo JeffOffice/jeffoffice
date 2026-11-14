@@ -397,7 +397,7 @@ void MainWindow::ribbonGalleryParts(RibbonParts &parts)
         }
         v << GalleryItem{"tool:curve", tr("Curve"), lineToolIcon("curve"), lines} << GalleryItem{"tool:freeform", tr("Freeform: Shape"), lineToolIcon("freeform"), lines}
           << GalleryItem{"tool:scribble", tr("Freeform: Scribble"), lineToolIcon("scribble"), lines};
-        for (const auto &s : shapeLibrary()) v << GalleryItem{s.id, s.name, shapeIcon(s.id), s.category};
+        for (const auto &s : shapeLibrary()) if (!s.slideAction) v << GalleryItem{s.id, s.name, shapeIcon(s.id), s.category};
         return v;
     };
     parts.widgets[QStringLiteral("shapesButton")] = [this, shapeItems]() -> QWidget * {
@@ -424,7 +424,7 @@ void MainWindow::ribbonGalleryParts(RibbonParts &parts)
         auto *b = new GalleryButton(icon(iconName), label, QSize(24, 24), 12, false);
         b->setItemsProvider([] {
             QVector<GalleryItem> v;
-            for (const auto &s : shapeLibrary()) if (!s.open) v << GalleryItem{s.id, s.name, shapeIcon(s.id), s.category};
+            for (const auto &s : shapeLibrary()) if (!s.open && !s.slideAction) v << GalleryItem{s.id, s.name, shapeIcon(s.id), s.category};
             return v;
         });
         connect(b, &GalleryButton::activated, this, [this, label](const QString &id) {
@@ -438,7 +438,7 @@ void MainWindow::ribbonGalleryParts(RibbonParts &parts)
         auto *change = new GalleryButton(icon("shapes"), tr("Change Shape"), QSize(24, 24), 12, false);
         change->setItemsProvider([] {
             QVector<GalleryItem> v;
-            for (const auto &s : shapeLibrary()) v << GalleryItem{s.id, s.name, shapeIcon(s.id), s.category};
+            for (const auto &s : shapeLibrary()) if (!s.slideAction) v << GalleryItem{s.id, s.name, shapeIcon(s.id), s.category};
             return v;
         });
         connect(change, &GalleryButton::activated, this, [this](const QString &id) {
