@@ -439,6 +439,7 @@ qt_add_executable(sheettests
   tests/sheet/tst_sheet_structure.cpp
   tests/sheet/tst_sheet_styles.cpp
   tests/sheet/tst_sheet_structsave.cpp
+  tests/sheet/tst_sheet_formcontrol.cpp
   tests/sheet/tst_sheet_linereplay.cpp
   tests/sheet/tst_sheet_tables.cpp
   tests/sheet/tst_sheet_pivot.cpp

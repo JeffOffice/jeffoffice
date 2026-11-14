@@ -14,6 +14,7 @@
 #include "sheet/drawingadd.h"
 #include "sheet/drawingsave.h"
 #include "sheet/customviews.h"
+#include "sheet/formcontrol.h"
 #include "sheet/links.h"
 #include "sheet/notesave.h"
 #include "sheet/pagesetupxml.h"
@@ -173,6 +174,9 @@ struct SheetChanges {
     // notesave.h). `legacyRelId` is the id of the relationship to a drawing of notes that is made, for a sheet that had none (saving sets it, and the sheet is given the element that names it).
     std::vector<NoteOp> noteOps;
     QString legacyRelId;
+    // Form controls that changed or were made (see formcontrol.h): `controlsNow` are they as they are, `controlsWas` (the same controls, in the same order, for those the file has) as the file has them.
+    // Their shapes in the drawing, and their properties parts, are changed where they differ; a new control is a shape put at the end of the sheet's legacy drawing (made if it has none).
+    std::vector<FormControl> controlsWas, controlsNow;
     // Links: those of the file with exactly the ranges of `unlinks` are taken out, and `links` put in. For one that goes outside the workbook `relId` is the id of the relationship that
     // names its address (saving sets it).
     std::vector<CellRange> unlinks;
@@ -185,7 +189,7 @@ struct SheetChanges {
     QString drawingRelId;
     // The links from the sheet to its tables' parts: the ids of the relationships of tables made here (saving sets them, from SaveChanges::addedTables), and of tables taken out.
     std::vector<QString> addTableRels, removeTableRels;
-    bool empty() const { return !replaceSparklines && !replaceValidations && !replaceIgnoredErrors && !replaceScenarios && !condEdit && drawingRelId.isEmpty() && addTableRels.empty() && removeTableRels.empty() && !showRows && !replaceAutoFilter && filterMode < 0 && cells.empty() && results.empty() && !replaceColumns && !replaceMerges && !replaceFormat && !replaceTabColor && tabSelected < 0 && viewKind < 0 && viewZoom == 0 && viewNormalZoom == 0 && !setPane && !hfSet && noteOps.empty() && unlinks.empty() && links.empty() && !setProtection && skeleton.isEmpty() && rows.empty() && copyFromPart.isEmpty() && !setPage; }
+    bool empty() const { return !replaceSparklines && !replaceValidations && !replaceIgnoredErrors && !replaceScenarios && !condEdit && drawingRelId.isEmpty() && addTableRels.empty() && removeTableRels.empty() && !showRows && !replaceAutoFilter && filterMode < 0 && cells.empty() && results.empty() && !replaceColumns && !replaceMerges && !replaceFormat && !replaceTabColor && tabSelected < 0 && viewKind < 0 && viewZoom == 0 && viewNormalZoom == 0 && !setPane && !hfSet && noteOps.empty() && controlsNow.empty() && unlinks.empty() && links.empty() && !setProtection && skeleton.isEmpty() && rows.empty() && copyFromPart.isEmpty() && !setPage; }
 };
 
 // A column of a table renamed (by a person, in its header): the formulas outside the cells that name it (defined names, validations, conditional formats, charts) follow.

@@ -1623,6 +1623,14 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
         bool newThread = false;
     };
     std::vector<NoteWrite> noteWrites;
+    // The drawings of form controls that changed or were made (see formcontrol.h): the legacy drawing that holds their shapes, and, for a sheet that had none, the part and relationship made.
+    struct ControlWrite {
+        int sheet = 0;
+        QString vmlPart, vmlRel;
+        bool newVml = false;     // the drawing is made for the controls
+        bool inNewNotes = false; // the drawing is the one made for the sheet's notes in this save
+    };
+    std::vector<ControlWrite> controlWrites;
     struct LinkRel {
         QString id, target;
     };
@@ -1632,7 +1640,7 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
         QSet<QString> taken;
         bool takenFilled = false;
         for (const auto &[sheet, sc] : requested.sheets) {
-            if (sc.noteOps.empty() && sc.links.empty() && sc.unlinks.empty()) continue;
+            if (sc.noteOps.empty() && sc.links.empty() && sc.unlinks.empty() && sc.controlsNow.empty()) continue;
             if (sheet < 0 || sheet >= book.info().sheets.size()) return fail(QCoreApplication::translate("jp::office::sheet::Save", "A change is to a sheet the workbook does not have."));
             const SheetEntry &se = book.info().sheets[sheet];
             if (se.deleted) continue;
@@ -1697,6 +1705,33 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
                     used << w.threadRel;
                 }
                 noteWrites.push_back(w);
+            }
+            if (!sc.controlsNow.empty()) {
+                ControlWrite w;
+                w.sheet = sheet;
+                for (const FormControl &c : sc.controlsWas)
+                    if (!c.vmlPart.isEmpty()) {
+                        w.vmlPart = c.vmlPart;
+                        break;
+                    }
+                if (w.vmlPart.isEmpty()) {
+                    // (the sheet's notes share their drawing with its controls)
+                    for (const NoteWrite &n : noteWrites)
+                        if (n.sheet == sheet) {
+                            w.vmlPart = n.vmlPart;
+                            w.inNewNotes = n.newVml;
+                        }
+                    if (w.vmlPart.isEmpty()) w.vmlPart = notesDrawingPart(package, se.part);
+                    if (w.vmlPart.isEmpty()) {
+                        w.newVml = true;
+                        w.vmlPart = freePartName(QStringLiteral("/xl/drawings/vmlDrawing"), QStringLiteral(".vml"), taken);
+                        taken.insert(w.vmlPart.toLower());
+                        w.vmlRel = used.takeFree();
+                        used << w.vmlRel;
+                        ac.legacyRelId = w.vmlRel;
+                    }
+                }
+                controlWrites.push_back(w);
             }
             // addresses outside the workbook: a link to one the sheet already has a relationship for uses it
             if (!sc.links.empty()) {
@@ -2610,7 +2645,7 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
     // ---- notes: the comments part and the drawing of the notes, changed or made, and the relationships and types that name the new ones
     bool anyUnlinks = false;
     for (const auto &[sheet, sc] : requested.sheets) anyUnlinks = anyUnlinks || !sc.unlinks.empty();
-    if (!noteWrites.empty() || !newLinkRels.empty() || anyUnlinks) {
+    if (!noteWrites.empty() || !controlWrites.empty() || !newLinkRels.empty() || anyUnlinks) {
         int typesEntry = -1;
         for (int i = 0; i < directory.size(); ++i)
             if (plain(directory[i].name) == QLatin1String("[content_types].xml")) {
@@ -2703,6 +2738,43 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
                 const int index = partBytes(part, &xml);
                 if (index < 0 || !applyThreadOpsToPart(xml, mine, &now, &changed, &why)) return fail(why.isEmpty() ? QCoreApplication::translate("jp::office::sheet::Save", "The comments of a sheet could not be saved.") : why);
                 if (changed) replaced.insert(index, now);
+            }
+        }
+        // the controls: their shapes in the legacy drawing, and their properties parts
+        for (const ControlWrite &w : controlWrites) {
+            const SheetEntry &se = book.info().sheets[w.sheet];
+            const auto found = changes.sheets.find(w.sheet);
+            if (found == changes.sheets.end()) continue;
+            const SheetChanges &sc = found->second;
+            const QString controlsFail = QCoreApplication::translate("jp::office::sheet::Save", "The form controls of a sheet could not be saved.");
+            QByteArray now;
+            if (w.newVml) {
+                if (!patchControlsVml(newControlsDrawing(), sc.controlsWas, sc.controlsNow, &now, &why)) return fail(why.isEmpty() ? controlsFail : why);
+                newEntries.emplace_back(entryName(w.vmlPart), now);
+                QByteArray t2;
+                if (!addContentOverride(types, w.vmlPart, QStringLiteral("application/vnd.openxmlformats-officedocument.vmlDrawing"), &t2)) return bad();
+                types = t2;
+                if (!addRel(w.sheet, w.vmlRel, QStringLiteral("vmlDrawing"), relativeTarget(se.part, w.vmlPart), false)) return bad();
+            } else if (w.inNewNotes) {
+                for (auto &e : newEntries)
+                    if (e.first == entryName(w.vmlPart)) {
+                        QByteArray patched;
+                        if (!patchControlsVml(e.second, sc.controlsWas, sc.controlsNow, &patched, &why)) return fail(why.isEmpty() ? controlsFail : why);
+                        e.second = patched;
+                    }
+            } else {
+                QByteArray xml;
+                const int index = partBytes(w.vmlPart, &xml);
+                if (index < 0 || !patchControlsVml(xml, sc.controlsWas, sc.controlsNow, &now, &why)) return fail(why.isEmpty() ? controlsFail : why);
+                if (now != xml) replaced.insert(index, now);
+            }
+            for (const FormControl &c : sc.controlsNow) {
+                if (c.isNew || c.ctrlPart.isEmpty()) continue;
+                QByteArray xml;
+                const int index = partBytes(c.ctrlPart, &xml);
+                if (index < 0) continue;
+                const QByteArray patched = patchControlProp(xml, c);
+                if (patched != xml) replaced.insert(index, patched);
             }
         }
         // the people the threads name: those the workbook's list lacks are added (the list is made when the workbook had none)
