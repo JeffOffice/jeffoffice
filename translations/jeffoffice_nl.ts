@@ -4491,7 +4491,7 @@ Artikel achterpagina	4</translation>
     <message>
         <location line="+0"/>
         <source>Verbs that do not agree, &quot;a&quot; and &quot;an&quot;, and the wrong form of a verb.</source>
-        <translation type="unfinished">Werkwoorden die niet overeenstemmen, &quot;a&quot; en &quot;an&quot;, en de verkeerde vorm van een werkwoord.</translation>
+        <translation type="unfinished">Werkwoorden die niet overeenkomen, &quot;a&quot; en &quot;an&quot;, en de verkeerde vorm van een werkwoord.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -4511,12 +4511,12 @@ Artikel achterpagina	4</translation>
     <message>
         <location line="+0"/>
         <source>Sentences, &quot;I&quot;, and the days and months.</source>
-        <translation type="unfinished">Zinnen, &quot;ik&quot;, en de namen van dagen en maanden.</translation>
+        <translation type="unfinished">Zinnen, &quot;I&quot;, en de dagen en maanden.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Mixed-up words</source>
-        <translation type="unfinished">Verwarde woorden</translation>
+        <translation type="unfinished">Verwisselde woorden</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -4541,7 +4541,7 @@ Artikel achterpagina	4</translation>
     <message>
         <location line="+0"/>
         <source>Long sentences, passive voice, and wordy phrases. These are suggestions, not mistakes.</source>
-        <translation type="unfinished">Lange zinnen, lijdende vorm en wollige uitdrukkingen. Dit zijn suggesties, geen fouten.</translation>
+        <translation type="unfinished">Lange zinnen, lijdende vorm en omslachtige uitdrukkingen. Dit zijn suggesties, geen fouten.</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -4551,7 +4551,7 @@ Artikel achterpagina	4</translation>
     <message>
         <location line="+2"/>
         <source>Look for these kinds of issues:</source>
-        <translation type="unfinished">Zoek naar deze soorten problemen:</translation>
+        <translation type="unfinished">Let op deze soorten problemen:</translation>
     </message>
     <message>
         <location line="+29"/>
@@ -6300,23 +6300,23 @@ Opslaan zonder reservekopie?</translation>
     <message>
         <location line="+9"/>
         <source>Use &quot;whose&quot; (belonging to whom) here, not &quot;who&apos;s&quot;.</source>
-        <translation type="unfinished">Gebruik hier &quot;whose&quot; (van wie) en niet &quot;who&apos;s&quot;.</translation>
+        <translation type="unfinished">Gebruik hier &quot;whose&quot; (toebehorend aan wie), niet &quot;who&apos;s&quot;.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Use &quot;who&apos;s&quot; (who is) here, not &quot;whose&quot;.</source>
-        <translation type="unfinished">Gebruik hier &quot;who&apos;s&quot; (who is) en niet &quot;whose&quot;.</translation>
+        <translation type="unfinished">Gebruik hier &quot;who&apos;s&quot; (who is), niet &quot;whose&quot;.</translation>
     </message>
     <message>
         <location line="+15"/>
         <source>Use &quot;effect&quot; (a result) here, not &quot;affect&quot;.</source>
-        <translation type="unfinished">Gebruik hier &quot;effect&quot; (een resultaat) en niet &quot;affect&quot;.</translation>
+        <translation type="unfinished">Gebruik hier &quot;effect&quot; (een resultaat), niet &quot;affect&quot;.</translation>
     </message>
     <message>
         <location line="+5"/>
         <location line="+4"/>
         <source>Use &quot;affect&quot; (to change) here, not &quot;effect&quot;.</source>
-        <translation type="unfinished">Gebruik hier &quot;affect&quot; (veranderen) en niet &quot;effect&quot;.</translation>
+        <translation type="unfinished">Gebruik hier &quot;affect&quot; (veranderen), niet &quot;effect&quot;.</translation>
     </message>
     <message>
         <location line="+19"/>
@@ -6341,12 +6341,12 @@ Opslaan zonder reservekopie?</translation>
     <message>
         <location line="+20"/>
         <source>Use &quot;whether&quot; (if) here, not &quot;weather&quot;.</source>
-        <translation type="unfinished">Gebruik hier &quot;whether&quot; (of) en niet &quot;weather&quot;.</translation>
+        <translation type="unfinished">Gebruik hier &quot;whether&quot; (of), niet &quot;weather&quot;.</translation>
     </message>
     <message>
         <location line="+16"/>
         <source>Use &quot;quite&quot; (very) here, not &quot;quiet&quot;.</source>
-        <translation type="unfinished">Gebruik hier &quot;quite&quot; (heel) en niet &quot;quiet&quot;.</translation>
+        <translation type="unfinished">Gebruik hier &quot;quite&quot; (heel), niet &quot;quiet&quot;.</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -6366,12 +6366,12 @@ Opslaan zonder reservekopie?</translation>
     <message>
         <location line="+16"/>
         <source>Use &quot;too&quot; (more than enough) here, not &quot;to&quot;.</source>
-        <translation type="unfinished">Gebruik hier &quot;too&quot; (meer dan genoeg) en niet &quot;to&quot;.</translation>
+        <translation type="unfinished">Gebruik hier &quot;too&quot; (meer dan genoeg), niet &quot;to&quot;.</translation>
     </message>
     <message>
         <location line="+10"/>
         <source>Use &quot;to&quot; here, not &quot;too&quot;.</source>
-        <translation type="unfinished">Gebruik hier &quot;to&quot; en niet &quot;too&quot;.</translation>
+        <translation type="unfinished">Gebruik hier &quot;to&quot;, niet &quot;too&quot;.</translation>
     </message>
     <message>
         <location line="+15"/>
@@ -6462,7 +6462,7 @@ Opslaan zonder reservekopie?</translation>
     <message>
         <location line="+7"/>
         <source>Two periods: use one, or three for an ellipsis.</source>
-        <translation type="unfinished">Twee punten: gebruik er één, of drie voor een beletselteken.</translation>
+        <translation type="unfinished">Twee punten: gebruik er één, of drie voor een weglatingsteken.</translation>
     </message>
     <message>
         <location line="+34"/>
@@ -6477,17 +6477,17 @@ Opslaan zonder reservekopie?</translation>
     <message>
         <location line="+11"/>
         <source>The saying is &quot;couldn&apos;t care less&quot; (it is not possible to care less).</source>
-        <translation type="unfinished">De uitdrukking is &quot;couldn&apos;t care less&quot; (het is niet mogelijk minder om te geven).</translation>
+        <translation type="unfinished">De uitdrukking is &quot;couldn&apos;t care less&quot; (het is niet mogelijk om minder zorg te hebben).</translation>
     </message>
     <message>
         <location line="+12"/>
         <source>Use &quot;try to&quot; in careful writing.</source>
-        <translation type="unfinished">Gebruik &quot;try to&quot; in zorgvuldig geschreven tekst.</translation>
+        <translation type="unfinished">Gebruik &quot;try to&quot; in zorgvuldig schrijven.</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>&quot;To&quot; says the same in fewer words.</source>
-        <translation type="unfinished">&quot;To&quot; betekent hetzelfde met minder woorden.</translation>
+        <translation type="unfinished">&quot;To&quot; zegt hetzelfde in minder woorden.</translation>
     </message>
     <message>
         <location line="+13"/>
@@ -6502,7 +6502,7 @@ Opslaan zonder reservekopie?</translation>
     <message>
         <location line="+18"/>
         <source>This is in the passive voice. Say who does it first to make it direct.</source>
-        <translation type="unfinished">Dit staat in de lijdende vorm. Noem eerst wie het doet om het directer te maken.</translation>
+        <translation type="unfinished">Dit staat in de lijdende vorm. Noem eerst wie het doet om het direct te maken.</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -6518,7 +6518,7 @@ Opslaan zonder reservekopie?</translation>
         <location filename="../libs/text/grammar/grammar_fr.inc" line="+42"/>
         <location line="+14"/>
         <source>In French, put a no-break space before this mark.</source>
-        <translation type="unfinished">In het Frans zet je hier een onderbrekingsvrije spatie voor dit teken.</translation>
+        <translation type="unfinished">In het Frans plaatst u een onbreekbare spatie vóór dit teken.</translation>
     </message>
     <message>
         <location line="+16"/>
@@ -6526,12 +6526,12 @@ Opslaan zonder reservekopie?</translation>
         <location line="+5"/>
         <location line="+2"/>
         <source>In French, put a no-break space inside the guillemets.</source>
-        <translation type="unfinished">In het Frans zet je binnen de guillemets een onderbrekingsvrije spatie.</translation>
+        <translation type="unfinished">In het Frans plaatst u een onbreekbare spatie binnen de guillemets.</translation>
     </message>
     <message>
         <location line="+33"/>
         <source>Before a word that starts with a vowel, join the two with an apostrophe (l&apos;ami, d&apos;eau, qu&apos;il).</source>
-        <translation type="unfinished">Voor een woord dat met een klinker begint, verbind je de twee met een apostrof (l&apos;ami, d&apos;eau, qu&apos;il).</translation>
+        <translation type="unfinished">Zet voor een woord dat met een klinker begint een apostrof tussen de twee woorden (l&apos;ami, d&apos;eau, qu&apos;il).</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -6541,7 +6541,7 @@ Opslaan zonder reservekopie?</translation>
     <message>
         <location line="+19"/>
         <source>Use &quot;a&quot; (the verb avoir, without the accent) here.</source>
-        <translation type="unfinished">Gebruik hier &quot;a&quot; (het werkwoord avoir, zonder accent).</translation>
+        <translation type="unfinished">Gebruik hier &quot;a&quot; (de werkwoordsvorm van avoir, zonder accent).</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -6576,7 +6576,7 @@ Opslaan zonder reservekopie?</translation>
     <message>
         <location line="+3"/>
         <source>Use &quot;ce sont&quot; here: &quot;ces&quot; goes before a noun.</source>
-        <translation type="unfinished">Gebruik hier &quot;ce sont&quot;: &quot;ces&quot; staat vóór een zelfstandig naamwoord.</translation>
+        <translation type="unfinished">Gebruik hier &quot;ce sont&quot;: &quot;ces&quot; komt vóór een zelfstandig naamwoord.</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -6586,12 +6586,12 @@ Opslaan zonder reservekopie?</translation>
     <message>
         <location line="+26"/>
         <source>Use &quot;%1&quot; here: the two words run together before a noun.</source>
-        <translation type="unfinished">Gebruik &quot;%1&quot; hier: de twee woorden worden samengevoegd voor een zelfstandig naamwoord.</translation>
+        <translation type="unfinished">Gebruik hier &quot;%1&quot;: de twee woorden worden samengevoegd voor een zelfstandig naamwoord.</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>Write &quot;ça&quot; (with the cedilla).</source>
-        <translation type="unfinished">Schrijf &quot;ça&quot; (met cédille).</translation>
+        <translation type="unfinished">Schrijf &quot;ça&quot; (met cedille).</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -6623,7 +6623,7 @@ Opslaan zonder reservekopie?</translation>
         <location filename="../libs/text/grammar/grammar_de.inc" line="+18"/>
         <location filename="../libs/text/grammar/grammar_es.inc" line="+242"/>
         <source>A plainer way to say this.</source>
-        <translation type="unfinished">Een eenvoudigere manier om dit te zeggen.</translation>
+        <translation type="unfinished">Een eenvoudiger manier om dit te zeggen.</translation>
     </message>
     <message>
         <location filename="../libs/text/grammar/grammar_de.inc" line="-150"/>
@@ -6633,12 +6633,12 @@ Opslaan zonder reservekopie?</translation>
     <message>
         <location line="+3"/>
         <source>Use &quot;Das&quot; (the pronoun) here: &quot;dass&quot; begins a clause with its verb at the end.</source>
-        <translation type="unfinished">Gebruik &quot;Das&quot; (het voornaamwoord) hier: &quot;dass&quot; leidt een bijzin in met het werkwoord aan het eind.</translation>
+        <translation type="unfinished">Gebruik hier &quot;Das&quot; (het voornaamwoord): &quot;dass&quot; leidt een bijzin in met het werkwoord aan het eind.</translation>
     </message>
     <message>
         <location line="+23"/>
         <source>Use &quot;seit&quot; (since, for a time), not &quot;seid&quot; (you are).</source>
-        <translation type="unfinished">Gebruik &quot;seit&quot; (sinds, voor een tijdsduur), niet &quot;seid&quot; (jullie zijn).</translation>
+        <translation type="unfinished">Gebruik &quot;seit&quot; (sinds, voor een periode), niet &quot;seid&quot; (jullie zijn).</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -6653,12 +6653,12 @@ Opslaan zonder reservekopie?</translation>
     <message>
         <location line="+2"/>
         <source>Use &quot;wider&quot; (against) in this phrase, not &quot;wieder&quot; (again).</source>
-        <translation type="unfinished">Gebruik &quot;wider&quot; (tegen) in deze zin, niet &quot;wieder&quot; (opnieuw).</translation>
+        <translation type="unfinished">Gebruik in deze zin &quot;wider&quot; (tegen), niet &quot;wieder&quot; (opnieuw).</translation>
     </message>
     <message>
         <location line="+26"/>
         <source>Put a comma before &quot;%1&quot;: it begins a clause.</source>
-        <translation type="unfinished">Zet een komma voor &quot;%1&quot;: het leidt een bijzin in.</translation>
+        <translation type="unfinished">Zet een komma voor &quot;%1&quot;: het begint een bijzin.</translation>
     </message>
     <message>
         <location line="+21"/>
@@ -6668,12 +6668,12 @@ Opslaan zonder reservekopie?</translation>
     <message>
         <location line="+16"/>
         <source>After a comparative, use &quot;als&quot; (than), not &quot;wie&quot;.</source>
-        <translation type="unfinished">Na een vergrotende trap gebruik je &quot;als&quot; (dan), niet &quot;wie&quot;.</translation>
+        <translation type="unfinished">Gebruik na een vergrotende trap &quot;als&quot; (dan), niet &quot;wie&quot;.</translation>
     </message>
     <message>
         <location line="+55"/>
         <source>Put a no-break space between the parts of this short form.</source>
-        <translation type="unfinished">Zet een vaste spatie tussen de delen van deze korte vorm.</translation>
+        <translation type="unfinished">Zet een onbreekbare spatie tussen de delen van deze verkorte vorm.</translation>
     </message>
     <message>
         <location filename="../libs/text/grammar/grammar_es.inc" line="-184"/>
@@ -6693,37 +6693,37 @@ Opslaan zonder reservekopie?</translation>
     <message>
         <location line="+15"/>
         <source>In a question, write &quot;por qué&quot; (why) as two words, with the accent.</source>
-        <translation type="unfinished">In een vraag schrijf je &quot;por qué&quot; (waarom) als twee woorden, met het accent.</translation>
+        <translation type="unfinished">Schrijf in een vraag &quot;por qué&quot; (waarom) als twee woorden, met accent.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>In a question, write &quot;por qué&quot; (why) with the accent.</source>
-        <translation type="unfinished">In een vraag schrijf je &quot;por qué&quot; (waarom) met het accent.</translation>
+        <translation type="unfinished">Schrijf in een vraag &quot;por qué&quot; (waarom) met accent.</translation>
     </message>
     <message>
         <location line="+19"/>
         <source>Use &quot;a ver si&quot; (let us see if): &quot;haber&quot; is the verb.</source>
-        <translation type="unfinished">Gebruik &quot;a ver si&quot; (laten we zien of): &quot;haber&quot; is het werkwoord.</translation>
+        <translation type="unfinished">Gebruik &quot;a ver si&quot; (laten we eens kijken of): &quot;haber&quot; is het werkwoord.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Use &quot;haber&quot; (the verb) after this word, not &quot;a ver&quot;.</source>
-        <translation type="unfinished">Gebruik &quot;haber&quot; (het werkwoord) na dit woord, niet &quot;a ver&quot;.</translation>
+        <translation type="unfinished">Gebruik na dit woord &quot;haber&quot; (het werkwoord), niet &quot;a ver&quot;.</translation>
     </message>
     <message>
         <location line="+22"/>
         <source>Use &quot;hay&quot; (there is, there are) here, not &quot;ahí&quot; (there).</source>
-        <translation type="unfinished">Gebruik &quot;hay&quot; (er is, er zijn) hier, niet &quot;ahí&quot; (daar).</translation>
+        <translation type="unfinished">Gebruik hier &quot;hay&quot; (er is, er zijn), niet &quot;ahí&quot; (daar).</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Use &quot;hay&quot; (there is, there are) here, not &quot;ay&quot; (ouch).</source>
-        <translation type="unfinished">Gebruik &quot;hay&quot; (er is, er zijn) hier, niet &quot;ay&quot; (au).</translation>
+        <translation type="unfinished">Gebruik hier &quot;hay&quot; (er is, er zijn), niet &quot;ay&quot; (au).</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Use &quot;ahí&quot; (there) here, not &quot;hay&quot; (there is).</source>
-        <translation type="unfinished">Gebruik &quot;ahí&quot; (daar) hier, niet &quot;hay&quot; (er is).</translation>
+        <translation type="unfinished">Gebruik hier &quot;ahí&quot; (daar), niet &quot;hay&quot; (er is).</translation>
     </message>
     <message>
         <location line="+27"/>
@@ -6738,17 +6738,17 @@ Opslaan zonder reservekopie?</translation>
     <message>
         <location line="+4"/>
         <source>This verb takes &quot;de que&quot;.</source>
-        <translation type="unfinished">Dit werkwoord krijgt &quot;de que&quot;.</translation>
+        <translation type="unfinished">Op dit werkwoord volgt &quot;de que&quot;.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>&quot;Darse cuenta&quot; takes &quot;de que&quot;.</source>
-        <translation type="unfinished">&quot;Darse cuenta&quot; krijgt &quot;de que&quot;.</translation>
+        <translation type="unfinished">Op &quot;Darse cuenta&quot; volgt &quot;de que&quot;.</translation>
     </message>
     <message>
         <location line="+13"/>
         <source>After &quot;haber&quot;, &quot;hecho&quot; (from hacer) or &quot;echado&quot; (from echar) is written.</source>
-        <translation type="unfinished">Na &quot;haber&quot; wordt &quot;hecho&quot; (van hacer) of &quot;echado&quot; (van echar) geschreven.</translation>
+        <translation type="unfinished">Na &quot;haber&quot; schrijf je &quot;hecho&quot; (van hacer) of &quot;echado&quot; (van echar).</translation>
     </message>
 </context>
 <context>
@@ -18013,7 +18013,7 @@ Desktop publishing</translation>
     <message>
         <location line="+1"/>
         <source>Neural network code for translating</source>
-        <translation type="unfinished">Neurale netwerkcode voor vertalen</translation>
+        <translation type="unfinished">Neuraal-netwerkcode voor vertalen</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -18023,7 +18023,7 @@ Desktop publishing</translation>
     <message>
         <location line="+1"/>
         <source>Splitting words into pieces for translating</source>
-        <translation type="unfinished">Woorden opdelen in stukken voor vertalen</translation>
+        <translation type="unfinished">Woorden splitsen in stukken voor vertalen</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -18033,12 +18033,12 @@ Desktop publishing</translation>
     <message>
         <location line="+1"/>
         <source>Splitting text into sentences for translating</source>
-        <translation type="unfinished">Tekst opdelen in zinnen voor vertalen</translation>
+        <translation type="unfinished">Tekst splitsen in zinnen voor vertalen</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Text patterns for splitting sentences</source>
-        <translation type="unfinished">Tekstpatronen voor het opdelen van zinnen</translation>
+        <translation type="unfinished">Tekstpatronen voor het splitsen van zinnen</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -27611,7 +27611,7 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+314"/>
         <source>A barcode could not be made from the text of its cell, so it keeps what it had.</source>
-        <translation type="unfinished">Er kon geen streepjescode worden gemaakt van de tekst in de cel, dus blijft de oorspronkelijke behouden.</translation>
+        <translation type="unfinished">Er kon geen streepjescode worden gemaakt van de tekst in de cel, dus behoudt deze zijn oorspronkelijke inhoud.</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -29946,12 +29946,12 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+1"/>
         <source>Check Grammar as You Type</source>
-        <translation type="unfinished">Grammatica controleren tijdens het typen</translation>
+        <translation type="unfinished">Grammatica tijdens het typen controleren</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>This presentation is too large to check its grammar any further. The grammar check has stopped; spelling still works.</source>
-        <translation type="unfinished">Deze presentatie is te groot om de grammatica verder te controleren. De grammaticacontrole is gestopt; spellingcontrole werkt nog wel.</translation>
+        <translation type="unfinished">Deze presentatie is te groot om de grammatica verder te controleren. De grammaticacontrole is gestopt; spelling werkt nog wel.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -36741,7 +36741,7 @@ Effectieve resolutie: %3 ppi</translation>
 Help&apos;s files were not found beside the program. Reinstalling %1 puts them back.</source>
         <translation type="unfinished"># Help is niet geïnstalleerd
 
-De Help-bestanden zijn niet naast het programma gevonden. Opnieuw installeren van %1 zet ze terug.</translation>
+De Help-bestanden zijn niet gevonden naast het programma. Opnieuw installeren van %1 zet ze terug.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -39946,12 +39946,12 @@ Deze blijven behouden als u opslaat als JeffPub-publicatie (.jpub).</translation
     <message>
         <location line="+1"/>
         <source>Check Grammar as You Type</source>
-        <translation type="unfinished">Grammatica controleren tijdens het typen</translation>
+        <translation type="unfinished">Grammatica tijdens het typen controleren</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>This publication is too large to check its grammar any further. The grammar check has stopped; spelling still works.</source>
-        <translation type="unfinished">Deze publicatie is te groot om de grammatica verder te controleren. De grammaticacontrole is gestopt; spellingcontrole werkt nog wel.</translation>
+        <translation type="unfinished">Deze publicatie is te groot om de grammatica verder te controleren. De grammaticacontrole is gestopt; spelling werkt nog wel.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -44012,7 +44012,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+7"/>
         <source>Puts the quick toolbar in a row under the ribbon instead of at the top left of the window.</source>
-        <translation type="unfinished">Plaatst de snelle werkbalk op één rij onder het lint in plaats van linksboven in het venster.</translation>
+        <translation type="unfinished">Plaatst de snelle werkbalk in een rij onder het lint in plaats van linksboven in het venster.</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -46602,7 +46602,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+2"/>
         <source>Opens a translation website with the text. Nothing is sent until the page opens.</source>
-        <translation type="unfinished">Opent een vertaalwebsite met de tekst. Er wordt niets verzonden totdat de pagina wordt geopend.</translation>
+        <translation type="unfinished">Opent een vertaalwebsite met de tekst. Er wordt niets verzonden totdat de pagina opent.</translation>
     </message>
     <message>
         <location line="+9"/>
@@ -46632,7 +46632,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+2"/>
         <source>Put the translation in new paragraphs below the original text</source>
-        <translation type="unfinished">De vertaling in nieuwe alinea&apos;s onder de oorspronkelijke tekst zetten</translation>
+        <translation type="unfinished">De vertaling in nieuwe alinea&apos;s onder de oorspronkelijke tekst invoegen</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -46667,12 +46667,12 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+1"/>
         <source>This copy of the program has no translator built in. You can open a translation website with the text instead.</source>
-        <translation type="unfinished">Deze versie van het programma heeft geen ingebouwde vertaler. U kunt in plaats daarvan een vertaalwebsite met de tekst openen.</translation>
+        <translation type="unfinished">Deze versie van het programma heeft geen vertaler ingebouwd. U kunt in plaats daarvan een vertaalwebsite met de tekst openen.</translation>
     </message>
     <message>
         <location line="+14"/>
         <source>No translation model is installed for %1 yet.</source>
-        <translation type="unfinished">Er is nog geen vertaalmodel geïnstalleerd voor %1.</translation>
+        <translation type="unfinished">Er is nog geen vertaalmodel voor %1 geïnstalleerd.</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -46718,17 +46718,17 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+4"/>
         <source>The translation failed.</source>
-        <translation type="unfinished">De vertaling is mislukt.</translation>
+        <translation type="unfinished">Het vertalen is mislukt.</translation>
     </message>
     <message>
         <location line="+25"/>
         <source>The text has changed since it was read. Click Use Selection, then Translate again.</source>
-        <translation type="unfinished">De tekst is gewijzigd sinds hij werd ingelezen. Klik op Selectie gebruiken en daarna opnieuw op Vertalen.</translation>
+        <translation type="unfinished">De tekst is gewijzigd sinds hij is ingelezen. Klik op Selectie gebruiken en klik daarna opnieuw op Vertalen.</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>The translation was put in below the text.</source>
-        <translation type="unfinished">De vertaling is onder de tekst geplaatst.</translation>
+        <translation type="unfinished">De vertaling is onder de tekst ingevoegd.</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -52878,7 +52878,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Open een tweede venster om twee documenten naast elkaar te bekijken.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_outline.cpp" line="+22"/>
+        <location filename="../apps/write/app/writewindow_outline.cpp" line="+23"/>
         <location filename="../apps/write/app/writewindow_shapes.cpp" line="-160"/>
         <source>Outline</source>
         <translation type="unfinished">Overzicht</translation>
@@ -62403,7 +62403,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+35"/>
         <source>A translation file is larger than it should be, and was refused.</source>
-        <translation type="unfinished">Een vertaalbestand is groter dan verwacht en is geweigerd.</translation>
+        <translation type="unfinished">Een vertaalbestand is groter dan het zou moeten zijn en is geweigerd.</translation>
     </message>
     <message>
         <location line="+9"/>
@@ -62419,12 +62419,12 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+18"/>
         <source>A translation file did not match its checksum, and was thrown away. Nothing was installed.</source>
-        <translation type="unfinished">Een vertaalbestand kwam niet overeen met zijn controlesom en is weggegooid. Er is niets geïnstalleerd.</translation>
+        <translation type="unfinished">Een vertaalbestand kwam niet overeen met de controlesom en is verwijderd. Er is niets geïnstalleerd.</translation>
     </message>
     <message>
         <location filename="../libs/translate/translate/translator.cpp" line="+51"/>
         <source>This copy of the program was built without the translator.</source>
-        <translation type="unfinished">Deze versie van het programma is zonder vertaler gebouwd.</translation>
+        <translation type="unfinished">Deze versie van het programma is gebouwd zonder vertaler.</translation>
     </message>
     <message>
         <location line="+10"/>

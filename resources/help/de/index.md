@@ -1,7 +1,7 @@
 # JeffPub-Hilfe
-<!-- keywords: Inhalt, Hilfe, Themen, Start -->
+<!-- keywords: Inhalt, Hilfe, Themen, Start, Hilfethemen, Einstieg -->
 
-Geben Sie oben im Suchfeld einen Begriff ein, um ein Thema oder einen auszuführenden Befehl zu finden. Drücken Sie jederzeit **F1**, um Hilfe zu Ihrer aktuellen Tätigkeit zu erhalten: zur Registerkarte des Menübands, auf der Sie sich befinden, zum geöffneten Dialogfeld oder zum markierten Objekt.
+Geben Sie oben im Suchfeld ein Thema oder einen Befehl ein, den Sie ausführen möchten. Drücken Sie jederzeit **F1**, um Hilfe zu dem zu erhalten, was Sie gerade tun: zur Registerkarte des Menübands, auf der Sie sich befinden, zum geöffneten Dialogfeld oder zum ausgewählten Objekt.
 
 ## Erste Schritte
 
@@ -15,14 +15,14 @@ Geben Sie oben im Suchfeld einen Begriff ein, um ein Thema oder einen auszuführ
 ## Text
 
 - [Textfelder hinzufügen und formatieren](text-boxes)
-- [Text zwischen Textfeldern verknüpfen](linked-text)
+- [Text zwischen Textfeldern fortlaufend anordnen](linked-text)
 - [Text formatieren](formatting-text)
 - [Aufzählungen, Nummerierungen und Tabstopps](lists-tabs)
 - [Formatvorlagen verwenden](styles)
 - [Textkunst hinzufügen](text-art)
 - [Eine Gleichung hinzufügen](equations)
 - [Tabellen erstellen und bearbeiten](tables)
-- [Inhaltsverzeichnis, Fußnoten und Endnoten](references)
+- [Inhalte, Fußnoten und Endnoten](references)
 - [Rechtschreibung, Thesaurus, Recherche und Silbentrennung](proofing)
 - [Text übersetzen](translate)
 - [Text suchen und ersetzen](find-replace)

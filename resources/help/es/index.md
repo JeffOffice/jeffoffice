@@ -1,12 +1,12 @@
 # JeffPub: Ayuda
 <!-- keywords: contenido, ayuda, temas, inicio -->
 
-Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando que ejecutar. Pulse **F1** en cualquier momento para obtener ayuda sobre lo que está haciendo: la pestaña de la cinta de opciones en la que se encuentra, el cuadro de diálogo abierto o el objeto seleccionado.
+Escriba en el cuadro de búsqueda situado arriba para encontrar un tema o un comando que ejecutar. Pulse **F1** en cualquier momento para obtener ayuda sobre lo que está haciendo: la pestaña de la cinta de opciones en la que se encuentra, el cuadro de diálogo abierto o el objeto seleccionado.
 
 ## Primeros pasos
 
 - [Bienvenido a JeffPub](start)
-- [Orientarse en la ventana](window)
+- [Orientación en la ventana](window)
 - [Crear una publicación nueva](create)
 - [Abrir y guardar publicaciones](open-save)
 - [Trabajar con archivos .pub](pub-files)
@@ -21,7 +21,7 @@ Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando 
 - [Usar estilos](styles)
 - [Agregar texto artístico](text-art)
 - [Agregar una ecuación](equations)
-- [Crear y modificar tablas](tables)
+- [Crear y editar tablas](tables)
 - [Contenido, notas al pie y notas al final](references)
 - [Ortografía, sinónimos, investigación y división de palabras](proofing)
 - [Traducir texto](translate)
@@ -35,7 +35,7 @@ Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando 
 - [Agregar gráficos](charts)
 - [Iconos, códigos de barras y otros objetos](insert-objects)
 - [Mover, alinear, agrupar y superponer objetos](arrange)
-- [Ajustar el texto alrededor de objetos](wrap)
+- [Ajustar el texto alrededor de los objetos](wrap)
 
 ## Páginas
 

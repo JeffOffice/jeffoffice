@@ -1,9 +1,10 @@
 # Contar palabras, comprobar y buscar palabras
-<!-- keywords: celdas combinadas, texto del vínculo, contar palabras, recuento de palabras, accesibilidad, comprobar accesibilidad, texto alternativo, fila de encabezado, lector de pantalla, contraste, sinónimos, sinónimo, traducir, traducción, libretranslate, contar palabras, caracteres, párrafos, páginas, selección, notas al pie, notas al final, idioma, idioma de revisión, establecer idioma, no comprobar ortografía, idioma de ortografía, barra de estado -->
 
-Estas herramientas están en la pestaña **Revisar**.
+<!-- keywords: celdas combinadas, texto del vínculo, recuento de palabras, contar palabras, accesibilidad, comprobar accesibilidad, texto alternativo, fila de encabezado, lector de pantalla, contraste, sinónimos, sinónimo, traducir, traducción, LibreTranslate, contar palabras, caracteres, párrafos, páginas, selección, notas al pie, notas al final, idioma, idioma de revisión, establecer idioma, no comprobar ortografía, idioma de ortografía, barra de estado -->
 
-## Contar las palabras
+Estas herramientas están en la ficha **Revisar**.
+
+## Contar palabras
 
 1. Haga clic en **Contar palabras** en el grupo **Revisión**.
 2. El cuadro muestra las páginas, las palabras, los caracteres sin espacios, los caracteres con espacios y los párrafos.
@@ -20,43 +21,43 @@ JeffWrite comprueba la ortografía con el diccionario del idioma en que está el
 2. En el grupo **Idioma**, haga clic en **Establecer idioma de revisión**. También puede hacer clic en el nombre del idioma en la barra de estado.
 3. Elija un idioma y haga clic en **Aceptar**.
 
-El idioma se guarda en el archivo, de modo que otros programas también lo conocen. La barra de estado muestra el idioma del texto donde está el cursor.
+El idioma se guarda en el archivo, de modo que otros programas también lo reconocen. La barra de estado muestra el idioma del texto donde está el cursor.
 
 ## No comprobar algunos textos
 
-Hay textos que no conviene comprobar: un código, un nombre o una línea en un idioma inventado. Selecciónelos y haga clic en **No comprobar ortografía** en el grupo **Idioma**. Desaparecen las líneas rojas onduladas. Haga clic de nuevo para volver a comprobar el texto.
+Hay textos que no conviene comprobar: un código, un nombre o una línea en un idioma inventado. Selecciónelos y haga clic en **No comprobar ortografía** en el grupo **Idioma**. Las líneas rojas onduladas desaparecen. Para volver a comprobar el texto, haga clic de nuevo en el botón.
 
-## Buscar una palabra en el diccionario de sinónimos
+## Buscar una palabra en los sinónimos
 
-Un diccionario de sinónimos enumera palabras con un significado casi igual.
+Un diccionario de sinónimos recoge palabras que significan casi lo mismo.
 
 1. Haga clic en una palabra o selecciónela.
-2. Haga clic en **Sinónimos** en el grupo **Revisión**, o presione **Mayús+F7**.
-3. Elija una palabra de la lista y haga clic en **Reemplazar**. Para buscar una de las palabras en su lugar, haga clic en **Buscar**. También puede escribir otra palabra en el cuadro y presionar **Entrar**.
+2. Haga clic en **Sinónimos** en el grupo **Revisión**, o pulse **Mayús+F7**.
+3. Elija una palabra de la lista y haga clic en **Reemplazar**. Para buscar una de esas palabras, haga clic en **Buscar**. También puede escribir otra palabra en el cuadro y pulsar **Entrar**.
 
-La lista procede de un archivo de su equipo. No se usa ninguna conexión a internet.
+La lista procede de un archivo de su equipo. No se utiliza ninguna conexión a Internet.
 
 ## Traducir texto
 
-Seleccione un texto y haga clic en **Traducir** en el grupo **Idioma**. El panel Traducir, a la derecha, lo traduce en su equipo y puede reemplazar el texto o añadir la traducción debajo. Consulte [Traducir texto](translate).
+Seleccione un texto y haga clic en **Traducir** en el grupo **Idioma**. El panel Traducir, a la derecha, lo traduce en su equipo y puede reemplazar el texto o agregar la traducción debajo. Consulte [Traducir texto](translate).
 
 ## Comprobar la accesibilidad
 
-Algunas personas leen con un lector de pantalla, que lee el documento en voz alta. Otras tienen dificultades para ver el texto de colores claros. La comprobación de accesibilidad encuentra lo que hace que un documento resulte difícil para ellas.
+Algunas personas leen con un lector de pantalla, que lee el documento en voz alta. Otras tienen dificultades para ver el texto de colores claros. La comprobación de accesibilidad encuentra lo que hace que un documento sea difícil para ellas.
 
 1. Haga clic en **Comprobar accesibilidad** en el grupo **Revisión**.
 2. Se abre una lista a la derecha. Cada línea indica qué está mal. Haga clic en una línea para ir al lugar.
-3. Corrija el problema. Haga clic en **Volver a comprobar**.
+3. Corrija el problema y haga clic en **Volver a comprobar**.
 
-Busca lo siguiente:
+Busca estos casos:
 
-- **Una imagen sin texto alternativo.** El texto alternativo es una descripción breve de una imagen. Para añadirlo, haga clic con el botón derecho en la imagen y elija su texto alternativo.
+- **Una imagen sin texto alternativo.** El texto alternativo es una descripción breve de la imagen. Para agregarlo, haga clic con el botón derecho en la imagen y elija su texto alternativo.
 - **Una tabla sin fila de encabezado.** La fila de encabezado contiene los nombres de las columnas.
 - **Una celda de tabla en blanco.**
 - **Un título que salta un nivel**, como Título 3 justo después de Título 1.
-- **Un texto difícil de leer**, porque su color es demasiado parecido al del fondo.
-- **Una imagen que flota sobre la página** en lugar de estar en línea con el texto.
-- **Una tabla con celdas combinadas.** Una celda combinada es una sola celda que abarca dos o más columnas o filas. Un lector de pantalla puede perderse en una tabla así. Este aviso aparece una vez por cada tabla.
-- **Un vínculo cuyas palabras no dicen nada sobre su destino**, como "haga clic aquí" o "leer más", o una dirección web mostrada tal cual. Una persona que escucha la lista de vínculos de una página necesita palabras que nombren la página.
+- **Un texto difícil de leer**, porque su color es demasiado parecido al color del fondo.
+- **Una imagen flotante en la página**, en lugar de estar en línea con el texto.
+- **Una tabla con celdas combinadas.** Una celda combinada es una sola celda que abarca dos o más columnas o filas. Un lector de pantalla puede perder su posición en una tabla así. Esto se indica una vez por cada tabla.
+- **Un vínculo cuyas palabras no dicen adónde lleva**, como «haga clic aquí» o «leer más», o una dirección web mostrada tal cual. Quien escucha la lista de vínculos de una página necesita palabras que nombren la página.
 
 También puede iniciar la comprobación desde **Archivo > Información**: haga clic en **Comprobar accesibilidad**.

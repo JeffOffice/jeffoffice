@@ -1,5 +1,5 @@
 # Contar palavras, verificar e consultar palavras
-<!-- keywords: células unidas, texto de hiperligação, contar palavras, contagem de palavras, acessibilidade, verificar acessibilidade, texto alternativo, linha de cabeçalho, leitor de ecrã, contraste, dicionário de sinónimos, sinónimo, sinónimos, traduzir, tradução, libretranslate, carateres, parágrafos, páginas, seleção, notas de rodapé, notas de fim, idioma, idioma de verificação, definir idioma, não verificar ortografia, idioma da ortografia, barra de estado -->
+<!-- keywords: células unidas, texto de ligação, contagem de palavras, contar palavras, acessibilidade, verificar acessibilidade, texto alternativo, linha de cabeçalho, leitor de ecrã, contraste, dicionário de sinónimos, sinónimo, sinónimos, traduzir, tradução, libretranslate, contagem de palavras, contar palavras, carateres, parágrafos, páginas, seleção, notas de rodapé, notas de fim, idioma, idioma de verificação, definir idioma, não verificar ortografia, idioma da ortografia, barra de estado -->
 
 Estas ferramentas estão no separador **Rever**.
 
@@ -20,11 +20,11 @@ O JeffWrite verifica a ortografia com o dicionário do idioma em que o texto est
 2. No grupo **Idioma**, clique em **Definir Idioma de Verificação**. Também pode clicar no nome do idioma na barra de estado.
 3. Escolha um idioma e clique em **OK**.
 
-O idioma fica guardado no ficheiro, pelo que os outros programas também o reconhecem. A barra de estado mostra o idioma do texto onde está o cursor.
+O idioma fica guardado no ficheiro, por isso também os outros programas o reconhecem. A barra de estado mostra o idioma do texto onde está o cursor.
 
-## Não verificar alguns textos
+## Não verificar algum texto
 
-Há textos que não devem ser verificados, como um código, um nome ou uma linha numa língua inventada. Selecione-os e clique em **Não Verificar Ortografia** no grupo **Idioma**. As linhas vermelhas onduladas desaparecem. Clique novamente para verificar o texto outra vez.
+Há texto que não deve ser verificado: um código, um nome ou uma linha numa língua inventada. Selecione-o e clique em **Não Verificar Ortografia** no grupo **Idioma**. As linhas vermelhas onduladas desaparecem. Clique novamente para verificar o texto outra vez.
 
 ## Consultar uma palavra no dicionário de sinónimos
 
@@ -32,13 +32,13 @@ Um dicionário de sinónimos lista palavras com um significado quase igual.
 
 1. Clique numa palavra ou selecione-a.
 2. Clique em **Dicionário de Sinónimos** no grupo **Verificação**, ou prima **Shift+F7**.
-3. Escolha uma palavra na lista e clique em **Substituir**. Para consultar uma das palavras em vez disso, clique em **Procurar**. Também pode escrever outra palavra na caixa e premir **Enter**.
+3. Escolha uma palavra na lista e clique em **Substituir**. Para consultar uma das palavras, clique em **Pesquisar**. Também pode escrever outra palavra na caixa e premir **Enter**.
 
-A lista vem de um ficheiro no seu computador. Não é utilizada nenhuma ligação à Internet.
+A lista vem de um ficheiro do seu computador. Não é utilizada nenhuma ligação à Internet.
 
 ## Traduzir texto
 
-Selecione algum texto e clique em **Traduzir** no grupo **Idioma**. O painel Traduzir, à direita, traduz o texto no seu computador e pode substituir o texto ou acrescentar a tradução por baixo dele. Ver [Traduzir texto](translate).
+Selecione algum texto e clique em **Traduzir** no grupo **Idioma**. O painel Traduzir, à direita, traduz o texto no seu computador e pode substituir o texto ou acrescentar a tradução por baixo dele. Consulte [Traduzir texto](translate).
 
 ## Verificar a acessibilidade
 
@@ -50,13 +50,13 @@ Algumas pessoas leem com um leitor de ecrã, que lê o documento em voz alta. Ou
 
 A verificação procura o seguinte:
 
-- **Uma imagem sem texto alternativo.** O texto alternativo é uma descrição curta de uma imagem. Para o acrescentar, clique com o botão direito na imagem e escolha o respetivo texto alternativo.
+- **Uma imagem sem texto alternativo.** O texto alternativo é uma descrição curta de uma imagem. Para o acrescentar, clique com o botão direito na imagem e escolha o texto alternativo.
 - **Uma tabela sem linha de cabeçalho.** A linha de cabeçalho contém os nomes das colunas.
 - **Uma célula de tabela em branco.**
-- **Um título que salta um nível**, como o Título 3 logo a seguir ao Título 1.
-- **Texto difícil de ler**, porque a sua cor é demasiado parecida com a cor de fundo.
-- **Uma imagem flutuante na página**, em vez de estar em linha com o texto.
-- **Uma tabela com células unidas.** Uma célula unida é uma única célula que abrange duas ou mais colunas ou linhas. Um leitor de ecrã pode perder-se numa tabela deste tipo. Isto é indicado uma vez por cada tabela.
-- **Uma hiperligação cujas palavras não dizem nada sobre o destino**, como "clique aqui" ou "ler mais", ou um endereço Web apresentado tal como está. Quem ouve a lista de hiperligações de uma página precisa de palavras que identifiquem a página.
+- **Um título que salta um nível**, como Título 3 logo a seguir a Título 1.
+- **Texto difícil de ler**, porque a sua cor é demasiado próxima da cor do fundo.
+- **Uma imagem flutuante na página** em vez de estar em linha com o texto.
+- **Uma tabela com células unidas.** Uma célula unida é uma única célula que abrange duas ou mais colunas ou linhas. Um leitor de ecrã pode perder-se numa tabela assim. Esta indicação aparece uma vez para cada tabela.
+- **Uma ligação cujas palavras não dizem nada sobre o destino**, como "clique aqui" ou "leia mais", ou um endereço Web apresentado tal como está. Quem ouve a lista de ligações de uma página precisa de palavras que identifiquem a página.
 
 Também pode iniciar a verificação em **Ficheiro > Informações**: clique em **Verificar Acessibilidade**.

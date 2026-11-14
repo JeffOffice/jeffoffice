@@ -1,7 +1,7 @@
 # Bantuan JeffPub
 <!-- keywords: isi, bantuan, topik, mulai -->
 
-Ketik di kotak pencarian di atas untuk mencari topik, atau perintah yang ingin dijalankan. Tekan **F1** kapan saja untuk mendapatkan bantuan tentang yang sedang Anda kerjakan: tab pita yang sedang Anda buka, kotak dialog yang sedang terbuka, atau objek yang sedang Anda pilih.
+Ketik di kotak pencarian di atas untuk mencari topik, atau perintah yang ingin dijalankan. Tekan **F1** kapan saja untuk mendapatkan bantuan tentang yang sedang Anda kerjakan: tab pita yang sedang Anda buka, kotak dialog yang terbuka, atau objek yang sedang Anda pilih.
 
 ## Memulai
 
@@ -34,7 +34,7 @@ Ketik di kotak pencarian di atas untuk mencari topik, atau perintah yang ingin d
 - [Menggambar bentuk dan garis](shapes)
 - [Menambahkan bagan](charts)
 - [Ikon, kode batang, dan objek lainnya](insert-objects)
-- [Memindahkan, merapikan, mengelompokkan, dan mengatur lapisan objek](arrange)
+- [Memindahkan, merata-kan, mengelompokkan, dan mengatur lapisan objek](arrange)
 - [Membungkus teks di sekitar objek](wrap)
 
 ## Halaman
@@ -53,7 +53,7 @@ Ketik di kotak pencarian di atas untuk mencari topik, atau perintah yang ingin d
 ## Cetak dan bagikan
 
 - [Mencetak publikasi](printing)
-- [Berkas PDF dan pencetak komersial](pdf)
+- [Berkas PDF dan percetakan komersial](pdf)
 - [Simpan sebagai gambar, halaman web, atau e-book](export)
 
 ## Bantuan dan pengaturan

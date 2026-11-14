@@ -1,7 +1,7 @@
 # Ajuda do JeffWrite
-<!-- keywords: conteúdo, ajuda, tópicos, início, índice, sumário -->
+<!-- keywords: sumário, ajuda, tópicos, início -->
 
-Digite na caixa de pesquisa acima para encontrar um tópico ou um comando a executar. Pressione **F1** a qualquer momento para obter ajuda sobre o que você está fazendo: a guia da faixa de opções em que você está ou a página da tela Arquivo em que você está.
+Digite na caixa de pesquisa acima para encontrar um tópico ou um comando a executar. Pressione **F1** a qualquer momento para obter ajuda sobre o que você está fazendo: a guia da faixa de opções em que você está, ou a página da tela Arquivo em que você está.
 
 ## Primeiros passos
 
@@ -14,10 +14,10 @@ Digite na caixa de pesquisa acima para encontrar um tópico ou um comando a exec
 
 ## Trabalhar no texto
 
-- [Verificar a ortografia](spelling)
-- [Contar palavras, definir o idioma, verificar a acessibilidade e pesquisar palavras](proofing-tools)
+- [Verificar sua ortografia](spelling)
+- [Contar palavras, definir o idioma, verificar a acessibilidade e consultar palavras](proofing-tools)
 - [Traduzir texto](translate)
-- [Controlar alterações, e aceitar ou rejeitá-las](track-changes)
+- [Controlar alterações, e aceitar ou rejeitar](track-changes)
 - [Adicionar e responder comentários](comments)
 - [Proteger um documento e bloquear o controle de alterações](protect)
 

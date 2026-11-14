@@ -2297,7 +2297,7 @@ Back page story	4</source>
     <message>
         <location line="+0"/>
         <source>Extra or missing spaces, commas, and hyphens.</source>
-        <translation type="unfinished">Зайві або відсутні пробіли, коми й дефіси.</translation>
+        <translation type="unfinished">Зайві або відсутні пробіли, коми та дефіси.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -2317,7 +2317,7 @@ Back page story	4</source>
     <message>
         <location line="+0"/>
         <source>Words that sound alike, such as &quot;its&quot; and &quot;it&apos;s&quot;.</source>
-        <translation type="unfinished">Слова, які звучать однаково, наприклад «its» і «it&apos;s».</translation>
+        <translation type="unfinished">Слова, що звучать однаково, наприклад «its» і «it&apos;s».</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -2337,7 +2337,7 @@ Back page story	4</source>
     <message>
         <location line="+0"/>
         <source>Long sentences, passive voice, and wordy phrases. These are suggestions, not mistakes.</source>
-        <translation type="unfinished">Довгі речення, пасивний стан і багатослівні звороти. Це радше поради, а не помилки.</translation>
+        <translation type="unfinished">Довгі речення, пасивний стан і багатослівні звороти. Це рекомендації, а не помилки.</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -6306,7 +6306,7 @@ Save without a backup?</source>
     <message>
         <location line="+9"/>
         <source>Use &quot;whose&quot; (belonging to whom) here, not &quot;who&apos;s&quot;.</source>
-        <translation type="unfinished">Тут використовуйте «whose» (належить кому), а не «who&apos;s».</translation>
+        <translation type="unfinished">Тут використовуйте «whose» (чий, належить кому), а не «who&apos;s».</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -6342,17 +6342,17 @@ Save without a backup?</source>
     <message>
         <location line="+10"/>
         <source>&quot;Regardless&quot; is the word; &quot;irregardless&quot; is not standard.</source>
-        <translation type="unfinished">Правильне слово — «regardless»; «irregardless» не є стандартним.</translation>
+        <translation type="unfinished">Правильне слово «regardless»; «irregardless» не є стандартним.</translation>
     </message>
     <message>
         <location line="+20"/>
         <source>Use &quot;whether&quot; (if) here, not &quot;weather&quot;.</source>
-        <translation type="unfinished">Тут використовуйте «whether» (якщо), а не «weather».</translation>
+        <translation type="unfinished">Тут використовуйте «whether» (чи), а не «weather».</translation>
     </message>
     <message>
         <location line="+16"/>
         <source>Use &quot;quite&quot; (very) here, not &quot;quiet&quot;.</source>
-        <translation type="unfinished">Тут використовуйте «quite» (дуже), а не «quiet».</translation>
+        <translation type="unfinished">Тут використовуйте «quite» (досить), а не «quiet».</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -6372,7 +6372,7 @@ Save without a backup?</source>
     <message>
         <location line="+16"/>
         <source>Use &quot;too&quot; (more than enough) here, not &quot;to&quot;.</source>
-        <translation type="unfinished">Тут використовуйте «too» (більш ніж достатньо), а не «to».</translation>
+        <translation type="unfinished">Тут використовуйте «too» (забагато), а не «to».</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -6393,27 +6393,27 @@ Save without a backup?</source>
     <message>
         <location line="+14"/>
         <source>This saying has a different word.</source>
-        <translation type="unfinished">У цьому виразі вжито інше слово.</translation>
+        <translation type="unfinished">Цей вислів містить інше слово.</translation>
     </message>
     <message>
         <location line="+27"/>
         <source>Use &quot;these&quot; before a plural.</source>
-        <translation type="unfinished">Перед множиною використовуйте «these».</translation>
+        <translation type="unfinished">Використовуйте «these» перед множиною.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Use &quot;this&quot; or &quot;that&quot; before one.</source>
-        <translation type="unfinished">Перед іменником в однині використовуйте «this» або «that».</translation>
+        <translation type="unfinished">Використовуйте «this» або «that» перед іменником в однині.</translation>
     </message>
     <message>
         <location line="+18"/>
         <source>Use &quot;me&quot; after a word like &quot;between&quot; or &quot;for&quot;.</source>
-        <translation type="unfinished">Після слів на кшталт «between» або «for» використовуйте «me».</translation>
+        <translation type="unfinished">Використовуйте «me» після слова на кшталт «between» або «for».</translation>
     </message>
     <message>
         <location line="+26"/>
         <source>Use &quot;%1 and I&quot; for the ones who do it.</source>
-        <translation type="unfinished">Для тих, хто це робить, використовуйте «%1 and I».</translation>
+        <translation type="unfinished">Використовуйте «%1 and I» для тих, хто виконує дію.</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -6433,7 +6433,7 @@ Save without a backup?</source>
     <message>
         <location line="+21"/>
         <source>This is a double negative: &quot;%1&quot; already says &quot;not&quot;.</source>
-        <translation type="unfinished">Це подвійне заперечення: «%1» уже містить «not».</translation>
+        <translation type="unfinished">Це подвійне заперечення: «%1» вже містить «not».</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -6468,7 +6468,7 @@ Save without a backup?</source>
     <message>
         <location line="+7"/>
         <source>Two periods: use one, or three for an ellipsis.</source>
-        <translation type="unfinished">Дві крапки: використовуйте одну або три для многокрапки.</translation>
+        <translation type="unfinished">Дві крапки: використовуйте одну або три для трикрапки.</translation>
     </message>
     <message>
         <location line="+34"/>
@@ -6478,17 +6478,17 @@ Save without a backup?</source>
     <message>
         <location line="+12"/>
         <source>Begin the name of a day or month with a capital letter.</source>
-        <translation type="unfinished">Назву дня або місяця починайте з великої літери.</translation>
+        <translation type="unfinished">Починайте назву дня або місяця з великої літери.</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>The saying is &quot;couldn&apos;t care less&quot; (it is not possible to care less).</source>
-        <translation type="unfinished">Вислів звучить як «couldn&apos;t care less» (неможливо байдужіше ставитися).</translation>
+        <translation type="unfinished">Вислів звучить як «couldn&apos;t care less» (менше турбуватися вже неможливо).</translation>
     </message>
     <message>
         <location line="+12"/>
         <source>Use &quot;try to&quot; in careful writing.</source>
-        <translation type="unfinished">У дбайливому письмі використовуйте «try to».</translation>
+        <translation type="unfinished">У ретельному тексті використовуйте «try to».</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -6498,7 +6498,7 @@ Save without a backup?</source>
     <message>
         <location line="+13"/>
         <source>A shorter way to say this.</source>
-        <translation type="unfinished">Коротший спосіб сказати це.</translation>
+        <translation type="unfinished">Коротший спосіб висловити це.</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -6508,17 +6508,17 @@ Save without a backup?</source>
     <message>
         <location line="+18"/>
         <source>This is in the passive voice. Say who does it first to make it direct.</source>
-        <translation type="unfinished">Це пасивний стан. Щоб речення стало прямим, спочатку назвіть того, хто виконує дію.</translation>
+        <translation type="unfinished">Це пасивний стан. Щоб речення було прямим, спершу назвіть того, хто виконує дію.</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>This sentence has %1 words. Consider splitting it.</source>
-        <translation type="unfinished">Це речення має %1 слів. Розгляньте можливість його поділу.</translation>
+        <translation type="unfinished">Це речення містить %1 слів. Розгляньте можливість його поділу.</translation>
     </message>
     <message>
         <location line="+10"/>
         <source>Three sentences in a row begin with &quot;%1&quot;. Vary the start.</source>
-        <translation type="unfinished">Три речення поспіль починаються з «%1». Змініть початок.</translation>
+        <translation type="unfinished">Три речення поспіль починаються з «%1». Урізноманітніть початок.</translation>
     </message>
     <message>
         <location filename="../libs/text/grammar/grammar_fr.inc" line="+42"/>
@@ -6532,87 +6532,87 @@ Save without a backup?</source>
         <location line="+5"/>
         <location line="+2"/>
         <source>In French, put a no-break space inside the guillemets.</source>
-        <translation type="unfinished">У французькій мові поставте нерозривний пробіл всередині лапок-гільйоме.</translation>
+        <translation type="unfinished">У французькій мові поставте нерозривний пробіл всередині лапок-гільйометів.</translation>
     </message>
     <message>
         <location line="+33"/>
         <source>Before a word that starts with a vowel, join the two with an apostrophe (l&apos;ami, d&apos;eau, qu&apos;il).</source>
-        <translation type="unfinished">Перед словом, що починається з голосної, з&apos;єднуйте два слова апострофом (l&apos;ami, d&apos;eau, qu&apos;il).</translation>
+        <translation type="unfinished">Перед словом, що починається з голосної, з&apos;єднуйте обидва слова апострофом (l&apos;ami, d&apos;eau, qu&apos;il).</translation>
     </message>
     <message>
         <location line="+10"/>
         <source>Write &quot;s&apos;il&quot; (si and il run together).</source>
-        <translation type="unfinished">Пишіть «s&apos;il» (si та il злиті разом).</translation>
+        <translation type="unfinished">Пишіть «s&apos;il» (si і il пишуться разом).</translation>
     </message>
     <message>
         <location line="+19"/>
         <source>Use &quot;a&quot; (the verb avoir, without the accent) here.</source>
-        <translation type="unfinished">Тут використовуйте «a» (дієслово avoir, без акцента).</translation>
+        <translation type="unfinished">Використовуйте «a» (дієслово avoir, без наголосу) тут.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>This phrase begins with &quot;à&quot; (with the accent).</source>
-        <translation type="unfinished">Ця фраза починається з «à» (з акцентом).</translation>
+        <translation type="unfinished">Ця фраза починається з «à» (з наголосом).</translation>
     </message>
     <message>
         <location line="+15"/>
         <source>Use &quot;où&quot; (where), with the accent.</source>
-        <translation type="unfinished">Використовуйте «où» (де) з акцентом.</translation>
+        <translation type="unfinished">Використовуйте «où» (де) з наголосом.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Use &quot;Où&quot; (where), with the accent.</source>
-        <translation type="unfinished">Використовуйте «Où» (де) з акцентом.</translation>
+        <translation type="unfinished">Використовуйте «Où» (де) з наголосом.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Use &quot;ou&quot; (or), without the accent.</source>
-        <translation type="unfinished">Використовуйте «ou» (або) без акцента.</translation>
+        <translation type="unfinished">Використовуйте «ou» (або) без наголосу.</translation>
     </message>
     <message>
         <location line="+18"/>
         <source>Use &quot;se&quot; (the pronoun of a verb like se lever) here, not &quot;ce&quot;.</source>
-        <translation type="unfinished">Тут використовуйте «se» (займенник дієслова на кшталт se lever), а не «ce».</translation>
+        <translation type="unfinished">Використовуйте «se» (займенник дієслова на кшталт se lever) тут, а не «ce».</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Use &quot;ce&quot; (what) here, not &quot;se&quot;.</source>
-        <translation type="unfinished">Тут використовуйте «ce» (що), а не «se».</translation>
+        <translation type="unfinished">Використовуйте «ce» (що) тут, а не «se».</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Use &quot;ce sont&quot; here: &quot;ces&quot; goes before a noun.</source>
-        <translation type="unfinished">Тут використовуйте «ce sont»: «ces» стоїть перед іменником.</translation>
+        <translation type="unfinished">Використовуйте «ce sont» тут: «ces» стоїть перед іменником.</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>Use &quot;s&apos;est&quot; (the verb is reflexive) here, not &quot;c&apos;est&quot;.</source>
-        <translation type="unfinished">Тут використовуйте «s&apos;est» (дієслово зворотне), а не «c&apos;est».</translation>
+        <translation type="unfinished">Використовуйте «s&apos;est» (дієслово зворотне) тут, а не «c&apos;est».</translation>
     </message>
     <message>
         <location line="+26"/>
         <source>Use &quot;%1&quot; here: the two words run together before a noun.</source>
-        <translation type="unfinished">Тут використовуйте «%1»: перед іменником ці два слова пишуться разом.</translation>
+        <translation type="unfinished">Використовуйте «%1» тут: перед іменником ці два слова пишуться разом.</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>Write &quot;ça&quot; (with the cedilla).</source>
-        <translation type="unfinished">Пишіть «ça» (із сідильєю).</translation>
+        <translation type="unfinished">Пишіть «ça» (з седилем).</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Write &quot;ça va&quot; (it goes), not &quot;sa&quot; (his or her).</source>
-        <translation type="unfinished">Пишіть «ça va» (справи йдуть), а не «sa» (його або її).</translation>
+        <translation type="unfinished">Пишіть «ça va» (справи йдуть), а не «sa» (його чи її).</translation>
     </message>
     <message>
         <location line="+16"/>
         <source>Use &quot;quant à&quot; (as for), not &quot;quand&quot; (when).</source>
-        <translation type="unfinished">Використовуйте «quant à» (що стосується), а не «quand» (коли).</translation>
+        <translation type="unfinished">Використовуйте «quant à» (щодо), а не «quand» (коли).</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Write &quot;quant à&quot; (as for), with the accent.</source>
-        <translation type="unfinished">Пишіть «quant à» (що стосується) з акцентом.</translation>
+        <translation type="unfinished">Пишіть «quant à» (щодо) з наголосом.</translation>
     </message>
     <message>
         <location line="+20"/>
@@ -6622,14 +6622,14 @@ Save without a backup?</source>
     <message>
         <location line="+6"/>
         <source>Join these with a hyphen: &quot;%1-ce&quot;.</source>
-        <translation type="unfinished">З&apos;єднайте їх дефісом: «%1-ce».</translation>
+        <translation type="unfinished">З&apos;єднуйте їх дефісом: «%1-ce».</translation>
     </message>
     <message>
         <location line="+19"/>
         <location filename="../libs/text/grammar/grammar_de.inc" line="+18"/>
         <location filename="../libs/text/grammar/grammar_es.inc" line="+242"/>
         <source>A plainer way to say this.</source>
-        <translation type="unfinished">Простіший спосіб це сказати.</translation>
+        <translation type="unfinished">Простіший спосіб висловити це.</translation>
     </message>
     <message>
         <location filename="../libs/text/grammar/grammar_de.inc" line="-150"/>
@@ -6639,12 +6639,12 @@ Save without a backup?</source>
     <message>
         <location line="+3"/>
         <source>Use &quot;Das&quot; (the pronoun) here: &quot;dass&quot; begins a clause with its verb at the end.</source>
-        <translation type="unfinished">Тут використовуйте «Das» (займенник): «dass» починає речення з дієсловом у кінці.</translation>
+        <translation type="unfinished">Використовуйте «Das» (займенник) тут: «dass» починає підрядне речення з дієсловом у кінці.</translation>
     </message>
     <message>
         <location line="+23"/>
         <source>Use &quot;seit&quot; (since, for a time), not &quot;seid&quot; (you are).</source>
-        <translation type="unfinished">Використовуйте «seit» (відтоді, протягом певного часу), а не «seid» (ви є).</translation>
+        <translation type="unfinished">Використовуйте «seit» (відтоді, протягом часу), а не «seid» (ви є).</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -6659,7 +6659,7 @@ Save without a backup?</source>
     <message>
         <location line="+2"/>
         <source>Use &quot;wider&quot; (against) in this phrase, not &quot;wieder&quot; (again).</source>
-        <translation type="unfinished">Тут у цій фразі використовуйте «wider» (проти), а не «wieder» (знову).</translation>
+        <translation type="unfinished">Використовуйте «wider» (проти) у цій фразі, а не «wieder» (знову).</translation>
     </message>
     <message>
         <location line="+26"/>
@@ -6694,17 +6694,17 @@ Save without a backup?</source>
     <message>
         <location line="+33"/>
         <source>A question word takes an accent: qué, cómo, dónde, cuándo, quién, cuál, cuánto.</source>
-        <translation type="unfinished">Питальне слово має акцент: qué, cómo, dónde, cuándo, quién, cuál, cuánto.</translation>
+        <translation type="unfinished">Питальне слово має наголос: qué, cómo, dónde, cuándo, quién, cuál, cuánto.</translation>
     </message>
     <message>
         <location line="+15"/>
         <source>In a question, write &quot;por qué&quot; (why) as two words, with the accent.</source>
-        <translation type="unfinished">У питанні пишіть «por qué» (чому) двома словами, з акцентом.</translation>
+        <translation type="unfinished">У питанні пишіть «por qué» (чому) окремими словами, з наголосом.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>In a question, write &quot;por qué&quot; (why) with the accent.</source>
-        <translation type="unfinished">У питанні пишіть «por qué» (чому) з акцентом.</translation>
+        <translation type="unfinished">У питанні пишіть «por qué» (чому) з наголосом.</translation>
     </message>
     <message>
         <location line="+19"/>
@@ -6714,27 +6714,27 @@ Save without a backup?</source>
     <message>
         <location line="+4"/>
         <source>Use &quot;haber&quot; (the verb) after this word, not &quot;a ver&quot;.</source>
-        <translation type="unfinished">Після цього слова використовуйте «haber» (дієслово), а не «a ver».</translation>
+        <translation type="unfinished">Використовуйте «haber» (дієслово) після цього слова, а не «a ver».</translation>
     </message>
     <message>
         <location line="+22"/>
         <source>Use &quot;hay&quot; (there is, there are) here, not &quot;ahí&quot; (there).</source>
-        <translation type="unfinished">Тут використовуйте «hay» (є, існує), а не «ahí» (там).</translation>
+        <translation type="unfinished">Використовуйте «hay» (є, існує) тут, а не «ahí» (там).</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Use &quot;hay&quot; (there is, there are) here, not &quot;ay&quot; (ouch).</source>
-        <translation type="unfinished">Тут використовуйте «hay» (є, існує), а не «ay» (ой).</translation>
+        <translation type="unfinished">Використовуйте «hay» (є, існує) тут, а не «ay» (ой).</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Use &quot;ahí&quot; (there) here, not &quot;hay&quot; (there is).</source>
-        <translation type="unfinished">Тут використовуйте «ahí» (там), а не «hay» (є).</translation>
+        <translation type="unfinished">Використовуйте «ahí» (там) тут, а не «hay» (є, існує).</translation>
     </message>
     <message>
         <location line="+27"/>
         <source>Use &quot;%1&quot;: the two words run together before a masculine noun.</source>
-        <translation type="unfinished">Використовуйте «%1»: перед іменником чоловічого роду ці два слова пишуться разом.</translation>
+        <translation type="unfinished">Використовуйте «%1»: перед чоловічим іменником ці два слова пишуться разом.</translation>
     </message>
     <message>
         <location line="+19"/>
@@ -6744,12 +6744,12 @@ Save without a backup?</source>
     <message>
         <location line="+4"/>
         <source>This verb takes &quot;de que&quot;.</source>
-        <translation type="unfinished">Це дієслово вимагає «de que».</translation>
+        <translation type="unfinished">Це дієслово вживається з «de que».</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>&quot;Darse cuenta&quot; takes &quot;de que&quot;.</source>
-        <translation type="unfinished">«Darse cuenta» вимагає «de que».</translation>
+        <translation type="unfinished">«Darse cuenta» вживається з «de que».</translation>
     </message>
     <message>
         <location line="+13"/>
@@ -17325,7 +17325,7 @@ Desktop publishing</source>
     <message>
         <location line="+1"/>
         <source>Neural network code for translating</source>
-        <translation type="unfinished">Код нейромережі для перекладу</translation>
+        <translation type="unfinished">Код нейронної мережі для перекладу</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -17335,7 +17335,7 @@ Desktop publishing</source>
     <message>
         <location line="+1"/>
         <source>Splitting words into pieces for translating</source>
-        <translation type="unfinished">Розбиття слів на частини для перекладу</translation>
+        <translation type="unfinished">Поділ слів на частини для перекладу</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -17345,12 +17345,12 @@ Desktop publishing</source>
     <message>
         <location line="+1"/>
         <source>Splitting text into sentences for translating</source>
-        <translation type="unfinished">Розбиття тексту на речення для перекладу</translation>
+        <translation type="unfinished">Поділ тексту на речення для перекладу</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Text patterns for splitting sentences</source>
-        <translation type="unfinished">Текстові шаблони для розбиття речень</translation>
+        <translation type="unfinished">Шаблони тексту для поділу речень</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -17370,7 +17370,7 @@ Desktop publishing</source>
     <message>
         <location line="+1"/>
         <source>Languages the Translate pane translates (downloaded when you ask)</source>
-        <translation type="unfinished">Мови, які перекладає панель «Переклад» (завантажуються за запитом)</translation>
+        <translation type="unfinished">Мови, які перекладає область перекладу (завантажуються на вимогу)</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -24459,7 +24459,7 @@ This file is protected with a password. Password:</source>
     <message>
         <location line="+108"/>
         <source>A barcode could not be made from the text of its cell, so it keeps what it had.</source>
-        <translation type="unfinished">Штрихкод не вдалося створити з тексту його комірки, тому він зберіг попередній вигляд.</translation>
+        <translation type="unfinished">Штрихкод неможливо створити з тексту його комірки, тому він зберігає попередній вигляд.</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -30275,7 +30275,7 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+3"/>
         <source>This presentation is too large to check its grammar any further. The grammar check has stopped; spelling still works.</source>
-        <translation type="unfinished">Ця презентація занадто велика для подальшої перевірки граматики. Перевірку граматики зупинено; правопис однаково працює.</translation>
+        <translation type="unfinished">Ця презентація занадто велика для подальшої перевірки граматики. Перевірку граматики зупинено; перевірка правопису працює далі.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -35995,7 +35995,7 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+60"/>
         <source>This publication has no comments.</source>
-        <translation type="unfinished">Ця публікація не містить коментарів.</translation>
+        <translation type="unfinished">У цій публікації немає коментарів.</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -39990,7 +39990,7 @@ They&apos;re kept when you save as a JeffPub publication (.jpub).</source>
     <message>
         <location line="+1"/>
         <source>This publication is too large to check its grammar any further. The grammar check has stopped; spelling still works.</source>
-        <translation type="unfinished">Ця публікація занадто велика для подальшої перевірки граматики. Перевірку граматики зупинено; правопис однаково працює.</translation>
+        <translation type="unfinished">Ця публікація занадто велика для подальшої перевірки граматики. Перевірку граматики зупинено; перевірка правопису працює далі.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -42279,7 +42279,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+3"/>
         <source>Ignore All</source>
-        <translation type="unfinished">Ігнорувати все</translation>
+        <translation type="unfinished">Ігнорувати всі</translation>
     </message>
 </context>
 <context>
@@ -44045,7 +44045,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+7"/>
         <source>Puts the quick toolbar in a row under the ribbon instead of at the top left of the window.</source>
-        <translation type="unfinished">Розміщує панель швидкого доступу в рядку під стрічкою, а не у верхньому лівому куті вікна.</translation>
+        <translation type="unfinished">Розміщує панель швидкого доступу рядком під стрічкою, а не у верхньому лівому куті вікна.</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -45897,7 +45897,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+1"/>
         <source>Translate</source>
-        <translation type="unfinished">Перекладач</translation>
+        <translation type="unfinished">Переклад</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -46610,12 +46610,12 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+2"/>
         <source>Use Selection</source>
-        <translation type="unfinished">Використати вибране</translation>
+        <translation type="unfinished">Використати виділення</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Read the selected text, or the paragraph the cursor is in, again</source>
-        <translation type="unfinished">Повторно прочитати виділений текст або абзац, у якому розташовано курсор</translation>
+        <translation type="unfinished">Повторно зчитати виділений текст або абзац, у якому розташовано курсор</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -46635,7 +46635,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+2"/>
         <source>Opens a translation website with the text. Nothing is sent until the page opens.</source>
-        <translation type="unfinished">Відкриває сайт перекладу з текстом. Нічого не надсилається, доки не відкриється сторінка.</translation>
+        <translation type="unfinished">Відкриває веб-сайт перекладу з текстом. Нічого не надсилається, доки сторінка не відкриється.</translation>
     </message>
     <message>
         <location line="+9"/>
@@ -46655,7 +46655,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+2"/>
         <source>Put the translation in the place of the original text</source>
-        <translation type="unfinished">Помістити переклад на місце оригінального тексту</translation>
+        <translation type="unfinished">Розмістити переклад на місці оригінального тексту</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -46665,7 +46665,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+2"/>
         <source>Put the translation in new paragraphs below the original text</source>
-        <translation type="unfinished">Помістити переклад у нові абзаци під оригінальним текстом</translation>
+        <translation type="unfinished">Розмістити переклад у нових абзацах під оригінальним текстом</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -46675,17 +46675,17 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+66"/>
         <source>Select the text you want to translate, then click Use Selection.</source>
-        <translation type="unfinished">Виділіть текст, який хочете перекласти, а потім натисніть «Використати виділене».</translation>
+        <translation type="unfinished">Виберіть текст, який хочете перекласти, а потім натисніть «Використати виділення».</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>That is too much text to translate at once. The most is %1 letters. Select less of it, then click Use Selection.</source>
-        <translation type="unfinished">Це забагато тексту для одночасного перекладу. Максимум — %1 літер. Виділіть менший фрагмент, а потім натисніть «Використати виділене».</translation>
+        <translation type="unfinished">Це занадто багато тексту для одночасного перекладу. Максимум — %1 літер. Виділіть менше, а потім натисніть «Використати виділення».</translation>
     </message>
     <message>
         <location line="+54"/>
         <source>There is no text to translate. Select some text, then click Use Selection.</source>
-        <translation type="unfinished">Немає тексту для перекладу. Виділіть текст, а потім натисніть «Використати виділене».</translation>
+        <translation type="unfinished">Немає тексту для перекладу. Виділіть текст, а потім натисніть «Використати виділення».</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -46695,12 +46695,12 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+6"/>
         <source>There is no translation model for %1 to %2. You can open a translation website with the text instead.</source>
-        <translation type="unfinished">Немає моделі перекладу з %1 на %2. Ви можете відкрити сайт перекладу з текстом натомість.</translation>
+        <translation type="unfinished">Немає моделі перекладу з %1 на %2. Ви можете натомість відкрити веб-сайт перекладу з текстом.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>This copy of the program has no translator built in. You can open a translation website with the text instead.</source>
-        <translation type="unfinished">Ця копія програми не має вбудованого перекладача. Ви можете відкрити сайт перекладу з текстом натомість.</translation>
+        <translation type="unfinished">У цій копії програми немає вбудованого перекладача. Ви можете натомість відкрити веб-сайт перекладу з текстом.</translation>
     </message>
     <message>
         <location line="+14"/>
@@ -46741,7 +46741,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+15"/>
         <source>Translating...</source>
-        <translation type="unfinished">Переклад...</translation>
+        <translation type="unfinished">Триває переклад...</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -46756,7 +46756,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+25"/>
         <source>The text has changed since it was read. Click Use Selection, then Translate again.</source>
-        <translation type="unfinished">Текст змінився після читання. Натисніть «Використати виділене», а потім знову «Перекласти».</translation>
+        <translation type="unfinished">Текст змінився після зчитування. Натисніть «Використати виділення», а потім знову «Перекласти».</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -46774,7 +46774,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location filename="../apps/pub/app/taskpane.cpp" line="+999"/>
         <source>Translate</source>
-        <translation type="unfinished">Перекладач</translation>
+        <translation type="unfinished">Переклад</translation>
     </message>
 </context>
 <context>
@@ -50711,7 +50711,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Вставити кінцеву виноску</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_outline.cpp" line="+22"/>
+        <location filename="../apps/write/app/writewindow_outline.cpp" line="+23"/>
         <location filename="../apps/write/app/writewindow_shapes.cpp" line="-160"/>
         <source>Outline</source>
         <translation type="unfinished">Структура</translation>
@@ -62455,7 +62455,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+35"/>
         <source>A translation file is larger than it should be, and was refused.</source>
-        <translation type="unfinished">Один із файлів перекладу більший, ніж має бути, тому його відхилено.</translation>
+        <translation type="unfinished">Файл перекладу більший за очікуваний, тому його відхилено.</translation>
     </message>
     <message>
         <location line="+9"/>
@@ -62471,7 +62471,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+18"/>
         <source>A translation file did not match its checksum, and was thrown away. Nothing was installed.</source>
-        <translation type="unfinished">Один із файлів перекладу не збігся з контрольною сумою, тому його видалено. Нічого не встановлено.</translation>
+        <translation type="unfinished">Файл перекладу не збігся з контрольною сумою, тому його видалено. Нічого не встановлено.</translation>
     </message>
     <message>
         <location filename="../libs/translate/translate/translator.cpp" line="+51"/>
@@ -62481,7 +62481,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+10"/>
         <source>That is too much text to translate at once: %1 letters. The most is %2. Select less of it.</source>
-        <translation type="unfinished">Це забагато тексту для одночасного перекладу: %1 літер. Максимум — %2. Виділіть менший фрагмент.</translation>
+        <translation type="unfinished">Це занадто багато тексту для одночасного перекладу: %1 літер. Максимум — %2. Виділіть менше.</translation>
     </message>
     <message>
         <location line="+5"/>

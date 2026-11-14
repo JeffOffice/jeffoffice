@@ -1,5 +1,5 @@
-# JeffWrite Guida
-<!-- keywords: contenuti, guida, argomenti, inizio -->
+# Guida di JeffWrite
+<!-- keywords: sommario, guida, argomenti, inizio -->
 
 Digita nella casella di ricerca qui sopra per trovare un argomento o un comando da eseguire. Premi **F1** in qualsiasi momento per ottenere aiuto su ciò che stai facendo: la scheda della barra multifunzione in uso o la pagina della schermata File in uso.
 
@@ -7,21 +7,21 @@ Digita nella casella di ricerca qui sopra per trovare un argomento o un comando 
 
 - [Benvenuto in JeffWrite](start)
 - [Apri, salva, stampa ed esporta](open-save)
-- [Informazioni: proprietà, password e Ispeziona](info)
+- [Info: proprietà, password e Ispeziona](info)
 - [Apri e salva file OpenDocument](open-odt)
 - [Apri file RTF](open-rtf)
 - [Stampa](print)
 
-## Lavora sul testo
+## Lavorare sul testo
 
 - [Controlla l'ortografia](spelling)
 - [Conta le parole, imposta la lingua, verifica l'accessibilità e cerca le parole](proofing-tools)
-- [Traduci testo](translate)
+- [Traduci il testo](translate)
 - [Tieni traccia delle modifiche e accettale o rifiutale](track-changes)
 - [Aggiungi e rispondi ai commenti](comments)
 - [Proteggi un documento e blocca il rilevamento delle modifiche](protect)
 
-## Scrivi e modifica il testo
+## Scrivere e modificare il testo
 
 - [Cambia l'aspetto del testo](font)
 - [Cambia maiuscole/minuscole, ordina e incolla in altri modi](home-tools)
@@ -37,7 +37,7 @@ Digita nella casella di ricerca qui sopra per trovare un argomento o un comando 
 - [Crea un indice delle fonti giuridiche](table-of-authorities)
 - [Usa i campi](fields)
 - [Punta a un altro punto con i riferimenti incrociati](cross-references)
-- [Segna i punti con i segnalibri](bookmarks)
+- [Segna dei punti con i segnalibri](bookmarks)
 - [Stampa unione, buste ed etichette](mail-merge)
 - [Aggiungi e modifica le immagini](pictures)
 - [Forme e caselle di testo](shapes-text-boxes)
@@ -53,7 +53,7 @@ Digita nella casella di ricerca qui sopra per trovare un argomento o un comando 
 - [Trova e sostituisci parole](find-replace)
 - [Vai a un punto e sposta il testo](go-to-and-move-text)
 
-## Lavora più velocemente
+## Lavorare più velocemente
 
 - [Usa JeffWrite con la tastiera](keyboard)
 - [Cambia le impostazioni di JeffWrite](options)

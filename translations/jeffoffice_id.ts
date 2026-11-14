@@ -4490,7 +4490,7 @@ Berita halaman belakang	4</translation>
     <message>
         <location line="+0"/>
         <source>Verbs that do not agree, &quot;a&quot; and &quot;an&quot;, and the wrong form of a verb.</source>
-        <translation type="unfinished">Kata kerja yang tidak sesuai, &quot;a&quot; dan &quot;an&quot;, serta bentuk kata kerja yang salah.</translation>
+        <translation type="unfinished">Kata kerja yang tidak sesuai, &quot;a&quot; dan &quot;an&quot;, serta bentuk kata kerja yang keliru.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -4510,7 +4510,7 @@ Berita halaman belakang	4</translation>
     <message>
         <location line="+0"/>
         <source>Sentences, &quot;I&quot;, and the days and months.</source>
-        <translation type="unfinished">Kalimat, &quot;I&quot;, serta hari dan bulan.</translation>
+        <translation type="unfinished">Awal kalimat, &quot;I&quot;, serta nama hari dan bulan.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -4520,7 +4520,7 @@ Berita halaman belakang	4</translation>
     <message>
         <location line="+0"/>
         <source>Words that sound alike, such as &quot;its&quot; and &quot;it&apos;s&quot;.</source>
-        <translation type="unfinished">Kata yang terdengar mirip, seperti &quot;its&quot; dan &quot;it&apos;s&quot;.</translation>
+        <translation type="unfinished">Kata yang terdengar sama, misalnya &quot;its&quot; dan &quot;it&apos;s&quot;.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -4530,7 +4530,7 @@ Berita halaman belakang	4</translation>
     <message>
         <location line="+0"/>
         <source>A word typed twice.</source>
-        <translation type="unfinished">Sebuah kata yang diketik dua kali.</translation>
+        <translation type="unfinished">Kata yang diketik dua kali.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -4540,7 +4540,7 @@ Berita halaman belakang	4</translation>
     <message>
         <location line="+0"/>
         <source>Long sentences, passive voice, and wordy phrases. These are suggestions, not mistakes.</source>
-        <translation type="unfinished">Kalimat panjang, kalimat pasif, dan frasa bertele-tele. Ini hanya saran, bukan kesalahan.</translation>
+        <translation type="unfinished">Kalimat panjang, kalimat pasif, dan frasa yang bertele-tele. Ini hanya saran, bukan kesalahan.</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -4550,7 +4550,7 @@ Berita halaman belakang	4</translation>
     <message>
         <location line="+2"/>
         <source>Look for these kinds of issues:</source>
-        <translation type="unfinished">Periksa jenis masalah berikut:</translation>
+        <translation type="unfinished">Cari jenis masalah berikut:</translation>
     </message>
     <message>
         <location line="+29"/>
@@ -6279,7 +6279,7 @@ Simpan tanpa cadangan?</translation>
     <message>
         <location line="+19"/>
         <source>Use &quot;are&quot; or &quot;were&quot; before a plural.</source>
-        <translation type="unfinished">Gunakan &quot;are&quot; atau &quot;were&quot; sebelum kata jamak.</translation>
+        <translation type="unfinished">Gunakan &quot;are&quot; atau &quot;were&quot; sebelum bentuk jamak.</translation>
     </message>
     <message>
         <location line="+9"/>
@@ -6299,18 +6299,18 @@ Simpan tanpa cadangan?</translation>
     <message>
         <location line="+2"/>
         <source>Use &quot;who&apos;s&quot; (who is) here, not &quot;whose&quot;.</source>
-        <translation type="unfinished">Gunakan &quot;who&apos;s&quot; (artinya who is) di sini, bukan &quot;whose&quot;.</translation>
+        <translation type="unfinished">Gunakan &quot;who&apos;s&quot; (who is) di sini, bukan &quot;whose&quot;.</translation>
     </message>
     <message>
         <location line="+15"/>
         <source>Use &quot;effect&quot; (a result) here, not &quot;affect&quot;.</source>
-        <translation type="unfinished">Gunakan &quot;effect&quot; (hasil) di sini, bukan &quot;affect&quot;.</translation>
+        <translation type="unfinished">Gunakan &quot;effect&quot; (akibat) di sini, bukan &quot;affect&quot;.</translation>
     </message>
     <message>
         <location line="+5"/>
         <location line="+4"/>
         <source>Use &quot;affect&quot; (to change) here, not &quot;effect&quot;.</source>
-        <translation type="unfinished">Gunakan &quot;affect&quot; (mengubah) di sini, bukan &quot;effect&quot;.</translation>
+        <translation type="unfinished">Gunakan &quot;affect&quot; (memengaruhi) di sini, bukan &quot;effect&quot;.</translation>
     </message>
     <message>
         <location line="+19"/>
@@ -6386,12 +6386,12 @@ Simpan tanpa cadangan?</translation>
     <message>
         <location line="+27"/>
         <source>Use &quot;these&quot; before a plural.</source>
-        <translation type="unfinished">Gunakan &quot;these&quot; sebelum kata jamak.</translation>
+        <translation type="unfinished">Gunakan &quot;these&quot; sebelum bentuk jamak.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Use &quot;this&quot; or &quot;that&quot; before one.</source>
-        <translation type="unfinished">Gunakan &quot;this&quot; atau &quot;that&quot; sebelum kata tunggal.</translation>
+        <translation type="unfinished">Gunakan &quot;this&quot; atau &quot;that&quot; sebelum bentuk tunggal.</translation>
     </message>
     <message>
         <location line="+18"/>
@@ -6406,7 +6406,7 @@ Simpan tanpa cadangan?</translation>
     <message>
         <location line="+10"/>
         <source>Use one comparison, not two (&quot;better&quot;, not &quot;more better&quot;).</source>
-        <translation type="unfinished">Gunakan satu bentuk pembanding, bukan dua (&quot;better&quot;, bukan &quot;more better&quot;).</translation>
+        <translation type="unfinished">Gunakan satu bentuk perbandingan, bukan dua (&quot;better&quot;, bukan &quot;more better&quot;).</translation>
     </message>
     <message>
         <location line="+25"/>
@@ -6421,12 +6421,12 @@ Simpan tanpa cadangan?</translation>
     <message>
         <location line="+21"/>
         <source>This is a double negative: &quot;%1&quot; already says &quot;not&quot;.</source>
-        <translation type="unfinished">Ini adalah dobel negasi: &quot;%1&quot; sudah berarti &quot;tidak&quot;.</translation>
+        <translation type="unfinished">Ini adalah negasi ganda: &quot;%1&quot; sudah berarti &quot;tidak&quot;.</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>This is a double negative: use &quot;any&quot; after &quot;not&quot;.</source>
-        <translation type="unfinished">Ini adalah dobel negasi: gunakan &quot;any&quot; setelah &quot;not&quot;.</translation>
+        <translation type="unfinished">Ini adalah negasi ganda: gunakan &quot;any&quot; setelah &quot;not&quot;.</translation>
     </message>
     <message>
         <location line="+21"/>
@@ -6441,7 +6441,7 @@ Simpan tanpa cadangan?</translation>
     <message>
         <location line="+28"/>
         <source>Join these with a hyphen when they come before a noun.</source>
-        <translation type="unfinished">Gabungkan dengan tanda hubung jika ditulis sebelum kata benda.</translation>
+        <translation type="unfinished">Gabungkan ini dengan tanda hubung jika berada sebelum kata benda.</translation>
     </message>
     <message>
         <location line="+27"/>
@@ -6451,12 +6451,12 @@ Simpan tanpa cadangan?</translation>
     <message>
         <location line="+11"/>
         <source>Two commas in a row.</source>
-        <translation type="unfinished">Dua koma berurutan.</translation>
+        <translation type="unfinished">Dua koma berturut-turut.</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>Two periods: use one, or three for an ellipsis.</source>
-        <translation type="unfinished">Dua tanda titik berurutan: gunakan satu, atau tiga untuk elipsis.</translation>
+        <translation type="unfinished">Dua titik: gunakan satu, atau tiga untuk elipsis.</translation>
     </message>
     <message>
         <location line="+34"/>
@@ -6481,7 +6481,7 @@ Simpan tanpa cadangan?</translation>
     <message>
         <location line="+8"/>
         <source>&quot;To&quot; says the same in fewer words.</source>
-        <translation type="unfinished">&quot;To&quot; memiliki arti yang sama dengan lebih sedikit kata.</translation>
+        <translation type="unfinished">&quot;To&quot; memiliki arti yang sama dengan kata yang lebih sedikit.</translation>
     </message>
     <message>
         <location line="+13"/>
@@ -6496,7 +6496,7 @@ Simpan tanpa cadangan?</translation>
     <message>
         <location line="+18"/>
         <source>This is in the passive voice. Say who does it first to make it direct.</source>
-        <translation type="unfinished">Kalimat ini berbentuk pasif. Sebutkan dulu pelakunya agar menjadi langsung.</translation>
+        <translation type="unfinished">Ini adalah kalimat pasif. Sebutkan dulu pelakunya agar kalimatnya langsung.</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -6512,7 +6512,7 @@ Simpan tanpa cadangan?</translation>
         <location filename="../libs/text/grammar/grammar_fr.inc" line="+42"/>
         <location line="+14"/>
         <source>In French, put a no-break space before this mark.</source>
-        <translation type="unfinished">Dalam bahasa Prancis, beri spasi tanpa pemutusan sebelum tanda ini.</translation>
+        <translation type="unfinished">Dalam bahasa Prancis, beri spasi tak-putus sebelum tanda ini.</translation>
     </message>
     <message>
         <location line="+16"/>
@@ -6520,12 +6520,12 @@ Simpan tanpa cadangan?</translation>
         <location line="+5"/>
         <location line="+2"/>
         <source>In French, put a no-break space inside the guillemets.</source>
-        <translation type="unfinished">Dalam bahasa Prancis, beri spasi tanpa pemutusan di dalam guillemet.</translation>
+        <translation type="unfinished">Dalam bahasa Prancis, beri spasi tak-putus di dalam guillemet.</translation>
     </message>
     <message>
         <location line="+33"/>
         <source>Before a word that starts with a vowel, join the two with an apostrophe (l&apos;ami, d&apos;eau, qu&apos;il).</source>
-        <translation type="unfinished">Sebelum kata yang diawali huruf vokal, gabungkan keduanya dengan tanda apostrof (l&apos;ami, d&apos;eau, qu&apos;il).</translation>
+        <translation type="unfinished">Sebelum kata yang diawali huruf vokal, gabungkan keduanya dengan apostrof (l&apos;ami, d&apos;eau, qu&apos;il).</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -6590,7 +6590,7 @@ Simpan tanpa cadangan?</translation>
     <message>
         <location line="+3"/>
         <source>Write &quot;ça va&quot; (it goes), not &quot;sa&quot; (his or her).</source>
-        <translation type="unfinished">Tulis &quot;ça va&quot; (artinya baik-baik saja), bukan &quot;sa&quot; (miliknya).</translation>
+        <translation type="unfinished">Tulis &quot;ça va&quot; (berjalan baik), bukan &quot;sa&quot; (miliknya).</translation>
     </message>
     <message>
         <location line="+16"/>
@@ -6610,24 +6610,24 @@ Simpan tanpa cadangan?</translation>
     <message>
         <location line="+6"/>
         <source>Join these with a hyphen: &quot;%1-ce&quot;.</source>
-        <translation type="unfinished">Hubungkan dengan tanda hubung: &quot;%1-ce&quot;.</translation>
+        <translation type="unfinished">Gabungkan dengan tanda hubung: &quot;%1-ce&quot;.</translation>
     </message>
     <message>
         <location line="+19"/>
         <location filename="../libs/text/grammar/grammar_de.inc" line="+18"/>
         <location filename="../libs/text/grammar/grammar_es.inc" line="+242"/>
         <source>A plainer way to say this.</source>
-        <translation type="unfinished">Cara yang lebih sederhana untuk menyatakan ini.</translation>
+        <translation type="unfinished">Cara yang lebih sederhana untuk mengatakan ini.</translation>
     </message>
     <message>
         <location filename="../libs/text/grammar/grammar_de.inc" line="-150"/>
         <source>Use &quot;dass&quot; (the conjunction that begins a clause), not &quot;das&quot;.</source>
-        <translation type="unfinished">Gunakan &quot;dass&quot; (konjungsi yang mengawali anak kalimat), bukan &quot;das&quot;.</translation>
+        <translation type="unfinished">Gunakan &quot;dass&quot; (konjungsi yang mengawali klausa), bukan &quot;das&quot;.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Use &quot;Das&quot; (the pronoun) here: &quot;dass&quot; begins a clause with its verb at the end.</source>
-        <translation type="unfinished">Gunakan &quot;Das&quot; (kata ganti) di sini: &quot;dass&quot; mengawali anak kalimat dengan kata kerjanya di akhir.</translation>
+        <translation type="unfinished">Gunakan &quot;Das&quot; (kata ganti) di sini: &quot;dass&quot; mengawali klausa dengan kata kerja di akhir.</translation>
     </message>
     <message>
         <location line="+23"/>
@@ -6652,7 +6652,7 @@ Simpan tanpa cadangan?</translation>
     <message>
         <location line="+26"/>
         <source>Put a comma before &quot;%1&quot;: it begins a clause.</source>
-        <translation type="unfinished">Beri koma sebelum &quot;%1&quot;: kata itu mengawali anak kalimat.</translation>
+        <translation type="unfinished">Beri koma sebelum &quot;%1&quot;: kata itu mengawali klausa.</translation>
     </message>
     <message>
         <location line="+21"/>
@@ -6667,32 +6667,32 @@ Simpan tanpa cadangan?</translation>
     <message>
         <location line="+55"/>
         <source>Put a no-break space between the parts of this short form.</source>
-        <translation type="unfinished">Beri spasi tanpa pemutusan baris di antara bagian bentuk singkat ini.</translation>
+        <translation type="unfinished">Beri spasi tak terputus di antara bagian bentuk singkat ini.</translation>
     </message>
     <message>
         <location filename="../libs/text/grammar/grammar_es.inc" line="-184"/>
         <source>A question begins with &quot;¿&quot;.</source>
-        <translation type="unfinished">Pertanyaan diawali dengan &quot;¿&quot;.</translation>
+        <translation type="unfinished">Kalimat tanya diawali dengan &quot;¿&quot;.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>An exclamation begins with &quot;¡&quot;.</source>
-        <translation type="unfinished">Seruan diawali dengan &quot;¡&quot;.</translation>
+        <translation type="unfinished">Kalimat seru diawali dengan &quot;¡&quot;.</translation>
     </message>
     <message>
         <location line="+33"/>
         <source>A question word takes an accent: qué, cómo, dónde, cuándo, quién, cuál, cuánto.</source>
-        <translation type="unfinished">Kata tanya diberi aksen: qué, cómo, dónde, cuándo, quién, cuál, cuánto.</translation>
+        <translation type="unfinished">Kata tanya memakai aksen: qué, cómo, dónde, cuándo, quién, cuál, cuánto.</translation>
     </message>
     <message>
         <location line="+15"/>
         <source>In a question, write &quot;por qué&quot; (why) as two words, with the accent.</source>
-        <translation type="unfinished">Dalam pertanyaan, tulis &quot;por qué&quot; (mengapa) sebagai dua kata, dengan aksen.</translation>
+        <translation type="unfinished">Dalam kalimat tanya, tulis &quot;por qué&quot; (mengapa) sebagai dua kata, dengan aksen.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>In a question, write &quot;por qué&quot; (why) with the accent.</source>
-        <translation type="unfinished">Dalam pertanyaan, tulis &quot;por qué&quot; (mengapa) dengan aksen.</translation>
+        <translation type="unfinished">Dalam kalimat tanya, tulis &quot;por qué&quot; (mengapa) dengan aksen.</translation>
     </message>
     <message>
         <location line="+19"/>
@@ -6727,17 +6727,17 @@ Simpan tanpa cadangan?</translation>
     <message>
         <location line="+19"/>
         <source>Take out &quot;de&quot;: this verb is followed by &quot;que&quot; alone.</source>
-        <translation type="unfinished">Hapus &quot;de&quot;: kata kerja ini diikuti langsung oleh &quot;que&quot;.</translation>
+        <translation type="unfinished">Hapus &quot;de&quot;: kata kerja ini diikuti &quot;que&quot; saja.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>This verb takes &quot;de que&quot;.</source>
-        <translation type="unfinished">Kata kerja ini diikuti &quot;de que&quot;.</translation>
+        <translation type="unfinished">Kata kerja ini memakai &quot;de que&quot;.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>&quot;Darse cuenta&quot; takes &quot;de que&quot;.</source>
-        <translation type="unfinished">&quot;Darse cuenta&quot; diikuti &quot;de que&quot;.</translation>
+        <translation type="unfinished">&quot;Darse cuenta&quot; memakai &quot;de que&quot;.</translation>
     </message>
     <message>
         <location line="+13"/>
@@ -18003,22 +18003,22 @@ Penerbitan desktop</translation>
     <message>
         <location line="+1"/>
         <source>Neural network code for translating</source>
-        <translation type="unfinished">Kode jaringan saraf untuk menerjemahkan</translation>
+        <translation type="unfinished">Kode jaringan neural untuk menerjemahkan</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Fast 8-bit matrix math for translating</source>
-        <translation type="unfinished">Operasi matriks 8-bit cepat untuk menerjemahkan</translation>
+        <translation type="unfinished">Matematika matriks 8-bit yang cepat untuk menerjemahkan</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Splitting words into pieces for translating</source>
-        <translation type="unfinished">Memecah kata menjadi bagian-bagian untuk menerjemahkan</translation>
+        <translation type="unfinished">Memecah kata menjadi potongan untuk menerjemahkan</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Matrix math for translating</source>
-        <translation type="unfinished">Operasi matriks untuk menerjemahkan</translation>
+        <translation type="unfinished">Matematika matriks untuk menerjemahkan</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -18038,7 +18038,7 @@ Penerbitan desktop</translation>
     <message>
         <location line="+1"/>
         <source>Finding out what the processor can do, and vector math on ARM</source>
-        <translation type="unfinished">Mendeteksi kemampuan prosesor, dan operasi vektor di ARM</translation>
+        <translation type="unfinished">Mengetahui kemampuan prosesor, dan matematika vektor pada ARM</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -27594,7 +27594,7 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+4"/>
         <source>The workbook holds as many new objects as can be saved in one go. The barcodes left are made again from their cells after you save.</source>
-        <translation type="unfinished">Buku kerja ini memuat sebanyak objek baru yang dapat disimpan sekaligus. Kode batang yang tersisa akan dibuat ulang dari selnya setelah Anda menyimpan.</translation>
+        <translation type="unfinished">Buku kerja memuat objek baru sebanyak yang dapat disimpan sekaligus. Kode batang yang tersisa dibuat ulang dari selnya setelah Anda menyimpan.</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -29923,12 +29923,12 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+1"/>
         <source>Check Grammar as You Type</source>
-        <translation type="unfinished">Periksa Tata Bahasa saat Mengetik</translation>
+        <translation type="unfinished">Periksa Tata Bahasa Saat Mengetik</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>This presentation is too large to check its grammar any further. The grammar check has stopped; spelling still works.</source>
-        <translation type="unfinished">Presentasi ini terlalu besar untuk diperiksa tata bahasanya lebih lanjut. Pemeriksaan tata bahasa dihentikan; pemeriksaan ejaan tetap berfungsi.</translation>
+        <translation type="unfinished">Presentasi ini terlalu besar untuk memeriksa tata bahasanya lebih jauh. Pemeriksaan tata bahasa telah dihentikan; ejaan tetap berfungsi.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -36711,7 +36711,7 @@ Resolusi efektif: %3 ppi</translation>
         <source># Help is not installed
 
 Help&apos;s files were not found beside the program. Reinstalling %1 puts them back.</source>
-        <translation type="unfinished"># Bantuan tidak terpasang
+        <translation type="unfinished"># Bantuan belum terpasang
 
 Berkas Bantuan tidak ditemukan di samping program. Memasang ulang %1 akan mengembalikannya.</translation>
     </message>
@@ -39925,12 +39925,12 @@ Data tersebut disimpan saat Anda menyimpan sebagai publikasi JeffPub (.jpub).</t
     <message>
         <location line="+1"/>
         <source>Check Grammar as You Type</source>
-        <translation type="unfinished">Periksa Tata Bahasa saat Mengetik</translation>
+        <translation type="unfinished">Periksa Tata Bahasa Saat Mengetik</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>This publication is too large to check its grammar any further. The grammar check has stopped; spelling still works.</source>
-        <translation type="unfinished">Publikasi ini terlalu besar untuk diperiksa tata bahasanya lebih lanjut. Pemeriksaan tata bahasa dihentikan; pemeriksaan ejaan tetap berfungsi.</translation>
+        <translation type="unfinished">Publikasi ini terlalu besar untuk memeriksa tata bahasanya lebih jauh. Pemeriksaan tata bahasa telah dihentikan; ejaan tetap berfungsi.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -46564,12 +46564,12 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+21"/>
         <source>Open in Your Browser Instead</source>
-        <translation type="unfinished">Buka di Peramban Anda Sebagai Gantinya</translation>
+        <translation type="unfinished">Buka di Peramban Sebagai Gantinya</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Opens a translation website with the text. Nothing is sent until the page opens.</source>
-        <translation type="unfinished">Membuka situs terjemahan dengan teks ini. Tidak ada yang dikirim sebelum halaman terbuka.</translation>
+        <translation type="unfinished">Membuka situs terjemahan dengan teks tersebut. Tidak ada yang dikirim sampai halaman terbuka.</translation>
     </message>
     <message>
         <location line="+9"/>
@@ -46589,7 +46589,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+2"/>
         <source>Put the translation in the place of the original text</source>
-        <translation type="unfinished">Letakkan terjemahan di tempat teks asli</translation>
+        <translation type="unfinished">Letakkan terjemahan di tempat teks asli.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -46599,12 +46599,12 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+2"/>
         <source>Put the translation in new paragraphs below the original text</source>
-        <translation type="unfinished">Letakkan terjemahan dalam paragraf baru di bawah teks asli</translation>
+        <translation type="unfinished">Letakkan terjemahan dalam paragraf baru di bawah teks asli.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The translation is made on this computer. Your text is not sent anywhere.</source>
-        <translation type="unfinished">Terjemahan dibuat di komputer ini. Teks Anda tidak dikirim ke mana pun.</translation>
+        <translation type="unfinished">Terjemahan dilakukan di komputer ini. Teks Anda tidak dikirim ke mana pun.</translation>
     </message>
     <message>
         <location line="+66"/>
@@ -46614,7 +46614,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+7"/>
         <source>That is too much text to translate at once. The most is %1 letters. Select less of it, then click Use Selection.</source>
-        <translation type="unfinished">Teks terlalu banyak untuk diterjemahkan sekaligus. Jumlah maksimum adalah %1 huruf. Pilih sebagian teks, lalu klik Gunakan Pilihan.</translation>
+        <translation type="unfinished">Teks terlalu banyak untuk diterjemahkan sekaligus. Jumlah maksimal adalah %1 huruf. Pilih lebih sedikit, lalu klik Gunakan Pilihan.</translation>
     </message>
     <message>
         <location line="+54"/>
@@ -46629,12 +46629,12 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+6"/>
         <source>There is no translation model for %1 to %2. You can open a translation website with the text instead.</source>
-        <translation type="unfinished">Tidak ada model terjemahan dari %1 ke %2. Anda dapat membuka situs terjemahan dengan teks ini sebagai gantinya.</translation>
+        <translation type="unfinished">Tidak ada model terjemahan dari %1 ke %2. Anda dapat membuka situs terjemahan dengan teks tersebut sebagai gantinya.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>This copy of the program has no translator built in. You can open a translation website with the text instead.</source>
-        <translation type="unfinished">Salinan program ini tidak memiliki penerjemah bawaan. Anda dapat membuka situs terjemahan dengan teks ini sebagai gantinya.</translation>
+        <translation type="unfinished">Salinan program ini tidak memiliki penerjemah bawaan. Anda dapat membuka situs terjemahan dengan teks tersebut sebagai gantinya.</translation>
     </message>
     <message>
         <location line="+14"/>
@@ -46685,7 +46685,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+4"/>
         <source>The translation failed.</source>
-        <translation type="unfinished">Penerjemahan gagal.</translation>
+        <translation type="unfinished">Terjemahan gagal.</translation>
     </message>
     <message>
         <location line="+25"/>
@@ -46695,7 +46695,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+7"/>
         <source>The translation was put in below the text.</source>
-        <translation type="unfinished">Terjemahan dimasukkan di bawah teks.</translation>
+        <translation type="unfinished">Terjemahan telah disisipkan di bawah teks.</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -49136,7 +49136,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+5"/>
         <source>Edit Barcode…</source>
-        <translation type="unfinished">Edit Kode Batang…</translation>
+        <translation type="unfinished">Sunting Kode Batang…</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -50995,7 +50995,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+28"/>
         <source>This barcode field can&apos;t be edited here.</source>
-        <translation type="unfinished">Bidang kode batang ini tidak dapat diedit di sini.</translation>
+        <translation type="unfinished">Kode batang bidang ini tidak dapat diedit di sini.</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -52845,7 +52845,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <translation type="unfinished">Buka jendela kedua untuk melihat dua dokumen secara berdampingan.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_outline.cpp" line="+22"/>
+        <location filename="../apps/write/app/writewindow_outline.cpp" line="+23"/>
         <location filename="../apps/write/app/writewindow_shapes.cpp" line="-7"/>
         <source>Outline</source>
         <translation type="unfinished">Garis Besar</translation>
@@ -60389,7 +60389,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+1"/>
         <source>The workbook has as many barcodes as JeffCrunch draws (%1).</source>
-        <translation type="unfinished">Buku kerja memiliki sebanyak kode batang yang digambar JeffCrunch (%1).</translation>
+        <translation type="unfinished">Buku kerja memiliki kode batang sebanyak yang digambar JeffCrunch (%1).</translation>
     </message>
     <message>
         <location line="+54"/>
@@ -62351,7 +62351,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+35"/>
         <source>A translation file is larger than it should be, and was refused.</source>
-        <translation type="unfinished">Sebuah berkas terjemahan lebih besar dari seharusnya, dan ditolak.</translation>
+        <translation type="unfinished">Berkas terjemahan lebih besar dari seharusnya dan ditolak.</translation>
     </message>
     <message>
         <location line="+9"/>
@@ -62367,17 +62367,17 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+18"/>
         <source>A translation file did not match its checksum, and was thrown away. Nothing was installed.</source>
-        <translation type="unfinished">Sebuah berkas terjemahan tidak cocok dengan checksum-nya, dan dibuang. Tidak ada yang dipasang.</translation>
+        <translation type="unfinished">Berkas terjemahan tidak cocok dengan checksum-nya dan telah dibuang. Tidak ada yang dipasang.</translation>
     </message>
     <message>
         <location filename="../libs/translate/translate/translator.cpp" line="+51"/>
         <source>This copy of the program was built without the translator.</source>
-        <translation type="unfinished">Salinan program ini dibangun tanpa penerjemah.</translation>
+        <translation type="unfinished">Salinan program ini dibuat tanpa penerjemah.</translation>
     </message>
     <message>
         <location line="+10"/>
         <source>That is too much text to translate at once: %1 letters. The most is %2. Select less of it.</source>
-        <translation type="unfinished">Teks terlalu banyak untuk diterjemahkan sekaligus: %1 huruf. Jumlah maksimum adalah %2. Pilih sebagian teks.</translation>
+        <translation type="unfinished">Teks terlalu banyak untuk diterjemahkan sekaligus: %1 huruf. Jumlah maksimal adalah %2. Pilih lebih sedikit.</translation>
     </message>
     <message>
         <location line="+5"/>

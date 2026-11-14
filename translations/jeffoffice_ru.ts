@@ -4492,7 +4492,7 @@ Back page story	4</source>
     <message>
         <location line="+0"/>
         <source>Verbs that do not agree, &quot;a&quot; and &quot;an&quot;, and the wrong form of a verb.</source>
-        <translation type="unfinished">Глаголы, не согласованные с подлежащим, «a» и «an» и неверная форма глагола.</translation>
+        <translation type="unfinished">Глаголы, не согласованные с подлежащим, «a» и «an», а также неверная форма глагола.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -4542,7 +4542,7 @@ Back page story	4</source>
     <message>
         <location line="+0"/>
         <source>Long sentences, passive voice, and wordy phrases. These are suggestions, not mistakes.</source>
-        <translation type="unfinished">Длинные предложения, пассивный залог и многословные обороты. Это рекомендации, а не ошибки.</translation>
+        <translation type="unfinished">Длинные предложения, страдательный залог и многословные обороты. Это рекомендации, а не ошибки.</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -4552,7 +4552,7 @@ Back page story	4</source>
     <message>
         <location line="+2"/>
         <source>Look for these kinds of issues:</source>
-        <translation type="unfinished">Искать такие ошибки:</translation>
+        <translation type="unfinished">Искать такие виды проблем:</translation>
     </message>
     <message>
         <location line="+29"/>
@@ -6291,7 +6291,7 @@ Save without a backup?</source>
     <message>
         <location line="+19"/>
         <source>Use &quot;are&quot; or &quot;were&quot; before a plural.</source>
-        <translation type="unfinished">Используйте «are» или «were» перед существительным во множественном числе.</translation>
+        <translation type="unfinished">Используйте «are» или «were» перед множественным числом.</translation>
     </message>
     <message>
         <location line="+9"/>
@@ -6306,23 +6306,23 @@ Save without a backup?</source>
     <message>
         <location line="+9"/>
         <source>Use &quot;whose&quot; (belonging to whom) here, not &quot;who&apos;s&quot;.</source>
-        <translation type="unfinished">Используйте «whose» (принадлежит кому) здесь, а не «who&apos;s».</translation>
+        <translation type="unfinished">Здесь используйте «whose» (чей, принадлежащий кому), а не «who&apos;s».</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Use &quot;who&apos;s&quot; (who is) here, not &quot;whose&quot;.</source>
-        <translation type="unfinished">Используйте «who&apos;s» (who is) здесь, а не «whose».</translation>
+        <translation type="unfinished">Здесь используйте «who&apos;s» (кто есть), а не «whose».</translation>
     </message>
     <message>
         <location line="+15"/>
         <source>Use &quot;effect&quot; (a result) here, not &quot;affect&quot;.</source>
-        <translation type="unfinished">Используйте «effect» (результат) здесь, а не «affect».</translation>
+        <translation type="unfinished">Здесь используйте «effect» (результат), а не «affect».</translation>
     </message>
     <message>
         <location line="+5"/>
         <location line="+4"/>
         <source>Use &quot;affect&quot; (to change) here, not &quot;effect&quot;.</source>
-        <translation type="unfinished">Используйте «affect» (воздействовать) здесь, а не «effect».</translation>
+        <translation type="unfinished">Здесь используйте «affect» (воздействовать), а не «effect».</translation>
     </message>
     <message>
         <location line="+19"/>
@@ -6342,47 +6342,47 @@ Save without a backup?</source>
     <message>
         <location line="+10"/>
         <source>&quot;Regardless&quot; is the word; &quot;irregardless&quot; is not standard.</source>
-        <translation type="unfinished">Правильно «regardless»; «irregardless» не является стандартным словом.</translation>
+        <translation type="unfinished">Правильное слово: «regardless»; «irregardless» не является литературной нормой.</translation>
     </message>
     <message>
         <location line="+20"/>
         <source>Use &quot;whether&quot; (if) here, not &quot;weather&quot;.</source>
-        <translation type="unfinished">Используйте «whether» (ли) здесь, а не «weather».</translation>
+        <translation type="unfinished">Здесь используйте «whether» (если), а не «weather».</translation>
     </message>
     <message>
         <location line="+16"/>
         <source>Use &quot;quite&quot; (very) here, not &quot;quiet&quot;.</source>
-        <translation type="unfinished">Используйте «quite» (очень) здесь, а не «quiet».</translation>
+        <translation type="unfinished">Здесь используйте «quite» (очень), а не «quiet».</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>Use &quot;choose&quot; here; &quot;chose&quot; is the past.</source>
-        <translation type="unfinished">Используйте «choose» здесь; «chose» — это прошедшее время.</translation>
+        <translation type="unfinished">Здесь используйте «choose»; «chose» — это прошедшее время.</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>Use &quot;advice&quot; (the noun) here.</source>
-        <translation type="unfinished">Используйте «advice» (существительное) здесь.</translation>
+        <translation type="unfinished">Здесь используйте «advice» (существительное).</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>Use &quot;advise&quot; (the verb) here.</source>
-        <translation type="unfinished">Используйте «advise» (глагол) здесь.</translation>
+        <translation type="unfinished">Здесь используйте «advise» (глагол).</translation>
     </message>
     <message>
         <location line="+16"/>
         <source>Use &quot;too&quot; (more than enough) here, not &quot;to&quot;.</source>
-        <translation type="unfinished">Используйте «too» (слишком) здесь, а не «to».</translation>
+        <translation type="unfinished">Здесь используйте «too» (слишком), а не «to».</translation>
     </message>
     <message>
         <location line="+10"/>
         <source>Use &quot;to&quot; here, not &quot;too&quot;.</source>
-        <translation type="unfinished">Используйте «to» здесь, а не «too».</translation>
+        <translation type="unfinished">Здесь используйте «to», а не «too».</translation>
     </message>
     <message>
         <location line="+15"/>
         <source>Use &quot;breathe&quot; (the verb) here.</source>
-        <translation type="unfinished">Используйте «breathe» (глагол) здесь.</translation>
+        <translation type="unfinished">Здесь используйте «breathe» (глагол).</translation>
     </message>
     <message>
         <location line="+17"/>
@@ -6398,12 +6398,12 @@ Save without a backup?</source>
     <message>
         <location line="+27"/>
         <source>Use &quot;these&quot; before a plural.</source>
-        <translation type="unfinished">Используйте «these» перед существительным во множественном числе.</translation>
+        <translation type="unfinished">Используйте «these» перед множественным числом.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Use &quot;this&quot; or &quot;that&quot; before one.</source>
-        <translation type="unfinished">Используйте «this» или «that» перед существительным в единственном числе.</translation>
+        <translation type="unfinished">Используйте «this» или «that» перед единственным числом.</translation>
     </message>
     <message>
         <location line="+18"/>
@@ -6423,17 +6423,17 @@ Save without a backup?</source>
     <message>
         <location line="+25"/>
         <source>Use the plain form of the verb here (&quot;did go&quot;, not &quot;did went&quot;).</source>
-        <translation type="unfinished">Используйте начальную форму глагола здесь («did go», а не «did went»).</translation>
+        <translation type="unfinished">Здесь используйте простую форму глагола («did go», а не «did went»).</translation>
     </message>
     <message>
         <location line="+23"/>
         <source>Use the form of the verb that goes with &quot;have&quot; (&quot;has gone&quot;, not &quot;has went&quot;).</source>
-        <translation type="unfinished">Используйте форму глагола, которая употребляется с «have» («has gone», а не «has went»).</translation>
+        <translation type="unfinished">Используйте форму глагола, которая стоит после «have» («has gone», а не «has went»).</translation>
     </message>
     <message>
         <location line="+21"/>
         <source>This is a double negative: &quot;%1&quot; already says &quot;not&quot;.</source>
-        <translation type="unfinished">Это двойное отрицание: «%1» уже означает «не».</translation>
+        <translation type="unfinished">Это двойное отрицание: «%1» уже содержит «not».</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -6468,7 +6468,7 @@ Save without a backup?</source>
     <message>
         <location line="+7"/>
         <source>Two periods: use one, or three for an ellipsis.</source>
-        <translation type="unfinished">Две точки: используйте одну или три для многоточия.</translation>
+        <translation type="unfinished">Две точки подряд: используйте одну или три для многоточия.</translation>
     </message>
     <message>
         <location line="+34"/>
@@ -6483,7 +6483,7 @@ Save without a backup?</source>
     <message>
         <location line="+11"/>
         <source>The saying is &quot;couldn&apos;t care less&quot; (it is not possible to care less).</source>
-        <translation type="unfinished">Выражение звучит так: «couldn&apos;t care less» (невозможно заботиться меньше).</translation>
+        <translation type="unfinished">Выражение «couldn&apos;t care less» означает буквально «невозможно заботиться меньше».</translation>
     </message>
     <message>
         <location line="+12"/>
@@ -6493,12 +6493,12 @@ Save without a backup?</source>
     <message>
         <location line="+8"/>
         <source>&quot;To&quot; says the same in fewer words.</source>
-        <translation type="unfinished">«To» означает то же самое, но короче.</translation>
+        <translation type="unfinished">«To» передаёт тот же смысл короче.</translation>
     </message>
     <message>
         <location line="+13"/>
         <source>A shorter way to say this.</source>
-        <translation type="unfinished">Более короткий способ выразить это.</translation>
+        <translation type="unfinished">Более короткий способ сказать это.</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -6508,17 +6508,17 @@ Save without a backup?</source>
     <message>
         <location line="+18"/>
         <source>This is in the passive voice. Say who does it first to make it direct.</source>
-        <translation type="unfinished">Здесь пассивный залог. Сначала укажите, кто совершает действие, чтобы сделать фразу прямой.</translation>
+        <translation type="unfinished">Это страдательный залог. Чтобы сделать фразу прямой, сначала назовите того, кто действует.</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>This sentence has %1 words. Consider splitting it.</source>
-        <translation type="unfinished">В этом предложении %1 слов. Стоит разбить его.</translation>
+        <translation type="unfinished">В этом предложении %1 слов. Возможно, стоит разбить его.</translation>
     </message>
     <message>
         <location line="+10"/>
         <source>Three sentences in a row begin with &quot;%1&quot;. Vary the start.</source>
-        <translation type="unfinished">Три предложения подряд начинаются с «%1». Разнообразьте начало.</translation>
+        <translation type="unfinished">Три предложения подряд начинаются со слова «%1». Разнообразьте начало.</translation>
     </message>
     <message>
         <location filename="../libs/text/grammar/grammar_fr.inc" line="+42"/>
@@ -6532,7 +6532,7 @@ Save without a backup?</source>
         <location line="+5"/>
         <location line="+2"/>
         <source>In French, put a no-break space inside the guillemets.</source>
-        <translation type="unfinished">Во французском языке поставьте неразрывный пробел внутри угловых кавычек.</translation>
+        <translation type="unfinished">Во французском языке поставьте неразрывный пробел внутри «ёлочек».</translation>
     </message>
     <message>
         <location line="+33"/>
@@ -6592,7 +6592,7 @@ Save without a backup?</source>
     <message>
         <location line="+26"/>
         <source>Use &quot;%1&quot; here: the two words run together before a noun.</source>
-        <translation type="unfinished">Используйте «%1» здесь: перед существительным эти два слова пишутся слитно.</translation>
+        <translation type="unfinished">Используйте «%1» здесь: два слова пишутся слитно перед существительным.</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -6602,7 +6602,7 @@ Save without a backup?</source>
     <message>
         <location line="+3"/>
         <source>Write &quot;ça va&quot; (it goes), not &quot;sa&quot; (his or her).</source>
-        <translation type="unfinished">Пишите «ça va» (всё идёт), а не «sa» (его или её).</translation>
+        <translation type="unfinished">Пишите «ça va» (всё в порядке), а не «sa» (его или её).</translation>
     </message>
     <message>
         <location line="+16"/>
@@ -6629,27 +6629,27 @@ Save without a backup?</source>
         <location filename="../libs/text/grammar/grammar_de.inc" line="+18"/>
         <location filename="../libs/text/grammar/grammar_es.inc" line="+242"/>
         <source>A plainer way to say this.</source>
-        <translation type="unfinished">Более простой способ сказать это.</translation>
+        <translation type="unfinished">Более простой способ выразить это.</translation>
     </message>
     <message>
         <location filename="../libs/text/grammar/grammar_de.inc" line="-150"/>
         <source>Use &quot;dass&quot; (the conjunction that begins a clause), not &quot;das&quot;.</source>
-        <translation type="unfinished">Используйте «dass» (союз, начинающий придаточное предложение), а не «das».</translation>
+        <translation type="unfinished">Используйте «dass» (союз, начинающий придаточное), а не «das».</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Use &quot;Das&quot; (the pronoun) here: &quot;dass&quot; begins a clause with its verb at the end.</source>
-        <translation type="unfinished">Используйте «Das» (местоимение) здесь: «dass» начинает придаточное предложение с глаголом в конце.</translation>
+        <translation type="unfinished">Используйте «Das» (местоимение) здесь: «dass» начинает придаточное с глаголом в конце.</translation>
     </message>
     <message>
         <location line="+23"/>
         <source>Use &quot;seit&quot; (since, for a time), not &quot;seid&quot; (you are).</source>
-        <translation type="unfinished">Используйте «seit» (с, в значении «с какого-то времени»), а не «seid» (вы есть).</translation>
+        <translation type="unfinished">Используйте «seit» (с тех пор, для периода времени), а не «seid» (вы есть).</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Use &quot;seid&quot; (you are), not &quot;seit&quot; (since).</source>
-        <translation type="unfinished">Используйте «seid» (вы есть), а не «seit» (с).</translation>
+        <translation type="unfinished">Используйте «seid» (вы есть), а не «seit» (с тех пор).</translation>
     </message>
     <message>
         <location line="+22"/>
@@ -6664,7 +6664,7 @@ Save without a backup?</source>
     <message>
         <location line="+26"/>
         <source>Put a comma before &quot;%1&quot;: it begins a clause.</source>
-        <translation type="unfinished">Поставьте запятую перед «%1»: оно начинает придаточное предложение.</translation>
+        <translation type="unfinished">Поставьте запятую перед «%1»: оно начинает придаточное.</translation>
     </message>
     <message>
         <location line="+21"/>
@@ -6694,7 +6694,7 @@ Save without a backup?</source>
     <message>
         <location line="+33"/>
         <source>A question word takes an accent: qué, cómo, dónde, cuándo, quién, cuál, cuánto.</source>
-        <translation type="unfinished">Вопросительное слово пишется с акцентом: qué, cómo, dónde, cuándo, quién, cuál, cuánto.</translation>
+        <translation type="unfinished">Вопросительное слово получает акцент: qué, cómo, dónde, cuándo, quién, cuál, cuánto.</translation>
     </message>
     <message>
         <location line="+15"/>
@@ -6709,7 +6709,7 @@ Save without a backup?</source>
     <message>
         <location line="+19"/>
         <source>Use &quot;a ver si&quot; (let us see if): &quot;haber&quot; is the verb.</source>
-        <translation type="unfinished">Используйте «a ver si» (посмотрим, не): «haber» — это глагол.</translation>
+        <translation type="unfinished">Используйте «a ver si» (посмотрим, ли): «haber» — это глагол.</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -6719,22 +6719,22 @@ Save without a backup?</source>
     <message>
         <location line="+22"/>
         <source>Use &quot;hay&quot; (there is, there are) here, not &quot;ahí&quot; (there).</source>
-        <translation type="unfinished">Используйте «hay» (есть) здесь, а не «ahí» (там).</translation>
+        <translation type="unfinished">Используйте «hay» (есть, имеется) здесь, а не «ahí» (там).</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Use &quot;hay&quot; (there is, there are) here, not &quot;ay&quot; (ouch).</source>
-        <translation type="unfinished">Используйте «hay» (есть) здесь, а не «ay» (ой).</translation>
+        <translation type="unfinished">Используйте «hay» (есть, имеется) здесь, а не «ay» (ой).</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Use &quot;ahí&quot; (there) here, not &quot;hay&quot; (there is).</source>
-        <translation type="unfinished">Используйте «ahí» (там) здесь, а не «hay» (есть).</translation>
+        <translation type="unfinished">Используйте «ahí» (там) здесь, а не «hay» (есть, имеется).</translation>
     </message>
     <message>
         <location line="+27"/>
         <source>Use &quot;%1&quot;: the two words run together before a masculine noun.</source>
-        <translation type="unfinished">Используйте «%1»: перед существительным мужского рода эти два слова пишутся слитно.</translation>
+        <translation type="unfinished">Используйте «%1»: два слова пишутся слитно перед существительным мужского рода.</translation>
     </message>
     <message>
         <location line="+19"/>
@@ -11641,7 +11641,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location line="+3"/>
         <source>Show Quick Toolbar Below the Ribbon</source>
-        <translation type="unfinished">Показывать панель быстрого доступа под лентой</translation>
+        <translation type="unfinished">Показать панель быстрого доступа под лентой</translation>
     </message>
     <message>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="-50"/>
@@ -18023,12 +18023,12 @@ Desktop publishing</source>
     <message>
         <location line="+1"/>
         <source>Neural network code for translating</source>
-        <translation type="unfinished">Код нейросети для перевода</translation>
+        <translation type="unfinished">Код нейронной сети для перевода</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Fast 8-bit matrix math for translating</source>
-        <translation type="unfinished">Быстрые 8-битные матричные вычисления для перевода</translation>
+        <translation type="unfinished">Быстрая матричная математика 8-битных данных для перевода</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -18038,7 +18038,7 @@ Desktop publishing</source>
     <message>
         <location line="+1"/>
         <source>Matrix math for translating</source>
-        <translation type="unfinished">Матричные вычисления для перевода</translation>
+        <translation type="unfinished">Матричная математика для перевода</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -18048,7 +18048,7 @@ Desktop publishing</source>
     <message>
         <location line="+1"/>
         <source>Text patterns for splitting sentences</source>
-        <translation type="unfinished">Шаблоны текста для разбиения предложений</translation>
+        <translation type="unfinished">Текстовые шаблоны для разбиения предложений</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -18058,7 +18058,7 @@ Desktop publishing</source>
     <message>
         <location line="+1"/>
         <source>Finding out what the processor can do, and vector math on ARM</source>
-        <translation type="unfinished">Определение возможностей процессора и векторные вычисления на ARM</translation>
+        <translation type="unfinished">Определение возможностей процессора и векторная математика на ARM</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -18068,7 +18068,7 @@ Desktop publishing</source>
     <message>
         <location line="+1"/>
         <source>Languages the Translate pane translates (downloaded when you ask)</source>
-        <translation type="unfinished">Языки, которые поддерживает область «Перевод» (загружаются по запросу)</translation>
+        <translation type="unfinished">Языки, которые переводит область «Перевод» (загружаются по запросу)</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -27633,12 +27633,12 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+314"/>
         <source>A barcode could not be made from the text of its cell, so it keeps what it had.</source>
-        <translation type="unfinished">Штрихкод не удалось создать из текста его ячейки, поэтому он сохранен в прежнем виде.</translation>
+        <translation type="unfinished">Штрихкод не удалось создать по тексту его ячейки, поэтому он сохранён в прежнем виде.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The workbook holds as many new objects as can be saved in one go. The barcodes left are made again from their cells after you save.</source>
-        <translation type="unfinished">Книга содержит столько новых объектов, сколько можно сохранить за один раз. Оставшиеся штрихкоды будут созданы заново из их ячеек после сохранения.</translation>
+        <translation type="unfinished">Книга содержит столько новых объектов, сколько можно сохранить за один раз. Оставшиеся штрихкоды будут созданы заново по их ячейкам после сохранения.</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -29974,7 +29974,7 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+3"/>
         <source>This presentation is too large to check its grammar any further. The grammar check has stopped; spelling still works.</source>
-        <translation type="unfinished">Эта презентация слишком велика для дальнейшей проверки грамматики. Проверка грамматики остановлена; орфография по-прежнему работает.</translation>
+        <translation type="unfinished">Эта презентация слишком большая, чтобы проверять её грамматику дальше. Проверка грамматики остановлена; проверка орфографии по-прежнему работает.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -36005,7 +36005,7 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+4"/>
         <source>There are only %1 comments.</source>
-        <translation type="unfinished">Всего примечаний: только %1.</translation>
+        <translation type="unfinished">Примечаний всего %1.</translation>
     </message>
     <message>
         <location filename="../apps/deck/app/gotodialog.cpp" line="+6"/>
@@ -36769,7 +36769,7 @@ Effective resolution: %3 ppi</source>
 Help&apos;s files were not found beside the program. Reinstalling %1 puts them back.</source>
         <translation type="unfinished"># Справка не установлена
 
-Файлы справки не найдены рядом с программой. Переустановка %1 вернет их на место.</translation>
+Файлы справки не найдены рядом с программой. Переустановка %1 восстановит их.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -39992,7 +39992,7 @@ They&apos;re kept when you save as a JeffPub publication (.jpub).</source>
     <message>
         <location line="+1"/>
         <source>This publication is too large to check its grammar any further. The grammar check has stopped; spelling still works.</source>
-        <translation type="unfinished">Эта публикация слишком велика для дальнейшей проверки грамматики. Проверка грамматики остановлена; орфография по-прежнему работает.</translation>
+        <translation type="unfinished">Эта публикация слишком большая, чтобы проверять её грамматику дальше. Проверка грамматики остановлена; проверка орфографии по-прежнему работает.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -44045,7 +44045,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+7"/>
         <source>Puts the quick toolbar in a row under the ribbon instead of at the top left of the window.</source>
-        <translation type="unfinished">Размещает панель быстрого доступа в одну строку под лентой, а не в верхнем левом углу окна.</translation>
+        <translation type="unfinished">Размещает панель быстрого доступа в строке под лентой, а не в верхнем левом углу окна.</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -46580,27 +46580,27 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location filename="../libs/shell/app/translatepane.cpp" line="+49"/>
         <source>From:</source>
-        <translation type="unfinished">Из:</translation>
+        <translation type="unfinished">С языка:</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>To:</source>
-        <translation type="unfinished">В:</translation>
+        <translation type="unfinished">На язык:</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Swap</source>
-        <translation type="unfinished">Поменять местами</translation>
+        <translation type="unfinished">Поменять</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Swap the languages</source>
-        <translation type="unfinished">Поменять языки местами</translation>
+        <translation type="unfinished">Поменять местами языки</translation>
     </message>
     <message>
         <location line="+16"/>
         <source>Original:</source>
-        <translation type="unfinished">Оригинал:</translation>
+        <translation type="unfinished">Исходный текст:</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -46610,12 +46610,12 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+2"/>
         <source>Use Selection</source>
-        <translation type="unfinished">Использовать выделение</translation>
+        <translation type="unfinished">Использовать выделенное</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Read the selected text, or the paragraph the cursor is in, again</source>
-        <translation type="unfinished">Прочитать выделенный текст или абзац, в котором находится курсор, заново</translation>
+        <translation type="unfinished">Повторно прочитать выделенный текст или абзац, в котором находится курсор</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -46635,7 +46635,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+2"/>
         <source>Opens a translation website with the text. Nothing is sent until the page opens.</source>
-        <translation type="unfinished">Открывает сайт с переводом и текстом. Ничего не отправляется, пока страница не откроется.</translation>
+        <translation type="unfinished">Открывает сайт перевода с текстом. Ничего не отправляется, пока страница не откроется.</translation>
     </message>
     <message>
         <location line="+9"/>
@@ -46675,17 +46675,17 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+66"/>
         <source>Select the text you want to translate, then click Use Selection.</source>
-        <translation type="unfinished">Выделите текст, который нужно перевести, затем нажмите «Использовать выделение».</translation>
+        <translation type="unfinished">Выделите текст, который нужно перевести, затем нажмите «Использовать выделенное».</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>That is too much text to translate at once. The most is %1 letters. Select less of it, then click Use Selection.</source>
-        <translation type="unfinished">Слишком много текста для перевода за один раз. Максимум — %1 букв. Выделите меньший фрагмент и нажмите «Использовать выделение».</translation>
+        <translation type="unfinished">Слишком много текста для перевода за один раз. Максимум — %1 букв. Выделите меньший фрагмент, затем нажмите «Использовать выделенное».</translation>
     </message>
     <message>
         <location line="+54"/>
         <source>There is no text to translate. Select some text, then click Use Selection.</source>
-        <translation type="unfinished">Нет текста для перевода. Выделите текст и нажмите «Использовать выделение».</translation>
+        <translation type="unfinished">Нет текста для перевода. Выделите текст, затем нажмите «Использовать выделенное».</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -46695,12 +46695,12 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+6"/>
         <source>There is no translation model for %1 to %2. You can open a translation website with the text instead.</source>
-        <translation type="unfinished">Нет модели перевода с языка %1 на язык %2. Вместо этого вы можете открыть сайт с переводом и текстом.</translation>
+        <translation type="unfinished">Нет модели перевода с языка %1 на язык %2. Вместо этого можно открыть сайт перевода с текстом.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>This copy of the program has no translator built in. You can open a translation website with the text instead.</source>
-        <translation type="unfinished">В этой копии программы переводчик не встроен. Вместо этого вы можете открыть сайт с переводом и текстом.</translation>
+        <translation type="unfinished">В этой копии программы переводчик не встроен. Вместо этого можно открыть сайт перевода с текстом.</translation>
     </message>
     <message>
         <location line="+14"/>
@@ -46716,7 +46716,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="-2"/>
         <source>The models are downloaded once from Mozilla&apos;s translation files and kept on this computer. After that, translating needs no connection.</source>
-        <translation type="unfinished">Модели загружаются один раз из файлов перевода Mozilla и хранятся на этом компьютере. После этого для перевода не нужно подключение к сети.</translation>
+        <translation type="unfinished">Модели загружаются один раз из файлов переводов Mozilla и хранятся на этом компьютере. После этого для перевода подключение к сети не нужно.</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -46736,12 +46736,12 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+7"/>
         <source>Downloading the translation models...</source>
-        <translation type="unfinished">Загрузка моделей перевода…</translation>
+        <translation type="unfinished">Загрузка моделей перевода...</translation>
     </message>
     <message>
         <location line="+15"/>
         <source>Translating...</source>
-        <translation type="unfinished">Выполняется перевод…</translation>
+        <translation type="unfinished">Перевод...</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -46756,7 +46756,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+25"/>
         <source>The text has changed since it was read. Click Use Selection, then Translate again.</source>
-        <translation type="unfinished">Текст изменился после чтения. Нажмите «Использовать выделение», затем снова «Перевести».</translation>
+        <translation type="unfinished">Текст изменился после чтения. Нажмите «Использовать выделенное», затем снова «Перевести».</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -46766,7 +46766,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+0"/>
         <source>The text was replaced by its translation.</source>
-        <translation type="unfinished">Текст заменён переводом.</translation>
+        <translation type="unfinished">Текст заменён его переводом.</translation>
     </message>
 </context>
 <context>
@@ -52921,7 +52921,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Откройте второе окно, чтобы просматривать два документа рядом.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_outline.cpp" line="+22"/>
+        <location filename="../apps/write/app/writewindow_outline.cpp" line="+23"/>
         <location filename="../apps/write/app/writewindow_shapes.cpp" line="-7"/>
         <source>Outline</source>
         <translation type="unfinished">Структура</translation>
@@ -60473,7 +60473,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+1"/>
         <source>The workbook has as many barcodes as JeffCrunch draws (%1).</source>
-        <translation type="unfinished">В книге столько штрихкодов, сколько рисует JeffCrunch (%1).</translation>
+        <translation type="unfinished">Книга содержит столько штрихкодов, сколько рисует JeffCrunch (%1).</translation>
     </message>
     <message>
         <location line="+54"/>
@@ -62439,13 +62439,13 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location filename="../libs/translate/translate/bergamotbackend.cpp" line="+83"/>
         <source>The translation files could not be read.</source>
-        <translation type="unfinished">Не удалось прочитать файлы перевода.</translation>
+        <translation type="unfinished">Не удалось прочитать файлы переводов.</translation>
     </message>
     <message>
         <location filename="../libs/translate/translate/downloader.cpp" line="+93"/>
         <location line="+15"/>
         <source>The translation files could not be saved.</source>
-        <translation type="unfinished">Не удалось сохранить файлы перевода.</translation>
+        <translation type="unfinished">Не удалось сохранить файлы переводов.</translation>
     </message>
     <message>
         <location line="-6"/>
@@ -62455,18 +62455,18 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+35"/>
         <source>A translation file is larger than it should be, and was refused.</source>
-        <translation type="unfinished">Один из файлов перевода больше допустимого размера, и он был отклонён.</translation>
+        <translation type="unfinished">Один из файлов перевода больше допустимого размера, и он не был принят.</translation>
     </message>
     <message>
         <location line="+9"/>
         <location line="+33"/>
         <source>The translation files could not be written: the disk may be full. Nothing was installed.</source>
-        <translation type="unfinished">Не удалось записать файлы перевода: возможно, заполнен диск. Ничего не установлено.</translation>
+        <translation type="unfinished">Не удалось записать файлы переводов: возможно, диск заполнен. Ничего не установлено.</translation>
     </message>
     <message>
         <location line="-13"/>
         <source>The download failed: %1</source>
-        <translation type="unfinished">Ошибка загрузки: %1</translation>
+        <translation type="unfinished">Не удалось загрузить: %1</translation>
     </message>
     <message>
         <location line="+18"/>

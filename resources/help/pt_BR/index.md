@@ -1,5 +1,5 @@
-# JeffPub Ajuda
-<!-- keywords: conteúdo, ajuda, tópicos, começar -->
+# Ajuda do JeffPub
+<!-- keywords: conteúdo, ajuda, tópicos, início -->
 
 Digite na caixa de pesquisa acima para encontrar um tópico ou um comando a executar. Pressione **F1** a qualquer momento para obter ajuda sobre o que você está fazendo: a guia da faixa de opções em que você está, a caixa de diálogo aberta ou o objeto selecionado.
 
@@ -7,7 +7,7 @@ Digite na caixa de pesquisa acima para encontrar um tópico ou um comando a exec
 
 - [Bem-vindo ao JeffPub](start)
 - [Conheça a janela](window)
-- [Criar uma nova publicação](create)
+- [Iniciar uma nova publicação](create)
 - [Abrir e salvar publicações](open-save)
 - [Trabalhar com arquivos .pub](pub-files)
 - [Recuperar trabalho não salvo](recover)
@@ -34,7 +34,7 @@ Digite na caixa de pesquisa acima para encontrar um tópico ou um comando a exec
 - [Desenhar formas e linhas](shapes)
 - [Adicionar gráficos](charts)
 - [Ícones, códigos de barras e outros objetos](insert-objects)
-- [Mover, alinhar, agrupar e organizar objetos em camadas](arrange)
+- [Mover, alinhar, agrupar e sobrepor objetos](arrange)
 - [Quebrar texto ao redor de objetos](wrap)
 
 ## Páginas

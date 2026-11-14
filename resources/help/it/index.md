@@ -5,27 +5,27 @@ Digita nella casella di ricerca qui sopra per trovare un argomento o un comando 
 
 ## Per iniziare
 
-- [Benvenuti in JeffPub](start)
+- [Benvenuto in JeffPub](start)
 - [Orientarsi nella finestra](window)
 - [Creare una nuova pubblicazione](create)
-- [Aprire e salvare le pubblicazioni](open-save)
+- [Aprire e salvare pubblicazioni](open-save)
 - [Lavorare con i file .pub](pub-files)
-- [Recuperare il lavoro non salvato](recover)
+- [Recuperare lavoro non salvato](recover)
 
 ## Testo
 
-- [Aggiungere e formattare le caselle di testo](text-boxes)
-- [Far scorrere il testo tra le caselle di testo](linked-text)
+- [Aggiungere e formattare caselle di testo](text-boxes)
+- [Far scorrere il testo tra caselle di testo](linked-text)
 - [Formattare il testo](formatting-text)
 - [Elenchi puntati, numerazione e tabulazioni](lists-tabs)
 - [Usare gli stili](styles)
 - [Aggiungere testo artistico](text-art)
 - [Aggiungere un'equazione](equations)
-- [Creare e modificare le tabelle](tables)
+- [Creare e modificare tabelle](tables)
 - [Sommario, note a piè di pagina e note di chiusura](references)
 - [Controllo ortografia, thesaurus, ricerche e sillabazione](proofing)
 - [Tradurre il testo](translate)
-- [Trovare e sostituire il testo](find-replace)
+- [Trovare e sostituire testo](find-replace)
 
 ## Immagini e oggetti
 

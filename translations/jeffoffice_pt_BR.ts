@@ -4491,7 +4491,7 @@ Matéria da última página	4</translation>
     <message>
         <location line="+0"/>
         <source>Verbs that do not agree, &quot;a&quot; and &quot;an&quot;, and the wrong form of a verb.</source>
-        <translation type="unfinished">Verbos que não concordam, “a” e “an”, e a forma incorreta de um verbo.</translation>
+        <translation type="unfinished">Verbos que não concordam, &quot;a&quot; e &quot;an&quot;, e a forma errada de um verbo.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -4501,7 +4501,7 @@ Matéria da última página	4</translation>
     <message>
         <location line="+0"/>
         <source>Extra or missing spaces, commas, and hyphens.</source>
-        <translation type="unfinished">Espaços, vírgulas e hífens extras ou ausentes.</translation>
+        <translation type="unfinished">Espaços, vírgulas e hifens extras ou ausentes.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -4511,17 +4511,17 @@ Matéria da última página	4</translation>
     <message>
         <location line="+0"/>
         <source>Sentences, &quot;I&quot;, and the days and months.</source>
-        <translation type="unfinished">Frases, “I” e os dias e meses.</translation>
+        <translation type="unfinished">Frases, &quot;I&quot;, e os dias e meses.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Mixed-up words</source>
-        <translation type="unfinished">Palavras Confundidas</translation>
+        <translation type="unfinished">Palavras Trocadas</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Words that sound alike, such as &quot;its&quot; and &quot;it&apos;s&quot;.</source>
-        <translation type="unfinished">Palavras que soam parecidas, como “its” e “it&apos;s”.</translation>
+        <translation type="unfinished">Palavras que soam parecidas, como &quot;its&quot; e &quot;it&apos;s&quot;.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -4541,7 +4541,7 @@ Matéria da última página	4</translation>
     <message>
         <location line="+0"/>
         <source>Long sentences, passive voice, and wordy phrases. These are suggestions, not mistakes.</source>
-        <translation type="unfinished">Frases longas, voz passiva e expressões prolixas. São sugestões, não erros.</translation>
+        <translation type="unfinished">Frases longas, voz passiva e expressões prolixas. Estas são sugestões, não erros.</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -6250,133 +6250,133 @@ Salvar sem backup?</translation>
     <message>
         <location line="+127"/>
         <source>Use &quot;doesn&apos;t&quot; after &quot;he&quot;, &quot;she&quot;, and &quot;it&quot;.</source>
-        <translation type="unfinished">Use “doesn&apos;t” depois de “he”, “she” e “it”.</translation>
+        <translation type="unfinished">Use &quot;doesn&apos;t&quot; depois de &quot;he&quot;, &quot;she&quot; e &quot;it&quot;.</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>Use &quot;were&quot; after &quot;they&quot; and &quot;we&quot;.</source>
-        <translation type="unfinished">Use “were” depois de “they” e “we”.</translation>
+        <translation type="unfinished">Use &quot;were&quot; depois de &quot;they&quot; e &quot;we&quot;.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Use &quot;weren&apos;t&quot; after &quot;they&quot; and &quot;we&quot;.</source>
-        <translation type="unfinished">Use “weren&apos;t” depois de “they” e “we”.</translation>
+        <translation type="unfinished">Use &quot;weren&apos;t&quot; depois de &quot;they&quot; e &quot;we&quot;.</translation>
     </message>
     <message>
         <location line="+12"/>
         <source>Use &quot;has&quot; after &quot;he&quot;, &quot;she&quot;, and &quot;it&quot;.</source>
-        <translation type="unfinished">Use “has” depois de “he”, “she” e “it”.</translation>
+        <translation type="unfinished">Use &quot;has&quot; depois de &quot;he&quot;, &quot;she&quot; e &quot;it&quot;.</translation>
     </message>
     <message>
         <location line="+10"/>
         <source>Use &quot;have&quot; after &quot;they&quot; and &quot;we&quot;.</source>
-        <translation type="unfinished">Use “have” depois de “they” e “we”.</translation>
+        <translation type="unfinished">Use &quot;have&quot; depois de &quot;they&quot; e &quot;we&quot;.</translation>
     </message>
     <message>
         <location line="+10"/>
         <source>Use &quot;do&quot; after &quot;they&quot; and &quot;we&quot;.</source>
-        <translation type="unfinished">Use “do” depois de “they” e “we”.</translation>
+        <translation type="unfinished">Use &quot;do&quot; depois de &quot;they&quot; e &quot;we&quot;.</translation>
     </message>
     <message>
         <location line="+12"/>
         <source>Use &quot;are&quot; after &quot;they&quot; and &quot;we&quot;.</source>
-        <translation type="unfinished">Use “are” depois de “they” e “we”.</translation>
+        <translation type="unfinished">Use &quot;are&quot; depois de &quot;they&quot; e &quot;we&quot;.</translation>
     </message>
     <message>
         <location line="+19"/>
         <source>Use &quot;are&quot; or &quot;were&quot; before a plural.</source>
-        <translation type="unfinished">Use “are” ou “were” antes de um plural.</translation>
+        <translation type="unfinished">Use &quot;are&quot; ou &quot;were&quot; antes de um plural.</translation>
     </message>
     <message>
         <location line="+9"/>
         <source>Use &quot;is&quot; after a word for one person (&quot;everyone&quot;, &quot;somebody&quot;).</source>
-        <translation type="unfinished">Use “is” depois de uma palavra que indica uma pessoa (“everyone”, “somebody”).</translation>
+        <translation type="unfinished">Use &quot;is&quot; depois de uma palavra que indica uma pessoa (&quot;everyone&quot;, &quot;somebody&quot;).</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Use &quot;doesn&apos;t&quot; after a word for one person (&quot;everyone&quot;, &quot;somebody&quot;).</source>
-        <translation type="unfinished">Use “doesn&apos;t” depois de uma palavra que indica uma pessoa (“everyone”, “somebody”).</translation>
+        <translation type="unfinished">Use &quot;doesn&apos;t&quot; depois de uma palavra que indica uma pessoa (&quot;everyone&quot;, &quot;somebody&quot;).</translation>
     </message>
     <message>
         <location line="+9"/>
         <source>Use &quot;whose&quot; (belonging to whom) here, not &quot;who&apos;s&quot;.</source>
-        <translation type="unfinished">Use “whose” (de quem) aqui, não “who&apos;s”.</translation>
+        <translation type="unfinished">Use &quot;whose&quot; (pertencente a quem) aqui, não &quot;who&apos;s&quot;.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Use &quot;who&apos;s&quot; (who is) here, not &quot;whose&quot;.</source>
-        <translation type="unfinished">Use “who&apos;s” (quem é) aqui, não “whose”.</translation>
+        <translation type="unfinished">Use &quot;who&apos;s&quot; (quem é) aqui, não &quot;whose&quot;.</translation>
     </message>
     <message>
         <location line="+15"/>
         <source>Use &quot;effect&quot; (a result) here, not &quot;affect&quot;.</source>
-        <translation type="unfinished">Use “effect” (um resultado) aqui, não “affect”.</translation>
+        <translation type="unfinished">Use &quot;effect&quot; (um resultado) aqui, não &quot;affect&quot;.</translation>
     </message>
     <message>
         <location line="+5"/>
         <location line="+4"/>
         <source>Use &quot;affect&quot; (to change) here, not &quot;effect&quot;.</source>
-        <translation type="unfinished">Use “affect” (mudar) aqui, não “effect”.</translation>
+        <translation type="unfinished">Use &quot;affect&quot; (mudar) aqui, não &quot;effect&quot;.</translation>
     </message>
     <message>
         <location line="+19"/>
         <source>Use &quot;fewer&quot; for things you can count.</source>
-        <translation type="unfinished">Use “fewer” para coisas que podem ser contadas.</translation>
+        <translation type="unfinished">Use &quot;fewer&quot; para coisas que você pode contar.</translation>
     </message>
     <message>
         <location line="+10"/>
         <source>Use &quot;number&quot; for things you can count.</source>
-        <translation type="unfinished">Use “number” para coisas que podem ser contadas.</translation>
+        <translation type="unfinished">Use &quot;number&quot; para coisas que você pode contar.</translation>
     </message>
     <message>
         <location line="+12"/>
         <source>Use &quot;many&quot; for things you can count.</source>
-        <translation type="unfinished">Use “many” para coisas que podem ser contadas.</translation>
+        <translation type="unfinished">Use &quot;many&quot; para coisas que você pode contar.</translation>
     </message>
     <message>
         <location line="+10"/>
         <source>&quot;Regardless&quot; is the word; &quot;irregardless&quot; is not standard.</source>
-        <translation type="unfinished">“Regardless” é a palavra; “irregardless” não é padrão.</translation>
+        <translation type="unfinished">&quot;Regardless&quot; é a palavra; &quot;irregardless&quot; não é padrão.</translation>
     </message>
     <message>
         <location line="+20"/>
         <source>Use &quot;whether&quot; (if) here, not &quot;weather&quot;.</source>
-        <translation type="unfinished">Use “whether” (se) aqui, não “weather”.</translation>
+        <translation type="unfinished">Use &quot;whether&quot; (se) aqui, não &quot;weather&quot;.</translation>
     </message>
     <message>
         <location line="+16"/>
         <source>Use &quot;quite&quot; (very) here, not &quot;quiet&quot;.</source>
-        <translation type="unfinished">Use “quite” (bastante) aqui, não “quiet”.</translation>
+        <translation type="unfinished">Use &quot;quite&quot; (muito) aqui, não &quot;quiet&quot;.</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>Use &quot;choose&quot; here; &quot;chose&quot; is the past.</source>
-        <translation type="unfinished">Use “choose” aqui; “chose” é o passado.</translation>
+        <translation type="unfinished">Use &quot;choose&quot; aqui; &quot;chose&quot; é o passado.</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>Use &quot;advice&quot; (the noun) here.</source>
-        <translation type="unfinished">Use “advice” (o substantivo) aqui.</translation>
+        <translation type="unfinished">Use &quot;advice&quot; (o substantivo) aqui.</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>Use &quot;advise&quot; (the verb) here.</source>
-        <translation type="unfinished">Use “advise” (o verbo) aqui.</translation>
+        <translation type="unfinished">Use &quot;advise&quot; (o verbo) aqui.</translation>
     </message>
     <message>
         <location line="+16"/>
         <source>Use &quot;too&quot; (more than enough) here, not &quot;to&quot;.</source>
-        <translation type="unfinished">Use “too” (mais que suficiente) aqui, não “to”.</translation>
+        <translation type="unfinished">Use &quot;too&quot; (mais do que suficiente) aqui, não &quot;to&quot;.</translation>
     </message>
     <message>
         <location line="+10"/>
         <source>Use &quot;to&quot; here, not &quot;too&quot;.</source>
-        <translation type="unfinished">Use “to” aqui, não “too”.</translation>
+        <translation type="unfinished">Use &quot;to&quot; aqui, não &quot;too&quot;.</translation>
     </message>
     <message>
         <location line="+15"/>
         <source>Use &quot;breathe&quot; (the verb) here.</source>
-        <translation type="unfinished">Use “breathe” (o verbo) aqui.</translation>
+        <translation type="unfinished">Use &quot;breathe&quot; (o verbo) aqui.</translation>
     </message>
     <message>
         <location line="+17"/>
@@ -6392,47 +6392,47 @@ Salvar sem backup?</translation>
     <message>
         <location line="+27"/>
         <source>Use &quot;these&quot; before a plural.</source>
-        <translation type="unfinished">Use “these” antes de um plural.</translation>
+        <translation type="unfinished">Use &quot;these&quot; antes de um plural.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Use &quot;this&quot; or &quot;that&quot; before one.</source>
-        <translation type="unfinished">Use “this” ou “that” antes de um singular.</translation>
+        <translation type="unfinished">Use &quot;this&quot; ou &quot;that&quot; antes de um singular.</translation>
     </message>
     <message>
         <location line="+18"/>
         <source>Use &quot;me&quot; after a word like &quot;between&quot; or &quot;for&quot;.</source>
-        <translation type="unfinished">Use “me” depois de uma palavra como “between” ou “for”.</translation>
+        <translation type="unfinished">Use &quot;me&quot; depois de uma palavra como &quot;between&quot; ou &quot;for&quot;.</translation>
     </message>
     <message>
         <location line="+26"/>
         <source>Use &quot;%1 and I&quot; for the ones who do it.</source>
-        <translation type="unfinished">Use “%1 e eu” para quem faz a ação.</translation>
+        <translation type="unfinished">Use &quot;%1 e eu&quot; para quem faz a ação.</translation>
     </message>
     <message>
         <location line="+10"/>
         <source>Use one comparison, not two (&quot;better&quot;, not &quot;more better&quot;).</source>
-        <translation type="unfinished">Use uma comparação, não duas (“better”, não “more better”).</translation>
+        <translation type="unfinished">Use uma comparação, não duas (&quot;melhor&quot;, não &quot;mais melhor&quot;).</translation>
     </message>
     <message>
         <location line="+25"/>
         <source>Use the plain form of the verb here (&quot;did go&quot;, not &quot;did went&quot;).</source>
-        <translation type="unfinished">Use a forma simples do verbo aqui (“did go”, não “did went”).</translation>
+        <translation type="unfinished">Use a forma simples do verbo aqui (&quot;did go&quot;, não &quot;did went&quot;).</translation>
     </message>
     <message>
         <location line="+23"/>
         <source>Use the form of the verb that goes with &quot;have&quot; (&quot;has gone&quot;, not &quot;has went&quot;).</source>
-        <translation type="unfinished">Use a forma do verbo que combina com “have” (“has gone”, não “has went”).</translation>
+        <translation type="unfinished">Use a forma do verbo que combina com &quot;have&quot; (&quot;has gone&quot;, não &quot;has went&quot;).</translation>
     </message>
     <message>
         <location line="+21"/>
         <source>This is a double negative: &quot;%1&quot; already says &quot;not&quot;.</source>
-        <translation type="unfinished">Esta é uma dupla negação: “%1” já indica “não”.</translation>
+        <translation type="unfinished">Esta é uma dupla negação: &quot;%1&quot; já diz &quot;não&quot;.</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>This is a double negative: use &quot;any&quot; after &quot;not&quot;.</source>
-        <translation type="unfinished">Esta é uma dupla negação: use “any” depois de “not”.</translation>
+        <translation type="unfinished">Esta é uma dupla negação: use &quot;nenhum&quot; depois de &quot;não&quot;.</translation>
     </message>
     <message>
         <location line="+21"/>
@@ -6467,7 +6467,7 @@ Salvar sem backup?</translation>
     <message>
         <location line="+34"/>
         <source>Write &quot;I&quot; with a capital letter.</source>
-        <translation type="unfinished">Escreva “I” com letra maiúscula.</translation>
+        <translation type="unfinished">Escreva &quot;I&quot; com letra maiúscula.</translation>
     </message>
     <message>
         <location line="+12"/>
@@ -6477,27 +6477,27 @@ Salvar sem backup?</translation>
     <message>
         <location line="+11"/>
         <source>The saying is &quot;couldn&apos;t care less&quot; (it is not possible to care less).</source>
-        <translation type="unfinished">A expressão é “couldn&apos;t care less” (não é possível se importar menos).</translation>
+        <translation type="unfinished">A expressão é &quot;couldn&apos;t care less&quot; (não poderia importar menos).</translation>
     </message>
     <message>
         <location line="+12"/>
         <source>Use &quot;try to&quot; in careful writing.</source>
-        <translation type="unfinished">Use “try to” em textos cuidadosos.</translation>
+        <translation type="unfinished">Use &quot;try to&quot; em textos cuidadosos.</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>&quot;To&quot; says the same in fewer words.</source>
-        <translation type="unfinished">“To” diz o mesmo com menos palavras.</translation>
+        <translation type="unfinished">&quot;To&quot; diz o mesmo em menos palavras.</translation>
     </message>
     <message>
         <location line="+13"/>
         <source>A shorter way to say this.</source>
-        <translation type="unfinished">Uma forma mais curta de dizer isso.</translation>
+        <translation type="unfinished">Uma forma mais curta de dizer isto.</translation>
     </message>
     <message>
         <location line="+10"/>
         <source>One of these words says what the other does.</source>
-        <translation type="unfinished">Uma destas palavras diz o que a outra faz.</translation>
+        <translation type="unfinished">Uma destas palavras diz o que a outra diz.</translation>
     </message>
     <message>
         <location line="+18"/>
@@ -6512,7 +6512,7 @@ Salvar sem backup?</translation>
     <message>
         <location line="+10"/>
         <source>Three sentences in a row begin with &quot;%1&quot;. Vary the start.</source>
-        <translation type="unfinished">Três frases seguidas começam com “%1”. Varie o início.</translation>
+        <translation type="unfinished">Três frases seguidas começam com &quot;%1&quot;. Varie o início.</translation>
     </message>
     <message>
         <location filename="../libs/text/grammar/grammar_fr.inc" line="+42"/>
@@ -6596,7 +6596,7 @@ Salvar sem backup?</translation>
     <message>
         <location line="+3"/>
         <source>Write &quot;ça va&quot; (it goes), not &quot;sa&quot; (his or her).</source>
-        <translation type="unfinished">Escreva &quot;ça va&quot; (vai bem), não &quot;sa&quot; (dele ou dela).</translation>
+        <translation type="unfinished">Escreva &quot;ça va&quot; (vai), não &quot;sa&quot; (dele ou dela).</translation>
     </message>
     <message>
         <location line="+16"/>
@@ -6638,7 +6638,7 @@ Salvar sem backup?</translation>
     <message>
         <location line="+23"/>
         <source>Use &quot;seit&quot; (since, for a time), not &quot;seid&quot; (you are).</source>
-        <translation type="unfinished">Use &quot;seit&quot; (desde, por um tempo), não &quot;seid&quot; (vocês são).</translation>
+        <translation type="unfinished">Use &quot;seit&quot; (desde, para um período), não &quot;seid&quot; (vocês são).</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -6673,7 +6673,7 @@ Salvar sem backup?</translation>
     <message>
         <location line="+55"/>
         <source>Put a no-break space between the parts of this short form.</source>
-        <translation type="unfinished">Coloque um espaço não separável entre as partes desta forma abreviada.</translation>
+        <translation type="unfinished">Coloque um espaço inseparável entre as partes desta forma abreviada.</translation>
     </message>
     <message>
         <location filename="../libs/text/grammar/grammar_es.inc" line="-184"/>
@@ -6688,12 +6688,12 @@ Salvar sem backup?</translation>
     <message>
         <location line="+33"/>
         <source>A question word takes an accent: qué, cómo, dónde, cuándo, quién, cuál, cuánto.</source>
-        <translation type="unfinished">Palavras interrogativas levam acento: qué, cómo, dónde, cuándo, quién, cuál, cuánto.</translation>
+        <translation type="unfinished">Palavras interrogativas recebem acento: qué, cómo, dónde, cuándo, quién, cuál, cuánto.</translation>
     </message>
     <message>
         <location line="+15"/>
         <source>In a question, write &quot;por qué&quot; (why) as two words, with the accent.</source>
-        <translation type="unfinished">Em uma pergunta, escreva &quot;por qué&quot; (por que) como duas palavras, com acento.</translation>
+        <translation type="unfinished">Em uma pergunta, escreva &quot;por qué&quot; (por que) em duas palavras, com acento.</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -6713,17 +6713,17 @@ Salvar sem backup?</translation>
     <message>
         <location line="+22"/>
         <source>Use &quot;hay&quot; (there is, there are) here, not &quot;ahí&quot; (there).</source>
-        <translation type="unfinished">Use &quot;hay&quot; (há) aqui, não &quot;ahí&quot; (ali).</translation>
+        <translation type="unfinished">Use &quot;hay&quot; (há, existe) aqui, não &quot;ahí&quot; (aí/lá).</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Use &quot;hay&quot; (there is, there are) here, not &quot;ay&quot; (ouch).</source>
-        <translation type="unfinished">Use &quot;hay&quot; (há) aqui, não &quot;ay&quot; (ai).</translation>
+        <translation type="unfinished">Use &quot;hay&quot; (há, existe) aqui, não &quot;ay&quot; (ai).</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Use &quot;ahí&quot; (there) here, not &quot;hay&quot; (there is).</source>
-        <translation type="unfinished">Use &quot;ahí&quot; (ali) aqui, não &quot;hay&quot; (há).</translation>
+        <translation type="unfinished">Use &quot;ahí&quot; (aí/lá) aqui, não &quot;hay&quot; (há).</translation>
     </message>
     <message>
         <location line="+27"/>
@@ -6733,7 +6733,7 @@ Salvar sem backup?</translation>
     <message>
         <location line="+19"/>
         <source>Take out &quot;de&quot;: this verb is followed by &quot;que&quot; alone.</source>
-        <translation type="unfinished">Retire &quot;de&quot;: este verbo é seguido apenas de &quot;que&quot;.</translation>
+        <translation type="unfinished">Remova &quot;de&quot;: este verbo é seguido apenas de &quot;que&quot;.</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -11633,7 +11633,7 @@ Baixá-lo de %2 agora? (%3, uma única vez.)</translation>
     <message>
         <location line="+3"/>
         <source>Show Quick Toolbar Below the Ribbon</source>
-        <translation type="unfinished">Mostrar barra de ferramentas rápida abaixo da faixa de opções</translation>
+        <translation type="unfinished">Mostrar Barra de Ferramentas Rápida Abaixo da Faixa de Opções</translation>
     </message>
     <message>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="-50"/>
@@ -18008,7 +18008,7 @@ Editoração eletrônica</translation>
     <message>
         <location line="+2"/>
         <source>Translating text on this computer</source>
-        <translation type="unfinished">Tradução de texto neste computador</translation>
+        <translation type="unfinished">Traduzindo texto neste computador</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -18018,7 +18018,7 @@ Editoração eletrônica</translation>
     <message>
         <location line="+1"/>
         <source>Fast 8-bit matrix math for translating</source>
-        <translation type="unfinished">Matemática de matrizes de 8 bits rápida para tradução</translation>
+        <translation type="unfinished">Matemática matricial de 8 bits rápida para tradução</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -18028,7 +18028,7 @@ Editoração eletrônica</translation>
     <message>
         <location line="+1"/>
         <source>Matrix math for translating</source>
-        <translation type="unfinished">Matemática de matrizes para tradução</translation>
+        <translation type="unfinished">Matemática matricial para tradução</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -18038,7 +18038,7 @@ Editoração eletrônica</translation>
     <message>
         <location line="+1"/>
         <source>Text patterns for splitting sentences</source>
-        <translation type="unfinished">Padrões de texto para dividir frases</translation>
+        <translation type="unfinished">Padrões de texto para divisão de frases</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -18048,7 +18048,7 @@ Editoração eletrônica</translation>
     <message>
         <location line="+1"/>
         <source>Finding out what the processor can do, and vector math on ARM</source>
-        <translation type="unfinished">Verificação dos recursos do processador e matemática de vetores em ARM</translation>
+        <translation type="unfinished">Verificando o que o processador pode fazer e matemática vetorial em ARM</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -18058,7 +18058,7 @@ Editoração eletrônica</translation>
     <message>
         <location line="+1"/>
         <source>Languages the Translate pane translates (downloaded when you ask)</source>
-        <translation type="unfinished">Idiomas que o painel Tradução traduz (baixados quando solicitado)</translation>
+        <translation type="unfinished">Idiomas que o painel Tradução traduz (baixados quando você solicitar)</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -27611,12 +27611,12 @@ Não é possível ler o arquivo.</translation>
     <message>
         <location line="+314"/>
         <source>A barcode could not be made from the text of its cell, so it keeps what it had.</source>
-        <translation type="unfinished">Não foi possível criar um código de barras com o texto da célula, então ele manteve o que tinha.</translation>
+        <translation type="unfinished">Não foi possível criar um código de barras a partir do texto de sua célula, então ele mantém o que tinha.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The workbook holds as many new objects as can be saved in one go. The barcodes left are made again from their cells after you save.</source>
-        <translation type="unfinished">A pasta de trabalho contém tantos objetos novos quanto podem ser salvos de uma vez. Os códigos de barras restantes são criados novamente a partir das células depois que você salvar.</translation>
+        <translation type="unfinished">A pasta de trabalho contém tantos novos objetos quanto podem ser salvos de uma só vez. Os códigos de barras restantes são criados novamente a partir de suas células depois que você salvar.</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -29946,12 +29946,12 @@ Não é possível ler o arquivo.</translation>
     <message>
         <location line="+1"/>
         <source>Check Grammar as You Type</source>
-        <translation type="unfinished">Verificar Gramática Enquanto Você Digita</translation>
+        <translation type="unfinished">Verificar Gramática Enquanto Digita</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>This presentation is too large to check its grammar any further. The grammar check has stopped; spelling still works.</source>
-        <translation type="unfinished">Esta apresentação é grande demais para verificar a gramática. A verificação gramatical foi interrompida; a ortografia continua funcionando.</translation>
+        <translation type="unfinished">Esta apresentação é grande demais para verificar sua gramática. A verificação de gramática foi interrompida; a ortografia continua funcionando.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -36739,7 +36739,7 @@ Resolução efetiva: %3 ppi</translation>
         <source># Help is not installed
 
 Help&apos;s files were not found beside the program. Reinstalling %1 puts them back.</source>
-        <translation type="unfinished"># Ajuda não instalada
+        <translation type="unfinished"># Ajuda não está instalada
 
 Os arquivos da Ajuda não foram encontrados junto ao programa. Reinstalar %1 os restaura.</translation>
     </message>
@@ -39946,12 +39946,12 @@ Eles são mantidos quando você salva como publicação do JeffPub (.jpub).</tra
     <message>
         <location line="+1"/>
         <source>Check Grammar as You Type</source>
-        <translation type="unfinished">Verificar Gramática Enquanto Você Digita</translation>
+        <translation type="unfinished">Verificar Gramática Enquanto Digita</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>This publication is too large to check its grammar any further. The grammar check has stopped; spelling still works.</source>
-        <translation type="unfinished">Esta publicação é grande demais para verificar a gramática. A verificação gramatical foi interrompida; a ortografia continua funcionando.</translation>
+        <translation type="unfinished">Esta publicação é grande demais para verificar sua gramática. A verificação de gramática foi interrompida; a ortografia continua funcionando.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -42242,12 +42242,12 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
     <message>
         <location line="+14"/>
         <source>Ignore This Issue</source>
-        <translation type="unfinished">Ignorar Este Problema</translation>
+        <translation type="unfinished">Ignorar este problema</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Ignore All</source>
-        <translation type="unfinished">Ignorar Todos</translation>
+        <translation type="unfinished">Ignorar Tudo</translation>
     </message>
 </context>
 <context>
@@ -44007,7 +44007,7 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
     <message>
         <location line="+3"/>
         <source>Show Quick Toolbar below the ribbon</source>
-        <translation type="unfinished">Mostrar Barra de Ferramentas Rápida abaixo da faixa de opções</translation>
+        <translation type="unfinished">Mostrar barra de ferramentas rápida abaixo da faixa de opções</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -46597,12 +46597,12 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
     <message>
         <location line="+21"/>
         <source>Open in Your Browser Instead</source>
-        <translation type="unfinished">Abrir no Seu Navegador em Vez Disso</translation>
+        <translation type="unfinished">Abrir no seu navegador em vez disso</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Opens a translation website with the text. Nothing is sent until the page opens.</source>
-        <translation type="unfinished">Abre um site de tradução com o texto. Nada é enviado até a página abrir.</translation>
+        <translation type="unfinished">Abre um site de tradução com o texto. Nada é enviado até que a página seja aberta.</translation>
     </message>
     <message>
         <location line="+9"/>
@@ -46652,7 +46652,7 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
     <message>
         <location line="+54"/>
         <source>There is no text to translate. Select some text, then click Use Selection.</source>
-        <translation type="unfinished">Não há texto para traduzir. Selecione um texto e clique em Usar Seleção.</translation>
+        <translation type="unfinished">Não há texto para traduzir. Selecione algum texto e clique em Usar Seleção.</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -46662,12 +46662,12 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
     <message>
         <location line="+6"/>
         <source>There is no translation model for %1 to %2. You can open a translation website with the text instead.</source>
-        <translation type="unfinished">Não há modelo de tradução de %1 para %2. Você pode abrir um site de tradução com o texto.</translation>
+        <translation type="unfinished">Não há modelo de tradução de %1 para %2. Você pode abrir um site de tradução com o texto em vez disso.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>This copy of the program has no translator built in. You can open a translation website with the text instead.</source>
-        <translation type="unfinished">Esta cópia do programa não tem tradutor integrado. Você pode abrir um site de tradução com o texto.</translation>
+        <translation type="unfinished">Esta cópia do programa não tem tradutor integrado. Você pode abrir um site de tradução com o texto em vez disso.</translation>
     </message>
     <message>
         <location line="+14"/>
@@ -46683,7 +46683,7 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
     <message>
         <location line="-2"/>
         <source>The models are downloaded once from Mozilla&apos;s translation files and kept on this computer. After that, translating needs no connection.</source>
-        <translation type="unfinished">Os modelos são baixados uma única vez dos arquivos de tradução da Mozilla e mantidos neste computador. Depois disso, a tradução não precisa de conexão.</translation>
+        <translation type="unfinished">Os modelos são baixados uma única vez dos arquivos de tradução da Mozilla e mantidos neste computador. Depois disso, traduzir não precisa de conexão.</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -51815,7 +51815,7 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
     <message>
         <location line="+5"/>
         <source>That barcode can&apos;t be put in as a field.</source>
-        <translation type="unfinished">Este código de barras não pode ser inserido como campo.</translation>
+        <translation type="unfinished">Esse código de barras não pode ser inserido como campo.</translation>
     </message>
     <message>
         <location line="+26"/>
@@ -52878,7 +52878,7 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
         <translation type="unfinished">Abra uma segunda janela para exibir dois documentos lado a lado.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_outline.cpp" line="+22"/>
+        <location filename="../apps/write/app/writewindow_outline.cpp" line="+23"/>
         <location filename="../apps/write/app/writewindow_shapes.cpp" line="-160"/>
         <source>Outline</source>
         <translation type="unfinished">Estrutura de Tópicos</translation>
@@ -60431,7 +60431,7 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
     <message>
         <location line="+1"/>
         <source>The workbook has as many barcodes as JeffCrunch draws (%1).</source>
-        <translation type="unfinished">A pasta de trabalho tem tantos códigos de barras quanto o JeffCrunch desenha (%1).</translation>
+        <translation type="unfinished">A pasta de trabalho tem tantos códigos de barras quantos o JeffCrunch desenha (%1).</translation>
     </message>
     <message>
         <location line="+54"/>
@@ -62414,7 +62414,7 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
     <message>
         <location line="-13"/>
         <source>The download failed: %1</source>
-        <translation type="unfinished">Falha no download: %1</translation>
+        <translation type="unfinished">O download falhou: %1</translation>
     </message>
     <message>
         <location line="+18"/>
@@ -62424,7 +62424,7 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
     <message>
         <location filename="../libs/translate/translate/translator.cpp" line="+51"/>
         <source>This copy of the program was built without the translator.</source>
-        <translation type="unfinished">Esta cópia do programa foi compilada sem o tradutor.</translation>
+        <translation type="unfinished">Esta cópia do programa foi criada sem o tradutor.</translation>
     </message>
     <message>
         <location line="+10"/>

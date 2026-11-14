@@ -17,7 +17,7 @@ Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a exe
 - [Verificar a ortografia](spelling)
 - [Contar palavras, definir o idioma, verificar a acessibilidade e procurar palavras](proofing-tools)
 - [Traduzir texto](translate)
-- [Controlar alterações, e aceitar ou rejeitar](track-changes)
+- [Controlar alterações e aceitá-las ou rejeitá-las](track-changes)
 - [Adicionar e responder a comentários](comments)
 - [Proteger um documento e bloquear o controlo de alterações](protect)
 

@@ -1,11 +1,19 @@
 # Separador Rever
-<!-- keywords: separador rever, friso, verificação, ortografia, dicionário de sinónimos, contagem de palavras, comentários, novo comentário, eliminar comentário, anterior, seguinte, mostrar comentários, idioma, idioma de verificação, definir idioma, não verificar ortografia, traduzir, tradução, libretranslate, gramática, verificação gramatical, estilo, linha azul, linha pontilhada, verificar gramática ao escrever -->
+<!-- keywords: separador rever, friso, verificação, ortografia, dicionário de sinónimos, contagem de palavras, comentários, novo comentário, eliminar comentário, anterior, seguinte, mostrar comentários, idioma, idioma de verificação, definir idioma, não verificar ortografia, traduzir, tradução, libretranslate, gramática, verificação gramatical, estilo, linha azul, linha pontilhada, verificar gramática à medida que escreve -->
 
-O separador **Rever** verifica as suas palavras, traduz o texto e gere os comentários.
+O separador **Rever** verifica as suas palavras, traduz e gere os comentários.
 
-- **Verificação** tem **Ortografia** (F7), **Dicionário de Sinónimos** (Shift+F7), **Contagem de Palavras** e **Verificar Acessibilidade**. Consulte [Escrever e formatar texto](text).
-- **Idioma** tem **Traduzir**, **Definir Idioma de Verificação** e **Não Verificar Ortografia**. Consulte mais abaixo.
-- **Comentários** tem **Novo Comentário** (Ctrl+Alt+M), **Eliminar** com o respetivo menu, **Anterior**, **Seguinte** e **Mostrar Comentários**. Consulte [Comentários](comments).
+- **Verificação** tem **Ortografia** (F7), **Dicionário de Sinónimos** (Shift+F7), **Contagem de Palavras** e **Verificar Acessibilidade**. Veja [Formatar texto](text).
+- **Idioma** tem **Traduzir**, **Definir Idioma de Verificação** e **Não Verificar Ortografia**. Veja abaixo.
+- **Comentários** tem **Novo Comentário** (Ctrl+Alt+M), **Eliminar** com o respetivo menu, **Anterior**, **Seguinte** e **Mostrar Comentários**. Veja [Comentários](comments).
+
+## Verificar a gramática à medida que escreve
+
+O JeffDeck também procura erros claros de gramática e de estilo no texto, nos diapositivos e nas notas do orador. Um problema recebe uma linha azul pontilhada por baixo, e uma palavra escrita incorretamente mantém a sua linha vermelha ondulada. Clique com o botão direito no problema para ver o que está errado e escolher uma sugestão, ou escolha **Ignorar Este Problema** ou **Ignorar Tudo**. A **Ortografia** (F7) passa aos problemas de gramática dos diapositivos depois da ortografia. O texto num idioma que não é verificado, e o texto marcado como "não verificar", é ignorado. Para desativar, clique em **Ficheiro > Opções > Verificação** e desmarque **Verificar gramática à medida que escreve**. Esta é uma opção única para todas as aplicações JeffOffice.
+
+**Idiomas verificados.** Inglês, francês, alemão e espanhol, cada um com regras próprias. O francês verifica o espaço sem quebra antes de ; : ! ? e dentro de « », o apóstrofo em palavras como "l'ami" e "qu'il", e confusões como "a" e "à". O alemão verifica "das" e "dass", "seid" e "seit", "wider" e "wieder", a vírgula antes de "dass" e "weil", e as maiúsculas em substantivos comuns. O espanhol procura um ¿ ou ¡ em falta, acentos em palavras interrogativas, "a ver" e "haber", e "del" e "al". Um parágrafo é verificado no idioma em que está marcado, e o texto sem idioma é verificado como inglês. Num parágrafo com mais do que um idioma, é usado o primeiro idioma verificado e o resto é ignorado.
+
+**Escolher o que procurar.** Clique em **Ficheiro > Opções > Verificação > Definições de gramática** para escolher os tipos de problemas: **Gramática** (verbos que não concordam, a forma errada de um verbo, "a" e "an"), **Pontuação** (espaços, vírgulas e hífenes em excesso ou em falta), **Maiúsculas e minúsculas**, **Palavras confundidas** (palavras que soam de forma semelhante), **Repetição** e **Estilo**. O **Estilo** está desativado até o ativar. Este tipo sugere e não aponta erros: frases com mais de 40 palavras, a voz passiva, três frases seguidas que começam pela mesma palavra, e expressões prolixas ("in order to", "due to the fact that"). A escolha mantém-se ao clicar em **OK** nas Opções. Aplica-se de imediato às linhas azuis e ao painel Ortografia (F7) nas janelas abertas desta aplicação, e às restantes aplicações JeffOffice na próxima vez que forem iniciadas.
 
 ## Verificar a gramática à medida que escreve
 
@@ -17,7 +25,7 @@ O JeffDeck também procura erros gramaticais e de estilo evidentes no texto, nos
 
 ## Definir o idioma de algum texto
 
-A Ortografia verifica cada parte do texto no seu próprio idioma. Para alterar o idioma de algumas palavras, selecione-as, ou selecione uma caixa de texto ou um marcador de posição completo, e clique em **Definir Idioma de Verificação** no grupo **Idioma**. Escolha o idioma na lista e clique em **OK**. As palavras nesse idioma são verificadas com o dicionário desse idioma, e o ficheiro mantém esta escolha ao guardá-lo como apresentação ou como apresentação OpenDocument. O texto que não tiver marcado é verificado em inglês americano.
+A Ortografia verifica cada parte do texto no seu próprio idioma. Para alterar o idioma de algumas palavras, selecione-as, ou selecione uma caixa de texto ou um marcador de posição completo, e clique em **Definir Idioma de Verificação** no grupo **Idioma**. Escolha o idioma na lista e clique em **OK**. As palavras nesse idioma são verificadas com o dicionário desse idioma, e o ficheiro mantém a escolha ao guardá-lo como apresentação ou como apresentação OpenDocument. O texto que não tiver marcado é verificado em inglês americano.
 
 ## Não verificar algum texto
 
@@ -27,14 +35,14 @@ Há texto que não deve ser verificado: um código, um nome ou uma linha numa l�
 
 1. Selecione as palavras numa caixa de texto ou nas notas. Para traduzir tudo numa caixa de texto, selecione a caixa.
 2. Clique em **Traduzir** no grupo **Idioma**.
-3. Escolha o idioma para o qual pretende traduzir.
+3. Escolha o idioma para o qual traduzir.
 4. Clique em **OK**.
 
-O seu navegador abre então um serviço de tradução chamado LibreTranslate, com o seu texto. Nada é enviado até clicar em **OK**. Pode alterar o endereço do serviço na caixa, por exemplo para um que execute no seu próprio computador. São utilizados apenas endereços Web seguros (https), e endereços http para este computador. São enviadas, no máximo, 5000 letras.
+O seu navegador Web abre então um serviço de tradução chamado LibreTranslate, com o seu texto. Nada é enviado até clicar em **OK**. Pode alterar o endereço do serviço na caixa, por exemplo para um que execute no seu próprio computador. Só são utilizados endereços Web seguros (https), e endereços http para este computador. São enviadas, no máximo, 5000 letras.
 
 ## Verificar acessibilidade
 
-**Verificar Acessibilidade** abre uma pequena janela que lista o que pode ser difícil de utilizar para algumas pessoas: uma imagem ou forma sem texto alternativo, um diapositivo sem título, uma tabela sem linha de cabeçalho, um vídeo sem legendas, texto difícil de ler sobre o respetivo fundo, e objetos que um leitor de ecrã lê numa ordem diferente da que a respetiva posição sugere. O texto precisa de um contraste de 4,5 para 1 com o fundo (3 para 1 para texto de 18 pontos ou mais, ou 14 pontos ou mais a negrito). Quando o texto está sobre uma imagem, uma sugestão pede-lhe que verifique o contraste a olho. Um leitor de ecrã lê os objetos de um diapositivo desde o fundo da pilha até à frente. Clique em **Ordem de Leitura** para os ver nessa ordem, e use **Ler Antes** e **Ler Depois** (ou arraste) para a alterar; cada movimento corresponde a um passo de **Anular**. Um leitor de ecrã usa a primeira linha de uma tabela para dar nome às colunas: selecione o problema da tabela e clique em **Usar a primeira linha como cabeçalho** para ativar a linha de cabeçalho (um passo de **Anular**). Um vídeo sem legendas aparece como sugestão, porque os vídeos precisam de legendas para as pessoas que não ouvem. Não há correção com um só clique: selecione o vídeo e use **Inserir Legendas** no separador **Reprodução**, e a sugestão desaparece. Clique num problema para ir ao respetivo diapositivo e selecionar o objeto. Dê à imagem um texto alternativo no painel **Formatar Imagem**, ou marque-a como decorativa, e clique em **Verificar Novamente**. Também pode iniciar a verificação a partir de **Ficheiro > Informações**.
+**Verificar Acessibilidade** abre uma pequena janela que lista o que pode ser difícil de utilizar para algumas pessoas: uma imagem ou uma forma sem texto alternativo, um diapositivo sem título, uma tabela sem linha de cabeçalho, um vídeo sem legendas, texto difícil de ler sobre o respetivo fundo, e objetos que um leitor de ecrã lê numa ordem diferente da que a sua posição sugere. O texto precisa de um contraste de 4,5 para 1 com o fundo (3 para 1 para texto de 18 pontos ou mais, ou 14 pontos ou mais em negrito); quando o texto está sobre uma imagem, uma sugestão pede que verifique o contraste a olho. Um leitor de ecrã lê os objetos de um diapositivo da parte de trás da pilha para a da frente. Clique em **Ordem de Leitura** para os ver nessa ordem, e use **Ler Antes** e **Ler Depois** (ou arraste) para a alterar; cada movimento corresponde a um passo de **Anular**. Um leitor de ecrã usa a primeira linha de uma tabela para dar nome às colunas: selecione um problema de tabela e clique em **Usar a primeira linha como cabeçalho** para ativar a linha de cabeçalho (um passo de **Anular**). Um vídeo sem legendas aparece como sugestão, porque os vídeos precisam de legendas para as pessoas que não ouvem. Não há correção com um clique; selecione o vídeo e use **Inserir Legendas** no separador **Reprodução**, e a sugestão desaparece. Clique num problema para ir ao respetivo diapositivo e selecionar o objeto. Dê à imagem texto alternativo no painel **Formatar Imagem**, ou marque-a como decorativa, e clique em **Verificar Novamente**. Também pode iniciar a verificação em **Ficheiro > Informações**.
 
 ## Relacionados
 

@@ -1,12 +1,12 @@
 # JeffPub Help
-<!-- keywords: contents, help, topics, start, inhoud, hulp, onderwerpen, beginnen -->
+<!-- keywords: inhoud, help, onderwerpen, starten -->
 
-Typ in het zoekvak hierboven om een onderwerp of een opdracht te zoeken. Druk op **F1** om op elk moment hulp te krijgen bij wat u doet: het linttabblad waarop u staat, het dialoogvenster dat u open hebt, of het object dat u hebt geselecteerd.
+Typ in het zoekvak hierboven om een onderwerp of een opdracht te zoeken. Druk op **F1** wanneer u hulp wilt bij wat u aan het doen bent: het linttabblad waarop u staat, het dialoogvenster dat u open hebt, of het object dat u hebt geselecteerd.
 
 ## Aan de slag
 
 - [Welkom bij JeffPub](start)
-- [Wegwijs worden in het venster](window)
+- [De weg vinden in het venster](window)
 - [Een nieuwe publicatie maken](create)
 - [Publicaties openen en opslaan](open-save)
 - [Werken met .pub-bestanden](pub-files)
@@ -23,7 +23,7 @@ Typ in het zoekvak hierboven om een onderwerp of een opdracht te zoeken. Druk op
 - [Een vergelijking toevoegen](equations)
 - [Tabellen maken en bewerken](tables)
 - [Inhoudsopgave, voetnoten en eindnoten](references)
-- [Spelling, synoniemen, onderzoek en woordafbreking](proofing)
+- [Spelling, synoniemenlijst, onderzoek en woordafbreking](proofing)
 - [Tekst vertalen](translate)
 - [Tekst zoeken en vervangen](find-replace)
 
@@ -34,17 +34,17 @@ Typ in het zoekvak hierboven om een onderwerp of een opdracht te zoeken. Druk op
 - [Vormen en lijnen tekenen](shapes)
 - [Grafieken toevoegen](charts)
 - [Pictogrammen, streepjescodes en andere objecten](insert-objects)
-- [Objecten verplaatsen, uitlijnen, groeperen en stapelen](arrange)
-- [Tekst laten teruglopen om objecten](wrap)
+- [Objecten verplaatsen, uitlijnen, groeperen en lagen](arrange)
+- [Tekst om objecten laten lopen](wrap)
 
 ## Pagina's
 
 - [Paginaformaat, marges en indeling](page-setup)
 - [Kleuren- en lettertypeschema's](color-schemes)
 - [Het sjabloon van een publicatie wijzigen](change-template)
-- [Basispagina's, koptekst en paginanummers](master-pages)
+- [Basispagina's, koppen en paginanummers](master-pages)
 - [Pagina's toevoegen, verplaatsen en verwijderen](pages)
-- [Linialen, hulplijnen en uitlijnen op hulplijnen](guides)
+- [Linialen, hulplijnen en vastklikken](guides)
 
 ## Verzendlijsten
 
@@ -62,7 +62,7 @@ Typ in het zoekvak hierboven om een onderwerp of een opdracht te zoeken. Druk op
 - [Schermlezers, hoog contrast en alternatieve tekst](accessibility)
 - [Uw ontwerp controleren](design-checker)
 - [Opmerkingen](comments)
-- [Instellingen van JeffPub wijzigen](options)
+- [De instellingen van JeffPub wijzigen](options)
 - [Een taal kiezen](language)
 - [Hulp krijgen en problemen melden](support)
 

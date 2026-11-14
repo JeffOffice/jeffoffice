@@ -1,9 +1,9 @@
-# JeffWrite Aide
+# Aide de JeffWrite
 <!-- keywords: sommaire, aide, rubriques, démarrer, contenu -->
 
-Saisissez un mot dans la zone de recherche ci-dessus pour trouver une rubrique ou une commande à exécuter. Appuyez à tout moment sur **F1** pour obtenir de l'aide sur ce que vous faites : l'onglet du ruban où vous vous trouvez, ou la page de l'écran Fichier où vous vous trouvez.
+Saisissez du texte dans la zone de recherche ci-dessus pour trouver une rubrique ou une commande à exécuter. Appuyez sur **F1** à tout moment pour obtenir de l'aide sur ce que vous faites : l'onglet du ruban ou la page de l'écran Fichier où vous vous trouvez.
 
-## Prise en main
+## Bien démarrer
 
 - [Bienvenue dans JeffWrite](start)
 - [Ouvrir, enregistrer, imprimer et exporter](open-save)
@@ -17,7 +17,7 @@ Saisissez un mot dans la zone de recherche ci-dessus pour trouver une rubrique o
 - [Vérifier l'orthographe](spelling)
 - [Compter les mots, définir la langue, vérifier l'accessibilité et rechercher des mots](proofing-tools)
 - [Traduire du texte](translate)
-- [Suivre les modifications, et accepter ou refuser les modifications](track-changes)
+- [Suivre les modifications, et accepter ou refuser ces modifications](track-changes)
 - [Ajouter et répondre aux commentaires](comments)
 - [Protéger un document et verrouiller le suivi](protect)
 

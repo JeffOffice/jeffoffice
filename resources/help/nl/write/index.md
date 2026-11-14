@@ -1,24 +1,24 @@
 # JeffWrite Help
-<!-- keywords: contents, help, topics, start -->
+<!-- keywords: inhoud, help, onderwerpen, start -->
 
-Typ in het zoekvak hierboven om een onderwerp of een opdracht te zoeken. Druk op **F1** op elk moment voor hulp bij wat u aan het doen bent: het linttabblad waarop u staat, of de pagina van het menu Bestand waarop u staat.
+Typ in het zoekvak hierboven om een onderwerp of een opdracht te zoeken. Druk op **F1** wanneer u maar wilt voor hulp bij wat u aan het doen bent: het linttabblad waarop u staat, of de pagina van het scherm Bestand waarop u staat.
 
 ## Aan de slag
 
 - [Welkom bij JeffWrite](start)
 - [Openen, opslaan, afdrukken en exporteren](open-save)
-- [Info: eigenschappen, wachtwoorden en Document controleren](info)
+- [Info: eigenschappen, wachtwoorden en Inspecteren](info)
 - [OpenDocument-bestanden openen en opslaan](open-odt)
 - [RTF-bestanden openen](open-rtf)
 - [Afdrukken](print)
 
-## Werken met tekst
+## Werken met uw tekst
 
-- [Spelling controleren](spelling)
-- [Woorden tellen, de taal instellen, toegankelijkheid controleren en woorden opzoeken](proofing-tools)
+- [Uw spelling controleren](spelling)
+- [Woorden tellen, de taal instellen, de toegankelijkheid controleren en woorden opzoeken](proofing-tools)
 - [Tekst vertalen](translate)
-- [Wijzigingen bijhouden, en wijzigingen accepteren of weigeren](track-changes)
-- [Opmerkingen toevoegen en beantwoorden](comments)
+- [Wijzigingen bijhouden, en ze accepteren of weigeren](track-changes)
+- [Opmerkingen toevoegen en erop reageren](comments)
 - [Een document beveiligen en het bijhouden van wijzigingen vergrendelen](protect)
 
 ## Tekst schrijven en wijzigen
@@ -48,7 +48,7 @@ Typ in het zoekvak hierboven om een onderwerp of een opdracht te zoeken. Druk op
 - [Symbolen en speciale tekens invoegen](symbols-special-characters)
 - [Koppelingen en tekst uit andere bestanden toevoegen](links)
 - [De kleur en randen van de pagina's wijzigen](page-look)
-- [Uw weg vinden met het navigatievenster](navigation-pane)
+- [Uw weg vinden met het deelvenster Navigatie](navigation-pane)
 - [De liniaal gebruiken](ruler)
 - [Woorden zoeken en vervangen](find-replace)
 - [Naar een plaats gaan en tekst verplaatsen](go-to-and-move-text)
@@ -56,5 +56,5 @@ Typ in het zoekvak hierboven om een onderwerp of een opdracht te zoeken. Druk op
 ## Sneller werken
 
 - [JeffWrite met het toetsenbord gebruiken](keyboard)
-- [De instellingen van JeffWrite wijzigen](options)
+- [JeffWrite-instellingen wijzigen](options)
 - [Een taal kiezen](language)

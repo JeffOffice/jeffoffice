@@ -1,13 +1,13 @@
 # Aide de JeffPub
-<!-- keywords: sommaire, aide, rubriques, démarrer, contenu, début -->
+<!-- keywords: sommaire, aide, rubriques, démarrage -->
 
-Saisissez un terme dans la zone de recherche ci-dessus pour trouver une rubrique ou une commande à exécuter. Appuyez à tout moment sur **F1** pour obtenir de l'aide sur ce que vous faites : l'onglet du ruban active, la boîte de dialogue ouverte ou l'objet sélectionné.
+Saisissez un terme dans la zone de recherche ci-dessus pour trouver une rubrique ou une commande à exécuter. Appuyez à tout moment sur **F1** pour obtenir de l'aide sur ce que vous faites : l'onglet du ruban actif, la boîte de dialogue ouverte ou l'objet sélectionné.
 
 ## Premiers pas
 
 - [Bienvenue dans JeffPub](start)
-- [Vous repérer dans la fenêtre](window)
-- [Créer une composition](create)
+- [Se repérer dans la fenêtre](window)
+- [Créer une nouvelle composition](create)
 - [Ouvrir et enregistrer des compositions](open-save)
 - [Travailler avec les fichiers .pub](pub-files)
 - [Récupérer un travail non enregistré](recover)
@@ -15,7 +15,7 @@ Saisissez un terme dans la zone de recherche ci-dessus pour trouver une rubrique
 ## Texte
 
 - [Ajouter et mettre en forme des zones de texte](text-boxes)
-- [Faire circuler le texte entre des zones de texte](linked-text)
+- [Chaîner le texte entre les zones de texte](linked-text)
 - [Mettre en forme le texte](formatting-text)
 - [Puces, numérotation et tabulations](lists-tabs)
 - [Utiliser les styles](styles)
@@ -39,12 +39,12 @@ Saisissez un terme dans la zone de recherche ci-dessus pour trouver une rubrique
 
 ## Pages
 
-- [Taille de page, marges et mise en page](page-setup)
+- [Taille de page, marges et disposition](page-setup)
 - [Jeux de couleurs et de polices](color-schemes)
 - [Changer le modèle d'une composition](change-template)
 - [Pages maîtres, en-têtes et numéros de page](master-pages)
 - [Ajouter, déplacer et supprimer des pages](pages)
-- [Règles, repères et alignement](guides)
+- [Règles, repères et magnétisme](guides)
 
 ## Publipostage
 
@@ -53,7 +53,7 @@ Saisissez un terme dans la zone de recherche ci-dessus pour trouver une rubrique
 ## Impression et partage
 
 - [Imprimer une composition](printing)
-- [Fichiers PDF et imprimeurs professionnels](pdf)
+- [Fichiers PDF et imprimeurs](pdf)
 - [Enregistrer en tant qu'image, page web ou livre électronique](export)
 
 ## Aide et paramètres
@@ -66,7 +66,7 @@ Saisissez un terme dans la zone de recherche ci-dessus pour trouver une rubrique
 - [Choisir une langue](language)
 - [Obtenir de l'aide et signaler un problème](support)
 
-## Les onglets du ruban
+## Onglets du ruban
 
 - [Fichier](tab-file), [Accueil](tab-home), [Insertion](tab-insert), [Création de page](tab-page-design), [Publipostage](tab-mailings), [Révision](tab-review), [Affichage](tab-view) et [Aide](tab-help)
 - Onglets qui apparaissent lorsque vous sélectionnez un élément : [Zone de texte](tab-text-box), [Format de la forme](tab-shape-format), [Format de l'image](tab-picture-format), [Création de tableau et Disposition du tableau](tab-table), [Format du texte artistique](tab-text-art) et [Page maître](tab-master-page)

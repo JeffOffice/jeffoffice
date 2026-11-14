@@ -1,7 +1,7 @@
 # JeffWrite-Hilfe
-<!-- keywords: Inhalt, Hilfe, Themen, Start, Inhaltsverzeichnis -->
+<!-- keywords: Inhalt, Hilfe, Themen, Start, Inhaltsverzeichnis, Hilfethemen -->
 
-Geben Sie oben im Suchfeld ein Thema oder einen Befehl ein, den Sie ausführen möchten. Drücken Sie jederzeit **F1**, um Hilfe zu dem zu erhalten, was Sie gerade tun: zur Registerkarte des Menübands oder zur Seite der Backstage-Ansicht „Datei“, auf der Sie sich befinden.
+Geben Sie oben im Suchfeld einen Begriff ein, um ein Thema oder einen Befehl zu finden. Drücken Sie jederzeit **F1**, um Hilfe zu dem zu erhalten, was Sie gerade tun: zur Registerkarte des Menübands oder zur Seite im Menü „Datei“, auf der Sie sich befinden.
 
 ## Erste Schritte
 
@@ -17,17 +17,17 @@ Geben Sie oben im Suchfeld ein Thema oder einen Befehl ein, den Sie ausführen m
 - [Rechtschreibung prüfen](spelling)
 - [Wörter zählen, Sprache festlegen, Barrierefreiheit prüfen und Wörter nachschlagen](proofing-tools)
 - [Text übersetzen](translate)
-- [Änderungen nachverfolgen, annehmen oder ablehnen](track-changes)
+- [Änderungen nachverfolgen, annehmen und ablehnen](track-changes)
 - [Kommentare hinzufügen und beantworten](comments)
 - [Dokument schützen und Nachverfolgung sperren](protect)
 
 ## Text schreiben und ändern
 
-- [Aussehen von Text ändern](font)
-- [Groß-/Kleinschreibung ändern, sortieren und auf andere Weisen einfügen](home-tools)
+- [Textaussehen ändern](font)
+- [Groß-/Kleinschreibung ändern, sortieren und auf andere Arten einfügen](home-tools)
 - [Formatvorlagen verwenden](styles)
-- [Formatierung mit Formatierung kopieren übertragen](format-painter)
-- [Kopf- und Fußzeilen sowie Seitenzahlen hinzufügen](headers-footers)
+- [Ein Aussehen mit „Formatierung kopieren“ übertragen](format-painter)
+- [Kopfzeilen, Fußzeilen und Seitenzahlen hinzufügen](headers-footers)
 - [Tabellen erstellen und ändern](tables)
 - [Fußnoten und Endnoten hinzufügen](footnotes-endnotes)
 - [Inhaltsverzeichnis erstellen](table-of-contents)
@@ -36,7 +36,7 @@ Geben Sie oben im Suchfeld ein Thema oder einen Befehl ein, den Sie ausführen m
 - [Stichwortverzeichnis erstellen](making-an-index)
 - [Verzeichnis der Rechtsquellen erstellen](table-of-authorities)
 - [Felder verwenden](fields)
-- [Mit Querverweisen auf eine andere Stelle verweisen](cross-references)
+- [Mit Querverweisen auf andere Stellen verweisen](cross-references)
 - [Stellen mit Textmarken markieren](bookmarks)
 - [Seriendruck, Umschläge und Etiketten](mail-merge)
 - [Bilder hinzufügen und ändern](pictures)
@@ -55,6 +55,6 @@ Geben Sie oben im Suchfeld ein Thema oder einen Befehl ein, den Sie ausführen m
 
 ## Schneller arbeiten
 
-- [JeffWrite per Tastatur bedienen](keyboard)
+- [JeffWrite über die Tastatur bedienen](keyboard)
 - [JeffWrite-Einstellungen ändern](options)
 - [Sprache auswählen](language)
