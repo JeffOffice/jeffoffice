@@ -2330,7 +2330,7 @@ private Q_SLOTS:
         auto within = [&](const char *what) {
             const qint64 ms = (jp::threadCpuMicros() - began) / 1000;
             began = jp::threadCpuMicros();
-            QVERIFY2(ms < 6000, qPrintable(QStringLiteral("%1 took %2 ms").arg(QLatin1String(what)).arg(ms)));
+            QVERIFY2(ms < 6000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")), qPrintable(QStringLiteral("%1 took %2 ms").arg(QLatin1String(what)).arg(ms)));
         };
         began = jp::threadCpuMicros();
         w.act(QStringLiteral("arr.selectionPane"))->trigger();

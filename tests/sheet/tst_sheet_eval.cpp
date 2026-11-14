@@ -682,7 +682,8 @@ private Q_SLOTS:
         QVERIFY2(unsupported * 20 <= calls, qPrintable(QStringLiteral("%1 of %2 calls were not worked out (a function the registry lacks)").arg(unsupported).arg(calls)));
         QVERIFY2(tooLarge + tooMuch > 0, "no call reached a bound: the arguments no longer build what the bounds are for");
         const qint64 grew = watch.growthMegabytes();
-        QVERIFY2(grew < 0 || grew < 900, qPrintable(QStringLiteral("memory grew %1 MB").arg(grew)));
+        // (a checked build keeps freed memory aside a while and runs slower: JP_TEST_TIME_SCALE widens the bound there)
+        QVERIFY2(grew < 0 || grew < 900 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")), qPrintable(QStringLiteral("memory grew %1 MB").arg(grew)));
         qInfo("whole-column calls: %lld ended in their work, %lld past the steps, %lld past the cells", static_cast<long long>(ok), static_cast<long long>(tooMuch), static_cast<long long>(tooLarge));
     }
 

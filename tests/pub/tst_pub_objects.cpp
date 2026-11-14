@@ -2559,7 +2559,7 @@ private Q_SLOTS:
         auto within = [&](const char *what, qint64 limit = 3000) {
             const qint64 ms = clock.elapsed();
             clock.restart();
-            QVERIFY2(ms < limit, qPrintable(QStringLiteral("%1 took %2 ms").arg(QLatin1String(what)).arg(ms)));
+            QVERIFY2(ms < limit * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")), qPrintable(QStringLiteral("%1 took %2 ms").arg(QLatin1String(what)).arg(ms)));
         };
         clock.start();
         w.act(QStringLiteral("arr.selectionPane"))->trigger();
