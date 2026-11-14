@@ -14,6 +14,7 @@
 #include "grid/printlayout.h"
 #include "grid/printpaint.h"
 #include "grid/valuestore.h"
+#include "io/pdfbookmarks.h"
 #include "io/pdfcrypt.h"
 
 #include <QDateTime>
@@ -91,6 +92,12 @@ struct PrintNote {
     QString author, text;
 };
 
+// A link on cells, for the PDF: the cells, and where it goes (an address outside the workbook, or a place in it such as "Sheet2!B5").
+struct PrintLink {
+    jp::office::sheet::CellRange range;
+    QString target, location;
+};
+
 // What a job reads of a workbook.
 class PrintSource {
 public:
@@ -107,6 +114,8 @@ public:
     virtual std::vector<jp::grid::LayerObject> objects(int sheet) = 0;
     // The notes on the cells of a sheet, in the order of the cells (down the rows, across each).
     virtual std::vector<PrintNote> notes(int sheet) const { Q_UNUSED(sheet); return {}; }
+    // The links on the cells of a sheet (those a person made, and the cells whose formula is HYPERLINK with an address typed in it).
+    virtual std::vector<PrintLink> links(int sheet) const { Q_UNUSED(sheet); return {}; }
     // The font the header and footer begin in.
     virtual QString baseFontFamily() const = 0;
     virtual double baseFontPoints() const = 0;
@@ -127,6 +136,7 @@ public:
     jp::office::sheet::PageSetup page(int sheet) const override;
     std::vector<jp::grid::LayerObject> objects(int sheet) override;
     std::vector<PrintNote> notes(int sheet) const override;
+    std::vector<PrintLink> links(int sheet) const override;
     QString baseFontFamily() const override;
     double baseFontPoints() const override;
 
@@ -246,6 +256,8 @@ private:
         int note = -1;      // for a page of notes, its place among the sheet's pages of notes
     };
     struct Build;
+    // The links of the pages as a PDF with one page to a sheet holds them: `pdfPageOf` is the PDF's page for each page of the job (-1: not in the PDF). At most kMostPdfLinks.
+    QVector<jp::PdfLink> pdfLinks(const QVector<int> &pdfPageOf);
     Context &contextFor(int infoIndex);
     const SheetInfo *infoOfSheet(int sheet) const;
 

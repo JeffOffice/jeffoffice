@@ -32,6 +32,9 @@ constexpr int kMostPdfLinks = 20000;
 // The PDF with a link annotation over each area (an update appended at its end: only the annotation lists are replaced). The links Qt's writer makes for text are dropped from every
 // page, as the ones given cover them; the PDF as it was if there are none, or it is made in a way this doesn't know how to extend (nothing is guessed).
 QByteArray addPdfLinks(const QByteArray &pdf, const QVector<PdfLink> &links);
+// Whether an address is one a PDF link may go to: a web address (http or https) or an email address. A link to a file (a path, a UNC name such as \\\\server\\share or //server/share, or a
+// file: address, with a host or not) or to any other kind of address is never written as a clickable link: addPdfLinks leaves it out, in every app.
+bool clickableAddress(const QString &uri);
 
 // The document's properties as the metadata a PDF reader shows (title, author, subject, keywords, and the program that made it); with `archive`, the mark of PDF/A part
 // `archivePart` (1 or 2), conformance B.

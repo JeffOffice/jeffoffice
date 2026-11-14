@@ -230,6 +230,7 @@ private Q_SLOTS:
     void theSidesChoiceIsRememberedAcrossRestarts();
     void theHandRunsAreMadeOfPhysicalSheets();
     void exportToPdfWritesTheSheetOrTheWorkbook();
+    void aPdfHasClickableLinksOverLinkedCells();
     void exportToPdfCanBeProtectedWithAPassword();
     void anEmailedPdfCanHaveAPassword();
     void aCancelledExportKeepsThePasswordOnThePage();

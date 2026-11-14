@@ -236,6 +236,12 @@ QByteArray addPdfBookmarks(const QByteArray &pdf, const QVector<PdfBookmark> &ma
     return pdf + tail + x;
 }
 
+bool clickableAddress(const QString &uri)
+{
+    const QString t = uri.trimmed();
+    return t.startsWith(QLatin1String("http://"), Qt::CaseInsensitive) || t.startsWith(QLatin1String("https://"), Qt::CaseInsensitive) || t.startsWith(QLatin1String("mailto:"), Qt::CaseInsensitive);
+}
+
 QByteArray addPdfLinks(const QByteArray &pdf, const QVector<PdfLink> &linksIn)
 {
     if (linksIn.isEmpty() || !pdf.startsWith("%PDF-")) return pdf;
@@ -277,6 +283,7 @@ QByteArray addPdfLinks(const QByteArray &pdf, const QVector<PdfLink> &linksIn)
     auto number = [](double v) { return QByteArray::number(v, 'f', 2); };
     for (const PdfLink &l : linksIn) {
         if (annots.size() >= kMostPdfLinks) break;
+        if (!l.uri.isEmpty() && !clickableAddress(l.uri)) continue;
         if (l.page < 0 || l.page >= pageObjects.size() || l.rect.isEmpty() || (l.uri.isEmpty() && (l.toPage < 0 || l.toPage >= pageObjects.size()))) continue;
         QByteArray a = QByteArray::number(firstNew + int(annots.size())) + " 0 obj\n<< /Type /Annot /Subtype /Link /Rect [" + number(l.rect.left()) + ' ' + number(l.rect.top()) + ' ' +
                        number(l.rect.right()) + ' ' + number(l.rect.bottom()) + "] /Border [0 0 0] /F 4 ";

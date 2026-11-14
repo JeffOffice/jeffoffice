@@ -966,6 +966,42 @@ private Q_SLOTS:
         QVERIFY2(kept.contains("GTS_PDFA1"), "no PDF/A output intent");
     }
 
+    // A picture or a shape with a link has a clickable box over it too, a link to another page of the publication jumps to it, and a link to a file on another computer is never
+    // clickable; the same in a PDF/A file, where each box has the print flag that standard asks for.
+    void objectLinksAreClickableInPdfAndPdfA()
+    {
+        QTemporaryDir dir;
+        jp::MainWindow w;
+        auto doc = jp::Document::blank(QSizeF(612, 792));
+        doc->pages.clear();
+        for (int i = 0; i < 2; ++i) doc->pages.push_back(std::make_shared<jp::Page>());
+        auto put = [&](const std::shared_ptr<jp::Item> &item, const QRectF &r, const QString &href) {
+            item->rect = r;
+            item->hyperlink = href;
+            doc->pages[0]->items.push_back(item);
+        };
+        put(std::make_shared<jp::PictureItem>(), QRectF(72, 100, 120, 80), QStringLiteral("https://example.org/picture"));
+        put(std::make_shared<jp::ShapeItem>(), QRectF(72, 300, 100, 50), QStringLiteral("#page2"));
+        put(std::make_shared<jp::ShapeItem>(), QRectF(72, 400, 100, 50), QStringLiteral("\\\\server\\share\\plan.pdf"));
+        put(std::make_shared<jp::ShapeItem>(), QRectF(72, 500, 100, 50), QStringLiteral("//server/share/plan.pdf"));
+        put(std::make_shared<jp::ShapeItem>(), QRectF(72, 600, 100, 50), QStringLiteral("file://host/share/plan.pdf"));
+        w.editor()->setDocument(std::move(doc));
+        for (bool archival : {false, true}) {
+            jp::MainWindow::PdfSettings s;
+            s.archival = archival;
+            const QString path = dir.filePath(QStringLiteral("objects%1.pdf").arg(archival));
+            QVERIFY(w.exportPdfTo(path, s));
+            QFile f(path);
+            QVERIFY(f.open(QIODevice::ReadOnly));
+            const QByteArray bytes = f.readAll();
+            f.close();
+            QVERIFY2(bytes.contains("/URI (https://example.org/picture)"), "no link over the picture");
+            QVERIFY2(QRegularExpression(QStringLiteral("/Subtype /Link[^>]*/Dest \\[\\d+ 0 R")).match(QString::fromLatin1(bytes)).hasMatch(), "no link to the page");
+            QVERIFY(!bytes.contains("server") && !bytes.contains("host/share"));
+            if (archival) QVERIFY2(QRegularExpression(QStringLiteral("/Subtype /Link[^>]*/F 4")).match(QString::fromLatin1(bytes)).hasMatch(), "a box without the print flag");
+        }
+    }
+
     void exportedPdfHasClickableLinks()
     {
         QTemporaryDir dir;

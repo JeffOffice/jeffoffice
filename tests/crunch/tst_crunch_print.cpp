@@ -4,6 +4,9 @@
 #include "../plainpdfwatch.h"
 #include "../emlpdf.h"
 #include "render/pdfpage.h"
+#include "io/qtpdf.h"
+#include "sheet/links.h"
+#include "core/editsession.h"
 #include "app/passworddialogs.h"
 #include "app/pdfprotection.h"
 #include "io/pdfcrypt.h"
@@ -1872,6 +1875,55 @@ void CrunchPrintTests::exportToPdfWritesTheSheetOrTheWorkbook()
     w.showFileScreen(QStringLiteral("export"));
     QVERIFY(w.findChild<QAbstractButton *>(QStringLiteral("exportSheetPdf")));
     QVERIFY(w.findChild<QAbstractButton *>(QStringLiteral("exportBookPdf")));
+}
+
+// A cell with a link is a clickable box in the PDF: a web address goes to the web, a place in the workbook to the page that shows it, a HYPERLINK cell to its address; a link to a file on
+// another computer is never made clickable. The same in a PDF/A file.
+void CrunchPrintTests::aPdfHasClickableLinksOverLinkedCells()
+{
+    using namespace jp::office::sheet;
+    const QByteArray first = worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\" t=\"str\"><f>HYPERLINK(\"https://example.org/f\",\"go\")</f><v>go</v></c></row>"
+                                                      "<row r=\"3\"><c r=\"A3\" t=\"inlineStr\"><is><t>web</t></is></c></row><row r=\"4\"><c r=\"A4\" t=\"inlineStr\"><is><t>place</t></is></c></row>"
+                                                      "<row r=\"5\"><c r=\"A5\" t=\"inlineStr\"><is><t>unc</t></is></c></row><row r=\"6\"><c r=\"A6\" t=\"inlineStr\"><is><t>file</t></is></c></row>"));
+    const QByteArray other = worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\" t=\"inlineStr\"><is><t>there</t></is></c></row>"));
+    EditWindow e;
+    QVERIFY(e.open(buildXlsx({first, other}, QByteArray(), QString(), QString(), budgetStyles(), QStringList({"Links", "Other"}))));
+    CrunchWindow &w = e.win.w;
+    crunch::EditSession *s = w.session();
+    auto link = [&](const char *ref, const QString &target, const QString &location) {
+        CellRange r;
+        parseRangeRef(QString::fromLatin1(ref), &r);
+        LinkSpec l;
+        l.target = target;
+        l.location = location;
+        QVERIFY(s->setLink(0, r, l, QStringLiteral("Link")).ok);
+    };
+    link("A3", QStringLiteral("https://example.org/a"), QString());
+    link("A4", QString(), QStringLiteral("Other!A1"));
+    link("A5", QStringLiteral("\\\\server\\share\\book.xlsx"), QString());
+    link("A6", QStringLiteral("file://host/share/book.xlsx"), QString());
+    QString path;
+    w.setSavePicker([&](const QString &, const QString &) { return path; });
+    for (bool archival : {false, true}) {
+        path = e.folder.dir.filePath(QStringLiteral("links%1.pdf").arg(archival));
+        QVERIFY(w.exportPdf(true, archival));
+        QFile f(path);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        const QByteArray pdf = f.readAll();
+        f.close();
+        jp::QtPdf q;
+        QVERIFY(q.loadBytes(pdf.left(int(pdf.indexOf("%%EOF")) + 6)));
+        QVector<int> pageIds;
+        for (const jp::QtPdf::Obj &obj : q.objects)
+            if (obj.body.contains("/Type /Page\n")) pageIds << obj.id;
+        QCOMPARE(pageIds.size(), 2);
+        QVERIFY2(pdf.contains("/URI (https://example.org/a)"), "no link for the web address");
+        QVERIFY2(pdf.contains("/URI (https://example.org/f)"), "no link for the HYPERLINK cell");
+        QVERIFY2(pdf.count("/Dest [" + QByteArray::number(pageIds[1]) + " 0 R") == 1, "no link to the page of the other sheet");
+        QVERIFY(!pdf.contains("server") && !pdf.contains("host/share"));
+        QCOMPARE(int(pdf.count("/Subtype /Link")), 3);
+        if (archival) QVERIFY(pdf.contains("pdfaid:part"));
+    }
 }
 
 // A PDF can be protected with a password: the file is encrypted (AES-256), opens with the password and not without, is not PDF/A, and the plain PDF is not left beside it.

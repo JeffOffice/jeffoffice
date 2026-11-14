@@ -4,6 +4,8 @@
 
 #include "core/sheetobjects.h"
 #include "sheet/cellref.h"
+#include "sheet/links.h"
+#include "sheet/sheetmodel.h"
 
 #include <QCoreApplication>
 #include <QFile>
@@ -92,6 +94,36 @@ std::vector<PrintNote> BookPrintSource::notes(int sheet) const
         n.text = kv.second.text;
         out.push_back(std::move(n));
     }
+    return out;
+}
+
+std::vector<PrintLink> BookPrintSource::links(int sheet) const
+{
+    using namespace jp::office::sheet;
+    std::vector<PrintLink> out;
+    if (m_anchors)
+        for (const LinkSpec &l : m_anchors->links(sheet)) {
+            if (out.size() >= size_t(kMaxLinks)) break;
+            out.push_back({l.range, l.target, l.location});
+        }
+    // The cells that are HYPERLINK("address", ...) with the address typed in (one worked out from other cells has no address to give here).
+    const Sheet *sh = data(sheet).sheet;
+    if (!sh) return out;
+    static const QRegularExpression call(QStringLiteral("^\\s*HYPERLINK\\s*\\(\\s*\"((?:[^\"]|\"\")*)\""), QRegularExpression::CaseInsensitiveOption);
+    sh->cells.forEach([&](quint32 row, quint32 col, const Cell &cell) {
+        if (out.size() >= size_t(kMaxLinks) || !cell.hasFormula()) return;
+        const auto m = call.match(sh->formulaText(cell));
+        if (!m.hasMatch()) return;
+        QString address = m.captured(1);
+        address.replace(QStringLiteral("\"\""), QStringLiteral("\""));
+        PrintLink k;
+        k.range.row1 = k.range.row2 = row;
+        k.range.col1 = k.range.col2 = col;
+        k.range.valid = true;
+        if (address.startsWith(QLatin1Char('#'))) k.location = address.mid(1);
+        else k.target = address;
+        out.push_back(k);
+    });
     return out;
 }
 
@@ -802,6 +834,60 @@ void PrintJob::paintGroup(QPainter *painter, const QVector<int> &group, const QS
     }
 }
 
+QVector<jp::PdfLink> PrintJob::pdfLinks(const QVector<int> &pdfPageOf)
+{
+    using namespace jp::office::sheet;
+    QVector<jp::PdfLink> out;
+    std::map<int, std::vector<PrintLink>> bySheet;
+    auto linksOf = [&](int sheet) -> const std::vector<PrintLink> & {
+        auto found = bySheet.find(sheet);
+        if (found == bySheet.end()) found = bySheet.emplace(sheet, m_source->links(sheet)).first;
+        return found->second;
+    };
+    QHash<QString, int> sheetByName;
+    for (int i = 0; i < m_source->sheetCount(); ++i) sheetByName.insert(m_source->sheetName(i).toLower(), i);
+    for (int page = 0; page < pageCount() && page < pdfPageOf.size(); ++page) {
+        if (pdfPageOf[page] < 0) continue;
+        const Page &pg = m_pages[size_t(page)];
+        if (pg.note >= 0) continue;
+        const int sheet = m_sheets[size_t(pg.info)].sheet;
+        for (const PrintLink &l : linksOf(sheet)) {
+            if (!l.range.valid) continue;
+            int toPage = -1;
+            QString uri;
+            if (!l.target.isEmpty()) {
+                if (!jp::clickableAddress(l.target)) continue;
+                uri = l.target;
+            } else {
+                // a place in the workbook: "Sheet2!B5" (a defined name has no place to go to here)
+                QString place = l.location.trimmed();
+                if (place.startsWith(QLatin1Char('#'))) place.remove(0, 1);
+                const qsizetype bang = place.lastIndexOf(QLatin1Char('!'));
+                if (bang < 0) continue;
+                QString name = place.left(bang);
+                if (name.size() >= 2 && name.startsWith(QLatin1Char('\'')) && name.endsWith(QLatin1Char('\''))) name = name.mid(1, name.size() - 2).replace(QStringLiteral("''"), QStringLiteral("'"));
+                const auto at = sheetByName.constFind(name.toLower());
+                jp::office::sheet::CellRange to;
+                if (at == sheetByName.cend() || !parseRangeRef(QStringView(place).mid(bang + 1), &to)) continue;
+                const int target = pageOfCell(at.value(), to.row1, to.col1);
+                if (target < 0 || target >= pdfPageOf.size() || pdfPageOf[target] < 0) continue;
+                toPage = pdfPageOf[target];
+            }
+            QRectF r;
+            if (!rangeRect(page, l.range.row1, l.range.col1, l.range.row2, l.range.col2, &r)) continue;
+            jp::PdfLink k;
+            k.page = pdfPageOf[page];
+            const double height = pageSize(page).height();
+            k.rect = QRectF(QPointF(r.left(), height - r.bottom()), QPointF(r.right(), height - r.top()));
+            k.uri = uri;
+            k.toPage = toPage;
+            out.push_back(k);
+            if (out.size() >= jp::kMostPdfLinks) return out;
+        }
+    }
+    return out;
+}
+
 bool PrintJob::exportPdf(const QString &path, const QVector<int> &pages, QString *error, const std::function<bool(int, int)> &progress, int perSheet, const jp::PdfProtection *protect,
                          const QVector<QVector<int>> *sheets)
 {
@@ -814,14 +900,25 @@ bool PrintJob::exportPdf(const QString &path, const QVector<int> &pages, QString
     if (pages.isEmpty()) return fail(QCoreApplication::translate("jp::crunch::PrintJob", "There are no pages to put in the file."));
     const QVector<QVector<int>> groups = sheets ? *sheets : groupsOf(pages, perSheet);
     const bool encrypted = protect && protect->isSet();
-    // With a password the PDF is made in memory, so the plain one is never on the disk.
+    // The links: the PDF's page of each page of the job (one page to a sheet only).
+    QVector<jp::PdfLink> links;
+    if (perSheet == 1 && !sheets) {
+        QVector<int> pdfPageOf(pageCount(), -1);
+        int next = 0;
+        const int most = int(std::min<qint64>(groups.size(), kMaxSentPages));
+        for (int at = 0; at < most; ++at)
+            if (groups[at].first() >= 0 && groups[at].first() < pageCount() && pdfPageOf[groups[at].first()] < 0) pdfPageOf[groups[at].first()] = next++;
+        links = pdfLinks(pdfPageOf);
+    }
+    // With a password the PDF is made in memory, so the plain one is never on the disk; so is one that links are added to.
     QSaveFile file(path);
     QBuffer memory;
-    if (encrypted) memory.open(QIODevice::WriteOnly);
+    const bool inMemory = encrypted || !links.isEmpty();
+    if (inMemory) memory.open(QIODevice::WriteOnly);
     else if (!file.open(QIODevice::WriteOnly)) return fail(file.errorString());
     bool ok = true;
     {
-        QPdfWriter pdf(encrypted ? static_cast<QIODevice *>(&memory) : static_cast<QIODevice *>(&file));
+        QPdfWriter pdf(inMemory ? static_cast<QIODevice *>(&memory) : static_cast<QIODevice *>(&file));
         pdf.setCreator(QStringLiteral("JeffCrunch"));
         pdf.setTitle(QFileInfo(m_options.fileName).completeBaseName());
         // PDF/A-1b: Qt puts every font in the file, writes the identification and an sRGB output intent, and leaves transparency out
@@ -865,11 +962,14 @@ bool PrintJob::exportPdf(const QString &path, const QVector<int> &pages, QString
         if (m_cancelled) return fail(QCoreApplication::translate("jp::crunch::PrintJob", "It was cancelled, and no file was made."));
         return fail(QCoreApplication::translate("jp::crunch::PrintJob", "The pages could not be put in the file."));
     }
-    if (encrypted) {
-        QString why;
-        const QByteArray locked = jp::encryptPdf(memory.data(), *protect, &why);
-        if (locked.isEmpty()) return fail(why);
-        if (!file.open(QIODevice::WriteOnly) || file.write(locked) != locked.size()) return fail(file.errorString());
+    if (inMemory) {
+        QByteArray bytes = links.isEmpty() ? memory.data() : jp::addPdfLinks(memory.data(), links);
+        if (encrypted) {
+            QString why;
+            bytes = jp::encryptPdf(bytes, *protect, &why);
+            if (bytes.isEmpty()) return fail(why);
+        }
+        if (!file.open(QIODevice::WriteOnly) || file.write(bytes) != bytes.size()) return fail(file.errorString());
     }
     if (!file.commit()) return fail(file.errorString());
     return true;
