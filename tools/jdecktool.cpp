@@ -347,13 +347,12 @@ int fingerprint(const Document &doc)
         solids += fill.type == Fill::Solid;
         lines << QStringLiteral("background\t%1\t%2").arg(where, QString::fromUtf8(QJsonDocument(o).toJson(QJsonDocument::Compact)));
     };
-    // (A master with no background is saved with a white one, which a file has to have: the same to the eye.)
-    int number = 0;
+    int masters = 0, layouts = 0;
     for (const auto &m : doc.masters) {
-        const bool white = m->background.type == Fill::Solid && m->background.color.kind() == ColorRef::Rgb && m->background.color.rgbValue() == QColor(Qt::white);
-        if (!white) background(QStringLiteral("master %1").arg(number), m->background);
+        const bool master = deck::isSlideMaster(*m);
+        background(master ? QStringLiteral("master %1").arg(masters) : QStringLiteral("layout %1").arg(layouts), m->background);
+        ++(master ? masters : layouts);
         walkLinks(doc, m->items, lines, links);
-        ++number;
     }
     for (int i = 0; i < doc.pages.size(); ++i) {
         background(QStringLiteral("slide %1").arg(i + 1), doc.pages[i]->background);

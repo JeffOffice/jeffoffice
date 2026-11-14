@@ -61,8 +61,15 @@ void collect(const Document &d, LayoutCache &cache, const RenderOptions &opt, in
 
 } // namespace
 
+namespace {
+thread_local qint64 g_runs = 0;
+}
+
+qint64 linkAreaRunsForTest() { return g_runs; }
+
 QVector<LinkArea> linkAreas(const Document &d, LayoutCache &cache, int slide, const RenderOptions &opt)
 {
+    ++g_runs;
     QVector<LinkArea> out;
     if (slide < 0 || slide >= d.pages.size()) return out;
     collect(d, cache, opt, slide, d.pages[slide]->items, out);

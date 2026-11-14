@@ -21,4 +21,7 @@ struct LinkArea {
 // drawing made is the one used (none is made again).
 QVector<LinkArea> linkAreas(const Document &d, LayoutCache &cache, int slide, const RenderOptions &opt);
 
+// How many times areas have been worked out on this thread since the program began (a count for tests of cost).
+qint64 linkAreaRunsForTest();
+
 } // namespace jp::deck

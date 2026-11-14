@@ -771,11 +771,12 @@ private Q_SLOTS:
         show.resize(960, 540);
         show.show();
         QVERIFY(!show.grab().isNull());   // (the slide is drawn)
-        const qint64 before = LayoutCache::layoutsMadeForTest();
+        const qint64 before = LayoutCache::layoutsMadeForTest(), runs = deck::linkAreaRunsForTest();
         for (int i = 0; i < 30; ++i) QTest::mouseMove(&show, QPoint(20 + 20 * i, 100 + (i % 3) * 5));
         QTest::mouseMove(&show, QPoint(50, 330));
         QCOMPARE(show.cursor().shape(), Qt::PointingHandCursor);
         QCOMPARE(LayoutCache::layoutsMadeForTest(), before);
+        QVERIFY2(deck::linkAreaRunsForTest() - runs <= 1, "the areas of the slide are worked out once");
     }
 
     // The eleven action buttons have codes in a publication too, so that saving one there keeps its picture.

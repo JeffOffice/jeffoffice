@@ -1197,7 +1197,7 @@ void SlideShow::followLink(const QString &link)
     if (t.kind == office::LinkKind::File && office::isProgramFile(t.address)) {
         const QString text = tr("This link opens a program, so it was not opened.");
         if (m_linkNotice) m_linkNotice(text);
-        else QMessageBox::warning(this, tr("Open Link"), text);
+        else jp::plainWarning(this, tr("Open Link"), text);
         return;
     }
     QUrl url;
