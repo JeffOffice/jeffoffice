@@ -68,6 +68,7 @@ class Ruler;
 class VerticalRuler;
 class SpellPane;
 class AccessPane;
+struct SheetLayout;
 }
 namespace recovery {
 struct Recovered;
@@ -91,6 +92,10 @@ struct WriteOutputOptions {
     QVector<int> pageList;
     bool byHand = false;        // both sides of the paper with a printer that has no duplex: the odd pages, a prompt to turn the stack over, then the even pages last first
     bool pdfArchive = false;    // Export to PDF: a PDF/A-1b file, for keeping (fonts embedded, no transparency, and the standard's mark in its metadata)
+    bool pdfMinimum = false;    // Export to PDF: Minimum size (pictures downsampled to 150 ppi, and compressed); else Standard
+    bool pdfProperties = true;  // Export to PDF: the document's properties (title, author, subject, keywords) are the PDF's
+    bool pdfBookmarks = true;   // Export to PDF: a bookmark for each heading
+    bool pdfTags = false;       // Export to PDF: tagged for screen readers
     jp::PdfProtection pdfProtect;   // Export to PDF: a password to open it with (never with pdfArchive); wiped after the export
     int perSheet = 1;           // pages on a sheet: 1, 2, 4, 6, 9, or 16 (each scaled to fit its place)
     QSizeF scaleTo;             // points, upright: each page is scaled to fit this paper (empty: the page's own)
@@ -202,6 +207,8 @@ public:
     bool exportEmail(EmailWhat what, const jp::PdfProtection &protect = jp::PdfProtection());
     // The pages (by index) as a PDF, in memory; empty, with the reason, when they can't be made.
     QByteArray pdfBytes(const QVector<int> &pages, QString *error, bool archive = false);
+    // The same with the choices of Export to PDF (the size, the properties, the bookmarks, the tags, and PDF/A); `notTagged` is given the reason when tags were asked for and left out.
+    QByteArray pdfBytes(const QVector<int> &pages, QString *error, const WriteOutputOptions &options, QString *notTagged = nullptr);
     // Version history: named copies of the document kept on this computer (see app/versionstore.h). Each needs a file the document has been saved as.
     QVector<write::DocVersion> versions() const;
     bool saveVersion(const QString &name);
@@ -463,6 +470,8 @@ private:
     void showContextMenu(const QPoint &globalPos);
     // Where a PDF is to be written: asked for, or what the stand-in (tests) gives. Empty when none was chosen.
     QString pdfPathToWrite(const QString &title);
+    // The sheets (pages by index, -1 for a blank one) of `source` as a PDF with the choices of `options`, in memory; empty, with the reason, when they can't be made.
+    QByteArray pdfSheets(write::WriteDoc &source, int sourcePages, const QVector<int> &sheets, const write::SheetLayout &layout, bool grayscale, const WriteOutputOptions &options, QString *error, QString *notTagged);
     QString helpContext() const;
     HelpWindow *showHelpOver(const QString &topic);
     void updateStatus();

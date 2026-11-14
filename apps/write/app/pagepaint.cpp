@@ -163,6 +163,8 @@ void paintPage(QPainter *p, flow::MaterializedPage &page, LayoutCache *layouts, 
     ctx.opt.showSpecial = d.marks;
     ctx.opt.shadeFields = d.shadeFields && !d.output;
     ctx.opt.grayscale = d.grayscale;
+    ctx.opt.maxImageDpi = d.maxImageDpi;
+    ctx.opt.exactImageDpi = true;
     const QString bodyId = bodyStoryId(page);
     const Story *body = bodyId.isEmpty() ? nullptr : page.doc->story(bodyId);
     // The selection, in the positions of the page's own story.

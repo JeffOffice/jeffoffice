@@ -39,6 +39,8 @@ struct RenderOptions {
     double flattenDpi = 300;
     // Output only: pictures are downsampled to at most this resolution (0: keep).
     double maxImageDpi = 0;
+    // With maxImageDpi: a picture is made that resolution exactly (a word processor's minimum size), not the first half of its own size that is no finer than a half more than that.
+    bool exactImageDpi = false;
     bool noMaster = false;        // the master pages' objects are left out (printing a selection alone)
     bool skipPictures = false;    // spot color plates: pictures print on the process plates
 };

@@ -42,7 +42,7 @@ QSize sheetGrid(int perSheet)
     }
 }
 
-bool paintSheets(WriteDoc &doc, QPagedPaintDevice *device, const QVector<int> &pages, int pageCount, bool grayscale, const SheetLayout &layout)
+bool paintSheets(WriteDoc &doc, QPagedPaintDevice *device, const QVector<int> &pages, int pageCount, bool grayscale, const SheetLayout &layout, double maxImageDpi)
 {
     auto *printer = dynamic_cast<QPrinter *>(device);
     if (printer) printer->setFullPage(true);
@@ -61,6 +61,7 @@ bool paintSheets(WriteDoc &doc, QPagedPaintDevice *device, const QVector<int> &p
         d.textOutput = printer ? TextOutput::Print : TextOutput::Pdf;
         d.pageCount = pageCount;
         d.grayscale = grayscale;
+        d.maxImageDpi = maxImageDpi;
         paintPage(&p, page, &cache, d);
         p.restore();
     };

@@ -193,33 +193,58 @@ QString WriteWindow::pdfPathToWrite(const QString &title)
 
 QByteArray WriteWindow::pdfBytes(const QVector<int> &pages, QString *error, bool archive)
 {
+    WriteOutputOptions options;
+    options.pdfArchive = archive;
+    return pdfBytes(pages, error, options);
+}
+
+QByteArray WriteWindow::pdfBytes(const QVector<int> &pages, QString *error, const WriteOutputOptions &options, QString *notTagged)
+{
     if (!m_doc || pages.isEmpty()) {
         if (error) *error = tr("The pages can't be made.");
         return {};
     }
     HiddenTextOff noHidden(m_doc.get());
     EditedStoryHeld held(m_doc->pager(), m_view->inHeaderFooter() ? m_view->headerFooterEdit().story : nullptr);
+    return pdfSheets(*m_doc, m_view->pageCount(), pages, write::SheetLayout(), false, options, error, notTagged);
+}
+
+QByteArray WriteWindow::pdfSheets(write::WriteDoc &source, int sourcePages, const QVector<int> &sheets, const write::SheetLayout &layout, bool grayscale, const WriteOutputOptions &options, QString *error, QString *notTagged)
+{
+    Q_UNUSED(notTagged);
     // The pages are made in memory: the bookmarks from the headings are added to the finished file.
     QBuffer made;
     made.open(QIODevice::WriteOnly);
     bool ok = false;
+    const office::PackageProps props = m_doc->packageProps();
+    const QString title = props.title.isEmpty() ? displayName() : props.title;
     {
         QPdfWriter pdf(&made);
         pdf.setCreator(appInfo().name);
-        if (archive) pdf.setPdfVersion(QPdfWriter::PdfVersion_A1b);
-        const office::PackageProps props = m_doc->packageProps();
-        const QString title = props.title.isEmpty() ? displayName() : props.title;
-        pdf.setTitle(title);
-        pdf.setDocumentXmpMetadata(write::pdfPropertiesXmp(title, m_personalInfoRemoved ? QString() : props.creator, props.subject, props.keywords, appInfo().name, archive));
+        if (options.pdfArchive) pdf.setPdfVersion(QPdfWriter::PdfVersion_A1b);
+        if (options.pdfProperties) {
+            pdf.setTitle(title);
+            pdf.setDocumentXmpMetadata(write::pdfPropertiesXmp(title, m_personalInfoRemoved ? QString() : props.creator, props.subject, props.keywords, appInfo().name, options.pdfArchive));
+        } else if (options.pdfArchive) {
+            pdf.setDocumentXmpMetadata(write::pdfPropertiesXmp(QString(), QString(), QString(), QString(), appInfo().name, true));
+        }
         pdf.setResolution(1200);
         pdf.setPageMargins(QMarginsF(0, 0, 0, 0));
-        ok = write::paintSheets(*m_doc, &pdf, pages, m_view->pageCount());
+        ok = write::paintSheets(source, &pdf, sheets, sourcePages, grayscale, layout, options.pdfMinimum ? 150 : 0);
     }
     if (!ok) {
         if (error) *error = tr("The pages can't be made.");
         return {};
     }
-    return write::addPdfBookmarks(made.data(), write::headingBookmarks(*m_doc, pages));
+    QByteArray bytes = made.data();
+    if (options.pdfBookmarks) {
+        // (a sheet of several pages is one page of the PDF)
+        const QSize grid = write::sheetGrid(layout.perSheet);
+        QVector<PdfBookmark> marks = write::headingBookmarks(source, sheets);
+        for (PdfBookmark &m : marks) m.page /= std::max(1, grid.width() * grid.height());
+        bytes = write::addPdfBookmarks(bytes, marks);
+    }
+    return bytes;
 }
 
 bool WriteWindow::exportPdf()
@@ -251,6 +276,20 @@ bool WriteWindow::exportPdfAsk()
     auto *note = new QLabel(tr("Type page numbers and ranges, separated by commas. p2s3 is the second page of section 3, and s3 is all of section 3."), &dialog);
     note->setWordWrap(true);
     layout->addWidget(note);
+    auto *size = new QComboBox(&dialog);
+    size->setObjectName(QStringLiteral("pdfSize"));
+    size->addItem(tr("Standard (for publishing online and printing)"), false);
+    size->addItem(tr("Minimum size (for publishing online)"), true);
+    size->setToolTip(tr("Minimum size makes the pictures no finer than 150 pixels to the inch, so that the file is smaller."));
+    form->addRow(tr("Optimize for:"), size);
+    auto *properties = new QCheckBox(tr("Include document properties"), &dialog);
+    properties->setObjectName(QStringLiteral("pdfProperties"));
+    properties->setChecked(true);
+    layout->addWidget(properties);
+    auto *bookmarks = new QCheckBox(tr("Create bookmarks from headings"), &dialog);
+    bookmarks->setObjectName(QStringLiteral("pdfBookmarks"));
+    bookmarks->setChecked(true);
+    layout->addWidget(bookmarks);
     auto *archive = new QCheckBox(tr("PDF/A, for keeping for a long time"), &dialog);
     archive->setObjectName(QStringLiteral("pdfArchive"));
     archive->setToolTip(tr("Makes a PDF/A-1b file: every font is in the file, so it looks the same in years. It is not tagged for screen readers."));
@@ -267,6 +306,9 @@ bool WriteWindow::exportPdfAsk()
     const auto wipePasswords = qScopeGuard([&o] { o.pdfProtect.wipe(); });
     o.pdfProtect = protect->protection();
     o.pdfArchive = archive->isChecked() && !o.pdfProtect.isSet();
+    o.pdfMinimum = size->currentData().toBool();
+    o.pdfProperties = properties->isChecked();
+    o.pdfBookmarks = bookmarks->isChecked();
     o.range = static_cast<WriteOutputOptions::Range>(which->currentData().toInt());
     o.pages = text->text();
     if (o.range == WriteOutputOptions::Range::Pages && outputPages(o).isEmpty()) {
@@ -287,7 +329,10 @@ bool WriteWindow::exportPdfPages(const WriteOutputOptions &options)
     if (path.isEmpty()) return false;
     QString err;
     QApplication::setOverrideCursor(Qt::WaitCursor);
-    QByteArray bytes = pdfBytes(pages, &err, options.pdfArchive && !options.pdfProtect.isSet());
+    WriteOutputOptions made = options;
+    made.pdfArchive = options.pdfArchive && !options.pdfProtect.isSet();
+    QString notTagged;
+    QByteArray bytes = pdfBytes(pages, &err, made, &notTagged);
     bool ok = !bytes.isEmpty();
     // With a password, the file is written once, encrypted: the plain PDF stays in memory.
     if (ok && options.pdfProtect.isSet()) {
@@ -617,19 +662,10 @@ bool WriteWindow::printOutput(const WriteOutputOptions &options)
     QPrinter printer(QPrinter::HighResolution);
     printer.setDocName(displayName());
     QString path;
-    // A PDF file is made in a temporary file and put in place when it is whole, as the export does, so that a file that is there is not lost to one that fails.
-    std::unique_ptr<QTemporaryFile> made;
+    // A PDF file is made as the export makes it (with the properties and the bookmarks), and put in place when it is whole, so that a file that is there is not lost to one that fails.
     if (options.toFile) {
         path = pdfPathToWrite(tr("Save as PDF"));
         if (path.isEmpty()) return false;
-        made = std::make_unique<QTemporaryFile>(QDir::tempPath() + QStringLiteral("/jeffwrite-XXXXXX.pdf"));
-        if (!made->open()) {
-            jp::plainWarning(this, tr("Save as PDF"), tr("%1 couldn't make \"%2\".\n%3").arg(appInfo().name, QFileInfo(path).fileName(), made->errorString()));
-            return false;
-        }
-        made->close();
-        printer.setOutputFormat(QPrinter::PdfFormat);
-        printer.setOutputFileName(made->fileName());
     } else if (!options.printer.isEmpty()) {
         printer.setPrinterName(options.printer);
     }
@@ -660,20 +696,22 @@ bool WriteWindow::printOutput(const WriteOutputOptions &options)
     layout.perSheet = options.perSheet;
     layout.paper = options.scaleTo;
     layout.turn = options.turn;
-    bool ok = write::paintSheets(*source, &printer, sheets, sourcePages, printer.colorMode() == QPrinter::GrayScale, layout);
+    bool ok = false;
     QString err;
-    if (ok && made) {
-        QFile whole(made->fileName());
-        QSaveFile file(path);
-        ok = whole.open(QIODevice::ReadOnly) && file.open(QIODevice::WriteOnly);
-        while (ok && !whole.atEnd()) ok = file.write(whole.read(1 << 20)) >= 0;
-        if (ok) ok = file.commit();
-        else file.cancelWriting();
-        if (!ok) err = file.error() != QFileDevice::NoError ? file.errorString() : whole.errorString();
+    if (options.toFile) {
+        QByteArray bytes = pdfSheets(*source, sourcePages, sheets, layout, options.grayscale, WriteOutputOptions(), &err, nullptr);
+        ok = !bytes.isEmpty();
+        if (ok) {
+            QSaveFile file(path);
+            ok = file.open(QIODevice::WriteOnly) && file.write(bytes) == bytes.size() && file.commit();
+            if (!ok) err = file.errorString();
+        }
+    } else {
+        ok = write::paintSheets(*source, &printer, sheets, sourcePages, printer.colorMode() == QPrinter::GrayScale, layout);
     }
     QApplication::restoreOverrideCursor();
     if (!ok) {
-        if (made && !err.isEmpty()) printNotice(this, tr("Save as PDF"), tr("%1 couldn't save \"%2\".\n%3%4").arg(appInfo().name, QFileInfo(path).fileName(), err, saveFailureHint(err)));
+        if (options.toFile && !err.isEmpty()) printNotice(this, tr("Save as PDF"), tr("%1 couldn't save \"%2\".\n%3%4").arg(appInfo().name, QFileInfo(path).fileName(), err, saveFailureHint(err)));
         else printNotice(this, tr("Print"), tr("Couldn't print \"%1\" to %2.").arg(displayName(), options.toFile ? QFileInfo(path).fileName() : options.printer.isEmpty() ? printer.printerName() : options.printer));
         return false;
     }

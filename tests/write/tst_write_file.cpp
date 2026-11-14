@@ -2,6 +2,7 @@
 
 #include "../isolatesettings.h"
 #include "../localepin.h"
+#include "../pdfmarkcheck.h"
 #include "app/filescreen.h"
 #include "app/optionsdialog.h"
 #include "app/settings.h"
@@ -13,6 +14,8 @@
 #include "core/fonts.h"
 #include "app/emailops.h"
 #include "core/pdfbookmarks.h"
+#include "io/qtpdf.h"
+#include "app/pdfprotection.h"
 #include "core/printing.h"
 #include "app/versionstore.h"
 #include "core/templates.h"
@@ -34,6 +37,9 @@
 #include <QPainter>
 #include <QPrinter>
 #include <QPdfWriter>
+#include <QRegularExpression>
+#include <QPushButton>
+#include <QTimer>
 #include <QTemporaryDir>
 #include <QTest>
 
@@ -85,6 +91,64 @@ QByteArray headingsDocx(const QByteArray &body)
 QByteArray para(const char *style, const char *text)
 {
     return QByteArray("<w:p>") + (style ? QByteArray("<w:pPr><w:pStyle w:val=\"") + style + "\"/></w:pPr>" : QByteArray()) + "<w:r><w:t>" + text + "</w:t></w:r></w:p>";
+}
+
+// A .docx with a heading, a paragraph, two paragraphs for a list, a table with a header row, and a 2-inch picture of 600 by 600 pixels with alt text.
+QByteArray richDocx(const QString &alt)
+{
+    QImage image(600, 600, QImage::Format_RGB32);
+    for (int y = 0; y < 600; ++y)
+        for (int x = 0; x < 600; ++x) image.setPixel(x, y, qRgb((x * 7 + y * 3) & 255, (x * y) & 255, (x ^ y) & 255));
+    QByteArray png;
+    QBuffer buffer(&png);
+    buffer.open(QIODevice::WriteOnly);
+    image.save(&buffer, "PNG");
+    const QByteArray drawing = "<w:drawing><wp:inline distT=\"0\" distB=\"0\" distL=\"0\" distR=\"0\"><wp:extent cx=\"1828800\" cy=\"1828800\"/><wp:docPr id=\"7\" name=\"Logo\" descr=\"" + alt.toUtf8() + "\"/>"
+                               "<a:graphic><a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/picture\"><pic:pic><pic:nvPicPr><pic:cNvPr id=\"0\" name=\"l.png\"/><pic:cNvPicPr/></pic:nvPicPr>"
+                               "<pic:blipFill><a:blip r:embed=\"rId9\"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"1828800\" cy=\"1828800\"/></a:xfrm>"
+                               "<a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing>";
+    auto cell = [](const char *text) { return QByteArray("<w:tc><w:p><w:r><w:t>") + text + "</w:t></w:r></w:p></w:tc>"; };
+    const QByteArray table = "<w:tbl><w:tblPr><w:tblW w:w=\"0\" w:type=\"auto\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"2000\"/><w:gridCol w:w=\"2000\"/></w:tblGrid>"
+                             "<w:tr><w:trPr><w:tblHeader/></w:trPr>" + cell("Name") + cell("Count") + "</w:tr><w:tr>" + cell("Apples") + cell("Twelve") + "</w:tr></w:tbl>";
+    const QByteArray body = para("Heading1", "First part") + para(nullptr, "Some body text.") + para(nullptr, "item one") + para(nullptr, "item two") + table +
+                            "<w:p><w:r>" + drawing + "</w:r></w:p>";
+    const QByteArray ns = QByteArray(kNs) + " xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" "
+                          "xmlns:pic=\"http://schemas.openxmlformats.org/drawingml/2006/picture\"";
+    office::PackageWriter w;
+    w.addPart(QStringLiteral("/word/document.xml"), QByteArray("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n<w:document ") + ns + "><w:body>" + body + "</w:body></w:document>",
+              kWord + QStringLiteral("document.main+xml"));
+    w.addRelationship(QStringLiteral("/"), kRel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+    w.addPart(QStringLiteral("/word/styles.xml"),
+              QByteArray("<?xml version=\"1.0\"?><w:styles ") + kNs +
+                  "><w:style w:type=\"paragraph\" w:default=\"1\" w:styleId=\"Normal\"><w:name w:val=\"Normal\"/></w:style>"
+                  "<w:style w:type=\"paragraph\" w:styleId=\"Heading1\"><w:name w:val=\"heading 1\"/><w:pPr><w:outlineLvl w:val=\"0\"/></w:pPr></w:style></w:styles>",
+              kWord + QStringLiteral("styles+xml"));
+    w.addRelationship(QStringLiteral("/word/document.xml"), kRel + QStringLiteral("styles"), QStringLiteral("/word/styles.xml"));
+    w.addPart(QStringLiteral("/word/media/p.png"), png, QStringLiteral("image/png"));
+    w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rId9"), kRel + QStringLiteral("image"), QStringLiteral("/word/media/p.png"));
+    return w.finish();
+}
+
+// The widest picture in a PDF, in pixels (0 for none).
+int widestPictureIn(const QByteArray &pdf)
+{
+    jp::QtPdf q;
+    if (!q.loadBytes(pdf)) return 0;
+    int widest = 0;
+    static const QRegularExpression width(QStringLiteral("/Width (\\d+)"));
+    for (const jp::QtPdf::Obj &o : q.objects) {
+        const QByteArray dict = jp::QtPdf::dictOf(o.body);
+        if (!dict.contains("/Subtype /Image")) continue;
+        const auto m = width.match(QString::fromLatin1(dict));
+        if (m.hasMatch()) widest = std::max(widest, m.captured(1).toInt());
+    }
+    return widest;
+}
+
+QByteArray fileBytes(const QString &path)
+{
+    QFile f(path);
+    return f.open(QIODevice::ReadOnly) ? f.readAll() : QByteArray();
 }
 
 const char kPageBreak[] = "<w:p><w:r><w:br w:type=\"page\"/></w:r></w:p>";
@@ -424,6 +488,196 @@ private Q_SLOTS:
         QVERIFY(pdf.contains("alpha, beta"));
         QVERIFY(pdf.contains("A Report"));
         QCOMPARE(PdfDocument::shared(pdf)->pageCount(), 2);
+    }
+
+    // Opens a window on the rich test document and makes the two paragraphs "item one" and "item two" a bulleted list.
+    static void openRich(WriteWindow &w, const QTemporaryDir &dir, const QString &alt = QStringLiteral("A noisy logo"))
+    {
+        const QString docx = dir.filePath(QStringLiteral("rich.docx"));
+        QFile f(docx);
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write(richDocx(alt));
+        f.close();
+        QVERIFY(w.openFile(docx));
+        const QString text = w.document()->story()->toPlainText();
+        QTextCursor c(w.document()->story());
+        c.setPosition(int(text.indexOf(QStringLiteral("item one"))));
+        c.setPosition(int(text.indexOf(QStringLiteral("item two"))) + 4, QTextCursor::KeepAnchor);
+        toggleList(*w.document(), c, false);
+    }
+
+    // Save as PDF has the choices of the reference: Standard or Minimum size, the pages, the document properties, and the bookmarks from headings.
+    void theSaveAsPdfBoxHasTheSwitchesAndTheyTakeEffect()
+    {
+        QTemporaryDir dir;
+        WriteWindow w;
+        Quiet quiet(w);
+        openRich(w, dir);
+        office::PackageProps props = w.document()->packageProps();
+        props.creator = QStringLiteral("Zed Author");
+        w.document()->setPackageProps(props);
+        QString target;
+        w.setSavePathChooser([&](const QString &, const QString &) { return target; });
+        // Runs the box, sets what `set` sets, and returns the PDF.
+        auto run = [&](const QString &name, const std::function<void(QDialog *)> &set) {
+            target = dir.filePath(name);
+            bool found = false;
+            std::function<void(int)> answer = [&](int tries) {
+                QTimer::singleShot(20, [&, tries] {
+                    auto *d = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+                    if (!d || d->objectName() != QLatin1String("pdfDialog")) {
+                        if (tries > 0) answer(tries - 1);
+                        return;
+                    }
+                    found = true;
+                    set(d);
+                    d->accept();
+                });
+            };
+            answer(250);
+            const bool ok = w.exportPdfAsk();
+            return ok && found ? fileBytes(target) : QByteArray();
+        };
+        auto check = [](QDialog *d, const char *name, bool on) {
+            auto *box = d->findChild<QCheckBox *>(QString::fromLatin1(name));
+            QVERIFY2(box, name);
+            box->setChecked(on);
+        };
+        const QByteArray standard = run(QStringLiteral("standard.pdf"), [](QDialog *) {});
+        QVERIFY(standard.startsWith("%PDF"));
+        QVERIFY(standard.contains("/Type /Outlines"));
+        QVERIFY(standard.contains("Zed Author"));
+        QCOMPARE(widestPictureIn(standard), 600);
+        const QByteArray minimum = run(QStringLiteral("minimum.pdf"), [](QDialog *d) {
+            auto *size = d->findChild<QComboBox *>(QStringLiteral("pdfSize"));
+            QVERIFY(size);
+            size->setCurrentIndex(1);
+        });
+        QVERIFY(minimum.startsWith("%PDF"));
+        // 2 inches at 150 pixels to the inch is 300 pixels (a little over is the rounding of the downsampling)
+        QVERIFY2(widestPictureIn(minimum) > 0 && widestPictureIn(minimum) <= 320, qPrintable(QString::number(widestPictureIn(minimum))));
+        QVERIFY(minimum.size() < standard.size());
+        const QByteArray bare = run(QStringLiteral("bare.pdf"), [&](QDialog *d) {
+            check(d, "pdfProperties", false);
+            check(d, "pdfBookmarks", false);
+        });
+        QVERIFY(bare.startsWith("%PDF"));
+        QVERIFY(!bare.contains("/Type /Outlines"));
+        QVERIFY(!bare.contains("Zed Author"));
+        // the page range is still in the box
+        QVERIFY(!run(QStringLiteral("range.pdf"), [](QDialog *d) { QVERIFY(d->findChild<QComboBox *>(QStringLiteral("pdfRange"))); }).isEmpty());
+    }
+
+    // The PDF that Print makes to a file has the properties and the bookmarks too.
+    void thePdfThatPrintMakesHasPropertiesAndBookmarks()
+    {
+        QTemporaryDir dir;
+        WriteWindow w;
+        Quiet quiet(w);
+        openRich(w, dir);
+        office::PackageProps props = w.document()->packageProps();
+        props.creator = QStringLiteral("Zed Author");
+        w.document()->setPackageProps(props);
+        const QString target = dir.filePath(QStringLiteral("printed.pdf"));
+        w.setSavePathChooser([&](const QString &, const QString &) { return target; });
+        WriteOutputOptions o;
+        o.toFile = true;
+        QVERIFY(w.printOutput(o));
+        const QByteArray pdf = fileBytes(target);
+        QVERIFY(pdf.startsWith("%PDF"));
+        QVERIFY(pdf.contains("/Type /Outlines"));
+        QVERIFY(pdf.contains(utf16Hex(QStringLiteral("First part"))));
+        QVERIFY(pdf.contains("Zed Author"));
+    }
+
+    // A tagged PDF: the headings, paragraphs, a list, a table with a header row, and a picture with its alt text are in a structure tree in reading order, the marks are all gone, and the
+    // language is named.
+    void aTaggedPdfHasTheStructureOfTheDocument()
+    {
+        QTemporaryDir dir;
+        WriteWindow w;
+        Quiet quiet(w);
+        openRich(w, dir, QStringLiteral("A noisy logo"));
+        QString target = dir.filePath(QStringLiteral("tagged.pdf"));
+        w.setSavePathChooser([&](const QString &, const QString &) { return target; });
+        WriteOutputOptions o;
+        o.pdfTags = true;
+        QVERIFY(w.exportPdfPages(o));
+        const QByteArray pdf = fileBytes(target);
+        QVERIFY(pdf.startsWith("%PDF"));
+        QVERIFY(pdf.contains("/StructTreeRoot"));
+        QVERIFY(pdf.contains("/MarkInfo"));
+        QVERIFY(pdf.contains("/Lang (en-US)"));
+        jp::QtPdf q;
+        QVERIFY(q.loadBytes(pdf));
+        QStringList types;
+        QByteArray all;
+        for (const jp::QtPdf::Obj &obj : q.objects) {
+            all += obj.body + "\n";
+            if (!obj.body.contains("/Type /StructElem")) continue;
+            const int at = int(obj.body.indexOf("/S /"));
+            types << QString::fromLatin1(obj.body.mid(at + 4, obj.body.indexOf(' ', at + 4) - at - 4));
+        }
+        for (const char *t : {"H1", "P", "L", "LI", "LBody", "Table", "TR", "TH", "TD", "Figure"}) QVERIFY2(types.contains(QLatin1String(t)), t);
+        QVERIFY(all.contains("/Alt " + utf16Hex(QStringLiteral("A noisy logo"))));
+        // reading order: the heading, the paragraph, the list, the table, then the picture
+        QVERIFY(types.indexOf(QStringLiteral("H1")) < types.indexOf(QStringLiteral("P")));
+        QVERIFY(types.indexOf(QStringLiteral("P")) < types.indexOf(QStringLiteral("L")));
+        QVERIFY(types.indexOf(QStringLiteral("L")) < types.indexOf(QStringLiteral("Table")));
+        QVERIFY(types.indexOf(QStringLiteral("Table")) < types.indexOf(QStringLiteral("Figure")));
+        QCOMPARE(pdfcheck::marksLeft(pdf), 0);
+        const QVector<QByteArray> pages = pdfcheck::pageContents(pdf);
+        QVERIFY(!pages.isEmpty());
+        for (int i = 0; i < pages.size(); ++i) QCOMPARE(pdfcheck::drawnOutsideMarkedContent(pages[i]), 0);
+        // the text is still the PDF's text
+        QVERIFY(PdfDocument::shared(pdf)->text(0).contains(QStringLiteral("Some body text.")));
+        // untagged by default
+        target = dir.filePath(QStringLiteral("plain.pdf"));
+        QVERIFY(w.exportPdf());
+        QVERIFY(!fileBytes(target).contains("/StructTreeRoot"));
+    }
+
+    // PDF/A-2b: the metadata names part 2, conformance B; the output intent is there; every font is embedded.
+    void aPdfA2bFileHasItsMarksFontsAndOutputIntent()
+    {
+        QTemporaryDir dir;
+        WriteWindow w;
+        Quiet quiet(w);
+        openRich(w, dir);
+        const QString target = dir.filePath(QStringLiteral("archive.pdf"));
+        w.setSavePathChooser([&](const QString &, const QString &) { return target; });
+        WriteOutputOptions o;
+        o.pdfArchive = true;
+        o.pdfTags = true;
+        QVERIFY(w.exportPdfPages(o));
+        const QByteArray pdf = fileBytes(target);
+        QVERIFY(pdf.startsWith("%PDF"));
+        QVERIFY2(pdf.contains("<pdfaid:part>2</pdfaid:part>"), "not part 2");
+        QVERIFY(pdf.contains("<pdfaid:conformance>B</pdfaid:conformance>"));
+        QVERIFY(!pdf.contains("<pdfaid:part>1</pdfaid:part>"));
+        QVERIFY(pdf.contains("/OutputIntents"));
+        QVERIFY(pdf.contains("GTS_PDFA1"));
+        QVERIFY(pdf.contains("/DestOutputProfile"));
+        jp::QtPdf q;
+        QVERIFY(q.loadBytes(pdf));
+        int fonts = 0, descriptors = 0;
+        for (const jp::QtPdf::Obj &obj : q.objects) {
+            const QByteArray dict = jp::QtPdf::dictOf(obj.body);
+            if (dict.contains("/Type /Font\n") || dict.contains("/Type /Font ")) {
+                ++fonts;
+                QVERIFY2(!dict.contains("/Subtype /Type1") && !dict.contains("/Subtype /TrueType"), "a font that is not embedded as a composite font");
+            }
+            if (dict.contains("/Type /FontDescriptor")) {
+                ++descriptors;
+                QVERIFY2(obj.body.contains("/FontFile"), "a font that is not embedded");
+            }
+        }
+        QVERIFY(fonts > 0);
+        QVERIFY(descriptors > 0);
+        // a plain export has no mark
+        WriteOutputOptions plain;
+        QVERIFY(w.exportPdfPages(plain));
+        QVERIFY(!fileBytes(target).contains("pdfaid"));
     }
 
     void theBuiltInTemplatesOpenAndSaveAsDocx()

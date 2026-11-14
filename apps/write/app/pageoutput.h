@@ -23,6 +23,7 @@ struct SheetLayout {
 };
 // The columns and rows that a number of pages on a sheet makes (1 for any number that isn't one of 1, 2, 4, 6, 9, 16).
 QSize sheetGrid(int perSheet);
-bool paintSheets(WriteDoc &doc, QPagedPaintDevice *device, const QVector<int> &pages, int pageCount, bool grayscale = false, const SheetLayout &layout = SheetLayout());
+// `maxImageDpi`: pictures are downsampled to that many pixels to the inch (a PDF of minimum size; 0 leaves them as they are).
+bool paintSheets(WriteDoc &doc, QPagedPaintDevice *device, const QVector<int> &pages, int pageCount, bool grayscale = false, const SheetLayout &layout = SheetLayout(), double maxImageDpi = 0);
 
 } // namespace jp::write

@@ -1022,8 +1022,11 @@ static void paintPicture(QPainter *p, const PaintContext &ctx, const PictureItem
     } else {
         const double ds = deviceScale(p);
         QSizeF dev = ctx.opt.output ? QSizeF() : QSizeF(pic.imgRect.width() * ds, pic.imgRect.height() * ds);
-        if (ctx.opt.output && ctx.opt.maxImageDpi > 0)
+        QSizeF exact;
+        if (ctx.opt.output && ctx.opt.maxImageDpi > 0) {
             dev = QSizeF(pic.imgRect.width(), pic.imgRect.height()) * (ctx.opt.maxImageDpi / 72.0 / 1.5);
+            if (ctx.opt.exactImageDpi) dev = exact = QSizeF(pic.imgRect.width(), pic.imgRect.height()) * (ctx.opt.maxImageDpi / 72.0);
+        }
         p->save();
         p->setClipPath(mask, Qt::IntersectClip);
         p->setRenderHint(QPainter::SmoothPixmapTransform);
@@ -1056,7 +1059,7 @@ static void paintPicture(QPainter *p, const PaintContext &ctx, const PictureItem
         } else {
             // Into pixels (a screen or an image, not a PDF, which keeps the picture whole): the size it covers.
             const bool pixels = p->paintEngine() && p->paintEngine()->type() == QPaintEngine::Raster;
-            p->drawImage(pic.imgRect, Renderer::processedImage(*ctx.doc, pic, dev, pixels ? QSizeF(pic.imgRect.width() * ds, pic.imgRect.height() * ds) : QSizeF()));
+            p->drawImage(pic.imgRect, Renderer::processedImage(*ctx.doc, pic, dev, pixels ? QSizeF(pic.imgRect.width() * ds, pic.imgRect.height() * ds) : exact));
             if (ctx.opt.textOutput == TextOutput::Pdf && !ctx.opt.flattenTransparency) paintDrawnWords(p, src, pic.imgRect, r);
         }
         p->restore();
