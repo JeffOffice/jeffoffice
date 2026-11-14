@@ -99,6 +99,19 @@ public:
     VAlign valign = VAlign::Top;
     Autofit autofit = NoAutofit;
     bool vertical = false;       // text direction rotated 90°
+    bool turnedBack = false;     // with `vertical`: rotated 270° (it reads upward) instead
+    // A point of the box (its own coordinates) in the coordinates the text is laid out in (turned text is laid out on its side).
+    QPointF layoutPoint(QPointF local) const
+    {
+        if (!vertical) return local;
+        return turnedBack ? QPointF(rect.height() - local.y(), local.x()) : QPointF(local.y(), rect.width() - local.x());
+    }
+    // The other way: where a point of the laid-out text is in the box.
+    QPointF boxPoint(QPointF laid) const
+    {
+        if (!vertical) return laid;
+        return turnedBack ? QPointF(laid.y(), rect.height() - laid.x()) : QPointF(rect.width() - laid.y(), laid.x());
+    }
     // The text isn't broken to the width of the frame: each paragraph is one line (broken only where it says), set against the frame as its
     // alignment says and running out of it where it is longer. A slide's text box whose file says "none" for wrapping.
     bool noWrap = false;

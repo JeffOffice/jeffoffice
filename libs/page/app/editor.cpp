@@ -933,7 +933,7 @@ bool Editor::moveIntoText()
     const auto fl = m_cache.textFrame(*m_doc, *t, surfacePageNumber(), renderOptions());
     if (!fl.layout) return false;
     QPointF local = t->transform().inverted().map(it->transform().map(QPointF(0, 0)));
-    if (t->vertical) local = QPointF(local.y(), t->rect.width() - local.x());
+    local = t->layoutPoint(local);
     int pos = fl.layout->hitTest(fl.frame, local);
     if (pos < 0) pos = fl.layout->lastPosition(fl.frame);
     const QVector<TextItem *> chain = m_doc->chainOf(t->id);
@@ -987,7 +987,7 @@ bool Editor::moveOutOfText(Wrap::Mode mode)
     const auto fl = m_cache.textFrame(*m_doc, *t, surfacePageNumber(), renderOptions());
     if (fl.layout)
         for (const auto &ob : fl.layout->inlineObjects())
-            if (ob.frame == fl.frame && ob.docPos == pos) at = t->transform().map(t->vertical ? QPointF(t->rect.width() - ob.rect.bottom(), ob.rect.left()) : ob.rect.topLeft());
+            if (ob.frame == fl.frame && ob.docPos == pos) at = t->transform().map(t->vertical ? (t->turnedBack ? QPointF(ob.rect.top(), t->rect.height() - ob.rect.right()) : QPointF(t->rect.width() - ob.rect.bottom(), ob.rect.left())) : ob.rect.topLeft());
     it->moveBy(at.x() - it->rect.x(), at.y() - it->rect.y());
     it->wrap.mode = mode;
     beginChange(tr("Wrap Text"));

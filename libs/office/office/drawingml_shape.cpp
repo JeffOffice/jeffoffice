@@ -178,7 +178,7 @@ struct BodyProperties {
     double fitLineCut = 0;      // a:normAutofit's lnSpcReduction, in percent
     int columns = 1;
     double columnGap = 0;
-    bool vertical = false;
+    bool vertical = false, turnedBack = false;
     bool noWrap = false;        // wrap="none"
     bool centerBlock = false;   // anchorCtr="1"
 };
@@ -203,7 +203,10 @@ BodyProperties readBodyProperties(const QVector<QDomElement> &bodyPrs)
     if (find("anchor", &v)) b.valign = v == QLatin1String("ctr") ? VAlign::Middle : v == QLatin1String("b") ? VAlign::Bottom : VAlign::Top;
     if (find("numCol", &v)) b.columns = int(std::clamp<qint64>(parseInt(v, 1), 1, 16));
     if (find("spcCol", &v)) b.columnGap = std::clamp(parseLength(v, 0), 0.0, 1000.0);
-    if (find("vert", &v)) b.vertical = v != QLatin1String("horz");
+    if (find("vert", &v)) {
+        b.vertical = v != QLatin1String("horz");
+        b.turnedBack = v == QLatin1String("vert270");
+    }
     if (find("wrap", &v)) b.noWrap = v == QLatin1String("none");
     if (find("anchorCtr", &v)) b.centerBlock = v == QLatin1String("1") || v == QLatin1String("true");
     for (const QDomElement &e : bodyPrs) {
@@ -772,6 +775,7 @@ ItemPtr Reader::makeTextBox(const QDomElement &cNvPr, const Frame &frame, const 
     t->columns = props.columns;
     t->columnGap = props.columnGap;
     t->vertical = props.vertical;
+    t->turnedBack = props.turnedBack;
     t->noWrap = props.noWrap;
     t->centerBlock = props.centerBlock;
     if (m_ctx.newStory) {

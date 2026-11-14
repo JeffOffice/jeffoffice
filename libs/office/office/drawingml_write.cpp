@@ -610,7 +610,7 @@ struct Body {
     VAlign valign = VAlign::Top;
     int columns = 1;
     double columnGap = 0;
-    bool vertical = false;
+    bool vertical = false, turnedBack = false;
     bool noWrap = false;
     bool centerBlock = false;
     TextItem::Autofit autofit = TextItem::NoAutofit;
@@ -622,7 +622,7 @@ void writeBody(QXmlStreamWriter &w, const Body &b, const QTextDocument *doc, boo
 {
     begin(w, "p:txBody");
     begin(w, "a:bodyPr");
-    if (b.vertical) attribute(w, "vert", QStringLiteral("vert"));
+    if (b.vertical) attribute(w, "vert", b.turnedBack ? QStringLiteral("vert270") : QStringLiteral("vert"));
     attribute(w, "wrap", b.noWrap ? QStringLiteral("none") : QStringLiteral("square"));
     if (b.centerBlock) attribute(w, "anchorCtr", QStringLiteral("1"));
     attribute(w, "lIns", inset(b.insets.left()));
@@ -694,6 +694,7 @@ void writeTextBox(QXmlStreamWriter &w, const TextItem &t, DrawingWriteContext &c
     body.columns = t.columns;
     body.columnGap = t.columnGap;
     body.vertical = t.vertical;
+    body.turnedBack = t.turnedBack;
     body.noWrap = t.noWrap;
     body.centerBlock = t.centerBlock;
     body.autofit = t.autofit;

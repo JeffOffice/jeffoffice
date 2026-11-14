@@ -1026,8 +1026,13 @@ bool Canvas::caretInfo(QLineF *pageLine, QString *frameId, int atPos) const
         t = frame->transform();
         if (frame->vertical) {
             QTransform v;
-            v.translate(frame->rect.width(), 0);
-            v.rotate(90);
+            if (frame->turnedBack) {
+                v.translate(0, frame->rect.height());
+                v.rotate(-90);
+            } else {
+                v.translate(frame->rect.width(), 0);
+                v.rotate(90);
+            }
             t = v * t;
         }
     } else if (it->type() == ItemType::Shape) {
@@ -1508,7 +1513,7 @@ int Canvas::textPosAt(const QString &itemId, const QPointF &page, int row, int c
         const auto fl = m_ed->cache().textFrame(*m_ed->doc(), *t, m_ed->surfacePageNumber(), ctx.opt);
         if (!fl.layout) return -1;
         QPointF l = local;
-        if (t->vertical) l = QPointF(local.y(), t->rect.width() - local.x());
+        l = t->layoutPoint(local);
         const int pos = fl.layout->hitTest(fl.frame, l);
         return pos < 0 ? fl.layout->lastPosition(fl.frame) : pos;
     }

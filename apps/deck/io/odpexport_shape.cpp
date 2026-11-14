@@ -298,6 +298,7 @@ void Exporter::writeTextBox(X &x, Scope &sc, const TextItem &t)
         children = QStringLiteral("<style:columns fo:column-count=\"%1\" fo:column-gap=\"%2\"/>").arg(std::clamp(t.columns, 1, 16)).arg(cm(t.columnGap));
         extra += attrOf("jo:columns", QString::number(std::clamp(t.columns, 1, 16))) + attrOf("jo:column-gap", cm(t.columnGap));
     }
+    if (t.vertical && t.turnedBack) extra += attrOf("jo:turned-back", QStringLiteral("true"));
     const QString paragraph = attrOf("style:writing-mode", t.vertical ? QStringLiteral("tb-rl") : QStringLiteral("lr-tb"));
     const QString style = frameStyle(sc, t, cls, extra, children, paragraph);
 

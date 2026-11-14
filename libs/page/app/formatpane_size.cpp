@@ -174,7 +174,7 @@ void buildSizePage(FormatPane *pane, PanePage *page)
         form->setContentsMargins(0, 0, 0, 0);
         auto *align = choices(w, "textAlign", {FormatPane::tr("Top"), FormatPane::tr("Top Centered"), FormatPane::tr("Middle"), FormatPane::tr("Middle Centered"),
                                                FormatPane::tr("Bottom"), FormatPane::tr("Bottom Centered")});
-        auto *direction = choices(w, "textDirection", {FormatPane::tr("Horizontal"), FormatPane::tr("Rotate all text 90°")});
+        auto *direction = choices(w, "textDirection", {FormatPane::tr("Horizontal"), FormatPane::tr("Rotate all text 90°"), FormatPane::tr("Rotate all text 270°")});
         auto *autofit = choices(w, "textAutofit", {FormatPane::tr("Do Not Fit"), FormatPane::tr("Shrink text on overflow"), FormatPane::tr("Resize shape to fit text")});
         form->addRow(FormatPane::tr("Vertical alignment"), align);
         form->addRow(FormatPane::tr("Text direction"), direction);
@@ -223,8 +223,14 @@ void buildSizePage(FormatPane *pane, PanePage *page)
         });
         // Text turned a quarter is a text box's; a shape's text is laid out across it.
         bindChoice(pane, direction, label, [](const Item &it) -> std::optional<int> {
-            return it.type() == ItemType::Text ? std::optional<int>(static_cast<const TextItem &>(it).vertical ? 1 : 0) : nullopt;
-        }, [](Item &it, int i) { static_cast<TextItem &>(it).vertical = i == 1; });
+            if (it.type() != ItemType::Text) return nullopt;
+            const auto &t = static_cast<const TextItem &>(it);
+            return t.vertical ? (t.turnedBack ? 2 : 1) : 0;
+        }, [](Item &it, int i) {
+            auto &t = static_cast<TextItem &>(it);
+            t.vertical = i >= 1;
+            t.turnedBack = i == 2;
+        });
         // Shrinking text to fit and growing the box to fit are a text box's; a shape's text keeps its size.
         bindChoice(pane, autofit, label, [](const Item &it) -> std::optional<int> {
             if (it.type() == ItemType::Text) {

@@ -903,6 +903,49 @@ private Q_SLOTS:
         }
     }
 
+    // The text of a box can run across it, turned 90 degrees (down), or turned 270 degrees (up); the choice is one step, and both files keep it.
+    void textDirectionHasBothQuarterTurns()
+    {
+        Rig r(0);
+        auto t = std::make_shared<TextItem>();
+        t->name = QStringLiteral("Text 1");
+        t->rect = QRectF(40, 60, 100, 240);
+        t->storyId = r.ed.doc()->createStory(QStringLiteral("Up and down"));
+        r.ed.addItem(t, false);
+        r.ids << t->id;
+        r.select({0});
+        pane_page(r, FormatPane::Tab::SizeProperties);
+        auto text = [&]() { return static_cast<TextItem *>(r.item(0)); };
+        auto *direction = r.find<QComboBox>("textDirection");
+        QVERIFY(direction->count() >= 3);
+        const int base = r.steps();
+        direction->setCurrentIndex(2);
+        QVERIFY(text()->vertical && text()->turnedBack);
+        QCOMPARE(r.steps(), base + 1);
+        r.ed.undo();
+        QVERIFY(!text()->vertical && !text()->turnedBack);
+        r.ed.redo();
+        for (int how = 0; how < 2; ++how) {
+            const QByteArray label = how ? "odp" : "pptx";
+            std::unique_ptr<Document> d = how ? r.viaOdp() : r.viaPptx();
+            QVERIFY(d);
+            auto *got = static_cast<TextItem *>(Rig::named(*d, QStringLiteral("Text 1")));
+            QVERIFY2(got && got->vertical && got->turnedBack, label);
+        }
+        QString err;
+        Exported e;
+        QVERIFY(unpack(deck::exportPresentation(*r.ed.doc(), &err), &e, &err));
+        QVERIFY(part(e, QStringLiteral("/ppt/slides/slide1.xml")).contains(QStringLiteral("vert=\"vert270\"")));
+        direction->setCurrentIndex(1);
+        QVERIFY(text()->vertical && !text()->turnedBack);
+        // The turned text is laid out on its side, and a click on the box's far end lands at the text's start.
+        direction->setCurrentIndex(2);
+        LayoutCache cache;
+        const auto fl = cache.textFrame(*r.ed.doc(), *text(), 1, RenderOptions());
+        QVERIFY(fl.layout);
+        QVERIFY(text()->layoutPoint(QPointF(50, 290)).x() < 40);
+    }
+
     // A shape has the margins, wrap, vertical alignment, and columns too; its text can't shrink or grow it yet, and says so by offering no
     // choice but none.
     void shapeTextOptionsAreKeptAndShrinkingIsNotOffered()

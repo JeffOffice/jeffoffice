@@ -352,6 +352,7 @@ ItemPtr Reader::readTextBox(const QDomElement &frame, const QDomElement &box, Sc
     t->vertical = mode.startsWith(QLatin1String("tb"));
     // Text turned a quarter by the file's own setting.
     if (double angle = 0; parseNumber(bag.get(Text, "style:rotation-angle"), &angle) && std::fmod(std::fabs(angle), 360) == 90) t->vertical = true;
+    t->turnedBack = t->vertical && bag.get(Graphic, "jo:turned-back") == QLatin1String("true");
 
     t->storyId = m_doc.createStory();
     TextEnv env = textEnvFor(sc, a, bag, cls);

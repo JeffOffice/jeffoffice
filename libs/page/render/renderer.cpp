@@ -874,8 +874,13 @@ static void paintText(QPainter *p, const PaintContext &ctx, const TextItem &t)
         if (ctx.opt.found.contains(sid)) po.found = ctx.opt.found.value(sid);
         p->save();
         if (t.vertical) {
-            p->translate(r.width(), 0);
-            p->rotate(90);
+            if (t.turnedBack) {
+                p->translate(0, r.height());
+                p->rotate(-90);
+            } else {
+                p->translate(r.width(), 0);
+                p->rotate(90);
+            }
         }
         if (ctx.aroundText) ctx.aroundText(p, t, *fl.layout, fl.frame, [&](QPainter *pp) { fl.layout->paint(pp, fl.frame, po); });
         else fl.layout->paint(p, fl.frame, po);
