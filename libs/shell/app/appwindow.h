@@ -13,6 +13,7 @@ class QMenu;
 
 namespace jp {
 
+class FileScreen;
 class Ribbon;
 class RibbonTab;
 
@@ -49,6 +50,17 @@ public:
     OptionsStart takeOptionsStart();
     OptionsStart optionsStart() const { return m_optionsStart; }
 
+    // Opens Options at a page: "Save", or "Customize/Keyboard" for a page inside another (the page's name as the source writes it); the Options dialog asks for it with takeOptionsPage(). Nothing is done when
+    // the window has no "file.options" command.
+    void openOptionsPage(const QString &page);
+    QString takeOptionsPage();
+
+    // The File screen the window has (null when it has none) and the showing of it at one of its pages, for the command search; an app with a File screen overrides both.
+    // The names of the pages of Options that are the app's own (as shown, translated), for the command search.
+    virtual QStringList optionsPageTitles() const { return {}; }
+    virtual FileScreen *fileScreen() const { return nullptr; }
+    virtual void showFileScreenPage(const QString &) {}
+
     // A file opened read-only: nothing in it can be changed here, and Save asks for a new name (which makes the window an ordinary one). The app's window overrides
     // setReadOnly to show it (the title, what it will not let be typed or dragged), and calls the base.
     bool isReadOnly() const { return m_readOnly; }
@@ -84,6 +96,7 @@ protected:
     void keepRibbonReadOnly();
     bool m_readOnly = false;
     OptionsStart m_optionsStart = OptionsStart::Default;
+    QString m_optionsPage;
     bool m_fullScreenWanted = false, m_wasMaximized = false;
 };
 

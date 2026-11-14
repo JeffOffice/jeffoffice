@@ -63,6 +63,10 @@ bool KeyTips::eventFilter(QObject *o, QEvent *e)
         hide();   // any other key goes on as usual
         return false;
     }
+    case QEvent::ShortcutOverride:
+        // A shortcut with Alt in it (Alt+Q, the command search) is used, not an Alt tapped alone: its release does not show the letters.
+        if (m_altDown && (static_cast<QKeyEvent *>(e)->modifiers() & Qt::AltModifier)) m_altUsed = true;
+        return false;
     case QEvent::KeyRelease: {
         auto *k = static_cast<QKeyEvent *>(e);
         if (k->key() != Qt::Key_Alt || k->isAutoRepeat() || !mine()) return false;

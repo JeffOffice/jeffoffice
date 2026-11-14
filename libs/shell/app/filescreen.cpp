@@ -99,6 +99,7 @@ void FileScreen::addPage(const QString &key, const QString &icon, const QString 
     auto *item = new NavItem(icon, label, m_side);
     m_navGroup->addButton(item);
     m_navItems.insert(key, item);
+    m_entries << Entry{key, icon, label, true};
     insertEntry(item);
     connect(item, &QAbstractButton::clicked, this, [this, key] { showPage(key); });
 }
@@ -108,8 +109,17 @@ void FileScreen::addCommand(const QString &key, const QString &icon, const QStri
     auto *item = new NavItem(icon, label, m_side);
     item->setCheckable(false);
     m_navItems.insert(key, item);
+    m_entries << Entry{key, icon, label, false};
     insertEntry(item);
     connect(item, &QAbstractButton::clicked, this, [run] { run(); });
+}
+
+bool FileScreen::activateEntry(const QString &key)
+{
+    QAbstractButton *b = m_navItems.value(key);
+    if (!b) return false;
+    b->click();
+    return true;
 }
 
 void FileScreen::restyle()

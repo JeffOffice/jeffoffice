@@ -994,6 +994,9 @@ public:
     QVector<HeaderButton *> tabButtons;
     HeaderButton *m_file, *m_collapse, *m_help;
     QToolButton *m_more = nullptr;   // the tabs that don't fit the row
+    QWidget *m_search = nullptr;     // the command search box, left of Help (the tabs leave room for it)
+    // How wide the search box is in this row: a fifth of it, between 120 and 210.
+    int searchWidth() const { return m_search ? std::clamp(width() / 5, 120, 210) : 0; }
     QStringList m_moreShown;         // the tabs its menu lists now (pages, as text)
 
     // A button is its icon (26 wide), or its text when the command has no icon; one that opens a menu has room for the arrow.
@@ -1174,7 +1177,7 @@ public:
             shown << b;
             text += fm.horizontalAdvance(t.title) + (t.group.isEmpty() ? 0 : 12) + 4;
         }
-        const int room = width() - 64 - x;
+        const int room = width() - 64 - x - (m_search ? searchWidth() + 8 : 0);
         const int pad = shown.isEmpty() ? 26 : std::clamp((room - text) / int(shown.size()), 14, 26);
         auto widthOf = [&](HeaderButton *b) { return fm.horizontalAdvance(m_r->m_tabs[b->tab()].title) + pad + (m_r->m_tabs[b->tab()].group.isEmpty() ? 0 : 12) + 4; };
         int total = 0;
@@ -1226,6 +1229,10 @@ public:
         }
         m_collapse->setGeometry(width() - 30, top() - 1, 28, pillH);
         m_help->setGeometry(width() - 60, top() - 1, 28, pillH);
+        if (m_search) {
+            m_search->setGeometry(width() - 60 - 6 - searchWidth(), top(), searchWidth(), pillH);
+            m_search->raise();
+        }
         m_collapse->setToolTip(m_r->m_minimized ? QCoreApplication::translate("Ribbon", "Expand the Ribbon (Ctrl+F1)") : QCoreApplication::translate("Ribbon", "Collapse the Ribbon (Ctrl+F1)"));
         m_collapse->setAccessibleName(m_r->m_minimized ? QCoreApplication::translate("Ribbon", "Expand the Ribbon") : QCoreApplication::translate("Ribbon", "Collapse the Ribbon"));
         m_collapse->setAccessibleDescription(m_r->m_minimized ? QCoreApplication::translate("Ribbon", "Shows the ribbon's commands again.")
@@ -1728,6 +1735,19 @@ QRect Ribbon::brandRect(QFont *font) const
 }
 
 QWidget *Ribbon::moreButton() const { return m_header->m_more && m_header->m_more->isVisible() ? m_header->m_more : nullptr; }
+
+void Ribbon::setSearchWidget(QWidget *w)
+{
+    if (m_header->m_search == w) return;
+    m_header->m_search = w;
+    if (w) {
+        w->setParent(m_header);
+        w->show();
+    }
+    m_header->layoutButtons();
+}
+
+QWidget *Ribbon::searchWidget() const { return m_header->m_search; }
 
 QWidget *Ribbon::fileButton() const { return m_header->m_file; }
 

@@ -240,6 +240,15 @@ bool optionsDialog(QWidget *p, Editor *, const QVector<OptionsPage> &appPages, b
             tabs->setCurrentWidget(custom);
             parts->setCurrentWidget(start == AppWindow::OptionsStart::Ribbon ? static_cast<QWidget *>(ribbonPage) : quickPage);
         }
+        // The command search asks for a page by name ("Save", "Customize/Keyboard"): the tab whose shown name is it, or is its translation.
+        if (const QString page = win->takeOptionsPage(); !page.isEmpty()) {
+            auto named = [](const QString &shown, const QString &english) { return shown == english || sourceText(shown) == english; };
+            for (int i = 0; i < tabs->count(); ++i)
+                if (named(tabs->tabText(i), page.section(QLatin1Char('/'), 0, 0))) tabs->setCurrentIndex(i);
+            if (const QString inner = page.section(QLatin1Char('/'), 1); !inner.isEmpty() && tabs->currentWidget() == custom)
+                for (int i = 0; i < parts->count(); ++i)
+                    if (named(parts->tabText(i), inner)) parts->setCurrentIndex(i);
+        }
         dlg.d.setMinimumSize(700, 600);
     }
     dlg.v->addWidget(tabs);

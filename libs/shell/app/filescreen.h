@@ -39,6 +39,13 @@ public:
     void showPageFrame(const QString &key);
     void makeCurrentPage();
     QString currentPage() const;   // "info", "new", "print"...
+    // What the sidebar lists, in order (a page, or a command that runs something), and the pressing of one as a click does.
+    struct Entry {
+        QString key, icon, label;
+        bool page;
+    };
+    QList<Entry> entries() const { return m_entries; }
+    bool activateEntry(const QString &key);
 
 Q_SIGNALS:
     void closeRequested();
@@ -55,6 +62,7 @@ private:
     QAbstractButton *m_back = nullptr;
     QLabel *m_version = nullptr;
     QHash<QString, QAbstractButton *> m_navItems;
+    QList<Entry> m_entries;
     QButtonGroup *m_navGroup = nullptr;
     QStackedWidget *m_stack = nullptr;
     QHash<QString, int> m_index;

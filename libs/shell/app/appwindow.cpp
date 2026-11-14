@@ -44,6 +44,17 @@ AppWindow::OptionsStart AppWindow::takeOptionsStart()
     return start;
 }
 
+void AppWindow::openOptionsPage(const QString &page)
+{
+    QAction *options = act(QStringLiteral("file.options"));
+    if (!options || !options->isEnabled()) return;
+    m_optionsPage = page;
+    options->trigger();
+    m_optionsPage.clear();
+}
+
+QString AppWindow::takeOptionsPage() { return std::exchange(m_optionsPage, QString()); }
+
 void AppWindow::toggleFullScreen()
 {
     m_fullScreenWanted = !m_fullScreenWanted;

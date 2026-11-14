@@ -195,6 +195,9 @@ public:
     RibbonTab *tabPage(int i) const { return m_tabs.value(i).page; }
     QWidget *tabButton(int i) const;   // the tab's control in the top row
     QWidget *fileButton() const;
+    // A box in the top row, left of the Help button (the command search): the ribbon places it and leaves the tabs room for it.
+    void setSearchWidget(QWidget *w);
+    QWidget *searchWidget() const;
     QRect brandRect(QFont *font = nullptr) const;   // where the program's name is drawn in the top row (and its font), in the ribbon's coordinates
     QWidget *moreButton() const;   // the chevron that holds the tabs that don't fit (null while all do)
     void setTabKeytip(RibbonTab *t, const QString &k);
