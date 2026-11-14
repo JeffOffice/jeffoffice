@@ -2629,3 +2629,58 @@ void WriteTests::theAcceptanceSetOfRealListsKeepsItsNumbers()
     }
     QVERIFY2(passed == total, qPrintable(QStringLiteral("%1 of %2 pass").arg(passed).arg(total)));
 }
+
+void WriteTests::aPictureBulletIsDrawnAndKeptInTheFile()
+{
+    QImage red(16, 16, QImage::Format_ARGB32);
+    red.fill(QColor(220, 0, 0));
+    QByteArray bytes;
+    {
+        QBuffer buffer(&bytes);
+        buffer.open(QIODevice::WriteOnly);
+        red.save(&buffer, "PNG");
+    }
+    // The red a picture bullet leaves in the first inch and a half of the page's text.
+    auto redPixels = [](WriteDoc &doc) {
+        PageView view;
+        view.resize(1000, 700);
+        view.setDocument(&doc);
+        const QImage img = view.pageImage(0, 816);
+        const double perPoint = 816 / 612.0;
+        int n = 0;
+        for (int x = int(72 * perPoint); x < int(180 * perPoint); ++x)
+            for (int y = int(72 * perPoint); y < int(160 * perPoint); ++y) {
+                const QRgb c = img.pixel(x, y);
+                if (qRed(c) > 170 && qGreen(c) < 70 && qBlue(c) < 70) ++n;
+            }
+        return n;
+    };
+    QTextCursor all;
+    auto doc = listDoc(2, &all);
+    QCOMPARE(redPixels(*doc), 0);
+    QCOMPARE(doc->addPictureBullet(QByteArray("not a picture")), -1);
+    const int id = doc->addPictureBullet(bytes);
+    QVERIFY(id >= 0);
+    Level bullet = bulletLevel(QStringLiteral("•"));
+    bullet.picBullet = id;
+    applyListLevel(*doc, all, bullet);
+    QVERIFY(!doc->story()->findBlockByNumber(1).textList()->format().property(tp::BulletPicture).toByteArray().isEmpty());
+    const int drawn = redPixels(*doc);
+    QVERIFY2(drawn > 100, qPrintable(QString::number(drawn)));   // (two bullets of 12 or so points square)
+    // Saved and opened again, it is the same list with the same picture, drawn the same.
+    auto again = open(doc->toDocx());
+    QVERIFY(again);
+    const Level l = levelOfBlock(*again, 1);
+    QVERIFY(l.picBullet.has_value());
+    QCOMPARE(QImage::fromData(again->pictureBulletBytes(*l.picBullet)).size(), QSize(16, 16));
+    QVERIFY(redPixels(*again) > 100);
+    // A second save keeps it too, and another level edited later leaves the picture level alone.
+    QTextCursor at(again->story());
+    at.setPosition(again->story()->findBlockByNumber(0).position());
+    setListLevel(*again, at, 3);
+    applyListLevel(*again, at, bulletLevel(QStringLiteral("◆")));
+    auto third = open(again->toDocx());
+    QVERIFY(third);
+    QVERIFY(levelOfBlock(*third, 1).picBullet.has_value());
+    QVERIFY(redPixels(*third) > 50);
+}

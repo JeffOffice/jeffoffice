@@ -7,7 +7,10 @@
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QDoubleSpinBox>
+#include <QFile>
+#include <QFileDialog>
 #include <QFontComboBox>
+#include <QImage>
 #include <QFormLayout>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -82,6 +85,21 @@ bool defineBulletDialog(QWidget *parent, ListLevelLook *look, const SymbolPicker
         });
         row->addWidget(symbol);
     }
+    // A picture in place of a character (not for the apps whose files keep only characters).
+    QByteArray picture = look->picture;
+    auto *pictureButton = new QPushButton(picture.isEmpty() ? tr("Picture…") : tr("Picture… (chosen)"), &d);
+    pictureButton->setObjectName(QStringLiteral("bulletPicture"));
+    QObject::connect(pictureButton, &QPushButton::clicked, &d, [&] {
+        const QString file = QFileDialog::getOpenFileName(&d, tr("Choose a Picture for the Bullet"), QString(), tr("Pictures (*.png *.jpg *.jpeg *.gif *.bmp)"));
+        if (file.isEmpty()) return;
+        QFile f(file);
+        if (!f.open(QIODevice::ReadOnly) || f.size() > 2000000) return;
+        const QByteArray bytes = f.readAll();
+        if (QImage::fromData(bytes).isNull()) return;
+        picture = bytes;
+        pictureButton->setText(tr("Picture… (chosen)"));
+    });
+    if (!plain) row->addWidget(pictureButton);
     form->addRow(tr("Bullet character:"), row);
     form->addRow(useFont);
     form->addRow(tr("Font:"), font);
@@ -111,6 +129,7 @@ bool defineBulletDialog(QWidget *parent, ListLevelLook *look, const SymbolPicker
     column->addWidget(buttons(&d));
     if (d.exec() != QDialog::Accepted || character->text().isEmpty()) return false;
     look->bullet = true;
+    look->picture = picture;
     look->text = character->text();
     look->font = useFont->isChecked() ? font->currentFont().family() : QString();
     look->sizePoints = size->value();

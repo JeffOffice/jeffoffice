@@ -127,6 +127,7 @@ enum : int {
     RevisionFormat,                              // bool (char format): the run's properties were changed by a tracked change (a change bar beside its line)
     RaisedRef,                                   // bool (char format): layout only, a note's reference whose run names no style and says nothing of raising is shown raised on the page: never written to a file
     DoubleStrike,                                // bool (char format): the strike-through is drawn twice (a moved-away text, or a deletion the person asked to see double struck)
+    BulletPicture,                               // QByteArray (list format): the bytes of the picture (PNG or JPEG) that is the bullet (a word processor's picture bullet), drawn in place of the marker's character (LayoutEnv::wordLines)
 };
 
 // How tracked changes are shown in the lines (LayoutEnv::revisionView, and the same number as the story's property kRevisionViewProperty, which the places that have no environment

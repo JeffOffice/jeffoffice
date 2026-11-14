@@ -474,6 +474,7 @@ public:
         QVector<Line> lines;
         double spaceAbove = 0; int spaceFrame = -1, spaceColumn = 0;   // the space before the paragraph that was applied, and where (a first line that goes to another column has none there)
         QString marker; QFont markerFont; QColor markerColor; double markerX = 0;
+        QImage markerImage;                          // a picture bullet's picture: drawn in place of the marker's text, which is a space as wide as the font's em
         double markerAdv = 0, markerGap = 0;         // the marker's advance, and the space after it
         double markerOff = 0;                        // where the text starts from the marker's origin, when the item doesn't hang
         double markerClamp = 0;                      // how far the first line's text start was held back to the line's end (a marker wider than its room): the marker stays where it was

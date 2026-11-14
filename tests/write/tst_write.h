@@ -1703,4 +1703,5 @@ private Q_SLOTS:
     void theNumbersInWordsAndOtherFormatsOfARealListAreShown();
     void editingOneLevelOfARealListKeepsTheRest();
     void theAcceptanceSetOfRealListsKeepsItsNumbers();
+    void aPictureBulletIsDrawnAndKeptInTheFile();
 };

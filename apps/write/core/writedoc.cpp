@@ -13,7 +13,9 @@
 #include "text/textengine.h"
 #include "text/textprops.h"
 
+#include <QBuffer>
 #include <QDataStream>
+#include <QImage>
 #include <QLocale>
 #include <QRegularExpression>
 #include <QSet>
@@ -1366,6 +1368,56 @@ int WriteDoc::addNumberingId(int abstractId, int level, std::optional<int> start
     return num.id;
 }
 
+QByteArray WriteDoc::pictureBulletBytes(int id) const
+{
+    const QString prefix = QString::fromUtf8(m_wml.numbering.prefix);
+    const QRegularExpression bullet(QStringLiteral("<w:numPicBullet\\s[^>]*w:numPicBulletId=\"%1\"[^>]*>(.*?)</w:numPicBullet>").arg(id), QRegularExpression::DotMatchesEverythingOption);
+    const auto found = bullet.match(prefix);
+    if (!found.hasMatch()) return {};
+    static const QRegularExpression link(QStringLiteral("(?:r:id|r:embed)=\"([^\"]+)\""));
+    const auto rel = link.match(found.captured(1));
+    if (!rel.hasMatch()) return {};
+    for (const Relationship &r : m_wml.partRelationships.value(m_wml.numberingName))
+        if (r.id == rel.captured(1) && !r.external) return partData(r.target);
+    return {};
+}
+
+int WriteDoc::addPictureBullet(const QByteArray &image)
+{
+    QImage picture;
+    if (!picture.loadFromData(image) || picture.isNull()) return -1;
+    if (picture.width() > 64 || picture.height() > 64) picture = picture.scaled(64, 64, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+    QByteArray png;
+    QBuffer buffer(&png);
+    buffer.open(QIODevice::WriteOnly);
+    picture.save(&buffer, "PNG");
+    Numbering &n = m_wml.numbering;
+    int id = 0;
+    static const QRegularExpression ids(QStringLiteral("w:numPicBulletId=\"(\\d+)\""));
+    for (auto it = ids.globalMatch(QString::fromUtf8(n.prefix)); it.hasNext();) id = std::max(id, it.next().captured(1).toInt() + 1);
+    ensureNumberingPart();
+    QVector<Relationship> &links = m_wml.partRelationships[m_wml.numberingName];
+    Relationship r;
+    r.id = nextRelationshipId(links);
+    r.type = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/image");
+    QString name;
+    for (int k = id;; ++k) {
+        name = QStringLiteral("/word/media/bullet%1.png").arg(k);
+        if (partData(name).isEmpty()) break;
+    }
+    r.target = name;
+    links.push_back(r);
+    KeptPart part;
+    part.name = name;
+    part.contentType = QStringLiteral("image/png");
+    part.data = png;
+    m_wml.parts.push_back(part);
+    n.prefix += "<w:numPicBullet w:numPicBulletId=\"" + QByteArray::number(id) + "\"><w:pict><v:shape id=\"_x0000_i" + QByteArray::number(1025 + id) +
+                "\" type=\"#_x0000_t75\" style=\"width:9pt;height:9pt\"><v:imagedata r:id=\"" + r.id.toUtf8() + "\" o:title=\"\"/></v:shape></w:pict></w:numPicBullet>";
+    n.modified = true;
+    return id;
+}
+
 int WriteDoc::listFor(const AbstractNum &def, bool fresh, int level, std::optional<int> start, int inherit)
 {
     Numbering &n = m_wml.numbering;
@@ -1435,6 +1487,8 @@ QTextListFormat WriteDoc::listFormat(int numId, int level, int start) const
     const int outlineKey = numbered && numbered->levelOverrides.contains(level) ? (1 << 28) + numId * 16 + level : m_wml.numbering.definitionOf(numId) * 16 + level;
     if (levelIsOutlined(l, outlineKey)) lf.setProperty(tp::BulletOutline, true);   // (the numbers of a level are drawn hollow as well as its bullets)
     if (l.legacy) lf.setProperty(tp::LegacyNumber, true);
+    if (l.picBullet)
+        if (const QByteArray picture = pictureBulletBytes(*l.picBullet); !picture.isEmpty()) lf.setProperty(tp::BulletPicture, picture);
     if (l.suff == QLatin1String("space")) lf.setProperty(tp::NumberSuffixKind, 1);
     else if (l.suff == QLatin1String("nothing")) lf.setProperty(tp::NumberSuffixKind, 2);
     // What the level says of its marker's run (the rest is the paragraph mark's): bold and italic, and a color.

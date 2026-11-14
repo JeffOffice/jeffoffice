@@ -115,8 +115,13 @@ void WriteWindow::createListActions()
                 return picked;
             };
             if (!defineBulletDialog(this, &look, pick)) return;
-            rememberBullet(look.text, look.font);
-            write::applyListLevel(*m_doc, m_view->cursor(), levelOfLook(look));
+            if (look.picture.isEmpty()) rememberBullet(look.text, look.font);
+            office::wml::Level level = levelOfLook(look);
+            if (!look.picture.isEmpty()) {
+                const int id = m_doc->addPictureBullet(look.picture);
+                if (id >= 0) level.picBullet = id;
+            }
+            write::applyListLevel(*m_doc, m_view->cursor(), level);
         });
     });
     mk("list.defineNumber", tr("Define New Number Format…"), "", QKeySequence(), [this, edit] {

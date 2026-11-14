@@ -3930,6 +3930,22 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             B->markerOutline = env.wordLines && lf.boolProperty(tp::BulletOutline);
             const QString bc = lf.stringProperty(tp::BulletColor);
             if (!bc.isEmpty() && !autoColor) B->markerColor = ColorRef::fromString(bc).resolve(env.colors);
+            if (lf.hasProperty(tp::BulletPicture)) {
+                // A picture bullet: a space as wide as the text is high holds its place, and the picture is drawn there.
+                static QHash<QByteArray, QImage> pictures;
+                const QByteArray bytes = lf.property(tp::BulletPicture).toByteArray();
+                if (!pictures.contains(bytes)) {
+                    if (pictures.size() > 64) pictures.clear();
+                    pictures.insert(bytes, QImage::fromData(bytes));
+                }
+                B->markerImage = pictures.value(bytes);
+                if (!B->markerImage.isNull()) {
+                    B->marker = QStringLiteral("\u2003");
+                    B->markerFit = false;
+                    B->markerOutline = false;
+                    B->markerAdv = 0;
+                }
+            }
             if (B->markerAdv <= 0) B->markerAdv = advanceOf(B->markerFont, B->marker);
             // A bullet from a .pub list is followed by its text at once (Publisher's
             // PDFs: the text starts at the glyph's advance) unless the list's
@@ -6460,7 +6476,10 @@ void StoryLayout::paint(QPainter *p, int frame, const PaintOptions &o) const
             if (!B->marker.isEmpty()) {
                 p->setPen(B->markerColor);
                 const QPointF at(B->markerX, l0.position().y() - frameY(frame) + l0.ascent());
-                if (B->markerFit) drawFittedMarker(p, at, B->markerFont, B->marker, B->markerInk, B->markerRound, B->markerColor, B->markerOutline);
+                if (!B->markerImage.isNull()) {
+                    const double em = B->markerFont.pointSizeF() / fontPointFactor();
+                    p->drawImage(QRectF(at.x(), at.y() - em * 0.85, em * 0.9, em * 0.9), B->markerImage);
+                } else if (B->markerFit) drawFittedMarker(p, at, B->markerFont, B->marker, B->markerInk, B->markerRound, B->markerColor, B->markerOutline);
                 else if (B->markerOutline) drawOutlinedText(p, at, B->markerFont, B->marker, B->markerColor);
                 else drawPlainText(p, at, B->markerFont, B->marker);
             }

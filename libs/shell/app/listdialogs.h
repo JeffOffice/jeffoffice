@@ -2,6 +2,7 @@
 // The boxes for setting up a list that every app with lists shares: Define New Bullet, Define New Number Format, and Set Numbering Value. They work on plain values (a look for a level), so each
 // app puts them against its own text model (JeffWrite's numbering definitions, the paragraph bullets of JeffPub and JeffDeck).
 
+#include <QByteArray>
 #include <QColor>
 #include <QString>
 #include <QVector>
@@ -21,6 +22,7 @@ struct ListLevelLook {
     QColor color;                 // invalid: the text's own
     QString align = QStringLiteral("left");       // left, center, right
     int start = 1;
+    QByteArray picture;           // a picture bullet: the picture's file bytes (a bullet that is a picture; `text` is then the character that stands for it)
 };
 
 // Picks a symbol for a bullet (the app's Symbol box): true when one was chosen, with its character and font.

@@ -695,6 +695,15 @@ QByteArray numberingXml(const Numbering &num)
     QByteArray out = kXmlHead;
     QByteArray root = num.rootStart.isEmpty() ? QByteArray("<w:numbering xmlns:w=\"") + kWNs + "\">" : num.rootStart;
     root = withW(root);
+    // (A picture bullet's shape names the prefixes v, r, and o: a part made new has none of them on its root.)
+    if (num.prefix.contains("<v:") || num.prefix.contains("r:id")) {
+        QByteArray add;
+        for (const auto &ns : {std::pair<const char *, const char *>{"v", "urn:schemas-microsoft-com:vml"}, {"o", "urn:schemas-microsoft-com:office:office"},
+                               {"r", "http://schemas.openxmlformats.org/officeDocument/2006/relationships"}})
+            if (!root.contains(QByteArray(" xmlns:") + ns.first + "=")) add += QByteArray(" xmlns:") + ns.first + "=\"" + ns.second + "\"";
+        const int close = root.lastIndexOf('>');
+        if (!add.isEmpty() && close > 0) root.insert(root.endsWith("/>") ? close - 1 : close, add);
+    }
     out += root;
     out += num.prefix;
     for (const AbstractNum &a : num.abstracts) {

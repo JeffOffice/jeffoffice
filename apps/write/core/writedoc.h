@@ -565,6 +565,11 @@ public:
     int listFor(const office::wml::AbstractNum &def, bool fresh, int level = 0, std::optional<int> start = std::nullopt, int inherit = 0);
     // A new numbering id of a definition the document has (by its id), begun at `start` on `level` when given.
     int addNumberingId(int abstractId, int level, std::optional<int> start);
+    // A picture bullet: the picture (PNG, JPEG, or what the image readers know, kept as a PNG of at most 64 pixels across) added to the numbering as a w:numPicBullet with its image part, and its id (for
+    // a level's picBullet); -1 when the bytes are no picture.
+    int addPictureBullet(const QByteArray &image);
+    // The bytes of the picture of a picture bullet of the numbering (empty when the file has none by that id, or no image for it).
+    QByteArray pictureBulletBytes(int id) const;
     // The Qt list format of a level of a definition; `marker` gets the text of a marker that is not Qt's to count (set in legal style, or
     // numbered with several levels in it).
     QTextListFormat listFormat(int numId, int level, int start = -1) const;
