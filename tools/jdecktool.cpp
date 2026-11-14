@@ -24,6 +24,8 @@
 #include "text/textprops.h"
 
 #include <QBuffer>
+#include <QCryptographicHash>
+#include <QJsonDocument>
 #include <QDir>
 #include <QElapsedTimer>
 #include <QFile>
@@ -31,6 +33,7 @@
 #include <QHash>
 #include <QJsonArray>
 #include <QPainter>
+#include <QTextBlock>
 #include <QTextCursor>
 #include <QTextDocument>
 #include <QTextStream>
@@ -304,6 +307,65 @@ int morphDemo(const QString &path)
     return 0;
 }
 
+// What a file holds of the slide size, the links, and the backgrounds, as one line of text and a hash of the details (the acceptance check of a round trip: a file opened,
+// saved, and opened again must say the same).
+void walkLinks(const Document &doc, const ItemList &items, QStringList &lines, int &links)
+{
+    for (const ItemPtr &it : items) {
+        if (!it->hyperlink.isEmpty()) {
+            lines << QStringLiteral("link\t%1").arg(it->hyperlink);
+            ++links;
+        }
+        if (it->type() == ItemType::Group) walkLinks(doc, static_cast<const GroupItem &>(*it).children, lines, links);
+        QString story;
+        if (it->type() == ItemType::Text) story = static_cast<const TextItem &>(*it).storyId;
+        else if (it->type() == ItemType::Shape) story = static_cast<const ShapeItem &>(*it).storyId;
+        if (const QTextDocument *td = story.isEmpty() ? nullptr : doc.storyDoc(story))
+            for (QTextBlock b = td->begin(); b.isValid(); b = b.next())
+                for (auto f = b.begin(); !f.atEnd(); ++f)
+                    if (f.fragment().charFormat().isAnchor() && !f.fragment().charFormat().anchorHref().isEmpty()) {
+                        lines << QStringLiteral("anchor\t%1\t%2").arg(f.fragment().charFormat().anchorHref(), f.fragment().text());
+                        ++links;
+                    }
+    }
+}
+
+int fingerprint(const Document &doc)
+{
+    QStringList lines;
+    int links = 0, gradients = 0, pictures = 0, patterns = 0, solids = 0;
+    lines << QStringLiteral("size\t%1\t%2\t%3").arg(doc.pageSize().width(), 0, 'f', 2).arg(doc.pageSize().height(), 0, 'f', 2).arg(doc.setup.sizeName);
+    auto background = [&](const QString &where, const Fill &fill) {
+        if (fill.isNone()) return;
+        QJsonObject o = fill.toJson();
+        if (!fill.imageId.isEmpty()) o["image"] = QString::fromLatin1(QCryptographicHash::hash(doc.images.value(fill.imageId).bytes, QCryptographicHash::Sha1).toHex());
+        o.remove("imageId");
+        o.remove("img");
+        gradients += fill.type == Fill::Gradient;
+        pictures += fill.type == Fill::Picture || fill.type == Fill::Texture;
+        patterns += fill.type == Fill::Pattern;
+        solids += fill.type == Fill::Solid;
+        lines << QStringLiteral("background\t%1\t%2").arg(where, QString::fromUtf8(QJsonDocument(o).toJson(QJsonDocument::Compact)));
+    };
+    // (A master with no background is saved with a white one, which a file has to have: the same to the eye.)
+    int number = 0;
+    for (const auto &m : doc.masters) {
+        const bool white = m->background.type == Fill::Solid && m->background.color.kind() == ColorRef::Rgb && m->background.color.rgbValue() == QColor(Qt::white);
+        if (!white) background(QStringLiteral("master %1").arg(number), m->background);
+        walkLinks(doc, m->items, lines, links);
+        ++number;
+    }
+    for (int i = 0; i < doc.pages.size(); ++i) {
+        background(QStringLiteral("slide %1").arg(i + 1), doc.pages[i]->background);
+        walkLinks(doc, doc.pages[i]->items, lines, links);
+    }
+    QTextStream out(stdout);
+    if (qEnvironmentVariableIsSet("JP_FINGERPRINT_LINES")) out << lines.join(QLatin1Char('\n')) << "\n";
+    out << "fp\t" << QCryptographicHash::hash(lines.join(QLatin1Char('\n')).toUtf8(), QCryptographicHash::Sha1).toHex() << "\t" << doc.pageSize().width() << "x" << doc.pageSize().height() << "\t"
+        << doc.setup.sizeName << "\tlinks " << links << "\tgradient " << gradients << "\tpicture " << pictures << "\tpattern " << patterns << "\tsolid " << solids << "\n";
+    return 0;
+}
+
 } // namespace
 
 int main(int argc, char **argv)
@@ -323,9 +385,9 @@ int main(int argc, char **argv)
     if (args.size() >= 4 && args[1] == "animate-demo") return animateDemo(args[2], args[3]);
     if (args.size() >= 3 && args[1] == "morph-demo") return morphDemo(args[2]);
     if (args.size() < 3 || ((args[1] == "render" || args[1] == "save" || args[1] == "pdf") && args.size() < 4) || (args[1] == "steps" && args.size() < 5) || (args[1] == "lines" && args.size() < 4) ||
-        (args[1] != "render" && args[1] != "info" && args[1] != "save" && args[1] != "pdf" && args[1] != "steps" && args[1] != "lines" && args[1] != "animations" && args[1] != "animate-edit" && args[1] != "morph") ||
+        (args[1] != "render" && args[1] != "info" && args[1] != "save" && args[1] != "pdf" && args[1] != "steps" && args[1] != "lines" && args[1] != "animations" && args[1] != "animate-edit" && args[1] != "morph" && args[1] != "fingerprint") ||
         (args[1] == "animate-edit" && args.size() < 4) || (args[1] == "morph" && args.size() < 6)) {
-        out << "usage: jdecktool render <file.pptx|.ppt> <outdir> [width=1280] | info <file.pptx|.ppt> | save <file> <out.pptx> [embed-fonts] | pdf <file> <out.pdf> [slides|notes|handout6 ...] | steps <file> <slide> <outdir> [width=1280] | lines <file> <slide> | animations <file> | animate-edit <file> <out.pptx> | animate-demo <out.pptx> <out.tsv> | morph <file> <from> <to> <outdir> [width=1280] [objects|words|characters] | morph-demo <out.pptx>\n";
+        out << "usage: jdecktool render <file.pptx|.ppt> <outdir> [width=1280] | info <file.pptx|.ppt> | fingerprint <file> | save <file> <out.pptx> [embed-fonts] | pdf <file> <out.pdf> [slides|notes|handout6 ...] | steps <file> <slide> <outdir> [width=1280] | lines <file> <slide> | animations <file> | animate-edit <file> <out.pptx> | animate-demo <out.pptx> <out.tsv> | morph <file> <from> <to> <outdir> [width=1280] [objects|words|characters] | morph-demo <out.pptx>\n";
         return 2;
     }
     const QString cmd = args[1], in = args[2];
@@ -384,6 +446,8 @@ int main(int argc, char **argv)
         out << (ok ? "wrote\t" + args[3] + "\t" + QString::number(deck::outputPageCount(*doc, options)) + " pages" : "cannot write: " + error) << "\t" << timer.elapsed() << " ms\n";
         return ok ? 0 : 1;
     }
+
+    if (cmd == "fingerprint") return fingerprint(*doc);
 
     if (cmd == "info") {
         out << "size\t" << doc->pageSize().width() << " x " << doc->pageSize().height() << " pt\t" << doc->setup.sizeName << "\n";

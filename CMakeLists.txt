@@ -583,6 +583,7 @@ qt_add_executable(jdtests
   tests/deck/tst_deck_review.cpp
   tests/deck/tst_deck_slidelist.cpp
   tests/deck/tst_deck_slideshow.cpp
+  tests/deck/tst_deck_sizelinks.cpp
   tests/deck/tst_deck_stablesaves.cpp
   tests/deck/tst_deck_styles.cpp
   tests/deck/tst_deck_tablelimits.cpp

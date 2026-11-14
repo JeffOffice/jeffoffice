@@ -628,6 +628,7 @@ private Q_SLOTS:
         deck::ShowSettings s;
         s.type = deck::ShowSettings::Type::Kiosk;
         show->setSettings(s);
+        show->setLinkPrompt([](const QString &, bool) { return true; });   // (a link asks at a kiosk too)
         QVERIFY(show->isKiosk());
         QVERIFY(!show->isWindowed());
         QSignalSpy ended(show.data(), &SlideShow::ended);

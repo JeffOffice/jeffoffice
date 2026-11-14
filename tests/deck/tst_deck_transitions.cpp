@@ -268,7 +268,7 @@ private Q_SLOTS:
         QCOMPARE(show.currentSlide(), 3);
     }
 
-    // A click on an item with a link opens the link and stays on the slide.
+    // A click on an item with a link opens the link, once it is said yes to, and stays on the slide.
     void showClickOnLinkOpensIt()
     {
         auto d = showDeck(2);
@@ -279,7 +279,14 @@ private Q_SLOTS:
         LayoutCache cache;
         SlideShow show(d.get(), &cache, 0);
         show.resize(960, 540);   // the slide's own size: slide points are pixels
+        // (it asks first: the answer is yes)
+        QStringList asked;
+        show.setLinkPrompt([&](const QString &address, bool) {
+            asked << address;
+            return true;
+        });
         QTest::mouseClick(&show, Qt::LeftButton, Qt::NoModifier, title->bounds().center().toPoint());
+        QCOMPARE(asked, (QStringList{"https://example.com/talk"}));
         QCOMPARE(catcher.urls, (QStringList{"https://example.com/talk"}));
         QCOMPARE(show.currentSlide(), 0);
         // Elsewhere a click moves on.
