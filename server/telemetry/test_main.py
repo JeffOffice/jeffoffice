@@ -358,7 +358,7 @@ class Collector(unittest.TestCase):
         self.assertIn("<td>3</td>", page)
         self.assertIn("<td>1</td>", page)
         self.assertIn("0.6.5, 0.6.6", page)
-        self.assertIn("macos", page)
+        self.assertIn("macOS", page)
         self.assertIn("0xC0000005", page)
         self.assertIn("<td>signal</td><td>11</td>", page)
         for install in installs:

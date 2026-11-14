@@ -514,15 +514,24 @@ FOOTER_LINKS = " · ".join(f'<a href="{u}">{t}</a>' for t, u in (
     ("This service's source code", "https://github.com/JeffOffice/jeffoffice/tree/main/server/telemetry")))
 
 
-ABOUT = """<!doctype html><meta charset="utf-8"><title>JeffOffice usage statistics</title>
-<style>body{font:16px/1.5 system-ui,sans-serif;max-width:40em;margin:2em auto;padding:0 1em}</style>
+ABOUT = """<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light dark"><title>JeffOffice usage statistics</title>
+<style>:root{--bg:#f6f7f9;--text:#1c1d1f;--muted:#5f6368;--link:#1f63c6;--card:#fff;--border:rgba(0,0,0,.12)}
+@media (prefers-color-scheme:dark){:root{--bg:#161718;--text:#ececec;--muted:#a3a7ad;--link:#7fb0f5;--card:#1f2022;--border:rgba(255,255,255,.12)}}
+body{margin:0;background:var(--bg);color:var(--text);font:400 16px/1.6 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:42rem;margin:0 auto;padding:1.5rem 1rem 2rem;overflow-wrap:anywhere}
+h1{font-size:1.5rem;font-weight:500;line-height:1.25;margin:0 0 1rem}h2{font-size:1.1rem;font-weight:500;margin:1.6rem 0 .5rem}
+a{color:var(--link)}code{font-size:.9em}ul{padding-left:1.2rem}li{margin:.3rem 0}
+footer{color:var(--muted);font-size:.85rem;margin-top:2rem;padding-top:1rem;border-top:.5px solid var(--border)}</style>
+<main>
 <h1>JeffOffice usage statistics</h1>
-<p>The JeffOffice apps (JeffPub, JeffDeck, JeffWrite, and JeffCrunch) share one choice about this, asked in setup or when one of them first starts, and changed
-under File &gt; Options in any of them. When it's on, each of them sends the following once a day while it's in
-use, and once more the day it's updated:</p>
 <h2>Why we collect this</h2>
 <p>JeffOffice is made by a small team, and these numbers are how we learn what matters to the people who use it. They show us which features get used, so we can improve them first and keep them working well. They show us which versions and systems are in use, so we know what to test and when it's safe to stop supporting an old one. Crash reports show us where a program stopped, so we can fix the problem, often before anyone writes to us. The country count tells us which languages to add next.</p>
 <p>We don't sell this data, share it, or use it for advertising. It's optional: you can turn it off at any time in File &gt; Options.</p>
+<h2>What's sent</h2>
+<p>The JeffOffice apps (JeffPub, JeffDeck, JeffWrite, and JeffCrunch) share one choice about this, asked in setup or when one of them first starts, and changed
+under File &gt; Options in any of them. When it's on, each of them sends the following once a day while it's in
+use, and once more the day it's updated:</p>
 <ul><li>a random number made up when JeffOffice was installed, which says nothing about you or your computer
 (every app sends the same number, so someone who uses several is one person here);</li>
 <li>which app it comes from, its version, your operating system and its version,
@@ -544,7 +553,7 @@ usage statistics off, no crash reports are sent either.</p>
 <p>More, including how to have your records deleted: the <a href="https://www.jeffoffice.com/privacy">JeffOffice privacy notice</a>.</p>
 <p>The program that collects all of this is part of JeffOffice's source:
 <a href="https://github.com/JeffOffice/jeffoffice/tree/main/server/telemetry">server/telemetry</a>.</p>
-<p style="font-size:.85em;color:#586377">""" + FOOTER_LINKS + "</p>\n"
+<footer>""" + FOOTER_LINKS + "</footer></main>\n"
 
 
 PERIODS = (7, 30, 90)
@@ -655,12 +664,14 @@ a{color:var(--link)}
 td,th{padding:.45rem .5rem;border-bottom:.5px solid var(--border);text-align:left;vertical-align:middle}
 th{font-weight:500;color:var(--muted);font-size:.8rem}tr:last-child td{border-bottom:0}
 td.r,th.r{text-align:right;font-variant-numeric:tabular-nums}
-.sw{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:.5rem}
+.app{white-space:nowrap}.sw{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:.5rem}
 .delta{display:block;font-size:.75rem;color:var(--muted)}.up{color:var(--up)}.down{color:var(--down)}
-@media (max-width:32.5rem){.spark{display:none}}
+td.spark svg{width:160px;height:30px}
+@media (max-width:32.5rem){td.spark,th.spark{padding-left:.2rem;padding-right:.2rem}td.spark svg{width:64px;height:24px}td.spark circle{display:none}td,th{padding-left:.3rem;padding-right:.3rem}}
 svg{display:block;max-width:100%}.sphere{fill:none}.c{fill:var(--nodata);stroke:var(--line);stroke-width:.4}
 ul.rows{list-style:none;margin:0;padding:0}
 ul.rows li{display:grid;grid-template-columns:minmax(2.5rem,40%) minmax(0,1fr) auto;gap:.5rem;align-items:center;padding:.18rem 0}
+ul.rows.wide li{grid-template-columns:minmax(2.5rem,62%) minmax(0,1fr) auto}
 ul.rows .l{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 ul.rows .n{text-align:right;font-variant-numeric:tabular-nums;color:var(--muted)}
 ul.rows .t{height:8px;background:var(--track);border-radius:0 4px 4px 0}
@@ -717,7 +728,10 @@ def pct(n, total):
     return f"{100 * n / total:.0f}%" if total else "0%"
 
 
-def bar_list(rows, empty="none yet", label=lambda v: v):
+OS_NAMES = {"windows": "Windows", "macos": "macOS", "linux": "Linux"}
+
+
+def bar_list(rows, empty="none yet", label=lambda v: v, wide=False):
     """rows: (value, count): label, a bar relative to the biggest, and the count (the share is in the hover text)."""
     total = sum(n for _, n in rows)
     if not rows:
@@ -726,7 +740,7 @@ def bar_list(rows, empty="none yet", label=lambda v: v):
     e = html.escape
     items = "".join(f'<li title="{e(str(label(v)))}: {n} ({pct(n, total)})"><span class="l">{e(str(label(v)))}</span>'
                     f'<span class="t"><span style="width:{100 * n / top:.1f}%"></span></span><span class="n">{n}</span></li>' for v, n in rows)
-    return f'<ul class="rows">{items}</ul>'
+    return f'<ul class="rows{" wide" if wide else ""}">{items}</ul>'
 
 
 def delta(cur, prev):
@@ -746,7 +760,7 @@ def sparkline(values, color, label):
     line = " ".join(f"{x:.1f},{y:.1f}" for x, y in pts)
     area = f"{pts[0][0]:.1f},{h - pad} {line} {pts[-1][0]:.1f},{h - pad}"
     x, y = pts[-1]
-    return (f'<svg width="{w}" height="{h}" viewBox="0 0 {w} {h}" role="img" aria-label="{html.escape(label)}">'
+    return (f'<svg width="{w}" height="{h}" viewBox="0 0 {w} {h}" preserveAspectRatio="none" role="img" aria-label="{html.escape(label)}">'
             f'<title>{html.escape(label)}</title><polygon points="{area}" fill="{color}" fill-opacity=".12"/>'
             f'<polyline points="{line}" fill="none" stroke="{color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>'
             f'<circle cx="{x:.1f}" cy="{y:.1f}" r="3.5" fill="{color}" stroke="var(--card)" stroke-width="2"/></svg>')
@@ -783,7 +797,7 @@ def render_stats(d):
         swatch = f'<span class="sw" style="background:{color}"></span>' if r["app"] else ""
         last = r["series"][-1] if r["series"] else 0
         spark = sparkline(r["series"], color, f"{r['name']}: {last} active on {d['today']}")
-        body += (f'<tr><td>{swatch}{e(r["name"])}</td><td class="spark">{spark}</td>'
+        body += (f'<tr><td class="app">{swatch}{e(r["name"])}</td><td class="spark">{spark}</td>'
                  f'<td class="r">{r["active"]}{delta(r["active"], r["active_prev"])}</td>'
                  f'<td class="r">{r["new"]}{delta(r["new"], r["new_prev"])}</td>'
                  f'<td class="r">{r["crashes"]}{delta(r["crashes"], r["crashes_prev"])}</td></tr>')
@@ -793,9 +807,9 @@ def render_stats(d):
              f'An install that uses several apps is counted once in each app and once in All apps.</p></section>')
     cards = "".join(f'<section class="card"><h2>{e(title)}</h2>{rows}</section>' for title, rows in (
         ("Version", bar_list(d["versions"], label=lambda v: v or "(unknown)")),
-        ("Operating system", bar_list(d["systems"], label=lambda v: v or "(unknown)")),
+        ("Operating system", bar_list(d["systems"], label=lambda v: OS_NAMES.get(v, v) or "(unknown)")),
         ("Language", bar_list(d["langs"][:8], label=lambda v: v or "(unknown)")),
-        ("Top commands", bar_list([(c["feature"], c["installs"]) for c in d["commands"][:8]]))))
+        ("Top commands", bar_list([(c["feature"], c["installs"]) for c in d["commands"][:8]], wide=True))))
 
     cmds = d["commands"]
     crows = "".join(f'<tr><td>{e(c["feature"])}</td><td>{e(", ".join(f"{APPS[a]} {v[1]}" for a, v in c["apps"].items() if a in APPS))}</td>'
@@ -844,7 +858,7 @@ def crashes_page(app=None):
         kind, code, frames, a = key
         shown = f"0x{code & 0xFFFFFFFF:08X}" if kind == "exception" else str(code)
         stack = "<br>".join(e(f"{f['module']}+0x{f['offset']:x}") for f in json.loads(frames))
-        cells = [g["n"]] + ([] if app else [APPS.get(a, a)]) + [g["latest"], ", ".join(g["versions"]), ", ".join(g["systems"]), kind, shown]
+        cells = [g["n"]] + ([] if app else [APPS.get(a, a)]) + [g["latest"], ", ".join(g["versions"]), ", ".join(OS_NAMES.get(x, x) for x in g["systems"]), kind, shown]
         where = f"<code>{stack}</code>" if stack else "<i>no frames</i>"
         return "<tr>" + "".join(f"<td>{e(str(c))}</td>" for c in cells) + f"<td>{where}</td></tr>"
 
