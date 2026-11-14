@@ -26,6 +26,7 @@ Every change is a step that **Undo** (Ctrl+Z) takes back, and **Redo** brings fo
 ## Move around and show or hide
 
 - **Previous** and **Next** open the comment before or after the open one, and turn to its page.
+- **Go To** (Ctrl+G) can also go to a comment: choose **Comment**, then type its number, or press **Next** or **Previous**.
 - **Show Comments** shows or hides the pane and the bubbles together. A publication that comes with comments opens with them shown.
 - The arrow beside **Delete** also offers **Delete All Comments on This Page** and **Delete All Comments in This Publication**.
 

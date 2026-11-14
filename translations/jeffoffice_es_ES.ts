@@ -9,6 +9,21 @@
     </message>
 </context>
 <context>
+    <name>Captions</name>
+    <message>
+        <source>The caption file is too large (the most is %1 MB).</source>
+        <translation type="unfinished">El fichero de títulos es demasiado grande (el máximo es %1 MB).</translation>
+    </message>
+    <message>
+        <source>This isn't a WebVTT caption file. It should start with the word WEBVTT.</source>
+        <translation type="unfinished">Este no es un fichero de títulos WebVTT. Debe empezar con la palabra WEBVTT.</translation>
+    </message>
+    <message>
+        <source>This WebVTT file has no captions that can be shown.</source>
+        <translation type="unfinished">Este fichero WebVTT no tiene títulos que se puedan mostrar.</translation>
+    </message>
+</context>
+<context>
     <name>Dialogs</name>
     <message>
         <source>Existing file or web page</source>
@@ -236,6 +251,10 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <source>Sections can't be saved in this kind of file.</source>
         <translation type="unfinished">Las secciones no se pueden guardar en este tipo de fichero.</translation>
+    </message>
+    <message>
+        <source>The captions of a movie are not kept in a document presentation file, so they were left out.</source>
+        <translation type="unfinished">Los títulos de un vídeo no se conservan en un fichero de presentación de documento, así que se omitieron.</translation>
     </message>
     <message>
         <source>Inner shadows can't be saved in this kind of file.</source>
@@ -1183,6 +1202,10 @@ No se puede leer el fichero.</translation>
         <translation type="unfinished">No se puede leer el fichero.</translation>
     </message>
     <message>
+        <source>Insert Captions: add captions to the video from a WebVTT file.</source>
+        <translation type="unfinished">Insertar títulos: añada títulos al vídeo desde un fichero WebVTT.</translation>
+    </message>
+    <message>
         <source>Video Files (%1)</source>
         <translation type="unfinished">Ficheros de vídeo (%1)</translation>
     </message>
@@ -1197,6 +1220,18 @@ No se puede leer el fichero.</translation>
     <message>
         <source>%1 is too large to put in this presentation: with it, the file could not be opened again. All its pictures, movies, and sounds together may come to %2 GB.</source>
         <translation type="unfinished">%1 es demasiado grande para incluirlo en esta presentación: con él, el fichero no se podría volver a abrir. Todas sus imágenes, vídeos y sonidos juntos pueden ocupar hasta %2 GB.</translation>
+    </message>
+    <message>
+        <source>WebVTT Caption Files (*.vtt)</source>
+        <translation type="unfinished">Ficheros de títulos WebVTT (*.vtt)</translation>
+    </message>
+    <message>
+        <source>%1 is too large to be a caption file (the most is %2 MB).</source>
+        <translation type="unfinished">%1 es demasiado grande para ser un fichero de títulos (el máximo es %2 MB).</translation>
+    </message>
+    <message>
+        <source>%1 is too large to put in this presentation: with it, the file could not be opened again.</source>
+        <translation type="unfinished">%1 es demasiado grande para incluirlo en esta presentación: con él, el fichero no se podría volver a abrir.</translation>
     </message>
     <message>
         <source>This file has more properties than %1 reads, so the mark can't be added.</source>

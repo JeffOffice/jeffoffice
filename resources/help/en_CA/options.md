@@ -17,6 +17,8 @@ Your settings are in the **JeffPub Options** window. Click **File > Options** to
 These check boxes control spelling and typing help. See [Check spelling and hyphenation](proofing).
 
 - **Check spelling as you type**
+- **Check grammar as you type** marks clear grammar and style mistakes in English, French, German, and Spanish text with a blue dotted line.
+- **Grammar settings** opens a list of the kinds of issues to look for: grammar, punctuation, capitalization, mixed-up words, repetition, and style (which is off until you turn it on).
 - **Ignore words in UPPERCASE**
 - **Ignore words that contain numbers**
 - **Replace text as you type (AutoCorrect)** fixes common typing mistakes.
@@ -64,6 +66,7 @@ The **Quick Toolbar** page is for the small toolbar at the top left of the windo
 
 - **Add a command.** Choose it in the **Commands** list and click **Add Command**. It goes at the end of the toolbar. A command that opens a menu keeps its menu on the toolbar. A command can be on the toolbar only once.
 - **Right-click.** You can also right-click any command on the ribbon and choose **Add to Quick Toolbar**, or right-click a button on the toolbar and choose **Remove from Quick Toolbar**. The same menu has **Customize the Quick Toolbar** and **Customize the Ribbon**, which open this page.
+- **Move it below the ribbon.** Check **Show Quick Toolbar below the ribbon** to put the toolbar in a row under the ribbon instead of at the top left. The two right-click menus have **Show Quick Toolbar Below the Ribbon** too. JeffPub remembers the choice.
 - **Add a separator.** Click **Add Separator** to put a thin line at the end, then move it where you want it.
 - **Reorder.** Choose a command or a separator in the left list and click **Move Up** or **Move Down**.
 - **Take away.** Choose it and click **Remove**.

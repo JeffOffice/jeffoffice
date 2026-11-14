@@ -16,6 +16,7 @@ Type in the search box above to find a topic, or a command to run. Press **F1** 
 
 - [Check your spelling](spelling)
 - [Count words, set the language, check accessibility, and look up words](proofing-tools)
+- [Translate text](translate)
 - [Track changes, and accept or reject them](track-changes)
 - [Add and answer comments](comments)
 - [Protect a document and lock tracking](protect)
