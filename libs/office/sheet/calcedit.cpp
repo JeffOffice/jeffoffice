@@ -122,6 +122,8 @@ bool Calculation::canApply(const StructEdit &e, QString *why) const
     // the cells of an array formula or a data table are not cut through, nor are they deleted
     for (const CellRange &r : s.ranges) {
         if (!r.valid || r.cellCount() <= 1) continue;
+        // (the block of a formula that spills is not cut by an edit: the formula is worked out again, and fills what it needs)
+        if (const Cell *head = s.cells.find(r.row1, r.col1); head && (head->flags & SpillFormula)) continue;
         bool hit = false;
         switch (e.kind) {
         case K::InsertRows: hit = r.row1 < e.first && r.row2 >= e.first; break;
@@ -1210,7 +1212,22 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
         if (changed) {
             rec->ranges = rangesBefore;
             rec->rangesSaved = true;
-            for (CellRange &r : S.ranges) r = adjusted(r);
+            // (the block of a formula that spills that the edit made larger or smaller, by rows put into it or taken out of it: the formula is worked out again, and fills the block it asks for)
+            std::vector<std::pair<quint32, quint32>> cutBlocks;
+            for (CellRange &r : S.ranges) {
+                const CellRange was = r;
+                r = adjusted(r);
+                if (!was.valid || !r.valid || was.cellCount() <= 1) continue;
+                if (r.row2 - r.row1 == was.row2 - was.row1 && r.col2 - r.col1 == was.col2 - was.col1) continue;
+                if (const Cell *head = S.cells.find(r.row1, r.col1); head && (head->flags & SpillFormula)) cutBlocks.push_back({r.row1, r.col1});
+            }
+            for (const auto &[row, col] : cutBlocks) {
+                const Cell *head = S.cells.find(row, col);
+                if (!head) continue;
+                if (const quint32 old = nodeAt(e.sheet, row, col); old != kNone) dropNode(old);
+                const quint32 now = addNode(e.sheet, row, col, *head, head->formula);
+                queueDependents(areaOf(m_nodes[now]));
+            }
         }
     }
     {

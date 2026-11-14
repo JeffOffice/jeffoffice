@@ -1274,6 +1274,7 @@ private:
     static QString editRangeKey(int sheet, const jp::office::sheet::EditRange &range);
     QSet<QString> m_openEditRanges;   // the ranges with a password whose password was given in this session (as sheet and title)
     bool formulaHidden(int sheet, quint32 style) const;
+    QString shownFormula(const jp::office::sheet::Calculation::CellContent &c) const;
     QString lockedMessage() const;
     bool storedEquals(int sheet, quint32 rowId, quint32 colId, const jp::calc::Value &value) const;   // (the cell named by the ids of its row and column)
     void cleanChanged(bool clean);

@@ -9,6 +9,7 @@
 #include "calc/functions.h"
 
 #include <QCoreApplication>
+#include <QRegularExpression>
 
 #include <algorithm>
 #include <cstring>
@@ -46,7 +47,8 @@ bool Calculation::formulaCanSpill(const QString &formula)
         st.pop_back();
         return top;
     };
-    for (const Instr &in : p.code) {
+    for (size_t at = 0; at < p.code.size(); ++at) {
+        const Instr &in = p.code[at];
         switch (in.op) {
         case Op::Spill:
         case Op::PushArray: return true;
@@ -70,8 +72,12 @@ bool Calculation::formulaCanSpill(const QString &formula)
             if (pop()) return true;
             st.push_back(0);
             break;
+        case Op::Single:   // (@ takes one value of a block: the old rule)
+            pop();
+            st.push_back(0);
+            break;
         case Op::Call:
-            if (in.operand >= 0 && givesBlock(functionAt(in.operand).name)) return true;
+            if (in.operand >= 0 && givesBlock(functionAt(in.operand).name) && !(at + 1 < p.code.size() && p.code[at + 1].op == Op::Single)) return true;
             for (int k = 0; k < int(in.argc); ++k) pop();
             st.push_back(0);
             break;
@@ -86,6 +92,147 @@ bool Calculation::formulaCanSpill(const QString &formula)
         }
     }
     return false;
+}
+
+// The formula of a cell that is not a dynamic array, with the mark @ where the old rule (one value of a block) is what it works by: before a range that an operator takes or a function takes as a value, and before a
+// function that gives a block, in a formula that would give a block if it were a dynamic array. The cell holds the formula as the file wrote it: this is how it is shown.
+QString Calculation::withImplicitMarks(const QString &formula)
+{
+    if (formula.contains(QLatin1Char('@')) || !formulaCanSpill(formula)) return formula;
+    struct Tok {
+        enum Kind : quint8 { Word, Call, Str, Op, Open, Close, Comma, Other } kind;
+        int start, end;
+        bool range;
+        const jp::calc::FunctionInfo *fn;
+        int match;   // the index of the token that closes a call's parenthesis
+    };
+    std::vector<Tok> toks;
+    const int n = formula.size();
+    static const QRegularExpression rangeText(QStringLiteral("^(\\$?[A-Za-z]{1,3}\\$?[0-9]+:\\$?[A-Za-z]{1,3}\\$?[0-9]+|\\$?[A-Za-z]{1,3}:\\$?[A-Za-z]{1,3}|\\$?[0-9]+:\\$?[0-9]+)$"));
+    for (int i = 0; i < n;) {
+        const QChar c = formula.at(i);
+        if (c.isSpace()) {
+            ++i;
+            continue;
+        }
+        const int start = i;
+        if (c == QLatin1Char('"')) {
+            for (++i; i < n; ++i)
+                if (formula.at(i) == QLatin1Char('"')) {
+                    if (i + 1 < n && formula.at(i + 1) == QLatin1Char('"')) ++i;
+                    else break;
+                }
+            i = std::min(n, i + 1);
+            toks.push_back({Tok::Str, start, i, false, nullptr, -1});
+        } else if (c == QLatin1Char('(')) {
+            ++i;
+            toks.push_back({Tok::Open, start, i, false, nullptr, -1});
+        } else if (c == QLatin1Char(')')) {
+            ++i;
+            toks.push_back({Tok::Close, start, i, false, nullptr, -1});
+        } else if (c == QLatin1Char(',')) {
+            ++i;
+            toks.push_back({Tok::Comma, start, i, false, nullptr, -1});
+        } else if (c == QLatin1Char('{')) {
+            while (i < n && formula.at(i) != QLatin1Char('}')) ++i;
+            i = std::min(n, i + 1);
+            toks.push_back({Tok::Other, start, i, false, nullptr, -1});
+        } else if (QStringLiteral("+-*/^&=<>%").contains(c)) {
+            ++i;
+            toks.push_back({Tok::Op, start, i, false, nullptr, -1});
+        } else if (c.isLetterOrNumber() || c == QLatin1Char('_') || c == QLatin1Char('$') || c == QLatin1Char('\'') || c == QLatin1Char('.') || c == QLatin1Char('[')) {
+            while (i < n) {
+                const QChar d = formula.at(i);
+                if (d == QLatin1Char('\'')) {
+                    for (++i; i < n; ++i)
+                        if (formula.at(i) == QLatin1Char('\'')) {
+                            if (i + 1 < n && formula.at(i + 1) == QLatin1Char('\'')) ++i;
+                            else break;
+                        }
+                    i = std::min(n, i + 1);
+                } else if (d == QLatin1Char('[')) {
+                    int depth = 0;
+                    for (; i < n; ++i) {
+                        if (formula.at(i) == QLatin1Char('[')) ++depth;
+                        else if (formula.at(i) == QLatin1Char(']') && --depth == 0) {
+                            ++i;
+                            break;
+                        }
+                    }
+                } else if (d.isLetterOrNumber() || d == QLatin1Char('_') || d == QLatin1Char('$') || d == QLatin1Char('.') || d == QLatin1Char('!') || d == QLatin1Char(':') || d == QLatin1Char('#')) {
+                    ++i;
+                } else {
+                    break;
+                }
+            }
+            if (i == start) ++i;
+            int look = i;
+            while (look < n && formula.at(look).isSpace()) ++look;
+            const QString word = formula.mid(start, i - start);
+            if (look < n && formula.at(look) == QLatin1Char('(')) {
+                QString name = word.toUpper();
+                for (const char *prefix : {"_XLFN.", "_XLWS."})
+                    if (name.startsWith(QLatin1String(prefix))) name = name.mid(int(std::strlen(prefix)));
+                toks.push_back({Tok::Call, start, i, false, jp::calc::findFunction(name), -1});
+            } else {
+                const QString part = word.mid(word.lastIndexOf(QLatin1Char('!')) + 1);
+                toks.push_back({Tok::Word, start, i, rangeText.match(part).hasMatch(), nullptr, -1});
+            }
+        } else {
+            ++i;
+            toks.push_back({Tok::Other, start, i, false, nullptr, -1});
+        }
+    }
+    // the parentheses: what closes each call's, and what each token is an argument of
+    struct Frame {
+        int call;   // the token of the function (-1 for a plain parenthesis)
+        int arg;
+    };
+    std::vector<Frame> stack;
+    std::vector<int> frameCall(toks.size(), -1), frameArg(toks.size(), 0);   // (-1: a plain parenthesis, or none)
+    for (size_t k = 0; k < toks.size(); ++k) {
+        const Tok &t = toks[k];
+        if (!stack.empty()) {
+            frameCall[k] = stack.back().call;
+            frameArg[k] = stack.back().arg;
+        }
+        if (t.kind == Tok::Open) {
+            const bool call = k > 0 && toks[k - 1].kind == Tok::Call;
+            stack.push_back({call ? int(k - 1) : -1, 0});
+        } else if (t.kind == Tok::Close) {
+            if (stack.empty()) return formula;
+            if (stack.back().call >= 0) toks[size_t(stack.back().call)].match = int(k);
+            stack.pop_back();
+        } else if (t.kind == Tok::Comma && !stack.empty()) {
+            ++stack.back().arg;
+        }
+    }
+    if (!stack.empty()) return formula;
+    QVector<int> marks;
+    for (size_t k = 0; k < toks.size(); ++k) {
+        const Tok &t = toks[k];
+        bool candidate = false;
+        size_t last = k;
+        if (t.kind == Tok::Word) {
+            candidate = t.range;
+        } else if (t.kind == Tok::Call && t.fn && givesBlock(t.fn->name) && t.match > 0) {
+            candidate = true;
+            last = size_t(t.match);
+        }
+        if (!candidate) continue;
+        const bool before = k > 0 && toks[k - 1].kind == Tok::Op;
+        const bool after = last + 1 < toks.size() && toks[last + 1].kind == Tok::Op;
+        bool mark = before || after;
+        const int call = frameCall[k];
+        const jp::calc::FunctionInfo *f = call >= 0 ? toks[size_t(call)].fn : nullptr;
+        const char cls = f ? jp::calc::paramClass(*f, frameArg[k]) : 0;
+        if (cls == 'a') mark = false;   // (an argument worked out as an array: SUMPRODUCT, FILTER's)
+        else if (!mark) mark = call < 0 || cls == 'v';
+        if (mark) marks.push_back(t.start);
+    }
+    QString out = formula;
+    for (int k = marks.size() - 1; k >= 0; --k) out.insert(marks[k], QLatin1Char('@'));
+    return out;
 }
 
 CellRange Calculation::spillBlock(int sheet, quint32 row, quint32 col) const

@@ -602,6 +602,13 @@ QString spillingFormulaOf(const Calculation &calc, int sheet, quint32 row, quint
 
 } // namespace
 
+// The formula of a cell as it is shown: the file's, with the mark @ where the old rule of one value of a block applies and the cell is not a dynamic array.
+QString EditSession::shownFormula(const Calculation::CellContent &c) const
+{
+    if (c.dynamic || c.arrayRange.valid || c.dataTable) return c.formula;
+    return Calculation::withImplicitMarks(c.formula);
+}
+
 QString EditSession::editText(int sheet, quint32 row, quint32 col) const
 {
     if (!m_book || !m_book->calc) return {};
@@ -615,7 +622,7 @@ QString EditSession::editText(int sheet, quint32 row, quint32 col) const
         return head.isEmpty() ? QString() : QLatin1Char('=') + formulaToLocale(jp::grid::displayFormula(head), m_locale);
     }
     if (c.isFormula && formulaHidden(sheet, c.style)) return {};
-    if (c.isFormula) return QLatin1Char('=') + formulaToLocale(jp::grid::displayFormula(c.formula), m_locale);
+    if (c.isFormula) return QLatin1Char('=') + formulaToLocale(jp::grid::displayFormula(shownFormula(c)), m_locale);
     const QString code = m_book->book->styles().formatCode(c.style, m_locale);
     return editTextOfValue(c.value, code, entryOptions(sheet, code == QLatin1String("@")));
 }
@@ -649,6 +656,14 @@ QString EditSession::barText(int sheet, quint32 row, quint32 col, const QString 
         const Calculation::CellContent hidden = m_book->calc->content(sheet, row, col);
         if (hidden.isFormula && formulaHidden(sheet, hidden.style)) return QString();
     }
+    // (a formula of an older file that would now give a block is shown with the mark @ of the old rule: it is kept as the file wrote it)
+    if (m_book && m_book->calc && sheet >= 0 && sheet < m_book->calc->sheetCount() && gridText.startsWith(QLatin1Char('='))) {
+        const Calculation::CellContent plain = m_book->calc->content(sheet, row, col);
+        if (plain.isFormula) {
+            const QString marked = shownFormula(plain);
+            if (marked != plain.formula) return QLatin1Char('=') + formulaToLocale(jp::grid::displayFormula(marked), m_locale);
+        }
+    }
     // (a locale that writes the decimal point as a point has nothing to change: what the grid gives is what is typed)
     if (!m_book || !m_book->calc || m_locale.decimalPoint() != QLatin1String(",")) return gridText;
     const Calculation::CellContent c = m_book->calc->content(sheet, row, col);
@@ -681,6 +696,17 @@ bool EditSession::typedChange(int sheet, quint32 row, quint32 col, const QString
     }
     if (before.spilled && r.entry.kind == Entry::Kind::Formula && r.entry.text == spillingFormulaOf(*calc, sheet, row, col)) {
         // (the formula that fills the cell, entered as it was shown: the cell stays as it is, filled, and no formula is put in it)
+        CellChange same;
+        same.sheet = sheet;
+        same.row = row;
+        same.col = quint16(col);
+        same.before = same.after = before;
+        *none = true;
+        *out = std::move(same);
+        return true;
+    }
+    if (before.isFormula && r.entry.kind == Entry::Kind::Formula && r.entry.text != before.formula && r.entry.text == shownFormula(before)) {
+        // (the formula as the bar showed it, with the mark @ of the old rule: the cell stays as it is, and the file's formula is not rewritten)
         CellChange same;
         same.sheet = sheet;
         same.row = row;

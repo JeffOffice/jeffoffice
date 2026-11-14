@@ -237,6 +237,8 @@ public:
     bool isSpillAnchor(int sheet, quint32 row, quint32 col) const;
     bool isSpillMember(int sheet, quint32 row, quint32 col, CellRange *anchor = nullptr) const;
     static bool formulaCanSpill(const QString &formula);
+    // The formula of a cell that is not a dynamic array with the mark @ where the old rule of one value of a block applies (the same text when there is none): what the formula bar shows.
+    static QString withImplicitMarks(const QString &formula);
     // What a cell shows: its value; a formula that has never been worked out shows the result the file stored for it (nothing if it stored none), and one that waits to be
     // worked out again the value it had.
     jp::calc::Value shown(int sheet, quint32 row, quint32 col) const;

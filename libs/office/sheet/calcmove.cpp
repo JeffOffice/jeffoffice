@@ -39,8 +39,14 @@ bool Calculation::canMoveCells(const StructEdit &e, QString *why) const
     const QString array = say(QT_TRANSLATE_NOOP("jp::office::sheet::Calculation", "Part of an array formula can't be moved or written over. Select the whole array, or none of it."));
     const QString dataTable = say(QT_TRANSLATE_NOOP("jp::office::sheet::Calculation", "A data table can't be moved or written over."));
     auto insideBlock = [&](const CellRange &r) { return r.row1 >= e.row1 && r.row2 <= e.row2 && r.col1 >= e.col1 && r.col2 <= e.col2; };
+    // (the block of a formula that spills goes with its formula's cell, which is worked out again where it lands: what is written over of a block makes it #SPILL!. Part of it moved, the formula's cell not, is refused)
+    auto spills = [](const Sheet &sh, const CellRange &r) {
+        const Cell *head = sh.cells.find(r.row1, r.col1);
+        return head && (head->flags & SpillFormula);
+    };
     for (const CellRange &r : from.ranges) {
         if (!meets(r, e.row1, e.col1, e.row2, e.col2)) continue;
+        if (spills(from, r) && r.row1 >= e.row1 && r.row1 <= e.row2 && r.col1 >= e.col1 && r.col1 <= e.col2) continue;
         // an array goes whole (an array of one cell too); part of one does not, and a data table does not go at all
         const Cell *first = from.cells.find(r.row1, r.col1);
         if (first && (first->flags & DataTable)) return refuse(dataTable);
@@ -48,6 +54,7 @@ bool Calculation::canMoveCells(const StructEdit &e, QString *why) const
     }
     for (const CellRange &r : to.ranges) {
         if (r.cellCount() <= 1 || !meets(r, e.toRow, e.toCol, toRow2, toCol2)) continue;
+        if (spills(to, r)) continue;
         if (e.sheet == e.toSheet && insideBlock(r)) continue;   // (it goes with the block: it is not written over)
         const Cell *first = to.cells.find(r.row1, r.col1);
         return refuse(first && (first->flags & DataTable) ? dataTable : array);
@@ -259,6 +266,10 @@ bool Calculation::applyMove(const StructEdit &e, EditRecord *rec)
     for (qint32 i = 0; i < S.ranges.size(); ++i) {
         const CellRange r = S.ranges[i];
         if (!r.valid || !meets(r, e.row1, e.col1, e.row2, e.col2)) continue;
+        if (const Cell *head = S.cells.find(r.row1, r.col1); head && (head->flags & SpillFormula)) {
+            letGoOfSpill(e.sheet, head->formula);   // (the cells it filled are let go of; its cell goes where it goes and is worked out there)
+            continue;
+        }
         ArrayGoing going;
         going.row = quint32(qint64(r.row1) + dRow);
         going.col = quint32(qint64(r.col1) + dCol);
@@ -275,6 +286,7 @@ bool Calculation::applyMove(const StructEdit &e, EditRecord *rec)
     for (qint32 i = 0; i < D.ranges.size(); ++i) {
         const CellRange r = D.ranges[i];
         if (!r.valid || !meets(r, e.toRow, e.toCol, toRow2, toCol2)) continue;
+        if (const Cell *head = D.cells.find(r.row1, r.col1); head && (head->flags & SpillFormula)) continue;
         rec->arraysTaken.push_back({e.toSheet, i, r, false});
         freeSlots.push_back({e.toSheet, i});
         dissolveArray(e.toSheet, i);

@@ -1,4 +1,8 @@
 #include "tst_crunch_edit.h"
+#include "core/sortspec.h"
+using jp::crunch::EditSession;
+using jp::crunch::SortSpec;
+using jp::crunch::SortLevel;
 
 
 void CrunchEditTests::saveAsWritesAnotherFileAndTheWindowIsThatFile()
@@ -123,6 +127,229 @@ void CrunchEditTests::aSpillTypedInTheWindowIsSavedAndOpenedAgainAsASpill()
 void CrunchEditTests::aLetThatSpillsTypedInTheWindowIsSavedAndOpenedAgain()
 {
     spillRoundTrip(this, QStringLiteral("=LET(n,3,SEQUENCE(n))"), QStringLiteral("_xlfn.LET(_xlpm.n,3,_xlfn.SEQUENCE(_xlpm.n))"));
+}
+
+namespace {
+
+QString blockOf(EditWindow &e, const QString &ref)
+{
+    quint32 r = 0, c = 0;
+    parseCellRef(ref, &r, &c);
+    const CellRange b = e.win.w.session()->calculation()->spillBlock(0, r, c);
+    return b.valid ? rangeName(b) : QString();
+}
+
+} // namespace
+
+// Rows and columns put in or taken out above, left of, or through a block move it with its formula; a delete that cuts the block works the formula out again.
+void CrunchEditTests::aSpillBlockFollowsRowsAndColumnsInsertedAndDeleted()
+{
+    EditWindow e;
+    QVERIFY(e.openBlank());
+    e.select(QStringLiteral("B2"));
+    e.enter(QStringLiteral("=SEQUENCE(3)"));
+    QVERIFY(e.settle());
+    QCOMPARE(blockOf(e, QStringLiteral("B2")), QStringLiteral("B2:B4"));
+    EditSession *s = e.win.w.session();
+    QVERIFY(s->insertRows(0, 0, 1).ok);
+    QVERIFY(e.settle());
+    QCOMPARE(blockOf(e, QStringLiteral("B3")), QStringLiteral("B3:B5"));
+    QCOMPARE(e.valueAt(QStringLiteral("B5")), QStringLiteral("n:3"));
+    QVERIFY(s->insertColumns(0, 0, 1).ok);
+    QVERIFY(e.settle());
+    QCOMPARE(blockOf(e, QStringLiteral("C3")), QStringLiteral("C3:C5"));
+    QCOMPARE(e.valueAt(QStringLiteral("C4")), QStringLiteral("n:2"));
+    // a row put in through the block: the formula's block is as large as before
+    { const auto o = s->insertRows(0, 3, 1); QVERIFY2(o.ok, qPrintable(o.problem)); }
+    QVERIFY(e.settle());
+    QCOMPARE(blockOf(e, QStringLiteral("C3")), QStringLiteral("C3:C5"));
+    QCOMPARE(e.valueAt(QStringLiteral("C5")), QStringLiteral("n:3"));
+    QVERIFY(s->calculation()->isSpillMember(0, 4, 2));
+    // a delete through the block: the formula is worked out again and fills three cells
+    QVERIFY(s->deleteRows(0, 3, 1).ok);
+    QVERIFY(e.settle());
+    QCOMPARE(blockOf(e, QStringLiteral("C3")), QStringLiteral("C3:C5"));
+    QCOMPARE(e.valueAt(QStringLiteral("C5")), QStringLiteral("n:3"));
+    // the column of the formula deleted takes it away; the cells it filled are empty
+    QVERIFY(s->deleteColumns(0, 2, 1).ok);
+    QVERIFY(e.settle());
+    QCOMPARE(e.valueAt(QStringLiteral("C4")), QStringLiteral("-"));
+    // Undo puts the block back
+    e.win.w.undoStack()->undo();
+    QVERIFY(e.settle());
+    QCOMPARE(blockOf(e, QStringLiteral("C3")), QStringLiteral("C3:C5"));
+    QCOMPARE(e.valueAt(QStringLiteral("C4")), QStringLiteral("n:2"));
+}
+
+// The formula cell moved (a cut and paste) takes its block along; a sort that moves the formula's row does too.
+void CrunchEditTests::aSpillBlockFollowsAMoveAndASort()
+{
+    EditWindow e;
+    QVERIFY(e.openBlank());
+    e.select(QStringLiteral("B2"));
+    e.enter(QStringLiteral("=SEQUENCE(3)"));
+    QVERIFY(e.settle());
+    EditSession *s = e.win.w.session();
+    { const auto o = s->moveCells(0, rangeOf(QStringLiteral("B2")), 0, 5, 3); QVERIFY2(o.ok, qPrintable(o.problem)); }
+    QVERIFY(e.settle());
+    QCOMPARE(blockOf(e, QStringLiteral("D6")), QStringLiteral("D6:D8"));
+    QCOMPARE(e.valueAt(QStringLiteral("D8")), QStringLiteral("n:3"));
+    QCOMPARE(e.valueAt(QStringLiteral("B3")), QStringLiteral("-"));
+    QVERIFY(!s->calculation()->isSpillMember(0, 2, 1));
+    e.win.w.undoStack()->undo();
+    QVERIFY(e.settle());
+    QCOMPARE(blockOf(e, QStringLiteral("B2")), QStringLiteral("B2:B4"));
+    QCOMPARE(e.valueAt(QStringLiteral("D8")), QStringLiteral("-"));
+    e.win.w.undoStack()->redo();
+    QVERIFY(e.settle());
+    QCOMPARE(blockOf(e, QStringLiteral("D6")), QStringLiteral("D6:D8"));
+    // a sort that puts the formula's row second (keys in column A: 2 for the formula's row, none under it, 1 in the third row)
+    EditWindow f;
+    QVERIFY(f.openBlank());
+    f.select(QStringLiteral("A1"));
+    f.enter(QStringLiteral("2"));
+    f.select(QStringLiteral("B1"));
+    f.enter(QStringLiteral("=SEQUENCE(2)"));
+    f.select(QStringLiteral("A3"));
+    f.enter(QStringLiteral("1"));
+    QVERIFY(f.settle());
+    SortSpec spec;
+    SortLevel level;
+    level.key = 0;
+    spec.levels.push_back(level);
+    QVERIFY(f.win.w.session()->sortRange(0, rangeOf(QStringLiteral("A1:B3")), spec).ok);
+    QVERIFY(f.settle());
+    QCOMPARE(f.valueAt(QStringLiteral("A1")), QStringLiteral("n:1"));
+    QCOMPARE(f.valueAt(QStringLiteral("A2")), QStringLiteral("n:2"));
+    QCOMPARE(blockOf(f, QStringLiteral("B2")), QStringLiteral("B2:B3"));
+    QCOMPARE(f.valueAt(QStringLiteral("B3")), QStringLiteral("n:2"));
+    QVERIFY(!f.win.w.session()->calculation()->isSpillMember(0, 0, 1));
+    f.win.w.undoStack()->undo();
+    QVERIFY(f.settle());
+    QCOMPARE(blockOf(f, QStringLiteral("B1")), QStringLiteral("B1:B2"));
+    QCOMPARE(f.valueAt(QStringLiteral("B2")), QStringLiteral("n:2"));
+}
+
+// A cell in the way is emptied: the formula's cell is worked out again and fills its block, whether it is deleted, moved, or its row is.
+void CrunchEditTests::aSpillIsCheckedAgainWhenWhatBlockedItIsEmptied()
+{
+    EditWindow e;
+    QVERIFY(e.openBlank());
+    e.select(QStringLiteral("A3"));
+    e.enter(QStringLiteral("x"));
+    e.select(QStringLiteral("A1"));
+    e.enter(QStringLiteral("=SEQUENCE(4)"));
+    QVERIFY(e.settle());
+    QCOMPARE(e.valueAt(QStringLiteral("A1")), QStringLiteral("e:#SPILL!"));
+    e.select(QStringLiteral("A3"));
+    QTest::keyClick(e.view(), Qt::Key_Delete);
+    QVERIFY(e.settle());
+    QCOMPARE(e.valueAt(QStringLiteral("A1")), QStringLiteral("n:1"));
+    QCOMPARE(e.valueAt(QStringLiteral("A4")), QStringLiteral("n:4"));
+    QCOMPARE(blockOf(e, QStringLiteral("A1")), QStringLiteral("A1:A4"));
+    // one step of Undo for the Delete: the cell is back and the spill is blocked again
+    e.win.w.undoStack()->undo();
+    QVERIFY(e.settle());
+    QCOMPARE(e.valueAt(QStringLiteral("A1")), QStringLiteral("e:#SPILL!"));
+    QCOMPARE(e.valueAt(QStringLiteral("A3")), QStringLiteral("s:x"));
+    // the blocking cell moved away
+    QVERIFY(e.win.w.session()->moveCells(0, rangeOf(QStringLiteral("A3")), 0, 8, 5).ok);
+    QVERIFY(e.settle());
+    QCOMPARE(e.valueAt(QStringLiteral("A4")), QStringLiteral("n:4"));
+    // a row deleted that held the blocking cell
+    EditWindow f;
+    QVERIFY(f.openBlank());
+    f.select(QStringLiteral("D1"));
+    f.enter(QStringLiteral("=SEQUENCE(3,1,5)"));
+    f.select(QStringLiteral("D2"));
+    f.enter(QStringLiteral("y"));
+    QVERIFY(f.settle());
+    QCOMPARE(f.valueAt(QStringLiteral("D1")), QStringLiteral("e:#SPILL!"));
+    QVERIFY(f.win.w.session()->deleteRows(0, 1, 1).ok);
+    QVERIFY(f.settle());
+    QCOMPARE(f.valueAt(QStringLiteral("D1")), QStringLiteral("n:5"));
+    QCOMPARE(f.valueAt(QStringLiteral("D3")), QStringLiteral("n:7"));
+}
+
+// A1# in other functions, in a name, in a rule of validation, and in a conditional format.
+void CrunchEditTests::aSpillRangeWorksInFunctionsNamesValidationsAndFormats()
+{
+    EditWindow e;
+    QVERIFY(e.openBlank());
+    e.select(QStringLiteral("A1"));
+    e.enter(QStringLiteral("=SEQUENCE(4,1,10,10)"));
+    const char *const formulas[] = {"=SUM(A1#)", "=ROWS(A1#)", "=INDEX(A1#,2)", "=SUMPRODUCT(A1#*2)", "=COUNTIF(A1#,\">15\")", "=MAX(A1#)+MIN(A1#)", "=ROWS(FILTER(A1#,A1#>15))"};
+    const char *const expected[] = {"n:100", "n:4", "n:20", "n:200", "n:3", "n:50", "n:3"};
+    for (int i = 0; i < 7; ++i) {
+        e.select(QStringLiteral("C%1").arg(i + 1));
+        e.enter(QString::fromLatin1(formulas[i]));
+    }
+    QVERIFY(e.settle());
+    for (int i = 0; i < 7; ++i)
+        QCOMPARE(e.valueAt(QStringLiteral("C%1").arg(i + 1)), QString::fromLatin1(expected[i]));
+    // a name that stands for the block
+    EditSession::NameDraft draft;
+    draft.name = QStringLiteral("Prices");
+    draft.text = QStringLiteral("=Sheet1!$A$1#");
+    QVERIFY(e.win.w.session()->defineName(draft).ok);
+    e.select(QStringLiteral("C9"));
+    e.enter(QStringLiteral("=SUM(Prices)"));
+    QVERIFY(e.settle());
+    QCOMPARE(e.valueAt(QStringLiteral("C9")), QStringLiteral("n:100"));
+    // a list for validation that is the block
+    Validation v;
+    v.type = Validation::Type::List;
+    v.formula1 = QStringLiteral("$A$1#");
+    v.ranges.push_back(rangeOf(QStringLiteral("E1")));
+    v.showError = true;
+    QVERIFY(e.win.w.session()->setValidations(0, {v}, QStringLiteral("Validation")).ok);
+    QVERIFY(e.settle());
+    const Calculation *calc = e.win.w.session()->calculation();
+    const Validation *rule = calc->validationAt(0, 0, 4);
+    QVERIFY(rule);
+    QVERIFY(calc->entryAllowed(0, 0, 4, *rule, Value::number(20), QStringLiteral("20")));
+    QVERIFY(!calc->entryAllowed(0, 0, 4, *rule, Value::number(21), QStringLiteral("21")));
+    // a conditional format whose formula reads the block
+    CondRule rule2;
+    rule2.type = CondRule::Type::Expression;
+    rule2.formula1 = QStringLiteral("SUM($A$1#)>50");
+    rule2.ranges.push_back(rangeOf(QStringLiteral("F1:F3")));
+    { const auto o = e.win.w.session()->addCondRule(0, rule2, DifferentialFormat()); QVERIFY2(o.ok, qPrintable(o.problem)); }
+    QVERIFY(e.settle());
+}
+
+// A formula of a file written before dynamic arrays that would now give a block: the old rule (one value of it) and the mark @ where it applies; unchanged it is written back as it was.
+void CrunchEditTests::aFormulaOfAnOlderFileShowsItsImplicitIntersection()
+{
+    EditWindow e;
+    QVERIFY(e.openBlank());
+    e.select(QStringLiteral("A1"));
+    e.enter(QStringLiteral("5"));
+    EditSession *s = e.win.w.session();
+    Calculation *calc = const_cast<Calculation *>(s->calculation());
+    QVERIFY(calc->setFormula(0, 1, 0, QStringLiteral("A1:A3*2"), Calculation::Marking::Now, nullptr, false));
+    QVERIFY(calc->setFormula(0, 1, 1, QStringLiteral("SUM(A1:A3)"), Calculation::Marking::Now, nullptr, false));
+    QVERIFY(calc->setFormula(0, 1, 2, QStringLiteral("FILTER(A1:A3,A1:A3>0)"), Calculation::Marking::Now, nullptr, false));
+    QVERIFY(e.settle());
+    QCOMPARE(s->barText(0, 1, 0, QStringLiteral("=A1:A3*2")), QStringLiteral("=@A1:A3*2"));
+    QCOMPARE(s->barText(0, 1, 1, QStringLiteral("=SUM(A1:A3)")), QStringLiteral("=SUM(A1:A3)"));
+    QCOMPARE(s->barText(0, 1, 2, QStringLiteral("=FILTER(A1:A3,A1:A3>0)")), QStringLiteral("=@FILTER(A1:A3,A1:A3>0)"));
+    QCOMPARE(s->editText(0, 1, 0), QStringLiteral("=@A1:A3*2"));
+    // F2 then Return with the text as shown changes nothing, and the formula stays as the file wrote it
+    const int steps = e.win.w.undoStack()->count();
+    e.select(QStringLiteral("A2"));
+    QTest::keyClick(e.view(), Qt::Key_F2);
+    QCOMPARE(e.win.w.cellEditor()->text(), QStringLiteral("=@A1:A3*2"));
+    e.key(Qt::Key_Return);
+    QVERIFY(e.settle());
+    QCOMPARE(e.win.w.undoStack()->count(), steps);
+    QCOMPARE(calc->content(0, 1, 0).formula, QStringLiteral("A1:A3*2"));
+    QVERIFY(!calc->content(0, 1, 0).dynamic);
+    // typed without the mark, a formula that can give a block spills as it does in a new file
+    e.select(QStringLiteral("E1"));
+    e.enter(QStringLiteral("=A1:A3*2"));
+    QVERIFY(e.settle());
+    QVERIFY(calc->isSpillAnchor(0, 0, 4));
 }
 
 namespace {

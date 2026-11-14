@@ -130,6 +130,11 @@ private Q_SLOTS:
     void aFilledCellOnAProtectedSheetHidesTheFormulaThatFillsIt();
     void theFormulaBarCommittingAFilledCellsFormulaUnchangedChangesNothing();
     void aLetThatSpillsTypedInTheWindowIsSavedAndOpenedAgain();
+    void aSpillBlockFollowsRowsAndColumnsInsertedAndDeleted();
+    void aSpillBlockFollowsAMoveAndASort();
+    void aSpillIsCheckedAgainWhenWhatBlockedItIsEmptied();
+    void aSpillRangeWorksInFunctionsNamesValidationsAndFormats();
+    void aFormulaOfAnOlderFileShowsItsImplicitIntersection();
     void aSaveThatFailsLeavesTheOldFile();
     void closingAsksAboutChangesThatAreNotSaved();
     void saveWaitsForTheCalculation();
