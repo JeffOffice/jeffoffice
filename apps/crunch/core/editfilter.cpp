@@ -104,6 +104,15 @@ bool EditSession::rowFilteredOut(int sheet, quint32 row) const
     return false;
 }
 
+std::vector<quint32> EditSession::hiddenRowsIn(int sheet, quint32 first, quint32 last, bool any) const
+{
+    std::vector<quint32> rows;
+    if (!m_book || !m_book->calc || sheet < 0 || sheet >= m_book->calc->sheetCount() || first > last) return rows;
+    for (const RowSpec &r : m_book->calc->rowSpecsIn(sheet, first, last))
+        if (r.hidden && (any || r.filtered)) rows.push_back(r.row);
+    return rows;
+}
+
 AutoFilter EditSession::tableFilter(int table) const
 {
     AutoFilter f;

@@ -91,6 +91,9 @@ QByteArray ClipData::toBytes() const
         s << t.dRow << t.dCol << t.shown << quint32(t.comments.size());
         for (const ClipThreadComment &c : t.comments) s << c.author << c.userId << c.providerId << c.personId << c.time << c.text << c.done << c.parent;
     }
+    // (after the threads, for the same reason)
+    s << quint32(rowOffsets.size());
+    for (const quint32 o : rowOffsets) s << o;
     return bytes;
 }
 
@@ -171,6 +174,17 @@ bool ClipData::fromBytes(const QByteArray &bytes, ClipData *out)
                 t.comments.push_back(std::move(c));
             }
             d.threads.push_back(std::move(t));
+        }
+    }
+    if (!s.atEnd()) {
+        quint32 offsets = 0;
+        s >> offsets;
+        if (s.status() != QDataStream::Ok || (offsets != 0 && offsets != d.rows) || qint64(offsets) * 4 > bytes.size() - s.device()->pos()) return false;
+        for (quint32 i = 0; i < offsets; ++i) {
+            quint32 o = 0;
+            s >> o;
+            if (s.status() != QDataStream::Ok || qint64(d.source.row1) + o > d.source.row2) return false;
+            d.rowOffsets.push_back(o);
         }
     }
     *out = std::move(d);

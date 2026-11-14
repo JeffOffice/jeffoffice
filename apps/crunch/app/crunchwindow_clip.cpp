@@ -198,7 +198,7 @@ QString CrunchWindow::htmlOfClip(const ClipData &clip) const
     const grid::GridLayout &L = gs.layout();
     QString html = QStringLiteral("<html><body><table>");
     for (quint32 r = 0; r < clip.rows; ++r) {
-        const quint32 row = clip.source.row1 + r;
+        const quint32 row = clip.sourceRow(r);
         if (L.rows.size(row) == 0) continue;
         html += QStringLiteral("<tr>");
         for (quint32 c = 0; c < clip.cols; ++c) {
@@ -469,7 +469,7 @@ void CrunchWindow::pasteLink()
     QVector<QStringList> table;
     for (quint32 r = 0; r < clip.rows; ++r) {
         QStringList row;
-        for (quint32 c = 0; c < clip.cols; ++c) row << QLatin1Char('=') + jp::office::sheet::chartRef(name, CellRange{clip.source.row1 + r, clip.source.col1 + c, clip.source.row1 + r, clip.source.col1 + c, true});
+        for (quint32 c = 0; c < clip.cols; ++c) row << QLatin1Char('=') + jp::office::sheet::chartRef(name, CellRange{clip.sourceRow(r), clip.source.col1 + c, clip.sourceRow(r), clip.source.col1 + c, true});
         table << row;
     }
     const qint64 before = m_loader.changesMade();
@@ -502,7 +502,7 @@ void CrunchWindow::pasteAsHyperlinks()
     QVector<QStringList> table;
     for (quint32 r = 0; r < clip.rows; ++r) {
         QStringList row;
-        for (quint32 c = 0; c < clip.cols; ++c) row << QLatin1Char('\'') + m_session->displayText(clip.sheet, clip.source.row1 + r, clip.source.col1 + c);
+        for (quint32 c = 0; c < clip.cols; ++c) row << QLatin1Char('\'') + m_session->displayText(clip.sheet, clip.sourceRow(r), clip.source.col1 + c);
         table << row;
     }
     for (QStringList &row : table)
@@ -519,7 +519,7 @@ void CrunchWindow::pasteAsHyperlinks()
                 jp::office::sheet::LinkSpec link;
                 const quint32 row = pasted.row1 + r, col = pasted.col1 + c;
                 link.range = CellRange{row, col, row, col, true};
-                const QString at = jp::office::sheet::chartRef(name, CellRange{clip.source.row1 + r, clip.source.col1 + c, clip.source.row1 + r, clip.source.col1 + c, true});
+                const QString at = jp::office::sheet::chartRef(name, CellRange{clip.sourceRow(r), clip.source.col1 + c, clip.sourceRow(r), clip.source.col1 + c, true});
                 link.location = QString(at).remove(QLatin1Char('$'));
                 o = m_session->setLink(m_sheet, link.range, link, tr("Paste as Hyperlink"));
             }

@@ -47,7 +47,12 @@ void CrunchWindow::createFindActions()
     mk("find.goto", tr("Go To…"), "locate", QKeySequence(Qt::CTRL | Qt::Key_G), [this] { goToDialog(); });
     act("find.goto")->setShortcuts({QKeySequence(Qt::Key_F5), QKeySequence(Qt::CTRL | Qt::Key_G)});
     mk("find.gotoSpecial", tr("Select by Kind…"), "", QKeySequence(), [this] { goToSpecialDialog(); });
-    for (const char *id : {"edit.find", "find.find", "find.replace", "find.next", "find.goto", "find.gotoSpecial"}) m_opsActions << QString::fromLatin1(id);
+    mk("find.selectVisible", tr("Select Visible Cells"), "", QKeySequence(Qt::ALT | Qt::Key_Semicolon), [this] {
+        crunch::SpecialOptions options;
+        options.kind = crunch::SpecialKind::VisibleCells;
+        goToSpecial(options);
+    });
+    for (const char *id : {"edit.find", "find.find", "find.replace", "find.next", "find.goto", "find.gotoSpecial", "find.selectVisible"}) m_opsActions << QString::fromLatin1(id);
     m_findTimer.setInterval(0);
     m_findTimer.setSingleShot(false);
     connect(&m_findTimer, &QTimer::timeout, this, [this] { stepSearch(); });

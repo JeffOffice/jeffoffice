@@ -15,6 +15,7 @@
 #include <QAction>
 #include <QComboBox>
 #include <QDateEdit>
+#include <QLabel>
 #include <QDoubleSpinBox>
 #include <QLineEdit>
 #include <QMenu>
@@ -861,6 +862,112 @@ private Q_SLOTS:
         for (const jp::office::sheet::RowSpec &r : saved.rowSpecs)
             if (r.hidden) hidden += QString::number(r.row + 1) + QLatin1Char(' ');
         QCOMPARE(hidden.trimmed(), QStringLiteral("5"));
+    }
+
+    // A list that is filtered: a paste, a fill, and a copy of it touch the rows that show and leave the rows the filter hides as they are.
+    void aPasteIntoAFilteredListLandsOnTheRowsThatShow()
+    {
+        EditWindow e;
+        QStringList cells = fruit();
+        cells << "J1=x" << "J2=y" << "J3=z";
+        QVERIFY(e.open(bookOfSheets({cells})));
+        crunch::EditSession *s = e.win.w.session();
+        using Op = FilterColumn::Op;
+        const crunch::ClipData three = s->copyCells(0, rangeOf(QStringLiteral("J1:J3")), false);
+        const crunch::ClipData one = s->copyCells(0, rangeOf(QStringLiteral("J1")), false);
+        QVERIFY(filterWith(e, with(e, 1, custom(Op::Greater, QStringLiteral("10")))));
+        QCOMPARE(shownRows(e), QStringLiteral("3 7 9"));
+        // three cells go to the next three rows that show
+        const int before = e.win.w.undoStack()->count();
+        QVERIFY(s->paste(0, rangeOf(QStringLiteral("L3")), three, crunch::EditSession::PasteOptions()).ok);
+        QCOMPARE(shown(e, QStringLiteral("L2:L9")), QStringLiteral("|x||||y||z"));
+        QCOMPARE(e.win.w.undoStack()->count(), before + 1);
+        e.win.w.undoStack()->undo();
+        QCOMPARE(shown(e, QStringLiteral("L1:L9")), QString(8, QLatin1Char('|')));
+        // one cell into a selection that has hidden rows in it: only the rows that show take it
+        QVERIFY(s->paste(0, rangeOf(QStringLiteral("L3:L9")), one, crunch::EditSession::PasteOptions()).ok);
+        QCOMPARE(shown(e, QStringLiteral("L2:L9")), QStringLiteral("|x||||x||x"));
+        // a paste of text from another program goes the same way
+        QVector<QStringList> table;
+        table << QStringList{QStringLiteral("p")} << QStringList{QStringLiteral("q")};
+        QVERIFY(s->pasteText(0, rangeOf(QStringLiteral("N3")), table, crunch::EditSession::PasteOptions()).ok);
+        QCOMPARE(shown(e, QStringLiteral("N2:N9")), QStringLiteral("|p||||q||"));
+    }
+
+    void aFillOfAFilteredListGoesOnlyIntoTheRowsThatShow()
+    {
+        EditWindow e;
+        QStringList cells = fruit();
+        cells << "J1=item1";
+        for (int r = 1; r <= 9; ++r) cells << QStringLiteral("L%1=%1").arg(r);
+        QVERIFY(e.open(bookOfSheets({cells})));
+        crunch::EditSession *s = e.win.w.session();
+        using Op = FilterColumn::Op;
+        QVERIFY(filterWith(e, with(e, 1, custom(Op::Greater, QStringLiteral("10")))));
+        const int before = e.win.w.undoStack()->count();
+        QVERIFY(s->fill(0, rangeOf(QStringLiteral("J1")), crunch::EditSession::FillDirection::Down, 8).ok);
+        QCOMPARE(shown(e, QStringLiteral("J1:J9")), QStringLiteral("item1||item2||||item3||item4"));   // (the series goes on from row to row that shows)
+        QCOMPARE(e.win.w.undoStack()->count(), before + 1);
+        // to the right, the rows that show are filled and the rows that do not are not
+        QVERIFY(s->fill(0, rangeOf(QStringLiteral("L1:L9")), crunch::EditSession::FillDirection::Right, 1).ok);
+        QCOMPARE(shown(e, QStringLiteral("M1:M9")), QStringLiteral("1||3||||7||9"));
+        e.win.w.undoStack()->undo();
+        e.win.w.undoStack()->undo();
+        QCOMPARE(shown(e, QStringLiteral("J2:J9")), QString(7, QLatin1Char('|')));
+    }
+
+    void copyingAFilteredListCopiesOnlyTheRowsThatShow()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookOfSheets({fruit()})));
+        crunch::EditSession *s = e.win.w.session();
+        using Op = FilterColumn::Op;
+        QVERIFY(filterWith(e, with(e, 1, custom(Op::Greater, QStringLiteral("10")))));
+        const crunch::ClipData clip = s->copyCells(0, rangeOf(QStringLiteral("A1:B9")), false);
+        QCOMPARE(int(clip.rows), 4);                                                      // (the header and the three that show)
+        QVERIFY(filterWith(e, AutoFilter()));
+        QVERIFY(s->paste(0, rangeOf(QStringLiteral("F1")), clip, crunch::EditSession::PasteOptions()).ok);
+        QCOMPARE(shown(e, QStringLiteral("F1:G4")), QStringLiteral("Name|Qty|banana|12|date|20|fig|15"));
+        // a copy that is formulas keeps what they read: the rows that were left out do not move the ones that are copied
+        EditWindow f;
+        QVERIFY(f.open(bookOfSheets({{"A1=h", "B1=h", "A2=1", "B2==A2*2", "A3=2", "B3==A3*2", "A4=3", "B4==A4*2"}})));
+        QVERIFY(filterWith(f, [&] {
+            AutoFilter g = range(QStringLiteral("A1:B4"));
+            g.columns.append(values({"3"}));
+            return g;
+        }()));
+        const crunch::ClipData formulas = f.win.w.session()->copyCells(0, rangeOf(QStringLiteral("A1:B4")), false);
+        QCOMPARE(int(formulas.rows), 2);
+        QVERIFY(filterWith(f, AutoFilter()));
+        QVERIFY(f.win.w.session()->paste(0, rangeOf(QStringLiteral("D1")), formulas, crunch::EditSession::PasteOptions()).ok);
+        QVERIFY(f.settle());
+        QCOMPARE(shown(f, QStringLiteral("D1:E2")), QStringLiteral("h|h|3|6"));
+        // and the copy that the window makes goes the same way, as text and as cells
+        QVERIFY(filterWith(e, [&] {
+            AutoFilter g = range();
+            g.columns.append(custom(Op::Greater, QStringLiteral("10")));
+            g.columns.last().column = 1;
+            return g;
+        }()));
+        copyRange(e, QStringLiteral("A1:B9"));
+        QVERIFY(filterWith(e, AutoFilter()));
+        paste(e, QStringLiteral("H1"));
+        QCOMPARE(shown(e, QStringLiteral("H1:I5")), QStringLiteral("Name|Qty|banana|12|date|20|fig|15||"));
+    }
+
+    void selectVisibleCellsIsOnAltSemicolonAndSkipsTheRowsAFilterHides()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookOfSheets({fruit()})));
+        using Op = FilterColumn::Op;
+        QVERIFY(filterWith(e, with(e, 1, custom(Op::Greater, QStringLiteral("10")))));
+        QAction *visible = e.win.w.act(QStringLiteral("find.selectVisible"));
+        QVERIFY(visible);
+        QCOMPARE(visible->shortcut().toString(QKeySequence::PortableText), QStringLiteral("Alt+;"));
+        e.view()->selectRange(0, 0, 8, 3);
+        visible->trigger();
+        QCOMPARE(e.view()->rangeName(), QStringLiteral("A1:D1"));
+        QCOMPARE(int(e.view()->marks().size()), 3);                                       // (the other three runs of rows are tinted)
     }
 
     void aFilterByColorIsSavedWithTheColorsFormat()

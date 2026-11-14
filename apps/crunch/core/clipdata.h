@@ -57,6 +57,9 @@ struct ClipData {
     std::vector<ClipThread> threads;                     // the threads of comments on the cells (a paste of everything makes each again, with ids of its own)
     std::vector<ClipNote> notes;                         // the notes of the cells (not those that are a conversation of comments)
     std::vector<double> columnWidths;                    // the width of each column of the block, in the sheet's units; below 0 for the sheet's usual
+    // A copy leaves out the rows that are hidden: the row of the block at `dRow` was this many rows below the first of `source` (empty: every row is there).
+    std::vector<quint32> rowOffsets;
+    quint32 sourceRow(quint32 dRow) const { return source.row1 + (dRow < rowOffsets.size() ? rowOffsets[dRow] : dRow); }
     bool valid() const { return rows > 0 && cols > 0; }
     QByteArray toBytes() const;
     static bool fromBytes(const QByteArray &bytes, ClipData *out);

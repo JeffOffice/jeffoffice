@@ -378,8 +378,13 @@ EditSession::Outcome EditSession::fill(int sheet, const CellRange &source, FillD
     }
     const jp::calc::DateSystem system = m_book->book->info().dateSystem;
     const bool hasShared = !m_book->book->sharedStringsPart().isEmpty();
+    // (the rows a filter hides are passed over: the cells filled are those that show, and a series goes on from one that shows to the next)
+    const std::vector<quint32> hiddenRows = vertical ? hiddenRowsIn(sheet, forward ? source.row2 + 1 : source.row1 - std::min(count, source.row1), forward ? source.row2 + count : source.row1 - 1)
+                                                     : hiddenRowsIn(sheet, source.row1, source.row2);
+    auto rowHidden = [&](quint32 row) { return !hiddenRows.empty() && std::binary_search(hiddenRows.begin(), hiddenRows.end(), row); };
     Step step;
     for (quint32 line = 0; line < lines; ++line) {
+        if (!vertical && rowHidden(source.row1 + line)) continue;
         // the cells of the strip, in the order the fill goes on from
         struct Src {
             quint32 row, col;
@@ -521,9 +526,12 @@ EditSession::Outcome EditSession::fill(int sheet, const CellRange &source, FillD
         }
         const bool single = n == 1;
         if (mode == Mode::Cycle && kind == FillKind::Linear && single) mode = Mode::Cycle;
-        for (quint32 k = 1; k <= count; ++k) {
-            const quint32 row = vertical ? (forward ? source.row2 + k : source.row1 - k) : source.row1 + line;
-            const quint32 col = vertical ? source.col1 + line : (forward ? source.col2 + k : source.col1 - k);
+        quint32 shownCells = 0;
+        for (quint32 k0 = 1; k0 <= count; ++k0) {
+            const quint32 row = vertical ? (forward ? source.row2 + k0 : source.row1 - k0) : source.row1 + line;
+            const quint32 col = vertical ? source.col1 + line : (forward ? source.col2 + k0 : source.col1 - k0);
+            if (vertical && rowHidden(row)) continue;
+            const quint32 k = vertical ? ++shownCells : k0;
             QString problem;
             if (!canEditCell(sheet, row, col, &problem)) {
                 out.ok = false;

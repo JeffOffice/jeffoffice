@@ -69,10 +69,20 @@ ClipData EditSession::copyCells(int sheet, const CellRange &range, bool cut) con
     if (rows * cols > quint64(kMaxCellsPerEdit)) return d;
     d.rows = quint32(rows);
     d.cols = quint32(cols);
+    // (the rows that are hidden are left out of the copy, as they are of the text of it: the rows that show go together)
+    const std::vector<quint32> hidden = hiddenRowsIn(sheet, range.row1, lastRow, true);
+    if (!hidden.empty() && hidden.size() < rows) {
+        d.rows = quint32(rows - hidden.size());
+        for (quint32 row = range.row1; row <= lastRow; ++row)
+            if (!std::binary_search(hidden.begin(), hidden.end(), row)) d.rowOffsets.push_back(row - range.row1);
+    }
+    auto placeOf = [&](quint32 row) { return d.rowOffsets.empty() ? row - range.row1 : quint32(std::lower_bound(d.rowOffsets.begin(), d.rowOffsets.end(), row - range.row1) - d.rowOffsets.begin()); };
+    auto isHidden = [&](quint32 row) { return !d.rowOffsets.empty() && std::binary_search(hidden.begin(), hidden.end(), row); };
     const QLocale usual(QLocale::English, QLocale::UnitedStates);
     s.cells.forEachInRange(range.row1, range.col1, lastRow, lastCol, [&](quint32 row, quint32 col, const Cell &c) {
+        if (isHidden(row)) return true;
         ClipCell cc;
-        cc.dRow = row - range.row1;
+        cc.dRow = placeOf(row);
         cc.dCol = col - range.col1;
         cc.content = calc->content(sheet, row, col);
         if (!cc.content.exists) return true;
@@ -90,17 +100,17 @@ ClipData EditSession::copyCells(int sheet, const CellRange &range, bool cut) con
         return true;
     });
     for (const CellRange &m : s.merges)
-        if (m.row1 >= range.row1 && m.row2 <= lastRow && m.col1 >= range.col1 && m.col2 <= lastCol) {
+        if (m.row1 >= range.row1 && m.row2 <= lastRow && m.col1 >= range.col1 && m.col2 <= lastCol && (d.rowOffsets.empty() || [&] { const auto at = std::lower_bound(hidden.begin(), hidden.end(), m.row1); return at == hidden.end() || *at > m.row2; }())) {
             CellRange r = m;
-            r.row1 -= range.row1;
-            r.row2 -= range.row1;
+            r.row1 = placeOf(m.row1);
+            r.row2 = r.row1 + (m.row2 - m.row1);
             r.col1 -= range.col1;
             r.col2 -= range.col1;
             d.merges.push_back(r);
         }
     for (quint32 r = 0; r < d.rows; ++r)
         for (quint32 c = 0; c < d.cols; ++c) {
-            const NoteInfo *n = m_anchors.noteAt(sheet, range.row1 + r, range.col1 + c);
+            const NoteInfo *n = m_anchors.noteAt(sheet, d.sourceRow(r), range.col1 + c);
             if (n && n->thread && !n->thread->empty() && !n->threadCut && d.threads.size() < size_t(jp::office::sheet::kMaxNotes)) {
                 // (a thread of comments is copied whole, to be made again with ids of its own; one with more comments than are read is not copied: the copy would be a part of it)
                 ClipThread t;
@@ -154,13 +164,31 @@ EditSession::Outcome EditSession::pasteChanges(int sheet, const CellRange &targe
     };
     if (!canEdit(&why) || !canEditSheet(sheet, &why)) return refuse(why);
     if (blockRows == 0 || blockCols == 0 || !target.valid) return out;
-    const quint32 targetRows = target.row2 - target.row1 + 1, targetCols = target.col2 - target.col1 + 1;
+    // (the rows a filter hides are passed over: the block goes into the rows that show, one after another)
+    const std::vector<quint32> hiddenRows = hiddenRowsIn(sheet, target.row1, std::min<quint64>(kMaxRows - 1, quint64(target.row2) + qint64(blockRows) * 4 + 1000000));
+    const quint32 targetRows = target.row2 - target.row1 + 1 - quint32(std::upper_bound(hiddenRows.begin(), hiddenRows.end(), target.row2) - hiddenRows.begin()), targetCols = target.col2 - target.col1 + 1;
     quint32 tilesRows = 1, tilesCols = 1;
     if (targetRows >= blockRows && targetCols >= blockCols && targetRows % blockRows == 0 && targetCols % blockCols == 0) {
         tilesRows = targetRows / blockRows;
         tilesCols = targetCols / blockCols;
     }
     const quint64 totalRows = quint64(blockRows) * tilesRows, totalCols = quint64(blockCols) * tilesCols;
+    // the sheet's row each row of the paste is at
+    std::vector<quint32> rowAt;
+    if (!hiddenRows.empty()) {
+        quint64 row = target.row1;
+        size_t skip = 0;
+        while (rowAt.size() < totalRows && row < kMaxRows) {
+            while (skip < hiddenRows.size() && hiddenRows[skip] < row) ++skip;
+            if (skip < hiddenRows.size() && hiddenRows[skip] == row) {
+                ++row;
+                continue;
+            }
+            rowAt.push_back(quint32(row++));
+        }
+        if (rowAt.size() < totalRows) return refuse(tr("That would go past the edge of the sheet. Select a cell nearer its start."));
+    }
+    auto sheetRow = [&](quint64 place) { return rowAt.empty() ? quint32(target.row1 + place) : rowAt[size_t(place)]; };
     if (target.row1 + totalRows > kMaxRows || target.col1 + totalCols > kMaxColumns) return refuse(tr("That would go past the edge of the sheet. Select a cell nearer its start."));
     if (totalRows * totalCols > quint64(kMaxCellsPerEdit))
         return refuse(tr("That is more cells than JeffCrunch pastes at once (%1). Paste into fewer.").arg(QLocale().toString(kMaxCellsPerEdit)));
@@ -172,7 +200,7 @@ EditSession::Outcome EditSession::pasteChanges(int sheet, const CellRange &targe
             for (quint32 dr = 0; dr < blockRows; ++dr)
                 for (quint32 dc = 0; dc < blockCols; ++dc) {
                     PasteSpot spot;
-                    spot.row = target.row1 + tr_ * blockRows + dr;
+                    spot.row = sheetRow(quint64(tr_) * blockRows + dr);
                     spot.col = target.col1 + tc * blockCols + dc;
                     spot.dRow = dr;
                     spot.dCol = dc;
@@ -198,7 +226,7 @@ EditSession::Outcome EditSession::pasteChanges(int sheet, const CellRange &targe
         m.sheet = sheet;
         m.before = calc->mergesOf(sheet);
         m.countBefore = calc->mergeCountOf(sheet);
-        const quint32 row2 = target.row1 + quint32(totalRows) - 1, col2 = target.col1 + quint32(totalCols) - 1;
+        const quint32 row2 = sheetRow(totalRows - 1), col2 = target.col1 + quint32(totalCols) - 1;
         for (const CellRange &r : m.before)
             if (!(r.row2 < target.row1 || r.row1 > row2 || r.col2 < target.col1 || r.col1 > col2)) continue;   // (written over)
             else m.after.append(r);
@@ -206,8 +234,8 @@ EditSession::Outcome EditSession::pasteChanges(int sheet, const CellRange &targe
             for (quint32 tc = 0; tc < tilesCols; ++tc)
                 for (const CellRange &r : merges) {
                     CellRange placed = r;
-                    placed.row1 += target.row1 + tr_ * blockRows;
-                    placed.row2 += target.row1 + tr_ * blockRows;
+                    placed.row1 = sheetRow(quint64(tr_) * blockRows + r.row1);
+                    placed.row2 = sheetRow(quint64(tr_) * blockRows + r.row2);
                     placed.col1 += target.col1 + tc * blockCols;
                     placed.col2 += target.col1 + tc * blockCols;
                     m.after.append(placed);
@@ -218,7 +246,7 @@ EditSession::Outcome EditSession::pasteChanges(int sheet, const CellRange &targe
     out.range.valid = true;
     out.range.row1 = target.row1;
     out.range.col1 = target.col1;
-    out.range.row2 = target.row1 + quint32(totalRows) - 1;
+    out.range.row2 = sheetRow(totalRows - 1);
     out.range.col2 = target.col1 + quint32(totalCols) - 1;
     if (step.cells.empty() && step.merges.empty()) return out;
     pushStep(std::move(step), text);
@@ -253,7 +281,7 @@ EditSession::Outcome EditSession::paste(int sheet, const CellRange &target, cons
         if (o.skipBlanks && !hasValue) return true;
         const Calculation::CellContent &before = ch->before;
         Calculation::CellContent &after = ch->after;
-        const qint64 dRow = qint64(spot.row) - (qint64(clip.source.row1) + sr), dCol = qint64(spot.col) - (qint64(clip.source.col1) + sc);
+        const qint64 dRow = qint64(spot.row) - qint64(clip.sourceRow(sr)), dCol = qint64(spot.col) - (qint64(clip.source.col1) + sc);
         auto setNumberFormatFrom = [&] {
             // (only the number format comes: the look the cell has stays)
             const QString code = src && !src->formatCode.isEmpty() ? src->formatCode : QStringLiteral("General");

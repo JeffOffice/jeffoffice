@@ -761,6 +761,8 @@ public:
     jp::office::sheet::AutoFilter filterCleared(int sheet, int table = -1) const;
     // Whether a row is hidden by the sheet's filter (and not by hand).
     bool rowFilteredOut(int sheet, quint32 row) const;
+    // The rows from `first` to `last` that a filter hides (or, with `any`, that are hidden at all), in order: what a paste or a fill passes over, and a copy leaves out.
+    std::vector<quint32> hiddenRowsIn(int sheet, quint32 first, quint32 last, bool any = false) const;
     // The color a color condition asks for, as a color: the one it names, or the one its format in the file has.
     jp::office::sheet::ColorSpec colorOfCondition(const jp::office::sheet::FilterColumn &condition) const;
 
