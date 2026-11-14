@@ -853,6 +853,10 @@ void MainWindow::ribbonMenuParts(RibbonParts &parts)
                 sm->addAction(wa);
                 sm->addSeparator();
             }
+            sm->addAction(act("ins.nbsp"));
+            sm->addAction(act("ins.nbhyphen"));
+            sm->addAction(act("ins.opthyphen"));
+            sm->addSeparator();
             QAction *more = sm->addAction(icon("omega"), tr("More Symbols…"));
             connect(more, &QAction::triggered, this, [this] { symbolDialog(this, m_ed); });
         });

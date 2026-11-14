@@ -2784,6 +2784,128 @@ private Q_SLOTS:
         QCOMPARE(levelOfSecond(), 0);
         QCOMPARE(ed->doc()->storyDoc(storyId)->toPlainText(), QStringLiteral("one\ntwo"));   // (no tab typed)
     }
+
+    // Ctrl+Shift+Space, Ctrl+Shift+-, and Ctrl+- put a nonbreaking space, a nonbreaking hyphen, and an optional hyphen into the text being edited; Ctrl+- with no text
+    // being edited still zooms out.
+    void specialCharacterKeysInsertTheirCharacters()
+    {
+        jp::MainWindow w;
+        w.show();
+        QVERIFY(QTest::qWaitForWindowActive(&w));
+        jp::Editor *ed = w.editor();
+        auto box = std::static_pointer_cast<jp::TextItem>(ed->newTextBox(QRectF(72, 72, 400, 200), QStringLiteral("ab")));
+        ed->addItem(box);
+        ed->beginTextEdit(box->id, 1);
+        w.canvas()->setFocus();
+        QTRY_VERIFY(w.canvas()->hasFocus());
+        QTest::keyClick(w.canvas(), Qt::Key_Space, Qt::ControlModifier | Qt::ShiftModifier);
+        QTest::keyClick(w.canvas(), Qt::Key_Minus, Qt::ControlModifier | Qt::ShiftModifier);
+        QTest::keyClick(w.canvas(), Qt::Key_Minus, Qt::ControlModifier);
+        QCOMPARE(ed->doc()->storyDoc(box->storyId)->firstBlock().text(), QStringLiteral("a\u00A0\u2011\u00ADb"));
+        QCOMPARE(ed->cursor().position(), 4);
+        // not editing: Ctrl+- is Zoom Out
+        ed->endTextEdit();
+        const double before = w.canvas()->zoom();
+        QTest::keyClick(w.canvas(), Qt::Key_Minus, Qt::ControlModifier);
+        QTRY_VERIFY(w.canvas()->zoom() < before);
+        QCOMPARE(ed->doc()->storyDoc(box->storyId)->firstBlock().text(), QStringLiteral("a\u00A0\u2011\u00ADb"));
+    }
+
+    // The Symbol menu offers the three too, as commands.
+    void specialCharacterCommandsInsertTheirCharacters()
+    {
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        auto box = std::static_pointer_cast<jp::TextItem>(ed->newTextBox(QRectF(72, 72, 400, 200), QStringLiteral("ab")));
+        ed->addItem(box);
+        ed->beginTextEdit(box->id, 1);
+        w.act(QStringLiteral("ins.nbsp"))->trigger();
+        w.act(QStringLiteral("ins.nbhyphen"))->trigger();
+        w.act(QStringLiteral("ins.opthyphen"))->trigger();
+        QCOMPARE(ed->doc()->storyDoc(box->storyId)->firstBlock().text(), QStringLiteral("a\u00A0\u2011\u00ADb"));
+    }
+
+    // An optional hyphen shows a hyphen only where the line breaks at it; the nonbreaking space and hyphen never let a line break.
+    void optionalHyphenShowsOnlyAtALineBreak()
+    {
+        jp::initCore();
+        struct Laid { QVector<jp::StoryLayout::LineInfo> lines; QImage img; };
+        auto lay = [](const QString &text, double width) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat cf;
+            cf.setFontFamilies(QStringList{QStringLiteral("Times New Roman")});
+            cf.setFontPointSize(20);
+            c.insertText(text, cf);
+            jp::FrameSpec fs;
+            fs.size = QSizeF(width, 200);
+            fs.insets = QMarginsF(0, 0, 0, 0);
+            fs.hyphenate = false;
+            jp::StoryLayout l;
+            l.build(&doc, {fs}, jp::LayoutEnv());
+            Laid out;
+            out.lines = l.lineInfo(0);
+            out.img = QImage(int(std::ceil(width)) * 2, 400, QImage::Format_RGB32);
+            out.img.fill(Qt::white);
+            QPainter p(&out.img);
+            p.scale(2, 2);
+            l.paint(&p, 0, jp::PaintOptions());
+            return out;
+        };
+        // not at a break: nothing is drawn for it, and it takes no room
+        const Laid plain = lay(QStringLiteral("extraordinary"), 500), whole = lay(QStringLiteral("extra\u00ADordinary"), 500);
+        QCOMPARE(whole.lines.size(), 1);
+        QVERIFY2(whole.img == plain.img, "an optional hyphen not at a break shows");
+        // at a break: a hyphen ends the line (the line looks as "extra-" does, and not as "extra" does)
+        double narrow = 500;
+        while (narrow > 20 && lay(QStringLiteral("extra\u00ADordinary"), narrow - 1).lines.size() == 1) narrow -= 1;
+        const Laid broken = lay(QStringLiteral("extra\u00ADordinary"), narrow - 1);
+        QVERIFY(broken.lines.size() >= 2);
+        const int rows = int(std::ceil(broken.lines[0].rect.bottom() * 2));
+        const Laid hyphenated = lay(QStringLiteral("extra-"), 500), bare = lay(QStringLiteral("extra"), 500);
+        auto ink = [&](const Laid &l) {
+            int n = 0;
+            for (int y = 0; y < rows; ++y)
+                for (int x = 0; x < l.img.width(); ++x)
+                    if (qGray(l.img.pixel(x, y)) < 160) ++n;
+            return n;
+        };
+        const int inkBare = ink(bare), inkHyphenated = ink(hyphenated), inkBroken = ink(broken);
+        QVERIFY(inkHyphenated > inkBare);
+        QVERIFY2(std::abs(inkBroken - inkHyphenated) * 20 < inkHyphenated, qPrintable(QStringLiteral("%1 vs %2 (without a hyphen %3)").arg(inkBroken).arg(inkHyphenated).arg(inkBare)));
+        // a nonbreaking hyphen and a nonbreaking space never let a line break: the words go down together
+        for (const QChar joiner : {QChar(0x2011), QChar(0x00A0)}) {
+            const QString text = QStringLiteral("go extra") + joiner + QStringLiteral("ordinary");
+            double w = 500;
+            while (w > 20 && lay(text, w - 1).lines.size() == 1) w -= 1;
+            const Laid two = lay(text, w - 1);
+            QVERIFY(two.lines.size() >= 2);
+            QCOMPARE(QString(two.lines[0].text).remove(QChar(0x00AD)).trimmed(), QStringLiteral("go"));
+        }
+    }
+
+    // The optional hyphen, nonbreaking hyphen, and nonbreaking space keep their places through a .pub file.
+    void specialCharactersSurviveAPubFile()
+    {
+        auto doc = jp::Document::blank(QSizeF(612, 792));
+        auto t = std::make_shared<jp::TextItem>();
+        t->rect = QRectF(72, 72, 300, 100);
+        t->storyId = doc->createStory(QStringLiteral("a\u00A0b c\u2011d e\u00ADf"));
+        doc->pages[0]->items.push_back(t);
+        QTemporaryDir dir;
+        const QString path = dir.filePath(QStringLiteral("special.pub"));
+        QString err;
+        QVERIFY2(jp::exportPublisher(*doc, path, &err), qPrintable(err));
+        QFile f(path);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        auto back = jp::importPublisher(f.readAll(), nullptr);
+        QVERIFY(back);
+        QString all;
+        for (const auto &st : back->stories) for (QTextBlock b = st->doc->begin(); b.isValid(); b = b.next()) all += b.text();   // (toPlainText turns a nonbreaking space into a space)
+        QVERIFY2(all.contains(QStringLiteral("a\u00A0b")), qPrintable(all));
+        QVERIFY2(all.contains(QStringLiteral("c\u2011d")), qPrintable(all));
+        QVERIFY2(all.contains(QStringLiteral("e\u00ADf")), qPrintable(all));
+    }
 };
 
 JP_TEST_CLASS(PubTextTests)

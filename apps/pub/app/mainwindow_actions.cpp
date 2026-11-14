@@ -46,6 +46,7 @@
 #include <QJsonDocument>
 #include <QMessageBox>
 #include <QStandardPaths>
+#include <QShortcut>
 #include <QStatusBar>
 #include <QTextBlock>
 #include <QTextDocument>
@@ -289,6 +290,18 @@ void MainWindow::createActions()
     mk("ins.bizInfo", tr("Edit Business Information…"), "contact", QKeySequence(), [this] { businessInfoDialog(this, m_ed); });
     mk("ins.file", tr("Insert File"), "file-input", QKeySequence(), [this] { insertFileDialog(this, m_ed); });
     mk("ins.symbol", tr("Symbol"), "omega", QKeySequence(), [this] { symbolDialog(this, m_ed); });
+    // Characters a line breaks around: a nonbreaking space and hyphen, and an optional hyphen (shown only where the line breaks at it).
+    mk("ins.nbsp", tr("Nonbreaking Space"), "omega", QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_Space),
+       [ed] { ed->insertTextBlock(QString(QChar(0x00A0)), tr("Insert Nonbreaking Space")); });
+    mk("ins.nbhyphen", tr("Nonbreaking Hyphen"), "omega", QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_Minus),
+       [ed] { ed->insertTextBlock(QString(QChar(0x2011)), tr("Insert Nonbreaking Hyphen")); });
+    mk("ins.opthyphen", tr("Optional Hyphen"), "omega", QKeySequence(), [ed] { ed->insertTextBlock(QString(QChar(0x00AD)), tr("Insert Optional Hyphen")); });
+    // Ctrl+- is Zoom Out too: in text being edited it is the optional hyphen.
+    auto *minus = new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_Minus), this);
+    connect(minus, &QShortcut::activated, this, [this, ed] {
+        if (ed->isEditingText()) act(QStringLiteral("ins.opthyphen"))->trigger();
+        else act(QStringLiteral("zoom.out"))->trigger();
+    });
     mk("ins.equation", tr("Equation…"), "square-pi", QKeySequence(QStringLiteral("Alt+=")), [this] { insertEquationDialog(); });
     for (int i = 0; i < office::wml::equationGallery().size(); ++i)
         mk(QStringLiteral("ins.equationDesign%1").arg(i), office::wml::equationGallery().at(i).name, "square-pi", QKeySequence(), [this, i] {
@@ -829,6 +842,13 @@ void MainWindow::createActions()
     mk("zoom.selection", tr("Selected Objects"), "scan-search", QKeySequence(), [this] { m_canvas->zoomToFit(Canvas::Fit::Selection); });
     mk("zoom.in", tr("Zoom In"), "zoom-in", QKeySequence::ZoomIn, [this] { m_canvas->zoomToFit(Canvas::Fit::None); m_canvas->setZoom(m_canvas->zoom() * 1.2); });
     mk("zoom.out", tr("Zoom Out"), "zoom-out", QKeySequence::ZoomOut, [this] { m_canvas->zoomToFit(Canvas::Fit::None); m_canvas->setZoom(m_canvas->zoom() / 1.2); });
+    {
+        // (its Ctrl+- belongs to the shortcut above, which zooms out when no text is being edited)
+        QList<QKeySequence> keys;
+        for (const QKeySequence &k : QKeySequence::keyBindings(QKeySequence::ZoomOut))
+            if (k != QKeySequence(Qt::CTRL | Qt::Key_Minus)) keys << k;
+        act("zoom.out")->setShortcuts(keys);
+    }
     mk("win.new", tr("New Window"), "app-window", QKeySequence(), [this] {
         auto *w = new MainWindow();
         w->setAttribute(Qt::WA_DeleteOnClose);
