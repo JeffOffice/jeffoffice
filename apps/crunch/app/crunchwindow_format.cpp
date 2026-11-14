@@ -58,9 +58,13 @@ QIcon borderIconOf(int kind)
     return jp::drawnIcon([look](QPainter *p, const QRectF &r) {
         const QRectF b = r.adjusted(r.width() * 0.15, r.height() * 0.15, -r.width() * 0.15, -r.height() * 0.15);
         const double w = std::max(1.0, r.width() / 16);
+        // (at menu size a thin, pale dotted grid all but vanished, so a small icon gets a full-pixel, darker one)
+        const bool small = r.width() < 24;
         QColor faint = jp::uiText();
-        faint.setAlpha(90);
-        p->setPen(QPen(faint, std::max(0.5, w * 0.6), Qt::DotLine));
+        faint.setAlpha(small ? 150 : 90);
+        QPen grid(faint, small ? 1.0 : std::max(0.5, w * 0.6), small ? Qt::CustomDashLine : Qt::DotLine);
+        if (small) grid.setDashPattern({1.0, 1.0});
+        p->setPen(grid);
         p->drawRect(b);
         p->drawLine(QPointF(b.center().x(), b.top()), QPointF(b.center().x(), b.bottom()));
         p->drawLine(QPointF(b.left(), b.center().y()), QPointF(b.right(), b.center().y()));
