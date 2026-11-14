@@ -2647,8 +2647,9 @@
          "text": "9848cd66c9afa034654c5f893684892375514c468e13863cc63777fc54a3cfc6"
         },
         {
-         "status": "todo",
-         "text": "c1aabc0a977fd15c0512e4567c7f30d73898636740dc71197ec3436c2892a47f"
+         "hide_soon": true,
+         "status": "done",
+         "text": "7ec19ece0dffafaeadbcfd1132151b990d851a38bc6574e7e83cd40df82bfec7"
         }
        ]
       },
@@ -2789,8 +2790,9 @@
          "text": "66c9a9d91d403fbdbdcf1b0c24d59bf0d988c772aacbc1d326293209f66e2e4b"
         },
         {
-         "status": "partly",
-         "text": "e9e23fac479951e13c372fa45cba38fe0077dd0b4a77cca5dbae069b446f568e"
+         "hide_soon": true,
+         "status": "done",
+         "text": "d5d5c60b2a7ab2eb66c92f869eb27c5ae14a63fb8ab91b054c915e00c4063779"
         },
         {
          "status": "partly",
@@ -3677,7 +3679,7 @@
       {
        "hide_soon": true,
        "status": "done",
-       "text": "4b1bcfa19efec5b5722ccb643703734a6700fabd932525bd71b8733b6cbd4e4a"
+       "text": "b6c72f454353ed8217b95ac665751f1dbbc4d4537e81327ada4c2bcb19c7b3fa"
       },
       {
        "status": "partly",
@@ -12929,18 +12931,6 @@
     "fr": ""
    }
   },
-  "4b1bcfa19efec5b5722ccb643703734a6700fabd932525bd71b8733b6cbd4e4a": {
-   "drop": false,
-   "en": "Right-click in the slides pane and the Slide Sorter for New Slide, Duplicate Slide, Delete Slide, Hide Slide, and Add Section. A section heading offers Rename, Remove, Move Up and Down, Collapse All, and Expand All. A theme, an Animation Pane row, a file in the Open list, and the show each have their own menu.",
-   "es": "Haga clic con el botón derecho en el panel de diapositivas y en el Clasificador de diapositivas para Nueva diapositiva, Duplicar diapositiva, Eliminar diapositiva, Ocultar diapositiva y Agregar sección. Un encabezado de sección ofrece Cambiar nombre, Quitar, Subir y Bajar, Contraer todo y Expandir todo. Un tema, una fila del panel de animación, un archivo de la lista Abrir y la presentación tienen cada uno su propio menú.",
-   "fr": "Faites un clic droit dans le volet des diapositives et dans le Trieur de diapositives pour Nouvelle diapositive, Dupliquer la diapositive, Supprimer la diapositive, Masquer la diapositive et Ajouter une section. Un titre de section propose Renommer, Supprimer, Monter et Descendre, Réduire tout et Développer tout. Un thème, une ligne du volet Animation, un fichier de la liste Ouvrir et le diaporama ont chacun leur propre menu.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "4b22e52adbdf6d98fdf6665c419ce3e60cd814cb81cd9fd048abcac021dbb1d3": {
    "drop": true,
    "en": "",
@@ -16949,6 +16939,18 @@
     "fr": ""
    }
   },
+  "7ec19ece0dffafaeadbcfd1132151b990d851a38bc6574e7e83cd40df82bfec7": {
+   "drop": false,
+   "en": "Cut, copy, and paste whole slides in the slides pane and the Slide Sorter with `Ctrl+X`, `Ctrl+C`, and `Ctrl+V` or the right-click menu. Keep the source formatting or use the destination theme, and paste into another window with pictures, movies, and sounds.",
+   "es": "Corte, copie y pegue diapositivas completas en el panel de diapositivas y en el Clasificador de diapositivas con `Ctrl+X`, `Ctrl+C` y `Ctrl+V` o con el menú contextual. Conserve el formato de origen o use el tema de destino, y pegue en otra ventana con imágenes, películas y sonidos.",
+   "fr": "Coupez, copiez et collez des diapositives entières dans le volet des diapositives et le Trieur de diapositives avec `Ctrl+X`, `Ctrl+C` et `Ctrl+V` ou le menu contextuel. Conservez la mise en forme source ou utilisez le thème de destination, et collez dans une autre fenêtre avec images, films et sons.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "7eea6e85588e966ea24692fb49839ce9d4f5e7319fdd89226a4fe97edc43b4b6": {
    "drop": false,
    "en": "Set animation timing: Start (On Click, With Previous, or After Previous), Duration, and Delay, and use Move Earlier and Move Later.",
@@ -20453,6 +20455,18 @@
     "fr": ""
    }
   },
+  "b6c72f454353ed8217b95ac665751f1dbbc4d4537e81327ada4c2bcb19c7b3fa": {
+   "drop": false,
+   "en": "Right-click in the slides pane and the Slide Sorter for slide commands such as New Slide, Duplicate Slide, Delete Slide, Cut, Copy, Paste, Hide Slide, and Add Section. Section headings, themes, Animation Pane rows, files in the Open list, and the show have their own menus.",
+   "es": "Haga clic con el botón derecho en el panel de diapositivas y en el Clasificador de diapositivas para ver comandos como Nueva diapositiva, Duplicar diapositiva, Eliminar diapositiva, Cortar, Copiar, Pegar, Ocultar diapositiva y Agregar sección. Los encabezados de sección, los temas, las filas del panel de animación, los archivos de la lista Abrir y la presentación tienen sus propios menús.",
+   "fr": "Faites un clic droit dans le volet des diapositives et le Trieur de diapositives pour accéder à des commandes comme Nouvelle diapositive, Dupliquer la diapositive, Supprimer la diapositive, Couper, Copier, Coller, Masquer la diapositive et Ajouter une section. Les en-têtes de section, les thèmes, les lignes du volet Animation, les fichiers de la liste Ouvrir et le diaporama ont leurs propres menus.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "b6d08a7deff56b4ad594b82e59f26ac71870907c7727f1db0d6d77c1d62cedad": {
    "drop": false,
    "en": "Choose which kinds of issues the checker flags (grammar, punctuation, capitalization, word choice, repetition, and style) under Options > Proofing > Grammar settings. Style is off until you turn it on, and the choice applies both to issues marked as you type and to the Spelling check (`F7`).",
@@ -21099,18 +21113,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "c1aabc0a977fd15c0512e4567c7f30d73898636740dc71197ec3436c2892a47f": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Cut, copy, and paste whole slides in the slides pane and Slide Sorter, keeping source formatting or using the destination theme",
-    "es": "Cortar, copiar y pegar diapositivas completas en el panel de diapositivas y el clasificador, conservando el formato de origen o usando el tema de destino",
-    "fr": "Couper, copier et coller des diapositives entières dans le volet des diapositives et le trieur, en conservant la mise en forme source ou en utilisant le thème de destination"
    }
   },
   "c1b6b71fa3221129120143b687a35c0b139ca29014ce77b84a8e6575250c2dc8": {
@@ -22745,6 +22747,18 @@
     "fr": ""
    }
   },
+  "d5d5c60b2a7ab2eb66c92f869eb27c5ae14a63fb8ab91b054c915e00c4063779": {
+   "drop": false,
+   "en": "Align selected objects left, center, right, top, middle, or bottom, and distribute them horizontally or vertically. Objects line up with each other, or with the slide when Align to Slide is on or only one object is selected.",
+   "es": "Alinee los objetos seleccionados a la izquierda, al centro, a la derecha, arriba, en el medio o abajo, y distribúyalos horizontal o verticalmente. Los objetos se alinean entre sí, o con la diapositiva cuando Alinear con la diapositiva está activado o solo hay un objeto seleccionado.",
+   "fr": "Alignez les objets sélectionnés à gauche, au centre, à droite, en haut, au milieu ou en bas, et répartissez-les horizontalement ou verticalement. Les objets s’alignent entre eux, ou sur la diapositive lorsque Aligner sur la diapositive est activé ou qu’un seul objet est sélectionné.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "d614c47e98e23721f8165ef6b42220bb08886e240a7e21c63519a1ef63283d93": {
    "drop": false,
    "en": "Save a publication for a photo printer.",
@@ -24111,18 +24125,6 @@
     "en": "Change shape, edit points, and shape effects",
     "es": "Cambio de forma, edición de puntos y efectos de forma",
     "fr": "Changement de forme, modification des points et effets de forme"
-   }
-  },
-  "e9e23fac479951e13c372fa45cba38fe0077dd0b4a77cca5dbae069b446f568e": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Align objects: left, center, right, top, middle, bottom, and distribute",
-    "es": "Alinear objetos: izquierda, centro, derecha, arriba, medio, abajo y distribuir",
-    "fr": "Alignement des objets : gauche, centre, droite, haut, milieu, bas et répartition"
    }
   },
   "e9fe6804c5ead419194e76f40e5a14605424544e4030575d350bef77d806922d": {
