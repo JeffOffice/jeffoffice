@@ -95,7 +95,7 @@ void typeText(WriteDoc &doc, QTextCursor &c, const QString &text, const AutoOpti
     if (options.format && typed == QLatin1String(" ") && listKindOf(doc, c.block()) == ListKind::None) {
         const Visible before = beforeSeparator(c);
         const auto list = autotext::listStart(before.text);
-        if (list && (!list->numbered || list->number == 1)) {
+        if (list && (!list->numbered || (list->number == 1 && (list->letter || !list->paren)))) {
             const WriteDoc::StepGroup group(doc);
             QTextCursor mark(story);
             mark.setPosition(c.block().position());
