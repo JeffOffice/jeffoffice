@@ -76,6 +76,18 @@ COMPONENTS = [
     ("PSO Coated", None, "ECI-terms"),
     ("ISBN range", None, "ISBN-Agency-terms"),
     ("FFmpeg", [["third_party/ffmpeg/*"], "LGPL-2.1+"]),
+    # The translation engine and the parts built into it (third_party/bergamot/licenses/NOTICE.md).
+    ("Bergamot", [["third_party/bergamot/*"], "MPL-2.0"]),
+    ("Marian", [["third_party/bergamot/licenses/marian-MIT.txt"], "Expat"]),
+    ("intgemm", [["third_party/bergamot/licenses/intgemm-MIT.txt"], "Expat"]),
+    ("SentencePiece", [["third_party/bergamot/licenses/sentencepiece-*"], "Apache-2.0"]),
+    ("ruy", None, "Apache-2.0"),
+    ("ssplit-cpp", [["third_party/bergamot/licenses/ssplit-cpp.txt"], "Apache-2.0"]),
+    ("PCRE2", [["third_party/bergamot/licenses/pcre2-BSD.txt"], "BSD-3-clause"]),
+    ("protobuf-lite", [["third_party/bergamot/licenses/sentencepiece-protobuf-lite.txt"], "BSD-3-clause"]),
+    ("cpuinfo", [["third_party/bergamot/licenses/cpuinfo-*", "third_party/bergamot/licenses/simd_utils-*"], "BSD-2-clause"]),
+    ("CLI11", [["third_party/bergamot/licenses/marian-*"], "Expat"]),
+    ("Translation models", None, "MPL-2.0"),
 ]
 # Debian keeps these in /usr/share/common-licenses, by short name without a trailing +.
 COMMON = {
