@@ -676,6 +676,7 @@ private Q_SLOTS:
             {QStringLiteral("outline.collapse"), QStringLiteral("it works only in Outline view, which no place here is in; the outline tests run it there")},
             {QStringLiteral("outline.close"), QStringLiteral("it works only in Outline view, which no place here is in; the outline tests run it there")},
             {QStringLiteral("outline.showFormatting"), QStringLiteral("it works only in Outline view, which no place here is in; the outline tests run it there")},
+            {QStringLiteral("list.setValue"), QStringLiteral("it is on only with the caret in a numbered list item, which no place here has; theListBoxesSetUpListsThroughTheWindow runs it in one")},
             {QStringLiteral("outline.firstLineOnly"), QStringLiteral("it works only in Outline view, which no place here is in; the outline tests run it there")},
             {QStringLiteral("outline.level.all"), QStringLiteral("it works only in Outline view, which no place here is in; the outline tests run it there")},
             {QStringLiteral("outline.level.1"), QStringLiteral("it works only in Outline view, which no place here is in; the outline tests run it there")},
