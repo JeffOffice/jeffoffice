@@ -51,6 +51,7 @@
     QT_TRANSLATE_NOOP("Ribbon", "Draw"),
     QT_TRANSLATE_NOOP("Ribbon", "Drop Cap"),
     QT_TRANSLATE_NOOP("Ribbon", "Editing"),
+    QT_TRANSLATE_NOOP("Ribbon", "Effects"),
     QT_TRANSLATE_NOOP("Ribbon", "Finish"),
     QT_TRANSLATE_NOOP("Ribbon", "Finish & Merge"),
     QT_TRANSLATE_NOOP("Ribbon", "Fit"),

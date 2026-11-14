@@ -650,6 +650,8 @@ private Q_SLOTS:
             {QStringLiteral("mail.highlight"), QStringLiteral("it chooses whether merge fields are shaded on the screen, which shows only where the document has them; the mail tests check the pixels")},
             {QStringLiteral("mail.check"), QStringLiteral("it only reports on the merge (here: no errors are found); the mail tests check what it says")},
             {QStringLiteral("shape.createLink"), QStringLiteral("it waits for a click on the text box that the words go on in, and changes nothing before it; createLinkAndBreakLinkWorkFromTheShapeFormatTab clicks it")},
+            {QStringLiteral("shape.effect.none"), QStringLiteral("it takes the effect off a shape, and the shape it runs on has none; aShapeTakesOneEffectAtATimeSavedInTheFilesForm and theEffectsMenuAndDistributeWorkFromTheWindowOneStepEach run it with one")},
+            {QStringLiteral("shape.editPoints"), QStringLiteral("it shows the points of the shape's outline for pulling and changes nothing itself; editPointsFromTheWindowDragsDeletesAndInsertsPointsInOneStepEach pulls them")},
             {QStringLiteral("picture.lockAspect"), QStringLiteral("it is the setting the next change of a picture's width or height reads, and changes nothing by itself")},
             {QStringLiteral("edit.copyFormat"), QStringLiteral("it only holds the look of the selection for Paste Format; the paste is the change")},
             {QStringLiteral("edit.pasteFormat"), QStringLiteral("it puts the look held on the selection, which here has that look already, or nothing is held yet")},
@@ -664,6 +666,8 @@ private Q_SLOTS:
             {QStringLiteral("review.show.formatting"), QStringLiteral("it chooses whether the bars for changes of formatting are painted in the pages' margin, which no control shows; the window's tests check the painting")},
         };
         m_app.neverRun = {
+            {QStringLiteral("arrange.distribute.h"), QStringLiteral("it needs three objects selected together, which no place here has; theEffectsMenuAndDistributeWorkFromTheWindowOneStepEach runs it on three")},
+            {QStringLiteral("arrange.distribute.v"), QStringLiteral("it needs three objects selected together, which no place here has; distributeSpreadsThreeObjectsToEqualGapsInOneStep runs the down direction, and its twin is run from the window on three")},
             {QStringLiteral("view.resetWindowPosition"), QStringLiteral("it works on two windows set side by side, which no place here has; the View > Window test runs it on a pair")},
             {QStringLiteral("mail.updateLabels"), QStringLiteral("it is for a sheet of labels that Mailings > Labels makes, which no place here has; the mail tests run it on one")},
             {QStringLiteral("outline.promote"), QStringLiteral("it works only in Outline view, which no place here is in; the outline tests run it there")},
