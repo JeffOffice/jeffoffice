@@ -64,9 +64,6 @@ QTextCharFormat revisionPiece(const QByteArray &startTag, const QString &tag, bo
 QVector<std::pair<QString, QByteArray>> openRevisionsAt(const QTextBlock &block, int position);
 // The person a start tag names, and the time.
 QString revisionAuthorOf(const QByteArray &startTag);
-QDateTime revisionDateOf(const QByteArray &startTag);
-// Whether the text of [from, to) in a paragraph is all inside insertions by `author` (text that person typed and may take out for good).
-bool isOwnInsertion(const QTextDocument *story, int from, int to, const QString &author);
 
 // ---- making changes (Track Changes on; core/editops.cpp calls these)
 // Which of [from, to) of a paragraph's text a person's deletion takes out for good (text that same person typed as a tracked insertion, and nothing else of it is then recorded) and which it only

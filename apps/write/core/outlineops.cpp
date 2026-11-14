@@ -338,14 +338,6 @@ bool expandAround(WriteDoc &doc, int position)
     return opened;
 }
 
-void expandAllHeadings(WriteDoc &doc)
-{
-    if (!doc.collapseActive()) return;
-    for (QTextBlock b = doc.story()->begin(); b.isValid(); b = b.next())
-        if (b.userState() == kCollapsedHeading || b.userState() == tp::kCollapsedBlock) b.setUserState(-1);
-    doc.setCollapseActive(false);
-}
-
 void refreshCollapsed(WriteDoc &doc)
 {
     if (!doc.collapseActive()) return;

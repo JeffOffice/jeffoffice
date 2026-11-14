@@ -391,7 +391,6 @@ QString WriteFindPane::patternText() const
     return out;
 }
 
-bool WriteFindPane::customSearch() const { return m_wild->isChecked() || codesTyped() || advancedOptions().active() || m_format.any(); }
 bool WriteFindPane::searching() const { return !m_find->text().isEmpty() || m_format.any(); }
 
 // The words of the story of a header, a footer, or a note, as they are now.

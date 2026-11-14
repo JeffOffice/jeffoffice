@@ -163,8 +163,6 @@ ReviewPane::ReviewPane(WriteWindow *win, QWidget *parent) : QWidget(parent), m_w
 
 void ReviewPane::showPage(Page page) { m_tabs->setCurrentIndex(page == Comments ? 0 : 1); }
 
-ReviewPane::Page ReviewPane::page() const { return m_tabs->currentIndex() == 0 ? Comments : Changes; }
-
 QString ReviewPane::chosenPerson() const { return m_person->currentData().toString(); }
 
 int ReviewPane::chosenComment() const

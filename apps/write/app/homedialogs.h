@@ -49,7 +49,6 @@ class AccessPane : public QWidget {
 public:
     AccessPane(PageView *view, QWidget *parent = nullptr);
     void check();
-    int issueCount() const;
 
 private:
     PageView *m_view;

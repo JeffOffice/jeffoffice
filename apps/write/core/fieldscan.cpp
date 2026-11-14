@@ -75,7 +75,7 @@ struct Open {
 } // namespace
 
 namespace {
-std::atomic<qint64> g_parsedMarks{0}, g_scans{0};
+std::atomic<qint64> g_scans{0};
 }
 
 const ParsedFields &parsedFieldsNamed(const StoryScan &scan, const QString &name)
@@ -87,7 +87,6 @@ const ParsedFields &parsedFieldsNamed(const StoryScan &scan, const QString &name
         for (int i = 0; i < scan.fields.size(); ++i) {
             if (scan.fields[i].name != name) continue;
             fields::Code code = fields::parseCode(scan.instructionOf(i));
-            ++g_parsedMarks;
             if (code.name != name) continue;
             made->index.push_back(i);
             made->code.push_back(std::move(code));
@@ -97,8 +96,6 @@ const ParsedFields &parsedFieldsNamed(const StoryScan &scan, const QString &name
     return *static_cast<const ParsedFields *>(found.value().get());
 }
 
-qint64 parsedMarkCodesForTest() { return g_parsedMarks; }
-void resetParsedMarkCodesForTest() { g_parsedMarks = 0; }
 qint64 storyScansForTest() { return g_scans; }
 void resetStoryScansForTest() { g_scans = 0; }
 

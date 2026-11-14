@@ -509,8 +509,6 @@ AccessPane::AccessPane(PageView *view, QWidget *parent) : QWidget(parent), m_vie
     connect(m_list, &QListWidget::itemClicked, m_list, [this](QListWidgetItem *item) { Q_EMIT m_list->itemActivated(item); });
 }
 
-int AccessPane::issueCount() const { return m_list->count(); }
-
 void AccessPane::check()
 {
     m_list->clear();

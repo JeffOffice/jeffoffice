@@ -141,16 +141,6 @@ int freeChainNumber(const QSet<int> &used)
     return -1;
 }
 
-QSet<int> chainNumbersIn(const QVector<const QByteArray *> &drawings)
-{
-    QSet<int> out;
-    for (const QByteArray *d : drawings) {
-        const BoxChain c = boxChainOf(*d);
-        if (c.number >= 0) out.insert(c.number);
-    }
-    return out;
-}
-
 bool repairBoxChains(const QVector<QByteArray *> &drawings)
 {
     QVector<BoxChain> chains;

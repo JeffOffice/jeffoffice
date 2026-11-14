@@ -62,8 +62,6 @@ struct PageRef {
     int index = 0;
 };
 using PageRefLookup = std::function<PageRef(int position)>;
-// The tab leader of the result of the field at `field` (dot, hyphen, underscore, or none), as its paragraphs have it; dot where they have no right tab.
-QString resultLeader(QTextDocument *story, const StoryScan &scan, int field);
 
 // What the Table of Contents dialog asks for.
 struct TocOptions {

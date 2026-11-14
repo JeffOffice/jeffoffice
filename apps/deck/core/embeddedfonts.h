@@ -55,7 +55,6 @@ public:
     static QVector<EmbeddedFace> facesOf(const Document *doc);
     // How many fonts are added to the font database now, and the families they give.
     static int addedFontCount();
-    static QStringList addedFamilies();
 };
 
 } // namespace jp::deck

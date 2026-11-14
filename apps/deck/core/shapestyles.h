@@ -27,8 +27,6 @@ ShapeStyle shapeStyleById(const QString &id);
 const MasterPage *themeMasterOf(const Document &d, int page, const QString &masterView);
 // What that master's theme says its styles are, with the colors of its background (a dark slide master reads "tx1" as its light 1).
 std::shared_ptr<office::StyleResolver> styleResolverOf(const Document &d, const MasterPage *master);
-// The theme's accent colors (1 to 6) as that master shows them.
-QColor accentOf(const Document &d, const MasterPage *master, int accent);
 
 // Whether an object takes a style: a shape, a text box, or a line.
 bool takesShapeStyle(const Item &it);

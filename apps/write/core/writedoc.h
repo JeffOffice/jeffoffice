@@ -711,7 +711,6 @@ private:
     void storyChanged(int position, int removed, int added);
     // The style sheet to read a style's look from: the document's, or for a built-in style it lacks, a copy with that style added.
     const office::wml::StyleSheet &sheetFor(const QString &styleId) const;
-    office::wml::SectionProps lastSectionProps() const;
 
     int m_drawingId = 0;
     QVector<int> m_freeObjects;                    // places of FlowDocument::objects that hold no form now (a new form takes one)

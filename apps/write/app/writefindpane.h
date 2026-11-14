@@ -69,8 +69,6 @@ private:
     QTextCursor matchFrom(int from, QString *error = nullptr);
     QTextCursor matchIn(StoryWords *text, int from, QString *error);
     QTextCursor rawMatchIn(StoryWords *text, int from, QString *error);
-    // The search is by a pattern (wildcards, or special codes such as ^p typed in the box), by the other readings of Advanced Find, or by format: not by the plain words.
-    bool customSearch() const;
     bool searching() const;
     bool codesTyped() const;
     QString patternText() const;

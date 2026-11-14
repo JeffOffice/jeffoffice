@@ -149,12 +149,6 @@ std::shared_ptr<office::StyleResolver> styleResolverOf(const Document &d, const 
     return std::make_shared<office::StyleResolver>(xml, map);
 }
 
-QColor accentOf(const Document &d, const MasterPage *master, int accent)
-{
-    const std::shared_ptr<office::StyleResolver> r = styleResolverOf(d, master);
-    return r->themeColor(QStringLiteral("accent%1").arg(std::clamp(accent, 1, kAccents)));
-}
-
 bool takesShapeStyle(const Item &it)
 {
     return it.type() == ItemType::Shape || it.type() == ItemType::Text || it.type() == ItemType::Line;

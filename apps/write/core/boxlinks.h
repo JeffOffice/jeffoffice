@@ -29,8 +29,6 @@ QByteArray boxAsPlain(const QByteArray &drawing);
 // The least number from 0 up to kMostChainNumber that is not in `used`, or -1 if all are.
 int freeChainNumber(const QSet<int> &used);
 
-// The numbers the chains of these drawings use.
-QSet<int> chainNumbersIn(const QVector<const QByteArray *> &drawings);
 // Makes the chains of a document's drawings sound: a member whose first box is not among them becomes a box of its own. Returns whether any drawing changed.
 bool repairBoxChains(const QVector<QByteArray *> &drawings);
 // Drawings that were pasted (or duplicated) into a document whose other boxes use the numbers `usedElsewhere`: each chain among them gets a number of its own, so that it is a chain of its own;

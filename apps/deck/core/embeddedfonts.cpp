@@ -138,14 +138,4 @@ int EmbeddedFonts::addedFontCount()
     return int(g_added.size());
 }
 
-QStringList EmbeddedFonts::addedFamilies()
-{
-    QMutexLocker lock(&g_mutex);
-    QStringList out;
-    for (const Added &a : std::as_const(g_added)) out << a.families;
-    out.removeDuplicates();
-    out.sort();
-    return out;
-}
-
 } // namespace jp::deck

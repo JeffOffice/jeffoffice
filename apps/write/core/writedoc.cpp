@@ -1542,6 +1542,4 @@ void WriteDoc::renumberLists(QTextDocument *story)
     edit.endEditBlock();
 }
 
-SectionProps WriteDoc::lastSectionProps() const { return m_last; }
-
 } // namespace jp::write

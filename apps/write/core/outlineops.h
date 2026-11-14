@@ -47,7 +47,6 @@ bool hiddenByCollapse(WriteDoc &doc, int position);
 bool setHeadingCollapsed(WriteDoc &doc, int position, bool collapsed);
 // Opens the collapsed headings that hide the position; true if one was opened.
 bool expandAround(WriteDoc &doc, int position);
-void expandAllHeadings(WriteDoc &doc);
 // Works out again which paragraphs the collapsed headings hide, after the text changed (a heading that is no heading now is opened).
 void refreshCollapsed(WriteDoc &doc);
 

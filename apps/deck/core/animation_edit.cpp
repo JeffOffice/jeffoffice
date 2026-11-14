@@ -166,8 +166,6 @@ const EffectKind *effectKind(const QString &id)
     return nullptr;
 }
 
-QStringList motionPathGroups() { return {QStringLiteral("Lines"), QStringLiteral("Arcs"), QStringLiteral("Turns"), QStringLiteral("Shapes"), QStringLiteral("Loops"), QStringLiteral("Curves")}; }
-
 namespace {
 
 constexpr int kMaxAnims = 2000;     // effects one slide's sequence may hold; a longer one is read, not edited

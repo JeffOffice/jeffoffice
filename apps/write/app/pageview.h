@@ -430,7 +430,6 @@ private:
     void blink();
     double scale() const { return m_zoom * 96.0 / 72.0; }
     QRectF contentRect(int page) const { return m_rects.value(page); }
-    void startAutoscroll();
 
     // A drag on the selected picture: which handle, and where the picture was and is (in the window), until the button is released.
     struct PictureDrag {

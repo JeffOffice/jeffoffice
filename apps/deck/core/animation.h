@@ -226,8 +226,6 @@ struct EffectKind {
 // Entrance, then Exit, Emphasis, and Motion Path kinds, each in the order the ribbon lists them.
 const QVector<EffectKind> &effectKinds();
 const EffectKind *effectKind(const QString &id);
-// Where the kinds of a class that come in groups end (motion paths), in order.
-QStringList motionPathGroups();
 
 // What an effect does to its shape when it is over: nothing, hide it at once, or hide it at the next click.
 enum class AfterEffect { None, Hide, HideOnNextClick };

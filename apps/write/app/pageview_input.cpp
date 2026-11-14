@@ -918,8 +918,6 @@ void PageView::wheelEvent(QWheelEvent *e)
     if (!pagesComplete() && verticalScrollBar()->value() >= verticalScrollBar()->maximum() - 2) startPagination();
 }
 
-void PageView::startAutoscroll() { m_autoscroll.start(); }
-
 // ---- dragging text
 
 namespace {

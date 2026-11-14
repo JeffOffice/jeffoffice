@@ -28,7 +28,6 @@ public:
     // Which list is shown.
     enum Page { Comments, Changes };
     void showPage(Page page);
-    Page page() const;
     QTreeWidget *commentList() const { return m_comments; }
     QTreeWidget *changeList() const { return m_changes; }
     QLineEdit *replyField() const { return m_reply; }

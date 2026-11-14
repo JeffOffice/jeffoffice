@@ -72,9 +72,6 @@ struct ParsedFields {
     QVector<fields::Code> code;
 };
 const ParsedFields &parsedFieldsNamed(const StoryScan &scan, const QString &name);
-// How many field codes parsedFieldsNamed has parsed since the counts were reset.
-qint64 parsedMarkCodesForTest();
-void resetParsedMarkCodesForTest();
 // How many passes over a story scanStory has made since the counts were reset.
 qint64 storyScansForTest();
 void resetStoryScansForTest();

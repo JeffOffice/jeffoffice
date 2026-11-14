@@ -43,8 +43,6 @@ bool takesArgument(const QString &name, QChar letter)
     return false;
 }
 
-QString toUpperAscii(const QString &s) { return s.toUpper(); }
-
 const char *const kOnes[] = {"zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen"};
 const char *const kTens[] = {"", "", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety"};
 

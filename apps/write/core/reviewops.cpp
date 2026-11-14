@@ -145,13 +145,6 @@ QVector<Pair> pairsOf(const QVector<Piece> &pieces)
     return out;
 }
 
-bool hasMarkOf(const QVector<RawChild> &extra, const char *name)
-{
-    for (const RawChild &c : extra)
-        if (elementName(c.xml) == name) return true;
-    return false;
-}
-
 QVector<RawChild> extraOf(const QTextFormat &f, int property)
 {
     return f.hasProperty(property) ? unpackRaw(storedBytes(f, property)) : QVector<RawChild>();
@@ -285,7 +278,6 @@ QTextCharFormat withRevisionLook(QTextCharFormat f, bool deleted, int kind, int 
 }
 
 QString revisionAuthorOf(const QByteArray &startTag) { return attributeOf(startTag, "author"); }
-QDateTime revisionDateOf(const QByteArray &startTag) { return parseDate(attributeOf(startTag, "date")); }
 
 QByteArray revisionStartTag(WriteDoc &doc, const QString &tag)
 {
@@ -330,19 +322,6 @@ QVector<std::pair<QString, QByteArray>> openRevisionsAt(const QTextBlock &block,
     }
     for (const Piece &p : stack) open.push_back({p.tag, p.raw});
     return open;
-}
-
-bool isOwnInsertion(const QTextDocument *story, int from, int to, const QString &author)
-{
-    const QTextBlock b = story->findBlock(from);
-    if (!b.isValid() || to > b.position() + b.length() - 1) return false;
-    const QVector<Pair> pairs = pairsOf(piecesOf(b));
-    for (const Pair &p : pairs)
-        if (p.tag == QLatin1String("ins") && p.open < from && p.close >= to && attributeOf(p.raw, "author") == author) {
-            // (And no deletion by another person in it.)
-            return true;
-        }
-    return false;
 }
 
 QVector<Revision> revisionsIn(const QTextDocument *story, int from, int to, int most)
@@ -679,15 +658,6 @@ void clearMarkRecord(const QTextBlock &b)
     m.clearProperty(tp::Revision);
     m.clearProperty(tp::RevisionAuthor);
     setMarkFormat(b, m);
-}
-
-bool onlyInvisible(const QTextBlock &b)
-{
-    for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
-        const QTextCharFormat cf = it.fragment().charFormat();
-        if (!isInvisibleAtom(cf)) return false;
-    }
-    return true;
 }
 
 // Takes a paragraph's mark away (it was deleted and the change is accepted, or inserted and the change is rejected): the paragraph is joined to the one after it, which keeps its own look

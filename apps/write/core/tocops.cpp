@@ -486,13 +486,6 @@ QString GenLine::text() const
     return t;
 }
 
-QString resultLeader(QTextDocument *story, const StoryScan &scan, int field)
-{
-    const FieldPlace &f = scan.fields[field];
-    if (f.separate < 0 || f.end <= f.separate) return QStringLiteral("dot");
-    return leaderOf(story, f.separate, f.end);
-}
-
 bool rebuildGenerated(WriteDoc &doc, QTextDocument *story, const StoryScan &scan, int field, const QVector<GenLine> &lines, const QString &leaderAsked, const QString &empty)
 {
     const FieldPlace &f = scan.fields[field];
