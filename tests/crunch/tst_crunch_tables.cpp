@@ -1638,6 +1638,52 @@ private Q_SLOTS:
         QCOMPARE(again.book.tables().size(), 2);
     }
 
+    // A table's own header buttons filter by a list, a condition, or the top ones; the table's part keeps each, the rows it hides are saved hidden, and the file opens as it was.
+    void aTablesFilterOfEveryKindIsSavedAndOpensAsItWas()
+    {
+        const QString part = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<table xmlns=\"%1\" id=\"1\" name=\"Sales\" displayName=\"Sales\" ref=\"A1:C5\"><autoFilter ref=\"A1:C5\"/>"
+                                           "<tableColumns count=\"3\"><tableColumn id=\"1\" name=\"Region\"/><tableColumn id=\"2\" name=\"Q1\"/><tableColumn id=\"3\" name=\"Q2\"/></tableColumns>"
+                                           "<tableStyleInfo name=\"TableStyleMedium2\" showRowStripes=\"1\"/></table>")
+                                 .arg(QStringLiteral("http://schemas.openxmlformats.org/spreadsheetml/2006/main"));
+        QString rows = QStringLiteral("<row r=\"1\">%1%2%3</row>").arg(text(QStringLiteral("A1"), QStringLiteral("Region")), text(QStringLiteral("B1"), QStringLiteral("Q1")), text(QStringLiteral("C1"), QStringLiteral("Q2")));
+        const char *names[] = {"East", "West", "North", "South"};
+        for (int i = 0; i < 4; ++i)
+            rows += QStringLiteral("<row r=\"%1\">%2%3%4</row>").arg(i + 2).arg(text(QStringLiteral("A%1").arg(i + 2), QLatin1String(names[i])), num(QStringLiteral("B%1").arg(i + 2), (i + 1) * 10),
+                                                                  num(QStringLiteral("C%1").arg(i + 2), 4 - i));
+        EditWindow e;
+        QVERIFY(e.open(withTables(buildXlsx({worksheet(rows)}), {part})));
+        crunch::EditSession *s = e.win.w.session();
+        s->setLocale(kUs);
+        QVERIFY(e.settle());
+        using FC = jp::office::sheet::FilterColumn;
+        FC custom;
+        custom.kind = FC::Kind::Custom;
+        custom.conditions.append({FC::Op::Greater, QStringLiteral("10")});
+        QVERIFY(s->setFilter(0, s->filterWith(0, 1, custom, 0), QStringLiteral("Filtering"), 0).ok);
+        QVERIFY(s->rowFilteredOut(0, 1));                                                  // (East: 10 is not more than 10)
+        QVERIFY(!s->rowFilteredOut(0, 2));
+        FC top;
+        top.kind = FC::Kind::Top10;
+        top.top = true;
+        top.count = 2;
+        QVERIFY(s->setFilter(0, s->filterWith(0, 2, top, 0), QStringLiteral("Filtering"), 0).ok);
+        QVERIFY(s->rowFilteredOut(0, 3) && s->rowFilteredOut(0, 4));                       // (North and South: not among the two highest Q2)
+        QVERIFY(!s->rowFilteredOut(0, 2));                                                 // (only West is left)
+        QVERIFY2(saveNow(e), "saved");
+        jp::office::Package pk;
+        QVERIFY(pk.readLazyFile(e.path));
+        const QByteArray tablePart = pk.part(QStringLiteral("xl/tables/table1.xml"));
+        QVERIFY2(tablePart.contains("<customFilters>") && tablePart.contains("<top10 "), tablePart.constData());
+        Window second;
+        QVERIFY(second.open(e.copyOfFile()));
+        QVERIFY(second.w.workbookLoader().result() != nullptr);
+        QCOMPARE(second.w.session()->tableFilter(0).columns.size(), 2);
+        QVERIFY(second.w.session()->tableFilter(0).active());
+        QVERIFY(second.w.session()->rowFilteredOut(0, 1) && second.w.session()->rowFilteredOut(0, 3) && second.w.session()->rowFilteredOut(0, 4));
+        QVERIFY(!second.w.session()->rowFilteredOut(0, 2));
+        QVERIFY(!second.w.session()->calculation()->autoFilterOf(0).valid());
+    }
+
     // The rows a table's filter hid in a file are the filter's (not a person's): Clear shows them, Reapply hides them again, and a row hidden in a table that has no conditions is a person's.
     void rowsHiddenByATablesFilterInAFileAreTheFilters()
     {

@@ -970,6 +970,31 @@ private Q_SLOTS:
         QCOMPARE(int(e.view()->marks().size()), 3);                                       // (the other three runs of rows are tinted)
     }
 
+    // The status bar says how many of the rows of a filter show, while the filter has a condition.
+    void theStatusBarCountsTheRecordsAFilterLetsThrough()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookOfSheets({fruit()})));
+        CrunchWindow &w = e.win.w;
+        QLabel *count = w.findChild<QLabel *>(QStringLiteral("filterCount"));
+        QVERIFY(count);
+        QVERIFY(!count->isVisible() && count->text().isEmpty());
+        using Op = FilterColumn::Op;
+        QVERIFY(filterWith(e, with(e, 1, custom(Op::Greater, QStringLiteral("10")))));
+        QCOMPARE(count->text(), QStringLiteral("3 of 8 records found"));
+        QVERIFY(!count->isHidden());
+        // a filter with no condition (only buttons) says nothing; Undo and Redo move the count with the filter
+        w.undoStack()->undo();
+        QVERIFY(count->text().isEmpty() && count->isHidden());
+        w.undoStack()->redo();
+        QCOMPARE(count->text(), QStringLiteral("3 of 8 records found"));
+        QVERIFY(filterWith(e, with(e, 0, values({"banana", "fig", "egg"}))));
+        QCOMPARE(count->text(), QStringLiteral("2 of 8 records found"));
+        w.act(QStringLiteral("filter.clear"))->trigger();
+        QTRY_VERIFY(count->isHidden());
+        QVERIFY(count->text().isEmpty());
+    }
+
     void aFilterByColorIsSavedWithTheColorsFormat()
     {
         EditWindow e;

@@ -416,6 +416,10 @@ void CrunchWindow::buildStatusBar()
     m_status->setObjectName(QStringLiteral("statusText"));
     m_status->setMinimumWidth(220);
     sb->addWidget(m_status);
+    m_filterCount = plainLabel(new QLabel(this));
+    m_filterCount->setObjectName(QStringLiteral("filterCount"));
+    m_filterCount->hide();
+    sb->addWidget(m_filterCount);
     m_stats = plainLabel(new QLabel(this));
     m_stats->setObjectName(QStringLiteral("selectionStats"));
     sb->addPermanentWidget(m_stats);

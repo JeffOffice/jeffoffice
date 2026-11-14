@@ -68,6 +68,7 @@ void CrunchWindow::createEditing()
     // pivot table commands, among others, don't say so themselves, and the window was then taken for ready while the worker still had a pass to make)
     m_changesNoted = m_loader.changesMade();
     connect(m_session->undoStack(), &QUndoStack::indexChanged, this, [this] {
+        updateFilterCount();
         const qint64 now = m_loader.changesMade();
         if (now == m_changesNoted) return;
         m_changesNoted = now;

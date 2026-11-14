@@ -1159,6 +1159,7 @@ private:
     // the filter (crunchwindow_filter.cpp)
     void createFilterActions();
     void updateFilterButtons();
+    void updateFilterCount();                                 // the status bar's "3 of 8 records found" while a filter is on
     void stepFilter();
     void finishFilter(bool done);
     void cancelFilter();
@@ -1571,7 +1572,7 @@ private:
     bool m_formulaBarGreyed = false;   // the bar shows the formula of a cell that fills this one by a spill (see updateBars)
     QWidget *m_formulaRow = nullptr;
     crunch::SheetTabBar *m_tabs = nullptr;
-    QLabel *m_status = nullptr, *m_stats = nullptr, *m_zoomLabel = nullptr;
+    QLabel *m_status = nullptr, *m_stats = nullptr, *m_zoomLabel = nullptr, *m_filterCount = nullptr;
     QSlider *m_zoomSlider = nullptr;
     QHash<QString, QAction *> m_actions;
     QString m_ribbonErrors;

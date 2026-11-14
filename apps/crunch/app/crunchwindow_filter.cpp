@@ -47,6 +47,7 @@ void CrunchWindow::createFilterActions()
     m_listTimer.setInterval(0);
     connect(&m_filterTimer, &QTimer::timeout, this, [this] { stepFilter(); });
     connect(&m_listTimer, &QTimer::timeout, this, [this] { stepList(); });
+    connect(m_view, &grid::GridView::selectionChanged, this, [this] { updateFilterCount(); });
     connect(m_view, &grid::GridView::headerButtonClicked, this, [this](qint64 row, qint64 col) { showFilterPopup(row, col); });
     updateEditActions();
 }
@@ -83,6 +84,29 @@ void CrunchWindow::updateFilterButtons()
         a->setChecked(f.valid());
     }
     if (QAction *a = act("filter.clear")) a->setToolTip(tr("Take the conditions off every column (the buttons stay)"));
+    updateFilterCount();
+}
+
+// While a filter has a condition, the status bar says how many of its rows show: the table the cursor is in, else the sheet's filter, else the first table on the sheet that is filtered.
+void CrunchWindow::updateFilterCount()
+{
+    if (!m_filterCount) return;
+    QString text;
+    if (m_session && m_loaded && m_haveCalc && !m_chartSheetShown) {
+        AutoFilter f;
+        if (const int table = selectedTable(); table >= 0) f = m_session->tableFilter(table);
+        if (!f.active()) f = m_session->calculation()->autoFilterOf(m_sheet);
+        if (!f.active())
+            for (int i = 0; i < m_session->workbook()->tables().size() && !f.active(); ++i)
+                if (m_session->workbook()->tables()[i].sheet == m_sheet) f = m_session->tableFilter(i);
+        if (f.active() && f.ref.row2 > f.ref.row1) {
+            const quint32 records = f.ref.row2 - f.ref.row1;
+            const quint32 hidden = quint32(m_session->hiddenRowsIn(m_sheet, f.ref.row1 + 1, f.ref.row2, true).size());
+            text = tr("%1 of %2 records found").arg(QLocale().toString(records - std::min(hidden, records)), QLocale().toString(records));
+        }
+    }
+    m_filterCount->setText(text);
+    m_filterCount->setVisible(!text.isEmpty());
 }
 
 // Filter: on over the cells (the block around the cell with the cursor if one is selected), or off.
@@ -201,6 +225,7 @@ void CrunchWindow::finishFilter(bool done)
         }
     }
     if (!m_calculating && !m_loading) setStatus(tr("Ready"));
+    updateFilterCount();
     Q_EMIT filterFinished(made);
 }
 
