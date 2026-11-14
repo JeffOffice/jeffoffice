@@ -153,6 +153,7 @@ LinkDialog::LinkDialog(const QString &current, int slides, QWidget *parent) : QD
     auto *browse = new QPushButton(tr("Browse…"), addressRow);
     addressLay->addWidget(browse);
     form->addRow(tr("Address:"), addressRow);
+    if (auto *label = qobject_cast<QLabel *>(form->labelForField(addressRow))) label->setBuddy(m_address);
     form->addRow(tr("Place:"), m_place);
     lay->addLayout(form);
     setDisplayShown(QString(), false);

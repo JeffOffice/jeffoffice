@@ -532,7 +532,7 @@ private Q_SLOTS:
             {"verticalScroll", "verticalScroll"}, {"horizontalScroll", "horizontalScroll"}, {"wave", "wave"}, {"doubleWave", "doubleWave"},
             {"wedgeRectCallout", "wedgeRectCallout"}, {"wedgeRoundRectCallout", "wedgeRoundRectCallout"}, {"wedgeEllipseCallout", "wedgeEllipseCallout"},
             {"borderCallout1", "borderCallout1"}, {"borderCallout2", "borderCallout2"}, {"accentCallout1", "accentCallout1"}, {"callout1", "callout1"},
-            {"actionButtonBlank", "actionButtonBlank"}, {"actionButtonHome", "actionButtonBlank"}, {"actionButtonSound", "actionButtonBlank"}};
+            {"actionButtonBlank", "actionButtonBlank"}, {"actionButtonHome", "actionButtonHome"}, {"actionButtonSound", "actionButtonSound"}};
         for (const auto &m : map) QTest::newRow(m.preset) << QString::fromLatin1(m.preset) << QString::fromLatin1(m.shape);
     }
 
