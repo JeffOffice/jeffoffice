@@ -9,14 +9,13 @@
 # The longest programs go first, so the side-by-side runs finish together. With CI_SPLIT=n (a machine with many processors), the
 # biggest programs run in n parts at once, as tools/gate.sh splits them: an app-check program (*checks) runs its three long checks in
 # n parts (JO_APPCHECK_SHARD=k/n) and one more part for the rest of its checks; crunchtests, sheettests, jdtests, and jptests run their
-# test classes in n parts; writetests and flowtests (one class each) their test functions. All the parts together run what one run does.
+# test classes in n parts. All the parts together run what one run does.
 #
 # <program>:k/n is for a program shared by two CI jobs (each job names its own part, .github/workflows/build.yml, tools/ci_targets.sh): an
 # app-check program runs its three long checks for part k of n (JO_APPCHECK_SHARD=k/n), and part n also runs the rest of its checks; the
 # test classes of crunchtests, sheettests, jdtests, and jptests are dealt out to the n parts by their weights below (the heaviest class
 # first, to the part with the least so far), so that the parts take about the same time. Every part computes the same deal from the
 # same program, so all the parts together run each class once. A class not in the table weighs 1; a stale weight only unbalances the parts.
-# writetests (a single class of long tests) runs every n-th test function in part k.
 set -u
 
 ext=""; [ "${RUNNER_OS:-}" = "Windows" ] && ext=".exe"
@@ -63,11 +62,6 @@ for A in "$@"; do
                         sum[p] += v[best]; if (p == k) printf "--class %s ", c[best] }
                 }')
             [ -n "$args" ] && echo "$N.part$k $N - $args" >> "$parts" ;;
-        writetests|flowtests)
-            # (one class each: every n-th test function runs in part k, as CI_SPLIT deals them)
-            args=$(QT_QPA_PLATFORM=offscreen "$P" -functions 2>/dev/null | sed 's/()$//' | grep -vxE 'initTestCase|cleanupTestCase' |
-                awk -v k="$k" -v n="$n" 'NF && NR % n == k % n {printf "%s ", $0}')
-            [ -n "$args" ] && echo "$N.part$k $N - $args" >> "$parts" ;;
         *) echo "ci_tests.sh: $N cannot run in parts" >&2; exit 2 ;;
         esac
         continue
@@ -84,12 +78,8 @@ for A in "$@"; do
             args=$(echo "$list" | awk -v k=$k -v n=$split 'NF && NR % n == k % n {printf "--class %s ", $0}')
             [ -n "$args" ] && echo "$N.part$k $N - $args" >> "$parts"
         done ;;
-    writetests|flowtests)
-        list=$(QT_QPA_PLATFORM=offscreen "$P" -functions 2>/dev/null | sed 's/()$//' | grep -vxE 'initTestCase|cleanupTestCase')
-        for k in $(seq 1 "$split"); do
-            args=$(echo "$list" | awk -v k=$k -v n=$split 'NF && NR % n == k % n {printf "%s ", $0}')
-            [ -n "$args" ] && echo "$N.part$k $N - $args" >> "$parts"
-        done ;;
+    # (writetests and flowtests run whole: their test names, passed on one command line, ran past what xargs takes on Windows, so no part
+    # started and each was rerun under the debugger until its 15-minute limit; Nov 14 2026)
     *) echo "$N $N -" >> "$parts" ;;
     esac
 done

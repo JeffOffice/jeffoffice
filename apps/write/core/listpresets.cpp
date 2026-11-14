@@ -76,9 +76,15 @@ namespace {
 // "%1.%2.%3" up to level i (0 to 8), with `tail` after it.
 QString chain(int i, const QString &tail)
 {
+    // (built a character at a time: the mixed temporaries of the first version crashed the clang build on macOS)
     QString s;
-    for (int k = 0; k <= i; ++k) s += (k ? QStringLiteral(".") : QString()) + QStringLiteral("%%1").arg(k + 1);
-    return s + tail;
+    for (int k = 0; k <= i; ++k) {
+        if (k) s += QLatin1Char('.');
+        s += QLatin1Char('%');
+        s += QString::number(k + 1);
+    }
+    s += tail;
+    return s;
 }
 
 AbstractNum multilevelBase()
