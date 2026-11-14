@@ -635,6 +635,127 @@ private Q_SLOTS:
         QVERIFY(std::abs(info.width / info.height - 2.0) < 0.02);
     }
 
+    void aRoundedRectangleHasAYellowHandleThatSetsItsCornerAndIsSavedAsTheAdjustment()
+    {
+        auto doc = textDoc({"Before after"});
+        QTextCursor c(doc->story());
+        c.setPosition(7);
+        QCOMPARE(insertShape(*doc, c, QStringLiteral("roundRect"), QSizeF(100, 60)), PictureResult::Ok);
+        QVector<ShapeHandle> handles = shapeAdjustHandles(*doc, 7);
+        QCOMPARE(handles.size(), 1);
+        // The standard's default is a sixth of the shorter side, along the top edge.
+        QVERIFY(std::abs(handles[0].at.x() - 10) < 0.01);
+        QCOMPARE(handles[0].at.y(), 0.0);
+        QVERIFY(setShapeAdjustment(*doc, 7, 0, QPointF(30, 5)));
+        handles = shapeAdjustHandles(*doc, 7);
+        QCOMPARE(handles.size(), 1);
+        QVERIFY(std::abs(handles[0].at.x() - 30) < 0.01);
+        QCOMPARE(handles[0].at.y(), 0.0);
+        const QByteArray xml = documentXml(doc->toDocx());
+        QVERIFY2(xml.contains("name=\"adj\" fmla=\"val 50000\""), xml.mid(xml.indexOf("prstGeom"), 200).constData());
+        // Past the end of its reach the handle stops at half the shorter side; the same place again changes nothing.
+        QVERIFY(setShapeAdjustment(*doc, 7, 0, QPointF(15, 0)));
+        QVERIFY(std::abs(shapeAdjustHandles(*doc, 7)[0].at.x() - 15) < 0.01);
+        QVERIFY(setShapeAdjustment(*doc, 7, 0, QPointF(90, 0)));
+        QVERIFY(std::abs(shapeAdjustHandles(*doc, 7)[0].at.x() - 30) < 0.01);
+        QVERIFY(!setShapeAdjustment(*doc, 7, 0, QPointF(90, 0)));
+        QVERIFY(!setShapeAdjustment(*doc, 7, 3, QPointF(20, 0)));
+        // One step each.
+        QVERIFY(doc->undo());
+        QVERIFY(std::abs(shapeAdjustHandles(*doc, 7)[0].at.x() - 15) < 0.01);
+        QVERIFY(doc->undo());
+        QVERIFY(std::abs(shapeAdjustHandles(*doc, 7)[0].at.x() - 30) < 0.01);
+        QVERIFY(doc->undo());
+        QVERIFY(std::abs(shapeAdjustHandles(*doc, 7)[0].at.x() - 10) < 0.01);
+        // A rectangle has no handle; a block arrow has one.
+        QTextCursor d(doc->story());
+        d.setPosition(2);
+        QCOMPARE(insertShape(*doc, d, QStringLiteral("rect")), PictureResult::Ok);
+        QVERIFY(shapeAdjustHandles(*doc, 2).isEmpty());
+        QVERIFY(!setShapeAdjustment(*doc, 2, 0, QPointF(5, 5)));
+        QTextCursor e(doc->story());
+        e.setPosition(1);
+        QCOMPARE(insertShape(*doc, e, QStringLiteral("rightArrow")), PictureResult::Ok);
+        QVERIFY(!shapeAdjustHandles(*doc, 1).isEmpty());
+    }
+
+    void aShapeTakesTextAndItIsKeptInTheFilesTextBoxElement()
+    {
+        auto doc = textDoc({"Before after"});
+        QTextCursor c(doc->story());
+        c.setPosition(7);
+        QCOMPARE(insertShape(*doc, c, QStringLiteral("ellipse")), PictureResult::Ok);
+        QVERIFY(textBoxText(*doc, 7).has_value());
+        QCOMPARE(textBoxText(*doc, 7)->join(QLatin1Char('|')), QString());
+        QVERIFY(setTextBoxText(*doc, 7, {QStringLiteral("Hello"), QStringLiteral("there")}));
+        QCOMPARE(textBoxText(*doc, 7)->join(QLatin1Char('|')), QStringLiteral("Hello|there"));
+        QByteArray xml = documentXml(doc->toDocx());
+        const qsizetype spPr = xml.indexOf("</wps:spPr>"), box = xml.indexOf("<wps:txbx>"), body = xml.indexOf("<wps:bodyPr");
+        QVERIFY(spPr > 0 && box > spPr && body > box);
+        QVERIFY(xml.contains("Hello"));
+        // Read back, the words are there and are laid out in the shape.
+        auto back = open(doc->toDocx());
+        QVERIFY(back);
+        std::shared_ptr<jp::flow::MaterializedPage> page;
+        const QVector<TextItem *> boxes = textBoxesOfPage(*back, &page);
+        QVERIFY(!boxes.isEmpty());
+        QVERIFY(wordsOf(page, boxes[0]).contains(QStringLiteral("Hello")));
+        // Changed again, and undone, one step each; the words are not in a line.
+        QVERIFY(setTextBoxText(*doc, 7, {QStringLiteral("Other")}));
+        QVERIFY(doc->undo());
+        QCOMPARE(textBoxText(*doc, 7)->join(QLatin1Char('|')), QStringLiteral("Hello|there"));
+        QVERIFY(doc->undo());
+        QCOMPARE(textBoxText(*doc, 7)->join(QLatin1Char('|')), QString());
+        xml = documentXml(doc->toDocx());
+        QVERIFY(!xml.contains("<wps:txbx>"));
+        // A line holds no words.
+        QTextCursor d(doc->story());
+        d.setPosition(2);
+        QCOMPARE(insertShape(*doc, d, QStringLiteral("line")), PictureResult::Ok);
+        QVERIFY(!textBoxText(*doc, 2).has_value());
+        QVERIFY(!setTextBoxText(*doc, 2, {QStringLiteral("x")}));
+    }
+
+    void theYellowHandleAndTheTurningHandleOfASelectedShapeAreDraggedInOneStepEach()
+    {
+        Win win;
+        write::WriteDoc *doc = win.w.document();
+        QTextCursor c(doc->story());
+        c.setPosition(0);
+        QCOMPARE(insertShape(*doc, c, QStringLiteral("roundRect"), QSizeF(160, 100)), PictureResult::Ok);
+        QVERIFY(setPicturePlace(*doc, 0, 150, 150));
+        win.w.view()->refresh();
+        win.w.view()->selectPicture(0);
+        QWidget *vp = win.w.view()->viewport();
+        QRectF r;
+        QTRY_VERIFY(win.w.view()->pictureRect(0, &r));
+        const double s = win.w.view()->zoom() * 96.0 / 72.0;
+        // The yellow handle sits on the top edge a sixth of the shorter side in; pulled along the edge it sets the corner.
+        const QPoint handle(int(r.left() + shapeAdjustHandles(*doc, 0)[0].at.x() * s), int(r.top()));
+        QTest::mousePress(vp, Qt::LeftButton, Qt::NoModifier, handle);
+        QTest::mouseMove(vp, handle + QPoint(10, 3));
+        QTest::mouseMove(vp, handle + QPoint(int(20 * s), 3));
+        QTest::mouseRelease(vp, Qt::LeftButton, Qt::NoModifier, handle + QPoint(int(20 * s), 3));
+        const double was = 100 / 6.0;
+        QVERIFY(std::abs(shapeAdjustHandles(*doc, 0)[0].at.x() - (was + 20)) < 1.5);
+        QCOMPARE(win.w.view()->selectedPicture(), 0);
+        QVERIFY(doc->undo());
+        QVERIFY(std::abs(shapeAdjustHandles(*doc, 0)[0].at.x() - was) < 0.1);
+        QVERIFY(doc->redo());
+        // The turning handle is above the top edge; a drag to the right of the shape turns it a quarter turn.
+        win.w.view()->refresh();
+        QTRY_VERIFY(win.w.view()->pictureRect(0, &r));
+        const QPoint turn(int(r.center().x()), int(r.top() - 24));
+        QTest::mousePress(vp, Qt::LeftButton, Qt::NoModifier, turn);
+        QTest::mouseMove(vp, turn + QPoint(20, 10));
+        const QPoint right(int(r.center().x() + 120), int(r.center().y()));
+        QTest::mouseMove(vp, right);
+        QTest::mouseRelease(vp, Qt::LeftButton, Qt::NoModifier, right);
+        QVERIFY(std::abs(pictureAt(*doc, doc->story(), 0).rotation - 90) < 1);
+        QVERIFY(doc->undo());
+        QVERIFY(std::abs(pictureAt(*doc, doc->story(), 0).rotation) < 0.01);
+    }
+
     void aShapesFillLineTurnAndKindAreChangedOneStepEach()
     {
         auto doc = textDoc({"Before after"});
@@ -778,7 +899,7 @@ private Q_SLOTS:
         QTRY_VERIFY(win.tabShown(QStringLiteral("Shape Format")));
         QVERIFY(!win.tabShown(QStringLiteral("Picture Format")));
         QVERIFY(win.w.act("picture.altText")->isEnabled());
-        QVERIFY(!win.w.act("shape.editText")->isEnabled());
+        QVERIFY(win.w.act("shape.editText")->isEnabled());
         QVERIFY(win.w.act("shape.rotate.right")->isEnabled());
         win.w.act("shape.rotate.right")->trigger();
         QVERIFY(std::abs(pictureAt(*win.w.document(), win.w.document()->story(), 5).rotation - 90) < 0.01);

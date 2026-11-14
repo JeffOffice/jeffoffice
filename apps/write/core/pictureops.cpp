@@ -13,6 +13,9 @@
 #include "office/drawingml_color.h"
 #include "office/drawingml_write.h"
 #include "render/textart.h"
+#include "render/shapes.h"
+#include "office/drawingml.h"
+#include "office/drawingml_geometry.h"
 #include "office/theme.h"
 #include "sheet/chartmake.h"
 #include "core/writeprops.h"
@@ -1506,6 +1509,16 @@ struct BoxContent {
     bool simple = false;
 };
 
+// Whether a shape that holds no text box yet may be given one: a drawn shape (not a picture, a group, a line or connector, or text art).
+bool shapeTakesText(const QByteArray &graphic)
+{
+    if (!graphic.contains("<wps:wsp") || graphic.contains("<pic:pic") || graphic.contains("<wpg:wgp") || graphic.contains("<wps:txbx") || graphic.contains("linkedTxbx") ||
+        graphic.contains("prstTxWarp") || graphic.contains("<wps:cNvCnPr"))
+        return false;
+    static const QRegularExpression lines(QStringLiteral("prst=\"(line|straightConnector1|bentConnector[0-9]|curvedConnector[0-9])\""));
+    return !lines.match(QString::fromUtf8(graphic)).hasMatch();
+}
+
 BoxContent boxContentOf(const QByteArray &graphic)
 {
     BoxContent b;
@@ -1688,6 +1701,95 @@ PictureResult insertShapeAt(WriteDoc &doc, QTextCursor &c, const QString &preset
     return PictureResult::Ok;
 }
 
+namespace {
+
+// What a shape's geometry says: its preset and the adjustments it gives (by name, as written), and the frame's size in points. False for anything that is not a plain shape with a preset
+// (a picture, a group, a shape that is flipped).
+struct ShapeGeometry {
+    QString prst;
+    QHash<QString, double> given;
+    QSizeF size;
+};
+
+bool shapeGeometryOf(const QByteArray &graphic, qint64 cx, qint64 cy, ShapeGeometry *out)
+{
+    if (!graphic.contains("wsp") || graphic.contains("<pic:pic") || graphic.contains("<wpg:wgp")) return false;
+    static const QRegularExpression flipped(QStringLiteral("\\sflip[HV]=\"(1|true)\""));
+    SpPr sp;
+    if (!splitSpPr(graphic, &sp)) return false;
+    if (flipped.match(QString::fromUtf8(sp.startTag)).hasMatch()) return false;
+    for (const SpPr::Child &c : sp.children)
+        if (c.local == "xfrm" && flipped.match(QString::fromUtf8(c.raw.left(c.raw.indexOf('>') + 1))).hasMatch()) return false;
+    const QString geometry = QString::fromUtf8(childRaw(sp, SlotGeometry));
+    static const QRegularExpression prst(QStringLiteral("<a:prstGeom\\s[^>]*prst=\"([A-Za-z0-9]+)\""));
+    const QRegularExpressionMatch found = prst.match(geometry);
+    if (!found.hasMatch()) return false;
+    out->prst = found.captured(1);
+    static const QRegularExpression gd(QStringLiteral("<a:gd\\s+name=\"([A-Za-z0-9]+)\"\\s+fmla=\"val\\s+(-?[0-9]+)\""));
+    for (auto it = gd.globalMatch(geometry); it.hasNext();) {
+        const QRegularExpressionMatch m = it.next();
+        out->given.insert(m.captured(1), m.captured(2).toDouble());
+    }
+    out->size = QSizeF(double(cx) / kEmuPerPoint, double(cy) / kEmuPerPoint);
+    return out->size.width() > 0 && out->size.height() > 0;
+}
+
+QVector<ShapeHandle> handlesOf(const ShapeGeometry &g, QVector<double> *adj, const QVector<AdjHandle> **defs)
+{
+    QVector<ShapeHandle> out;
+    const QString id = office::shapeForPreset(g.prst);
+    const ShapeDef *def = id.isEmpty() ? nullptr : shapeDef(id);
+    if (!def || def->handles.isEmpty()) return out;
+    *adj = office::libraryAdjustments(g.prst, g.given, g.size);
+    if (adj->size() < def->handles.size()) return out;
+    for (const AdjHandle &h : def->handles)
+        if (h.index >= 0 && h.index < adj->size()) out.push_back({h.index, adjHandlePos(h, g.size, *adj)});
+    *defs = &def->handles;
+    return out;
+}
+
+} // namespace
+
+QVector<ShapeHandle> shapeAdjustHandles(const WriteDoc &doc, int position)
+{
+    const QTextDocument *story = doc.story();
+    if (!story || position < 0 || position + 1 > story->characterCount() - 1) return {};
+    Inline atom;
+    if (!drawingAtomOf(formatAfter(story, position), &atom)) return {};
+    Model m;
+    if (!parseDrawing(atom.raw, &m)) return {};
+    ShapeGeometry g;
+    if (!shapeGeometryOf(m.graphic, m.cx, m.cy, &g)) return {};
+    QVector<double> adj;
+    const QVector<AdjHandle> *defs = nullptr;
+    return handlesOf(g, &adj, &defs);
+}
+
+bool setShapeAdjustment(WriteDoc &doc, int position, int index, const QPointF &at)
+{
+    if (!std::isfinite(at.x()) || !std::isfinite(at.y())) return false;
+    return changeSpPrOf(doc, position, true, [&](SpPr *sp, const Model &m) {
+        ShapeGeometry g;
+        if (!shapeGeometryOf(m.graphic, m.cx, m.cy, &g)) return false;
+        QVector<double> adj;
+        const QVector<AdjHandle> *defs = nullptr;
+        const QVector<ShapeHandle> handles = handlesOf(g, &adj, &defs);
+        const AdjHandle *handle = nullptr;
+        if (defs)
+            for (const AdjHandle &h : *defs)
+                if (h.index == index) handle = &h;
+        if (!handle) return false;
+        adj[index] = adjFromPoint(*handle, g.size, at);
+        const QVector<QPair<QString, double>> values = office::presetAdjustments(g.prst, adj, g.size);
+        QByteArray list;
+        for (const auto &v : values) list += "<a:gd name=\"" + attribute(v.first, 16) + "\" fmla=\"val " + QByteArray::number(qint64(std::llround(v.second))) + "\"/>";
+        const QByteArray now = "<a:prstGeom prst=\"" + attribute(g.prst, 64) + "\">" + (list.isEmpty() ? QByteArray("<a:avLst/>") : "<a:avLst>" + list + "</a:avLst>") + "</a:prstGeom>";
+        if (childRaw(*sp, SlotGeometry) == now) return false;
+        setSlot(sp, SlotGeometry, "prstGeom", now);
+        return true;
+    });
+}
+
 const QVector<TextBoxDesign> &textBoxDesigns()
 {
     static const QVector<TextBoxDesign> designs = [] {
@@ -1761,7 +1863,8 @@ std::optional<QStringList> textBoxText(const WriteDoc &doc, int position)
     Model m;
     if (!parseDrawing(atom.raw, &m) || m.graphic.contains("<wpg:wgp")) return std::nullopt;
     const BoxContent box = boxContentOf(m.graphic);
-    if (box.begin < 0 || !box.simple) return std::nullopt;
+    if (box.begin < 0) return shapeTakesText(m.graphic) ? std::optional<QStringList>(QStringList{QString()}) : std::nullopt;
+    if (!box.simple) return std::nullopt;
     return box.paragraphs.isEmpty() ? QStringList{QString()} : box.paragraphs;
 }
 
@@ -1772,8 +1875,15 @@ bool setTextBoxText(WriteDoc &doc, int position, const QStringList &paragraphs)
     for (const QString &p : paragraphs) total += p.size();
     if (total > kMostBoxTextLength) return false;
     return changePicture(doc, position, [&](Model &m) {
-        const BoxContent box = boxContentOf(m.graphic);
-        if (box.begin < 0 || !box.simple) return false;
+        BoxContent box = boxContentOf(m.graphic);
+        // (A shape with no text box yet is given one, its words centered as a shape's are.)
+        const bool add = box.begin < 0;
+        if (add) {
+            if (!shapeTakesText(m.graphic)) return false;
+            box.simple = true;
+            box.pPr = "<w:pPr><w:jc w:val=\"center\"/></w:pPr>";
+        }
+        if (!box.simple) return false;
         QStringList clean;
         for (const QString &p : paragraphs) clean << cleanText(p, int(kMostBoxTextLength));
         if (clean.isEmpty()) clean << QString();
@@ -1798,6 +1908,13 @@ bool setTextBoxText(WriteDoc &doc, int position, const QStringList &paragraphs)
             content += "</w:p>";
         }
         content += "</w:txbxContent>";
+        if (add) {
+            const qsizetype body = m.graphic.indexOf("<wps:bodyPr");
+            const qsizetype where = body >= 0 ? body : m.graphic.lastIndexOf("</wps:wsp>");
+            if (where < 0) return false;
+            m.graphic = m.graphic.left(where) + "<wps:txbx>" + content + "</wps:txbx>" + m.graphic.mid(where);
+            return true;
+        }
         m.graphic = m.graphic.left(box.begin) + content + m.graphic.mid(box.end);
         return true;
     });

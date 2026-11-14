@@ -221,7 +221,7 @@ public:
     // ---- pictures
     // A picture is selected when the selection is the one character that is a picture; handles at its corners and sides then change its size, and a drag on it moves it (a
     // picture in line goes to another place in the text, one set at a place on the page to another place there). Each is one step.
-    enum class PictureHandle { None, TopLeft, Top, TopRight, Right, BottomRight, Bottom, BottomLeft, Left, Body };
+    enum class PictureHandle { None, TopLeft, Top, TopRight, Right, BottomRight, Bottom, BottomLeft, Left, Body, Rotate, Adjust };
     // The place in the text of the selected picture, -1 for none.
     int selectedPicture() const;
     void selectPicture(int position);
@@ -444,7 +444,14 @@ private:
         QPoint scrollAtStart;
         bool floating = false;
         PictureInfo info;
+        int adjust = 0;     // the yellow handle being pulled
+        QPointF at;         // where the pointer is, for a yellow handle or the turning handle
     };
+    int m_adjustHandleHit = 0;
+    // The yellow handles of the selected shape in the window (the shape's own number of each and its place), and the turning handle above the shape.
+    QVector<std::pair<int, QPointF>> adjustHandlePoints();
+    bool rotateHandlePoint(QPointF *point);
+    QPointF turnedAboutCenter(const QPointF &p, const QRectF &frame, double degrees) const;
     bool beginPictureDrag(QMouseEvent *e);
     void updatePictureDrag(const QPoint &pos, Qt::KeyboardModifiers modifiers = Qt::NoModifier);
     void endPictureDrag(const QPoint &pos, Qt::KeyboardModifiers modifiers = Qt::NoModifier);

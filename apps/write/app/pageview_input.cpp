@@ -696,6 +696,7 @@ void PageView::mouseMoveEvent(QMouseEvent *e)
         const int shape = h == PictureHandle::None && tableHandleAt(e->position().toPoint(), &border) ? int(Qt::SizeFDiagCursor)
                           : h == PictureHandle::None && columnBorderAt(e->position().toPoint(), &border) ? int(border.row ? Qt::SplitVCursor : Qt::SplitHCursor)
                           : h == PictureHandle::None ? int(Qt::IBeamCursor) : h == PictureHandle::Body ? int(Qt::SizeAllCursor)
+                          : (h == PictureHandle::Rotate || h == PictureHandle::Adjust) ? int(Qt::PointingHandCursor)
                           : (h == PictureHandle::TopLeft || h == PictureHandle::BottomRight) ? int(Qt::SizeFDiagCursor)
                           : (h == PictureHandle::TopRight || h == PictureHandle::BottomLeft) ? int(Qt::SizeBDiagCursor)
                           : (h == PictureHandle::Top || h == PictureHandle::Bottom) ? int(Qt::SizeVerCursor) : int(Qt::SizeHorCursor);

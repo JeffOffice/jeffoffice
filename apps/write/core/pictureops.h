@@ -248,6 +248,17 @@ std::optional<QStringList> textBoxText(const WriteDoc &doc, int position);
 // Puts these paragraphs in the text box: each has the first paragraph's alignment and the first run's look. False when the box holds more than words, or the words are already so.
 bool setTextBoxText(WriteDoc &doc, int position, const QStringList &paragraphs);
 
+// The yellow handles of a shape (a rounded rectangle's corner, an arrow's head, a star's points, a callout's tail): each is the number of the adjustment it sets and where it sits, in points
+// from the frame's top left corner (before the turn). None for a shape with no adjustments, a shape that is flipped, a picture, or any other object.
+struct ShapeHandle {
+    int index = 0;
+    QPointF at;
+};
+QVector<ShapeHandle> shapeAdjustHandles(const WriteDoc &doc, int position);
+// Moves handle `index` to `at` (the frame's own points, before the turn; the handle stays inside what it may reach), written as the shape's adjustment values; one step. False where there is
+// no such handle or it does not move.
+bool setShapeAdjustment(WriteDoc &doc, int position, int index, const QPointF &at);
+
 // Changes to the look of the shape or text box at `position`, each one step; false when it is no such object or the change makes no difference. A fill or a line given as empty
 // is none; `weight` is in points (held to 0.25 to 100), and `dash` the drawing format's name for how the line is dashed.
 bool setShapeFill(WriteDoc &doc, int position, const QString &rgb);
