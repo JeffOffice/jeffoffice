@@ -1,0 +1,16 @@
+macOS: PCRE2, which the sentence splitter builds as a project of its own, was not told the processor of the build, so the x86_64 engine build of a universal Mac build made an arm64 PCRE2 and lipo refused to join the two ("have the same architectures (arm64)"). CMAKE_OSX_ARCHITECTURES is now passed on, on Apple only.
+
+--- a/3rd_party/ssplit-cpp/cmake/FindPCRE2.cmake
++++ b/3rd_party/ssplit-cpp/cmake/FindPCRE2.cmake
+@@ -64,6 +64,11 @@
+   endif(ANDROID)
+ 
+ 
++  # macOS: the processor this build is for (JeffOffice builds the engine once per processor and joins them with lipo; without it PCRE2 is built for the build computer's)
++  if(APPLE AND CMAKE_OSX_ARCHITECTURES)
++    LIST(APPEND PCRE2_CONFIGURE_OPTIONS -DCMAKE_OSX_ARCHITECTURES=${CMAKE_OSX_ARCHITECTURES})
++  endif()
++
+   if(WIN32 AND NOT MSVC)
+     # MinGW: ExternalProject would otherwise default to NMake
+     LIST(APPEND PCRE2_CONFIGURE_OPTIONS -G ${CMAKE_GENERATOR} -DCMAKE_MAKE_PROGRAM=${CMAKE_MAKE_PROGRAM} -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER})
