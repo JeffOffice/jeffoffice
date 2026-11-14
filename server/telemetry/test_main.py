@@ -1,5 +1,9 @@
 """Tests for the usage statistics collector: python3 -m unittest test_main"""
 import base64
+import contextlib
+import gzip
+import io
+import ipaddress
 import datetime as dt
 import json
 import os
@@ -393,54 +397,69 @@ class Collector(unittest.TestCase):
         code, page = self.get("/stats", "secret")
         self.assertEqual(code, 200)
         self.assertIn("Crashes", page)
-        self.assertIn("<td>9.9.9</td><td>4</td><td>3</td>", page)
-        self.assertIn("<td>9.9.8</td><td>1</td><td>1</td>", page)
+        self.assertIn('<td>9.9.9</td><td class="r">4</td><td class="r">3</td>', page)
+        self.assertIn('<td>9.9.8</td><td class="r">1</td><td class="r">1</td>', page)
         self.assertNotIn("8.8.8", page)
-        self.assertIn('href="/crashes?app=jeffpub"', page)
+        self.assertIn('href="/crashes"', page)
 
-    def test_stats_are_split_by_app(self):
-        self.post(self.ping(app="jeffpub", version="7.7.1", counts={"pub.only": 2}, lang="de-DE"))
-        self.post(self.ping(app="jeffdeck", version="8.8.1", counts={"deck.only": 3, "file.open.pptx": 1}, os="macos", lang="fr-FR"))
-        code, pub = self.get("/stats", "secret")                     # JeffPub's, as the page always was
+    def test_stats_are_one_dashboard_with_every_section(self):
+        self.post(self.ping(app="jeffdeck", version="8.8.1", counts={"deck.only": 3}, os="macos", lang="fr-FR"))
+        code, page = self.get("/stats", "secret")
         self.assertEqual(code, 200)
-        _, pub_too = self.get("/stats?app=jeffpub", "secret")
-        code, deck = self.get("/stats?app=jeffdeck", "secret")
-        self.assertEqual(code, 200)
-        self.assertEqual(pub, pub_too)
-        for shown, hidden in ((pub, ("8.8.1", "deck.only", "fr-FR", "file.open.pptx")), (deck, ("7.7.1", "pub.only", "de-DE", "export.pdf"))):
-            for text in hidden:
-                self.assertNotIn(text, shown)
-        for text in ("7.7.1", "pub.only", "de-DE"):
-            self.assertIn(text, pub)
-        for text in ("8.8.1", "deck.only", "fr-FR", "file.open.pptx", "macos"):
-            self.assertIn(text, deck)
-        for page in (pub, deck):
-            self.assertIn('href="/stats?app=jeffpub"', page)
-            self.assertIn('href="/stats?app=jeffdeck"', page)
-        self.assertIn("<h1>JeffPub usage</h1>", pub)
-        self.assertIn("<h1>JeffDeck usage</h1>", deck)
-        self.assertIn('href="/crashes?app=jeffdeck"', deck)
-        self.assertIn('href="/crashes?app=jeffpub"', pub)
+        for text in ("<h1>JeffOffice usage</h1>", "Times are UTC", "Active per day", "Active, 30 days", "All apps",
+                     "Installs by country", "Top countries", "Unknown:", "<h2>Version</h2>", "<h2>Operating system</h2>",
+                     "<h2>Language</h2>", "<h2>Top commands</h2>", "Show all", "Crashes by version", "IP geolocation by",
+                     'href="https://db-ip.com"', "d3@7.9.0", "topojson-client@3.1.0", "world-atlas@2.0.2",
+                     'href="/stats?days=7"', 'href="/stats?days=90"', 'href="/crashes"', "var(--c-jeffdeck)", "8.8.1", "deck.only", "fr-FR"):
+            self.assertIn(text, page)
+        for name in main.APPS.values():
+            self.assertIn(name, page)
+        self.assertEqual(self.get("/stats?days=7", "secret")[0], 200)
+        self.assertIn("Active, 90 days", self.get("/stats?days=90", "secret")[1])
 
-    def test_stats_overview_counts_each_app_and_the_suite(self):
-        a, b, c = (str(uuid.uuid4()) for _ in range(3))
+    def test_stats_take_no_app_filter(self):
+        self.assertEqual(self.get("/stats?app=jeffdeck", "secret")[0], 404)
+
+    def test_stats_count_each_apps_crashes_apart(self):
+        self.send(app="jeffdeck", version="6.6.6")
+        self.send(app="jeffdeck", version="6.6.6")
+        self.send(app="jeffpub", version="6.6.5")
+        rows = {r["app"]: r for r in main.gather_stats()["rows"]}
+        self.assertEqual((rows["jeffdeck"]["crashes"], rows["jeffpub"]["crashes"], rows[None]["crashes"]), (2, 1, 3))
+        _, page = self.get("/stats", "secret")
+        self.assertIn('<td>6.6.6</td><td class="r">2</td><td class="r">2</td>', page)
+
+    def test_the_rows_count_active_new_and_previous_period(self):
+        today = utc_today()
+        a, b = str(uuid.uuid4()), str(uuid.uuid4())
         with main.db() as con:
-            con.execute("DELETE FROM pings WHERE install IN (?, ?, ?)", (a, b, c))
-        for install, app in ((a, "jeffpub"), (a, "jeffdeck"), (b, "jeffdeck"), (c, "jeffpub")):
-            self.post(self.ping(install=install, app=app))
-        with main.db() as con:
-            ever = {app: con.execute("SELECT COUNT(DISTINCT install) FROM pings WHERE app = ?", (app,)).fetchone()[0] for app in main.APPS}
-            suite = con.execute("SELECT COUNT(DISTINCT install) FROM pings").fetchone()[0]
-        _, page = self.get("/stats?app=jeffdeck", "secret")
-        self.assertIn("Installs that sent statistics", page)
-        for app, name in (("jeffpub", "JeffPub"), ("jeffdeck", "JeffDeck")):
-            self.assertRegex(page, r"<tr><td>%s</td>(<td>\d+</td>){3}<td>%d</td></tr>" % (name, ever[app]))
-        self.assertRegex(page, r"<tr><td>Either app</td>(<td>\d+</td>){3}<td>%d</td></tr>" % suite)
-        self.assertGreater(suite, 0)
-        self.assertLess(suite, sum(ever.values()))   # a uses both apps: counted once in the suite row
+            for t in ("pings", "counts", "crashes"):
+                con.execute("DELETE FROM " + t)
+        for install, app, ago in ((a, "jeffpub", 3), (a, "jeffdeck", 0), (b, "jeffpub", 45)):
+            main.record(main.parse_ping(json.dumps(self.ping(install=install, app=app)).encode()), today - dt.timedelta(days=ago))
+        d = main.gather_stats(30, today)
+        rows = {r["app"]: r for r in d["rows"]}
+        key = ("active", "active_prev", "new", "new_prev")
+        self.assertEqual([rows[None][k] for k in key], [1, 1, 1, 1])
+        self.assertEqual([rows["jeffpub"][k] for k in key], [1, 1, 1, 1])
+        self.assertEqual([rows["jeffdeck"][k] for k in key], [1, 0, 1, 0])
+        self.assertEqual(len(rows["jeffpub"]["series"]), 30)
+        self.assertEqual(rows["jeffdeck"]["series"][-1], 1)
+        self.assertEqual(rows["jeffpub"]["series"][-4], 1)
+
+    def test_the_public_page_says_why(self):
+        _, page = self.get("/")
+        self.assertIn("Why we collect this", page)
+        self.assertLess(page.index("Why we collect this"), page.index("<ul>"))
+        self.assertIn("works out", page)
+        for url in ("https://www.jeffoffice.com/privacy/", "https://www.jeffoffice.com/terms/",
+                    "https://github.com/JeffOffice/jeffoffice/blob/main/LICENSE", "https://www.jeffoffice.com/third-party/",
+                    "https://github.com/JeffOffice/jeffoffice/tree/main/server/telemetry"):
+            self.assertIn('href="%s"' % url, page)
+        self.assertIn("Third-party licenses", page)
 
     def test_an_app_that_is_not_known_has_no_page(self):
-        for path in ("/stats?app=jeffmail", "/stats?app=", "/stats?app=JeffDeck", "/stats?app=jeffdeck&app=x", "/crashes?app=jeffmail", "/crashes?app=%00"):
+        for path in ("/stats?app=jeffmail", "/stats?app=", "/stats?app=JeffDeck", "/stats?app=jeffdeck&app=x", "/crashes?app=jeffmail", "/crashes?app=%00", "/stats?days=10", "/stats?days=", "/stats?days=7&days=30"):
             with self.subTest(path=path):
                 self.assertEqual(self.get(path, "secret")[0], 404)
         self.assertEqual(self.get("/stats?app=jeffdeck")[0], 401)   # the password still comes first
@@ -450,37 +469,141 @@ class Collector(unittest.TestCase):
         self.send(app="jeffpub", frames=[{"module": "JeffPub.exe", "offset": 0x1A2B}])
         self.send(app="jeffdeck", frames=[{"module": "JeffDeck.exe", "offset": 0x3C4D}], version="8.8.2")
         self.send(frames=[{"module": "JeffPub.exe", "offset": 0x1A2B}])   # no app: JeffPub's
-        _, pub = self.get("/crashes", "secret")
+        _, pub = self.get("/crashes?app=jeffpub", "secret")
         _, deck = self.get("/crashes?app=jeffdeck", "secret")
+        _, everyone = self.get("/crashes", "secret")
+        self.assertIn("JeffPub.exe", everyone)
+        self.assertIn("JeffDeck.exe", everyone)
         self.assertIn("JeffPub.exe+0x1a2b", pub)
         self.assertNotIn("JeffDeck.exe", pub)
         self.assertIn("<td>2</td>", pub)                               # the two JeffPub reports share a row
         self.assertIn("JeffDeck.exe+0x3c4d", deck)
         self.assertNotIn("JeffPub.exe", deck)
-        self.assertIn("<h1>JeffDeck crashes</h1>", deck)
+        self.assertIn("<h1>JeffDeck: crashes</h1>", deck)
         for page in (pub, deck):
             self.assertIn('href="/crashes?app=jeffpub"', page)
             self.assertIn('href="/crashes?app=jeffdeck"', page)
 
-    def test_stats_count_each_apps_crashes_apart(self):
-        self.send(app="jeffdeck", version="6.6.6")
-        self.send(app="jeffdeck", version="6.6.6")
-        self.send(app="jeffpub", version="6.6.5")
-        _, deck = self.get("/stats?app=jeffdeck", "secret")
-        _, pub = self.get("/stats", "secret")
-        self.assertIn("<td>6.6.6</td><td>2</td><td>2</td>", deck)
-        self.assertNotIn("6.6.5", deck)
-        self.assertIn("<td>6.6.5</td><td>1</td><td>1</td>", pub)
-        self.assertNotIn("6.6.6", pub)
-
     def test_stats_say_so_when_nothing_crashed(self):
         code, page = self.get("/stats", "secret")
         self.assertEqual(code, 200)
-        self.assertIn("Crashes", page)
+        self.assertIn("No crashes in this period", page)
 
     def test_crash_path_takes_only_post(self):
         self.assertEqual(self.get("/v1/crash")[0], 404)
         self.assertEqual(self.post(self.crash(), "/v1/crashes"), 404)
+
+
+GEO_CSV = """1.0.0.0,1.0.0.255,AU
+1.0.1.0,1.0.3.255,CN
+8.8.8.0,8.8.8.255,US
+2001:db8::,2001:db8:0:ffff:ffff:ffff:ffff:ffff,DE
+2a00::,2a00:0:0:1:ffff:ffff:ffff:ffff,FR
+9.9.9.0,9.9.9.255,ZZ
+"""
+
+
+def fixture_geo():
+    return main.Geo(GEO_CSV.splitlines())
+
+
+class Country(unittest.TestCase):
+    def look(self, geo, text):
+        return geo.lookup(ipaddress.ip_address(text))
+
+    def test_lookup_finds_ranges_and_their_edges(self):
+        g = fixture_geo()
+        for text, want in (("1.0.0.0", "AU"), ("1.0.0.255", "AU"), ("1.0.1.0", "CN"), ("1.0.3.255", "CN"), ("1.0.4.0", None),
+                           ("0.255.255.255", None), ("8.8.8.8", "US"), ("9.9.9.9", None),      # ZZ means unknown
+                           ("2001:db8::1", "DE"), ("2001:db8:0:ffff::1", "DE"), ("2001:db8:0:1:0:0:0:0", "DE"), ("2001:db8:1::", None),
+                           ("2a00::", "FR"), ("2a00:0:0:1::5", "FR"), ("2a00:0:0:2::", None), ("::1", None)):
+            self.assertEqual(self.look(g, text), want, text)
+
+    def test_lookup_reads_a_gzip_file_and_unsorted_rows(self):
+        path = os.path.join(tempfile.mkdtemp(), "x.csv.gz")
+        with gzip.open(path, "wt") as f:
+            f.write('"8.8.8.0","8.8.8.255","US"\n1.0.0.0,1.0.0.255,AU\nnot,a,row\n')
+        g = main.load_geo(path)
+        self.assertEqual((g.rows, self.look(g, "1.0.0.7"), self.look(g, "8.8.8.8")), (2, "AU", "US"))
+
+    def test_the_visitor_address_comes_from_x_real_ip_then_the_socket(self):
+        ip = lambda headers, peer: str(main.client_ip(headers, peer))
+        self.assertEqual(ip({"X-Real-IP": "8.8.8.8"}, "10.0.0.1"), "8.8.8.8")
+        self.assertEqual(ip({"X-Real-IP": " 2a00::1 "}, "10.0.0.1"), "2a00::1")
+        self.assertEqual(ip({"X-Real-IP": "nonsense"}, "1.0.0.9"), "1.0.0.9")
+        self.assertEqual(ip({}, "1.0.0.9"), "1.0.0.9")
+        self.assertEqual(ip({"X-Real-IP": "8.8.8.8", "X-Forwarded-For": "1.0.0.9"}, "10.0.0.1"), "8.8.8.8")   # XFF is never read
+        self.assertEqual(ip({"X-Real-IP": "::ffff:8.8.8.8"}, "10.0.0.1"), "8.8.8.8")
+
+    def test_private_loopback_and_invalid_addresses_have_no_country(self):
+        with mock.patch.object(main, "_geo", fixture_geo()):
+            for header in ("10.1.2.3", "192.168.0.1", "127.0.0.1", "::1", "fe80::1", "100.64.0.1", "garbage", ""):
+                self.assertIsNone(main.country_of({"X-Real-IP": header}, "127.0.0.1"), header)
+            self.assertEqual(main.country_of({"X-Real-IP": "8.8.8.8"}, "127.0.0.1"), "US")
+
+    def test_no_database_means_no_country(self):
+        with mock.patch.object(main, "_geo", None):
+            self.assertIsNone(main.country_of({"X-Real-IP": "8.8.8.8"}, "127.0.0.1"))
+
+    def test_a_download_that_is_too_small_is_refused_and_the_old_file_stays(self):
+        d = tempfile.mkdtemp()
+        old = os.path.join(d, "dbip-country-lite-2026-09.csv.gz")
+        with gzip.open(old, "wt") as f:
+            f.write(GEO_CSV)
+        os.utime(old, (1, 1))   # ancient
+        small = io.BytesIO(gzip.compress(GEO_CSV.encode()))
+        with mock.patch.object(main, "GEO_DIR", d), mock.patch.object(main, "_geo", None), \
+             mock.patch.object(main.urllib.request, "urlopen", lambda *a, **k: contextlib.nullcontext(small)), \
+             contextlib.redirect_stdout(io.StringIO()):
+            main.ensure_geo(dt.date(2026, 11, 14))
+            self.assertEqual(os.listdir(d), ["dbip-country-lite-2026-09.csv.gz"])
+            self.assertEqual(self.look(main._geo, "8.8.8.8"), "US")   # loaded from the old file
+
+    def test_a_good_download_replaces_the_old_file(self):
+        d = tempfile.mkdtemp()
+        old = os.path.join(d, "dbip-country-lite-2026-09.csv.gz")
+        with gzip.open(old, "wt") as f:
+            f.write(GEO_CSV)
+        os.utime(old, (1, 1))
+        new = gzip.compress(GEO_CSV.replace("8.8.8.0,8.8.8.255,US", "8.8.8.0,8.8.8.255,CA").encode())
+        with mock.patch.object(main, "GEO_DIR", d), mock.patch.object(main, "_geo", None), mock.patch.object(main, "GEO_MIN_ROWS", 3), \
+             mock.patch.object(main.urllib.request, "urlopen", lambda *a, **k: contextlib.nullcontext(io.BytesIO(new))), \
+             contextlib.redirect_stdout(io.StringIO()):
+            main.ensure_geo(dt.date(2026, 11, 14))
+            self.assertEqual(os.listdir(d), ["dbip-country-lite-2026-11.csv.gz"])
+            self.assertEqual(self.look(main._geo, "8.8.8.8"), "CA")
+
+    def test_the_address_is_never_stored_or_logged(self):
+        main.init()
+        server = main.ThreadingHTTPServer(("127.0.0.1", 0), main.Handler)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        out = io.StringIO()
+        try:
+            with mock.patch.object(main, "_geo", fixture_geo()), contextlib.redirect_stdout(out):
+                for ip in ("8.8.8.8", "2a00::77"):
+                    body = json.dumps({"install": str(uuid.uuid4()), "version": "0.1.37", "os": "linux", "launches": 1}).encode()
+                    req = urllib.request.Request("http://127.0.0.1:%d/v1/ping?x=%s" % (server.server_address[1], ip), data=body,
+                                                 headers={"X-Real-IP": ip, "X-Forwarded-For": ip})
+                    self.assertEqual(urllib.request.urlopen(req).status, 204)
+                with main.db() as con:
+                    con.execute("PRAGMA wal_checkpoint(FULL)")
+        finally:
+            server.shutdown()
+        with main.db() as con:
+            self.assertEqual(sorted(r[0] for r in con.execute("SELECT country FROM pings WHERE country IS NOT NULL")).count("US"), 1)
+        stored = b"".join(open(main.DB_PATH + suffix, "rb").read() for suffix in ("", "-wal") if os.path.exists(main.DB_PATH + suffix))
+        for ip in ("8.8.8.8", "2a00::77", "127.0.0.1"):
+            self.assertNotIn(ip.encode(), stored)
+            self.assertNotIn(ip, out.getvalue())
+
+    def test_a_same_day_ping_keeps_the_newest_known_country(self):
+        main.init()
+        install = str(uuid.uuid4())
+        ping = main.parse_ping(json.dumps({"install": install, "version": "1.0", "os": "linux"}).encode())
+        for country in ("US", None, "CA", None):
+            main.record(ping, country=country)
+        with main.db() as con:
+            self.assertEqual(con.execute("SELECT country FROM pings WHERE install = ?", (install,)).fetchall(), [("CA",)])
 
 
 OLD_SCHEMA = """
@@ -620,6 +743,28 @@ class Migration(unittest.TestCase):
             with self.assertRaises(sqlite3.IntegrityError):
                 con.execute("INSERT INTO pings (day, install, app, version) VALUES ('2026-10-01', 'aaaaaaaa-0000-4000-8000-000000000001', 'jeffpub', '1')")
             con.execute("INSERT INTO pings (day, install, app, version) VALUES ('2026-10-01', 'aaaaaaaa-0000-4000-8000-000000000001', 'jeffdeck', '1')")
+
+
+    def test_old_rows_get_a_null_country_and_keep_everything_else(self):
+        self.old_database()
+        main.init()
+        with main.db() as con:
+            self.assertEqual(con.execute("SELECT DISTINCT country FROM pings").fetchall(), [(None,)])
+            self.assertEqual(con.execute("SELECT COUNT(*) FROM pings").fetchone()[0], 3)
+            self.assertIn("country", [r[1] for r in con.execute("PRAGMA table_info(pings)")])
+        main.init()   # again: nothing changes
+        with main.db() as con:
+            self.assertEqual(con.execute("SELECT COUNT(*) FROM pings").fetchone()[0], 3)
+
+    def test_a_database_with_apps_but_no_country_gets_the_column(self):
+        con = sqlite3.connect(self.path)
+        con.executescript(main.PINGS.format("pings").replace(", country TEXT", "") + ";" + main.COUNTS.format("counts") + ";" + main.CRASHES.format("crashes"))
+        con.execute("INSERT INTO pings (day, install, app, version) VALUES ('2026-10-01', 'x', 'jeffdeck', '1')")
+        con.commit()
+        con.close()
+        main.init()
+        with main.db() as con:
+            self.assertEqual(con.execute("SELECT app, version, country FROM pings").fetchall(), [("jeffdeck", "1", None)])
 
 
 if __name__ == "__main__":
