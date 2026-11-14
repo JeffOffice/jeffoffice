@@ -222,6 +222,27 @@ void WriteWindow::createShapeActions()
         mk(QStringLiteral("arrange.align.") + QLatin1String(a.id), QCoreApplication::translate("jp::WriteWindow", a.text), a.icon, QKeySequence(), [this, which] { alignSelectedObject(which); });
     }
     mk("arrange.alignToPage", tr("Align to Page"), "file", QKeySequence(), [] {}, true);
+    mk("arrange.distribute.h", tr("Distribute Horizontally"), "align-horizontal-distribute-center", QKeySequence(), [this] {
+        m_view->distributeSelectedObjects(true);
+        m_view->setFocus(Qt::OtherFocusReason);
+    });
+    mk("arrange.distribute.v", tr("Distribute Vertically"), "align-vertical-distribute-center", QKeySequence(), [this] {
+        m_view->distributeSelectedObjects(false);
+        m_view->setFocus(Qt::OtherFocusReason);
+    });
+    struct Effect {
+        const char *id, *text;
+        write::ShapeEffect effect;
+    };
+    for (const Effect &e : {Effect{"none", QT_TRANSLATE_NOOP("jp::WriteWindow", "No Effect"), write::ShapeEffect::None}, Effect{"shadow", QT_TRANSLATE_NOOP("jp::WriteWindow", "Shadow"), write::ShapeEffect::Shadow},
+                            Effect{"glow", QT_TRANSLATE_NOOP("jp::WriteWindow", "Glow"), write::ShapeEffect::Glow}, Effect{"reflection", QT_TRANSLATE_NOOP("jp::WriteWindow", "Reflection"), write::ShapeEffect::Reflection},
+                            Effect{"softEdges", QT_TRANSLATE_NOOP("jp::WriteWindow", "Soft Edges"), write::ShapeEffect::SoftEdges}, Effect{"bevel", QT_TRANSLATE_NOOP("jp::WriteWindow", "Bevel"), write::ShapeEffect::Bevel}}) {
+        const write::ShapeEffect which = e.effect;
+        mk(QStringLiteral("shape.effect.") + QLatin1String(e.id), QCoreApplication::translate("jp::WriteWindow", e.text), "sparkles", QKeySequence(), [this, which] {
+            m_view->changeSelectedPicture([which](write::WriteDoc &d, int position) { return write::setShapeEffect(d, position, which); });
+            m_view->setFocus(Qt::OtherFocusReason);
+        }, true);
+    }
     for (const TextArtTransform &t : textArtTransforms()) {
         const QString id = t.id;
         mk(QStringLiteral("shape.textArt.warp.") + id, t.name, "waves", QKeySequence(), [this, id] {
@@ -828,11 +849,19 @@ void WriteWindow::shapeRibbonParts(RibbonParts &parts)
         for (const char *id : {"top", "middle", "bottom"}) m->addAction(act(QStringLiteral("arrange.align.") + QLatin1String(id)));
         m->addSeparator();
         m->addAction(act("arrange.alignToPage"));
+        m->addSeparator();
+        m->addAction(act("arrange.distribute.h"));
+        m->addAction(act("arrange.distribute.v"));
         return m;
     };
     parts.menus[QStringLiteral("connectShapes")] = [this](QWidget *owner) {
         auto *m = new QMenu(owner);
         for (const char *id : {"straight", "elbow", "curved"}) m->addAction(act(QStringLiteral("arrange.connect.") + QLatin1String(id)));
+        return m;
+    };
+    parts.menus[QStringLiteral("shapeEffects")] = [this](QWidget *owner) {
+        auto *m = new QMenu(owner);
+        for (const char *id : {"none", "shadow", "glow", "reflection", "softEdges", "bevel"}) m->addAction(act(QStringLiteral("shape.effect.") + QLatin1String(id)));
         return m;
     };
     parts.menus[QStringLiteral("shapeGradient")] = [this](QWidget *owner) {
@@ -1022,6 +1051,8 @@ void WriteWindow::refreshShapeUi()
         bool canJoin = together.size() >= 2;
         for (const int p : together) canJoin = canJoin && write::canGroupObject(*m_doc, p);
         act("arrange.group")->setEnabled(canJoin);
+        act("arrange.distribute.h")->setEnabled(together.size() >= 3);
+        act("arrange.distribute.v")->setEnabled(together.size() >= 3);
         act("arrange.ungroup")->setEnabled(group && info.editable);
         // Connect needs exactly two objects, each a shape, text box, or picture that floats.
         bool canConnect = together.size() == 2;

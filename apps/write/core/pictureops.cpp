@@ -1790,6 +1790,83 @@ bool setShapeAdjustment(WriteDoc &doc, int position, int index, const QPointF &a
     });
 }
 
+namespace {
+
+ShapeEffect effectOfSpPr(const SpPr &sp)
+{
+    const QByteArray effects = childRaw(sp, SlotEffects);
+    if (effects.contains("<a:outerShdw")) return ShapeEffect::Shadow;
+    if (effects.contains("<a:glow")) return ShapeEffect::Glow;
+    if (effects.contains("<a:reflection")) return ShapeEffect::Reflection;
+    if (effects.contains("<a:softEdge")) return ShapeEffect::SoftEdges;
+    if (childRaw(sp, SlotSolid3d).contains("<a:bevelT")) return ShapeEffect::Bevel;
+    return ShapeEffect::None;
+}
+
+} // namespace
+
+ShapeEffect shapeEffectAt(const WriteDoc &doc, int position)
+{
+    const QTextDocument *story = doc.story();
+    if (!story || position < 0 || position + 1 > story->characterCount() - 1) return ShapeEffect::None;
+    Inline atom;
+    if (!drawingAtomOf(formatAfter(story, position), &atom)) return ShapeEffect::None;
+    Model m;
+    if (!parseDrawing(atom.raw, &m) || !m.graphic.contains("wsp") || m.graphic.contains("<pic:pic")) return ShapeEffect::None;
+    SpPr sp;
+    return splitSpPr(m.graphic, &sp) ? effectOfSpPr(sp) : ShapeEffect::None;
+}
+
+bool setShapeEffect(WriteDoc &doc, int position, ShapeEffect effect)
+{
+    return changeSpPrOf(doc, position, true, [&](SpPr *sp, const Model &) {
+        if (effectOfSpPr(*sp) == effect) return false;
+        QByteArray list, scene, solid;
+        switch (effect) {
+        case ShapeEffect::Shadow:
+            list = "<a:outerShdw blurRad=\"50800\" dist=\"38100\" dir=\"2700000\" algn=\"tl\" rotWithShape=\"0\"><a:prstClr val=\"black\"><a:alpha val=\"40000\"/></a:prstClr></a:outerShdw>";
+            break;
+        case ShapeEffect::Glow: list = "<a:glow rad=\"101600\"><a:srgbClr val=\"5B9BD5\"><a:alpha val=\"40000\"/></a:srgbClr></a:glow>"; break;
+        case ShapeEffect::Reflection:
+            list = "<a:reflection blurRad=\"6350\" stA=\"50000\" endA=\"300\" endPos=\"55000\" dir=\"5400000\" sy=\"-100000\" algn=\"bl\" rotWithShape=\"0\"/>";
+            break;
+        case ShapeEffect::SoftEdges: list = "<a:softEdge rad=\"63500\"/>"; break;
+        case ShapeEffect::Bevel:
+            scene = "<a:scene3d><a:camera prst=\"orthographicFront\"/><a:lightRig rig=\"threePt\" dir=\"t\"/></a:scene3d>";
+            solid = "<a:sp3d><a:bevelT w=\"63500\" h=\"25400\"/></a:sp3d>";
+            break;
+        case ShapeEffect::None: break;
+        }
+        setSlot(sp, SlotEffects, "effectLst", list.isEmpty() ? QByteArray() : "<a:effectLst>" + list + "</a:effectLst>");
+        setSlot(sp, SlotScene, "scene3d", scene);
+        setSlot(sp, SlotSolid3d, "sp3d", solid);
+        return true;
+    });
+}
+
+bool distributeObjects(WriteDoc &doc, const QVector<std::pair<int, QRectF>> &objects, bool horizontal)
+{
+    if (objects.size() < 3) return false;
+    QVector<std::pair<int, QRectF>> sorted = objects;
+    std::sort(sorted.begin(), sorted.end(), [&](const auto &a, const auto &b) { return horizontal ? a.second.left() < b.second.left() : a.second.top() < b.second.top(); });
+    auto start = [&](const QRectF &r) { return horizontal ? r.left() : r.top(); };
+    auto length = [&](const QRectF &r) { return horizontal ? r.width() : r.height(); };
+    double total = 0;
+    for (const auto &o : sorted) total += length(o.second);
+    const double span = start(sorted.back().second) + length(sorted.back().second) - start(sorted.front().second);
+    if (!std::isfinite(span) || !std::isfinite(total)) return false;
+    const double gap = (span - total) / (sorted.size() - 1);
+    double at = start(sorted.front().second) + length(sorted.front().second) + gap;
+    const WriteDoc::StepGroup step(doc);
+    bool changed = false;
+    for (qsizetype i = 1; i + 1 < sorted.size(); ++i) {
+        const QRectF &r = sorted[i].second;
+        if (std::abs(at - start(r)) > 0.01) changed = setPicturePlace(doc, sorted[i].first, horizontal ? at : r.left(), horizontal ? r.top() : at, true) || changed;
+        at += length(r) + gap;
+    }
+    return changed;
+}
+
 const QVector<TextBoxDesign> &textBoxDesigns()
 {
     static const QVector<TextBoxDesign> designs = [] {

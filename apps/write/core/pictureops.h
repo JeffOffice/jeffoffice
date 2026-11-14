@@ -259,6 +259,15 @@ QVector<ShapeHandle> shapeAdjustHandles(const WriteDoc &doc, int position);
 // no such handle or it does not move.
 bool setShapeAdjustment(WriteDoc &doc, int position, int index, const QPointF &at);
 
+// The effect a shape or text box has (one at a time: a new one takes the place of the last): a shadow, a glow, a reflection, soft edges, or a bevel; None for no effect. One step each; false
+// where nothing changes or the object is no shape.
+enum class ShapeEffect { None, Shadow, Glow, Reflection, SoftEdges, Bevel };
+ShapeEffect shapeEffectAt(const WriteDoc &doc, int position);
+bool setShapeEffect(WriteDoc &doc, int position, ShapeEffect effect);
+// Distribute: the floating objects at these places (each with its rectangle on the page, in points) are spread so that the gaps between them across (or down) are the same, the first and last
+// where they are; at least three; one step. False where there are fewer, or the gaps are the same already.
+bool distributeObjects(WriteDoc &doc, const QVector<std::pair<int, QRectF>> &objects, bool horizontal);
+
 // Changes to the look of the shape or text box at `position`, each one step; false when it is no such object or the change makes no difference. A fill or a line given as empty
 // is none; `weight` is in points (held to 0.25 to 100), and `dash` the drawing format's name for how the line is dashed.
 bool setShapeFill(WriteDoc &doc, int position, const QString &rgb);

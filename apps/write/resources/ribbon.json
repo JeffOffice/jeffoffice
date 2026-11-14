@@ -2294,6 +2294,15 @@
               "menu": "@shapeGradient"
             },
             {
+              "large": {
+                "id": "ribbon.shapeEffects",
+                "text": "Effects",
+                "icon": "sparkles"
+              },
+              "keytip": "EF",
+              "menu": "@shapeEffects"
+            },
+            {
               "large": "shape.pictureFill",
               "keytip": "PF"
             }

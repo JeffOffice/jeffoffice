@@ -101,6 +101,35 @@ void PageView::selectObjects(const QVector<int> &positions)
     viewport()->update();
 }
 
+bool PageView::distributeSelectedObjects(bool horizontal)
+{
+    if (!m_doc || m_readOnly) return false;
+    const QVector<int> positions = selectedObjects();
+    if (positions.size() < 3) {
+        Q_EMIT notice(tr("Select three or more objects first: click one, then hold Ctrl and click the others."));
+        return false;
+    }
+    QVector<std::pair<int, QRectF>> objects;
+    int page = -1;
+    for (const int p : positions) {
+        QRectF onPage;
+        int at = 0;
+        if (!pictureAt(*m_doc, m_doc->story(), p).floating || !floatingPictureRect(p, &onPage, &at) || (page >= 0 && at != page)) {
+            Q_EMIT notice(tr("Objects can be spread only when each is set at a place on the same page."));
+            return false;
+        }
+        page = at;
+        objects.push_back({p, onPage});
+    }
+    const bool changed = changeObjects([&](WriteDoc &d) { return distributeObjects(d, objects, horizontal); });
+    if (changed) {
+        selectPicture(positions.first());
+        m_moreObjects = positions.mid(1);
+        m_moreObjectsRevision = m_doc->story()->revision();
+    }
+    return changed;
+}
+
 bool PageView::groupSelectedObjects()
 {
     if (!m_doc || m_readOnly) return false;

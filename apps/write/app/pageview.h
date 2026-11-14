@@ -237,6 +237,8 @@ public:
     // Group joins the selected objects into one (two or more, each set at a place on one page), Ungroup takes the selected group apart; each is one step, and false with a notice
     // when it can't be done.
     bool groupSelectedObjects();
+    // Distribute: the three or more objects selected together (each set at a place, on one page) are spread to equal gaps across or down, as one step.
+    bool distributeSelectedObjects(bool horizontal);
     // Connect joins the two objects selected with a glued connector of this kind (see connectObjects); the connector is then selected.
     bool connectSelectedObjects(const QString &preset);
     bool ungroupSelectedObject();

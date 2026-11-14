@@ -812,6 +812,104 @@ private Q_SLOTS:
         QVERIFY(!win.w.view()->editingShapeText());
     }
 
+    void aShapeTakesOneEffectAtATimeSavedInTheFilesForm()
+    {
+        auto doc = textDoc({"Before after"});
+        QTextCursor c(doc->story());
+        c.setPosition(7);
+        QCOMPARE(insertShape(*doc, c, QStringLiteral("rect")), PictureResult::Ok);
+        QCOMPARE(shapeEffectAt(*doc, 7), ShapeEffect::None);
+        QVERIFY(!setShapeEffect(*doc, 7, ShapeEffect::None));
+        QVERIFY(setShapeEffect(*doc, 7, ShapeEffect::Shadow));
+        QCOMPARE(shapeEffectAt(*doc, 7), ShapeEffect::Shadow);
+        QVERIFY(documentXml(doc->toDocx()).contains("<a:outerShdw"));
+        QVERIFY(!setShapeEffect(*doc, 7, ShapeEffect::Shadow));
+        QVERIFY(setShapeEffect(*doc, 7, ShapeEffect::Glow));
+        QByteArray xml = documentXml(doc->toDocx());
+        QVERIFY(xml.contains("<a:glow") && !xml.contains("<a:outerShdw"));
+        QVERIFY(setShapeEffect(*doc, 7, ShapeEffect::Reflection));
+        QVERIFY(documentXml(doc->toDocx()).contains("<a:reflection"));
+        QVERIFY(setShapeEffect(*doc, 7, ShapeEffect::SoftEdges));
+        QVERIFY(documentXml(doc->toDocx()).contains("<a:softEdge"));
+        QVERIFY(setShapeEffect(*doc, 7, ShapeEffect::Bevel));
+        xml = documentXml(doc->toDocx());
+        QVERIFY(xml.contains("<a:bevelT") && xml.contains("<a:scene3d") && !xml.contains("<a:softEdge"));
+        QCOMPARE(shapeEffectAt(*doc, 7), ShapeEffect::Bevel);
+        QVERIFY(setShapeEffect(*doc, 7, ShapeEffect::Shadow));
+        xml = documentXml(doc->toDocx());
+        QVERIFY(xml.contains("<a:outerShdw") && !xml.contains("<a:bevelT"));
+        QVERIFY(setShapeEffect(*doc, 7, ShapeEffect::None));
+        xml = documentXml(doc->toDocx());
+        QVERIFY(!xml.contains("<a:outerShdw") && !xml.contains("<a:effectLst"));
+        // One step each.
+        QVERIFY(doc->undo());
+        QCOMPARE(shapeEffectAt(*doc, 7), ShapeEffect::Shadow);
+        QVERIFY(doc->undo());
+        QCOMPARE(shapeEffectAt(*doc, 7), ShapeEffect::Bevel);
+        // A picture takes none.
+        QVERIFY(!setShapeEffect(*doc, 3, ShapeEffect::Glow));
+    }
+
+    void distributeSpreadsThreeObjectsToEqualGapsInOneStep()
+    {
+        auto doc = textDoc({"Before after"});
+        for (int i = 0; i < 3; ++i) {
+            QTextCursor c(doc->story());
+            c.setPosition(i);
+            QCOMPARE(insertShape(*doc, c, QStringLiteral("rect"), QSizeF(50, 40)), PictureResult::Ok);
+        }
+        QVERIFY(setPicturePlace(*doc, 0, 100, 150));
+        QVERIFY(setPicturePlace(*doc, 1, 130, 200));
+        QVERIFY(setPicturePlace(*doc, 2, 400, 250));
+        QVector<std::pair<int, QRectF>> objects{{0, QRectF(100, 150, 50, 40)}, {1, QRectF(130, 200, 50, 40)}, {2, QRectF(400, 250, 50, 40)}};
+        QVERIFY(!distributeObjects(*doc, objects.mid(0, 2), true));
+        QVERIFY(distributeObjects(*doc, objects, true));
+        QVERIFY(std::abs(pictureAt(*doc, doc->story(), 1).left - 250) < 0.01);
+        QCOMPARE(pictureAt(*doc, doc->story(), 1).top, 200.0);
+        QCOMPARE(pictureAt(*doc, doc->story(), 0).left, 100.0);
+        QCOMPARE(pictureAt(*doc, doc->story(), 2).left, 400.0);
+        QVERIFY(doc->undo());
+        QVERIFY(std::abs(pictureAt(*doc, doc->story(), 1).left - 130) < 0.01);
+        QVERIFY(doc->redo());
+        // Down: the same by the tops; given in any order; already even changes nothing.
+        QVector<std::pair<int, QRectF>> mixed{{2, QRectF(400, 250, 50, 40)}, {0, QRectF(100, 150, 50, 40)}, {1, QRectF(250, 180, 50, 40)}};
+        QVERIFY(setPicturePlace(*doc, 1, 250, 180));
+        QVERIFY(distributeObjects(*doc, mixed, false));
+        QVERIFY(std::abs(pictureAt(*doc, doc->story(), 1).top - 200) < 0.01);
+        QVERIFY(!distributeObjects(*doc, QVector<std::pair<int, QRectF>>{{0, QRectF(100, 100, 50, 40)}, {1, QRectF(200, 200, 50, 40)}, {2, QRectF(300, 300, 50, 40)}}, true));
+    }
+
+    void theEffectsMenuAndDistributeWorkFromTheWindowOneStepEach()
+    {
+        Win win;
+        write::WriteDoc *doc = win.w.document();
+        for (int i = 0; i < 3; ++i) {
+            QTextCursor c(doc->story());
+            c.setPosition(i);
+            QCOMPARE(insertShape(*doc, c, QStringLiteral("rect"), QSizeF(50, 40)), PictureResult::Ok);
+        }
+        QVERIFY(setPicturePlace(*doc, 0, 100, 150));
+        QVERIFY(setPicturePlace(*doc, 1, 130, 200));
+        QVERIFY(setPicturePlace(*doc, 2, 400, 250));
+        win.w.view()->refresh();
+        win.w.view()->selectPicture(1);
+        win.w.refreshNow();
+        QVERIFY(win.w.act("shape.effect.shadow")->isEnabled());
+        QVERIFY(!win.w.act("arrange.distribute.h")->isEnabled());
+        win.w.act("shape.effect.shadow")->trigger();
+        QCOMPARE(shapeEffectAt(*doc, 1), ShapeEffect::Shadow);
+        QVERIFY(doc->undo());
+        QCOMPARE(shapeEffectAt(*doc, 1), ShapeEffect::None);
+        win.w.view()->selectObjects({0, 1, 2});
+        win.w.refreshNow();
+        QVERIFY(win.w.act("arrange.distribute.h")->isEnabled());
+        win.w.act("arrange.distribute.h")->trigger();
+        QVERIFY(std::abs(pictureAt(*doc, doc->story(), 1).left - 250) < 0.5);
+        QCOMPARE(win.w.view()->selectedObjects().size(), 3);
+        QVERIFY(doc->undo());
+        QVERIFY(std::abs(pictureAt(*doc, doc->story(), 1).left - 130) < 0.5);
+    }
+
     void aShapesFillLineTurnAndKindAreChangedOneStepEach()
     {
         auto doc = textDoc({"Before after"});
