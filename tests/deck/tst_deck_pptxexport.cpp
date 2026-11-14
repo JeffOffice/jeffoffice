@@ -1,5 +1,6 @@
 // JeffDeck's tests of writing a presentation file.
 #include "deckhelpers.h"
+#include "app/listmenus.h"
 
 class DeckPptxExportTests : public QObject {
     Q_OBJECT
@@ -1004,6 +1005,71 @@ private Q_SLOTS:
             for (const jp::ItemPtr &it : back->pages[0]->items) names << it->name;
             QVERIFY2(names.contains(QStringLiteral("Shape")), qPrintable(names.join(QLatin1Char('|'))));
             QVERIFY2(names.contains(QStringLiteral("Table")) || odp, qPrintable(names.join(QLatin1Char('|'))));
+        }
+    }
+
+    // The lists the Bullets, Numbering, and Multilevel List menus make are kept in .pptx and .odp: a bullet with its character, font, and color; a counting style with its punctuation and start; and a level for each item.
+    void listsOfTheMenusAreKeptInPptxAndOdp()
+    {
+        using jp::ListLevelLook;
+        struct Case {
+            ListLevelLook look;
+            int level;
+        };
+        ListLevelLook bullet;
+        bullet.text = QStringLiteral("◆");
+        bullet.font = QStringLiteral("Arial");
+        bullet.color = QColor(0xC0, 0, 0);
+        ListLevelLook number;
+        number.bullet = false;
+        number.numFmt = QStringLiteral("upperRoman");
+        number.text = QStringLiteral("(%1)");
+        number.start = 3;
+        ListLevelLook letters;
+        letters.bullet = false;
+        letters.numFmt = QStringLiteral("lowerLetter");
+        letters.text = QStringLiteral("%1)");
+        const QVector<Case> cases = {{bullet, 0}, {number, 0}, {letters, 1}};
+        for (const bool odp : {false, true}) {
+            auto d = deck::newPresentation();
+            auto box = std::make_shared<jp::TextItem>();
+            box->rect = QRectF(50, 100, 400, 300);
+            box->storyId = d->createStory(QStringLiteral("one\ntwo\nthree"));
+            d->pages[0]->items.push_back(box);
+            QTextDocument *story = d->storyDoc(box->storyId);
+            QVERIFY(story);
+            for (int i = 0; i < cases.size(); ++i) {
+                QTextCursor c(story->findBlockByNumber(i));
+                QTextListFormat lf = jp::listFormatOf(cases[i].look);
+                lf.setProperty(jp::tp::ListLevel, cases[i].level);
+                c.createList(lf);
+            }
+            QString err;
+            const QByteArray bytes = odp ? deck::exportOdp(*d, false, &err) : deck::exportPresentation(*d, &err);
+            QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+            auto back = odp ? deck::importOdp(bytes, &err) : deck::importPresentation(bytes, &err);
+            QVERIFY2(back, qPrintable(err));
+            const QTextDocument *after = nullptr;
+            for (const auto &it : back->pages[0]->items)
+                if (it->type() == ItemType::Text && back->storyDoc(static_cast<const jp::TextItem *>(it.get())->storyId)->toPlainText().contains(QStringLiteral("one"))) after = back->storyDoc(static_cast<const jp::TextItem *>(it.get())->storyId);
+            QVERIFY(after);
+            const QByteArray name = odp ? "odp" : "pptx";
+            for (int i = 0; i < cases.size(); ++i) {
+                const QTextList *list = after->findBlockByNumber(i).textList();
+                QVERIFY2(list, name.constData());
+                const ListLevelLook got = jp::listLookOf(list->format());
+                QCOMPARE(got.bullet, cases[i].look.bullet);
+                if (cases[i].look.bullet) {
+                    QCOMPARE(got.text, cases[i].look.text);
+                    QCOMPARE(got.font, cases[i].look.font);
+                    QCOMPARE(list->format().stringProperty(jp::tp::BulletColor).toUpper(), jp::ColorRef::rgb(cases[i].look.color).toString().toUpper());
+                } else {
+                    QCOMPARE(got.numFmt, cases[i].look.numFmt);
+                    QCOMPARE(got.text, cases[i].look.text);
+                    QCOMPARE(got.start, cases[i].look.start);
+                }
+                QCOMPARE(list->format().intProperty(jp::tp::ListLevel), cases[i].level);
+            }
         }
     }
 };

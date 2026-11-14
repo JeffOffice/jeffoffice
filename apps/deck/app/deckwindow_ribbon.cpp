@@ -6,6 +6,7 @@
 #include "app/deckcanvas.h"
 #include "app/deckwidgets.h"
 #include "app/editor.h"
+#include "app/listmenus.h"
 #include "app/icons.h"
 #include "app/ribbon.h"
 #include "app/ribbonbuilder.h"
@@ -239,6 +240,9 @@ QMenu *DeckWindow::layoutMenu(QWidget *owner, bool change)
 // Menus the ribbon can't describe in data: the layouts to choose from.
 void DeckWindow::ribbonMenuParts(RibbonParts &parts)
 {
+    parts.menus[QStringLiteral("bulletsMenu")] = [this](QWidget *owner) { return bulletsMenu(owner, m_ed, act("para.bulletsDialog")); };
+    parts.menus[QStringLiteral("numberingMenu")] = [this](QWidget *owner) { return numberingMenu(owner, m_ed, act("para.numberingDialog")); };
+    parts.menus[QStringLiteral("multilevelMenu")] = [this](QWidget *owner) { return multilevelMenu(owner, m_ed); };
     parts.menus[QStringLiteral("newSlideLayouts")] = [this](QWidget *owner) { return layoutMenu(owner, false); };
     parts.menus[QStringLiteral("changeLayout")] = [this](QWidget *owner) { return layoutMenu(owner, true); };
     parts.menus[QStringLiteral("switchWindowsMenu")] = [](QWidget *owner) { return AppWindow::switchWindowsMenu(owner, DeckWindow::staticMetaObject); };

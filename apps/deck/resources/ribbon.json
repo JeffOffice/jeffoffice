@@ -186,36 +186,22 @@
                   "icon": "para.bullets",
                   "keytip": "U",
                   "split": true,
-                  "menu": [
-                    "bullet.disc",
-                    "bullet.circle",
-                    "bullet.square",
-                    "bullet.diamond",
-                    "bullet.arrow",
-                    "bullet.check",
-                    "bullet.star",
-                    "bullet.dash",
-                    "-",
-                    "para.listNone",
-                    "para.bulletsDialog"
-                  ]
+                  "menu": "@bulletsMenu"
                 },
                 {
                   "icon": "para.numbers",
                   "keytip": "N",
                   "split": true,
-                  "menu": [
-                    "number.0",
-                    "number.1",
-                    "number.2",
-                    "number.3",
-                    "number.4",
-                    "number.5",
-                    "number.6",
-                    "-",
-                    "para.listNone",
-                    "para.numberingDialog"
-                  ]
+                  "menu": "@numberingMenu"
+                },
+                {
+                  "icon": {
+                    "id": "ribbon.multilevel",
+                    "text": "Multilevel List",
+                    "icon": "list-tree"
+                  },
+                  "keytip": "M",
+                  "menu": "@multilevelMenu"
                 },
                 {
                   "icon": "para.indentDec",

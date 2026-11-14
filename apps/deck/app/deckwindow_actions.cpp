@@ -130,14 +130,7 @@ void DeckWindow::createFormatActions()
     // ---------------- Paragraph ----------------
     mk("para.bullets", tr("Bullets"), "list", QKeySequence(), [ed] { ed->setList(inList(ed, true) ? 0 : 1); }, true);
     mk("para.numbers", tr("Numbering"), "list-ordered", QKeySequence(), [ed] { ed->setList(inList(ed, false) ? 0 : 2, 1); }, true);
-    for (const auto &[id, ch] : {std::pair{"bullet.disc", "•"}, {"bullet.circle", "◦"}, {"bullet.square", "▪"}, {"bullet.diamond", "❖"}, {"bullet.arrow", "➢"},
-                                 {"bullet.check", "✔"}, {"bullet.star", "★"}, {"bullet.dash", "–"}}) {
-        const QString c = QString::fromUtf8(ch);
-        mk(id, c, "", QKeySequence(), [ed, c] { ed->setList(1, 0, c); });
-    }
-    const char *numNames[] = {"1. 2. 3.", "a. b. c.", "A. B. C.", "i. ii. iii.", "I. II. III.", "1) 2) 3)", "(1) (2) (3)"};
-    for (int i = 0; i < 7; ++i) mk(QStringLiteral("number.%1").arg(i), QString::fromLatin1(numNames[i]), "", QKeySequence(), [ed, i] { ed->setList(2, i + 1); });
-    mk("para.listNone", tr("None"), "", QKeySequence(), [ed] { ed->setList(0); });
+    ed->changeListLevelHook = [ed](int dir) { changeLevel(ed, dir); };   // (Tab and Shift+Tab at the start of a list item)
     mk("para.indentDec", tr("Decrease List Level"), "indent-decrease", QKeySequence(), [ed] { changeLevel(ed, -1); });
     mk("para.indentInc", tr("Increase List Level"), "indent-increase", QKeySequence(), [ed] { changeLevel(ed, 1); });
     for (double s : {1.0, 1.15, 1.5, 2.0, 2.5, 3.0})
