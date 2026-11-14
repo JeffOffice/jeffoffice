@@ -64,9 +64,10 @@ QString WriteDoc::newPartName(bool footer) const
     }
 }
 
-QString WriteDoc::linkAddress(const QTextDocument *story, const QString &id) const
+QString WriteDoc::linkAddress(const QTextDocument *story, const QString &id, bool endnote) const
 {
     QString part;
+    if (endnote) part = QStringLiteral("/word/endnotes.xml");
     for (const HeaderPart &h : m_headerParts)
         if (h.story.get() == story) part = h.name;
     if (part.isEmpty() && story && footnoteIdOf(story)) part = QStringLiteral("/word/footnotes.xml");

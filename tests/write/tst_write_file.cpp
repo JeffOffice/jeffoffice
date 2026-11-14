@@ -832,6 +832,52 @@ private Q_SLOTS:
         QVERIFY2(m.captured(2).toDouble() > 0 && m.captured(2).toDouble() < 600, qPrintable(m.captured(2)));
     }
 
+    // A link in a footnote and in an endnote has its box, and goes to the address its own part names (the notes' relationships are their own: the same id in each part is
+    // another address).
+    void linksInNotesAreClickable()
+    {
+        QTemporaryDir dir;
+        const QString docx = dir.filePath(QStringLiteral("notes.docx"));
+        {
+            office::PackageWriter w;
+            const QByteArray vml = "xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:o=\"urn:schemas-microsoft-com:office:office\" xmlns:w10=\"urn:schemas-microsoft-com:office:word\"";
+            const QByteArray box = "<w:r><w:pict " + vml + "><v:rect id=\"t\" style=\"position:absolute;margin-left:200pt;margin-top:300pt;width:160pt;height:40pt;z-index:3\" stroked=\"f\">"
+                                   "<v:textbox inset=\"0,0,0,0\"><w:txbxContent><w:p><w:hyperlink r:id=\"rId20\"><w:r><w:t>boxlink</w:t></w:r></w:hyperlink></w:p></w:txbxContent></v:textbox></v:rect></w:pict></w:r>";
+            const QByteArray body = "<w:p><w:r><w:t>text</w:t></w:r><w:r><w:footnoteReference w:id=\"2\"/></w:r><w:r><w:endnoteReference w:id=\"2\"/></w:r>" + box + "</w:p>";
+            w.addPart(QStringLiteral("/word/document.xml"), QByteArray("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n<w:document ") + kNs + "><w:body>" + body + "</w:body></w:document>",
+                      kWord + QStringLiteral("document.main+xml"));
+            w.addRelationship(QStringLiteral("/"), kRel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+            w.addPart(QStringLiteral("/word/styles.xml"),
+                      QByteArray("<?xml version=\"1.0\"?><w:styles ") + kNs + "><w:style w:type=\"paragraph\" w:default=\"1\" w:styleId=\"Normal\"><w:name w:val=\"Normal\"/></w:style></w:styles>",
+                      kWord + QStringLiteral("styles+xml"));
+            w.addRelationship(QStringLiteral("/word/document.xml"), kRel + QStringLiteral("styles"), QStringLiteral("/word/styles.xml"));
+            w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rId20"), kRel + QStringLiteral("hyperlink"), QStringLiteral("https://example.com/box"), true);
+            auto note = [&](const char *tag, const char *ref, const char *id) {
+                return QByteArray("<w:") + tag + "s " + kNs + "><w:" + tag + " w:type=\"separator\" w:id=\"-1\"><w:p><w:r><w:separator/></w:r></w:p></w:" + tag + "><w:" + tag +
+                       " w:type=\"continuationSeparator\" w:id=\"0\"><w:p><w:r><w:continuationSeparator/></w:r></w:p></w:" + tag + "><w:" + tag + " w:id=\"2\"><w:p><w:r><w:" + ref +
+                       "/></w:r><w:hyperlink r:id=\"" + id + "\"><w:r><w:t>notelink</w:t></w:r></w:hyperlink></w:p></w:" + tag + "></w:" + tag + "s>";
+            };
+            w.addPart(QStringLiteral("/word/footnotes.xml"), note("footnote", "footnoteRef", "rId1"), kWord + QStringLiteral("footnotes+xml"));
+            w.addPart(QStringLiteral("/word/endnotes.xml"), note("endnote", "endnoteRef", "rId1"), kWord + QStringLiteral("endnotes+xml"));
+            w.addRelationship(QStringLiteral("/word/document.xml"), kRel + QStringLiteral("footnotes"), QStringLiteral("/word/footnotes.xml"));
+            w.addRelationship(QStringLiteral("/word/document.xml"), kRel + QStringLiteral("endnotes"), QStringLiteral("/word/endnotes.xml"));
+            w.addRelationshipWithId(QStringLiteral("/word/footnotes.xml"), QStringLiteral("rId1"), kRel + QStringLiteral("hyperlink"), QStringLiteral("https://example.com/foot"), true);
+            w.addRelationshipWithId(QStringLiteral("/word/endnotes.xml"), QStringLiteral("rId1"), kRel + QStringLiteral("hyperlink"), QStringLiteral("https://example.com/end"), true);
+            QFile f(docx);
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write(w.finish());
+        }
+        WriteWindow w;
+        Quiet quiet(w);
+        QVERIFY(w.openFile(docx));
+        const QString target = dir.filePath(QStringLiteral("notes.pdf"));
+        w.setSavePathChooser([&](const QString &, const QString &) { return target; });
+        QVERIFY(w.exportPdfPages(WriteOutputOptions()));
+        const QByteArray pdf = fileBytes(target);
+        QVERIFY2(pdf.contains("/URI (https://example.com/foot)"), "no link in the footnote");
+        QVERIFY2(pdf.contains("/URI (https://example.com/end)"), "no link in the endnote");
+    }
+
     void theBuiltInTemplatesOpenAndSaveAsDocx()
     {
         const QVector<BuiltInTemplate> all = builtInTemplates();

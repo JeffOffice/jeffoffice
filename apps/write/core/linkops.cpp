@@ -214,7 +214,7 @@ QVector<LinkSpan> linkSpans(WriteDoc &doc)
                     const QString id = attribute(o.second, "id", "r");
                     if (!anchor.isEmpty()) s.target = place(anchor);
                     else if (!id.isEmpty()) {
-                        const QString address = doc.mainRelationship(id).target;
+                        const QString address = doc.linkAddress(story, id, doc.endnoteIdOf(b));
                         if (mayFollow(address)) s.uri = address;
                     }
                     if (s.target >= 0 || !s.uri.isEmpty()) out.push_back(s);

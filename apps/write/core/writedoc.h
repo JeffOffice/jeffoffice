@@ -585,8 +585,8 @@ public:
     quint64 id() const { return m_id; }
     // A relationship of the main part by its Id (empty Id if there is none).
     office::Relationship mainRelationship(const QString &id) const;
-    // The address of a link in a story: the relationship `id` of the part the story is of (a header's or a footer's, the footnotes'), else of the main part.
-    QString linkAddress(const QTextDocument *story, const QString &id) const;
+    // The address of a link in a story: the relationship `id` of the part the story is of (a header's or a footer's, the footnotes'; with `endnote`, the endnotes'), else of the main part.
+    QString linkAddress(const QTextDocument *story, const QString &id, bool endnote = false) const;
     // A kept part's bytes (and its content type); empty if the document has no such part.
     QByteArray partData(const QString &absoluteName, QString *contentType = nullptr) const;
     // A diagram of the text drawn from the drawing its data part names (`dataId`, a link of `links`, those of `part`), shown at `width` by `height` points: the picture as SVG, the drawing at its own
