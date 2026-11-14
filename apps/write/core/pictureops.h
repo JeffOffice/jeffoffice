@@ -259,6 +259,17 @@ QVector<ShapeHandle> shapeAdjustHandles(const WriteDoc &doc, int position);
 // no such handle or it does not move.
 bool setShapeAdjustment(WriteDoc &doc, int position, int index, const QPointF &at);
 
+// Edit Points: the points of a shape's outline, in the frame's points from its top left corner (before the turn): the corners of a freeform, or the points a preset's outline is drawn through (a
+// curve's point is where it ends). Empty for anything that is not a shape with one outline, a shape that is flipped, or one with more than 2,000 points.
+QVector<QPointF> shapePoints(const WriteDoc &doc, int position);
+// Whether the shape's outline is already a freeform's (a file's custom geometry, or one Edit Points made).
+bool isFreeformShape(const WriteDoc &doc, int position);
+// Moves point `index` to `to` (its curve handles with it); a preset becomes a freeform with the first change. Delete takes a point away (a shape keeps at least three); Insert puts a point on the
+// outline nearest `near`, within `tolerance` points of it, and `inserted` gets its number. Each is one step; false where nothing is done.
+bool moveShapePoint(WriteDoc &doc, int position, int index, const QPointF &to);
+bool deleteShapePoint(WriteDoc &doc, int position, int index);
+bool insertShapePoint(WriteDoc &doc, int position, const QPointF &near, double tolerance, int *inserted = nullptr);
+
 // The effect a shape or text box has (one at a time: a new one takes the place of the last): a shadow, a glow, a reflection, soft edges, or a bevel; None for no effect. One step each; false
 // where nothing changes or the object is no shape.
 enum class ShapeEffect { None, Shadow, Glow, Reflection, SoftEdges, Bevel };

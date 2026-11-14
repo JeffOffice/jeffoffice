@@ -24,6 +24,7 @@
 #include "wml/xmltree.h"
 
 #include <QBuffer>
+#include <QDomDocument>
 #include <QCoreApplication>
 #include <QFile>
 #include <QFileInfo>
@@ -1786,6 +1787,274 @@ bool setShapeAdjustment(WriteDoc &doc, int position, int index, const QPointF &a
         const QByteArray now = "<a:prstGeom prst=\"" + attribute(g.prst, 64) + "\">" + (list.isEmpty() ? QByteArray("<a:avLst/>") : "<a:avLst>" + list + "</a:avLst>") + "</a:prstGeom>";
         if (childRaw(*sp, SlotGeometry) == now) return false;
         setSlot(sp, SlotGeometry, "prstGeom", now);
+        return true;
+    });
+}
+
+namespace {
+
+// An outline as the points it is drawn through: a start, then lines and curves (two handles and an end), and the places it is closed.
+struct Seg {
+    enum Kind { Move, Line, Curve } kind = Line;
+    QPointF c1, c2, end;
+    bool close = false;   // the subpath closes after this segment
+};
+
+QVector<Seg> segsOf(const QPainterPath &path)
+{
+    QVector<Seg> out;
+    for (int i = 0; i < path.elementCount(); ++i) {
+        const QPainterPath::Element e = path.elementAt(i);
+        Seg g;
+        if (e.type == QPainterPath::MoveToElement) {
+            g.kind = Seg::Move;
+            g.end = QPointF(e.x, e.y);
+        } else if (e.type == QPainterPath::LineToElement) {
+            g.kind = Seg::Line;
+            g.end = QPointF(e.x, e.y);
+        } else if (e.type == QPainterPath::CurveToElement && i + 2 < path.elementCount()) {
+            g.kind = Seg::Curve;
+            g.c1 = QPointF(e.x, e.y);
+            g.c2 = QPointF(path.elementAt(i + 1).x, path.elementAt(i + 1).y);
+            g.end = QPointF(path.elementAt(i + 2).x, path.elementAt(i + 2).y);
+            i += 2;
+        } else {
+            continue;
+        }
+        out.push_back(g);
+    }
+    // (A subpath that ends where it began is closed.)
+    int begin = 0;
+    for (int i = 0; i < out.size(); ++i) {
+        if (out[i].kind == Seg::Move) begin = i;
+        const bool last = i + 1 == out.size() || out[i + 1].kind == Seg::Move;
+        if (last && i > begin && QLineF(out[i].end, out[begin].end).length() < 1e-6) out[i].close = true;
+    }
+    return out;
+}
+
+QPainterPath pathOf(const QVector<Seg> &segs)
+{
+    QPainterPath p;
+    for (const Seg &g : segs) {
+        if (g.kind == Seg::Move) p.moveTo(g.end);
+        else if (g.kind == Seg::Line) p.lineTo(g.end);
+        else p.cubicTo(g.c1, g.c2, g.end);
+    }
+    return p;
+}
+
+// The outline of the shape at a place as its drawing is: the points of a freeform, or a preset's path. False for anything with more than one outline or that is flipped.
+bool outlineOf(const QByteArray &graphic, qint64 cx, qint64 cy, QPainterPath *path, bool *freeform)
+{
+    if (!graphic.contains("<wps:wsp") || graphic.contains("<pic:pic") || graphic.contains("<wpg:wgp") || cx <= 0 || cy <= 0) return false;
+    SpPr sp;
+    if (!splitSpPr(graphic, &sp)) return false;
+    static const QRegularExpression flipped(QStringLiteral("\\sflip[HV]=\"(1|true)\""));
+    for (const SpPr::Child &c : sp.children)
+        if (c.local == "xfrm" && flipped.match(QString::fromUtf8(c.raw.left(c.raw.indexOf('>') + 1))).hasMatch()) return false;
+    const QSizeF size(double(cx) / kEmuPerPoint, double(cy) / kEmuPerPoint);
+    const QByteArray geometry = childRaw(sp, SlotGeometry);
+    if (geometry.contains("<a:custGeom")) {
+        QDomDocument dom;
+        if (!dom.setContent("<x xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\">" + geometry + "</x>", true)) return false;
+        const office::Geometry g = office::readCustomGeometry(dom.documentElement().firstChildElement(), size);
+        if (g.paths.size() != 1) return false;
+        *path = g.paths[0].path;
+        *freeform = true;
+        return !path->isEmpty();
+    }
+    ShapeGeometry g;
+    if (!shapeGeometryOf(graphic, cx, cy, &g)) return false;
+    const QString id = office::shapeForPreset(g.prst);
+    const ShapeDef *def = id.isEmpty() ? nullptr : shapeDef(id);
+    if (!def || def->open) return false;
+    QVector<double> adj = office::libraryAdjustments(g.prst, g.given, g.size);
+    *path = shapePath(id, g.size, adj);
+    *freeform = false;
+    return !path->isEmpty();
+}
+
+QByteArray customGeometryOf(const QPainterPath &path, qint64 cx, qint64 cy)
+{
+    auto pt = [](const QPointF &p) {
+        return "<a:pt x=\"" + QByteArray::number(qint64(std::llround(p.x() * kEmuPerPoint))) + "\" y=\"" + QByteArray::number(qint64(std::llround(p.y() * kEmuPerPoint))) + "\"/>";
+    };
+    QByteArray out = "<a:custGeom><a:avLst/><a:gdLst/><a:ahLst/><a:cxnLst/><a:rect l=\"0\" t=\"0\" r=\"r\" b=\"b\"/><a:pathLst><a:path w=\"" + QByteArray::number(cx) + "\" h=\"" + QByteArray::number(cy) + "\">";
+    const QVector<Seg> segs = segsOf(path);
+    for (int i = 0; i < segs.size(); ++i) {
+        const Seg &g = segs[i];
+        if (g.kind == Seg::Move) out += "<a:moveTo>" + pt(g.end) + "</a:moveTo>";
+        else if (g.kind == Seg::Line) out += "<a:lnTo>" + pt(g.end) + "</a:lnTo>";
+        else out += "<a:cubicBezTo>" + pt(g.c1) + pt(g.c2) + pt(g.end) + "</a:cubicBezTo>";
+        if (g.close) out += "<a:close/>";
+    }
+    return out + "</a:path></a:pathLst></a:custGeom>";
+}
+
+constexpr int kMostShapePoints = 2000;
+
+// The index of each point of the segments (a point is where a segment ends; a closed subpath's last point is its first and is not counted).
+QVector<int> pointSegments(const QVector<Seg> &segs)
+{
+    QVector<int> out;
+    for (int i = 0; i < segs.size(); ++i)
+        if (!(segs[i].close && i > 0 && segs[i].kind != Seg::Move)) out.push_back(i);
+    return out;
+}
+
+// Changes the outline of a shape: `edit` gets the segments and the point numbers' segments and says whether it changed anything.
+bool editShapePath(WriteDoc &doc, int position, const std::function<bool(QVector<Seg> *)> &edit)
+{
+    return changeSpPrOf(doc, position, true, [&](SpPr *sp, const Model &m) {
+        QPainterPath path;
+        bool freeform = false;
+        if (!outlineOf(m.graphic, m.cx, m.cy, &path, &freeform)) return false;
+        QVector<Seg> segs = segsOf(path);
+        if (segs.size() > kMostShapePoints || !edit(&segs)) return false;
+        setSlot(sp, SlotGeometry, "custGeom", customGeometryOf(pathOf(segs), m.cx, m.cy));
+        return true;
+    });
+}
+
+} // namespace
+
+QVector<QPointF> shapePoints(const WriteDoc &doc, int position)
+{
+    QVector<QPointF> out;
+    const QTextDocument *story = doc.story();
+    if (!story || position < 0 || position + 1 > story->characterCount() - 1) return out;
+    Inline atom;
+    if (!drawingAtomOf(formatAfter(story, position), &atom)) return out;
+    Model m;
+    QPainterPath path;
+    bool freeform = false;
+    if (!parseDrawing(atom.raw, &m) || !outlineOf(m.graphic, m.cx, m.cy, &path, &freeform)) return out;
+    const QVector<Seg> segs = segsOf(path);
+    if (segs.size() > kMostShapePoints) return out;
+    for (const int i : pointSegments(segs)) out.push_back(segs[i].end);
+    return out;
+}
+
+bool isFreeformShape(const WriteDoc &doc, int position)
+{
+    const QTextDocument *story = doc.story();
+    if (!story || position < 0 || position + 1 > story->characterCount() - 1) return false;
+    Inline atom;
+    if (!drawingAtomOf(formatAfter(story, position), &atom)) return false;
+    Model m;
+    QPainterPath path;
+    bool freeform = false;
+    return parseDrawing(atom.raw, &m) && outlineOf(m.graphic, m.cx, m.cy, &path, &freeform) && freeform;
+}
+
+bool moveShapePoint(WriteDoc &doc, int position, int index, const QPointF &to)
+{
+    if (!std::isfinite(to.x()) || !std::isfinite(to.y())) return false;
+    return editShapePath(doc, position, [&](QVector<Seg> *segs) {
+        const QVector<int> at = pointSegments(*segs);
+        if (index < 0 || index >= at.size()) return false;
+        const int i = at[index];
+        const QPointF delta = to - (*segs)[i].end;
+        if (std::abs(delta.x()) < 1e-6 && std::abs(delta.y()) < 1e-6) return false;
+        // (The point of a closed subpath's end that is also its start moves with it.)
+        auto shift = [&](int k) {
+            (*segs)[k].end += delta;
+            if ((*segs)[k].kind == Seg::Curve) (*segs)[k].c2 += delta;
+            if (k + 1 < segs->size() && (*segs)[k + 1].kind == Seg::Curve) (*segs)[k + 1].c1 += delta;
+        };
+        shift(i);
+        if ((*segs)[i].kind == Seg::Move) {
+            int k = i + 1;
+            while (k < segs->size() && (*segs)[k].kind != Seg::Move) ++k;
+            if (k - 1 > i && (*segs)[k - 1].close) {
+                (*segs)[k - 1].end += delta;
+                if ((*segs)[k - 1].kind == Seg::Curve) (*segs)[k - 1].c2 += delta;
+            }
+        }
+        return true;
+    });
+}
+
+bool deleteShapePoint(WriteDoc &doc, int position, int index)
+{
+    return editShapePath(doc, position, [&](QVector<Seg> *segs) {
+        const QVector<int> at = pointSegments(*segs);
+        if (index < 0 || index >= at.size() || at.size() <= 3) return false;
+        const int i = at[index];
+        if ((*segs)[i].kind == Seg::Move) {
+            // (The start goes: the next point begins the outline, and the closing point goes to it.)
+            if (i + 1 >= segs->size() || (*segs)[i + 1].kind == Seg::Move) return false;
+            int k = i + 1;
+            while (k < segs->size() && (*segs)[k].kind != Seg::Move) ++k;
+            const bool closed = (*segs)[k - 1].close;
+            const QPointF start = (*segs)[i + 1].end;
+            (*segs)[i + 1] = Seg{Seg::Move, QPointF(), QPointF(), start, false};
+            segs->removeAt(i);
+            if (closed) {
+                (*segs)[k - 2].end = start;
+                if ((*segs)[k - 2].kind == Seg::Curve) (*segs)[k - 2].c2 = start;
+            }
+            return true;
+        }
+        const bool wasClosing = (*segs)[i].close;
+        segs->removeAt(i);
+        if (wasClosing && i - 1 >= 0) (*segs)[i - 1].close = true;
+        return true;
+    });
+}
+
+bool insertShapePoint(WriteDoc &doc, int position, const QPointF &near, double tolerance, int *inserted)
+{
+    if (!std::isfinite(near.x()) || !std::isfinite(near.y()) || !(tolerance > 0)) return false;
+    return editShapePath(doc, position, [&](QVector<Seg> *segs) {
+        if (segs->size() >= kMostShapePoints) return false;
+        // The segment nearest the place, and how far along it.
+        double best = tolerance;
+        int at = -1;
+        double bestT = 0;
+        for (int i = 1; i < segs->size(); ++i) {
+            const Seg &g = (*segs)[i];
+            if (g.kind == Seg::Move) continue;
+            const QPointF from = (*segs)[i - 1].end;
+            QPainterPath one(from);
+            if (g.kind == Seg::Line) one.lineTo(g.end);
+            else one.cubicTo(g.c1, g.c2, g.end);
+            for (int k = 1; k < 32; ++k) {
+                const double t = k / 32.0;
+                const double d = QLineF(one.pointAtPercent(t), near).length();
+                if (d < best) {
+                    best = d;
+                    at = i;
+                    bestT = t;
+                }
+            }
+        }
+        if (at < 0) return false;
+        const Seg g = (*segs)[at];
+        const QPointF from = (*segs)[at - 1].end;
+        Seg first = g, second = g;
+        if (g.kind == Seg::Line) {
+            QPainterPath one(from);
+            one.lineTo(g.end);
+            first.end = one.pointAtPercent(bestT);
+            first.close = false;
+        } else {
+            auto lerp = [](const QPointF &a, const QPointF &b, double t) { return a + (b - a) * t; };
+            const double t = bestT;
+            const QPointF p01 = lerp(from, g.c1, t), p12 = lerp(g.c1, g.c2, t), p23 = lerp(g.c2, g.end, t), p012 = lerp(p01, p12, t), p123 = lerp(p12, p23, t), mid = lerp(p012, p123, t);
+            first = Seg{Seg::Curve, p01, p012, mid, false};
+            second = Seg{Seg::Curve, p123, p23, g.end, g.close};
+            segs->replace(at, first);
+            segs->insert(at + 1, second);
+            if (inserted) *inserted = pointSegments(*segs).indexOf(at);
+            return true;
+        }
+        second = g;
+        second.kind = Seg::Line;
+        segs->replace(at, first);
+        segs->insert(at + 1, second);
+        if (inserted) *inserted = pointSegments(*segs).indexOf(at);
         return true;
     });
 }

@@ -222,7 +222,7 @@ public:
     // ---- pictures
     // A picture is selected when the selection is the one character that is a picture; handles at its corners and sides then change its size, and a drag on it moves it (a
     // picture in line goes to another place in the text, one set at a place on the page to another place there). Each is one step.
-    enum class PictureHandle { None, TopLeft, Top, TopRight, Right, BottomRight, Bottom, BottomLeft, Left, Body, Rotate, Adjust };
+    enum class PictureHandle { None, TopLeft, Top, TopRight, Right, BottomRight, Bottom, BottomLeft, Left, Body, Rotate, Adjust, Point };
     // The place in the text of the selected picture, -1 for none.
     int selectedPicture() const;
     void selectPicture(int position);
@@ -239,6 +239,9 @@ public:
     bool groupSelectedObjects();
     // Distribute: the three or more objects selected together (each set at a place, on one page) are spread to equal gaps across or down, as one step.
     bool distributeSelectedObjects(bool horizontal);
+    // Edit Points: the points of the selected shape's outline are shown and pulled (Ctrl+click a point takes it away, Ctrl+click the outline puts one in); Escape, or another selection, ends it.
+    void setEditPoints(bool on);
+    bool editingPoints() const { return pointsActive(); }
     // Connect joins the two objects selected with a glued connector of this kind (see connectObjects); the connector is then selected.
     bool connectSelectedObjects(const QString &preset);
     bool ungroupSelectedObject();
@@ -456,6 +459,10 @@ private:
         QPointF at;         // where the pointer is, for a yellow handle or the turning handle
     };
     int m_adjustHandleHit = 0;
+    bool m_editPoints = false;
+    int m_pointHit = -1;
+    bool pointsActive() const;
+    QVector<QPointF> pointViewPositions();
     // The yellow handles of the selected shape in the window (the shape's own number of each and its place), and the turning handle above the shape.
     QVector<std::pair<int, QPointF>> adjustHandlePoints();
     bool rotateHandlePoint(QPointF *point);

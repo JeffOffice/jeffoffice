@@ -461,6 +461,36 @@ QPointF PageView::turnedAboutCenter(const QPointF &p, const QRectF &frame, doubl
     return QPointF(frame.center().x() + v.x() * cs - v.y() * sn, frame.center().y() + v.x() * sn + v.y() * cs);
 }
 
+bool PageView::pointsActive() const
+{
+    const int position = selectedPicture();
+    return m_editPoints && m_doc && position >= 0 && !m_readOnly && !m_hf.active && !m_note.active && !shapePoints(*m_doc, position).isEmpty();
+}
+
+void PageView::setEditPoints(bool on)
+{
+    m_editPoints = on;
+    viewport()->update();
+}
+
+QVector<QPointF> PageView::pointViewPositions()
+{
+    QVector<QPointF> out;
+    if (!pointsActive()) return out;
+    const int position = selectedPicture();
+    QRectF r;
+    if (m_pictureDrag.active && m_pictureDrag.handle == PictureHandle::Body) r = m_pictureDrag.now;
+    else if (!pictureRect(position, &r)) return out;
+    const double s = scale(), rotation = pictureAt(*m_doc, m_doc->story(), position).rotation;
+    const QVector<QPointF> points = shapePoints(*m_doc, position);
+    for (int i = 0; i < points.size(); ++i) {
+        QPointF at(r.left() + points[i].x() * s, r.top() + points[i].y() * s);
+        if (m_pictureDrag.active && m_pictureDrag.handle == PictureHandle::Point && m_pictureDrag.adjust == i) at = turnedAboutCenter(m_pictureDrag.at, r, -rotation);
+        out.push_back(turnedAboutCenter(at, r, rotation));
+    }
+    return out;
+}
+
 QVector<std::pair<int, QPointF>> PageView::adjustHandlePoints()
 {
     QVector<std::pair<int, QPointF>> out;
@@ -495,6 +525,14 @@ bool PageView::rotateHandlePoint(QPointF *point)
 PageView::PictureHandle PageView::pictureHandleAt(const QPoint &pos)
 {
     if (selectedPicture() < 0) return PictureHandle::None;
+    if (m_editPoints) {
+        const QVector<QPointF> points = pointViewPositions();
+        for (int i = 0; i < points.size(); ++i)
+            if (std::abs(pos.x() - points[i].x()) <= kHandleSize / 2 + 2 && std::abs(pos.y() - points[i].y()) <= kHandleSize / 2 + 2) {
+                m_adjustHandleHit = i;
+                return PictureHandle::Point;
+            }
+    }
     for (const auto &h : adjustHandlePoints())
         if (std::abs(pos.x() - h.second.x()) <= kHandleSize / 2 + 2 && std::abs(pos.y() - h.second.y()) <= kHandleSize / 2 + 2) {
             m_adjustHandleHit = h.first;
@@ -542,6 +580,29 @@ bool PageView::beginPictureDrag(QMouseEvent *e)
         }
     }
     PictureHandle handle = target >= 0 ? pictureHandleAt(pos) : PictureHandle::None;
+    if (target >= 0 && pointsActive() && (e->modifiers() & Qt::ControlModifier)) {
+        // Ctrl+click on a point takes it away; on the outline, puts one in.
+        QRectF frame;
+        if (pictureRect(target, &frame)) {
+            m_doc->pictureNotice.clear();
+            const double s = scale(), rotation = pictureAt(*m_doc, m_doc->story(), target).rotation;
+            bool changed = false;
+            if (handle == PictureHandle::Point) {
+                changed = deleteShapePoint(*m_doc, target, m_adjustHandleHit);
+            } else {
+                const QPointF local = turnedAboutCenter(pos, frame, -rotation);
+                changed = insertShapePoint(*m_doc, target, QPointF((local.x() - frame.left()) / s, (local.y() - frame.top()) / s), 6.0 / s);
+            }
+            if (changed) {
+                selectPicture(target);
+                Q_EMIT contentChanged();
+            } else if (!m_doc->pictureNotice.isEmpty()) {
+                Q_EMIT notice(m_doc->pictureNotice);
+            }
+            m_pictureDrag = PictureDrag();
+            return true;
+        }
+    }
     if (handle == PictureHandle::None) {
         target = pictureAtPoint(pos);
         if (target < 0) return false;
@@ -582,7 +643,7 @@ void PageView::updatePictureDrag(const QPoint &pos, Qt::KeyboardModifiers modifi
     const double s = scale(), least = kLeastPictureSize * s;
     QRectF r = d.start;
     d.at = pos;
-    if (d.handle == PictureHandle::Adjust || d.handle == PictureHandle::Rotate) {
+    if (d.handle == PictureHandle::Adjust || d.handle == PictureHandle::Rotate || d.handle == PictureHandle::Point) {
         d.now = d.start;
         viewport()->update();
         return;
@@ -631,6 +692,9 @@ void PageView::endPictureDrag(const QPoint &pos, Qt::KeyboardModifiers modifiers
     if (d.handle == PictureHandle::Adjust) {
         const QPointF local = turnedAboutCenter(d.at, d.start, -d.info.rotation);
         changed = setShapeAdjustment(*m_doc, d.position, d.adjust, QPointF((local.x() - d.start.left()) / s, (local.y() - d.start.top()) / s));
+    } else if (d.handle == PictureHandle::Point) {
+        const QPointF local = turnedAboutCenter(d.at, d.start, -d.info.rotation);
+        changed = moveShapePoint(*m_doc, d.position, d.adjust, QPointF((local.x() - d.start.left()) / s, (local.y() - d.start.top()) / s));
     } else if (d.handle == PictureHandle::Rotate) {
         const QPointF v = d.at - d.start.center();
         double degrees = std::atan2(v.y(), v.x()) * 180.0 / M_PI + 90.0;
@@ -733,6 +797,16 @@ void PageView::paintPictureHandles(QPainter &p)
         for (const QPointF &c : {b.topLeft(), QPointF(b.center().x(), b.top()), b.topRight(), QPointF(b.right(), b.center().y()), b.bottomRight(), QPointF(b.center().x(), b.bottom()), b.bottomLeft(),
                                   QPointF(b.left(), b.center().y())})
             p.drawRect(QRectF(c.x() - kHandleSize / 2, c.y() - kHandleSize / 2, kHandleSize, kHandleSize));
+        if (m_editPoints) {
+            const QVector<QPointF> points = pointViewPositions();
+            p.setRenderHint(QPainter::Antialiasing, true);
+            p.setPen(QPen(accent, 1, Qt::DashLine));
+            if (points.size() > 1) p.drawPolygon(QPolygonF(points));
+            p.setPen(QPen(accent, 1));
+            p.setBrush(QColor(0x20, 0x20, 0x20));
+            for (const QPointF &pt : points) p.drawRect(QRectF(pt.x() - 3, pt.y() - 3, 6, 6));
+            p.setBrush(Qt::white);
+        }
         // The turning handle above the shape, and the yellow handles that change its form.
         if (QPointF turn; rotateHandlePoint(&turn)) {
             p.setRenderHint(QPainter::Antialiasing, true);

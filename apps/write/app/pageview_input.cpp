@@ -425,6 +425,13 @@ void PageView::keyPressEvent(QKeyEvent *e)
         e->accept();
         return;
     }
+    if (e->key() == Qt::Key_Escape && m_editPoints) {
+        m_editPoints = false;
+        viewport()->update();
+        Q_EMIT caretChanged();
+        e->accept();
+        return;
+    }
     if (e->key() == Qt::Key_Escape && !m_shapeDraw.isEmpty()) {
         // (the shape tool is put down; a shape begun is let go)
         m_shapeDraw.clear();

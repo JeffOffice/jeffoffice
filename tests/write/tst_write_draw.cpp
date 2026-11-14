@@ -910,6 +910,119 @@ private Q_SLOTS:
         QVERIFY(std::abs(pictureAt(*doc, doc->story(), 1).left - 130) < 0.5);
     }
 
+    void editPointsMoveDeleteAndInsertPointsOfAShapeOneStepEachAndItIsSavedAsAFreeform()
+    {
+        auto doc = textDoc({"Before after"});
+        QTextCursor c(doc->story());
+        c.setPosition(7);
+        QCOMPARE(insertShape(*doc, c, QStringLiteral("rect"), QSizeF(100, 60)), PictureResult::Ok);
+        QVERIFY(!isFreeformShape(*doc, 7));
+        QVector<QPointF> points = shapePoints(*doc, 7);
+        QVERIFY(points.size() >= 4);
+        int corner = -1;
+        for (int i = 0; i < points.size(); ++i)
+            if (QLineF(points[i], QPointF(100, 60)).length() < 0.01) corner = i;
+        QVERIFY(corner >= 0);
+        QVERIFY(!moveShapePoint(*doc, 7, corner, QPointF(100, 60)));
+        QVERIFY(moveShapePoint(*doc, 7, corner, QPointF(120, 70)));
+        QVERIFY(isFreeformShape(*doc, 7));
+        points = shapePoints(*doc, 7);
+        QVERIFY(QLineF(points[corner], QPointF(120, 70)).length() < 0.01);
+        QByteArray xml = documentXml(doc->toDocx());
+        QVERIFY(xml.contains("<a:custGeom") && !xml.contains("prst=\"rect\""));
+        // The file read back has the same points.
+        auto back = open(doc->toDocx());
+        QVERIFY(back);
+        int at = -1;
+        for (int i = 0; i < back->story()->characterCount(); ++i)
+            if (isDrawnObjectAt(back->story(), i)) at = i;
+        QVERIFY(at >= 0);
+        const QVector<QPointF> again = shapePoints(*back, at);
+        QCOMPARE(again.size(), points.size());
+        for (int i = 0; i < points.size(); ++i) QVERIFY(QLineF(again[i], points[i]).length() < 0.01);
+        // Insert a point on the top edge, then delete it; a shape keeps three.
+        const int before = shapePoints(*doc, 7).size();
+        int made = -1;
+        QVERIFY(insertShapePoint(*doc, 7, QPointF(50, 2), 5, &made));
+        QCOMPARE(shapePoints(*doc, 7).size(), before + 1);
+        QVERIFY(made >= 0);
+        QVERIFY(QLineF(shapePoints(*doc, 7)[made], QPointF(50, 0)).length() < 3);
+        QVERIFY(!insertShapePoint(*doc, 7, QPointF(50, 30), 5));
+        QVERIFY(deleteShapePoint(*doc, 7, made));
+        QCOMPARE(shapePoints(*doc, 7).size(), before);
+        QVERIFY(deleteShapePoint(*doc, 7, 0));
+        QVERIFY(deleteShapePoint(*doc, 7, 0) || shapePoints(*doc, 7).size() <= 3);
+        while (shapePoints(*doc, 7).size() > 3) QVERIFY(deleteShapePoint(*doc, 7, 0));
+        QVERIFY(!deleteShapePoint(*doc, 7, 0));
+        // One step each: undo all the way back to the rectangle.
+        int guard = 0;
+        while (isFreeformShape(*doc, 7) && ++guard < 20) QVERIFY(doc->undo());
+        QVERIFY(!isFreeformShape(*doc, 7));
+        QCOMPARE(pictureAt(*doc, doc->story(), 7).preset, QStringLiteral("rect"));
+        // A line, a picture, and a bad number are refused.
+        QVERIFY(!moveShapePoint(*doc, 7, 99, QPointF(1, 1)));
+        QVERIFY(shapePoints(*doc, 3).isEmpty());
+    }
+
+    void aCurvedShapeKeepsItsCurvesWhenAPointMoves()
+    {
+        auto doc = textDoc({"Before after"});
+        QTextCursor c(doc->story());
+        c.setPosition(7);
+        QCOMPARE(insertShape(*doc, c, QStringLiteral("ellipse"), QSizeF(100, 100)), PictureResult::Ok);
+        const QVector<QPointF> points = shapePoints(*doc, 7);
+        QVERIFY(points.size() >= 4);
+        QVERIFY(moveShapePoint(*doc, 7, 1, points[1] + QPointF(0, -20)));
+        QVERIFY(documentXml(doc->toDocx()).contains("<a:cubicBezTo>"));
+        QCOMPARE(shapePoints(*doc, 7).size(), points.size());
+    }
+
+    void editPointsFromTheWindowDragsDeletesAndInsertsPointsInOneStepEach()
+    {
+        Win win;
+        write::WriteDoc *doc = win.w.document();
+        QTextCursor c(doc->story());
+        c.setPosition(0);
+        QCOMPARE(insertShape(*doc, c, QStringLiteral("rect"), QSizeF(160, 100)), PictureResult::Ok);
+        QVERIFY(setPicturePlace(*doc, 0, 150, 150));
+        win.w.view()->refresh();
+        win.w.view()->selectPicture(0);
+        win.w.refreshNow();
+        QVERIFY(win.w.act("shape.editPoints")->isEnabled());
+        win.w.act("shape.editPoints")->trigger();
+        QVERIFY(win.w.view()->editingPoints());
+        QWidget *vp = win.w.view()->viewport();
+        QRectF r;
+        QTRY_VERIFY(win.w.view()->pictureRect(0, &r));
+        const double s = win.w.view()->zoom() * 96.0 / 72.0;
+        // Drag the bottom right corner.
+        const QPoint corner = r.bottomRight().toPoint();
+        QTest::mousePress(vp, Qt::LeftButton, Qt::NoModifier, corner);
+        QTest::mouseMove(vp, corner + QPoint(10, 5));
+        QTest::mouseMove(vp, corner + QPoint(int(30 * s), int(20 * s)));
+        QTest::mouseRelease(vp, Qt::LeftButton, Qt::NoModifier, corner + QPoint(int(30 * s), int(20 * s)));
+        QVERIFY(isFreeformShape(*doc, 0));
+        bool moved = false;
+        for (const QPointF &p : shapePoints(*doc, 0)) moved = moved || (std::abs(p.x() - 190) < 2 && std::abs(p.y() - 120) < 2);
+        QVERIFY(moved);
+        QCOMPARE(win.w.view()->selectedPicture(), 0);
+        QVERIFY(doc->undo());
+        QVERIFY(!isFreeformShape(*doc, 0));
+        QVERIFY(doc->redo());
+        // Ctrl+click the top edge puts a point in; Ctrl+click it takes it away.
+        win.w.view()->refresh();
+        QTRY_VERIFY(win.w.view()->pictureRect(0, &r));
+        const int count = shapePoints(*doc, 0).size();
+        const QPoint edge(int(r.left() + 40 * s), int(r.top()));
+        QTest::mouseClick(vp, Qt::LeftButton, Qt::ControlModifier, edge);
+        QCOMPARE(shapePoints(*doc, 0).size(), count + 1);
+        QTest::mouseClick(vp, Qt::LeftButton, Qt::ControlModifier, edge);
+        QCOMPARE(shapePoints(*doc, 0).size(), count);
+        // Escape ends it.
+        QTest::keyClick(vp, Qt::Key_Escape);
+        QVERIFY(!win.w.view()->editingPoints());
+    }
+
     void aShapesFillLineTurnAndKindAreChangedOneStepEach()
     {
         auto doc = textDoc({"Before after"});

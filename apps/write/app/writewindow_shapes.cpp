@@ -196,6 +196,12 @@ void WriteWindow::createShapeActions()
             m_view->setFocus(Qt::OtherFocusReason);
         });
     }
+    mk("shape.editPoints", tr("Edit Points"), "spline", QKeySequence(), [this] {
+        if (!m_doc) return;
+        m_view->setEditPoints(act("shape.editPoints")->isChecked());
+        if (act("shape.editPoints")->isChecked()) statusBar()->showMessage(tr("Drag a point to reshape. Ctrl+click a point to delete it, or the outline to add one. Press Esc when done."), 8000);
+        m_view->setFocus(Qt::OtherFocusReason);
+    }, true);
     mk("shape.editText", tr("Edit Text…"), "square-pen", QKeySequence(), [this] { editShapeText(); });
     mk("shape.createLink", tr("Create Link"), "link", QKeySequence(), [this] {
         if (!m_doc) return;
@@ -1070,6 +1076,8 @@ void WriteWindow::refreshShapeUi()
             a->setChecked(art && art->warp == t.id);
         }
     }
+    act("shape.editPoints")->setEnabled(editable && m_doc && !write::shapePoints(*m_doc, at).isEmpty());
+    if (!act("shape.editPoints")->isEnabled() || !m_view->editingPoints()) act("shape.editPoints")->setChecked(m_view->editingPoints());
     act("shape.editText")->setEnabled(editable && write::textBoxText(*m_doc, at).has_value());
     act("shape.createLink")->setEnabled(info.valid && info.editable && info.kind == write::DrawnKind::TextBox && write::canLinkTextBoxFrom(*m_doc, at));
     act("shape.breakLink")->setEnabled(info.valid && info.editable && info.kind == write::DrawnKind::TextBox && write::hasLinkedTextBoxAfter(*m_doc, at));
