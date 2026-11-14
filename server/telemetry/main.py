@@ -287,7 +287,8 @@ def geo_download(today=None):
         dest = os.path.join(GEO_DIR, url.rsplit("/", 1)[1])
         tmp = dest + ".part"
         try:
-            with urllib.request.urlopen(url, timeout=60) as r, open(tmp, "wb") as f:
+            req = urllib.request.Request(url, headers={"User-Agent": "JeffOffice-telemetry/1.0 (+https://telemetry.jeffoffice.com)"})
+            with urllib.request.urlopen(req, timeout=60) as r, open(tmp, "wb") as f:
                 size = 0
                 while chunk := r.read(1 << 16):
                     size += len(chunk)
