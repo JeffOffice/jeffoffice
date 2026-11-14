@@ -677,7 +677,8 @@ private Q_SLOTS:
         QTRY_VERIFY_WITH_TIMEOUT(e.win.w.barcodeTriesForTest() >= 1000 && e.win.w.barcodeFailuresToldForTest() == 1, 300000);
         letGo();
         qInfo("1000 swaps: %lld ms, longest turn %lld ms, %lld MB more", clock.elapsed(), e.win.w.longestBarcodeTurnForTest(), (residentKb() - before) / 1024);
-        QVERIFY2(e.win.w.longestBarcodeTurnForTest() < 200, qPrintable(QString::number(e.win.w.longestBarcodeTurnForTest())));
+        // (a checked build, with the memory and undefined-behavior checkers, runs slower and sets JP_TEST_TIME_SCALE)
+        QVERIFY2(e.win.w.longestBarcodeTurnForTest() < 200 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")), qPrintable(QString::number(e.win.w.longestBarcodeTurnForTest())));
         QVERIFY(clock.elapsed() < 240000);
         QVERIFY2((residentKb() - before) / 1024 < 3000, qPrintable(QString::number((residentKb() - before) / 1024)));
         QCOMPARE(e.win.w.undoStack()->count(), steps + 1);   // (the swaps are part of the step of the fill)

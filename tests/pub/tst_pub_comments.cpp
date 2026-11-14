@@ -750,7 +750,9 @@ private Q_SLOTS:
         jp::MainWindow w;
         jp::Editor *ed = w.editor();
         ed->setDocument(jp::Document::blank(QSizeF(612, 792), QStringLiteral("Letter"), 2));
-        const jp::InspectItem *none = findItem(w.inspectItems(), "Comments");
+        // (the list is kept: a pointer into the list inspectItems() returns would point at freed memory once that list is gone)
+        const QVector<jp::InspectItem> before = w.inspectItems();
+        const jp::InspectItem *none = findItem(before, "Comments");
         QVERIFY(none);
         QCOMPARE(none->count(), 0);
         comments::addComment(*ed->doc()->pages[0], kPat, QStringLiteral("One"), QPointF(10, 10));

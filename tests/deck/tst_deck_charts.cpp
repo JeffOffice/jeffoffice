@@ -199,7 +199,9 @@ private Q_SLOTS:
         PictureItem *one = chartsOn(*copy).first();
         office::Chart big;
         QVERIFY(jp::readChartOf(*copy, *one, &big));
-        big.plots[0].series.resize(jp::kMostChartObjectSeries + 1, big.plots[0].series[0]);
+        // (a copy: resize() may move the list, and a reference to its own first item would then be to freed memory)
+        const office::ChartSeries first = big.plots[0].series[0];
+        big.plots[0].series.resize(jp::kMostChartObjectSeries + 1, first);
         PictureItem wide = *one;
         wide.chartXml = office::writeChartPart(big);
         QVERIFY(!jp::readChartOf(*copy, wide, nullptr));
