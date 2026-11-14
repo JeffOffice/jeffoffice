@@ -13,11 +13,15 @@
 # jobs, 1/2 and 2/2, which together run every program once; the lists are balanced by the seconds each program took on the hosted
 # machines (Nov 7 2026, Windows / macOS): the sums are in the comments.
 #
-# tests:  the test programs of the Test step (tools/ci_tests.sh). jptests pulls in jpcrashtest and jpfonttest, which it starts, and
-#         crunchtests pulls in jeffcrunch, which it starts (add_dependencies in CMakeLists.txt). crunchtests is the longest program (530
-#         s), so it runs in both jobs, half of its test classes each (crunchtests:k/2).
-#           1/2: crunchtests:1/2 270, flowtests 214 / 268, jdtests 200 / 159, officetests 56 / 46, wmltests, odttests, writeodttests
-#           2/2: crunchtests:2/2 265, writetests 249 / 189, sheettests 209 / 151, jptests 95 / 98, the small write tests
+# tests:  the test programs of the Test step (tools/ci_tests.sh). jptests pulls in jpcrashtest, jpfonttest, and jpgrammarprobe, which it
+#         starts, and crunchtests pulls in jeffcrunch, which it starts (add_dependencies in CMakeLists.txt). crunchtests (957 s) runs in
+#         both jobs, half of its test classes each (crunchtests:k/2), and so does writetests (309 s, one class: every other test function).
+#         Seconds of the programs on Windows (run 43634499414, Nov 14 2026), summed (the programs of a job run side by side on 4 processors,
+#         so a job takes about a third of its sum):
+#           1/2: crunchtests:1/2 478, writetests:1/2 155, flowtests 295, jdtests 277, officetests 72, wmltests, odttests, writeodttests: 1293
+#           2/2: crunchtests:2/2 478, writetests:2/2 155, sheettests 354, jptests 265 (652 before its grammar test stopped starting 150
+#                programs one by one), the small write tests 131: 1383
+#           (before: 1/2 957 and 2/2 2106, so the jobs took 297 s and 662 s)
 # checks: the four app-check programs of the App checks step; the four apps (the PDF check, the screenshots of the packages, the
 #         installer, the .deb and AppImages, the disk image); jpubtool and jdecktool (the Windows developer-tools artifact).
 #         The first job (1/2) builds the four apps and the tools and packages them, which takes it as long as the other job's checks
@@ -34,9 +38,9 @@ case "$part/$shard" in
 tests/)
     runs="flowtests crunchtests jdtests writetests writereviewtests writeinfotests writehometests writeinserttests sheettests jptests officetests wmltests odttests writeodttests writerefstests writemailtests writefieldtests" ;;
 tests/1/2)
-    runs="crunchtests:1/2 flowtests jdtests officetests wmltests odttests writeodttests" ;;
+    runs="crunchtests:1/2 writetests:1/2 flowtests jdtests officetests wmltests odttests writeodttests" ;;
 tests/2/2)
-    runs="crunchtests:2/2 writetests sheettests jptests writereviewtests writeinfotests writehometests writeinserttests writerefstests writemailtests writefieldtests" ;;
+    runs="crunchtests:2/2 writetests:2/2 sheettests jptests writereviewtests writeinfotests writehometests writeinserttests writerefstests writemailtests writefieldtests" ;;
 checks/)
     runs="crunchchecks writechecks pubchecks deckchecks"
     extra="jeffpub jeffdeck jeffwrite jeffcrunch jpubtool jdecktool" ;;

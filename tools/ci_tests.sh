@@ -16,14 +16,19 @@
 # test classes of crunchtests, sheettests, jdtests, and jptests are dealt out to the n parts by their weights below (the heaviest class
 # first, to the part with the least so far), so that the parts take about the same time. Every part computes the same deal from the
 # same program, so all the parts together run each class once. A class not in the table weighs 1; a stale weight only unbalances the parts.
+# writetests (a single class of long tests) runs every n-th test function in part k.
 set -u
 
 ext=""; [ "${RUNNER_OS:-}" = "Windows" ] && ext=".exe"
 
-# Seconds of the test classes that take the longest (Windows, Nov 7 2026), for dealing the classes of a program to its parts.
-WEIGHTS="CrunchStructModelTests=111 CrunchReviewTests=65 CrunchCellsTests=47 CrunchHostileTests=31 CrunchWindowTests=27 CrunchEditTests=26
-CrunchXlsTests=23 CrunchSortTests=19 CrunchPrintTests=17 CrunchChartTests=15 CrunchKeepTests=15 CrunchPivotTests=15 CrunchDrawingTests=11
-CrunchTablesTests=10 CrunchFormatUiTests=9 CrunchOpsTests=7 CrunchFormulasTests=6"
+# Seconds of the test classes that take the longest (Windows, Nov 14 2026, run 43634499414), for dealing the classes of a program to its parts.
+WEIGHTS="CrunchReviewTests=139 CrunchPrintTests=125 CrunchStructModelTests=112 CrunchWindowTests=72 CrunchBarcodeTests=65 CrunchCellsTests=48
+CrunchHostileTests=31 CrunchEditTests=29 CrunchPivotTests=27 CrunchXlsTests=24 CrunchSortTests=20 CrunchChartTests=19 CrunchDrawingTests=19
+CrunchProtectTests=18 CrunchKeepTests=18 CrunchScenarioShapeTests=17 CrunchSheetsTests=16 CrunchPointTests=14 CrunchTablesTests=13 CrunchProofTests=13
+CrunchFormatUiTests=12 CrunchSparklineTests=10 CrunchNotesTests=9 CrunchInfoTests=8
+SheetEvalTests=118 SheetStructureTests=40 SheetCalculationTests=18 SheetPivotTests=17 SheetOdsChartTests=13 SheetCryptTests=13
+DeckTableLimitsTests=66 DeckThemeTests=32 DeckFileTests=23 DeckMediaTests=18 DeckMasterTests=15
+PubCommentTests=39 PubCommandsTests=36 PubPictureTests=21 PubObjectsTests=15 PubExportTests=15 PubFindTests=14"
 
 # A program the build did not make (a CI part builds only the targets in tools/ci_targets.sh) stops everything here, by name.
 missing=0
@@ -57,6 +62,11 @@ for A in "$@"; do
                         p = 1; for (q = 2; q <= n; q++) if (sum[q] < sum[p]) p = q
                         sum[p] += v[best]; if (p == k) printf "--class %s ", c[best] }
                 }')
+            [ -n "$args" ] && echo "$N.part$k $N - $args" >> "$parts" ;;
+        writetests|flowtests)
+            # (one class each: every n-th test function runs in part k, as CI_SPLIT deals them)
+            args=$(QT_QPA_PLATFORM=offscreen "$P" -functions 2>/dev/null | sed 's/()$//' | grep -vxE 'initTestCase|cleanupTestCase' |
+                awk -v k="$k" -v n="$n" 'NF && NR % n == k % n {printf "%s ", $0}')
             [ -n "$args" ] && echo "$N.part$k $N - $args" >> "$parts" ;;
         *) echo "ci_tests.sh: $N cannot run in parts" >&2; exit 2 ;;
         esac
