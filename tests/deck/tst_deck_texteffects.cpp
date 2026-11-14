@@ -1171,6 +1171,62 @@ private Q_SLOTS:
         QVERIFY(!box->fitAsStored);
     }
 
+    // Text that shrinks on overflow is fitted as it is typed in the steps the original uses (a scale of 100, 92.5, 85, and so on down to 25
+    // percent, and lines 0, 10, or 20 percent closer), and the steps are what is saved, so the file opens the same elsewhere.
+    void typedShrinkingTextIsSavedInTheOriginalsSteps()
+    {
+        Parts p = samplePptx();
+        QString xml = QString::fromUtf8(p.data["/ppt/slides/slide1.xml"].xml);
+        xml.replace(QStringLiteral("</p:spTree>"), QStringLiteral("<p:sp><p:nvSpPr><p:cNvPr id=\"30\" name=\"Fitting\"/><p:cNvSpPr txBox=\"1\"/><p:nvPr/></p:nvSpPr><p:spPr>")
+                                                       + xfrm(0, 0, 4572000, 914400)
+                                                       + QStringLiteral("</p:spPr><p:txBody><a:bodyPr><a:normAutofit/></a:bodyPr><a:lstStyle/>")
+                                                       + para(QStringLiteral("One line")) + QStringLiteral("</p:txBody></p:sp></p:spTree>"));
+        p.data["/ppt/slides/slide1.xml"].xml = xml.toUtf8();
+        QString err;
+        DeckWindow w;
+        w.editor()->replaceDocument(deck::importPresentation(pack(p), &err), QString());
+        Editor *ed = w.editor();
+        TextItem *box = nullptr;
+        for (const auto &it : ed->doc()->pages[0]->items)
+            if (it->name == QLatin1String("Fitting")) box = static_cast<TextItem *>(it.get());
+        QVERIFY(box);
+        auto saved = [&](double *scale, double *cut) {
+            Exported e;
+            const QByteArray bytes = deck::exportPresentation(*ed->doc(), &err);
+            if (!unpack(bytes, &e, &err)) return false;
+            const QString slide = part(e, QStringLiteral("/ppt/slides/slide1.xml"));
+            const int at = slide.indexOf(QStringLiteral("<a:normAutofit"));
+            if (at < 0) return false;
+            const QString tag = slide.mid(at, slide.indexOf(QLatin1Char('>'), at) - at);
+            auto value = [&](const QString &name, double none) {
+                const int k = tag.indexOf(name + QStringLiteral("=\""));
+                return k < 0 ? none : tag.mid(k + name.size() + 2, tag.indexOf(QLatin1Char('"'), k + name.size() + 2) - k - name.size() - 2).toDouble() / 1000;
+            };
+            *scale = value(QStringLiteral("fontScale"), 100);
+            *cut = value(QStringLiteral("lnSpcReduction"), 0);
+            return true;
+        };
+        double scale = 0, cut = 0;
+        QVERIFY(saved(&scale, &cut));
+        QCOMPARE(scale, 100.0);
+        QCOMPARE(cut, 0.0);
+        ed->select(box->id);
+        ed->beginTextEdit(box->id, 0);
+        QString more;
+        for (int i = 0; i < 14; ++i) more += QStringLiteral("\nAnother line of the list %1").arg(i);
+        ed->insertText(more);
+        QVERIFY(saved(&scale, &cut));
+        QVERIFY2(scale < 100.0, qPrintable(QString::number(scale)));
+        QVERIFY2(cut == 0 || cut == 10 || cut == 20, qPrintable(QString::number(cut)));
+        const double steps = (100 - scale) / 7.5;
+        QVERIFY2(std::abs(steps - std::round(steps)) < 1e-9, qPrintable(QString::number(scale)));
+        // The lines are as close as the saved step says, and the text holds in its box.
+        LayoutCache cache;
+        const auto fl = cache.textFrame(*ed->doc(), *box, 1, RenderOptions());
+        QVERIFY(fl.layout && !fl.layout->overflow());
+        QVERIFY(std::abs(fl.fitScale * 100 - scale) < 0.01);
+    }
+
     // Text the presentation program shrank to fit is drawn in whole points: each size times the scale, rounded to the nearest point
     // (halves up, 1 at least), and a line is 1.2 times that size. Probed in the program: 28 pt at 85 percent is 24, not 23.8.
     // Other layouts (JeffPub's) keep the exact product.

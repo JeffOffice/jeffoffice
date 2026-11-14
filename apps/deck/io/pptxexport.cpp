@@ -1709,8 +1709,36 @@ PresentationKind kindOfFileName(const QString &path)
     return PresentationKind::Presentation;
 }
 
+// Text that shrinks on overflow is saved at the fit it has now (fontScale and lnSpcReduction), so that the file opens the same in other programs;
+// text a file shrank keeps what the file said until it is edited.
+static bool shrinksLive(const Item &it)
+{
+    return it.type() == ItemType::Text && static_cast<const TextItem &>(it).autofit == TextItem::ShrinkOnOverflow && !static_cast<const TextItem &>(it).fitAsStored;
+}
+
+static void settleFits(Document &doc)
+{
+    LayoutCache cache;
+    for (int i = 0; i < doc.pages.size(); ++i)
+        for (const auto &it : doc.pages[i]->items)
+            if (shrinksLive(*it)) {
+                auto &t = static_cast<TextItem &>(*it);
+                const auto fl = cache.textFrame(doc, t, i + 1, RenderOptions());
+                t.fitScale = fl.fitScale;
+                t.fitLineCut = fl.fitCut;
+            }
+}
+
 QByteArray exportPresentation(const Document &doc, QString *error, QStringList *skipped, PresentationKind kind, bool embedFonts)
 {
+    bool live = false;
+    for (const auto &page : doc.pages)
+        for (const auto &it : page->items) live = live || shrinksLive(*it);
+    if (live && doc.slideText) {
+        const std::unique_ptr<Document> fitted = Document::fromSnapshot(doc.snapshot());
+        settleFits(*fitted);
+        return Exporter(*fitted, kind, skipped, embedFonts).run(error);
+    }
     return Exporter(doc, kind, skipped, embedFonts).run(error);
 }
 
@@ -1726,6 +1754,7 @@ ExportSnapshot snapshotForExport(const Document &doc)
 QByteArray exportSnapshot(const ExportSnapshot &snapshot, QString *error, PresentationKind kind, bool embedFonts)
 {
     const std::unique_ptr<Document> doc = Document::fromSnapshot(snapshot.doc);
+    if (doc->slideText) settleFits(*doc);
     return Exporter(*doc, kind, embedFonts, snapshot.keptFonts, snapshot.thumbnail).run(error);
 }
 

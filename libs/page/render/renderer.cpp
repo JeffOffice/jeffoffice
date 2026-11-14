@@ -394,7 +394,7 @@ LayoutCache::FrameLayout LayoutCache::textFrame(const Document &doc, const TextI
     Entry &e = m_entries[key];
     if (e.sig != sig || !e.layout) {
         auto lay = std::make_shared<StoryLayout>();
-        double scale = 1.0;
+        double scale = 1.0, cut = 0;
         if (asStored) {
             scale = std::clamp(head->fitScale, 0.01, 1.0);
             env.fontScale = scale;
@@ -420,6 +420,29 @@ LayoutCache::FrameLayout LayoutCache::textFrame(const Document &doc, const TextI
                 }
                 return false;
             };
+            if (doc.slideText && head->autofit == TextItem::ShrinkOnOverflow) {
+                // A slide's text shrinks in the steps the presentation program takes (so that a saved file opens the same elsewhere): the lines
+                // 10 and then 20 percent closer, then the size down by 7.5 percent of itself at a time to a quarter. The first that fits.
+                struct Step { double scale, cut; };
+                static const Step steps[] = {{1, 0}, {1, 10}, {1, 20}, {0.925, 20}, {0.85, 20}, {0.775, 20}, {0.7, 20}, {0.625, 20}, {0.55, 20}, {0.475, 20}, {0.4, 20}, {0.325, 20}, {0.25, 20}};
+                auto build = [&](const Step &s) {
+                    env.fontScale = s.scale;
+                    env.lineCut = s.cut;
+                    lay->build(story->doc.get(), specs, env);
+                };
+                int lo = 0, hi = int(std::size(steps)) - 1;
+                build(steps[0]);
+                if (overflows()) {
+                    while (lo < hi) {
+                        const int mid = (lo + hi) / 2;
+                        build(steps[mid]);
+                        if (overflows()) lo = mid + 1; else hi = mid;
+                    }
+                    build(steps[lo]);
+                }
+                scale = steps[lo].scale;
+                cut = steps[lo].cut;
+            } else {
             // Binary search the largest font scale that fits.
             double lo = 0.05, hi = head->autofit == TextItem::BestFit && !head->fitAsStored ? 8.0 : 1.0;
             env.fontScale = hi;
@@ -437,15 +460,18 @@ LayoutCache::FrameLayout LayoutCache::textFrame(const Document &doc, const TextI
             } else {
                 scale = hi;
             }
+            }
         } else {
             lay->build(story->doc.get(), specs, env);
         }
         e.sig = sig;
         e.layout = lay;
         e.fitScale = scale;
+        e.fitCut = cut;
     }
     out.layout = e.layout.get();
     out.fitScale = e.fitScale;
+    out.fitCut = e.fitCut;
     if (m_pass > 0) {
         // The chain's other boxes share this layout; a chain on pages is the same whatever page number is asked.
         if (doc.find(head->id).page >= 0)

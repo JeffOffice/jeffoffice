@@ -49,6 +49,7 @@ public:
         const StoryLayout *layout = nullptr;
         int frame = -1;           // index of this text box within its chain
         double fitScale = 1.0;
+        double fitCut = 0;        // and the percent taken off the lines' spacing with it (a slide's text, fitted in the original's steps)
     };
 
     // Layout for a text box (and its whole linked chain). pageNumber is used for
@@ -84,7 +85,7 @@ private:
     struct Entry {
         QString sig;
         std::shared_ptr<StoryLayout> layout;
-        double fitScale = 1.0;
+        double fitScale = 1.0, fitCut = 0;
     };
     QHash<QString, Entry> m_entries;
     int m_pass = 0;
