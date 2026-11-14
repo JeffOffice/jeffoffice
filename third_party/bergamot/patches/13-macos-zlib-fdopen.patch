@@ -1,0 +1,13 @@
+macOS: the zlib that Marian carries (zutil.h) takes TARGET_OS_MAC, which every current Mac SDK defines, for the classic Mac OS, and defines fdopen as NULL; the SDK's own stdio.h then fails to compile ("expected identifier or '('"). zlib 1.2.12 dropped TARGET_OS_MAC from this test; this is that change.
+
+--- a/3rd_party/marian-dev/src/3rd_party/zlib/zutil.h
++++ b/3rd_party/marian-dev/src/3rd_party/zlib/zutil.h
+@@ -130,7 +130,7 @@
+ #  endif
+ #endif
+ 
+-#if defined(MACOS) || defined(TARGET_OS_MAC)
++#if defined(MACOS)
+ #  define OS_CODE  7
+ #  ifndef Z_SOLO
+ #    if defined(__MWERKS__) && __dest_os != __be_os && __dest_os != __win32_os
