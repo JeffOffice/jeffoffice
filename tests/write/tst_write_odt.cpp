@@ -36,7 +36,8 @@ namespace {
 const char kNs[] =
     " xmlns:office=\"urn:oasis:names:tc:opendocument:xmlns:office:1.0\" xmlns:style=\"urn:oasis:names:tc:opendocument:xmlns:style:1.0\""
     " xmlns:text=\"urn:oasis:names:tc:opendocument:xmlns:text:1.0\" xmlns:table=\"urn:oasis:names:tc:opendocument:xmlns:table:1.0\""
-    " xmlns:fo=\"urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0\" xmlns:svg=\"urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0\"";
+    " xmlns:fo=\"urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0\" xmlns:svg=\"urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0\""
+    " xmlns:draw=\"urn:oasis:names:tc:opendocument:xmlns:drawing:1.0\" xmlns:xlink=\"http://www.w3.org/1999/xlink\"";
 
 QByteArray makeOdt(const QByteArray &body, const QByteArray &autoStyles = QByteArray())
 {
@@ -206,6 +207,84 @@ private Q_SLOTS:
         QVERIFY(p1.read(docx1) && p2.read(docx2));
         QCOMPARE(p1.part(QStringLiteral("/word/document.xml")).count("<w:tc>"), p2.part(QStringLiteral("/word/document.xml")).count("<w:tc>"));
         QCOMPARE(p1.part(QStringLiteral("/word/document.xml")).count("<w:numId"), p2.part(QStringLiteral("/word/document.xml")).count("<w:numId"));
+    }
+
+    // A shape with no words is a draw:custom-shape that names its preset (as other programs write it), read into the shape the file format has and written again.
+    void aShapeWithoutTextIsReadFromAnOdtAndSavedBackAsACustomShape()
+    {
+        QString err;
+        QStringList notes;
+        const QByteArray styles = "<style:style style:name=\"gr1\" style:family=\"graphic\"><style:graphic-properties draw:fill=\"solid\" draw:fill-color=\"#3366ff\" draw:stroke=\"solid\" "
+                                  "svg:stroke-color=\"#112233\" svg:stroke-width=\"0.03in\" style:wrap=\"none\" style:horizontal-pos=\"from-left\" style:vertical-pos=\"from-top\" "
+                                  "style:horizontal-rel=\"page\" style:vertical-rel=\"page\"/></style:style>";
+        const QByteArray body = "<text:p>Before<draw:custom-shape draw:style-name=\"gr1\" draw:name=\"Shape 1\" text:anchor-type=\"paragraph\" svg:width=\"2in\" svg:height=\"1in\" svg:x=\"1in\" svg:y=\"2in\">"
+                                "<draw:enhanced-geometry svg:viewBox=\"0 0 21600 21600\" draw:type=\"ooxml-star5\"/></draw:custom-shape> after</text:p>";
+        auto doc = WriteDoc::fromFile(makeOdt(body, styles), &err, &notes);
+        QVERIFY2(doc, qPrintable(err));
+        QVERIFY2(notes.isEmpty(), qPrintable(notes.join(QLatin1Char('|'))));
+        int at = -1;
+        for (int i = 0; i < doc->story()->characterCount(); ++i)
+            if (isDrawnObjectAt(doc->story(), i)) at = i;
+        QVERIFY(at >= 0);
+        PictureInfo info = pictureAt(*doc, doc->story(), at);
+        QCOMPARE(info.preset, QStringLiteral("star5"));
+        QCOMPARE(info.fillColor, QStringLiteral("3366FF"));
+        QCOMPARE(info.lineColor, QStringLiteral("112233"));
+        QVERIFY(std::abs(info.width - 144) < 0.5 && std::abs(info.height - 72) < 0.5);
+        QVERIFY(info.floating);
+        QVERIFY(std::abs(info.left - 72) < 0.5 && std::abs(info.top - 144) < 0.5);
+        // Saved as an .odt it is a custom shape that names the preset, and read again it is the same.
+        QStringList saveNotes;
+        const QByteArray odt = doc->toOdt(&err, &saveNotes);
+        QVERIFY2(!odt.isEmpty(), qPrintable(err));
+        QVERIFY2(saveNotes.isEmpty(), qPrintable(saveNotes.join(QLatin1Char('|'))));
+        QByteArray content;
+        for (const ZipScanEntry &e : scanZip(odt))
+            if (e.name == QLatin1String("content.xml")) content = e.data;
+        QVERIFY(content.contains("<draw:custom-shape") && content.contains("ooxml-star5"));
+        auto back = WriteDoc::fromFile(odt, &err, &notes);
+        QVERIFY2(back, qPrintable(err));
+        int again = -1;
+        for (int i = 0; i < back->story()->characterCount(); ++i)
+            if (isDrawnObjectAt(back->story(), i)) again = i;
+        QVERIFY(again >= 0);
+        const PictureInfo b = pictureAt(*back, back->story(), again);
+        QCOMPARE(b.preset, info.preset);
+        QCOMPARE(b.fillColor, info.fillColor);
+        QCOMPARE(b.lineColor, info.lineColor);
+        QVERIFY(std::abs(b.width - info.width) < 0.5 && std::abs(b.height - info.height) < 0.5);
+        QVERIFY(std::abs(b.left - info.left) < 0.5 && std::abs(b.top - info.top) < 0.5);
+        QCOMPARE(back->story()->toPlainText().remove(QChar::ObjectReplacementCharacter), QStringLiteral("Before after"));
+    }
+
+    void aShapeMadeInTheWindowIsSavedAsAnOdtAndReadBack()
+    {
+        QString err;
+        auto doc = WriteDoc::fromFile(makeOdt("<text:p>Hello world</text:p>"), &err);
+        QVERIFY(doc);
+        QTextCursor c(doc->story());
+        c.setPosition(5);
+        ShapeLook look;
+        look.fill = QStringLiteral("FF8800");
+        look.line = QStringLiteral("112233");
+        look.weight = 2;
+        QCOMPARE(insertShape(*doc, c, QStringLiteral("ellipse"), QSizeF(90, 80), look), PictureResult::Ok);
+        QVERIFY(setPicturePlace(*doc, 5, 150, 200));
+        QStringList notes;
+        const QByteArray odt = doc->toOdt(&err, &notes);
+        QVERIFY2(!odt.isEmpty(), qPrintable(err));
+        QVERIFY2(notes.isEmpty(), qPrintable(notes.join(QLatin1Char('|'))));
+        auto back = WriteDoc::fromFile(odt, &err);
+        QVERIFY2(back, qPrintable(err));
+        int at = -1;
+        for (int i = 0; i < back->story()->characterCount(); ++i)
+            if (isDrawnObjectAt(back->story(), i)) at = i;
+        QVERIFY(at >= 0);
+        const PictureInfo info = pictureAt(*back, back->story(), at);
+        QCOMPARE(info.preset, QStringLiteral("ellipse"));
+        QCOMPARE(info.fillColor, QStringLiteral("FF8800"));
+        QVERIFY(std::abs(info.width - 90) < 0.5 && std::abs(info.height - 80) < 0.5);
+        QVERIFY(std::abs(info.left - 150) < 0.5 && std::abs(info.top - 200) < 0.5);
     }
 
     void theMacroNoticeNamesTheFormatSavedTo()

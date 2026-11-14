@@ -265,6 +265,35 @@ QByteArray Reader::anchorXml(const Odf &o, int frame, const QString &styleName, 
            "\"/><wp:effectExtent l=\"0\" t=\"0\" r=\"0\" b=\"0\"/>" + wrapXml + docPr + "<wp:cNvGraphicFramePr/>" + graphic + "</wp:anchor></w:drawing>";
 }
 
+// The preset of the drawing format that a drawn shape with no words is: the one named by `draw:type="ooxml-..."` (as other programs write it), the few of the other program's own names that
+// have an equal, and a plain rectangle or ellipse; empty for any other.
+static QString presetOfOdfShape(const Odf &o, int shape)
+{
+    if (o.is(shape, "draw:rect")) return QStringLiteral("rect");
+    if (o.is(shape, "draw:ellipse")) return QStringLiteral("ellipse");
+    if (!o.is(shape, "draw:custom-shape")) return QString();
+    const int g = o.child(shape, "draw:enhanced-geometry");
+    if (g < 0) return QString();
+    const QString type = o.at(g, "draw:type");
+    static const QHash<QString, QString> own = {{QStringLiteral("rectangle"), QStringLiteral("rect")},
+                                                {QStringLiteral("round-rectangle"), QStringLiteral("roundRect")},
+                                                {QStringLiteral("ellipse"), QStringLiteral("ellipse")},
+                                                {QStringLiteral("diamond"), QStringLiteral("diamond")},
+                                                {QStringLiteral("isosceles-triangle"), QStringLiteral("triangle")},
+                                                {QStringLiteral("right-triangle"), QStringLiteral("rtTriangle")},
+                                                {QStringLiteral("parallelogram"), QStringLiteral("parallelogram")},
+                                                {QStringLiteral("trapezoid"), QStringLiteral("trapezoid")},
+                                                {QStringLiteral("hexagon"), QStringLiteral("hexagon")},
+                                                {QStringLiteral("octagon"), QStringLiteral("octagon")},
+                                                {QStringLiteral("cross"), QStringLiteral("plus")}};
+    if (type.startsWith(QLatin1String("ooxml-"))) {
+        const QString name = type.mid(6);
+        static const QRegularExpression plain(QStringLiteral("^[A-Za-z0-9]{1,40}$"));
+        return plain.match(name).hasMatch() ? name : QString();
+    }
+    return own.value(type);
+}
+
 QByteArray Reader::drawing(const Odf &o, int frame, ParaCtx *pc, bool *ok)
 {
     *ok = false;
@@ -281,6 +310,7 @@ QByteArray Reader::drawing(const Odf &o, int frame, ParaCtx *pc, bool *ok)
     cx = std::max<qint64>(12700, std::min<qint64>(cx, qint64(12700) * 3000));
     cy = std::max<qint64>(12700, std::min<qint64>(cy, qint64(12700) * 3000));
     int image = -1, box = -1;
+    QString shapePrst;
     for (int c = t.firstChild(frame); c >= 0; c = t.next(c)) {
         if (o.is(c, "draw:image") && image < 0) image = c;
         else if (o.is(c, "draw:text-box") && box < 0) box = c;
@@ -297,11 +327,33 @@ QByteArray Reader::drawing(const Odf &o, int frame, ParaCtx *pc, bool *ok)
                 break;
             }
         if (box < 0) {
-            left(QCoreApplication::translate("odt", "drawing shapes"));
-            return QByteArray();
+            shapePrst = presetOfOdfShape(o, frame);
+            if (shapePrst.isEmpty()) {
+                left(QCoreApplication::translate("odt", "drawing shapes"));
+                return QByteArray();
+            }
         }
     }
     const int id = nextDocPrId();
+    if (!shapePrst.isEmpty()) {
+        // A shape with no words: its preset, fill, and line, as a shape of the file format.
+        const Props &sp = resolved(QStringLiteral("graphic"), o.at(frame, "draw:style-name"));
+        auto sg = [&](const char *k) { return sp.value(QStringLiteral("gr:") + QLatin1String(k)); };
+        QByteArray fill = "<a:noFill/>";
+        if (sg("draw:fill") == QLatin1String("solid") && !colorHex(sg("draw:fill-color")).isEmpty()) fill = "<a:solidFill><a:srgbClr val=\"" + colorHex(sg("draw:fill-color")).toLatin1() + "\"/></a:solidFill>";
+        QByteArray line = "<a:ln><a:noFill/></a:ln>";
+        if (!sg("draw:stroke").isEmpty() && sg("draw:stroke") != QLatin1String("none")) {
+            const QString c = colorHex(sg("svg:stroke-color"));
+            bool okw = false;
+            const qint64 w = lengthToEmu(sg("svg:stroke-width"), &okw);
+            line = "<a:ln w=\"" + num(okw && w > 0 ? std::min<qint64>(w, 1270000) : 9525) + "\"><a:solidFill><a:srgbClr val=\"" + (c.isEmpty() ? QByteArray("000000") : c.toLatin1()) + "\"/></a:solidFill></a:ln>";
+        }
+        const QByteArray graphic = "<a:graphic><a:graphicData uri=\"http://schemas.microsoft.com/office/word/2010/wordprocessingShape\"><wps:wsp><wps:cNvSpPr/><wps:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"" +
+                                   num(cx) + "\" cy=\"" + num(cy) + "\"/></a:xfrm><a:prstGeom prst=\"" + shapePrst.toLatin1() + "\"><a:avLst/></a:prstGeom>" + fill + line +
+                                   "</wps:spPr><wps:bodyPr rot=\"0\" vert=\"horz\" wrap=\"square\" anchor=\"ctr\"><a:noAutofit/></wps:bodyPr></wps:wsp></a:graphicData></a:graphic>";
+        *ok = true;
+        return anchorXml(o, frame, QString(), cx, cy, graphic, id);
+    }
     if (image >= 0) {
         const QString rid = imageRelationship(o, image);
         if (rid.isEmpty()) return QByteArray();

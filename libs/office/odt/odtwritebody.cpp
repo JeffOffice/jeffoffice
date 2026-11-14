@@ -781,6 +781,7 @@ QByteArray Writer::drawingXml(const T &t, int drawing, ParaCtx *pc, int depth)
     QJsonObject barcodeSettings;
     QString barcodeHash;
     int blip = -1, txbx = -1;
+    QString shapePrst;
     {
         const int ext = t.child(anchor, "extent", wp);
         if (ext >= 0) {
@@ -812,10 +813,15 @@ QByteArray Writer::drawingXml(const T &t, int drawing, ParaCtx *pc, int depth)
             const int n = stack.takeLast();
             if (t.localName(n) == "blip" && blip < 0) blip = n;
             else if (t.localName(n) == "txbxContent" && txbx < 0) txbx = n;
+            else if (t.localName(n) == "prstGeom" && shapePrst.isEmpty() && t.localName(t.parent(t.parent(n))) == "wsp") shapePrst = t.attr(n, "prst");
             for (int k = t.firstChild(n); k >= 0; k = t.next(k)) stack.push_back(k);
         }
     }
-    if (blip < 0 && txbx < 0) {
+    {
+        static const QRegularExpression plain(QStringLiteral("^[A-Za-z0-9]{1,40}$"));
+        if (!plain.match(shapePrst).hasMatch()) shapePrst.clear();
+    }
+    if (blip < 0 && txbx < 0 && shapePrst.isEmpty()) {
         left(QCoreApplication::translate("odt", "drawings, shapes, and charts"));
         return QByteArray();
     }
@@ -890,7 +896,7 @@ QByteArray Writer::drawingXml(const T &t, int drawing, ParaCtx *pc, int depth)
     }
     // A text box's padding, fill, and line, from its shape.
     QByteArray boxProps;
-    if (txbx >= 0) {
+    if (txbx >= 0 || (blip < 0 && !shapePrst.isEmpty())) {
         // (One value for each attribute: later ones replace the usual.)
         QMap<QByteArray, QByteArray> pr{{"fo:padding", "0in"}, {"fo:border", "none"}, {"draw:fill", "none"}, {"draw:stroke", "none"}};
         int body = -1, sp = -1;
@@ -932,6 +938,13 @@ QByteArray Writer::drawingXml(const T &t, int drawing, ParaCtx *pc, int depth)
     if (blip >= 0 && !barcodeSettings.isEmpty()) frameAttrs += " xmlns:jo=\"urn:jeffoffice:names:extension:1.0\" jo:barcode=\"" + esc(barcodeSettingsText(barcodeSettings)) + "\" jo:barcode-sha256=\"" + esc(barcodeHash) + "\"";
     const QString style = m_sink->make("fr", "graphic", " style:parent-style-name=\"" + QByteArray(blip >= 0 ? "Graphics" : "Frame") + "\"", "<style:graphic-properties" + gp + boxProps + "/>");
     QByteArray x = "<draw:frame draw:style-name=\"" + esc(style) + "\"" + frameAttrs + " svg:width=\"" + emuLength(cx) + "\"";
+    if (blip < 0 && txbx < 0) {
+        // A shape with no words: a custom shape that names its preset (the drawing format's), which other programs read as that shape.
+        x = "<draw:custom-shape draw:style-name=\"" + esc(style) + "\"" + frameAttrs + " svg:width=\"" + emuLength(cx) + "\" svg:height=\"" + emuLength(cy) +
+            "\"><draw:enhanced-geometry svg:viewBox=\"0 0 21600 21600\" draw:type=\"ooxml-" + shapePrst.toLatin1() + "\"/>";
+        if (!descr.isEmpty()) x += "<svg:desc>" + esc(descr, false) + "</svg:desc>";
+        return x + "</draw:custom-shape>";
+    }
     if (blip >= 0) {
         QString href;
         const QString rid = t.attr(blip, "embed", wml::NsR);
