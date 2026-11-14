@@ -1,4 +1,5 @@
 #pragma once
+class QPlainTextEdit;
 // The view of the document's pages: a continuous column of pages on a gray ground, or several across, drawn at a zoom of 10% to 500%.
 // Only the pages in view are made (the paginator keeps where each starts, and makes a page when it is asked for) and the rest of the
 // document is laid out in the background, so the first page shows at once, and the number of pages grows while a long document is
@@ -266,6 +267,11 @@ public:
     bool insertShapeObject(const QString &preset);
     // Insert > Shapes: the next drag on the page draws this shape (a click puts in one of its usual size); Escape puts the tool down.
     void beginShapeDraw(const QString &preset);
+    // The words of the selected shape or text box are typed in place: an editor over the shape (a double click, or a key typed with the shape selected). Escape, or a click elsewhere, puts the
+    // words in the shape as one step that undoes.
+    bool beginShapeTextEdit(const QString &typed = QString());
+    void endShapeTextEdit(bool keep = true);
+    bool editingShapeText() const { return m_shapeEditor != nullptr; }
     bool drawingShape() const { return !m_shapeDraw.isEmpty(); }
     bool insertTextBoxObject(const TextBoxDesign &design);
     // Create Link: the selected text box is to be followed by the text box that the next click is on (an empty one); Esc, or a click elsewhere, leaves it. Break Link: the boxes after the selected one
@@ -497,6 +503,9 @@ private:
         QPointF from, to;                   // on that page, in points
     };
     ToolDrag m_toolDrag;
+    QPlainTextEdit *m_shapeEditor = nullptr;
+    int m_shapeEditorAt = -1;
+    bool eventFilter(QObject *watched, QEvent *event) override;
     QString m_shapeDraw;   // the shape the pointer is drawing (its preset), empty when it is not
     void finishShapeDraw(const QPoint &viewportPos, Qt::KeyboardModifiers modifiers);
     void finishTableTool(const QPoint &viewportPos);

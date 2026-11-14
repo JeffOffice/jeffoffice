@@ -3,6 +3,9 @@
 
 #include "app/icons.h"
 #include "app/pageview.h"
+#include <QKeyEvent>
+#include <QTimer>
+#include <QPlainTextEdit>
 #include "core/barcodeitem.h"
 #include "core/editops.h"
 #include "flow/paginator.h"
@@ -1007,6 +1010,79 @@ void PageView::dropEvent(QDropEvent *e)
     }
     if (any) e->acceptProposedAction();
     else e->ignore();
+}
+
+} // namespace jp::write
+
+namespace jp::write {
+
+bool PageView::beginShapeTextEdit(const QString &typed)
+{
+    const int position = selectedPicture();
+    if (m_shapeEditor || !m_doc || m_readOnly || m_hf.active || m_note.active || position < 0) return false;
+    const PictureInfo info = pictureAt(*m_doc, m_doc->story(), position);
+    if (!info.valid || !info.editable || (info.kind != DrawnKind::Shape && info.kind != DrawnKind::TextBox)) return false;
+    const std::optional<QStringList> words = textBoxText(*m_doc, position);
+    if (!words) return false;
+    QRectF r;
+    if (!pictureRect(position, &r)) return false;
+    m_shapeEditor = new QPlainTextEdit(viewport());
+    m_shapeEditorAt = position;
+    m_shapeEditor->setFrameShape(QFrame::NoFrame);
+    m_shapeEditor->setStyleSheet(QStringLiteral("QPlainTextEdit { background: rgba(255, 255, 255, 190); color: black; }"));
+    m_shapeEditor->setGeometry(r.toRect().adjusted(2, 2, -2, -2));
+    m_shapeEditor->setPlainText(words->join(QLatin1Char('\n')));
+    m_shapeEditor->installEventFilter(this);
+    m_shapeEditor->show();
+    m_shapeEditor->setFocus(Qt::OtherFocusReason);
+    QTextCursor end = m_shapeEditor->textCursor();
+    end.movePosition(QTextCursor::End);
+    m_shapeEditor->setTextCursor(end);
+    if (!typed.isEmpty()) m_shapeEditor->insertPlainText(typed);
+    return true;
+}
+
+void PageView::endShapeTextEdit(bool keep)
+{
+    if (!m_shapeEditor) return;
+    QPlainTextEdit *editor = m_shapeEditor;
+    const int position = m_shapeEditorAt;
+    const QStringList paragraphs = editor->toPlainText().split(QLatin1Char('\n'));
+    m_shapeEditor = nullptr;
+    m_shapeEditorAt = -1;
+    editor->removeEventFilter(this);
+    editor->hide();
+    editor->deleteLater();
+    if (keep && m_doc && position >= 0 && isDrawnObjectAt(m_doc->story(), position)) {
+        m_doc->pictureNotice.clear();
+        if (setTextBoxText(*m_doc, position, paragraphs)) {
+            selectPicture(position);
+            Q_EMIT contentChanged();
+        } else if (!m_doc->pictureNotice.isEmpty()) {
+            Q_EMIT notice(m_doc->pictureNotice);
+        }
+    }
+    setFocus(Qt::OtherFocusReason);
+    viewport()->update();
+}
+
+bool PageView::eventFilter(QObject *watched, QEvent *event)
+{
+    if (watched == m_shapeEditor && m_shapeEditor) {
+        if (event->type() == QEvent::KeyPress && static_cast<QKeyEvent *>(event)->key() == Qt::Key_Escape) {
+            endShapeTextEdit(true);
+            return true;
+        }
+        if (event->type() == QEvent::FocusOut) {
+            // (a click on the page, a ribbon button, or another window: the words are kept)
+            QTimer::singleShot(0, this, [this] {
+                // (Focus went to another place of this window, or the pointer pressed on the page.)
+                const QWidget *now = QApplication::focusWidget();
+                if (m_shapeEditor && !m_shapeEditor->hasFocus() && now && now != m_shapeEditor && now->window() == window()) endShapeTextEdit(true);
+            });
+        }
+    }
+    return QAbstractScrollArea::eventFilter(watched, event);
 }
 
 } // namespace jp::write

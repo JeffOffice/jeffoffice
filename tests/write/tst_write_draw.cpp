@@ -56,6 +56,7 @@
 #include <QTableWidget>
 #include <QRegularExpression>
 #include <QTest>
+#include <QPlainTextEdit>
 #include <QTimer>
 #include <QTextCursor>
 #include <QTextDocument>
@@ -754,6 +755,61 @@ private Q_SLOTS:
         QVERIFY(std::abs(pictureAt(*doc, doc->story(), 0).rotation - 90) < 1);
         QVERIFY(doc->undo());
         QVERIFY(std::abs(pictureAt(*doc, doc->story(), 0).rotation) < 0.01);
+    }
+
+    void typingWithAShapeSelectedPutsTheWordsInTheShapeInPlaceAsOneStep()
+    {
+        Win win;
+        write::WriteDoc *doc = win.w.document();
+        QTextCursor c(doc->story());
+        c.setPosition(0);
+        QCOMPARE(insertShape(*doc, c, QStringLiteral("ellipse"), QSizeF(160, 100)), PictureResult::Ok);
+        QVERIFY(setPicturePlace(*doc, 0, 150, 150));
+        win.w.view()->refresh();
+        win.w.view()->selectPicture(0);
+        QWidget *vp = win.w.view()->viewport();
+        QVERIFY(!win.w.view()->editingShapeText());
+        QTest::keyClick(vp, Qt::Key_H);
+        QVERIFY(win.w.view()->editingShapeText());
+        QTest::keyClicks(win.w.view()->findChild<QPlainTextEdit *>(), QStringLiteral("i"));
+        QTest::keyClick(win.w.view()->findChild<QPlainTextEdit *>(), Qt::Key_Escape);
+        QVERIFY(!win.w.view()->editingShapeText());
+        QCOMPARE(textBoxText(*doc, 0)->join(QLatin1Char('|')), QStringLiteral("hi"));
+        QCOMPARE(win.w.view()->selectedPicture(), 0);
+        QCOMPARE(doc->story()->toPlainText().remove(QChar::ObjectReplacementCharacter), QStringLiteral("Hello world"));
+        QVERIFY(doc->undo());
+        QCOMPARE(textBoxText(*doc, 0)->join(QLatin1Char('|')), QString());
+        QVERIFY(doc->redo());
+        // A double click opens it again with the words, a second line is a second paragraph, and a click elsewhere keeps the words.
+        win.w.view()->refresh();
+        QRectF r;
+        QTRY_VERIFY(win.w.view()->pictureRect(0, &r));
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+        QTest::mouseDClick(vp, Qt::LeftButton, Qt::NoModifier, r.center().toPoint());
+        QVERIFY(win.w.view()->editingShapeText());
+        QPlainTextEdit *edit = win.w.view()->findChild<QPlainTextEdit *>();
+        QVERIFY(edit);
+        QCOMPARE(edit->toPlainText(), QStringLiteral("hi"));
+        QTest::keyClick(edit, Qt::Key_End, Qt::ControlModifier);
+        QTest::keyClick(edit, Qt::Key_Return);
+        QTest::keyClicks(edit, QStringLiteral("there"));
+        win.w.view()->endShapeTextEdit(true);
+        QVERIFY(!win.w.view()->editingShapeText());
+        QCOMPARE(textBoxText(*doc, 0)->join(QLatin1Char('|')), QStringLiteral("hi|there"));
+        // Words that did not change make no step.
+        QTest::mouseDClick(vp, Qt::LeftButton, Qt::NoModifier, r.center().toPoint());
+        QVERIFY(win.w.view()->editingShapeText());
+        win.w.view()->endShapeTextEdit(true);
+        QVERIFY(doc->undo());
+        QCOMPARE(textBoxText(*doc, 0)->join(QLatin1Char('|')), QStringLiteral("hi"));
+        // A line takes no words: typing with it selected does not open an editor.
+        QTextCursor d(doc->story());
+        d.setPosition(1);
+        QCOMPARE(insertShape(*doc, d, QStringLiteral("line")), PictureResult::Ok);
+        win.w.view()->refresh();
+        win.w.view()->selectPicture(1);
+        QTest::keyClick(vp, Qt::Key_X);
+        QVERIFY(!win.w.view()->editingShapeText());
     }
 
     void aShapesFillLineTurnAndKindAreChangedOneStepEach()

@@ -462,6 +462,10 @@ void PageView::keyPressEvent(QKeyEvent *e)
             return;
         }
     }
+    if ((e->key() == Qt::Key_Return || e->key() == Qt::Key_Enter || e->key() == Qt::Key_F2) && !(e->modifiers() & (Qt::ControlModifier | Qt::ShiftModifier)) && selectedPicture() >= 0 && beginShapeTextEdit()) {
+        e->accept();
+        return;
+    }
     switch (e->key()) {
     case Qt::Key_Left: case Qt::Key_Right: case Qt::Key_Up: case Qt::Key_Down: case Qt::Key_Home: case Qt::Key_End: case Qt::Key_PageUp: case Qt::Key_PageDown:
     case Qt::Key_Backspace: case Qt::Key_Delete: case Qt::Key_Return: case Qt::Key_Enter: case Qt::Key_Tab: case Qt::Key_Backtab: case Qt::Key_Escape:
@@ -480,6 +484,11 @@ void PageView::keyPressEvent(QKeyEvent *e)
     // Text: not a shortcut (Ctrl alone), and not a control character.
     const QString text = e->text();
     const bool shortcut = (e->modifiers() & (Qt::ControlModifier | Qt::MetaModifier)) && !(e->modifiers() & Qt::AltModifier);
+    // A shape or text box that is selected takes the words typed: they go in it, in place.
+    if (!text.isEmpty() && !shortcut && text[0].isPrint() && selectedPicture() >= 0 && beginShapeTextEdit(text)) {
+        e->accept();
+        return;
+    }
     if (!text.isEmpty() && !shortcut && text[0].isPrint()) {
         insertText(text);
         e->accept();
@@ -883,6 +892,19 @@ void PageView::mouseDoubleClickEvent(QMouseEvent *e)
             Q_EMIT editBarcodeWanted();
             e->accept();
             return;
+        }
+    }
+    if (m_doc && e->button() == Qt::LeftButton && !m_readOnly) {
+        // A double click on a shape or a text box edits its words, in place.
+        if (const int object = pictureAtPoint(e->position().toPoint()); object >= 0) {
+            const PictureInfo info = pictureAt(*m_doc, m_doc->story(), object);
+            if (info.kind == DrawnKind::Shape || info.kind == DrawnKind::TextBox) {
+                selectPicture(object);
+                if (beginShapeTextEdit()) {
+                    e->accept();
+                    return;
+                }
+            }
         }
     }
     if (m_doc && e->button() == Qt::LeftButton) {

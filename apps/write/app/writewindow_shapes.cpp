@@ -1056,30 +1056,8 @@ void WriteWindow::refreshShapeUi()
 
 void WriteWindow::editShapeText()
 {
-    const int at = m_view->selectedPicture();
-    if (!m_doc || at < 0) return;
-    const std::optional<QStringList> words = write::textBoxText(*m_doc, at);
-    if (!words) return;
-    QDialog dlg(this);
-    dlg.setObjectName(QStringLiteral("shapeTextDialog"));
-    dlg.setWindowTitle(tr("Edit Text"));
-    auto *layout = new QVBoxLayout(&dlg);
-    auto *label = new QLabel(tr("Type the words. Each line is a paragraph."), &dlg);
-    label->setWordWrap(true);
-    layout->addWidget(label);
-    auto *edit = new QPlainTextEdit(&dlg);
-    edit->setObjectName(QStringLiteral("shapeTextEdit"));
-    edit->setPlainText(words->join(QLatin1Char('\n')));
-    edit->setMinimumSize(360, 160);
-    layout->addWidget(edit);
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
-    connect(buttons, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
-    connect(buttons, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
-    layout->addWidget(buttons);
-    if (dlg.exec() != QDialog::Accepted) return;
-    const QStringList paragraphs = edit->toPlainText().split(QLatin1Char('\n'));
-    m_view->changeSelectedPicture([paragraphs](write::WriteDoc &d, int position) { return write::setTextBoxText(d, position, paragraphs); });
-    m_view->setFocus(Qt::OtherFocusReason);
+    // (The words are typed in the shape itself.)
+    if (m_doc) m_view->beginShapeTextEdit();
 }
 
 void WriteWindow::alignSelectedObject(int align)
