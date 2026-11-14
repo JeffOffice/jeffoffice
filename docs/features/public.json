@@ -1023,12 +1023,14 @@
        "heading": "78e4a0f74b62bee0908f7458f062ba7830a8de68d06ed4881fdf4878470ac4f3",
        "items": [
         {
-         "status": "partly",
-         "text": "0f192805ae0579a17b130a506eccf4e195f299070f863ee031bb0d3eb4890547"
+         "hide_soon": true,
+         "status": "done",
+         "text": "a77de3733b6835283d30f2ab72128d175caef19623462f8ee6b5df3af050cc0b"
         },
         {
-         "status": "partly",
-         "text": "a65e6afbcc5ac004ac201ccc8c9333bdc07398ed3db74d13b800aa5355404138"
+         "hide_soon": true,
+         "status": "done",
+         "text": "d3ebd535462e4b0b9b1ef984ada957dfe6eb578e40980368ffe8504cfb005b47"
         },
         {
          "hide_soon": true,
@@ -1976,8 +1978,9 @@
          "text": "a4bf6e2bdcf37f71b6bdab8b5c093dc91b0b4abc185da91d7b5e1166d9299f72"
         },
         {
-         "status": "todo",
-         "text": "9cc4b156b92b3c834623cc58bbc20bb04d513b26ee84827fb0c50b05f32a252f"
+         "hide_soon": true,
+         "status": "done",
+         "text": "9de98434dfb8ed338fd0b4a26f114db8ddec923b2df478d32aa079ef146dfd85"
         },
         {
          "status": "partly",
@@ -2263,7 +2266,7 @@
   "jeffdeck": {
    "name": "JeffDeck",
    "reviewed": {
-    "day": "5",
+    "day": "14",
     "month": "November",
     "year": "2026"
    },
@@ -2572,8 +2575,8 @@
          "text": "7c22ec3a1d452779bccbf7bf7ce0c6f1705181a6d507082b918673969df78cd3"
         },
         {
-         "status": "todo",
-         "text": "24cd5f514f30aa0470cbc9b484afbdcae6a0f132e2d2b71136552fe2a851020f"
+         "status": "partly",
+         "text": "5e40a1f6da624b7ef37ed962daea459f5a1e99adde25d169425339478ef42b56"
         },
         {
          "hide_soon": true,
@@ -2734,7 +2737,11 @@
         {
          "hide_soon": true,
          "status": "done",
-         "text": "1f9a6a954b33febb0a7c063eb15f015aceaf8aeffacfb93056b77dabb31ea014"
+         "text": "ecd22afbdf0c4b9772ec879b4cd6d9c28df0a7e69711162ff082e62ac7b7ef73"
+        },
+        {
+         "status": "partly",
+         "text": "5f5b04e69c75aee10f3d69f6629d7b262f62da9f4166877713a24ee48825194e"
         },
         {
          "hide_soon": true,
@@ -2758,7 +2765,7 @@
         },
         {
          "status": "partly",
-         "text": "08d2e8521ca692a1c19b1fa4dd15afd505fdc8e041cfea419aa966eed75c5096"
+         "text": "c32ef0d8191cf5cbf06261e703d5521812110b9340de63d3abd2ccb6345a6701"
         },
         {
          "hide_soon": true,
@@ -2767,7 +2774,7 @@
         },
         {
          "status": "partly",
-         "text": "dcfdec86af12db230428b7b19394a0195df2bd0bbd778a8af16569b903ae4ed5"
+         "text": "3c3f196b120913084fc10c52a601c3bad6f42b2a8fcffc0cde8123b28aabeb75"
         }
        ]
       },
@@ -3786,7 +3793,7 @@
       },
       {
        "status": "partly",
-       "text": "eeb34b026351a504e51c6ad49a135ccbb5dc718d43fb88b7c10a4f95f450de71"
+       "text": "ae159ced970bf7d91e473761a975a9e6cf844e8955294dd51cc4652bfa8f5dd1"
       },
       {
        "hide_soon": true,
@@ -4099,7 +4106,7 @@
   "jeffpub": {
    "name": "JeffPub",
    "reviewed": {
-    "day": "5",
+    "day": "14",
     "month": "November",
     "year": "2026"
    },
@@ -4409,8 +4416,9 @@
          "text": "a7b11d51ead0e17efb0f39c3be56262f88724b352b1dbfcdca293d55320b9019"
         },
         {
-         "status": "todo",
-         "text": "d3acf8d85665b652e8ae826a25664eb0808ddac59d44a331aed6f1465186fbab"
+         "hide_soon": true,
+         "status": "done",
+         "text": "7e10528b4cd2ab24d20536ea6cc0dfac50becd363780ad0c1dee1da021666614"
         },
         {
          "hide_soon": true,
@@ -4484,7 +4492,7 @@
       {
        "hide_soon": true,
        "status": "done",
-       "text": "51b3056b2a53b608aa87de0d93f2c35adb2c298bf4d255003cb42961f760a265"
+       "text": "391a63927e497aad3fb7abf810c26fb78f017e1a73e85de805ed147500f89f4b"
       },
       {
        "hide_soon": true,
@@ -5179,8 +5187,9 @@
        "text": "025da5213017d5f3cdbb40b530a254abbd9a6887dc95c4c8191545066040a862"
       },
       {
-       "status": "partly",
-       "text": "bea3cbbbccd6da7675a8d8b1228d7458c5660e92660c53c829a150d538ef9167"
+       "hide_soon": true,
+       "status": "done",
+       "text": "e565ca9af4cba8c31046c9697a7f0bc7a4374a68e8bb19421a5680d41c2f2ef8"
       },
       {
        "hide_soon": true,
@@ -5190,7 +5199,7 @@
       {
        "hide_soon": true,
        "status": "done",
-       "text": "1ecd4e3e585e2a7472af34ae6933b96a6381cac0b3fafdd9d8bbdb14d9ba880f"
+       "text": "c1ed9a282a17cb44bf5f6e7b5db4bccc15d9255ec18a147a679ce23fcd2cab92"
       },
       {
        "hide_soon": true,
@@ -5449,7 +5458,7 @@
   "jeffwrite": {
    "name": "JeffWrite",
    "reviewed": {
-    "day": "6",
+    "day": "14",
     "month": "November",
     "year": "2026"
    },
@@ -5514,8 +5523,8 @@
        "text": "b87f50b478b67c2e006c7f0029a0ff50c21742bd4b46e088f4453293e4679b12"
       },
       {
-       "status": "todo",
-       "text": "8a4e7aa1784a0371da6106a832e9d0a6d7c4ff8e7dcfb6be33df6027eb4d3827"
+       "status": "partly",
+       "text": "6e5592d9f41adf803200f2fdfaea90187975a2aad52b42978777328a098c6c86"
       },
       {
        "status": "partly",
@@ -5710,11 +5719,11 @@
        "items": [
         {
          "status": "partly",
-         "text": "be561b79c2744603d43d58f7047534117056a88c8e32c3f537a5805f25f7153e"
+         "text": "5aa712aee584c1d625431ae200996af56a5a22964943f9b5a1739fba8e6a7151"
         },
         {
          "status": "partly",
-         "text": "a414653d433d227aacf8fe94ba92c9bd86a2f28f6fa60f548a4631ceb72f7cba"
+         "text": "7098ac7389e34aaca872db3323b12a059d9c6630059e6cebcc594e83eb008548"
         },
         {
          "hide_soon": true,
@@ -5757,12 +5766,13 @@
          "text": "04815648b7420cbf91c3053decdb85c6aebc5a380e15bfdec5fbafa9801b444d"
         },
         {
-         "status": "partly",
-         "text": "0109147fae4ace26855b36d2163d1f63a37eef1597a00da2c600a8952a1cfa4d"
+         "hide_soon": true,
+         "status": "done",
+         "text": "3a8ee813d0a18cf1c14df1630e7ebb2cc6faf06ff0487f53f0ef3a0cb9e0a4fc"
         },
         {
-         "status": "todo",
-         "text": "54dca39d7d44bcd1e4971e2bbed72ae2e9f361b503d17e696d40bc632ea0d4fe"
+         "status": "partly",
+         "text": "5d3c0d3e576121f13d8833c812d9d5f7162074757d84218746ecc1d2b9dabd7a"
         },
         {
          "status": "partly",
@@ -5920,16 +5930,18 @@
          "text": "33cec58339bf15aabda4591e349104efe74e9ffe43615434ae73349c902a55b2"
         },
         {
-         "status": "partly",
-         "text": "fba88ee1b7e7310ea3c47183e285857b727a591fd2cccb70e2c6ed8559cd3d72"
+         "hide_soon": true,
+         "status": "done",
+         "text": "10d5d6b3661fedaabb153c8ccbbe045a784d44b56c2b23f993c80d2eeee9e887"
+        },
+        {
+         "hide_soon": true,
+         "status": "done",
+         "text": "d2c308adaf9454cb5982bb1a5cd2dcf610c91b8bf6d654fdada54d4c1ea5e922"
         },
         {
          "status": "partly",
-         "text": "5159d1561181274a8a38f01e86a4c736c3bab8b67834f28584362ebef1dfc482"
-        },
-        {
-         "status": "partly",
-         "text": "55302e714a3a4bde745e62c0f8c4926571bc9f3280310ef51bc5e5b19f9840c8"
+         "text": "42fdf7297296c1d8c1af46ce07dcef8b75622babe5d543d076e6d0b27194a30b"
         },
         {
          "status": "partly",
@@ -6439,7 +6451,7 @@
        "items": [
         {
          "status": "partly",
-         "text": "44344138c3d9753df3e6a4b18493fc9a37480f6bcdf9ecabfbc5d7a4a4463a80"
+         "text": "4f27022a43b9eb76d26425b397ad1de77c638083d7a309eaf8741f357b5884b7"
         },
         {
          "status": "partly",
@@ -6879,7 +6891,7 @@
         {
          "hide_soon": true,
          "status": "done",
-         "text": "70a91e155dd0a344f2d41ecd7e4737767c4deec785a0dd67e9100e3e1547e63c"
+         "text": "def40f074064e5efbcf90344321c1de05e2fceadd6afb4804f5e044442bea345"
         },
         {
          "status": "todo",
@@ -7007,7 +7019,7 @@
        "items": [
         {
          "status": "partly",
-         "text": "8a5f0240a133f54636c586ee4f6358988b9a16d233625ac64c6ab874c8146c04"
+         "text": "e0c283b355f63d4a3d562af689e15be69bd9a7e463ee4331c7d00f9055f37260"
         },
         {
          "status": "todo",
@@ -7397,18 +7409,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "0109147fae4ace26855b36d2163d1f63a37eef1597a00da2c600a8952a1cfa4d": {
-   "drop": false,
-   "en": "Proofing options for spelling as you type and for skipping words in capitals or with numbers.",
-   "es": "Opciones de revisión para la ortografía mientras escribe y para omitir palabras en mayúsculas o con números.",
-   "fr": "Options de vérification pour l’orthographe au fil de la frappe et pour ignorer les mots en majuscules ou contenant des chiffres.",
-   "soon": {
-    "drop": false,
-    "en": "AutoCorrect and AutoFormat as you type options",
-    "es": "Opciones de autocorrección y autoformato mientras escribe",
-    "fr": "Options de correction automatique et de mise en forme automatique à la frappe"
    }
   },
   "010a351f4927ce9cc27ea5140c123a728285c6ee044ca6fcc24b9b42babadcc5": {
@@ -7999,18 +7999,6 @@
     "fr": "Balises de paramètres régionaux, calendriers alternatifs et formes numériques d’Asie orientale dans les formats de nombre"
    }
   },
-  "08d2e8521ca692a1c19b1fa4dd15afd505fdc8e041cfea419aa966eed75c5096": {
-   "drop": false,
-   "en": "Set text direction to horizontal or rotated 90 degrees.",
-   "es": "Defina la dirección del texto como horizontal o girada 90 grados.",
-   "fr": "Définissez l’orientation du texte en horizontal ou pivoté de 90 degrés.",
-   "soon": {
-    "drop": false,
-    "en": "Text direction: rotated 270 degrees and stacked",
-    "es": "Dirección del texto: girada 270 grados y apilada",
-    "fr": "Orientation du texte : pivotée de 270 degrés et empilée"
-   }
-  },
   "08f6ee380de54b8f4cbac7cc02c958c127ee77e8a9cd2424866ceab492c3127f": {
    "drop": false,
    "en": "Repeat rows at the top and columns at the left of every printed page. Print titles are kept when saving and move with edits.",
@@ -8503,18 +8491,6 @@
     "fr": ""
    }
   },
-  "0f192805ae0579a17b130a506eccf4e195f299070f863ee031bb0d3eb4890547": {
-   "drop": false,
-   "en": "Sort A to Z and Z to A on the block around the cell, with the header found automatically. Custom Sort has up to 8 levels on values, cell color, or font color, ascending, descending, or by a list (days, months, or one you type), with header, match case, and left to right. A sort is one step of Undo, formulas are written for their new rows, and rows hidden by a filter stay in place.",
-   "es": "Ordene de A a Z y de Z a A el bloque que rodea la celda, con el encabezado detectado automáticamente. El orden personalizado admite hasta 8 niveles por valores, color de celda o color de fuente, ascendente, descendente o por una lista (días, meses o una que escriba), con encabezado, coincidencia de mayúsculas y minúsculas, y de izquierda a derecha. Un orden es un paso de Deshacer, las fórmulas se escriben para sus nuevas filas y las filas ocultas por un filtro permanecen en su lugar.",
-   "fr": "Triez de A à Z et de Z à A le bloc autour de la cellule, avec l’en-tête détecté automatiquement. Le tri personnalisé offre jusqu’à 8 niveaux sur les valeurs, la couleur de cellule ou la couleur de police, croissant, décroissant ou selon une liste (jours, mois ou une liste que vous saisissez), avec en-tête, respect de la casse et de gauche à droite. Un tri est une étape d’annulation, les formules sont écrites pour leurs nouvelles lignes et les lignes masquées par un filtre restent en place.",
-   "soon": {
-    "drop": false,
-    "en": "Sort by icon, and saving the sort state in the file",
-    "es": "Ordenar por icono y guardar el estado de ordenación en el archivo",
-    "fr": "Tri par icône et enregistrement de l’état du tri dans le fichier"
-   }
-  },
   "0f4ee42b3e8043be77a9e30d84eea5b6cdeedd944f44eaf2cf4c323628213fa8": {
    "drop": true,
    "en": "",
@@ -8592,6 +8568,18 @@
    "en": "The Master Page tab appears first, right after File, and is the one showing when master page view opens.",
    "es": "La pestaña Página maestra aparece primero, justo después de Archivo, y es la que se muestra al abrir la vista de página maestra.",
    "fr": "L’onglet Page de référence apparaît en premier, juste après Fichier, et c’est celui qui s’affiche à l’ouverture de la vue Page de référence.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "10d5d6b3661fedaabb153c8ccbbe045a784d44b56c2b23f993c80d2eeee9e887": {
+   "drop": false,
+   "en": "Start a bulleted list from the Home tab.",
+   "es": "Inicie una lista con viñetas desde la pestaña Inicio.",
+   "fr": "Démarrez une liste à puces depuis l’onglet Accueil.",
    "soon": {
     "drop": true,
     "en": "",
@@ -9535,18 +9523,6 @@
     "fr": ""
    }
   },
-  "1ecd4e3e585e2a7472af34ae6933b96a6381cac0b3fafdd9d8bbdb14d9ba880f": {
-   "drop": false,
-   "en": "Correct text automatically with a replacement list and capitalization rules, and format as you type.",
-   "es": "Corrija el texto automáticamente con una lista de reemplazos y reglas de mayúsculas, y aplique formato mientras escribe.",
-   "fr": "Corrigez le texte automatiquement avec une liste de remplacements et des règles de majuscules, et mettez en forme pendant la saisie.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "1f0b98dba3e81e12942a2adf45d0abe7cf31ffaf79e78d338e90d530a26d62aa": {
    "drop": false,
    "en": "File (backstage)",
@@ -9600,18 +9576,6 @@
    "en": "Numbers are 64-bit floating point, with 15 significant digits kept and shown. A sum or difference that is almost zero next to its starting numbers is shown as exactly zero, and a whole number typed with more than 15 digits keeps the first 15 digits followed by zeros.",
    "es": "Los números son de coma flotante de 64 bits, y se conservan y se muestran 15 dígitos significativos. Una suma o resta cuyo resultado es casi cero en comparación con los números de partida se muestra como cero exacto, y un número entero escrito con más de 15 dígitos conserva los primeros 15 seguidos de ceros.",
    "fr": "Les nombres sont en virgule flottante sur 64 bits, avec 15 chiffres significatifs conservés et affichés. Une somme ou une différence presque nulle par rapport aux nombres de départ s’affiche comme exactement zéro, et un nombre entier saisi avec plus de 15 chiffres conserve les 15 premiers suivis de zéros.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "1f9a6a954b33febb0a7c063eb15f015aceaf8aeffacfb93056b77dabb31ea014": {
-   "drop": false,
-   "en": "Use bullets (disc, circle, square, diamond, arrow, check mark, star, and dash) and numbering (1. 2. 3., a. b. c., A. B. C., i. ii. iii., I. II. III., 1) 2) 3), and (1) (2) (3)), each with its own Bullets and Numbering window.",
-   "es": "Use viñetas (disco, círculo, cuadrado, rombo, flecha, marca de verificación, estrella y guion) y numeración (1. 2. 3., a. b. c., A. B. C., i. ii. iii., I. II. III., 1) 2) 3) y (1) (2) (3)), cada una con su ventana de Viñetas y numeración.",
-   "fr": "Utilisez des puces (disque, cercle, carré, losange, flèche, coche, étoile et tiret) et une numérotation (1. 2. 3., a. b. c., A. B. C., i. ii. iii., I. II. III., 1) 2) 3) et (1) (2) (3)), chacune avec sa fenêtre Puces et numérotation.",
    "soon": {
     "drop": true,
     "en": "",
@@ -10193,18 +10157,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "24cd5f514f30aa0470cbc9b484afbdcae6a0f132e2d2b71136552fe2a851020f": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "AutoCorrect Options window: replacement list, exceptions, capitalization rules, and math symbols",
-    "es": "Ventana de opciones de autocorrección: lista de reemplazos, excepciones, reglas de mayúsculas y símbolos matemáticos",
-    "fr": "Fenêtre des options de correction automatique : liste de remplacements, exceptions, règles de majuscules et symboles mathématiques"
    }
   },
   "25335500987afa4994d9e34566ff758f4d4561973630b91542933d3fcee9c819": {
@@ -11587,6 +11539,18 @@
     "fr": ""
    }
   },
+  "391a63927e497aad3fb7abf810c26fb78f017e1a73e85de805ed147500f89f4b": {
+   "drop": false,
+   "en": "Format paragraphs with bullets, numbering, indents, alignment, line spacing, and paragraph spacing, and show paragraph marks. The Paragraph dialog sets indents, spacing, line breaks, tabs, and baseline alignment.",
+   "es": "Dé formato a los párrafos con viñetas, numeración, sangrías, alineación, interlineado y espaciado de párrafo, y muestre las marcas de párrafo. El cuadro de diálogo Párrafo define sangrías, espaciado, saltos de línea, tabulaciones y alineación de la línea base.",
+   "fr": "Mettez en forme les paragraphes avec des puces, une numérotation, des retraits, un alignement, un interligne et un espacement de paragraphe, et affichez les marques de paragraphe. La boîte de dialogue Paragraphe règle les retraits, l’espacement, les sauts de ligne, les tabulations et l’alignement de la ligne de base.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "3947a08e13bede2fab9981e65e1639616089715324b190a8894ba837328ddf49": {
    "drop": false,
    "en": "Group Field groups dates by one or several parts and numbers by a start, an end, and a step. Groups in a file are read and kept, Refresh rebuilds them from new data, and Ungroup removes them.",
@@ -11664,6 +11628,18 @@
    "en": "",
    "es": "",
    "fr": "",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "3a8ee813d0a18cf1c14df1630e7ebb2cc6faf06ff0487f53f0ef3a0cb9e0a4fc": {
+   "drop": false,
+   "en": "Edit the AutoCorrect replacement list for each language, the exceptions lists, and the capital-letter switches. Smart quotes follow the language of the text, and one Undo takes back just a replacement.",
+   "es": "Edite la lista de reemplazos de autocorrección de cada idioma, las listas de excepciones y los interruptores de mayúsculas. Las comillas tipográficas siguen el idioma del texto, y un solo Deshacer revierte únicamente un reemplazo.",
+   "fr": "Modifiez la liste de remplacement de la correction automatique pour chaque langue, les listes d’exceptions et les options de majuscules. Les guillemets typographiques suivent la langue du texte, et une seule annulation ne retire qu’un remplacement.",
    "soon": {
     "drop": true,
     "en": "",
@@ -11760,6 +11736,18 @@
    "en": "Open and save `.dotx` templates with their styles and building blocks.",
    "es": "Abra y guarde plantillas `.dotx` con sus estilos y bloques de creación.",
    "fr": "Ouvrez et enregistrez des modèles `.dotx` avec leurs styles et leurs blocs de construction.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "3c3f196b120913084fc10c52a601c3bad6f42b2a8fcffc0cde8123b28aabeb75": {
+   "drop": false,
+   "en": "Text shrinks to fit its placeholder, a shape can grow to fit its text, and the Format Shape pane sets how text fits, margins, wrap, and columns for text boxes.",
+   "es": "El texto se reduce para ajustarse a su marcador de posición, una forma puede crecer para ajustarse a su texto y el panel Formato de forma define el ajuste del texto, los márgenes, el ajuste de línea y las columnas de los cuadros de texto.",
+   "fr": "Le texte se réduit pour tenir dans son espace réservé, une forme peut s’agrandir pour contenir son texte, et le volet Format de la forme règle l’ajustement du texte, les marges, le retour à la ligne et les colonnes des zones de texte.",
    "soon": {
     "drop": true,
     "en": "",
@@ -12283,6 +12271,18 @@
     "fr": ""
    }
   },
+  "42fdf7297296c1d8c1af46ce07dcef8b75622babe5d543d076e6d0b27194a30b": {
+   "drop": false,
+   "en": "Use multilevel lists with nine levels, with each level’s number format, alignment, indent, and link to a heading style, kept in `.docx` and `.odt` files.",
+   "es": "Use listas multinivel de nueve niveles, con el formato de número, la alineación, la sangría y el vínculo a un estilo de título de cada nivel, conservados en archivos `.docx` y `.odt`.",
+   "fr": "Utilisez des listes à plusieurs niveaux, avec neuf niveaux, le format de numéro, l’alignement, le retrait et le lien vers un style de titre pour chaque niveau, conservés dans les fichiers `.docx` et `.odt`.",
+   "soon": {
+    "drop": false,
+    "en": "Choosing each level's options in the program, and drawing picture bullets",
+    "es": "Elección de las opciones de cada nivel en el programa y dibujo de viñetas de imagen",
+    "fr": "Choix des options de chaque niveau dans le programme et affichage des puces image"
+   }
+  },
   "4310f176870837d9bede601afc8c63c027acd101256c46dc5327473287692874": {
    "drop": false,
    "en": "Insert a drawing canvas, a frame that sits above and below the text. Select it together with shapes, group them, and they move and resize as one.",
@@ -12341,18 +12341,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "44344138c3d9753df3e6a4b18493fc9a37480f6bcdf9ecabfbc5d7a4a4463a80": {
-   "drop": false,
-   "en": "Red wavy underlines mark misspelled words, with suggestions on right-click, `Ignore All`, and `Add to Dictionary`. The Spelling pane (`F7` or Review > Spelling) offers `Change`, `Change All`, `Ignore`, `Ignore All`, and `Add`, and the check skips words in capitals and words with numbers.",
-   "es": "Las líneas onduladas rojas marcan las palabras mal escritas, con sugerencias al hacer clic con el botón derecho, `Ignore All` y `Add to Dictionary`. El panel de ortografía (`F7` o Revisar > Ortografía) ofrece `Change`, `Change All`, `Ignore`, `Ignore All` y `Add`, y la revisión omite las palabras en mayúsculas y las palabras con números.",
-   "fr": "Des lignes ondulées rouges signalent les mots mal orthographiés, avec des suggestions au clic droit, `Ignore All` et `Add to Dictionary`. Le volet d’orthographe (`F7` ou Révision > Orthographe) propose `Change`, `Change All`, `Ignore`, `Ignore All` et `Add`, et la vérification ignore les mots en majuscules et les mots contenant des chiffres.",
-   "soon": {
-    "drop": false,
-    "en": "AutoCorrect, exclusion dictionaries, custom dictionary editing, and the Spelling pane in tables, headers, footers, and notes",
-    "es": "Autocorrección, diccionarios de exclusión, edición del diccionario personalizado y el panel de ortografía en tablas, encabezados, pies de página y notas",
-    "fr": "Correction automatique, dictionnaires d’exclusion, modification du dictionnaire personnalisé et volet d’orthographe dans les tableaux, les en-têtes, les pieds de page et les notes"
    }
   },
   "4443f17f2801038a9bcf022623f5daec7db283e9a35c54cf9901f3d30b3429e0": {
@@ -13135,6 +13123,18 @@
     "fr": ""
    }
   },
+  "4f27022a43b9eb76d26425b397ad1de77c638083d7a309eaf8741f357b5884b7": {
+   "drop": false,
+   "en": "Spelling as you type with red wavy underlines, suggestions on right-click, Ignore All, and Add to Dictionary. The Spelling pane (`F7`) offers Change, Change All, Ignore, Ignore All, and Add, and skips words in capitals or with numbers.",
+   "es": "Revisión ortográfica al escribir con subrayados ondulados rojos, sugerencias con el clic derecho, Omitir todo y Agregar al diccionario. El panel Ortografía (`F7`) ofrece Cambiar, Cambiar todo, Omitir, Omitir todo y Agregar, y omite las palabras en mayúsculas o con números.",
+   "fr": "Vérification orthographique à la frappe avec soulignement ondulé rouge, suggestions au clic droit, Ignorer tout et Ajouter au dictionnaire. Le volet Orthographe (`F7`) propose Modifier, Tout modifier, Ignorer, Tout ignorer et Ajouter, et ignore les mots en majuscules ou contenant des chiffres.",
+   "soon": {
+    "drop": false,
+    "en": "Exclusion dictionaries, custom dictionary editing, and the Spelling pane in tables, headers, footers, and notes",
+    "es": "Diccionarios de exclusión, edición del diccionario personalizado y panel Ortografía en tablas, encabezados, pies de página y notas",
+    "fr": "Dictionnaires d’exclusion, modification du dictionnaire personnalisé et volet Orthographe dans les tableaux, en-têtes, pieds de page et notes"
+   }
+  },
   "4f66729450f120558774bc5cda4767a260b6760c242cec2c7b1a120707d67fda": {
    "drop": false,
    "en": "Tables",
@@ -13351,18 +13351,6 @@
     "fr": "`LINEST` et `FREQUENCY`"
    }
   },
-  "5159d1561181274a8a38f01e86a4c736c3bab8b67834f28584362ebef1dfc482": {
-   "drop": false,
-   "en": "Start a numbered list from the Home tab. Lists in files keep their number formats.",
-   "es": "Inicie una lista numerada desde la pestaña Inicio. Las listas de los archivos conservan sus formatos de numeración.",
-   "fr": "Commencez une liste numérotée depuis l’onglet Accueil. Les listes des fichiers gardent leurs formats de numérotation.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "51787acc6c5d892d35ff3c74a338558e59a965ccc6a79e6a5afd1389a4fbf5c1": {
    "drop": false,
    "en": "Formulas > Watch Window lists cells with sheet, cell, value, and formula. It stays in view across sheets and updates as the sheet is worked out.",
@@ -13380,18 +13368,6 @@
    "en": "Focus mode, `F11`, hides the ribbon, ruler, status bar, and panes and fills the screen. `Esc` or `F11` brings them back.",
    "es": "El modo de concentración, `F11`, oculta la cinta de opciones, la regla, la barra de estado y los paneles, y ocupa toda la pantalla. `Esc` o `F11` los restablece.",
    "fr": "Le mode Focus, `F11`, masque le ruban, la règle, la barre d’état et les volets, et remplit l’écran. `Esc` ou `F11` les ramène.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "51b3056b2a53b608aa87de0d93f2c35adb2c298bf4d255003cb42961f760a265": {
-   "drop": false,
-   "en": "Format paragraphs with bullets (gallery and custom bullet character), numbering (formats and starting number), indents, special characters (show ¶), alignment (left, center, right, justify, and distribute), line spacing, and paragraph spacing. The Paragraph dialog covers indents, spacing, line breaks, tabs, and baseline alignment.",
-   "es": "Dé formato a los párrafos con viñetas (galería y carácter de viñeta personalizado), numeración (formatos y número inicial), sangrías, caracteres especiales (mostrar ¶), alineación (izquierda, centrada, derecha, justificada y distribuida), interlineado y espaciado de párrafo. El cuadro de diálogo Párrafo incluye sangrías, espaciado, saltos de línea, tabulaciones y alineación de línea base.",
-   "fr": "Mettez en forme les paragraphes avec des puces (galerie et caractère de puce personnalisé), la numérotation (formats et numéro de départ), les retraits, les caractères spéciaux (afficher ¶), l’alignement (à gauche, centré, à droite, justifié et réparti), l’interligne et l’espacement des paragraphes. La boîte de dialogue Paragraphe couvre les retraits, l’espacement, les sauts de ligne, les tabulations et l’alignement sur la ligne de base.",
    "soon": {
     "drop": true,
     "en": "",
@@ -13663,18 +13639,6 @@
     "fr": ""
    }
   },
-  "54dca39d7d44bcd1e4971e2bbed72ae2e9f361b503d17e696d40bc632ea0d4fe": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Proofing exceptions and a main dictionary for each language",
-    "es": "Excepciones de revisión y diccionario principal para cada idioma",
-    "fr": "Exceptions de correction et dictionnaire principal pour chaque langue"
-   }
-  },
   "54e4535c33db74d25a162d107ac23bbb8acf5aaef54f648568766150cab18923": {
    "drop": false,
    "en": "Paragraph",
@@ -13721,18 +13685,6 @@
     "en": "Selection pane, align, group, rotate, flip, and snap",
     "es": "Panel de selección, alinear, agrupar, girar, voltear y ajustar",
     "fr": "Volet de sélection, alignement, groupement, rotation, retournement et magnétisme"
-   }
-  },
-  "55302e714a3a4bde745e62c0f8c4926571bc9f3280310ef51bc5e5b19f9840c8": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Choosing each level's options in the program, and drawing picture bullets",
-    "es": "Elección de las opciones de cada nivel en el programa y dibujo de viñetas de imagen",
-    "fr": "Choix des options de chaque niveau dans le programme et affichage des puces image"
    }
   },
   "553acb1ef0f072c9ad28fa881d9938f292def3e339a1656c4387bed6d732f606": {
@@ -14095,6 +14047,18 @@
     "fr": ""
    }
   },
+  "5aa712aee584c1d625431ae200996af56a5a22964943f9b5a1739fba8e6a7151": {
+   "drop": false,
+   "en": "Export to PDF from the File screen, choosing all pages, the current page, or a range, Standard or Minimum size, document properties, and bookmarks from headings. A PDF file also works as a printer in Print.",
+   "es": "Exporte a PDF desde la pantalla Archivo, eligiendo todas las páginas, la página actual o un intervalo, tamaño estándar o mínimo, propiedades del documento y marcadores a partir de los encabezados. Un archivo PDF también funciona como impresora en Imprimir.",
+   "fr": "Exportez en PDF depuis l’écran Fichier en choisissant toutes les pages, la page actuelle ou une plage, la taille standard ou minimale, les propriétés du document et les signets issus des titres. Un fichier PDF fonctionne aussi comme imprimante dans Imprimer.",
+   "soon": {
+    "drop": false,
+    "en": "Document properties in PDFs made by Print, a PDF opened after saving, and size and property switches on the Print page",
+    "es": "Propiedades del documento en los PDF creados con Imprimir, un PDF que se abre tras guardar y opciones de tamaño y propiedades en la página Imprimir",
+    "fr": "Propriétés du document dans les PDF créés par Imprimer, un PDF ouvert après l’enregistrement et des options de taille et de propriétés dans la page Imprimer"
+   }
+  },
   "5ad92e0cb0846a0077b6036caca12b6fbfcf8b3f76887a278a18d160c68c4e0d": {
    "drop": false,
    "en": "View and edit the presentation title, author, subject, keywords, category, comments, company, and manager on the Info page, with the dates created, modified, and printed. The properties are saved in the file, and `Ctrl+Z` undoes an edit.",
@@ -14311,6 +14275,18 @@
     "fr": ""
    }
   },
+  "5d3c0d3e576121f13d8833c812d9d5f7162074757d84218746ecc1d2b9dabd7a": {
+   "drop": false,
+   "en": "Edit the AutoCorrect exceptions lists for abbreviations and for two initial capitals in the AutoCorrect Options window.",
+   "es": "Edite las listas de excepciones de autocorrección para abreviaturas y para dos mayúsculas iniciales en la ventana de opciones de autocorrección.",
+   "fr": "Modifiez les listes d’exceptions de la correction automatique pour les abréviations et les deux majuscules initiales dans la fenêtre d’options de correction automatique.",
+   "soon": {
+    "drop": false,
+    "en": "Spelling check exceptions and a main dictionary for each language",
+    "es": "Excepciones del corrector ortográfico y un diccionario principal para cada idioma",
+    "fr": "Exceptions du correcteur orthographique et dictionnaire principal pour chaque langue"
+   }
+  },
   "5d492c5863f4e2b6fafcdf4186eb520bcf978a9b8776b5d15606234cc62ab79d": {
    "drop": false,
    "en": "Behind the scenes: themes and masters",
@@ -14383,6 +14359,18 @@
     "fr": ""
    }
   },
+  "5e40a1f6da624b7ef37ed962daea459f5a1e99adde25d169425339478ef42b56": {
+   "drop": false,
+   "en": "AutoCorrect Options window with the replacement list, the exceptions lists, and the capital-letter switches; text boxes follow them.",
+   "es": "Ventana de opciones de autocorrección con la lista de reemplazos, las listas de excepciones y los interruptores de mayúsculas; los cuadros de texto los siguen.",
+   "fr": "Fenêtre d’options de correction automatique avec la liste de remplacement, les listes d’exceptions et les options de majuscules ; les zones de texte les suivent.",
+   "soon": {
+    "drop": false,
+    "en": "AutoCorrect math symbols and a language for each text box",
+    "es": "Símbolos matemáticos de autocorrección y un idioma para cada cuadro de texto",
+    "fr": "Symboles mathématiques de correction automatique et une langue pour chaque zone de texte"
+   }
+  },
   "5e58bd4a0a374c91b67a7eca07e1677a0845687dcb343b0354cf5d54a8c7d351": {
    "drop": true,
    "en": "",
@@ -14441,6 +14429,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "5f5b04e69c75aee10f3d69f6629d7b262f62da9f4166877713a24ee48825194e": {
+   "drop": false,
+   "en": "Use your own bullet character with Define New Bullet.",
+   "es": "Use su propio carácter de viñeta con Definir nueva viñeta.",
+   "fr": "Utilisez votre propre caractère de puce avec Définir une nouvelle puce.",
+   "soon": {
+    "drop": false,
+    "en": "Picture bullets",
+    "es": "Viñetas de imagen",
+    "fr": "Puces image"
    }
   },
   "5f844670d287dd3594c4f960328c3b1dbda26c71bf6da50c5d348901e1237768": {
@@ -15787,6 +15787,18 @@
     "fr": ""
    }
   },
+  "6e5592d9f41adf803200f2fdfaea90187975a2aad52b42978777328a098c6c86": {
+   "drop": false,
+   "en": "Save a PDF with bookmarks from headings, tags for screen readers, and PDF/A.",
+   "es": "Guarde un PDF con marcadores a partir de los encabezados, etiquetas para lectores de pantalla y PDF/A.",
+   "fr": "Enregistrez un PDF avec des signets issus des titres, des balises pour les lecteurs d’écran et le format PDF/A.",
+   "soon": {
+    "drop": false,
+    "en": "PDF/X-1a and PDF/X-4 for commercial printers, with a print check",
+    "es": "PDF/X-1a y PDF/X-4 para imprentas comerciales, con verificación de impresión",
+    "fr": "PDF/X-1a et PDF/X-4 pour les imprimeurs professionnels, avec contrôle d’impression"
+   }
+  },
   "6ef07ea5be232551b565df92e5d54e6d92bd3d238744b1024d9f983f6b3bc32f": {
    "drop": false,
    "en": "Merge cells, split cells, and divide a cell with a diagonal; each half holds its own text, which wraps inside its triangle.",
@@ -15919,23 +15931,23 @@
     "fr": ""
    }
   },
+  "7098ac7389e34aaca872db3323b12a059d9c6630059e6cebcc594e83eb008548": {
+   "drop": false,
+   "en": "Export to PDF as PDF/A-2b with all fonts embedded, or as a tagged PDF with paragraphs, headings, lists, tables, and pictures with alt text marked up.",
+   "es": "Exporte a PDF como PDF/A-2b con todas las fuentes incrustadas, o como PDF etiquetado con párrafos, encabezados, listas, tablas e imágenes con texto alternativo.",
+   "fr": "Exportez en PDF/A-2b avec toutes les polices incorporées, ou en PDF balisé avec paragraphes, titres, listes, tableaux et images avec texte de remplacement.",
+   "soon": {
+    "drop": false,
+    "en": "PDF/X-1a and PDF/X-4 for printers",
+    "es": "PDF/X-1a y PDF/X-4 para imprentas",
+    "fr": "PDF/X-1a et PDF/X-4 pour les imprimeurs"
+   }
+  },
   "70a34c0acf6c9db683b9301b8e45758e01500668a5394afc943870301f3ac056": {
    "drop": false,
    "en": "Parts of a file that the app can't edit yet, such as charts, diagrams, equations, and some animation and transition effects, are kept with their slide and written back whole. A duplicated slide keeps them too.",
    "es": "Las partes de un archivo que la aplicación aún no puede editar, como gráficos, diagramas, ecuaciones y algunos efectos de animación y transición, se conservan con su diapositiva y se vuelven a escribir completas. Una diapositiva duplicada también las conserva.",
    "fr": "Les éléments d’un fichier que l’application ne peut pas encore modifier, comme les graphiques, les diagrammes, les équations et certains effets d’animation et de transition, sont conservés avec leur diapositive et réécrits intégralement. Une diapositive dupliquée les conserve aussi.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "70a91e155dd0a344f2d41ecd7e4737767c4deec785a0dd67e9100e3e1547e63c": {
-   "drop": false,
-   "en": "Type and the app fixes text as you go: smart quotes, lists started by typing `1.` or `*`, borders from a row of dashes, ordinals, fractions, dashes, web addresses turned into links, and `*bold*` and `_underline_` marks turned into formatting. Three check boxes in Options > Proofing turn AutoCorrect, smart quotes, and AutoFormat on and off, and one Undo takes back just the last fix.",
-   "es": "Escriba y la aplicación corrige el texto sobre la marcha: comillas tipográficas, listas que comienzan al escribir `1.` o `*`, bordes a partir de una fila de guiones, ordinales, fracciones, guiones largos, direcciones web convertidas en vínculos y marcas `*negrita*` y `_subrayado_` convertidas en formato. Tres casillas en Opciones > Revisión activan y desactivan la autocorrección, las comillas tipográficas y el formato automático, y un solo Deshacer revierte únicamente la última corrección.",
-   "fr": "Saisissez du texte et l’application le corrige au fil de la frappe : guillemets typographiques, listes créées en tapant `1.` ou `*`, bordures à partir d’une rangée de tirets, ordinaux, fractions, tirets, adresses web converties en liens, et marques `*gras*` et `_souligné_` converties en mise en forme. Trois cases à cocher dans Options > Vérification activent et désactivent la correction automatique, les guillemets typographiques et la mise en forme automatique, et une seule action Annuler reprend uniquement la dernière correction.",
    "soon": {
     "drop": true,
     "en": "",
@@ -16891,6 +16903,18 @@
     "fr": ""
    }
   },
+  "7e10528b4cd2ab24d20536ea6cc0dfac50becd363780ad0c1dee1da021666614": {
+   "drop": false,
+   "en": "Export a PDF in which web links, email links, and links to a page in the publication are clickable, on text, shapes, and pictures.",
+   "es": "Exporte un PDF en el que los vínculos web, los vínculos de correo electrónico y los vínculos a una página de la publicación se pueden pulsar, en texto, formas e imágenes.",
+   "fr": "Exportez un PDF dont les liens web, les liens de messagerie et les liens vers une page de la publication sont cliquables, sur du texte, des formes et des images.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "7e167f0e2285a8f8073a10ac0b5b3762061583e006bb43f90c66f847920f2adf": {
    "drop": false,
    "en": "Cells",
@@ -17659,18 +17683,6 @@
     "fr": "Collage de texte RTF"
    }
   },
-  "8a4e7aa1784a0371da6106a832e9d0a6d7c4ff8e7dcfb6be33df6027eb4d3827": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "PDF export with heading bookmarks, screen-reader tags, PDF/A, and PDF/X-1a and PDF/X-4 with a print check",
-    "es": "Exportación a PDF con marcadores de títulos, etiquetas para lectores de pantalla, PDF/A, y PDF/X-1a y PDF/X-4 con verificación de impresión",
-    "fr": "Export PDF avec signets de titres, balises pour lecteurs d’écran, PDF/A, et PDF/X-1a et PDF/X-4 avec contrôle d’impression"
-   }
-  },
   "8a595c96ab44d0fa7af9d6110397e80bd6dbe8fe9376ce2b2cfbc295d8385524": {
    "drop": false,
    "en": "Start from a blank page size, choose more blank page sizes, or create a new page size.",
@@ -17681,18 +17693,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "8a5f0240a133f54636c586ee4f6358988b9a16d233625ac64c6ab874c8146c04": {
-   "drop": false,
-   "en": "Numbered lists with nine levels, level overrides, restart and continue rules, \"start at,\" legal numbering (1.1.1), symbol bullets, the text and tab after a number, and numbering linked to heading styles are read, laid out, and kept.",
-   "es": "Las listas numeradas con nueve niveles, anulaciones de nivel, reglas de reinicio y continuación, \"iniciar en\", numeración legal (1.1.1), viñetas de símbolo, el texto y la tabulación después de un número, y la numeración vinculada a estilos de título se leen, se disponen y se conservan.",
-   "fr": "Les listes numérotées à neuf niveaux, les remplacements de niveau, les règles de redémarrage et de continuation, « commencer à », la numérotation juridique (1.1.1), les puces de symbole, le texte et la tabulation après un numéro, et la numérotation liée aux styles de titre sont lus, mis en page et conservés.",
-   "soon": {
-    "drop": false,
-    "en": "Picture bullets: drawn in lists",
-    "es": "Viñetas de imagen: se dibujan en las listas",
-    "fr": "Puces image : affichées dans les listes"
    }
   },
   "8a8b2f747637f25b3cc0f777c75a0106c0f7a8833bea40c91e2ae683e6a89dba": {
@@ -18931,18 +18931,6 @@
     "fr": ""
    }
   },
-  "9cc4b156b92b3c834623cc58bbc20bb04d513b26ee84827fb0c50b05f32a252f": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Copy and paste of only the visible cells in a filtered or hidden range",
-    "es": "Copiar y pegar solo las celdas visibles en un rango filtrado u oculto",
-    "fr": "Copier-coller des seules cellules visibles dans une plage filtrée ou masquée"
-   }
-  },
   "9d0b6477bdb4b3a244be799016c47df8a491a58d014a971895129af355ecd2a4": {
    "drop": false,
    "en": "Text shrunk to fit is drawn in whole points, with indents, tab stops, letter spacing, exact line spacing, and space in points left as written. Space given as a share of the line follows the size the text is drawn at. It looks the same on screen, in the show, in a PDF, and in an `.odp`.",
@@ -19008,6 +18996,18 @@
    "en": "Encrypt a sheet or workbook PDF export with a password to open it and, if wanted, a second password to limit printing, copying, and changing. The PDF uses AES-256 encryption, and the unprotected PDF is never written to disk. The PDF/A command is unavailable with a password, as that standard forbids one.",
    "es": "Cifre la exportación a PDF de una hoja o de un libro con una contraseña para abrirlo y, si lo desea, una segunda contraseña para limitar la impresión, la copia y los cambios. El PDF usa cifrado AES-256 y el PDF sin protección nunca se escribe en el disco. El comando PDF/A no está disponible con una contraseña, ya que esa norma no la permite.",
    "fr": "Chiffrez l’export PDF d’une feuille ou d’un classeur avec un mot de passe d’ouverture et, si vous le souhaitez, un second mot de passe pour limiter l’impression, la copie et les modifications. Le PDF utilise le chiffrement AES-256, et le PDF non protégé n’est jamais écrit sur le disque. La commande PDF/A n’est pas disponible avec un mot de passe, car cette norme l’interdit.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "9de98434dfb8ed338fd0b4a26f114db8ddec923b2df478d32aa079ef146dfd85": {
+   "drop": false,
+   "en": "Select only the visible cells with `Alt+;` in a filtered or hidden range. Paste and fill into a filtered list go only into the visible rows.",
+   "es": "Seleccione solo las celdas visibles con `Alt+;` en un intervalo filtrado u oculto. Pegar y rellenar en una lista filtrada afecta solo a las filas visibles.",
+   "fr": "Sélectionnez uniquement les cellules visibles avec `Alt+;` dans une plage filtrée ou masquée. Le collage et le remplissage dans une liste filtrée n’atteignent que les lignes visibles.",
    "soon": {
     "drop": true,
     "en": "",
@@ -19339,18 +19339,6 @@
     "fr": ""
    }
   },
-  "a414653d433d227aacf8fe94ba92c9bd86a2f28f6fa60f548a4631ceb72f7cba": {
-   "drop": false,
-   "en": "Export to PDF/A, which makes a PDF/A-1b file with its mark in the metadata.",
-   "es": "Exporte a PDF/A, que genera un archivo PDF/A-1b con su marca en los metadatos.",
-   "fr": "Exportez en PDF/A, ce qui produit un fichier PDF/A-1b avec sa marque dans les métadonnées.",
-   "soon": {
-    "drop": false,
-    "en": "Tagged PDF and PDF/X-1a and PDF/X-4 export",
-    "es": "Exportación a PDF etiquetado y a PDF/X-1a y PDF/X-4",
-    "fr": "Export en PDF balisé et en PDF/X-1a et PDF/X-4"
-   }
-  },
   "a41c89bcdb7c3412708f72de750b5363ea9fac186359da26e61b2e419e24eebc": {
    "drop": false,
    "en": "Save a document as plain text, with UTF-8, UTF-8 with mark, UTF-16, ISO 8859-1, or ASCII encoding and the line endings of either system, or as filtered HTML that keeps headings, bold, italic, underline, strike, superscript, subscript, lists, tables, links, and pictures. Hidden text is left out. A line break falls at each paragraph end.",
@@ -19459,18 +19447,6 @@
     "fr": "Images dans les classeurs : PNG, JPEG, GIF, BMP, TIFF, EMF, WMF et SVG dans `.xlsx` et `.xls`"
    }
   },
-  "a65e6afbcc5ac004ac201ccc8c9333bdc07398ed3db74d13b800aa5355404138": {
-   "drop": false,
-   "en": "Filter rows with drop-down buttons in the header row: pick values with a search box, use text, number, and date filters, filter by color, or set a custom filter of two conditions joined by And or Or.",
-   "es": "Filtre filas con botones desplegables en la fila de encabezado: elija valores con un cuadro de búsqueda, use filtros de texto, número y fecha, filtre por color o defina un filtro personalizado de dos condiciones unidas por Y u O.",
-   "fr": "Filtrez les lignes avec des boutons déroulants dans la ligne d’en-tête : choisissez des valeurs avec une zone de recherche, utilisez des filtres de texte, de nombre et de date, filtrez par couleur ou définissez un filtre personnalisé de deux conditions reliées par Et ou Ou.",
-   "soon": {
-    "drop": false,
-    "en": "Status bar count of matching rows, and filter by icon",
-    "es": "Recuento de filas coincidentes en la barra de estado y filtro por icono",
-    "fr": "Nombre de lignes correspondantes dans la barre d’état et filtre par icône"
-   }
-  },
   "a6634423860d80f0d18028f3c29528b3e2b2b437624e11642feee33749acdf00": {
    "drop": false,
    "en": "Opening a file never changes it. Saving writes a new file beside the old one and replaces it only when complete.",
@@ -19541,6 +19517,18 @@
     "en": "Replace with the clipboard; find by paragraph, tabs, language, or frame",
     "es": "Reemplazo con el portapapeles; búsqueda por párrafo, tabulaciones, idioma o marco",
     "fr": "Remplacement par le presse-papiers ; recherche par paragraphe, tabulations, langue ou cadre"
+   }
+  },
+  "a77de3733b6835283d30f2ab72128d175caef19623462f8ee6b5df3af050cc0b": {
+   "drop": false,
+   "en": "Sort a column A to Z or Z to A, or use Custom Sort with up to eight levels on values, cell color, font color, or conditional format icon, in ascending or descending order or by a list such as months or weekdays. A sort inside a filter or table is kept in the file.",
+   "es": "Ordene una columna de la A a la Z o de la Z a la A, o use Ordenar personalizado con hasta ocho niveles según valores, color de celda, color de fuente o icono de formato condicional, en orden ascendente o descendente o según una lista como meses o días de la semana. Una ordenación dentro de un filtro o una tabla se conserva en el archivo.",
+   "fr": "Triez une colonne de A à Z ou de Z à A, ou utilisez le tri personnalisé sur huit niveaux au plus selon les valeurs, la couleur de cellule, la couleur de police ou l’icône de mise en forme conditionnelle, en ordre croissant ou décroissant ou selon une liste comme les mois ou les jours de la semaine. Un tri dans un filtre ou un tableau est conservé dans le fichier.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "a78e22da01066a8673786cef7d1ffaafeec941998deada19c253f2e234393636": {
@@ -20009,6 +19997,18 @@
     "en": "Gridlines, Formula Bar, and Headings: turn on and off for each sheet",
     "es": "Líneas de cuadrícula, barra de fórmulas y encabezados: activar y desactivar para cada hoja",
     "fr": "Quadrillage, barre de formule et en-têtes : activation et désactivation pour chaque feuille"
+   }
+  },
+  "ae159ced970bf7d91e473761a975a9e6cf844e8955294dd51cc4652bfa8f5dd1": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "ae174e601fc90766748f92b1b6ff576c14f0d330b38b0f0494911b54d896792a": {
@@ -20851,18 +20851,6 @@
     "fr": ""
    }
   },
-  "be561b79c2744603d43d58f7047534117056a88c8e32c3f537a5805f25f7153e": {
-   "drop": false,
-   "en": "Export to PDF from the File screen, or print to a PDF file. The PDF carries the title, author, subject, and keywords, and a bookmark for each heading, nested by level. You can export all pages, the current page, or a range, including `p2s3` and `s3`.",
-   "es": "Exporte a PDF desde la pantalla Archivo o imprima en un archivo PDF. El PDF incluye el título, el autor, el asunto y las palabras clave, y un marcador por cada encabezado, anidado por nivel. Usted puede exportar todas las páginas, la página actual o un intervalo, incluidos `p2s3` y `s3`.",
-   "fr": "Exportez en PDF depuis l’écran Fichier, ou imprimez vers un fichier PDF. Le PDF contient le titre, l’auteur, le sujet et les mots-clés, ainsi qu’un signet pour chaque titre, imbriqué par niveau. Vous pouvez exporter toutes les pages, la page active ou une plage, y compris `p2s3` et `s3`.",
-   "soon": {
-    "drop": false,
-    "en": "Standard and minimum PDF sizes, and page ranges when printing to PDF",
-    "es": "Tamaños de PDF estándar y mínimo, e intervalos de páginas al imprimir a PDF",
-    "fr": "Tailles de PDF standard et minimale, et plages de pages lors de l’impression en PDF"
-   }
-  },
   "be8d1847086831d9e1b85784519accc70489c392069808435797074f7bc5292a": {
    "drop": false,
    "en": "Design tab",
@@ -20873,18 +20861,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "bea3cbbbccd6da7675a8d8b1228d7458c5660e92660c53c829a150d538ef9167": {
-   "drop": false,
-   "en": "Hyphenate automatically or manually, by language, and insert optional hyphens (Insert Optional Hyphen, and Add Optional Hyphens for a whole word). Nonbreaking spaces and hyphens in the text are respected when lines break.",
-   "es": "Aplique guiones automática o manualmente, por idioma, e inserte guiones opcionales (Insertar guion opcional y Agregar guiones opcionales para una palabra completa). Los espacios y guiones de no separación del texto se respetan al dividir las líneas.",
-   "fr": "Césurez automatiquement ou manuellement, par langue, et insérez des traits d’union facultatifs (Insérer un trait d’union facultatif et Ajouter des traits d’union facultatifs pour un mot entier). Les espaces et traits d’union insécables du texte sont respectés lors des retours à la ligne.",
-   "soon": {
-    "drop": false,
-    "en": "Nonbreaking spaces and hyphens: insert by command or key",
-    "es": "Espacios y guiones de no separación: insertar con un comando o una tecla",
-    "fr": "Espaces et traits d’union insécables : insertion par commande ou touche"
    }
   },
   "bea7657e37bcebfaf5305cd8db6cd49e2f176b9a1df203e4665dbe8d3c568fc3": {
@@ -21127,6 +21103,18 @@
     "fr": "Substitution de polices : choix du remplacement d’une police manquante, avec une note quand un document en a besoin"
    }
   },
+  "c1ed9a282a17cb44bf5f6e7b5db4bccc15d9255ec18a147a679ce23fcd2cab92": {
+   "drop": false,
+   "en": "Edit the AutoCorrect replacement list, the exceptions, and the capital-letter switches in Options > Proofing.",
+   "es": "Edite la lista de reemplazos de autocorrección, las excepciones y los interruptores de mayúsculas en Opciones > Revisión.",
+   "fr": "Modifiez la liste de remplacement de la correction automatique, les exceptions et les options de majuscules dans Options > Vérification.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "c20378e1a6d2629a4ca7e177b3fababe80db39c2990d152e9bcfdf6130d4f23f": {
    "drop": false,
    "en": "Use the operators `+ - * / ^ &`, percent, negation, comparison, and the reference operators colon (range), space (shared cells), and comma (union). Text compares without regard to case, and negation binds tighter than the power, so `=-2^2` is 4.",
@@ -21221,6 +21209,18 @@
     "en": "`RATE` and `DB`",
     "es": "`RATE` y `DB`",
     "fr": "`RATE` et `DB`"
+   }
+  },
+  "c32ef0d8191cf5cbf06261e703d5521812110b9340de63d3abd2ccb6345a6701": {
+   "drop": false,
+   "en": "Set text direction to horizontal or rotated 90 or 270 degrees on the Format Shape pane.",
+   "es": "Defina la dirección del texto como horizontal o girada 90 o 270 grados en el panel Formato de forma.",
+   "fr": "Réglez le sens du texte à l’horizontale ou pivoté de 90 ou 270 degrés dans le volet Format de la forme.",
+   "soon": {
+    "drop": false,
+    "en": "Stacked text direction",
+    "es": "Dirección de texto apilada",
+    "fr": "Sens du texte empilé"
    }
   },
   "c336a3e3503373ebeb85d100dd5c1c53553ef83b204e0e0aeac6a049ad9984ca": {
@@ -22459,6 +22459,18 @@
     "fr": ""
    }
   },
+  "d2c308adaf9454cb5982bb1a5cd2dcf610c91b8bf6d654fdada54d4c1ea5e922": {
+   "drop": false,
+   "en": "Start a numbered list from the Home tab. Lists in files keep their number formats.",
+   "es": "Inicie una lista numerada desde la pestaña Inicio. Las listas de los archivos conservan sus formatos de número.",
+   "fr": "Démarrez une liste numérotée depuis l’onglet Accueil. Les listes des fichiers conservent leurs formats de numéro.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "d2d26d34661cf2d2bfecbc2f35a22a6e1f3bbb534cdf72e2bad35a972ce2357f": {
    "drop": false,
    "en": "Right-click a picture to set text wrapping and alt text. Right-click an object to group or ungroup it.",
@@ -22555,18 +22567,6 @@
     "fr": "Autres commandes du menu du diaporama : Voir toutes les diapositives, Dernière vue, Afficher le mode Présentateur, Zoom sur la diapositive, Options de flèche, Notes du présentateur et Paramètres des sous-titres"
    }
   },
-  "d3acf8d85665b652e8ae826a25664eb0808ddac59d44a331aed6f1465186fbab": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Links in a PDF: clickable hyperlinks from the publication",
-    "es": "Vínculos en un PDF: hipervínculos de la publicación en los que se puede hacer clic",
-    "fr": "Liens dans un PDF : hyperliens de la publication sur lesquels cliquer"
-   }
-  },
   "d3dad535f086d11de90ebc213eb818f9e8a270329fb411ebd8781696b43a3437": {
    "drop": false,
    "en": "In the Check group, run the design checker and set hyphenation (automatic hyphenation, insert an optional hyphen, add optional hyphens), next to word count.",
@@ -22577,6 +22577,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "d3ebd535462e4b0b9b1ef984ada957dfe6eb578e40980368ffe8504cfb005b47": {
+   "drop": false,
+   "en": "Filter with drop-down buttons in the header row: value lists with search, text, number, and date filters, top 10, above and below average, color filters, and a custom filter of two conditions joined by And or Or. Hidden rows keep their row numbers.",
+   "es": "Filtre con botones desplegables en la fila de encabezado: listas de valores con búsqueda, filtros de texto, número y fecha, los 10 mejores, por encima y por debajo del promedio, filtros por color y un filtro personalizado de dos condiciones unidas por Y u O. Las filas ocultas conservan sus números de fila.",
+   "fr": "Filtrez avec des boutons déroulants dans la ligne d’en-tête : listes de valeurs avec recherche, filtres de texte, de nombre et de date, 10 premiers, au-dessus et au-dessous de la moyenne, filtres par couleur et filtre personnalisé de deux conditions reliées par Et ou Ou. Les lignes masquées gardent leur numéro de ligne.",
+   "soon": {
+    "drop": false,
+    "en": "Status bar count of matching rows, and filter by icon",
+    "es": "Recuento de filas coincidentes en la barra de estado y filtro por icono",
+    "fr": "Nombre de lignes correspondantes dans la barre d’état et filtre par icône"
    }
   },
   "d407f20b5919cee18c64954bd0b94d888902bf3ac90007cbaf9fe226e8590cd8": {
@@ -23215,18 +23227,6 @@
     "fr": ""
    }
   },
-  "dcfdec86af12db230428b7b19394a0195df2bd0bbd778a8af16569b903ae4ed5": {
-   "drop": false,
-   "en": "Text shrinks to fit its placeholder, a shape can grow to fit its text, and the Format Shape pane sets how text fits, margins, wrap, and columns for text boxes.",
-   "es": "El texto se reduce para ajustarse a su marcador de posición, una forma puede crecer para ajustarse a su texto y el panel Formato de forma define el ajuste del texto, los márgenes, el ajuste de línea y las columnas de los cuadros de texto.",
-   "fr": "Le texte se réduit pour tenir dans son espace réservé, une forme peut s’agrandir pour s’adapter à son texte, et le volet Format de la forme règle l’ajustement du texte, les marges, le retour à la ligne et les colonnes des zones de texte.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "dd3bca86b1f0876bc12137a8e0cdb99d528bdd5029d8181c59464f0f67cb05a4": {
    "drop": false,
    "en": "Additional effect options: smooth start and end, Repeat, Rewind when done playing, Text Animation (All at once or By paragraph), and Hide after the effect.",
@@ -23335,6 +23335,18 @@
     "fr": ""
    }
   },
+  "def40f074064e5efbcf90344321c1de05e2fceadd6afb4804f5e044442bea345": {
+   "drop": false,
+   "en": "Fix text as you type: smart quotes, lists started by typing `1.`, `a)`, `*`, or `-`, borders from a row of dashes, ordinals, fractions, dashes, web addresses turned into links, and `*bold*` and `_underline_` marks turned into formatting. One Undo takes back just the fix.",
+   "es": "Corrija el texto mientras escribe: comillas tipográficas, listas iniciadas al escribir `1.`, `a)`, `*` o `-`, bordes a partir de una fila de guiones, ordinales, fracciones, guiones, direcciones web convertidas en vínculos y marcas `*negrita*` y `_subrayado_` convertidas en formato. Un solo Deshacer revierte únicamente la corrección.",
+   "fr": "Corrigez le texte pendant la frappe : guillemets typographiques, listes lancées en tapant `1.`, `a)`, `*` ou `-`, bordures à partir d’une ligne de tirets, ordinaux, fractions, tirets, adresses web transformées en liens, et marques `*gras*` et `_souligné_` converties en mise en forme. Une seule annulation ne retire que la correction.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "defef9ab8be203e681e4541094aafd5c0871c5421cf181e8a0543c455e88cdf8": {
    "drop": false,
    "en": "Set a solid background color for this slide or all slides, applied also to slides and layouts that had their own. In Slide Master view it formats the master or layout being edited.",
@@ -23424,6 +23436,18 @@
    "en": "",
    "es": "",
    "fr": "",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "e0c283b355f63d4a3d562af689e15be69bd9a7e463ee4331c7d00f9055f37260": {
+   "drop": false,
+   "en": "Lists with nine levels, level overrides, restart and continue rules, start at, legal numbering, symbol and picture bullets, the text and tab after a number, and numbering linked to heading styles, all read and kept in files.",
+   "es": "Listas de nueve niveles, anulaciones de nivel, reglas de reinicio y continuación, valor inicial, numeración legal, viñetas de símbolo y de imagen, el texto y la tabulación después de un número, y numeración vinculada a estilos de título, todo leído y conservado en los archivos.",
+   "fr": "Listes à neuf niveaux, remplacements de niveau, règles de redémarrage et de continuation, valeur de départ, numérotation légale, puces symbole et image, texte et tabulation après un numéro, et numérotation liée aux styles de titre, le tout lu et conservé dans les fichiers.",
    "soon": {
     "drop": true,
     "en": "",
@@ -23748,6 +23772,18 @@
    "en": "Work with frames for text boxes, pictures, shapes, lines, arrows, tables, text styles, groups, and embedded objects.",
    "es": "Trabaje con marcos para cuadros de texto, imágenes, formas, líneas, flechas, tablas, estilos de texto, grupos y objetos incrustados.",
    "fr": "Travaillez avec des cadres pour les zones de texte, images, formes, lignes, flèches, tableaux, styles de texte, groupes et objets incorporés.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "e565ca9af4cba8c31046c9697a7f0bc7a4374a68e8bb19421a5680d41c2f2ef8": {
+   "drop": false,
+   "en": "Insert nonbreaking spaces, nonbreaking hyphens, and optional hyphens from the Insert > Symbol menu. Lines break at an optional hyphen only when needed.",
+   "es": "Inserte espacios de no separación, guiones de no separación y guiones opcionales desde el menú Insertar > Símbolo. Las líneas se cortan en un guion opcional solo cuando es necesario.",
+   "fr": "Insérez des espaces insécables, des traits d’union insécables et des traits d’union conditionnels depuis le menu Insertion > Symbole. Les lignes ne se coupent à un trait d’union conditionnel que lorsque c’est nécessaire.",
    "soon": {
     "drop": true,
     "en": "",
@@ -24331,6 +24367,18 @@
     "fr": ""
    }
   },
+  "ecd22afbdf0c4b9772ec879b4cd6d9c28df0a7e69711162ff082e62ac7b7ef73": {
+   "drop": false,
+   "en": "Add bullets and numbered lists, including multilevel lists with up to nine levels. Define your own bullet or number format, and change a list level with `Tab` and `Shift+Tab`. Bullet and number settings are kept in `.pptx` and `.odp` files.",
+   "es": "Agregue viñetas y listas numeradas, incluidas listas multinivel de hasta nueve niveles. Defina su propia viñeta o formato de número y cambie el nivel de una lista con `Tab` y `Shift+Tab`. Los ajustes de viñetas y numeración se conservan en archivos `.pptx` y `.odp`.",
+   "fr": "Ajoutez des puces et des listes numérotées, y compris des listes à plusieurs niveaux jusqu’à neuf niveaux. Définissez votre propre puce ou format de numéro et changez le niveau d’une liste avec `Tab` et `Maj+Tab`. Les réglages des puces et de la numérotation sont conservés dans les fichiers `.pptx` et `.odp`.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "ece40f16626684f64082dd5efec8558d95a1cbfd4010af5a591580b8b56b0de5": {
    "drop": true,
    "en": "",
@@ -24425,18 +24473,6 @@
     "en": "Selection: several ranges with `Ctrl`, current region, End mode, and `F5`",
     "es": "Selección: varios rangos con `Ctrl`, región actual, modo Fin y `F5`",
     "fr": "Sélection : plusieurs plages avec `Ctrl`, région courante, mode Fin et `F5`"
-   }
-  },
-  "eeb34b026351a504e51c6ad49a135ccbb5dc718d43fb88b7c10a4f95f450de71": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
    }
   },
   "eed310de942dd127bb1801c1f59eb181b3ed57227c706f790e1065289c55cfde": {
@@ -25344,18 +25380,6 @@
    "en": "Save publications in an open, fully documented file format: a `.jpub` file is a ZIP of readable JSON and the source pictures. Open and save `.pub` files as well.",
    "es": "Guarde las publicaciones en un formato de archivo abierto y totalmente documentado: un archivo `.jpub` es un ZIP con JSON legible y las imágenes de origen. También puede abrir y guardar archivos `.pub`.",
    "fr": "Enregistrez vos publications dans un format de fichier ouvert et entièrement documenté : un fichier `.jpub` est un ZIP contenant du JSON lisible et les images d’origine. Vous pouvez aussi ouvrir et enregistrer des fichiers `.pub`.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "fba88ee1b7e7310ea3c47183e285857b727a591fd2cccb70e2c6ed8559cd3d72": {
-   "drop": false,
-   "en": "Start a bulleted list from the Home tab.",
-   "es": "Inicie una lista con viñetas desde la pestaña Inicio.",
-   "fr": "Commencez une liste à puces depuis l’onglet Accueil.",
    "soon": {
     "drop": true,
     "en": "",
