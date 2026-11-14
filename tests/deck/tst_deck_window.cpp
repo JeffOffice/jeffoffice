@@ -14,17 +14,17 @@ class DeckWindowTests : public QObject {
     Q_OBJECT
 
 private Q_SLOTS:
-    // The quick access toolbar starts with Save, as in the other apps.
-    void theQuickAccessToolbarStartsWithSave()
+    // The quick access toolbar starts with Open, as in the other apps.
+    void theQuickAccessToolbarStartsWithOpen()
     {
         DeckWindow w;
         const QList<QToolButton *> buttons = w.ribbon()->quickAccessButtons();
         QVERIFY(!buttons.isEmpty());
         QVERIFY(buttons.first()->defaultAction());
-        QCOMPARE(buttons.first()->defaultAction(), w.act(QStringLiteral("file.save")));
+        QCOMPARE(buttons.first()->defaultAction(), w.act(QStringLiteral("file.open")));
     }
 
-    // The same command has the same name in all four apps: Spelling, Word Count, Find's two options, and a quick toolbar that starts with Save, Undo, and Redo.
+    // The same command has the same name in all four apps: Spelling, Word Count, Find's two options, and the same quick toolbar (Open, Save, Print, Undo, Redo, Cut, Copy, Paste).
     void commandsUseTheSuitesWords()
     {
         DeckWindow w;
@@ -37,7 +37,7 @@ private Q_SLOTS:
         QCOMPARE(w.findPane()->wholeWords()->text(), QStringLiteral("Find whole words only"));
         QList<QAction *> quick;
         for (QToolButton *b : w.ribbon()->quickAccessButtons()) quick << b->defaultAction();
-        QCOMPARE(quick.mid(0, 3), (QList<QAction *>{w.act(QStringLiteral("file.save")), w.act(QStringLiteral("edit.undo")), w.act(QStringLiteral("edit.redo"))}));
+        QCOMPARE(quick, (QList<QAction *>{w.act(QStringLiteral("file.open")), w.act(QStringLiteral("file.save")), w.act(QStringLiteral("file.print")), w.act(QStringLiteral("edit.undo")), w.act(QStringLiteral("edit.redo")), w.act(QStringLiteral("edit.cut")), w.act(QStringLiteral("edit.copy")), w.act(QStringLiteral("edit.paste"))}));
     }
 
     void initTestCase() { initDeckTestCase(); }
