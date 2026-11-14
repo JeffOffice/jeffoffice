@@ -1672,6 +1672,13 @@ private Q_SLOTS:
     void theSharedAutoCorrectRulesSayWhatToPutInPlaceOfWhat();
     void typingFixesSlipsSymbolsAndSentenceCapitalsAndOneUndoTakesJustTheFix();
     void typingMakesDashesFractionsAndRaisedOrdinalsAndOneUndoTakesJustThat();
+    void theReplacementListHasArrowsAndEllipsesAndIsTheStoredListOfTheLanguage();
+    void eachAutoCorrectCapitalizationSwitchTurnsItsOwnRuleOnAndOff();
+    void theFirstLetterOfATableCellIsCapitalizedWhenThatSwitchIsOn();
+    void quotesFollowTheLanguageOfTheText();
+    void typingALetterAndAParenthesisAndASpaceStartsANumberedListAndTheSwitchesTurnTheRulesOff();
+    void theSharedAutoCorrectConfigIsAPlainValueWithListsPerLanguage();
+    void theAutoCorrectDialogAddsChangesDeletesAndRestoresEntriesAndKeepsThemInTheSettings();
     void typingOneAndAPeriodOrAStarAndASpaceStartsAListInWritesOwnListModelAndOneUndoTakesItBack();
     void aRowOfDashesAndEnterGivesTheParagraphABottomBorderAndOneUndoTakesItBack();
     void aWebOrEmailAddressFollowedBySpaceBecomesALinkAndOneUndoTakesTheLinkBack();

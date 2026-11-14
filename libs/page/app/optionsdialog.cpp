@@ -4,6 +4,7 @@
 #include "app/optionsdialog.h"
 
 #include "app/appwords.h"
+#include "app/autocorrectdialog.h"
 #include "app/editor.h"
 #include "app/appwindow.h"
 #include "app/filetasks.h"
@@ -205,6 +206,13 @@ bool optionsDialog(QWidget *p, Editor *, const QVector<OptionsPage> &appPages, b
     pf->addRow(ignoreUpper);
     pf->addRow(ignoreNum);
     pf->addRow(autocorrect);
+    auto *autocorrectOptions = new QPushButton(QCoreApplication::translate("Dialogs", "AutoCorrect Options..."), proof);
+    autocorrectOptions->setObjectName(QStringLiteral("autoCorrectOptionsButton"));
+    QObject::connect(autocorrectOptions, &QPushButton::clicked, &dlg.d, [&dlg, &st] {
+        const QString ui = st.value("ui/language").toString();
+        autoCorrectDialog(&dlg.d, !ui.isEmpty() ? ui : QLocale().language() == QLocale::C ? QStringLiteral("en-US") : QLocale().name());
+    });
+    pf->addRow(autocorrectOptions);
     pf->addRow(quotes);
     pf->addRow(autoformat);
     pf->addRow(autolink);

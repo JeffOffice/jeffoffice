@@ -1,7 +1,9 @@
 #include "core/autoops.h"
 
+#include "app/autocorrectconfig.h"
 #include "core/editops.h"
 #include "core/linkops.h"
+#include "core/tableops.h"
 #include "core/wordformat.h"
 #include "core/writeprops.h"
 #include "text/autocorrect.h"
@@ -56,6 +58,13 @@ Visible visibleBefore(const QTextBlock &b, int end)
     return v;
 }
 
+// The language of the text at the caret: the run's own, or the document's.
+QString languageAt(const WriteDoc &doc, const QTextCursor &c)
+{
+    const QString own = c.charFormat().stringProperty(tp::Language);
+    return own.isEmpty() ? doc.proofingLanguage() : own;
+}
+
 // The shown text of the paragraph up to the separator that was just typed (the caret is after it).
 Visible beforeSeparator(const QTextCursor &c) { return visibleBefore(c.block(), c.position() - 1); }
 
@@ -72,7 +81,7 @@ void typeText(WriteDoc &doc, QTextCursor &c, const QString &text, const AutoOpti
     if (options.quotes && (typed == QLatin1String("\"") || typed == QLatin1String("'"))) {
         // (Over a selection, the quote is chosen by what is before the selection.)
         const Visible before = visibleBefore(c.block(), c.selectionStart());
-        typed = autotext::smartQuote(typed, before.text.isEmpty() ? QChar() : before.text.back());
+        typed = autotext::smartQuote(typed, before.text.isEmpty() ? QChar() : before.text.back(), languageAt(doc, c));
     }
     if (c.hasSelection()) {
         insertText(doc, c, typed);
@@ -86,7 +95,7 @@ void typeText(WriteDoc &doc, QTextCursor &c, const QString &text, const AutoOpti
     if (options.format && typed == QLatin1String(" ") && listKindOf(doc, c.block()) == ListKind::None) {
         const Visible before = beforeSeparator(c);
         const auto list = autotext::listStart(before.text);
-        if (list && (!list->numbered || (list->number == 1 && !list->paren))) {
+        if (list && (!list->numbered || list->number == 1)) {
             const WriteDoc::StepGroup group(doc);
             QTextCursor mark(story);
             mark.setPosition(c.block().position());
@@ -100,7 +109,7 @@ void typeText(WriteDoc &doc, QTextCursor &c, const QString &text, const AutoOpti
     const WriteDoc::StepGroup group(doc);
     if (options.correct) {
         const Visible before = beforeSeparator(c);
-        if (const auto fix = autotext::correctWord(before.text, int(before.text.size()), options.quotes)) {
+        if (const auto fix = autotext::correctWord(before.text, int(before.text.size()), options.quotes, autoCorrectConfig(languageAt(doc, c)), inTable(c.block()))) {
             QTextCursor r = before.range(story, fix->from, fix->to);
             insertText(doc, r, fix->with);
         }

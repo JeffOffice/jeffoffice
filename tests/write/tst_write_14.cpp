@@ -4,6 +4,13 @@
 #include "app/grammarcheck.h"
 #include "core/linkops.h"
 #include "text/autocorrect.h"
+#include "app/autocorrectconfig.h"
+#include "app/autocorrectdialog.h"
+#include <QCheckBox>
+#include <QComboBox>
+#include <QLineEdit>
+#include <QPushButton>
+#include <QTableWidget>
 
 namespace {
 struct Typer {
@@ -84,6 +91,206 @@ void WriteTests::typingFixesSlipsSymbolsAndSentenceCapitalsAndOneUndoTakesJustTh
     Typer v;
     v.type(QStringLiteral("teh \"x\" "));
     QCOMPARE(v.text(), QStringLiteral("teh \"x\" "));
+}
+
+// The replacement list: more symbols, the person's own entries (one list for each language), and one Undo takes back just a replacement.
+void WriteTests::theReplacementListHasArrowsAndEllipsesAndIsTheStoredListOfTheLanguage()
+{
+    Typer t;
+    t.type(QStringLiteral("a -> b and wait... (r) (tm) "));
+    QCOMPARE(t.text(), QStringLiteral("A → b and wait… ® ™ "));
+    // The person's own list takes the place of the one that came with the program.
+    const SettingGuard own(QStringLiteral("proof/ac/replace/en"), QStringList{QStringLiteral("brb\tbe right back"), QStringLiteral("(c)\tcopyright")}, QStringList());
+    Typer u;
+    u.type(QStringLiteral("so brb (c) teh"));
+    QCOMPARE(u.text(), QStringLiteral("So be right back copyright teh"));
+    u.type(QStringLiteral(" "));
+    QCOMPARE(u.text(), QStringLiteral("So be right back copyright teh "));
+    Typer v;
+    v.type(QStringLiteral("so brb"));
+    v.type(QStringLiteral(" "));
+    QCOMPARE(v.text(), QStringLiteral("So be right back "));
+    v.view.undo();
+    QCOMPARE(v.text(), QStringLiteral("So brb "));
+}
+
+void WriteTests::eachAutoCorrectCapitalizationSwitchTurnsItsOwnRuleOnAndOff()
+{
+    // Names of days.
+    Typer t;
+    t.type(QStringLiteral("see you on monday and tuesday "));
+    QCOMPARE(t.text(), QStringLiteral("See you on Monday and Tuesday "));
+    // An accidental cAPS LOCK: the word comes out as it was meant.
+    Typer u;
+    u.type(QStringLiteral("so cAPS LOCK was on "));
+    QCOMPARE(u.text(), QStringLiteral("So Caps LOCK was on "));
+    // Two initial capitals, but not words on the list of exceptions.
+    Typer v;
+    v.type(QStringLiteral("the THursday IDs "));
+    QCOMPARE(v.text(), QStringLiteral("The Thursday IDs "));
+    {
+        const SettingGuard own(QStringLiteral("proof/ac/initialExceptions/en"), QStringList{QStringLiteral("THursday")}, QStringList());
+        Typer w;
+        w.type(QStringLiteral("the THursday IDs "));
+        QCOMPARE(w.text(), QStringLiteral("The THursday Ids "));
+    }
+    // Abbreviations that do not end a sentence.
+    Typer x;
+    x.type(QStringLiteral("Ask Mr. smith, e.g. bob. then go "));
+    QCOMPARE(x.text(), QStringLiteral("Ask Mr. smith, e.g. bob. Then go "));
+    {
+        const SettingGuard own(QStringLiteral("proof/ac/exceptions/en"), QStringList{QStringLiteral("e.g.")}, QStringList());
+        Typer y;
+        y.type(QStringLiteral("Ask Mr. smith "));
+        QCOMPARE(y.text(), QStringLiteral("Ask Mr. Smith "));
+    }
+    // Each switch.
+    {
+        const SettingGuard a(QStringLiteral("proof/ac/days"), false, true), b(QStringLiteral("proof/ac/capsLock"), false, true), c(QStringLiteral("proof/ac/twoInitials"), false, true),
+            d(QStringLiteral("proof/ac/sentences"), false, true);
+        Typer z;
+        z.type(QStringLiteral("on monday cAPS THursday ok. no "));
+        QCOMPARE(z.text(), QStringLiteral("on monday cAPS THursday ok. no "));
+    }
+    {
+        const SettingGuard off(QStringLiteral("proof/ac/replaceText"), false, true);
+        Typer z;
+        z.type(QStringLiteral("a teh -> "));
+        QCOMPARE(z.text(), QStringLiteral("A teh -> "));
+    }
+}
+
+void WriteTests::theFirstLetterOfATableCellIsCapitalizedWhenThatSwitchIsOn()
+{
+    auto typeInCell = [](const QString &words) {
+        auto doc = open(tableDocx(1, 1));
+        PageView view;
+        view.resize(1000, 900);
+        view.show();
+        view.setDocument(doc.get());
+        view.paginateAll();
+        QTextBlock cell = doc->story()->firstBlock();
+        while (cell.isValid() && cell.text() != QLatin1String("r0c0")) cell = cell.next();
+        QTextCursor c(doc->story());
+        c.setPosition(cell.position());
+        c.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
+        view.setCursor(c);
+        QTest::keyClick(&view, Qt::Key_Delete);
+        QTest::keyClicks(&view, words);
+        return view.cursor().block().text();
+    };
+    QCOMPARE(typeInCell(QStringLiteral("hello there ")), QStringLiteral("Hello there "));
+    const SettingGuard noCells(QStringLiteral("proof/ac/cells"), false, true);
+    QCOMPARE(typeInCell(QStringLiteral("hello there ")), QStringLiteral("hello there "));
+}
+
+void WriteTests::quotesFollowTheLanguageOfTheText()
+{
+    auto typeIn = [](const char *lang, const QString &words) {
+        Typer t(QByteArray("<w:p><w:r><w:rPr><w:lang w:val=\"") + lang + "\"/></w:rPr><w:t xml:space=\"preserve\">A </w:t></w:r></w:p>");
+        t.type(words);
+        return t.doc->story()->firstBlock().text();   // (the story's text turns a no-break space into a space)
+    };
+    QCOMPARE(typeIn("en-US", QStringLiteral("\"hi\" 'x' it's")), QStringLiteral("A “hi” ‘x’ it’s"));
+    QCOMPARE(typeIn("de-DE", QStringLiteral("\"hi\" 'x'")), QStringLiteral("A „hi“ ‚x‘"));
+    const QString nb(QChar(0x00A0));
+    QCOMPARE(typeIn("fr-FR", QStringLiteral("\"oui\"")), QStringLiteral("A «") + nb + QStringLiteral("oui") + nb + QStringLiteral("»"));
+    QCOMPARE(typeIn("fr-CA", QStringLiteral("\"oui\"")), QStringLiteral("A «") + nb + QStringLiteral("oui") + nb + QStringLiteral("»"));
+}
+
+void WriteTests::typingALetterAndAParenthesisAndASpaceStartsANumberedListAndTheSwitchesTurnTheRulesOff()
+{
+    Typer t;
+    t.type(QStringLiteral("a) First"));
+    QCOMPARE(t.text(), QStringLiteral("First"));
+    QCOMPARE(listKindOf(*t.doc, t.doc->story()->firstBlock()), ListKind::Numbers);
+    Typer u;
+    u.type(QStringLiteral("- Item"));
+    QCOMPARE(listKindOf(*u.doc, u.doc->story()->firstBlock()), ListKind::Bullets);
+    Typer v;
+    v.type(QStringLiteral("b) not a start"));
+    QCOMPARE(listKindOf(*v.doc, v.doc->story()->firstBlock()), ListKind::None);
+    const SettingGuard noFormat(QStringLiteral("proof/autoformat"), false, true);
+    Typer w;
+    w.type(QStringLiteral("a) x"));
+    QCOMPARE(w.text(), QStringLiteral("A) x"));   // (AutoCorrect still capitalizes)
+    QCOMPARE(listKindOf(*w.doc, w.doc->story()->firstBlock()), ListKind::None);
+}
+
+void WriteTests::theSharedAutoCorrectConfigIsAPlainValueWithListsPerLanguage()
+{
+    using namespace jp::autotext;
+    QCOMPARE(baseLanguage(QStringLiteral("fr-CA")), QStringLiteral("fr"));
+    QCOMPARE(baseLanguage(QString()), QStringLiteral("en"));
+    Config en = defaultConfig(QStringLiteral("en-US"));
+    QVERIFY(en.replacements.contains({QStringLiteral("teh"), QStringLiteral("the")}));
+    QVERIFY(en.replacements.contains({QStringLiteral("->"), QStringLiteral("→")}));
+    const Config fr = defaultConfig(QStringLiteral("fr-FR"));
+    QVERIFY(!fr.replacements.contains({QStringLiteral("teh"), QStringLiteral("the")}));
+    QVERIFY(fr.replacements.contains({QStringLiteral("(c)"), QStringLiteral("©")}));
+    QVERIFY(!correctWord(QStringLiteral("say teh"), 7, true, fr));
+    en.replacements.append({QStringLiteral("brb"), QStringLiteral("be right back")});
+    QCOMPARE(correctWord(QStringLiteral("so brb"), 6, true, en)->with, QStringLiteral("be right back"));
+    QCOMPARE(smartQuote(QStringLiteral("\""), QChar(), QStringLiteral("de-DE")), QStringLiteral("„"));
+    QCOMPARE(smartQuote(QStringLiteral("\""), QLatin1Char('x'), QStringLiteral("de")), QStringLiteral("“"));
+    QVERIFY(listStart(QStringLiteral("a)")) && listStart(QStringLiteral("a)"))->letter);
+}
+
+// The AutoCorrect dialog: add, change, delete, and restore; the lists of a language are kept for that language alone.
+void WriteTests::theAutoCorrectDialogAddsChangesDeletesAndRestoresEntriesAndKeepsThemInTheSettings()
+{
+    const SettingGuard replaceEn(QStringLiteral("proof/ac/replace/en"), QStringList(), QStringList()), replaceFr(QStringLiteral("proof/ac/replace/fr"), QStringList(), QStringList()),
+        initialEn(QStringLiteral("proof/ac/initialExceptions/en"), QStringList(), QStringList()), days(QStringLiteral("proof/ac/days"), true, true);
+    jp::AutoCorrectPage page(QStringLiteral("en-US"));
+    page.show();
+    auto *table = page.findChild<QTableWidget *>(QStringLiteral("replacements"));
+    QVERIFY(table);
+    auto rowOf = [&](const QString &key) {
+        for (int i = 0; i < table->rowCount(); ++i)
+            if (table->item(i, 0)->text() == key) return i;
+        return -1;
+    };
+    QVERIFY(rowOf(QStringLiteral("teh")) >= 0);
+    // Add.
+    page.findChild<QLineEdit *>(QStringLiteral("replaceFrom"))->setText(QStringLiteral("brb"));
+    page.findChild<QLineEdit *>(QStringLiteral("replaceWith"))->setText(QStringLiteral("be right back"));
+    page.findChild<QPushButton *>(QStringLiteral("addReplacement"))->click();
+    QVERIFY(rowOf(QStringLiteral("brb")) >= 0);
+    // Change: the same word again.
+    page.findChild<QLineEdit *>(QStringLiteral("replaceWith"))->setText(QStringLiteral("back soon"));
+    page.findChild<QPushButton *>(QStringLiteral("addReplacement"))->click();
+    QCOMPARE(table->item(rowOf(QStringLiteral("brb")), 1)->text(), QStringLiteral("back soon"));
+    // Delete.
+    const int teh = rowOf(QStringLiteral("teh"));
+    table->setCurrentCell(teh, 0);
+    page.findChild<QPushButton *>(QStringLiteral("deleteReplacement"))->click();
+    QCOMPARE(rowOf(QStringLiteral("teh")), -1);
+    // An exception word, and the switch for days.
+    page.findChild<QLineEdit *>(QStringLiteral("initialListEdit"))->setText(QStringLiteral("THursday"));
+    page.findChild<QPushButton *>(QStringLiteral("initialListAdd"))->click();
+    page.findChild<QCheckBox *>(QStringLiteral("capDays"))->setChecked(false);
+    // Another language has a list of its own.
+    auto *languages = page.findChild<QComboBox *>(QStringLiteral("autoCorrectLanguage"));
+    languages->setCurrentIndex(languages->findData(QStringLiteral("fr")));
+    QCOMPARE(rowOf(QStringLiteral("brb")), -1);
+    QVERIFY(rowOf(QStringLiteral("(c)")) >= 0);
+    page.apply();
+    const jp::autotext::Config en = jp::autoCorrectConfig(QStringLiteral("en-US"));
+    QVERIFY(en.replacements.contains({QStringLiteral("brb"), QStringLiteral("back soon")}));
+    QVERIFY(!en.replacements.contains({QStringLiteral("teh"), QStringLiteral("the")}));
+    QVERIFY(en.initialExceptions.contains(QStringLiteral("THursday")));
+    QVERIFY(!en.days);
+    QVERIFY(!jp::autoCorrectConfig(QStringLiteral("fr-FR")).replacements.contains({QStringLiteral("brb"), QStringLiteral("back soon")}));
+    // Typing follows it.
+    Typer t;
+    t.type(QStringLiteral("so brb teh on monday "));
+    QCOMPARE(t.text(), QStringLiteral("So back soon teh on monday "));
+    // Restore Defaults brings the program's lists back.
+    jp::AutoCorrectPage again(QStringLiteral("en-US"));
+    again.findChild<QPushButton *>(QStringLiteral("restoreDefaults"))->click();
+    again.apply();
+    QVERIFY(jp::autoCorrectConfig(QStringLiteral("en-US")).replacements.contains({QStringLiteral("teh"), QStringLiteral("the")}));
+    QVERIFY(!jp::autoCorrectConfig(QStringLiteral("en-US")).initialExceptions.contains(QStringLiteral("THursday")));
 }
 
 void WriteTests::typingMakesDashesFractionsAndRaisedOrdinalsAndOneUndoTakesJustThat()
