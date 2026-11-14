@@ -664,6 +664,9 @@ void RibbonTab::relayout()
         if (i != m_popped) m_groups[i]->setVisible(!col[i] && !gone);
         m_buttons[i]->setVisible(col[i] && !gone);
     }
+    // Place the buttons now: a button just shown sat at the tab's corner until the next pass of the event loop, so an
+    // arrow key pressed in between found no control to the right (seen on Windows, right after switching tabs).
+    m_layout->activate();
     m_inRelayout = false;
 }
 

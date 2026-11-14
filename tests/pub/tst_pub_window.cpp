@@ -2741,6 +2741,24 @@ private Q_SLOTS:
         w.resize(2400, 700);
         QTest::qWait(50);
         QCOMPARE(home->collapsedCount(), 0);
+        // A tab shown for the first time in a narrow window has its folded buttons placed at once, before any event is
+        // handled, so none overlaps another (the arrow keys find controls by where they are; a button just shown sat at
+        // the tab's corner, seen on Windows).
+        w.resize(800, 700);
+        QTest::qWait(50);
+        jp::Ribbon *r = w.findChild<jp::Ribbon *>();
+        jp::RibbonTab *insert = r->tab(QStringLiteral("Insert"));
+        r->showTab(insert);
+        QVERIFY(insert->collapsedCount() > 0);
+        QList<QRect> boxes;
+        int seen = 0;
+        for (QWidget *c : insert->findChildren<QWidget *>(Qt::FindDirectChildrenOnly)) {
+            if (!c->isVisibleTo(insert)) continue;
+            for (const QRect &bx : std::as_const(boxes)) QVERIFY2(!bx.intersects(c->geometry()), qPrintable(c->toolTip()));
+            boxes << c->geometry();
+            ++seen;
+        }
+        QVERIFY(seen > 0);
     }
 
     // Tabbed dialogs open wide enough for every tab, and their color
