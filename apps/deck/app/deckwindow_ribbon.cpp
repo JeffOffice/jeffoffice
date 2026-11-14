@@ -246,11 +246,15 @@ void DeckWindow::ribbonMenuParts(RibbonParts &parts)
     parts.menus[QStringLiteral("newSlideLayouts")] = [this](QWidget *owner) { return layoutMenu(owner, false); };
     parts.menus[QStringLiteral("changeLayout")] = [this](QWidget *owner) { return layoutMenu(owner, true); };
     parts.menus[QStringLiteral("switchWindowsMenu")] = [](QWidget *owner) { return AppWindow::switchWindowsMenu(owner, DeckWindow::staticMetaObject); };
-    // Slide Size: the two sizes, one checked.
+    // Slide Size: the sizes to choose from, one checked, and a size of one's own.
     parts.menus[QStringLiteral("slideSizes")] = [this](QWidget *owner) {
         auto *m = new QMenu(owner);
         m->addAction(act("design.sizeStandard"));
         m->addAction(act("design.sizeWidescreen"));
+        for (const deck::SlideSizePreset &p : deck::slideSizePresets())
+            if (p.key != QLatin1String("standard") && p.key != QLatin1String("widescreen")) m->addAction(act(("design.size." + p.key).toLatin1().constData()));
+        m->addSeparator();
+        m->addAction(act("design.sizeCustom"));
         return m;
     };
 }

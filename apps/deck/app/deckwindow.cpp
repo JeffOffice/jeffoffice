@@ -390,6 +390,9 @@ void DeckWindow::refreshUi()
     act("view.guides")->setChecked(m_canvas->guides());
     act("design.sizeStandard")->setChecked(d->pageSize() == QSizeF(deck::kStandardWidth, deck::kStandardHeight));
     act("design.sizeWidescreen")->setChecked(d->pageSize() == QSizeF(deck::kSlideWidth, deck::kSlideHeight));
+    for (const deck::SlideSizePreset &p : deck::slideSizePresets())
+        if (p.key != QLatin1String("standard") && p.key != QLatin1String("widescreen"))
+            act(("design.size." + p.key).toLatin1().constData())->setChecked(std::abs(d->pageSize().width() - p.size.width()) < 0.5 && std::abs(d->pageSize().height() - p.size.height()) < 0.5);
     if (d->pageSize() != m_shownSize) {
         m_shownSize = d->pageSize();
         if (m_canvas->fitMode() != Canvas::Fit::None) m_canvas->zoomToFit(m_canvas->fitMode());

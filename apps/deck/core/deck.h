@@ -128,8 +128,15 @@ void resetSlide(Document &d, Page &slide);
 
 QString notesText(const Document &d, const Page &slide);
 
-// The name a slide size goes by in setup.sizeName: "Standard" (4:3),
-// "Widescreen" (16:9), or "Custom".
+// The sizes to choose from, besides a custom one: the name each goes by in setup.sizeName ("Standard" for 4:3, "Widescreen" for 16:9, "Letter Paper", "A4 Paper",
+// "On-screen Show (16:10)", "Banner"...), its key for an action, the type a presentation file names it by (empty for the two that need none), and its size in points,
+// landscape (a portrait slide is the same turned).
+struct SlideSizePreset {
+    QString name, key, type;
+    QSizeF size;
+};
+const QVector<SlideSizePreset> &slideSizePresets();
+// The name a slide size goes by in setup.sizeName: that of the preset it is (as wide and as tall to a quarter of a point), or "Custom".
 QString slideSizeName(const QSizeF &size);
 // Gives every slide, layout, and the slide master another size, as Ensure
 // Fit does: text sizes and outline weights scale by the smaller of the
@@ -137,7 +144,8 @@ QString slideSizeName(const QSizeF &size);
 // and the placeholders on slides stretch to the new shape; the other objects
 // on slides keep their shape, scaled by that ratio and centered. Ruler guides
 // keep their share of the slide. Notes keep their text sizes.
-void setSlideSize(Document &d, const QSizeF &size);
+// With `scale` false the slides only change their size: no object is moved or scaled, so what lies beyond a smaller slide's edge stays where it was.
+void setSlideSize(Document &d, const QSizeF &size, bool scale = true);
 // The same for one slide, layout, or slide master that was made for slides of
 // size `from` and now stands in a presentation of size `to` (a copy brought
 // from another one): `slide` for a slide, whose other objects keep their
@@ -189,5 +197,8 @@ QString layoutTypedText(const Document &d, const MasterPage &layout, const QStri
 // with the slides' and layouts' own cleared so they follow it.
 void setSlideBackground(Page &slide, const QColor &color);
 void setAllBackgrounds(Document &d, const QColor &color);
+// The same for any fill: gradient (linear or radial, with its stops), picture, or pattern as well as solid.
+void setSlideBackground(Page &slide, const Fill &fill);
+void setAllBackgrounds(Document &d, const Fill &fill);
 
 } // namespace jp::deck

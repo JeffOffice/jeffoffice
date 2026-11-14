@@ -225,6 +225,18 @@ void DeckWindow::createDesignActions()
     auto *sizes = new QActionGroup(this);
     sizes->addAction(mk("design.sizeStandard", tr("Standard (4:3)"), "", QKeySequence(), [this] { askSlideSize(QSizeF(deck::kStandardWidth, deck::kStandardHeight)); }, true));
     sizes->addAction(mk("design.sizeWidescreen", tr("Widescreen (16:9)"), "", QKeySequence(), [this] { askSlideSize(QSizeF(deck::kSlideWidth, deck::kSlideHeight)); }, true));
+    for (const deck::SlideSizePreset &p : deck::slideSizePresets()) {
+        if (p.key == QLatin1String("standard") || p.key == QLatin1String("widescreen")) continue;
+        const QString text = p.key == QLatin1String("screen16x10") ? tr("On-screen Show (16:10)") : p.key == QLatin1String("letter") ? tr("Letter Paper") : p.key == QLatin1String("ledger") ? tr("Ledger Paper")
+                           : p.key == QLatin1String("a3") ? tr("A3 Paper") : p.key == QLatin1String("a4") ? tr("A4 Paper") : p.key == QLatin1String("b4") ? tr("B4 (ISO) Paper")
+                           : p.key == QLatin1String("b5") ? tr("B5 (ISO) Paper") : p.key == QLatin1String("slides35mm") ? tr("35mm Slides") : tr("Banner");
+        const QSizeF size = p.size;
+        sizes->addAction(mk(("design.size." + p.key).toLatin1().constData(), text, "", QKeySequence(), [this, size] { askSlideSize(size); }, true));
+    }
+    mk("design.sizeCustom", tr("Custom Slide Size…"), "", QKeySequence(), [this] {
+        SlideSizeDialog dlg(m_ed->doc()->pageSize(), this);
+        if (dlg.exec() == QDialog::Accepted) askSlideSize(dlg.size());
+    });
     mk("design.slideSize", tr("Slide Size"), "ratio", QKeySequence(), [] {});
     mk("design.formatBackground", tr("Format Background"), "paint-roller", QKeySequence(), [this] { showFormatBackground(); });
 }
@@ -274,7 +286,7 @@ void DeckWindow::createViewActions()
 }
 
 // ---------------- what the commands do ----------------
-void DeckWindow::setSlideSize(const QSizeF &size)
+void DeckWindow::setSlideSize(const QSizeF &size, bool scale)
 {
     if (size.isEmpty() || size == m_ed->doc()->pageSize()) return;
     m_notes->commit();
@@ -282,10 +294,11 @@ void DeckWindow::setSlideSize(const QSizeF &size)
     m_ed->endTextEdit();
     const OwnEdit own(this);
     m_ed->beginChange(tr("Slide Size"));
-    deck::setSlideSize(*m_ed->doc(), size);
+    deck::setSlideSize(*m_ed->doc(), size, scale);
     m_ed->endChange();
 }
 
+// A new size asks whether the content scales to it or keeps its own size.
 void DeckWindow::askSlideSize(const QSizeF &size)
 {
     if (size == m_ed->doc()->pageSize()) {
@@ -293,29 +306,56 @@ void DeckWindow::askSlideSize(const QSizeF &size)
         return;
     }
     QMessageBox box(QMessageBox::Question, tr("Slide Size"), tr("Scale your content to fit the new slide size?"), QMessageBox::NoButton, this);
+    box.setObjectName(QStringLiteral("slideSizeAsk"));
     box.setTextFormat(Qt::PlainText);
-    box.setInformativeText(tr("Ensure Fit shrinks your content when it has to, so all of it stays on the slide."));
-    QPushButton *fit = box.addButton(tr("Ensure Fit"), QMessageBox::AcceptRole);
+    box.setInformativeText(tr("Scale to Fit shrinks your content when it has to, so all of it stays on the slide. Keep Size leaves every object as it is."));
+    QPushButton *fit = box.addButton(tr("Scale to Fit"), QMessageBox::AcceptRole);
+    QPushButton *keep = box.addButton(tr("Keep Size"), QMessageBox::DestructiveRole);
     box.addButton(QMessageBox::Cancel);
     box.setDefaultButton(fit);
     box.exec();
-    if (box.clickedButton() == fit) setSlideSize(size);
+    if (box.clickedButton() == fit) setSlideSize(size, true);
+    else if (box.clickedButton() == keep) setSlideSize(size, false);
     else refreshUi();
 }
 
 void DeckWindow::setBackground(const QColor &color, bool all)
 {
+    if (color.isValid()) setBackground(Fill::solid(ColorRef::rgb(color)), all);
+}
+
+void DeckWindow::setBackground(const Fill &fill, bool all)
+{
     Document *d = m_ed->doc();
     const int i = m_ed->currentPage();
     // In Slide Master view the page is the slide master or layout being edited.
     MasterPage *open = m_view == View::Master ? d->master(m_ed->masterView()) : nullptr;
-    if (!color.isValid() || (!all && !open && (i < 0 || i >= d->pages.size()))) return;
+    if (!all && !open && (i < 0 || i >= d->pages.size())) return;
     m_ed->endTextEdit();
     m_ed->beginChange(tr("Format Background"));
-    if (all) deck::setAllBackgrounds(*d, color);
-    else if (open) open->background = Fill::solid(ColorRef::rgb(color));
-    else deck::setSlideBackground(*d->pages[i], color);
+    if (all) deck::setAllBackgrounds(*d, fill);
+    else if (open) open->background = fill;
+    else deck::setSlideBackground(*d->pages[i], fill);
     m_ed->endChange();
+}
+
+// The picture a picture background is made of: asked for, read, and kept in the presentation. Empty when none is chosen or it can't be read.
+QString DeckWindow::chooseBackgroundPicture()
+{
+    const QString dir = Settings::get().value(QStringLiteral("dirs/pictures"), QStandardPaths::writableLocation(QStandardPaths::PicturesLocation)).toString();
+    const QString filter = tr("All Pictures (*.png *.jpg *.jpeg *.gif *.bmp *.tif *.tiff *.webp *.svg *.wmf *.emf)") + QStringLiteral(";;") + tr("All Files (*)");
+    const QStringList paths = askPicturePaths(this, tr("Insert Picture"), dir, filter, false, nullptr);
+    if (paths.isEmpty()) return QString();
+    Settings::get().setValue(QStringLiteral("dirs/pictures"), QFileInfo(paths.first()).absolutePath());
+    QByteArray bytes = readPictureBytes(paths.first());
+    QString kind;
+    QSize pixels;
+    bool asksNotToBeCopied = false;
+    if (bytes.isEmpty() || !readPictureFileAsking(this, paths.first(), 0, &bytes, &kind, &pixels, nullptr, &asksNotToBeCopied)) {
+        statusBar()->showMessage(tr("%1 can't be read as a picture.").arg(QFileInfo(paths.first()).fileName()), 8000);
+        return QString();
+    }
+    return m_ed->doc()->addImage(bytes, kind, paths.first());
 }
 
 void DeckWindow::showFormatBackground()
@@ -324,18 +364,18 @@ void DeckWindow::showFormatBackground()
     const int i = m_ed->currentPage();
     const MasterPage *open = m_view == View::Master ? d->master(m_ed->masterView()) : nullptr;
     if (!open && (i < 0 || i >= d->pages.size())) return;
-    // The color the page shows now: its own, else its layout's, else the master's.
+    // The fill the page shows now: its own, else its layout's, else the master's.
     Fill fill = open ? Fill() : d->pages[i]->background;
     const QVector<MasterPage *> chain = d->masterChain(open ? open : d->masterFor(*d->pages[i]));
     for (int k = int(chain.size()) - 1; k >= 0 && fill.type == Fill::NoFill; --k) fill = chain[k]->background;
-    const QColor now = fill.type == Fill::Solid ? fill.color.resolve(d->colors) : QColor(Qt::white);
-    BackgroundDialog dlg(now, d->colors, this);
+    if (fill.type == Fill::NoFill) fill = Fill::solid(ColorRef::rgb(Qt::white));
+    BackgroundDialog dlg(fill, d->colors, [this](const QString &id) { return m_ed->doc()->image(id); }, [this] { return chooseBackgroundPicture(); }, this);
     const bool hidden = open ? !open->showMasterItems : !d->pages[i]->showMasterItems;
     dlg.setHideGraphics(hidden);
     if (dlg.exec() != QDialog::Accepted) return;
-    // The color and the box are one step.
+    // The fill and the box are one step.
     m_ed->beginChange(tr("Format Background"));
-    setBackground(dlg.color(), dlg.applyToAll());
+    setBackground(dlg.fill(), dlg.applyToAll());
     if (dlg.hideGraphics() != hidden) hideBackgroundGraphics(dlg.hideGraphics());
     m_ed->endChange();
 }

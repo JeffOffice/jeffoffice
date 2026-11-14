@@ -1047,17 +1047,40 @@ QString notesText(const Document &d, const Page &slide)
     return sd ? sd->toPlainText() : QString();
 }
 
+const QVector<SlideSizePreset> &slideSizePresets()
+{
+    static const QVector<SlideSizePreset> presets = {
+        {QStringLiteral("Standard"), QStringLiteral("standard"), QStringLiteral("screen4x3"), QSizeF(kStandardWidth, kStandardHeight)},
+        {QStringLiteral("Widescreen"), QStringLiteral("widescreen"), QString(), QSizeF(kSlideWidth, kSlideHeight)},
+        {QStringLiteral("On-screen Show (16:10)"), QStringLiteral("screen16x10"), QStringLiteral("screen16x10"), QSizeF(720, 450)},
+        {QStringLiteral("Letter Paper"), QStringLiteral("letter"), QStringLiteral("letter"), QSizeF(792, 612)},
+        {QStringLiteral("Ledger Paper"), QStringLiteral("ledger"), QStringLiteral("ledger"), QSizeF(1224, 792)},
+        {QStringLiteral("A3 Paper"), QStringLiteral("a3"), QStringLiteral("A3"), QSizeF(420 / 25.4 * 72, 297 / 25.4 * 72)},
+        {QStringLiteral("A4 Paper"), QStringLiteral("a4"), QStringLiteral("A4"), QSizeF(297 / 25.4 * 72, 210 / 25.4 * 72)},
+        {QStringLiteral("B4 (ISO) Paper"), QStringLiteral("b4"), QStringLiteral("B4ISO"), QSizeF(353 / 25.4 * 72, 250 / 25.4 * 72)},
+        {QStringLiteral("B5 (ISO) Paper"), QStringLiteral("b5"), QStringLiteral("B5ISO"), QSizeF(250 / 25.4 * 72, 176 / 25.4 * 72)},
+        {QStringLiteral("35mm Slides"), QStringLiteral("slides35mm"), QStringLiteral("35mm"), QSizeF(810, 540)},
+        {QStringLiteral("Banner"), QStringLiteral("banner"), QStringLiteral("banner"), QSizeF(576, 72)},
+    };
+    return presets;
+}
+
 QString slideSizeName(const QSizeF &size)
 {
-    if (size == QSizeF(kStandardWidth, kStandardHeight)) return QStringLiteral("Standard");
-    if (size == QSizeF(kSlideWidth, kSlideHeight)) return QStringLiteral("Widescreen");
+    for (const SlideSizePreset &p : slideSizePresets())
+        if (std::abs(size.width() - p.size.width()) < 0.5 && std::abs(size.height() - p.size.height()) < 0.5) return p.name;
     return QStringLiteral("Custom");
 }
 
-void setSlideSize(Document &d, const QSizeF &size)
+void setSlideSize(Document &d, const QSizeF &size, bool scale)
 {
     const QSizeF old = d.pageSize();
     if (size.isEmpty() || old.isEmpty() || size == old) return;
+    if (!scale) {
+        d.setup.size = d.setup.sheet = size;
+        d.setup.sizeName = slideSizeName(size);
+        return;
+    }
     const double sx = size.width() / old.width(), sy = size.height() / old.height(), k = std::min(sx, sy);
     const QRectF from(QPointF(0, 0), old), whole(QPointF(0, 0), size);
     const QRectF fitted((size.width() - old.width() * k) / 2, (size.height() - old.height() * k) / 2, old.width() * k, old.height() * k);
@@ -1200,11 +1223,14 @@ void applyFooters(Document &d, const FooterOptions &o, Page *only)
 }
 
 void setSlideBackground(Page &slide, const QColor &color) { slide.background = Fill::solid(ColorRef::rgb(color)); }
+void setSlideBackground(Page &slide, const Fill &fill) { slide.background = fill; }
 
-void setAllBackgrounds(Document &d, const QColor &color)
+void setAllBackgrounds(Document &d, const QColor &color) { setAllBackgrounds(d, Fill::solid(ColorRef::rgb(color))); }
+
+void setAllBackgrounds(Document &d, const Fill &fill)
 {
     for (auto &m : d.masters) {
-        if (isSlideMaster(*m)) m->background = Fill::solid(ColorRef::rgb(color));
+        if (isSlideMaster(*m)) m->background = fill;
         else if (isLayout(*m)) m->background = Fill();
     }
     for (auto &p : d.pages) p->background = Fill();

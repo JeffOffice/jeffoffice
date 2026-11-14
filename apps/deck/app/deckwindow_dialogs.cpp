@@ -3,8 +3,10 @@
 // Spelling, Thesaurus, Word Count, Options), and its own page of Options.
 
 #include "app/deckwindow.h"
+#include "office/hyperlink.h"
 
 #include "app/deckcanvas.h"
+#include "app/deckdialogs.h"
 #include "app/editor.h"
 #include "app/optionsdialog.h"
 #include "app/proofingdialogs.h"
@@ -77,7 +79,7 @@ void DeckWindow::createDialogActions()
     mk("para.bulletsDialog", tr("Bullets and Numbering…"), "list-plus", QKeySequence(), [this, ed] { bulletsDialog(this, ed, false); });
     mk("para.numberingDialog", tr("Bullets and Numbering…"), "list-plus", QKeySequence(), [this, ed] { bulletsDialog(this, ed, true); });
     mk("insert.symbol", tr("Symbol"), "omega", QKeySequence(), [this, ed] { symbolDialog(this, ed); });
-    mk("insert.link", tr("Link"), "link", QKeySequence(Qt::CTRL | Qt::Key_K), [this, ed] { hyperlinkDialog(this, ed); });
+    mk("insert.link", tr("Link"), "link", QKeySequence(Qt::CTRL | Qt::Key_K), [this] { showLinkDialog(); });
     mk("insert.dateTime", tr("Date and Time"), "calendar-clock", QKeySequence(), [this, ed] { dateTimeDialog(this, ed); });
     mk("review.spelling", tr("Spelling"), "spell-check", QKeySequence(Qt::Key_F7), [this, ed] { spellingDialog(this, ed); });
     QAction *grammarAsType = mk("review.checkGrammarAsType", tr("Check Grammar as You Type"), "spell-check-2", QKeySequence(), [ed] { setGrammarAsYouType(!ed->view.grammar); }, true);
@@ -185,6 +187,47 @@ void DeckWindow::createDialogActions()
     m_ed->view.rulers = Settings::get().value(QStringLiteral("view/rulers"), false).toBool();
     m_canvas->setRulersVisible(m_ed->view.rulers);
     m_ed->view.snapObjects = Settings::get().value(QStringLiteral("view/snapObjects"), true).toBool();
+}
+
+// Insert > Link: the link of the words being edited (or selected in a text box), else of each object selected, as one step.
+void DeckWindow::showLinkDialog()
+{
+    Editor *ed = m_ed;
+    const bool editing = ed->isEditingText();
+    QString current;
+    if (editing) current = ed->currentCharFormat().anchorHref();
+    else if (const QVector<Item *> items = ed->selectedItems(); !items.isEmpty()) current = items.first()->hyperlink;
+    else return;
+    LinkDialog dlg(current, int(ed->doc()->pages.size()), this);
+    const bool bare = editing && !ed->cursor().hasSelection();
+    if (bare) dlg.setDisplayShown(QString(), true);
+    if (dlg.exec() != QDialog::Accepted) return;
+    const QString link = dlg.removed() ? QString() : dlg.link();
+    if (!dlg.removed() && link.isEmpty()) return;
+    if (!editing) {
+        ed->forEachSelected(tr("Link"), [&](Item *it) { it->hyperlink = link; });
+        return;
+    }
+    QTextCharFormat f;
+    if (link.isEmpty()) {
+        f.setAnchor(false);
+        f.setAnchorHref(QString());
+        f.setFontUnderline(false);
+        ed->mergeCharFormat(f, tr("Remove Link"));
+        return;
+    }
+    f.setAnchor(true);
+    f.setAnchorHref(link);
+    if (bare) {
+        ed->beginChange(tr("Insert Link"));
+        QTextCharFormat cf = ed->cursor().charFormat();
+        cf.merge(f);
+        ed->cursor().insertText(dlg.displayText().isEmpty() ? office::linkAddress(link).isEmpty() ? link : office::linkAddress(link) : dlg.displayText(), cf);
+        ed->endChange();
+        ed->textEdited();
+    } else {
+        ed->mergeCharFormat(f, tr("Insert Link"));
+    }
 }
 
 } // namespace jp

@@ -1,9 +1,11 @@
 #include "app/deckdialogs.h"
 
 #include "app/widgets.h"
+#include "office/hyperlink.h"
 
 #include <QCheckBox>
 #include <QDialogButtonBox>
+#include <QFileDialog>
 #include <QFormLayout>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -78,25 +80,40 @@ deck::FooterOptions HeaderFooterDialog::options() const
     return o;
 }
 
-BackgroundDialog::BackgroundDialog(const QColor &current, const ColorScheme &scheme, QWidget *parent) : QDialog(parent), m_color(current), m_scheme(scheme)
+BackgroundDialog::BackgroundDialog(const QColor &current, const ColorScheme &scheme, QWidget *parent)
+    : BackgroundDialog(Fill::solid(ColorRef::rgb(current)), scheme, {}, {}, parent)
+{
+}
+
+BackgroundDialog::BackgroundDialog(const Fill &current, const ColorScheme &scheme, const ImageLookup &images, const std::function<QString()> &pickPicture, QWidget *parent)
+    : QDialog(parent), m_fill(current), m_pick(pickPicture)
 {
     setWindowTitle(tr("Format Background"));
     setObjectName(QStringLiteral("backgroundDialog"));
     auto *lay = new QVBoxLayout(this);
-    auto *form = new QFormLayout();
-    m_button = new ColorButton(QStringLiteral("paint-bucket"), tr("Background Color"), false, QString());
-    m_button->setScheme(scheme);
-    m_button->setCurrent(ColorRef::rgb(current));
-    m_button->setWell(true);
-    m_button->setObjectName(QStringLiteral("backgroundColor"));
-    form->addRow(tr("Solid fill color:"), m_button);
-    lay->addLayout(form);
+    m_editor = new FillEditor(this);
+    m_editor->setObjectName(QStringLiteral("backgroundFill"));
+    m_editor->setScheme(scheme);
+    m_editor->setImageProvider(images);
+    m_editor->setFills({m_fill});
+    lay->addWidget(m_editor);
     m_hide = new QCheckBox(tr("Hide background graphics"));
     m_hide->setObjectName(QStringLiteral("hideGraphics"));
     lay->addWidget(m_hide);
-    connect(m_button, &ColorButton::colorPicked, this, [this](const ColorRef &c) {
-        m_color = c.resolve(m_scheme);
-        m_button->setCurrent(ColorRef::rgb(m_color));
+    connect(m_editor, &FillEditor::changed, this, [this](const FillChange &change) {
+        change(m_fill);
+        m_editor->setFills({m_fill});
+    });
+    connect(m_editor, &FillEditor::pictureRequested, this, [this] {
+        const QString id = m_pick ? m_pick() : QString();
+        if (id.isEmpty()) return;
+        const double t = m_fill.transparency;
+        if (m_fill.type != Fill::Picture && m_fill.type != Fill::Texture) m_fill = Fill();
+        m_fill.type = m_fill.type == Fill::Texture ? Fill::Texture : Fill::Picture;
+        m_fill.imageId = id;
+        m_fill.transparency = t;
+        m_fill.blipEffects.clear();
+        m_editor->setFills({m_fill});
     });
     lay->addSpacing(6);
     lay->addWidget(applyButtons(this, &m_all));
@@ -104,6 +121,191 @@ BackgroundDialog::BackgroundDialog(const QColor &current, const ColorScheme &sch
 
 void BackgroundDialog::setHideGraphics(bool hide) { m_hide->setChecked(hide); }
 bool BackgroundDialog::hideGraphics() const { return m_hide->isChecked(); }
+
+LinkDialog::LinkDialog(const QString &current, int slides, QWidget *parent) : QDialog(parent)
+{
+    setWindowTitle(tr("Insert Link"));
+    setObjectName(QStringLiteral("linkDialog"));
+    auto *lay = new QVBoxLayout(this);
+    auto *form = new QFormLayout();
+    m_kind = new QComboBox(this);
+    m_kind->setObjectName(QStringLiteral("linkKind"));
+    m_kind->addItems({tr("Web page"), tr("Email address"), tr("Place in this presentation"), tr("File")});
+    m_display = new QLineEdit(this);
+    m_display->setObjectName(QStringLiteral("linkText"));
+    m_address = new QLineEdit(this);
+    m_address->setObjectName(QStringLiteral("linkAddress"));
+    m_place = new QComboBox(this);
+    m_place->setObjectName(QStringLiteral("linkPlace"));
+    m_place->addItem(tr("Next slide"), QStringLiteral("#next"));
+    m_place->addItem(tr("Previous slide"), QStringLiteral("#previous"));
+    m_place->addItem(tr("First slide"), QStringLiteral("#first"));
+    m_place->addItem(tr("Last slide"), QStringLiteral("#last"));
+    for (int i = 1; i <= slides; ++i) m_place->addItem(tr("Slide %1").arg(i), office::slideLink(i));
+    m_place->addItem(tr("End show"), QStringLiteral("#end"));
+    form->addRow(tr("Link to:"), m_kind);
+    m_displayLabel = new QLabel(tr("Text to display:"), this);
+    form->addRow(m_displayLabel, m_display);
+    auto *addressRow = new QWidget(this);
+    auto *addressLay = new QHBoxLayout(addressRow);
+    addressLay->setContentsMargins(0, 0, 0, 0);
+    addressLay->addWidget(m_address);
+    auto *browse = new QPushButton(tr("Browse…"), addressRow);
+    addressLay->addWidget(browse);
+    form->addRow(tr("Address:"), addressRow);
+    form->addRow(tr("Place:"), m_place);
+    lay->addLayout(form);
+    setDisplayShown(QString(), false);
+    const office::LinkTarget now = office::parseLink(current);
+    switch (now.kind) {
+    case office::LinkKind::Mail: m_kind->setCurrentIndex(1); m_address->setText(now.address.mid(7)); break;
+    case office::LinkKind::File: m_kind->setCurrentIndex(3); m_address->setText(now.address); break;
+    case office::LinkKind::None:
+        if (!current.trimmed().isEmpty()) m_address->setText(current.trimmed());
+        break;
+    case office::LinkKind::Web: m_address->setText(now.address); break;
+    default:
+        m_kind->setCurrentIndex(2);
+        if (const int at = m_place->findData(now.kind == office::LinkKind::Slide ? office::slideLink(now.slide) : current.trimmed().toLower()); at >= 0) m_place->setCurrentIndex(at);
+        break;
+    }
+    auto refresh = [this, browse] {
+        const int k = m_kind->currentIndex();
+        m_place->setEnabled(k == 2);
+        m_address->setEnabled(k != 2);
+        browse->setEnabled(k == 3);
+        m_address->setPlaceholderText(k == 1 ? tr("name@example.com") : k == 3 ? tr("Path of the file") : QStringLiteral("https://"));
+    };
+    connect(m_kind, &QComboBox::currentIndexChanged, this, refresh);
+    refresh();
+    // (A file chosen here is a path on this computer; one typed may be anywhere, and is never looked for.)
+    connect(browse, &QPushButton::clicked, this, [this] {
+        const QString path = QFileDialog::getOpenFileName(this, tr("Link to File"));
+        if (!path.isEmpty()) m_address->setText(path);
+    });
+    auto *box = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+    auto *remove = box->addButton(tr("Remove Link"), QDialogButtonBox::ResetRole);
+    connect(remove, &QPushButton::clicked, this, [this] {
+        m_removed = true;
+        accept();
+    });
+    connect(box, &QDialogButtonBox::accepted, this, &QDialog::accept);
+    connect(box, &QDialogButtonBox::rejected, this, &QDialog::reject);
+    lay->addWidget(box);
+}
+
+QString LinkDialog::link() const
+{
+    const int k = m_kind->currentIndex();
+    if (k == 2) return m_place->currentData().toString();
+    QString text = m_address->text().trimmed();
+    if (text.isEmpty()) return QString();
+    if (k == 1) return QStringLiteral("mailto:") + text.remove(QStringLiteral("mailto:"), Qt::CaseInsensitive);
+    // A web address typed without its scheme is one; a file is as typed, and is never looked for.
+    if (k == 0 && !text.contains(QLatin1String("://"))) return QStringLiteral("https://") + text;
+    return text;
+}
+
+QString LinkDialog::displayText() const { return m_display->text(); }
+
+void LinkDialog::setDisplayShown(const QString &text, bool shown)
+{
+    m_display->setText(text);
+    m_display->setVisible(shown);
+    m_displayLabel->setVisible(shown);
+}
+
+constexpr double kLeastInches = 0.5, kMostInches = 56;
+
+SlideSizeDialog::SlideSizeDialog(const QSizeF &current, QWidget *parent) : QDialog(parent)
+{
+    setWindowTitle(tr("Slide Size"));
+    setObjectName(QStringLiteral("slideSizeDialog"));
+    auto *lay = new QVBoxLayout(this);
+    auto *form = new QFormLayout();
+    m_preset = new QComboBox(this);
+    m_preset->setObjectName(QStringLiteral("slideSizePreset"));
+    for (const deck::SlideSizePreset &p : deck::slideSizePresets()) {
+        const QString text = p.name == QLatin1String("Standard") ? tr("Standard (4:3)") : p.name == QLatin1String("Widescreen") ? tr("Widescreen (16:9)") : p.name == QLatin1String("Banner") ? tr("Banner")
+                           : p.name == QLatin1String("35mm Slides") ? tr("35mm Slides") : p.name.startsWith(QLatin1String("On-screen")) ? tr("On-screen Show (16:10)")
+                           : p.name == QLatin1String("Letter Paper") ? tr("Letter Paper") : p.name == QLatin1String("Ledger Paper") ? tr("Ledger Paper") : p.name == QLatin1String("A3 Paper") ? tr("A3 Paper")
+                           : p.name == QLatin1String("A4 Paper") ? tr("A4 Paper") : p.name == QLatin1String("B4 (ISO) Paper") ? tr("B4 (ISO) Paper") : tr("B5 (ISO) Paper");
+        m_preset->addItem(text, p.key);
+    }
+    m_preset->addItem(tr("Custom"), QString());
+    m_width = new QDoubleSpinBox(this);
+    m_width->setObjectName(QStringLiteral("slideWidth"));
+    m_height = new QDoubleSpinBox(this);
+    m_height->setObjectName(QStringLiteral("slideHeight"));
+    for (QDoubleSpinBox *b : {m_width, m_height}) {
+        b->setRange(kLeastInches, kMostInches);
+        b->setDecimals(3);
+        b->setSuffix(tr(" in"));
+    }
+    m_landscape = new QRadioButton(tr("Landscape"), this);
+    m_landscape->setObjectName(QStringLiteral("slideLandscape"));
+    m_portrait = new QRadioButton(tr("Portrait"), this);
+    m_portrait->setObjectName(QStringLiteral("slidePortrait"));
+    form->addRow(tr("Slides sized for:"), m_preset);
+    form->addRow(tr("Width:"), m_width);
+    form->addRow(tr("Height:"), m_height);
+    auto *orient = new QHBoxLayout();
+    orient->addWidget(m_landscape);
+    orient->addWidget(m_portrait);
+    form->addRow(tr("Orientation:"), orient);
+    lay->addLayout(form);
+    m_loading = true;
+    m_width->setValue(current.width() / 72);
+    m_height->setValue(current.height() / 72);
+    m_portrait->setChecked(current.height() > current.width());
+    m_landscape->setChecked(!m_portrait->isChecked());
+    // The list shows the preset the size is, in either orientation.
+    int at = m_preset->count() - 1;
+    for (int i = 0; i < deck::slideSizePresets().size(); ++i) {
+        const QSizeF p = deck::slideSizePresets()[i].size;
+        if ((std::abs(p.width() - current.width()) < 0.5 && std::abs(p.height() - current.height()) < 0.5) || (std::abs(p.height() - current.width()) < 0.5 && std::abs(p.width() - current.height()) < 0.5)) at = i;
+    }
+    m_preset->setCurrentIndex(at);
+    m_loading = false;
+    connect(m_preset, &QComboBox::currentIndexChanged, this, [this](int i) { showPreset(i); });
+    connect(m_portrait, &QRadioButton::toggled, this, [this](bool on) { orientationChosen(on); });
+    auto custom = [this] {
+        if (!m_loading) m_preset->setCurrentIndex(m_preset->count() - 1);
+    };
+    connect(m_width, &QDoubleSpinBox::editingFinished, this, custom);
+    connect(m_height, &QDoubleSpinBox::editingFinished, this, custom);
+    auto *box = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+    connect(box, &QDialogButtonBox::accepted, this, &QDialog::accept);
+    connect(box, &QDialogButtonBox::rejected, this, &QDialog::reject);
+    lay->addWidget(box);
+}
+
+void SlideSizeDialog::showPreset(int index)
+{
+    if (m_loading || index < 0 || index >= deck::slideSizePresets().size()) return;
+    QSizeF s = deck::slideSizePresets()[index].size;
+    if (m_portrait->isChecked()) s = s.transposed();
+    m_loading = true;
+    m_width->setValue(s.width() / 72);
+    m_height->setValue(s.height() / 72);
+    m_loading = false;
+}
+
+// Turning the slide turns the size (the longer side goes across for landscape, up for portrait).
+void SlideSizeDialog::orientationChosen(bool portrait)
+{
+    if (m_loading) return;
+    const double w = m_width->value(), h = m_height->value();
+    if ((portrait && w > h) || (!portrait && h > w)) {
+        m_loading = true;
+        m_width->setValue(h);
+        m_height->setValue(w);
+        m_loading = false;
+    }
+}
+
+QSizeF SlideSizeDialog::size() const { return QSizeF(m_width->value() * 72, m_height->value() * 72); }
+bool SlideSizeDialog::isPortrait() const { return m_portrait->isChecked(); }
 
 TableSizeDialog::TableSizeDialog(QWidget *parent) : QDialog(parent)
 {

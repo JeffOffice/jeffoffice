@@ -5,7 +5,12 @@
 #include "core/color.h"
 #include "core/deck.h"
 
+#include "app/propertyeditors.h"
+#include <QComboBox>
+#include <QDoubleSpinBox>
+#include <QRadioButton>
 #include <QDialog>
+#include <functional>
 
 class QCheckBox;
 class QLineEdit;
@@ -37,19 +42,61 @@ private:
 class BackgroundDialog : public QDialog {
     Q_OBJECT
 public:
+    // `current`: what the page shows now. `images` shows a picture fill's picture; `pickPicture` asks for a picture and gives the id it is kept under (empty when none is chosen).
+    BackgroundDialog(const Fill &current, const ColorScheme &scheme, const ImageLookup &images = {}, const std::function<QString()> &pickPicture = {}, QWidget *parent = nullptr);
     BackgroundDialog(const QColor &current, const ColorScheme &scheme, QWidget *parent = nullptr);
-    QColor color() const { return m_color; }
+    // The fill chosen: solid, gradient (linear or radial, with its stops), picture, or pattern.
+    Fill fill() const { return m_fill; }
     bool applyToAll() const { return m_all; }
     // The Hide background graphics box: the pictures and shapes of the slide masters under the page stop showing.
     void setHideGraphics(bool hide);
     bool hideGraphics() const;
+    FillEditor *fillEditor() const { return m_editor; }
 
 private:
     QCheckBox *m_hide;
-    ColorButton *m_button;
-    QColor m_color;
-    ColorScheme m_scheme;
+    FillEditor *m_editor;
+    Fill m_fill;
+    std::function<QString()> m_pick;
     bool m_all = false;
+};
+
+// Insert > Link (Ctrl+K): a web page, an email address, a place in the presentation (the next, previous, first, or last slide, a numbered slide, or the end of the show), or a
+// file. `current` is the link now there (see office/hyperlink.h), `slides` how many slides the presentation has.
+class LinkDialog : public QDialog {
+    Q_OBJECT
+public:
+    LinkDialog(const QString &current, int slides, QWidget *parent = nullptr);
+    // The link chosen ("" with nothing typed), and whether Remove Link was pressed.
+    QString link() const;
+    bool removed() const { return m_removed; }
+    // The words shown for a link with no selected words to carry it.
+    QString displayText() const;
+    void setDisplayShown(const QString &text, bool shown);
+
+private:
+    QComboBox *m_kind, *m_place;
+    QLineEdit *m_address, *m_display;
+    QLabel *m_displayLabel;
+    bool m_removed = false;
+};
+
+// Design > Slide Size > Custom Slide Size: a size from the list or a width and height of its own (inches), and the slide's orientation.
+class SlideSizeDialog : public QDialog {
+    Q_OBJECT
+public:
+    SlideSizeDialog(const QSizeF &current, QWidget *parent = nullptr);
+    // The size in points.
+    QSizeF size() const;
+    bool isPortrait() const;
+
+private:
+    void showPreset(int index);
+    void orientationChosen(bool portrait);
+    QComboBox *m_preset;
+    QDoubleSpinBox *m_width, *m_height;
+    QRadioButton *m_landscape, *m_portrait;
+    bool m_loading = false;
 };
 
 // Rows and columns for Insert > Table > Insert Table.
