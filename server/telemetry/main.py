@@ -42,6 +42,10 @@ means refused.
 
 Without ?app= the pages cover all the apps. An app has to be named in APPS before the collector takes its pings.
 
+    The stats page also has a Downloads section, filled by download_daily() once a day from GitHub's release
+    counts, Cloudflare's analytics for apt.jeffoffice.com (env CF_ANALYTICS_TOKEN, CF_ZONE_ID), and the Snap Store's
+    metrics (env SNAP_METRICS_CREDENTIALS, SNAP_ID). Those are public counters; they hold nothing about a person.
+
 Everything is kept for 24 months (KEEP_MONTHS), then deleted: purge() runs at start and once a day.
 `python main.py --forget <install id>` deletes one install's pings, counts, and crash reports, for a
 person who asks (the privacy notice at https://www.jeffoffice.com/privacy says how).
@@ -110,6 +114,8 @@ CRASHES = """CREATE TABLE {} (
     id INTEGER PRIMARY KEY AUTOINCREMENT, received TEXT NOT NULL, happened TEXT NOT NULL,
     install TEXT NOT NULL, version TEXT NOT NULL, os TEXT NOT NULL, kind TEXT NOT NULL,
     code INTEGER NOT NULL, frames TEXT NOT NULL, app TEXT NOT NULL DEFAULT 'jeffpub')"""
+DOWNLOADS = """CREATE TABLE {} (
+    day TEXT NOT NULL, source TEXT NOT NULL, item TEXT NOT NULL, n INTEGER NOT NULL, PRIMARY KEY (day, source, item))"""
 INDEXES = """
 CREATE INDEX IF NOT EXISTS counts_day ON counts (day);
 CREATE INDEX IF NOT EXISTS crashes_received ON crashes (received, install);
@@ -119,7 +125,7 @@ CREATE INDEX IF NOT EXISTS crashes_received ON crashes (received, install);
 def init():
     os.makedirs(DATA_DIR, exist_ok=True)
     with db() as con:
-        for create, name in ((PINGS, "pings"), (COUNTS, "counts"), (CRASHES, "crashes")):
+        for create, name in ((PINGS, "pings"), (COUNTS, "counts"), (CRASHES, "crashes"), (DOWNLOADS, "downloads")):
             con.execute(create.format("IF NOT EXISTS " + name))
     migrate()
     with db() as con:
@@ -344,6 +350,239 @@ def geo_daily():
         time.sleep(24 * 3600)
 
 
+# ---------------------------------------------------------------- download counts (GitHub, apt, Snap Store)
+# Once a day (download_daily) each source is asked for its counts and the totals go in the downloads table:
+#   downloads(day, source, item, n), one row per day, source, and item. Items, by source:
+#     github  "release:<tag>:<platform>"  the CUMULATIVE count GitHub shows for that release's installers
+#             (platform: windows, macos, linux), as of day; downloads in a period = differences between snapshots.
+#     apt     "kind:deb" / "kind:update-check"  requests that day answered 200, 206, or 304 for a .deb or for
+#             dists/*/(In)Release; "version:<v>" .deb requests by version; "country:<CC>" update checks by country.
+#     snap    "kind:total", "version:<v>", "country:<CC>"  the weekly installed base in the bucket dated day.
+# The HTTP call is a parameter (http(url, headers=None, body=None) -> parsed JSON) so tests run offline.
+# A fetcher returns the number of rows it stored, or None when its credentials aren't set; errors propagate
+# to run_download_fetchers(), which logs the exception's type and nothing else (never a URL or a secret).
+
+HTTP_UA = "JeffOffice-telemetry/1.0 (+https://telemetry.jeffoffice.com)"
+GITHUB_RELEASES = "https://api.github.com/repos/JeffOffice/jeffoffice/releases?per_page=100"
+CF_GRAPHQL = "https://api.cloudflare.com/client/v4/graphql"
+CF_DEFAULT_ZONE = "1ca02c63d10f2fe1b656aa2bdb7e1196"
+APT_HOST = "apt.jeffoffice.com"
+APT_BACKFILL_DAYS = 7          # earlier days fetched when missing; Cloudflare keeps adaptive data at least 31 days on every plan
+APT_OK_STATUS = (200, 206, 304)
+SNAP_NAME = "jeffoffice"
+SNAP_API = "https://dashboard.snapcraft.io/dev/api"
+SNAP_METRICS = ("weekly_installed_base_by_version", "weekly_installed_base_by_country")
+SNAP_WINDOW_DAYS = 14
+DOWNLOAD_START_DELAY = 60      # seconds after start before the first fetch
+
+PLATFORMS = (("windows", "Windows installer"), ("macos", "Mac disk image"), ("linux", "Linux .deb, AppImage"))   # all from GitHub
+ASSET_PLATFORM = ((re.compile(r"^JeffOffice-Setup.*\.exe$"), "windows"), (re.compile(r"\.dmg$"), "macos"),
+                  (re.compile(r"\.(deb|AppImage)$"), "linux"))
+DEB_VERSION = re.compile(r"_([0-9][0-9A-Za-z.+~-]*?)_[a-z0-9]+\.deb$")
+APT_RELEASE_PATH = re.compile(r"^/dists/[^/]+/(InRelease|Release)$")
+
+
+def http_json(url, headers=None, body=None, timeout=30):
+    """GET (no body) or POST (a JSON body) and parse the JSON answer; raises on any failure."""
+    data = None if body is None else json.dumps(body).encode()
+    req = urllib.request.Request(url, data=data, headers={"User-Agent": HTTP_UA, **(headers or {})})
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        return json.loads(r.read(16 * 1024 * 1024))
+
+
+def store_downloads(source, by_day):
+    """by_day: {day: {item: n}}. Each (day, source) is replaced whole. Returns the rows stored."""
+    rows = 0
+    with _lock, db() as con:
+        for day, items in by_day.items():
+            con.execute("DELETE FROM downloads WHERE day = ? AND source = ?", (day, source))
+            con.executemany("INSERT INTO downloads (day, source, item, n) VALUES (?, ?, ?, ?)",
+                            [(day, source, k, int(v)) for k, v in items.items()])
+            rows += len(items)
+    return rows
+
+
+def asset_platform(name):
+    return next((p for rx, p in ASSET_PLATFORM if rx.search(name)), None)
+
+
+def fetch_github(http=None, today=None):
+    """A snapshot of the release download counters, stored under today's date (no credentials needed).
+    Only the first page (100 releases) is read."""
+    http = http or http_json
+    today = (today or utc_today()).isoformat()
+    releases = http(GITHUB_RELEASES, {"Accept": "application/vnd.github+json"})
+    items = {}
+    for rel in releases:
+        tag = rel.get("tag_name")
+        if rel.get("draft") or not isinstance(tag, str) or not VERSION.match(tag.lstrip("v")):
+            continue
+        for a in rel.get("assets", []):
+            plat = asset_platform(a.get("name", ""))
+            if plat and is_int(a.get("download_count")):
+                key = f"release:{tag}:{plat}"
+                items[key] = items.get(key, 0) + a["download_count"]
+    return store_downloads("github", {today: items})
+
+
+APT_QUERY = ("query($zone:string!,$day:Date!,$host:string!){viewer{zones(filter:{zoneTag:$zone}){"
+             "httpRequestsAdaptiveGroups(limit:10000,filter:{date:$day,clientRequestHTTPHost:$host},orderBy:[count_DESC]){"
+             "count dimensions{clientRequestPath clientCountryName edgeResponseStatus}}}}}")
+
+
+def apt_day_items(groups):
+    """The downloads items for one day's Cloudflare groups. clientCountryName is Cloudflare's two-letter code."""
+    items = {"kind:deb": 0, "kind:update-check": 0}
+    for g in groups:
+        dim, n = g.get("dimensions") or {}, g.get("count") or 0
+        if dim.get("edgeResponseStatus") not in APT_OK_STATUS or not is_int(n):
+            continue
+        path = dim.get("clientRequestPath") or ""
+        if path.endswith(".deb"):
+            items["kind:deb"] += n
+            m = DEB_VERSION.search(path)
+            if m and VERSION.match(m.group(1)):
+                items["version:" + m.group(1)] = items.get("version:" + m.group(1), 0) + n
+        elif APT_RELEASE_PATH.match(path):
+            items["kind:update-check"] += n
+            cc = dim.get("clientCountryName") or ""
+            if len(cc) == 2 and cc.isalpha():
+                items["country:" + cc.upper()] = items.get("country:" + cc.upper(), 0) + n
+    return items
+
+
+def fetch_apt(http=None, today=None):
+    """Yesterday's (UTC) apt traffic from Cloudflare's GraphQL Analytics API, and any of the 7 days before that not
+    stored yet. One query per day: that stays inside every plan's one-day query window, and adaptive data is kept at
+    least 31 days (developers.cloudflare.com/analytics/graphql-api/limits). Counts are Cloudflare's sampled estimates."""
+    token = os.environ.get("CF_ANALYTICS_TOKEN", "")
+    if not token:
+        return None
+    http = http or http_json
+    zone = os.environ.get("CF_ZONE_ID") or CF_DEFAULT_ZONE
+    today = today or utc_today()
+    yesterday = today - dt.timedelta(days=1)
+    with db() as con:
+        have = {r[0] for r in con.execute("SELECT day FROM downloads WHERE source = 'apt' AND item = 'kind:update-check'")}
+    days = [yesterday] + [yesterday - dt.timedelta(days=i) for i in range(1, APT_BACKFILL_DAYS + 1) if (yesterday - dt.timedelta(days=i)).isoformat() not in have]
+    rows = 0
+    for day in days:
+        answer = http(CF_GRAPHQL, {"Authorization": "Bearer " + token, "Content-Type": "application/json"},
+                      {"query": APT_QUERY, "variables": {"zone": zone, "day": day.isoformat(), "host": APT_HOST}})
+        if answer.get("errors"):
+            raise ValueError("graphql errors")
+        zones = ((answer.get("data") or {}).get("viewer") or {}).get("zones") or []
+        if not zones:
+            raise ValueError("no zone")
+        rows += store_downloads("apt", {day.isoformat(): apt_day_items(zones[0].get("httpRequestsAdaptiveGroups") or [])})
+    return rows
+
+
+def _b64(text):
+    return base64.urlsafe_b64decode(text.replace("+", "-").replace("/", "_") + "=" * (-len(text) % 4))
+
+
+def _bind_discharge(root, discharge):
+    """The discharge macaroon bound to the root, serialized as received (v1 or v2 binary, base64): the same bytes
+    with the 32-byte signature replaced by HMAC-SHA256(key, HMAC(key, root sig) + HMAC(key, discharge sig)), key = 32
+    zero bytes. This is pymacaroons' Macaroon.prepare_for_request (HashSignaturesBinder), which craft-store calls."""
+    r, d = _b64(root), _b64(discharge)
+
+    def sig_at(raw):   # the signature is the last field: v1 packet "NNNNsignature <32 bytes>\n", v2 [6, 32, <32 bytes>]
+        return len(raw) - (33 if raw[:1] != b"\x02" else 32)
+
+    def sig(raw):
+        i = sig_at(raw)
+        return raw[i:i + 32]
+    key = bytes(32)
+    mac = lambda data: hmac.new(key, data, "sha256").digest()
+    bound = mac(mac(sig(r)) + mac(sig(d)))
+    i = sig_at(d)
+    out = d[:i] + bound + d[i + 32:]
+    return base64.urlsafe_b64encode(out).decode().rstrip("=")
+
+
+def snap_auth_header(credentials):
+    """The Authorization header for dashboard.snapcraft.io from `snapcraft export-login --acls package_metrics`
+    output (base64 of JSON holding the root and discharge macaroons: {"t": "u1-macaroon", "v": {"r": ..., "d": ...}} or
+    just {"r": ..., "d": ...}). Source: canonical/craft-store, craft_store/ubuntu_one_store_client.py,
+    UbuntuOneStoreClient._get_authorization_header: "Macaroon root=<root>, discharge=<bound discharge>", where the
+    discharge is bound with root_macaroon.prepare_for_request(discharge) (see _bind_discharge)."""
+    text = credentials.strip()
+    try:
+        data = json.loads(base64.b64decode(text + "=" * (-len(text) % 4)).decode())
+    except ValueError:
+        data = json.loads(text)
+    if isinstance(data, dict) and "v" in data:
+        data = json.loads(data["v"]) if isinstance(data["v"], str) else data["v"]
+    root, discharge = data.get("r") or data.get("root"), data.get("d") or data.get("discharge")
+    if not (isinstance(root, str) and isinstance(discharge, str)):
+        raise ValueError("credentials")
+    return f"Macaroon root={root}, discharge={_bind_discharge(root, discharge)}"
+
+
+def fetch_snap(http=None, today=None):
+    """The Snap Store's weekly installed base by version and by country (canonical/snapcraft, snapcraft/commands/metrics.py
+    and store/client.py: POST /dev/api/snaps/metrics {"filters": [{"snap_id", "metric_name", "start", "end"}]} answers
+    {"metrics": [{"status", "buckets": [dates], "series": [{"name", "values": [...]}]}]})."""
+    creds = os.environ.get("SNAP_METRICS_CREDENTIALS", "")
+    if not creds.strip():
+        return None
+    http = http or http_json
+    headers = {"Authorization": snap_auth_header(creds), "Accept": "application/json", "Content-Type": "application/json"}
+    snap_id = os.environ.get("SNAP_ID", "")
+    if not snap_id:
+        account = http(SNAP_API + "/account", headers)   # {"snaps": {"16": {"jeffoffice": {"snap-id": ...}}}}
+        snap_id = account["snaps"]["16"][SNAP_NAME]["snap-id"]
+    end = (today or utc_today()) - dt.timedelta(days=1)
+    start = end - dt.timedelta(days=SNAP_WINDOW_DAYS)
+    answer = http(SNAP_API + "/snaps/metrics", headers, {"filters": [
+        {"snap_id": snap_id, "metric_name": m, "start": start.isoformat(), "end": end.isoformat()} for m in SNAP_METRICS]})
+    by_day = {}
+    for metric in answer["metrics"]:
+        if metric.get("status") != "OK":
+            continue
+        kind = "version" if metric["metric_name"].endswith("version") else "country"
+        for series in metric["series"]:
+            name = series["name"]
+            if kind == "country":
+                name = name.upper()
+                if not (len(name) == 2 and name.isalpha()):
+                    continue
+            elif not VERSION.match(name):
+                continue
+            for bucket, v in zip(metric["buckets"], series["values"]):
+                if is_int(v) and DATE.fullmatch(bucket):
+                    items = by_day.setdefault(bucket, {})
+                    items[f"{kind}:{name}"] = v
+                    if kind == "version":
+                        items["kind:total"] = items.get("kind:total", 0) + v
+    return store_downloads("snap", by_day) if by_day else 0
+
+
+FETCHERS = (("github", fetch_github), ("apt", fetch_apt), ("snap", fetch_snap))
+
+
+def run_download_fetchers(today=None, http=None, fetchers=None):
+    """Runs each fetcher; a failure is logged as one short line (the exception's type only) and the others still run."""
+    done = {}
+    for name, fetch in fetchers or FETCHERS:
+        try:
+            done[name] = fetch(http, today)
+            print(f"downloads {name}: {'skipped, not connected' if done[name] is None else str(done[name]) + ' rows'}", flush=True)
+        except Exception as e:
+            done[name] = None
+            print(f"downloads {name} failed: {type(e).__name__}", flush=True)
+    return done
+
+
+def download_daily():
+    time.sleep(DOWNLOAD_START_DELAY)
+    while True:
+        run_download_fetchers()
+        time.sleep(24 * 3600)
+
+
 def parse_ping(body):
     """The ping's fields, checked; None when anything is off."""
     try:
@@ -399,6 +638,7 @@ def purge(today=None):
         n = con.execute("DELETE FROM pings WHERE day < ?", (first,)).rowcount
         n += con.execute("DELETE FROM counts WHERE day < ?", (first,)).rowcount
         n += con.execute("DELETE FROM crashes WHERE received < ?", (first,)).rowcount
+        n += con.execute("DELETE FROM downloads WHERE day < ?", (first,)).rowcount
     return n
 
 
@@ -605,6 +845,71 @@ def geo_line(g):
     return f'<span class="down">{html.escape(text)} It\'s more than {GEO_STALE_MONTHS} months old, so downloads may be failing.</span>' if g["stale"] else html.escape(text)
 
 
+def github_rollup(rows, dates):
+    """rows: (day, item, n) of the github source, oldest first. Returns {"since": first snapshot day, "platforms":
+    {platform: {"total": all-time, "series": downloads per day for dates, "period": their sum}}, "versions": {version: downloads
+    in dates}}. A release's downloads on a day are its count minus its previous snapshot; the first snapshot day of all is the
+    baseline (nothing counted); a release first seen later counts whole."""
+    since = rows[0][0] if rows else None
+    last, per_day, versions, total = {}, {}, {}, {}
+    for day, item, n in rows:
+        _, tag, plat = item.split(":", 2)
+        prev = last.get((tag, plat))
+        gain = max(n - prev, 0) if prev is not None else (0 if day == since else n)
+        last[(tag, plat)] = n
+        if day in dates:
+            per_day[(plat, day)] = per_day.get((plat, day), 0) + gain
+            versions[tag.lstrip("v")] = versions.get(tag.lstrip("v"), 0) + gain
+    for (tag, plat), n in last.items():
+        total[plat] = total.get(plat, 0) + n
+    plats = {}
+    for plat, _ in PLATFORMS:
+        series = [per_day.get((plat, day), 0) for day in dates]
+        plats[plat] = {"total": total.get(plat, 0), "series": series, "period": sum(series)}
+    return {"since": since, "platforms": plats, "versions": {v: n for v, n in versions.items() if n}}
+
+
+def gather_downloads(days, today=None):
+    """The Downloads section's numbers: github (see github_rollup), apt, and snap, each None-valued fields when it has no rows."""
+    today = today or utc_today()
+    dates = [(today - dt.timedelta(days=days - 1 - i)).isoformat() for i in range(days)]
+    with db() as con:
+        rows = lambda source, lo=None: con.execute("SELECT day, item, n FROM downloads WHERE source = ?" + (" AND day >= ?" if lo else "")
+                                                     + " ORDER BY day", (source, lo) if lo else (source,)).fetchall()
+        gh = github_rollup(rows("github"), set(dates))
+        apt_rows = rows("apt", dates[0])
+        snap_all = rows("snap")
+    deb, checks, versions, countries = [0] * days, [0] * days, {}, {}
+    for day, item, n in apt_rows:
+        i = dates.index(day) if day in dates else None
+        if i is None:
+            continue
+        if item == "kind:deb":
+            deb[i] += n
+        elif item == "kind:update-check":
+            checks[i] += n
+        elif item.startswith("version:"):
+            versions[item[8:]] = versions.get(item[8:], 0) + n
+        elif item.startswith("country:"):
+            countries[item[8:]] = countries.get(item[8:], 0) + n
+    apt = {"connected": bool(os.environ.get("CF_ANALYTICS_TOKEN")), "has_data": bool(apt_rows), "deb_series": deb, "deb": sum(deb),
+           "check_series": checks, "checks": sum(checks), "versions": versions, "countries": countries}
+    totals, latest = {}, {}   # snap: kind:total per bucket day, and the newest value of each item
+    for day, item, n in snap_all:
+        if item == "kind:total":
+            totals[day] = n
+        latest[item] = (day, n)
+    newest = max((d for d, _ in latest.values()), default=None)
+    snap = {"connected": bool(os.environ.get("SNAP_METRICS_CREDENTIALS", "").strip()), "has_data": bool(snap_all), "day": newest,
+            "now": totals.get(newest, 0) if newest else 0,
+            "series": [totals[d] for d in sorted(totals)[-26:]],   # weekly buckets, so the newest half year
+            "countries": {k[8:]: v[1] for k, v in latest.items() if k.startswith("country:") and v[0] == newest}}
+    combined = dict(gh["versions"])
+    for v, n in versions.items():
+        combined[v] = combined.get(v, 0) + n
+    return {"github": gh, "apt": apt, "snap": snap, "versions": combined}
+
+
 def gather_stats(days=DEFAULT_DAYS, today=None):
     """Everything the dashboard shows, as a dict: one row per app plus one for all apps, the
     country, version, system, language, and command lists, and the crash counts by version."""
@@ -661,6 +966,7 @@ def gather_stats(days=DEFAULT_DAYS, today=None):
             "versions": latest("version", "install, app"), "systems": latest("os"), "langs": latest("lang"),
             "commands": commands, "crash_versions": crash_versions,
         }
+    data["downloads"] = gather_downloads(days, today)
     data["kpi"] = next(r for r in rows if r["app"] is None)   # all apps, for callers that want one set of numbers
     return data
 
@@ -697,6 +1003,7 @@ th{font-weight:500;color:var(--muted);font-size:.8rem}tr:last-child td{border-bo
 td.r,th.r{text-align:right;font-variant-numeric:tabular-nums}
 .app{white-space:nowrap}.sw{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:.5rem}
 .delta{display:block;font-size:.75rem;color:var(--muted)}.up{color:var(--up)}.down{color:var(--down)}
+table.dl .app{white-space:normal}table.dl .delta{white-space:nowrap}
 td.spark svg{width:160px;height:30px}
 @media (max-width:32.5rem){td.spark,th.spark{padding-left:.2rem;padding-right:.2rem}td.spark svg{width:64px;height:24px}td.spark circle{display:none}td,th{padding-left:.3rem;padding-right:.3rem}}
 svg{display:block;max-width:100%}
@@ -824,6 +1131,54 @@ def render_map(d):
             f'<section class="card"><h2>Top countries</h2>{rows}<p>Unknown: {unknown}</p></section></div>')
 
 
+def render_downloads(d):
+    """The Downloads section: a table like the per-app one, then small cards when there is something to list."""
+    dl, days, e = d["downloads"], d["days"], html.escape
+    gh, apt, snap = dl["github"], dl["apt"], dl["snap"]
+
+    def row(name, series, label, main, sub="", total="", color="var(--bar)"):
+        spark = sparkline(series, color, label) if series else ""
+        return (f'<tr><td class="app">{e(name)}</td><td class="spark">{spark}</td><td class="r">{main}{sub}</td>'
+                f'<td class="r">{total}</td></tr>')
+
+    def off(name, what):
+        return f'<tr><td class="app">{e(name)}</td><td class="muted" colspan="3">{e(what)}: not connected yet</td></tr>'
+
+    body = ""
+    for plat, name in PLATFORMS:
+        p = gh["platforms"][plat]
+        body += row(name, p["series"], f"{name}: {p['period']} in {days} days", p["period"], total=p["total"])
+    if not apt["connected"]:
+        body += off("apt", "apt")
+    else:
+        sub = f'<span class="delta">{apt["checks"]} checks</span>'
+        body += row("apt (.deb)", apt["check_series"], f"apt update checks per day: {apt['checks']} in {days} days",
+                    apt["deb"], sub, "")
+    if not snap["connected"]:
+        body += off("Snap Store", "Snap Store")
+    elif snap["day"]:
+        body += row("Snap Store", snap["series"], f"Snap installed base, week of {snap['day']}: {snap['now']}", snap["now"],
+                    '<span class="delta">installed now</span>', "")
+    else:
+        body += f'<tr><td class="app">Snap Store</td><td class="muted" colspan="3">no data yet</td></tr>'
+    since = gh["since"]
+    notes = (f"GitHub counts downloads of each installer; the period is the change in GitHub's running total, "
+             f"counting since {e(since)}. All time is GitHub's own total. " if since else
+             "GitHub's counts start with the first daily snapshot, which hasn't been taken yet. ")
+    notes += ("apt shows .deb downloads in the period; its graph and the checks figure count update checks, which are requests for the "
+              "repository's Release files, not separate computers. Snap Store shows the weekly installed base (its newest week), not downloads.") if apt["connected"] else ""
+    table = (f'<section class="card"><h2>Downloads</h2><div class="tablewrap"><table class="dl"><tr><th></th><th class="spark">Per day</th>'
+             f'<th class="r">Last {days} days</th><th class="r">All time</th></tr>{body}</table></div>'
+             f'<p class="muted small">{notes}</p></section>')
+    top = lambda m: sorted(m.items(), key=lambda kv: (-kv[1], kv[0]))[:8]
+    country = lambda c: COUNTRIES[c][1] if c in COUNTRIES else c
+    cards = "".join(f'<section class="card"><h2>{e(title)}</h2>{bar_list(rows, label=label)}</section>' for title, rows, label in (
+        (f"Downloads by version, {days} days", top(dl["versions"]), lambda v: v),
+        ("Snap installs by country", top(snap["countries"]), country),
+        (f"apt update checks by country, {days} days", top(apt["countries"]), country)) if rows)
+    return table + (f'<div class="cards">{cards}</div>' if cards else "")
+
+
 def render_stats(d):
     e = html.escape
     days = d["days"]
@@ -863,11 +1218,12 @@ def render_stats(d):
 <main>
 <div class="head"><h1>JeffOffice usage</h1><div class="right"><span class="muted small">Times are UTC</span>{period}</div></div>
 {table}
+{render_downloads(d)}
 {render_map(d)}
 <div class="cards">{cards}</div>
 {allcmds}
 <section class="card"><h2>Crashes by version, last {days} days</h2>{crashes}<p><a href="/crashes">The newest crash reports</a></p></section>
-<footer>IP geolocation by <a href="https://db-ip.com">DB-IP</a>. {geo_line(d.get("geo"))}<br>{FOOTER_LINKS}</footer>
+<footer>IP geolocation by <a href="https://db-ip.com">DB-IP</a>. Download counts from GitHub, Cloudflare, and the Snap Store. {geo_line(d.get("geo"))}<br>{FOOTER_LINKS}</footer>
 </main>
 {"".join(f'<script defer src="{u}"></script>' for u in ATLAS_SCRIPTS)}
 <script>{MAP_JS}</script>
@@ -1005,6 +1361,7 @@ def main():
         return
     threading.Thread(target=purge_daily, daemon=True).start()
     threading.Thread(target=geo_daily, daemon=True).start()
+    threading.Thread(target=download_daily, daemon=True).start()
     port = int(os.environ.get("PORT", "8080"))
     server = ThreadingHTTPServer(("0.0.0.0", port), Handler)
     server.daemon_threads = True
