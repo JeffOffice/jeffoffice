@@ -2,7 +2,7 @@
 
 JeffDeck is the presentation app of JeffOffice. JeffOffice is an independent project: JeffDeck aims to work with PowerPoint files and the people who use them (compatibility and interoperability), and then to do more, and do it better. It saves `.pptx` by default, opens `.pptx`, `.potx`, `.ppsx`, `.ppt`, `.pps`, `.pot`, `.odp`, and `.otp`, and also saves `.potx`, `.ppsx`, `.odp`, and `.otp`. It is a preview (it shipped in 0.7.0 and again in 0.8.0), so unlike the lists for the apps not built yet, this one describes a program that exists, a box is checked only when the feature works in JeffDeck today, and every item carries a status checked against the code, the tests, the ribbon file, and Help on October 15, 2026 (see [docs/jeffdeck.md](../jeffdeck.md) for the design and status notes, which this list does not replace). It is a checklist of features: everything people rely on so their presentations open, look right, and keep working, and then more, grouped the way the app's ribbon is (File, then each ribbon tab, the slide show, the tabs that appear only while something is selected, then what sits under the ribbon), so that the work can be planned and tracked, and so that it can settle one question: when does JeffDeck stop being a preview?
 
-Last reviewed November 5, 2026.
+Last reviewed November 14, 2026.
 
 Legend: `[x]` done · `[~]` partly there (the note says what's missing, or which shared JeffOffice part it builds on) · `[ ]` not yet · **(alt)** the usual way depends on a proprietary online service, so the app offers an open replacement.
 
@@ -159,8 +159,8 @@ JeffDeck's File screen has New, Open, Save, Save As, Print, Export, Close, Optio
 - [ ] **later** Double strikethrough, equalized character height, and the other rare Font-window choices
 
 ### Paragraph
-- [x] **1.0** Bullets (disc, circle, square, diamond, arrow, check mark, star, and dash) and Numbering (1. 2. 3., a. b. c., A. B. C., i. ii. iii., I. II. III., 1) 2) 3), and (1) (2) (3)), each with its Bullets and Numbering window *(bullets: ours 13 of 19; numbering 1)*
-- [ ] **later** Picture bullets and your own bullet character *(picture bullets: ours 0 of 19)*
+- [x] **1.0** Bullets (disc, circle, square, diamond, arrow, check mark, star, and dash) and Numbering (1. 2. 3., a. b. c., A. B. C., i. ii. iii., I. II. III., 1) 2) 3), and (1) (2) (3)), each with its Bullets and Numbering window *(bullets: ours 13 of 19; numbering 1)* *(0.29: Bullets, Numbering, and Multilevel List are the menus JeffWrite and JeffPub have: recent bullets, a library of seven, None, Define New Bullet (a symbol from the Symbol box, its font, size, and color), a library of seven counting styles, Define New Number Format (style, one of four punctuation forms, start at), four multilevel lists, Change List Level (1 to 9), and Define New Multilevel List with a bullet or a number for each of nine levels; each is one step of Undo, and Tab and Shift+Tab at the start of an item change its level. `.pptx` and `.odp` keep the bullet character, font, size, and color, the five styles with their punctuation, start at, and the level of each item; they have no place here for legal numbering, text in the number, or restart rules)*
+- [~] **later** Picture bullets and your own bullet character *(picture bullets: ours 0 of 19; 0.29: your own bullet character is done (Define New Bullet); a picture bullet is not: `.pptx` can hold one, and this does not read, draw, or write it yet)*
 - [x] **1.0** Decrease and Increase List Level, taking the bullet, indent, and size the layout gives the new level
 - [x] **1.0** Line Spacing (1, 1.15, 1.5, 2, 2.5, and 3) and the Paragraph window (indents, spacing before and after, and tab stops) *(spacing as a percentage: ours 12 of 19)*
 - [x] **1.0** Align Left, Center, Align Right, and Justify, with Ctrl+L, Ctrl+E, Ctrl+R, and Ctrl+J
