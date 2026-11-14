@@ -336,8 +336,8 @@
          "text": "5342981b939c13de0d328a703c5b3648cb98d9acb529e084a4e3cf1e974d7154"
         },
         {
-         "status": "todo",
-         "text": "d8dd6036d815a585ec3b98c97b109ceed5ba75485e5ad4cd7416743d62aae9d6"
+         "status": "partly",
+         "text": "1563f3c9f97782c534c4e1ff95ce32b4effeb48eeed04b36a62184eb88115d36"
         },
         {
          "status": "todo",
@@ -1015,7 +1015,7 @@
         },
         {
          "status": "partly",
-         "text": "ef5239ba281972a9f5873f1ddac73e1a5a006beb4b7aba105cb9442fda66f195"
+         "text": "69503a80b641e32b516caa2ee203da83470a97694c81f2bd39b832d4138bf574"
         }
        ]
       },
@@ -1261,11 +1261,11 @@
      "items": [
       {
        "status": "partly",
-       "text": "1862cc61fedaa5002e4a1e9207622ffa7d94511ad557170133684f98e4d817e7"
+       "text": "25b36689994bf56812a5229a0f115348e90382880e1816c61281e715b4f10c52"
       },
       {
-       "status": "todo",
-       "text": "433250fa0899b16175636b7806777a192bbe71cbf9934ddd978b81c78786aa81"
+       "status": "partly",
+       "text": "f0cea6489a10036df2daf8bbdbcc3762135ffe4392ea5948a3af26227ca7ceb1"
       },
       {
        "status": "todo",
@@ -1907,7 +1907,7 @@
         },
         {
          "status": "partly",
-         "text": "d029fd185cae96b2acc3c9ebf28a60580da1d5f93613b665fa081caf10656b2c"
+         "text": "ae0fa2d800e6bd427d4acb7b001770403856e8e3eb952fd9ba10a7ab49a25337"
         },
         {
          "hide_soon": true,
@@ -8971,6 +8971,18 @@
     "fr": ""
    }
   },
+  "1563f3c9f97782c534c4e1ff95ce32b4effeb48eeed04b36a62184eb88115d36": {
+   "drop": false,
+   "en": "Choose whether linked workbooks are asked about, updated, or left with their stored values when a file opens; the choice is saved in the file.",
+   "es": "Elija si, al abrir un archivo, se pregunta por los libros vinculados, se actualizan o se dejan con sus valores almacenados; la elección se guarda en el archivo.",
+   "fr": "Choisissez si, à l’ouverture d’un fichier, les classeurs liés font l’objet d’une question, sont mis à jour ou conservent leurs valeurs stockées ; le choix est enregistré dans le fichier.",
+   "soon": {
+    "drop": false,
+    "en": "Precision as displayed, save external link values, ignore other programs that use DDE, and system separators",
+    "es": "Precisión según se muestra, guardar valores de vínculos externos, ignorar otros programas que usan DDE y separadores del sistema",
+    "fr": "Précision telle qu’affichée, enregistrement des valeurs de liens externes, exclusion des autres programmes utilisant DDE et séparateurs du système"
+   }
+  },
   "159fa175f23d9400c0d7f41c5363a5af2d303b4c6f49f012217624a0063bfe8a": {
    "drop": true,
    "en": "",
@@ -9137,18 +9149,6 @@
     "en": "Stand-in fonts with the same letter widths for missing fonts in workbooks",
     "es": "Fuentes sustitutas con el mismo ancho de letra para las fuentes ausentes en libros",
     "fr": "Polices de remplacement de même largeur de lettres pour les polices absentes des classeurs"
-   }
-  },
-  "1862cc61fedaa5002e4a1e9207622ffa7d94511ad557170133684f98e4d817e7": {
-   "drop": false,
-   "en": "Form controls on a sheet are kept and written back, and the cells they link to follow inserted or deleted rows and columns.",
-   "es": "Los controles de formulario de una hoja se conservan y se vuelven a escribir, y las celdas a las que se vinculan siguen las filas y columnas insertadas o eliminadas.",
-   "fr": "Les contrôles de formulaire d’une feuille sont conservés et réécrits, et les cellules auxquelles ils sont liés suivent les lignes et colonnes insérées ou supprimées.",
-   "soon": {
-    "drop": false,
-    "en": "Form controls: display on the sheet",
-    "es": "Controles de formulario: mostrar en la hoja",
-    "fr": "Contrôles de formulaire : affichage sur la feuille"
    }
   },
   "18862bee79a32562bddfcd76912de7d41ed4fa3b2062bad0ee65b31a4518fd1d": {
@@ -10217,6 +10217,18 @@
     "en": "Built-in format numbers 59 to 81 and eras of formats 27 to 36 and 50 to 58",
     "es": "Números de formato integrados del 59 al 81 y eras de los formatos 27 a 36 y 50 a 58",
     "fr": "Numéros de format intégrés 59 à 81 et ères des formats 27 à 36 et 50 à 58"
+   }
+  },
+  "25b36689994bf56812a5229a0f115348e90382880e1816c61281e715b4f10c52": {
+   "drop": false,
+   "en": "Form controls on a sheet (button, combo box, check box, spin button, list box, option button, group box, label, and scroll bar) are shown where the file places them, kept, and written back with the cell or range each is linked to. They follow zoom, hidden rows and columns, and frozen panes, and they print unless the file says otherwise.",
+   "es": "Los controles de formulario de una hoja (botón, cuadro combinado, casilla de verificación, botón de número, cuadro de lista, botón de opción, cuadro de grupo, etiqueta y barra de desplazamiento) se muestran donde el archivo los coloca, se conservan y se guardan con la celda o el rango al que cada uno está vinculado. Siguen el zoom, las filas y columnas ocultas y los paneles inmovilizados, y se imprimen salvo que el archivo indique lo contrario.",
+   "fr": "Les contrôles de formulaire d’une feuille (bouton, liste déroulante, case à cocher, bouton de réglage, zone de liste, bouton d’option, zone de groupe, étiquette et barre de défilement) sont affichés là où le fichier les place, conservés et réécrits avec la cellule ou la plage à laquelle chacun est lié. Ils suivent le zoom, les lignes et colonnes masquées et les volets figés, et ils s’impriment sauf indication contraire du fichier.",
+   "soon": {
+    "drop": false,
+    "en": "Form controls in `.xls` and `.ods` files: display",
+    "es": "Controles de formulario en archivos `.xls` y `.ods`: visualización",
+    "fr": "Contrôles de formulaire dans les fichiers `.xls` et `.ods` : affichage"
    }
   },
   "25c77bf79f91799c07bf39bced80a5311449388a745afda11a28a2706bb68a13": {
@@ -12293,18 +12305,6 @@
     "en": "Drawing canvas: drop shapes into it by dragging",
     "es": "Lienzo de dibujo: soltar formas en él arrastrando",
     "fr": "Zone de dessin : y déposer des formes par glisser-déposer"
-   }
-  },
-  "433250fa0899b16175636b7806777a192bbe71cbf9934ddd978b81c78786aa81": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Insert and use form controls linked to a cell, without macros",
-    "es": "Insertar y usar controles de formulario vinculados a una celda, sin macros",
-    "fr": "Insertion et utilisation de contrôles de formulaire liés à une cellule, sans macros"
    }
   },
   "436160768f7ba084000e6ce4971cee9724339158270b5eb5782cd3b79823401f": {
@@ -15281,6 +15281,18 @@
     "en": "Show Markup by person in the ribbon, Highlight Updates, a horizontal Reviewing pane, and balloons for formatting changes",
     "es": "Mostrar marcas por persona en la cinta de opciones, resaltar actualizaciones, panel de revisión horizontal y globos para cambios de formato",
     "fr": "Affichage des marques par personne dans le ruban, mise en évidence des mises à jour, volet de révision horizontal et bulles pour les changements de mise en forme"
+   }
+  },
+  "69503a80b641e32b516caa2ee203da83470a97694c81f2bd39b832d4138bf574": {
+   "drop": false,
+   "en": "Edit Links lists the external workbooks a workbook points to. Check each source’s status, open it, update values from it, change its source file, or break the link. Each source shows as OK, Not found, Newer, or Could not be read, and a link shows the values stored in the file until you update it.",
+   "es": "Editar vínculos muestra los libros externos a los que apunta un libro. Puede comprobar el estado de cada origen, abrirlo, actualizar valores desde él, cambiar su archivo de origen o romper el vínculo. Cada origen aparece como Correcto, No encontrado, Más reciente o No se pudo leer, y un vínculo muestra los valores almacenados en el archivo hasta que usted lo actualice.",
+   "fr": "Modifier les liens affiche les classeurs externes vers lesquels pointe un classeur. Vous pouvez vérifier l’état de chaque source, l’ouvrir, en actualiser les valeurs, changer son fichier source ou rompre le lien. Chaque source apparaît comme OK, Introuvable, Plus récente ou Illisible, et un lien affiche les valeurs stockées dans le fichier tant que vous ne l’actualisez pas.",
+   "soon": {
+    "drop": false,
+    "en": "Links to sources that are web addresses",
+    "es": "Vínculos a orígenes que son direcciones web",
+    "fr": "Liens vers des sources qui sont des adresses web"
    }
   },
   "697af04fb1b30473766f5a256c983f7b76c98578ce9051a26ac33f469cd91fe9": {
@@ -19999,6 +20011,18 @@
     "fr": "Quadrillage, barre de formule et en-têtes : activation et désactivation pour chaque feuille"
    }
   },
+  "ae0fa2d800e6bd427d4acb7b001770403856e8e3eb952fd9ba10a7ab49a25337": {
+   "drop": false,
+   "en": "External references (`[Prices.xlsx]Sheet1!$A$1`, or a defined name in another workbook) show the values the file stored without opening the other workbook. Edit Links updates them on request from an `.xlsx`, `.xls`, `.ods`, or `.csv` source, including formulas that sum, look up, or calculate on the source’s cells. If a source is missing, too big, or too slow, the stored values stay.",
+   "es": "Las referencias externas (`[Prices.xlsx]Sheet1!$A$1` o un nombre definido en otro libro) muestran los valores almacenados en el archivo sin abrir el otro libro. Editar vínculos las actualiza a petición desde un origen `.xlsx`, `.xls`, `.ods` o `.csv`, incluidas las fórmulas que suman, buscan o calculan con las celdas del origen. Si un origen falta, es demasiado grande o demasiado lento, se conservan los valores almacenados.",
+   "fr": "Les références externes (`[Prices.xlsx]Sheet1!$A$1` ou un nom défini dans un autre classeur) affichent les valeurs stockées dans le fichier sans ouvrir l’autre classeur. Modifier les liens les actualise à la demande à partir d’une source `.xlsx`, `.xls`, `.ods` ou `.csv`, y compris les formules qui additionnent, recherchent ou calculent sur les cellules de la source. Si une source est absente, trop volumineuse ou trop lente, les valeurs stockées sont conservées.",
+   "soon": {
+    "drop": false,
+    "en": "Links made by typing the name of another open workbook, and web address sources",
+    "es": "Vínculos creados escribiendo el nombre de otro libro abierto y orígenes de direcciones web",
+    "fr": "Liens créés en saisissant le nom d’un autre classeur ouvert et sources en adresse web"
+   }
+  },
   "ae159ced970bf7d91e473761a975a9e6cf844e8955294dd51cc4652bfa8f5dd1": {
    "drop": true,
    "en": "",
@@ -22279,18 +22303,6 @@
     "fr": "Règles d’erreur : une formule qui omet des cellules voisines et une formule qui lit des cellules vides"
    }
   },
-  "d029fd185cae96b2acc3c9ebf28a60580da1d5f93613b665fa081caf10656b2c": {
-   "drop": false,
-   "en": "External references, such as `[Prices.xlsx]Sheet1!$A$1` or a defined name in another workbook, show the values the file stored without opening the other workbook, and Edit Links updates cells that only reference a cell of the source.",
-   "es": "Las referencias externas, como `[Prices.xlsx]Sheet1!$A$1` o un nombre definido en otro libro, muestran los valores que guardó el archivo sin abrir el otro libro, y Edit Links actualiza las celdas que solo hacen referencia a una celda del origen.",
-   "fr": "Les références externes, comme `[Prices.xlsx]Sheet1!$A$1` ou un nom défini dans un autre classeur, affichent les valeurs enregistrées dans le fichier sans ouvrir l’autre classeur, et Edit Links met à jour les cellules qui ne font que référencer une cellule de la source.",
-   "soon": {
-    "drop": false,
-    "en": "Formulas that work with values from another workbook: calculate",
-    "es": "Fórmulas que trabajan con valores de otro libro: cálculo",
-    "fr": "Formules qui utilisent des valeurs d’un autre classeur : calcul"
-   }
-  },
   "d04a57cde3a6fcb29f1c73ad14a2c52c49d060d6172d1a07351be59a916f1177": {
    "drop": false,
    "en": "Pivot chart tabs (while a pivot chart is selected)",
@@ -22937,18 +22949,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "d8dd6036d815a585ec3b98c97b109ceed5ba75485e5ad4cd7416743d62aae9d6": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Advanced calculation and compatibility options: precision as displayed, link updates, and system separators",
-    "es": "Opciones avanzadas de cálculo y compatibilidad: precisión según se muestra, actualización de vínculos y separadores del sistema",
-    "fr": "Options avancées de calcul et de compatibilité : précision telle qu’affichée, mise à jour des liaisons et séparateurs du système"
    }
   },
   "d8e1e79a4384cd6d9657f9d18a7b77bacfbf8a66674983c4da36e9cd0ae7dca5": {
@@ -24487,18 +24487,6 @@
     "fr": ""
    }
   },
-  "ef5239ba281972a9f5873f1ddac73e1a5a006beb4b7aba105cb9442fda66f195": {
-   "drop": false,
-   "en": "Edit Links lists the external workbooks a workbook points to. You can check status, open a source, break a link, update values from a source file on this computer, and change a link’s source. A link shows the values the file stored until you update it.",
-   "es": "Edit Links muestra los libros externos a los que apunta un libro. Usted puede comprobar el estado, abrir un origen, romper un vínculo, actualizar valores desde un archivo de origen en este equipo y cambiar el origen de un vínculo. Un vínculo muestra los valores que guardó el archivo hasta que usted lo actualiza.",
-   "fr": "Edit Links répertorie les classeurs externes vers lesquels pointe un classeur. Vous pouvez vérifier l’état, ouvrir une source, rompre une liaison, mettre à jour les valeurs depuis un fichier source sur cet ordinateur et changer la source d’une liaison. Une liaison affiche les valeurs enregistrées dans le fichier jusqu’à ce que vous la mettiez à jour.",
-   "soon": {
-    "drop": false,
-    "en": "Update Values for formulas that do more than read one cell, and for web address sources",
-    "es": "Actualización de valores para fórmulas que hacen más que leer una celda y para orígenes con dirección web",
-    "fr": "Mise à jour des valeurs pour les formules qui font plus que lire une cellule et pour les sources à adresse web"
-   }
-  },
   "ef5aa12f922054c4eeb7ed32c2cb48d1aff535a10788573a8a749acf4fd19890": {
    "drop": false,
    "en": "Restrict editing to no changes (read only), tracked changes, comments, or filling in forms, with an optional password. Manage Styles limits formatting to styles that are not locked. A protected file opens protected, and Stop Protection asks for the password.",
@@ -24581,6 +24569,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "f0cea6489a10036df2daf8bbdbcc3762135ffe4392ea5948a3af26227ca7ceb1": {
+   "drop": false,
+   "en": "Insert form controls and use them without macros when linked to a cell: a check box writes `TRUE` or `FALSE`, an option button writes its place in its group, a list box writes the line clicked, a drop-down writes the line chosen, and a spin button or scroll bar steps a number within its minimum and maximum. Format Control sets the cell, input range, minimum, maximum, step, page, and checked state. Controls follow inserted or deleted rows and columns, and each change is one step of Undo. A button does nothing, because macros do not run.",
+   "es": "Inserte controles de formulario y úselos sin macros cuando estén vinculados a una celda: una casilla de verificación escribe `TRUE` o `FALSE`, un botón de opción escribe su posición en el grupo, un cuadro de lista escribe la línea seleccionada, una lista desplegable escribe la línea elegida y un botón de número o barra de desplazamiento cambia un número entre su mínimo y su máximo. Formato de control define la celda, el rango de entrada, el mínimo, el máximo, el incremento, la página y el estado marcado. Los controles siguen las filas y columnas insertadas o eliminadas, y cada cambio es un paso de Deshacer. Un botón no hace nada, porque las macros no se ejecutan.",
+   "fr": "Insérez des contrôles de formulaire et utilisez-les sans macros lorsqu’ils sont liés à une cellule : une case à cocher écrit `TRUE` ou `FALSE`, un bouton d’option écrit sa place dans son groupe, une zone de liste écrit la ligne cliquée, une liste déroulante écrit la ligne choisie, et un bouton de réglage ou une barre de défilement fait varier un nombre entre son minimum et son maximum. Format de contrôle définit la cellule, la plage d’entrée, le minimum, le maximum, le pas, la page et l’état coché. Les contrôles suivent les lignes et colonnes insérées ou supprimées, et chaque changement est une étape d’annulation. Un bouton ne fait rien, car les macros ne s’exécutent pas.",
+   "soon": {
+    "drop": false,
+    "en": "Dragging a thumb or the control itself, and list boxes that allow several lines",
+    "es": "Arrastrar el control deslizante o el propio control, y cuadros de lista que permiten varias líneas",
+    "fr": "Glissement du curseur ou du contrôle lui-même, et zones de liste à sélection multiple"
    }
   },
   "f0eb433df69bcee01c25efb4de5e2cdaacdd116e9015e659b9902d3dc24b9cd3": {
