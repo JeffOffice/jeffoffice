@@ -121,7 +121,6 @@ struct Tables {
 
 extern const char *const kBorderNames[];
 extern const char *const kUnderlineNames[];
-int borderStyleOf(const char *word);
 
 // Whether the letters are one of the control words this reader acts on (the words are matched by a hash, and the hash alone is not enough).
 bool isKnownWord(const char *letters, int length);

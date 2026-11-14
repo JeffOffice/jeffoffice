@@ -172,7 +172,6 @@ private:
     QByteArray deletionXml(const Odf &o, const QString &id, ParaCtx *pc);
     QByteArray bodyBlocksXml(const QVector<Block> &blocks, bool lastMustBeParagraph) const;
     QByteArray blockXml(const Block &b) const;
-    void startSection(const QString &master);
     void endSection(QVector<Block> *out, const SectionState &next);
     int nextDocPrId() { return ++m_docPrId; }
     void left(const QString &what);

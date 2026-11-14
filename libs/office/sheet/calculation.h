@@ -738,7 +738,6 @@ public:
     bool formulaPlace(quint32 node, int *sheet, quint32 *row, quint32 *col) const;
     bool isCircular(int sheet, quint32 row, quint32 col) const;
     bool isTainted(int sheet, quint32 row, quint32 col) const;
-    bool isCascaded(int sheet, quint32 row, quint32 col) const;   // reads (through others) a formula that `verify` called a mismatch
     // For a formula kept apart: why, as the yardstick's classes say (U a function it lacks, V changes by itself, E another workbook, T a table's columns, P not parsed, N no
     // result stored or no formula, D a data table, L past the bounds, I circular in a workbook that iterates, C circular, R a rate found by iteration); 0 for a formula that was worked out.
     char keptClass(int sheet, quint32 row, quint32 col) const;
@@ -830,7 +829,6 @@ private:
     // Whether the formula's references are ids (the sheet is of a workbook that holds them so, and the text is not one that stays in places).
     static bool inIds(const Sheet &s, qint32 text) { return s.frame && !s.positionalTexts.contains(text); }
     jp::calc::ParseLimits limitsOf(const Sheet &s, qint32 text) const { return s.wideTexts.contains(text) ? jp::calc::ParseLimits::ids() : jp::calc::ParseLimits::grid(); }
-    void holdText(int sheet, qint32 text);
     void forgetTextFacts(int sheet, qint32 text);
     void releaseText(int sheet, qint32 text);
     qint32 allocFormula(int sheet, const Formula &f);

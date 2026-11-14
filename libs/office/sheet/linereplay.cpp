@@ -158,12 +158,6 @@ bool LineReplay::ok() const { return d->ok; }
 
 bool LineReplay::movesAnything() const { return d->any; }
 
-bool LineReplay::moves(int sheet) const
-{
-    const Impl::Lines *L = d->of(sheet);
-    return L && L->moved;
-}
-
 QStringList LineReplay::movedSheetNames() const
 {
     QStringList out;

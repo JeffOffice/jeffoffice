@@ -13,8 +13,6 @@ struct NamePair {
     const char *odf;
 };
 // The shapes the standard has a name for (a preset it has none for is "ooxml-" and its name), and the fontwork shapes the text warps stand for.
-const NamePair *shapeNames(int *count);
-const NamePair *fontworkNames(int *count);
 QString odfTypeOfPreset(const QString &prst);
 QString presetOfOdfType(const QString &type);
 QString fontworkOfWarp(const QString &warp);   // empty for a warp the standard has no fontwork shape for

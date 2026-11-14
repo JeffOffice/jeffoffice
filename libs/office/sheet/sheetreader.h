@@ -441,8 +441,6 @@ public:
     QVector<SlicerView> slicerViews(int sheet) const;
     // The slicer parts this session has written with a choice of their own: they are looked at again at each save (Undo may bring the table back to what the file had before).
     QSet<QString> &slicerPartsWritten() const { return m_slicerPartsWritten; }
-    // The parts of the pivot tables and caches that are not as the file has them, as they would be written, by the part's name.
-    std::map<QString, QByteArray> changedPivotParts() const;
     std::map<QString, std::function<QByteArray()>> changedPivotPartProducers() const;
     // Whether the tables allow the edit (not when it would cut through one, or remove one or its header row); if not, why.
     bool tablesAllow(const StructEdit &edit, QString *why) const;

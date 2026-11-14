@@ -162,8 +162,6 @@ struct Sep {
 QByteArray xmlEscape(const QString &s);
 // The attributes of the mark of a tracked change (w:ins or w:del): its Id, who made it, and when (the file's packed date and time; left out if it is none or isn't a date).
 QByteArray revisionAttributes(int id, const QString &author, quint32 date);
-// The coding of a color index (ico) and the palette of highlights.
-QString colorOfIndex(int ico);
 // The name a .docx gives a number format (the code of the old format: 0 decimal, 1 upper roman, 2 lower roman, 3 upper letter, 4 lower letter...).
 const char *numberFormatName(int nfc);
 QString hexColor(qint32 rgb);

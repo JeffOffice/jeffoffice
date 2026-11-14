@@ -57,9 +57,4 @@ void followStructEdit(PageSetup *setup, const StructEdit &edit, int ownSheet, co
     }
 }
 
-void followStructEdits(PageSetup *setup, const std::vector<StructEdit> &edits, int ownSheet, const QStringList &sheetNames)
-{
-    for (const StructEdit &e : edits) followStructEdit(setup, e, ownSheet, sheetNames);
-}
-
 } // namespace jp::office::sheet

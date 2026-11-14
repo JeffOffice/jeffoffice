@@ -13,9 +13,6 @@
 
 namespace jp::office::dmlwrite {
 
-// A length in points as EMU; positions and sizes are held to what a drawing
-// can hold, as the reading does.
-QString emu(double points);
 // A position or size in EMU: the position anywhere in the page's reach, the size
 // (a frame's extent) not below nothing.
 qint64 position(double points);

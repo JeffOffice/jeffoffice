@@ -82,8 +82,6 @@ QString hexColor(qint32 rgb)
     return QString::asprintf("%06X", unsigned(rgb) & 0xFFFFFF);
 }
 
-QString colorOfIndex(int ico) { return hexColor(rgbOfIco(ico)); }
-
 quint8 settleToggle(quint8 stated, quint8 parent)
 {
     if (stated == 0x80) return parent;

@@ -842,11 +842,6 @@ void Reader::convertList(const Odf &o, int n, QVector<Block> *out, int depth, in
     }
 }
 
-void Reader::startSection(const QString &master)
-{
-    m_sect.master = master;
-}
-
 void Reader::endSection(QVector<Block> *out, const SectionState &next)
 {
     // The section that has been made ends with the last paragraph before; the one that begins is `next`.

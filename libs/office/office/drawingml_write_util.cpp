@@ -59,11 +59,6 @@ QByteArray rasterOf(const QByteArray &svg)
 
 } // namespace
 
-QString emu(double points)
-{
-    return QString::number(position(points));
-}
-
 qint64 position(double points)
 {
     return pointsToEmu(std::isfinite(points) ? std::clamp(points, -kMaxPoint, kMaxPoint) : 0.0);

@@ -217,14 +217,6 @@ bool readChartRef(const QString &ref, int ownSheet, const ChartCells &cells, int
 
 namespace {
 
-void addReads(const QString &ref, int ownSheet, const ChartCells &cells, QVector<ChartBlock> *out)
-{
-    if (ref.isEmpty()) return;
-    QVector<ChartBlock> blocks;
-    chartBlocks(ref, ownSheet, cells, &blocks);
-    *out += blocks;
-}
-
 // The text of the cells a name or title reads, joined by spaces.
 bool textOf(const QString &ref, int ownSheet, const ChartCells &cells, int *budget, QString *out)
 {

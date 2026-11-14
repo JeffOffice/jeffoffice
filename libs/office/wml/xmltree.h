@@ -75,8 +75,6 @@ public:
     QString textAfter(int parent, int after) const;
     // The number this tree gave a namespace (by its URI), or -1 if no element or attribute of it was read.
     int namespaceId(const QByteArray &uri) const;
-    // The URI of a namespace number (empty for none).
-    QByteArray namespaceUri(int id) const;
     // Every attribute of an element, in order: its namespace number, its local name, and its value decoded.
     struct AttributeView {
         int ns = 0;

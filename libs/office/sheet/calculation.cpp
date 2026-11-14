@@ -345,13 +345,6 @@ qint32 Calculation::internText(int sheet, const QString &text, TextClass cls)
     return index;
 }
 
-void Calculation::holdText(int sheet, qint32 text)
-{
-    if (text < 0) return;
-    countTexts(sheet);
-    ++m_state[size_t(sheet)].textRefs[size_t(text)];
-}
-
 void Calculation::releaseText(int sheet, qint32 text)
 {
     if (text < 0) return;
@@ -3553,12 +3546,6 @@ bool Calculation::isTainted(int sheet, quint32 row, quint32 col) const
 {
     const quint32 id = nodeAt(sheet, row, col);
     return id != kNone && (m_nodes[id].flags & NodeTainted);
-}
-
-bool Calculation::isCascaded(int sheet, quint32 row, quint32 col) const
-{
-    const quint32 id = nodeAt(sheet, row, col);
-    return id != kNone && (m_nodes[id].flags & Cascade);
 }
 
 char Calculation::keptClass(int sheet, quint32 row, quint32 col) const

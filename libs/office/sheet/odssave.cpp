@@ -122,8 +122,6 @@ QString esc(const QString &s)
     return out;
 }
 
-QString pt(double v) { return QString::number(v, 'f', 3) + QLatin1String("pt"); }
-
 QString rgbText(quint32 rgb) { return QStringLiteral("#%1").arg(rgb & 0xFFFFFF, 6, 16, QLatin1Char('0')).toUpper(); }
 
 // The widest digit of the default font in whole pixels: the same count as the reader's (odsstyles/ods.cpp digitWidthOf), so a column's width in characters comes back as it went.

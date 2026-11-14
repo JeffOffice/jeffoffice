@@ -41,7 +41,6 @@ qint64 lengthToEmu(const QString &text, bool *ok = nullptr);
 QString colorHex(const QString &text);
 // A length in inches written for the standard, from twips or EMU.
 QString inchesFromTwips(double twips);
-QString inchesFromEmu(double emu);
 // A percentage "120%" as a number; false if it is none.
 bool percentOf(const QString &text, double *value);
 

@@ -74,7 +74,6 @@ public:
     std::vector<int> tablesOfCache(int cache) const;
     // The cells the table covers (not valid when it can't be read: then it is taken to be the whole sheet by whoever asks).
     CellRange locationOf(int i) const;
-    bool unreadable(int i) const;
     // The table was changed (and so was read), and the sheet it is on.
     // The file has the tables and caches as they are now (a save was made): what was written is what later changes are measured from, so that an Undo back to the file's old state is a change again.
     // Those made in this session are the file's own from then on (their parts are in it).
@@ -93,8 +92,6 @@ public:
     std::vector<SourcePlace> moveSources(const StructEdit &edit);
     void putSourcesBack(const std::vector<SourcePlace> &places);
 
-    // The parts that are not as the file has them, as they will be written (by the part's name). `sheetNames` are the names of the sheets now.
-    std::map<QString, QByteArray> changedParts(const QStringList &sheetNames) const;
     // The same parts, to be made later by the thread that writes the file: what is needed is taken now (the files' own small parts, the table and cache as they are), and the work, which for
     // a cache with many records is long, is done by the caller of each function.
     std::map<QString, std::function<QByteArray()>> changedPartProducers(const QStringList &sheetNames) const;
@@ -116,7 +113,6 @@ public:
     std::function<QByteArray(int cacheId)> tableProducer(int table) const;
     std::function<QByteArray()> definitionProducer(int cache, const QStringList &sheetNames) const;
     std::function<QByteArray()> recordsProducer(int cache) const;
-    bool changed() const;
 
 private:
     void load(int i) const;

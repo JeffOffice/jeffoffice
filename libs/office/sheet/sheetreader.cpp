@@ -3517,14 +3517,6 @@ PivotBook &Workbook::pivots() const
     return *m_pivotBook;
 }
 
-std::map<QString, QByteArray> Workbook::changedPivotParts() const
-{
-    if (!m_pivotBook) return {};
-    QStringList names;
-    for (const SheetEntry &e : m_info.sheets) names.append(e.deleted ? QString() : e.name);
-    return m_pivotBook->changedParts(names);
-}
-
 std::map<QString, std::function<QByteArray()>> Workbook::changedPivotPartProducers() const
 {
     if (!m_pivotBook) return {};

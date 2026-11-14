@@ -27,8 +27,6 @@ public:
     bool ok() const;
     // Whether the rows or columns of any sheet are now in another order than the file's (rows put in or taken out and not put back).
     bool movesAnything() const;
-    // The same for a sheet.
-    bool moves(int sheet) const;
     // The names (as the file has them) of the sheets that moves() says yes for.
     QStringList movedSheetNames() const;
 

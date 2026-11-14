@@ -130,12 +130,6 @@ const PivotTableEntry &PivotBook::table(int i) const
     return m_tables[size_t(i)];
 }
 
-bool PivotBook::unreadable(int i) const
-{
-    loadTable(i);
-    return !m_tables[size_t(i)].table;
-}
-
 void PivotBook::load(int i) const
 {
     std::lock_guard<std::recursive_mutex> lock(m_lock);
@@ -314,15 +308,6 @@ void PivotBook::markSaved(const QStringList &sheetNames)
         c.fileSource = c.source;
         if (c.sourceSheet >= 0 && c.sourceSheet < sheetNames.size() && !sheetNames[c.sourceSheet].isEmpty()) c.fileSheetName = sheetNames[c.sourceSheet];
     }
-}
-
-bool PivotBook::changed() const
-{
-    for (const PivotTableEntry &t : m_tables)
-        if (t.table != t.fileTable) return true;
-    for (const PivotCacheEntry &c : m_caches)
-        if ((c.tried && c.cache != c.fileCache) || !(c.source == c.fileSource)) return true;
-    return false;
 }
 
 namespace {
@@ -519,16 +504,6 @@ std::map<QString, std::function<QByteArray()>> PivotBook::changedPartProducers(c
             const QString sheet = sheetNames[c.sourceSheet], ref = pivotRangeRef(c.source.row1, c.source.col1, c.source.row2, c.source.col2);
             out[c.definitionPart] = [original, sheet, ref] { return patchPivotCacheSource(original, sheet, ref); };
         }
-    }
-    return out;
-}
-
-std::map<QString, QByteArray> PivotBook::changedParts(const QStringList &sheetNames) const
-{
-    std::map<QString, QByteArray> out;
-    for (const auto &[part, make] : changedPartProducers(sheetNames)) {
-        const QByteArray bytes = make();
-        if (!bytes.isEmpty()) out[part] = bytes;
     }
     return out;
 }

@@ -84,7 +84,6 @@ private:
         qint64 defaultEmu = 0;
         void build(QVector<Run> list, double defaultPt);
         qint64 start(quint32 index) const;
-        qint64 size(quint32 index) const;
         void at(qint64 distance, quint32 count, quint32 *index, qint64 *offset) const;
     };
     Axis m_cols, m_rows;

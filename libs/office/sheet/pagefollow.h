@@ -14,7 +14,4 @@ namespace jp::office::sheet {
 // `ownSheet` is the place of the sheet the setup is for, and `sheetNames` the names of all the workbook's sheets, in order.
 void followStructEdit(PageSetup *setup, const StructEdit &edit, int ownSheet, const QStringList &sheetNames);
 
-// Every edit in turn.
-void followStructEdits(PageSetup *setup, const std::vector<StructEdit> &edits, int ownSheet, const QStringList &sheetNames);
-
 } // namespace jp::office::sheet

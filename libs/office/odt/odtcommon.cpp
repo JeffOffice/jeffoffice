@@ -131,11 +131,6 @@ QString inchesFromTwips(double twips)
     return QString::number(std::max(-1e9, std::min(1e9, std::isfinite(twips) ? twips : 0.0)) / 1440.0, 'f', 4) + QStringLiteral("in");
 }
 
-QString inchesFromEmu(double emu)
-{
-    return QString::number(std::max(-1e12, std::min(1e12, std::isfinite(emu) ? emu : 0.0)) / 914400.0, 'f', 4) + QStringLiteral("in");
-}
-
 bool percentOf(const QString &text, double *value)
 {
     const QString t = text.trimmed();

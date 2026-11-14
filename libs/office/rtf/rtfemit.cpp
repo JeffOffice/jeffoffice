@@ -73,24 +73,6 @@ QByteArray fontsXml(const Tables &t, int font)
 
 } // namespace
 
-int borderStyleOf(const char *word)
-{
-    const QByteArray w(word);
-    if (w == "brdrs" || w == "brdrhair") return 1;
-    if (w == "brdrth") return 2;
-    if (w == "brdrdb") return 3;
-    if (w == "brdrdot") return 4;
-    if (w == "brdrdash" || w == "brdrdashsm") return 5;
-    if (w == "brdrwavy" || w == "brdrwavydb") return 6;
-    if (w == "brdrtriple") return 7;
-    if (w == "brdrdashd") return 8;
-    if (w == "brdrdashdd") return 9;
-    if (w == "brdrinset") return 10;
-    if (w == "brdroutset") return 11;
-    if (w == "brdrnone" || w == "brdrnil") return 0;
-    return 1;
-}
-
 QString colorHex(const Tables &t, int index)
 {
     if (index < 0 || index >= t.colors.size() || t.colors[index] < 0) return QStringLiteral("auto");

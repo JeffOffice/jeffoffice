@@ -479,13 +479,6 @@ int XmlTree::namespaceId(const QByteArray &uri) const
     return it == m_uriIndex.constEnd() ? -1 : it.value();
 }
 
-QByteArray XmlTree::namespaceUri(int id) const
-{
-    for (auto it = m_uriIndex.constBegin(); it != m_uriIndex.constEnd(); ++it)
-        if (it.value() == id) return it.key();
-    return QByteArray();
-}
-
 QVector<XmlTree::AttributeView> XmlTree::attributes(int n) const
 {
     QVector<AttributeView> out;

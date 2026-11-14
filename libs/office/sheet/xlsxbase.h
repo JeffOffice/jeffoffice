@@ -38,7 +38,6 @@ QByteArray scenariosXml(const ScenarioList &list);
 QByteArray richRunsXml(const QString &text, const RichRuns &runs, const QVector<FontSpec> &fonts);
 QByteArray borderXml(const BorderSpec &border);
 QByteArray xfXml(const CellFormat &format, int xfId, bool cellFormat);
-QByteArray alignmentXml(const CellFormat &format);
 // A color as an element of the given name ("tabColor"): rgb, theme, indexed, or auto; empty for none.
 QByteArray colorXml(const char *name, const ColorSpec &color);
 // The XML a sheet that a person added begins as: its view, default sizes, and tab color, an empty sheetData, and the rules of conditional formatting and validation it has (its cells, rows,

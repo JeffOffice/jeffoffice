@@ -1001,13 +1001,5 @@ QByteArray fontXml(const FontSpec &f) { return fontElement(f); }
 QByteArray fillXml(const FillSpec &f) { return fillElement(f); }
 QByteArray borderXml(const BorderSpec &b) { return borderElement(b); }
 QByteArray xfXml(const CellFormat &f, int xfId, bool cellFormat) { return xfElement(f, xfId, cellFormat); }
-QByteArray alignmentXml(const CellFormat &f)
-{
-    const QByteArray xf = xfElement(f, 0, false);
-    const qsizetype at = xf.indexOf("<alignment");
-    if (at < 0) return QByteArray();
-    const qsizetype end = xf.indexOf("/>", at);
-    return end < 0 ? QByteArray() : xf.mid(at, end + 2 - at);
-}
 
 } // namespace jp::office::sheet

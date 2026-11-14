@@ -758,8 +758,6 @@ public:
     // The same, counted cell by cell (for a check of deadCount and cellCount, which are kept as the order is edited).
     qint64 deadCountByScan() const;
 
-    // Puts the blocks that were added to out of order in order (the cells that were put in again by reshuffle).
-    void reorder();
     int blockCount() const { return int(m_blocks.size()); }
     // What the cells take, in bytes, as the blocks hold them.
     qint64 memoryBytes() const;

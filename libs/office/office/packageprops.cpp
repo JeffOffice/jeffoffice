@@ -121,8 +121,6 @@ void dateElement(QXmlStreamWriter &w, const QString &local, const QDateTime &d, 
     w.writeEndElement();
 }
 
-QString elementText(QXmlStreamReader &r) { return r.readElementText(QXmlStreamReader::ErrorOnUnexpectedElement).trimmed(); }
-
 bool validType(const QString &t) { return t == QLatin1String("lpwstr") || t == QLatin1String("i4") || t == QLatin1String("r8") || t == QLatin1String("bool") || t == QLatin1String("filetime"); }
 
 } // namespace

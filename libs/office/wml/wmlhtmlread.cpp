@@ -24,8 +24,6 @@ namespace jp::office::wml {
 
 namespace {
 
-QByteArray escapedAttr(const QString &s) { return s.toHtmlEscaped().toUtf8(); }
-
 const QString kRelBase = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
 
 struct Reader {

@@ -41,22 +41,6 @@ void Grid::Axis::build(QVector<Run> list, double defaultPt)
     }
 }
 
-qint64 Grid::Axis::size(quint32 index) const
-{
-    int lo = 0, hi = int(runs.size()) - 1, found = -1;
-    while (lo <= hi) {
-        const int mid = (lo + hi) / 2;
-        if (runs[mid].first <= index) {
-            found = mid;
-            lo = mid + 1;
-        } else {
-            hi = mid - 1;
-        }
-    }
-    if (found < 0 || index > runs[found].last) return defaultEmu;
-    return emuOf(runs[found].points);
-}
-
 qint64 Grid::Axis::start(quint32 index) const
 {
     int lo = 0, hi = int(runs.size()) - 1, found = -1;
@@ -288,17 +272,6 @@ bool plainName(const QString &s)
 }
 
 } // namespace
-
-const NamePair *shapeNames(int *count)
-{
-    *count = int(std::size(kShapes));
-    return kShapes;
-}
-const NamePair *fontworkNames(int *count)
-{
-    *count = int(std::size(kFontwork));
-    return kFontwork;
-}
 
 QString odfTypeOfPreset(const QString &prst)
 {

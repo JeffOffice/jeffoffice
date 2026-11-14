@@ -276,13 +276,11 @@ private:
     void control();
     void word(uint32_t h, const char *name, int len, bool has, int param);
     void onByte(uchar b);
-    void onText(const QString &s);
     void onTextChars(const char *p, int n);
     void flushLead();
     QChar decodeHigh(int cp, uchar b);
     int codepageFor(int fontIndex) const;
     void routeText(const QString &s);
-    void special(const QString &s) { onText(s); }
 
     // ---- paragraphs, runs, tables
     void flushText(Story &s);
@@ -533,12 +531,6 @@ void Reader::onTextChars(const char *p, int n)
             onByte(c);
         }
     }
-}
-
-void Reader::onText(const QString &s)
-{
-    flushLead();
-    routeText(s);
 }
 
 // ---------------------------------------------------------------- stories, paragraphs
