@@ -1086,9 +1086,12 @@ public:
     {
         Level l;
         l.present = true;
+        l.tentative = onOffString(t.attr(n, "tentative").toLower());
+        l.tplc = t.attr(n, "tplc");
         for (int c = t.firstChild(n); c >= 0; c = t.next(c)) {
             const QByteArray name = t.localName(c);
-            if (name == "start") l.start = intOf(t, c).value_or(1);
+            if (name == "lvlPicBulletId") l.picBullet = intOf(t, c);
+            else if (name == "start") l.start = intOf(t, c).value_or(1);
             else if (name == "numFmt") l.numFmt = t.val(c);
             else if (name == "lvlText") l.text = t.val(c);
             else if (name == "lvlJc") l.jc = t.val(c);

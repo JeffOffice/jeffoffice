@@ -45,7 +45,8 @@ QComboBox *alignmentBox(const QString &current, QWidget *parent)
 
 const NumberStyleName *numberStyleNames(int *count)
 {
-    static const NumberStyleName names[] = {{"decimal", "1, 2, 3"}, {"upperLetter", "A, B, C"}, {"lowerLetter", "a, b, c"}, {"upperRoman", "I, II, III"}, {"lowerRoman", "i, ii, iii"}};
+    static const NumberStyleName names[] = {{"decimal", "1, 2, 3"}, {"upperLetter", "A, B, C"}, {"lowerLetter", "a, b, c"}, {"upperRoman", "I, II, III"}, {"lowerRoman", "i, ii, iii"},
+                                              {"decimalZero", "01, 02, 03"}, {"ordinal", "1st, 2nd, 3rd"}, {"cardinalText", "One, Two, Three"}, {"ordinalText", "First, Second, Third"}};
     if (count) *count = int(sizeof names / sizeof names[0]);
     return names;
 }

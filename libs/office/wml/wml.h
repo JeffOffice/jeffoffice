@@ -370,6 +370,9 @@ struct Level {
     QString pStyle;                   // the paragraph style this level is linked to
     bool legal = false;
     bool legacy = false;              // w:legacy: a list the older programs made (its text begins at the indent)
+    bool tentative = false;           // w:tentative: a level that was defined but not used yet (kept as written)
+    QString tplc;                     // w:tplc: the template code of the level (kept as written)
+    std::optional<int> picBullet;     // lvlPicBulletId: the picture bullet (a numPicBullet of the part) the level's bullet is
     std::optional<int> restart;       // lvlRestart
     ParaProps pPr;                    // indents (and tabs) of the paragraphs in it
     RunProps rPr;                     // the number's own formatting (a bullet's font)

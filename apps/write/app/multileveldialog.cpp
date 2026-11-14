@@ -8,7 +8,10 @@
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QDoubleSpinBox>
+#include <QColorDialog>
+#include <QFontComboBox>
 #include <QFormLayout>
+#include <QPushButton>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
@@ -74,13 +77,13 @@ bool multilevelListDialog(QWidget *parent, AbstractNum *definition, const QList<
     auto *position = new QDoubleSpinBox(&d);
     position->setObjectName(QStringLiteral("numberPosition"));
     position->setRange(0, 1500);
-    position->setDecimals(1);
+    position->setDecimals(2);
     position->setSuffix(tr(" pt"));
     form->addRow(tr("Number position at:"), position);
     auto *indent = new QDoubleSpinBox(&d);
     indent->setObjectName(QStringLiteral("textIndent"));
     indent->setRange(0, 1500);
-    indent->setDecimals(1);
+    indent->setDecimals(2);
     indent->setSuffix(tr(" pt"));
     form->addRow(tr("Text indent at:"), indent);
     auto *follow = new QComboBox(&d);
@@ -92,6 +95,33 @@ bool multilevelListDialog(QWidget *parent, AbstractNum *definition, const QList<
     auto *legal = new QCheckBox(tr("Legal style numbering (1.1.1 in place of I.A.1)"), &d);
     legal->setObjectName(QStringLiteral("legalStyle"));
     form->addRow(legal);
+    // How the number looks: its font, size, bold, italic, and color (a bullet's symbol font too).
+    auto *fontCheck = new QCheckBox(tr("Use a font of its own for the number"), &d);
+    fontCheck->setObjectName(QStringLiteral("numberFontOn"));
+    auto *font = new QFontComboBox(&d);
+    font->setObjectName(QStringLiteral("numberFont"));
+    form->addRow(fontCheck);
+    form->addRow(tr("Font:"), font);
+    auto *size = new QDoubleSpinBox(&d);
+    size->setObjectName(QStringLiteral("numberSize"));
+    size->setRange(0, 200);
+    size->setDecimals(1);
+    size->setSuffix(tr(" pt"));
+    size->setSpecialValueText(tr("Same as the text"));
+    form->addRow(tr("Size:"), size);
+    auto *bold = new QCheckBox(tr("Bold"), &d);
+    bold->setObjectName(QStringLiteral("numberBold"));
+    auto *italic = new QCheckBox(tr("Italic"), &d);
+    italic->setObjectName(QStringLiteral("numberItalic"));
+    auto *emphasis = new QHBoxLayout;
+    emphasis->addWidget(bold);
+    emphasis->addWidget(italic);
+    form->addRow(emphasis);
+    auto *colorButton = new QPushButton(&d);
+    colorButton->setObjectName(QStringLiteral("numberColor"));
+    QString colorName;   // "RRGGBB", empty for the text's own
+    auto showColor = [&] { colorButton->setText(colorName.isEmpty() ? tr("Same as the text") : QLatin1Char('#') + colorName); };
+    form->addRow(tr("Color:"), colorButton);
     auto *link = new QComboBox(&d);
     link->setObjectName(QStringLiteral("linkToStyle"));
     link->addItem(tr("(none)"), QString());
@@ -139,12 +169,33 @@ bool multilevelListDialog(QWidget *parent, AbstractNum *definition, const QList<
         l.suff = follow->currentData().toString();
         l.legal = legal->isChecked();
         l.pStyle = link->currentData().toString();
+        if (fontCheck->isChecked()) {
+            Fonts f = l.rPr.fonts.value_or(Fonts());
+            f.ascii = f.hAnsi = font->currentFont().family();
+            f.asciiTheme.clear();
+            f.hAnsiTheme.clear();
+            l.rPr.fonts = f;
+        } else if (l.rPr.fonts && !l.rPr.fonts->hasOtherScripts()) {
+            l.rPr.fonts.reset();
+        } else if (l.rPr.fonts) {
+            l.rPr.fonts->ascii.clear();
+            l.rPr.fonts->hAnsi.clear();
+        }
+        if (size->value() > 0) l.rPr.size = int(std::lround(size->value() * 2));
+        else l.rPr.size.reset();
+        if (bold->isChecked()) l.rPr.bold = true;
+        else l.rPr.bold.reset();
+        if (italic->isChecked()) l.rPr.italic = true;
+        else l.rPr.italic.reset();
+        if (!colorName.isEmpty()) l.rPr.color = Color{colorName, {}, {}, {}};
+        else l.rPr.color.reset();
         preview->setText(shown());
     };
     auto load = [&](int level) {
         loading = true;
         current = level;
         const Level &l = work.levels[level];
+        if (style->findData(l.numFmt) < 0) style->addItem(l.numFmt, l.numFmt);   // (a style this box has no name for stays as the file has it)
         style->setCurrentIndex(std::max(0, style->findData(l.numFmt)));
         text->setText(l.text);
         start->setValue(l.start);
@@ -163,13 +214,21 @@ bool multilevelListDialog(QWidget *parent, AbstractNum *definition, const QList<
         follow->setCurrentIndex(std::max(0, follow->findData(l.suff)));
         legal->setChecked(l.legal);
         link->setCurrentIndex(std::max(0, link->findData(l.pStyle)));
+        const QString family = l.rPr.fonts ? (!l.rPr.fonts->ascii.isEmpty() ? l.rPr.fonts->ascii : l.rPr.fonts->hAnsi) : QString();
+        fontCheck->setChecked(!family.isEmpty());
+        if (!family.isEmpty()) font->setCurrentFont(QFont(family));
+        font->setEnabled(fontCheck->isChecked());
+        size->setValue(l.rPr.size ? *l.rPr.size / 2.0 : 0);
+        bold->setChecked(l.rPr.bold.value_or(false));
+        italic->setChecked(l.rPr.italic.value_or(false));
+        colorName = l.rPr.color && l.rPr.color->val != QLatin1String("auto") ? l.rPr.color->val : QString();
+        showColor();
         loading = false;
         preview->setText(shown());
     };
     QObject::connect(levels, &QListWidget::currentRowChanged, &d, [&](int row) {
         if (row < 0) return;
-        store();
-        load(row);
+        load(row);   // (each field stores its change as it is made, so the level that is left is already kept)
     });
     QObject::connect(include, &QComboBox::activated, &d, [&](int) {
         const int k = include->currentData().toInt();
@@ -181,6 +240,20 @@ bool multilevelListDialog(QWidget *parent, AbstractNum *definition, const QList<
     QObject::connect(start, &QSpinBox::valueChanged, &d, [&] { store(); });
     QObject::connect(text, &QLineEdit::textChanged, &d, [&] { store(); });
     QObject::connect(legal, &QCheckBox::toggled, &d, [&] { store(); });
+    QObject::connect(fontCheck, &QCheckBox::toggled, &d, [&](bool on) {
+        font->setEnabled(on);
+        store();
+    });
+    QObject::connect(font, &QFontComboBox::currentFontChanged, &d, [&] { store(); });
+    QObject::connect(size, &QDoubleSpinBox::valueChanged, &d, [&] { store(); });
+    QObject::connect(bold, &QCheckBox::toggled, &d, [&] { store(); });
+    QObject::connect(italic, &QCheckBox::toggled, &d, [&] { store(); });
+    QObject::connect(colorButton, &QPushButton::clicked, &d, [&] {
+        const QColor picked = QColorDialog::getColor(colorName.isEmpty() ? QColor(Qt::black) : QColor(QLatin1Char('#') + colorName), &d, tr("Number Color"));
+        if (picked.isValid()) colorName = picked.name().mid(1).toUpper();
+        showColor();
+        store();
+    });
 
     auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &d);
     QObject::connect(buttons, &QDialogButtonBox::accepted, &d, &QDialog::accept);
@@ -194,7 +267,6 @@ bool multilevelListDialog(QWidget *parent, AbstractNum *definition, const QList<
     load(0);
     levels->setCurrentRow(0);
     if (d.exec() != QDialog::Accepted) return false;
-    store();
     for (int i = 0; i < 9; ++i)
         if (work.levels[i].numFmt != QLatin1String("bullet") && work.levels[i].numFmt != QLatin1String("none") && !work.levels[i].text.contains(QLatin1Char('%'))) work.levels[i].text += QStringLiteral("%") + QString::number(i + 1);
     *definition = work;

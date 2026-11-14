@@ -561,7 +561,8 @@ public:
     int newListInstance(bool numbered);
     // A numbering id for a list of this definition: the document's own definition with the same levels, or a new one (so the file's numbering keeps it). With `fresh` the id is a new one that counts
     // for itself (and, with `start`, begins `level` at that number); without, an id of the definition that restarts nothing, shared by the lists of it (bullets).
-    int listFor(const office::wml::AbstractNum &def, bool fresh, int level = 0, std::optional<int> start = std::nullopt);
+    // `inherit`, a numbering id the list comes from, gives its restarts of the other levels (its w:startOverride) to the new id.
+    int listFor(const office::wml::AbstractNum &def, bool fresh, int level = 0, std::optional<int> start = std::nullopt, int inherit = 0);
     // A new numbering id of a definition the document has (by its id), begun at `start` on `level` when given.
     int addNumberingId(int abstractId, int level, std::optional<int> start);
     // The Qt list format of a level of a definition; `marker` gets the text of a marker that is not Qt's to count (set in legal style, or

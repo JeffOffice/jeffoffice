@@ -2788,9 +2788,13 @@ AbstractNum listDefinitionAt(const WriteDoc &doc, const QTextBlock &block, bool 
     if (inListNow(doc, block))
         if (const AbstractNum *a = doc.numbering().abstractOf(block.blockFormat().intProperty(prop::NumId))) {
             AbstractNum def = *a;
+            const int numId = block.blockFormat().intProperty(prop::NumId);
             const AbstractNum plain = plainListDefinition(numbers);
-            for (int i = 0; i < 9; ++i)
+            for (int i = 0; i < 9; ++i) {
+                // (a level the id writes out itself comes over the definition's: the copy says what the list says)
+                if (const Level *own = doc.numbering().levelOf(numId, i)) def.levels[i] = *own;
                 if (!def.levels[i].present) def.levels[i] = plain.levels[i];
+            }
             return def;
         }
     return plainListDefinition(numbers);
@@ -2839,7 +2843,7 @@ void applyListLevel(WriteDoc &doc, QTextCursor &c, const Level &spec)
                 if (before.isValid() && inListNow(doc, before))
                     if (const AbstractNum *a = doc.numbering().abstractOf(before.blockFormat().intProperty(prop::NumId)); a && definitionSignature(*a) == definitionSignature(def))
                         numId = before.blockFormat().intProperty(prop::NumId);
-                if (!numId) numId = doc.listFor(def, true, level, spec.start);
+                if (!numId) numId = doc.listFor(def, true, level, spec.start, inList ? b.blockFormat().intProperty(prop::NumId) : 0);
             }
             made.insert(key, numId);
         }

@@ -707,7 +707,10 @@ QByteArray numberingXml(const Numbering &num)
         for (int i = 0; i < 9; ++i) {
             const Level &l = a.levels[i];
             if (!l.present) continue;
-            out += "<w:lvl w:ilvl=\"" + QByteArray::number(i) + "\">";
+            out += "<w:lvl w:ilvl=\"" + QByteArray::number(i) + "\"";
+            if (!l.tplc.isEmpty()) out += " w:tplc=\"" + escapeXml(l.tplc, true) + "\"";
+            if (l.tentative) out += " w:tentative=\"1\"";
+            out += ">";
             out += "<w:start w:val=\"" + QByteArray::number(l.start) + "\"/>";
             out += "<w:numFmt w:val=\"" + escapeXml(l.numFmt, true) + "\"/>";
             if (l.restart) out += "<w:lvlRestart w:val=\"" + QByteArray::number(*l.restart) + "\"/>";
@@ -715,6 +718,7 @@ QByteArray numberingXml(const Numbering &num)
             if (l.legal) out += "<w:isLgl/>";
             if (l.suff != QLatin1String("tab")) out += "<w:suff w:val=\"" + escapeXml(l.suff, true) + "\"/>";
             out += "<w:lvlText w:val=\"" + escapeXml(l.text, true) + "\"/>";
+            if (l.picBullet) out += "<w:lvlPicBulletId w:val=\"" + QByteArray::number(*l.picBullet) + "\"/>";
             out += "<w:lvlJc w:val=\"" + escapeXml(l.jc, true) + "\"/>";
             const QByteArray p = paraPropsXml(l.pPr), r = runPropsXml(l.rPr);
             if (!p.isEmpty()) out += "<w:pPr>" + p + "</w:pPr>";

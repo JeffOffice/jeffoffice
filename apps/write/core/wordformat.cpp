@@ -1,6 +1,7 @@
 #include "core/wordformat.h"
 
 #include "core/color.h"
+#include "core/fieldcode.h"
 #include "core/writeprops.h"
 #include "text/textprops.h"
 
@@ -791,6 +792,12 @@ QString listNumberText(const QString &format, int n)
     if (format == QLatin1String("lowerRoman")) return romanNumeral(n, false);
     if (format == QLatin1String("upperRoman")) return romanNumeral(n, true);
     if (format == QLatin1String("decimalZero")) return QStringLiteral("%1").arg(n, 2, 10, QLatin1Char('0'));
+    if (format == QLatin1String("ordinal")) return fields::formatNumber(n, {QStringLiteral("ordinal")});
+    if (format == QLatin1String("cardinalText") || format == QLatin1String("ordinalText")) {
+        QString words = fields::formatNumber(std::max(0, n), {format == QLatin1String("cardinalText") ? QStringLiteral("cardtext") : QStringLiteral("ordtext")});
+        if (!words.isEmpty()) words[0] = words[0].toUpper();
+        return words;
+    }
     return QString::number(n);
 }
 

@@ -1366,7 +1366,7 @@ int WriteDoc::addNumberingId(int abstractId, int level, std::optional<int> start
     return num.id;
 }
 
-int WriteDoc::listFor(const AbstractNum &def, bool fresh, int level, std::optional<int> start)
+int WriteDoc::listFor(const AbstractNum &def, bool fresh, int level, std::optional<int> start, int inherit)
 {
     Numbering &n = m_wml.numbering;
     const QString signature = definitionSignature(def);
@@ -1390,7 +1390,12 @@ int WriteDoc::listFor(const AbstractNum &def, bool fresh, int level, std::option
     if (!fresh)
         for (const Num &num : n.nums)
             if (num.abstractId == abstractId && num.startOverrides.isEmpty() && num.levelOverrides.isEmpty()) return num.id;
-    return addNumberingId(abstractId, level, start);
+    const int made = addNumberingId(abstractId, level, start);
+    if (inherit > 0)
+        if (const Num *from = n.num(inherit))
+            for (auto it = from->startOverrides.cbegin(); it != from->startOverrides.cend(); ++it)
+                if (it.key() != level) n.nums.last().startOverrides.insert(it.key(), it.value());
+    return made;
 }
 
 namespace { int s_levelsScannedForOutline = 0; }
@@ -1533,7 +1538,9 @@ void WriteDoc::renumberLists(QTextDocument *story)
             if (above.number < 0) above.number = numbering.startOf(numId, k);
         }
         // Qt can count a level with the one number of its own in the marker, in a style it has, and that is the number it would count.
-        const bool simple = !l->legal && l->text.count(QLatin1Char('%')) <= 1 && l->text.contains(QStringLiteral("%%1").arg(level + 1));
+        const bool qtFormat = l->numFmt == QLatin1String("decimal") || l->numFmt == QLatin1String("lowerLetter") || l->numFmt == QLatin1String("upperLetter") || l->numFmt == QLatin1String("lowerRoman") ||
+                              l->numFmt == QLatin1String("upperRoman");
+        const bool simple = qtFormat && !l->legal && l->text.count(QLatin1Char('%')) <= 1 && l->text.contains(QStringLiteral("%%1").arg(level + 1));
         QString want;
         if (!simple || list->format().start() + qtIndex != n) {
             want = l->text;
@@ -1545,6 +1552,8 @@ void WriteDoc::renumberLists(QTextDocument *story)
                 want.replace(token, listNumberText(l->legal || !lk ? QStringLiteral("decimal") : lk->numFmt, number < 0 ? (lk ? numbering.startOf(numId, k) : 1) : number));
             }
         }
+        // (A level whose text names no number shows no number: its marker is a space, as a level that is numbered with nothing is.)
+        if (!simple && want.isEmpty()) want = QStringLiteral(" ");
         if (bf.stringProperty(tp::BulletChar) != want) changes.push_back({b.position(), want});
     }
     if (changes.isEmpty()) return;

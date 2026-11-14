@@ -2391,3 +2391,239 @@ void WriteTests::theListBoxesSetUpListsThroughTheWindow()
     QVERIFY(again);
     QCOMPARE(levelOfBlock(*again, 0).text, QStringLiteral("Article %1"));
 }
+
+namespace {
+
+// What the paragraph shows as its number: the marker the numbering gave it, or Qt's count of it.
+QString labelOfBlock(const QTextBlock &b)
+{
+    const QString own = b.blockFormat().stringProperty(tp::BulletChar);
+    if (!own.isEmpty()) return own;
+    return b.textList() ? b.textList()->itemText(b) : QString();
+}
+
+QByteArray numPara(int numId, int level, const char *text = "x")
+{
+    return "<w:p><w:pPr><w:numPr><w:ilvl w:val=\"" + QByteArray::number(level) + "\"/><w:numId w:val=\"" + QByteArray::number(numId) + "\"/></w:numPr></w:pPr><w:r><w:t>" + text + "</w:t></w:r></w:p>";
+}
+
+QString wholeLevel(const Level &l)
+{
+    return levelSummary(l) + QStringLiteral("|%1|%2|%3|%4|%5|%6|%7").arg(int(l.tentative)).arg(l.tplc).arg(l.picBullet.value_or(-1)).arg(l.rPr.size.value_or(0)).arg(l.rPr.bold.value_or(false) ? 1 : 0)
+           .arg(l.rPr.fonts ? l.rPr.fonts->ascii : QString()).arg(l.rPr.color ? l.rPr.color->val : QString());
+}
+
+} // namespace
+
+void WriteTests::theNumbersInWordsAndOtherFormatsOfARealListAreShown()
+{
+    const QByteArray numbering =
+        "<w:abstractNum w:abstractNumId=\"0\"><w:multiLevelType w:val=\"multilevel\"/>"
+        "<w:lvl w:ilvl=\"0\"><w:start w:val=\"1\"/><w:numFmt w:val=\"decimalZero\"/><w:lvlText w:val=\"%1.\"/></w:lvl>"
+        "<w:lvl w:ilvl=\"1\"><w:start w:val=\"2\"/><w:numFmt w:val=\"ordinal\"/><w:lvlText w:val=\"%2\"/></w:lvl>"
+        "<w:lvl w:ilvl=\"2\"><w:start w:val=\"1\"/><w:numFmt w:val=\"cardinalText\"/><w:lvlText w:val=\"(%3)\"/></w:lvl>"
+        "<w:lvl w:ilvl=\"3\"><w:start w:val=\"3\"/><w:numFmt w:val=\"ordinalText\"/><w:lvlText w:val=\"%4 item\"/></w:lvl></w:abstractNum>"
+        "<w:num w:numId=\"1\"><w:abstractNumId w:val=\"0\"/></w:num>";
+    auto doc = open(makeDocx(numPara(1, 0) + numPara(1, 1) + numPara(1, 1) + numPara(1, 2) + numPara(1, 3), kStyles, numbering));
+    QVERIFY(doc);
+    QCOMPARE(labelOfBlock(doc->story()->findBlockByNumber(0)), QStringLiteral("01."));
+    QCOMPARE(labelOfBlock(doc->story()->findBlockByNumber(1)), QStringLiteral("2nd"));
+    QCOMPARE(labelOfBlock(doc->story()->findBlockByNumber(2)), QStringLiteral("3rd"));
+    QCOMPARE(labelOfBlock(doc->story()->findBlockByNumber(3)), QStringLiteral("(One)"));
+    QCOMPARE(labelOfBlock(doc->story()->findBlockByNumber(4)), QStringLiteral("Third item"));
+}
+
+void WriteTests::editingOneLevelOfARealListKeepsTheRest()
+{
+    // Nine levels as real files have them: legal numbering, a start other than 1, a template code, a level not used yet, a picture bullet, a font and a size on a number, a level an id writes out itself,
+    // and an id that restarts a level.
+    const QByteArray numbering =
+        "<w:numPicBullet w:numPicBulletId=\"0\"><w:pict/></w:numPicBullet>"
+        "<w:abstractNum w:abstractNumId=\"0\"><w:multiLevelType w:val=\"multilevel\"/>"
+        "<w:lvl w:ilvl=\"0\" w:tplc=\"04090001\"><w:start w:val=\"1\"/><w:numFmt w:val=\"upperRoman\"/><w:lvlText w:val=\"Part %1.\"/><w:lvlJc w:val=\"right\"/>"
+        "<w:pPr><w:ind w:left=\"720\" w:hanging=\"360\"/></w:pPr><w:rPr><w:b/><w:color w:val=\"1F3864\"/><w:sz w:val=\"28\"/></w:rPr></w:lvl>"
+        "<w:lvl w:ilvl=\"1\"><w:start w:val=\"3\"/><w:numFmt w:val=\"decimal\"/><w:isLgl/><w:suff w:val=\"space\"/><w:lvlText w:val=\"%1.%2\"/><w:lvlJc w:val=\"left\"/>"
+        "<w:pPr><w:ind w:left=\"1080\" w:hanging=\"360\"/></w:pPr></w:lvl>"
+        "<w:lvl w:ilvl=\"2\"><w:start w:val=\"1\"/><w:numFmt w:val=\"lowerLetter\"/><w:lvlText w:val=\"(%3)\"/><w:lvlJc w:val=\"left\"/><w:pPr><w:ind w:left=\"1440\" w:hanging=\"360\"/></w:pPr></w:lvl>"
+        "<w:lvl w:ilvl=\"3\" w:tentative=\"1\"><w:start w:val=\"1\"/><w:numFmt w:val=\"lowerRoman\"/><w:lvlText w:val=\"%4.\"/><w:lvlJc w:val=\"left\"/><w:pPr><w:ind w:left=\"1800\" w:hanging=\"360\"/></w:pPr></w:lvl>"
+        "<w:lvl w:ilvl=\"4\"><w:start w:val=\"1\"/><w:numFmt w:val=\"bullet\"/><w:lvlText w:val=\"\xEF\x82\xB7\"/><w:lvlPicBulletId w:val=\"0\"/><w:lvlJc w:val=\"left\"/>"
+        "<w:pPr><w:ind w:left=\"2160\" w:hanging=\"360\"/></w:pPr><w:rPr><w:rFonts w:ascii=\"Symbol\" w:hAnsi=\"Symbol\" w:hint=\"default\"/></w:rPr></w:lvl></w:abstractNum>"
+        "<w:num w:numId=\"1\"><w:abstractNumId w:val=\"0\"/><w:lvlOverride w:ilvl=\"1\"><w:startOverride w:val=\"5\"/></w:lvlOverride>"
+        "<w:lvlOverride w:ilvl=\"2\"><w:lvl w:ilvl=\"2\"><w:start w:val=\"1\"/><w:numFmt w:val=\"upperLetter\"/><w:lvlText w:val=\"[%3]\"/><w:lvlJc w:val=\"left\"/>"
+        "<w:pPr><w:ind w:left=\"1440\" w:hanging=\"360\"/></w:pPr></w:lvl></w:lvlOverride></w:num>";
+    auto doc = open(makeDocx(numPara(1, 0) + numPara(1, 1) + numPara(1, 2) + numPara(1, 2) + numPara(1, 3) + numPara(1, 4), kStyles, numbering));
+    QVERIFY(doc);
+    QStringList before;
+    for (int i = 0; i < 5; ++i) before << labelOfBlock(doc->story()->findBlockByNumber(i));
+    QCOMPARE(before.at(0), QStringLiteral("Part I."));
+    QCOMPARE(before.at(1), QStringLiteral("1.5"));
+    QCOMPARE(before.at(2), QStringLiteral("[A]"));
+    QCOMPARE(before.at(3), QStringLiteral("[B]"));
+    const int oldId = numIdOfBlock(*doc, 0);
+    QVector<Level> wanted;
+    for (int i = 0; i < 9; ++i) wanted.push_back(doc->numbering().levelOf(oldId, i) ? *doc->numbering().levelOf(oldId, i) : Level());
+    // Another bullet for the second-level item: one level changes, and nothing of the other levels (or of the id's overrides) is lost.
+    QTextCursor at(doc->story());
+    at.setPosition(doc->story()->findBlockByNumber(1).position());
+    applyListLevel(*doc, at, bulletLevel(QStringLiteral("◆")));
+    const int newId = numIdOfBlock(*doc, 1);
+    QVERIFY(newId != oldId);
+    QCOMPARE(labelOfBlock(doc->story()->findBlockByNumber(0)), before.at(0));
+    QCOMPARE(labelOfBlock(doc->story()->findBlockByNumber(2)), before.at(2));
+    QCOMPARE(labelOfBlock(doc->story()->findBlockByNumber(3)), before.at(3));
+    auto reopened = open(doc->toDocx());
+    QVERIFY(reopened);
+    for (const WriteDoc *check : {doc.get(), reopened.get()}) {
+        const int id = numIdOfBlock(*check, 1);
+        for (int i = 0; i < 9; ++i) {
+            const Level *l = check->numbering().levelOf(id, i);
+            if (i == 1) {
+                QVERIFY(l);
+                QCOMPARE(l->text, QStringLiteral("◆"));
+                continue;
+            }
+            if (!wanted.at(i).present) continue;   // (a level the file did not define is given the plain one)
+            QVERIFY(l);
+            QCOMPARE(wholeLevel(*l), wholeLevel(wanted.at(i)));
+        }
+        for (int i : {0, 2, 3}) QCOMPARE(labelOfBlock(check->story()->findBlockByNumber(i)), before.at(i));
+    }
+}
+
+// The acceptance set: real documents that a person keeps outside the repository (JO_LIST_ACCEPT names a file with one path on each line, the last tab-separated field of a line being the path; JO_LIST_ACCEPT_EXPECTED
+// a folder of "<file name>.expected" files, the label each list paragraph should show, one on each line, B for a bullet; JO_LIST_ACCEPT_OUT the file the result of each document is written to).
+// For each: open it and compare the numbers it shows with the expected ones; apply a gallery format to the first list's first run of items, save, open again, and check that the document comes back as it
+// was and that the lists of other definitions kept their numbers.
+void WriteTests::theAcceptanceSetOfRealListsKeepsItsNumbers()
+{
+    const QString listFile = qEnvironmentVariable("JO_LIST_ACCEPT"), expectedDir = qEnvironmentVariable("JO_LIST_ACCEPT_EXPECTED"), outFile = qEnvironmentVariable("JO_LIST_ACCEPT_OUT");
+    if (listFile.isEmpty() || expectedDir.isEmpty()) QSKIP("JO_LIST_ACCEPT and JO_LIST_ACCEPT_EXPECTED name the acceptance set");
+    QFile in(listFile);
+    QVERIFY(in.open(QIODevice::ReadOnly));
+    QStringList report;
+    int passed = 0, total = 0;
+    auto labelsOf = [](const WriteDoc &doc) {
+        QStringList out;
+        for (QTextBlock b = doc.story()->begin(); b.isValid(); b = b.next()) {
+            if (!b.blockFormat().hasProperty(prop::NumId)) continue;
+            const Level *l = doc.numbering().levelOf(b.blockFormat().intProperty(prop::NumId), b.blockFormat().intProperty(prop::NumLevel));
+            if (!l) continue;
+            out << (l->numFmt == QLatin1String("bullet") ? QStringLiteral("B") : l->numFmt == QLatin1String("none") ? QString() : labelOfBlock(b).trimmed());
+        }
+        return out;
+    };
+    for (const QByteArray &line : in.readAll().split('\n')) {
+        const QString path = QString::fromUtf8(line.mid(line.lastIndexOf('\t') + 1)).trimmed();
+        if (path.isEmpty()) continue;
+        ++total;
+        const QString name = QFileInfo(path).fileName();
+        auto fail = [&](const QString &why) { report << QStringLiteral("FAIL %1: %2").arg(name, why); };
+        QFile f(path);
+        if (!f.open(QIODevice::ReadOnly)) {
+            fail(QStringLiteral("cannot read"));
+            continue;
+        }
+        const QByteArray bytes = f.readAll();
+        f.close();
+        QFile expectedFile(QDir(expectedDir).filePath(name + QStringLiteral(".expected")));
+        if (!expectedFile.open(QIODevice::ReadOnly)) {
+            fail(QStringLiteral("no expected numbers"));
+            continue;
+        }
+        QStringList expected = QString::fromUtf8(expectedFile.readAll()).split(QLatin1Char('\n'));
+        if (!expected.isEmpty() && expected.last().isEmpty()) expected.removeLast();
+        for (QString &e : expected) e = e.trimmed();
+        auto doc = open(bytes);
+        if (!doc) {
+            fail(QStringLiteral("does not open"));
+            continue;
+        }
+        const QStringList shown = labelsOf(*doc);
+        QString problem;
+        if (shown.size() != expected.size()) {
+            problem = QStringLiteral("shows %1 list paragraphs, the file implies %2").arg(shown.size()).arg(expected.size());
+        } else {
+            int wrong = 0, first = -1;
+            for (int i = 0; i < shown.size(); ++i)
+                if (shown.at(i) != expected.at(i) && ++wrong == 1) first = i;
+            if (wrong) {
+                // (the level of that item: its format and text round the number, to tell the cause)
+                int k = 0;
+                QString level;
+                for (QTextBlock b = doc->story()->begin(); b.isValid() && level.isEmpty(); b = b.next()) {
+                    const Level *l = doc->numbering().levelOf(b.blockFormat().intProperty(prop::NumId), b.blockFormat().intProperty(prop::NumLevel));
+                    if (!b.blockFormat().hasProperty(prop::NumId) || !l) continue;
+                    if (k++ == first) level = QStringLiteral("level %1, format %2, text \"%3\"").arg(b.blockFormat().intProperty(prop::NumLevel)).arg(l->numFmt, l->text);
+                }
+                problem = QStringLiteral("%1 of %2 numbers differ, the first at item %3 (shows \"%4\", implies \"%5\"; %6)").arg(wrong).arg(shown.size()).arg(first).arg(shown.at(first), expected.at(first), level);
+            }
+        }
+        if (!problem.isEmpty()) {
+            fail(QStringLiteral("numbers: ") + problem);
+            continue;
+        }
+        // A change of one list: the first run of items of the first list is given the format of a gallery entry.
+        QTextBlock start;
+        int changedId = 0, changedDefinition = -1;
+        for (QTextBlock b = doc->story()->begin(); b.isValid() && !start.isValid(); b = b.next()) {
+            const int id = b.blockFormat().intProperty(prop::NumId);
+            if (id > 0 && doc->numbering().levelOf(id, b.blockFormat().intProperty(prop::NumLevel))) {
+                start = b;
+                changedId = id;
+                changedDefinition = doc->numbering().definitionOf(id);
+            }
+        }
+        if (!start.isValid()) {
+            report << QStringLiteral("PASS %1 (no list in the body)").arg(name);
+            ++passed;
+            continue;
+        }
+        QTextBlock end = start;
+        while (end.next().isValid() && end.next().blockFormat().intProperty(prop::NumId) == changedId) end = end.next();
+        const QStringList beforeChange = labelsOf(*doc);
+        QVector<int> otherDefinition;   // the list paragraphs (by their place among them) of a definition the change does not touch
+        {
+            int k = 0;
+            for (QTextBlock b = doc->story()->begin(); b.isValid(); b = b.next()) {
+                const int id = b.blockFormat().intProperty(prop::NumId);
+                if (!id || !doc->numbering().levelOf(id, b.blockFormat().intProperty(prop::NumLevel))) continue;
+                if (doc->numbering().definitionOf(id) != changedDefinition) otherDefinition << k;
+                ++k;
+            }
+        }
+        QTextCursor c(doc->story());
+        c.setPosition(start.position());
+        c.setPosition(end.position(), QTextCursor::KeepAnchor);
+        applyListLevel(*doc, c, numberLevel(QStringLiteral("upperLetter"), QStringLiteral("%1.")));
+        const QStringList afterChange = labelsOf(*doc);
+        auto again = open(doc->toDocx());
+        if (!again) {
+            fail(QStringLiteral("saved file does not open"));
+            continue;
+        }
+        const QStringList reopened = labelsOf(*again);
+        if (reopened != afterChange) {
+            int at = 0;
+            while (at < std::min(reopened.size(), afterChange.size()) && reopened.at(at) == afterChange.at(at)) ++at;
+            fail(QStringLiteral("after the change and a save, %1 list paragraphs (was %2), the first difference at item %3").arg(reopened.size()).arg(afterChange.size()).arg(at));
+            continue;
+        }
+        QString moved;
+        for (int k : std::as_const(otherDefinition))
+            if (k < afterChange.size() && afterChange.at(k) != beforeChange.at(k)) {
+                moved = QStringLiteral("a list of another definition changed its number at item %1").arg(k);
+                break;
+            }
+        if (!moved.isEmpty()) {
+            fail(moved);
+            continue;
+        }
+        report << QStringLiteral("PASS %1").arg(name);
+        ++passed;
+    }
+    if (!outFile.isEmpty()) {
+        QFile out(outFile);
+        if (out.open(QIODevice::WriteOnly | QIODevice::Truncate)) out.write((report.join(QLatin1Char('\n')) + QStringLiteral("\n%1 of %2 pass\n").arg(passed).arg(total)).toUtf8());
+    }
+    QVERIFY2(passed == total, qPrintable(QStringLiteral("%1 of %2 pass").arg(passed).arg(total)));
+}

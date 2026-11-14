@@ -1700,4 +1700,7 @@ private Q_SLOTS:
     void paragraphsInAHeadingStyleJoinALinkedList();
     void theLevelOfAListItemChangesInOneStep();
     void theListBoxesSetUpListsThroughTheWindow();
+    void theNumbersInWordsAndOtherFormatsOfARealListAreShown();
+    void editingOneLevelOfARealListKeepsTheRest();
+    void theAcceptanceSetOfRealListsKeepsItsNumbers();
 };
