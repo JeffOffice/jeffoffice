@@ -10,20 +10,37 @@
 # (not free, and x86 only), ruy for the matrix multiplication (and intgemm, on x86), static libraries, PCRE2 built along, and a fixed processor level (the engine's
 # default is the build computer's own). jo_translate_engine is the one library of ours in it (third_party/bergamot/jo_engine.cpp: the standard-C++ interface of
 # libs/translate/engine/engine.h over the engine). The program links its archives, in the order that link line needs.
-# (off on macOS for now: the engine's own build takes no CMAKE_OSX_ARCHITECTURES (marian's TargetArch.cmake refuses arm64) and cannot make a universal
-# program in one pass, so a Mac build needs one engine build per processor joined with lipo, not done yet; the Mac programs translate through a website)
-if(APPLE)
-  set(_jo_translate_default OFF)
-else()
-  set(_jo_translate_default ON)
-endif()
-option(JO_TRANSLATE "Translate on this computer (Bergamot): the Translate pane" ${_jo_translate_default})
+# (on a Mac the engine is built once for each processor in CMAKE_OSX_ARCHITECTURES, each in its own folder with its own single -arch, its own processor level, and
+# intgemm on Intel only, and the archives are joined with lipo into <build>/bergamot-build/fat: Marian's build cannot make a universal binary in one pass)
+option(JO_TRANSLATE "Translate on this computer (Bergamot): the Translate pane" ON)
 if(NOT JO_TRANSLATE)
   return()
 endif()
 
 # The processor level: the oldest that has what the engine's int8 kernels need (SSE4.2 on x86; its AVX2 and AVX-512 kernels are chosen at run time), or the base of 64-bit ARM.
-if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm64|aarch64|ARM64)$" OR CMAKE_OSX_ARCHITECTURES MATCHES "arm64")
+# (on a Mac each processor gets its own level in cmake/bergamot_step.cmake, and the program has intgemm's archive when any of them is Intel)
+set(JO_MAC_ARCHS "")
+if(APPLE)
+  set(_mac_in ${CMAKE_OSX_ARCHITECTURES})
+  if(NOT _mac_in)
+    set(_mac_in ${CMAKE_HOST_SYSTEM_PROCESSOR})
+  endif()
+  foreach(_a IN LISTS _mac_in)
+    if(_a MATCHES "^(arm64|aarch64|ARM64)$")
+      list(APPEND JO_MAC_ARCHS arm64)
+    elseif(_a MATCHES "^(x86_64|amd64|AMD64)$")
+      list(APPEND JO_MAC_ARCHS x86_64)
+    else()
+      message(FATAL_ERROR "JO_TRANSLATE: the processor ${_a} of CMAKE_OSX_ARCHITECTURES is not arm64 or x86_64")
+    endif()
+  endforeach()
+  list(REMOVE_DUPLICATES JO_MAC_ARCHS)
+  message(STATUS "Translation engine: one build for each of ${JO_MAC_ARCHS}, joined with lipo")
+  set(JO_BERGAMOT_ARM TRUE)
+  if("x86_64" IN_LIST JO_MAC_ARCHS)
+    set(JO_BERGAMOT_ARM FALSE)
+  endif()
+elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm64|aarch64|ARM64)$" OR CMAKE_OSX_ARCHITECTURES MATCHES "arm64")
   set(JO_BERGAMOT_ARCH armv8-a)
   set(JO_BERGAMOT_ARM TRUE)
 else()
@@ -35,8 +52,15 @@ include(ExternalProject)
 set(JO_BERGAMOT_BIN ${CMAKE_BINARY_DIR}/bergamot-build)
 set(_args -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER} -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER} -DCMAKE_MAKE_PROGRAM=${CMAKE_MAKE_PROGRAM}
   -DJO_ENGINE_FILE=${CMAKE_SOURCE_DIR}/third_party/bergamot/jo_engine.cpp
-  -DJO_ENGINE_INCLUDE=${CMAKE_SOURCE_DIR}/libs/translate -DJO_BERGAMOT_ARCH=${JO_BERGAMOT_ARCH} -DCMAKE_POLICY_VERSION_MINIMUM=3.5)
-foreach(_v CMAKE_C_COMPILER_LAUNCHER CMAKE_CXX_COMPILER_LAUNCHER CMAKE_OSX_ARCHITECTURES CMAKE_OSX_DEPLOYMENT_TARGET CMAKE_OSX_SYSROOT)
+  -DJO_ENGINE_INCLUDE=${CMAKE_SOURCE_DIR}/libs/translate -DCMAKE_POLICY_VERSION_MINIMUM=3.5)
+set(_forward CMAKE_C_COMPILER_LAUNCHER CMAKE_CXX_COMPILER_LAUNCHER CMAKE_OSX_ARCHITECTURES CMAKE_OSX_DEPLOYMENT_TARGET CMAKE_OSX_SYSROOT)
+if(APPLE)
+  # (the processors are the step's: one single -arch for each build)
+  list(REMOVE_ITEM _forward CMAKE_OSX_ARCHITECTURES)
+else()
+  list(APPEND _args -DJO_BERGAMOT_ARCH=${JO_BERGAMOT_ARCH})
+endif()
+foreach(_v IN LISTS _forward)
   if(DEFINED ${_v} AND NOT "${${_v}}" STREQUAL "")
     list(APPEND _args -D${_v}=${${_v}})
   endif()
@@ -46,15 +70,21 @@ string(REPLACE ";" "|" _joined "${_args}")
 set(_step ${CMAKE_COMMAND} -DJO_ROOT=${CMAKE_SOURCE_DIR} -DJO_BUILD=${CMAKE_BINARY_DIR} -DJO_BIN=${JO_BERGAMOT_BIN} -DJO_OVERRIDE=${FETCHCONTENT_SOURCE_DIR_BERGAMOT}
   "-DJO_GENERATOR=${CMAKE_GENERATOR}" "-DJO_ARGS=${_joined}")
 
+# Where the archives are that the program links: the engine's build folder, or on a Mac the folder of the joined ones (the same tree, below each processor's folder).
+set(JO_BERGAMOT_OUT ${JO_BERGAMOT_BIN})
+if(APPLE)
+  set(JO_BERGAMOT_OUT ${JO_BERGAMOT_BIN}/fat)
+endif()
+
 # What the engine's build leaves, in the order the engine's own link line has them (every archive after the ones that use it).
-set(_ruy_dir ${JO_BERGAMOT_BIN}/bergamot/3rd_party/marian-dev/src/3rd_party/ruy)
-set(_libs ${JO_BERGAMOT_BIN}/${CMAKE_STATIC_LIBRARY_PREFIX}jo_translate_engine${CMAKE_STATIC_LIBRARY_SUFFIX}
-          ${JO_BERGAMOT_BIN}/bergamot/src/translator/${CMAKE_STATIC_LIBRARY_PREFIX}bergamot-translator${CMAKE_STATIC_LIBRARY_SUFFIX}
-          ${JO_BERGAMOT_BIN}/${CMAKE_STATIC_LIBRARY_PREFIX}marian${CMAKE_STATIC_LIBRARY_SUFFIX}
-          ${JO_BERGAMOT_BIN}/bergamot/3rd_party/marian-dev/src/3rd_party/sentencepiece/src/${CMAKE_STATIC_LIBRARY_PREFIX}sentencepiece_train${CMAKE_STATIC_LIBRARY_SUFFIX}
-          ${JO_BERGAMOT_BIN}/bergamot/3rd_party/marian-dev/src/3rd_party/sentencepiece/src/${CMAKE_STATIC_LIBRARY_PREFIX}sentencepiece${CMAKE_STATIC_LIBRARY_SUFFIX})
+set(_ruy_dir ${JO_BERGAMOT_OUT}/bergamot/3rd_party/marian-dev/src/3rd_party/ruy)
+set(_libs ${JO_BERGAMOT_OUT}/${CMAKE_STATIC_LIBRARY_PREFIX}jo_translate_engine${CMAKE_STATIC_LIBRARY_SUFFIX}
+          ${JO_BERGAMOT_OUT}/bergamot/src/translator/${CMAKE_STATIC_LIBRARY_PREFIX}bergamot-translator${CMAKE_STATIC_LIBRARY_SUFFIX}
+          ${JO_BERGAMOT_OUT}/${CMAKE_STATIC_LIBRARY_PREFIX}marian${CMAKE_STATIC_LIBRARY_SUFFIX}
+          ${JO_BERGAMOT_OUT}/bergamot/3rd_party/marian-dev/src/3rd_party/sentencepiece/src/${CMAKE_STATIC_LIBRARY_PREFIX}sentencepiece_train${CMAKE_STATIC_LIBRARY_SUFFIX}
+          ${JO_BERGAMOT_OUT}/bergamot/3rd_party/marian-dev/src/3rd_party/sentencepiece/src/${CMAKE_STATIC_LIBRARY_PREFIX}sentencepiece${CMAKE_STATIC_LIBRARY_SUFFIX})
 if(NOT JO_BERGAMOT_ARM)
-  list(APPEND _libs ${JO_BERGAMOT_BIN}/bergamot/3rd_party/marian-dev/src/3rd_party/intgemm/${CMAKE_STATIC_LIBRARY_PREFIX}intgemm${CMAKE_STATIC_LIBRARY_SUFFIX})
+  list(APPEND _libs ${JO_BERGAMOT_OUT}/bergamot/3rd_party/marian-dev/src/3rd_party/intgemm/${CMAKE_STATIC_LIBRARY_PREFIX}intgemm${CMAKE_STATIC_LIBRARY_SUFFIX})
 endif()
 foreach(_r context_get_ctx context frontend kernel_arm kernel_avx kernel_avx2_fma kernel_avx512 apply_multiplier pack_arm pack_avx pack_avx2_fma pack_avx512
            prepare_packed_matrices trmul ctx allocator prepacked_cache system_aligned_alloc have_built_path_for_avx have_built_path_for_avx2_fma
@@ -64,8 +94,14 @@ endforeach()
 list(APPEND _libs ${_ruy_dir}/third_party/cpuinfo/${CMAKE_STATIC_LIBRARY_PREFIX}cpuinfo${CMAKE_STATIC_LIBRARY_SUFFIX}
                   ${_ruy_dir}/third_party/cpuinfo/deps/clog/${CMAKE_STATIC_LIBRARY_PREFIX}clog${CMAKE_STATIC_LIBRARY_SUFFIX}
                   ${_ruy_dir}/ruy/profiler/${CMAKE_STATIC_LIBRARY_PREFIX}ruy_profiler_instrumentation${CMAKE_STATIC_LIBRARY_SUFFIX}
-                  ${JO_BERGAMOT_BIN}/${CMAKE_STATIC_LIBRARY_PREFIX}ssplit${CMAKE_STATIC_LIBRARY_SUFFIX}
-                  ${JO_BERGAMOT_BIN}/lib/${CMAKE_STATIC_LIBRARY_PREFIX}pcre2-8${CMAKE_STATIC_LIBRARY_SUFFIX})
+                  ${JO_BERGAMOT_OUT}/${CMAKE_STATIC_LIBRARY_PREFIX}ssplit${CMAKE_STATIC_LIBRARY_SUFFIX}
+                  ${JO_BERGAMOT_OUT}/lib/${CMAKE_STATIC_LIBRARY_PREFIX}pcre2-8${CMAKE_STATIC_LIBRARY_SUFFIX})
+
+if(APPLE)
+  string(REPLACE ";" "|" _mac_joined "${JO_MAC_ARCHS}")
+  string(REPLACE ";" "|" _libs_joined "${_libs}")
+  list(APPEND _step "-DJO_MAC_ARCHS=${_mac_joined}" "-DJO_OUT=${JO_BERGAMOT_OUT}" "-DJO_LIBS=${_libs_joined}" "-DJO_CC=${CMAKE_C_COMPILER}")
+endif()
 
 ExternalProject_Add(jo_bergamot
   SOURCE_DIR ${CMAKE_SOURCE_DIR}/third_party/bergamot
