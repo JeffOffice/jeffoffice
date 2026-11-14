@@ -1809,7 +1809,8 @@ private Q_SLOTS:
             w.document()->setRevisionView(view);
             w.show();
             QLabel *label = w.findChild<QLabel *>(QStringLiteral("wordCount"));
-            QTest::qWait(700);
+            // (the count comes from a 500 ms timer, after the view is set: wait for it, not for a fixed time; a slow runner took longer than 700 ms)
+            QTest::qWaitFor([&] { return !label->text().isEmpty(); }, 15000);
             return label->text();
         };
         const QString plain = countShown(para(run("one two teh")), 0);
