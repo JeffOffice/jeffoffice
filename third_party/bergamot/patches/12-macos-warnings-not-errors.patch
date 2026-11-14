@@ -1,0 +1,14 @@
+macOS: Marian builds with -Werror, and newer Apple clang warns where the engine's authors' compilers did not (variable-length arrays in ExceptionWithCallStack.cpp: -Wvla-cxx-extension), which stopped the Mac build. On Apple only, -Wno-error follows -Werror: the warnings are still shown, but do not stop the build. Linux and Windows are unchanged.
+
+--- a/3rd_party/marian-dev/CMakeLists.txt
++++ b/3rd_party/marian-dev/CMakeLists.txt
+@@ -318,6 +318,9 @@
+     set(CLANG_IGNORE_CONSTEXPR_CONVERSION "-Wno-enum-constexpr-conversion") #SentencePiece
+     set(CLANG_IGNORE_UNUSED_PRIVATE_FIELD -Wno-unused-private-field;) # This is necessary for the APPLE clang compiler to appear after -Werror
+   endif()
++  if(APPLE)
++    list(APPEND CLANG_IGNORE_UNUSED_PRIVATE_FIELD -Wno-error;) # JeffOffice: newer Apple clang warns (e.g. -Wvla-cxx-extension); warnings stay, but not as errors
++  endif()
+   set(DISABLE_GLOBALLY "-Wno-unused-result ${CLANG_IGNORE_UNKNOWN_CUDA} ${CLANG_IGNORE_UNUSED_VALUES} ${CLANG_IGNORE_CONSTEXPR_CONVERSION} ${ARM_WARNINGS}") # This needs to appear here as well to appease clang11+ on linux
+ 
+   # These are used in src/CMakeLists.txt on a per-target basis
