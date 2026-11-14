@@ -128,6 +128,13 @@ public:
         Q_UNUSED(sheet); Q_UNUSED(row); Q_UNUSED(col); Q_UNUSED(kind); Q_UNUSED(out);
         return false;
     }
+    // A reference to another workbook as the formula writes it ("[1]Sheet1!A1:B9", "'[2]My Sheet'!$A:$A", "[1]!Name"): the value of a cell, or an array for a range. False for a source that does not read other
+    // workbooks, or cannot tell these cells (the evaluation then says it did not work the call out).
+    virtual bool externalRef(const QString &text, Value *out) const
+    {
+        Q_UNUSED(text); Q_UNUSED(out);
+        return false;
+    }
     // What INFO tells about the program and the workbook: "directory", "numfile", "origin", "osversion", "recalc", "release", and "system" (lower case). False for a source that does not know.
     virtual bool environmentInfo(const QString &kind, Value *out) const
     {

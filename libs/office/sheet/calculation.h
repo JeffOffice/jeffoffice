@@ -36,6 +36,8 @@ class QThread;
 
 namespace jp::office::sheet {
 
+class ExternalBooks;
+
 // What one recalculation may take, in steps (all its slices together), and what the formulas of a workbook may hold of texts and arrays, in bytes: past them the formulas still
 // to be worked out, or whose values would not fit, have the error #VALUE! (kept apart, they keep what the file stored and are of the class L, past the bounds).
 constexpr qint64 kMaxRecalcWork = 1000000000;
@@ -66,11 +68,21 @@ struct CalcOptions {
     // If set, called with the result the file stored for a formula and the one worked out; false marks the formula a mismatch, and every formula that reads one, directly or
     // through others, a cascade (isCascaded): the yardstick tells the formulas that are wrong of their own from those that follow a wrong one.
     std::function<bool(const jp::calc::Value &stored, const jp::calc::Value &ours)> verify;
+    // The workbooks the formulas read through links (`[1]Sheet1!A1`; sheet/externalbooks.h). With it, a formula that reads one is worked out from the source file (a link that is live) or the values
+    // the link's part stores, is worked out again when what it reads in this workbook changes, and keeps the result the file stored until then; without it, such a formula is kept apart.
+    std::shared_ptr<ExternalBooks> externals;
 };
 
 class Calculation : public WorkbookSource {
 public:
     bool formulaInfo(int sheet, quint32 row, quint32 col, QString *text) const override;
+    bool externalRef(const QString &text, jp::calc::Value *out) const override;
+    // Works the formulas that read the links out again (the sources are read again): all the formulas that read a link, whether kept as the file stored them or not, and what reads them. The next
+    // recalculation gives the results. The number of formulas marked.
+    qint64 refreshExternals();
+    // The value a formula (written as the file does, with no "=") has now in the cell, worked out on the calling thread over the results the calculation holds, with nothing changed: false when it
+    // can't be worked out (a function the engine lacks, a link that gives nothing, an array).
+    bool evaluateHere(int sheet, quint32 row, quint32 col, const QString &formula, jp::calc::Value *out) const;
     SpillAnswer spillRange(int sheet, quint32 row, quint32 col, jp::calc::CellArea *area) const override;
     explicit Calculation(const Workbook &book, const CalcOptions &options = CalcOptions());
     ~Calculation() override;
@@ -1047,6 +1059,7 @@ private:
         bool always = false;   // more blocks than are kept: it is worked out again after every edit of lines
     };
     std::unordered_map<quint32, Seen> m_seen;
+    std::unordered_set<quint32> m_externalNodes;   // the formulas that read a link (when the options have the links)
     bool m_hasUnknown = false;   // some formula is kept apart for a function the engine lacks (it may read the text of a formula): a formula written again by an edit of lines queues what reads it
     qint64 m_seenPlaces = 0;   // all the places kept (the sizes of the lists in m_seen)
     void recordSeen(quint32 id, const std::vector<jp::calc::CellArea> &blocks);

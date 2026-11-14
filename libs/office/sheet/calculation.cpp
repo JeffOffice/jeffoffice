@@ -6,6 +6,7 @@
 #include "calc/idframe.h"
 #include "calc/refs.h"
 #include "sheet/entry.h"
+#include "sheet/externalbooks.h"
 #include "sheet/structref.h"
 #include "sheet/tables.h"
 
@@ -482,6 +483,7 @@ void Calculation::classify(quint32 id, const Cell &cell, const Formula &f)
     n.flags = quint16((n.flags & AlwaysListed) | (array ? Array : 0));
     n.traits = 0;   // (a formula nobody classified can notice an empty line, and sees no place)
     char kept = 0;
+    bool external = false;
     bool always = false, told = false;
     if (cell.flags & DataTable) {
         kept = 'D';
@@ -505,15 +507,20 @@ void Calculation::classify(quint32 id, const Cell &cell, const Formula &f)
             const bool idTold = slot.usesNames && !slot.dynamic && !slot.reaches && !slot.positionalNames;
             n.traits = quint8((slot.insensitive ? Insensitive : 0) | (slot.observesPosition ? Observes : 0) | (idTold ? IdTold : 0));
             always = slot.dynamic || slot.changesByItself;
+            external = p.external;
             if (m_options.keepApart) {
                 if (!p.unknownFunctions.isEmpty()) kept = 'U';
-                else if (p.external) kept = 'E';
+                else if (p.external && (!m_options.externals || cell.hasResult())) kept = 'E';
                 else if (p.structured && !m_options.workOutTables) kept = 'T';
                 else if (slot.changesByItself) kept = 'V';
                 else if (slot.iterative) kept = 'R';
                 else if (!cell.hasResult() && !m_options.workOutWhatHasNoResult) kept = 'N';
             }
         }
+    }
+    if (m_options.externals) {
+        if (external) m_externalNodes.insert(id);
+        else m_externalNodes.erase(id);
     }
     if (kept) {
         if (kept != 'U') m_special.push_back(id);
@@ -529,6 +536,8 @@ void Calculation::classify(quint32 id, const Cell &cell, const Formula &f)
             m_hasUnknown = true;
             registerNode(id, nullptr);
         }
+        // A formula that reads a link keeps the result the file stored until something it reads here changes, or the links are worked out again: it is told to the graph, so that an edit finds it.
+        if (kept == 'E' && m_options.externals) registerNode(id, nullptr);
         return;
     }
     if (always) {
@@ -1598,6 +1607,8 @@ void Calculation::undoSheetRewrite(const SheetRewrite &record)
 // A formula kept apart because it is in a circle (a window works circles out, or goes round them): when something it reads changes it is looked at again, as it may not be in a circle now.
 bool Calculation::circleKeptForRetry(Node &n) const
 {
+    // (a formula kept for a link is worked out when something it reads changes: from the source or the link's stored values, and if neither tells, it is kept again)
+    if (m_options.externals && (n.flags & Kept) && n.kept == 'E' && n.state == Done) return true;
     return m_options.goRoundCircles && (n.flags & Kept) && (n.kept == 'C' || n.kept == 'I') && n.state == Done;
 }
 
@@ -2467,6 +2478,10 @@ bool Calculation::finishNode(Node &n, quint32 id, const Value &v)
         refused = true;
     } else {
         storeResult(n, id, spilled);
+        if ((n.flags & Kept) && n.kept == 'E') {
+            n.flags &= quint16(~Kept);
+            n.kept = 0;
+        }
         if (!m_staleReads.empty()) staleReadSettled(id);
         n.flags &= quint16(~Circular);
         if (m_readTaint) n.flags |= NodeTainted;
@@ -3602,6 +3617,52 @@ void Calculation::forEachFormula(const std::function<void(const FormulaCell &)> 
             f(out);
         });
     }
+}
+
+} // namespace jp::office::sheet
+
+namespace jp::office::sheet {
+
+bool Calculation::externalRef(const QString &text, Value *out) const { return m_options.externals && m_options.externals->resolve(text, out); }
+
+qint64 Calculation::refreshExternals()
+{
+    if (!m_options.externals) return 0;
+    abandonNow();
+    std::vector<CellArea> changed;
+    qint64 marked = 0;
+    for (const quint32 id : m_externalNodes) {
+        if (id >= m_nodes.size()) continue;
+        Node &n = m_nodes[id];
+        if ((n.flags & Dead) || n.state != Done) continue;
+        if ((n.flags & Kept) && n.kept == 'E') {
+            n.flags &= quint16(~(Kept | NodeTainted));
+            n.kept = 0;
+        }
+        markDirty(id, &changed);
+        ++marked;
+    }
+    if (!changed.empty()) markDependentsOfIds(&changed);
+    return marked;
+}
+
+bool Calculation::evaluateHere(int sheet, quint32 row, quint32 col, const QString &formula, Value *out) const
+{
+    ParseOptions po;
+    const ParseResult parsed = parseFormula(formula, po);
+    if (!parsed.ok() || !parsed.program || !parsed.program->unknownFunctions.isEmpty() || parsed.program->structured) return false;
+    Evaluator evaluator;
+    EvalContext ctx;
+    ctx.source = this;
+    ctx.sheet = sheet;
+    ctx.row = row;
+    ctx.col = col;
+    ctx.now = m_options.now;
+    Value v = evaluator.evaluate(*parsed.program, ctx);
+    if (evaluator.status() != EvalStatus::Ok || evaluator.unsupportedKinds() != 0) return false;
+    if (v.isArray()) v = v.at(0, 0);
+    *out = v;
+    return true;
 }
 
 } // namespace jp::office::sheet

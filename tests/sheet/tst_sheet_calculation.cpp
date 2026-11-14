@@ -5,10 +5,13 @@
 
 #include "sheet/calculation.h"
 #include "sheet/cellinfo.h"
+#include "sheet/externalbooks.h"
 
 #include "core/threadtime.h"
 
+#include <QFile>
 #include <QRandomGenerator>
+#include <QTemporaryDir>
 
 #include <atomic>
 #include <memory>
@@ -67,6 +70,60 @@ Calculation::Progress settle(Book &b)
     Calculation::Progress p = b.calc->recalculate();
     return p;
 }
+
+
+// A workbook with one link (its part holds the cells the cache stores: sheet "Sheet1" and the cells as "A1=5" or "B1=s:text"), the link pointing at `target`.
+QByteArray linkedBook(const QString &rows, const QString &target, const QString &cache, const QString &names = QString())
+{
+    QByteArray zip = buildXlsx({worksheet(rows)});
+    QMap<QString, QByteArray> parts;
+    jp::readZip(zip, parts);
+    QString cells;
+    for (const QString &c : cache.split(QLatin1Char(' '), Qt::SkipEmptyParts)) {
+        const QString ref = c.section(QLatin1Char('='), 0, 0), v = c.section(QLatin1Char('='), 1);
+        quint32 r = 0, col = 0;
+        parseCellRef(ref, &r, &col);
+        cells += QStringLiteral("<row r=\"%1\"><cell r=\"%2\"%3><v>%4</v></cell></row>").arg(r + 1).arg(ref, v.startsWith(QLatin1String("s:")) ? QStringLiteral(" t=\"str\"") : QString(), v.startsWith(QLatin1String("s:")) ? v.mid(2) : v);
+    }
+    parts[QStringLiteral("xl/externalLinks/externalLink1.xml")] =
+        ("<externalLink xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"><externalBook r:id=\"rId1\"><sheetNames><sheetName val=\"Sheet1\"/></sheetNames>"
+         + (names.isEmpty() ? QString() : QStringLiteral("<definedNames>%1</definedNames>").arg(names)) + "<sheetDataSet><sheetData sheetId=\"0\">" + cells + "</sheetData></sheetDataSet></externalBook></externalLink>").toUtf8();
+    parts[QStringLiteral("xl/externalLinks/_rels/externalLink1.xml.rels")] =
+        ("<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/externalLinkPath\" Target=\"" + target.toHtmlEscaped()
+         + "\" TargetMode=\"External\"/></Relationships>").toUtf8();
+    parts[QStringLiteral("[Content_Types].xml")].replace("</Types>", "<Override PartName=\"/xl/externalLinks/externalLink1.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.externalLink+xml\"/></Types>");
+    parts[QStringLiteral("xl/_rels/workbook.xml.rels")].replace("</Relationships>", "<Relationship Id=\"rIdEx\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/externalLink\" Target=\"externalLinks/externalLink1.xml\"/></Relationships>");
+    parts[QStringLiteral("xl/workbook.xml")].replace("</sheets>", "</sheets><externalReferences><externalReference r:id=\"rIdEx\"/></externalReferences>");
+    jp::ZipWriter z;
+    for (auto it = parts.begin(); it != parts.end(); ++it) z.add(it.key(), it.value(), true);
+    return z.finish();
+}
+
+bool writeFile(const QString &path, const QByteArray &bytes)
+{
+    QFile f(path);
+    if (!f.open(QIODevice::WriteOnly)) return false;
+    f.write(bytes);
+    return true;
+}
+
+// A book with its links read (not live) over the folder its file would be in.
+struct LinkedBook : Book {
+    std::shared_ptr<ExternalBooks> links;
+    bool openLinked(const QByteArray &zip, const QString &dir, CalcOptions options = CalcOptions())
+    {
+        QString why;
+        if (!package.readLazy(zip, &why) || !book.open(package, &why)) return false;
+        links = ExternalBooks::read(book, dir);
+        if (!links) return false;
+        links->setCheckInterval(0);
+        options.keepApart = true;
+        options.workOutWhatHasNoResult = true;
+        options.externals = links;
+        calc.reset(new Calculation(book, options));
+        return calc->load();
+    }
+};
 
 } // namespace
 
@@ -1015,6 +1072,144 @@ private Q_SLOTS:
         settle(c);
         QCOMPARE(c.at("B1"), QStringLiteral("e:#NAME?"));
         QCOMPARE(c.at("C1"), QStringLiteral("e:#NAME?"));
+    }
+
+    // A formula that reads another workbook is worked out from the source file once the link is live, from the values the link stores until then, and keeps what the file stored when it is not
+    // asked: ranges, whole columns, a lookup into the source, arithmetic on its cells, a name of the source, and all that read them.
+    void formulasThatReadASourceAreWorkedOutFromIt()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString rows = rowXml(1, constant("A1", "1") + cellXml("B1", "SUM([1]Sheet1!A1:A3)", "6") + cellXml("C1", "B1+1", "7") + cellXml("D1", "[1]Sheet1!A2*2+A1", "5") + cellXml("E1", "SUM([1]Sheet1!A:A)", "6")
+                                       + cellXml("F1", "VLOOKUP(\"b\",[1]Sheet1!B1:C3,2,FALSE)", "2") + cellXml("G1", "[1]!Rate*A1", "0.5") + cellXml("H1", "COUNT([1]Sheet1!A1:A3)", "3"));
+        const QByteArray source = buildXlsx({worksheet(rowXml(1, constant("A1", "10") + QStringLiteral("<c r=\"B1\" t=\"inlineStr\"><is><t>a</t></is></c>") + constant("C1", "100"))
+                                                       + rowXml(2, constant("A2", "20") + QStringLiteral("<c r=\"B2\" t=\"inlineStr\"><is><t>b</t></is></c>") + constant("C2", "200"))
+                                                       + rowXml(3, constant("A3", "30") + QStringLiteral("<c r=\"B3\" t=\"inlineStr\"><is><t>c</t></is></c>") + constant("C3", "300")))},
+                                         QByteArray(), QString(), QString(), QByteArray(), QStringList(), QStringLiteral("<definedName name=\"Rate\">Sheet1!$A$3</definedName>"));
+        QVERIFY(writeFile(dir.filePath(QStringLiteral("src.xlsx")), source));
+        LinkedBook b;
+        QVERIFY(b.openLinked(linkedBook(rows, QStringLiteral("src.xlsx"), QStringLiteral("A1=1 A2=2 A3=3 B1=s:a B2=s:b B3=s:c C1=10 C2=20 C3=30"), QStringLiteral("<definedName name=\"Rate\" refersTo=\"[1]Sheet1!$A$3\" sheetId=\"0\"/>")), dir.path()));
+        settle(b);
+        // the file's results stay until something is asked
+        QCOMPARE(b.at("B1"), QStringLiteral("n:6"));
+        QCOMPARE(b.at("C1"), QStringLiteral("n:7"));
+        QCOMPARE(b.calc->keptClass(0, b.row("B1"), b.col("B1")), 'E');
+        // an edit of what a formula reads here works it out from the values the link stores
+        QVERIFY(b.set("A1", Value::number(100)));
+        settle(b);
+        QCOMPARE(b.at("B1"), QStringLiteral("n:6"));       // (it does not read A1)
+        QCOMPARE(b.at("D1"), QStringLiteral("n:104"));     // 2 * 2 + 100
+        QCOMPARE(b.at("G1"), QStringLiteral("n:300"));     // 3 * 100
+        // live: the source file
+        b.links->setLive(1, true);
+        QVERIFY(b.calc->refreshExternals() > 0);
+        settle(b);
+        QCOMPARE(b.at("B1"), QStringLiteral("n:60"));
+        QCOMPARE(b.at("C1"), QStringLiteral("n:61"));
+        QCOMPARE(b.at("D1"), QStringLiteral("n:140"));     // 20 * 2 + 100
+        QCOMPARE(b.at("E1"), QStringLiteral("n:60"));
+        QCOMPARE(b.at("F1"), QStringLiteral("n:200"));
+        QCOMPARE(b.at("G1"), QStringLiteral("n:3000"));    // the source's name Rate is its A3: 30 * 100
+        QCOMPARE(b.at("H1"), QStringLiteral("n:3"));
+        QCOMPARE(b.links->fileReads(), 1);
+    }
+
+    // A source that is not there gives the link's stored values, not #REF!; one that is damaged does too; and the state says which it is.
+    void aMissingOrDamagedSourceGivesTheStoredValues()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString rows = rowXml(1, constant("A1", "1") + cellXml("B1", "SUM([1]Sheet1!A1:A3)+A1", "7"));
+        const QByteArray book = linkedBook(rows, QStringLiteral("gone.xlsx"), QStringLiteral("A1=1 A2=2 A3=3"));
+        LinkedBook b;
+        QVERIFY(b.openLinked(book, dir.path()));
+        settle(b);
+        QCOMPARE(int(b.links->state(1)), int(ExternalBooks::State::Missing));
+        b.links->setLive(1, true);
+        QVERIFY(b.set("A1", Value::number(10)));
+        settle(b);
+        QCOMPARE(b.at("B1"), QStringLiteral("n:16"));
+        QVERIFY(writeFile(dir.filePath(QStringLiteral("gone.xlsx")), QByteArray("this is not a workbook")));
+        b.links->invalidate(1);
+        QVERIFY(b.set("A1", Value::number(20)));
+        settle(b);
+        QCOMPARE(b.at("B1"), QStringLiteral("n:26"));
+        QCOMPARE(int(b.links->state(1)), int(ExternalBooks::State::Unreadable));
+    }
+
+    // A source is read once and again when its file changes; a source that is newer than what was read says so.
+    void aSourceIsReadOnceAndAgainWhenItsFileChanges()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString path = dir.filePath(QStringLiteral("src.xlsx"));
+        QVERIFY(writeFile(path, buildXlsx({worksheet(rowXml(1, constant("A1", "10")))})));
+        const QString rows = rowXml(1, constant("A1", "1") + cellXml("B1", "[1]Sheet1!A1+A1", "2"));
+        LinkedBook b;
+        QVERIFY(b.openLinked(linkedBook(rows, QStringLiteral("src.xlsx"), QStringLiteral("A1=1")), dir.path()));
+        b.links->setLive(1, true);
+        settle(b);
+        QVERIFY(b.set("A1", Value::number(2)));
+        settle(b);
+        QCOMPARE(b.at("B1"), QStringLiteral("n:12"));
+        QVERIFY(b.set("A1", Value::number(3)));
+        settle(b);
+        QCOMPARE(b.at("B1"), QStringLiteral("n:13"));
+        QCOMPARE(b.links->fileReads(), 1);
+        QCOMPARE(int(b.links->state(1)), int(ExternalBooks::State::Ok));
+        // the file is replaced (another size)
+        QVERIFY(writeFile(path, buildXlsx({worksheet(rowXml(1, constant("A1", "500") + constant("B1", "1") + constant("C1", "2")))})));
+        QVERIFY(b.set("A1", Value::number(4)));
+        settle(b);
+        QCOMPARE(b.at("B1"), QStringLiteral("n:504"));
+        QCOMPARE(b.links->fileReads(), 2);
+        // a file written after the values were read is newer
+        {
+            QFile f(path);
+            QVERIFY(f.open(QIODevice::ReadWrite));
+            QVERIFY(f.setFileTime(QDateTime::currentDateTime().addSecs(60), QFileDevice::FileModificationTime));
+        }
+        QCOMPARE(int(b.links->state(1)), int(ExternalBooks::State::Newer));
+    }
+
+    // The cells the formulas read from a live source are what the link's part stores at the next save; a source whose own formulas read this workbook gives its stored results (no loop).
+    void aLiveSourceGivesTheCellsForTheLinksPartAndLoopsEnd()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        // the source reads the workbook that reads it: B1 of the source is a formula [1]Sheet1!B1 with the result 5
+        const QByteArray source = linkedBook(rowXml(1, constant("A1", "7") + cellXml("B1", "[1]Sheet1!B1", "5")), QStringLiteral("main.xlsx"), QStringLiteral("B1=5"));
+        QVERIFY(writeFile(dir.filePath(QStringLiteral("src.xlsx")), source));
+        const QString rows = rowXml(1, cellXml("B1", "[1]Sheet1!B1+1", "3") + cellXml("C1", "SUM([1]Sheet1!A1:B1)", "0"));
+        LinkedBook b;
+        QVERIFY(b.openLinked(linkedBook(rows, QStringLiteral("src.xlsx"), QStringLiteral("B1=2")), dir.path()));
+        b.links->setLive(1, true);
+        QVERIFY(b.calc->refreshExternals() > 0);
+        settle(b);
+        QCOMPARE(b.at("B1"), QStringLiteral("n:6"));
+        QCOMPARE(b.at("C1"), QStringLiteral("n:12"));
+        std::map<QString, double> got;
+        for (const SaveChanges::ExternalCachedCell &c : b.links->readCells(1)) got[c.sheet + QLatin1Char('!') + cellName(c.row, c.col)] = c.number;
+        QCOMPARE(int(got.size()), 2);
+        QCOMPARE(got[QStringLiteral("Sheet1!A1")], 7.0);
+        QCOMPARE(got[QStringLiteral("Sheet1!B1")], 5.0);
+    }
+
+    // A reference to a link the workbook does not have, or a sheet or a name the source lacks, is not worked out: the formula keeps what the file stored.
+    void aReferenceThatCannotBeToldKeepsTheStoredResult()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QVERIFY(writeFile(dir.filePath(QStringLiteral("src.xlsx")), buildXlsx({worksheet(rowXml(1, constant("A1", "10")))})));
+        const QString rows = rowXml(1, constant("A1", "1") + cellXml("B1", "[1]Nope!A1+A1", "77") + cellXml("C1", "[2]Sheet1!A1+A1", "88") + cellXml("D1", "[1]!Missing+A1", "99"));
+        LinkedBook b;
+        QVERIFY(b.openLinked(linkedBook(rows, QStringLiteral("src.xlsx"), QStringLiteral("A1=1")), dir.path()));
+        b.links->setLive(1, true);
+        QVERIFY(b.set("A1", Value::number(2)));
+        settle(b);
+        QCOMPARE(b.at("B1"), QStringLiteral("n:77"));
+        QCOMPARE(b.at("C1"), QStringLiteral("n:88"));
+        QCOMPARE(b.at("D1"), QStringLiteral("n:99"));
     }
 
     // An array formula gives its cells their values, and what reads a cell of the array reads the formula; an edit to what the array reads reaches them.
