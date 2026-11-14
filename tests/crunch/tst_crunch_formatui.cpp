@@ -478,6 +478,37 @@ private Q_SLOTS:
         QVERIFY2(std::abs((centre - baseline) - expected) < 0.45, qPrintable(QStringLiteral("the line is %1 under the baseline, 6.8 put it %2 (thickness %3; line row %4, digits end %5, cell %6,%7 %8x%9)").arg(centre - baseline).arg(expected).arg(fm.lineWidth()).arg(lineRow).arg(digitsBottom).arg(cell.x()).arg(cell.y()).arg(cell.width()).arg(cell.height())));
     }
 
+    // Strikethrough turned on in the app draws a line through the digits, across the whole width of the text (the digit alone has no row that long).
+    void strikethroughTurnedOnInTheAppDrawsALine()
+    {
+        EditWindow e;
+        QVERIFY(e.open(uiBook()));
+        e.view()->setZoom(4.0);
+        quint32 r = 0, c = 0;
+        parseCellRef(QStringLiteral("B2"), &r, &c);
+        QTRY_VERIFY(e.view()->cellRect(r, c).width() > 20);
+        auto longestRun = [&] {
+            const QImage img = e.view()->viewport()->grab().toImage();
+            const QRect cell = e.view()->cellRect(r, c);
+            int longest = 0;
+            for (int y = cell.top() + 3; y <= cell.bottom() - 3; ++y) {
+                int run = 0;
+                for (int x = cell.left() + 2; x < cell.right() - 1; ++x) {
+                    run = qGray(img.pixel(x, y)) < 110 ? run + 1 : 0;
+                    longest = std::max(longest, run);
+                }
+            }
+            return longest;
+        };
+        const int before = longestRun();
+        e.win.w.resize(1000, 700);
+        QTest::qWait(300);
+        selectRange(e, QStringLiteral("B2:B2"));
+        run(e, "fmt.strike");
+        QVERIFY(lookAt(e, QStringLiteral("B2")).strike);
+        QTRY_VERIFY2(longestRun() > before + 4, qPrintable(QStringLiteral("longest dark run %1 before, %2 after").arg(before).arg(longestRun())));
+    }
+
     // Clear Print Area is on while the sheet has a print area, is off while a file is being written (with the other commands that change the sheet), and is on again after it: a save
     // leaves it as it was.
     void clearPrintAreaIsOnAgainAfterASave()

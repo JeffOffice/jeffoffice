@@ -972,6 +972,40 @@ private Q_SLOTS:
         }
     }
 
+    // A struck cell has a line through the middle of its text, drawn by hand on the glyph path (a glyph run of a raw font draws no strike-out line).
+    void strikethroughIsDrawnThroughTheText()
+    {
+        auto draw = [](bool strike) {
+            Fixture f;
+            FontSpec font;
+            font.name = QStringLiteral("Calibri");
+            font.size = 11;
+            font.strike = strike;
+            f.styles.fonts.append(font);
+            CellFormat fmt;
+            fmt.font = 1;
+            f.text(0, 0, QStringLiteral("mmm"), f.format(fmt));
+            f.options.gridlines = false;
+            f.build();
+            f.grid.layout().rows.setDefaultSize(30);
+            return f.render();
+        };
+        const QImage img = draw(true), plain = draw(false);
+        const QRect text = inkBox(plain, QRect(0, 0, 64, 30), 200);
+        QVERIFY(text.isValid());
+        int rows = 0;
+        for (int y = text.top(); y <= text.bottom(); ++y) {
+            int dark = 0, darkPlain = 0;
+            for (int x = text.left() + 1; x <= text.right() - 1; ++x) {
+                if (qRed(img.pixel(x, y)) < 200) ++dark;
+                if (qRed(plain.pixel(x, y)) < 200) ++darkPlain;
+            }
+            const int width = text.right() - text.left() - 1;
+            if (dark >= width * 9 / 10 && darkPlain < width * 9 / 10) ++rows;
+        }
+        QVERIFY2(rows >= 1, "no strike line");
+    }
+
     // Fill alignment repeats the text to fill the cell's width, and center across selection puts the text in the middle of the cell and the empty cells beside it that are formatted so.
     void fillRepeatsTheTextAndCenterAcrossCentersOverEmptyCells()
     {

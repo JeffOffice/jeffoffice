@@ -103,6 +103,7 @@ public:
     double descent() const { return m_metrics.descent(); }
     double lineSpacing() const { return m_metrics.lineSpacing(); }
     double underlinePos() const { return m_metrics.underlinePos(); }
+    double strikePos() const { return m_metrics.strikeOutPos(); }
     double lineWidth() const { return m_metrics.lineWidth(); }
     // The glyphs and where each begins (from 0), and the width of the line; false if a letter of the line is not one of the simple ones.
     bool layout(const QString &text, QList<quint32> *glyphs, QList<QPointF> *positions, double *width) const
@@ -741,10 +742,21 @@ void GridPainter::drawText(QPainter *p, const QRect &cell, const QRect &box, con
             run.setGlyphIndexes(glyphs);
             run.setPositions(positions);
             run.setUnderline(false);
-            run.setStrikeOut(look.strike);
+            run.setStrikeOut(false);   // (a glyph run of a raw font draws no strike-out line: it is drawn below)
             if (clip) p->setClipRect(box & area);
             p->setPen(QColor::fromRgba(ink));
             p->drawGlyphRun(QPointF(std::round(x), std::round(y)), run);
+            if (look.strike) {
+                if (!clip) p->setClipRect(box & area);
+                QPen pen(QColor::fromRgba(ink), std::max(1.0, face.lineWidth()));
+                pen.setCapStyle(Qt::FlatCap);
+                p->save();
+                p->setPen(pen);
+                const double ly = std::round(y) - std::ceil(face.strikePos()) + 0.5;
+                p->drawLine(QLineF(std::round(x), ly, std::round(x) + w, ly));
+                p->restore();
+                if (!clip) p->setClipRect(area);
+            }
             if (look.underline == Underline::Single) {
                 if (!clip) p->setClipRect(box & area);
                 drawSingleUnderline(p, std::round(x), w, std::round(y), face.lineWidth(), face.underlinePos(), QColor::fromRgba(ink));
