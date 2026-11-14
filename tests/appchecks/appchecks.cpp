@@ -13,6 +13,7 @@
 #include "app/theme.h"
 #include "io/zip.h"
 
+#include <QPainter>
 #include <QAbstractButton>
 #include <QAbstractSlider>
 #include <QAbstractItemView>
@@ -1155,6 +1156,7 @@ QStringList checkLazyRibbon(Adapter &app)
     struct Shots {
         QStringList names;
         QList<QImage> pictures;
+        QList<QRect> labels;   // where the current tab's own name is drawn in its picture
         QString description;
         QString accessible;   // what each control of each tab is called and described as, and whether it has help text, for screen readers (the help text of a button for a command that changes its own words is the words of the time it was made)
         int left = 0;   // tabs not yet made at the start
@@ -1219,6 +1221,10 @@ QStringList checkLazyRibbon(Adapter &app)
                 picture = next;
             }
             out.pictures << picture;
+            QRect label;
+            for (QWidget *c : r->findChildren<QWidget *>(QStringLiteral("jpRibbonTab")))
+                if (c->isVisible() && c->property("text").toString() == r->tabName(i)) label = QRect(c->mapTo(r, QPoint(0, 0)), c->size()).adjusted(7, 4, -7, -4);
+            out.labels << label;
             for (QWidget *c : r->tabAt(i)->findChildren<QWidget *>()) {
                 out.accessible += QStringLiteral("%1/%2|%3|%4|%5|%6|%7\n").arg(r->tabName(i), QString::fromLatin1(c->metaObject()->className()), c->objectName(), c->accessibleName(), c->accessibleDescription(), c->whatsThis().isEmpty() ? QStringLiteral("-") : QStringLiteral("help"), c->toolTip());
             }
@@ -1243,7 +1249,14 @@ QStringList checkLazyRibbon(Adapter &app)
         }
         if (late.notMade) fails << QStringLiteral("%1: %2 tabs were not made when shown").arg(where).arg(late.notMade);
         for (int i = 0; i < whole.names.size(); ++i) {
-            const QImage &x = whole.pictures[i], &y = late.pictures[i];
+            // (the name of the tab in the row of tabs is not part of what making a tab late can change, and it is the one thing that differs on a Mac, by a glyph, now and then: the same
+            // text at the same place, drawn at another time, gets a slightly different edge, so its box, inside the pill, is left out; the pill around it, and everything else, is compared)
+            QImage x = whole.pictures[i], y = late.pictures[i];
+            for (const QRect &hole : {whole.labels[i], late.labels[i]})
+                for (QImage *im : {&x, &y}) {
+                    QPainter p(im);
+                    p.fillRect(hole, Qt::black);
+                }
             if (x == y) continue;
             // (where they differ: the first and last rows and columns that do)
             QRect box;
