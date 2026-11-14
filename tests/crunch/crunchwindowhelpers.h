@@ -17,8 +17,14 @@ using namespace jp;
 struct Window {
     CrunchWindow w;
     QStringList told;
+    int linksAsked = 0;          // how many times a file that is opened asked whether to update its links
+    bool linksAnswer = false;    // and what it was told
     Window()
     {
+        w.setLinksAsker([this](int, int) {
+            ++linksAsked;
+            return linksAnswer;
+        });
         w.setNotifier([this](const QString &title, const QString &text) { told << title + QStringLiteral(": ") + text; });
         // (the question before a save that leaves something out is told as a notice is, and answered "go on")
         w.setLossAsker([this](const QString &title, const QString &text) {

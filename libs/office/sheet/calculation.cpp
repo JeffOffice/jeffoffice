@@ -2464,6 +2464,7 @@ bool Calculation::finishNode(Node &n, quint32 id, const Value &v)
     bool refused = false;
     const EvalStatus status = m_evaluator.status();
     const int unsupported = m_evaluator.unsupportedKinds();
+    if (m_options.externals && (m_evaluator.readLinks() || (unsupported & 1))) m_externalNodes.insert(id);   // (a name that stands for a place in another workbook makes a formula read a link as well)
     if (m_options.keepApart && unsupported) {
         n.flags |= Kept | NodeTainted;
         n.kept = (unsupported & 1) ? 'E' : (unsupported & 2) ? 'T' : 'U';
@@ -3644,6 +3645,14 @@ qint64 Calculation::refreshExternals()
     }
     if (!changed.empty()) markDependentsOfIds(&changed);
     return marked;
+}
+
+void Calculation::forEachExternalFormula(const std::function<void(int sheet, quint32 row, quint32 col)> &f) const
+{
+    for (const quint32 id : m_externalNodes) {
+        if (id >= m_nodes.size() || (m_nodes[id].flags & Dead)) continue;
+        f(m_nodes[id].sheet, rowOf(m_nodes[id]), colOf(m_nodes[id]));
+    }
 }
 
 bool Calculation::evaluateHere(int sheet, quint32 row, quint32 col, const QString &formula, Value *out) const

@@ -302,6 +302,10 @@ bool loadWhole(LoadedBook *out, const std::function<bool()> &cancelled, const st
     options.goRoundCircles = true;             // and a circle is gone round when the workbook is set to
     options.workOutTables = true;              // and the columns of tables are worked out (a formula that names them is no longer kept as the file has it)
     options.workOutDataTables = true;          // and so are the cells of what-if tables (the yardstick of the tools leaves them as the file has them)
+    // (the links to other workbooks of an .xlsx file: its formulas that read them are kept as the file stored them until the person updates the links, and are worked out from the stored values or the source after)
+    if (!out->book->isConverted())
+        out->externals = jp::office::sheet::ExternalBooks::read(*out->book, out->path.isEmpty() ? QString() : QFileInfo(out->path).absolutePath(), out->path.isEmpty() ? QDateTime() : QFileInfo(out->path).lastModified());
+    options.externals = out->externals;
     auto calc = std::make_unique<Calculation>(*out->book, options);
     calc->setFilePath(out->path);
     calc->setDataTablesAutomatic(out->book->info().calcMode == jp::office::sheet::CalcMode::Auto);   // (a workbook set to leave tables by hand has them as the file stored them until asked)

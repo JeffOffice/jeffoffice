@@ -203,6 +203,8 @@ public:
     // What the last evaluation met that is not worked out, through a defined name or a text given to INDIRECT as well as in the formula: 1 a reference to another
     // workbook, 2 the columns of a table, 4 a function that is not in the registry. 0 when it met none; the value is then right as far as the engine can say.
     int unsupportedKinds() const;
+    // Whether the last evaluation read a reference to another workbook (through a defined name as well as in the formula) and the source gave it.
+    bool readLinks() const;
     // The steps the last evaluation took.
     qint64 work() const;
     // The most cells of arrays the last evaluation had alive at once.

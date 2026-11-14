@@ -3,11 +3,13 @@
 
 #include "app/datatoolsdialogs.h"
 #include "app/editlinksdialog.h"
+#include "app/plaintext.h"
 #include "app/removeduplicatesdialog.h"
 #include "sheet/cellref.h"
 
 #include <QAction>
 #include <QFileInfo>
+#include <QMessageBox>
 
 namespace jp {
 
@@ -36,6 +38,28 @@ void CrunchWindow::editLinksCommand()
         updateEditActions();
     });
     dialog.exec();
+}
+
+// When a workbook that reads others has been opened and worked out: the choice the file has (Startup prompt in Edit Links) decides. Only links whose file is on this computer are asked about.
+void CrunchWindow::linksOnOpen()
+{
+    if (!m_session || !m_loaded || !editingAllowed()) return;
+    const crunch::EditSession::UpdateLinks mode = m_session->updateLinksMode();
+    if (mode == crunch::EditSession::UpdateLinks::Never) return;
+    int sources = 0;
+    for (const crunch::EditSession::ExternalSource &s : m_session->externalLinkSources())
+        if (s.local && (s.state == 0 || s.state == 2)) ++sources;
+    if (sources == 0) return;
+    if (mode == crunch::EditSession::UpdateLinks::Ask) {
+        const int cells = m_session->externalLinkCells();
+        const bool yes = m_linksAsker ? m_linksAsker(sources, cells)
+                                      : plainQuestion(this, tr("Links"), tr("This workbook reads values from other workbooks. Update them now? You can change this in Edit Links, under Data.")) == QMessageBox::Yes;
+        if (!yes) return;
+    }
+    int updated = 0;
+    const crunch::EditSession::Outcome o = m_session->updateAllExternalLinks(&updated);
+    updateEditActions();
+    setStatus(o.ok ? tr("Links updated: %1 cells.").arg(updated) : o.problem.section(QLatin1Char('\n'), 0, 0));
 }
 
 void CrunchWindow::removeDuplicatesDialog()

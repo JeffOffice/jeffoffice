@@ -31,6 +31,7 @@
 #include <QUrl>
 #include <QtTest>
 
+#include <cstring>
 #include <functional>
 
 using namespace jp;
@@ -265,6 +266,18 @@ QByteArray skeleton(const QByteArray &xml)
 
 } // namespace
 
+// The workbook with a link to prices.xlsx beside it (its sheet "Sheet1"), and formulas that do more than read a cell: A5 doubles one, A6 sums three, A7 reads A6, and B7 adds B1 to the sum.
+static QByteArray moreLinkBook()
+{
+    return repack(externalLinkBook(), [](Parts &p) {
+        p[QStringLiteral("xl/externalLinks/externalLink1.xml")].replace("<sheetName val=\"Prices\"/>", "<sheetName val=\"Sheet1\"/>");
+        p[QStringLiteral("xl/externalLinks/_rels/externalLink1.xml.rels")].replace("file:///C:/data/prices.xlsx", "prices.xlsx");
+        p[kSheet].replace("[1]Prices!A1*2", "[1]Sheet1!A1*2");
+        p[kSheet].replace("</row></sheetData>", "</row><row r=\"6\"><c r=\"A6\"><f>SUM([1]Sheet1!A1:A3)</f><v>6</v></c></row><row r=\"7\"><c r=\"A7\"><f>A6+1</f><v>7</v></c>"
+                                                "<c r=\"B7\"><f>SUM([1]Sheet1!A1:A3)+B1</f><v>8</v></c></row></sheetData>");
+    });
+}
+
 class CrunchKeepTests : public QObject {
     Q_OBJECT
 
@@ -318,6 +331,150 @@ private Q_SLOTS:
         QVERIFY(e.win.w.session()->updateExternalValues(1, sourcePath, &done).ok);
         QVERIFY(e.settle());
         QCOMPARE(e.shownAt(QStringLiteral("A5")), QStringLiteral("1000"));
+    }
+
+    // Update Values works out every formula that reads the source (a sum, arithmetic, a sum that other formulas read), not only a plain reference; Undo takes them back to the stored values; a save keeps
+    // the cells that were read in the link's part, so that the file reopened without the source shows the values, and an edit there works the formula out from those stored values.
+    void updateValuesWorksOutEveryFormulaThatReadsTheSource()
+    {
+        EditWindow e;
+        const QString source = e.folder.write(QStringLiteral("prices.xlsx"), bookOfSheets({{"A1=7", "A2=8", "A3=9"}}));
+        QVERIFY(e.open(moreLinkBook(), QStringLiteral("links.xlsx")));
+        QVERIFY(e.settle());
+        QCOMPARE(e.shownAt(QStringLiteral("A5")), QStringLiteral("84"));
+        QCOMPARE(e.shownAt(QStringLiteral("A7")), QStringLiteral("7"));
+        crunch::EditSession *s = e.win.w.session();
+        crunch::EditSession::ExternalUpdate done;
+        QVERIFY(s->updateExternalValues(1, source, &done).ok);
+        QCOMPARE(done.updated, 3);
+        QCOMPARE(done.kept, 0);
+        QVERIFY(e.settle());
+        QCOMPARE(e.shownAt(QStringLiteral("A5")), QStringLiteral("14"));
+        QCOMPARE(e.shownAt(QStringLiteral("A6")), QStringLiteral("24"));
+        QCOMPARE(e.shownAt(QStringLiteral("A7")), QStringLiteral("25"));
+        QCOMPARE(e.shownAt(QStringLiteral("B7")), QStringLiteral("26"));
+        // one step of Undo takes the cells back to what the file stored
+        s->undoStack()->undo();
+        QVERIFY(e.settle());
+        QCOMPARE(e.shownAt(QStringLiteral("A5")), QStringLiteral("84"));
+        QCOMPARE(e.shownAt(QStringLiteral("A6")), QStringLiteral("6"));
+        QCOMPARE(e.shownAt(QStringLiteral("A7")), QStringLiteral("7"));
+        QCOMPARE(e.shownAt(QStringLiteral("B7")), QStringLiteral("8"));
+        s->undoStack()->redo();
+        QVERIFY(e.settle());
+        QCOMPARE(e.shownAt(QStringLiteral("B7")), QStringLiteral("26"));
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(saved), "the save failed");
+        QFile f(e.path);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        const QByteArray bytes = f.readAll();
+        f.close();
+        Parts now;
+        readZip(bytes, now);
+        const QByteArray part = now.value(QStringLiteral("xl/externalLinks/externalLink1.xml"));
+        QVERIFY2(part.contains("<v>7</v>") && part.contains("<v>8</v>") && part.contains("<v>9</v>") && !part.contains("<v>42</v>"), part.constData());
+        // reopened with no source beside it: the stored values show, and a change of what a formula reads here works it out from them
+        EditWindow again;
+        QVERIFY(again.open(bytes, QStringLiteral("links2.xlsx")));
+        QVERIFY(again.settle());
+        QCOMPARE(again.shownAt(QStringLiteral("A6")), QStringLiteral("24"));
+        QCOMPARE(again.shownAt(QStringLiteral("B7")), QStringLiteral("26"));
+        again.select(QStringLiteral("B1"));
+        again.enter(QStringLiteral("5"));
+        QVERIFY(again.settle());
+        QCOMPARE(again.shownAt(QStringLiteral("B7")), QStringLiteral("29"));
+        QCOMPARE(again.shownAt(QStringLiteral("A6")), QStringLiteral("24"));
+    }
+
+    // What happens to the links when the file opens is what the file says: "always" updates them, "never" leaves the stored values, and the default asks (a "no" leaves the values, a "yes" updates).
+    void theStartupChoiceDecidesWhatHappensWhenTheFileOpens()
+    {
+        auto opened = [](const char *mode, bool answer, int *asked, QString *shown) {
+            EditWindow e;
+            e.win.linksAnswer = answer;
+            e.folder.write(QStringLiteral("prices.xlsx"), bookOfSheets({{"A1=7", "A2=8", "A3=9"}}));
+            QByteArray book = moreLinkBook();
+            if (mode) book = repack(book, [&](Parts &p) { p[QStringLiteral("xl/workbook.xml")].replace("<sheets>", QByteArray("<workbookPr updateLinks=\"") + mode + "\"/><sheets>"); });
+            const bool ok = e.open(book, QStringLiteral("links.xlsx")) && e.settle();
+            QCoreApplication::processEvents();
+            QCoreApplication::processEvents();
+            if (ok && std::strcmp(mode ? mode : "", "never") != 0 && (mode == nullptr || std::strcmp(mode, "userSet") == 0)) QTRY_COMPARE_WITH_TIMEOUT(e.win.linksAsked, 1, 10000);
+            if (ok && answer && (mode == nullptr || std::strcmp(mode, "userSet") == 0)) QTRY_COMPARE_WITH_TIMEOUT(e.shownAt(QStringLiteral("A6")), QStringLiteral("24"), 10000);
+            if (ok && mode && std::strcmp(mode, "always") == 0) QTRY_COMPARE_WITH_TIMEOUT(e.shownAt(QStringLiteral("A6")), QStringLiteral("24"), 10000);
+            e.settle();
+            *asked = e.win.linksAsked;
+            *shown = ok ? e.shownAt(QStringLiteral("A6")) : QStringLiteral("not opened");
+        };
+        int asked = -1;
+        QString shown;
+        opened("always", false, &asked, &shown);
+        QCOMPARE(shown, QStringLiteral("24"));
+        QCOMPARE(asked, 0);
+        opened("never", true, &asked, &shown);
+        QCOMPARE(shown, QStringLiteral("6"));
+        QCOMPARE(asked, 0);
+        opened(nullptr, false, &asked, &shown);
+        QCOMPARE(shown, QStringLiteral("6"));
+        QCOMPARE(asked, 1);
+        opened(nullptr, true, &asked, &shown);
+        QCOMPARE(shown, QStringLiteral("24"));
+        QCOMPARE(asked, 1);
+    }
+
+    // The choice made for the Startup prompt in Edit Links is one step of Undo, is saved in the file (workbookPr updateLinks), and is what the file asks for when it is opened again.
+    void theStartupChoiceIsSavedInTheFile()
+    {
+        EditWindow e;
+        QVERIFY(e.open(moreLinkBook(), QStringLiteral("links.xlsx")));
+        QVERIFY(e.settle());
+        crunch::EditSession *s = e.win.w.session();
+        QCOMPARE(int(s->updateLinksMode()), int(crunch::EditSession::UpdateLinks::Ask));
+        {
+            EditLinksDialog d(s, e.folder.dir.path());
+            QCOMPARE(d.startupChoice()->currentData().toInt(), int(crunch::EditSession::UpdateLinks::Ask));
+            d.startupChoice()->setCurrentIndex(d.startupChoice()->findData(int(crunch::EditSession::UpdateLinks::Never)));
+            QMetaObject::invokeMethod(d.startupChoice(), "activated", Q_ARG(int, d.startupChoice()->currentIndex()));
+        }
+        QCOMPARE(int(s->updateLinksMode()), int(crunch::EditSession::UpdateLinks::Never));
+        QCOMPARE(s->undoStack()->undoText(), QStringLiteral("Startup prompt"));
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(saved), "the save failed");
+        QFile f(e.path);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        const QByteArray bytes = f.readAll();
+        f.close();
+        Parts now;
+        readZip(bytes, now);
+        QVERIFY2(now.value(QStringLiteral("xl/workbook.xml")).contains("updateLinks=\"never\""), now.value(QStringLiteral("xl/workbook.xml")).constData());
+        EditWindow again;
+        QVERIFY(again.open(bytes, QStringLiteral("links2.xlsx")));
+        QVERIFY(again.settle());
+        QCOMPARE(int(again.win.w.session()->updateLinksMode()), int(crunch::EditSession::UpdateLinks::Never));
+        s->undoStack()->undo();
+        QCOMPARE(int(s->updateLinksMode()), int(crunch::EditSession::UpdateLinks::Ask));
+    }
+
+    // Edit Links says for each source whether it is there (OK), not found, or newer than the values were read; and the status follows a source that is written later.
+    void editLinksShowsTheStatusOfEachSource()
+    {
+        EditWindow e;
+        const QString source = e.folder.write(QStringLiteral("prices.xlsx"), bookOfSheets({{"A1=7"}}));
+        QVERIFY(e.open(moreLinkBook(), QStringLiteral("links.xlsx")));
+        QVERIFY(e.settle());
+        EditLinksDialog d(e.win.w.session(), e.folder.dir.path());
+        QVERIFY2(d.table()->item(0, 2)->text().startsWith(QLatin1String("OK")), qPrintable(d.table()->item(0, 2)->text()));
+        {
+            QFile f(source);
+            QVERIFY(f.open(QIODevice::ReadWrite));
+            QVERIFY(f.setFileTime(QDateTime::currentDateTime().addSecs(3600), QFileDevice::FileModificationTime));
+        }
+        d.checkStatus();
+        QVERIFY2(d.table()->item(0, 2)->text().startsWith(QLatin1String("Newer")), qPrintable(d.table()->item(0, 2)->text()));
+        QVERIFY(QFile::remove(source));
+        d.checkStatus();
+        QVERIFY2(d.table()->item(0, 2)->text().startsWith(QLatin1String("Not found")), qPrintable(d.table()->item(0, 2)->text()));
     }
 
     // A workbook with macros opens with no change at all: nothing ran, so there is no step to undo and nothing to save.
@@ -427,7 +584,7 @@ private Q_SLOTS:
         EditLinksDialog d(e.win.w.session(), dir.path());
         QCOMPARE(d.table()->rowCount(), 1);
         QCOMPARE(d.table()->item(0, 0)->text(), QStringLiteral("C:/data/prices.xlsx"));
-        QCOMPARE(d.table()->item(0, 2)->text(), QStringLiteral("Not checked"));
+        QVERIFY(d.table()->item(0, 2)->text().startsWith(QLatin1String("Not found")));
         d.checkStatus();
         d.show();
         saveShot(&d, QStringLiteral("edit-links"));
@@ -468,7 +625,7 @@ private Q_SLOTS:
         crunch::EditSession *s = e.win.w.session();
         crunch::EditSession::ExternalUpdate result;
         QVERIFY(s->updateExternalValues(1, source, &result).ok);
-        QCOMPARE(result.updated, 1);
+        QCOMPARE(result.updated, 2);
         QVERIFY(e.settle());
         QCOMPARE(e.valueAt(QStringLiteral("A6")), QStringLiteral("n:7"));
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
@@ -710,9 +867,9 @@ private Q_SLOTS:
         QCOMPARE(changed.count(), 1);
         QVERIFY(e.settle());
         QCOMPARE(e.valueAt(QStringLiteral("A6")), QStringLiteral("n:7"));
-        QCOMPARE(e.valueAt(QStringLiteral("A5")), QStringLiteral("n:84"));   // (it multiplies the value: it keeps the one its file stored)
+        QCOMPARE(e.valueAt(QStringLiteral("A5")), QStringLiteral("n:14"));   // (it multiplies the value: worked out from the source)
         QCOMPARE(s->editText(0, 5, 0), QStringLiteral("=[1]Sheet1!A1"));
-        QVERIFY2(d.note().contains(QStringLiteral("now: 1. ")) && d.note().contains(QStringLiteral("stored: 1.")), qPrintable(d.note()));
+        QVERIFY2(d.note().contains(QStringLiteral("now: 2.")), qPrintable(d.note()));
         QCOMPARE(e.win.w.undoStack()->undoText(), QStringLiteral("Update Values"));
         e.win.w.undoStack()->undo();
         QVERIFY(e.settle());

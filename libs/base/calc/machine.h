@@ -293,6 +293,7 @@ public:
     std::mt19937_64 rng;
     int nameDepth = 0;
     int unsupported = 0;
+    bool linksRead = false;   // a reference to another workbook was answered
     mutable double m_clock = 0;
     mutable bool m_clockRead = false;
     bool wrapRefs = false;   // the references that move are those of a defined name: past the edge of the sheet they come round to the other side

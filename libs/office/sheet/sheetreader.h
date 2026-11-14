@@ -187,6 +187,8 @@ struct WorkbookInfo {
     QVector<DefinedName> definedNames;
     DateSystem dateSystem = DateSystem::Date1900;
     CalcMode calcMode = CalcMode::Auto;
+    enum class UpdateLinks { Ask = 0, Always = 1, Never = 2 };
+    UpdateLinks updateLinks = UpdateLinks::Ask;   // what happens to the links to other workbooks when it opens (workbookPr updateLinks: userSet, always, never)
     bool calcOnSave = true;         // by hand, the formulas are worked out when the workbook is saved (calcPr calcOnSave: true when not written)
     bool fullCalcOnLoad = false;
     bool calcUnfinished = false;   // saved before its calculation finished (calcCompleted="0", or the old form's UNCALCED record): the results it holds are not the program's own answers

@@ -7,7 +7,9 @@
 #include "sheet/sheetreader.h"
 
 #include <QFileInfo>
+#include <algorithm>
 #include <set>
+#include <tuple>
 #include <QRegularExpression>
 #include <QUndoCommand>
 #include <QUrl>
@@ -90,6 +92,31 @@ private:
     bool m_before, m_after;
 };
 
+// That a link reads its source file (Update Values), and Undo takes it back to what it was.
+class LiveMark : public QUndoCommand {
+public:
+    LiveMark(jp::office::sheet::ExternalBooks *links, int index, bool was) : m_links(links), m_index(index), m_was(was) {}
+    void redo() override { m_links->setLive(m_index, true); }
+    void undo() override { m_links->setLive(m_index, m_was); }
+
+private:
+    jp::office::sheet::ExternalBooks *m_links;
+    int m_index;
+    bool m_was;
+};
+
+// What the choice of Startup prompt does and Undo takes back (-1: what the file has).
+class UpdateLinksChanged : public QUndoCommand {
+public:
+    UpdateLinksChanged(EditSession *session, int before, int after, const QString &text) : QUndoCommand(text), m_session(session), m_before(before), m_after(after) {}
+    void redo() override { m_session->setUpdateLinksValue(m_after); }
+    void undo() override { m_session->setUpdateLinksValue(m_before); }
+
+private:
+    EditSession *m_session;
+    int m_before, m_after;
+};
+
 // That a link's values were read again, for the saver: Undo takes it back to what it was.
 class UpdatedMark : public QUndoCommand {
 public:
@@ -153,6 +180,10 @@ std::vector<EditSession::ExternalSource> EditSession::externalLinkSources() cons
         }
         s.shown = QUrl::fromPercentEncoding(shown.toUtf8());
         s.local = !web && !s.shown.isEmpty();
+        if (m_book->externals) {
+            s.state = int(m_book->externals->state(s.index));
+            s.live = m_book->externals->live(s.index);
+        }
         out.push_back(s);
     }
     return out;
@@ -161,8 +192,16 @@ std::vector<EditSession::ExternalSource> EditSession::externalLinkSources() cons
 void EditSession::setExternalTarget(int index, const QString &target)
 {
     // (kept after a save too: what the file now holds is not what an Undo of an earlier step goes back to, so the address is always written, as the step says)
-    if (!target.isEmpty()) m_externalTargets[index] = target;
+    if (target.isEmpty()) return;
+    m_externalTargets[index] = target;
+    // (the source is another file: what its link stores is read until the values are updated)
+    if (m_book && m_book->externals) {
+        m_book->externals->setTarget(index, target);
+        m_book->externals->setLive(index, false);
+    }
 }
+
+void EditSession::setUpdateLinksValue(int mode) { m_updateLinks = mode; }
 
 std::map<QString, QString> EditSession::externalSourceParts() const
 {
@@ -177,29 +216,14 @@ std::map<QString, QString> EditSession::externalSourceParts() const
 std::map<QString, std::vector<jp::office::sheet::SaveChanges::ExternalCachedCell>> EditSession::externalCachedValues() const
 {
     std::map<QString, std::vector<jp::office::sheet::SaveChanges::ExternalCachedCell>> out;
-    if (m_externalUpdated.empty() || m_dropExternalLinks || !m_book || !m_book->book || !m_book->calc) return out;
+    if (m_externalUpdated.empty() || m_dropExternalLinks || !m_book || !m_book->book || !m_book->externals) return out;
     const QStringList parts = linkPartsOf(m_book->book->package(), m_book->book->mainPart());
-    const QRegularExpression &direct = directPattern();
-    m_book->calc->forEachFormulaText([&](int sheet, quint32 row, quint32 col, const QString &formula) {
-        if (!readsAnotherWorkbook(formula)) return;
-        const QRegularExpressionMatch m = direct.match(formula);
-        if (!m.hasMatch()) return;
-        const int index = (m.captured(1).isEmpty() ? m.captured(3) : m.captured(1)).toInt();
-        if (!m_externalUpdated.count(index) || index < 1 || index > parts.size() || parts[index - 1].isEmpty()) return;
-        jp::office::sheet::SaveChanges::ExternalCachedCell c;
-        c.sheet = m.captured(1).isEmpty() ? m.captured(4).replace(QStringLiteral("''"), QStringLiteral("'")) : m.captured(2);
-        if (!jp::office::sheet::parseCellRef(m.captured(5) + m.captured(6), &c.row, &c.col)) return;
-        const auto content = m_book->calc->content(sheet, row, col);
-        const jp::calc::Value v = content.hasStored ? content.stored : content.value;
-        switch (v.kind()) {
-        case jp::calc::Value::Kind::Number: c.number = v.number(); break;
-        case jp::calc::Value::Kind::Bool: c.kind = 'b'; c.number = v.boolean() ? 1 : 0; break;
-        case jp::calc::Value::Kind::Text: c.kind = 's'; c.text = v.text(); break;
-        case jp::calc::Value::Kind::Error: c.kind = 'e'; c.text = jp::calc::errorKindText(v.errorKind()); break;
-        default: return;
-        }
-        out[parts[index - 1]].push_back(c);
-    });
+    // (what the formulas read of each source that was updated, as the source has it now)
+    for (const int index : m_externalUpdated) {
+        if (index < 1 || index > parts.size() || parts[index - 1].isEmpty()) continue;
+        std::vector<jp::office::sheet::SaveChanges::ExternalCachedCell> cells = m_book->externals->readCells(index);
+        if (!cells.empty()) out[parts[index - 1]] = std::move(cells);
+    }
     return out;
 }
 
@@ -234,13 +258,20 @@ EditSession::Outcome EditSession::updateExternalValues(int index, const QString 
     };
     QString why;
     if (!canEdit(&why)) return refuse(why);
-    jp::office::sheet::Workbook source;
-    QString error;
     // (only a file is read: a pipe or a device has no end to be read to)
     if (!QFileInfo(path).isFile()) return refuse(tr("The workbook \"%1\" is not a file that can be read.").arg(path));
-    if (path.isEmpty() || !source.openFile(path, &error)) return refuse(tr("The workbook \"%1\" could not be opened. %2").arg(path, error));
-    // a formula that is only a reference to one cell of the source: `[1]Prices!A1` or `'[1]My Prices'!$A$1`
-    const QRegularExpression &direct = directPattern();
+    jp::office::sheet::ExternalBooks *links = m_book->externals.get();
+    if (!links || index < 1 || index > links->count()) return refuse(tr("That link is not in this workbook."));
+    // (the link names a file; a file given that is another one is what the link points to from now)
+    if (QFileInfo(links->localPath(index)).canonicalFilePath() != QFileInfo(path).canonicalFilePath()) {
+        links->setTarget(index, addressOf(path));
+        m_externalTargets[index] = addressOf(path);
+    }
+    QString error;
+    if (!links->probe(index, &error)) return refuse(tr("The workbook \"%1\" could not be opened. %2").arg(path, error));
+    const bool wasLive = links->live(index);
+    links->setLive(index, true);
+    // the formulas that read a link: by the number in their text; one that reads it through a name is worked out whichever link is updated
     struct Place {
         int sheet;
         quint32 row, col;
@@ -249,68 +280,111 @@ EditSession::Outcome EditSession::updateExternalValues(int index, const QString 
     std::vector<Place> places;
     constexpr size_t kMostCells = 200000;
     bool cut = false;
-    m_book->calc->forEachFormulaText([&](int sheet, quint32 row, quint32 col, const QString &formula) {
-        if (places.size() >= kMostCells) cut = true;
-        else if (readsAnotherWorkbook(formula, index)) places.push_back({sheet, row, col, formula});
-    });
-    std::map<QString, std::shared_ptr<jp::office::sheet::Sheet>> read;
-    Step step;
-    int kept = 0;
-    for (const Place &p : places) {
-        const QRegularExpressionMatch m = direct.match(p.formula);
-        if (!m.hasMatch() || (m.captured(1).isEmpty() ? m.captured(3) : m.captured(1)).toInt() != index) {
-            ++kept;
-            continue;
+    {
+        std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold();
+        if (!hold) {
+            links->setLive(index, wasLive);
+            return refuse(tr("The workbook is still being opened. It can be changed when it is open."));
         }
-        QString name = m.captured(1).isEmpty() ? m.captured(4).replace(QStringLiteral("''"), QStringLiteral("'")) : m.captured(2);
-        int found = -1;
-        const auto &sheets = source.info().sheets;
-        for (int i = 0; i < int(sheets.size()) && found < 0; ++i)
-            if (!sheets[size_t(i)].deleted && sheets[size_t(i)].name.compare(name, Qt::CaseInsensitive) == 0) found = i;
-        quint32 row = 0, col = 0;
-        if (found < 0 || !jp::office::sheet::parseCellRef(m.captured(5) + m.captured(6), &row, &col)) {
-            ++kept;
-            continue;
-        }
-        std::shared_ptr<jp::office::sheet::Sheet> &sheet = read[name.toLower()];
-        if (!sheet) {
-            sheet = std::make_shared<jp::office::sheet::Sheet>();
-            source.readSheet(found, sheet.get());
-        }
-        jp::calc::Value v = jp::calc::Value::number(0);
-        if (const jp::office::sheet::Cell *c = sheet->cells.find(row, col)) {
-            using T = jp::office::sheet::CellType;
-            switch (c->type) {
-            case T::Number:
-            case T::Date: v = jp::calc::Value::number(c->number); break;
-            case T::Bool: v = jp::calc::Value::boolean(c->number != 0); break;
-            case T::Error: v = jp::calc::Value::error(static_cast<jp::calc::ErrorKind>(quint8(c->number))); break;
-            case T::SharedString: v = jp::calc::Value::text(source.sharedStrings().at(c->textIndex())); break;
-            case T::InlineString:
-            case T::FormulaString: v = jp::calc::Value::text(c->textIndex() >= 0 && c->textIndex() < sheet->texts.size() ? sheet->texts[c->textIndex()] : QString()); break;
-            case T::Empty: break;
+        hold->calculation()->forEachExternalFormula([&](int sheet, quint32 row, quint32 col) {
+            if (places.size() >= kMostCells) {
+                cut = true;
+                return;
+            }
+            const QString formula = hold->calculation()->content(sheet, row, col).formula;
+            const bool numbered = readsAnotherWorkbook(formula);
+            if (!numbered || readsAnotherWorkbook(formula, index)) places.push_back({sheet, row, col, formula});
+        });
+    }
+    std::sort(places.begin(), places.end(), [](const Place &a, const Place &b) { return std::tie(a.sheet, a.row, a.col) < std::tie(b.sheet, b.row, b.col); });
+    int updated = 0, kept = 0;
+    m_undo.beginMacro(tr("Update Values"));
+    // (a formula may read another that is updated in the same go: the cells are worked out again, a few rounds, until none changes)
+    for (int pass = 0; pass < 4; ++pass) {
+        Step step;
+        {
+            std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold();
+            if (!hold) break;
+            jp::office::sheet::Calculation *calc = hold->calculation();
+            for (const Place &p : places) {
+                const jp::office::sheet::Calculation::CellContent content = calc->content(p.sheet, p.row, p.col);
+                if (!content.exists || !content.isFormula || content.arrayRange.valid || content.dataTable || content.spilled) {
+                    if (pass == 0) ++kept;
+                    continue;
+                }
+                QString text = content.formula;
+                if (text.startsWith(QLatin1Char('='))) text.remove(0, 1);
+                jp::calc::Value v;
+                if (!calc->evaluateHere(p.sheet, p.row, p.col, text, &v) || v.isArray()) {
+                    if (pass == 0) ++kept;
+                    continue;
+                }
+                if (v.isEmpty()) v = jp::calc::Value::number(0);
+                const jp::calc::Value now = content.hasStored ? content.stored : content.value;
+                if (pass > 0 && now == v) continue;
+                if (pass == 0) ++updated;
+                CellChange ch;
+                ch.sheet = p.sheet;
+                ch.row = p.row;
+                ch.col = quint16(p.col);
+                ch.before = content;
+                ch.after = content;
+                ch.after.hasStored = true;
+                ch.after.stored = v;
+                step.cells.push_back(std::move(ch));
             }
         }
-        CellChange ch;
-        ch.sheet = p.sheet;
-        ch.row = p.row;
-        ch.col = quint16(p.col);
-        ch.before = m_book->calc->content(p.sheet, p.row, p.col);
-        ch.after = ch.before;
-        ch.after.hasStored = true;
-        ch.after.stored = v;
-        step.cells.push_back(std::move(ch));
+        if (step.cells.empty()) break;
+        pushStep(std::move(step), tr("Update Values"));
     }
     if (result) {
-        result->updated = int(step.cells.size());
+        result->updated = updated;
         result->kept = kept;
         result->cut = cut;
     }
-    if (step.cells.empty()) return out;
-    m_undo.beginMacro(tr("Update Values"));
-    pushStep(std::move(step), tr("Update Values"));
     m_undo.push(new UpdatedMark(&m_externalUpdated, index, m_externalUpdated.count(index) > 0));
+    m_undo.push(new LiveMark(links, index, wasLive));
     m_undo.endMacro();
+    return out;
+}
+
+EditSession::UpdateLinks EditSession::updateLinksMode() const
+{
+    if (m_updateLinks >= 0) return UpdateLinks(m_updateLinks);
+    return m_book && m_book->book ? UpdateLinks(int(m_book->book->info().updateLinks)) : UpdateLinks::Ask;
+}
+
+EditSession::Outcome EditSession::setUpdateLinksMode(UpdateLinks mode)
+{
+    Outcome out;
+    QString why;
+    if (!canEdit(&why)) {
+        out.ok = false;
+        out.problem = why;
+        return out;
+    }
+    if (mode == updateLinksMode()) return out;
+    m_undo.push(new UpdateLinksChanged(this, m_updateLinks, int(mode), tr("Startup prompt")));
+    return out;
+}
+
+EditSession::Outcome EditSession::updateAllExternalLinks(int *updated)
+{
+    Outcome out;
+    if (updated) *updated = 0;
+    for (const ExternalSource &s : externalLinkSources()) {
+        if (!s.local || !m_book->externals) continue;
+        const QString path = m_book->externals->localPath(s.index);
+        if (path.isEmpty() || !QFileInfo(path).isFile()) continue;
+        ExternalUpdate one;
+        const Outcome o = updateExternalValues(s.index, path, &one);
+        if (!o.ok) {
+            out.ok = false;
+            out.problem = o.problem;
+            continue;
+        }
+        if (updated) *updated += one.updated;
+    }
     return out;
 }
 

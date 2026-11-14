@@ -529,6 +529,7 @@ Item Machine::runProgram(const Program &p, bool)
         case Op::PushExternal: {
             Value v;
             if (ctx.source->externalRef(p.texts[size_t(in.operand)], &v)) {
+                linksRead = true;
                 stack.push_back(Item::ofValue(v));
             } else {
                 unsupported |= 1;
@@ -742,6 +743,7 @@ Value Machine::run(const Program &p, const EvalContext &c)
     nameDepth = 0;
     m_active.clear();
     unsupported = 0;
+    linksRead = false;
     m_clockRead = false;
     peakCells = 0;
     textMade = 0;
@@ -800,6 +802,7 @@ Evaluator::~Evaluator() = default;
 Value Evaluator::evaluate(const Program &program, const EvalContext &context) { return d->machine.run(program, context); }
 EvalStatus Evaluator::status() const { return d->machine.status; }
 int Evaluator::unsupportedKinds() const { return d->machine.unsupported; }
+bool Evaluator::readLinks() const { return d->machine.linksRead; }
 qint64 Evaluator::work() const { return d->machine.work; }
 qint64 Evaluator::peakArrayCells() const { return d->machine.peakCells; }
 qint64 Evaluator::madeTextChars() const { return d->machine.textMade; }

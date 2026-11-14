@@ -2,6 +2,7 @@
 
 #include "app/plaintext.h"
 
+#include <QComboBox>
 #include <QDialogButtonBox>
 #include <QDir>
 #include <QFileDialog>
@@ -54,6 +55,27 @@ EditLinksDialog::EditLinksDialog(crunch::EditSession *session, const QString &ba
     row->addWidget(m_break);
     row->addStretch(1);
     layout->addLayout(row);
+    auto *startRow = new QHBoxLayout;
+    auto *startLabel = new QLabel(tr("When this workbook opens:"), this);
+    m_startup = new QComboBox(this);
+    m_startup->setObjectName(QStringLiteral("editLinksStartup"));
+    m_startup->addItem(tr("Ask whether to update the links"), int(crunch::EditSession::UpdateLinks::Ask));
+    m_startup->addItem(tr("Update the links"), int(crunch::EditSession::UpdateLinks::Always));
+    m_startup->addItem(tr("Don't update; keep the stored values"), int(crunch::EditSession::UpdateLinks::Never));
+    m_startup->setCurrentIndex(m_startup->findData(int(m_session->updateLinksMode())));
+    startLabel->setBuddy(m_startup);
+    startRow->addWidget(startLabel);
+    startRow->addWidget(m_startup, 1);
+    layout->addLayout(startRow);
+    connect(m_startup, &QComboBox::activated, this, [this] {
+        const crunch::EditSession::Outcome o = m_session->setUpdateLinksMode(crunch::EditSession::UpdateLinks(m_startup->currentData().toInt()));
+        if (!o.ok) {
+            m_note->setText(o.problem);
+            m_startup->setCurrentIndex(m_startup->findData(int(m_session->updateLinksMode())));
+            return;
+        }
+        Q_EMIT linksChanged();
+    });
     auto *buttons = new QDialogButtonBox(QDialogButtonBox::Close, this);
     layout->addWidget(buttons);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
@@ -98,28 +120,32 @@ void EditLinksDialog::reload()
 {
     m_sources = m_session->externalLinkSources();
     m_note->setText(m_sources.empty() ? tr("This workbook does not read values from other workbooks.")
-                                      : tr("This workbook reads values from these workbooks. Until it is opened again with them, it shows the values its file stored."));
+                                      : tr("This workbook reads values from these workbooks. Until you update them, it shows the values its file stored."));
     m_table->setRowCount(int(m_sources.size()));
     for (int r = 0; r < int(m_sources.size()); ++r) {
         const crunch::EditSession::ExternalSource &s = m_sources[size_t(r)];
         m_table->setItem(r, 0, new QTableWidgetItem(s.shown.isEmpty() ? tr("(no place)") : s.shown));
         m_table->setItem(r, 1, new QTableWidgetItem(s.local ? tr("Workbook") : tr("Workbook on the web")));
-        m_table->setItem(r, 2, new QTableWidgetItem(tr("Not checked")));
+        m_table->setItem(r, 2, new QTableWidgetItem(statusOf(s)));
+    }
+}
+
+QString EditLinksDialog::statusOf(const crunch::EditSession::ExternalSource &s)
+{
+    if (!s.local) return tr("Not checked: it is on the web");
+    switch (s.state) {
+    case 0: return s.live ? tr("OK: the values are from the source") : tr("OK: the source is there");
+    case 2: return tr("Newer: Update Values reads it");
+    case 3: return tr("Could not be read: the stored values are shown");
+    default: return tr("Not found: the stored values are shown");
     }
 }
 
 void EditLinksDialog::checkStatus()
 {
-    for (int r = 0; r < int(m_sources.size()); ++r) {
-        const crunch::EditSession::ExternalSource &s = m_sources[size_t(r)];
-        QString text;
-        if (!s.local) text = tr("Not checked: it is on the web");
-        else {
-            const QString path = localPath(s, m_baseDir);
-            text = !path.isEmpty() && QFileInfo::exists(path) ? tr("Found") : tr("Not found: the stored values are shown");
-        }
-        if (QTableWidgetItem *item = m_table->item(r, 2)) item->setText(text);
-    }
+    m_sources = m_session->externalLinkSources();
+    for (int r = 0; r < int(m_sources.size()); ++r)
+        if (QTableWidgetItem *item = m_table->item(r, 2)) item->setText(statusOf(m_sources[size_t(r)]));
 }
 
 QString EditLinksDialog::note() const { return m_note->text(); }
@@ -141,8 +167,9 @@ bool EditLinksDialog::updateRow(int row)
         m_note->setText(o.problem);
         return false;
     }
-    m_note->setText(done.kept > 0 ? tr("Cells given the values the source has now: %1. Cells that combine them with other values keep the values their file stored: %2.").arg(done.updated).arg(done.kept)
+    m_note->setText(done.kept > 0 ? tr("Cells given the values the source has now: %1. Cells the source could not give a value to keep the values their file stored: %2.").arg(done.updated).arg(done.kept)
                                   : tr("Cells given the values the source has now: %1.").arg(done.updated));
+    checkStatus();
     if (done.cut) m_note->setText(m_note->text() + QLatin1Char(' ') + tr("...and more cells were not read: there are too many."));
     Q_EMIT linksChanged();
     return true;

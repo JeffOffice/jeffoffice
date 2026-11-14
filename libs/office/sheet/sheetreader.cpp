@@ -720,6 +720,8 @@ bool readWorkbookPart(QIODevice *in, const Limits &limits, WorkbookInfo *out, QS
                 rootSeen = true;
             } else if (depth == 2 && isElement(r, "workbookPr")) {
                 out->dateSystem = parseBool(attribute(r, "date1904").toString()) ? DateSystem::Date1904 : DateSystem::Date1900;
+                const QStringView links = attribute(r, "updateLinks");
+                out->updateLinks = links == QLatin1String("always") ? WorkbookInfo::UpdateLinks::Always : links == QLatin1String("never") ? WorkbookInfo::UpdateLinks::Never : WorkbookInfo::UpdateLinks::Ask;
             } else if (depth == 2 && isElement(r, "calcPr")) {
                 const QStringView mode = attribute(r, "calcMode");
                 out->calcMode = mode == QLatin1String("manual") ? CalcMode::Manual : mode == QLatin1String("autoNoTable") ? CalcMode::AutoNoTable : CalcMode::Auto;

@@ -80,6 +80,8 @@ public:
     // Works the formulas that read the links out again (the sources are read again): all the formulas that read a link, whether kept as the file stored them or not, and what reads them. The next
     // recalculation gives the results. The number of formulas marked.
     qint64 refreshExternals();
+    // Calls f with the place of each formula that reads a link (directly, or through a name), in no order.
+    void forEachExternalFormula(const std::function<void(int sheet, quint32 row, quint32 col)> &f) const;
     // The value a formula (written as the file does, with no "=") has now in the cell, worked out on the calling thread over the results the calculation holds, with nothing changed: false when it
     // can't be worked out (a function the engine lacks, a link that gives nothing, an array).
     bool evaluateHere(int sheet, quint32 row, quint32 col, const QString &formula, jp::calc::Value *out) const;

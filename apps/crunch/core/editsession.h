@@ -1004,6 +1004,8 @@ public:
         QString target;       // as the file writes it ("file:///C:/data/prices.xlsx", "prices.xlsx", "https://example.org/prices.xlsx")
         QString shown;        // the same as a path or address a person reads (the file: marks and the percent escapes taken off)
         bool local = false;   // a file on this computer, not an address on the web
+        int state = 0;        // jp::office::sheet::ExternalBooks::State: 0 Ok, 1 Missing, 2 Newer, 3 Unreadable
+        bool live = false;    // the formulas read the source file (its values were updated), not what the link stores
     };
     std::vector<ExternalSource> externalLinkSources() const;
     // Breaks the links to one of them (`only`, from 1), or to all (0): each cell that reads it keeps the value it shows, and each name that stands for a place in it is #REF!. When no
@@ -1021,6 +1023,13 @@ public:
         bool cut = false;  // more formulas than are looked at: the rest were not read
     };
     Outcome updateExternalValues(int index, const QString &path, ExternalUpdate *result = nullptr);
+    // What happens to the links when the workbook is opened: ask (the file says userSet), update, or leave the values as stored. Stored in the file (workbookPr updateLinks); one step of Undo.
+    enum class UpdateLinks { Ask = 0, Always = 1, Never = 2 };
+    UpdateLinks updateLinksMode() const;
+    Outcome setUpdateLinksMode(UpdateLinks mode);
+    void setUpdateLinksValue(int mode);   // (the step of Undo that the choice makes: -1 for what the file has)
+    // Updates every link whose file is on this computer (the choice "update" at open); `updated` counts the cells given values.
+    Outcome updateAllExternalLinks(int *updated = nullptr);
     // Change Source: the source numbered `index` is another file, `path` (a file on this computer). The formulas are not changed; the file's link to it is, at the next save. One step of Undo.
     Outcome changeExternalSource(int index, const QString &path);
     // Used by the step of Undo that Change Source makes: the address the link has (empty for the one the file has).
@@ -1391,6 +1400,7 @@ private:
     int m_saveGen = 0;                 // how many times the workbook has been saved
     bool m_dropCustomXml = false;
     std::map<int, QString> m_externalTargets;   // the address each source was changed to (Change Source), by its number; the file's own is not in it
+    int m_updateLinks = -1;            // Startup prompt as a person set it (an UpdateLinks), or -1 for the file's
     std::set<int> m_externalUpdated;   // the links whose values were read again (Update Values): the saver puts those values in the links' own parts
     bool m_dropExternalLinks = false;  // the links to other workbooks are taken out at the next save (see breakExternalLinks)
     int m_forgotBySave = 0;            // the steps the last save made Undo forget (see forgetDeletesInFile)

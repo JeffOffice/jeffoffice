@@ -1978,6 +1978,7 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why, bool pivotParts)
     changes.renames = m_renames;
     changes.nameRenames = m_nameRenames;
     nameChangesForSave(&changes.nameChanges);
+    if (m_updateLinks >= 0 && m_updateLinks != int(m_book->book->info().updateLinks)) changes.updateLinks = m_updateLinks;
     if (m_calcNow != m_calcFile) {
         changes.calcChanged = true;
         changes.calcMode = m_calcNow.mode;

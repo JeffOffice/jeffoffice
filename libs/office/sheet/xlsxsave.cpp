@@ -1202,6 +1202,38 @@ bool patchCalcPr(const QByteArray &xml, CalcMode mode, bool iterate, int iterate
     return true;
 }
 
+// The workbookPr element with its updateLinks attribute as the choice says (0 ask: userSet, 1 always, 2 never); the element is made when the file has none and the choice is not to ask.
+bool patchUpdateLinks(const QByteArray &xml, int mode, QByteArray *out)
+{
+    const char *value = mode == 1 ? "always" : mode == 2 ? "never" : nullptr;
+    Tag pr;
+    const bool has = findStart(xml, "workbookPr", &pr);
+    if (has) {
+        QByteArray tag = xml.mid(pr.start, pr.end - pr.start);
+        if (value) setAttribute(&tag, "updateLinks", value);
+        else dropAttribute(&tag, "updateLinks");
+        *out = xml.left(pr.start) + tag + xml.mid(pr.end);
+        return true;
+    }
+    if (!value) {
+        *out = xml;
+        return true;
+    }
+    // (the element goes after the file's version, sharing, and recovery elements and before everything else)
+    qsizetype at = -1;
+    Tag t;
+    qsizetype pos = 0;
+    while (xmlscan::nextTag(xml, pos, &t)) {
+        pos = t.end;
+        if (t.closing || t.local == "workbook" || t.local == "fileVersion" || t.local == "fileSharing" || t.local == "fileRecoveryPr") continue;
+        at = t.start;
+        break;
+    }
+    if (at < 0) return false;
+    *out = xml.left(at) + "<" + prefixOfRoot(xml) + "workbookPr updateLinks=\"" + value + "\"/>" + xml.mid(at);
+    return true;
+}
+
 // ---- the whole file
 
 namespace {
@@ -3220,7 +3252,7 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
         }
         filterNames.push_back(name);
     }
-    if (!newPivotCaches.empty() || changes.dropExternalLinks || changes.fullCalcOnLoad || moves || changes.sheetsChanged || !changes.printNames.empty() || !filterNames.empty() || !changes.nameChanges.empty() || changes.calcChanged || changes.setWorkbookProtection || changes.setCustomViews) {
+    if (!newPivotCaches.empty() || changes.dropExternalLinks || changes.fullCalcOnLoad || moves || changes.sheetsChanged || !changes.printNames.empty() || !filterNames.empty() || !changes.nameChanges.empty() || changes.calcChanged || changes.updateLinks >= 0 || changes.setWorkbookProtection || changes.setCustomViews) {
         const int index = entryOfPart(book.mainPart());
         QByteArray xml, patched;
         if (index >= 0 && inflate(index, &xml)) {
@@ -3247,6 +3279,11 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
             }
             if (changes.calcChanged) {
                 if (!patchCalcPr(xml, changes.calcMode, changes.iterate, changes.iterateCount, changes.iterateDelta, &patched, changes.calcOnSave)) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The workbook part is not in the form this program changes."));
+                changed = changed || patched != xml;
+                xml = patched;
+            }
+            if (changes.updateLinks >= 0) {
+                if (!patchUpdateLinks(xml, changes.updateLinks, &patched)) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The workbook part is not in the form this program changes."));
                 changed = changed || patched != xml;
                 xml = patched;
             }

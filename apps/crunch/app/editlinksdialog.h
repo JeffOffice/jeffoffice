@@ -7,6 +7,7 @@
 
 #include <functional>
 
+class QComboBox;
 class QLabel;
 class QPushButton;
 class QTableWidget;
@@ -19,6 +20,7 @@ public:
     // `baseDir` is the folder of this workbook, where a source named with no folder is looked for.
     EditLinksDialog(crunch::EditSession *session, const QString &baseDir, QWidget *parent = nullptr);
     QTableWidget *table() const { return m_table; }
+    QComboBox *startupChoice() const { return m_startup; }
     // Looks for each source: the status column says found, not found, or not checked (an address on the web is not fetched).
     void checkStatus();
     // The place of a source's file on this computer, or empty (a web address, or a name with no folder and no base folder).
@@ -39,12 +41,14 @@ Q_SIGNALS:
 
 private:
     void reload();
+    static QString statusOf(const crunch::EditSession::ExternalSource &source);
     crunch::EditSession *m_session;
     QString m_baseDir;
     QTableWidget *m_table = nullptr;
     QPushButton *m_open = nullptr, *m_break = nullptr, *m_update = nullptr, *m_change = nullptr;
     std::function<QString(const QString &)> m_chooser;
     QLabel *m_note = nullptr;
+    QComboBox *m_startup = nullptr;
     std::vector<crunch::EditSession::ExternalSource> m_sources;
 };
 

@@ -8,6 +8,7 @@
 #include "grid/gridsheet.h"
 #include "grid/valuestore.h"
 #include "sheet/calculation.h"
+#include "sheet/externalbooks.h"
 #include "sheet/notes.h"
 #include "sheet/sheetreader.h"
 
@@ -41,6 +42,7 @@ struct LoadedBook {
     std::shared_ptr<jp::office::sheet::Sheet> preview;     // the first rows of one sheet
     int previewSheet = -1;                                  // which (from 0, in the workbook's order)
     std::unique_ptr<jp::office::sheet::Calculation> calc;   // every sheet, whole, with its formulas
+    std::shared_ptr<jp::office::sheet::ExternalBooks> externals;   // the workbooks its formulas read through links (null when it has none): the calculation reads them, the window says when
     // What the grid makes of each sheet's file (sizes, merged ranges, frozen panes), made here, on the worker, so that showing a sheet takes the window a moment: of the first rows
     // (made with them), and of every sheet by its place in the workbook (made with the whole read).
     std::shared_ptr<const jp::grid::GridGeometry> previewGeometry;
