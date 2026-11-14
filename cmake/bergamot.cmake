@@ -10,7 +10,14 @@
 # (not free, and x86 only), ruy for the matrix multiplication (and intgemm, on x86), static libraries, PCRE2 built along, and a fixed processor level (the engine's
 # default is the build computer's own). jo_translate_engine is the one library of ours in it (third_party/bergamot/jo_engine.cpp: the standard-C++ interface of
 # libs/translate/engine/engine.h over the engine). The program links its archives, in the order that link line needs.
-option(JO_TRANSLATE "Translate on this computer (Bergamot): the Translate pane" ON)
+# (off on macOS for now: the engine's own build takes no CMAKE_OSX_ARCHITECTURES (marian's TargetArch.cmake refuses arm64) and cannot make a universal
+# program in one pass, so a Mac build needs one engine build per processor joined with lipo, not done yet; the Mac programs translate through a website)
+if(APPLE)
+  set(_jo_translate_default OFF)
+else()
+  set(_jo_translate_default ON)
+endif()
+option(JO_TRANSLATE "Translate on this computer (Bergamot): the Translate pane" ${_jo_translate_default})
 if(NOT JO_TRANSLATE)
   return()
 endif()
