@@ -1,4 +1,5 @@
 #include "grid/objectlayer.h"
+#include "app/plaintext.h"
 
 #include <QCursor>
 #include <QToolTip>
@@ -1087,7 +1088,7 @@ std::optional<Qt::CursorShape> ObjectLayer::cursorAt(const QPoint &point, const 
     const Entry &he = m_entries[entryOf(hit)];
     if (!he.object.tooltip.isEmpty() && m_tipId != hit) {
         m_tipId = hit;
-        QToolTip::showText(QCursor::pos(), he.object.tooltip, nullptr);
+        QToolTip::showText(QCursor::pos(), jp::plainToolTip(he.object.tooltip), nullptr);
     } else if (he.object.tooltip.isEmpty()) {
         m_tipId = -1;
     }

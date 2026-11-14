@@ -1,11 +1,13 @@
 #include "sheet/notesave.h"
 
 #include "sheet/cellref.h"
+#include "sheet/formcontrol.h"
 #include "sheet/notes.h"
 #include "sheet/xmlscan.h"
 
 #include <QCoreApplication>
 #include <QHash>
+#include <QSet>
 
 #include <algorithm>
 #include <map>
@@ -264,17 +266,8 @@ bool applyNoteOpsToDrawing(const QByteArray &vml, const std::vector<NoteOp> &ops
     std::map<quint64, bool> done;
     QByteArray result;
     qsizetype at = 0;
-    int maxId = 1024;
     for (const DrawingShape &shape : drawingShapes(vml)) {
         const QByteArrayView body = QByteArrayView(vml).sliced(shape.start, shape.end - shape.start);
-        // (the shape's id, so that a shape made now has one of its own)
-        {
-            Tag first;
-            if (xmlscan::nextTag(body, 0, &first)) {
-                const QByteArrayView id = xmlscan::attribute(body.sliced(first.start, first.end - first.start), "id");
-                if (id.startsWith("_x0000_s")) maxId = std::max(maxId, QByteArray(id.sliced(8)).toInt());
-            }
-        }
         quint32 row = 0, col = 0;
         bool shown = false;
         if (!shapeNote(vml, shape, &row, &col, &shown)) continue;
@@ -323,9 +316,27 @@ bool applyNoteOpsToDrawing(const QByteArray &vml, const std::vector<NoteOp> &ops
     }
     // shapes for notes that were put where the drawing has none
     QByteArray added;
-    int id = maxId + 1;
-    for (const NoteOp &op : ops)
-        if (!op.remove && !done.count(noteKey(op.row, op.col))) added += shapeXml(op, id++);
+    {
+        // (the numbers the drawing has, all of them and as the controls' code reads them, so that a shape made now has one of its own)
+        QSet<qint64> taken;
+        qint64 id = 1024;
+        bool haveTaken = false;
+        for (const NoteOp &op : ops) {
+            if (op.remove || done.count(noteKey(op.row, op.col))) continue;
+            if (!haveTaken) {
+                taken = shapeIdsOf(vml);
+                for (qint64 t : std::as_const(taken)) id = std::max(id, t);
+                haveTaken = true;
+            }
+            id = freeShapeId(taken, id);
+            if (id <= 0) {
+                if (why) *why = QCoreApplication::translate("jp::office::sheet::Save", "The drawing of the notes in the file is not in the form this program changes.");
+                return false;
+            }
+            taken.insert(id);
+            added += shapeXml(op, int(id));
+        }
+    }
     result += vml.mid(at);
     if (!added.isEmpty()) {
         const qsizetype close = result.lastIndexOf("</xml>");

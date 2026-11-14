@@ -1444,7 +1444,7 @@ public:
     // at crunch::kControlIdBase); a click's result is carried out as one step (a cell typed, or the controls' own states).
     bool insertFormControl(jp::office::sheet::ControlKind kind);
     Q_INVOKABLE bool setControlProperties(int id, const QString &link, const QString &range, int min, int max, int inc, int page, bool checked);
-    void formatControlDialog(int id);
+    Q_INVOKABLE void formatControlDialog(int id);
     void carryOutControl(const crunch::ControlOperation &op);
     // Insert > Text Art: the words "Your Text Here" in a style of the shared gallery, bent into the style's warp, as a shape of the drawing; the picked one's words (the box that asks stands in
     // for the dialog: tests), style, and warp are changed, each as one step.

@@ -170,29 +170,31 @@ bool CrunchWindow::setControlProperties(int id, const QString &link, const QStri
     const FormControl was = m_objects->controls()->controlOf(m_sheet, id, &found);
     if (!found) return false;
     const QString title = tr("Format Control");
-    if (!link.isEmpty() && !m_objects->controls()->validReference(m_sheet, link, false)) {
+    // (only what the person changed is looked at and written: a control the file made with a limit of 50000, or a link to a sheet that is gone, is left as it is by an OK that changes nothing)
+    const bool linkChanged = link.trimmed() != was.link.trimmed(), rangeChanged = range.trimmed() != was.range.trimmed();
+    const bool limits = was.kind == ControlKind::Spin || was.kind == ControlKind::Scroll;
+    const bool minChanged = limits && min != was.min, maxChanged = limits && max != was.max, incChanged = limits && inc != was.inc, pageChanged = limits && page != was.page;
+    if (linkChanged && !link.trimmed().isEmpty() && !m_objects->controls()->validReference(m_sheet, link, false)) {
         notice(title, tr("The cell link \"%1\" is not a cell of this workbook.").arg(link));
         return false;
     }
-    if (!range.isEmpty() && !m_objects->controls()->validReference(m_sheet, range, true)) {
+    if (rangeChanged && !range.trimmed().isEmpty() && !m_objects->controls()->validReference(m_sheet, range, true)) {
         notice(title, tr("The input range \"%1\" is not a range of cells of this workbook.").arg(range));
         return false;
     }
-    if (min > max || inc < 1 || page < 1) {
+    if (((minChanged || maxChanged) && min > max) || (incChanged && inc < 1) || (pageChanged && page < 1)) {
         notice(title, tr("The minimum can't be more than the maximum, and the changes must be at least 1."));
         return false;
     }
     FormControl after = was;
-    after.link = link.trimmed();
-    after.range = range.trimmed();
-    if (was.kind == ControlKind::Spin || was.kind == ControlKind::Scroll) {
-        after.min = min;
-        after.max = max;
-        after.inc = inc;
-        after.page = page;
-        after.val = std::clamp(after.val, min, max);
-    }
-    if (was.kind == ControlKind::CheckBox || was.kind == ControlKind::Radio) after.checked = checked ? 1 : (was.checked == 2 ? 2 : 0);
+    if (linkChanged) after.link = link.trimmed();
+    if (rangeChanged) after.range = range.trimmed();
+    if (minChanged) after.min = min;
+    if (maxChanged) after.max = max;
+    if (incChanged) after.inc = inc;
+    if (pageChanged) after.page = page;
+    if (minChanged || maxChanged) after.val = std::clamp(after.val, std::min(after.min, after.max), std::max(after.min, after.max));
+    if ((was.kind == ControlKind::CheckBox || was.kind == ControlKind::Radio) && checked != (was.checked == 1)) after.checked = checked ? 1 : 0;
     if (sameControlState(was, after)) return false;
     crunch::ControlOperation op;
     if (!m_objects->controls()->formatted(m_sheet, id, after, &op)) return false;
@@ -215,7 +217,7 @@ void CrunchWindow::formatControlDialog(int id)
     const bool hasState = c.kind == ControlKind::CheckBox || c.kind == ControlKind::Radio;
     QLineEdit *link = new QLineEdit(c.link, &dialog), *range = new QLineEdit(c.range, &dialog);
     auto *min = new QSpinBox(&dialog), *max = new QSpinBox(&dialog), *inc = new QSpinBox(&dialog), *page = new QSpinBox(&dialog);
-    for (QSpinBox *s : {min, max, inc, page}) s->setRange(0, 30000);
+    for (QSpinBox *s : {min, max, inc, page}) s->setRange(-1000000, 1000000);   // (as far as a limit is read from a file: a value the file has is shown, and written back, as it is)
     min->setValue(c.min);
     max->setValue(c.max);
     inc->setValue(c.inc);

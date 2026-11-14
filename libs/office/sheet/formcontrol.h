@@ -11,6 +11,7 @@
 
 #include <QByteArray>
 #include <QRectF>
+#include <QSet>
 #include <QString>
 #include <QVector>
 
@@ -25,6 +26,8 @@ enum class ControlKind : quint8 { CheckBox, Radio, Button, Drop, List, Spin, Scr
 
 constexpr int kMaxFormControls = 5000;
 constexpr qint64 kMaxControlPartBytes = qint64(32) << 20;
+// A shape's number must fit an int (the notes' code reads it as one): a larger number in a file is not one this program uses, and a number it makes is below this.
+constexpr qint64 kMaxShapeId = 2147483647;
 
 struct FormControl {
     ControlKind kind = ControlKind::Button;
@@ -69,18 +72,29 @@ bool sameControlState(const FormControl &a, const FormControl &b);
 const char *controlVmlType(ControlKind kind);
 const char *controlPropType(ControlKind kind);
 
-// A drawing for a sheet that has none (its head, with the shape type controls use).
-QByteArray newControlsDrawing();
+// A drawing for a sheet that has none (its head, with the shape type controls use): `block` is the block of shape numbers the drawing's idmap names (the sheet's place from 1), and the numbers
+// of the shapes made for it begin after block * 1024.
+QByteArray newControlsDrawing(int block = 1);
 // The shapes of the drawing's bytes with the controls put in: each control that is not new and is not as `was` says (matched by shape id) has its shape's properties changed; each control that
 // is new gets a shape at the end. Nothing else changes (and nothing at all, byte for byte, when no control differs). `was` are the controls as the file has them.
 // A control made here that was given another shape number (the one it asked for was taken, by a note's shape, say) is in `assigned`: asked number to number given.
+// `block`, when above 0, says the drawing is the one newControlsDrawing(block) made: its new shapes take the numbers that follow block * 1024, whatever number a control asked for.
 bool patchControlsVml(const QByteArray &vml, const std::vector<FormControl> &was, const std::vector<FormControl> &now, QByteArray *out, QString *why = nullptr,
-                      std::map<qint64, qint64> *assigned = nullptr);
+                      std::map<qint64, qint64> *assigned = nullptr, int block = 0);
 // A properties part with the control's state put in (its attributes of the same names as the shape's elements); the bytes as they were when nothing differs.
 QByteArray patchControlProp(const QByteArray &xml, const FormControl &control);
 // The shape of one new control, with the id given.
 QByteArray controlShapeXml(const FormControl &control, qint64 shapeId);
-// The largest shape id in a drawing (0 when it has none), so that a shape made now has one of its own.
+// The number in a shape's id attribute ("_x0000_s1025": 1025), 0 when it is not one of that form or is not a number from 1 to kMaxShapeId. Every part of the program that reads a shape's number
+// reads it so.
+int shapeNumberOf(QByteArrayView idAttribute);
+// Every shape number the drawing has (a scan of the tags, not a read of the shapes; the drawing is at most kMaxControlPartBytes).
+QSet<qint64> shapeIdsOf(const QByteArray &vml);
+// The largest shape number in a drawing (0 when it has none), so that a shape made now has one of its own.
 qint64 largestShapeId(const QByteArray &vml);
+// A number for a new shape: the first above `after` (and above 1024) that `taken` lacks and a shape may have, else the first from 1025 that is free; 0 if there is none.
+qint64 freeShapeId(const QSet<qint64> &taken, qint64 after);
+// How many shapes readFormControls has read in all (for tests: a drawing of notes only is not read shape by shape).
+qint64 controlShapeReads();
 
 } // namespace jp::office::sheet

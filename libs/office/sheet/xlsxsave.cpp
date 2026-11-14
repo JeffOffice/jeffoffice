@@ -2750,7 +2750,9 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
             QByteArray now;
             std::map<qint64, qint64> assigned;
             if (w.newVml) {
-                if (!patchControlsVml(newControlsDrawing(), sc.controlsWas, sc.controlsNow, &now, &why, &assigned)) return fail(why.isEmpty() ? controlsFail : why);
+                // (the drawing's own block of shape numbers: the sheet's place, from 1, as the idmap says)
+                const int block = std::min(w.sheet + 1, 1000000);
+                if (!patchControlsVml(newControlsDrawing(block), sc.controlsWas, sc.controlsNow, &now, &why, &assigned, block)) return fail(why.isEmpty() ? controlsFail : why);
                 newEntries.emplace_back(entryName(w.vmlPart), now);
                 QByteArray t2;
                 if (!addContentOverride(types, w.vmlPart, QStringLiteral("application/vnd.openxmlformats-officedocument.vmlDrawing"), &t2)) return bad();
@@ -2777,6 +2779,41 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
                 if (index < 0) continue;
                 const QByteArray patched = patchControlProp(xml, c);
                 if (patched != xml) replaced.insert(index, patched);
+            }
+            // a control that was taken away leaves no properties part and no relationship to it: unless another control of the file names the same part
+            QStringList goneParts;
+            for (const FormControl &c : sc.controlsNow)
+                if (c.removed && !c.isNew && !c.ctrlPart.isEmpty() && !goneParts.contains(c.ctrlPart)) goneParts << c.ctrlPart;
+            if (!goneParts.isEmpty() && !se.isNew) {
+                bool truncated = false;
+                QSet<QString> stillUsed;
+                const QVector<FormControl> inFile = readFormControls(package, se.part, &truncated);
+                for (const FormControl &o : inFile) {
+                    bool goes = false;
+                    for (const FormControl &c : sc.controlsNow) goes = goes || (c.removed && !c.isNew && c.shapeId == o.shapeId);
+                    if (!goes && !o.ctrlPart.isEmpty()) stillUsed.insert(o.ctrlPart);
+                }
+                // (and the parts the other sheets name)
+                for (int other = 0; other < book.info().sheets.size(); ++other) {
+                    if (other == w.sheet || book.info().sheets[other].part.isEmpty() || book.info().sheets[other].isNew) continue;
+                    for (const Relationship &r : package.relationshipsOfType(book.info().sheets[other].part, QStringLiteral("/ctrlProp")))
+                        if (!r.external) stillUsed.insert(r.target);
+                }
+                if (!truncated) {
+                    for (const QString &part : std::as_const(goneParts)) {
+                        if (stillUsed.contains(part)) continue;
+                        QStringList ids;
+                        for (const Relationship &r : package.relationshipsOfType(se.part, QStringLiteral("/ctrlProp")))
+                            if (!r.external && r.target == part) ids << r.id;
+                        const int entry = entryOfPart(part);
+                        QByteArray t2, r2;
+                        if (entry < 0 || ids.isEmpty() || !removeContentTypeOverride(types, part, &t2)) continue;
+                        if (!removeRelationshipsById(relsOf(w.sheet), ids, &r2)) continue;
+                        types = t2;
+                        relsOf(w.sheet) = r2;
+                        dropped.insert(entry);
+                    }
+                }
             }
         }
         // the people the threads name: those the workbook's list lacks are added (the list is made when the workbook had none)

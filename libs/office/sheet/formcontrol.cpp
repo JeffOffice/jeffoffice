@@ -5,11 +5,13 @@
 #include "sheet/xmlscan.h"
 
 #include <QCoreApplication>
+#include <QHash>
 #include <QMap>
 #include <QRegularExpression>
 #include <QSet>
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 #include <optional>
 
@@ -20,6 +22,8 @@ namespace {
 using xmlscan::Tag;
 
 constexpr qint64 kPxEmu = 9525;
+
+std::atomic<qint64> g_shapeReads{0};
 
 struct KindName {
     ControlKind kind;
@@ -198,16 +202,20 @@ QVector<SheetControl> readSheetControls(const QByteArray &sheet)
     SheetControl cur;
     bool inControl = false, inFrom = false, inTo = false;
     QByteArray textFor;
+    QHash<qint64, int> placeOf;   // (a shape's number to its place in `out`: a file may name a control a hundred thousand times)
     auto finish = [&] {
         if (!inControl) return;
-        for (SheetControl &o : out)
-            if (o.shapeId == cur.shapeId) {
-                if (!o.hasPr && cur.hasPr) o = cur;
-                inControl = false;
-                return;
-            }
-        if (out.size() < kMaxFormControls) out.push_back(cur);
         inControl = false;
+        const auto at = placeOf.constFind(cur.shapeId);
+        if (at != placeOf.constEnd()) {
+            SheetControl &o = out[*at];
+            if (!o.hasPr && cur.hasPr) o = cur;
+            return;
+        }
+        if (out.size() < kMaxFormControls) {
+            placeOf.insert(cur.shapeId, int(out.size()));
+            out.push_back(cur);
+        }
     };
     int guard = 0;
     while (xmlscan::nextTag(sheet, pos, &t) && ++guard < 200000) {
@@ -224,7 +232,9 @@ QVector<SheetControl> readSheetControls(const QByteArray &sheet)
             const QByteArrayView tag = QByteArrayView(sheet).sliced(t.start, t.end - t.start);
             bool has = false;
             const QByteArrayView id = xmlscan::attribute(tag, "shapeId", &has);
-            cur.shapeId = has ? QByteArray(id).toLongLong() : 0;
+            bool numeric = false;
+            const qint64 n = has ? QByteArray(id).toLongLong(&numeric) : 0;
+            cur.shapeId = numeric && n > 0 && n <= kMaxShapeId ? n : 0;
             const QByteArrayView rid = xmlscan::attribute(tag, "r:id", &has);
             if (has) cur.relId = QString::fromUtf8(rid);
             const QByteArrayView name = xmlscan::attribute(tag, "name", &has);
@@ -291,10 +301,29 @@ qint64 shapeIdOf(QByteArrayView tag)
 {
     bool has = false;
     const QByteArrayView id = xmlscan::attribute(tag, "id", &has);
-    if (!has) return 0;
-    const qsizetype us = id.lastIndexOf('s');
-    if (id.startsWith("_x0000_s") && us >= 0) return QByteArray(id.sliced(8)).toLongLong();
-    return 0;
+    return has ? shapeNumberOf(id) : 0;
+}
+
+// Whether a drawing may have a control: some ClientData of it has an ObjectType other than Note (a look at the bytes only; what it cannot make out counts as one that may).
+bool mayHaveControls(const QByteArray &vml)
+{
+    auto space = [](char c) { return c == ' ' || c == '\t' || c == '\n' || c == '\r'; };
+    qsizetype from = 0;
+    while ((from = vml.indexOf("ObjectType", from)) >= 0) {
+        qsizetype i = from + 10;
+        from = i;
+        while (i < vml.size() && space(vml[i])) ++i;
+        if (i >= vml.size() || vml[i] != '=') return true;
+        ++i;
+        while (i < vml.size() && space(vml[i])) ++i;
+        if (i >= vml.size() || (vml[i] != '"' && vml[i] != '\'')) return true;
+        const char quote = vml[i++];
+        const qsizetype end = vml.indexOf(quote, i);
+        if (end < 0) return true;
+        if (QByteArrayView(vml).sliced(i, end - i).compare("Note", Qt::CaseInsensitive) != 0) return true;
+        from = end;
+    }
+    return false;
 }
 
 // What one shape of a legacy drawing says of a control, if it is one.
@@ -529,7 +558,8 @@ QVector<FormControl> readFormControls(const Package &package, const QString &she
     QVector<SheetControl> sheetControls;
     if (!propParts.isEmpty() && package.partSize(sheetPart) <= kMaxControlPartBytes) sheetControls = readSheetControls(package.part(sheetPart));
     QMap<qint64, int> byShape;
-    for (int i = 0; i < sheetControls.size(); ++i) byShape.insert(sheetControls[i].shapeId, i);
+    for (int i = 0; i < sheetControls.size(); ++i)
+        if (sheetControls[i].shapeId > 0) byShape.insert(sheetControls[i].shapeId, i);
     QSet<qint64> seen;
     auto addProps = [&](FormControl *c, const SheetControl &sc) {
         if (!sc.name.isEmpty()) c->name = sc.name;
@@ -551,16 +581,17 @@ QVector<FormControl> readFormControls(const Package &package, const QString &she
         const qint64 size = package.partSize(r.target);
         if (size <= 0 || size > kMaxControlPartBytes) continue;
         const QByteArray vml = package.part(r.target);
-        if (!vml.contains("ObjectType")) continue;
+        if (!mayHaveControls(vml)) continue;
         for (const DrawingShape &shape : drawingShapes(vml, kMaxFormControls * 4)) {
             FormControl c;
             c.vmlPart = r.target;
+            g_shapeReads.fetch_add(1, std::memory_order_relaxed);
             if (!readShape(vml, shape, &c)) continue;
             if (out.size() >= kMaxFormControls) {
                 if (truncated) *truncated = true;
                 return out;
             }
-            const auto sc = byShape.constFind(c.shapeId);
+            const auto sc = c.shapeId > 0 ? byShape.constFind(c.shapeId) : byShape.constEnd();
             if (sc != byShape.constEnd()) addProps(&c, sheetControls[*sc]);
             seen.insert(c.shapeId);
             out.push_back(c);
@@ -568,7 +599,7 @@ QVector<FormControl> readFormControls(const Package &package, const QString &she
     }
     // controls the sheet names that no drawing has a shape for: the properties part and the sheet's anchor are all there is
     for (const SheetControl &sc : std::as_const(sheetControls)) {
-        if (seen.contains(sc.shapeId) || !sc.hasPr || !sc.hasAnchor || out.size() >= kMaxFormControls) continue;
+        if (sc.shapeId <= 0 || seen.contains(sc.shapeId) || !sc.hasPr || !sc.hasAnchor || out.size() >= kMaxFormControls) continue;
         FormControl c;
         c.shapeId = sc.shapeId;
         addProps(&c, sc);
@@ -579,18 +610,54 @@ QVector<FormControl> readFormControls(const Package &package, const QString &she
     return out;
 }
 
+int shapeNumberOf(QByteArrayView id)
+{
+    if (!id.startsWith("_x0000_s")) return 0;
+    bool ok = false;
+    const qint64 n = QByteArray(id.sliced(8)).toLongLong(&ok);
+    return ok && n > 0 && n <= kMaxShapeId ? int(n) : 0;
+}
+
+QSet<qint64> shapeIdsOf(const QByteArray &vml)
+{
+    QSet<qint64> ids;
+    Tag t;
+    qsizetype pos = 0;
+    while (xmlscan::nextTag(vml, pos, &t)) {
+        pos = t.end;
+        if (t.closing || t.local != "shape") continue;
+        const qint64 id = shapeIdOf(QByteArrayView(vml).sliced(t.start, t.end - t.start));
+        if (id > 0) ids.insert(id);
+    }
+    return ids;
+}
+
 qint64 largestShapeId(const QByteArray &vml)
 {
     qint64 most = 0;
-    for (const DrawingShape &shape : drawingShapes(vml, kMaxFormControls * 8)) {
-        Tag t;
-        if (xmlscan::nextTag(QByteArrayView(vml).sliced(shape.start, shape.end - shape.start), 0, &t))
-            most = std::max(most, shapeIdOf(QByteArrayView(vml).sliced(shape.start + t.start, t.end - t.start)));
-    }
+    for (qint64 id : shapeIdsOf(vml)) most = std::max(most, id);
     return most;
 }
 
-QByteArray newControlsDrawing() { return QByteArray(kHead) + kShapeType + "</xml>"; }
+qint64 freeShapeId(const QSet<qint64> &taken, qint64 after)
+{
+    // (each step either finds a free number or passes one that is taken, so the search is as long as the set at most)
+    const qint64 from = std::max<qint64>(after, 1024);
+    for (qint64 id = from + 1; id <= kMaxShapeId; ++id)
+        if (!taken.contains(id)) return id;
+    for (qint64 id = 1025; id <= std::min(from, kMaxShapeId); ++id)
+        if (!taken.contains(id)) return id;
+    return 0;
+}
+
+qint64 controlShapeReads() { return g_shapeReads.load(std::memory_order_relaxed); }
+
+QByteArray newControlsDrawing(int block)
+{
+    QByteArray head = kHead;
+    head.replace("data=\"1\"", "data=\"" + QByteArray::number(std::max(1, block)) + "\"");
+    return head + kShapeType + "</xml>";
+}
 
 QByteArray controlShapeXml(const FormControl &c, qint64 id)
 {
@@ -632,7 +699,7 @@ QByteArray controlShapeXml(const FormControl &c, qint64 id)
     return x;
 }
 
-bool patchControlsVml(const QByteArray &vml, const std::vector<FormControl> &was, const std::vector<FormControl> &now, QByteArray *out, QString *why, std::map<qint64, qint64> *assigned)
+bool patchControlsVml(const QByteArray &vml, const std::vector<FormControl> &was, const std::vector<FormControl> &now, QByteArray *out, QString *why, std::map<qint64, qint64> *assigned, int block)
 {
     *out = vml;
     QMap<qint64, const FormControl *> before;
@@ -651,6 +718,7 @@ bool patchControlsVml(const QByteArray &vml, const std::vector<FormControl> &was
         Tag first;
         if (!xmlscan::nextTag(body, 0, &first)) continue;
         const qint64 id = shapeIdOf(body.sliced(first.start, first.end - first.start));
+        if (id <= 0) continue;   // (a shape with no number this program uses is not one of the controls)
         const auto a = after.constFind(id), b = before.constFind(id);
         if (a != after.constEnd() && (*a)->removed) {
             // (a control that was taken away: its shape goes)
@@ -686,18 +754,22 @@ bool patchControlsVml(const QByteArray &vml, const std::vector<FormControl> &was
     if (!changed && !anyNew) return true;
     result += vml.mid(at);
     if (anyNew) {
-        qint64 id = std::max<qint64>(largestShapeId(result), 1024);
-        QSet<qint64> taken;
-        for (const DrawingShape &shape : drawingShapes(result, kMaxFormControls * 8)) {
-            Tag t;
-            if (xmlscan::nextTag(QByteArrayView(result).sliced(shape.start, shape.end - shape.start), 0, &t))
-                taken.insert(shapeIdOf(QByteArrayView(result).sliced(shape.start + t.start, t.end - t.start)));
-        }
+        // (every number the drawing has, not those of its first few thousand shapes only: a note's shape far down is as taken as the first)
+        QSet<qint64> taken = shapeIdsOf(result);
+        const bool fresh = block > 0;
+        qint64 id = fresh ? std::min<qint64>(qint64(block) * 1024, kMaxShapeId - 1) : 1024;
+        if (!fresh)
+            for (qint64 t : std::as_const(taken)) id = std::max(id, t);
         QByteArray added;
         if (!result.contains("_x0000_t201\"") && !result.contains("_x0000_t201'")) added += kShapeType;
         for (const FormControl &c : now) {
             if (!c.isNew) continue;
-            qint64 use = c.shapeId > 0 && !taken.contains(c.shapeId) ? c.shapeId : ++id;
+            const bool asked = !fresh && c.shapeId > 0 && c.shapeId <= kMaxShapeId && !taken.contains(c.shapeId);
+            const qint64 use = asked ? c.shapeId : freeShapeId(taken, id);
+            if (use <= 0) {
+                if (why) *why = QCoreApplication::translate("jp::office::sheet::Save", "The drawing of a sheet's controls could not be changed.");
+                return false;
+            }
             if (assigned && use != c.shapeId) (*assigned)[c.shapeId] = use;
             taken.insert(use);
             id = std::max(id, use);

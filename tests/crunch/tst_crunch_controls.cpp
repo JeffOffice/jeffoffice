@@ -11,8 +11,11 @@
 #include "testrunner.h"
 
 #include <QApplication>
+#include <QDialog>
 #include <QMenu>
 #include <QRegularExpression>
+#include <QSpinBox>
+#include <QTimer>
 #include <QToolTip>
 
 using namespace crunchtest;
@@ -99,6 +102,87 @@ QMap<QString, QByteArray> partsOf(const QString &path)
     QFile f(path);
     if (f.open(QIODevice::ReadOnly)) jp::readZip(f.readAll(), parts);
     return parts;
+}
+
+
+// controlBook() with `count` more option buttons (no cell of their own, the first beginning a group of its own).
+QByteArray manyRadiosBook(int count)
+{
+    return repack(controlBook(), [&](Parts &p) {
+        QByteArray more;
+        for (int i = 0; i < count; ++i)
+            more += shape(3000 + i, QStringLiteral("Radio"), QStringLiteral("20, 2, 10, 2, 22, 0, 11, 0"), QStringLiteral("R"), i == 0 ? QStringLiteral("<x:FirstButton/>") : QString()).toUtf8();
+        p[QStringLiteral("xl/drawings/vmlDrawing1.vml")].replace("</xml>", more + "</xml>");
+    });
+}
+
+const char *kNoteShape = "<v:shape id=\"_x0000_s1100\" type=\"#_x0000_t202\" style=\"position:absolute;width:108pt;height:59pt;z-index:9;visibility:hidden\"><x:ClientData ObjectType=\"Note\">"
+                         "<x:Anchor>1, 15, 0, 2, 3, 15, 3, 16</x:Anchor><x:Row>11</x:Row><x:Column>6</x:Column></x:ClientData></v:shape>";
+const char *kNoteComments = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<comments xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><authors><author>Ann</author></authors>"
+                            "<commentList><comment ref=\"G12\" authorId=\"0\"><text><t>a note</t></text></comment></commentList></comments>";
+
+// controlBook() with a note on G12 in the drawing that holds the controls.
+QByteArray controlsAndNotesBook()
+{
+    return repack(controlBook(), [&](Parts &p) {
+        p[QStringLiteral("xl/drawings/vmlDrawing1.vml")].replace("</xml>", QByteArray(kNoteShape) + "</xml>");
+        addOverride(p, QStringLiteral("xl/comments1.xml"), QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.comments+xml"));
+        p[QStringLiteral("xl/comments1.xml")] = kNoteComments;
+        relate(p, QStringLiteral("rIdCm"), QStringLiteral("comments"), QStringLiteral("../comments1.xml"));
+    });
+}
+
+// Two sheets: the first has a check box (linked to B1), the second has a note on A1 and nothing else.
+QByteArray controlsAndNotesOnTwoSheets()
+{
+    const QByteArray controls =
+        "<legacyDrawing r:id=\"rIdVml\"/><controls><mc:AlternateContent xmlns:mc=\"http://schemas.openxmlformats.org/markup-compatibility/2006\"><mc:Choice Requires=\"x14\">"
+        "<control shapeId=\"1025\" r:id=\"rIdCtl\" name=\"Check Box 1\"><controlPr defaultSize=\"0\" autoFill=\"0\" linked=\"1\"><anchor moveWithCells=\"1\"><from>"
+        "<xdr:col xmlns:xdr=\"http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing\">3</xdr:col></from></anchor></controlPr></control></mc:Choice></mc:AlternateContent></controls>";
+    const QByteArray vml1 = "<xml xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:o=\"urn:schemas-microsoft-com:office:office\" xmlns:x=\"urn:schemas-microsoft-com:office:excel\">"
+                            "<v:shapetype id=\"_x0000_t201\" coordsize=\"21600,21600\" o:spt=\"201\" path=\"m,l,21600r21600,l21600,xe\"/>"
+                            + shape(1025, QStringLiteral("Checkbox"), QStringLiteral("3, 2, 0, 2, 5, 0, 1, 0"), QStringLiteral("Check Box 1"), QStringLiteral("<x:FmlaLink>$B$1</x:FmlaLink>")).toUtf8() + "</xml>";
+    const QByteArray vml2 = "<xml xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:o=\"urn:schemas-microsoft-com:office:office\" xmlns:x=\"urn:schemas-microsoft-com:office:excel\">"
+                            "<v:shapetype id=\"_x0000_t202\" coordsize=\"21600,21600\" o:spt=\"202\" path=\"m,l,21600r21600,l21600,xe\"/>"
+                            "<v:shape id=\"_x0000_s1025\" type=\"#_x0000_t202\" style=\"position:absolute;width:108pt;height:59pt;z-index:1;visibility:hidden\"><x:ClientData ObjectType=\"Note\">"
+                            "<x:Anchor>1, 15, 0, 2, 3, 15, 3, 16</x:Anchor><x:Row>0</x:Row><x:Column>0</x:Column></x:ClientData></v:shape></xml>";
+    const QByteArray comments = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<comments xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><authors><author>Ann</author></authors>"
+                                "<commentList><comment ref=\"A1\" authorId=\"0\"><text><t>on the second</t></text></comment></commentList></comments>";
+    const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row>");
+    const QString vmlType = QStringLiteral("application/vnd.openxmlformats-officedocument.vmlDrawing");
+    QVector<ExtraPart> parts;
+    parts.push_back({QStringLiteral("xl/drawings/vmlDrawing1.vml"), vml1, vmlType, 0, QStringLiteral("rIdVml"), QStringLiteral("vmlDrawing"), QStringLiteral("../drawings/vmlDrawing1.vml")});
+    parts.push_back({QStringLiteral("xl/ctrlProps/ctrlProp1.xml"),
+                     "<formControlPr xmlns=\"http://schemas.microsoft.com/office/spreadsheetml/2009/9/main\" objectType=\"CheckBox\" fmlaLink=\"$B$1\" lockText=\"1\"/>",
+                     QStringLiteral("application/vnd.ms-excel.controlproperties+xml"), 0, QStringLiteral("rIdCtl"), QStringLiteral("ctrlProp"), QStringLiteral("../ctrlProps/ctrlProp1.xml")});
+    parts.push_back({QStringLiteral("xl/drawings/vmlDrawing2.vml"), vml2, vmlType, 1, QStringLiteral("rIdV2"), QStringLiteral("vmlDrawing"), QStringLiteral("../drawings/vmlDrawing2.vml")});
+    parts.push_back({QStringLiteral("xl/comments2.xml"), comments, QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.comments+xml"), 1, QStringLiteral("rIdC2"),
+                     QStringLiteral("comments"), QStringLiteral("../comments2.xml")});
+    return withParts(buildXlsx({worksheet(rows, QString::fromUtf8(controls)), worksheet(rows, QStringLiteral("<legacyDrawing r:id=\"rIdV2\"/>"))}), parts);
+}
+
+// Runs `open` (which opens a dialog), and, as the dialog stands, writes down what its spin boxes show and range over and presses OK.
+struct DialogLook {
+    QList<int> values, lowest, highest;
+};
+DialogLook openAndAccept(const std::function<void()> &open)
+{
+    DialogLook look;
+    QTimer pulse;
+    QObject::connect(&pulse, &QTimer::timeout, &pulse, [&] {
+        QDialog *d = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+        if (!d) return;
+        for (QSpinBox *b : d->findChildren<QSpinBox *>()) {
+            look.values << b->value();
+            look.lowest << b->minimum();
+            look.highest << b->maximum();
+        }
+        d->accept();
+    });
+    pulse.start(20);
+    open();
+    pulse.stop();
+    return look;
 }
 
 } // namespace
@@ -688,7 +772,152 @@ private Q_SLOTS:
         QVERIFY(!shapes.contains(1025));
         QCOMPARE(shapes.size(), 9);
         QVERIFY(!sheetXml.contains("shapeId=\"1025\""));
+        // the sheet's entry for it is gone, and so are the part of its properties, the sheet's relationship to it, and its type
+        QVERIFY2(!sheetXml.contains("<control "), sheetXml.constData());
+        const QMap<QString, QByteArray> parts = partsOf(e.path);
+        QVERIFY(!parts.contains(QStringLiteral("xl/ctrlProps/ctrlProp1.xml")));
+        QVERIFY(!parts.value(kSheetRels).contains("ctrlProp"));
+        QVERIFY(!parts.value(QStringLiteral("[Content_Types].xml")).contains("ctrlProp1"));
+        QVERIFY(parts.value(kSheetRels).contains("vmlDrawing"));
         // and the file opens with nine
+        EditWindow again;
+        QFile f(e.path);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        QVERIFY(again.open(f.readAll()));
+        QTRY_COMPARE(shownCount(again), 9);
+    }
+
+
+    // A checked box linked to a cell opens checked, whether the cell holds TRUE or is empty, and stays so once the workbook has been worked out.
+    void aCheckedLinkedControlOpensChecked()
+    {
+        for (const bool cellIsTrue : {true, false}) {
+            const QByteArray book = repack(controlBook(), [&](Parts &p) {
+                p[QStringLiteral("xl/drawings/vmlDrawing1.vml")].replace("<x:FmlaLink>$E$1</x:FmlaLink>", "<x:FmlaLink>$E$1</x:FmlaLink><x:Checked>1</x:Checked>");
+                p[QStringLiteral("xl/ctrlProps/ctrlProp1.xml")].replace("fmlaLink=", "checked=\"Checked\" fmlaLink=");
+                if (cellIsTrue) p[kSheet].replace("<c r=\"C1\" t=\"s\"><v>0</v></c></row>", "<c r=\"C1\" t=\"s\"><v>0</v></c><c r=\"E1\" t=\"b\"><v>1</v></c></row>");
+            });
+            EditWindow e;
+            QVERIFY(e.open(book));
+            QTRY_COMPARE(shownCount(e), 10);
+            const int id = idOf(e, QStringLiteral("Check Box 1"));
+            QVERIFY(id >= 0);
+            QCOMPARE(e.win.w.objects()->controls()->controlOf(0, id).checked, 1);
+            QVERIFY(e.settle());
+            QCOMPARE(e.valueAt(QStringLiteral("E1")), cellIsTrue ? QStringLiteral("b:1") : QStringLiteral("-"));
+            letRun();
+            QCOMPARE(e.win.w.objects()->controls()->controlOf(0, id).checked, 1);
+            QVERIFY(!e.win.w.isModified());
+        }
+    }
+
+    // A refresh works the groups of option buttons out once, not once for each button.
+    void optionButtonGroupsAreWorkedOutOnce()
+    {
+        EditWindow e;
+        const int count = 1200;
+        QVERIFY(e.open(manyRadiosBook(count)));
+        QTRY_COMPARE(shownCount(e), 10 + count);
+        crunch::SheetControls *controls = e.win.w.objects()->controls();
+        const qint64 before = controls->groupVisits();
+        for (int i = 0; i < 3; ++i) controls->refresh(0);
+        const qint64 visits = controls->groupVisits() - before;
+        QVERIFY2(visits <= 8 * (10 + count), qPrintable(QStringLiteral("%1 buttons passed").arg(visits)));
+        // and they still work: a click on the last writes its place in the group's cell
+        QVERIFY(e.settle());
+        QCOMPARE(controls->countOf(0), 10 + count);
+    }
+
+    // Only the controls a cell touches look at their cells again.
+    void onlyTheControlsACellTouchesLookAgain()
+    {
+        EditWindow e;
+        QVERIFY(e.open(controlBook()));
+        QTRY_COMPARE(shownCount(e), 10);
+        QVERIFY(e.settle());
+        crunch::SheetControls *controls = e.win.w.objects()->controls();
+        const qint64 start = controls->looks();
+        e.select(QStringLiteral("H20"));
+        e.enter(QStringLiteral("5"));
+        QVERIFY(e.settle());
+        QCOMPARE(controls->looks(), start);   // (no control has that cell)
+        e.select(QStringLiteral("E1"));
+        e.enter(QStringLiteral("TRUE"));
+        QVERIFY(e.settle());
+        const qint64 looks = controls->looks() - start;
+        QVERIFY2(looks >= 1 && looks <= 2, qPrintable(QString::number(looks)));
+        QCOMPARE(controls->controlOf(0, idOf(e, QStringLiteral("Check Box 1"))).checked, 1);
+        // a cell of the range a list shows draws the list again
+        e.select(QStringLiteral("A2"));
+        e.enter(QStringLiteral("7"));
+        QVERIFY(e.settle());
+        QCOMPARE(controls->itemsOf(0, idOf(e, QStringLiteral("List Box 7"))).value(1), QStringLiteral("7"));
+    }
+
+    // Format Control shows a limit as the file has it (past 30000 too), and an OK that changes nothing changes nothing.
+    void formatControlWithNoChangeWritesNothing()
+    {
+        const QByteArray book = repack(controlBook(), [&](Parts &p) { p[QStringLiteral("xl/drawings/vmlDrawing1.vml")].replace("<x:Max>5</x:Max>", "<x:Max>50000</x:Max>"); });
+        EditWindow e;
+        QVERIFY(e.open(book));
+        QTRY_COMPARE(shownCount(e), 10);
+        const int id = idOf(e, QStringLiteral("Spinner 5"));
+        QCOMPARE(e.win.w.objects()->controls()->controlOf(0, id).max, 50000);
+        const DialogLook look = openAndAccept([&] { QMetaObject::invokeMethod(&e.win.w, "formatControlDialog", Qt::DirectConnection, Q_ARG(int, id)); });
+        QVERIFY(look.values.size() >= 4);
+        QVERIFY(look.values.contains(50000));
+        for (int i = 0; i < look.values.size(); ++i) {
+            QVERIFY(look.lowest[i] <= -1000000);
+            QVERIFY(look.highest[i] >= 1000000);
+        }
+        QCOMPARE(e.win.w.objects()->controls()->controlOf(0, id).max, 50000);
+        QVERIFY(!e.win.w.isModified());
+    }
+
+    // A control changed on one sheet leaves the notes of another sheet as they are, byte for byte.
+    void aControlChangedLeavesTheNotesOfAnotherSheetAlone()
+    {
+        const QByteArray book = controlsAndNotesOnTwoSheets();
+        EditWindow e;
+        QVERIFY(e.open(book));
+        QTRY_VERIFY(idOf(e, QStringLiteral("Check Box 1")) >= 0);
+        click(e, rectOf(e, QStringLiteral("Check Box 1")).center());
+        QVERIFY(e.settle());
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        const QMap<QString, QByteArray> now = partsOf(e.path);
+        QMap<QString, QByteArray> was;
+        jp::readZip(book, was);
+        for (const QString &name : {QStringLiteral("xl/drawings/vmlDrawing2.vml"), QStringLiteral("xl/comments2.xml"), QStringLiteral("xl/worksheets/sheet2.xml")}) {
+            QVERIFY2(now.contains(name), qPrintable(name));
+            QCOMPARE(now.value(name), was.value(name));
+        }
+        QVERIFY(now.value(QStringLiteral("xl/drawings/vmlDrawing1.vml")).contains("<x:Checked>1</x:Checked>"));
+    }
+
+    // A control taken away from a sheet that has notes: the notes are as they were, and the other controls are too.
+    void deletingAControlKeepsTheNotes()
+    {
+        const QByteArray book = controlsAndNotesBook();
+        EditWindow e;
+        QVERIFY(e.open(book));
+        QTRY_COMPARE(shownCount(e), 10);
+        QTest::mouseClick(e.view()->viewport(), Qt::LeftButton, Qt::ControlModifier, rectOf(e, QStringLiteral("Check Box 1")).center());
+        QTest::keyClick(e.view(), Qt::Key_Delete);
+        QVERIFY(e.win.w.objects()->layer()->isDeleted(idOf(e, QStringLiteral("Check Box 1"))));
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        const QMap<QString, QByteArray> now = partsOf(e.path);
+        QMap<QString, QByteArray> was;
+        jp::readZip(book, was);
+        const QByteArray vml = now.value(QStringLiteral("xl/drawings/vmlDrawing1.vml"));
+        QVERIFY2(vml.contains(kNoteShape), vml.constData());
+        QVERIFY(!vml.contains("_x0000_s1025\""));
+        QCOMPARE(vml.count("<x:ClientData ObjectType=\"Note\">"), 1);
+        QCOMPARE(vml.count("<v:shape id="), 10);
+        QCOMPARE(now.value(QStringLiteral("xl/comments1.xml")), was.value(QStringLiteral("xl/comments1.xml")));
         EditWindow again;
         QFile f(e.path);
         QVERIFY(f.open(QIODevice::ReadOnly));

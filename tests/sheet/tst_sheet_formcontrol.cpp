@@ -3,9 +3,12 @@
 #include "sheethelpers.h"
 
 #include "sheet/formcontrol.h"
+#include "sheet/notesave.h"
 #include "sheet/xlsxsave.h"
 
 #include <QDomDocument>
+#include <QElapsedTimer>
+#include <QRegularExpression>
 
 namespace {
 
@@ -57,6 +60,38 @@ bool open(const QByteArray &xlsx, Opened *o)
     if (!o->book.open(o->package, &why)) return false;
     o->controls = readFormControls(o->book.package(), o->book.info().sheets[0].part);
     return o->ok = true;
+}
+
+// A drawing of `count` notes' shapes (numbers from `first`, one more each), and nothing else.
+QByteArray noteShapes(int first, int count)
+{
+    QByteArray shapes;
+    shapes.reserve(count * 150);
+    for (int i = 0; i < count; ++i)
+        shapes += "<v:shape id=\"_x0000_s" + QByteArray::number(first + i) + "\" type=\"#_x0000_t202\"><x:ClientData ObjectType=\"Note\"><x:Row>" + QByteArray::number(i % 1000) + "</x:Row><x:Column>"
+                  + QByteArray::number(i / 1000) + "</x:Column></x:ClientData></v:shape>";
+    return vmlOf(QString::fromLatin1(shapes));
+}
+
+// The shape numbers of a drawing, one for each shape (a number twice is twice).
+QList<qint64> shapeNumbers(const QByteArray &vml)
+{
+    QList<qint64> out;
+    static const QRegularExpression re(QStringLiteral("<v:shape id=\"_x0000_s(\\d+)\""));
+    const QString text = QString::fromLatin1(vml);
+    for (auto m = re.globalMatch(text); m.hasNext();) out << m.next().captured(1).toLongLong();
+    return out;
+}
+
+FormControl madeControl()
+{
+    FormControl c;
+    c.kind = ControlKind::CheckBox;
+    c.isNew = true;
+    c.text = QStringLiteral("Box");
+    c.anchor.to = {1, 2, 0, 0};
+    c.place = QRectF(0, 0, 60, 20);
+    return c;
 }
 
 } // namespace
@@ -254,6 +289,112 @@ private Q_SLOTS:
         QCOMPARE(again.controls.size(), 1);
         QCOMPARE(again.controls[0].text, QStringLiteral("Ready"));
         QCOMPARE(again.controls[0].checked, 1);
+    }
+
+    // A sheet that names a control a hundred thousand times is read in a moment: a shape's number is looked up among those kept, not searched for.
+    void manyControlEntriesAreReadFast()
+    {
+        QByteArray entries = "<controls>";
+        for (int i = 0; i < 195000; ++i) entries += "<control shapeId=\"" + QByteArray::number(2000 + i) + "\" r:id=\"rIdK\" name=\"C\"/>";
+        entries += "</controls>";
+        const QByteArray prop = "<formControlPr xmlns=\"http://schemas.microsoft.com/office/spreadsheetml/2009/9/main\" objectType=\"CheckBox\"/>";
+        Opened o;
+        QVERIFY(open(bookWith(vmlOf(kShapes), prop, QString::fromLatin1(entries)), &o));
+        QElapsedTimer timer;
+        timer.start();
+        const QVector<FormControl> again = readFormControls(o.book.package(), o.book.info().sheets[0].part);
+        const qint64 ms = timer.elapsed();
+        QVERIFY2(ms < 250, qPrintable(QStringLiteral("took %1 ms").arg(ms)));
+        QVERIFY(again.size() >= 3);
+    }
+
+    // A shape number is an int or it is not one: the notes' code and the controls' code read it the same way, and a number they make is below the largest an int holds.
+    void shapeNumbersAreReadOneWay()
+    {
+        QCOMPARE(shapeNumberOf("_x0000_s1025"), 1025);
+        QCOMPARE(shapeNumberOf("_x0000_s2147483647"), 2147483647);
+        QCOMPARE(shapeNumberOf("_x0000_s2147483648"), 0);
+        QCOMPARE(shapeNumberOf("_x0000_s4294967297"), 0);
+        QCOMPARE(shapeNumberOf("_x0000_s99999999999999999999"), 0);
+        QCOMPARE(shapeNumberOf("_x0000_s12ab"), 0);
+        QCOMPARE(shapeNumberOf("s1025"), 0);
+        QCOMPARE(shapeNumberOf("_x0000_s-5"), 0);
+        const QSet<qint64> taken = {1025, 2147483647};
+        QCOMPARE(freeShapeId(taken, 2147483647), qint64(1026));
+        QCOMPARE(freeShapeId(taken, 1025), qint64(1026));
+        // a drawing that has the largest number: a control made now gets another that fits an int, and so does a note
+        const QByteArray vml = noteShapes(2147483646, 2);
+        QCOMPARE(largestShapeId(vml), qint64(2147483647));
+        FormControl c = madeControl();
+        c.shapeId = 2147483647;
+        QByteArray out;
+        std::map<qint64, qint64> assigned;
+        QVERIFY(patchControlsVml(vml, {}, {c}, &out, nullptr, &assigned));
+        QList<qint64> numbers = shapeNumbers(out);
+        QCOMPARE(numbers.size(), 3);
+        QCOMPARE(QSet<qint64>(numbers.begin(), numbers.end()).size(), 3);
+        for (qint64 n : numbers) QVERIFY(n >= 1 && n <= 2147483647);
+        NoteOp op;
+        op.row = 40;
+        op.col = 3;
+        op.text = QStringLiteral("x");
+        QVERIFY(applyNoteOpsToDrawing(vml, {op}, &out, nullptr));
+        numbers = shapeNumbers(out);
+        QCOMPARE(numbers.size(), 3);
+        QCOMPARE(QSet<qint64>(numbers.begin(), numbers.end()).size(), 3);
+        for (qint64 n : numbers) QVERIFY(n >= 1 && n <= 2147483647);
+        // a number past an int in a file is nobody's: it is not taken as the largest
+        QCOMPARE(largestShapeId(vml + QByteArray("<v:shape id=\"_x0000_s9999999999\"/>")), qint64(2147483647));
+    }
+
+    // The numbers of every shape are looked at, not those of the first forty thousand: a shape far down the drawing keeps its number.
+    void aNumberFarDownTheDrawingIsStillTaken()
+    {
+        // 40000 shapes numbered 1025 on, then ten more that go on from them
+        QByteArray vml = noteShapes(1025, 40010);
+        // (the largest number is among the last: the first forty thousand do not say what is taken)
+        QVERIFY(largestShapeId(vml) == 1025 + 40009);
+        QByteArray out;
+        QVERIFY(patchControlsVml(vml, {}, {madeControl()}, &out));
+        const QList<qint64> numbers = shapeNumbers(out);
+        QCOMPARE(numbers.size(), 40011);
+        QCOMPARE(QSet<qint64>(numbers.begin(), numbers.end()).size(), 40011);
+        NoteOp op;
+        op.row = 5000;
+        op.col = 20;
+        op.text = QStringLiteral("x");
+        QVERIFY(applyNoteOpsToDrawing(vml, {op}, &out, nullptr));
+        const QList<qint64> withNote = shapeNumbers(out);
+        QCOMPARE(QSet<qint64>(withNote.begin(), withNote.end()).size(), withNote.size());
+    }
+
+    // A drawing of notes only is not read shape by shape for controls.
+    void aDrawingOfNotesOnlyIsNotReadForControls()
+    {
+        Opened o;
+        const qint64 before = controlShapeReads();
+        QVERIFY(open(bookWith(noteShapes(1025, 3000)), &o));
+        QCOMPARE(o.controls.size(), 0);
+        QCOMPARE(controlShapeReads() - before, qint64(0));
+        // and one with a control among the notes is
+        QVERIFY(open(bookWith(vmlOf(kShapes)), &o));
+        QCOMPARE(o.controls.size(), 3);
+        QVERIFY(controlShapeReads() - before >= 4);
+    }
+
+    // A drawing made for a sheet has its own block of shape numbers, named by its idmap and numbered from it.
+    void aNewDrawingHasABlockOfItsOwn()
+    {
+        const QByteArray head = newControlsDrawing(3);
+        QVERIFY(head.contains("data=\"3\""));
+        FormControl c = madeControl();
+        c.shapeId = 1025;   // (what the control asks for is not the number it gets in a drawing of its own)
+        QByteArray out;
+        std::map<qint64, qint64> assigned;
+        QVERIFY(patchControlsVml(head, {}, {c}, &out, nullptr, &assigned, 3));
+        QCOMPARE(shapeNumbers(out), QList<qint64>({3073}));
+        QCOMPARE(assigned.at(1025), qint64(3073));
+        QVERIFY(newControlsDrawing().contains("data=\"1\""));
     }
 };
 

@@ -1017,8 +1017,7 @@ bool SheetObjects::isDeleted(int sheet, int id)
 
 void SheetObjects::cellsChanged(const std::vector<jp::grid::ValueStore::Item> &cells)
 {
-    if (!cells.empty())
-        for (int i = 0; i < int(m_sheets.size()); ++i) m_controls.refresh(i);   // (a control follows its cell)
+    if (!cells.empty()) m_controls.refreshCells(cells);   // (a control follows its cell; only those the cells touch look again)
     if (cells.empty() || !m_cells) return;
     for (size_t i = 0; i < m_sheets.size(); ++i) {
         Sheet &s = m_sheets[i];

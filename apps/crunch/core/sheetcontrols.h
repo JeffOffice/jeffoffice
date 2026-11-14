@@ -10,6 +10,7 @@
 // Bounded: the controls of a sheet (formcontrol.h), the cells of a list (kMaxListItems), and the controls a person makes (kMaxMadeControls).
 
 #include "grid/objectlayer.h"
+#include "grid/valuestore.h"
 #include "calc/value.h"
 #include "sheet/formcontrol.h"
 #include "sheet/sheetreader.h"
@@ -21,6 +22,7 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <unordered_map>
 #include <vector>
 
 namespace jp::office::sheet {
@@ -97,6 +99,12 @@ public:
     int make(int sheet, jp::office::sheet::ControlKind kind, const jp::office::sheet::DrawingAnchor &anchor, const QRectF &placePt, QString *why = nullptr);
     // The cells linked to were changed (or the sheet is shown): the controls look at them again. The ids of controls whose look changed, in the sheet.
     std::vector<int> refresh(int sheet);
+    // The same for a batch of cells that changed (the places they are at now): only the controls linked to one of them look again (and those whose input range one is in are drawn again), so that
+    // a batch that touches no control costs nothing of the controls'.
+    std::vector<int> refreshCells(const std::vector<jp::grid::ValueStore::Item> &cells);
+    // For tests: how many times a control looked at its cell, and how many controls the working out of option button groups passed, in all.
+    qint64 looks() const { return m_looks; }
+    qint64 groupVisits() const { return m_groupVisits; }
     // The controls that changed since the file was read or saved, for saving (each is the control as it is now; `was` is as the file has it, for a control that is not new).
     void addToSave(jp::office::sheet::SaveChanges *changes);
     // The file was saved: the controls are what it holds now.
@@ -144,9 +152,36 @@ private:
     bool resolve(int sheet, const QString &ref, int *cellSheet, jp::office::sheet::CellRange *range) const;
     // The group an option button is in: the controls (their items, in order) from the one that begins it to the one before the next that does.
     std::vector<const Item *> groupOf(const Sheet &s, const Item &item) const;
+    // The cell a link names, if it is one (as linkOf says it for the link a control has).
+    bool cellOf(int sheet, const QString &link, int *cellSheet, quint32 *row, quint32 *col) const;
+    // What is worked out of the controls of every sheet that is listed, once for as long as they stay as they are: each option button's group (the cell its group is linked by, its place in it), and which
+    // controls are linked to which cell, and which list a range.
+    struct GroupInfo {
+        QString link;
+        int place = 1;
+    };
+    struct Watched {
+        int sheet = 0;
+        Item *item = nullptr;
+    };
+    struct Ranged {
+        int sheet = 0, cellSheet = 0;
+        jp::office::sheet::CellRange range;
+        Item *item = nullptr;
+    };
+    struct Index {
+        bool valid = false;
+        QStringList names;   // (the sheets' names it was worked out under: a link names a sheet by its name)
+        std::unordered_map<quint64, std::vector<Watched>> byCell;
+        std::vector<Ranged> ranged;
+        std::unordered_map<const Item *, GroupInfo> groups;
+    };
+    void ensureIndex();
+    // The control looks at its cell again; `changed`, if given, is told its id when its look changed.
+    void look(int sheet, Item &item, std::vector<int> *changed);
     bool operate(int sheet, const std::shared_ptr<Item> &item, const QPointF &fraction, const QSizeF &units);
     // The state a value in the cell gives the control.
-    bool takeValue(const Sheet &s, Item &item, const jp::calc::Value &v);
+    bool takeValue(Item &item, const jp::calc::Value &v, int place);
     static QString valueText(const jp::calc::Value &v);
 
     std::shared_ptr<jp::office::sheet::Workbook> m_book;
@@ -154,6 +189,8 @@ private:
     EditsSource m_edits;
     std::map<int, std::shared_ptr<std::map<qint64, qint64>>> m_ids;   // by sheet: the shape numbers the last save gave the controls made here
     std::vector<Sheet> m_sheets;
+    Index m_index;
+    mutable qint64 m_looks = 0, m_groupVisits = 0;
 };
 
 } // namespace jp::crunch

@@ -9,6 +9,7 @@
 #include <QCoreApplication>
 #include <QImage>
 #include <QPainter>
+#include <QSet>
 
 #include <algorithm>
 #include <cmath>
@@ -17,11 +18,18 @@ namespace jp::crunch {
 
 using namespace jp::office::sheet;
 
+namespace {
+
+quint64 cellKey(int sheet, quint32 row, quint32 col) { return (quint64(quint32(sheet)) << 40) | (quint64(row & 0xFFFFF) << 20) | (col & 0xFFFFF); }
+
+} // namespace
+
 SheetControls::SheetControls(QObject *parent) : QObject(parent) {}
 
 void SheetControls::open(const std::shared_ptr<Workbook> &book)
 {
     m_book = book;
+    m_index = Index();
     m_sheets.clear();
     if (m_book) m_sheets.resize(size_t(std::max(0, int(m_book->info().sheets.size()))));
 }
@@ -53,6 +61,7 @@ SheetControls::Sheet &SheetControls::sheetState(int sheet)
 void SheetControls::list(int sheet, Sheet &s)
 {
     s.listed = true;
+    m_index.valid = false;
     if (!m_book || sheet < 0 || sheet >= int(m_book->info().sheets.size())) return;
     const SheetEntry &se = m_book->info().sheets[sheet];
     if (se.kind != SheetKind::Worksheet || se.deleted || se.isNew || se.part.isEmpty()) return;
@@ -74,6 +83,7 @@ void SheetControls::list(int sheet, Sheet &s)
 void SheetControls::recompute(int sheet, Item &item)
 {
     static const std::vector<StructEdit> none;
+    m_index.valid = false;   // (a link or a range may be another, and a control may be dropped)
     const std::vector<StructEdit> &all = m_edits ? m_edits() : none;
     auto from = [&](int at) { return std::vector<StructEdit>(all.begin() + std::min<size_t>(size_t(std::max(0, at)), all.size()), all.end()); };
     const std::vector<StructEdit> forAnchor = from(item.baseAt), forRefs = from(item.refsAt);
@@ -182,6 +192,11 @@ bool SheetControls::linkOf(int sheet, int id, int *cellSheet, quint32 *row, quin
                 break;
             }
     }
+    return cellOf(sheet, link, cellSheet, row, col);
+}
+
+bool SheetControls::cellOf(int sheet, const QString &link, int *cellSheet, quint32 *row, quint32 *col) const
+{
     CellRange r;
     int cs = sheet;
     if (!resolve(sheet, link, &cs, &r) || r.cellCount() != 1) return false;
@@ -222,6 +237,7 @@ std::vector<const SheetControls::Item *> SheetControls::groupOf(const Sheet &s, 
     std::vector<const Item *> current;
     bool has = false;
     for (const std::shared_ptr<Item> &i : s.items) {
+        ++m_groupVisits;
         if (i->deleted) continue;
         if (i->now.kind == ControlKind::GroupBox || (i->now.kind == ControlKind::Radio && i->now.firstButton)) {
             if (has) return current;
@@ -291,7 +307,7 @@ std::optional<jp::grid::LayerObject> SheetControls::layerObjectOf(int sheet, int
     return std::nullopt;
 }
 
-bool SheetControls::takeValue(const Sheet &s, Item &item, const jp::calc::Value &v)
+bool SheetControls::takeValue(Item &item, const jp::calc::Value &v, int place)
 {
     FormControl &c = item.now;
     const FormControl before = c;
@@ -303,12 +319,6 @@ bool SheetControls::takeValue(const Sheet &s, Item &item, const jp::calc::Value 
         else if (v.isEmpty()) c.checked = 0;
         break;
     case ControlKind::Radio: {
-        const std::vector<const Item *> group = groupOf(s, item);
-        int place = 1;
-        for (const Item *m : group) {
-            if (m == &item) break;
-            ++place;
-        }
         if (v.isNumber()) c.checked = std::lround(v.number()) == place ? 1 : 0;
         else if (v.isEmpty()) c.checked = 0;
         break;
@@ -327,29 +337,130 @@ bool SheetControls::takeValue(const Sheet &s, Item &item, const jp::calc::Value 
     return !(c.checked == before.checked && c.sel == before.sel && c.val == before.val);
 }
 
+void SheetControls::ensureIndex()
+{
+    QStringList names;
+    if (m_book)
+        for (const SheetEntry &e : m_book->info().sheets) names << (e.deleted ? QString() : e.name);
+    if (m_index.valid && m_index.names == names) return;
+    m_index = Index();
+    m_index.valid = true;
+    m_index.names = names;
+    for (size_t sheet = 0; sheet < m_sheets.size(); ++sheet) {
+        Sheet &s = m_sheets[sheet];
+        if (!s.listed) continue;
+        // the groups of option buttons, worked out in one pass over the sheet's controls
+        std::vector<const Item *> current;
+        auto close = [&] {
+            QString link;
+            for (const Item *m : current)
+                if (!m->now.link.isEmpty()) {
+                    link = m->now.link;
+                    break;
+                }
+            int place = 1;
+            for (const Item *m : current) m_index.groups[m] = GroupInfo{link, place++};
+            current.clear();
+        };
+        for (const std::shared_ptr<Item> &i : s.items) {
+            ++m_groupVisits;
+            if (i->deleted) continue;
+            if (i->now.kind == ControlKind::GroupBox || (i->now.kind == ControlKind::Radio && i->now.firstButton)) close();
+            if (i->now.kind == ControlKind::Radio) current.push_back(i.get());
+        }
+        close();
+        // what each control is linked to
+        for (const std::shared_ptr<Item> &i : s.items) {
+            if (i->deleted || i->dropped) continue;
+            QString link = i->now.link;
+            if (link.isEmpty() && i->now.kind == ControlKind::Radio) {
+                const auto g = m_index.groups.find(i.get());
+                if (g != m_index.groups.end()) link = g->second.link;
+            }
+            int cs = 0;
+            quint32 row = 0, col = 0;
+            if (cellOf(int(sheet), link, &cs, &row, &col)) m_index.byCell[cellKey(cs, row, col)].push_back(Watched{int(sheet), i.get()});
+            if (!i->now.range.isEmpty()) {
+                CellRange r;
+                int rs = int(sheet);
+                if (resolve(int(sheet), i->now.range, &rs, &r)) m_index.ranged.push_back(Ranged{int(sheet), rs, r, i.get()});
+            }
+        }
+    }
+}
+
+void SheetControls::look(int sheet, Item &item, std::vector<int> *changedIds)
+{
+    if (item.deleted || item.dropped) return;
+    QString link = item.now.link;
+    int place = 1;
+    const auto g = m_index.groups.find(&item);
+    if (g != m_index.groups.end()) {
+        place = g->second.place;
+        if (link.isEmpty()) link = g->second.link;
+    }
+    int cs = 0;
+    quint32 row = 0, col = 0;
+    if (!cellOf(sheet, link, &cs, &row, &col)) return;
+    ++m_looks;
+    const jp::calc::Value v = m_values(cs, row, col);
+    const QString key = v.debug();
+    if (!item.seenKnown) {
+        // (the file's own look stays until the cell changes: a program that opens the file shows what the file stored)
+        item.seenKnown = true;
+        item.seen = key;
+        return;
+    }
+    if (key == item.seen) return;
+    item.seen = key;
+    if (takeValue(item, v, place)) {
+        if (changedIds) changedIds->push_back(item.id);
+        Q_EMIT this->changed(sheet, item.id);
+    }
+}
+
 std::vector<int> SheetControls::refresh(int sheet)
 {
     std::vector<int> changed;
     if (!m_values || !m_book || sheet < 0 || size_t(sheet) >= m_sheets.size() || !m_sheets[size_t(sheet)].listed) return changed;
-    Sheet &s = m_sheets[size_t(sheet)];
-    for (const std::shared_ptr<Item> &i : s.items) {
-        int cs = 0;
-        quint32 row = 0, col = 0;
-        if (i->deleted || i->dropped || !linkOf(sheet, i->id, &cs, &row, &col)) continue;
-        const jp::calc::Value v = m_values(cs, row, col);
-        const QString key = v.debug();
-        if (!i->seenKnown) {
-            // (the file's own look stays until the cell changes: a program that opens the file shows what the file stored)
-            i->seenKnown = true;
-            i->seen = key;
-            continue;
+    ensureIndex();
+    for (const std::shared_ptr<Item> &i : m_sheets[size_t(sheet)].items) look(sheet, *i, &changed);
+    return changed;
+}
+
+std::vector<int> SheetControls::refreshCells(const std::vector<jp::grid::ValueStore::Item> &cells)
+{
+    std::vector<int> changed;
+    if (cells.empty() || !m_values || !m_book) return changed;
+    bool anyListed = false;
+    for (const Sheet &s : m_sheets) anyListed = anyListed || s.listed;
+    if (!anyListed) return changed;
+    ensureIndex();
+    struct Box {
+        quint32 row1 = ~quint32(0), row2 = 0, col1 = ~quint32(0), col2 = 0;
+    };
+    std::unordered_map<int, Box> boxes;   // (where the batch's cells are, by sheet: a list is drawn again when its range meets the box)
+    std::vector<Watched> hits;
+    std::unordered_map<const Item *, bool> seen;
+    const bool haveRanges = !m_index.ranged.empty();
+    for (const jp::grid::ValueStore::Item &c : cells) {
+        const auto found = m_index.byCell.find(cellKey(c.sheet, c.row, c.col));
+        if (found != m_index.byCell.end())
+            for (const Watched &w : found->second)
+                if (seen.emplace(w.item, true).second) hits.push_back(w);
+        if (haveRanges) {
+            Box &b = boxes[c.sheet];
+            b.row1 = std::min(b.row1, c.row);
+            b.row2 = std::max(b.row2, c.row);
+            b.col1 = std::min(b.col1, c.col);
+            b.col2 = std::max(b.col2, c.col);
         }
-        if (key == i->seen) continue;
-        i->seen = key;
-        if (takeValue(s, *i, v)) {
-            changed.push_back(i->id);
-            Q_EMIT this->changed(sheet, i->id);
-        }
+    }
+    for (const Watched &w : hits) look(w.sheet, *w.item, &changed);
+    for (const Ranged &r : m_index.ranged) {
+        const auto b = boxes.find(r.cellSheet);
+        if (b == boxes.end()) continue;
+        if (r.range.row1 <= b->second.row2 && r.range.row2 >= b->second.row1 && r.range.col1 <= b->second.col2 && r.range.col2 >= b->second.col1) Q_EMIT this->changed(r.sheet, r.item->id);
     }
     return changed;
 }
@@ -358,7 +469,7 @@ void SheetControls::apply(int sheet, int id, const FormControl &state, bool dele
 {
     Item *i = find(sheet, id);
     if (!i) return;
-    static const std::vector<StructEdit> none;
+    m_index.valid = false;
     const size_t edits = m_edits ? m_edits().size() : 0;
     // (a cell or range a person gave is where the edits from now on are counted from)
     if (state.link != i->now.link || state.range != i->now.range) {
@@ -383,10 +494,10 @@ int SheetControls::make(int sheet, ControlKind kind, const DrawingAnchor &anchor
     }
     Sheet &s = sheetState(sheet);
     int made = 0;
-    qint64 most = 1024;
+    QSet<qint64> taken;
     for (const std::shared_ptr<Item> &i : s.items) {
         if (i->now.isNew) ++made;
-        most = std::max(most, i->now.shapeId);
+        if (i->now.shapeId > 0) taken.insert(i->now.shapeId);
     }
     if (made >= kMaxMadeControls) {
         if (why) *why = tr("A sheet can't have more than %1 controls made in one session.").arg(kMaxMadeControls);
@@ -396,9 +507,12 @@ int SheetControls::make(int sheet, ControlKind kind, const DrawingAnchor &anchor
         if (why) *why = tr("Save the workbook first: controls can't be put on a sheet that has not been saved yet.");
         return -1;
     }
-    // (a shape's number: past every one the drawings of the sheet have)
+    // (a shape's number: past every one the drawings of the sheet have, all of their shapes, and one a shape may have)
     for (const jp::office::Relationship &r : m_book->objectPackage().relationshipsOfType(m_book->info().sheets[sheet].part, QStringLiteral("/vmlDrawing")))
-        if (!r.external && m_book->objectPackage().partSize(r.target) < kMaxControlPartBytes) most = std::max(most, largestShapeId(m_book->objectPackage().part(r.target)));
+        if (!r.external && m_book->objectPackage().partSize(r.target) <= kMaxControlPartBytes) taken.unite(shapeIdsOf(m_book->objectPackage().part(r.target)));
+    qint64 most = 1024;
+    for (qint64 t : std::as_const(taken)) most = std::max(most, t);
+    const qint64 number = freeShapeId(taken, most);
     auto item = std::make_shared<Item>();
     item->id = s.nextId++;
     FormControl &c = item->now;
@@ -408,7 +522,7 @@ int SheetControls::make(int sheet, ControlKind kind, const DrawingAnchor &anchor
     c.anchor.editAs = AnchorKind::TwoCell;
     c.place = placePt;
     c.isNew = true;
-    c.shapeId = most + 1;
+    c.shapeId = number > 0 ? number : 1025;   // (the save gives it a number of its own if this one is taken by then)
     // (the number a person sees in the name is the control's own place among the sheet's)
     c.name = kindName(kind) + QLatin1Char(' ') + QString::number(int(s.items.size()) + 1);
     if (kind == ControlKind::CheckBox || kind == ControlKind::Radio || kind == ControlKind::Button || kind == ControlKind::GroupBox || kind == ControlKind::Label) c.text = c.name;
@@ -423,6 +537,7 @@ int SheetControls::make(int sheet, ControlKind kind, const DrawingAnchor &anchor
     item->baseRange = c.range;
     item->baseAt = item->refsAt = m_edits ? int(m_edits().size()) : 0;
     s.items.push_back(item);
+    m_index.valid = false;
     return item->id;
 }
 
@@ -460,6 +575,7 @@ void SheetControls::addToSave(SaveChanges *changes)
 
 void SheetControls::saved()
 {
+    m_index.valid = false;
     for (size_t sheet = 0; sheet < m_sheets.size(); ++sheet) {
         const auto ids = m_ids.find(int(sheet));
         for (const std::shared_ptr<Item> &i : m_sheets[sheet].items) {
