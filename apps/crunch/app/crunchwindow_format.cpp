@@ -44,6 +44,42 @@ enum BorderCommand {
     InsideHorizontal, InsideVertical, InsideBorders, BorderCommandCount
 };
 
+// The icon of a border command: a faint dotted block of cells with the command's edges drawn over it (thick or double where the command says).
+QIcon borderIconOf(int kind)
+{
+    enum { Bottom = 1, Top = 2, Left = 4, Right = 8, InsideH = 16, InsideV = 32, Outside = Bottom | Top | Left | Right };
+    struct Look {
+        int edges, thick, dbl;
+    };
+    static const Look looks[BorderCommandCount] = {
+        {Bottom, 0, 0}, {Top, 0, 0}, {Left, 0, 0}, {Right, 0, 0}, {0, 0, 0}, {Outside | InsideH | InsideV, 0, 0}, {Outside, 0, 0}, {Outside, Outside, 0},
+        {Bottom, 0, Bottom}, {Bottom, Bottom, 0}, {Top | Bottom, 0, 0}, {Top | Bottom, Bottom, 0}, {Top | Bottom, 0, Bottom}, {InsideH, 0, 0}, {InsideV, 0, 0}, {InsideH | InsideV, 0, 0}};
+    const Look look = looks[std::clamp(kind, 0, int(BorderCommandCount) - 1)];
+    return jp::drawnIcon([look](QPainter *p, const QRectF &r) {
+        const QRectF b = r.adjusted(r.width() * 0.15, r.height() * 0.15, -r.width() * 0.15, -r.height() * 0.15);
+        const double w = std::max(1.0, r.width() / 16);
+        QColor faint = jp::uiText();
+        faint.setAlpha(90);
+        p->setPen(QPen(faint, std::max(0.5, w * 0.6), Qt::DotLine));
+        p->drawRect(b);
+        p->drawLine(QPointF(b.center().x(), b.top()), QPointF(b.center().x(), b.bottom()));
+        p->drawLine(QPointF(b.left(), b.center().y()), QPointF(b.right(), b.center().y()));
+        auto edge = [&](int bit, const QPointF &a, const QPointF &z, const QPointF &inward) {
+            if (!(look.edges & bit)) return;
+            const bool thick = look.thick & bit, dbl = look.dbl & bit;
+            p->setPen(QPen(jp::uiText(), thick ? w * 2.4 : w, Qt::SolidLine, Qt::FlatCap));
+            p->drawLine(a, z);
+            if (dbl) p->drawLine(a + inward * (w * 2.2), z + inward * (w * 2.2));
+        };
+        edge(Bottom, b.bottomLeft(), b.bottomRight(), QPointF(0, -1));
+        edge(Top, b.topLeft(), b.topRight(), QPointF(0, 1));
+        edge(Left, b.topLeft(), b.bottomLeft(), QPointF(1, 0));
+        edge(Right, b.topRight(), b.bottomRight(), QPointF(-1, 0));
+        edge(InsideH, QPointF(b.left(), b.center().y()), QPointF(b.right(), b.center().y()), QPointF(0, 1));
+        edge(InsideV, QPointF(b.center().x(), b.top()), QPointF(b.center().x(), b.bottom()), QPointF(1, 0));
+    });
+}
+
 const double kSizes[] = {8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 26, 28, 36, 48, 72};
 
 QIcon styleIconOf(const crunch::StyleSample &s)
@@ -132,8 +168,10 @@ void CrunchWindow::createFormatActions()
                    {"fmt.border.topBottom", QT_TR_NOOP("Top and Bottom Border")}, {"fmt.border.topThickBottom", QT_TR_NOOP("Top and Thick Bottom Border")},
                    {"fmt.border.topDoubleBottom", QT_TR_NOOP("Top and Double Bottom Border")}, {"fmt.border.insideH", QT_TR_NOOP("Inside Horizontal Border")},
                    {"fmt.border.insideV", QT_TR_NOOP("Inside Vertical Border")}, {"fmt.border.inside", QT_TR_NOOP("Inside Borders")}};
-    for (int i = 0; i < int(sizeof(borders) / sizeof(borders[0])); ++i) add(QString::fromLatin1(borders[i].id), tr(borders[i].text), "grid-2x2", QKeySequence(), [this, i] { borderCommand(i); });
-    add(QStringLiteral("fmt.borders"), tr("Borders"), "grid-2x2", QKeySequence(), [this] { borderCommand(m_lastBorder); });
+    for (int i = 0; i < int(sizeof(borders) / sizeof(borders[0])); ++i) add(QString::fromLatin1(borders[i].id), tr(borders[i].text), "", QKeySequence(), [this, i] { borderCommand(i); });
+    for (int i = 0; i < int(sizeof(borders) / sizeof(borders[0])); ++i) act(QString::fromLatin1(borders[i].id))->setIcon(borderIconOf(i));
+    add(QStringLiteral("fmt.borders"), tr("Borders"), "", QKeySequence(), [this] { borderCommand(m_lastBorder); });
+    act(QStringLiteral("fmt.borders"))->setIcon(borderIconOf(m_lastBorder));
     // Clear
     add(QStringLiteral("edit.clear.all"), tr("Clear All"), "eraser", QKeySequence(), [this] { clearCommand(0); });
     add(QStringLiteral("edit.clear.formats"), tr("Clear Formats"), "eraser", QKeySequence(), [this] { clearCommand(1); });
@@ -606,6 +644,7 @@ void CrunchWindow::borderCommand(int kind)
     case InsideBorders: ops = {{E::EdgeInsideHorizontal | E::EdgeInsideVertical, line}}; break;
     }
     m_lastBorder = kind;
+    act(QStringLiteral("fmt.borders"))->setIcon(borderIconOf(kind));
     const CellRange range = selectedRange();
     QUndoStack *u = m_session->undoStack();
     const QString text = kind == NoBorder ? tr("Remove Borders") : tr("Borders");

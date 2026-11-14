@@ -497,6 +497,26 @@ private Q_SLOTS:
         QTRY_VERIFY_WITH_TIMEOUT(clear->isEnabled(), 5000);
     }
 
+    // Every border command has its own icon, and the Borders button wears the one last used.
+    void theBorderCommandsHaveDistinctIcons()
+    {
+        EditWindow e;
+        QVERIFY(e.open(uiBook()));
+        const char *ids[] = {"bottom", "top", "left", "right", "none", "all", "outside", "thickOutside", "bottomDouble", "thickBottom", "topBottom", "topThickBottom", "topDoubleBottom", "insideH", "insideV", "inside"};
+        QList<QImage> images;
+        for (const char *id : ids) {
+            const QAction *a = e.win.w.act(QString::fromLatin1("fmt.border.") + QString::fromLatin1(id));
+            QVERIFY(a);
+            images << a->icon().pixmap(32, 32).toImage();
+        }
+        QCOMPARE(images.size(), 16);
+        for (int i = 0; i < images.size(); ++i)
+            for (int j = i + 1; j < images.size(); ++j) QVERIFY2(images[i] != images[j], qPrintable(QStringLiteral("%1 and %2 share an icon").arg(i).arg(j)));
+        selectRange(e, QStringLiteral("B2:C3"));
+        run(e, "fmt.border.thickOutside");
+        QCOMPARE(e.win.w.act(QStringLiteral("fmt.borders"))->icon().pixmap(32, 32).toImage(), images[7]);
+    }
+
     // The Borders menu: each command puts its lines on the edges of the block (in one step), the line style chosen is used, and No Border takes them all away.
     void theBordersMenu()
     {
