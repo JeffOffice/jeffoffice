@@ -2,12 +2,14 @@
 // Hyperlinks: a web address, an email address, or a place in the document (a bookmark), over text. The link is a pair of tags round the text (w:hyperlink), as the file keeps it;
 // an address outside the file is a relationship of the main part.
 
+#include "core/fieldops.h"
 #include "core/writedoc.h"
 
 #include <QString>
 #include <QVector>
 
 class QTextCursor;
+class QTextDocument;
 
 namespace jp::write {
 
@@ -49,5 +51,8 @@ struct LinkSpan {
 };
 constexpr int kMostLinkSpans = 20000;
 QVector<LinkSpan> linkSpans(WriteDoc &doc);
+// The links of another story (a header's, a footer's, a note's, a text box's, in the form a page shows it): only the hyperlinks, whose addresses are those of the part `source` is of (null:
+// the main part), and whose places are the bookmarks of the main text (`scan` is its scan). The positions are the story's own.
+QVector<LinkSpan> linkSpansIn(WriteDoc &doc, QTextDocument *story, const QTextDocument *source, const StoryScan &scan);
 
 } // namespace jp::write

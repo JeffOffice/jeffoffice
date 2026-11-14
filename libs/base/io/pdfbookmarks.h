@@ -25,6 +25,8 @@ struct PdfLink {
     QRectF rect;         // the area to click, in the page's own units (points), from its bottom left, as a PDF counts
     QString uri;         // a web or email address; empty for a link to a page of the file
     int toPage = -1;     // for a link to a page of the file: the page it goes to, counted from 0
+    bool hasSpot = false;   // for a link to a page of the file: it goes to a spot on the page, not the page as a whole
+    QPointF spot;           // the spot, in the page's own units (points), from its bottom left, as a PDF counts: where the top left of the window is put
 };
 
 constexpr int kMostPdfLinks = 20000;

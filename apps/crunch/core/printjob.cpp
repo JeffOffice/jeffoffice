@@ -127,6 +127,14 @@ std::vector<PrintLink> BookPrintSource::links(int sheet) const
     return out;
 }
 
+QString BookPrintSource::nameText(int sheet, const QString &name) const
+{
+    QString text;
+    if (!m_book || !m_book->calc) return {};
+    if (!m_book->calc->nameText(sheet, name, &text) && !m_book->calc->nameText(-1, name, &text)) return {};
+    return text.startsWith(QLatin1Char('=')) ? text.mid(1) : text;
+}
+
 QString BookPrintSource::baseFontFamily() const { return m_book->book->styles().font(0).name; }
 
 double BookPrintSource::baseFontPoints() const { return m_book->book->styles().font(0).size; }
@@ -855,6 +863,8 @@ QVector<jp::PdfLink> PrintJob::pdfLinks(const QVector<int> &pdfPageOf)
             if (!l.range.valid) continue;
             int toPage = -1;
             QString uri;
+            bool hasSpot = false;
+            QPointF spot;
             if (!l.target.isEmpty()) {
                 if (!jp::clickableAddress(l.target)) continue;
                 uri = l.target;
@@ -862,6 +872,7 @@ QVector<jp::PdfLink> PrintJob::pdfLinks(const QVector<int> &pdfPageOf)
                 // a place in the workbook: "Sheet2!B5" (a defined name has no place to go to here)
                 QString place = l.location.trimmed();
                 if (place.startsWith(QLatin1Char('#'))) place.remove(0, 1);
+                if (place.lastIndexOf(QLatin1Char('!')) < 0) place = m_source->nameText(sheet, place);   // (a defined name: the cells it stands for)
                 const qsizetype bang = place.lastIndexOf(QLatin1Char('!'));
                 if (bang < 0) continue;
                 QString name = place.left(bang);
@@ -872,6 +883,11 @@ QVector<jp::PdfLink> PrintJob::pdfLinks(const QVector<int> &pdfPageOf)
                 const int target = pageOfCell(at.value(), to.row1, to.col1);
                 if (target < 0 || target >= pdfPageOf.size() || pdfPageOf[target] < 0) continue;
                 toPage = pdfPageOf[target];
+                QRectF cell;
+                if (cellRect(target, to.row1, to.col1, &cell)) {
+                    hasSpot = true;
+                    spot = QPointF(cell.left(), pageSize(target).height() - cell.top());
+                }
             }
             QRectF r;
             if (!rangeRect(page, l.range.row1, l.range.col1, l.range.row2, l.range.col2, &r)) continue;
@@ -881,6 +897,8 @@ QVector<jp::PdfLink> PrintJob::pdfLinks(const QVector<int> &pdfPageOf)
             k.rect = QRectF(QPointF(r.left(), height - r.bottom()), QPointF(r.right(), height - r.top()));
             k.uri = uri;
             k.toPage = toPage;
+            k.hasSpot = hasSpot;
+            k.spot = spot;
             out.push_back(k);
             if (out.size() >= jp::kMostPdfLinks) return out;
         }

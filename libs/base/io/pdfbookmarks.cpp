@@ -291,7 +291,7 @@ QByteArray addPdfLinks(const QByteArray &pdf, const QVector<PdfLink> &linksIn)
             // (an address is 7-bit text: anything else, and the characters a string needs escaped, are written as %xx)
             a += "/A << /S /URI /URI (" + l.uri.toUtf8().toPercentEncoding("-._~:/?#[]@!$&'*+,;=%") + ") >>";
         } else
-            a += "/Dest [" + QByteArray::number(pageObjects[l.toPage]) + " 0 R /Fit]";
+            a += "/Dest [" + QByteArray::number(pageObjects[l.toPage]) + (l.hasSpot ? " 0 R /XYZ " + number(l.spot.x()) + ' ' + number(l.spot.y()) + " null]" : QByteArray(" 0 R /Fit]"));
         a += " >>\nendobj\n";
         mine[l.page] << firstNew + int(annots.size());
         annots << a;

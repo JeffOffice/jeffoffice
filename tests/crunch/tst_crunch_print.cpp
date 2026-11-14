@@ -1926,6 +1926,47 @@ void CrunchPrintTests::aPdfHasClickableLinksOverLinkedCells()
     }
 }
 
+// A link to a defined name goes to the name's first cell, to the spot of the cell on its page (not the page's top) when that page is in the PDF.
+void CrunchPrintTests::aLinkToADefinedNameGoesToItsCellsSpot()
+{
+    using namespace jp::office::sheet;
+    const QByteArray first = worksheet(QStringLiteral("<row r=\"3\"><c r=\"A3\" t=\"inlineStr\"><is><t>name</t></is></c></row>"));
+    QString rows;
+    for (int i = 1; i <= 10; ++i) rows += QStringLiteral("<row r=\"%1\"><c r=\"A%1\" t=\"inlineStr\"><is><t>row</t></is></c></row>").arg(i);
+    const QByteArray other = worksheet(rows);
+    EditWindow e;
+    QVERIFY(e.open(buildXlsx({first, other}, QByteArray(), QString(), QString(), budgetStyles(), QStringList({"Links", "Other"}))));
+    CrunchWindow &w = e.win.w;
+    crunch::EditSession *s = w.session();
+    crunch::EditSession::NameDraft draft;
+    draft.name = QStringLiteral("Target");
+    draft.text = QStringLiteral("=Other!$A$8:$B$9");
+    int made = -1;
+    QVERIFY(s->defineName(draft, &made).ok);
+    CellRange r;
+    parseRangeRef(QStringLiteral("A3"), &r);
+    LinkSpec l;
+    l.location = QStringLiteral("Target");
+    QVERIFY(s->setLink(0, r, l, QStringLiteral("Link")).ok);
+    QString path = e.folder.dir.filePath(QStringLiteral("name.pdf"));
+    w.setSavePicker([&](const QString &, const QString &) { return path; });
+    QVERIFY(w.exportPdf(true, false));
+    QFile f(path);
+    QVERIFY(f.open(QIODevice::ReadOnly));
+    const QByteArray pdf = f.readAll();
+    jp::QtPdf q;
+    QVERIFY(q.loadBytes(pdf.left(int(pdf.indexOf("%%EOF")) + 6)));
+    QVector<int> pageIds;
+    for (const jp::QtPdf::Obj &obj : q.objects)
+        if (obj.body.contains("/Type /Page\n")) pageIds << obj.id;
+    QCOMPARE(pageIds.size(), 2);
+    const QRegularExpression xyz(QStringLiteral("/Dest \\[%1 0 R /XYZ ([-0-9.]+) ([-0-9.]+) null\\]").arg(pageIds[1]));
+    const auto m = xyz.match(QString::fromLatin1(pdf));
+    QVERIFY2(m.hasMatch(), "no link to the cell of the name");
+    // the eighth row is below the page's top margin by seven rows' height: the spot is under the top of the page (a point count under 792 less the margin)
+    QVERIFY2(m.captured(2).toDouble() > 0 && m.captured(2).toDouble() < 700, qPrintable(m.captured(2)));
+}
+
 // A PDF can be protected with a password: the file is encrypted (AES-256), opens with the password and not without, is not PDF/A, and the plain PDF is not left beside it.
 void CrunchPrintTests::exportToPdfCanBeProtectedWithAPassword()
 {

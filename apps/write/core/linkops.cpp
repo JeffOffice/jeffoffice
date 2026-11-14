@@ -222,22 +222,69 @@ QVector<LinkSpan> linkSpans(WriteDoc &doc)
             }
         }
     }
-    // The cross-references with the \h switch that are not inside a hyperlink already.
+    // The cross-references with the \h switch, and the HYPERLINK fields, that are not inside a hyperlink already.
     const int hyperlinks = int(out.size());
     for (int i = 0; i < scan.fields.size() && out.size() < kMostLinkSpans; ++i) {
         const FieldPlace &f = scan.fields[i];
-        if (f.name != QLatin1String("REF") && f.name != QLatin1String("PAGEREF") && f.name != QLatin1String("NOTEREF")) continue;
+        const bool cross = f.name == QLatin1String("REF") || f.name == QLatin1String("PAGEREF") || f.name == QLatin1String("NOTEREF");
+        if (!cross && f.name != QLatin1String("HYPERLINK")) continue;
         if (f.separate < 0 || f.end <= f.separate + 1) continue;
         const fields::Code code = fields::parseCode(scan.instructionOf(i));
-        if (!code.has(QLatin1Char('h'))) continue;
         LinkSpan s;
         s.from = f.separate + 1;
         s.to = f.end;
-        s.target = place(code.arguments.value(0));
-        if (s.target < 0) continue;
+        if (cross) {
+            if (!code.has(QLatin1Char('h'))) continue;
+            s.target = place(code.arguments.value(0));
+        } else if (code.has(QLatin1Char('l'))) {
+            s.target = place(code.argumentOf(QLatin1Char('l')));   // (a place in this document: its bookmark)
+        } else if (mayFollow(code.arguments.value(0))) {
+            s.uri = code.arguments.value(0);
+        }
+        if (s.target < 0 && s.uri.isEmpty()) continue;
         bool inside = false;
         for (int k = 0; k < hyperlinks && !inside; ++k) inside = out[k].from <= s.from && s.to <= out[k].to;
         if (!inside) out.push_back(s);
+    }
+    return out;
+}
+
+QVector<LinkSpan> linkSpansIn(WriteDoc &doc, QTextDocument *story, const QTextDocument *source, const StoryScan &scan)
+{
+    QVector<LinkSpan> out;
+    for (QTextBlock b = story->begin(); b.isValid() && out.size() < kMostLinkSpans; b = b.next()) {
+        QVector<std::pair<int, QByteArray>> open;
+        for (auto it = b.begin(); !it.atEnd(); ++it) {
+            const QTextFragment frag = it.fragment();
+            const QTextCharFormat cf = frag.charFormat();
+            if (!cf.hasProperty(prop::Atom)) continue;
+            const QByteArray bytes = storedBytes(cf, prop::Atom);
+            if (!bytes.contains("hyperlink")) continue;
+            const Inline a = unpackAtom(bytes);
+            if (a.tag != QLatin1String("hyperlink")) continue;
+            for (int k = 0; k < frag.length(); ++k) {
+                const int at = frag.position() + k;
+                if (a.role == Inline::Open) {
+                    open.push_back({at, a.raw});
+                } else if (a.role == Inline::Close && !open.isEmpty()) {
+                    const auto o = open.takeLast();
+                    if (at <= o.first + 1) continue;
+                    LinkSpan s;
+                    s.from = o.first + 1;
+                    s.to = at;
+                    const QString anchor = attribute(o.second, "anchor", "w");
+                    const QString id = attribute(o.second, "id", "r");
+                    if (!anchor.isEmpty()) {
+                        const auto found = scan.bookmarkByName.constFind(anchor.trimmed().toLower());
+                        if (found != scan.bookmarkByName.constEnd()) s.target = scan.bookmarks[found.value()].start;
+                    } else if (!id.isEmpty()) {
+                        const QString address = doc.linkAddress(source, id);
+                        if (mayFollow(address)) s.uri = address;
+                    }
+                    if (s.target >= 0 || !s.uri.isEmpty()) out.push_back(s);
+                }
+            }
+        }
     }
     return out;
 }

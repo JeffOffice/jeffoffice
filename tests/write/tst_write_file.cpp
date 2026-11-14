@@ -14,6 +14,7 @@
 #include "core/fonts.h"
 #include "app/emailops.h"
 #include "core/pdfbookmarks.h"
+#include "core/linkops.h"
 #include "core/refops.h"
 #include "core/tocops.h"
 #include "io/qtpdf.h"
@@ -758,6 +759,77 @@ private Q_SLOTS:
             QVERIFY(pdf.count("/Subtype /Link") >= 3);
             if (archive) QVERIFY(pdf.contains("<pdfaid:part>2</pdfaid:part>"));
         }
+    }
+
+    // A link in a table or in a header has its box where its words are, and a bookmark link (HYPERLINK \l) goes to the spot of its bookmark on the page, not the page's top.
+    void linksInTablesAndHeadersAndToBookmarksGoWhereTheyShould()
+    {
+        QTemporaryDir dir;
+        const QString docx = dir.filePath(QStringLiteral("spots.docx"));
+        {
+            office::PackageWriter w;
+            QByteArray later;
+            for (int i = 0; i < 12; ++i) later += para(nullptr, "filler");
+            const QByteArray jump = "<w:p><w:r><w:fldChar w:fldCharType=\"begin\"/></w:r><w:r><w:instrText xml:space=\"preserve\"> HYPERLINK \\l \"third\" </w:instrText></w:r>"
+                                    "<w:r><w:fldChar w:fldCharType=\"separate\"/></w:r><w:r><w:t>jump</w:t></w:r><w:r><w:fldChar w:fldCharType=\"end\"/></w:r></w:p>";
+            const QByteArray cell = "<w:tbl><w:tblPr><w:tblW w:w=\"0\" w:type=\"auto\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"4000\"/></w:tblGrid><w:tr><w:tc><w:p><w:r><w:t xml:space=\"preserve\">in a table: </w:t></w:r>"
+                                    "<w:hyperlink r:id=\"rId20\"><w:r><w:t>tablelink</w:t></w:r></w:hyperlink></w:p></w:tc></w:tr></w:tbl>";
+            const QByteArray body = para("Heading1", "Intro") + jump + cell + para(nullptr, "after") + kPageBreak + para("Heading1", "Second part") + later +
+                                    "<w:p><w:pPr><w:pStyle w:val=\"Heading1\"/></w:pPr><w:bookmarkStart w:id=\"7\" w:name=\"third\"/><w:r><w:t>Third part</w:t></w:r><w:bookmarkEnd w:id=\"7\"/></w:p>" + para(nullptr, "end") + "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdh\"/></w:sectPr>";
+            w.addPart(QStringLiteral("/word/document.xml"), QByteArray("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n<w:document ") + kNs + "><w:body>" + body + "</w:body></w:document>",
+                      kWord + QStringLiteral("document.main+xml"));
+            w.addRelationship(QStringLiteral("/"), kRel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+            w.addPart(QStringLiteral("/word/styles.xml"),
+                      QByteArray("<?xml version=\"1.0\"?><w:styles ") + kNs +
+                          "><w:style w:type=\"paragraph\" w:default=\"1\" w:styleId=\"Normal\"><w:name w:val=\"Normal\"/></w:style>"
+                          "<w:style w:type=\"paragraph\" w:styleId=\"Heading1\"><w:name w:val=\"heading 1\"/><w:pPr><w:outlineLvl w:val=\"0\"/></w:pPr></w:style></w:styles>",
+                      kWord + QStringLiteral("styles+xml"));
+            w.addRelationship(QStringLiteral("/word/document.xml"), kRel + QStringLiteral("styles"), QStringLiteral("/word/styles.xml"));
+            w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rId20"), kRel + QStringLiteral("hyperlink"), QStringLiteral("https://example.com/table"), true);
+            w.addPart(QStringLiteral("/word/header1.xml"), QByteArray("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n<w:hdr ") + kNs +
+                          "><w:p><w:r><w:t xml:space=\"preserve\">Head </w:t></w:r><w:hyperlink r:id=\"rId30\"><w:r><w:t>headerlink</w:t></w:r></w:hyperlink></w:p></w:hdr>",
+                      kWord + QStringLiteral("header+xml"));
+            w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdh"), kRel + QStringLiteral("header"), QStringLiteral("/word/header1.xml"));
+            w.addRelationshipWithId(QStringLiteral("/word/header1.xml"), QStringLiteral("rId30"), kRel + QStringLiteral("hyperlink"), QStringLiteral("https://example.com/header"), true);
+            QFile f(docx);
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write(w.finish());
+        }
+        WriteWindow w;
+        Quiet quiet(w);
+        QVERIFY(w.openFile(docx));
+        QString target = dir.filePath(QStringLiteral("spots.pdf"));
+        w.setSavePathChooser([&](const QString &, const QString &) { return target; });
+        QVERIFY(w.exportPdfPages(WriteOutputOptions()));
+        const QByteArray pdf = fileBytes(target);
+        jp::QtPdf q;
+        QVERIFY(q.loadBytes(pdf.left(int(pdf.indexOf("%%EOF")) + 6)));
+        QVector<int> pageIds;
+        for (const jp::QtPdf::Obj &obj : q.objects)
+            if (obj.body.contains("/Type /Page\n")) pageIds << obj.id;
+        QVERIFY(pageIds.size() >= 2);
+        auto rectOf = [&](const char *uri) {
+            const QRegularExpression re(QStringLiteral("/Rect \\[([-0-9. ]+)\\][^>]*/URI \\(") + QRegularExpression::escape(QString::fromLatin1(uri)) + QStringLiteral("\\)"));
+            const auto m = re.match(QString::fromLatin1(pdf));
+            QVector<double> v;
+            if (m.hasMatch())
+                for (const QString &n : m.captured(1).split(QLatin1Char(' '), Qt::SkipEmptyParts)) v << n.toDouble();
+            return v;
+        };
+        // the table's link: a box as small as its words (not the line the table's rows stand for), under the heading
+        const QVector<double> table = rectOf("https://example.com/table");
+        QVERIFY2(table.size() == 4, "no box for the link in the table");
+        QVERIFY(table[2] - table[0] > 10 && table[2] - table[0] < 200);
+        QVERIFY(table[3] - table[1] > 4 && table[3] - table[1] < 40);
+        // the header's link: in the top margin
+        const QVector<double> head = rectOf("https://example.com/header");
+        QVERIFY2(head.size() == 4, "no box for the link in the header");
+        QVERIFY2(head[1] > 700, qPrintable(QString::number(head[1])));
+        // the bookmark link goes to the spot of the bookmark on the second page, well below the page's top
+        QRegularExpression xyz(QStringLiteral("/Dest \\[%1 0 R /XYZ ([-0-9.]+) ([-0-9.]+) null\\]").arg(pageIds[1]));
+        const auto m = xyz.match(QString::fromLatin1(pdf));
+        QVERIFY2(m.hasMatch(), "no link to a spot of the second page");
+        QVERIFY2(m.captured(2).toDouble() > 0 && m.captured(2).toDouble() < 600, qPrintable(m.captured(2)));
     }
 
     void theBuiltInTemplatesOpenAndSaveAsDocx()

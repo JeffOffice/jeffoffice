@@ -64,6 +64,18 @@ QString WriteDoc::newPartName(bool footer) const
     }
 }
 
+QString WriteDoc::linkAddress(const QTextDocument *story, const QString &id) const
+{
+    QString part;
+    for (const HeaderPart &h : m_headerParts)
+        if (h.story.get() == story) part = h.name;
+    if (part.isEmpty() && story && footnoteIdOf(story)) part = QStringLiteral("/word/footnotes.xml");
+    if (!part.isEmpty())
+        for (const Relationship &r : m_wml.partRelationships.value(part))
+            if (r.id == id) return r.target;
+    return mainRelationship(id).target;
+}
+
 WriteDoc::HeaderPart *WriteDoc::addHeaderPart(bool footer, std::shared_ptr<QTextDocument> story, const QString &copyRelationshipsOf, bool withRelationship)
 {
     HeaderPart part;

@@ -48,12 +48,50 @@ QVector<PdfLink> sheetLinks(WriteDoc &doc, const QVector<int> &sheets)
 {
     QVector<PdfLink> out;
     const QVector<LinkSpan> spans = linkSpans(doc);
-    if (spans.isEmpty()) return out;
     LayoutCache cache;
     PaintContext ctx;
     ctx.opt.output = true;
     ctx.opt.textOutput = TextOutput::Pdf;
-    for (int sheet = 0; sheet < sheets.size(); ++sheet) {
+    const StoryScan scan = scanStory(doc.story());
+    // Where a place of the text is on its page: the spot, from the page's bottom left (false where the page is not one the PDF has, or the place is not on a line of it).
+    auto spotOf = [&](int position, QPointF *spot) {
+        const std::shared_ptr<flow::MaterializedPage> page = doc.pager().materialize(doc.pager().pageOfPosition(position));
+        if (!page) return false;
+        const double height = page->size.height();
+        for (const auto &fragment : page->tables) {
+            QLineF line;
+            if (fragment->contains(position) && fragment->caretLine(position, &line)) {
+                *spot = QPointF(line.x1(), height - std::min(line.y1(), line.y2()));
+                return true;
+            }
+        }
+        for (const QString &id : page->boxes) {
+            const Item *item = page->doc->item(id);
+            if (!item || item->type() != ItemType::Text) continue;
+            const auto *box = static_cast<const TextItem *>(item);
+            const LayoutCache::FrameLayout fl = cache.textFrame(*page->doc, *box, page->number, ctx.opt);
+            int frame = -1;
+            QRectF caret;
+            if (!fl.layout || fl.frame < 0 || !fl.layout->caretRect(position - page->storyFrom, &frame, &caret) || frame != fl.frame) continue;
+            const QRectF m = box->transform().mapRect(caret);
+            *spot = QPointF(m.left(), height - m.top());
+            return true;
+        }
+        return false;
+    };
+    auto link = [&](int sheet, const flow::MaterializedPage &page, const LinkSpan &s, const QRectF &r) {
+        PdfLink k;
+        k.page = sheet;
+        k.rect = QRectF(QPointF(r.left(), page.size.height() - r.bottom()), QPointF(r.right(), page.size.height() - r.top()));
+        k.uri = s.uri;
+        if (s.uri.isEmpty()) {
+            k.toPage = int(sheets.indexOf(doc.pager().pageOfPosition(s.target)));
+            if (k.toPage < 0) return;
+            k.hasSpot = spotOf(s.target, &k.spot);
+        }
+        out.push_back(k);
+    };
+    for (int sheet = 0; sheet < sheets.size() && out.size() < kMostPdfLinks; ++sheet) {
         const std::shared_ptr<flow::MaterializedPage> page = sheets[sheet] < 0 ? nullptr : doc.pager().materialize(sheets[sheet]);
         if (!page) continue;
         QString bodyId;
@@ -64,16 +102,14 @@ QVector<PdfLink> sheetLinks(WriteDoc &doc, const QVector<int> &sheets)
                     break;
                 }
         const Story *body = bodyId.isEmpty() ? nullptr : page->doc->story(bodyId);
-        if (!body || !body->doc) continue;
-        const int length = body->doc->characterCount();
+        const int length = body && body->doc ? body->doc->characterCount() : 0;
+        // The text of the page (a link in a table is looked at below, where its words are).
         for (const LinkSpan &s : spans) {
+            bool inTable = false;
+            for (const auto &fragment : page->tables) inTable = inTable || fragment->contains(s.from);
+            if (inTable) continue;
             const int from = std::max(0, s.from - page->storyFrom), to = std::min(length, s.to - page->storyFrom);
             if (to <= from) continue;
-            int toPage = -1;
-            if (s.uri.isEmpty()) {
-                toPage = int(sheets.indexOf(doc.pager().pageOfPosition(s.target)));
-                if (toPage < 0) continue;
-            }
             for (const QString &id : page->boxes) {
                 const Item *item = page->doc->item(id);
                 if (!item || item->type() != ItemType::Text) continue;
@@ -81,16 +117,40 @@ QVector<PdfLink> sheetLinks(WriteDoc &doc, const QVector<int> &sheets)
                 const LayoutCache::FrameLayout fl = cache.textFrame(*page->doc, *box, page->number, ctx.opt);
                 if (!fl.layout || fl.frame < 0) continue;
                 for (const QRectF &r : fl.layout->rangeRects(fl.frame, from, to)) {
-                    const QRectF m = box->transform().mapRect(r);
-                    PdfLink k;
-                    k.page = sheet;
-                    k.rect = QRectF(QPointF(m.left(), page->size.height() - m.bottom()), QPointF(m.right(), page->size.height() - m.top()));
-                    k.uri = s.uri;
-                    k.toPage = toPage;
-                    out.push_back(k);
+                    link(sheet, *page, s, box->transform().mapRect(r));
                     if (out.size() >= kMostPdfLinks) return out;
                 }
             }
+        }
+        // The tables: the words of a link on a line of a cell, from where it begins to where it ends; across lines, the cell.
+        for (const auto &fragment : page->tables) {
+            for (const LinkSpan &s : spans) {
+                if (!fragment->contains(s.from)) continue;
+                QLineF a, b;
+                QRectF box;
+                if (fragment->caretLine(s.from, &a) && fragment->caretLine(s.to, &b) && std::abs(a.y1() - b.y1()) < 0.5) box = QRectF(QPointF(a.x1(), std::min(a.y1(), a.y2())), QPointF(b.x1(), std::max(a.y1(), a.y2())));
+                else box = fragment->cellRect(s.from);
+                if (box.isEmpty()) continue;
+                link(sheet, *page, s, box);
+                if (out.size() >= kMostPdfLinks) return out;
+            }
+        }
+        // The other stories the page shows: a header, a footer, a note, a text box.
+        QHash<QString, const QTextDocument *> sourceOf;
+        for (const auto &fb : page->furniture) sourceOf.insert(fb.itemId, fb.source);
+        for (const auto &fb : page->noteBoxes) sourceOf.insert(fb.itemId, fb.source);
+        for (const auto &item : page->doc->pages[0]->items) {
+            if (item->type() != ItemType::Text || item->id.startsWith(QLatin1String("flow-box-"))) continue;
+            const auto *box = static_cast<const TextItem *>(item.get());
+            const Story *own = page->doc->story(box->storyId);
+            if (!own || !own->doc) continue;
+            const LayoutCache::FrameLayout fl = cache.textFrame(*page->doc, *box, page->number, ctx.opt);
+            if (!fl.layout || fl.frame < 0) continue;
+            for (const LinkSpan &s : linkSpansIn(doc, own->doc.get(), sourceOf.value(box->id), scan))
+                for (const QRectF &r : fl.layout->rangeRects(fl.frame, s.from, s.to)) {
+                    link(sheet, *page, s, box->transform().mapRect(r));
+                    if (out.size() >= kMostPdfLinks) return out;
+                }
         }
     }
     return out;

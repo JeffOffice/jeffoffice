@@ -231,6 +231,7 @@ private Q_SLOTS:
     void theHandRunsAreMadeOfPhysicalSheets();
     void exportToPdfWritesTheSheetOrTheWorkbook();
     void aPdfHasClickableLinksOverLinkedCells();
+    void aLinkToADefinedNameGoesToItsCellsSpot();
     void exportToPdfCanBeProtectedWithAPassword();
     void anEmailedPdfCanHaveAPassword();
     void aCancelledExportKeepsThePasswordOnThePage();

@@ -116,6 +116,8 @@ public:
     virtual std::vector<PrintNote> notes(int sheet) const { Q_UNUSED(sheet); return {}; }
     // The links on the cells of a sheet (those a person made, and the cells whose formula is HYPERLINK with an address typed in it).
     virtual std::vector<PrintLink> links(int sheet) const { Q_UNUSED(sheet); return {}; }
+    // What a defined name stands for ("Sheet2!$A$1:$B$2"), of the sheet's own, else the workbook's; empty for none or a name that is not a reference.
+    virtual QString nameText(int sheet, const QString &name) const { Q_UNUSED(sheet); Q_UNUSED(name); return {}; }
     // The font the header and footer begin in.
     virtual QString baseFontFamily() const = 0;
     virtual double baseFontPoints() const = 0;
@@ -137,6 +139,7 @@ public:
     std::vector<jp::grid::LayerObject> objects(int sheet) override;
     std::vector<PrintNote> notes(int sheet) const override;
     std::vector<PrintLink> links(int sheet) const override;
+    QString nameText(int sheet, const QString &name) const override;
     QString baseFontFamily() const override;
     double baseFontPoints() const override;
 
