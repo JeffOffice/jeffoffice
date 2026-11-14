@@ -1546,6 +1546,7 @@
     <file>app.png</file>
     <file>icon-tags.txt</file>
     <file>ribbon.json</file>
+    <file>cmdsearch.json</file>
     <file>fontwidths.txt</file>
     <file>fontkerning.txt</file>
   </qresource>

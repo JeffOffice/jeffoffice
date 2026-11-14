@@ -1,3 +1,4 @@
+#include "../cmdsearchcheck.h"
 #include "core/datafolder.h"
 #include "app/keymap.h"
 #include <QScopeGuard>
@@ -2937,6 +2938,16 @@ private Q_SLOTS:
         const QString shown = key.toString(QKeySequence::NativeText);
         QVERIFY2(w.act(QStringLiteral("edit.redo"))->toolTip().endsWith(QStringLiteral("(%1)").arg(shown)), qPrintable(w.act(QStringLiteral("edit.redo"))->toolTip()));
         QVERIFY(!w.act(QStringLiteral("edit.redo"))->toolTip().contains(QStringLiteral("Ctrl+Y")));
+    }
+    // The window has the command search box, in the ribbon's top row, and its extra words name only what the app has.
+    void theCommandSearchBoxIsInTheWindow()
+    {
+        jp::MainWindow w;
+        w.resize(1000, 700);
+        w.show();
+        const QString problem = jptest::commandSearchProblem(w, QStringLiteral(":/cmdsearch.json"), QStringLiteral("page size"), QStringLiteral("Size"));
+        QVERIFY2(problem.isEmpty(), qPrintable(problem));
+        jptest::saveCommandSearchPicture(w, QStringLiteral("jeffpub"), QStringLiteral("page size"));
     }
 };
 

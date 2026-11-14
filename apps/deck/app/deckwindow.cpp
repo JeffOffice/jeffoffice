@@ -1,3 +1,4 @@
+#include "app/commandsearch.h"
 #include "app/keymap.h"
 #include "app/ribboncustom.h"
 #include "app/deckwindow.h"
@@ -114,6 +115,7 @@ DeckWindow::DeckWindow(QWidget *parent) : AppWindow(parent)
     new KeyTips(this, m_ribbon, [this] { showFileScreen(); });   // Alt, F
     connect(m_ribbon, &Ribbon::fileClicked, this, [this] { showFileScreen(); });
     connect(m_ribbon, &Ribbon::leaveRequested, this, [this] { m_canvas->setFocus(Qt::OtherFocusReason); });
+    new CommandSearchBox(this, QStringLiteral(":/deck/cmdsearch.json"));
 
     m_refreshTimer.setSingleShot(true);
     m_refreshTimer.setInterval(30);
@@ -405,6 +407,10 @@ void DeckWindow::updateTitle()
 {
     setWindowTitle(QStringLiteral("%1%2%4 - %3").arg(m_ed->displayName(), m_ed->isModified() ? QStringLiteral("*") : QString(), appInfo().name, isReadOnly() ? tr(" (Read-Only)") : QString()));
 }
+
+FileScreen *DeckWindow::fileScreen() const { return m_fileScreen; }
+
+QStringList DeckWindow::optionsPageTitles() const { return {tr("View"), tr("Save")}; }
 
 void DeckWindow::showFileScreen(const QString &page)
 {

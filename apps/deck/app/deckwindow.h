@@ -343,6 +343,9 @@ public:
     // The File screen over the window, on a page ("new", "open", "print",
     // "export", "about"; the Open page when none is named), and back to the slides.
     void showFileScreen(const QString &page = QString());
+    FileScreen *fileScreen() const override;
+    void showFileScreenPage(const QString &page) override { showFileScreen(page); }
+    QStringList optionsPageTitles() const override;
     void hideFileScreen();
     // What the File screen's Print and Export pages do: ask where, then write
     // or print. False when nothing was written or sent.

@@ -1,0 +1,208 @@
+{
+ "commands": {
+  "cells.delete.rows": [
+   "delete row",
+   "remove row"
+  ],
+  "cells.delete.columns": [
+   "delete column",
+   "remove column"
+  ],
+  "cells.insert.rows": [
+   "add row",
+   "new row"
+  ],
+  "cells.insert.columns": [
+   "add column",
+   "new column"
+  ],
+  "ribbon.paperSize": [
+   "page size",
+   "paper size",
+   "paper"
+  ],
+  "ribbon.orientation": [
+   "landscape",
+   "portrait"
+  ],
+  "ribbon.margins": [
+   "page margins"
+  ],
+  "filter.toggle": [
+   "autofilter",
+   "funnel",
+   "narrow rows"
+  ],
+  "sort.custom": [
+   "order",
+   "arrange rows"
+  ],
+  "sort.ascending": [
+   "smallest to largest",
+   "a to z"
+  ],
+  "sort.descending": [
+   "largest to smallest",
+   "z to a"
+  ],
+  "ribbon.freeze": [
+   "lock rows",
+   "freeze header",
+   "keep visible"
+  ],
+  "insert.pivot": [
+   "summarize",
+   "cross tab"
+  ],
+  "ribbon.condFormat": [
+   "highlight cells",
+   "color scale",
+   "rules"
+  ],
+  "format.rowHeight": [
+   "row size"
+  ],
+  "format.columnWidth": [
+   "column size"
+  ],
+  "protect.sheet": [
+   "lock sheet",
+   "password"
+  ],
+  "edit.find": [
+   "search",
+   "locate"
+  ],
+  "find.replace": [
+   "substitute",
+   "change text"
+  ],
+  "ribbon.borders": [
+   "gridlines",
+   "outline cells"
+  ],
+  "insert.chart": [
+   "graph",
+   "plot"
+  ],
+  "review.spelling": [
+   "spell check",
+   "proofing"
+  ],
+  "ribbon.zoom": [
+   "magnify",
+   "scale"
+  ],
+  "data.textToColumns": [
+   "split cells",
+   "delimiter"
+  ],
+  "table.removeDuplicates": [
+   "unique",
+   "duplicates"
+  ],
+  "format.hideRows": [
+   "conceal rows"
+  ],
+  "format.hideColumns": [
+   "conceal columns"
+  ],
+  "ribbon.printArea": [
+   "print range"
+  ],
+  "ribbon.cellStyles": [
+   "good bad neutral",
+   "heading style"
+  ],
+  "insert.textBox": [
+   "text frame"
+  ],
+  "insert.table": [
+   "list",
+   "data table"
+  ],
+  "outline.groupRows": [
+   "collapse rows"
+  ]
+ },
+ "file": {
+  "new": [
+   "blank",
+   "template"
+  ],
+  "open": [
+   "browse",
+   "recent files"
+  ],
+  "info": [
+   "properties",
+   "author",
+   "document information"
+  ],
+  "save": [
+   "store"
+  ],
+  "print": [
+   "printer",
+   "paper"
+  ],
+  "export": [
+   "pdf",
+   "convert",
+   "save as"
+  ],
+  "close": [
+   "exit"
+  ],
+  "options": [
+   "settings",
+   "preferences"
+  ],
+  "about": [
+   "version",
+   "license"
+  ],
+  "saveAs": [
+   "rename",
+   "new name"
+  ],
+  "saveCopy": [
+   "duplicate"
+  ],
+  "saveTemplate": [
+   "template"
+  ],
+  "protectPassword": [
+   "encrypt",
+   "lock file"
+  ]
+ },
+ "options": {
+  "Save": [
+   "autosave",
+   "backup",
+   "autorecover"
+  ],
+  "Editing": [
+   "enter key",
+   "move selection",
+   "typing"
+  ],
+  "New Workbooks": [
+   "default font",
+   "default sheets"
+  ],
+  "Display": [
+   "screen",
+   "gridlines"
+  ],
+  "Privacy": [
+   "personal information",
+   "metadata"
+  ],
+  "Custom Lists": [
+   "fill series",
+   "sort order lists"
+  ]
+ }
+}

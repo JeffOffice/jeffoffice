@@ -1,4 +1,5 @@
 // JeffDeck's tests of the file screen, saving from the window, and reusing slides.
+#include "../cmdsearchcheck.h"
 #include "../aboutchecks.h"
 #include "../recoverygate.h"
 #include "../settingguard.h"
@@ -2172,6 +2173,18 @@ private Q_SLOTS:
             QVERIFY(!QFileInfo::exists(copy));
         }
         recovery::setRoot(QString());
+    }
+    // The window has the command search box, in the ribbon's top row, and its extra words name only what the app has.
+    void theCommandSearchBoxIsInTheWindow()
+    {
+        Q_INIT_RESOURCE(resources);
+        Q_INIT_RESOURCE(deck);   // (JeffDeck's ribbon and the command search's words)
+        DeckWindow w;
+        w.resize(1000, 700);
+        w.show();
+        const QString problem = jptest::commandSearchProblem(w, QStringLiteral(":/deck/cmdsearch.json"), QStringLiteral("page size"), QStringLiteral("Slide Size"));
+        QVERIFY2(problem.isEmpty(), qPrintable(problem));
+        jptest::saveCommandSearchPicture(w, QStringLiteral("jeffdeck"), QStringLiteral("page size"));
     }
 };
 

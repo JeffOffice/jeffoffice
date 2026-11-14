@@ -1,4 +1,5 @@
 // Tests of the Home, Insert, Formulas, and Data tab items added in round 12: Icons on the sheet, Edit Links, and the rest of the small items listed with them. Every workbook is built here.
+#include "../cmdsearchcheck.h"
 #include "app/crunchinfo.h"
 #include "app/crunchwindow.h"
 #include "core/appinfo.h"
@@ -142,6 +143,18 @@ private Q_SLOTS:
         const QByteArray drawing = p.part(QStringLiteral("/xl/drawings/drawing1.xml"));
         QVERIFY(drawing.contains("C5E0B3"));
         QVERIFY(drawing.contains("548235"));
+    }
+    // The window has the command search box, in the ribbon's top row, and its extra words name only what the app has.
+    void theCommandSearchBoxIsInTheWindow()
+    {
+        Q_INIT_RESOURCE(resources);
+        Q_INIT_RESOURCE(crunch);   // (JeffCrunch's ribbon and the command search's words)
+        CrunchWindow w;
+        w.resize(1000, 700);
+        w.show();
+        const QString problem = jptest::commandSearchProblem(w, QStringLiteral(":/crunch/cmdsearch.json"), QStringLiteral("page size"), QStringLiteral("Size"));
+        QVERIFY2(problem.isEmpty(), qPrintable(problem));
+        jptest::saveCommandSearchPicture(w, QStringLiteral("jeffcrunch"), QStringLiteral("page size"));
     }
 };
 

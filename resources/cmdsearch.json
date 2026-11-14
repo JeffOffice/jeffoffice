@@ -1,0 +1,206 @@
+{
+ "commands": {
+  "ribbon.pageSize": [
+   "page size",
+   "paper size",
+   "paper"
+  ],
+  "ribbon.lineSpacing": [
+   "line spacing",
+   "double space"
+  ],
+  "ribbon.paragraphSpacing": [
+   "space between paragraphs"
+  ],
+  "ribbon.pageMargins": [
+   "page margins",
+   "margin guides"
+  ],
+  "ribbon.orientation": [
+   "landscape",
+   "portrait"
+  ],
+  "ribbon.columns": [
+   "newspaper",
+   "split text"
+  ],
+  "ribbon.changeCase": [
+   "uppercase",
+   "lowercase",
+   "capitalize"
+  ],
+  "ribbon.dropCap": [
+   "big first letter"
+  ],
+  "ribbon.wrapText": [
+   "text wrap",
+   "wrap around",
+   "flow around"
+  ],
+  "ribbon.guides": [
+   "rulers",
+   "gridlines",
+   "layout guides"
+  ],
+  "ribbon.masterPages": [
+   "background page"
+  ],
+  "ribbon.mailMerge": [
+   "form letters",
+   "recipients"
+  ],
+  "ribbon.finishMerge": [
+   "print merge",
+   "merge to pdf"
+  ],
+  "file.exportPdf": [
+   "pdf",
+   "create pdf"
+  ],
+  "file.print": [
+   "printer",
+   "paper"
+  ],
+  "ins.picture": [
+   "image",
+   "photo"
+  ],
+  "ins.textbox": [
+   "text frame",
+   "type"
+  ],
+  "ins.tableDialog": [
+   "grid",
+   "rows and columns"
+  ],
+  "tbl.delRow": [
+   "delete row",
+   "remove row"
+  ],
+  "tbl.delCol": [
+   "delete column",
+   "remove column"
+  ],
+  "pd.changeTemplate": [
+   "template",
+   "design"
+  ],
+  "view.master": [
+   "master"
+  ],
+  "zoom.page": [
+   "fit page",
+   "whole page"
+  ],
+  "rev.spelling": [
+   "spell check",
+   "proofing"
+  ],
+  "edit.find": [
+   "search",
+   "locate"
+  ],
+  "edit.replace": [
+   "substitute",
+   "change text"
+  ],
+  "fmt.bold": [
+   "heavy",
+   "strong"
+  ],
+  "para.bullets": [
+   "list",
+   "bulleted"
+  ],
+  "para.numbers": [
+   "numbered list",
+   "ordered"
+  ],
+  "comment.new": [
+   "note",
+   "annotation"
+  ],
+  "arr.group": [
+   "combine objects"
+  ],
+  "ribbon.chart": [
+   "graph",
+   "plot"
+  ],
+  "ribbon.rotate": [
+   "turn",
+   "flip"
+  ],
+  "ribbon.align": [
+   "line up",
+   "distribute"
+  ],
+  "ribbon.businessInfo": [
+   "company details",
+   "logo"
+  ]
+ },
+ "file": {
+  "new": [
+   "blank",
+   "template"
+  ],
+  "open": [
+   "browse",
+   "recent files"
+  ],
+  "info": [
+   "properties",
+   "author",
+   "document information"
+  ],
+  "save": [
+   "store"
+  ],
+  "print": [
+   "printer",
+   "paper"
+  ],
+  "export": [
+   "pdf",
+   "convert",
+   "save as"
+  ],
+  "close": [
+   "exit"
+  ],
+  "options": [
+   "settings",
+   "preferences"
+  ],
+  "about": [
+   "version",
+   "license"
+  ],
+  "saveas": [
+   "rename",
+   "new name"
+  ],
+  "savecopy": [
+   "duplicate"
+  ],
+  "savetemplate": [
+   "template"
+  ],
+  "share": [
+   "email",
+   "send",
+   "package"
+  ]
+ },
+ "options": {
+  "Save": [
+   "autosave",
+   "backup",
+   "autorecover"
+  ],
+  "Advanced": [
+   "more settings"
+  ]
+ }
+}

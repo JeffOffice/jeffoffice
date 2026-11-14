@@ -673,6 +673,9 @@ public:
 
     // ---- the File screen, Help
     void showFileScreen(const QString &page = QString());
+    FileScreen *fileScreen() const override;
+    void showFileScreenPage(const QString &page) override { showFileScreen(page); }
+    QStringList optionsPageTitles() const override;
     void hideFileScreen();
     void showHelp(const QString &topic = QString());
     HelpView *helpView() const { return m_help; }

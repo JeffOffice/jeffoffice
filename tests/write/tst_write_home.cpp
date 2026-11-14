@@ -1,6 +1,7 @@
 // Tests of JeffWrite's Home and Review tab commands that work on text and settings (apps/write/core/homeops.*, proofops.*, and the window's actions).
 // Each document is built here from a few lines of XML.
 
+#include "../cmdsearchcheck.h"
 #include "../isolatesettings.h"
 #include "app/widgets.h"
 #include "app/settings.h"
@@ -2774,6 +2775,17 @@ private Q_SLOTS:
         QCOMPARE(goToPosition(*doc, GoToKind::Table, QStringLiteral("3"), 0), -1);
         QVERIFY(goToPosition(*doc, GoToKind::Graphic, QStringLiteral("1"), 0) > goToPosition(*doc, GoToKind::Equation, QStringLiteral("1"), 0));
         QVERIFY(goToPosition(*doc, GoToKind::Comment, QStringLiteral("1"), 0) < goToPosition(*doc, GoToKind::Endnote, QStringLiteral("1"), 0));
+    }
+    // The window has the command search box, in the ribbon's top row, and its extra words name only what the app has.
+    void theCommandSearchBoxIsInTheWindow()
+    {
+        Q_INIT_RESOURCE(write);   // (JeffWrite's ribbon and the command search's words)
+        WriteWindow w;
+        w.resize(1000, 700);
+        w.show();
+        const QString problem = jptest::commandSearchProblem(w, QStringLiteral(":/write/cmdsearch.json"), QStringLiteral("page size"), QStringLiteral("Size"));
+        QVERIFY2(problem.isEmpty(), qPrintable(problem));
+        jptest::saveCommandSearchPicture(w, QStringLiteral("jeffwrite"), QStringLiteral("page size"));
     }
 };
 

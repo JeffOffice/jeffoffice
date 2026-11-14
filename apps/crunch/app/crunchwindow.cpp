@@ -1,3 +1,4 @@
+#include "app/commandsearch.h"
 #include "app/keymap.h"
 #include "app/ribboncustom.h"
 #include "app/crunchwindow.h"
@@ -151,6 +152,7 @@ CrunchWindow::CrunchWindow(QWidget *parent) : AppWindow(parent)
     new KeyTips(this, m_ribbon, [this] { showFileScreen(); });   // Alt, F
     connect(m_ribbon, &Ribbon::fileClicked, this, [this] { showFileScreen(); });
     connect(m_ribbon, &Ribbon::leaveRequested, this, [this] { m_view->setFocus(Qt::OtherFocusReason); });
+    new CommandSearchBox(this, QStringLiteral(":/crunch/cmdsearch.json"));
     connect(m_view, &grid::GridView::selectionChanged, this, &CrunchWindow::updateBars);
     connect(m_view, &grid::GridView::breakMoveRequested, this, &CrunchWindow::breakLineMoved);
     connect(m_view, &grid::GridView::printEdgeRequested, this, &CrunchWindow::printEdgeMoved);
@@ -990,6 +992,13 @@ void CrunchWindow::showFileScreen(const QString &page)
     m_fileScreen->raise();
     m_fileScreen->setFocus();
     qApp->installEventFilter(this);
+}
+
+FileScreen *CrunchWindow::fileScreen() const { return m_fileScreen; }
+
+QStringList CrunchWindow::optionsPageTitles() const
+{
+    return {tr("Save"), tr("Editing"), tr("New Workbooks"), tr("Display"), tr("Privacy"), tr("Custom Lists")};
 }
 
 void CrunchWindow::hideFileScreen()

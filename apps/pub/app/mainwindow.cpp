@@ -1,4 +1,5 @@
 #include <QScopeGuard>
+#include "app/commandsearch.h"
 #include "app/keymap.h"
 #include "app/ribboncustom.h"
 #include "app/mainwindow.h"
@@ -162,6 +163,7 @@ MainWindow::MainWindow(QWidget *parent) : AppWindow(parent)
     connect(m_ribbon, &Ribbon::fileClicked, this, [this] { showBackstage(); });
     connect(m_ribbon, &Ribbon::helpClicked, this, [this] { act(QStringLiteral("help.show"))->trigger(); });
     connect(m_ribbon, &Ribbon::leaveRequested, this, [this] { m_canvas->setFocus(Qt::OtherFocusReason); });
+    new CommandSearchBox(this, QStringLiteral(":/cmdsearch.json"));
     // F6 and Shift+F6 move the keyboard between the window's parts: the
     // ribbon, the page thumbnails, and the page.
     auto cycle = [this](int dir) {
@@ -399,6 +401,13 @@ QString MainWindow::helpContext() const
         key = QStringLiteral("item:") + QLatin1String(kind);
     } else if (!m_ed->selection().isEmpty()) key = QStringLiteral("item:several");
     return key.isEmpty() ? QString() : help::contextTopic(key);
+}
+
+FileScreen *MainWindow::fileScreen() const { return m_backstage; }
+
+QStringList MainWindow::optionsPageTitles() const
+{
+    return {QCoreApplication::translate("Dialogs", "Save"), QCoreApplication::translate("Dialogs", "Advanced")};
 }
 
 void MainWindow::showBackstage(const QString &page)

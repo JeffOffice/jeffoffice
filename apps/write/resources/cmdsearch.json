@@ -1,0 +1,202 @@
+{
+ "commands": {
+  "ribbon.size": [
+   "page size",
+   "paper size",
+   "paper"
+  ],
+  "ribbon.lineSpacing": [
+   "line spacing",
+   "double space",
+   "single space"
+  ],
+  "ribbon.margins": [
+   "page margins"
+  ],
+  "ribbon.orientation": [
+   "landscape",
+   "portrait",
+   "rotate page"
+  ],
+  "ribbon.columns": [
+   "newspaper",
+   "split text"
+  ],
+  "ribbon.breaks": [
+   "page break",
+   "section break"
+  ],
+  "ribbon.watermark": [
+   "draft",
+   "confidential",
+   "background text"
+  ],
+  "ribbon.table": [
+   "grid",
+   "rows and columns"
+  ],
+  "review.trackChanges": [
+   "revisions",
+   "redline",
+   "edits"
+  ],
+  "review.spelling": [
+   "spell check",
+   "grammar",
+   "proofing"
+  ],
+  "review.wordCount": [
+   "count words",
+   "characters",
+   "statistics"
+  ],
+  "edit.find": [
+   "search",
+   "locate"
+  ],
+  "edit.replace": [
+   "substitute",
+   "change text"
+  ],
+  "file.print": [
+   "printer",
+   "paper"
+  ],
+  "file.exportPdf": [
+   "pdf",
+   "save as pdf"
+  ],
+  "insert.picture": [
+   "image",
+   "photo"
+  ],
+  "insert.hyperlink": [
+   "link",
+   "url",
+   "web address"
+  ],
+  "fmt.bold": [
+   "heavy",
+   "strong"
+  ],
+  "fmt.italic": [
+   "slant",
+   "emphasis"
+  ],
+  "edit.formatPainter": [
+   "copy format",
+   "brush"
+  ],
+  "ribbon.changeCase": [
+   "uppercase",
+   "lowercase",
+   "capitalize"
+  ],
+  "review.newComment": [
+   "note",
+   "annotation"
+  ],
+  "refs.footnote": [
+   "note at bottom"
+  ],
+  "ribbon.tocGallery": [
+   "contents",
+   "toc"
+  ],
+  "para.bullets": [
+   "list",
+   "bulleted"
+  ],
+  "para.numbers": [
+   "numbered list",
+   "ordered"
+  ],
+  "para.sort": [
+   "alphabetize",
+   "order"
+  ],
+  "ribbon.highlight": [
+   "marker",
+   "yellow"
+  ],
+  "design.pageBorders": [
+   "frame",
+   "box around page"
+  ],
+  "insert.pageBreak": [
+   "new page"
+  ],
+  "ribbon.textBox": [
+   "text frame"
+  ],
+  "zoom.dialog": [
+   "magnify",
+   "scale"
+  ],
+  "ribbon.cover": [
+   "title page"
+  ]
+ },
+ "file": {
+  "new": [
+   "blank",
+   "template"
+  ],
+  "open": [
+   "browse",
+   "recent files"
+  ],
+  "info": [
+   "properties",
+   "author",
+   "document information"
+  ],
+  "save": [
+   "store"
+  ],
+  "print": [
+   "printer",
+   "paper"
+  ],
+  "export": [
+   "pdf",
+   "convert",
+   "save as"
+  ],
+  "close": [
+   "exit"
+  ],
+  "options": [
+   "settings",
+   "preferences"
+  ],
+  "about": [
+   "version",
+   "license"
+  ],
+  "saveas": [
+   "rename",
+   "new name"
+  ],
+  "savecopy": [
+   "duplicate"
+  ],
+  "savetemplate": [
+   "template"
+  ]
+ },
+ "options": {
+  "Save": [
+   "autosave",
+   "backup",
+   "autorecover"
+  ],
+  "Display": [
+   "screen",
+   "show on screen"
+  ],
+  "Advanced": [
+   "more settings"
+  ]
+ }
+}

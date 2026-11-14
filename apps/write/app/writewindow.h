@@ -267,6 +267,9 @@ public:
 
     // The File screen over the window, on a page ("new", "open", "print", "export", "about"; Open when none is named), and back.
     void showFileScreen(const QString &page = QString());
+    FileScreen *fileScreen() const override;
+    void showFileScreenPage(const QString &page) override { showFileScreen(page); }
+    QStringList optionsPageTitles() const override;
     void hideFileScreen();
     bool printOutput(const WriteOutputOptions &options);
     bool exportPdf();

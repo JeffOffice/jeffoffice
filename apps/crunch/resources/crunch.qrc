@@ -1,5 +1,6 @@
 <RCC>
     <qresource prefix="/crunch">
         <file>ribbon.json</file>
+        <file>cmdsearch.json</file>
     </qresource>
 </RCC>

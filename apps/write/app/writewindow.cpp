@@ -1,3 +1,4 @@
+#include "app/commandsearch.h"
 #include "app/keymap.h"
 #include "app/ribboncustom.h"
 #include "app/writewindow.h"
@@ -138,6 +139,7 @@ WriteWindow::WriteWindow(QWidget *parent) : AppWindow(parent)
     new KeyTips(this, m_ribbon, [this] { showFileScreen(); });   // Alt, F
     connect(m_ribbon, &Ribbon::fileClicked, this, [this] { showFileScreen(); });
     connect(m_ribbon, &Ribbon::leaveRequested, this, [this] { m_view->setFocus(Qt::OtherFocusReason); });
+    new CommandSearchBox(this, QStringLiteral(":/write/cmdsearch.json"));
 
     m_reviewStateTimer.setSingleShot(true);
     m_reviewStateTimer.setInterval(400);
@@ -741,6 +743,13 @@ void WriteWindow::showFileScreen(const QString &page)
     m_fileScreen->raise();
     m_fileScreen->setFocus();
     qApp->installEventFilter(this);
+}
+
+FileScreen *WriteWindow::fileScreen() const { return m_fileScreen; }
+
+QStringList WriteWindow::optionsPageTitles() const
+{
+    return {QCoreApplication::translate("Dialogs", "Save"), QCoreApplication::translate("Dialogs", "Display"), QCoreApplication::translate("Dialogs", "Advanced")};
 }
 
 void WriteWindow::hideFileScreen()

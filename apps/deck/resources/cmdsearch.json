@@ -1,0 +1,189 @@
+{
+ "commands": {
+  "ribbon.slideSize": [
+   "page size",
+   "aspect ratio",
+   "widescreen",
+   "4:3",
+   "16:9"
+  ],
+  "slide.new": [
+   "add slide",
+   "new page"
+  ],
+  "slide.duplicate": [
+   "copy slide"
+  ],
+  "slide.delete": [
+   "remove slide"
+  ],
+  "slide.hide": [
+   "skip slide"
+  ],
+  "view.slideShow": [
+   "present",
+   "presentation mode",
+   "play"
+  ],
+  "show.fromCurrent": [
+   "start here",
+   "present from here"
+  ],
+  "show.setUp": [
+   "kiosk",
+   "presenter"
+  ],
+  "ribbon.layout": [
+   "slide layout"
+  ],
+  "ribbon.masterThemes": [
+   "theme",
+   "design"
+  ],
+  "anim.pane": [
+   "motion",
+   "effects"
+  ],
+  "transition.preview": [
+   "see transition"
+  ],
+  "insert.textBox": [
+   "text frame",
+   "type"
+  ],
+  "tbl.delRow": [
+   "delete row",
+   "remove row"
+  ],
+  "tbl.delCol": [
+   "delete column",
+   "remove column"
+  ],
+  "ribbon.lineSpacing": [
+   "line spacing",
+   "double space"
+  ],
+  "design.formatBackground": [
+   "background color",
+   "background picture"
+  ],
+  "file.exportPdf": [
+   "pdf",
+   "handout"
+  ],
+  "file.print": [
+   "printer",
+   "handouts"
+  ],
+  "review.spelling": [
+   "spell check",
+   "proofing"
+  ],
+  "edit.find": [
+   "search",
+   "locate"
+  ],
+  "edit.replace": [
+   "substitute",
+   "change text"
+  ],
+  "ribbon.changeCase": [
+   "uppercase",
+   "lowercase"
+  ],
+  "insert.picture": [
+   "image",
+   "photo"
+  ],
+  "ribbon.chart": [
+   "graph",
+   "plot"
+  ],
+  "comment.new": [
+   "note",
+   "annotation"
+  ],
+  "arr.group": [
+   "combine objects"
+  ],
+  "ribbon.zoom": [
+   "magnify",
+   "scale"
+  ],
+  "view.guides": [
+   "gridlines",
+   "rulers"
+  ],
+  "fmt.bold": [
+   "heavy",
+   "strong"
+  ],
+  "para.bullets": [
+   "list",
+   "bulleted"
+  ],
+  "para.numbers": [
+   "numbered list",
+   "ordered"
+  ]
+ },
+ "file": {
+  "new": [
+   "blank",
+   "template"
+  ],
+  "open": [
+   "browse",
+   "recent files"
+  ],
+  "info": [
+   "properties",
+   "author",
+   "document information"
+  ],
+  "save": [
+   "store"
+  ],
+  "print": [
+   "printer",
+   "paper"
+  ],
+  "export": [
+   "pdf",
+   "convert",
+   "save as"
+  ],
+  "close": [
+   "exit"
+  ],
+  "options": [
+   "settings",
+   "preferences"
+  ],
+  "about": [
+   "version",
+   "license"
+  ],
+  "saveas": [
+   "rename",
+   "new name"
+  ],
+  "savecopy": [
+   "duplicate"
+  ],
+  "savetemplate": [
+   "template"
+  ]
+ },
+ "options": {
+  "View": [
+   "screen",
+   "show on screen"
+  ],
+  "Save": [
+   "autosave",
+   "backup",
+   "autorecover"
+  ]
+ }
+}
