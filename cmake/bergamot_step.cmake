@@ -123,8 +123,15 @@ function(jo_bergamot_source)
       file(REMOVE_RECURSE ${_dir})
       message(FATAL_ERROR "PCRE2 ${JO_PCRE2_VERSION}: its files hash to ${_got}, expected ${JO_PCRE2_TREE_SHA256}")
     endif()
+    # (git is kept from finding the program's own repository round the build folder: inside it, git apply leaves out, without an error, a file it takes
+    # for one outside its reach, and a Mac build went on without patch 11 (Nov 14); each patch is then checked to be in, by applying it backward)
     foreach(p IN LISTS _patches)
-      execute_process(COMMAND ${JO_GIT} apply --ignore-whitespace ${p} WORKING_DIRECTORY ${_dir} RESULT_VARIABLE _rc ERROR_VARIABLE _err)
+      execute_process(COMMAND ${CMAKE_COMMAND} -E env GIT_CEILING_DIRECTORIES=${JO_BUILD}/_deps ${JO_GIT} apply --ignore-whitespace ${p}
+        WORKING_DIRECTORY ${_dir} RESULT_VARIABLE _rc ERROR_VARIABLE _err)
+      if(_rc EQUAL 0)
+        execute_process(COMMAND ${CMAKE_COMMAND} -E env GIT_CEILING_DIRECTORIES=${JO_BUILD}/_deps ${JO_GIT} apply --ignore-whitespace --check --reverse ${p}
+          WORKING_DIRECTORY ${_dir} RESULT_VARIABLE _rc ERROR_VARIABLE _err)
+      endif()
       if(NOT _rc EQUAL 0)
         file(REMOVE_RECURSE ${_dir})
         message(FATAL_ERROR "bergamot-translator: the patch ${p} does not apply: ${_err}")
