@@ -15,14 +15,6 @@ bool csvCanWriteCodePage(int codePage)
     return jp::office::sheet::xlsTextToBytes(codePage, QString(), &ignored);
 }
 
-CsvExport::CsvExport(const jp::grid::GridSheet *sheet, QChar separator) : CsvExport(sheet, [&] {
-    CsvWrite how;
-    how.separator = separator;
-    return how;
-}())
-{
-}
-
 CsvExport::CsvExport(const jp::grid::GridSheet *sheet, const CsvWrite &how) : m_sheet(sheet), m_how(how)
 {
     // (a page this cannot write is written as UTF-8 with the mark)

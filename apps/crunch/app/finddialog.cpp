@@ -156,7 +156,6 @@ void FindDialog::updateTab()
 
 void FindDialog::setTab(Tab tab) { m_tabs->setCurrentIndex(tab == Tab::Replace ? 1 : 0); }
 FindDialog::Tab FindDialog::tab() const { return m_tabs->currentIndex() == 1 ? Tab::Replace : Tab::Find; }
-void FindDialog::setFindText(const QString &text) { m_find->setText(text); }
 QString FindDialog::findText() const { return m_find->text(); }
 QString FindDialog::replacement() const { return m_replace->text(); }
 
@@ -170,15 +169,6 @@ crunch::FindOptions FindDialog::options() const
     o.order = m_search->currentIndex() == 1 ? crunch::FindOptions::Order::ByColumns : crunch::FindOptions::Order::ByRows;
     o.lookIn = m_lookIn->currentIndex() == 2 ? crunch::FindOptions::LookIn::Notes : m_lookIn->currentIndex() == 1 ? crunch::FindOptions::LookIn::Values : crunch::FindOptions::LookIn::Formulas;
     return o;
-}
-
-void FindDialog::setOptions(const crunch::FindOptions &o)
-{
-    m_case->setChecked(o.pattern.matchCase);
-    m_whole->setChecked(o.pattern.wholeCell);
-    m_within->setCurrentIndex(o.scope == crunch::FindOptions::Scope::Workbook ? 1 : 0);
-    m_search->setCurrentIndex(o.order == crunch::FindOptions::Order::ByColumns ? 1 : 0);
-    m_lookIn->setCurrentIndex(o.lookIn == crunch::FindOptions::LookIn::Notes ? 2 : o.lookIn == crunch::FindOptions::LookIn::Values ? 1 : 0);
 }
 
 void FindDialog::setStatus(const QString &text) { m_status->setText(text); }

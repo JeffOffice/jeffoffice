@@ -988,21 +988,6 @@ bool SheetObjects::canDelete(int sheet, int id, QString *why)
     return false;
 }
 
-void SheetObjects::setDeleted(int sheet, int id, bool deleted)
-{
-    Sheet &s = sheetState(sheet);
-    for (const std::shared_ptr<Object> &o : s.objects)
-        if (o->id == id) {
-            if (o->counted && o->deleted != deleted) {
-                m_deadMade += deleted ? 1 : -1;
-                if (isBarcodeItem(o->item.get())) m_budget.barcodes = std::max(0, m_budget.barcodes + (deleted ? -1 : 1));
-            }
-            o->deleted = deleted;
-            if (sheet == m_shown) m_layer.setDeleted(id, deleted);
-            return;
-        }
-}
-
 bool SheetObjects::isDeleted(int sheet, int id)
 {
     for (const std::shared_ptr<Object> &o : sheetState(sheet).objects)
@@ -2088,23 +2073,6 @@ void SheetObjects::discardMade(int sheet, int id)
             if (sheet == m_shown) show(sheet);   // (the layer has one object less)
             return;
         }
-}
-
-int SheetObjects::duplicate(int sheet, int fromSheet, int fromId, const DrawingAnchor &anchor, QString *why)
-{
-    Object *from = find(fromSheet, fromId);
-    if (!from) {
-        if (why) *why = tr("The object is gone.");
-        return -1;
-    }
-    ensureBuilt(fromSheet, *from);
-    if (from->meta.kind != ObjectKind::Chart || !from->chart) {
-        if (why) *why = tr("Only a chart can be copied here.");
-        return -1;
-    }
-    Chart c = chartNow(fromSheet, fromId);
-    // its references name the sheets as the person sees them: they are the same here
-    return makeChart(sheet, c, anchor, why);
 }
 
 int SheetObjects::zTarget(int sheet, int id, int how)

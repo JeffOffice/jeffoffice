@@ -69,14 +69,7 @@ SpellingDialog::SpellingDialog(CrunchWindow *window, int sheet, const jp::office
     connect(m_suggestions, &QListWidget::currentTextChanged, m_change, &QLineEdit::setText);
 }
 
-QString SpellingDialog::replacement() const { return m_change->text(); }
 void SpellingDialog::setReplacement(const QString &text) { m_change->setText(text); }
-QStringList SpellingDialog::suggestions() const
-{
-    QStringList out;
-    for (int i = 0; i < m_suggestions->count(); ++i) out << m_suggestions->item(i)->text();
-    return out;
-}
 
 bool SpellingDialog::start(bool quiet)
 {

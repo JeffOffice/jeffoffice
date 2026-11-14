@@ -476,25 +476,4 @@ void CellAnchors::saved()
     }
 }
 
-bool CellAnchors::touched() const
-{
-    for (const SheetData &d : m_sheets)
-        if (!d.noteTouched.empty() || !d.linkTouched.empty()) return true;
-    return false;
-}
-
-size_t CellAnchors::touchedNotes() const
-{
-    size_t n = 0;
-    for (const SheetData &d : m_sheets) n += d.noteTouched.size();
-    return n;
-}
-
-size_t CellAnchors::touchedLinks() const
-{
-    size_t n = 0;
-    for (const SheetData &d : m_sheets) n += d.linkTouched.size();
-    return n;
-}
-
 } // namespace jp::crunch

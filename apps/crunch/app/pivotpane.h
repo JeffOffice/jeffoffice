@@ -254,7 +254,6 @@ struct ValueFieldSettings {
 class ValueFieldDialog : public QDialog {
     Q_OBJECT
 public:
-    ValueFieldDialog(const QString &sourceName, const QString &name, const QString &function, QWidget *parent = nullptr);
     explicit ValueFieldDialog(const ValueFieldSettings &settings, QWidget *parent = nullptr);
     QString name() const;
     QString function() const;

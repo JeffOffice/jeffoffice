@@ -125,8 +125,6 @@ public:
     void sheetsChanged();
     // The sizes of rows or columns of the sheet changed (a hidden row is left out of a chart): charts are drawn again.
     void sizesChanged(int sheet);
-    // An object is taken away (a person deleted it) or brought back (undone); the layer is told if its sheet is shown.
-    void setDeleted(int sheet, int id, bool deleted);
     bool isDeleted(int sheet, int id);
     // What saving needs of the objects, put in the changes the file is made from: the objects taken away, the anchors of those that keep their size when cells are resized, and the caches
     // of the charts whose cells changed or whose references moved (the cells that changed are those the changes already hold). Charts are found in the parts of the file, so a sheet
@@ -234,8 +232,6 @@ public:
     std::vector<int> idsOf(int sheet);
     // A name for a new object of a kind that no object of the sheet has ("Chart 3").
     QString newName(int sheet, jp::office::sheet::ObjectKind kind);
-    // The state of an object that a pasted copy begins as: a new object like it (a chart of its model; another kind is not copied here) with the anchor given. -1 if it can't be.
-    int duplicate(int sheet, int fromSheet, int fromId, const jp::office::sheet::DrawingAnchor &anchor, QString *why = nullptr);
 
     // For tests and tools: the chart of an object as it is drawn now (the numbers the cells give), or an empty chart.
     jp::office::Chart chartNow(int sheet, int objectId);

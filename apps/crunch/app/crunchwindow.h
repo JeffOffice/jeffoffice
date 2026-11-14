@@ -1316,7 +1316,6 @@ private:
     bool captureCustomView(const QString &name, jp::office::sheet::CustomView *view, QString *problem);
     void customViews();
 public:
-    bool showCustomView(const QString &name);
     bool showCustomViewAt(int index);
     void applyCustomViewLook(const jp::office::sheet::CustomView &view);
 private:

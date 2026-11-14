@@ -53,8 +53,6 @@ EvaluateFormulaDialog::EvaluateFormulaDialog(const QString &cell, const QString 
     refresh();
 }
 
-QString EvaluateFormulaDialog::shownText() const { return m_box->toPlainText(); }
-
 void EvaluateFormulaDialog::refresh()
 {
     m_box->setPlainText(QLatin1Char('=') + m_steps->text());

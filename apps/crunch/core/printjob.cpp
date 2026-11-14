@@ -390,20 +390,12 @@ QSizeF PrintJob::pageSize(int page) const
 }
 
 int PrintJob::sheetOf(int page) const { return page < 0 || page >= pageCount() ? -1 : m_sheets[size_t(m_pages[size_t(page)].info)].sheet; }
-int PrintJob::indexInSheet(int page) const { return page < 0 || page >= pageCount() ? -1 : m_pages[size_t(page)].index; }
 int PrintJob::numberOf(int page) const { return page < 0 || page >= pageCount() ? 0 : m_pages[size_t(page)].number; }
 QString PrintJob::sheetNameOf(int page) const { return page < 0 || page >= pageCount() ? QString() : m_source->sheetName(sheetOf(page)); }
 
 const PrintJob::SheetInfo *PrintJob::infoOfSheet(int sheet) const
 {
     for (const SheetInfo &i : m_sheets)
-        if (i.sheet == sheet) return &i;
-    return nullptr;
-}
-
-PrintJob::SheetInfo *PrintJob::infoOfSheet(int sheet)
-{
-    for (SheetInfo &i : m_sheets)
         if (i.sheet == sheet) return &i;
     return nullptr;
 }
@@ -418,12 +410,6 @@ const PageSetup *PrintJob::setupOf(int sheet) const
 {
     const SheetInfo *i = infoOfSheet(sheet);
     return i ? &i->setup : nullptr;
-}
-
-int PrintJob::pagesOfSheet(int sheet) const
-{
-    const SheetInfo *i = infoOfSheet(sheet);
-    return i ? int(i->print.pages.size()) : 0;
 }
 
 QStringList PrintJob::noteLines(int page) const

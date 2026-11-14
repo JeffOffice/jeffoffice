@@ -364,8 +364,6 @@ void FilterPopup::fillTree()
     m_all->setExpanded(true);
 }
 
-bool FilterPopup::leafChecked(QTreeWidgetItem *item) const { return item->checkState(0) == Qt::Checked; }
-
 // A check box was changed: what is under it follows (only what shows, if a search has hidden some), and what is over it is made to say what is under it.
 void FilterPopup::itemChanged(QTreeWidgetItem *item)
 {

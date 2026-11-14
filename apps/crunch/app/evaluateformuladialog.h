@@ -17,7 +17,6 @@ class EvaluateFormulaDialog : public QDialog {
 public:
     EvaluateFormulaDialog(const QString &cell, const QString &expression, crunch::FormulaSteps::Eval eval, QWidget *parent = nullptr);
     // What the box shows now.
-    QString shownText() const;
     crunch::FormulaSteps &steps() { return *m_steps; }
 
 private:

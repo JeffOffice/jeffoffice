@@ -59,7 +59,6 @@ private:
     void searched(const QString &text);
     void itemChanged(QTreeWidgetItem *item);
     void refreshParents(QTreeWidgetItem *from);
-    bool leafChecked(QTreeWidgetItem *item) const;
     Input m_input;
     jp::crunch::FilterList m_list;
     bool m_listed = false;

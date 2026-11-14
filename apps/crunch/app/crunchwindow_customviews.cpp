@@ -164,14 +164,6 @@ void CrunchWindow::customViews()
     if (req.show >= 0) showCustomViewAt(req.show);
 }
 
-bool CrunchWindow::showCustomView(const QString &name)
-{
-    const QVector<CustomView> &views = m_session ? m_session->customViews() : QVector<CustomView>();
-    for (int i = 0; i < views.size(); ++i)
-        if (views[i].name.compare(name, Qt::CaseInsensitive) == 0) return showCustomViewAt(i);
-    return false;
-}
-
 // Puts the look of a view on the window: the sheet in front, and for each sheet the zoom, the panes, and the cell chosen; the gridlines, headings, formula bar, and the window's size. (The rows and
 // columns are the session's, and not changed here.)
 void CrunchWindow::applyCustomViewLook(const CustomView &view)

@@ -25,9 +25,7 @@ public:
     bool start(bool quiet = false);
     // The word the dialog stands on, and what it will be changed to (typed over, or the first suggestion).
     std::optional<crunch::SpellHit> current() const { return m_hit; }
-    QString replacement() const;
     void setReplacement(const QString &text);
-    QStringList suggestions() const;
     // The buttons' work. Each goes on to the next misspelled word; false when there is none.
     bool ignore();
     bool ignoreAll();

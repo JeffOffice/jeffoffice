@@ -158,13 +158,11 @@ public:
     // A page: its paper in points, the sheet it is of, its place among that sheet's pages, and the number its fields show.
     QSizeF pageSize(int page) const;
     int sheetOf(int page) const;
-    int indexInSheet(int page) const;
     int numberOf(int page) const;
     QString sheetNameOf(int page) const;
     // The cut of a sheet that is in the job (null if it is not), and the setup it prints with.
     const jp::grid::SheetPrint *printOf(int sheet) const;
     const jp::office::sheet::PageSetup *setupOf(int sheet) const;
-    int pagesOfSheet(int sheet) const;
     // The first page of a sheet in the job's list, or -1.
     int firstPageOf(int sheet) const;
     // The lines of a page of notes (a sheet whose comments print at the end has them after its last page), or none for any other page.
@@ -249,7 +247,6 @@ private:
     };
     struct Build;
     Context &contextFor(int infoIndex);
-    SheetInfo *infoOfSheet(int sheet);
     const SheetInfo *infoOfSheet(int sheet) const;
 
     std::unique_ptr<PrintSource> m_source;

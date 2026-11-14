@@ -114,10 +114,7 @@ public:
     // The file has been written with them.
     void saved();
     // Whether a save has something to write for notes or links.
-    bool touched() const;
     // The cells and ranges (the number of each) the next save writes, for tests.
-    size_t touchedNotes() const;
-    size_t touchedLinks() const;
 
 private:
     using RangeKey = AnchorRangeKey;

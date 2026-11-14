@@ -25,12 +25,10 @@ public:
     enum class Tab { Find, Replace };
     void setTab(Tab tab);
     Tab tab() const;
-    void setFindText(const QString &text);
     QString findText() const;
     QString replacement() const;
     // What the controls say, as options for a search (`sheet` and `within` are the window's to fill).
     crunch::FindOptions options() const;
-    void setOptions(const crunch::FindOptions &options);
     // A sentence at the bottom ("3 cells found", "Replaced 4 places"), and the cells a List All found (the names of the sheets are by their place in the workbook).
     void setStatus(const QString &text);
     void showResults(const std::vector<crunch::FoundCell> &hits, const QStringList &sheetNames, bool truncated);

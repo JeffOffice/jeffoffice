@@ -34,7 +34,6 @@ struct CsvWrite {
 class CsvExport {
 public:
     // The sheet is read as it is (its own model, not the window's view of it), and not changed.
-    CsvExport(const jp::grid::GridSheet *sheet, QChar separator);
     CsvExport(const jp::grid::GridSheet *sheet, const CsvWrite &how);
     // Opens the file to write; false, with a message, if it cannot be.
     bool begin(const QString &path, QString *error);

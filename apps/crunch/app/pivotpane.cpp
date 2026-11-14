@@ -871,15 +871,6 @@ FieldSettings FieldSettingsDialog::settings() const
 
 // ---------------------------------------------------------------- Value Field Settings
 
-ValueFieldDialog::ValueFieldDialog(const QString &sourceName, const QString &name, const QString &function, QWidget *parent) : QDialog(parent)
-{
-    ValueFieldSettings s;
-    s.sourceName = sourceName;
-    s.name = name;
-    s.function = function;
-    build(s);
-}
-
 ValueFieldDialog::ValueFieldDialog(const ValueFieldSettings &settings, QWidget *parent) : QDialog(parent)
 {
     build(settings);
