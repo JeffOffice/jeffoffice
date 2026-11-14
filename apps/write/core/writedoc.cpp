@@ -3,6 +3,7 @@
 #include "wml/wmlhtmlread.h"
 
 #include "core/commentops.h"
+#include "core/listpresets.h"
 
 #include "core/wordformat.h"
 #include "core/writeprops.h"
@@ -1305,34 +1306,6 @@ QString WriteDoc::styleLanguage(const QString &paragraphStyle, const QString &ch
 
 // ---- lists
 
-namespace {
-
-AbstractNum plainDefinition(int id, bool numbers)
-{
-    AbstractNum a;
-    a.id = id;
-    a.multiLevelType = QStringLiteral("hybridMultilevel");
-    static const char *const bullets[] = {"•", "◦", "▪"};
-    static const char *const formats[] = {"decimal", "lowerLetter", "lowerRoman"};
-    for (int i = 0; i < 9; ++i) {
-        Level &l = a.levels[i];
-        l.present = true;
-        l.jc = QStringLiteral("left");
-        if (numbers) {
-            l.numFmt = QString::fromLatin1(formats[i % 3]);
-            l.text = QStringLiteral("%%1.").arg(i + 1);
-        } else {
-            l.numFmt = QStringLiteral("bullet");
-            l.text = QString::fromUtf8(bullets[i % 3]);
-        }
-        l.pPr.indLeft = 720 * (i + 1);
-        l.pPr.indFirst = -360;
-    }
-    return a;
-}
-
-} // namespace
-
 int WriteDoc::newListInstance(bool numbered)
 {
     Numbering &n = m_wml.numbering;
@@ -1351,7 +1324,8 @@ int WriteDoc::newListInstance(bool numbered)
         for (const Num &num : n.nums)
             if (num.abstractId == abstractId && num.startOverrides.isEmpty()) return num.id;
     if (abstractId < 0) {
-        AbstractNum a = plainDefinition(n.nextAbstractId(), numbered);
+        AbstractNum a = plainListDefinition(numbered);
+        a.id = n.nextAbstractId();
         abstractId = a.id;
         n.abstracts.push_back(a);
     }
@@ -1361,18 +1335,62 @@ int WriteDoc::newListInstance(bool numbered)
     if (numbered) num.startOverrides.insert(0, 1);
     n.nums.push_back(num);
     n.modified = true;
-    if (m_wml.numberingName.isEmpty()) {
-        m_wml.numberingName = QStringLiteral("/word/numbering.xml");
-        int id = 1;
-        for (bool taken = true; taken;) {
-            taken = false;
-            for (const Relationship &r : m_wml.mainRelationships) taken = taken || r.id == QStringLiteral("rId%1").arg(id);
-            if (taken) ++id;
-        }
-        m_wml.mainRelationships.push_back(Relationship{QStringLiteral("rId%1").arg(id), QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering"),
-                                                       m_wml.numberingName, false});
-    }
+    ensureNumberingPart();
     return num.id;
+}
+
+void WriteDoc::ensureNumberingPart()
+{
+    if (!m_wml.numberingName.isEmpty()) return;
+    m_wml.numberingName = QStringLiteral("/word/numbering.xml");
+    int id = 1;
+    for (bool taken = true; taken;) {
+        taken = false;
+        for (const Relationship &r : m_wml.mainRelationships) taken = taken || r.id == QStringLiteral("rId%1").arg(id);
+        if (taken) ++id;
+    }
+    m_wml.mainRelationships.push_back(Relationship{QStringLiteral("rId%1").arg(id), QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering"),
+                                                   m_wml.numberingName, false});
+}
+
+int WriteDoc::addNumberingId(int abstractId, int level, std::optional<int> start)
+{
+    Numbering &n = m_wml.numbering;
+    Num num;
+    num.id = n.nextNumId();
+    num.abstractId = abstractId;
+    if (start) num.startOverrides.insert(std::clamp(level, 0, 8), *start);
+    n.nums.push_back(num);
+    n.modified = true;
+    ensureNumberingPart();
+    return num.id;
+}
+
+int WriteDoc::listFor(const AbstractNum &def, bool fresh, int level, std::optional<int> start)
+{
+    Numbering &n = m_wml.numbering;
+    const QString signature = definitionSignature(def);
+    int abstractId = -1;
+    for (const AbstractNum &a : n.abstracts)
+        if (a.numStyleLink.isEmpty() && definitionSignature(a) == signature) {
+            abstractId = a.id;
+            break;
+        }
+    if (abstractId < 0) {
+        AbstractNum a = def;
+        a.id = n.nextAbstractId();
+        a.raw.clear();
+        a.head.clear();
+        a.tail.clear();
+        a.styleLink.clear();
+        abstractId = a.id;
+        n.abstracts.push_back(a);
+        n.modified = true;
+    }
+    if (!fresh)
+        for (const Num &num : n.nums)
+            if (num.abstractId == abstractId && num.startOverrides.isEmpty() && num.levelOverrides.isEmpty()) return num.id;
+    return addNumberingId(abstractId, level, start);
 }
 
 namespace { int s_levelsScannedForOutline = 0; }

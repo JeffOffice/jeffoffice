@@ -559,6 +559,11 @@ public:
     // The list definition (w:numId) for a new list of plain bullets or numbers, made if need be. Bullets share one definition; each new
     // numbered list is a definition of its own, so that it starts at 1.
     int newListInstance(bool numbered);
+    // A numbering id for a list of this definition: the document's own definition with the same levels, or a new one (so the file's numbering keeps it). With `fresh` the id is a new one that counts
+    // for itself (and, with `start`, begins `level` at that number); without, an id of the definition that restarts nothing, shared by the lists of it (bullets).
+    int listFor(const office::wml::AbstractNum &def, bool fresh, int level = 0, std::optional<int> start = std::nullopt);
+    // A new numbering id of a definition the document has (by its id), begun at `start` on `level` when given.
+    int addNumberingId(int abstractId, int level, std::optional<int> start);
     // The Qt list format of a level of a definition; `marker` gets the text of a marker that is not Qt's to count (set in legal style, or
     // numbered with several levels in it).
     QTextListFormat listFormat(int numId, int level, int start = -1) const;
@@ -995,6 +1000,7 @@ private:
     QVector<office::wml::Style> m_addedTableStyles;                    // built-in table styles that tables made have (see ensureTableStyle)
     mutable std::shared_ptr<office::wml::StyleSheet> m_tableSheet;
     bool levelIsOutlined(const office::wml::Level &level, int key) const;
+    void ensureNumberingPart();
     mutable QHash<int, bool> m_levelOutlines;   // by definition and level (or, for a level a numbering id writes out itself, by the id and level): whether the level's bullets are outlined
     friend class Loader;
     friend class Saver;

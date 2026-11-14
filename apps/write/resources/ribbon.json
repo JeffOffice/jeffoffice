@@ -150,11 +150,24 @@
               "row": [
                 {
                   "icon": "para.bullets",
+                  "split": true,
+                  "menu": "@bulletsMenu",
                   "keytip": "U"
                 },
                 {
                   "icon": "para.numbers",
+                  "split": true,
+                  "menu": "@numberingMenu",
                   "keytip": "N"
+                },
+                {
+                  "icon": {
+                    "id": "ribbon.multilevel",
+                    "text": "Multilevel List",
+                    "icon": "list-tree"
+                  },
+                  "keytip": "M",
+                  "menu": "@multilevelMenu"
                 },
                 {
                   "icon": "para.indentDec",

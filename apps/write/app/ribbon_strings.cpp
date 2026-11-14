@@ -79,6 +79,7 @@
     QT_TRANSLATE_NOOP("Ribbon", "Legend"),
     QT_TRANSLATE_NOOP("Ribbon", "Line Numbers"),
     QT_TRANSLATE_NOOP("Ribbon", "Line and Paragraph Spacing"),
+    QT_TRANSLATE_NOOP("Ribbon", "Multilevel List"),
     QT_TRANSLATE_NOOP("Ribbon", "Links"),
     QT_TRANSLATE_NOOP("Ribbon", "Mailings"),
     QT_TRANSLATE_NOOP("Ribbon", "Margins"),

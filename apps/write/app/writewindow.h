@@ -403,6 +403,8 @@ private:
     void makeSavedKeyCommands();
     void applyStyleByName(const QString &name);
     void createHomeActions();
+    void createListActions();
+    void listRibbonParts(RibbonParts &parts);
     void createProtectActions();
     void restrictEditing(bool lockTracking);
     void applyProtection();

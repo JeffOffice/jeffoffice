@@ -303,6 +303,7 @@ void WriteWindow::createActions()
     createOutlineActions();
     createStyleActions();
     createHomeActions();
+    createListActions();
     createProtectActions();
     createMailActions();
 }

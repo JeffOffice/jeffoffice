@@ -36,6 +36,7 @@
 #include "core/fieldops.h"
 #include "core/commentops.h"
 #include "core/editops.h"
+#include "core/listpresets.h"
 #include "core/headerops.h"
 #include "core/pagenumbering.h"
 #include "core/pagesetup.h"
@@ -1689,4 +1690,14 @@ private Q_SLOTS:
     void aRuleKeepsTheParagraphsOtherBordersAndLeavesTheNextOneAlone();
     void theLinkRuleFollowsItsOwnBoxAndAnAddressInBracketsBecomesALinkWithoutThem();
     void everyKindOfFixCanBeUndoneAndDoneAgain();
+    void everyBulletOfTheGalleryIsAListThatTheFileKeeps();
+    void aBulletOfYourOwnKeepsItsFontSizeAndColor();
+    void everyNumberFormatOfTheGalleryIsAListThatTheFileKeeps();
+    void aNumberFormatOfYourOwnHasItsTextAndItsStart();
+    void setNumberingValueStartsOrContinuesAList();
+    void everyMultilevelListOfTheGalleryKeepsAllNineLevels();
+    void aMultilevelListOfYourOwnKeepsEachLevelsChoices();
+    void paragraphsInAHeadingStyleJoinALinkedList();
+    void theLevelOfAListItemChangesInOneStep();
+    void theListBoxesSetUpListsThroughTheWindow();
 };

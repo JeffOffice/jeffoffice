@@ -1,5 +1,6 @@
 #include "core/fieldops.h"
 #include "core/editops.h"
+#include "core/listpresets.h"
 #include "core/reviewops.h"
 #include "core/styleops.h"
 
@@ -2769,6 +2770,162 @@ void toggleList(WriteDoc &doc, QTextCursor &c, bool numbered)
         list = b.textList();
     }
     c.endEditBlock();
+}
+
+// ---- list setup: the gallery entries, the levels, and the numbering values
+
+using office::wml::AbstractNum;
+using office::wml::Level;
+
+static bool inListNow(const WriteDoc &doc, const QTextBlock &b)
+{
+    const QTextBlockFormat bf = b.blockFormat();
+    return bf.hasProperty(prop::NumId) && doc.numbering().levelOf(bf.intProperty(prop::NumId), bf.intProperty(prop::NumLevel));
+}
+
+AbstractNum listDefinitionAt(const WriteDoc &doc, const QTextBlock &block, bool numbers)
+{
+    if (inListNow(doc, block))
+        if (const AbstractNum *a = doc.numbering().abstractOf(block.blockFormat().intProperty(prop::NumId))) {
+            AbstractNum def = *a;
+            const AbstractNum plain = plainListDefinition(numbers);
+            for (int i = 0; i < 9; ++i)
+                if (!def.levels[i].present) def.levels[i] = plain.levels[i];
+            return def;
+        }
+    return plainListDefinition(numbers);
+}
+
+void clearList(WriteDoc &doc, QTextCursor &c)
+{
+    const NoteScopeGuard scopeGuard(doc, c);
+    if (!intoBody(c)) return;
+    NumberGuard numbers(doc, c.document());
+    c.beginEditBlock();
+    for (const QTextBlock &b : selectedBlocks(c))
+        if (!isLocked(b) && b.blockFormat().hasProperty(prop::NumId)) removeFromList(doc, b);
+    c.endEditBlock();
+}
+
+void applyListLevel(WriteDoc &doc, QTextCursor &c, const Level &spec)
+{
+    const NoteScopeGuard scopeGuard(doc, c);
+    if (!intoBody(c)) return;
+    QVector<QTextBlock> blocks;
+    for (const QTextBlock &b : selectedBlocks(c))
+        if (!isLocked(b)) blocks.push_back(b);
+    if (blocks.isEmpty()) return;
+    NumberGuard numbers(doc, c.document());
+    const bool numbered = spec.numFmt != QLatin1String("bullet") && spec.numFmt != QLatin1String("none");
+    c.beginEditBlock();
+    const QTextBlock before = blocks.first().previous();
+    QHash<QString, int> made;
+    for (const QTextBlock &b : std::as_const(blocks)) {
+        const bool inList = inListNow(doc, b);
+        const int level = inList ? std::clamp(b.blockFormat().intProperty(prop::NumLevel), 0, 8) : 0;
+        AbstractNum def = listDefinitionAt(doc, b, numbered);
+        Level l = spec;
+        l.present = true;
+        l.pPr = def.levels[level].pPr;
+        if (numbered) l.text.replace(QLatin1String("%1"), QStringLiteral("%") + QString::number(level + 1));
+        def.levels[level] = l;
+        const QString key = definitionSignature(def) + QLatin1Char('@') + QString::number(level);
+        int numId = made.value(key);
+        if (!numId) {
+            if (!numbered) {
+                numId = doc.listFor(def, false);
+            } else {
+                // A list of the same kind just above goes on; else the numbers begin at the start.
+                if (before.isValid() && inListNow(doc, before))
+                    if (const AbstractNum *a = doc.numbering().abstractOf(before.blockFormat().intProperty(prop::NumId)); a && definitionSignature(*a) == definitionSignature(def))
+                        numId = before.blockFormat().intProperty(prop::NumId);
+                if (!numId) numId = doc.listFor(def, true, level, spec.start);
+            }
+            made.insert(key, numId);
+        }
+        setBlockList(doc, b, numId, level, nullptr);
+    }
+    c.endEditBlock();
+}
+
+void applyMultilevelList(WriteDoc &doc, QTextCursor &c, const AbstractNum &def)
+{
+    const NoteScopeGuard scopeGuard(doc, c);
+    if (!intoBody(c)) return;
+    QVector<QTextBlock> blocks;
+    for (const QTextBlock &b : selectedBlocks(c))
+        if (!isLocked(b)) blocks.push_back(b);
+    if (blocks.isEmpty()) return;
+    NumberGuard numbers(doc, c.document());
+    c.beginEditBlock();
+    int numId = 0;
+    const QTextBlock before = blocks.first().previous();
+    if (before.isValid() && inListNow(doc, before))
+        if (const AbstractNum *a = doc.numbering().abstractOf(before.blockFormat().intProperty(prop::NumId)); a && definitionSignature(*a) == definitionSignature(def))
+            numId = before.blockFormat().intProperty(prop::NumId);
+    if (!numId) numId = doc.listFor(def, true, 0, def.levels[0].start);
+    // A level linked to a style numbers the paragraphs of that style, in the style itself and in the paragraphs that have it now.
+    QHash<QString, int> linked;
+    for (int i = 0; i < 9; ++i) {
+        const QString id = def.levels[i].pStyle;
+        if (id.isEmpty() || linked.contains(id) || !doc.ensureStyle(id)) continue;
+        office::wml::Style s = *doc.styleSheet().find(id);
+        s.pPr.numId = numId;
+        s.pPr.ilvl = i;
+        s.raw.clear();
+        doc.putStyle(s);
+        linked.insert(id, i);
+    }
+    for (const QTextBlock &b : std::as_const(blocks)) {
+        const int own = inListNow(doc, b) ? std::clamp(b.blockFormat().intProperty(prop::NumLevel), 0, 8) : 0;
+        setBlockList(doc, b, numId, linked.value(styleOf(b.blockFormat()), own), nullptr);
+    }
+    if (!linked.isEmpty()) {
+        doc.markStyleStep();
+        for (QTextBlock b = doc.story()->begin(); b.isValid(); b = b.next()) {
+            const auto found = linked.constFind(styleOf(b.blockFormat()));
+            if (found != linked.constEnd() && !isLocked(b) && !inListNow(doc, b)) setBlockList(doc, b, numId, found.value(), nullptr);
+        }
+    }
+    c.endEditBlock();
+    if (!linked.isEmpty()) doc.settleStyleEdit();
+}
+
+void setListLevel(WriteDoc &doc, QTextCursor &c, int level)
+{
+    const NoteScopeGuard scopeGuard(doc, c);
+    if (!intoBody(c)) return;
+    NumberGuard numbers(doc, c.document());
+    c.beginEditBlock();
+    for (const QTextBlock &b : selectedBlocks(c)) {
+        if (isLocked(b) || !inListNow(doc, b)) continue;
+        setBlockList(doc, b, b.blockFormat().intProperty(prop::NumId), std::clamp(level, 0, 8), nullptr);
+    }
+    c.endEditBlock();
+}
+
+bool setNumberingValue(WriteDoc &doc, QTextCursor &c, bool continuePrevious, std::optional<int> value)
+{
+    const NoteScopeGuard scopeGuard(doc, c);
+    if (!intoBody(c)) return false;
+    const QTextBlock first = selectedBlocks(c).first();
+    if (isLocked(first) || !inListNow(doc, first)) return false;
+    const int oldId = first.blockFormat().intProperty(prop::NumId), level = std::clamp(first.blockFormat().intProperty(prop::NumLevel), 0, 8);
+    const int definition = doc.numbering().definitionOf(oldId);
+    int numId = 0;
+    if (continuePrevious && !value) {
+        for (QTextBlock p = first.previous(); p.isValid() && !numId; p = p.previous())
+            if (inListNow(doc, p) && p.blockFormat().intProperty(prop::NumId) != oldId && doc.numbering().definitionOf(p.blockFormat().intProperty(prop::NumId)) == definition)
+                numId = p.blockFormat().intProperty(prop::NumId);
+        if (!numId) return false;
+    }
+    NumberGuard numbers(doc, c.document());
+    c.beginEditBlock();
+    if (!numId) numId = doc.addNumberingId(definition, level, value.value_or(1));
+    for (QTextBlock b = first; b.isValid(); b = b.next())
+        if (!isLocked(b) && inListNow(doc, b) && b.blockFormat().intProperty(prop::NumId) == oldId) setBlockList(doc, b, numId, b.blockFormat().intProperty(prop::NumLevel), nullptr);
+    c.endEditBlock();
+    return true;
 }
 
 QString paragraphStyleAt(const WriteDoc &doc, const QTextCursor &c)

@@ -10,6 +10,7 @@
 #include <QTextCursor>
 #include <QTextDocumentFragment>
 #include <functional>
+#include <optional>
 
 namespace jp::write {
 
@@ -209,6 +210,22 @@ void setLineSpacing(WriteDoc &doc, QTextCursor &c, QTextBlockFormat::LineHeightT
 enum class ListKind { None, Bullets, Numbers };
 ListKind listKindOf(const WriteDoc &doc, const QTextBlock &block);
 void toggleList(WriteDoc &doc, QTextCursor &c, bool numbered);
+// ---- setting up lists: each is one step of the history, and writes into the document's numbering model (definitions, ids, restarts), which the file keeps
+// The definition of the list the paragraph is in (a copy, all nine levels), or the plain bullets (or numbers) when it is in none.
+office::wml::AbstractNum listDefinitionAt(const WriteDoc &doc, const QTextBlock &block, bool numbers);
+// Takes the selected paragraphs out of their lists.
+void clearList(WriteDoc &doc, QTextCursor &c);
+// Makes each selected paragraph an item of a list whose level (its own, or the first) looks as `level` says: a bullet (numFmt "bullet") or a number format, its text ("%1." or "Step %1:"), font, size,
+// color, alignment, and start. A list of the same look just above is gone on with; otherwise numbers begin at `level.start`. The indents and the other levels stay as they were.
+void applyListLevel(WriteDoc &doc, QTextCursor &c, const office::wml::Level &level);
+// Makes the selected paragraphs items of a list of this definition (nine levels: formats, texts that name the levels above, start, restart, alignment, indents, the text after, legal style, and a style
+// linked to a level, which is then numbered by it). Each keeps its level.
+void applyMultilevelList(WriteDoc &doc, QTextCursor &c, const office::wml::AbstractNum &definition);
+// Puts the list items among the selected paragraphs on level 0 to 8.
+void setListLevel(WriteDoc &doc, QTextCursor &c, int level);
+// Set Numbering Value: the item the caret is in, and the items of its list after it, go on with the list above (`continuePrevious`, none when there is no list of the definition above: false), or
+// begin a list of their own; with `value` the item has that number. False when nothing was done.
+bool setNumberingValue(WriteDoc &doc, QTextCursor &c, bool continuePrevious, std::optional<int> value);
 void applyParagraphStyle(WriteDoc &doc, QTextCursor &c, const QString &styleId);
 void applyCharacterStyle(WriteDoc &doc, QTextCursor &c, const QString &styleId);
 // Takes a character style off the characters that have it (their look goes back to the paragraph's).

@@ -2025,3 +2025,369 @@ void WriteTests::notesThatCiteOnlyOneAnotherGoWithTheTextsLastReference()
         QVERIFY(rt::strictProblems(saved, zip).isEmpty());
     }
 }
+
+
+// ---- setting up lists: the galleries, the numbering values, and the levels
+
+namespace {
+
+using office::wml::AbstractNum;
+using office::wml::Level;
+
+// A document of `n` plain paragraphs with all of them selected.
+std::unique_ptr<WriteDoc> listDoc(int n, QTextCursor *all)
+{
+    QStringList texts;
+    for (int i = 1; i <= n; ++i) texts << QStringLiteral("Item %1").arg(i);
+    auto doc = textDoc(texts);
+    *all = QTextCursor(doc->story());
+    all->select(QTextCursor::Document);
+    return doc;
+}
+
+// The level of the list the paragraph is an item of, as the document's numbering has it (a default level when it is in none).
+Level levelOfBlock(const WriteDoc &doc, int index)
+{
+    const QTextBlock b = doc.story()->findBlockByNumber(index);
+    const Level *l = doc.numbering().levelOf(b.blockFormat().intProperty(prop::NumId), b.blockFormat().intProperty(prop::NumLevel));
+    return l ? *l : Level();
+}
+
+int numIdOfBlock(const WriteDoc &doc, int index) { return doc.story()->findBlockByNumber(index).blockFormat().intProperty(prop::NumId); }
+
+QString levelSummary(const Level &l)
+{
+    return QStringLiteral("%1|%2|%3|%4|%5|%6|%7|%8|%9|%10").arg(l.start).arg(l.numFmt, l.text, l.jc, l.suff, l.pStyle).arg(int(l.legal)).arg(l.restart.value_or(-1))
+        .arg(l.pPr.indLeft.value_or(-1)).arg(l.pPr.indFirst.value_or(-1));
+}
+
+} // namespace
+
+void WriteTests::everyBulletOfTheGalleryIsAListThatTheFileKeeps()
+{
+    for (const BulletPreset &preset : bulletPresets()) {
+        QTextCursor all;
+        auto doc = listDoc(2, &all);
+        applyListLevel(*doc, all, bulletLevel(preset.text, preset.font));
+        const QByteArray name = preset.text.toUtf8();
+        QVERIFY2(listKindOf(*doc, doc->story()->firstBlock()) == ListKind::Bullets, name.constData());
+        QCOMPARE(levelOfBlock(*doc, 1).text, preset.text);
+        // One undo step takes the list away, and a redo gives it back.
+        doc->undo();
+        QVERIFY2(listKindOf(*doc, doc->story()->firstBlock()) == ListKind::None && listKindOf(*doc, doc->story()->firstBlock().next()) == ListKind::None, name.constData());
+        doc->redo();
+        QCOMPARE(levelOfBlock(*doc, 0).text, preset.text);
+        for (int pass = 0; pass < 2; ++pass) {
+            auto again = pass == 0 ? open(doc->toDocx()) : WriteDoc::fromOdt(doc->toOdt());
+            QVERIFY2(again, name.constData());
+            for (int i = 0; i < 2; ++i) {
+                QVERIFY2(listKindOf(*again, again->story()->findBlockByNumber(i)) == ListKind::Bullets, name.constData());
+                QCOMPARE(levelOfBlock(*again, i).numFmt, QStringLiteral("bullet"));
+                QCOMPARE(levelOfBlock(*again, i).text, preset.text);
+            }
+        }
+    }
+    // The same bullet again is the same definition, not another.
+    QTextCursor all;
+    auto doc = listDoc(2, &all);
+    applyListLevel(*doc, all, bulletLevel(QStringLiteral("◆")));
+    const auto definitions = doc->numbering().abstracts.size();
+    clearList(*doc, all);
+    QVERIFY(listKindOf(*doc, doc->story()->firstBlock()) == ListKind::None);
+    applyListLevel(*doc, all, bulletLevel(QStringLiteral("◆")));
+    QCOMPARE(doc->numbering().abstracts.size(), definitions);
+}
+
+void WriteTests::aBulletOfYourOwnKeepsItsFontSizeAndColor()
+{
+    QTextCursor all;
+    auto doc = listDoc(2, &all);
+    Level bullet = bulletLevel(QString(QChar(0xF0A7)), QStringLiteral("Wingdings"));
+    bullet.rPr.size = 28;
+    bullet.rPr.color = office::wml::Color{QStringLiteral("C00000"), {}, {}, {}};
+    applyListLevel(*doc, all, bullet);
+    auto again = open(doc->toDocx());
+    QVERIFY(again);
+    const Level l = levelOfBlock(*again, 1);
+    QCOMPARE(l.text, QString(QChar(0xF0A7)));
+    QVERIFY(l.rPr.fonts && l.rPr.fonts->ascii == QLatin1String("Wingdings"));
+    QCOMPARE(l.rPr.size.value_or(0), 28);
+    QVERIFY(l.rPr.color && l.rPr.color->val == QLatin1String("C00000"));
+    const QTextList *list = again->story()->findBlockByNumber(1).textList();
+    QVERIFY(list);
+    QCOMPARE(list->format().stringProperty(tp::BulletFont), QStringLiteral("Wingdings"));
+    QCOMPARE(list->format().doubleProperty(tp::BulletSize), 14.0);
+}
+
+void WriteTests::everyNumberFormatOfTheGalleryIsAListThatTheFileKeeps()
+{
+    for (const NumberPreset &preset : numberPresets()) {
+        QTextCursor all;
+        auto doc = listDoc(3, &all);
+        applyListLevel(*doc, all, numberLevel(preset.numFmt, preset.text));
+        const QByteArray name = preset.id.toUtf8();
+        QVERIFY2(listKindOf(*doc, doc->story()->firstBlock()) == ListKind::Numbers, name.constData());
+        QCOMPARE(levelOfBlock(*doc, 2).numFmt, preset.numFmt);
+        QCOMPARE(levelOfBlock(*doc, 2).text, preset.text);
+        const QTextList *list = doc->story()->findBlockByNumber(1).textList();
+        QVERIFY(list);
+        QCOMPARE(list->format().numberSuffix(), preset.text.mid(2));
+        doc->undo();
+        QVERIFY2(listKindOf(*doc, doc->story()->firstBlock()) == ListKind::None, name.constData());
+        doc->redo();
+        for (int pass = 0; pass < 2; ++pass) {
+            auto again = pass == 0 ? open(doc->toDocx()) : WriteDoc::fromOdt(doc->toOdt());
+            QVERIFY2(again, name.constData());
+            for (int i = 0; i < 3; ++i) {
+                QVERIFY2(listKindOf(*again, again->story()->findBlockByNumber(i)) == ListKind::Numbers, name.constData());
+                QCOMPARE(levelOfBlock(*again, i).numFmt, preset.numFmt);
+                QCOMPARE(levelOfBlock(*again, i).text, preset.text);
+            }
+            QCOMPARE(numIdOfBlock(*again, 0), numIdOfBlock(*again, 2));
+        }
+    }
+}
+
+void WriteTests::aNumberFormatOfYourOwnHasItsTextAndItsStart()
+{
+    QTextCursor all;
+    auto doc = listDoc(3, &all);
+    Level own = numberLevel(QStringLiteral("upperLetter"), QStringLiteral("Step %1:"), 3);
+    own.jc = QStringLiteral("right");
+    applyListLevel(*doc, all, own);
+    auto again = open(doc->toDocx());
+    QVERIFY(again);
+    const Level l = levelOfBlock(*again, 2);
+    QCOMPARE(l.text, QStringLiteral("Step %1:"));
+    QCOMPARE(l.numFmt, QStringLiteral("upperLetter"));
+    QCOMPARE(l.jc, QStringLiteral("right"));
+    QCOMPARE(again->numbering().startOf(numIdOfBlock(*again, 0), 0), 3);
+    QCOMPARE(again->story()->findBlockByNumber(0).textList()->format().numberPrefix(), QStringLiteral("Step "));
+    QCOMPARE(again->story()->findBlockByNumber(0).textList()->format().start(), 3);
+    // A paragraph added below, given the same format, goes on with the list.
+    QTextCursor after(doc->story());
+    after.movePosition(QTextCursor::End);
+    insertParagraph(*doc, after);
+    typeText(*doc, after, QStringLiteral("More"));
+    QTextCursor last(doc->story());
+    last.setPosition(doc->story()->lastBlock().position());
+    removeSelection(*doc, last);
+    clearList(*doc, last);
+    applyListLevel(*doc, last, own);
+    QCOMPARE(numIdOfBlock(*doc, 3), numIdOfBlock(*doc, 0));
+}
+
+void WriteTests::setNumberingValueStartsOrContinuesAList()
+{
+    QTextCursor all;
+    auto doc = listDoc(4, &all);
+    applyListLevel(*doc, all, numberLevel(QStringLiteral("decimal"), QStringLiteral("%1.")));
+    const int first = numIdOfBlock(*doc, 0);
+    QCOMPARE(numIdOfBlock(*doc, 3), first);
+    QTextCursor at(doc->story());
+    at.setPosition(doc->story()->findBlockByNumber(2).position());
+    QVERIFY(setNumberingValue(*doc, at, false, 10));
+    QCOMPARE(numIdOfBlock(*doc, 1), first);
+    QVERIFY(numIdOfBlock(*doc, 2) != first);
+    QCOMPARE(numIdOfBlock(*doc, 3), numIdOfBlock(*doc, 2));
+    QCOMPARE(doc->numbering().startOf(numIdOfBlock(*doc, 2), 0), 10);
+    QCOMPARE(doc->story()->findBlockByNumber(2).textList()->format().start(), 10);
+    {
+        auto again = open(doc->toDocx());
+        QVERIFY(again);
+        QCOMPARE(numIdOfBlock(*again, 1), numIdOfBlock(*again, 0));
+        QVERIFY(numIdOfBlock(*again, 2) != numIdOfBlock(*again, 1));
+        QCOMPARE(numIdOfBlock(*again, 3), numIdOfBlock(*again, 2));
+        QCOMPARE(again->numbering().startOf(numIdOfBlock(*again, 2), 0), 10);
+        QCOMPARE(again->numbering().definitionOf(numIdOfBlock(*again, 2)), again->numbering().definitionOf(numIdOfBlock(*again, 0)));
+    }
+    // One undo step puts the numbers back.
+    doc->undo();
+    QCOMPARE(numIdOfBlock(*doc, 2), first);
+    doc->redo();
+    QVERIFY(numIdOfBlock(*doc, 2) != first);
+    // Continue the list above: the id of the first item again.
+    QVERIFY(setNumberingValue(*doc, at, true, std::nullopt));
+    QCOMPARE(numIdOfBlock(*doc, 2), first);
+    QCOMPARE(numIdOfBlock(*doc, 3), first);
+    // With nothing above of the definition, there is nothing to continue; a paragraph in no list has no value to set.
+    QTextCursor top(doc->story());
+    QVERIFY(!setNumberingValue(*doc, top, true, std::nullopt));
+    QTextCursor plain(doc->story());
+    plain.movePosition(QTextCursor::End);
+    insertParagraph(*doc, plain);
+    clearList(*doc, plain);
+    QVERIFY(!setNumberingValue(*doc, plain, false, 5));
+}
+
+void WriteTests::everyMultilevelListOfTheGalleryKeepsAllNineLevels()
+{
+    const QVector<MultilevelPreset> presets = multilevelPresets();
+    QVERIFY(presets.size() >= 5);
+    for (const MultilevelPreset &preset : presets) {
+        QTextCursor all;
+        auto doc = listDoc(4, &all);
+        applyMultilevelList(*doc, all, preset.def);
+        const QByteArray name = preset.id.toUtf8();
+        const int numId = numIdOfBlock(*doc, 0);
+        QVERIFY2(numId > 0, name.constData());
+        // Items on other levels.
+        QTextCursor level(doc->story());
+        level.setPosition(doc->story()->findBlockByNumber(2).position());
+        setListLevel(*doc, level, 2);
+        QCOMPARE(doc->story()->findBlockByNumber(2).blockFormat().intProperty(prop::NumLevel), 2);
+        for (int pass = 0; pass < 2; ++pass) {
+            auto again = pass == 0 ? open(doc->toDocx()) : WriteDoc::fromOdt(doc->toOdt());
+            QVERIFY2(again, name.constData());
+            QCOMPARE(numIdOfBlock(*again, 3), numIdOfBlock(*again, 0));
+            QCOMPARE(again->story()->findBlockByNumber(2).blockFormat().intProperty(prop::NumLevel), 2);
+            if (pass != 0) continue;   // (the other file kind keeps the shapes of the levels, not each field of them)
+            for (int i = 0; i < 9; ++i) {
+                const Level *l = again->numbering().levelOf(numIdOfBlock(*again, 0), i);
+                QVERIFY2(l, name.constData());
+                QCOMPARE(levelSummary(*l), levelSummary(preset.def.levels[i]));
+            }
+        }
+    }
+}
+
+void WriteTests::aMultilevelListOfYourOwnKeepsEachLevelsChoices()
+{
+    AbstractNum def;
+    def.multiLevelType = QStringLiteral("multilevel");
+    for (int i = 0; i < 9; ++i) {
+        Level &l = def.levels[i];
+        l.present = true;
+        l.start = i + 1;
+        l.numFmt = i % 2 ? QStringLiteral("lowerRoman") : QStringLiteral("decimal");
+        QString text;
+        for (int k = 0; k <= i; ++k) text += QStringLiteral("%") + QString::number(k + 1) + (k < i ? QStringLiteral("-") : QStringLiteral(" §"));
+        l.text = text;
+        l.jc = i % 3 == 0 ? QStringLiteral("left") : i % 3 == 1 ? QStringLiteral("center") : QStringLiteral("right");
+        l.suff = i % 3 == 0 ? QStringLiteral("tab") : i % 3 == 1 ? QStringLiteral("space") : QStringLiteral("nothing");
+        l.legal = i == 3;
+        if (i > 0) l.restart = i == 4 ? 2 : i;   // (level 5 restarts after level 2; the others after the one above)
+        l.pPr.indLeft = 500 + 300 * i;
+        l.pPr.indFirst = -(200 + 10 * i);
+    }
+    def.levels[8].pStyle = QStringLiteral("Heading1");
+    QTextCursor all;
+    auto doc = listDoc(3, &all);
+    applyMultilevelList(*doc, all, def);
+    auto again = open(doc->toDocx());
+    QVERIFY(again);
+    const int numId = numIdOfBlock(*again, 0);
+    for (int i = 0; i < 9; ++i) {
+        const Level *l = again->numbering().levelOf(numId, i);
+        QVERIFY(l);
+        QCOMPARE(levelSummary(*l), levelSummary(def.levels[i]));
+    }
+    // The style a level is linked to is numbered by it.
+    const office::wml::Style *heading = again->styleSheet().find(QStringLiteral("Heading1"));
+    QVERIFY(heading);
+    QCOMPARE(heading->pPr.numId.value_or(0), numId);
+    QCOMPARE(heading->pPr.ilvl.value_or(-1), 8);
+    // One undo step takes all of it back, the style's link included.
+    doc->undo();
+    QVERIFY(listKindOf(*doc, doc->story()->firstBlock()) == ListKind::None);
+    const office::wml::Style *plain = doc->styleSheet().find(QStringLiteral("Heading1"));
+    QVERIFY(!plain || !plain->pPr.numId);
+}
+
+void WriteTests::paragraphsInAHeadingStyleJoinALinkedList()
+{
+    QByteArray body;
+    for (const char *t : {"One", "Two", "Three"}) body += QByteArray("<w:p><w:pPr><w:pStyle w:val=\"Heading1\"/></w:pPr><w:r><w:t>") + t + "</w:t></w:r></w:p>";
+    body += "<w:p><w:r><w:t>Body</w:t></w:r></w:p>";
+    auto doc = open(makeDocx(body, kStyles));
+    QVERIFY(doc);
+    QTextCursor c(doc->story());
+    c.setPosition(doc->story()->findBlockByNumber(3).position());
+    applyMultilevelList(*doc, c, multilevelPresets().at(4).def);
+    // (the preset links Heading1 to its first level: the headings are numbered, though only the body paragraph was selected)
+    for (int i = 0; i < 3; ++i) QCOMPARE(doc->story()->findBlockByNumber(i).blockFormat().intProperty(prop::NumLevel), 0);
+    QVERIFY(listKindOf(*doc, doc->story()->findBlockByNumber(0)) == ListKind::Numbers);
+    auto again = open(doc->toDocx());
+    QVERIFY(again);
+    QVERIFY(listKindOf(*again, again->story()->findBlockByNumber(2)) == ListKind::Numbers);
+}
+
+void WriteTests::theLevelOfAListItemChangesInOneStep()
+{
+    QTextCursor all;
+    auto doc = listDoc(3, &all);
+    applyListLevel(*doc, all, bulletLevel(QStringLiteral("•")));
+    QTextCursor at(doc->story());
+    at.setPosition(doc->story()->findBlockByNumber(1).position());
+    setListLevel(*doc, at, 3);
+    QCOMPARE(doc->story()->findBlockByNumber(1).blockFormat().intProperty(prop::NumLevel), 3);
+    QCOMPARE(doc->story()->findBlockByNumber(0).blockFormat().intProperty(prop::NumLevel), 0);
+    // A bullet chosen for the item is for the item's own level: the other levels keep theirs.
+    applyListLevel(*doc, at, bulletLevel(QStringLiteral("✓")));
+    QCOMPARE(levelOfBlock(*doc, 1).text, QStringLiteral("✓"));
+    QCOMPARE(doc->story()->findBlockByNumber(1).blockFormat().intProperty(prop::NumLevel), 3);
+    QCOMPARE(levelOfBlock(*doc, 0).text, QStringLiteral("•"));
+    doc->undo();
+    QCOMPARE(doc->story()->findBlockByNumber(1).blockFormat().intProperty(prop::NumLevel), 3);
+    QCOMPARE(levelOfBlock(*doc, 1).text, plainListDefinition(false).levels[3].text);
+    doc->undo();
+    QCOMPARE(doc->story()->findBlockByNumber(1).blockFormat().intProperty(prop::NumLevel), 0);
+    // Tab and Shift+Tab at the start of an item change its level too.
+    insertTab(*doc, at, false);
+    QCOMPARE(doc->story()->findBlockByNumber(1).blockFormat().intProperty(prop::NumLevel), 1);
+    insertTab(*doc, at, true);
+    QCOMPARE(doc->story()->findBlockByNumber(1).blockFormat().intProperty(prop::NumLevel), 0);
+}
+
+void WriteTests::theListBoxesSetUpListsThroughTheWindow()
+{
+    WriteWindow w;
+    typeText(*w.document(), w.view()->cursor(), QStringLiteral("One\nTwo\nThree"));
+    QTextCursor all(w.document()->story());
+    all.select(QTextCursor::Document);
+    w.view()->cursor() = all;
+    withDialog([&] { w.act(QStringLiteral("list.defineNumber"))->trigger(); }, QStringLiteral("defineNumberFormatDialog"), [&](QDialog *d) {
+        d->findChild<QLineEdit *>(QStringLiteral("numberFormat"))->setText(QStringLiteral("Step %1:"));
+        d->findChild<QSpinBox *>(QStringLiteral("numberStart"))->setValue(4);
+        auto *style = d->findChild<QComboBox *>(QStringLiteral("numberStyle"));
+        style->setCurrentIndex(style->findData(QStringLiteral("upperRoman")));
+    });
+    WriteDoc &doc = *w.document();
+    QCOMPARE(levelOfBlock(doc, 1).text, QStringLiteral("Step %1:"));
+    QCOMPARE(levelOfBlock(doc, 1).numFmt, QStringLiteral("upperRoman"));
+    QCOMPARE(doc.numbering().startOf(numIdOfBlock(doc, 0), 0), 4);
+    // Set Numbering Value on the second item: the list begins again there at 9.
+    w.view()->cursor().setPosition(doc.story()->findBlockByNumber(1).position());
+    withDialog([&] { w.act(QStringLiteral("list.setValue"))->trigger(); }, QStringLiteral("setNumberingValueDialog"), [&](QDialog *d) {
+        d->findChild<QSpinBox *>(QStringLiteral("numberValue"))->setValue(9);
+    });
+    QVERIFY(numIdOfBlock(doc, 1) != numIdOfBlock(doc, 0));
+    QCOMPARE(doc.numbering().startOf(numIdOfBlock(doc, 2), 0), 9);
+    // A bullet of your own.
+    w.view()->cursor() = all;
+    withDialog([&] { w.act(QStringLiteral("list.defineBullet"))->trigger(); }, QStringLiteral("defineBulletDialog"), [&](QDialog *d) {
+        d->findChild<QLineEdit *>(QStringLiteral("bulletCharacter"))->setText(QStringLiteral("◆"));
+        d->findChild<QDoubleSpinBox *>(QStringLiteral("bulletSize"))->setValue(14);
+    });
+    QCOMPARE(levelOfBlock(doc, 2).text, QStringLiteral("◆"));
+    QCOMPARE(levelOfBlock(doc, 2).rPr.size.value_or(0), 28);
+    QVERIFY(listKindOf(doc, doc.story()->findBlockByNumber(2)) == ListKind::Bullets);
+    // A multilevel list of your own: level 1 reads "Article %1".
+    withDialog([&] { w.act(QStringLiteral("list.defineMultilevel"))->trigger(); }, QStringLiteral("multilevelListDialog"), [&](QDialog *d) {
+        d->findChild<QLineEdit *>(QStringLiteral("numberFormat"))->setText(QStringLiteral("Article %1"));
+        auto *numberStyle = d->findChild<QComboBox *>(QStringLiteral("numberStyle"));
+        numberStyle->setCurrentIndex(numberStyle->findData(QStringLiteral("decimal")));
+        d->findChild<QSpinBox *>(QStringLiteral("startAt"))->setValue(2);
+        auto *follow = d->findChild<QComboBox *>(QStringLiteral("followWith"));
+        follow->setCurrentIndex(follow->findData(QStringLiteral("space")));
+        d->findChild<QCheckBox *>(QStringLiteral("legalStyle"))->setChecked(true);
+    });
+    const Level own = levelOfBlock(doc, 0);
+    QCOMPARE(own.text, QStringLiteral("Article %1"));
+    QCOMPARE(own.start, 2);
+    QCOMPARE(own.suff, QStringLiteral("space"));
+    QVERIFY(own.legal);
+    auto again = open(doc.toDocx());
+    QVERIFY(again);
+    QCOMPARE(levelOfBlock(*again, 0).text, QStringLiteral("Article %1"));
+}
