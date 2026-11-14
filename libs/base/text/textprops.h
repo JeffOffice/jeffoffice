@@ -1,6 +1,8 @@
 #pragma once
 // Custom QTextFormat properties JeffPub stores alongside Qt's own.
 
+#include "core/export.h"
+
 #include <QColor>
 #include <QString>
 #include <QStringList>
@@ -158,11 +160,8 @@ struct RevisionMarkup {
     bool trackMoves = true, trackFormatting = true;
     int generation = 0;   // changes with every choice, so that what was laid out for the old look is laid out again
 };
-inline RevisionMarkup &revisionMarkup()
-{
-    static RevisionMarkup markup;
-    return markup;
-}
+// (out of line, in the library: a static in an inline function is a copy of its own in each program and in the library on Windows)
+JO_COMMON_EXPORT RevisionMarkup &revisionMarkup();
 // The color of the marks of a change of `kind` (1 inserted, 2 deleted, 3 moved away, 4 moved here, 5 formatting) by a person (a place in the document's list of people): the person's own, or the one chosen for the kind.
 inline QColor revisionMarkColor(int kind, int author)
 {
@@ -177,11 +176,7 @@ constexpr int kShowFieldCodes = 8;
 constexpr int kFieldCodesCountShift = 8;
 // The fields whose codes a document shows singly, by the token in the high bits of the view that document lays out with: each document has a token of its own, so what one shows is no
 // other's.
-inline QHash<int, QSet<int>> &shownFieldCodeSets()
-{
-    static QHash<int, QSet<int>> sets;
-    return sets;
-}
+JO_COMMON_EXPORT QHash<int, QSet<int>> &shownFieldCodeSets();   // (out of line, as revisionMarkup)
 // Whether the field the run belongs to has its codes shown in this view.
 inline bool fieldCodesShown(const QTextFormat &f, int view)
 {
