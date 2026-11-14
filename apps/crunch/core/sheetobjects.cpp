@@ -130,7 +130,23 @@ QImage nothing(const RenderRequest &q)
 
 } // namespace
 
-SheetObjects::SheetObjects(QObject *parent) : QObject(parent), m_doc(std::make_unique<jp::Document>()) {}
+SheetObjects::SheetObjects(QObject *parent) : QObject(parent), m_doc(std::make_unique<jp::Document>())
+{
+    // a control that changed (a cell it is linked to, an Undo): put in the layer if it is to be there, and drawn again
+    connect(&m_controls, &SheetControls::changed, this, [this](int sheet, int id) {
+        if (sheet != m_shown) return;
+        const jp::grid::ObjectLayer &layer = m_layer;
+        bool inLayer = false;
+        for (int i = 0; i < layer.count() && !inLayer; ++i) inLayer = layer.object(i).id == id;
+        const bool gone = m_controls.isDeleted(sheet, id);
+        if (inLayer) {
+            m_layer.setDeleted(id, gone);
+            m_layer.invalidate(id);
+        } else if (!gone) {
+            if (const std::optional<jp::grid::LayerObject> lo = m_controls.layerObjectOf(sheet, id)) m_layer.addObject(*lo);
+        }
+    });
+}
 
 SheetObjects::~SheetObjects()
 {
@@ -142,6 +158,7 @@ void SheetObjects::open(const std::shared_ptr<Workbook> &book)
     ++m_generation;
     m_layer.setObjects({});
     m_book = book;
+    m_controls.open(book);
     m_cells.reset();
     m_source = nullptr;
     m_values = nullptr;
@@ -925,6 +942,7 @@ std::vector<jp::grid::LayerObject> SheetObjects::printObjects(int sheet)
     Sheet &s = sheetState(sheet);
     for (const std::shared_ptr<Object> &o : s.objects)
         if (!o->deleted && o->meta.prints) out.push_back(layerObject(sheet, o));
+    for (jp::grid::LayerObject &c : m_controls.layerObjects(sheet, true)) out.push_back(std::move(c));
     return out;
 }
 
@@ -934,6 +952,7 @@ void SheetObjects::showNow(int sheet)
     std::vector<LayerObject> objects;
     objects.reserve(s.objects.size());
     for (const std::shared_ptr<Object> &o : s.objects) objects.push_back(layerObject(sheet, o));
+    for (jp::grid::LayerObject &c : m_controls.layerObjects(sheet)) objects.push_back(std::move(c));
     m_shown = sheet;
     m_layer.setObjects(std::move(objects));
     for (const std::shared_ptr<Object> &o : s.objects)
@@ -997,6 +1016,8 @@ bool SheetObjects::isDeleted(int sheet, int id)
 
 void SheetObjects::cellsChanged(const std::vector<jp::grid::ValueStore::Item> &cells)
 {
+    if (!cells.empty())
+        for (int i = 0; i < int(m_sheets.size()); ++i) m_controls.refresh(i);   // (a control follows its cell)
     if (cells.empty() || !m_cells) return;
     for (size_t i = 0; i < m_sheets.size(); ++i) {
         Sheet &s = m_sheets[i];
@@ -1118,6 +1139,7 @@ DrawingAnchor SheetObjects::twoCellFor(const Object &o, const jp::grid::Axis &ro
 void SheetObjects::addToSave(SaveChanges *changes)
 {
     if (!m_book) return;
+    m_controls.addToSave(changes);
     m_fallbackBytes = 0;
     bool fallbackNoted = false;
     const QStringList names = sheetNames();
@@ -1442,6 +1464,7 @@ void SheetObjects::addToSave(SaveChanges *changes)
 
 void SheetObjects::saved()
 {
+    m_controls.saved();
     m_partRefs.clear();   // (the parts are the new file's: their references are the moved ones)
     if (!m_applied.empty()) ++m_epoch;   // (the places steps of Undo hold are of the rows and columns before the edits the file now has)
     m_applied.clear();
@@ -1661,6 +1684,15 @@ QString SheetObjects::newName(int sheet, ObjectKind kind)
 ObjectState SheetObjects::stateOf(int sheet, int id)
 {
     ObjectState st;
+    if (isControlId(id)) {
+        bool found = false;
+        const jp::office::sheet::FormControl c = m_controls.controlOf(sheet, id, &found);
+        if (!found) return st;
+        st.control = std::make_shared<const jp::office::sheet::FormControl>(c);
+        st.deleted = m_controls.isDeleted(sheet, id);
+        st.epoch = m_epoch;
+        return st;
+    }
     Object *o = find(sheet, id);
     if (!o) return st;
     ensureBuilt(sheet, *o);
@@ -1737,6 +1769,10 @@ ObjectState SheetObjects::stateMoved(int sheet, int id, const DrawingAnchor &anc
 
 void SheetObjects::applyState(int sheet, int id, const ObjectState &st)
 {
+    if (isControlId(id)) {
+        if (st.control) m_controls.apply(sheet, id, *st.control, st.deleted);
+        return;
+    }
     Object *o = find(sheet, id);
     if (!o && !st.deleted && st.chart && st.madeHere && !st.placements.empty() && m_book && sheet >= 0 && size_t(sheet) < m_sheets.size() && m_sheets[size_t(sheet)].nextId == id) {
         // (a chart made on a sheet that was made here, and the sheet was taken away by Undo and is back by Redo: the sheet has no objects now, and the chart is made again as it was)

@@ -128,6 +128,7 @@ private Q_SLOTS:
         Opened o;
         const QByteArray vml = vmlOf(kShapes);
         QVERIFY(open(bookWith(vml), &o));
+        QCOMPARE(o.controls.size(), 3);
         const std::vector<FormControl> was(o.controls.begin(), o.controls.end());
         QByteArray out;
         QVERIFY(patchControlsVml(vml, was, was, &out));

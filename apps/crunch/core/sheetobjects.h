@@ -15,6 +15,7 @@
 #include "core/document.h"
 #include "core/objectclip.h"
 #include "core/objectstate.h"
+#include "core/sheetcontrols.h"
 #include "grid/chartcells.h"
 #include "grid/objectlayer.h"
 #include "grid/valuestore.h"
@@ -84,6 +85,8 @@ public:
     void setCellTextSource(CellTextSource text) { m_cellText = std::move(text); }
 
     jp::grid::ObjectLayer *layer() { return &m_layer; }
+    // The form controls of the workbook's sheets (they are in the layer with the other objects, under ids that start at kControlIdBase).
+    SheetControls *controls() { return &m_controls; }
     // The cells charts read (null until the workbook is whole), and the theme the workbook's charts are set in.
     const jp::office::sheet::ChartCells *cells() const { return m_cells.get(); }
     const jp::office::Theme &theme();
@@ -388,6 +391,7 @@ private:
     QHash<QString, int> m_chartSheet;                        // the sheet each chart part is on (by the drawing of the sheet), lower case
     QHash<QString, QStringList> m_partRefs;
     jp::grid::ObjectLayer m_layer;
+    SheetControls m_controls;
     std::unique_ptr<jp::Document> m_doc;
     jp::LayoutCache m_layoutCache;
     QHash<QString, QString> m_images;

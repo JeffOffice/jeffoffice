@@ -168,6 +168,7 @@ void CrunchWindow::prepareObjects(int sheet)
 void CrunchWindow::connectObjects()
 {
     if (!m_objects || !m_session) return;
+    connectControls();
     connect(m_session.get(), &crunch::EditSession::cellsMoved, this, [this] {
         if (m_objects) m_objects->cellsMoved();
     });
@@ -191,6 +192,10 @@ void CrunchWindow::connectObjects()
 void CrunchWindow::deleteObject(int id)
 {
     if (!m_session || m_edit.active || m_saving) return;
+    if (crunch::isControlId(id)) {
+        setStatus(tr("A form control can't be deleted here yet."));
+        return;
+    }
     QString why;
     if (m_objects && !m_objects->canDelete(m_sheet, id, &why)) {
         notice(tr("Delete"), why);

@@ -104,7 +104,10 @@ struct SheetPrint;
 class PageLayoutView;
 class PageLayoutSource;
 }
-namespace office::sheet { struct PageSetup; }
+namespace office::sheet {
+struct PageSetup;
+enum class ControlKind : quint8;
+}
 class FormulaHelper;
 class FunctionArgumentsDialog;
 class HelpView;
@@ -126,6 +129,7 @@ struct PrintChoices;
 struct PrintJobOptions;
 class SheetObjects;
 struct ObjectClip;
+struct ControlOperation;
 enum class ObjectAlign;
 class SheetTabBar;
 }
@@ -1436,6 +1440,12 @@ public:
     bool insertOnlinePicture(const QString &path, const QString &title, const QString &credit);
     bool insertShape(const QString &preset);
     bool insertTextBox();
+    // Insert > Form Controls: a control of the kind at the cell with the cursor (one step of Undo). Format Control: the cell, range, and limits of a control of the layer (the ids of controls start
+    // at crunch::kControlIdBase); a click's result is carried out as one step (a cell typed, or the controls' own states).
+    bool insertFormControl(jp::office::sheet::ControlKind kind);
+    Q_INVOKABLE bool setControlProperties(int id, const QString &link, const QString &range, int min, int max, int inc, int page, bool checked);
+    void formatControlDialog(int id);
+    void carryOutControl(const crunch::ControlOperation &op);
     // Insert > Text Art: the words "Your Text Here" in a style of the shared gallery, bent into the style's warp, as a shape of the drawing; the picked one's words (the box that asks stands in
     // for the dialog: tests), style, and warp are changed, each as one step.
     bool insertTextArt(const QString &styleId);
@@ -1518,6 +1528,8 @@ public:
 private:
     void createChartActions();
     void createInsertObjectActions();
+    void createControlActions();
+    void connectControls();
     void createArrangeActions();
     void updateArrangeActions();
     void createDrawBorderActions();

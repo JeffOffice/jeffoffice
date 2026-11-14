@@ -1,5 +1,8 @@
 #include "grid/objectlayer.h"
 
+#include <QCursor>
+#include <QToolTip>
+
 #include <QElapsedTimer>
 #include <QMetaObject>
 #include <QPalette>
@@ -846,7 +849,20 @@ bool ObjectLayer::canMove(int id) const
 {
     if (m_fills) return false;
     const size_t i = entryOf(id);
-    return i < m_entries.size() && !m_entries[i].deleted;
+    return i < m_entries.size() && !m_entries[i].deleted && !m_entries[i].object.fixed;
+}
+
+bool ObjectLayer::fractionAt(const Entry &e, const GridLayout &layout, const QPoint &point, QPointF *fraction, QSizeF *units) const
+{
+    for (const Pane pane : kPanes) {
+        if (!layout.pane(pane).rect.contains(point)) continue;
+        const QRect r = rectIn(layout, pane, e);
+        if (r.isEmpty() || !r.contains(point)) return false;
+        *fraction = QPointF((point.x() - r.left()) / double(r.width()), (point.y() - r.top()) / double(r.height()));
+        *units = QSizeF(e.box.w, e.box.h);
+        return true;
+    }
+    return false;
 }
 
 bool ObjectLayer::anchorAtBox(const ObjectBox &box, AnchorKind editAs, DrawingAnchor *out) const
@@ -983,6 +999,14 @@ bool ObjectLayer::press(const QPoint &point, const GridLayout &layout, Qt::Keybo
         }
     }
     const int hit = objectAt(point);
+    if (hit >= 0 && m_entries[entryOf(hit)].object.operate) {
+        // (a control is worked, not picked)
+        const Entry &e = m_entries[entryOf(hit)];
+        QPointF fraction;
+        QSizeF units;
+        if (m_selected >= 0) select(-1);
+        return fractionAt(e, layout, point, &fraction, &units) && e.object.operate(fraction, units);
+    }
     if (hit >= 0) {
         select(hit);
         if (canMove(hit)) {
@@ -1056,7 +1080,18 @@ std::optional<Qt::CursorShape> ObjectLayer::cursorAt(const QPoint &point, const 
         }
     }
     const int hit = objectAt(point);
-    if (hit < 0) return std::nullopt;
+    if (hit < 0) {
+        m_tipId = -1;
+        return std::nullopt;
+    }
+    const Entry &he = m_entries[entryOf(hit)];
+    if (!he.object.tooltip.isEmpty() && m_tipId != hit) {
+        m_tipId = hit;
+        QToolTip::showText(QCursor::pos(), he.object.tooltip, nullptr);
+    } else if (he.object.tooltip.isEmpty()) {
+        m_tipId = -1;
+    }
+    if (he.object.operate) return Qt::ArrowCursor;
     return hit == m_selected ? Qt::SizeAllCursor : Qt::ArrowCursor;
 }
 
@@ -1075,6 +1110,13 @@ bool ObjectLayer::doubleClick(const QPoint &point, const GridLayout &layout)
     m_layout = &layout;
     const int hit = objectAt(point);
     if (hit < 0) return false;
+    if (m_entries[entryOf(hit)].object.operate) {
+        // (the second click of a double click works the control again)
+        const Entry &e = m_entries[entryOf(hit)];
+        QPointF fraction;
+        QSizeF units;
+        return fractionAt(e, layout, point, &fraction, &units) && e.object.operate(fraction, units);
+    }
     select(hit);
     Q_EMIT objectActivated(hit);
     return true;

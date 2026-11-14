@@ -207,6 +207,13 @@
           ]
         },
         {
+          "name": "Controls",
+          "keytip": "ZN",
+          "items": [
+            {"large": {"id": "ribbon.formControls", "text": "Form Controls", "icon": "square-check"}, "keytip": "FO", "menu": ["insert.control.checkBox", "insert.control.optionButton", "insert.control.dropDown", "insert.control.listBox", "insert.control.button", "insert.control.label", "insert.control.groupBox", "insert.control.spinButton", "insert.control.scrollBar"]}
+          ]
+        },
+        {
           "name": "Text",
           "keytip": "ZX",
           "items": [

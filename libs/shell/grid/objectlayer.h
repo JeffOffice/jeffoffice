@@ -74,6 +74,12 @@ struct LayerObject {
     // Draws the object straight into a painter, in the box (the grid's pixels at the painter's scale), as vector shapes. Printing and PDF use it where it is set, instead of the picture the
     // object's `render` makes (the window still shows that picture). It may run on another thread than the window's: it must not touch the window's data.
     std::function<void(QPainter *, const QRectF &)> paintVector;
+    // A control a person works with a click (a form control): the object is told where the click is in it, as fractions of its width and height (0 to 1) and its size in the grid's units,
+    // and says whether it took the click; a click it takes picks nothing and drags nothing (the object is not picked at all: it is not one to move). With `fixed` the object is never
+    // moved or sized with the mouse or the keys. `tooltip` is shown while the mouse is over it.
+    std::function<bool(const QPointF &fraction, const QSizeF &units)> operate;
+    bool fixed = false;
+    QString tooltip;
 };
 
 class JO_COMMON_EXPORT ObjectLayer : public QObject, public GridOverlay {
@@ -259,6 +265,8 @@ private:
     void step();
     QRect visibleRect(const Entry &e) const;
     bool inkAt(const Entry &e, const GridLayout &layout, Pane pane, const QPoint &point) const;
+    // Where a point is in an object as fractions of its box (false if it is in no pane's picture of it).
+    bool fractionAt(const Entry &e, const GridLayout &layout, const QPoint &point, QPointF *fraction, QSizeF *units) const;
 
     std::vector<Entry> m_entries;
     std::unordered_map<int, size_t> m_byId;   // an object's place in the list, by its id (the first, if the ids repeat)
@@ -293,6 +301,7 @@ private:
     mutable Stats m_stats;
     std::function<void(int)> m_deleteHook;
     Drag m_drag;
+    int m_tipId = -1;                         // the object whose tooltip is shown
     mutable size_t m_dragEntry = size_t(-1);   // the entry being dragged: always drawn, wherever the index puts it
 };
 

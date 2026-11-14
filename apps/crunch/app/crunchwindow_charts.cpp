@@ -1349,6 +1349,14 @@ void CrunchWindow::placeChartButtons()
 
 void CrunchWindow::objectContextMenu(int id, const QPoint &global)
 {
+    if (crunch::isControlId(id)) {
+        auto *controlMenu = new QMenu(this);
+        controlMenu->setAttribute(Qt::WA_DeleteOnClose);
+        controlMenu->setObjectName(QStringLiteral("objectMenu"));
+        connect(controlMenu->addAction(tr("Format Control…")), &QAction::triggered, this, [this, id] { formatControlDialog(id); });
+        controlMenu->popup(global);
+        return;
+    }
     QMenu *menu = buildObjectMenu(id, this);
     menu->setAttribute(Qt::WA_DeleteOnClose);
     menu->popup(global);

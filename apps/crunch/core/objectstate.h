@@ -8,6 +8,7 @@
 
 #include "office/chart.h"
 #include "sheet/drawing.h"
+#include "sheet/formcontrol.h"
 
 #include <QByteArray>
 #include <QString>
@@ -78,6 +79,7 @@ struct ObjectState {
     bool deleted = false;                             // taken away (or not made yet)
     int order = 0;                                    // its place among the sheet's objects, from the back
     qint64 heldBytes = 0;                             // what the program keeps of an object this state takes away, for Undo to bring back (a barcode swapped for another keeps its drawing and parts)
+    std::shared_ptr<const jp::office::sheet::FormControl> control;   // a form control's state (null: whatever it has)
     int epoch = 0;                                    // which stretch between saves the places are of: after a save that followed edits to rows and columns, what was kept of the one before is no use
 };
 
