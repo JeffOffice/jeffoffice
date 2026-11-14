@@ -1464,9 +1464,8 @@ private Q_SLOTS:
     }
 
     // The program rounds a size to a whole point however little it shrinks it, so a size can come out bigger than the text's own (probed: 10.6
-    // points at 99.99 percent are 11, at 100 percent 10.6), and never smaller as the scale goes up below 100. JeffDeck's own fit searches the
-    // scales under 100 (the whole-point sizes step up with the scale there) after trying 100 itself: a box that needs a tiny shrink gets
-    // the largest whole-point size that fits, one that fits as it is keeps its size.
+    // points at 99.99 percent are 11, at 100 percent 10.6), and never smaller as the scale goes up below 100. JeffDeck's own fit takes the program's steps (lines 10 and 20 percent closer first, then the size down
+    // by 7.5 percent at a time): a box that needs a hair of shrinking gets its lines closer at the size as it is, one that fits as it is keeps its size.
     void shrunkSizesStepWithTheScaleAndFitTakesTheLargestThatFits()
     {
         QCOMPARE(slideShrunkSize(10.6, 1.0), 10.6);
@@ -1502,13 +1501,14 @@ private Q_SLOTS:
             LayoutCache cache;
             const auto fl = cache.textFrame(*d, *t, 1, RenderOptions());
             for (const auto &l : fl.layout->lineInfo(0)) sizes->append(l.pointSize);
-            return fl.fitScale;
+            return fl.fitScale + fl.fitCut / 1000;   // (the scale, and the lines' closeness in thousandths)
         };
         QVector<double> tight, roomy;
         const double needs = fitOf(108, &tight), holds = fitOf(110, &roomy);
-        QVERIFY2(needs > 0.97 && needs < 1.0, qPrintable(QString::number(needs)));
+        // (JeffDeck fits in the program's steps: first the lines 10 percent closer, which is all a hair of shrinking takes, at the size as it is.)
+        QVERIFY2(std::abs(needs - 1.01) < 1e-9, qPrintable(QString::number(needs)));
         QCOMPARE(int(tight.size()), 8);
-        for (double size : std::as_const(tight)) QCOMPARE(size, 10.0);   // 10.6 shrunk a hair is 10 whole points, and they fit
+        for (double size : std::as_const(tight)) QCOMPARE(size, 10.6);
         QCOMPARE(holds, 1.0);
         for (double size : std::as_const(roomy)) QCOMPARE(size, 10.6);
     }
