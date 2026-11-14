@@ -3,6 +3,7 @@
 // Nothing is used until the whole pair is there and every file has been checked; a file that does not match is thrown away and the download fails (the pair is not
 // installed). Only what the catalog names is fetched, and only from the addresses in it.
 
+#include "core/export.h"
 #include "catalog.h"
 #include "modelstore.h"
 
@@ -18,7 +19,7 @@ class QCryptographicHash;
 namespace jp {
 namespace translate {
 
-class Downloader : public QObject {
+class JO_COMMON_EXPORT Downloader : public QObject {
     Q_OBJECT
 public:
     // `net` is the program's network manager (or a test's); the downloader does not own it.

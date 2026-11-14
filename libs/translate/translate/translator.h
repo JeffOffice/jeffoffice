@@ -2,6 +2,7 @@
 // Translation of pieces of text between two languages with the models in the store: one model for a pair that has one, two (through English) for one that has not.
 // What does the translating is a Backend: the engine built in (BergamotBackend), or, in the tests, a stand-in that needs no model.
 
+#include "core/export.h"
 #include "catalog.h"
 #include "modelstore.h"
 
@@ -53,7 +54,7 @@ private:
 // One translation, run on a thread of the program's thread pool: `finished` comes on the thread of the one that made it. `cancel` stops it between pieces. Letting go
 // of the job (closing the window it was for) never waits for the thread: the translation stops at the next piece, in the pool, which is joined only when the program ends, and
 // nobody is told of its end.
-class TranslateJob : public QObject {
+class JO_COMMON_EXPORT TranslateJob : public QObject {
     Q_OBJECT
 public:
     TranslateJob(const Translator &translator, const QString &from, const QString &to, const QStringList &pieces, bool html, QObject *parent = nullptr);

@@ -4,6 +4,7 @@
 // time a pair is used, after a click on Download that says how big they are; nothing is sent anywhere but the model files' own addresses, and no text ever leaves the computer.
 // A pair the models do not cover is offered through the website (the old way) instead.
 
+#include "core/export.h"
 #include "translate/downloader.h"
 #include "translate/runmap.h"
 #include "translate/translator.h"
@@ -57,7 +58,7 @@ public:
     TranslateApplied insertBelow(const translate::Source &s, const translate::Result &r) override { return insertBelowFn ? insertBelowFn(s, r) : TranslateHost::insertBelow(s, r); }
 };
 
-class TranslatePane : public QWidget {
+class JO_COMMON_EXPORT TranslatePane : public QWidget {
     Q_OBJECT
 public:
     // `host` outlives the pane. `net` fetches the models.
