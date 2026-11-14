@@ -4,6 +4,7 @@
 
 #include "core/writedoc.h"
 #include "app/printpage.h"
+#include "io/pdfbookmarks.h"
 
 #include <QPagedPaintDevice>
 #include <QString>
@@ -28,5 +29,9 @@ QSize sheetGrid(int perSheet);
 // `tagger`: the pages are marked for a tagged PDF (one page to a sheet).
 // `maxImageDpi`: pictures are downsampled to that many pixels to the inch (a PDF of minimum size; 0 leaves them as they are).
 bool paintSheets(WriteDoc &doc, QPagedPaintDevice *device, const QVector<int> &pages, int pageCount, bool grayscale = false, const SheetLayout &layout = SheetLayout(), double maxImageDpi = 0, WriteTagger *tagger = nullptr);
+
+// The links of the pages as a PDF with one page to a sheet holds them (see core/linkops.h): over the words of each link in the text of the page (a link in a table, a header, or a
+// note is not given). `sheets` are the pages the PDF holds, in order; a link to a page the PDF leaves out is left out.
+QVector<PdfLink> sheetLinks(WriteDoc &doc, const QVector<int> &sheets);
 
 } // namespace jp::write

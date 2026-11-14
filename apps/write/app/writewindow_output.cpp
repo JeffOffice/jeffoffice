@@ -261,6 +261,8 @@ QByteArray WriteWindow::pdfSheets(write::WriteDoc &source, int sourcePages, cons
         for (PdfBookmark &m : marks) m.page /= std::max(1, grid.width() * grid.height());
         bytes = write::addPdfBookmarks(bytes, marks);
     }
+    // The links are clickable (one page to a sheet, and the pages as they are laid out: not scaled or turned).
+    if (grid == QSize(1, 1) && layout.paper.isEmpty() && layout.turn == PrintTurn::AsSet) bytes = addPdfLinks(bytes, write::sheetLinks(source, sheets));
     return bytes;
 }
 

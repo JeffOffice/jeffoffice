@@ -279,7 +279,7 @@ QByteArray addPdfLinks(const QByteArray &pdf, const QVector<PdfLink> &linksIn)
         if (annots.size() >= kMostPdfLinks) break;
         if (l.page < 0 || l.page >= pageObjects.size() || l.rect.isEmpty() || (l.uri.isEmpty() && (l.toPage < 0 || l.toPage >= pageObjects.size()))) continue;
         QByteArray a = QByteArray::number(firstNew + int(annots.size())) + " 0 obj\n<< /Type /Annot /Subtype /Link /Rect [" + number(l.rect.left()) + ' ' + number(l.rect.top()) + ' ' +
-                       number(l.rect.right()) + ' ' + number(l.rect.bottom()) + "] /Border [0 0 0] ";
+                       number(l.rect.right()) + ' ' + number(l.rect.bottom()) + "] /Border [0 0 0] /F 4 ";
         if (!l.uri.isEmpty()) {
             // (an address is 7-bit text: anything else, and the characters a string needs escaped, are written as %xx)
             a += "/A << /S /URI /URI (" + l.uri.toUtf8().toPercentEncoding("-._~:/?#[]@!$&'*+,;=%") + ") >>";

@@ -14,6 +14,8 @@
 #include "core/fonts.h"
 #include "app/emailops.h"
 #include "core/pdfbookmarks.h"
+#include "core/refops.h"
+#include "core/tocops.h"
 #include "io/qtpdf.h"
 #include "app/pdfprotection.h"
 #include "core/printing.h"
@@ -691,6 +693,71 @@ private Q_SLOTS:
         WriteOutputOptions plain;
         QVERIFY(w.exportPdfPages(plain));
         QVERIFY(!fileBytes(target).contains("pdfaid"));
+    }
+
+    // The links of a PDF are clickable: a web address goes to its address, and a table of contents entry and a cross-reference go to the page of their heading, in a normal PDF and in a
+    // PDF/A one.
+    void aPdfHasClickableLinks()
+    {
+        QTemporaryDir dir;
+        const QString docx = dir.filePath(QStringLiteral("links.docx"));
+        {
+            office::PackageWriter w;
+            const QByteArray body = para("Heading1", "Intro") + "<w:p><w:r><w:t xml:space=\"preserve\">See </w:t></w:r><w:hyperlink r:id=\"rId20\"><w:r><w:t>the site</w:t></w:r></w:hyperlink></w:p>" +
+                                    para(nullptr, "Also: ") + kPageBreak + para("Heading1", "Second part") + para(nullptr, "more");
+            w.addPart(QStringLiteral("/word/document.xml"), QByteArray("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n<w:document ") + kNs + "><w:body>" + body + "</w:body></w:document>",
+                      kWord + QStringLiteral("document.main+xml"));
+            w.addRelationship(QStringLiteral("/"), kRel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+            w.addPart(QStringLiteral("/word/styles.xml"),
+                      QByteArray("<?xml version=\"1.0\"?><w:styles ") + kNs +
+                          "><w:style w:type=\"paragraph\" w:default=\"1\" w:styleId=\"Normal\"><w:name w:val=\"Normal\"/></w:style>"
+                          "<w:style w:type=\"paragraph\" w:styleId=\"Heading1\"><w:name w:val=\"heading 1\"/><w:pPr><w:outlineLvl w:val=\"0\"/></w:pPr></w:style></w:styles>",
+                      kWord + QStringLiteral("styles+xml"));
+            w.addRelationship(QStringLiteral("/word/document.xml"), kRel + QStringLiteral("styles"), QStringLiteral("/word/styles.xml"));
+            w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rId20"), kRel + QStringLiteral("hyperlink"), QStringLiteral("https://example.com/a"), true);
+            QFile f(docx);
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write(w.finish());
+        }
+        WriteWindow w;
+        Quiet quiet(w);
+        QVERIFY(w.openFile(docx));
+        WriteDoc &doc = *w.document();
+        // a cross-reference to the second heading, at the end of "Also: "
+        const QVector<RefTarget> targets = crossReferenceTargets(doc, RefKind::Heading);
+        int second = -1;
+        for (int i = 0; i < targets.size(); ++i)
+            if (targets[i].label.contains(QStringLiteral("Second part"))) second = i;
+        QVERIFY(second >= 0);
+        QTextCursor at(doc.story());
+        at.setPosition(int(doc.story()->toPlainText().indexOf(QStringLiteral("Also: "))) + 6);
+        QVERIFY(insertCrossReference(doc, at, targets[second], RefKind::Heading, RefWhat::Text, true));
+        // and a table of contents at the top
+        QTextCursor top(doc.story());
+        top.setPosition(0);
+        QVERIFY(insertTableOfContents(doc, top, TocOptions()));
+        QString target;
+        w.setSavePathChooser([&](const QString &, const QString &) { return target; });
+        for (bool archive : {false, true}) {
+            target = dir.filePath(QStringLiteral("links%1.pdf").arg(archive));
+            WriteOutputOptions o;
+            o.pdfArchive = archive;
+            QVERIFY(w.exportPdfPages(o));
+            const QByteArray pdf = fileBytes(target);
+            QVERIFY(pdf.startsWith("%PDF"));
+            // the pages' objects, in order, from the file as Qt wrote it (the updates are after its first end)
+            jp::QtPdf q;
+            QVERIFY(q.loadBytes(pdf.left(int(pdf.indexOf("%%EOF")) + 6)));
+            QVector<int> pageIds;
+            for (const jp::QtPdf::Obj &obj : q.objects)
+                if (obj.body.contains("/Type /Page\n")) pageIds << obj.id;
+            QVERIFY(pageIds.size() >= 2);
+            QVERIFY2(pdf.contains("/URI (https://example.com/a)"), "no link to the web address");
+            const QByteArray toSecond = "/Dest [" + QByteArray::number(pageIds[1]) + " 0 R";
+            QVERIFY2(pdf.count(toSecond) >= 2, qPrintable(QStringLiteral("links to the second page: %1").arg(pdf.count(toSecond))));
+            QVERIFY(pdf.count("/Subtype /Link") >= 3);
+            if (archive) QVERIFY(pdf.contains("<pdfaid:part>2</pdfaid:part>"));
+        }
     }
 
     void theBuiltInTemplatesOpenAndSaveAsDocx()

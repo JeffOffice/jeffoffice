@@ -2,6 +2,7 @@
 
 #include "app/pagepaint.h"
 #include "app/writetags.h"
+#include "core/linkops.h"
 
 #include <QComboBox>
 #include <QCoreApplication>
@@ -41,6 +42,58 @@ QSize sheetGrid(int perSheet)
     case 16: return QSize(4, 4);
     default: return QSize(1, 1);
     }
+}
+
+QVector<PdfLink> sheetLinks(WriteDoc &doc, const QVector<int> &sheets)
+{
+    QVector<PdfLink> out;
+    const QVector<LinkSpan> spans = linkSpans(doc);
+    if (spans.isEmpty()) return out;
+    LayoutCache cache;
+    PaintContext ctx;
+    ctx.opt.output = true;
+    ctx.opt.textOutput = TextOutput::Pdf;
+    for (int sheet = 0; sheet < sheets.size(); ++sheet) {
+        const std::shared_ptr<flow::MaterializedPage> page = sheets[sheet] < 0 ? nullptr : doc.pager().materialize(sheets[sheet]);
+        if (!page) continue;
+        QString bodyId;
+        for (const QString &id : page->boxes)
+            if (const Item *item = page->doc->item(id))
+                if (item->type() == ItemType::Text) {
+                    bodyId = static_cast<const TextItem *>(item)->storyId;
+                    break;
+                }
+        const Story *body = bodyId.isEmpty() ? nullptr : page->doc->story(bodyId);
+        if (!body || !body->doc) continue;
+        const int length = body->doc->characterCount();
+        for (const LinkSpan &s : spans) {
+            const int from = std::max(0, s.from - page->storyFrom), to = std::min(length, s.to - page->storyFrom);
+            if (to <= from) continue;
+            int toPage = -1;
+            if (s.uri.isEmpty()) {
+                toPage = int(sheets.indexOf(doc.pager().pageOfPosition(s.target)));
+                if (toPage < 0) continue;
+            }
+            for (const QString &id : page->boxes) {
+                const Item *item = page->doc->item(id);
+                if (!item || item->type() != ItemType::Text) continue;
+                const auto *box = static_cast<const TextItem *>(item);
+                const LayoutCache::FrameLayout fl = cache.textFrame(*page->doc, *box, page->number, ctx.opt);
+                if (!fl.layout || fl.frame < 0) continue;
+                for (const QRectF &r : fl.layout->rangeRects(fl.frame, from, to)) {
+                    const QRectF m = box->transform().mapRect(r);
+                    PdfLink k;
+                    k.page = sheet;
+                    k.rect = QRectF(QPointF(m.left(), page->size.height() - m.bottom()), QPointF(m.right(), page->size.height() - m.top()));
+                    k.uri = s.uri;
+                    k.toPage = toPage;
+                    out.push_back(k);
+                    if (out.size() >= kMostPdfLinks) return out;
+                }
+            }
+        }
+    }
+    return out;
 }
 
 bool paintSheets(WriteDoc &doc, QPagedPaintDevice *device, const QVector<int> &pages, int pageCount, bool grayscale, const SheetLayout &layout, double maxImageDpi, WriteTagger *tagger)

@@ -5,6 +5,7 @@
 #include "core/writedoc.h"
 
 #include <QString>
+#include <QVector>
 
 class QTextCursor;
 
@@ -38,5 +39,15 @@ bool insertHyperlink(WriteDoc &doc, QTextCursor &c, const QString &address, cons
 bool changeHyperlink(WriteDoc &doc, int position, const QString &address, const QString &anchor, const QString &screenTip, const QString &text, QString *problem = nullptr);
 // Takes the link at the position off its text (the text stays, as plain text).
 bool removeHyperlink(WriteDoc &doc, int position);
+
+// A stretch of the text that is a link, for a PDF: the words between a hyperlink's tags, or a cross-reference's result when it has the \\h switch (REF, PAGEREF, NOTEREF), as a table
+// of contents' entries have. Positions in the story. A link outside the file has its address (a web or email address only); one to a place has where it goes, a position (-1: nowhere).
+struct LinkSpan {
+    int from = 0, to = 0;
+    QString uri;
+    int target = -1;
+};
+constexpr int kMostLinkSpans = 20000;
+QVector<LinkSpan> linkSpans(WriteDoc &doc);
 
 } // namespace jp::write
