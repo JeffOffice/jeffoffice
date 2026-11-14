@@ -825,6 +825,13 @@ class GeoStatus(unittest.TestCase):
         self.assertIn(".mapbox p[hidden]{display:none}", page)   # display:flex would otherwise beat the hidden attribute
         self.assertNotIn('id="map" style="display:none"', page)
 
+    def test_each_download_row_names_its_source(self):
+        main.init()
+        page = main.render_stats(main.gather_stats(today=dt.date(2026, 11, 20)))
+        self.assertEqual(page.count('<span class="delta">GitHub releases</span>'), 3)
+        self.assertIn('<span class="delta">apt.jeffoffice.com</span>', page)
+        self.assertIn('<span class="delta">snapcraft.io</span>', page)
+
     def test_the_list_is_fetched_again_after_a_week(self):
         self.assertEqual(main.GEO_MAX_AGE, 7 * 24 * 3600)
 

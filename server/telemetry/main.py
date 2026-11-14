@@ -1136,31 +1136,34 @@ def render_downloads(d):
     dl, days, e = d["downloads"], d["days"], html.escape
     gh, apt, snap = dl["github"], dl["apt"], dl["snap"]
 
-    def row(name, series, label, main, sub="", total="", color="var(--bar)"):
+    def named(name, source):
+        return f'{e(name)}<span class="delta">{e(source)}</span>'
+
+    def row(name, source, series, label, main, sub="", total="", color="var(--bar)"):
         spark = sparkline(series, color, label) if series else ""
-        return (f'<tr><td class="app">{e(name)}</td><td class="spark">{spark}</td><td class="r">{main}{sub}</td>'
+        return (f'<tr><td class="app">{named(name, source)}</td><td class="spark">{spark}</td><td class="r">{main}{sub}</td>'
                 f'<td class="r">{total}</td></tr>')
 
-    def off(name, what):
-        return f'<tr><td class="app">{e(name)}</td><td class="muted" colspan="3">{e(what)}: not connected yet</td></tr>'
+    def off(name, source, what):
+        return f'<tr><td class="app">{named(name, source)}</td><td class="muted" colspan="3">{e(what)}: not connected yet</td></tr>'
 
     body = ""
     for plat, name in PLATFORMS:
         p = gh["platforms"][plat]
-        body += row(name, p["series"], f"{name}: {p['period']} in {days} days", p["period"], total=p["total"])
+        body += row(name, "GitHub releases", p["series"], f"{name}: {p['period']} in {days} days", p["period"], total=p["total"])
     if not apt["connected"]:
-        body += off("apt", "apt")
+        body += off("apt", "apt.jeffoffice.com", "apt")
     else:
         sub = f'<span class="delta">{apt["checks"]} checks</span>'
-        body += row("apt (.deb)", apt["check_series"], f"apt update checks per day: {apt['checks']} in {days} days",
+        body += row("apt (.deb)", "apt.jeffoffice.com", apt["check_series"], f"apt update checks per day: {apt['checks']} in {days} days",
                     apt["deb"], sub, "")
     if not snap["connected"]:
-        body += off("Snap Store", "Snap Store")
+        body += off("Snap Store", "snapcraft.io", "Snap Store")
     elif snap["day"]:
-        body += row("Snap Store", snap["series"], f"Snap installed base, week of {snap['day']}: {snap['now']}", snap["now"],
+        body += row("Snap Store", "snapcraft.io", snap["series"], f"Snap installed base, week of {snap['day']}: {snap['now']}", snap["now"],
                     '<span class="delta">installed now</span>', "")
     else:
-        body += f'<tr><td class="app">Snap Store</td><td class="muted" colspan="3">no data yet</td></tr>'
+        body += f'<tr><td class="app">{named("Snap Store", "snapcraft.io")}</td><td class="muted" colspan="3">no data yet</td></tr>'
     since = gh["since"]
     notes = (f"GitHub counts downloads of each installer; the period is the change in GitHub's running total, "
              f"counting since {e(since)}. All time is GitHub's own total. " if since else
