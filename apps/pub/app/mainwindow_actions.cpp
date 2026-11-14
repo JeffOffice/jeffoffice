@@ -842,13 +842,8 @@ void MainWindow::createActions()
     mk("zoom.selection", tr("Selected Objects"), "scan-search", QKeySequence(), [this] { m_canvas->zoomToFit(Canvas::Fit::Selection); });
     mk("zoom.in", tr("Zoom In"), "zoom-in", QKeySequence::ZoomIn, [this] { m_canvas->zoomToFit(Canvas::Fit::None); m_canvas->setZoom(m_canvas->zoom() * 1.2); });
     mk("zoom.out", tr("Zoom Out"), "zoom-out", QKeySequence::ZoomOut, [this] { m_canvas->zoomToFit(Canvas::Fit::None); m_canvas->setZoom(m_canvas->zoom() / 1.2); });
-    {
-        // (its Ctrl+- belongs to the shortcut above, which zooms out when no text is being edited)
-        QList<QKeySequence> keys;
-        for (const QKeySequence &k : QKeySequence::keyBindings(QKeySequence::ZoomOut))
-            if (k != QKeySequence(Qt::CTRL | Qt::Key_Minus)) keys << k;
-        act("zoom.out")->setShortcuts(keys);
-    }
+    // (Ctrl+- belongs to the shortcut above, which zooms out when no text is being edited)
+    if (act("zoom.out")->shortcut() == QKeySequence(Qt::CTRL | Qt::Key_Minus)) act("zoom.out")->setShortcut(QKeySequence());
     mk("win.new", tr("New Window"), "app-window", QKeySequence(), [this] {
         auto *w = new MainWindow();
         w->setAttribute(Qt::WA_DeleteOnClose);
