@@ -24,6 +24,7 @@ using xmlscan::Tag;
 constexpr qint64 kPxEmu = 9525;
 
 std::atomic<qint64> g_shapeReads{0};
+std::atomic<qint64> g_entryProbes{0};
 
 struct KindName {
     ControlKind kind;
@@ -206,6 +207,7 @@ QVector<SheetControl> readSheetControls(const QByteArray &sheet)
     auto finish = [&] {
         if (!inControl) return;
         inControl = false;
+        g_entryProbes.fetch_add(1, std::memory_order_relaxed);   // (one probe of the hash for each entry: a search through those kept would add one for each of them)
         const auto at = placeOf.constFind(cur.shapeId);
         if (at != placeOf.constEnd()) {
             SheetControl &o = out[*at];
@@ -651,6 +653,7 @@ qint64 freeShapeId(const QSet<qint64> &taken, qint64 after)
 }
 
 qint64 controlShapeReads() { return g_shapeReads.load(std::memory_order_relaxed); }
+qint64 controlEntryProbes() { return g_entryProbes.load(std::memory_order_relaxed); }
 
 QByteArray newControlsDrawing(int block)
 {

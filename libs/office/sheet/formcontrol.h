@@ -96,5 +96,7 @@ qint64 largestShapeId(const QByteArray &vml);
 qint64 freeShapeId(const QSet<qint64> &taken, qint64 after);
 // How many shapes readFormControls has read in all (for tests: a drawing of notes only is not read shape by shape).
 qint64 controlShapeReads();
+// How many places of the sheet's entries for controls the reading has looked at in all, to find an entry of the same shape number (for tests: one for each entry).
+qint64 controlEntryProbes();
 
 } // namespace jp::office::sheet

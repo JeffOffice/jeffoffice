@@ -7,7 +7,6 @@
 #include "sheet/xlsxsave.h"
 
 #include <QDomDocument>
-#include <QElapsedTimer>
 #include <QRegularExpression>
 
 namespace {
@@ -300,11 +299,11 @@ private Q_SLOTS:
         const QByteArray prop = "<formControlPr xmlns=\"http://schemas.microsoft.com/office/spreadsheetml/2009/9/main\" objectType=\"CheckBox\"/>";
         Opened o;
         QVERIFY(open(bookWith(vmlOf(kShapes), prop, QString::fromLatin1(entries)), &o));
-        QElapsedTimer timer;
-        timer.start();
+        const qint64 before = controlEntryProbes();
         const QVector<FormControl> again = readFormControls(o.book.package(), o.book.info().sheets[0].part);
-        const qint64 ms = timer.elapsed();
-        QVERIFY2(ms < 250, qPrintable(QStringLiteral("took %1 ms").arg(ms)));
+        // (one look for each entry, 195000 in all; searching those kept for each would be a thousand million)
+        const qint64 probes = controlEntryProbes() - before;
+        QVERIFY2(probes <= 2 * 195000, qPrintable(QStringLiteral("%1 looks").arg(probes)));
         QVERIFY(again.size() >= 3);
     }
 
