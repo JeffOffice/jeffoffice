@@ -93,7 +93,10 @@ void download(QNetworkAccessManager *net, const QUrl &url, QObject *context, con
         r->deleteLater();
         const QString why = r->property("stoppedBecause").toString();
         if (!why.isEmpty()) done(QByteArray(), why);
-        else if (r->error() != QNetworkReply::NoError) done(QByteArray(), r->errorString());
+        else if (r->error() != QNetworkReply::NoError) {
+            const QString plain = plainProblem(r->url(), r->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt(), r->error() == QNetworkReply::TimeoutError);
+            done(QByteArray(), plain.isEmpty() ? r->errorString() : plain);
+        }
         else done(r->readAll(), QString());
     });
     QObject::connect(context, &QObject::destroyed, r, &QNetworkReply::abort);
@@ -108,13 +111,24 @@ std::function<void(const QUrl &, QObject *, const Done &, qint64)> fetch = [](co
     download(net, url, context, done, maxBytes, maxBytes > kMaxSmallBytes ? 120000 : 30000);
 };
 
+QString plainProblem(const QUrl &url, int httpStatus, bool timedOut)
+{
+    if (!timedOut && httpStatus != 401 && httpStatus != 403 && httpStatus < 500) return QString();
+    const QString host = url.host();
+    if (host.endsWith(QLatin1String("openverse.org")))
+        return QCoreApplication::translate("Online", "Openverse didn't answer. Try again in a minute, or search Wikimedia Commons instead.");
+    if (host.endsWith(QLatin1String("wikimedia.org")))
+        return QCoreApplication::translate("Online", "Wikimedia Commons didn't answer. Try again in a minute, or search Openverse instead.");
+    return QCoreApplication::translate("Online", "The library didn't answer. Try again in a minute, or use the other library instead.");
+}
+
 QUrl searchUrl(Source s, const QString &query)
 {
     QUrlQuery q;
     if (s == Openverse) {
         QUrl u(QStringLiteral("https://api.openverse.org/v1/images/"));
         q.addQueryItem(QStringLiteral("q"), queryValue(query));
-        q.addQueryItem(QStringLiteral("page_size"), QString::number(kMaxResults));
+        q.addQueryItem(QStringLiteral("page_size"), QString::number(std::min(kMaxResults, kOpenverseAnonymousResults)));
         u.setQuery(q);
         return u;
     }

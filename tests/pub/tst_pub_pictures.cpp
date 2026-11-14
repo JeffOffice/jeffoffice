@@ -406,7 +406,7 @@ private Q_SLOTS:
     void onlinePicturesLimitWhatALibraryCanSend()
     {
         QCOMPARE(jp::online::kMaxResults, 24);
-        QVERIFY(jp::online::searchUrl(jp::online::Openverse, QStringLiteral("x")).query().contains(QStringLiteral("page_size=24")));
+        QVERIFY(jp::online::searchUrl(jp::online::Openverse, QStringLiteral("x")).query().contains(QStringLiteral("page_size=20")));   // (Openverse refuses more to a program that has not signed in)
         QVERIFY(jp::online::searchUrl(jp::online::Commons, QStringLiteral("x")).query().contains(QStringLiteral("gsrlimit=24")));
         QJsonArray many;
         QJsonObject pages;
@@ -483,6 +483,41 @@ private Q_SLOTS:
         get(Elsewhere, 100000, 5000, &body, &error);  // sends the download to a file on this computer: not followed
         QVERIFY(body.isEmpty());
         QVERIFY(!error.isEmpty());
+    }
+
+    // A library that refuses or does not answer is told in plain words, not as "host requires authentication".
+    void onlinePicturesSayPlainlyWhenALibraryDoesNotAnswer()
+    {
+        const QUrl ov = jp::online::searchUrl(jp::online::Openverse, QStringLiteral("x"));
+        QVERIFY(ov.query().contains(QStringLiteral("page_size=20")));
+        for (int status : {401, 403, 500, 504}) {
+            const QString said = jp::online::plainProblem(ov, status, false);
+            QVERIFY2(said.startsWith(QStringLiteral("Openverse didn't answer.")) && said.contains(QStringLiteral("Wikimedia Commons")), qPrintable(said));
+        }
+        QVERIFY(jp::online::plainProblem(ov, 0, true).startsWith(QStringLiteral("Openverse didn't answer.")));
+        QVERIFY(jp::online::plainProblem(jp::online::searchUrl(jp::online::Commons, QStringLiteral("x")), 503, false).startsWith(QStringLiteral("Wikimedia Commons didn't answer.")));
+        QVERIFY(jp::online::plainProblem(ov, 404, false).isEmpty());
+        QVERIFY(jp::online::plainProblem(ov, 200, false).isEmpty());
+        // through the download itself, from a server on this computer
+        for (const QByteArray &status : {QByteArray("401 Unauthorized"), QByteArray("504 Gateway Timeout")}) {
+            QTcpServer server;
+            QVERIFY(server.listen(QHostAddress::LocalHost));
+            connect(&server, &QTcpServer::newConnection, &server, [&] {
+                QTcpSocket *s = server.nextPendingConnection();
+                connect(s, &QTcpSocket::disconnected, s, &QObject::deleteLater);
+                connect(s, &QTcpSocket::readyRead, s, [&status, s] {
+                    s->readAll();
+                    s->write("HTTP/1.1 " + status + "\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
+                });
+            });
+            QNetworkAccessManager nam;
+            bool answered = false;
+            QString error;
+            QObject context;
+            jp::online::download(&nam, QUrl(QStringLiteral("http://127.0.0.1:%1/p").arg(server.serverPort())), &context, [&](const QByteArray &, const QString &e) { error = e; answered = true; }, 1000, 5000);
+            QTRY_VERIFY_WITH_TIMEOUT(answered, 10000);
+            QVERIFY2(error.contains(QStringLiteral("didn't answer")) && !error.contains(QStringLiteral("authentication")), qPrintable(error));
+        }
     }
 
     // "C++" searched for "C" (a plus sign was sent as it is, and a server reads

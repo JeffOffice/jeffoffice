@@ -39,9 +39,14 @@ constexpr int kMaxResults = 24;
 constexpr qint64 kMaxPictureBytes = 50 * 1024 * 1024;
 constexpr qint64 kMaxSmallBytes = 2 * 1024 * 1024;
 constexpr int kRenditionWidth = 1920;
+// Openverse answers a program that has not signed in with 401 when it asks for more than this many.
+constexpr int kOpenverseAnonymousResults = 20;
 QUrl searchUrl(Source s, const QString &query);
 QList<Picture> parseOpenverse(const QByteArray &json);
 QList<Picture> parseCommons(const QByteArray &json);
+// What to tell the person when a library did not answer (a 401, a 403, a 5xx, or no answer in time):
+// plain words naming the library and the other one to try. Empty when the reply was no such problem.
+QString plainProblem(const QUrl &url, int httpStatus, bool timedOut);
 // The credit line: "Title" by Author, License.
 QString credit(const Picture &p);
 
