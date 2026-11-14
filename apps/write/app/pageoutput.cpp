@@ -1,6 +1,7 @@
 #include "app/pageoutput.h"
 
 #include "app/pagepaint.h"
+#include "app/writetags.h"
 
 #include <QComboBox>
 #include <QCoreApplication>
@@ -42,7 +43,7 @@ QSize sheetGrid(int perSheet)
     }
 }
 
-bool paintSheets(WriteDoc &doc, QPagedPaintDevice *device, const QVector<int> &pages, int pageCount, bool grayscale, const SheetLayout &layout, double maxImageDpi)
+bool paintSheets(WriteDoc &doc, QPagedPaintDevice *device, const QVector<int> &pages, int pageCount, bool grayscale, const SheetLayout &layout, double maxImageDpi, WriteTagger *tagger)
 {
     auto *printer = dynamic_cast<QPrinter *>(device);
     if (printer) printer->setFullPage(true);
@@ -62,6 +63,8 @@ bool paintSheets(WriteDoc &doc, QPagedPaintDevice *device, const QVector<int> &p
         d.pageCount = pageCount;
         d.grayscale = grayscale;
         d.maxImageDpi = maxImageDpi;
+        d.tagger = tagger;
+        if (tagger) tagger->beginPage();
         paintPage(&p, page, &cache, d);
         p.restore();
     };

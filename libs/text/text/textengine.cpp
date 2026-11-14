@@ -8,6 +8,7 @@
 #include "text/textprops.h"
 
 #include <QCache>
+#include <QScopeGuard>
 #include <QCoreApplication>
 #include <QFontDatabase>
 #include <QFontMetricsF>
@@ -6172,6 +6173,16 @@ void StoryLayout::paint(QPainter *p, int frame, const PaintOptions &o) const
         bool any = false;
         for (const Line &l : B->lines) any |= (l.frame == frame);
         if (!any) continue;
+        double markTop = 0;
+        if (o.markBlock) {
+            for (const Line &l : B->lines)
+                if (l.frame == frame) {
+                    markTop = l.rect.top() - frameY(frame);
+                    break;
+                }
+            o.markBlock(p, B->docStart, markTop, true);
+        }
+        const auto closeMark = qScopeGuard([&] { if (o.markBlock) o.markBlock(p, B->docStart, markTop, false); });
         if (m_env.wordLines && B->box.any()) paintBox(p, bi, frame);
 
         if (o.shadeFields)

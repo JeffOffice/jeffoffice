@@ -1,6 +1,7 @@
 #include "app/pagepaint.h"
 
 #include "app/grammarcheck.h"
+#include "app/writetags.h"
 #include "core/spellcheck.h"
 #include "core/tableops.h"
 
@@ -165,6 +166,7 @@ void paintPage(QPainter *p, flow::MaterializedPage &page, LayoutCache *layouts, 
     ctx.opt.grayscale = d.grayscale;
     ctx.opt.maxImageDpi = d.maxImageDpi;
     ctx.opt.exactImageDpi = true;
+    if (d.tagger) d.tagger->install(&ctx, page);
     const QString bodyId = bodyStoryId(page);
     const Story *body = bodyId.isEmpty() ? nullptr : page.doc->story(bodyId);
     // The selection, in the positions of the page's own story.
@@ -264,6 +266,7 @@ void paintPage(QPainter *p, flow::MaterializedPage &page, LayoutCache *layouts, 
     tables.marks = d.marks;
     tables.selFrom = d.selectionFrom;
     tables.selTo = d.selectionTo;
+    if (d.tagger) d.tagger->install(&tables);
     flow::paintTables(p, page, tables);
     if (d.gridlines && !d.output) {
         p->save();

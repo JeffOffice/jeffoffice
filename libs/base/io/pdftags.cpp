@@ -221,7 +221,10 @@ PdfTagResult tagPdf(const QByteArray &pdf, const PdfTagger &tagger, const PdfTag
     };
     QVector<QByteArray> children(tags.size());
     QByteArray top;
-    for (int i = 0; i < tags.size(); ++i) {
+    QVector<int> reading(tags.size());
+    for (int i = 0; i < tags.size(); ++i) reading[i] = i;
+    std::stable_sort(reading.begin(), reading.end(), [&](int a, int b) { return tags[a].order < tags[b].order; });
+    for (int i : std::as_const(reading)) {
         if (!keep[i]) continue;
         const QByteArray ref = QByteArray::number(objectOf[i]) + " 0 R ";
         if (tags[i].parent >= 0) children[tags[i].parent] += ref;

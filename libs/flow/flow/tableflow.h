@@ -288,12 +288,19 @@ private:
 std::shared_ptr<CellContent> layoutCellContent(const TableContext &ctx, int i0, int i1, int direct, double width);
 
 // How a table is drawn.
+struct TableFragment;
 struct TablePaint {
     TextOutput output = TextOutput::Picture;
     bool marks = false;                     // paragraph marks and the like
     int selFrom = -1, selTo = -1;           // the selected text, as document positions
     // Draws the objects set in the text of a stretch of a cell (its inline pictures and shapes), the painter placed as the text's lines are; none are drawn when unset.
     std::function<void(QPainter *, const StoryLayout &)> objects;
+    // For a caller that tags the output (see render/pagetags.h): called just before and just after a fragment of a table on the page is painted, and around the text of each of its
+    // cells (given the cell's index in the layout), `opens` saying which; what a fragment paints between those is decoration. Tables in cells are not marked apart. `markArtifact`
+    // is called around the tables of a header and a footer, which are decoration. Unset, nothing is called.
+    std::function<void(QPainter *, const TableFragment &, bool opens)> markTable;
+    std::function<void(QPainter *, const TableFragment &, int cell, bool opens)> markCell;
+    std::function<void(QPainter *, bool opens)> markArtifact;
 };
 
 // Some rows of a table, with what is in their cells laid out, ready to draw at a place on a page.

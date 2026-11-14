@@ -17,6 +17,7 @@ class GrammarCheck;
 namespace jp::write {
 
 class SpellCheck;
+class WriteTagger;
 
 struct PageDrawing {
     int selectionFrom = -1, selectionTo = -1;   // the selected text, as positions in the document
@@ -26,6 +27,7 @@ struct PageDrawing {
     TextOutput textOutput = TextOutput::Picture;
     int pageCount = 1;
     bool grayscale = false;
+    WriteTagger *tagger = nullptr;               // a tagged PDF: what the page draws is marked (app/writetags.h)
     double maxImageDpi = 0;                      // a PDF of minimum size: pictures are downsampled to this many pixels to the inch (0: as they are)
     bool draft = false;                          // Draft view: the header and footer are left out (the page is not drawn with its edges)
     bool gridlines = false;                      // the edges of the cells of tables drawn as faint dotted lines, where the table has no line of its own (on the screen only)

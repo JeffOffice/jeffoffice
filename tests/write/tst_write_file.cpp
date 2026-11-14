@@ -619,12 +619,27 @@ private Q_SLOTS:
             types << QString::fromLatin1(obj.body.mid(at + 4, obj.body.indexOf(' ', at + 4) - at - 4));
         }
         for (const char *t : {"H1", "P", "L", "LI", "LBody", "Table", "TR", "TH", "TD", "Figure"}) QVERIFY2(types.contains(QLatin1String(t)), t);
-        QVERIFY(all.contains("/Alt " + utf16Hex(QStringLiteral("A noisy logo"))));
-        // reading order: the heading, the paragraph, the list, the table, then the picture
-        QVERIFY(types.indexOf(QStringLiteral("H1")) < types.indexOf(QStringLiteral("P")));
-        QVERIFY(types.indexOf(QStringLiteral("P")) < types.indexOf(QStringLiteral("L")));
-        QVERIFY(types.indexOf(QStringLiteral("L")) < types.indexOf(QStringLiteral("Table")));
-        QVERIFY(types.indexOf(QStringLiteral("Table")) < types.indexOf(QStringLiteral("Figure")));
+        QVERIFY(all.contains("/Alt <" + utf16Hex(QStringLiteral("A noisy logo")) + ">"));
+        // reading order, as the tree walks it: the heading, the paragraph, the list, the table, then the picture
+        QStringList walked;
+        std::function<void(int)> walk = [&](int id) {
+            const jp::QtPdf::Obj *obj = q.object(id);
+            if (!obj) return;
+            const int at = int(obj->body.indexOf("/S /"));
+            walked << QString::fromLatin1(obj->body.mid(at + 4, obj->body.indexOf(' ', at + 4) - at - 4));
+            const int k = int(obj->body.indexOf("/K ["));
+            if (k < 0) return;
+            static const QRegularExpression ref(QStringLiteral("(\\d+) 0 R"));
+            const QString list = QString::fromLatin1(obj->body.mid(k, obj->body.indexOf(']', k) - k));
+            for (auto it = ref.globalMatch(list); it.hasNext();) walk(it.next().captured(1).toInt());
+        };
+        for (const jp::QtPdf::Obj &obj : q.objects)
+            if (obj.body.contains("/S /Document")) walk(obj.id);
+        for (const char *t : {"H1", "P", "L", "Table", "Figure"}) QVERIFY2(walked.contains(QLatin1String(t)), t);
+        QVERIFY(walked.indexOf(QStringLiteral("H1")) < walked.indexOf(QStringLiteral("P")));
+        QVERIFY(walked.indexOf(QStringLiteral("P")) < walked.indexOf(QStringLiteral("L")));
+        QVERIFY(walked.indexOf(QStringLiteral("L")) < walked.indexOf(QStringLiteral("Table")));
+        QVERIFY(walked.indexOf(QStringLiteral("Table")) < walked.indexOf(QStringLiteral("Figure")));
         QCOMPARE(pdfcheck::marksLeft(pdf), 0);
         const QVector<QByteArray> pages = pdfcheck::pageContents(pdf);
         QVERIFY(!pages.isEmpty());

@@ -115,6 +115,10 @@ struct PaintContext {
     // says which; not for a hidden one), and around the text of each cell of a table. Unset, nothing is called.
     std::function<void(QPainter *, const Item &, bool opens)> mark;
     std::function<void(QPainter *, const TableItem &, int row, int col, bool opens)> markCell;
+    // Likewise around each paragraph of the text of a text box (given the box, the position where the paragraph begins, and where it is from the box's top), and around each object set in a story's text (a picture
+    // in a line). Unset, nothing is called.
+    std::function<void(QPainter *, const Item &, int position, double top, bool opens)> markBlock;
+    std::function<void(QPainter *, const Item &, bool opens)> markInline;
     // Likewise for what a page draws that is not one of its objects (its background, the objects of its master pages, a catalog's repeated cells): decoration.
     std::function<void(QPainter *, bool opens)> markArtifact;
 };

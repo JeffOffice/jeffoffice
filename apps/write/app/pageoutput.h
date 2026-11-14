@@ -12,6 +12,8 @@
 
 namespace jp::write {
 
+class WriteTagger;
+
 // Draws the pages (indexes from 0), in the order given, a sheet each, on the device. False when nothing could be drawn. `pageCount` is what the pages say they
 // are of (NUMPAGES).
 // With a layout, several pages share a sheet (2, 4, 6, 9, or 16, in rows from the top left, each scaled to fit its place and framed with a thin line), and/or each page is
@@ -23,7 +25,8 @@ struct SheetLayout {
 };
 // The columns and rows that a number of pages on a sheet makes (1 for any number that isn't one of 1, 2, 4, 6, 9, 16).
 QSize sheetGrid(int perSheet);
+// `tagger`: the pages are marked for a tagged PDF (one page to a sheet).
 // `maxImageDpi`: pictures are downsampled to that many pixels to the inch (a PDF of minimum size; 0 leaves them as they are).
-bool paintSheets(WriteDoc &doc, QPagedPaintDevice *device, const QVector<int> &pages, int pageCount, bool grayscale = false, const SheetLayout &layout = SheetLayout(), double maxImageDpi = 0);
+bool paintSheets(WriteDoc &doc, QPagedPaintDevice *device, const QVector<int> &pages, int pageCount, bool grayscale = false, const SheetLayout &layout = SheetLayout(), double maxImageDpi = 0, WriteTagger *tagger = nullptr);
 
 } // namespace jp::write

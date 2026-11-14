@@ -18,6 +18,7 @@
 #include <QStringList>
 #include <QTextBlock>
 #include <QTextLayout>
+#include <functional>
 #include <memory>
 
 class QPainter;
@@ -266,6 +267,9 @@ struct PaintOptions {
     QVector<QPair<int, int>> misspelled;  // document ranges
     QVector<QPair<int, int>> grammar;     // document ranges of grammar and style issues (a blue dotted line, as the spelling's is a red wave)
     QVector<QPair<int, int>> found;       // document ranges shown as found by a search (a translucent yellow band behind the words)
+    // For a caller that tags the output (see render/pagetags.h): called just before and just after what is drawn for each paragraph that has lines in the frame (`opens` says which),
+    // with the position where the paragraph begins and where its first line in the frame is from the frame's top. Unset, nothing is called.
+    std::function<void(QPainter *, int position, double top, bool opens)> markBlock;
 };
 
 // A paragraph's text layout. Qt works out a tab's width from the layout's tab

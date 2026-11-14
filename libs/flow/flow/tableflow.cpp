@@ -1356,6 +1356,7 @@ void TableFragment::paint(QPainter *p, const TablePaint &o) const
         const CellContent &content = *items[size_t(pl.item)].content;
         // (A table in the cell has its lines on the cell's edges when the cell has no margin: they are drawn whole.)
         const bool hasTable = std::any_of(content.parts.begin(), content.parts.end(), [](const CellContent::Part &part) { return part.table != nullptr; });
+        if (o.markCell) o.markCell(p, *this, items[size_t(pl.item)].cell, true);
         p->save();
         QRectF area = hasTable ? pl.clip.adjusted(-2, -2, 2, 2) : pl.clip;
         if (pl.cut < area.bottom()) area.setBottom(pl.cut);
@@ -1375,11 +1376,15 @@ void TableFragment::paint(QPainter *p, const TablePaint &o) const
             } else if (part.table) {
                 TableFragment nested = *part.table;
                 nested.origin = QPointF(0, 0);
-                nested.paint(p, o);
+                TablePaint inner = o;
+                inner.markTable = nullptr;
+                inner.markCell = nullptr;
+                nested.paint(p, inner);
             }
             p->restore();
         }
         p->restore();
+        if (o.markCell) o.markCell(p, *this, items[size_t(pl.item)].cell, false);
     }
     // The borders, over the text: each line once (a cell's top and left, and its bottom and right where no cell is beyond them).
     const bool picture = o.output == TextOutput::Picture;

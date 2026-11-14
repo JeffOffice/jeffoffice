@@ -16,6 +16,7 @@ struct PdfTag {
     QString alt;          // the alternative text of a figure
     int parent = -1;      // the tag it belongs to (an index), or -1 for a top one
     bool content = true;  // false for a tag that only holds others (a table, a row)
+    double order = 0;     // among the tags of one parent, those with a smaller number come first (the ones with the same, in the order they were added)
 };
 
 class PdfTagger {

@@ -8,6 +8,8 @@
 #include "app/pageoutput.h"
 #include "app/pagepaint.h"
 #include "app/pdfprotection.h"
+#include "app/writetags.h"
+#include "io/pdftags.h"
 #include "core/editops.h"
 #include "app/pageview.h"
 #include "core/appinfo.h"
@@ -211,13 +213,16 @@ QByteArray WriteWindow::pdfBytes(const QVector<int> &pages, QString *error, cons
 
 QByteArray WriteWindow::pdfSheets(write::WriteDoc &source, int sourcePages, const QVector<int> &sheets, const write::SheetLayout &layout, bool grayscale, const WriteOutputOptions &options, QString *error, QString *notTagged)
 {
-    Q_UNUSED(notTagged);
     // The pages are made in memory: the bookmarks from the headings are added to the finished file.
     QBuffer made;
     made.open(QIODevice::WriteOnly);
     bool ok = false;
     const office::PackageProps props = m_doc->packageProps();
     const QString title = props.title.isEmpty() ? displayName() : props.title;
+    // (a sheet of several pages is one page of the PDF, and is not tagged)
+    const QSize grid = write::sheetGrid(layout.perSheet);
+    write::WriteTagger tagger;
+    const bool tagging = options.pdfTags && grid == QSize(1, 1);
     {
         QPdfWriter pdf(&made);
         pdf.setCreator(appInfo().name);
@@ -230,16 +235,28 @@ QByteArray WriteWindow::pdfSheets(write::WriteDoc &source, int sourcePages, cons
         }
         pdf.setResolution(1200);
         pdf.setPageMargins(QMarginsF(0, 0, 0, 0));
-        ok = write::paintSheets(source, &pdf, sheets, sourcePages, grayscale, layout, options.pdfMinimum ? 150 : 0);
+        ok = write::paintSheets(source, &pdf, sheets, sourcePages, grayscale, layout, options.pdfMinimum ? 150 : 0, tagging ? &tagger : nullptr);
     }
     if (!ok) {
         if (error) *error = tr("The pages can't be made.");
         return {};
     }
     QByteArray bytes = made.data();
+    if (tagging) {
+        QString language = source.proofingLanguage();
+        language.replace(QLatin1Char('_'), QLatin1Char('-'));
+        const PdfTagResult result = tagPdf(bytes, tagger.tags(), {language.isEmpty() ? QStringLiteral("en-US") : language, options.pdfProperties ? title : QString()});
+        if (result.pdf.isEmpty()) {
+            // The marks could not be taken out: the pages are made again, without them.
+            WriteOutputOptions again = options;
+            again.pdfTags = false;
+            if (notTagged) *notTagged = result.why;
+            return pdfSheets(source, sourcePages, sheets, layout, grayscale, again, error, nullptr);
+        }
+        bytes = result.pdf;
+        if (!result.tagged && notTagged) *notTagged = result.why;
+    }
     if (options.pdfBookmarks) {
-        // (a sheet of several pages is one page of the PDF)
-        const QSize grid = write::sheetGrid(layout.perSheet);
         QVector<PdfBookmark> marks = write::headingBookmarks(source, sheets);
         for (PdfBookmark &m : marks) m.page /= std::max(1, grid.width() * grid.height());
         bytes = write::addPdfBookmarks(bytes, marks);
@@ -290,6 +307,11 @@ bool WriteWindow::exportPdfAsk()
     bookmarks->setObjectName(QStringLiteral("pdfBookmarks"));
     bookmarks->setChecked(true);
     layout->addWidget(bookmarks);
+    auto *tags = new QCheckBox(tr("Document structure tags for accessibility"), &dialog);
+    tags->setObjectName(QStringLiteral("pdfTags"));
+    tags->setChecked(true);
+    tags->setToolTip(tr("Tags the headings, paragraphs, lists, tables, and pictures (with their alternative text), so that a screen reader reads the PDF in order."));
+    layout->addWidget(tags);
     auto *archive = new QCheckBox(tr("PDF/A, for keeping for a long time"), &dialog);
     archive->setObjectName(QStringLiteral("pdfArchive"));
     archive->setToolTip(tr("Makes a PDF/A-1b file: every font is in the file, so it looks the same in years. It is not tagged for screen readers."));
@@ -309,6 +331,7 @@ bool WriteWindow::exportPdfAsk()
     o.pdfMinimum = size->currentData().toBool();
     o.pdfProperties = properties->isChecked();
     o.pdfBookmarks = bookmarks->isChecked();
+    o.pdfTags = tags->isChecked();
     o.range = static_cast<WriteOutputOptions::Range>(which->currentData().toInt());
     o.pages = text->text();
     if (o.range == WriteOutputOptions::Range::Pages && outputPages(o).isEmpty()) {
@@ -349,7 +372,7 @@ bool WriteWindow::exportPdfPages(const WriteOutputOptions &options)
         jp::plainWarning(this, tr("Export to PDF"), tr("%1 couldn't export \"%2\".\n%3%4").arg(appInfo().name, QFileInfo(path).fileName(), err, saveFailureHint(err)));
         return false;
     }
-    statusBar()->showMessage(tr("Exported %1").arg(QFileInfo(path).fileName()), 5000);
+    statusBar()->showMessage(tr("Exported %1").arg(QFileInfo(path).fileName()) + (notTagged.isEmpty() ? QString() : QLatin1Char(' ') + tr("(not tagged for screen readers: %1)").arg(notTagged)), notTagged.isEmpty() ? 5000 : 8000);
     return true;
 }
 
@@ -699,7 +722,9 @@ bool WriteWindow::printOutput(const WriteOutputOptions &options)
     bool ok = false;
     QString err;
     if (options.toFile) {
-        QByteArray bytes = pdfSheets(*source, sourcePages, sheets, layout, options.grayscale, WriteOutputOptions(), &err, nullptr);
+        WriteOutputOptions pdfOptions;
+        pdfOptions.pdfTags = true;
+        QByteArray bytes = pdfSheets(*source, sourcePages, sheets, layout, options.grayscale, pdfOptions, &err, nullptr);
         ok = !bytes.isEmpty();
         if (ok) {
             QSaveFile file(path);

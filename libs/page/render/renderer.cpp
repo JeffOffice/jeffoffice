@@ -877,7 +877,10 @@ static void paintInlineObjects(QPainter *p, const PaintContext &ctx, const Story
         // The layout keeps sizes sane; an object it had to change isn't drawn.
         if (!it || std::abs(it->rect.width() - ob.rect.width()) > 0.01 || std::abs(it->rect.height() - ob.rect.height()) > 0.01) continue;
         it->moveBy(ob.rect.left() - it->rect.left(), ob.rect.top() - it->rect.top());
+        const bool marked = ctx.markInline && depth == 1;
+        if (marked) ctx.markInline(p, *it, true);
         Renderer::paintItem(p, ctx, *it);
+        if (marked) ctx.markInline(p, *it, false);
     }
     --depth;
 }
@@ -896,6 +899,7 @@ static void paintText(QPainter *p, const PaintContext &ctx, const TextItem &t)
         const QVector<TextItem *> chain = ctx.doc->chainOf(t.id);
         const QString sid = chain.isEmpty() ? t.storyId : chain.first()->storyId;
         if (ctx.opt.editStory == sid) { po.selFrom = ctx.opt.selFrom; po.selTo = ctx.opt.selTo; }
+        if (ctx.markBlock) po.markBlock = [&](QPainter *pp, int position, double top, bool opens) { ctx.markBlock(pp, t, position, top, opens); };
         if (ctx.opt.misspelled.contains(sid)) { po.showSpelling = true; po.misspelled = ctx.opt.misspelled.value(sid); }
         if (ctx.opt.grammar.contains(sid)) po.grammar = ctx.opt.grammar.value(sid);
         if (ctx.opt.found.contains(sid)) po.found = ctx.opt.found.value(sid);
