@@ -1666,6 +1666,10 @@ void checkQuickToolbarPage(Adapter &app)
         defaults << b->defaultAction()->objectName();
     }
     QVERIFY2(!defaults.isEmpty(), "the app has no quick toolbar");
+    // every app starts with the same quick toolbar (Jeff, Nov 14 2026), in file, history, clipboard order
+    QCOMPARE(defaults, (QStringList{QStringLiteral("file.open"), QStringLiteral("file.save"), QStringLiteral("file.print"),
+                                    QStringLiteral("edit.undo"), QStringLiteral("edit.redo"),
+                                    QStringLiteral("edit.cut"), QStringLiteral("edit.copy"), QStringLiteral("edit.paste")}));
     // the commands the page must list are the ones the Keyboard page lists (one function decides)
     const jp::KeyMap keys(w.get());
     QStringList ids;
