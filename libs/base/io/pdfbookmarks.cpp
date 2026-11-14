@@ -357,7 +357,7 @@ QByteArray addPdfLinks(const QByteArray &pdf, const QVector<PdfLink> &linksIn)
     return pdf + tail + x;
 }
 
-QByteArray pdfPropertiesXmp(const QString &title, const QString &author, const QString &subject, const QString &keywords, const QString &program, bool archive)
+QByteArray pdfPropertiesXmp(const QString &title, const QString &author, const QString &subject, const QString &keywords, const QString &program, bool archive, int archivePart)
 {
     auto esc = [](const QString &t) { return t.toHtmlEscaped().toUtf8(); };
     QByteArray x = "<?xpacket begin=\"\xEF\xBB\xBF\" id=\"W5M0MpCehiHzreSzNTczkc9d\"?>\n"
@@ -368,7 +368,7 @@ QByteArray pdfPropertiesXmp(const QString &title, const QString &author, const Q
     if (!author.isEmpty()) x += "<dc:creator><rdf:Seq><rdf:li>" + esc(author) + "</rdf:li></rdf:Seq></dc:creator>\n";
     if (!subject.isEmpty()) x += "<dc:description><rdf:Alt><rdf:li xml:lang=\"x-default\">" + esc(subject) + "</rdf:li></rdf:Alt></dc:description>\n";
     if (!keywords.isEmpty()) x += "<pdf:Keywords>" + esc(keywords) + "</pdf:Keywords>\n";
-    if (archive) x += "<pdfaid:part>1</pdfaid:part><pdfaid:conformance>B</pdfaid:conformance>\n";
+    if (archive) x += "<pdfaid:part>" + QByteArray::number(archivePart) + "</pdfaid:part><pdfaid:conformance>B</pdfaid:conformance>\n";
     x += "<xmp:CreatorTool>" + esc(program) + "</xmp:CreatorTool>\n</rdf:Description>\n</rdf:RDF></x:xmpmeta>\n<?xpacket end=\"w\"?>";
     return x;
 }

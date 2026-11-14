@@ -33,7 +33,8 @@ constexpr int kMostPdfLinks = 20000;
 // page, as the ones given cover them; the PDF as it was if there are none, or it is made in a way this doesn't know how to extend (nothing is guessed).
 QByteArray addPdfLinks(const QByteArray &pdf, const QVector<PdfLink> &links);
 
-// The document's properties as the metadata a PDF reader shows (title, author, subject, keywords, and the program that made it).
-QByteArray pdfPropertiesXmp(const QString &title, const QString &author, const QString &subject, const QString &keywords, const QString &program, bool archive = false);
+// The document's properties as the metadata a PDF reader shows (title, author, subject, keywords, and the program that made it); with `archive`, the mark of PDF/A part
+// `archivePart` (1 or 2), conformance B.
+QByteArray pdfPropertiesXmp(const QString &title, const QString &author, const QString &subject, const QString &keywords, const QString &program, bool archive = false, int archivePart = 1);
 
 } // namespace jp

@@ -229,9 +229,9 @@ QByteArray WriteWindow::pdfSheets(write::WriteDoc &source, int sourcePages, cons
         if (options.pdfArchive) pdf.setPdfVersion(QPdfWriter::PdfVersion_A1b);
         if (options.pdfProperties) {
             pdf.setTitle(title);
-            pdf.setDocumentXmpMetadata(write::pdfPropertiesXmp(title, m_personalInfoRemoved ? QString() : props.creator, props.subject, props.keywords, appInfo().name, options.pdfArchive));
+            pdf.setDocumentXmpMetadata(write::pdfPropertiesXmp(title, m_personalInfoRemoved ? QString() : props.creator, props.subject, props.keywords, appInfo().name, options.pdfArchive, 2));
         } else if (options.pdfArchive) {
-            pdf.setDocumentXmpMetadata(write::pdfPropertiesXmp(QString(), QString(), QString(), QString(), appInfo().name, true));
+            pdf.setDocumentXmpMetadata(write::pdfPropertiesXmp(QString(), QString(), QString(), QString(), appInfo().name, true, 2));
         }
         pdf.setResolution(1200);
         pdf.setPageMargins(QMarginsF(0, 0, 0, 0));
@@ -314,7 +314,7 @@ bool WriteWindow::exportPdfAsk()
     layout->addWidget(tags);
     auto *archive = new QCheckBox(tr("PDF/A, for keeping for a long time"), &dialog);
     archive->setObjectName(QStringLiteral("pdfArchive"));
-    archive->setToolTip(tr("Makes a PDF/A-1b file: every font is in the file, so it looks the same in years. It is not tagged for screen readers."));
+    archive->setToolTip(tr("Makes a PDF/A-2b file: every font is in the file, so it looks the same in years."));
     layout->addWidget(archive);
     auto *protect = new jp::PdfProtectionRow(&dialog);
     protect->forbiddenBy({archive}, tr("PDF/A is turned off, because a PDF with a password can't be a PDF/A file."));
