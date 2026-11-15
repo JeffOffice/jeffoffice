@@ -1,5 +1,6 @@
 // JeffDeck's tests of open document presentations: reading, writing, and saving from the window.
 #include "deckhelpers.h"
+#include "office/packageprops.h"
 #include "app/lossywarning.h"
 #include "office/hyperlink.h"
 #include "core/version.h"
@@ -2769,7 +2770,7 @@ private Q_SLOTS:
         QCOMPARE(fileBytes(odp), odpBytes);
         QCOMPARE(w.editor()->filePath(), pptx);
         QVERIFY(!w.editor()->isModified());
-        QVERIFY2(w.windowTitle().contains(QStringLiteral("talk.pptx")), qPrintable(w.windowTitle()));
+        QVERIFY2(w.windowTitle().startsWith(QStringLiteral("talk - ")), qPrintable(w.windowTitle()));   // (the name, without its ending)
         // A .pptx shows nothing.
         asked = 0;
         QVERIFY(w.saveTo(pptx));
@@ -2848,7 +2849,7 @@ private Q_SLOTS:
         QTemporaryDir dir;
         QVERIFY(dir.isValid());
         DeckWindow w;
-        w.setMarkedFinal(true);
+        w.editor()->doc()->props.custom = office::withMarkAsFinal(w.editor()->doc()->props.custom, true);
         QStringList seen;
         jp::setLossyStandIn([&](const jp::LossyAsk &a, bool *) {
             seen = a.lost;
