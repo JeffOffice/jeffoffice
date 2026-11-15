@@ -28,6 +28,8 @@ bool uiHighContrast();
 void setUiHighContrast(bool on);
 QColor uiText();
 QColor uiAccent();
+QColor uiMuted();          // grey detail lines and section headings (docs/design/STYLE.md)
+QColor uiDanger();         // the red of the Warning and Critical signs
 QColor focusRingColor();   // the ring around the control with the keyboard focus
 QColor uiWindow();         // behind cards (File pages)
 QColor uiPanel();          // side panels (File sidebar, page thumbnails)

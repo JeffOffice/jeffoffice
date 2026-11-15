@@ -2,6 +2,8 @@
 // What is shown from a file is shown as the text it is: a note, a link's address or tip, a sheet's or a name's text, and a file's name are never read as markup (a label or a message box
 // reads markup unless told not to, and markup can name a picture to fetch). These are the ways to show such text.
 
+#include "app/uistyle.h"
+
 #include <QLabel>
 #include <QMessageBox>
 #include <QString>
@@ -30,7 +32,7 @@ inline QLabel *plainLabel(QLabel *label)
 inline int plainBox(QWidget *parent, QMessageBox::Icon icon, const QString &title, const QString &text, QMessageBox::StandardButtons buttons = QMessageBox::Ok,
                     QMessageBox::StandardButton preferred = QMessageBox::NoButton)
 {
-    QMessageBox box(icon, title, text, buttons, parent);
+    jp::MessageBox box(icon, title, text, buttons, parent);
     box.setTextFormat(Qt::PlainText);
     if (preferred != QMessageBox::NoButton) box.setDefaultButton(preferred);
     return box.exec();

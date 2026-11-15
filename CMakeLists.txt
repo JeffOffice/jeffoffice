@@ -998,6 +998,11 @@ target_link_libraries(jdecktool PRIVATE jdcore)
 set_target_properties(jdecktool PROPERTIES WIN32_EXECUTABLE OFF)
 endif()
 
+# Developer tool: pictures of the shared dialog pieces (docs/design/STYLE.md).
+qt_add_executable(jo_uigrab tools/uigrab.cpp)
+target_link_libraries(jo_uigrab PRIVATE jeffoffice-common)
+set_target_properties(jo_uigrab PROPERTIES WIN32_EXECUTABLE OFF)
+
 # Developer tool for laying a text out in pages (the flowing document) from the command line, and for measuring that.
 qt_add_executable(writetool tools/writetool.cpp)
 target_link_libraries(writetool PRIVATE jeffoffice-common)

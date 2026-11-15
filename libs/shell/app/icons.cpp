@@ -1,6 +1,7 @@
 #include <QTabBar>
 #include <QApplication>
 #include "app/icons.h"
+#include "app/uistyle.h"
 
 #include "core/appinfo.h"
 #include "render/shapes.h"
@@ -48,6 +49,18 @@ QColor uiAccent()
     const QColor c = uiDark() ? appInfo().accentDark : appInfo().accent;
     if (c.isValid()) return c;
     return uiDark() ? QColor(0x7F, 0xB2, 0xFF) : QColor(0x1A, 0x5F, 0xD6);
+}
+
+QColor uiMuted()
+{
+    if (g_highContrast) return QGuiApplication::palette().color(QPalette::WindowText);
+    return uiDark() ? QColor(0x9C, 0xA3, 0xAF) : QColor(0x6B, 0x72, 0x80);
+}
+
+QColor uiDanger()
+{
+    if (g_highContrast) return QGuiApplication::palette().color(QPalette::WindowText);
+    return uiDark() ? QColor(0xF9, 0x70, 0x66) : QColor(0xD9, 0x2D, 0x20);
 }
 
 // Surfaces of the program's own panels; in high contrast, the system's.
@@ -117,7 +130,7 @@ QPushButton:hover { background: %6; border-color: %3; }
 QPushButton:pressed { background: %2; }
 QPushButton:focus { border-color: %5; }
 QPushButton:disabled { color: %9; }
-QPushButton[primary="true"] { background: %5; border: 1px solid %5; color: white; font-weight: 600; }
+QPushButton[primary="true"] { background: %5; border: 1px solid %5; color: PRIMARYTEXT; font-weight: 600; }
 QPushButton[primary="true"]:hover { background: %7; border-color: %7; }
 QScrollBar:vertical { background: transparent; width: 14px; margin: 0; }
 QScrollBar:horizontal { background: transparent; height: 14px; margin: 0; }
@@ -140,8 +153,19 @@ QMenu::item:selected { background: %6; }
 QMenu::separator { height: 1px; background: %2; margin: 5px 8px; }
 QMenu::icon { padding-left: 6px; }
 )");
-    return css.arg(field, border, borderHover, button, accent, buttonHover, accentHover, text, d ? "#6b7280" : "#9ca3af")
+    css.replace(QStringLiteral("PRIMARYTEXT"), d ? QStringLiteral("#101418") : QStringLiteral("white"));
+    css = css.arg(field, border, borderHover, button, accent, buttonHover, accentHover, text, d ? "#6b7280" : "#9ca3af")
         .arg(handle, handleHover, chevronFile(QStringLiteral("down"), uiText()), chevronFile(QStringLiteral("up"), uiText()), chevronFile(QStringLiteral("check"), QColor(Qt::white)));
+    // The one dialog style (docs/design/STYLE.md): section headings in place of group frames, links, soft preview panels.
+    css += QStringLiteral(R"(
+QGroupBox { border: none; background: transparent; margin-top: 22px; padding: 0; }
+QGroupBox[title=""] { margin-top: 0; }
+QGroupBox::title { subcontrol-origin: margin; subcontrol-position: top left; left: 0; padding: 0 0 6px 0; color: %1; font-size: 11px; font-weight: 500; }
+QPushButton[link="true"] { background: transparent; border: none; color: %2; padding: 2px 0; min-height: 0; font-weight: 400; }
+QPushButton[link="true"]:hover { background: transparent; text-decoration: underline; }
+QFrame[previewPanel="true"] { background: %3; border: none; border-radius: 8px; }
+)").arg(uiMuted().name(), accent, uiPanel().name());
+    return css;
 }
 
 namespace {
@@ -386,6 +410,7 @@ void installUiPolish()
     if (done || !qApp) return;
     done = true;
     qApp->installEventFilter(new TabBarPolish(qApp));
+    installButtonBoxStyle();
 }
 
 } // namespace jp
