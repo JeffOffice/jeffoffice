@@ -2858,9 +2858,9 @@ private Q_SLOTS:
         });
         QVERIFY(w.saveTo(dir.filePath(QStringLiteral("final.odp"))));
         QVERIFY2(seen.join(QLatin1Char(' ')).contains(QStringLiteral("final")), qPrintable(seen.join(QLatin1Char(' '))));
-    // The notes page's places and the handout master are in the file (the master page's notes, and style:handout-master) and come back; a presentation with none writes none.
     }
 
+    // The notes page's places and the handout master are in the file (the master page's notes, and style:handout-master) and come back; a presentation with none writes none.
     void notesAndHandoutMasterLayoutsAreKeptInOpenDocumentFiles()
     {
         auto d = deck::newPresentation();
