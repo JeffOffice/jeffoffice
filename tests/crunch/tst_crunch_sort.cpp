@@ -14,6 +14,7 @@
 
 #include <QAction>
 #include <QComboBox>
+#include <QElapsedTimer>
 #include <QPushButton>
 #include <QCheckBox>
 #include <QFile>
@@ -632,7 +633,10 @@ private Q_SLOTS:
         QSignalSpy finished(&w, &CrunchWindow::sortFinished);
         QVERIFY(w.sortRange(rangeOf(QStringLiteral("A1:A5000")), byColumn(0)));
         QVERIFY(w.isSorting());
-        for (int turns = 0; turns < 100000 && !w.isApplying() && w.isSorting(); ++turns) QCoreApplication::processEvents(QEventLoop::AllEvents);   // (one turn at a time, to stop in the middle)
+        // (one turn at a time, to stop in the middle; the order is made on a thread, so how many turns that takes depends on the machine: wait by the clock, not by a count of turns)
+        QElapsedTimer waited;
+        waited.start();
+        while (!w.isApplying() && w.isSorting() && waited.elapsed() < 60000) QCoreApplication::processEvents(QEventLoop::AllEvents);
         QVERIFY(w.isApplying());                                                    // (the plan is made, and the cells are being put in)
         QVERIFY(!w.act(QStringLiteral("edit.undo"))->isEnabled());
         QVERIFY(!w.act(QStringLiteral("edit.redo"))->isEnabled());
