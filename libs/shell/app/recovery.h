@@ -12,6 +12,7 @@
 #include <memory>
 
 class QObject;
+class QTimer;
 
 namespace jp {
 namespace recovery {
@@ -87,6 +88,10 @@ void discard(const Recovered &r);
 
 // A normal exit: this run's folder goes.
 void endSession();
+
+// Makes a window's recovery timer follow the interval Options > Save sets: its interval is the setting's now, and it starts again at the new interval the moment the setting changes
+// (the same place for every app). `context` is the window, whose end ends the following.
+void followInterval(QTimer &timer, QObject *context);
 
 } // namespace recovery
 } // namespace jp

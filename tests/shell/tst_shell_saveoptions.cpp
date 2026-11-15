@@ -8,12 +8,25 @@
 #include <QComboBox>
 #include <QLineEdit>
 #include <QSpinBox>
+#include <QTimer>
+#include "app/recovery.h"
 #include <QTemporaryDir>
+#include <private/qabstractfileengine_p.h>
 #include <QtTest>
 
 using namespace jp;
 
 namespace {
+
+// Notes any path on another computer that the program looks at (a stat, an open): it must not, as that sends the person's credentials there.
+struct RemoteWatch : QAbstractFileEngineHandler {
+    mutable QStringList touched;
+    std::unique_ptr<QAbstractFileEngine> create(const QString &fileName) const override
+    {
+        if (fileName.startsWith(QLatin1String("//")) || fileName.startsWith(QLatin1String("\\\\"))) touched << fileName;
+        return nullptr;
+    }
+};
 
 class ShellSaveOptionsTests : public QObject {
     Q_OBJECT
@@ -69,6 +82,41 @@ private Q_SLOTS:
         w->findChild<QLineEdit *>(QStringLiteral("defaultFolder"))->setText(QStringLiteral("/no/such/folder/here"));
         page.apply();
         QVERIFY(defaultFolder() != QStringLiteral("/no/such/folder/here"));
+    }
+
+    // The interval is taken at once, by the timer of every window, through the one place that all four apps use.
+    void theNewRecoveryIntervalIsTakenAtOnceByEveryTimerThatFollowsIt()
+    {
+        QObject window;
+        QTimer one, two;
+        recovery::followInterval(one, &window);
+        recovery::followInterval(two, &window);
+        one.start();
+        two.start();
+        QCOMPARE(one.interval(), 10 * 60 * 1000);
+        const OptionsPage page = saveOptionsPage({{QStringLiteral("docx"), QStringLiteral("Document (*.docx)")}});
+        std::unique_ptr<QWidget> w(page.build());
+        w->findChild<QSpinBox *>(QStringLiteral("autoRecoverMinutes"))->setValue(3);
+        page.apply();
+        QCOMPARE(one.interval(), 3 * 60 * 1000);
+        QCOMPARE(two.interval(), 3 * 60 * 1000);
+        QVERIFY(one.isActive() && two.isActive());
+    }
+
+    // A default folder on another computer is used as it is given: nothing looks at it (Open, Save As, and OK in Options), so no credentials go to that computer unasked.
+    void aDefaultFolderOnAnotherComputerIsNeverLookedAt()
+    {
+        const RemoteWatch watch;
+        const QString share = QStringLiteral("//server/share/docs");
+        Settings::get().setValue(QStringLiteral("dirs/default"), share);
+        QCOMPARE(defaultFolder(), share);
+        QCOMPARE(openFolder(), share);
+        const OptionsPage page = saveOptionsPage({{QStringLiteral("docx"), QStringLiteral("Document (*.docx)")}});
+        std::unique_ptr<QWidget> w(page.build());
+        w->findChild<QLineEdit *>(QStringLiteral("defaultFolder"))->setText(QStringLiteral("//other/place"));
+        page.apply();
+        QCOMPARE(Settings::get().value(QStringLiteral("dirs/default")).toString(), QStringLiteral("//other/place"));
+        QVERIFY2(watch.touched.isEmpty(), qPrintable(watch.touched.join(QLatin1Char(' '))));
     }
 
     void aFormatTheAppDoesNotHaveIsTheFirstOne()

@@ -63,11 +63,14 @@ OptionsPage saveOptionsPage(const QVector<SaveFormat> &formats, const std::funct
     page.apply = [f, applyMore] {
         Settings &st = Settings::get();
         if (f->format) st.setValue(QStringLiteral("save/format"), f->format->currentData().toString());
-        if (f->minutes) st.setValue(QStringLiteral("save/autoRecoverMinutes"), f->minutes->value());
+        if (f->minutes) {
+            st.setValue(QStringLiteral("save/autoRecoverMinutes"), f->minutes->value());
+            Q_EMIT AutoRecoverNotifier::get().changed(f->minutes->value());   // (every window's timer takes it now)
+        }
         if (f->folder) {
             // (a folder that is not there is not kept)
             const QString folder = f->folder->text().trimmed();
-            st.setValue(QStringLiteral("dirs/default"), folder.isEmpty() || QDir(folder).exists() ? folder : st.value(QStringLiteral("dirs/default")).toString());
+            st.setValue(QStringLiteral("dirs/default"), folder.isEmpty() || defaultFolderUsable(folder) ? folder : st.value(QStringLiteral("dirs/default")).toString());
         }
         if (applyMore) applyMore();
     };

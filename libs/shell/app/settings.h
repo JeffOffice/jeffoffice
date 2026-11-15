@@ -43,6 +43,8 @@ void moveToSuite(QSettings &app, QSettings &suite);
 // folder Save As and Open start in (the one Options names when it is there, else the Documents folder), and where Open starts: the default folder when one is named, else the
 // folder the last file was opened from.
 QString defaultSaveFormat();
+// Whether a default folder can be used: one on another computer as it is given (never looked at), a local one when it is there.
+bool defaultFolderUsable(const QString &folder);
 QString defaultFolder();
 QString openFolder();
 
@@ -58,6 +60,15 @@ public:
     static SpellSettingNotifier &get();
 Q_SIGNALS:
     void changed(bool on);
+};
+
+// How often the automatic recovery information is saved (Options > Save): every window of every app hears a change at once (see recovery::followInterval).
+class JO_COMMON_EXPORT AutoRecoverNotifier : public QObject {
+    Q_OBJECT
+public:
+    static AutoRecoverNotifier &get();
+Q_SIGNALS:
+    void changed(int minutes);
 };
 
 // "Check grammar as you type": the same, a second choice beside the first (libs/shell/app/grammar.h). On until it is turned off.

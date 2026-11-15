@@ -1,6 +1,7 @@
 #include "app/settings.h"
 
 #include "core/appinfo.h"
+#include "core/remotepath.h"
 #include "grammar/grammarrules.h"
 #include <algorithm>
 
@@ -88,19 +89,31 @@ SpellSettingNotifier &SpellSettingNotifier::get()
     return n;
 }
 
+AutoRecoverNotifier &AutoRecoverNotifier::get()
+{
+    static AutoRecoverNotifier n;
+    return n;
+}
+
 QString defaultSaveFormat() { return Settings::get().value(QStringLiteral("save/format")).toString(); }
+
+bool defaultFolderUsable(const QString &folder)
+{
+    // (a folder on another computer is not looked at: that would send the person's credentials there; the file dialog says if it is gone)
+    return !folder.isEmpty() && (isOnAnotherComputer(folder) || QDir(folder).exists());
+}
 
 QString defaultFolder()
 {
     const QString chosen = Settings::get().value(QStringLiteral("dirs/default")).toString();
-    if (!chosen.isEmpty() && QDir(chosen).exists()) return chosen;
+    if (defaultFolderUsable(chosen)) return chosen;
     return QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
 }
 
 QString openFolder()
 {
     const QString chosen = Settings::get().value(QStringLiteral("dirs/default")).toString();
-    if (!chosen.isEmpty() && QDir(chosen).exists()) return chosen;
+    if (defaultFolderUsable(chosen)) return chosen;
     return Settings::get().value(QStringLiteral("dirs/open"), defaultFolder()).toString();
 }
 

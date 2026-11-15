@@ -57,7 +57,7 @@ void DeckWindow::createSaveActions()
 
     static quint64 s_windows = 0;
     m_serial = ++s_windows;
-    m_recoverTimer.setInterval(std::max(1, Settings::get().autoRecoverMinutes()) * 60 * 1000);
+    recovery::followInterval(m_recoverTimer, this);
     connect(&m_recoverTimer, &QTimer::timeout, this, &DeckWindow::autoRecover);
     m_recoverTimer.start();
     // A copy is only for work that isn't saved: it goes once the presentation

@@ -9,6 +9,8 @@
 #include <QLockFile>
 #include <QSaveFile>
 #include <QStandardPaths>
+#include <QTimer>
+#include "app/settings.h"
 #include <QUuid>
 #include <algorithm>
 #include <QCoreApplication>
@@ -305,6 +307,12 @@ void discard(const Recovered &r)
     if (QDir::cleanPath(dir.absolutePath()) == QDir::cleanPath(root())) return;
     if (!g_legacy.isEmpty() && QDir::cleanPath(dir.absolutePath()) == QDir::cleanPath(g_legacy)) return;
     if (dir.entryInfoList({QLatin1Char('*') + s_suffix}, QDir::Files).isEmpty()) dir.removeRecursively();
+}
+
+void followInterval(QTimer &timer, QObject *context)
+{
+    timer.setInterval(std::max(1, Settings::get().autoRecoverMinutes()) * 60 * 1000);
+    QObject::connect(&AutoRecoverNotifier::get(), &AutoRecoverNotifier::changed, context, [&timer](int minutes) { timer.start(std::max(1, minutes) * 60 * 1000); });
 }
 
 void endSession()
