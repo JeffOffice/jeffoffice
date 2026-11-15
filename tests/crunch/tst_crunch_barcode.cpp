@@ -648,7 +648,9 @@ private Q_SLOTS:
             if (shownData(e) != QStringLiteral("Y%1").arg(i)) QTRY_COMPARE(shownData(e), QStringLiteral("Y%1").arg(i));
         }
         qInfo("under a 16 MB limit 500 more swaps hold %lld MB more (without it %lld MB); Undo holds %lld MB", (residentKb() - held) / 1024, perSwapKb * 500 / 1024, e.win.w.session()->undoBytes() >> 20);
-        if (held > 0)   // (resident memory is read from /proc: Linux only; elsewhere residentKb() is 0 and there is nothing to compare)
+        // (resident memory is read from /proc: Linux only; elsewhere residentKb() is 0 and there is nothing to compare. Under the memory checker it does
+        // not follow what is held, and the first 500 swaps can show no growth: then there is nothing to compare either.)
+        if (held > 0 && perSwapKb > 0)
             QVERIFY2(residentKb() - held < perSwapKb * 500 / 4, qPrintable(QString::number(residentKb() - held)));
     }
 

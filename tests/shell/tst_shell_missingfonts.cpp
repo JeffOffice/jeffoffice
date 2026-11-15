@@ -6,6 +6,7 @@
 #include "../testrunner.h"
 #include "../withdialog.h"
 
+#include <algorithm>
 #include <QComboBox>
 #include <QDockWidget>
 #include <QFontDatabase>
@@ -293,7 +294,7 @@ private Q_SLOTS:
             QCOMPARE(t->item(0, 0)->data(Qt::UserRole).toString(), longName);
             QVERIFY(qobject_cast<QComboBox *>(t->cellWidget(0, 1))->count() <= 2);
         });
-        QVERIFY2(took < 1000, qPrintable(QStringLiteral("%1 ms").arg(took)));
+        QVERIFY2(took < 1000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")), qPrintable(QStringLiteral("%1 ms").arg(took)));
     }
     void aFontCountsAsPresentWhenAnyFontOfItsListIsInstalled()
     {
