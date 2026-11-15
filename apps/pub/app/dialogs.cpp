@@ -1,4 +1,5 @@
 #include "app/dialogs.h"
+#include "office/themelib.h"
 #include "app/saveoptions.h"
 #include "app/mergedialogs.h"
 #include "app/mainwindow.h"
@@ -1115,6 +1116,8 @@ void colorSchemeDialog(QWidget *p, Editor *ed)
     if (!dlg.exec()) return;
     s.name = name->text().trimmed().isEmpty() ? QStringLiteral("Custom") : name->text().trimmed();
     ed->change(QCoreApplication::translate("Dialogs", "Color Scheme"), [&] { ed->doc()->colors = s; });
+    // (kept in the user's settings folder, in the format every app shares, so the scheme shows in their galleries too)
+    office::saveCustomThemeColors(office::themeColorsFromScheme(s));
 }
 
 void fontSchemeDialog(QWidget *p, Editor *ed)
@@ -1155,6 +1158,7 @@ void fontSchemeDialog(QWidget *p, Editor *ed)
     if (!dlg.exec()) return;
     s = FontScheme{name->text().trimmed().isEmpty() ? QStringLiteral("Custom") : name->text().trimmed(), heading->currentText(), body->currentText()};
     ed->change(QCoreApplication::translate("Dialogs", "Font Scheme"), [&] { ed->doc()->fonts = s; });
+    office::saveCustomThemeFonts({s.name, s.heading, s.body});
 }
 
 void shadowDialog(QWidget *p, Editor *ed)

@@ -606,7 +606,10 @@ void MainWindow::createActions()
     mk("pd.customMargins", tr("Custom Margins…"), "", QKeySequence(), [this] { gridGuidesDialog(this, m_ed, 0); });
     mk("pd.newPageSize", tr("Create New Page Size…"), "file-plus", QKeySequence(), [this] { createPageSizeDialog(this, m_ed); });
     mk("pd.customSizes", tr("Edit Custom Page Sizes…"), "", QKeySequence(), [this] { customPageSizesDialog(this, m_ed); });
-    mk("pd.newColorScheme", tr("Create New Color Scheme…"), "palette", QKeySequence(), [this] { colorSchemeDialog(this, m_ed); });
+    mk("pd.newColorScheme", tr("Create New Color Scheme…"), "palette", QKeySequence(), [this] {
+        colorSchemeDialog(this, m_ed);
+        if (m_schemeGallery) fillSchemeGallery();
+    });
     mk("pd.newFontScheme", tr("Create New Font Scheme…"), "type", QKeySequence(), [this] { fontSchemeDialog(this, m_ed); });
     mk("pd.updateFonts", tr("Update Font Scheme"), "refresh-cw", QKeySequence(), [ed] {
         // Re-applies scheme fonts to text whose fonts were set by styles.

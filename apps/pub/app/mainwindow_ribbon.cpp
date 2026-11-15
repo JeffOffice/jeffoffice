@@ -4,6 +4,7 @@
 
 #include "app/chartedit.h"
 #include "app/appfuncs.h"
+#include "office/themelib.h"
 #include "app/keymap.h"
 #include <QDir>
 #include <QFile>
@@ -386,6 +387,26 @@ void MainWindow::ribbonControlParts(RibbonParts &parts)
 }
 
 // Galleries: the inline ones that fill a group and the buttons that open a grid.
+// The gallery of color schemes: the built-in ones, then those made in any app (kept in the user's settings folder).
+void MainWindow::fillSchemeGallery()
+{
+    auto schemeIcon = [](const ColorScheme &s) {
+        return drawnIcon([s](QPainter *p, const QRectF &rc) {
+            const double w = rc.width() / 4;
+            p->fillRect(QRectF(rc.left(), rc.top(), rc.width(), rc.height() * 0.55), s.c[Main]);
+            for (int i = 0; i < 4; ++i) p->fillRect(QRectF(rc.left() + i * w, rc.top() + rc.height() * 0.55, w, rc.height() * 0.45), s.c[Accent1 + i]);
+        });
+    };
+    QVector<GalleryItem> schemes;
+    for (const auto &s : builtinColorSchemes()) schemes << GalleryItem{s.name, s.name, schemeIcon(s), QString()};
+    for (const office::ThemeColors &c : office::customThemeColors()) {
+        const ColorScheme s = office::schemeFromThemeColors(c);
+        schemes << GalleryItem{s.name, s.name, schemeIcon(s), QString()};
+    }
+    m_schemeGallery->setItems(schemes);
+    if (m_ed && m_ed->doc()) m_schemeGallery->setCurrent(m_ed->doc()->colors.name);
+}
+
 void MainWindow::ribbonGalleryParts(RibbonParts &parts)
 {
     auto shapeItems = []() {
@@ -603,20 +624,20 @@ void MainWindow::ribbonGalleryParts(RibbonParts &parts)
     // Page Design > Schemes and Page Background.
     parts.widgets[QStringLiteral("schemeGallery")] = [this]() -> QWidget * {
         m_schemeGallery = new Gallery(QSize(64, 40), 4);
-        auto schemeIcon = [](const ColorScheme &s) {
-            return drawnIcon([s](QPainter *p, const QRectF &rc) {
-                const double w = rc.width() / 4;
-                p->fillRect(QRectF(rc.left(), rc.top(), rc.width(), rc.height() * 0.55), s.c[Main]);
-                for (int i = 0; i < 4; ++i) p->fillRect(QRectF(rc.left() + i * w, rc.top() + rc.height() * 0.55, w, rc.height() * 0.45), s.c[Accent1 + i]);
-            });
-        };
-        QVector<GalleryItem> schemes;
-        for (const auto &s : builtinColorSchemes()) schemes << GalleryItem{s.name, s.name, schemeIcon(s), QString()};
-        m_schemeGallery->setItems(schemes);
+        fillSchemeGallery();
         m_schemeGallery->setFooterActions({act("pd.newColorScheme")});
         connect(m_schemeGallery, &Gallery::activated, this, [this](const QString &name) {
             const ColorScheme *s = findColorScheme(name);
-            if (s) m_ed->change(tr("Color Scheme"), [&] { m_ed->doc()->colors = *s; });
+            if (s) {
+                m_ed->change(tr("Color Scheme"), [&] { m_ed->doc()->colors = *s; });
+                return;
+            }
+            // (a set made in any app, kept in the user's settings folder)
+            for (const office::ThemeColors &c : office::customThemeColors())
+                if (c.name == name) {
+                    const ColorScheme custom = office::schemeFromThemeColors(c);
+                    m_ed->change(tr("Color Scheme"), [&] { m_ed->doc()->colors = custom; });
+                }
         });
         return m_schemeGallery;
     };
@@ -940,14 +961,20 @@ void MainWindow::ribbonMenuParts(RibbonParts &parts)
 
     parts.menus[QStringLiteral("fontSchemesMenu")] = [this](QWidget *owner) {
         auto *fm = new QMenu(owner);
-        for (const auto &fs : builtinFontSchemes()) {
-            QAction *a = fm->addAction(tr("%1 — %2 / %3").arg(fs.name, fs.heading, fs.body));
-            const FontScheme scheme = fs;
-            connect(a, &QAction::triggered, this, [this, scheme] { m_ed->change(tr("Font Scheme"), [&] { m_ed->doc()->fonts = scheme; }); });
-        }
-        fm->addSeparator();
-        fm->addAction(act("pd.newFontScheme"));
-        fm->addAction(act("pd.updateFonts"));
+        connect(fm, &QMenu::aboutToShow, fm, [this, fm] {
+            fm->clear();
+            QVector<FontScheme> all = builtinFontSchemes();
+            // (the pairs made in any app, kept in the user's settings folder)
+            for (const office::ThemeFonts &f : office::customThemeFonts()) all << FontScheme{f.name, f.heading, f.body};
+            for (const auto &fs : all) {
+                QAction *a = fm->addAction(tr("%1 — %2 / %3").arg(fs.name, fs.heading, fs.body));
+                const FontScheme scheme = fs;
+                connect(a, &QAction::triggered, this, [this, scheme] { m_ed->change(tr("Font Scheme"), [&] { m_ed->doc()->fonts = scheme; }); });
+            }
+            fm->addSeparator();
+            fm->addAction(act("pd.newFontScheme"));
+            fm->addAction(act("pd.updateFonts"));
+        });
         return fm;
     };
 
