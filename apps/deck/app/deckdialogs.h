@@ -4,6 +4,7 @@
 
 #include "core/color.h"
 #include "core/deck.h"
+#include "core/printheaderfooter.h"
 
 #include "app/propertyeditors.h"
 #include <QComboBox>
@@ -35,6 +36,18 @@ private:
     QLineEdit *m_text;
     deck::FooterOptions m_start;   // as it was given: what the dialog doesn't show (a date's text, the field's code, ...) is given back as it was
     bool m_all = false;
+};
+
+// What to print at the top and bottom of notes pages and handouts: the date, a header, a footer, and the page number.
+class PrintHeaderFooterDialog : public QDialog {
+    Q_OBJECT
+public:
+    PrintHeaderFooterDialog(const deck::PrintHeaderFooter &start, QWidget *parent = nullptr);
+    deck::PrintHeaderFooter choice() const;
+
+private:
+    QCheckBox *m_date, *m_header, *m_footer, *m_number;
+    QLineEdit *m_dateText, *m_headerText, *m_footerText;
 };
 
 // A solid color for the background of the slide being edited (Apply) or of

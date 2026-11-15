@@ -34,6 +34,8 @@ struct OutputOptions {
     bool hiddenSlides = false;    // print the slides that are hidden too
     bool frameSlides = false;     // a thin frame around each printed slide (notes pages and handouts always frame them)
     bool grayscale = false;
+    bool blackAndWhite = false;   // pure black and white (with grayscale): each point is black or white, nothing between
+    bool scaleToFit = true;       // printed slides are scaled to fit the paper; else a slide that fits it is printed at its own size, centered (one that does not is still made to fit)
     QVector<int> slides;          // 0-based slides to print, in this order; empty: all
     bool horizontalOrder = true;  // handouts of 4 or more: across, then down (else down, then across)
     // For printing (the File screen's Print page): where the pages go, and how they come out.

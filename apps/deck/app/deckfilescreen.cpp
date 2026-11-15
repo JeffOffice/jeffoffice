@@ -376,12 +376,20 @@ QWidget *DeckFileScreen::buildPrint()
     hidden->setObjectName(QStringLiteral("printHidden"));
     auto *frame = new QCheckBox(tr("Frame slides"), w);
     frame->setObjectName(QStringLiteral("printFrame"));
-    QCheckBox *gray = makeGrayscaleBox(w);
+    QComboBox *color = makeColorModeBox(w);
+    auto *scaleFit = new QCheckBox(tr("Scale to Fit Paper"), w);
+    scaleFit->setObjectName(QStringLiteral("printScaleToFit"));
+    scaleFit->setToolTip(tr("Make each slide as large as the paper lets it be. Off, a slide that fits the paper is printed at its own size."));
+    auto *headerFooter = new QPushButton(tr("Header && Footer…"), w);
+    headerFooter->setObjectName(QStringLiteral("printHeaderFooter"));
+    headerFooter->setToolTip(tr("The date, header, footer, and page number of notes pages and handouts."));
     QCheckBox *reverse = makeReverseBox(w);
     form->addRow(QString(), reverse);
     form->addRow(QString(), hidden);
     form->addRow(QString(), frame);
-    form->addRow(QString(), gray);
+    form->addRow(QString(), scaleFit);
+    form->addRow(tr("Color:"), color);
+    form->addRow(QString(), headerFooter);
     left->addLayout(form);
     left->addStretch(1);
     h->addLayout(left, 1);
@@ -432,7 +440,8 @@ QWidget *DeckFileScreen::buildPrint()
     order->setCurrentIndex(st.value(QStringLiteral("output/horizontal"), true).toBool() ? 0 : 1);
     hidden->setChecked(st.value(QStringLiteral("output/hidden"), false).toBool());
     frame->setChecked(st.value(QStringLiteral("output/frame"), false).toBool());
-    gray->setChecked(st.value(QStringLiteral("output/grayscale"), false).toBool());
+    scaleFit->setChecked(st.value(QStringLiteral("output/scaleToFit"), true).toBool());
+    color->setCurrentIndex(std::max(0, color->findData(st.value(QStringLiteral("output/color"), st.value(QStringLiteral("output/grayscale"), false).toBool() ? int(PrintColor::Grayscale) : int(PrintColor::Color)).toInt())));
     all->setChecked(true);
 
     auto options = [=]() {
@@ -440,7 +449,9 @@ QWidget *DeckFileScreen::buildPrint()
         o.layout = deck::PrintLayout(what->currentData().toInt());
         o.hiddenSlides = hidden->isChecked();
         o.frameSlides = frame->isChecked();
-        o.grayscale = gray->isChecked();
+        o.grayscale = color->currentData().toInt() != int(PrintColor::Color);
+        o.blackAndWhite = color->currentData().toInt() == int(PrintColor::BlackAndWhite);
+        o.scaleToFit = scaleFit->isChecked();
         o.horizontalOrder = order->currentData().toBool();
         if (currentOnly->isChecked()) o.slides = {current};
         else if (selection->isChecked()) o.slides = m_win->selectedSlides().toVector();
@@ -461,6 +472,8 @@ QWidget *DeckFileScreen::buildPrint()
         const int per = deck::slidesPerPage(o.layout);
         order->setEnabled(per >= 4);
         frame->setEnabled(o.layout == deck::PrintLayout::Slides);
+        scaleFit->setEnabled(o.layout == deck::PrintLayout::Slides);
+        headerFooter->setEnabled(o.layout == deck::PrintLayout::NotesPages || deck::slidesPerPage(o.layout) > 0);
         text->setEnabled(some->isChecked());
         // A range that names no slide can't be printed.
         const bool badRange = some->isChecked() && o.slides.isEmpty();
@@ -528,6 +541,8 @@ QWidget *DeckFileScreen::buildPrint()
         s.setValue(QStringLiteral("output/hidden"), o.hiddenSlides);
         s.setValue(QStringLiteral("output/frame"), o.frameSlides);
         s.setValue(QStringLiteral("output/grayscale"), o.grayscale);
+        s.setValue(QStringLiteral("output/color"), color->currentData().toInt());
+        s.setValue(QStringLiteral("output/scaleToFit"), o.scaleToFit);
     };
     connect(what, &QComboBox::currentIndexChanged, w, [=] { remember(); restart(); });
     connect(order, &QComboBox::currentIndexChanged, w, [=] { remember(); paint(); });
@@ -547,7 +562,7 @@ QWidget *DeckFileScreen::buildPrint()
         }
         p.setCopyCount(copies->value());
         p.setCollateCopies(collate->isChecked());
-        p.setColorMode(gray->isChecked() ? QPrinter::GrayScale : QPrinter::Color);
+        p.setColorMode(color->currentData().toInt() != int(PrintColor::Color) ? QPrinter::GrayScale : QPrinter::Color);
         const QString before = p.printerName();
         QPrintDialog dialog(&p, this);
         if (execPrintDialog(dialog) != QDialog::Accepted) return;
@@ -555,7 +570,9 @@ QWidget *DeckFileScreen::buildPrint()
         if (at >= 0 && !p.printerName().isEmpty()) printer->setCurrentIndex(at);
         copies->setValue(std::max(1, p.copyCount()));
         collate->setChecked(p.collateCopies());
-        gray->setChecked(p.colorMode() == QPrinter::GrayScale);
+        // (the window has the two colors of a printer: a choice of black and white stays one while the printer is gray)
+        if (p.colorMode() == QPrinter::GrayScale && color->currentData().toInt() == int(PrintColor::Color)) color->setCurrentIndex(color->findData(int(PrintColor::Grayscale)));
+        else if (p.colorMode() == QPrinter::Color) color->setCurrentIndex(color->findData(int(PrintColor::Color)));
         const int sized = paper->findData(int(p.pageLayout().pageSize().id()));
         if (sized >= 0) paper->setCurrentIndex(sized);
     });
@@ -569,7 +586,12 @@ QWidget *DeckFileScreen::buildPrint()
         if (!some->isChecked()) some->setChecked(true);
         restart();
     });
-    for (QCheckBox *c : {hidden, frame, gray}) connect(c, &QCheckBox::toggled, w, [=] { remember(); paint(); });
+    for (QCheckBox *c : {hidden, frame, scaleFit}) connect(c, &QCheckBox::toggled, w, [=] { remember(); paint(); });
+    connect(color, &QComboBox::currentIndexChanged, w, [=] { remember(); paint(); });
+    connect(headerFooter, &QPushButton::clicked, w, [=] {
+        m_win->showPrintHeaderFooter();
+        paint();
+    });
     connect(previous, &QToolButton::clicked, w, [=] { --*page; paint(); });
     connect(next, &QToolButton::clicked, w, [=] { ++*page; paint(); });
     connect(printBtn, &QPushButton::clicked, this, [=] {

@@ -95,6 +95,8 @@ public:
     SlideSorter *slideSorter() const { return m_sorter; }
     // The slides selected in the Slide Sorter; anywhere else, the slide being edited.
     QList<int> selectedSlides() const;
+    // Print > Header & Footer: the date, header, footer, and page number of notes pages and handouts (one choice for both).
+    void showPrintHeaderFooter();
     OutlineView *outlineView() const { return m_outline; }
     // The Reuse Slides pane on the right, once it has been opened (Reuse
     // Slides on the New Slide menu): a click on one of its slides puts a copy

@@ -1,4 +1,5 @@
 #include "io/pptximport.h"
+#include "core/printheaderfooter.h"
 
 #include "core/appinfo.h"
 #include "core/comments.h"
@@ -657,6 +658,7 @@ private:
     void readSize(const QDomElement &presentation);
 
     void keepBackground(PageBase &page, const QDomElement &bg, const office::DrawingContext &ctx);
+    void readPrintHeaderFooter(const QString &mainPart);
     void readSections(const QDomElement &presentation, const QHash<qint64, int> &pageOfSlideId);
     void readShowSettings(const QDomElement &presentation, const QHash<QString, int> &pageOfRel);
     MasterCtx *readMaster(const QString &part);
@@ -886,6 +888,44 @@ void Importer::readSize(const QDomElement &presentation)
     const qint64 nx = office::parseInt(office::attr(notesSz, QStringLiteral("cx"))), ny = office::parseInt(office::attr(notesSz, QStringLiteral("cy")));
     if (nx > 0 && ny > 0)
         m_doc.appData[QStringLiteral("notesSize")] = QJsonObject{{"w", office::emuToPoints(nx)}, {"h", office::emuToPoints(ny)}};
+}
+
+// The header and footer of the notes pages and handouts: the hf element of the notes master and of the handout master, and the text in their header, footer, and date places. A master
+// with no hf element says nothing (the program's own choice stays).
+void Importer::readPrintHeaderFooter(const QString &mainPart)
+{
+    struct Kind {
+        const char *relationship, *root;
+        PrintedPages pages;
+    };
+    for (const Kind &kind : {Kind{"/notesMaster", "notesMaster", PrintedPages::Notes}, Kind{"/handoutMaster", "handoutMaster", PrintedPages::Handouts}}) {
+        const QVector<office::Relationship> masters = m_pkg.relationshipsOfType(mainPart, QLatin1String(kind.relationship));
+        if (masters.isEmpty() || masters[0].external) continue;
+        QDomDocument &dom = newDom();
+        QDomElement root;
+        QString why;
+        if (!parsePart(masters[0].target, QLatin1String(kind.root), "http://schemas.openxmlformats.org/presentationml/2006/main", &dom, &root, &why)) continue;
+        const QDomElement hf = pChild(root, "hf");
+        if (hf.isNull()) continue;
+        PrintHeaderFooter out;
+        out.header = office::parseBool(office::attr(hf, QStringLiteral("hdr")), true);
+        out.footer = office::parseBool(office::attr(hf, QStringLiteral("ftr")), true);
+        out.date = office::parseBool(office::attr(hf, QStringLiteral("dt")), true);
+        out.pageNumber = office::parseBool(office::attr(hf, QStringLiteral("sldNum")), true);
+        for (const QDomElement &sp : office::children(pChild(pChild(root, "cSld"), "spTree"), office::ns::P, QStringLiteral("sp"))) {
+            PhRef ph;
+            if (!placeholderOf(sp, &ph) || !(ph.type == QLatin1String("hdr") || ph.type == QLatin1String("ftr") || ph.type == QLatin1String("dt"))) continue;
+            // (the typed text of the place; a field stands for the program's own date)
+            QString text;
+            for (const QDomElement &p : office::children(pChild(sp, "txBody"), office::ns::A, QStringLiteral("p")))
+                for (QDomElement run = p.firstChildElement(); !run.isNull(); run = run.nextSiblingElement())
+                    if (run.localName() == QLatin1String("r")) text += aChild(run, "t").text();
+            if (ph.type == QLatin1String("hdr")) out.headerText = text;
+            else if (ph.type == QLatin1String("ftr")) out.footerText = text;
+            else out.dateText = text;
+        }
+        setPrintHeaderFooter(m_doc, kind.pages, out);
+    }
 }
 
 // The sections the presentation lists in its extensions, each with the slides it names: kept as how many slides each holds, in slide order. A slide
@@ -1808,6 +1848,7 @@ bool Importer::run(const QString &mainPart, QString *error)
     m_doc.masters.clear();
     m_mainPart = mainPart;
     readSize(root);
+    readPrintHeaderFooter(mainPart);
     m_defaultStyle = pChild(root, "defaultTextStyle");
     QStringList fontNotes;
     m_fonts = readEmbeddedFonts(m_pkg, mainPart, root, &fontNotes);

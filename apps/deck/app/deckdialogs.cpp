@@ -69,6 +69,53 @@ HeaderFooterDialog::HeaderFooterDialog(const deck::FooterOptions &o, QWidget *pa
     lay->addWidget(applyButtons(this, &m_all));
 }
 
+PrintHeaderFooterDialog::PrintHeaderFooterDialog(const deck::PrintHeaderFooter &start, QWidget *parent) : QDialog(parent)
+{
+    setWindowTitle(tr("Header & Footer"));
+    setObjectName(QStringLiteral("printHeaderFooterDialog"));
+    auto *lay = new QVBoxLayout(this);
+    lay->addWidget(new QLabel(tr("Include on notes pages and handouts")));
+    auto *form = new QFormLayout();
+    auto row = [&](QCheckBox *&box, QLineEdit *&text, const char *boxName, const char *textName, const QString &label, const QString &about, bool on, const QString &typed) {
+        box = new QCheckBox(label, this);
+        box->setObjectName(QString::fromLatin1(boxName));
+        box->setChecked(on);
+        text = new QLineEdit(typed, this);
+        text->setObjectName(QString::fromLatin1(textName));
+        text->setAccessibleName(about);
+        text->setMinimumWidth(280);
+        text->setEnabled(on);
+        connect(box, &QCheckBox::toggled, text, &QWidget::setEnabled);
+        form->addRow(box, text);
+    };
+    row(m_date, m_dateText, "hfDate", "hfDateText", tr("Date"), tr("Date text"), start.date, start.dateText);
+    m_dateText->setPlaceholderText(tr("Today's date, when this is empty"));
+    row(m_header, m_headerText, "hfHeader", "hfHeaderText", tr("Header"), tr("Header text"), start.header, start.headerText);
+    row(m_footer, m_footerText, "hfFooter", "hfFooterText", tr("Footer"), tr("Footer text"), start.footer, start.footerText);
+    lay->addLayout(form);
+    m_number = new QCheckBox(tr("Page number"), this);
+    m_number->setObjectName(QStringLiteral("hfPageNumber"));
+    m_number->setChecked(start.pageNumber);
+    lay->addWidget(m_number);
+    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
+    connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
+    connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
+    lay->addWidget(buttons);
+}
+
+deck::PrintHeaderFooter PrintHeaderFooterDialog::choice() const
+{
+    deck::PrintHeaderFooter hf;
+    hf.date = m_date->isChecked();
+    hf.dateText = m_dateText->text();
+    hf.header = m_header->isChecked();
+    hf.headerText = m_headerText->text();
+    hf.footer = m_footer->isChecked();
+    hf.footerText = m_footerText->text();
+    hf.pageNumber = m_number->isChecked();
+    return hf;
+}
+
 deck::FooterOptions HeaderFooterDialog::options() const
 {
     deck::FooterOptions o = m_start;

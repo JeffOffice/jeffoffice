@@ -80,6 +80,9 @@ QSpinBox *makeCopiesBox(QWidget *parent);
 QCheckBox *makeCollateBox(QWidget *parent, const QString &tip);
 QCheckBox *makeReverseBox(QWidget *parent);
 QCheckBox *makeGrayscaleBox(QWidget *parent);
+// Color, Grayscale, or Pure Black and White (printColor): the data of the entries are the values of PrintColor.
+enum class PrintColor { Color = 0, Grayscale = 1, BlackAndWhite = 2 };
+QComboBox *makeColorModeBox(QWidget *parent);
 
 // The way the paper turns: what each page says (`asSet` words it for the app), tall, or wide. The data of the entries are the values of PrintTurn.
 enum class PrintTurn { AsSet = -1, Tall = 1, Wide = 2 };

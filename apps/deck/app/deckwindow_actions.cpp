@@ -409,6 +409,17 @@ void DeckWindow::showHeaderFooter()
     if (dlg.exec() == QDialog::Accepted) applyFooters(dlg.options(), dlg.applyToAll());
 }
 
+void DeckWindow::showPrintHeaderFooter()
+{
+    Document *d = m_ed->doc();
+    PrintHeaderFooterDialog dlg(deck::printHeaderFooter(*d, deck::hasPrintHeaderFooter(*d, deck::PrintedPages::Notes) ? deck::PrintedPages::Notes : deck::PrintedPages::Handouts), this);
+    if (dlg.exec() != QDialog::Accepted) return;
+    m_ed->endTextEdit();
+    m_ed->beginChange(tr("Header & Footer"));
+    for (deck::PrintedPages pages : {deck::PrintedPages::Notes, deck::PrintedPages::Handouts}) deck::setPrintHeaderFooter(*d, pages, dlg.choice());
+    m_ed->endChange();
+}
+
 bool DeckWindow::insertPicture(const QString &path, const QPointF &at, const QString &altText, const QString &credit)
 {
     QByteArray bytes = readPictureBytes(path);

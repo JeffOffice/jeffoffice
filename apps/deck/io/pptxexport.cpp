@@ -1,4 +1,5 @@
 #include "io/pptxexport.h"
+#include "core/printheaderfooter.h"
 
 #include "core/animation.h"
 #include "core/comments.h"
@@ -71,6 +72,7 @@ const QString kPackageRelBase = QStringLiteral("http://schemas.openxmlformats.or
 const QString kTypeBase = QStringLiteral("application/vnd.openxmlformats-officedocument.presentationml.");
 const QString kPresentationPart = QStringLiteral("/ppt/presentation.xml");
 const QString kNotesMasterPart = QStringLiteral("/ppt/notesMasters/notesMaster1.xml");
+const QString kHandoutMasterPart = QStringLiteral("/ppt/handoutMasters/handoutMaster1.xml");
 
 // The ids of slide masters and layouts count up from here, in one range.
 constexpr qint64 kFirstMasterId = 2147483648LL, kLastMasterId = 4294967295LL;
@@ -560,6 +562,7 @@ private:
     void writeSlide(int i);
     void writeNotesSlide(int slide, int number);
     void writeNotesMaster();
+    void writeHandoutMaster();
     void writeProperties();
     void writePresentation();
     void planComments();
@@ -585,10 +588,10 @@ private:
     std::vector<LayoutOut> m_layouts;
     QVector<int> m_slideLayout, m_notesNumber;   // per slide: its layout; the number of its notes page (0 for none)
     QVector<QString> m_slideRel;
-    QString m_notesMasterRel;
+    QString m_notesMasterRel, m_handoutMasterRel;   // (the handout master only where the presentation chose its header and footer)
     office::Theme m_theme;                       // the presentation's, for drawings
     QByteArray m_themeXml;
-    QString m_notesThemePart;
+    QString m_notesThemePart, m_handoutThemePart;
     QSet<QString> m_keptNames;                   // the names of kept chart parts written so far, lower-cased
     QByteArray m_thumbnail;
     bool m_thumbnailGiven = false;
@@ -675,6 +678,7 @@ void Exporter::plan()
         }
     }
     m_notesThemePart = QStringLiteral("/ppt/theme/theme%1.xml").arg(m_masters.size() + 1);
+    m_handoutThemePart = QStringLiteral("/ppt/theme/theme%1.xml").arg(m_masters.size() + 2);
 
     int notes = 0;
     for (const auto &page : m_doc.pages) {
@@ -1385,6 +1389,12 @@ void Exporter::writeNotesSlide(int slide, int number)
     add(part, kTypeBase + QStringLiteral("notesSlide+xml"), xml);
 }
 
+// The hf element of a notes master or handout master: which of its header, footer, date, and number are on.
+static QString hfElement(const PrintHeaderFooter &hf)
+{
+    return QStringLiteral("<p:hf hdr=\"%1\" ftr=\"%2\" dt=\"%3\" sldNum=\"%4\"/>").arg(hf.header ? 1 : 0).arg(hf.footer ? 1 : 0).arg(hf.date ? 1 : 0).arg(hf.pageNumber ? 1 : 0);
+}
+
 void Exporter::writeNotesMaster()
 {
     m_pkg.addRelationship(kNotesMasterPart, kRelBase + QStringLiteral("theme"), m_notesThemePart);
@@ -1404,10 +1414,18 @@ void Exporter::writeNotesMaster()
                               "%7</p:txBody></p:sp>")
             .arg(id).arg(name, ph, place(px, py, x(2971800), y(458788)), anchor.isEmpty() ? QString() : QStringLiteral(" anchor=\"%1\"").arg(anchor), align, text);
     };
-    const QString empty = QStringLiteral("<a:p><a:endParaRPr lang=\"en-US\"/></a:p>");
+    // The header and footer the presentation chose for its notes pages: their texts sit in the master's own places, and the hf element says which are on.
+    const bool chose = hasPrintHeaderFooter(m_doc, PrintedPages::Notes);
+    const PrintHeaderFooter hf = printHeaderFooter(m_doc, PrintedPages::Notes);
+    auto typed = [](const QString &text) {
+        return text.isEmpty() ? QStringLiteral("<a:p><a:endParaRPr lang=\"en-US\"/></a:p>") : QStringLiteral("<a:p><a:r><a:rPr lang=\"en-US\"/><a:t>%1</a:t></a:r></a:p>").arg(esc(text));
+    };
+    const QString empty = typed(chose ? hf.headerText : QString());
+    const QString footerParagraph = typed(chose ? hf.footerText : QString());
     const QString number = QStringLiteral("<a:p><a:fld id=\"{9A1B2C3D-0000-4000-8000-000000000001}\" type=\"slidenum\"><a:rPr lang=\"en-US\"/><a:t>\u2039#\u203A</a:t></a:fld><a:endParaRPr lang=\"en-US\"/></a:p>");
     const QString date = QStringLiteral("<a:p><a:fld id=\"{9A1B2C3D-0000-4000-8000-000000000002}\" type=\"datetimeFigureOut\"><a:rPr lang=\"en-US\"/><a:t>%1</a:t></a:fld><a:endParaRPr lang=\"en-US\"/></a:p>")
                              .arg(esc(m_doc.props.modified.date().toString(Qt::ISODate)));
+    const QString dateParagraph = chose && !hf.dateText.isEmpty() ? typed(hf.dateText) : date;
     static const char *const samples[5] = {"Click to edit Master text styles", "Second level", "Third level", "Fourth level", "Fifth level"};
     QString texts;
     for (int level = 0; level < 5; ++level)
@@ -1418,23 +1436,61 @@ void Exporter::writeNotesMaster()
                                  "<p:grpSpPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"0\" cy=\"0\"/><a:chOff x=\"0\" y=\"0\"/><a:chExt cx=\"0\" cy=\"0\"/></a:xfrm></p:grpSpPr>")
                       .arg(kNamespaces);
     xml += small(2, QStringLiteral("Header Placeholder 1"), QStringLiteral("type=\"hdr\" sz=\"quarter\""), 0, 0, QStringLiteral("l"), QString(), empty);
-    xml += small(3, QStringLiteral("Date Placeholder 2"), QStringLiteral("type=\"dt\" idx=\"1\""), x(3884613), 0, QStringLiteral("r"), QString(), date);
+    xml += small(3, QStringLiteral("Date Placeholder 2"), QStringLiteral("type=\"dt\" idx=\"1\""), x(3884613), 0, QStringLiteral("r"), QString(), dateParagraph);
     xml += QStringLiteral("<p:sp><p:nvSpPr><p:cNvPr id=\"4\" name=\"Slide Image Placeholder 3\"/><p:cNvSpPr><a:spLocks noGrp=\"1\" noRot=\"1\" noChangeAspect=\"1\"/></p:cNvSpPr>"
                           "<p:nvPr><p:ph type=\"sldImg\" idx=\"2\"/></p:nvPr></p:nvSpPr><p:spPr>%1<a:noFill/><a:ln w=\"12700\"><a:solidFill><a:prstClr val=\"black\"/></a:solidFill></a:ln></p:spPr></p:sp>")
                .arg(place(x(685800), y(1143000), imageW, imageH));
     xml += QStringLiteral("<p:sp><p:nvSpPr><p:cNvPr id=\"5\" name=\"Notes Placeholder 4\"/><p:cNvSpPr><a:spLocks noGrp=\"1\"/></p:cNvSpPr><p:nvPr><p:ph type=\"body\" sz=\"quarter\" idx=\"3\"/></p:nvPr></p:nvSpPr>"
                           "<p:spPr>%1</p:spPr><p:txBody><a:bodyPr vert=\"horz\" lIns=\"91440\" tIns=\"45720\" rIns=\"91440\" bIns=\"45720\" rtlCol=\"0\"/><a:lstStyle/>%2</p:txBody></p:sp>")
                .arg(place(x(685800), y(4400550), x(5486400), y(3600450)), texts);
-    xml += small(6, QStringLiteral("Footer Placeholder 5"), QStringLiteral("type=\"ftr\" sz=\"quarter\" idx=\"4\""), 0, y(8685213), QStringLiteral("l"), QStringLiteral("b"), empty);
+    xml += small(6, QStringLiteral("Footer Placeholder 5"), QStringLiteral("type=\"ftr\" sz=\"quarter\" idx=\"4\""), 0, y(8685213), QStringLiteral("l"), QStringLiteral("b"), footerParagraph);
     xml += small(7, QStringLiteral("Slide Number Placeholder 6"), QStringLiteral("type=\"sldNum\" sz=\"quarter\" idx=\"5\""), x(3884613), y(8685213), QStringLiteral("r"), QStringLiteral("b"), number);
     xml += QStringLiteral("</p:spTree></p:cSld><p:clrMap bg1=\"lt1\" tx1=\"dk1\" bg2=\"lt2\" tx2=\"dk2\" accent1=\"accent1\" accent2=\"accent2\" accent3=\"accent3\" accent4=\"accent4\" "
-                          "accent5=\"accent5\" accent6=\"accent6\" hlink=\"hlink\" folHlink=\"folHlink\"/><p:notesStyle>");
+                          "accent5=\"accent5\" accent6=\"accent6\" hlink=\"hlink\" folHlink=\"folHlink\"/>");
+    if (chose) xml += hfElement(hf);
+    xml += QStringLiteral("<p:notesStyle>");
     for (int i = 0; i < 9; ++i)
         xml += QStringLiteral("<a:lvl%1pPr marL=\"%2\" algn=\"l\" defTabSz=\"914400\" rtl=\"0\" eaLnBrk=\"1\" latinLnBrk=\"0\" hangingPunct=\"1\"><a:defRPr sz=\"1200\" kern=\"1200\">"
                               "<a:solidFill><a:schemeClr val=\"tx1\"/></a:solidFill><a:latin typeface=\"+mn-lt\"/><a:ea typeface=\"+mn-ea\"/><a:cs typeface=\"+mn-cs\"/></a:defRPr></a:lvl%1pPr>")
                    .arg(i + 1).arg(457200 * i);
     xml += QStringLiteral("</p:notesStyle></p:notesMaster>");
     add(kNotesMasterPart, kTypeBase + QStringLiteral("notesMaster+xml"), xml);
+}
+
+// The handout master: only where the presentation chose the header and footer of its handouts (the places are the standard's, for a page of the notes' size).
+void Exporter::writeHandoutMaster()
+{
+    if (m_handoutMasterRel.isEmpty()) return;
+    m_pkg.addRelationship(kHandoutMasterPart, kRelBase + QStringLiteral("theme"), m_handoutThemePart);
+    m_pkg.addPart(m_handoutThemePart, withStandardFontNames(m_themeXml), QStringLiteral("application/vnd.openxmlformats-officedocument.theme+xml"));
+    const PrintHeaderFooter hf = printHeaderFooter(m_doc, PrintedPages::Handouts);
+    const qint64 nw = office::pointsToEmu(m_notesSize.width()), nh = office::pointsToEmu(m_notesSize.height());
+    auto typed = [](const QString &text) {
+        return text.isEmpty() ? QStringLiteral("<a:p><a:endParaRPr lang=\"en-US\"/></a:p>") : QStringLiteral("<a:p><a:r><a:rPr lang=\"en-US\"/><a:t>%1</a:t></a:r></a:p>").arg(esc(text));
+    };
+    const QString number = QStringLiteral("<a:p><a:fld id=\"{9A1B2C3D-0000-4000-8000-000000000003}\" type=\"slidenum\"><a:rPr lang=\"en-US\"/><a:t>\u2039#\u203A</a:t></a:fld><a:endParaRPr lang=\"en-US\"/></a:p>");
+    const QString date = QStringLiteral("<a:p><a:fld id=\"{9A1B2C3D-0000-4000-8000-000000000004}\" type=\"datetimeFigureOut\"><a:rPr lang=\"en-US\"/><a:t>%1</a:t></a:fld><a:endParaRPr lang=\"en-US\"/></a:p>")
+                             .arg(esc(m_doc.props.modified.date().toString(Qt::ISODate)));
+    auto place = [&](int id, const QString &name, const QString &ph, qint64 px, qint64 py, const QString &align, const QString &anchor, const QString &text) {
+        return QStringLiteral("<p:sp><p:nvSpPr><p:cNvPr id=\"%1\" name=\"%2\"/><p:cNvSpPr><a:spLocks noGrp=\"1\"/></p:cNvSpPr><p:nvPr><p:ph %3/></p:nvPr></p:nvSpPr><p:spPr><a:xfrm><a:off x=\"%4\" y=\"%5\"/>"
+                              "<a:ext cx=\"%6\" cy=\"%7\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></p:spPr><p:txBody><a:bodyPr vert=\"horz\" lIns=\"91440\" tIns=\"45720\" rIns=\"91440\" bIns=\"45720\" rtlCol=\"0\"%8/>"
+                              "<a:lstStyle><a:lvl1pPr algn=\"%9\"><a:defRPr sz=\"1200\"/></a:lvl1pPr></a:lstStyle>%10</p:txBody></p:sp>")
+            .arg(id).arg(name, ph).arg(px).arg(py).arg(nw * 2971800 / kNotesWidth).arg(nh * 458788 / kNotesHeight).arg(anchor.isEmpty() ? QString() : QStringLiteral(" anchor=\"%1\"").arg(anchor), align, text);
+    };
+    QString xml = QStringLiteral("<p:handoutMaster%1><p:cSld><p:bg><p:bgRef idx=\"1001\"><a:schemeClr val=\"bg1\"/></p:bgRef></p:bg><p:spTree>"
+                                 "<p:nvGrpSpPr><p:cNvPr id=\"1\" name=\"\"/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>"
+                                 "<p:grpSpPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"0\" cy=\"0\"/><a:chOff x=\"0\" y=\"0\"/><a:chExt cx=\"0\" cy=\"0\"/></a:xfrm></p:grpSpPr>")
+                      .arg(kNamespaces);
+    const qint64 right = nw * 3884613 / kNotesWidth, bottom = nh * 8685213 / kNotesHeight;
+    xml += place(2, QStringLiteral("Header Placeholder 1"), QStringLiteral("type=\"hdr\" sz=\"quarter\""), 0, 0, QStringLiteral("l"), QString(), typed(hf.headerText));
+    xml += place(3, QStringLiteral("Date Placeholder 2"), QStringLiteral("type=\"dt\" sz=\"quarter\" idx=\"1\""), right, 0, QStringLiteral("r"), QString(), hf.dateText.isEmpty() ? date : typed(hf.dateText));
+    xml += place(4, QStringLiteral("Footer Placeholder 3"), QStringLiteral("type=\"ftr\" sz=\"quarter\" idx=\"2\""), 0, bottom, QStringLiteral("l"), QStringLiteral("b"), typed(hf.footerText));
+    xml += place(5, QStringLiteral("Slide Number Placeholder 4"), QStringLiteral("type=\"sldNum\" sz=\"quarter\" idx=\"3\""), right, bottom, QStringLiteral("r"), QStringLiteral("b"), number);
+    xml += QStringLiteral("</p:spTree></p:cSld><p:clrMap bg1=\"lt1\" tx1=\"dk1\" bg2=\"lt2\" tx2=\"dk2\" accent1=\"accent1\" accent2=\"accent2\" accent3=\"accent3\" accent4=\"accent4\" "
+                          "accent5=\"accent5\" accent6=\"accent6\" hlink=\"hlink\" folHlink=\"folHlink\"/>");
+    xml += hfElement(hf);
+    xml += QStringLiteral("</p:handoutMaster>");
+    add(kHandoutMasterPart, kTypeBase + QStringLiteral("handoutMaster+xml"), xml);
 }
 
 void Exporter::writeProperties()
@@ -1538,6 +1594,7 @@ void Exporter::writePresentation()
     xml += QStringLiteral("><p:sldMasterIdLst>");
     for (const MasterOut &m : m_masters) xml += QStringLiteral("<p:sldMasterId id=\"%1\" r:id=\"%2\"/>").arg(m.id).arg(m.rel);
     xml += QStringLiteral("</p:sldMasterIdLst><p:notesMasterIdLst><p:notesMasterId r:id=\"%1\"/></p:notesMasterIdLst>").arg(m_notesMasterRel);
+    if (!m_handoutMasterRel.isEmpty()) xml += QStringLiteral("<p:handoutMasterIdLst><p:handoutMasterId r:id=\"%1\"/></p:handoutMasterIdLst>").arg(m_handoutMasterRel);
     if (!m_slideRel.isEmpty()) {
         xml += QStringLiteral("<p:sldIdLst>");
         for (int i = 0; i < m_slideRel.size(); ++i) xml += QStringLiteral("<p:sldId id=\"%1\" r:id=\"%2\"/>").arg(kFirstSlideId + i).arg(m_slideRel[i]);
@@ -1679,6 +1736,7 @@ QByteArray Exporter::run(QString *error)
     for (int i = 0; i < int(m_doc.pages.size()); ++i)
         m_slideRel << m_pkg.addRelationship(kPresentationPart, kRelBase + QStringLiteral("slide"), QStringLiteral("/ppt/slides/slide%1.xml").arg(i + 1));
     m_notesMasterRel = m_pkg.addRelationship(kPresentationPart, kRelBase + QStringLiteral("notesMaster"), kNotesMasterPart);
+    if (hasPrintHeaderFooter(m_doc, PrintedPages::Handouts)) m_handoutMasterRel = m_pkg.addRelationship(kPresentationPart, kRelBase + QStringLiteral("handoutMaster"), kHandoutMasterPart);
     m_pkg.addRelationship(kPresentationPart, kRelBase + QStringLiteral("presProps"), QStringLiteral("/ppt/presProps.xml"));
     m_pkg.addRelationship(kPresentationPart, kRelBase + QStringLiteral("viewProps"), QStringLiteral("/ppt/viewProps.xml"));
     m_pkg.addRelationship(kPresentationPart, kRelBase + QStringLiteral("theme"), m_masters.front().themePart);
@@ -1696,6 +1754,7 @@ QByteArray Exporter::run(QString *error)
         if (m_notesNumber[i]) writeNotesSlide(i, m_notesNumber[i]);
     }
     writeNotesMaster();
+    writeHandoutMaster();
     writeProperties();
     if (m_embedFonts || !m_keptFonts.isEmpty()) {
         m_fonts = writeEmbeddedFonts(m_pkg, kPresentationPart, m_fontUse, m_keptFonts, m_embedFonts);

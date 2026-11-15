@@ -1,5 +1,6 @@
 // JeffDeck's tests of writing a presentation file.
 #include "deckhelpers.h"
+#include "core/printheaderfooter.h"
 #include "app/listmenus.h"
 
 class DeckPptxExportTests : public QObject {
@@ -100,6 +101,51 @@ private Q_SLOTS:
             QCOMPARE(int(s->adj.size()), int(adj[i].size()));
             for (int k = 0; k < adj[i].size(); ++k) QVERIFY2(qAbs(s->adj[k] - adj[i][k]) < 1e-6, qPrintable(names[i]));
         }
+    }
+
+    // The header and footer of notes pages and handouts are the hf element of the notes master and of the handout master, with their text in the master's own places; they come back.
+    void printHeaderFooterIsKeptInTheNotesMasterAndTheHandoutMaster()
+    {
+        auto d = deck::newPresentation();
+        deck::PrintHeaderFooter notes, handouts;
+        notes.header = true;
+        notes.headerText = QStringLiteral("Notes header");
+        notes.footer = true;
+        notes.footerText = QStringLiteral("Notes footer");
+        notes.pageNumber = false;
+        handouts.date = true;
+        handouts.dateText = QStringLiteral("3 March");
+        handouts.footer = true;
+        handouts.footerText = QStringLiteral("Handout footer");
+        deck::setPrintHeaderFooter(*d, deck::PrintedPages::Notes, notes);
+        deck::setPrintHeaderFooter(*d, deck::PrintedPages::Handouts, handouts);
+        QString err;
+        const QByteArray bytes = deck::exportPresentation(*d, &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        Exported e;
+        QString why;
+        QVERIFY2(unpack(bytes, &e, &why), qPrintable(why));
+        QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+        const QString notesXml = QString::fromUtf8(e.zip.value(QStringLiteral("ppt/notesMasters/notesMaster1.xml")));
+        QVERIFY2(notesXml.contains(QLatin1String("<p:hf")) && notesXml.contains(QLatin1String("dt=\"0\"")) && notesXml.contains(QLatin1String("sldNum=\"0\"")), qPrintable(notesXml));
+        QVERIFY(notesXml.contains(QLatin1String("Notes header")) && notesXml.contains(QLatin1String("Notes footer")));
+        QCOMPARE(e.pkg.relationshipsOfType(QStringLiteral("/ppt/presentation.xml"), QStringLiteral("/handoutMaster")).size(), 1);
+        const QString handoutXml = QString::fromUtf8(e.zip.value(QStringLiteral("ppt/handoutMasters/handoutMaster1.xml")));
+        QVERIFY2(handoutXml.contains(QLatin1String("<p:hf")) && handoutXml.contains(QLatin1String("hdr=\"0\"")) && handoutXml.contains(QLatin1String("3 March")) && handoutXml.contains(QLatin1String("Handout footer")), qPrintable(handoutXml));
+        QVERIFY(part(e, QStringLiteral("/ppt/presentation.xml")).contains(QStringLiteral("<p:handoutMasterIdLst>")));
+        auto back = deck::importPresentation(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        QVERIFY(deck::hasPrintHeaderFooter(*back, deck::PrintedPages::Notes));
+        QVERIFY(deck::printHeaderFooter(*back, deck::PrintedPages::Notes) == notes);
+        QVERIFY(deck::printHeaderFooter(*back, deck::PrintedPages::Handouts) == handouts);
+        // A presentation that never chose has no handout master, and none is made up for it on reading.
+        auto plain = deck::newPresentation();
+        Exported p;
+        QVERIFY(unpack(deck::exportPresentation(*plain, &err), &p, &why));
+        QVERIFY(!p.zip.contains(QStringLiteral("ppt/handoutMasters/handoutMaster1.xml")));
+        QVERIFY(!QString::fromUtf8(p.zip.value(QStringLiteral("ppt/notesMasters/notesMaster1.xml"))).contains(QLatin1String("<p:hf")));
+        auto plainBack = deck::importPresentation(deck::exportPresentation(*plain, &err), &err);
+        QVERIFY(plainBack && !deck::hasPrintHeaderFooter(*plainBack, deck::PrintedPages::Notes) && !deck::hasPrintHeaderFooter(*plainBack, deck::PrintedPages::Handouts));
     }
 
     // A new presentation is written as a whole package: every part has its

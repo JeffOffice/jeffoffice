@@ -673,6 +673,7 @@ private Q_SLOTS:
     void printGrayToPdfKeepsTextAsText()
     {
         const jptest::SettingGuard remembered(QStringLiteral("output/grayscale"), false, false);   // (the page keeps what is chosen)
+        const jptest::SettingGuard rememberedColor(QStringLiteral("output/color"), 0, 0);
         QTemporaryDir dir;
         DeckWindow w;
         w.resize(1300, 850);
@@ -699,7 +700,7 @@ private Q_SLOTS:
             auto *screen = w.findChild<FileScreen *>();
             auto *printer = screen->findChild<QComboBox *>(QStringLiteral("printPrinter"));
             printer->setCurrentIndex(printer->count() - 1);
-            screen->findChild<QCheckBox *>(QStringLiteral("printGray"))->setChecked(gray);
+            screen->findChild<QComboBox *>(QStringLiteral("printColor"))->setCurrentIndex(gray ? 1 : 0);
             screen->findChild<QPushButton *>(QStringLiteral("printButton"))->click();
             QFile f(dir.filePath(QStringLiteral("g.pdf")));
             QVERIFY(f.open(QIODevice::ReadOnly));

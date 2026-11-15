@@ -126,6 +126,18 @@ QCheckBox *makeGrayscaleBox(QWidget *parent)
     return gray;
 }
 
+QComboBox *makeColorModeBox(QWidget *parent)
+{
+    auto *color = new QComboBox(parent);
+    color->setObjectName(QStringLiteral("printColor"));
+    color->setAccessibleName(QCoreApplication::translate("Print", "Color"));
+    color->addItem(QCoreApplication::translate("Print", "Color"), int(PrintColor::Color));
+    color->addItem(QCoreApplication::translate("Print", "Grayscale"), int(PrintColor::Grayscale));
+    color->addItem(QCoreApplication::translate("Print", "Pure Black and White"), int(PrintColor::BlackAndWhite));
+    color->setToolTip(jp::plainToolTip(QCoreApplication::translate("Print", "Color as it is, shades of gray, or black and white alone (every point is black or white).")));
+    return color;
+}
+
 QComboBox *makeOrientationBox(QWidget *parent, const QString &asSet)
 {
     auto *orientation = new QComboBox(parent);

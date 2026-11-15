@@ -1,6 +1,7 @@
 // JeffDeck's tests of PDF, pictures, handouts, and printed output.
 #include "deckhelpers.h"
 #include "../localepin.h"
+#include "../withdialog.h"
 #include "../pdfmarkcheck.h"
 #include "../withdialog.h"
 #include <QSpinBox>
@@ -8,6 +9,8 @@
 #include "app/passworddialogs.h"
 #include "office/officecrypt.h"
 #include "io/pdfcrypt.h"
+#include "core/printheaderfooter.h"
+#include "../settingguard.h"
 
 class DeckOutputTests : public QObject {
     Q_OBJECT
@@ -1642,6 +1645,186 @@ private Q_SLOTS:
         QCOMPARE(asked, 2);
         QCOMPARE(itemCount(), before + 1);
     }
+
+    // ---- Print: color, scale to fit paper, and the header and footer of notes pages and handouts ----
+
+    // The pixels of a printed page, drawn as the print preview draws it (a point to a pixel).
+    static QImage printedPage(const Document &d, const deck::OutputOptions &o, int page = 0)
+    {
+        const QSizeF sheet = deck::printSheetSize(d, o);
+        QImage img(sheet.toSize(), QImage::Format_ARGB32_Premultiplied);
+        img.fill(Qt::white);
+        QPainter p(&img);
+        LayoutCache cache;
+        deck::paintOutputPage(&p, d, &cache, o, page, sheet);
+        p.end();
+        return img;
+    }
+
+    void pureBlackAndWhitePrintsNothingButBlackAndWhite()
+    {
+        auto d = deck::newPresentation();
+        auto box = std::make_shared<ShapeItem>();
+        box->rect = QRectF(40, 300, 400, 120);
+        box->fill = Fill::solid(ColorRef::rgb(QColor(200, 30, 30)));
+        d->pages[0]->items.push_back(box);
+        deck::OutputOptions o;
+        auto stats = [](const QImage &img, int *colored, int *gray, int *black) {
+            *colored = *gray = *black = 0;
+            for (int y = 0; y < img.height(); ++y)
+                for (int x = 0; x < img.width(); ++x) {
+                    const QColor c = img.pixelColor(x, y);
+                    if (std::max({c.red(), c.green(), c.blue()}) - std::min({c.red(), c.green(), c.blue()}) > 20) ++*colored;
+                    else if (c.red() > 40 && c.red() < 215) ++*gray;
+                    else if (c.red() <= 40) ++*black;
+                }
+        };
+        int colored = 0, gray = 0, black = 0;
+        stats(printedPage(*d, o), &colored, &gray, &black);
+        QVERIFY2(colored > 100, "in color the red box is red");
+        o.grayscale = true;
+        stats(printedPage(*d, o), &colored, &gray, &black);
+        QCOMPARE(colored, 0);
+        QVERIFY2(gray > 100, "in grayscale the box is a gray");
+        o.blackAndWhite = true;
+        stats(printedPage(*d, o), &colored, &gray, &black);
+        QCOMPARE(colored, 0);
+        QCOMPARE(gray, 0);
+        QVERIFY2(black > 100, "in black and white the box and the words are black");
+    }
+
+    void scaleToFitPaperFillsThePaperAndOffKeepsTheSlidesOwnSize()
+    {
+        auto d = deck::newPresentation();
+        auto box = std::make_shared<ShapeItem>();
+        box->rect = QRectF(QPointF(0, 0), d->pageSize());
+        box->fill = Fill::solid(ColorRef::rgb(QColor(10, 10, 10)));
+        d->pages[0]->items.push_back(box);
+        deck::OutputOptions o;
+        o.paper = QSizeF(842, 1191);   // (A3: larger than a slide in either way)
+        auto inked = [](const QImage &img) {
+            QRect r;
+            for (int y = 0; y < img.height(); ++y)
+                for (int x = 0; x < img.width(); ++x)
+                    if (img.pixelColor(x, y).red() < 60) r = r.united(QRect(x, y, 1, 1));
+            return r;
+        };
+        QVERIFY(o.scaleToFit);   // (as printing always did)
+        const QRect fitted = inked(printedPage(*d, o));
+        QVERIFY2(fitted.width() > d->pageSize().width() * 1.1, qPrintable(QString::number(fitted.width())));
+        o.scaleToFit = false;
+        const QRect own = inked(printedPage(*d, o));
+        QVERIFY2(qAbs(own.width() - d->pageSize().width()) <= 2, qPrintable(QString::number(own.width())));
+        // (centered on the sheet)
+        const QSizeF sheet = deck::printSheetSize(*d, o);
+        QVERIFY(qAbs(own.center().x() - sheet.width() / 2) <= 2 && qAbs(own.center().y() - sheet.height() / 2) <= 2);
+        // A slide larger than the paper is still made to fit it.
+        o.paper = QSizeF(300, 400);
+        const QSizeF small = deck::printSheetSize(*d, o);
+        QVERIFY(inked(printedPage(*d, o)).width() <= small.width() + 1);
+    }
+
+    void notesPagesAndHandoutsPrintTheirHeaderAndFooter()
+    {
+        auto d = deck::newPresentation();
+        d->props.title = QStringLiteral("Quarterly results");
+        QString err;
+        auto textOf = [&](deck::PrintLayout layout) {
+            deck::OutputOptions o;
+            o.layout = layout;
+            o.tags = false;
+            QTemporaryDir dir;
+            const QString path = dir.filePath(QStringLiteral("o.pdf"));
+            if (!deck::exportPdf(*d, path, o, &err)) return QString();
+            return pdfText(fileBytes(path));
+        };
+        // What printing always showed, until a choice is made: a handout's title and page number; a notes page's number alone.
+        QVERIFY(textOf(deck::PrintLayout::Handout4).contains(QStringLiteral("Quarterly results")));
+        QVERIFY(!textOf(deck::PrintLayout::NotesPages).contains(QStringLiteral("Quarterly results")));
+        deck::PrintHeaderFooter hf;
+        hf.header = true;
+        hf.headerText = QStringLiteral("HEADWORDS");
+        hf.footer = true;
+        hf.footerText = QStringLiteral("FOOTWORDS");
+        hf.date = true;
+        hf.dateText = QStringLiteral("DATEWORDS");
+        hf.pageNumber = false;
+        for (deck::PrintedPages pages : {deck::PrintedPages::Notes, deck::PrintedPages::Handouts}) deck::setPrintHeaderFooter(*d, pages, hf);
+        for (deck::PrintLayout layout : {deck::PrintLayout::NotesPages, deck::PrintLayout::Handout6}) {
+            const QString text = textOf(layout);
+            for (const char *word : {"HEADWORDS", "FOOTWORDS", "DATEWORDS"}) QVERIFY2(text.contains(QLatin1String(word)), word);
+            QVERIFY(!text.contains(QStringLiteral("Quarterly results")));
+        }
+        // Each off.
+        hf.header = false;
+        hf.footer = false;
+        hf.date = false;
+        for (deck::PrintedPages pages : {deck::PrintedPages::Notes, deck::PrintedPages::Handouts}) deck::setPrintHeaderFooter(*d, pages, hf);
+        for (deck::PrintLayout layout : {deck::PrintLayout::NotesPages, deck::PrintLayout::Handout6}) {
+            const QString text = textOf(layout);
+            for (const char *word : {"HEADWORDS", "FOOTWORDS", "DATEWORDS"}) QVERIFY2(!text.contains(QLatin1String(word)), word);
+        }
+        // The notes page and the handout each have their own.
+        deck::PrintHeaderFooter notesOnly;
+        notesOnly.header = true;
+        notesOnly.headerText = QStringLiteral("NOTESHEAD");
+        deck::setPrintHeaderFooter(*d, deck::PrintedPages::Notes, notesOnly);
+        QVERIFY(textOf(deck::PrintLayout::NotesPages).contains(QStringLiteral("NOTESHEAD")));
+        QVERIFY(!textOf(deck::PrintLayout::Handout6).contains(QStringLiteral("NOTESHEAD")));
+    }
+
+    void thePrintPageOffersColorModesScaleToFitAndHeaderAndFooter()
+    {
+        const jptest::SettingGuard remembered(QStringLiteral("output/color"), 0, 0);
+        DeckWindow w;
+        w.resize(1300, 850);
+        w.show();
+        w.showFileScreen(QStringLiteral("print"));
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+        auto *screen = w.findChild<FileScreen *>();
+        QVERIFY(screen);
+        auto *color = screen->findChild<QComboBox *>(QStringLiteral("printColor"));
+        QVERIFY(color);
+        QStringList choices;
+        for (int i = 0; i < color->count(); ++i) choices << color->itemText(i);
+        QCOMPARE(choices, (QStringList{QStringLiteral("Color"), QStringLiteral("Grayscale"), QStringLiteral("Pure Black and White")}));
+        auto *fit = screen->findChild<QCheckBox *>(QStringLiteral("printScaleToFit"));
+        QVERIFY(fit);
+        QVERIFY(fit->isChecked());
+        auto *headerFooter = screen->findChild<QPushButton *>(QStringLiteral("printHeaderFooter"));
+        QVERIFY(headerFooter);
+        // (the header and footer are for notes pages and handouts)
+        auto *what = screen->findChild<QComboBox *>(QStringLiteral("printWhat"));
+        what->setCurrentIndex(what->findData(int(deck::PrintLayout::Slides)));
+        QVERIFY(!headerFooter->isEnabled());
+        what->setCurrentIndex(what->findData(int(deck::PrintLayout::NotesPages)));
+        QVERIFY(headerFooter->isEnabled());
+        shotOf(&w, QStringLiteral("deck-print-page"));
+        w.editor()->markSaved();
+    }
+
+    void theHeaderAndFooterBoxSetsTheNotesPagesAndHandouts()
+    {
+        DeckWindow w;
+        w.show();
+        withDialog([&w] { w.showPrintHeaderFooter(); }, QStringLiteral("printHeaderFooterDialog"), [](QDialog *dlg) {
+            dlg->findChild<QCheckBox *>(QStringLiteral("hfHeader"))->setChecked(true);
+            dlg->findChild<QLineEdit *>(QStringLiteral("hfHeaderText"))->setText(QStringLiteral("My header"));
+            dlg->findChild<QCheckBox *>(QStringLiteral("hfFooter"))->setChecked(true);
+            dlg->findChild<QLineEdit *>(QStringLiteral("hfFooterText"))->setText(QStringLiteral("My footer"));
+            dlg->findChild<QCheckBox *>(QStringLiteral("hfPageNumber"))->setChecked(false);
+            dlg->findChild<QCheckBox *>(QStringLiteral("hfDate"))->setChecked(true);
+            shotOf(dlg, QStringLiteral("deck-print-header-footer"));
+        });
+        for (deck::PrintedPages pages : {deck::PrintedPages::Notes, deck::PrintedPages::Handouts}) {
+            const deck::PrintHeaderFooter hf = deck::printHeaderFooter(*w.editor()->doc(), pages);
+            QVERIFY(hf.header && hf.footer && hf.date && !hf.pageNumber);
+            QCOMPARE(hf.headerText, QStringLiteral("My header"));
+            QCOMPARE(hf.footerText, QStringLiteral("My footer"));
+        }
+        QVERIFY(w.editor()->isModified());
+    }
+
 };
 
 JP_TEST_CLASS(DeckOutputTests)

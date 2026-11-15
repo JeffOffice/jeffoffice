@@ -1,4 +1,5 @@
 #include "io/deckoutput.h"
+#include "core/printheaderfooter.h"
 
 #include "app/settings.h"
 #include "core/appinfo.h"
@@ -300,7 +301,24 @@ void drawSlide(const Sheet &s, int slide, const QRectF &target, bool frame)
 
 void paintSlidePage(const Sheet &s, int slide)
 {
-    drawSlide(s, slide, fitInside(s.d.pageSize(), QRectF(QPointF(0, 0), s.paper)), s.o.frameSlides);
+    const QRectF paper(QPointF(0, 0), s.paper);
+    QRectF target = fitInside(s.d.pageSize(), paper);
+    // (not scaled to the paper: a slide that fits it is at its own size)
+    if (!s.o.scaleToFit && target.width() > s.d.pageSize().width()) target = QRectF(paper.center() - QPointF(s.d.pageSize().width() / 2, s.d.pageSize().height() / 2), s.d.pageSize());
+    drawSlide(s, slide, target, s.o.frameSlides);
+}
+
+// The header, date, footer, and page number of a notes page or a handout (Print > Header & Footer), at the page's four corners. `number` is the page's number.
+void paintHeaderFooter(const Sheet &s, PrintedPages pages, int number)
+{
+    const PrintHeaderFooter hf = printHeaderFooter(s.d, pages);
+    const Face label(s.d.fonts.body, 10);
+    const QRectF header(kEdge, kEdge - 6, s.paper.width() - 2 * kEdge, 12), footer(kEdge, s.paper.height() - kEdge - 6, s.paper.width() - 2 * kEdge, 12);
+    ArtifactSpan lines(s.tagger, s.p);
+    if (hf.header && !hf.headerText.isEmpty()) label.draw(s.p, header, Qt::AlignLeft, plain(hf.headerText));
+    if (hf.date) label.draw(s.p, header, Qt::AlignRight, hf.dateText.isEmpty() ? QLocale().toString(QDate::currentDate(), QLocale::ShortFormat) : plain(hf.dateText));
+    if (hf.footer && !hf.footerText.isEmpty()) label.draw(s.p, footer, Qt::AlignLeft, plain(hf.footerText));
+    if (hf.pageNumber) label.draw(s.p, footer, Qt::AlignRight, QString::number(number));
 }
 
 void paintNotesPage(const Sheet &s, int slide)
@@ -328,9 +346,7 @@ void paintNotesPage(const Sheet &s, int slide)
         if (s.ctx.mark) s.ctx.mark(s.p, *box, false);
         s.p->restore();
     }
-    ArtifactSpan number(s.tagger, s.p);
-    const Face label(s.d.fonts.body, 10);
-    label.draw(s.p, QRectF(kEdge, s.paper.height() - kEdge - 12, s.paper.width() - 2 * kEdge, 12), Qt::AlignRight, QString::number(slide + 1));
+    paintHeaderFooter(s, PrintedPages::Notes, slide + 1);
 }
 
 void paintHandoutPage(const Sheet &s, const QVector<int> &slides, int page)
@@ -339,14 +355,7 @@ void paintHandoutPage(const Sheet &s, const QVector<int> &slides, int page)
     const int per = grid.columns * grid.rows;
     // (a handout's header, footer, and lines to write on are decoration, drawn between its slides)
     PageTagger *tagger = s.tagger;
-    const Face label(s.d.fonts.body, 10);
-    const QRectF header(kEdge, kEdge - 6, s.paper.width() - 2 * kEdge, 12), footer(kEdge, s.paper.height() - kEdge - 6, s.paper.width() - 2 * kEdge, 12);
-    {
-        ArtifactSpan lines(tagger, s.p);
-        if (!s.d.props.title.isEmpty()) label.draw(s.p, header, Qt::AlignLeft, plain(s.d.props.title));
-        label.draw(s.p, header, Qt::AlignRight, QLocale().toString(QDate::currentDate(), QLocale::ShortFormat));
-        label.draw(s.p, footer, Qt::AlignRight, QString::number(page + 1));
-    }
+    paintHeaderFooter(s, PrintedPages::Handouts, page + 1);
     const QRectF area(kEdge, 60, s.paper.width() - 2 * kEdge, s.paper.height() - 120);
     const double cellW = area.width() / grid.columns, cellH = area.height() / grid.rows;
     constexpr double gap = 10;
@@ -432,8 +441,13 @@ void paintGrayPixels(QPainter *p, const Document &d, LayoutCache *cache, const O
         paintPlain(&ip, d, cache, o, page, paper, textOutputOf(p));
     }
     p->save();
-    p->setRenderHint(QPainter::SmoothPixmapTransform);
-    p->drawImage(QRectF(QPointF(0, 0), paper), img.convertToFormat(QImage::Format_Grayscale8));
+    // (pure black and white: each point is black or white, from the middle of the gray; the pixels are not smoothed into grays again)
+    if (o.blackAndWhite) {
+        p->drawImage(QRectF(QPointF(0, 0), paper), img.convertToFormat(QImage::Format_Grayscale8).convertToFormat(QImage::Format_Mono, Qt::ThresholdDither | Qt::AvoidDither));
+    } else {
+        p->setRenderHint(QPainter::SmoothPixmapTransform);
+        p->drawImage(QRectF(QPointF(0, 0), paper), img.convertToFormat(QImage::Format_Grayscale8));
+    }
     p->restore();
 }
 
@@ -527,7 +541,7 @@ QString outputOutlineText(const Document &d, const OutputOptions &o)
 
 void paintOutputPage(QPainter *p, const Document &d, LayoutCache *cache, const OutputOptions &o, int page, const QSizeF &paper, PdfTagger *tags)
 {
-    if (o.grayscale && !deviceMakesGray(p)) paintGrayPixels(p, d, cache, o, page, paper);
+    if (o.blackAndWhite || (o.grayscale && !deviceMakesGray(p))) paintGrayPixels(p, d, cache, o, page, paper);
     else paintPlain(p, d, cache, o, page, paper, textOutputOf(p), tags);
 }
 
