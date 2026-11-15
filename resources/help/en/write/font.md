@@ -83,3 +83,15 @@ The **Home > Font** group has two buttons for marking letters without changing t
 - **Character Border** (the box) draws a thin line round the selected letters. Click it again to take the line away.
 
 Both go in the file, so the letters look the same when someone else opens it.
+
+## OpenType choices
+
+Some fonts hold extra letter shapes. Open **Home > Font** (the small arrow in the corner), then click the **Advanced** tab. The **OpenType features** box has five choices. Each one starts as the font's own choice.
+
+- **Ligatures** join letters that would touch, so "ffi" becomes one shape. Pick none, standard only, standard and contextual, historical and discretionary, or all.
+- **Number spacing** is **Proportional** (a 1 is narrower than a 0) or **Tabular** (every digit is as wide as the others, so columns line up).
+- **Number forms** is **Lining** (digits as tall as capitals) or **Old-style** (digits of different heights, like 3 and 7 hanging down).
+- **Stylistic set** picks one of the font's named sets of alternate shapes, 1 to 20.
+- **Contextual alternates** turns on or off letter shapes that change by the letters beside them.
+
+A font that has no such shapes looks the same. The choices go in the file, and the lines break the same way on the screen and in a PDF.
