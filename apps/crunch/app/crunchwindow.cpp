@@ -56,6 +56,7 @@
 #include <QFileInfo>
 #include <QHBoxLayout>
 #include <QKeyEvent>
+#include <QMouseEvent>
 #include <QLabel>
 #include <QLineEdit>
 #include <QMenu>
@@ -719,12 +720,7 @@ void CrunchWindow::createActions()
     mk("view.unfreeze", tr("Unfreeze Panes"), "panels-top-left", QKeySequence(), [this] { m_view->unfreeze(); syncPanes(); });
     mk("view.split", tr("Split"), "grid-2x2", QKeySequence(), [this] { toggleSplit(); }, true);
     // ---- formulas
-    mk("formulas.calculate", tr("Recalculate All"), "calculator", QKeySequence(Qt::Key_F9), [this] {
-        // (the calculation is the worker's: it is asked to work everything out again, and does)
-        if (m_loading || !m_haveCalc || !m_loader.recalculate()) return;
-        m_calculating = true;
-        setStatus(tr("Calculating…"));
-    });
+    mk("formulas.calculate", tr("Recalculate All"), "calculator", QKeySequence(Qt::Key_F9), [this] { calculateAllWorkbooks(); });
     // ---- help
     mk("help.show", tr("Help"), "circle-help", QKeySequence::HelpContents, [this] { showHelp(helpContext()); });
     mk("help.shortcuts", tr("Keyboard Shortcuts"), "keyboard", QKeySequence(), [this] { showHelp(QStringLiteral("keyboard")); });
@@ -1005,6 +1001,11 @@ void CrunchWindow::resizeEvent(QResizeEvent *e)
 bool CrunchWindow::eventFilter(QObject *o, QEvent *e)
 {
     if (m_drawBorder && m_view && drawBorderEvent(o, e)) return true;
+    if (o == m_calcNote && e->type() == QEvent::MouseButtonRelease && static_cast<QMouseEvent *>(e)->button() == Qt::LeftButton && m_calcDue && m_session
+        && m_session->calcSettings().mode == jp::office::sheet::CalcMode::Manual) {
+        calculateAllWorkbooks();
+        return true;
+    }
     if ((o == m_cellEditor || o == m_formulaBar) && m_edit.active) {
         if (e->type() == QEvent::FocusIn) m_point.line = static_cast<QLineEdit *>(o);
         if (e->type() == QEvent::InputMethod && !m_coloring) {

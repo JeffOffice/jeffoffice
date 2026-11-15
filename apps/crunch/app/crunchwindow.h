@@ -322,6 +322,10 @@ public:
     void setEdgesAsker(const std::function<bool(int *)> &asker) { m_edgesAsker = asker; }
     // How the workbook calculates: the mode (a change of it is one step of Undo), the circles, and the work that waits when it is done by hand.
     void setCalculationMode(jp::office::sheet::CalcMode mode);
+    // F9: this workbook is worked out again, and so is every other workbook that is open (each in its own window).
+    void calculateAllWorkbooks();
+    // This workbook alone worked out again (the worker's: it is asked, and does).
+    void calculateThisWorkbook();
     bool calculationDue() const { return m_calcDue; }
     // The formulas found in circles when the last calculation ended (0 when the workbook goes round them, or has none), and the list of them.
     qint64 circularCount() const { return m_circular; }

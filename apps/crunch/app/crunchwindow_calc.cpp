@@ -4,6 +4,7 @@
 
 #include <QAction>
 #include <QActionGroup>
+#include <QApplication>
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QDoubleSpinBox>
@@ -25,6 +26,7 @@ void CrunchWindow::createCalcActions()
     // the note at the right of the status bar: formulas wait to be worked out, or some read themselves
     m_calcNote = plainLabel(new QLabel(this));
     m_calcNote->setObjectName(QStringLiteral("calcNote"));
+    m_calcNote->installEventFilter(this);   // (a click on "Calculate" works the formulas out)
     statusBar()->insertPermanentWidget(0, m_calcNote);
     auto *modes = new QActionGroup(this);
     modes->setExclusive(true);
@@ -34,7 +36,7 @@ void CrunchWindow::createCalcActions()
         QString text;
     };
     const Mode kinds[] = {{"formulas.calcAuto", CalcMode::Auto, tr("Automatic")},
-                          {"formulas.calcNoTables", CalcMode::AutoNoTable, tr("Automatic, Tables by Hand")},
+                          {"formulas.calcNoTables", CalcMode::AutoNoTable, tr("Automatic Except Data Tables")},
                           {"formulas.calcManual", CalcMode::Manual, tr("Manual")}};
     for (const Mode &k : kinds) {
         QAction *a = mk(QString::fromLatin1(k.id), k.text, "", QKeySequence(), [this, mode = k.mode] { setCalculationMode(mode); }, true, false);
@@ -85,7 +87,7 @@ void CrunchWindow::createCalcActions()
         const crunch::EditSession::Outcome o = m_session->setCalcSettings(s);
         if (!o.ok) notice(tr("Circular Formulas"), o.problem);
     }, false, false);
-    mk("formulas.options", tr("Calculation Mode"), "settings-2", QKeySequence(), [] {}, false, false);
+    mk("formulas.options", tr("Calculation Options"), "settings-2", QKeySequence(), [] {}, false, false);
     mk("formulas.calcBeforeSave", tr("Calculate Before Save"), "", QKeySequence(), [this] {
         if (!m_session || !m_loaded) return;
         crunch::CalcSettings s = m_session->calcSettings();
@@ -106,6 +108,20 @@ void CrunchWindow::createCalcActions()
     mk("formulas.circular", tr("Circular References…"), "triangle-alert", QKeySequence(), [this] { showCircularReferences(); }, false, false);
     for (const char *id : {"formulas.iteration", "formulas.options", "formulas.calcBeforeSave", "formulas.calculateSheet", "formulas.circular", "formulas.calculateEverything", "formulas.rebuildAndCalculate"}) m_opsActions << QString::fromLatin1(id);
     updateEditActions();
+}
+
+void CrunchWindow::calculateThisWorkbook()
+{
+    if (m_loading || !m_haveCalc || !m_loader.recalculate()) return;
+    m_calculating = true;
+    setStatus(tr("Calculating…"));
+}
+
+void CrunchWindow::calculateAllWorkbooks()
+{
+    calculateThisWorkbook();
+    for (QWidget *top : QApplication::topLevelWidgets())
+        if (auto *other = qobject_cast<CrunchWindow *>(top); other && other != this) other->calculateThisWorkbook();
 }
 
 void CrunchWindow::setCalculationMode(CalcMode mode)
@@ -143,12 +159,15 @@ void CrunchWindow::updateCalcStatus()
 {
     if (!m_calcNote) return;
     QString text;
-    if (m_session && m_session->calcSettings().mode == CalcMode::Manual && m_calcDue) text = tr("Out of date: press F9 to recalculate");
+    if (m_session && m_session->calcSettings().mode == CalcMode::Manual && m_calcDue) text = tr("Calculate");
     else if (m_circular > 0) {
         const int shown = int(std::min<qint64>(m_circular, 1000000));
         text = tr("Circular references: %n cell(s)", nullptr, shown);
     }
     m_calcNote->setText(text);
+    const bool waiting = m_session && m_session->calcSettings().mode == CalcMode::Manual && m_calcDue;
+    m_calcNote->setCursor(waiting ? Qt::PointingHandCursor : Qt::ArrowCursor);
+    m_calcNote->setToolTip(waiting ? tr("Some formulas are out of date. Click, or press F9, to calculate.") : QString());
     m_calcNote->setVisible(!text.isEmpty());
     if (QAction *a = act(QStringLiteral("formulas.circular"))) a->setEnabled(m_circular > 0 && m_loaded);
 }

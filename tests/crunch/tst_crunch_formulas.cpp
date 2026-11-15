@@ -18,6 +18,8 @@
 #include "savedok.h"
 
 #include <QAction>
+#include <QDir>
+#include <QTest>
 #include <QComboBox>
 #include <QHeaderView>
 #include <QLabel>
@@ -681,7 +683,7 @@ private Q_SLOTS:
         QVERIFY(w.session()->type(0, 0, 0, QStringLiteral("5")).ok);
         QTRY_VERIFY(w.calculationDue());
         QCOMPARE(e.valueAt(QStringLiteral("B1")), QStringLiteral("n:0"));
-        QCOMPARE(note->text(), QStringLiteral("Out of date: press F9 to recalculate"));
+        QCOMPARE(note->text(), QStringLiteral("Calculate"));
         // F9 works everything out
         w.act(QStringLiteral("formulas.calculate"))->trigger();
         QTRY_COMPARE(e.valueAt(QStringLiteral("B1")), QStringLiteral("n:10"));
@@ -742,6 +744,72 @@ private Q_SLOTS:
         // back to automatic: what waited is worked out
         w.act(QStringLiteral("formulas.calcAuto"))->trigger();
         QTRY_VERIFY(!w.calculationDue());
+    }
+
+    // The status bar says "Calculate" while formulas wait, and a click on it works them out.
+    void aClickOnCalculateInTheStatusBarWorksTheFormulasOut()
+    {
+        EditWindow e;
+        QVERIFY(e.open(manualBook()));
+        CrunchWindow &w = e.win.w;
+        w.setLocale(kEnglish);
+        QLabel *note = w.findChild<QLabel *>(QStringLiteral("calcNote"));
+        QVERIFY(!note->isVisibleTo(&w));
+        QVERIFY(w.session()->type(0, 0, 0, QStringLiteral("5")).ok);
+        QTRY_VERIFY(w.calculationDue());
+        QCOMPARE(note->text(), QStringLiteral("Calculate"));
+        QVERIFY(note->isVisibleTo(&w));
+        QCOMPARE(e.valueAt(QStringLiteral("B1")), QStringLiteral("n:0"));
+        QTest::mouseClick(note, Qt::LeftButton);
+        QTRY_COMPARE(e.valueAt(QStringLiteral("B1")), QStringLiteral("n:10"));
+        QTRY_VERIFY(!w.calculationDue());
+        QVERIFY(!note->isVisibleTo(&w));
+        // (automatic, with nothing waiting: a click on the empty place does nothing and the label is gone)
+        QCOMPARE(w.act(QStringLiteral("formulas.options"))->text(), QStringLiteral("Calculation Options"));
+        QCOMPARE(w.act(QStringLiteral("formulas.calcNoTables"))->text(), QStringLiteral("Automatic Except Data Tables"));
+    }
+
+    // A picture of the status bar while formulas wait (set JC_SHOT_DIR).
+    void aPictureOfTheCalculateStatus()
+    {
+        const QString dir = QString::fromLocal8Bit(qgetenv("JC_SHOT_DIR"));
+        if (dir.isEmpty()) QSKIP("set JC_SHOT_DIR to take the picture");
+        QDir().mkpath(dir);
+        EditWindow e;
+        QVERIFY(e.open(manualBook()));
+        CrunchWindow &w = e.win.w;
+        w.setLocale(kEnglish);
+        w.resize(1100, 640);
+        QVERIFY(w.session()->type(0, 0, 0, QStringLiteral("5")).ok);
+        QTRY_VERIFY(w.calculationDue());
+        QCoreApplication::processEvents();
+        QVERIFY(w.grab().save(dir + QStringLiteral("/calculate-status.png")));
+    }
+
+    // F9 works out every open workbook, not only the one in front.
+    void f9WorksOutEveryOpenWorkbook()
+    {
+        EditWindow e, other;
+        QVERIFY(e.open(manualBook()));
+        QVERIFY(other.open(manualBook()));
+        e.win.w.setLocale(kEnglish);
+        other.win.w.setLocale(kEnglish);
+        QVERIFY(e.win.w.session()->type(0, 0, 0, QStringLiteral("5")).ok);
+        QVERIFY(other.win.w.session()->type(0, 0, 0, QStringLiteral("7")).ok);
+        QTRY_VERIFY(e.win.w.calculationDue());
+        QTRY_VERIFY(other.win.w.calculationDue());
+        e.win.w.act(QStringLiteral("formulas.calculate"))->trigger();
+        QTRY_COMPARE(e.valueAt(QStringLiteral("B1")), QStringLiteral("n:10"));
+        QTRY_COMPARE(other.valueAt(QStringLiteral("B1")), QStringLiteral("n:14"));
+        QTRY_VERIFY(!other.win.w.calculationDue());
+        // Ctrl+Alt+F9 is the same
+        QVERIFY(other.win.w.session()->type(0, 0, 0, QStringLiteral("8")).ok);
+        QVERIFY(e.win.w.session()->type(0, 0, 0, QStringLiteral("6")).ok);
+        QTRY_VERIFY(other.win.w.calculationDue());
+        QCOMPARE(e.win.w.act(QStringLiteral("formulas.calculateEverything"))->shortcut().toString(QKeySequence::NativeText), QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_F9).toString(QKeySequence::NativeText));
+        other.win.w.act(QStringLiteral("formulas.calculateEverything"))->trigger();
+        QTRY_COMPARE(other.valueAt(QStringLiteral("B1")), QStringLiteral("n:16"));
+        QTRY_COMPARE(e.valueAt(QStringLiteral("B1")), QStringLiteral("n:12"));
     }
 
     void oneSheetWorkedOutByHandClearsTheNoteWhenNothingWaits()
