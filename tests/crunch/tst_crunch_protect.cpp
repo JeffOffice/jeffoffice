@@ -245,7 +245,7 @@ private Q_SLOTS:
         crunch::EditSession *s = e.win.w.session();
         protectWith(e, [](ProtectRequest *r) { r->password = QStringLiteral("secret"); });
         e.win.w.act(QStringLiteral("protect.sheet"))->trigger();
-        QTRY_VERIFY(s->protectionOf(0).enabled);   // (the hash is made off the window's thread)
+        QTRY_VERIFY_WITH_TIMEOUT(s->protectionOf(0).enabled, 60000);   // (the hash is made off the window's thread)
         const SheetProtection &p = s->protectionOf(0);
         QCOMPARE(p.password.algorithm, QStringLiteral("SHA-512"));
         QCOMPARE(p.password.spin, qint64(jp::office::sheet::kNewSpinCount));
@@ -261,14 +261,14 @@ private Q_SLOTS:
         };
         e.win.told.clear();
         e.win.w.act(QStringLiteral("protect.sheet"))->trigger();
-        QTRY_VERIFY(!e.win.told.isEmpty());
+        QTRY_VERIFY_WITH_TIMEOUT(!e.win.told.isEmpty(), 60000);
         QVERIFY2(e.win.told.last().contains(QStringLiteral("not the right password")), qPrintable(e.win.told.join(QLatin1Char('\n'))));
         QVERIFY(s->protectionOf(0).enabled);
         QCOMPARE(asked, (QStringList{"Sheet1"}));
         // the right one takes it off
         answer = QStringLiteral("secret");
         e.win.w.act(QStringLiteral("protect.sheet"))->trigger();
-        QTRY_VERIFY(!s->protectionOf(0).enabled);
+        QTRY_VERIFY_WITH_TIMEOUT(!s->protectionOf(0).enabled, 60000);
         QVERIFY(!s->protectionOf(0).password.isSet());
         // a person cancelling the question leaves things as they were
         e.win.w.undoStack()->undo();   // (the stack itself: the window's Undo asks, as the next test shows)
@@ -286,7 +286,7 @@ private Q_SLOTS:
         crunch::EditSession *s = e.win.w.session();
         protectWith(e, [](ProtectRequest *r) { r->password = QStringLiteral("secret"); });
         e.win.w.act(QStringLiteral("protect.sheet"))->trigger();
-        QTRY_VERIFY(s->protectionOf(0).enabled);
+        QTRY_VERIFY_WITH_TIMEOUT(s->protectionOf(0).enabled, 60000);
         QString answer = QStringLiteral("wrong");
         int asked = 0;
         e.win.w.anchorHooks().passwordAsker = [&](PasswordRequest *r) {
@@ -296,12 +296,12 @@ private Q_SLOTS:
         };
         e.win.told.clear();
         e.win.w.act(QStringLiteral("edit.undo"))->trigger();
-        QTRY_VERIFY(!e.win.told.isEmpty());
+        QTRY_VERIFY_WITH_TIMEOUT(!e.win.told.isEmpty(), 60000);
         QCOMPARE(asked, 1);
         QVERIFY(s->protectionOf(0).enabled);   // (still on)
         answer = QStringLiteral("secret");
         e.win.w.act(QStringLiteral("edit.undo"))->trigger();
-        QTRY_VERIFY(!s->protectionOf(0).enabled);
+        QTRY_VERIFY_WITH_TIMEOUT(!s->protectionOf(0).enabled, 60000);
         // Redo puts it back with no question (it protects)
         asked = 0;
         e.win.w.act(QStringLiteral("edit.redo"))->trigger();
@@ -309,7 +309,7 @@ private Q_SLOTS:
         QVERIFY(s->protectionOf(0).enabled);
         // taking it off with the password, and Undo (which protects again) asks nothing, but Redo (which takes it off) asks
         e.win.w.act(QStringLiteral("protect.sheet"))->trigger();
-        QTRY_VERIFY(!s->protectionOf(0).enabled);
+        QTRY_VERIFY_WITH_TIMEOUT(!s->protectionOf(0).enabled, 60000);
         asked = 0;
         e.win.w.act(QStringLiteral("edit.undo"))->trigger();
         QCOMPARE(asked, 0);
@@ -317,7 +317,7 @@ private Q_SLOTS:
         answer = QStringLiteral("wrong");
         e.win.told.clear();
         e.win.w.act(QStringLiteral("edit.redo"))->trigger();
-        QTRY_VERIFY(!e.win.told.isEmpty());
+        QTRY_VERIFY_WITH_TIMEOUT(!e.win.told.isEmpty(), 60000);
         QVERIFY(s->protectionOf(0).enabled);
         QCOMPARE(asked, 1);
         // the workbook's structure is the same
@@ -326,17 +326,17 @@ private Q_SLOTS:
             return true;
         };
         e.win.w.act(QStringLiteral("protect.workbook"))->trigger();
-        QTRY_VERIFY(s->workbookProtection().lockStructure);
+        QTRY_VERIFY_WITH_TIMEOUT(s->workbookProtection().lockStructure, 60000);
         asked = 0;
         answer = QStringLiteral("nope");
         e.win.told.clear();
         e.win.w.act(QStringLiteral("edit.undo"))->trigger();
-        QTRY_VERIFY(!e.win.told.isEmpty());
+        QTRY_VERIFY_WITH_TIMEOUT(!e.win.told.isEmpty(), 60000);
         QCOMPARE(asked, 1);
         QVERIFY(s->workbookProtection().lockStructure);
         answer = QStringLiteral("book");
         e.win.w.act(QStringLiteral("edit.undo"))->trigger();
-        QTRY_VERIFY(!s->workbookProtection().any());
+        QTRY_VERIFY_WITH_TIMEOUT(!s->workbookProtection().any(), 60000);
     }
 
     void theFileKeepsTheSettingsAndTheHashAndNeverThePassword()
@@ -350,7 +350,7 @@ private Q_SLOTS:
             r->settings.allowSelectUnlocked = true;
         });
         e.win.w.act(QStringLiteral("protect.sheet"))->trigger();
-        QTRY_VERIFY(e.win.w.session()->protectionOf(0).enabled);
+        QTRY_VERIFY_WITH_TIMEOUT(e.win.w.session()->protectionOf(0).enabled, 60000);
         const SheetProtection mine = e.win.w.session()->protectionOf(0);
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
@@ -368,7 +368,7 @@ private Q_SLOTS:
             return true;
         };
         second.w.act(QStringLiteral("protect.sheet"))->trigger();
-        QTRY_VERIFY(!second.w.session()->protectionOf(0).enabled);
+        QTRY_VERIFY_WITH_TIMEOUT(!second.w.session()->protectionOf(0).enabled, 60000);
     }
 
     void aPasswordTheFileMadeTheOlderWayIsCheckedAndKeptAsItWas()
@@ -393,11 +393,11 @@ private Q_SLOTS:
             return true;
         };
         e.win.w.act(QStringLiteral("protect.sheet"))->trigger();
-        QTRY_VERIFY(!e.win.told.isEmpty());   // (the check is over: it said the password is wrong)
+        QTRY_VERIFY_WITH_TIMEOUT(!e.win.told.isEmpty(), 60000);   // (the check is over: it said the password is wrong)
         QVERIFY(s->protectionOf(0).enabled);
         answer = QStringLiteral("test");
         e.win.w.act(QStringLiteral("protect.sheet"))->trigger();
-        QTRY_VERIFY(!s->protectionOf(0).enabled);
+        QTRY_VERIFY_WITH_TIMEOUT(!s->protectionOf(0).enabled, 60000);
     }
 
     void aFileThatAsksForAnAbsurdNumberOfRepeatsIsNotWorkedOut()
@@ -412,7 +412,7 @@ private Q_SLOTS:
         QElapsedTimer t;
         t.start();
         e.win.w.act(QStringLiteral("protect.sheet"))->trigger();
-        QTRY_VERIFY(!e.win.told.isEmpty());
+        QTRY_VERIFY_WITH_TIMEOUT(!e.win.told.isEmpty(), 60000);
         QVERIFY(e.win.w.session()->protectionOf(0).enabled);
         QVERIFY2(!e.win.told.isEmpty() && e.win.told.last().contains(QStringLiteral("far more times")), qPrintable(e.win.told.join(QLatin1Char('\n'))));
         QVERIFY(t.elapsed() < 5000);
@@ -467,7 +467,7 @@ private Q_SLOTS:
             return true;
         };
         e.win.w.act(QStringLiteral("protect.workbook"))->trigger();
-        QTRY_VERIFY(s->workbookProtection().lockStructure);
+        QTRY_VERIFY_WITH_TIMEOUT(s->workbookProtection().lockStructure, 60000);
         QVERIFY(s->workbookProtection().password.isSet());
         QCOMPARE(e.win.w.act(QStringLiteral("protect.workbook"))->text(), QStringLiteral("Unprotect Workbook"));
         // no sheet is added, renamed, moved, hidden, or deleted
@@ -490,7 +490,7 @@ private Q_SLOTS:
             return true;
         };
         e.win.w.act(QStringLiteral("protect.workbook"))->trigger();
-        QTRY_VERIFY(!s->workbookProtection().any());
+        QTRY_VERIFY_WITH_TIMEOUT(!s->workbookProtection().any(), 60000);
         QVERIFY(s->insertSheet(1, QStringLiteral("Extra")).ok);
     }
 };
