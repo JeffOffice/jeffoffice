@@ -211,8 +211,10 @@ ItemPtr Reader::readShape(const QDomElement &e, Scope &sc, const QTransform &t)
             if (at(l, "script:event-name") == QLatin1String("dom:mouseover") && it->hoverLink.isEmpty() && isWebLink(at(l, "xlink:href"))) it->hoverLink = at(l, "xlink:href");
         if (it->hyperlink.isEmpty())
             for (const QDomElement &l : kids(kid(e, "office:event-listeners"), "presentation:event-listener")) {
+                // Only a click (or an event that is not named) is a link: mouseover, mouseout, keydown, and the rest never are.
+                if (const QString event = at(l, "script:event-name"); !event.isEmpty() && event != QLatin1String("dom:click")) continue;
                 const QString href = at(l, "xlink:href");
-                if (isWebLink(href) && at(l, "script:event-name") != QLatin1String("dom:mouseover")) {
+                if (isWebLink(href)) {
                     it->hyperlink = href;
                     break;
                 }
@@ -220,7 +222,7 @@ ItemPtr Reader::readShape(const QDomElement &e, Scope &sc, const QTransform &t)
                 static const QHash<QString, QString> actions = {{QStringLiteral("next-page"), QStringLiteral("#next")}, {QStringLiteral("previous-page"), QStringLiteral("#previous")},
                                                                 {QStringLiteral("first-page"), QStringLiteral("#first")}, {QStringLiteral("last-page"), QStringLiteral("#last")},
                                                                 {QStringLiteral("stop"), QStringLiteral("#end")}};
-                if (const QString jump = actions.value(at(l, "presentation:action")); !jump.isEmpty() && at(l, "script:event-name") != QLatin1String("dom:mouseover")) {
+                if (const QString jump = actions.value(at(l, "presentation:action")); !jump.isEmpty()) {
                     it->hyperlink = jump;
                     break;
                 }

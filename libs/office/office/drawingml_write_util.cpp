@@ -297,9 +297,10 @@ void writeKeptClick(QXmlStreamWriter &w, DrawingWriteContext &ctx, const QString
     if (ctx.slideCount <= 0 || kept.isEmpty()) return;
     const QString target = kept.section(QChar(0x1F), 0, 0);
     QString xml = kept.section(QChar(0x1F), 1);
-    if (!xml.startsWith(QLatin1String("<a:hlinkClick"))) return;
+    const QString name = xml.startsWith(QLatin1String("<a:hlinkHover")) ? QStringLiteral("<a:hlinkHover") : QStringLiteral("<a:hlinkClick");
+    if (!xml.startsWith(name)) return;
     if (!target.isEmpty())
-        if (const QString rId = relateAddress(ctx, target); !rId.isEmpty()) xml.insert(QStringLiteral("<a:hlinkClick").size(), QStringLiteral(" r:id=\"%1\"").arg(rId));
+        if (const QString rId = relateAddress(ctx, target); !rId.isEmpty()) xml.insert(name.size(), QStringLiteral(" r:id=\"%1\"").arg(rId));
     QXmlStreamReader in(QStringLiteral("<k xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\">") + xml + QStringLiteral("</k>"));
     in.readNext();
     in.readNext();
@@ -313,6 +314,47 @@ void writeKeptClick(QXmlStreamWriter &w, DrawingWriteContext &ctx, const QString
         } else if (in.isEndElement()) {
             w.writeEndElement();
         } else if (in.isCharacters()) {
+            w.writeCharacters(in.text().toString());
+        }
+        in.readNext();
+    }
+}
+
+QString actionWithExtras(const QString &action, const QString &extras)
+{
+    static const QLatin1String pres("ppaction://hlinkpres");
+    if (extras.isEmpty() || !action.startsWith(pres)) return action;
+    const QRegularExpressionMatch m = QRegularExpression(QStringLiteral("\\saction=\"([^\"]*)\"")).match(extras);
+    if (!m.hasMatch() || !m.captured(1).startsWith(pres)) return action;
+    QString had = m.captured(1);
+    had.replace(QStringLiteral("&amp;"), QStringLiteral("&"));
+    return had;
+}
+
+void writeLinkExtras(QXmlStreamWriter &w, const QString &extras)
+{
+    if (extras.isEmpty()) return;
+    QXmlStreamReader in(QStringLiteral("<k xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\">") + extras + QStringLiteral("</k>"));
+    in.readNext();
+    in.readNext();
+    in.readNext();   // (past the wrapper's start, on the element)
+    int depth = 0;
+    while (!in.atEnd()) {
+        if (in.hasError()) return;
+        if (in.isStartElement()) {
+            if (depth++ == 0) {
+                for (const QXmlStreamAttribute &a : in.attributes()) {
+                    const QString name = a.qualifiedName().toString();
+                    if (name != QLatin1String("action") && name != QLatin1String("r:id")) w.writeAttribute(name, a.value().toString());
+                }
+            } else {
+                w.writeStartElement(in.qualifiedName().toString());
+                for (const QXmlStreamAttribute &a : in.attributes()) w.writeAttribute(a.qualifiedName().toString(), a.value().toString());
+            }
+        } else if (in.isEndElement()) {
+            if (--depth <= 0) return;
+            w.writeEndElement();
+        } else if (in.isCharacters() && depth > 0) {
             w.writeCharacters(in.text().toString());
         }
         in.readNext();

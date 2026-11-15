@@ -111,7 +111,7 @@ void Item::copyBase(const Item &o)
 {
     id = newId();
     sourceId = 0;
-    name = o.name; role = o.role; altText = o.altText; altTitle = o.altTitle; decorative = o.decorative; hidden = o.hidden; hyperlink = o.hyperlink; hoverLink = o.hoverLink; keptClick = o.keptClick;
+    name = o.name; role = o.role; altText = o.altText; altTitle = o.altTitle; decorative = o.decorative; hidden = o.hidden; hyperlink = o.hyperlink; hoverLink = o.hoverLink; keptClick = o.keptClick; clickExtras = o.clickExtras; hoverExtras = o.hoverExtras; keptHover = o.keptHover;
     rect = o.rect; rotation = o.rotation; flipH = o.flipH; flipV = o.flipV; locked = o.locked; lockAspect = o.lockAspect;
     fill = o.fill; stroke = o.stroke; fx = o.fx; styleRef = o.styleRef; wrap = o.wrap;
 }
@@ -130,6 +130,9 @@ QJsonObject Item::toJson() const
     if (hidden) o["hidden"] = true;
     if (!hyperlink.isEmpty()) o["link"] = hyperlink;
     if (!hoverLink.isEmpty()) o["hoverLink"] = hoverLink;
+    if (!clickExtras.isEmpty()) o["clickExtras"] = clickExtras;
+    if (!hoverExtras.isEmpty()) o["hoverExtras"] = hoverExtras;
+    if (!keptHover.isEmpty()) o["keptHover"] = keptHover;
     if (!keptClick.isEmpty()) o["keptClick"] = keptClick;
     o["rect"] = rectJson(rect);
     if (rotation) o["rot"] = rotation;
@@ -157,6 +160,9 @@ void Item::fromJson(const QJsonObject &o)
     hidden = o["hidden"].toBool();
     hyperlink = o["link"].toString();
     hoverLink = o["hoverLink"].toString();
+    clickExtras = o["clickExtras"].toString();
+    hoverExtras = o["hoverExtras"].toString();
+    keptHover = o["keptHover"].toString();
     keptClick = o["keptClick"].toString();
     rect = rectFrom(o["rect"]);
     rotation = o["rot"].toDouble();

@@ -613,7 +613,7 @@ private Q_SLOTS:
         QCOMPARE(asked, QStringList{QStringLiteral("https://example.com/over")});
         QTest::mouseMove(&show, QPoint(500, 100));
         QTest::mouseMove(&show, QPoint(60, 450));
-        QCOMPARE(asked.size(), 2);
+        QCOMPARE(asked.size(), 1);   // (once for the visit)
     }
 
     // Tab and Shift+Tab move through the links of the slide, bottom object first, and Enter follows the one chosen; with none chosen Enter goes on, as it did.
@@ -781,6 +781,403 @@ private Q_SLOTS:
         // Off.
         w.act("insert.slideNumberOn")->trigger();
         QVERIFY(!numberPlaceholder(d->pages[1]->items));
+    }
+
+    // ---------------- review fixes: presentation links, hover, nesting, listeners, return stack ----------------
+
+    // The path of a link to another presentation is resolved first (against the folder of the deck), and a program is refused whatever way the name is written; a relative link in a deck
+    // that is on another computer is asked about as one.
+    void presentationLinksAreJudgedByTheirResolvedPath()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QDir(dir.path()).mkpath(QStringLiteral("sub"));
+        auto d = showDeck(2);
+        const QStringList names = {QStringLiteral("evil.exe"), QStringLiteral("a.pptx.exe"), QStringLiteral("sub/a.exe"), QStringLiteral("sub\\b.bat")};
+        for (int i = 0; i < names.size(); ++i) linkShape(*d->pages[0], QRectF(10 + 110 * i, 400, 100, 100), office::presentationLink(names[i]));
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        show.resize(960, 540);
+        show.show();
+        show.setBaseDirectory(dir.path());
+        QStringList asked, said;
+        show.setLinkPrompt([&](const QString &address, bool) {
+            asked << address;
+            return true;
+        });
+        show.setLinkNotice([&](const QString &text) { said << text; });
+        for (int i = 0; i < names.size(); ++i) QTest::mouseClick(&show, Qt::LeftButton, Qt::NoModifier, QPoint(60 + 110 * i, 450));
+        QVERIFY2(asked.isEmpty(), qPrintable(asked.join(QLatin1Char('|'))));
+        QCOMPARE(said.size(), names.size());   // (each is refused, and the person is told)
+        QVERIFY(!show.nestedShow());
+    }
+
+    void aRelativePresentationLinkOnAShareIsRemote()
+    {
+        auto d = showDeck(2);
+        linkShape(*d->pages[0], QRectF(10, 400, 100, 100), office::presentationLink(QStringLiteral("next.pptx")));
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        show.resize(960, 540);
+        show.show();
+        show.setBaseDirectory(QStringLiteral("\\\\server\\share\\decks"));
+        QList<bool> remote;
+        QStringList asked;
+        show.setLinkPrompt([&](const QString &address, bool isRemote) {
+            asked << address;
+            remote << isRemote;
+            return false;
+        });
+        const int looked = office::linkFileLooks();
+        QTest::mouseClick(&show, Qt::LeftButton, Qt::NoModifier, QPoint(60, 450));
+        QCOMPARE(remote, QList<bool>{true});
+        QVERIFY(asked.first().contains(QStringLiteral("server")));
+        QCOMPARE(office::linkFileLooks(), looked);
+    }
+
+    // One prompt for the hover actions of a slide visit, and no more after No.
+    void hoverAsksOncePerSlideVisit()
+    {
+        auto d = showDeck(3);
+        for (int i = 0; i < 2; ++i) {
+            auto s = linkShape(*d->pages[0], QRectF(10 + 200 * i, 400, 100, 100), QString());
+            s->hoverLink = QStringLiteral("https://example.com/%1").arg(i);
+        }
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        show.resize(960, 540);
+        show.show();
+        QStringList asked;
+        show.setLinkPrompt([&](const QString &address, bool) {
+            asked << address;
+            return false;
+        });
+        for (int round = 0; round < 3; ++round) {
+            QTest::mouseMove(&show, QPoint(60, 450));
+            QTest::mouseMove(&show, QPoint(500, 100));
+            QTest::mouseMove(&show, QPoint(260, 450));
+            QTest::mouseMove(&show, QPoint(500, 100));
+        }
+        QCOMPARE(asked.size(), 1);
+        // A new visit to the slide may ask once more.
+        show.goTo(1);
+        show.goTo(0);
+        QTest::mouseMove(&show, QPoint(60, 450));
+        QCOMPARE(asked.size(), 2);
+    }
+
+    // A hover jump inside the deck fires once, and the deck does not run on as the mouse moves, even when every slide has the action over all of it.
+    void hoverJumpsDoNotRunTheDeck()
+    {
+        auto d = showDeck(6);
+        for (auto &page : d->pages) {
+            auto s = linkShape(*page, QRectF(0, 0, 960, 540), QString());
+            s->hoverLink = QStringLiteral("#next");
+        }
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        show.resize(960, 540);
+        show.show();
+        QTest::mouseMove(&show, QPoint(100, 100));
+        QCOMPARE(show.currentSlide(), 1);
+        for (int i = 0; i < 20; ++i) QTest::mouseMove(&show, QPoint(120 + 10 * i, 120));
+        QCOMPARE(show.currentSlide(), 1);
+        // A click or a key is the person's own act: the action may fire again after it.
+        show.goTo(0);
+        QTest::keyClick(&show, Qt::Key_Home);
+        QTest::mouseMove(&show, QPoint(300, 300));
+        QCOMPARE(show.currentSlide(), 1);
+    }
+
+    void aKioskIgnoresHover()
+    {
+        auto d = showDeck(3);
+        auto s = linkShape(*d->pages[0], QRectF(0, 0, 960, 540), QString());
+        s->hoverLink = QStringLiteral("#next");
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        deck::ShowSettings settings;
+        settings.type = deck::ShowSettings::Type::Kiosk;
+        show.setSettings(settings);
+        show.resize(960, 540);
+        show.show();
+        QTest::mouseMove(&show, QPoint(100, 100));
+        QTest::mouseMove(&show, QPoint(200, 200));
+        QCOMPARE(show.currentSlide(), 0);
+    }
+
+    // A presentation already open in the chain of nested shows is refused, and so is a chain that is too deep; each says so.
+    void nestedShowsRefuseALoopAndTooMuchDepth()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QStringList paths;
+        for (int i = 0; i < 7; ++i) paths << dir.filePath(QStringLiteral("d%1.pptx").arg(i));
+        QString err;
+        for (int i = 0; i < 7; ++i) {
+            auto doc = showDeck(2);
+            if (i + 1 < 7) linkShape(*doc->pages[0], QRectF(10, 400, 100, 100), office::presentationLink(paths[i + 1]));
+            QVERIFY2(deck::saveAnyPresentationFile(*doc, paths[i], &err), qPrintable(err));
+        }
+        // A loop: d0 opens d1, which links back to d0.
+        {
+            auto back = showDeck(2);
+            linkShape(*back->pages[0], QRectF(10, 400, 100, 100), office::presentationLink(paths[0]));
+            QVERIFY2(deck::saveAnyPresentationFile(*back, paths[1], &err), qPrintable(err));
+            auto root = deck::importAnyPresentationFile(paths[0], &err);
+            QVERIFY2(root, qPrintable(err));
+            LayoutCache cache;
+            SlideShow show(root.get(), &cache, 0);
+            show.resize(960, 540);
+            show.show();
+            show.setFilePath(paths[0]);
+            QStringList said;
+            show.setLinkPrompt([](const QString &, bool) { return true; });
+            show.setLinkNotice([&](const QString &text) { said << text; });
+            QTest::mouseClick(&show, Qt::LeftButton, Qt::NoModifier, QPoint(60, 450));
+            QPointer<SlideShow> nested = show.nestedShow();
+            QVERIFY(nested);
+            QTest::mouseClick(nested.data(), Qt::LeftButton, Qt::NoModifier, QPoint(60, 450));
+            QVERIFY(!nested->nestedShow());
+            QCOMPARE(said.size(), 1);
+            nested->close();
+            QTRY_VERIFY(!show.nestedShow());
+        }
+        // Restore d1's own link for the chain: d0 > d1 > d2 > d3 > d4 > d5.
+        {
+            auto doc = showDeck(2);
+            linkShape(*doc->pages[0], QRectF(10, 400, 100, 100), office::presentationLink(paths[2]));
+            QVERIFY2(deck::saveAnyPresentationFile(*doc, paths[1], &err), qPrintable(err));
+            auto root = deck::importAnyPresentationFile(paths[0], &err);
+            QVERIFY2(root, qPrintable(err));
+            LayoutCache cache;
+            SlideShow show(root.get(), &cache, 0);
+            show.resize(960, 540);
+            show.show();
+            QStringList said;
+            show.setLinkPrompt([](const QString &, bool) { return true; });
+            show.setLinkNotice([&](const QString &text) { said << text; });
+            QPointer<SlideShow> at = &show;
+            int opened = 0;
+            for (int i = 0; i < 6 && at; ++i) {
+                QTest::mouseClick(at.data(), Qt::LeftButton, Qt::NoModifier, QPoint(60, 450));
+                if (!at->nestedShow()) break;
+                at = at->nestedShow();
+                ++opened;
+            }
+            QCOMPARE(opened, 4);   // (four deep, and the fifth is refused)
+            QCOMPARE(said.size(), 1);
+            QVERIFY(!said.first().isEmpty());
+            if (show.nestedShow()) show.nestedShow()->close();
+            QTRY_VERIFY(!show.nestedShow());
+        }
+    }
+
+    // Closing the show that started a nested show takes the nested show with it.
+    void aNestedShowGoesWithItsParent()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QString err;
+        const QString other = dir.filePath(QStringLiteral("other.pptx"));
+        QVERIFY2(deck::saveAnyPresentationFile(*showDeck(2), other, &err), qPrintable(err));
+        auto d = showDeck(2);
+        linkShape(*d->pages[0], QRectF(10, 400, 100, 100), office::presentationLink(other));
+        LayoutCache cache;
+        QPointer<SlideShow> show = new SlideShow(d.get(), &cache, 0);
+        show->resize(960, 540);
+        show->show();
+        show->setLinkPrompt([](const QString &, bool) { return true; });
+        QTest::mouseClick(show.data(), Qt::LeftButton, Qt::NoModifier, QPoint(60, 450));
+        QPointer<SlideShow> nested = show->nestedShow();
+        QVERIFY(nested);
+        show->close();
+        QTRY_VERIFY(!show);
+        QTRY_VERIFY(!nested);
+    }
+
+    // Only a click (or an event with no name) makes a link of an .odp listener: mouseout, keydown, and the rest never do.
+    void odpListenersOtherThanClickAreNotLinks()
+    {
+        auto listener = [](const QString &event, const QString &href) {
+            return QStringLiteral("<office:event-listeners><presentation:event-listener xmlns:script=\"urn:oasis:names:tc:opendocument:xmlns:script:1.0\"%1 presentation:action=\"show\" xlink:href=\"%2\"/></office:event-listeners>")
+                .arg(event.isEmpty() ? QString() : QStringLiteral(" script:event-name=\"%1\"").arg(event), href);
+        };
+        auto shape = [&](const QString &name, const QString &event) {
+            return QStringLiteral("<draw:custom-shape draw:name=\"%1\" svg:width=\"4cm\" svg:height=\"4cm\" svg:x=\"1cm\" svg:y=\"1cm\">").arg(name) + listener(event, QStringLiteral("https://example.com/%1").arg(name))
+                   + QStringLiteral("<draw:enhanced-geometry svg:viewBox=\"0 0 21600 21600\" draw:enhanced-path=\"M 0 0 L 21600 0 21600 21600 Z N\"/></draw:custom-shape>");
+        };
+        const QString page = QStringLiteral("<draw:page draw:name=\"p1\" draw:master-page-name=\"Default\">") + shape(QStringLiteral("click"), QStringLiteral("dom:click")) + shape(QStringLiteral("none"), QString())
+                             + shape(QStringLiteral("mouseout"), QStringLiteral("dom:mouseout")) + shape(QStringLiteral("keydown"), QStringLiteral("dom:keydown")) + QStringLiteral("</draw:page>");
+        QString err;
+        auto d = deck::importOdp(odptest::odpZip(odptest::odpContent(QString(), page)), &err);
+        QVERIFY2(d, qPrintable(err));
+        QHash<QString, QString> links;
+        for (const auto &it : d->pages[0]->items) links.insert(it->name, it->hyperlink);
+        QCOMPARE(links.value(QStringLiteral("click")), QStringLiteral("https://example.com/click"));
+        QCOMPARE(links.value(QStringLiteral("none")), QStringLiteral("https://example.com/none"));
+        QVERIFY(links.value(QStringLiteral("mouseout")).isEmpty());
+        QVERIFY(links.value(QStringLiteral("keydown")).isEmpty());
+    }
+
+    // The stack of places a "show and come back" link keeps is capped, and a link followed inside the show it leads to adds nothing to it.
+    void theReturnStackIsCapped()
+    {
+        auto d = showDeck(40);
+        QVector<deck::CustomShow> shows;
+        for (int i = 0; i < 40; ++i) {
+            deck::CustomShow cs;
+            cs.id = i;
+            cs.name = QStringLiteral("S%1").arg(i);
+            cs.slides = {d->pages[i]->id};
+            shows << cs;
+            if (i + 1 < 40) linkShape(*d->pages[i], QRectF(10, 400, 100, 100), office::customShowLink(i + 1, true));
+        }
+        deck::setCustomShows(*d, shows);
+        // A show whose slide links back into the same show.
+        auto e = showDeck(2);
+        deck::CustomShow self;
+        self.id = 5;
+        self.name = QStringLiteral("Self");
+        self.slides = {e->pages[1]->id};
+        deck::setCustomShows(*e, {self});
+        linkShape(*e->pages[0], QRectF(10, 400, 100, 100), office::customShowLink(5, true));
+        linkShape(*e->pages[1], QRectF(10, 400, 100, 100), office::customShowLink(5, true));
+        {
+            LayoutCache cache;
+            SlideShow show(e.get(), &cache, 0);
+            show.resize(960, 540);
+            show.show();
+            QTest::mouseClick(&show, Qt::LeftButton, Qt::NoModifier, QPoint(60, 450));
+            QCOMPARE(show.returnDepth(), 1);
+            for (int i = 0; i < 5; ++i) QTest::mouseClick(&show, Qt::LeftButton, Qt::NoModifier, QPoint(60, 450));
+            QCOMPARE(show.returnDepth(), 1);
+        }
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        show.resize(960, 540);
+        show.show();
+        QStringList said;
+        show.setLinkNotice([&](const QString &text) { said << text; });
+        for (int i = 0; i < 38; ++i) QTest::mouseClick(&show, Qt::LeftButton, Qt::NoModifier, QPoint(60, 450));
+        QVERIFY(show.returnDepth() <= 32);
+        QVERIFY(!said.isEmpty());
+    }
+
+    // A custom show that loops still comes back at its end when it was followed with "and come back".
+    void aLoopingCustomShowStillReturns()
+    {
+        auto d = showDeck(4);
+        deck::CustomShow cs;
+        cs.id = 3;
+        cs.name = QStringLiteral("Round");
+        cs.slides = {d->pages[2]->id, d->pages[3]->id};
+        deck::setCustomShows(*d, {cs});
+        linkShape(*d->pages[0], QRectF(10, 400, 100, 100), office::customShowLink(3, true));
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        deck::ShowSettings settings;
+        settings.loop = true;
+        show.setSettings(settings);
+        show.resize(960, 540);
+        show.show();
+        QTest::mouseClick(&show, Qt::LeftButton, Qt::NoModifier, QPoint(60, 450));
+        QCOMPARE(show.currentSlide(), 2);
+        show.next();
+        QCOMPARE(show.currentSlide(), 3);
+        show.next();
+        QCOMPARE(show.currentSlide(), 0);
+    }
+
+    // A link that can't be followed says so in the show: a custom show that is gone, and the last slide viewed when there is none (or it is not in the slides being played).
+    void deadLinksSaySo()
+    {
+        auto d = showDeck(4);
+        linkShape(*d->pages[0], QRectF(10, 400, 100, 100), office::customShowLink(99, false));
+        linkShape(*d->pages[0], QRectF(120, 400, 100, 100), QStringLiteral("#lastviewed"));
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        show.resize(960, 540);
+        show.show();
+        QStringList said;
+        show.setLinkNotice([&](const QString &text) { said << text; });
+        QTest::mouseClick(&show, Qt::LeftButton, Qt::NoModifier, QPoint(60, 450));
+        QCOMPARE(said.size(), 1);
+        QTest::mouseClick(&show, Qt::LeftButton, Qt::NoModifier, QPoint(170, 450));
+        QCOMPARE(said.size(), 2);
+        QCOMPARE(show.currentSlide(), 0);
+    }
+
+    // The slide number moves into the place it is asked for and the placeholder that was there takes its old place, so nothing overlaps: the date at the left, the footer in the middle, and the
+    // number moved to the left puts the date where the number was.
+    void slideNumberSwapsWithWhatWasInItsPlace()
+    {
+        auto d = showDeck(2);
+        deck::FooterOptions o;
+        o.date = o.footer = o.slideNumber = true;
+        o.footerText = QStringLiteral("Footer");
+        o.dateText = QStringLiteral("Today");
+        deck::applyFooters(*d, o);
+        auto rectOf = [&](const ItemList &items, const char *type) {
+            for (const ItemPtr &it : items)
+                if (deck::placeholderType(*it) == QLatin1String(type)) return it->rect;
+            return QRectF();
+        };
+        auto overlaps = [&](const ItemList &items) {
+            const QRectF dt = rectOf(items, "dt"), ftr = rectOf(items, "ftr"), num = rectOf(items, "sldNum");
+            return dt.intersects(ftr) || dt.intersects(num) || ftr.intersects(num);
+        };
+        for (const auto &m : d->masters) QVERIFY(!overlaps(m->items) || !numberPlaceholder(m->items));
+        const QRectF dateWas = rectOf(d->pages[1]->items, "dt"), numberWas = rectOf(d->pages[1]->items, "sldNum");
+        deck::setSlideNumberPlace(*d, deck::SlideNumberPlace{deck::NumberAcross::Left, deck::NumberDown::Bottom});
+        for (const auto &m : d->masters)
+            if (numberPlaceholder(m->items)) QVERIFY(!overlaps(m->items));
+        for (const auto &p : d->pages) QVERIFY(!overlaps(p->items));
+        const QRectF dateNow = rectOf(d->pages[1]->items, "dt"), numberNow = rectOf(d->pages[1]->items, "sldNum");
+        QCOMPARE(numberNow.left(), dateWas.left());
+        QCOMPARE(dateNow, numberWas);
+        QCOMPARE(numberNow.top(), numberWas.top());   // (the right distance from the bottom edge)
+        // At the top, the distance from the top edge is the distance the bottom one had from the bottom.
+        deck::setSlideNumberPlace(*d, deck::SlideNumberPlace{deck::NumberAcross::Right, deck::NumberDown::Top});
+        const QRectF top = rectOf(d->pages[1]->items, "sldNum");
+        QVERIFY(std::abs(top.top() - (d->pageSize().height() - numberWas.bottom())) < 0.01);
+        for (const auto &p : d->pages) QVERIFY(!overlaps(p->items));
+    }
+
+    // A mouse-over action, and a click that names another presentation, are saved with what they carried: the tooltip, the highlight, the slide asked for, and an action of a kind
+    // the program does not follow.
+    void hoverAndPresentationActionsKeepWhatTheyCarry()
+    {
+        Parts p = samplePptx();
+        int base = 0;
+        for (const Rel &r : p.rels) base += r.source == QLatin1String("/ppt/slides/slide1.xml");
+        auto shape = [](int id, const QString &name, const QString &click, const QString &hover) {
+            return QStringLiteral("<p:sp><p:nvSpPr><p:cNvPr id=\"%1\" name=\"%2\">%3%4</p:cNvPr><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr>").arg(id).arg(name, click, hover) + xfrm(914400 * (id - 49), 914400, 600000, 600000)
+                   + QStringLiteral("<a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></p:spPr></p:sp>");
+        };
+        const QString pres = QStringLiteral("<a:hlinkClick r:id=\"rId%1\" action=\"ppaction://hlinkpres?slideindex=3&amp;slidetitle=Third\" tooltip=\"Open it\"/>").arg(base + 1);
+        const QString hoverNext = QStringLiteral("<a:hlinkHover r:id=\"\" action=\"ppaction://hlinkshowjump?jump=nextslide\" tooltip=\"Go on\" highlightClick=\"1\"/>");
+        const QString hoverProgram = QStringLiteral("<a:hlinkHover r:id=\"rId%1\" action=\"ppaction://program\" tooltip=\"Runs it\"/>").arg(base + 2);
+        QString xml = QString::fromUtf8(p.data["/ppt/slides/slide1.xml"].xml);
+        xml.replace(QStringLiteral("</p:spTree>"), shape(50, QStringLiteral("pres"), pres, QString()) + shape(51, QStringLiteral("next"), QString(), hoverNext) + shape(52, QStringLiteral("program"), QString(), hoverProgram) + QStringLiteral("</p:spTree>"));
+        p.data["/ppt/slides/slide1.xml"].xml = xml.toUtf8();
+        p.rels << Rel{QStringLiteral("/ppt/slides/slide1.xml"), QStringLiteral("hyperlink"), QStringLiteral("other.pptx"), true} << Rel{QStringLiteral("/ppt/slides/slide1.xml"), QStringLiteral("hyperlink"), QStringLiteral("C:\\tools\\run.exe"), true};
+        QString err;
+        auto d = deck::importPresentation(pack(p), &err);
+        QVERIFY2(d, qPrintable(err));
+        QHash<QString, const Item *> items;
+        for (const auto &it : d->pages[0]->items) items.insert(it->name, it.get());
+        QCOMPARE(items.value(QStringLiteral("next"))->hoverLink, QStringLiteral("#next"));
+        QVERIFY(items.value(QStringLiteral("program"))->hoverLink.isEmpty());
+        QCOMPARE(items.value(QStringLiteral("pres"))->hyperlink, QStringLiteral("#deck:other.pptx"));
+        Exported e;
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &e, &err), qPrintable(err));
+        const QString out = part(e, QStringLiteral("/ppt/slides/slide1.xml"));
+        QVERIFY2(out.contains(QStringLiteral("slideindex=3&amp;slidetitle=Third")), qPrintable(out));
+        QVERIFY(out.contains(QStringLiteral("tooltip=\"Open it\"")));
+        QVERIFY(out.contains(QStringLiteral("tooltip=\"Go on\"")) && out.contains(QStringLiteral("highlightClick=\"1\"")));
+        QVERIFY(out.contains(QStringLiteral("ppaction://program")) && out.contains(QStringLiteral("tooltip=\"Runs it\"")));
+        QVERIFY(out.contains(QStringLiteral("a:hlinkHover")));
     }
 
     void hoverShowsTheAddress()

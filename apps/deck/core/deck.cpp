@@ -1268,36 +1268,70 @@ SlideNumberPlace slideNumberPlace(const Document &d)
 void setSlideNumberPlace(Document &d, const SlideNumberPlace &place)
 {
     const QSizeF page = d.pageSize();
-    // The distance from the side: that of the slide master's title.
-    double marginX = 36;
-    for (const auto &m : d.masters)
-        if (isSlideMaster(*m)) {
-            for (const ItemPtr &it : m->items)
-                if (placeholderType(*it) == QLatin1String("title")) marginX = std::clamp(std::min(it->rect.left(), page.width() - it->rect.right()), 0.0, page.width() / 4);
-            break;
-        }
-    auto move = [&](const ItemList &items) {
-        for (const ItemPtr &ptr : items) {
-            Item &it = *ptr;
-            if (placeholderType(it) != QLatin1String("sldNum")) continue;
-            const double insetX = marginX;
-            const double insetY = std::clamp(std::min(it.rect.top(), page.height() - it.rect.bottom()), 0.0, page.height() / 4);
-            const double w = it.rect.width(), h = it.rect.height();
-            const double x = place.across == NumberAcross::Left ? insetX : place.across == NumberAcross::Right ? page.width() - insetX - w : (page.width() - w) / 2;
-            const double y = place.down == NumberDown::Top ? insetY : page.height() - insetY - h;
-            it.rect = QRectF(x, y, w, h);
-            if (it.type() != ItemType::Text) continue;
-            if (QTextDocument *sd = d.storyDoc(static_cast<TextItem &>(it).storyId)) {
-                QTextCursor c(sd);
-                c.select(QTextCursor::Document);
-                QTextBlockFormat bf;
-                bf.setAlignment(place.across == NumberAcross::Left ? Qt::AlignLeft : place.across == NumberAcross::Right ? Qt::AlignRight : Qt::AlignHCenter);
-                c.mergeBlockFormat(bf);
-            }
+    auto alignmentOf = [&](const Item &it) -> Qt::Alignment {
+        if (it.type() != ItemType::Text) return Qt::AlignRight;
+        const QTextDocument *sd = d.storyDoc(static_cast<const TextItem &>(it).storyId);
+        return sd ? Qt::Alignment(sd->begin().blockFormat().alignment()) : Qt::Alignment(Qt::AlignRight);
+    };
+    auto align = [&](Item &it, Qt::Alignment a) {
+        if (it.type() != ItemType::Text) return;
+        if (QTextDocument *sd = d.storyDoc(static_cast<TextItem &>(it).storyId)) {
+            QTextCursor c(sd);
+            c.select(QTextCursor::Document);
+            QTextBlockFormat bf;
+            bf.setAlignment(a);
+            c.mergeBlockFormat(bf);
         }
     };
-    for (auto &m : d.masters) move(m->items);
-    for (auto &p : d.pages) move(p->items);
+    // Each slide master has its own: the number goes where asked, at that master's own distances from the edges, and whatever date or footer place was there takes the number's old
+    // place (the two trade), so that nothing overlaps.
+    for (const auto &m : d.masters) {
+        if (!isSlideMaster(*m)) continue;
+        double insetX = 36, insetY = 10;
+        for (const ItemPtr &it : m->items)
+            if (placeholderType(*it) == QLatin1String("title")) insetX = std::clamp(std::min(it->rect.left(), page.width() - it->rect.right()), 0.0, page.width() / 4);
+        if (const Item *n = numberOf(m->items)) insetY = std::clamp(std::min(n->rect.top(), page.height() - n->rect.bottom()), 0.0, page.height() / 4);
+        auto move = [&](const ItemList &items) {
+            Item *number = nullptr;
+            for (const ItemPtr &it : items)
+                if (placeholderType(*it) == QLatin1String("sldNum")) number = it.get();
+            if (!number) return;
+            const QRectF was = number->rect;
+            const double w = was.width(), h = was.height();
+            const double x = place.across == NumberAcross::Left ? insetX : place.across == NumberAcross::Right ? page.width() - insetX - w : (page.width() - w) / 2;
+            const double y = place.down == NumberDown::Top ? insetY : page.height() - insetY - h;
+            const QRectF to(x, y, w, h);
+            Item *other = nullptr;
+            double most = 0;
+            for (const ItemPtr &it : items) {
+                const QString type = placeholderType(*it);
+                if (it.get() == number || (type != QLatin1String("dt") && type != QLatin1String("ftr"))) continue;
+                const QRectF both = it->rect.intersected(to);
+                const double area = both.isEmpty() ? 0 : both.width() * both.height();
+                if (area > most) {
+                    most = area;
+                    other = it.get();
+                }
+            }
+            const Qt::Alignment before = alignmentOf(*number);
+            number->rect = to;
+            align(*number, place.across == NumberAcross::Left ? Qt::AlignLeft : place.across == NumberAcross::Right ? Qt::AlignRight : Qt::AlignHCenter);
+            if (other) {
+                other->rect = was;
+                align(*other, before);
+            }
+        };
+        move(m->items);
+        for (const auto &l : d.masters)
+            if (isLayout(*l)) {
+                const QVector<MasterPage *> chain = d.masterChain(l.get());
+                if (!chain.isEmpty() && chain.first() == m.get()) move(l->items);
+            }
+        for (const auto &pg : d.pages) {
+            const QVector<MasterPage *> chain = d.masterChain(d.masterFor(*pg));
+            if (!chain.isEmpty() && chain.first() == m.get()) move(pg->items);
+        }
+    }
 }
 
 void resetAllBackgrounds(Document &d)

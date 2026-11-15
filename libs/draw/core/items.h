@@ -51,6 +51,9 @@ public:
     QString hyperlink;
     // What the pointer coming onto the object does in a show (a mouse-over action), as a link; nothing when empty.
     QString hoverLink;
+    // What a click or mouse-over action that is a link here carried besides the link (a tooltip, a highlight, a sound, and for another presentation the slide asked for): the
+    // element's XML without its relationship id, written back with the link. A mouse-over action that is no link here is kept whole, as keptClick is, in keptHover.
+    QString clickExtras, hoverExtras, keptHover;
     // A click action of a file that is no link here (a program, a macro: never followed), kept as the file had it so that saving does not lose it: the address it
     // names, then the element's XML (see office::keptClickOf). Written back as it was.
     QString keptClick;

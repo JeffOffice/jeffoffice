@@ -499,7 +499,8 @@ void writeIdentity(QXmlStreamWriter &w, const Item &it, int id, const QString &f
     if (linked) {
         begin(w, "a:hlinkClick");
         attribute(w, "r:id", rId);
-        if (!linkAction.isEmpty()) attribute(w, "action", linkAction);
+        if (!linkAction.isEmpty()) attribute(w, "action", actionWithExtras(linkAction, it.clickExtras));
+        writeLinkExtras(w, it.clickExtras);
         w.writeEndElement();
     } else if (!it.keptClick.isEmpty() && !playsMedia) {
         writeKeptClick(w, ctx, it.keptClick);
@@ -513,8 +514,11 @@ void writeIdentity(QXmlStreamWriter &w, const Item &it, int id, const QString &f
     if (!it.hoverLink.isEmpty() && ctx.slideCount > 0 && linkClickParts(ctx, it.hoverLink, &hoverId, &hoverAction)) {
         begin(w, "a:hlinkHover");
         attribute(w, "r:id", hoverId);
-        if (!hoverAction.isEmpty()) attribute(w, "action", hoverAction);
+        if (!hoverAction.isEmpty()) attribute(w, "action", actionWithExtras(hoverAction, it.hoverExtras));
+        writeLinkExtras(w, it.hoverExtras);
         w.writeEndElement();
+    } else if (it.hoverLink.isEmpty() && !it.keptHover.isEmpty()) {
+        writeKeptClick(w, ctx, it.keptHover);
     }
     const bool marked = !ctx.barcode.isEmpty();
     if (it.decorative) writeDecorative(w, marked ? std::function<void()>([&] { writeBarcodeMarkerExt(w, ctx.barcode, ctx.barcodePngHash, ctx.barcodeSvgHash); }) : std::function<void()>());

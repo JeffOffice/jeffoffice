@@ -32,6 +32,8 @@ bool isRemoteFile(const QString &link);
 // A file that runs when it is opened (a program or a script, by the ending of its name, or on this computer by being marked as one that runs). Following a link to one is
 // refused. A file on another computer is judged by its name alone and is never looked at.
 bool isProgramFile(const QString &link);
+// The same for a path (or a "file:" address) taken as it is, whatever it looks like as a link: "evil.exe", "a.pptx.exe", and "sub/a.exe" are programs.
+bool isProgramPath(const QString &path);
 // How many times a file on this computer was looked at to judge a link (a test's counter: a file on another computer never is).
 int linkFileLooks();
 // The address a person is shown and asked about: the target's address, or "" for links inside the presentation.
@@ -45,5 +47,9 @@ QString linkOfClick(const QDomElement &click, const DrawingContext &ctx);
 // A click that is no link here and must not be lost on saving (a program, a macro, another presentation, a custom show): its address (empty when it names none), a unit
 // separator, and its XML without the relationship id. Empty for a click that is a link, a sound or movie (written from the object), or has no action.
 QString keptClickOf(const QDomElement &click, const DrawingContext &ctx);
+
+// What a click or mouse-over element that is a link carried besides it: its XML (without the relationship id) when it has attributes other than the id and the action (a tooltip,
+// highlightClick), has children (a sound), or is a link to another presentation (which says the slide and its title); else empty.
+QString extrasOfClick(const QDomElement &click, const DrawingContext &ctx);
 
 } // namespace jp::office

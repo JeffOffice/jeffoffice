@@ -96,15 +96,20 @@ bool isProgramFile(const QString &link)
 {
     const LinkTarget t = parseLink(link);
     if (t.kind != LinkKind::File && t.kind != LinkKind::Deck) return false;
-    const bool remote = isOnAnotherComputer(t.address);
-    QString path = t.address;
+    return isProgramPath(t.address);
+}
+
+bool isProgramPath(const QString &address)
+{
+    const bool remote = isOnAnotherComputer(address);
+    QString path = address;
     if (path.startsWith(QLatin1String("file:"), Qt::CaseInsensitive)) path = QUrl(path).toLocalFile();
     static const QStringList endings = {QStringLiteral("exe"), QStringLiteral("bat"), QStringLiteral("cmd"), QStringLiteral("com"), QStringLiteral("msi"), QStringLiteral("ps1"),
                                         QStringLiteral("vbs"), QStringLiteral("vbe"), QStringLiteral("js"), QStringLiteral("jse"), QStringLiteral("wsf"), QStringLiteral("hta"),
                                         QStringLiteral("sh"), QStringLiteral("command"), QStringLiteral("app"), QStringLiteral("desktop"), QStringLiteral("jar"),
                                         QStringLiteral("py"), QStringLiteral("scr"), QStringLiteral("pif"), QStringLiteral("lnk"), QStringLiteral("reg"), QStringLiteral("msc"),
                                         QStringLiteral("cpl"), QStringLiteral("dll"), QStringLiteral("appimage"), QStringLiteral("run"), QStringLiteral("pl"), QStringLiteral("rb")};
-    QString name = (path.isEmpty() ? t.address : path);
+    QString name = (path.isEmpty() ? address : path);
     name.replace(QLatin1Char('\\'), QLatin1Char('/'));
     name = name.section(QLatin1Char('/'), -1).trimmed();
     while (name.endsWith(QLatin1Char('.')) || name.endsWith(QLatin1Char(' '))) name.chop(1);   // (Windows ignores a trailing dot or space)
@@ -166,6 +171,26 @@ QString linkOfClick(const QDomElement &click, const DrawingContext &ctx)
     return rel.external && rel.type.endsWith(QLatin1String("/hyperlink")) ? rel.target : QString();
 }
 
+
+QString extrasOfClick(const QDomElement &click, const DrawingContext &ctx)
+{
+    if (click.isNull() || !ctx.slideNumberOf) return QString();
+    const QString action = attr(click, QStringLiteral("action"));
+    bool extra = click.hasChildNodes() && !click.firstChildElement().isNull();
+    const QDomNamedNodeMap attributes = click.attributes();
+    for (int i = 0; i < attributes.length() && !extra; ++i) {
+        const QString name = attributes.item(i).nodeName();
+        if (name != QLatin1String("action") && name != QLatin1String("r:id") && !name.startsWith(QLatin1String("xmlns"))) extra = true;
+    }
+    if (action.startsWith(QLatin1String("ppaction://hlinkpres")) && action.contains(QLatin1Char('?'))) extra = true;
+    if (!extra) return QString();
+    QString xml;
+    QTextStream out(&xml);
+    click.save(out, -1);
+    xml.remove(QRegularExpression(QStringLiteral("\\s+xmlns:\\w+=\"[^\"]*\"")));
+    xml.remove(QRegularExpression(QStringLiteral("\\s+(?:\\w+:)?id=\"[^\"]*\"")));
+    return xml;
+}
 
 QString keptClickOf(const QDomElement &click, const DrawingContext &ctx)
 {

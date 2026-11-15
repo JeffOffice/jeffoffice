@@ -17,6 +17,7 @@
 #include <QCursor>
 #include <QDesktopServices>
 #include <QDir>
+#include <QRegularExpression>
 #include <QFileInfo>
 #include <QMessageBox>
 #include <QPushButton>
@@ -25,6 +26,7 @@
 #include "core/linkareas.h"
 #include "io/presentationfile.h"
 #include "office/hyperlink.h"
+#include "office/package.h"
 #include <QGuiApplication>
 #include <QKeyEvent>
 #include <QMenu>
@@ -433,6 +435,11 @@ SlideShow::SlideShow(const Document *doc, LayoutCache *cache, int startSlide, QW
         m_painted = progress;
     });
     connect(&m_anim, &QVariantAnimation::finished, this, &SlideShow::endTransition);
+    m_toastTimer.setSingleShot(true);
+    connect(&m_toastTimer, &QTimer::timeout, this, [this] {
+        m_toast.clear();
+        update();
+    });
     m_auto.setSingleShot(true);
     connect(&m_auto, &QTimer::timeout, this, [this] { moveOn(); });
     m_frame.setTimerType(Qt::PreciseTimer);
@@ -686,11 +693,11 @@ void SlideShow::moveOn()
     }
     int n = nextShown(m_pos + 1, 1);
     // A looping show starts again at its first slide.
-    if (n < 0 && m_settings.looping()) n = nextShown(0, 1);
     if (n < 0 && !m_returns.isEmpty()) {
         returnFromCustomShow();
         return;
     }
+    if (n < 0 && m_settings.looping()) n = nextShown(0, 1);
     if (n < 0) {
         m_atEnd = true;
         m_media->end();
@@ -753,6 +760,8 @@ void SlideShow::showSlide(int pos, int steps)
     m_drawing = m_erasing = false;
     m_pos = m_targetPos = pos;
     m_focusIndex = -1;
+    m_hoverItem = nullptr;
+    m_hoverPrompted = false;
     if (m_slide != slideAt(pos) && m_slide >= 0) m_lastViewed = m_slide;
     m_slide = m_target = slideAt(pos);
     m_areasSlide = -1;
@@ -820,6 +829,8 @@ void SlideShow::endTransition()
     m_morph.reset();
     m_drawing = m_erasing = false;
     m_focusIndex = -1;
+    m_hoverItem = nullptr;
+    m_hoverPrompted = false;
     if (m_slide != m_target && m_slide >= 0) m_lastViewed = m_slide;
     m_slide = m_target;
     m_pos = m_targetPos;
@@ -917,6 +928,7 @@ std::shared_ptr<StepFrames> SlideShow::framesOf(const View &view, const QSize &s
 void SlideShow::startStep(int step)
 {
     m_media->stepStarted(m_slide, step);
+    m_focusIndex = -1;
     m_playing = step;
     m_stepLength = playOf(m_slide).timeline.steps[step].duration();
     m_stepMs = 0;
@@ -953,6 +965,7 @@ void SlideShow::finishStep()
 {
     if (m_playing < 0) return;
     m_frame.stop();
+    m_focusIndex = -1;
     m_done = m_playing + 1;
     m_playing = -1;
     m_nowValid = false;
@@ -967,6 +980,7 @@ void SlideShow::finishStep()
 // The steps played changed: draw the slide again, count the seconds from here, and tell Presenter View.
 void SlideShow::stepChanged()
 {
+    m_focusIndex = -1;
     m_nowValid = false;
     update();
     startAutoAdvance();
@@ -1073,12 +1087,26 @@ void SlideShow::paintEvent(QPaintEvent *)
                 const QRectF at = slideRect();
                 const double k = at.width() / m_doc->pageSize().width();
                 const QRectF r = areas[m_focusIndex]->rect;
+                // Two outlines, a dark one outside a light one, so that the ring shows on any slide.
+                const QRectF ring(at.topLeft() + r.topLeft() * k, r.size() * k);
                 p.setBrush(Qt::NoBrush);
-                p.setPen(QPen(Qt::white, 3));
-                p.drawRect(QRectF(at.topLeft() + r.topLeft() * k, r.size() * k).adjusted(-2, -2, 2, 2));
-                p.setPen(QPen(QColor(0x1F, 0x6F, 0xE0), 1.5, Qt::DashLine));
-                p.drawRect(QRectF(at.topLeft() + r.topLeft() * k, r.size() * k).adjusted(-2, -2, 2, 2));
+                p.setPen(QPen(QColor(0x10, 0x10, 0x10), 3));
+                p.drawRect(ring.adjusted(-3, -3, 3, 3));
+                p.setPen(QPen(Qt::white, 2));
+                p.drawRect(ring.adjusted(-1, -1, 1, 1));
             }
+        }
+        if (!m_toast.isEmpty()) {
+            QFont f = font();
+            f.setPointSizeF(14);
+            p.setFont(f);
+            const QRect box = QFontMetrics(f).boundingRect(rect().adjusted(40, 0, -40, 0), Qt::AlignCenter | Qt::TextWordWrap, m_toast).adjusted(-16, -8, 16, 8);
+            const QRect at = QRect(QPoint((width() - box.width()) / 2, height() - box.height() - 36), box.size());
+            p.setPen(Qt::NoPen);
+            p.setBrush(QColor(0, 0, 0, 200));
+            p.drawRoundedRect(at, 8, 8);
+            p.setPen(Qt::white);
+            p.drawText(at, Qt::AlignCenter | Qt::TextWordWrap, m_toast);
         }
     }
 }
@@ -1095,6 +1123,7 @@ void SlideShow::resizeEvent(QResizeEvent *e)
 void SlideShow::keyPressEvent(QKeyEvent *e)
 {
     const int k = e->key();
+    m_hoverHold = false;
     // At a kiosk nobody moves the show but its slides' times: Esc is all that is left.
     if (isKiosk()) {
         if (k == Qt::Key_Escape) close();
@@ -1268,6 +1297,23 @@ QString SlideShow::tipAt(const QPointF &pos) const { return office::linkAddress(
 
 // What a click on a link does: a jump moves the show, the end ends it, and a web address, mail address, or file is opened only when the person says yes.
 // A file on another computer is asked about in its own words and never looked for first.
+// The path a link to another presentation names, in full: a "file:" address as the path it is, a relative one counted from `base` (the folder of the presentation playing; on
+// another computer it stays on that computer).
+static QString resolvedPresentationPath(const QString &address, const QString &base)
+{
+    QString path = address.trimmed();
+    if (path.startsWith(QLatin1String("file:"), Qt::CaseInsensitive)) {
+        if (const QString local = QUrl(path).toLocalFile(); !local.isEmpty()) path = local;
+        else return path;   // (a file address with a host: it is judged as it stands)
+    }
+    if (path.startsWith(QLatin1String("\\\\")) || path.startsWith(QLatin1String("//")) || QRegularExpression(QStringLiteral("^[A-Za-z]:[\\\\/]")).match(path).hasMatch() || QDir::isAbsolutePath(path)) return path;
+    if (base.isEmpty()) return path;
+    const bool share = base.startsWith(QLatin1String("\\\\")) || base.startsWith(QLatin1String("//"));
+    if (!share) return QDir(base).filePath(path);
+    const QChar sep = base.contains(QLatin1Char('\\')) && !base.contains(QLatin1Char('/')) ? QLatin1Char('\\') : QLatin1Char('/');
+    return base + (base.endsWith(QLatin1Char('/')) || base.endsWith(QLatin1Char('\\')) ? QString() : QString(sep)) + path;
+}
+
 void SlideShow::followLink(const QString &link)
 {
     const office::LinkTarget t = office::parseLink(link);
@@ -1279,15 +1325,18 @@ void SlideShow::followLink(const QString &link)
     case office::LinkKind::Slide: goTo(t.slide - 1); return;
     case office::LinkKind::EndShow: close(); return;
     case office::LinkKind::LastViewed:
-        if (m_lastViewed >= 0) goTo(m_lastViewed);
+        if (m_lastViewed >= 0 && placeOf(m_lastViewed) >= 0) goTo(m_lastViewed);
+        else say(tr("There is no earlier slide to go back to."));
         return;
     case office::LinkKind::CustomShow: playCustomShow(t.slide, t.back); return;
     case office::LinkKind::None: return;
     default: break;
     }
-    const bool remote = office::isRemoteFile(t.address);
+    // Another presentation is judged by the path it is at, counted from the folder of this one: "evil.exe" and "sub/a.exe" are as much programs as a whole path is.
+    const QString target = t.kind == office::LinkKind::Deck ? resolvedPresentationPath(t.address, m_baseDir) : t.address;
+    const bool remote = office::isRemoteFile(target);
     // A program or a script is never run by a link: it is refused, and the person is told.
-    if ((t.kind == office::LinkKind::File || t.kind == office::LinkKind::Deck) && office::isProgramFile(t.address)) {
+    if ((t.kind == office::LinkKind::File && office::isProgramFile(t.address)) || (t.kind == office::LinkKind::Deck && office::isProgramPath(target))) {
         const QString text = tr("This link opens a program, so it was not opened.");
         if (m_linkNotice) m_linkNotice(text);
         else jp::plainWarning(this, tr("Open Link"), text);
@@ -1295,7 +1344,7 @@ void SlideShow::followLink(const QString &link)
     }
     QUrl url;
     if (t.kind == office::LinkKind::Deck) {
-        url = QUrl::fromLocalFile(t.address);   // (only to ask with: another presentation is read by its path)
+        url = QUrl::fromLocalFile(target);   // (only to ask with: another presentation is read by its path)
     } else if (t.kind == office::LinkKind::File) {
         if (remote) url = QUrl(t.address.startsWith(QLatin1String("file:"), Qt::CaseInsensitive) ? t.address : QUrl::fromLocalFile(t.address).toString());
         else if (t.address.startsWith(QLatin1String("file:"), Qt::CaseInsensitive)) url = QUrl(t.address);
@@ -1305,7 +1354,7 @@ void SlideShow::followLink(const QString &link)
         url = QUrl::fromUserInput(t.address);
         if (!url.isValid()) return;
     }
-    const QString shown = t.address;
+    const QString shown = target;
     bool yes = false;
     if (m_linkPrompt) yes = m_linkPrompt(shown, remote);
     else {
@@ -1319,7 +1368,7 @@ void SlideShow::followLink(const QString &link)
         yes = box.clickedButton() != no && box.result() != QMessageBox::Cancel;
     }
     if (yes) {
-        if (t.kind == office::LinkKind::Deck) openPresentation(t.address);
+        if (t.kind == office::LinkKind::Deck) openPresentation(target);
         else if (m_linkOpener) m_linkOpener(url);
         else QDesktopServices::openUrl(url);
     }
@@ -1330,7 +1379,10 @@ void SlideShow::playCustomShow(int id, bool back)
 {
     const QVector<deck::CustomShow> shows = deck::customShowsOf(*m_doc);
     const deck::CustomShow *cs = deck::customShowById(shows, id);
-    if (!cs) return;
+    if (!cs) {
+        say(tr("That custom show is no longer in this presentation."));
+        return;
+    }
     QHash<QString, int> index;
     for (int i = 0; i < m_doc->pages.size(); ++i) index.insert(m_doc->pages[i]->id, i);
     QList<int> slides;
@@ -1340,7 +1392,17 @@ void SlideShow::playCustomShow(int id, bool back)
             slides << index.value(page);
             ids << page;
         }
-    if (slides.isEmpty()) return;
+    if (slides.isEmpty()) {
+        say(tr("That custom show has no slides to play."));
+        return;
+    }
+    // Only so many shows wait to be come back to; a link followed inside the show it leads to waits for nothing more.
+    constexpr int kMostReturns = 32;
+    const bool sameShow = m_order == slides;
+    if (back && !sameShow && m_returns.size() >= kMostReturns) {
+        say(tr("Too many custom shows are waiting to be returned from."));
+        return;
+    }
     const Return here{m_order, m_orderIds, m_hiddenToo, m_slide};
     const QList<int> order = m_order;
     const QStringList orderIds = m_orderIds;
@@ -1355,8 +1417,8 @@ void SlideShow::playCustomShow(int id, bool back)
         m_hiddenToo = hiddenToo;
         return;
     }
-    if (back) m_returns << here;
-    else m_returns.clear();
+    if (!back) m_returns.clear();
+    else if (!sameShow) m_returns << here;
     finishTransition();
     m_auto.stop();
     m_blank = QColor();
@@ -1384,7 +1446,7 @@ void SlideShow::returnFromCustomShow()
 }
 
 namespace {
-// Holds the presentation a nested show plays (and its layouts) for as long as the show is there.
+// Holds the presentation a nested show plays (and its layouts); the nested show owns it, so that it lives as long as the show does.
 class NestedHolder : public QObject {
 public:
     std::unique_ptr<Document> doc;
@@ -1396,10 +1458,23 @@ public:
 void SlideShow::openPresentation(const QString &address)
 {
     constexpr int kMostDepth = 4;
-    if (m_nested || m_depth >= kMostDepth) return;
-    QString path = address;
-    if (path.startsWith(QLatin1String("file:"), Qt::CaseInsensitive)) path = QUrl(path).toLocalFile();
-    if (QDir::isRelativePath(path) && !m_baseDir.isEmpty()) path = QDir(m_baseDir).filePath(path);
+    if (m_nested) return;
+    if (m_depth >= kMostDepth) {
+        say(tr("Presentations are nested too deeply to open another."));
+        return;
+    }
+    // `address` is the path in full (see resolvedPresentationPath).
+    const QString path = address;
+    const QFileInfo info(path);
+    const QString canonical = info.canonicalFilePath().isEmpty() ? QDir::cleanPath(path) : info.canonicalFilePath();
+    if (m_chain.contains(canonical)) {
+        say(tr("%1 is already playing, so it was not opened again.").arg(info.fileName()));
+        return;
+    }
+    if (info.size() > office::kMaxOpenFileBytes) {
+        say(tr("The presentation %1 is too large to open.").arg(info.fileName()));
+        return;
+    }
     QString err;
     auto doc = deck::importAnyPresentationFile(path, &err);
     if (!doc || doc->pages.isEmpty()) {
@@ -1409,16 +1484,18 @@ void SlideShow::openPresentation(const QString &address)
         return;
     }
     auto *holder = new NestedHolder;
-    holder->setParent(this);
     holder->doc = std::move(doc);
     auto *show = new SlideShow(holder->doc.get(), &holder->cache, 0);
+    holder->setParent(show);
     show->m_depth = m_depth + 1;
-    show->m_baseDir = QFileInfo(path).absolutePath();
+    show->m_baseDir = info.absolutePath();
+    show->m_chain = m_chain + QStringList{canonical};
     show->setLinkPrompt(m_linkPrompt);
     show->setLinkOpener(m_linkOpener);
     show->setLinkNotice(m_linkNotice);
     m_nested = show;
-    connect(show, &QObject::destroyed, holder, &QObject::deleteLater);
+    // (If this show goes first, the nested one goes with it.)
+    connect(this, &QObject::destroyed, show, [show] { show->close(); });
     connect(show, &QObject::destroyed, this, [this] {
         activateWindow();
         setFocus();
@@ -1431,8 +1508,45 @@ void SlideShow::openPresentation(const QString &address)
     show->setFocus();
 }
 
+void SlideShow::setFilePath(const QString &path)
+{
+    const QFileInfo info(path);
+    m_chain = QStringList{info.canonicalFilePath().isEmpty() ? QDir::cleanPath(path) : info.canonicalFilePath()};
+    m_baseDir = info.absolutePath();
+}
+
+// A word to the person that a link could not be followed: to the hook when there is one, else on the screen for a few seconds.
+void SlideShow::say(const QString &text)
+{
+    if (m_linkNotice) {
+        m_linkNotice(text);
+        return;
+    }
+    m_toast = text;
+    m_toastTimer.start(4000);
+    update();
+}
+
+// A mouse-over action: a question (web, mail, a file, another presentation) is asked once during a visit to a slide, and a jump inside the presentation is followed once and then
+// holds until the pointer has left the actions or the person clicks or presses a key, so that moving the mouse can't run the show on.
+void SlideShow::followHover(const QString &link)
+{
+    switch (office::parseLink(link).kind) {
+    case office::LinkKind::None: return;
+    case office::LinkKind::Web: case office::LinkKind::Mail: case office::LinkKind::File: case office::LinkKind::Deck:
+        if (m_hoverPrompted) return;
+        m_hoverPrompted = true;
+        break;
+    default:
+        m_hoverHold = true;
+        break;
+    }
+    followLink(link);
+}
+
 void SlideShow::mousePressEvent(QMouseEvent *e)
 {
+    m_hoverHold = false;
     if (e->button() == Qt::LeftButton) {
         const bool inking = !m_atEnd && !isKiosk() && !m_recording;
         // Ctrl and the button: the laser pointer, while they are held.
@@ -1478,14 +1592,15 @@ void SlideShow::mouseMoveEvent(QMouseEvent *e)
     }
     if (m_pointer != Pointer::Arrow) return;
     // A mouse-over action is followed once as the pointer comes onto the object, and not again until it has left.
-    if (const deck::LinkArea *over = hoverAreaAt(e->position()); over && !isKiosk()) {
-        if (m_hoverItem != over->item) {
+    if (const deck::LinkArea *over = hoverAreaAt(e->position())) {
+        if (!isKiosk() && !m_hoverHold && m_hoverItem != over->item) {
             m_hoverItem = over->item;
-            followLink(over->link);
+            followHover(over->link);
             return;
         }
     } else {
         m_hoverItem = nullptr;
+        m_hoverHold = false;
     }
     if (!m_animating && !m_atEnd && !m_blank.isValid() && m_media->mouseMove(e->position())) {
         setCursor(Qt::ArrowCursor);
@@ -2004,6 +2119,7 @@ void SlideShow::showEvent(QShowEvent *e)
 
 void SlideShow::closeEvent(QCloseEvent *e)
 {
+    if (m_nested) m_nested->close();
     m_media->end();
     m_anim.stop();
     m_frame.stop();

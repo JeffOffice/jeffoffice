@@ -60,6 +60,10 @@ QString relateAddress(DrawingWriteContext &ctx, const QString &address);
 // the presentation doesn't have, or a link with no address.
 // Writes a click kept from a file (Item::keptClick, tp::KeptClick) as it was, with a relationship of its own for the address it names. Nothing for a writer with no slides.
 void writeKeptClick(QXmlStreamWriter &w, DrawingWriteContext &ctx, const QString &kept);
+// The action a link element is written with: the one it had (see extrasOfClick) when it is a link to another presentation like the one `action` says, else `action`.
+QString actionWithExtras(const QString &action, const QString &extras);
+// The rest of a link element: the attributes its `extras` had besides the relationship id and the action, then what was inside it.
+void writeLinkExtras(QXmlStreamWriter &w, const QString &extras);
 bool linkClickParts(DrawingWriteContext &ctx, const QString &link, QString *rId, QString *action);
 // The relationships of the movie or sound a picture plays: `link` for its
 // a:videoFile or a:audioFile, and `copy` for the p14:media that says the file

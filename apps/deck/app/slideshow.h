@@ -144,6 +144,10 @@ public:
     SlideShow *nestedShow() const { return m_nested; }
     // The folder a link to another presentation by a relative path is counted from (the folder of the file this one was opened from).
     void setBaseDirectory(const QString &dir) { m_baseDir = dir; }
+    // The file this presentation was opened from: a link back to it (or to any file already playing in a chain of nested shows) is refused.
+    void setFilePath(const QString &path);
+    // How many places a "show and come back" link is keeping to come back to.
+    int returnDepth() const { return int(m_returns.size()); }
 
     void next();
     void previous();
@@ -314,6 +318,9 @@ private:
     void playCustomShow(int id, bool back);
     void returnFromCustomShow();
     void openPresentation(const QString &address);
+    // A short word on the screen (or to the notice hook) for a link that can't be followed.
+    void say(const QString &text);
+    void followHover(const QString &link);
     struct Return {
         QList<int> order;
         QStringList orderIds;
@@ -325,6 +332,11 @@ private:
     int m_focusIndex = -1;
     int m_focusSlide = -1;
     const Item *m_hoverItem = nullptr;
+    bool m_hoverHold = false;       // a mouse-over jump was followed: no more until the pointer has left the actions, or a click or key
+    bool m_hoverPrompted = false;   // a mouse-over action asked a question during this visit to the slide
+    QStringList m_chain;            // the files playing in the shows this one is nested in, and its own
+    QString m_toast;
+    QTimer m_toastTimer;
     QPointer<SlideShow> m_nested;
     QString m_baseDir;
     int m_depth = 0;

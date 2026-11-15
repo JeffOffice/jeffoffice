@@ -461,6 +461,9 @@ void Reader::decorate(Item &it, const QDomElement &cNvPr, const Frame &frame, co
     it.hyperlink = hyperlinkOf(cNvPr);
     it.hoverLink = linkOfClick(childNamed(cNvPr, "hlinkHover"), m_ctx);
     if (it.hyperlink.isEmpty()) it.keptClick = keptClickOf(childNamed(cNvPr, "hlinkClick"), m_ctx);
+    else it.clickExtras = extrasOfClick(childNamed(cNvPr, "hlinkClick"), m_ctx);
+    if (it.hoverLink.isEmpty()) it.keptHover = keptClickOf(childNamed(cNvPr, "hlinkHover"), m_ctx);
+    else it.hoverExtras = extrasOfClick(childNamed(cNvPr, "hlinkHover"), m_ctx);
     it.wrap.mode = Wrap::None;
     const StyleContext sc = styleContext(frame.rect.size());
     it.fill = resolveFill(properties, style, sc);
