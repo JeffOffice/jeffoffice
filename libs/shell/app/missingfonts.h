@@ -13,6 +13,7 @@
 #include <functional>
 
 class QMainWindow;
+class QTextBlock;
 class QTextDocument;
 class QWidget;
 
@@ -22,8 +23,11 @@ namespace jp {
 class JO_COMMON_EXPORT FontUsage {
 public:
     void add(const QString &family, const QString &place);
-    // The families of the text of `doc` (the document's own font for text that names none), all in the place `place`.
-    void addDocument(const QTextDocument *doc, const QString &place);
+    // The families of the text of `doc` (the document's own font for text that names none), all in the place `place`, or the place `placeOf` gives for the paragraph. Text with a list of
+    // families that has one this computer has is not counted (that one is drawn); the fonts of paragraph marks, list marks, and table cells are looked at too.
+    void addDocument(const QTextDocument *doc, const QString &place, const std::function<QString(const QTextBlock &)> &placeOf = {});
+    // The most names kept (a hostile file may name thousands of fonts).
+    static constexpr int kMostFamilies = 100000;
     QStringList families() const { return m_order; }
     QStringList places(const QString &family) const { return m_places.value(family); }
     bool isEmpty() const { return m_order.isEmpty(); }
@@ -45,8 +49,9 @@ struct MissingFont {
 using FontInstalled = std::function<bool(const QString &family)>;
 JO_COMMON_EXPORT bool fontIsInstalled(const QString &family);
 
-// The fonts of `usage` that are not installed, in the order the document first uses them.
-JO_COMMON_EXPORT QList<MissingFont> missingFonts(const FontUsage &usage, const FontInstalled &installed = {});
+// The fonts of `usage` that are not installed, in the order the document first uses them. With `limit` (not negative), only the first that many are worked out (what stands in for a font
+// takes a moment to find), and `total` gets how many there are.
+JO_COMMON_EXPORT QList<MissingFont> missingFonts(const FontUsage &usage, const FontInstalled &installed = {}, int limit = -1, int *total = nullptr);
 
 // The person's choice of a stand-in for a font (kept for every document and every run; empty when there is none), and the making of one. An empty replacement takes the choice away.
 JO_COMMON_EXPORT QString fontChoice(const QString &family);
@@ -56,7 +61,8 @@ JO_COMMON_EXPORT bool applyFontChoices(const QStringList &families);
 
 struct MissingFontsHost {
     std::function<FontUsage()> usage;
-    // Puts `to` in the document for every use of `from`, as one change that undoes; how many places changed, or -1 when the program refused (a read-only document).
+    // Puts `to` in the document for every use of `from`, as one change that undoes; how many places changed (0: nothing in the document uses it), or -1 when the program refused (a
+    // read-only document). Text that names no font and is set in the document's own (default) font counts as a use of that font.
     std::function<int(const QString &from, const QString &to)> replace;
     // Draws the document again (a choice changes the widths of the text).
     std::function<void()> refresh;

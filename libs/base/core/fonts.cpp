@@ -1047,26 +1047,62 @@ QString fontReplacement(const QString &family)
     return replacements().value(family.toLower());
 }
 
+// The substitutes a family had before any choice (the stand-in of the table), to put back; the lock is held.
+static QHash<QString, QStringList> &substitutesBefore()
+{
+    static QHash<QString, QStringList> before;
+    return before;
+}
+
+static void applyReplacement(const QString &family, const QString &replacement)
+{
+    const QString key = family.toLower();
+    if (!substitutesBefore().contains(key)) substitutesBefore().insert(key, QFont::substitutes(family));
+    QFont::removeSubstitutions(family);
+    QStringList list = substitutesBefore().value(key);
+    if (replacement.isEmpty()) {
+        replacements().remove(key);
+    } else {
+        replacements().insert(key, replacement);
+        list.removeAll(replacement);
+        list.prepend(replacement);
+    }
+    if (!list.isEmpty()) QFont::insertSubstitutions(family, list);
+}
+
 void setFontReplacement(const QString &family, const QString &replacement)
 {
     {
         std::lock_guard<std::mutex> hold(replacementLock());
-        // The substitutes the family had before any choice (the stand-in of the table), to put back.
-        static QHash<QString, QStringList> before;
-        const QString key = family.toLower();
-        if (!before.contains(key)) before.insert(key, QFont::substitutes(family));
-        QFont::removeSubstitutions(family);
-        QStringList list = before.value(key);
-        if (replacement.isEmpty()) {
-            replacements().remove(key);
-        } else {
-            replacements().insert(key, replacement);
-            list.removeAll(replacement);
-            list.prepend(replacement);
-        }
-        if (!list.isEmpty()) QFont::insertSubstitutions(family, list);
+        applyReplacement(family, replacement);
     }
     fontsChanged();
+}
+
+void setFontReplacements(const QList<QPair<QString, QString>> &choices)
+{
+    if (choices.isEmpty()) return;
+    {
+        std::lock_guard<std::mutex> hold(replacementLock());
+        for (const auto &c : choices) applyReplacement(c.first, c.second);
+    }
+    fontsChanged();   // (once: the text engine drops what it remembers of the families a single time)
+}
+
+QString automaticStandIn(const QString &family)
+{
+    if (const QString standIn = standInOnThisPlatform(table().value(family)); !standIn.isEmpty()) return standIn;
+    std::lock_guard<std::mutex> hold(replacementLock());
+    const QString key = family.toLower();
+    const bool replaced = replacements().contains(key);
+    if (replaced) {
+        const QStringList before = substitutesBefore().value(key);
+        if (!before.isEmpty()) return before.first();
+        QFont::removeSubstitutions(family);   // (looked at without the choice, and put back)
+    }
+    const QString found = QFontInfo(QFont(family)).family();
+    if (replaced) QFont::insertSubstitutions(family, QStringList{replacements().value(key)});
+    return found;
 }
 
 } // namespace jp

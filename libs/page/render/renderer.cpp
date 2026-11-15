@@ -1095,6 +1095,7 @@ static void paintShape(QPainter *p, const PaintContext &ctx, const ShapeItem &s)
             po.showSpecial = ctx.opt.showSpecial;
             po.output = ctx.opt.textOutput;
             if (ctx.opt.editStory == s.storyId) { po.selFrom = ctx.opt.selFrom; po.selTo = ctx.opt.selTo; }
+            if (ctx.opt.found.contains(s.storyId)) po.found = ctx.opt.found.value(s.storyId);
             p->save();
             p->translate(origin);
             if (ctx.aroundText) ctx.aroundText(p, s, *lay, 0, [&](QPainter *pp) { lay->paint(pp, 0, po); });
@@ -1199,6 +1200,7 @@ static void paintTable(QPainter *p, const PaintContext &ctx, const TableItem &t)
                 po.showSpecial = ctx.opt.showSpecial;
                 po.output = ctx.opt.textOutput;
                 if (ctx.opt.editStory == c.halfStory(half)) { po.selFrom = ctx.opt.selFrom; po.selTo = ctx.opt.selTo; }
+                if (ctx.opt.found.contains(c.halfStory(half))) po.found = ctx.opt.found.value(c.halfStory(half));
                 if (ctx.markCell) ctx.markCell(p, t, row, col, true);
                 p->save();
                 p->translate(cr.topLeft());

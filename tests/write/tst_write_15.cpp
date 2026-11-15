@@ -4,9 +4,11 @@
 #include "tst_write.h"
 #include "app/missingfonts.h"
 #include "app/readaloud.h"
+#include "../fakespeech.h"
 
 #include <QComboBox>
 #include <QDockWidget>
+#include <QLabel>
 #include <QPushButton>
 #include <QScopeGuard>
 #include <QTableWidget>
@@ -15,19 +17,7 @@ namespace {
 
 const QString kGone = QStringLiteral("Zzyzx Gothic Display");
 
-class FakeEngine : public SpeechEngine {
-public:
-    QStringList said;
-    QList<SpeechVoice> voices() const override { return {{QStringLiteral("a"), QStringLiteral("Ann"), QStringLiteral("en_US")}}; }
-    void setVoice(const QString &) override {}
-    void setRate(double) override {}
-    void say(const QString &text) override { said << text; }
-    void pause() override {}
-    void resume() override {}
-    void stop() override {}
-    void word(int start, int length) { Q_EMIT wordSpoken(start, length); }
-    void end() { Q_EMIT finished(); }
-};
+using FakeEngine = jptest::FakeSpeech;
 
 FakeEngine *g_engine = nullptr;
 
@@ -88,14 +78,130 @@ void WriteTests::readAloudGoesFromTheCaretThroughTheTextAndThenTheFootnotes()
     QVERIFY(g_engine);
     QVERIFY(g_engine->said.value(0).startsWith(QStringLiteral("Beta two.")));
     g_engine->word(5, 3);
-    QCOMPARE(w.view()->cursor().selectedText(), QStringLiteral("two"));
+    QVERIFY(!w.view()->cursor().hasSelection());   // (the word is tinted, never selected: what is typed is not put over it)
+    QCOMPARE(w.view()->findHighlights().size(), 1);
     g_engine->end();
     QCOMPARE(g_engine->said.last(), QStringLiteral("Gamma three."));
     g_engine->end();
     QVERIFY(g_engine->said.last().contains(QStringLiteral("Note text.")));   // (the footnote comes after the text)
     g_engine->end();
     QCOMPARE(bar->state(), ReadAloudBar::State::Stopped);
-    QVERIFY(!w.view()->cursor().hasSelection());   // (the word shown is taken away at the end)
+    QVERIFY(!w.view()->cursor().hasSelection());
+    QVERIFY(w.view()->findHighlights().isEmpty());   // (the word shown is taken away at the end)
+}
+
+void WriteTests::typingWhileReadingStopsTheReadingAndKeepsWhatWasTyped()
+{
+    const FakeVoices voices;
+    WriteWindow w;
+    w.show();
+    w.setDocument(speechDoc(), QString());
+    const QString before = w.document()->story()->toPlainText();
+    QTextCursor c(w.document()->story());
+    c.setPosition(before.indexOf(QStringLiteral("Beta")));
+    w.view()->setCursor(c);
+    w.act(QStringLiteral("review.readAloud"))->trigger();
+    ReadAloudBar *bar = readAloudBarOf(&w);
+    QVERIFY(bar);
+    g_engine->word(0, 4);   // (the word "Beta" is shown)
+    QTest::keyClicks(w.view(), QStringLiteral("Z"));
+    QCOMPARE(bar->state(), ReadAloudBar::State::Stopped);
+    QTRY_VERIFY(!bar->isVisible());
+    // only what was typed changed: the word being read was not selected, so it is not gone
+    QString expected = before;
+    expected.insert(before.indexOf(QStringLiteral("Beta")), QLatin1Char('Z'));
+    QCOMPARE(w.document()->story()->toPlainText(), expected);
+    g_engine->word(1, 2);   // (a word that was on its way does nothing)
+    QVERIFY(w.view()->findHighlights().isEmpty());
+}
+
+void WriteTests::deletingTheFootnoteWhileItIsReadIsSafe()
+{
+    const FakeVoices voices;
+    WriteWindow w;
+    w.show();
+    w.setDocument(speechDoc(), QString());
+    w.act(QStringLiteral("review.readAloud"))->trigger();
+    ReadAloudBar *bar = readAloudBarOf(&w);
+    QVERIFY(bar);
+    g_engine->end();
+    g_engine->end();
+    g_engine->end();   // (now the footnote is being said)
+    QVERIFY(g_engine->said.last().contains(QStringLiteral("Note text.")));
+    QTextDocument *story = w.document()->story();
+    QTextCursor c(story);
+    const int at = story->toPlainText().indexOf(QChar(QChar::ObjectReplacementCharacter));
+    QVERIFY(at >= 0);
+    c.setPosition(at);
+    c.setPosition(at + 1, QTextCursor::KeepAnchor);
+    c.removeSelectedText();   // (the footnote's reference goes, and with it the note)
+    g_engine->word(0, 4);
+    g_engine->end();
+    QCOMPARE(bar->state(), ReadAloudBar::State::Stopped);
+}
+
+void WriteTests::footnotesAreScannedForMissingFontsAndReplaced()
+{
+    const QScopeGuard clean([] { setFontChoice(kGone, QString()); });
+    const QByteArray font = "<w:rPr><w:rFonts w:ascii=\"" + standIn().toUtf8() + "\" w:hAnsi=\"" + standIn().toUtf8() + "\"/></w:rPr>";
+    const QByteArray gone = "<w:r><w:rPr><w:rFonts w:ascii=\"" + kGone.toUtf8() + "\" w:hAnsi=\"" + kGone.toUtf8() + "\"/></w:rPr><w:t xml:space=\"preserve\"> In the note.</w:t></w:r>";
+    const QByteArray body = "<w:p><w:r>" + font + "<w:t>Body text.</w:t></w:r><w:r><w:rPr><w:rStyle w:val=\"FootnoteReference\"/></w:rPr><w:footnoteReference w:id=\"2\"/></w:r></w:p>";
+    WriteWindow w;
+    w.show();
+    w.setDocument(open(notesDocx(body, footnotesPart({{2, gone}}))), QString());
+    auto *dock = w.findChild<QDockWidget *>(QStringLiteral("missingFontsDock"));
+    QVERIFY(dock);
+    QTRY_VERIFY(dock->isVisible());
+    withDialog([&] { w.findChild<QPushButton *>(QStringLiteral("missingFontsDetails"))->click(); }, QStringLiteral("missingFontsDialog"), [&](QDialog *d) {
+        auto *t = d->findChild<QTableWidget *>(QStringLiteral("missingFontsTable"));
+        int row = -1;
+        for (int r = 0; r < t->rowCount(); ++r)
+            if (t->item(r, 0)->text() == kGone) row = r;
+        QVERIFY(row >= 0);
+        QVERIFY(t->item(row, 2)->text().contains(QStringLiteral("Footnotes")));
+        auto *combo = qobject_cast<QComboBox *>(t->cellWidget(row, 1));
+        combo->showPopup();
+        combo->hidePopup();
+        combo->setCurrentIndex(combo->findData(standIn()));
+        Q_EMIT combo->activated(combo->currentIndex());
+        t->selectRow(row);
+        d->findChild<QPushButton *>(QStringLiteral("missingFontsReplace"))->click();
+        QVERIFY(d->findChild<QLabel *>(QStringLiteral("missingFontsNote"))->text().contains(QStringLiteral("replaced")));
+    });
+    QCOMPARE(familiesOf(w.document()->editableFootnote(2)).last(), standIn());
+}
+
+void WriteTests::textThatNamesNoFontIsReplacedThroughTheDefaultFont()
+{
+    const QScopeGuard clean([] { setFontChoice(kGone, QString()); });
+    const QByteArray styles = "<w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii=\"" + kGone.toUtf8() + "\" w:hAnsi=\"" + kGone.toUtf8() + "\"/></w:rPr></w:rPrDefault></w:docDefaults>";
+    WriteWindow w;
+    w.show();
+    w.setDocument(open(makeDocx("<w:p><w:r><w:t>Plain words</w:t></w:r></w:p>", styles)), QString());
+    auto *dock = w.findChild<QDockWidget *>(QStringLiteral("missingFontsDock"));
+    QVERIFY(dock);
+    QTRY_VERIFY(dock->isVisible());
+    int changed = -1;
+    withDialog([&] { w.findChild<QPushButton *>(QStringLiteral("missingFontsDetails"))->click(); }, QStringLiteral("missingFontsDialog"), [&](QDialog *d) {
+        auto *t = d->findChild<QTableWidget *>(QStringLiteral("missingFontsTable"));
+        int row = -1;
+        for (int r = 0; r < t->rowCount(); ++r)
+            if (t->item(r, 0)->text() == kGone) row = r;
+        QVERIFY(row >= 0);
+        auto *combo = qobject_cast<QComboBox *>(t->cellWidget(row, 1));
+        combo->showPopup();
+        combo->hidePopup();
+        combo->setCurrentIndex(combo->findData(standIn()));
+        Q_EMIT combo->activated(combo->currentIndex());
+        t->selectRow(row);
+        d->findChild<QPushButton *>(QStringLiteral("missingFontsReplace"))->click();
+        const QString said = d->findChild<QLabel *>(QStringLiteral("missingFontsNote"))->text();
+        changed = said.contains(QStringLiteral("replaced")) ? 1 : 0;
+        QVERIFY2(!said.contains(QStringLiteral("nothing was changed")), qPrintable(said));
+    });
+    QCOMPARE(changed, 1);
+    QCOMPARE(familiesOf(w.document()->story()).value(0), standIn());   // (the run that named no font names the new one now)
+    QTRY_VERIFY(!dock->isVisible());   // (and the font is no longer missing)
 }
 
 void WriteTests::readAloudReadsOnlyTheSelection()
@@ -142,6 +248,8 @@ void WriteTests::replaceInDocumentChangesTheRunsOfTheFontAsOneStep()
     withDialog([&] { w.findChild<QPushButton *>(QStringLiteral("missingFontsDetails"))->click(); }, QStringLiteral("missingFontsDialog"), [&](QDialog *d) {
         auto *t = d->findChild<QTableWidget *>(QStringLiteral("missingFontsTable"));
         auto *combo = qobject_cast<QComboBox *>(t->cellWidget(0, 1));
+        combo->showPopup();   // (the fonts are put in the box when it is first opened)
+        combo->hidePopup();
         combo->setCurrentIndex(combo->findData(standIn()));
         Q_EMIT combo->activated(combo->currentIndex());
         t->selectRow(0);

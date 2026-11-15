@@ -1,6 +1,7 @@
 // Read Aloud's shared part (libs/shell/app/readaloud): the bar's play, pause, stop, and paragraph keys, the word highlighted as it is said, going on from the next paragraph, the speed and voice
 // kept, and the plain words when there is no voice or nothing to read. A fake speech engine stands for the system's voices.
 #include "app/readaloud.h"
+#include "../fakespeech.h"
 #include "app/settings.h"
 #include "../testrunner.h"
 
@@ -8,6 +9,7 @@
 #include <QDockWidget>
 #include <QLabel>
 #include <QMainWindow>
+#include <QSignalSpy>
 #include <QTextDocument>
 #include <QToolButton>
 #include <QtTest>
@@ -17,24 +19,7 @@ using namespace jp;
 namespace {
 
 // Says nothing; keeps what it was told, and lets the test play the engine's part.
-class FakeEngine : public SpeechEngine {
-public:
-    QList<SpeechVoice> voiceList{{QStringLiteral("a"), QStringLiteral("Ann"), QStringLiteral("en_US")}, {QStringLiteral("b"), QStringLiteral("Ben"), QStringLiteral("en_GB")}};
-    QStringList said;
-    QString voice;
-    double rate = 0;
-    int pauses = 0, resumes = 0, stops = 0;
-    QList<SpeechVoice> voices() const override { return voiceList; }
-    void setVoice(const QString &id) override { voice = id; }
-    void setRate(double r) override { rate = r; }
-    void say(const QString &text) override { said << text; }
-    void pause() override { ++pauses; }
-    void resume() override { ++resumes; }
-    void stop() override { ++stops; }
-    // The test plays the engine: a word, and the end.
-    void word(int start, int length) { Q_EMIT wordSpoken(start, length); }
-    void end() { Q_EMIT finished(); }
-};
+using FakeEngine = jptest::FakeSpeech;
 
 FakeEngine *g_engine = nullptr;
 bool g_noVoices = false;
@@ -198,6 +183,80 @@ private Q_SLOTS:
         QCOMPARE(part.at(0).text, QStringLiteral("one"));
         QCOMPARE(part.at(0).offset, 6);
         QCOMPARE(part.at(2).text, QStringLiteral("Th"));
+    }
+    void anEventOfAnUtteranceThatWasCutOffIsDropped()
+    {
+        Marks m;
+        ReadAloudBar bar(hostFor({{QStringLiteral("One two"), 0, 0}, {QStringLiteral("Three four"), 0, 10}}, &m));
+        bar.start();
+        const int first = g_engine->token;
+        bar.nextParagraph();   // (the first is cut off: its end and its words may still be on their way)
+        QCOMPARE(bar.paragraphIndex(), 1);
+        const int shownBefore = m.shown.size();
+        g_engine->wordOf(first, 0, 3);
+        g_engine->endOf(first);
+        QCOMPARE(bar.paragraphIndex(), 1);   // (the late end did not go on to a paragraph that is not there, nor stop the reading)
+        QCOMPARE(bar.state(), ReadAloudBar::State::Playing);
+        QCOMPARE(m.shown.size(), shownBefore);
+        g_engine->word(0, 5);
+        QCOMPARE(m.shown.size(), shownBefore + 1);   // (the new text's own words are shown)
+        // after a change of speed, what was being said is said again from its word, and the old one's end does not count
+        const int second = g_engine->token;
+        bar.setSpeed(2.0);
+        g_engine->endOf(second);
+        QCOMPARE(bar.state(), ReadAloudBar::State::Playing);
+    }
+    void anErrorOfTheVoiceEndsTheReadingAndSaysWhy()
+    {
+        Marks m;
+        ReadAloudBar bar(hostFor({{QStringLiteral("One"), 0, 0}, {QStringLiteral("Two"), 0, 4}}, &m));
+        bar.start();
+        g_engine->word(0, 3);
+        const int cleared = m.cleared;
+        g_engine->fail(QStringLiteral("the speech service stopped"));
+        QCOMPARE(bar.state(), ReadAloudBar::State::Stopped);
+        QVERIFY(bar.note().contains(QStringLiteral("the speech service stopped")));
+        QVERIFY(m.cleared > cleared);
+        // an error of an utterance that is gone is not the new one's
+        bar.start();
+        const int old = g_engine->token;
+        bar.nextParagraph();
+        Q_EMIT g_engine->errorOccurred(old, QStringLiteral("late"));
+        QCOMPARE(bar.state(), ReadAloudBar::State::Playing);
+    }
+    void eventsThroughTheEventLoopAreShownAndTheLateOnesDropped()
+    {
+        Marks m;
+        ReadAloudBar bar(hostFor({{QStringLiteral("One two"), 0, 0}, {QStringLiteral("Three"), 0, 10}}, &m));
+        bar.start();
+        g_engine->postWord(4, 3);
+        QTRY_COMPARE(m.shown.size(), 1);
+        g_engine->postEnd();   // (queued for the first paragraph) ...
+        bar.nextParagraph();   // ... and the reading has gone on to the second before it arrives
+        QTest::qWait(30);
+        QCOMPARE(bar.paragraphIndex(), 1);
+        QCOMPARE(bar.state(), ReadAloudBar::State::Playing);
+    }
+    void aChangeOfTheDocumentStopsTheReadingAndClosesTheBar()
+    {
+        Marks m;
+        std::function<void()> changed;
+        QObject source;
+        ReadAloudHost h = hostFor({{QStringLiteral("One"), 0, 0}}, &m);
+        h.watch = [&](const std::function<void()> &call) {
+            changed = call;
+            return QList<QMetaObject::Connection>();
+        };
+        h.note = [] { return QStringLiteral("a limit"); };
+        ReadAloudBar bar(h);
+        QSignalSpy closed(&bar, &ReadAloudBar::closeRequested);
+        bar.start();
+        QCOMPARE(bar.note(), QStringLiteral("a limit"));   // (what the program says of its text is shown while reading)
+        QVERIFY(changed);
+        changed();
+        QCOMPARE(bar.state(), ReadAloudBar::State::Stopped);
+        QCOMPARE(closed.size(), 1);
+        QVERIFY(m.cleared > 0);
     }
     void theRateRunsFromSlowToFast()
     {

@@ -3,6 +3,8 @@
 // are missing on Linux. A substitute is used only when the named font is absent.
 
 #include <QByteArray>
+#include <QList>
+#include <QPair>
 #include <QRectF>
 #include <QString>
 #include <QStringList>
@@ -25,6 +27,10 @@ QString substituteFor(const QString &family); // empty if none / font available
 // a font with a choice is treated by every substitute* function below as an installed one, so the choice is drawn as it is. Setting an empty one takes the choice away.
 QString fontReplacement(const QString &family);
 void setFontReplacement(const QString &family, const QString &replacement);
+// Many at once (family, replacement): the text engine is told of the change one time.
+void setFontReplacements(const QList<QPair<QString, QString>> &choices);
+// What is drawn for a font this computer lacks when the person has made no choice: the table's stand-in, else the font the system picks.
+QString automaticStandIn(const QString &family);
 int substituteStretch(const QString &family, bool bold = false, bool italic = false);
 // The stretch (percent) to give Qt so text is drawn that wide. Qt's macOS text
 // engine applies a font's stretch twice (to the advances and again to the

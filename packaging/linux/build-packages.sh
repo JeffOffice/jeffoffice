@@ -87,25 +87,31 @@ appdir() {
 # need (PDFium and jeffoffice-common, the code the apps share, among them) into an AppDir; with "appimage" it writes one too.
 deploy() {
   local dir=$1 main=$2 output=$3; shift 3
-  local exes=() modules="svg"
+  local exes=() modules="svg;texttospeech"
   for name in "$@"; do
     exes+=(--executable "$dir/usr/bin/$name")
     # JeffDeck plays movies and sounds through Qt Multimedia's FFmpeg
     # plugin: the plugin goes in before linuxdeploy runs, which then brings
     # the libraries it needs (FFmpeg's among them: ours, in Qt's folder). JeffPub alone gets none.
     if [ "$name" = JeffDeck ]; then
-      modules="svg;multimedia"
+      modules="svg;multimedia;texttospeech"
       mkdir -p "$dir/usr/plugins"
       cp -r "$("$QMAKE" -query QT_INSTALL_PLUGINS)/multimedia" "$dir/usr/plugins/"
     fi
   done
+  # Read Aloud speaks through Qt TextToSpeech: its plugins go in before linuxdeploy runs (it brings Qt's library). The plugin that talks to speech-dispatcher
+  # opens libspeechd when it is there: that library is the system's (the .deb recommends it), never bundled, and without it the apps say "no voices".
+  [ -d "$("$QMAKE" -query QT_INSTALL_PLUGINS)/texttospeech" ] || { echo "build-packages: this Qt has no texttospeech plugins (Qt TextToSpeech is not installed)" >&2; exit 1; }
+  mkdir -p "$dir/usr/plugins"
+  cp -r "$("$QMAKE" -query QT_INSTALL_PLUGINS)/texttospeech" "$dir/usr/plugins/"
   local lower
   lower=$(echo "$main" | tr '[:upper:]' '[:lower:]')
   ( cd "$out" && EXTRA_QT_MODULES="$modules" LDAI_OUTPUT="$main-$ver-x86_64.AppImage" "$ld" --appdir "$dir" "${exes[@]}" \
       --library "$build/_deps/pdfium/lib/libpdfium.so" --library "$build/libjeffoffice-common.so" \
       --desktop-file "$dir/usr/share/applications/$lower.desktop" \
       --icon-file "$dir/usr/share/icons/hicolor/256x256/apps/$lower.png" \
-      --plugin qt ${output:+--output "$output"} )
+      --exclude-library "libspeechd*" --plugin qt ${output:+--output "$output"} )
+  find "$dir" -name 'libspeechd*' -delete
   # JeffDeck's FFmpeg is the minimal build of tools/build_ffmpeg.sh (put in Qt's folder by tools/use_ffmpeg.sh before this runs), not
   # the full one Qt ships: a package with another one stops here.
   case " $* " in *" JeffDeck "*) sh "$src/tools/use_ffmpeg.sh" check "$dir" ;; esac
@@ -160,6 +166,7 @@ Priority: optional
 Architecture: $arch
 Installed-Size: $size
 Depends: libc6 (>= 2.35), ca-certificates, libstdc++6, libgl1, libegl1, libfontconfig1, libfreetype6, libdbus-1-3, libxkbcommon0, libxkbcommon-x11-0, libx11-6, libx11-xcb1, libxcb1, libxcb-cursor0, libxcb-icccm4, libxcb-image0, libxcb-keysyms1, libxcb-randr0, libxcb-render-util0, libxcb-shape0, libxcb-xinerama0, libxcb-xkb1, libwayland-client0, libwayland-cursor0, libwayland-egl1, libglib2.0-0 | libglib2.0-0t64, libpulse0, libxext6, libxrandr2, libxrender1, libdrm2
+Recommends: speech-dispatcher, libspeechd2
 Conflicts: jeffpub, jeffpub79
 Replaces: jeffpub, jeffpub79
 Provides: jeffpub, jeffpub79

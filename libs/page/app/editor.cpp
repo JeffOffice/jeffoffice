@@ -112,6 +112,7 @@ void Editor::setDocument(std::unique_ptr<Document> d, const QString &path)
     m_cropOpen = false;
     m_text = TextTarget();
     m_cursor = QTextCursor();
+    m_readStory.clear();
     m_doc = std::move(d);
     resetGrammar();
     if (m_doc->pages.isEmpty()) m_doc->addPage();
@@ -230,6 +231,15 @@ QSizeF Editor::surfaceSize() const
 
 int Editor::surfacePageNumber() const { return m_master.isEmpty() ? m_page + 1 : 1; }
 
+void Editor::setReadHighlight(const QString &storyId, int from, int to)
+{
+    if (m_readStory == storyId && m_readFrom == from && m_readTo == to) return;
+    m_readStory = storyId;
+    m_readFrom = from;
+    m_readTo = to;
+    Q_EMIT viewChanged();
+}
+
 RenderOptions Editor::renderOptions() const
 {
     RenderOptions o;
@@ -242,6 +252,7 @@ RenderOptions Editor::renderOptions() const
         o.selFrom = m_cursor.selectionStart();
         o.selTo = m_cursor.selectionEnd();
     }
+    if (!m_readStory.isEmpty()) o.found[m_readStory].push_back({m_readFrom, m_readTo});
     if (view.spelling) {
         for (auto it = m_doc->stories.cbegin(); it != m_doc->stories.cend(); ++it) {
             QVector<QPair<int, int>> r = misspelledIn(it.key());

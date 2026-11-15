@@ -129,6 +129,11 @@ public:
         int half = 0;                  // 1: the second half of a cell divided by a diagonal
     };
     bool isEditingText() const { return !m_text.storyId.isEmpty(); }
+    // The words Read Aloud is saying, shown as a search match is (a tint behind them): not the selection, so what is typed is never put over them, and the text cursor stays where it was. The
+    // range is of the story's characters; clearing takes it away.
+    void setReadHighlight(const QString &storyId, int from, int to);
+    void clearReadHighlight() { setReadHighlight(QString(), -1, -1); }
+    bool hasReadHighlight() const { return !m_readStory.isEmpty(); }
     const TextTarget &textTarget() const { return m_text; }
     QTextCursor &cursor() { return m_cursor; }
     QTextDocument *editDoc() const;
@@ -410,6 +415,8 @@ private:
     int m_mergeRecord = -1;
     QStringList m_sel;
     TextTarget m_text;
+    QString m_readStory;
+    int m_readFrom = -1, m_readTo = -1;
     QTextCursor m_cursor;
     CellBlock m_block;
     Tool m_tool = Tool::Select;

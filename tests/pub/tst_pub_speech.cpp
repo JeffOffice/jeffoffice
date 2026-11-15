@@ -4,10 +4,12 @@
 #include "pubhelpers.h"
 #include "app/missingfonts.h"
 #include "app/readaloud.h"
+#include "../fakespeech.h"
 #include "../withdialog.h"
 
 #include <QComboBox>
 #include <QDockWidget>
+#include <QLabel>
 #include <QPushButton>
 #include <QScopeGuard>
 #include <QTableWidget>
@@ -17,19 +19,7 @@ namespace {
 
 const QString kGone = QStringLiteral("Zzyzx Gothic Display");
 
-class FakeEngine : public jp::SpeechEngine {
-public:
-    QStringList said;
-    QList<jp::SpeechVoice> voices() const override { return {{QStringLiteral("a"), QStringLiteral("Ann"), QStringLiteral("en_US")}}; }
-    void setVoice(const QString &) override {}
-    void setRate(double) override {}
-    void say(const QString &text) override { said << text; }
-    void pause() override {}
-    void resume() override {}
-    void stop() override {}
-    void word(int start, int length) { Q_EMIT wordSpoken(start, length); }
-    void end() { Q_EMIT finished(); }
-};
+using FakeEngine = jptest::FakeSpeech;
 
 FakeEngine *g_engine = nullptr;
 
@@ -92,15 +82,86 @@ private Q_SLOTS:
         QVERIFY(bar);
         QCOMPARE(g_engine->said, QStringList{QStringLiteral("Second box words.")});
         g_engine->word(7, 3);
-        QVERIFY(w.editor()->isEditingText());
-        QCOMPARE(w.editor()->cursor().selectedText(), QStringLiteral("box"));
+        QVERIFY(w.editor()->hasReadHighlight());   // (the word is tinted as a search match is, never selected)
+        QVERIFY(!w.editor()->cursor().hasSelection());
         g_engine->end();
         QCOMPARE(g_engine->said.last(), QStringLiteral("Third box words."));
         g_engine->word(0, 5);
         QCOMPARE(w.editor()->currentPage(), 1);   // (the page of the word shown comes up)
         g_engine->end();
         QCOMPARE(bar->state(), jp::ReadAloudBar::State::Stopped);
-        QVERIFY(!w.editor()->cursor().hasSelection());
+        QVERIFY(!w.editor()->hasReadHighlight());
+    }
+    void anEditWhileReadingStopsItAndClosesTheBar()
+    {
+        const FakeVoices voices;
+        jp::MainWindow w;
+        w.show();
+        auto doc = std::make_unique<jp::Document>();
+        doc->addPage();
+        auto box = addBox(*doc, 0, QStringLiteral("One two three"), 72);
+        w.editor()->setDocument(std::move(doc));
+        w.act(QStringLiteral("rev.readAloud"))->trigger();
+        jp::ReadAloudBar *bar = jp::readAloudBarOf(&w);
+        QVERIFY(bar);
+        g_engine->word(4, 3);
+        QVERIFY(w.editor()->hasReadHighlight());
+        w.editor()->change(QStringLiteral("Typing"), [&] { QTextCursor(w.editor()->doc()->storyDoc(box->storyId)).insertText(QStringLiteral("Z")); });
+        QCOMPARE(bar->state(), jp::ReadAloudBar::State::Stopped);
+        QVERIFY(!w.editor()->hasReadHighlight());
+        QTRY_VERIFY(!bar->isVisible());
+        QCOMPARE(w.editor()->doc()->storyDoc(box->storyId)->toPlainText(), QStringLiteral("ZOne two three"));   // (nothing but what was typed changed)
+        g_engine->word(0, 3);   // (a word on its way does nothing)
+        QVERIFY(!w.editor()->hasReadHighlight());
+    }
+    void replacingTheDocumentWhileReadingStopsIt()
+    {
+        const FakeVoices voices;
+        jp::MainWindow w;
+        w.show();
+        auto doc = std::make_unique<jp::Document>();
+        doc->addPage();
+        addBox(*doc, 0, QStringLiteral("One two three"), 72);
+        w.editor()->setDocument(std::move(doc));
+        w.act(QStringLiteral("rev.readAloud"))->trigger();
+        jp::ReadAloudBar *bar = jp::readAloudBarOf(&w);
+        QVERIFY(bar);
+        auto other = std::make_unique<jp::Document>();
+        other->addPage();
+        w.editor()->setDocument(std::move(other));
+        QCOMPARE(bar->state(), jp::ReadAloudBar::State::Stopped);
+    }
+    void textThatNamesNoFontIsReplacedThroughTheDefaultFont()
+    {
+        jp::MainWindow w;
+        w.show();
+        auto doc = std::make_unique<jp::Document>();
+        doc->addPage();
+        auto box = addBox(*doc, 0, QStringLiteral("Plain words"), 72);   // (no run names a font: the story's own is the missing one)
+        doc->storyDoc(box->storyId)->setDefaultFont(QFont(kGone));
+        w.editor()->setDocument(std::move(doc));
+        auto *dock = w.findChild<QDockWidget *>(QStringLiteral("missingFontsDock"));
+        QVERIFY(dock);
+        QTRY_VERIFY(dock->isVisible());
+        withDialog([&] { w.findChild<QPushButton *>(QStringLiteral("missingFontsDetails"))->click(); }, QStringLiteral("missingFontsDialog"), [&](QDialog *d) {
+            auto *t = d->findChild<QTableWidget *>(QStringLiteral("missingFontsTable"));
+            int row = -1;
+            for (int r = 0; r < t->rowCount(); ++r)
+                if (t->item(r, 0)->text() == kGone) row = r;
+            QVERIFY(row >= 0);
+            auto *combo = qobject_cast<QComboBox *>(t->cellWidget(row, 1));
+            combo->showPopup();
+            combo->hidePopup();
+            combo->setCurrentIndex(combo->findData(standIn()));
+            Q_EMIT combo->activated(combo->currentIndex());
+            t->selectRow(row);
+            d->findChild<QPushButton *>(QStringLiteral("missingFontsReplace"))->click();
+            const QString said = d->findChild<QLabel *>(QStringLiteral("missingFontsNote"))->text();
+            QVERIFY2(said.contains(QStringLiteral("replaced")) && !said.contains(QStringLiteral("nothing was changed")), qPrintable(said));
+        });
+        QCOMPARE(familyOf(w.editor(), box), standIn());
+        QCOMPARE(w.editor()->doc()->storyDoc(box->storyId)->defaultFont().family(), standIn());
+        QTRY_VERIFY(!dock->isVisible());
     }
     void withNoCursorItStartsAtTheFirstStoryOfThePage()
     {
@@ -151,6 +212,8 @@ private Q_SLOTS:
             QCOMPARE(t->item(0, 0)->text(), kGone);
             QCOMPARE(t->item(0, 2)->text(), QStringLiteral("Page 1"));
             auto *combo = qobject_cast<QComboBox *>(t->cellWidget(0, 1));
+            combo->showPopup();   // (the fonts are put in the box when it is first opened)
+            combo->hidePopup();
             combo->setCurrentIndex(combo->findData(standIn()));
             Q_EMIT combo->activated(combo->currentIndex());
             QCOMPARE(familyOf(w.editor(), box), kGone);   // (a choice is for display: the publication keeps the name)

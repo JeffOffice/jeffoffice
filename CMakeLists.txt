@@ -12,9 +12,15 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
 endif()
 
 find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Widgets Svg PrintSupport Network Xml Test CorePrivate)
-# Read Aloud speaks with the system's voices through Qt TextToSpeech (qtspeech, the module the CI installs beside qtmultimedia). A Qt without it still builds:
-# the programs then have no voice to offer (libs/shell/app/readaloud.cpp).
-find_package(Qt6 6.5 QUIET COMPONENTS TextToSpeech)
+# Read Aloud speaks with the system's voices through Qt TextToSpeech (qtspeech, the module the CI installs beside qtmultimedia; 6.6 or newer, for the
+# word signal's signature). A Qt without it still builds: the programs then have no voice to offer (libs/shell/app/readaloud.cpp). The packages are built with
+# -DJO_REQUIRE_TTS=ON, which stops the configure when the module is missing, so that a build without voices can never be shipped by accident.
+option(JO_REQUIRE_TTS "Stop the configure when Qt TextToSpeech (6.6 or newer) is missing (a package must have voices)" OFF)
+if(JO_REQUIRE_TTS)
+  find_package(Qt6 6.6 REQUIRED COMPONENTS TextToSpeech)
+else()
+  find_package(Qt6 6.6 QUIET COMPONENTS TextToSpeech)
+endif()
 
 # Release builds only (the packages): link-time optimization, and no code or data that nothing uses (each function and variable in a
 # section of its own, and the linker drops the sections nothing refers to). It is applied to the shared library (jeffoffice-common and the

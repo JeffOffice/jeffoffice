@@ -1738,6 +1738,10 @@ private Q_SLOTS:
     void aDocumentWithAFontThisComputerLacksShowsTheMissingFontsBar();
     void replaceInDocumentChangesTheRunsOfTheFontAsOneStep();
     void aFontChoiceHoldsForTheNextDocumentAndTheFileKeepsTheName();
+    void typingWhileReadingStopsTheReadingAndKeepsWhatWasTyped();
+    void deletingTheFootnoteWhileItIsReadIsSafe();
+    void footnotesAreScannedForMissingFontsAndReplaced();
+    void textThatNamesNoFontIsReplacedThroughTheDefaultFont();
 
 public:
     static std::unique_ptr<WriteDoc> speechDoc();

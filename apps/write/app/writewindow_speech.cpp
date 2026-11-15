@@ -4,6 +4,8 @@
 #include "core/editops.h"
 #include "core/writedoc.h"
 
+#include <QPointer>
+#include <QTextBlock>
 #include <QTextCursor>
 #include <QTextDocument>
 
@@ -15,7 +17,7 @@ namespace jp {
 namespace {
 
 struct ReadStories {
-    QVector<QTextDocument *> stories;   // (the number of a paragraph's story: its place here)
+    QVector<QPointer<QTextDocument>> stories;   // (the number of a paragraph's story: its place here; a story that is gone is null, and nothing is shown for it)
     bool lit = false;
 };
 
@@ -32,7 +34,7 @@ jp::ReadAloudHost WriteWindow::readAloudHost()
         const QTextCursor c = m_view->cursor();
         QTextDocument *body = m_doc->story();
         auto add = [&](QTextDocument *d, int from, int to) {
-            state->stories << d;
+            state->stories << QPointer<QTextDocument>(d);
             out += jp::readAloudParagraphs(d, int(state->stories.size()) - 1, from, to);
         };
         if (c.document() && c.document() != body) {
@@ -56,20 +58,31 @@ jp::ReadAloudHost WriteWindow::readAloudHost()
             if (QTextDocument *d = m_doc->editableFootnote(n.second)) add(d, 0, -1);
         return out;
     };
+    // The word is shown as a search match is (a tint), not selected: what is typed is never put over it. A footnote's words are said without a tint.
     host.highlight = [this, state](const jp::ReadAloudParagraph &p, int start, int length) {
         if (p.story < 0 || p.story >= state->stories.size() || !m_doc) return;
-        QTextCursor c(state->stories.at(p.story));
-        c.setPosition(p.offset + start);
-        c.setPosition(p.offset + start + length, QTextCursor::KeepAnchor);
+        QTextDocument *d = state->stories.at(p.story).data();
+        if (!d || d != m_doc->story()) return;
+        QTextCursor c(d);
+        c.setPosition(std::min(p.offset + start, d->characterCount() - 1));
         m_view->showCursor(c);
+        m_view->setFindHighlights({{p.offset + start, p.offset + start + length}});
         state->lit = true;
     };
     host.clear = [this, state] {
         if (!state->lit) return;
         state->lit = false;
-        QTextCursor c = m_view->cursor();
-        c.clearSelection();
-        m_view->setCursor(c);
+        m_view->setFindHighlights({});
+    };
+    // Any change of the text or the notes, or another document put in the window, ends the reading.
+    host.watch = [this](const std::function<void()> &changed) {
+        QList<QMetaObject::Connection> c;
+        if (!m_doc) return c;
+        c << connect(m_doc->story(), &QTextDocument::contentsChange, this, [changed] { changed(); });
+        c << connect(m_doc.get(), &write::WriteDoc::historyChanged, this, [changed] { changed(); });
+        c << connect(m_doc.get(), &write::WriteDoc::noteChanged, this, [changed] { changed(); });
+        c << connect(m_doc.get(), &write::WriteDoc::headerFooterChanged, this, [changed] { changed(); });
+        return c;
     };
     return host;
 }
@@ -80,24 +93,29 @@ jp::MissingFontsHost WriteWindow::missingFontsHost()
     host.usage = [this] {
         jp::FontUsage u;
         if (!m_doc) return u;
-        u.addDocument(m_doc->story(), tr("Text"));
-        for (int s = 0; s < m_doc->sectionCount(); ++s)
-            for (const bool footer : {false, true})
-                for (int slot = 0; slot < 3; ++slot)
-                    if (m_doc->hasOwnHeaderFooter(s, footer, slot))
-                        if (QTextDocument *d = m_doc->headerFooterStory(s, footer, slot)) u.addDocument(d, footer ? tr("Footers") : tr("Headers"));
+        // The text (the endnotes are paragraphs of it), then the headers, footers, and footnotes.
+        u.addDocument(m_doc->story(), tr("Text"), [this](const QTextBlock &b) { return m_doc->endnoteIdOf(b) ? tr("Endnotes") : tr("Text"); });
+        for (QTextDocument *d : m_doc->storiesWithChanges(true)) {
+            int section = 0, slot = 0;
+            bool footer = false;
+            u.addDocument(d, m_doc->footnoteIdOf(d) ? tr("Footnotes") : m_doc->headerFooterSlotOf(d, &section, &footer, &slot) && footer ? tr("Footers") : tr("Headers"));
+        }
         return u;
     };
-    host.replace = [this](const QString &from, const QString &to) {
-        if (!m_doc || refuseIfReadOnly()) return -1;
-        const int n = write::replaceFont(*m_doc, from, to);
-        refreshNow();
-        return n;
-    };
+    host.replace = [this](const QString &from, const QString &to) { return replaceMissingFont(from, to); };
     host.refresh = [this] {
         if (m_doc) m_view->refresh();
     };
     return host;
+}
+
+// Replace in Document: the one place JeffWrite changes the fonts of the file for the dialog (a shared Replace Fonts can take this place later).
+int WriteWindow::replaceMissingFont(const QString &from, const QString &to)
+{
+    if (!m_doc || refuseIfReadOnly()) return -1;
+    const int n = write::replaceFont(*m_doc, from, to);
+    refreshNow();
+    return n;
 }
 
 } // namespace jp

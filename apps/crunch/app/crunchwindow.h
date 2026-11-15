@@ -735,6 +735,8 @@ private:
     // Review > Read Aloud (the selected cells row by row, or from the cell to the end of the sheet), and the fonts the cells use that this computer lacks (the bar after a workbook opens).
     jp::ReadAloudHost readAloudHost();
     jp::MissingFontsHost missingFontsHost();
+    // Replace in Document of the missing-fonts dialog: how many cells changed, -1 when nothing was changed (the reason is told).
+    int replaceMissingFont(const QString &from, const QString &to);
     QAction *mk(const QString &id, const QString &text, const QString &iconName, const QKeySequence &key, const std::function<void()> &fn, bool checkable = false, bool enabled = true);
     void createActions();
     void buildRibbon();

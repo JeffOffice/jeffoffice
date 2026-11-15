@@ -16,8 +16,11 @@
 #include <QPushButton>
 #include <QTableWidget>
 #include <QTemporaryDir>
+#include <QElapsedTimer>
 #include <QTextCursor>
+#include <QTextTable>
 #include <QTextDocument>
+#include <QScopeGuard>
 #include <QtTest>
 
 using namespace jp;
@@ -225,6 +228,8 @@ private Q_SLOTS:
         withDialog([&] { details->click(); }, QStringLiteral("missingFontsDialog"), [&](QDialog *d) {
             auto *t = d->findChild<QTableWidget *>(QStringLiteral("missingFontsTable"));
             auto *combo = qobject_cast<QComboBox *>(t->cellWidget(0, 1));
+            combo->showPopup();
+            combo->hidePopup();
             const int at = combo->findData(m_stand);
             QVERIFY(at > 0);
             combo->setCurrentIndex(at);
@@ -245,6 +250,8 @@ private Q_SLOTS:
         withDialog([&] { details->click(); }, QStringLiteral("missingFontsDialog"), [&](QDialog *d) {
             auto *t = d->findChild<QTableWidget *>(QStringLiteral("missingFontsTable"));
             auto *combo = qobject_cast<QComboBox *>(t->cellWidget(0, 1));
+            combo->showPopup();   // (the fonts are put in the box when it is first opened)
+            combo->hidePopup();
             combo->setCurrentIndex(combo->findData(m_stand));
             Q_EMIT combo->activated(combo->currentIndex());
             t->selectRow(0);
@@ -257,6 +264,93 @@ private Q_SLOTS:
         QCOMPARE(m_replacedFrom, kGone);
         QCOMPARE(m_replacedTo, m_stand);
         QCOMPARE(m_uses, (QStringList{m_stand, kGone2, m_stand}));
+    }
+    void aThousandFontNamesGiveADialogThatOpensFastWithAtMostTwoHundredRows()
+    {
+        const QString longName = QString(500, QLatin1Char('x'));
+        MissingFontsHost h = host();
+        h.usage = [&] {
+            FontUsage u;
+            u.add(longName, QStringLiteral("Slide 1"));
+            for (int i = 0; i < 1000; ++i) u.add(QStringLiteral("Hostile Font %1").arg(i), QStringLiteral("Slide %1").arg(i));
+            return u;
+        };
+        QMainWindow win;
+        win.show();
+        checkMissingFonts(&win, h);
+        QElapsedTimer clock;
+        qint64 took = 0;
+        withDialog([&] {
+            clock.start();
+            win.findChild<QPushButton *>(QStringLiteral("missingFontsDetails"))->click();
+        }, QStringLiteral("missingFontsDialog"), [&](QDialog *d) {
+            took = clock.elapsed();
+            auto *t = d->findChild<QTableWidget *>(QStringLiteral("missingFontsTable"));
+            QCOMPARE(t->rowCount(), 200);
+            QCOMPARE(d->findChild<QLabel *>(QStringLiteral("missingFontsMore"))->text(), QStringLiteral("and 801 more"));
+            // a long name is cut (the whole one is in its tip), and the boxes of fonts are not filled until they are opened
+            QVERIFY(t->item(0, 0)->text().size() <= 100);
+            QCOMPARE(t->item(0, 0)->data(Qt::UserRole).toString(), longName);
+            QVERIFY(qobject_cast<QComboBox *>(t->cellWidget(0, 1))->count() <= 2);
+        });
+        QVERIFY2(took < 1000, qPrintable(QStringLiteral("%1 ms").arg(took)));
+    }
+    void aFontCountsAsPresentWhenAnyFontOfItsListIsInstalled()
+    {
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextCharFormat both, only;
+        both.setFontFamilies({kGone, m_stand});
+        only.setFontFamilies({kGone2});
+        c.insertText(QStringLiteral("a "), both);
+        c.insertText(QStringLiteral("b"), only);
+        FontUsage u;
+        u.addDocument(&doc, QStringLiteral("Body"));
+        QCOMPARE(u.families(), QStringList{kGone2});   // (the first run is drawn in the installed font of its list)
+    }
+    void theFontsOfParagraphMarksAndTableCellsAreLookedAtToo()
+    {
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextCharFormat mark;
+        mark.setFontFamilies({kGone});
+        c.setBlockCharFormat(mark);
+        c.insertText(QStringLiteral("x"), QTextCharFormat());
+        QTextTable *table = c.insertTable(1, 1);
+        QTextTableCellFormat cell;
+        cell.setFontFamilies({kGone2});
+        table->cellAt(0, 0).setFormat(cell);
+        FontUsage u;
+        u.addDocument(&doc, QStringLiteral("Body"));
+        QVERIFY(u.families().contains(kGone));
+        QVERIFY(u.families().contains(kGone2));
+    }
+    void manyChoicesAreAppliedWithOneChangeOfTheFontGeneration()
+    {
+        const QStringList names{QStringLiteral("Zzyzx A"), QStringLiteral("Zzyzx B"), QStringLiteral("Zzyzx C")};
+        for (const QString &n : names) Settings::get().setValue(QStringLiteral("fonts/replace/") + n.toLower(), m_stand);
+        const auto cleanup = qScopeGuard([&] {
+            for (const QString &n : names) setFontChoice(n, QString());
+        });
+        const int before = fontGeneration();
+        QVERIFY(applyFontChoices(names));
+        QCOMPARE(fontGeneration(), before + 1);
+        for (const QString &n : names) QCOMPARE(fontReplacement(n), m_stand);
+    }
+    void aReplaceThatChangedNothingSaysSoAndNeverClaimsSuccess()
+    {
+        MissingFontsHost h = host();
+        h.replace = [](const QString &, const QString &) { return 0; };
+        QMainWindow win;
+        win.show();
+        checkMissingFonts(&win, h);
+        withDialog([&] { win.findChild<QPushButton *>(QStringLiteral("missingFontsDetails"))->click(); }, QStringLiteral("missingFontsDialog"), [&](QDialog *d) {
+            d->findChild<QTableWidget *>(QStringLiteral("missingFontsTable"))->selectRow(0);
+            d->findChild<QPushButton *>(QStringLiteral("missingFontsReplace"))->click();
+            const QString said = d->findChild<QLabel *>(QStringLiteral("missingFontsNote"))->text();
+            QVERIFY2(said.contains(QStringLiteral("nothing was changed")), qPrintable(said));
+            QVERIFY(!said.contains(QStringLiteral("is replaced")));
+        });
     }
     void aRefusedReplaceChangesNothingAndSaysSo()
     {

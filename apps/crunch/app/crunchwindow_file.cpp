@@ -521,6 +521,7 @@ void CrunchWindow::setActiveSheet(int sheetIndex)
         return;
     }
     if (!m_haveCalc && sheetIndex != m_loaded->previewSheet) return;   // (the other sheets are not read yet)
+    if (jp::ReadAloudBar *reading = jp::readAloudBarOf(this)) reading->documentChanged();   // (the cells being read are on the sheet that is left)
     hideFillOptions();
     const bool keepEdit = keepEditOnSheetChange(sheetIndex);
     if (!keepEdit && !commitEdit()) {

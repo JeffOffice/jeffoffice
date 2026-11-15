@@ -124,14 +124,31 @@ MissingFontsHost pageMissingFontsHost(Editor *ed, const std::function<QString(co
                 QTextDocument *d = wordsOf(doc, s);
                 if (!d) continue;
                 QVector<std::pair<int, int>> runs;
+                // Text that names no font is set in the story's own (default) font, which is the missing one then: it is named, and the default is changed too.
+                const bool ownIsFrom = d->defaultFont().family().compare(from, Qt::CaseInsensitive) == 0;
                 for (QTextBlock b = d->begin(); b.isValid(); b = b.next())
                     for (auto f = b.begin(); !f.atEnd(); ++f) {
                         const QStringList fams = f.fragment().charFormat().fontFamilies().toStringList();
-                        if (!fams.isEmpty() && fams.first().compare(from, Qt::CaseInsensitive) == 0) runs.push_back({f.fragment().position(), f.fragment().length()});
+                        if (fams.isEmpty() ? ownIsFrom : fams.first().compare(from, Qt::CaseInsensitive) == 0) runs.push_back({f.fragment().position(), f.fragment().length()});
                     }
-                if (runs.isEmpty()) continue;
+                if (ownIsFrom) {
+                    QFont own = d->defaultFont();
+                    own.setFamily(to);
+                    d->setDefaultFont(own);
+                    if (runs.isEmpty()) ++changed;   // (a story with no text: its font is a place the font was used)
+                }
                 QTextCursor edit(d);
                 edit.beginEditBlock();
+                // The paragraph marks (and the marks of list items) that name the font.
+                for (QTextBlock b = d->begin(); b.isValid(); b = b.next()) {
+                    const QStringList fams = b.charFormat().fontFamilies().toStringList();
+                    if (fams.isEmpty() || fams.first().compare(from, Qt::CaseInsensitive) != 0) continue;
+                    QTextCharFormat mark = b.charFormat();
+                    mark.setFontFamilies({to});
+                    QTextCursor bc(b);
+                    bc.setBlockCharFormat(mark);
+                    ++changed;
+                }
                 for (const auto &r : std::as_const(runs)) {
                     QTextCursor c(d);
                     c.setPosition(r.first);

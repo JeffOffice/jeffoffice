@@ -95,9 +95,8 @@ void DeckWindow::createDialogActions()
     mk("review.wordCount", tr("Word Count"), "whole-word", QKeySequence(), [this, ed] { slideWordCount(this, ed); });
     // Read Aloud (the slides' text in order from the cursor or the selection, shown on its slide), and the bar for fonts this computer lacks when a presentation opens.
     mk("review.readAloud", tr("Read Aloud"), "volume-2", QKeySequence(), [this, ed] {
-        jp::showReadAloud(this, jp::pageReadAloudHost(ed, FindScope{false, false, 0, false}, [this, ed](const FindStory &story, const QTextCursor &found) {
+        jp::showReadAloud(this, jp::pageReadAloudHost(ed, FindScope{false, false, 0, false}, [this](const FindStory &) {
             if (view() == View::Sorter) setView(View::Normal);
-            showFindMatch(ed, story, found);
         }));
     });
     connect(ed, &Editor::documentReplaced, this, [this] { jp::checkMissingFonts(this, missingFontsHost()); });

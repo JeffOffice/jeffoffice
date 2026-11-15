@@ -440,7 +440,7 @@ jobs:
           # the apps are packaged for keeping (the checks job that packages: Linux's, and the first half on Windows and macOS) and not for a
           # pull request; every other build keeps the quick link. A package also needs its translations: no Linguist tools stops the configure.
           if [ "${{ matrix.part }}" != checks ] || { [ "$RUNNER_OS" != Linux ] && [ "${{ matrix.shard }}" != 1 ]; } || [ "${{ github.event_name }}" = pull_request ]; then EXTRA="$EXTRA -DJO_SLIM_RELEASE=OFF"; fi
-          EXTRA="$EXTRA -DJO_REQUIRE_I18N=ON"
+          EXTRA="$EXTRA -DJO_REQUIRE_I18N=ON -DJO_REQUIRE_TTS=ON"
           cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=$CC -DCMAKE_CXX_COMPILER=$CXX $LAUNCH $EXTRA
 
       - name: Build
@@ -625,6 +625,9 @@ jobs:
           }
           if (-not (Test-Path dist/JeffOffice/multimedia/ffmpegmediaplugin.dll)) { throw "the FFmpeg multimedia plugin was not deployed" }
           if (-not (Test-Path dist/JeffOffice/avcodec-*.dll)) { throw "FFmpeg's DLLs were not deployed" }
+          # Read Aloud's voices: Qt TextToSpeech and its plugins are in the package.
+          if (-not (Test-Path dist/JeffOffice/Qt6TextToSpeech.dll)) { throw "Qt6TextToSpeech.dll was not deployed" }
+          if (-not (Test-Path dist/JeffOffice/texttospeech/*.dll)) { throw "the texttospeech plugins were not deployed" }
           bash tools/use_ffmpeg.sh check dist/JeffOffice
           if ($LASTEXITCODE -ne 0) { throw "the FFmpeg DLLs are not ours" }
           # (and the plugin and the FFmpeg DLLs find every DLL they need in the package or the system)
@@ -807,6 +810,10 @@ jobs:
           ls -l deb-check/opt/jeffoffice/bin deb-check/opt/jeffoffice/lib/libjeffoffice-common.so
           # JeffDeck plays movies and sounds: Qt Multimedia's FFmpeg plugin and FFmpeg's libraries are in the package.
           test -f deb-check/opt/jeffoffice/plugins/multimedia/libffmpegmediaplugin.so
+          # Read Aloud's voices: Qt TextToSpeech and its plugin are in the package, and speech-dispatcher's library is the system's (recommended, never bundled).
+          ls deb-check/opt/jeffoffice/lib/libQt6TextToSpeech.so.*
+          ls deb-check/opt/jeffoffice/plugins/texttospeech/*.so
+          if ls deb-check/opt/jeffoffice/lib/libspeechd* 2>/dev/null; then echo "libspeechd must not be bundled"; exit 1; fi
           ls deb-check/opt/jeffoffice/lib/libavcodec.so.*
           # ... and they are ours (the minimal build), not Qt's full one.
           sh tools/use_ffmpeg.sh check deb-check/opt/jeffoffice/lib
@@ -880,6 +887,11 @@ jobs:
           # JeffDeck plays movies and sounds through Qt Multimedia's FFmpeg plugin; macdeployqt brings the plugin and
           # FFmpeg's libraries with it. JeffPub doesn't link Qt Multimedia and gets neither.
           test -f dist/JeffDeck.app/Contents/PlugIns/multimedia/libffmpegmediaplugin.dylib
+          # Read Aloud's voices (the Mac's own speech): Qt TextToSpeech and its plugin are in every app.
+          for app in $apps; do
+            test -d dist/$app.app/Contents/Frameworks/QtTextToSpeech.framework
+            ls dist/$app.app/Contents/PlugIns/texttospeech/*.dylib
+          done
           ls dist/JeffDeck.app/Contents/Frameworks | grep -q '^libavcodec'
           # ... and they are ours (the minimal build, for both processors when the disk image is for both), not Qt's full one.
           sh tools/use_ffmpeg.sh check dist/JeffDeck.app

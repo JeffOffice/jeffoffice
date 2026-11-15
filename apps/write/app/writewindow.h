@@ -192,6 +192,8 @@ public:
     // Review > Read Aloud (the body from the caret or the selection, then the footnotes), and the fonts the document uses that this computer lacks (the bar made after a document opens).
     jp::ReadAloudHost readAloudHost();
     jp::MissingFontsHost missingFontsHost();
+    // Replace in Document of the missing-fonts dialog: how many runs changed, -1 when the document can't be changed.
+    int replaceMissingFont(const QString &from, const QString &to);
     write::Ruler *ruler() const { return m_ruler; }
     // Shows the vertical ruler when View > Vertical Ruler is on and the pages are on show (not in Outline view or Focus).
     void syncVerticalRuler();

@@ -31,7 +31,7 @@ public:
     QList<SpeechVoice> voices() const override { return {}; }
     void setVoice(const QString &) override {}
     void setRate(double) override {}
-    void say(const QString &) override {}
+    int say(const QString &) override { return 0; }
     void pause() override {}
     void resume() override {}
     void stop() override {}
@@ -131,6 +131,7 @@ ReadAloudBar::ReadAloudBar(const ReadAloudHost &host, QWidget *parent) : QWidget
 
     connect(m_engine, &SpeechEngine::wordSpoken, this, &ReadAloudBar::onWord);
     connect(m_engine, &SpeechEngine::finished, this, &ReadAloudBar::onFinished);
+    connect(m_engine, &SpeechEngine::errorOccurred, this, &ReadAloudBar::onError);
     connect(m_play, &QToolButton::clicked, this, [this] {
         if (m_state == State::Stopped) start();
         else togglePause();
@@ -158,6 +159,8 @@ QString ReadAloudBar::voiceId() const { return m_voice->currentData().toString()
 
 void ReadAloudBar::start()
 {
+    for (const QMetaObject::Connection &c : std::as_const(m_watching)) disconnect(c);
+    m_watching.clear();
     m_engine->stop();
     if (m_host.clear) m_host.clear();
     m_state = State::Stopped;
@@ -172,7 +175,8 @@ void ReadAloudBar::start()
         finish(QCoreApplication::translate("jp::ReadAloudBar", "There is no text to read."));
         return;
     }
-    m_note->clear();
+    m_note->setText(m_host.note ? m_host.note() : QString());
+    if (m_host.watch) m_watching = m_host.watch([this] { documentChanged(); });
     speak(0, 0);
 }
 
@@ -183,20 +187,26 @@ void ReadAloudBar::speak(int index, int from)
     m_word = from;
     m_state = State::Playing;
     m_engine->stop();
-    m_engine->say(m_paras.at(index).text.mid(from));
+    m_token = m_engine->say(m_paras.at(index).text.mid(from));
     updateControls();
 }
 
-void ReadAloudBar::onWord(int start, int length)
+void ReadAloudBar::onWord(int utterance, int start, int length)
 {
-    if (m_state == State::Stopped || m_index >= m_paras.size()) return;
+    if (utterance != m_token || m_state == State::Stopped || m_index >= m_paras.size()) return;
     m_word = m_base + start;
     if (m_host.highlight) m_host.highlight(m_paras.at(m_index), m_word, length);
 }
 
-void ReadAloudBar::onFinished()
+void ReadAloudBar::onError(int utterance, const QString &message)
 {
-    if (m_state == State::Stopped) return;
+    if (utterance != m_token || m_state == State::Stopped) return;
+    finish(QCoreApplication::translate("jp::ReadAloudBar", "Reading stopped: %1").arg(message.isEmpty() ? QCoreApplication::translate("jp::ReadAloudBar", "the voice failed.") : message));
+}
+
+void ReadAloudBar::onFinished(int utterance)
+{
+    if (utterance != m_token || m_state == State::Stopped) return;
     if (m_index + 1 < m_paras.size()) speak(m_index + 1, 0);
     else finish(QString());
 }
@@ -205,9 +215,17 @@ void ReadAloudBar::finish(const QString &note)
 {
     m_engine->stop();
     m_state = State::Stopped;
+    for (const QMetaObject::Connection &c : std::as_const(m_watching)) disconnect(c);
+    m_watching.clear();
     if (m_host.clear) m_host.clear();
     m_note->setText(note);
     updateControls();
+}
+
+void ReadAloudBar::documentChanged()
+{
+    if (m_state != State::Stopped) finish(QString());
+    Q_EMIT closeRequested();
 }
 
 void ReadAloudBar::stop()

@@ -32,16 +32,20 @@ public:
     virtual void setVoice(const QString &id) = 0;
     // -1 (slowest) to 1 (fastest), 0 is the voice's normal speed.
     virtual void setRate(double rate) = 0;
-    virtual void say(const QString &text) = 0;
+    // Starts saying the text (what was being said is cut off) and returns the number of this utterance: every signal below carries the number of the utterance it is about, so that
+    // an event that was on its way when the speech was cut off (a late word, the end of what was stopped) can be told from the new text's and dropped.
+    virtual int say(const QString &text) = 0;
     virtual void pause() = 0;
     virtual void resume() = 0;
     // Stops at once; finished() is not sent for what was cut off.
     virtual void stop() = 0;
 Q_SIGNALS:
     // The word being spoken: its place in the text given to say().
-    void wordSpoken(int start, int length);
+    void wordSpoken(int utterance, int start, int length);
     // The text given to say() was spoken to its end.
-    void finished();
+    void finished(int utterance);
+    // The voice failed (the speech service is gone, a voice can't be loaded): speech has ended.
+    void errorOccurred(int utterance, const QString &message);
 };
 
 using SpeechEngineFactory = std::function<SpeechEngine *()>;
@@ -72,6 +76,11 @@ struct ReadAloudHost {
     std::function<void(const ReadAloudParagraph &paragraph, int start, int length)> highlight;
     // Takes the highlight away.
     std::function<void()> clear;
+    // Said in the bar while reading, after the text is gathered (a limit that cut it short); empty for none.
+    std::function<QString()> note;
+    // Called when reading starts: connects to what changes the document (an edit, a replaced or closed document, a switch of sheet) so that `changed` is called then, and returns the
+    // connections (they are let go when the reading ends). The bar stops reading and closes when `changed` is called.
+    std::function<QList<QMetaObject::Connection>(const std::function<void()> &changed)> watch;
 };
 
 class JO_COMMON_EXPORT ReadAloudBar : public QWidget {
@@ -87,6 +96,8 @@ public:
     void togglePause();
     void previousParagraph();
     void nextParagraph();
+    // The document was changed, replaced, or closed: reading stops, and the bar closes.
+    void documentChanged();
     // Changes the speed (1 is normal) or the voice (by id), and remembers it; what is being read goes on from its word.
     void setSpeed(double speed);
     void setVoice(const QString &id);
@@ -106,8 +117,9 @@ Q_SIGNALS:
 
 private:
     void speak(int index, int from);
-    void onWord(int start, int length);
-    void onFinished();
+    void onWord(int utterance, int start, int length);
+    void onFinished(int utterance);
+    void onError(int utterance, const QString &message);
     void finish(const QString &note);
     void updateControls();
 
@@ -115,6 +127,8 @@ private:
     SpeechEngine *m_engine;
     QList<ReadAloudParagraph> m_paras;
     State m_state = State::Stopped;
+    QList<QMetaObject::Connection> m_watching;
+    int m_token = 0;   // (the utterance being said: events of any other are dropped)
     int m_index = 0, m_base = 0, m_word = 0;   // (m_base: where in the paragraph the engine's text begins; m_word: where the word last said began)
     QToolButton *m_play, *m_stop, *m_prev, *m_next, *m_close;
     QComboBox *m_speed, *m_voice;

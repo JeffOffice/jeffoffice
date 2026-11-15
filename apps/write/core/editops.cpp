@@ -2411,24 +2411,37 @@ void setFontFamily(WriteDoc &doc, QTextCursor &c, const QString &family)
 
 int replaceFont(WriteDoc &doc, const QString &from, const QString &to)
 {
+    // The text (its endnotes are paragraphs of it), the headers and footers, and the footnotes.
     QVector<QTextDocument *> stories{doc.story()};
-    for (int s = 0; s < doc.sectionCount(); ++s)
-        for (const bool footer : {false, true})
-            for (int slot = 0; slot < 3; ++slot)
-                if (doc.hasOwnHeaderFooter(s, footer, slot))
-                    if (QTextDocument *d = doc.headerFooterStory(s, footer, slot); d && !stories.contains(d)) stories << d;
+    for (QTextDocument *d : doc.storiesWithChanges(true))
+        if (!stories.contains(d)) stories << d;
     const WriteDoc::StepGroup group(doc);
     int changed = 0;
     for (QTextDocument *d : std::as_const(stories)) {
+        // Text that names no font is set in the story's own, and counts as a use of it (a run that follows the theme's fonts does not).
+        const bool ownIsFrom = d->defaultFont().family().compare(from, Qt::CaseInsensitive) == 0;
         QTextCursor c(d);
         c.select(QTextCursor::Document);
         changeCharFormat(doc, c, [&](QTextCharFormat &f) {
             const QStringList families = f.fontFamilies().toStringList();
-            if (families.isEmpty() || families.first().compare(from, Qt::CaseInsensitive) != 0) return;
+            if (families.isEmpty() ? !(ownIsFrom && !f.hasProperty(tp::ThemeFont)) : families.first().compare(from, Qt::CaseInsensitive) != 0) return;
             f.setFontFamilies({to});
             f.clearProperty(tp::ThemeFont);
             ++changed;
         });
+        // The paragraph marks (the last one is outside the selection above, and a list item's mark is drawn in its own).
+        QTextCursor edit(d);
+        edit.joinPreviousEditBlock();
+        for (QTextBlock b = d->begin(); b.isValid(); b = b.next()) {
+            if (isLocked(b)) continue;
+            QTextCharFormat mark = markFormat(b);
+            const QStringList families = mark.fontFamilies().toStringList();
+            if (families.isEmpty() || families.first().compare(from, Qt::CaseInsensitive) != 0) continue;
+            mark.setFontFamilies({to});
+            setMarkFormat(b, mark);
+            ++changed;
+        }
+        edit.endEditBlock();
     }
     return changed;
 }

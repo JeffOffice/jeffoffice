@@ -4,6 +4,7 @@
 #include "deckhelpers.h"
 #include "app/missingfonts.h"
 #include "app/readaloud.h"
+#include "../fakespeech.h"
 #include "io/deckoutput.h"
 #include "../withdialog.h"
 
@@ -18,19 +19,7 @@ namespace {
 
 const QString kGone = QStringLiteral("Zzyzx Gothic Display");
 
-class FakeEngine : public jp::SpeechEngine {
-public:
-    QStringList said;
-    QList<jp::SpeechVoice> voices() const override { return {{QStringLiteral("a"), QStringLiteral("Ann"), QStringLiteral("en_US")}}; }
-    void setVoice(const QString &) override {}
-    void setRate(double) override {}
-    void say(const QString &text) override { said << text; }
-    void pause() override {}
-    void resume() override {}
-    void stop() override {}
-    void word(int start, int length) { Q_EMIT wordSpoken(start, length); }
-    void end() { Q_EMIT finished(); }
-};
+using FakeEngine = jptest::FakeSpeech;
 
 FakeEngine *g_engine = nullptr;
 
@@ -91,19 +80,39 @@ private Q_SLOTS:
         QVERIFY(bar);
         QCOMPARE(g_engine->said, QStringList{QStringLiteral("First slide words.")});
         g_engine->word(6, 5);
-        QVERIFY(ed->isEditingText());
-        QCOMPARE(ed->cursor().selectedText(), QStringLiteral("slide"));
+        QVERIFY(ed->hasReadHighlight());   // (the word is tinted, never selected)
+        QVERIFY(!ed->cursor().hasSelection());
         g_engine->end();
         QCOMPARE(g_engine->said.last(), QStringLiteral("Second slide words."));
         g_engine->word(0, 6);
         QCOMPARE(ed->currentPage(), 1);   // (the slide of the word comes up)
-        QCOMPARE(ed->cursor().selectedText(), QStringLiteral("Second"));
         g_engine->end();
         QCOMPARE(bar->state(), jp::ReadAloudBar::State::Stopped);
         // from the cursor: the second slide's text alone when the cursor is in it
         ed->beginTextEdit(second->id, 0);
         w.act(QStringLiteral("review.readAloud"))->trigger();
         QCOMPARE(g_engine->said.last(), QStringLiteral("Second slide words."));
+    }
+    void anEditWhileReadingStopsItAndClosesTheBar()
+    {
+        const FakeVoices voices;
+        DeckWindow w;
+        w.show();
+        Editor *ed = w.editor();
+        Document *d = ed->doc();
+        d->pages.clear();
+        d->addPage();
+        TextItem *box = addBox(*d, 0, QStringLiteral("One two three"), 72);
+        ed->setCurrentPage(0);
+        w.act(QStringLiteral("review.readAloud"))->trigger();
+        jp::ReadAloudBar *bar = jp::readAloudBarOf(&w);
+        QVERIFY(bar);
+        g_engine->word(4, 3);
+        QVERIFY(ed->hasReadHighlight());
+        ed->change(QStringLiteral("Typing"), [&] { QTextCursor(ed->doc()->storyDoc(box->storyId)).insertText(QStringLiteral("Z")); });
+        QCOMPARE(bar->state(), jp::ReadAloudBar::State::Stopped);
+        QVERIFY(!ed->hasReadHighlight());
+        QCOMPARE(ed->doc()->storyDoc(box->storyId)->toPlainText(), QStringLiteral("ZOne two three"));
     }
     void aSelectionIsAllThatIsRead()
     {
@@ -146,6 +155,8 @@ private Q_SLOTS:
             QVERIFY(row >= 0);
             QCOMPARE(t->item(row, 2)->text(), QStringLiteral("Slide 1"));
             auto *combo = qobject_cast<QComboBox *>(t->cellWidget(row, 1));
+            combo->showPopup();   // (the fonts are put in the box when it is first opened)
+            combo->hidePopup();
             combo->setCurrentIndex(combo->findData(standIn()));
             Q_EMIT combo->activated(combo->currentIndex());
             QCOMPARE(familyOf(ed, box), kGone);   // (a choice is for display: the file keeps the name)

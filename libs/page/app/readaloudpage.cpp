@@ -14,6 +14,7 @@ namespace {
 struct ReadState {
     QVector<FindStory> stories;
     bool lit = false;
+    bool moving = false;   // (the reading itself is turning the page: that is not a change of the document)
 };
 
 QTextDocument *wordsOf(const Document &doc, const FindStory &s) { return s.art ? s.art.get() : doc.storyDoc(s.storyId); }
@@ -25,7 +26,7 @@ bool sameStory(const FindStory &s, const Editor::TextTarget &t)
 
 }
 
-ReadAloudHost pageReadAloudHost(Editor *ed, const FindScope &scope, const std::function<void(const FindStory &, const QTextCursor &)> &show)
+ReadAloudHost pageReadAloudHost(Editor *ed, const FindScope &scope, const std::function<void(const FindStory &)> &reveal)
 {
     auto state = std::make_shared<ReadState>();
     ReadAloudHost host;
@@ -63,25 +64,30 @@ ReadAloudHost pageReadAloudHost(Editor *ed, const FindScope &scope, const std::f
         }
         return out;
     };
-    host.highlight = [ed, state, show](const ReadAloudParagraph &p, int start, int length) {
+    host.highlight = [ed, state, reveal](const ReadAloudParagraph &p, int start, int length) {
         if (p.story < 0 || p.story >= state->stories.size()) return;
         const FindStory &s = state->stories.at(p.story);
-        QTextDocument *words = wordsOf(*ed->doc(), s);
-        if (!words) return;
-        QTextCursor c(words);
-        c.setPosition(p.offset + start);
-        c.setPosition(p.offset + start + length, QTextCursor::KeepAnchor);
-        if (show) show(s, c);
-        else showFindMatch(ed, s, c);
+        if (s.art || !wordsOf(*ed->doc(), s)) return;   // (a Text Art's words are not drawn as text: nothing to tint)
+        state->moving = true;
+        if (reveal) reveal(s);
+        if (!s.master.isEmpty()) ed->setMasterView(s.master);
+        else if (s.page >= 0) ed->setCurrentPage(s.page);
+        state->moving = false;
+        ed->setReadHighlight(s.storyId, p.offset + start, p.offset + start + length);
         state->lit = true;
     };
     host.clear = [ed, state] {
         if (!state->lit) return;
         state->lit = false;
-        if (!ed->isEditingText()) return;
-        QTextCursor c = ed->cursor();
-        c.clearSelection();
-        ed->setCursor(c);
+        ed->clearReadHighlight();
+    };
+    host.watch = [ed, state](const std::function<void()> &changed) {
+        QList<QMetaObject::Connection> c;
+        c << QObject::connect(ed, &Editor::changed, ed, [changed, state] {
+            if (!state->moving) changed();
+        });
+        c << QObject::connect(ed, &Editor::documentReplaced, ed, [changed] { changed(); });
+        return c;
     };
     return host;
 }

@@ -114,6 +114,7 @@ begin
   {#Pfx}RemoveOwnData(Dir);
   DeleteFile(Dir + '\Uninstall.exe');
   Dirs := 'dict,fonts,generic,iconengines,imageformats,licenses,multimedia,networkinformation,platforminputcontexts,platforms,'
+    + 'texttospeech,'
     + 'printsupport,styles,tls,translations,bearer,tools,';
   while Dirs <> '' do
   begin

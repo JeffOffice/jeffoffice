@@ -1,5 +1,6 @@
 #include "app/missingfonts.h"
 #include "app/icons.h"
+#include "app/plaintext.h"
 #include "app/settings.h"
 #include "core/fonts.h"
 
@@ -18,6 +19,8 @@
 #include <QTableWidget>
 #include <QTextBlock>
 #include <QTextDocument>
+#include <QTextFrame>
+#include <QTextTable>
 #include <QToolButton>
 #include <QVBoxLayout>
 
@@ -28,26 +31,60 @@ namespace jp {
 void FontUsage::add(const QString &family, const QString &place)
 {
     if (family.trimmed().isEmpty()) return;
-    if (!m_places.contains(family)) m_order << family;
+    if (!m_places.contains(family)) {
+        if (m_order.size() >= kMostFamilies) return;
+        m_order << family;
+    }
     QStringList &where = m_places[family];
     if (!place.isEmpty() && !where.contains(place)) where << place;
 }
 
-void FontUsage::addDocument(const QTextDocument *doc, const QString &place)
+bool fontIsInstalled(const QString &family) { return QFontDatabase::hasFamily(family); }
+
+void FontUsage::addDocument(const QTextDocument *doc, const QString &place, const std::function<QString(const QTextBlock &)> &placeOf)
 {
     if (!doc) return;
+    QHash<QString, bool> installed;
+    auto here = [&](const QString &f) {
+        auto it = installed.find(f);
+        if (it == installed.end()) it = installed.insert(f, fontIsInstalled(f));
+        return it.value();
+    };
+    // A format that names fonts: counted by its first, unless one of them is on this computer. False when it names none.
+    auto consider = [&](const QTextCharFormat &cf, const QString &where) {
+        const QStringList fams = cf.fontFamilies().toStringList();
+        if (fams.isEmpty()) return false;
+        bool present = false;
+        for (const QString &f : fams) present = present || here(f);
+        if (!present) add(fams.first(), where);
+        return true;
+    };
     bool unnamed = false;
-    for (QTextBlock b = doc->begin(); b.isValid(); b = b.next())
-        for (auto f = b.begin(); !f.atEnd(); ++f) {
-            const QTextCharFormat cf = f.fragment().charFormat();
-            const QStringList fams = cf.fontFamilies().toStringList();
-            if (!fams.isEmpty()) add(fams.first(), place);
-            else unnamed = true;
+    QString unnamedPlace = place;
+    for (QTextBlock b = doc->begin(); b.isValid(); b = b.next()) {
+        const QString where = placeOf ? placeOf(b) : place;
+        for (auto f = b.begin(); !f.atEnd(); ++f)
+            if (!consider(f.fragment().charFormat(), where)) {
+                unnamed = true;
+                unnamedPlace = where;
+            }
+        consider(b.charFormat(), where);   // (a paragraph's mark, and the mark of a list item, are drawn in this)
+    }
+    // The cells of the tables: a cell has a font of its own too.
+    std::function<void(QTextFrame *)> walk = [&](QTextFrame *frame) {
+        for (QTextFrame *child : frame->childFrames()) {
+            if (auto *table = qobject_cast<QTextTable *>(child))
+                for (int r = 0; r < table->rows(); ++r)
+                    for (int c = 0; c < table->columns(); ++c) consider(table->cellAt(r, c).format(), place);
+            walk(child);
         }
-    if (unnamed) add(doc->defaultFont().family(), place);
+    };
+    walk(doc->rootFrame());
+    if (unnamed) {
+        const QString own = doc->defaultFont().family();
+        if (!here(own)) add(own, unnamedPlace);
+    }
 }
-
-bool fontIsInstalled(const QString &family) { return QFontDatabase::hasFamily(family); }
 
 namespace {
 
@@ -65,36 +102,36 @@ void setFontChoice(const QString &family, const QString &replacement)
 
 bool applyFontChoices(const QStringList &families)
 {
-    bool any = false;
+    QList<QPair<QString, QString>> in;
     for (const QString &family : families) {
         const QString choice = fontChoice(family);
         if (choice.isEmpty() || fontReplacement(family) == choice) continue;
-        setFontReplacement(family, choice);
-        any = true;
+        in.push_back({family, choice});
     }
-    return any;
+    setFontReplacements(in);   // (the text engine is told of all of them once)
+    return !in.isEmpty();
 }
 
-QList<MissingFont> missingFonts(const FontUsage &usage, const FontInstalled &installed)
+QList<MissingFont> missingFonts(const FontUsage &usage, const FontInstalled &installed, int limit, int *total)
 {
     QList<MissingFont> out;
+    int count = 0;
     for (const QString &family : usage.families()) {
         if (installed ? installed(family) : fontIsInstalled(family)) continue;
+        ++count;
+        if (limit >= 0 && out.size() >= limit) continue;
         MissingFont m;
         m.family = family;
         m.places = usage.places(family);
         const QString mine = fontReplacement(family);
-        // What stands in without a choice: the table's stand-in, else the font the system picks.
-        if (!mine.isEmpty()) setFontReplacement(family, QString());
-        const QString table = substituteFor(family);
-        m.inPlace = m.automatic = table.isEmpty() ? QFontInfo(QFont(family)).family() : table;
+        m.inPlace = m.automatic = automaticStandIn(family);
         if (!mine.isEmpty()) {
-            setFontReplacement(family, mine);
             m.inPlace = mine;
             m.chosen = true;
         }
         out.push_back(m);
     }
+    if (total) *total = count;
     return out;
 }
 
@@ -115,36 +152,68 @@ QString placesText(const QStringList &places)
     return text;
 }
 
+// A box of the fonts this computer has, filled when it is first opened (a dialog with hundreds of rows does not make a list of every installed font for each).
+class LazyFontBox : public QComboBox {
+public:
+    using QComboBox::QComboBox;
+    void showPopup() override
+    {
+        if (!m_filled) {
+            m_filled = true;
+            const QString now = currentData().toString();
+            for (const QString &f : QFontDatabase::families())
+                if (f != m_skip && f != now) addItem(f, f);
+        }
+        QComboBox::showPopup();
+    }
+    QString m_skip;
+
+private:
+    bool m_filled = false;
+};
+
+// The most fonts the dialog lists (a hostile file may name thousands), and the most letters of a name it shows.
+constexpr int kMostRows = 200, kMostNameLetters = 100;
+
+QString shownName(const QString &name)
+{
+    return name.size() > kMostNameLetters ? name.left(kMostNameLetters - 1) + QChar(0x2026) : name;
+}
+
 // The dialog's rows follow the fonts of the document as it is now (they change after Replace in Document).
 class DialogState {
 public:
     MissingFontsHost host;
     FontInstalled installed;
     QTableWidget *table = nullptr;
-    QLabel *note = nullptr;
+    QLabel *note = nullptr, *more = nullptr;
     QPushButton *replace = nullptr;
     QStringList families;
     QList<MissingFont> rows;
 
     void fill()
     {
-        rows = missingFonts(host.usage ? host.usage() : FontUsage(), installed);
+        int total = 0;
+        rows = missingFonts(host.usage ? host.usage() : FontUsage(), installed, kMostRows, &total);
+        const int hidden = total - int(rows.size());
+        more->setText(hidden > 0 ? QCoreApplication::translate("jp::MissingFonts", "and %1 more").arg(hidden) : QString());
+        more->setVisible(hidden > 0);
         table->setRowCount(0);
         table->setRowCount(rows.size());
-        QStringList all = QFontDatabase::families();
         for (int r = 0; r < rows.size(); ++r) {
             const MissingFont &m = rows.at(r);
-            auto *name = new QTableWidgetItem(m.family);
+            auto *name = new QTableWidgetItem(shownName(m.family));
             name->setFlags(name->flags() & ~Qt::ItemIsEditable);
+            name->setData(Qt::UserRole, m.family);
+            name->setToolTip(jp::plainToolTip(m.family));
             table->setItem(r, 0, name);
-            auto *combo = new QComboBox(table);
+            auto *combo = new LazyFontBox(table);
             combo->setObjectName(QStringLiteral("missingFontsChoice"));
-            combo->setAccessibleName(QCoreApplication::translate("jp::MissingFonts", "Font used instead of %1").arg(m.family));
-            combo->addItem(QCoreApplication::translate("jp::MissingFonts", "%1 (automatic)").arg(m.automatic), QString());
-            for (const QString &f : all)
-                if (f != m.family) combo->addItem(f, f);
-            const int at = m.chosen ? combo->findData(m.inPlace) : 0;
-            combo->setCurrentIndex(at >= 0 ? at : 0);
+            combo->setAccessibleName(QCoreApplication::translate("jp::MissingFonts", "Font used instead of %1").arg(shownName(m.family)));
+            combo->addItem(QCoreApplication::translate("jp::MissingFonts", "%1 (automatic)").arg(shownName(m.automatic)), QString());
+            combo->m_skip = m.family;
+            if (m.chosen) combo->addItem(m.inPlace, m.inPlace);
+            combo->setCurrentIndex(m.chosen ? 1 : 0);
             const QString family = m.family;
             QObject::connect(combo, &QComboBox::activated, combo, [this, family, combo] {
                 const QString choice = combo->currentData().toString();
@@ -158,8 +227,9 @@ public:
                 updateButtons();
             });
             table->setCellWidget(r, 1, combo);
-            auto *where = new QTableWidgetItem(placesText(m.places));
+            auto *where = new QTableWidgetItem(shownName(placesText(m.places)));
             where->setFlags(where->flags() & ~Qt::ItemIsEditable);
+            where->setToolTip(jp::plainToolTip(placesText(m.places)));
             table->setItem(r, 2, where);
         }
         if (!rows.isEmpty()) table->selectRow(0);
@@ -196,6 +266,10 @@ void showMissingFontsDialog(QWidget *parent, const MissingFontsHost &host, const
     table->setColumnWidth(1, 220);
     table->verticalHeader()->hide();
     layout->addWidget(table, 1);
+    auto *more = new QLabel(&dlg);
+    more->setObjectName(QStringLiteral("missingFontsMore"));
+    more->setTextFormat(Qt::PlainText);
+    layout->addWidget(more);
     auto *note = new QLabel(&dlg);
     note->setObjectName(QStringLiteral("missingFontsNote"));
     note->setTextFormat(Qt::PlainText);
@@ -213,6 +287,7 @@ void showMissingFontsDialog(QWidget *parent, const MissingFontsHost &host, const
     layout->addLayout(buttons);
     state->table = table;
     state->note = note;
+    state->more = more;
     state->replace = replace;
     QObject::connect(close, &QPushButton::clicked, &dlg, &QDialog::accept);
     QObject::connect(table, &QTableWidget::currentCellChanged, &dlg, [state] { state->updateButtons(); });
@@ -226,7 +301,8 @@ void showMissingFontsDialog(QWidget *parent, const MissingFontsHost &host, const
             return;
         }
         state->fill();
-        state->note->setText(QCoreApplication::translate("jp::MissingFonts", "%1 is replaced in the document.").arg(m.family));
+        state->note->setText(n == 0 ? QCoreApplication::translate("jp::MissingFonts", "Nothing in the document uses %1, so nothing was changed.").arg(shownName(m.family))
+                                    : QCoreApplication::translate("jp::MissingFonts", "%1 is replaced in the document.").arg(shownName(m.family)));
     });
     state->fill();
     dlg.exec();

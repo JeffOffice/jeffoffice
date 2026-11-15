@@ -147,6 +147,9 @@ parts:
       - libcups2t64
       - libpulse0
       - libxcb-cursor0
+      # Read Aloud: the speech-dispatcher client library that Qt TextToSpeech's plugin opens (Qt itself is the content snap's, with these copies of its
+      # TextToSpeech library and plugin beside the programs, below)
+      - libspeechd2
     build-environment:
       # What ships, as in .github/workflows/build.yml. The apps below need both "true";
       # turning one off means dropping its app entry as well.
@@ -161,7 +164,7 @@ parts:
       SHIP_WRITE=${SHIP_WRITE:-true}
       SHIP_CRUNCH=${SHIP_CRUNCH:-true}
       # PDFium is downloaded (and its SHA-256 checked) by the CMake build, as for the .deb.
-      cmake -S "$CRAFT_PART_SRC" -B "$CRAFT_PART_BUILD" -G Ninja -DCMAKE_BUILD_TYPE=Release -DJO_REQUIRE_I18N=ON \
+      cmake -S "$CRAFT_PART_SRC" -B "$CRAFT_PART_BUILD" -G Ninja -DCMAKE_BUILD_TYPE=Release -DJO_REQUIRE_I18N=ON -DJO_REQUIRE_TTS=ON \
         -DJP_BUILD_WRITE="$([ "$SHIP_WRITE" = true ] && echo ON || echo OFF)" \
         -DJP_BUILD_CRUNCH="$([ "$SHIP_CRUNCH" = true ] && echo ON || echo OFF)" \
         -DCMAKE_EXE_LINKER_FLAGS="-Wl,-rpath-link,/snap/kde-qt6-core24-sdk/current/usr/lib/x86_64-linux-gnu/pulseaudio"
@@ -195,6 +198,14 @@ parts:
       # The code the four apps share: one library, installed once. It finds PDFium beside it through its own $ORIGIN run path (set on the
       # target in CMakeLists.txt), and LD_LIBRARY_PATH above lists this folder as well.
       install -Dm755 "$CRAFT_PART_BUILD/libjeffoffice-common.so" "$d/usr/lib/jeffoffice/libjeffoffice-common.so"
+      # Read Aloud's voices: Qt TextToSpeech's library and plugins from the SDK this was built against, beside the programs (Qt looks in the programs' own folder for plugins).
+      tts_lib=$(find /snap/kde-qt6-core24-sdk/current/ -name 'libQt6TextToSpeech.so.6' | head -n 1)
+      tts_plugins=$(find /snap/kde-qt6-core24-sdk/current/ -type d -name texttospeech -path '*plugins*' | head -n 1)
+      [ -n "$tts_lib" ] && [ -n "$tts_plugins" ] || { echo "snapcraft: the KDE SDK has no Qt TextToSpeech (library or plugins): Read Aloud would have no voices" >&2; exit 1; }
+      install -Dm644 "$tts_lib" "$d/usr/lib/jeffoffice/libQt6TextToSpeech.so.6"
+      mkdir -p "$d/usr/bin/texttospeech"
+      cp -a "$tts_plugins/." "$d/usr/bin/texttospeech/"
+      test -f "$d/usr/lib/jeffoffice/libQt6TextToSpeech.so.6" && ls "$d/usr/bin/texttospeech/"*.so >/dev/null
       mkdir -p "$d/usr/share/jeffoffice"
       cp -r "$CRAFT_PART_SRC/resources/fonts" "$d/usr/share/jeffoffice/"
       # Help, the translations, the dictionaries and thesaurus (compressed), and their stamp and manifest, one copy for the apps (jp::dataFolder finds them in ../share/jeffoffice).

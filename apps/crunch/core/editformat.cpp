@@ -264,25 +264,30 @@ QList<EditSession::FontUse> EditSession::fontsInUse() const
         }
         return it.value();
     };
+    auto add = [&](const QString &name, const QString &sheetName) {
+        if (name.isEmpty()) return;
+        int at = -1;
+        for (int i = 0; i < out.size() && at < 0; ++i)
+            if (out[i].family == name) at = i;
+        if (at < 0) {
+            out.push_back({name, {}});
+            at = int(out.size()) - 1;
+        }
+        if (!out[at].sheets.contains(sheetName)) out[at].sheets << sheetName;
+    };
     for (int s = 0; s < calc->sheetCount(); ++s) {
         const auto &sh = calc->sheet(s);
-        if (sh.extentRows == 0 || sh.extentCols == 0) continue;
         const QString sheetName = size_t(s) < sheets.size() ? sheets[size_t(s)].name : QString();
-        QSet<QString> seen;
+        // The formats of the columns and rows (what the cells that hold nothing have), and the fonts of the runs of formatted text.
+        for (const ColumnSpan &c : calc->columnRuns(s, 0, kMaxColumns - 1))
+            if (c.style != 0) add(fontOf(c.style), sheetName);
+        for (const RowSpec &r : calc->rowSpecsOf(s))
+            if (r.customFormat && r.style != 0) add(fontOf(r.style), sheetName);
+        for (const FontSpec &f : sh.richFonts) add(st.fontNameOf(f), sheetName);
+        if (sh.extentRows == 0 || sh.extentCols == 0) continue;
         qint64 looked = 0;
         sh.cells.forEachInRange(0, 0, sh.extentRows - 1, sh.extentCols - 1, [&](quint32, quint32, const Cell &cell) {
-            const QString name = fontOf(cell.style);
-            if (!name.isEmpty() && !seen.contains(name)) {
-                seen.insert(name);
-                int at = -1;
-                for (int i = 0; i < out.size() && at < 0; ++i)
-                    if (out[i].family == name) at = i;
-                if (at < 0) {
-                    out.push_back({name, {}});
-                    at = int(out.size()) - 1;
-                }
-                out[at].sheets << sheetName;
-            }
+            add(fontOf(cell.style), sheetName);
             return ++looked < kMostCellsForFonts;
         });
     }
@@ -307,18 +312,40 @@ EditSession::Outcome EditSession::replaceFont(const QString &from, const QString
         }
         return it.value();
     };
+    // Every sheet is looked at first: a font that the program can't replace everywhere, or more cells than it changes at once, is refused with nothing changed.
+    std::vector<std::vector<RestyleTarget>> all(size_t(std::max(0, calc->sheetCount())));
+    qint64 total = 0;
+    bool elsewhere = false;
     for (int s = 0; s < calc->sheetCount(); ++s) {
         const auto &sh = calc->sheet(s);
+        for (const ColumnSpan &c : calc->columnRuns(s, 0, kMaxColumns - 1)) elsewhere = elsewhere || (c.style != 0 && isFrom(c.style));
+        for (const RowSpec &r : calc->rowSpecsOf(s)) elsewhere = elsewhere || (r.customFormat && r.style != 0 && isFrom(r.style));
+        for (const FontSpec &f : sh.richFonts) elsewhere = elsewhere || st.fontNameOf(f).compare(from, Qt::CaseInsensitive) == 0;
         if (sh.extentRows == 0 || sh.extentCols == 0) continue;
-        std::vector<RestyleTarget> targets;
+        bool tooMany = false;
         sh.cells.forEachInRange(0, 0, sh.extentRows - 1, sh.extentCols - 1, [&](quint32 row, quint32 col, const Cell &cell) {
-            if (isFrom(cell.style)) targets.push_back({row, col, &change});
-            return targets.size() < size_t(kMaxStyledCells);
+            if (isFrom(cell.style)) {
+                all[size_t(s)].push_back({row, col, &change});
+                tooMany = ++total > kMaxStyledCells;
+            }
+            return !tooMany;
         });
-        if (targets.empty()) continue;
-        const Outcome one = restyle(s, targets, text);
-        if (!one.ok) return one;
-        if (cells) *cells += int(targets.size());
+        if (tooMany) {
+            out.ok = false;
+            out.problem = tr("That is more cells than JeffCrunch changes at once (%1), so no font was replaced.").arg(QLocale().toString(kMaxStyledCells));
+            return out;
+        }
+    }
+    if (elsewhere) {
+        out.ok = false;
+        out.problem = tr("The font is also used by whole columns or rows, or by formatted text inside cells, which JeffCrunch can't replace yet, so no font was replaced.");
+        return out;
+    }
+    for (int s = 0; s < calc->sheetCount(); ++s) {
+        if (all[size_t(s)].empty()) continue;
+        const Outcome one = restyle(s, all[size_t(s)], text);
+        if (!one.ok) return one;   // (a sheet that is protected: the sheets before it are changed, and the window says so)
+        if (cells) *cells += int(all[size_t(s)].size());
     }
     return out;
 }

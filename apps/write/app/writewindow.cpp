@@ -239,6 +239,7 @@ bool WriteWindow::isModified() const { return m_doc && m_doc->isModified(); }
 
 void WriteWindow::setDocument(std::unique_ptr<write::WriteDoc> doc, const QString &path)
 {
+    if (jp::ReadAloudBar *reading = jp::readAloudBarOf(this)) reading->documentChanged();   // (the text read is going: the reading ends)
     if (m_outlineOn) setOutlineMode(false);
     m_pageNumbersDoc = nullptr;
     m_split->setDocument(nullptr);
