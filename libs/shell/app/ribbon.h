@@ -131,6 +131,7 @@ class JO_COMMON_EXPORT Ribbon : public QWidget {
     Q_OBJECT
 public:
     explicit Ribbon(QWidget *parent = nullptr);
+    ~Ribbon() override { m_closing = true; }
     // `name` identifies the tab in code (tab(), setContextVisible()); `title`
     // is what the header shows, the name translated (the name when empty).
     // A `deferred` tab (one to be made late with RibbonTab::setBuilder) is only a page until it is first shown or asked for its groups.
@@ -198,6 +199,8 @@ public:
     // A box in the top row, left of the Help button (the command search): the ribbon places it and leaves the tabs room for it.
     void setSearchWidget(QWidget *w);
     QWidget *searchWidget() const;
+    // The box is placed again (it is wider while it has the cursor: the widget's property "jpWide").
+    void updateSearchWidget();
     QRect brandRect(QFont *font = nullptr) const;   // where the program's name is drawn in the top row (and its font), in the ribbon's coordinates
     QWidget *moreButton() const;   // the chevron that holds the tabs that don't fit (null while all do)
     void setTabKeytip(RibbonTab *t, const QString &k);
@@ -266,6 +269,7 @@ private:
     bool m_minimized = false;
     QPointer<QMenu> m_contextMenu;
     bool m_builtQueued = false;
+    bool m_closing = false;   // (its parts are being taken down: nothing is laid out)
 };
 
 // The height of a small button and of every row of controls beside it (22 at the usual font, taller for a larger one): three rows fit the ribbon's body.

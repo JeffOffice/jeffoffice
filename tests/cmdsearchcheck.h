@@ -8,6 +8,7 @@
 #include "app/i18n.h"
 #include "app/ribbon.h"
 
+#include <QApplication>
 #include <QDir>
 #include <QFile>
 #include <QListWidget>
@@ -23,6 +24,11 @@ inline QString commandSearchProblem(jp::AppWindow &w, const QString &resource, c
     auto *box = w.findChild<jp::CommandSearchBox *>();
     if (!box) return QStringLiteral("the window has no command search box");
     if (!w.ribbon() || w.ribbon()->searchWidget() != box) return QStringLiteral("the box is not in the ribbon's top row");
+    // At 1000 pixels the box leaves every tab in the row.
+    w.resize(1000, 700);
+    QApplication::processEvents();
+    for (int i = 0; i < w.ribbon()->tabCount(); ++i)
+        if (w.ribbon()->tabVisible(i) && w.ribbon()->tabButton(i) && !w.ribbon()->tabButton(i)->isVisible()) return QStringLiteral("the tab %1 is folded away at 1000 pixels").arg(w.ribbon()->tabName(i));
     QFile f(resource);
     if (!f.open(QIODevice::ReadOnly)) return QStringLiteral("no words file ") + resource;
     const jp::cmdsearch::Words words = jp::cmdsearch::parseWords(f.readAll());
@@ -57,6 +63,7 @@ inline void saveCommandSearchPicture(jp::AppWindow &w, const QString &name, cons
     auto *box = w.findChild<jp::CommandSearchBox *>();
     if (dir.isEmpty() || !box) return;
     QDir().mkpath(dir);
+    jp::CommandSearchBox::setScreenForTests(QRect(0, 0, 1920, 1080));   // (a large screen: the offscreen one is 640 by 480 and would push the list aside)
     box->setFocus();
     box->setText(query);
     QPixmap shot = w.grab();
@@ -64,6 +71,7 @@ inline void saveCommandSearchPicture(jp::AppWindow &w, const QString &name, cons
         QPainter p(&shot);
         p.drawPixmap(w.mapFromGlobal(popup->mapToGlobal(QPoint(0, 0))), popup->grab());
     }
+    jp::CommandSearchBox::setScreenForTests(QRect());
     shot.save(QDir(dir).filePath(name + QStringLiteral(".png")));
     box->setText(QString());
 }

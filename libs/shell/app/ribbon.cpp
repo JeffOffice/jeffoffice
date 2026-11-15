@@ -995,8 +995,7 @@ public:
     HeaderButton *m_file, *m_collapse, *m_help;
     QToolButton *m_more = nullptr;   // the tabs that don't fit the row
     QWidget *m_search = nullptr;     // the command search box, left of Help (the tabs leave room for it)
-    // How wide the search box is in this row: a fifth of it, between 120 and 210.
-    int searchWidth() const { return m_search ? std::clamp(width() / 5, 120, 210) : 0; }
+    int m_searchRest = 0;   // the box's width at rest: up to 160, less when the tabs need the room (down to its icon), as laid out last
     QStringList m_moreShown;         // the tabs its menu lists now (pages, as text)
 
     // A button is its icon (26 wide), or its text when the command has no icon; one that opens a menu has room for the arrow.
@@ -1177,7 +1176,15 @@ public:
             shown << b;
             text += fm.horizontalAdvance(t.title) + (t.group.isEmpty() ? 0 : 12) + 4;
         }
-        const int room = width() - 64 - x - (m_search ? searchWidth() + 8 : 0);
+        // The box takes only what the tabs leave (they never fold for it): 160 at rest, down to 28 (its icon).
+        const int avail = width() - 64 - x;
+        m_searchRest = 0;
+        if (m_search) {
+            int least = 0;
+            for (HeaderButton *b : shown) least += fm.horizontalAdvance(m_r->m_tabs[b->tab()].title) + 14 + (m_r->m_tabs[b->tab()].group.isEmpty() ? 0 : 12) + 4;
+            m_searchRest = std::clamp(avail - least - 8, 28, 160);
+        }
+        const int room = avail - (m_search ? m_searchRest + 8 : 0);
         const int pad = shown.isEmpty() ? 26 : std::clamp((room - text) / int(shown.size()), 14, 26);
         auto widthOf = [&](HeaderButton *b) { return fm.horizontalAdvance(m_r->m_tabs[b->tab()].title) + pad + (m_r->m_tabs[b->tab()].group.isEmpty() ? 0 : 12) + 4; };
         int total = 0;
@@ -1230,7 +1237,8 @@ public:
         m_collapse->setGeometry(width() - 30, top() - 1, 28, pillH);
         m_help->setGeometry(width() - 60, top() - 1, 28, pillH);
         if (m_search) {
-            m_search->setGeometry(width() - 60 - 6 - searchWidth(), top(), searchWidth(), pillH);
+            const int w = m_search->property("jpWide").toBool() ? 300 : m_searchRest;   // (wider while it has the cursor, over the tabs)
+            m_search->setGeometry(width() - 60 - 6 - w, top(), w, pillH);
             m_search->raise();
         }
         m_collapse->setToolTip(m_r->m_minimized ? QCoreApplication::translate("Ribbon", "Expand the Ribbon (Ctrl+F1)") : QCoreApplication::translate("Ribbon", "Collapse the Ribbon (Ctrl+F1)"));
@@ -1748,6 +1756,11 @@ void Ribbon::setSearchWidget(QWidget *w)
 }
 
 QWidget *Ribbon::searchWidget() const { return m_header->m_search; }
+
+void Ribbon::updateSearchWidget()
+{
+    if (!m_closing) m_header->layoutButtons();
+}
 
 QWidget *Ribbon::fileButton() const { return m_header->m_file; }
 

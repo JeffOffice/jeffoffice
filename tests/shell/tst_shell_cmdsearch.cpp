@@ -9,6 +9,7 @@
 #include "app/ribbon.h"
 #include "app/ribbonbuilder.h"
 #include "app/settings.h"
+#include "app/widgets.h"
 #include "../testrunner.h"
 
 #include <QAction>
@@ -31,7 +32,8 @@ const char *const kFile = R"({
     {"name": "Home", "keytip": "H", "groups": [
       {"name": "Clipboard", "keytip": "ZC", "items": [ {"large": "edit.paste", "keytip": "V"}, {"small": "edit.copy", "keytip": "C"} ]},
       {"name": "Font", "keytip": "ZF", "items": [ {"small": "format.bold", "keytip": "B"}, {"small": "format.off", "keytip": "O"}, {"small": "format.cafe", "keytip": "E"} ]},
-      {"name": "Paragraph", "keytip": "ZG", "items": [ {"large": "para.spacing", "keytip": "S"} ]} ]},
+      {"name": "Paragraph", "keytip": "ZG", "items": [ {"large": "para.spacing", "keytip": "S"} ]},
+      {"name": "Styles", "keytip": "ZY", "items": [ {"widget": "styles", "keytip": "L"} ]} ]},
     {"name": "Layout", "keytip": "P", "groups": [
       {"name": "Page Setup", "keytip": "ZP", "items": [
         {"large": {"id": "ribbon.size", "text": "Size"}, "menu": ["layout.a4", "layout.letter"], "keytip": "SZ"},
@@ -49,7 +51,7 @@ const char *const kWords = R"({
 
 class CmdWindow : public AppWindow {
 public:
-    explicit CmdWindow(bool withHelp = true)
+    explicit CmdWindow(bool withHelp = true, int galleryItems = 2)
     {
         auto add = [this](const char *id, const QString &text) {
             auto *a = new QAction(text, this);
@@ -77,6 +79,18 @@ public:
         setMenuWidget(m_ribbon);
         RibbonParts parts;
         parts.action = [this](const QString &id) { return act(id); };
+        parts.widgets.insert(QStringLiteral("styles"), [this, galleryItems]() -> QWidget * {
+            auto *g = new Gallery(QSize(40, 30), 3);
+            g->setItemsProvider([galleryItems] {
+                QVector<GalleryItem> items;
+                if (galleryItems == 2) items << GalleryItem{QStringLiteral("h1"), QStringLiteral("Heading 1"), QIcon(), QString()} << GalleryItem{QStringLiteral("title"), QStringLiteral("Title"), QIcon(), QString()};
+                else
+                    for (int i = 0; i < galleryItems; ++i) items << GalleryItem{QString::number(i), QStringLiteral("Style %1").arg(i), QIcon(), QString()};
+                return items;
+            });
+            connect(g, &Gallery::activated, this, [this](const QString &id) { ran << QStringLiteral("gallery:") + id; });
+            return g;
+        });
         parts.colors.insert(QStringLiteral("chart"), QColor(0x33, 0x66, 0x99));
         QString err;
         buildRibbon(m_ribbon, QByteArray(kFile), parts, this, &err);
@@ -144,6 +158,15 @@ int rowOf(CommandSearchBox *box, const QString &name)
     for (int i = 0; i < box->list()->count(); ++i)
         if (box->list()->item(i)->text().section(QLatin1Char('\n'), 0, 0) == name) return i;
     return -1;
+}
+
+// How many of the ribbon's tabs that are shown are folded under the chevron.
+int foldedTabs(const Ribbon *r)
+{
+    int n = 0;
+    for (int i = 0; i < r->tabCount(); ++i)
+        if (r->tabVisible(i) && r->tabButton(i) && !r->tabButton(i)->isVisible()) ++n;
+    return n;
 }
 
 void clearRecent() { Settings::get().setValue(CommandSearchBox::recentKey(), QStringList()); }
@@ -458,6 +481,83 @@ private Q_SLOTS:
         QCOMPARE(w.box()->shownResults().value(0).key, QStringLiteral("Save"));
         QTest::keyClick(w.box(), Qt::Key_Return);
         QCOMPARE(w.optionsAsked, QStringLiteral("Save"));
+    }
+
+    void theEmptyBoxShowsAHint()
+    {
+        CmdWindow w;
+        w.show();
+        QVERIFY(w.box()->placeholderText().contains(QStringLiteral("Alt+Q")));
+        QVERIFY(w.box()->text().isEmpty());
+    }
+
+    void theBoxIsNarrowAtRestAndWideWithTheCursorWithoutFoldingATab()
+    {
+        CmdWindow w;
+        w.resize(1000, 500);
+        w.show();
+        w.activateWindow();
+        QVERIFY(QTest::qWaitForWindowActive(&w));
+        QTRY_COMPARE(w.box()->width(), 160);
+        QCOMPARE(foldedTabs(w.ribbon()), 0);
+        QTest::keyClick(&w, Qt::Key_Q, Qt::AltModifier);
+        QTRY_COMPARE(w.box()->width(), 300);
+        QCOMPARE(foldedTabs(w.ribbon()), 0);   // (it opens over the tabs: none moves)
+        QTest::keyClick(w.box(), Qt::Key_Escape);
+        QTRY_COMPARE(w.box()->width(), 160);
+    }
+
+    void theBoxShrinksToItsIconBeforeATabFolds()
+    {
+        CmdWindow w;
+        w.show();
+        int okBox = -1;
+        bool folded = false;
+        for (int width = 700; width >= 200 && !folded; width -= 4) {
+            w.resize(width, 400);
+            QApplication::processEvents();
+            if (foldedTabs(w.ribbon()) == 0) okBox = w.box()->width();
+            else folded = true;
+        }
+        QVERIFY(folded);
+        QVERIFY2(okBox >= 28 && okBox < 160, qPrintable(QString::number(okBox)));   // (the last width that kept every tab: the box had given room)
+    }
+
+    void thePopupSitsUnderTheBoxAndStaysOnTheScreen()
+    {
+        const QRect screen(0, 0, 1920, 1080);
+        const QRect box(700, 10, 300, 28);
+        const QRect r = popupRect(box, QSize(340, 400), screen);
+        QCOMPARE(r.top(), box.bottom() + 3);       // under it
+        QCOMPARE(r.right(), box.right());          // its right edge with the box's
+        QCOMPARE(r.size(), QSize(340, 400));
+        const QRect edge = popupRect(QRect(1800, 10, 100, 28), QSize(340, 400), screen);
+        QVERIFY(screen.contains(edge));
+        const QRect low = popupRect(QRect(700, 1000, 300, 28), QSize(340, 400), screen);
+        QVERIFY(low.bottom() <= screen.bottom());
+    }
+
+    void galleryItemsAreFoundAndAppliedAsAClickDoes()
+    {
+        CmdWindow w;
+        w.show();
+        QCOMPARE(listed(w.box(), QStringLiteral("heading 1")).value(0), QStringLiteral("Heading 1"));
+        const Entry e = w.box()->shownResults().value(0);
+        QCOMPARE(e.kind, Kind::Gallery);
+        QCOMPARE(e.where, QStringLiteral("Home > Styles"));
+        QTest::keyClick(w.box(), Qt::Key_Return);
+        QCOMPARE(w.ran, QStringList{QStringLiteral("gallery:h1")});
+        QCOMPARE(w.box()->recent().first(), e.id);
+    }
+
+    void galleryItemsAreCappedAtTwoThousand()
+    {
+        CmdWindow w(true, 2600);
+        w.show();
+        int n = 0;
+        for (const Entry &e : collect(&w, Words()))
+            if (e.kind == Kind::Gallery) ++n;
+        QCOMPARE(n, kMaxGalleryItems);
     }
 
     void theWordsFileIsReadForCommandsFileEntriesAndOptions()

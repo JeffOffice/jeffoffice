@@ -24,6 +24,7 @@ class QFrame;
 namespace jp {
 
 class AppWindow;
+class Ribbon;
 
 namespace cmdsearch {
 
@@ -33,7 +34,7 @@ QString fold(const QString &text);
 QStringList tokens(const QString &text);
 
 // What a result is: a ribbon command (or an item of a menu under one), an entry of the File screen, a page of Options, or the row that searches Help.
-enum class Kind { Command, File, Options, Help };
+enum class Kind { Command, File, Options, Help, Gallery };
 
 struct Entry {
     Kind kind = Kind::Command;
@@ -47,6 +48,8 @@ struct Entry {
     QString key;            // a File screen entry's key, an Options page's name
     QPointer<QAction> action;
     QPointer<QToolButton> button;   // the ribbon button the command is on (a command with a menu opens it)
+    QPointer<QWidget> gallery;      // a gallery item's gallery (a Gallery or a GalleryButton), and its id there
+    QString itemId;
     int tab = -1;                   // the ribbon tab it is on
     bool opensMenu = false;         // Enter opens its menu rather than running it
 };
@@ -61,6 +64,10 @@ int score(const Entry &e, const QString &query);
 QList<Entry> find(const QList<Entry> &all, const QString &query, int limit = 10);
 // Every command of the window's ribbon (also on tabs that show only at times, and in menus), the File screen's entries, and the Options pages, in that order.
 QList<Entry> collect(AppWindow *win, const Words &words);
+// The most gallery items listed in one window (a gallery can hold thousands: the search stays fast).
+constexpr int kMaxGalleryItems = 2000;
+// Where the list goes: under the box, its right edge with the box's, kept on the screen (all in global coordinates; `size` the list's wanted size).
+QRect popupRect(const QRect &box, const QSize &size, const QRect &screen);
 // Whether the entry can be used now (a command on a tab that is not shown, or one that is turned off, cannot).
 bool available(const Entry &e, AppWindow *win);
 
@@ -84,6 +91,8 @@ public:
     // Back to the document: the list is put away, the text cleared.
     void leave();
     static QString recentKey();
+    // The screen the list is placed on, in place of the window's own (a test's offscreen screen is 640 by 480): an empty rectangle puts it back.
+    static void setScreenForTests(const QRect &screen);
 
 protected:
     bool eventFilter(QObject *o, QEvent *e) override;
@@ -94,11 +103,13 @@ private:
     void move(int delta);
     void place();
     void ensureIndex();
+    void setWide(bool wide);
     struct Row {
         cmdsearch::Entry entry;
         bool help = false;
     };
     AppWindow *m_win;
+    QPointer<Ribbon> m_ribbon;
     QString m_resource;
     QList<cmdsearch::Entry> m_all;
     bool m_indexed = false;

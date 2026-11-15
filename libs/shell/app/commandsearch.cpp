@@ -8,6 +8,7 @@
 #include "app/plaintext.h"
 #include "app/ribbon.h"
 #include "app/settings.h"
+#include "app/widgets.h"
 
 #include <QAction>
 #include <QApplication>
@@ -197,10 +198,43 @@ void walkMenu(QMenu *m, const QString &where, int tab, const Words &words, const
 
 } // namespace
 
+QRect popupRect(const QRect &box, const QSize &size, const QRect &screen)
+{
+    const int x = std::clamp(box.right() + 1 - size.width(), screen.left(), std::max(screen.left(), screen.right() + 1 - size.width()));
+    const int below = screen.bottom() + 1 - (box.bottom() + 3), above = box.top() - 3 - screen.top();
+    if (below < std::min(size.height(), 200) && above > below) {   // (no room under it: over it)
+        const int h = std::min(size.height(), above);
+        return QRect(QPoint(x, box.top() - 3 - h), QSize(size.width(), h));
+    }
+    return QRect(QPoint(x, box.bottom() + 3), QSize(size.width(), std::min(size.height(), std::max(below, 1))));
+}
+
 QList<Entry> collect(AppWindow *win, const Words &words)
 {
     QList<Entry> out;
     QSet<QString> seen;
+    int galleryItems = 0;
+    auto addGallery = [&](QWidget *g, const QVector<GalleryItem> &items, const QString &where, int tab) {
+        for (const GalleryItem &it : items) {
+            if (galleryItems >= kMaxGalleryItems) return;
+            const QString tip = plainTip(it.tip);
+            if (tip.isEmpty() || it.id.isEmpty()) continue;
+            Entry e;
+            e.kind = Kind::Gallery;
+            e.id = QStringLiteral("gal:") + where + QLatin1Char('/') + it.id;
+            e.name = tip;
+            e.where = where;
+            e.icon = it.icon;
+            e.gallery = g;
+            e.itemId = it.id;
+            e.tab = tab;
+            if (const QString en = englishOf(it.tip); !en.isEmpty()) e.english << en;
+            if (seen.contains(e.id)) continue;
+            seen.insert(e.id);
+            out << e;
+            ++galleryItems;
+        }
+    };
     auto add = [&](const Entry &e) {
         if (e.name.isEmpty() || seen.contains(e.id)) return;
         seen.insert(e.id);
@@ -213,8 +247,13 @@ QList<Entry> collect(AppWindow *win, const Words &words)
             for (RibbonGroup *g : page->groups()) {
                 if (g->userHidden()) continue;
                 const QString where = r->tabTitle(i) + QStringLiteral(" > ") + g->title();
+                for (Gallery *gal : g->findChildren<Gallery *>()) addGallery(gal, gal->items(), where, i);
                 for (QToolButton *b : g->findChildren<QToolButton *>()) {
                     if (b == g->launcher()) continue;
+                    if (auto *gb = qobject_cast<GalleryButton *>(b)) {
+                        addGallery(gb, gb->items(), where, i);
+                        continue;
+                    }
                     QAction *a = b->defaultAction();
                     if (a && !a->isSeparator()) {
                         Entry e = makeCommand(a, where, i, b, words);
@@ -283,6 +322,11 @@ bool available(const Entry &e, AppWindow *win)
         Ribbon *r = win ? win->ribbon() : nullptr;
         return !(r && e.tab >= 0 && !r->tabVisible(e.tab));
     }
+    case Kind::Gallery: {
+        if (!e.gallery || !e.gallery->isEnabled()) return false;
+        Ribbon *r = win ? win->ribbon() : nullptr;
+        return !(r && e.tab >= 0 && !r->tabVisible(e.tab));
+    }
     case Kind::File:
     case Kind::Options:
     case Kind::Help: return true;
@@ -294,12 +338,19 @@ bool available(const Entry &e, AppWindow *win)
 
 // ---------------- the box ----------------
 
+namespace {
+QRect s_testScreen;
+}
+
+void CommandSearchBox::setScreenForTests(const QRect &screen) { s_testScreen = screen; }
+
 QString CommandSearchBox::recentKey() { return QStringLiteral("cmdsearch/recent"); }
 
 CommandSearchBox::CommandSearchBox(AppWindow *win, const QString &wordsResource) : QLineEdit(), m_win(win), m_resource(wordsResource)
 {
     setObjectName(QStringLiteral("jpCommandSearch"));
-    setPlaceholderText(tr("Search commands"));
+    setPlaceholderText(tr("Search (Alt+Q)"));
+    addAction(icon(QStringLiteral("search")), QLineEdit::LeadingPosition);
     setAccessibleName(tr("Search commands"));
     setAccessibleDescription(tr("Type what you want to do. Down goes to the commands found, and Enter runs the one chosen. Escape goes back to the document."));
     setToolTip(plainToolTip(tr("Search for a command and run it (Alt+Q)")));
@@ -331,7 +382,14 @@ CommandSearchBox::CommandSearchBox(AppWindow *win, const QString &wordsResource)
     auto *key = new QShortcut(QKeySequence(Qt::ALT | Qt::Key_Q), win);
     key->setContext(Qt::WindowShortcut);
     connect(key, &QShortcut::activated, this, &CommandSearchBox::focusBox);
-    if (Ribbon *r = win->ribbon()) r->setSearchWidget(this);
+    m_ribbon = win->ribbon();
+    if (m_ribbon) m_ribbon->setSearchWidget(this);
+}
+
+void CommandSearchBox::setWide(bool wide)
+{
+    setProperty("jpWide", wide);
+    if (m_ribbon) m_ribbon->updateSearchWidget();   // (not through the window: it may be going away)
 }
 
 void CommandSearchBox::ensureIndex()
@@ -433,14 +491,9 @@ void CommandSearchBox::place()
 {
     int h = 8;
     for (int i = 0; i < m_list->count() && i < 11; ++i) h += m_list->item(i)->sizeHint().height() + 2;
-    const int w = std::max(width(), 340);
-    QPoint at = mapToGlobal(QPoint(width() - w, height() + 2));
-    if (const QScreen *s = screen()) {
-        const QRect g = s->availableGeometry();
-        at.setX(std::clamp(at.x(), g.left(), std::max(g.left(), g.right() - w)));
-        h = std::min(h, std::max(80, g.bottom() - at.y()));
-    }
-    m_popup->setGeometry(QRect(at, QSize(w, h)));
+    const QRect box(mapToGlobal(QPoint(0, 0)), size());
+    const QRect screenRect = !s_testScreen.isEmpty() ? s_testScreen : screen() ? screen()->availableGeometry() : QRect(0, 0, 4000, 4000);
+    m_popup->setGeometry(cmdsearch::popupRect(box, QSize(std::max(width(), 340), h), screenRect));
 }
 
 void CommandSearchBox::move(int delta)
@@ -460,6 +513,7 @@ void CommandSearchBox::leave()
         const QSignalBlocker b(this);
         clear();
     }
+    setWide(false);
     if (Ribbon *r = m_win->ribbon()) Q_EMIT r->leaveRequested();
 }
 
@@ -513,6 +567,10 @@ void CommandSearchBox::run(const cmdsearch::Entry &e)
         }
         return;
     case cmdsearch::Kind::Options: m_win->openOptionsPage(e.key); return;
+    case cmdsearch::Kind::Gallery:
+        if (auto *g = qobject_cast<Gallery *>(e.gallery.data())) g->activate(e.itemId);
+        else if (auto *gb = qobject_cast<GalleryButton *>(e.gallery.data())) gb->activate(e.itemId);
+        return;
     case cmdsearch::Kind::Help: return;
     }
 }
@@ -532,7 +590,9 @@ bool CommandSearchBox::eventFilter(QObject *o, QEvent *ev)
             }
         } else if (ev->type() == QEvent::FocusOut) {
             m_popup->hide();
+            setWide(false);
         } else if (ev->type() == QEvent::FocusIn) {
+            setWide(true);
             QTimer::singleShot(0, this, [this] { if (hasFocus()) refill(); });
         }
     }

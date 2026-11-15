@@ -97,6 +97,9 @@ public:
     void setCurrent(const QString &id);
     void reload();   // refill the inline row from the provider
     void setTitle(const QString &title);   // its name for screen readers
+    // The items it offers (the provider's, else those set) and the choosing of one as a click does (for the command search).
+    QVector<GalleryItem> items() const { return m_provider ? m_provider() : m_items; }
+    void activate(const QString &id) { Q_EMIT activated(id); }
 
 Q_SIGNALS:
     void activated(const QString &id);
@@ -125,6 +128,7 @@ public:
     void setItemsProvider(const std::function<QVector<GalleryItem>()> &fn) { m_provider = fn; }
     QVector<GalleryItem> items() const { return m_provider ? m_provider() : QVector<GalleryItem>(); }
     void setFooterActions(const QList<QAction *> &a) { m_footer = a; }
+    void activate(const QString &id) { Q_EMIT activated(id); }
 
 Q_SIGNALS:
     void activated(const QString &id);
