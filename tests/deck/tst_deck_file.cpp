@@ -269,6 +269,44 @@ private Q_SLOTS:
         w.editor()->markSaved();
     }
 
+    // The Print page: the Print button with Copies on top, then PRINTER, PAGES, LAYOUT, and PAPER under small headings, two fields to a row, Collated and Last page first on one line
+    // (docs/design/STYLE.md); every control is still there under its name.
+    void windowFilePrintPageIsInFourGroups()
+    {
+        DeckWindow w;
+        w.editor()->setDocument(showDeck(7));
+        w.show();
+        w.resize(1300, 1100);
+        w.showFileScreen(QStringLiteral("print"));
+        auto at = [&](const char *name) {
+            QWidget *c = w.findChild<QWidget *>(QString::fromLatin1(name));
+            if (!c) qWarning("no control named %s", name);
+            return c;
+        };
+        for (const char *name : {"printButton", "printCopies", "printPrinter", "printPrinterSettings", "printWhat", "printOrder", "printRangeAll", "printRangeCurrent", "printRangeSelection", "printRangeSlides",
+                                 "printRangeText", "printDuplex", "printCollate", "printReverse", "printHidden", "printFrame", "printScaleToFit", "printPaper", "printColor", "printHeaderFooter", "printPreview"})
+            QVERIFY2(at(name), name);
+        QTRY_VERIFY(at("printHeaderFooter")->isVisible());
+        auto pos = [&](const char *name) { return at(name)->mapTo(&w, QPoint(0, 0)); };
+        QList<QPair<int, QString>> found;
+        for (QLabel *l : w.findChildren<QLabel *>())
+            if (l->property("sectionHeading").toBool() && l->isVisible() && l->mapTo(&w, QPoint(0, 0)).x() > 200) found << qMakePair(l->mapTo(&w, QPoint(0, 0)).y(), l->text());
+        std::sort(found.begin(), found.end());
+        QStringList headings;
+        for (const auto &f : found) headings << f.second;
+        QCOMPARE(headings, (QStringList{QStringLiteral("PRINTER"), QStringLiteral("PAGES"), QStringLiteral("LAYOUT"), QStringLiteral("PAPER")}));
+        QVERIFY(qAbs(pos("printButton").y() - pos("printCopies").y()) < 30);
+        QVERIFY(pos("printButton").y() < pos("printPrinter").y());
+        auto sameRow = [&](const char *a, const char *b) { QVERIFY2(qAbs(pos(a).y() - pos(b).y()) < 6 && pos(a).x() < pos(b).x(), a); };
+        sameRow("printWhat", "printOrder");
+        sameRow("printCollate", "printReverse");
+        sameRow("printScaleToFit", "printFrame");
+        sameRow("printPaper", "printColor");
+        QVERIFY(at("printHeaderFooter")->property("link").toBool());
+        QVERIFY(pos("printColor").y() < pos("printHeaderFooter").y());
+        QVERIFY(pos("printPrinter").y() < pos("printWhat").y() && pos("printHidden").y() < pos("printScaleToFit").y() && pos("printFrame").y() < pos("printPaper").y());
+    }
+
     // The words on each page of a PDF.
     static QStringList pagesOfPdf(const QString &path)
     {

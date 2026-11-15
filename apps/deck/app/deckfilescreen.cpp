@@ -292,30 +292,19 @@ QWidget *DeckFileScreen::buildPrint()
     left->addWidget(heading(tr("Print"), w));
     auto *printBtn = new QPushButton(tr("Print"), w);
     printBtn->setObjectName(QStringLiteral("printButton"));
-    printBtn->setProperty("primary", true);
-    printBtn->setMinimumHeight(40);
-    printBtn->setMinimumWidth(120);
-    printBtn->setCursor(Qt::PointingHandCursor);
     QSpinBox *copies = makeCopiesBox(w);
-    auto *top = new QHBoxLayout();
-    top->addWidget(printBtn);
-    top->addSpacing(12);
-    top->addWidget(new QLabel(tr("Copies:"), w));
-    top->addWidget(copies);
-    top->addStretch(1);
-    left->addLayout(top);
-    left->addSpacing(8);
+    PrintColumn column(w);
+    column.top(printBtn, copies);
 
-    auto *form = new QFormLayout();
     QComboBox *printer = makePrinterBox(w);
     auto *properties = new QPushButton(tr("Printer Properties…"), w);
     properties->setObjectName(QStringLiteral("printPrinterSettings"));
-    auto *printerRow = new QHBoxLayout();
-    printerRow->addWidget(printer, 1);
-    printerRow->addWidget(properties);
-    form->addRow(tr("Printer:"), printerRow);
+    auto *printerRow = new QWidget(w);
+    auto *printerLine = new QHBoxLayout(printerRow);
+    printerLine->setContentsMargins(0, 0, 0, 0);
+    printerLine->addWidget(printer, 1);
+    printerLine->addWidget(properties);
     QCheckBox *collate = makeCollateBox(w, tr("Print each copy of all the pages in turn (1, 2, 3, 1, 2, 3), not each page's copies together (1, 1, 2, 2, 3, 3)."));
-    form->addRow(QString(), collate);
     auto *what = new QComboBox(w);
     what->setObjectName(QStringLiteral("printWhat"));
     what->setAccessibleName(DeckWindow::tr("Print what"));
@@ -328,15 +317,12 @@ QWidget *DeckFileScreen::buildPrint()
     what->addItem(DeckWindow::tr("Handouts: 4 Slides Per Page"), int(deck::PrintLayout::Handout4));
     what->addItem(DeckWindow::tr("Handouts: 6 Slides Per Page"), int(deck::PrintLayout::Handout6));
     what->addItem(DeckWindow::tr("Handouts: 9 Slides Per Page"), int(deck::PrintLayout::Handout9));
-    form->addRow(tr("Print what:"), what);
     auto *order = new QComboBox(w);
     order->setObjectName(QStringLiteral("printOrder"));
     order->setAccessibleName(DeckWindow::tr("Order of slides on a handout"));
     order->addItem(DeckWindow::tr("Horizontal"), true);
     order->addItem(DeckWindow::tr("Vertical"), false);
-    form->addRow(tr("Order:"), order);
 
-    auto *range = new QVBoxLayout();
     auto *all = new QRadioButton(DeckWindow::tr("All slides"), w);
     all->setObjectName(QStringLiteral("printRangeAll"));
     auto *currentOnly = new QRadioButton(DeckWindow::tr("Current slide"), w);
@@ -356,11 +342,9 @@ QWidget *DeckFileScreen::buildPrint()
     auto *someRow = new QHBoxLayout();
     someRow->addWidget(some);
     someRow->addWidget(text);
-    range->addWidget(all);
-    range->addWidget(currentOnly);
-    range->addWidget(selection);
-    range->addLayout(someRow);
-    form->addRow(tr("Range:"), range);
+    auto *someWidget = new QWidget(w);
+    someRow->setContentsMargins(0, 0, 0, 0);
+    someWidget->setLayout(someRow);
 
     // One side, or both sides flipped on the long or the short edge (the system's window starts with it), or both sides by hand. It was kept as "output/sides" once.
     Settings &sideSettings = Settings::get();
@@ -368,9 +352,7 @@ QWidget *DeckFileScreen::buildPrint()
     auto *sides = new QComboBox(w);
     sides->setObjectName(QStringLiteral("printDuplex"));
     fillSidesBox(sides, true, wantedSides);
-    form->addRow(tr("Sides:"), sides);
     QComboBox *paper = makePaperBox(w, tr("As the slides say"));
-    form->addRow(tr("Paper:"), paper);
 
     auto *hidden = new QCheckBox(tr("Print hidden slides"), w);
     hidden->setObjectName(QStringLiteral("printHidden"));
@@ -384,13 +366,22 @@ QWidget *DeckFileScreen::buildPrint()
     headerFooter->setObjectName(QStringLiteral("printHeaderFooter"));
     headerFooter->setToolTip(tr("The date, header, footer, and page number of notes pages and handouts."));
     QCheckBox *reverse = makeReverseBox(w);
-    form->addRow(QString(), reverse);
-    form->addRow(QString(), hidden);
-    form->addRow(QString(), frame);
-    form->addRow(QString(), scaleFit);
-    form->addRow(tr("Color:"), color);
-    form->addRow(QString(), headerFooter);
-    left->addLayout(form);
+    // the groups of the Print page (docs/design/STYLE.md)
+    column.group(PrintColumn::printerHeading());
+    column.wide(printerRow);
+    column.group(PrintColumn::pagesHeading());
+    column.pair(tr("Print what"), what, tr("Order"), order);
+    for (QRadioButton *r : {all, currentOnly, selection}) column.wide(r);
+    column.wide(someWidget);
+    column.field(tr("Sides"), sides);
+    column.checks(collate, reverse);
+    column.checks(hidden);
+    column.group(PrintColumn::layoutHeading());
+    column.checks(scaleFit, frame);
+    column.group(PrintColumn::paperHeading(), tr("(as each slide says unless changed)"));
+    column.pair(tr("Paper"), paper, tr("Color"), color);
+    column.link(headerFooter);
+    left->addLayout(column.layout());
     left->addStretch(1);
     h->addLayout(left, 1);
 
@@ -422,7 +413,7 @@ QWidget *DeckFileScreen::buildPrint()
     QComboBox *zoom = makeZoomBox(w);
     auto *look = new QHBoxLayout();
     look->addStretch(1);
-    look->addWidget(new QLabel(tr("Zoom:"), w));
+    look->addWidget(new QLabel(tr("Zoom"), w));
     look->addWidget(zoom);
     auto *scroll = new QScrollArea(w);
     scroll->setObjectName(QStringLiteral("printPreviewScroll"));

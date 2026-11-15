@@ -125,6 +125,44 @@ private Q_SLOTS:
         if (!qEnvironmentVariableIsEmpty("JP_SHOT_DIR")) w.grab().save(qEnvironmentVariable("JP_SHOT_DIR") + "/print-preview.png");
     }
 
+    // The Print page: the Print button with Copies on top, then PRINTER, PAGES, LAYOUT, and PAPER under small headings, two fields to a row, Collated and Last page first on one line, and
+    // Page Setup as a link at the bottom (docs/design/STYLE.md); every control is still there under its name.
+    void printPageIsInFourGroups()
+    {
+        jp::MainWindow w;
+        w.editor()->setDocument(jp::Document::blank(QSizeF(396, 612)));
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        w.resize(1300, 1100);
+        w.showBackstage(QStringLiteral("print"));
+        auto at = [&](const char *name) {
+            QWidget *c = w.findChild<QWidget *>(QString::fromLatin1(name));
+            if (!c) qWarning("no control named %s", name);
+            return c;
+        };
+        for (const char *name : {"printButton", "printCopies", "printPrinter", "printPrinterSettings", "printRange", "printPages", "printSides", "printCollate", "printReverse", "printLayout", "printPaper", "printColor",
+                                 "printPageSetup", "printPreview"})
+            QVERIFY2(at(name), name);
+        QTRY_VERIFY(at("printPageSetup")->isVisible());
+        auto pos = [&](const char *name) { return at(name)->mapTo(&w, QPoint(0, 0)); };
+        QList<QPair<int, QString>> found;
+        for (QLabel *l : w.findChildren<QLabel *>())
+            if (l->property("sectionHeading").toBool() && l->isVisible() && l->mapTo(&w, QPoint(0, 0)).x() > 200) found << qMakePair(l->mapTo(&w, QPoint(0, 0)).y(), l->text());
+        std::sort(found.begin(), found.end());
+        QStringList headings;
+        for (const auto &f : found) headings << f.second;
+        QCOMPARE(headings, (QStringList{QStringLiteral("PRINTER"), QStringLiteral("PAGES"), QStringLiteral("LAYOUT"), QStringLiteral("PAPER")}));
+        QVERIFY(qAbs(pos("printButton").y() - pos("printCopies").y()) < 30);
+        QVERIFY(pos("printButton").y() < pos("printPrinter").y());
+        auto sameRow = [&](const char *a, const char *b) { QVERIFY2(qAbs(pos(a).y() - pos(b).y()) < 6 && pos(a).x() < pos(b).x(), a); };
+        sameRow("printRange", "printPages");
+        sameRow("printCollate", "printReverse");
+        sameRow("printPaper", "printColor");
+        QVERIFY(at("printPageSetup")->property("link").toBool());
+        QVERIFY(pos("printColor").y() < pos("printPageSetup").y());
+        QVERIFY(pos("printPrinter").y() < pos("printRange").y() && pos("printReverse").y() < pos("printLayout").y() && pos("printLayout").y() < pos("printPaper").y());
+    }
+
     // The Sides choice says what the other apps' Print pages say.
     void printPageSidesWordsMatchTheOtherApps()
     {

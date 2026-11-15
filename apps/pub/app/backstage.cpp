@@ -1,4 +1,5 @@
 #include "app/backstage.h"
+#include "app/uistyle.h"
 #include "app/pdfprotection.h"
 #include "core/version.h"
 #include "app/theme.h"
@@ -216,10 +217,7 @@ QWidget *Backstage::buildNew(bool change)
     {
         auto *catCol = new QVBoxLayout();
         catCol->setSpacing(6);
-        auto *catTitle = new QLabel(tr("Categories"), w);
-        QFont ct = catTitle->font();
-        ct.setBold(true);
-        catTitle->setFont(ct);
+        QLabel *catTitle = sectionHeading(tr("Categories"), w);
         catCol->addWidget(catTitle);
         catCol->addWidget(cats, 1);
         body->addLayout(catCol);
@@ -285,9 +283,9 @@ QWidget *Backstage::buildNew(bool change)
     bizRow->addWidget(bizBox, 1);
     bizRow->addWidget(editBiz);
     connect(editBiz, &QPushButton::clicked, this, [this] { businessInfoDialog(this, m_win->editor()); });
-    form->addRow(tr("Color scheme:"), scheme);
-    form->addRow(tr("Font scheme:"), fonts);
-    form->addRow(tr("Business information:"), bizRow);
+    form->addRow(tr("Color scheme"), scheme);
+    form->addRow(tr("Font scheme"), fonts);
+    form->addRow(tr("Business information"), bizRow);
     auto *optLogo = new QCheckBox(tr("Include logo"), panel);
     auto *optAddr = new QCheckBox(tr("Include mailing address"), panel);
     optAddr->setChecked(true);
@@ -676,17 +674,9 @@ QWidget *Backstage::buildPrint()
     left->addWidget(heading(tr("Print"), w));
     QSpinBox *copies = makeCopiesBox(w);
     auto *printBtn = new QPushButton(tr("Print"), w);
-    printBtn->setProperty("primary", true);
-    printBtn->setMinimumHeight(40);
-    printBtn->setMinimumWidth(120);
-    printBtn->setCursor(Qt::PointingHandCursor);
-    auto *top = new QHBoxLayout();
-    top->addWidget(printBtn);
-    top->addSpacing(12);
-    top->addWidget(new QLabel(tr("Copies:"), w));
-    top->addWidget(copies);
-    left->addLayout(top);
-    auto *form = new QFormLayout();
+    printBtn->setObjectName(QStringLiteral("printButton"));
+    PrintColumn column(w);
+    column.top(printBtn, copies);
     QComboBox *printer = makePrinterBox(w);
     QCheckBox *collate = makeCollateBox(w, tr("Print each copy of all the pages in turn (1, 2, 3, 1, 2, 3), not each page's copies together (1, 1, 2, 2, 3, 3)."));
     auto *range = new QComboBox(w);
@@ -697,6 +687,7 @@ QWidget *Backstage::buildPrint()
     pages->setObjectName(QStringLiteral("printPages"));
     pages->setPlaceholderText(tr("1-3, 5"));
     auto *layout = new QComboBox(w);
+    layout->setObjectName(QStringLiteral("printLayout"));
     layout->addItems({tr("One page per sheet"), tr("Multiple pages per sheet"), tr("Multiple copies per sheet"), tr("Booklet, side-fold"), tr("Booklet, top-fold"),
                       tr("Tiled (posters and banners)")});
     if (d->setup.layout == PageSetup::Booklet) layout->setCurrentIndex(3);
@@ -755,22 +746,31 @@ QWidget *Backstage::buildPrint()
     plates->setVisible(false);
     auto *merged = new QCheckBox(tr("Print all mail merge records"), w);
     merged->setEnabled(!d->merge.isEmpty());
-    form->addRow(tr("Printer:"), printer);
-    form->addRow(QString(), collate);
-    form->addRow(tr("Range:"), range);
-    form->addRow(tr("Pages:"), pages);
-    form->addRow(tr("Layout:"), layout);
-    form->addRow(tr("Paper:"), paper);
-    form->addRow(tr("Sides:"), sides);
-    form->addRow(QString(), reverse);
-    form->addRow(tr("Color:"), color);
-    form->addRow(tr("Plates:"), plates);
-    form->addRow(tr("Marks:"), marksBox);
-    form->addRow(merged);
-    left->addLayout(form);
     auto *props = new QPushButton(tr("Printer Properties…"), w);
     props->setObjectName(QStringLiteral("printPrinterSettings"));
-    left->addWidget(props, 0, Qt::AlignLeft);
+    auto *printerRow = new QWidget(w);
+    auto *printerLine = new QHBoxLayout(printerRow);
+    printerLine->setContentsMargins(0, 0, 0, 0);
+    printerLine->addWidget(printer, 1);
+    printerLine->addWidget(props);
+    auto *setupButton = new QPushButton(tr("Page Setup…"), w);
+    setupButton->setObjectName(QStringLiteral("printPageSetup"));
+    // the groups of the Print page (docs/design/STYLE.md)
+    column.group(PrintColumn::printerHeading());
+    column.wide(printerRow);
+    column.group(PrintColumn::pagesHeading());
+    column.pair(tr("Range"), range, tr("Pages"), pages);
+    column.field(tr("Sides"), sides);
+    column.checks(collate, reverse);
+    column.checks(merged);
+    column.group(PrintColumn::layoutHeading());
+    column.field(tr("Layout"), layout);
+    column.group(PrintColumn::paperHeading(), tr("(as the publication says unless changed)"));
+    column.pair(tr("Paper"), paper, tr("Color"), color);
+    column.wide(plates);
+    column.wide(marksBox);
+    column.link(setupButton);
+    left->addLayout(column.layout());
     left->addStretch(1);
     h->addLayout(left, 1);
 
@@ -794,7 +794,7 @@ QWidget *Backstage::buildPrint()
     QComboBox *zoom = makeZoomBox(w);
     auto *look = new QHBoxLayout();
     look->addStretch(1);
-    look->addWidget(new QLabel(tr("Zoom:"), w));
+    look->addWidget(new QLabel(tr("Zoom"), w));
     look->addWidget(zoom);
     auto *scroll = new QScrollArea(w);
     scroll->setObjectName(QStringLiteral("printPreviewScroll"));
@@ -1016,6 +1016,10 @@ QWidget *Backstage::buildPrint()
         }
         return true;
     };
+    connect(setupButton, &QPushButton::clicked, this, [=] {
+        pageSetupDialog(m_win, ed);
+        render();
+    });
     connect(props, &QPushButton::clicked, this, [=] {
         QPrinter &p = *job;
         if (!setup(p, false)) return;
