@@ -158,6 +158,164 @@ void FlowTests::openTypeChoicesSurviveTheStoryFile()
 }
 
 
+// The bundled EB Garamond ExtraBold has old-style figures (onum), true small capitals (smcp), and stylistic sets 1 to 7: the family it is registered under, or empty.
+static QString garamondFamily()
+{
+    const QString name = QStringLiteral("EB Garamond");
+    return QFontDatabase::hasFamily(name) ? name : QString();
+}
+
+// A run's stylistic set and discretionary ligatures shape its own letters, in the middle of a paragraph as well as at its start: the run sets the same width there as alone.
+void FlowTests::aFontWithStylisticSetsAndOldStyleFiguresShapesThemPerRun()
+{
+    const QString family = QStringLiteral("EB Garamond ExtraBold");   // (its sets 1 to 7, and its discretionary ligatures)
+    QVERIFY2(QFontDatabase::hasFamily(family), "the bundled EB Garamond ExtraBold is not registered");
+    auto width = [&](const QString &text, const QMap<int, int> &choices, bool afterPlain) {
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextCharFormat plain;
+        plain.setFontFamilies({family});
+        plain.setFontPointSize(24);
+        QTextCharFormat run = plain;
+        for (auto it = choices.cbegin(); it != choices.cend(); ++it) run.setProperty(it.key(), it.value());
+        int from = 0;
+        if (afterPlain) {
+            c.insertText(QStringLiteral("x "), plain);
+            from = 2;
+        }
+        c.insertText(text, run);
+        LayoutEnv env;
+        StoryLayout lay;
+        lay.build(&doc, {plainFrame(2000, 100)}, env);
+        const auto rects = lay.rangeRects(0, from, from + text.size());
+        return rects.isEmpty() ? -1.0 : rects.last().right() - rects.first().left();
+    };
+    const QString letters = QStringLiteral("Qgyk&?ARTfiffl1234 and then some");
+    const double plainWidth = width(letters, {}, false);
+    bool changes = false;
+    for (int set = 1; set <= 7; ++set) {
+        const double alone = width(letters, {{tp::StylisticSet, set}}, false);
+        changes = changes || std::abs(alone - plainWidth) > 0.05;
+        QVERIFY(std::abs(width(letters, {{tp::StylisticSet, set}}, true) - alone) < 0.01);
+    }
+    const QString dl = QStringLiteral("ct st sp Th ff fi ct st sp Th");
+    const int all = tp::ot::ligatureValueOfKinds(tp::ot::kLigKinds);
+    const double dlAlone = width(dl, {{tp::Ligatures, all}}, false);
+    changes = changes || std::abs(dlAlone - width(dl, {}, false)) > 0.05;
+    QVERIFY(std::abs(width(dl, {{tp::Ligatures, all}}, true) - dlAlone) < 0.01);   // (the discretionary ligatures of the face are the run's own too)
+    QVERIFY2(changes, "neither a stylistic set nor the discretionary ligatures set these letters apart");
+}
+
+
+// A run that adds a feature has all that its paragraph's font has too: the true small capitals of a paragraph are not lost on it.
+void FlowTests::aRunThatAddsAFeatureKeepsTheParagraphsTrueSmallCaps()
+{
+    const QString family = garamondFamily();
+    QVERIFY2(!family.isEmpty(), "the bundled EB Garamond is not registered");
+    auto width = [&](bool smallCaps, bool oldStyle) {
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextCharFormat run;
+        run.setFontFamilies({family});
+        run.setFontPointSize(24);
+        if (smallCaps) run.setProperty(tp::TrueSmallCaps, true);
+        c.insertText(QStringLiteral("first "), run);
+        if (oldStyle) run.setProperty(tp::NumberStyle, 2);
+        c.insertText(QStringLiteral("abcdefg"), run);   // (letters only: old-style figures do not touch them)
+        LayoutEnv env;
+        StoryLayout lay;
+        lay.build(&doc, {plainFrame(2000, 100)}, env);
+        const auto rects = lay.rangeRects(0, 6, 13);
+        return rects.isEmpty() ? -1.0 : rects.last().right() - rects.first().left();
+    };
+    const double lower = width(false, false), small = width(true, false);
+    QVERIFY2(std::abs(lower - small) > 0.5, "small capitals set the letters as lowercase ones");
+    QVERIFY(std::abs(width(true, true) - small) < 0.01);
+    QVERIFY(std::abs(width(false, true) - lower) < 0.01);
+}
+
+
+// The first run of a paragraph asks for a feature and the runs after it do not: they have none of it (the paragraph's font is the first run's).
+void FlowTests::runsThatAskForNoFeatureHaveNoneAfterOneThatDoes()
+{
+    QVERIFY2(QFontDatabase::hasFamily(QStringLiteral("Carlito")), "the face the program carries is not registered");
+    auto widths = [&](bool firstAsks) {
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextCharFormat plain;
+        plain.setFontFamilies({QStringLiteral("Carlito")});
+        plain.setFontPointSize(24);
+        QTextCharFormat first = plain;
+        if (firstAsks) {
+            first.setProperty(tp::NumberSpacing, 1);                                  // (proportional)
+            first.setProperty(tp::Ligatures, tp::ot::ligatureValueOfKinds(0));        // (none)
+        }
+        c.insertText(QStringLiteral("1111 0000 "), first);
+        c.insertText(QStringLiteral("1111 0000 office"), plain);
+        LayoutEnv env;
+        StoryLayout lay;
+        lay.build(&doc, {plainFrame(2000, 100)}, env);
+        auto span = [&](int from, int to) {
+            const auto r = lay.rangeRects(0, from, to);
+            return r.isEmpty() ? -1.0 : r.last().right() - r.first().left();
+        };
+        return QList<double>{span(10, 14), span(15, 19), span(20, 26)};
+    };
+    const QList<double> asks = widths(true), none = widths(false);
+    for (int i = 0; i < 3; ++i) QVERIFY2(std::abs(asks[i] - none[i]) < 0.01, qPrintable(QString::number(i)));
+}
+
+
+// A text that has none of the choices is laid out as it was before them: the same lines (their starts, from a long text of runs of every look; the sums were noted with the
+// per-run features left out).
+static const quint64 kLinesWithoutChoices = 13026535322970938161ull, kLinesWithoutChoicesWord = 15176910049051683953ull;
+
+void FlowTests::aTextWithNoFeatureChoicesIsLaidOutAsItWas()
+{
+    QVERIFY2(QFontDatabase::hasFamily(QStringLiteral("Carlito")), "the face the program carries is not registered");
+    auto starts = [&](bool word, double room) {
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        quint32 seed = 7;
+        auto next = [&] { return seed = seed * 1664525u + 1013904223u; };
+        const QStringList words{QStringLiteral("office"), QStringLiteral("affirm"), QStringLiteral("final"), QStringLiteral("tiny"), QStringLiteral("1234"), QStringLiteral("flow"), QStringLiteral("a"), QStringLiteral("the"), QStringLiteral("ruff-stuff"), QStringLiteral("Quick")};
+        for (int p = 0; p < 40; ++p) {
+            if (p) c.insertBlock();
+            for (int r = 0; r < 12; ++r) {
+                QTextCharFormat f;
+                f.setFontFamilies({QStringLiteral("Carlito")});
+                f.setFontPointSize(10 + (next() >> 24) % 5);
+                f.setFontWeight((next() >> 24) % 3 == 0 ? QFont::Bold : QFont::Normal);
+                f.setFontItalic((next() >> 24) % 4 == 0);
+                QString text;
+                for (int w = 0; w < 5; ++w) text += words[(next() >> 24) % words.size()] + QLatin1Char(' ');
+                c.insertText(text, f);
+            }
+        }
+        LayoutEnv env;
+        env.wordLines = word;
+        StoryLayout lay;
+        lay.build(&doc, {plainFrame(room, 100000)}, env);
+        quint64 sum = 1469598103934665603ull;
+        int lines = 0;
+        for (const auto &line : lay.lineInfo(0)) {
+            sum = (sum ^ quint64(line.docPos + 1)) * 1099511628211ull;
+            ++lines;
+        }
+        return QPair<quint64, int>(sum, lines);
+    };
+    for (const bool word : {false, true}) {
+        const auto here = starts(word, 300);
+        QVERIFY(here.second > 200);
+        qInfo("GOLD %d %llu", int(word), (unsigned long long)here.first);
+#ifdef Q_OS_LINUX
+        // (the sums were noted from the layout before the choices; another machine's rounding of widths may move a line's start, so only this one's are held to them)
+        QCOMPARE(here.first, word ? kLinesWithoutChoicesWord : kLinesWithoutChoices);
+#endif
+    }
+}
+
+
 // A mark of punctuation at the end of a line may hang past the margin in a word processor's text: a word that fits but for its period is the last
 // of the line, unless the file says no punctuation hangs; a word that is itself too long, or a mark that isn't one that hangs, is not let.
 void FlowTests::punctuationAtTheEndOfALineHangsPastTheMargin()

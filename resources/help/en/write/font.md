@@ -84,9 +84,9 @@ The **Home > Font** group has two buttons for marking letters without changing t
 
 Both go in the file, so the letters look the same when someone else opens it.
 
-## OpenType choices
+## Font features
 
-Some fonts hold extra letter shapes. Open **Home > Font** (the small arrow in the corner), then click the **Advanced** tab. The **OpenType features** box has five choices. Each one starts as the font's own choice.
+Some fonts hold extra letter shapes. Open **Home > Font** (the small arrow in the corner), then click the **Advanced** tab. The **Font features** box has five choices. Each one starts as the font's own choice.
 
 - **Ligatures** join letters that would touch, so "ffi" becomes one shape. Pick none, standard only, standard and contextual, historical and discretionary, or all.
 - **Number spacing** is **Proportional** (a 1 is narrower than a 0) or **Tabular** (every digit is as wide as the others, so columns line up).

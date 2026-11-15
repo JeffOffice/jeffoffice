@@ -1777,6 +1777,108 @@ void WriteTests::pdfOutputSetsTheLettersAsTheScreenDoes()
 }
 
 
+// A ligature the PDF draws as one glyph is copied out of it as its letters: "fi" is "f" and "i", not the one character of the ligature.
+void WriteTests::aLigatureInAPdfIsCopiedAsItsLetters()
+{
+    QVERIFY2(QFontDatabase::hasFamily(QStringLiteral("Carlito")), "the face the program carries is not registered");
+    QTemporaryDir dir;
+    WriteWindow w;
+    w.setNotifier([](const QString &, const QString &) {});
+    auto doc = open(makeDocx("<w:p><w:r><w:rPr><w:rFonts w:ascii=\"Carlito\" w:hAnsi=\"Carlito\"/><w:sz w:val=\"48\"/></w:rPr><w:t>office fi ffi</w:t></w:r></w:p>"));
+    QVERIFY(doc);
+    QTextCursor c(doc->story());
+    c.select(QTextCursor::Document);
+    changeCharFormat(*doc, c, [](QTextCharFormat &f) { f.setProperty(tp::Ligatures, tp::ot::ligatureValueOfKinds(tp::ot::kLigStandard)); });
+    w.setDocument(std::move(doc), QString());
+    w.setSavePathChooser([&](const QString &, const QString &) { return dir.filePath(QStringLiteral("out.pdf")); });
+    QVERIFY(w.exportPdf());
+    QFile f(dir.filePath(QStringLiteral("out.pdf")));
+    QVERIFY(f.open(QIODevice::ReadOnly));
+    const jp::PdfDocument pdf(f.readAll());
+    const QString text = pdf.text(0).simplified();
+    QVERIFY2(text.contains(QStringLiteral("office fi ffi")), qPrintable(text));
+    for (const QChar ligature : {QChar(0xFB00), QChar(0xFB01), QChar(0xFB02), QChar(0xFB03), QChar(0xFB04)}) QVERIFY(!text.contains(ligature));
+}
+
+
+// A paragraph mark's own choice (old-style figures on an empty last paragraph, with no text run that has a w14 element) is written with the namespace declared and the
+// element passed by: the file parses, and is read back as it was.
+void WriteTests::aParagraphMarksChoiceDeclaresTheNamespaceItNeeds()
+{
+    auto doc = open(makeDocx("<w:p><w:r><w:t>text</w:t></w:r></w:p><w:p/>"));
+    QVERIFY(doc);
+    QTextCursor c(doc->story());
+    c.movePosition(QTextCursor::End);
+    // (the mark of the last paragraph: the paragraph's own format, as the Font box gives it with the insertion point in an empty paragraph)
+    c.beginEditBlock();
+    QTextCharFormat mark = c.blockCharFormat();
+    mark.setProperty(tp::NumberStyle, 2);
+    c.setBlockCharFormat(mark);
+    c.endEditBlock();
+    QTextCursor d(doc->story());
+    insertText(*doc, d, QString());
+    const QByteArray out = documentXml(doc->toDocx());
+    QVERIFY2(out.contains("<w14:numForm w14:val=\"oldStyle\"/>"), out.constData());
+    const qsizetype rootAt = out.indexOf("<w:document");
+    const QByteArray root = out.mid(rootAt, out.indexOf('>', rootAt) - rootAt);
+    QVERIFY2(root.contains("xmlns:w14=") && root.contains("mc:Ignorable=\"w14\"") && root.contains("xmlns:mc="), root.constData());
+    wml::XmlTree tree;
+    QVERIFY(tree.parse(out));
+    auto again = open(doc->toDocx());
+    QVERIFY(again);
+    QCOMPARE(again->story()->lastBlock().charFormat().intProperty(tp::NumberStyle), 2);
+}
+
+
+// The elements of a run are written in the order of the schema (ligatures, number form, number spacing, stylistic sets, contextual alternates), the ones a file had and
+// the ones added together; what else the file has of w14 stays before them.
+void WriteTests::openTypeElementsAreWrittenInTheSchemasOrder()
+{
+    const QByteArray ns = " xmlns:w14=\"http://schemas.microsoft.com/office/word/2010/wordml\"";
+    auto doc = open(makeDocx("<w:p><w:r><w:rPr><w14:textFill" + ns + "><w14:solidFill><w14:srgbClr w14:val=\"FF0000\"/></w14:solidFill></w14:textFill><w14:numSpacing" + ns + " w14:val=\"tabular\"/></w:rPr><w:t>office</w:t></w:r></w:p>"));
+    QVERIFY(doc);
+    QTextCursor c(doc->story());
+    c.select(QTextCursor::Document);
+    changeCharFormat(*doc, c, [](QTextCharFormat &f) {
+        f.setProperty(tp::ContextualAlts, 2);
+        f.setProperty(tp::StylisticSet, 4);
+        f.setProperty(tp::NumberStyle, 2);
+        f.setProperty(tp::Ligatures, tp::ot::ligatureValueOfKinds(tp::ot::kLigStandard));
+    });
+    const QByteArray out = documentXml(doc->toDocx());
+    qsizetype at = -1;
+    for (const char *name : {"<w14:textFill", "<w14:ligatures", "<w14:numForm", "<w14:numSpacing", "<w14:stylisticSets", "<w14:cntxtAlts"}) {
+        const qsizetype here = out.indexOf(name);
+        QVERIFY2(here > at, name);
+        at = here;
+    }
+}
+
+
+// What it costs to write the runs of a long document that holds font features is told (a run of every other of a hundred thousand has one): not a limit, a number to see.
+void WriteTests::savingARunsFontFeaturesOfAHundredThousandRunsIsTimed()
+{
+    const QByteArray ns = " xmlns:w14=\"http://schemas.microsoft.com/office/word/2010/wordml\"";
+    QByteArray body = "<w:p>";
+    for (int i = 0; i < 100000; ++i)
+        body += i % 2 ? QByteArray("<w:r><w:rPr><w:b/></w:rPr><w:t xml:space=\"preserve\">bold </w:t></w:r>")
+                      : QByteArray("<w:r><w:rPr><w14:numForm" + ns + " w14:val=\"oldStyle\"/></w:rPr><w:t xml:space=\"preserve\">old 12 </w:t></w:r>");
+    body += "</w:p>";
+    QElapsedTimer opened;
+    opened.start();
+    auto doc = open(makeDocx(body));
+    const qint64 openMs = opened.elapsed();
+    QVERIFY(doc);
+    QTextCursor c(doc->story());
+    insertText(*doc, c, QStringLiteral("x"));
+    QElapsedTimer saved;
+    saved.start();
+    const QByteArray out = documentXml(doc->toDocx());
+    qInfo("font features, 100000 runs: open %lld ms, save %lld ms", openMs, qint64(saved.elapsed()));
+    QVERIFY(out.contains("oldStyle"));
+}
+
+
 // A paragraph that turns overflowPunct off, itself or by its style, does not let punctuation hang; the file keeps the element as it was.
 void WriteTests::overflowPunctOffIsReadFromTheParagraphAndItsStyle()
 {

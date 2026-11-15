@@ -1596,10 +1596,12 @@ static QMap<QFont::Tag, quint32> blockFeatures(const QTextBlock &b, const Layout
 }
 
 // The features of a run that asks for others than its paragraph's font has: every one the font has that the run does not, set the other way, so that the run is as it asks.
-static void runFeatures(QTextCharFormat &rf, const QTextCharFormat &cf, const LayoutEnv &env, const ComplexOf &complex, const QMap<QFont::Tag, quint32> &block)
+static void runFeatures(QTextCharFormat &rf, const QTextCharFormat &cf, const LayoutEnv &env, const ComplexOf &complex, const QMap<QFont::Tag, quint32> &block, bool trueSmallCaps)
 {
     QMap<QFont::Tag, quint32> own = tp::ot::features(cf, suppressesLigatures(cf, env, complex));
     if (own == block) return;
+    // (The run's features are all it has, the paragraph's font's own included: its true small capitals.)
+    if (trueSmallCaps) own.insert(QFont::Tag("smcp"), 1);
     for (const auto &[tag, on] : block.asKeyValueRange())
         if (!own.contains(tag)) own.insert(tag, on ? 0 : 1);
     rf.setFontFeatures(own);
@@ -3445,7 +3447,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             if (const auto known = resolved.constFind(frag.charFormatIndex()); known != resolved.constEnd()) rf = known.value();
             else {
                 rf = resolveCharFormat(cf, env, behind);
-                runFeatures(rf, cf, env, blockComplex, blockFeats);
+                runFeatures(rf, cf, env, blockComplex, blockFeats, trueSmallCaps);
                 resolved.insert(frag.charFormatIndex(), rf);
             }
             // An object set in the text: an em dash (a line may break on

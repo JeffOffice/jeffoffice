@@ -20,7 +20,7 @@ constexpr int kLigatureKinds[] = {-1, 0, tp::ot::kLigStandard, tp::ot::kLigStand
 constexpr int kLigatureItems = int(std::size(kLigatureKinds));
 }
 
-OpenTypeBox::OpenTypeBox(QWidget *parent) : QGroupBox(QCoreApplication::translate("jp::OpenTypeBox", "OpenType features"), parent)
+OpenTypeBox::OpenTypeBox(QWidget *parent) : QGroupBox(QCoreApplication::translate("jp::OpenTypeBox", "Font features"), parent)
 {
     setObjectName(QStringLiteral("openTypeBox"));
     auto *form = new QFormLayout(this);

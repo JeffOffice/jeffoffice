@@ -129,6 +129,8 @@ QByteArray withKnownPrefixes(QByteArray rootTag, const QVector<Block> &body, con
             // (A run's properties kept as XML: the OpenType choices of its font are the w14 ones.)
             for (const RawChild &c : a.props.extra) collectPrefixes(c.xml, &used);
         }
+        if (b.para.props.markRun)
+            for (const RawChild &c : b.para.props.markRun->extra) collectPrefixes(c.xml, &used);
         // (A section's references to its headers and footers are by relationship Id: r:id.)
         if (b.para.props.section)
             for (const RawChild &c : b.para.props.section->extra) collectPrefixes(c.xml, &used);

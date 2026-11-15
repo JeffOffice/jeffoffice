@@ -365,8 +365,26 @@ bool onOff(const QString &val, bool none)
     return val == QLatin1String("1") || val == QLatin1String("true") || val == QLatin1String("on");
 }
 
+// Which choice an element is of (an index into the five of reconcileOpenType, in the order of the schema), or -1: only the element's name is looked at, so that
+// the elements of a run that are not these cost no more than that.
+int openTypeKind(const QByteArray &xml)
+{
+    if (xml.size() < 4 || xml[0] != '<') return -1;
+    qsizetype end = 1, local = 1;
+    while (end < xml.size() && xml[end] != ' ' && xml[end] != '>' && xml[end] != '/' && xml[end] != '\t' && xml[end] != '\n' && xml[end] != '\r') {
+        if (xml[end] == ':') local = end + 1;
+        ++end;
+    }
+    const QByteArrayView name = QByteArrayView(xml).mid(local, end - local);
+    static const char *const names[] = {"ligatures", "numForm", "numSpacing", "stylisticSets", "cntxtAlts"};
+    for (int i = 0; i < 5; ++i)
+        if (name == QByteArrayView(names[i])) return i;
+    return -1;
+}
+
 OpenTypeElement openTypeElement(const RawChild &ch)
 {
+    if (openTypeKind(ch.xml) < 0) return OpenTypeElement();
     static const QRegularExpression head(QStringLiteral("^<(?:[^\\s:>/]+:)?(ligatures|numForm|numSpacing|stylisticSets|cntxtAlts)(?=[\\s/>])"));
     static const QRegularExpression valueOf(QStringLiteral("\\bval=\"(\\w{0,64})\""));
     static const QRegularExpression setOf(QStringLiteral("<(?:[^\\s:>/]+:)?styleSet(?=[\\s/>])([^>]*)>"));
@@ -438,28 +456,32 @@ bool openTypeValueIsSayable(int property, int value)
 void reconcileOpenType(QVector<RawChild> *extra, const QTextCharFormat &f)
 {
     static const int properties[] = {tp::Ligatures, tp::NumberStyle, tp::NumberSpacing, tp::StylisticSet, tp::ContextualAlts};
-    int order = 0;
-    for (const int property : properties) {
-        ++order;
-        const int now = f.hasProperty(property) ? f.intProperty(property) : 0;
-        bool kept = false;
-        for (int i = 0; i < extra->size();) {
-            const OpenTypeElement e = openTypeElement(extra->at(i));
-            if (e.property != property || e.value < 0) {   // (not this choice's, or one that says nothing usable: left as it is)
-                ++i;
-                continue;
-            }
-            if (e.value == now) {
-                kept = true;
-                ++i;
-            } else {
-                extra->removeAt(i);
-            }
+    int now[5];
+    bool kept[5] = {};
+    for (int k = 0; k < 5; ++k) now[k] = f.hasProperty(properties[k]) ? f.intProperty(properties[k]) : 0;
+    // (Each element is looked at once. The ones that stay are given the places of the schema among the w14 elements, after the others the file has.)
+    for (int i = 0; i < extra->size();) {
+        const int k = openTypeKind(extra->at(i).xml);
+        if (k < 0) {
+            ++i;
+            continue;
         }
-        if (kept || !openTypeValueIsSayable(property, now)) continue;
+        const OpenTypeElement e = openTypeElement(extra->at(i));
+        if (e.value < 0) {   // (one that says nothing usable: left as it is)
+            ++i;
+        } else if (e.value == now[k]) {
+            kept[k] = true;
+            (*extra)[i].rank = office::wml::runChildRank("ligatures") + 1 + k;
+            ++i;
+        } else {
+            extra->removeAt(i);
+        }
+    }
+    for (int k = 0; k < 5; ++k) {
+        if (kept[k] || !openTypeValueIsSayable(properties[k], now[k])) continue;
         RawChild c;
-        c.rank = office::wml::runChildRank("ligatures") + order;
-        c.xml = openTypeXml(property, now);
+        c.rank = office::wml::runChildRank("ligatures") + 1 + k;
+        c.xml = openTypeXml(properties[k], now[k]);
         int at = 0;
         while (at < extra->size() && extra->at(at).rank <= c.rank) ++at;
         extra->insert(at, c);

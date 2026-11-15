@@ -19,6 +19,7 @@
 #include "odt/odt.h"
 #include "office/package.h"
 #include "text/textengine.h"
+#include "text/textprops.h"
 
 #include <QBuffer>
 #include <QFile>
@@ -800,6 +801,54 @@ private Q_SLOTS:
     }
 
     // Not a test of its own: the work of a process that the next function starts.
+    // The font features of a run are kept in an .odt as the list of features its style holds (fo:font-feature-settings) and come back as they were; as in CSS, the common
+    // ligatures (liga) are standard and contextual both, so "liga" 0 turns both off.
+    void theFontFeaturesOfARunAreKeptInAnOdt()
+    {
+        struct Case {
+            const char *list;
+            int ligatures, form, spacing, set, alternates;
+        };
+        const Case cases[] = {
+            {"&quot;liga&quot; 0", 1, 0, 0, 0, 0},                                                          // (none)
+            {"&quot;liga&quot; 1, &quot;clig&quot; 0", 17, 0, 0, 0, 0},                                    // (standard only)
+            {"&quot;liga&quot; 1, &quot;dlig&quot; 1", 27, 0, 0, 0, 0},                                    // (standard, contextual, and discretionary)
+            {"&quot;hlig&quot; 1, &quot;dlig&quot; 1, &quot;liga&quot; 0", 28, 0, 0, 0, 0},              // (historical and discretionary)
+            {"&quot;lnum&quot; 1, &quot;tnum&quot;", 0, 1, 2, 0, 0},
+            {"&quot;onum&quot; 1, &quot;pnum&quot; 1, &quot;ss07&quot; 1, &quot;calt&quot; 0", 0, 2, 1, 7, 2},
+            {"&quot;calt&quot; 1", 0, 0, 0, 0, 1},
+        };
+        auto choices = [](WriteDoc &doc, QList<int> *out) {
+            for (QTextBlock b = doc.story()->begin(); b.isValid(); b = b.next())
+                for (auto it = b.begin(); !it.atEnd(); ++it) {
+                    if (!it.fragment().text().contains(QLatin1String("word"))) continue;
+                    const QTextCharFormat f = it.fragment().charFormat();
+                    *out = {f.intProperty(tp::Ligatures), f.intProperty(tp::NumberStyle), f.intProperty(tp::NumberSpacing), f.intProperty(tp::StylisticSet), f.intProperty(tp::ContextualAlts)};
+                    return true;
+                }
+            return false;
+        };
+        for (const Case &c : cases) {
+            const QByteArray styles = QByteArray("<style:style style:name=\"T1\" style:family=\"text\"><style:text-properties fo:font-feature-settings=\"") + c.list + "\"/></style:style>";
+            QString err;
+            auto doc = WriteDoc::fromFile(makeOdt("<text:p>a <text:span text:style-name=\"T1\">word</text:span> b</text:p>", styles), &err);
+            QVERIFY2(doc, c.list);
+            const QList<int> want{c.ligatures, c.form, c.spacing, c.set, c.alternates};
+            QList<int> got;
+            QVERIFY(choices(*doc, &got));
+            QCOMPARE(got, want);
+            QStringList notes;
+            const QByteArray odt = doc->toOdt(&err, &notes);
+            QVERIFY(!odt.isEmpty());
+            QVERIFY2(odtPart(odt, QStringLiteral("content.xml")).contains("font-feature-settings"), c.list);
+            auto back = WriteDoc::fromFile(odt, &err);
+            QVERIFY(back);
+            QList<int> again;
+            QVERIFY(choices(*back, &again));
+            QCOMPARE(again, want);
+        }
+    }
+
     void savesAnOdtForTheChecks()
     {
         QString out;

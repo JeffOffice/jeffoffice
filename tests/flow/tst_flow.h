@@ -1497,6 +1497,10 @@ private Q_SLOTS:
     void numberSpacingFollowsTheRunThatAsksForIt();
     void theFeaturesOfAChoiceAreBoundedAndNamed();
     void openTypeChoicesSurviveTheStoryFile();
+    void aFontWithStylisticSetsAndOldStyleFiguresShapesThemPerRun();
+    void aRunThatAddsAFeatureKeepsTheParagraphsTrueSmallCaps();
+    void runsThatAskForNoFeatureHaveNoneAfterOneThatDoes();
+    void aTextWithNoFeatureChoicesIsLaidOutAsItWas();
     void punctuationAtTheEndOfALineHangsPastTheMargin();
     void aParagraphThatTurnsHangingOffHasNone();
     void textAfterABreakThatBeginsAParagraphHasItsFirstLineIndent();

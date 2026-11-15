@@ -81,6 +81,6 @@ Each command is the same one that is on the ribbon, so it works the same way.
 - [Speaker notes](notes)
 - [Outline view and the Slide Sorter](views)
 
-## OpenType choices
+## Font features
 
 In the **Font** box, the **Advanced** tab has ligatures, number spacing, number forms, stylistic sets, and contextual alternates. Slide text has no ligatures unless you ask for them here. A saved presentation file has no place for these choices, so they are kept only while you work.

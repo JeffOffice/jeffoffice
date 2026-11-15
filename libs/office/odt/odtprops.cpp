@@ -148,7 +148,7 @@ QByteArray openTypeXml(const QString &settings)
             ligatures = true;
             kinds = on ? kinds | k : kinds & ~k;
         };
-        if (tag == QLatin1String("liga")) kind(tp::ot::kLigStandard);
+        if (tag == QLatin1String("liga")) kind(tp::ot::kLigStandard | tp::ot::kLigContextual);   // (as CSS has it: the common ligatures are both)
         else if (tag == QLatin1String("clig")) kind(tp::ot::kLigContextual);
         else if (tag == QLatin1String("hlig")) kind(tp::ot::kLigHistorical);
         else if (tag == QLatin1String("dlig")) kind(tp::ot::kLigDiscretionary);

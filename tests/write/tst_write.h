@@ -1165,6 +1165,10 @@ private Q_SLOTS:
     void aChoiceMadeInTheFontBoxIsWrittenAndReadBack();
     void hostileOpenTypeChoicesAreBounded();
     void pdfOutputSetsTheLettersAsTheScreenDoes();
+    void aLigatureInAPdfIsCopiedAsItsLetters();
+    void aParagraphMarksChoiceDeclaresTheNamespaceItNeeds();
+    void openTypeElementsAreWrittenInTheSchemasOrder();
+    void savingARunsFontFeaturesOfAHundredThousandRunsIsTimed();
     void overflowPunctOffIsReadFromTheParagraphAndItsStyle();
     void clearingFormattingKeepsDeletedTextDeleted();
     void aDeletedEndnoteReferenceTakesNoNumber();
