@@ -65,7 +65,8 @@ enum class CloseHow { Press, Escape, CloseX, Enter };
 inline QString answerCloseBox(const std::function<void()> &closeIt, const QString &name, QMessageBox::StandardButton press, CloseHow how = CloseHow::Press)
 {
     QString problems;
-    bool seen = false;
+    bool seen = false, waitForSignal = false, wantEscape = false;
+    QMessageBox::StandardButton got = QMessageBox::NoButton;
     QTimer poll, watchdog;
     watchdog.setSingleShot(true);
     QObject::connect(&poll, &QTimer::timeout, [&] {
@@ -85,11 +86,14 @@ inline QString answerCloseBox(const std::function<void()> &closeIt, const QStrin
         if (!save->icon().isNull() || !cancel->icon().isNull() || !discard->icon().isNull()) problems += QStringLiteral("icons on buttons; ");
         // how the person answers: pressing a button, Escape (Cancel), the X of the box (Cancel), or Enter (the accent-filled Save)
         QMessageBox::StandardButton expected = press;
+        // (Qt on macOS answers Escape by animateClick(): the click comes ~100 ms later, so that answer is read from buttonClicked once the box has closed)
+        QObject::connect(box, &QMessageBox::buttonClicked, box, [&got, box](QAbstractButton *b) { got = box->standardButton(b); });
         if (how == CloseHow::Press) box->button(press)->click();
-        else if (how == CloseHow::Escape) { expected = QMessageBox::Cancel; QTest::keyClick(box, Qt::Key_Escape); }
+        else if (how == CloseHow::Escape) { expected = QMessageBox::Cancel; waitForSignal = true; QTest::keyClick(box, Qt::Key_Escape); }
         else if (how == CloseHow::CloseX) { expected = QMessageBox::Cancel; box->close(); }
         else { expected = QMessageBox::Save; QTest::keyClick(box, Qt::Key_Return); }
-        if (box->clickedButton() != box->button(expected)) problems += QStringLiteral("the answer was not the expected button; ");
+        if (waitForSignal) wantEscape = true;
+        else if (box->clickedButton() != box->button(expected)) problems += QStringLiteral("the answer was not the expected button; ");
     });
     QObject::connect(&watchdog, &QTimer::timeout, [&] {
         problems += QStringLiteral("no box; ");
@@ -99,6 +103,7 @@ inline QString answerCloseBox(const std::function<void()> &closeIt, const QStrin
     watchdog.start(10000);
     closeIt();
     poll.stop();
+    if (wantEscape && got != QMessageBox::Cancel) problems += QStringLiteral("the answer was not the expected button; ");
     if (!seen && !problems.contains(QLatin1String("no box"))) problems += QStringLiteral("no box; ");
     return problems;
 }
