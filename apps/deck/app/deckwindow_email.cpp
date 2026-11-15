@@ -46,6 +46,7 @@ bool DeckWindow::exportEmail(EmailWhat what, const PdfProtection &protect)
         QApplication::setOverrideCursor(Qt::WaitCursor);
         if (dir.isValid() && what == EmailWhat::Presentation) {
             const QString path = dir.filePath(QStringLiteral("presentation.pptx"));
+            noteMacrosLeftOut(path);
             QStringList skipped;
             // (a presentation with a password stays locked with it; the password is never in the message)
             if (deck::saveAnyPresentationFile(*m_ed->doc(), path, &err, &skipped, Settings::get().value(QStringLiteral("save/embedFonts"), true).toBool(), m_fileProtected ? m_filePassword : QString(),

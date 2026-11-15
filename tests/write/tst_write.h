@@ -1428,6 +1428,7 @@ private Q_SLOTS:
     void pastingFromAnotherDocumentCarriesPicturesAndLinksAndNothingDangles();
     void aStrayStartOfATagPastedInsideAnotherLeavesTheOthersWhole();
     void savingADocumentWithMacrosLeavesThemOutAndSaysSo();
+    void theMacroDocumentTypesAreTheOldOnes();
     void aFileThatCouldNotBeReadWholeIsNotSavedOverItsOriginal();
     void aFileLeftPartsOutIsNotSavedOverItsOriginalByAnotherName();
     void noTableIsMadeInTheWordsOfAnEndnote();

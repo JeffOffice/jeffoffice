@@ -62,37 +62,37 @@ MacroProject readMacroProject(const Package &package, const QString &mainPart)
 {
     MacroProject out;
     qint64 total = 0;
-    auto tooMuch = [&](const QByteArray &data) {
-        total += data.size();
-        return int(out.parts.size()) >= kMaxMacroParts || data.size() > kMaxMacroPartBytes || total > kMaxMacroBytes;
-    };
-    auto typeOf = [&](const QString &name, const QString &canonical) {
-        const QString t = package.contentType(name);
-        return !t.isEmpty() && t.size() <= kMaxTypeLength && isMacroContentType(t) ? t : canonical;
-    };
     QSet<QString> seen;
-    for (const Relationship &r : package.relationshipsOfType(mainPart, QStringLiteral("/vbaProject"))) {
-        if (r.external || !package.hasPart(r.target) || seen.contains(r.target.toLower())) continue;
+    enum class Got { Kept, Skipped, OverBound };
+    // A part is taken only if it is what the link says: a part of the type the role has, that starts as a compound file does (the form a project and its signature are in). Its
+    // size is read from the package's directory and held to the bounds before it is inflated, so a part that claims more than a bound is never inflated.
+    auto take = [&](const Relationship &r, const QString &type, bool signature, int from) {
+        if (r.external || !nameIsUsable(r.target) || !package.hasPart(r.target) || seen.contains(r.target.toLower())) return Got::Skipped;
+        if (package.contentType(r.target).compare(type, Qt::CaseInsensitive) != 0) return Got::Skipped;
+        const qint64 size = package.partSize(r.target);
+        if (size < 0) return Got::Skipped;
+        if (int(out.parts.size()) >= kMaxMacroParts || size > kMaxMacroPartBytes || total + size > kMaxMacroBytes) return Got::OverBound;
+        MacroPart part;
+        part.data = package.part(r.target);
+        if (part.data.size() != size || !part.data.startsWith(QByteArray::fromHex("D0CF11E0"))) return Got::Skipped;
         seen.insert(r.target.toLower());
-        MacroPart project;
-        project.name = r.target;
-        project.data = package.part(r.target);
-        if (!nameIsUsable(project.name) || tooMuch(project.data)) return MacroProject{{}, true};
-        project.contentType = typeOf(r.target, kProjectType);
+        total += size;
+        part.name = r.target;
+        part.contentType = type;
+        part.from = from;
+        part.signature = signature;
+        out.parts.push_back(part);
+        return Got::Kept;
+    };
+    for (const Relationship &r : package.relationshipsOfType(mainPart, QStringLiteral("/vbaProject"))) {
         const int at = int(out.parts.size());
-        out.parts.push_back(project);
+        const Got got = take(r, kProjectType, false, -1);
+        if (got == Got::OverBound) return MacroProject{{}, true};
+        if (got != Got::Kept) continue;
         for (const Relationship &s : package.relationshipsOfType(r.target, QStringLiteral("/vbaProjectSignature"))) {
-            if (s.external || !package.hasPart(s.target) || seen.contains(s.target.toLower())) continue;
-            seen.insert(s.target.toLower());
-            MacroPart sig;
-            sig.name = s.target;
-            sig.data = package.part(s.target);
-            if (!nameIsUsable(sig.name) || tooMuch(sig.data)) return MacroProject{{}, true};
-            sig.contentType = typeOf(s.target, kSignatureType);
-            sig.from = at;
-            sig.signature = true;
-            out.parts.push_back(sig);
-            break;
+            const Got sig = take(s, kSignatureType, true, at);
+            if (sig == Got::OverBound) return MacroProject{{}, true};
+            if (sig == Got::Kept) break;
         }
     }
     return out;
@@ -110,7 +110,7 @@ void writeMacroProject(PackageWriter *writer, const QString &mainPart, const Mac
             continue;
         }
         QString name = p.name;
-        while (!nameIsUsable(name) || !writer->partData(name).isEmpty() || name.compare(mainPart, Qt::CaseInsensitive) == 0) {
+        while (!nameIsUsable(name) || writer->hasPart(name) || name.compare(mainPart, Qt::CaseInsensitive) == 0) {
             ++counter;
             name = folder + (p.signature ? QStringLiteral("vbaProjectSignature") : QStringLiteral("vbaProject")) + (counter > 1 ? QString::number(counter) : QString()) + QStringLiteral(".bin");
         }

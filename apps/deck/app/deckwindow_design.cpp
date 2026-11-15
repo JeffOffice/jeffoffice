@@ -141,7 +141,7 @@ void DeckWindow::browseForTheme(bool allSlides)
 {
     const QString path = QFileDialog::getOpenFileName(this, tr("Browse for Themes"),
                                                       Settings::get().value(QStringLiteral("dirs/open"), QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation)).toString(),
-                                                      tr("Presentations and Templates (*.pptx *.potx *.ppsx *.ppt *.pps *.pot)") + QStringLiteral(";;") + tr("All Files (*)"));
+                                                      tr("Presentations and Templates (*.pptx *.potx *.ppsx *.pptm *.potm *.ppsm *.ppt *.pps *.pot)") + QStringLiteral(";;") + tr("All Files (*)"));
     if (path.isEmpty()) return;
     Settings::get().setValue(QStringLiteral("dirs/open"), QFileInfo(path).absolutePath());
     applyThemeFile(path, allSlides);

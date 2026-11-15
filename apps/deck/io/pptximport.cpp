@@ -1960,7 +1960,8 @@ std::unique_ptr<Document> importPackage(const office::Package &pkg, QString *err
     Importer importer(pkg, *doc);
     if (!importer.run(pkg.mainPart(), error)) return nullptr;
     // A macro project is kept as it was, to be written back in a macro-enabled kind; nothing in it is read or run.
-    const office::MacroProject macros = office::readMacroProject(pkg, pkg.mainPart());
+    // (only a file of a macro-enabled kind has one: a plain file's link to a project is not taken, so that it can't be carried into a macro-enabled kind by Save As)
+    const office::MacroProject macros = office::isMacroMainType(pkg.contentType(pkg.mainPart())) ? office::readMacroProject(pkg, pkg.mainPart()) : office::MacroProject();
     if (!macros.isEmpty()) doc->appData[QStringLiteral("macros")] = office::macroProjectToJson(macros);
     else if (macros.leftOut && error) *error += (error->isEmpty() ? QString() : QStringLiteral("\n")) + QCoreApplication::translate("PptxImport", "The macros in this file are too large to keep, and were left out.");
     // The presentation's own fonts are available for as long as it is open (see core/embeddedfonts.h).

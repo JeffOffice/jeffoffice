@@ -646,6 +646,8 @@ void PackageWriter::addPart(const QString &name, const QByteArray &data, const Q
     m_parts.append(Part{name, data, contentType});
 }
 
+bool PackageWriter::hasPart(const QString &name) const { return m_partAt.contains(name.toLower()); }
+
 void PackageWriter::addDefault(const QString &extension, const QString &contentType)
 {
     m_defaults.insert(extension.toLower(), contentType);

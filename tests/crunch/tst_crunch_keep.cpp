@@ -12,6 +12,7 @@
 #include "core/fonts.h"
 #include "editwindow.h"
 #include "io/cfb.h"
+#include "office/macroparts.h"
 #include "office/package.h"
 #include "sheet/sheetreader.h"
 #include "io/zip.h"
@@ -1316,6 +1317,17 @@ private Q_SLOTS:
         const Parts now = readParts(e.folder.dir.filePath(QStringLiteral("copy.xltm")));
         QVERIFY(QString::fromUtf8(now.value(QStringLiteral("[Content_Types].xml"))).contains(QLatin1String("template.macroEnabled.main+xml")));
         QCOMPARE(rawOf(e.folder.dir.filePath(QStringLiteral("copy.xltm"))).value(QStringLiteral("xl/vbaProject.bin")), readRaw(book).value(QStringLiteral("xl/vbaProject.bin")));
+    }
+
+    // The main-part types of the four kinds of workbook are the ones every file of them has had.
+    void theWorkbookMainTypesAreTheOldOnes()
+    {
+        using office::MacroKind;
+        using office::MacroProgram;
+        QCOMPARE(office::macroMainType(MacroProgram::Workbook, MacroKind::Plain, false), QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"));
+        QCOMPARE(office::macroMainType(MacroProgram::Workbook, MacroKind::Plain, true), QStringLiteral("application/vnd.ms-excel.sheet.macroEnabled.main+xml"));
+        QCOMPARE(office::macroMainType(MacroProgram::Workbook, MacroKind::Template, false), QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.template.main+xml"));
+        QCOMPARE(office::macroMainType(MacroProgram::Workbook, MacroKind::Template, true), QStringLiteral("application/vnd.ms-excel.template.macroEnabled.main+xml"));
     }
 
     // A template without macros is saved as a template, and one with an add-in's type as an add-in.

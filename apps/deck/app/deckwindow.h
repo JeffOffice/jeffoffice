@@ -577,6 +577,7 @@ private:
     QString m_filePassword;
     write::VersionKey m_versions;   // what the versions kept for the file are protected with (they follow a new password when the file is saved)
     bool hasMacros() const;
+    void noteMacrosLeftOut(const QString &path);
     bool m_macrosNoted = false;           // the person was told that the macros of this presentation are not saved (in a file of a kind that can't hold them)
     bool m_personalInfoRemoved = false;   // Inspect took the names out of the properties: they stay out until the presentation is closed
     bool m_protectionNoted = false;       // a note was made that no recovery copy is kept

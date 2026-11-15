@@ -1,4 +1,5 @@
 #include "tst_write.h"
+#include "office/macroparts.h"
 
 
 // What is pasted into a cell is in that cell, whatever cell it was copied from, and what is pasted outside a table is in none.
@@ -685,6 +686,17 @@ void WriteTests::aStrayStartOfATagPastedInsideAnotherLeavesTheOthersWhole()
     QCOMPARE(now.value(QStringLiteral("w:sdt")), before.value(QStringLiteral("w:sdt")));
 }
 
+
+// The main-part types of the four kinds of text document are the ones every file of them has had.
+void WriteTests::theMacroDocumentTypesAreTheOldOnes()
+{
+    using office::MacroKind;
+    using office::MacroProgram;
+    QCOMPARE(office::macroMainType(MacroProgram::Document, MacroKind::Plain, true), QStringLiteral("application/vnd.ms-word.document.macroEnabled.main+xml"));
+    QCOMPARE(office::macroMainType(MacroProgram::Document, MacroKind::Template, true), QStringLiteral("application/vnd.ms-word.template.macroEnabledTemplate.main+xml"));
+    QCOMPARE(office::macroMainType(MacroProgram::Document, MacroKind::Plain, false), QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"));
+    QCOMPARE(office::macroMainType(MacroProgram::Document, MacroKind::Template, false), QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.template.main+xml"));
+}
 
 // A file with macros is saved without them, all of them (the project, its signature, the data it keeps, and the links), and the person is told
 // once, in a sentence, at the save.

@@ -40,7 +40,7 @@ private Q_SLOTS:
     // byte, with the types and links other programs need; saved as a plain kind the project is left out whole.
     void aMacroPresentationKeepsItsProjectInItsOwnKind()
     {
-        const QByteArray project("\xD0\xCF\x11\xE0 our own bytes, not a project \x00\x01\x02\xFF", 40), signature("signature bytes \x00\x10\x20", 20);
+        const QByteArray project("\xD0\xCF\x11\xE0 our own bytes, not a project \x00\x01\x02\xFF", 40), signature("\xD0\xCF\x11\xE0 signature bytes \x00\x10\x20", 24);
         struct Case { const char *ending, *mainType; } cases[] = {
             {"pptm", "application/vnd.ms-powerpoint.presentation.macroEnabled.main+xml"},
             {"ppsm", "application/vnd.ms-powerpoint.slideshow.macroEnabled.main+xml"},
@@ -53,7 +53,9 @@ private Q_SLOTS:
             {
                 QFile f(source);
                 QVERIFY(f.open(QIODevice::WriteOnly));
-                f.write(macroPptx(QString::fromLatin1(c.mainType), project, signature));
+                const QByteArray made = macroPptx(QString::fromLatin1(c.mainType), project, signature);
+                QVERIFY(!made.isEmpty());
+                f.write(made);
             }
             QString err;
             auto doc = deck::importAnyPresentationFile(source, &err);
@@ -102,9 +104,12 @@ private Q_SLOTS:
     // A macro project over a bound (a part of 32 MiB, or more than 8 parts, or 64 MiB together) is not kept, the file is then the plain kind, and the person is told.
     void aMacroProjectOverTheBoundIsLeftOut()
     {
-        const QByteArray big(int(office::kMaxMacroPartBytes) + 1, 'x');
+        QByteArray big(int(office::kMaxMacroPartBytes) + 1, 'x');
+        big.replace(0, 4, QByteArray::fromHex("D0CF11E0"));
         QString err;
-        auto doc = deck::importPresentation(macroPptx(QStringLiteral("application/vnd.ms-powerpoint.presentation.macroEnabled.main+xml"), big, QByteArray()), &err);
+        const QByteArray made = macroPptx(QStringLiteral("application/vnd.ms-powerpoint.presentation.macroEnabled.main+xml"), big, QByteArray());
+        QVERIFY(!made.isEmpty());
+        auto doc = deck::importPresentation(made, &err);
         QVERIFY2(doc, qPrintable(err));
         QVERIFY(deck::presentationMacros(*doc).isEmpty());
         QVERIFY2(err.contains(QLatin1String("too large")), qPrintable(err));
@@ -117,13 +122,122 @@ private Q_SLOTS:
         QVERIFY(office::macroProjectFromJson(office::macroProjectToJson(many)).isEmpty());
     }
 
+    // The macro link of a file names a project only if the part is one: of the project type and a compound file by its first bytes; a link to a slide, a picture, a part of
+    // another type, a place outside the file, or an address is not taken.
+    void aMacroLinkToAnythingButAProjectIsNotTaken()
+    {
+        const QByteArray project("\xD0\xCF\x11\xE0 our own bytes", 20);
+        const QString macroType = QStringLiteral("application/vnd.ms-powerpoint.presentation.macroEnabled.main+xml");
+        struct Case { const char *target; bool external; } cases[] = {{"slides/slide1.xml", false}, {"../docProps/app.xml", false}, {"../../vbaProject.bin", false}, {"http://example.com/vbaProject.bin", true}};
+        for (const Case &c : cases) {
+            const QByteArray bytes = macroPptx(macroType, project, QByteArray(), c.target, c.external);
+            QVERIFY(!bytes.isEmpty());
+            QString err;
+            auto doc = deck::importPresentation(bytes, &err);
+            QVERIFY2(doc, qPrintable(err));
+            QVERIFY2(deck::presentationMacros(*doc).isEmpty(), c.target);
+        }
+        // a project that is not a compound file is not one
+        auto notOne = deck::importPresentation(macroPptx(macroType, QByteArray("<p:sld/> not a project"), QByteArray()));
+        QVERIFY(notOne);
+        QVERIFY(deck::presentationMacros(*notOne).isEmpty());
+        // the right link is taken
+        auto good = deck::importPresentation(macroPptx(macroType, project, QByteArray()));
+        QVERIFY(good && deck::presentationMacros(*good).parts.size() == 1);
+    }
+
+    // A plain file with a link to a macro project does not carry the project into a macro-enabled kind when it is saved as one.
+    void aPlainFileCarriesNoMacroProject()
+    {
+        const QByteArray project("\xD0\xCF\x11\xE0 our own bytes", 20);
+        const QByteArray bytes = macroPptx(QStringLiteral("application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"), project, QByteArray());
+        QVERIFY(!bytes.isEmpty());
+        QString err;
+        auto doc = deck::importPresentation(bytes, &err);
+        QVERIFY2(doc, qPrintable(err));
+        QVERIFY(deck::presentationMacros(*doc).isEmpty());
+        Exported out;
+        QString why;
+        QVERIFY2(unpack(deck::exportPresentation(*doc, &err, nullptr, deck::PresentationKind::Presentation, false, true), &out, &why), qPrintable(why));
+        for (const QString &name : out.zip.keys()) QVERIFY2(!name.contains(QLatin1String("vba")), qPrintable(name));
+    }
+
+    // The bounds hold on the package as well as on a document's data: more than 8 parts, or more than 64 MiB together, is left out whole; the size a part claims is read
+    // from the package's directory, and a part that claims more than the bound is never inflated.
+    void theMacroBoundsHoldOnAPackage()
+    {
+        auto packageOf = [&](int projects, qsizetype each) {
+            office::PackageWriter w;
+            w.addPart(QStringLiteral("/ppt/presentation.xml"), QByteArray("<x/>"), QStringLiteral("application/vnd.ms-powerpoint.presentation.macroEnabled.main+xml"));
+            w.addRelationship(QStringLiteral("/"), QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"), QStringLiteral("/ppt/presentation.xml"));
+            QByteArray bytes(each, '\0');
+            bytes.replace(0, 4, QByteArray::fromHex("D0CF11E0"));
+            for (int i = 0; i < projects; ++i) {
+                const QString name = QStringLiteral("/ppt/vba%1.bin").arg(i);
+                w.addPart(name, bytes, QStringLiteral("application/vnd.ms-office.vbaProject"));
+                w.addRelationship(QStringLiteral("/ppt/presentation.xml"), QStringLiteral("http://schemas.microsoft.com/office/2006/relationships/vbaProject"), name);
+            }
+            return w.finish();
+        };
+        office::Package p8, p9, big;
+        QVERIFY(p8.read(packageOf(office::kMaxMacroParts, 100)));
+        QVERIFY(p9.read(packageOf(office::kMaxMacroParts + 1, 100)));
+        QVERIFY(big.read(packageOf(3, 24 << 20)));
+        const office::MacroProject eight = office::readMacroProject(p8, QStringLiteral("/ppt/presentation.xml"));
+        QCOMPARE(int(eight.parts.size()), office::kMaxMacroParts);
+        QVERIFY(!eight.leftOut);
+        QVERIFY(office::readMacroProject(p9, QStringLiteral("/ppt/presentation.xml")).leftOut);
+        const office::MacroProject together = office::readMacroProject(big, QStringLiteral("/ppt/presentation.xml"));
+        QVERIFY(together.leftOut && together.isEmpty());
+        // a part whose entry claims 1.9 GiB (and holds four bytes): refused by its size, before anything is inflated
+        QMap<QString, QByteArray> zipParts;
+        const QByteArray good = packageOf(1, 100);
+        QString why;
+        QVERIFY2(readZip(good, zipParts, &why), qPrintable(why));
+        ZipWriter zip;
+        for (auto it = zipParts.cbegin(); it != zipParts.cend(); ++it) {
+            if (it.key() == QLatin1String("ppt/vba0.bin")) zip.addRaw(it.key(), 8, 0, 4, quint64(1900) << 20, "abcd");
+            else zip.add(it.key(), it.value(), true);
+        }
+        office::Package lazy;
+        QVERIFY(lazy.readLazy(zip.finish()));
+        QVERIFY(lazy.partSize(QStringLiteral("/ppt/vba0.bin")) > office::kMaxMacroPartBytes);
+        QVERIFY(office::readMacroProject(lazy, QStringLiteral("/ppt/presentation.xml")).leftOut);
+    }
+
+    // A project survives the path that settles live text fits first (a shape that shrinks its text), and a name the writer already holds is not written twice.
+    void aMacroProjectSurvivesTheLiveFitPathAndTakenNames()
+    {
+        const QByteArray project("\xD0\xCF\x11\xE0 our own bytes", 20);
+        auto doc = deck::importPresentation(macroPptx(QStringLiteral("application/vnd.ms-powerpoint.presentation.macroEnabled.main+xml"), project, QByteArray()));
+        QVERIFY(doc);
+        auto s = std::make_shared<ShapeItem>();
+        s->shape = QStringLiteral("roundRect");
+        s->rect = QRectF(100, 100, 150, 60);
+        s->storyId = doc->createStory(QStringLiteral("alpha beta gamma delta epsilon zeta eta theta"));
+        s->shrinks = true;
+        doc->pages[0]->items.push_back(s);
+        QString err, why;
+        Exported out;
+        QVERIFY2(unpack(deck::exportPresentation(*doc, &err, nullptr, deck::PresentationKind::Presentation, false, true), &out, &why), qPrintable(why));
+        QCOMPARE(out.zip.value(QStringLiteral("ppt/vbaProject.bin")), project);
+        // a project whose name an empty part of the package already has goes under another, and nothing is written twice
+        office::PackageWriter w;
+        w.addPart(QStringLiteral("/ppt/vbaProject.bin"), QByteArray(), QStringLiteral("application/xml"));
+        office::MacroProject mp;
+        mp.parts.push_back(office::MacroPart{QStringLiteral("/ppt/vbaProject.bin"), QStringLiteral("application/vnd.ms-office.vbaProject"), project, -1, false});
+        office::writeMacroProject(&w, QStringLiteral("/ppt/presentation.xml"), mp, QStringLiteral("/ppt/"));
+        QCOMPARE(w.partData(QStringLiteral("/ppt/vbaProject.bin")), QByteArray());
+        QCOMPARE(w.partData(QStringLiteral("/ppt/vbaProject2.bin")), project);
+    }
+
     void initTestCase() { initDeckTestCase(); }
 
 private:
 
     // A presentation made here with a macro project of our own bytes in it, as the file of that kind has one: the main part of the type given, the project and its
     // signature as parts of the types that name them, and the links to them.
-    static QByteArray macroPptx(const QString &mainType, const QByteArray &project, const QByteArray &signature)
+    static QByteArray macroPptx(const QString &mainType, const QByteArray &project, const QByteArray &signature, const QByteArray &linkTarget = "vbaProject.bin", bool externalLink = false)
     {
         auto d = deck::newPresentation();
         QString err, why;
@@ -133,11 +247,12 @@ private:
         for (auto it = base.zip.cbegin(); it != base.zip.cend(); ++it) {
             QByteArray data = it.value();
             if (it.key() == QLatin1String("[Content_Types].xml")) {
+                if (!data.contains("application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml")) return QByteArray();   // (the caller checks: a test that changed nothing would test nothing)
                 data.replace("application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml", mainType.toUtf8());
                 data.replace("</Types>", QByteArray("<Override PartName=\"/ppt/vbaProject.bin\" ContentType=\"application/vnd.ms-office.vbaProject\"/>") +
                                              (signature.isEmpty() ? QByteArray() : QByteArray("<Override PartName=\"/ppt/vbaProjectSignature.bin\" ContentType=\"application/vnd.ms-office.vbaProjectSignature\"/>")) + "</Types>");
             } else if (it.key() == QLatin1String("ppt/_rels/presentation.xml.rels")) {
-                data.replace("</Relationships>", "<Relationship Id=\"rIdVba\" Type=\"http://schemas.microsoft.com/office/2006/relationships/vbaProject\" Target=\"vbaProject.bin\"/></Relationships>");
+                data.replace("</Relationships>", "<Relationship Id=\"rIdVba\" Type=\"http://schemas.microsoft.com/office/2006/relationships/vbaProject\" Target=\"" + linkTarget + (externalLink ? "\" TargetMode=\"External\"/></Relationships>" : "\"/></Relationships>"));
             }
             zip.add(it.key(), data, true);
         }

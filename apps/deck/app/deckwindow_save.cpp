@@ -158,12 +158,21 @@ bool DeckWindow::saveCopy()
 }
 
 // Whether the presentation came from a file with a macro project, which is kept, never run, and written back only in a macro-enabled kind.
-bool DeckWindow::hasMacros() const { return !deck::presentationMacros(*m_ed->doc()).isEmpty(); }
+bool DeckWindow::hasMacros() const { return m_ed->doc()->appData.contains(QStringLiteral("macros")); }
+
+// The person is told, once, that a file of a kind that can't hold macros is written without them.
+void DeckWindow::noteMacrosLeftOut(const QString &path)
+{
+    if (!hasMacros() || m_macrosNoted || deck::isMacroEnabledFileName(path)) return;
+    m_macrosNoted = true;
+    notice(tr("Save"), tr("The macros in this presentation aren't saved, because a .%1 file can't hold them.").arg(QFileInfo(path).suffix().toLower()));
+}
 
 bool DeckWindow::saveAsTemplate()
 {
     const QString path = askMyTemplatePath(this, m_ed->displayName(), QStringLiteral(".potx"));
     if (path.isEmpty()) return false;
+    noteMacrosLeftOut(path);
     m_notes->commit();
     if (m_outline) m_outline->commit();
     m_ed->endTextEdit();
@@ -249,10 +258,7 @@ bool DeckWindow::saveTo(const QString &path, bool asCopy)
     doc->props.modified = QDateTime::currentDateTime();
     if (doc->props.author.isEmpty() && !m_personalInfoRemoved) doc->props.author = Settings::get().userName();
     // The macros are kept only in a file of a macro-enabled kind: any other is saved without them, and the person is told once.
-    if (hasMacros() && !m_macrosNoted && !deck::isMacroEnabledFileName(path)) {
-        m_macrosNoted = true;
-        notice(tr("Save"), tr("The macros in this presentation aren't saved, because a .%1 file can't hold them.").arg(QFileInfo(path).suffix().toLower()));
-    }
+    noteMacrosLeftOut(path);
     QString err;
     QStringList skipped;
     if (!backupBeforeSave(this, path, m_fileProtected ? m_filePassword : QString())) return false;
