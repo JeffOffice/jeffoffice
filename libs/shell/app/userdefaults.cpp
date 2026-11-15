@@ -1,3 +1,4 @@
+#include "app/uistyle.h"
 #include "app/userdefaults.h"
 
 #include "app/settings.h"
@@ -20,7 +21,7 @@ void setDefaultScopeStandIn(const std::function<DefaultScope(const QString &what
 DefaultScope askDefaultScope(QWidget *parent, const QString &what)
 {
     if (g_standIn) return g_standIn(what);
-    QMessageBox box(QMessageBox::Question, QCoreApplication::translate("Dialogs", "Set as Default"),
+    jp::MessageBox box(QMessageBox::Question, QCoreApplication::translate("Dialogs", "Set as Default"),
                     QCoreApplication::translate("Dialogs", "Make %1 the default for this document only, or for all new documents?").arg(what), QMessageBox::NoButton, parent);
     box.setTextFormat(Qt::PlainText);
     auto *thisOne = box.addButton(QCoreApplication::translate("Dialogs", "This Document Only"), QMessageBox::AcceptRole);

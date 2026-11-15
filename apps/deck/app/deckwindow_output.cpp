@@ -530,7 +530,7 @@ int DeckWindow::exportSlidePictures(const deck::SlidePicturesOptions &optionsIn)
     for (const QString &name : names)
         if (QFileInfo::exists(QDir(options.folder).filePath(name))) ++existing;
     if (existing > 0) {
-        QMessageBox box(QMessageBox::Question, title, tr("Files with these names are already in the folder (%1 of %2). Replace them?").arg(existing).arg(names.size()), QMessageBox::Save | QMessageBox::Cancel, this);
+        jp::MessageBox box(QMessageBox::Question, title, tr("Files with these names are already in the folder (%1 of %2). Replace them?").arg(existing).arg(names.size()), QMessageBox::Save | QMessageBox::Cancel, this);
         box.setTextFormat(Qt::PlainText);
         box.button(QMessageBox::Save)->setText(tr("Replace"));
         box.setDefaultButton(QMessageBox::Cancel);

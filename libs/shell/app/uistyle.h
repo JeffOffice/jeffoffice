@@ -36,6 +36,8 @@ private:
 JO_COMMON_EXPORT void styleForm(QFormLayout *form);
 // Two fields on one row, each with a small muted label above it.
 JO_COMMON_EXPORT QWidget *twoUp(const QString &labelA, QWidget *a, const QString &labelB, QWidget *b, QWidget *parent = nullptr);
+// A field with a small muted label above it.
+JO_COMMON_EXPORT QWidget *labeled(const QString &label, QWidget *field, QWidget *parent = nullptr);
 // Two checkboxes (or any two small controls) on one line.
 JO_COMMON_EXPORT QWidget *checkPair(QWidget *a, QWidget *b, QWidget *parent = nullptr);
 // A button that looks like a link: accent text, no border.

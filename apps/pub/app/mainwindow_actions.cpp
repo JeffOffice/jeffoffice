@@ -83,7 +83,7 @@ bool MainWindow::insertPageNumberDesign(const QString &id)
         if (m_pageNumberAsker) {
             answer = m_pageNumberAsker();
         } else {
-            QMessageBox box(QMessageBox::Question, tr("Page Number"), tr("The master page already has a page number in its own text. Replace it with the design, or keep it and add the design?"), QMessageBox::NoButton, this);
+            jp::MessageBox box(QMessageBox::Question, tr("Page Number"), tr("The master page already has a page number in its own text. Replace it with the design, or keep it and add the design?"), QMessageBox::NoButton, this);
             box.setTextFormat(Qt::PlainText);
             QPushButton *replace = box.addButton(tr("Replace"), QMessageBox::AcceptRole);
             QPushButton *keep = box.addButton(tr("Keep and Add"), QMessageBox::AcceptRole);

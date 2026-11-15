@@ -3,8 +3,14 @@
 #include <QCheckBox>
 #include <QComboBox>
 #include <QCoreApplication>
+#include <QHBoxLayout>
+#include <QLabel>
 #include <QPrinterInfo>
+#include <QPushButton>
+#include <QVBoxLayout>
 #include "app/plaintext.h"
+#include "app/uistyle.h"
+#include "app/icons.h"
 #include <QSpinBox>
 #include <algorithm>
 
@@ -190,6 +196,85 @@ void PreviewLabel::resizeEvent(QResizeEvent *e)
 {
     QLabel::resizeEvent(e);
     if (resized) resized();
+}
+
+PrintColumn::PrintColumn(QWidget *page) : m_page(page), m_column(new QVBoxLayout())
+{
+    m_column->setContentsMargins(0, 0, 0, 0);
+    m_column->setSpacing(8);
+}
+
+QString PrintColumn::printerHeading() { return QCoreApplication::translate("Print", "Printer"); }
+QString PrintColumn::pagesHeading() { return QCoreApplication::translate("Print", "Pages"); }
+QString PrintColumn::layoutHeading() { return QCoreApplication::translate("Print", "Layout"); }
+QString PrintColumn::paperHeading() { return QCoreApplication::translate("Print", "Paper"); }
+
+void PrintColumn::top(QPushButton *print, QSpinBox *copies)
+{
+    print->setProperty("primary", true);
+    print->setMinimumHeight(40);
+    print->setMinimumWidth(120);
+    print->setCursor(Qt::PointingHandCursor);
+    auto *row = new QHBoxLayout();
+    row->setSpacing(12);
+    row->addWidget(print);
+    auto *label = new QLabel(QCoreApplication::translate("Print", "Copies"), m_page);
+    label->setBuddy(copies);
+    row->addWidget(label);
+    row->addWidget(copies);
+    row->addStretch(1);
+    m_column->addLayout(row);
+}
+
+void PrintColumn::group(const QString &heading, const QString &note)
+{
+    if (!m_first) m_column->addSpacing(8);
+    m_first = false;
+    auto *row = new QHBoxLayout();
+    row->setSpacing(8);
+    row->addWidget(sectionHeading(heading, m_page));
+    if (!note.isEmpty()) {
+        QLabel *n = noteLabel(note, m_page);
+        n->setWordWrap(false);
+        QFont f = n->font();
+        f.setPixelSize(11);
+        n->setFont(f);
+        row->addWidget(n);
+    }
+    row->addStretch(1);
+    m_column->addLayout(row);
+}
+
+void PrintColumn::field(const QString &label, QWidget *a)
+{
+    if (label.isEmpty()) m_column->addWidget(a);
+    else m_column->addWidget(labeled(label, a, m_page));
+}
+
+void PrintColumn::pair(const QString &labelA, QWidget *a, const QString &labelB, QWidget *b)
+{
+    if (!b) field(labelA, a);
+    else m_column->addWidget(twoUp(labelA, a, labelB, b, m_page));
+}
+
+void PrintColumn::checks(QWidget *a, QWidget *b)
+{
+    if (!b) m_column->addWidget(a);
+    else m_column->addWidget(checkPair(a, b, m_page));
+}
+
+void PrintColumn::wide(QWidget *w) { m_column->addWidget(w); }
+
+void PrintColumn::link(QPushButton *button)
+{
+    button->setProperty("link", true);
+    button->setFlat(true);
+    button->setCursor(Qt::PointingHandCursor);
+    QPalette p = button->palette();
+    p.setColor(QPalette::ButtonText, uiAccent());
+    button->setPalette(p);
+    m_column->addSpacing(8);
+    m_column->addWidget(button, 0, Qt::AlignLeft);
 }
 
 } // namespace jp

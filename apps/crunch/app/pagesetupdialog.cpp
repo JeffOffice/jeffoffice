@@ -650,7 +650,7 @@ void PageSetupDialog::buildHeaderFooter(QWidget *tab)
             QString &text = header ? m_setup.headerFooter.oddHeader : m_setup.headerFooter.oddFooter;
             bool keep = false;
             if (jp::crunch::partHoldsOtherText(text, *design)) {
-                QMessageBox box(QMessageBox::Question, tr("Page Number"), tr("That part already has text. Replace it with the page number, or keep it and add the number?"), QMessageBox::NoButton, this);
+                jp::MessageBox box(QMessageBox::Question, tr("Page Number"), tr("That part already has text. Replace it with the page number, or keep it and add the number?"), QMessageBox::NoButton, this);
                 box.setTextFormat(Qt::PlainText);
                 QPushButton *replace = box.addButton(tr("Replace"), QMessageBox::AcceptRole);
                 QPushButton *keepIt = box.addButton(tr("Keep and Add"), QMessageBox::AcceptRole);

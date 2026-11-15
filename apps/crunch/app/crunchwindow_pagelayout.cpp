@@ -3,6 +3,7 @@
 // Header and Footer tab of the ribbon to put in the page number, the date, a picture, and the rest. The window keeps the job of the sheet's pages to draw them; the sliced work that cuts
 // them is the page lines' (crunchwindow_print.cpp).
 
+#include "app/uistyle.h"
 #include "app/crunchwindow.h"
 
 #include "app/pagesetupdialog.h"
@@ -451,7 +452,7 @@ bool CrunchWindow::insertPageNumberDesign(const QString &id)
         if (m_pageNumberAsker) {
             answer = m_pageNumberAsker();
         } else {
-            QMessageBox box(QMessageBox::Question, tr("Page Number"), tr("That part of the header or footer already has text. Replace it with the page number, or keep it and add the number?"), QMessageBox::NoButton, this);
+            jp::MessageBox box(QMessageBox::Question, tr("Page Number"), tr("That part of the header or footer already has text. Replace it with the page number, or keep it and add the number?"), QMessageBox::NoButton, this);
             box.setTextFormat(Qt::PlainText);
             QPushButton *replace = box.addButton(tr("Replace"), QMessageBox::AcceptRole);
             QPushButton *keepIt = box.addButton(tr("Keep and Add"), QMessageBox::AcceptRole);

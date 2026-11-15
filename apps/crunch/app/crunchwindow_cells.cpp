@@ -273,7 +273,7 @@ bool CrunchWindow::askAboutRule(const crunch::EditSession::Outcome &o)
         return false;
     }
     if (m_ruleAsker) return m_ruleAsker(o.ruleTitle, o.problem, o.ruleStyle);
-    QMessageBox box(o.ruleStyle == int(Style::Warning) ? QMessageBox::Warning : QMessageBox::Information, o.ruleTitle, o.problem,
+    jp::MessageBox box(o.ruleStyle == int(Style::Warning) ? QMessageBox::Warning : QMessageBox::Information, o.ruleTitle, o.problem,
                     o.ruleStyle == int(Style::Warning) ? QMessageBox::Yes | QMessageBox::No : QMessageBox::Ok | QMessageBox::Cancel, this);
     box.setTextFormat(Qt::PlainText);
     return box.exec() == (o.ruleStyle == int(Style::Warning) ? QMessageBox::Yes : QMessageBox::Ok);

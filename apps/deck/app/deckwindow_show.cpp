@@ -618,7 +618,7 @@ void DeckWindow::afterShow(const QHash<QString, QVector<deck::InkStroke>> &ink, 
 bool DeckWindow::askAboutShow(const QString &question, const QString &keep, const QString &discard)
 {
     if (m_showQuestion) return m_showQuestion(question);
-    QMessageBox box(QMessageBox::Question, appInfo().name, question, QMessageBox::NoButton, this);
+    jp::MessageBox box(QMessageBox::Question, appInfo().name, question, QMessageBox::NoButton, this);
     box.setTextFormat(Qt::PlainText);
     QPushButton *yes = box.addButton(keep, QMessageBox::AcceptRole);
     QPushButton *no = box.addButton(discard, QMessageBox::RejectRole);

@@ -1,6 +1,7 @@
 // Insert > Header and Footer, and the Header & Footer tab that is there while one is edited: Close, Insert Page Number, and the options (a different first page, different odd and
 // even pages, and linking to the section before's).
 
+#include "app/uistyle.h"
 #include "app/writewindow.h"
 
 #include "app/pageview.h"
@@ -154,7 +155,7 @@ bool WriteWindow::insertPageNumberDesign(const QString &id)
             if (m_pageNumberAsker) {
                 answer = m_pageNumberAsker();
             } else {
-                QMessageBox box(QMessageBox::Question, tr("Page Number"),
+                jp::MessageBox box(QMessageBox::Question, tr("Page Number"),
                                 place.footer ? tr("The footer already has text. Replace it with the page number, or keep it and add the number?")
                                              : tr("The header already has text. Replace it with the page number, or keep it and add the number?"),
                                 QMessageBox::NoButton, this);

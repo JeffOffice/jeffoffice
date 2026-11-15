@@ -1358,7 +1358,7 @@ void SlideShow::followLink(const QString &link)
     bool yes = false;
     if (m_linkPrompt) yes = m_linkPrompt(shown, remote);
     else {
-        QMessageBox box(QMessageBox::Question, tr("Open Link"), remote ? tr("This link goes to a file on another computer. Open it?") : tr("Open this link?"), QMessageBox::NoButton, this);
+        jp::MessageBox box(QMessageBox::Question, tr("Open Link"), remote ? tr("This link goes to a file on another computer. Open it?") : tr("Open this link?"), QMessageBox::NoButton, this);
         box.setTextFormat(Qt::PlainText);
         box.setInformativeText(shown);
         box.addButton(tr("Open"), QMessageBox::AcceptRole);

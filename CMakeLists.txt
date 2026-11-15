@@ -341,6 +341,7 @@ qt_add_executable(jptests
   tests/shell/tst_shell_lossywarn.cpp
   tests/shell/tst_shell_booklet.cpp
   tests/shell/tst_shell_defaults.cpp
+  tests/shell/tst_shell_uistyle.cpp
   tests/shell/tst_shell_grammar.cpp
   tests/shell/tst_shell_grammar_rules.cpp
   tests/shell/tst_shell_keymap.cpp

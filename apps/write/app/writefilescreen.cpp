@@ -329,40 +329,21 @@ QWidget *WriteFileScreen::buildPrint()
     left->addWidget(heading(tr("Print"), w));
     auto *printBtn = new QPushButton(tr("Print"), w);
     printBtn->setObjectName(QStringLiteral("printButton"));
-    printBtn->setProperty("primary", true);
-    printBtn->setMinimumHeight(40);
-    printBtn->setMinimumWidth(120);
-    printBtn->setCursor(Qt::PointingHandCursor);
     QSpinBox *copies = makeCopiesBox(w);
-    auto *top = new QHBoxLayout();
-    top->addWidget(printBtn);
-    top->addSpacing(12);
-    top->addWidget(new QLabel(tr("Copies:"), w));
-    top->addWidget(copies);
-    top->addStretch(1);
-    left->addLayout(top);
-    left->addSpacing(8);
+    PrintColumn column(w);
+    column.top(printBtn, copies);
     // The printer (a PDF file is one more), whether the copies come out a set at a time, and the paper the document's sections set.
-    auto *form = new QFormLayout();
     QComboBox *printer = makePrinterBox(w);
-    form->addRow(tr("Printer:"), printer);
     QCheckBox *collate = makeCollateBox(w, tr("Print each copy of the whole document in turn (1, 2, 3, 1, 2, 3), not each page's copies together (1, 1, 2, 2, 3, 3)."));
-    form->addRow(QString(), collate);
     // One side, or both sides by the printer or by hand (the odd pages, the stack turned over, then the even pages).
     auto *duplex = new QComboBox(w);
     duplex->setObjectName(QStringLiteral("printDuplex"));
     fillSidesBox(duplex, true, Settings::get().value(QStringLiteral("print/sides"), int(SidesChoice::OneSide)).toInt());
-    form->addRow(tr("Sides:"), duplex);
     QComboBox *orientation = makeOrientationBox(w, tr("As each section says"));
-    form->addRow(tr("Paper turned:"), orientation);
     auto *paper = new QLabel(w);
     paper->setObjectName(QStringLiteral("printPaper"));
     paper->setWordWrap(true);
-    form->addRow(tr("Paper:"), paper);
     QCheckBox *gray = makeGrayscaleBox(w);
-    form->addRow(QString(), gray);
-    left->addLayout(form);
-    left->addSpacing(8);
     auto *all = new QRadioButton(tr("All pages"), w);
     all->setObjectName(QStringLiteral("printRangeAll"));
     auto *current = new QRadioButton(tr("Current page"), w);
@@ -378,11 +359,7 @@ QWidget *WriteFileScreen::buildPrint()
     text->setPlaceholderText(tr("1-3, 5, p2s3"));
     text->setToolTip(tr("Page numbers and ranges, separated by commas. p2s3 is the second page of section 3, and s3 is all of section 3."));
     auto *group = new QButtonGroup(w);
-    for (QRadioButton *r : {all, current, selection, some}) {
-        group->addButton(r);
-        left->addWidget(r);
-    }
-    left->addWidget(text);
+    for (QRadioButton *r : {all, current, selection, some}) group->addButton(r);
     // Only the odd or the even pages, and last page first: for printing a sheet's two sides by hand, turning the stack over between.
     auto *sides = new QComboBox(w);
     sides->setObjectName(QStringLiteral("printSides"));
@@ -390,18 +367,13 @@ QWidget *WriteFileScreen::buildPrint()
     sides->addItem(tr("All pages in the range"), int(WriteOutputOptions::Sides::All));
     sides->addItem(tr("Only odd pages"), int(WriteOutputOptions::Sides::Odd));
     sides->addItem(tr("Only even pages"), int(WriteOutputOptions::Sides::Even));
-    left->addSpacing(6);
-    left->addWidget(sides);
     QCheckBox *reverse = makeReverseBox(w);
-    left->addWidget(reverse);
     // Several pages on a sheet, and each page scaled to a paper size.
     auto *perSheet = new QComboBox(w);
     perSheet->setObjectName(QStringLiteral("printPerSheet"));
     perSheet->setAccessibleName(tr("Pages per sheet"));
     for (int n : {1, 2, 4, 6, 9, 16}) perSheet->addItem(n == 1 ? tr("1 page per sheet") : tr("%1 pages per sheet").arg(n), n);
     perSheet->setToolTip(tr("Print several pages on one sheet, each made smaller to fit."));
-    left->addSpacing(6);
-    left->addWidget(perSheet);
     auto *scaleTo = new QComboBox(w);
     scaleTo->setObjectName(QStringLiteral("printScaleTo"));
     scaleTo->setAccessibleName(tr("Scale to paper size"));
@@ -412,7 +384,20 @@ QWidget *WriteFileScreen::buildPrint()
     scaleTo->addItem(tr("Scale to A5"), QSizeF(419.528, 595.276));
     scaleTo->addItem(tr("Scale to A3"), QSizeF(841.89, 1190.551));
     scaleTo->setToolTip(tr("Make each page fit the paper in the printer, whatever size the page is."));
-    left->addWidget(scaleTo);
+    // the groups of the Print page (docs/design/STYLE.md)
+    column.group(PrintColumn::printerHeading());
+    column.wide(printer);
+    column.group(PrintColumn::pagesHeading());
+    for (QRadioButton *r : {all, current, selection, some}) column.wide(r);
+    column.wide(text);
+    column.pair(tr("Which pages"), sides, tr("Sides"), duplex);
+    column.checks(collate, reverse);
+    column.group(PrintColumn::layoutHeading());
+    column.pair(tr("Pages on a sheet"), perSheet, tr("Scale to paper"), scaleTo);
+    column.group(PrintColumn::paperHeading(), tr("(as each section says unless changed)"));
+    column.pair(tr("Turned"), orientation, tr("Paper"), paper);
+    column.checks(gray);
+    left->addLayout(column.layout());
     left->addStretch(1);
     h->addLayout(left, 1);
 

@@ -347,7 +347,7 @@ void DeckWindow::askSlideSize(const QSizeF &size, int notes)
         refreshUi();   // the check on the chosen size stays
         return;
     }
-    QMessageBox box(QMessageBox::Question, tr("Slide Size"), tr("Scale your content to fit the new slide size?"), QMessageBox::NoButton, this);
+    jp::MessageBox box(QMessageBox::Question, tr("Slide Size"), tr("Scale your content to fit the new slide size?"), QMessageBox::NoButton, this);
     box.setObjectName(QStringLiteral("slideSizeAsk"));
     box.setTextFormat(Qt::PlainText);
     box.setInformativeText(tr("Scale to Fit shrinks your content when it has to, so all of it stays on the slide. Keep Size leaves every object as it is."));

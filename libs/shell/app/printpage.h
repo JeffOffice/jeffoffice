@@ -11,6 +11,8 @@
 #include <functional>
 
 class QCheckBox;
+class QPushButton;
+class QVBoxLayout;
 class QComboBox;
 class QSpinBox;
 class QWidget;
@@ -107,6 +109,38 @@ public:
 
 protected:
     void resizeEvent(QResizeEvent *e) override;
+};
+
+// The left column of a Print page, the same in the four apps (docs/design/STYLE.md): the Print button with Copies on top, then groups under small headings (PRINTER, PAGES, LAYOUT,
+// PAPER), two fields to a row with a small label above each, two checkboxes on one line, and Page Setup as a link at the bottom. The app makes its own controls (their names and wiring
+// are its own) and hands them over in order; nothing here reads or changes what they hold.
+class PrintColumn {
+public:
+    explicit PrintColumn(QWidget *page);
+    QVBoxLayout *layout() const { return m_column; }
+    // The Print button (accent-filled) and, beside it, "Copies" with its box.
+    void top(QPushButton *print, QSpinBox *copies);
+    // A new group: its heading in capitals, and a short note beside it (empty for none).
+    void group(const QString &heading, const QString &note = QString());
+    // One field across the column, or two side by side; `b` may be null. A label may be empty.
+    void field(const QString &label, QWidget *a);
+    void pair(const QString &labelA, QWidget *a, const QString &labelB, QWidget *b);
+    // Two checkboxes on one line (the second may be null).
+    void checks(QWidget *a, QWidget *b = nullptr);
+    // Any widget as it is (a row of radio buttons, a note).
+    void wide(QWidget *w);
+    // "Page Setup" as a link at the bottom.
+    void link(QPushButton *button);
+    // The words of the shared groups.
+    static QString printerHeading();
+    static QString pagesHeading();
+    static QString layoutHeading();
+    static QString paperHeading();
+
+private:
+    QWidget *m_page;
+    QVBoxLayout *m_column;
+    bool m_first = true;
 };
 
 } // namespace jp

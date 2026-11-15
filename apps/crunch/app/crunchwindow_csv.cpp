@@ -2,6 +2,7 @@
 // time on the window's thread from a model of its own (so that changing sheets meanwhile changes nothing), and nothing can be edited until it is done. The workbook itself is not
 // changed by it and is not saved by it.
 
+#include "app/uistyle.h"
 #include "app/crunchwindow.h"
 
 #include "app/otherformats.h"
@@ -24,7 +25,7 @@ namespace jp {
 CrunchWindow::LossAnswer CrunchWindow::askBeforeLosing(const QString &title, const QString &text, const QString &goLabel, const QString &otherLabel, bool defaultIsOther)
 {
     if (m_lossAsker) return m_lossAsker(title, text);
-    QMessageBox box(QMessageBox::Warning, appInfo().name, title, QMessageBox::NoButton, this);
+    jp::MessageBox box(QMessageBox::Warning, appInfo().name, title, QMessageBox::NoButton, this);
     box.setObjectName(QStringLiteral("lossBox"));
     box.setText(text);
     box.setTextFormat(Qt::PlainText);

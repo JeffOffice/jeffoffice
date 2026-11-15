@@ -137,7 +137,7 @@ void setAskStandIn(const std::function<bool(const QString &)> &standIn) { g_askS
 bool ask(QWidget *parent, const QString &title, const QString &question, const QString &detail)
 {
     if (g_askStandIn) return g_askStandIn(question);
-    QMessageBox box(QMessageBox::Question, title, question, QMessageBox::NoButton, parent);
+    jp::MessageBox box(QMessageBox::Question, title, question, QMessageBox::NoButton, parent);
     box.setTextFormat(Qt::PlainText);
     if (!detail.isEmpty()) box.setInformativeText(detail);
     box.addButton(QCoreApplication::translate("Trust", "Yes"), QMessageBox::AcceptRole);

@@ -611,7 +611,7 @@ bool DeckWindow::maybeSave()
     m_ed->flushTyping();
     m_ed->endCrop(true);   // a crop in progress is a change to ask about, and to save
     if (!m_ed->isModified()) return true;
-    QMessageBox box(QMessageBox::Question, appInfo().name, tr("Do you want to save changes to %1?").arg(m_ed->displayName()),
+    jp::MessageBox box(QMessageBox::Question, appInfo().name, tr("Do you want to save changes to %1?").arg(m_ed->displayName()),
                     QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel, this);
     box.setTextFormat(Qt::PlainText);
     box.setDefaultButton(QMessageBox::Save);

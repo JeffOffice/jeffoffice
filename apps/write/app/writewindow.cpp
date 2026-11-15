@@ -846,7 +846,7 @@ bool WriteWindow::eventFilter(QObject *o, QEvent *e)
 bool WriteWindow::maybeSave()
 {
     if (!isModified()) return true;
-    QMessageBox box(QMessageBox::Question, appInfo().name, tr("Do you want to save changes to %1?").arg(displayName()), QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel, this);
+    jp::MessageBox box(QMessageBox::Question, appInfo().name, tr("Do you want to save changes to %1?").arg(displayName()), QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel, this);
     box.setTextFormat(Qt::PlainText);
     box.setDefaultButton(QMessageBox::Save);
     box.button(QMessageBox::Discard)->setText(tr("Don't Save"));

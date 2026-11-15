@@ -210,7 +210,7 @@ bool CrunchWindow::startSave(const QString &path)
         if (m_changedAsker) {
             answer = m_changedAsker(name);
         } else {
-            QMessageBox box(QMessageBox::Warning, appInfo().name,
+            jp::MessageBox box(QMessageBox::Warning, appInfo().name,
                             tr("Another program changed \"%1\" after you opened it. If you save here, what it changed is lost.").arg(name), QMessageBox::NoButton, this);
             box.setTextFormat(Qt::PlainText);
             box.setInformativeText(tr("You can save your work as a copy and keep both, or save over the file."));
@@ -369,7 +369,7 @@ bool CrunchWindow::askAboutChanges()
     if (m_asker) {
         answer = m_asker(title, text);
     } else {
-        QMessageBox box(QMessageBox::Warning, title, text, QMessageBox::NoButton, this);
+        jp::MessageBox box(QMessageBox::Warning, title, text, QMessageBox::NoButton, this);
         box.setTextFormat(Qt::PlainText);
         QPushButton *saveButton = box.addButton(tr("Save"), QMessageBox::AcceptRole);
         QPushButton *discardButton = box.addButton(tr("Don't Save"), QMessageBox::DestructiveRole);

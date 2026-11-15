@@ -99,6 +99,19 @@ QWidget *twoUp(const QString &labelA, QWidget *a, const QString &labelB, QWidget
     return w;
 }
 
+QWidget *labeled(const QString &label, QWidget *field, QWidget *parent)
+{
+    auto *w = new QWidget(parent);
+    auto *v = new QVBoxLayout(w);
+    v->setContentsMargins(0, 0, 0, 0);
+    v->setSpacing(3);
+    QLabel *l = smallLabel(label, w);
+    l->setBuddy(field);
+    v->addWidget(l);
+    v->addWidget(field);
+    return w;
+}
+
 QWidget *checkPair(QWidget *a, QWidget *b, QWidget *parent)
 {
     auto *w = new QWidget(parent);
