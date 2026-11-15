@@ -91,6 +91,21 @@ bool pageSetupDialog(QWidget *parent, WriteDoc *doc, int section, QTextCursor *c
     ov->addWidget(portrait);
     ov->addWidget(landscape);
     mf->addRow(orientation);
+    // Multiple pages: Normal, or Book fold (the pages are printed in booklet order, two to a side), of all the pages in one booklet or of 4 to 40 pages each.
+    auto *multiple = new QComboBox(marginsPage);
+    multiple->setObjectName(QStringLiteral("multiplePages"));
+    multiple->addItem(QCoreApplication::translate("jp::write::Dialogs", "Normal"), false);
+    multiple->addItem(QCoreApplication::translate("jp::write::Dialogs", "Book fold"), true);
+    multiple->setCurrentIndex(doc->bookFold() ? 1 : 0);
+    mf->addRow(QCoreApplication::translate("jp::write::Dialogs", "Multiple pages:"), multiple);
+    auto *booklet = new QComboBox(marginsPage);
+    booklet->setObjectName(QStringLiteral("sheetsPerBooklet"));
+    booklet->addItem(QCoreApplication::translate("jp::write::Dialogs", "All"), 0);
+    for (int n = 4; n <= 40; n += 4) booklet->addItem(QString::number(n), n);
+    booklet->setCurrentIndex(std::max(0, int(booklet->findData(doc->bookFoldSheets()))));
+    booklet->setEnabled(doc->bookFold());
+    mf->addRow(QCoreApplication::translate("jp::write::Dialogs", "Sheets per booklet:"), booklet);
+    QObject::connect(multiple, &QComboBox::currentIndexChanged, booklet, [=] { booklet->setEnabled(multiple->currentData().toBool()); });
     tabs->addTab(marginsPage, QCoreApplication::translate("jp::write::Dialogs", "Margins"));
 
     // ---- Paper
@@ -219,6 +234,8 @@ bool pageSetupDialog(QWidget *parent, WriteDoc *doc, int section, QTextCursor *c
     after.start = start->currentData().toString();
     after.differentFirstPage = firstPage->isChecked();
     after.differentOddEven = oddEven->isChecked();
+    // (book fold is the document's, whatever the margins apply to)
+    doc->setBookFold(multiple->currentData().toBool(), booklet->currentData().toInt());
     // Set as Default: the margins and the paper (not how a section starts, or its headers) go to the Normal template, which new documents start from.
     if (makeDefault == DefaultScope::AllNew)
         changeNormalTemplate([after](WriteDoc &target) {

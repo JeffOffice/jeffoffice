@@ -526,18 +526,6 @@ std::unique_ptr<Document> loadAnyPublication(const QString &path, QString *error
 }
 
 // ---------------- printing ----------------
-QVector<QVector<int>> bookletOrder(int pages)
-{
-    const int n = ((pages + 3) / 4) * 4;
-    QVector<QVector<int>> sides;
-    for (int s = 0; s < n / 2; s += 2) {
-        auto pg = [&](int i) { return i < pages ? i : -1; };
-        sides << QVector<int>{pg(n - 1 - s), pg(s)};
-        sides << QVector<int>{pg(s + 1), pg(n - 2 - s)};
-    }
-    return sides;
-}
-
 PrinterMarks PrinterMarks::fromJson(const QJsonObject &o)
 {
     PrinterMarks m;

@@ -1468,6 +1468,12 @@ CompatOptions readCompatOptions(const QByteArray &settings)
     };
     o.autoHyphenation = isOn(tree.child(tree.root(), "autoHyphenation"));
     o.mirrorMargins = isOn(tree.child(tree.root(), "mirrorMargins"));
+    o.bookFold = isOn(tree.child(tree.root(), "bookFoldPrinting"));
+    if (const int sheets = tree.child(tree.root(), "bookFoldPrintingSheets"); sheets >= 0) {
+        bool ok = false;
+        const int n = tree.val(sheets).toInt(&ok);
+        if (ok && n > 0) o.bookFoldSheets = std::min(n, 1000);
+    }
     if (const int zone = tree.child(tree.root(), "hyphenationZone"); zone >= 0) {
         bool ok = false;
         const int twips = tree.val(zone).toInt(&ok);

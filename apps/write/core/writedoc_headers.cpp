@@ -404,6 +404,15 @@ void WriteDoc::setMirrorMargins(bool on)
     setSectionProps(sectionCount() - 1, last);
 }
 
+void WriteDoc::setBookFold(bool on, int sheets)
+{
+    sheets = on && sheets > 0 ? std::clamp(((sheets + 3) / 4) * 4, 4, 40) : 0;
+    if (m_bookFold == on && m_bookFoldSheets == sheets) return;
+    m_bookFold = on;
+    m_bookFoldSheets = sheets;
+    setModified(true);
+}
+
 void WriteDoc::setPageColor(const QColor &color)
 {
     const QString hex = color.isValid() ? color.name().mid(1).toUpper() : QString();
@@ -689,6 +698,8 @@ void WriteDoc::writeHeaderParts(office::wml::Document *out)
     };
     if (m_wml.evenAndOddHeaders != m_oddEvenAtOpen) changeSetting(settingsWithEvenAndOddHeaders, m_wml.evenAndOddHeaders);
     if (m_flow->mirrorMargins != m_mirrorAtOpen) changeSetting(settingsWithMirrorMargins, m_flow->mirrorMargins);
+    if (m_bookFold != m_bookFoldAtOpen) changeSetting(settingsWithBookFoldPrinting, m_bookFold);
+    if (m_bookFoldSheets != m_bookFoldSheetsAtOpen) changeSetting([sheets = m_bookFoldSheets](const QByteArray &settings, bool) { return settingsWithBookFoldPrintingSheets(settings, sheets); }, m_bookFoldSheets > 0);
     if (m_flow->hyphenate != m_hyphenAtOpen) changeSetting(settingsWithAutoHyphenation, m_flow->hyphenate);
     if (const int zone = int(std::lround(m_flow->hyphenZone * 20)); zone != m_hyphenZoneAtOpen)
         changeSetting([zone](const QByteArray &settings, bool) { return settingsWithHyphenationZone(settings, zone); }, zone != 360);

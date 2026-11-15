@@ -499,6 +499,9 @@ void setHeaderReference(SectionProps *section, bool footer, int slot, const QStr
 QByteArray settingsWithEvenAndOddHeaders(const QByteArray &settings, bool on);
 // The same for facing pages with mirrored margins (w:mirrorMargins) and automatic hyphenation (w:autoHyphenation).
 QByteArray settingsWithMirrorMargins(const QByteArray &settings, bool on);
+// Book fold printing (w:bookFoldPrinting), and the number of sheets to a booklet (w:bookFoldPrintingSheets; 0 takes the element away).
+QByteArray settingsWithBookFoldPrinting(const QByteArray &settings, bool on);
+QByteArray settingsWithBookFoldPrintingSheets(const QByteArray &settings, int sheets);
 QByteArray settingsWithAutoHyphenation(const QByteArray &settings, bool on);
 // The hyphenation zone (w:hyphenationZone, twentieths of a point; 360, the usual, takes the element away) and the limit of lines in a row that end in a hyphen (w:consecutiveHyphenLimit; 0 takes it away).
 QByteArray settingsWithHyphenationZone(const QByteArray &settings, int twips);
@@ -724,6 +727,9 @@ struct CompatOptions {
     bool doNotHyphenateCaps = false;  // w:doNotHyphenateCaps: words in capitals are left whole
     // Facing pages (w:mirrorMargins, an element of the settings itself): the section's left and right margins are its inside and outside.
     bool mirrorMargins = false;
+    // Book fold printing (w:bookFoldPrinting): the pages are printed two to a side in booklet order, in booklets of w:bookFoldPrintingSheets (0: all of the pages in one).
+    bool bookFold = false;
+    int bookFoldSheets = 0;
 };
 CompatOptions readCompatOptions(const QByteArray &settings);
 

@@ -474,6 +474,8 @@ void WriteDoc::setUpEnvironment()
         m_last.hyphenationZone = m_hyphenZoneAtOpen = compat.hyphenationZone;
         m_last.consecutiveHyphenLimit = m_hyphenLimitAtOpen = compat.consecutiveHyphenLimit;
         m_last.mirrorMargins = m_mirrorAtOpen = compat.mirrorMargins;
+        m_bookFold = m_bookFoldAtOpen = compat.bookFold;
+        m_bookFoldSheets = m_bookFoldSheetsAtOpen = compat.bookFold ? compat.bookFoldSheets : 0;
         // (And how the endnotes are numbered, read here once, not at each story's making.)
         const office::wml::NoteNumbering endnotes = office::wml::readNoteNumbering(partData(m_wml.settingsName), "endnotePr");
         if (!endnotes.format.isEmpty()) m_endnoteFormat = endnotes.format;

@@ -9,6 +9,7 @@
 #include "app/pagepaint.h"
 #include "app/pdfprotection.h"
 #include "app/writetags.h"
+#include "core/booklet.h"
 #include "io/pdftags.h"
 #include "core/editops.h"
 #include "app/pageview.h"
@@ -77,6 +78,15 @@ struct EditedStoryHeld {
     EditedStoryHeld(flow::Paginator &p, const QTextDocument *s) : pager(p), story(s) { pager.setEditedStory(nullptr); }
     ~EditedStoryHeld() { pager.setEditedStory(story); }
 };
+
+// Book fold: the pages in booklet order, two to a side (a side is a sheet of the printer's: the left page, then the right; -1 is a blank), in booklets of `perBooklet` pages (0: one).
+QVector<int> bookFoldPages(const QVector<int> &pages, int perBooklet)
+{
+    QVector<int> out;
+    for (const QVector<int> &side : jp::bookletOrder(int(pages.size()), perBooklet))
+        for (int i : side) out << (i < 0 ? -1 : pages[i]);
+    return out;
+}
 } // namespace
 
 QVector<int> WriteWindow::outputPages(const WriteOutputOptions &options)
@@ -639,8 +649,11 @@ QVector<WriteOutputOptions> WriteWindow::handDuplexRuns(const WriteOutputOptions
     all.sides = WriteOutputOptions::Sides::All;
     all.reverse = false;
     all.pagesGiven = false;
-    const QVector<int> pages = outputPages(all);
-    const QSize grid = write::sheetGrid(options.perSheet);
+    // (book fold: the pages in booklet order, two to a sheet)
+    const bool fold = m_doc->bookFold() && options.range != WriteOutputOptions::Range::Selection;
+    const QVector<int> pages = fold ? bookFoldPages(outputPages(all), m_doc->bookFoldSheets()) : outputPages(all);
+    if (fold) all.perSheet = 2;
+    const QSize grid = write::sheetGrid(all.perSheet);
     const int per = grid.width() * grid.height();
     QVector<QVector<int>> sheets;
     for (qsizetype i = 0; i < pages.size(); i += per) {
@@ -669,6 +682,16 @@ bool WriteWindow::printOutput(const WriteOutputOptions &options)
         if (!printOutput(runs[0])) return false;
         if (outputPages(runs[1]).isEmpty()) return true;
         return askToTurnStack(this, m_stackTurner) && printOutput(runs[1]);
+    }
+    // Book fold: the pages are put in booklet order, two to a side, and printed as the pages of the job (a sheet each of two).
+    if (m_doc->bookFold() && !options.pagesGiven && options.range != WriteOutputOptions::Range::Selection) {
+        WriteOutputOptions folded = options;
+        folded.reverse = false;
+        folded.pageList = bookFoldPages(outputPages(folded), m_doc->bookFoldSheets());
+        folded.pagesGiven = true;
+        folded.perSheet = 2;
+        folded.reverse = options.reverse;
+        return printOutput(folded);
     }
     HiddenTextOff noHidden(m_doc.get());
     EditedStoryHeld held(m_doc->pager(), m_view->inHeaderFooter() ? m_view->headerFooterEdit().story : nullptr);

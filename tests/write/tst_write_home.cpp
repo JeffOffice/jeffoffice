@@ -1114,6 +1114,34 @@ private Q_SLOTS:
         QFile::remove(normalTemplatePath());
     }
 
+    void pageSetupOffersBookFoldWithSheetsPerBooklet()
+    {
+        auto doc = open(makeDocx(para(run("text"))));
+        QVERIFY(!doc->bookFold());
+        withDialog([&doc] { pageSetupDialog(nullptr, doc.get(), 0); }, QStringLiteral("pageSetupDialog"), [](QDialog *d) {
+            auto *multiple = d->findChild<QComboBox *>(QStringLiteral("multiplePages"));
+            auto *sheets = d->findChild<QComboBox *>(QStringLiteral("sheetsPerBooklet"));
+            QVERIFY(multiple && sheets);
+            QVERIFY(!sheets->isEnabled());
+            QCOMPARE(sheets->itemText(0), QStringLiteral("All"));
+            QCOMPARE(sheets->count(), 11);   // All, then 4 to 40 in fours
+            QCOMPARE(sheets->itemData(1).toInt(), 4);
+            QCOMPARE(sheets->itemData(10).toInt(), 40);
+            multiple->setCurrentIndex(multiple->findText(QStringLiteral("Book fold")));
+            QVERIFY(sheets->isEnabled());
+            sheets->setCurrentIndex(sheets->findData(8));
+            shotOf(d, QStringLiteral("write-page-setup-book-fold"));
+        });
+        QVERIFY(doc->bookFold());
+        QCOMPARE(doc->bookFoldSheets(), 8);
+        // Back to normal.
+        withDialog([&doc] { pageSetupDialog(nullptr, doc.get(), 0); }, QStringLiteral("pageSetupDialog"), [](QDialog *d) {
+            QCOMPARE(d->findChild<QComboBox *>(QStringLiteral("sheetsPerBooklet"))->currentData().toInt(), 8);
+            d->findChild<QComboBox *>(QStringLiteral("multiplePages"))->setCurrentIndex(0);
+        });
+        QVERIFY(!doc->bookFold());
+    }
+
     void theParagraphBoxSetsLineAndPageBreakChoicesAndTheOutlineLevel()
     {
         WriteWindow w;

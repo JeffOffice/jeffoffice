@@ -711,6 +711,66 @@ void WriteTests::reverseGroupsTheSheetsFirstWhenSeveralPagesShareOne()
 }
 
 
+// Book fold (Page Setup > Multiple pages): the pages are printed in booklet order, two to a side, each side on a sheet turned to lie on its side.
+void WriteTests::bookFoldPrintsPagesInBookletOrderTwoToASideInLandscape()
+{
+    QTemporaryDir dir;
+    WriteWindow w;
+    w.setDocument(open(wordPages({QStringLiteral("Alpha"), QStringLiteral("Bravo"), QStringLiteral("Charlie"), QStringLiteral("Delta")})), QString());
+    WriteOutputOptions o;
+    o.printer = QStringLiteral("a printer");
+    QCOMPARE(printedWords(printedPages(w, o, dir.filePath(QStringLiteral("plain.pdf")))), QStringLiteral("A B C D"));
+    w.document()->setBookFold(true, 0);
+    // (a side's words are listed in the order of the document's own, so the order on the side is read from the text: the left page is drawn first)
+    const QStringList sides = printedPages(w, o, dir.filePath(QStringLiteral("fold.pdf")));
+    QCOMPARE(printedWords(sides), QStringLiteral("A+D B+C"));
+    QVERIFY(sides[0].indexOf(QStringLiteral("Delta")) < sides[0].indexOf(QStringLiteral("Alpha")));
+    QVERIFY(sides[1].indexOf(QStringLiteral("Bravo")) < sides[1].indexOf(QStringLiteral("Charlie")));
+    // (a file is put in the same order, its sheets wider than tall)
+    o.printer.clear();
+    o.toFile = true;
+    w.setPrinterPreparer(nullptr);
+    const QString target = dir.filePath(QStringLiteral("file.pdf"));
+    w.setSavePathChooser([&](const QString &, const QString &) { return target; });
+    QVERIFY(w.printOutput(o));
+    QFile f(target);
+    QVERIFY(f.open(QIODevice::ReadOnly));
+    const jp::PdfDocument pdf(f.readAll());
+    QCOMPARE(pdf.pageCount(), 2);
+    QVERIFY(pdf.pageSize(0).width() > pdf.pageSize(0).height());
+    QStringList pages;
+    for (int i = 0; i < pdf.pageCount(); ++i) pages << pdf.text(i);
+    QCOMPARE(printedWords(pages), QStringLiteral("A+D B+C"));
+    QVERIFY(pages[0].indexOf(QStringLiteral("Delta")) < pages[0].indexOf(QStringLiteral("Alpha")));
+}
+
+
+// The choice is the document's, kept in its file (w:bookFoldPrinting, and w:bookFoldPrintingSheets for a number of sheets to a booklet).
+void WriteTests::bookFoldIsKeptInTheFile()
+{
+    WriteWindow w;
+    w.setDocument(open(wordPages({QStringLiteral("Alpha")})), QString());
+    QVERIFY(!w.document()->bookFold());
+    QVERIFY(!w.document()->isModified());
+    w.document()->setBookFold(true, 8);
+    QVERIFY(w.document()->isModified());
+    QCOMPARE(w.document()->bookFoldSheets(), 8);
+    QString err;
+    const QByteArray bytes = w.document()->toDocx(&err);
+    QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+    const QByteArray settings = documentXmlOfPart(bytes, QStringLiteral("/word/settings.xml"));
+    QVERIFY2(settings.contains("<w:bookFoldPrinting/>") && settings.contains("<w:bookFoldPrintingSheets w:val=\"8\"/>"), settings.constData());
+    auto again = open(bytes);
+    QVERIFY(again->bookFold());
+    QCOMPARE(again->bookFoldSheets(), 8);
+    // All of the pages in one booklet takes the number away; off takes both.
+    again->setBookFold(true, 0);
+    QVERIFY(!documentXmlOfPart(again->toDocx(), QStringLiteral("/word/settings.xml")).contains("bookFoldPrintingSheets"));
+    again->setBookFold(false, 0);
+    QVERIFY(!documentXmlOfPart(again->toDocx(), QStringLiteral("/word/settings.xml")).contains("bookFoldPrinting"));
+}
+
+
 // Copies the program sends again, collated, on both sides of the paper: each copy begins on a new sheet, so an odd number of pages ends with a blank back.
 void WriteTests::collatedCopiesOnBothSidesEachBeginOnANewSheet()
 {

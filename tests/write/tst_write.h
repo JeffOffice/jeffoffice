@@ -902,6 +902,8 @@ private Q_SLOTS:
     void thePaperTurnedChoiceTurnsThePrintedSheetsAndThePreview();
     void reverseKeepsEachFrontWithItsBackWhenPrintingOnBothSides();
     void reverseGroupsTheSheetsFirstWhenSeveralPagesShareOne();
+    void bookFoldPrintsPagesInBookletOrderTwoToASideInLandscape();
+    void bookFoldIsKeptInTheFile();
     void collatedCopiesOnBothSidesEachBeginOnANewSheet();
     void aPrinterThatIsGoneOrCannotBeUsedIsSaidAndNothingIsSaved();
     void theSheetSequenceAndTheSendLimit();

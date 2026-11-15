@@ -313,6 +313,30 @@ QByteArray settingsWithMirrorMargins(const QByteArray &settings, bool on)
     return settingsWithFlag(settings, "mirrorMargins", on, afterMirrorMargins());
 }
 
+// The elements the schema puts after the book fold settings.
+static QVector<QByteArray> afterBookFold(bool includingSheets)
+{
+    QVector<QByteArray> later = {"drawingGridHorizontalSpacing", "drawingGridVerticalSpacing", "displayHorizontalDrawingGridEvery", "displayVerticalDrawingGridEvery", "doNotUseMarginsForDrawingGridOrigin",
+                                 "drawingGridHorizontalOrigin", "drawingGridVerticalOrigin", "doNotShadeFormData", "noPunctuationKerning", "characterSpacingControl", "printTwoOnOne",
+                                 "strictFirstAndLastChars", "noLineBreaksAfter", "noLineBreaksBefore", "savePreviewPicture", "doNotValidateAgainstSchema", "saveInvalidXml", "ignoreMixedContent",
+                                 "alwaysShowPlaceholderText", "doNotDemarcateInvalidXml", "saveXmlDataOnly", "useXSLTWhenSaving", "saveThroughXslt", "showXMLTags", "alwaysMergeEmptyNamespace",
+                                 "updateFields", "hdrShapeDefaults", "footnotePr", "endnotePr", "compat", "docVars", "rsids", "mathPr", "attachedSchema", "themeFontLang", "clrSchemeMapping",
+                                 "doNotIncludeSubdocsInStats", "doNotAutoCompressPictures", "forceUpgrade", "captions", "readModeInkLockDown", "smartTagType", "schemaLibrary", "shapeDefaults",
+                                 "doNotEmbedSmartTags", "decimalSymbol", "listSeparator"};
+    if (includingSheets) later.prepend("bookFoldPrintingSheets");
+    return later;
+}
+
+QByteArray settingsWithBookFoldPrinting(const QByteArray &settings, bool on)
+{
+    return settingsWithFlag(settings, "bookFoldPrinting", on, afterBookFold(true));
+}
+
+QByteArray settingsWithBookFoldPrintingSheets(const QByteArray &settings, int sheets)
+{
+    return settingsWithFlag(settings, "bookFoldPrintingSheets", sheets > 0, afterBookFold(false), QByteArray::number(sheets));
+}
+
 QByteArray settingsWithDisplayBackgroundShape(const QByteArray &settings, bool on)
 {
     // The elements the schema puts after it: the printing options, then the ones after mirrorMargins.

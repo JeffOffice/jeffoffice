@@ -244,6 +244,11 @@ public:
     bool differentOddEven() const { return m_wml.evenAndOddHeaders; }
     // Facing pages with mirrored margins (the inside and outside margins swap on facing pages), and automatic hyphenation: the document's, one step of the history each.
     bool mirrorMargins() const { return m_flow->mirrorMargins; }
+    // Book fold printing: the pages are printed in booklet order, two to a side, each booklet of `sheets` pages (0: all of the pages in one; otherwise a multiple of four). The document's,
+    // kept in its file; it is not a step of the history (a print setting), and it marks the document as changed.
+    bool bookFold() const { return m_bookFold; }
+    int bookFoldSheets() const { return m_bookFoldSheets; }
+    void setBookFold(bool on, int sheets);
     void setMirrorMargins(bool on);
     // The page color (none: an invalid color).
     QColor pageColor() const { return m_flow->pageColor; }
@@ -912,6 +917,8 @@ private:
     QString m_pageColorAtOpen;                                         // the file's page color ("RRGGBB") when it was read
     int m_hyphenZoneAtOpen = 360, m_hyphenLimitAtOpen = 0;
     bool m_noHyphenCapsAtOpen = false;
+    bool m_bookFold = false, m_bookFoldAtOpen = false;                 // book fold printing (the document's, kept in its settings; not a step of the history), and what the file had
+    int m_bookFoldSheets = 0, m_bookFoldSheetsAtOpen = 0;
     bool m_mirrorAtOpen = false, m_hyphenAtOpen = false;               // the file's facing pages with mirrored margins, and automatic hyphenation, when it was read
     bool m_oddEvenAtOpen = false;                                      // the file's use of different headers on odd and even pages when it was read
     QSet<QString> m_released;                                          // parts the sections let go of (a reference taken out): written no more if nothing names them

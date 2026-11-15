@@ -2,6 +2,7 @@
 // File import/export helpers used by commands: Insert File, mail-merge data
 // sources, printing layouts, and opening any supported publication.
 
+#include "core/booklet.h"
 #include "core/document.h"
 #include "core/mergesource.h"
 #include "render/renderer.h"
@@ -85,7 +86,7 @@ double spotAmount(const QColor &c, const QColor &spot);
 // drawn with a painter for printing.
 QImage renderPlate(const Document &doc, int page, int plate, double dpi);
 void renderPlateInto(QPainter *p, const PaintContext &ctx, int page, int plate);
-QVector<QVector<int>> bookletOrder(int pages);   // sheet sides -> page indices (-1 blank)
+// (bookletOrder, the sheet sides of a booklet, is libs/base/core/booklet.h)
 
 // thumbnail: page 1 for the file's preview picture (about 160 pixels across,
 // as Publisher makes it), or none.
