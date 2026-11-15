@@ -2,6 +2,7 @@
 #include "app/writewindow.h"
 #include "app/pageview.h"
 #include "core/editops.h"
+#include "core/fontops.h"
 #include "core/writedoc.h"
 
 #include <QPointer>

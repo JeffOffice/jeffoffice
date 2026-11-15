@@ -185,8 +185,7 @@ void toggleStrike(WriteDoc &doc, QTextCursor &c);
 void toggleSubscript(WriteDoc &doc, QTextCursor &c);
 void toggleSuperscript(WriteDoc &doc, QTextCursor &c);
 void setFontFamily(WriteDoc &doc, QTextCursor &c, const QString &family);   // "+Heading" and "+Body" follow the theme
-// Puts font `to` in place of font `from` in every run that names it, in the text and in the headers and footers, as one step of the history; how many runs it changed.
-int replaceFont(WriteDoc &doc, const QString &from, const QString &to);
+// (Replacing one font with another everywhere: replaceFont in core/fontops.h.)
 void setFontSize(WriteDoc &doc, QTextCursor &c, double points);
 void changeFontSize(WriteDoc &doc, QTextCursor &c, int steps);               // Grow and Shrink: along the sizes of the size box
 void setTextColor(WriteDoc &doc, QTextCursor &c, const QColor &color);       // invalid: automatic
