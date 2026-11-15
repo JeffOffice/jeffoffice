@@ -364,6 +364,13 @@ private Q_SLOTS:
         QVERIFY(page);
         for (const char *name : {"infoMarkFinal", "infoInspect", "infoVersions", "infoCustom", "infoShowFolder", "infoCopyPath", "infoBusiness", "infoPrintSettings", "infoDesignChecker"})
             QVERIFY2(page->findChild<QWidget *>(QString::fromLatin1(name)), name);
+        {   // (Open File Location and Copy Path are both grey for a file that has no place yet.)
+            auto *where = page->findChild<QPushButton *>(QStringLiteral("infoShowFolder"));
+            QVERIFY(where);
+            QCOMPARE(where->text(), QStringLiteral("Open File Location"));
+            QVERIFY(!where->isEnabled());
+            QVERIFY(!page->findChild<QPushButton *>(QStringLiteral("infoCopyPath"))->isEnabled());
+        }
         // a password is for .jpub files; the accessibility check has its card, as in the other apps
         QVERIFY(page->findChild<QWidget *>(QStringLiteral("infoEncrypt")));
         QVERIFY(page->findChild<QWidget *>(QStringLiteral("infoAccessibility")));

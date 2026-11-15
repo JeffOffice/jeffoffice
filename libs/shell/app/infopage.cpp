@@ -21,6 +21,8 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QLocale>
+#include <QMessageBox>
+#include <QProcess>
 #include <QPushButton>
 #include <QScrollArea>
 #include <QSet>
@@ -52,6 +54,40 @@ QString folderOfFile(const QString &path)
 }
 
 QString pathForCopy(const QString &path) { return QDir::toNativeSeparators(QFileInfo(path).absoluteFilePath()); }
+
+bool isOnAnotherComputer(const QString &path) { return path.startsWith(QLatin1String("\\\\")) || path.startsWith(QLatin1String("//")); }
+
+FileLocationHooks &fileLocationHooks()
+{
+    static FileLocationHooks hooks;
+    return hooks;
+}
+
+bool openFileLocation(const QString &path, QWidget *parent)
+{
+    if (path.isEmpty()) return false;
+    const FileLocationHooks &hooks = fileLocationHooks();
+    if (isOnAnotherComputer(path)) {
+        const bool yes = hooks.confirm ? hooks.confirm(parent, path)
+                                       : QMessageBox::question(parent, QCoreApplication::translate("jp::InfoPage", "Open File Location"),
+                                                               QCoreApplication::translate("jp::InfoPage", "This file is on another computer. Opening its location may take a while, and the computer will see that you asked. Open it?"),
+                                                               QMessageBox::Yes | QMessageBox::No, QMessageBox::No) == QMessageBox::Yes;
+        if (!yes) return false;
+    }
+    if (hooks.open) {
+        hooks.open(path);
+        return true;
+    }
+    const QString native = QDir::toNativeSeparators(QFileInfo(path).absoluteFilePath());
+#if defined(Q_OS_WIN)
+    // (Explorer takes the whole argument after /select, as one piece.)
+    if (QProcess::startDetached(QStringLiteral("explorer.exe"), {QStringLiteral("/select,") + native})) return true;
+#elif defined(Q_OS_MACOS)
+    if (QProcess::startDetached(QStringLiteral("open"), {QStringLiteral("-R"), native})) return true;
+#endif
+    const QString dir = folderOfFile(path);
+    return !dir.isEmpty() && QDesktopServices::openUrl(QUrl::fromLocalFile(dir));
+}
 
 // ---- the custom properties box
 
@@ -363,13 +399,10 @@ QWidget *buildInfoPage(QWidget *parent, const InfoHost &h)
     pathLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
     pathLabel->setWordWrap(true);
     where->addWidget(pathLabel, 1);
-    auto *show = new QPushButton(QCoreApplication::translate("jp::InfoPage", "Show in Folder"), page);
+    auto *show = new QPushButton(QCoreApplication::translate("jp::InfoPage", "Open File Location"), page);
     show->setObjectName(QStringLiteral("infoShowFolder"));
     show->setEnabled(!folderOfFile(path).isEmpty());
-    QObject::connect(show, &QPushButton::clicked, page, [path] {
-        const QString dir = folderOfFile(path);
-        if (!dir.isEmpty()) QDesktopServices::openUrl(QUrl::fromLocalFile(dir));
-    });
+    QObject::connect(show, &QPushButton::clicked, page, [path, page] { openFileLocation(path, page); });
     where->addWidget(show);
     auto *copy = new QPushButton(QCoreApplication::translate("jp::InfoPage", "Copy Path"), page);
     copy->setObjectName(QStringLiteral("infoCopyPath"));

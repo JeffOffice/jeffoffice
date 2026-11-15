@@ -1320,6 +1320,13 @@ private Q_SLOTS:
             QVERIFY2(page->findChild<QWidget *>(QString::fromLatin1(name)), name);
         QVERIFY(page->findChild<QWidget *>(QStringLiteral("infoAccessibility")));
         QVERIFY(!page->findChild<QPushButton *>(QStringLiteral("infoCopyPath"))->isEnabled());   // (nothing saved yet)
+        {   // (Open File Location and Copy Path are both grey for a file that has no place yet.)
+            auto *where = page->findChild<QPushButton *>(QStringLiteral("infoShowFolder"));
+            QVERIFY(where);
+            QCOMPARE(where->text(), QStringLiteral("Open File Location"));
+            QVERIFY(!where->isEnabled());
+            QVERIFY(!page->findChild<QPushButton *>(QStringLiteral("infoCopyPath"))->isEnabled());
+        }
         auto *title = page->findChild<QLineEdit *>(QStringLiteral("infoTitle"));
         QVERIFY(title);
         title->setText(QStringLiteral("From the page"));

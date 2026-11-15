@@ -1,5 +1,5 @@
 #pragma once
-// The Info page of the File screen, the same in JeffWrite and JeffCrunch (and open to the other apps): where the file is (with Show in Folder and Copy Path), the Protect cards
+// The Info page of the File screen, the same in JeffWrite and JeffCrunch (and open to the other apps): where the file is (with Open File Location and Copy Path), the Protect cards
 // (Mark as Final and Encrypt with Password), the Inspect and Compatibility cards, and the file's properties to read and edit, with the custom ones in a box of their own. The app
 // gives the page its file's facts and what each card does; the page keeps nothing of its own.
 
@@ -54,6 +54,16 @@ struct InfoHost {
 // The page, built for the host's file as it is now.
 QWidget *buildInfoPage(QWidget *parent, const InfoHost &host);
 
+// Whether a path is on another computer (a share: \\\\server\\share or //server/share), judged by how it is written.
+bool isOnAnotherComputer(const QString &path);
+// What Open File Location does, replaceable by a test: `open` shows the file in the system's file manager, `confirm` asks whether to go to a file on another computer.
+struct FileLocationHooks {
+    std::function<void(const QString &file)> open;
+    std::function<bool(QWidget *parent, const QString &file)> confirm;
+};
+FileLocationHooks &fileLocationHooks();
+// Opens the file manager at the file (selecting it where the system can); for a file on another computer it asks first. False when the person says no or nothing could be opened.
+bool openFileLocation(const QString &path, QWidget *parent);
 // What Show in Folder opens for a file's path; a path with nothing there gives "".
 QString folderOfFile(const QString &path);
 // The path as the system writes it, for Copy Path.

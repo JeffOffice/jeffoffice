@@ -650,6 +650,13 @@ private Q_SLOTS:
         QVERIFY(page);
         for (const char *name : {"infoMarkFinal", "infoEncrypt", "infoProtectSheet", "infoProtectStructure", "infoInspect", "infoCompatibility", "infoCustom", "infoShowFolder", "infoCopyPath"})
             QVERIFY2(page->findChild<QWidget *>(QString::fromLatin1(name)), name);
+        {   // (Open File Location and Copy Path are both grey for a file that has no place yet.)
+            auto *where = page->findChild<QPushButton *>(QStringLiteral("infoShowFolder"));
+            QVERIFY(where);
+            QCOMPARE(where->text(), QStringLiteral("Open File Location"));
+            QVERIFY(!where->isEnabled());
+            QVERIFY(!page->findChild<QPushButton *>(QStringLiteral("infoCopyPath"))->isEnabled());
+        }
         auto *title = page->findChild<QLineEdit *>(QStringLiteral("infoTitle"));
         QVERIFY(title);
         title->setText(QStringLiteral("From the page"));
