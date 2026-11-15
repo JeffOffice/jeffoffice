@@ -1493,6 +1493,10 @@ private Q_SLOTS:
     void justifiedWordLinesReachTheMargin();
     void wordTextHasNoLigatures();
     void wordLigaturesFollowTheRunAndTheScript();
+    void everyLigatureChoiceSetsTheLettersAsItAsks();
+    void numberSpacingFollowsTheRunThatAsksForIt();
+    void theFeaturesOfAChoiceAreBoundedAndNamed();
+    void openTypeChoicesSurviveTheStoryFile();
     void punctuationAtTheEndOfALineHangsPastTheMargin();
     void aParagraphThatTurnsHangingOffHasNone();
     void textAfterABreakThatBeginsAParagraphHasItsFirstLineIndent();

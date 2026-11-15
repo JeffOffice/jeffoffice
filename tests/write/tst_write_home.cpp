@@ -4,6 +4,7 @@
 #include "../cmdsearchcheck.h"
 #include "../isolatesettings.h"
 #include "app/widgets.h"
+#include <QTabWidget>
 #include "app/settings.h"
 #include "core/fontfiles.h"
 #include "app/writedialogs.h"
@@ -971,6 +972,63 @@ private Q_SLOTS:
         });
         const QByteArray plain = part(w.document()->toDocx(), QStringLiteral("/word/document.xml"));
         QVERIFY2(!plain.contains("w:spacing w:val") && !plain.contains("w:position") && !plain.contains("w:kern"), plain.constData());
+    }
+
+    // The Advanced page of the Font box holds the OpenType choices: they are set for what is selected, written to the file, shown again, and left alone changing nothing.
+    void theFontBoxAdvancedPageSetsOpenTypeChoicesAndTheFileKeepsThem()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        w.setDocument(open(makeDocx(para(run("office 2026")))), QString());
+        w.view()->selectAll();
+        withDialog([&w] { w.act(QStringLiteral("fmt.fontDialog"))->trigger(); }, QStringLiteral("fontDialog"), [](QDialog *d) {
+            auto *tabs = d->findChild<QTabWidget *>(QStringLiteral("fontTabs"));
+            QVERIFY(tabs);
+            QCOMPARE(tabs->tabText(1), QStringLiteral("Advanced"));
+            tabs->setCurrentIndex(1);
+            d->findChild<QComboBox *>(QStringLiteral("ligatures"))->setCurrentIndex(3);            // standard and contextual
+            d->findChild<QComboBox *>(QStringLiteral("numberSpacing"))->setCurrentIndex(2);        // tabular
+            d->findChild<QComboBox *>(QStringLiteral("numberForms"))->setCurrentIndex(2);          // old-style
+            d->findChild<QComboBox *>(QStringLiteral("stylisticSet"))->setCurrentIndex(3);         // set 3
+            d->findChild<QComboBox *>(QStringLiteral("contextualAlternates"))->setCurrentIndex(2); // off
+            shotOf(d, QStringLiteral("write-font-advanced"));
+        });
+        const QByteArray out = part(w.document()->toDocx(), QStringLiteral("/word/document.xml"));
+        QVERIFY2(out.contains("<w14:ligatures w14:val=\"standardContextual\"/>") && out.contains("<w14:numSpacing w14:val=\"tabular\"/>") && out.contains("<w14:numForm w14:val=\"oldStyle\"/>")
+                     && out.contains("<w14:styleSet w14:id=\"3\" w14:val=\"1\"/>") && out.contains("<w14:cntxtAlts w14:val=\"0\"/>"), out.constData());
+        // The box shows them again, and leaving them alone changes nothing.
+        withDialog([&w] { w.act(QStringLiteral("fmt.fontDialog"))->trigger(); }, QStringLiteral("fontDialog"), [](QDialog *d) {
+            QCOMPARE(d->findChild<QComboBox *>(QStringLiteral("ligatures"))->currentIndex(), 3);
+            QCOMPARE(d->findChild<QComboBox *>(QStringLiteral("numberSpacing"))->currentIndex(), 2);
+            QCOMPARE(d->findChild<QComboBox *>(QStringLiteral("numberForms"))->currentIndex(), 2);
+            QCOMPARE(d->findChild<QComboBox *>(QStringLiteral("stylisticSet"))->currentIndex(), 3);
+            QCOMPARE(d->findChild<QComboBox *>(QStringLiteral("contextualAlternates"))->currentIndex(), 2);
+        });
+        QCOMPARE(part(w.document()->toDocx(), QStringLiteral("/word/document.xml")), out);
+        // Back to the font's own: nothing of them is left in the file.
+        withDialog([&w] { w.act(QStringLiteral("fmt.fontDialog"))->trigger(); }, QStringLiteral("fontDialog"), [](QDialog *d) {
+            for (const char *name : {"ligatures", "numberSpacing", "numberForms", "stylisticSet", "contextualAlternates"}) d->findChild<QComboBox *>(QString::fromLatin1(name))->setCurrentIndex(0);
+        });
+        QVERIFY(!part(w.document()->toDocx(), QStringLiteral("/word/document.xml")).contains("w14:"));
+    }
+
+    // Where the characters selected differ, a box of the Advanced page shows (mixed) and, left alone, leaves each as it was.
+    void aMixedChoiceOnTheAdvancedPageIsLeftAlone()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        const QByteArray ns = " xmlns:w14=\"http://schemas.microsoft.com/office/word/2010/wordml\"";
+        w.setDocument(open(makeDocx("<w:p><w:r><w:rPr><w14:numForm" + ns + " w14:val=\"lining\"/></w:rPr><w:t>one </w:t></w:r><w:r><w:rPr><w14:numForm" + ns + " w14:val=\"oldStyle\"/></w:rPr><w:t>two</w:t></w:r></w:p>")), QString());
+        w.view()->selectAll();
+        withDialog([&w] { w.act(QStringLiteral("fmt.fontDialog"))->trigger(); }, QStringLiteral("fontDialog"), [](QDialog *d) {
+            auto *forms = d->findChild<QComboBox *>(QStringLiteral("numberForms"));
+            QCOMPARE(forms->currentText(), QStringLiteral("(mixed)"));
+            d->findChild<QComboBox *>(QStringLiteral("numberSpacing"))->setCurrentIndex(1);   // (only this is set)
+        });
+        const QByteArray out = part(w.document()->toDocx(), QStringLiteral("/word/document.xml"));
+        QVERIFY2(out.contains("w14:val=\"lining\"") && out.contains("w14:val=\"oldStyle\"") && out.contains("w14:val=\"proportional\""), out.constData());
     }
 
     void theTabsBoxSetsTabStopsWithTheirLeaders()

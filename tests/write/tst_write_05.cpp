@@ -1,5 +1,7 @@
 #include "tst_write.h"
 
+#include "render/pdfpage.h"
+
 QStringList WriteTests::endnoteReferenceNumbers(WriteDoc &doc)
 {
     QStringList out;
@@ -1581,14 +1583,197 @@ void WriteTests::aRunThatAsksForLigaturesIsReadSo()
         if (!documentXml(doc->toDocx()).contains(QByteArray("w14:val=\"") + val + "\"")) return -3;
         return f.intProperty(tp::Ligatures);
     };
+    // (the kinds a value names: 16 and the sum of standard 1, contextual 2, historical 4, and discretionary 8; none is 1)
     QCOMPARE(ligaturesOf("none"), 1);
-    QCOMPARE(ligaturesOf("standard"), 0);
-    QCOMPARE(ligaturesOf("standardContextual"), 0);
-    QCOMPARE(ligaturesOf("all"), 2);
-    QCOMPARE(ligaturesOf("discretional"), 2);
+    QCOMPARE(ligaturesOf("standard"), 17);
+    QCOMPARE(ligaturesOf("standardContextual"), 19);
+    QCOMPARE(ligaturesOf("historicalDiscretional"), 28);
+    QCOMPARE(ligaturesOf("all"), 31);
+    QCOMPARE(ligaturesOf("discretional"), 24);
     auto doc = open(makeDocx("<w:p><w:r><w:t>office</w:t></w:r></w:p>"));
     QVERIFY(doc);
     QVERIFY(!doc->story()->begin().begin().fragment().charFormat().hasProperty(tp::Ligatures));
+}
+
+
+// A run's OpenType choices (w14:ligatures, numForm, numSpacing, stylisticSets, and cntxtAlts) are read, and the file keeps each element as it was written.
+void WriteTests::aRunsOpenTypeChoicesAreReadAndKeptAsWritten()
+{
+    const QByteArray ns = " xmlns:w14=\"http://schemas.microsoft.com/office/word/2010/wordml\"";
+    const QByteArray choices = "<w14:ligatures" + ns + " w14:val=\"historicalDiscretional\"/><w14:numForm" + ns + " w14:val=\"oldStyle\"/><w14:numSpacing" + ns +
+                               " w14:val=\"tabular\"/><w14:stylisticSets" + ns + "><w14:styleSet w14:id=\"3\" w14:val=\"0\"/><w14:styleSet w14:id=\"5\"/></w14:stylisticSets><w14:cntxtAlts" + ns + " w14:val=\"0\"/>";
+    auto doc = open(makeDocx("<w:p><w:r><w:rPr>" + choices + "</w:rPr><w:t>office</w:t></w:r></w:p>"));
+    QVERIFY(doc);
+    const QTextCharFormat f = doc->story()->begin().begin().fragment().charFormat();
+    QCOMPARE(f.intProperty(tp::Ligatures), 28);
+    QCOMPARE(f.intProperty(tp::NumberStyle), 2);
+    QCOMPARE(f.intProperty(tp::NumberSpacing), 2);
+    QCOMPARE(f.intProperty(tp::StylisticSet), 5);   // (the first set that is on)
+    QCOMPARE(f.intProperty(tp::ContextualAlts), 2);
+    QTextCursor c(doc->story());
+    insertText(*doc, c, QStringLiteral("x"));
+    const QByteArray out = documentXml(doc->toDocx());
+    QVERIFY(out.contains(choices));
+    // A run that says nothing of them has none.
+    auto none = open(makeDocx("<w:p><w:r><w:t>office</w:t></w:r></w:p>"));
+    QVERIFY(none);
+    const QTextCharFormat g = none->story()->begin().begin().fragment().charFormat();
+    for (const int property : {int(tp::Ligatures), int(tp::NumberStyle), int(tp::NumberSpacing), int(tp::StylisticSet), int(tp::ContextualAlts)}) QVERIFY(!g.hasProperty(property));
+}
+
+
+// A choice made in the Font box is written as the element the file format has for it (the namespace declared, and a program that does not know it told to pass it
+// by), is read back as made, and one taken away goes from the file whether the person made it or the file had it.
+void WriteTests::aChoiceMadeInTheFontBoxIsWrittenAndReadBack()
+{
+    auto doc = open(makeDocx("<w:p><w:r><w:t>office</w:t></w:r></w:p>"));
+    QVERIFY(doc);
+    QTextCursor c(doc->story());
+    c.select(QTextCursor::Document);
+    changeCharFormat(*doc, c, [](QTextCharFormat &f) {
+        f.setProperty(tp::Ligatures, tp::ot::ligatureValueOfKinds(tp::ot::kLigStandard | tp::ot::kLigContextual));
+        f.setProperty(tp::NumberStyle, 1);
+        f.setProperty(tp::NumberSpacing, 1);
+        f.setProperty(tp::StylisticSet, 7);
+        f.setProperty(tp::ContextualAlts, 2);
+    });
+    const QByteArray out = documentXml(doc->toDocx());
+    const QList<QByteArray> inOrder{"<w14:ligatures w14:val=\"standardContextual\"/>", "<w14:numForm w14:val=\"lining\"/>", "<w14:numSpacing w14:val=\"proportional\"/>",
+                                    "<w14:stylisticSets><w14:styleSet w14:id=\"7\" w14:val=\"1\"/></w14:stylisticSets>", "<w14:cntxtAlts w14:val=\"0\"/>"};
+    qsizetype at = -1;
+    for (const QByteArray &element : inOrder) {
+        const qsizetype here = out.indexOf(element);
+        QVERIFY2(here > at, element.constData());   // (each there, in the order of the schema)
+        at = here;
+    }
+    const qsizetype rootAt = out.indexOf("<w:document");
+    const QByteArray root = out.mid(rootAt, out.indexOf('>', rootAt) - rootAt);
+    QVERIFY2(root.contains("xmlns:w14=") && root.contains("mc:Ignorable=\"w14\"") && root.contains("xmlns:mc="), root.constData());
+    // Read back as made.
+    auto again = open(doc->toDocx());
+    QVERIFY(again);
+    const QTextCharFormat f = again->story()->begin().begin().fragment().charFormat();
+    QCOMPARE(f.intProperty(tp::Ligatures), 19);
+    QCOMPARE(f.intProperty(tp::NumberStyle), 1);
+    QCOMPARE(f.intProperty(tp::NumberSpacing), 1);
+    QCOMPARE(f.intProperty(tp::StylisticSet), 7);
+    QCOMPARE(f.intProperty(tp::ContextualAlts), 2);
+    // One changed is written as changed, and one cleared goes.
+    QTextCursor c2(again->story());
+    c2.select(QTextCursor::Document);
+    changeCharFormat(*again, c2, [](QTextCharFormat &g) {
+        g.setProperty(tp::Ligatures, tp::ot::ligatureValueOfKinds(tp::ot::kLigKinds));
+        g.clearProperty(tp::NumberStyle);
+        g.clearProperty(tp::ContextualAlts);
+    });
+    const QByteArray next = documentXml(again->toDocx());
+    QVERIFY2(next.contains("<w14:ligatures w14:val=\"all\"/>") && !next.contains("standardContextual"), next.constData());
+    QVERIFY(!next.contains("numForm") && !next.contains("cntxtAlts"));
+    QVERIFY(next.contains("w14:numSpacing") && next.contains("w14:styleSet"));
+    // (a file that had the elements)
+    const QByteArray ns = " xmlns:w14=\"http://schemas.microsoft.com/office/word/2010/wordml\"";
+    auto had = open(makeDocx("<w:p><w:r><w:rPr><w14:numForm" + ns + " w14:val=\"lining\"/><w14:cntxtAlts" + ns + "/></w:rPr><w:t>office</w:t></w:r></w:p>"));
+    QVERIFY(had);
+    QCOMPARE(had->story()->begin().begin().fragment().charFormat().intProperty(tp::ContextualAlts), 1);
+    QTextCursor c3(had->story());
+    c3.select(QTextCursor::Document);
+    changeCharFormat(*had, c3, [](QTextCharFormat &g) {
+        g.clearProperty(tp::NumberStyle);
+        g.clearProperty(tp::ContextualAlts);
+    });
+    QVERIFY(!documentXml(had->toDocx()).contains("w14:"));
+}
+
+
+// What a file says of OpenType choices is bounded: a list of stylistic sets is read to its twentieth, a set is one of 1 to 20, and a value that is not one of the
+// names is passed by.
+void WriteTests::hostileOpenTypeChoicesAreBounded()
+{
+    const QByteArray ns = " xmlns:w14=\"http://schemas.microsoft.com/office/word/2010/wordml\"";
+    auto read = [&](const QByteArray &rPr) {
+        auto doc = open(makeDocx("<w:p><w:r><w:rPr>" + rPr + "</w:rPr><w:t>office</w:t></w:r></w:p>"));
+        return doc ? doc->story()->begin().begin().fragment().charFormat() : QTextCharFormat();
+    };
+    // Twenty sets that are off, and then the ones that are on: none is read.
+    QByteArray sets = "<w14:stylisticSets" + ns + ">";
+    for (int i = 1; i <= 20; ++i) sets += "<w14:styleSet w14:id=\"" + QByteArray::number(i) + "\" w14:val=\"0\"/>";
+    for (int i = 0; i < 10; ++i) sets += "<w14:styleSet w14:id=\"5\" w14:val=\"1\"/>";
+    QVERIFY(!read(sets + "</w14:stylisticSets>").hasProperty(tp::StylisticSet));
+    // A set outside 1 to 20 is none.
+    QVERIFY(!read("<w14:stylisticSets" + ns + "><w14:styleSet w14:id=\"21\"/><w14:styleSet w14:id=\"0\"/><w14:styleSet w14:id=\"99999\"/></w14:stylisticSets>").hasProperty(tp::StylisticSet));
+    QCOMPARE(read("<w14:stylisticSets" + ns + "><w14:styleSet w14:id=\"20\"/></w14:stylisticSets>").intProperty(tp::StylisticSet), 20);
+    // Values that are not names, and one that is far too long.
+    QVERIFY(!read("<w14:ligatures" + ns + " w14:val=\"" + QByteArray(70000, 'a') + "\"/>").hasProperty(tp::Ligatures));
+    QVERIFY(!read("<w14:ligatures" + ns + " w14:val=\"sparkly\"/>").hasProperty(tp::Ligatures));
+    QVERIFY(!read("<w14:numForm" + ns + " w14:val=\"fancy\"/>").hasProperty(tp::NumberStyle));
+    QVERIFY(!read("<w14:numSpacing" + ns + " w14:val=\"default\"/>").hasProperty(tp::NumberSpacing));
+    // What it could not read is kept as it was.
+    auto doc = open(makeDocx("<w:p><w:r><w:rPr><w14:numForm" + ns + " w14:val=\"fancy\"/></w:rPr><w:t>office</w:t></w:r></w:p>"));
+    QVERIFY(doc);
+    QTextCursor c(doc->story());
+    insertText(*doc, c, QStringLiteral("x"));
+    QVERIFY(documentXml(doc->toDocx()).contains("w14:val=\"fancy\""));
+}
+
+
+// The PDF sets the letters as the screen does: the same text with and without ligatures is as much wider on a page of the PDF as it is in the layout.
+void WriteTests::pdfOutputSetsTheLettersAsTheScreenDoes()
+{
+    QVERIFY2(QFontDatabase::hasFamily(QStringLiteral("Carlito")), "the face the program carries is not registered");
+    const QByteArray body = "<w:p><w:r><w:rPr><w:rFonts w:ascii=\"Carlito\" w:hAnsi=\"Carlito\"/><w:sz w:val=\"72\"/></w:rPr><w:t>ffi ffi ffi ffi ffi ffi</w:t></w:r></w:p>";
+    struct Widths {
+        double layout = 0, pdf = 0;
+    };
+    auto widths = [&](int ligatures) {
+        QTemporaryDir dir;
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        auto doc = open(makeDocx(body));
+        Widths out;
+        if (!doc) return out;
+        QTextCursor c(doc->story());
+        c.select(QTextCursor::Document);
+        changeCharFormat(*doc, c, [&](QTextCharFormat &f) { f.setProperty(tp::Ligatures, ligatures); });
+        // The layout's width of the text.
+        LayoutEnv env = doc->flow().env;
+        StoryLayout lay;
+        FrameSpec fs;
+        fs.size = QSizeF(2000, 200);
+        lay.build(doc->story(), {fs}, env);
+        const auto rects = lay.rangeRects(0, 0, doc->story()->characterCount() - 1);
+        out.layout = rects.isEmpty() ? 0 : rects.last().right() - rects.first().left();
+        // The PDF's: the ink of its page, from the first letter's edge to the last's.
+        w.setDocument(std::move(doc), QString());
+        w.setSavePathChooser([&](const QString &, const QString &) { return dir.filePath(QStringLiteral("out.pdf")); });
+        if (!w.exportPdf()) return out;
+        QFile f(dir.filePath(QStringLiteral("out.pdf")));
+        if (!f.open(QIODevice::ReadOnly)) return out;
+        const jp::PdfDocument pdf(f.readAll());
+        const double scale = 4;
+        QImage page(pdf.pageSize(0).toSize() * int(scale), QImage::Format_RGB32);
+        page.fill(Qt::white);
+        {
+            QPainter paint(&page);
+            paint.drawImage(0, 0, pdf.render(0, page.size()));
+        }
+        const QImage img = page.convertToFormat(QImage::Format_Grayscale8);
+        int left = img.width(), right = -1;
+        for (int y = 0; y < img.height(); ++y) {
+            const uchar *row = img.constScanLine(y);
+            for (int x = 0; x < img.width(); ++x)
+                if (row[x] < 128) {
+                    left = std::min(left, x);
+                    right = std::max(right, x);
+                }
+        }
+        out.pdf = right < left ? 0 : (right - left + 1) / scale;
+        return out;
+    };
+    const Widths apart = widths(tp::ot::ligatureValueOfKinds(0)), joined = widths(tp::ot::ligatureValueOfKinds(tp::ot::kLigStandard));
+    QVERIFY(apart.layout > 0 && apart.pdf > 0 && joined.layout > 0 && joined.pdf > 0);
+    QVERIFY2(apart.layout - joined.layout > 2, "the face has no ligature for ffi");
+    // (what the ligatures save on the screen is what they save on the page, to within the ink's edge)
+    QVERIFY2(std::abs((apart.pdf - joined.pdf) - (apart.layout - joined.layout)) < 1.5, qPrintable(QStringLiteral("%1 %2 %3 %4").arg(apart.layout).arg(joined.layout).arg(apart.pdf).arg(joined.pdf)));
 }
 
 

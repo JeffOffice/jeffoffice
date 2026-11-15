@@ -1,4 +1,6 @@
 // JeffDeck's tests of text effects, shrunk text, and the lines of slide text.
+#include <QComboBox>
+#include <QTabWidget>
 #include "deckhelpers.h"
 
 class DeckTextEffectsTests : public QObject {
@@ -912,6 +914,50 @@ private Q_SLOTS:
                 QVERIFY(runListOf(story, QStringLiteral("Hello")).isEmpty());
             }
         }
+    }
+
+    // The Font window's Advanced page has the OpenType choices, and they go to the words as the Font window sets them: a choice left alone is not touched, and one set
+    // back to the font's own is taken away.
+    void fontWindowAdvancedPageSetsOpenTypeChoices()
+    {
+        DeckWindow w;
+        QTextDocument *story = editTitle(w, QStringLiteral("office 2026"), 0, 11);
+        Q_UNUSED(story);
+        auto answer = [](const std::function<void(QDialog *)> &fill) {
+            QTimer::singleShot(0, [fill] {
+                untilDone([fill] {
+                    auto *dlg = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+                    if (!dlg) return false;
+                    fill(dlg);
+                    dlg->accept();
+                    return true;
+                });
+            });
+        };
+        answer([](QDialog *dlg) {
+            auto *tabs = dlg->findChild<QTabWidget *>(QStringLiteral("fontTabs"));
+            QVERIFY(tabs && tabs->count() == 2);
+            dlg->findChild<QComboBox *>(QStringLiteral("ligatures"))->setCurrentIndex(5);            // all
+            dlg->findChild<QComboBox *>(QStringLiteral("numberSpacing"))->setCurrentIndex(2);        // tabular
+            dlg->findChild<QComboBox *>(QStringLiteral("stylisticSet"))->setCurrentIndex(20);        // set 20
+            dlg->findChild<QComboBox *>(QStringLiteral("contextualAlternates"))->setCurrentIndex(1); // on
+        });
+        fontDialog(&w, w.editor());
+        QTextCharFormat cf = w.editor()->currentCharFormat();
+        QCOMPARE(cf.intProperty(tp::Ligatures), 31);
+        QCOMPARE(cf.intProperty(tp::NumberSpacing), 2);
+        QCOMPARE(cf.intProperty(tp::StylisticSet), 20);
+        QCOMPARE(cf.intProperty(tp::ContextualAlts), 1);
+        QVERIFY(!cf.hasProperty(tp::NumberStyle));
+        answer([](QDialog *dlg) {
+            QCOMPARE(dlg->findChild<QComboBox *>(QStringLiteral("ligatures"))->currentIndex(), 5);
+            dlg->findChild<QComboBox *>(QStringLiteral("numberSpacing"))->setCurrentIndex(0);
+        });
+        fontDialog(&w, w.editor());
+        cf = w.editor()->currentCharFormat();
+        QVERIFY(!cf.hasProperty(tp::NumberSpacing));
+        QCOMPARE(cf.intProperty(tp::Ligatures), 31);   // (left alone)
+        QCOMPARE(cf.intProperty(tp::StylisticSet), 20);
     }
 
     // The effect lists written here follow the schema's order (glow, inner shadow, outer shadow, reflection, soft edges); one a file had is

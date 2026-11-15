@@ -60,6 +60,7 @@
 #include "../timing.h"
 #include "app/spelling.h"
 #include "text/dictionaries.h"
+#include "text/opentype.h"
 #include "text/textengine.h"
 #include "text/textprops.h"
 #include "io/zip.h"
@@ -1160,6 +1161,10 @@ private Q_SLOTS:
     void editingJoinsTheParagraphsThatShowAcrossADeletedOne();
     void aSelectionAtADeletedParagraphLeavesNoTextInIt();
     void aRunThatAsksForLigaturesIsReadSo();
+    void aRunsOpenTypeChoicesAreReadAndKeptAsWritten();
+    void aChoiceMadeInTheFontBoxIsWrittenAndReadBack();
+    void hostileOpenTypeChoicesAreBounded();
+    void pdfOutputSetsTheLettersAsTheScreenDoes();
     void overflowPunctOffIsReadFromTheParagraphAndItsStyle();
     void clearingFormattingKeepsDeletedTextDeleted();
     void aDeletedEndnoteReferenceTakesNoNumber();

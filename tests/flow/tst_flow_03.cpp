@@ -1,5 +1,8 @@
 #include "tst_flow.h"
 
+#include "text/opentype.h"
+#include "text/storyio.h"
+
 
 // The ligatures of a word processor's text are the file's to ask for (tp::Ligatures on a run that has them: the standard ones, or none), and its letters of
 // the scripts that are shaped with ligatures (Arabic) are not touched by the default of none: a paragraph that has one keeps its font's.
@@ -28,6 +31,130 @@ void FlowTests::wordLigaturesFollowTheRunAndTheScript()
     QVERIFY(std::abs(width(ti, true, 1) - apart) < 0.01);       // (and for none)
     QVERIFY(std::abs(width(ti + QChar(0x0628), true, -1) - joined) < 0.01);   // (an Arabic letter in the paragraph: the font's own)
     QVERIFY(std::abs(width(ti + QStringLiteral(" \u0393\u0431"), true, -1) - apart) < 0.01);   // (Greek and Cyrillic are Latin's kind)
+}
+
+
+// Each ligature choice sets the letters as it asks: "ffi" and "ti" are one glyph each in the bundled Carlito (standard ligatures), which the choices of none and of
+// historical and discretionary ones only (which have no standard ones) set apart; standard only, standard and contextual, and all join them.
+void FlowTests::everyLigatureChoiceSetsTheLettersAsItAsks()
+{
+    QVERIFY2(QFontDatabase::hasFamily(QStringLiteral("Carlito")), "the face the program carries is not registered");
+    using namespace tp::ot;
+    auto width = [&](const QString &text, int ligatures) {
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextCharFormat run;
+        run.setFontFamilies({QStringLiteral("Carlito")});
+        run.setFontPointSize(24);
+        if (ligatures >= 0) run.setProperty(tp::Ligatures, ligatures);
+        c.insertText(text, run);
+        LayoutEnv env;
+        StoryLayout lay;
+        lay.build(&doc, {plainFrame(1000, 100)}, env);
+        const auto rects = lay.rangeRects(0, 0, text.size());
+        return rects.isEmpty() ? -1.0 : rects.last().right() - rects.first().left();
+    };
+    for (const QString &text : {QStringLiteral("ffi"), QStringLiteral("ti")}) {
+        const double apart = width(text, ligatureValueOfKinds(0)), standard = width(text, ligatureValueOfKinds(kLigStandard));
+        QVERIFY2(std::abs(apart - standard) > 0.05, qPrintable(text + QStringLiteral(": the face has no ligature")));
+        QVERIFY(std::abs(width(text, -1) - standard) < 0.01);                                                     // (the text's own: the font's)
+        QVERIFY(std::abs(width(text, ligatureValueOfKinds(kLigStandard | kLigContextual)) - standard) < 0.01);
+        QVERIFY(std::abs(width(text, ligatureValueOfKinds(kLigKinds)) - standard) < 0.01);
+        QVERIFY(std::abs(width(text, ligatureValueOfKinds(kLigHistorical | kLigDiscretionary)) - apart) < 0.01);   // (no standard ones)
+        QVERIFY(std::abs(width(text, ligatureValueOfKinds(kLigContextual)) - apart) < 0.01);
+    }
+}
+
+
+// The number spacing a run asks for is the run's: a run in the middle of a paragraph that asks for tabular figures has digits of one width and one that asks for
+// proportional ones has digits of their own widths, whatever the paragraph's first run has.
+void FlowTests::numberSpacingFollowsTheRunThatAsksForIt()
+{
+    QVERIFY2(QFontDatabase::hasFamily(QStringLiteral("Carlito")), "the face the program carries is not registered");
+    auto widths = [&](int spacing) {
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextCharFormat plain;
+        plain.setFontFamilies({QStringLiteral("Carlito")});
+        plain.setFontPointSize(24);
+        c.insertText(QStringLiteral("x "), plain);
+        QTextCharFormat run = plain;
+        if (spacing >= 0) run.setProperty(tp::NumberSpacing, spacing);
+        c.insertText(QStringLiteral("1111 0000"), run);
+        c.insertText(QStringLiteral(" 1111 0000"), plain);
+        LayoutEnv env;
+        StoryLayout lay;
+        lay.build(&doc, {plainFrame(1000, 100)}, env);
+        auto span = [&](int from, int to) {
+            const auto r = lay.rangeRects(0, from, to);
+            return r.isEmpty() ? -1.0 : r.last().right() - r.first().left();
+        };
+        return QList<double>{span(2, 6), span(7, 11), span(12, 16), span(17, 21)};   // the run's ones and zeros, and the plain ones and zeros
+    };
+    const QList<double> tabular = widths(2), proportional = widths(1), plain = widths(-1);
+    QVERIFY(std::abs(tabular[0] - tabular[1]) < 0.01);                    // (one width to every digit)
+    QVERIFY(std::abs(proportional[0] - proportional[1]) > 0.05);          // (a one is narrower than a zero)
+    QVERIFY(std::abs(tabular[2] - plain[2]) < 0.01 && std::abs(proportional[2] - plain[2]) < 0.01);   // (the runs after it are the font's own)
+    QVERIFY(std::abs(tabular[3] - plain[3]) < 0.01 && std::abs(proportional[3] - plain[3]) < 0.01);
+}
+
+
+// A choice is named by its feature: the sets are ss01 to ss20 and no more, contextual alternates are calt on or off, and a ligature number outside what a file says
+// asks for the font's own.
+void FlowTests::theFeaturesOfAChoiceAreBoundedAndNamed()
+{
+    using namespace tp::ot;
+    auto asked = [](int property, int value) {
+        QTextCharFormat f;
+        f.setProperty(property, value);
+        return features(f, false);
+    };
+    QCOMPARE(asked(tp::StylisticSet, 7).value(QFont::Tag("ss07"), 9), 1u);
+    QCOMPARE(asked(tp::StylisticSet, 20).value(QFont::Tag("ss20"), 9), 1u);
+    QVERIFY(asked(tp::StylisticSet, 21).isEmpty());
+    QVERIFY(asked(tp::StylisticSet, -3).isEmpty());
+    QVERIFY(asked(tp::StylisticSet, 0).isEmpty());
+    QCOMPARE(asked(tp::ContextualAlts, 1).value(QFont::Tag("calt"), 9), 1u);
+    QCOMPARE(asked(tp::ContextualAlts, 2).value(QFont::Tag("calt"), 9), 0u);
+    QVERIFY(asked(tp::ContextualAlts, 0).isEmpty());
+    QCOMPARE(asked(tp::NumberSpacing, 2).value(QFont::Tag("tnum"), 9), 1u);
+    QCOMPARE(asked(tp::NumberStyle, 2).value(QFont::Tag("onum"), 9), 1u);
+    QCOMPARE(asked(tp::NumberStyle, 1).value(QFont::Tag("lnum"), 9), 1u);
+    const QMap<QFont::Tag, quint32> all = asked(tp::Ligatures, ligatureValueOfKinds(kLigKinds));
+    QCOMPARE(all.value(QFont::Tag("liga"), 9), 1u);
+    QCOMPARE(all.value(QFont::Tag("clig"), 9), 1u);
+    QCOMPARE(all.value(QFont::Tag("hlig"), 9), 1u);
+    QCOMPARE(all.value(QFont::Tag("dlig"), 9), 1u);
+    const QMap<QFont::Tag, quint32> standard = asked(tp::Ligatures, ligatureValueOfKinds(kLigStandard));
+    QCOMPARE(standard.value(QFont::Tag("liga"), 9), 1u);
+    QCOMPARE(standard.value(QFont::Tag("clig"), 9), 0u);
+    QCOMPARE(standard.value(QFont::Tag("dlig"), 9), 0u);
+    QCOMPARE(ligatureKindsOf(ligatureValueOfKinds(kLigHistorical | kLigDiscretionary)), int(kLigHistorical | kLigDiscretionary));
+    QVERIFY(asked(tp::Ligatures, 999).isEmpty());   // (a number no file says: the font's own)
+    QCOMPARE(ligatureKindsOf(999), int(kLigStandard | kLigContextual));
+}
+
+
+// The choices are kept by our own file's story (a publication's .jpub holds them); a story the file reads comes back with each as it was set.
+void FlowTests::openTypeChoicesSurviveTheStoryFile()
+{
+    QTextDocument doc;
+    QTextCursor c(&doc);
+    QTextCharFormat run;
+    run.setProperty(tp::Ligatures, tp::ot::ligatureValueOfKinds(tp::ot::kLigHistorical | tp::ot::kLigDiscretionary));
+    run.setProperty(tp::NumberStyle, 2);
+    run.setProperty(tp::NumberSpacing, 2);
+    run.setProperty(tp::StylisticSet, 12);
+    run.setProperty(tp::ContextualAlts, 2);
+    c.insertText(QStringLiteral("office 2026"), run);
+    QTextDocument back;
+    storyFromJson(&back, storyToJson(&doc));
+    const QTextCharFormat f = back.begin().begin().fragment().charFormat();
+    QCOMPARE(f.intProperty(tp::Ligatures), 28);
+    QCOMPARE(f.intProperty(tp::NumberStyle), 2);
+    QCOMPARE(f.intProperty(tp::NumberSpacing), 2);
+    QCOMPARE(f.intProperty(tp::StylisticSet), 12);
+    QCOMPARE(f.intProperty(tp::ContextualAlts), 2);
 }
 
 
