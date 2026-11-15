@@ -9,11 +9,16 @@
 #include "app/writedialogs.h"
 #include "core/editops.h"
 #include "core/headerops.h"
+#include "core/pagenumberops.h"
 #include "core/pagesetup.h"
+#include "app/icons.h"
+#include "app/pagenumbergallery.h"
 #include "app/widgets.h"
 
 #include <QAction>
 #include <QMenu>
+#include <QMessageBox>
+#include <QPushButton>
 
 namespace jp {
 
@@ -44,6 +49,16 @@ void WriteWindow::createHeaderFooterActions()
         m_view->setFocus(Qt::OtherFocusReason);
         m_view->viewport()->update();
     });
+    // The Page Number gallery's two commands under its designs: Format Page Numbers (the dialog, for the section the caret is in or being edited) and Remove Page Numbers.
+    mk("pn.format", tr("Format Page Numbers…"), "list-ordered", QKeySequence(), [this] {
+        if (!m_doc) return;
+        const int section = m_view->inHeaderFooter() ? m_view->headerFooterEdit().section : m_doc->sectionAt(m_view->cursor().position());
+        write::pageNumberFormatDialog(this, m_doc.get(), section);
+        if (m_view->inHeaderFooter()) m_view->refreshHeaderFooter(false);
+        m_view->setFocus(Qt::OtherFocusReason);
+        m_view->viewport()->update();
+    });
+    mk("pn.remove", tr("Remove Page Numbers"), "eraser", QKeySequence(), [this] { removePageNumbers(); });
     mk("hf.alignmentTab", tr("Insert Alignment Tab…"), "arrow-right-to-line", QKeySequence(), [this] {
         if (!m_doc || !m_view->inHeaderFooter()) return;
         QString alignment = QStringLiteral("center"), relativeTo = QStringLiteral("margin"), leader = QStringLiteral("none");
@@ -112,8 +127,78 @@ void WriteWindow::removeEdited(bool footer)
     m_view->setFocus(Qt::OtherFocusReason);
 }
 
+QVector<GalleryItem> WriteWindow::pageNumberItems() const
+{
+    return pageNumberGalleryItems(m_doc ? write::pageNumberAccent(*m_doc) : QColor(0x2F, 0x55, 0x97));
+}
+
+// A design goes where the caret is: a top, bottom, or margin design in the header or footer of the page the caret is on (of the kind of page it is: the first page's, an odd page's, or an even
+// page's), and a design of the current position at the caret, in the text or in a header or footer. A header that holds text is asked about: replace it, or keep it and add the number.
+bool WriteWindow::insertPageNumberDesign(const QString &id)
+{
+    const std::optional<PageNumberDesign> design = pageNumberDesignById(id);
+    if (!m_doc || !design) return false;
+    bool done = false;
+    if (design->area == PageNumberArea::Cursor) {
+        done = write::insertPageNumberAtCursor(*m_doc, m_view->cursor(), id);
+    } else {
+        const int page = m_view->currentPage();
+        write::PageNumberPlace place;
+        if (!write::pageNumberPlaceOf(*m_doc, page, *design, &place)) {
+            statusBar()->showMessage(tr("This page has no header or footer to put a page number in."), 6000);
+            return false;
+        }
+        write::PageNumberText what = write::PageNumberText::Replace;
+        if (design->area != PageNumberArea::Margin && write::pageNumberTargetHoldsText(*m_doc, place)) {
+            int answer = 0;
+            if (m_pageNumberAsker) {
+                answer = m_pageNumberAsker();
+            } else {
+                QMessageBox box(QMessageBox::Question, tr("Page Number"),
+                                place.footer ? tr("The footer already has text. Replace it with the page number, or keep it and add the number?")
+                                             : tr("The header already has text. Replace it with the page number, or keep it and add the number?"),
+                                QMessageBox::NoButton, this);
+                QPushButton *replace = box.addButton(tr("Replace"), QMessageBox::AcceptRole);
+                QPushButton *keep = box.addButton(tr("Keep and Add"), QMessageBox::AcceptRole);
+                box.addButton(QMessageBox::Cancel);
+                box.exec();
+                answer = box.clickedButton() == replace ? 1 : box.clickedButton() == keep ? 2 : 0;
+            }
+            if (answer == 0) return false;
+            what = answer == 2 ? write::PageNumberText::Keep : write::PageNumberText::Replace;
+        }
+        done = write::insertPageNumberDesign(*m_doc, page, id, what);
+        if (done && m_view->inHeaderFooter()) m_view->refreshHeaderFooter(false);
+    }
+    m_view->setFocus(Qt::OtherFocusReason);
+    m_view->viewport()->update();
+    refreshUi();
+    return done;
+}
+
+int WriteWindow::removePageNumbers()
+{
+    if (!m_doc) return 0;
+    const int removed = write::removePageNumbers(*m_doc);
+    if (m_view->inHeaderFooter()) m_view->refreshHeaderFooter(false);
+    m_view->setFocus(Qt::OtherFocusReason);
+    m_view->viewport()->update();
+    refreshUi();
+    return removed;
+}
+
 void WriteWindow::headerRibbonParts(RibbonParts &parts)
 {
+    // Page Number: the gallery of designs (the top and bottom of the page, the margins, and the caret's place), with Format Page Numbers and Remove Page Numbers under it.
+    parts.widgets[QStringLiteral("pageNumberButton")] = [this]() -> QWidget * {
+        auto *b = new GalleryButton(icon("hash"), tr("Page Number"), pageNumberItemSize(), 5, true);
+        b->setObjectName(QStringLiteral("pageNumberButton"));
+        b->setToolTip(tr("Page Number"));
+        b->setItemsProvider([this] { return pageNumberItems(); });
+        b->setFooterActions({act("pn.format"), act("pn.remove")});
+        connect(b, &GalleryButton::activated, this, [this](const QString &id) { insertPageNumberDesign(id); });
+        return b;
+    };
     // How far the header is from the top edge of the paper, and the footer from the bottom edge: the section being edited.
     for (const bool footer : {false, true}) {
         parts.widgets[footer ? QStringLiteral("footerFromBottom") : QStringLiteral("headerFromTop")] = [this, footer]() -> QWidget * {

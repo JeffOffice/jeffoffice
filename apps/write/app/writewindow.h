@@ -21,6 +21,7 @@
 #include "app/versionstore.h"
 #include "app/optionsdialog.h"
 #include "app/selectionpane.h"
+#include "app/widgets.h"
 
 #include <QHash>
 #include <QImage>
@@ -165,6 +166,14 @@ public:
     void setHyphenationAsker(const std::function<bool(double &, int &)> &asker) { m_hyphenationAsker = asker; }
     // What asks for the alignment tab to put in a header or footer (tests stand in for the box): its alignment, what it is measured from, and its leader, changed in place; true to take them.
     void setAlignmentTabAsker(const std::function<bool(QString &, QString &, QString &)> &asker) { m_alignmentTabAsker = asker; }
+    // What asks what becomes of the text a header or footer already holds when a Page Number design goes in (tests stand in for the box): 1 replaces it, 2 keeps it and adds the number, 0 cancels.
+    void setPageNumberAsker(const std::function<int()> &asker) { m_pageNumberAsker = asker; }
+    // The Page Number gallery: its designs, as the menu shows them; and a design put in at the page the caret is on (a top, bottom, or margin design) or at the caret (the current position), as one
+    // step that undoes. False for a design that is not one, or one that could not go in (the person cancelled the question).
+    QVector<GalleryItem> pageNumberItems() const;
+    bool insertPageNumberDesign(const QString &id);
+    // Remove Page Numbers, and Format Page Numbers (for the section the caret is in).
+    int removePageNumbers();
     void setLinkOpener(const std::function<void(const QString &)> &opener) { m_linkOpener = opener; }
     void setPictureChooser(const std::function<QString()> &chooser) { m_pictureChooser = chooser; }
     // Compress Pictures with the choices made (no box): every picture of the document or the selected ones, as one step that undoes; the bytes saved.
@@ -526,6 +535,7 @@ private:
     std::function<QString(const QString &)> m_fieldCodeAsker;
     std::function<bool(double &, int &)> m_hyphenationAsker;
     std::function<bool(QString &, QString &, QString &)> m_alignmentTabAsker;
+    std::function<int()> m_pageNumberAsker;
     std::function<bool(const QString &)> m_linkAsker;
     std::function<QString()> m_textFileChooser;
     NavigationPane *m_nav = nullptr;

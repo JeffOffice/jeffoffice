@@ -367,6 +367,10 @@
             {
               "large": "insert.footer",
               "keytip": "F"
+            },
+            {
+              "widget": "pageNumberButton",
+              "keytip": "PN"
             }
           ]
         },
@@ -1511,7 +1515,7 @@
           "keytip": "ZI",
           "items": [
             {
-              "large": "hf.pageNumber",
+              "widget": "pageNumberButton",
               "keytip": "PN"
             },
             {
