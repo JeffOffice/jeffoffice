@@ -2,6 +2,7 @@
 // master that page uses), Remove Page Numbers, Undo, and the gallery the window lists.
 #include "pubhelpers.h"
 #include "app/pagenumbers.h"
+#include <QFontDatabase>
 #include <QTemporaryDir>
 
 namespace {
@@ -195,6 +196,42 @@ private Q_SLOTS:
             s.ed.redo();
             QCOMPARE(shownOnMaster(*s.doc, 1), after);
         }
+    }
+
+    // A box that holds a number is wide enough for four digits at the size the number is set, in the widest common fonts that are installed (and the machine's own): JeffPub's circle,
+    // rounded box, tab, and bar as they are put on the master.
+    void aBoxFitsAFourDigitNumber()
+    {
+        using namespace jp;
+        QStringList families;
+        const QStringList installed = QFontDatabase::families();
+        for (const QString &name : {QStringLiteral("Arial"), QStringLiteral("Calibri"), QStringLiteral("Segoe UI"), QStringLiteral("Helvetica"), QStringLiteral("DejaVu Sans"), QStringLiteral("Carlito")})
+            if (installed.contains(name)) families << name;
+        families << QFont().family();
+        int boxed = 0;
+        for (const PageNumberDesign &d : pageNumberDesigns()) {
+            if (!pageNumberHasBox(d) || d.area == PageNumberArea::Cursor) continue;
+            ++boxed;
+            Shown s;
+            QVERIFY2(placePageNumberDesign(&s.ed, d.id), qPrintable(d.id));
+            const auto *shape = static_cast<ShapeItem *>(s.doc->masters.first()->items.front().get());
+            QCOMPARE(int(shape->type()), int(ItemType::Shape));
+            // (A turned box is laid on its side: its frame's width is the box's length.)
+            const double room = shape->rotation != 0 ? shape->rect.width() : shape->rect.width();
+            const double inscribed = shape->shape == QLatin1String("ellipse") ? shape->rect.width() * 0.8 : room - 4;
+            const PageNumberType type = pageNumberType(d);
+            for (const QString &family : std::as_const(families)) {
+                QFont f(family);
+                f.setBold(type.bold);
+                f.setPixelSize(200);
+                const QFontMetricsF fm(f);
+                double widest = 0;
+                for (char digit = '0'; digit <= '9'; ++digit) widest = std::max(widest, fm.horizontalAdvance(QString(4, QLatin1Char(digit))));
+                const double across = widest / 200.0 * type.size;
+                QVERIFY2(across * 1.1 <= inscribed, qPrintable(d.id + QStringLiteral(" in ") + family + QStringLiteral(": %1 > %2").arg(across * 1.1).arg(inscribed)));
+            }
+        }
+        QVERIFY(boxed >= 10);
     }
 
     // The designs of the current position go in the text being typed (and nothing is done when none is); the window's command chooses between them and the master.

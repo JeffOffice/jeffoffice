@@ -9,6 +9,7 @@
 #include "text/textengine.h"
 
 #include <QElapsedTimer>
+#include <QFontDatabase>
 #include <QGuiApplication>
 #include <QListWidget>
 #include <QScreen>
@@ -757,20 +758,33 @@ void WriteTests::aBoxIsSetFromTheMarginsAndFollowsAnotherPageSize()
 // A box is wide enough for a four-digit number at the size the number is set (the digits across are less than the inscribed width), whichever design.
 void WriteTests::aBoxFitsAFourDigitNumber()
 {
+    // The widest four digits in each of the common fonts that are installed (and the machine's own, and a bundled one): the box must hold them with a tenth to spare, whichever font the
+    // machine has.
+    QStringList families;
+    const QStringList installed = QFontDatabase::families();
+    for (const QString &name : {QStringLiteral("Arial"), QStringLiteral("Calibri"), QStringLiteral("Segoe UI"), QStringLiteral("Helvetica"), QStringLiteral("DejaVu Sans"), QStringLiteral("Carlito")})
+        if (installed.contains(name)) families << name;
+    families << QFont().family();
+    QVERIFY(!families.isEmpty());
     const QMarginsF margins(72, 72, 72, 72);
     int boxed = 0;
     for (const PageNumberDesign &d : pageNumberDesigns()) {
         if (!pageNumberHasBox(d) || d.area == PageNumberArea::Cursor) continue;
         ++boxed;
         const PageNumberType type = pageNumberType(d);
-        QFont f;
-        f.setBold(type.bold);
-        f.setPointSizeF(type.size);
-        const double across = QFontMetricsF(f).horizontalAdvance(QStringLiteral("8888")) * 72.0 / QGuiApplication::primaryScreen()->logicalDotsPerInchX();
         const PageNumberBox box = pageNumberBox(d, QSizeF(612, 792), margins);
         const double room = box.turned ? box.rect.height() : box.rect.width();
         const double inscribed = box.preset == QLatin1String("ellipse") ? box.rect.width() * 0.8 : room - 4;
-        QVERIFY2(across <= inscribed, qPrintable(d.id + QStringLiteral(" %1 > %2").arg(across).arg(inscribed)));
+        for (const QString &family : std::as_const(families)) {
+            QFont f(family);
+            f.setBold(type.bold);
+            f.setPixelSize(200);
+            const QFontMetricsF fm(f);
+            double widest = 0;
+            for (char digit = '0'; digit <= '9'; ++digit) widest = std::max(widest, fm.horizontalAdvance(QString(4, QLatin1Char(digit))));
+            const double across = widest / 200.0 * type.size;   // (points: the size is in points, the metrics are of a 200 pixel font)
+            QVERIFY2(across * 1.1 <= inscribed, qPrintable(d.id + QStringLiteral(" in ") + family + QStringLiteral(": %1 > %2").arg(across * 1.1).arg(inscribed)));
+        }
     }
     QVERIFY(boxed >= 10);
 }

@@ -153,7 +153,7 @@ PageNumberType pageNumberType(const PageNumberDesign &d)
     case PageNumberLook::Tab:
     case PageNumberLook::Bar:
         t.bold = true;
-        t.size = d.area == PageNumberArea::Cursor ? 0 : d.area == PageNumberArea::Margin ? 9 : 11;
+        t.size = d.area == PageNumberArea::Cursor ? 0 : d.area == PageNumberArea::Margin ? 8 : 9;
         t.onAccent = true;
         break;
     default: break;
@@ -188,7 +188,7 @@ PageNumberBox pageNumberBox(const PageNumberDesign &d, const QSizeF &page, const
     if (d.area == PageNumberArea::Margin) {
         // (A box in the margin is centered in the strip it is in, and the box is as wide as the strip lets it be: a four-digit number in it still fits.)
         const double room = d.side == PageNumberSide::Left ? m.left() : m.right();
-        if (d.look == PageNumberLook::Circle) w = h = std::clamp(room - 4, 22.0, 30.0);
+        if (d.look == PageNumberLook::Circle) w = h = std::clamp(room - 4, 22.0, 40.0);
         else if (d.look == PageNumberLook::Tab) {
             w = std::clamp(room - 4, 22.0, 34.0);
             h = d.turned ? 56 : 28;
@@ -201,7 +201,7 @@ PageNumberBox pageNumberBox(const PageNumberDesign &d, const QSizeF &page, const
         return b;
     }
     // (Wide enough for four digits at the size the number is set: a bold 11 point digit is about 7 points across.)
-    if (d.look == PageNumberLook::Circle) w = h = 34;
+    if (d.look == PageNumberLook::Circle) w = h = 44;
     else if (d.look == PageNumberLook::RoundedBox) { w = 48; h = 24; }
     else if (d.look == PageNumberLook::Tab) { w = 54; h = 24; }
     else { w = std::max(24.0, W - m.left() - m.right()); h = 24; }
