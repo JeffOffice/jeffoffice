@@ -1,7 +1,7 @@
 # Change JeffPub's settings
 <!-- keywords: options, settings, preferences, theme, dark mode, units, inches, automatic recovery, backup, language, user name, nudge, updates, beta, usage statistics, about, customize keyboard, customize the ribbon, customize the quick toolbar, quick toolbar, add a command to the quick toolbar, hide a tab, hide a group, add a tab, add a group, rename a tab, reset the ribbon, change shortcut keys, reassign keys, reset keys, customise keyboard, customise the ribbon, customise the quick toolbar -->
 
-Your settings are in the **JeffPub Options** window. Click **File > Options** to open it. It has five tabs. Click **OK** to keep your changes, or **Cancel** to throw them away.
+Your settings are in the **JeffPub Options** window. Click **File > Options** to open it. It has six tabs. Click **OK** to keep your changes, or **Cancel** to throw them away.
 
 ## General
 
@@ -88,6 +88,10 @@ Click **File > About** to find these. The two check boxes are also on the **Gene
 - To have the statistics we already hold deleted, send your install number to info@jeffoffice.com **before** you turn statistics off. Turning them off erases the number from your computer, and without it we cannot tell which records are yours.
 - To turn statistics off for good without opening JeffPub, set the environment variable `JP_NO_TELEMETRY` to any value before you start it. Nothing is then counted or sent, and JeffPub does not ask the first-run question.
 - **Your name** is the same name as **User name** above.
+
+## Security
+
+The **Security** tab decides what JeffPub does about the things a file can point to: linked files, linked movies and sounds, and files from the internet. Macros are kept in a file and never run, and a link that would start a program is always refused. See [Security](security).
 
 ## Related
 

@@ -80,6 +80,10 @@ The choice belongs to all the JeffOffice apps: change it here and it changes in 
 - To have the statistics we already hold deleted, send your install number to info@jeffoffice.com **before** you turn statistics off. Turning them off erases the number from your computer, and without it we cannot tell which records are yours.
 - To turn statistics off without opening JeffWrite, set the environment variable `JP_NO_TELEMETRY` to any value before you start it. Nothing is then counted or sent, and JeffWrite does not ask the first-run question.
 
+## Security
+
+The **Security** tab decides what JeffWrite does about the things a file can point to: linked files, linked movies and sounds, and files from the internet. Macros are kept in a file and never run, and a link that would start a program is always refused. See [Security](security).
+
 ## Related
 
 - [Welcome to JeffWrite](start)
