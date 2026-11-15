@@ -1,4 +1,6 @@
 #include "../cmdsearchcheck.h"
+#include "../shell/shapetexttest.h"
+#include "io/jpubfile.h"
 #include "core/datafolder.h"
 #include "app/keymap.h"
 #include <QScopeGuard>
@@ -1509,6 +1511,56 @@ private Q_SLOTS:
         QTRY_COMPARE(spin->height(), row);
     }
 
+
+    // Typing in a shape: F2, Enter, and a typed key start it on a selected shape, Esc ends it and leaves the shape selected, the keys and the ribbon's commands give the words their look, Undo and
+    // Redo take it back and bring it again, and a saved file brings every look back. (The same checks run in every JeffOffice app: tests/shell/shapetexttest.h.)
+    void typingInAShapeKeepsItsLookThroughUndoSaveAndReopen()
+    {
+        jp::MainWindow w;
+        w.resize(1400, 900);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowActive(&w));
+        jp::Editor *ed = w.editor();
+        auto shape = std::make_shared<jp::ShapeItem>();
+        shape->shape = QStringLiteral("rect");
+        shape->rect = QRectF(72, 72, 240, 120);
+        shape->storyId = ed->doc()->createStory(QString());
+        ed->addItem(shape);
+        const QString id = shape->id;
+        auto *canvas = w.findChild<jp::Canvas *>();
+        canvas->setFocus();
+        for (Qt::Key key : {Qt::Key_F2, Qt::Key_Return}) {
+            ed->select(QStringList{id});
+            QTest::keyClick(canvas, key);
+            QVERIFY(ed->isEditingText());
+            QTest::keyClick(canvas, Qt::Key_Escape);
+            QVERIFY(!ed->isEditingText());
+            QCOMPARE(ed->selection(), QStringList{id});
+        }
+        QTest::keyClick(canvas, Qt::Key_X);   // (typing on the selected shape starts the edit)
+        QVERIFY(ed->isEditingText());
+        QCOMPARE(ed->editDoc()->toPlainText(), QStringLiteral("x"));
+        QTest::keyClick(canvas, Qt::Key_Backspace);
+        QTRY_VERIFY(w.act(QStringLiteral("fmt.bold"))->isEnabled() && w.act(QStringLiteral("para.center"))->isEnabled());
+        jptest::typeAndFormatOnPage(ed, canvas);
+        jptest::verifyFormatted(ed->editDoc());
+        jptest::shapeShot(&w, QStringLiteral("jeffpub"));
+        QTest::keyClick(canvas, Qt::Key_Escape);
+        QVERIFY(!ed->isEditingText());
+        jptest::verifyFormatted(ed->doc()->storyDoc(shape->storyId));
+        for (int i = 0; i < 40; ++i) ed->undo();
+        QVERIFY(ed->doc()->storyDoc(shape->storyId)->toPlainText().isEmpty());
+        for (int i = 0; i < 40; ++i) ed->redo();
+        jptest::verifyFormatted(ed->doc()->storyDoc(shape->storyId));
+        QString err;
+        auto back = jp::publicationFromBytes(jp::publicationBytes(*ed->doc(), QImage()), &err);
+        QVERIFY2(back, qPrintable(err));
+        const jp::ShapeItem *again = nullptr;
+        for (const auto &it : back->pages[0]->items)
+            if (it->type() == jp::ItemType::Shape) again = static_cast<const jp::ShapeItem *>(it.get());
+        QVERIFY(again);
+        jptest::verifyFormatted(back->storyDoc(again->storyId));
+    }
 
     // Tab belongs to the page: while typing it types a tab, otherwise it
     // selects the next object (Shift+Tab the one before), and the keyboard

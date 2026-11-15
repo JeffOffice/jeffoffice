@@ -3009,6 +3009,7 @@ private Q_SLOTS:
         jp::ShapeTextEdit *edit = editShape(e, Qt::Key_F2);
         QVERIFY(edit);
         jptest::typeAndFormat(edit);
+        jptest::shapeShot(&e.win.w, QStringLiteral("jeffcrunch"));
         QTest::keyClick(edit, Qt::Key_Escape);
         QVERIFY(!e.win.w.editingShapeText());
         QCOMPARE(e.win.w.undoStack()->count(), steps + 1);

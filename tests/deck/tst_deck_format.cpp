@@ -1,6 +1,7 @@
 // JeffDeck's tests of the Format pane: what each page changes, that every change undoes as one step, and that it comes back from a .pptx and
 // from an .odp. The pane itself is libs/page's (the pieces it is made of are tested with JeffPub's, in tst_pub_formatpane.cpp).
 #include "deckhelpers.h"
+#include "../shell/shapetexttest.h"
 
 #include <QStandardItemModel>
 
@@ -985,6 +986,57 @@ private Q_SLOTS:
         r.ed.beginTextEdit(r.shape(0)->id, 0);
         r.ed.insertText(QStringLiteral(" more words more words more words more words more words more words"));
         QVERIFY(r.shape(0)->rect.height() > was);
+    }
+
+    // Typing in a shape: F2, Enter, and a typed key start it on a selected shape, Esc ends it and leaves the shape selected, the keys and the ribbon's commands give the words their look, Undo and
+    // Redo take it back and bring it again, and a saved .pptx and .odp bring every look back. (The same checks run in every JeffOffice app: tests/shell/shapetexttest.h.)
+    void typingInAShapeKeepsItsLookThroughUndoSaveAndReopenInBothFileKinds()
+    {
+        PaneGuard guard;
+        DeckWindow w;
+        w.show();
+        QVERIFY(QTest::qWaitForWindowActive(&w));
+        Editor *ed = w.editor();
+        ed->surfaceItems().clear();
+        auto shape = std::make_shared<ShapeItem>();
+        shape->name = QStringLiteral("Typed");
+        shape->rect = QRectF(100, 100, 300, 120);
+        shape->storyId = ed->doc()->createStory(QString());
+        ed->addItem(shape, true);
+        const QString id = shape->id;
+        auto *canvas = w.canvas();
+        canvas->setFocus();
+        for (Qt::Key key : {Qt::Key_F2, Qt::Key_Return}) {
+            ed->select(QStringList{id});
+            QTest::keyClick(canvas, key);
+            QVERIFY(ed->isEditingText());
+            QTest::keyClick(canvas, Qt::Key_Escape);
+            QVERIFY(!ed->isEditingText());
+            QCOMPARE(ed->selection(), QStringList{id});
+        }
+        QTest::keyClick(canvas, Qt::Key_X);   // (typing on the selected shape starts the edit)
+        QVERIFY(ed->isEditingText());
+        QCOMPARE(ed->editDoc()->toPlainText(), QStringLiteral("x"));
+        QTest::keyClick(canvas, Qt::Key_Backspace);
+        QTRY_VERIFY(w.act(QStringLiteral("fmt.bold"))->isEnabled() && w.act(QStringLiteral("fmt.alignCenter"))->isEnabled());
+        jptest::typeAndFormatOnPage(ed, canvas);
+        jptest::verifyFormatted(ed->editDoc());
+        jptest::shapeShot(&w, QStringLiteral("jeffdeck"));
+        QTest::keyClick(canvas, Qt::Key_Escape);
+        QVERIFY(!ed->isEditingText());
+        jptest::verifyFormatted(ed->doc()->storyDoc(shape->storyId));
+        for (int i = 0; i < 40; ++i) ed->undo();
+        QVERIFY(ed->doc()->storyDoc(shape->storyId)->toPlainText().isEmpty());
+        for (int i = 0; i < 40; ++i) ed->redo();
+        jptest::verifyFormatted(ed->doc()->storyDoc(shape->storyId));
+        for (int how = 0; how < 2; ++how) {
+            QString err;
+            std::unique_ptr<Document> d = how ? deck::importOdp(deck::exportOdp(*ed->doc(), false, &err), &err) : deck::importPresentation(deck::exportPresentation(*ed->doc(), &err), &err);
+            QVERIFY2(d, qPrintable(err));
+            auto *again = static_cast<ShapeItem *>(Rig::named(*d, QStringLiteral("Typed")));
+            QVERIFY2(again, how ? "odp" : "pptx");
+            jptest::verifyFormatted(d->storyDoc(again->storyId));
+        }
     }
 
     void textFitIsOnTheRightClickMenu()

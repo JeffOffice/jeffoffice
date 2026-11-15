@@ -1142,6 +1142,7 @@ private Q_SLOTS:
         ShapeTextEdit *edit = editShape(win, Qt::Key_F2);
         QVERIFY(edit);
         jptest::typeAndFormat(edit);
+        jptest::shapeShot(&win.w, QStringLiteral("jeffwrite"));
         QTest::keyClick(edit, Qt::Key_Escape);
         QVERIFY(!win.w.view()->editingShapeText());
         jptest::verifyFormatted(textBoxStory(*doc, 0).get());
