@@ -1,6 +1,7 @@
 // JeffDeck's tests of writing a presentation file.
 #include "deckhelpers.h"
 #include "core/printheaderfooter.h"
+#include "io/zip.h"
 #include "app/listmenus.h"
 
 class DeckPptxExportTests : public QObject {
@@ -146,6 +147,65 @@ private Q_SLOTS:
         QVERIFY(!QString::fromUtf8(p.zip.value(QStringLiteral("ppt/notesMasters/notesMaster1.xml"))).contains(QLatin1String("<p:hf")));
         auto plainBack = deck::importPresentation(deck::exportPresentation(*plain, &err), &err);
         QVERIFY(plainBack && !deck::hasPrintHeaderFooter(*plainBack, deck::PrintedPages::Notes) && !deck::hasPrintHeaderFooter(*plainBack, deck::PrintedPages::Handouts));
+    }
+
+    // A handout master the file had is kept as it was: its places, background, and other shapes stay, and only the hf element and the texts the person changed are written new. One
+    // is made only when the file had none and the person chose a header and footer.
+    void aHandoutMasterOfTheFileIsKeptAndOnlyItsHeaderAndFooterChange()
+    {
+        // A file with a customized handout master: made from an export, with a shape of its own and a background color put in.
+        auto d = deck::newPresentation();
+        deck::PrintHeaderFooter hf;
+        hf.header = true;
+        hf.headerText = QStringLiteral("Original header");
+        hf.footer = true;
+        hf.footerText = QStringLiteral("Original footer");
+        deck::setPrintHeaderFooter(*d, deck::PrintedPages::Handouts, hf);
+        QString err;
+        Exported first;
+        QString why;
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &first, &why), qPrintable(why));
+        const QString name = QStringLiteral("ppt/handoutMasters/handoutMaster1.xml");
+        QString custom = QString::fromUtf8(first.zip.value(name));
+        QVERIFY(custom.contains(QLatin1String("<p:bgRef idx=\"1001\">")));
+        custom.replace(QRegularExpression(QStringLiteral("<p:bg>.*</p:bg>")), QStringLiteral("<p:bg><p:bgPr><a:solidFill><a:srgbClr val=\"FFEEDD\"/></a:solidFill><a:effectLst/></p:bgPr></p:bg>"));
+        custom.replace(QStringLiteral("</p:spTree>"), QStringLiteral("<p:sp><p:nvSpPr><p:cNvPr id=\"99\" name=\"OurOwnShape\"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x=\"100\" y=\"100\"/><a:ext cx=\"500000\" cy=\"500000\"/></a:xfrm>"
+                                                                  "<a:prstGeom prst=\"ellipse\"><a:avLst/></a:prstGeom></p:spPr></p:sp></p:spTree>"));
+        ZipWriter zip;
+        for (auto it = first.zip.cbegin(); it != first.zip.cend(); ++it) zip.add(it.key(), it.key() == name ? custom.toUtf8() : it.value(), true);
+        const QByteArray file = zip.finish();
+
+        // Read and written again with no change: the master is as it was, to the byte.
+        auto read = deck::importPresentation(file, &err);
+        QVERIFY2(read, qPrintable(err));
+        Exported same;
+        QVERIFY2(unpack(deck::exportPresentation(*read, &err), &same, &why), qPrintable(why));
+        QVERIFY2(packageProblem(same).isEmpty(), qPrintable(packageProblem(same)));
+        QCOMPARE(QString::fromUtf8(same.zip.value(name)), custom);
+
+        // The person changes the header and turns the footer off: the shape and the background stay.
+        deck::PrintHeaderFooter now = deck::printHeaderFooter(*read, deck::PrintedPages::Handouts);
+        QVERIFY(now.header && now.footer);
+        now.headerText = QStringLiteral("New header");
+        now.footer = false;
+        deck::setPrintHeaderFooter(*read, deck::PrintedPages::Handouts, now);
+        Exported edited;
+        QVERIFY2(unpack(deck::exportPresentation(*read, &err), &edited, &why), qPrintable(why));
+        QVERIFY2(packageProblem(edited).isEmpty(), qPrintable(packageProblem(edited)));
+        const QString out = QString::fromUtf8(edited.zip.value(name));
+        QVERIFY2(out.contains(QLatin1String("OurOwnShape")) && out.contains(QLatin1String("FFEEDD")), qPrintable(out));
+        QVERIFY(out.contains(QLatin1String("New header")) && !out.contains(QLatin1String("Original header")));
+        QVERIFY(out.contains(QLatin1String("Original footer")));   // (its text was not touched: only the footer's switch)
+        QVERIFY2(out.contains(QRegularExpression(QStringLiteral("<p:hf[^>]*ftr=\"0\""))), qPrintable(out));
+        auto back = deck::importPresentation(deck::exportPresentation(*read, &err), &err);
+        QVERIFY(back);
+        QVERIFY(deck::printHeaderFooter(*back, deck::PrintedPages::Handouts) == now);
+
+        // A file with no handout master gets none made until a choice is.
+        auto none = deck::newPresentation();
+        Exported plain;
+        QVERIFY(unpack(deck::exportPresentation(*none, &err), &plain, &why));
+        QVERIFY(!plain.zip.contains(name));
     }
 
     // A new presentation is written as a whole package: every part has its

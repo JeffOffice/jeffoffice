@@ -17,6 +17,10 @@ bool setDefaultTheme(const Document &current, QString *error = nullptr);
 // Keeps a slide size as the default one, and forgets it.
 void setDefaultSlideSize(const QSizeF &size);
 void clearDefaultSlideSize();
+// The largest default theme file that is read; a larger one is not used.
+constexpr qint64 kMaxDefaultThemeBytes = qint64(50) << 20;
+// How many times the file has been read since the program began: it is read once, and again when the file changes (a count for tests).
+int defaultThemeReadsForTest();
 // A new blank presentation: the title slide alone, with the default theme and slide size when there are any.
 std::unique_ptr<Document> newDefaultPresentation();
 

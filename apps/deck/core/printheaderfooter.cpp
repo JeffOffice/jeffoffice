@@ -1,6 +1,7 @@
 #include "core/printheaderfooter.h"
 
 #include <QJsonObject>
+#include <QByteArray>
 
 namespace jp::deck {
 
@@ -44,6 +45,38 @@ void setPrintHeaderFooter(Document &d, PrintedPages pages, const PrintHeaderFoot
                                     {QStringLiteral("footerText"), hf.footerText},
                                     {QStringLiteral("pageNumber"), hf.pageNumber}};
     d.appData[kKey] = all;
+}
+
+namespace {
+QJsonObject toJson(const PrintHeaderFooter &hf)
+{
+    return QJsonObject{{QStringLiteral("date"), hf.date},       {QStringLiteral("dateText"), hf.dateText},     {QStringLiteral("header"), hf.header},   {QStringLiteral("headerText"), hf.headerText},
+                       {QStringLiteral("footer"), hf.footer},   {QStringLiteral("footerText"), hf.footerText}, {QStringLiteral("pageNumber"), hf.pageNumber}};
+}
+const QString kMasterKey = QStringLiteral("handoutMasterXml"), kReadKey = QStringLiteral("handoutMasterRead");
+} // namespace
+
+void keepHandoutMaster(Document &d, const QByteArray &xml, const PrintHeaderFooter *read)
+{
+    d.appData[kMasterKey] = QString::fromLatin1(xml.toBase64());
+    if (read) d.appData[kReadKey] = toJson(*read);
+    else d.appData.remove(kReadKey);
+}
+
+QByteArray keptHandoutMaster(const Document &d) { return QByteArray::fromBase64(d.appData.value(kMasterKey).toString().toLatin1()); }
+
+PrintHeaderFooter handoutMasterRead(const Document &d)
+{
+    Document scratch;
+    scratch.appData[kKey] = QJsonObject{{keyOf(PrintedPages::Handouts), d.appData.value(kReadKey).toObject()}};
+    return printHeaderFooter(scratch, PrintedPages::Handouts);
+}
+
+bool handoutMasterEdited(const Document &d)
+{
+    if (!hasPrintHeaderFooter(d, PrintedPages::Handouts)) return false;
+    if (!d.appData.contains(kReadKey)) return true;
+    return !(printHeaderFooter(d, PrintedPages::Handouts) == handoutMasterRead(d));
 }
 
 } // namespace jp::deck

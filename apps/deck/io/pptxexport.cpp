@@ -1457,6 +1457,75 @@ void Exporter::writeNotesMaster()
     add(kNotesMasterPart, kTypeBase + QStringLiteral("notesMaster+xml"), xml);
 }
 
+// A handout master the file had, with the choice changed in it: the hf element, and the text of each place whose text the person changed. All else stays as it was.
+static QString editedHandoutMaster(const QByteArray &kept, const PrintHeaderFooter &was, const PrintHeaderFooter &hf, bool hadChoice)
+{
+    QDomDocument dom;
+    if (!dom.setContent(kept, true)) return QString::fromUtf8(kept);
+    const QString pns = QStringLiteral("http://schemas.openxmlformats.org/presentationml/2006/main"), ans = QStringLiteral("http://schemas.openxmlformats.org/drawingml/2006/main");
+    QDomElement root = dom.documentElement();
+    // The hf element: in place, else after the color map.
+    QDomElement hfElement = root.firstChildElement();
+    while (!hfElement.isNull() && !(hfElement.localName() == QLatin1String("hf") && hfElement.namespaceURI() == pns)) hfElement = hfElement.nextSiblingElement();
+    if (hfElement.isNull()) {
+        hfElement = dom.createElementNS(pns, QStringLiteral("p:hf"));
+        QDomElement after = root.firstChildElement();
+        while (!after.isNull() && after.localName() != QLatin1String("clrMap")) after = after.nextSiblingElement();
+        if (after.isNull()) root.appendChild(hfElement);
+        else root.insertAfter(hfElement, after);
+    }
+    hfElement.setAttribute(QStringLiteral("hdr"), hf.header ? 1 : 0);
+    hfElement.setAttribute(QStringLiteral("ftr"), hf.footer ? 1 : 0);
+    hfElement.setAttribute(QStringLiteral("dt"), hf.date ? 1 : 0);
+    hfElement.setAttribute(QStringLiteral("sldNum"), hf.pageNumber ? 1 : 0);
+    // The texts that changed.
+    auto setText = [&](const char *type, const QString &text, bool isDate) {
+        const QDomNodeList shapes = dom.elementsByTagNameNS(pns, QStringLiteral("sp"));
+        for (int i = 0; i < shapes.size(); ++i) {
+            const QDomElement sp = shapes.at(i).toElement();
+            const QDomNodeList phs = sp.elementsByTagNameNS(pns, QStringLiteral("ph"));
+            if (phs.isEmpty() || phs.at(0).toElement().attribute(QStringLiteral("type")) != QLatin1String(type)) continue;
+            const QDomNodeList bodies = sp.elementsByTagNameNS(pns, QStringLiteral("txBody"));
+            if (bodies.isEmpty()) continue;
+            QDomElement body = bodies.at(0).toElement();
+            for (QDomElement p = body.firstChildElement(); !p.isNull();) {
+                const QDomElement next = p.nextSiblingElement();
+                if (p.localName() == QLatin1String("p") && p.namespaceURI() == ans) body.removeChild(p);
+                p = next;
+            }
+            QDomElement para = dom.createElementNS(ans, QStringLiteral("a:p"));
+            if (!text.isEmpty()) {
+                QDomElement run = dom.createElementNS(ans, QStringLiteral("a:r"));
+                QDomElement props = dom.createElementNS(ans, QStringLiteral("a:rPr"));
+                props.setAttribute(QStringLiteral("lang"), QStringLiteral("en-US"));
+                QDomElement t = dom.createElementNS(ans, QStringLiteral("a:t"));
+                t.appendChild(dom.createTextNode(text));
+                run.appendChild(props);
+                run.appendChild(t);
+                para.appendChild(run);
+            } else if (isDate) {
+                QDomElement field = dom.createElementNS(ans, QStringLiteral("a:fld"));
+                field.setAttribute(QStringLiteral("id"), QStringLiteral("{9A1B2C3D-0000-4000-8000-000000000004}"));
+                field.setAttribute(QStringLiteral("type"), QStringLiteral("datetimeFigureOut"));
+                QDomElement t = dom.createElementNS(ans, QStringLiteral("a:t"));
+                t.appendChild(dom.createTextNode(QDate::currentDate().toString(Qt::ISODate)));
+                field.appendChild(dom.createElementNS(ans, QStringLiteral("a:rPr")));
+                field.lastChildElement().setAttribute(QStringLiteral("lang"), QStringLiteral("en-US"));
+                field.appendChild(t);
+                para.appendChild(field);
+            } else {
+                para.appendChild(dom.createElementNS(ans, QStringLiteral("a:endParaRPr")));
+            }
+            body.appendChild(para);
+            return;
+        }
+    };
+    if (hf.headerText != was.headerText || (!hadChoice && !hf.headerText.isEmpty())) setText("hdr", hf.headerText, false);
+    if (hf.footerText != was.footerText || (!hadChoice && !hf.footerText.isEmpty())) setText("ftr", hf.footerText, false);
+    if (hf.dateText != was.dateText || (!hadChoice && !hf.dateText.isEmpty())) setText("dt", hf.dateText, true);
+    return QString::fromUtf8(dom.toByteArray());
+}
+
 // The handout master: only where the presentation chose the header and footer of its handouts (the places are the standard's, for a page of the notes' size).
 void Exporter::writeHandoutMaster()
 {
@@ -1464,6 +1533,13 @@ void Exporter::writeHandoutMaster()
     m_pkg.addRelationship(kHandoutMasterPart, kRelBase + QStringLiteral("theme"), m_handoutThemePart);
     m_pkg.addPart(m_handoutThemePart, withStandardFontNames(m_themeXml), QStringLiteral("application/vnd.openxmlformats-officedocument.theme+xml"));
     const PrintHeaderFooter hf = printHeaderFooter(m_doc, PrintedPages::Handouts);
+    if (const QByteArray kept = keptHandoutMaster(m_doc); !kept.isEmpty()) {
+        QString xml = handoutMasterEdited(m_doc) ? editedHandoutMaster(kept, handoutMasterRead(m_doc), hf, m_doc.appData.contains(QStringLiteral("handoutMasterRead"))) : QString::fromUtf8(kept);
+        // (the part is written with a declaration of its own)
+        if (xml.startsWith(QLatin1String("<?xml"))) xml = xml.mid(xml.indexOf(QLatin1String("?>")) + 2).trimmed();
+        add(kHandoutMasterPart, kTypeBase + QStringLiteral("handoutMaster+xml"), xml);
+        return;
+    }
     const qint64 nw = office::pointsToEmu(m_notesSize.width()), nh = office::pointsToEmu(m_notesSize.height());
     auto typed = [](const QString &text) {
         return text.isEmpty() ? QStringLiteral("<a:p><a:endParaRPr lang=\"en-US\"/></a:p>") : QStringLiteral("<a:p><a:r><a:rPr lang=\"en-US\"/><a:t>%1</a:t></a:r></a:p>").arg(esc(text));
@@ -1736,7 +1812,8 @@ QByteArray Exporter::run(QString *error)
     for (int i = 0; i < int(m_doc.pages.size()); ++i)
         m_slideRel << m_pkg.addRelationship(kPresentationPart, kRelBase + QStringLiteral("slide"), QStringLiteral("/ppt/slides/slide%1.xml").arg(i + 1));
     m_notesMasterRel = m_pkg.addRelationship(kPresentationPart, kRelBase + QStringLiteral("notesMaster"), kNotesMasterPart);
-    if (hasPrintHeaderFooter(m_doc, PrintedPages::Handouts)) m_handoutMasterRel = m_pkg.addRelationship(kPresentationPart, kRelBase + QStringLiteral("handoutMaster"), kHandoutMasterPart);
+    // (a handout master the file had is written back; one is made only when the file had none and the person chose a header and footer)
+    if (hasPrintHeaderFooter(m_doc, PrintedPages::Handouts) || !keptHandoutMaster(m_doc).isEmpty()) m_handoutMasterRel = m_pkg.addRelationship(kPresentationPart, kRelBase + QStringLiteral("handoutMaster"), kHandoutMasterPart);
     m_pkg.addRelationship(kPresentationPart, kRelBase + QStringLiteral("presProps"), QStringLiteral("/ppt/presProps.xml"));
     m_pkg.addRelationship(kPresentationPart, kRelBase + QStringLiteral("viewProps"), QStringLiteral("/ppt/viewProps.xml"));
     m_pkg.addRelationship(kPresentationPart, kRelBase + QStringLiteral("theme"), m_masters.front().themePart);

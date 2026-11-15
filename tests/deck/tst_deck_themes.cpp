@@ -2669,6 +2669,36 @@ private Q_SLOTS:
         QCOMPARE(deck::newDefaultPresentation()->pageSize(), QSizeF(kSlideWidth, kSlideHeight));
     }
 
+    // The theme file is read once and kept until it changes; one over 50 MB is not read at all.
+    void theDefaultThemeFileIsReadOnceAndAgainOnlyWhenItChanges()
+    {
+        using namespace jp::deck;
+        QFile::remove(defaultThemePath());
+        QVERIFY(setDefaultTheme(*themePresentation(3)));
+        const int before = defaultThemeReadsForTest();
+        for (int i = 0; i < 3; ++i) QCOMPARE(themeOf(*newDefaultPresentation()).name, builtinThemeName(3));
+        QCOMPARE(defaultThemeReadsForTest() - before, 1);
+        QVERIFY(setDefaultTheme(*themePresentation(2)));
+        QCOMPARE(themeOf(*newDefaultPresentation()).name, builtinThemeName(2));
+        QCOMPARE(defaultThemeReadsForTest() - before, 2);
+        QFile::remove(defaultThemePath());
+    }
+
+    void aDefaultThemeFileOverFiftyMegabytesIsNotRead()
+    {
+        using namespace jp::deck;
+        QFile::remove(defaultThemePath());
+        {
+            QFile f(defaultThemePath());
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            QVERIFY(f.resize(kMaxDefaultThemeBytes + 1));
+        }
+        const int before = defaultThemeReadsForTest();
+        QCOMPARE(themeOf(*newDefaultPresentation()).name, themeOf(*newPresentation()).name);
+        QCOMPARE(defaultThemeReadsForTest(), before);
+        QFile::remove(defaultThemePath());
+    }
+
     void theDesignTabSetsTheDefaultThemeAndSlideSize()
     {
         using namespace jp::deck;

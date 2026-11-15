@@ -906,7 +906,12 @@ void Importer::readPrintHeaderFooter(const QString &mainPart)
         QString why;
         if (!parsePart(masters[0].target, QLatin1String(kind.root), "http://schemas.openxmlformats.org/presentationml/2006/main", &dom, &root, &why)) continue;
         const QDomElement hf = pChild(root, "hf");
-        if (hf.isNull()) continue;
+        // (a handout master the file has is kept as it is, to be written back as it was)
+        const bool keep = kind.pages == PrintedPages::Handouts && m_pkg.partSize(masters[0].target) <= (qint64(4) << 20);
+        if (hf.isNull()) {
+            if (keep) keepHandoutMaster(m_doc, m_pkg.part(masters[0].target), nullptr);
+            continue;
+        }
         PrintHeaderFooter out;
         out.header = office::parseBool(office::attr(hf, QStringLiteral("hdr")), true);
         out.footer = office::parseBool(office::attr(hf, QStringLiteral("ftr")), true);
@@ -925,6 +930,7 @@ void Importer::readPrintHeaderFooter(const QString &mainPart)
             else out.dateText = text;
         }
         setPrintHeaderFooter(m_doc, kind.pages, out);
+        if (keep) keepHandoutMaster(m_doc, m_pkg.part(masters[0].target), &out);
     }
 }
 
