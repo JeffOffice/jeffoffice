@@ -21,6 +21,7 @@
 #include <QStringList>
 #include <QString>
 #include <QVector>
+#include <functional>
 
 class QPainter;
 
@@ -91,14 +92,28 @@ bool exportPdf(const Document &d, const QString &path, const OutputOptions &o, Q
 QImage slideImage(const Document &d, LayoutCache *cache, int slide, int width = 1920);
 
 // Save slides as pictures: every slide to a folder, as "Slide 1", "Slide 2", and so on (a hidden slide keeps its number and is left out unless `hidden`), PNG or JPEG, `width`
-// pixels across, drawn as slideImage draws one. Each file is written whole or not at all. The names of the files written, in order; on failure what was written is kept and `error`
-// says why (a folder that is not there is not made).
+// pixels across, drawn as slideImage draws one. Each file is written whole or not at all. A picture is at most kMostSlidePicturePixels in all: a wider one is made as wide as fits
+// (the width used is in the result, and is less than asked when that happened). `progress`, when set, is called after each slide with how many are done and how many there are, and
+// says false to stop; the files written so far stay.
+constexpr qint64 kMostSlidePicturePixels = qint64(64) * 1000 * 1000;
 struct SlidePicturesOptions {
     QString folder;
     bool jpeg = false;
     int width = 1920;
     bool hidden = false;
+    std::function<bool(int done, int total)> progress;
 };
-QStringList exportSlidePictures(const Document &d, LayoutCache *cache, const SlidePicturesOptions &o, QString *error = nullptr);
+struct SlidePicturesResult {
+    QStringList written;   // the files made, in order
+    QString error;         // why it stopped, when it did for a reason other than being asked to
+    bool cancelled = false;
+    int widthUsed = 0;
+};
+// The file name of slide `index` (from 0), and the names the options would write (the slides that are shown, or all), in order; the width that would be used (held so the picture is at most
+// kMostSlidePicturePixels).
+QString slidePictureName(int index, bool jpeg);
+QStringList slidePictureNames(const Document &d, const SlidePicturesOptions &o);
+int slidePictureWidth(const Document &d, int width);
+SlidePicturesResult exportSlidePictures(const Document &d, LayoutCache *cache, const SlidePicturesOptions &o);
 
 } // namespace jp::deck

@@ -1396,8 +1396,12 @@ private Q_SLOTS:
         o.folder = dir.filePath(QStringLiteral("png"));
         QVERIFY(QDir().mkpath(o.folder));
         QCOMPARE(w.exportSlidePictures(o), 3);
-        QCOMPARE(QDir(o.folder).entryList(QDir::Files, QDir::Name), (QStringList{QStringLiteral("Slide 1.png"), QStringLiteral("Slide 2.png"), QStringLiteral("Slide 4.png")}));
-        const QImage first(o.folder + QStringLiteral("/Slide 1.png"));
+        // (the names are the translated "Slide N", whatever the language)
+        QStringList want = {deck::slidePictureName(0, false), deck::slidePictureName(1, false), deck::slidePictureName(3, false)};
+        want.sort();
+        QCOMPARE(QDir(o.folder).entryList(QDir::Files, QDir::Name), want);
+        QVERIFY(deck::slidePictureName(0, false).endsWith(QLatin1String("1.png")) && deck::slidePictureName(3, true).endsWith(QLatin1String("4.jpg")));
+        const QImage first(o.folder + QLatin1Char('/') + deck::slidePictureName(0, false));
         QCOMPARE(first.size(), QSize(1920, 1080));
         QCOMPARE(first.pixelColor(4, 4), QColor(0x20, 0x80, 0x40));
         // JPEG at another width, with the hidden slide too.
@@ -1408,7 +1412,7 @@ private Q_SLOTS:
         o.hidden = true;
         QCOMPARE(w.exportSlidePictures(o), 4);
         QCOMPARE(QDir(o.folder).entryList(QDir::Files, QDir::Name).size(), 4);
-        const QString third = o.folder + QStringLiteral("/Slide 3.jpg");
+        const QString third = o.folder + QLatin1Char('/') + deck::slidePictureName(2, true);
         QCOMPARE(QImage(third).size(), QSize(640, 360));
         QCOMPARE(fileBytes(third).left(2), QByteArray("\xff\xd8"));
         // A folder that is not there is said, and nothing is made.
@@ -1419,6 +1423,89 @@ private Q_SLOTS:
         QCOMPARE(label, QStringLiteral("OK"));
         QVERIFY(!QFileInfo::exists(dir.filePath(QStringLiteral("missing"))));
     }
+    // Files of the same names already in the folder are asked about once for the whole set (Replace or Cancel); Cancel changes nothing.
+    void savingSlidePicturesAsksOnceBeforeReplacingFiles()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        DeckWindow w;
+        w.newSlide();
+        w.newSlide();
+        deck::SlidePicturesOptions o;
+        o.folder = dir.path();
+        const QString two = dir.filePath(deck::slidePictureName(1, false));
+        QFile old(two);
+        QVERIFY(old.open(QIODevice::WriteOnly));
+        old.write("old");
+        old.close();
+        answerDialogs({QMessageBox::Cancel});
+        QCOMPARE(w.exportSlidePictures(o), 0);
+        QCOMPARE(fileBytes(two), QByteArray("old"));
+        QVERIFY(!QFileInfo::exists(dir.filePath(deck::slidePictureName(0, false))));
+        QString label;
+        answerDialogs({QMessageBox::Save}, &label);   // (one answer is all the set needs)
+        QCOMPARE(w.exportSlidePictures(o), 3);
+        QVERIFY(fileBytes(two) != QByteArray("old"));
+        QCOMPARE(QDir(dir.path()).entryList(QDir::Files).size(), 3);
+    }
+
+    // Every slide hidden is said, and nothing is made.
+    void savingSlidePicturesSaysWhenEverySlideIsHidden()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        DeckWindow w;
+        w.editor()->doc()->pages[0]->hidden = true;
+        deck::SlidePicturesOptions o;
+        o.folder = dir.path();
+        QString label;
+        answerDialogs({QMessageBox::Ok}, &label);
+        QCOMPARE(w.exportSlidePictures(o), 0);
+        QCOMPARE(label, QStringLiteral("OK"));
+        QVERIFY(QDir(dir.path()).entryList(QDir::Files).isEmpty());
+    }
+
+    // A picture is at most 64 million pixels in all: a wider one is made as wide as fits.
+    void aSlidePictureIsHeldTo64MillionPixels()
+    {
+        auto d = outputDeck();
+        const QSizeF size = d->pageSize();
+        QCOMPARE(deck::slidePictureWidth(*d, 1920), 1920);
+        const int wide = deck::slidePictureWidth(*d, 16000);
+        QVERIFY(wide < 16000);
+        QVERIFY(qint64(wide) * qint64(std::lround(wide * size.height() / size.width())) <= deck::kMostSlidePicturePixels);
+        QVERIFY(qint64(wide + 40) * qint64(std::lround((wide + 40) * size.height() / size.width())) > deck::kMostSlidePicturePixels);
+    }
+
+    // The work reports each slide done and stops when asked; a file that can't be written says how many were written before it.
+    void savingSlidePicturesReportsStopsAndCountsWhatWasWritten()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        auto d = outputDeck();   // five slides, the third hidden
+        LayoutCache cache;
+        deck::SlidePicturesOptions o;
+        o.folder = dir.path();
+        o.width = 200;
+        QVector<int> seen;
+        o.progress = [&](int done, int total) {
+            seen << done << total;
+            return done < 2;
+        };
+        deck::SlidePicturesResult r = deck::exportSlidePictures(*d, &cache, o);
+        QVERIFY(r.cancelled && r.error.isEmpty());
+        QCOMPARE(r.written.size(), qsizetype(2));
+        QCOMPARE(seen, (QVector<int>{1, 4, 2, 4}));
+        // (a directory where a file belongs: the third file can't be made)
+        QTemporaryDir other;
+        o.folder = other.path();
+        o.progress = nullptr;
+        QVERIFY(QDir().mkdir(other.filePath(deck::slidePictureName(1, false))));
+        r = deck::exportSlidePictures(*d, &cache, o);
+        QVERIFY(!r.error.isEmpty() && !r.cancelled);
+        QCOMPARE(r.written, QStringList{deck::slidePictureName(0, false)});
+    }
+
     // The box asks for the format, the folder, the width (1920 at first), and the hidden slides, and the command does what it says.
     void theSlidePicturesBoxAsksAndSaves()
     {

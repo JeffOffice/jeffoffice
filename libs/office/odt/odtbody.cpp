@@ -294,6 +294,158 @@ static QString presetOfOdfShape(const Odf &o, int shape)
     return own.value(type);
 }
 
+namespace {
+
+// An ODF path (svg:d) as the steps of a freeform's path, each number times `scale`: M, L, H, V, C, S, Q, T, and Z in both cases (relative ones from where the pen is), with the pairs of numbers
+// that follow a command as repeats of it (after a move, lines). A number that is not a finite number, or an arc, gives up the whole path.
+bool svgPathSteps(const QString &d, double scale, QByteArray *out)
+{
+    const QChar *p = d.constData(), *end = p + d.size();
+    auto skip = [&] {
+        while (p < end && (p->isSpace() || *p == QLatin1Char(',')) ) ++p;
+    };
+    auto number = [&](double *v) {
+        skip();
+        const QChar *q = p;
+        if (q < end && (*q == QLatin1Char('+') || *q == QLatin1Char('-'))) ++q;
+        int digits = 0;
+        while (q < end && q->isDigit()) ++q, ++digits;
+        if (q < end && *q == QLatin1Char('.')) {
+            ++q;
+            while (q < end && q->isDigit()) ++q, ++digits;
+        }
+        if (!digits) return false;
+        if (q < end && (*q == QLatin1Char('e') || *q == QLatin1Char('E'))) {
+            const QChar *r = q + 1;
+            if (r < end && (*r == QLatin1Char('+') || *r == QLatin1Char('-'))) ++r;
+            if (r < end && r->isDigit()) {
+                while (r < end && r->isDigit()) ++r;
+                q = r;
+            }
+        }
+        bool ok = false;
+        const double x = QString(p, int(q - p)).toDouble(&ok);
+        if (!ok || !std::isfinite(x) || std::fabs(x) > 1e9) return false;
+        *v = x;
+        p = q;
+        return true;
+    };
+    auto pt = [&](double x, double y) {
+        return "<a:pt x=\"" + QByteArray::number(qint64(std::llround(x * scale))) + "\" y=\"" + QByteArray::number(qint64(std::llround(y * scale))) + "\"/>";
+    };
+    double x = 0, y = 0, sx = 0, sy = 0, cx2 = 0, cy2 = 0;   // the pen, the start of the piece, and the last control point
+    QChar command, last;
+    bool started = false;
+    out->clear();
+    for (;;) {
+        skip();
+        if (p >= end) break;
+        if (p->isLetter()) {
+            command = *p++;
+            started = true;
+        } else if (!started || command == QLatin1Char('Z') || command == QLatin1Char('z')) {
+            return false;   // (numbers with no command to take them)
+        } else if (command == QLatin1Char('M')) {
+            command = QLatin1Char('L');
+        } else if (command == QLatin1Char('m')) {
+            command = QLatin1Char('l');
+        }
+        const bool rel = command.isLower();
+        const char c = char(command.toUpper().toLatin1());
+        double n[6];
+        auto read = [&](int count) {
+            for (int i = 0; i < count; ++i)
+                if (!number(&n[i])) return false;
+            return true;
+        };
+        const double ox = rel ? x : 0, oy = rel ? y : 0;
+        bool curve = false;
+        switch (c) {
+        case 'M':
+            if (!read(2)) return false;
+            x = sx = ox + n[0];
+            y = sy = oy + n[1];
+            *out += "<a:moveTo>" + pt(x, y) + "</a:moveTo>";
+            break;
+        case 'L':
+            if (!read(2)) return false;
+            x = ox + n[0];
+            y = oy + n[1];
+            *out += "<a:lnTo>" + pt(x, y) + "</a:lnTo>";
+            break;
+        case 'H':
+            if (!read(1)) return false;
+            x = ox + n[0];
+            *out += "<a:lnTo>" + pt(x, y) + "</a:lnTo>";
+            break;
+        case 'V':
+            if (!read(1)) return false;
+            y = oy + n[0];
+            *out += "<a:lnTo>" + pt(x, y) + "</a:lnTo>";
+            break;
+        case 'C':
+            if (!read(6)) return false;
+            *out += "<a:cubicBezTo>" + pt(ox + n[0], oy + n[1]) + pt(ox + n[2], oy + n[3]) + pt(ox + n[4], oy + n[5]) + "</a:cubicBezTo>";
+            cx2 = ox + n[2];
+            cy2 = oy + n[3];
+            x = ox + n[4];
+            y = oy + n[5];
+            curve = true;
+            break;
+        case 'S': {
+            if (!read(4)) return false;
+            // (the first control point is the last one turned about the pen, when the step before was a curve)
+            const bool after = last == QLatin1Char('C') || last == QLatin1Char('S');
+            const double c1x = after ? 2 * x - cx2 : x, c1y = after ? 2 * y - cy2 : y;
+            *out += "<a:cubicBezTo>" + pt(c1x, c1y) + pt(ox + n[0], oy + n[1]) + pt(ox + n[2], oy + n[3]) + "</a:cubicBezTo>";
+            cx2 = ox + n[0];
+            cy2 = oy + n[1];
+            x = ox + n[2];
+            y = oy + n[3];
+            curve = true;
+            break;
+        }
+        case 'Q':
+        case 'T': {
+            double qx, qy;
+            if (c == 'Q') {
+                if (!read(4)) return false;
+                qx = ox + n[0];
+                qy = oy + n[1];
+                n[0] = n[2];
+                n[1] = n[3];
+            } else {
+                if (!read(2)) return false;
+                const bool after = last == QLatin1Char('Q') || last == QLatin1Char('T');
+                qx = after ? 2 * x - cx2 : x;
+                qy = after ? 2 * y - cy2 : y;
+            }
+            const double ex = ox + n[0], ey = oy + n[1];
+            // (a quadratic curve as the cubic with the same shape)
+            *out += "<a:cubicBezTo>" + pt(x + 2.0 / 3 * (qx - x), y + 2.0 / 3 * (qy - y)) + pt(ex + 2.0 / 3 * (qx - ex), ey + 2.0 / 3 * (qy - ey)) + pt(ex, ey) + "</a:cubicBezTo>";
+            cx2 = qx;
+            cy2 = qy;
+            x = ex;
+            y = ey;
+            break;
+        }
+        case 'Z':
+            *out += "<a:close/>";
+            x = sx;
+            y = sy;
+            break;
+        default:
+            return false;   // (an arc, or a letter that is no command)
+        }
+        (void)curve;
+        last = QChar(c);
+        if (out->size() > (1 << 24)) return false;
+    }
+    return true;
+}
+
+} // namespace
+
 QByteArray Reader::drawing(const Odf &o, int frame, ParaCtx *pc, bool *ok)
 {
     *ok = false;
@@ -387,55 +539,14 @@ QByteArray Reader::drawing(const Odf &o, int frame, ParaCtx *pc, bool *ok)
         const QStringList view = o.at(frame, "svg:viewBox").split(QRegularExpression(QStringLiteral("[\\s,]+")), Qt::SkipEmptyParts);
         const double vw = view.size() == 4 ? view[2].toDouble() : 0, vh = view.size() == 4 ? view[3].toDouble() : 0;
         const QString d = o.at(frame, "svg:d");
-        if (!(vw > 0 && vh > 0) || d.isEmpty() || d.size() > (1 << 22)) {
+        if (!(vw > 0 && vh > 0 && std::isfinite(vw) && std::isfinite(vh) && vw < 1e9 && vh < 1e9) || d.isEmpty() || d.size() > (1 << 22)) {
             left(QCoreApplication::translate("odt", "drawing shapes"));
             return QByteArray();
         }
+        // (a small box keeps three decimals; the numbers stay under what the format holds)
+        const double scale = std::max(1.0, std::min(1000.0, std::floor(1e9 / std::max(vw, vh))));
         QByteArray steps;
-        QStringList tokens = d.split(QRegularExpression(QStringLiteral("[\\s,]+")), Qt::SkipEmptyParts);
-        // (A command letter may be stuck to its first number: "M10".)
-        for (qsizetype i = 0; i < tokens.size(); ++i)
-            if (tokens[i].size() > 1 && tokens[i][0].isLetter()) {
-                tokens.insert(i + 1, tokens[i].mid(1));
-                tokens[i] = tokens[i].left(1);
-            }
-        const double scale = vw < 100000 && vh < 100000 ? 1000.0 : 1.0;   // (a small box keeps three decimals)
-        auto coord = [&](const QString &v) { return num(std::llround(std::clamp(v.toDouble(), -1e9, 1e9) * scale)); };
-        bool pathOk = true;
-        double x = 0, y = 0;
-        auto point = [&](const QString &px, const QString &py) { return "<a:pt x=\"" + coord(px) + "\" y=\"" + coord(py) + "\"/>"; };
-        for (qsizetype i = 0; i < tokens.size() && pathOk; ) {
-            const QString op = tokens[i++];
-            auto need = [&](int n) { return i + n <= tokens.size(); };
-            if (op == QLatin1String("M") && need(2)) {
-                steps += "<a:moveTo>" + point(tokens[i], tokens[i + 1]) + "</a:moveTo>";
-                x = tokens[i].toDouble();
-                y = tokens[i + 1].toDouble();
-                i += 2;
-            } else if (op == QLatin1String("L") && need(2)) {
-                steps += "<a:lnTo>" + point(tokens[i], tokens[i + 1]) + "</a:lnTo>";
-                x = tokens[i].toDouble();
-                y = tokens[i + 1].toDouble();
-                i += 2;
-            } else if (op == QLatin1String("H") && need(1)) {
-                x = tokens[i++].toDouble();
-                steps += "<a:lnTo>" + point(QString::number(x), QString::number(y)) + "</a:lnTo>";
-            } else if (op == QLatin1String("V") && need(1)) {
-                y = tokens[i++].toDouble();
-                steps += "<a:lnTo>" + point(QString::number(x), QString::number(y)) + "</a:lnTo>";
-            } else if (op == QLatin1String("C") && need(6)) {
-                steps += "<a:cubicBezTo>" + point(tokens[i], tokens[i + 1]) + point(tokens[i + 2], tokens[i + 3]) + point(tokens[i + 4], tokens[i + 5]) + "</a:cubicBezTo>";
-                x = tokens[i + 4].toDouble();
-                y = tokens[i + 5].toDouble();
-                i += 6;
-            } else if (op == QLatin1String("Z") || op == QLatin1String("z")) {
-                steps += "<a:close/>";
-            } else {
-                pathOk = false;   // (a relative or arc command: not read)
-            }
-            if (steps.size() > (1 << 24)) pathOk = false;
-        }
-        if (!pathOk || steps.isEmpty()) {
+        if (!svgPathSteps(d, scale, &steps) || steps.isEmpty()) {
             left(QCoreApplication::translate("odt", "drawing shapes"));
             return QByteArray();
         }

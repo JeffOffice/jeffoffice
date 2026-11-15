@@ -214,6 +214,17 @@ private Q_SLOTS:
         e.win.w.act(QStringLiteral("edit.undo"))->trigger();
         QCOMPARE(lookAt(e, QStringLiteral("B2")).family, QStringLiteral("Zephyr Test"));
         QCOMPARE(e.win.w.undoStack()->count(), steps + 1);
+        e.win.w.act(QStringLiteral("edit.redo"))->trigger();
+        QCOMPARE(lookAt(e, QStringLiteral("B2")).family, QStringLiteral("Zephyr Two"));
+        QCOMPARE(lookAt(e, QStringLiteral("C3")).family, QStringLiteral("Zephyr Two"));
+        QCOMPARE(lookAt(e, QStringLiteral("A1")).family, QStringLiteral("Other Face"));
+        // The same font in another case is one font to replace (a cell in "ZEPHYR TEST" goes too).
+        FormatChange shout;
+        shout.fontName = QStringLiteral("ZEPHYR TWO");
+        QVERIFY(s->formatCells(0, rangeOf(QStringLiteral("D4")), shout, QStringLiteral("Formatting")).ok);
+        QVERIFY(s->replaceCellFont(QStringLiteral("Zephyr Two"), QStringLiteral("Zephyr Three"), &cells).ok);
+        QCOMPARE(cells, qint64(5));
+        QCOMPARE(lookAt(e, QStringLiteral("D4")).family, QStringLiteral("Zephyr Three"));
     }
 
     // A formatting command is one step: the cells have the font and fill, the format is the same for the same change (never made twice), Undo and Redo give it and take it back, and the

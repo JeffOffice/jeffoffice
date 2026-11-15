@@ -460,6 +460,48 @@ private Q_SLOTS:
         QVERIFY(wml::readDocx(docx, &doc));
     }
 
+    // An ODF path from another program becomes a freeform shape: relative commands (m, l, c), S, Q, and T, and the pairs of numbers that repeat a command, are read; a number that is not a finite
+    // number drops that shape and nothing else; a box with one long side keeps its decimals.
+    void aPathIsReadWithRelativeCommandsAndRepeats()
+    {
+        auto docxOfPath = [&](const QByteArray &d, const QByteArray &viewBox = "0 0 100 100") {
+            Made m;
+            m.body = "<text:p>before <draw:path text:anchor-type=\"as-char\" svg:width=\"1in\" svg:height=\"1in\" svg:viewBox=\"" + viewBox + "\" svg:d=\"" + d + "\"/> after</text:p>";
+            return part(docxOf(m.build()), QStringLiteral("/word/document.xml"));
+        };
+        // Relative lines, with the pairs after the first repeating the command (after a move, they are lines).
+        QString x = docxOfPath("m 10 10 l 20 0 0 20 z");
+        QVERIFY(x.contains(QLatin1String("<a:custGeom>")));
+        QVERIFY(x.contains(QLatin1String("<a:moveTo><a:pt x=\"10000\" y=\"10000\"/></a:moveTo>")));
+        QVERIFY(x.contains(QLatin1String("<a:lnTo><a:pt x=\"30000\" y=\"10000\"/></a:lnTo><a:lnTo><a:pt x=\"30000\" y=\"30000\"/></a:lnTo><a:close/>")));
+        x = docxOfPath("M 10 10 20 10 20 20 Z");
+        QVERIFY(x.contains(QLatin1String("<a:lnTo><a:pt x=\"20000\" y=\"10000\"/></a:lnTo><a:lnTo><a:pt x=\"20000\" y=\"20000\"/></a:lnTo>")));
+        // A relative curve, a smooth one (its first control point turned about the pen), and quadratic ones.
+        x = docxOfPath("M0 0 c 10 0 20 10 20 20 s 10 10 20 0");
+        QVERIFY(x.contains(QLatin1String("<a:cubicBezTo><a:pt x=\"10000\" y=\"0\"/><a:pt x=\"20000\" y=\"10000\"/><a:pt x=\"20000\" y=\"20000\"/></a:cubicBezTo>")));
+        QVERIFY(x.contains(QLatin1String("<a:cubicBezTo><a:pt x=\"20000\" y=\"30000\"/><a:pt x=\"30000\" y=\"30000\"/><a:pt x=\"40000\" y=\"20000\"/></a:cubicBezTo>")));
+        x = docxOfPath("M0 0 Q 30 30 60 0 T 90 0");
+        QCOMPARE(x.count(QLatin1String("<a:cubicBezTo>")), 2);
+        QVERIFY(x.contains(QLatin1String("<a:pt x=\"60000\" y=\"0\"/></a:cubicBezTo>")));
+        QVERIFY(x.contains(QLatin1String("<a:pt x=\"90000\" y=\"0\"/></a:cubicBezTo>")));
+        // Numbers that run together ("1.5-2") and exponents.
+        x = docxOfPath("M1.5-2L1e1 5");
+        QVERIFY(x.contains(QLatin1String("<a:pt x=\"1500\" y=\"-2000\"/>")));
+        QVERIFY(x.contains(QLatin1String("<a:pt x=\"10000\" y=\"5000\"/>")));
+        // An arc is not read; a number that is not finite drops the shape, and the words round it stay.
+        for (const char *bad : {"M 0 0 A 5 5 0 0 1 10 10", "M 0 0 L nan 10 Z", "M 0 0 L inf 10 Z", "M 0 0 L 1e999 10 Z", "M 0 0 L -nan 1 Z", "M 0 0 L 5"}) {
+            x = docxOfPath(bad);
+            QVERIFY2(!x.contains(QLatin1String("<a:custGeom>")), bad);
+            QVERIFY2(x.contains(QLatin1String("before")) && x.contains(QLatin1String("after")), bad);
+        }
+        x = docxOfPath("M 0 0 L 1 1", "0 0 nan 100");
+        QVERIFY(!x.contains(QLatin1String("<a:custGeom>")));
+        // A box with one long side keeps its decimals (the other side's size does not set the scale).
+        x = docxOfPath("M0 0 L1.5 0.5", "0 0 200000 100");
+        QVERIFY(x.contains(QLatin1String("<a:pt x=\"1500\" y=\"500\"/>")));
+        QVERIFY(x.contains(QLatin1String("<a:path w=\"200000000\" h=\"100000\">")));
+    }
+
     void trackedChangesAreKept()
     {
         Made m;

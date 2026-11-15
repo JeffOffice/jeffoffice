@@ -304,29 +304,56 @@ EditSession::Outcome EditSession::replaceCellFont(const QString &from, const QSt
     const QString text = tr("Replace Fonts");
     const jp::office::sheet::Styles &styles = m_book->book->styles();
     QHash<quint32, QString> seen;
-    bool macro = false;
-    qint64 changed = 0;
-    for (int sheet = 0; sheet < m_book->calc->sheetCount(); ++sheet) {
+    // Every sheet is looked at first, and nothing is changed unless all of it can be: a limit or a sheet that won't take the change is said before the first cell changes.
+    struct Sheet {
+        int sheet;
         std::vector<RestyleTarget> targets;
+    };
+    std::vector<Sheet> work;
+    qint64 total = 0;
+    QSet<quint32> bases;
+    for (int sheet = 0; sheet < m_book->calc->sheetCount(); ++sheet) {
+        Sheet one{sheet, {}};
         m_book->calc->sheet(sheet).cells.forEachInRange(0, 0, kMaxRows - 1, kMaxColumns - 1, [&](quint32 row, quint32 col, const Cell &c) {
-            if (fontNamed(styles, c.style, &seen).compare(from, Qt::CaseInsensitive) == 0 && int(targets.size()) < kMaxStyledCells) targets.push_back({row, col, &change});
+            if (fontNamed(styles, c.style, &seen).compare(from, Qt::CaseInsensitive) == 0) {
+                one.targets.push_back({row, col, &change});
+                bases.insert(c.style);
+            }
             return true;
         });
-        if (targets.empty()) continue;
-        if (!macro) {
-            // (every sheet's change is one step of Undo)
-            m_undo.beginMacro(text);
-            macro = true;
+        if (one.targets.empty()) continue;
+        total += qint64(one.targets.size());
+        if (QString notAllowed; !canEditSheet(sheet, &notAllowed) || !allows(sheet, Allow::FormatCells, &notAllowed)) {
+            out.ok = false;
+            out.problem = notAllowed;
+            return out;
         }
-        const Outcome one = restyle(sheet, targets, text);
-        if (!one.ok) {
-            m_undo.endMacro();
-            return one;
-        }
-        changed += qint64(targets.size());
+        work.push_back(std::move(one));
     }
-    if (macro) m_undo.endMacro();
-    if (cells) *cells = changed;
+    if (total > kMaxStyledCells) {
+        out.ok = false;
+        out.problem = tr("That font is in %1 cells, more than one step can change (%2). Nothing was changed.").arg(QLocale().toString(total), QLocale().toString(kMaxStyledCells));
+        return out;
+    }
+    if (qint64(styles.formats.size()) + qint64(bases.size()) > jp::office::sheet::kMaxCellFormatsWritten) {
+        out.ok = false;
+        out.problem = tr("This workbook has as many different formats as a workbook can hold (%1 cell formats). Nothing was changed.").arg(QLocale().toString(jp::office::sheet::kMaxCellFormatsWritten));
+        return out;
+    }
+    if (work.empty()) return out;
+    // (every sheet's change is one step of Undo; a sheet that fails after all takes the others' back, and leaves no step to redo)
+    m_undo.beginMacro(text);
+    for (const Sheet &one : work) {
+        const Outcome done = restyle(one.sheet, one.targets, text);
+        if (!done.ok) {
+            m_undo.endMacro();
+            if (const QUndoCommand *top = m_undo.command(m_undo.index() - 1)) const_cast<QUndoCommand *>(top)->setObsolete(true);
+            m_undo.undo();
+            return done;
+        }
+    }
+    m_undo.endMacro();
+    if (cells) *cells = total;
     return out;
 }
 

@@ -524,6 +524,18 @@ public:
     void putStyle(const office::wml::Style &style);
     // Takes a style out of the style sheet as part of the edit it is made in (as putStyle: the step keeps the style, so that Undo puts it back). Nothing for an id the sheet lacks.
     void removeStyle(const QString &id);
+    // What Replace Fonts changes besides the styles: the style sheet's defaults, the list definitions, and the theme (with the fonts the layout takes from it). Put as part of the edit
+    // being made, as putStyle does: the step keeps what they were and are, so that Undo and Redo put them as they put the text.
+    struct FontParts {
+        QByteArray docDefaults;
+        office::wml::RunProps defaultRun;
+        office::wml::Numbering numbering;
+        office::Theme theme;
+        QByteArray themePart;   // the theme part as the file keeps it
+        bool stylesModified = false;
+    };
+    FontParts fontParts() const;
+    void putFontParts(const FontParts &parts);
     // Makes the edit being made a step of the story's history even if it changes nothing else (the count on the first paragraph goes up), for a style put with it.
     void markStyleStep();
     // What a run of this format says beyond the style it has (the difference from the paragraph style's look and its own character style), for a style made from a selection.
@@ -921,7 +933,9 @@ private:
         QString id;
         std::optional<office::wml::Style> before, after;   // none: there was no such style, or there is none now
         bool modifiedBefore = false, modifiedAfter = true; // whether the sheet counted as changed (it is written anew when it is)
+        std::shared_ptr<FontParts> partsBefore, partsAfter; // a change of the defaults, the list definitions, and the theme (no style: `id` is empty)
     };
+    void installFontParts(const FontParts &parts);
     quint64 m_styleRev = 0;
     QVector<StyleChange> m_pendingStyleChanges;
     QHash<quint64, QVector<StyleChange>> m_styleSteps;

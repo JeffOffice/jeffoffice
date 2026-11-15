@@ -683,27 +683,58 @@ QImage slideImage(const Document &d, LayoutCache *cache, int slide, int width)
     return img;
 }
 
-QStringList exportSlidePictures(const Document &d, LayoutCache *cache, const SlidePicturesOptions &o, QString *error)
+QString slidePictureName(int index, bool jpeg)
 {
-    QStringList made;
-    auto fail = [&](const QString &why) {
-        if (error) *error = why;
-        return made;
-    };
+    return QCoreApplication::translate("jp::deck::Output", "Slide %1").arg(index + 1) + (jpeg ? QStringLiteral(".jpg") : QStringLiteral(".png"));
+}
+
+QStringList slidePictureNames(const Document &d, const SlidePicturesOptions &o)
+{
+    QStringList names;
+    for (int i = 0; i < d.pages.size(); ++i)
+        if (o.hidden || !d.pages[i]->hidden) names << slidePictureName(i, o.jpeg);
+    return names;
+}
+
+int slidePictureWidth(const Document &d, int width)
+{
+    const QSizeF size = d.pageSize();
+    width = std::clamp(width, 16, 16000);
+    if (size.width() <= 0 || size.height() <= 0) return width;
+    // (the height follows the slide's shape: width * height <= the most pixels)
+    const double most = std::sqrt(double(kMostSlidePicturePixels) * size.width() / size.height());
+    return std::max(16, std::min(width, int(std::floor(most))));
+}
+
+SlidePicturesResult exportSlidePictures(const Document &d, LayoutCache *cache, const SlidePicturesOptions &o)
+{
+    SlidePicturesResult result;
     const QDir dir(o.folder);
-    if (o.folder.isEmpty() || !dir.exists()) return fail(QCoreApplication::translate("jp::deck::Output", "The folder \"%1\" is not there.").arg(o.folder));
-    const int width = std::clamp(o.width, 16, 16000);
+    if (o.folder.isEmpty() || !dir.exists()) {
+        result.error = QCoreApplication::translate("jp::deck::Output", "The folder \"%1\" is not there.").arg(o.folder);
+        return result;
+    }
+    result.widthUsed = slidePictureWidth(d, o.width);
+    const int total = int(slidePictureNames(d, o).size());
+    int done = 0;
     for (int i = 0; i < d.pages.size(); ++i) {
         if (d.pages[i]->hidden && !o.hidden) continue;
-        const QString name = QCoreApplication::translate("jp::deck::Output", "Slide %1").arg(i + 1) + (o.jpeg ? QStringLiteral(".jpg") : QStringLiteral(".png"));
-        const QImage img = slideImage(d, cache, i, width);
+        const QString name = slidePictureName(i, o.jpeg);
+        const QImage img = slideImage(d, cache, i, result.widthUsed);
         // (Whole or not at all: the old file stays if this one fails.)
         QSaveFile file(dir.filePath(name));
-        if (img.isNull() || !file.open(QIODevice::WriteOnly) || !img.save(&file, o.jpeg ? "JPEG" : "PNG", o.jpeg ? 92 : -1) || !file.commit())
-            return fail(file.error() != QFileDevice::NoError ? file.errorString() : QCoreApplication::translate("jp::deck::Output", "The picture of slide %1 can't be made.").arg(i + 1));
-        made << name;
+        if (img.isNull() || !file.open(QIODevice::WriteOnly) || !img.save(&file, o.jpeg ? "JPEG" : "PNG", o.jpeg ? 92 : -1) || !file.commit()) {
+            result.error = file.error() != QFileDevice::NoError ? file.errorString() : QCoreApplication::translate("jp::deck::Output", "The picture of slide %1 can't be made.").arg(i + 1);
+            return result;
+        }
+        result.written << name;
+        ++done;
+        if (o.progress && !o.progress(done, total)) {
+            result.cancelled = true;
+            return result;
+        }
     }
-    return made;
+    return result;
 }
 
 } // namespace jp::deck

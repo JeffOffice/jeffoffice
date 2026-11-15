@@ -22,6 +22,7 @@
 #include <QDialogButtonBox>
 #include <QDir>
 #include <QFile>
+#include <QProgressDialog>
 #include <QFileDialog>
 #include <QSpinBox>
 #include <QFileInfo>
@@ -514,19 +515,54 @@ bool DeckWindow::exportPdf() { return exportPdfCommand(this, m_pathChooser); }
 
 bool DeckWindow::exportPicture() { return exportPictureCommand(this, m_pathChooser); }
 
-int DeckWindow::exportSlidePictures(const deck::SlidePicturesOptions &options)
+int DeckWindow::exportSlidePictures(const deck::SlidePicturesOptions &optionsIn)
 {
     settle(this);
-    QString err;
-    QApplication::setOverrideCursor(Qt::WaitCursor);
-    const QStringList made = deck::exportSlidePictures(*m_ed->doc(), &m_ed->cache(), options, &err);
-    QApplication::restoreOverrideCursor();
-    if (!err.isEmpty()) {
-        jp::plainWarning(this, tr("Save Slides as Pictures"), tr("%1 couldn't save the pictures.\n%2%3").arg(appInfo().name, err, saveFailureHint(err)));
+    deck::SlidePicturesOptions options = optionsIn;
+    const QString title = tr("Save Slides as Pictures");
+    const QStringList names = deck::slidePictureNames(*m_ed->doc(), options);
+    if (names.isEmpty()) {
+        jp::plainInformation(this, title, tr("Every slide is hidden, so there is nothing to save. Choose to include hidden slides to save them."));
         return 0;
     }
-    statusBar()->showMessage(tr("Saved the pictures in %1: %2").arg(QDir::toNativeSeparators(options.folder)).arg(made.size()), 5000);
-    return int(made.size());
+    // One question for the whole set when files of those names are already there.
+    int existing = 0;
+    for (const QString &name : names)
+        if (QFileInfo::exists(QDir(options.folder).filePath(name))) ++existing;
+    if (existing > 0) {
+        QMessageBox box(QMessageBox::Question, title, tr("Files with these names are already in the folder (%1 of %2). Replace them?").arg(existing).arg(names.size()), QMessageBox::Save | QMessageBox::Cancel, this);
+        box.setTextFormat(Qt::PlainText);
+        box.button(QMessageBox::Save)->setText(tr("Replace"));
+        box.setDefaultButton(QMessageBox::Cancel);
+        if (box.exec() != QMessageBox::Save) return 0;
+    }
+    // (past ten slides a bar shows the work, with Cancel, and the window keeps answering)
+    std::unique_ptr<QProgressDialog> bar;
+    if (names.size() > 10) {
+        bar = std::make_unique<QProgressDialog>(tr("Saving the slides as pictures…"), tr("Cancel"), 0, int(names.size()), this);
+        bar->setWindowModality(Qt::WindowModal);
+        bar->setMinimumDuration(0);
+        bar->setValue(0);
+        options.progress = [&bar, inner = optionsIn.progress](int done, int total) {
+            bar->setValue(done);
+            QCoreApplication::processEvents();
+            return !bar->wasCanceled() && (!inner || inner(done, total));
+        };
+    }
+    QApplication::setOverrideCursor(Qt::WaitCursor);
+    const deck::SlidePicturesResult result = deck::exportSlidePictures(*m_ed->doc(), &m_ed->cache(), options);
+    QApplication::restoreOverrideCursor();
+    bar.reset();
+    const QString where = QDir::toNativeSeparators(options.folder);
+    if (!result.error.isEmpty()) {
+        jp::plainWarning(this, title, tr("%1 couldn't save all the pictures. %2 were saved before it stopped.\n%3%4").arg(appInfo().name).arg(result.written.size()).arg(result.error, saveFailureHint(result.error)));
+        return int(result.written.size());
+    }
+    QString said = tr("Saved the pictures in %1: %2").arg(where).arg(result.written.size());
+    if (result.cancelled) said = tr("Stopped. The pictures saved so far are in %1: %2").arg(where).arg(result.written.size());
+    else if (result.widthUsed < options.width) said += QLatin1Char(' ') + tr("(They are %1 pixels across, the most that fits in 64 million pixels.)").arg(result.widthUsed);
+    statusBar()->showMessage(said, 8000);
+    return int(result.written.size());
 }
 
 bool DeckWindow::exportSlidePicturesAsk()

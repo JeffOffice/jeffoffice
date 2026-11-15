@@ -1,12 +1,14 @@
 // The File > Info page's two buttons for where the file is: Open File Location and Copy Path. Both are grey for a document that has not been saved; a file on another computer
 // still has Copy Path, and Open File Location asks before it goes there.
 #include "app/infopage.h"
+#include "core/remotepath.h"
 #include "../testrunner.h"
 
 #include <QApplication>
 #include <QClipboard>
 #include <QPushButton>
 #include <QTemporaryDir>
+#include <private/qabstractfileengine_p.h>
 #include <QtTest>
 
 using namespace jp;
@@ -79,20 +81,33 @@ private Q_SLOTS:
         QCOMPARE(QApplication::clipboard()->text(), pathForCopy(path));
     }
 
-    void aFileOnAnotherComputerAsksBeforeItOpensItsLocation()
+    // Nothing looks at a file on another computer (not a stat, an exists, or an open, nor a file object made for it) before the person agrees: that sends their credentials there.
+    void aFileOnAnotherComputerIsNotTouchedBeforeThePersonAgrees()
     {
+        struct Probe : QAbstractFileEngineHandler {
+            mutable QStringList touched;
+            std::unique_ptr<QAbstractFileEngine> create(const QString &name) const override
+            {
+                if (name.contains(QStringLiteral("probe-share"))) touched << name;
+                return nullptr;
+            }
+        } probe;
         Hooks hooks;
-        const QString path = QStringLiteral("//server/share/a.docx");
+        const QString path = QStringLiteral("//probe-share/share/a.docx");
+        std::unique_ptr<QWidget> page(pageFor(path));
+        auto *where = page->findChild<QPushButton *>(QStringLiteral("infoShowFolder"));
+        auto *copy = page->findChild<QPushButton *>(QStringLiteral("infoCopyPath"));
+        QVERIFY(where->isEnabled() && copy->isEnabled());   // (a path that is not empty is enough)
+        copy->click();
+        QVERIFY(QApplication::clipboard()->text().contains(QStringLiteral("probe-share")));
         hooks.answer = false;
-        QVERIFY(!openFileLocation(path, nullptr));
+        where->click();
         QCOMPARE(hooks.asked, QStringList{path});
         QVERIFY(hooks.opened.isEmpty());
         hooks.answer = true;
-        QVERIFY(openFileLocation(path, nullptr));
+        where->click();
         QCOMPARE(hooks.opened, QStringList{path});
-        // Copy Path needs no question.
-        std::unique_ptr<QWidget> page(pageFor(path));
-        QVERIFY(page->findChild<QPushButton *>(QStringLiteral("infoCopyPath"))->isEnabled());
+        QVERIFY2(probe.touched.isEmpty(), qPrintable(probe.touched.join(QLatin1Char(' '))));
     }
 };
 

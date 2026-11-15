@@ -12,7 +12,8 @@ class QWidget;
 namespace jp {
 
 // One font a document uses. `key` is what the app is told to replace (the family's name; "+Heading" and "+Body" for the theme's two fonts, which the app lists only when it can change
-// them), `shown` the words in the list, and `uses` how many places name it. A theme font that is not the one picked is never changed by the replacement of another.
+// them), `shown` the words in the list, and `uses` how many places in the content name it (text, cells, shapes: not styles). A font only styles name has no uses and is listed as "styles
+// only"; replacing it still changes those styles. A theme font that is not the one picked is never changed by the replacement of another.
 struct FontUse {
     QString key, shown;
     int uses = 0;
@@ -36,7 +37,8 @@ struct ReplaceFontsResult {
 // Shows the box. The result says what was replaced (uses is 0 when the box was cancelled or nothing changed).
 ReplaceFontsResult askReplaceFonts(QWidget *parent, const ReplaceFontsHost &host);
 
-// The fonts as the box lists them: the families a map of family to uses holds, most used first, then by name.
-QVector<FontUse> fontUsesOf(const QMap<QString, int> &families);
+// The fonts as the box lists them, made from the places that name each in the content and those in styles (families that differ only in case are one font, spelled as the first of them is
+// in the maps, `content` before `styles`): most used first, then by name; a font only `styles` name has no uses. One place for every app, so that the rule is the same in all.
+QVector<FontUse> fontUsesOf(const QMap<QString, int> &content, const QMap<QString, int> &styles = QMap<QString, int>());
 
 } // namespace jp

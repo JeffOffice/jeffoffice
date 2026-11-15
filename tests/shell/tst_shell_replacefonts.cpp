@@ -114,7 +114,7 @@ private Q_SLOTS:
             if (u.key == QLatin1String("Zephyr Test")) arial = u.uses;
             if (u.key == QLatin1String("+Heading")) heading = u.uses;
         }
-        QCOMPARE(arial, 5);   // (a frame's run, a shape's, the master's, the style, and the Text Art)
+        QCOMPARE(arial, 4);   // (a frame's run, a shape's, the master's, and the Text Art: not the style)
         QCOMPARE(heading, 1);
         QVERIFY(used.first().key == QLatin1String("Zephyr Test"));
 
@@ -140,6 +140,33 @@ private Q_SLOTS:
         QCOMPARE(static_cast<TextArtItem *>(ed.doc()->pages[0]->items[2].get())->font, QStringLiteral("Zephyr Test"));
     }
 
+    // The list is made one way for every app: families that differ only in case are one font, uses count the content only, and a font only styles name has none ("styles only").
+    void theListMergesCaseAndMarksFontsOnlyStylesName()
+    {
+        QMap<QString, int> content, styles;
+        content.insert(QStringLiteral("Zephyr"), 2);
+        content.insert(QStringLiteral("zephyr"), 3);
+        content.insert(QStringLiteral("Other"), 1);
+        styles.insert(QStringLiteral("ZEPHYR"), 4);   // (a style naming a font the content has adds no use)
+        styles.insert(QStringLiteral("Quiet"), 1);
+        const QVector<FontUse> used = fontUsesOf(content, styles);
+        QCOMPARE(used.size(), 3);
+        QCOMPARE(used[0].uses, 5);
+        QCOMPARE(used[0].key.toLower(), QStringLiteral("zephyr"));
+        QCOMPARE(used[1].key, QStringLiteral("Other"));
+        QCOMPARE(used[2].key, QStringLiteral("Quiet"));
+        QCOMPARE(used[2].uses, 0);
+        ReplaceFontsHost host;
+        host.fontsUsed = [&] { return used; };
+        host.replace = [](const QString &, const QString &) { return 0; };
+        withDialog([&] { askReplaceFonts(nullptr, host); }, QStringLiteral("replaceFontsDialog"), [](QDialog *d) {
+            auto *from = d->findChild<QComboBox *>(QStringLiteral("replaceFontsFrom"));
+            QCOMPARE(from->count(), 3);
+            QVERIFY(from->itemText(2).contains(QLatin1String("styles only")));
+            QVERIFY(!from->itemText(0).contains(QLatin1String("styles only")));
+        }, false);
+    }
+
     void theBoxListsTheFontsUsedAndReplacesOne()
     {
         QVector<FontUse> used = {{QStringLiteral("Arial"), QString(), 3, false}, {QStringLiteral("+Body"), QStringLiteral("Calibri (Body)"), 2, true}};
@@ -158,7 +185,7 @@ private Q_SLOTS:
             auto *replace = d->findChild<QPushButton *>(QStringLiteral("replaceFontsReplace"));
             QVERIFY(from && to && replace);
             QCOMPARE(from->count(), 2);
-            QVERIFY(from->itemText(0).startsWith(QLatin1String("Arial")));
+            QVERIFY(from->itemText(0).startsWith(QLatin1String("Arial")) && from->itemText(0).contains(QLatin1String("used in 3")));
             QVERIFY(from->itemText(1).startsWith(QLatin1String("Calibri (Body)")));
             QVERIFY(!replace->isEnabled());   // (no font chosen to put in its place yet)
             to->setEditText(QStringLiteral("Arial"));

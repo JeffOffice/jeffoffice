@@ -2358,44 +2358,93 @@ private Q_SLOTS:
         QVERIFY2(missing.isEmpty(), qPrintable(QStringLiteral("not in ribbon_strings.cpp (run tools/ribbon_strings.py): ") + missing.join(QStringLiteral(", "))));
     }
 
-    // Replace Fonts (Home > Editing): the box lists the fonts the publication uses and puts another in the place of one everywhere (frames, shapes, notes, master pages, styles, Text Art),
-    // as one step of Undo.
+    // Replace Fonts (Home > Editing): the box lists the fonts the publication uses and puts another in the place of one everywhere (frames, shapes, master pages, styles, Text Art), as one
+    // step of Undo and of Redo; a font only a style names is listed as "styles only"; the theme's font changes only when it is the one picked.
     void replaceFontsSwapsAFontEverywhereAsOneStep()
     {
         jp::MainWindow w;
         w.show();
         jp::Document &d = *w.editor()->doc();
-        auto frame = std::make_shared<jp::TextItem>();
-        frame->id = QStringLiteral("f1");
-        frame->rect = QRectF(40, 40, 200, 60);
-        frame->storyId = d.createStory(QStringLiteral("words"));
-        {
-            QTextCursor c(d.storyDoc(frame->storyId));
+        auto frame = [&](const QString &id, const QString &family, const QString &theme) {
+            auto t = std::make_shared<jp::TextItem>();
+            t->id = id;
+            t->rect = QRectF(40, 40, 200, 60);
+            t->storyId = d.createStory(QStringLiteral("words"));
+            QTextCursor c(d.storyDoc(t->storyId));
             c.select(QTextCursor::Document);
             QTextCharFormat f;
-            f.setFontFamilies(QStringList{QStringLiteral("Zephyr Test")});
+            if (!family.isEmpty()) f.setFontFamilies(QStringList{family});
+            if (!theme.isEmpty()) f.setProperty(jp::tp::ThemeFont, theme);
             c.mergeCharFormat(f);
-        }
-        d.pages[0]->items.push_back(frame);
+            return t;
+        };
+        const auto onPage = frame(QStringLiteral("f1"), QStringLiteral("Zephyr Test"), QString());
+        d.pages[0]->items.push_back(onPage);
+        const auto themed = frame(QStringLiteral("f2"), QString(), QStringLiteral("major"));
+        d.pages[0]->items.push_back(themed);
+        if (d.masters.isEmpty()) d.masters.push_back(std::make_shared<jp::MasterPage>());
+        const auto onMaster = frame(QStringLiteral("m1"), QStringLiteral("Zephyr Test"), QString());
+        d.masters[0]->items.push_back(onMaster);
         auto art = std::make_shared<jp::TextArtItem>();
         art->id = QStringLiteral("art1");
         art->rect = QRectF(40, 200, 100, 50);
         art->font = QStringLiteral("Zephyr Test");
         d.pages[0]->items.push_back(art);
-        QVERIFY(w.act("edit.replaceFonts"));
-        const int steps = w.editor()->undoStack()->count();
-        withDialog([&] { w.act("edit.replaceFonts")->trigger(); }, QStringLiteral("replaceFontsDialog"), [](QDialog *dlg) {
-            auto *from = dlg->findChild<QComboBox *>(QStringLiteral("replaceFontsFrom"));
-            QVERIFY(from);
-            const int at = from->findData(QStringLiteral("Zephyr Test"));
-            QVERIFY(at >= 0);
-            from->setCurrentIndex(at);
-            dlg->findChild<QComboBox *>(QStringLiteral("replaceFontsTo"))->setEditText(QStringLiteral("Zephyr Other"));
-        });
+        jp::TextStyle loud;
+        loud.name = QStringLiteral("Loud");
+        loud.chr.setFontFamilies(QStringList{QStringLiteral("Zephyr Test")});
+        d.styles.push_back(loud);
+        jp::TextStyle quiet;
+        quiet.name = QStringLiteral("Quiet");
+        quiet.chr.setFontFamilies(QStringList{QStringLiteral("Styles Only Face")});
+        d.styles.push_back(quiet);
+        d.fonts.heading = QStringLiteral("Heading Face");
+        auto familyOf = [&](const QString &storyId) {
+            QTextCursor c(w.editor()->doc()->storyDoc(storyId));
+            c.setPosition(1);
+            return c.charFormat().fontFamilies().toStringList().value(0);
+        };
+        auto styleFont = [&](const QString &name) { return w.editor()->doc()->style(name)->chr.fontFamilies().toStringList().value(0); };
+        auto artFont = [&] { return static_cast<jp::TextArtItem *>(w.editor()->doc()->pages[0]->items[2].get())->font; };
+        auto pick = [&](const QString &key, const QString &to, const QString &listed = QString()) {
+            withDialog([&] { w.act("edit.replaceFonts")->trigger(); }, QStringLiteral("replaceFontsDialog"), [&](QDialog *dlg) {
+                auto *from = dlg->findChild<QComboBox *>(QStringLiteral("replaceFontsFrom"));
+                const int at = from->findData(key);
+                QVERIFY2(at >= 0, qPrintable(key));
+                if (!listed.isEmpty()) QVERIFY2(from->itemText(at).contains(listed), qPrintable(from->itemText(at)));
+                from->setCurrentIndex(at);
+                dlg->findChild<QComboBox *>(QStringLiteral("replaceFontsTo"))->setEditText(to);
+            });
+        };
+        int steps = w.editor()->undoStack()->count();
+        pick(QStringLiteral("Zephyr Test"), QStringLiteral("Zephyr Other"));
         QCOMPARE(w.editor()->undoStack()->count(), steps + 1);
-        QCOMPARE(static_cast<jp::TextArtItem *>(w.editor()->doc()->pages[0]->items.back().get())->font, QStringLiteral("Zephyr Other"));
+        auto allOther = [&](const QString &want) {
+            QCOMPARE(familyOf(onPage->storyId), want);
+            QCOMPARE(familyOf(onMaster->storyId), want);
+            QCOMPARE(styleFont(QStringLiteral("Loud")), want);
+            QCOMPARE(artFont(), want);
+        };
+        allOther(QStringLiteral("Zephyr Other"));
+        QVERIFY(!w.editor()->doc()->storyDoc(themed->storyId)->begin().begin().fragment().charFormat().hasProperty(QTextFormat::FontFamilies));   // (the theme's run is still the theme's)
+        QCOMPARE(w.editor()->doc()->fonts.heading, QStringLiteral("Heading Face"));
+        QCOMPARE(styleFont(QStringLiteral("Quiet")), QStringLiteral("Styles Only Face"));
         w.editor()->undo();
-        QCOMPARE(static_cast<jp::TextArtItem *>(w.editor()->doc()->pages[0]->items.back().get())->font, QStringLiteral("Zephyr Test"));
+        allOther(QStringLiteral("Zephyr Test"));
+        w.editor()->redo();
+        allOther(QStringLiteral("Zephyr Other"));
+        // A font only a style names is listed so, and replacing it swaps that style.
+        steps = w.editor()->undoStack()->count();
+        pick(QStringLiteral("Styles Only Face"), QStringLiteral("Zephyr Third"), QStringLiteral("styles only"));
+        QCOMPARE(w.editor()->undoStack()->count(), steps + 1);
+        QCOMPARE(styleFont(QStringLiteral("Quiet")), QStringLiteral("Zephyr Third"));
+        // The theme's own font changes only when picked.
+        pick(QStringLiteral("+Heading"), QStringLiteral("Zephyr Heading"));
+        QCOMPARE(w.editor()->doc()->fonts.heading, QStringLiteral("Zephyr Heading"));
+        w.editor()->undo();
+        QCOMPARE(w.editor()->doc()->fonts.heading, QStringLiteral("Heading Face"));
+        w.editor()->redo();
+        QCOMPARE(w.editor()->doc()->fonts.heading, QStringLiteral("Zephyr Heading"));
     }
 
     // A file being opened is named in the status line by its name alone.

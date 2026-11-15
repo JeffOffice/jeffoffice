@@ -7,6 +7,7 @@
 #include "core/fonts.h"
 #include "office/barcodemarker.h"
 
+#include <QColor>
 #include <QCoreApplication>
 #include <QFileInfo>
 #include <QMap>
@@ -916,7 +917,29 @@ QByteArray Writer::drawingXml(const T &t, int drawing, ParaCtx *pc, int depth)
             const int c = fill >= 0 ? t.firstChild(fill) : -1;
             if (c < 0) return QString();
             const QString v = t.attr(c, "val");
-            return t.localName(c) == "schemeClr" ? themeColor(v) : hexColorOrEmpty(v);
+            QString hex = t.localName(c) == "schemeClr" ? themeColor(v) : hexColorOrEmpty(v);
+            if (hex.isEmpty()) return hex;
+            // The color's own changes: luminance (lumMod, lumOff), and tint and shade (toward white, toward black).
+            QColor color(QStringLiteral("#") + hex);
+            double lumMod = 1, lumOff = 0, tint = 1, shade = 1;
+            bool changed = false;
+            for (int k = t.firstChild(c); k >= 0; k = t.next(k)) {
+                const double amount = t.attr(k, "val").toDouble() / 100000.0;
+                const QByteArray name = t.localName(k);
+                if (name == "lumMod") lumMod = amount, changed = true;
+                else if (name == "lumOff") lumOff = amount, changed = true;
+                else if (name == "tint") tint = amount, changed = true;
+                else if (name == "shade") shade = amount, changed = true;
+            }
+            if (changed) {
+                float h, sat, l, a;
+                color.getHslF(&h, &sat, &l, &a);
+                color.setHslF(h < 0 ? 0 : h, sat, std::clamp(double(l) * lumMod + lumOff, 0.0, 1.0), a);
+                auto mix = [&](int channel) { return std::clamp(int(std::lround((channel * tint + 255.0 * (1.0 - tint)) * shade)), 0, 255); };
+                color = QColor(mix(color.red()), mix(color.green()), mix(color.blue()));
+                hex = color.name(QColor::HexRgb).mid(1).toUpper();
+            }
+            return hex;
         };
         for (int k = shapeProps >= 0 ? t.firstChild(shapeProps) : -1; k >= 0; k = t.next(k)) {
             if (t.localName(k) == "solidFill") {

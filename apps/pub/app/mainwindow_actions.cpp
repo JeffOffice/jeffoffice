@@ -1355,16 +1355,7 @@ void MainWindow::createActions()
 
 void MainWindow::replaceFonts()
 {
-    Editor *ed = m_ed;
-    ed->endTextEdit();
-    ReplaceFontsHost host;
-    host.fontsUsed = [ed] { return pageFontsUsed(*ed->doc()); };
-    host.replace = [ed](const QString &key, const QString &to) {
-        int n = 0;
-        ed->change(tr("Replace Fonts"), [&] { n = replacePageFont(*ed->doc(), key, to); });
-        return n;
-    };
-    const ReplaceFontsResult done = askReplaceFonts(this, host);
+    const ReplaceFontsResult done = askReplacePageFonts(this, m_ed);
     statusBar()->showMessage(done.uses > 0 ? done.message() : tr("No fonts were replaced."), 6000);
 }
 

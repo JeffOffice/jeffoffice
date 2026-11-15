@@ -4,6 +4,7 @@
 #include "app/icons.h"
 #include "app/plaintext.h"
 #include "app/privacy.h"
+#include "core/remotepath.h"
 
 #include <QApplication>
 #include <QCheckBox>
@@ -53,9 +54,8 @@ QString folderOfFile(const QString &path)
     return fi.exists() ? fi.absolutePath() : QString();
 }
 
-QString pathForCopy(const QString &path) { return QDir::toNativeSeparators(QFileInfo(path).absoluteFilePath()); }
-
-bool isOnAnotherComputer(const QString &path) { return path.startsWith(QLatin1String("\\\\")) || path.startsWith(QLatin1String("//")); }
+// (A file on another computer is never looked at before the person agrees, not even by a file object: so its path is only written out as it is.)
+QString pathForCopy(const QString &path) { return QDir::toNativeSeparators(isOnAnotherComputer(path) ? path : QFileInfo(path).absoluteFilePath()); }
 
 FileLocationHooks &fileLocationHooks()
 {
@@ -78,7 +78,7 @@ bool openFileLocation(const QString &path, QWidget *parent)
         hooks.open(path);
         return true;
     }
-    const QString native = QDir::toNativeSeparators(QFileInfo(path).absoluteFilePath());
+    const QString native = pathForCopy(path);
 #if defined(Q_OS_WIN)
     // (Explorer takes the whole argument after /select, as one piece.)
     if (QProcess::startDetached(QStringLiteral("explorer.exe"), {QStringLiteral("/select,") + native})) return true;
@@ -401,7 +401,7 @@ QWidget *buildInfoPage(QWidget *parent, const InfoHost &h)
     where->addWidget(pathLabel, 1);
     auto *show = new QPushButton(QCoreApplication::translate("jp::InfoPage", "Open File Location"), page);
     show->setObjectName(QStringLiteral("infoShowFolder"));
-    show->setEnabled(!folderOfFile(path).isEmpty());
+    show->setEnabled(!path.isEmpty() && (isOnAnotherComputer(path) || !folderOfFile(path).isEmpty()));
     QObject::connect(show, &QPushButton::clicked, page, [path, page] { openFileLocation(path, page); });
     where->addWidget(show);
     auto *copy = new QPushButton(QCoreApplication::translate("jp::InfoPage", "Copy Path"), page);

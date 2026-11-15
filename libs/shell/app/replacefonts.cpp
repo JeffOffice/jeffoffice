@@ -20,10 +20,19 @@ QString ReplaceFontsResult::message() const
     return QCoreApplication::translate("jp::ReplaceFonts", "Replaced %1 with %2 (places changed: %3).").arg(from, to).arg(uses);
 }
 
-QVector<FontUse> fontUsesOf(const QMap<QString, int> &families)
+QVector<FontUse> fontUsesOf(const QMap<QString, int> &content, const QMap<QString, int> &styles)
 {
     QVector<FontUse> out;
-    for (auto it = families.constBegin(); it != families.constEnd(); ++it) out.push_back({it.key(), QString(), it.value(), false});
+    auto place = [&](const QString &name, int uses) {
+        for (FontUse &u : out)
+            if (u.key.compare(name, Qt::CaseInsensitive) == 0) {
+                u.uses += uses;
+                return;
+            }
+        out.push_back({name, QString(), uses, false});
+    };
+    for (auto it = content.constBegin(); it != content.constEnd(); ++it) place(it.key(), it.value());
+    for (auto it = styles.constBegin(); it != styles.constEnd(); ++it) place(it.key(), 0);
     std::stable_sort(out.begin(), out.end(), [](const FontUse &a, const FontUse &b) { return a.uses > b.uses; });
     return out;
 }
@@ -50,7 +59,7 @@ ReplaceFontsResult askReplaceFonts(QWidget *parent, const ReplaceFontsHost &host
         QString text = u.shown.isEmpty() ? u.key : u.shown;
         names << text;
         if (!u.theme && !installed.contains(u.key.toLower())) text += QCoreApplication::translate("jp::ReplaceFonts", " (not installed)");
-        from->addItem(QCoreApplication::translate("jp::ReplaceFonts", "%1 (used in %2)").arg(text).arg(u.uses), u.key);
+        from->addItem(u.uses > 0 || u.theme ? QCoreApplication::translate("jp::ReplaceFonts", "%1 (used in %2)").arg(text).arg(u.uses) : QCoreApplication::translate("jp::ReplaceFonts", "%1 (styles only)").arg(text), u.key);
     }
     form->addRow(QCoreApplication::translate("jp::ReplaceFonts", "Replace:"), from);
     auto *to = new QComboBox(&dlg);

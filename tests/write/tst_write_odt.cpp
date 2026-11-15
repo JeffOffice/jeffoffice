@@ -100,6 +100,41 @@ private Q_SLOTS:
         initCore();
     }
 
+    // An icon's line color, which the document names by the theme's color and the changes to it (luminance, tint), is written as the color those make; the theme part is read once for all.
+    void anIconsThemeColorAndItsChangesAreWrittenAsTheColorTheyMake()
+    {
+        auto doc = WriteDoc::blank();
+        QVERIFY(doc->theme());
+        QTextCursor c(doc->story());
+        QCOMPARE(insertIcon(*doc, c, QStringLiteral("star")), PictureResult::Ok);
+        QByteArray m_stroke;
+        auto strokeOf = [&](const QByteArray &colorXml) {
+            QMap<QString, QByteArray> parts;
+            QVERIFY(readZip(doc->toDocx(), parts));
+            QByteArray x = parts.value(QStringLiteral("word/document.xml"));
+            if (x.isEmpty()) x = parts.value(QStringLiteral("/word/document.xml"));
+            const QByteArray plain = "<a:schemeClr val=\"tx1\"/>";
+            QVERIFY(x.contains(plain));
+            x.replace(plain, colorXml);
+            const QString key = parts.contains(QStringLiteral("word/document.xml")) ? QStringLiteral("word/document.xml") : QStringLiteral("/word/document.xml");
+            parts[key] = x;
+            ZipWriter z;
+            for (auto it = parts.constBegin(); it != parts.constEnd(); ++it) z.add(it.key(), it.value(), true);
+            auto changed = WriteDoc::fromDocx(z.finish());
+            QVERIFY(changed);
+            const QByteArray content = odtPart(changed->toOdt(), QStringLiteral("content.xml"));
+            const qsizetype at = content.indexOf("svg:stroke-color=\"#");
+            QVERIFY(at >= 0);
+            m_stroke = content.mid(at + 19, 6).toUpper();
+        };
+        strokeOf("<a:schemeClr val=\"tx1\"/>");
+        QCOMPARE(m_stroke, doc->theme()->colors[office::Theme::Dark1].name(QColor::HexRgb).mid(1).toUpper().toLatin1());
+        strokeOf("<a:schemeClr val=\"tx1\"><a:lumMod val=\"50000\"/><a:lumOff val=\"50000\"/></a:schemeClr>");   // (black, half way to white)
+        QCOMPARE(m_stroke, QByteArray("7790B3"));   // (the theme's dark 1, with its luminance halfway to white)
+        strokeOf("<a:schemeClr val=\"tx1\"><a:tint val=\"50000\"/></a:schemeClr>");   // (black, half way to white)
+        QCOMPARE(m_stroke, QByteArray("8F949B"));   // (the same, half way to white)
+    }
+
     void anOdtOpensWithItsTextAndLooks()
     {
         QString err;

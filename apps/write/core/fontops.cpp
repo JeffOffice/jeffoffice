@@ -6,6 +6,7 @@
 #include "text/textprops.h"
 #include "wml/wml.h"
 
+#include <QCoreApplication>
 #include <QMap>
 #include <QRegularExpression>
 #include <QTextBlock>
@@ -47,18 +48,25 @@ bool replaceInFonts(Fonts *f, const QString &from, const QString &to)
     return changed;
 }
 
-// The fonts a piece of the file's XML names (a run's w:rFonts, a drawing's a:latin and its kin), counted (one use for each element, whatever the slots of a w:rFonts say), or put in the
-// place of `from` (when `counts` is null): how many elements changed.
 QString unescaped(QString v)
 {
     v.replace(QLatin1String("&lt;"), QLatin1String("<")).replace(QLatin1String("&gt;"), QLatin1String(">")).replace(QLatin1String("&quot;"), QLatin1String("\"")).replace(QLatin1String("&apos;"), QLatin1String("'"));
     return v.replace(QLatin1String("&amp;"), QLatin1String("&"));
 }
 
+// The fonts a piece of the file's XML names (a run's w:rFonts, a drawing's a:latin and its kin), counted (one use for each element, whatever the slots of a w:rFonts say), or put in the
+// place of `from` (when `counts` is null): how many elements changed. A slot that a theme attribute overrides (w:ascii beside w:asciiTheme) names no font.
 int fontsInXml(QByteArray *xml, const QString &from, const QString &to, QMap<QString, int> *counts)
 {
     static const QRegularExpression element(QStringLiteral("<(?:w:rFonts|a:latin|a:ea|a:cs)\\b[^>]*>"));
     static const QRegularExpression attribute(QStringLiteral("(\\b(?:w:ascii|w:hAnsi|w:eastAsia|w:cs|typeface))=\"([^\"]*)\""));
+    auto overridden = [](const QString &tag, const QString &slot) {
+        if (slot == QLatin1String("w:ascii")) return tag.contains(QLatin1String("w:asciiTheme="));
+        if (slot == QLatin1String("w:hAnsi")) return tag.contains(QLatin1String("w:hAnsiTheme="));
+        if (slot == QLatin1String("w:eastAsia")) return tag.contains(QLatin1String("w:eastAsiaTheme="));
+        if (slot == QLatin1String("w:cs")) return tag.contains(QLatin1String("w:cstheme=")) || tag.contains(QLatin1String("w:csTheme="));
+        return false;
+    };
     const QString text = QString::fromUtf8(*xml);
     int n = 0;
     QString out;
@@ -74,7 +82,7 @@ int fontsInXml(QByteArray *xml, const QString &from, const QString &to, QMap<QSt
         while (slots.hasNext()) {
             const QRegularExpressionMatch a = slots.next();
             const QString name = unescaped(a.captured(2));
-            if (name.isEmpty() || name.startsWith(QLatin1Char('+'))) continue;
+            if (name.isEmpty() || name.startsWith(QLatin1Char('+')) || overridden(tag, a.captured(1))) continue;
             if (!named.contains(name, Qt::CaseInsensitive)) named << name;
             if (counts || !same(name, from) || name == to) continue;
             rewritten += tag.mid(taken, a.capturedStart() - taken) + a.captured(1) + QStringLiteral("=\"") + to.toHtmlEscaped() + QLatin1Char('"');
@@ -190,78 +198,139 @@ int replaceInStory(WriteDoc &doc, QTextDocument *story, const QString &from, con
     return n;
 }
 
+// The font a level of a list names for its number (a bullet's font), in each of the document's definitions and in the levels an id writes out itself.
+template <typename Fn>
+void eachLevelRun(Numbering &numbering, Fn &&fn)
+{
+    for (AbstractNum &a : numbering.abstracts)
+        for (Level &l : a.levels)
+            if (l.present) fn(l.rPr, &a);
+    for (Num &n : numbering.nums)
+        for (Level &l : n.levelOverrides) fn(l.rPr, static_cast<AbstractNum *>(nullptr));
+}
+
+bool isScheme(const QString &key) { return key == QLatin1String("+Heading") || key == QLatin1String("+Body"); }
+
 } // namespace
 
 QVector<FontUse> fontsUsed(WriteDoc &doc)
 {
-    QMap<QString, int> uses;
+    QMap<QString, int> content, styles;
+    int major = 0, minor = 0;
     auto fromStory = [&](QTextDocument *story) {
-        collectFontFamilies(story, &uses);
-        otherFontsOf(story, [&](const QString &n) { ++uses[n]; });
+        collectFontFamilies(story, &content, &major, &minor);
+        otherFontsOf(story, [&](const QString &n) { ++content[n]; });
         for (const Drawing &d : drawingsOf(story)) {
             QByteArray raw = d.atom.raw;
-            fontsInXml(&raw, QString(), QString(), &uses);
+            fontsInXml(&raw, QString(), QString(), &content);
         }
     };
     fromStory(doc.story());
     for (QTextDocument *story : doc.storiesWithChanges(true)) fromStory(story);
+    // What only styles (and the defaults and the list definitions) name is not content: it is listed as styles only.
+    int themeInStyles = 0;
+    auto fromRun = [&](const RunProps &r) {
+        if (!r.fonts) return;
+        forEachNamedFont(*r.fonts, [&](const QString &n) { ++styles[n]; });
+        if (!r.fonts->asciiTheme.isEmpty() || !r.fonts->hAnsiTheme.isEmpty()) ++themeInStyles;
+    };
     for (const Style &s : doc.styleSheet().styles) {
-        if (s.rPr.fonts) forEachNamedFont(*s.rPr.fonts, [&](const QString &n) { ++uses[n]; });
+        fromRun(s.rPr);
         if (!s.tail.isEmpty()) {
             QByteArray raw = s.tail;
-            fontsInXml(&raw, QString(), QString(), &uses);
+            fontsInXml(&raw, QString(), QString(), &styles);
         }
     }
-    // (Names that differ only in case are one font: the first spelling stands for them.)
-    QVector<FontUse> merged;
-    for (const FontUse &u : fontUsesOf(uses)) {
-        bool found = false;
-        for (FontUse &m : merged)
-            if (same(m.key, u.key)) {
-                m.uses += u.uses;
-                found = true;
-            }
-        if (!found) merged.push_back(u);
+    fromRun(doc.styleSheet().defaultRun);
+    {
+        QByteArray raw = doc.styleSheet().docDefaults;
+        fontsInXml(&raw, QString(), QString(), &styles);
     }
-    std::stable_sort(merged.begin(), merged.end(), [](const FontUse &a, const FontUse &b) { return a.uses > b.uses; });
-    return merged;
+    {
+        Numbering numbering = doc.numbering();
+        eachLevelRun(numbering, [&](RunProps &r, AbstractNum *) { fromRun(r); });
+    }
+    QVector<FontUse> out = fontUsesOf(content, styles);
+    // The theme's two fonts, when the document has a theme: offered, and changed only when picked.
+    if (const office::Theme *theme = doc.theme()) {
+        if (!theme->majorLatin.isEmpty() && (major > 0 || themeInStyles > 0))
+            out.push_back({QStringLiteral("+Heading"), QCoreApplication::translate("jp::ReplaceFonts", "%1 (Headings)").arg(theme->majorLatin), major, true});
+        if (!theme->minorLatin.isEmpty() && (minor > 0 || themeInStyles > 0))
+            out.push_back({QStringLiteral("+Body"), QCoreApplication::translate("jp::ReplaceFonts", "%1 (Body)").arg(theme->minorLatin), minor, true});
+    }
+    return out;
 }
 
 int replaceFont(WriteDoc &doc, const QString &from, const QString &to)
 {
     if (from.isEmpty() || to.trimmed().isEmpty()) return 0;
-    bool named = false;
-    for (const FontUse &u : fontsUsed(doc)) named = named || same(u.key, from);
-    if (!named) return 0;
     const WriteDoc::StepGroup together(doc);
     int n = 0;
     QTextDocument *body = doc.story();
     {
-        // The styles are steps of the text's history: they change in the edit that changes the text.
+        // The styles, the defaults, the list definitions, and the theme are steps of the text's history: they change in the edit that changes the text.
         QTextCursor edit(body);
         edit.beginEditBlock();
         bool styled = false;
-        const QVector<Style> styles = doc.styleSheet().styles;
-        for (const Style &s : styles) {
-            Style changed = s;
-            bool did = false;
-            if (changed.rPr.fonts) did = replaceInFonts(&*changed.rPr.fonts, from, to);
-            if (!changed.tail.isEmpty()) {
-                const int k = fontsInXml(&changed.tail, from, to, nullptr);
-                did = did || k > 0;
+        if (isScheme(from)) {
+            // The theme's own font (not the runs that follow it, which stay on it).
+            WriteDoc::FontParts parts = doc.fontParts();
+            const bool major = from == QLatin1String("+Heading");
+            QString &name = major ? parts.theme.majorLatin : parts.theme.minorLatin;
+            if (doc.theme() && !name.isEmpty() && name != to) {
+                static const QRegularExpression majorFont(QStringLiteral("(<a:majorFont>\\s*<a:latin typeface=\")[^\"]*(\")")), minorFont(QStringLiteral("(<a:minorFont>\\s*<a:latin typeface=\")[^\"]*(\")"));
+                QString xml = QString::fromUtf8(parts.themePart);
+                xml.replace(major ? majorFont : minorFont, QStringLiteral("\\1") + QString(to).toHtmlEscaped().replace(QLatin1Char('\\'), QStringLiteral("\\\\")) + QStringLiteral("\\2"));
+                parts.themePart = xml.toUtf8();
+                parts.theme.xml.clear();
+                name = to;
+                // (every run that follows the theme's font is a use)
+                int followed = 0, other = 0;
+                QMap<QString, int> ignored;
+                collectFontFamilies(body, &ignored, major ? &followed : &other, major ? &other : &followed);
+                for (QTextDocument *story : doc.storiesWithChanges(true)) collectFontFamilies(story, &ignored, major ? &followed : &other, major ? &other : &followed);
+                doc.putFontParts(parts);
+                styled = true;
+                n = std::max(followed, 1);
             }
-            if (!did) continue;
-            changed.raw.clear();
-            doc.putStyle(changed);
-            styled = true;
-            ++n;
+        } else {
+            for (const Style &s : doc.styleSheet().styles) {
+                Style changed = s;
+                bool did = false;
+                if (changed.rPr.fonts) did = replaceInFonts(&*changed.rPr.fonts, from, to);
+                if (!changed.tail.isEmpty()) did = fontsInXml(&changed.tail, from, to, nullptr) > 0 || did;
+                if (!did) continue;
+                changed.raw.clear();
+                doc.putStyle(changed);
+                styled = true;
+                ++n;
+            }
+            // The defaults of the style sheet, and the fonts of the lists' numbers.
+            WriteDoc::FontParts parts = doc.fontParts();
+            int parted = 0;
+            if (parts.defaultRun.fonts && replaceInFonts(&*parts.defaultRun.fonts, from, to)) ++parted;
+            parted += fontsInXml(&parts.docDefaults, from, to, nullptr);
+            eachLevelRun(parts.numbering, [&](RunProps &r, AbstractNum *a) {
+                if (r.fonts && replaceInFonts(&*r.fonts, from, to)) {
+                    ++parted;
+                    if (a) a->raw.clear();
+                }
+            });
+            if (parted > 0) {
+                for (Num &num : parts.numbering.nums) num.raw.clear();
+                parts.numbering.modified = true;
+                doc.putFontParts(parts);
+                styled = true;
+                n += parted;
+            }
         }
         if (styled) doc.markStyleStep();
-        n += replaceInStory(doc, body, from, to);
+        if (!isScheme(from)) n += replaceInStory(doc, body, from, to);
         edit.endEditBlock();
         doc.settleStyleEdit();
     }
-    for (QTextDocument *story : doc.storiesWithChanges(true)) n += replaceInStory(doc, story, from, to);
+    if (!isScheme(from))
+        for (QTextDocument *story : doc.storiesWithChanges(true)) n += replaceInStory(doc, story, from, to);
     return n;
 }
 

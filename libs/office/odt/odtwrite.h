@@ -67,6 +67,8 @@ private:
     QString fontNameOf(const QString &family, QString *generic = nullptr);
     QString themeFont(const QString &theme) const;
     QString themeColor(const QString &name) const;
+    mutable QString m_themeXml;      // the theme part, read once for the save
+    mutable bool m_themeRead = false;
     QString shadeColor(const T &t, int shd) const;
     // numbering
     void collectNumbering();

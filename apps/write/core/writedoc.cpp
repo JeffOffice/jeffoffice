@@ -1142,6 +1142,50 @@ void WriteDoc::removeStyle(const QString &id)
     m_pendingStyleChanges.push_back(change);
 }
 
+WriteDoc::FontParts WriteDoc::fontParts() const
+{
+    FontParts p;
+    p.docDefaults = m_wml.styles.docDefaults;
+    p.defaultRun = m_wml.styles.defaultRun;
+    p.numbering = m_wml.numbering;
+    p.theme = m_wml.theme;
+    for (const KeptPart &k : m_wml.parts)
+        if (!m_wml.themeName.isEmpty() && k.name == m_wml.themeName) p.themePart = k.data;
+    p.stylesModified = m_wml.styles.modified;
+    return p;
+}
+
+void WriteDoc::installFontParts(const FontParts &parts)
+{
+    m_wml.styles.docDefaults = parts.docDefaults;
+    m_wml.styles.defaultRun = parts.defaultRun;
+    m_wml.numbering = parts.numbering;
+    m_wml.theme = parts.theme;
+    if (!parts.themePart.isEmpty())
+        for (KeptPart &k : m_wml.parts)
+            if (k.name == m_wml.themeName) k.data = parts.themePart;
+    if (m_wml.hasTheme) {
+        // (the fonts the layout takes from the theme)
+        if (!m_wml.theme.majorLatin.isEmpty()) m_flow->env.fonts.heading = m_wml.theme.majorLatin;
+        if (!m_wml.theme.minorLatin.isEmpty()) m_flow->env.fonts.body = m_wml.theme.minorLatin;
+    }
+}
+
+void WriteDoc::putFontParts(const FontParts &parts)
+{
+    StyleChange change;
+    change.partsBefore = std::make_shared<FontParts>(fontParts());
+    change.partsAfter = std::make_shared<FontParts>(parts);
+    change.modifiedBefore = m_wml.styles.modified;
+    installFontParts(parts);
+    m_wml.styles.modified = true;
+    m_wml.styles.changed();
+    m_tableSheet.reset();
+    m_scratch.clear();
+    ++m_styleRev;
+    m_pendingStyleChanges.push_back(change);
+}
+
 void WriteDoc::swapStyleSheet(StyleSheet &other)
 {
     std::swap(m_wml.styles, other);
@@ -1160,6 +1204,11 @@ void WriteDoc::applyChanges(const QVector<StyleChange> &changes, bool undo)
 {
     for (int i = 0; i < changes.size(); ++i) {
         const StyleChange &change = changes[undo ? changes.size() - 1 - i : i];
+        if (change.partsBefore) {
+            installFontParts(undo ? *change.partsBefore : *change.partsAfter);
+            m_wml.styles.modified = undo ? change.modifiedBefore : change.modifiedAfter;
+            continue;
+        }
         const std::optional<Style> &want = undo ? change.before : change.after;
         if (want) m_wml.styles.add(*want);
         else m_wml.styles.remove(change.id);

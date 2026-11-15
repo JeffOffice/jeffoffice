@@ -138,7 +138,6 @@ private Q_SLOTS:
         }
         d.masters.last()->items.push_back(onLayout);
         const QString heading = d.fonts.heading, slideStory = frame->storyId, layoutStory = onLayout->storyId;
-        QVERIFY(w.act("edit.replaceFonts"));
         const int steps = w.editor()->undoStack()->count();
         withDialog([&] { w.act("edit.replaceFonts")->trigger(); }, QStringLiteral("replaceFontsDialog"), [](QDialog *dlg) {
             auto *from = dlg->findChild<QComboBox *>(QStringLiteral("replaceFontsFrom"));

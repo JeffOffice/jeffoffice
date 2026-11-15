@@ -54,8 +54,6 @@ struct InfoHost {
 // The page, built for the host's file as it is now.
 QWidget *buildInfoPage(QWidget *parent, const InfoHost &host);
 
-// Whether a path is on another computer (a share: \\\\server\\share or //server/share), judged by how it is written.
-bool isOnAnotherComputer(const QString &path);
 // What Open File Location does, replaceable by a test: `open` shows the file in the system's file manager, `confirm` asks whether to go to a file on another computer.
 struct FileLocationHooks {
     std::function<void(const QString &file)> open;
