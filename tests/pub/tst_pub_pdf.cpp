@@ -2227,17 +2227,13 @@ private Q_SLOTS:
             QVERIFY(text.contains("/CSspot0 cs 0.5 scn") || text.contains("/CSspot0 cs 0.4"));
             QVERIFY(text.contains("/CSpcmyk cs"));   // the red stays process
         }
-        QTimer::singleShot(0, [] {
-            auto *dlg = qobject_cast<QDialog *>(QApplication::activeModalWidget());
-            QVERIFY(dlg);
+        withDialog([&] { jp::documentPropertiesDialog(&w, w.editor(), 1); }, QString(), [&](QDialog *dlg) {
             auto *list = dlg->findChild<QListWidget *>();
             QVERIFY(list);
             QCOMPARE(list->count(), 1);
             QCOMPARE(list->item(0)->text(), QStringLiteral("Harbor Blue"));
             if (!qEnvironmentVariableIsEmpty("JP_SHOT_DIR")) dlg->grab().save(qEnvironmentVariable("JP_SHOT_DIR") + "/commercial-print.png");
-            dlg->reject();
-        });
-        jp::documentPropertiesDialog(&w, w.editor(), 1);
+        }, false);
     }
 
     // A saved PDF opens in the system's viewer when the option is on (the
@@ -2377,9 +2373,7 @@ private Q_SLOTS:
 
         // The Colors dialog's CMYK entry.
         QColor picked;
-        QTimer::singleShot(0, [] {
-            auto *dlg = qobject_cast<QDialog *>(QApplication::activeModalWidget());
-            QVERIFY(dlg);
+        withDialog([&] { picked = jp::colorsDialog(nullptr, Qt::red); }, QString(), [&](QDialog *dlg) {
             auto *model = dlg->findChild<QComboBox *>();
             model->setCurrentIndex(2);
             const auto spins = dlg->findChildren<jp::DecimalSpin *>();
@@ -2393,9 +2387,7 @@ private Q_SLOTS:
                 tabs->setCurrentIndex(0);
                 dlg->grab().save(qEnvironmentVariable("JP_SHOT_DIR") + "/colors-standard.png");
             }
-            dlg->accept();
         });
-        picked = jp::colorsDialog(nullptr, Qt::red);
         QCOMPARE(picked.spec(), QColor::Cmyk);
         QVERIFY(std::abs(picked.cyanF() - 0.35) < 0.002 && std::abs(picked.magentaF() - 0.05) < 0.002 && std::abs(picked.blackF() - 0.2) < 0.002);
 

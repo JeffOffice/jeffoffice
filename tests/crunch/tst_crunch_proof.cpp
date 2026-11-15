@@ -16,6 +16,7 @@
 #include "editwindow.h"
 #include "../localepin.h"
 #include "../settingguard.h"
+#include "../timing.h"
 #include "../sheet/sheethelpers.h"
 #include "io/zip.h"
 #include "office/package.h"
@@ -1106,7 +1107,7 @@ private Q_SLOTS:
 
     void theAddressRuleTakesLinearTimeOnHostileText()
     {
-        const int n = 30000;
+        const int n = 200000;   // (a rule that is quadratic needs minutes for this much text, where a linear one needs milliseconds: the ceiling below stays far from both)
         const QStringList hostile{QStringLiteral("a@b") + QStringLiteral(".c").repeated(n / 2) + QLatin1Char(' '),
                                   QStringLiteral("http://") + QString(n, QLatin1Char('a')) + QLatin1Char(' '),
                                   QStringLiteral("a.").repeated(n / 2) + QLatin1Char('@'),
@@ -1116,14 +1117,9 @@ private Q_SLOTS:
                                   QStringLiteral(" ").repeated(n),
                                   QStringLiteral("a ").repeated(n / 2) + QStringLiteral("a@")};
         qint64 worst = 0;
-        for (const QString &text : hostile) {
-            QElapsedTimer t;
-            t.start();
-            (void)autotext::linkWord(text);
-            worst = std::max(worst, t.elapsed());
-        }
-        qInfo("ADDRESS rule on 30,000 characters of hostile text: the slowest took %lld ms", worst);
-        QVERIFY2(worst < 50, qPrintable(QString::number(worst)));
+        for (const QString &text : hostile) worst = std::max(worst, bestNanoseconds([&] { (void)autotext::linkWord(text); }, 3) / 1000000);
+        qInfo("ADDRESS rule on 200,000 characters of hostile text: the slowest took %lld ms", worst);
+        QVERIFY2(worst < 3000, qPrintable(QString::number(worst)));
     }
 
     // ---- a workbook with macros is recovered with its macros

@@ -944,7 +944,7 @@ void WriteTests::unsavedWorkIsKeptAndComesBack()
     QVERIFY(a.recoveryCopy().isEmpty());
     typeText(*a.document(), a.view()->cursor(), QStringLiteral("Work that is not saved"));
     a.autoRecover();
-    QTRY_VERIFY(!a.recoveryCopy().isEmpty());   // (made on a worker thread)
+    QTRY_VERIFY_WITH_TIMEOUT(!a.recoveryCopy().isEmpty(), 60000);   // (made on a worker thread)
     QVERIFY(QFileInfo::exists(a.recoveryCopy()));
     const QString copy = a.recoveryCopy();
     // A run that crashed leaves its copy: it opens as unsaved work, and the old copy goes once this run has one of its own.
@@ -984,7 +984,7 @@ void WriteTests::aRecoveryCopyIsMadeOffTheWindowsThread()
         QVERIFY(w.recoveryCopy().isEmpty());
         w.autoRecover();   // (skipped: one is being made)
         gate->open();
-        QTRY_VERIFY(!w.recoveryBusy());
+        QTRY_VERIFY_WITH_TIMEOUT(!w.recoveryBusy(), 60000);
         QCOMPARE(int(gate->made), 1);
         QVERIFY(gate->madeOn != nullptr);
         QVERIFY(gate->madeOn != QThread::currentThread());

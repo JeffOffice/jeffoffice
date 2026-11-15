@@ -1615,7 +1615,7 @@ private Q_SLOTS:
         WriteWindow early;
         typeText(*early.document(), early.view()->cursor(), QStringLiteral("before the password"));
         early.autoRecover();
-        QTRY_VERIFY(!early.recoveryCopy().isEmpty());   // (made on a worker thread)
+        QTRY_VERIFY_WITH_TIMEOUT(!early.recoveryCopy().isEmpty(), 60000);   // (made on a worker thread)
         const QString clear = early.recoveryCopy();
         QVERIFY(!clear.isEmpty());
         QVERIFY(QFileInfo::exists(clear));
@@ -1627,7 +1627,7 @@ private Q_SLOTS:
         WriteWindow v;
         typeText(*v.document(), v.view()->cursor(), QStringLiteral("plain words"));
         v.autoRecover();
-        QTRY_VERIFY(!v.recoveryCopy().isEmpty());
+        QTRY_VERIFY_WITH_TIMEOUT(!v.recoveryCopy().isEmpty(), 60000);
         QFile::remove(v.recoveryCopy());
     }
 

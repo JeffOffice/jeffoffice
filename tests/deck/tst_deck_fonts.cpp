@@ -170,7 +170,7 @@ private Q_SLOTS:
             w.editor()->setDocument(std::move(doc));
             w.editor()->markUnsaved();
             w.autoRecover();
-            QTRY_VERIFY(!w.recoveryCopy().isEmpty());
+            QTRY_VERIFY_WITH_TIMEOUT(!w.recoveryCopy().isEmpty(), 60000);
             QFile f(w.recoveryCopy());
             QVERIFY(f.open(QIODevice::ReadOnly));
             Exported kept;

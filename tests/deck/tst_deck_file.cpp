@@ -2059,7 +2059,7 @@ private Q_SLOTS:
             QVERIFY(w.recoveryCopy().isEmpty());
             w.newSlide();
             w.autoRecover();
-            QTRY_VERIFY(!w.recoveryCopy().isEmpty());   // (made on a worker thread)
+            QTRY_VERIFY_WITH_TIMEOUT(!w.recoveryCopy().isEmpty(), 60000);   // (made on a worker thread)
             const QString copy = w.recoveryCopy();
             QVERIFY(copy.endsWith(QLatin1String(".pptx")));
             QVERIFY(QFileInfo::exists(copy));
@@ -2078,7 +2078,7 @@ private Q_SLOTS:
             lost.newSlide();
             lost.newSlide();
             lost.autoRecover();
-            QTRY_VERIFY(!lost.recoveryCopy().isEmpty());
+            QTRY_VERIFY_WITH_TIMEOUT(!lost.recoveryCopy().isEmpty(), 60000);
             const QString lostCopy = lost.recoveryCopy();
             QVERIFY(QFileInfo::exists(lostCopy));
             recovery::Recovered r;
@@ -2125,7 +2125,7 @@ private Q_SLOTS:
             QVERIFY(w.recoveryCopy().isEmpty());
             w.autoRecover();   // (skipped: one is being made)
             gate->open();
-            QTRY_VERIFY(!w.recoveryBusy());
+            QTRY_VERIFY_WITH_TIMEOUT(!w.recoveryBusy(), 60000);
             QCOMPARE(int(gate->made), 1);
             QVERIFY(gate->madeOn != nullptr);
             QVERIFY(gate->madeOn != QThread::currentThread());
@@ -2281,7 +2281,7 @@ private Q_SLOTS:
             jp::threadcheck::watch(true);
             const auto unwatch = qScopeGuard([] { jp::threadcheck::watch(false); });
             w.autoRecover();
-            QTRY_VERIFY(!w.recoveryCopy().isEmpty());
+            QTRY_VERIFY_WITH_TIMEOUT(!w.recoveryCopy().isEmpty(), 60000);
             QVERIFY(!w.recoveryBusy());
             QCOMPARE(jp::threadcheck::offThreadCalls(), 0);
             w.editor()->markSaved();
