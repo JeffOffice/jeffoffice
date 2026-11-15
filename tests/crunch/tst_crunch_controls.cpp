@@ -258,7 +258,8 @@ private Q_SLOTS:
         QCOMPARE(box.left(), L.rangeRect(0, 5, 0, 6).left() + 2);
         QVERIFY(dark(img, box));
         // beside it (column E, where the cell it sets is) there is nothing dark
-        QVERIFY(!dark(img, L.rangeRect(0, 4, 0, 4)));
+        // (inside the cell by 3 pixels: on macOS the box's own edge, drawn with antialiasing, reaches a pixel into the cell before it)
+        QVERIFY(!dark(img, L.rangeRect(0, 4, 0, 4).adjusted(3, 3, -3, -3)));
         // the spin button and the scroll bar are as wide as their anchors
         QCOMPARE(rectOf(e, QStringLiteral("Spinner 5")).width(), 20);
         QCOMPARE(rectOf(e, QStringLiteral("Scroll Bar 8")).width(), 16);
