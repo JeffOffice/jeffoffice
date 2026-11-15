@@ -252,7 +252,7 @@ What JeffCrunch offers that Excel doesn't, then the plans that go past Excel.
 
 ### Themes
 - [~] **first release** A workbook's theme (its colors, fonts, and effects) is read and kept, and every color or font a cell takes from the theme resolves to it, as the cell shows in the original *(shared: libs/office theme)*
-- [~] **1.0** Themes gallery, Colors, Fonts, and Effects: a new theme restyles every cell that uses theme colors and theme fonts; save the current theme; create your own color and font sets; browse for a theme from another file *(shared: JeffDeck's theme gallery and the themes of libs/office)*
+- [~] **1.0** Themes gallery, Colors, Fonts, and Effects: a new theme restyles every cell that uses theme colors and theme fonts; save the current theme; create your own color and font sets; browse for a theme from another file *(shared: JeffDeck's theme gallery and the themes of libs/office)* *(checked November 15, 2026: the shared parts are now in libs: the theme sets, the custom-set folder, the `.thmx` reader and writer, and the Create New boxes (libs/office/office/themelib, libs/shell/app/themedialogs); not wired into JeffCrunch)*
 
 ### Page Setup
 - [~] **first release** Margins (Normal, Wide, Narrow, and custom, with the header and footer margins), Orientation, and Size (every paper size the printer offers, plus More Paper Sizes), and Center on Page (horizontally and vertically) *(shared: JeffPub's page setup; done October 24, 2026 except that the sizes are a fixed list of the common ones and More Paper Sizes is the Page Setup dialog's size box, not the printer's own list)*
