@@ -77,6 +77,10 @@ La page **Barre d'outils rapide** concerne la petite barre d'outils située en h
 
 Rien ne change tant que vous n'avez pas cliqué sur **OK**. Ensuite, chaque fenêtre ouverte de JeffDeck affiche votre barre d'outils, de même que chaque fenêtre que vous ouvrirez plus tard. La barre peut comporter au total 100 commandes et séparateurs. Lorsqu'il y a plus de boutons qu'il n'en tient dans un tiers de la largeur de la fenêtre, les autres sont placés derrière un bouton **»** à la fin de la barre, de sorte que le titre de la fenêtre n'est jamais repoussé hors de l'écran. JeffDeck conserve dans votre liste une commande qu'une version ultérieure ne possède plus, et la réaffiche si elle revient. Les boutons reçoivent des info-touches, les chiffres de 1 à 9 puis deux lettres, dans l'ordre où ils se trouvent sur la barre. La barre est toujours placée en haut à gauche, à côté du bouton **Fichier**.
 
+## Sécurité
+
+L'onglet **Sécurité** détermine ce que JeffDeck fait avec les éléments vers lesquels un fichier peut pointer : les fichiers liés, les films et sons liés, et les fichiers provenant d'internet. Les macros sont conservées dans le fichier et ne sont jamais exécutées, et un lien qui lancerait un programme est toujours refusé. Voir [Sécurité](security).
+
 ## Voir aussi
 
 - [Onglet Affichage](tab-view)

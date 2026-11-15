@@ -63,6 +63,7 @@ Digita nella casella di ricerca qui sopra per trovare un argomento o un comando 
 - [Verificare la struttura](design-checker)
 - [Commenti](comments)
 - [Modificare le impostazioni di JeffPub](options)
+- [Sicurezza: a cosa può accedere un file](security)
 - [Scegliere una lingua](language)
 - [Ottenere aiuto e segnalare problemi](support)
 

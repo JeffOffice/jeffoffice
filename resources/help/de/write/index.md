@@ -57,4 +57,5 @@ Geben Sie oben im Suchfeld einen Begriff ein, um ein Thema oder einen Befehl zu 
 
 - [JeffWrite über die Tastatur bedienen](keyboard)
 - [JeffWrite-Einstellungen ändern](options)
+- [Sicherheit: worauf eine Datei zugreifen darf](security)
 - [Sprache auswählen](language)

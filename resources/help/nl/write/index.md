@@ -57,4 +57,5 @@ Typ in het zoekvak hierboven om een onderwerp of een opdracht te zoeken. Druk op
 
 - [JeffWrite met het toetsenbord gebruiken](keyboard)
 - [JeffWrite-instellingen wijzigen](options)
+- [Beveiliging: waar een bestand contact mee mag opnemen](security)
 - [Een taal kiezen](language)

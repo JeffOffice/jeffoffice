@@ -77,6 +77,10 @@ De keuze geldt voor alle JeffOffice-apps: wijzig hem hier en hij verandert in el
 - Om de statistieken die we al hebben te laten verwijderen, stuurt u uw installatienummer naar info@jeffoffice.com **voordat** u de statistieken uitschakelt. Wanneer u ze uitschakelt, wordt het nummer van uw computer gewist, en zonder dat nummer kunnen wij niet zien welke gegevens van u zijn.
 - Om statistieken uit te schakelen zonder JeffCrunch te openen, stelt u de omgevingsvariabele `JP_NO_TELEMETRY` in op een willekeurige waarde voordat u het start. Er wordt dan niets geteld of verzonden, en JeffCrunch stelt de vraag bij de eerste start niet.
 
+## Beveiliging
+
+Het tabblad **Beveiliging** bepaalt wat JeffCrunch doet met de dingen waar een bestand naar kan verwijzen: gekoppelde bestanden, gekoppelde films en geluiden, en bestanden van internet. Macro's worden in een bestand bewaard en worden nooit uitgevoerd, en een koppeling die een programma zou starten, wordt altijd geweigerd. Zie [Beveiliging](security).
+
 ## Gerelateerd
 
 - [Welkom bij JeffCrunch](start)

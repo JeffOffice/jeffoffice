@@ -1,5 +1,5 @@
 # Shapes, pictures, tables, and Text Art
-<!-- keywords: selection pane, hide object, rename object, object name, shapes, lines, arrows, connectors, curves, freeform, scribble, pictures, images, insert picture, online pictures, openverse, wikimedia commons, credit, license, alt text, icons, svg, table, grid, rows, columns, text art, chart, diagram, equation, movie, video, sound, audio, play, playback, poster, speaker, control bar, trim, loop, volume, mute, full screen, group, arrange, front, back, rotate, flip, fill, outline, select, move, resize, drag and drop, picture colors, brightness, contrast, gray, black and white, duotone, recolor, transparent color, crop, crop to shape, aspect ratio, fit, clear crop, picture format, handles, table design, table layout, merge cells, split cells, borders, shading, table style, style options, header row, total row, banded rows, first column, last column, insert row, delete row, insert column, delete column, distribute, row height, column width, cell margins, text direction, align, barcode, QR code, licence, picture colours, grey, transparent colour -->
+<!-- keywords: picture styles, picture border, picture effects, change picture, reset picture, shadow, reflection, glow, soft edges, bevel, 3-D rotation, selection pane, hide object, rename object, object name, shapes, lines, arrows, connectors, curves, freeform, scribble, pictures, images, insert picture, online pictures, openverse, wikimedia commons, credit, license, alt text, icons, svg, table, grid, rows, columns, text art, chart, diagram, equation, movie, video, sound, audio, play, playback, poster, speaker, control bar, trim, loop, volume, mute, full screen, group, arrange, front, back, rotate, flip, fill, outline, select, move, resize, drag and drop, picture colors, brightness, contrast, gray, black and white, duotone, recolor, transparent color, crop, crop to shape, aspect ratio, fit, clear crop, picture format, handles, table design, table layout, merge cells, split cells, borders, shading, table style, style options, header row, total row, banded rows, first column, last column, insert row, delete row, insert column, delete column, distribute, row height, column width, cell margins, text direction, align, barcode, QR code, licence, picture colours, grey, transparent colour -->
 
 Besides text, a slide can hold shapes, pictures, and tables. This topic shows how to add them and what JeffDeck does with other kinds of objects.
 
@@ -45,6 +45,18 @@ Click a picture. The **Picture Format** tab shows. Its **Crop** group has these 
 - **Clear Crop** shows the whole picture again.
 
 A crop is saved in the file with the part you hid, and a shape is saved too. A picture cropped to a shape is saved in an .odp file as the picture you see. The hidden part and the shape can't be changed after you open that file again.
+
+## Change how a picture looks
+
+Select a picture to show the **Picture Format** tab.
+
+- **Change Picture** puts a different file in the same frame. The frame keeps its size and place, and the picture keeps its border, shape, effects, and colour changes. If the new picture is the same shape as the old one, the crop stays too. If it is a different shape, it fills the frame.
+- **Reset Picture** takes off the picture's look: its shape, border, effects, and colour changes. The crop goes too, so the frame shows the whole picture. Click the arrow beside it for **Reset Picture & Size**, which also puts the picture back to the size it has in its file.
+- The **Picture Styles** gallery shows about two dozen ready-made looks: frames, shadows, reflections, soft edges, rounded and oval shapes, a turn in space, a glow, and bevels. A bevel is a slanted edge that makes the picture look raised. Click one to give the picture that look. It replaces the shape, border, and effects the picture had. The crop, the size, and the colours stay.
+- **Picture Border** sets the colour, the **Weight** (how thick the line is), and the **Dashes** (solid, dotted, or dashed). **No Outline** takes the border off.
+- **Picture Effects** opens **Shadow**, **Reflection**, **Glow**, **Soft Edges**, **Bevel**, and **3-D Rotation**, each with ready-made choices. Pick one to add it. The other effects stay. Choose the first entry, such as **No Shadow**, to take one off. **More Effects Options…** opens the Format Picture pane.
+
+Each is one step to undo. The looks are saved in the presentation.
 
 ## Make pictures smaller
 

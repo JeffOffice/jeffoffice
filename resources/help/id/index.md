@@ -63,6 +63,7 @@ Ketik di kotak pencarian di atas untuk mencari topik, atau perintah yang ingin d
 - [Memeriksa desain Anda](design-checker)
 - [Komentar](comments)
 - [Mengubah pengaturan JeffPub](options)
+- [Keamanan: apa yang dapat dijangkau sebuah berkas](security)
 - [Memilih bahasa](language)
 - [Mendapatkan bantuan dan melaporkan masalah](support)
 

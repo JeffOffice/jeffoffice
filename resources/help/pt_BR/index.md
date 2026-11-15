@@ -63,6 +63,7 @@ Digite na caixa de pesquisa acima para encontrar um tópico ou um comando a exec
 - [Verificar o design](design-checker)
 - [Comentários](comments)
 - [Alterar as configurações do JeffPub](options)
+- [Segurança: a que um arquivo pode se conectar](security)
 - [Escolher um idioma](language)
 - [Obter ajuda e relatar problemas](support)
 

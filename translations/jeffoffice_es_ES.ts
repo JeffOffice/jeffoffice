@@ -197,6 +197,45 @@ Open them with your email program to send.</source>
     </message>
 </context>
 <context>
+    <name>LinkedMedia</name>
+    <message>
+        <source>This linked file is not a movie, so it isn't played.</source>
+        <translation type="unfinished">Este fichero vinculado no es una película, así que no se reproduce.</translation>
+    </message>
+    <message>
+        <source>This linked file is not a sound, so it isn't played.</source>
+        <translation type="unfinished">Este fichero vinculado no es un sonido, así que no se reproduce.</translation>
+    </message>
+    <message>
+        <source>This linked movie can't be read (it is missing, a link or special file, or not allowed to be read), so it isn't played.</source>
+        <translation type="unfinished">Esta película vinculada no se puede leer (falta, es un vínculo o un fichero especial, o no se permite leerla), así que no se reproduce.</translation>
+    </message>
+    <message>
+        <source>This linked sound can't be read (it is missing, a link or special file, or not allowed to be read), so it isn't played.</source>
+        <translation type="unfinished">Este sonido vinculado no se puede leer (falta, es un vínculo o un fichero especial, o no se permite leerlo), así que no se reproduce.</translation>
+    </message>
+    <message>
+        <source>This movie is linked to a file that is not on this computer, is not allowed, or is not a movie file, so it isn't played.</source>
+        <translation type="unfinished">Esta película está vinculada a un fichero que no está en este equipo, no está permitido o no es un fichero de película, así que no se reproduce.</translation>
+    </message>
+    <message>
+        <source>This sound is linked to a file that is not on this computer, is not allowed, or is not a sound file, so it isn't played.</source>
+        <translation type="unfinished">Este sonido está vinculado a un fichero que no está en este equipo, no está permitido o no es un fichero de sonido, así que no se reproduce.</translation>
+    </message>
+    <message>
+        <source>This slide has a movie that is linked to a file on this computer. Play it?</source>
+        <translation type="unfinished">Esta diapositiva tiene una película vinculada a un fichero de este equipo. ¿Reproducirla?</translation>
+    </message>
+    <message>
+        <source>This slide has a sound that is linked to a file on this computer. Play it?</source>
+        <translation type="unfinished">Esta diapositiva tiene un sonido vinculado a un fichero de este equipo. ¿Reproducirlo?</translation>
+    </message>
+    <message>
+        <source>This show has movies or sounds that are linked to files on this computer. Play them?</source>
+        <translation type="unfinished">Esta presentación tiene películas o sonidos vinculados a ficheros de este equipo. ¿Reproducirlos?</translation>
+    </message>
+</context>
+<context>
     <name>MainWindow</name>
     <message>
         <source>choose your printer's color profile (an .icc file) first</source>
@@ -857,6 +896,25 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <source>%1 can send anonymous usage statistics once a day (and when it's updated): its version, your operating system and language, and how often each of its commands is used, and if it ever closes unexpectedly, where in the program that happened. That shows how many people use it, which parts matter most, and what to fix first.&lt;br&gt;&lt;br&gt;It never sends your files, their names, or anything in them. &lt;a href="%2"&gt;What's sent&lt;/a&gt;&lt;br&gt;&lt;br&gt;You can change this anytime in File &amp;gt; Options.</source>
         <translation type="unfinished">%1 puede enviar estadísticas de uso anónimas una vez al día (y cuando se actualiza): su versión, su sistema operativo e idioma, con qué frecuencia se usa cada uno de sus comandos y, si alguna vez se cierra inesperadamente, en qué parte del programa ocurrió. Esto muestra cuántas personas lo usan, qué partes son más importantes y qué corregir primero.&lt;br&gt;&lt;br&gt;Nunca envía sus ficheros, sus nombres ni nada de su contenido. &lt;a href="%2"&gt;Qué se envía&lt;/a&gt;&lt;br&gt;&lt;br&gt;Puede cambiar esto en cualquier momento en Archivo &amp;gt; Opciones.</translation>
+    </message>
+</context>
+<context>
+    <name>Trust</name>
+    <message>
+        <source>This file came from the internet or another computer, so it is open for reading only.</source>
+        <translation type="unfinished">Este fichero procede de Internet u otro equipo, así que solo se puede abrir para lectura.</translation>
+    </message>
+    <message>
+        <source>Pictures that are linked to a file instead of kept in the publication. Only a file in the publication's own folder is read when it opens, and no other is ever read.</source>
+        <translation type="unfinished">Imágenes vinculadas a un fichero en lugar de guardadas en la publicación. Solo se lee un fichero de la carpeta propia de la publicación al abrirla; nunca se lee ningún otro.</translation>
+    </message>
+    <message>
+        <source>Values a workbook reads from other workbooks. A workbook on another computer is never read when a file opens.</source>
+        <translation type="unfinished">Valores que un libro de trabajo lee de otros libros de trabajo. Un libro de trabajo de otro equipo nunca se lee al abrir un fichero.</translation>
+    </message>
+    <message>
+        <source>A movie or sound that a slide links to a file instead of holding. Only a movie or sound file whose name is on this computer is played; a web address, a file on another computer, and a program never are. A network drive that looks like a local one is read like a local file.</source>
+        <translation type="unfinished">Una película o sonido que una diapositiva vincula a un fichero en lugar de contenerlo. Solo se reproduce un fichero de película o sonido cuyo nombre esté en este equipo; nunca una dirección web, un fichero de otro equipo ni un programa. Una unidad de red que parece local se lee como un fichero local.</translation>
     </message>
 </context>
 <context>
@@ -2453,6 +2511,33 @@ Una publicación de JeffPub (.jpub) lo conserva todo.</translation>
     <message>
         <source>A translation file did not match its checksum, and was thrown away. Nothing was installed.</source>
         <translation type="unfinished">Un fichero de traducción no coincide con su suma de comprobación y se ha descartado. No se instaló nada.</translation>
+    </message>
+</context>
+<context>
+    <name>jp::trust::TrustPage</name>
+    <message>
+        <source>Macros in a file are kept in it, and are never run. There is no setting to run them.</source>
+        <translation type="unfinished">Las macros de un fichero se conservan en él y nunca se ejecutan. No hay ninguna opción para ejecutarlas.</translation>
+    </message>
+    <message>
+        <source>Linked files and workbook links:</source>
+        <translation type="unfinished">Ficheros vinculados y vínculos de libros de trabajo:</translation>
+    </message>
+    <message>
+        <source>This doesn't apply in this app: it has no linked files to update.</source>
+        <translation type="unfinished">Esto no se aplica en esta aplicación: no tiene ficheros vinculados que actualizar.</translation>
+    </message>
+    <message>
+        <source>Files from the internet or other computers:</source>
+        <translation type="unfinished">Ficheros de Internet u otros equipos:</translation>
+    </message>
+    <message>
+        <source>A file that was downloaded, or is on another computer, opens for reading only. The bar under it has Enable Editing for that one file, and Save As makes a copy you can change.</source>
+        <translation type="unfinished">Un fichero descargado, o que está en otro equipo, se abre solo para lectura. La barra situada debajo tiene el botón Habilitar edición para ese fichero, y Guardar como crea una copia que puede modificar.</translation>
+    </message>
+    <message>
+        <source>These are always refused, and there is no setting to allow them. A link to a file on another computer is never followed without asking.</source>
+        <translation type="unfinished">Estos siempre se rechazan, y no hay ninguna opción para permitirlos. Un vínculo a un fichero de otro equipo nunca se sigue sin preguntar.</translation>
     </message>
 </context>
 <context>

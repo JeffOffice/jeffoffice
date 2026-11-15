@@ -77,6 +77,10 @@ Die Seite **Schnellsymbolleiste** betrifft die kleine Symbolleiste oben links im
 
 Erst mit **OK** werden Änderungen übernommen. Danach zeigt jedes geöffnete JeffDeck-Fenster Ihre Symbolleiste, ebenso jedes später geöffnete Fenster. Die Symbolleiste kann insgesamt 100 Befehle und Trennlinien enthalten. Passen nicht alle Schaltflächen in ein Drittel der Fensterbreite, steht der Rest hinter einer Schaltfläche **»** am Ende der Symbolleiste, damit der Fenstertitel nie vom Bildschirm verschoben wird. JeffDeck behält einen Befehl in Ihrer Liste, wenn eine spätere Version ihn nicht mehr hat, und zeigt ihn wieder an, sobald er zurückkommt. Die Schaltflächen erhalten Zugriffstasten, die Ziffern 1 bis 9 und danach zwei Buchstaben, in der Reihenfolge, in der sie auf der Symbolleiste stehen. Die Symbolleiste steht immer oben links neben der Schaltfläche **Datei**.
 
+## Sicherheit
+
+Der Reiter **Sicherheit** legt fest, was JeffDeck mit allem macht, worauf eine Datei verweisen kann: verknüpfte Dateien, verknüpfte Filme und Töne sowie Dateien aus dem Internet. Makros werden in der Datei gespeichert und nie ausgeführt, und eine Verknüpfung, die ein Programm starten würde, wird immer abgelehnt. Siehe [Sicherheit](security).
+
 ## Verwandte Themen
 
 - [Registerkarte Ansicht](tab-view)

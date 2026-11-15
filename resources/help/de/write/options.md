@@ -80,6 +80,10 @@ Die Einstellung gilt für alle JeffOffice-Apps: Wenn Sie sie hier ändern, ände
 - Wenn wir bereits vorhandene Statistiken löschen sollen, senden Sie Ihre Installationsnummer an info@jeffoffice.com, **bevor** Sie die Statistiken deaktivieren. Durch das Deaktivieren wird die Nummer von Ihrem Computer gelöscht, und ohne sie können wir nicht erkennen, welche Datensätze Ihnen gehören.
 - Um die Statistiken zu deaktivieren, ohne JeffWrite zu öffnen, setzen Sie die Umgebungsvariable `JP_NO_TELEMETRY` auf einen beliebigen Wert, bevor Sie das Programm starten. Dann wird nichts gezählt oder gesendet, und JeffWrite stellt die Frage beim ersten Start nicht.
 
+## Sicherheit
+
+Der Reiter **Sicherheit** legt fest, was JeffWrite mit allem macht, worauf eine Datei verweisen kann: verknüpfte Dateien, verknüpfte Filme und Töne sowie Dateien aus dem Internet. Makros werden in der Datei gespeichert und nie ausgeführt, und eine Verknüpfung, die ein Programm starten würde, wird immer abgelehnt. Siehe [Sicherheit](security).
+
 ## Siehe auch
 
 - [Willkommen bei JeffWrite](start)

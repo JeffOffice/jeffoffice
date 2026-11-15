@@ -57,4 +57,5 @@ Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando 
 
 - [Usar JeffWrite con el teclado](keyboard)
 - [Cambiar la configuración de JeffWrite](options)
+- [Seguridad: a qué puede conectarse un archivo](security)
 - [Elegir un idioma](language)

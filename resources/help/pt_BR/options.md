@@ -89,6 +89,10 @@ Clique em **Arquivo > Sobre** para encontrar estas opções. As duas caixas de s
 - Para desativar as estatísticas de vez, sem abrir o JeffPub, defina a variável de ambiente `JP_NO_TELEMETRY` com qualquer valor antes de iniciá-lo. Assim, nada é contado nem enviado, e o JeffPub não faz a pergunta da primeira execução.
 - **Seu nome** é o mesmo nome de **Nome de usuário**, descrito acima.
 
+## Segurança
+
+A aba **Segurança** decide o que JeffPub faz com os itens para os quais um arquivo pode apontar: arquivos vinculados, filmes e sons vinculados, e arquivos vindos da internet. As macros ficam guardadas no arquivo e nunca são executadas, e um vínculo que iniciaria um programa é sempre recusado. Veja [Segurança](security).
+
 ## Veja também
 
 - [Recuperar trabalho não salvo](recover)

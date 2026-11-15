@@ -76,6 +76,10 @@ Halaman **Bilah Alat Cepat** untuk bilah alat kecil di pojok kiri atas jendela. 
 
 Tidak ada yang berubah sampai Anda klik **OK**. Setelah itu, setiap jendela JeffDeck yang terbuka menampilkan bilah alat Anda, begitu pula setiap jendela yang Anda buka nanti. Bilah alat dapat memuat 100 perintah dan pemisah. Jika tombolnya lebih banyak daripada yang muat di sepertiga lebar jendela, sisanya menunggu di balik tombol **»** di akhir bilah alat, sehingga judul jendela tidak pernah terdorong keluar dari layar. JeffDeck tetap menyimpan perintah di daftar Anda saat versi berikutnya tidak lagi memilikinya, dan menampilkannya kembali jika perintah itu muncul lagi. Tombol-tombol di bilah alat mendapatkan Tip Tombol, yaitu angka 1 sampai 9 lalu dua huruf, sesuai urutannya di bilah alat. Bilah alat selalu berada di pojok kiri atas, di sebelah tombol **File**.
 
+## Keamanan
+
+Tab **Keamanan** menentukan apa yang dilakukan JeffDeck terhadap hal-hal yang bisa ditunjuk oleh sebuah file: file tertaut, film dan suara tertaut, serta file dari internet. Makro disimpan di dalam file dan tidak pernah dijalankan, dan tautan yang akan memulai program selalu ditolak. Lihat [Keamanan](security).
+
 ## Terkait
 
 - [Tab Tampilan](tab-view)

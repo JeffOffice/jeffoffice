@@ -57,4 +57,5 @@ Ketik di kotak pencarian di atas untuk menemukan topik, atau perintah yang ingin
 
 - [Gunakan JeffWrite dengan keyboard](keyboard)
 - [Ubah pengaturan JeffWrite](options)
+- [Keamanan: apa yang dapat dijangkau sebuah berkas](security)
 - [Pilih bahasa](language)

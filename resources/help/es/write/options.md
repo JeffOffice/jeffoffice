@@ -80,6 +80,10 @@ La elección es común a todas las aplicaciones de JeffOffice: si la cambia aqu�
 - Para que se eliminen las estadísticas que ya tenemos, envíe su número de instalación a info@jeffoffice.com **antes** de desactivarlas. Al desactivarlas, el número se borra de su equipo, y sin él no podemos saber qué registros son suyos.
 - Para desactivar las estadísticas sin abrir JeffWrite, defina la variable de entorno `JP_NO_TELEMETRY` con cualquier valor antes de iniciarlo. Entonces no se cuenta ni se envía nada, y JeffWrite no hace la pregunta de la primera ejecución.
 
+## Seguridad
+
+La pestaña **Seguridad** decide qué hace JeffWrite con los elementos a los que puede apuntar un archivo: archivos vinculados, películas y sonidos vinculados, y archivos de internet. Las macros se guardan en el archivo y nunca se ejecutan, y un vínculo que iniciaría un programa siempre se rechaza. Consulta [Seguridad](security).
+
 ## Relacionado
 
 - [Bienvenido a JeffWrite](start)

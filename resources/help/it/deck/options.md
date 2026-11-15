@@ -78,6 +78,10 @@ La pagina **Barra degli strumenti rapida** riguarda la piccola barra in alto a s
 
 Nulla cambia finché non fai clic su **OK**. Poi ogni finestra di JeffDeck aperta mostra la tua barra, e così ogni finestra che apri in seguito. La barra può contenere in tutto 100 comandi e separatori. Quando i pulsanti sono più di quelli che stanno in un terzo della larghezza della finestra, i restanti si trovano dietro un pulsante **»** alla fine della barra, così il titolo della finestra non viene mai spinto fuori dallo schermo. JeffDeck conserva nell'elenco un comando che una versione successiva non ha più e lo mostra di nuovo se il comando ricompare. I pulsanti ricevono suggerimenti da tastiera, i numeri da 1 a 9 e poi due lettere, nell'ordine in cui si trovano nella barra. La barra si trova sempre in alto a sinistra, accanto al pulsante **File**.
 
+## Sicurezza
+
+La scheda **Sicurezza** decide cosa fa JeffDeck riguardo a ciò a cui un file può puntare: file collegati, film e suoni collegati, e file provenienti da internet. Le macro sono conservate in un file e non vengono mai eseguite, e un collegamento che avvierebbe un programma viene sempre rifiutato. Vedi [Sicurezza](security).
+
 ## Vedi anche
 
 - [Scheda Visualizza](tab-view)

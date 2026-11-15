@@ -89,6 +89,10 @@ Klicken Sie auf **Datei > Info**, um diese Einstellungen zu finden. Die beiden K
 - Um die Statistiken dauerhaft auszuschalten, ohne JeffPub zu öffnen, setzen Sie vor dem Start die Umgebungsvariable `JP_NO_TELEMETRY` auf einen beliebigen Wert. Dann wird nichts gezählt oder gesendet, und JeffPub stellt die Frage beim ersten Start nicht.
 - **Ihr Name** ist derselbe Name wie **Benutzername** oben.
 
+## Sicherheit
+
+Der Reiter **Sicherheit** legt fest, was JeffPub mit allem macht, worauf eine Datei verweisen kann: verknüpfte Dateien, verknüpfte Filme und Töne sowie Dateien aus dem Internet. Makros werden in der Datei gespeichert und nie ausgeführt, und eine Verknüpfung, die ein Programm starten würde, wird immer abgelehnt. Siehe [Sicherheit](security).
+
 ## Siehe auch
 
 - [Nicht gespeicherte Arbeit wiederherstellen](recover)

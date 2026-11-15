@@ -1,5 +1,5 @@
 # Add and adjust pictures
-<!-- keywords: photo, image, insert picture, crop, clip art, PDF page, jpg, png, svg, recolor, alt text, caption, placeholder, graphics manager, online pictures, link to file, linked picture, insert and link, embed, missing picture, relink -->
+<!-- keywords: picture effects, shadow, reflection, glow, soft edges, bevel, 3-D rotation, reset picture and size, photo, image, insert picture, crop, clip art, PDF page, jpg, png, svg, recolor, alt text, caption, placeholder, graphics manager, online pictures, link to file, linked picture, insert and link, embed, missing picture, relink -->
 
 A picture sits inside a frame. You can crop the picture, and move or resize the frame.
 
@@ -67,15 +67,25 @@ On the **Picture Format** tab, use the **Adjust** group:
 - **Corrections**: pick a brightness and contrast pair, from minus 40 to plus 40 percent. **Format Object…**, at the bottom of the menu, has sliders.
 - **Recolor**: make the picture Greyscale, Sepia, Washout, Black and White, or an accent tint. **Set Transparent Colour** makes the colour in the picture's top-left corner see-through.
 - **Transparency…**: fade the whole picture.
-- **Reset Picture**: undo these changes.
+- **Reset Picture**: takes off every change on this list, and the picture's border, shape, and effects. The crop goes too, so the frame shows the whole picture. Click the arrow beside it for **Reset Picture & Size**, which also puts the picture back to the size it has in its file.
 - **Compress Pictures…**: shrink the file by lowering detail to 300, 220, or 96 ppi (pixels per inch). By default it changes every picture and deletes cropped areas.
 - **Convert to Shapes**: turns an SVG picture (a drawing made of lines and shapes) into shapes you can edit, cut where the drawing clips them. Text and pictures inside it are left out.
+
+## Picture styles, borders, and effects
+
+Use the **Picture Styles** group on the **Picture Format** tab:
+
+- The **gallery** shows about two dozen ready-made looks: frames, shadows, reflections, soft edges, rounded and oval shapes, a turn in space, a glow, and bevels. A bevel is a slanted edge that makes the picture look raised. Each tile shows your colours. Click one to give the picture that look. A style sets the shape, the border, and the effects together, and replaces the ones the picture had. The crop, the size, and the colours stay.
+- **Picture Border** sets the colour, the **Weight** (how thick the line is), and the **Dashes** (a solid, dotted, or dashed line). **No Outline** takes the border off.
+- **Picture Effects** opens **Shadow**, **Reflection**, **Glow**, **Soft Edges**, **Bevel**, and **3-D Rotation**. Each has ready-made choices. Pick one to add it. The other effects stay. Choose the first entry, such as **No Shadow**, to take one off. **More Effects Options…** opens **Format Object**.
+
+Each is one step to undo.
 
 ## Caption, alt text, and swapping
 
 - **Picture Format > Picture Styles > Caption** adds a text box under the picture.
 - Alt text is a short description for people who cannot see the picture, such as screen reader users. Right-click the picture, choose **Format Object…**, open the **Alt Text** tab, and type in **Alternative text**.
-- **Picture Format > Insert > Change Picture** puts another file in the same frame.
+- **Picture Format > Insert > Change Picture** puts another file in the same frame. The frame keeps its size, its place, and its look: the border, the shape, the effects, and the colour changes. If the new picture is the same shape as the old one, the crop stays too. If it is a different shape, it fills the frame.
 - To trade two pictures, drag one onto the other. When the tip says **Release to swap the pictures**, let go: the pictures change frames, and the frame you dragged goes back where it was. Or hold Shift, click both, and click **Swap**. Hold Ctrl while you drag to copy a picture instead. A copy you let go over another picture stays where you put it, and nothing swaps.
 
 ## See every picture

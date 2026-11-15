@@ -57,4 +57,5 @@ Digita nella casella di ricerca qui sopra per trovare un argomento o un comando 
 
 - [Usa JeffWrite con la tastiera](keyboard)
 - [Cambia le impostazioni di JeffWrite](options)
+- [Sicurezza: a cosa può accedere un file](security)
 - [Scegli una lingua](language)

@@ -77,6 +77,10 @@ Die Auswahl gilt für alle JeffOffice-Apps: Wenn Sie sie hier ändern, ändert s
 - Um die bei uns bereits gespeicherten Statistiken löschen zu lassen, senden Sie Ihre Installationsnummer **bevor** Sie die Statistiken ausschalten an info@jeffoffice.com. Beim Ausschalten wird die Nummer von Ihrem Computer gelöscht, und ohne sie können wir nicht feststellen, welche Datensätze Ihnen gehören.
 - Um die Statistiken auszuschalten, ohne JeffCrunch zu öffnen, setzen Sie vor dem Start die Umgebungsvariable `JP_NO_TELEMETRY` auf einen beliebigen Wert. Dann wird nichts gezählt oder gesendet, und JeffCrunch stellt die Frage beim ersten Start nicht.
 
+## Sicherheit
+
+Der Reiter **Sicherheit** legt fest, was JeffCrunch mit allem macht, worauf eine Datei verweisen kann: verknüpfte Dateien, verknüpfte Filme und Töne sowie Dateien aus dem Internet. Makros werden in der Datei gespeichert und nie ausgeführt, und eine Verknüpfung, die ein Programm starten würde, wird immer abgelehnt. Siehe [Sicherheit](security).
+
 ## Siehe auch
 
 - [Willkommen bei JeffCrunch](start)

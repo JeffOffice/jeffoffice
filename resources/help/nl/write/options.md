@@ -80,6 +80,10 @@ De keuze geldt voor alle JeffOffice-apps: wijzigt u die hier, dan verandert hij 
 - Wilt u dat de statistieken die we al hebben, worden verwijderd, stuur dan uw installatienummer naar info@jeffoffice.com **voordat** u de statistieken uitzet. Als u ze uitzet, wordt het nummer van uw computer gewist, en zonder dit nummer kunnen we niet zien welke gegevens van u zijn.
 - Wilt u de statistieken uitzetten zonder JeffWrite te openen, stel dan de omgevingsvariabele `JP_NO_TELEMETRY` in op een willekeurige waarde voordat u het start. Er wordt dan niets geteld of verzonden, en JeffWrite stelt de vraag bij de eerste start niet.
 
+## Beveiliging
+
+Het tabblad **Beveiliging** bepaalt wat JeffWrite doet met de dingen waar een bestand naar kan verwijzen: gekoppelde bestanden, gekoppelde films en geluiden, en bestanden van internet. Macro's worden in een bestand bewaard en worden nooit uitgevoerd, en een koppeling die een programma zou starten, wordt altijd geweigerd. Zie [Beveiliging](security).
+
 ## Zie ook
 
 - [Welkom bij JeffWrite](start)

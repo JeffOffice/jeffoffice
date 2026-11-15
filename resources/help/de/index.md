@@ -63,6 +63,7 @@ Geben Sie oben im Suchfeld ein Thema oder einen Befehl ein, den Sie ausführen m
 - [Entwurf prüfen](design-checker)
 - [Kommentare](comments)
 - [JeffPub-Einstellungen ändern](options)
+- [Sicherheit: worauf eine Datei zugreifen darf](security)
 - [Sprache auswählen](language)
 - [Hilfe erhalten und Probleme melden](support)
 

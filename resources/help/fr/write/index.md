@@ -57,4 +57,5 @@ Saisissez du texte dans la zone de recherche ci-dessus pour trouver une rubrique
 
 - [Utiliser JeffWrite au clavier](keyboard)
 - [Modifier les paramètres de JeffWrite](options)
+- [Sécurité : ce qu'un fichier peut atteindre](security)
 - [Choisir une langue](language)

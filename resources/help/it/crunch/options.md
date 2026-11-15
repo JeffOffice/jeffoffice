@@ -79,6 +79,10 @@ La scelta vale per tutte le app di JeffOffice: se la cambi qui, cambia in ciascu
 - Per far eliminare le statistiche che abbiamo già, invia il tuo numero di installazione a info@jeffoffice.com **prima** di disattivarle. Disattivandole, il numero viene cancellato dal tuo computer e, senza di esso, non possiamo capire quali registrazioni sono tue.
 - Per disattivare le statistiche senza aprire JeffCrunch, imposta la variabile d'ambiente `JP_NO_TELEMETRY` con un valore qualsiasi prima di avviarlo. Nulla viene allora conteggiato o inviato, e JeffCrunch non pone la domanda del primo avvio.
 
+## Sicurezza
+
+La scheda **Sicurezza** decide cosa fa JeffCrunch riguardo a ciò a cui un file può puntare: file collegati, film e suoni collegati, e file provenienti da internet. Le macro sono conservate in un file e non vengono mai eseguite, e un collegamento che avvierebbe un programma viene sempre rifiutato. Vedi [Sicurezza](security).
+
 ## Argomenti correlati
 
 - [Benvenuto in JeffCrunch](start)

@@ -90,6 +90,10 @@ Fai clic su **File > Informazioni** per trovarli. Le due caselle di controllo si
 - Per disattivare per sempre le statistiche senza aprire JeffPub, imposta la variabile d'ambiente `JP_NO_TELEMETRY` con un valore qualsiasi prima di avviarlo. Da quel momento non viene conteggiato né inviato nulla, e JeffPub non pone la domanda del primo avvio.
 - **Il tuo nome** corrisponde a **Nome utente** descritto sopra.
 
+## Sicurezza
+
+La scheda **Sicurezza** decide cosa fa JeffPub riguardo a ciò a cui un file può puntare: file collegati, film e suoni collegati, e file provenienti da internet. Le macro sono conservate in un file e non vengono mai eseguite, e un collegamento che avvierebbe un programma viene sempre rifiutato. Vedi [Sicurezza](security).
+
 ## Vedi anche
 
 - [Recupera il lavoro non salvato](recover)

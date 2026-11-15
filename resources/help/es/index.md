@@ -63,6 +63,7 @@ Escriba en el cuadro de búsqueda situado arriba para encontrar un tema o un com
 - [Comprobar el diseño](design-checker)
 - [Comentarios](comments)
 - [Cambiar la configuración de JeffPub](options)
+- [Seguridad: a qué puede conectarse un archivo](security)
 - [Elegir un idioma](language)
 - [Obtener ayuda e informar de problemas](support)
 

@@ -76,6 +76,10 @@ Met **Eén herstellen** zet u de gekozen opdracht terug: waar JeffDeck hem gewoo
 
 Er verandert niets tot u op **OK** klikt. Daarna toont elk open venster van JeffDeck uw werkbalk, en elk venster dat u later opent, ook. De werkbalk kan in totaal 100 opdrachten en scheidingstekens bevatten. Als er meer knoppen zijn dan in een derde van de breedte van het venster passen, wachten de overige achter een knop **»** aan het eind van de werkbalk, zodat de titel van het venster nooit van het scherm wordt geduwd. JeffDeck houdt een opdracht in uw lijst wanneer een latere versie die niet meer heeft, en toont hem opnieuw als de opdracht terugkomt. De knoppen krijgen toetsenblokjes, de cijfers 1 tot en met 9 en daarna twee letters, in de volgorde waarin ze op de werkbalk staan. De werkbalk staat altijd linksboven, naast de knop **Bestand**.
 
+## Beveiliging
+
+Het tabblad **Beveiliging** bepaalt wat JeffDeck doet met de dingen waar een bestand naar kan verwijzen: gekoppelde bestanden, gekoppelde films en geluiden, en bestanden van internet. Macro's worden in een bestand bewaard en worden nooit uitgevoerd, en een koppeling die een programma zou starten, wordt altijd geweigerd. Zie [Beveiliging](security).
+
 ## Zie ook
 
 - [Tabblad Beeld](tab-view)

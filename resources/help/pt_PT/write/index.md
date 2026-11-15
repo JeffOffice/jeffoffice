@@ -57,4 +57,5 @@ Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a exe
 
 - [Utilizar o JeffWrite com o teclado](keyboard)
 - [Alterar as definições do JeffWrite](options)
+- [Segurança: a que um ficheiro pode aceder](security)
 - [Escolher um idioma](language)

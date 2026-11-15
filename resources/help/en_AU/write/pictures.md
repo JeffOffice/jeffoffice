@@ -62,9 +62,11 @@ These commands are on the **Picture Format** tab. Each one is a single step to u
 
 - **Corrections** makes the picture brighter or darker, and gives it more or less contrast. **Brightness** is how light the picture is. **Contrast** is how different the light parts are from the dark parts.
 - **Colour** turns the picture to shades of grey (**Greyscale**), to pure black and white (**Black and White**), or to a pale, faded look (**Washout**). **No Recolor** puts the colours back.
-- **Picture Styles** and **Picture Border** put a frame round the picture. Pick a style, or pick a colour, then a **Weight** (how thick the line is) and **Dashes** (a solid, dotted, or dashed line). Choose **No Border** to take the frame off.
-- **Change Picture** puts a different picture in the same place. The new picture keeps the width of the old one, its place on the page, how the text goes round it, and its alt text. Its height follows its own shape.
-- **Reset Picture** takes off the crop, the corrections, the colour change, and the border. The picture comes back to the scale it has now.
+- **Picture Styles** is a gallery of about two dozen ready-made looks: frames, shadows, reflections, soft edges, rounded and oval shapes, a turn in space, a glow, and bevels (a bevel is a slanted edge that makes the picture look raised). Click one to give the picture that look. It sets the shape, the border, and the effects together and replaces the ones the picture had. The crop, the size, and the colours stay.
+- **Picture Border** sets the colour of the frame. **Weight** (how thick the line is) and **Dashes** (a solid, dotted, or dashed line) set the rest. A dashed border is drawn dashed on the page.
+- **Picture Effects** opens **Shadow**, **Reflection**, **Glow**, **Soft Edges**, **Bevel**, and **3-D Rotation**, each with ready-made choices and a first entry, such as **No Shadow**, that takes it off. The other effects stay when you add one.
+- **Change Picture** puts a different picture in the same place. The new picture keeps the old one's place on the page, how the text goes round it, its alt text, its border, its shape, its effects, and its colour changes. If it is the same shape as the old picture, it keeps the size and the crop too. If not, it keeps the width, drops the crop, and its height follows its own shape.
+- **Reset Picture** takes off the crop, the corrections, the colour change, the border, the shape, and the effects. The picture comes back to the scale it has now. Click the arrow beside it for **Reset Picture & Size**, which also puts the picture back to the size it has in its file.
 
 ## Make pictures smaller
 

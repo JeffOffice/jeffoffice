@@ -89,6 +89,10 @@ Klik **Berkas > Tentang** untuk menemukan pengaturan ini. Kedua kotak centang ju
 - Untuk menonaktifkan statistik secara permanen tanpa membuka JeffPub, atur variabel lingkungan `JP_NO_TELEMETRY` ke nilai apa pun sebelum Anda memulai program. Dengan begitu, tidak ada yang dihitung atau dikirim, dan JeffPub tidak menanyakan pertanyaan saat pertama kali dijalankan.
 - **Nama Anda** sama dengan **Nama pengguna** di atas.
 
+## Keamanan
+
+Tab **Keamanan** menentukan apa yang dilakukan JeffPub terhadap hal-hal yang bisa ditunjuk oleh sebuah file: file tertaut, film dan suara tertaut, serta file dari internet. Makro disimpan di dalam file dan tidak pernah dijalankan, dan tautan yang akan memulai program selalu ditolak. Lihat [Keamanan](security).
+
 ## Terkait
 
 - [Dapatkan kembali pekerjaan yang belum disimpan](recover)

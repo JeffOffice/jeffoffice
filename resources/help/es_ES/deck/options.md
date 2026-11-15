@@ -76,6 +76,10 @@ La página **Barra de herramientas rápida** es para la pequeña barra de herram
 
 Nada cambia hasta que haga clic en **Aceptar**. Entonces, todas las ventanas abiertas de JeffDeck mostrarán su barra, y también todas las que abra después. La barra puede tener 100 comandos y separadores en total. Cuando hay más botones de los que caben en un tercio del ancho de la ventana, el resto queda detrás de un botón **»** al final de la barra, de modo que el título de la ventana nunca se desplaza fuera de la pantalla. JeffDeck conserva en su lista un comando que una versión posterior ya no tiene, y lo vuelve a mostrar si el comando regresa. Los botones reciben Teclas de acceso: los números del 1 al 9 y después dos letras, en el orden en que están en la barra. La barra siempre se sitúa arriba a la izquierda, junto al botón **Archivo**.
 
+## Seguridad
+
+La pestaña **Seguridad** decide qué hace JeffDeck con los elementos a los que puede apuntar un fichero: ficheros vinculados, películas y sonidos vinculados, y ficheros de internet. Las macros se guardan en el fichero y nunca se ejecutan, y un vínculo que iniciaría un programa siempre se rechaza. Consulta [Seguridad](security).
+
 ## Relacionado
 
 - [Ficha Ver](tab-view)

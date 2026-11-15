@@ -89,6 +89,10 @@ Klik op **Bestand > Info** om deze te vinden. De twee selectievakjes staan ook o
 - Om de statistieken definitief uit te schakelen zonder JeffPub te openen, stelt u de omgevingsvariabele `JP_NO_TELEMETRY` in op een willekeurige waarde voordat u het start. Er wordt dan niets geteld of verzonden, en JeffPub stelt de vraag bij de eerste start niet.
 - **Uw naam** is dezelfde naam als **Gebruikersnaam** hierboven.
 
+## Beveiliging
+
+Het tabblad **Beveiliging** bepaalt wat JeffPub doet met de dingen waar een bestand naar kan verwijzen: gekoppelde bestanden, gekoppelde films en geluiden, en bestanden van internet. Macro's worden in een bestand bewaard en worden nooit uitgevoerd, en een koppeling die een programma zou starten, wordt altijd geweigerd. Zie [Beveiliging](security).
+
 ## Gerelateerd
 
 - [Niet-opgeslagen werk herstellen](recover)

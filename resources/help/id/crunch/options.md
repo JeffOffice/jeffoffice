@@ -78,6 +78,10 @@ Pilihan ini berlaku untuk semua aplikasi JeffOffice: mengubahnya di sini akan me
 - Untuk menghapus statistik yang sudah kami simpan, kirimkan nomor instalasi Anda ke info@jeffoffice.com **sebelum** Anda menonaktifkan statistik. Menonaktifkan statistik akan menghapus nomor tersebut dari komputer Anda, dan tanpa nomor itu kami tidak dapat mengetahui catatan mana yang milik Anda.
 - Untuk menonaktifkan statistik tanpa membuka JeffCrunch, atur variabel lingkungan `JP_NO_TELEMETRY` ke nilai apa pun sebelum Anda menjalankannya. Dengan begitu tidak ada yang dihitung atau dikirim, dan JeffCrunch tidak menanyakan pertanyaan saat pertama kali dijalankan.
 
+## Keamanan
+
+Tab **Keamanan** menentukan apa yang dilakukan JeffCrunch terhadap hal-hal yang bisa ditunjuk oleh sebuah file: file tertaut, film dan suara tertaut, serta file dari internet. Makro disimpan di dalam file dan tidak pernah dijalankan, dan tautan yang akan memulai program selalu ditolak. Lihat [Keamanan](security).
+
 ## Terkait
 
 - [Selamat datang di JeffCrunch](start)
