@@ -507,7 +507,7 @@ MainWindow *MainWindow::changeTemplate(std::unique_ptr<Document> design, bool to
 void MainWindow::browseAndOpen(OpenHow how)
 {
     if (how != OpenHow::NewWindow && !maybeSave()) return;
-    const QString p = QFileDialog::getOpenFileName(this, openHowText(how), Settings::get().value("dirs/open", QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation)).toString(),
+    const QString p = QFileDialog::getOpenFileName(this, openHowText(how), openFolder(),
                                                    tr("Publications (*.jpub *.pub)") + QStringLiteral(";;") + tr("JeffPub Publications (*.jpub)") + QStringLiteral(";;") + tr(".pub Publication Files (*.pub)") + QStringLiteral(";;") + tr("All Files (*)"));
     if (p.isEmpty()) return;
     Settings::get().setValue("dirs/open", QFileInfo(p).absolutePath());
@@ -788,14 +788,15 @@ bool MainWindow::saveAs(const QString &format)
     const QString from = m_ed->filePath().isEmpty() ? m_recoveredFrom : m_ed->filePath();
     // (a publication open for reading only is offered a name of its own, not the file's)
     const QString copyOf = isReadOnly() ? tr("%1 copy") : QStringLiteral("%1");
-    QString dir = from.isEmpty() ? QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation) + "/" + copyOf.arg(m_ed->displayName())
+    QString dir = from.isEmpty() ? defaultFolder() + "/" + copyOf.arg(m_ed->displayName())
                                  : QFileInfo(from).absolutePath() + "/" + copyOf.arg(QFileInfo(from).completeBaseName());
     // The dialog hands back the filter text it showed, so the choice is
     // recognized by comparing with these same (translated) texts.
     const QString jpubFilter = tr("JeffPub Publication (*.jpub)"), pubFilter = tr(".pub Publication Files (*.pub)");
     const QString pdfFilter = tr("PDF (*.pdf)"), templateFilter = tr("JeffPub Template (*.jpub)");
     QString filters = jpubFilter + QStringLiteral(";;") + pubFilter + QStringLiteral(";;") + pdfFilter + QStringLiteral(";;") + templateFilter;
-    QString selected = format == QLatin1String("pub") ? pubFilter : jpubFilter;
+    // (a publication with no file yet starts on the kind Options > Save names)
+    QString selected = format == QLatin1String("pub") || (format.isEmpty() && from.isEmpty() && defaultSaveFormat() == QLatin1String("pub")) ? pubFilter : jpubFilter;
     QString path = askSavePath(this, tr("Save As"), dir, filters, &selected);
     if (path.isEmpty()) return false;
     if (selected == pdfFilter) {

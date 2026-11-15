@@ -4,6 +4,7 @@
 #include "deckhelpers.h"
 
 #include "../settingguard.h"
+#include "../withdialog.h"
 
 #include <QToolTip>
 
@@ -1160,6 +1161,51 @@ private Q_SLOTS:
     // but not the update check or the statistics (JeffDeck's preview does
     // neither; JeffPub's Options keep them for the suite), Proofing follows,
     // and JeffDeck's View page sets the ruler and snapping for every open window.
+    // Save is the page every app shares: the default format (the app's own kinds), the recovery interval, and the default folder; a new presentation is saved as the kind chosen, in
+    // the folder chosen.
+    void optionsSaveIsTheSharedPageAndNewPresentationsFollowIt()
+    {
+        QTemporaryDir dir;
+        const jptest::SettingGuard format(QStringLiteral("save/format"), QString(), QString());
+        const jptest::SettingGuard folder(QStringLiteral("dirs/default"), QString(), QString());
+        DeckWindow w;
+        QStringList kinds;
+        int least = 0, most = 0;
+        bool all = false;
+        QTimer::singleShot(0, [&] {
+            auto *d = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+            if (!d) return;
+            auto *box = d->findChild<QComboBox *>(QStringLiteral("defaultFormat"));
+            auto *minutes = d->findChild<QSpinBox *>(QStringLiteral("autoRecoverMinutes"));
+            all = box && minutes && d->findChild<QLineEdit *>(QStringLiteral("defaultFolder")) && d->findChild<QCheckBox *>(QStringLiteral("embedFonts"));
+            if (all) {
+                for (int i = 0; i < box->count(); ++i) kinds << box->itemData(i).toString();
+                least = minutes->minimum();
+                most = minutes->maximum();
+            }
+            if (auto *tabs = d->findChild<QTabWidget *>()) {
+                for (int i = 0; i < tabs->count(); ++i)
+                    if (tabs->tabText(i) == QLatin1String("Save")) tabs->setCurrentIndex(i);
+            }
+            shotOf(d, QStringLiteral("deck-options-save"));
+            d->reject();
+        });
+        w.act(QStringLiteral("file.options"))->trigger();
+        QVERIFY(all);
+        QCOMPARE(kinds, (QStringList{QStringLiteral("pptx"), QStringLiteral("odp")}));
+        QCOMPARE(least, 1);
+        QCOMPARE(most, 120);
+        Settings::get().setValue(QStringLiteral("save/format"), QStringLiteral("odp"));
+        Settings::get().setValue(QStringLiteral("dirs/default"), dir.path());
+        QString suggested;
+        w.setSavePathChooser([&](const QString &name, const QString &) {
+            suggested = name;
+            return QString();
+        });
+        w.act(QStringLiteral("file.saveAs"))->trigger();
+        QVERIFY2(suggested.endsWith(QLatin1String(".odp")) && suggested.startsWith(dir.path()), qPrintable(suggested));
+    }
+
     void optionsHasTheGeneralTabAndTheViewPage()
     {
         DeckWindow w;

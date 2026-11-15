@@ -1114,6 +1114,31 @@ private Q_SLOTS:
         QFile::remove(normalTemplatePath());
     }
 
+    // Save is the page every app shares: the default format, the recovery interval, and the default folder.
+    void optionsSaveIsTheSharedPage()
+    {
+        WriteWindow w;
+        bool all = false;
+        QStringList kinds;
+        QTimer::singleShot(0, [&] {
+            auto *d = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+            if (!d) return;
+            auto *box = d->findChild<QComboBox *>(QStringLiteral("defaultFormat"));
+            all = box && d->findChild<QSpinBox *>(QStringLiteral("autoRecoverMinutes")) && d->findChild<QLineEdit *>(QStringLiteral("defaultFolder"));
+            if (all)
+                for (int i = 0; i < box->count(); ++i) kinds << box->itemData(i).toString();
+            if (auto *tabs = d->findChild<QTabWidget *>()) {
+                for (int i = 0; i < tabs->count(); ++i)
+                    if (tabs->tabText(i) == QLatin1String("Save")) tabs->setCurrentIndex(i);
+            }
+            shotOf(d, QStringLiteral("write-options-save"));
+            d->reject();
+        });
+        w.act(QStringLiteral("file.options"))->trigger();
+        QVERIFY(all);
+        QCOMPARE(kinds, (QStringList{QStringLiteral("docx"), QStringLiteral("odt")}));
+    }
+
     void pageSetupOffersBookFoldWithSheetsPerBooklet()
     {
         auto doc = open(makeDocx(para(run("text"))));

@@ -126,7 +126,7 @@ bool CrunchWindow::isUntouchedBlank() const
 
 void CrunchWindow::browseAndOpen(OpenHow how)
 {
-    const QString p = QFileDialog::getOpenFileName(this, openHowText(how), Settings::get().value("dirs/open", QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation)).toString(),
+    const QString p = QFileDialog::getOpenFileName(this, openHowText(how), openFolder(),
                                                    crunch::openFilter() + QStringLiteral(";;") + tr("All Files (*)"));
     if (p.isEmpty()) return;
     Settings::get().setValue("dirs/open", QFileInfo(p).absolutePath());

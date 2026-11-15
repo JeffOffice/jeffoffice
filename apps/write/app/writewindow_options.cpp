@@ -1,6 +1,7 @@
 // JeffWrite's pages of Options (after the shared General and Proofing pages): Save (the kind new documents are saved as, how often recovery information is kept, and the folder
 // the file boxes start in) and Display (what a window starts with on the screen).
 
+#include "app/saveoptions.h"
 #include "app/writewindow.h"
 
 #include "app/pageview.h"
@@ -24,13 +25,6 @@
 
 namespace jp {
 
-QString WriteWindow::defaultFolder()
-{
-    const QString chosen = Settings::get().value(QStringLiteral("dirs/default")).toString();
-    if (!chosen.isEmpty() && QDir(chosen).exists()) return chosen;
-    return QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
-}
-
 void WriteWindow::applyDisplayDefaults()
 {
     const bool marks = Settings::get().value(QStringLiteral("view/marks"), false).toBool();
@@ -52,56 +46,18 @@ void WriteWindow::applyEditingDefaults()
 QVector<OptionsPage> WriteWindow::optionsPages()
 {
     struct Fields {
-        QSpinBox *minutes = nullptr;
-        QComboBox *format = nullptr;
-        QLineEdit *folder = nullptr;
         QCheckBox *marks = nullptr, *grid = nullptr;
         QComboBox *units = nullptr;
         QCheckBox *ctrlLinks = nullptr, *dragText = nullptr, *replaces = nullptr, *insertKey = nullptr, *privacy = nullptr, *smart = nullptr;
     };
     auto f = std::make_shared<Fields>();
     QVector<OptionsPage> pages;
-    pages << OptionsPage{QCoreApplication::translate("Dialogs", "Save"), [f] {
-        Settings &st = Settings::get();
-        auto *page = new QWidget();
-        auto *form = new QFormLayout(page);
-        f->format = new QComboBox(page);
-        f->format->setObjectName(QStringLiteral("defaultFormat"));
-        f->format->addItem(QCoreApplication::translate("Dialogs", "Document (*.docx)"), QStringLiteral("docx"));
-        f->format->addItem(QCoreApplication::translate("Dialogs", "OpenDocument Text (*.odt)"), QStringLiteral("odt"));
-        f->format->setCurrentIndex(std::max(0, f->format->findData(st.value(QStringLiteral("save/format"), QStringLiteral("docx")).toString())));
-        form->addRow(QCoreApplication::translate("Dialogs", "Save new documents as:"), f->format);
-        f->minutes = new QSpinBox(page);
-        f->minutes->setObjectName(QStringLiteral("autoRecoverMinutes"));
-        f->minutes->setRange(1, 120);
-        f->minutes->setValue(st.autoRecoverMinutes());
-        f->minutes->setSuffix(QCoreApplication::translate("Dialogs", " minutes"));
-        form->addRow(QCoreApplication::translate("Dialogs", "Save automatic recovery information every:"), f->minutes);
-        auto *row = new QWidget(page);
-        auto *rowLayout = new QHBoxLayout(row);
-        rowLayout->setContentsMargins(0, 0, 0, 0);
-        f->folder = new QLineEdit(st.value(QStringLiteral("dirs/default")).toString(), row);
-        f->folder->setObjectName(QStringLiteral("defaultFolder"));
-        f->folder->setPlaceholderText(QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation));
-        auto *browse = new QPushButton(QCoreApplication::translate("Dialogs", "Browse…"), row);
-        QObject::connect(browse, &QPushButton::clicked, f->folder, [edit = f->folder] {
-            const QString d = QFileDialog::getExistingDirectory(edit, QCoreApplication::translate("Dialogs", "Default File Location"), edit->text());
-            if (!d.isEmpty()) edit->setText(d);
-        });
-        rowLayout->addWidget(f->folder, 1);
-        rowLayout->addWidget(browse);
-        form->addRow(QCoreApplication::translate("Dialogs", "Default file location:"), row);
-        f->privacy = privacy::makeOption(page, QStringLiteral("removePersonalOnSave"));
-        form->addRow(f->privacy);
-        return page;
-    }, [f] {
-        Settings &st = Settings::get();
-        st.setValue(QStringLiteral("save/format"), f->format->currentData().toString());
-        st.setValue(QStringLiteral("save/autoRecoverMinutes"), f->minutes->value());
-        privacy::setRemoveOnSave(f->privacy->isChecked());
-        const QString folder = f->folder->text().trimmed();
-        st.setValue(QStringLiteral("dirs/default"), folder.isEmpty() || QDir(folder).exists() ? folder : st.value(QStringLiteral("dirs/default")).toString());
-    }};
+    pages << saveOptionsPage({{QStringLiteral("docx"), QCoreApplication::translate("Dialogs", "Document (*.docx)")}, {QStringLiteral("odt"), QCoreApplication::translate("Dialogs", "OpenDocument Text (*.odt)")}},
+                             [f](QFormLayout *form, QWidget *page) {
+                                 f->privacy = privacy::makeOption(page, QStringLiteral("removePersonalOnSave"));
+                                 form->addRow(f->privacy);
+                             },
+                             [f] { privacy::setRemoveOnSave(f->privacy->isChecked()); });
     pages << OptionsPage{QCoreApplication::translate("Dialogs", "Display"), [f] {
         Settings &st = Settings::get();
         auto *page = new QWidget();

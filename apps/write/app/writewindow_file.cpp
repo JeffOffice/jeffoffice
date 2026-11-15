@@ -117,7 +117,7 @@ void WriteWindow::createFileActions()
 
 void WriteWindow::browseAndOpen(OpenHow how)
 {
-    const QString p = QFileDialog::getOpenFileName(this, openHowText(how), Settings::get().value("dirs/open", defaultFolder()).toString(),
+    const QString p = QFileDialog::getOpenFileName(this, openHowText(how), openFolder(),
                                                    tr("Documents (*.docx *.docm *.dotx *.dotm *.doc *.dot *.rtf *.odt *.fodt *.ott *.txt *.html *.htm)") + QStringLiteral(";;") + tr("Rich Text Format (*.rtf)") + QStringLiteral(";;") + tr("OpenDocument Text (*.odt *.fodt *.ott)") + QStringLiteral(";;") + tr("All Files (*)"));
     if (p.isEmpty()) return;
     Settings::get().setValue("dirs/open", QFileInfo(p).absolutePath());
@@ -279,7 +279,7 @@ void WriteWindow::notice(const QString &title, const QString &text, bool warning
 bool WriteWindow::saveAs()
 {
     const QString from = m_path.isEmpty() ? m_recoveredFrom : m_path;
-    const QString dir = from.isEmpty() ? defaultFolder() : QFileInfo(from).absolutePath();
+    const QString dir = from.isEmpty() ? jp::defaultFolder() : QFileInfo(from).absolutePath();
     // (a document open for reading only is offered a name of its own, not the file's)
     const QString name = isReadOnly() ? tr("%1 copy").arg(from.isEmpty() ? displayName() : QFileInfo(from).completeBaseName()) : from.isEmpty() ? displayName() : QFileInfo(from).completeBaseName();
     // The dialog hands back the filter text it showed, so the choice is recognized by comparing with these same (translated) texts.
@@ -288,7 +288,7 @@ bool WriteWindow::saveAs()
     const QString fromEnding = QFileInfo(from).suffix().toLower();
     QString selected = fromEnding == QLatin1String("rtf") ? rtfFilter : fromEnding == QLatin1String("txt") ? txtFilter : fromEnding == QLatin1String("docm") ? docmFilter : fromEnding == QLatin1String("dotm") ? dotmFilter : fromEnding == QLatin1String("dotx") || fromEnding == QLatin1String("dot") ? dotxFilter : fromEnding == QLatin1String("ott") ? ottFilter : fromEnding == QLatin1String("odt") || fromEnding == QLatin1String("fodt") ? odtFilter : docxFilter;
     // (a document with no file yet starts on the kind Options > Save names)
-    if (from.isEmpty() && Settings::get().value(QStringLiteral("save/format")).toString() == QLatin1String("odt")) selected = odtFilter;
+    if (from.isEmpty() && defaultSaveFormat() == QLatin1String("odt")) selected = odtFilter;
     auto endingOf = [&](const QString &filter) { return filter == rtfFilter ? QStringLiteral(".rtf") : filter == txtFilter ? QStringLiteral(".txt") : filter == docmFilter ? QStringLiteral(".docm") : filter == dotmFilter ? QStringLiteral(".dotm") : filter == dotxFilter ? QStringLiteral(".dotx") : filter == odtFilter ? QStringLiteral(".odt") : filter == ottFilter ? QStringLiteral(".ott") : QStringLiteral(".docx"); };
     const QString suggested = dir + QLatin1Char('/') + name + endingOf(selected);
     QString path = m_pathChooser ? m_pathChooser(suggested, selected)

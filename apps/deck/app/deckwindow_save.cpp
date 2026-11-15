@@ -96,7 +96,7 @@ bool DeckWindow::save()
 bool DeckWindow::saveAs()
 {
     const QString from = m_ed->filePath().isEmpty() ? m_recoveredFrom : m_ed->filePath();
-    const QString dir = from.isEmpty() ? QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation) : QFileInfo(from).absolutePath();
+    const QString dir = from.isEmpty() ? defaultFolder() : QFileInfo(from).absolutePath();
     // (a presentation open for reading only is offered a name of its own, not the file's)
     const QString baseName = from.isEmpty() ? m_ed->displayName() : QFileInfo(from).completeBaseName();
     const QString name = isReadOnly() ? tr("%1 copy").arg(baseName) : baseName;
@@ -107,7 +107,8 @@ bool DeckWindow::saveAs()
     const deck::PresentationKind was = deck::presentationKindOf(from);
     const bool ownTemplate = was == deck::PresentationKind::Template && from == m_templatePath;
     // A file of an open document kind is saved as one again; a template only when this window wrote it.
-    const bool odf = deck::formatOfFileName(from) == deck::FileFormat::Odp;
+    // (a presentation with no file yet starts on the kind Options > Save names)
+    const bool odf = from.isEmpty() ? defaultSaveFormat() == QLatin1String("odp") : deck::formatOfFileName(from) == deck::FileFormat::Odp;
     QString selected = was == deck::PresentationKind::Show ? ppsxFilter
                        : ownTemplate                       ? (odf ? otpFilter : potxFilter)
                        : odf                               ? odpFilter

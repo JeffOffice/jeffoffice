@@ -16,6 +16,11 @@
 
 #include <QAction>
 #include <QApplication>
+#include <QTabWidget>
+#include "../withdialog.h"
+#include <QComboBox>
+#include <QLineEdit>
+#include <QSpinBox>
 #include <QLabel>
 #include <QDialogButtonBox>
 #include <QPlainTextEdit>
@@ -178,6 +183,39 @@ private Q_SLOTS:
         s->setCustomLists({});                                                                     // taken away: copied again
         QVERIFY(s->fill(0, rangeOf(QStringLiteral("C1")), Dir::Down, 1).ok);
         QCOMPARE(shown(e, QStringLiteral("C1:C2")), QStringLiteral("Small|Small"));
+    }
+
+    // Save is the page every app shares: the default format, the recovery interval (1 to 120 minutes), and the default folder.
+    void optionsSaveIsTheSharedPage()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1"})));
+        bool all = false;
+        int least = 0, most = 0;
+        QStringList kinds;
+        QTimer::singleShot(0, [&] {
+            auto *d = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+            if (!d) return;
+            auto *box = d->findChild<QComboBox *>(QStringLiteral("defaultFormat"));
+            auto *minutes = d->findChild<QSpinBox *>(QStringLiteral("autoRecoverMinutes"));
+            all = box && minutes && d->findChild<QLineEdit *>(QStringLiteral("defaultFolder"));
+            if (all) {
+                for (int i = 0; i < box->count(); ++i) kinds << box->itemData(i).toString();
+                least = minutes->minimum();
+                most = minutes->maximum();
+            }
+            if (auto *tabs = d->findChild<QTabWidget *>()) {
+                for (int i = 0; i < tabs->count(); ++i)
+                    if (tabs->tabText(i) == QLatin1String("Save")) tabs->setCurrentIndex(i);
+            }
+            shotOf(d, QStringLiteral("crunch-options-save"));
+            d->reject();
+        });
+        e.win.w.act(QStringLiteral("file.options"))->trigger();
+        QVERIFY(all);
+        QCOMPARE(kinds, QStringList{QStringLiteral("xlsx")});
+        QCOMPARE(least, 1);
+        QCOMPARE(most, 120);
     }
 
     // The Custom Lists page of Options: the lists typed there are kept in the settings (one line each, the words between commas) and are what Fill goes through at once; a workbook that is opened

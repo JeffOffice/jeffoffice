@@ -4,6 +4,7 @@
 
 #include "app/deckwindow.h"
 #include "office/hyperlink.h"
+#include "app/saveoptions.h"
 
 #include "app/deckcanvas.h"
 #include "app/deckdialogs.h"
@@ -21,6 +22,7 @@
 
 #include <QAction>
 #include <QCheckBox>
+#include <QFormLayout>
 #include <QMessageBox>
 #include <QRegularExpression>
 #include <QTextBlock>
@@ -160,26 +162,24 @@ void DeckWindow::createDialogActions()
         }};
         // Save: what goes in the file besides the slides. The fonts are the ones that come with the program, which other computers lack;
         // the ones every computer has (Calibri, Arial) are never put in.
-        pages << OptionsPage{tr("Save"), [f] {
-            auto *page = new QWidget();
-            auto *column = new QVBoxLayout(page);
-            f->embedFonts = new QCheckBox(tr("Embed fonts in the file"), page);
-            f->embedFonts->setObjectName(QStringLiteral("embedFonts"));
-            const QString about = tr("Puts the fonts that come with the program, and that the slides use, in the file, so the slides look the same on a computer that doesn't have them. "
-                                     "It makes the file larger. Fonts every computer has, such as Calibri and Arial, are never put in.");
-            f->embedFonts->setToolTip(jp::plainToolTip(about));
-            f->embedFonts->setWhatsThis(jp::plainToolTip(about));
-            f->embedFonts->setAccessibleDescription(about);
-            f->embedFonts->setChecked(Settings::get().value(QStringLiteral("save/embedFonts"), true).toBool());
-            column->addWidget(f->embedFonts);
-            f->removePersonal = privacy::makeOption(page, QStringLiteral("removePersonalOnSave"));
-            column->addWidget(f->removePersonal);
-            column->addStretch(1);
-            return page;
-        }, [f] {
-            Settings::get().setValue(QStringLiteral("save/embedFonts"), f->embedFonts->isChecked());
-            privacy::setRemoveOnSave(f->removePersonal->isChecked());
-        }};
+        pages << saveOptionsPage({{QStringLiteral("pptx"), tr("Presentation (*.pptx)")}, {QStringLiteral("odp"), tr("OpenDocument Presentation (*.odp)")}},
+                                 [this, f](QFormLayout *form, QWidget *page) {
+                                     f->embedFonts = new QCheckBox(tr("Embed fonts in the file"), page);
+                                     f->embedFonts->setObjectName(QStringLiteral("embedFonts"));
+                                     const QString about = tr("Puts the fonts that come with the program, and that the slides use, in the file, so the slides look the same on a computer that doesn't have them. "
+                                                              "It makes the file larger. Fonts every computer has, such as Calibri and Arial, are never put in.");
+                                     f->embedFonts->setToolTip(jp::plainToolTip(about));
+                                     f->embedFonts->setWhatsThis(jp::plainToolTip(about));
+                                     f->embedFonts->setAccessibleDescription(about);
+                                     f->embedFonts->setChecked(Settings::get().value(QStringLiteral("save/embedFonts"), true).toBool());
+                                     form->addRow(f->embedFonts);
+                                     f->removePersonal = privacy::makeOption(page, QStringLiteral("removePersonalOnSave"));
+                                     form->addRow(f->removePersonal);
+                                 },
+                                 [f] {
+                                     Settings::get().setValue(QStringLiteral("save/embedFonts"), f->embedFonts->isChecked());
+                                     privacy::setRemoveOnSave(f->removePersonal->isChecked());
+                                 });
         optionsDialog(this, m_ed, pages, true);
     });
 

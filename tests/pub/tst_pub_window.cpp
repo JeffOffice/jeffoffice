@@ -13,7 +13,12 @@
 #include "app/filescreen.h"
 #include "core/appinfo.h"
 #include "canvas/canvasaccessible.h"
+#include <QComboBox>
+#include <QTabWidget>
+#include "../withdialog.h"
 #include <QDoubleSpinBox>
+#include <QLineEdit>
+#include <QSpinBox>
 #include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -1714,6 +1719,38 @@ private Q_SLOTS:
         const double dark = paper();
         jp::setUiDark(wasDark);
         QVERIFY2(dark > 0.4, qPrintable(QString::number(dark)));
+    }
+
+    // Save is the page every app shares: the default format (.jpub, or a .pub file), the recovery interval (1 to 120 minutes), and the default folder.
+    void optionsSaveIsTheSharedPage()
+    {
+        jp::MainWindow w;
+        bool all = false;
+        int least = 0, most = 0;
+        QStringList kinds;
+        QTimer::singleShot(0, [&] {
+            auto *d = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+            if (!d) return;
+            auto *box = d->findChild<QComboBox *>(QStringLiteral("defaultFormat"));
+            auto *minutes = d->findChild<QSpinBox *>(QStringLiteral("autoRecoverMinutes"));
+            all = box && minutes && d->findChild<QLineEdit *>(QStringLiteral("defaultFolder"));
+            if (all) {
+                for (int i = 0; i < box->count(); ++i) kinds << box->itemData(i).toString();
+                least = minutes->minimum();
+                most = minutes->maximum();
+            }
+            if (auto *tabs = d->findChild<QTabWidget *>()) {
+                for (int i = 0; i < tabs->count(); ++i)
+                    if (tabs->tabText(i) == QLatin1String("Save")) tabs->setCurrentIndex(i);
+            }
+            shotOf(d, QStringLiteral("pub-options-save"));
+            d->reject();
+        });
+        w.act(QStringLiteral("file.options"))->trigger();
+        QVERIFY(all);
+        QCOMPARE(kinds, (QStringList{QStringLiteral("jpub"), QStringLiteral("pub")}));
+        QCOMPARE(least, 1);
+        QCOMPARE(most, 120);
     }
 
     // Switching light or dark in Options applies at once: it half-applied

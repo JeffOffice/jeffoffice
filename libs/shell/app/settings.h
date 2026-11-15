@@ -39,6 +39,13 @@ bool suiteWide(const QString &key);
 // stay, for an older version that reads them.
 void moveToSuite(QSettings &app, QSettings &suite);
 
+// Options > Save, the same in every app: the file kind a new document is saved as (the suffix of one of the app's own kinds, such as "docx"; empty until one is chosen), the
+// folder Save As and Open start in (the one Options names when it is there, else the Documents folder), and where Open starts: the default folder when one is named, else the
+// folder the last file was opened from.
+QString defaultSaveFormat();
+QString defaultFolder();
+QString openFolder();
+
 // "Check spelling as you type", one choice for every app and window. Kept in the suite's store;
 // the old per-app keys (JeffWrite's and JeffCrunch's) are read once, so a choice of "off" stays off.
 bool spellAsYouType();

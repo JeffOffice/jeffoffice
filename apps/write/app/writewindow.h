@@ -206,7 +206,6 @@ public:
     // The pages JeffWrite adds to Options after the shared ones (Save, Display); what they set applies to this window at once and to each new one.
     QVector<OptionsPage> optionsPages();
     // The folder the Open and Save As boxes start in when no file leads them: the one Options > Save names, else Documents.
-    static QString defaultFolder();
     // Starts an untitled document from one of the templates JeffWrite comes with (by its id, see core/templates.h): in this window if it holds a new document nobody has touched,
     // else in a window of its own. False for an id that names none.
     bool newFromBuiltInTemplate(const QString &id);

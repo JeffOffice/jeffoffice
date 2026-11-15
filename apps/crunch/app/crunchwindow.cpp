@@ -2,6 +2,7 @@
 #include "app/keymap.h"
 #include "app/ribboncustom.h"
 #include "app/crunchwindow.h"
+#include "app/saveoptions.h"
 #include "app/help.h"
 #include "core/startuptrace.h"
 
@@ -482,7 +483,7 @@ void CrunchWindow::createActions()
     mk("file.open", tr("Open"), "folder-open", QKeySequence::Open, [this] { act("file.openDialog")->trigger(); });
     mk("file.openDialog", tr("Open Workbook…"), "folder-open", QKeySequence(), [this] { browseAndOpen(); });
     mk("file.openText", tr("Open Text File…"), "file-text", QKeySequence(), [this] {
-        const QString p = QFileDialog::getOpenFileName(this, tr("Open Text File"), Settings::get().value("dirs/open", QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation)).toString(),
+        const QString p = QFileDialog::getOpenFileName(this, tr("Open Text File"), openFolder(),
                                                        tr("Text files (*.csv *.tsv *.txt)") + QStringLiteral(";;") + tr("All Files (*)"));
         if (p.isEmpty()) return;
         Settings::get().setValue("dirs/open", QFileInfo(p).absolutePath());
@@ -502,7 +503,8 @@ void CrunchWindow::createActions()
         // (a workbook made from a template, with no file yet, is first offered a name as a workbook)
         const QString kind = saveKind();
         const QString shown = m_path.isEmpty() && kind == QLatin1String("xltx") ? QStringLiteral("xlsx") : kind;
-        const QString start = m_path.isEmpty() ? displayName() + QLatin1Char('.') + shown : m_path;
+        // (a workbook with no file yet starts in the default folder of Options > Save)
+        const QString start = m_path.isEmpty() ? defaultFolder() + QLatin1Char('/') + displayName() + QLatin1Char('.') + shown : m_path;
         const QString filter = crunch::workbookKindFilter(shown) + QStringLiteral(";;") + crunch::copyFilters() + QStringLiteral(";;") + crunch::csvFilter() + QStringLiteral(";;") + crunch::tabFilter();
         const QString p = askForSavePath(tr("Save Workbook As"), start, filter);
         if (!p.isEmpty()) saveAs(p);
@@ -518,21 +520,7 @@ void CrunchWindow::createActions()
         auto choice = std::make_shared<QPointer<QComboBox>>();
         auto lists = std::make_shared<QPointer<QPlainTextEdit>>();
         QVector<OptionsPage> pages;
-        auto minutes = std::make_shared<QPointer<QSpinBox>>();
-        pages << OptionsPage{tr("Save"), [this, minutes] {
-            auto *page = new QWidget;
-            auto *layout = new QFormLayout(page);
-            auto *box = new QSpinBox(page);
-            box->setObjectName(QStringLiteral("autoRecoverMinutes"));
-            box->setRange(1, 120);
-            box->setValue(Settings::get().autoRecoverMinutes());
-            box->setSuffix(tr(" minutes"));
-            layout->addRow(tr("Save automatic recovery information every:"), box);
-            *minutes = box;
-            return static_cast<QWidget *>(page);
-        }, [minutes] {
-            if (*minutes) Settings::get().setValue(QStringLiteral("save/autoRecoverMinutes"), (*minutes)->value());
-        }};
+        pages << saveOptionsPage({{QStringLiteral("xlsx"), tr("Workbook (*.xlsx)")}});
         pages << OptionsPage{tr("Editing"), [this, choice] {
             auto *page = new QWidget;
             auto *layout = new QFormLayout(page);

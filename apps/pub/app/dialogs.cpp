@@ -1,4 +1,5 @@
 #include "app/dialogs.h"
+#include "app/saveoptions.h"
 #include "app/mergedialogs.h"
 #include "app/mainwindow.h"
 
@@ -1337,7 +1338,6 @@ void optionsDialog(QWidget *p, Editor *ed)
 {
     Settings &st = Settings::get();
     struct Fields {
-        QSpinBox *recover = nullptr;
         QComboBox *units = nullptr;
         MeasureSpin *nudge = nullptr;
         QSpinBox *recent = nullptr;
@@ -1345,23 +1345,12 @@ void optionsDialog(QWidget *p, Editor *ed)
     };
     auto f = std::make_shared<Fields>();
     QVector<OptionsPage> pages;
-    pages << OptionsPage{QCoreApplication::translate("Dialogs", "Save"), [&st, f] {
-        auto *save = new QWidget();
-        auto *sf = new QFormLayout(save);
-        auto *recover = new QSpinBox(save);
-        recover->setObjectName(QStringLiteral("autoRecoverMinutes"));
-        recover->setRange(1, 120);
-        recover->setValue(st.autoRecoverMinutes());
-        recover->setSuffix(QCoreApplication::translate("Dialogs", " minutes"));
-        sf->addRow(QCoreApplication::translate("Dialogs", "Save automatic recovery information every:"), recover);
-        f->recover = recover;
-        f->privacy = privacy::makeOption(save, QStringLiteral("removePersonalOnSave"));
-        sf->addRow(f->privacy);
-        return save;
-    }, [&st, f] {
-        st.setValue("save/autoRecoverMinutes", f->recover->value());
-        privacy::setRemoveOnSave(f->privacy->isChecked());
-    }};
+    pages << saveOptionsPage({{QStringLiteral("jpub"), QCoreApplication::translate("Dialogs", "JeffPub Publication (*.jpub)")}, {QStringLiteral("pub"), QCoreApplication::translate("Dialogs", ".pub Publication Files (*.pub)")}},
+                             [f](QFormLayout *form, QWidget *page) {
+                                 f->privacy = privacy::makeOption(page, QStringLiteral("removePersonalOnSave"));
+                                 form->addRow(f->privacy);
+                             },
+                             [f] { privacy::setRemoveOnSave(f->privacy->isChecked()); });
     pages << OptionsPage{QCoreApplication::translate("Dialogs", "Advanced"), [&st, f] {
         auto *adv = new QWidget();
         auto *af = new QFormLayout(adv);

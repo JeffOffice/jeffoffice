@@ -11,6 +11,7 @@
 #include <QJsonDocument>
 #include <QLocale>
 #include <QRegularExpression>
+#include <QStandardPaths>
 
 namespace jp {
 
@@ -85,6 +86,22 @@ SpellSettingNotifier &SpellSettingNotifier::get()
 {
     static SpellSettingNotifier n;
     return n;
+}
+
+QString defaultSaveFormat() { return Settings::get().value(QStringLiteral("save/format")).toString(); }
+
+QString defaultFolder()
+{
+    const QString chosen = Settings::get().value(QStringLiteral("dirs/default")).toString();
+    if (!chosen.isEmpty() && QDir(chosen).exists()) return chosen;
+    return QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
+}
+
+QString openFolder()
+{
+    const QString chosen = Settings::get().value(QStringLiteral("dirs/default")).toString();
+    if (!chosen.isEmpty() && QDir(chosen).exists()) return chosen;
+    return Settings::get().value(QStringLiteral("dirs/open"), defaultFolder()).toString();
 }
 
 bool spellAsYouType() { return Settings::get().value(QStringLiteral("proof/checkAsYouType"), true).toBool(); }

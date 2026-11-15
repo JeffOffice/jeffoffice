@@ -38,7 +38,7 @@ QString DeckWindow::fileKind(const QString &path)
 
 void DeckWindow::browseAndOpen(OpenHow how)
 {
-    const QString p = QFileDialog::getOpenFileName(this, openHowText(how), Settings::get().value("dirs/open", QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation)).toString(),
+    const QString p = QFileDialog::getOpenFileName(this, openHowText(how), openFolder(),
                                                    tr("Presentations (*.pptx *.potx *.ppsx *.ppt *.pps *.pot *.odp *.otp)") + QStringLiteral(";;") + tr("All Files (*)"));
     if (p.isEmpty()) return;
     Settings::get().setValue("dirs/open", QFileInfo(p).absolutePath());
