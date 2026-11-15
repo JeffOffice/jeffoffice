@@ -104,7 +104,6 @@ void WriteTests::theGalleryListsTheDesigns()
         QVERIFY(d);
         const QImage img = it.icon.pixmap(size).toImage().convertToFormat(QImage::Format_ARGB32);
         QVERIFY(!img.isNull());
-        if (qEnvironmentVariableIsSet("JO_PN_DUMP")) img.scaled(img.size() * 4).save(QString::fromLocal8Bit(qgetenv("JO_PN_DUMP")) + QLatin1Char('/') + it.id + QStringLiteral(".png"));
         auto inked = [&](const QRect &band) {
             int count = 0;
             for (int y = band.top(); y <= band.bottom(); ++y)
@@ -670,9 +669,11 @@ void WriteTests::theRemoveCommandsStateIsCachedAndFollowsTheHeaders()
     w.setDocument(std::move(made), QString());
     w.refreshForTest();
     QVERIFY(!w.act("pn.remove")->isEnabled());
+    const int scans = pageNumberScansForTest();
     QElapsedTimer timer;
     timer.start();
     for (int i = 0; i < 5; ++i) w.refreshForTest();
+    QCOMPARE(pageNumberScansForTest(), scans);   // (the answer was kept: the headers were not looked through again)
     QVERIFY2(timer.elapsed() / 5 < 50, qPrintable(QStringLiteral("%1 ms").arg(timer.elapsed() / 5)));
     // The cache is brought up to date by what changes the headers.
     QVERIFY(w.insertPageNumberDesign(QStringLiteral("top.plain.right")));
@@ -772,4 +773,22 @@ void WriteTests::aMarginDesignAsksWhatToDoWithTheText()
     QVERIFY(w.insertPageNumberDesign(QStringLiteral("margin.right.tab")));
     QCOMPARE(shownOnPage(*doc, 1, QStringLiteral("flow-header-flow")), QStringLiteral("2"));
     QCOMPARE(asked, 3);
+}
+
+// A number at the top and one in the margin are both in the header; putting a design in with Replace takes the person's words and the design's own gallery's earlier one, not the other
+// gallery's.
+void WriteTests::aTopNumberAndAMarginNumberLiveTogether()
+{
+    auto doc = openPages(3);
+    QVERIFY(doc->createHeaderFooter(0, false, 0));
+    typeAtEnd(*doc, doc->editableHeaderFooter(0, false, 0), QStringLiteral("Annual Report"));
+    QVERIFY(insertPageNumberDesign(*doc, 0, QStringLiteral("top.ruleBelow.center"), PageNumberText::Replace));
+    QVERIFY(insertPageNumberDesign(*doc, 0, QStringLiteral("margin.left.bar"), PageNumberText::Replace));
+    QCOMPARE(shownOnPage(*doc, 1, QStringLiteral("flow-header-flow")), QStringLiteral("2 | 2"));
+    QVERIFY(insertPageNumberDesign(*doc, 0, QStringLiteral("top.plain.left"), PageNumberText::Replace));
+    QCOMPARE(shownOnPage(*doc, 1, QStringLiteral("flow-header-flow")), QStringLiteral("2 | 2"));
+    QVERIFY(insertPageNumberDesign(*doc, 0, QStringLiteral("margin.right.circle"), PageNumberText::Replace));
+    QCOMPARE(shownOnPage(*doc, 2, QStringLiteral("flow-header-flow")), QStringLiteral("3 | 3"));
+    QCOMPARE(removePageNumbers(*doc), 2);
+    QCOMPARE(shownOnPage(*doc, 1, QStringLiteral("flow-header-flow")), QString());
 }

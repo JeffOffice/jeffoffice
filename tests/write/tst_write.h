@@ -1043,6 +1043,7 @@ private Q_SLOTS:
     void aBoxIsSetFromTheMarginsAndFollowsAnotherPageSize();
     void aBoxFitsAFourDigitNumber();
     void aMarginDesignAsksWhatToDoWithTheText();
+    void aTopNumberAndAMarginNumberLiveTogether();
     void documentInformationIsPutInAsFields();
     void theHeaderAndFooterTabHasTheOptions();
     void editingInAHeaderWorksAsInTheText();

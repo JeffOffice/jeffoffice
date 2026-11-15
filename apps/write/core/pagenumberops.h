@@ -44,6 +44,9 @@ int removePageNumbers(WriteDoc &doc);
 // Whether any header or footer holds something marked as page numbers (Remove Page Numbers has something to do).
 bool hasPageNumbers(WriteDoc &doc);
 
+// For tests: how many times hasPageNumbers has looked through the headers (the window keeps its answer until the headers or sections change).
+int pageNumberScansForTest();
+
 // For tests: the `operation`th step (from 1) of the next designs fails, as a failure in the document would; 0 for none.
 void setPageNumberFailureForTest(int operation);
 

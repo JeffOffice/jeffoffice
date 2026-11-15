@@ -446,6 +446,60 @@ int removeMarks(QTextDocument *story, const QString &gallery = QString())
     return count;
 }
 
+// Takes out everything of a story but what is marked as page numbers (of another gallery: the design's own gallery was taken out already) and a watermark, so that a number at the top and
+// one in the margin can both be there, and the person's words are what is replaced. At least one paragraph is left.
+void wipeUnmarked(QTextDocument *story)
+{
+    const Marks marks = marksIn(story);
+    QSet<int> keepChars, keepBlocks;
+    for (const auto &r : marks.runs)
+        for (int i = r.first; i < r.second; ++i) keepChars.insert(i);
+    for (const auto &r : marks.blocks)
+        for (int i = r.first; i <= r.second; ++i) keepBlocks.insert(i);
+    for (QTextBlock b = story->begin(); b.isValid(); b = b.next())
+        for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+            bool has = false;
+            const Inline atom = atomOf(it.fragment(), &has);
+            if (has && isWatermarkRaw(atom.raw))
+                for (int i = 0; i < it.fragment().length(); ++i) keepChars.insert(it.fragment().position() + i);
+        }
+    QTextCursor c(story);
+    c.beginEditBlock();
+    for (int pos = story->characterCount() - 2; pos >= 0; --pos) {
+        if (keepChars.contains(pos) || keepBlocks.contains(story->findBlock(pos).blockNumber())) continue;
+        const QChar ch = story->characterAt(pos);
+        if (ch == QChar::ParagraphSeparator || ch == QLatin1Char('\n')) continue;
+        c.setPosition(pos);
+        c.setPosition(pos + 1, QTextCursor::KeepAnchor);
+        c.removeSelectedText();
+    }
+    // The paragraphs that nothing is left in (and that no marked block holds) go, but one.
+    for (QTextBlock b = story->lastBlock(); b.isValid() && story->blockCount() > 1;) {
+        const QTextBlock before = b.previous();
+        if (b.text().isEmpty() && !keepBlocks.contains(b.blockNumber()) && !b.blockFormat().hasProperty(prop::RawBefore) && !b.blockFormat().hasProperty(prop::RawAfter)) {
+            if (b.next().isValid()) {
+                c.setPosition(b.position());
+                c.setPosition(b.next().position(), QTextCursor::KeepAnchor);
+            } else {
+                c.setPosition(b.previous().position() + b.previous().length() - 1);
+                c.setPosition(b.position() + b.length() - 1, QTextCursor::KeepAnchor);
+            }
+            c.removeSelectedText();
+        }
+        b = before;
+    }
+    // (What a design's paragraph had of its own look does not stay on the paragraph that is left.)
+    QTextBlock first = story->begin();
+    if (first.isValid() && first.text().isEmpty() && !keepBlocks.contains(first.blockNumber())) {
+        QTextBlockFormat bf = first.blockFormat();
+        bf.clearProperty(tp::Borders);
+        bf.setAlignment(Qt::AlignLeft);
+        QTextCursor one(first);
+        one.setBlockFormat(bf);
+    }
+    c.endEditBlock();
+}
+
 } // namespace
 
 void setPageNumberFailureForTest(int operation)
@@ -504,28 +558,7 @@ bool insertPageNumberDesign(WriteDoc &doc, int page, const QString &id, PageNumb
             const QString gallery = galleryName(*design);
             // What an earlier design of this gallery left goes.
             removeMarks(story, gallery);
-            if (what == PageNumberText::Replace) {
-                // (Everything but a watermark: it is taken out and put back.)
-                QVector<QTextCharFormat> watermarks;
-                for (QTextBlock b = story->begin(); b.isValid(); b = b.next())
-                    for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
-                        bool has = false;
-                        const Inline atom = atomOf(it.fragment(), &has);
-                        if (has && isWatermarkRaw(atom.raw))
-                            for (int i = 0; i < it.fragment().length(); ++i) watermarks << it.fragment().charFormat();
-                    }
-                QTextCursor w(story);
-                w.select(QTextCursor::Document);
-                w.removeSelectedText();
-                w.movePosition(QTextCursor::Start);
-                QTextBlockFormat bf = w.blockFormat();
-                bf.clearProperty(tp::Borders);
-                bf.clearProperty(prop::RawBefore);
-                bf.clearProperty(prop::RawAfter);
-                bf.setAlignment(Qt::AlignLeft);
-                w.setBlockFormat(bf);
-                for (const QTextCharFormat &f : watermarks) w.insertText(QString(QChar::ObjectReplacementCharacter), f);
-            }
+            if (what == PageNumberText::Replace) wipeUnmarked(story);
             QTextCursor c(story);
             if (pageNumberHasBox(*design)) {
                 // (A drawing is anchored to a character of the first paragraph; the paragraph's own text stays as it is.)
@@ -589,8 +622,13 @@ bool insertPageNumberAtCursor(WriteDoc &doc, QTextCursor &cursor, const QString 
     return true;
 }
 
+int s_scans = 0;
+
+int pageNumberScansForTest() { return s_scans; }
+
 bool hasPageNumbers(WriteDoc &doc)
 {
+    ++s_scans;
     QSet<const QTextDocument *> seen;
     for (int s = 0; s < doc.sectionCount(); ++s)
         for (const bool footer : {false, true})
