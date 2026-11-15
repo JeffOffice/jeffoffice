@@ -51,7 +51,7 @@ const char kFieldMime[] = "application/x-jeffcrunch-pivot-field";
 
 class DragList : public QListWidget {
 public:
-    DragList(QWidget *parent, int box, std::function<void(int, const QString &, int)> onDrop) : QListWidget(parent), m_box(box), m_drop(std::move(onDrop))
+    DragList(QWidget *parent, int box, std::function<QString()> tag, std::function<void(int, const QString &, int)> onDrop) : QListWidget(parent), m_box(box), m_tag(std::move(tag)), m_drop(std::move(onDrop))
     {
         setDragEnabled(true);
         setDefaultDropAction(Qt::CopyAction);   // (the entry stays where it is until the pane changes the table: a Move would take it out of the list)
@@ -66,7 +66,7 @@ protected:
         if (items.isEmpty()) return nullptr;
         auto *mime = new QMimeData;
         const int at = row(items.first());
-        mime->setData(QString::fromLatin1(kFieldMime), (m_box < 0 ? QStringLiteral("F:%1").arg(at) : QStringLiteral("B:%1:%2").arg(m_box).arg(at)).toUtf8());
+        mime->setData(QString::fromLatin1(kFieldMime), (m_tag() + QLatin1Char('|') + (m_box < 0 ? QStringLiteral("F:%1").arg(at) : QStringLiteral("B:%1:%2").arg(m_box).arg(at))).toUtf8());
         return mime;
     }
     void dragEnterEvent(QDragEnterEvent *e) override
@@ -88,11 +88,12 @@ protected:
         const QByteArray what = e->mimeData()->data(QString::fromLatin1(kFieldMime));
         e->setDropAction(Qt::CopyAction);
         e->accept();
-        m_drop(m_box, QString::fromUtf8(what.left(40)), indexAt(e->position().toPoint()).row());
+        m_drop(m_box, QString::fromUtf8(what.left(80)), indexAt(e->position().toPoint()).row());
     }
 
 private:
     int m_box;
+    std::function<QString()> m_tag;
     std::function<void(int, const QString &, int)> m_drop;
 };
 
@@ -114,7 +115,7 @@ PivotFieldsPane::PivotFieldsPane(QWidget *parent) : QWidget(parent)
     m_search->setAccessibleName(tr("Search fields"));
     layout->addWidget(m_search);
     connect(m_search, &QLineEdit::textChanged, this, [this](const QString &text) { search(text); });
-    m_fields = new DragList(this, -1, nullptr);
+    m_fields = new DragList(this, -1, [this] { return dragId(); }, nullptr);
     m_fields->setObjectName(QStringLiteral("pivot.fields"));
     m_fields->setAccessibleName(tr("Pivot table fields"));
     layout->addWidget(m_fields, 3);
@@ -122,7 +123,7 @@ PivotFieldsPane::PivotFieldsPane(QWidget *parent) : QWidget(parent)
     const char *titles[4] = {QT_TR_NOOP("Filters"), QT_TR_NOOP("Columns"), QT_TR_NOOP("Rows"), QT_TR_NOOP("Values")};
     for (int i = 0; i < 4; ++i) {
         auto *label = new QLabel(tr(titles[i]), this);
-        m_boxes[i] = new DragList(this, i, [this](int box, const QString &what, int place) { dropOn(box, what, place); });
+        m_boxes[i] = new DragList(this, i, [this] { return dragId(); }, [this](int box, const QString &what, int place) { dropOn(box, what, place); });
         m_boxes[i]->setObjectName(QStringLiteral("pivot.box%1").arg(i));
         m_boxes[i]->setAccessibleName(tr(titles[i]));
         m_boxes[i]->setSelectionMode(QAbstractItemView::SingleSelection);
@@ -323,6 +324,11 @@ bool PivotFieldsPane::select(int box, int row)
 
 void PivotFieldsPane::changed(const PivotTable &table, const QString &text)
 {
+    // (the table was changed by something else since the pane showed it: the pane is shown again, and what was asked is not done, since it was asked of the table as it was)
+    if (m_currentStamp && m_shownStamp && m_currentStamp() != m_shownStamp) {
+        Q_EMIT stale();
+        return;
+    }
     if (m_deferBox && m_deferBox->isChecked()) {
         // (Defer Layout Update: the change is kept, and shown in the boxes, until Update)
         m_table = table;
@@ -335,6 +341,11 @@ void PivotFieldsPane::changed(const PivotTable &table, const QString &text)
         return;
     }
     Q_EMIT changeRequested(table, text);
+}
+
+QString PivotFieldsPane::dragId() const
+{
+    return QStringLiteral("jc-pivot-%1").arg(quintptr(this));
 }
 
 void PivotFieldsPane::search(const QString &text)
@@ -453,7 +464,10 @@ void PivotFieldsPane::moveSelected(int target)
 bool PivotFieldsPane::dropOn(int target, const QString &what, int place)
 {
     if (target < 0 || target > 3) return false;
-    const QStringList parts = what.split(QLatin1Char(':'));
+    // (a drag from another pane, or another window's workbook, is not taken: the id is the pane's own)
+    const int bar = what.indexOf(QLatin1Char('|'));
+    if (bar < 0 || what.left(bar) != dragId()) return false;
+    const QStringList parts = what.mid(bar + 1).split(QLatin1Char(':'));
     bool ok = false;
     if (parts.size() == 2 && parts[0] == QLatin1String("F")) {
         const int field = parts[1].toInt(&ok);
@@ -473,6 +487,29 @@ bool PivotFieldsPane::dropOn(int target, const QString &what, int place)
         find(1, m_table.colFields, [](int f) { return f; });
         find(0, m_table.pageFields, [](const PivotPageField &p) { return p.fld; });
         find(3, m_table.dataFields, [](const PivotDataField &d) { return d.fld; });
+        if (target == 3 && from >= 0) {
+            // (a field that is in the values already is added again, totaled another way: the next of count, average, max, min, and sum that is not used for it)
+            PivotTable t = m_table;
+            PivotDataField d = newValue(t, field);
+            for (const char *fn : {"count", "average", "max", "min", "sum"}) {
+                bool used = false;
+                for (const PivotDataField &o : t.dataFields) used = used || (o.fld == field && o.subtotal == QLatin1String(fn));
+                if (used) continue;
+                d.subtotal = QString::fromLatin1(fn);
+                break;
+            }
+            const QString label = d.subtotal == QLatin1String("count") ? tr("Count of %1") : d.subtotal == QLatin1String("average") ? tr("Average of %1") : d.subtotal == QLatin1String("max") ? tr("Max of %1") : d.subtotal == QLatin1String("min") ? tr("Min of %1") : tr("Sum of %1");
+            d.name = label.arg(m_names.value(field));
+            for (bool clash = true; clash;) {
+                clash = false;
+                for (const PivotDataField &o : t.dataFields) clash = clash || o.name.compare(d.name, Qt::CaseInsensitive) == 0;
+                for (const QString &nm : m_names) clash = clash || nm.compare(d.name, Qt::CaseInsensitive) == 0;
+                if (clash) d.name += QLatin1Char(' ');
+            }
+            t.dataFields.append(d);
+            changed(t, tr("Add Field to Pivot Table"));
+            return true;
+        }
         if (from >= 0) return from == target ? false : (select(from, at) && (moveSelected(target), true));
         PivotTable t = m_table;
         if (target == 0) {

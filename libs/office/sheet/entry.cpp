@@ -666,8 +666,107 @@ const QStringList &prefixedFunctionNames()
     return names;
 }
 
-QString toFileFormula(const QString &typed)
+namespace {
+
+// The index of the parenthesis that closes the one at `open` (texts and names in quotes skipped), or -1.
+int closingParen(const QString &s, int open)
 {
+    int depth = 0;
+    for (int i = open; i < s.size(); ++i) {
+        const QChar c = s[i];
+        if (c == QLatin1Char('"') || c == QLatin1Char('\'') || c == QLatin1Char('[')) {
+            i = quotedEnd(s, i) - 1;
+        } else if (c == QLatin1Char('(')) {
+            ++depth;
+        } else if (c == QLatin1Char(')') && --depth == 0) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+// Whether the text is one operand (a reference, a name, a call): no operator or comma outside parentheses and quotes.
+bool oneOperand(const QString &s)
+{
+    for (int i = 0; i < s.size(); ++i) {
+        const QChar c = s[i];
+        if (c == QLatin1Char('"') || c == QLatin1Char('\'') || c == QLatin1Char('[')) {
+            i = quotedEnd(s, i) - 1;
+        } else if (c == QLatin1Char('(')) {
+            const int close = closingParen(s, i);
+            if (close < 0) return false;
+            i = close;
+        } else if (QStringLiteral("+-*/^&=<>,% ").contains(c)) {
+            return false;
+        }
+    }
+    return !s.isEmpty();
+}
+
+} // namespace
+
+QString singleCalls(const QString &s, SingleMode mode)
+{
+    if (mode == SingleMode::AtToCall ? !s.contains(QLatin1Char('@')) : !s.contains(QLatin1String("SINGLE("), Qt::CaseInsensitive)) return s;
+    QString out;
+    const int n = s.size();
+    static const QString head = QStringLiteral("_xlfn.SINGLE(");
+    for (int i = 0; i < n;) {
+        const QChar c = s[i];
+        if (c == QLatin1Char('"') || c == QLatin1Char('\'') || c == QLatin1Char('[')) {
+            const int end = quotedEnd(s, i);
+            out += s.mid(i, end - i);
+            i = end;
+            continue;
+        }
+        if (mode == SingleMode::AtToCall && c == QLatin1Char('@')) {
+            int j = i + 1;
+            while (j < n && s[j].isSpace()) ++j;
+            int e = j;
+            if (j < n && s[j] == QLatin1Char('(')) {
+                const int close = closingParen(s, j);
+                e = close < 0 ? n : close + 1;
+            } else {
+                while (e < n) {
+                    if (s[e] == QLatin1Char('\'')) e = quotedEnd(s, e);
+                    else if (identPartChar(s[e]) || QStringLiteral("$!:#").contains(s[e])) ++e;
+                    else break;
+                }
+                int k = e;
+                while (k < n && s[k].isSpace()) ++k;
+                if (k < n && s[k] == QLatin1Char('(')) {
+                    const int close = closingParen(s, k);
+                    e = close < 0 ? n : close + 1;
+                }
+            }
+            if (e == j) {
+                out += c;
+                ++i;
+                continue;
+            }
+            out += QLatin1String("SINGLE(") + singleCalls(s.mid(j, e - j), mode) + QLatin1Char(')');
+            i = e;
+            continue;
+        }
+        if (mode != SingleMode::AtToCall && s.mid(i, head.size()).compare(head, Qt::CaseInsensitive) == 0 && (i == 0 || !identPartChar(s[i - 1]))) {
+            const int open = i + head.size() - 1, close = closingParen(s, open);
+            if (close > 0) {
+                const QString inner = singleCalls(s.mid(open + 1, close - open - 1), mode);
+                if (mode == SingleMode::CallToAt) out += oneOperand(inner) ? QLatin1Char('@') + inner : QLatin1String("@(") + inner + QLatin1Char(')');
+                else out += oneOperand(inner) ? inner : QLatin1Char('(') + inner + QLatin1Char(')');
+                i = close + 1;
+                continue;
+            }
+        }
+        out += c;
+        ++i;
+    }
+    return out;
+}
+
+QString toFileFormula(const QString &typedIn)
+{
+    const QString typed = singleCalls(typedIn, SingleMode::AtToCall);
     QString out;
     out.reserve(typed.size() + 8);
     const int n = typed.size();

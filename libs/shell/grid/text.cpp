@@ -1,5 +1,7 @@
 #include "grid/text.h"
 
+#include "sheet/entry.h"
+
 #include <algorithm>
 #include <cmath>
 #include <cstring>
@@ -81,9 +83,10 @@ Shown showValue(const jp::calc::Value &given, const CellLook &look, jp::calc::Da
     return s;
 }
 
-QString displayFormula(const QString &formula)
+QString displayFormula(const QString &formulaIn)
 {
-    if (!formula.contains(QLatin1String("_xl"), Qt::CaseInsensitive)) return formula;
+    if (!formulaIn.contains(QLatin1String("_xl"), Qt::CaseInsensitive)) return formulaIn;
+    const QString formula = jp::office::sheet::singleCalls(formulaIn, jp::office::sheet::SingleMode::CallToAt);   // (the call a file has for the mark @ is shown as the mark)
     static const char *const kPrefixes[] = {"_xlfn.", "_xlws.", "_xludf.", "_xlpm."};
     auto identChar = [](QChar c) { return c.isLetterOrNumber() || c == QLatin1Char('_') || c == QLatin1Char('.'); };
     QString out;

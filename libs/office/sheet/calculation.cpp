@@ -3454,7 +3454,7 @@ bool Calculation::put(int sheet, quint32 row, quint32 col, const CellContent &c,
     if (ok && c.isFormula && c.hasHeld && c.heldSheet == sheet && c.heldRow == row && c.heldCol == col && renumberEpochsAre(c.heldEpochs)) {
         restoreHeldFormula(sheet, row, col, c.held, c.heldDRow, c.heldDCol, c.heldCls);
         const Cell *now = m_sheets[size_t(sheet)].cells.find(row, col);
-        if (!now || !now->hasFormula() || m_sheets[size_t(sheet)].formulaText(*now) != c.formula) setFormula(sheet, row, col, c.formula, marking, c.hasStored ? &c.stored : nullptr);   // (it does not read as the text: the text is the cell's)
+        if (!now || !now->hasFormula() || m_sheets[size_t(sheet)].formulaText(*now) != c.formula) setFormula(sheet, row, col, c.formula, marking, c.hasStored ? &c.stored : nullptr, c.dynamic);   // (it does not read as the text: the text is the cell's)
     }
     return ok && setStyle(sheet, row, col, c.style);
 }

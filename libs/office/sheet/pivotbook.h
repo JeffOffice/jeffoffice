@@ -17,6 +17,12 @@ namespace jp::office { class Package; }
 
 namespace jp::office::sheet {
 
+class Workbook;
+
+// The cells a table or a defined name of a pivot table's data stands for: a table (without its row of totals), a name of one range of a sheet, or a name that is another name (followed up to 8 deep, so
+// that a name that names itself ends). False for what is not found, a sheet that is deleted or is not a worksheet, or a name that is not one range.
+bool pivotNameSource(const Workbook &book, const QString &name, int *sheet, CellRange *range, int depth = 0);
+
 struct PivotCacheEntry {
     QString definitionPart, recordsPart;           // the parts, as the package names them (no records part: the file does not keep the data)
     std::shared_ptr<const PivotCache> cache, fileCache;   // as it is now, and as the file has it; null until it is read

@@ -244,6 +244,12 @@ Value fnIsOdd(Call &c)
 
 Value fnNa(Call &) { return Value::error(ErrorKind::NA); }
 
+// SINGLE: the mark @ of a file (_xlfn.SINGLE): one value of a block, by the old rule of implicit intersection that a value argument has.
+Value fnSingle(Call &c)
+{
+    return c.scalar(0);
+}
+
 Value fnN(Call &c)
 {
     const Value v = c.scalar(0);
@@ -322,6 +328,7 @@ void registerLogicFunctions(std::vector<FunctionInfo> &r)
     r.push_back({"ISODD", 1, 1, "v", 0, fnIsOdd});
     r.push_back({"NA", 0, 0, "", 0, fnNa});
     r.push_back({"N", 1, 1, "v", 0, fnN});
+    r.push_back({"SINGLE", 1, 1, "v", kFnFuture, fnSingle});
     r.push_back({"TYPE", 1, 1, "n", 0, fnType});
     r.push_back({"ERROR.TYPE", 1, 1, "v", 0, fnErrorType});
 }

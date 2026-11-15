@@ -705,7 +705,7 @@ bool EditSession::typedChange(int sheet, quint32 row, quint32 col, const QString
         *out = std::move(same);
         return true;
     }
-    if (before.isFormula && r.entry.kind == Entry::Kind::Formula && r.entry.text != before.formula && r.entry.text == shownFormula(before)) {
+    if (before.isFormula && r.entry.kind == Entry::Kind::Formula && r.entry.text != before.formula && r.entry.text == toFileFormula(shownFormula(before))) {
         // (the formula as the bar showed it, with the mark @ of the old rule: the cell stays as it is, and the file's formula is not rewritten)
         CellChange same;
         same.sheet = sheet;
@@ -727,6 +727,7 @@ bool EditSession::typedChange(int sheet, quint32 row, quint32 col, const QString
     ch.after.dynamic = false;
     ch.after.spilled = false;
     ch.after.formula.clear();
+    ch.after.hasHeld = false;   // (what the cell held before is not what is typed)
     ch.after.value = Value();
     ch.after.sharedString = -1;
     ch.after.style = baseStyle;
@@ -753,6 +754,8 @@ bool EditSession::typedChange(int sheet, quint32 row, quint32 col, const QString
     }
     if (ch.after.value.isEmpty() && !ch.after.isFormula && (ch.after.style == 0 || !before.exists)) ch.after.exists = false;
     *none = sameMeaning(ch.before, ch.after) && ch.formatCode.isEmpty() && !ch.wrapToSet;   // (nothing to change)
+    // (the formula of an older file typed again as it is, without the mark @, is the new kind: one that fills the cells it gives)
+    if (*none && before.isFormula && !before.dynamic && !before.arrayRange.valid && !before.dataTable && ch.after.dynamic) *none = false;
     *out = std::move(ch);
     return true;
 }

@@ -6,6 +6,7 @@
 #include "sheet/pivot.h"
 
 #include <QDialog>
+#include <functional>
 #include <QWidget>
 
 class QCheckBox;
@@ -34,6 +35,10 @@ public:
     bool select(int box, int row);
     // A field dropped on a box (a drag from the list of fields, "F:2", or from a box, "B:1:0"), and the place it was dropped on (-1 below the entries): the same as the pane does for a drop.
     bool dropOn(int target, const QString &what, int place);
+    // What a drag from this pane starts with (a drop from another pane, which has another, is refused).
+    QString dragId() const;
+    // The stamp of the table as it is now (what showTable was given as `identity`, for the table shown): a pane that shows an older one asks to be shown again (stale) and does nothing else.
+    void setCurrentStamp(std::function<quintptr()> now) { m_currentStamp = std::move(now); }
     QListWidget *fieldList() const { return m_fields; }
     QListWidget *box(int box) const { return m_boxes[box]; }
     // The field of the entry chosen in the Filters, Columns, or Rows box (-1 when none, or when the entry is the values).
@@ -45,6 +50,7 @@ public:
     bool hasPending() const { return m_pending; }
 
 Q_SIGNALS:
+    void stale();
     // The table with the change made, and the words for the step of Undo.
     void changeRequested(const jp::office::sheet::PivotTable &table, const QString &text);
     // The value at this place of the table's values was asked to be set (a double click, or the button).
@@ -82,6 +88,7 @@ private:
     QString m_pendingText;
     QString m_shownName, m_pendingName;   // the table shown, and the one the waiting changes were made on
     quintptr m_shownStamp = 0, m_pendingStamp = 0;
+    std::function<quintptr()> m_currentStamp;
 };
 
 // What Group Field asks: the parts of a date to group by (seconds, minutes, hours, days, months, quarters, years), or for numbers (no parts) where to start and end and the width of a group.

@@ -8,6 +8,7 @@
 #include "sheet/oldsave.h"
 
 #include "io/cfb.h"
+#include "sheet/entry.h"
 #include "sheet/oldsavecommon.h"
 #include "sheet/xlscompile.h"
 #include "sheet/xlsrecord.h"
@@ -1087,7 +1088,7 @@ private:
                 XlsCompileContext cx = m_cx;
                 cx.sheet = m_currentSheet;
                 QString why;
-                const QString f = sheet.formulaText(c);
+                const QString f = singleCalls(sheet.formulaText(c), SingleMode::CallDropped);   // (no such call there: the old rule is what a formula has)
                 const bool compiled = !f.isEmpty() && xlsCompileFormula(f, cx, &rgce, &extra, &why);
                 if (compiled && kFormulaHead + rgce.size() + extra.size() > kMaxRecord) {
                     why = QCoreApplication::translate("Sheet", "The formula is longer than the old format allows.");

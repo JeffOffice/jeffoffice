@@ -135,6 +135,11 @@ private Q_SLOTS:
     void aSpillIsCheckedAgainWhenWhatBlockedItIsEmptied();
     void aSpillRangeWorksInFunctionsNamesValidationsAndFormats();
     void aFormulaOfAnOlderFileShowsItsImplicitIntersection();
+    void aSpillBlockIsClearedWhenTheCellOfItsFormulaIsDeleted();
+    void aSortOfPartOfASpillBlockIsRefused();
+    void aSpillRangeOfAnotherSheetFollowsTheBlock();
+    void aFormulaWithTheMarkIsSavedAsSingleAndReadBack();
+    void aBigSpillBlockMovesQuickly();
     void aSaveThatFailsLeavesTheOldFile();
     void closingAsksAboutChangesThatAreNotSaved();
     void saveWaitsForTheCalculation();

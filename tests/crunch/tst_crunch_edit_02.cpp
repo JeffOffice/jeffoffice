@@ -352,6 +352,163 @@ void CrunchEditTests::aFormulaOfAnOlderFileShowsItsImplicitIntersection()
     QVERIFY(calc->isSpillAnchor(0, 0, 4));
 }
 
+// A delete that takes the row or the column of a formula that spills takes its block with it: no cell is left filling nothing; Undo brings the block back.
+void CrunchEditTests::aSpillBlockIsClearedWhenTheCellOfItsFormulaIsDeleted()
+{
+    for (const bool rows : {true, false}) {
+        EditWindow e;
+        QVERIFY(e.openBlank());
+        e.select(QStringLiteral("B2"));
+        e.enter(rows ? QStringLiteral("=SEQUENCE(3)") : QStringLiteral("=SEQUENCE(1,3)"));
+        QVERIFY(e.settle());
+        EditSession *s = e.win.w.session();
+        const Calculation *calc = s->calculation();
+        QVERIFY(rows ? s->deleteRows(0, 1, 1).ok : s->deleteColumns(0, 1, 1).ok);
+        QVERIFY(e.settle());
+        for (quint32 r = 0; r < 6; ++r)
+            for (quint32 c = 0; c < 6; ++c) {
+                QVERIFY2(!calc->isSpillMember(0, r, c) && !calc->isSpillAnchor(0, r, c), qPrintable(QStringLiteral("%1,%2").arg(r).arg(c)));
+                QCOMPARE(s->valueAt(0, r, c).isEmpty(), true);
+            }
+        e.win.w.undoStack()->undo();
+        QVERIFY(e.settle());
+        QCOMPARE(blockOf(e, QStringLiteral("B2")), rows ? QStringLiteral("B2:B4") : QStringLiteral("B2:D2"));
+        QCOMPARE(e.valueAt(rows ? QStringLiteral("B4") : QStringLiteral("D2")), QStringLiteral("n:3"));
+    }
+}
+
+// A sort of only part of a block is refused; one that holds the formula's cell moves the formula, and the values it sorts by are those shown.
+void CrunchEditTests::aSortOfPartOfASpillBlockIsRefused()
+{
+    EditWindow e;
+    QVERIFY(e.openBlank());
+    e.select(QStringLiteral("B1"));
+    e.enter(QStringLiteral("=SEQUENCE(3)"));
+    e.select(QStringLiteral("A2"));
+    e.enter(QStringLiteral("a"));
+    e.select(QStringLiteral("A3"));
+    e.enter(QStringLiteral("b"));
+    QVERIFY(e.settle());
+    SortSpec spec;
+    SortLevel level;
+    level.key = 0;
+    level.descending = true;
+    spec.levels.push_back(level);
+    const auto o = e.win.w.session()->sortRange(0, rangeOf(QStringLiteral("A2:B3")), spec);
+    QVERIFY(!o.ok);
+    QVERIFY2(o.problem.contains(QLatin1String("Nothing was sorted")), qPrintable(o.problem));
+    QVERIFY(e.settle());
+    QCOMPARE(blockOf(e, QStringLiteral("B1")), QStringLiteral("B1:B3"));
+    QCOMPARE(e.valueAt(QStringLiteral("B3")), QStringLiteral("n:3"));
+    QCOMPARE(e.valueAt(QStringLiteral("A2")), QStringLiteral("s:a"));
+    // the formula's cell inside, the block whole: sorted by the values shown in column B, descending, the formula goes last and its block is filled where it lands
+    spec.levels[0].key = 1;
+    QVERIFY(e.win.w.session()->sortRange(0, rangeOf(QStringLiteral("A1:B3")), spec).ok);
+    QVERIFY(e.settle());
+    QCOMPARE(e.valueAt(QStringLiteral("A1")), QStringLiteral("s:b"));
+    QCOMPARE(e.valueAt(QStringLiteral("A2")), QStringLiteral("s:a"));
+}
+
+// A1# of another sheet follows rows put in above the block, and the block moved whole as a rectangle.
+void CrunchEditTests::aSpillRangeOfAnotherSheetFollowsTheBlock()
+{
+    EditWindow e;
+    QVERIFY(e.openBlank());
+    EditSession *s = e.win.w.session();
+    QVERIFY(s->insertSheet(1, QStringLiteral("Other")).ok);
+    e.select(QStringLiteral("B2"));
+    e.enter(QStringLiteral("=SEQUENCE(3,1,10,10)"));
+    QVERIFY(e.settle());
+    QVERIFY(s->type(1, 0, 0, QStringLiteral("=SUM(Sheet1!B2#)")).ok);
+    QVERIFY(e.settle());
+    QCOMPARE(s->valueAt(1, 0, 0).number(), 60.0);
+    QVERIFY(s->insertRows(0, 0, 2).ok);
+    QVERIFY(e.settle());
+    QCOMPARE(blockOf(e, QStringLiteral("B4")), QStringLiteral("B4:B6"));
+    QCOMPARE(s->valueAt(1, 0, 0).number(), 60.0);
+    // the whole rectangle of the block cut and pasted: the formula's cell goes, and the block is filled where it lands
+    QVERIFY(s->moveCells(0, rangeOf(QStringLiteral("B4:B6")), 0, 9, 4).ok);
+    QVERIFY(e.settle());
+    QCOMPARE(blockOf(e, QStringLiteral("E10")), QStringLiteral("E10:E12"));
+    QCOMPARE(s->valueAt(1, 0, 0).number(), 60.0);
+    e.win.w.undoStack()->undo();
+    QVERIFY(e.settle());
+    QCOMPARE(blockOf(e, QStringLiteral("B4")), QStringLiteral("B4:B6"));
+    QCOMPARE(s->valueAt(1, 0, 0).number(), 60.0);
+}
+
+// A formula typed with the mark @ is saved as the call a file has for it (_xlfn.SINGLE) and read back with the mark, still one value of the block; the same formula typed again without the mark is the new kind
+// and fills its block; a copy as .ods has the formula by the old rule, with no call.
+void CrunchEditTests::aFormulaWithTheMarkIsSavedAsSingleAndReadBack()
+{
+    EditWindow e;
+    QVERIFY(e.openBlank());
+    e.select(QStringLiteral("A1"));
+    e.enter(QStringLiteral("5"));
+    e.select(QStringLiteral("E1"));
+    e.enter(QStringLiteral("=@A1:A3*2"));
+    QVERIFY(e.settle());
+    QVERIFY(!e.win.w.session()->calculation()->isSpillAnchor(0, 0, 4));
+    QCOMPARE(e.win.w.session()->editText(0, 0, 4), QStringLiteral("=@A1:A3*2"));
+    QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+    const QString target = e.folder.dir.filePath(QStringLiteral("single.xlsx"));
+    QVERIFY(e.win.w.saveAs(target));
+    QVERIFY2(savedOk(saved, 20000), "the save failed");
+    QFile f(target);
+    QVERIFY(f.open(QIODevice::ReadOnly));
+    const QByteArray bytes = f.readAll();
+    f.close();
+    QMap<QString, QByteArray> parts;
+    QVERIFY(jp::readZip(bytes, parts));
+    const QString xml = QString::fromUtf8(parts.value(QStringLiteral("xl/worksheets/sheet1.xml")));
+    QVERIFY2(xml.contains(QStringLiteral("_xlfn.SINGLE(A1:A3)*2")) && !xml.contains(QLatin1Char('@')), qPrintable(xml));
+    EditWindow again;
+    QVERIFY(again.open(bytes, QStringLiteral("again.xlsx")));
+    QVERIFY(again.settle());
+    const Calculation *calc = again.win.w.session()->calculation();
+    QVERIFY(!calc->isSpillAnchor(0, 0, 4));
+    QCOMPARE(again.win.w.session()->editText(0, 0, 4), QStringLiteral("=@A1:A3*2"));
+    QCOMPARE(again.valueAt(QStringLiteral("E1")), QStringLiteral("n:10"));
+    // typed again without the mark (the stored form is the old rule): the new kind, filling its block
+    again.select(QStringLiteral("E1"));
+    again.enter(QStringLiteral("=A1:A3*2"));
+    QVERIFY(again.settle());
+    QVERIFY(calc->isSpillAnchor(0, 0, 4));
+    QVERIFY(calc->isSpillMember(0, 1, 4) && calc->isSpillMember(0, 2, 4));
+    // a copy as .ods
+    EditWindow other;
+    QVERIFY(other.open(bytes, QStringLiteral("other.xlsx")));
+    QVERIFY(other.settle());
+    QSignalSpy copied(&other.win.w, &CrunchWindow::copyExported);
+    const QString ods = other.folder.dir.filePath(QStringLiteral("copy.ods"));
+    QVERIFY(other.win.w.saveAs(ods));
+    QVERIFY2(copied.count() > 0 || copied.wait(20000), "the copy failed");
+    QFile o(ods);
+    QVERIFY(o.open(QIODevice::ReadOnly));
+    QMap<QString, QByteArray> odsParts;
+    QVERIFY(jp::readZip(o.readAll(), odsParts));
+    const QString content = QString::fromUtf8(odsParts.value(QStringLiteral("content.xml")));
+    QVERIFY2(content.contains(QStringLiteral("table:formula=")) && !content.contains(QStringLiteral("SINGLE")), qPrintable(content.left(400)));
+}
+
+// Cut and paste of the head of a block of 200,000 cells: it is timed (the figure is printed), and the block is where it landed.
+void CrunchEditTests::aBigSpillBlockMovesQuickly()
+{
+    EditWindow e;
+    QVERIFY(e.openBlank());
+    e.select(QStringLiteral("A1"));
+    e.enter(QStringLiteral("=SEQUENCE(200000)"));
+    QVERIFY(e.settle());
+    QCOMPARE(blockOf(e, QStringLiteral("A1")), QStringLiteral("A1:A200000"));
+    QElapsedTimer timer;
+    timer.start();
+    QVERIFY(e.win.w.session()->moveCells(0, rangeOf(QStringLiteral("A1")), 0, 0, 2).ok);
+    QVERIFY(e.settle());
+    qInfo() << "move of a 200,000-cell block took ms:" << timer.elapsed();
+    QCOMPARE(blockOf(e, QStringLiteral("C1")), QStringLiteral("C1:C200000"));
+    QVERIFY(timer.elapsed() < 20000);
+}
+
 namespace {
 
 // A sheet with =SEQUENCE(3) in A1 as a dynamic array; `anchorStyle` and `filledStyle` are the formats of A1 and of A2 (1 hides the formula).

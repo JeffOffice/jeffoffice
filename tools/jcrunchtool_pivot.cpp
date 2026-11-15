@@ -8,6 +8,7 @@
 #include "calc/numfmt.h"
 #include "sheet/cellref.h"
 #include "sheet/pivot.h"
+#include "sheet/pivotbook.h"
 #include "sheet/sheetreader.h"
 #include "sheet/styles.h"
 #include "sheet/tables.h"
@@ -150,30 +151,7 @@ int pivotRefreshMain(const QStringList &args)
             CellRange src;
             bool found = false;
             if (!cache.name.isEmpty()) {
-                // a table (its cells without the totals row) or a defined name of one range
-                for (const Table &t : book.tables())
-                    if (t.name.compare(cache.name, Qt::CaseInsensitive) == 0) {
-                        srcSheet = t.sheet;
-                        src.valid = true;
-                        src.row1 = t.row1;
-                        src.col1 = t.col1;
-                        src.row2 = t.totalsRows > 0 ? t.row2 - 1 : t.row2;
-                        src.col2 = t.col2;
-                        found = true;
-                    }
-                for (const DefinedName &n : book.info().definedNames) {
-                    const int bang = n.ref.lastIndexOf(QLatin1Char('!'));
-                    if (found || n.name.compare(cache.name, Qt::CaseInsensitive) != 0 || bang <= 0) continue;
-                    QString sheetName = n.ref.left(bang);
-                    if (sheetName.startsWith(QLatin1Char('\'')) && sheetName.endsWith(QLatin1Char('\'')) && sheetName.size() > 1) sheetName = sheetName.mid(1, sheetName.size() - 2).replace(QLatin1String("''"), QLatin1String("'"));
-                    QString ref = n.ref.mid(bang + 1);
-                    ref.remove(QLatin1Char('$'));
-                    for (int i = 0; i < book.info().sheets.size(); ++i)
-                        if (!book.info().sheets[i].deleted && book.info().sheets[i].name.compare(sheetName, Qt::CaseInsensitive) == 0 && parseRangeRef(ref, &src)) {
-                            srcSheet = i;
-                            found = true;
-                        }
-                }
+                found = pivotNameSource(book, cache.name, &srcSheet, &src);
             } else {
                 for (int i = 0; i < book.info().sheets.size(); ++i)
                     if (!book.info().sheets[i].deleted && book.info().sheets[i].name.compare(cache.sheet, Qt::CaseInsensitive) == 0) srcSheet = i;

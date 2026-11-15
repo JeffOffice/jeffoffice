@@ -717,6 +717,31 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
     rec->renumberEpochs = renumberEpochs();
     Sheet &S = m_sheets[size_t(e.sheet)];
     // (what the edit changes of the sheet's other structures is kept as it was: the lists are shared with these copies, which cost nothing, and a list that the edit does not change is not made again)
+    // (a delete that takes the cell of a formula that spills takes its block with it: the cells it filled are let go of first, so that none is left filling nothing)
+    if (deletes(e)) {
+        CellArea gone;   // (the cells the delete takes, not what it moves)
+        gone.row1 = e.row1;
+        gone.row2 = e.row2;
+        gone.col1 = e.col1;
+        gone.col2 = e.col2;
+        if (e.kind == K::DeleteRows) {
+            gone.row1 = e.first;
+            gone.row2 = e.first + e.count - 1;
+            gone.col1 = 0;
+            gone.col2 = kGridCols - 1;
+        } else if (e.kind == K::DeleteColumns) {
+            gone.col1 = e.first;
+            gone.col2 = e.first + e.count - 1;
+            gone.row1 = 0;
+            gone.row2 = kGridRows - 1;
+        }
+        std::vector<qint32> heads;
+        for (const CellRange &r : S.ranges) {
+            if (!r.valid || r.cellCount() <= 1 || r.row1 < gone.row1 || r.row1 > gone.row2 || r.col1 < gone.col1 || r.col1 > gone.col2) continue;
+            if (const Cell *head = S.cells.find(r.row1, r.col1); head && (head->flags & SpillFormula) && head->formula >= 0) heads.push_back(head->formula);
+        }
+        for (const qint32 formula : heads) letGoOfSpill(e.sheet, formula);
+    }
     const QVector<CellRange> rangesBefore = S.ranges, mergesBefore = S.merges;
     const AutoFilter filterBefore = S.autoFilter;
     const qint64 mergeCountBefore = S.mergeCount;

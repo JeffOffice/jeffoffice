@@ -120,38 +120,7 @@ QString EditSession::pivotSourceText(int table) const
 
 bool EditSession::pivotNameRange(const QString &nameText, int *sheet, CellRange *range) const
 {
-    const auto &sheets = m_book->book->info().sheets;
-    auto usableSheet = [&](int s) { return s >= 0 && s < sheets.size() && !sheets[s].deleted && sheets[s].kind == SheetKind::Worksheet; };
-    for (const Table &t : m_book->book->tables())
-        if (t.name.compare(nameText, Qt::CaseInsensitive) == 0) {
-            *sheet = t.sheet;
-            range->valid = true;
-            range->row1 = t.row1;
-            range->col1 = t.col1;
-            range->row2 = t.totalsRows > 0 ? t.row2 - 1 : t.row2;
-            range->col2 = t.col2;
-            return usableSheet(t.sheet);
-        }
-    for (const DefinedName &n : m_book->book->info().definedNames) {
-        if (n.name.compare(nameText, Qt::CaseInsensitive) != 0) continue;
-        // "Sheet1!$A$1:$D$10" or "'My Sheet'!$A$1:$D$10"
-        const int bang = n.ref.lastIndexOf(QLatin1Char('!'));
-        if (bang <= 0) break;
-        QString sheetName = n.ref.left(bang);
-        if (sheetName.startsWith(QLatin1Char('\'')) && sheetName.endsWith(QLatin1Char('\'')) && sheetName.size() > 1) sheetName = sheetName.mid(1, sheetName.size() - 2).replace(QLatin1String("''"), QLatin1String("'"));
-        QString ref = n.ref.mid(bang + 1);
-        ref.remove(QLatin1Char('$'));
-        CellRange r;
-        if (!parseRangeRef(ref, &r)) break;
-        for (int s = 0; s < sheets.size(); ++s)
-            if (!sheets[s].deleted && sheets[s].name.compare(sheetName, Qt::CaseInsensitive) == 0 && usableSheet(s)) {
-                *sheet = s;
-                *range = r;
-                return true;
-            }
-        break;
-    }
-    return false;
+    return pivotNameSource(*m_book->book, nameText, sheet, range);
 }
 
 bool EditSession::parsePivotSource(const QString &where, int defaultSheet, int *sheet, CellRange *range, QString *name, QString *why) const

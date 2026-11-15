@@ -631,7 +631,7 @@ private Q_SLOTS:
         // Month from the Columns box to the Rows box: sent as a drop on the box
         auto *rows = pane->box(2);
         QMimeData mime;
-        mime.setData(QStringLiteral("application/x-jeffcrunch-pivot-field"), QByteArray("B:1:0"));
+        mime.setData(QStringLiteral("application/x-jeffcrunch-pivot-field"), (pane->dragId() + QStringLiteral("|B:1:0")).toUtf8());
         QDropEvent drop(QPointF(5, rows->viewport()->height() - 2), Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
         const QPoint at(5, rows->viewport()->height() - 2);
         QDragEnterEvent enter(at, Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
@@ -644,27 +644,31 @@ private Q_SLOTS:
         QCOMPARE(pane->box(2)->count(), 2);
         QCOMPARE(pane->box(2)->item(1)->text(), QStringLiteral("Month"));
         // Month to the top of its box
-        QVERIFY(pane->dropOn(2, QStringLiteral("B:2:1"), 0));
+        QVERIFY(pane->dropOn(2, pane->dragId() + QStringLiteral("|B:2:1"), 0));
         finish(e);
         QCOMPARE(s->undoStack()->count(), steps + 2);
         QCOMPARE(pane->box(2)->item(0)->text(), QStringLiteral("Month"));
         // a drop where it came from changes nothing
-        QVERIFY(!pane->dropOn(2, QStringLiteral("B:2:0"), 0));
+        QVERIFY(!pane->dropOn(2, pane->dragId() + QStringLiteral("|B:2:0"), 0));
         QCOMPARE(s->undoStack()->count(), steps + 2);
         // a field of the list to the filters: Amount is in the values already, so it moves there
-        QVERIFY(pane->dropOn(0, QStringLiteral("F:2"), -1));
+        QVERIFY(pane->dropOn(0, pane->dragId() + QStringLiteral("|F:2"), -1));
         finish(e);
         QCOMPARE(s->undoStack()->count(), steps + 3);
         QCOMPARE(pane->box(0)->count(), 1);
         QCOMPARE(pane->box(3)->count(), 0);
         // a bad drop is refused
-        QVERIFY(!pane->dropOn(1, QStringLiteral("F:9"), -1));
-        QVERIFY(!pane->dropOn(7, QStringLiteral("F:0"), -1));
+        QVERIFY(!pane->dropOn(1, pane->dragId() + QStringLiteral("|F:9"), -1));
+        QVERIFY(!pane->dropOn(7, pane->dragId() + QStringLiteral("|F:0"), -1));
         QVERIFY(!pane->dropOn(1, QStringLiteral("junk"), -1));
+        // a drop from another pane (its id is another) is refused, and so is one with no id
+        QVERIFY(!pane->dropOn(1, QStringLiteral("jc-pivot-1|F:0"), -1));
+        QVERIFY(!pane->dropOn(1, QStringLiteral("F:0"), -1));
+        QCOMPARE(s->undoStack()->count(), steps + 3);
         // a field taken out, then dragged back from the list to the values: it is totaled
         pane->checkField(2, false);
         finish(e);
-        QVERIFY(pane->dropOn(3, QStringLiteral("F:2"), -1));
+        QVERIFY(pane->dropOn(3, pane->dragId() + QStringLiteral("|F:2"), -1));
         finish(e);
         QCOMPARE(pane->box(3)->count(), 1);
         while (s->undoStack()->count() > steps && s->undoStack()->canUndo()) {
@@ -674,8 +678,8 @@ private Q_SLOTS:
         QCOMPARE(pivotShown(e), QStringLiteral("Sum of Amount|Month||\nRegion|Jan|Feb|Grand Total\nEast|15|20|35\nWest|7|7|14\nGrand Total|22|27|49"));
     }
 
-    // A pivot table made from a table, and rows put in under the table: Refresh reads them, since the table grew with them.
-    void aRefreshReadsRowsAddedBelowATableSource()
+    // A regression test (the code was there before): a pivot table made from a table, and rows put in under the table: Refresh reads them, since the table grew with them.
+    void aRefreshReadsRowsAddedBelowATableSourceAsItDidBefore()
     {
         EditWindow e;
         QVERIFY(e.open(pivotWorkbook()));
@@ -724,6 +728,58 @@ private Q_SLOTS:
         QVERIFY(s->refreshAllPivots().ok);
         finish(e);
         QVERIFY(pivotShown(e, QStringLiteral("J10:K16")).contains(QStringLiteral("Grand Total|58")));
+    }
+
+    // A field that is in the values already is dropped on the values: a second value field is made (Sum of Amount, then Count of Amount), as one step of Undo.
+    void aFieldInTheValuesDroppedOnTheValuesAddsAnotherValue()
+    {
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook()));
+        crunch::EditSession *s = e.win.w.session();
+        e.select(QStringLiteral("F5"));
+        e.win.w.act(QStringLiteral("pivot.fieldList"))->trigger();
+        PivotFieldsPane *pane = e.win.w.pivotPane();
+        QVERIFY(pane);
+        const int steps = s->undoStack()->count();
+        QVERIFY(pane->dropOn(3, pane->dragId() + QStringLiteral("|F:2"), -1));
+        finish(e);
+        QCOMPARE(s->undoStack()->count(), steps + 1);
+        QCOMPARE(pane->box(3)->count(), 2);
+        QCOMPARE(pane->box(3)->item(0)->text(), QStringLiteral("Sum of Amount"));
+        QCOMPARE(pane->box(3)->item(1)->text(), QStringLiteral("Count of Amount"));
+        s->undoStack()->undo();
+        finish(e);
+        QCOMPARE(pane->box(3)->count(), 1);
+    }
+
+    // The pane shows a table that was changed by something else since (a change made without the pane): the pane is shown again, and the drop or the button does nothing.
+    void aPaneThatShowsAnOlderTableDoesNothingAndIsShownAgain()
+    {
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook()));
+        crunch::EditSession *s = e.win.w.session();
+        e.select(QStringLiteral("F5"));
+        e.win.w.act(QStringLiteral("pivot.fieldList"))->trigger();
+        PivotFieldsPane *pane = e.win.w.pivotPane();
+        QVERIFY(pane);
+        QSignalSpy stale(pane, &PivotFieldsPane::stale);
+        // the table is another by now (the window gives the stamp of the table as it is): the drop and the button do nothing, and the pane asks to be shown again
+        const auto realStamp = [&] { return quintptr(s->workbook()->pivots().table(0).table.get()); };
+        pane->setCurrentStamp([&] { return realStamp() + 8; });
+        const int steps = s->undoStack()->count();
+        QVERIFY(pane->dropOn(0, pane->dragId() + QStringLiteral("|B:1:0"), -1));
+        QCOMPARE(s->undoStack()->count(), steps);
+        QCOMPARE(stale.count(), 1);
+        QVERIFY(pane->select(2, 0));
+        pane->removeSelected();
+        QCOMPARE(s->undoStack()->count(), steps);
+        QCOMPARE(stale.count(), 2);
+        // as it is now, the same drop is done
+        pane->setCurrentStamp(realStamp);
+        QVERIFY(pane->dropOn(0, pane->dragId() + QStringLiteral("|B:1:0"), -1));
+        finish(e);
+        QCOMPARE(s->undoStack()->count(), steps + 1);
+        QCOMPARE(stale.count(), 2);
     }
 
     // Value Field Settings: a value shown as a share of the total, or against another item, with a number format of its own; the cells take the format, one step of Undo each, and the saved

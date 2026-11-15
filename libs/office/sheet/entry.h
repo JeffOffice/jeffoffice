@@ -51,6 +51,11 @@ bool isFormulaEntry(const QString &typed, const EntryOptions &options = EntryOpt
 // file format (without it the other programs take the name for a function of someone's own: STDEV.S is _xlfn.STDEV.S in a file). Text in quotes, names of sheets, and names a function
 // does not have are left as they are. Reading a formula back for a person (displayFormula in grid/text.h) takes the prefixes away.
 QString toFileFormula(const QString &typed);
+// The mark @ (one value of a block, the old rule of implicit intersection) and the function a file writes for it, _xlfn.SINGLE(...): `AtToCall` turns "@A1:A3" into "SINGLE(A1:A3)" (typed text, before the
+// prefix is put on), `CallToAt` turns the call back into the mark (for a person to read), and `CallDropped` takes the call away (a copy as .xls or .ods, which have no such function: the formula there
+// works by the old rule as it is).
+enum class SingleMode { AtToCall, CallToAt, CallDropped };
+QString singleCalls(const QString &s, SingleMode mode);
 // The names (in capitals, sorted) of the functions that the file format writes with the prefix _xlfn. (those added after the format's first edition): what toFileFormula puts it before, whether or not
 // this program has the function. FILTER and SORT are written with _xlfn._xlws.
 const QStringList &prefixedFunctionNames();

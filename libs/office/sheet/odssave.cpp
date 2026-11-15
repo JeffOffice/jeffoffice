@@ -10,6 +10,7 @@
 #include "io/zip.h"
 #include "odt/odtcommon.h"
 #include "sheet/drawing.h"
+#include "sheet/entry.h"
 #include "sheet/odsdraw.h"
 #include "sheet/odsformat.h"
 #include "sheet/headerfooter.h"
@@ -1274,7 +1275,7 @@ private:
             // (an array too large for the copy: its value only; counted when it was found)
         } else if (c.hasFormula() && !(c.flags & DataTable)) {
             QString f;
-            const QString text = sheet.formulaText(c);
+            const QString text = singleCalls(sheet.formulaText(c), SingleMode::CallDropped);   // (no such call there: the old rule is what a formula has)
             if (text.isEmpty() || !toOpenFormula(text, &f)) {
                 ++m_reasons[text.isEmpty() ? QStringLiteral("no text") : QStringLiteral("a reference or name OpenFormula cannot say")];
                 ++m_formulasAsValues;

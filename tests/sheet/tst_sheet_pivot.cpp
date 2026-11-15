@@ -3,6 +3,7 @@
 #include "sheethelpers.h"
 
 #include "sheet/pivot.h"
+#include "sheet/pivotbook.h"
 #include "sheet/pivotformula.h"
 #include "sheet/slicer.h"
 #include "../timing.h"
@@ -128,6 +129,36 @@ class SheetPivotTests : public QObject {
     Q_OBJECT
 
 private Q_SLOTS:
+    // The data of a pivot table named by a table or by a defined name (the code the refresh and the checking tool share): a table without its totals row, a name of a range, a name of a name, a name that
+    // names itself or another that names it back (ends), and what is not there.
+    void aPivotSourceNamedByATableOrANameIsFound()
+    {
+        const QString table = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<table xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" id=\"1\" name=\"Sales\" "
+                                             "displayName=\"Sales\" ref=\"E1:F4\" totalsRowCount=\"1\"><autoFilter ref=\"E1:F3\"/><tableColumns count=\"2\"><tableColumn id=\"1\" name=\"A\"/><tableColumn id=\"2\" name=\"B\"/></tableColumns></table>");
+        const QString names = QStringLiteral("<definedName name=\"Data\">Sheet1!$A$1:$C$5</definedName><definedName name=\"Alias\">Data</definedName><definedName name=\"Self\">Self</definedName>"
+                                             "<definedName name=\"Loop1\">Loop2</definedName><definedName name=\"Loop2\">Loop1</definedName><definedName name=\"Nowhere\">Other!$A$1:$B$2</definedName>"
+                                             "<definedName name=\"Cell\">Sheet1!$A$1</definedName>");
+        const QByteArray bytes = withTables(buildXlsx({worksheet(QString()), worksheet(QString())}, QByteArray(), QString(), QString(), QByteArray(), QStringList(), names), {table});
+        Package package;
+        Workbook book;
+        QString why;
+        QVERIFY(package.readLazy(bytes, &why) && book.open(package, &why));
+        int sheet = -1;
+        CellRange r;
+        QVERIFY(pivotNameSource(book, QStringLiteral("data"), &sheet, &r));
+        QCOMPARE(sheet, 0);
+        QCOMPARE(rangeName(r), QStringLiteral("A1:C5"));
+        QVERIFY(pivotNameSource(book, QStringLiteral("Alias"), &sheet, &r));
+        QCOMPARE(rangeName(r), QStringLiteral("A1:C5"));
+        QVERIFY(pivotNameSource(book, QStringLiteral("Sales"), &sheet, &r));
+        QCOMPARE(rangeName(r), QStringLiteral("E1:F3"));   // (the totals row is not data)
+        QVERIFY(pivotNameSource(book, QStringLiteral("Cell"), &sheet, &r));
+        QVERIFY(!pivotNameSource(book, QStringLiteral("Self"), &sheet, &r));
+        QVERIFY(!pivotNameSource(book, QStringLiteral("Loop1"), &sheet, &r));
+        QVERIFY(!pivotNameSource(book, QStringLiteral("Nowhere"), &sheet, &r));
+        QVERIFY(!pivotNameSource(book, QStringLiteral("Missing"), &sheet, &r));
+    }
+
     // A table with the months across: a label for each region and month, the sum in each cell, a total for each region, and a grand total.
     void aTableIsWorkedOutFromItsCache()
     {

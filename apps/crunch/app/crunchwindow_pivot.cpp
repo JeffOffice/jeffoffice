@@ -1241,6 +1241,14 @@ void CrunchWindow::showPivotFields(bool show)
             m_pivotShown = nullptr;
             updatePivotTab();
         });
+        m_pivotPane->setCurrentStamp([this]() -> quintptr {
+            if (!m_session || m_pivotShownIndex < 0 || m_pivotShownIndex >= m_session->workbook()->pivots().tableCount()) return 0;
+            return quintptr(m_session->workbook()->pivots().table(m_pivotShownIndex).table.get());
+        });
+        connect(m_pivotPane, &PivotFieldsPane::stale, this, [this] {
+            m_pivotShown = nullptr;
+            updatePivotTab();
+        });
         connect(m_pivotPane, &PivotFieldsPane::valueSettingsRequested, this, [this](int i) { askValueField(i); });
         connect(m_pivotPane, &PivotFieldsPane::fieldSelectionChanged, this, [this] { updatePivotFieldActions(); });
         connect(m_pivotPane, &PivotFieldsPane::fieldSettingsRequested, this, [this](int f) { askFieldSettings(f); });

@@ -1,11 +1,54 @@
 #include "sheet/pivotbook.h"
 
 #include "office/package.h"
+#include "sheet/sheetreader.h"
+#include "sheet/tables.h"
 
 #include <QDateTime>
 #include <QIODevice>
 
 namespace jp::office::sheet {
+
+bool pivotNameSource(const Workbook &book, const QString &name, int *sheet, CellRange *range, int depth)
+{
+    if (depth > 8) return false;
+    const auto &sheets = book.info().sheets;
+    auto usable = [&](int s) { return s >= 0 && s < sheets.size() && !sheets[s].deleted && sheets[s].kind == SheetKind::Worksheet; };
+    for (const Table &t : book.tables())
+        if (t.name.compare(name, Qt::CaseInsensitive) == 0) {
+            *sheet = t.sheet;
+            range->valid = true;
+            range->row1 = t.row1;
+            range->col1 = t.col1;
+            range->row2 = t.totalsRows > 0 ? t.row2 - 1 : t.row2;
+            range->col2 = t.col2;
+            return usable(t.sheet);
+        }
+    for (const DefinedName &n : book.info().definedNames) {
+        if (n.name.compare(name, Qt::CaseInsensitive) != 0) continue;
+        const int bang = n.ref.lastIndexOf(QLatin1Char('!'));
+        if (bang <= 0) {
+            // (a name that stands for another name)
+            QString next = n.ref.trimmed();
+            if (next.startsWith(QLatin1Char('='))) next = next.mid(1).trimmed();
+            return !next.isEmpty() && next.compare(name, Qt::CaseInsensitive) != 0 && pivotNameSource(book, next, sheet, range, depth + 1);
+        }
+        QString sheetName = n.ref.left(bang);
+        if (sheetName.startsWith(QLatin1Char('\'')) && sheetName.endsWith(QLatin1Char('\'')) && sheetName.size() > 1) sheetName = sheetName.mid(1, sheetName.size() - 2).replace(QLatin1String("''"), QLatin1String("'"));
+        QString ref = n.ref.mid(bang + 1);
+        ref.remove(QLatin1Char('$'));
+        CellRange r;
+        if (!parseRangeRef(ref, &r)) return false;
+        for (int s = 0; s < sheets.size(); ++s)
+            if (!sheets[s].deleted && sheets[s].name.compare(sheetName, Qt::CaseInsensitive) == 0 && usable(s)) {
+                *sheet = s;
+                *range = r;
+                return true;
+            }
+        return false;
+    }
+    return false;
+}
 
 namespace {
 qint64 gTableLimit = 0, gDefinitionLimit = 0, gRecordsLimit = 0;

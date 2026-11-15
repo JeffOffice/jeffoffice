@@ -122,6 +122,16 @@ std::shared_ptr<EditSession::SortPlan> EditSession::planSort(int sheet, const Ce
     // the cells that cannot be moved
     QString bad;
     s.cells.forEachInRange(plan->data.row1, plan->data.col1, plan->data.row2, plan->data.col2, [&](quint32 cellRow, quint32 cellCol, const Cell &c) {
+        // (a block that the sort touches only in part, its formula's cell outside the cells sorted, is cut: nothing is sorted)
+        if (c.flags & (SpillFormula | SpillMember)) {
+            CellRange block;
+            if (c.flags & SpillMember) calc->isSpillMember(sheet, cellRow, cellCol, &block);
+            else block = calc->spillBlock(sheet, cellRow, cellCol);
+            if (block.valid && (block.row1 < plan->data.row1 || block.row1 > plan->data.row2 || block.col1 < plan->data.col1 || block.col1 > plan->data.col2)) {
+                bad = tr("%1 is part of an array or a data table, so the cells can't be moved. Nothing was sorted.").arg(cellName(cellRow, cellCol));
+                return false;
+            }
+        }
         // (a formula that spills moves as any formula; the cells it fills are not its own to move: they are filled again where it lands)
         if ((c.flags & (ArrayFormula | ArrayMember | DataTable)) && !(c.flags & (SpillFormula | SpillMember))) {
             bad = tr("%1 is part of an array or a data table, so the cells can't be moved. Nothing was sorted.").arg(cellName(cellRow, cellCol));
