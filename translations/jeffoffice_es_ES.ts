@@ -15,7 +15,7 @@
         <translation type="unfinished">El fichero de títulos es demasiado grande (el máximo es %1 MB).</translation>
     </message>
     <message>
-        <source>This isn't a WebVTT caption file. It should start with the word WEBVTT.</source>
+        <source>This isn&apos;t a WebVTT caption file. It should start with the word WEBVTT.</source>
         <translation type="unfinished">Este no es un fichero de títulos WebVTT. Debe empezar con la palabra WEBVTT.</translation>
     </message>
     <message>
@@ -34,11 +34,11 @@
         <translation type="unfinished">Fichero o página web existente</translation>
     </message>
     <message>
-        <source>Before a save writes over a file, keeps the file as it was, as "Backup of" and its name, in the same folder.</source>
+        <source>Before a save writes over a file, keeps the file as it was, as &quot;Backup of&quot; and its name, in the same folder.</source>
         <translation type="unfinished">Antes de que un guardado sobrescriba un fichero, conserva el fichero tal como estaba, con el nombre «Copia de» seguido de su nombre, en la misma carpeta.</translation>
     </message>
     <message>
-        <source>Once a day, and the day it's updated: JeffPub's version, your operating system and language, and how often each command is used. Never your files, their names, or anything in them.</source>
+        <source>Once a day, and the day it&apos;s updated: JeffPub&apos;s version, your operating system and language, and how often each command is used. Never your files, their names, or anything in them.</source>
         <translation type="unfinished">Una vez al día, y el día en que se actualiza: la versión de JeffPub, su sistema operativo e idioma, y la frecuencia de uso de cada comando. Nunca sus ficheros, sus nombres ni su contenido.</translation>
     </message>
     <message>
@@ -69,15 +69,15 @@
 <context>
     <name>Export</name>
     <message>
-        <source>Your printer's color profile (an .icc file)</source>
+        <source>Your printer&apos;s color profile (an .icc file)</source>
         <translation type="unfinished">El perfil de color de su impresora (un fichero .icc)</translation>
     </message>
     <message>
-        <source>the download isn't the file expected</source>
+        <source>the download isn&apos;t the file expected</source>
         <translation type="unfinished">la descarga no es el fichero esperado</translation>
     </message>
     <message>
-        <source>charts were saved as pictures, so their data can't be edited in a .pub file</source>
+        <source>charts were saved as pictures, so their data can&apos;t be edited in a .pub file</source>
         <translation type="unfinished">los gráficos se guardaron como imágenes, por lo que sus datos no se pueden editar en un fichero .pub</translation>
     </message>
 </context>
@@ -98,7 +98,7 @@
 <context>
     <name>FontFile</name>
     <message>
-        <source>The font's table directory runs past the end of the file.</source>
+        <source>The font&apos;s table directory runs past the end of the file.</source>
         <translation type="unfinished">El directorio de tablas de la fuente sobrepasa el final del fichero.</translation>
     </message>
     <message>
@@ -109,11 +109,11 @@
 <context>
     <name>HeaderFooterEditor</name>
     <message>
-        <source>The picture's file could not be opened.</source>
+        <source>The picture&apos;s file could not be opened.</source>
         <translation type="unfinished">No se pudo abrir el fichero de la imagen.</translation>
     </message>
     <message>
-        <source>That picture's file is larger than a header can hold.</source>
+        <source>That picture&apos;s file is larger than a header can hold.</source>
         <translation type="unfinished">El fichero de esa imagen es demasiado grande para un encabezado.</translation>
     </message>
     <message>
@@ -124,7 +124,7 @@
 <context>
     <name>Help</name>
     <message>
-        <source>This is %1's built-in Help, as web pages. In the program, press **F1** at any time for help on what you're doing, or type in Help's search box to find a topic or a command to run.</source>
+        <source>This is %1&apos;s built-in Help, as web pages. In the program, press **F1** at any time for help on what you&apos;re doing, or type in Help&apos;s search box to find a topic or a command to run.</source>
         <translation type="unfinished">Esta es la Ayuda integrada de %1, en forma de páginas web. En el programa, pulse **F1** en cualquier momento para obtener ayuda sobre lo que está haciendo, o escriba en el cuadro de búsqueda de la Ayuda para encontrar un tema o un comando que ejecutar.</translation>
     </message>
 </context>
@@ -156,7 +156,7 @@ Open them with your email program to send.</source>
         </translation>
     </message>
     <message>
-        <source>The file couldn't be protected with the password.</source>
+        <source>The file couldn&apos;t be protected with the password.</source>
         <translation type="unfinished">No se pudo proteger el fichero con la contraseña.</translation>
     </message>
     <message>
@@ -168,7 +168,7 @@ Open them with your email program to send.</source>
         <translation type="unfinished">Este no es un fichero de publicación .pub.</translation>
     </message>
     <message>
-        <source>JeffPub can't read this version of .pub file.</source>
+        <source>JeffPub can&apos;t read this version of .pub file.</source>
         <translation type="unfinished">JeffPub no puede leer esta versión de fichero .pub.</translation>
     </message>
     <message>
@@ -180,7 +180,7 @@ Open them with your email program to send.</source>
         <translation type="unfinished">El fichero .pub está dañado.</translation>
     </message>
     <message>
-        <source>JeffPub could not read this .pub file. It may be damaged or use features that aren't supported yet.</source>
+        <source>JeffPub could not read this .pub file. It may be damaged or use features that aren&apos;t supported yet.</source>
         <translation type="unfinished">JeffPub no pudo leer este fichero .pub. Puede estar dañado o usar características que aún no se admiten.</translation>
     </message>
     <message>
@@ -192,34 +192,34 @@ Open them with your email program to send.</source>
         <translation type="unfinished">El fichero no es una publicación de %1 (no tiene directorio ZIP).</translation>
     </message>
     <message>
-        <source>The publication's file directory is damaged.</source>
+        <source>The publication&apos;s file directory is damaged.</source>
         <translation type="unfinished">El directorio de ficheros de la publicación está dañado.</translation>
     </message>
 </context>
 <context>
     <name>LinkedMedia</name>
     <message>
-        <source>This linked file is not a movie, so it isn't played.</source>
+        <source>This linked file is not a movie, so it isn&apos;t played.</source>
         <translation type="unfinished">Este fichero vinculado no es una película, así que no se reproduce.</translation>
     </message>
     <message>
-        <source>This linked file is not a sound, so it isn't played.</source>
+        <source>This linked file is not a sound, so it isn&apos;t played.</source>
         <translation type="unfinished">Este fichero vinculado no es un sonido, así que no se reproduce.</translation>
     </message>
     <message>
-        <source>This linked movie can't be read (it is missing, a link or special file, or not allowed to be read), so it isn't played.</source>
+        <source>This linked movie can&apos;t be read (it is missing, a link or special file, or not allowed to be read), so it isn&apos;t played.</source>
         <translation type="unfinished">Esta película vinculada no se puede leer (falta, es un vínculo o un fichero especial, o no se permite leerla), así que no se reproduce.</translation>
     </message>
     <message>
-        <source>This linked sound can't be read (it is missing, a link or special file, or not allowed to be read), so it isn't played.</source>
+        <source>This linked sound can&apos;t be read (it is missing, a link or special file, or not allowed to be read), so it isn&apos;t played.</source>
         <translation type="unfinished">Este sonido vinculado no se puede leer (falta, es un vínculo o un fichero especial, o no se permite leerlo), así que no se reproduce.</translation>
     </message>
     <message>
-        <source>This movie is linked to a file that is not on this computer, is not allowed, or is not a movie file, so it isn't played.</source>
+        <source>This movie is linked to a file that is not on this computer, is not allowed, or is not a movie file, so it isn&apos;t played.</source>
         <translation type="unfinished">Esta película está vinculada a un fichero que no está en este equipo, no está permitido o no es un fichero de película, así que no se reproduce.</translation>
     </message>
     <message>
-        <source>This sound is linked to a file that is not on this computer, is not allowed, or is not a sound file, so it isn't played.</source>
+        <source>This sound is linked to a file that is not on this computer, is not allowed, or is not a sound file, so it isn&apos;t played.</source>
         <translation type="unfinished">Este sonido está vinculado a un fichero que no está en este equipo, no está permitido o no es un fichero de sonido, así que no se reproduce.</translation>
     </message>
     <message>
@@ -238,14 +238,14 @@ Open them with your email program to send.</source>
 <context>
     <name>MainWindow</name>
     <message>
-        <source>choose your printer's color profile (an .icc file) first</source>
+        <source>choose your printer&apos;s color profile (an .icc file) first</source>
         <translation type="unfinished">elija primero el perfil de color de su impresora (un fichero .icc)</translation>
     </message>
     <message>
-        <source>A PDF/X-4 file carries the color profile of its printing condition, "%1". The European Color Initiative, which makes it, lets anyone use it and put it in PDFs but not pass it on, so it doesn't come with JeffPub.
+        <source>A PDF/X-4 file carries the color profile of its printing condition, &quot;%1&quot;. The European Color Initiative, which makes it, lets anyone use it and put it in PDFs but not pass it on, so it doesn&apos;t come with JeffPub.
 
 Download it from %2 now? (%3, once.)</source>
-        <translation type="unfinished">Un fichero PDF/X-4 incluye el perfil de color de su condición de impresión, "%1". La European Color Initiative, que lo crea, permite a cualquiera usarlo e incluirlo en ficheros PDF, pero no redistribuirlo, por lo que no se incluye con JeffPub.
+        <translation type="unfinished">Un fichero PDF/X-4 incluye el perfil de color de su condición de impresión, &quot;%1&quot;. La European Color Initiative, que lo crea, permite a cualquiera usarlo e incluirlo en ficheros PDF, pero no redistribuirlo, por lo que no se incluye con JeffPub.
 
 ¿Desea descargarlo ahora desde %2? (%3, una sola vez.)</translation>
     </message>
@@ -268,11 +268,11 @@ Download it from %2 now? (%3, once.)</source>
 <context>
     <name>OdpExport</name>
     <message>
-        <source>diagrams are saved as pictures: their parts can't be edited in this kind of file.</source>
+        <source>diagrams are saved as pictures: their parts can&apos;t be edited in this kind of file.</source>
         <translation type="unfinished">los diagramas se guardan como imágenes: sus partes no se pueden editar en este tipo de fichero.</translation>
     </message>
     <message>
-        <source>Charts are saved as pictures: their data can't be edited in this kind of file.</source>
+        <source>Charts are saved as pictures: their data can&apos;t be edited in this kind of file.</source>
         <translation type="unfinished">Los gráficos se guardan como imágenes: sus datos no se pueden modificar en este tipo de fichero.</translation>
     </message>
     <message>
@@ -280,11 +280,11 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">No se pudo generar el fichero de presentación.</translation>
     </message>
     <message>
-        <source>There's no file name to save to.</source>
+        <source>There&apos;s no file name to save to.</source>
         <translation type="unfinished">No hay ningún nombre de fichero en el que guardar.</translation>
     </message>
     <message>
-        <source>Effects that start when an object is clicked can't be saved in this kind of file, except those that play a movie or sound.</source>
+        <source>Effects that start when an object is clicked can&apos;t be saved in this kind of file, except those that play a movie or sound.</source>
         <translation type="unfinished">Los efectos que se inician al hacer clic en un objeto no se pueden guardar en este tipo de fichero, salvo los que reproducen un vídeo o un sonido.</translation>
     </message>
     <message>
@@ -292,7 +292,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">%1: se omitieron efectos de animación sin equivalente en este tipo de fichero.</translation>
     </message>
     <message>
-        <source>Sections can't be saved in this kind of file.</source>
+        <source>Sections can&apos;t be saved in this kind of file.</source>
         <translation type="unfinished">Las secciones no se pueden guardar en este tipo de fichero.</translation>
     </message>
     <message>
@@ -300,7 +300,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Los títulos de un vídeo no se conservan en un fichero de presentación de documento, así que se omitieron.</translation>
     </message>
     <message>
-        <source>Inner shadows can't be saved in this kind of file.</source>
+        <source>Inner shadows can&apos;t be saved in this kind of file.</source>
         <translation type="unfinished">Las sombras interiores no se pueden guardar en este tipo de fichero.</translation>
     </message>
 </context>
@@ -311,7 +311,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Falta la parte en el fichero.</translation>
     </message>
     <message>
-        <source>The slide size in the file can't be used, so the slides are 13.333 by 7.5 inches.</source>
+        <source>The slide size in the file can&apos;t be used, so the slides are 13.333 by 7.5 inches.</source>
         <translation type="unfinished">No se puede usar el tamaño de diapositiva del fichero, por lo que las diapositivas miden 13,333 por 7,5 pulgadas.</translation>
     </message>
     <message>
@@ -347,7 +347,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Se omitieron los objetos incrustados que no son gráficos: el fichero no guarda ninguna imagen de ellos que JeffDeck pueda mostrar.</translation>
     </message>
     <message>
-        <source>Pictures that are not in the file, or that JeffDeck can't read, were left out.</source>
+        <source>Pictures that are not in the file, or that JeffDeck can&apos;t read, were left out.</source>
         <translation type="unfinished">Se omitieron las imágenes que no están en el fichero o que JeffDeck no puede leer.</translation>
     </message>
     <message>
@@ -366,11 +366,11 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">El fichero está dañado o no es un paquete del tipo que abre este programa.</translation>
     </message>
     <message>
-        <source>The file's [Content_Types].xml is damaged.</source>
+        <source>The file&apos;s [Content_Types].xml is damaged.</source>
         <translation type="unfinished">El [Content_Types].xml del fichero está dañado.</translation>
     </message>
     <message>
-        <source>A part that holds the file's relationships, %1, is damaged.</source>
+        <source>A part that holds the file&apos;s relationships, %1, is damaged.</source>
         <translation type="unfinished">Una parte que contiene las relaciones del fichero, %1, está dañada.</translation>
     </message>
     <message>
@@ -382,7 +382,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">El fichero no tiene [Content_Types].xml, por lo que no es un paquete.</translation>
     </message>
     <message>
-        <source>The file couldn't be opened: %1</source>
+        <source>The file couldn&apos;t be opened: %1</source>
         <translation type="unfinished">No se pudo abrir el fichero: %1</translation>
     </message>
 </context>
@@ -400,26 +400,26 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Este fichero no contiene ninguna presentación.</translation>
     </message>
     <message>
-        <source>The slide size in the file can't be used, so the slides are 13.333 by 7.5 inches.</source>
+        <source>The slide size in the file can&apos;t be used, so the slides are 13.333 by 7.5 inches.</source>
         <translation type="unfinished">No se puede usar el tamaño de diapositiva del fichero, por lo que las diapositivas miden 13,333 por 7,5 pulgadas.</translation>
     </message>
     <message>
-        <source>A slide master was left out: it can't be found in the file.</source>
+        <source>A slide master was left out: it can&apos;t be found in the file.</source>
         <translation type="unfinished">Se omitió un patrón de diapositivas: no se encuentra en el fichero.</translation>
     </message>
     <message>
-        <source>Slide %1 was left out: it can't be found in the file.</source>
+        <source>Slide %1 was left out: it can&apos;t be found in the file.</source>
         <translation type="unfinished">Se omitió la diapositiva %1: no se encuentra en el fichero.</translation>
     </message>
 </context>
 <context>
     <name>PptxExport</name>
     <message>
-        <source>%1: a chart, embedded object, or other frame that refers to parts of the file that aren't kept was left out.</source>
+        <source>%1: a chart, embedded object, or other frame that refers to parts of the file that aren&apos;t kept was left out.</source>
         <translation type="unfinished">%1: se omitió un gráfico, un objeto incrustado u otro marco que hace referencia a partes del fichero que no se conservan.</translation>
     </message>
     <message>
-        <source>%1: the %2 uses a sound or other part of the file that isn't kept, and was left out.</source>
+        <source>%1: the %2 uses a sound or other part of the file that isn&apos;t kept, and was left out.</source>
         <translation type="unfinished">%1: se omitió un elemento (%2) que usa un sonido u otra parte del fichero que no se conserva.</translation>
     </message>
     <message>
@@ -435,26 +435,26 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">No se pudo componer el fichero de presentación.</translation>
     </message>
     <message>
-        <source>The password couldn't be put on the file.</source>
+        <source>The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">No se pudo poner la contraseña en el fichero.</translation>
     </message>
     <message>
-        <source>There's no file name to save to.</source>
+        <source>There&apos;s no file name to save to.</source>
         <translation type="unfinished">No hay ningún nombre de fichero en el que guardar.</translation>
     </message>
 </context>
 <context>
     <name>PptxFonts</name>
     <message>
-        <source>An embedded font in the file can't be used: %1</source>
+        <source>An embedded font in the file can&apos;t be used: %1</source>
         <translation type="unfinished">No se puede usar una fuente incrustada del fichero: %1</translation>
     </message>
     <message>
-        <source>%1 embedded fonts in the file can't be used: %2</source>
+        <source>%1 embedded fonts in the file can&apos;t be used: %2</source>
         <translation type="unfinished">No se pueden usar %1 fuentes incrustadas del fichero: %2</translation>
     </message>
     <message numerus="yes">
-        <source>%n embedded font(s) in the file can't be used.</source>
+        <source>%n embedded font(s) in the file can&apos;t be used.</source>
         <translation type="unfinished">
             <numerusform>No se puede usar %n fuente incrustada en el fichero.</numerusform>
             <numerusform>No se pueden usar %n fuentes incrustadas en el fichero.</numerusform>
@@ -516,7 +516,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">El fichero contiene más de %1 diagramas, o diagramas generados a partir de más de %2 MB en total; el resto se conserva tal cual, pero no se muestra.</translation>
     </message>
     <message>
-        <source>The slide size in the file can't be used, so the slides are 13.333 by 7.5 inches.</source>
+        <source>The slide size in the file can&apos;t be used, so the slides are 13.333 by 7.5 inches.</source>
         <translation type="unfinished">No se puede usar el tamaño de diapositiva del fichero, por lo que las diapositivas miden 13,333 por 7,5 pulgadas.</translation>
     </message>
     <message>
@@ -528,7 +528,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Se ha omitido la diapositiva %1: el fichero no indica ninguna parte para ella.</translation>
     </message>
     <message>
-        <source>This file is in an older format, which %1 can't open yet.</source>
+        <source>This file is in an older format, which %1 can&apos;t open yet.</source>
         <translation type="unfinished">Este fichero está en un formato anterior, que %1 todavía no puede abrir.</translation>
     </message>
     <message>
@@ -539,7 +539,7 @@ Download it from %2 now? (%3, once.)</source>
 <context>
     <name>PresentationFile</name>
     <message>
-        <source>An .odp file can't hold a password yet.</source>
+        <source>An .odp file can&apos;t hold a password yet.</source>
         <translation type="unfinished">Un fichero .odp todavía no puede tener contraseña.</translation>
     </message>
     <message>
@@ -551,15 +551,15 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Se han omitido %1 imágenes: son demasiado grandes o complejas para mostrarlas, o se generarían a partir de contenido externo al fichero.</translation>
     </message>
     <message>
-        <source>One part of the file has a name or a link that can't be used, and was left out.</source>
+        <source>One part of the file has a name or a link that can&apos;t be used, and was left out.</source>
         <translation type="unfinished">Una parte del fichero tiene un nombre o un vínculo que no se puede usar y se ha omitido.</translation>
     </message>
     <message>
-        <source>%1 parts of the file have names or links that can't be used, and were left out.</source>
+        <source>%1 parts of the file have names or links that can&apos;t be used, and were left out.</source>
         <translation type="unfinished">%1 partes del fichero tienen nombres o vínculos que no se pueden usar y se han omitido.</translation>
     </message>
     <message>
-        <source>The file can't be opened: %1</source>
+        <source>The file can&apos;t be opened: %1</source>
         <translation type="unfinished">No se puede abrir el fichero: %1</translation>
     </message>
 </context>
@@ -583,11 +583,11 @@ Download it from %2 now? (%3, once.)</source>
 <context>
     <name>Sheet</name>
     <message>
-        <source>Part of the file has more settings on one item than any real file has, so it can't be read.</source>
+        <source>Part of the file has more settings on one item than any real file has, so it can&apos;t be read.</source>
         <translation type="unfinished">Una parte del fichero tiene más opciones en un elemento que cualquier fichero real, por lo que no se puede leer.</translation>
     </message>
     <message>
-        <source>Part of the file is longer than any real file's, so it can't be read.</source>
+        <source>Part of the file is longer than any real file&apos;s, so it can&apos;t be read.</source>
         <translation type="unfinished">Una parte del fichero es más larga que la de cualquier fichero real, por lo que no se puede leer.</translation>
     </message>
     <message>
@@ -595,7 +595,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">El fichero no está escrito en un formato que este programa pueda leer.</translation>
     </message>
     <message>
-        <source>The file begins with instructions that this program does not allow, so it can't be read.</source>
+        <source>The file begins with instructions that this program does not allow, so it can&apos;t be read.</source>
         <translation type="unfinished">El fichero comienza con instrucciones que este programa no permite, por lo que no se puede leer.</translation>
     </message>
     <message>
@@ -603,11 +603,11 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">El fichero está dañado: no está escrito como debería estarlo un fichero de hoja de cálculo.</translation>
     </message>
     <message>
-        <source>The part is larger than any real file's part, so it is not read.</source>
+        <source>The part is larger than any real file&apos;s part, so it is not read.</source>
         <translation type="unfinished">La parte es mayor que la de cualquier fichero real, por lo que no se lee.</translation>
     </message>
     <message>
-        <source>The file's parts, read together, come to more than this program reads.</source>
+        <source>The file&apos;s parts, read together, come to more than this program reads.</source>
         <translation type="unfinished">Las partes del fichero, en conjunto, superan lo que este programa lee.</translation>
     </message>
     <message>
@@ -671,11 +671,11 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">El libro tiene más hojas que cualquier fichero real.</translation>
     </message>
     <message>
-        <source>A sheet's name is longer than any real file has.</source>
+        <source>A sheet&apos;s name is longer than any real file has.</source>
         <translation type="unfinished">El nombre de una hoja es más largo que en cualquier fichero real.</translation>
     </message>
     <message>
-        <source>The sheet would take more memory to hold than any real file's does.</source>
+        <source>The sheet would take more memory to hold than any real file&apos;s does.</source>
         <translation type="unfinished">La hoja necesitaría más memoria que la de cualquier fichero real.</translation>
     </message>
     <message>
@@ -719,11 +719,11 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Dos hojas del libro comparten una misma parte, algo que no ocurre en ningún fichero real.</translation>
     </message>
     <message>
-        <source>This file is a web page that was saved with an .xls name. This program can't open that kind of file yet.</source>
+        <source>This file is a web page that was saved with an .xls name. This program can&apos;t open that kind of file yet.</source>
         <translation type="unfinished">Este fichero es una página web guardada con extensión .xls. Este programa todavía no puede abrir ese tipo de fichero.</translation>
     </message>
     <message>
-        <source>This file is a spreadsheet written as plain text and saved with an .xls name. This program can't open that kind of file yet.</source>
+        <source>This file is a spreadsheet written as plain text and saved with an .xls name. This program can&apos;t open that kind of file yet.</source>
         <translation type="unfinished">Este fichero es una hoja de cálculo escrita como texto sin formato y guardada con extensión .xls. Este programa todavía no puede abrir ese tipo de fichero.</translation>
     </message>
     <message>
@@ -747,15 +747,15 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Este fichero no es un libro: no empieza como ningún tipo de fichero que abra este programa (.xlsx, .xlsm, .xls, .ods, .csv). Puede estar dañado o tener un nombre incorrecto.</translation>
     </message>
     <message>
-        <source>The file is damaged: it starts like a zip package (.xlsx or .xlsm), but its contents can't be read. It may have been cut short when it was downloaded or copied. If you have the original, copy it again.</source>
+        <source>The file is damaged: it starts like a zip package (.xlsx or .xlsm), but its contents can&apos;t be read. It may have been cut short when it was downloaded or copied. If you have the original, copy it again.</source>
         <translation type="unfinished">El fichero está dañado: empieza como un paquete zip (.xlsx o .xlsm), pero su contenido no se puede leer. Puede que se cortara al descargarlo o copiarlo. Si tiene el original, cópielo de nuevo.</translation>
     </message>
     <message>
-        <source>The file is a zip package in a format this program can't read yet (the zip64 form, for files over 4 GB or with more than 65,535 parts).</source>
+        <source>The file is a zip package in a format this program can&apos;t read yet (the zip64 form, for files over 4 GB or with more than 65,535 parts).</source>
         <translation type="unfinished">El fichero es un paquete zip en un formato que este programa aún no puede leer (la forma zip64, para ficheros de más de 4 GB o con más de 65.535 partes).</translation>
     </message>
     <message>
-        <source>The file is a zip package with a part packed in a way this program can't read yet.</source>
+        <source>The file is a zip package with a part packed in a way this program can&apos;t read yet.</source>
         <translation type="unfinished">El fichero es un paquete zip con una parte comprimida de una forma que este programa aún no puede leer.</translation>
     </message>
     <message>
@@ -783,7 +783,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">El fichero está dañado: %1</translation>
     </message>
     <message>
-        <source>The file is damaged: the workbook in it can't be read.</source>
+        <source>The file is damaged: the workbook in it can&apos;t be read.</source>
         <translation type="unfinished">El fichero está dañado: el libro que contiene no se puede leer.</translation>
     </message>
     <message>
@@ -795,7 +795,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">El fichero no contiene ningún libro.</translation>
     </message>
     <message>
-        <source>The sheet's part is not in the file.</source>
+        <source>The sheet&apos;s part is not in the file.</source>
         <translation type="unfinished">La parte de la hoja no está en el fichero.</translation>
     </message>
     <message>
@@ -807,7 +807,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">El libro tiene más registros que cualquier fichero real.</translation>
     </message>
     <message>
-        <source>A sheet is nested more deeply than any real file's.</source>
+        <source>A sheet is nested more deeply than any real file&apos;s.</source>
         <translation type="unfinished">Una hoja está anidada a más profundidad que en cualquier fichero real.</translation>
     </message>
     <message>
@@ -835,23 +835,23 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">El libro tiene más cadenas que cualquier fichero real.</translation>
     </message>
     <message>
-        <source>The workbook's sheets share data, which no real file's do.</source>
+        <source>The workbook&apos;s sheets share data, which no real file&apos;s do.</source>
         <translation type="unfinished">Las hojas del libro comparten datos, algo que no ocurre en ningún fichero real.</translation>
     </message>
     <message>
-        <source>Two sheets of the workbook share data, which no real file's do.</source>
+        <source>Two sheets of the workbook share data, which no real file&apos;s do.</source>
         <translation type="unfinished">Dos hojas del libro comparten datos, algo que no ocurre en ningún fichero real.</translation>
     </message>
     <message>
-        <source>The sheet is nested more deeply than any real file's.</source>
+        <source>The sheet is nested more deeply than any real file&apos;s.</source>
         <translation type="unfinished">La hoja está anidada a más profundidad que en cualquier fichero real.</translation>
     </message>
     <message>
-        <source>The formulas of the sheet are more work to read than any real file's.</source>
+        <source>The formulas of the sheet are more work to read than any real file&apos;s.</source>
         <translation type="unfinished">Las fórmulas de la hoja son más costosas de leer que las de cualquier fichero real.</translation>
     </message>
     <message>
-        <source>The sheet is larger than any real file's.</source>
+        <source>The sheet is larger than any real file&apos;s.</source>
         <translation type="unfinished">La hoja es más grande que la de cualquier fichero real.</translation>
     </message>
     <message>
@@ -867,15 +867,15 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Este fichero necesita una contraseña: está protegido con contraseña y no se proporcionó ninguna.</translation>
     </message>
     <message>
-        <source>This file is protected in a way this program can't open (not a password, or a kind of protection it does not read).</source>
+        <source>This file is protected in a way this program can&apos;t open (not a password, or a kind of protection it does not read).</source>
         <translation type="unfinished">Este fichero está protegido de una forma que este programa no puede abrir (no es una contraseña o es un tipo de protección que no lee).</translation>
     </message>
     <message>
-        <source>This file's password protection asks for more memory or time than this program allows, so it is not opened.</source>
+        <source>This file&apos;s password protection asks for more memory or time than this program allows, so it is not opened.</source>
         <translation type="unfinished">La protección con contraseña de este fichero requiere más memoria o tiempo del que permite este programa, por lo que no se abre.</translation>
     </message>
     <message>
-        <source>The file is damaged, or it was changed after it was protected: its protected contents can't be read.</source>
+        <source>The file is damaged, or it was changed after it was protected: its protected contents can&apos;t be read.</source>
         <translation type="unfinished">El fichero está dañado o se modificó después de protegerlo: no se puede leer su contenido protegido.</translation>
     </message>
     <message>
@@ -894,8 +894,8 @@ Download it from %2 now? (%3, once.)</source>
 <context>
     <name>Telemetry</name>
     <message>
-        <source>%1 can send anonymous usage statistics once a day (and when it's updated): its version, your operating system and language, and how often each of its commands is used, and if it ever closes unexpectedly, where in the program that happened. That shows how many people use it, which parts matter most, and what to fix first.&lt;br&gt;&lt;br&gt;It never sends your files, their names, or anything in them. &lt;a href="%2"&gt;What's sent&lt;/a&gt;&lt;br&gt;&lt;br&gt;You can change this anytime in File &amp;gt; Options.</source>
-        <translation type="unfinished">%1 puede enviar estadísticas de uso anónimas una vez al día (y cuando se actualiza): su versión, su sistema operativo e idioma, con qué frecuencia se usa cada uno de sus comandos y, si alguna vez se cierra inesperadamente, en qué parte del programa ocurrió. Esto muestra cuántas personas lo usan, qué partes son más importantes y qué corregir primero.&lt;br&gt;&lt;br&gt;Nunca envía sus ficheros, sus nombres ni nada de su contenido. &lt;a href="%2"&gt;Qué se envía&lt;/a&gt;&lt;br&gt;&lt;br&gt;Puede cambiar esto en cualquier momento en Archivo &amp;gt; Opciones.</translation>
+        <source>%1 can send anonymous usage statistics once a day (and when it&apos;s updated): its version, your operating system and language, and how often each of its commands is used, and if it ever closes unexpectedly, where in the program that happened. That shows how many people use it, which parts matter most, and what to fix first.&lt;br&gt;&lt;br&gt;It never sends your files, their names, or anything in them. &lt;a href=&quot;%2&quot;&gt;What&apos;s sent&lt;/a&gt;&lt;br&gt;&lt;br&gt;You can change this anytime in File &amp;gt; Options.</source>
+        <translation type="unfinished">%1 puede enviar estadísticas de uso anónimas una vez al día (y cuando se actualiza): su versión, su sistema operativo e idioma, con qué frecuencia se usa cada uno de sus comandos y, si alguna vez se cierra inesperadamente, en qué parte del programa ocurrió. Esto muestra cuántas personas lo usan, qué partes son más importantes y qué corregir primero.&lt;br&gt;&lt;br&gt;Nunca envía sus ficheros, sus nombres ni nada de su contenido. &lt;a href=&quot;%2&quot;&gt;Qué se envía&lt;/a&gt;&lt;br&gt;&lt;br&gt;Puede cambiar esto en cualquier momento en Archivo &amp;gt; Opciones.</translation>
     </message>
 </context>
 <context>
@@ -905,7 +905,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Este fichero procede de Internet u otro equipo, así que solo se puede abrir para lectura.</translation>
     </message>
     <message>
-        <source>Pictures that are linked to a file instead of kept in the publication. Only a file in the publication's own folder is read when it opens, and no other is ever read.</source>
+        <source>Pictures that are linked to a file instead of kept in the publication. Only a file in the publication&apos;s own folder is read when it opens, and no other is ever read.</source>
         <translation type="unfinished">Imágenes vinculadas a un fichero en lugar de guardadas en la publicación. Solo se lee un fichero de la carpeta propia de la publicación al abrirla; nunca se lee ningún otro.</translation>
     </message>
     <message>
@@ -920,7 +920,7 @@ Download it from %2 now? (%3, once.)</source>
 <context>
     <name>jp::AboutPage</name>
     <message>
-        <source>Once a day, and the day it's updated: %1's version, your operating system and language, and how often each command is used. Never your files, their names, or anything in them.</source>
+        <source>Once a day, and the day it&apos;s updated: %1&apos;s version, your operating system and language, and how often each command is used. Never your files, their names, or anything in them.</source>
         <translation type="unfinished">Una vez al día, y el día en que se actualice: la versión de %1, su sistema operativo e idioma, y la frecuencia con que se usa cada comando. Nunca sus ficheros, sus nombres ni su contenido.</translation>
     </message>
 </context>
@@ -943,7 +943,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Un fichero ISO 19005 (PDF/A-1b) para almacenamiento a largo plazo y presentación ante tribunales o registros: todas las fuentes insertadas, color sRGB estándar, sin transparencia.</translation>
     </message>
     <message>
-        <source>An ISO 15930 file (PDF/X-1a or PDF/X-4), the kind printers and print-on-demand services ask for: every color in ink, fonts embedded, trim and bleed marked. PDF/X-4 keeps transparency and carries the printing condition's color profile.</source>
+        <source>An ISO 15930 file (PDF/X-1a or PDF/X-4), the kind printers and print-on-demand services ask for: every color in ink, fonts embedded, trim and bleed marked. PDF/X-4 keeps transparency and carries the printing condition&apos;s color profile.</source>
         <translation type="unfinished">Un fichero ISO 15930 (PDF/X-1a o PDF/X-4), el tipo que piden las imprentas y los servicios de impresión bajo demanda: todos los colores en tinta, fuentes insertadas, y marcas de corte y sangrado. PDF/X-4 conserva la transparencia e incluye el perfil de color de la condición de impresión.</translation>
     </message>
     <message>
@@ -963,7 +963,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Guarda un fichero .pub para quienes trabajan con publicaciones .pub.</translation>
     </message>
     <message>
-        <source>A commercial press PDF (full-resolution pictures, printer's marks, and bleeds) and the publication file, in one folder.</source>
+        <source>A commercial press PDF (full-resolution pictures, printer&apos;s marks, and bleeds) and the publication file, in one folder.</source>
         <translation type="unfinished">Un PDF para impresión comercial (imágenes con resolución completa, marcas de impresión y sangrados) y el fichero de la publicación, en una sola carpeta.</translation>
     </message>
     <message>
@@ -1012,7 +1012,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Un PDF en el formato diseñado para conservarse durante años, con todas las fuentes incrustadas en el fichero.</translation>
     </message>
     <message>
-        <source>PDF/A is turned off, because a PDF with a password can't be a PDF/A file.</source>
+        <source>PDF/A is turned off, because a PDF with a password can&apos;t be a PDF/A file.</source>
         <translation type="unfinished">PDF/A está desactivado, porque un PDF con contraseña no puede ser un fichero PDF/A.</translation>
     </message>
     <message>
@@ -1048,7 +1048,7 @@ Download it from %2 now? (%3, once.)</source>
     </message>
     <message>
         <source>After pressing Enter, move the selection</source>
-        <translation type="unfinished">Después de pulsar Entrar, mover la selección</translation>
+        <translation>Después de pulsar Entrar, mover la selección</translation>
     </message>
     <message>
         <source>After pressing Enter, move the selection:</source>
@@ -1063,9 +1063,9 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">el fichero</translation>
     </message>
     <message>
-        <source>%1 can't open "%2".
-The file isn't there.</source>
-        <translation type="unfinished">%1 no puede abrir "%2".
+        <source>%1 can&apos;t open &quot;%2&quot;.
+The file isn&apos;t there.</source>
+        <translation type="unfinished">%1 no puede abrir &quot;%2&quot;.
 El fichero no existe.</translation>
     </message>
     <message>
@@ -1089,11 +1089,11 @@ Este fichero está protegido con contraseña. Contraseña:</translation>
         <translation type="unfinished">No se pierde nada de este libro al guardarlo como fichero .xls.</translation>
     </message>
     <message>
-        <source>This workbook is protected with a password, but a copy in this kind of file can't be. The copy you are saving will not be protected: anyone who has it can read it.</source>
+        <source>This workbook is protected with a password, but a copy in this kind of file can&apos;t be. The copy you are saving will not be protected: anyone who has it can read it.</source>
         <translation type="unfinished">Este libro está protegido con contraseña, pero una copia en este tipo de fichero no puede estarlo. La copia que va a guardar no estará protegida: cualquiera que la tenga podrá leerla.</translation>
     </message>
     <message>
-        <source>A .%1 file can't hold macros. The macros of this workbook will not be in the copy you are saving. The workbook open here keeps them.</source>
+        <source>A .%1 file can&apos;t hold macros. The macros of this workbook will not be in the copy you are saving. The workbook open here keeps them.</source>
         <translation type="unfinished">Un fichero .%1 no puede contener macros. Las macros de este libro no estarán en la copia que va a guardar. El libro abierto aquí las conserva.</translation>
     </message>
     <message>
@@ -1101,10 +1101,10 @@ Este fichero está protegido con contraseña. Contraseña:</translation>
         <translation type="unfinished">Puede guardar su trabajo como copia y conservar ambos, o sobrescribir el fichero.</translation>
     </message>
     <message>
-        <source>%1 couldn't save "%2".
+        <source>%1 couldn&apos;t save &quot;%2&quot;.
 %3
 The file that was there is as it was.</source>
-        <translation type="unfinished">%1 no pudo guardar "%2".
+        <translation type="unfinished">%1 no pudo guardar &quot;%2&quot;.
 %3
 El fichero existente no se ha modificado.</translation>
     </message>
@@ -1121,29 +1121,29 @@ El fichero existente no se ha modificado.</translation>
         <translation type="unfinished">Nombre del fichero, página 1 de ?</translation>
     </message>
     <message>
-        <source>This file's password is kept in a form JeffCrunch can't check, so the protection can't be taken off here.</source>
+        <source>This file&apos;s password is kept in a form JeffCrunch can&apos;t check, so the protection can&apos;t be taken off here.</source>
         <translation type="unfinished">La contraseña de este fichero está guardada en un formato que JeffCrunch no puede comprobar, por lo que no se puede quitar la protección aquí.</translation>
     </message>
     <message>
-        <source>This file asks for its password to be checked far more times than any program does when it makes one (more than %1), so JeffCrunch doesn't check it.</source>
+        <source>This file asks for its password to be checked far more times than any program does when it makes one (more than %1), so JeffCrunch doesn&apos;t check it.</source>
         <translation type="unfinished">Este fichero pide comprobar su contraseña muchas más veces de lo que hace cualquier programa al crearla (más de %1), por lo que JeffCrunch no la comprueba.</translation>
     </message>
     <message>
-        <source>%1 can't open "%2".
-The file can't be read.</source>
-        <translation type="unfinished">%1 no puede abrir "%2".
+        <source>%1 can&apos;t open &quot;%2&quot;.
+The file can&apos;t be read.</source>
+        <translation type="unfinished">%1 no puede abrir &quot;%2&quot;.
 No se puede leer el fichero.</translation>
     </message>
     <message>
-        <source>This file has more properties than %1 reads, so the mark can't be added.</source>
+        <source>This file has more properties than %1 reads, so the mark can&apos;t be added.</source>
         <translation type="unfinished">Este fichero tiene más propiedades de las que %1 puede leer, así que no se puede añadir la marca.</translation>
     </message>
     <message>
-        <source>A text file, an .xls file, and an .ods file can't hold the mark. Save the workbook as an .xlsx file first.</source>
+        <source>A text file, an .xls file, and an .ods file can&apos;t hold the mark. Save the workbook as an .xlsx file first.</source>
         <translation type="unfinished">Un fichero de texto, un fichero .xls y un fichero .ods no pueden contener la marca. Guarde primero el libro como fichero .xlsx.</translation>
     </message>
     <message>
-        <source>The file that was saved can't hold the mark, so the workbook is not marked as final.</source>
+        <source>The file that was saved can&apos;t hold the mark, so the workbook is not marked as final.</source>
         <translation type="unfinished">El fichero guardado no puede contener la marca, así que el libro no está marcado como final.</translation>
     </message>
     <message>
@@ -1159,11 +1159,11 @@ No se puede leer el fichero.</translation>
         <translation type="unfinished">Texto que se imprime en la parte superior e inferior de cada página, y que puede contener nombres y rutas de fichero.</translation>
     </message>
     <message>
-        <source>Data that other programs added to the file, which you can't see on a sheet. It is left out when you save.</source>
+        <source>Data that other programs added to the file, which you can&apos;t see on a sheet. It is left out when you save.</source>
         <translation type="unfinished">Datos que otros programas añadieron al fichero y que no puede ver en una hoja. Se omiten al guardar.</translation>
     </message>
     <message>
-        <source>A .xltx file can't hold macros. The macros of this workbook will not be in the copy you are saving. The workbook open here keeps them.</source>
+        <source>A .xltx file can&apos;t hold macros. The macros of this workbook will not be in the copy you are saving. The workbook open here keeps them.</source>
         <translation type="unfinished">Un fichero .xltx no puede contener macros. Las macros de este libro no estarán en la copia que estás guardando. El libro abierto aquí las conserva.</translation>
     </message>
     <message>
@@ -1175,7 +1175,7 @@ No se puede leer el fichero.</translation>
         <translation type="unfinished">El libro, como fichero</translation>
     </message>
     <message>
-        <source>Save the workbook first. A version is kept for a file, under the file's name.</source>
+        <source>Save the workbook first. A version is kept for a file, under the file&apos;s name.</source>
         <translation type="unfinished">Guarde primero el libro. Se guarda una versión de un fichero con el nombre del fichero.</translation>
     </message>
     <message>
@@ -1209,7 +1209,7 @@ No se puede leer el fichero.</translation>
         <translation type="unfinished">Insertar fuentes en el fichero</translation>
     </message>
     <message>
-        <source>Puts the fonts that come with the program, and that the slides use, in the file, so the slides look the same on a computer that doesn't have them. It makes the file larger. Fonts every computer has, such as Calibri and Arial, are never put in.</source>
+        <source>Puts the fonts that come with the program, and that the slides use, in the file, so the slides look the same on a computer that doesn&apos;t have them. It makes the file larger. Fonts every computer has, such as Calibri and Arial, are never put in.</source>
         <translation type="unfinished">Guarda en el fichero las fuentes que incluye el programa y que usan las diapositivas, para que se vean igual en un equipo que no las tenga. El fichero será más grande. Las fuentes que tienen todos los equipos, como Calibri y Arial, nunca se insertan.</translation>
     </message>
     <message>
@@ -1217,7 +1217,7 @@ No se puede leer el fichero.</translation>
         <translation type="unfinished">Crea un fichero PDF/A-1b: todas las fuentes se incluyen en el fichero, para que se vea igual con los años.</translation>
     </message>
     <message>
-        <source>PDF/A is turned off, because a PDF with a password can't be a PDF/A file.</source>
+        <source>PDF/A is turned off, because a PDF with a password can&apos;t be a PDF/A file.</source>
         <translation type="unfinished">PDF/A está desactivado, porque un PDF con contraseña no puede ser un fichero PDF/A.</translation>
     </message>
     <message>
@@ -1229,27 +1229,27 @@ No se puede leer el fichero.</translation>
         <translation type="unfinished">La presentación, como fichero</translation>
     </message>
     <message>
-        <source>%1 couldn't make the PDF file "%2".</source>
-        <translation type="unfinished">%1 no pudo crear el fichero PDF "%2".</translation>
+        <source>%1 couldn&apos;t make the PDF file &quot;%2&quot;.</source>
+        <translation type="unfinished">%1 no pudo crear el fichero PDF &quot;%2&quot;.</translation>
     </message>
     <message>
         <source>Files with these names are already in the folder (%1 of %2). Replace them?</source>
         <translation type="unfinished">Ya hay ficheros con estos nombres en la carpeta (%1 de %2). ¿Reemplazarlos?</translation>
     </message>
     <message>
-        <source>This presentation is protected with a password, and a .%1 file can't hold a password yet. Save it as a .pptx file, or remove the password first (File &gt; Info).</source>
+        <source>This presentation is protected with a password, and a .%1 file can&apos;t hold a password yet. Save it as a .pptx file, or remove the password first (File &gt; Info).</source>
         <translation type="unfinished">Esta presentación está protegida con contraseña, y un fichero .%1 todavía no puede contenerla. Guárdela como fichero .pptx o quite antes la contraseña (Archivo &gt; Información).</translation>
     </message>
     <message>
-        <source>This presentation is marked as final, and a .odp file can't hold that mark. The file is saved without it.</source>
+        <source>This presentation is marked as final, and a .odp file can&apos;t hold that mark. The file is saved without it.</source>
         <translation type="unfinished">Esta presentación está marcada como final, y un fichero .odp no puede conservar esa marca. El fichero se guarda sin ella.</translation>
     </message>
     <message>
-        <source>Saved %1. Left out, as this kind of file can't hold it: %2</source>
+        <source>Saved %1. Left out, as this kind of file can&apos;t hold it: %2</source>
         <translation type="unfinished">Se guardó %1. Se omitió lo siguiente, porque este tipo de fichero no lo admite: %2</translation>
     </message>
     <message numerus="yes">
-        <source>Saved %1, but %n object(s) can't be saved in this kind of file yet.</source>
+        <source>Saved %1, but %n object(s) can&apos;t be saved in this kind of file yet.</source>
         <translation type="unfinished">
             <numerusform>Se guardó %1, pero %n objeto aún no se puede guardar en este tipo de fichero.</numerusform>
             <numerusform>Se guardó %1, pero %n objetos aún no se pueden guardar en este tipo de fichero.</numerusform>
@@ -1264,7 +1264,7 @@ No se puede leer el fichero.</translation>
         <translation type="unfinished">Al hacer clic con el ratón: la presentación avanza desde esta diapositiva cuando el moderador hace clic.</translation>
     </message>
     <message>
-        <source>The file can't be read.</source>
+        <source>The file can&apos;t be read.</source>
         <translation type="unfinished">No se puede leer el fichero.</translation>
     </message>
     <message>
@@ -1280,7 +1280,7 @@ No se puede leer el fichero.</translation>
         <translation type="unfinished">Ficheros de audio (%1)</translation>
     </message>
     <message>
-        <source>%1 isn't a %2 file that %3 can put on a slide.</source>
+        <source>%1 isn&apos;t a %2 file that %3 can put on a slide.</source>
         <translation type="unfinished">%1 no es un fichero de %2 que %3 pueda colocar en una diapositiva.</translation>
     </message>
     <message>
@@ -1300,15 +1300,15 @@ No se puede leer el fichero.</translation>
         <translation type="unfinished">%1 es demasiado grande para incluirlo en esta presentación: con él, el fichero no se podría volver a abrir.</translation>
     </message>
     <message>
-        <source>This file has more properties than %1 reads, so the mark can't be added.</source>
+        <source>This file has more properties than %1 reads, so the mark can&apos;t be added.</source>
         <translation type="unfinished">Este fichero tiene más propiedades de las que %1 puede leer, así que no se puede añadir la marca.</translation>
     </message>
     <message>
-        <source>An .odp file can't hold the mark. Save the presentation as a .pptx file first.</source>
+        <source>An .odp file can&apos;t hold the mark. Save the presentation as a .pptx file first.</source>
         <translation type="unfinished">Un fichero .odp no puede contener la marca. Guarde antes la presentación como fichero .pptx.</translation>
     </message>
     <message>
-        <source>The file that was saved can't hold the mark, so the presentation is not marked as final.</source>
+        <source>The file that was saved can&apos;t hold the mark, so the presentation is not marked as final.</source>
         <translation type="unfinished">El fichero guardado no puede contener la marca, así que la presentación no está marcada como final.</translation>
     </message>
     <message>
@@ -1363,7 +1363,7 @@ No se puede leer el fichero.</translation>
 <context>
     <name>jp::GraphicsPane</name>
     <message>
-        <source>The file is outside the publication's folder, so JeffPub has not looked at it. The page shows what the publication stored. Click Update Link to use the file.
+        <source>The file is outside the publication&apos;s folder, so JeffPub has not looked at it. The page shows what the publication stored. Click Update Link to use the file.
 </source>
         <translation type="unfinished">El fichero está fuera de la carpeta de la publicación, por lo que JeffPub no lo ha examinado. La página muestra lo que la publicación tenía guardado. Haga clic en Actualizar vínculo para usar el fichero.
 </translation>
@@ -1388,7 +1388,7 @@ No se puede leer el fichero.</translation>
         <translation type="unfinished">Nombre de fichero</translation>
     </message>
     <message>
-        <source>The name of the workbook's file</source>
+        <source>The name of the workbook&apos;s file</source>
         <translation type="unfinished">El nombre del fichero del libro</translation>
     </message>
     <message>
@@ -1405,7 +1405,7 @@ No se puede leer el fichero.</translation>
     <message>
         <source># Help is not installed
 
-Help's files were not found beside the program. Reinstalling %1 puts them back.</source>
+Help&apos;s files were not found beside the program. Reinstalling %1 puts them back.</source>
         <translation type="unfinished"># La ayuda no está instalada
 
 No se encontraron los ficheros de la Ayuda junto al programa. Volver a instalar %1 los restaura.</translation>
@@ -1434,7 +1434,7 @@ No se encontraron los ficheros de la Ayuda junto al programa. Volver a instalar 
         <translation type="unfinished">Pedir una contraseña para abrir este fichero. El fichero se cifra al guardarlo.</translation>
     </message>
     <message>
-        <source>See what an older kind of file can't hold, before you save to it.</source>
+        <source>See what an older kind of file can&apos;t hold, before you save to it.</source>
         <translation type="unfinished">Vea qué no admite un tipo de fichero más antiguo antes de guardar en él.</translation>
     </message>
     <message>
@@ -1442,7 +1442,7 @@ No se encontraron los ficheros de la Ayuda junto al programa. Volver a instalar 
         <translation type="unfinished">Conserve copias con nombre de este fichero en su equipo, y compárelas o vuelva a una de ellas.</translation>
     </message>
     <message>
-        <source>This file has more properties than %1 reads, so they are shown here but can't be changed. The file keeps them as they are.</source>
+        <source>This file has more properties than %1 reads, so they are shown here but can&apos;t be changed. The file keeps them as they are.</source>
         <translation type="unfinished">Este fichero tiene más propiedades de las que lee %1, así que se muestran aquí pero no se pueden cambiar. El fichero las conserva tal como están.</translation>
     </message>
 </context>
@@ -1488,23 +1488,23 @@ No se encontraron los ficheros de la Ayuda junto al programa. Volver a instalar 
         <translation type="unfinished">Ficheros de publicación .pub (*.pub)</translation>
     </message>
     <message>
-        <source>"%1" has a password, and a file with a password can't be repaired. Open it with its password instead.</source>
-        <translation type="unfinished">"%1" tiene contraseña, y un fichero con contraseña no se puede reparar. Ábralo con su contraseña.</translation>
+        <source>&quot;%1&quot; has a password, and a file with a password can&apos;t be repaired. Open it with its password instead.</source>
+        <translation type="unfinished">&quot;%1&quot; tiene contraseña, y un fichero con contraseña no se puede reparar. Ábralo con su contraseña.</translation>
     </message>
     <message>
         <source>A file holds only so many charts that can be changed, so the charts past them (%1 in all) are kept as pictures only.</source>
         <translation type="unfinished">Un fichero solo admite cierta cantidad de gráficos modificables, así que los gráficos que superan ese límite (%1 en total) se conservan solo como imágenes.</translation>
     </message>
     <message>
-        <source>This publication is protected with a password, and a .pub file can't keep a password. Save it as a .pub file without one?</source>
+        <source>This publication is protected with a password, and a .pub file can&apos;t keep a password. Save it as a .pub file without one?</source>
         <translation type="unfinished">Esta publicación está protegida con contraseña, y un fichero .pub no puede conservar una contraseña. ¿Guardarla como fichero .pub sin ella?</translation>
     </message>
     <message>
-        <source>This publication has hidden objects. The .pub format can't keep them hidden, so they will be visible the next time it opens. Save it as a .pub file anyway?</source>
+        <source>This publication has hidden objects. The .pub format can&apos;t keep them hidden, so they will be visible the next time it opens. Save it as a .pub file anyway?</source>
         <translation type="unfinished">Esta publicación tiene objetos ocultos. El formato .pub no puede conservarlos ocultos, así que se mostrarán la próxima vez que se abra. ¿Desea guardarla como fichero .pub de todos modos?</translation>
     </message>
     <message>
-        <source>A .pub file can't keep everything about this publication's lists: %1.
+        <source>A .pub file can&apos;t keep everything about this publication&apos;s lists: %1.
 
 A JeffPub publication (.jpub) keeps all of it.</source>
         <translation type="unfinished">Un fichero .pub no puede conservar todo lo relacionado con las listas de esta publicación: %1.
@@ -1512,7 +1512,7 @@ A JeffPub publication (.jpub) keeps all of it.</source>
 Una publicación de JeffPub (.jpub) lo conserva todo.</translation>
     </message>
     <message>
-        <source>This publication is marked as final, and a .pub file can't hold that mark. The file is saved without it.</source>
+        <source>This publication is marked as final, and a .pub file can&apos;t hold that mark. The file is saved without it.</source>
         <translation type="unfinished">Esta publicación está marcada como final, y un fichero .pub no puede guardar esa marca. El fichero se guarda sin ella.</translation>
     </message>
     <message>
@@ -1540,23 +1540,23 @@ Una publicación de JeffPub (.jpub) lo conserva todo.</translation>
         <translation type="unfinished">Arrastre un punto para cambiar la forma. Pulse Ctrl y haga clic en un punto para eliminarlo, o en un borde para agregar uno. Pulse Esc cuando termine.</translation>
     </message>
     <message>
-        <source>Keyboard Shortcuts: every command's keys, and how to use JeffPub without a mouse.</source>
+        <source>Keyboard Shortcuts: every command&apos;s keys, and how to use JeffPub without a mouse.</source>
         <translation type="unfinished">Métodos abreviados de teclado: las teclas de cada comando y cómo usar JeffPub sin ratón.</translation>
     </message>
     <message>
-        <source>Passwords are for .jpub files. A .pub file can't keep one; save the publication as a .jpub file first.</source>
+        <source>Passwords are for .jpub files. A .pub file can&apos;t keep one; save the publication as a .jpub file first.</source>
         <translation type="unfinished">Las contraseñas son para ficheros .jpub. Un fichero .pub no puede conservar una; guarde primero la publicación como fichero .jpub.</translation>
     </message>
     <message>
-        <source>This file has more properties than %1 reads, so the mark can't be added.</source>
+        <source>This file has more properties than %1 reads, so the mark can&apos;t be added.</source>
         <translation type="unfinished">Este fichero tiene más propiedades de las que %1 puede leer, así que no se puede añadir la marca.</translation>
     </message>
     <message>
-        <source>A .pub file can't hold the mark. Save the publication as a .jpub file first.</source>
+        <source>A .pub file can&apos;t hold the mark. Save the publication as a .jpub file first.</source>
         <translation type="unfinished">Un fichero .pub no puede guardar la marca. Guarde primero la publicación como fichero .jpub.</translation>
     </message>
     <message>
-        <source>The file that was saved can't hold the mark, so the publication is not marked as final.</source>
+        <source>The file that was saved can&apos;t hold the mark, so the publication is not marked as final.</source>
         <translation type="unfinished">El fichero guardado no puede contener la marca, así que la publicación no está marcada como final.</translation>
     </message>
     <message>
@@ -1571,14 +1571,14 @@ Una publicación de JeffPub (.jpub) lo conserva todo.</translation>
 <context>
     <name>jp::MediaPlayback</name>
     <message>
-        <source>This file can't be read as a movie or sound.</source>
+        <source>This file can&apos;t be read as a movie or sound.</source>
         <translation type="unfinished">Este fichero no se puede leer como película ni como sonido.</translation>
     </message>
 </context>
 <context>
     <name>jp::MissingFonts</name>
     <message>
-        <source>This computer has no font for each font below, so another font is shown and written to PDF in its place. The file keeps the font's name unless you press Replace in Document.</source>
+        <source>This computer has no font for each font below, so another font is shown and written to PDF in its place. The file keeps the font&apos;s name unless you press Replace in Document.</source>
         <translation type="unfinished">Este equipo no tiene las fuentes que aparecen abajo, así que se muestra otra fuente y se escribe en PDF en su lugar. El fichero conserva el nombre de la fuente, a menos que pulse Reemplazar en el documento.</translation>
     </message>
     <message>
@@ -1615,11 +1615,11 @@ Una publicación de JeffPub (.jpub) lo conserva todo.</translation>
 <context>
     <name>jp::PasswordDialogs</name>
     <message>
-        <source>"%1" is protected with a password. Type it to open the file.</source>
-        <translation type="unfinished">"%1" está protegido con una contraseña. Escríbala para abrir el fichero.</translation>
+        <source>&quot;%1&quot; is protected with a password. Type it to open the file.</source>
+        <translation type="unfinished">&quot;%1&quot; está protegido con una contraseña. Escríbala para abrir el fichero.</translation>
     </message>
     <message>
-        <source>This file is protected in a way this program doesn't read.</source>
+        <source>This file is protected in a way this program doesn&apos;t read.</source>
         <translation type="unfinished">Este fichero está protegido de una forma que este programa no puede leer.</translation>
     </message>
     <message>
@@ -1664,7 +1664,7 @@ Una publicación de JeffPub (.jpub) lo conserva todo.</translation>
         <translation type="unfinished">Todos los ficheros (*)</translation>
     </message>
     <message>
-        <source>The file can't be read.</source>
+        <source>The file can&apos;t be read.</source>
         <translation type="unfinished">No se puede leer el fichero.</translation>
     </message>
 </context>
@@ -1678,8 +1678,8 @@ Una publicación de JeffPub (.jpub) lo conserva todo.</translation>
 <context>
     <name>jp::SetUpShowDialog</name>
     <message>
-        <source>Loop continuously until 'Esc'</source>
-        <translation type="unfinished">Repetir el ciclo hasta pulsar 'Esc'</translation>
+        <source>Loop continuously until &apos;Esc&apos;</source>
+        <translation type="unfinished">Repetir el ciclo hasta pulsar &apos;Esc&apos;</translation>
     </message>
 </context>
 <context>
@@ -1711,26 +1711,26 @@ Una publicación de JeffPub (.jpub) lo conserva todo.</translation>
 <context>
     <name>jp::TranslatePane</name>
     <message>
-        <source>The models are downloaded once from Mozilla's translation files and kept on this computer. After that, translating needs no connection.</source>
+        <source>The models are downloaded once from Mozilla&apos;s translation files and kept on this computer. After that, translating needs no connection.</source>
         <translation type="unfinished">Los modelos se descargan una vez desde los ficheros de traducción de Mozilla y se guardan en este equipo. Después, la traducción no necesita conexión.</translation>
     </message>
 </context>
 <context>
     <name>jp::VersionHistory</name>
     <message>
-        <source>Save the document first. A version is kept for a file, under the file's name.</source>
+        <source>Save the document first. A version is kept for a file, under the file&apos;s name.</source>
         <translation type="unfinished">Guarde primero el documento. Una versión se guarda para un fichero, con el nombre del fichero.</translation>
     </message>
     <message>
-        <source>Save the workbook first. A version is kept for a file, under the file's name.</source>
+        <source>Save the workbook first. A version is kept for a file, under the file&apos;s name.</source>
         <translation type="unfinished">Guarde primero el libro. Una versión se guarda para un fichero, con el nombre del fichero.</translation>
     </message>
     <message>
-        <source>Save the publication first. A version is kept for a file, under the file's name.</source>
+        <source>Save the publication first. A version is kept for a file, under the file&apos;s name.</source>
         <translation type="unfinished">Guarde primero la publicación. Una versión se guarda para un fichero, con el nombre del fichero.</translation>
     </message>
     <message>
-        <source>Save the presentation first. A version is kept for a file, under the file's name.</source>
+        <source>Save the presentation first. A version is kept for a file, under the file&apos;s name.</source>
         <translation type="unfinished">Guarde primero la presentación. Una versión se guarda para un fichero, con el nombre del fichero.</translation>
     </message>
 </context>
@@ -1760,7 +1760,7 @@ Una publicación de JeffPub (.jpub) lo conserva todo.</translation>
         <translation type="unfinished">Elija la lista de personas. Una lista es un fichero con una fila por persona y una columna por cada dato.</translation>
     </message>
     <message>
-        <source>Make one new document with every person's copy, print them, save a PDF, or make email files.</source>
+        <source>Make one new document with every person&apos;s copy, print them, save a PDF, or make email files.</source>
         <translation type="unfinished">Cree un documento nuevo con la copia de cada persona, imprímalas, guarde un PDF o cree ficheros de correo electrónico.</translation>
     </message>
     <message>
@@ -1785,55 +1785,55 @@ Una publicación de JeffPub (.jpub) lo conserva todo.</translation>
         <translation type="unfinished">Todos los ficheros (*)</translation>
     </message>
     <message>
-        <source>"%1" is a plain text file. It is not Unicode, so choose the encoding that shows its characters right; the first lines are shown below.</source>
-        <translation type="unfinished">"%1" es un fichero de texto sin formato. No es Unicode, así que elija la codificación que muestre bien sus caracteres; a continuación se muestran las primeras líneas.</translation>
+        <source>&quot;%1&quot; is a plain text file. It is not Unicode, so choose the encoding that shows its characters right; the first lines are shown below.</source>
+        <translation type="unfinished">&quot;%1&quot; es un fichero de texto sin formato. No es Unicode, así que elija la codificación que muestre bien sus caracteres; a continuación se muestran las primeras líneas.</translation>
     </message>
     <message>
-        <source>Part of this file couldn't be opened, so saving it here would lose that part: choose a new name for the copy.</source>
+        <source>Part of this file couldn&apos;t be opened, so saving it here would lose that part: choose a new name for the copy.</source>
         <translation type="unfinished">Parte de este fichero no se pudo abrir, por lo que guardarlo aquí haría que se perdiera esa parte: elija un nombre nuevo para la copia.</translation>
     </message>
     <message>
-        <source>This document came from an older .doc file, which %1 doesn't write, so it is saved as a new .docx file.</source>
+        <source>This document came from an older .doc file, which %1 doesn&apos;t write, so it is saved as a new .docx file.</source>
         <translation type="unfinished">Este documento procede de un fichero .doc antiguo, formato en el que %1 no escribe, por lo que se guarda como un nuevo fichero .docx.</translation>
     </message>
     <message>
-        <source>This document came from a flat .fodt file, which %1 doesn't write, so it is saved as a new .odt file.</source>
+        <source>This document came from a flat .fodt file, which %1 doesn&apos;t write, so it is saved as a new .odt file.</source>
         <translation type="unfinished">Este documento procede de un fichero .fodt plano, que %1 no escribe, por lo que se guarda como un nuevo fichero .odt.</translation>
     </message>
     <message>
-        <source>The macros in this document aren't saved, because a %1 file can't hold them.</source>
+        <source>The macros in this document aren&apos;t saved, because a %1 file can&apos;t hold them.</source>
         <translation type="unfinished">Las macros de este documento no se guardan, porque un fichero %1 no puede contenerlas.</translation>
     </message>
     <message>
-        <source>This document came from a web page, which %1 doesn't write over, so it is saved as a new .docx file.</source>
+        <source>This document came from a web page, which %1 doesn&apos;t write over, so it is saved as a new .docx file.</source>
         <translation type="unfinished">Este documento procede de una página web, que %1 no sobrescribe; por eso se guarda como un nuevo fichero .docx.</translation>
     </message>
     <message>
-        <source>This document is protected with a password, and a .odt file can't hold a password yet. Save it as a .docx file, or remove the password first (File &gt; Info).</source>
+        <source>This document is protected with a password, and a .odt file can&apos;t hold a password yet. Save it as a .docx file, or remove the password first (File &gt; Info).</source>
         <translation type="unfinished">Este documento está protegido con contraseña, y un fichero .odt todavía no puede guardar una contraseña. Guárdelo como fichero .docx o quite antes la contraseña (Archivo &gt; Información).</translation>
     </message>
     <message>
-        <source>This document is marked as final, and a .odt file can't hold that mark. The file is saved without it.</source>
+        <source>This document is marked as final, and a .odt file can&apos;t hold that mark. The file is saved without it.</source>
         <translation type="unfinished">Este documento está marcado como final, y un fichero .odt no puede guardar esa marca. El fichero se guarda sin ella.</translation>
     </message>
     <message>
-        <source>This document is protected with a password, and a .rtf file can't hold one. Save it as a .docx file, or remove the password first (File &gt; Info).</source>
+        <source>This document is protected with a password, and a .rtf file can&apos;t hold one. Save it as a .docx file, or remove the password first (File &gt; Info).</source>
         <translation type="unfinished">Este documento está protegido con contraseña, y un fichero .rtf no puede contenerla. Guárdelo como fichero .docx o quite antes la contraseña (Archivo &gt; Información).</translation>
     </message>
     <message>
-        <source>This document is protected with a password, and a plain text file can't hold one. Save it as a .docx file, or remove the password first (File &gt; Info).</source>
+        <source>This document is protected with a password, and a plain text file can&apos;t hold one. Save it as a .docx file, or remove the password first (File &gt; Info).</source>
         <translation type="unfinished">Este documento está protegido con contraseña, y un fichero de texto sin formato no puede contenerla. Guárdelo como fichero .docx o quite antes la contraseña (Archivo &gt; Información).</translation>
     </message>
     <message>
-        <source>The file will hold the words of the document and nothing else: no fonts, pictures, or tables' borders. Choose how the characters and line ends are written. A character the encoding can't hold is saved as a question mark.</source>
+        <source>The file will hold the words of the document and nothing else: no fonts, pictures, or tables&apos; borders. Choose how the characters and line ends are written. A character the encoding can&apos;t hold is saved as a question mark.</source>
         <translation type="unfinished">El fichero contendrá solo las palabras del documento: sin fuentes, imágenes ni bordes de tablas. Elija cómo se escriben los caracteres y los finales de línea. Un carácter que la codificación no puede representar se guarda como signo de interrogación.</translation>
     </message>
     <message>
-        <source>A plain text file holds only the words of this document, so its fonts, pictures, tables, and other formatting aren't saved in it.</source>
+        <source>A plain text file holds only the words of this document, so its fonts, pictures, tables, and other formatting aren&apos;t saved in it.</source>
         <translation type="unfinished">Un fichero de texto sin formato contiene solo las palabras de este documento, así que sus fuentes, imágenes, tablas y demás formato no se guardan en él.</translation>
     </message>
     <message>
-        <source>A Rich Text Format file can't hold some of what this document has, so these were saved as they stand now or left out:
+        <source>A Rich Text Format file can&apos;t hold some of what this document has, so these were saved as they stand now or left out:
 
 %1</source>
         <translation type="unfinished">Un fichero de formato de texto enriquecido (RTF) no puede contener parte de lo que tiene este documento, así que estas partes se guardaron tal como están ahora o se omitieron:
@@ -1841,7 +1841,7 @@ Una publicación de JeffPub (.jpub) lo conserva todo.</translation>
 %1</translation>
     </message>
     <message>
-        <source>An OpenDocument text file can't hold some of what this document has, so those parts were saved as they stand now or left out:
+        <source>An OpenDocument text file can&apos;t hold some of what this document has, so those parts were saved as they stand now or left out:
 
 %1</source>
         <translation type="unfinished">Un fichero de texto OpenDocument no puede contener parte del contenido de este documento, por lo que esas partes se guardaron tal como están ahora o se omitieron:
@@ -1849,7 +1849,7 @@ Una publicación de JeffPub (.jpub) lo conserva todo.</translation>
 %1</translation>
     </message>
     <message>
-        <source>A %1 file can't hold some of what this document has. If you save it here, these parts are saved as they stand now or left out:
+        <source>A %1 file can&apos;t hold some of what this document has. If you save it here, these parts are saved as they stand now or left out:
 
 %2</source>
         <translation type="unfinished">Un fichero %1 no puede contener parte de lo que tiene este documento. Si lo guarda aquí, estas partes se guardarán tal como están ahora o se omitirán:
@@ -1857,7 +1857,7 @@ Una publicación de JeffPub (.jpub) lo conserva todo.</translation>
 %2</translation>
     </message>
     <message>
-        <source>PDF/A is turned off, because a PDF with a password can't be a PDF/A file.</source>
+        <source>PDF/A is turned off, because a PDF with a password can&apos;t be a PDF/A file.</source>
         <translation type="unfinished">PDF/A está desactivado, porque un PDF con contraseña no puede ser un fichero PDF/A.</translation>
     </message>
     <message>
@@ -1877,19 +1877,19 @@ Una publicación de JeffPub (.jpub) lo conserva todo.</translation>
         <translation type="unfinished">El documento, como fichero</translation>
     </message>
     <message>
-        <source>The file will hold the words of the document and nothing else: no fonts, pictures, or tables' borders. Choose how the characters and line ends are written. A line break comes at the end of each paragraph. A character the encoding can't hold is saved as a question mark.</source>
+        <source>The file will hold the words of the document and nothing else: no fonts, pictures, or tables&apos; borders. Choose how the characters and line ends are written. A line break comes at the end of each paragraph. A character the encoding can&apos;t hold is saved as a question mark.</source>
         <translation type="unfinished">El fichero contendrá solo las palabras del documento: sin fuentes, imágenes ni bordes de tablas. Elija cómo se escriben los caracteres y los finales de línea. Se inserta un salto de línea al final de cada párrafo. Los caracteres que la codificación no admite se guardan como signos de interrogación.</translation>
     </message>
     <message>
-        <source>This file has more properties than %1 reads, so the mark can't be added.</source>
+        <source>This file has more properties than %1 reads, so the mark can&apos;t be added.</source>
         <translation type="unfinished">Este fichero tiene más propiedades de las que %1 puede leer, así que no se puede añadir la marca.</translation>
     </message>
     <message>
-        <source>A .odt file can't hold the mark. Save the document as a .docx file first.</source>
+        <source>A .odt file can&apos;t hold the mark. Save the document as a .docx file first.</source>
         <translation type="unfinished">Un fichero .odt no puede guardar la marca. Guarde antes el documento como fichero .docx.</translation>
     </message>
     <message>
-        <source>The file that was saved can't hold the mark, so the document is not marked as final.</source>
+        <source>The file that was saved can&apos;t hold the mark, so the document is not marked as final.</source>
         <translation type="unfinished">El fichero guardado no puede contener la marca, por lo que el documento no se ha marcado como final.</translation>
     </message>
     <message>
@@ -1897,11 +1897,11 @@ Una publicación de JeffPub (.jpub) lo conserva todo.</translation>
         <translation type="unfinished">Texto configurado como oculto: no se muestra ni se imprime, pero está en el fichero.</translation>
     </message>
     <message>
-        <source>Data that other programs added to the file, which you can't see on a page.</source>
+        <source>Data that other programs added to the file, which you can&apos;t see on a page.</source>
         <translation type="unfinished">Datos que otros programas añadieron al fichero, que no se ven en la página.</translation>
     </message>
     <message>
-        <source>The password: a .odt file can't hold a password yet.</source>
+        <source>The password: a .odt file can&apos;t hold a password yet.</source>
         <translation type="unfinished">La contraseña: un fichero .odt todavía no puede guardar contraseñas.</translation>
     </message>
     <message>
@@ -1909,7 +1909,7 @@ Una publicación de JeffPub (.jpub) lo conserva todo.</translation>
         <translation type="unfinished">No se pierde nada de este documento al guardarlo como fichero de texto OpenDocument (.odt).</translation>
     </message>
     <message>
-        <source>An OpenDocument text file (.odt) can't hold some of what this document has:
+        <source>An OpenDocument text file (.odt) can&apos;t hold some of what this document has:
 
 %1</source>
         <translation type="unfinished">Un fichero de texto OpenDocument (.odt) no puede guardar parte de lo que tiene este documento:
@@ -1953,7 +1953,7 @@ Una publicación de JeffPub (.jpub) lo conserva todo.</translation>
         <translation type="unfinished">Insertar texto desde fichero</translation>
     </message>
     <message>
-        <source>Save the document first. A version is kept for a file, under the file's name.</source>
+        <source>Save the document first. A version is kept for a file, under the file&apos;s name.</source>
         <translation type="unfinished">Guarde primero el documento. Se guarda una versión de un fichero con el nombre del fichero.</translation>
     </message>
 </context>
@@ -1991,7 +1991,7 @@ Una publicación de JeffPub (.jpub) lo conserva todo.</translation>
         <translation type="unfinished">Un libro abierto desde un tipo de fichero antiguo, o desde un fichero de texto, tiene sus notas en un formato en el que JeffCrunch no busca. Guárdelo como libro .xlsx y vuelva a buscar.</translation>
     </message>
     <message>
-        <source>The data of this pivot table is in another workbook, which JeffCrunch does not open, so it can't be read again here. The table keeps the values the file has. To read it from this workbook, use Change Data Source.</source>
+        <source>The data of this pivot table is in another workbook, which JeffCrunch does not open, so it can&apos;t be read again here. The table keeps the values the file has. To read it from this workbook, use Change Data Source.</source>
         <translation type="unfinished">Los datos de esta tabla dinámica están en otro libro, que JeffCrunch no abre, por lo que no se pueden volver a leer aquí. La tabla conserva los valores que tiene el fichero. Para leerlos de este libro, use Cambiar origen de datos.</translation>
     </message>
     <message numerus="yes">
@@ -2002,8 +2002,8 @@ Una publicación de JeffPub (.jpub) lo conserva todo.</translation>
         </translation>
     </message>
     <message>
-        <source>The workbook "%1" is not a file that can be read.</source>
-        <translation type="unfinished">El libro "%1" no es un fichero que se pueda leer.</translation>
+        <source>The workbook &quot;%1&quot; is not a file that can be read.</source>
+        <translation type="unfinished">El libro &quot;%1&quot; no es un fichero que se pueda leer.</translation>
     </message>
 </context>
 <context>
@@ -2016,16 +2016,16 @@ Una publicación de JeffPub (.jpub) lo conserva todo.</translation>
 <context>
     <name>jp::crunch::OldFormat</name>
     <message>
-        <source>"%1" is in an older file format (.xls), and this program saves workbooks as .xlsx (or, if you choose that kind of file, as an .xls or .ods copy). It will ask you for a new name to save a copy under. The original file will not be changed.</source>
-        <translation type="unfinished">"%1" tiene un formato de fichero antiguo (.xls) y este programa guarda los libros como .xlsx (o, si elige ese tipo de fichero, como una copia .xls u .ods). Se le pedirá un nombre nuevo con el que guardar una copia. El fichero original no se modificará.</translation>
+        <source>&quot;%1&quot; is in an older file format (.xls), and this program saves workbooks as .xlsx (or, if you choose that kind of file, as an .xls or .ods copy). It will ask you for a new name to save a copy under. The original file will not be changed.</source>
+        <translation type="unfinished">&quot;%1&quot; tiene un formato de fichero antiguo (.xls) y este programa guarda los libros como .xlsx (o, si elige ese tipo de fichero, como una copia .xls u .ods). Se le pedirá un nombre nuevo con el que guardar una copia. El fichero original no se modificará.</translation>
     </message>
     <message>
         <source>These parts of the file will not be in the copy: %1.</source>
         <translation type="unfinished">Estas partes del fichero no estarán en la copia: %1.</translation>
     </message>
     <message>
-        <source>"%1" is the file this workbook was opened from, and it is not written to. Give the copy another name.</source>
-        <translation type="unfinished">"%1" es el fichero desde el que se abrió este libro y no se sobrescribe. Asigne otro nombre a la copia.</translation>
+        <source>&quot;%1&quot; is the file this workbook was opened from, and it is not written to. Give the copy another name.</source>
+        <translation type="unfinished">&quot;%1&quot; es el fichero desde el que se abrió este libro y no se sobrescribe. Asigne otro nombre a la copia.</translation>
     </message>
 </context>
 <context>
@@ -2055,7 +2055,7 @@ Una publicación de JeffPub (.jpub) lo conserva todo.</translation>
         <translation type="unfinished">Ficheros de texto delimitados por tabulaciones (*.tsv *.txt)</translation>
     </message>
     <message>
-        <source>A .%1 file can't hold everything in this workbook.</source>
+        <source>A .%1 file can&apos;t hold everything in this workbook.</source>
         <translation type="unfinished">Un fichero .%1 no puede contener todo lo que hay en este libro.</translation>
     </message>
     <message>
@@ -2063,20 +2063,20 @@ Una publicación de JeffPub (.jpub) lo conserva todo.</translation>
         <translation type="unfinished">%1 guarda los libros de trabajo como ficheros .xlsx, o como plantillas .xltx. Dé al fichero un nombre que termine en uno de ellos.</translation>
     </message>
     <message>
-        <source>"%1" is an OpenDocument spreadsheet (%2), and this program saves workbooks as .xlsx (or, if you choose that kind of file, as an .xls or .ods copy). It will ask you for a new name to save a copy under. The original file will not be changed.</source>
-        <translation type="unfinished">"%1" es una hoja de cálculo OpenDocument (%2) y este programa guarda los libros como .xlsx (o, si elige ese tipo de fichero, como una copia .xls u .ods). Se le pedirá un nombre nuevo con el que guardar una copia. El fichero original no se modificará.</translation>
+        <source>&quot;%1&quot; is an OpenDocument spreadsheet (%2), and this program saves workbooks as .xlsx (or, if you choose that kind of file, as an .xls or .ods copy). It will ask you for a new name to save a copy under. The original file will not be changed.</source>
+        <translation type="unfinished">&quot;%1&quot; es una hoja de cálculo OpenDocument (%2) y este programa guarda los libros como .xlsx (o, si elige ese tipo de fichero, como una copia .xls u .ods). Se le pedirá un nombre nuevo con el que guardar una copia. El fichero original no se modificará.</translation>
     </message>
     <message>
-        <source>"%1" is a text file of values (%2), and this program saves workbooks as .xlsx, which keeps the formulas, the formats, and more than one sheet. It will ask you for a new name to save a copy under. The original file will not be changed. To write only the values of this sheet as a .csv file, choose that kind of file where you give the name.</source>
-        <translation type="unfinished">"%1" es un fichero de texto de valores (%2) y este programa guarda libros como .xlsx, que conserva las fórmulas, los formatos y varias hojas. Se le pedirá un nombre nuevo para guardar una copia. El fichero original no se modificará. Para escribir solo los valores de esta hoja como fichero .csv, elija ese tipo de fichero donde escriba el nombre.</translation>
+        <source>&quot;%1&quot; is a text file of values (%2), and this program saves workbooks as .xlsx, which keeps the formulas, the formats, and more than one sheet. It will ask you for a new name to save a copy under. The original file will not be changed. To write only the values of this sheet as a .csv file, choose that kind of file where you give the name.</source>
+        <translation type="unfinished">&quot;%1&quot; es un fichero de texto de valores (%2) y este programa guarda libros como .xlsx, que conserva las fórmulas, los formatos y varias hojas. Se le pedirá un nombre nuevo para guardar una copia. El fichero original no se modificará. Para escribir solo los valores de esta hoja como fichero .csv, elija ese tipo de fichero donde escriba el nombre.</translation>
     </message>
     <message>
         <source>These parts of the file will not be in the copy: %1.</source>
         <translation type="unfinished">Estas partes del fichero no estarán en la copia: %1.</translation>
     </message>
     <message>
-        <source>Only the values of the sheet "%1" are saved in a .csv file, as the cells show them, with "%2" between them. The other sheets, the formulas, the formats, and the settings are not. Save the workbook as .xlsx to keep them.</source>
-        <translation type="unfinished">En un fichero .csv solo se guardan los valores de la hoja "%1", tal como los muestran las celdas, separados por "%2". No se guardan las demás hojas, las fórmulas, los formatos ni la configuración. Guarde el libro como .xlsx para conservarlos.</translation>
+        <source>Only the values of the sheet &quot;%1&quot; are saved in a .csv file, as the cells show them, with &quot;%2&quot; between them. The other sheets, the formulas, the formats, and the settings are not. Save the workbook as .xlsx to keep them.</source>
+        <translation type="unfinished">En un fichero .csv solo se guardan los valores de la hoja &quot;%1&quot;, tal como los muestran las celdas, separados por &quot;%2&quot;. No se guardan las demás hojas, las fórmulas, los formatos ni la configuración. Guarde el libro como .xlsx para conservarlos.</translation>
     </message>
     <message>
         <source>This sheet was read only in part, so the file has only the part that was read.</source>
@@ -2105,25 +2105,25 @@ Una publicación de JeffPub (.jpub) lo conserva todo.</translation>
 <context>
     <name>jp::crunch::SheetObjects</name>
     <message numerus="yes">
-        <source>The file stores this object together with %n other(s), so they can't be deleted one at a time.</source>
+        <source>The file stores this object together with %n other(s), so they can&apos;t be deleted one at a time.</source>
         <translation type="unfinished">
             <numerusform>El fichero almacena este objeto junto con %n más, así que no se pueden eliminar de uno en uno.</numerusform>
             <numerusform>El fichero almacena este objeto junto con otros %n, así que no se pueden eliminar de uno en uno.</numerusform>
         </translation>
     </message>
     <message>
-        <source>This chart names a part the file does not have, so it can't be kept for Undo.</source>
+        <source>This chart names a part the file does not have, so it can&apos;t be kept for Undo.</source>
         <translation type="unfinished">Este gráfico nombra una parte que el fichero no tiene, así que no se puede conservar para Deshacer.</translation>
     </message>
     <message numerus="yes">
-        <source>The file stores this object together with %n other(s), so it can't be put in another place in the order they are drawn.</source>
+        <source>The file stores this object together with %n other(s), so it can&apos;t be put in another place in the order they are drawn.</source>
         <translation type="unfinished">
             <numerusform>El fichero almacena este objeto junto con %n más, así que no se puede cambiar su posición en el orden de dibujo.</numerusform>
             <numerusform>El fichero almacena este objeto junto con otros %n, así que no se puede cambiar su posición en el orden de dibujo.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
-        <source>The file stores this chart together with %n other(s), so it can't be changed here.</source>
+        <source>The file stores this chart together with %n other(s), so it can&apos;t be changed here.</source>
         <translation type="unfinished">
             <numerusform>El fichero almacena este gráfico junto con %n gráfico más, por lo que no se puede modificar aquí.</numerusform>
             <numerusform>El fichero almacena este gráfico junto con %n gráficos más, por lo que no se puede modificar aquí.</numerusform>
@@ -2148,7 +2148,7 @@ Una publicación de JeffPub (.jpub) lo conserva todo.</translation>
         <translation type="unfinished">El fichero no contiene ningún documento de procesamiento de texto.</translation>
     </message>
     <message>
-        <source>The document's text can't be found in the file.</source>
+        <source>The document&apos;s text can&apos;t be found in the file.</source>
         <translation type="unfinished">No se encuentra el texto del documento en el fichero.</translation>
     </message>
 </context>
@@ -2166,7 +2166,7 @@ Una publicación de JeffPub (.jpub) lo conserva todo.</translation>
 <context>
     <name>jp::office::sheet::Carry</name>
     <message>
-        <source>What follows the sheet's data is larger than any real file has.</source>
+        <source>What follows the sheet&apos;s data is larger than any real file has.</source>
         <translation type="unfinished">Lo que sigue a los datos de la hoja es más grande que cualquier fichero real.</translation>
     </message>
 </context>
@@ -2177,7 +2177,7 @@ Una publicación de JeffPub (.jpub) lo conserva todo.</translation>
         <translation type="unfinished">La hoja tiene más celdas que cualquier fichero real.</translation>
     </message>
     <message>
-        <source>The sheet is larger than any real file's.</source>
+        <source>The sheet is larger than any real file&apos;s.</source>
         <translation type="unfinished">La hoja es más grande que la de cualquier fichero real.</translation>
     </message>
     <message>
@@ -2192,11 +2192,11 @@ Una publicación de JeffPub (.jpub) lo conserva todo.</translation>
 <context>
     <name>jp::office::sheet::Ods</name>
     <message>
-        <source>Part of the file has more settings on one item than any real file has, so it can't be read.</source>
+        <source>Part of the file has more settings on one item than any real file has, so it can&apos;t be read.</source>
         <translation type="unfinished">Una parte del fichero tiene más opciones en un elemento que cualquier fichero real, por lo que no se puede leer.</translation>
     </message>
     <message>
-        <source>Part of the file is longer than any real file's, so it can't be read.</source>
+        <source>Part of the file is longer than any real file&apos;s, so it can&apos;t be read.</source>
         <translation type="unfinished">Una parte del fichero es más larga que la de cualquier fichero real, por lo que no se puede leer.</translation>
     </message>
     <message>
@@ -2204,7 +2204,7 @@ Una publicación de JeffPub (.jpub) lo conserva todo.</translation>
         <translation type="unfinished">El fichero no está escrito en un formato que este programa pueda leer.</translation>
     </message>
     <message>
-        <source>The file begins with instructions that this program does not allow, so it can't be read.</source>
+        <source>The file begins with instructions that this program does not allow, so it can&apos;t be read.</source>
         <translation type="unfinished">El fichero empieza con instrucciones que este programa no permite, por lo que no se puede leer.</translation>
     </message>
     <message>
@@ -2280,7 +2280,7 @@ Una publicación de JeffPub (.jpub) lo conserva todo.</translation>
         <translation type="unfinished">La hoja tiene más columnas definidas que cualquier fichero real.</translation>
     </message>
     <message>
-        <source>A text in this file is longer than any real file's.</source>
+        <source>A text in this file is longer than any real file&apos;s.</source>
         <translation type="unfinished">Un texto de este fichero es más largo que el de cualquier fichero real.</translation>
     </message>
     <message>
@@ -2288,7 +2288,7 @@ Una publicación de JeffPub (.jpub) lo conserva todo.</translation>
         <translation type="unfinished">La hoja tiene más celdas que cualquier fichero real.</translation>
     </message>
     <message>
-        <source>The sheet is larger than any real file's.</source>
+        <source>The sheet is larger than any real file&apos;s.</source>
         <translation type="unfinished">La hoja es más grande que la de cualquier fichero real.</translation>
     </message>
     <message>
@@ -2333,7 +2333,7 @@ Una publicación de JeffPub (.jpub) lo conserva todo.</translation>
 <context>
     <name>jp::office::sheet::Save</name>
     <message>
-        <source>The sheet's file has no place for cells in it, so it can't be saved.</source>
+        <source>The sheet&apos;s file has no place for cells in it, so it can&apos;t be saved.</source>
         <translation type="unfinished">El fichero de la hoja no tiene espacio para celdas, por lo que no se puede guardar.</translation>
     </message>
     <message>
@@ -2365,11 +2365,11 @@ Una publicación de JeffPub (.jpub) lo conserva todo.</translation>
         <translation type="unfinished">No se pudo leer una hoja del fichero para guardarla.</translation>
     </message>
     <message>
-        <source>A table was made that this program can't put in the file.</source>
+        <source>A table was made that this program can&apos;t put in the file.</source>
         <translation type="unfinished">Se creó una tabla que este programa no puede incluir en el fichero.</translation>
     </message>
     <message>
-        <source>The file's list of part types is not in it.</source>
+        <source>The file&apos;s list of part types is not in it.</source>
         <translation type="unfinished">El fichero no contiene su lista de tipos de partes.</translation>
     </message>
     <message>
@@ -2377,23 +2377,23 @@ Una publicación de JeffPub (.jpub) lo conserva todo.</translation>
         <translation type="unfinished">Un dibujo del fichero no tiene el formato que este programa modifica.</translation>
     </message>
     <message>
-        <source>A table could not be put in the file's list of parts.</source>
+        <source>A table could not be put in the file&apos;s list of parts.</source>
         <translation type="unfinished">No se pudo agregar una tabla a la lista de partes del fichero.</translation>
     </message>
     <message>
-        <source>The file's relationships are not in it.</source>
+        <source>The file&apos;s relationships are not in it.</source>
         <translation type="unfinished">El fichero no contiene sus relaciones.</translation>
     </message>
     <message>
-        <source>The properties could not be put in the file's list of parts.</source>
+        <source>The properties could not be put in the file&apos;s list of parts.</source>
         <translation type="unfinished">No se pudieron añadir las propiedades a la lista de partes del fichero.</translation>
     </message>
     <message>
-        <source>A pivot table could not be put in the file's list of parts.</source>
+        <source>A pivot table could not be put in the file&apos;s list of parts.</source>
         <translation type="unfinished">No se pudo agregar una tabla dinámica a la lista de partes del fichero.</translation>
     </message>
     <message>
-        <source>A link to another workbook could not be put in the file's list of parts.</source>
+        <source>A link to another workbook could not be put in the file&apos;s list of parts.</source>
         <translation type="unfinished">No se pudo añadir un vínculo a otro libro a la lista de partes del fichero.</translation>
     </message>
     <message>
@@ -2405,11 +2405,11 @@ Una publicación de JeffPub (.jpub) lo conserva todo.</translation>
         <translation type="unfinished">Un gráfico modificado no tiene ninguna parte en el fichero.</translation>
     </message>
     <message>
-        <source>This kind of workbook file can't be written.</source>
+        <source>This kind of workbook file can&apos;t be written.</source>
         <translation type="unfinished">No se puede escribir este tipo de fichero de libro.</translation>
     </message>
     <message>
-        <source>The file's list of types is not in the file.</source>
+        <source>The file&apos;s list of types is not in the file.</source>
         <translation type="unfinished">La lista de tipos del fichero no está en el fichero.</translation>
     </message>
     <message>
@@ -2417,11 +2417,11 @@ Una publicación de JeffPub (.jpub) lo conserva todo.</translation>
         <translation type="unfinished">La parte del libro no tiene ningún tipo en el fichero.</translation>
     </message>
     <message>
-        <source>The workbook's relationships are not in the file.</source>
+        <source>The workbook&apos;s relationships are not in the file.</source>
         <translation type="unfinished">Las relaciones del libro no están en el fichero.</translation>
     </message>
     <message>
-        <source>The file couldn't be written: %1</source>
+        <source>The file couldn&apos;t be written: %1</source>
         <translation type="unfinished">No se pudo escribir el fichero: %1</translation>
     </message>
     <message>
@@ -2524,7 +2524,7 @@ Una publicación de JeffPub (.jpub) lo conserva todo.</translation>
         <translation type="unfinished">Ficheros vinculados y vínculos de libros de trabajo:</translation>
     </message>
     <message>
-        <source>This doesn't apply in this app: it has no linked files to update.</source>
+        <source>This doesn&apos;t apply in this app: it has no linked files to update.</source>
         <translation type="unfinished">Esto no se aplica en esta aplicación: no tiene ficheros vinculados que actualizar.</translation>
     </message>
     <message>
@@ -2555,7 +2555,7 @@ Una publicación de JeffPub (.jpub) lo conserva todo.</translation>
         <translation type="unfinished">Guarda los estilos que elija en un fichero de plantilla desde el que otros documentos puedan importarlos.</translation>
     </message>
     <message>
-        <source>The styles of that file can't be read.</source>
+        <source>The styles of that file can&apos;t be read.</source>
         <translation type="unfinished">No se pueden leer los estilos de ese fichero.</translation>
     </message>
     <message>
@@ -2593,7 +2593,7 @@ Una publicación de JeffPub (.jpub) lo conserva todo.</translation>
         <translation type="unfinished">Ese fichero no tiene texto.</translation>
     </message>
     <message>
-        <source>JeffWrite can't read that file as a document or as text.</source>
+        <source>JeffWrite can&apos;t read that file as a document or as text.</source>
         <translation type="unfinished">JeffWrite no puede leer ese fichero como documento ni como texto.</translation>
     </message>
     <message>
@@ -2611,11 +2611,11 @@ Una publicación de JeffPub (.jpub) lo conserva todo.</translation>
 <context>
     <name>jp::write::Styles</name>
     <message>
-        <source>The styles can't be written to a file.</source>
+        <source>The styles can&apos;t be written to a file.</source>
         <translation type="unfinished">Los estilos no se pueden guardar en un fichero.</translation>
     </message>
     <message>
-        <source>The file can't be written.</source>
+        <source>The file can&apos;t be written.</source>
         <translation type="unfinished">No se puede escribir en el fichero.</translation>
     </message>
 </context>

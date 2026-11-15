@@ -31,7 +31,7 @@
     <message>
         <location line="+1"/>
         <source>Other</source>
-        <translation type="unfinished">Overige</translation>
+        <translation>Andere</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -82,7 +82,7 @@
     <message>
         <location line="+12"/>
         <source>Start</source>
-        <translation type="unfinished">Starten</translation>
+        <translation>Starten</translation>
     </message>
     <message>
         <location line="+17"/>
@@ -105,12 +105,12 @@
     <message>
         <location line="+52"/>
         <source>Duration</source>
-        <translation type="unfinished">Duur</translation>
+        <translation>Duur</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Delay</source>
-        <translation type="unfinished">Vertraging</translation>
+        <translation>Vertraging</translation>
     </message>
     <message>
         <location line="+21"/>
@@ -339,13 +339,13 @@
         <location line="-1"/>
         <location line="+1"/>
         <source>Right</source>
-        <translation type="unfinished">Rechts</translation>
+        <translation>Rechts</translation>
     </message>
     <message>
         <location line="-1"/>
         <location line="+1"/>
         <source>Left</source>
-        <translation type="unfinished">Links</translation>
+        <translation>Links</translation>
     </message>
     <message>
         <location line="-1"/>
@@ -675,7 +675,7 @@
 <context>
     <name>AutoCorrectDialog</name>
     <message>
-        <location filename="../libs/page/app/autocorrectdialog.cpp" line="+35"/>
+        <location filename="../libs/page/app/autocorrectdialog.cpp" line="+36"/>
         <location line="+68"/>
         <source>Add</source>
         <translation type="unfinished">Toevoegen</translation>
@@ -803,13 +803,7 @@
         <translation type="unfinished">QR-code (willekeurige tekst, zoals een webadres)</translation>
     </message>
     <message>
-        <location line="+2"/>
-        <source>Type:</source>
-        <translation type="unfinished">Type:</translation>
-    </message>
-    <message>
-        <location line="+4"/>
-        <location line="+109"/>
+        <location line="+115"/>
         <source>ISBN:</source>
         <translation type="unfinished">ISBN:</translation>
     </message>
@@ -819,12 +813,7 @@
         <translation type="unfinished">geen, of 2 of 5 cijfers</translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>Add-on:</source>
-        <translation type="unfinished">Toevoeging:</translation>
-    </message>
-    <message>
-        <location line="+2"/>
+        <location line="+3"/>
         <source>Low (repairs 7% damage)</source>
         <translation type="unfinished">Laag (herstelt 7% beschadiging)</translation>
     </message>
@@ -844,9 +833,24 @@
         <translation type="unfinished">Hoog (30%)</translation>
     </message>
     <message>
-        <location line="+2"/>
-        <source>Error correction:</source>
-        <translation type="unfinished">Foutcorrectie:</translation>
+        <location line="-10"/>
+        <source>Type</source>
+        <translation type="unfinished">Type</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>ISBN</source>
+        <translation>ISBN</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Add-on</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Error correction</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+4"/>
@@ -896,7 +900,7 @@
     <message>
         <location line="+17"/>
         <source>Size</source>
-        <translation type="unfinished">Grootte</translation>
+        <translation>Grootte</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -910,13 +914,13 @@
     </message>
     <message>
         <location line="+2"/>
-        <source>Magnification:</source>
-        <translation type="unfinished">Vergroting:</translation>
+        <source>Magnification</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>Bar height:</source>
-        <translation type="unfinished">Hoogte van streepjes:</translation>
+        <source>Bar height</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+2"/>
@@ -1255,7 +1259,7 @@ Artikel achterpagina	4</translation>
     <message>
         <location filename="../libs/page/canvas/canvas.cpp" line="+176"/>
         <source>Page</source>
-        <translation type="unfinished">Pagina</translation>
+        <translation>Pagina</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -1938,7 +1942,7 @@ Artikel achterpagina	4</translation>
     <message>
         <location line="+1"/>
         <source>Hyperlink</source>
-        <translation type="unfinished">Hyperlink</translation>
+        <translation>Hyperlink</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -1988,7 +1992,7 @@ Artikel achterpagina	4</translation>
     <message>
         <location line="+1"/>
         <source>Address</source>
-        <translation type="unfinished">Adres</translation>
+        <translation>Adres</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -2225,7 +2229,7 @@ Artikel achterpagina	4</translation>
     <message>
         <location line="+99"/>
         <source>Text</source>
-        <translation type="unfinished">Tekst</translation>
+        <translation>Tekst</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -2426,7 +2430,7 @@ Artikel achterpagina	4</translation>
     <message>
         <location line="+2"/>
         <source>Page</source>
-        <translation type="unfinished">Pagina</translation>
+        <translation>Pagina</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -2688,7 +2692,7 @@ Artikel achterpagina	4</translation>
         <location line="+1"/>
         <location line="+1"/>
         <source>Font</source>
-        <translation type="unfinished">Lettertype</translation>
+        <translation>Lettertype</translation>
     </message>
     <message>
         <location line="-102"/>
@@ -2860,7 +2864,7 @@ Artikel achterpagina	4</translation>
         <location line="+63"/>
         <location filename="../apps/pub/app/dialogs.cpp" line="+85"/>
         <source>Left</source>
-        <translation type="unfinished">Links</translation>
+        <translation>Links</translation>
     </message>
     <message>
         <location line="-63"/>
@@ -2874,7 +2878,7 @@ Artikel achterpagina	4</translation>
         <location line="+63"/>
         <location filename="../apps/pub/app/dialogs.cpp" line="+0"/>
         <source>Right</source>
-        <translation type="unfinished">Rechts</translation>
+        <translation>Rechts</translation>
     </message>
     <message>
         <location line="-63"/>
@@ -2996,12 +3000,12 @@ Artikel achterpagina	4</translation>
     <message>
         <location line="+5"/>
         <source>Position</source>
-        <translation type="unfinished">Positie</translation>
+        <translation>Positie</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Alignment</source>
-        <translation type="unfinished">Uitlijning</translation>
+        <translation>Uitlijning</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -3105,7 +3109,7 @@ Artikel achterpagina	4</translation>
     <message>
         <location line="+185"/>
         <source>Default tab stops</source>
-        <translation type="unfinished">Standaardtabstops</translation>
+        <translation>Standaardtabstops</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -3394,7 +3398,7 @@ Artikel achterpagina	4</translation>
     <message>
         <location line="-1080"/>
         <source>Size</source>
-        <translation type="unfinished">Grootte</translation>
+        <translation>Grootte</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -3476,13 +3480,13 @@ Artikel achterpagina	4</translation>
     <message>
         <location line="+1"/>
         <source>Layout</source>
-        <translation type="unfinished">Indeling</translation>
+        <translation>Indeling</translation>
     </message>
     <message>
         <location line="+12"/>
         <location line="+40"/>
         <source>Top</source>
-        <translation type="unfinished">Boven</translation>
+        <translation>Boven</translation>
     </message>
     <message>
         <location line="-40"/>
@@ -3494,7 +3498,7 @@ Artikel achterpagina	4</translation>
         <location line="-40"/>
         <location line="+40"/>
         <source>Bottom</source>
-        <translation type="unfinished">Onder</translation>
+        <translation>Onder</translation>
     </message>
     <message>
         <location line="-38"/>
@@ -3941,12 +3945,12 @@ Artikel achterpagina	4</translation>
     <message>
         <location line="+65"/>
         <source>Character</source>
-        <translation type="unfinished">Teken</translation>
+        <translation>Teken</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Name</source>
-        <translation type="unfinished">Naam</translation>
+        <translation>Naam</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -4075,7 +4079,7 @@ Artikel achterpagina	4</translation>
     <message>
         <location line="+8"/>
         <source>Hyperlink</source>
-        <translation type="unfinished">Hyperlink</translation>
+        <translation>Hyperlink</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -4139,7 +4143,7 @@ Artikel achterpagina	4</translation>
     <message>
         <location line="+16"/>
         <source>Logo</source>
-        <translation type="unfinished">Logo</translation>
+        <translation>Logo</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -4215,7 +4219,7 @@ Artikel achterpagina	4</translation>
     <message>
         <location line="+0"/>
         <source>Preset</source>
-        <translation type="unfinished">Vooraf ingesteld</translation>
+        <translation>Vooraf ingesteld</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -4392,7 +4396,7 @@ Artikel achterpagina	4</translation>
     <message>
         <location line="+1"/>
         <source>Paper</source>
-        <translation type="unfinished">Papier</translation>
+        <translation>Papier</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -4688,7 +4692,7 @@ Artikel achterpagina	4</translation>
     <message>
         <location line="+1"/>
         <source>Style</source>
-        <translation type="unfinished">Stijl</translation>
+        <translation>Stijl</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -4883,8 +4887,8 @@ Artikel achterpagina	4</translation>
     </message>
     <message>
         <location filename="../libs/page/app/saveoptions.cpp" line="-15"/>
-        <location filename="../apps/pub/app/mainwindow.cpp" line="+411"/>
-        <location filename="../apps/write/app/writewindow.cpp" line="+793"/>
+        <location filename="../apps/pub/app/mainwindow.cpp" line="+417"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="+794"/>
         <source>Save</source>
         <translation type="unfinished">Opslaan</translation>
     </message>
@@ -5104,7 +5108,7 @@ Artikel achterpagina	4</translation>
     <message>
         <location line="+0"/>
         <source>Spot colors</source>
-        <translation type="unfinished">Steunkleuren</translation>
+        <translation>Steunkleuren</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -5211,12 +5215,12 @@ Artikel achterpagina	4</translation>
     <message>
         <location line="+36"/>
         <source>Tracking</source>
-        <translation type="unfinished">Spatiëring</translation>
+        <translation>Spatiëring</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Kerning</source>
-        <translation type="unfinished">Tekenspatiëring</translation>
+        <translation>Tekenspatiëring</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -5506,8 +5510,8 @@ Artikel achterpagina	4</translation>
     </message>
     <message>
         <location line="+21"/>
-        <source>Show measurements in:</source>
-        <translation type="unfinished">Maten weergeven in:</translation>
+        <source>Show measurements in</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+1"/>
@@ -5530,7 +5534,7 @@ Artikel achterpagina	4</translation>
         <translation type="unfinished">Slim knippen en plakken (spaties rond verplaatste woorden corrigeren)</translation>
     </message>
     <message>
-        <location filename="../libs/shell/app/userdefaults.cpp" line="+23"/>
+        <location filename="../libs/shell/app/userdefaults.cpp" line="+24"/>
         <source>Set as Default</source>
         <translation type="unfinished">Instellen als standaard</translation>
     </message>
@@ -5558,7 +5562,7 @@ Artikel achterpagina	4</translation>
 <context>
     <name>DrawingWriter</name>
     <message>
-        <location filename="../libs/office/office/drawingml_write.cpp" line="+691"/>
+        <location filename="../libs/office/office/drawingml_write.cpp" line="+734"/>
         <location line="+161"/>
         <source>Placeholder</source>
         <translation type="unfinished">Tijdelijke aanduiding</translation>
@@ -5659,7 +5663,7 @@ Artikel achterpagina	4</translation>
 <context>
     <name>EquationDialog</name>
     <message>
-        <location filename="../libs/shell/app/equationdialog.cpp" line="+43"/>
+        <location filename="../libs/shell/app/equationdialog.cpp" line="+44"/>
         <source>Type the equation in a line. Use a/b for a fraction, x^2 for a power, x_i for a subscript, sqrt(x) for a root, and a backslash and a name for a symbol, such as \alpha, \pi, \infty, \leq, or \times. Write \sum_(i=1)^n, \int_0^1, or \prod for a sum, an integral, or a product with limits. Use \hat{x}, \vec{v}, or \bar{x} for an accent, \overline{x} for a bar, \left( ... \right) for brackets that grow, and \pmatrix{a &amp; b \\ c &amp; d} for a matrix.</source>
         <translation type="unfinished">Typ de vergelijking op één regel. Gebruik a/b voor een breuk, x^2 voor een macht, x_i voor een subscript, sqrt(x) voor een wortel, en een backslash en een naam voor een symbool, zoals \alpha, \pi, \infty, \leq of \times. Schrijf \sum_(i=1)^n, \int_0^1 of \prod voor een som, een integraal of een product met grenzen. Gebruik \hat{x}, \vec{v} of \bar{x} voor een accent, \overline{x} voor een streep, \left( ... \right) voor haakjes die meegroeien, en \pmatrix{a &amp; b \\ c &amp; d} voor een matrix.</translation>
     </message>
@@ -5840,8 +5844,8 @@ Artikel achterpagina	4</translation>
     </message>
     <message>
         <location line="+24"/>
-        <source>Insert &amp;as:</source>
-        <translation type="unfinished">Invoegen &amp;als:</translation>
+        <source>Insert &amp;as</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+21"/>
@@ -5866,7 +5870,7 @@ Of sla op in een map die niet beveiligd is.</translation>
 <context>
     <name>FileScreen</name>
     <message>
-        <location filename="../libs/shell/app/filescreenparts.cpp" line="+80"/>
+        <location filename="../libs/shell/app/filescreenparts.cpp" line="+81"/>
         <source>Additional terms</source>
         <translation type="unfinished">Aanvullende voorwaarden</translation>
     </message>
@@ -6328,7 +6332,77 @@ Opslaan zonder reservekopie?</translation>
         <translation type="unfinished">Volledige weerspiegeling</translation>
     </message>
     <message>
-        <location line="+46"/>
+        <location line="+13"/>
+        <source>Circle</source>
+        <translation type="unfinished">Cirkel</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Relaxed Inset</source>
+        <translation type="unfinished">Ontspannen inzet</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Cool Slant</source>
+        <translation type="unfinished">Strakke helling</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Angle</source>
+        <translation>Hoek</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Soft Round</source>
+        <translation type="unfinished">Zacht afgerond</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Convex</source>
+        <translation type="unfinished">Convex</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Slope</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Divot</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>No Rotation</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Perspective Left</source>
+        <translation type="unfinished">Perspectief links</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Perspective Right</source>
+        <translation type="unfinished">Perspectief rechts</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Perspective Above</source>
+        <translation type="unfinished">Perspectief boven</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Perspective Below</source>
+        <translation type="unfinished">Perspectief onder</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Off Axis</source>
+        <translation type="unfinished">Buiten de as</translation>
+    </message>
+    <message>
+        <location line="+66"/>
         <source>%1 Point Glow</source>
         <translation type="unfinished">Gloed van %1 punt</translation>
     </message>
@@ -7161,22 +7235,22 @@ Open deze bestanden in uw e-mailprogramma om ze te verzenden.</translation>
     <message>
         <location line="+30"/>
         <source>Cyan</source>
-        <translation type="unfinished">Cyaan</translation>
+        <translation>Cyaan</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Magenta</source>
-        <translation type="unfinished">Magenta</translation>
+        <translation>Magenta</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Yellow</source>
-        <translation type="unfinished">Geel</translation>
+        <translation>Geel</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Black</source>
-        <translation type="unfinished">Zwart</translation>
+        <translation>Zwart</translation>
     </message>
     <message>
         <location line="+370"/>
@@ -7274,7 +7348,7 @@ Open deze bestanden in uw e-mailprogramma om ze te verzenden.</translation>
     <message>
         <location filename="../apps/deck/core/ink.cpp" line="+62"/>
         <source>Red</source>
-        <translation type="unfinished">Rood</translation>
+        <translation>Rood</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -7284,12 +7358,12 @@ Open deze bestanden in uw e-mailprogramma om ze te verzenden.</translation>
     <message>
         <location line="+1"/>
         <source>Yellow</source>
-        <translation type="unfinished">Geel</translation>
+        <translation>Geel</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Green</source>
-        <translation type="unfinished">Groen</translation>
+        <translation>Groen</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -7299,7 +7373,7 @@ Open deze bestanden in uw e-mailprogramma om ze te verzenden.</translation>
     <message>
         <location line="+0"/>
         <source>Blue</source>
-        <translation type="unfinished">Blauw</translation>
+        <translation>Blauw</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -7309,7 +7383,7 @@ Open deze bestanden in uw e-mailprogramma om ze te verzenden.</translation>
     <message>
         <location line="+0"/>
         <source>Black</source>
-        <translation type="unfinished">Zwart</translation>
+        <translation>Zwart</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -7334,7 +7408,7 @@ Open deze bestanden in uw e-mailprogramma om ze te verzenden.</translation>
         <location line="+15"/>
         <location line="+104"/>
         <source>Other</source>
-        <translation type="unfinished">Overige</translation>
+        <translation>Andere</translation>
     </message>
 </context>
 <context>
@@ -7595,7 +7669,7 @@ Open deze bestanden in uw e-mailprogramma om ze te verzenden.</translation>
 <context>
     <name>MainWindow</name>
     <message>
-        <location filename="../apps/pub/app/mainwindow.cpp" line="+612"/>
+        <location filename="../apps/pub/app/mainwindow.cpp" line="+584"/>
         <source>A picture on page %1 has low resolution (%2 ppi; printers ask for 300).</source>
         <translation type="unfinished">Een afbeelding op pagina %1 heeft een lage resolutie (%2 ppi; drukkerijen vragen 300).</translation>
     </message>
@@ -7752,13 +7826,9 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     </message>
     <message>
         <location line="+6"/>
+        <location line="+2"/>
         <source>Password</source>
         <translation type="unfinished">Wachtwoord</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>Password:</source>
-        <translation type="unfinished">Wachtwoord:</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -7767,8 +7837,8 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     </message>
     <message>
         <location line="+2"/>
-        <source>Type it again:</source>
-        <translation type="unfinished">Typ het opnieuw:</translation>
+        <source>Type it again</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+2"/>
@@ -7807,13 +7877,13 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     <message>
         <location line="+17"/>
         <source>Layout</source>
-        <translation type="unfinished">Indeling</translation>
+        <translation>Indeling</translation>
     </message>
     <message>
         <location line="+140"/>
         <location line="+1"/>
         <source>Theme</source>
-        <translation type="unfinished">Thema</translation>
+        <translation>Thema</translation>
     </message>
     <message>
         <location line="+30"/>
@@ -7916,11 +7986,6 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <location filename="../apps/deck/io/odpexport_style.cpp" line="+281"/>
         <source>Inner shadows can&apos;t be saved in this kind of file.</source>
         <translation type="unfinished">Binnenschaduwen kunnen in dit type bestand niet worden opgeslagen.</translation>
-    </message>
-    <message>
-        <location line="+10"/>
-        <source>Bevels and objects turned in space are saved flat.</source>
-        <translation type="unfinished">Schuine randen en in de ruimte gedraaide objecten worden plat opgeslagen.</translation>
     </message>
 </context>
 <context>
@@ -8679,13 +8744,9 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     </message>
     <message>
         <location line="+4"/>
+        <location line="+1"/>
         <source>Password</source>
         <translation type="unfinished">Wachtwoord</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Password:</source>
-        <translation type="unfinished">Wachtwoord:</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -8693,28 +8754,24 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <translation type="unfinished">Wachtwoord bevestigen</translation>
     </message>
     <message>
-        <location line="+1"/>
-        <location line="+12"/>
-        <source>Confirm:</source>
-        <translation type="unfinished">Bevestigen:</translation>
-    </message>
-    <message>
-        <location line="-9"/>
+        <location line="+4"/>
         <source>Restrict printing, copying, and editing</source>
         <translation type="unfinished">Afdrukken, kopiëren en bewerken beperken</translation>
     </message>
     <message>
         <location line="+6"/>
+        <location line="+1"/>
         <source>Password for the limits</source>
         <translation type="unfinished">Wachtwoord voor de beperkingen</translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>Password for the limits:</source>
-        <translation type="unfinished">Wachtwoord voor de beperkingen:</translation>
+        <location line="-10"/>
+        <location line="+12"/>
+        <source>Confirm</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="-1"/>
         <source>Confirm password for the limits</source>
         <translation type="unfinished">Wachtwoord voor de beperkingen bevestigen</translation>
     </message>
@@ -9033,7 +9090,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     <message>
         <location line="+25"/>
         <source>Theme</source>
-        <translation type="unfinished">Thema</translation>
+        <translation>Thema</translation>
     </message>
     <message>
         <location line="+32"/>
@@ -9353,7 +9410,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     <message>
         <location line="+24"/>
         <source>Theme</source>
-        <translation type="unfinished">Thema</translation>
+        <translation>Thema</translation>
     </message>
     <message>
         <location line="+23"/>
@@ -9525,22 +9582,24 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
 <context>
     <name>Print</name>
     <message>
-        <location filename="../libs/shell/app/printpage.cpp" line="+68"/>
+        <location filename="../libs/shell/app/printpage.cpp" line="+74"/>
         <source>Save as PDF</source>
         <translation type="unfinished">Opslaan als PDF</translation>
     </message>
     <message>
         <location line="+20"/>
+        <location line="+113"/>
         <source>Printer</source>
-        <translation type="unfinished">Printer</translation>
+        <translation>Printer</translation>
     </message>
     <message>
-        <location line="+11"/>
+        <location line="-102"/>
+        <location line="+116"/>
         <source>Copies</source>
         <translation type="unfinished">Kopieën</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="-110"/>
         <source>Collated</source>
         <translation type="unfinished">Gesorteerd</translation>
     </message>
@@ -9569,7 +9628,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <location line="+8"/>
         <location line="+1"/>
         <source>Color</source>
-        <translation type="unfinished">Kleur</translation>
+        <translation>Kleur</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -9626,6 +9685,21 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <source>300%</source>
         <translation type="unfinished">300%</translation>
     </message>
+    <message>
+        <location line="+19"/>
+        <source>Pages</source>
+        <translation>Pagina&apos;s</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Layout</source>
+        <translation>Indeling</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Paper</source>
+        <translation>Papier</translation>
+    </message>
 </context>
 <context>
     <name>PrintSides</name>
@@ -9657,7 +9731,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     <message>
         <location line="+2"/>
         <source>Sides</source>
-        <translation type="unfinished">Zijden</translation>
+        <translation>Zijden</translation>
     </message>
     <message>
         <location line="+20"/>
@@ -9719,25 +9793,22 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     </message>
     <message>
         <location line="-94"/>
-        <location filename="../apps/crunch/app/spellingdialog.cpp" line="-80"/>
         <source>Not in dictionary:</source>
         <translation type="unfinished">Niet in woordenlijst:</translation>
     </message>
     <message>
         <location line="+5"/>
-        <location filename="../apps/crunch/app/spellingdialog.cpp" line="+2"/>
         <source>Change to:</source>
         <translation type="unfinished">Wijzigen in:</translation>
     </message>
     <message>
         <location line="+2"/>
-        <location filename="../apps/crunch/app/spellingdialog.cpp" line="+2"/>
         <source>Suggestions:</source>
         <translation type="unfinished">Suggesties:</translation>
     </message>
     <message>
         <location line="+3"/>
-        <location filename="../apps/crunch/app/spellingdialog.cpp" line="+8"/>
+        <location filename="../apps/crunch/app/spellingdialog.cpp" line="-68"/>
         <source>Ignore</source>
         <translation type="unfinished">Negeren</translation>
     </message>
@@ -9853,7 +9924,22 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
 %1</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/spellingdialog.cpp" line="-18"/>
+        <location filename="../apps/crunch/app/spellingdialog.cpp" line="-80"/>
+        <source>Not in dictionary</source>
+        <translation>Niet in woordenlijst</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Change to</source>
+        <translation>Wijzigen in</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Suggestions</source>
+        <translation>Suggesties</translation>
+    </message>
+    <message>
+        <location line="+58"/>
         <source>Checking… %1%</source>
         <translation type="unfinished">Controleren… %1%</translation>
     </message>
@@ -11137,7 +11223,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="+1"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+1"/>
         <source>Alignment</source>
-        <translation type="unfinished">Uitlijning</translation>
+        <translation>Uitlijning</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -11265,7 +11351,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="+2"/>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="+2"/>
         <source>Columns</source>
-        <translation type="unfinished">Kolommen</translation>
+        <translation>Kolommen</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -11347,7 +11433,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="+3"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+2"/>
         <source>Font</source>
-        <translation type="unfinished">Lettertype</translation>
+        <translation>Lettertype</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -11357,7 +11443,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/deck/app/ribbon_strings.cpp" line="+2"/>
+        <location filename="../apps/deck/app/ribbon_strings.cpp" line="+3"/>
         <source>Format Shape</source>
         <translation type="unfinished">Vorm opmaken</translation>
     </message>
@@ -11374,7 +11460,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     <message>
         <location line="+2"/>
         <source>Guides</source>
-        <translation type="unfinished">Hulplijnen</translation>
+        <translation>Hulplijnen</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -11386,7 +11472,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <location line="+1"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+17"/>
         <source>Height</source>
-        <translation type="unfinished">Hoogte</translation>
+        <translation>Hoogte</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -11436,7 +11522,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="+1"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+1"/>
         <source>Language</source>
-        <translation type="unfinished">Taal</translation>
+        <translation>Taal</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -11444,7 +11530,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="+1"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+1"/>
         <source>Layout</source>
-        <translation type="unfinished">Indeling</translation>
+        <translation>Indeling</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -11532,7 +11618,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="+3"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+11"/>
         <source>Orientation</source>
-        <translation type="unfinished">Afdrukstand</translation>
+        <translation>Afdrukstand</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -11556,7 +11642,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <location line="+1"/>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="+1"/>
         <source>Pages</source>
-        <translation type="unfinished">Pagina&apos;s</translation>
+        <translation>Pagina&apos;s</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -11573,6 +11659,9 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     </message>
     <message>
         <location line="+1"/>
+        <location filename="../apps/deck/app/ribbon_strings.cpp" line="+2"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+1"/>
+        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+1"/>
         <source>Picture Effects</source>
         <translation type="unfinished">Afbeeldingseffecten</translation>
     </message>
@@ -11586,6 +11675,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     </message>
     <message>
         <location line="+1"/>
+        <location filename="../apps/deck/app/ribbon_strings.cpp" line="+1"/>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="+1"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+1"/>
         <source>Picture Styles</source>
@@ -11715,7 +11805,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="+3"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+1"/>
         <source>Size</source>
-        <translation type="unfinished">Grootte</translation>
+        <translation>Grootte</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -11731,7 +11821,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     <message>
         <location line="+1"/>
         <source>Spacing</source>
-        <translation type="unfinished">Afstand</translation>
+        <translation>Afstand</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -11744,7 +11834,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     <message>
         <location line="+1"/>
         <source>Start</source>
-        <translation type="unfinished">Starten</translation>
+        <translation>Starten</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -11819,7 +11909,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="+1"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+1"/>
         <source>Text</source>
-        <translation type="unfinished">Tekst</translation>
+        <translation>Tekst</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -11894,7 +11984,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <location line="+1"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+1"/>
         <source>Width</source>
-        <translation type="unfinished">Breedte</translation>
+        <translation>Breedte</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -11943,9 +12033,9 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     <message>
         <location line="+5"/>
         <location filename="../apps/pub/app/ribbon_strings.cpp" line="-85"/>
-        <location filename="../apps/deck/app/ribbon_strings.cpp" line="-77"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="-92"/>
-        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-80"/>
+        <location filename="../apps/deck/app/ribbon_strings.cpp" line="-80"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="-93"/>
+        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-81"/>
         <source>Help</source>
         <translation type="unfinished">Help</translation>
     </message>
@@ -12054,7 +12144,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <translation type="unfinished">Snelle werkbalk onder het lint weergeven</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/ribbon_strings.cpp" line="-51"/>
+        <location filename="../apps/deck/app/ribbon_strings.cpp" line="-52"/>
         <source>Accessibility</source>
         <translation type="unfinished">Toegankelijkheid</translation>
     </message>
@@ -12086,7 +12176,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     <message>
         <location line="+2"/>
         <source>Background</source>
-        <translation type="unfinished">Achtergrond</translation>
+        <translation>Achtergrond</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -12103,7 +12193,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <location line="+11"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-30"/>
         <source>Colors</source>
-        <translation type="unfinished">Kleuren</translation>
+        <translation>Kleuren</translation>
     </message>
     <message>
         <location filename="../apps/pub/app/ribbon_strings.cpp" line="-23"/>
@@ -12111,7 +12201,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="+15"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+1"/>
         <source>Comments</source>
-        <translation type="unfinished">Opmerkingen</translation>
+        <translation>Opmerkingen</translation>
     </message>
     <message>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="+2"/>
@@ -12132,7 +12222,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <location line="+2"/>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="+9"/>
         <source>Design</source>
-        <translation type="unfinished">Ontwerp</translation>
+        <translation>Ontwerp</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -12168,7 +12258,12 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <location line="+3"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+15"/>
         <source>Format</source>
-        <translation type="unfinished">Opmaak</translation>
+        <translation>Opmaak</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Format Picture</source>
+        <translation type="unfinished">Afbeelding opmaken</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -12222,6 +12317,11 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <translation type="unfinished">Beeldschermen</translation>
     </message>
     <message>
+        <location line="+3"/>
+        <source>Picture Border</source>
+        <translation type="unfinished">Afbeeldingsrand</translation>
+    </message>
+    <message>
         <location line="+5"/>
         <source>Playback</source>
         <translation type="unfinished">Afspelen</translation>
@@ -12268,7 +12368,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     </message>
     <message>
         <location line="+2"/>
-        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+63"/>
+        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+64"/>
         <source>Shapes</source>
         <translation type="unfinished">Vormen</translation>
     </message>
@@ -12295,7 +12395,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     <message>
         <location line="+1"/>
         <source>Slides</source>
-        <translation type="unfinished">Dia&apos;s</translation>
+        <translation>Dia&apos;s</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -12314,7 +12414,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     </message>
     <message>
         <location line="+2"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+67"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+68"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+14"/>
         <source>Symbols</source>
         <translation type="unfinished">Symbolen</translation>
@@ -12394,7 +12494,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <translation type="unfinished">Breedte:</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="-148"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="-149"/>
         <source>Accept</source>
         <translation type="unfinished">Accepteren</translation>
     </message>
@@ -12424,9 +12524,9 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <translation type="unfinished">Randen en arcering</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/ribbon_strings.cpp" line="-127"/>
+        <location filename="../apps/deck/app/ribbon_strings.cpp" line="-131"/>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="-10"/>
-        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-118"/>
+        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-119"/>
         <source>About</source>
         <translation type="unfinished">Info</translation>
     </message>
@@ -12500,7 +12600,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     <message>
         <location line="+3"/>
         <source>Color</source>
-        <translation type="unfinished">Kleur</translation>
+        <translation>Kleur</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -12594,7 +12694,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     </message>
     <message>
         <location filename="../apps/pub/app/ribbon_strings.cpp" line="+37"/>
-        <location filename="../apps/deck/app/ribbon_strings.cpp" line="+36"/>
+        <location filename="../apps/deck/app/ribbon_strings.cpp" line="+37"/>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="+6"/>
         <source>Legend</source>
         <translation type="unfinished">Legenda</translation>
@@ -12647,14 +12747,14 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <translation type="unfinished">Paginaverplaatsing</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="+9"/>
         <source>Pictures</source>
         <translation type="unfinished">Afbeeldingen</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Position</source>
-        <translation type="unfinished">Positie</translation>
+        <translation>Positie</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -12728,7 +12828,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     </message>
     <message>
         <location line="+3"/>
-        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+48"/>
+        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+49"/>
         <source>Text Art</source>
         <translation type="unfinished">Tekstopmaak</translation>
     </message>
@@ -12751,7 +12851,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     <message>
         <location line="+1"/>
         <source>Tracking</source>
-        <translation type="unfinished">Bijhouden</translation>
+        <translation>Spatiëring</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -12759,7 +12859,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <translation type="unfinished">Watermerk</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-111"/>
+        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-112"/>
         <source>Cell Styles</source>
         <translation type="unfinished">Celstijlen</translation>
     </message>
@@ -12785,8 +12885,8 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     </message>
     <message>
         <location filename="../apps/pub/app/ribbon_strings.cpp" line="-41"/>
-        <location filename="../apps/deck/app/ribbon_strings.cpp" line="-40"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="-127"/>
+        <location filename="../apps/deck/app/ribbon_strings.cpp" line="-41"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="-128"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+15"/>
         <source>Chart</source>
         <translation type="unfinished">Grafiek</translation>
@@ -12865,7 +12965,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     <message>
         <location line="+6"/>
         <source>Name</source>
-        <translation type="unfinished">Naam</translation>
+        <translation>Naam</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -12903,7 +13003,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <translation type="unfinished">Pagina-indeling</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+5"/>
         <source>Pivot Table</source>
         <translation type="unfinished">Draaitabel</translation>
     </message>
@@ -12918,7 +13018,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <translation type="unfinished">Eigenschappen</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+64"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+65"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+1"/>
         <source>Protect</source>
         <translation type="unfinished">Beveiligen</translation>
@@ -12945,9 +13045,9 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     </message>
     <message>
         <location filename="../apps/pub/app/ribbon_strings.cpp" line="+15"/>
-        <location filename="../apps/deck/app/ribbon_strings.cpp" line="+16"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="-44"/>
-        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-49"/>
+        <location filename="../apps/deck/app/ribbon_strings.cpp" line="+17"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="-45"/>
+        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-50"/>
         <source>Gridlines</source>
         <translation type="unfinished">Rasterlijnen</translation>
     </message>
@@ -12989,7 +13089,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     <message>
         <location line="+1"/>
         <source>Direction</source>
-        <translation type="unfinished">Richting</translation>
+        <translation>Richting</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -13087,7 +13187,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <translation type="unfinished">Meer functies</translation>
     </message>
     <message>
-        <location line="+15"/>
+        <location line="+16"/>
         <source>Print</source>
         <translation type="unfinished">Afdrukken</translation>
     </message>
@@ -13139,7 +13239,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     <message>
         <location line="+2"/>
         <source>Style</source>
-        <translation type="unfinished">Stijl</translation>
+        <translation>Stijl</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -13180,6 +13280,24 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <location line="+1"/>
         <source>Unhide Sheet</source>
         <translation type="unfinished">Blad zichtbaar maken</translation>
+    </message>
+</context>
+<context>
+    <name>SaveChanges</name>
+    <message>
+        <location filename="../libs/shell/app/uistyle.cpp" line="+449"/>
+        <source>Save changes to &quot;%1&quot;?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>If you don&apos;t save, your changes since the last save are lost.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Don&apos;t Save</source>
+        <translation type="unfinished">Niet opslaan</translation>
     </message>
 </context>
 <context>
@@ -14403,17 +14521,17 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
     <message>
         <location line="+21"/>
         <source>Red</source>
-        <translation type="unfinished">Rood</translation>
+        <translation>Rood</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Green</source>
-        <translation type="unfinished">Groen</translation>
+        <translation>Groen</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Blue</source>
-        <translation type="unfinished">Blauw</translation>
+        <translation>Blauw</translation>
     </message>
 </context>
 <context>
@@ -14575,7 +14693,7 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
 <context>
     <name>Telemetry</name>
     <message>
-        <location filename="../libs/shell/app/telemetry.cpp" line="+158"/>
+        <location filename="../libs/shell/app/telemetry.cpp" line="+159"/>
         <source>Help improve %1</source>
         <translation type="unfinished">Help %1 te verbeteren</translation>
     </message>
@@ -14860,7 +14978,7 @@ Agenda	2</translation>
     <message>
         <location line="+0"/>
         <source>Where</source>
-        <translation type="unfinished">Locatie</translation>
+        <translation>Bereik</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -15326,7 +15444,7 @@ Straat en huisnummer
     <message>
         <location line="+0"/>
         <source>Description</source>
-        <translation type="unfinished">Omschrijving</translation>
+        <translation>Beschrijving</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -15336,7 +15454,7 @@ Straat en huisnummer
     <message>
         <location line="+0"/>
         <source>Amount</source>
-        <translation type="unfinished">Bedrag</translation>
+        <translation>Hoeveelheid</translation>
     </message>
     <message>
         <location line="+14"/>
@@ -16601,7 +16719,7 @@ Desktop publishing</translation>
         <location line="+1"/>
         <location line="+36"/>
         <source>Background</source>
-        <translation type="unfinished">Achtergrond</translation>
+        <translation>Achtergrond</translation>
     </message>
     <message>
         <location line="-35"/>
@@ -17107,8 +17225,8 @@ Desktop publishing</translation>
     </message>
     <message>
         <location line="+7"/>
-        <source>Color model:</source>
-        <translation type="unfinished">Kleurmodel:</translation>
+        <source>Color model</source>
+        <translation>Kleurmodel</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -17162,21 +17280,21 @@ Desktop publishing</translation>
     </message>
     <message>
         <location line="+7"/>
-        <source>Hex:</source>
-        <translation type="unfinished">Hex:</translation>
+        <source>Hex</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="+5"/>
+        <source>Transparency</source>
+        <translation>Transparantie</translation>
+    </message>
+    <message>
+        <location line="-4"/>
         <source>Custom</source>
         <translation type="unfinished">Aangepast</translation>
     </message>
     <message>
-        <location line="+4"/>
-        <source>Transparency:</source>
-        <translation type="unfinished">Transparantie:</translation>
-    </message>
-    <message>
-        <location line="+52"/>
+        <location line="+56"/>
         <source>New (top) and current (bottom)</source>
         <translation type="unfinished">Nieuw (boven) en huidig (onder)</translation>
     </message>
@@ -17325,7 +17443,7 @@ Desktop publishing</translation>
 <context>
     <name>jp::AdvancedFilterDialog</name>
     <message>
-        <location filename="../apps/crunch/app/advancedfilterdialog.cpp" line="+17"/>
+        <location filename="../apps/crunch/app/advancedfilterdialog.cpp" line="+18"/>
         <source>Advanced Filter</source>
         <translation type="unfinished">Geavanceerd filter</translation>
     </message>
@@ -17346,33 +17464,21 @@ Desktop publishing</translation>
     </message>
     <message>
         <location line="+7"/>
+        <location line="+8"/>
         <source>List range</source>
         <translation type="unfinished">Lijstbereik</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="-5"/>
+        <location line="+6"/>
         <source>Conditions range</source>
         <translation type="unfinished">Voorwaardenbereik</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="-3"/>
+        <location line="+4"/>
         <source>Copy to</source>
         <translation type="unfinished">Kopiëren naar</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>List range:</source>
-        <translation type="unfinished">Lijstbereik:</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Conditions range:</source>
-        <translation type="unfinished">Voorwaardenbereik:</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Copy to:</source>
-        <translation type="unfinished">Kopiëren naar:</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -17405,7 +17511,7 @@ Desktop publishing</translation>
     <message>
         <location line="+4"/>
         <source>Direction</source>
-        <translation type="unfinished">Richting</translation>
+        <translation>Richting</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -17430,12 +17536,12 @@ Desktop publishing</translation>
     <message>
         <location line="+2"/>
         <source>Size</source>
-        <translation type="unfinished">Grootte</translation>
+        <translation>Grootte</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Amount</source>
-        <translation type="unfinished">Hoeveelheid</translation>
+        <translation>Hoeveelheid</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -17475,7 +17581,7 @@ Desktop publishing</translation>
     <message>
         <location line="+3"/>
         <source>After animation</source>
-        <translation type="unfinished">Na animatie</translation>
+        <translation>Na animatie</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -17510,7 +17616,7 @@ Desktop publishing</translation>
     <message>
         <location line="+7"/>
         <source>Start</source>
-        <translation type="unfinished">Starten</translation>
+        <translation>Starten</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -17526,7 +17632,7 @@ Desktop publishing</translation>
     <message>
         <location line="-8"/>
         <source>Delay</source>
-        <translation type="unfinished">Vertraging</translation>
+        <translation>Vertraging</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -17536,7 +17642,7 @@ Desktop publishing</translation>
     <message>
         <location line="+8"/>
         <source>Duration</source>
-        <translation type="unfinished">Duur</translation>
+        <translation>Duur</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -17546,7 +17652,7 @@ Desktop publishing</translation>
     <message>
         <location line="+3"/>
         <source>Repeat</source>
-        <translation type="unfinished">Herhalen</translation>
+        <translation>Herhalen</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -17713,7 +17819,7 @@ Desktop publishing</translation>
     <message>
         <location line="+2"/>
         <source>Start</source>
-        <translation type="unfinished">Start</translation>
+        <translation>Starten</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -17970,7 +18076,7 @@ Desktop publishing</translation>
     <message>
         <location line="+0"/>
         <source>Pages</source>
-        <translation type="unfinished">Aangepast afdrukken</translation>
+        <translation>Pagina&apos;s</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -18080,22 +18186,22 @@ Desktop publishing</translation>
     <message>
         <location line="+12"/>
         <source>Cyan</source>
-        <translation type="unfinished">Cyaan</translation>
+        <translation>Cyaan</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Magenta</source>
-        <translation type="unfinished">Magenta</translation>
+        <translation>Magenta</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Yellow</source>
-        <translation type="unfinished">Geel</translation>
+        <translation>Geel</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Black</source>
-        <translation type="unfinished">Zwart</translation>
+        <translation>Zwart</translation>
     </message>
     <message>
         <location line="+16"/>
@@ -18389,7 +18495,7 @@ Desktop publishing</translation>
         <translation type="unfinished">Gratis opensource-desktoppublishing voor Windows, macOS en Linux.</translation>
     </message>
     <message>
-        <location filename="../libs/shell/app/filescreenparts.cpp" line="+180"/>
+        <location filename="../libs/shell/app/filescreenparts.cpp" line="+173"/>
         <source>Interface, text layout, PDF and printing</source>
         <translation type="unfinished">Interface, tekstindeling, PDF en afdrukken</translation>
     </message>
@@ -18597,7 +18703,7 @@ Desktop publishing</translation>
     </message>
     <message>
         <location filename="../apps/pub/app/backstage.cpp" line="+2"/>
-        <location filename="../apps/write/app/writefilescreen.cpp" line="+663"/>
+        <location filename="../apps/write/app/writefilescreen.cpp" line="+648"/>
         <source>Translate (opens in your browser)</source>
         <translation type="unfinished">Vertalen (wordt geopend in uw browser)</translation>
     </message>
@@ -18620,39 +18726,27 @@ Desktop publishing</translation>
 <context>
     <name>jp::CalculatedFieldDialog</name>
     <message>
-        <location filename="../apps/crunch/app/pivotpane.cpp" line="+629"/>
+        <location filename="../apps/crunch/app/pivotpane.cpp" line="+630"/>
         <source>Insert Calculated Field</source>
         <translation type="unfinished">Berekend veld invoegen</translation>
     </message>
     <message>
         <location line="+6"/>
+        <location line="+3"/>
         <source>Name</source>
-        <translation type="unfinished">Naam</translation>
+        <translation>Naam</translation>
     </message>
     <message>
         <location line="+3"/>
-        <source>Name:</source>
-        <translation type="unfinished">Naam:</translation>
-    </message>
-    <message>
-        <location line="+3"/>
+        <location line="+2"/>
         <source>Formula</source>
         <translation type="unfinished">Formule</translation>
     </message>
     <message>
-        <location line="+2"/>
-        <source>Formula:</source>
-        <translation type="unfinished">Formule:</translation>
-    </message>
-    <message>
         <location line="+3"/>
+        <location line="+2"/>
         <source>Fields</source>
         <translation type="unfinished">Velden</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>Fields:</source>
-        <translation type="unfinished">Velden:</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -18685,43 +18779,27 @@ Desktop publishing</translation>
     </message>
     <message>
         <location line="+5"/>
+        <location line="+4"/>
         <source>Field</source>
         <translation type="unfinished">Veld</translation>
     </message>
     <message>
         <location line="+4"/>
-        <source>Field:</source>
-        <translation type="unfinished">Veld:</translation>
-    </message>
-    <message>
-        <location line="+4"/>
-        <source>Name</source>
-        <translation type="unfinished">Naam</translation>
-    </message>
-    <message>
         <location line="+1"/>
-        <source>Name:</source>
-        <translation type="unfinished">Naam:</translation>
+        <source>Name</source>
+        <translation>Naam</translation>
     </message>
     <message>
         <location line="+3"/>
+        <location line="+2"/>
         <source>Formula</source>
         <translation type="unfinished">Formule</translation>
     </message>
     <message>
-        <location line="+2"/>
-        <source>Formula:</source>
-        <translation type="unfinished">Formule:</translation>
-    </message>
-    <message>
         <location line="+3"/>
+        <location line="+1"/>
         <source>Items</source>
         <translation type="unfinished">Items</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Items:</source>
-        <translation type="unfinished">Items:</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -19142,7 +19220,7 @@ Bron: %3</translation>
     <message>
         <location filename="../apps/crunch/app/chartdialogs.cpp" line="-443"/>
         <source>Columns</source>
-        <translation type="unfinished">Kolommen</translation>
+        <translation>Kolommen</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -19462,7 +19540,7 @@ Bron: %3</translation>
         <location line="+9"/>
         <location line="+64"/>
         <source>Comments</source>
-        <translation type="unfinished">Opmerkingen</translation>
+        <translation>Opmerkingen</translation>
     </message>
     <message>
         <location line="-55"/>
@@ -19611,14 +19689,14 @@ Bron: %3</translation>
     </message>
     <message>
         <location line="+3"/>
-        <source>Target output:</source>
-        <translation type="unfinished">Doeluitvoer:</translation>
+        <source>Target output</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
     <name>jp::ConsolidateDialog</name>
     <message>
-        <location filename="../apps/crunch/app/consolidatedialog.cpp" line="+22"/>
+        <location filename="../apps/crunch/app/consolidatedialog.cpp" line="+23"/>
         <source>Consolidate</source>
         <translation type="unfinished">Consolideren</translation>
     </message>
@@ -19629,23 +19707,15 @@ Bron: %3</translation>
     </message>
     <message>
         <location line="+6"/>
+        <location line="+2"/>
         <source>Function</source>
         <translation type="unfinished">Functie</translation>
     </message>
     <message>
-        <location line="+2"/>
-        <source>Function:</source>
-        <translation type="unfinished">Functie:</translation>
-    </message>
-    <message>
         <location line="+3"/>
+        <location line="+1"/>
         <source>Put the result at</source>
         <translation type="unfinished">Resultaat plaatsen op</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Put the result at:</source>
-        <translation type="unfinished">Resultaat plaatsen op:</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -19703,7 +19773,7 @@ Bron: %3</translation>
     <message>
         <location line="+2"/>
         <source>Start</source>
-        <translation type="unfinished">Start</translation>
+        <translation>Starten</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -19756,12 +19826,13 @@ Bron: %3</translation>
         <location line="+4"/>
         <location filename="../apps/crunch/app/crunchprintpage.cpp" line="+79"/>
         <location line="+1"/>
+        <location line="+105"/>
         <source>Print</source>
         <translation type="unfinished">Afdrukken</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/crunch/app/crunchprintpage.cpp" line="+443"/>
+        <location filename="../apps/crunch/app/crunchprintpage.cpp" line="+326"/>
         <source>Export</source>
         <translation type="unfinished">Exporteren</translation>
     </message>
@@ -19861,14 +19932,9 @@ Bron: %3</translation>
         <translation type="unfinished">Gratis opensource-spreadsheets voor Windows, macOS en Linux. Dit is een voorbeeld.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchprintpage.cpp" line="-432"/>
-        <source>Copies:</source>
-        <translation type="unfinished">Exemplaren:</translation>
-    </message>
-    <message>
-        <location line="+10"/>
+        <location filename="../apps/crunch/app/crunchprintpage.cpp" line="-422"/>
         <source>Printer</source>
-        <translation type="unfinished">Printer</translation>
+        <translation>Printer</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -19881,12 +19947,7 @@ Bron: %3</translation>
         <translation type="unfinished">Printerinstellingen…</translation>
     </message>
     <message>
-        <location line="+5"/>
-        <source>Printer:</source>
-        <translation type="unfinished">Printer:</translation>
-    </message>
-    <message>
-        <location line="+3"/>
+        <location line="+9"/>
         <source>What to print</source>
         <translation type="unfinished">Wat u wilt afdrukken</translation>
     </message>
@@ -19906,12 +19967,7 @@ Bron: %3</translation>
         <translation type="unfinished">De geselecteerde cellen</translation>
     </message>
     <message>
-        <location line="+2"/>
-        <source>Print:</source>
-        <translation type="unfinished">Afdrukken:</translation>
-    </message>
-    <message>
-        <location line="+3"/>
+        <location line="+4"/>
         <source>Pages to print</source>
         <translation type="unfinished">Af te drukken pagina&apos;s</translation>
     </message>
@@ -19924,11 +19980,6 @@ Bron: %3</translation>
         <location line="+1"/>
         <source>Page numbers and ranges, separated by commas.</source>
         <translation type="unfinished">Paginanummers en bereiken, gescheiden door komma&apos;s.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Pages:</source>
-        <translation type="unfinished">Pagina&apos;s:</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -19956,17 +20007,7 @@ Bron: %3</translation>
         <translation type="unfinished">Om handmatig aan beide zijden af te drukken, drukt u de oneven pagina&apos;s af, draait u de stapel om, legt u deze terug in de printer en drukt u vervolgens de even pagina&apos;s af.</translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>Which pages:</source>
-        <translation type="unfinished">Welke pagina&apos;s:</translation>
-    </message>
-    <message>
-        <location line="+4"/>
-        <source>Sides:</source>
-        <translation type="unfinished">Zijden:</translation>
-    </message>
-    <message>
-        <location line="+3"/>
+        <location line="+6"/>
         <source>Pages on each sheet of paper</source>
         <translation type="unfinished">Pagina&apos;s op elk vel papier</translation>
     </message>
@@ -19987,44 +20028,29 @@ Bron: %3</translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>Pages on a sheet:</source>
-        <translation type="unfinished">Pagina&apos;s op een vel:</translation>
-    </message>
-    <message>
-        <location line="+1"/>
         <source>Print each copy of all the pages in turn (1, 2, 3, 1, 2, 3), not each page&apos;s copies together (1, 1, 2, 2, 3, 3).</source>
         <translation type="unfinished">Elk exemplaar van alle pagina&apos;s achter elkaar afdrukken (1, 2, 3, 1, 2, 3), niet de exemplaren van elke pagina samen (1, 1, 2, 2, 3, 3).</translation>
     </message>
     <message>
-        <location line="+6"/>
-        <location line="+6"/>
-        <location line="+15"/>
-        <location line="+14"/>
+        <location line="+4"/>
+        <location line="+5"/>
+        <location line="+13"/>
+        <location line="+13"/>
         <source>As each sheet says</source>
         <translation type="unfinished">Zoals elk werkblad aangeeft</translation>
     </message>
     <message>
-        <location line="-12"/>
+        <location line="-11"/>
         <source>Wide</source>
         <translation type="unfinished">Liggend</translation>
     </message>
     <message>
-        <location line="-21"/>
-        <source>Paper turned:</source>
-        <translation type="unfinished">Afdrukstand:</translation>
-    </message>
-    <message>
-        <location line="+3"/>
+        <location line="-16"/>
         <source>Paper size</source>
         <translation type="unfinished">Papierformaat</translation>
     </message>
     <message>
-        <location line="+4"/>
-        <source>Paper:</source>
-        <translation type="unfinished">Papier:</translation>
-    </message>
-    <message>
-        <location line="+3"/>
+        <location line="+6"/>
         <source>Scale to paper size</source>
         <translation type="unfinished">Schalen naar papierformaat</translation>
     </message>
@@ -20039,17 +20065,13 @@ Bron: %3</translation>
         <translation type="unfinished">Maak elke pagina kleiner of groter zodat deze past op het gekozen papier, met behoud van vorm. Gebruik dit om af te drukken op een papierformaat dat uw printer niet heeft, zoals A4 op Letter-papier.</translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>Scale to paper:</source>
-        <translation type="unfinished">Schalen naar papier:</translation>
-    </message>
-    <message>
         <location line="+3"/>
+        <location line="+40"/>
         <source>Margins</source>
         <translation type="unfinished">Marges</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="-38"/>
         <source>Standard</source>
         <translation type="unfinished">Standaard</translation>
     </message>
@@ -20059,12 +20081,7 @@ Bron: %3</translation>
         <translation type="unfinished">Smal</translation>
     </message>
     <message>
-        <location line="+7"/>
-        <source>Margins:</source>
-        <translation type="unfinished">Marges:</translation>
-    </message>
-    <message>
-        <location line="+3"/>
+        <location line="+9"/>
         <source>How big the cells print</source>
         <translation type="unfinished">Afdrukgrootte van de cellen</translation>
     </message>
@@ -20090,11 +20107,6 @@ Bron: %3</translation>
     </message>
     <message>
         <location line="+2"/>
-        <source>Size:</source>
-        <translation type="unfinished">Grootte:</translation>
-    </message>
-    <message>
-        <location line="+1"/>
         <source>Ignore the print area</source>
         <translation type="unfinished">Afdrukbereik negeren</translation>
     </message>
@@ -20104,7 +20116,7 @@ Bron: %3</translation>
         <translation type="unfinished">Alles afdrukken wat inhoud bevat, niet alleen de afdrukbereiken van de bladen.</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+3"/>
         <source>Page Setup…</source>
         <translation type="unfinished">Pagina-instelling…</translation>
     </message>
@@ -20114,7 +20126,52 @@ Bron: %3</translation>
         <translation type="unfinished">Marges, kop- en voetteksten, afdruktitels en meer voor het huidige blad.</translation>
     </message>
     <message>
-        <location line="+21"/>
+        <location line="+5"/>
+        <source>Pages</source>
+        <translation>Pagina&apos;s</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Which pages</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Sides</source>
+        <translation>Zijden</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Pages on a sheet</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Scale to paper</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>(as each sheet says unless changed)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Turned</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Paper</source>
+        <translation>Papier</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Size</source>
+        <translation>Grootte</translation>
+    </message>
+    <message>
+        <location line="+23"/>
         <source>Preview of the printed page</source>
         <translation type="unfinished">Voorbeeld van de afgedrukte pagina</translation>
     </message>
@@ -20294,10 +20351,10 @@ Bron: %3</translation>
         <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="+182"/>
         <location line="+123"/>
         <location line="+5"/>
-        <location filename="../apps/crunch/app/crunchwindow_copy.cpp" line="+119"/>
+        <location filename="../apps/crunch/app/crunchwindow_copy.cpp" line="+120"/>
         <location line="+22"/>
-        <location line="+19"/>
-        <location filename="../apps/crunch/app/crunchwindow_csv.cpp" line="+98"/>
+        <location line="+28"/>
+        <location filename="../apps/crunch/app/crunchwindow_csv.cpp" line="+99"/>
         <location filename="../apps/crunch/app/crunchwindow_drawborder.cpp" line="+40"/>
         <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+336"/>
         <location line="+53"/>
@@ -20313,7 +20370,7 @@ Bron: %3</translation>
         <location line="+118"/>
         <location line="+10"/>
         <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="+900"/>
-        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="+345"/>
+        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="+346"/>
         <location filename="../apps/crunch/app/crunchwindow_savecopy.cpp" line="+157"/>
         <location filename="../apps/crunch/app/crunchwindow_sort.cpp" line="+293"/>
         <location line="+22"/>
@@ -20385,24 +20442,35 @@ Bron: %3</translation>
     </message>
     <message>
         <location line="+5"/>
-        <source>Places:</source>
-        <translation type="unfinished">Plaatsen:</translation>
+        <source>Places</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+17"/>
+        <location line="+32"/>
+        <source>Font size</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Sheets in a new workbook</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+43"/>
+        <source>Standard column width (this sheet)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-64"/>
         <location line="+405"/>
         <source>New Workbooks</source>
         <translation type="unfinished">Nieuwe werkmappen</translation>
     </message>
     <message>
         <location line="-399"/>
+        <location line="+2"/>
         <source>Font of a new workbook</source>
         <translation type="unfinished">Lettertype van een nieuwe werkmap</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>Font of a new workbook:</source>
-        <translation type="unfinished">Lettertype van een nieuwe werkmap:</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -20410,22 +20478,12 @@ Bron: %3</translation>
         <translation type="unfinished">Lettergrootte van een nieuwe werkmap</translation>
     </message>
     <message>
-        <location line="+4"/>
-        <source>Font size:</source>
-        <translation type="unfinished">Lettergrootte:</translation>
-    </message>
-    <message>
-        <location line="+3"/>
+        <location line="+7"/>
         <source>Number of sheets in a new workbook</source>
         <translation type="unfinished">Aantal bladen in een nieuwe werkmap</translation>
     </message>
     <message>
-        <location line="+3"/>
-        <source>Sheets in a new workbook:</source>
-        <translation type="unfinished">Bladen in een nieuwe werkmap:</translation>
-    </message>
-    <message>
-        <location line="+11"/>
+        <location line="+14"/>
         <location line="+373"/>
         <source>Display</source>
         <translation type="unfinished">Weergave</translation>
@@ -20433,23 +20491,15 @@ Bron: %3</translation>
     <message>
         <location line="-368"/>
         <location line="+8"/>
+        <location line="+3"/>
         <source>Gridline color</source>
         <translation type="unfinished">Rasterlijnkleur</translation>
     </message>
     <message>
         <location line="+3"/>
-        <source>Gridline color:</source>
-        <translation type="unfinished">Rasterlijnkleur:</translation>
-    </message>
-    <message>
-        <location line="+3"/>
+        <location line="+4"/>
         <source>Zoom of a new workbook</source>
         <translation type="unfinished">Zoomniveau van een nieuwe werkmap</translation>
-    </message>
-    <message>
-        <location line="+4"/>
-        <source>Zoom of a new workbook:</source>
-        <translation type="unfinished">Zoomniveau van een nieuwe werkmap:</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -20457,12 +20507,7 @@ Bron: %3</translation>
         <translation type="unfinished">Standaard kolombreedte van dit werkblad</translation>
     </message>
     <message>
-        <location line="+6"/>
-        <source>Standard column width (this sheet):</source>
-        <translation type="unfinished">Standaard kolombreedte (dit werkblad):</translation>
-    </message>
-    <message>
-        <location line="+15"/>
+        <location line="+21"/>
         <location line="+326"/>
         <source>Privacy</source>
         <translation type="unfinished">Privacy</translation>
@@ -20500,6 +20545,7 @@ Bron: %3</translation>
     <message>
         <location line="-639"/>
         <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-274"/>
+        <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="+1160"/>
         <source>All Files (*)</source>
         <translation type="unfinished">Alle bestanden (*)</translation>
     </message>
@@ -20521,11 +20567,11 @@ Bron: %3</translation>
     <message>
         <location line="+7"/>
         <location line="+489"/>
-        <location filename="../apps/crunch/app/crunchwindow_copy.cpp" line="-129"/>
+        <location filename="../apps/crunch/app/crunchwindow_copy.cpp" line="-138"/>
         <location line="+6"/>
         <location line="+14"/>
         <location line="+89"/>
-        <location line="+11"/>
+        <location line="+14"/>
         <location filename="../apps/crunch/app/crunchwindow_csv.cpp" line="-25"/>
         <location line="+6"/>
         <location line="+18"/>
@@ -20543,7 +20589,6 @@ Bron: %3</translation>
         <location line="+55"/>
         <location line="+72"/>
         <location line="+34"/>
-        <location line="+30"/>
         <location filename="../apps/crunch/app/crunchwindow_savecopy.cpp" line="-108"/>
         <location line="+26"/>
         <location line="+5"/>
@@ -20570,7 +20615,7 @@ Bron: %3</translation>
     </message>
     <message>
         <location line="+4"/>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+147"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+148"/>
         <source>Save as Template…</source>
         <translation type="unfinished">Opslaan als sjabloon…</translation>
     </message>
@@ -20610,21 +20655,17 @@ Bron: %3</translation>
     </message>
     <message>
         <location line="-455"/>
+        <location line="+4"/>
         <source>After pressing Enter, move the selection</source>
         <translation type="unfinished">Selectie verplaatsen na drukken op Enter</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="-3"/>
         <source>Don&apos;t move</source>
         <translation type="unfinished">Niet verplaatsen</translation>
     </message>
     <message>
-        <location line="+3"/>
-        <source>After pressing Enter, move the selection:</source>
-        <translation type="unfinished">Selectie verplaatsen na drukken op Enter:</translation>
-    </message>
-    <message>
-        <location line="+140"/>
+        <location line="+143"/>
         <location line="+311"/>
         <source>Custom Lists</source>
         <translation type="unfinished">Aangepaste lijsten</translation>
@@ -20719,30 +20760,30 @@ Bron: %3</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+1373"/>
+        <location line="+1374"/>
         <source>Bring to Front</source>
         <translation type="unfinished">Naar voorgrond</translation>
     </message>
     <message>
-        <location line="-1372"/>
-        <location line="+1372"/>
+        <location line="-1373"/>
+        <location line="+1373"/>
         <source>Bring Forward</source>
         <translation type="unfinished">Naar voren</translation>
     </message>
     <message>
-        <location line="-1371"/>
-        <location line="+1371"/>
+        <location line="-1372"/>
+        <location line="+1372"/>
         <source>Send Backward</source>
         <translation type="unfinished">Naar achteren</translation>
     </message>
     <message>
-        <location line="-1370"/>
-        <location line="+1370"/>
+        <location line="-1371"/>
+        <location line="+1371"/>
         <source>Send to Back</source>
         <translation type="unfinished">Naar achtergrond</translation>
     </message>
     <message>
-        <location line="-1352"/>
+        <location line="-1353"/>
         <source>Layouts</source>
         <translation type="unfinished">Indelingen</translation>
     </message>
@@ -20751,7 +20792,7 @@ Bron: %3</translation>
         <location line="+979"/>
         <location line="+3"/>
         <source>Colors</source>
-        <translation type="unfinished">Kleuren</translation>
+        <translation>Kleuren</translation>
     </message>
     <message>
         <location line="-973"/>
@@ -20952,12 +20993,7 @@ Bron: %3</translation>
         <translation type="unfinished">Er is geen ander werkblad waarnaar de grafiek kan worden verplaatst.</translation>
     </message>
     <message>
-        <location line="+15"/>
-        <source>Choose where to put the chart:</source>
-        <translation type="unfinished">Kies waar de grafiek moet komen:</translation>
-    </message>
-    <message>
-        <location line="+2"/>
+        <location line="+17"/>
         <source>New sheet:</source>
         <translation type="unfinished">Nieuw blad:</translation>
     </message>
@@ -21127,6 +21163,7 @@ Bron: %3</translation>
     </message>
     <message>
         <location line="+7"/>
+        <location filename="../apps/crunch/app/crunchwindow_cond.cpp" line="+137"/>
         <source>Value</source>
         <translation type="unfinished">Waarde</translation>
     </message>
@@ -21188,12 +21225,7 @@ Bron: %3</translation>
         <translation type="unfinished">Waarde uit cellen</translation>
     </message>
     <message>
-        <location line="-12"/>
-        <source>The cells that hold the words for the labels, such as =Sheet1!$D$2:$D$4 (leave empty to take them away):</source>
-        <translation type="unfinished">De cellen met de woorden voor de labels, zoals =Blad1!$D$2:$D$4 (leeg laten om ze te verwijderen):</translation>
-    </message>
-    <message>
-        <location line="+12"/>
+        <location line="+0"/>
         <location line="+83"/>
         <source>&quot;%1&quot; isn&apos;t a range JeffCrunch can find. Write it like =Sheet1!$D$2:$D$4.</source>
         <translation type="unfinished">&quot;%1&quot; is geen bereik dat JeffCrunch kan vinden. Schrijf het zoals =Blad1!$D$2:$D$4.</translation>
@@ -21204,9 +21236,19 @@ Bron: %3</translation>
         <translation type="unfinished">Getalnotatie…</translation>
     </message>
     <message>
-        <location line="+5"/>
-        <source>Format code for the numbers in the labels (leave empty to show the numbers as they are):</source>
-        <translation type="unfinished">Opmaakcode voor de getallen in de labels (laat leeg om de getallen zoals ze zijn weer te geven):</translation>
+        <location line="-370"/>
+        <source>Choose where to put the chart</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+344"/>
+        <source>The cells that hold the words for the labels, such as =Sheet1!$D$2:$D$4 (leave empty to take them away)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+31"/>
+        <source>Format code for the numbers in the labels (leave empty to show the numbers as they are)</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+12"/>
@@ -21238,15 +21280,15 @@ Bron: %3</translation>
     </message>
     <message>
         <location line="-7"/>
-        <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="+841"/>
+        <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="-119"/>
         <source>Top</source>
-        <translation type="unfinished">Boven</translation>
+        <translation>Boven</translation>
     </message>
     <message>
         <location line="+0"/>
         <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="+0"/>
         <source>Bottom</source>
-        <translation type="unfinished">Onder</translation>
+        <translation>Onder</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -21409,18 +21451,18 @@ Bron: %3</translation>
     <message>
         <location line="+24"/>
         <location line="+3"/>
-        <location line="+108"/>
+        <location line="+109"/>
         <location line="+1"/>
         <source>Chart Filters</source>
         <translation type="unfinished">Grafiekfilters</translation>
     </message>
     <message>
-        <location line="-112"/>
+        <location line="-113"/>
         <source>A chart needs at least one series. Check another series first.</source>
         <translation type="unfinished">Een grafiek heeft minstens één reeks nodig. Controleer eerst een andere reeks.</translation>
     </message>
     <message>
-        <location line="+94"/>
+        <location line="+95"/>
         <location line="+1"/>
         <source>Chart Elements</source>
         <translation type="unfinished">Grafiekelementen</translation>
@@ -21441,7 +21483,7 @@ Bron: %3</translation>
         <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="-271"/>
         <location line="+225"/>
         <location line="+40"/>
-        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="+188"/>
+        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="+189"/>
         <location line="+8"/>
         <source>Copy</source>
         <translation type="unfinished">Kopiëren</translation>
@@ -21450,7 +21492,7 @@ Bron: %3</translation>
         <location line="+6"/>
         <location line="+133"/>
         <source>Order</source>
-        <translation type="unfinished">Volgorde</translation>
+        <translation>Volgorde</translation>
     </message>
     <message>
         <location line="-122"/>
@@ -21509,7 +21551,7 @@ Bron: %3</translation>
     </message>
     <message>
         <location line="+11"/>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-460"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-461"/>
         <location line="+2"/>
         <location line="+1"/>
         <location line="+1"/>
@@ -21616,7 +21658,7 @@ Bron: %3</translation>
         <translation type="unfinished">Knippen</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+421"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+422"/>
         <location line="+17"/>
         <location line="+12"/>
         <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="+2"/>
@@ -21659,12 +21701,12 @@ Bron: %3</translation>
     </message>
     <message>
         <location line="+0"/>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-542"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-543"/>
         <location line="+98"/>
         <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="-5"/>
         <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="+1"/>
         <source>Right</source>
-        <translation type="unfinished">Rechts</translation>
+        <translation>Rechts</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -21679,7 +21721,7 @@ Bron: %3</translation>
         <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="+0"/>
         <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="+1"/>
         <source>Left</source>
-        <translation type="unfinished">Links</translation>
+        <translation>Links</translation>
     </message>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-7"/>
@@ -21830,12 +21872,12 @@ Bron: %3</translation>
     <message>
         <location line="+0"/>
         <source>Month</source>
-        <translation type="unfinished">Maand</translation>
+        <translation>Maand</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Year</source>
-        <translation type="unfinished">Jaar</translation>
+        <translation>Jaar</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -21873,7 +21915,7 @@ Bron: %3</translation>
         <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="-716"/>
         <location line="+589"/>
         <location line="+1"/>
-        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="+384"/>
+        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="+385"/>
         <location line="+6"/>
         <location filename="../apps/crunch/app/crunchwindow_tables.cpp" line="-285"/>
         <source>Clear</source>
@@ -21898,7 +21940,7 @@ Bron: %3</translation>
         <location line="+1"/>
         <location line="+325"/>
         <source>Underline</source>
-        <translation type="unfinished">Onderstrepen</translation>
+        <translation>Onderstrepen</translation>
     </message>
     <message>
         <location line="-324"/>
@@ -22224,8 +22266,8 @@ Bron: %3</translation>
     <message>
         <location line="-511"/>
         <location line="+511"/>
-        <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="-380"/>
-        <location line="+514"/>
+        <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="-570"/>
+        <location line="+713"/>
         <source>No Fill</source>
         <translation type="unfinished">Geen opvulling</translation>
     </message>
@@ -22238,12 +22280,12 @@ Bron: %3</translation>
     <message>
         <location line="-495"/>
         <source>Alignment</source>
-        <translation type="unfinished">Uitlijning</translation>
+        <translation>Uitlijning</translation>
     </message>
     <message>
         <location line="+38"/>
         <source>Orientation</source>
-        <translation type="unfinished">Afdrukstand</translation>
+        <translation>Afdrukstand</translation>
     </message>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-110"/>
@@ -22286,7 +22328,7 @@ Bron: %3</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="+15"/>
+        <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="+29"/>
         <source>Dashed</source>
         <translation type="unfinished">Streepjes</translation>
     </message>
@@ -22362,7 +22404,7 @@ Bron: %3</translation>
     <message>
         <location line="+109"/>
         <source>Font</source>
-        <translation type="unfinished">Lettertype</translation>
+        <translation>Lettertype</translation>
     </message>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_calc.cpp" line="-79"/>
@@ -22394,23 +22436,15 @@ Bron: %3</translation>
     </message>
     <message>
         <location line="+5"/>
+        <location line="+3"/>
         <source>Most rounds</source>
         <translation type="unfinished">Maximumaantal iteraties</translation>
     </message>
     <message>
-        <location line="+3"/>
-        <source>Most rounds:</source>
-        <translation type="unfinished">Maximumaantal iteraties:</translation>
-    </message>
-    <message>
         <location line="+2"/>
+        <location line="+4"/>
         <source>Stop when no value changes by more than</source>
         <translation type="unfinished">Stoppen als geen waarde meer verandert dan</translation>
-    </message>
-    <message>
-        <location line="+4"/>
-        <source>Stop when no value changes by more than:</source>
-        <translation type="unfinished">Stoppen als geen waarde meer verandert dan:</translation>
     </message>
     <message>
         <location line="+29"/>
@@ -22528,8 +22562,8 @@ Bron: %3</translation>
     </message>
     <message>
         <location line="+7"/>
-        <source>These cells read their own result:</source>
-        <translation type="unfinished">Deze cellen verwijzen naar hun eigen resultaat:</translation>
+        <source>These cells read their own result</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+3"/>
@@ -22588,7 +22622,7 @@ Bron: %3</translation>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_find.cpp" line="-284"/>
         <source>Find</source>
-        <translation type="unfinished">Zoeken</translation>
+        <translation>Zoeken</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -22706,8 +22740,13 @@ Bron: %3</translation>
         <translation type="unfinished">Wijzigen</translation>
     </message>
     <message>
+        <location line="+55"/>
+        <source>Go to</source>
+        <translation type="unfinished">Ga naar</translation>
+    </message>
+    <message>
         <location filename="../apps/crunch/app/crunchwindow.cpp" line="+379"/>
-        <location filename="../apps/crunch/app/crunchwindow_find.cpp" line="+16"/>
+        <location filename="../apps/crunch/app/crunchwindow_find.cpp" line="-39"/>
         <location line="+5"/>
         <location line="+22"/>
         <source>Go To</source>
@@ -22720,18 +22759,9 @@ Bron: %3</translation>
     </message>
     <message>
         <location line="+7"/>
+        <location line="+3"/>
         <source>Reference</source>
         <translation type="unfinished">Verwijzing</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>Go to:</source>
-        <translation type="unfinished">Ga naar:</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Reference:</source>
-        <translation type="unfinished">Verwijzing:</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -22810,16 +22840,17 @@ Bron: %3</translation>
         <translation type="unfinished">Getallen</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location filename="../apps/crunch/app/crunchwindow_cond.cpp" line="+0"/>
+        <location filename="../apps/crunch/app/crunchwindow_find.cpp" line="+1"/>
         <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="+0"/>
-        <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="-170"/>
+        <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="-193"/>
         <location filename="../apps/crunch/app/crunchwindow_tables.cpp" line="+11"/>
         <location line="+9"/>
         <source>Text</source>
-        <translation type="unfinished">Tekst</translation>
+        <translation>Tekst</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location filename="../apps/crunch/app/crunchwindow_find.cpp" line="+1"/>
         <source>TRUE and FALSE</source>
         <translation type="unfinished">WAAR en ONWAAR</translation>
     </message>
@@ -23020,7 +23051,7 @@ Bron: %3</translation>
         <location line="+28"/>
         <location line="+11"/>
         <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-797"/>
-        <location line="+1203"/>
+        <location line="+1204"/>
         <location filename="../apps/crunch/app/crunchwindow_drawings.cpp" line="+105"/>
         <location line="+6"/>
         <location line="+13"/>
@@ -23064,7 +23095,7 @@ Bron: %3</translation>
     <message>
         <location line="+4"/>
         <source>Format</source>
-        <translation type="unfinished">Opmaak</translation>
+        <translation>Opmaak</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -23160,7 +23191,7 @@ Bron: %3</translation>
     </message>
     <message>
         <location line="+93"/>
-        <location filename="../apps/crunch/app/crunchwindow_controls.cpp" line="+83"/>
+        <location filename="../apps/crunch/app/crunchwindow_controls.cpp" line="+84"/>
         <source>(nothing to choose from)</source>
         <translation type="unfinished">(niets om uit te kiezen)</translation>
     </message>
@@ -23271,16 +23302,16 @@ Bron: %3</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-1298"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-1299"/>
         <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-120"/>
         <source>Columns</source>
-        <translation type="unfinished">Kolommen</translation>
+        <translation>Kolommen</translation>
     </message>
     <message>
         <location line="+0"/>
         <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="+0"/>
         <source>Rows</source>
-        <translation type="unfinished">Rijen</translation>
+        <translation>Rijen</translation>
     </message>
     <message>
         <location line="+52"/>
@@ -23427,11 +23458,16 @@ Bron: %3</translation>
     </message>
     <message>
         <location line="+3"/>
-        <source>Cells:</source>
-        <translation type="unfinished">Cellen:</translation>
+        <source>Cells</source>
+        <translation type="unfinished">Cellen</translation>
     </message>
     <message>
-        <location line="+12"/>
+        <location line="+189"/>
+        <source>Name</source>
+        <translation>Naam</translation>
+    </message>
+    <message>
+        <location line="-177"/>
         <location line="+66"/>
         <source>Those are not cells. Write them as A1:D20.</source>
         <translation type="unfinished">Dit zijn geen cellen. Schrijf ze als A1:D20.</translation>
@@ -23506,12 +23542,7 @@ Bron: %3</translation>
         <translation type="unfinished">Tabelstijl %1</translation>
     </message>
     <message>
-        <location line="+2"/>
-        <source>Name:</source>
-        <translation type="unfinished">Naam:</translation>
-    </message>
-    <message>
-        <location line="+37"/>
+        <location line="+39"/>
         <source>Header row</source>
         <translation type="unfinished">Kopregel</translation>
     </message>
@@ -23572,8 +23603,8 @@ Bron: %3</translation>
         <translation type="unfinished">Tabelnaam</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+367"/>
-        <location filename="../apps/crunch/app/crunchwindow_pagelayout.cpp" line="+530"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+368"/>
+        <location filename="../apps/crunch/app/crunchwindow_pagelayout.cpp" line="+531"/>
         <source>Picture</source>
         <translation type="unfinished">Afbeelding</translation>
     </message>
@@ -23782,7 +23813,7 @@ Bron: %3</translation>
         <location line="-328"/>
         <location line="+328"/>
         <source>Formatting</source>
-        <translation type="unfinished">Opmaak</translation>
+        <translation>Opmaak</translation>
     </message>
     <message>
         <location line="-323"/>
@@ -23951,8 +23982,8 @@ Bron: %3</translation>
     </message>
     <message>
         <location line="+2"/>
-        <source>When you click Paste or press Ctrl+V with cells copied, put in:</source>
-        <translation type="unfinished">Wanneer u op Plakken klikt of Ctrl+V drukt terwijl cellen zijn gekopieerd, plakken als:</translation>
+        <source>When you click Paste or press Ctrl+V with cells copied, put in</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+2"/>
@@ -23981,7 +24012,7 @@ Bron: %3</translation>
         <translation type="unfinished">Dat zijn meer dan 2.000 cellen. Kopieer minder cellen en probeer het opnieuw.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-494"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-495"/>
         <location line="+8"/>
         <location line="+101"/>
         <location line="+15"/>
@@ -24139,15 +24170,13 @@ Het bestand bestaat niet.</translation>
         <location line="+18"/>
         <source>The password is not correct.
 
-This file is protected with a password. Password:</source>
-        <translation type="unfinished">Het wachtwoord is onjuist.
-
-Dit bestand is beveiligd met een wachtwoord. Wachtwoord:</translation>
+This file is protected with a password. Password</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+0"/>
-        <source>This file is protected with a password. Password:</source>
-        <translation type="unfinished">Dit bestand is beveiligd met een wachtwoord. Wachtwoord:</translation>
+        <source>This file is protected with a password. Password</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+41"/>
@@ -24206,7 +24235,7 @@ Dit bestand is beveiligd met een wachtwoord. Wachtwoord:</translation>
         <translation type="unfinished">Berekenen… %1%</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="-185"/>
+        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="-155"/>
         <source>Nothing to save: %1 is as it was.</source>
         <translation type="unfinished">Niets op te slaan: %1 is niet gewijzigd.</translation>
     </message>
@@ -24222,7 +24251,7 @@ Dit bestand is beveiligd met een wachtwoord. Wachtwoord:</translation>
         <translation type="unfinished">Opslaan als .xlsx…</translation>
     </message>
     <message>
-        <location line="-120"/>
+        <location line="-123"/>
         <location filename="../apps/crunch/app/crunchwindow_csv.cpp" line="+40"/>
         <source>The workbook is still being read. Save it when the status bar says Ready.</source>
         <translation type="unfinished">De werkmap wordt nog gelezen. Sla deze op wanneer op de statusbalk Gereed staat.</translation>
@@ -24238,8 +24267,7 @@ Dit bestand is beveiligd met een wachtwoord. Wachtwoord:</translation>
         <location line="+48"/>
         <location line="+7"/>
         <location line="+23"/>
-        <location line="+4"/>
-        <location line="+1"/>
+        <location line="+5"/>
         <source>Check Compatibility</source>
         <translation type="unfinished">Compatibiliteit controleren</translation>
     </message>
@@ -24255,16 +24283,23 @@ Dit bestand is beveiligd met een wachtwoord. Wachtwoord:</translation>
     </message>
     <message>
         <location line="+23"/>
-        <source>Nothing in this workbook is lost when it is saved as an .xls file.</source>
-        <translation type="unfinished">Er gaat niets verloren in deze werkmap wanneer die wordt opgeslagen als .xls-bestand.</translation>
+        <location line="+32"/>
+        <source>Cut or changed to fit: %1</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+26"/>
+        <location line="-31"/>
+        <location line="+32"/>
+        <source>workbook</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-4"/>
         <source>Save Copy</source>
         <translation type="unfinished">Kopie opslaan</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+10"/>
         <source>Not saved as .%1.</source>
         <translation type="unfinished">Niet opgeslagen als .%1.</translation>
     </message>
@@ -24374,7 +24409,6 @@ Dit bestand is beveiligd met een wachtwoord. Wachtwoord:</translation>
         <location filename="../apps/crunch/app/crunchwindow_print.cpp" line="+18"/>
         <location filename="../apps/crunch/app/crunchwindow_protect.cpp" line="+67"/>
         <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="-121"/>
-        <location line="+157"/>
         <source>Cancel</source>
         <translation type="unfinished">Annuleren</translation>
     </message>
@@ -24483,12 +24517,12 @@ Dit bestand is beveiligd met een wachtwoord. Wachtwoord:</translation>
         <translation type="unfinished">De oneven pagina&apos;s zijn naar de printer gestuurd. Draai de stapel om als ze zijn afgedrukt, plaats hem terug in de papierlade en druk opnieuw af met &quot;Alleen even pagina&apos;s&quot;.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="-146"/>
+        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="+11"/>
         <source>Not saved: %1 was changed by another program.</source>
         <translation type="unfinished">Niet opgeslagen: %1 is door een ander programma gewijzigd.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_copy.cpp" line="-113"/>
+        <location filename="../apps/crunch/app/crunchwindow_copy.cpp" line="-122"/>
         <location filename="../apps/crunch/app/crunchwindow_csv.cpp" line="+123"/>
         <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="+29"/>
         <source>Saving %1…</source>
@@ -24517,16 +24551,6 @@ The file that was there is as it was.</source>
         <translation type="unfinished">%1 kan &quot;%2&quot; niet opslaan.
 %3
 Het bestaande bestand is ongewijzigd gebleven.</translation>
-    </message>
-    <message>
-        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="+23"/>
-        <source>Do you want to save the changes you made to &quot;%1&quot;?</source>
-        <translation type="unfinished">Wilt u de wijzigingen in &quot;%1&quot; opslaan?</translation>
-    </message>
-    <message>
-        <location line="+8"/>
-        <source>Don&apos;t Save</source>
-        <translation type="unfinished">Niet opslaan</translation>
     </message>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_drawings.cpp" line="-144"/>
@@ -24857,7 +24881,7 @@ Het bestaande bestand is ongewijzigd gebleven.</translation>
         <location line="-315"/>
         <location line="+1"/>
         <source>New sheet</source>
-        <translation type="unfinished">Nieuw blad</translation>
+        <translation>Nieuw blad</translation>
     </message>
     <message>
         <location line="+83"/>
@@ -24897,8 +24921,8 @@ Het bestaande bestand is ongewijzigd gebleven.</translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>&amp;Put the sheets in front of:</source>
-        <translation type="unfinished">&amp;Bladen plaatsen vóór:</translation>
+        <source>&amp;Put the sheets in front of</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+7"/>
@@ -25358,8 +25382,8 @@ Het bestaande bestand is ongewijzigd gebleven.</translation>
     </message>
     <message>
         <location line="+19"/>
-        <source>Choose the names to put in place of the cells they stand for:</source>
-        <translation type="unfinished">Kies de namen die in de plaats komen van de cellen waarvoor ze staan:</translation>
+        <source>Choose the names to put in place of the cells they stand for</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+36"/>
@@ -25427,7 +25451,7 @@ Het bestaande bestand is ongewijzigd gebleven.</translation>
     <message>
         <location line="+1"/>
         <source>Folder</source>
-        <translation type="unfinished">Map</translation>
+        <translation>Map</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -25549,7 +25573,7 @@ Het bestaande bestand is ongewijzigd gebleven.</translation>
     <message>
         <location line="+8"/>
         <source>Pages</source>
-        <translation type="unfinished">Pagina&apos;s</translation>
+        <translation>Pagina&apos;s</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -25667,7 +25691,7 @@ Het bestaande bestand is ongewijzigd gebleven.</translation>
         <translation type="unfinished">De werkmap wordt met een wachtwoord beveiligd wanneer u opslaat.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="-45"/>
+        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="-14"/>
         <source>Some versions kept before couldn&apos;t be given the new password, and stay as they were.</source>
         <translation type="unfinished">Sommige eerder bewaarde versies kunnen het nieuwe wachtwoord niet krijgen en blijven zoals ze waren.</translation>
     </message>
@@ -25693,18 +25717,18 @@ Het bestaande bestand is ongewijzigd gebleven.</translation>
         <translation type="unfinished">Wachtwoord</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_protect.cpp" line="-22"/>
-        <source>Type the password for %1:</source>
-        <translation type="unfinished">Typ het wachtwoord voor %1:</translation>
-    </message>
-    <message>
-        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="+13"/>
-        <location filename="../apps/crunch/app/crunchwindow_protect.cpp" line="+9"/>
+        <location line="+13"/>
+        <location filename="../apps/crunch/app/crunchwindow_protect.cpp" line="-13"/>
         <source>Checking the password…</source>
         <translation type="unfinished">Wachtwoord controleren…</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_protect.cpp" line="+8"/>
+        <location filename="../apps/crunch/app/crunchwindow_protect.cpp" line="-9"/>
+        <source>Type the password for %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+17"/>
         <source>That is not the right password.</source>
         <translation type="unfinished">Dat is niet het juiste wachtwoord.</translation>
     </message>
@@ -25856,7 +25880,7 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Details verbergen</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="-358"/>
+        <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="-548"/>
         <location line="+5"/>
         <location filename="../apps/crunch/app/crunchwindow_outline.cpp" line="+1"/>
         <location line="+9"/>
@@ -26173,7 +26197,7 @@ Het bestand kan niet worden gelezen.</translation>
         <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="-52"/>
         <location line="+6"/>
         <location line="+3"/>
-        <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="+424"/>
+        <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="+425"/>
         <source>Ungroup</source>
         <translation type="unfinished">Groep opheffen</translation>
     </message>
@@ -26485,7 +26509,7 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Aanwijzen</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_cond.cpp" line="+62"/>
+        <location filename="../apps/crunch/app/crunchwindow_cond.cpp" line="-74"/>
         <source>&quot;%1&quot; is not a formula JeffCrunch can read.</source>
         <translation type="unfinished">&quot;%1&quot; is geen formule die JeffCrunch kan lezen.</translation>
     </message>
@@ -26576,33 +26600,23 @@ Het bestand kan niet worden gelezen.</translation>
     </message>
     <message>
         <location line="-130"/>
-        <source>From:</source>
-        <translation type="unfinished">Van:</translation>
+        <source>From</source>
+        <translation>Van</translation>
     </message>
     <message>
         <location line="+0"/>
-        <source>How many:</source>
-        <translation type="unfinished">Hoeveel:</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Text:</source>
-        <translation type="unfinished">Tekst:</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Value:</source>
-        <translation type="unfinished">Waarde:</translation>
+        <source>How many</source>
+        <translation type="unfinished">Aantal</translation>
     </message>
     <message>
         <location line="+5"/>
-        <source>To:</source>
-        <translation type="unfinished">Tot:</translation>
+        <source>To</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+5"/>
-        <source>Cells look like this:</source>
-        <translation type="unfinished">Cellen zien er zo uit:</translation>
+        <source>Cells look like this</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+25"/>
@@ -26715,7 +26729,7 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+9"/>
         <source>Language</source>
-        <translation type="unfinished">Taal</translation>
+        <translation>Taal</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -26914,8 +26928,8 @@ Het bestand kan niet worden gelezen.</translation>
     </message>
     <message>
         <location line="+85"/>
-        <source>Look up:</source>
-        <translation type="unfinished">Opzoeken:</translation>
+        <source>Look up</source>
+        <translation>Opzoeken</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -27186,27 +27200,19 @@ Het bestand kan niet worden gelezen.</translation>
     </message>
     <message>
         <location line="-38"/>
-        <location line="+105"/>
+        <location line="+4"/>
+        <location line="+101"/>
+        <location line="+5"/>
         <source>Data range</source>
         <translation type="unfinished">Gegevensbereik</translation>
     </message>
     <message>
-        <location line="-102"/>
-        <location line="+105"/>
+        <location line="-107"/>
+        <location line="+2"/>
+        <location line="+103"/>
+        <location line="+3"/>
         <source>Location range</source>
         <translation type="unfinished">Locatiebereik</translation>
-    </message>
-    <message>
-        <location line="-104"/>
-        <location line="+106"/>
-        <source>Data range:</source>
-        <translation type="unfinished">Gegevensbereik:</translation>
-    </message>
-    <message>
-        <location line="-105"/>
-        <location line="+106"/>
-        <source>Location range:</source>
-        <translation type="unfinished">Locatiebereik:</translation>
     </message>
     <message>
         <location line="-10"/>
@@ -27420,30 +27426,30 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Sparklinekleur</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="-72"/>
+        <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="-73"/>
         <source>This can be done to a picture, a shape, or a text box. Pick one first.</source>
         <translation type="unfinished">Kies eerst een van beide.</translation>
     </message>
     <message>
-        <location line="+20"/>
+        <location line="+21"/>
         <source>This object can&apos;t be changed here.</source>
         <translation type="unfinished">Dit object kan hier niet worden gewijzigd.</translation>
     </message>
     <message>
         <location line="+41"/>
-        <location line="+514"/>
+        <location line="+713"/>
         <source>Shape Fill</source>
         <translation type="unfinished">Vormopvulling</translation>
     </message>
     <message>
-        <location line="-508"/>
-        <location line="+509"/>
+        <location line="-707"/>
+        <location line="+708"/>
         <location line="+1"/>
         <source>No Outline</source>
         <translation type="unfinished">Geen omtrek</translation>
     </message>
     <message>
-        <location line="-500"/>
+        <location line="-509"/>
         <source>Flip</source>
         <translation type="unfinished">Spiegelen</translation>
     </message>
@@ -27509,13 +27515,9 @@ Het bestand kan niet worden gelezen.</translation>
     </message>
     <message>
         <location line="+53"/>
+        <location line="+1"/>
         <source>Across</source>
         <translation type="unfinished">Horizontaal</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Across:</source>
-        <translation type="unfinished">Horizontaal:</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -27524,13 +27526,9 @@ Het bestand kan niet worden gelezen.</translation>
     </message>
     <message>
         <location line="+2"/>
+        <location line="+1"/>
         <source>Up and down</source>
         <translation type="unfinished">Omhoog en omlaag</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Up and down:</source>
-        <translation type="unfinished">Omhoog en omlaag:</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -27539,13 +27537,9 @@ Het bestand kan niet worden gelezen.</translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>Size</source>
-        <translation type="unfinished">Grootte</translation>
-    </message>
-    <message>
         <location line="+1"/>
-        <source>Size:</source>
-        <translation type="unfinished">Grootte:</translation>
+        <source>Size</source>
+        <translation>Grootte</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -27554,18 +27548,14 @@ Het bestand kan niet worden gelezen.</translation>
     </message>
     <message>
         <location line="+2"/>
-        <location line="+138"/>
+        <location line="+1"/>
+        <location line="+160"/>
         <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="+11"/>
         <source>Weight</source>
         <translation type="unfinished">Gewicht</translation>
     </message>
     <message>
-        <location line="-137"/>
-        <source>Weight:</source>
-        <translation type="unfinished">Gewicht:</translation>
-    </message>
-    <message>
-        <location line="+2"/>
+        <location line="-158"/>
         <source>Wrap to the shape</source>
         <translation type="unfinished">Terugloop naar de vorm</translation>
     </message>
@@ -27580,16 +27570,12 @@ Het bestand kan niet worden gelezen.</translation>
         <location line="+2"/>
         <location line="+1"/>
         <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="+2"/>
+        <location line="+1"/>
         <source>Lines</source>
         <translation type="unfinished">Regels</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="+1"/>
-        <source>Lines:</source>
-        <translation type="unfinished">Regels:</translation>
-    </message>
-    <message>
-        <location line="+94"/>
+        <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="+94"/>
         <source>Selection Pane</source>
         <translation type="unfinished">Selectiedeelvenster</translation>
     </message>
@@ -27599,7 +27585,35 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Lichtblauw</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="-530"/>
+        <source>Picture Style</source>
+        <translation type="unfinished">Afbeeldingsstijl</translation>
+    </message>
+    <message>
+        <location line="+24"/>
+        <source>Picture Effects</source>
+        <translation type="unfinished">Afbeeldingseffecten</translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <location line="+536"/>
+        <source>Reset Picture &amp; Size</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-536"/>
+        <location line="+535"/>
+        <source>Reset Picture</source>
+        <translation type="unfinished">Oorspronkelijke afbeelding</translation>
+    </message>
+    <message>
+        <location line="-506"/>
+        <location line="+501"/>
+        <source>Change Picture</source>
+        <translation type="unfinished">Afbeelding wijzigen</translation>
+    </message>
+    <message>
+        <location line="-37"/>
         <source>Light Green</source>
         <translation type="unfinished">Lichtgroen</translation>
     </message>
@@ -27640,6 +27654,16 @@ Het bestand kan niet worden gelezen.</translation>
     </message>
     <message>
         <location line="+1"/>
+        <source>Change Picture…</source>
+        <translation type="unfinished">Afbeelding wijzigen…</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Pictures (*.png *.jpg *.jpeg *.gif *.bmp *.tif *.tiff *.webp *.svg *.wmf *.emf)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
         <source>Edit Text…</source>
         <translation type="unfinished">Tekst bewerken…</translation>
     </message>
@@ -27704,7 +27728,12 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Vormomtrek</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+4"/>
+        <source>Picture Styles</source>
+        <translation type="unfinished">Afbeeldingsstijlen</translation>
+    </message>
+    <message>
+        <location line="+16"/>
         <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="+6"/>
         <source>%1 pt</source>
         <translation type="unfinished">%1 pt</translation>
@@ -27856,38 +27885,46 @@ Het bestand kan niet worden gelezen.</translation>
     </message>
     <message>
         <location line="+4"/>
+        <source>Minimum value</source>
+        <translation>Minimumwaarde</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Maximum value</source>
+        <translation>Maximumwaarde</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Incremental change</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Page change</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Input range</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Cell link</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="+16"/>
         <source>Minimum value:</source>
         <translation type="unfinished">Minimumwaarde:</translation>
     </message>
     <message>
-        <location line="+1"/>
-        <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="+0"/>
+        <location line="+0"/>
         <source>Maximum value:</source>
         <translation type="unfinished">Maximumwaarde:</translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>Incremental change:</source>
-        <translation type="unfinished">Stapgrootte:</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Page change:</source>
-        <translation type="unfinished">Paginawijziging:</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>Input range:</source>
-        <translation type="unfinished">Invoerbereik:</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Cell link:</source>
-        <translation type="unfinished">Celkoppeling:</translation>
-    </message>
-    <message>
-        <location line="+1"/>
+        <location filename="../apps/crunch/app/crunchwindow_controls.cpp" line="+1"/>
         <source>This control has nothing to format here.</source>
         <translation type="unfinished">Dit besturingselement heeft hier niets om op te maken.</translation>
     </message>
@@ -28011,7 +28048,7 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="-604"/>
         <source>Blue</source>
-        <translation type="unfinished">Blauw</translation>
+        <translation>Blauw</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -28031,7 +28068,7 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+0"/>
         <source>Green</source>
-        <translation type="unfinished">Groen</translation>
+        <translation>Groen</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -28061,12 +28098,12 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+1"/>
         <source>Black</source>
-        <translation type="unfinished">Zwart</translation>
+        <translation>Zwart</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Red</source>
-        <translation type="unfinished">Rood</translation>
+        <translation>Rood</translation>
     </message>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_email.cpp" line="+38"/>
@@ -28383,6 +28420,7 @@ Het bestand kan niet worden gelezen.</translation>
         <location line="+8"/>
         <location line="+15"/>
         <location line="+20"/>
+        <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="-562"/>
         <source>&quot;%1&quot; is not a picture JeffCrunch can read, or it is too large.</source>
         <translation type="unfinished">&quot;%1&quot; is geen afbeelding die JeffCrunch kan lezen, of het bestand is te groot.</translation>
     </message>
@@ -28833,7 +28871,7 @@ Het bestand kan niet worden gelezen.</translation>
         <location line="+15"/>
         <location line="+23"/>
         <source>Comment</source>
-        <translation type="unfinished">Opmerking</translation>
+        <translation>Opmerking</translation>
     </message>
     <message>
         <location line="-139"/>
@@ -28868,7 +28906,7 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+8"/>
         <source>Comments</source>
-        <translation type="unfinished">Opmerkingen</translation>
+        <translation>Opmerkingen</translation>
     </message>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_recover.cpp" line="-183"/>
@@ -29017,7 +29055,7 @@ Het bestand kan niet worden gelezen.</translation>
 <context>
     <name>jp::CsvSaveDialog</name>
     <message>
-        <location filename="../apps/crunch/app/csvsavedialog.cpp" line="+24"/>
+        <location filename="../apps/crunch/app/csvsavedialog.cpp" line="+25"/>
         <source>Western European (1252)</source>
         <translation type="unfinished">West-Europees (1252)</translation>
     </message>
@@ -29153,16 +29191,27 @@ Het bestand kan niet worden gelezen.</translation>
     </message>
     <message>
         <location line="+7"/>
-        <source>Separator:</source>
-        <translation type="unfinished">Scheidingsteken:</translation>
+        <source>Separator</source>
+        <translation type="unfinished">Scheidingsteken</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+16"/>
+        <source>Line ends</source>
+        <translation type="unfinished">Regeleindes</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Cells</source>
+        <translation type="unfinished">Cellen</translation>
+    </message>
+    <message>
+        <location line="-19"/>
+        <location line="+6"/>
         <source>Text encoding</source>
         <translation type="unfinished">Tekstcodering</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="-5"/>
         <source>Unicode (UTF-8 with a mark)</source>
         <translation type="unfinished">Unicode (UTF-8 met BOM)</translation>
     </message>
@@ -29182,12 +29231,7 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Unicode (UTF-16, big-endian)</translation>
     </message>
     <message>
-        <location line="+2"/>
-        <source>Text encoding:</source>
-        <translation type="unfinished">Tekstcodering:</translation>
-    </message>
-    <message>
-        <location line="+3"/>
+        <location line="+5"/>
         <source>How lines end</source>
         <translation type="unfinished">Regeleinden</translation>
     </message>
@@ -29207,12 +29251,7 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Oude Mac (regelterugloop)</translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>Line ends:</source>
-        <translation type="unfinished">Regeleinden:</translation>
-    </message>
-    <message>
-        <location line="+3"/>
+        <location line="+4"/>
         <source>What the cells are written as</source>
         <translation type="unfinished">Hoe de cellen worden opgeslagen</translation>
     </message>
@@ -29227,12 +29266,7 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Zoals opgeslagen (alle cijfers, datums als ISO-tekst)</translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>Cells:</source>
-        <translation type="unfinished">Cellen:</translation>
-    </message>
-    <message>
-        <location line="+18"/>
+        <location line="+19"/>
         <source>Save Values Only</source>
         <translation type="unfinished">Alleen waarden opslaan</translation>
     </message>
@@ -29402,7 +29436,7 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+3"/>
         <source>Slide show name</source>
-        <translation type="unfinished">Naam van diavoorstelling</translation>
+        <translation>Naam van diavoorstelling</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -29412,7 +29446,7 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+3"/>
         <source>Slides in presentation</source>
-        <translation type="unfinished">Dia&apos;s in presentatie</translation>
+        <translation>Dia&apos;s in presentatie</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -29432,7 +29466,7 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+3"/>
         <source>Slides in custom show</source>
-        <translation type="unfinished">Dia&apos;s in aangepaste voorstelling</translation>
+        <translation>Dia&apos;s in aangepaste voorstelling</translation>
     </message>
     <message>
         <location line="+18"/>
@@ -29462,7 +29496,7 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+4"/>
         <source>Custom shows</source>
-        <translation type="unfinished">Aangepaste voorstellingen</translation>
+        <translation>Aangepaste voorstellingen</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -29519,18 +29553,14 @@ Het bestand kan niet worden gelezen.</translation>
     </message>
     <message>
         <location line="+4"/>
-        <source>Views:</source>
-        <translation type="unfinished">Weergaven:</translation>
-    </message>
-    <message>
         <location line="+4"/>
         <source>Views</source>
         <translation type="unfinished">Weergaven</translation>
     </message>
     <message>
         <location line="+9"/>
-        <source>Name:</source>
-        <translation type="unfinished">Naam:</translation>
+        <source>Name</source>
+        <translation>Naam</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -29576,7 +29606,7 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+2"/>
         <source>Start</source>
-        <translation type="unfinished">Start</translation>
+        <translation>Starten</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -29956,14 +29986,14 @@ Het bestand kan niet worden gelezen.</translation>
         <location filename="../apps/deck/app/deckfilescreen.cpp" line="-331"/>
         <location filename="../apps/deck/app/deckwindow_output.cpp" line="+68"/>
         <source>Print what</source>
-        <translation type="unfinished">Afdrukken</translation>
+        <translation>Afdrukken</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/deck/app/deckwindow_info.cpp" line="+99"/>
+        <location filename="../apps/deck/app/deckwindow_info.cpp" line="+102"/>
         <location filename="../apps/deck/app/deckwindow_output.cpp" line="+1"/>
         <source>Slides</source>
-        <translation type="unfinished">Dia&apos;s</translation>
+        <translation>Dia&apos;s</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -30082,7 +30112,7 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Er zijn geen dia&apos;s om af te drukken.</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow.cpp" line="+71"/>
+        <location filename="../apps/deck/app/deckwindow.cpp" line="+72"/>
         <source>Presentation1</source>
         <translation type="unfinished">Presentatie1</translation>
     </message>
@@ -30102,7 +30132,7 @@ Het bestand kan niet worden gelezen.</translation>
         <location line="+1"/>
         <location line="+53"/>
         <location line="+1"/>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="+336"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="+362"/>
         <source>Open</source>
         <translation type="unfinished">Openen</translation>
     </message>
@@ -30118,6 +30148,7 @@ Het bestand kan niet worden gelezen.</translation>
         <location filename="../apps/deck/app/deckwindow_file.cpp" line="+0"/>
         <location filename="../apps/deck/app/deckwindow_media.cpp" line="+104"/>
         <location line="+102"/>
+        <location filename="../apps/deck/app/deckwindow_picture.cpp" line="+130"/>
         <source>All Files (*)</source>
         <translation type="unfinished">Alle bestanden (*)</translation>
     </message>
@@ -30215,7 +30246,7 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+1"/>
         <source>Underline</source>
-        <translation type="unfinished">Onderstrepen</translation>
+        <translation>Onderstrepen</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -30330,23 +30361,13 @@ Het bestand kan niet worden gelezen.</translation>
         <location line="+13"/>
         <location filename="../apps/deck/app/deckwindow_menu.cpp" line="+83"/>
         <source>Layout</source>
-        <translation type="unfinished">Indeling</translation>
+        <translation>Indeling</translation>
     </message>
     <message>
         <location line="+11"/>
         <location filename="../apps/deck/app/deckwindow_menu.cpp" line="+3"/>
         <source>Reset Slide</source>
         <translation type="unfinished">Dia opnieuw instellen</translation>
-    </message>
-    <message>
-        <location line="+12"/>
-        <source>Do you want to save changes to %1?</source>
-        <translation type="unfinished">Wilt u de wijzigingen in %1 opslaan?</translation>
-    </message>
-    <message>
-        <location line="+4"/>
-        <source>Don&apos;t Save</source>
-        <translation type="unfinished">Niet opslaan</translation>
     </message>
     <message>
         <location filename="../apps/deck/app/deckwindow_actions.cpp" line="-84"/>
@@ -30479,7 +30500,7 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+5"/>
         <source>Top</source>
-        <translation type="unfinished">Boven</translation>
+        <translation>Boven</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -30489,7 +30510,7 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+0"/>
         <source>Bottom</source>
-        <translation type="unfinished">Onder</translation>
+        <translation>Onder</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -30509,7 +30530,7 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+3"/>
         <source>Columns</source>
-        <translation type="unfinished">Kolommen</translation>
+        <translation>Kolommen</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -30764,7 +30785,7 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+4"/>
         <source>Guides</source>
-        <translation type="unfinished">Hulplijnen</translation>
+        <translation>Hulplijnen</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -30845,12 +30866,14 @@ Het bestand kan niet worden gelezen.</translation>
     </message>
     <message>
         <location line="+69"/>
+        <location filename="../apps/deck/app/deckwindow_picture.cpp" line="+0"/>
         <source>All Pictures (*.png *.jpg *.jpeg *.gif *.bmp *.tif *.tiff *.webp *.svg *.wmf *.emf *.ico *.pdf)</source>
         <translation type="unfinished">Alle afbeeldingen (*.png *.jpg *.jpeg *.gif *.bmp *.tif *.tiff *.webp *.svg *.wmf *.emf *.ico *.pdf)</translation>
     </message>
     <message>
         <location line="-146"/>
         <location line="+151"/>
+        <location filename="../apps/deck/app/deckwindow_picture.cpp" line="+11"/>
         <source>%1 can&apos;t be read as a picture.</source>
         <translation type="unfinished">%1 kan niet als afbeelding worden gelezen.</translation>
     </message>
@@ -30980,7 +31003,7 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+10"/>
         <source>Language</source>
-        <translation type="unfinished">Taal</translation>
+        <translation>Taal</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -31020,7 +31043,7 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Dia %1</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow.cpp" line="-194"/>
+        <location filename="../apps/deck/app/deckwindow.cpp" line="-178"/>
         <location filename="../apps/deck/app/deckwindow_dialogs.cpp" line="-113"/>
         <source>View</source>
         <translation type="unfinished">Beeld</translation>
@@ -31319,8 +31342,8 @@ Het bestand kan niet worden gelezen.</translation>
         <location line="+7"/>
         <location filename="../apps/deck/app/deckwindow_output.cpp" line="-84"/>
         <location line="+194"/>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-183"/>
-        <location line="+60"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-203"/>
+        <location line="+80"/>
         <source>%1 couldn&apos;t save &quot;%2&quot;.
 %3%4</source>
         <translation type="unfinished">%1 kan &quot;%2&quot; niet opslaan.
@@ -31688,7 +31711,7 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+9"/>
         <source>Size</source>
-        <translation type="unfinished">Grootte</translation>
+        <translation>Grootte</translation>
     </message>
     <message>
         <location line="-360"/>
@@ -31699,7 +31722,7 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Geen opvulling</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_picture.cpp" line="+46"/>
+        <location filename="../apps/deck/app/deckwindow_picture.cpp" line="-88"/>
         <source>Crop</source>
         <translation type="unfinished">Bijsnijden</translation>
     </message>
@@ -31721,6 +31744,21 @@ Het bestand kan niet worden gelezen.</translation>
         <location line="+2"/>
         <source>Clear Crop</source>
         <translation type="unfinished">Bijsnijden wissen</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Change Picture…</source>
+        <translation type="unfinished">Afbeelding wijzigen…</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Reset Picture</source>
+        <translation type="unfinished">Oorspronkelijke afbeelding</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Reset Picture &amp; Size</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+5"/>
@@ -31799,9 +31837,19 @@ Het bestand kan niet worden gelezen.</translation>
     </message>
     <message>
         <location line="+18"/>
-        <location line="+23"/>
+        <location line="+80"/>
         <source>Crop to Shape</source>
         <translation type="unfinished">Bijsnijden tot vorm</translation>
+    </message>
+    <message>
+        <location line="-67"/>
+        <source>Change Picture</source>
+        <translation type="unfinished">Afbeelding wijzigen</translation>
+    </message>
+    <message>
+        <location line="+45"/>
+        <source>Picture Styles</source>
+        <translation type="unfinished">Afbeeldingsstijlen</translation>
     </message>
     <message>
         <location filename="../apps/deck/app/deckwindow_format.cpp" line="+27"/>
@@ -31871,7 +31919,7 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+1"/>
         <source>Text</source>
-        <translation type="unfinished">Tekst</translation>
+        <translation>Tekst</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -31903,7 +31951,7 @@ Het bestand kan niet worden gelezen.</translation>
         <location line="+5"/>
         <location line="+294"/>
         <source>Title</source>
-        <translation type="unfinished">Titel</translation>
+        <translation>Titel</translation>
     </message>
     <message>
         <location line="-293"/>
@@ -32027,19 +32075,18 @@ Het bestand kan niet worden gelezen.</translation>
     </message>
     <message>
         <location filename="../apps/deck/app/deckwindow.cpp" line="+0"/>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-166"/>
-        <location line="+127"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-190"/>
+        <location line="+146"/>
         <location line="+1"/>
         <location line="+6"/>
-        <location line="+14"/>
-        <location line="+18"/>
+        <location line="+37"/>
         <location line="+3"/>
         <source>Save</source>
         <translation type="unfinished">Opslaan</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-168"/>
-        <location line="+65"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-192"/>
+        <location line="+69"/>
         <source>Save As</source>
         <translation type="unfinished">Opslaan als</translation>
     </message>
@@ -32103,7 +32150,12 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">&quot;%1&quot; opgeslagen in Mijn sjablonen.</translation>
     </message>
     <message>
-        <location line="+15"/>
+        <location line="+22"/>
+        <source>The mark that the presentation is final.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
         <source>A copy can&apos;t be saved over &quot;%1&quot;. Choose another name.</source>
         <translation type="unfinished">Een kopie kan niet over &quot;%1&quot; worden opgeslagen. Kies een andere naam.</translation>
     </message>
@@ -32118,12 +32170,7 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Deze presentatie is beveiligd met een wachtwoord, en een .%1-bestand kan nog geen wachtwoord bevatten. Sla hem op als .pptx-bestand of verwijder eerst het wachtwoord (Bestand &gt; Info).</translation>
     </message>
     <message>
-        <location line="+14"/>
-        <source>This presentation is marked as final, and a .odp file can&apos;t hold that mark. The file is saved without it.</source>
-        <translation type="unfinished">Deze presentatie is als definitief gemarkeerd, en een .odp-bestand kan die markering niet bevatten. Het bestand wordt zonder die markering opgeslagen.</translation>
-    </message>
-    <message>
-        <location line="+25"/>
+        <location line="+44"/>
         <source>Saved a copy as %1</source>
         <translation type="unfinished">Kopie opgeslagen als %1</translation>
     </message>
@@ -32557,17 +32604,17 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+5"/>
         <source>Path</source>
-        <translation type="unfinished">Pad</translation>
+        <translation>Pad</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Direction</source>
-        <translation type="unfinished">Richting</translation>
+        <translation>Richting</translation>
     </message>
     <message>
         <location line="+10"/>
         <source>Amount</source>
-        <translation type="unfinished">Hoeveelheid</translation>
+        <translation>Hoeveelheid</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -32634,7 +32681,7 @@ Het bestand kan niet worden gelezen.</translation>
         <location filename="../apps/deck/app/deckwindow_media.cpp" line="+181"/>
         <location line="+7"/>
         <source>Start</source>
-        <translation type="unfinished">Starten</translation>
+        <translation>Starten</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -32651,7 +32698,7 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+4"/>
         <source>Delay</source>
-        <translation type="unfinished">Vertraging</translation>
+        <translation>Vertraging</translation>
     </message>
     <message>
         <location filename="../apps/deck/app/deckwindow_show.cpp" line="-52"/>
@@ -32662,7 +32709,7 @@ Het bestand kan niet worden gelezen.</translation>
         <location filename="../apps/deck/app/deckwindow_animations.cpp" line="+0"/>
         <location filename="../apps/deck/app/deckwindow_show.cpp" line="+1"/>
         <source>Duration</source>
-        <translation type="unfinished">Duur</translation>
+        <translation>Duur</translation>
     </message>
     <message>
         <location filename="../apps/deck/app/deckwindow_show.cpp" line="+12"/>
@@ -32743,7 +32790,7 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location filename="../apps/deck/app/deckwindow_design.cpp" line="-52"/>
         <source>Theme</source>
-        <translation type="unfinished">Thema</translation>
+        <translation>Thema</translation>
     </message>
     <message>
         <location line="+30"/>
@@ -32801,7 +32848,7 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+86"/>
         <source>Colors</source>
-        <translation type="unfinished">Kleuren</translation>
+        <translation>Kleuren</translation>
     </message>
     <message>
         <location line="-77"/>
@@ -33092,7 +33139,7 @@ Het bestand kan niet worden gelezen.</translation>
         <location line="+6"/>
         <location line="+9"/>
         <source>Volume</source>
-        <translation type="unfinished">Volume</translation>
+        <translation>Volume</translation>
     </message>
     <message>
         <location line="-8"/>
@@ -33143,7 +33190,7 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location filename="../apps/deck/app/deckwindow_find.cpp" line="+21"/>
         <source>Find</source>
-        <translation type="unfinished">Zoeken</translation>
+        <translation>Zoeken</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -33205,12 +33252,12 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+11"/>
         <source>Order</source>
-        <translation type="unfinished">Volgorde</translation>
+        <translation>Volgorde</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Alignment</source>
-        <translation type="unfinished">Uitlijning</translation>
+        <translation>Uitlijning</translation>
     </message>
     <message>
         <location line="+17"/>
@@ -33520,17 +33567,17 @@ Het bestand kan niet worden gelezen.</translation>
     </message>
     <message>
         <location line="+35"/>
-        <location line="+150"/>
+        <location line="+151"/>
         <source>Hidden slides</source>
         <translation type="unfinished">Verborgen dia&apos;s</translation>
     </message>
     <message>
-        <location line="-149"/>
+        <location line="-150"/>
         <source>Slides with notes</source>
         <translation type="unfinished">Dia&apos;s met notities</translation>
     </message>
     <message>
-        <location line="+32"/>
+        <location line="+33"/>
         <source>This file has more properties than %1 reads, so the mark can&apos;t be added.</source>
         <translation type="unfinished">Dit bestand heeft meer eigenschappen dan %1 kan lezen, dus de markering kan niet worden toegevoegd.</translation>
     </message>
@@ -33586,7 +33633,7 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location filename="../apps/deck/app/deckwindow_info.cpp" line="-140"/>
         <source>Comments</source>
-        <translation type="unfinished">Opmerkingen</translation>
+        <translation>Opmerkingen</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -33692,6 +33739,22 @@ Het bestand kan niet worden gelezen.</translation>
         <location line="+16"/>
         <source>Went back to &quot;%1&quot;. Save the presentation to keep it.</source>
         <translation type="unfinished">Teruggegaan naar &quot;%1&quot;. Sla de presentatie op om dit te bewaren.</translation>
+    </message>
+    <message>
+        <location line="+30"/>
+        <source>The password: a .odp file can&apos;t hold a password yet.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Check Compatibility</source>
+        <translation type="unfinished">Compatibiliteit controleren</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-40"/>
+        <source>presentation</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -33853,12 +33916,7 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Bron wijzigen…</translation>
     </message>
     <message>
-        <location line="+10"/>
-        <source>When this workbook opens:</source>
-        <translation type="unfinished">Wanneer deze werkmap wordt geopend:</translation>
-    </message>
-    <message>
-        <location line="+3"/>
+        <location line="+13"/>
         <source>Ask whether to update the links</source>
         <translation type="unfinished">Vragen of de koppelingen moeten worden bijgewerkt</translation>
     </message>
@@ -33946,7 +34004,12 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">(geen locatie)</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="-68"/>
+        <source>When this workbook opens</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+69"/>
         <source>Workbook</source>
         <translation type="unfinished">Werkmap</translation>
     </message>
@@ -34070,16 +34133,18 @@ Het bestand kan niet worden gelezen.</translation>
     </message>
     <message>
         <location line="+5"/>
+        <location line="+23"/>
         <source>Title</source>
-        <translation type="unfinished">Titel</translation>
+        <translation>Titel</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="-20"/>
+        <location line="+21"/>
         <source>Refers to cells</source>
         <translation type="unfinished">Verwijst naar cellen</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="-18"/>
         <source>Range password</source>
         <translation type="unfinished">Wachtwoord voor bereik</translation>
     </message>
@@ -34099,29 +34164,19 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Bereik%1</translation>
     </message>
     <message>
-        <location line="+3"/>
-        <source>Title:</source>
-        <translation type="unfinished">Titel:</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Refers to cells:</source>
-        <translation type="unfinished">Verwijst naar cellen:</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>New password (optional):</source>
-        <translation type="unfinished">Nieuw wachtwoord (optioneel):</translation>
+        <location line="+5"/>
+        <source>New password (optional)</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+0"/>
-        <source>Password (optional):</source>
-        <translation type="unfinished">Wachtwoord (optioneel):</translation>
+        <source>Password (optional)</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>Type it again:</source>
-        <translation type="unfinished">Typ opnieuw:</translation>
+        <source>Type it again</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+10"/>
@@ -34399,7 +34454,7 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+10"/>
         <source>Underline</source>
-        <translation type="unfinished">Onderstrepen</translation>
+        <translation>Onderstrepen</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -34421,7 +34476,7 @@ Het bestand kan niet worden gelezen.</translation>
         <location line="+1"/>
         <location line="+4"/>
         <source>Font</source>
-        <translation type="unfinished">Lettertype</translation>
+        <translation>Lettertype</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -34457,7 +34512,7 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+42"/>
         <source>Alignment</source>
-        <translation type="unfinished">Uitlijning</translation>
+        <translation>Uitlijning</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -34548,7 +34603,7 @@ Het bestand kan niet worden gelezen.</translation>
 <context>
     <name>jp::ErrorCheckDialog</name>
     <message>
-        <location filename="../apps/crunch/app/errorcheckdialog.cpp" line="+15"/>
+        <location filename="../apps/crunch/app/errorcheckdialog.cpp" line="+16"/>
         <source>Error Checking</source>
         <translation type="unfinished">Foutcontrole</translation>
     </message>
@@ -34581,7 +34636,7 @@ Het bestand kan niet worden gelezen.</translation>
 <context>
     <name>jp::EvaluateFormulaDialog</name>
     <message>
-        <location filename="../apps/crunch/app/evaluateformuladialog.cpp" line="+16"/>
+        <location filename="../apps/crunch/app/evaluateformuladialog.cpp" line="+17"/>
         <source>Evaluate Formula</source>
         <translation type="unfinished">Formule evalueren</translation>
     </message>
@@ -34667,27 +34722,19 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Veldinstellingen</translation>
     </message>
     <message>
-        <location line="+5"/>
-        <source>Source name:</source>
-        <translation type="unfinished">Brongegevensnaam:</translation>
-    </message>
-    <message>
-        <location line="+3"/>
+        <location line="+8"/>
+        <location line="+1"/>
         <source>Custom name</source>
         <translation type="unfinished">Aangepaste naam</translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>Custom name:</source>
-        <translation type="unfinished">Aangepaste naam:</translation>
-    </message>
-    <message>
         <location line="+3"/>
+        <location line="+4"/>
         <source>Subtotals</source>
         <translation type="unfinished">Subtotalen</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="-3"/>
         <source>Automatic</source>
         <translation type="unfinished">Automatisch</translation>
     </message>
@@ -34697,14 +34744,9 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Geen</translation>
     </message>
     <message>
-        <location line="+2"/>
-        <source>Subtotals:</source>
-        <translation type="unfinished">Subtotalen:</translation>
-    </message>
-    <message>
-        <location line="+3"/>
+        <location line="+5"/>
         <source>Layout</source>
-        <translation type="unfinished">Indeling</translation>
+        <translation>Indeling</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -34722,12 +34764,7 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Tabelvorm</translation>
     </message>
     <message>
-        <location line="+2"/>
-        <source>Show item labels in:</source>
-        <translation type="unfinished">Itemlabels weergeven in:</translation>
-    </message>
-    <message>
-        <location line="+1"/>
+        <location line="+3"/>
         <source>Insert a blank line after each item</source>
         <translation type="unfinished">Een lege regel invoegen na elk item</translation>
     </message>
@@ -34738,11 +34775,12 @@ Het bestand kan niet worden gelezen.</translation>
     </message>
     <message>
         <location line="+7"/>
+        <location line="+7"/>
         <source>Sort</source>
         <translation type="unfinished">Sorteren</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="-6"/>
         <source>Manual (keep the order of the items)</source>
         <translation type="unfinished">Handmatig (volgorde van de items behouden)</translation>
     </message>
@@ -34767,28 +34805,34 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Grootste tot kleinste op een waarde</translation>
     </message>
     <message>
-        <location line="+2"/>
-        <source>Sort:</source>
-        <translation type="unfinished">Sorteren:</translation>
-    </message>
-    <message>
-        <location line="+3"/>
+        <location line="+5"/>
         <source>Sort by this value</source>
         <translation type="unfinished">Sorteren op deze waarde</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="-41"/>
+        <source>Source name</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location line="+19"/>
-        <source>by the value:</source>
-        <translation type="unfinished">op de waarde:</translation>
+        <source>Show item labels in</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+25"/>
+        <location line="+19"/>
+        <source>by the value</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="-15"/>
+        <location line="+10"/>
         <source>Filter</source>
         <translation type="unfinished">Filter</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="-8"/>
         <source>No filter</source>
         <translation type="unfinished">Geen filter</translation>
     </message>
@@ -34873,12 +34917,22 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Onderste items (op waarde)</translation>
     </message>
     <message>
-        <location line="+2"/>
-        <source>Filter:</source>
-        <translation type="unfinished">Filter:</translation>
+        <location line="+11"/>
+        <source>Text or number</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+4"/>
+        <source>and</source>
+        <translation type="unfinished">en</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Show these items</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-19"/>
         <source>Filter by this value</source>
         <translation type="unfinished">Filteren op deze waarde</translation>
     </message>
@@ -34888,29 +34942,14 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Filter op tekst of getal</translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>Text or number:</source>
-        <translation type="unfinished">Tekst of getal:</translation>
-    </message>
-    <message>
-        <location line="+3"/>
+        <location line="+4"/>
         <source>Filter second number</source>
         <translation type="unfinished">Tweede getal filteren</translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>and:</source>
-        <translation type="unfinished">en:</translation>
-    </message>
-    <message>
-        <location line="+3"/>
+        <location line="+4"/>
         <source>Items to show</source>
         <translation type="unfinished">Weer te geven items</translation>
-    </message>
-    <message>
-        <location line="+6"/>
-        <source>Show these items:</source>
-        <translation type="unfinished">Deze items weergeven:</translation>
     </message>
 </context>
 <context>
@@ -34984,14 +35023,14 @@ Het bestand kan niet worden gelezen.</translation>
 <context>
     <name>jp::FillAcrossDialog</name>
     <message>
-        <location filename="../apps/crunch/app/filldialogs.cpp" line="+15"/>
+        <location filename="../apps/crunch/app/filldialogs.cpp" line="+16"/>
         <source>Fill Across Worksheets</source>
         <translation type="unfinished">Doorvoeren naar werkbladen</translation>
     </message>
     <message>
         <location line="+2"/>
-        <source>Copy the selected cells to the same cells of these sheets:</source>
-        <translation type="unfinished">De geselecteerde cellen kopiëren naar dezelfde cellen van deze werkbladen:</translation>
+        <source>Copy the selected cells to the same cells of these sheets</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+5"/>
@@ -35020,8 +35059,8 @@ Het bestand kan niet worden gelezen.</translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>Copy:</source>
-        <translation type="unfinished">Kopiëren:</translation>
+        <source>Copy</source>
+        <translation type="unfinished">Kopiëren</translation>
     </message>
 </context>
 <context>
@@ -35054,18 +35093,18 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+17"/>
         <source>Fill color</source>
-        <translation type="unfinished">Opvulkleur</translation>
+        <translation>Opvulkleur</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Color</source>
-        <translation type="unfinished">Kleur</translation>
+        <translation>Kleur</translation>
     </message>
     <message>
         <location line="+2"/>
         <location line="+37"/>
         <source>Transparency</source>
-        <translation type="unfinished">Transparantie</translation>
+        <translation>Transparantie</translation>
     </message>
     <message>
         <location line="-23"/>
@@ -35100,12 +35139,12 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+1"/>
         <source>Foreground</source>
-        <translation type="unfinished">Voorgrond</translation>
+        <translation>Voorgrond</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Background</source>
-        <translation type="unfinished">Achtergrond</translation>
+        <translation>Achtergrond</translation>
     </message>
 </context>
 <context>
@@ -35380,7 +35419,7 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+1"/>
         <source>Month</source>
-        <translation type="unfinished">Maand</translation>
+        <translation>Maand</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -35442,7 +35481,7 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location filename="../apps/crunch/app/finddialog.cpp" line="+34"/>
         <source>Find</source>
-        <translation type="unfinished">Zoeken</translation>
+        <translation>Zoeken</translation>
     </message>
     <message>
         <location line="+22"/>
@@ -35607,23 +35646,15 @@ Het bestand kan niet worden gelezen.</translation>
     </message>
     <message>
         <location line="+5"/>
+        <location line="+3"/>
         <source>Find what</source>
-        <translation type="unfinished">Zoeken naar</translation>
+        <translation>Zoeken naar</translation>
     </message>
     <message>
         <location line="+3"/>
-        <source>Find what:</source>
-        <translation type="unfinished">Zoeken naar:</translation>
-    </message>
-    <message>
-        <location line="+3"/>
-        <source>Replace with</source>
-        <translation type="unfinished">Vervangen door</translation>
-    </message>
-    <message>
         <location line="+1"/>
-        <source>Replace with:</source>
-        <translation type="unfinished">Vervangen door:</translation>
+        <source>Replace with</source>
+        <translation>Vervangen door</translation>
     </message>
     <message>
         <location line="+26"/>
@@ -35694,7 +35725,7 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location filename="../libs/shell/app/widgets.cpp" line="+737"/>
         <source>Font</source>
-        <translation type="unfinished">Lettertype</translation>
+        <translation>Lettertype</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -35806,12 +35837,17 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Aangepast (%1)</translation>
     </message>
     <message>
-        <location line="+2"/>
-        <source>Display units:</source>
-        <translation type="unfinished">Eenheden weergeven:</translation>
+        <location line="+44"/>
+        <source>Labels</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+1"/>
+        <source>Turn the labels</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-42"/>
         <source>Show the units&apos; name on the chart</source>
         <translation type="unfinished">De naam van de eenheden op de grafiek weergeven</translation>
     </message>
@@ -35831,36 +35867,41 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Bij deze waarde:</translation>
     </message>
     <message>
-        <location line="+5"/>
-        <source>The other axis crosses:</source>
-        <translation type="unfinished">De andere as snijdt:</translation>
-    </message>
-    <message>
-        <location line="+2"/>
+        <location line="+7"/>
         <source>Numbers as the cells show them</source>
         <translation type="unfinished">Getallen zoals ze in de cellen worden weergegeven</translation>
     </message>
     <message>
-        <location line="+6"/>
-        <source>Number format:</source>
-        <translation type="unfinished">Getalnotatie:</translation>
-    </message>
-    <message>
-        <location line="-31"/>
+        <location line="-25"/>
         <location line="+34"/>
         <location line="+14"/>
         <source>None</source>
         <translation type="unfinished">Geen</translation>
     </message>
     <message>
-        <location line="-13"/>
+        <location line="-40"/>
+        <source>Display units</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>The other axis crosses</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Number format</source>
+        <translation>Getalnotatie</translation>
+    </message>
+    <message>
+        <location line="+4"/>
         <source>Outside</source>
-        <translation type="unfinished">Buiten</translation>
+        <translation>Buiten</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Inside</source>
-        <translation type="unfinished">Binnen</translation>
+        <translation>Binnen</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -35893,17 +35934,7 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Aan het hoge uiteinde</translation>
     </message>
     <message>
-        <location line="+3"/>
-        <source>Labels:</source>
-        <translation type="unfinished">Labels:</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Turn the labels:</source>
-        <translation type="unfinished">Labels draaien:</translation>
-    </message>
-    <message>
-        <location line="+17"/>
+        <location line="+21"/>
         <source>The major unit has to be more than 0, or Automatic.</source>
         <translation type="unfinished">Het hoofdinterval moet groter zijn dan 0, of Automatisch.</translation>
     </message>
@@ -36002,12 +36033,12 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+0"/>
         <source>Alignment</source>
-        <translation type="unfinished">Uitlijning</translation>
+        <translation>Uitlijning</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Font</source>
-        <translation type="unfinished">Lettertype</translation>
+        <translation>Lettertype</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -36027,43 +36058,124 @@ Het bestand kan niet worden gelezen.</translation>
     </message>
     <message>
         <location line="+46"/>
-        <source>&amp;Category:</source>
-        <translation type="unfinished">&amp;Categorie:</translation>
+        <source>&amp;Category</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+28"/>
+        <source>&amp;Decimal places</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>&amp;Symbol</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+30"/>
+        <source>&amp;Negative numbers</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <location line="+10"/>
+        <source>&amp;Type</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+209"/>
+        <source>&amp;Horizontal</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>&amp;Indent</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>&amp;Vertical</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+28"/>
+        <source>&amp;Degrees</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+9"/>
+        <source>Text &amp;direction</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+36"/>
+        <source>&amp;Font</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Font st&amp;yle</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>&amp;Size</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>&amp;Underline</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <location line="+100"/>
+        <source>&amp;Color</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-16"/>
+        <source>St&amp;yle</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+140"/>
+        <source>&amp;Background Color</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>P&amp;attern Color</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+25"/>
+        <source>Pattern &amp;Style</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>&amp;Second Color</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>&amp;Direction</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-670"/>
         <location line="+691"/>
         <source>Sample</source>
         <translation type="unfinished">Voorbeeld</translation>
     </message>
     <message>
-        <location line="-672"/>
-        <source>&amp;Decimal places:</source>
-        <translation type="unfinished">&amp;Decimalen:</translation>
-    </message>
-    <message>
-        <location line="+13"/>
-        <source>&amp;Symbol:</source>
-        <translation type="unfinished">&amp;Symbool:</translation>
-    </message>
-    <message>
-        <location line="+22"/>
+        <location line="-637"/>
         <source>Use 1000 &amp;Separator</source>
         <translation type="unfinished">&amp;Scheidingsteken voor duizendtallen gebruiken</translation>
     </message>
     <message>
-        <location line="+8"/>
-        <source>&amp;Negative numbers:</source>
-        <translation type="unfinished">&amp;Negatieve getallen:</translation>
-    </message>
-    <message>
-        <location line="+12"/>
-        <location line="+10"/>
-        <source>&amp;Type:</source>
-        <translation type="unfinished">&amp;Type:</translation>
-    </message>
-    <message>
-        <location line="+202"/>
+        <location line="+232"/>
         <source>Text alignment</source>
         <translation type="unfinished">Tekstuitlijning</translation>
     </message>
@@ -36076,7 +36188,7 @@ Het bestand kan niet worden gelezen.</translation>
         <location line="+0"/>
         <location line="+250"/>
         <source>Left</source>
-        <translation type="unfinished">Links</translation>
+        <translation>Links</translation>
     </message>
     <message>
         <location line="-250"/>
@@ -36088,7 +36200,7 @@ Het bestand kan niet worden gelezen.</translation>
         <location line="-11"/>
         <location line="+252"/>
         <source>Right</source>
-        <translation type="unfinished">Rechts</translation>
+        <translation>Rechts</translation>
     </message>
     <message>
         <location line="-252"/>
@@ -36112,26 +36224,16 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Gelijkmatig verdelen</translation>
     </message>
     <message>
-        <location line="+3"/>
-        <source>&amp;Horizontal:</source>
-        <translation type="unfinished">&amp;Horizontaal:</translation>
-    </message>
-    <message>
-        <location line="+5"/>
-        <source>&amp;Indent:</source>
-        <translation type="unfinished">&amp;Inspringen:</translation>
-    </message>
-    <message>
-        <location line="+3"/>
+        <location line="+11"/>
         <location line="+236"/>
         <source>Top</source>
-        <translation type="unfinished">Boven</translation>
+        <translation>Boven</translation>
     </message>
     <message>
         <location line="-236"/>
         <location line="+238"/>
         <source>Bottom</source>
-        <translation type="unfinished">Onder</translation>
+        <translation>Onder</translation>
     </message>
     <message>
         <location line="-238"/>
@@ -36139,12 +36241,7 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Verdeeld</translation>
     </message>
     <message>
-        <location line="+3"/>
-        <source>&amp;Vertical:</source>
-        <translation type="unfinished">&amp;Verticaal:</translation>
-    </message>
-    <message>
-        <location line="+2"/>
+        <location line="+5"/>
         <source>Text control</source>
         <translation type="unfinished">Tekstbeheer</translation>
     </message>
@@ -36166,7 +36263,7 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+7"/>
         <source>Orientation</source>
-        <translation type="unfinished">Stand</translation>
+        <translation>Afdrukstand</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -36174,12 +36271,7 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">&amp;Tekst verticaal gestapeld</translation>
     </message>
     <message>
-        <location line="+3"/>
-        <source>&amp;Degrees:</source>
-        <translation type="unfinished">&amp;Graden:</translation>
-    </message>
-    <message>
-        <location line="+3"/>
+        <location line="+6"/>
         <source>Right-to-left</source>
         <translation type="unfinished">Van rechts naar links</translation>
     </message>
@@ -36199,17 +36291,7 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Van rechts naar links</translation>
     </message>
     <message>
-        <location line="+2"/>
-        <source>Text &amp;direction:</source>
-        <translation type="unfinished">Tekst&amp;richting:</translation>
-    </message>
-    <message>
-        <location line="+36"/>
-        <source>&amp;Font:</source>
-        <translation type="unfinished">&amp;Lettertype:</translation>
-    </message>
-    <message>
-        <location line="+3"/>
+        <location line="+41"/>
         <source>Regular</source>
         <translation type="unfinished">Standaard</translation>
     </message>
@@ -36229,17 +36311,7 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Vet cursief</translation>
     </message>
     <message>
-        <location line="+2"/>
-        <source>Font st&amp;yle:</source>
-        <translation type="unfinished">Tekenst&amp;ijl:</translation>
-    </message>
-    <message>
-        <location line="+6"/>
-        <source>&amp;Size:</source>
-        <translation type="unfinished">&amp;Grootte:</translation>
-    </message>
-    <message>
-        <location line="+3"/>
+        <location line="+11"/>
         <source>Single</source>
         <translation type="unfinished">Enkel</translation>
     </message>
@@ -36254,12 +36326,7 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Dubbel boekhoudkundig</translation>
     </message>
     <message>
-        <location line="+2"/>
-        <source>&amp;Underline:</source>
-        <translation type="unfinished">&amp;Onderstrepen:</translation>
-    </message>
-    <message>
-        <location line="+1"/>
+        <location line="+3"/>
         <source>Font Color</source>
         <translation type="unfinished">Tekstkleur</translation>
     </message>
@@ -36271,13 +36338,7 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Automatisch</translation>
     </message>
     <message>
-        <location line="-225"/>
-        <location line="+100"/>
-        <source>&amp;Color:</source>
-        <translation type="unfinished">&amp;Kleur:</translation>
-    </message>
-    <message>
-        <location line="-98"/>
+        <location line="-223"/>
         <source>Effects</source>
         <translation type="unfinished">Effecten</translation>
     </message>
@@ -36312,12 +36373,7 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Lijn</translation>
     </message>
     <message>
-        <location line="+3"/>
-        <source>St&amp;yle:</source>
-        <translation type="unfinished">St&amp;ijl:</translation>
-    </message>
-    <message>
-        <location line="+12"/>
+        <location line="+15"/>
         <source>Line Color</source>
         <translation type="unfinished">Lijnkleur</translation>
     </message>
@@ -36334,7 +36390,7 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+0"/>
         <source>Inside</source>
-        <translation type="unfinished">Binnen</translation>
+        <translation>Binnen</translation>
     </message>
     <message>
         <location line="+27"/>
@@ -36372,22 +36428,12 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Geen kleur</translation>
     </message>
     <message>
-        <location line="+4"/>
-        <source>&amp;Background Color:</source>
-        <translation type="unfinished">&amp;Achtergrondkleur:</translation>
-    </message>
-    <message>
-        <location line="+1"/>
+        <location line="+5"/>
         <source>Pattern Color</source>
         <translation type="unfinished">Patroonkleur</translation>
     </message>
     <message>
-        <location line="+4"/>
-        <source>P&amp;attern Color:</source>
-        <translation type="unfinished">P&amp;atroonkleur:</translation>
-    </message>
-    <message>
-        <location line="+3"/>
+        <location line="+7"/>
         <source>No pattern</source>
         <translation type="unfinished">Geen patroon</translation>
     </message>
@@ -36482,12 +36528,7 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Stippen, een op zestien</translation>
     </message>
     <message>
-        <location line="+4"/>
-        <source>Pattern &amp;Style:</source>
-        <translation type="unfinished">Patroon&amp;stijl:</translation>
-    </message>
-    <message>
-        <location line="+3"/>
+        <location line="+7"/>
         <source>Gradient</source>
         <translation type="unfinished">Kleurovergang</translation>
     </message>
@@ -36507,12 +36548,7 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Wit</translation>
     </message>
     <message>
-        <location line="+4"/>
-        <source>&amp;Second Color:</source>
-        <translation type="unfinished">&amp;Tweede kleur:</translation>
-    </message>
-    <message>
-        <location line="+3"/>
+        <location line="+7"/>
         <source>From left to right</source>
         <translation type="unfinished">Van links naar rechts</translation>
     </message>
@@ -36537,12 +36573,7 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Van het midden naar buiten</translation>
     </message>
     <message>
-        <location line="+2"/>
-        <source>&amp;Direction:</source>
-        <translation type="unfinished">&amp;Richting:</translation>
-    </message>
-    <message>
-        <location line="+113"/>
+        <location line="+115"/>
         <source>&amp;Locked</source>
         <translation type="unfinished">&amp;Vergrendeld</translation>
     </message>
@@ -36662,7 +36693,7 @@ Het bestand kan niet worden gelezen.</translation>
         <location line="+4"/>
         <location line="+70"/>
         <source>Color</source>
-        <translation type="unfinished">Kleur</translation>
+        <translation>Kleur</translation>
     </message>
     <message>
         <location line="-64"/>
@@ -36670,7 +36701,7 @@ Het bestand kan niet worden gelezen.</translation>
         <location line="+34"/>
         <location filename="../libs/page/app/formatpane_picture.cpp" line="+78"/>
         <source>Transparency</source>
-        <translation type="unfinished">Transparantie</translation>
+        <translation>Transparantie</translation>
     </message>
     <message>
         <location line="-67"/>
@@ -36680,24 +36711,24 @@ Het bestand kan niet worden gelezen.</translation>
         <location filename="../libs/page/app/formatpane_size.cpp" line="+70"/>
         <location line="+19"/>
         <source>Size</source>
-        <translation type="unfinished">Grootte</translation>
+        <translation>Grootte</translation>
     </message>
     <message>
         <location line="-87"/>
         <location line="+35"/>
         <source>Blur</source>
-        <translation type="unfinished">Vervaging</translation>
+        <translation>Vervaging</translation>
     </message>
     <message>
         <location line="-34"/>
         <source>Angle</source>
-        <translation type="unfinished">Hoek</translation>
+        <translation>Hoek</translation>
     </message>
     <message>
         <location line="+1"/>
         <location line="+32"/>
         <source>Distance</source>
-        <translation type="unfinished">Afstand</translation>
+        <translation>Afstand</translation>
     </message>
     <message>
         <location line="-17"/>
@@ -36747,12 +36778,12 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="-3"/>
         <source>Brightness</source>
-        <translation type="unfinished">Helderheid</translation>
+        <translation>Helderheid</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Contrast</source>
-        <translation type="unfinished">Contrast</translation>
+        <translation>Contrast</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -36819,18 +36850,18 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+2"/>
         <source>Height</source>
-        <translation type="unfinished">Hoogte</translation>
+        <translation>Hoogte</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Width</source>
-        <translation type="unfinished">Breedte</translation>
+        <translation>Breedte</translation>
     </message>
     <message>
         <location line="+1"/>
         <location line="+20"/>
         <source>Rotation</source>
-        <translation type="unfinished">Draaiing</translation>
+        <translation>Draaiing</translation>
     </message>
     <message>
         <location line="-19"/>
@@ -36851,17 +36882,17 @@ Het bestand kan niet worden gelezen.</translation>
         <location line="+8"/>
         <location line="+12"/>
         <source>Position</source>
-        <translation type="unfinished">Positie</translation>
+        <translation>Positie</translation>
     </message>
     <message>
         <location line="-5"/>
         <source>Horizontal position</source>
-        <translation type="unfinished">Horizontale positie</translation>
+        <translation>Horizontale positie</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Vertical position</source>
-        <translation type="unfinished">Verticale positie</translation>
+        <translation>Verticale positie</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -36877,7 +36908,7 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="-25"/>
         <source>Top</source>
-        <translation type="unfinished">Boven</translation>
+        <translation>Boven</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -36897,7 +36928,7 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+1"/>
         <source>Bottom</source>
-        <translation type="unfinished">Onder</translation>
+        <translation>Onder</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -36942,7 +36973,7 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+1"/>
         <source>Vertical alignment</source>
-        <translation type="unfinished">Verticale uitlijning</translation>
+        <translation>Verticale uitlijning</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -36952,22 +36983,22 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+4"/>
         <source>Left margin</source>
-        <translation type="unfinished">Linkermarge</translation>
+        <translation>Linkermarge</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Right margin</source>
-        <translation type="unfinished">Rechtermarge</translation>
+        <translation>Rechtermarge</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Top margin</source>
-        <translation type="unfinished">Bovenmarge</translation>
+        <translation>Bovenmarge</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Bottom margin</source>
-        <translation type="unfinished">Ondermarge</translation>
+        <translation>Ondermarge</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -36977,12 +37008,12 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+8"/>
         <source>Columns</source>
-        <translation type="unfinished">Kolommen</translation>
+        <translation>Kolommen</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Spacing</source>
-        <translation type="unfinished">Afstand</translation>
+        <translation>Afstand</translation>
     </message>
     <message>
         <location line="+107"/>
@@ -36994,13 +37025,13 @@ Het bestand kan niet worden gelezen.</translation>
         <location line="-15"/>
         <location line="+6"/>
         <source>Title</source>
-        <translation type="unfinished">Titel</translation>
+        <translation>Titel</translation>
     </message>
     <message>
         <location line="-3"/>
         <location line="+5"/>
         <source>Description</source>
-        <translation type="unfinished">Beschrijving</translation>
+        <translation>Beschrijving</translation>
     </message>
     <message>
         <location line="-4"/>
@@ -37175,12 +37206,12 @@ Het bestand kan niet worden gelezen.</translation>
         <location line="+3"/>
         <location filename="../apps/deck/app/gotodialog.cpp" line="+3"/>
         <source>Go to what</source>
-        <translation type="unfinished">Ga naar</translation>
+        <translation>Ga naar</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Page</source>
-        <translation type="unfinished">Pagina</translation>
+        <translation>Pagina</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -37226,7 +37257,7 @@ Het bestand kan niet worden gelezen.</translation>
         <location filename="../apps/pub/app/pagegoto.cpp" line="-70"/>
         <location filename="../apps/deck/app/gotodialog.cpp" line="+1"/>
         <source>Comment</source>
-        <translation type="unfinished">Opmerking</translation>
+        <translation>Opmerking</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -37265,7 +37296,7 @@ Het bestand kan niet worden gelezen.</translation>
 <context>
     <name>jp::GoalSeekDialog</name>
     <message>
-        <location filename="../apps/crunch/app/goalseekdialog.cpp" line="+15"/>
+        <location filename="../apps/crunch/app/goalseekdialog.cpp" line="+16"/>
         <source>Goal Seek</source>
         <translation type="unfinished">Doelzoeken</translation>
     </message>
@@ -37276,33 +37307,25 @@ Het bestand kan niet worden gelezen.</translation>
     </message>
     <message>
         <location line="+6"/>
+        <location line="+7"/>
         <source>Cell with the formula</source>
         <translation type="unfinished">Cel met de formule</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="-4"/>
         <source>The value you want</source>
         <translation type="unfinished">De gewenste waarde</translation>
     </message>
     <message>
         <location line="+3"/>
+        <location line="+3"/>
         <source>Cell to change</source>
         <translation type="unfinished">Cel om te wijzigen</translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>Cell with the formula:</source>
-        <translation type="unfinished">Cel met de formule:</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Value you want:</source>
-        <translation type="unfinished">Gewenste waarde:</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Cell to change:</source>
-        <translation type="unfinished">Cel om te wijzigen:</translation>
+        <location line="-1"/>
+        <source>Value you want</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -37338,7 +37361,7 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+0"/>
         <source>Path</source>
-        <translation type="unfinished">Pad</translation>
+        <translation>Pad</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -37348,7 +37371,7 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+6"/>
         <source>Angle</source>
-        <translation type="unfinished">Hoek</translation>
+        <translation>Hoek</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -37364,17 +37387,17 @@ Het bestand kan niet worden gelezen.</translation>
         <location line="+7"/>
         <location line="+1"/>
         <source>Color</source>
-        <translation type="unfinished">Kleur</translation>
+        <translation>Kleur</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Position</source>
-        <translation type="unfinished">Positie</translation>
+        <translation>Positie</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Transparency</source>
-        <translation type="unfinished">Transparantie</translation>
+        <translation>Transparantie</translation>
     </message>
 </context>
 <context>
@@ -37539,38 +37562,32 @@ Effectieve resolutie: %3 ppi</translation>
 <context>
     <name>jp::GroupDialog</name>
     <message>
-        <location filename="../apps/crunch/app/pivotpane.cpp" line="-414"/>
+        <location filename="../apps/crunch/app/pivotpane.cpp" line="-408"/>
         <source>Grouping</source>
         <translation type="unfinished">Groepering</translation>
     </message>
     <message>
         <location line="+5"/>
+        <location line="+1"/>
         <source>Starting at</source>
         <translation type="unfinished">Beginnend bij</translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>Starting at:</source>
-        <translation type="unfinished">Beginnend bij:</translation>
-    </message>
-    <message>
         <location line="+3"/>
+        <location line="+1"/>
         <source>Ending at</source>
         <translation type="unfinished">Eindigend bij</translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>Ending at:</source>
-        <translation type="unfinished">Eindigend bij:</translation>
-    </message>
-    <message>
         <location line="+4"/>
-        <location line="+13"/>
+        <location line="+9"/>
+        <location line="+4"/>
+        <location line="+1"/>
         <source>By</source>
         <translation type="unfinished">Per</translation>
     </message>
     <message>
-        <location line="-12"/>
+        <location line="-13"/>
         <source>Seconds</source>
         <translation type="unfinished">Seconden</translation>
     </message>
@@ -37604,12 +37621,6 @@ Effectieve resolutie: %3 ppi</translation>
         <source>Years</source>
         <translation type="unfinished">Jaren</translation>
     </message>
-    <message>
-        <location line="+7"/>
-        <location line="+5"/>
-        <source>By:</source>
-        <translation type="unfinished">Per:</translation>
-    </message>
 </context>
 <context>
     <name>jp::HeaderFooterDialog</name>
@@ -37631,7 +37642,7 @@ Effectieve resolutie: %3 ppi</translation>
     <message>
         <location line="+2"/>
         <source>Slide number</source>
-        <translation type="unfinished">Dianummer</translation>
+        <translation>Dianummer</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -37688,8 +37699,8 @@ Effectieve resolutie: %3 ppi</translation>
     </message>
     <message>
         <location line="+4"/>
-        <source>Text for:</source>
-        <translation type="unfinished">Tekst voor:</translation>
+        <source>Text for</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+3"/>
@@ -37699,7 +37710,7 @@ Effectieve resolutie: %3 ppi</translation>
     <message>
         <location line="+8"/>
         <source>Page number</source>
-        <translation type="unfinished">Paginanummer</translation>
+        <translation>Paginanummer</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -37709,7 +37720,7 @@ Effectieve resolutie: %3 ppi</translation>
     <message>
         <location line="+1"/>
         <source>Pages</source>
-        <translation type="unfinished">Pagina&apos;s</translation>
+        <translation>Pagina&apos;s</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -37749,7 +37760,7 @@ Effectieve resolutie: %3 ppi</translation>
     <message>
         <location line="+1"/>
         <source>Folder</source>
-        <translation type="unfinished">Map</translation>
+        <translation>Map</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -37781,7 +37792,7 @@ Effectieve resolutie: %3 ppi</translation>
     <message>
         <location line="-26"/>
         <source>Underline</source>
-        <translation type="unfinished">Onderstrepen</translation>
+        <translation>Onderstrepen</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -37811,7 +37822,7 @@ Effectieve resolutie: %3 ppi</translation>
     <message>
         <location line="+5"/>
         <source>Font</source>
-        <translation type="unfinished">Lettertype</translation>
+        <translation>Lettertype</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -38012,14 +38023,14 @@ Er is geen helponderwerp met de naam &quot;%1&quot;.</translation>
 <context>
     <name>jp::InfoPage</name>
     <message>
-        <location filename="../libs/shell/app/infopage.cpp" line="+43"/>
+        <location filename="../libs/shell/app/infopage.cpp" line="+44"/>
         <source>Never</source>
         <translation type="unfinished">Nooit</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Text</source>
-        <translation type="unfinished">Tekst</translation>
+        <translation>Tekst</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -38074,7 +38085,7 @@ Er is geen helponderwerp met de naam &quot;%1&quot;.</translation>
     <message>
         <location line="+4"/>
         <source>Name</source>
-        <translation type="unfinished">Naam</translation>
+        <translation>Naam</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -38099,7 +38110,7 @@ Er is geen helponderwerp met de naam &quot;%1&quot;.</translation>
     <message>
         <location line="+26"/>
         <source>Other</source>
-        <translation type="unfinished">Overig</translation>
+        <translation>Andere</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -38340,7 +38351,7 @@ Er is geen helponderwerp met de naam &quot;%1&quot;.</translation>
         <translation type="unfinished">Eigenschappen</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+3"/>
         <source>This file has more properties than %1 reads, so they are shown here but can&apos;t be changed. The file keeps them as they are.</source>
         <translation type="unfinished">Dit bestand heeft meer eigenschappen dan %1 kan lezen. Ze worden hier getoond, maar kunnen niet worden gewijzigd. Het bestand behoudt ze zoals ze zijn.</translation>
     </message>
@@ -38352,22 +38363,22 @@ Er is geen helponderwerp met de naam &quot;%1&quot;.</translation>
     <message>
         <location line="+8"/>
         <source>Title</source>
-        <translation type="unfinished">Titel</translation>
+        <translation>Titel</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Author</source>
-        <translation type="unfinished">Auteur</translation>
+        <translation>Auteur</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Subject</source>
-        <translation type="unfinished">Onderwerp</translation>
+        <translation>Onderwerp</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Keywords</source>
-        <translation type="unfinished">Trefwoorden</translation>
+        <translation>Trefwoorden</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -38377,17 +38388,17 @@ Er is geen helponderwerp met de naam &quot;%1&quot;.</translation>
     <message>
         <location line="+1"/>
         <source>Comments</source>
-        <translation type="unfinished">Opmerkingen</translation>
+        <translation>Opmerkingen</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Company</source>
-        <translation type="unfinished">Bedrijf</translation>
+        <translation>Bedrijf</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Manager</source>
-        <translation type="unfinished">Leidinggevende</translation>
+        <translation>Manager</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -38462,12 +38473,7 @@ Er is geen helponderwerp met de naam &quot;%1&quot;.</translation>
         <translation type="unfinished">Een naam, of wat u wilt doen</translation>
     </message>
     <message>
-        <location line="+2"/>
-        <source>Search:</source>
-        <translation type="unfinished">Zoeken:</translation>
-    </message>
-    <message>
-        <location line="+3"/>
+        <location line="+5"/>
         <source>Kind of function</source>
         <translation type="unfinished">Soort functie</translation>
     </message>
@@ -38477,19 +38483,24 @@ Er is geen helponderwerp met de naam &quot;%1&quot;.</translation>
         <translation type="unfinished">Alle</translation>
     </message>
     <message>
-        <location line="+4"/>
-        <source>Kind:</source>
-        <translation type="unfinished">Soort:</translation>
-    </message>
-    <message>
-        <location line="+4"/>
+        <location line="+8"/>
         <source>Functions</source>
         <translation type="unfinished">Functies</translation>
     </message>
     <message>
-        <location line="+19"/>
-        <source>Arguments:</source>
-        <translation type="unfinished">Argumenten:</translation>
+        <location line="-12"/>
+        <source>Search</source>
+        <translation type="unfinished">Zoeken</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Kind</source>
+        <translation type="unfinished">Soort</translation>
+    </message>
+    <message>
+        <location line="+23"/>
+        <source>Arguments</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+3"/>
@@ -38555,10 +38566,6 @@ Er is geen helponderwerp met de naam &quot;%1&quot;.</translation>
     </message>
     <message>
         <location line="+20"/>
-        <source>Keys for this command:</source>
-        <translation type="unfinished">Toetsen voor deze opdracht:</translation>
-    </message>
-    <message>
         <location line="+4"/>
         <source>Keys for this command</source>
         <translation type="unfinished">Toetsen voor deze opdracht</translation>
@@ -38570,10 +38577,6 @@ Er is geen helponderwerp met de naam &quot;%1&quot;.</translation>
     </message>
     <message>
         <location line="+6"/>
-        <source>Press the new keys:</source>
-        <translation type="unfinished">Druk de nieuwe toetsen:</translation>
-    </message>
-    <message>
         <location line="+4"/>
         <source>Press the new keys</source>
         <translation type="unfinished">Druk de nieuwe toetsen</translation>
@@ -38692,17 +38695,17 @@ Er is geen helponderwerp met de naam &quot;%1&quot;.</translation>
     <message>
         <location line="+13"/>
         <source>Line color</source>
-        <translation type="unfinished">Lijnkleur</translation>
+        <translation>Lijnkleur</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Color</source>
-        <translation type="unfinished">Kleur</translation>
+        <translation>Kleur</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Transparency</source>
-        <translation type="unfinished">Transparantie</translation>
+        <translation>Transparantie</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -38712,7 +38715,7 @@ Er is geen helponderwerp met de naam &quot;%1&quot;.</translation>
     <message>
         <location line="+1"/>
         <source>Width</source>
-        <translation type="unfinished">Breedte</translation>
+        <translation>Breedte</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -38742,12 +38745,12 @@ Er is geen helponderwerp met de naam &quot;%1&quot;.</translation>
     <message>
         <location line="+1"/>
         <source>Compound type</source>
-        <translation type="unfinished">Samengesteld type</translation>
+        <translation>Samengesteld type</translation>
     </message>
     <message>
         <location line="+15"/>
         <source>Dash type</source>
-        <translation type="unfinished">Streepjestype</translation>
+        <translation>Streepjestype</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -38865,21 +38868,18 @@ Er is geen helponderwerp met de naam &quot;%1&quot;.</translation>
     </message>
     <message>
         <location line="+5"/>
+        <location line="+1"/>
         <source>Text to show</source>
         <translation type="unfinished">Weer te geven tekst</translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>Text to show:</source>
-        <translation type="unfinished">Weer te geven tekst:</translation>
-    </message>
-    <message>
         <location line="+3"/>
+        <location line="+4"/>
         <source>Go to</source>
         <translation type="unfinished">Ga naar</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="-3"/>
         <source>A web page or a file</source>
         <translation type="unfinished">Een webpagina of bestand</translation>
     </message>
@@ -38894,14 +38894,10 @@ Er is geen helponderwerp met de naam &quot;%1&quot;.</translation>
         <translation type="unfinished">Een e-mailadres</translation>
     </message>
     <message>
+        <location line="+10"/>
         <location line="+1"/>
-        <source>Go to:</source>
-        <translation type="unfinished">Ga naar:</translation>
-    </message>
-    <message>
-        <location line="+9"/>
         <source>Address</source>
-        <translation type="unfinished">Adres</translation>
+        <translation>Adres</translation>
     </message>
     <message>
         <location filename="../apps/deck/app/deckdialogs.cpp" line="+129"/>
@@ -38995,7 +38991,6 @@ Er is geen helponderwerp met de naam &quot;%1&quot;.</translation>
     </message>
     <message>
         <location line="+2"/>
-        <location filename="../apps/crunch/app/anchordialogs.cpp" line="+1"/>
         <source>Address:</source>
         <translation type="unfinished">Adres:</translation>
     </message>
@@ -39035,34 +39030,21 @@ Er is geen helponderwerp met de naam &quot;%1&quot;.</translation>
         <translation type="unfinished">Recente bestanden</translation>
     </message>
     <message>
-        <location line="+6"/>
-        <source>Or a recent file:</source>
-        <translation type="unfinished">Of een recent bestand:</translation>
-    </message>
-    <message>
-        <location line="+9"/>
+        <location line="+15"/>
+        <location line="+3"/>
         <source>Sheet</source>
         <translation type="unfinished">Blad</translation>
     </message>
     <message>
         <location line="+3"/>
-        <source>Sheet:</source>
-        <translation type="unfinished">Blad:</translation>
-    </message>
-    <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Cell or cells</source>
         <translation type="unfinished">Cel of cellen</translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>Cell or cells:</source>
-        <translation type="unfinished">Cel of cellen:</translation>
-    </message>
-    <message>
         <location line="+3"/>
         <source>Name</source>
-        <translation type="unfinished">Naam</translation>
+        <translation>Naam</translation>
     </message>
     <message>
         <location line="-24"/>
@@ -39071,42 +39053,35 @@ Er is geen helponderwerp met de naam &quot;%1&quot;.</translation>
         <translation type="unfinished">(geen)</translation>
     </message>
     <message>
-        <location line="+2"/>
-        <source>Or a name:</source>
-        <translation type="unfinished">Of een naam:</translation>
-    </message>
-    <message>
-        <location line="+9"/>
+        <location line="+11"/>
+        <location line="+1"/>
         <source>E-mail address</source>
         <translation type="unfinished">E-mailadres</translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>E-mail address:</source>
-        <translation type="unfinished">E-mailadres:</translation>
-    </message>
-    <message>
         <location line="+3"/>
-        <source>Subject</source>
-        <translation type="unfinished">Onderwerp</translation>
-    </message>
-    <message>
         <location line="+1"/>
-        <source>Subject:</source>
-        <translation type="unfinished">Onderwerp:</translation>
+        <source>Subject</source>
+        <translation>Onderwerp</translation>
     </message>
     <message>
         <location line="+7"/>
+        <location line="+1"/>
         <source>Screen tip</source>
         <translation type="unfinished">Scherminfo</translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>Screen tip:</source>
-        <translation type="unfinished">Scherminfo:</translation>
+        <location line="-44"/>
+        <source>Or a recent file</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+70"/>
+        <location line="+22"/>
+        <source>Or a name</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+92"/>
         <source>Type the address to go to.</source>
         <translation type="unfinished">Typ het adres waarnaar u wilt gaan.</translation>
     </message>
@@ -39134,9 +39109,9 @@ Er is geen helponderwerp met de naam &quot;%1&quot;.</translation>
 <context>
     <name>jp::ListDialogs</name>
     <message>
-        <location filename="../libs/shell/app/listdialogs.cpp" line="+39"/>
+        <location filename="../libs/shell/app/listdialogs.cpp" line="+40"/>
         <source>Left</source>
-        <translation type="unfinished">Links</translation>
+        <translation>Links</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -39146,7 +39121,7 @@ Er is geen helponderwerp met de naam &quot;%1&quot;.</translation>
     <message>
         <location line="+1"/>
         <source>Right</source>
-        <translation type="unfinished">Rechts</translation>
+        <translation>Rechts</translation>
     </message>
     <message>
         <location line="+20"/>
@@ -39188,16 +39163,66 @@ Er is geen helponderwerp met de naam &quot;%1&quot;.</translation>
     <message>
         <location line="+10"/>
         <location line="+127"/>
-        <source>Bullet character:</source>
-        <translation type="unfinished">Opsommingsteken:</translation>
+        <source>Bullet character</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="-125"/>
-        <source>Font:</source>
-        <translation type="unfinished">Lettertype:</translation>
+        <source>Font</source>
+        <translation>Lettertype</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+8"/>
+        <source>Size</source>
+        <translation>Grootte</translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>Color</source>
+        <translation>Kleur</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <location line="+38"/>
+        <source>Alignment</source>
+        <translation>Uitlijning</translation>
+    </message>
+    <message>
+        <location line="-10"/>
+        <location line="+82"/>
+        <source>Number style</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-75"/>
+        <location line="+82"/>
+        <source>Punctuation</source>
+        <translation type="unfinished">Leestekens</translation>
+    </message>
+    <message>
+        <location line="-81"/>
+        <location line="+80"/>
+        <source>Number format (%1 is the number)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-73"/>
+        <location line="+78"/>
+        <source>Start at</source>
+        <translation>Beginnen bij</translation>
+    </message>
+    <message>
+        <location line="-66"/>
+        <source>Preview</source>
+        <translation type="unfinished">Voorbeeld</translation>
+    </message>
+    <message>
+        <location line="+32"/>
+        <source>Level is a</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-103"/>
         <source> pt</source>
         <translation type="unfinished"> pt</translation>
     </message>
@@ -39208,62 +39233,17 @@ Er is geen helponderwerp met de naam &quot;%1&quot;.</translation>
         <translation type="unfinished">Gelijk aan de tekst</translation>
     </message>
     <message>
-        <location line="-4"/>
-        <source>Size:</source>
-        <translation type="unfinished">Grootte:</translation>
-    </message>
-    <message>
-        <location line="+7"/>
+        <location line="+3"/>
         <source>Bullet Color</source>
         <translation type="unfinished">Kleur opsommingsteken</translation>
     </message>
     <message>
-        <location line="+4"/>
-        <source>Color:</source>
-        <translation type="unfinished">Kleur:</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <location line="+38"/>
-        <source>Alignment:</source>
-        <translation type="unfinished">Uitlijning:</translation>
-    </message>
-    <message>
-        <location line="-18"/>
+        <location line="+26"/>
         <source>Define New Number Format</source>
         <translation type="unfinished">Nieuwe getalnotatie definiëren</translation>
     </message>
     <message>
-        <location line="+8"/>
-        <location line="+82"/>
-        <source>Number style:</source>
-        <translation type="unfinished">Getalstijl:</translation>
-    </message>
-    <message>
-        <location line="-75"/>
-        <location line="+82"/>
-        <source>Punctuation:</source>
-        <translation type="unfinished">Leesteken:</translation>
-    </message>
-    <message>
-        <location line="-81"/>
-        <location line="+80"/>
-        <source>Number format (%1 is the number):</source>
-        <translation type="unfinished">Getalnotatie (%1 is het getal):</translation>
-    </message>
-    <message>
-        <location line="-73"/>
-        <location line="+78"/>
-        <source>Start at:</source>
-        <translation type="unfinished">Beginnen bij:</translation>
-    </message>
-    <message>
-        <location line="-66"/>
-        <source>Preview:</source>
-        <translation type="unfinished">Voorbeeld:</translation>
-    </message>
-    <message>
-        <location line="+22"/>
+        <location line="+57"/>
         <source>Define New Multilevel List</source>
         <translation type="unfinished">Nieuwe lijst met meerdere niveaus definiëren</translation>
     </message>
@@ -39283,12 +39263,7 @@ Er is geen helponderwerp met de naam &quot;%1&quot;.</translation>
         <translation type="unfinished">Getal</translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>Level is a:</source>
-        <translation type="unfinished">Niveau is een:</translation>
-    </message>
-    <message>
-        <location line="+89"/>
+        <location line="+90"/>
         <source>Set Numbering Value</source>
         <translation type="unfinished">Nummerwaarde instellen</translation>
     </message>
@@ -39388,6 +39363,46 @@ Er is geen helponderwerp met de naam &quot;%1&quot;.</translation>
     </message>
 </context>
 <context>
+    <name>jp::LossyWarning</name>
+    <message>
+        <location filename="../libs/shell/app/lossywarning.cpp" line="+54"/>
+        <source>and %1 more</source>
+        <translation type="unfinished">en %1 meer</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Nothing in this %1 is lost when it is saved as a %2 file.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>A %1 file can&apos;t hold some of what this %2 has. If you save it that way, these parts are saved as they stand now or left out:
+
+%3</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+34"/>
+        <source>Save</source>
+        <translation type="unfinished">Opslaan</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Save Anyway</source>
+        <translation type="unfinished">Toch opslaan</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Save as %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Don&apos;t ask again for this file</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>jp::MailMergePane</name>
     <message>
         <location filename="../apps/pub/app/taskpane.cpp" line="+46"/>
@@ -39460,8 +39475,8 @@ Bron: %3</translation>
 <context>
     <name>jp::MainWindow</name>
     <message>
-        <location filename="../apps/pub/app/mainwindow.cpp" line="-1636"/>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+601"/>
+        <location filename="../apps/pub/app/mainwindow.cpp" line="-1608"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+602"/>
         <source>%1 (%2)</source>
         <translation type="unfinished">%1 (%2)</translation>
     </message>
@@ -39491,13 +39506,13 @@ Bron: %3</translation>
         <location line="+34"/>
         <location line="+41"/>
         <location line="+1"/>
-        <location line="+270"/>
+        <location line="+242"/>
         <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-488"/>
         <source>Open</source>
         <translation type="unfinished">Openen</translation>
     </message>
     <message>
-        <location line="-364"/>
+        <location line="-336"/>
         <location line="+18"/>
         <location line="+34"/>
         <source>JeffPub can&apos;t open &quot;%1&quot;.
@@ -39513,59 +39528,45 @@ Bron: %3</translation>
     <message>
         <location line="+26"/>
         <location line="+1"/>
-        <location line="+6"/>
-        <location line="+8"/>
-        <location line="+8"/>
-        <location line="+25"/>
-        <location line="+7"/>
-        <location line="+24"/>
+        <location line="+29"/>
+        <location line="+20"/>
         <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+1"/>
         <source>Save</source>
         <translation type="unfinished">Opslaan</translation>
     </message>
     <message>
-        <location line="-19"/>
         <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+2"/>
         <source>Save as .pub File</source>
         <translation type="unfinished">Opslaan als .pub-bestand</translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>&quot;%1&quot; was saved, but %2.
-
-They&apos;re kept when you save as a JeffPub publication (.jpub).</source>
-        <translation type="unfinished">&quot;%1&quot; is opgeslagen, maar %2.
-
-Deze blijven behouden als u opslaat als JeffPub-publicatie (.jpub).</translation>
-    </message>
-    <message>
-        <location line="+18"/>
+        <location filename="../apps/pub/app/mainwindow.cpp" line="+0"/>
         <source>JeffPub couldn&apos;t save &quot;%1&quot;.
 %2%3</source>
         <translation type="unfinished">JeffPub kan &quot;%1&quot; niet opslaan.
 %2%3</translation>
     </message>
     <message>
-        <location line="+25"/>
-        <location line="+1051"/>
+        <location line="+27"/>
+        <location line="+1050"/>
         <source>Saved %1</source>
         <translation type="unfinished">%1 opgeslagen</translation>
     </message>
     <message>
-        <location line="-1040"/>
+        <location line="-1039"/>
         <location line="+18"/>
         <source>JeffPub Publication (*.jpub)</source>
         <translation type="unfinished">JeffPub-publicatie (*.jpub)</translation>
     </message>
     <message>
-        <location line="-293"/>
-        <location line="+275"/>
+        <location line="-266"/>
+        <location line="+248"/>
         <location line="+18"/>
         <source>.pub Publication Files (*.pub)</source>
         <translation type="unfinished">.pub-publicatiebestanden (*.pub)</translation>
     </message>
     <message>
-        <location line="-504"/>
+        <location line="-477"/>
         <source> (Read-Only)</source>
         <translation type="unfinished"> (alleen-lezen)</translation>
     </message>
@@ -39639,51 +39640,17 @@ Deze blijven behouden als u opslaat als JeffPub-publicatie (.jpub).</translation
         <translation type="unfinished">Deze publicatie is alleen-lezen geopend. Kies een andere naam ervoor.</translation>
     </message>
     <message>
-        <location line="+8"/>
-        <source>This publication is protected with a password, and a .pub file can&apos;t keep a password. Save it as a .pub file without one?</source>
-        <translation type="unfinished">Deze publicatie is met een wachtwoord beveiligd, en een .pub-bestand kan geen wachtwoord bewaren. Opslaan als .pub-bestand zonder wachtwoord?</translation>
-    </message>
-    <message>
-        <location line="+8"/>
-        <source>This publication has hidden objects. The .pub format can&apos;t keep them hidden, so they will be visible the next time it opens. Save it as a .pub file anyway?</source>
-        <translation type="unfinished">Deze publicatie heeft verborgen objecten. De .pub-indeling kan ze niet verborgen houden, dus ze worden zichtbaar de volgende keer dat het bestand wordt geopend. Wilt u het toch opslaan als .pub-bestand?</translation>
-    </message>
-    <message>
-        <location line="+8"/>
-        <source>A .pub file can&apos;t keep everything about this publication&apos;s lists: %1.
-
-A JeffPub publication (.jpub) keeps all of it.</source>
-        <translation type="unfinished">Een .pub-bestand kan niet alles bewaren van de lijsten van deze publicatie: %1.
-
-Een JeffPub-publicatie (.jpub) bewaart alles ervan.</translation>
-    </message>
-    <message>
-        <location line="+3"/>
-        <source>Save Anyway</source>
-        <translation type="unfinished">Toch opslaan</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Save as .jpub</source>
-        <translation type="unfinished">Opslaan als .jpub</translation>
-    </message>
-    <message>
-        <location line="+21"/>
-        <source>This publication is marked as final, and a .pub file can&apos;t hold that mark. The file is saved without it.</source>
-        <translation type="unfinished">Deze publicatie is als definitief gemarkeerd, en een .pub-bestand kan die markering niet bevatten. Het bestand wordt zonder markering opgeslagen.</translation>
-    </message>
-    <message>
-        <location line="+46"/>
+        <location line="+66"/>
         <source>Some versions kept before couldn&apos;t be given the new password, and stay as they were.</source>
         <translation type="unfinished">Sommige eerder bewaarde versies konden niet het nieuwe wachtwoord krijgen en blijven zoals ze waren.</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+8"/>
         <source>Saved a copy as %1</source>
         <translation type="unfinished">Kopie opgeslagen als %1</translation>
     </message>
     <message>
-        <location line="+13"/>
+        <location line="+14"/>
         <location line="+14"/>
         <source>%1 copy</source>
         <translation type="unfinished">%1 (kopie)</translation>
@@ -39695,13 +39662,13 @@ Een JeffPub-publicatie (.jpub) bewaart alles ervan.</translation>
     </message>
     <message>
         <location line="+17"/>
-        <location line="+191"/>
+        <location line="+190"/>
         <location line="+191"/>
         <source>PDF (*.pdf)</source>
         <translation type="unfinished">PDF (*.pdf)</translation>
     </message>
     <message>
-        <location line="-382"/>
+        <location line="-381"/>
         <source>JeffPub Template (*.jpub)</source>
         <translation type="unfinished">JeffPub-sjabloon (*.jpub)</translation>
     </message>
@@ -39722,12 +39689,7 @@ Een JeffPub-publicatie (.jpub) bewaart alles ervan.</translation>
         <translation type="unfinished">Opgeslagen in Mijn sjablonen.</translation>
     </message>
     <message>
-        <location line="+10"/>
-        <source>Do you want to save changes to %1?</source>
-        <translation type="unfinished">Wilt u de wijzigingen in %1 opslaan?</translation>
-    </message>
-    <message>
-        <location line="+28"/>
+        <location line="+37"/>
         <source>This publication is protected with a password, so no recovery copy is kept of it. Save it to keep your work.</source>
         <translation type="unfinished">Deze publicatie is met een wachtwoord beveiligd, dus er wordt geen herstelkopie van bewaard. Sla hem op om je werk te behouden.</translation>
     </message>
@@ -39916,14 +39878,30 @@ Een JeffPub-publicatie (.jpub) bewaart alles ervan.</translation>
         <translation type="unfinished">Kleurprofielen (*.icc *.icm)</translation>
     </message>
     <message>
-        <location line="-588"/>
-        <location line="+588"/>
+        <location line="-560"/>
+        <location line="+560"/>
         <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+563"/>
         <source>All Files (*)</source>
         <translation type="unfinished">Alle bestanden (*)</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="-388"/>
+        <location filename="../apps/pub/app/mainwindow_info.cpp" line="+319"/>
+        <source>publication</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+60"/>
+        <source>Saved a copy as %1. Left out, as this kind of file can&apos;t hold it: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Saved %1. Left out, as this kind of file can&apos;t hold it: %2</source>
+        <translation type="unfinished">%1 opgeslagen. Weggelaten omdat dit bestandstype het niet kan bevatten: %2</translation>
+    </message>
+    <message>
+        <location line="+329"/>
         <source>&quot;%1&quot; isn&apos;t a color profile for printing in CMYK.</source>
         <translation type="unfinished">&quot;%1&quot; is geen kleurprofiel voor afdrukken in CMYK.</translation>
     </message>
@@ -39989,7 +39967,7 @@ Een JeffPub-publicatie (.jpub) bewaart alles ervan.</translation>
     </message>
     <message>
         <location line="+36"/>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+692"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+682"/>
         <source>Page %1</source>
         <translation type="unfinished">Pagina %1</translation>
     </message>
@@ -40040,8 +40018,8 @@ Een JeffPub-publicatie (.jpub) bewaart alles ervan.</translation>
         <location line="+19"/>
         <location line="+8"/>
         <location line="+4"/>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-1254"/>
-        <location line="+1125"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-1244"/>
+        <location line="+1115"/>
         <source>Save as Picture</source>
         <translation type="unfinished">Opslaan als afbeelding</translation>
     </message>
@@ -40157,7 +40135,7 @@ Een JeffPub-publicatie (.jpub) bewaart alles ervan.</translation>
     </message>
     <message>
         <location line="+75"/>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-1124"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-1114"/>
         <source>Save as Web Page</source>
         <translation type="unfinished">Opslaan als webpagina</translation>
     </message>
@@ -40173,19 +40151,18 @@ Een JeffPub-publicatie (.jpub) bewaart alles ervan.</translation>
     </message>
     <message>
         <location line="+100"/>
-        <location line="+48"/>
+        <location line="+47"/>
         <source>Insert Picture</source>
         <translation type="unfinished">Afbeelding invoegen</translation>
     </message>
     <message>
-        <location line="-48"/>
-        <location line="+12"/>
+        <location line="-47"/>
         <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+1016"/>
         <source>Change Picture</source>
         <translation type="unfinished">Afbeelding wijzigen</translation>
     </message>
     <message>
-        <location line="+17"/>
+        <location line="+28"/>
         <source>Change Link</source>
         <translation type="unfinished">Koppeling wijzigen</translation>
     </message>
@@ -40231,7 +40208,7 @@ Een JeffPub-publicatie (.jpub) bewaart alles ervan.</translation>
     <message>
         <location line="-19"/>
         <source>Order</source>
-        <translation type="unfinished">Volgorde</translation>
+        <translation>Volgorde</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -40241,9 +40218,9 @@ Een JeffPub-publicatie (.jpub) bewaart alles ervan.</translation>
     </message>
     <message>
         <location line="+36"/>
-        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="+344"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="+345"/>
         <location line="+1"/>
-        <location line="+708"/>
+        <location line="+689"/>
         <source>Zoom</source>
         <translation type="unfinished">Zoomen</translation>
     </message>
@@ -40258,7 +40235,7 @@ Een JeffPub-publicatie (.jpub) bewaart alles ervan.</translation>
         <translation type="unfinished">Nieuwe lege publicatie</translation>
     </message>
     <message>
-        <location filename="../apps/pub/app/mainwindow.cpp" line="-1627"/>
+        <location filename="../apps/pub/app/mainwindow.cpp" line="-1598"/>
         <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+178"/>
         <source>Publications (*.jpub *.pub)</source>
         <translation type="unfinished">Publicaties (*.jpub *.pub)</translation>
@@ -40280,7 +40257,7 @@ Een JeffPub-publicatie (.jpub) bewaart alles ervan.</translation>
         <translation type="unfinished">Sluiten</translation>
     </message>
     <message>
-        <location filename="../apps/pub/app/mainwindow_info.cpp" line="+56"/>
+        <location filename="../apps/pub/app/mainwindow_info.cpp" line="-261"/>
         <source>Properties</source>
         <translation type="unfinished">Eigenschappen</translation>
     </message>
@@ -40385,7 +40362,7 @@ Een JeffPub-publicatie (.jpub) bewaart alles ervan.</translation>
     </message>
     <message>
         <location line="-148"/>
-        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="-646"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="-627"/>
         <location line="+1"/>
         <source>Shapes</source>
         <translation type="unfinished">Vormen</translation>
@@ -40410,7 +40387,7 @@ Een JeffPub-publicatie (.jpub) bewaart alles ervan.</translation>
     <message>
         <location line="+7"/>
         <source>Find</source>
-        <translation type="unfinished">Zoeken</translation>
+        <translation>Zoeken</translation>
     </message>
     <message>
         <location line="-99"/>
@@ -40431,7 +40408,7 @@ Een JeffPub-publicatie (.jpub) bewaart alles ervan.</translation>
     <message>
         <location line="+1"/>
         <source>Underline</source>
-        <translation type="unfinished">Onderstrepen</translation>
+        <translation>Onderstrepen</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -40528,38 +40505,38 @@ Een JeffPub-publicatie (.jpub) bewaart alles ervan.</translation>
     </message>
     <message>
         <location line="+15"/>
-        <location line="+1097"/>
+        <location line="+1087"/>
         <source>Very Tight</source>
         <translation type="unfinished">Zeer smal</translation>
     </message>
     <message>
-        <location line="-1097"/>
+        <location line="-1087"/>
         <location line="+279"/>
-        <location line="+818"/>
+        <location line="+808"/>
         <source>Tight</source>
         <translation type="unfinished">Smal</translation>
     </message>
     <message>
-        <location line="-1097"/>
+        <location line="-1087"/>
         <location line="+418"/>
-        <location line="+679"/>
+        <location line="+669"/>
         <source>Normal</source>
         <translation type="unfinished">Normaal</translation>
     </message>
     <message>
-        <location line="-1097"/>
-        <location line="+1097"/>
+        <location line="-1087"/>
+        <location line="+1087"/>
         <source>Loose</source>
         <translation type="unfinished">Breed</translation>
     </message>
     <message>
-        <location line="-1097"/>
-        <location line="+1097"/>
+        <location line="-1087"/>
+        <location line="+1087"/>
         <source>Very Loose</source>
         <translation type="unfinished">Zeer breed</translation>
     </message>
     <message>
-        <location line="-1091"/>
+        <location line="-1081"/>
         <source>Character Spacing</source>
         <translation type="unfinished">Tekenafstand</translation>
     </message>
@@ -40588,7 +40565,7 @@ Een JeffPub-publicatie (.jpub) bewaart alles ervan.</translation>
         <location line="+88"/>
         <location line="+77"/>
         <location line="+390"/>
-        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="+137"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="+118"/>
         <source>None</source>
         <translation type="unfinished">Geen</translation>
     </message>
@@ -40630,12 +40607,12 @@ Een JeffPub-publicatie (.jpub) bewaart alles ervan.</translation>
     </message>
     <message>
         <location line="-229"/>
-        <location line="+1081"/>
+        <location line="+1071"/>
         <source>Center</source>
         <translation type="unfinished">Centreren</translation>
     </message>
     <message>
-        <location line="-1080"/>
+        <location line="-1070"/>
         <location line="+230"/>
         <source>Align Right</source>
         <translation type="unfinished">Rechts uitlijnen</translation>
@@ -40862,7 +40839,7 @@ Een JeffPub-publicatie (.jpub) bewaart alles ervan.</translation>
     <message>
         <location line="+17"/>
         <source>Logo</source>
-        <translation type="unfinished">Logo</translation>
+        <translation>Logo</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -41207,7 +41184,7 @@ Een JeffPub-publicatie (.jpub) bewaart alles ervan.</translation>
         <location line="+3"/>
         <location line="+5"/>
         <source>Orientation</source>
-        <translation type="unfinished">Afdrukstand</translation>
+        <translation>Afdrukstand</translation>
     </message>
     <message>
         <location line="-3"/>
@@ -41278,7 +41255,7 @@ Een JeffPub-publicatie (.jpub) bewaart alles ervan.</translation>
     </message>
     <message>
         <location line="+4"/>
-        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="-491"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="-472"/>
         <location line="+0"/>
         <source>No Background</source>
         <translation type="unfinished">Geen achtergrond</translation>
@@ -41291,7 +41268,7 @@ Een JeffPub-publicatie (.jpub) bewaart alles ervan.</translation>
         <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="-13"/>
         <location line="+21"/>
         <source>Background</source>
-        <translation type="unfinished">Achtergrond</translation>
+        <translation>Achtergrond</translation>
     </message>
     <message>
         <location line="-16"/>
@@ -41802,7 +41779,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <location line="+7"/>
         <location line="+9"/>
         <source>Language</source>
-        <translation type="unfinished">Taal</translation>
+        <translation>Taal</translation>
     </message>
     <message>
         <location line="-9"/>
@@ -41811,7 +41788,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location line="+11"/>
-        <location filename="../apps/pub/app/mainwindow_info.cpp" line="+25"/>
+        <location filename="../apps/pub/app/mainwindow_info.cpp" line="+26"/>
         <source>Run Design Checker</source>
         <translation type="unfinished">Ontwerpcontrole uitvoeren</translation>
     </message>
@@ -41847,9 +41824,9 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="+332"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="+313"/>
         <source>Guides</source>
-        <translation type="unfinished">Hulplijnen</translation>
+        <translation>Hulplijnen</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -41954,7 +41931,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location line="+2"/>
-        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="-534"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="-515"/>
         <source>Line</source>
         <translation type="unfinished">Lijn</translation>
     </message>
@@ -42038,14 +42015,14 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+4"/>
         <location line="+10"/>
-        <location line="+263"/>
+        <location line="+253"/>
         <location line="+1"/>
         <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="-72"/>
         <source>Fill</source>
         <translation type="unfinished">Opvulling</translation>
     </message>
     <message>
-        <location line="-272"/>
+        <location line="-262"/>
         <source>Picture Fill…</source>
         <translation type="unfinished">Opvulling met afbeelding…</translation>
     </message>
@@ -42197,7 +42174,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+0"/>
         <source>Angle</source>
-        <translation type="unfinished">Hoek</translation>
+        <translation>Hoek</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -42289,7 +42266,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+3"/>
         <source>Columns</source>
-        <translation type="unfinished">Kolommen</translation>
+        <translation>Kolommen</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -42557,12 +42534,16 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location line="+2"/>
-        <location line="+1"/>
         <source>Reset Picture</source>
         <translation type="unfinished">Oorspronkelijke afbeelding</translation>
     </message>
     <message>
-        <location line="+11"/>
+        <location line="+1"/>
+        <source>Reset Picture &amp; Size</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <location line="+12"/>
         <location line="+4"/>
         <location line="+3"/>
@@ -42699,12 +42680,12 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Diagonaal omhoog</translation>
     </message>
     <message>
-        <location line="-243"/>
+        <location line="-233"/>
         <source>Do Not Fit</source>
         <translation type="unfinished">Niet passend maken</translation>
     </message>
     <message>
-        <location line="+243"/>
+        <location line="+233"/>
         <source>No Division</source>
         <translation type="unfinished">Geen diagonaal</translation>
     </message>
@@ -42797,7 +42778,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+4"/>
         <source>Spacing</source>
-        <translation type="unfinished">Afstand</translation>
+        <translation>Afstand</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -42962,7 +42943,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <location line="+4"/>
         <location line="+17"/>
         <source>Size</source>
-        <translation type="unfinished">Grootte</translation>
+        <translation>Grootte</translation>
     </message>
     <message>
         <location line="-4"/>
@@ -43052,12 +43033,12 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+2"/>
         <location line="+7"/>
-        <location line="+340"/>
+        <location line="+321"/>
         <source>Change Shape</source>
         <translation type="unfinished">Vorm wijzigen</translation>
     </message>
     <message>
-        <location line="-250"/>
+        <location line="-231"/>
         <source>My Building Blocks</source>
         <translation type="unfinished">Mijn bouwstenen</translation>
     </message>
@@ -43123,17 +43104,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Vormstijl</translation>
     </message>
     <message>
-        <location line="+11"/>
-        <source>Picture Style %1</source>
-        <translation type="unfinished">Afbeeldingsstijl %1</translation>
-    </message>
-    <message>
-        <location line="+20"/>
-        <source>Picture Style</source>
-        <translation type="unfinished">Afbeeldingsstijl</translation>
-    </message>
-    <message>
-        <location line="+14"/>
+        <location line="+26"/>
         <source>Table Style %1</source>
         <translation type="unfinished">Tabelstijl %1</translation>
     </message>
@@ -43214,7 +43185,12 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">%1 (%2 × %3)</translation>
     </message>
     <message>
-        <location line="-2"/>
+        <location line="-203"/>
+        <source>Picture Styles</source>
+        <translation type="unfinished">Afbeeldingsstijlen</translation>
+    </message>
+    <message>
+        <location line="+201"/>
         <source>Custom</source>
         <translation type="unfinished">Aangepast</translation>
     </message>
@@ -43309,14 +43285,14 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">%1 × %2</translation>
     </message>
     <message>
-        <location filename="../apps/pub/app/mainwindow_info.cpp" line="-27"/>
+        <location filename="../apps/pub/app/mainwindow_info.cpp" line="-28"/>
         <source>Pages</source>
-        <translation type="unfinished">Pagina&apos;s</translation>
+        <translation>Pagina&apos;s</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Page size</source>
-        <translation type="unfinished">Paginaformaat</translation>
+        <translation>Paginaformaat</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -43324,7 +43300,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Woorden</translation>
     </message>
     <message>
-        <location line="+20"/>
+        <location line="+21"/>
         <source>Business Information</source>
         <translation type="unfinished">Bedrijfsgegevens</translation>
     </message>
@@ -43401,7 +43377,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+10"/>
         <source>Comments</source>
-        <translation type="unfinished">Opmerkingen</translation>
+        <translation>Opmerkingen</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -43426,7 +43402,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+10"/>
         <source>Business information</source>
-        <translation type="unfinished">Bedrijfsgegevens</translation>
+        <translation>Bedrijfsgegevens</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -43474,8 +43450,23 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Publicatie controleren</translation>
     </message>
     <message>
-        <location filename="../apps/pub/app/mainwindow.cpp" line="+254"/>
-        <location filename="../apps/pub/app/mainwindow_info.cpp" line="+19"/>
+        <location line="+17"/>
+        <source>The password: a .pub file can&apos;t keep a password.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The mark that the publication is final.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Check Compatibility</source>
+        <translation type="unfinished">Compatibiliteit controleren</translation>
+    </message>
+    <message>
+        <location filename="../apps/pub/app/mainwindow.cpp" line="+225"/>
+        <location filename="../apps/pub/app/mainwindow_info.cpp" line="+9"/>
         <location line="+12"/>
         <location line="+17"/>
         <source>Version History</source>
@@ -43516,7 +43507,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Teruggegaan naar &quot;%1&quot;. Sla de publicatie op om dit te bewaren.</translation>
     </message>
     <message>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-1235"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-1225"/>
         <source>Info</source>
         <translation type="unfinished">Info</translation>
     </message>
@@ -43561,12 +43552,12 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+8"/>
         <source>Title</source>
-        <translation type="unfinished">Titel</translation>
+        <translation>Titel</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Text</source>
-        <translation type="unfinished">Tekst</translation>
+        <translation>Tekst</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -43576,7 +43567,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+1"/>
         <source>Slide number</source>
-        <translation type="unfinished">Dianummer</translation>
+        <translation>Dianummer</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -43791,16 +43782,22 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location line="+5"/>
-        <source>Name</source>
-        <translation type="unfinished">Naam</translation>
-    </message>
-    <message>
         <location line="+1"/>
-        <source>Name:</source>
-        <translation type="unfinished">Naam:</translation>
+        <source>Name</source>
+        <translation>Naam</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+10"/>
+        <source>Works on</source>
+        <translation type="unfinished">Geldt voor</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Stands for</source>
+        <translation type="unfinished">Staat voor</translation>
+    </message>
+    <message>
+        <location line="-12"/>
         <source>Where the name works</source>
         <translation type="unfinished">Waar de naam geldt</translation>
     </message>
@@ -43810,12 +43807,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Hele werkmap</translation>
     </message>
     <message>
-        <location line="+6"/>
-        <source>Works on:</source>
-        <translation type="unfinished">Geldt voor:</translation>
-    </message>
-    <message>
-        <location line="+3"/>
+        <location line="+9"/>
         <source>What the name stands for</source>
         <translation type="unfinished">Waar de naam voor staat</translation>
     </message>
@@ -43825,19 +43817,10 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Een celbereik zoals =Blad1!$A$1:$A$9, een getal of een formule</translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>Stands for:</source>
-        <translation type="unfinished">Staat voor:</translation>
-    </message>
-    <message>
-        <location line="+3"/>
-        <source>Comment</source>
-        <translation type="unfinished">Opmerking</translation>
-    </message>
-    <message>
+        <location line="+4"/>
         <location line="+2"/>
-        <source>Comment:</source>
-        <translation type="unfinished">Opmerking:</translation>
+        <source>Comment</source>
+        <translation>Opmerking</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -43912,7 +43895,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+18"/>
         <source>Name</source>
-        <translation type="unfinished">Naam</translation>
+        <translation>Naam</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -43932,7 +43915,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+1"/>
         <source>Comment</source>
-        <translation type="unfinished">Opmerking</translation>
+        <translation>Opmerking</translation>
     </message>
 </context>
 <context>
@@ -43967,7 +43950,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <location line="+6"/>
         <location line="+5"/>
         <source>Pages</source>
-        <translation type="unfinished">Pagina&apos;s</translation>
+        <translation>Pagina&apos;s</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -44094,7 +44077,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <location line="+7"/>
         <location line="+1"/>
         <source>Name</source>
-        <translation type="unfinished">Naam</translation>
+        <translation>Naam</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -44105,12 +44088,12 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+1"/>
         <source>Width</source>
-        <translation type="unfinished">Breedte</translation>
+        <translation>Breedte</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Height</source>
-        <translation type="unfinished">Hoogte</translation>
+        <translation>Hoogte</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -44495,7 +44478,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+2"/>
         <source>left</source>
-        <translation type="unfinished">links</translation>
+        <translation>links</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -44505,7 +44488,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+1"/>
         <source>right</source>
-        <translation type="unfinished">rechts</translation>
+        <translation>rechts</translation>
     </message>
     <message>
         <location line="+44"/>
@@ -44543,7 +44526,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <location line="+2"/>
         <location filename="../apps/crunch/core/pagenumbers.cpp" line="+71"/>
         <source>Page</source>
-        <translation type="unfinished">Pagina</translation>
+        <translation>Pagina</translation>
     </message>
     <message>
         <location line="-1"/>
@@ -44588,7 +44571,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+5"/>
         <source>Page</source>
-        <translation type="unfinished">Pagina</translation>
+        <translation>Pagina</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -44703,27 +44686,73 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location line="+3"/>
-        <source>Paper:</source>
-        <translation type="unfinished">Papier:</translation>
+        <source>Paper</source>
+        <translation>Papier</translation>
     </message>
     <message>
+        <location line="+43"/>
+        <source>Left</source>
+        <translation>Links</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Right</source>
+        <translation>Rechts</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Top</source>
+        <translation>Boven</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Bottom</source>
+        <translation>Onder</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Header, from the top edge</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Footer, from the bottom edge</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+100"/>
+        <source>Header</source>
+        <translation type="unfinished">Koptekst</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Footer</source>
+        <translation type="unfinished">Voettekst</translation>
+    </message>
+    <message>
+        <location line="+127"/>
+        <source>Repeat these rows at the top</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Repeat these columns at the left</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-268"/>
         <location line="+4"/>
         <source>Print quality</source>
         <translation type="unfinished">Afdrukkwaliteit</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="-3"/>
         <location line="+1"/>
         <source>%1 dots per inch</source>
         <translation type="unfinished">%1 dpi</translation>
     </message>
     <message>
-        <location line="+2"/>
-        <source>Print quality:</source>
-        <translation type="unfinished">Afdrukkwaliteit:</translation>
-    </message>
-    <message>
-        <location line="+1"/>
+        <location line="+3"/>
         <source>Start the page numbers at</source>
         <translation type="unfinished">Paginanummering beginnen bij</translation>
     </message>
@@ -44733,37 +44762,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Nummer van de eerste pagina</translation>
     </message>
     <message>
-        <location line="+28"/>
-        <source>Left:</source>
-        <translation type="unfinished">Links:</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Right:</source>
-        <translation type="unfinished">Rechts:</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Top:</source>
-        <translation type="unfinished">Boven:</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Bottom:</source>
-        <translation type="unfinished">Onder:</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Header, from the top edge:</source>
-        <translation type="unfinished">Koptekst, vanaf de bovenrand:</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Footer, from the bottom edge:</source>
-        <translation type="unfinished">Voettekst, vanaf de onderrand:</translation>
-    </message>
-    <message>
-        <location line="+9"/>
+        <location line="+37"/>
         <source> cm</source>
         <translation type="unfinished"> cm</translation>
     </message>
@@ -44836,17 +44835,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Behouden en toevoegen</translation>
     </message>
     <message>
-        <location line="+21"/>
-        <source>Header:</source>
-        <translation type="unfinished">Koptekst:</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Footer:</source>
-        <translation type="unfinished">Voettekst:</translation>
-    </message>
-    <message>
-        <location line="+21"/>
+        <location line="+43"/>
         <source>The first page has its own header and footer</source>
         <translation type="unfinished">Eerste pagina heeft een eigen koptekst en voettekst</translation>
     </message>
@@ -44940,11 +44929,12 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location line="+9"/>
+        <location line="+4"/>
         <source>Cells to print</source>
         <translation type="unfinished">Af te drukken cellen</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="-3"/>
         <source>Everything that has something in it</source>
         <translation type="unfinished">Alles waar iets in staat</translation>
     </message>
@@ -44959,12 +44949,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Celbereiken gescheiden door komma&apos;s, zoals A1:D20, F1:G9 (de selectie is %1). Elk blok wordt op eigen pagina&apos;s afgedrukt.</translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>Cells to print:</source>
-        <translation type="unfinished">Af te drukken cellen:</translation>
-    </message>
-    <message>
-        <location line="+6"/>
+        <location line="+7"/>
         <source>Rows to repeat at the top</source>
         <translation type="unfinished">Rijen die bovenaan worden herhaald</translation>
     </message>
@@ -44984,17 +44969,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Geen, of kolommen zoals A:B</translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>Repeat these rows at the top:</source>
-        <translation type="unfinished">Deze rijen bovenaan herhalen:</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Repeat these columns at the left:</source>
-        <translation type="unfinished">Deze kolommen links herhalen:</translation>
-    </message>
-    <message>
-        <location line="+2"/>
+        <location line="+4"/>
         <source>Also print</source>
         <translation type="unfinished">Ook afdrukken</translation>
     </message>
@@ -45030,11 +45005,12 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location line="+5"/>
+        <location line="+6"/>
         <source>Notes</source>
         <translation type="unfinished">Notities</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="-5"/>
         <source>Leave them out</source>
         <translation type="unfinished">Weglaten</translation>
     </message>
@@ -45054,17 +45030,13 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Dit wordt voor andere programma&apos;s in het bestand bewaard. JeffCrunch kan notities nog niet lezen of afdrukken.</translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>Notes:</source>
-        <translation type="unfinished">Notities:</translation>
-    </message>
-    <message>
-        <location line="+3"/>
+        <location line="+4"/>
+        <location line="+6"/>
         <source>Cells that show an error</source>
         <translation type="unfinished">Cellen met een fout</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="-5"/>
         <source>Print what the cell shows</source>
         <translation type="unfinished">Afdrukken wat de cel weergeeft</translation>
     </message>
@@ -45084,12 +45056,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">#N/B afdrukken</translation>
     </message>
     <message>
-        <location line="+2"/>
-        <source>Cells that show an error:</source>
-        <translation type="unfinished">Cellen met een fout:</translation>
-    </message>
-    <message>
-        <location line="+2"/>
+        <location line="+4"/>
         <source>Which page comes next</source>
         <translation type="unfinished">Welke pagina volgt</translation>
     </message>
@@ -45124,7 +45091,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location filename="../apps/pub/app/pagespane.cpp" line="+88"/>
         <source>Pages</source>
-        <translation type="unfinished">Pagina&apos;s</translation>
+        <translation>Pagina&apos;s</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -45150,7 +45117,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
 <context>
     <name>jp::PaneFrame</name>
     <message>
-        <location filename="../libs/shell/app/paneframe.cpp" line="+204"/>
+        <location filename="../libs/shell/app/paneframe.cpp" line="+207"/>
         <location line="+1"/>
         <source>Close</source>
         <translation type="unfinished">Sluiten</translation>
@@ -45276,6 +45243,263 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
 </context>
 <context>
+    <name>jp::PictureStyles</name>
+    <message>
+        <location filename="../libs/draw/core/picturestyles.cpp" line="+30"/>
+        <source>Plain</source>
+        <translation type="unfinished">Eenvoudig</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Thin Dark Frame</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Heavy Dark Frame</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>White Frame</source>
+        <translation type="unfinished">Witte rand</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Snapshot</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Double Frame</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Soft Shadow</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Hard Shadow</source>
+        <translation type="unfinished">Harde schaduw</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Reflected</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Reflected in a Frame</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Soft Edges</source>
+        <translation type="unfinished">Zachte randen</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Feathered Oval</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Rounded Corners</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Rounded with Frame</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Oval</source>
+        <translation type="unfinished">Ovaal</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Oval with Frame</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>One Round Corner</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Snipped Corners</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Hexagon</source>
+        <translation type="unfinished">Zeshoek</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Octagon</source>
+        <translation type="unfinished">Achthoek</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Plaque</source>
+        <translation type="unfinished">Plaquette</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Turned Right</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Turned Left</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Glow</source>
+        <translation type="unfinished">Gloed</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Beveled</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Beveled Frame</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>jp::PictureTools</name>
+    <message>
+        <location filename="../libs/page/app/picturetools.cpp" line="+86"/>
+        <location line="+14"/>
+        <source>Picture Style</source>
+        <translation type="unfinished">Afbeeldingsstijl</translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>Reset Picture &amp; Size</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Reset Picture</source>
+        <translation type="unfinished">Oorspronkelijke afbeelding</translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>Change Picture</source>
+        <translation type="unfinished">Afbeelding wijzigen</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Picture Border</source>
+        <translation type="unfinished">Afbeeldingsrand</translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>No Outline</source>
+        <translation type="unfinished">Geen omtrek</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>More Outline Colors…</source>
+        <translation type="unfinished">Meer omtrekkleuren…</translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>Weight</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>%1 pt</source>
+        <translation type="unfinished">%1 pt</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Dashes</source>
+        <translation type="unfinished">Streepjes</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>More Border Options…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>Picture Effects</source>
+        <translation type="unfinished">Afbeeldingseffecten</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Shadow</source>
+        <translation type="unfinished">Schaduw</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>No Shadow</source>
+        <translation type="unfinished">Geen schaduw</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Reflection</source>
+        <translation type="unfinished">Weerspiegeling</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>No Reflection</source>
+        <translation type="unfinished">Geen weerspiegeling</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Glow</source>
+        <translation type="unfinished">Gloed</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>No Glow</source>
+        <translation type="unfinished">Geen gloed</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Soft Edges</source>
+        <translation type="unfinished">Zachte randen</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>No Soft Edges</source>
+        <translation type="unfinished">Geen zachte randen</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Bevel</source>
+        <translation type="unfinished">Schuine rand</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>No Bevel</source>
+        <translation type="unfinished">Geen schuine rand</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>3-D Rotation</source>
+        <translation type="unfinished">3D-draaiing</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>More Effects Options…</source>
+        <translation type="unfinished">Meer effectopties…</translation>
+    </message>
+</context>
+<context>
     <name>jp::PivotCreateDialog</name>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="-1153"/>
@@ -45284,8 +45508,8 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location line="+6"/>
-        <source>The cells the data is in, with a row of names above it, or the name of a table:</source>
-        <translation type="unfinished">De cellen met de gegevens, met daarboven een rij namen, of de naam van een tabel:</translation>
+        <source>The cells the data is in, with a row of names above it, or the name of a table</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+2"/>
@@ -45299,14 +45523,14 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location line="+6"/>
-        <source>Where the pivot table goes:</source>
-        <translation type="unfinished">Waar de draaitabel komt:</translation>
+        <source>Where the pivot table goes</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
     <name>jp::PivotFieldsPane</name>
     <message>
-        <location filename="../apps/crunch/app/pivotpane.cpp" line="-567"/>
+        <location filename="../apps/crunch/app/pivotpane.cpp" line="-555"/>
         <source>Sum</source>
         <translation type="unfinished">Som</translation>
     </message>
@@ -45388,12 +45612,12 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+0"/>
         <source>Columns</source>
-        <translation type="unfinished">Kolommen</translation>
+        <translation>Kolommen</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Rows</source>
-        <translation type="unfinished">Rijen</translation>
+        <translation>Rijen</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -45535,8 +45759,8 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location line="+1"/>
-        <source>Name:</source>
-        <translation type="unfinished">Naam:</translation>
+        <source>Name</source>
+        <translation>Naam</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -45785,7 +46009,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+2"/>
         <source>Page number</source>
-        <translation type="unfinished">Paginanummer</translation>
+        <translation>Paginanummer</translation>
     </message>
 </context>
 <context>
@@ -45890,31 +46114,31 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location line="+2"/>
-        <source>Password (optional):</source>
-        <translation type="unfinished">Wachtwoord (optioneel):</translation>
+        <source>Password (optional)</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+5"/>
+        <source>Type it again</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Anyone may also</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-7"/>
         <source>Password again</source>
         <translation type="unfinished">Wachtwoord bevestigen</translation>
     </message>
     <message>
-        <location line="+2"/>
-        <source>Type it again:</source>
-        <translation type="unfinished">Typ het opnieuw:</translation>
-    </message>
-    <message>
-        <location line="+2"/>
+        <location line="+4"/>
         <source>A password can&apos;t be found again if it is forgotten. Keep it somewhere safe.</source>
         <translation type="unfinished">Een vergeten wachtwoord kan niet worden teruggevonden. Bewaar het op een veilige plek.</translation>
     </message>
     <message>
-        <location line="+3"/>
-        <source>Anyone may also:</source>
-        <translation type="unfinished">Iedereen mag ook:</translation>
-    </message>
-    <message>
-        <location line="+8"/>
+        <location line="+11"/>
         <source>Edit notes and drawing objects</source>
         <translation type="unfinished">Notities en tekenobjecten bewerken</translation>
     </message>
@@ -45948,21 +46172,21 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location line="+2"/>
-        <source>Password (optional):</source>
-        <translation type="unfinished">Wachtwoord (optioneel):</translation>
+        <source>Password (optional)</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+5"/>
+        <source>Type it again</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-2"/>
         <source>Password again</source>
         <translation type="unfinished">Wachtwoord bevestigen</translation>
     </message>
     <message>
-        <location line="+2"/>
-        <source>Type it again:</source>
-        <translation type="unfinished">Typ het nogmaals:</translation>
-    </message>
-    <message>
-        <location line="+2"/>
+        <location line="+4"/>
         <source>A password can&apos;t be found again if it is forgotten. Keep it somewhere safe.</source>
         <translation type="unfinished">Een vergeten wachtwoord kan niet worden teruggevonden. Bewaar het op een veilige plek.</translation>
     </message>
@@ -46009,6 +46233,11 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <source>numbers with text of their own (they come out as 1., 1), or (1))</source>
         <translation type="unfinished">getallen met eigen tekst (ze worden weergegeven als 1., 1) of (1))</translation>
     </message>
+    <message>
+        <location line="+9"/>
+        <source>hidden objects (the .pub format can&apos;t keep them hidden, so they are visible the next time it opens)</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>jp::QuickToolbarPage</name>
@@ -46018,19 +46247,19 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Pas de snelle werkbalk aan, de kleine werkbalk linksboven in het venster: plaats er elke opdracht op, voeg scheidingstekens toe en wijzig de volgorde. Alleen wat afwijkt van de gebruikelijke snelle werkbalk wordt bewaard.</translation>
     </message>
     <message>
-        <location line="+6"/>
-        <source>Quick toolbar:</source>
-        <translation type="unfinished">Snelle werkbalk:</translation>
-    </message>
-    <message>
-        <location line="+4"/>
+        <location line="+10"/>
         <source>Quick toolbar commands</source>
         <translation type="unfinished">Opdrachten van de snelle werkbalk</translation>
     </message>
     <message>
-        <location line="+5"/>
-        <source>Commands:</source>
-        <translation type="unfinished">Opdrachten:</translation>
+        <location line="-4"/>
+        <source>Quick toolbar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Commands</source>
+        <translation type="unfinished">Opdrachten</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -46272,7 +46501,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
 <context>
     <name>jp::RemoveDuplicatesDialog</name>
     <message>
-        <location filename="../apps/crunch/app/removeduplicatesdialog.h" line="+54"/>
+        <location filename="../apps/crunch/app/removeduplicatesdialog.h" line="+56"/>
         <source>Remove Duplicates</source>
         <translation type="unfinished">Dubbele waarden verwijderen</translation>
     </message>
@@ -46300,7 +46529,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
 <context>
     <name>jp::ReplaceFonts</name>
     <message>
-        <location filename="../libs/shell/app/replacefonts.cpp" line="+20"/>
+        <location filename="../libs/shell/app/replacefonts.cpp" line="+21"/>
         <source>Replaced %1 with %2 (places changed: %3).</source>
         <translation type="unfinished">%1 vervangen door %2 (plaatsen gewijzigd: %3).</translation>
     </message>
@@ -46331,22 +46560,18 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">%1 (alleen stijlen)</translation>
     </message>
     <message>
-        <location line="+2"/>
-        <source>Replace:</source>
-        <translation type="unfinished">Vervangen:</translation>
+        <location line="+10"/>
+        <source>With</source>
+        <translation type="unfinished">Door</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="-1"/>
         <source>Choose a font</source>
         <translation type="unfinished">Kies een lettertype</translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>With:</source>
-        <translation type="unfinished">Door:</translation>
-    </message>
-    <message>
-        <location line="+3"/>
+        <location line="-7"/>
+        <location line="+11"/>
         <source>Replace</source>
         <translation type="unfinished">Vervangen</translation>
     </message>
@@ -46475,12 +46700,12 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+1"/>
         <source>Moved from</source>
-        <translation type="unfinished">Verplaatst van</translation>
+        <translation>Verplaatst van</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Moved to</source>
-        <translation type="unfinished">Verplaatst naar</translation>
+        <translation>Verplaatst naar</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -46506,7 +46731,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <location line="+27"/>
         <location line="+29"/>
         <source>Comments</source>
-        <translation type="unfinished">Opmerkingen</translation>
+        <translation>Opmerkingen</translation>
     </message>
     <message>
         <location line="-25"/>
@@ -46644,22 +46869,12 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Pas het lint aan: leeg het vakje van een tabblad of groep om het te verbergen, maak eigen tabbladen en groepen en zet er elke opdracht in. Start en de knop Bestand blijven altijd staan. Alleen wat afwijkt van het standaardlint wordt bewaard.</translation>
     </message>
     <message>
-        <location line="+6"/>
-        <source>Tabs and groups:</source>
-        <translation type="unfinished">Tabbladen en groepen:</translation>
-    </message>
-    <message>
-        <location line="+6"/>
+        <location line="+12"/>
         <source>Ribbon tabs and groups</source>
         <translation type="unfinished">Lint-tabbladen en -groepen</translation>
     </message>
     <message>
-        <location line="+5"/>
-        <source>Commands:</source>
-        <translation type="unfinished">Opdrachten:</translation>
-    </message>
-    <message>
-        <location line="+3"/>
+        <location line="+8"/>
         <location line="+2"/>
         <source>Search commands</source>
         <translation type="unfinished">Opdrachten zoeken</translation>
@@ -46680,9 +46895,19 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Zet de gekozen opdracht in de groep die u heeft gekozen.</translation>
     </message>
     <message>
-        <location line="+6"/>
-        <source>Name:</source>
-        <translation type="unfinished">Naam:</translation>
+        <location line="-24"/>
+        <source>Tabs and groups</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>Commands</source>
+        <translation type="unfinished">Opdrachten</translation>
+    </message>
+    <message>
+        <location line="+19"/>
+        <source>Name</source>
+        <translation>Naam</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -46820,7 +47045,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
 <context>
     <name>jp::ScenarioEditDialog</name>
     <message>
-        <location filename="../apps/crunch/app/scenariodialogs.cpp" line="+108"/>
+        <location filename="../apps/crunch/app/scenariodialogs.cpp" line="+109"/>
         <source>Add Scenario</source>
         <translation type="unfinished">Scenario toevoegen</translation>
     </message>
@@ -46842,22 +47067,22 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+4"/>
         <source>Comment</source>
-        <translation type="unfinished">Opmerking</translation>
+        <translation>Opmerking</translation>
     </message>
     <message>
         <location line="+2"/>
-        <source>Scenario &amp;name:</source>
-        <translation type="unfinished">Scenario&amp;naam:</translation>
+        <source>Scenario &amp;name</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>&amp;Changing cells:</source>
-        <translation type="unfinished">Te &amp;wijzigen cellen:</translation>
+        <source>&amp;Changing cells</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>C&amp;omment:</source>
-        <translation type="unfinished">&amp;Opmerking:</translation>
+        <source>C&amp;omment</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+2"/>
@@ -46894,8 +47119,8 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location line="+5"/>
-        <source>&amp;Scenarios:</source>
-        <translation type="unfinished">&amp;Scenario&apos;s:</translation>
+        <source>&amp;Scenarios</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+3"/>
@@ -47146,7 +47371,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+1"/>
         <source>Name</source>
-        <translation type="unfinished">Naam</translation>
+        <translation>Naam</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -47193,13 +47418,9 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location line="+6"/>
+        <location line="+2"/>
         <source>Password</source>
         <translation type="unfinished">Wachtwoord</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>Password:</source>
-        <translation type="unfinished">Wachtwoord:</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -47208,8 +47429,8 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location line="+2"/>
-        <source>Type it again:</source>
-        <translation type="unfinished">Typ het opnieuw:</translation>
+        <source>Type it again</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+2"/>
@@ -47282,12 +47503,12 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+7"/>
         <source>Pen color</source>
-        <translation type="unfinished">Penkleur</translation>
+        <translation>Penkleur</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Laser pointer color</source>
-        <translation type="unfinished">Kleur laseraanwijzer</translation>
+        <translation>Kleur laseraanwijzer</translation>
     </message>
     <message>
         <location line="+12"/>
@@ -47332,7 +47553,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+5"/>
         <source>Custom show</source>
-        <translation type="unfinished">Aangepaste voorstelling</translation>
+        <translation>Aangepaste voorstelling</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -47812,7 +48033,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location filename="../apps/deck/app/slidespane.cpp" line="+84"/>
         <source>Slides</source>
-        <translation type="unfinished">Dia&apos;s</translation>
+        <translation>Dia&apos;s</translation>
     </message>
     <message>
         <location line="+99"/>
@@ -47926,7 +48147,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
 <context>
     <name>jp::SortDialog</name>
     <message>
-        <location filename="../apps/crunch/app/sortdialog.cpp" line="+45"/>
+        <location filename="../apps/crunch/app/sortdialog.cpp" line="+46"/>
         <source>Sort</source>
         <translation type="unfinished">Sorteren</translation>
     </message>
@@ -47975,7 +48196,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <location line="-88"/>
         <location line="+90"/>
         <source>Order</source>
-        <translation type="unfinished">Volgorde</translation>
+        <translation>Volgorde</translation>
     </message>
     <message>
         <location line="-90"/>
@@ -48015,7 +48236,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+0"/>
         <source>Fill color</source>
-        <translation type="unfinished">Opvulkleur</translation>
+        <translation>Opvulkleur</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -48168,7 +48389,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+0"/>
         <source>Paragraph style</source>
-        <translation type="unfinished">Alineastijl</translation>
+        <translation>Alineastijl</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -48179,7 +48400,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
 <context>
     <name>jp::SubtotalDialog</name>
     <message>
-        <location filename="../apps/crunch/app/subtotaldialog.cpp" line="+18"/>
+        <location filename="../apps/crunch/app/subtotaldialog.cpp" line="+19"/>
         <source>Subtotal</source>
         <translation type="unfinished">Subtotaal</translation>
     </message>
@@ -48190,30 +48411,18 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location line="+6"/>
+        <location line="+6"/>
         <source>At each change in</source>
         <translation type="unfinished">Bij elke wijziging in</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="-2"/>
+        <location line="+3"/>
         <source>Use function</source>
         <translation type="unfinished">Functie gebruiken</translation>
     </message>
     <message>
         <location line="+2"/>
-        <source>At each change in:</source>
-        <translation type="unfinished">Bij elke wijziging in:</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Use function:</source>
-        <translation type="unfinished">Functie gebruiken:</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>Add subtotal to:</source>
-        <translation type="unfinished">Subtotaal toevoegen aan:</translation>
-    </message>
-    <message>
         <location line="+3"/>
         <source>Add subtotal to</source>
         <translation type="unfinished">Subtotaal toevoegen aan</translation>
@@ -48457,21 +48666,52 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location line="+6"/>
+        <location line="+3"/>
         <source>Text encoding</source>
         <translation type="unfinished">Tekstcodering</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="-2"/>
         <source>Detect it</source>
         <translation type="unfinished">Automatisch detecteren</translation>
     </message>
     <message>
-        <location line="+2"/>
-        <source>Text encoding:</source>
-        <translation type="unfinished">Tekstcodering:</translation>
+        <location line="+28"/>
+        <source>Other</source>
+        <translation>Andere</translation>
     </message>
     <message>
-        <location line="+13"/>
+        <location line="+3"/>
+        <source>Fields are separated by</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>Text is in</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>Columns begin at</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Click to split</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+19"/>
+        <source>Thousands</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <source>Begin at row</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-86"/>
         <source>Comma</source>
         <translation type="unfinished">Komma</translation>
     </message>
@@ -48502,17 +48742,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Ander scheidingsteken</translation>
     </message>
     <message>
-        <location line="+6"/>
-        <source>Other:</source>
-        <translation type="unfinished">Anders:</translation>
-    </message>
-    <message>
-        <location line="+3"/>
-        <source>Fields are separated by:</source>
-        <translation type="unfinished">Velden worden gescheiden door:</translation>
-    </message>
-    <message>
-        <location line="+1"/>
+        <location line="+10"/>
         <source>Count several separators in a row as one</source>
         <translation type="unfinished">Opeenvolgende scheidingstekens als één behandelen</translation>
     </message>
@@ -48537,12 +48767,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Geen</translation>
     </message>
     <message>
-        <location line="+2"/>
-        <source>Text is in:</source>
-        <translation type="unfinished">Tekst staat tussen:</translation>
-    </message>
-    <message>
-        <location line="+1"/>
+        <location line="+3"/>
         <source>The columns have a fixed width</source>
         <translation type="unfinished">De kolommen hebben een vaste breedte</translation>
     </message>
@@ -48557,27 +48782,18 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Tekens waar een kolom begint, bijvoorbeeld 10, 25, 40</translation>
     </message>
     <message>
-        <location line="+4"/>
-        <source>Columns begin at:</source>
-        <translation type="unfinished">Kolommen beginnen bij:</translation>
-    </message>
-    <message>
-        <location line="+3"/>
+        <location line="+7"/>
         <source>The first lines of the file. Click between two characters to start or end a column.</source>
         <translation type="unfinished">De eerste regels van het bestand. Klik tussen twee tekens om een kolom te beginnen of te beëindigen.</translation>
     </message>
     <message>
-        <location line="+6"/>
-        <source>Click to split:</source>
-        <translation type="unfinished">Klik om te splitsen:</translation>
-    </message>
-    <message>
-        <location line="+3"/>
+        <location line="+9"/>
+        <location line="+23"/>
         <source>Decimal mark</source>
         <translation type="unfinished">Decimaalteken</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="-22"/>
         <location line="+7"/>
         <source>My language&apos;s</source>
         <translation type="unfinished">Die van mijn taal</translation>
@@ -48605,22 +48821,12 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Apostrof (&apos;)</translation>
     </message>
     <message>
-        <location line="+4"/>
-        <source>Thousands:</source>
-        <translation type="unfinished">Duizendtallen:</translation>
-    </message>
-    <message>
-        <location line="+2"/>
+        <location line="+6"/>
         <source>A minus sign may come after the number</source>
         <translation type="unfinished">Een minteken kan na het getal staan</translation>
     </message>
     <message>
-        <location line="+5"/>
-        <source>Decimal mark:</source>
-        <translation type="unfinished">Decimaalteken:</translation>
-    </message>
-    <message>
-        <location line="+1"/>
+        <location line="+6"/>
         <source>Read formulas</source>
         <translation type="unfinished">Formules importeren</translation>
     </message>
@@ -48635,12 +48841,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Eerste rij om te importeren</translation>
     </message>
     <message>
-        <location line="+3"/>
-        <source>Begin at row:</source>
-        <translation type="unfinished">Beginnen bij rij:</translation>
-    </message>
-    <message>
-        <location line="+8"/>
+        <location line="+11"/>
         <source>Preview of the first rows</source>
         <translation type="unfinished">Voorbeeld van de eerste rijen</translation>
     </message>
@@ -48667,7 +48868,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+1"/>
         <source>Text</source>
-        <translation type="unfinished">Tekst</translation>
+        <translation>Tekst</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -48693,7 +48894,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
 <context>
     <name>jp::TextToColumnsDialog</name>
     <message>
-        <location filename="../apps/crunch/app/datatoolsdialogs.cpp" line="+21"/>
+        <location filename="../apps/crunch/app/datatoolsdialogs.cpp" line="+22"/>
         <source>Text to Columns</source>
         <translation type="unfinished">Tekst naar kolommen</translation>
     </message>
@@ -48739,21 +48940,37 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location line="+4"/>
-        <source>Separators:</source>
-        <translation type="unfinished">Scheidingstekens:</translation>
+        <source>Separators</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="+15"/>
+        <source>Fixed places</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Each piece is</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Put the pieces from</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-24"/>
         <source>Treat separators in a row as one</source>
         <translation type="unfinished">Opeenvolgende scheidingstekens als één behandelen</translation>
     </message>
     <message>
         <location line="+5"/>
+        <location line="+4"/>
         <source>Text in quotes</source>
         <translation type="unfinished">Tekst tussen aanhalingstekens</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="-3"/>
         <source>Double quote &quot;</source>
         <translation type="unfinished">Dubbele aanhalingsteken &quot;</translation>
     </message>
@@ -48768,12 +48985,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Geen</translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>Text in quotes:</source>
-        <translation type="unfinished">Tekst tussen aanhalingstekens:</translation>
-    </message>
-    <message>
-        <location line="+3"/>
+        <location line="+4"/>
         <source>Places to split at</source>
         <translation type="unfinished">Posities waarop wordt gesplitst</translation>
     </message>
@@ -48783,12 +48995,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Bijvoorbeeld 5, 12, 20</translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>Fixed places:</source>
-        <translation type="unfinished">Vaste posities:</translation>
-    </message>
-    <message>
-        <location line="+3"/>
+        <location line="+4"/>
         <source>Kind of value</source>
         <translation type="unfinished">Soort waarde</translation>
     </message>
@@ -48803,19 +49010,9 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Tekst (blijft ongewijzigd)</translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>Each piece is:</source>
-        <translation type="unfinished">Elk deel is:</translation>
-    </message>
-    <message>
-        <location line="+3"/>
+        <location line="+4"/>
         <source>First cell for the pieces</source>
         <translation type="unfinished">Eerste cel voor de delen</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Put the pieces from:</source>
-        <translation type="unfinished">Delen plaatsen vanaf:</translation>
     </message>
 </context>
 <context>
@@ -48883,7 +49080,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+0"/>
         <source>Hyperlink</source>
-        <translation type="unfinished">Hyperlink</translation>
+        <translation>Hyperlink</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -48962,12 +49159,12 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+1"/>
         <source>Top</source>
-        <translation type="unfinished">Hoogste</translation>
+        <translation>Boven</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Bottom</source>
-        <translation type="unfinished">Laagste</translation>
+        <translation>Onder</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -48987,7 +49184,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+0"/>
         <source>Percent</source>
-        <translation type="unfinished">Procent</translation>
+        <translation>Percentage</translation>
     </message>
 </context>
 <context>
@@ -49001,17 +49198,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
 <context>
     <name>jp::TranslatePane</name>
     <message>
-        <location filename="../libs/shell/app/translatepane.cpp" line="+49"/>
-        <source>From:</source>
-        <translation type="unfinished">Van:</translation>
-    </message>
-    <message>
-        <location line="+7"/>
-        <source>To:</source>
-        <translation type="unfinished">Naar:</translation>
-    </message>
-    <message>
-        <location line="+6"/>
+        <location filename="../libs/shell/app/translatepane.cpp" line="+62"/>
         <source>Swap</source>
         <translation type="unfinished">Omwisselen</translation>
     </message>
@@ -49021,12 +49208,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">De talen omwisselen</translation>
     </message>
     <message>
-        <location line="+16"/>
-        <source>Original:</source>
-        <translation type="unfinished">Origineel:</translation>
-    </message>
-    <message>
-        <location line="+4"/>
+        <location line="+20"/>
         <source>Original text</source>
         <translation type="unfinished">Oorspronkelijke tekst</translation>
     </message>
@@ -49061,11 +49243,22 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Opent een vertaalwebsite met de tekst. Er wordt niets verzonden totdat de pagina opent.</translation>
     </message>
     <message>
-        <location line="+9"/>
-        <source>Translation:</source>
-        <translation type="unfinished">Vertaling:</translation>
+        <location line="-71"/>
+        <source>From</source>
+        <translation>Van</translation>
     </message>
     <message>
+        <location line="+7"/>
+        <source>To</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+24"/>
+        <source>Original</source>
+        <translation type="unfinished">Origineel</translation>
+    </message>
+    <message>
+        <location line="+49"/>
         <location line="+4"/>
         <source>Translation</source>
         <translation type="unfinished">Vertaling</translation>
@@ -49326,17 +49519,18 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
 <context>
     <name>jp::ValidationDialog</name>
     <message>
-        <location filename="../apps/crunch/app/validationdialog.cpp" line="+23"/>
+        <location filename="../apps/crunch/app/validationdialog.cpp" line="+24"/>
         <source>Data Validation</source>
         <translation type="unfinished">Gegevensvalidatie</translation>
     </message>
     <message>
         <location line="+9"/>
+        <location line="+27"/>
         <source>Allow</source>
         <translation type="unfinished">Toestaan</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="-25"/>
         <source>Any value</source>
         <translation type="unfinished">Elke waarde</translation>
     </message>
@@ -49377,11 +49571,12 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location line="+4"/>
+        <location line="+20"/>
         <source>Data</source>
         <translation type="unfinished">Gegevens</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="-18"/>
         <source>between</source>
         <translation type="unfinished">tussen</translation>
     </message>
@@ -49431,17 +49626,49 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Vervolgkeuzelijst in cel</translation>
     </message>
     <message>
-        <location line="+3"/>
-        <source>Allow:</source>
-        <translation type="unfinished">Toestaan:</translation>
+        <location line="+21"/>
+        <location line="+21"/>
+        <source>Title</source>
+        <translation>Titel</translation>
+    </message>
+    <message>
+        <location line="-20"/>
+        <location line="+21"/>
+        <source>Message</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-2"/>
+        <source>Style</source>
+        <translation>Stijl</translation>
+    </message>
+    <message>
+        <location line="+49"/>
+        <source>Source</source>
+        <translation type="unfinished">Bron</translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>Data:</source>
-        <translation type="unfinished">Gegevens:</translation>
+        <source>Formula</source>
+        <translation type="unfinished">Formule</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+1"/>
+        <source>Minimum</source>
+        <translation type="unfinished">Minimum</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Value</source>
+        <translation type="unfinished">Waarde</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Maximum</source>
+        <translation type="unfinished">Maximum</translation>
+    </message>
+    <message>
+        <location line="-87"/>
         <source>Settings</source>
         <translation type="unfinished">Instellingen</translation>
     </message>
@@ -49451,19 +49678,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Dit bericht tonen wanneer de cel is geselecteerd</translation>
     </message>
     <message>
-        <location line="+8"/>
-        <location line="+21"/>
-        <source>Title:</source>
-        <translation type="unfinished">Titel:</translation>
-    </message>
-    <message>
-        <location line="-20"/>
-        <location line="+21"/>
-        <source>Message:</source>
-        <translation type="unfinished">Bericht:</translation>
-    </message>
-    <message>
-        <location line="-20"/>
+        <location line="+10"/>
         <source>Input Message</source>
         <translation type="unfinished">Invoerbericht</translation>
     </message>
@@ -49488,12 +49703,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Informatie</translation>
     </message>
     <message>
-        <location line="+7"/>
-        <source>Style:</source>
-        <translation type="unfinished">Stijl:</translation>
-    </message>
-    <message>
-        <location line="+3"/>
+        <location line="+10"/>
         <source>Error Alert</source>
         <translation type="unfinished">Foutmelding</translation>
     </message>
@@ -49503,32 +49713,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Alles wissen</translation>
     </message>
     <message>
-        <location line="+43"/>
-        <source>Source:</source>
-        <translation type="unfinished">Bron:</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Formula:</source>
-        <translation type="unfinished">Formule:</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Minimum:</source>
-        <translation type="unfinished">Minimum:</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Value:</source>
-        <translation type="unfinished">Waarde:</translation>
-    </message>
-    <message>
-        <location line="+4"/>
-        <source>Maximum:</source>
-        <translation type="unfinished">Maximum:</translation>
-    </message>
-    <message>
-        <location line="+23"/>
+        <location line="+72"/>
         <source>Write the choices with commas between them, or a range of cells after =, such as =A1:A5.</source>
         <translation type="unfinished">Typ de opties met komma&apos;s ertussen, of een celbereik na =, bijvoorbeeld =A1:A5.</translation>
     </message>
@@ -49566,37 +49751,30 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Instellingen voor waardeveld</translation>
     </message>
     <message>
-        <location line="+5"/>
-        <source>Source name:</source>
-        <translation type="unfinished">Brongegevensnaam:</translation>
-    </message>
-    <message>
-        <location line="+3"/>
+        <location line="+8"/>
+        <location line="+1"/>
         <source>Custom name</source>
         <translation type="unfinished">Aangepaste naam</translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>Custom name:</source>
-        <translation type="unfinished">Aangepaste naam:</translation>
-    </message>
-    <message>
         <location line="+3"/>
+        <location line="+6"/>
         <source>Summarize value field by</source>
         <translation type="unfinished">Waarde-veld samenvatten op</translation>
     </message>
     <message>
-        <location line="+6"/>
-        <source>Summarize value field by:</source>
-        <translation type="unfinished">Waarde-veld samenvatten op:</translation>
+        <location line="-13"/>
+        <source>Source name</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+17"/>
+        <location line="+11"/>
         <source>Show values as</source>
         <translation type="unfinished">Waarden weergeven als</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="-9"/>
         <source>No Calculation</source>
         <translation type="unfinished">Geen berekening</translation>
     </message>
@@ -49661,42 +49839,29 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Rangschikken van groot naar klein</translation>
     </message>
     <message>
-        <location line="+5"/>
-        <source>Show values as:</source>
-        <translation type="unfinished">Waarden weergeven als:</translation>
+        <location line="+35"/>
+        <source>Number format (a code; empty keeps the cells&apos; own)</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="-27"/>
+        <location line="+5"/>
         <source>Base field</source>
         <translation type="unfinished">Basisveld</translation>
     </message>
     <message>
-        <location line="+5"/>
-        <source>Base field:</source>
-        <translation type="unfinished">Basisveld:</translation>
-    </message>
-    <message>
         <location line="+3"/>
+        <location line="+1"/>
         <source>Base item</source>
         <translation type="unfinished">Basisitem</translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>Base item:</source>
-        <translation type="unfinished">Basisitem:</translation>
-    </message>
-    <message>
         <location line="+13"/>
         <source>Number format</source>
-        <translation type="unfinished">Getalnotatie</translation>
+        <translation>Getalnotatie</translation>
     </message>
     <message>
-        <location line="+5"/>
-        <source>Number format (a code; empty keeps the cells&apos; own):</source>
-        <translation type="unfinished">Getalnotatie (een code; leeg houdt die van de cellen):</translation>
-    </message>
-    <message>
-        <location line="+14"/>
+        <location line="+19"/>
         <source>(previous)</source>
         <translation type="unfinished">(vorige)</translation>
     </message>
@@ -49896,7 +50061,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
 <context>
     <name>jp::WriteFileScreen</name>
     <message>
-        <location filename="../apps/write/app/writefilescreen.cpp" line="-554"/>
+        <location filename="../apps/write/app/writefilescreen.cpp" line="-539"/>
         <source>Back to document</source>
         <translation type="unfinished">Terug naar document</translation>
     </message>
@@ -49909,7 +50074,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <location line="+2"/>
         <location line="+80"/>
         <source>Start</source>
-        <translation type="unfinished">Start</translation>
+        <translation>Starten</translation>
     </message>
     <message>
         <location line="-79"/>
@@ -49961,12 +50126,12 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location line="-209"/>
-        <location line="+498"/>
+        <location line="+483"/>
         <source>Export</source>
         <translation type="unfinished">Exporteren</translation>
     </message>
     <message>
-        <location line="-497"/>
+        <location line="-482"/>
         <source>Close</source>
         <translation type="unfinished">Sluiten</translation>
     </message>
@@ -50041,44 +50206,64 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Recente documenten</translation>
     </message>
     <message>
-        <location line="+349"/>
+        <location line="+82"/>
+        <source>Which pages</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Sides</source>
+        <translation>Zijden</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Pages on a sheet</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Scale to paper</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>(as each section says unless changed)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Turned</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Paper</source>
+        <translation>Papier</translation>
+    </message>
+    <message>
+        <location line="+40"/>
+        <source>Show</source>
+        <translation type="unfinished">Weergeven</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Zoom</source>
+        <translation type="unfinished">Zoomen</translation>
+    </message>
+    <message>
+        <location line="+205"/>
         <source>Saved as the name on your comments and tracked changes, and as who last changed a document.</source>
         <translation type="unfinished">Wordt opgeslagen als de naam bij uw opmerkingen en bijgehouden wijzigingen, en als wie een document het laatst heeft gewijzigd.</translation>
     </message>
     <message>
-        <location line="-320"/>
-        <source>Copies:</source>
-        <translation type="unfinished">Exemplaren:</translation>
-    </message>
-    <message>
-        <location line="+8"/>
-        <source>Printer:</source>
-        <translation type="unfinished">Printer:</translation>
-    </message>
-    <message>
-        <location line="+1"/>
+        <location line="-308"/>
         <source>Print each copy of the whole document in turn (1, 2, 3, 1, 2, 3), not each page&apos;s copies together (1, 1, 2, 2, 3, 3).</source>
         <translation type="unfinished">Elk exemplaar van het hele document na elkaar afdrukken (1, 2, 3, 1, 2, 3), niet de exemplaren van elke pagina samen (1, 1, 2, 2, 3, 3).</translation>
     </message>
     <message>
-        <location line="+6"/>
-        <source>Sides:</source>
-        <translation type="unfinished">Zijden:</translation>
-    </message>
-    <message>
-        <location line="+1"/>
+        <location line="+5"/>
         <source>As each section says</source>
         <translation type="unfinished">Zoals elke sectie aangeeft</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Paper turned:</source>
-        <translation type="unfinished">Papier gedraaid:</translation>
-    </message>
-    <message>
-        <location line="+4"/>
-        <source>Paper:</source>
-        <translation type="unfinished">Papier:</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -50107,12 +50292,12 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location line="+4"/>
-        <location line="+12"/>
+        <location line="+8"/>
         <source>Pages to print</source>
         <translation type="unfinished">Af te drukken pagina&apos;s</translation>
     </message>
     <message>
-        <location line="-11"/>
+        <location line="-7"/>
         <source>1-3, 5, p2s3</source>
         <translation type="unfinished">1-3, 5, p2s3</translation>
     </message>
@@ -50122,7 +50307,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Paginanummers en bereiken, gescheiden door komma&apos;s. p2s3 is de tweede pagina van sectie 3, en s3 is de hele sectie 3.</translation>
     </message>
     <message>
-        <location line="+21"/>
+        <location line="+14"/>
         <source>Pages per sheet</source>
         <translation type="unfinished">Pagina&apos;s per vel</translation>
     </message>
@@ -50142,7 +50327,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Meerdere pagina&apos;s op één vel afdrukken, elk verkleind zodat het past.</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+3"/>
         <source>Scale to paper size</source>
         <translation type="unfinished">Schalen naar papierformaat</translation>
     </message>
@@ -50182,12 +50367,12 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Elke pagina laten passen op het papier in de printer, ongeacht het formaat van de pagina.</translation>
     </message>
     <message>
-        <location line="+207"/>
+        <location line="+220"/>
         <source>The pages, or the ones you choose, as a PDF that looks the same everywhere.</source>
         <translation type="unfinished">De pagina&apos;s, of de pagina&apos;s die je kiest, als PDF die overal hetzelfde eruitziet.</translation>
     </message>
     <message>
-        <location line="-231"/>
+        <location line="-239"/>
         <source>All pages in the range</source>
         <translation type="unfinished">Alle pagina&apos;s in het bereik</translation>
     </message>
@@ -50202,7 +50387,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Alleen even pagina&apos;s</translation>
     </message>
     <message>
-        <location line="+32"/>
+        <location line="+40"/>
         <source>Preview of the printed page</source>
         <translation type="unfinished">Voorbeeld van de afgedrukte pagina</translation>
     </message>
@@ -50237,17 +50422,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Vier pagina&apos;s</translation>
     </message>
     <message>
-        <location line="+4"/>
-        <source>Show:</source>
-        <translation type="unfinished">Weergeven:</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>Zoom:</source>
-        <translation type="unfinished">Zoomen:</translation>
-    </message>
-    <message>
-        <location line="+52"/>
+        <location line="+58"/>
         <source>Enter page numbers, such as 1-3, 5.</source>
         <translation type="unfinished">Voer paginanummers in, zoals 1-3, 5.</translation>
     </message>
@@ -50326,13 +50501,13 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <name>jp::WriteFindPane</name>
     <message>
         <location filename="../apps/write/app/writefindpane.cpp" line="+172"/>
-        <source>Find what:</source>
-        <translation type="unfinished">Zoeken naar:</translation>
+        <source>Find what</source>
+        <translation>Zoeken naar</translation>
     </message>
     <message>
         <location line="+6"/>
-        <source>Replace with:</source>
-        <translation type="unfinished">Vervangen door:</translation>
+        <source>Replace with</source>
+        <translation>Vervangen door</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -50447,7 +50622,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+12"/>
         <source>Format</source>
-        <translation type="unfinished">Opmaak</translation>
+        <translation>Opmaak</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -50470,7 +50645,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <location line="-113"/>
         <location line="+114"/>
         <source>Underline</source>
-        <translation type="unfinished">Onderstrepen</translation>
+        <translation>Onderstrepen</translation>
     </message>
     <message>
         <location line="-113"/>
@@ -51177,7 +51352,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+1"/>
         <source>Underline</source>
-        <translation type="unfinished">Onderstrepen</translation>
+        <translation>Onderstrepen</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -51216,7 +51391,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location line="+2"/>
-        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+222"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+211"/>
         <source>Align Left</source>
         <translation type="unfinished">Links uitlijnen</translation>
     </message>
@@ -51670,13 +51845,13 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Rechterrand</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-150"/>
-        <location line="+265"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-138"/>
+        <location line="+253"/>
         <source>Line</source>
         <translation type="unfinished">Lijn</translation>
     </message>
     <message>
-        <location line="-264"/>
+        <location line="-252"/>
         <source>Arrow</source>
         <translation type="unfinished">Pijl</translation>
     </message>
@@ -51733,17 +51908,17 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+44"/>
         <source>Blue</source>
-        <translation type="unfinished">Blauw</translation>
+        <translation>Blauw</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Red</source>
-        <translation type="unfinished">Rood</translation>
+        <translation>Rood</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Green</source>
-        <translation type="unfinished">Groen</translation>
+        <translation>Groen</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -51767,12 +51942,12 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location line="+2"/>
-        <location line="+45"/>
+        <location line="+33"/>
         <source>Note</source>
         <translation type="unfinished">Notitie</translation>
     </message>
     <message>
-        <location line="-43"/>
+        <location line="-31"/>
         <source>Dashed Outline</source>
         <translation type="unfinished">Gestreepte omtrek</translation>
     </message>
@@ -51782,48 +51957,12 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Alleen vulling</translation>
     </message>
     <message>
-        <location line="+5"/>
         <location filename="../apps/write/app/writewindow_tables.cpp" line="+1"/>
         <source>No Border</source>
         <translation type="unfinished">Geen rand</translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>Thin Black Frame</source>
-        <translation type="unfinished">Dunne zwarte rand</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Black Frame</source>
-        <translation type="unfinished">Zwarte rand</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Gray Frame</source>
-        <translation type="unfinished">Grijze rand</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Blue Frame</source>
-        <translation type="unfinished">Blauwe rand</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Dashed Frame</source>
-        <translation type="unfinished">Gestreepte rand</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Dotted Frame</source>
-        <translation type="unfinished">Gestippelde rand</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>White Frame</source>
-        <translation type="unfinished">Witte rand</translation>
-    </message>
-    <message>
-        <location line="+28"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+28"/>
         <source>Simple Text Box</source>
         <translation type="unfinished">Eenvoudig tekstvak</translation>
     </message>
@@ -51849,12 +51988,12 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location line="+10"/>
-        <location line="+884"/>
+        <location line="+890"/>
         <source>Edit Points</source>
         <translation type="unfinished">Punten bewerken</translation>
     </message>
     <message>
-        <location line="-881"/>
+        <location line="-887"/>
         <source>Drag a point to reshape. Ctrl+click a point to delete it, or the outline to add one. Press Esc when done.</source>
         <translation type="unfinished">Sleep een punt om de vorm aan te passen. Ctrl+klik op een punt om het te verwijderen, of op de omtrek om er een toe te voegen. Druk op Esc als u klaar bent.</translation>
     </message>
@@ -52194,7 +52333,12 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Gegevenslabels</translation>
     </message>
     <message>
-        <location line="+513"/>
+        <location line="+179"/>
+        <source>Reset Picture &amp; Size</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+340"/>
         <source>Drag on the page to draw the shape; click to put in one of its usual size. Shift keeps it in proportion, and Esc stops.</source>
         <translation type="unfinished">Sleep op de pagina om de vorm te tekenen; klik om een vorm van het gebruikelijke formaat in te voegen. Shift houdt de verhoudingen vast en Esc stopt.</translation>
     </message>
@@ -52205,7 +52349,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Object %1</translation>
     </message>
     <message>
-        <location line="-621"/>
+        <location line="-627"/>
         <source>Insert Equation</source>
         <translation type="unfinished">Vergelijking invoegen</translation>
     </message>
@@ -52241,7 +52385,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Oorspronkelijke afbeelding</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+8"/>
         <source>Change Picture…</source>
         <translation type="unfinished">Afbeelding wijzigen…</translation>
     </message>
@@ -52351,12 +52495,12 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">%1 kan niet als opvulling worden gebruikt.</translation>
     </message>
     <message>
-        <location line="+29"/>
+        <location line="+30"/>
         <source>Picture Styles</source>
         <translation type="unfinished">Afbeeldingsstijlen</translation>
     </message>
     <message>
-        <location line="+18"/>
+        <location line="+19"/>
         <source>Picture Border</source>
         <translation type="unfinished">Afbeeldingsrand</translation>
     </message>
@@ -52623,17 +52767,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         </translation>
     </message>
     <message>
-        <location line="+76"/>
-        <source>Do you want to save changes to %1?</source>
-        <translation type="unfinished">Wilt u de wijzigingen in %1 opslaan?</translation>
-    </message>
-    <message>
-        <location line="+3"/>
-        <source>Don&apos;t Save</source>
-        <translation type="unfinished">Niet opslaan</translation>
-    </message>
-    <message>
-        <location filename="../apps/write/app/writewindow_file.cpp" line="+90"/>
+        <location filename="../apps/write/app/writewindow_file.cpp" line="+91"/>
         <source>New</source>
         <translation type="unfinished">Nieuw</translation>
     </message>
@@ -52641,16 +52775,16 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <location line="+5"/>
         <location line="+115"/>
         <location line="+45"/>
-        <location line="+433"/>
+        <location line="+424"/>
         <location filename="../apps/write/core/designops.cpp" line="+27"/>
         <source>Open</source>
         <translation type="unfinished">Openen</translation>
     </message>
     <message>
-        <location line="-566"/>
+        <location line="-557"/>
         <location filename="../apps/write/app/writewindow_insert.cpp" line="+138"/>
         <location filename="../apps/write/app/writewindow_pictures.cpp" line="+190"/>
-        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-308"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-310"/>
         <location line="+60"/>
         <source>All Files (*)</source>
         <translation type="unfinished">Alle bestanden (*)</translation>
@@ -52691,18 +52825,17 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <location line="+7"/>
         <location line="+19"/>
         <location line="+4"/>
-        <location line="+47"/>
+        <location line="+45"/>
         <location line="+4"/>
         <location line="+2"/>
         <location line="+3"/>
         <location line="+14"/>
         <location line="+10"/>
-        <location line="+29"/>
         <source>Save</source>
         <translation type="unfinished">Opslaan</translation>
     </message>
     <message>
-        <location line="-426"/>
+        <location line="-395"/>
         <location line="+205"/>
         <source>Save As</source>
         <translation type="unfinished">Opslaan als</translation>
@@ -52865,8 +52998,14 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">De macro&apos;s in dit document worden niet opgeslagen, omdat een %1-bestand ze niet kan bevatten.</translation>
     </message>
     <message>
-        <location line="-31"/>
-        <location line="+116"/>
+        <location line="+146"/>
+        <location filename="../apps/write/app/writewindow_info.cpp" line="+209"/>
+        <source>document</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-177"/>
+        <location line="+114"/>
         <location filename="../apps/write/app/writewindow_output.cpp" line="+457"/>
         <location line="+329"/>
         <source>%1 couldn&apos;t save &quot;%2&quot;.
@@ -52875,7 +53014,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
 %3%4</translation>
     </message>
     <message>
-        <location line="-340"/>
+        <location line="-338"/>
         <source>Documents (*.docx *.docm *.dotx *.dotm *.doc *.dot *.rtf *.odt *.fodt *.ott *.txt *.html *.htm)</source>
         <translation type="unfinished">Documenten (*.docx *.docm *.dotx *.dotm *.doc *.dot *.rtf *.odt *.fodt *.ott *.txt *.html *.htm)</translation>
     </message>
@@ -52928,7 +53067,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Het bestand bevat alleen de woorden van het document en verder niets: geen lettertypen, afbeeldingen of randen van tabellen. Kies hoe de tekens en regeleinden worden geschreven. Een teken dat de codering niet kan bevatten, wordt opgeslagen als vraagteken.</translation>
     </message>
     <message>
-        <location line="+47"/>
+        <location line="+45"/>
         <source>A plain text file holds only the words of this document, so its fonts, pictures, tables, and other formatting aren&apos;t saved in it.</source>
         <translation type="unfinished">Een bestand met platte tekst bevat alleen de woorden van dit document, dus de lettertypen, afbeeldingen, tabellen en andere opmaak worden er niet in opgeslagen.</translation>
     </message>
@@ -52962,26 +53101,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">%1 opgeslagen</translation>
     </message>
     <message>
-        <location line="+7"/>
-        <source>A %1 file can&apos;t hold some of what this document has. If you save it here, these parts are saved as they stand now or left out:
-
-%2</source>
-        <translation type="unfinished">Een %1-bestand kan niet alles bevatten wat dit document heeft. Als je het hier opslaat, worden deze onderdelen opgeslagen zoals ze nu zijn of weggelaten:
-
-%2</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>Save as %1 Anyway</source>
-        <translation type="unfinished">Opslaan als %1 toch</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Save as .docx Instead</source>
-        <translation type="unfinished">In plaats daarvan opslaan als .docx</translation>
-    </message>
-    <message>
-        <location line="+92"/>
+        <location line="+95"/>
         <source>This document is protected with a password, so no recovery copy is kept of it. Save it to keep your work.</source>
         <translation type="unfinished">Dit document is met een wachtwoord beveiligd, dus er wordt geen herstelkopie van bewaard. Sla het op om uw werk te bewaren.</translation>
     </message>
@@ -53105,12 +53225,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">1-3, 5, p2s3</translation>
     </message>
     <message>
-        <location line="+4"/>
-        <source>Pages to include:</source>
-        <translation type="unfinished">Pagina&apos;s om op te nemen:</translation>
-    </message>
-    <message>
-        <location line="+3"/>
+        <location line="+7"/>
         <source>Type page numbers and ranges, separated by commas. p2s3 is the second page of section 3, and s3 is all of section 3.</source>
         <translation type="unfinished">Typ paginanummers en -bereiken, gescheiden door komma&apos;s. p2s3 is de tweede pagina van sectie 3, en s3 is de hele sectie 3.</translation>
     </message>
@@ -53136,7 +53251,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">%1 geëxporteerd</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_file.cpp" line="-286"/>
+        <location filename="../apps/write/app/writewindow_file.cpp" line="-277"/>
         <location filename="../apps/write/app/writewindow_output.cpp" line="-22"/>
         <location line="+3"/>
         <location line="+152"/>
@@ -53145,7 +53260,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Opslaan als platte tekst</translation>
     </message>
     <message>
-        <location line="+44"/>
+        <location line="+42"/>
         <location filename="../apps/write/app/writewindow_output.cpp" line="-159"/>
         <source>Some characters couldn&apos;t be saved in this encoding (%1 in all). They were saved as question marks.</source>
         <translation type="unfinished">Sommige tekens konden in deze codering niet worden opgeslagen (%1 in totaal). Ze zijn opgeslagen als vraagtekens.</translation>
@@ -53171,12 +53286,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">US ASCII</translation>
     </message>
     <message>
-        <location line="+4"/>
-        <source>Encoding:</source>
-        <translation type="unfinished">Codering:</translation>
-    </message>
-    <message>
-        <location line="+4"/>
+        <location line="+8"/>
         <source>Windows (CR LF)</source>
         <translation type="unfinished">Windows (CR LF)</translation>
     </message>
@@ -53186,12 +53296,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">macOS en Linux (LF)</translation>
     </message>
     <message>
-        <location line="+3"/>
-        <source>Line ends:</source>
-        <translation type="unfinished">Regeleinden:</translation>
-    </message>
-    <message>
-        <location line="+51"/>
+        <location line="+54"/>
         <source>Text (*.txt)</source>
         <translation type="unfinished">Tekst (*.txt)</translation>
     </message>
@@ -53222,7 +53327,17 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Afdrukken</translation>
     </message>
     <message>
-        <location line="-460"/>
+        <location line="-485"/>
+        <source>Pages to include</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>Optimize for</source>
+        <translation>Optimaliseren voor</translation>
+    </message>
+    <message>
+        <location line="+14"/>
         <source>PDF/A, for keeping for a long time</source>
         <translation type="unfinished">PDF/A, voor langdurige bewaring</translation>
     </message>
@@ -53275,12 +53390,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Bij minimale grootte hebben de afbeeldingen niet meer dan 150 pixels per inch, zodat het bestand kleiner is.</translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>Optimize for:</source>
-        <translation type="unfinished">Optimaliseren voor:</translation>
-    </message>
-    <message>
-        <location line="+1"/>
+        <location line="+2"/>
         <source>Include document properties</source>
         <translation type="unfinished">Documenteigenschappen opnemen</translation>
     </message>
@@ -53385,8 +53495,8 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location line="+2"/>
-        <source>Put in the message:</source>
-        <translation type="unfinished">Opnemen in het bericht:</translation>
+        <source>Put in the message</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+34"/>
@@ -53404,12 +53514,18 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Unicode (UTF-16, grote byte eerst)</translation>
     </message>
     <message>
-        <location line="+9"/>
+        <location line="+6"/>
+        <source>Encoding</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <location line="+5"/>
         <source>Line ends</source>
         <translation type="unfinished">Regeleindes</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="-2"/>
         <source>Older Mac (CR)</source>
         <translation type="unfinished">Oudere Mac (CR)</translation>
     </message>
@@ -53434,7 +53550,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">%1 naar de printer verzonden</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_home.cpp" line="+269"/>
+        <location filename="../apps/write/app/writewindow_home.cpp" line="+270"/>
         <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+151"/>
         <source>Font Color</source>
         <translation type="unfinished">Tekstkleur</translation>
@@ -53462,12 +53578,12 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+3"/>
         <source>Left</source>
-        <translation type="unfinished">Links</translation>
+        <translation>Links</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Right</source>
-        <translation type="unfinished">Rechts</translation>
+        <translation>Rechts</translation>
     </message>
     <message>
         <location line="+9"/>
@@ -53541,7 +53657,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+10"/>
         <source>Page Color</source>
-        <translation type="unfinished">Paginakleur</translation>
+        <translation>Paginakleur</translation>
     </message>
     <message>
         <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+18"/>
@@ -53670,11 +53786,11 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location filename="../apps/write/app/writewindow_find.cpp" line="+16"/>
         <source>Find</source>
-        <translation type="unfinished">Zoeken</translation>
+        <translation>Zoeken</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/write/app/writewindow_headers.cpp" line="+162"/>
+        <location filename="../apps/write/app/writewindow_headers.cpp" line="+163"/>
         <source>Replace</source>
         <translation type="unfinished">Vervangen</translation>
     </message>
@@ -53826,12 +53942,12 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+1"/>
         <source>Formatting</source>
-        <translation type="unfinished">Opmaak</translation>
+        <translation>Opmaak</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_info.cpp" line="+36"/>
+        <location filename="../apps/write/app/writewindow_info.cpp" line="-172"/>
         <source>Pages</source>
-        <translation type="unfinished">Pagina&apos;s</translation>
+        <translation>Pagina&apos;s</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -53902,7 +54018,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <location filename="../apps/write/app/writewindow_info.cpp" line="+13"/>
         <location filename="../apps/write/app/writewindow_review.cpp" line="+1"/>
         <source>Comments</source>
-        <translation type="unfinished">Opmerkingen</translation>
+        <translation>Opmerkingen</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -53976,23 +54092,8 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location line="+7"/>
-        <location line="+1"/>
         <source>Check Compatibility</source>
         <translation type="unfinished">Compatibiliteit controleren</translation>
-    </message>
-    <message>
-        <location line="-1"/>
-        <source>Nothing in this document is lost when it is saved as an OpenDocument text file (.odt).</source>
-        <translation type="unfinished">Er gaat niets verloren in dit document wanneer het wordt opgeslagen als OpenDocument-tekstbestand (.odt).</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>An OpenDocument text file (.odt) can&apos;t hold some of what this document has:
-
-%1</source>
-        <translation type="unfinished">Een OpenDocument-tekstbestand (.odt) kan niet alles bevatten wat dit document heeft:
-
-%1</translation>
     </message>
     <message>
         <location filename="../apps/write/app/writewindow_review.cpp" line="+10"/>
@@ -54245,12 +54346,12 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+30"/>
         <source>Author</source>
-        <translation type="unfinished">Auteur</translation>
+        <translation>Auteur</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Title</source>
-        <translation type="unfinished">Titel</translation>
+        <translation>Titel</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -54911,7 +55012,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-616"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-608"/>
         <source>Plain</source>
         <translation type="unfinished">Eenvoudig</translation>
     </message>
@@ -54983,7 +55084,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+189"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+177"/>
         <source>Column</source>
         <translation type="unfinished">Kolom</translation>
     </message>
@@ -55482,7 +55583,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location filename="../apps/write/app/writewindow_outline.cpp" line="+23"/>
-        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-187"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-175"/>
         <source>Outline</source>
         <translation type="unfinished">Overzicht</translation>
     </message>
@@ -55745,7 +55846,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <location filename="../apps/write/app/writewindow_speech.cpp" line="+98"/>
         <location line="+0"/>
         <source>Text</source>
-        <translation type="unfinished">Tekst</translation>
+        <translation>Tekst</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -58851,7 +58952,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+1"/>
         <source>Text</source>
-        <translation type="unfinished">Tekst</translation>
+        <translation>Tekst</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -62431,7 +62532,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+1"/>
         <source>Text</source>
-        <translation type="unfinished">Tekst</translation>
+        <translation>Tekst</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -63274,7 +63375,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <location line="+1"/>
         <location line="+3"/>
         <source>Black</source>
-        <translation type="unfinished">Zwart</translation>
+        <translation>Zwart</translation>
     </message>
     <message>
         <location line="-4"/>
@@ -63294,21 +63395,21 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <location line="+5"/>
         <location line="+1"/>
         <source>Red</source>
-        <translation type="unfinished">Rood</translation>
+        <translation>Rood</translation>
     </message>
     <message>
         <location line="-6"/>
         <location line="+5"/>
         <location line="+1"/>
         <source>Yellow</source>
-        <translation type="unfinished">Geel</translation>
+        <translation>Geel</translation>
     </message>
     <message>
         <location line="-6"/>
         <location line="+5"/>
         <location line="+1"/>
         <source>Green</source>
-        <translation type="unfinished">Groen</translation>
+        <translation>Groen</translation>
     </message>
     <message>
         <location line="-4"/>
@@ -63975,7 +64076,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+1"/>
         <source>Blue</source>
-        <translation type="unfinished">Blauw</translation>
+        <translation>Blauw</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -64000,7 +64101,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+0"/>
         <source>Green</source>
-        <translation type="unfinished">Groen</translation>
+        <translation>Groen</translation>
     </message>
     <message>
         <location line="+9"/>
@@ -65496,13 +65597,13 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <name>jp::trust::TrustPage</name>
     <message>
         <location filename="../libs/shell/app/trust.cpp" line="+18"/>
-        <source>Macros:</source>
-        <translation type="unfinished">Macro&apos;s:</translation>
+        <source>Macros in a file are kept in it, and are never run. There is no setting to run them.</source>
+        <translation type="unfinished">Macro&apos;s in een bestand blijven erin bewaard en worden nooit uitgevoerd. Er is geen instelling om ze uit te voeren.</translation>
     </message>
     <message>
         <location line="+0"/>
-        <source>Macros in a file are kept in it, and are never run. There is no setting to run them.</source>
-        <translation type="unfinished">Macro&apos;s in een bestand blijven erin bewaard en worden nooit uitgevoerd. Er is geen instelling om ze uit te voeren.</translation>
+        <source>Macros</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+18"/>
@@ -65574,8 +65675,8 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location line="+1"/>
-        <source>Links that start a program:</source>
-        <translation type="unfinished">Koppelingen die een programma starten:</translation>
+        <source>Links that start a program</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+0"/>
@@ -65784,46 +65885,81 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Alinea</translation>
     </message>
     <message>
-        <location line="-82"/>
+        <location filename="../apps/write/app/pagesetupdialog.cpp" line="+84"/>
+        <location line="+31"/>
+        <location filename="../apps/write/app/writedialogs.cpp" line="-82"/>
         <location line="+89"/>
         <source>Left</source>
-        <translation type="unfinished">Links</translation>
+        <translation>Links</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location filename="../apps/write/app/writedialogs.cpp" line="+1"/>
         <source>Centered</source>
         <translation type="unfinished">Gecentreerd</translation>
     </message>
     <message>
-        <location line="-88"/>
+        <location filename="../apps/write/app/pagesetupdialog.cpp" line="-30"/>
+        <location line="+31"/>
+        <location filename="../apps/write/app/writedialogs.cpp" line="-88"/>
         <location line="+89"/>
         <source>Right</source>
-        <translation type="unfinished">Rechts</translation>
+        <translation>Rechts</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location filename="../apps/write/app/writedialogs.cpp" line="+1"/>
         <source>Justified</source>
         <translation type="unfinished">Uitgevuld</translation>
     </message>
     <message>
-        <location line="-69"/>
-        <location line="+72"/>
-        <source>Alignment:</source>
-        <translation type="unfinished">Uitlijning:</translation>
-    </message>
-    <message>
-        <location line="-589"/>
+        <location line="-586"/>
         <location line="+599"/>
         <source>(none)</source>
         <translation type="unfinished">(geen)</translation>
     </message>
     <message>
-        <location line="-243"/>
+        <location line="-309"/>
+        <source>Spacing</source>
+        <translation>Afstand</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <location line="+4"/>
+        <source>By</source>
+        <translation type="unfinished">Per</translation>
+    </message>
+    <message>
+        <location line="-2"/>
+        <source>Position</source>
+        <translation>Positie</translation>
+    </message>
+    <message>
+        <location line="+62"/>
         <source>the font, size, and look chosen here</source>
         <translation type="unfinished">het hier gekozen lettertype, de grootte en de stijl</translation>
     </message>
     <message>
-        <location line="+243"/>
+        <location line="+159"/>
+        <source>Tab stop position</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Tab stops to clear</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location line="+72"/>
+        <source>Alignment</source>
+        <translation>Uitlijning</translation>
+    </message>
+    <message>
+        <location line="-71"/>
+        <source>Leader</source>
+        <translation type="unfinished">Opvulteken</translation>
+    </message>
+    <message>
+        <location line="+81"/>
         <source>First line</source>
         <translation type="unfinished">Eerste regel</translation>
     </message>
@@ -65833,32 +65969,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Verkeerd om</translation>
     </message>
     <message>
-        <location line="+3"/>
-        <source>Indentation, left:</source>
-        <translation type="unfinished">Inspringing, links:</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Indentation, right:</source>
-        <translation type="unfinished">Inspringing, rechts:</translation>
-    </message>
-    <message>
-        <location line="+4"/>
-        <source>Special:</source>
-        <translation type="unfinished">Speciaal:</translation>
-    </message>
-    <message>
-        <location line="+8"/>
-        <source>Spacing, before:</source>
-        <translation type="unfinished">Afstand, voor:</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Spacing, after:</source>
-        <translation type="unfinished">Afstand, na:</translation>
-    </message>
-    <message>
-        <location line="-615"/>
+        <location line="-598"/>
         <location line="+618"/>
         <source>Single</source>
         <translation type="unfinished">Enkel</translation>
@@ -65917,7 +66028,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+91"/>
         <source>Font</source>
-        <translation type="unfinished">Lettertype</translation>
+        <translation>Lettertype</translation>
     </message>
     <message>
         <location line="+41"/>
@@ -66021,8 +66132,23 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Tekenafstand</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pagesetupdialog.cpp" line="+98"/>
-        <location filename="../apps/write/app/writedialogs.cpp" line="+11"/>
+        <location line="+397"/>
+        <source>Line spacing</source>
+        <translation>Regelafstand</translation>
+    </message>
+    <message>
+        <location line="+40"/>
+        <source>Outline level</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+122"/>
+        <source>Pages across</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../apps/write/app/pagesetupdialog.cpp" line="-17"/>
+        <location filename="../apps/write/app/writedialogs.cpp" line="-548"/>
         <source>Normal</source>
         <translation type="unfinished">Normaal</translation>
     </message>
@@ -66064,23 +66190,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Tekenspatiëring voor lettertypen van deze grootte en groter:</translation>
     </message>
     <message>
-        <location line="+9"/>
-        <source>Spacing:</source>
-        <translation type="unfinished">Afstand:</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <location line="+4"/>
-        <source>By:</source>
-        <translation type="unfinished">Met:</translation>
-    </message>
-    <message>
-        <location line="-2"/>
-        <source>Position:</source>
-        <translation type="unfinished">Positie:</translation>
-    </message>
-    <message>
-        <location line="+18"/>
+        <location line="+31"/>
         <source>AaBbYyZz</source>
         <translation type="unfinished">AaBbYyZz</translation>
     </message>
@@ -66134,12 +66244,12 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+2"/>
         <source>left</source>
-        <translation type="unfinished">links</translation>
+        <translation>links</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>right</source>
-        <translation type="unfinished">rechts</translation>
+        <translation>rechts</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -66162,22 +66272,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">, met opvulteken</translation>
     </message>
     <message>
-        <location line="+8"/>
-        <source>Tab stop position:</source>
-        <translation type="unfinished">Positie van tabstop:</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Tab stops to clear:</source>
-        <translation type="unfinished">Te wissen tabstops:</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>Leader:</source>
-        <translation type="unfinished">Opvulteken:</translation>
-    </message>
-    <message>
-        <location line="+3"/>
+        <location line="+14"/>
         <source>Set</source>
         <translation type="unfinished">Instellen</translation>
     </message>
@@ -66192,7 +66287,32 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Alles wissen</translation>
     </message>
     <message>
-        <location line="+94"/>
+        <location line="+77"/>
+        <source>Indentation, left</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Indentation, right</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Special</source>
+        <translation type="unfinished">Speciaal</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Spacing, before</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Spacing, after</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
         <source>At least</source>
         <translation type="unfinished">Minstens</translation>
     </message>
@@ -66207,12 +66327,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Veelvoud</translation>
     </message>
     <message>
-        <location line="+26"/>
-        <source>Line spacing:</source>
-        <translation type="unfinished">Regelafstand:</translation>
-    </message>
-    <message>
-        <location line="+12"/>
+        <location line="+38"/>
         <source>Line and page breaks</source>
         <translation type="unfinished">Regel- en paginaeinden</translation>
     </message>
@@ -66262,12 +66377,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Niveau %1</translation>
     </message>
     <message>
-        <location line="+4"/>
-        <source>Outline level:</source>
-        <translation type="unfinished">Overzichtsniveau:</translation>
-    </message>
-    <message>
-        <location line="+6"/>
+        <location line="+10"/>
         <source>Tabs…</source>
         <translation type="unfinished">Tabs…</translation>
     </message>
@@ -66305,11 +66415,6 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <location line="+0"/>
         <source>Percent:</source>
         <translation type="unfinished">Percentage:</translation>
-    </message>
-    <message>
-        <location line="+19"/>
-        <source>Pages across:</source>
-        <translation type="unfinished">Pagina&apos;s naast elkaar:</translation>
     </message>
     <message>
         <location filename="../apps/write/app/pagesetupdialog.cpp" line="-179"/>
@@ -66373,33 +66478,76 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location line="+18"/>
-        <source>Top:</source>
-        <translation type="unfinished">Boven:</translation>
+        <source>Top</source>
+        <translation>Boven</translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>Bottom:</source>
-        <translation type="unfinished">Onder:</translation>
+        <source>Bottom</source>
+        <translation>Onder</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Gutter</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>Multiple pages</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Sheets per booklet</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Inside</source>
+        <translation>Binnen</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+31"/>
-        <source>Left:</source>
-        <translation type="unfinished">Links:</translation>
+        <source>Outside</source>
+        <translation>Buiten</translation>
     </message>
     <message>
-        <location line="-30"/>
-        <location line="+31"/>
-        <source>Right:</source>
-        <translation type="unfinished">Rechts:</translation>
-    </message>
-    <message>
-        <location line="-30"/>
-        <source>Gutter:</source>
-        <translation type="unfinished">Rugmarge:</translation>
+        <location line="+15"/>
+        <source>Paper size</source>
+        <translation type="unfinished">Papierformaat</translation>
     </message>
     <message>
         <location line="+1"/>
+        <source>Width</source>
+        <translation>Breedte</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Height</source>
+        <translation>Hoogte</translation>
+    </message>
+    <message>
+        <location line="+64"/>
+        <source>Section start</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Header, from the edge</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Footer, from the edge</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>Apply to</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-131"/>
         <source>Portrait</source>
         <translation type="unfinished">Staand</translation>
     </message>
@@ -66411,7 +66559,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+4"/>
         <source>Orientation</source>
-        <translation type="unfinished">Afdrukstand</translation>
+        <translation>Afdrukstand</translation>
     </message>
     <message>
         <location line="+9"/>
@@ -66419,32 +66567,12 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Boekvouw</translation>
     </message>
     <message>
-        <location line="+2"/>
-        <source>Multiple pages:</source>
-        <translation type="unfinished">Meerdere pagina&apos;s:</translation>
-    </message>
-    <message>
-        <location line="+3"/>
+        <location line="+5"/>
         <source>All</source>
         <translation type="unfinished">Alle</translation>
     </message>
     <message>
-        <location line="+4"/>
-        <source>Sheets per booklet:</source>
-        <translation type="unfinished">Vellen per boekje:</translation>
-    </message>
-    <message>
-        <location line="+6"/>
-        <source>Inside:</source>
-        <translation type="unfinished">Binnen:</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Outside:</source>
-        <translation type="unfinished">Buiten:</translation>
-    </message>
-    <message>
-        <location line="+4"/>
+        <location line="+15"/>
         <source>Margins</source>
         <translation type="unfinished">Marges</translation>
     </message>
@@ -66454,24 +66582,9 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Aangepast formaat</translation>
     </message>
     <message>
-        <location line="+3"/>
-        <source>Paper size:</source>
-        <translation type="unfinished">Papierformaat:</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Width:</source>
-        <translation type="unfinished">Breedte:</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Height:</source>
-        <translation type="unfinished">Hoogte:</translation>
-    </message>
-    <message>
-        <location line="+1"/>
+        <location line="+6"/>
         <source>Paper</source>
-        <translation type="unfinished">Papier</translation>
+        <translation>Papier</translation>
     </message>
     <message>
         <location line="+58"/>
@@ -66494,12 +66607,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Oneven pagina</translation>
     </message>
     <message>
-        <location line="+2"/>
-        <source>Section start:</source>
-        <translation type="unfinished">Begin van sectie:</translation>
-    </message>
-    <message>
-        <location line="+1"/>
+        <location line="+3"/>
         <source>Different first page</source>
         <translation type="unfinished">Eerste pagina afwijkend</translation>
     </message>
@@ -66509,19 +66617,9 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Even en oneven pagina&apos;s verschillend</translation>
     </message>
     <message>
-        <location line="+8"/>
-        <source>Header, from the edge:</source>
-        <translation type="unfinished">Koptekst, vanaf de rand:</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Footer, from the edge:</source>
-        <translation type="unfinished">Voettekst, vanaf de rand:</translation>
-    </message>
-    <message>
-        <location line="+1"/>
+        <location line="+10"/>
         <source>Layout</source>
-        <translation type="unfinished">Indeling</translation>
+        <translation>Indeling</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -66539,12 +66637,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Vanaf dit punt</translation>
     </message>
     <message>
-        <location line="+3"/>
-        <source>Apply to:</source>
-        <translation type="unfinished">Toepassen op:</translation>
-    </message>
-    <message>
-        <location line="+7"/>
+        <location line="+10"/>
         <source>the margins and paper size chosen here</source>
         <translation type="unfinished">de hier gekozen marges en het papierformaat</translation>
     </message>
@@ -66595,8 +66688,8 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location line="+2"/>
-        <source>Order in the lists (lower comes first):</source>
-        <translation type="unfinished">Volgorde in de lijsten (lagere komt eerst):</translation>
+        <source>Order in the lists (lower comes first)</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+5"/>
@@ -66662,11 +66755,16 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location line="-33"/>
-        <source>Check the styles to save in a template file:</source>
-        <translation type="unfinished">Vink de stijlen aan die u in een sjabloonbestand wilt opslaan:</translation>
+        <source>Check the styles to save in a template file</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+46"/>
+        <source>Check the styles to copy into this document</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-43"/>
         <source>Styles to export</source>
         <translation type="unfinished">Stijlen om te exporteren</translation>
     </message>
@@ -66681,12 +66779,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Sjablonen (*.dotx)</translation>
     </message>
     <message>
-        <location line="+18"/>
-        <source>Check the styles to copy into this document:</source>
-        <translation type="unfinished">Vink de stijlen aan die u in dit document wilt kopiëren:</translation>
-    </message>
-    <message>
-        <location line="+3"/>
+        <location line="+21"/>
         <source>Styles to import</source>
         <translation type="unfinished">Te importeren stijlen</translation>
     </message>
@@ -66773,24 +66866,14 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Bladwijzer</translation>
     </message>
     <message>
-        <location line="-100"/>
-        <source>Bookmark name:</source>
-        <translation type="unfinished">Naam van bladwijzer:</translation>
-    </message>
-    <message>
-        <location line="+6"/>
+        <location line="-94"/>
         <source>Bookmarks</source>
         <translation type="unfinished">Bladwijzers</translation>
     </message>
     <message>
-        <location line="+3"/>
-        <source>Sort by:</source>
-        <translation type="unfinished">Sorteren op:</translation>
-    </message>
-    <message>
-        <location line="+1"/>
+        <location line="+4"/>
         <source>Name</source>
-        <translation type="unfinished">Naam</translation>
+        <translation>Naam</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -66849,24 +66932,34 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Genummerd item</translation>
     </message>
     <message>
-        <location line="+6"/>
-        <source>Reference type:</source>
-        <translation type="unfinished">Type verwijzing:</translation>
-    </message>
-    <message>
-        <location line="+3"/>
-        <source>Insert reference to:</source>
-        <translation type="unfinished">Verwijzing invoegen naar:</translation>
-    </message>
-    <message>
-        <location line="+2"/>
+        <location line="+11"/>
         <source>Insert as hyperlink</source>
         <translation type="unfinished">Als hyperlink invoegen</translation>
     </message>
     <message>
-        <location line="+4"/>
-        <source>For which item:</source>
-        <translation type="unfinished">Voor welk item:</translation>
+        <location line="-112"/>
+        <source>Bookmark name</source>
+        <translation>Naam van bladwijzer</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Sort by</source>
+        <translation type="unfinished">Sorteren op</translation>
+    </message>
+    <message>
+        <location line="+98"/>
+        <source>Reference type</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Insert reference to</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>For which item</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+3"/>
@@ -66890,7 +66983,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <location line="+2"/>
         <location line="+1"/>
         <source>Page number</source>
-        <translation type="unfinished">Paginanummer</translation>
+        <translation>Paginanummer</translation>
     </message>
     <message>
         <location line="-8"/>
@@ -66980,23 +67073,29 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Veld</translation>
     </message>
     <message>
-        <location line="+2"/>
-        <source>Field names:</source>
-        <translation type="unfinished">Veldnamen:</translation>
+        <location line="+35"/>
+        <location line="+34"/>
+        <source>Field codes</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
+        <location line="+55"/>
+        <source>Tab leader</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Show levels</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-123"/>
         <location line="+3"/>
         <source>Field names</source>
         <translation type="unfinished">Veldnamen</translation>
     </message>
     <message>
-        <location line="+30"/>
-        <location line="+34"/>
-        <source>Field codes:</source>
-        <translation type="unfinished">Veldcodes:</translation>
-    </message>
-    <message>
-        <location line="-18"/>
+        <location line="+46"/>
         <location line="+30"/>
         <source>This field is kept as it is and not worked out.</source>
         <translation type="unfinished">Dit veld blijft ongewijzigd en wordt niet uitgewerkt.</translation>
@@ -67038,17 +67137,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">(geen)</translation>
     </message>
     <message>
-        <location line="+9"/>
-        <source>Tab leader:</source>
-        <translation type="unfinished">Opvulteken:</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Show levels:</source>
-        <translation type="unfinished">Niveaus weergeven:</translation>
-    </message>
-    <message>
-        <location line="+23"/>
+        <location line="+33"/>
         <source>The document has more headings than a table of contents holds, so the table stops at the first 20,000.</source>
         <translation type="unfinished">Het document bevat meer koppen dan een inhoudsopgave kan bevatten. De inhoudsopgave stopt daarom bij de eerste 20.000.</translation>
     </message>
@@ -67279,25 +67368,21 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
 <context>
     <name>jp::write::GoToDialog</name>
     <message>
-        <location filename="../apps/write/app/gotodialog.cpp" line="+41"/>
+        <location filename="../apps/write/app/gotodialog.cpp" line="+42"/>
         <location line="+41"/>
         <source>Go To</source>
         <translation type="unfinished">Ga naar</translation>
     </message>
     <message>
         <location line="-39"/>
-        <source>Go to what:</source>
-        <translation type="unfinished">Ga naar:</translation>
-    </message>
-    <message>
         <location line="+3"/>
         <source>Go to what</source>
-        <translation type="unfinished">Ga naar</translation>
+        <translation>Ga naar</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Page</source>
-        <translation type="unfinished">Pagina</translation>
+        <translation>Pagina</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -67357,7 +67442,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+1"/>
         <source>Comment</source>
-        <translation type="unfinished">Opmerking</translation>
+        <translation>Opmerking</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -67466,27 +67551,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Tekst sorteren</translation>
     </message>
     <message>
-        <location line="+4"/>
-        <source>Column:</source>
-        <translation type="unfinished">Kolom:</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Field:</source>
-        <translation type="unfinished">Veld:</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Type:</source>
-        <translation type="unfinished">Type:</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Order:</source>
-        <translation type="unfinished">Volgorde:</translation>
-    </message>
-    <message>
-        <location line="+1"/>
+        <location line="+7"/>
         <source>Sort by</source>
         <translation type="unfinished">Sorteren op</translation>
     </message>
@@ -67499,7 +67564,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+12"/>
         <source>Text</source>
-        <translation type="unfinished">Tekst</translation>
+        <translation>Tekst</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -67562,37 +67627,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Volledig document</translation>
     </message>
     <message>
-        <location line="+7"/>
-        <source>Pages:</source>
-        <translation type="unfinished">Pagina&apos;s:</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Words:</source>
-        <translation type="unfinished">Woorden:</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Characters (no spaces):</source>
-        <translation type="unfinished">Tekens (zonder spaties):</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Characters (with spaces):</source>
-        <translation type="unfinished">Tekens (met spaties):</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Paragraphs:</source>
-        <translation type="unfinished">Alinea&apos;s:</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Lines:</source>
-        <translation type="unfinished">Lijnen:</translation>
-    </message>
-    <message>
-        <location line="+10"/>
+        <location line="+17"/>
         <source>Include footnotes and endnotes</source>
         <translation type="unfinished">Voetnoten en eindnoten meetellen</translation>
     </message>
@@ -67602,37 +67637,22 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Plakken speciaal</translation>
     </message>
     <message>
-        <location line="+2"/>
-        <source>Paste the clipboard as:</source>
-        <translation type="unfinished">Klembord plakken als:</translation>
-    </message>
-    <message>
         <location filename="../libs/shell/app/translate.cpp" line="-95"/>
         <source>Language</source>
-        <translation type="unfinished">Taal</translation>
+        <translation>Taal</translation>
     </message>
     <message>
-        <location line="+2"/>
-        <source>Mark the selected text as:</source>
-        <translation type="unfinished">Geselecteerde tekst markeren als:</translation>
-    </message>
-    <message>
-        <location line="+14"/>
+        <location line="+16"/>
         <source>Do not check spelling</source>
         <translation type="unfinished">Spelling niet controleren</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/homedialogs.cpp" line="+18"/>
+        <location filename="../apps/write/app/homedialogs.cpp" line="+20"/>
         <source>Thesaurus</source>
         <translation type="unfinished">Synoniemenlijst</translation>
     </message>
     <message>
-        <location line="+2"/>
-        <source>Look up:</source>
-        <translation type="unfinished">Opzoeken:</translation>
-    </message>
-    <message>
-        <location line="+11"/>
+        <location line="+13"/>
         <source>(Type a word to look up)</source>
         <translation type="unfinished">(Typ een woord om op te zoeken)</translation>
     </message>
@@ -67770,19 +67790,24 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Vertalen</translation>
     </message>
     <message>
-        <location line="+2"/>
-        <source>Translate the whole document into:</source>
-        <translation type="unfinished">Volledig document vertalen naar:</translation>
+        <location line="-41"/>
+        <source>Mark the selected text as</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+43"/>
+        <source>Translate the whole document into</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+0"/>
-        <source>Translate the selected text into:</source>
-        <translation type="unfinished">Geselecteerde tekst vertalen naar:</translation>
+        <source>Translate the selected text into</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+9"/>
-        <source>Translation service (a LibreTranslate address):</source>
-        <translation type="unfinished">Vertaalservice (een LibreTranslate-adres):</translation>
+        <source>Translation service (a LibreTranslate address)</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+4"/>
@@ -67830,12 +67855,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Dit document is beveiligd: %1</translation>
     </message>
     <message>
-        <location line="+3"/>
-        <source>Password to stop the protection:</source>
-        <translation type="unfinished">Wachtwoord om de beveiliging op te heffen:</translation>
-    </message>
-    <message>
-        <location line="+7"/>
+        <location line="+10"/>
         <source>Every change will be tracked, and Track Changes cannot be turned off without the password.</source>
         <translation type="unfinished">Elke wijziging wordt bijgehouden en Wijzigingen bijhouden kan niet worden uitgeschakeld zonder het wachtwoord.</translation>
     </message>
@@ -67845,17 +67865,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Kies wat mensen in dit document mogen doen.</translation>
     </message>
     <message>
-        <location line="+9"/>
-        <source>Password (you can leave this empty):</source>
-        <translation type="unfinished">Wachtwoord (u kunt dit leeg laten):</translation>
-    </message>
-    <message>
-        <location line="+5"/>
-        <source>Type it again:</source>
-        <translation type="unfinished">Typ het opnieuw:</translation>
-    </message>
-    <message>
-        <location line="+7"/>
+        <location line="+21"/>
         <source>Stop Protection</source>
         <translation type="unfinished">Beveiliging opheffen</translation>
     </message>
@@ -67872,17 +67882,17 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+28"/>
         <source>Red</source>
-        <translation type="unfinished">Rood</translation>
+        <translation>Rood</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Blue</source>
-        <translation type="unfinished">Blauw</translation>
+        <translation>Blauw</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Green</source>
-        <translation type="unfinished">Groen</translation>
+        <translation>Groen</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -67912,7 +67922,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+0"/>
         <source>Black</source>
-        <translation type="unfinished">Zwart</translation>
+        <translation>Zwart</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -67935,19 +67945,94 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Wijzigingen en opmerkingen worden ondertekend met deze naam en deze initialen.</translation>
     </message>
     <message>
-        <location line="+7"/>
-        <source>User name:</source>
-        <translation type="unfinished">Gebruikersnaam:</translation>
+        <location line="-308"/>
+        <source>Column</source>
+        <translation type="unfinished">Kolom</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Field</source>
+        <translation type="unfinished">Veld</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Type</source>
+        <translation type="unfinished">Type</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Order</source>
+        <translation>Volgorde</translation>
+    </message>
+    <message>
+        <location line="+90"/>
+        <source>Pages</source>
+        <translation>Pagina&apos;s</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Words</source>
+        <translation type="unfinished">Woorden</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Characters (no spaces)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Characters (with spaces)</source>
+        <translation type="unfinished">Tekens (met spaties)</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Paragraphs</source>
+        <translation type="unfinished">Alinea&apos;s</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Lines</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+38"/>
+        <source>Paste the clipboard as</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+20"/>
+        <source>Look up</source>
+        <translation>Opzoeken</translation>
+    </message>
+    <message>
+        <location line="+66"/>
+        <source>Password to stop the protection</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>Password (you can leave this empty)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Type it again</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+77"/>
+        <source>User name</source>
+        <translation>Gebruikersnaam</translation>
     </message>
     <message>
         <location line="+2"/>
-        <source>Initials:</source>
-        <translation type="unfinished">Initialen:</translation>
+        <source>Initials</source>
+        <translation>Initialen</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Underline</source>
-        <translation type="unfinished">Onderstreept</translation>
+        <translation>Onderstrepen</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -68031,7 +68116,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+1"/>
         <source>Color</source>
-        <translation type="unfinished">Kleur</translation>
+        <translation>Kleur</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -68085,11 +68170,16 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location line="+2"/>
-        <source>This document is the original. Choose the revised version:</source>
-        <translation type="unfinished">Dit document is het origineel. Kies de gewijzigde versie:</translation>
+        <source>This document is the original. Choose the revised version</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+13"/>
+        <source>Label the changes with this name</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-9"/>
         <source>Browse…</source>
         <translation type="unfinished">Bladeren…</translation>
     </message>
@@ -68109,12 +68199,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Alle bestanden (*)</translation>
     </message>
     <message>
-        <location line="+3"/>
-        <source>Label the changes with this name:</source>
-        <translation type="unfinished">Geef de wijzigingen deze naam:</translation>
-    </message>
-    <message>
-        <location line="+4"/>
+        <location line="+7"/>
         <source>Compare letter by letter, not word by word</source>
         <translation type="unfinished">Vergelijken letter voor letter, niet woord voor woord</translation>
     </message>
@@ -68234,7 +68319,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location filename="../apps/write/core/homeops.cpp" line="+432"/>
         <source>Paragraph style</source>
-        <translation type="unfinished">Alineastijl</translation>
+        <translation>Alineastijl</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -68249,12 +68334,12 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+3"/>
         <source>Font</source>
-        <translation type="unfinished">Lettertype</translation>
+        <translation>Lettertype</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Size</source>
-        <translation type="unfinished">Grootte</translation>
+        <translation>Grootte</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -68314,7 +68399,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+1"/>
         <source>Color</source>
-        <translation type="unfinished">Kleur</translation>
+        <translation>Kleur</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -68324,7 +68409,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+2"/>
         <source>Alignment</source>
-        <translation type="unfinished">Uitlijning</translation>
+        <translation>Uitlijning</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -68334,7 +68419,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+0"/>
         <source>Right</source>
-        <translation type="unfinished">Rechts</translation>
+        <translation>Rechts</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -68344,7 +68429,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+0"/>
         <source>Left</source>
-        <translation type="unfinished">Links</translation>
+        <translation>Links</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -68369,13 +68454,13 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+2"/>
         <source>Language</source>
-        <translation type="unfinished">Taal</translation>
+        <translation>Taal</translation>
     </message>
 </context>
 <context>
     <name>jp::write::LayoutDialogs</name>
     <message>
-        <location filename="../apps/write/app/layoutdialogs.cpp" line="+56"/>
+        <location filename="../apps/write/app/layoutdialogs.cpp" line="+57"/>
         <source>This section</source>
         <translation type="unfinished">Deze sectie</translation>
     </message>
@@ -68388,7 +68473,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="-292"/>
         <source>Columns</source>
-        <translation type="unfinished">Kolommen</translation>
+        <translation>Kolommen</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -68401,35 +68486,23 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Lijn ertussen</translation>
     </message>
     <message>
-        <location line="+4"/>
-        <source>Number of columns:</source>
-        <translation type="unfinished">Aantal kolommen:</translation>
-    </message>
-    <message>
-        <location line="+6"/>
+        <location line="+10"/>
         <source>Column</source>
         <translation type="unfinished">Kolom</translation>
     </message>
     <message>
         <location line="+1"/>
+        <location line="+275"/>
         <source>Width</source>
-        <translation type="unfinished">Breedte</translation>
+        <translation>Breedte</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="-274"/>
         <source>Spacing</source>
-        <translation type="unfinished">Afstand</translation>
+        <translation>Afstand</translation>
     </message>
     <message>
-        <location line="+21"/>
-        <location line="+162"/>
-        <location line="+97"/>
-        <location line="+84"/>
-        <source>Apply to:</source>
-        <translation type="unfinished">Toepassen op:</translation>
-    </message>
-    <message>
-        <location line="-301"/>
+        <location line="+63"/>
         <source>One</source>
         <translation type="unfinished">Één</translation>
     </message>
@@ -68448,17 +68521,32 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <location line="+34"/>
         <location line="+121"/>
         <source>Left</source>
-        <translation type="unfinished">Links</translation>
+        <translation>Links</translation>
     </message>
     <message>
         <location line="-154"/>
         <location line="+34"/>
         <location line="+121"/>
         <source>Right</source>
-        <translation type="unfinished">Rechts</translation>
+        <translation>Rechts</translation>
     </message>
     <message>
-        <location line="-98"/>
+        <location line="-116"/>
+        <source>Alignment</source>
+        <translation>Uitlijning</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Align relative to</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Leader</source>
+        <translation type="unfinished">Opvulteken</translation>
+    </message>
+    <message>
+        <location line="+16"/>
         <source>Hyphenation Options</source>
         <translation type="unfinished">Opties voor woordafbreking</translation>
     </message>
@@ -68473,17 +68561,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Geen limiet</translation>
     </message>
     <message>
-        <location line="+2"/>
-        <source>Hyphenation zone:</source>
-        <translation type="unfinished">Afbrekingszone:</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Limit consecutive hyphens to:</source>
-        <translation type="unfinished">Opeenvolgende afbrekingstekens beperken tot:</translation>
-    </message>
-    <message>
-        <location line="+18"/>
+        <location line="+21"/>
         <source>Line Numbers</source>
         <translation type="unfinished">Regelnummers</translation>
     </message>
@@ -68508,28 +68586,93 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Doorlopend</translation>
     </message>
     <message>
+        <location line="+3"/>
+        <source>From text</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Count by</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Numbering</source>
+        <translation type="unfinished">Nummering</translation>
+    </message>
+    <message>
+        <location line="+92"/>
+        <source>Style</source>
+        <translation>Stijl</translation>
+    </message>
+    <message>
         <location line="+2"/>
-        <location line="+166"/>
+        <location line="+197"/>
+        <source>Color</source>
+        <translation>Kleur</translation>
+    </message>
+    <message>
+        <location line="-196"/>
+        <source>Distance</source>
+        <translation>Afstand</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Measure from</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Pages</source>
+        <translation>Pagina&apos;s</translation>
+    </message>
+    <message>
+        <location line="+60"/>
+        <source>Use separator</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
         <source>Start at:</source>
         <translation type="unfinished">Beginnen bij:</translation>
     </message>
     <message>
-        <location line="-165"/>
-        <source>From text:</source>
-        <translation type="unfinished">Vanuit tekst:</translation>
+        <location line="+66"/>
+        <source>Position</source>
+        <translation>Positie</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Lines to drop</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>Count by:</source>
-        <translation type="unfinished">Tellen per:</translation>
+        <source>Letters</source>
+        <translation type="unfinished">Brieven</translation>
+    </message>
+    <message>
+        <location line="+57"/>
+        <source>Font</source>
+        <translation>Lettertype</translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>Numbering:</source>
-        <translation type="unfinished">Nummering:</translation>
+        <source>Size</source>
+        <translation>Grootte</translation>
     </message>
     <message>
-        <location line="+29"/>
+        <location line="+3"/>
+        <source>Layout</source>
+        <translation>Indeling</translation>
+    </message>
+    <message>
+        <location line="+32"/>
+        <source>Available formats</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-296"/>
         <source>Page Borders</source>
         <translation type="unfinished">Paginaranden</translation>
     </message>
@@ -68541,12 +68684,12 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+9"/>
         <source>Top</source>
-        <translation type="unfinished">Boven</translation>
+        <translation>Boven</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Bottom</source>
-        <translation type="unfinished">Onder</translation>
+        <translation>Onder</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -68561,7 +68704,20 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Geen</translation>
     </message>
     <message>
-        <location line="-300"/>
+        <location line="-399"/>
+        <source>Number of columns</source>
+        <translation>Aantal kolommen</translation>
+    </message>
+    <message>
+        <location line="+29"/>
+        <location line="+162"/>
+        <location line="+97"/>
+        <location line="+84"/>
+        <source>Apply to</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-273"/>
         <source>Alignment Tab</source>
         <translation type="unfinished">Tabblad Uitlijning</translation>
     </message>
@@ -68601,22 +68757,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Middelpunten</translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>Alignment:</source>
-        <translation type="unfinished">Uitlijning:</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Align relative to:</source>
-        <translation type="unfinished">Uitlijnen ten opzichte van:</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Leader:</source>
-        <translation type="unfinished">Opvulteken:</translation>
-    </message>
-    <message>
-        <location line="+127"/>
+        <location line="+130"/>
         <source>Single line</source>
         <translation type="unfinished">Enkele lijn</translation>
     </message>
@@ -68642,11 +68783,12 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location line="+28"/>
+        <location line="+205"/>
         <source>Text</source>
-        <translation type="unfinished">Tekst</translation>
+        <translation>Tekst</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="-204"/>
         <source>Edge of page</source>
         <translation type="unfinished">Paginarand</translation>
     </message>
@@ -68661,50 +68803,15 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Alle pagina&apos;s van deze sectie behalve de eerste</translation>
     </message>
     <message>
-        <location line="+2"/>
-        <source>Style:</source>
-        <translation type="unfinished">Stijl:</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Width:</source>
-        <translation type="unfinished">Breedte:</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <location line="+197"/>
-        <source>Color:</source>
-        <translation type="unfinished">Kleur:</translation>
-    </message>
-    <message>
-        <location line="-196"/>
-        <source>Distance:</source>
-        <translation type="unfinished">Afstand:</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Measure from:</source>
-        <translation type="unfinished">Meten vanaf:</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Pages:</source>
-        <translation type="unfinished">Pagina&apos;s:</translation>
-    </message>
-    <message>
-        <location line="+30"/>
+        <location line="+37"/>
         <source>Page Number Format</source>
         <translation type="unfinished">Opmaak paginanummer</translation>
     </message>
     <message>
         <location line="+5"/>
-        <source>Number format</source>
-        <translation type="unfinished">Getalnotatie</translation>
-    </message>
-    <message>
         <location line="+3"/>
-        <source>Number format:</source>
-        <translation type="unfinished">Getalnotatie:</translation>
+        <source>Number format</source>
+        <translation>Getalnotatie</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -68713,11 +68820,12 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location line="+7"/>
+        <location line="+12"/>
         <source>Chapter starts with style</source>
         <translation type="unfinished">Hoofdstuk begint met stijl</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="-11"/>
         <source>Heading %1</source>
         <translation type="unfinished">Kop %1</translation>
     </message>
@@ -68752,17 +68860,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished"> (en-streepje)</translation>
     </message>
     <message>
-        <location line="+2"/>
-        <source>Chapter starts with style:</source>
-        <translation type="unfinished">Hoofdstuk begint met stijl:</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Use separator:</source>
-        <translation type="unfinished">Scheidingsteken gebruiken:</translation>
-    </message>
-    <message>
-        <location line="+2"/>
+        <location line="+5"/>
         <source>Page numbering</source>
         <translation type="unfinished">Paginanummering</translation>
     </message>
@@ -68772,12 +68870,23 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Doorgaan vanaf vorige sectie</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="-164"/>
+        <location line="+170"/>
         <source>Start at</source>
-        <translation type="unfinished">Beginnen bij</translation>
+        <translation>Beginnen bij</translation>
     </message>
     <message>
-        <location line="+38"/>
+        <location line="-211"/>
+        <source>Hyphenation zone</source>
+        <translation>Afbreekzone</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Limit consecutive hyphens to</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+248"/>
         <source>Drop Cap</source>
         <translation type="unfinished">Initiaal</translation>
     </message>
@@ -68792,22 +68901,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Eigen lettertype gebruiken:</translation>
     </message>
     <message>
-        <location line="+14"/>
-        <source>Position:</source>
-        <translation type="unfinished">Positie:</translation>
-    </message>
-    <message>
-        <location line="+2"/>
-        <source>Lines to drop:</source>
-        <translation type="unfinished">Te verlagen lijnen:</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Letters:</source>
-        <translation type="unfinished">Letters:</translation>
-    </message>
-    <message>
-        <location line="+20"/>
+        <location line="+37"/>
         <source>Custom Watermark</source>
         <translation type="unfinished">Aangepast watermerk</translation>
     </message>
@@ -68832,37 +68926,12 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Horizontaal</translation>
     </message>
     <message>
-        <location line="+2"/>
-        <source>Text:</source>
-        <translation type="unfinished">Tekst:</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Font:</source>
-        <translation type="unfinished">Lettertype:</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>Size:</source>
-        <translation type="unfinished">Grootte:</translation>
-    </message>
-    <message>
-        <location line="+3"/>
-        <source>Layout:</source>
-        <translation type="unfinished">Indeling:</translation>
-    </message>
-    <message>
-        <location line="+30"/>
+        <location line="+37"/>
         <source>Date and Time</source>
         <translation type="unfinished">Datum en tijd</translation>
     </message>
     <message>
-        <location line="+2"/>
-        <source>Available formats:</source>
-        <translation type="unfinished">Beschikbare notaties:</translation>
-    </message>
-    <message>
-        <location line="+11"/>
+        <location line="+13"/>
         <source>Update automatically</source>
         <translation type="unfinished">Automatisch bijwerken</translation>
     </message>
@@ -68870,7 +68939,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
 <context>
     <name>jp::write::LinkDialog</name>
     <message>
-        <location filename="../apps/write/app/linkdialog.cpp" line="+46"/>
+        <location filename="../apps/write/app/linkdialog.cpp" line="+47"/>
         <source>Edit Hyperlink</source>
         <translation type="unfinished">Hyperlink bewerken</translation>
     </message>
@@ -68896,23 +68965,23 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location line="+8"/>
-        <source>Text to display:</source>
-        <translation type="unfinished">Weer te geven tekst:</translation>
+        <source>Text to display</source>
+        <translation>Weer te geven tekst</translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>Address:</source>
-        <translation type="unfinished">Adres:</translation>
+        <source>Address</source>
+        <translation>Adres</translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>Bookmark:</source>
-        <translation type="unfinished">Bladwijzer:</translation>
+        <source>Bookmark</source>
+        <translation type="unfinished">Bladwijzer</translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>Screen tip:</source>
-        <translation type="unfinished">Schermtip:</translation>
+        <source>Screen tip</source>
+        <translation type="unfinished">Scherminfo</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -69133,7 +69202,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
 <context>
     <name>jp::write::MultilevelDialog</name>
     <message>
-        <location filename="../apps/write/app/multileveldialog.cpp" line="+42"/>
+        <location filename="../apps/write/app/multileveldialog.cpp" line="+43"/>
         <source>Define New Multilevel List</source>
         <translation type="unfinished">Nieuwe meerniveaulijst definiëren</translation>
     </message>
@@ -69149,34 +69218,9 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">(geen)</translation>
     </message>
     <message>
-        <location line="-70"/>
-        <source>Number style for this level:</source>
-        <translation type="unfinished">Nummeringsstijl voor dit niveau:</translation>
-    </message>
-    <message>
-        <location line="+3"/>
-        <source>Number format (%1 to %9 are the numbers of the levels):</source>
-        <translation type="unfinished">Nummeringsindeling (%1 tot %9 zijn de nummers van de niveaus):</translation>
-    </message>
-    <message>
-        <location line="+3"/>
-        <source>Include the number from level:</source>
-        <translation type="unfinished">Nummer van niveau opnemen:</translation>
-    </message>
-    <message>
-        <location line="+4"/>
-        <source>Start at:</source>
-        <translation type="unfinished">Beginnen bij:</translation>
-    </message>
-    <message>
-        <location line="+3"/>
-        <source>Restart the list after:</source>
-        <translation type="unfinished">Lijst opnieuw laten beginnen na:</translation>
-    </message>
-    <message>
-        <location line="+3"/>
+        <location line="-54"/>
         <source>Left</source>
-        <translation type="unfinished">Links</translation>
+        <translation>Links</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -69186,32 +69230,17 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+1"/>
         <source>Right</source>
-        <translation type="unfinished">Rechts</translation>
+        <translation>Rechts</translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>Number alignment:</source>
-        <translation type="unfinished">Uitlijning van nummer:</translation>
-    </message>
-    <message>
-        <location line="+5"/>
+        <location line="+6"/>
         <location line="+6"/>
         <location line="+22"/>
         <source> pt</source>
         <translation type="unfinished"> pt</translation>
     </message>
     <message>
-        <location line="-27"/>
-        <source>Number position at:</source>
-        <translation type="unfinished">Positie van nummer op:</translation>
-    </message>
-    <message>
-        <location line="+6"/>
-        <source>Text indent at:</source>
-        <translation type="unfinished">Tekst inspringen op:</translation>
-    </message>
-    <message>
-        <location line="+3"/>
+        <location line="-18"/>
         <source>Tab character</source>
         <translation type="unfinished">Tabteken</translation>
     </message>
@@ -69226,12 +69255,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Niets</translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>Follow the number with:</source>
-        <translation type="unfinished">Nummer laten volgen door:</translation>
-    </message>
-    <message>
-        <location line="+1"/>
+        <location line="+2"/>
         <source>Legal style numbering (1.1.1 in place of I.A.1)</source>
         <translation type="unfinished">Juridische nummering (1.1.1 in plaats van I.A.1)</translation>
     </message>
@@ -69241,23 +69265,13 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Een eigen lettertype gebruiken voor het nummer</translation>
     </message>
     <message>
-        <location line="+5"/>
-        <source>Font:</source>
-        <translation type="unfinished">Lettertype:</translation>
-    </message>
-    <message>
-        <location line="+6"/>
+        <location line="+11"/>
         <location line="+13"/>
         <source>Same as the text</source>
         <translation type="unfinished">Zelfde als de tekst</translation>
     </message>
     <message>
-        <location line="-12"/>
-        <source>Size:</source>
-        <translation type="unfinished">Grootte:</translation>
-    </message>
-    <message>
-        <location line="+1"/>
+        <location line="-11"/>
         <source>Bold</source>
         <translation type="unfinished">Vet</translation>
     </message>
@@ -69267,19 +69281,74 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Cursief</translation>
     </message>
     <message>
+        <location line="-57"/>
+        <source>Number style for this level</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Number format (%1 to %9 are the numbers of the levels)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Include the number from level</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Start at</source>
+        <translation>Beginnen bij</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Restart the list after</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Number alignment</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Number position at</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Text indent at</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Follow the number with</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location line="+10"/>
-        <source>Color:</source>
-        <translation type="unfinished">Kleur:</translation>
+        <source>Font</source>
+        <translation>Lettertype</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Size</source>
+        <translation>Grootte</translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>Color</source>
+        <translation>Kleur</translation>
     </message>
     <message>
         <location line="+5"/>
-        <source>Link level to style:</source>
-        <translation type="unfinished">Niveau koppelen aan stijl:</translation>
+        <source>Link level to style</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+2"/>
-        <source>Preview:</source>
-        <translation type="unfinished">Voorbeeld:</translation>
+        <source>Preview</source>
+        <translation type="unfinished">Voorbeeld</translation>
     </message>
     <message>
         <location line="+73"/>
@@ -69554,7 +69623,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location filename="../apps/write/app/pageview_input.cpp" line="-176"/>
         <location filename="../apps/write/app/pageview_pictures.cpp" line="+18"/>
-        <location filename="../apps/write/core/pictureops.cpp" line="+1905"/>
+        <location filename="../apps/write/core/pictureops.cpp" line="+1906"/>
         <source>That shape can&apos;t be put here.</source>
         <translation type="unfinished">Die vorm kan hier niet worden geplaatst.</translation>
     </message>
@@ -69598,28 +69667,28 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <location filename="../apps/write/core/pictureops.cpp" line="-1334"/>
         <location line="+323"/>
         <location line="+1836"/>
-        <location line="+1113"/>
+        <location line="+1333"/>
         <source>The pictures in this document are as large together as JeffWrite puts in one, so this one is not added.</source>
         <translation type="unfinished">De afbeeldingen in dit document hebben samen de maximale grootte die JeffWrite in één document toestaat. Deze afbeelding wordt daarom niet toegevoegd.</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/pictureops.cpp" line="-3281"/>
+        <location filename="../apps/write/core/pictureops.cpp" line="-3501"/>
         <location line="+346"/>
         <location line="+640"/>
-        <location line="+2477"/>
+        <location line="+2705"/>
         <source>A picture can&apos;t be put in a header, a footer, or a note yet.</source>
         <translation type="unfinished">Een afbeelding kan nog niet in een koptekst, voettekst of noot worden ingevoegd.</translation>
     </message>
     <message>
-        <location line="-3430"/>
+        <location line="-3658"/>
         <location line="+338"/>
         <location line="+638"/>
-        <location line="+2479"/>
+        <location line="+2707"/>
         <source>A picture can&apos;t be put here, or this document holds as many pictures and drawn objects as JeffWrite can show.</source>
         <translation type="unfinished">Een afbeelding kan hier niet worden ingevoegd, of dit document bevat al zoveel afbeeldingen en getekende objecten als JeffWrite kan weergeven.</translation>
     </message>
     <message>
-        <location line="-3419"/>
+        <location line="-3647"/>
         <source>This document holds as many pictures and drawn objects as JeffWrite can show. Save it, and open it again, to change more.</source>
         <translation type="unfinished">Dit document bevat zoveel afbeeldingen en getekende objecten als JeffWrite kan weergeven. Sla het op en open het opnieuw om meer te wijzigen.</translation>
     </message>
@@ -69652,7 +69721,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Reeks %1</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/pictureops.cpp" line="+1619"/>
+        <location filename="../apps/write/core/pictureops.cpp" line="+1847"/>
         <source>This chart has parts that JeffWrite does not change, so it is kept as it is.</source>
         <translation type="unfinished">Deze grafiek heeft onderdelen die JeffWrite niet wijzigt, dus deze blijft ongewijzigd.</translation>
     </message>
@@ -69717,7 +69786,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+0"/>
         <source>Description</source>
-        <translation type="unfinished">Beschrijving</translation>
+        <translation>Beschrijving</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -69727,7 +69796,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+0"/>
         <source>Price</source>
-        <translation type="unfinished">Prijs</translation>
+        <translation>Prijs</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -69795,7 +69864,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+287"/>
         <source>First line indent</source>
-        <translation type="unfinished">Eerste regel inspringen</translation>
+        <translation>Inspringing eerste regel</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -69805,22 +69874,22 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+1"/>
         <source>Left indent</source>
-        <translation type="unfinished">Links inspringen</translation>
+        <translation>Inspringing links</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Right indent</source>
-        <translation type="unfinished">Rechts inspringen</translation>
+        <translation>Inspringing rechts</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Left margin</source>
-        <translation type="unfinished">Linkermarge</translation>
+        <translation>Linkermarge</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Right margin</source>
-        <translation type="unfinished">Rechtermarge</translation>
+        <translation>Rechtermarge</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -69890,13 +69959,9 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <name>jp::write::SpellPane</name>
     <message>
         <location filename="../apps/write/app/spellpane.cpp" line="+35"/>
-        <source>Suggestions:</source>
-        <translation type="unfinished">Suggesties:</translation>
-    </message>
-    <message>
         <location line="+3"/>
         <source>Suggestions</source>
-        <translation type="unfinished">Suggesties</translation>
+        <translation>Suggesties</translation>
     </message>
     <message>
         <location line="+9"/>
@@ -69962,7 +70027,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
 <context>
     <name>jp::write::StyleDialog</name>
     <message>
-        <location filename="../apps/write/app/styledialog.cpp" line="+42"/>
+        <location filename="../apps/write/app/styledialog.cpp" line="+43"/>
         <source>Automatic</source>
         <translation type="unfinished">Automatisch</translation>
     </message>
@@ -69977,27 +70042,17 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Nieuwe stijl maken op basis van opmaak</translation>
     </message>
     <message>
-        <location line="+10"/>
-        <source>Name:</source>
-        <translation type="unfinished">Naam:</translation>
-    </message>
-    <message>
-        <location line="+4"/>
+        <location line="+14"/>
         <source>Paragraph</source>
         <translation type="unfinished">Alinea</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Character</source>
-        <translation type="unfinished">Teken</translation>
+        <translation>Teken</translation>
     </message>
     <message>
-        <location line="+3"/>
-        <source>Style type:</source>
-        <translation type="unfinished">Stijltype:</translation>
-    </message>
-    <message>
-        <location line="+11"/>
+        <location line="+14"/>
         <source>(no style)</source>
         <translation type="unfinished">(geen stijl)</translation>
     </message>
@@ -70007,19 +70062,29 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">(dezelfde stijl)</translation>
     </message>
     <message>
-        <location line="+20"/>
-        <source>Based on:</source>
-        <translation type="unfinished">Gebaseerd op:</translation>
+        <location line="-20"/>
+        <source>Name</source>
+        <translation>Naam</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Style type</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+32"/>
+        <source>Based on</source>
+        <translation>Gebaseerd op</translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>Style for the following paragraph:</source>
-        <translation type="unfinished">Stijl voor volgende alinea:</translation>
+        <source>Style for the following paragraph</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+17"/>
-        <source>Font:</source>
-        <translation type="unfinished">Lettertype:</translation>
+        <source>Font</source>
+        <translation>Lettertype</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -70034,7 +70099,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+0"/>
         <source>Underline</source>
-        <translation type="unfinished">Onderstrepen</translation>
+        <translation>Onderstrepen</translation>
     </message>
     <message>
         <location line="+14"/>
@@ -70044,7 +70109,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+14"/>
         <source>Left</source>
-        <translation type="unfinished">Links</translation>
+        <translation>Links</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -70054,7 +70119,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+1"/>
         <source>Right</source>
-        <translation type="unfinished">Rechts</translation>
+        <translation>Rechts</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -70063,38 +70128,38 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location line="+20"/>
-        <source>Alignment:</source>
-        <translation type="unfinished">Uitlijning:</translation>
+        <source>Alignment</source>
+        <translation>Uitlijning</translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>Indentation, left:</source>
-        <translation type="unfinished">Inspringing, links:</translation>
+        <source>Indentation, left</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>Indentation, right:</source>
-        <translation type="unfinished">Inspringing, rechts:</translation>
+        <source>Indentation, right</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>First line:</source>
-        <translation type="unfinished">Eerste regel:</translation>
+        <source>First line</source>
+        <translation type="unfinished">Eerste regel</translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>Spacing, before:</source>
-        <translation type="unfinished">Afstand, voor:</translation>
+        <source>Spacing, before</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>Spacing, after:</source>
-        <translation type="unfinished">Afstand, na:</translation>
+        <source>Spacing, after</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>Line spacing (lines):</source>
-        <translation type="unfinished">Regelafstand (regels):</translation>
+        <source>Line spacing (lines)</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+4"/>
@@ -70205,22 +70270,22 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location filename="../apps/write/app/tabledialogs.cpp" line="+361"/>
         <source>Top</source>
-        <translation type="unfinished">Boven</translation>
+        <translation>Boven</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Bottom</source>
-        <translation type="unfinished">Onder</translation>
+        <translation>Onder</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Left</source>
-        <translation type="unfinished">Links</translation>
+        <translation>Links</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Right</source>
-        <translation type="unfinished">Rechts</translation>
+        <translation>Rechts</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -70364,7 +70429,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <location line="+314"/>
         <location line="+59"/>
         <location line="+7"/>
-        <location line="+287"/>
+        <location line="+320"/>
         <location line="+206"/>
         <location line="+10"/>
         <source>drawing shapes</source>
@@ -70383,7 +70448,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location line="+303"/>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="+1348"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="+1368"/>
         <source>tables nested too deeply</source>
         <translation type="unfinished">te diep geneste tabellen</translation>
     </message>
@@ -70514,14 +70579,14 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">markeringen &quot;spelling niet controleren&quot;</translation>
     </message>
     <message>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="-753"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="-773"/>
         <source>form fields (kept as the text they show)</source>
         <translation type="unfinished">formuliervelden (behouden als de tekst die ze weergeven)</translation>
     </message>
     <message>
         <location line="+181"/>
         <location line="+49"/>
-        <location line="+358"/>
+        <location line="+378"/>
         <source>drawings, shapes, and charts</source>
         <translation type="unfinished">tekeningen, vormen en grafieken</translation>
     </message>
