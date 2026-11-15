@@ -13,6 +13,7 @@
 #include "core/themeops.h"
 
 #include <QAction>
+#include <QCoreApplication>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QMenu>
@@ -23,6 +24,12 @@
 namespace jp {
 
 namespace {
+
+// A theme part with no place for the colors or fonts can't take them: nothing was changed, and the person is told.
+void tellNotApplied(QWidget *parent)
+{
+    jp::plainWarning(parent, QCoreApplication::translate("jp::WriteWindow", "Theme"), QCoreApplication::translate("jp::WriteWindow", "The theme could not be applied to this document. Nothing was changed."));
+}
 
 QIcon packIcon(const office::ThemePack &pack) { return themeColorsIcon(pack.colors); }
 
@@ -111,8 +118,13 @@ void WriteWindow::themeRibbonParts(RibbonParts &parts)
                 a->setEnabled(ok);
                 connect(a, &QAction::triggered, menu, [this, pack] {
                     if (!m_doc || refuseIfReadOnly()) return;
-                    office::Theme t = office::withThemeColors(write::documentTheme(*m_doc), pack.colors);
-                    t = office::withThemeFonts(t, pack.fonts);
+                    bool colorsOk = true, fontsOk = true;
+                    office::Theme t = office::withThemeColors(write::documentTheme(*m_doc), pack.colors, &colorsOk);
+                    t = office::withThemeFonts(t, pack.fonts, &fontsOk);
+                    if (!colorsOk || !fontsOk) {
+                        tellNotApplied(this);
+                        return;
+                    }
                     t.name = pack.name;
                     write::applyTheme(*m_doc, t);
                     m_view->setFocus(Qt::OtherFocusReason);
@@ -138,7 +150,9 @@ void WriteWindow::themeRibbonParts(RibbonParts &parts)
             hooks.dialogParent = this;
             hooks.chooseColors = [this](const office::ThemeColors &c) {
                 if (!m_doc || refuseIfReadOnly()) return;
-                write::applyThemeColors(*m_doc, c);
+                bool couldNot = false;
+                write::applyThemeColors(*m_doc, c, &couldNot);
+                if (couldNot) tellNotApplied(this);
                 m_view->setFocus(Qt::OtherFocusReason);
             };
             hooks.reset = [this] {
@@ -161,7 +175,9 @@ void WriteWindow::themeRibbonParts(RibbonParts &parts)
             hooks.dialogParent = this;
             hooks.chooseFonts = [this](const office::ThemeFonts &f) {
                 if (!m_doc || refuseIfReadOnly()) return;
-                write::applyThemeFonts(*m_doc, f);
+                bool couldNot = false;
+                write::applyThemeFonts(*m_doc, f, &couldNot);
+                if (couldNot) tellNotApplied(this);
                 m_view->setFocus(Qt::OtherFocusReason);
             };
             hooks.reset = [this] {

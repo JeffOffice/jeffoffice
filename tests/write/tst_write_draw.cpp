@@ -127,6 +127,57 @@ QByteArray docxWithStylesAndHeader(const QByteArray &body, const QByteArray &sec
     }
     return w.finish();
 }
+QByteArray partOf(const QByteArray &zip, const QString &name);
+
+// A document with a theme part, a style sheet, and one header (see docxWithStylesAndHeader): the theme's colors are the ones given.
+QByteArray themedDocx(const QByteArray &body, const QByteArray &sect, const QByteArray &styles, const QByteArray &header, const office::Theme &theme)
+{
+    office::PackageWriter w;
+    const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
+    const QByteArray head = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n";
+    w.addPart(QStringLiteral("/word/document.xml"), head + "<w:document " + kNs + "><w:body>" + body + sect + "</w:body></w:document>",
+              QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"));
+    w.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+    w.addPart(QStringLiteral("/word/styles.xml"), head + "<w:styles " + kNs + ">" + styles + "</w:styles>", QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"));
+    w.addRelationship(QStringLiteral("/word/document.xml"), rel + QStringLiteral("styles"), QStringLiteral("/word/styles.xml"));
+    w.addPart(QStringLiteral("/word/theme/theme1.xml"), office::writeTheme(theme), QStringLiteral("application/vnd.openxmlformats-officedocument.theme+xml"));
+    w.addRelationship(QStringLiteral("/word/document.xml"), rel + QStringLiteral("theme"), QStringLiteral("/word/theme/theme1.xml"));
+    if (!header.isEmpty()) {
+        w.addPart(QStringLiteral("/word/header1.xml"), head + "<w:hdr " + kNs + ">" + header + "</w:hdr>", QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"));
+        w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdheader1"), rel + QStringLiteral("header"), QStringLiteral("/word/header1.xml"));
+    }
+    return w.finish();
+}
+
+office::Theme themeWithAccent(const QColor &accent1)
+{
+    office::Theme t = office::defaultTheme();
+    t.colors[office::Theme::Accent1] = accent1;
+    t.xml = office::writeTheme(t);
+    return t;
+}
+
+const QByteArray kThemedStyles = "<w:style w:type=\"paragraph\" w:default=\"1\" w:styleId=\"Normal\"><w:name w:val=\"Normal\"/></w:style>"
+                                 "<w:style w:type=\"paragraph\" w:styleId=\"Heading1\"><w:name w:val=\"heading 1\"/><w:basedOn w:val=\"Normal\"/>"
+                                 "<w:rPr><w:color w:val=\"2F5496\" w:themeColor=\"accent1\" w:themeShade=\"BF\"/></w:rPr></w:style>";
+const QByteArray kThemedSect = "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/><w:pgSz w:w=\"12240\" w:h=\"15840\"/></w:sectPr>";
+
+// The lightness of the color (HSL) times the shade, as the file format says a theme shade is.
+QColor shadedBy(const QColor &c, int shade)
+{
+    float h, s, l, a;
+    c.getHslF(&h, &s, &l, &a);
+    return QColor::fromHslF(h, s, l * shade / 255.0f, a);
+}
+
+QByteArray styleElement(const QByteArray &docx, const QByteArray &id)
+{
+    const QByteArray styles = partOf(docx, QStringLiteral("/word/styles.xml"));
+    const int at = styles.indexOf("w:styleId=\"" + id + "\"");
+    return at < 0 ? QByteArray() : styles.mid(at, styles.indexOf("</w:style>", at) - at);
+}
+
+bool near(const QColor &a, const QColor &b) { return qAbs(a.red() - b.red()) <= 1 && qAbs(a.green() - b.green()) <= 1 && qAbs(a.blue() - b.blue()) <= 1; }
 
 QByteArray partOf(const QByteArray &zip, const QString &name)
 {
@@ -745,28 +796,28 @@ private Q_SLOTS:
         auto doc = WriteDoc::blank();
         const office::Theme first = documentTheme(*doc);
         QVERIFY(canChangeTheme(*doc));
-        QVERIFY(applyThemeFonts(*doc, {QStringLiteral("Pair"), QStringLiteral("Caladea"), QStringLiteral("Carlito")}));
-        QCOMPARE(doc->theme()->majorLatin, QStringLiteral("Caladea"));
+        QVERIFY(applyThemeFonts(*doc, {QStringLiteral("Pair"), QStringLiteral("Zephyr Heading"), QStringLiteral("Zephyr Body")}));
+        QCOMPARE(doc->theme()->majorLatin, QStringLiteral("Zephyr Heading"));
         QCOMPARE(doc->theme()->fontSchemeName, QStringLiteral("Pair"));
         const QByteArray part = partOf(doc->toDocx(), QStringLiteral("/word/theme/theme1.xml"));
-        QVERIFY(part.contains("Caladea"));
+        QVERIFY(part.contains("Zephyr Heading"));
         QVERIFY(part.contains("fmtScheme"));   // the rest of the part stayed
         QVERIFY(doc->undo());
         QCOMPARE(doc->theme()->majorLatin, first.majorLatin);
         // a whole theme from a theme file, then Reset with the theme the document had
         office::Theme file = office::withThemeColors(office::defaultTheme(), office::builtinThemeColors().at(6));
-        file = office::withThemeFonts(file, {QStringLiteral("Other"), QStringLiteral("Carlito"), QStringLiteral("Caladea")});
+        file = office::withThemeFonts(file, {QStringLiteral("Other"), QStringLiteral("Zephyr Body"), QStringLiteral("Zephyr Heading")});
         file.xml = office::writeTheme(file);
         office::Theme fromFile;
         QVERIFY(office::readThemeFromPackage(office::writeThemeFile(file), &fromFile));
         QVERIFY(applyTheme(*doc, fromFile));
         QVERIFY(office::themeColorsOf(*doc->theme()) == office::builtinThemeColors().at(6));
-        QCOMPARE(doc->theme()->minorLatin, QStringLiteral("Caladea"));
+        QCOMPARE(doc->theme()->minorLatin, QStringLiteral("Zephyr Heading"));
         QVERIFY(applyTheme(*doc, first));
         QVERIFY(office::themeColorsOf(*doc->theme()) == office::themeColorsOf(first));
         QCOMPARE(doc->theme()->minorLatin, first.minorLatin);
         QVERIFY(doc->undo());   // (Reset is one step too)
-        QCOMPARE(doc->theme()->minorLatin, QStringLiteral("Caladea"));
+        QCOMPARE(doc->theme()->minorLatin, QStringLiteral("Zephyr Heading"));
     }
 
     void aDocumentWithNoThemeTakesNone()
@@ -774,7 +825,7 @@ private Q_SLOTS:
         auto doc = open(makeDocx("<w:p><w:r><w:t>words</w:t></w:r></w:p>"));
         QVERIFY(!canChangeTheme(*doc));
         QVERIFY(!applyThemeColors(*doc, office::builtinThemeColors().first()));
-        QVERIFY(!applyThemeFonts(*doc, {QStringLiteral("x"), QStringLiteral("Carlito"), QStringLiteral("Carlito")}));
+        QVERIFY(!applyThemeFonts(*doc, {QStringLiteral("x"), QStringLiteral("Zephyr Body"), QStringLiteral("Zephyr Body")}));
     }
 
     void theDesignTabListsThemesColorsAndFontsAndTheyApplyInOneStep()
@@ -796,6 +847,11 @@ private Q_SLOTS:
             return nullptr;
         };
         const office::Theme first = *w.document()->theme();
+        jp::initCore();
+        office::ThemeFonts installed;   // (a pair that is installed here, other than the document's)
+        for (const office::ThemeFonts &f : office::builtinThemeFonts())
+            if (f.heading != first.majorLatin) installed = f;
+        QVERIFY(!installed.heading.isEmpty());
         // Create New Theme Colors: the box, then the set is kept for every app and chosen
         Q_EMIT colors->aboutToShow();
         QVERIFY(entry(colors, QStringLiteral("Create New Theme Colors")));
@@ -835,11 +891,11 @@ private Q_SLOTS:
         withDialog([&] { entry(fonts, QStringLiteral("Create New Theme Fonts"))->trigger(); }, QStringLiteral("themeFontsDialog"), [&](QDialog *d) {
             auto *box = qobject_cast<ThemeFontsDialog *>(d);
             QVERIFY(box);
-            box->headingBox()->setCurrentText(QStringLiteral("Caladea"));
+            box->headingBox()->setCurrentText(installed.heading);
             box->nameEdit()->setText(QStringLiteral("My Pair"));
             shotOf(d, QStringLiteral("write-create-new-theme-fonts"));
         });
-        QCOMPARE(w.document()->theme()->majorLatin, QStringLiteral("Caladea"));
+        QCOMPARE(w.document()->theme()->majorLatin, installed.heading);
         QCOMPARE(office::customThemeFonts().size(), 1);
         // Save Current Theme writes a file; Browse for Themes takes it back
         QTemporaryDir dir;
@@ -848,9 +904,127 @@ private Q_SLOTS:
         QVERIFY(w.resetTheme());
         QCOMPARE(w.document()->theme()->majorLatin, first.majorLatin);
         QVERIFY(w.applyThemeFile(file));
-        QCOMPARE(w.document()->theme()->majorLatin, QStringLiteral("Caladea"));
+        QCOMPARE(w.document()->theme()->majorLatin, installed.heading);
         QVERIFY(w.document()->undo());
         QCOMPARE(w.document()->theme()->majorLatin, first.majorLatin);
+    }
+
+    // A shade is worked out as the file format says (the lightness times the shade), and only a style whose slot got another color is touched: a change of fonts, or of other colors, leaves it as the file had it.
+    void aShadedStyleChangesOnlyWithItsSlotAndKeepsItsShade()
+    {
+        const QByteArray body = "<w:p><w:pPr><w:pStyle w:val=\"Heading1\"/></w:pPr><w:r><w:t>Title</w:t></w:r></w:p>";
+        const QColor old(0x44, 0x72, 0xC4);
+        const QByteArray file = themedDocx(body, kThemedSect, kThemedStyles, "<w:p><w:r><w:t>h</w:t></w:r></w:p>", themeWithAccent(old));
+        QVERIFY(near(shadedBy(old, 0xBF), QColor(0x2F, 0x54, 0x96)));
+        auto doc = open(file);
+        QVERIFY(doc->theme());
+        const QByteArray original = styleElement(doc->toDocx(), "Heading1");
+        QVERIFY(original.contains("2F5496"));
+        // (a) a change of fonts only
+        QVERIFY(applyThemeFonts(*doc, {QStringLiteral("Pair"), QStringLiteral("Zephyr Heading"), QStringLiteral("Zephyr Body")}));
+        QCOMPARE(styleElement(doc->toDocx(), "Heading1"), original);
+        // (b) colors in which accent 1 is the same
+        office::ThemeColors same = office::themeColorsOf(*doc->theme());
+        same.name = QStringLiteral("Same Accent");
+        same.colors[office::Theme::Accent2] = QColor(1, 2, 3);
+        QVERIFY(applyThemeColors(*doc, same));
+        QCOMPARE(styleElement(doc->toDocx(), "Heading1"), original);
+        QCOMPARE(doc->styleSheet().find(QStringLiteral("Heading1"))->rPr.color->val, QStringLiteral("2F5496"));
+        // (c) a new accent 1: the shade of it, with the file's shade kept
+        office::ThemeColors other = same;
+        other.name = QStringLiteral("New Accent");
+        other.colors[office::Theme::Accent1] = QColor(0xED, 0x7D, 0x31);
+        QVERIFY(applyThemeColors(*doc, other));
+        const QString val = doc->styleSheet().find(QStringLiteral("Heading1"))->rPr.color->val;
+        QVERIFY2(near(QColor(QLatin1Char('#') + val), shadedBy(QColor(0xED, 0x7D, 0x31), 0xBF)), qPrintable(val));
+        QVERIFY(styleElement(doc->toDocx(), "Heading1").contains("w:themeShade=\"BF\""));
+        // saved and opened again, the style still names the slot and its shade
+        auto back = open(doc->toDocx());
+        QCOMPARE(back->styleSheet().find(QStringLiteral("Heading1"))->rPr.color->shade, QStringLiteral("BF"));
+        QCOMPARE(back->styleSheet().find(QStringLiteral("Heading1"))->rPr.color->val, val);
+    }
+
+    // One Undo puts back a tinted heading, a themed run in the header, and a drawing that uses an accent, exactly; Redo does all three again.
+    void undoAndRedoPutBackAHeadingAHeaderRunAndADrawingExactly()
+    {
+        const QColor old(0x44, 0x72, 0xC4);
+        const QByteArray run = "<w:r><w:rPr><w:color w:val=\"4472C4\" w:themeColor=\"accent1\"/></w:rPr><w:t>Head</w:t></w:r>";
+        const QByteArray drawing = "<w:p>" + anchoredGraphic(5, kShapeUri, plainShape(100, 50, "rect", QByteArray(), "<wps:cNvSpPr/>", "<a:solidFill><a:schemeClr val=\"accent1\"/></a:solidFill>"), 100, 100, 100, 50) + "</w:p>";
+        const QByteArray body = "<w:p><w:pPr><w:pStyle w:val=\"Heading1\"/></w:pPr><w:r><w:t>Title</w:t></w:r></w:p>" + drawing;
+        auto doc = open(themedDocx(body, kThemedSect, kThemedStyles, "<w:p>" + run + "</w:p>", themeWithAccent(old)));
+        QVERIFY(doc->theme());
+        auto headerColor = [&]() {
+            for (QTextDocument *story : doc->storiesWithChanges(true))
+                for (QTextBlock b = story->begin(); b.isValid(); b = b.next())
+                    for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it)
+                        if (it.fragment().charFormat().hasProperty(prop::ColorAttrs)) return it.fragment().charFormat().foreground().color();
+            return QColor();
+        };
+        auto drawingFill = [&]() {
+            const int at = doc->story()->toPlainText().indexOf(QChar(0xFFFC));
+            return at < 0 ? QString() : pictureAt(*doc, doc->story(), at).fillColor;
+        };
+        auto headingVal = [&] { return doc->styleSheet().find(QStringLiteral("Heading1"))->rPr.color->val; };
+        const QString headingBefore = headingVal(), fillBefore = drawingFill();
+        QCOMPARE(headerColor(), old);
+        QVERIFY(!fillBefore.isEmpty());
+        office::ThemeColors colors = office::builtinThemeColors().at(1);
+        QVERIFY(applyThemeColors(*doc, colors));
+        const QColor accent = colors.colors[office::Theme::Accent1];
+        QCOMPARE(headerColor(), accent);
+        QVERIFY(near(QColor(QLatin1Char('#') + headingVal()), shadedBy(accent, 0xBF)));
+        const QString fillAfter = drawingFill();
+        QCOMPARE(QColor(QLatin1Char('#') + fillAfter), accent);
+        const QString headingAfter = headingVal();
+        QVERIFY(doc->undo());
+        QCOMPARE(headerColor(), old);
+        QCOMPARE(headingVal(), headingBefore);
+        QCOMPARE(drawingFill(), fillBefore);
+        QVERIFY(doc->redo());
+        QCOMPARE(headerColor(), accent);
+        QCOMPARE(headingVal(), headingAfter);
+        QCOMPARE(drawingFill(), fillAfter);
+    }
+
+    // A name with a control character is written clean: the theme part, saved and read again, is the same set.
+    void aNameWithAControlCharacterIsSavedCleanAndReadAgain()
+    {
+        auto doc = WriteDoc::blank();
+        office::ThemeColors c = office::builtinThemeColors().at(2);
+        c.name = QStringLiteral("A\u0001");
+        QVERIFY(applyThemeColors(*doc, c));
+        QVERIFY(applyThemeFonts(*doc, {QStringLiteral("F\u0002"), QStringLiteral("Zephyr\u0003 Heading"), QStringLiteral("Zephyr Body")}));
+        auto back = open(doc->toDocx());
+        QVERIFY(back && back->theme());
+        QCOMPARE(back->theme()->colorSchemeName, QStringLiteral("A"));
+        QCOMPARE(back->theme()->majorLatin, QStringLiteral("Zephyr Heading"));
+        QVERIFY(office::themeColorsOf(*back->theme()) == c);
+    }
+
+    // A large document takes a change of colors, and its Undo, in well under a second or two (the milliseconds are printed).
+    void aLargeDocumentTakesAChangeOfColorsQuickly()
+    {
+        const QColor old(0x44, 0x72, 0xC4);
+        QByteArray body;
+        const QByteArray themed = "<w:r><w:rPr><w:color w:val=\"4472C4\" w:themeColor=\"accent1\"/></w:rPr><w:t xml:space=\"preserve\">Words that take the accent color of the theme, </w:t></w:r>";
+        const QByteArray plain = "<w:r><w:t xml:space=\"preserve\">and words that keep the text color, and go on for a while so the paragraph has some length to it. </w:t></w:r>";
+        for (int page = 0; page < 300; ++page) {
+            for (int p = 0; p < 12; ++p) body += "<w:p><w:pPr><w:pStyle w:val=\"Heading1\"/></w:pPr>" + themed + plain + themed + plain + "</w:p>";
+            body += "<w:p><w:r><w:br w:type=\"page\"/></w:r></w:p>";
+            if (page % 6 == 0)
+                body += "<w:p>" + anchoredGraphic(10 + page, kShapeUri, plainShape(40, 30, "rect", QByteArray(), "<wps:cNvSpPr/>", "<a:solidFill><a:schemeClr val=\"accent1\"/></a:solidFill>"), 100, 100, 40, 30) + "</w:p>";
+        }
+        auto doc = open(themedDocx(body, kThemedSect, kThemedStyles, "<w:p><w:r><w:rPr><w:color w:val=\"4472C4\" w:themeColor=\"accent1\"/></w:rPr><w:t>Header</w:t></w:r></w:p>", themeWithAccent(old)));
+        QVERIFY(doc);
+        QElapsedTimer t;
+        t.start();
+        QVERIFY(applyThemeColors(*doc, office::builtinThemeColors().at(1)));
+        const qint64 apply = t.elapsed();
+        t.restart();
+        QVERIFY(doc->undo());
+        const qint64 undo = t.elapsed();
+        qInfo("apply colors: %lld ms, undo: %lld ms (300 pages, 50 drawings)", apply, undo);
+        QVERIFY2(apply < 5000 && undo < 5000, "a change of colors is slow");
     }
 
     void theReplaceFontsCommandAsksAndReplaces()

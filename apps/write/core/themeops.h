@@ -13,9 +13,10 @@ office::Theme documentTheme(const WriteDoc &doc);
 // Whether the document has a theme part that can change (a file with none can't take one here).
 bool canChangeTheme(const WriteDoc &doc);
 
-// Each one step that Undo takes back; false (nothing changed) where the document has no theme, or the theme already is so.
-bool applyThemeColors(WriteDoc &doc, const office::ThemeColors &colors);
-bool applyThemeFonts(WriteDoc &doc, const office::ThemeFonts &fonts);
+// Each one step that Undo takes back; false (nothing changed) where the document has no theme, or the theme already is so. `*couldNot` is set when the theme part has no place for the
+// colors or fonts (so nothing was changed, and the person should be told).
+bool applyThemeColors(WriteDoc &doc, const office::ThemeColors &colors, bool *couldNot = nullptr);
+bool applyThemeFonts(WriteDoc &doc, const office::ThemeFonts &fonts, bool *couldNot = nullptr);
 // The whole theme: its colors, fonts, and the part's effect styles (a theme file's, or the one the document had when it was opened, for Reset).
 bool applyTheme(WriteDoc &doc, const office::Theme &theme);
 

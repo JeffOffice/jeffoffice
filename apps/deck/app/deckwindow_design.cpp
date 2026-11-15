@@ -45,7 +45,7 @@ office::ThemeColors sharedColors(const deck::ColorSet &set)
 deck::ColorSet deckColors(const office::ThemeColors &set)
 {
     deck::ColorSet c;
-    c.name = set.name;
+    c.name = office::cleanThemeText(set.name);
     for (int i = 0; i < 12; ++i) c.colors[i] = set.colors[i];
     return c;
 }
@@ -219,7 +219,7 @@ bool DeckWindow::resetTheme()
 
 void DeckWindow::chooseThemeColors(const office::ThemeColors &colors) { chooseColors(deckColors(colors)); }
 
-void DeckWindow::chooseThemeFonts(const office::ThemeFonts &fonts) { chooseFonts(deck::FontSet{fonts.name, fonts.heading, fonts.body}); }
+void DeckWindow::chooseThemeFonts(const office::ThemeFonts &fonts) { chooseFonts(deck::FontSet{office::cleanThemeText(fonts.name), office::cleanThemeText(fonts.heading), office::cleanThemeText(fonts.body)}); }
 
 void DeckWindow::chooseVariant(int variant)
 {
@@ -271,6 +271,7 @@ void DeckWindow::fillColorsMenu(QMenu *colors)
     for (int i = 0; i < 12; ++i) current.colors[i] = theme.colors[i];
     jp::ThemeMenuHooks hooks;
     hooks.dialogParent = this;
+    for (const office::ThemeColors &set : builtins) hooks.reservedNames << set.name;
     hooks.chooseColors = [this](const office::ThemeColors &c) { chooseThemeColors(c); };
     hooks.reset = [this] { resetTheme(); };
     jp::addThemeColorsEntries(colors, builtins, current, hooks);
@@ -288,6 +289,7 @@ void DeckWindow::fillFontsMenu(QMenu *fonts)
     for (const deck::FontSet &set : deck::fontSets()) builtins << office::ThemeFonts{set.name, set.heading, set.body};
     jp::ThemeMenuHooks hooks;
     hooks.dialogParent = this;
+    for (const office::ThemeFonts &set : builtins) hooks.reservedNames << set.name;
     hooks.chooseFonts = [this](const office::ThemeFonts &f) { chooseThemeFonts(f); };
     hooks.reset = [this] { resetTheme(); };
     jp::addThemeFontsEntries(fonts, builtins, office::ThemeFonts{theme.name, theme.headingFont, theme.bodyFont}, hooks);
