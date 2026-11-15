@@ -1,6 +1,16 @@
 // Format of the picture or shape that is picked: fill, outline, rotation, crop, and the text in a shape. The element the drawing holds for the object is copied, changed, and put back as
 // the object (the old one taken away and the new one made in its place, with its name, alternative text, place, and order among the objects), as one step of Undo. What a file's object holds
 // that these commands do not touch stays in the copy as it was.
+#include <memory>
+#include <QXmlStreamWriter>
+#include <QTextDocument>
+#include <QTextCursor>
+#include <QTextBlock>
+#include <QTimer>
+#include <QApplication>
+#include "office/drawingml_write.h"
+#include "office/drawingml.h"
+#include "app/shapetextedit.h"
 #include "app/crunchwindow.h"
 
 #include "app/compresspictures.h"
@@ -271,6 +281,56 @@ QDomElement firstNamed(const QDomElement &e, const QString &local, int depth = 0
 
 QString hexOf(const QColor &c) { return c.name().mid(1).toUpper(); }
 
+// The words of a shape's text body written back as its paragraphs (the body's properties and list styles stay): the shape's txBody is made if it has none.
+bool setTextStory(QDomElement &sp, QTextDocument *story)
+{
+    if (sp.localName() != QLatin1String("sp")) return false;
+    QDomDocument doc = sp.ownerDocument();
+    QDomElement body = childNamed(sp, QStringLiteral("txBody"));
+    if (body.isNull()) {
+        body = doc.createElementNS(kXdr, QStringLiteral("xdr:txBody"));
+        sp.appendChild(body);
+    }
+    QDomElement props = childNamed(body, QStringLiteral("bodyPr"));
+    if (props.isNull()) {
+        props = newA(doc, "bodyPr");
+        body.insertBefore(props, body.firstChild());
+    }
+    if (childNamed(body, QStringLiteral("lstStyle")).isNull()) body.insertAfter(newA(doc, "lstStyle"), props);
+    // (a size every run says: the sheet draws the words as it reads them, at the size they say)
+    const double base = story->defaultFont().pointSizeF() > 0 ? story->defaultFont().pointSizeF() : 11;
+    for (QTextBlock b = story->begin(); b.isValid(); b = b.next())
+        for (auto it = b.begin(); !it.atEnd(); ++it) {
+            const QTextFragment fr = it.fragment();
+            if (fr.charFormat().hasProperty(QTextFormat::FontPointSize)) continue;
+            QTextCursor c(story);
+            c.setPosition(fr.position());
+            c.setPosition(fr.position() + fr.length(), QTextCursor::KeepAnchor);
+            QTextCharFormat f;
+            f.setFontPointSize(base);
+            c.mergeCharFormat(f);
+        }
+    QByteArray xml;
+    {
+        QXmlStreamWriter w(&xml);
+        jp::office::DrawingWriteContext ctx;
+        jp::office::writeParagraphs(w, story, ctx);
+    }
+    QDomDocument made;
+    if (!made.setContent("<w xmlns:a=\"" + kA.toUtf8() + "\">" + xml + "</w>", QDomDocument::ParseOption::UseNamespaceProcessing)) return false;
+    QList<QDomElement> go;
+    for (QDomElement e = body.firstChildElement(); !e.isNull(); e = e.nextSiblingElement())
+        if (e.localName() == QLatin1String("p")) go << e;
+    for (QDomElement &e : go) body.removeChild(e);
+    bool any = false;
+    for (QDomElement p = made.documentElement().firstChildElement(); !p.isNull(); p = p.nextSiblingElement()) {
+        body.appendChild(doc.importNode(p, true));
+        any = true;
+    }
+    if (!any) body.appendChild(newA(doc, "p"));
+    return true;
+}
+
 } // namespace
 
 // Changes the element of the picked object with `edit` (which may also read what the object is, and says false when there is nothing to change), and puts the result in its place.
@@ -525,6 +585,83 @@ bool CrunchWindow::setObjectText(const ShapeTextChoices &choices)
     return restyleObject(tr("Edit Text"), [&](QDomElement &el, grid::ObjectBox *) { return setText(el, choices); });
 }
 
+bool CrunchWindow::beginShapeTextEdit(int id, const QString &typed)
+{
+    if (m_shapeEditor || !m_session || !m_objects || !m_view || m_chartSheetShown || m_edit.active || !editingAllowed()) return false;
+    if (id < 0 || id != pickedObject() || pickedObjects().size() != 1 || m_objects->kindOf(m_sheet, id) != ObjectKind::Shape || pickedIsTextArt()) return false;
+    crunch::ObjectClip clip;
+    if (!m_objects->copyElement(m_sheet, id, &clip, nullptr)) return false;
+    const QByteArray wrapped = "<w xmlns:xdr=\"" + kXdr.toUtf8() + "\" xmlns:a=\"" + kA.toUtf8() + "\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"" + clip.namespaces
+                               + ">" + clip.elementXml + "</w>";
+    QDomDocument dom;
+    if (!dom.setContent(wrapped, QDomDocument::ParseOption::UseNamespaceProcessing)) return false;
+    const QDomElement sp = dom.documentElement().firstChildElement();
+    if (sp.localName() != QLatin1String("sp")) return false;
+    const QDomElement geometry = firstNamed(sp, QStringLiteral("prstGeom"));
+    static const QStringList linear{QStringLiteral("line"), QStringLiteral("straightConnector1")};
+    if (!geometry.isNull() && (linear.contains(geometry.attribute(QStringLiteral("prst"))) || geometry.attribute(QStringLiteral("prst")).contains(QLatin1String("Connector")))) return false;
+    const QRect frame = m_objects->layer()->deviceRect(id, grid::Pane::Body);
+    if (frame.isEmpty()) return false;
+    auto story = std::make_unique<QTextDocument>();
+    QFont base = story->defaultFont();
+    base.setPointSizeF(11);
+    story->setDefaultFont(base);
+    const QDomElement body = childNamed(sp, QStringLiteral("txBody"));
+    ShapeTextLook look;
+    const double zoom = m_view->zoom();
+    if (!body.isNull()) {
+        jp::office::readTextBody(body, story.get(), jp::office::DrawingContext());
+        const QDomElement props = childNamed(body, QStringLiteral("bodyPr"));
+        if (!props.isNull()) {
+            const QString anchor = props.attribute(QStringLiteral("anchor"));
+            look.anchor = anchor == QLatin1String("ctr") ? Qt::AlignVCenter : anchor == QLatin1String("b") ? Qt::AlignBottom : Qt::AlignTop;
+            look.wrap = props.attribute(QStringLiteral("wrap")) != QLatin1String("none");
+            look.autofit = !childNamed(props, QStringLiteral("normAutofit")).isNull();
+            auto inset = [&](const char *name, double points) {
+                const QString v = props.attribute(QString::fromLatin1(name));
+                return (v.isEmpty() ? points : std::clamp(v.toDouble() / 12700.0, 0.0, 1000.0)) * zoom * 96.0 / 72.0;
+            };
+            look.insets = QMarginsF(inset("lIns", 7.2), inset("tIns", 3.6), inset("rIns", 7.2), inset("bIns", 3.6));
+        }
+    }
+    look.zoom = zoom;
+    m_shapeEditor = new ShapeTextEdit(m_view->viewport());
+    m_shapeEditorId = id;
+    connect(m_shapeEditor, &ShapeTextEdit::finished, this, [this] { endShapeTextEdit(true); });
+    connect(m_shapeEditor, &ShapeTextEdit::focusLeft, this, [this] {
+        // (A click on the cells puts the words in the shape; a box or a button of the ribbon does not, since its command is for the words.)
+        QTimer::singleShot(0, this, [this] {
+            const QWidget *now = QApplication::focusWidget();
+            if (m_shapeEditor && now && (now == m_view || now == m_view->viewport())) endShapeTextEdit(true);
+        });
+    });
+    m_shapeEditor->begin(std::move(story), frame, look, typed);
+    return true;
+}
+
+void CrunchWindow::endShapeTextEdit(bool keep)
+{
+    if (!m_shapeEditor) return;
+    ShapeTextEdit *editor = m_shapeEditor;
+    const bool changed = editor->changed();
+    std::unique_ptr<QTextDocument> story = editor->take();
+    m_shapeEditor = nullptr;
+    const int id = m_shapeEditorId;
+    m_shapeEditorId = -1;
+    editor->disconnect(this);
+    editor->deleteLater();
+    if (keep && changed && story && id >= 0 && id == pickedObject())
+        restyleObject(tr("Edit Text"), [&](QDomElement &el, grid::ObjectBox *) { return setTextStory(el, story.get()); });
+    m_view->setFocus(Qt::OtherFocusReason);
+    m_view->viewport()->update();
+}
+
+void CrunchWindow::focusText()
+{
+    if (m_shapeEditor) m_shapeEditor->setFocus(Qt::OtherFocusReason);
+    else m_view->setFocus();
+}
+
 // Edit Text: the words in the shape or text box, how they sit, and their size and color.
 void CrunchWindow::editObjectText()
 {
@@ -536,6 +673,7 @@ void CrunchWindow::editObjectText()
         return;
     }
     if (editTextArtText()) return;
+    if (!m_shapeTextAsker && beginShapeTextEdit(id)) return;   // (the words are typed in place, over the shape; a window with its own way of asking, as a test's, is asked)
     ShapeTextChoices c;
     crunch::ObjectClip clip;
     if (m_objects->copyElement(m_sheet, id, &clip, nullptr)) {

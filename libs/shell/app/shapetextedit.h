@@ -86,6 +86,7 @@ Q_SIGNALS:
     void formatChanged();
 
 protected:
+    bool event(QEvent *e) override;
     void keyPressEvent(QKeyEvent *e) override;
     void focusOutEvent(QFocusEvent *e) override;
     void resizeEvent(QResizeEvent *e) override;

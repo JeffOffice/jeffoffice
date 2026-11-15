@@ -5,6 +5,8 @@
 #include "savedok.h"
 
 #include "app/chartdialogs.h"
+#include "app/shapetextedit.h"
+#include "../shell/shapetexttest.h"
 #include "app/crunchinfo.h"
 #include "app/help.h"
 #include "app/onlinepictures.h"
@@ -2985,6 +2987,144 @@ private Q_SLOTS:
         Window again;
         QVERIFY(again.open(e.copyOfFile()));
         QTRY_VERIFY(again.w.objects()->shownSheet() == 0 && again.w.objects()->layer()->count() == 2);
+    }
+
+    // The editor over the picked shape (opened with `key` on the grid), or none.
+    static jp::ShapeTextEdit *editShape(EditWindow &e, Qt::Key key)
+    {
+        QTest::keyClick(e.view()->viewport(), key);
+        return e.win.w.shapeEditor();
+    }
+
+    // Typing in a shape: the same keys as in every app, one step of Undo, and every look saved in the drawing and in an ODS file, and opened again.
+    void typingInAShapeKeepsItsLookThroughUndoSaveAndReopenInBothFileKinds()
+    {
+        EditWindow e;
+        QVERIFY(e.open(plainBook()));
+        QVERIFY(e.settle());
+        QTRY_VERIFY(e.win.w.objects()->shownSheet() == 0);
+        crunch::SheetObjects *o = e.win.w.objects();
+        QVERIFY(e.win.w.insertShape(QStringLiteral("rect")));
+        const int steps = e.win.w.undoStack()->count();
+        jp::ShapeTextEdit *edit = editShape(e, Qt::Key_F2);
+        QVERIFY(edit);
+        jptest::typeAndFormat(edit);
+        QTest::keyClick(edit, Qt::Key_Escape);
+        QVERIFY(!e.win.w.editingShapeText());
+        QCOMPARE(e.win.w.undoStack()->count(), steps + 1);
+        QVERIFY(o->layer()->selectedId() >= 0);   // (Esc leaves the shape picked)
+        edit = editShape(e, Qt::Key_F2);
+        QVERIFY(edit);
+        jptest::verifyEditor(edit);
+        QTest::keyClick(edit, Qt::Key_Escape);
+        // One step takes it all back, and it comes back whole.
+        e.win.w.undoStack()->undo();
+        o->layer()->select(o->idsOf(0).front());
+        edit = editShape(e, Qt::Key_F2);
+        QVERIFY(edit);
+        QCOMPARE(edit->toPlainText(), QString());
+        QTest::keyClick(edit, Qt::Key_Escape);
+        e.win.w.undoStack()->redo();
+        QVERIFY(save(e));
+        const QByteArray drawing = partsOf(e.path).value(QStringLiteral("xl/drawings/drawing1.xml"));
+        QVERIFY2(drawing.contains("sz=\"2000\"") && drawing.contains("b=\"1\"") && drawing.contains("algn=\"ctr\"") && drawing.contains("FF0000"), drawing.constData());
+        Window again;
+        QVERIFY(again.open(e.copyOfFile()));
+        QTRY_VERIFY(again.w.objects()->shownSheet() == 0 && again.w.objects()->layer()->count() == 1);
+        again.w.objects()->layer()->select(again.w.objects()->idsOf(0).front());
+        QTest::keyClick(again.w.view()->viewport(), Qt::Key_F2);
+        QVERIFY(again.w.shapeEditor());
+        jptest::verifyEditor(again.w.shapeEditor());
+        QTest::keyClick(again.w.shapeEditor(), Qt::Key_Escape);
+        // The same through an ODS file.
+        const QString ods = QFileInfo(e.path).absolutePath() + QStringLiteral("/shapes.ods");
+        QVERIFY(e.win.w.saveAs(ods));
+        QTRY_VERIFY(!e.win.w.isSaving());
+        QVERIFY(QFileInfo::exists(ods));
+        Window fromOds;
+        QVERIFY(fromOds.open(ods));
+        QTRY_VERIFY(fromOds.w.objects()->shownSheet() == 0 && fromOds.w.objects()->layer()->count() == 1);
+        fromOds.w.objects()->layer()->select(fromOds.w.objects()->idsOf(0).front());
+        QTest::keyClick(fromOds.w.view()->viewport(), Qt::Key_F2);
+        QVERIFY(fromOds.w.shapeEditor());
+        jptest::verifyEditor(fromOds.w.shapeEditor());
+        QTest::keyClick(fromOds.w.shapeEditor(), Qt::Key_Escape);
+    }
+
+    void inAShapeEscF2AndEnterAndATypedKeyBeginAndEndTheEdit()
+    {
+        EditWindow e;
+        QVERIFY(e.open(plainBook()));
+        QVERIFY(e.settle());
+        QTRY_VERIFY(e.win.w.objects()->shownSheet() == 0);
+        QVERIFY(e.win.w.insertShape(QStringLiteral("rect")));
+        jp::ShapeTextEdit *edit = editShape(e, Qt::Key_Return);
+        QVERIFY(edit);
+        QTest::keyClicks(edit, QStringLiteral("one"));
+        QTest::keyClick(edit, Qt::Key_Escape);
+        QVERIFY(!e.win.w.editingShapeText());
+        QVERIFY(e.win.w.objects()->layer()->selectedId() >= 0);
+        edit = editShape(e, Qt::Key_F2);
+        QVERIFY(edit);
+        QCOMPARE(edit->toPlainText(), QStringLiteral("one"));
+        QTest::keyClick(edit, Qt::Key_Escape);
+        QTest::keyClick(e.view()->viewport(), Qt::Key_Z);   // (typing on the picked shape starts the edit and goes after its words)
+        QVERIFY(e.win.w.editingShapeText());
+        QCOMPARE(e.win.w.shapeEditor()->toPlainText(), QStringLiteral("onez"));
+        QTest::keyClick(e.win.w.shapeEditor(), Qt::Key_Escape);
+        // A line takes no words: typing with it picked starts no edit.
+        QVERIFY(e.win.w.insertShape(QStringLiteral("line")));
+        QTest::keyClick(e.view()->viewport(), Qt::Key_Q);
+        QVERIFY(!e.win.w.editingShapeText());
+    }
+
+    void theRibbonsCommandsAndTheShapesKeysGoToTheWordsBeingTypedInAShape()
+    {
+        EditWindow e;
+        QVERIFY(e.open(plainBook()));
+        QVERIFY(e.settle());
+        QTRY_VERIFY(e.win.w.objects()->shownSheet() == 0);
+        QVERIFY(e.win.w.insertShape(QStringLiteral("rect")));
+        jp::ShapeTextEdit *edit = editShape(e, Qt::Key_F2);
+        QVERIFY(edit);
+        QTest::keyClicks(edit, QStringLiteral("word"));
+        edit->selectAll();
+        e.win.w.act(QStringLiteral("fmt.bold"))->trigger();
+        e.win.w.act(QStringLiteral("fmt.alignRight"))->trigger();
+        e.win.w.act(QStringLiteral("fmt.growFont"))->trigger();
+        QTest::keyClick(edit, Qt::Key_Escape);
+        edit = editShape(e, Qt::Key_F2);
+        QVERIFY(edit);
+        const QTextCharFormat f = edit->story()->firstBlock().begin().fragment().charFormat();
+        QVERIFY(f.font().bold());
+        QVERIFY(f.fontPointSize() > 11);
+        QCOMPARE(edit->story()->firstBlock().blockFormat().alignment() & Qt::AlignHorizontal_Mask, Qt::AlignRight);
+        QTest::keyClick(edit, Qt::Key_Escape);
+    }
+
+    void wordsCopiedFromOneShapeAndPastedInAnotherKeepTheirLook()
+    {
+        EditWindow e;
+        QVERIFY(e.open(plainBook()));
+        QVERIFY(e.settle());
+        QTRY_VERIFY(e.win.w.objects()->shownSheet() == 0);
+        QVERIFY(e.win.w.insertShape(QStringLiteral("rect")));
+        jp::ShapeTextEdit *edit = editShape(e, Qt::Key_F2);
+        QVERIFY(edit);
+        jptest::typeAndFormat(edit);
+        edit->selectAll();
+        edit->copy();
+        QTest::keyClick(edit, Qt::Key_Escape);
+        QVERIFY(e.win.w.insertShape(QStringLiteral("ellipse")));
+        edit = editShape(e, Qt::Key_F2);
+        QVERIFY(edit);
+        edit->paste();
+        jptest::verifyEditor(edit);
+        QTest::keyClick(edit, Qt::Key_Escape);
+        edit = editShape(e, Qt::Key_F2);
+        QVERIFY(edit);
+        jptest::verifyEditor(edit);
+        QTest::keyClick(edit, Qt::Key_Escape);
     }
 
     // A picture is cropped to a shape of window (the sides or the top and bottom cut from the middle, and the picture is as large as what is left), and shown whole again.

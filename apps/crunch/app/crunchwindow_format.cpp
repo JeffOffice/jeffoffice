@@ -1,6 +1,7 @@
 // The formatting commands of JeffCrunch's Home tab and the Format Cells dialog: the font, its size and color, bold, italic, and the underlines, the fill, the borders, the alignment
 // (horizontal, vertical, wrap, indent, orientation), merging, the number format and its buttons, the cell styles, the Copy Formatting, and Clear. Each is one step of Undo (the edit
 // session makes them; this part says what the buttons mean and keeps the buttons in step with the cell with the cursor).
+#include "app/shapetextedit.h"
 #include "app/crunchwindow.h"
 #include "core/richadjust.h"
 #include "app/plaintext.h"
@@ -291,6 +292,10 @@ bool CrunchWindow::confirm(const QString &title, const QString &text)
 // Gives the selected cells a change of format: one step of Undo called `text`. An entry in progress is finished first.
 bool CrunchWindow::formatSelection(const FormatChange &change, const QString &text)
 {
+    if (m_shapeEditor && change.fontName) {
+        m_shapeEditor->setFontFamilyName(*change.fontName);
+        return true;
+    }
     if (m_edit.active && applyRunFormat(change)) {
         updateFormatState();
         return true;
@@ -422,6 +427,12 @@ FormatCellsDialog::Input CrunchWindow::formatInput() const
 // off (for all the cells selected).
 void CrunchWindow::toggleFont(int what)
 {
+    if (m_shapeEditor) {
+        if (what == 0) m_shapeEditor->toggleBold();
+        else if (what == 1) m_shapeEditor->toggleItalic();
+        else if (what == 2 || what == 3) m_shapeEditor->toggleUnderline();
+        return;
+    }
     const FormatView v = viewOfActiveCell();
     FormatChange c;
     QString text;
@@ -439,6 +450,10 @@ void CrunchWindow::toggleFont(int what)
 
 void CrunchWindow::setFontSize(double size)
 {
+    if (m_shapeEditor) {
+        m_shapeEditor->setFontSizePt(size);
+        return;
+    }
     FormatChange c;
     c.fontSize = size;
     formatSelection(c, tr("Font Size"));
@@ -447,6 +462,10 @@ void CrunchWindow::setFontSize(double size)
 // Increase and Decrease Font Size: the next size of the list the size box has (or one point for a size past it).
 void CrunchWindow::growFont(int steps)
 {
+    if (m_shapeEditor) {
+        m_shapeEditor->growFont(steps);
+        return;
+    }
     double size = viewOfActiveCell().fontSize;
     if (steps > 0) {
         double next = size + 1;
@@ -484,6 +503,10 @@ void CrunchWindow::chooseFillColor(const ColorRef &c)
 
 void CrunchWindow::chooseFontColor(const ColorRef &c)
 {
+    if (m_shapeEditor) {
+        m_shapeEditor->setColor(c.isNone() ? QColor(Qt::black) : c.resolve(workbookColors()));
+        return;
+    }
     FormatChange change;
     change.fontColor = colorSpecOf(c);
     formatSelection(change, tr("Font Color"));
@@ -494,6 +517,12 @@ void CrunchWindow::chooseFontColor(const ColorRef &c)
 // 0 left, 1 center, 2 right, 3 top, 4 middle, 5 bottom, 6 wrap text: a button that is on turns off what it set (the general alignment, the bottom).
 void CrunchWindow::alignCommand(int kind)
 {
+    if (m_shapeEditor) {
+        if (kind == 0) m_shapeEditor->setAlign(Qt::AlignLeft);
+        else if (kind == 1) m_shapeEditor->setAlign(Qt::AlignHCenter);
+        else if (kind == 2) m_shapeEditor->setAlign(Qt::AlignRight);
+        return;
+    }
     const FormatView v = viewOfActiveCell();
     FormatChange c;
     QString text = tr("Alignment");
@@ -964,7 +993,7 @@ void CrunchWindow::formatRibbonParts(RibbonParts &parts)
             FormatChange c;
             c.fontName = family;
             formatSelection(c, tr("Font"));
-            m_view->setFocus();
+            focusText();
         });
         m_fontCombos << font;
         return font;
@@ -974,7 +1003,7 @@ void CrunchWindow::formatRibbonParts(RibbonParts &parts)
         size->setObjectName(QStringLiteral("fmt.fontSize"));
         connect(size, &SizeCombo::sizeChosen, this, [this](double s) {
             if (s >= 1 && s <= 409) setFontSize(s);
-            m_view->setFocus();
+            focusText();
         });
         m_sizeCombos << size;
         return size;

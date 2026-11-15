@@ -1,5 +1,6 @@
 #include "grid/objectlayer.h"
 #include "app/plaintext.h"
+#include "app/shapetextedit.h"
 
 #include <QCursor>
 #include <QToolTip>
@@ -1213,6 +1214,10 @@ bool ObjectLayer::key(QKeyEvent *event)
         return true;
     }
     default: break;
+    }
+    if (m_textEditHook && m_entries[entryOf(m_selected)].object.kind == jp::office::sheet::ObjectKind::Shape) {
+        QString typed;
+        if (keyOnSelectedShape(event, &typed) != SelectedShapeKey::None && m_textEditHook(m_selected, typed)) return true;
     }
     select(-1);   // (any other key goes to the cells, and the object is let go)
     return false;

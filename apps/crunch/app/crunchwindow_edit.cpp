@@ -431,6 +431,7 @@ void CrunchWindow::applyCustomListLines()
 
 bool CrunchWindow::commitEdit(CellEditor::Way way)
 {
+    if (m_shapeEditor) endShapeTextEdit(true);   // (the words typed in a shape are in it before the workbook is saved or anything else is done)
     if (!m_edit.active) return true;
     returnToEditSheet();   // (an entry made while pointing at another sheet is put in its own cell, and the selection goes on from there)
     // (a number typed over a cell gets its decimal point where Options says; what was edited in the cell, or in the formula bar, is entered as it is)

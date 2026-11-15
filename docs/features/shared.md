@@ -308,3 +308,7 @@ Recommendation: one SQLite connection in `libs/office/data` (B20), built by Jeff
 When a piece in section 3 lands, move its row to section 2, change the box in each list item it served, and update the counts in the README. When a list's shared section changes, change the row it refers to.
 
 Last reviewed October 16, 2026.
+
+## Typing in a shape (November 14, 2026)
+
+The words in a shape or text box are typed in one editor, `jp::ShapeTextEdit` (libs/shell/app/shapetextedit.h), with the same keys in every app: Ctrl+B, I, U, E, L, R, and J, Ctrl+[ and Ctrl+] for the size, Esc to keep the words and leave the shape selected, F2 or Enter on a selected shape to start, and a character typed on a selected shape to start with it added to the words. JeffWrite and JeffCrunch host it over the shape and write the words back as one step of their own Undo; JeffPub and JeffDeck edit a shape's words on their canvas and take the font-size steps and the typed-key rule from the same library. tests/shell/shapetexttest.h is the check each app's test runs on its own editor.

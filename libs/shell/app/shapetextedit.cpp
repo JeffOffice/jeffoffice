@@ -381,6 +381,27 @@ void ShapeTextEdit::insertFromMimeData(const QMimeData *source)
     }
 }
 
+bool ShapeTextEdit::event(QEvent *e)
+{
+    // The keys of the words are the editor's, whatever a window has them for: they reach it as keys, not as the window's shortcuts.
+    if (e->type() == QEvent::ShortcutOverride) {
+        auto *k = static_cast<QKeyEvent *>(e);
+        if ((k->modifiers() & ~Qt::KeypadModifier) == Qt::ControlModifier) {
+            switch (k->key()) {
+            case Qt::Key_B: case Qt::Key_I: case Qt::Key_U: case Qt::Key_E: case Qt::Key_L: case Qt::Key_R: case Qt::Key_J: case Qt::Key_BracketLeft: case Qt::Key_BracketRight:
+                e->accept();
+                return true;
+            default: break;
+            }
+        }
+        if (k->key() == Qt::Key_Escape && !(k->modifiers() & (Qt::ControlModifier | Qt::ShiftModifier | Qt::AltModifier))) {
+            e->accept();
+            return true;
+        }
+    }
+    return QTextEdit::event(e);
+}
+
 void ShapeTextEdit::keyPressEvent(QKeyEvent *e)
 {
     if (e->key() == Qt::Key_Escape && !(e->modifiers() & (Qt::ControlModifier | Qt::ShiftModifier | Qt::AltModifier))) {

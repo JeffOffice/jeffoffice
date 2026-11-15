@@ -82,6 +82,7 @@ void CrunchWindow::setupObjects()
     // (the layer asks for its own repaints: the view has set its hook on the picker)
     m_objects->layer()->setRepaintHook([this](const QRect &) { m_view->viewport()->update(); });
     connect(m_picker, &ObjectPicker::pickedChanged, this, [this] {
+        if (m_shapeEditor && pickedObject() != m_shapeEditorId) endShapeTextEdit(true);
         updateChartState();
         updateArrangeActions();
     });
@@ -94,11 +95,13 @@ void CrunchWindow::setupObjects()
         stack->endMacro();
     });
     m_objects->layer()->setDeleteHook([this](int id) { deleteObject(id); });
+    m_objects->layer()->setTextEditHook([this](int id, const QString &typed) { return beginShapeTextEdit(id, typed); });
     m_objects->setSaveNote([this](const QString &text) { notice(tr("Save"), text); });
     // the person moves or sizes an object, picks one, or asks for its menu
     connect(m_objects->layer(), &jp::grid::ObjectLayer::objectMoved, this, [this](int id, const jp::office::sheet::DrawingAnchor &anchor) { moveObject(id, anchor); });
     connect(m_objects->layer(), &jp::grid::ObjectLayer::contextMenuRequested, this, [this](int id, const QPoint &global) { objectContextMenu(id, global); });
     connect(m_objects->layer(), &jp::grid::ObjectLayer::objectActivated, this, [this](int id) {
+        if (beginShapeTextEdit(id)) return;   // (a shape or text box: its words are typed in place)
         QString line;
         if (m_objects->equationOf(m_sheet, id, &line, nullptr)) insertEquationDialog();   // (an equation opens its editor)
         else propertiesDialog();

@@ -5,6 +5,7 @@
 #include "shapetexttest.h"
 
 #include <QInputMethodEvent>
+#include <QShortcut>
 #include <QSignalSpy>
 #include <QWidget>
 
@@ -104,6 +105,30 @@ private Q_SLOTS:
             QTest::keyClick(&e, k.first, Qt::ControlModifier);
             QCOMPARE(e.story()->firstBlock().blockFormat().alignment() & Qt::AlignHorizontal_Mask, k.second);
         }
+    }
+
+    void theKeysOfTheWordsBeatTheWindowsShortcuts()
+    {
+        QWidget host;
+        host.show();
+        int fired = 0;
+        QList<QShortcut *> shortcuts;
+        for (const QKeySequence &k : {QKeySequence(Qt::CTRL | Qt::Key_E), QKeySequence(Qt::CTRL | Qt::Key_L), QKeySequence(Qt::CTRL | Qt::Key_R), QKeySequence(Qt::CTRL | Qt::Key_J), QKeySequence(Qt::Key_Escape)}) {
+            auto *sc = new QShortcut(k, &host);
+            connect(sc, &QShortcut::activated, this, [&fired] { ++fired; });
+            shortcuts << sc;
+        }
+        ShapeTextEdit e(&host);
+        e.begin(story(QStringLiteral("abc")), QRect(0, 0, 200, 100), ShapeTextLook());
+        QSignalSpy done(&e, &ShapeTextEdit::finished);
+        QTest::keyClick(&e, Qt::Key_E, Qt::ControlModifier);
+        QCOMPARE(e.story()->firstBlock().blockFormat().alignment() & Qt::AlignHorizontal_Mask, Qt::AlignHCenter);
+        QTest::keyClick(&e, Qt::Key_R, Qt::ControlModifier);
+        QTest::keyClick(&e, Qt::Key_L, Qt::ControlModifier);
+        QTest::keyClick(&e, Qt::Key_J, Qt::ControlModifier);
+        QTest::keyClick(&e, Qt::Key_Escape);
+        QCOMPARE(fired, 0);
+        QCOMPARE(done.size(), 1);
     }
 
     void bullets()

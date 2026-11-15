@@ -123,6 +123,7 @@ struct SolveOrderChoice;
 struct PivotOptionsChoice;
 class HelpWindow;
 class ObjectPicker;
+class ShapeTextEdit;
 class Ribbon;
 struct RibbonParts;
 namespace crunch {
@@ -1491,6 +1492,8 @@ public:
         int sizePoints = 11;
         QString colorHex;   // 6 hex digits, empty for the shape's own
     };
+    jp::ShapeTextEdit *shapeEditor() const { return m_shapeEditor; }
+    bool editingShapeText() const { return m_shapeEditor != nullptr; }
     void setShapeTextAsker(const std::function<bool(ShapeTextChoices *)> &asker) { m_shapeTextAsker = asker; }
     bool setObjectFill(const QColor &color, bool none);
     bool applyShapeStyle(int index);   // Shape Format > Shape Styles: a ready-made fill and outline, one step
@@ -1567,6 +1570,11 @@ private:
     bool placeObjectClip(const crunch::ObjectClip &clip, const QString &stepText, const jp::office::sheet::DrawingAnchor *at = nullptr, int order = -1);
     bool restyleObject(const QString &stepText, const std::function<bool(QDomElement &, jp::grid::ObjectBox *)> &edit, bool pictureOnly = false);
     void editObjectText();
+    // The words of the picked shape or text box are typed in place, in the shared editor over the shape (F2 or Enter, a double click, or a character typed with the shape picked): Esc, or a click
+    // elsewhere, puts them in the shape, one step that undoes, with every look they were given. `typed` goes after the words.
+    bool beginShapeTextEdit(int id, const QString &typed = QString());
+    void endShapeTextEdit(bool keep = true);
+    void focusText();
     void compressPicturesDialog();
     void insertEquationDialog();
     void showSelectionPane();
@@ -1576,6 +1584,8 @@ private:
     void textArtRibbonParts(RibbonParts &parts);
     void objectFormatRibbonParts(RibbonParts &parts);
     std::function<bool(ShapeTextChoices *)> m_shapeTextAsker;
+    jp::ShapeTextEdit *m_shapeEditor = nullptr;
+    int m_shapeEditorId = -1;
     std::function<bool(jp::TextArtItem *)> m_textArtAsker;
     void chartRibbonParts(RibbonParts &parts);
     void functionRibbonParts(RibbonParts &parts);

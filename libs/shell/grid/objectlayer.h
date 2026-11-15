@@ -128,6 +128,9 @@ public:
     void select(int id);
     // What happens when Delete is pressed with an object picked; unset, the key is not taken.
     void setDeleteHook(std::function<void(int id)> hook) { m_deleteHook = std::move(hook); }
+    // What happens when F2 or Enter is pressed, or a character typed, with a shape picked: the words in the shape are typed in (`typed` is what was typed, or empty); the hook says whether it began
+    // (a shape that takes no words does not: the key then goes on to the cells as any other).
+    void setTextEditHook(std::function<bool(int id, const QString &typed)> hook) { m_textEditHook = std::move(hook); }
 
     // ---- moving and sizing with the mouse and the keys
     // The anchor that puts an object where `box` is (the grid's units) on the rows and columns now, as `editAs` says it follows them (two cells, one, or none); false if the layer has no layout.
@@ -300,6 +303,7 @@ private:
     std::vector<Result> m_results;
     mutable Stats m_stats;
     std::function<void(int)> m_deleteHook;
+    std::function<bool(int, const QString &)> m_textEditHook;
     Drag m_drag;
     int m_tipId = -1;                         // the object whose tooltip is shown
     mutable size_t m_dragEntry = size_t(-1);   // the entry being dragged: always drawn, wherever the index puts it
