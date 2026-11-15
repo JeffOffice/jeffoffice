@@ -351,6 +351,7 @@ CommandSearchBox::CommandSearchBox(AppWindow *win, const QString &wordsResource)
     setObjectName(QStringLiteral("jpCommandSearch"));
     setPlaceholderText(tr("Search (Alt+Q)"));
     addAction(icon(QStringLiteral("search")), QLineEdit::LeadingPosition);
+    for (QToolButton *b : findChildren<QToolButton *>()) { b->setAccessibleName(tr("Search")); b->setAccessibleDescription(tr("The search box's icon. Type in the box beside it.")); b->setWhatsThis(b->accessibleDescription()); b->setFocusPolicy(Qt::TabFocus); }   // plain: reviewed: its own string   // (the icon at the left)
     setAccessibleName(tr("Search commands"));
     setAccessibleDescription(tr("Type what you want to do. Down goes to the commands found, and Enter runs the one chosen. Escape goes back to the document."));
     setToolTip(plainToolTip(tr("Search for a command and run it (Alt+Q)")));
