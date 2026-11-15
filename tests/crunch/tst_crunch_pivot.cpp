@@ -358,6 +358,37 @@ private Q_SLOTS:
         QCOMPARE(valueOf(e, QStringLiteral("F5")), QStringLiteral("n:105"));
     }
 
+    // The formatting a person gave cells of the table stays on them when the table is refreshed, where the cells still are: a number format on a value, bold on a label.
+    void aRefreshKeepsTheFormattingAPersonGaveTheCells()
+    {
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook()));
+        crunch::EditSession *s = e.win.w.session();
+        jp::office::sheet::FormatChange money;
+        money.numberFormat = QStringLiteral("0.00");
+        QVERIFY(s->formatCells(0, jp::office::sheet::CellRange{rowOf(QStringLiteral("F5")), colOf(QStringLiteral("F5")), rowOf(QStringLiteral("F5")), colOf(QStringLiteral("F5")), true}, money, QStringLiteral("Number")).ok);
+        jp::office::sheet::FormatChange bold;
+        bold.bold = true;
+        const auto at = [&](const QString &cell) { return s->calculation()->content(0, rowOf(cell), colOf(cell)).style; };
+        QVERIFY(s->formatCells(0, jp::office::sheet::CellRange{rowOf(QStringLiteral("E5")), colOf(QStringLiteral("E5")), rowOf(QStringLiteral("E5")), colOf(QStringLiteral("E5")), true}, bold, QStringLiteral("Bold")).ok);
+        const quint32 valueStyle = at(QStringLiteral("F5")), labelStyle = at(QStringLiteral("E5")), otherStyle = at(QStringLiteral("G5"));
+        QVERIFY(valueStyle != 0 && labelStyle != 0 && valueStyle != labelStyle);
+        QVERIFY(s->type(0, rowOf(QStringLiteral("C2")), colOf(QStringLiteral("C2")), QStringLiteral("100")).ok);
+        QVERIFY(e.settle());
+        const int steps = s->undoStack()->count();
+        QVERIFY2(s->refreshPivot(0).ok, "refresh");
+        finish(e);
+        QCOMPARE(s->undoStack()->count(), steps + 1);
+        QCOMPARE(valueOf(e, QStringLiteral("F5")), QStringLiteral("n:105"));
+        QCOMPARE(at(QStringLiteral("F5")), valueStyle);
+        QCOMPARE(s->formatCodeOf(0, rowOf(QStringLiteral("F5")), colOf(QStringLiteral("F5"))), QStringLiteral("0.00"));
+        QCOMPARE(at(QStringLiteral("E5")), labelStyle);
+        QCOMPARE(at(QStringLiteral("G5")), otherStyle);
+        s->undoStack()->undo();
+        finish(e);
+        QCOMPARE(at(QStringLiteral("F5")), valueStyle);
+    }
+
     // The data grows: a new row of the source with a region and a month the table has not seen adds a line and a column; the items keep their order and the new ones come after.
     void changingTheSourceGrowsTheTable()
     {
@@ -2201,6 +2232,30 @@ private Q_SLOTS:
         Q_UNUSED(s);
     }
 
+    // A picture of Value Field Settings with the functions, Show Values As, and the number format (set JC_SHOT_DIR).
+    void aPictureOfValueFieldSettings()
+    {
+        const QString dir = QString::fromLocal8Bit(qgetenv("JC_SHOT_DIR"));
+        if (dir.isEmpty()) QSKIP("set JC_SHOT_DIR to take the picture");
+        QDir().mkpath(dir);
+        ValueFieldSettings v;
+        v.name = QStringLiteral("Share of Amount");
+        v.sourceName = QStringLiteral("Amount");
+        v.function = QStringLiteral("sum");
+        v.showAs = QStringLiteral("percentOfTotal");
+        v.numFmtCode = QStringLiteral("0.0%");
+        ValueFieldSettings::Base base;
+        base.field = 0;
+        base.name = QStringLiteral("Region");
+        base.items = QStringList{QStringLiteral("East"), QStringLiteral("West")};
+        v.bases.append(base);
+        ValueFieldDialog dialog(v);
+        dialog.resize(480, 640);
+        dialog.show();
+        QCoreApplication::processEvents();
+        QVERIFY(dialog.grab().save(dir + QStringLiteral("/value-field-settings.png")));
+    }
+
     // The Design choices: grand totals, subtotals, and the layout of the report; a field moved from the data to a place it was not (a number among the rows) is saved and read back.
     void theDesignChoicesAndAFieldOfNumbersOnTheRows()
     {
@@ -2650,6 +2705,29 @@ private Q_SLOTS:
         const Cell *grand = sheet.cells.find(12, 10);   // K13: the grand total
         QVERIFY(grand);
         QCOMPARE(grand->number, 49.0);
+    }
+
+    // A refreshed pivot table saved as an .ods copy keeps what it shows, as values (the copy has no pivot table).
+    void aRefreshedPivotTableInAnOdsCopyKeepsItsValues()
+    {
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook()));
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(s->type(0, rowOf(QStringLiteral("C2")), colOf(QStringLiteral("C2")), QStringLiteral("100")).ok);
+        QVERIFY(e.settle());
+        QVERIFY2(s->refreshPivot(0).ok, "refresh");
+        finish(e);
+        e.win.w.setLossAsker([](const QString &, const QString &) { return CrunchWindow::LossAnswer::Continue; });
+        QSignalSpy copied(&e.win.w, &CrunchWindow::copyExported);
+        const QString target = QFileInfo(e.path).dir().filePath(QStringLiteral("copy.ods"));
+        QVERIFY(e.win.w.saveAs(target));
+        QVERIFY(copied.count() > 0 || copied.wait(30000));
+        QVERIFY(copied.first().at(1).toBool());
+        EditWindow again;
+        QFile f(target);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        QVERIFY(again.open(f.readAll(), QStringLiteral("copy.ods")));
+        QCOMPARE(pivotShown(again), QStringLiteral("Sum of Amount|Month||\nRegion|Jan|Feb|Grand Total\nEast|105|20|125\nWest|7|7|14\nGrand Total|112|27|139"));
     }
 
     // ---- the review
