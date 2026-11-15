@@ -203,6 +203,10 @@ inline bool hiddenInView(const QTextFormat &f, int view)
 // a cell's and one outside a table, whatever their marks (LayoutEnv::wordLines).
 constexpr int TableCell = QTextFormat::UserProperty + 302;
 
+// A run's click action that is no link here (a program, a macro: never followed), kept as the file had it so that saving does not lose it: a QString, the address it names, then
+// the element's XML (office::keptClickOf).
+constexpr int KeptClick = QTextFormat::UserProperty + 330;
+
 // A paragraph's borders and shading as a word processor draws them (LayoutEnv::wordLines): each side's line style, width in eighths of a point, and its
 // distance from the text in points, and the color the paragraph is filled with. Kept in a block's tp::Borders as text, ParaBox::spec.
 struct BoxSide {

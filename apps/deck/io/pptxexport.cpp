@@ -1209,6 +1209,14 @@ QString Exporter::tree(const PageBase &page, const QString &part, const QString 
 QString Exporter::background(const PageBase &page, const QString &part, bool required, const QString &where)
 {
     const QString themed = required ? QStringLiteral("<p:bg><p:bgRef idx=\"1001\"><a:schemeClr val=\"bg1\"/></p:bgRef></p:bg>") : QString();
+    // A background nobody changed is written as the file had it (its theme colors and references to the theme's styles stay what they were; a page that had none has none).
+    // One that names a part of the file (a picture) is written again, as it holds relationship numbers of the old file.
+    const QJsonObject kept = page.props.value(QStringLiteral("bgKept")).toObject();
+    if (kept.value(QStringLiteral("none")).toBool() && page.background.isNone()) return QString();
+    if (const QString xml = kept.value(QStringLiteral("xml")).toString();
+        !xml.isEmpty() && xml.startsWith(QLatin1String("<p:bg")) && !xml.contains(QLatin1String("r:embed")) && !xml.contains(QLatin1String("r:link")) && !xml.contains(QLatin1String("r:id")) &&
+        page.background.toJson() == kept.value(QStringLiteral("fill")).toObject())
+        return xml;
     if (page.background.isNone()) return themed;
     office::DrawingWriteContext ctx = context(part);
     QByteArray fill = fragment([&](QXmlStreamWriter &w) { office::writeFill(w, page.background, ctx); });

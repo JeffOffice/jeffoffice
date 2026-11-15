@@ -1,3 +1,4 @@
+#include "core/remotepath.h"
 #include "sheet/externalbooks.h"
 
 #include "office/package.h"
@@ -80,9 +81,8 @@ Resolved resolveTarget(const QString &target, const QString &baseDir)
 {
     Resolved r = resolveTargetRaw(target, baseDir);
     if (r.web || r.path.isEmpty()) return r;
-    QString norm = r.path;
-    norm.replace(QLatin1Char('\\'), QLatin1Char('/'));
-    if (norm.startsWith(QLatin1String("//"))) r.network = true;   // ("/" and "//" in front: "///host/share" is one too)
+    // (one check for every app that follows a link: libs/base/core/remotepath.h)
+    if (jp::isOnAnotherComputer(target) || jp::isOnAnotherComputer(r.path)) r.network = true;
     return r;
 }
 

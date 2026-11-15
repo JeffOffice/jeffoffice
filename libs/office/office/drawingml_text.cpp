@@ -703,7 +703,11 @@ QTextCharFormat Reader::linkFormat(QTextCharFormat cf, const QDomElement &rPr) c
     const QDomElement click = firstChild(rPr, QLatin1String("hlinkClick"));
     if (click.isNull() || !m_ctx.package) return cf;
     const QString target = linkOfClick(click, m_ctx);
-    if (target.isEmpty()) return cf;
+    if (target.isEmpty()) {
+        // (not a link here: a program, a macro: it stays text, and is kept as it was)
+        if (const QString kept = keptClickOf(click, m_ctx); !kept.isEmpty()) cf.setProperty(tp::KeptClick, kept);
+        return cf;
+    }
     cf.setAnchor(true);
     cf.setAnchorHref(target);
     bool keepsColor = false;

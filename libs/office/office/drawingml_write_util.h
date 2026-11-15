@@ -58,6 +58,8 @@ QString relateSvg(DrawingWriteContext &ctx, const QString &imageId);
 QString relateAddress(DrawingWriteContext &ctx, const QString &address);
 // What an a:hlinkClick for a link says: its relationship (empty for a jump inside the show) and its action. False when the link can't be written: a jump to a slide
 // the presentation doesn't have, or a link with no address.
+// Writes a click kept from a file (Item::keptClick, tp::KeptClick) as it was, with a relationship of its own for the address it names. Nothing for a writer with no slides.
+void writeKeptClick(QXmlStreamWriter &w, DrawingWriteContext &ctx, const QString &kept);
 bool linkClickParts(DrawingWriteContext &ctx, const QString &link, QString *rId, QString *action);
 // The relationships of the movie or sound a picture plays: `link` for its
 // a:videoFile or a:audioFile, and `copy` for the p14:media that says the file

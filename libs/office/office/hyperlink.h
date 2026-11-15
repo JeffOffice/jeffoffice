@@ -37,4 +37,8 @@ struct DrawingContext;
 // that is no link (a program, a macro, a sound), or a jump to a slide that has no number (DrawingContext::slideNumberOf).
 QString linkOfClick(const QDomElement &click, const DrawingContext &ctx);
 
+// A click that is no link here and must not be lost on saving (a program, a macro, another presentation, a custom show): its address (empty when it names none), a unit
+// separator, and its XML without the relationship id. Empty for a click that is a link, a sound or movie (written from the object), or has no action.
+QString keptClickOf(const QDomElement &click, const DrawingContext &ctx);
+
 } // namespace jp::office

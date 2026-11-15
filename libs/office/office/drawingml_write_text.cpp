@@ -153,6 +153,7 @@ void writeRunProperties(QXmlStreamWriter &w, const char *tag, const QTextCharFor
             w.writeEndElement();
         }
     }
+    if (link && !cf.isAnchor() && cf.hasProperty(tp::KeptClick)) writeKeptClick(w, ctx, cf.stringProperty(tp::KeptClick));
     if (link && cf.isAnchor() && !cf.anchorHref().isEmpty()) {
         QString rId, linkAction;
         if (linkClickParts(ctx, cf.anchorHref(), &rId, &linkAction)) {

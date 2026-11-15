@@ -4,6 +4,8 @@
 
 #include <QFileInfo>
 #include <QRegularExpression>
+#include <QTextStream>
+#include <QDomElement>
 #include <atomic>
 #include <QUrl>
 #include "office/drawingml.h"
@@ -122,6 +124,28 @@ QString linkOfClick(const QDomElement &click, const DrawingContext &ctx)
     // A plain link, or one to a file: an address. A program, a macro, another presentation, a custom show, a sound or movie, and any other action are not links: they stay text.
     if (!action.isEmpty() && action != QLatin1String("ppaction://hlinkfile")) return QString();
     return rel.external && rel.type.endsWith(QLatin1String("/hyperlink")) ? rel.target : QString();
+}
+
+
+QString keptClickOf(const QDomElement &click, const DrawingContext &ctx)
+{
+    if (click.isNull() || !ctx.slideNumberOf) return QString();
+    const QString action = attr(click, QStringLiteral("action"));
+    if (action.isEmpty() || action.startsWith(QLatin1String("ppaction://media")) || action.startsWith(QLatin1String("ppaction://hlinkshowjump")) ||
+        action == QLatin1String("ppaction://hlinksldjump") || action == QLatin1String("ppaction://hlinkfile"))
+        return QString();
+    QString target;
+    const QString id = attrNs(click, ns::R, QStringLiteral("id"));
+    if (!id.isEmpty() && ctx.package) {
+        const Relationship rel = ctx.package->relationship(ctx.part, id);
+        if (!rel.id.isEmpty() && rel.external) target = rel.target;
+    }
+    QString xml;
+    QTextStream out(&xml);
+    click.save(out, -1);
+    xml.remove(QRegularExpression(QStringLiteral("\\s+xmlns:\\w+=\"[^\"]*\"")));   // (the document's own declarations, which the DOM repeats on each element)
+    xml.remove(QRegularExpression(QStringLiteral("\\s+(?:\\w+:)?id=\"[^\"]*\"")));   // (the relationship id: a new one is made when it is written)
+    return target + QChar(0x1F) + xml;
 }
 
 } // namespace jp::office

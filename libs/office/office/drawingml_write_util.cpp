@@ -292,6 +292,33 @@ QString relateAddress(DrawingWriteContext &ctx, const QString &address)
     return relate(ctx, QStringLiteral("hyperlink"), address, true);
 }
 
+void writeKeptClick(QXmlStreamWriter &w, DrawingWriteContext &ctx, const QString &kept)
+{
+    if (ctx.slideCount <= 0 || kept.isEmpty()) return;
+    const QString target = kept.section(QChar(0x1F), 0, 0);
+    QString xml = kept.section(QChar(0x1F), 1);
+    if (!xml.startsWith(QLatin1String("<a:hlinkClick"))) return;
+    if (!target.isEmpty())
+        if (const QString rId = relateAddress(ctx, target); !rId.isEmpty()) xml.insert(QStringLiteral("<a:hlinkClick").size(), QStringLiteral(" r:id=\"%1\"").arg(rId));
+    QXmlStreamReader in(QStringLiteral("<k xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\">") + xml + QStringLiteral("</k>"));
+    in.readNext();
+    in.readNext();
+    in.readNext();   // (past the wrapper's start)
+    while (!in.atEnd() && !(in.isEndElement() && in.name() == QLatin1String("k"))) {
+        if (in.hasError()) return;
+        // (by the names as the file wrote them: the writer's own namespace handling would rename the prefixes)
+        if (in.isStartElement()) {
+            w.writeStartElement(in.qualifiedName().toString());
+            for (const QXmlStreamAttribute &a : in.attributes()) w.writeAttribute(a.qualifiedName().toString(), a.value().toString());
+        } else if (in.isEndElement()) {
+            w.writeEndElement();
+        } else if (in.isCharacters()) {
+            w.writeCharacters(in.text().toString());
+        }
+        in.readNext();
+    }
+}
+
 bool linkClickParts(DrawingWriteContext &ctx, const QString &link, QString *rId, QString *action)
 {
     action->clear();

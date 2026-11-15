@@ -501,6 +501,8 @@ void writeIdentity(QXmlStreamWriter &w, const Item &it, int id, const QString &f
         attribute(w, "r:id", rId);
         if (!linkAction.isEmpty()) attribute(w, "action", linkAction);
         w.writeEndElement();
+    } else if (!it.keptClick.isEmpty() && !playsMedia) {
+        writeKeptClick(w, ctx, it.keptClick);
     } else if (playsMedia) {
         begin(w, "a:hlinkClick");
         attribute(w, "r:id", QString());

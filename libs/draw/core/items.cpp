@@ -111,7 +111,7 @@ void Item::copyBase(const Item &o)
 {
     id = newId();
     sourceId = 0;
-    name = o.name; role = o.role; altText = o.altText; altTitle = o.altTitle; decorative = o.decorative; hidden = o.hidden; hyperlink = o.hyperlink;
+    name = o.name; role = o.role; altText = o.altText; altTitle = o.altTitle; decorative = o.decorative; hidden = o.hidden; hyperlink = o.hyperlink; keptClick = o.keptClick;
     rect = o.rect; rotation = o.rotation; flipH = o.flipH; flipV = o.flipV; locked = o.locked; lockAspect = o.lockAspect;
     fill = o.fill; stroke = o.stroke; fx = o.fx; styleRef = o.styleRef; wrap = o.wrap;
 }
@@ -129,6 +129,7 @@ QJsonObject Item::toJson() const
     if (decorative) o["decorative"] = true;
     if (hidden) o["hidden"] = true;
     if (!hyperlink.isEmpty()) o["link"] = hyperlink;
+    if (!keptClick.isEmpty()) o["keptClick"] = keptClick;
     o["rect"] = rectJson(rect);
     if (rotation) o["rot"] = rotation;
     if (flipH) o["flipH"] = true;
@@ -154,6 +155,7 @@ void Item::fromJson(const QJsonObject &o)
     decorative = o["decorative"].toBool();
     hidden = o["hidden"].toBool();
     hyperlink = o["link"].toString();
+    keptClick = o["keptClick"].toString();
     rect = rectFrom(o["rect"]);
     rotation = o["rot"].toDouble();
     flipH = o["flipH"].toBool();

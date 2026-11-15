@@ -555,6 +555,102 @@ private Q_SLOTS:
         QVERIFY(links.first().contains(QStringLiteral("/Dest [")));
     }
 
+    // A background nobody changed is saved as the file had it: a reference to the theme's styles stays one, a theme color keeps its changes, and a master with none has none. Only one
+    // that was edited is written new, as a plain color.
+    void anUntouchedBackgroundIsSavedAsItWas()
+    {
+        const QString bgRef = QStringLiteral("<p:bg><p:bgRef idx=\"1001\"><a:schemeClr val=\"bg2\"><a:lumMod val=\"95000\"/></a:schemeClr></p:bgRef></p:bg>");
+        const QString bgPr = QStringLiteral("<p:bg><p:bgPr><a:solidFill><a:schemeClr val=\"accent2\"><a:lumMod val=\"40000\"/><a:lumOff val=\"60000\"/></a:schemeClr></a:solidFill><a:effectLst/></p:bgPr></p:bg>");
+        Parts p = samplePptx();
+        auto put = [&](const QString &part, const QString &bg) {
+            QString xml = QString::fromUtf8(p.data[part].xml);
+            xml.replace(QStringLiteral("<p:cSld>"), QStringLiteral("<p:cSld>") + bg);
+            p.data[part].xml = xml.toUtf8();
+        };
+        put(QStringLiteral("/ppt/slides/slide1.xml"), bgRef);
+        put(QStringLiteral("/ppt/slides/slide2.xml"), bgPr);
+        QString master = QString::fromUtf8(p.data["/ppt/slideMasters/slideMaster1.xml"].xml);
+        master.remove(QRegularExpression(QStringLiteral("<p:bg>.*?</p:bg>")));
+        p.data["/ppt/slideMasters/slideMaster1.xml"].xml = master.toUtf8();
+        QString err;
+        auto d = deck::importPresentation(pack(p), &err);
+        QVERIFY2(d, qPrintable(err));
+        auto backgrounds = [&](const Document &doc, QStringList *masterOnes = nullptr) -> QStringList {
+            Exported e;
+            QString why;
+            if (!unpack(deck::exportPresentation(doc, &why), &e, &why)) return QStringList{why};
+            auto in = [&](const QString &name) {
+                QStringList out;
+                const QString xml = part(e, name);
+                for (auto it = QRegularExpression(QStringLiteral("<p:bg>.*?</p:bg>")).globalMatch(xml); it.hasNext();) out << it.next().captured(0);
+                return out;
+            };
+            if (masterOnes) *masterOnes = in(QStringLiteral("/ppt/slideMasters/slideMaster1.xml"));
+            return QStringList{in(QStringLiteral("/ppt/slides/slide1.xml")).join(QString()), in(QStringLiteral("/ppt/slides/slide2.xml")).join(QString())};
+        };
+        QStringList masterBg;
+        const QStringList saved = backgrounds(*d, &masterBg);
+        QCOMPARE(saved[0], bgRef);
+        QCOMPARE(saved[1], bgPr);
+        QVERIFY2(masterBg.isEmpty(), "a master with no background has none");
+        // Saved and opened again, the same (the kept form is kept through the second save).
+        auto second = deck::importPresentation(deck::exportPresentation(*d, &err), &err);
+        QVERIFY2(second, qPrintable(err));
+        QStringList masterBg2;
+        QCOMPARE(backgrounds(*second, &masterBg2), saved);
+        QVERIFY(masterBg2.isEmpty());
+        // One that is changed is written new, as the new color; the other stays.
+        deck::setSlideBackground(*d->pages[0], QColor(0x11, 0x22, 0x33));
+        const QStringList changed = backgrounds(*d);
+        QVERIFY2(changed[0].contains(QStringLiteral("srgbClr val=\"112233\"")) && changed[0].contains(QStringLiteral("bgPr")), qPrintable(changed[0]));
+        QCOMPARE(changed[1], bgPr);
+    }
+
+    // A program or a macro that a file has on a shape or on words is never followed, and is saved as it was: the action, what it names, and what is in it.
+    void programAndMacroActionsAreKeptOnSave()
+    {
+        Parts p = samplePptx();
+        int base = 0;
+        for (const Rel &r : p.rels) base += r.source == QLatin1String("/ppt/slides/slide1.xml");
+        const QString programClick = QStringLiteral("<a:hlinkClick r:id=\"rId%1\" action=\"ppaction://program\" tooltip=\"Runs it\"><a:snd r:embed=\"\" name=\"x\"/></a:hlinkClick>").arg(base + 1);
+        const QString macroClick = QStringLiteral("<a:hlinkClick r:id=\"\" action=\"ppaction://macro?name=Run\"/>");
+        const QString wordsClick = QStringLiteral("<a:hlinkClick r:id=\"rId%1\" action=\"ppaction://program\"/>").arg(base + 1);
+        auto shape = [](int id, const QString &name, const QString &click, const QString &runLink = QString()) {
+            return QStringLiteral("<p:sp><p:nvSpPr><p:cNvPr id=\"%1\" name=\"%2\">%3</p:cNvPr><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr>").arg(id).arg(name, click) + xfrm(914400 * (id - 49), 914400, 600000, 600000)
+                   + QStringLiteral("<a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></p:spPr><p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr lang=\"en-US\">%1</a:rPr><a:t>words</a:t></a:r></a:p></p:txBody></p:sp>").arg(runLink);
+        };
+        QString xml = QString::fromUtf8(p.data["/ppt/slides/slide1.xml"].xml);
+        xml.replace(QStringLiteral("</p:spTree>"), shape(50, QStringLiteral("program"), programClick) + shape(51, QStringLiteral("macro"), macroClick) + shape(52, QStringLiteral("words"), QString(), wordsClick) + QStringLiteral("</p:spTree>"));
+        p.data["/ppt/slides/slide1.xml"].xml = xml.toUtf8();
+        p.rels << Rel{QStringLiteral("/ppt/slides/slide1.xml"), QStringLiteral("hyperlink"), QStringLiteral("C:\\tools\\run.exe"), true};
+        QString err;
+        auto d = deck::importPresentation(pack(p), &err);
+        QVERIFY2(d, qPrintable(err));
+        for (const auto &it : d->pages[0]->items) QVERIFY2(it->hyperlink.isEmpty(), "never a link");
+        Exported e;
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &e, &err), qPrintable(err));
+        const QString out = part(e, QStringLiteral("/ppt/slides/slide1.xml"));
+        QCOMPARE(out.count(QStringLiteral("ppaction://program")), 2);
+        QVERIFY(out.contains(QStringLiteral("tooltip=\"Runs it\"")));
+        QVERIFY(out.contains(QStringLiteral("<a:snd ")) && out.contains(QStringLiteral("name=\"x\"")) && !out.contains(QStringLiteral("<n1:")));
+        QVERIFY(out.contains(QStringLiteral("ppaction://macro?name=Run")));
+        // The address the program click names is a relationship of the saved part, and the click refers to it.
+        const QVector<office::Relationship> rels = e.pkg.relationships(QStringLiteral("/ppt/slides/slide1.xml"));
+        QString relId;
+        for (const office::Relationship &r : rels)
+            if (r.external && r.target == QLatin1String("C:\\tools\\run.exe")) relId = r.id;
+        QVERIFY(!relId.isEmpty());
+        QVERIFY(out.contains(QStringLiteral("<a:hlinkClick r:id=\"%1\" action=\"ppaction://program\"").arg(relId)) || out.contains(QStringLiteral("<a:hlinkClick r:id=\"%1\" tooltip=\"Runs it\" action=\"ppaction://program\"").arg(relId))
+                || out.contains(QStringLiteral("r:id=\"%1\"").arg(relId)));
+        // Opened again, still no link anywhere, and a second save still has them.
+        auto back = deck::importPresentation(deck::exportPresentation(*d, &err), &err);
+        QVERIFY2(back, qPrintable(err));
+        for (const auto &it : back->pages[0]->items) QVERIFY(it->hyperlink.isEmpty());
+        Exported twice;
+        QVERIFY2(unpack(deck::exportPresentation(*back, &err), &twice, &err), qPrintable(err));
+        QCOMPARE(part(twice, QStringLiteral("/ppt/slides/slide1.xml")).count(QStringLiteral("ppaction://program")), 2);
+    }
+
     // ---------------- what a link may be, and what is refused ----------------
 
     // Only a plain link, a jump, and a file link are links. A program, a macro, another presentation, and any other action stay text; a relationship that is no hyperlink (a

@@ -655,6 +655,8 @@ private:
     QString addImage(const QByteArray &bytes, const QString &format);
 
     void readSize(const QDomElement &presentation);
+
+    void keepBackground(PageBase &page, const QDomElement &bg, const office::DrawingContext &ctx);
     void readSections(const QDomElement &presentation, const QHash<qint64, int> &pageOfSlideId);
     void readShowSettings(const QDomElement &presentation, const QHash<QString, int> &pageOfRel);
     MasterCtx *readMaster(const QString &part);
@@ -846,6 +848,22 @@ QString Importer::addImage(const QByteArray &bytes, const QString &format)
     return m_doc.addImage(bytes, format);
 }
 
+// Reads a page's background, and keeps what the file said of it as it said it (props "bgKept": the element's XML and the fill it was read as) so that a background nobody
+// changed is saved as it was: a color of the theme stays one (with its changes), a reference to the theme's styles stays one, and a page that had none still has none.
+void Importer::keepBackground(PageBase &page, const QDomElement &bg, const office::DrawingContext &ctx)
+{
+    if (bg.isNull()) {
+        page.props[QStringLiteral("bgKept")] = QJsonObject{{"none", true}};
+        return;
+    }
+    page.background = office::readBackground(bg, ctx);
+    QString xml;
+    QTextStream out(&xml);
+    bg.save(out, -1);
+    xml.remove(QRegularExpression(QStringLiteral("\\s+xmlns:\\w+=\"[^\"]*\"")));   // (the document's own declarations, which the DOM repeats on each element)
+    page.props[QStringLiteral("bgKept")] = QJsonObject{{"xml", xml}, {"fill", page.background.toJson()}};
+}
+
 void Importer::readSize(const QDomElement &presentation)
 {
     const QDomElement sz = pChild(presentation, "sldSz");
@@ -1011,7 +1029,7 @@ Importer::MasterCtx *Importer::readMaster(const QString &part)
     sc.page = page.get();
     sc.master = m.get();
     sc.ctx = contextFor(*m, m->colors, part);
-    if (const QDomElement bg = pChild(cSld, "bg"); !bg.isNull()) page->background = office::readBackground(bg, sc.ctx);
+    keepBackground(*page, pChild(cSld, "bg"), sc.ctx);
     sc.ctx.background = page->background;
     const QDomElement tree = pChild(cSld, "spTree");
     m->placeholders = placeholdersIn(tree);
@@ -1088,7 +1106,7 @@ Importer::LayoutCtx *Importer::readLayout(const QString &part, MasterCtx &master
     sc.page = page.get();
     sc.master = base;
     sc.ctx = contextFor(*base, l->colors, part);
-    if (const QDomElement bg = pChild(cSld, "bg"); !bg.isNull()) page->background = office::readBackground(bg, sc.ctx);
+    keepBackground(*page, pChild(cSld, "bg"), sc.ctx);
     sc.ctx.background = !page->background.isNone() ? page->background : base->page->background;
     const QDomElement tree = pChild(cSld, "spTree");
     l->placeholders = placeholdersIn(tree);
@@ -1688,7 +1706,7 @@ bool Importer::readSlide(int number, const QString &part)
     sc.layout = layout;
     sc.ctx = contextFor(master, colorsOf(pChild(root, "clrMapOvr"), layout ? layout->colors : master.colors), part);
     const QDomElement cSld = pChild(root, "cSld");
-    if (const QDomElement bg = pChild(cSld, "bg"); !bg.isNull()) page->background = office::readBackground(bg, sc.ctx);
+    keepBackground(*page, pChild(cSld, "bg"), sc.ctx);
     sc.ctx.background = !page->background.isNone() ? page->background
                       : layout && !layout->page->background.isNone() ? layout->page->background
                                                                       : master.page->background;
