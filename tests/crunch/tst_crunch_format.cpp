@@ -57,6 +57,43 @@ QByteArray formatBook()
     return buildXlsx({worksheet(rows)}, QByteArray(), QString(), QString(), styles);
 }
 
+// A workbook whose first cell holds rich text in the font "Zephyr Test", with a shape that has words in it and a chart (a title, data labels, and an axis), all set in that font.
+QByteArray richBook()
+{
+    const QByteArray ns = " xmlns:xdr=\"http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\""
+                          " xmlns:c=\"http://schemas.openxmlformats.org/drawingml/2006/chart\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"";
+    const QByteArray letters = "<a:latin typeface=\"Zephyr Test\"/>";
+    const QByteArray anchor = "<xdr:from><xdr:col>5</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>1</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from><xdr:to><xdr:col>8</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>5</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:to>";
+    const QByteArray drawing = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<xdr:wsDr" + ns + ">"
+                               "<xdr:twoCellAnchor>" + anchor + "<xdr:sp macro=\"\" textlink=\"\"><xdr:nvSpPr><xdr:cNvPr id=\"2\" name=\"Box\"/><xdr:cNvSpPr/></xdr:nvSpPr><xdr:spPr><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></xdr:spPr>"
+                               "<xdr:txBody><a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr lang=\"en-US\">" + letters + "</a:rPr><a:t>words</a:t></a:r></a:p></xdr:txBody></xdr:sp><xdr:clientData/></xdr:twoCellAnchor>"
+                               "<xdr:twoCellAnchor>" + anchor + "<xdr:graphicFrame macro=\"\"><xdr:nvGraphicFramePr><xdr:cNvPr id=\"3\" name=\"Chart\"/><xdr:cNvGraphicFramePr/></xdr:nvGraphicFramePr>"
+                               "<xdr:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"0\" cy=\"0\"/></xdr:xfrm><a:graphic><a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/chart\"><c:chart r:id=\"rIdC1\"/></a:graphicData></a:graphic></xdr:graphicFrame><xdr:clientData/></xdr:twoCellAnchor></xdr:wsDr>";
+    auto text = [&](const char *kind) { return QByteArray("<c:txPr><a:bodyPr/><a:lstStyle/><a:p><a:pPr><a:defRPr>") + letters + "</a:defRPr></a:pPr><a:endParaRPr lang=\"en-US\"/></a:p></c:txPr>" + QByteArray(kind); };
+    const QByteArray chart = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<c:chartSpace" + ns + "><c:chart><c:title><c:tx><c:rich><a:bodyPr/><a:p><a:r><a:rPr lang=\"en-US\">" + letters + "</a:rPr><a:t>Title</a:t></a:r></a:p></c:rich></c:tx><c:overlay val=\"0\"/></c:title>"
+                             "<c:plotArea><c:layout/><c:barChart><c:barDir val=\"col\"/><c:grouping val=\"clustered\"/><c:ser><c:idx val=\"0\"/><c:order val=\"0\"/><c:dLbls>" + text("") + "<c:showLegendKey val=\"0\"/><c:showVal val=\"1\"/><c:showCatName val=\"0\"/><c:showSerName val=\"0\"/><c:showPercent val=\"0\"/><c:showBubbleSize val=\"0\"/></c:dLbls>"
+                             "<c:val><c:numRef><c:f>Sheet1!$A$1:$A$3</c:f></c:numRef></c:val></c:ser><c:axId val=\"11\"/><c:axId val=\"12\"/></c:barChart>"
+                             "<c:catAx><c:axId val=\"11\"/><c:scaling><c:orientation val=\"minMax\"/></c:scaling><c:delete val=\"0\"/><c:axPos val=\"b\"/>" + text("") + "<c:crossAx val=\"12\"/></c:catAx>"
+                             "<c:valAx><c:axId val=\"12\"/><c:scaling><c:orientation val=\"minMax\"/></c:scaling><c:delete val=\"0\"/><c:axPos val=\"l\"/><c:crossAx val=\"11\"/></c:valAx></c:plotArea></c:chart></c:chartSpace>";
+    const QString lists = QStringLiteral("<fonts count=\"1\"><font><sz val=\"11\"/><name val=\"Calibri\"/><family val=\"2\"/></font></fonts>"
+                                         "<fills count=\"2\"><fill><patternFill patternType=\"none\"/></fill><fill><patternFill patternType=\"gray125\"/></fill></fills>"
+                                         "<borders count=\"1\"><border><left/><right/><top/><bottom/><diagonal/></border></borders>"
+                                         "<cellStyles count=\"1\"><cellStyle name=\"Normal\" xfId=\"0\" builtinId=\"0\"/></cellStyles>");
+    const QByteArray styles = stylesXml(QString(), QStringLiteral("<xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\" xfId=\"0\"/>"), lists);
+    const QByteArray shared = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<sst xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" count=\"1\" uniqueCount=\"1\"><si><r><rPr><b/><rFont val=\"Zephyr Test\"/></rPr><t>rich </t></r><r><t>text</t></r></si></sst>";
+    QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\" t=\"s\"><v>0</v></c><c r=\"B1\"><v>2</v></c><c r=\"C1\"><v>3</v></c></row>");
+    for (int r = 2; r <= 3; ++r) rows += QStringLiteral("<row r=\"%1\"><c r=\"A%1\"><v>%2</v></c><c r=\"B%1\"><v>%3</v></c><c r=\"C%1\"><v>%4</v></c></row>").arg(r).arg(r * 3 - 2).arg(r * 3 - 1).arg(r * 3);
+    QByteArray sheet = worksheet(rows);
+    sheet.replace("</worksheet>", "<drawing r:id=\"rIdD1\"/></worksheet>");
+    QVector<ExtraPart> parts;
+    parts.append({QStringLiteral("xl/drawings/drawing1.xml"), drawing, QStringLiteral("application/vnd.openxmlformats-officedocument.drawing+xml"), 0, QStringLiteral("rIdD1"), QStringLiteral("drawing"), QStringLiteral("../drawings/drawing1.xml")});
+    parts.append({QStringLiteral("xl/charts/chart1.xml"), chart, QStringLiteral("application/vnd.openxmlformats-officedocument.drawingml.chart+xml"), -1, QString(), QString(), QString()});
+    parts.append({QStringLiteral("xl/drawings/_rels/drawing1.xml.rels"),
+                  QByteArray("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rIdC1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/chart\" Target=\"/xl/charts/chart1.xml\"/></Relationships>"),
+                  QString(), -1, QString(), QString(), QString()});
+    return withParts(buildXlsx({sheet}, shared, QString(), QString(), styles), parts);
+}
+
 // A workbook whose sheet has rules of conditional formatting:
 //         A (color scale)   B (over 3, a fill)   C (data bar)   D (icon set)
 //   1     10                1                    10             10
@@ -233,7 +270,7 @@ private Q_SLOTS:
     void aReplacedFontIsWrittenInPlaceAndTheOldNameIsGoneFromTheFile()
     {
         EditWindow e;
-        QVERIFY(e.open(formatBook()));
+        QVERIFY(e.open(richBook()));
         crunch::EditSession *s = e.win.w.session();
         FormatChange zephyr;
         zephyr.fontName = QStringLiteral("Zephyr Test");
@@ -250,11 +287,26 @@ private Q_SLOTS:
         };
         const QByteArray before = stylesOf(e.copyOfFile());
         QVERIFY(before.contains("Zephyr Test"));
+        // (every part the file has, by name: none may keep the old name once it is replaced)
+        auto partsOf = [&](const QString &path) {
+            QFile f(path);
+            QByteArray all = f.open(QIODevice::ReadOnly) ? f.readAll() : QByteArray();
+            QMap<QString, QByteArray> parts;
+            readZip(all, parts);
+            return parts;
+        };
+        const QMap<QString, QByteArray> sent = partsOf(e.copyOfFile());
+        QVERIFY(sent.value(QStringLiteral("xl/sharedStrings.xml")).contains("Zephyr Test"));
+        QVERIFY(sent.value(QStringLiteral("xl/drawings/drawing1.xml")).contains("Zephyr Test"));
+        QVERIFY(sent.value(QStringLiteral("xl/charts/chart1.xml")).contains("Zephyr Test"));
+        // (the fonts of the rich text, the shape, and the chart are listed with the cells')
+        QMap<QString, qint64> stylesOnly;
+        QCOMPARE(s->cellFontsUsed(&stylesOnly).value(QStringLiteral("Zephyr Test")), qint64(4 + 1 + 1 + 3));
         const qsizetype fonts = before.count("<font>") + before.count("<font ");
         const qsizetype formats = before.count("<xf ");
         qint64 cells = 0;
         QVERIFY(s->replaceCellFont(QStringLiteral("zephyr test"), QStringLiteral("Zephyr Two"), &cells).ok);
-        QCOMPARE(cells, qint64(4));
+        QCOMPARE(cells, qint64(4 + 1 + 1 + 3));   // (four cells, a rich run, a shape's letters, and a chart's title, labels, and axis)
         QSignalSpy second(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
         QVERIFY2(savedOk(second, 20000), qPrintable(e.win.told.join('|') + e.win.w.statusText()));
@@ -263,9 +315,16 @@ private Q_SLOTS:
         QCOMPARE(after.count("Zephyr Two"), qsizetype(1));   // (one font entry, not one for each cell format)
         QCOMPARE(after.count("<font>") + after.count("<font "), fonts);
         QCOMPARE(after.count("<xf "), formats);
+        const QMap<QString, QByteArray> kept = partsOf(e.copyOfFile());
+        for (auto it = kept.constBegin(); it != kept.constEnd(); ++it) QVERIFY2(!it.value().contains("Zephyr Test"), qPrintable(it.key()));
+        QVERIFY(kept.value(QStringLiteral("xl/sharedStrings.xml")).contains("Zephyr Two"));
+        QVERIFY(kept.value(QStringLiteral("xl/drawings/drawing1.xml")).contains("Zephyr Two"));
+        QCOMPARE(kept.value(QStringLiteral("xl/charts/chart1.xml")).count("Zephyr Two"), qsizetype(3));
         Window reopened;
         QVERIFY(reopened.open(e.copyOfFile()));
         QCOMPARE(reopened.w.view()->sheet().looks().look(reopened.w.calculation()->sheet(0).cells.find(1, 1)->style).family, QStringLiteral("Zephyr Two"));
+        QCOMPARE(reopened.w.session()->cellFontsUsed().value(QStringLiteral("Zephyr Test")), qint64(0));
+        QCOMPARE(reopened.w.session()->cellFontsUsed().value(QStringLiteral("Zephyr Two")), qint64(4 + 1 + 1 + 3));
         // Undo gives the old name back, in the same place, and the file after another save has it again.
         e.win.w.act(QStringLiteral("edit.undo"))->trigger();
         QSignalSpy third(&e.win.w, &CrunchWindow::saved);
@@ -274,6 +333,11 @@ private Q_SLOTS:
         const QByteArray undone = stylesOf(e.copyOfFile());
         QVERIFY(undone.contains("Zephyr Test") && !undone.contains("Zephyr Two"));
         QCOMPARE(undone.count("<xf "), formats);
+        const QMap<QString, QByteArray> back = partsOf(e.copyOfFile());
+        for (const char *part : {"xl/sharedStrings.xml", "xl/drawings/drawing1.xml", "xl/charts/chart1.xml"}) {
+            QVERIFY2(back.value(QString::fromLatin1(part)).contains("Zephyr Test"), part);
+            QVERIFY2(!back.value(QString::fromLatin1(part)).contains("Zephyr Two"), part);
+        }
     }
 
     // A formatting command is one step: the cells have the font and fill, the format is the same for the same change (never made twice), Undo and Redo give it and take it back, and the

@@ -282,6 +282,8 @@ struct SaveChanges {
     QVector<FontSpec> newFonts;
     // Fonts of the file given other names (by place among the file's fonts, with the name now): each `font` is written again with its new name, where it stands.
     std::map<quint32, QString> renamedFonts;
+    // And the fonts that the text of parts names (rich runs, shapes, charts, comments): each rename in order, applied to every such part of the file when it is written.
+    QVector<QPair<QString, QString>> fontTextRenames;
     QVector<FillSpec> newFills;
     QVector<BorderSpec> newBorders;
     qint64 fontsBefore = 0, fillsBefore = 0, bordersBefore = 0;

@@ -912,7 +912,7 @@ public:
     // place), as one step of Undo. `cells` is how many cells use the font. Not ok, and nothing changed, when a sheet that has cells in it is protected against formatting.
     Outcome replaceCellFont(const QString &from, const QString &to, qint64 *cells = nullptr);
     // (the steps of Replace Fonts: Undo and Redo give the fonts their names; false when the workbook could not be held)
-    bool setFontNames(const QVector<QPair<quint32, QString>> &fonts);
+    bool setFontNames(const QVector<QPair<quint32, QString>> &fonts, const QString &from, const QString &to, bool doing);
     bool setThemeFontName(bool major, const QString &name);
     // The borders of a block: which of its edges (the sides on the outside of the block, the lines between its cells, a diagonal) are given the line; a line of no style takes them away. The
     // cells beside the block that share its outer edges are given the same line on the side that meets it, as in the programs people know.

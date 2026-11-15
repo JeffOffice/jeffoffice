@@ -26,6 +26,8 @@
 #include <QFileInfo>
 #include <QHash>
 #include <QSaveFile>
+#include "sheet/fonttext.h"
+
 #include <QRegularExpression>
 #include <QSet>
 
@@ -3472,6 +3474,23 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
             if (!stripCustomSheetViews(data, viewGuids, &stripped) || stripped == data) continue;
             stripEntries.insert(index, sheet);
             sheetOfEntry.insert(index, sheet);
+        }
+    }
+
+    // ---- the fonts the text of parts names (rich runs, shapes, charts), renamed where they stand
+    if (!changes.fontTextRenames.isEmpty()) {
+        for (int i = 0; i < directory.size(); ++i) {
+            if (dropped.contains(i) || sheetOfEntry.contains(i) || !partNamesFontsInText(directory[i].name.startsWith(QLatin1Char('/')) ? directory[i].name : QLatin1Char('/') + directory[i].name)) continue;
+            QByteArray xml;
+            if (replaced.contains(i)) xml = replaced.value(i);
+            else if (!inflate(i, &xml)) continue;
+            bool any = false;
+            for (const auto &r : changes.fontTextRenames) {
+                bool did = false;
+                xml = renameFontsInText(xml, r.first, r.second, &did);
+                any = any || did;
+            }
+            if (any) replaced.insert(i, xml);
         }
     }
 

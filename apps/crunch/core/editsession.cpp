@@ -2028,6 +2028,7 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why, bool pivotParts)
         changes.cellFormatsBefore = book.cellFormatsInFile();
         changes.newFonts = book.addedFonts();
         changes.renamedFonts = book.renamedFonts();
+        changes.fontTextRenames = book.fontTextRenames();
         QString themeName;
         if (const QByteArray theme = book.themePartNow(&themeName); !theme.isEmpty()) changes.replacedParts[themeName] = theme;
         changes.fontsBefore = book.fontsInFile();

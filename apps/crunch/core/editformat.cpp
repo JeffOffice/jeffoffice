@@ -270,7 +270,8 @@ QString fontNamed(const jp::office::sheet::Styles &styles, quint32 style, QHash<
 // Fonts put back, or given, as a step: Undo and Redo name the fonts as they were and are (the first Redo is a no-op: the step is pushed after the fonts are renamed).
 class FontsRenamed : public QUndoCommand {
 public:
-    FontsRenamed(EditSession *session, QVector<QPair<quint32, QString>> before, QString to, const QString &text) : QUndoCommand(text), m_session(session), m_before(std::move(before)), m_to(std::move(to)) {}
+    FontsRenamed(EditSession *session, QVector<QPair<quint32, QString>> before, QString from, QString to, const QString &text)
+        : QUndoCommand(text), m_session(session), m_before(std::move(before)), m_from(std::move(from)), m_to(std::move(to)) {}
     void redo() override
     {
         if (m_first) {
@@ -279,17 +280,17 @@ public:
         }
         QVector<QPair<quint32, QString>> now;
         for (const auto &f : std::as_const(m_before)) now.append({f.first, m_to});
-        if (!m_session->setFontNames(now)) m_session->giveUpUndo(text(), true);
+        if (!m_session->setFontNames(now, m_from, m_to, true)) m_session->giveUpUndo(text(), true);
     }
     void undo() override
     {
-        if (!m_session->setFontNames(m_before)) m_session->giveUpUndo(text(), false);
+        if (!m_session->setFontNames(m_before, m_from, m_to, false)) m_session->giveUpUndo(text(), false);
     }
 
 private:
     EditSession *m_session;
     QVector<QPair<quint32, QString>> m_before;
-    QString m_to;
+    QString m_from, m_to;
     bool m_first = true;
 };
 
@@ -327,11 +328,14 @@ bool EditSession::setThemeFontName(bool major, const QString &name)
     return true;
 }
 
-bool EditSession::setFontNames(const QVector<QPair<quint32, QString>> &fonts)
+bool EditSession::setFontNames(const QVector<QPair<quint32, QString>> &fonts, const QString &from, const QString &to, bool doing)
 {
     std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold();
     if (!hold) return false;
     for (const auto &f : fonts) m_book->book->setFontName(f.first, f.second);
+    // (and the fonts the text of the parts names: written into them when the workbook is saved)
+    if (doing) m_book->book->addFontTextRename(from, to);
+    else m_book->book->undoFontTextRename(from, to);
     Q_EMIT stylesChanged();
     return true;
 }
@@ -353,6 +357,14 @@ QMap<QString, qint64> EditSession::cellFontsUsed(QMap<QString, qint64> *stylesOn
             }
             return true;
         });
+    }
+    {
+        // (the fonts the text of shared strings, shapes, charts, and comments names)
+        std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold();
+        if (hold) {
+            const QMap<QString, qint64> inParts = m_book->book->partFontsUsed();
+            for (auto it = inParts.constBegin(); it != inParts.constEnd(); ++it) out[it.key()] += it.value();
+        }
     }
     if (theme) {
         if (!styles.majorFont.isEmpty()) theme->insert(QStringLiteral("+Heading"), styles.majorFont);
@@ -431,6 +443,8 @@ EditSession::Outcome EditSession::replaceCellFont(const QString &from, const QSt
         }
     }
     QVector<QPair<quint32, QString>> before;
+    qint64 inParts = 0;
+    QString named;
     {
         std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold();
         if (!hold) {
@@ -440,10 +454,21 @@ EditSession::Outcome EditSession::replaceCellFont(const QString &from, const QSt
             return out;
         }
         before = m_book->book->renameFonts(from, to);
+        const QMap<QString, qint64> parts = m_book->book->partFontsUsed();
+        for (auto it = parts.constBegin(); it != parts.constEnd(); ++it)
+            if (it.key().compare(from, Qt::CaseInsensitive) == 0) {
+                inParts += it.value();
+                if (named.isEmpty()) named = it.key();
+            }
+        // (Undo gives the name back as the file spells it, not as it was typed)
+        if (!before.isEmpty()) named = before.first().second;
+        if (named.isEmpty()) named = from;
+        if (inParts > 0) m_book->book->addFontTextRename(named, to);
     }
-    if (before.isEmpty()) return out;
+    if (before.isEmpty() && inParts == 0) return out;
+    if (cells) *cells += inParts;
     m_lastCalculated = false;
-    m_undo.push(new FontsRenamed(this, before, to, tr("Replace Fonts")));
+    m_undo.push(new FontsRenamed(this, before, named, to, tr("Replace Fonts")));
     Q_EMIT stylesChanged();
     return out;
 }

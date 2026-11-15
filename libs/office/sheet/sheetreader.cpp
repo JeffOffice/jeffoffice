@@ -3,6 +3,7 @@
 #include "sheet/htmlbook.h"
 #include "wml/wmlhtmlread.h"
 #include "sheet/sheetreader.h"
+#include "sheet/fonttext.h"
 #include "sheet/rowfast.h"
 #include "sheet/tablestyle.h"
 #include "sheet/xmlscan.h"
@@ -3136,6 +3137,28 @@ void Workbook::setFontName(quint32 index, const QString &name)
     m_fontIndexMade = false;
 }
 
+QMap<QString, qint64> Workbook::partFontsUsed() const
+{
+    QMap<QString, qint64> counts;
+    for (const QString &name : m_package.partNames())
+        if (partNamesFontsInText(name)) countFontsInText(m_package.part(name), &counts);
+    // (the renames the file does not have yet: the names they replace are the names they give)
+    for (const auto &r : m_fontTextRenames) {
+        QMap<QString, qint64> moved;
+        for (auto it = counts.constBegin(); it != counts.constEnd(); ++it) moved[it.key().compare(r.first, Qt::CaseInsensitive) == 0 ? r.second : it.key()] += it.value();
+        counts = moved;
+    }
+    return counts;
+}
+
+void Workbook::addFontTextRename(const QString &from, const QString &to) { m_fontTextRenames.append({from, to}); }
+
+void Workbook::undoFontTextRename(const QString &from, const QString &to)
+{
+    if (!m_fontTextRenames.isEmpty() && m_fontTextRenames.last() == qMakePair(from, to)) m_fontTextRenames.removeLast();
+    else m_fontTextRenames.append({to, from});   // (it was saved: the parts get the old name back)
+}
+
 void Workbook::setThemeFont(bool major, const QString &name)
 {
     (major ? m_styles.majorFont : m_styles.minorFont) = name;
@@ -3840,6 +3863,7 @@ void Workbook::savedTo(const Package &package, const SavedCounts &counts)
     m_formatsAdded = m_formatsAdded.mid(cellFormats);
     m_fontsAdded = m_fontsAdded.mid(counts.fonts);
     m_fontFileNames.clear();   // (the file has the names the fonts have now)
+    m_fontTextRenames.clear();
     m_themeMajorInFile = m_styles.majorFont;
     m_themeMinorInFile = m_styles.minorFont;
     m_fillsAdded = m_fillsAdded.mid(counts.fills);

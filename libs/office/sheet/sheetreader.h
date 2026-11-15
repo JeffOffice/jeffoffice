@@ -361,6 +361,12 @@ public:
     // default that uses them follows. Returns the places renamed with the names they had. A font of the file is written with its new name in place (renamedFonts); no font is added.
     QVector<QPair<quint32, QString>> renameFonts(const QString &from, const QString &to);
     void setFontName(quint32 index, const QString &name);
+    // The fonts the text of the file's parts name (rich runs of shared strings, shapes, charts, and comments), by name, with the renames not yet saved applied; and those renames, which are
+    // written into the parts when the workbook is saved (the first to be undone is the last made).
+    QMap<QString, qint64> partFontsUsed() const;
+    void addFontTextRename(const QString &from, const QString &to);
+    void undoFontTextRename(const QString &from, const QString &to);
+    QVector<QPair<QString, QString>> fontTextRenames() const { return m_fontTextRenames; }
     // The theme's heading (major) and body (minor) fonts: the fonts that say "major" or "minor" mean these. Renaming one changes the theme part when the workbook is saved (themePartNow).
     void setThemeFont(bool major, const QString &name);
     // The theme part as it is written now (the file's own with the two names put in), by its name; empty when the names are the file's or the workbook has no theme.
@@ -524,6 +530,7 @@ private:
     quint32 findOrAddFormat(quint32 base, const CellFormat &format);
     std::unordered_multimap<quint64, quint32> m_fontIndex, m_fillIndex, m_borderIndex;   // the fonts, fills, and borders by a hash of what they are (made when first needed)
     bool m_fontIndexMade = false, m_fillIndexMade = false, m_borderIndexMade = false;
+    QVector<QPair<QString, QString>> m_fontTextRenames;   // the renames of the fonts in parts' text that the file does not have yet, in order
     QString m_themePartName, m_themeMajorInFile, m_themeMinorInFile;   // the theme part, and the two fonts it names (as the file has them)
     std::map<quint32, QString> m_fontFileNames;   // the names the file has for the fonts renamed since it was opened or saved (by place)
     struct HeaderImages {
