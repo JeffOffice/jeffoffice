@@ -177,6 +177,7 @@ void FlowTests::aFontWithStylisticSetsAndOldStyleFiguresShapesThemPerRun()
         QTextCharFormat plain;
         plain.setFontFamilies({family});
         plain.setFontWeight(QFont::ExtraBold);
+        plain.setFontStyleName(QStringLiteral("ExtraBold"));   // (asked by weight and by name: the Mac's matching lands on a neighbor by weight alone)
         plain.setFontPointSize(24);
         QTextCharFormat run = plain;
         for (auto it = choices.cbegin(); it != choices.cend(); ++it) run.setProperty(it.key(), it.value());
