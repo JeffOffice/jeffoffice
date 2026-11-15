@@ -6,6 +6,7 @@
 #include "grid/gridview.h"
 #include "core/version.h"
 #include "pubhelpers.h"
+#include "../withdialog.h"
 #include "app/icons.h"
 #include "app/optionsdialog.h"
 #include "app/firstwindow.h"
@@ -2355,6 +2356,46 @@ private Q_SLOTS:
         };
         walk(QJsonDocument::fromJson(json.readAll()).object());
         QVERIFY2(missing.isEmpty(), qPrintable(QStringLiteral("not in ribbon_strings.cpp (run tools/ribbon_strings.py): ") + missing.join(QStringLiteral(", "))));
+    }
+
+    // Replace Fonts (Home > Editing): the box lists the fonts the publication uses and puts another in the place of one everywhere (frames, shapes, notes, master pages, styles, Text Art),
+    // as one step of Undo.
+    void replaceFontsSwapsAFontEverywhereAsOneStep()
+    {
+        jp::MainWindow w;
+        w.show();
+        jp::Document &d = *w.editor()->doc();
+        auto frame = std::make_shared<jp::TextItem>();
+        frame->id = QStringLiteral("f1");
+        frame->rect = QRectF(40, 40, 200, 60);
+        frame->storyId = d.createStory(QStringLiteral("words"));
+        {
+            QTextCursor c(d.storyDoc(frame->storyId));
+            c.select(QTextCursor::Document);
+            QTextCharFormat f;
+            f.setFontFamilies(QStringList{QStringLiteral("Zephyr Test")});
+            c.mergeCharFormat(f);
+        }
+        d.pages[0]->items.push_back(frame);
+        auto art = std::make_shared<jp::TextArtItem>();
+        art->id = QStringLiteral("art1");
+        art->rect = QRectF(40, 200, 100, 50);
+        art->font = QStringLiteral("Zephyr Test");
+        d.pages[0]->items.push_back(art);
+        QVERIFY(w.act("edit.replaceFonts"));
+        const int steps = w.editor()->undoStack()->count();
+        withDialog([&] { w.act("edit.replaceFonts")->trigger(); }, QStringLiteral("replaceFontsDialog"), [](QDialog *dlg) {
+            auto *from = dlg->findChild<QComboBox *>(QStringLiteral("replaceFontsFrom"));
+            QVERIFY(from);
+            const int at = from->findData(QStringLiteral("Zephyr Test"));
+            QVERIFY(at >= 0);
+            from->setCurrentIndex(at);
+            dlg->findChild<QComboBox *>(QStringLiteral("replaceFontsTo"))->setEditText(QStringLiteral("Zephyr Other"));
+        });
+        QCOMPARE(w.editor()->undoStack()->count(), steps + 1);
+        QCOMPARE(static_cast<jp::TextArtItem *>(w.editor()->doc()->pages[0]->items.back().get())->font, QStringLiteral("Zephyr Other"));
+        w.editor()->undo();
+        QCOMPARE(static_cast<jp::TextArtItem *>(w.editor()->doc()->pages[0]->items.back().get())->font, QStringLiteral("Zephyr Test"));
     }
 
     // A file being opened is named in the status line by its name alone.

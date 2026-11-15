@@ -5,8 +5,12 @@
 #include "app/editor.h"
 #include "app/gotodialog.h"
 #include "app/deckfindpane.h"
+#include "app/pagefonts.h"
+#include "app/replacefonts.h"
+#include "core/themes.h"
 
 #include <QAction>
+#include <QStatusBar>
 #include <QDockWidget>
 
 namespace jp {
@@ -16,6 +20,7 @@ void DeckWindow::createEditingActions()
     Editor *ed = m_ed;
     mk("edit.find", tr("Find"), "search", QKeySequence::Find, [this] { showFindPane(false); });
     mk("edit.replace", tr("Replace"), "replace", QKeySequence(Qt::CTRL | Qt::Key_H), [this] { showFindPane(true); });
+    mk("edit.replaceFonts", tr("Replace Fonts…"), "a-large-small", QKeySequence(), [this] { replaceFonts(); });
     mk("edit.goTo", tr("Go To…"), "locate-fixed", QKeySequence(Qt::CTRL | Qt::Key_G), [this] { showGoToDialog(this); });
     mk("edit.selectObjects", tr("Select Objects"), "mouse-pointer-2", QKeySequence(), [ed] {
         ed->setTool(Tool::Select);
@@ -37,6 +42,33 @@ void DeckWindow::showFindPane(bool replace)
     m_findDock->show();
     m_findDock->raise();
     m_find->focusBox(replace);
+}
+
+void DeckWindow::replaceFonts()
+{
+    Editor *ed = m_ed;
+    ed->endTextEdit();
+    ReplaceFontsHost host;
+    host.fontsUsed = [ed] { return pageFontsUsed(*ed->doc()); };
+    host.replace = [ed](const QString &key, const QString &to) {
+        int n = 0;
+        ed->change(tr("Replace Fonts"), [&] {
+            Document &d = *ed->doc();
+            if (key == QLatin1String("+Heading") || key == QLatin1String("+Body")) {
+                // The theme's own font: the presentation's font scheme changes (as Design > Fonts does), and text set in it follows.
+                deck::FontSet scheme = deck::fontSetOf(d);
+                (key == QLatin1String("+Heading") ? scheme.heading : scheme.body) = to;
+                for (const FontUse &u : pageFontsUsed(d))
+                    if (u.key == key) n = u.uses;
+                deck::applyFonts(d, scheme);
+            } else {
+                n = replacePageFont(d, key, to);
+            }
+        });
+        return n;
+    };
+    const ReplaceFontsResult done = askReplaceFonts(this, host);
+    statusBar()->showMessage(done.uses > 0 ? done.message() : tr("No fonts were replaced."), 6000);
 }
 
 } // namespace jp

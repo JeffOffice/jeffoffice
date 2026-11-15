@@ -104,6 +104,65 @@ private Q_SLOTS:
         setUiDark(false);
     }
 
+    // Replace Fonts (Home > Editing): every font the presentation uses is listed (slides, notes, masters, and layouts), one is put in the place of another everywhere in one step of Undo,
+    // and the theme's font changes only when it is the one picked.
+    void replaceFontsSwapsAFontEverywhereAsOneStep()
+    {
+        DeckWindow w;
+        w.show();
+        Document &d = *w.editor()->doc();
+        auto frame = std::make_shared<TextItem>();
+        frame->id = QStringLiteral("f1");
+        frame->rect = QRectF(40, 40, 400, 60);
+        frame->storyId = d.createStory(QStringLiteral("words"));
+        {
+            QTextCursor c(d.storyDoc(frame->storyId));
+            c.select(QTextCursor::Document);
+            QTextCharFormat f;
+            f.setFontFamilies(QStringList{QStringLiteral("Zephyr Test")});
+            c.mergeCharFormat(f);
+        }
+        d.pages[0]->items.push_back(frame);
+        // (A layout's own text is a story of the document too.)
+        QVERIFY(!d.masters.isEmpty());
+        auto onLayout = std::make_shared<TextItem>();
+        onLayout->id = QStringLiteral("l1");
+        onLayout->rect = QRectF(40, 400, 400, 60);
+        onLayout->storyId = d.createStory(QStringLiteral("layout words"));
+        {
+            QTextCursor c(d.storyDoc(onLayout->storyId));
+            c.select(QTextCursor::Document);
+            QTextCharFormat f;
+            f.setFontFamilies(QStringList{QStringLiteral("Zephyr Test")});
+            c.mergeCharFormat(f);
+        }
+        d.masters.last()->items.push_back(onLayout);
+        const QString heading = d.fonts.heading, slideStory = frame->storyId, layoutStory = onLayout->storyId;
+        QVERIFY(w.act("edit.replaceFonts"));
+        const int steps = w.editor()->undoStack()->count();
+        withDialog([&] { w.act("edit.replaceFonts")->trigger(); }, QStringLiteral("replaceFontsDialog"), [](QDialog *dlg) {
+            auto *from = dlg->findChild<QComboBox *>(QStringLiteral("replaceFontsFrom"));
+            QVERIFY(from);
+            const int at = from->findData(QStringLiteral("Zephyr Test"));
+            QVERIFY(at >= 0);
+            QVERIFY(from->itemText(at).contains(QLatin1String("2 use")));
+            from->setCurrentIndex(at);
+            dlg->findChild<QComboBox *>(QStringLiteral("replaceFontsTo"))->setEditText(QStringLiteral("Zephyr Other"));
+        });
+        QCOMPARE(w.editor()->undoStack()->count(), steps + 1);
+        auto familyOf = [&](const QString &storyId) {
+            QTextCursor c(w.editor()->doc()->storyDoc(storyId));
+            c.setPosition(1);
+            return c.charFormat().fontFamilies().toStringList().value(0);
+        };
+        QCOMPARE(familyOf(slideStory), QStringLiteral("Zephyr Other"));
+        QCOMPARE(familyOf(layoutStory), QStringLiteral("Zephyr Other"));
+        QCOMPARE(w.editor()->doc()->fonts.heading, heading);
+        w.editor()->undo();
+        QCOMPARE(familyOf(slideStory), QStringLiteral("Zephyr Test"));
+        QCOMPARE(familyOf(layoutStory), QStringLiteral("Zephyr Test"));
+    }
+
     // The slide thumbnails: a row for each slide, the current row following
     // the editor and the editor following Up and Down; the current slide
     // outlined in the accent without a fill over it; a hidden slide marked.

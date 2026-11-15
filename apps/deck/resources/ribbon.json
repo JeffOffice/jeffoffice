@@ -367,6 +367,10 @@
               "keytip": "RP"
             },
             {
+              "small": "edit.replaceFonts",
+              "keytip": "RF"
+            },
+            {
               "small": "edit.goTo",
               "keytip": "GT"
             },

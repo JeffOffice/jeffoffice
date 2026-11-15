@@ -186,6 +186,8 @@ public:
     int backstageHeldThumbnailTicks() const;
     void hideBackstage();
     void showTaskPane(const QString &name);
+    // Replace Fonts: the box that swaps one font the publication uses for another everywhere; one step of Undo.
+    void replaceFonts();
     // Review > Check Accessibility: the list of what is hard for some readers to use, which goes to a problem when it is clicked.
     void showAccessibilityPane();
     PageAccessibilityPane *accessibilityPane() const { return m_accessPane; }

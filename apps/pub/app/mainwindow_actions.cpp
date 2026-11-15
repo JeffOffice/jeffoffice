@@ -17,6 +17,8 @@
 #include "app/tableedit.h"
 #include "app/notes.h"
 #include "app/iconpicker.h"
+#include "app/pagefonts.h"
+#include "app/replacefonts.h"
 #include "core/svg.h"
 #include "app/toc.h"
 
@@ -180,6 +182,7 @@ void MainWindow::createActions()
     }
     mk("edit.find", tr("Find"), "search", QKeySequence::Find, [this] { showTaskPane("find"); });
     mk("edit.replace", tr("Replace"), "replace", QKeySequence(Qt::CTRL | Qt::Key_H), [this] { showTaskPane("replace"); });
+    mk("edit.replaceFonts", tr("Replace Fonts…"), "a-large-small", QKeySequence(), [this] { replaceFonts(); });
 
     // ---------------- Font ----------------
     mk("fmt.bold", tr("Bold"), "bold", QKeySequence::Bold, [ed] { ed->toggleBold(); }, true);
@@ -1348,6 +1351,21 @@ void MainWindow::createActions()
               tr("What's New: this version's release notes, on JeffPub's GitHub page."));
     described(mk("view.collapseRibbon", tr("Collapse the Ribbon"), "chevron-up", QKeySequence(Qt::CTRL | Qt::Key_F1), [this] { m_ribbon->setMinimized(!m_ribbon->isMinimized()); }),
               tr("Collapse the Ribbon (Ctrl+F1): only the tab names show, leaving more room for the page. Again to show it."));
+}
+
+void MainWindow::replaceFonts()
+{
+    Editor *ed = m_ed;
+    ed->endTextEdit();
+    ReplaceFontsHost host;
+    host.fontsUsed = [ed] { return pageFontsUsed(*ed->doc()); };
+    host.replace = [ed](const QString &key, const QString &to) {
+        int n = 0;
+        ed->change(tr("Replace Fonts"), [&] { n = replacePageFont(*ed->doc(), key, to); });
+        return n;
+    };
+    const ReplaceFontsResult done = askReplaceFonts(this, host);
+    statusBar()->showMessage(done.uses > 0 ? done.message() : tr("No fonts were replaced."), 6000);
 }
 
 } // namespace jp
