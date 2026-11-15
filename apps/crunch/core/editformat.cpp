@@ -252,6 +252,84 @@ EditSession::Outcome EditSession::formatCells(int sheet, const CellRange &range,
     return restyleRange(sheet, range, std::make_shared<FormatChange>(change), text);
 }
 
+namespace {
+
+// The name of the font a cell format is set in; nothing for one that follows the theme (its scheme says "major" or "minor").
+QString fontNamed(const jp::office::sheet::Styles &styles, quint32 style, QHash<quint32, QString> *seen)
+{
+    const auto found = seen->constFind(style);
+    if (found != seen->constEnd()) return *found;
+    const jp::office::sheet::FontSpec &font = styles.font(styles.format(style).font);
+    const QString name = font.scheme.isEmpty() ? font.name : QString();
+    seen->insert(style, name);
+    return name;
+}
+
+} // namespace
+
+QMap<QString, qint64> EditSession::cellFontsUsed() const
+{
+    QMap<QString, qint64> out;
+    if (!m_book || !m_book->calc || !m_book->book) return out;
+    const jp::office::sheet::Styles &styles = m_book->book->styles();
+    QHash<quint32, QString> seen;
+    for (int sheet = 0; sheet < m_book->calc->sheetCount(); ++sheet) {
+        m_book->calc->sheet(sheet).cells.forEachInRange(0, 0, kMaxRows - 1, kMaxColumns - 1, [&](quint32, quint32, const Cell &c) {
+            const QString name = fontNamed(styles, c.style, &seen);
+            if (!name.isEmpty()) ++out[name];
+            return true;
+        });
+    }
+    return out;
+}
+
+EditSession::Outcome EditSession::replaceCellFont(const QString &from, const QString &to, qint64 *cells)
+{
+    Outcome out;
+    if (cells) *cells = 0;
+    QString why;
+    if (!canEdit(&why)) {
+        out.ok = false;
+        out.problem = why;
+        return out;
+    }
+    if (to.size() > jp::office::sheet::kMaxFontNameFileChars) {
+        out.ok = false;
+        out.problem = tr("A font's name can have up to %1 characters in a workbook, and this one has %2. Choose another font.").arg(jp::office::sheet::kMaxFontNameFileChars).arg(to.size());
+        return out;
+    }
+    if (from.isEmpty() || to.isEmpty() || from.compare(to, Qt::CaseInsensitive) == 0 || !m_book || !m_book->calc || !m_book->book) return out;
+    FormatChange change;
+    change.fontName = to;
+    const QString text = tr("Replace Fonts");
+    const jp::office::sheet::Styles &styles = m_book->book->styles();
+    QHash<quint32, QString> seen;
+    bool macro = false;
+    qint64 changed = 0;
+    for (int sheet = 0; sheet < m_book->calc->sheetCount(); ++sheet) {
+        std::vector<RestyleTarget> targets;
+        m_book->calc->sheet(sheet).cells.forEachInRange(0, 0, kMaxRows - 1, kMaxColumns - 1, [&](quint32 row, quint32 col, const Cell &c) {
+            if (fontNamed(styles, c.style, &seen).compare(from, Qt::CaseInsensitive) == 0 && int(targets.size()) < kMaxStyledCells) targets.push_back({row, col, &change});
+            return true;
+        });
+        if (targets.empty()) continue;
+        if (!macro) {
+            // (every sheet's change is one step of Undo)
+            m_undo.beginMacro(text);
+            macro = true;
+        }
+        const Outcome one = restyle(sheet, targets, text);
+        if (!one.ok) {
+            m_undo.endMacro();
+            return one;
+        }
+        changed += qint64(targets.size());
+    }
+    if (macro) m_undo.endMacro();
+    if (cells) *cells = changed;
+    return out;
+}
+
 EditSession::Outcome EditSession::applyStyle(int sheet, const CellRange &range, quint32 style, const QString &text)
 {
     FormatChange c;

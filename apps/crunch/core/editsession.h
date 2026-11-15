@@ -25,6 +25,7 @@
 #include "sheet/xlsxsave.h"
 
 #include <QLocale>
+#include <QMap>
 #include <QSet>
 #include <QVector>
 #include <QObject>
@@ -902,6 +903,10 @@ public:
     // are given the format as the columns' (rows') own, and the cells in them that have formats of their own are changed too; any other block must be no more than kMaxCellsPerEdit cells.
     // Not ok, and nothing changed, if a cell in it is locked on a protected sheet. `text` is the name of the step in the Edit menu.
     Outcome formatCells(int sheet, const jp::office::sheet::CellRange &range, const jp::office::sheet::FormatChange &change, const QString &text);
+    // Replace Fonts: the fonts the cells of the workbook are set in, by name, with how many cells each (a cell that follows the theme's font names none), and the change of one for another in
+    // every cell that has it, on every sheet, as one step of Undo. `cells` is how many cells changed. Not ok when a sheet that is protected, or a cell that is locked on it, can't be changed.
+    QMap<QString, qint64> cellFontsUsed() const;
+    Outcome replaceCellFont(const QString &from, const QString &to, qint64 *cells = nullptr);
     // The borders of a block: which of its edges (the sides on the outside of the block, the lines between its cells, a diagonal) are given the line; a line of no style takes them away. The
     // cells beside the block that share its outer edges are given the same line on the side that meets it, as in the programs people know.
     enum BorderEdge { EdgeLeft = 1, EdgeRight = 2, EdgeTop = 4, EdgeBottom = 8, EdgeInsideHorizontal = 16, EdgeInsideVertical = 32, EdgeDiagonalUp = 64, EdgeDiagonalDown = 128 };

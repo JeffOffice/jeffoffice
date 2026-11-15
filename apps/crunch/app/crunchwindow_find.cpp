@@ -2,12 +2,14 @@
 // textmatch.h, the walk over the cells FindRun, and Replace one step of the edit session.
 #include "app/crunchwindow.h"
 #include "app/plaintext.h"
+#include "app/replacefonts.h"
 
 #include "app/crunchinfo.h"
 #include "app/finddialog.h"
 #include "sheet/cellref.h"
 
 #include <QAction>
+#include <QStatusBar>
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QFormLayout>
@@ -33,6 +35,7 @@ void CrunchWindow::createFindActions()
     mk("edit.find", tr("Find"), "search", QKeySequence(), [this] { showFindDialog(false); });
     mk("find.find", tr("Find…"), "search", QKeySequence(QKeySequence::Find), [this] { showFindDialog(false); });
     mk("find.replace", tr("Replace…"), "replace", QKeySequence(QKeySequence::Replace), [this] { showFindDialog(true); });
+    mk("find.replaceFonts", tr("Replace Fonts…"), "a-large-small", QKeySequence(), [this] { replaceFonts(); });
     mk("find.next", tr("Next Match"), "", QKeySequence(QKeySequence::FindNext), [this] {
         if (m_findDialog && !m_findDialog->findText().isEmpty()) startSearch(SearchFor::Next);
         else showFindDialog(false);
@@ -52,7 +55,7 @@ void CrunchWindow::createFindActions()
         options.kind = crunch::SpecialKind::VisibleCells;
         goToSpecial(options);
     });
-    for (const char *id : {"edit.find", "find.find", "find.replace", "find.next", "find.goto", "find.gotoSpecial", "find.selectVisible"}) m_opsActions << QString::fromLatin1(id);
+    for (const char *id : {"edit.find", "find.find", "find.replace", "find.replaceFonts", "find.next", "find.goto", "find.gotoSpecial", "find.selectVisible"}) m_opsActions << QString::fromLatin1(id);
     m_findTimer.setInterval(0);
     m_findTimer.setSingleShot(false);
     connect(&m_findTimer, &QTimer::timeout, this, [this] { stepSearch(); });
@@ -516,6 +519,29 @@ bool CrunchWindow::goToSpecial(const crunch::SpecialOptions &options)
     if (found.truncated) text += QLatin1Char(' ') + tr("The search stopped at a limit, so there may be more.");
     setStatus(text);
     return true;
+}
+
+void CrunchWindow::replaceFonts()
+{
+    if (!m_session || m_edit.active) return;
+    ReplaceFontsHost host;
+    host.fontsUsed = [this] {
+        QMap<QString, int> uses;
+        const QMap<QString, qint64> cells = m_session->cellFontsUsed();
+        for (auto it = cells.constBegin(); it != cells.constEnd(); ++it) uses.insert(it.key(), int(std::min<qint64>(it.value(), 2000000000)));
+        return fontUsesOf(uses);
+    };
+    host.replace = [this](const QString &from, const QString &to) {
+        qint64 cells = 0;
+        const crunch::EditSession::Outcome out = m_session->replaceCellFont(from, to, &cells);
+        if (!out.ok) {
+            jp::plainWarning(this, tr("Replace Fonts"), out.problem);
+            return 0;
+        }
+        return int(std::min<qint64>(cells, 2000000000));
+    };
+    const ReplaceFontsResult done = askReplaceFonts(this, host);
+    statusBar()->showMessage(done.uses > 0 ? done.message() : tr("No fonts were replaced."), 6000);
 }
 
 } // namespace jp

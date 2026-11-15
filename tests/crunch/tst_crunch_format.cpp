@@ -183,6 +183,39 @@ private Q_SLOTS:
         QVERIFY(s->formatCells(0, rangeOf(QStringLiteral("B2:C3")), change, QStringLiteral("Formatting")).ok);
     }
 
+    // Replace Fonts (Home > Find & Select): the box lists the fonts the cells are set in, and one is put in the place of another in every cell that has it, on the sheet, as one step of Undo.
+    void replaceFontsPutsOneFontInThePlaceOfAnotherInEveryCellAsOneStep()
+    {
+        EditWindow e;
+        QVERIFY(e.open(formatBook()));
+        crunch::EditSession *s = e.win.w.session();
+        FormatChange zephyr, other;
+        zephyr.fontName = QStringLiteral("Zephyr Test");
+        other.fontName = QStringLiteral("Other Face");
+        QVERIFY(s->formatCells(0, rangeOf(QStringLiteral("B2:C3")), zephyr, QStringLiteral("Formatting")).ok);
+        QVERIFY(s->formatCells(0, rangeOf(QStringLiteral("A1")), other, QStringLiteral("Formatting")).ok);
+        const QMap<QString, qint64> used = s->cellFontsUsed();
+        QCOMPARE(used.value(QStringLiteral("Zephyr Test")), qint64(4));
+        QCOMPARE(used.value(QStringLiteral("Other Face")), qint64(1));
+        QVERIFY(e.win.w.act(QStringLiteral("find.replaceFonts")));
+        const int steps = e.win.w.undoStack()->count();
+        qint64 cells = 0;
+        QVERIFY(s->replaceCellFont(QStringLiteral("zephyr test"), QStringLiteral("Zephyr Two"), &cells).ok);
+        QCOMPARE(cells, qint64(4));
+        QCOMPARE(e.win.w.undoStack()->count(), steps + 1);
+        QCOMPARE(lookAt(e, QStringLiteral("B2")).family, QStringLiteral("Zephyr Two"));
+        QCOMPARE(lookAt(e, QStringLiteral("C3")).family, QStringLiteral("Zephyr Two"));
+        QCOMPARE(lookAt(e, QStringLiteral("A1")).family, QStringLiteral("Other Face"));   // (a cell in another font is left)
+        QCOMPARE(s->cellFontsUsed().value(QStringLiteral("Zephyr Test")), qint64(0));
+        // Nothing to change: no step is made.
+        QVERIFY(s->replaceCellFont(QStringLiteral("Zephyr Test"), QStringLiteral("Anything"), &cells).ok);
+        QCOMPARE(cells, qint64(0));
+        QCOMPARE(e.win.w.undoStack()->count(), steps + 1);
+        e.win.w.act(QStringLiteral("edit.undo"))->trigger();
+        QCOMPARE(lookAt(e, QStringLiteral("B2")).family, QStringLiteral("Zephyr Test"));
+        QCOMPARE(e.win.w.undoStack()->count(), steps + 1);
+    }
+
     // A formatting command is one step: the cells have the font and fill, the format is the same for the same change (never made twice), Undo and Redo give it and take it back, and the
     // saved file has the font, the fill, and the cell format, once.
     void formattingIsOneStepAndSavedOnce()

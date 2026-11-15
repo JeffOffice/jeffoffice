@@ -204,6 +204,8 @@ public:
     bool isEditing() const { return m_edit.active; }
     CellEditor *cellEditor() const { return m_cellEditor; }
     crunch::EditSession *session() const { return m_session.get(); }
+    // Replace Fonts (Home > Find & Select): the box that swaps one font the cells use for another on every sheet; one step of Undo.
+    void replaceFonts();
     // What the notes and links ask through, and how an address is opened (a test gives its own: nothing is ever opened but by a click or a command).
     AnchorHooks &anchorHooks();
     // Whether opening a .csv, .tsv, or .txt file asks how it is read (the program turns it on; a window made for a test leaves it off, and the file is detected). Open Text File asks always.
