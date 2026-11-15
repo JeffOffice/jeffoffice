@@ -2,8 +2,13 @@
 // Replace Fonts for a document of placed objects (JeffPub's publication and JeffDeck's presentation): every font the text names, in the text frames, shapes, table cells, notes, master
 // pages, and slide layouts (all of them are stories of the document), in the text styles, in Text Art, and in the list of fonts a `.pub` file named. The theme's two fonts are
 // separate entries ("+Heading" and "+Body"): a run that follows the theme stays following it, and the theme's font changes only when it is the one picked.
+// Missing fonts (libs/shell/app/missingfonts) for a Document of placed objects, JeffPub's and JeffDeck's: the fonts of every story (text boxes, shapes' words, table cells, speaker notes, and
+// the master pages' text), where each is used, and the change of one font for another in all of them as one step that undoes.
 
+#include "app/findreplace.h"
+#include "app/missingfonts.h"
 #include "app/replacefonts.h"
+#include "core/export.h"
 
 #include <QString>
 #include <QVector>
@@ -27,5 +32,8 @@ int replacePageFont(Document &doc, const QString &key, const QString &to);
 // a pick of "+Heading" or "+Body" for an app whose theme is more than the document's font scheme (it gets the document, the key, and the font, and says how many places changed).
 // The result says what was done; the window shows its message.
 ReplaceFontsResult askReplacePageFonts(QWidget *parent, Editor *ed, const std::function<int(Document &, const QString &key, const QString &to)> &theme = nullptr);
+
+// `place` names where a story is, as the person knows it ("Page 3", "Slide 3", "Master page"); `refuse` says, after telling the person why, that the document can't be changed (read-only).
+JO_COMMON_EXPORT MissingFontsHost pageMissingFontsHost(Editor *editor, const std::function<QString(const FindStory &)> &place, const std::function<bool()> &refuse = {});
 
 } // namespace jp

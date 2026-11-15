@@ -5,6 +5,7 @@
 // controls it names in mainwindow_ribbon.cpp.
 
 #include "app/appwindow.h"
+#include "app/missingfonts.h"
 #include "core/pictureinsert.h"
 #include "app/filetasks.h"
 #include "app/editor.h"
@@ -154,6 +155,8 @@ public:
         bool booklet = true;
     };
     void exportPdfWithOptions();
+    // The fonts of the publication that this computer lacks (the bar after a publication opens): where each is used, and how one is replaced in the file.
+    jp::MissingFontsHost missingFontsHost();
     bool exportPdfTo(const QString &path, const PdfSettings &s);
     // Whether a PDF opens in the system's viewer once it is saved (on by
     // default, as the other program's "open file after publishing"), and how

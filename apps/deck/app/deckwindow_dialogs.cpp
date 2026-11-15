@@ -30,6 +30,9 @@
 #include <QVBoxLayout>
 #include <memory>
 #include "app/plaintext.h"
+#include "app/pagefonts.h"
+#include "app/readaloud.h"
+#include "app/readaloudpage.h"
 
 namespace jp {
 
@@ -90,6 +93,14 @@ void DeckWindow::createDialogActions()
     connect(ed, &Editor::grammarStopped, this, [this] { statusBar()->showMessage(tr("This presentation is too large to check its grammar any further. The grammar check has stopped; spelling still works."), 15000); });
     mk("review.thesaurus", tr("Thesaurus"), "book-a", QKeySequence(Qt::SHIFT | Qt::Key_F7), [this, ed] { thesaurusDialog(this, ed); });
     mk("review.wordCount", tr("Word Count"), "whole-word", QKeySequence(), [this, ed] { slideWordCount(this, ed); });
+    // Read Aloud (the slides' text in order from the cursor or the selection, shown on its slide), and the bar for fonts this computer lacks when a presentation opens.
+    mk("review.readAloud", tr("Read Aloud"), "volume-2", QKeySequence(), [this, ed] {
+        jp::showReadAloud(this, jp::pageReadAloudHost(ed, FindScope{false, false, 0, false}, [this, ed](const FindStory &story, const QTextCursor &found) {
+            if (view() == View::Sorter) setView(View::Normal);
+            showFindMatch(ed, story, found);
+        }));
+    });
+    connect(ed, &Editor::documentReplaced, this, [this] { jp::checkMissingFonts(this, missingFontsHost()); });
     mk("review.accessibility", tr("Check Accessibility"), "accessibility", QKeySequence(), [this] { showAccessibilityPane(); });
     mk("review.translate", tr("Translate"), "languages", QKeySequence(), [this, ed] {
         // The editor that has the focus: the notes (the words selected there, else all of them), else the box being typed in (the words selected, else all of its text), else the selected box.
@@ -239,6 +250,17 @@ void DeckWindow::showLinkDialog()
     } else {
         ed->editCharFormats(looksLikeALink, tr("Insert Link"));
     }
+}
+
+jp::MissingFontsHost DeckWindow::missingFontsHost()
+{
+    return jp::pageMissingFontsHost(
+        m_ed,
+        [this](const FindStory &story) {
+            if (!story.master.isEmpty()) return tr("Master %1").arg(story.master);
+            return story.notes ? tr("Notes of slide %1").arg(story.page + 1) : tr("Slide %1").arg(story.page + 1);
+        },
+        [this] { return refuseIfReadOnly(); });
 }
 
 } // namespace jp

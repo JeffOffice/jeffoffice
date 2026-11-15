@@ -4,6 +4,8 @@
 // cell, in it with F2 or a double click, or in the formula bar), clears them with Delete, undoes and redoes, and saves the workbook as it was read with only what changed put in.
 
 #include "app/appwindow.h"
+#include "app/missingfonts.h"
+#include "app/readaloud.h"
 #include "app/selectionpane.h"
 #include "app/versionstore.h"
 #include "app/recovery.h"
@@ -730,6 +732,9 @@ protected:
 private:
     // The text Review > Translate sends: the selected words of the entry being typed, else the whole entry, else the text of the selected cells (row by row, a line for each row).
     QString textToTranslate() const;
+    // Review > Read Aloud (the selected cells row by row, or from the cell to the end of the sheet), and the fonts the cells use that this computer lacks (the bar after a workbook opens).
+    jp::ReadAloudHost readAloudHost();
+    jp::MissingFontsHost missingFontsHost();
     QAction *mk(const QString &id, const QString &text, const QString &iconName, const QKeySequence &key, const std::function<void()> &fn, bool checkable = false, bool enabled = true);
     void createActions();
     void buildRibbon();

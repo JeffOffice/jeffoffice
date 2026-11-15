@@ -325,6 +325,7 @@ qt_add_executable(jptests
   tests/pub/tst_pub_pdf.cpp
   tests/pub/tst_pub_pdfcrypt.cpp
   tests/pub/tst_pub_pictures.cpp
+  tests/pub/tst_pub_speech.cpp
   tests/pub/tst_pub_stablesaves.cpp
   tests/pub/tst_pub_tables.cpp
   tests/pub/tst_pub_text.cpp
@@ -604,6 +605,7 @@ qt_add_executable(jdtests
   tests/deck/tst_deck_pptximport.cpp
   tests/deck/tst_deck_pptxobjects.cpp
   tests/deck/tst_deck_review.cpp
+  tests/deck/tst_deck_speech.cpp
   tests/deck/tst_deck_slidelist.cpp
   tests/deck/tst_deck_slideshow.cpp
   tests/deck/tst_deck_sizelinks.cpp
@@ -805,6 +807,7 @@ qt_add_executable(crunchtests tests/testrunner.cpp tests/crunch/tst_crunch.cpp t
 target_sources(crunchtests PRIVATE tests/crunch/tst_crunch_tabs2.cpp)
 target_sources(crunchtests PRIVATE tests/crunch/tst_crunch_c12file.cpp)
 target_sources(crunchtests PRIVATE tests/crunch/tst_crunch_c13file.cpp)
+target_sources(crunchtests PRIVATE tests/crunch/tst_crunch_speech.cpp)
 target_sources(crunchtests PRIVATE tests/crunch/tst_crunch_proof.cpp)
 target_sources(crunchtests PRIVATE tests/crunch/tst_crunch_pagenum.cpp)
 target_sources(crunchtests PRIVATE tests/crunch/tst_crunch_language.cpp)

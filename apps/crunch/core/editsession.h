@@ -922,6 +922,15 @@ public:
     };
     bool setFontNames(const QVector<QPair<quint32, QString>> &fonts, const QString &from, const QString &to, bool doing, const FontText *text = nullptr);
     bool setThemeFontName(bool major, const QString &name);
+    // The fonts the cells use, by name (a theme font by the typeface it means), each with the names of the sheets whose cells use it, in the order first met (the missing-fonts bar's list).
+    struct FontUse {
+        QString family;
+        QStringList sheets;
+    };
+    QList<FontUse> fontsInUse() const;
+    // Gives every cell that has font `from` the font `to` (the rest of each cell's look stays): one step of the Edit menu for each sheet that has such cells, named `text`; `cells` gets how many
+    // cells changed. Not ok, and nothing changed in the sheets after the one that stopped it, when a sheet can't be changed (protected).
+    Outcome replaceFont(const QString &from, const QString &to, const QString &text, int *cells = nullptr);
     // The borders of a block: which of its edges (the sides on the outside of the block, the lines between its cells, a diagonal) are given the line; a line of no style takes them away. The
     // cells beside the block that share its outer edges are given the same line on the side that meets it, as in the programs people know.
     enum BorderEdge { EdgeLeft = 1, EdgeRight = 2, EdgeTop = 4, EdgeBottom = 8, EdgeInsideHorizontal = 16, EdgeInsideVertical = 32, EdgeDiagonalUp = 64, EdgeDiagonalDown = 128 };

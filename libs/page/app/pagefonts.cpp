@@ -6,7 +6,11 @@
 
 #include <QCoreApplication>
 #include <QMap>
+#include <QTextBlock>
+#include <QTextCursor>
+#include <QTextDocument>
 #include <algorithm>
+#include <utility>
 
 namespace jp {
 
@@ -87,6 +91,66 @@ ReplaceFontsResult askReplacePageFonts(QWidget *parent, Editor *ed, const std::f
         return n;
     };
     return askReplaceFonts(parent, host);
+}
+
+} // namespace jp
+
+namespace jp {
+
+namespace {
+
+const FindScope kEveryStory{true, true, 0, false};
+
+QTextDocument *wordsOf(const Document &doc, const FindStory &s) { return s.art ? nullptr : doc.storyDoc(s.storyId); }
+
+}
+
+MissingFontsHost pageMissingFontsHost(Editor *ed, const std::function<QString(const FindStory &)> &place, const std::function<bool()> &refuse)
+{
+    MissingFontsHost host;
+    host.usage = [ed, place] {
+        FontUsage u;
+        const Document &doc = *ed->doc();
+        for (const FindStory &s : findStories(doc, kEveryStory))
+            if (const QTextDocument *d = wordsOf(doc, s)) u.addDocument(d, place(s));
+        return u;
+    };
+    host.replace = [ed, refuse](const QString &from, const QString &to) {
+        if (refuse && refuse()) return -1;
+        int changed = 0;
+        ed->change(QCoreApplication::translate("jp::MissingFonts", "Replace Font"), [&] {
+            const Document &doc = *ed->doc();
+            for (const FindStory &s : findStories(doc, kEveryStory)) {
+                QTextDocument *d = wordsOf(doc, s);
+                if (!d) continue;
+                QVector<std::pair<int, int>> runs;
+                for (QTextBlock b = d->begin(); b.isValid(); b = b.next())
+                    for (auto f = b.begin(); !f.atEnd(); ++f) {
+                        const QStringList fams = f.fragment().charFormat().fontFamilies().toStringList();
+                        if (!fams.isEmpty() && fams.first().compare(from, Qt::CaseInsensitive) == 0) runs.push_back({f.fragment().position(), f.fragment().length()});
+                    }
+                if (runs.isEmpty()) continue;
+                QTextCursor edit(d);
+                edit.beginEditBlock();
+                for (const auto &r : std::as_const(runs)) {
+                    QTextCursor c(d);
+                    c.setPosition(r.first);
+                    c.setPosition(r.first + r.second, QTextCursor::KeepAnchor);
+                    QTextCharFormat f;
+                    f.setFontFamilies({to});
+                    c.mergeCharFormat(f);
+                    ++changed;
+                }
+                edit.endEditBlock();
+            }
+        });
+        return changed;
+    };
+    host.refresh = [ed] {
+        ed->cache().clear();
+        Q_EMIT ed->viewChanged();
+    };
+    return host;
 }
 
 } // namespace jp

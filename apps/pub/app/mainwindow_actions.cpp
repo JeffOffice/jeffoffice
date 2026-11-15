@@ -59,6 +59,9 @@
 #include <QMessageBox>
 #include <QPushButton>
 #include "app/plaintext.h"
+#include "app/pagefonts.h"
+#include "app/readaloud.h"
+#include "app/readaloudpage.h"
 
 namespace jp {
 
@@ -763,6 +766,9 @@ void MainWindow::createActions()
     mk("rev.checkGrammarAsType", tr("Check Grammar as You Type"), "spell-check-2", QKeySequence(), [ed] { setGrammarAsYouType(!ed->view.grammar); }, true);
     connect(ed, &Editor::grammarStopped, this, [this] { statusBar()->showMessage(tr("This publication is too large to check its grammar any further. The grammar check has stopped; spelling still works."), 15000); });
     mk("rev.thesaurus", tr("Thesaurus"), "book-a", QKeySequence(Qt::SHIFT | Qt::Key_F7), [this] { thesaurusDialog(this, m_ed); });
+    // Read Aloud (the stories in the order Find walks them, from the text cursor or the selection), and the bar for fonts this computer lacks when a publication opens.
+    mk("rev.readAloud", tr("Read Aloud"), "volume-2", QKeySequence(), [this] { jp::showReadAloud(this, jp::pageReadAloudHost(m_ed)); });
+    connect(ed, &Editor::documentReplaced, this, [this] { jp::checkMissingFonts(this, missingFontsHost()); });
     mk("rev.research", tr("Research"), "book-open-text", QKeySequence(Qt::ALT | Qt::Key_F7), [this] { showTaskPane("research"); });
     mk("rev.translate", tr("Translate"), "languages", QKeySequence(), [this] {
         // On this computer, in the pane (a program built without the translator keeps the way through a website, below).
@@ -1357,6 +1363,14 @@ void MainWindow::replaceFonts()
 {
     const ReplaceFontsResult done = askReplacePageFonts(this, m_ed);
     statusBar()->showMessage(done.uses > 0 ? done.message() : tr("No fonts were replaced."), 6000);
+}
+
+jp::MissingFontsHost MainWindow::missingFontsHost()
+{
+    return jp::pageMissingFontsHost(
+        m_ed,
+        [this](const jp::FindStory &story) { return !story.master.isEmpty() ? tr("Master page %1").arg(story.master) : tr("Page %1").arg(story.page + 1); },
+        [this] { return refuseIfReadOnly(); });
 }
 
 } // namespace jp

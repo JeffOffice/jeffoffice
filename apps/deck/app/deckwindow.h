@@ -3,6 +3,7 @@
 // edited with its notes below, and the status bar.
 
 #include "app/appwindow.h"
+#include "app/missingfonts.h"
 #include "app/filetasks.h"
 #include "app/formatpane.h"
 #include "app/recovery.h"
@@ -85,6 +86,8 @@ public:
     QStringList actionIds() const override;
     Ribbon *ribbon() const override { return m_ribbon; }
     Editor *editor() const { return m_ed; }
+    // The fonts of the presentation that this computer lacks (the bar after a presentation opens): where each is used, and how one is replaced in the file.
+    jp::MissingFontsHost missingFontsHost();
     DeckCanvas *canvas() const { return m_canvas; }
     SlidesPane *slidesPane() const { return m_slides; }
     // Brings the commands up to date with the selection at once (the window does it a moment after a change; a test does not wait for the moment).

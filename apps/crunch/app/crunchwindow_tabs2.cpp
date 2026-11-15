@@ -70,6 +70,12 @@ void CrunchWindow::createTabs2Actions()
     mk("review.translate", tr("Translate"), "languages", QKeySequence(), [this] {
         jp::translateText(this, [this](const QString &message, int) { setStatus(message); }, textToTranslate(), false, m_urlOpener);
     });
+    mk("review.readAloud", tr("Read Aloud"), "volume-2", QKeySequence(), [this] {
+        if (m_session && m_sheet >= 0) jp::showReadAloud(this, readAloudHost());
+    });
+    connect(this, &CrunchWindow::loadFinished, this, [this](bool ok) {
+        if (ok) jp::checkMissingFonts(this, missingFontsHost());
+    });
     mk("review.language", tr("Set Proofing Language…"), "languages", QKeySequence(), [this] {
         if (!m_session || m_sheet < 0) return;
         const FormatView v = viewOfActiveCell();

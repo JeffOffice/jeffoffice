@@ -241,6 +241,88 @@ EditSession::Outcome EditSession::restyleRange(int sheet, const CellRange &range
     return restyle(sheet, targets, text, sizes);
 }
 
+namespace {
+
+// The most cells of a sheet looked at for the fonts they use (a sheet of millions of cells is read as far as this).
+constexpr qint64 kMostCellsForFonts = 2000000;
+
+}
+
+QList<EditSession::FontUse> EditSession::fontsInUse() const
+{
+    QList<FontUse> out;
+    if (!m_book || !m_book->book || !m_book->calc) return out;
+    const Styles &st = m_book->book->styles();
+    const auto &sheets = m_book->book->info().sheets;
+    const Calculation *calc = m_book->calc.get();
+    QHash<quint32, QString> names;
+    auto fontOf = [&](quint32 xf) {
+        auto it = names.find(xf);
+        if (it == names.end()) {
+            const CellFormat &f = xf < quint32(st.formats.size()) ? st.formats[int(xf)] : CellFormat();
+            it = names.insert(xf, st.fontNameOf(st.font(f.font)));
+        }
+        return it.value();
+    };
+    for (int s = 0; s < calc->sheetCount(); ++s) {
+        const auto &sh = calc->sheet(s);
+        if (sh.extentRows == 0 || sh.extentCols == 0) continue;
+        const QString sheetName = size_t(s) < sheets.size() ? sheets[size_t(s)].name : QString();
+        QSet<QString> seen;
+        qint64 looked = 0;
+        sh.cells.forEachInRange(0, 0, sh.extentRows - 1, sh.extentCols - 1, [&](quint32, quint32, const Cell &cell) {
+            const QString name = fontOf(cell.style);
+            if (!name.isEmpty() && !seen.contains(name)) {
+                seen.insert(name);
+                int at = -1;
+                for (int i = 0; i < out.size() && at < 0; ++i)
+                    if (out[i].family == name) at = i;
+                if (at < 0) {
+                    out.push_back({name, {}});
+                    at = int(out.size()) - 1;
+                }
+                out[at].sheets << sheetName;
+            }
+            return ++looked < kMostCellsForFonts;
+        });
+    }
+    return out;
+}
+
+EditSession::Outcome EditSession::replaceFont(const QString &from, const QString &to, const QString &text, int *cells)
+{
+    Outcome out;
+    if (cells) *cells = 0;
+    if (!m_book || !m_book->book || !m_book->calc) return out;
+    const Styles &st = m_book->book->styles();
+    const Calculation *calc = m_book->calc.get();
+    FormatChange change;
+    change.fontName = to;
+    QHash<quint32, bool> hasFrom;
+    auto isFrom = [&](quint32 xf) {
+        auto it = hasFrom.find(xf);
+        if (it == hasFrom.end()) {
+            const CellFormat &f = xf < quint32(st.formats.size()) ? st.formats[int(xf)] : CellFormat();
+            it = hasFrom.insert(xf, st.fontNameOf(st.font(f.font)).compare(from, Qt::CaseInsensitive) == 0);
+        }
+        return it.value();
+    };
+    for (int s = 0; s < calc->sheetCount(); ++s) {
+        const auto &sh = calc->sheet(s);
+        if (sh.extentRows == 0 || sh.extentCols == 0) continue;
+        std::vector<RestyleTarget> targets;
+        sh.cells.forEachInRange(0, 0, sh.extentRows - 1, sh.extentCols - 1, [&](quint32 row, quint32 col, const Cell &cell) {
+            if (isFrom(cell.style)) targets.push_back({row, col, &change});
+            return targets.size() < size_t(kMaxStyledCells);
+        });
+        if (targets.empty()) continue;
+        const Outcome one = restyle(s, targets, text);
+        if (!one.ok) return one;
+        if (cells) *cells += int(targets.size());
+    }
+    return out;
+}
+
 EditSession::Outcome EditSession::formatCells(int sheet, const CellRange &range, const FormatChange &change, const QString &text)
 {
     if (change.fontName && change.fontName->size() > jp::office::sheet::kMaxFontNameFileChars) {
