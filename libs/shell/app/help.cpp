@@ -48,7 +48,7 @@ namespace {
 QString readText(const QString &path)
 {
     QFile f(path);
-    return f.open(QIODevice::ReadOnly) ? QString::fromUtf8(f.readAll()) : QString();
+    return f.open(QIODevice::ReadOnly) ? QString::fromUtf8(f.readAll()).remove(QLatin1Char('\r')) : QString();   // (a page checked out with CRLF reads as LF)
 }
 
 // The app's topics under each language: the language's own folder, or its

@@ -827,6 +827,13 @@ private Q_SLOTS:
         jp::setDataFolderOverride(empty.path());
         QCOMPARE(jp::dataManifest(QStringLiteral("help")), (QStringList{QStringLiteral("en/index.md"), QStringLiteral("en/stale.md")}));
         QCOMPARE(jp::help::topicIds().size(), 2);
+        // (a page with CRLF lines is the same page: headings are found by "\n## Name\n")
+        write(QStringLiteral("help/en/stale.md"), "# Crlf page\r\n\r\n## First\r\n\r\nText.\r\n");
+        jp::setDataFolderOverride(empty.path());
+        const jp::help::Topic crlf = jp::help::topic(QStringLiteral("stale"));
+        QCOMPARE(crlf.title, QStringLiteral("Crlf page"));
+        QVERIFY(crlf.markdown.contains(QStringLiteral("\n## First\n")));
+        QVERIFY(!crlf.markdown.contains(QLatin1Char('\r')));
         jp::setDataFolderOverride(QString());
         QVERIFY(jp::help::topicIds().size() >= 45);
     }
