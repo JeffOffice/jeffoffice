@@ -111,8 +111,7 @@ QString placesText(const QStringList &places)
     const int shown = 6;
     QStringList some = places.mid(0, shown);
     QString text = some.join(QStringLiteral(", "));
-    const int more = int(places.size()) - shown;
-    if (more > 0) text += QCoreApplication::translate("jp::MissingFonts", " and %n more", nullptr, more);
+    if (places.size() > shown) text += QCoreApplication::translate("jp::MissingFonts", ", and more");
     return text;
 }
 
@@ -227,7 +226,7 @@ void showMissingFontsDialog(QWidget *parent, const MissingFontsHost &host, const
             return;
         }
         state->fill();
-        state->note->setText(QCoreApplication::translate("jp::MissingFonts", "Replaced %n use(s) of %1.", nullptr, n).arg(m.family));
+        state->note->setText(QCoreApplication::translate("jp::MissingFonts", "%1 is replaced in the document.").arg(m.family));
     });
     state->fill();
     dlg.exec();
