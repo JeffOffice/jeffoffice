@@ -3,6 +3,7 @@
 // (a heading and a body font, a preview, and a name), and the menus of the Colors and Fonts galleries (the sets a person made, the built-in ones, Create New, and Reset). The sets are
 // those of libs/office/office/themelib.h; the apps apply a choice to their own documents.
 
+#include "core/export.h"
 #include "office/themelib.h"
 
 #include <QDialog>
@@ -18,7 +19,7 @@ class QPushButton;
 namespace jp {
 
 // The twelve colors as a row of swatches, over a line of sample text in the theme's two fonts.
-class ThemePreview : public QWidget {
+class JO_COMMON_EXPORT ThemePreview : public QWidget {
     Q_OBJECT
 public:
     explicit ThemePreview(QWidget *parent = nullptr);
@@ -37,7 +38,7 @@ private:
 };
 
 // Create New Theme Colors. It starts from `start`; the name is "Custom 1" and on unless the start is a custom set already. Accepting keeps the set in the user's folder (every app shows it).
-class ThemeColorsDialog : public QDialog {
+class JO_COMMON_EXPORT ThemeColorsDialog : public QDialog {
     Q_OBJECT
 public:
     explicit ThemeColorsDialog(const office::ThemeColors &start, QWidget *parent = nullptr);
@@ -58,7 +59,7 @@ private:
 };
 
 // Create New Theme Fonts.
-class ThemeFontsDialog : public QDialog {
+class JO_COMMON_EXPORT ThemeFontsDialog : public QDialog {
     Q_OBJECT
 public:
     explicit ThemeFontsDialog(const office::ThemeFonts &start, QWidget *parent = nullptr);
