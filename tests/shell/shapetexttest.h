@@ -41,7 +41,7 @@ inline void pressStandard(QWidget *w, QKeySequence::StandardKey key)
 // The color of a run: the editor's own (a brush), or the page apps' (a color of their theme, written as text).
 inline QColor runColor(const QTextCharFormat &f)
 {
-    if (f.hasProperty(jp::tp::ColorRefP)) return jp::ColorRef::fromString(f.stringProperty(jp::tp::ColorRefP)).resolve(jp::ColorScheme());
+    if (f.hasProperty(jp::tp::ColorRefP)) return QColor(jp::ColorRef::fromString(f.stringProperty(jp::tp::ColorRefP)).toString());   // ("#RRGGBB" for a color of its own)
     return f.foreground().style() == Qt::NoBrush ? QColor(Qt::black) : f.foreground().color();
 }
 

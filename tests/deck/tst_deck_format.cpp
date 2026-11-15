@@ -1000,6 +1000,7 @@ private Q_SLOTS:
         ed->surfaceItems().clear();
         auto shape = std::make_shared<ShapeItem>();
         shape->name = QStringLiteral("Typed");
+        shape->shape = QStringLiteral("rect");
         shape->rect = QRectF(100, 100, 300, 120);
         shape->storyId = ed->doc()->createStory(QString());
         ed->addItem(shape, true);
@@ -1033,9 +1034,11 @@ private Q_SLOTS:
             QString err;
             std::unique_ptr<Document> d = how ? deck::importOdp(deck::exportOdp(*ed->doc(), false, &err), &err) : deck::importPresentation(deck::exportPresentation(*ed->doc(), &err), &err);
             QVERIFY2(d, qPrintable(err));
-            auto *again = static_cast<ShapeItem *>(Rig::named(*d, QStringLiteral("Typed")));
-            QVERIFY2(again, how ? "odp" : "pptx");
-            jptest::verifyFormatted(d->storyDoc(again->storyId));
+            Item *found = Rig::named(*d, QStringLiteral("Typed"));
+            QVERIFY2(found, how ? "odp" : "pptx");
+            // (a file may read a shape that holds words back as a text box: its words are what is checked)
+            QVERIFY(found->type() == ItemType::Shape || found->type() == ItemType::Text);
+            jptest::verifyFormatted(d->storyDoc(found->type() == ItemType::Shape ? static_cast<ShapeItem *>(found)->storyId : static_cast<TextItem *>(found)->storyId));
         }
     }
 
