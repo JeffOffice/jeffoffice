@@ -267,7 +267,7 @@
        "items": [
         {
          "status": "partly",
-         "text": "8767d272d030c4f78ead1c7a448276d40da528c9f0cfd500c9cda800955e0906"
+         "text": "75a36405d6ac1770c94c2ba7a0626c1f77e8fa748f174a5e1bf7ddbbc3ca2033"
         },
         {
          "hide_soon": true,
@@ -2931,11 +2931,11 @@
         {
          "hide_soon": true,
          "status": "done",
-         "text": "e5ac8f7f974c030645bcca61f9e960527d183fc3cc41fbbfc3fd42714552397f"
+         "text": "386714af1ad416b1ab9349e01ee5693fdf984e7a3e8d15979ed14e7f96883f2c"
         },
         {
-         "status": "todo",
-         "text": "71e0d76607d951c6e97861240279dea8baef2b20134f1fcdac8ca463e5044d83"
+         "status": "partly",
+         "text": "2aaf865e4ddb9908f040510f827b45d0319fa85cbfb7d4f439fb3f35769423f0"
         }
        ]
       },
@@ -3052,16 +3052,18 @@
        "heading": "7f5fe4373abf80c0ee7e18e4b7ab94bfd23e3f9737b1f465d2385ee70181340e",
        "items": [
         {
-         "status": "partly",
-         "text": "5b7939b599ffb67f069ca46707e073fdb9993410d263113c20667dec057e9763"
-        },
-        {
-         "status": "todo",
-         "text": "40a15f8709431a1713a0a7aeda094da7099b5183a09725289234fc54a0cba69b"
+         "hide_soon": true,
+         "status": "done",
+         "text": "cbdeebd7c5f0e102f2d3d9defec93fbdf56a3b25e7133e6f77cc01a6702d437b"
         },
         {
          "status": "partly",
-         "text": "defef9ab8be203e681e4541094aafd5c0871c5421cf181e8a0543c455e88cdf8"
+         "text": "0a5fd6890aa40c71cd01fc130be36a173eb1d732698b59c8da6bfb02f007181f"
+        },
+        {
+         "hide_soon": true,
+         "status": "done",
+         "text": "73973886068e50041bba641be19320d74f5c231c47e26c9115a0a509baa7db10"
         },
         {
          "status": "todo",
@@ -3414,11 +3416,11 @@
       {
        "hide_soon": true,
        "status": "done",
-       "text": "ed39bbebae54f348b0ccf0bac3a8dd7c80546a615d83bb4a0d21aca64adc982f"
+       "text": "9c490fa258e260d8b2511b01da7ba21f58497f132c62f4d49953c55840224772"
       },
       {
-       "status": "todo",
-       "text": "2427e5232df6c29cac3a81c66b35805a952e43db46d5518853c17b84eae6784b"
+       "status": "partly",
+       "text": "2b1257728f028ecce633655a395ff59f68c123bea62ef583bd31cd696b63da5e"
       },
       {
        "status": "todo",
@@ -4063,8 +4065,9 @@
          "text": "79f9a9b38276b0824a91e9e2b520c5a67607ed23afbad698bda283714fd0ca28"
         },
         {
-         "status": "todo",
-         "text": "7b7ef973c3e54021acc5b6d6170ece9913edd58606e0b3cf9e26f54dd01aa66e"
+         "hide_soon": true,
+         "status": "done",
+         "text": "b3d5dd572c39b7c203cbb271c2fd06dc7f7a2ed1114376dedc6a97f1974e2730"
         },
         {
          "hide_soon": true,
@@ -4418,7 +4421,7 @@
         {
          "hide_soon": true,
          "status": "done",
-         "text": "7e10528b4cd2ab24d20536ea6cc0dfac50becd363780ad0c1dee1da021666614"
+         "text": "c1b15c59bc897098a1280bdd3473b101cd38965c4e9af9f96eef051854da5ce5"
         },
         {
          "hide_soon": true,
@@ -5485,7 +5488,7 @@
       },
       {
        "status": "partly",
-       "text": "8ff72cad7b0ae3043e45b1fd074fec5d2fbe592b03a55cda6c95b5624b5417bf"
+       "text": "8d1e78d4db3534d900462db7fa9c2e9dc7ba71db72c97f45f0624f40f0d95404"
       },
       {
        "status": "partly",
@@ -5524,7 +5527,7 @@
       },
       {
        "status": "partly",
-       "text": "6e5592d9f41adf803200f2fdfaea90187975a2aad52b42978777328a098c6c86"
+       "text": "ce1ba4fe8cd4c9c74c800056660f9e3e36365affb29c13a9edd4bf2ad164a2c4"
       },
       {
        "status": "partly",
@@ -6082,7 +6085,7 @@
         },
         {
          "status": "partly",
-         "text": "ffdcefe08fd40fbe27f754083de8c7f47124c53e96c24df8eee35efc621a4aeb"
+         "text": "ba01312229dddd12c40bd72ef04d47fd0374c27375a4510b680414dbdd6c27c1"
         },
         {
          "status": "partly",
@@ -7233,7 +7236,7 @@
        "items": [
         {
          "status": "partly",
-         "text": "23750948b79c5a98ffa9c53095291c5c2b238cc931b0efc5f9b87400b6c636cb"
+         "text": "2a18bdf3ea731a96f79ad9d04c8d4c4643cb02cbd2846cc64b2f2935516bd11d"
         },
         {
          "status": "partly",
@@ -8237,6 +8240,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "0a5fd6890aa40c71cd01fc130be36a173eb1d732698b59c8da6bfb02f007181f": {
+   "drop": false,
+   "en": "Custom Slide Size: a list of sizes, a width and height from half an inch to 56 inches, and Landscape or Portrait orientation.",
+   "es": "Tamaño de diapositiva personalizado: una lista de tamaños, un ancho y un alto de media pulgada a 56 pulgadas, y orientación horizontal o vertical.",
+   "fr": "Taille de diapositive personnalisée : une liste de tailles, une largeur et une hauteur de 0,5 à 56 pouces, et l’orientation paysage ou portrait.",
+   "soon": {
+    "drop": false,
+    "en": "First slide number and notes and handouts orientation",
+    "es": "Número de la primera diapositiva y orientación de notas y documentos",
+    "fr": "Numéro de la première diapositive et orientation des notes et des documents"
    }
   },
   "0a74b15eae727daae53dc026dee3a9c9b7af758fbc48eea721c35aeb48a1fe47": {
@@ -10039,18 +10054,6 @@
     "fr": ""
    }
   },
-  "23750948b79c5a98ffa9c53095291c5c2b238cc931b0efc5f9b87400b6c636cb": {
-   "drop": false,
-   "en": "Open `.odt` and flat `.fodt` files with styles, lists, tables, sections, headers and footers, notes, fields, pictures, text boxes, comments, and tracked changes.",
-   "es": "Abra archivos `.odt` y `.fodt` plano con estilos, listas, tablas, secciones, encabezados y pies de página, notas, campos, imágenes, cuadros de texto, comentarios y cambios con seguimiento.",
-   "fr": "Ouvrez des fichiers `.odt` et `.fodt` à plat avec styles, listes, tableaux, sections, en-têtes et pieds de page, notes, champs, images, zones de texte, commentaires et modifications suivies.",
-   "soon": {
-    "drop": false,
-    "en": "Drawn shapes without text, formulas, and charts in `.odt` files",
-    "es": "Formas dibujadas sin texto, fórmulas y gráficos en archivos `.odt`",
-    "fr": "Formes dessinées sans texte, formules et graphiques dans les fichiers `.odt`"
-   }
-  },
   "23fd5cc048f070e73188d96572c256002a7ebb11dad6f0031e103c761aac6ed2": {
    "drop": true,
    "en": "",
@@ -10073,18 +10076,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "2427e5232df6c29cac3a81c66b35805a952e43db46d5518853c17b84eae6784b": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Links to a slide, a custom show, another presentation, or a file, and action buttons",
-    "es": "Vínculos a una diapositiva, una presentación personalizada, otra presentación o un archivo, y botones de acción",
-    "fr": "Liens vers une diapositive, un diaporama personnalisé, une autre présentation ou un fichier, et boutons d’action"
    }
   },
   "2435b4aae1b4c2641f98aae0876d4c2a61591e4cdfb970e6999c6fe412f8ac48": {
@@ -10651,6 +10642,18 @@
     "fr": ""
    }
   },
+  "2a18bdf3ea731a96f79ad9d04c8d4c4643cb02cbd2846cc64b2f2935516bd11d": {
+   "drop": false,
+   "en": "Open `.odt` files with styles, lists, tables, sections, headers and footers, notes, fields, pictures, text boxes, comments, and tracked changes.",
+   "es": "Abra archivos `.odt` con estilos, listas, tablas, secciones, encabezados y pies de página, notas, campos, imágenes, cuadros de texto, comentarios y cambios con seguimiento.",
+   "fr": "Ouvrez des fichiers `.odt` avec styles, listes, tableaux, sections, en-têtes et pieds de page, notes, champs, images, zones de texte, commentaires et modifications suivies.",
+   "soon": {
+    "drop": false,
+    "en": "Formulas, charts, and freeform shapes in `.odt` files",
+    "es": "Fórmulas, gráficos y formas libres en archivos `.odt`",
+    "fr": "Formules, graphiques et formes libres dans les fichiers `.odt`"
+   }
+  },
   "2a2527d3924c903603eaf65721dcd6112928664ccc7d044a748ebe1a69508d72": {
    "drop": false,
    "en": "Print mail merge and catalog merge jobs.",
@@ -10687,6 +10690,18 @@
     "fr": ""
    }
   },
+  "2aaf865e4ddb9908f040510f827b45d0319fa85cbfb7d4f439fb3f35769423f0": {
+   "drop": false,
+   "en": "Links to the next, previous, first, or last slide, a numbered slide, the end of the show, a file, or a web or email address, on click, for shapes, pictures, text boxes, and words. Action buttons start with the matching link. Links are saved in `.pptx` and `.odp` files.",
+   "es": "Enlaces a la diapositiva siguiente, anterior, primera o última, a una diapositiva numerada, al final de la presentación, a un archivo o a una dirección web o de correo electrónico, al hacer clic, en formas, imágenes, cuadros de texto y palabras. Los botones de acción comienzan con el enlace correspondiente. Los enlaces se guardan en archivos `.pptx` y `.odp`.",
+   "fr": "Liens vers la diapositive suivante, précédente, première ou dernière, vers une diapositive numérotée, la fin du diaporama, un fichier ou une adresse web ou e-mail, au clic, pour les formes, les images, les zones de texte et les mots. Les boutons d’action commencent par le lien correspondant. Les liens sont enregistrés dans les fichiers `.pptx` et `.odp`.",
+   "soon": {
+    "drop": false,
+    "en": "Links to the last viewed slide, a custom show, or a new document, links on pointing, and actions that run a program or play a sound",
+    "es": "Enlaces a la última diapositiva vista, a una presentación personalizada o a un documento nuevo, enlaces al apuntar, y acciones que ejecutan un programa o reproducen un sonido",
+    "fr": "Liens vers la dernière diapositive vue, un diaporama personnalisé ou un nouveau document, liens au survol, et actions qui lancent un programme ou jouent un son"
+   }
+  },
   "2ac84829082ecdf59238791f62e70b641d9f700fb726582a56dc24e98d1f87a9": {
    "drop": false,
    "en": "Home tab",
@@ -10709,6 +10724,18 @@
     "en": "macOS app signed and notarized so it opens without warnings",
     "es": "Aplicación para macOS firmada y notarizada para abrirse sin advertencias",
     "fr": "Application macOS signée et notariée pour s’ouvrir sans avertissement"
+   }
+  },
+  "2b1257728f028ecce633655a395ff59f68c123bea62ef583bd31cd696b63da5e": {
+   "drop": false,
+   "en": "Click a link to a slide, a file, or the end of the show, or an action button.",
+   "es": "Haga clic en un enlace a una diapositiva, a un archivo o al final de la presentación, o en un botón de acción.",
+   "fr": "Cliquez sur un lien vers une diapositive, un fichier ou la fin du diaporama, ou sur un bouton d’action.",
+   "soon": {
+    "drop": false,
+    "en": "Links to a custom show and to another presentation",
+    "es": "Enlaces a una presentación personalizada y a otra presentación",
+    "fr": "Liens vers un diaporama personnalisé et vers une autre présentation"
    }
   },
   "2b37c7dc5f89533ea13a17188915d83aaa8029a595f568978b9c4230f2f5ca23": {
@@ -11527,6 +11554,18 @@
     "fr": ""
    }
   },
+  "386714af1ad416b1ab9349e01ee5693fdf984e7a3e8d15979ed14e7f96883f2c": {
+   "drop": false,
+   "en": "Turn selected text or an object into a link to a web page, to a place in the presentation, or to an email address. In a slide show, web and email links open.",
+   "es": "Convierta el texto o un objeto seleccionado en un enlace a una página web, a un lugar de la presentación o a una dirección de correo electrónico. En una presentación con diapositivas, los enlaces web y de correo electrónico se abren.",
+   "fr": "Transformez le texte ou un objet sélectionné en lien vers une page web, vers un endroit de la présentation ou vers une adresse e-mail. Dans un diaporama, les liens web et e-mail s’ouvrent.",
+   "soon": {
+    "drop": false,
+    "en": "Links to slides and files that open in a slide show",
+    "es": "Enlaces a diapositivas y archivos que se abren en una presentación con diapositivas",
+    "fr": "Liens vers des diapositives et des fichiers qui s’ouvrent dans un diaporama"
+   }
+  },
   "38f80dd25e054340785caa4b13252652c82771d51182f80b03aa6c19294af356": {
    "drop": false,
    "en": "Free and open source (GPL-3.0): no license fee, no subscription, no account or sign-in, and nothing that has to be online.",
@@ -12113,18 +12152,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "40a15f8709431a1713a0a7aeda094da7099b5183a09725289234fc54a0cba69b": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Custom slide size: width, height, orientation including portrait, first slide number, and orientation of notes and handouts",
-    "es": "Tamaño de diapositiva personalizado: ancho, alto, orientación incluida la vertical, número de la primera diapositiva y orientación de notas y documentos",
-    "fr": "Taille de diapositive personnalisée : largeur, hauteur, orientation y compris portrait, numéro de la première diapositive et orientation des notes et documents"
    }
   },
   "40d6d8067733a9e0fb4af9b52a7aae9ac73bed00aaec1e29204511f59e5da650": {
@@ -14143,18 +14170,6 @@
     "fr": ""
    }
   },
-  "5b7939b599ffb67f069ca46707e073fdb9993410d263113c20667dec057e9763": {
-   "drop": false,
-   "en": "Set the slide size to Standard (4:3, 10 by 7.5 inches) or Widescreen (16:9, 13.333 by 7.5 inches), with Ensure Fit scaling text, line weights, and layouts.",
-   "es": "Establezca el tamaño de diapositiva en Estándar (4:3, 10 por 7,5 pulgadas) o Panorámica (16:9, 13,333 por 7,5 pulgadas), con Garantizar ajuste que escala el texto, el grosor de las líneas y los diseños.",
-   "fr": "Réglez la taille des diapositives sur Standard (4:3, 10 sur 7,5 pouces) ou Grand écran (16:9, 13,333 sur 7,5 pouces), avec Assurer l’ajustement qui met à l’échelle le texte, l’épaisseur des traits et les dispositions.",
-   "soon": {
-    "drop": false,
-    "en": "Slide size: Maximize and choose other sizes",
-    "es": "Tamaño de diapositiva: Maximizar y elegir otros tamaños",
-    "fr": "Taille des diapositives : Agrandir au maximum et choisir d’autres tailles"
-   }
-  },
   "5b806f9a2f97d074c01541a4674580ee638c7fc9e52ac32ba284f55cdd44054c": {
    "drop": false,
    "en": "Picture Tools Format tab",
@@ -15799,18 +15814,6 @@
     "fr": ""
    }
   },
-  "6e5592d9f41adf803200f2fdfaea90187975a2aad52b42978777328a098c6c86": {
-   "drop": false,
-   "en": "Save a PDF with bookmarks from headings, tags for screen readers, and PDF/A.",
-   "es": "Guarde un PDF con marcadores a partir de los encabezados, etiquetas para lectores de pantalla y PDF/A.",
-   "fr": "Enregistrez un PDF avec des signets issus des titres, des balises pour les lecteurs d’écran et le format PDF/A.",
-   "soon": {
-    "drop": false,
-    "en": "PDF/X-1a and PDF/X-4 for commercial printers, with a print check",
-    "es": "PDF/X-1a y PDF/X-4 para imprentas comerciales, con verificación de impresión",
-    "fr": "PDF/X-1a et PDF/X-4 pour les imprimeurs professionnels, avec contrôle d’impression"
-   }
-  },
   "6ef07ea5be232551b565df92e5d54e6d92bd3d238744b1024d9f983f6b3bc32f": {
    "drop": false,
    "en": "Merge cells, split cells, and divide a cell with a diagonal; each half holds its own text, which wraps inside its triangle.",
@@ -16027,18 +16030,6 @@
     "fr": ""
    }
   },
-  "71e0d76607d951c6e97861240279dea8baef2b20134f1fcdac8ca463e5044d83": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Links to files and new documents, and Action choices: go to a slide, custom show, file, or web address, and run a program or play a sound",
-    "es": "Vínculos a archivos y documentos nuevos, y opciones de acción: ir a una diapositiva, presentación personalizada, archivo o dirección web, ejecutar un programa o reproducir un sonido",
-    "fr": "Liens vers des fichiers et de nouveaux documents, et choix d’action : aller à une diapositive, un diaporama personnalisé, un fichier ou une adresse web, lancer un programme ou lire un son"
-   }
-  },
   "71e0f112c00c4a2a1d7bd12c8c4e325a9aacc145a1facf5b15d73d8f13779b45": {
    "drop": false,
    "en": "Turn cells into a table with a look from the gallery of 60 table looks (light, medium, and dark, each in black and the theme’s six colors), with header row, stripes, first and last column, and totals row drawn on the sheet. Looks defined by the workbook are drawn too.",
@@ -16140,6 +16131,18 @@
    "en": "Edit a header and footer with a left, center, and right part in the page layout view or the Page Setup dialog. Codes are supported for page (`&P`), pages (`&N`), date (`&D`), time (`&T`), file (`&F`), path (`&Z`), sheet name (`&A`), picture (`&G`), bold (`&B`), italic (`&I`), underline (`&U`), font, size, color, and an ampersand (`&&`).",
    "es": "Edite un encabezado y un pie de página con una parte izquierda, central y derecha en la vista de diseño de página o en el cuadro de diálogo Configurar página. Se admiten códigos para página (`&P`), páginas (`&N`), fecha (`&D`), hora (`&T`), archivo (`&F`), ruta (`&Z`), nombre de hoja (`&A`), imagen (`&G`), negrita (`&B`), cursiva (`&I`), subrayado (`&U`), fuente, tamaño, color y el símbolo & (`&&`).",
    "fr": "Modifiez un en-tête et un pied de page avec une partie gauche, centrale et droite dans la vue Mise en page ou la boîte de dialogue Mise en page. Les codes pris en charge sont page (`&P`), pages (`&N`), date (`&D`), heure (`&T`), fichier (`&F`), chemin (`&Z`), nom de feuille (`&A`), image (`&G`), gras (`&B`), italique (`&I`), souligné (`&U`), police, taille, couleur et esperluette (`&&`).",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "73973886068e50041bba641be19320d74f5c231c47e26c9115a0a509baa7db10": {
+   "drop": false,
+   "en": "Set a solid, gradient, picture, or pattern background for one slide or all slides, and for the master or layout in Slide Master view. Hide background graphics, and undo the change in one step.",
+   "es": "Establezca un fondo sólido, degradado, de imagen o de trama para una diapositiva o para todas, y para el patrón o el diseño en la vista Patrón de diapositivas. Oculte los gráficos de fondo y deshaga el cambio en un solo paso.",
+   "fr": "Définissez un arrière-plan uni, dégradé, image ou motif pour une diapositive ou pour toutes, ainsi que pour le masque ou la disposition en mode Masque des diapositives. Masquez les graphiques d’arrière-plan et annulez le changement en une seule étape.",
    "soon": {
     "drop": true,
     "en": "",
@@ -16277,6 +16280,18 @@
     "en": "Function help from the formula bar: the function being typed opens its page",
     "es": "Ayuda de funciones desde la barra de fórmulas: la función que se escribe abre su página",
     "fr": "Aide sur les fonctions depuis la barre de formule : la fonction saisie ouvre sa page"
+   }
+  },
+  "75a36405d6ac1770c94c2ba7a0626c1f77e8fa748f174a5e1bf7ddbbc3ca2033": {
+   "drop": false,
+   "en": "Export to PDF the active sheets, the whole workbook, or the selection.",
+   "es": "Exporte a PDF las hojas activas, el libro completo o la selección.",
+   "fr": "Exportez en PDF les feuilles actives, le classeur entier ou la sélection.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "75ad438e0cd646d3b7397deca30db3e15efcd884f2636987f7a8b8735a8984ce": {
@@ -16699,18 +16714,6 @@
     "fr": "Noms de fonctions dans la langue de l’interface, avec séparateurs d’arguments selon la langue"
    }
   },
-  "7b7ef973c3e54021acc5b6d6170ece9913edd58606e0b3cf9e26f54dd01aa66e": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Links in a PDF",
-    "es": "Vínculos en un PDF",
-    "fr": "Liens dans un PDF"
-   }
-  },
   "7bc9c63477a68415f084fa48769930fb919027b5dddda90484230652e1ea26ff": {
    "drop": false,
    "en": "Set margin guide presets or custom margins, orientation, and page size (presets, your saved custom sizes, Create New Page Size, and editing or deleting saved sizes). The Page Setup dialog sets the layout type (one page per sheet, booklet, envelope, folded card, multiple pages per sheet, labels); for several pages per sheet it sets the sheet’s side and top margins and the gaps between pages, kept apart from the margin guides, with how many fit. A new page size scales nothing: every object moves by half the change so it keeps its distance from the page center, ruler guides keep their share of the page, objects left wholly off a smaller page go to the scratch area, and Undo restores it all.",
@@ -16908,18 +16911,6 @@
    "en": "Saves `.docx`, `.dotx`, and `.odt` files.",
    "es": "Guarda archivos `.docx`, `.dotx` y `.odt`.",
    "fr": "Enregistre les fichiers `.docx`, `.dotx` et `.odt`.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "7e10528b4cd2ab24d20536ea6cc0dfac50becd363780ad0c1dee1da021666614": {
-   "drop": false,
-   "en": "Export a PDF in which web links, email links, and links to a page in the publication are clickable, on text, shapes, and pictures.",
-   "es": "Exporte un PDF en el que los vínculos web, los vínculos de correo electrónico y los vínculos a una página de la publicación se pueden pulsar, en texto, formas e imágenes.",
-   "fr": "Exportez un PDF dont les liens web, les liens de messagerie et les liens vers une page de la publication sont cliquables, sur du texte, des formes et des images.",
    "soon": {
     "drop": true,
     "en": "",
@@ -17455,18 +17446,6 @@
     "fr": ""
    }
   },
-  "8767d272d030c4f78ead1c7a448276d40da528c9f0cfd500c9cda800955e0906": {
-   "drop": false,
-   "en": "Export to PDF the active sheets, the whole workbook, or the selection.",
-   "es": "Exporte a PDF las hojas activas, el libro completo o la selección.",
-   "fr": "Exportez en PDF les feuilles actives, le classeur entier ou la sélection.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "87a2a34b4144bd42e747e9694b263ff9a487751f0f27ef08f412a13174413b47": {
    "drop": false,
    "en": "In master view, use the Themes, Colors, Fonts, Background Styles, and Slide Size groups; they change the whole presentation.",
@@ -17839,6 +17818,18 @@
     "fr": ""
    }
   },
+  "8d1e78d4db3534d900462db7fa9c2e9dc7ba71db72c97f45f0624f40f0d95404": {
+   "drop": false,
+   "en": "Open and save `.odt` documents, including styles, lists, tables, sections, headers and footers, notes, fields, pictures, text boxes, comments, and tracked changes. `.ott` files open as a new document.",
+   "es": "Abra y guarde documentos `.odt`, con estilos, listas, tablas, secciones, encabezados y pies de página, notas, campos, imágenes, cuadros de texto, comentarios y cambios con seguimiento. Los archivos `.ott` se abren como un documento nuevo.",
+   "fr": "Ouvrez et enregistrez des documents `.odt`, avec styles, listes, tableaux, sections, en-têtes et pieds de page, notes, champs, images, zones de texte, commentaires et modifications suivies. Les fichiers `.ott` s’ouvrent comme un nouveau document.",
+   "soon": {
+    "drop": false,
+    "en": "Formulas, charts, and freeform shapes in `.odt` files; saving `.ott`",
+    "es": "Fórmulas, gráficos y formas libres en archivos `.odt`; guardar `.ott`",
+    "fr": "Formules, graphiques et formes libres dans les fichiers `.odt` ; enregistrement en `.ott`"
+   }
+  },
   "8d20257dd0f068ae601a6f0316439ce155688514af03142a67e011d04ff61796": {
    "drop": false,
    "en": "Set text direction in Format Cells, and open sheets that read right to left, drawn mirrored. Page Layout > Sheet Right-to-Left turns a sheet around.",
@@ -18029,18 +18020,6 @@
     "en": "Stepping into a function that names another formula’s cell",
     "es": "Entrar paso a paso en una función que hace referencia a la celda de otra fórmula",
     "fr": "Exécution pas à pas d’une fonction qui désigne la cellule d’une autre formule"
-   }
-  },
-  "8ff72cad7b0ae3043e45b1fd074fec5d2fbe592b03a55cda6c95b5624b5417bf": {
-   "drop": false,
-   "en": "Open and save OpenDocument text (`.odt`) with styles, lists, tables, sections, headers and footers, notes, fields, pictures, text boxes, comments, and tracked changes. `.ott` templates open as a new document.",
-   "es": "Abra y guarde texto OpenDocument (`.odt`) con estilos, listas, tablas, secciones, encabezados y pies de página, notas, campos, imágenes, cuadros de texto, comentarios y cambios controlados. Las plantillas `.ott` se abren como documento nuevo.",
-   "fr": "Ouvrez et enregistrez du texte OpenDocument (`.odt`) avec styles, listes, tableaux, sections, en-têtes et pieds de page, notes, champs, images, zones de texte, commentaires et modifications suivies. Les modèles `.ott` s’ouvrent comme un nouveau document.",
-   "soon": {
-    "drop": false,
-    "en": "Drawn shapes without text, formulas, and charts in `.odt`; saving `.ott` templates",
-    "es": "Formas dibujadas sin texto, fórmulas y gráficos en `.odt`; guardado de plantillas `.ott`",
-    "fr": "Formes dessinées sans texte, formules et graphiques dans `.odt` ; enregistrement des modèles `.ott`"
    }
   },
   "903a2aefb3ca2b85b1485d03bc57752fe778ed51305515752d939fa726c0cb78": {
@@ -18876,6 +18855,18 @@
    "en": "Remove Duplicates: choose the columns that must match. The header row is kept, capitals do not matter, formulas count as their values, and rows below move up with their formats and formulas. The dialog says how many rows were removed and how many remain, as one step of Undo.",
    "es": "Quitar duplicados: elija las columnas que deben coincidir. Se conserva la fila de encabezado, las mayúsculas no importan, las fórmulas cuentan como sus valores y las filas inferiores suben con sus formatos y fórmulas. El cuadro de diálogo indica cuántas filas se quitaron y cuántas quedan, como un paso de Deshacer.",
    "fr": "Supprimer les doublons : choisissez les colonnes qui doivent correspondre. La ligne d’en-tête est conservée, la casse n’a pas d’importance, les formules comptent comme leurs valeurs et les lignes du dessous remontent avec leurs formats et formules. La boîte de dialogue indique combien de lignes ont été supprimées et combien restent, en une étape d’annulation.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "9c490fa258e260d8b2511b01da7ba21f58497f132c62f4d49953c55840224772": {
+   "drop": false,
+   "en": "In a slide show, click a link to go to its slide or end the show. Web address, email address, and file links ask first and open only if you agree.",
+   "es": "En una presentación con diapositivas, haga clic en un enlace para ir a su diapositiva o finalizar la presentación. Los enlaces a direcciones web, de correo electrónico y archivos preguntan primero y se abren solo si usted acepta.",
+   "fr": "Dans un diaporama, cliquez sur un lien pour aller à sa diapositive ou terminer le diaporama. Les liens vers une adresse web, une adresse e-mail ou un fichier demandent d’abord confirmation et ne s’ouvrent que si vous acceptez.",
    "soon": {
     "drop": true,
     "en": "",
@@ -20275,6 +20266,18 @@
     "fr": ""
    }
   },
+  "b3d5dd572c39b7c203cbb271c2fd06dc7f7a2ed1114376dedc6a97f1974e2730": {
+   "drop": false,
+   "en": "Links on printed slides are clickable in a PDF: web and email addresses open, and jumps to the next, previous, first, last, or a numbered slide go to that page.",
+   "es": "Los enlaces de las diapositivas impresas se pueden pulsar en un PDF: las direcciones web y de correo electrónico se abren, y los saltos a la diapositiva siguiente, anterior, primera, última o numerada van a esa página.",
+   "fr": "Les liens des diapositives imprimées sont cliquables dans un PDF : les adresses web et e-mail s’ouvrent, et les sauts vers la diapositive suivante, précédente, première, dernière ou numérotée mènent à cette page.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "b40da7575dc84295b5430a0e2039746f2a4dc0a27d95b8117f6d60deae26e65e": {
    "drop": false,
    "en": "External links do not update, data connections do not run, and macros are kept but never run when a file opens. In an opened `.csv`, a field that starts with `=` is kept as text unless \"Read formulas\" is ticked in the text import window; plain numbers such as -5 or +3 stay numbers.",
@@ -20664,6 +20667,18 @@
    "en": "Load recipient lists for a mail merge from CSV, tab-delimited, `.xlsx` (values only), or vCard `.vcf` files. Save a recipient list as CSV, one `.eml` per recipient, or one PDF.",
    "es": "Cargue listas de destinatarios para una combinación de correspondencia desde archivos CSV, delimitados por tabulaciones, `.xlsx` (solo valores) o vCard `.vcf`. Guarde una lista de destinatarios como CSV, un `.eml` por destinatario o un PDF.",
    "fr": "Chargez des listes de destinataires pour un publipostage depuis des fichiers CSV, séparés par des tabulations, `.xlsx` (valeurs seulement) ou vCard `.vcf`. Enregistrez une liste de destinataires en CSV, un `.eml` par destinataire ou un PDF.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "ba01312229dddd12c40bd72ef04d47fd0374c27375a4510b680414dbdd6c27c1": {
+   "drop": false,
+   "en": "Insert one of 75 shapes in eight groups, drawn by dragging on the page, with text inside, connectors, and edit points. Set fill, outline, effects, styles, turn, wrap, alt text, and size.",
+   "es": "Inserte una de 75 formas en ocho grupos, dibujada arrastrando en la página, con texto dentro, conectores y puntos de edición. Establezca relleno, contorno, efectos, estilos, giro, ajuste del texto, texto alternativo y tamaño.",
+   "fr": "Insérez l’une des 75 formes réparties en huit groupes, dessinée en faisant glisser sur la page, avec du texte à l’intérieur, des connecteurs et des points de modification. Réglez remplissage, contour, effets, styles, rotation, habillage, texte de remplacement et taille.",
    "soon": {
     "drop": true,
     "en": "",
@@ -21108,6 +21123,18 @@
    "en": "Set effect options: the direction (From Left, Clockwise, and the rest), the amount (Grow/Shrink from Tiny to Huge, and Both, Horizontal, or Vertical; Spin from a quarter to two spins), and the sequence (As One Object or By Paragraph, with an indented paragraph going with the one above it).",
    "es": "Defina las opciones del efecto: la dirección (Desde la izquierda, En el sentido de las agujas del reloj y las demás), la cantidad (Crecer/Encoger de Minúsculo a Enorme, y Ambos, Horizontal o Vertical; Girar de un cuarto a dos giros) y la secuencia (Como un objeto o Por párrafo, y un párrafo con sangría va con el anterior).",
    "fr": "Définissez les options d’effet : la direction (Depuis la gauche, Sens horaire, etc.), l’amplitude (Agrandir/Réduire de Minuscule à Énorme, et Les deux, Horizontal ou Vertical ; Rotation d’un quart de tour à deux tours) et la séquence (En un seul objet ou Par paragraphe, un paragraphe en retrait allant avec celui du dessus).",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "c1b15c59bc897098a1280bdd3473b101cd38965c4e9af9f96eef051854da5ce5": {
+   "drop": false,
+   "en": "Web and email links on text, shapes, and pictures, and links to a page in the publication, are clickable in an exported PDF.",
+   "es": "Los enlaces web y de correo electrónico en texto, formas e imágenes, y los enlaces a una página de la publicación, se pueden pulsar en un PDF exportado.",
+   "fr": "Les liens web et de messagerie sur le texte, les formes et les images, ainsi que les liens vers une page de la publication, sont cliquables dans un PDF exporté.",
    "soon": {
     "drop": true,
     "en": "",
@@ -21955,6 +21982,18 @@
     "fr": ""
    }
   },
+  "cbdeebd7c5f0e102f2d3d9defec93fbdf56a3b25e7133e6f77cc01a6702d437b": {
+   "drop": false,
+   "en": "Set the slide size to Standard (4:3), Widescreen (16:9), 16:10, Letter, Ledger, A3, A4, B4, B5, 35mm slides, Banner, or a custom size. A change lets you scale the content to fit or keep its size, and is one step of Undo.",
+   "es": "Establezca el tamaño de diapositiva en Estándar (4:3), Panorámica (16:9), 16:10, Carta, Ledger, A3, A4, B4, B5, diapositivas de 35 mm, Banner o un tamaño personalizado. Un cambio le permite ajustar el contenido a la nueva escala o mantener su tamaño, y se deshace en un solo paso.",
+   "fr": "Réglez la taille des diapositives sur Standard (4:3), Écran large (16:9), 16:10, Letter, Ledger, A3, A4, B4, B5, diapositives 35 mm, Bannière ou une taille personnalisée. Un changement vous permet d’adapter le contenu à la page ou de conserver sa taille, et s’annule en une seule étape.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "cbeb9ff3132dc1969aba51e0a5f3f8f8e9fd2288282b6e6059de8d5dca29b22c": {
    "drop": true,
    "en": "",
@@ -22109,6 +22148,18 @@
     "en": "More built-in templates: resumes, cover letters, invoices, flyers, brochures, meeting notes, legal pleadings, and book interiors",
     "es": "Más plantillas integradas: currículos, cartas de presentación, facturas, volantes, folletos, notas de reunión, escritos legales e interiores de libros",
     "fr": "Plus de modèles intégrés : CV, lettres de motivation, factures, flyers, brochures, notes de réunion, actes de procédure et intérieurs de livres"
+   }
+  },
+  "ce1ba4fe8cd4c9c74c800056660f9e3e36365affb29c13a9edd4bf2ad164a2c4": {
+   "drop": false,
+   "en": "Export to PDF with bookmarks, tags for screen readers, and PDF/A-2b. Web and email links, table of contents entries, cross-references, and bookmark links are clickable and go to the exact spot of their target.",
+   "es": "Exporte a PDF con marcadores, etiquetas para lectores de pantalla y PDF/A-2b. Los enlaces web y de correo electrónico, las entradas de la tabla de contenido, las referencias cruzadas y los enlaces a marcadores se pueden pulsar y van al lugar exacto de su destino.",
+   "fr": "Exportez en PDF avec signets, balises pour lecteurs d’écran et PDF/A-2b. Les liens web et e-mail, les entrées de table des matières, les renvois et les liens vers des signets sont cliquables et mènent à l’endroit exact de leur cible.",
+   "soon": {
+    "drop": false,
+    "en": "PDF/X export and print check",
+    "es": "Exportación a PDF/X y verificación de impresión",
+    "fr": "Export PDF/X et contrôle avant impression"
    }
   },
   "ce30db5db371901c1dbbcd571377340dd7bd78a0e16307ee20e97fbdaaa9d7f7": {
@@ -23347,18 +23398,6 @@
     "fr": ""
    }
   },
-  "defef9ab8be203e681e4541094aafd5c0871c5421cf181e8a0543c455e88cdf8": {
-   "drop": false,
-   "en": "Set a solid background color for this slide or all slides, applied also to slides and layouts that had their own. In Slide Master view it formats the master or layout being edited.",
-   "es": "Establezca un color de fondo sólido para esta diapositiva o para todas, aplicado también a las diapositivas y los diseños que tenían el suyo. En la vista Patrón de diapositivas da formato al patrón o al diseño que se está editando.",
-   "fr": "Définissez une couleur d’arrière-plan unie pour cette diapositive ou pour toutes, appliquée aussi aux diapositives et aux dispositions qui avaient la leur. En mode Masque des diapositives, elle met en forme le masque ou la disposition en cours de modification.",
-   "soon": {
-    "drop": false,
-    "en": "Background formats: gradient, picture, texture, and pattern, and Reset Background",
-    "es": "Formatos de fondo: degradado, imagen, textura y trama, y Restablecer fondo",
-    "fr": "Formats d’arrière-plan : dégradé, image, texture et motif, et Réinitialiser l’arrière-plan"
-   }
-  },
   "df0ccb624f41b88d5bf8cde6e59281c75c5fa91c040632a5c689285a17abf4b6": {
    "drop": false,
    "en": "Open the text of the selected cells, one line for each row, or the words selected in the entry being typed, in an open translation service with a server address you can change. The text is limited to 5,000 letters, and nothing is sent before you click `OK`.",
@@ -23813,18 +23852,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "e5ac8f7f974c030645bcca61f9e960527d183fc3cc41fbbfc3fd42714552397f": {
-   "drop": false,
-   "en": "Turn selected text or an object into a link to a web page, to a place in the presentation, or to an email address. In a slide show, web and email links open.",
-   "es": "Convierta el texto u objeto seleccionado en un vínculo a una página web, a un lugar de la presentación o a una dirección de correo electrónico. En una presentación con diapositivas se abren los vínculos web y de correo.",
-   "fr": "Transformez le texte ou l’objet sélectionné en lien vers une page web, vers un endroit de la présentation ou vers une adresse e-mail. Dans un diaporama, les liens web et e-mail s’ouvrent.",
-   "soon": {
-    "drop": false,
-    "en": "Links to slides and files that open in a slide show",
-    "es": "Vínculos a diapositivas y archivos que se abren en una presentación con diapositivas",
-    "fr": "Liens vers des diapositives et des fichiers qui s’ouvrent dans un diaporama"
    }
   },
   "e5adcdec784f78226d417441756d0e88ca776995d0bbab3db427780275bbdcc5": {
@@ -24408,18 +24435,6 @@
    "en": "Lists use the layout’s bullets and levels. A new slide’s text place takes its layout’s first paragraph, and Increase and Decrease List Level take the layout’s paragraph for the new level. An empty paragraph shows no bullet, and bullet colors follow the theme colors.",
    "es": "Las listas usan las viñetas y los niveles del diseño. El marcador de texto de una diapositiva nueva toma el primer párrafo de su diseño, y Aumentar y Disminuir nivel de lista toman el párrafo del diseño para el nuevo nivel. Un párrafo vacío no muestra viñeta, y los colores de las viñetas siguen los colores del tema.",
    "fr": "Les listes utilisent les puces et les niveaux de la disposition. L’espace de texte d’une nouvelle diapositive reprend le premier paragraphe de sa disposition, et Augmenter et Diminuer le niveau de liste reprennent le paragraphe de la disposition pour le nouveau niveau. Un paragraphe vide n’affiche pas de puce, et les couleurs des puces suivent les couleurs du thème.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "ed39bbebae54f348b0ccf0bac3a8dd7c80546a615d83bb4a0d21aca64adc982f": {
-   "drop": false,
-   "en": "Click a link in the show to open a web page or an email address.",
-   "es": "Haga clic en un vínculo durante la presentación para abrir una página web o una dirección de correo electrónico.",
-   "fr": "Cliquez sur un lien pendant le diaporama pour ouvrir une page web ou une adresse e-mail.",
    "soon": {
     "drop": true,
     "en": "",
@@ -25673,18 +25688,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "ffdcefe08fd40fbe27f754083de8c7f47124c53e96c24df8eee35efc621a4aeb": {
-   "drop": false,
-   "en": "Insert one of 75 shapes in eight groups (lines, arrows, rectangles, basic shapes, block arrows, equation shapes, flowchart, stars and banners, and callouts) at the cursor, with text wrapping around it. Set fill, outline color, weight, dashes, shape style, rotation, wrap, alt text, and size, and resize with handles.",
-   "es": "Inserte una de 75 formas en ocho grupos (líneas, flechas, rectángulos, formas básicas, flechas de bloque, formas de ecuación, diagramas de flujo, estrellas y cintas, y llamadas) en el cursor, con el texto ajustado a su alrededor. Defina relleno, color de contorno, grosor, guiones, estilo de forma, giro, ajuste, texto alternativo y tamaño, y cambie el tamaño con los controladores.",
-   "fr": "Insérez l’une des 75 formes réparties en huit groupes (lignes, flèches, rectangles, formes de base, flèches pleines, formes d’équation, organigramme, étoiles et bannières, et bulles) au curseur, avec le texte qui l’entoure. Définissez le remplissage, la couleur du contour, l’épaisseur, les tirets, le style de forme, la rotation, l’habillage, le texte de remplacement et la taille, et redimensionnez avec les poignées.",
-   "soon": {
-    "drop": false,
-    "en": "Shapes: text inside, connectors that stay joined, and edit points",
-    "es": "Formas: texto interior, conectores que permanecen unidos y puntos de edición",
-    "fr": "Formes : texte intérieur, connecteurs qui restent liés et points de modification"
    }
   },
   "ffdf10addc3860bc2ec9d658f9b8142f4f7d5a5601f0bc05c7c9b7702b9b1a4c": {
