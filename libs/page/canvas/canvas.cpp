@@ -6,6 +6,7 @@
 #include "app/icons.h"
 
 #include "app/settings.h"
+#include "app/shapetextedit.h"
 #include "render/shapes.h"
 #include "text/textprops.h"
 
@@ -2946,8 +2947,8 @@ void Canvas::keyPressEvent(QKeyEvent *e)
     default: break;
     }
     // Typing with a text box selected starts editing it.
-    const QString text = e->text();
-    if (!ctrl && !text.isEmpty() && text[0].isPrint()) {
+    QString text;
+    if (const SelectedShapeKey k = keyOnSelectedShape(e, &text); k == SelectedShapeKey::BeginTyped) {
         if (Item *it = m_ed->single(); it && (it->type() == ItemType::Text || it->type() == ItemType::Shape)) {
             m_ed->beginTextEdit(it->id);
             m_ed->typeText(text);

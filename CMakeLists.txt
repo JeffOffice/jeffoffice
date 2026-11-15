@@ -349,7 +349,8 @@ qt_add_executable(jptests
   tests/shell/tst_shell_translate.cpp
   tests/shell/tst_shell_ribbon.cpp
   tests/shell/tst_shell_cmdsearch.cpp
-  tests/shell/tst_shell_replacefonts.cpp)
+  tests/shell/tst_shell_replacefonts.cpp
+  tests/shell/tst_shell_shapetext.cpp)
 target_link_libraries(jptests PRIVATE jpcore jp_libmspub Qt6::Test)
 # QAbstractFileEngineHandler (a private Qt header, from CorePrivate) counts the files a test makes Qt open.
 target_link_libraries(jptests PRIVATE Qt6::CorePrivate)
@@ -718,6 +719,7 @@ set_target_properties(writeinserttests PROPERTIES WIN32_EXECUTABLE OFF)
 add_test(NAME writeinserttests COMMAND writeinserttests)
 set_tests_properties(writeinserttests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 qt_add_executable(writedrawtests tests/write/tst_write_draw.cpp)
+target_include_directories(writedrawtests PRIVATE ${CMAKE_SOURCE_DIR}/tests)
 target_link_libraries(writedrawtests PRIVATE jwcore Qt6::Test)
 set_target_properties(writedrawtests PROPERTIES WIN32_EXECUTABLE OFF)
 add_test(NAME writedrawtests COMMAND writedrawtests)

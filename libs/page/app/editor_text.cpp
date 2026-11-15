@@ -5,6 +5,7 @@
 #include "app/editor.h"
 #include "app/autocorrectconfig.h"
 #include "app/settings.h"
+#include "app/shapetextedit.h"
 
 #include "core/texteffects.h"
 #include "text/autocorrect.h"
@@ -366,7 +367,6 @@ void Editor::setFontSize(double pt)
 
 void Editor::growFont(int dir)
 {
-    static const double steps[] = {6, 7, 8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 26, 28, 36, 48, 72, 96, 120, 144, 200, 288};
     auto targets = formatTargets();
     if (targets.isEmpty()) return;
     beginChange(dir > 0 ? tr("Grow Font") : tr("Shrink Font"));
@@ -380,9 +380,7 @@ void Editor::growFont(int dir)
                 const int fs = std::max(s, fr.position()), fe = std::min(e, fr.position() + fr.length());
                 if (fs >= fe) continue;
                 const double cur = fr.charFormat().hasProperty(QTextFormat::FontPointSize) ? fr.charFormat().fontPointSize() : 11;
-                double next = cur;
-                if (dir > 0) { for (double v : steps) if (v > cur + 0.01) { next = v; break; } if (next == cur) next = cur + 12; }
-                else { for (int i = int(std::size(steps)) - 1; i >= 0; --i) if (steps[i] < cur - 0.01) { next = steps[i]; break; } if (next == cur) next = std::max(1.0, cur - 1); }
+                const double next = nextFontSize(cur, dir);
                 QTextCursor fc(d);
                 fc.setPosition(fs);
                 fc.setPosition(fe, QTextCursor::KeepAnchor);
