@@ -2,6 +2,7 @@
 
 #include "wml/wml.h"
 #include "office/package.h"
+#include "office/macroparts.h"
 
 #include "wml/wmlmath.h"
 #include "wml/xmltree.h"
@@ -1555,10 +1556,10 @@ bool readDocx(const QByteArray &zip, Document *doc, QString *error, ReadNotes *n
         notes->notes << QCoreApplication::translate("jp::office::wml", "Tables nested deeper than this program can read were made plain paragraphs of text.");
     }
     if (notes) {
-        notes->hadMacros = doc->mainContentType.contains(QLatin1String("macroEnabled"));
+        notes->hadMacros = isMacroMainType(doc->mainContentType);
         for (const QString &name : pkg.partNames()) {
             const QString type = pkg.contentType(name);
-            notes->hadMacros = notes->hadMacros || type.startsWith(QLatin1String("application/vnd.ms-office.vba")) || type.contains(QLatin1String("macroEnabled")) || type.contains(QLatin1String("vbaData"));
+            notes->hadMacros = notes->hadMacros || isMacroContentType(type);
         }
         if (pkg.skippedCount() > 0) {
             notes->leftOut = true;

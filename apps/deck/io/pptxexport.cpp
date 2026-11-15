@@ -511,11 +511,11 @@ QByteArray renderThumbnail(const Document &doc)
 
 class Exporter {
 public:
-    Exporter(const Document &doc, PresentationKind kind, QStringList *skipped, bool embedFonts)
-        : m_doc(doc), m_kind(kind), m_callerSkipped(skipped), m_embedFonts(embedFonts), m_keptFonts(EmbeddedFonts::facesOf(&doc)) {}
+    Exporter(const Document &doc, PresentationKind kind, QStringList *skipped, bool embedFonts, bool macros = false)
+        : m_doc(doc), m_kind(kind), m_macros(macros), m_callerSkipped(skipped), m_embedFonts(embedFonts), m_keptFonts(EmbeddedFonts::facesOf(&doc)) {}
     // For a presentation made again from a snapshot (exportSnapshot): the fonts its file carried and the picture of its first slide are what the window had when the snapshot was taken.
-    Exporter(const Document &doc, PresentationKind kind, bool embedFonts, const QVector<EmbeddedFace> &keptFonts, const QByteArray &thumbnail)
-        : m_doc(doc), m_kind(kind), m_callerSkipped(nullptr), m_embedFonts(embedFonts), m_keptFonts(keptFonts), m_thumbnail(thumbnail), m_thumbnailGiven(true) {}
+    Exporter(const Document &doc, PresentationKind kind, bool embedFonts, const QVector<EmbeddedFace> &keptFonts, const QByteArray &thumbnail, bool macros = false)
+        : m_doc(doc), m_kind(kind), m_macros(macros), m_callerSkipped(nullptr), m_embedFonts(embedFonts), m_keptFonts(keptFonts), m_thumbnail(thumbnail), m_thumbnailGiven(true) {}
     QByteArray run(QString *error);
 
 private:
@@ -573,6 +573,7 @@ private:
 
     const Document &m_doc;
     PresentationKind m_kind;
+    bool m_macros;                               // written as a macro-enabled kind: the macro project the file had is kept, as it was
     QStringList *m_callerSkipped;
     bool m_embedFonts;                           // the program's own fonts that the text uses go in the file
     QVector<EmbeddedFace> m_keptFonts;           // the fonts the file this came from carried
@@ -1712,8 +1713,7 @@ void Exporter::writePresentation()
                               "<a:solidFill><a:schemeClr val=\"tx1\"/></a:solidFill><a:latin typeface=\"+mn-lt\"/><a:ea typeface=\"+mn-ea\"/><a:cs typeface=\"+mn-cs\"/></a:defRPr></a:lvl%1pPr>")
                    .arg(i + 1).arg(457200 * i);
     xml += QStringLiteral("</p:defaultTextStyle>") + sectionListXml(m_doc) + QStringLiteral("</p:presentation>");
-    const char *type_ = m_kind == PresentationKind::Template ? "template.main+xml" : m_kind == PresentationKind::Show ? "slideshow.main+xml" : "presentation.main+xml";
-    add(kPresentationPart, kTypeBase + QLatin1String(type_), xml);
+    add(kPresentationPart, office::macroMainType(office::MacroProgram::Presentation, m_kind == PresentationKind::Template ? office::MacroKind::Template : m_kind == PresentationKind::Show ? office::MacroKind::Show : office::MacroKind::Plain, m_macros), xml);
 }
 
 // The comments are written in the older form, the one every version of the
@@ -1862,6 +1862,8 @@ QByteArray Exporter::run(QString *error)
         m_fonts = writeEmbeddedFonts(m_pkg, kPresentationPart, m_fontUse, m_keptFonts, m_embedFonts);
     }
     writePresentation();
+    // The macro project is kept only in a macro-enabled kind, as it was and never run; in any other kind it is left out.
+    if (m_macros) office::writeMacroProject(&m_pkg, kPresentationPart, presentationMacros(m_doc), QStringLiteral("/ppt/"));
     if (m_droppedLinks > 0)
         note(QCoreApplication::translate("PptxExport", "Links to a slide that is no longer in the presentation were left out (%1).").arg(m_droppedLinks));
 
@@ -1878,10 +1880,19 @@ QByteArray Exporter::run(QString *error)
 
 PresentationKind kindOfFileName(const QString &path)
 {
-    if (path.endsWith(QLatin1String(".potx"), Qt::CaseInsensitive) || path.endsWith(QLatin1String(".pot"), Qt::CaseInsensitive)) return PresentationKind::Template;
-    if (path.endsWith(QLatin1String(".ppsx"), Qt::CaseInsensitive) || path.endsWith(QLatin1String(".pps"), Qt::CaseInsensitive)) return PresentationKind::Show;
+    if (path.endsWith(QLatin1String(".potx"), Qt::CaseInsensitive) || path.endsWith(QLatin1String(".pot"), Qt::CaseInsensitive) || path.endsWith(QLatin1String(".potm"), Qt::CaseInsensitive)) return PresentationKind::Template;
+    if (path.endsWith(QLatin1String(".ppsx"), Qt::CaseInsensitive) || path.endsWith(QLatin1String(".pps"), Qt::CaseInsensitive) || path.endsWith(QLatin1String(".ppsm"), Qt::CaseInsensitive)) return PresentationKind::Show;
     return PresentationKind::Presentation;
 }
+
+bool isMacroEnabledFileName(const QString &path)
+{
+    for (const char *ending : {".pptm", ".ppsm", ".potm"})
+        if (path.endsWith(QLatin1String(ending), Qt::CaseInsensitive)) return true;
+    return false;
+}
+
+office::MacroProject presentationMacros(const Document &doc) { return office::macroProjectFromJson(doc.appData.value(QStringLiteral("macros")).toObject()); }
 
 // Text that shrinks on overflow is saved at the fit it has now (fontScale and lnSpcReduction), so that the file opens the same in other programs;
 // text a file shrank keeps what the file said until it is edited.
@@ -1912,7 +1923,7 @@ static void settleFits(Document &doc)
             }
 }
 
-QByteArray exportPresentation(const Document &doc, QString *error, QStringList *skipped, PresentationKind kind, bool embedFonts)
+QByteArray exportPresentation(const Document &doc, QString *error, QStringList *skipped, PresentationKind kind, bool embedFonts, bool macros)
 {
     bool live = false;
     for (const auto &page : doc.pages)
@@ -1920,9 +1931,9 @@ QByteArray exportPresentation(const Document &doc, QString *error, QStringList *
     if (live && doc.slideText) {
         const std::unique_ptr<Document> fitted = Document::fromSnapshot(doc.snapshot());
         settleFits(*fitted);
-        return Exporter(*fitted, kind, skipped, embedFonts).run(error);
+        return Exporter(*fitted, kind, skipped, embedFonts, macros).run(error);
     }
-    return Exporter(doc, kind, skipped, embedFonts).run(error);
+    return Exporter(doc, kind, skipped, embedFonts, macros).run(error);
 }
 
 ExportSnapshot snapshotForExport(const Document &doc)
@@ -1934,11 +1945,11 @@ ExportSnapshot snapshotForExport(const Document &doc)
     return s;
 }
 
-QByteArray exportSnapshot(const ExportSnapshot &snapshot, QString *error, PresentationKind kind, bool embedFonts)
+QByteArray exportSnapshot(const ExportSnapshot &snapshot, QString *error, PresentationKind kind, bool embedFonts, bool macros)
 {
     const std::unique_ptr<Document> doc = Document::fromSnapshot(snapshot.doc);
     if (doc->slideText) settleFits(*doc);
-    return Exporter(*doc, kind, embedFonts, snapshot.keptFonts, snapshot.thumbnail).run(error);
+    return Exporter(*doc, kind, embedFonts, snapshot.keptFonts, snapshot.thumbnail, macros).run(error);
 }
 
 bool savePresentationFile(const Document &doc, const QString &path, QString *error, QStringList *skipped, bool embedFonts, const QString &password, bool removePersonal, QStringList *personalProblems)
@@ -1947,7 +1958,7 @@ bool savePresentationFile(const Document &doc, const QString &path, QString *err
         if (error) *error = why;
         return false;
     };
-    QByteArray bytes = exportPresentation(doc, error, skipped, kindOfFileName(path), embedFonts);
+    QByteArray bytes = exportPresentation(doc, error, skipped, kindOfFileName(path), embedFonts, isMacroEnabledFileName(path));
     if (bytes.isEmpty()) return false;
     if (removePersonal) bytes = office::removePersonalFromPackage(bytes, nullptr, personalProblems);
     if (!password.isEmpty()) {

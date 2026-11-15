@@ -79,7 +79,7 @@ void ReusePane::setKeepFormatting(bool keep) { m_keep->setChecked(keep); }
 void ReusePane::browse()
 {
     const QString path = QFileDialog::getOpenFileName(this, tr("Reuse Slides"), Settings::get().value("dirs/open", QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation)).toString(),
-                                                      tr("Presentations (*.pptx *.potx *.ppsx *.ppt *.pps *.pot)") + QStringLiteral(";;") + tr("All Files (*)"));
+                                                      tr("Presentations (*.pptx *.pptm *.potx *.potm *.ppsx *.ppsm *.ppt *.pps *.pot)") + QStringLiteral(";;") + tr("All Files (*)"));
     if (path.isEmpty()) return;
     Settings::get().setValue("dirs/open", QFileInfo(path).absolutePath());
     open(path);

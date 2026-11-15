@@ -34,7 +34,7 @@ PresentationKind presentationKindOf(const QString &path)
 bool isWrittenEnding(const QString &path)
 {
     const QString suffix = QFileInfo(path).suffix().toLower();
-    return suffix == QLatin1String("pptx") || suffix == QLatin1String("potx") || suffix == QLatin1String("ppsx") || suffix == QLatin1String("odp") || suffix == QLatin1String("otp");
+    return suffix == QLatin1String("pptx") || suffix == QLatin1String("potx") || suffix == QLatin1String("ppsx") || suffix == QLatin1String("pptm") || suffix == QLatin1String("potm") || suffix == QLatin1String("ppsm") || suffix == QLatin1String("odp") || suffix == QLatin1String("otp");
 }
 
 bool saveAnyPresentationFile(const Document &doc, const QString &path, QString *error, QStringList *skipped, bool embedFonts, const QString &password, bool removePersonal, QStringList *personalProblems)

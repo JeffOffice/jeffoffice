@@ -21,7 +21,7 @@
 #define CrunchSetKey "Software\JeffOffice\JeffCrunch"
 #define TaskStats "Send anonymous usage statistics (never your files)"
 #define PubExts ".pub,.jpub"
-#define DeckExts ".pptx,.potx,.ppsx,.ppt,.pot,.pps,.odp,.otp"
+#define DeckExts ".pptx,.pptm,.potx,.potm,.ppsx,.ppsm,.ppt,.pot,.pps,.odp,.otp"
 #define WriteExts ".docx,.docm,.dotx,.dotm,.doc,.dot,.odt,.ott,.rtf"
 #define CrunchExts ".xlsx,.xlsm,.xltx,.xltm,.xls,.ods,.ots,.csv"
 

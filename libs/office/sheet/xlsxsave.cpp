@@ -2,6 +2,7 @@
 
 #include "sheet/proofingext.h"
 #include "sheet/xlsxsave.h"
+#include "office/macroparts.h"
 #include "office/freeid.h"
 
 #include "office/diagram.h"
@@ -3209,11 +3210,10 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
         QString newType;
         bool macros = false;
         const QString kind = changes.targetKind;
-        if (kind == QLatin1String("xlsx")) newType = QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml");
-        else if (kind == QLatin1String("xlsm")) newType = QStringLiteral("application/vnd.ms-excel.sheet.macroEnabled.main+xml"), macros = true;
-        else if (kind == QLatin1String("xltx")) newType = QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.template.main+xml");
-        else if (kind == QLatin1String("xltm")) newType = QStringLiteral("application/vnd.ms-excel.template.macroEnabled.main+xml"), macros = true;
-        else if (kind == QLatin1String("xlam")) newType = QStringLiteral("application/vnd.ms-excel.addin.macroEnabled.main+xml"), macros = true;
+        if (kind == QLatin1String("xlsx") || kind == QLatin1String("xlsm") || kind == QLatin1String("xltx") || kind == QLatin1String("xltm")) {
+            macros = kind == QLatin1String("xlsm") || kind == QLatin1String("xltm");
+            newType = macroMainType(MacroProgram::Workbook, kind == QLatin1String("xltx") || kind == QLatin1String("xltm") ? MacroKind::Template : MacroKind::Plain, macros);
+        } else if (kind == QLatin1String("xlam")) newType = QStringLiteral("application/vnd.ms-excel.addin.macroEnabled.main+xml"), macros = true;
         else return fail(QCoreApplication::translate("jp::office::sheet::Save", "This kind of workbook file can't be written."));
         int typesEntry = -1;
         for (int i = 0; i < directory.size(); ++i)

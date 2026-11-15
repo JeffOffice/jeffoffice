@@ -31,7 +31,7 @@ namespace jp {
 
 QString DeckWindow::fileKind(const QString &path)
 {
-    static const QStringList kinds = {QStringLiteral("pptx"), QStringLiteral("potx"), QStringLiteral("ppsx"), QStringLiteral("ppt"),
+    static const QStringList kinds = {QStringLiteral("pptx"), QStringLiteral("potx"), QStringLiteral("ppsx"), QStringLiteral("pptm"), QStringLiteral("potm"), QStringLiteral("ppsm"), QStringLiteral("ppt"),
                                       QStringLiteral("pot"), QStringLiteral("pps"), QStringLiteral("odp"), QStringLiteral("otp")};
     const QString ending = QFileInfo(path).suffix().toLower();
     return kinds.contains(ending) ? ending : QStringLiteral("other");
@@ -40,7 +40,7 @@ QString DeckWindow::fileKind(const QString &path)
 void DeckWindow::browseAndOpen(OpenHow how)
 {
     const QString p = QFileDialog::getOpenFileName(this, openHowText(how), openFolder(),
-                                                   tr("Presentations (*.pptx *.potx *.ppsx *.ppt *.pps *.pot *.odp *.otp)") + QStringLiteral(";;") + tr("All Files (*)"));
+                                                   tr("Presentations (*.pptx *.pptm *.potx *.potm *.ppsx *.ppsm *.ppt *.pps *.pot *.odp *.otp)") + QStringLiteral(";;") + tr("All Files (*)"));
     if (p.isEmpty()) return;
     Settings::get().setValue("dirs/open", QFileInfo(p).absolutePath());
     openFile(p, how);

@@ -1,4 +1,5 @@
 #include "io/pptximport.h"
+#include "office/macroparts.h"
 #include "core/printheaderfooter.h"
 
 #include "core/appinfo.h"
@@ -1958,6 +1959,10 @@ std::unique_ptr<Document> importPackage(const office::Package &pkg, QString *err
     doc->slidePictures = true;
     Importer importer(pkg, *doc);
     if (!importer.run(pkg.mainPart(), error)) return nullptr;
+    // A macro project is kept as it was, to be written back in a macro-enabled kind; nothing in it is read or run.
+    const office::MacroProject macros = office::readMacroProject(pkg, pkg.mainPart());
+    if (!macros.isEmpty()) doc->appData[QStringLiteral("macros")] = office::macroProjectToJson(macros);
+    else if (macros.leftOut && error) *error += (error->isEmpty() ? QString() : QStringLiteral("\n")) + QCoreApplication::translate("PptxImport", "The macros in this file are too large to keep, and were left out.");
     // The presentation's own fonts are available for as long as it is open (see core/embeddedfonts.h).
     EmbeddedFonts::use(doc.get(), importer.takeFonts());
     doc->fromFile = true;   // what the file names outside itself is read only from beside it

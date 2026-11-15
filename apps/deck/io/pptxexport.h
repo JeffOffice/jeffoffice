@@ -18,6 +18,7 @@
 
 #include "core/document.h"
 #include "core/embeddedfonts.h"
+#include "office/macroparts.h"
 
 #include <QByteArray>
 #include <QString>
@@ -26,12 +27,17 @@
 namespace jp::deck {
 
 // The three forms of the file: they differ in one content type, and in the
-// ending of the file's name (.pptx, .potx, .ppsx).
+// ending of the file's name (.pptx, .potx, .ppsx; with macros .pptm, .potm, .ppsm). With `macros` the file is of the macro-enabled kind: the main part has that
+// kind's type, and the macro project the presentation was opened with is written back as it was; without, a project is left out.
 enum class PresentationKind { Presentation, Template, Show };
 
 // The kind a file name's ending asks for (.potx a template, .ppsx a show,
 // anything else a presentation).
 PresentationKind kindOfFileName(const QString &path);
+// Whether the ending is one of the macro-enabled kinds (.pptm, .ppsm, .potm): the same three forms, with the macro project of the file kept.
+bool isMacroEnabledFileName(const QString &path);
+// The macro project a presentation came from a file with (appData "macros", the bytes as they were, never read); empty for one that had none.
+office::MacroProject presentationMacros(const Document &doc);
 
 // The presentation as a file's bytes. Empty, with the reason in `error`, if
 // it can't be written. `skipped` gets one entry for each thing left out:
@@ -42,7 +48,7 @@ PresentationKind kindOfFileName(const QString &path);
 // file"), as io/pptxfonts.h says; the fonts the file this came from carried
 // are written back whatever it is, while the presentation uses them.
 QByteArray exportPresentation(const Document &doc, QString *error = nullptr, QStringList *skipped = nullptr,
-                              PresentationKind kind = PresentationKind::Presentation, bool embedFonts = false);
+                              PresentationKind kind = PresentationKind::Presentation, bool embedFonts = false, bool macros = false);
 // What a copy of the presentation needs to be made on another thread while the window goes on being edited: taken (snapshotForExport) on the thread that owns the presentation, made into
 // the file's bytes (exportSnapshot) anywhere. The same bytes exportPresentation gives for the presentation as it was when the snapshot was taken.
 // Everything that the text layout or the renderer must do (the picture of the first slide) is done when the snapshot is taken: neither may be used from another thread.
@@ -52,7 +58,7 @@ struct ExportSnapshot {
     QVector<EmbeddedFace> keptFonts;       // the fonts the file this came from carried
 };
 ExportSnapshot snapshotForExport(const Document &doc);
-QByteArray exportSnapshot(const ExportSnapshot &snapshot, QString *error = nullptr, PresentationKind kind = PresentationKind::Presentation, bool embedFonts = false);
+QByteArray exportSnapshot(const ExportSnapshot &snapshot, QString *error = nullptr, PresentationKind kind = PresentationKind::Presentation, bool embedFonts = false, bool macros = false);
 
 // Writes the file at `path`, as its ending asks (kindOfFileName). The old
 // file stays whole until the new one is complete: a full disk, a folder that

@@ -73,6 +73,7 @@ void DeckWindow::createSaveActions()
         m_fileProtected = false;
         m_versions.reset();
         m_personalInfoRemoved = false;
+        m_macrosNoted = false;
     });
     // (what a save would lose is worked out again after any change)
     connect(m_ed, &Editor::changed, this, [this] { m_lossCache.bump(); });
@@ -110,22 +111,25 @@ bool DeckWindow::saveAs()
     // recognized by comparing with these same (translated) texts.
     const QString pptxFilter = tr("Presentation (*.pptx)"), potxFilter = tr("Template (*.potx)"), ppsxFilter = tr("Show (*.ppsx)");
     const QString odpFilter = tr("OpenDocument Presentation (*.odp)"), otpFilter = tr("OpenDocument Presentation Template (*.otp)");
+    const QString pptmFilter = tr("Macro-Enabled Presentation (*.pptm)"), potmFilter = tr("Macro-Enabled Template (*.potm)"), ppsmFilter = tr("Macro-Enabled Show (*.ppsm)");
+    const bool macroFile = deck::isMacroEnabledFileName(from);
     const deck::PresentationKind was = deck::presentationKindOf(from);
     const bool ownTemplate = was == deck::PresentationKind::Template && from == m_templatePath;
     // A file of an open document kind is saved as one again; a template only when this window wrote it.
     // (a presentation with no file yet starts on the kind Options > Save names)
     const bool odf = from.isEmpty() ? defaultSaveFormat() == QLatin1String("odp") : deck::formatOfFileName(from) == deck::FileFormat::Odp;
-    QString selected = was == deck::PresentationKind::Show ? ppsxFilter
-                       : ownTemplate                       ? (odf ? otpFilter : potxFilter)
+    QString selected = was == deck::PresentationKind::Show ? (macroFile ? ppsmFilter : ppsxFilter)
+                       : ownTemplate                       ? (odf ? otpFilter : macroFile ? potmFilter : potxFilter)
+                       : macroFile                         ? pptmFilter
                        : odf                               ? odpFilter
                                                            : pptxFilter;
     auto endingOf = [&](const QString &filter) {
-        return filter == ppsxFilter ? QStringLiteral(".ppsx") : filter == potxFilter ? QStringLiteral(".potx") : filter == odpFilter ? QStringLiteral(".odp") : filter == otpFilter ? QStringLiteral(".otp") : QStringLiteral(".pptx");
+        return filter == pptmFilter ? QStringLiteral(".pptm") : filter == potmFilter ? QStringLiteral(".potm") : filter == ppsmFilter ? QStringLiteral(".ppsm") : filter == ppsxFilter ? QStringLiteral(".ppsx") : filter == potxFilter ? QStringLiteral(".potx") : filter == odpFilter ? QStringLiteral(".odp") : filter == otpFilter ? QStringLiteral(".otp") : QStringLiteral(".pptx");
     };
     const QString suggested = dir + QLatin1Char('/') + name + endingOf(selected);
     QString path = m_pathChooser ? m_pathChooser(suggested, selected)
                                  : askSavePath(this, tr("Save As"), suggested,
-                                               pptxFilter + QStringLiteral(";;") + potxFilter + QStringLiteral(";;") + ppsxFilter + QStringLiteral(";;") + odpFilter + QStringLiteral(";;") + otpFilter, &selected);
+                                               pptxFilter + QStringLiteral(";;") + potxFilter + QStringLiteral(";;") + ppsxFilter + QStringLiteral(";;") + pptmFilter + QStringLiteral(";;") + potmFilter + QStringLiteral(";;") + ppsmFilter + QStringLiteral(";;") + odpFilter + QStringLiteral(";;") + otpFilter, &selected);
     if (path.isEmpty()) return false;
     if (!isKnownEnding(path)) path += endingOf(selected);
     return saveTo(path);
@@ -138,19 +142,23 @@ bool DeckWindow::saveCopy()
     const QString name = tr("%1 copy").arg(from.isEmpty() ? m_ed->displayName() : QFileInfo(from).completeBaseName());
     const QString pptxFilter = tr("Presentation (*.pptx)"), potxFilter = tr("Template (*.potx)"), ppsxFilter = tr("Show (*.ppsx)");
     const QString odpFilter = tr("OpenDocument Presentation (*.odp)"), otpFilter = tr("OpenDocument Presentation Template (*.otp)");
+    const QString pptmFilter = tr("Macro-Enabled Presentation (*.pptm)"), potmFilter = tr("Macro-Enabled Template (*.potm)"), ppsmFilter = tr("Macro-Enabled Show (*.ppsm)");
     const bool odf = deck::formatOfFileName(from) == deck::FileFormat::Odp;
-    QString selected = odf ? odpFilter : pptxFilter;
+    QString selected = odf ? odpFilter : deck::isMacroEnabledFileName(from) ? pptmFilter : pptxFilter;
     auto endingOf = [&](const QString &filter) {
-        return filter == ppsxFilter ? QStringLiteral(".ppsx") : filter == potxFilter ? QStringLiteral(".potx") : filter == odpFilter ? QStringLiteral(".odp") : filter == otpFilter ? QStringLiteral(".otp") : QStringLiteral(".pptx");
+        return filter == pptmFilter ? QStringLiteral(".pptm") : filter == potmFilter ? QStringLiteral(".potm") : filter == ppsmFilter ? QStringLiteral(".ppsm") : filter == ppsxFilter ? QStringLiteral(".ppsx") : filter == potxFilter ? QStringLiteral(".potx") : filter == odpFilter ? QStringLiteral(".odp") : filter == otpFilter ? QStringLiteral(".otp") : QStringLiteral(".pptx");
     };
     const QString suggested = dir + QLatin1Char('/') + name + endingOf(selected);
     QString path = m_pathChooser ? m_pathChooser(suggested, selected)
                                  : askSavePath(this, tr("Save a Copy"), suggested,
-                                               pptxFilter + QStringLiteral(";;") + potxFilter + QStringLiteral(";;") + ppsxFilter + QStringLiteral(";;") + odpFilter + QStringLiteral(";;") + otpFilter, &selected);
+                                               pptxFilter + QStringLiteral(";;") + potxFilter + QStringLiteral(";;") + ppsxFilter + QStringLiteral(";;") + pptmFilter + QStringLiteral(";;") + potmFilter + QStringLiteral(";;") + ppsmFilter + QStringLiteral(";;") + odpFilter + QStringLiteral(";;") + otpFilter, &selected);
     if (path.isEmpty()) return false;
     if (!isKnownEnding(path)) path += endingOf(selected);
     return saveTo(path, true);
 }
+
+// Whether the presentation came from a file with a macro project, which is kept, never run, and written back only in a macro-enabled kind.
+bool DeckWindow::hasMacros() const { return !deck::presentationMacros(*m_ed->doc()).isEmpty(); }
 
 bool DeckWindow::saveAsTemplate()
 {
@@ -240,6 +248,11 @@ bool DeckWindow::saveTo(const QString &path, bool asCopy)
     });
     doc->props.modified = QDateTime::currentDateTime();
     if (doc->props.author.isEmpty() && !m_personalInfoRemoved) doc->props.author = Settings::get().userName();
+    // The macros are kept only in a file of a macro-enabled kind: any other is saved without them, and the person is told once.
+    if (hasMacros() && !m_macrosNoted && !deck::isMacroEnabledFileName(path)) {
+        m_macrosNoted = true;
+        notice(tr("Save"), tr("The macros in this presentation aren't saved, because a .%1 file can't hold them.").arg(QFileInfo(path).suffix().toLower()));
+    }
     QString err;
     QStringList skipped;
     if (!backupBeforeSave(this, path, m_fileProtected ? m_filePassword : QString())) return false;
@@ -304,10 +317,12 @@ void DeckWindow::makeRecoveryCopy(bool now)
     const auto snapshot = std::make_shared<deck::ExportSnapshot>(deck::snapshotForExport(*m_ed->doc()));
     const bool embedFonts = embedFontsOnSave();
     const std::function<void()> hook = m_recoveryHook;
-    auto make = [snapshot, copy, embedFonts, hook](QString *error, const std::function<bool()> &cancelled) {
+    // (a recovery copy keeps the macro project too, so that a recovered presentation still has it; only this program reads the copy)
+    const bool macros = hasMacros();
+    auto make = [snapshot, copy, embedFonts, hook, macros](QString *error, const std::function<bool()> &cancelled) {
         if (hook) hook();
         if (cancelled()) return QByteArray();
-        return deck::exportSnapshot(*snapshot, error, deck::kindOfFileName(copy), embedFonts);
+        return deck::exportSnapshot(*snapshot, error, deck::kindOfFileName(copy), embedFonts, macros);
     };
     if (now) {
         QString error;

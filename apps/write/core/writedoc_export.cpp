@@ -5,6 +5,7 @@
 #include "core/boxlinks.h"
 #include "rtf/rtfwrite.h"
 #include "odt/odt.h"
+#include "office/macroparts.h"
 #include "wml/wmlhtml.h"
 
 #include "core/editops.h"
@@ -400,7 +401,7 @@ bool WriteDoc::exportDocument(office::wml::Document *result, bool template_, boo
     QSet<QString> gone;
     for (int i = int(out.parts.size()) - 1; !macros && i >= 0; --i) {
         const QString &type = out.parts[i].contentType;
-        if (type.startsWith(QLatin1String("application/vnd.ms-office.vba")) || type.contains(QLatin1String("macroEnabled")) || type.contains(QLatin1String("vbaData"))) {
+        if (office::isMacroContentType(type)) {
             gone.insert(out.parts[i].name.toLower());
             out.partRelationships.remove(out.parts[i].name);
             out.parts.removeAt(i);
@@ -408,8 +409,7 @@ bool WriteDoc::exportDocument(office::wml::Document *result, bool template_, boo
     }
     auto dropMacroLinks = [&](QVector<office::Relationship> *rels) {
         rels->erase(std::remove_if(rels->begin(), rels->end(), [&](const office::Relationship &r) {
-                        return r.type.endsWith(QLatin1String("/vbaProject")) || r.type.endsWith(QLatin1String("/vbaProjectSignature")) || r.type.endsWith(QLatin1String("/wordVbaData")) ||
-                               (!r.external && gone.contains(r.target.toLower()));
+                        return office::isMacroRelationshipType(r.type) || (!r.external && gone.contains(r.target.toLower()));
                     }),
                     rels->end());
     };
@@ -419,9 +419,7 @@ bool WriteDoc::exportDocument(office::wml::Document *result, bool template_, boo
         for (auto it = out.partRelationships.begin(); it != out.partRelationships.end(); ++it) dropMacroLinks(&it.value());
     }
     pruneUnusedMedia(&out);
-    out.mainContentType = macros ? template_ ? QStringLiteral("application/vnd.ms-word.template.macroEnabledTemplate.main+xml") : QStringLiteral("application/vnd.ms-word.document.macroEnabled.main+xml")
-                          : template_ ? QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.template.main+xml")
-                                      : QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml");
+    out.mainContentType = office::macroMainType(office::MacroProgram::Document, template_ ? office::MacroKind::Template : office::MacroKind::Plain, macros);
     *result = std::move(out);
     return true;
 }

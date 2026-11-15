@@ -105,7 +105,7 @@ What JeffCrunch offers that Excel doesn't, then the plans that go past Excel.
 - [~] **1.0** Save as a single-file web page, and a selection or chart as an HTML table or picture *(shared: JeffPub's web export)*
 - [x] **1.0** **(alt)** Email: make a ready-to-send `.eml` with the workbook as an attachment, or a PDF, instead of sending through an online account *(done November 4, 2026: File > Export > Make an Email, with the workbook as a file or as a PDF; a workbook with a password stays locked with it, and the password is never in the message; the message writer is shared with JeffWrite in libs/shell/app/emailops.cpp)*
 - [ ] **1.0** **(alt)** Share without a cloud account: a package with the workbook and its pictures for another computer
-- [ ] **later** Save as `.xlsm` and `.xltm`, keeping macros untouched and never running them
+- [x] **later** Save as `.xlsm` and `.xltm`, keeping macros untouched and never running them *(done October 31, 2026 with Open; checked again November 15, 2026: the main-part types now come from libs/office/office/macroparts, shared with JeffWrite and JeffDeck; saved as `.xlsx` or `.xltx` the project, its signature, and their types and links are left out and the person is asked first)*
 - [ ] **later** Export a table to a SQLite file or to SQL `INSERT` statements
 
 ### Options
