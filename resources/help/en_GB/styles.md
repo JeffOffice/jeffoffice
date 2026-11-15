@@ -34,7 +34,7 @@ For a faster way, choose **New Style by Example**. Type a name for the style, ba
 
 1. Click in a paragraph that uses the style.
 2. Click **Show all** in the **Styles** gallery, and then click **Modify Style…**.
-3. Change the font, size, bold, italic, colour, alignment, or spacing. Click **OK**.
+3. Change the font, size, bold, italic, colour, alignment, indents, or spacing. Click **OK**.
 
 Every paragraph with that style changes right away.
 

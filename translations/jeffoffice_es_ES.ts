@@ -1335,6 +1335,17 @@ No se puede leer el fichero.</translation>
     </message>
 </context>
 <context>
+    <name>jp::HelpView</name>
+    <message>
+        <source># Help is not installed
+
+Help's files were not found beside the program. Reinstalling %1 puts them back.</source>
+        <translation type="unfinished"># La ayuda no está instalada
+
+No se encontraron los ficheros de la Ayuda junto al programa. Volver a instalar %1 los restaura.</translation>
+    </message>
+</context>
+<context>
     <name>jp::InfoPage</name>
     <message>
         <source>A custom property is a name with a value that you choose, such as Project or Client. Fields in the file can show it.</source>
@@ -1587,6 +1598,13 @@ No se puede leer el fichero.</translation>
     <message>
         <source>The preview shows the first %1 rows of the file. The whole file is opened.</source>
         <translation type="unfinished">La vista previa muestra las primeras %1 filas del fichero. Se abre el fichero completo.</translation>
+    </message>
+</context>
+<context>
+    <name>jp::TranslatePane</name>
+    <message>
+        <source>The models are downloaded once from Mozilla's translation files and kept on this computer. After that, translating needs no connection.</source>
+        <translation type="unfinished">Los modelos se descargan una vez desde los ficheros de traducción de Mozilla y se guardan en este equipo. Después, la traducción no necesita conexión.</translation>
     </message>
 </context>
 <context>
@@ -2350,6 +2368,29 @@ No se puede leer el fichero.</translation>
             <numerusform>%n parte o vínculo del fichero tenía un nombre que no se podía usar y se omitió.</numerusform>
             <numerusform>%n partes o vínculos del fichero tenían un nombre que no se podía usar y se omitieron.</numerusform>
         </translation>
+    </message>
+</context>
+<context>
+    <name>jp::translate</name>
+    <message>
+        <source>The translation files could not be read.</source>
+        <translation type="unfinished">No se pudieron leer los ficheros de traducción.</translation>
+    </message>
+    <message>
+        <source>The translation files could not be saved.</source>
+        <translation type="unfinished">No se pudieron guardar los ficheros de traducción.</translation>
+    </message>
+    <message>
+        <source>A translation file is larger than it should be, and was refused.</source>
+        <translation type="unfinished">Un fichero de traducción es más grande de lo que debería y se ha rechazado.</translation>
+    </message>
+    <message>
+        <source>The translation files could not be written: the disk may be full. Nothing was installed.</source>
+        <translation type="unfinished">No se pudieron escribir los ficheros de traducción: es posible que el disco esté lleno. No se instaló nada.</translation>
+    </message>
+    <message>
+        <source>A translation file did not match its checksum, and was thrown away. Nothing was installed.</source>
+        <translation type="unfinished">Un fichero de traducción no coincide con su suma de comprobación y se ha descartado. No se instaló nada.</translation>
     </message>
 </context>
 <context>

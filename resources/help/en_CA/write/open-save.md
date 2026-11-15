@@ -77,7 +77,14 @@ An .odt file can't hold everything a .docx file can. When you save as .odt, Jeff
 
 ## Make a PDF
 
-Click **File > Export > Export to PDF**. Choose which pages to include: all, the current page, or a range such as 1-3, 5 (p2s3 and s3 work here too). Then choose a name. The PDF looks the same on every computer, because the fonts go inside it. The document's title, author, subject, and keywords go into the PDF. Each heading becomes a **bookmark**, an entry in the list that a PDF reader shows beside the pages. Click a bookmark to jump to its page.
+Click **File > Export > Export to PDF**. Choose which pages to include: all, the current page, or a range such as 1-3, 5 (p2s3 and s3 work here too). Then choose how it is made:
+
+- **Optimize for** has **Standard**, which keeps your pictures as they are, and **Minimum size**, which makes each picture no finer than 150 pixels to the inch, so that the file is smaller. Use Minimum size for a PDF you will put on a web page or send by email.
+- **Include document properties** puts the document's title, author, subject, and keywords into the PDF.
+- **Create bookmarks from headings** makes each heading a **bookmark**, an entry in the list that a PDF reader shows beside the pages. Click a bookmark to jump to its page.
+- **Document structure tags for accessibility** tags the headings, paragraphs, lists, tables (with their header rows), and pictures (with their alternative text), and names the language, so that a screen reader reads the PDF in order.
+
+Then choose a name. The PDF looks the same on every computer, because the fonts go inside it. The PDF that **Print** makes when you choose a PDF file has the bookmarks and the tags too.
 
 ## Save as a web page
 
@@ -98,7 +105,7 @@ A forgotten password can't be recovered, so keep it somewhere safe. The password
 
 ## Make a PDF/A
 
-In the **Export to PDF** box, tick **PDF/A, for keeping for a long time**. A PDF/A file holds every font it uses and follows a standard made for keeping files for many years. It is not tagged for screen readers yet, and it can't have a password.
+In the **Export to PDF** box, tick **PDF/A, for keeping for a long time**. A PDF/A file (PDF/A-2b) holds every font it uses, names its colours, and follows a standard made for keeping files for many years. It can be tagged for screen readers, and it can't have a password.
 
 ## Make an email
 

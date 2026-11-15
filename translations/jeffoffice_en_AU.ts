@@ -126,6 +126,10 @@
         <translation>Base colour:</translation>
     </message>
     <message>
+        <source>Capitalization</source>
+        <translation>Capitalisation</translation>
+    </message>
+    <message>
         <source>Customize</source>
         <translation>Customise</translation>
     </message>
@@ -1064,6 +1068,17 @@ Download it from %2 now? (%3, once.)</translation>
     <message>
         <source>The twelve colors of this presentation's theme.</source>
         <translation>The twelve colours of this presentation's theme.</translation>
+    </message>
+</context>
+<context>
+    <name>jp::TranslatePane</name>
+    <message>
+        <source>The download was canceled. Nothing was installed.</source>
+        <translation>The download was cancelled. Nothing was installed.</translation>
+    </message>
+    <message>
+        <source>Canceled.</source>
+        <translation>Cancelled.</translation>
     </message>
 </context>
 <context>

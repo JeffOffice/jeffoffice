@@ -50,7 +50,7 @@ Click where the detail goes, then use **Mailings > Write & Insert Fields**:
 A **rule** makes a copy different for some people. Click **Rules** and pick one:
 
 - **If…Then…Else**: show one text when a column has a value, and another text when it does not. For example, if State is "CA", write "Welcome home".
-- **Skip Record If**: leave a person out when a column has a value, such as when the last name is empty.
+- **Skip Record If**: leave a person out when a column meets a test you set, such as when the last name is empty.
 - **Next Record** and **Next Record If**: use the next person's details in the same place. Labels use this to put a different person in each label.
 - **Merge Record #** puts in the number of the person's row in the list. **Merge Sequence #** counts the copies made so far.
 - **Ask** and **Fill-in**: ask you a question when you finish the merge. Ask keeps the answer under a name. Fill-in puts the answer in the text.

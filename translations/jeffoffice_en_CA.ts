@@ -977,6 +977,17 @@ Download it from %2 now? (%3, once.)</translation>
     </message>
 </context>
 <context>
+    <name>jp::TranslatePane</name>
+    <message>
+        <source>The download was canceled. Nothing was installed.</source>
+        <translation>The download was cancelled. Nothing was installed.</translation>
+    </message>
+    <message>
+        <source>Canceled.</source>
+        <translation>Cancelled.</translation>
+    </message>
+</context>
+<context>
     <name>jp::VariantGallery</name>
     <message>
         <source>Colors, fonts, and background styles</source>
