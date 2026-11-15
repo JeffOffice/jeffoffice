@@ -261,7 +261,7 @@ void SortDialog::fillOrder(int row, const SortLevel *level)
         // the icons in the column (and no icon)
         const SortDialog::Icons icons = m_provider.icons ? m_provider.icons(std::max(0, key->currentIndex()), m_leftToRight->isChecked()) : Icons();
         int chosen = -1;
-        for (const QString &icon : icons.keys) {
+        for (const QString &icon : jp::crunch::sortedIconKeys(icons.keys)) {
             order->addItem(jp::crunch::iconLabel(icon));
             const int at = order->count() - 1;
             order->setItemData(at, IconItem, kKindRole);

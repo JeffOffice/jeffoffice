@@ -422,13 +422,18 @@ void GridPainter::drawBar(QPainter *p, const QRect &cell, const CondBar &bar, bo
 void GridPainter::drawIcon(QPainter *p, const QRect &cell, const QString &set, int index, int count, int size)
 {
     ++m_stats.icons;
-    const QRectF box(cell.left() + 2, cell.top() + (cell.height() - size) / 2.0, size, size);
+    paintIconSetIcon(p, QRectF(cell.left() + 2, cell.top() + (cell.height() - size) / 2.0, size, size), set, index, count, m_sheet->rightToLeft());
+}
+
+// The icon `index` (from 0, the lowest) of a set of `count`, in `box`.
+void paintIconSetIcon(QPainter *p, const QRectF &box, const QString &set, int index, int count, bool rightToLeft)
+{
     const QColor green(0x2E, 0xA0, 0x4F), yellow(0xE8, 0xB4, 0x1C), red(0xD6, 0x3E, 0x3E), gray(0x76, 0x76, 0x76), black(0x20, 0x20, 0x20), gold(0xE3, 0xA8, 0x0E);
     const bool gray3 = set.contains(QLatin1String("Gray"));
     p->save();
     p->setRenderHint(QPainter::Antialiasing, true);
     p->setPen(Qt::NoPen);
-    if (m_sheet->rightToLeft()) {
+    if (rightToLeft) {
         // (the grid is drawn mirrored; the icon is not a thing that reads, so it is turned back)
         p->translate(box.center().x(), 0);
         p->scale(-1, 1);
@@ -557,6 +562,15 @@ void GridPainter::drawIcon(QPainter *p, const QRect &cell, const QString &set, i
         }
     }
     p->restore();
+}
+
+QPixmap iconSetPixmap(const QString &set, int index, int size)
+{
+    QPixmap pm(size, size);
+    pm.fill(Qt::transparent);
+    QPainter p(&pm);
+    paintIconSetIcon(&p, QRectF(0, 0, size, size), set, index, iconSetCount(set), false);
+    return pm;
 }
 
 // The font's own single underline, drawn here: where Qt 6.8 drew it (at the baseline plus the ceiling of the font's underline position, plus a half, stroked as wide as the font says),

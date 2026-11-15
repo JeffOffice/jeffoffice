@@ -6,6 +6,8 @@
 #include "app/filterpopup.h"
 #include "core/appinfo.h"
 #include "core/filterlist.h"
+#include "core/sortspec.h"
+#include "grid/condformat.h"
 #include "core/fonts.h"
 #include "crunchbooks.h"
 #include "crunchwindowhelpers.h"
@@ -1069,6 +1071,7 @@ private Q_SLOTS:
     void aFilterByIconShowsOnlyTheRowsWithThatIcon()
     {
         EditWindow e;
+        e.win.w.setLocale(QLocale(QLocale::English, QLocale::UnitedStates));
         const QString icons = QStringLiteral("<conditionalFormatting sqref=\"B2:B6\"><cfRule type=\"iconSet\" priority=\"1\"><iconSet iconSet=\"3Arrows\"><cfvo type=\"percent\" val=\"0\"/>"
                                              "<cfvo type=\"num\" val=\"3\"/><cfvo type=\"num\" val=\"5\"/></iconSet></cfRule></conditionalFormatting>");
         QVERIFY(e.open(bookOfSheets({{"A1=Name", "B1=Qty", "A2=e", "B2=5", "A3=a", "B3=1", "A4=c", "B4=3", "A5=b", "B5=2", "A6=d", "B6=4", "A7=f", "B7=text"}}, {{0, icons}})));
@@ -1094,7 +1097,7 @@ private Q_SLOTS:
         QAction *lowest = nullptr, *none = nullptr;
         for (QAction *a : keep->actions()) {
             names << a->text();
-            if (a->text() == QLatin1String("3 Arrows, icon 1")) lowest = a;
+            if (a->text() == QLatin1String("Red down arrow")) lowest = a;
             if (a->text() == QLatin1String("No icon")) none = a;
         }
         QVERIFY2(lowest && none, qPrintable(names.join(QLatin1Char('|'))));
@@ -1106,6 +1109,7 @@ private Q_SLOTS:
         QCOMPARE(made.iconSet, QStringLiteral("3Arrows"));
         QCOMPARE(made.iconId, 0);
         QCOMPARE(w.undoStack()->count(), 2);                                                 // (the buttons, and the filter)
+        QVERIFY(w.iconSourcesMade() > 0);
         // saved as the standard iconFilter, and read back
         QVERIFY2(saveIt(e), "saved");
         QByteArray part;
@@ -1123,6 +1127,52 @@ private Q_SLOTS:
         // Undo brings the rows back
         w.undoStack()->undo();
         QCOMPARE(shownRows(e, 2, 7), QStringLiteral("3 5"));
+    }
+
+    // Every icon of every set has a plain name by color and shape, different from the others in its set; the lists keep one order (the sets' own, then the lowest icon first), and both menus
+    // show the same names, each with its picture.
+    void theIconsHavePlainNamesAndOneOrderInBothMenus()
+    {
+        for (const QString &set : jp::grid::iconSetNames()) {
+            QStringList seen;
+            for (int i = 0; i < jp::grid::iconSetCount(set); ++i) {
+                const QString name = jp::crunch::iconLabel(set + QLatin1Char(':') + QString::number(i));
+                QVERIFY2(!name.isEmpty() && !name.contains(QLatin1String("icon ")), qPrintable(set + QLatin1Char(' ') + name));
+                QVERIFY2(!seen.contains(name), qPrintable(set + QStringLiteral(" repeats ") + name));
+                seen << name;
+                QVERIFY(!jp::grid::iconSetPixmap(set, i, 16).isNull());
+            }
+        }
+        QCOMPARE(jp::crunch::iconLabel(QStringLiteral("3Arrows:0")), QStringLiteral("Red down arrow"));
+        QCOMPARE(jp::crunch::iconLabel(QStringLiteral("3Arrows:1")), QStringLiteral("Yellow sideways arrow"));
+        QCOMPARE(jp::crunch::iconLabel(QStringLiteral("3Arrows:2")), QStringLiteral("Green up arrow"));
+        QCOMPARE(jp::crunch::iconLabel(QStringLiteral("3TrafficLights1:2")), QStringLiteral("Green circle"));
+        QCOMPARE(jp::crunch::iconLabel(QStringLiteral("5Arrows:1")), QStringLiteral("Yellow angled down arrow"));
+        QCOMPARE(jp::crunch::iconLabel(QStringLiteral("3Flags:0")), QStringLiteral("Red flag"));
+        QCOMPARE(jp::crunch::iconLabel(QString()), QStringLiteral("No icon"));
+        QCOMPARE(jp::crunch::sortedIconKeys({QStringLiteral("3Flags:1"), QStringLiteral("3Arrows:2"), QStringLiteral("3Arrows:0"), QStringLiteral("3Flags:0")}),
+                 (QStringList{QStringLiteral("3Arrows:0"), QStringLiteral("3Arrows:2"), QStringLiteral("3Flags:0"), QStringLiteral("3Flags:1")}));
+        EditWindow e;
+        const QString icons = QStringLiteral("<conditionalFormatting sqref=\"B2:B6\"><cfRule type=\"iconSet\" priority=\"1\"><iconSet iconSet=\"3Arrows\"><cfvo type=\"percent\" val=\"0\"/>"
+                                             "<cfvo type=\"num\" val=\"3\"/><cfvo type=\"num\" val=\"5\"/></iconSet></cfRule></conditionalFormatting>");
+        QVERIFY(e.open(bookOfSheets({{"A1=Name", "B1=Qty", "A2=e", "B2=5", "A3=a", "B3=1", "A4=c", "B4=3", "A5=b", "B5=2", "A6=d", "B6=4", "A7=f", "B7=text"}}, {{0, icons}})));
+        CrunchWindow &w = e.win.w;
+        e.select(QStringLiteral("A3"));
+        w.act(QStringLiteral("filter.toggle"))->trigger();
+        w.showFilterPopup(0, 1);
+        FilterPopup *popup = w.filterPopup();
+        QTRY_VERIFY(popup->listed());
+        QStringList keep, sort;
+        for (const char *menuName : {"filterColors", "filterSortColors"}) {
+            QStringList &into = menuName[6] == 'C' ? keep : sort;
+            for (QAction *a : popup->findChild<QMenu *>(QString::fromLatin1(menuName))->actions()) {
+                if (!a->isEnabled() || a->isSeparator()) continue;
+                into << a->text();
+                if (a->text() != QLatin1String("No icon")) QVERIFY2(!a->icon().isNull(), qPrintable(a->text()));
+            }
+        }
+        QCOMPARE(keep, (QStringList{QStringLiteral("Red down arrow"), QStringLiteral("Yellow sideways arrow"), QStringLiteral("Green up arrow"), QStringLiteral("No icon")}));
+        QCOMPARE(sort, keep);
     }
 
     // A picture of the drop-down with the icons listed under Keep a Color (set JC_SHOT_DIR).
@@ -1152,6 +1202,60 @@ private Q_SLOTS:
         p.drawPixmap(w.mapFromGlobal(keep->pos()), keep->grab());
         p.end();
         QVERIFY(shot.save(dir + QStringLiteral("/icon-filter.png")));
+    }
+
+    // A filter that has no icon condition never asks for the cells' icons (which works out every conditional format first): not a list of values, not Clear, not Reapply; and the drop-down
+    // lists every icon the column's rules can give without looking at the cells. A rule with no set name is the default set.
+    void onlyAFilterByIconAsksForTheIcons()
+    {
+        EditWindow e;
+        e.win.w.setLocale(QLocale(QLocale::English, QLocale::UnitedStates));
+        const QString icons = QStringLiteral("<conditionalFormatting sqref=\"B2:B6\"><cfRule type=\"iconSet\" priority=\"1\"><iconSet><cfvo type=\"percent\" val=\"0\"/>"
+                                             "<cfvo type=\"num\" val=\"3\"/><cfvo type=\"num\" val=\"5\"/></iconSet></cfRule></conditionalFormatting>");
+        QVERIFY(e.open(bookOfSheets({{"A1=Name", "B1=Qty", "A2=e", "B2=5", "A3=a", "B3=1", "A4=c", "B4=3"}}, {{0, icons}})));
+        CrunchWindow &w = e.win.w;
+        e.select(QStringLiteral("A3"));
+        w.act(QStringLiteral("filter.toggle"))->trigger();
+        w.showFilterPopup(0, 1);
+        FilterPopup *popup = w.filterPopup();
+        QTRY_VERIFY(popup->listed());
+        QCOMPARE(w.iconSourcesMade(), 0);                                                    // (listing the icons, and the list of values)
+        QStringList names;
+        for (QAction *a : popup->findChild<QMenu *>(QStringLiteral("filterColors"))->actions())
+            if (a->isEnabled() && !a->isSeparator()) names << a->text();
+        QCOMPARE(names, (QStringList{QStringLiteral("Red circle"), QStringLiteral("Yellow circle"), QStringLiteral("Green circle"), QStringLiteral("No icon")}));
+        popup->close();
+        QVERIFY(filterWith(e, with(e, 1, values({QStringLiteral("1"), QStringLiteral("5")}))));
+        QVERIFY(w.applyFilter(w.session()->filterWith(0, 1, FilterColumn()), QStringLiteral("Clearing")));
+        QCOMPARE(w.iconSourcesMade(), 0);
+        QCOMPARE(jp::grid::iconSetOrDefault(QString()), QStringLiteral("3TrafficLights1"));
+        QCOMPARE(jp::grid::iconSetOrDefault(QStringLiteral("3Arrows")), QStringLiteral("3Arrows"));
+    }
+
+    // A filter by icon is made with the icons its plan was made with: the session lets go of the source at once, and a plan made without one is refused.
+    void theSessionKeepsNoIconSourceAfterAPlan()
+    {
+        EditWindow e;
+        const QString icons = QStringLiteral("<conditionalFormatting sqref=\"B2:B3\"><cfRule type=\"iconSet\" priority=\"1\"><iconSet iconSet=\"3Arrows\"><cfvo type=\"percent\" val=\"0\"/>"
+                                             "<cfvo type=\"num\" val=\"3\"/><cfvo type=\"num\" val=\"5\"/></iconSet></cfRule></conditionalFormatting>");
+        QVERIFY(e.open(bookOfSheets({{"A1=Name", "B1=Qty", "A2=e", "B2=5", "A3=a", "B3=1"}}, {{0, icons}})));
+        FilterColumn top;
+        top.kind = FilterColumn::Kind::Icon;
+        top.iconSet = QStringLiteral("3Arrows");
+        top.iconId = 2;
+        top.column = 1;
+        AutoFilter f = range(QStringLiteral("A1:B3"));
+        f.columns.append(top);
+        crunch::EditSession *s = e.win.w.session();
+        s->setIconSource([](int, quint32 row, quint32) { return row == 1 ? QStringLiteral("3Arrows:2") : QStringLiteral("3Arrows:0"); });
+        QString why;
+        const auto plan = s->planFilter(0, f, &why);
+        QVERIFY(plan);
+        s->setIconSource({});
+        QVERIFY(s->prepareFilter(*plan, 0));
+        QVERIFY(s->applyFilter(*plan, QStringLiteral("Filtering")).ok);
+        QCOMPARE(shownRows(e, 2, 3), QStringLiteral("2"));
+        QVERIFY(!s->planFilter(0, f, &why));
     }
 
     // A file's filter by icon is read from a sheet and kept when the sheet is saved again.
@@ -1196,7 +1300,7 @@ private Q_SLOTS:
         QVERIFY(sortColors->isEnabled());
         QAction *middle = nullptr;
         for (QAction *a : sortColors->actions())
-            if (a->text() == QLatin1String("3 Arrows, icon 2")) middle = a;
+            if (a->text() == QLatin1String("Yellow sideways arrow")) middle = a;
         QVERIFY(middle);
         middle->trigger();
         QTRY_VERIFY(!w.isSorting());

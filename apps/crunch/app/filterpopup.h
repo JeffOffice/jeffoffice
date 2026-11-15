@@ -41,7 +41,7 @@ public:
     // The icons of the conditional formats in the column (as SortLevel::icon has them), and whether some cells have none: Keep a Color and Sort by a Color offer them. Said before the list is.
     void setIcons(const QStringList &keys, bool none)
     {
-        m_iconKeys = keys;
+        m_iconKeys = jp::crunch::sortedIconKeys(keys);
         m_iconNone = none;
     }
     // The listing is going on (a sentence in place of the list).

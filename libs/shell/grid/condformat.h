@@ -13,8 +13,11 @@
 #include "sheet/sheetmodel.h"
 #include "sheet/styles.h"
 
+#include <QPixmap>
+#include <QRectF>
 #include <QRgb>
 #include <QString>
+#include <QStringList>
 
 #include <algorithm>
 #include <deque>
@@ -23,6 +26,8 @@
 #include <tuple>
 #include <unordered_map>
 #include <vector>
+
+class QPainter;
 
 namespace jp::grid {
 
@@ -52,6 +57,13 @@ struct CondCell {
 
 // The icon sets (names as the file has them): how many icons each has, or 0 for a name it does not know.
 int iconSetCount(const QString &name);
+// The names of the icon sets in their own order (the one a file's list of them has).
+const QStringList &iconSetNames();
+// The set a rule uses: the one it names, or the file format's default ("3TrafficLights1") for a rule that names none.
+QString iconSetOrDefault(const QString &name);
+// An icon as the cells draw it, in a square of `size` pixels, and the same drawn into `box`.
+QPixmap iconSetPixmap(const QString &set, int index, int size);
+void paintIconSetIcon(QPainter *p, const QRectF &box, const QString &set, int index, int count, bool rightToLeft);
 
 class CondFormats {
 public:

@@ -265,11 +265,22 @@ bool parseAutoFilterElement(const QByteArray &xml, AutoFilter *out)
                 c.dxf = dxfGood ? dxf : -1;
                 c.fontColor = !k.attrOr("cellColor").isEmpty() && !flag(k.attrOr("cellColor"), true);
             } else if (l == QLatin1String("iconFilter")) {
-                c.kind = FilterColumn::Kind::Icon;
-                c.iconSet = k.attrOr("iconSet").left(40);
-                c.iconId = std::clamp(k.attrOr("iconId").toInt(), 0, 20);
+                const QString set = k.attrOr("iconSet").left(40);
+                bool idGood = false;
+                const int id = k.attrOr("iconId").left(12).toInt(&idGood);
+                if (!set.isEmpty() && idGood && id >= 0 && id <= 1000) {
+                    c.kind = FilterColumn::Kind::Icon;
+                    c.iconSet = set;
+                    c.iconId = id;
+                } else {
+                    c.iconBad = true;
+                    c.badIconSet = k.attr("iconSet") == nullptr ? QString() : (set.isNull() ? QStringLiteral("") : set);
+                    c.badIconId = k.attr("iconId") == nullptr ? QString() : k.attrOr("iconId").left(12);
+                }
             }
         }
+        // (a column's condition is kept once: a file that has two for a column is not written back with both)
+        if (f.columnAt(c.column) || f.columns.size() >= 16384) continue;
         f.columns.append(c);
     }
     *out = f;

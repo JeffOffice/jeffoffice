@@ -1213,6 +1213,11 @@ private:
     void createSortActions();
     void sortSelection(int mode);   // 0 A to Z, 1 Z to A, 2 the dialog
     std::function<QString(quint32, quint32)> iconSource();
+public:
+    // How many times the icons of the cells were asked for (they are worked out first): a filter that has no icon condition asks for none.
+    int iconSourcesMade() const { return m_iconSourcesMade; }
+private:
+    int m_iconSourcesMade = 0;
     bool sortRangeOf(jp::office::sheet::CellRange *range, int *key, bool *expanded, int *header = nullptr);
     void stepSort();
     void finishSort(bool ordered);

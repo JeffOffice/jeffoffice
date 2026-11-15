@@ -1,6 +1,7 @@
 #include "app/filterpopup.h"
 
 #include "app/icons.h"
+#include "grid/condformat.h"
 
 #include <QAction>
 #include <QHBoxLayout>
@@ -201,7 +202,10 @@ void FilterPopup::setList(const FilterList &list)
             if (!menu->isEmpty()) menu->addSeparator();
             menu->addAction(tr("Icons"))->setEnabled(false);
             auto add = [&](const QString &icon, const QString &text) {
-                connect(menu->addAction(text), &QAction::triggered, this, [this, icon, sort] {
+                QAction *entry = menu->addAction(text);
+                const qsizetype at = icon.lastIndexOf(QLatin1Char(':'));
+                if (at >= 0) entry->setIcon(QIcon(jp::grid::iconSetPixmap(icon.left(at), icon.mid(at + 1).toInt(), 16)));
+                connect(entry, &QAction::triggered, this, [this, icon, sort] {
                     if (sort) {
                         Q_EMIT sortByIconRequested(icon);
                         return;

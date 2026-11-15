@@ -4,6 +4,7 @@
 
 #include "app/crunchinfo.h"
 #include "app/filterdialogs.h"
+#include "grid/condformat.h"
 #include "sheet/cellref.h"
 
 #include <QAction>
@@ -173,9 +174,13 @@ bool CrunchWindow::applyFilter(const AutoFilter &filter, const QString &text, in
     if (m_edit.active) commitEdit(CellEditor::Way::Stay);
     if (m_edit.active || !editingAllowed() || m_filterPlan) return false;
     QString why;
-    // (a filter by icon asks the conditional formats of the sheet that is shown, as a sort by icon does)
-    m_session->setIconSource([this, shown = m_sheet, icons = iconSource()](int sheet, quint32 row, quint32 col) { return sheet == shown ? icons(row, col) : QString(); });
+    // (a filter by icon asks the conditional formats of the sheet that is shown, as a sort by icon does; the source is made, and the rules settled, only for a filter that has an icon condition,
+    // and the session lets go of it as soon as the plan has it)
+    bool wantsIcons = false;
+    for (const FilterColumn &c : filter.columns) wantsIcons = wantsIcons || c.kind == FilterColumn::Kind::Icon;
+    if (wantsIcons) m_session->setIconSource([shown = m_sheet, icons = iconSource()](int sheet, quint32 row, quint32 col) { return sheet == shown ? icons(row, col) : QString(); });
     m_filterPlan = m_session->planFilter(m_sheet, filter, &why, table);
+    m_session->setIconSource({});
     if (!m_filterPlan) {
         notice(tr("Filter"), why);
         Q_EMIT filterFinished(false);
@@ -268,17 +273,23 @@ void CrunchWindow::showFilterPopup(qint64 row, qint64 col)
     popup->setLoading(true);
     // the column's values are listed a slice at a time
     // (the icons of the column's cells that conditional formats give, for Sort by a Color)
-    if (m_view->sheet().conditional().any()) {
-        const std::function<QString(quint32, quint32)> iconAt = iconSource();
+    {
+        // (every icon the column's rules can give, from their sets: complete however long the column is, and nothing is worked out to list them)
         QStringList keys;
-        bool none = false;
-        for (quint32 r = f.ref.row1 + 1, seen = 0; r <= f.ref.row2 && seen < 100000; ++r, ++seen) {
-            const QString icon = iconAt(r, quint32(col));
-            if (icon.isEmpty()) none = true;
-            else if (!keys.contains(icon)) keys.append(icon);
+        if (const jp::office::sheet::Sheet *sheet = m_view->sheet().data().sheet) {
+            int rules = 0;
+            for (const jp::office::sheet::CondRule &rule : sheet->conditionalFormats) {
+                if (rule.type != jp::office::sheet::CondRule::Type::IconSet || ++rules > 1000) continue;
+                bool reaches = false;
+                for (const jp::office::sheet::CellRange &r : rule.ranges)
+                    reaches = reaches || (r.valid && r.col1 <= quint32(col) && r.col2 >= quint32(col) && r.row2 > f.ref.row1 && r.row1 <= f.ref.row2);
+                if (!reaches) continue;
+                const QString set = jp::grid::iconSetOrDefault(rule.iconSet);
+                for (int i = 0; i < jp::grid::iconSetCount(set); ++i)
+                    if (const QString key = set + QLatin1Char(':') + QString::number(i); !keys.contains(key)) keys.append(key);
+            }
         }
-        keys.sort();   // (a set's icons from the lowest)
-        popup->setIcons(keys, none);
+        popup->setIcons(keys, !keys.isEmpty());
     }
     m_listRun = std::make_unique<crunch::FilterListRun>(m_session.get(), m_sheet, f, column);
     m_listChanges = m_loader.changesMade();

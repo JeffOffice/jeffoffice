@@ -2046,9 +2046,21 @@ bool SheetReader::read(QIODevice *in)
                     // (the cells' own color, unless the file says cellColor="0": then it is the text's)
                     filterColumn.fontColor = !attribute(r, "cellColor").isEmpty() && !parseBool(attribute(r, "cellColor").toString(), true);
                 } else if (isElement(r, "iconFilter")) {
-                    filterColumn.kind = FilterColumn::Kind::Icon;
-                    filterColumn.iconSet = attribute(r, "iconSet").left(40).toString();
-                    filterColumn.iconId = qint32(boundedNumber(attribute(r, "iconId"), 0, 20, 0));
+                    bool hasSet = false, hasId = false;
+                    const QString set = attribute(r, "iconSet", &hasSet).left(40).toString();
+                    const QString idText = attribute(r, "iconId", &hasId).left(12).toString();
+                    bool idGood = false;
+                    const int id = idText.toInt(&idGood);
+                    if (!set.isEmpty() && idGood && id >= 0 && id <= 1000) {
+                        filterColumn.kind = FilterColumn::Kind::Icon;
+                        filterColumn.iconSet = set;
+                        filterColumn.iconId = id;
+                    } else {
+                        // (no filter: every row shows; the attributes are written back as they were)
+                        filterColumn.iconBad = true;
+                        filterColumn.badIconSet = hasSet ? (set.isNull() ? QStringLiteral("") : set) : QString();
+                        filterColumn.badIconId = hasId ? (idText.isNull() ? QStringLiteral("") : idText) : QString();
+                    }
                 }
             } else if (inFilterColumn && depth == 5) {
                 if (isElement(r, "filter") && filterColumn.kind == FilterColumn::Kind::Values) {
@@ -2332,7 +2344,7 @@ bool SheetReader::read(QIODevice *in)
             } else if (inFilterColumn && depth == 3 && isElement(r, "filterColumn")) {
                 inFilterColumn = false;
                 // (a column the sheet does not have is not kept, nor is a second condition for one)
-                if (!filterColumnBad && (filterColumn.kind != FilterColumn::Kind::None || filterColumn.hideButton) && m_sheet.autoFilter.columns.size() < int(kMaxColumns) && !m_sheet.autoFilter.columnAt(filterColumn.column))
+                if (!filterColumnBad && (filterColumn.kind != FilterColumn::Kind::None || filterColumn.hideButton || filterColumn.iconBad) && m_sheet.autoFilter.columns.size() < int(kMaxColumns) && !m_sheet.autoFilter.columnAt(filterColumn.column))
                     m_sheet.autoFilter.columns.append(filterColumn);
             } else if (inFilter && depth == 3 && isElement(r, "sortState")) {
                 sortState += QStringLiteral("</sortState>");

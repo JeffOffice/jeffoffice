@@ -746,9 +746,13 @@ QByteArray autoFilterElementOf(const AutoFilter &f, const QByteArray &prefix)
     QVector<FilterColumn> columns = f.columns;
     std::stable_sort(columns.begin(), columns.end(), [](const FilterColumn &a, const FilterColumn &b) { return a.column < b.column; });
     for (const FilterColumn &c : columns) {
-        if (c.kind == FilterColumn::Kind::None && !c.hideButton) continue;
+        if (c.kind == FilterColumn::Kind::None && !c.hideButton && !c.iconBad) continue;
         if (c.kind == FilterColumn::Kind::Color && c.dxf < 0) continue;   // (a color the file has no format for cannot be written)
         out += name("filterColumn") + " colId=\"" + QByteArray::number(c.column) + "\"" + (c.hideButton ? " hiddenButton=\"1\"" : "");
+        if (c.kind == FilterColumn::Kind::None && c.iconBad) {
+            out += ">" + name("iconFilter") + (c.badIconSet.isNull() ? QByteArray() : " iconSet=\"" + text(c.badIconSet) + "\"") + (c.badIconId.isNull() ? QByteArray() : " iconId=\"" + text(c.badIconId) + "\"") + "/>" + close("filterColumn");
+            continue;
+        }
         if (c.kind == FilterColumn::Kind::None) {
             out += "/>";
             continue;

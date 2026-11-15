@@ -448,6 +448,29 @@ private Q_SLOTS:
         QCOMPARE(back.info.size(), 2);
     }
 
+    // A table's filter by icon is read and written back, a column named twice keeps its first condition only, and a bad icon id is no filter but is kept as written.
+    void aTablesIconFilterIsKeptAndADuplicateColumnIsNot()
+    {
+        QString part = salesPart();
+        part.replace(QStringLiteral("<filterColumn colId=\"1\"><filters><filter val=\"2\"/></filters></filterColumn>"),
+                     QStringLiteral("<filterColumn colId=\"1\"><iconFilter iconSet=\"3Arrows\" iconId=\"2\"/></filterColumn>"
+                                    "<filterColumn colId=\"1\"><filters><filter val=\"2\"/></filters></filterColumn>"
+                                    "<filterColumn colId=\"2\"><iconFilter iconSet=\"3Arrows\"/></filterColumn>"));
+        Open o;
+        QVERIFY(o.ok(salesBook(part)));
+        Table t = o.b.tables().first();
+        QCOMPARE(t.filter.columns.size(), 2);
+        QCOMPARE(int(t.filter.columns[0].kind), int(jp::office::sheet::FilterColumn::Kind::Icon));
+        QCOMPARE(t.filter.columns[0].iconSet, QStringLiteral("3Arrows"));
+        QCOMPARE(t.filter.columns[0].iconId, 2);
+        QVERIFY(t.filter.columns[1].iconBad);
+        t.filter.columns[0].iconId = 1;   // (the filter is changed, so the part is written from the model)
+        o.b.setTableAt(0, t);
+        const QString xml = QString::fromUtf8(o.b.changedTableParts().begin()->second);
+        QCOMPARE(xml.count(QStringLiteral("<filterColumn colId=\"1\"")), 1);
+        QVERIFY2(xml.contains(QStringLiteral("<iconFilter iconSet=\"3Arrows\" iconId=\"1\"/>")) && !xml.contains(QStringLiteral("<filter val=\"2\"/>")) && xml.contains(QStringLiteral("<iconFilter iconSet=\"3Arrows\"/>")), qPrintable(xml));
+    }
+
     // SUBTOTAL 1 to 11 leave out the rows a filter hides and keep those a person hid; 101 to 111 leave out both; and what is worked out follows a row hidden or shown.
     void subtotalLeavesOutHiddenRowsAsTheCodeSays()
     {

@@ -37,8 +37,10 @@ struct SortSpec {
     std::function<QString(quint32 row, quint32 col)> iconAt;
 };
 
-// An icon as a person reads it: "3 Traffic Lights 1, icon 2". `key` is as SortLevel::icon has it.
+// An icon as a person reads it, by color and shape: "Green up arrow", "Yellow circle", "No icon". `key` is as SortLevel::icon has it.
 QString iconLabel(const QString &key);
+// The icons in one stable order: the sets in their own order, then each set's icons from the lowest.
+QStringList sortedIconKeys(const QStringList &keys);
 
 // The lists that are offered: the days and months, in full and short, in English and in the person's language.
 QVector<QStringList> builtInSortLists();

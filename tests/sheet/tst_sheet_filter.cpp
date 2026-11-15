@@ -156,6 +156,35 @@ private Q_SLOTS:
         QVERIFY(readIt(out).autoFilter == s.autoFilter);
     }
 
+    // An iconFilter with no set, a missing or odd id, or an id far past any set is no filter (every row shows), and is written back as it was read when the filter's other columns change.
+    void anIconFilterWithoutAUsableSetOrIdIsNoFilterAndIsKeptAsWritten()
+    {
+        const QByteArray xml = sheetWith(QStringLiteral("<autoFilter ref=\"A1:F20\"><filterColumn colId=\"0\"><iconFilter iconSet=\"3Arrows\"/></filterColumn>"
+                                                        "<filterColumn colId=\"1\"><iconFilter iconSet=\"3Arrows\" iconId=\"x\"/></filterColumn>"
+                                                        "<filterColumn colId=\"2\"><iconFilter iconId=\"1\"/></filterColumn>"
+                                                        "<filterColumn colId=\"3\"><iconFilter iconSet=\"3Arrows\" iconId=\"99999\"/></filterColumn>"
+                                                        "<filterColumn colId=\"4\"><iconFilter iconSet=\"3Arrows\" iconId=\"-2\"/></filterColumn>"
+                                                        "<filterColumn colId=\"5\"><iconFilter iconSet=\"4Arrows\" iconId=\"21\"/></filterColumn></autoFilter>"));
+        const Sheet s = readIt(xml);
+        QCOMPARE(s.autoFilter.columns.size(), 6);
+        for (int i = 0; i < 5; ++i) {
+            QCOMPARE(int(s.autoFilter.columns[i].kind), int(FilterColumn::Kind::None));
+            QVERIFY(s.autoFilter.columns[i].iconBad);
+        }
+        QVERIFY(!s.autoFilter.active() || s.autoFilter.conditionColumns() == QVector<quint32>{5});
+        // an id of 21 is a real icon id the file wrote: it is not clamped
+        QCOMPARE(int(s.autoFilter.columns[5].kind), int(FilterColumn::Kind::Icon));
+        QCOMPARE(s.autoFilter.columns[5].iconId, 21);
+        SheetChanges c;
+        c.replaceAutoFilter = true;
+        c.autoFilter = s.autoFilter;
+        const QByteArray out = patch(xml, c);
+        QVERIFY2(!out.startsWith("FAILED"), out.constData());
+        QVERIFY2(out.contains("<iconFilter iconSet=\"3Arrows\"/>") && out.contains("<iconFilter iconSet=\"3Arrows\" iconId=\"x\"/>") && out.contains("<iconFilter iconId=\"1\"/>")
+                     && out.contains("iconId=\"99999\"") && out.contains("iconId=\"-2\"") && out.contains("<iconFilter iconSet=\"4Arrows\" iconId=\"21\"/>"), out.constData());
+        QVERIFY(readIt(out).autoFilter == s.autoFilter);
+    }
+
     void aFilterIsPutWhereTheFormatHasItAndTakenAwayWhenThereIsNone()
     {
         const QString after = QStringLiteral("<mergeCells count=\"1\"><mergeCell ref=\"C1:D1\"/></mergeCells><pageMargins left=\"1\" right=\"1\" top=\"1\" bottom=\"1\" header=\"0\" footer=\"0\"/>");

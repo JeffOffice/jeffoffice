@@ -65,6 +65,7 @@ struct EditSession::FilterPlan {
         std::vector<double> collected;       // the numbers of the column, for the top and the average
     };
     std::vector<Column> columns;
+    std::function<QString(int, quint32, quint32)> icons;   // Icon: the icons the conditional formats give (see setIconSource)
     QCollator collator = sortCollator();     // Custom: the order of "greater than" and "less than" on text is the sort's
     std::vector<quint8> hide;                // for each row from firstRow: 1 if the conditions hide it
     quint32 next = 0;                        // the next row to look at
@@ -181,6 +182,7 @@ std::shared_ptr<EditSession::FilterPlan> EditSession::planFilter(int sheet, cons
     QString reason;
     if (!canEdit(&reason) || !canEditSheet(sheet, &reason) || !allows(sheet, Allow::Filter, &reason)) return refuse(reason);
     auto plan = std::make_shared<FilterPlan>();
+    plan->icons = m_iconSource;   // (the plan keeps what it was made with: the session's own is the window's to take away)
     plan->sheet = sheet;
     plan->table = table;
     plan->after = after;
@@ -531,7 +533,7 @@ bool EditSession::prepareFilter(FilterPlan &plan, qint64 budget)
                 break;
             }
             case FilterColumn::Kind::Icon:
-                pass = m_iconSource(plan.sheet, row, c.col) == c.wantedIcon;
+                pass = plan.icons(plan.sheet, row, c.col) == c.wantedIcon;
                 break;
             case FilterColumn::Kind::None: break;
             }

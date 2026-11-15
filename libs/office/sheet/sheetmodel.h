@@ -1412,11 +1412,14 @@ struct FilterColumn {
     // Icon: the icon of a conditional format's set the cells have (`iconFilter`): the set's name ("3Arrows") and the place of the icon in it from 0, the lowest; the set "NoIcons" is the cells with none.
     QString iconSet;
     qint32 iconId = 0;
+    // An iconFilter the file wrote without a usable set or id is no filter (the column shows every row); its attributes are kept as written (a null text is an attribute that was not there).
+    bool iconBad = false;
+    QString badIconSet, badIconId;
     bool operator==(const FilterColumn &o) const
     {
         return kind == o.kind && column == o.column && hideButton == o.hideButton && values == o.values && blank == o.blank && dates == o.dates && conditions == o.conditions && both == o.both
                && top == o.top && percent == o.percent && count == o.count && limit == o.limit && hasLimit == o.hasLimit && dynamic == o.dynamic && dynVal == o.dynVal && dynMax == o.dynMax
-               && hasDynVal == o.hasDynVal && color == o.color && fontColor == o.fontColor && dxf == o.dxf && iconSet == o.iconSet && iconId == o.iconId;
+               && hasDynVal == o.hasDynVal && color == o.color && fontColor == o.fontColor && dxf == o.dxf && iconSet == o.iconSet && iconId == o.iconId && iconBad == o.iconBad && badIconSet == o.badIconSet && badIconId == o.badIconId;
     }
 };
 

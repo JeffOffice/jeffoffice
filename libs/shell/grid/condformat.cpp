@@ -34,6 +34,18 @@ int iconSetCount(const QString &name)
     return counts.value(name, 0);
 }
 
+QString iconSetOrDefault(const QString &name) { return name.isEmpty() ? QStringLiteral("3TrafficLights1") : name; }
+
+const QStringList &iconSetNames()
+{
+    static const QStringList names = {
+        QStringLiteral("3Arrows"), QStringLiteral("3ArrowsGray"), QStringLiteral("3Flags"), QStringLiteral("3TrafficLights1"), QStringLiteral("3TrafficLights2"), QStringLiteral("3Signs"),
+        QStringLiteral("3Symbols"), QStringLiteral("3Symbols2"), QStringLiteral("3Stars"), QStringLiteral("3Triangles"), QStringLiteral("4Arrows"), QStringLiteral("4ArrowsGray"),
+        QStringLiteral("4RedToBlack"), QStringLiteral("4Rating"), QStringLiteral("4TrafficLights"), QStringLiteral("5Arrows"), QStringLiteral("5ArrowsGray"), QStringLiteral("5Rating"),
+        QStringLiteral("5Quarters"), QStringLiteral("5Boxes")};
+    return names;
+}
+
 namespace {
 
 constexpr size_t kMaxCached = 200000;          // results kept of the cells that were drawn
@@ -530,7 +542,7 @@ QString CondFormats::takeNotice() const
 QString CondFormats::iconSetName(int rule) const
 {
     const jp::office::sheet::Sheet *s = m_owner->data().sheet;
-    return s && rule >= 0 && rule < s->conditionalFormats.size() ? s->conditionalFormats[rule].iconSet : QString();
+    return s && rule >= 0 && rule < s->conditionalFormats.size() ? iconSetOrDefault(s->conditionalFormats[rule].iconSet) : QString();
 }
 
 const DifferentialFormat &CondFormats::format(int index) const
@@ -1104,7 +1116,7 @@ CondCell CondFormats::compute(quint32 row, quint32 col, bool *incomplete) const
             applies = true;
             break;
         case T::IconSet: {
-            const int count = iconSetCount(r.iconSet);
+            const int count = iconSetCount(iconSetOrDefault(r.iconSet));
             if (out.iconSet >= 0 || count == 0 || !st.haveNumbers || !numberOf(value, &x)) break;
             int icon = 0;
             for (int k = 1; k < count && size_t(k) < st.points.size(); ++k) {

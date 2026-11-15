@@ -776,6 +776,7 @@ public:
     jp::office::sheet::ColorSpec colorOfCondition(const jp::office::sheet::FilterColumn &condition) const;
     // What a filter by icon asks about a cell: the icon its conditional formats give it, as "set:place" (places from 0, the lowest), or nothing. The session does not draw the sheet, so
     // the window gives it (as a sort's spec does); without it a filter by icon is refused.
+    // A plan takes the source it is made with and keeps it; the window clears this one after making the plan.
     void setIconSource(std::function<QString(int sheet, quint32 row, quint32 col)> source) { m_iconSource = std::move(source); }
     // The icon an icon condition asks for, as "set:place"; empty for cells with none.
     static QString iconKeyOfCondition(const jp::office::sheet::FilterColumn &condition);

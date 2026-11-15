@@ -21,13 +21,14 @@ QString iconKeyOf(const grid::GridSheet &sheet, quint32 row, quint32 col)
 {
     const grid::CondCell c = sheet.conditional().at(row, col);
     if (c.icon < 0 || c.iconSet < 0) return QString();
-    return sheet.conditional().iconSetName(c.iconSet) + QLatin1Char(':') + QString::number(c.icon);
+    return jp::grid::iconSetOrDefault(sheet.conditional().iconSetName(c.iconSet)) + QLatin1Char(':') + QString::number(c.icon);
 }
 }
 
 // What a sort or a dropdown asks about the icons of the cells: the conditional formats are worked out first (the sort reads the cells as they are shown).
 std::function<QString(quint32, quint32)> CrunchWindow::iconSource()
 {
+    ++m_iconSourcesMade;
     m_view->sheet().conditional().settle();
     const grid::GridSheet *sheet = &m_view->sheet();
     return [sheet](quint32 row, quint32 col) { return iconKeyOf(*sheet, row, col); };
