@@ -4,6 +4,7 @@
 
 #include "io/zip.h"
 #include "odt/odtread.h"
+#include "text/opentype.h"
 
 #include <QCoreApplication>
 #include <QDateTime>
@@ -277,6 +278,9 @@ QByteArray Writer::textAttrs(const T &t, int rPr)
 {
     QByteArray x;
     if (rPr < 0) return x;
+    // The OpenType choices of the run, as the list of features CSS writes (at most twenty sets of a list are read).
+    QStringList features;
+    auto feature = [&](const char *tag, bool on) { features << QLatin1Char('"') + QLatin1String(tag) + QLatin1String(on ? "\" 1" : "\" 0"); };
     auto on = [&](int n) {
         const QString v = t.val(n);
         return v.isEmpty() || v == QLatin1String("1") || v == QLatin1String("true") || v == QLatin1String("on");
@@ -296,7 +300,34 @@ QByteArray Writer::textAttrs(const T &t, int rPr)
             if (!cs.isEmpty()) x += " style:font-name-complex=\"" + esc(fontNameOf(cs)) + "\"";
         } else if (name == "b") x += on(c) ? " fo:font-weight=\"bold\" style:font-weight-asian=\"bold\" style:font-weight-complex=\"bold\"" : " fo:font-weight=\"normal\" style:font-weight-asian=\"normal\" style:font-weight-complex=\"normal\"";
         else if (name == "i") x += on(c) ? " fo:font-style=\"italic\" style:font-style-asian=\"italic\" style:font-style-complex=\"italic\"" : " fo:font-style=\"normal\" style:font-style-asian=\"normal\" style:font-style-complex=\"normal\"";
-        else if (name == "caps") x += on(c) ? " fo:text-transform=\"uppercase\"" : " fo:text-transform=\"none\"";
+        else if (name == "ligatures") {
+            if (const int kinds = tp::ot::ligatureKindsOfName(t.attrAny(c, "val")); kinds >= 0) {
+                feature("liga", kinds & tp::ot::kLigStandard);
+                feature("clig", kinds & tp::ot::kLigContextual);
+                feature("hlig", kinds & tp::ot::kLigHistorical);
+                feature("dlig", kinds & tp::ot::kLigDiscretionary);
+            }
+        } else if (name == "numForm") {
+            const QString v = t.attrAny(c, "val");
+            if (v == QLatin1String("lining")) feature("lnum", true);
+            else if (v == QLatin1String("oldStyle")) feature("onum", true);
+        } else if (name == "numSpacing") {
+            const QString v = t.attrAny(c, "val");
+            if (v == QLatin1String("proportional")) feature("pnum", true);
+            else if (v == QLatin1String("tabular")) feature("tnum", true);
+        } else if (name == "stylisticSets") {
+            int seen = 0;
+            for (int s = t.firstChild(c); s >= 0 && seen < tp::ot::kMostStylisticSet; s = t.next(s), ++seen) {
+                if (t.localName(s) != "styleSet") continue;
+                const int id = t.attrAny(s, "id").toInt();
+                const QString v = t.attrAny(s, "val");
+                if (id >= 1 && id <= tp::ot::kMostStylisticSet && (v.isEmpty() || v == QLatin1String("1") || v == QLatin1String("true") || v == QLatin1String("on")))
+                    feature(QByteArray("ss" + QByteArray::number(id).rightJustified(2, '0')).constData(), true);
+            }
+        } else if (name == "cntxtAlts") {
+            const QString v = t.attrAny(c, "val");
+            feature("calt", v.isEmpty() || v == QLatin1String("1") || v == QLatin1String("true") || v == QLatin1String("on"));
+        } else if (name == "caps") x += on(c) ? " fo:text-transform=\"uppercase\"" : " fo:text-transform=\"none\"";
         else if (name == "smallCaps") x += on(c) ? " fo:font-variant=\"small-caps\"" : " fo:font-variant=\"normal\"";
         else if (name == "strike") x += on(c) ? " style:text-line-through-style=\"solid\" style:text-line-through-type=\"single\"" : " style:text-line-through-style=\"none\"";
         else if (name == "dstrike") x += on(c) ? " style:text-line-through-style=\"solid\" style:text-line-through-type=\"double\"" : "";
@@ -376,6 +407,7 @@ QByteArray Writer::textAttrs(const T &t, int rPr)
             x += split(t.attr(c, "bidi"), "style:language-complex", "style:country-complex");
         }
     }
+    if (!features.isEmpty()) x += " fo:font-feature-settings=\"" + features.join(QLatin1String(", ")).replace(QLatin1Char('"'), QLatin1String("&quot;")).toUtf8() + "\"";
     return x;
 }
 

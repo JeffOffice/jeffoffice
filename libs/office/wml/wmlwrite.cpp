@@ -101,6 +101,20 @@ QSet<QByteArray> declaredPrefixes(const QByteArray &tag)
     return out;
 }
 
+// Says in the root's mc:Ignorable that the elements of the namespace with this prefix may be passed by (declaring mc where the root has not).
+void ignorePrefix(QByteArray *tag, const char *prefix)
+{
+    if (!declaredPrefixes(*tag).contains("mc")) tag->insert(int(qnameOf(*tag).size()) + 1, " xmlns:mc=\"http://schemas.openxmlformats.org/markup-compatibility/2006\"");
+    const qsizetype at = tag->indexOf("mc:Ignorable=\"");
+    if (at < 0) {
+        tag->insert(int(qnameOf(*tag).size()) + 1, QByteArray(" mc:Ignorable=\"") + prefix + "\"");
+        return;
+    }
+    const qsizetype from = at + 14, to = tag->indexOf('"', from);
+    if (to < 0 || tag->mid(from, to - from).split(' ').contains(prefix)) return;
+    tag->insert(to, QByteArray(" ") + prefix);
+}
+
 QByteArray withKnownPrefixes(QByteArray rootTag, const QVector<Block> &body, const SectionProps *last = nullptr)
 {
     const QSet<QByteArray> declared = declaredPrefixes(rootTag);
@@ -110,8 +124,11 @@ QByteArray withKnownPrefixes(QByteArray rootTag, const QVector<Block> &body, con
             collectPrefixes(b.raw, &used);
             continue;
         }
-        for (const Inline &a : b.para.content)
+        for (const Inline &a : b.para.content) {
             if (a.kind != Inline::Text) collectPrefixes(a.raw, &used);
+            // (A run's properties kept as XML: the OpenType choices of its font are the w14 ones.)
+            for (const RawChild &c : a.props.extra) collectPrefixes(c.xml, &used);
+        }
         // (A section's references to its headers and footers are by relationship Id: r:id.)
         if (b.para.props.section)
             for (const RawChild &c : b.para.props.section->extra) collectPrefixes(c.xml, &used);
@@ -122,6 +139,8 @@ QByteArray withKnownPrefixes(QByteArray rootTag, const QVector<Block> &body, con
         const QByteArray prefix(known[0]);
         if (!used.contains(prefix) || declared.contains(prefix)) continue;
         rootTag.insert(int(qnameOf(rootTag).size()) + 1, " xmlns:" + prefix + "=\"" + known[1] + "\"");
+        // (A program that does not know the w14 elements a run holds is told to pass them by.)
+        if (prefix == "w14") ignorePrefix(&rootTag, "w14");
     }
     return rootTag;
 }

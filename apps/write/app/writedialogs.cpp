@@ -4,6 +4,7 @@
 #include "app/pageview.h"
 #include "core/homeops.h"
 #include "app/normaltemplateui.h"
+#include "app/opentypebox.h"
 #include "core/normaltemplate.h"
 #include "app/userdefaults.h"
 #include "flow/flowdocument.h"
@@ -33,6 +34,7 @@
 #include <QPainter>
 #include <QRadioButton>
 #include <QSpinBox>
+#include <QTabWidget>
 #include <QTextBlock>
 #include <QTextCursor>
 #include <QTextFragment>
@@ -224,8 +226,16 @@ void fontDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     dlg.setObjectName(QStringLiteral("fontDialog"));
     dlg.setWindowTitle(QCoreApplication::translate("jp::write::Dialogs", "Font"));
     auto *v = new QVBoxLayout(&dlg);
+    // Two pages: the font and its effects, and the Advanced page (the spacing of the characters and the OpenType choices); the preview is below them both.
+    auto *tabs = new QTabWidget(&dlg);
+    tabs->setObjectName(QStringLiteral("fontTabs"));
+    v->addWidget(tabs);
+    auto *fontPage = new QWidget(tabs), *advancedPage = new QWidget(tabs);
+    auto *fv = new QVBoxLayout(fontPage), *av = new QVBoxLayout(advancedPage);
+    tabs->addTab(fontPage, QCoreApplication::translate("jp::write::Dialogs", "Font"));
+    tabs->addTab(advancedPage, QCoreApplication::translate("jp::write::Dialogs", "Advanced"));
     auto *grid = new QGridLayout;
-    v->addLayout(grid);
+    fv->addLayout(grid);
 
     // Font, style, and size. Where the characters selected differ, a box shows nothing (and an unchanged box leaves each of them as it is); what the person sets
     // then goes to all of them.
@@ -366,7 +376,8 @@ void fontDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     either(strike, doubleStrike);
     either(superscript, subscript);
     either(smallCaps, allCaps);
-    v->addWidget(effects);
+    fv->addWidget(effects);
+    fv->addStretch(1);
 
     // Character spacing: expanded or condensed, raised or lowered, and the size from which pairs of letters are kerned. A box that the selection does not agree on shows "(mixed)" and, left alone, changes nothing.
     auto *spacingBox = new QGroupBox(QCoreApplication::translate("jp::write::Dialogs", "Character spacing"), &dlg);
@@ -430,7 +441,12 @@ void fontDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     QObject::connect(spacingKind, &QComboBox::currentIndexChanged, &dlg, syncSpacing);
     QObject::connect(raisedKind, &QComboBox::currentIndexChanged, &dlg, syncSpacing);
     QObject::connect(kern, &QCheckBox::checkStateChanged, &dlg, syncSpacing);
-    v->addWidget(spacingBox);
+    av->addWidget(spacingBox);
+    // The OpenType choices: what the whole selection has is shown, and what is left alone stays.
+    auto *openType = new OpenTypeBox(advancedPage);
+    openType->setFormats(formats);
+    av->addWidget(openType);
+    av->addStretch(1);
 
     // The preview shows the look the boxes describe.
     auto *preview = new QLabel(QCoreApplication::translate("jp::write::Dialogs", "AaBbYyZz"), &dlg);
@@ -451,6 +467,9 @@ void fontDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
         pf.setUnderline((underline->currentIndex() >= 0 ? underline->currentIndex() : underlineFirst) > 0);
         pf.setStrikeOut(strike.box->isChecked() || doubleStrike.box->isChecked());
         pf.setCapitalization(smallCaps.box->isChecked() ? QFont::SmallCaps : allCaps.box->isChecked() ? QFont::AllUppercase : QFont::MixedCase);
+        const QMap<QFont::Tag, quint32> asked = openType->features();
+        for (const auto &[tag, on] : asked.asKeyValueRange()) pf.setFeature(tag, on);
+        preview->setText(asked.isEmpty() ? QCoreApplication::translate("jp::write::Dialogs", "AaBbYyZz") : QCoreApplication::translate("jp::write::Dialogs", "AaBbYyZz fi ffl 0123456789"));
         preview->setFont(pf);
         QPalette pal = dlg.palette();
         const ColorRef shown = color->mixed() ? colorOf(first) : color->current();
@@ -466,6 +485,7 @@ void fontDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     QObject::connect(underline, &QComboBox::currentIndexChanged, &dlg, updatePreview);
     QObject::connect(color, &ColorButton::colorPicked, &dlg, updatePreview);
     for (const Effect &e : {strike, doubleStrike, superscript, subscript, smallCaps, allCaps, hidden}) QObject::connect(e.box, &QCheckBox::checkStateChanged, &dlg, updatePreview);
+    QObject::connect(openType, &OpenTypeBox::edited, &dlg, updatePreview);
     updatePreview();
     v->addWidget(preview);
 
@@ -502,6 +522,7 @@ void fontDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     const bool spacingChanged = spacingKind->currentIndex() != 3 && (spacingKind->currentIndex() != (spacing0 > 0.001 ? 1 : spacing0 < -0.001 ? 2 : 0) || (spacingKind->currentIndex() != 0 && std::abs(spacingBy->value() - std::abs(spacing0)) > 0.001) || spacingMixed);
     const bool raisedChanged = raisedKind->currentIndex() != 3 && (raisedKind->currentIndex() != (raised0 > 0.001 ? 1 : raised0 < -0.001 ? 2 : 0) || (raisedKind->currentIndex() != 0 && std::abs(raisedBy->value() - std::abs(raised0)) > 0.001) || raisedMixed);
     const bool kernChanged = kern->checkState() != Qt::PartiallyChecked && (kernMixed || (kern->checkState() == Qt::Checked) != (kern0 > 0.001) || (kern->checkState() == Qt::Checked && std::abs(kernFrom->value() - kern0) > 0.001));
+    const OpenTypeBox::Change openTypeChange = openType->change();
     c.beginEditBlock();   // (one step for all of it)
     if (familyChanged) setFontFamily(*doc, c, chosen);
     if (sizeChanged) setFontSize(*doc, c, size->value());
@@ -586,6 +607,7 @@ void fontDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
             if (kern->checkState() == Qt::Checked) f.setProperty(tp::KernAbove, kernFrom->value());
             else f.clearProperty(tp::KernAbove);
         }
+        OpenTypeBox::apply(openTypeChange, &f);
     });
     c.endEditBlock();
     // Set as Default: the Normal style takes the font, size, and look chosen (the characters selected took them above): the document's, or the Normal template's for all new documents.

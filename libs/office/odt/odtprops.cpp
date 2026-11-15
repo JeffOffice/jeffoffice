@@ -2,6 +2,8 @@
 
 #include "odt/odtread.h"
 
+#include "text/opentype.h"
+
 #include <QRegularExpression>
 #include <algorithm>
 #include <atomic>
@@ -122,6 +124,60 @@ QByteArray Reader::bordersXml(const Props &p, const QString &kind, const char *t
     return x.isEmpty() ? x : QByteArray("<w:") + tag + ">" + x + "</w:" + tag + ">";
 }
 
+namespace {
+
+// fo:font-feature-settings is a list as CSS writes it ("liga" 0, "tnum", "ss03" 1): the features a run asks for, as the elements of its properties that a word
+// processor's file has for them. Only the first forty entries are read, and a set is one of 1 to 20.
+QByteArray openTypeXml(const QString &settings)
+{
+    static const char kNs[] = " xmlns:w14=\"http://schemas.microsoft.com/office/word/2010/wordml\"";
+    int kinds = tp::ot::kLigStandard | tp::ot::kLigContextual, form = 0, spacing = 0, alternates = 0;
+    bool ligatures = false;
+    QList<int> sets;
+    int seen = 0;
+    for (const QString &item : settings.left(2000).split(QLatin1Char(','), Qt::SkipEmptyParts)) {
+        if (++seen > 40) break;
+        QString text = item.trimmed();
+        text.remove(QLatin1Char('"')).remove(QLatin1Char('\''));
+        const QStringList parts = text.split(QLatin1Char(' '), Qt::SkipEmptyParts);
+        if (parts.isEmpty() || parts[0].size() != 4) continue;
+        const QString tag = parts[0];
+        const QString v = parts.value(1);
+        const bool on = v.isEmpty() || (v != QLatin1String("0") && v != QLatin1String("off"));
+        auto kind = [&](int k) {
+            ligatures = true;
+            kinds = on ? kinds | k : kinds & ~k;
+        };
+        if (tag == QLatin1String("liga")) kind(tp::ot::kLigStandard);
+        else if (tag == QLatin1String("clig")) kind(tp::ot::kLigContextual);
+        else if (tag == QLatin1String("hlig")) kind(tp::ot::kLigHistorical);
+        else if (tag == QLatin1String("dlig")) kind(tp::ot::kLigDiscretionary);
+        else if (tag == QLatin1String("lnum") && on) form = 1;
+        else if (tag == QLatin1String("onum") && on) form = 2;
+        else if (tag == QLatin1String("pnum") && on) spacing = 1;
+        else if (tag == QLatin1String("tnum") && on) spacing = 2;
+        else if (tag == QLatin1String("calt")) alternates = on ? 1 : 2;
+        else if (tag.startsWith(QLatin1String("ss"))) {
+            bool ok = false;
+            const int n = tag.mid(2).toInt(&ok);
+            if (ok && on && n >= 1 && n <= tp::ot::kMostStylisticSet && !sets.contains(n)) sets << n;
+        }
+    }
+    QByteArray x;
+    if (ligatures) x += QByteArray("<w14:ligatures") + kNs + " w14:val=\"" + tp::ot::ligatureNameOfKinds(kinds) + "\"/>";
+    if (form) x += QByteArray("<w14:numForm") + kNs + (form == 1 ? " w14:val=\"lining\"/>" : " w14:val=\"oldStyle\"/>");
+    if (spacing) x += QByteArray("<w14:numSpacing") + kNs + (spacing == 1 ? " w14:val=\"proportional\"/>" : " w14:val=\"tabular\"/>");
+    if (!sets.isEmpty()) {
+        x += QByteArray("<w14:stylisticSets") + kNs + ">";
+        for (const int n : sets) x += "<w14:styleSet w14:id=\"" + QByteArray::number(n) + "\" w14:val=\"1\"/>";
+        x += "</w14:stylisticSets>";
+    }
+    if (alternates) x += QByteArray("<w14:cntxtAlts") + kNs + (alternates == 1 ? "/>" : " w14:val=\"0\"/>");
+    return x;
+}
+
+} // namespace
+
 QByteArray Reader::rPrXml(const Props &p, const QString &rStyle, bool inStyle) const
 {
     Q_UNUSED(inStyle);
@@ -230,6 +286,7 @@ QByteArray Reader::rPrXml(const Props &p, const QString &rStyle, bool inStyle) c
         if (lang == QLatin1String("zxx")) l += " w:val=\"zxx\"";
         if (l.size() > 7) x += l + "/>";
     }
+    if (has("fo:font-feature-settings")) x += openTypeXml(g("fo:font-feature-settings"));
     return x;
 }
 
