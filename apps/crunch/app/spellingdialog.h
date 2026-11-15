@@ -34,6 +34,7 @@ public:
     bool addToDictionary();
     // The longest the dialog held the window while it looked for a word, in milliseconds (for tests); and whether it was given up (Close) while looking.
     qint64 longestSliceMs() const { return m_longestSlice; }
+    int longestSliceCells() const { return m_walk->mostLooked(); }
 
 private:
     bool advance();
