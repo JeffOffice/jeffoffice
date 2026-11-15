@@ -5,6 +5,7 @@
 #include "core/boxlinks.h"
 #include "core/drawnitems.h"
 #include "core/barcodeitem.h"
+#include "app/iconpicker.h"
 #include "core/editops.h"
 #include "app/compresspictures.h"
 #include "office/barcodemarker.h"
@@ -654,6 +655,27 @@ QByteArray graphicWithSize(const QByteArray &graphic, qint64 cx, qint64 cy)
     return text.toUtf8();
 }
 
+// Whether the drawing is an icon of Insert > Icons: its name says so (the name is kept by both file formats), and then its lines thicken and thin with its size.
+constexpr char kIconNamePrefix[] = "Icon: ";
+bool isIconModel(const Model &m)
+{
+    for (const auto &a : m.docPr)
+        if (a.first == "name") return a.second.startsWith(QByteArray("\"") + kIconNamePrefix);
+    return false;
+}
+
+// The graphic with the weight of its outline (the first a:ln that has one) multiplied by `factor`, held to what the line can be.
+QByteArray graphicWithScaledLine(const QByteArray &graphic, double factor)
+{
+    static const QRegularExpression line(QStringLiteral("<a:ln(\\s[^>]*?)?\\bw=\"([0-9]+)\""));
+    QString text = QString::fromUtf8(graphic);
+    const QRegularExpressionMatch found = line.match(text);
+    if (!found.hasMatch()) return graphic;
+    const qint64 w = std::clamp<qint64>(std::llround(found.captured(2).toLongLong() * factor), 1, 20116800);
+    text.replace(found.capturedStart(2), found.capturedLength(2), QString::number(w));
+    return text.toUtf8();
+}
+
 } // namespace
 
 int WriteDoc::nextDrawingId(const QTextDocument *story)
@@ -953,6 +975,8 @@ bool setPictureBox(WriteDoc &doc, int position, double width, double height, con
         bool changed = false;
         const qint64 cx = keepSize ? m.cx : emuOf(std::clamp(width, kLeastPictureSize, kMostPictureSize)), cy = keepSize ? m.cy : emuOf(std::clamp(height, kLeastPictureSize, kMostPictureSize));
         if (m.cx != cx || m.cy != cy) {
+            // (An icon's lines keep their share of its size.)
+            if (isIconModel(m) && m.cx > 0 && m.cy > 0) m.graphic = graphicWithScaledLine(m.graphic, std::sqrt(double(cx) * double(cy) / (double(m.cx) * double(m.cy))));
             m.graphic = graphicWithSize(m.graphic, cx, cy);
             m.cx = cx;
             m.cy = cy;
@@ -2218,6 +2242,33 @@ bool distributeObjects(WriteDoc &doc, const QVector<std::pair<int, QRectF>> &obj
         at += length(r) + gap;
     }
     return changed;
+PictureResult insertIcon(WriteDoc &doc, QTextCursor &c, const QString &name, double size, PictureWrap wrap)
+{
+    size = std::clamp(size, kLeastPictureSize, kMostPictureSize);
+    // The icon as the drawing code makes it for the other apps: one shape of the icon's lines in the color scheme's main color; its properties are written here as a shape's of this format.
+    const ItemPtr item = jp::iconItem(name, QPointF(size / 2, size / 2), size, ColorRef::scheme(Main));
+    if (!item) return PictureResult::Unreadable;
+    office::DrawingWriteContext ctx;
+    QByteArray xml;
+    {
+        QBuffer buffer(&xml);
+        buffer.open(QIODevice::WriteOnly);
+        QXmlStreamWriter w(&buffer);
+        office::writeShape(w, *item, ctx);
+    }
+    const qsizetype open = xml.indexOf("<p:spPr>"), close = xml.indexOf("</p:spPr>");
+    if (open < 0 || close < open) return PictureResult::Unreadable;
+    // The line's color is the theme's main one (the text color, dark 1), by its name, so that it follows the document's theme.
+    QByteArray look = xml.mid(open + 8, close - open - 8);
+    static const QRegularExpression rgb(QStringLiteral("<a:srgbClr val=\"[0-9A-Fa-f]{6}\"\\s*/>"));
+    QString lookText = QString::fromUtf8(look);
+    if (doc.theme()) lookText.replace(rgb, QStringLiteral("<a:schemeClr val=\"tx1\"/>"));   // (a document with no theme has no name to follow: the color stays as it is)
+    look = lookText.toUtf8();
+    const QByteArray graphic = "<a:graphic><a:graphicData uri=\"http://schemas.microsoft.com/office/word/2010/wordprocessingShape\"><wps:wsp><wps:cNvSpPr/><wps:spPr>" + look +
+                               "</wps:spPr><wps:bodyPr rot=\"0\" vert=\"horz\" wrap=\"square\" anchor=\"ctr\" anchorCtr=\"0\"><a:noAutofit/></wps:bodyPr></wps:wsp></a:graphicData></a:graphic>";
+    QString shown = name;
+    shown.replace(QLatin1Char('-'), QLatin1Char(' '));
+    return insertShapeGraphic(doc, c, graphic, size, size, wrap, QString::fromLatin1(kIconNamePrefix) + shown);
 }
 
 const QVector<TextBoxDesign> &textBoxDesigns()

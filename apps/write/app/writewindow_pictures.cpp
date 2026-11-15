@@ -208,17 +208,18 @@ void WriteWindow::insertPictureFromFile()
     m_view->setFocus(Qt::OtherFocusReason);
 }
 
-// Insert > Icons: the shared icon picker, and each icon chosen put in at the caret as an SVG picture a little under an inch square, in the text's dark color.
+// Insert > Icons: the shared icon picker, and each icon chosen put in at the caret as a shape an inch square, in the color scheme's main color.
 void WriteWindow::insertIconsFromPicker()
 {
     if (!m_doc || refuseIfReadOnly()) return;
-    const QStringList names = pickIcons(this);
-    for (const QString &name : names) {
-        QByteArray svg = iconSvg(name, QColor(0x20, 0x20, 0x20));
-        if (svg.isEmpty()) continue;
-        svg.replace("width=\"24\"", "width=\"64\"").replace("height=\"24\"", "height=\"64\"");
-        if (!m_view->insertPictureBytes(svg, QString(name).replace(QLatin1Char('-'), QLatin1Char(' ')))) break;
-    }
+    insertIcons(pickIcons(this));
+}
+
+void WriteWindow::insertIcons(const QStringList &names)
+{
+    if (!m_doc || refuseIfReadOnly()) return;
+    for (const QString &name : names)
+        if (!m_view->insertIconObject(name)) break;
     m_view->setFocus(Qt::OtherFocusReason);
 }
 

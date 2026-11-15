@@ -278,6 +278,7 @@ public:
     void endShapeTextEdit(bool keep = true);
     bool editingShapeText() const { return m_shapeEditor != nullptr; }
     bool drawingShape() const { return !m_shapeDraw.isEmpty(); }
+    bool insertIconObject(const QString &name);
     bool insertTextBoxObject(const TextBoxDesign &design);
     // Create Link: the selected text box is to be followed by the text box that the next click is on (an empty one); Esc, or a click elsewhere, leaves it. Break Link: the boxes after the selected one
     // become boxes of their own.

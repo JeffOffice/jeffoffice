@@ -935,6 +935,22 @@ bool PageView::insertShapeObject(const QString &preset)
     return false;
 }
 
+bool PageView::insertIconObject(const QString &name)
+{
+    if (!m_doc) return false;
+    m_doc->pictureNotice.clear();
+    QTextCursor c = m_cursor;
+    const PictureResult result = insertIcon(*m_doc, c, name);
+    if (result == PictureResult::Ok) {
+        m_cursor = c;
+        selectPicture(c.position() - 1);
+        Q_EMIT contentChanged();
+        return true;
+    }
+    Q_EMIT notice(m_doc->pictureNotice.isEmpty() ? QCoreApplication::translate("jp::write::Pictures", "That icon can't be put here.") : m_doc->pictureNotice);
+    return false;
+}
+
 bool PageView::insertDrawingCanvasObject()
 {
     if (!m_doc) return false;

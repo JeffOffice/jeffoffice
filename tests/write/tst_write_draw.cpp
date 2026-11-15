@@ -2,6 +2,7 @@
 // built here from a few lines of XML.
 
 #include "../isolatesettings.h"
+#include "../withdialog.h"
 #include "../office/diagramsample.h"
 #include "rtcheck.h"
 #include "app/compresspictures.h"
@@ -61,6 +62,7 @@
 #include <QTextCursor>
 #include <QTextDocument>
 #include <QCheckBox>
+#include <QComboBox>
 #include <QPushButton>
 
 using namespace jp;
@@ -449,6 +451,107 @@ private Q_SLOTS:
                 QVERIFY2(pictureAt(*back, back->story(), 7).valid, qPrintable(preset));
                 QCOMPARE(pictureAt(*back, back->story(), 7).preset, info.preset);
             }
+    }
+
+    // ---------------------------------------------------------------- icons put in
+    // Insert > Icons puts an icon in as a shape of its own, an inch square at the cursor, in the color scheme's main color, with lines that thicken and thin with its size; one step of Undo; saved to
+    // .docx and .odt and read again as the same shape.
+    void anIconIsPutInAsAShapeWhoseLinesKeepTheirShareOfItsSize()
+    {
+        auto doc = textDoc({"Before after"});
+        QTextCursor c(doc->story());
+        c.setPosition(7);
+        QCOMPARE(insertIcon(*doc, c, QStringLiteral("no-such-icon")), PictureResult::Unreadable);
+        QVERIFY(!pictureAt(*doc, doc->story(), 7).valid);
+        QCOMPARE(insertIcon(*doc, c, QStringLiteral("heart")), PictureResult::Ok);
+        PictureInfo info = pictureAt(*doc, doc->story(), 7);
+        QVERIFY(info.valid && info.editable);
+        QCOMPARE(int(info.kind), int(DrawnKind::Shape));
+        QCOMPARE(info.width, 72.0);
+        QCOMPARE(info.height, 72.0);
+        QVERIFY(info.fillColor.isEmpty());
+        QVERIFY(!info.lineColor.isEmpty());
+        QVERIFY(info.lineWeight > 0.5);
+        const ItemList items = objectsOfPage(*doc);
+        QCOMPARE(items.size(), qsizetype(1));
+        QCOMPARE(items[0]->type(), ItemType::Shape);
+        QVERIFY(!static_cast<const ShapeItem *>(items[0].get())->customPath.isEmpty());
+        // Twice the size, twice the line; half the size, half.
+        const double weight = info.lineWeight;
+        QVERIFY(setPictureSize(*doc, 7, 144, 144));
+        QVERIFY(qAbs(pictureAt(*doc, doc->story(), 7).lineWeight - 2 * weight) < 0.02 * weight);
+        QVERIFY(setPictureSize(*doc, 7, 36, 36));
+        QVERIFY(qAbs(pictureAt(*doc, doc->story(), 7).lineWeight - weight / 2) < 0.02 * weight);
+        QVERIFY(setPictureSize(*doc, 7, 72, 72));
+        info = pictureAt(*doc, doc->story(), 7);
+        QVERIFY(qAbs(info.lineWeight - weight) < 0.02 * weight);
+        // Both file formats keep the shape (and its size, line, and the rule of the lines).
+        const QByteArray docx = doc->toDocx();
+        QVERIFY(documentXml(docx).contains("<a:custGeom>"));
+        auto fromDocx = open(docx);
+        QVERIFY(fromDocx);
+        QString err;
+        QStringList notes;
+        const QByteArray odt = doc->toOdt(&err, &notes);
+        QVERIFY2(!odt.isEmpty(), qPrintable(err));
+        QVERIFY2(notes.isEmpty(), qPrintable(notes.join(QLatin1Char(';'))));
+        auto fromOdt = WriteDoc::fromFile(odt);
+        QVERIFY(fromOdt);
+        for (WriteDoc *back : {fromDocx.get(), fromOdt.get()}) {
+            const PictureInfo again = pictureAt(*back, back->story(), 7);
+            QVERIFY(again.valid);
+            QCOMPARE(int(again.kind), int(DrawnKind::Shape));
+            QVERIFY(qAbs(again.width - 72) < 0.5 && qAbs(again.height - 72) < 0.5);
+            QVERIFY2(qAbs(again.lineWeight - weight) < 0.05 * weight, qPrintable(QString::number(again.lineWeight)));
+            QVERIFY(again.fillColor.isEmpty());
+            QCOMPARE(again.lineColor, info.lineColor);
+            QCOMPARE(objectsOfPage(*back).size(), qsizetype(1));
+            // (Still an icon after the trip: its lines go on keeping their share.)
+            QVERIFY(setPictureSize(*back, 7, 144, 144));
+            QVERIFY(qAbs(pictureAt(*back, back->story(), 7).lineWeight - 2 * weight) < 0.1 * weight);
+        }
+    }
+
+    // In a document with a theme the icon's color is the theme's main one, by its name, so that it follows the theme.
+    void anIconTakesTheThemesMainColor()
+    {
+        auto doc = WriteDoc::blank();
+        QVERIFY(doc->theme());
+        QTextCursor c(doc->story());
+        QCOMPARE(insertIcon(*doc, c, QStringLiteral("star")), PictureResult::Ok);
+        QVERIFY(documentXml(doc->toDocx()).contains("<a:schemeClr val=\"tx1\"/>"));
+        const PictureInfo info = pictureAt(*doc, doc->story(), 0);
+        QVERIFY(info.valid);
+        QCOMPARE(info.lineColor, doc->theme()->colors[office::Theme::Dark1].name(QColor::HexRgb).mid(1).toUpper());
+    }
+
+    void anIconIsOneStepOfUndo()
+    {
+        auto doc = textDoc({"Before after"});
+        QTextCursor c(doc->story());
+        c.setPosition(7);
+        QCOMPARE(insertIcon(*doc, c, QStringLiteral("heart")), PictureResult::Ok);
+        QVERIFY(pictureAt(*doc, doc->story(), 7).valid);
+        QVERIFY(doc->undo());
+        QVERIFY(!pictureAt(*doc, doc->story(), 7).valid);
+        QCOMPARE(doc->story()->toPlainText(), QStringLiteral("Before after"));
+        QVERIFY(!doc->undo());   // (nothing more was made)
+        QVERIFY(doc->redo());
+        QVERIFY(pictureAt(*doc, doc->story(), 7).valid);
+    }
+
+    void theIconCommandPutsEachIconChosenAtTheCaret()
+    {
+        WriteWindow w;
+        w.show();
+        w.setDocument(textDoc({"Before after"}), QString());
+        QTextCursor c(w.document()->story());
+        c.setPosition(7);
+        w.view()->setCursor(c);
+        w.insertIcons(QStringList{QStringLiteral("star")});
+        QVERIFY(pictureAt(*w.document(), w.document()->story(), 7).valid);
+        QCOMPARE(int(pictureAt(*w.document(), w.document()->story(), 7).kind), int(DrawnKind::Shape));
+        QVERIFY(w.act("insert.icons")->isEnabled());
     }
 
     void everyShapeOfTheGalleryIsOneTheDrawingCodeHasAnOutlineFor()

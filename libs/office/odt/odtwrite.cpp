@@ -190,6 +190,21 @@ QString Writer::themeFont(const QString &theme) const
     return m.hasMatch() ? m.captured(1) : QString();
 }
 
+QString Writer::themeColor(const QString &name) const
+{
+    // The color a theme gives a scheme color's name (the theme part, found from the main part): RRGGBB, or nothing.
+    static const QHash<QString, QString> slots = {{QStringLiteral("tx1"), QStringLiteral("dk1")}, {QStringLiteral("bg1"), QStringLiteral("lt1")}, {QStringLiteral("tx2"), QStringLiteral("dk2")},
+                                                  {QStringLiteral("bg2"), QStringLiteral("lt2")}, {QStringLiteral("hlink"), QStringLiteral("hlink")}, {QStringLiteral("folHlink"), QStringLiteral("folHlink")}};
+    const QString slot = slots.value(name, name);
+    if (slot.size() > 10 || slot.isEmpty()) return QString();
+    const auto rels = m_pkg.relationshipsOfType(m_main, QStringLiteral("/theme"));
+    if (rels.isEmpty()) return QString();
+    const QString xml = QString::fromUtf8(m_pkg.part(rels.first().target));
+    const QRegularExpression re(QStringLiteral("<a:%1>\\s*<a:(?:srgbClr val|sysClr val=\"[^\"]*\" lastClr)=\"([0-9A-Fa-f]{6})\"").arg(slot));
+    const auto m = re.match(xml);
+    return m.hasMatch() ? m.captured(1).toUpper() : QString();
+}
+
 QString Writer::fontNameOf(const QString &family, QString *generic)
 {
     if (family.isEmpty()) return QString();

@@ -209,6 +209,11 @@ PictureResult insertShapeAt(WriteDoc &doc, QTextCursor &c, const QString &preset
 // For the tests: while on, setting a shape's place after insertShapeAt put it in fails, to see that the shape is taken out again.
 void failShapePlaceForTests(bool on);
 
+// An icon of the shared set (a name of jp::iconCatalog, such as "heart") at the cursor, in place of a selection: one shape, `size` points square (an inch at first) and drawn in the color
+// scheme's main color, whose lines thicken and thin when its size is changed (setPictureSize, setPictureBox). It is a shape of the drawing format like any other (saved to `.docx` and `.odt`
+// and read again), set at the cursor with the text going round it (or as `wrap` says), and one step that undoes. Unreadable for a name that is no icon; Refused as for a shape.
+PictureResult insertIcon(WriteDoc &doc, QTextCursor &c, const QString &name, double size = 72, PictureWrap wrap = PictureWrap::Square);
+
 // A text box design: how it looks and what it holds at first (paragraphs of a size, a style, and a color of their own).
 struct TextBoxDesign {
     QString id;                 // a short name that does not change ("simple", "sidebar", "quote")

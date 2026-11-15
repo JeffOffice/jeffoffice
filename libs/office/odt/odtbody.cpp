@@ -319,7 +319,7 @@ QByteArray Reader::drawing(const Odf &o, int frame, ParaCtx *pc, bool *ok)
             if (preview >= 0) image = preview;
         }
     }
-    if (image < 0 && box < 0 && !o.is(frame, "draw:frame")) {
+    if (image < 0 && box < 0 && !o.is(frame, "draw:frame") && !o.is(frame, "draw:path")) {
         // A shape that holds text is a text box of its own shape.
         for (int c = t.firstChild(frame); c >= 0; c = t.next(c))
             if (o.is(c, "text:p") || o.is(c, "text:h") || o.is(c, "text:list")) {
@@ -379,6 +379,83 @@ QByteArray Reader::drawing(const Odf &o, int frame, ParaCtx *pc, bool *ok)
         const QByteArray graphic = "<a:graphic><a:graphicData uri=\"http://schemas.microsoft.com/office/word/2010/wordprocessingShape\"><wps:wsp><wps:cNvSpPr/><wps:spPr><a:xfrm" + xfrmAttrs + "><a:off x=\"0\" y=\"0\"/><a:ext cx=\"" +
                                    num(cx) + "\" cy=\"" + num(cy) + "\"/></a:xfrm><a:prstGeom prst=\"" + shapePrst.toLatin1() + "\">" + adjust + "</a:prstGeom>" + fill + line +
                                    "</wps:spPr><wps:bodyPr rot=\"0\" vert=\"horz\" wrap=\"square\" anchor=\"ctr\"><a:noAutofit/></wps:bodyPr></wps:wsp></a:graphicData></a:graphic>";
+        *ok = true;
+        return anchorXml(o, frame, QString(), cx, cy, graphic, id);
+    }
+    if (image < 0 && box < 0 && o.is(frame, "draw:path")) {
+        // A path (an icon): its own numbers become the freeform's path, with the fill and the line of its style.
+        const QStringList view = o.at(frame, "svg:viewBox").split(QRegularExpression(QStringLiteral("[\\s,]+")), Qt::SkipEmptyParts);
+        const double vw = view.size() == 4 ? view[2].toDouble() : 0, vh = view.size() == 4 ? view[3].toDouble() : 0;
+        const QString d = o.at(frame, "svg:d");
+        if (!(vw > 0 && vh > 0) || d.isEmpty() || d.size() > (1 << 22)) {
+            left(QCoreApplication::translate("odt", "drawing shapes"));
+            return QByteArray();
+        }
+        QByteArray steps;
+        QStringList tokens = d.split(QRegularExpression(QStringLiteral("[\\s,]+")), Qt::SkipEmptyParts);
+        // (A command letter may be stuck to its first number: "M10".)
+        for (qsizetype i = 0; i < tokens.size(); ++i)
+            if (tokens[i].size() > 1 && tokens[i][0].isLetter()) {
+                tokens.insert(i + 1, tokens[i].mid(1));
+                tokens[i] = tokens[i].left(1);
+            }
+        const double scale = vw < 100000 && vh < 100000 ? 1000.0 : 1.0;   // (a small box keeps three decimals)
+        auto coord = [&](const QString &v) { return num(std::llround(std::clamp(v.toDouble(), -1e9, 1e9) * scale)); };
+        bool pathOk = true;
+        double x = 0, y = 0;
+        auto point = [&](const QString &px, const QString &py) { return "<a:pt x=\"" + coord(px) + "\" y=\"" + coord(py) + "\"/>"; };
+        for (qsizetype i = 0; i < tokens.size() && pathOk; ) {
+            const QString op = tokens[i++];
+            auto need = [&](int n) { return i + n <= tokens.size(); };
+            if (op == QLatin1String("M") && need(2)) {
+                steps += "<a:moveTo>" + point(tokens[i], tokens[i + 1]) + "</a:moveTo>";
+                x = tokens[i].toDouble();
+                y = tokens[i + 1].toDouble();
+                i += 2;
+            } else if (op == QLatin1String("L") && need(2)) {
+                steps += "<a:lnTo>" + point(tokens[i], tokens[i + 1]) + "</a:lnTo>";
+                x = tokens[i].toDouble();
+                y = tokens[i + 1].toDouble();
+                i += 2;
+            } else if (op == QLatin1String("H") && need(1)) {
+                x = tokens[i++].toDouble();
+                steps += "<a:lnTo>" + point(QString::number(x), QString::number(y)) + "</a:lnTo>";
+            } else if (op == QLatin1String("V") && need(1)) {
+                y = tokens[i++].toDouble();
+                steps += "<a:lnTo>" + point(QString::number(x), QString::number(y)) + "</a:lnTo>";
+            } else if (op == QLatin1String("C") && need(6)) {
+                steps += "<a:cubicBezTo>" + point(tokens[i], tokens[i + 1]) + point(tokens[i + 2], tokens[i + 3]) + point(tokens[i + 4], tokens[i + 5]) + "</a:cubicBezTo>";
+                x = tokens[i + 4].toDouble();
+                y = tokens[i + 5].toDouble();
+                i += 6;
+            } else if (op == QLatin1String("Z") || op == QLatin1String("z")) {
+                steps += "<a:close/>";
+            } else {
+                pathOk = false;   // (a relative or arc command: not read)
+            }
+            if (steps.size() > (1 << 24)) pathOk = false;
+        }
+        if (!pathOk || steps.isEmpty()) {
+            left(QCoreApplication::translate("odt", "drawing shapes"));
+            return QByteArray();
+        }
+        const Props &gp = resolved(QStringLiteral("graphic"), o.at(frame, "draw:style-name"));
+        auto g = [&](const char *k) { return gp.value(QStringLiteral("gr:") + QLatin1String(k)); };
+        QByteArray fill = "<a:noFill/>";
+        if (g("draw:fill") == QLatin1String("solid") && !colorHex(g("draw:fill-color")).isEmpty()) fill = "<a:solidFill><a:srgbClr val=\"" + colorHex(g("draw:fill-color")).toLatin1() + "\"/></a:solidFill>";
+        QByteArray line = "<a:ln><a:noFill/></a:ln>";
+        if (!g("draw:stroke").isEmpty() && g("draw:stroke") != QLatin1String("none")) {
+            bool wOk = false;
+            const qint64 w = std::max<qint64>(1, lengthToEmu(g("svg:stroke-width"), &wOk));
+            const QString hex = colorHex(g("svg:stroke-color"));
+            line = "<a:ln w=\"" + num(wOk ? w : 12700) + "\"" + (g("svg:stroke-linecap") == QLatin1String("round") ? " cap=\"rnd\"" : "") + "><a:solidFill><a:srgbClr val=\"" + (hex.isEmpty() ? QByteArray("000000") : hex.toLatin1()) +
+                   "\"/></a:solidFill>" + (g("draw:stroke-linejoin") == QLatin1String("round") ? "<a:round/>" : "") + "</a:ln>";
+        }
+        const qint64 pw = std::llround(vw * scale), ph = std::llround(vh * scale);
+        const QByteArray graphic = "<a:graphic><a:graphicData uri=\"http://schemas.microsoft.com/office/word/2010/wordprocessingShape\"><wps:wsp><wps:cNvSpPr/><wps:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"" +
+                                   num(cx) + "\" cy=\"" + num(cy) + "\"/></a:xfrm><a:custGeom><a:avLst/><a:gdLst/><a:ahLst/><a:cxnLst/><a:rect l=\"0\" t=\"0\" r=\"r\" b=\"b\"/><a:pathLst><a:path w=\"" + num(pw) +
+                                   "\" h=\"" + num(ph) + "\">" + steps + "</a:path></a:pathLst></a:custGeom>" + fill + line +
+                                   "</wps:spPr><wps:bodyPr rot=\"0\" vert=\"horz\" wrap=\"square\" anchor=\"ctr\" anchorCtr=\"0\"><a:noAutofit/></wps:bodyPr></wps:wsp></a:graphicData></a:graphic>";
         *ok = true;
         return anchorXml(o, frame, QString(), cx, cy, graphic, id);
     }
@@ -846,7 +923,7 @@ void Reader::convertBlock(const Odf &o, int n, QVector<Block> *out, int depth, i
     } else if (o.is(n, "office:annotation") || o.is(n, "office:annotation-end")) {
     } else if (o.is(n, "table:table-header-rows") || o.is(n, "table:table-rows") || o.is(n, "table:table-row-group") || o.is(n, "text:list-item") || o.is(n, "text:list-header")) {
         convertBlocks(o, n, out, depth, listLevel, listStyle, listNum);
-    } else if (o.is(n, "draw:g") || o.is(n, "draw:custom-shape") || o.is(n, "draw:rect") || o.is(n, "draw:ellipse")) {
+    } else if (o.is(n, "draw:g") || o.is(n, "draw:custom-shape") || o.is(n, "draw:rect") || o.is(n, "draw:ellipse") || o.is(n, "draw:path")) {
         ParaCtx pc;
         pc.depth = depth;
         pc.inNote = m_inNote;

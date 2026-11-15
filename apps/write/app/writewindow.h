@@ -117,6 +117,8 @@ public:
     QList<KeyExtra> keyExtras() override;
     QAction *makeKeyCommand(const QString &id) override;
     void refreshKeyCommands();
+    // Each icon of the names at the caret, one step each (the picker's choice).
+    void insertIcons(const QStringList &names);
     write::PageView *view() const { return m_view; }
     // Fills a menu with what a right click offers where the pointer was (or the caret): the commands for text, and for a link, a field, a note, a picture, a table, or a change under it.
     void fillContextMenu(QMenu &menu);
@@ -354,6 +356,8 @@ public:
 
     // The Find and Replace pane on the right (made when first asked for, so null before); `replace` puts the cursor in Replace with.
     void showFindPane(bool replace = false);
+    // Replace Fonts: the box that swaps one font the document uses for another everywhere (text, styles, tables, shapes, headers, footers, and notes); one step of Undo.
+    void replaceFonts();
     WriteFindPane *findPane() const { return m_find; }
 
 protected:

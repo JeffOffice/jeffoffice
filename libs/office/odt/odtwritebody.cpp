@@ -868,7 +868,73 @@ QByteArray Writer::drawingXml(const T &t, int drawing, ParaCtx *pc, int depth)
         }
         if (!shapeAttrs.isEmpty()) shapeAttrs = " xmlns:jo=\"urn:jeffoffice:names:extension:1.0\"" + shapeAttrs;
     }
+    // A shape of one freeform path with no text (an icon) is kept as an ODF path: the path's own numbers, its fill, and its line.
+    QByteArray pathD;
+    qint64 pathW = 0, pathH = 0;
+    QByteArray pathStyle;
     if (blip < 0 && txbx < 0 && shapePrst.isEmpty()) {
+        int geom = -1, shapeProps = -1;
+        QVector<int> stack{anchor};
+        for (int guard = 0; !stack.isEmpty() && guard < 4000; ++guard) {
+            const int n = stack.takeLast();
+            if (t.localName(n) == "custGeom" && geom < 0) geom = n;
+            else if (t.localName(n) == "spPr" && shapeProps < 0 && t.ns(t.parent(n)) != wml::NsW) shapeProps = n;
+            for (int k = t.firstChild(n); k >= 0; k = t.next(k)) stack.push_back(k);
+        }
+        auto num = [](qint64 v) { return QByteArray::number(v); };
+        const int list = geom >= 0 ? t.child(geom, "pathLst", t.ns(geom)) : -1;
+        const int path = list >= 0 ? t.firstChild(list) : -1;
+        bool ok = path >= 0 && t.next(path) < 0;
+        if (ok) {
+            pathW = t.attr(path, "w").toLongLong();
+            pathH = t.attr(path, "h").toLongLong();
+            ok = pathW > 0 && pathH > 0 && pathW < 2000000000 && pathH < 2000000000;
+        }
+        int pieces = 0;
+        for (int c = ok ? t.firstChild(path) : -1; c >= 0 && ok; c = t.next(c)) {
+            if (++pieces > 20000) {
+                ok = false;
+                break;
+            }
+            const QByteArray op = t.localName(c);
+            const char *letter = op == "moveTo" ? "M" : op == "lnTo" ? "L" : op == "cubicBezTo" ? "C" : op == "close" ? "Z" : nullptr;
+            if (!letter) {
+                ok = false;
+                break;
+            }
+            pathD += pathD.isEmpty() ? "" : " ";
+            pathD += letter;
+            for (int pt = t.firstChild(c); pt >= 0; pt = t.next(pt))
+                if (t.localName(pt) == "pt") pathD += " " + num(t.attr(pt, "x").toLongLong()) + " " + num(t.attr(pt, "y").toLongLong());
+        }
+        if (!ok || pathD.isEmpty()) {
+            left(QCoreApplication::translate("odt", "drawings, shapes, and charts"));
+            return QByteArray();
+        }
+        QMap<QByteArray, QByteArray> pr{{"draw:fill", "none"}, {"draw:stroke", "none"}};
+        auto colorOf = [&](int fill) {
+            const int c = fill >= 0 ? t.firstChild(fill) : -1;
+            if (c < 0) return QString();
+            const QString v = t.attr(c, "val");
+            return t.localName(c) == "schemeClr" ? themeColor(v) : hexColorOrEmpty(v);
+        };
+        for (int k = shapeProps >= 0 ? t.firstChild(shapeProps) : -1; k >= 0; k = t.next(k)) {
+            if (t.localName(k) == "solidFill") {
+                const QString hex = colorOf(k);
+                pr.insert("draw:fill", "solid");
+                pr.insert("draw:fill-color", "#" + (hex.isEmpty() ? QByteArray("000000") : hex.toUtf8()));
+            } else if (t.localName(k) == "ln" && t.child(k, "noFill", t.ns(k)) < 0) {
+                const QString hex = colorOf(t.child(k, "solidFill", t.ns(k)));
+                pr.insert("draw:stroke", "solid");
+                pr.insert("svg:stroke-color", "#" + (hex.isEmpty() ? QByteArray("000000") : hex.toUtf8()));
+                pr.insert("svg:stroke-width", emuLength(std::max<qint64>(1, t.attr(k, "w").toLongLong())));
+                if (t.attr(k, "cap") == QLatin1String("rnd")) pr.insert("svg:stroke-linecap", "round");
+                if (t.child(k, "round", t.ns(k)) >= 0) pr.insert("draw:stroke-linejoin", "round");
+            }
+        }
+        for (auto it = pr.constBegin(); it != pr.constEnd(); ++it) pathStyle += " " + it.key() + "=\"" + it.value() + "\"";
+    }
+    if (blip < 0 && txbx < 0 && shapePrst.isEmpty() && pathD.isEmpty()) {
         left(QCoreApplication::translate("odt", "drawings, shapes, and charts"));
         return QByteArray();
     }
@@ -981,6 +1047,13 @@ QByteArray Writer::drawingXml(const T &t, int drawing, ParaCtx *pc, int depth)
             }
         }
         for (auto it = pr.constBegin(); it != pr.constEnd(); ++it) boxProps += " " + it.key() + "=\"" + it.value() + "\"";
+    }
+    if (!pathD.isEmpty()) {
+        const QString pathStyleName = m_sink->make("fr", "graphic", QByteArray(), "<style:graphic-properties" + gp + pathStyle + "/>");
+        QByteArray shape = "<draw:path draw:style-name=\"" + esc(pathStyleName) + "\"" + frameAttrs + " svg:width=\"" + emuLength(cx) + "\" svg:height=\"" + emuLength(cy) + "\" svg:viewBox=\"0 0 " +
+                           QByteArray::number(pathW) + " " + QByteArray::number(pathH) + "\" svg:d=\"" + pathD + "\">";
+        if (!descr.isEmpty()) shape += "<svg:desc>" + esc(descr, false) + "</svg:desc>";
+        return shape + "</draw:path>";
     }
     if (blip >= 0 && !barcodeSettings.isEmpty()) frameAttrs += " xmlns:jo=\"urn:jeffoffice:names:extension:1.0\" jo:barcode=\"" + esc(barcodeSettingsText(barcodeSettings)) + "\" jo:barcode-sha256=\"" + esc(barcodeHash) + "\"";
     const QString style = m_sink->make("fr", "graphic", " style:parent-style-name=\"" + QByteArray(blip >= 0 ? "Graphics" : "Frame") + "\"", "<style:graphic-properties" + gp + boxProps + "/>");

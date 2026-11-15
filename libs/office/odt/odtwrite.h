@@ -66,6 +66,7 @@ private:
     QString borderValue(const T &t, int side, int *space, QString *lineWidth) const;
     QString fontNameOf(const QString &family, QString *generic = nullptr);
     QString themeFont(const QString &theme) const;
+    QString themeColor(const QString &name) const;
     QString shadeColor(const T &t, int shd) const;
     // numbering
     void collectNumbering();
