@@ -111,7 +111,7 @@ deploy() {
       --desktop-file "$dir/usr/share/applications/$lower.desktop" \
       --icon-file "$dir/usr/share/icons/hicolor/256x256/apps/$lower.png" \
       --exclude-library "libspeechd*" --plugin qt ${output:+--output "$output"} )
-  find "$dir" -name 'libspeechd*' -delete
+  find "$dir" -name 'libspeechd*' -prune -exec rm -rf {} +   # (the library, and linuxdeploy's copy of its copyright folder)
   # JeffDeck's FFmpeg is the minimal build of tools/build_ffmpeg.sh (put in Qt's folder by tools/use_ffmpeg.sh before this runs), not
   # the full one Qt ships: a package with another one stops here.
   case " $* " in *" JeffDeck "*) sh "$src/tools/use_ffmpeg.sh" check "$dir" ;; esac
