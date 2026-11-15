@@ -14,8 +14,6 @@
 namespace jp {
 
 namespace {
-QString words(const char *text) { return QCoreApplication::translate("jp::OpenTypeBox", text); }
-
 // The kinds of ligature each item of the box turns on (item 0 is the font's own choice, which has none of its own).
 constexpr int kLigatureKinds[] = {-1, 0, tp::ot::kLigStandard, tp::ot::kLigStandard | tp::ot::kLigContextual,
                                   tp::ot::kLigHistorical | tp::ot::kLigDiscretionary, tp::ot::kLigKinds};
@@ -34,14 +32,14 @@ OpenTypeBox::OpenTypeBox(QWidget *parent) : QGroupBox(QCoreApplication::translat
         form->addRow(label, row.box);
         connect(row.box, &QComboBox::currentIndexChanged, this, &OpenTypeBox::edited);
     };
-    make(m_ligatures, "ligatures", words("Ligatures:"), tp::Ligatures,
-         {words("(default)"), words("None"), words("Standard only"), words("Standard and contextual"), words("Historical and discretionary"), words("All")});
-    make(m_spacing, "numberSpacing", words("Number spacing:"), tp::NumberSpacing, {words("(default)"), words("Proportional"), words("Tabular")});
-    make(m_forms, "numberForms", words("Number forms:"), tp::NumberStyle, {words("(default)"), words("Lining"), words("Old-style")});
-    QStringList sets{words("(default)")};
+    make(m_ligatures, "ligatures", QCoreApplication::translate("jp::OpenTypeBox", "Ligatures:"), tp::Ligatures,
+         {QCoreApplication::translate("jp::OpenTypeBox", "(default)"), QCoreApplication::translate("jp::OpenTypeBox", "None"), QCoreApplication::translate("jp::OpenTypeBox", "Standard only"), QCoreApplication::translate("jp::OpenTypeBox", "Standard and contextual"), QCoreApplication::translate("jp::OpenTypeBox", "Historical and discretionary"), QCoreApplication::translate("jp::OpenTypeBox", "All")});
+    make(m_spacing, "numberSpacing", QCoreApplication::translate("jp::OpenTypeBox", "Number spacing:"), tp::NumberSpacing, {QCoreApplication::translate("jp::OpenTypeBox", "(default)"), QCoreApplication::translate("jp::OpenTypeBox", "Proportional"), QCoreApplication::translate("jp::OpenTypeBox", "Tabular")});
+    make(m_forms, "numberForms", QCoreApplication::translate("jp::OpenTypeBox", "Number forms:"), tp::NumberStyle, {QCoreApplication::translate("jp::OpenTypeBox", "(default)"), QCoreApplication::translate("jp::OpenTypeBox", "Lining"), QCoreApplication::translate("jp::OpenTypeBox", "Old-style")});
+    QStringList sets{QCoreApplication::translate("jp::OpenTypeBox", "(default)")};
     for (int i = 1; i <= tp::ot::kMostStylisticSet; ++i) sets << QString::number(i);
-    make(m_set, "stylisticSet", words("Stylistic set:"), tp::StylisticSet, sets);
-    make(m_alternates, "contextualAlternates", words("Contextual alternates:"), tp::ContextualAlts, {words("(default)"), words("On"), words("Off")});
+    make(m_set, "stylisticSet", QCoreApplication::translate("jp::OpenTypeBox", "Stylistic set:"), tp::StylisticSet, sets);
+    make(m_alternates, "contextualAlternates", QCoreApplication::translate("jp::OpenTypeBox", "Contextual alternates:"), tp::ContextualAlts, {QCoreApplication::translate("jp::OpenTypeBox", "(default)"), QCoreApplication::translate("jp::OpenTypeBox", "On"), QCoreApplication::translate("jp::OpenTypeBox", "Off")});
 }
 
 int OpenTypeBox::valueAt(const Row &row, int index)
@@ -80,7 +78,7 @@ void OpenTypeBox::fill(Row &row, const QVector<QTextCharFormat> &formats)
     const QSignalBlocker block(row.box);
     row.unknown = mixed;
     if (mixed) {
-        row.box->addItem(formats.size() > 1 ? words("(mixed)") : words("(other)"));
+        row.box->addItem(formats.size() > 1 ? QCoreApplication::translate("jp::OpenTypeBox", "(mixed)") : QCoreApplication::translate("jp::OpenTypeBox", "(other)"));
         shown = row.box->count() - 1;
     }
     row.box->setCurrentIndex(shown);

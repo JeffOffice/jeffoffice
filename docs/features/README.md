@@ -6,7 +6,7 @@ JeffOffice is an independent project. Each app aims to work with Office files an
 |---|---|---|---:|---:|---:|---|
 | JeffPub | Desktop publishing for flyers, newsletters, brochures, cards, and other print pieces; opens and saves Publisher's `.pub` files | beta (0.40.0) | 228 | 19 | 58 | [jeffpub.md](jeffpub.md) |
 | JeffDeck | Presentations and slide shows; saves `.pptx` and `.odp`, and opens `.ppt` too | beta (0.40.0) | 245 | 77 | 167 | [jeffdeck.md](jeffdeck.md) |
-| JeffWrite | Documents and reports; saves `.docx` and `.rtf`, and opens `.doc` and `.odt` too | beta (0.40.0) | 142 | 169 | 116 | [jeffwrite.md](jeffwrite.md) |
+| JeffWrite | Documents and reports; saves `.docx` and `.rtf`, and opens `.doc` and `.odt` too | beta (0.40.0) | 143 | 169 | 115 | [jeffwrite.md](jeffwrite.md) |
 | JeffCrunch | Spreadsheets and calculation; saves `.xlsx` (and `.xls` and `.ods` copies), and opens `.xls`, `.ods`, and `.csv` | beta (0.40.0) | 212 | 190 | 111 | [jeffcrunch.md](jeffcrunch.md) |
 | JeffMail | Email, calendars, contacts, and tasks, kept where the provider keeps them | not built yet | 2 | 31 | 374 | [jeffmail.md](jeffmail.md) |
 | JeffBase | Databases for lists and records; keeps its data in SQLite, and opens `.accdb` and `.mdb` | not built yet | 2 | 31 | 299 | [jeffbase.md](jeffbase.md) |
