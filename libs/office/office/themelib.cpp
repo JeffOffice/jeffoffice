@@ -10,8 +10,9 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QRegularExpression>
+#include <QFileInfo>
 #include <QSaveFile>
-#include <QStandardPaths>
+#include <QSettings>
 #include <algorithm>
 
 namespace jp::office {
@@ -43,7 +44,7 @@ const ColorRow kColorRows[] = {
 const char *const kPackFonts[] = {"Modern", "Slab", "Literary", "Corporate", "Elegant", "Civic", "Headline", "Friendly", "Traditional", "Clean", "Editorial", "Classic Sans"};
 static_assert(sizeof(kPackFonts) / sizeof(kPackFonts[0]) == sizeof(kColorRows) / sizeof(kColorRows[0]), "one font scheme for each color set");
 
-QString cut(const QString &s, int most) { return s.trimmed().left(most); }
+QString cut(const QString &s, int most) { return cleanThemeText(s.left(most)); }
 
 QString hexOf(const QColor &c) { return c.name(QColor::HexRgb).mid(1).toUpper(); }
 
@@ -56,10 +57,22 @@ QString &folderOverride()
 
 QString storeFile(const char *kind) { return themeStoreFolder() + QLatin1Char('/') + QLatin1String(kind); }
 
-QByteArray readStore(const char *kind)
+QStringList &noticesHeld()
 {
+    static QStringList notices;
+    return notices;
+}
+
+// The file's bytes; `*bad` is set when it is there but can't be used (over the limit, or not readable).
+QByteArray readStore(const char *kind, bool *bad)
+{
+    *bad = false;
     QFile f(storeFile(kind));
-    if (!f.open(QIODevice::ReadOnly) || f.size() > kMaxThemeStoreBytes) return QByteArray();
+    if (!f.exists()) return QByteArray();
+    if (!f.open(QIODevice::ReadOnly) || f.size() > kMaxThemeStoreBytes) {
+        *bad = true;
+        return QByteArray();
+    }
     return f.read(kMaxThemeStoreBytes);
 }
 
@@ -72,10 +85,30 @@ bool writeStore(const char *kind, const QJsonArray &list)
     return f.commit();
 }
 
-QJsonArray setsOf(const char *kind)
+QJsonArray setsOf(const char *kind, bool *bad = nullptr)
 {
-    const QJsonDocument doc = QJsonDocument::fromJson(readStore(kind));
-    return doc.object().value(QStringLiteral("sets")).toArray();
+    bool unusable = false;
+    const QByteArray bytes = readStore(kind, &unusable);
+    QJsonArray out;
+    if (!unusable && !bytes.isEmpty()) {
+        QJsonParseError err;
+        const QJsonDocument doc = QJsonDocument::fromJson(bytes, &err);
+        if (err.error != QJsonParseError::NoError || !doc.isObject() || !doc.object().value(QStringLiteral("sets")).isArray()) unusable = true;
+        else out = doc.object().value(QStringLiteral("sets")).toArray();
+    }
+    if (bad) *bad = unusable;
+    return out;
+}
+
+// A file of sets that can't be read is never written over: it is kept as "<name>.bad" (an earlier one of that name goes), and the person is told.
+void keepUnusableStore(const char *kind)
+{
+    bool bad = false;
+    setsOf(kind, &bad);
+    if (!bad) return;
+    QFile::remove(storeFile(kind) + QStringLiteral(".bad"));
+    if (QFile::rename(storeFile(kind), storeFile(kind) + QStringLiteral(".bad")))
+        noticesHeld() << QCoreApplication::translate("ThemeLibrary", "The file of your own theme sets could not be read. It was kept as %1.bad, and a new file was started.").arg(QLatin1String(kind));
 }
 
 QJsonObject toJson(const ThemeColors &c)
@@ -130,6 +163,7 @@ template <class T> QVector<T> readSets(const char *kind)
 
 template <class T> bool saveSet(const char *kind, const T &set)
 {
+    keepUnusableStore(kind);
     QVector<T> all = readSets<T>(kind);
     bool replaced = false;
     for (T &t : all)
@@ -148,6 +182,9 @@ template <class T> bool saveSet(const char *kind, const T &set)
 
 template <class T> bool removeSet(const char *kind, const QString &name)
 {
+    bool bad = false;
+    setsOf(kind, &bad);
+    if (bad) return false;
     QVector<T> all = readSets<T>(kind);
     const qsizetype before = all.size();
     all.erase(std::remove_if(all.begin(), all.end(), [&](const T &t) { return t.name.compare(name, Qt::CaseInsensitive) == 0; }), all.end());
@@ -157,7 +194,7 @@ template <class T> bool removeSet(const char *kind, const QString &name)
     return writeStore(kind, list);
 }
 
-QString xmlEscaped(const QString &s) { return s.toHtmlEscaped(); }
+QString xmlEscaped(const QString &s) { return cleanThemeText(s).toHtmlEscaped(); }
 
 } // namespace
 
@@ -166,6 +203,31 @@ bool ThemeColors::operator==(const ThemeColors &o) const
     for (int i = 0; i < Theme::ColorCount; ++i)
         if (colors[i] != o.colors[i]) return false;
     return true;
+}
+
+QString cleanThemeText(const QString &text)
+{
+    QString out;
+    out.reserve(text.size());
+    for (int i = 0; i < text.size(); ++i) {
+        const QChar c = text.at(i);
+        const ushort u = c.unicode();
+        if (c.isHighSurrogate() && i + 1 < text.size() && text.at(i + 1).isLowSurrogate()) {
+            out += c;
+            out += text.at(++i);
+            continue;
+        }
+        if (u < 0x20 || (u >= 0x7F && u <= 0x9F) || c.isSurrogate() || u == 0xFFFE || u == 0xFFFF) continue;
+        out += c;
+    }
+    return out.trimmed();
+}
+
+QStringList takeThemeStoreNotices()
+{
+    const QStringList out = noticesHeld();
+    noticesHeld().clear();
+    return out;
 }
 
 QString themeSlotLabel(int slot)
@@ -200,31 +262,51 @@ ThemeFonts themeFontsOf(const Theme &theme)
     return {theme.fontSchemeName, theme.majorLatin, theme.minorLatin};
 }
 
-Theme withThemeColors(const Theme &theme, const ThemeColors &colors)
+Theme withThemeColors(const Theme &theme, const ThemeColors &colors, bool *ok)
 {
+    if (ok) *ok = true;
     Theme t = theme;
+    if (!t.xml.isEmpty()) {
+        bool patched = true;
+        const QByteArray part = themePartWithColors(t.xml, colors, &patched);
+        if (!patched) {
+            if (ok) *ok = false;
+            return theme;
+        }
+        t.xml = part;
+    }
     for (int i = 0; i < Theme::ColorCount; ++i) t.colors[i] = colors.colors[i];
-    if (!colors.name.isEmpty()) t.colorSchemeName = colors.name;
-    if (!t.xml.isEmpty()) t.xml = themePartWithColors(t.xml, colors);
+    if (!colors.name.isEmpty()) t.colorSchemeName = cleanThemeText(colors.name);
     return t;
 }
 
-Theme withThemeFonts(const Theme &theme, const ThemeFonts &fonts)
+Theme withThemeFonts(const Theme &theme, const ThemeFonts &fonts, bool *ok)
 {
+    if (ok) *ok = true;
     Theme t = theme;
-    t.majorLatin = fonts.heading;
-    t.minorLatin = fonts.body;
-    if (!fonts.name.isEmpty()) t.fontSchemeName = fonts.name;
-    if (!t.xml.isEmpty()) t.xml = themePartWithFonts(t.xml, fonts);
+    if (!t.xml.isEmpty()) {
+        bool patched = true;
+        const QByteArray part = themePartWithFonts(t.xml, fonts, &patched);
+        if (!patched) {
+            if (ok) *ok = false;
+            return theme;
+        }
+        t.xml = part;
+    }
+    t.majorLatin = cleanThemeText(fonts.heading);
+    t.minorLatin = cleanThemeText(fonts.body);
+    if (!fonts.name.isEmpty()) t.fontSchemeName = cleanThemeText(fonts.name);
     return t;
 }
 
-QByteArray themePartWithColors(const QByteArray &part, const ThemeColors &colors)
+QByteArray themePartWithColors(const QByteArray &part, const ThemeColors &colors, bool *ok)
 {
+    if (ok) *ok = false;
     static const QRegularExpression scheme(QStringLiteral("<((?:\\w+:)?)clrScheme\\b[^>]*?(?:/>|>.*?</\\1clrScheme>)"), QRegularExpression::DotMatchesEverythingOption);
     const QString xml = QString::fromUtf8(part);
     const QRegularExpressionMatch m = scheme.match(xml);
     if (!m.hasMatch()) return part;
+    if (ok) *ok = true;
     const QString p = m.captured(1);
     QString made = QLatin1Char('<') + p + QStringLiteral("clrScheme name=\"") + xmlEscaped(colors.name) + QStringLiteral("\">");
     for (int i = 0; i < Theme::ColorCount; ++i) {
@@ -237,20 +319,22 @@ QByteArray themePartWithColors(const QByteArray &part, const ThemeColors &colors
     return out.toUtf8();
 }
 
-QByteArray themePartWithFonts(const QByteArray &part, const ThemeFonts &fonts)
+QByteArray themePartWithFonts(const QByteArray &part, const ThemeFonts &fonts, bool *ok)
 {
+    if (ok) *ok = false;
     QString xml = QString::fromUtf8(part);
-    bool any = false;
+    int found = 0;
     for (const char *kind : {"majorFont", "minorFont"}) {
         const QString face = xmlEscaped(kind[1] == 'a' ? fonts.heading : fonts.body);
         const QRegularExpression list(QStringLiteral("(<((?:\\w+:)?)%1\\b[^>]*>\\s*)<(?:\\w+:)?latin\\b[^>]*?/>").arg(QLatin1String(kind)), QRegularExpression::DotMatchesEverythingOption);
         const QRegularExpressionMatch m = list.match(xml);
         if (!m.hasMatch()) continue;
-        any = true;
+        ++found;
         const QString latin = m.captured(1) + QLatin1Char('<') + m.captured(2) + QStringLiteral("latin typeface=\"") + face + QStringLiteral("\"/>");
         xml.replace(m.capturedStart(), m.capturedLength(), latin);
     }
-    if (!any) return part;
+    if (found < 2) return part;
+    if (ok) *ok = true;
     static const QRegularExpression named(QStringLiteral("(<(?:\\w+:)?fontScheme\\b[^>]*?\\bname=\")[^\"]*(\")"));
     if (!fonts.name.isEmpty()) {
         const QRegularExpressionMatch m = named.match(xml);
@@ -276,16 +360,22 @@ const QVector<ThemeColors> &builtinThemeColors()
 
 QVector<ThemeFonts> builtinThemeFonts()
 {
+    // (kept once the fonts are loaded; before that the answer is only the stand-in, which is not kept)
+    static QVector<ThemeFonts> kept;
+    if (!kept.isEmpty()) return kept;
     QVector<ThemeFonts> out;
     const QStringList available = bundledFamilies();
     for (const jp::FontScheme &s : builtinFontSchemes())
         if (available.contains(s.heading) && available.contains(s.body)) out << ThemeFonts{s.name, s.heading, s.body};
-    if (out.isEmpty()) out << ThemeFonts{QStringLiteral("JeffOffice"), defaultTheme().majorLatin, defaultTheme().minorLatin};
+    if (out.isEmpty()) return {ThemeFonts{QStringLiteral("JeffOffice"), defaultTheme().majorLatin, defaultTheme().minorLatin}};
+    kept = out;
     return out;
 }
 
 QVector<ThemePack> builtinThemePacks()
 {
+    static QVector<ThemePack> kept;
+    if (!kept.isEmpty()) return kept;
     const QVector<ThemeFonts> fonts = builtinThemeFonts();
     QVector<ThemePack> out;
     const auto &colors = builtinThemeColors();
@@ -295,6 +385,7 @@ QVector<ThemePack> builtinThemePacks()
             if (candidate.name == QLatin1String(kPackFonts[i])) f = candidate;
         out << ThemePack{colors[i].name, colors[i], f};
     }
+    if (fonts.size() > 1) kept = out;
     return out;
 }
 
@@ -335,7 +426,9 @@ jp::ColorScheme schemeFromThemeColors(const ThemeColors &c)
 QString themeStoreFolder()
 {
     if (!folderOverride().isEmpty()) return folderOverride();
-    return QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation) + QStringLiteral("/JeffOffice/themes");
+    // (next to the suite's settings file, so it is the place the settings go to wherever they are moved: a test program's run has its own)
+    static const QString name = QStringLiteral("JeffOffice");
+    return QFileInfo(QSettings(QSettings::IniFormat, QSettings::UserScope, name, name).fileName()).absolutePath() + QStringLiteral("/themes");
 }
 
 void setThemeStoreFolder(const QString &folder) { folderOverride() = folder; }
@@ -379,7 +472,7 @@ QByteArray writeThemeFile(const Theme &theme)
     return w.finish();
 }
 
-bool readThemeFromPackage(const QByteArray &zip, Theme *theme, QString *error)
+bool readThemeFromPackage(const QByteArray &zip, Theme *theme, QString *error, bool themeFileOnly)
 {
     auto fail = [&](const QString &why) {
         if (error) *error = why;
@@ -387,9 +480,22 @@ bool readThemeFromPackage(const QByteArray &zip, Theme *theme, QString *error)
     };
     Package pkg;
     QString why;
-    if (!pkg.readLazy(zip, &why, qint64(1) << 30)) return fail(why.isEmpty() ? QCoreApplication::translate("ThemeLibrary", "The file is not a package.") : why);
+    // (a theme file holds one small part: its directory may not claim more; any other package may hold pictures, and only the theme parts asked for are inflated)
+    if (!pkg.readLazy(zip, &why, themeFileOnly ? kMaxThemeFileBytes : Package::kLazyMaxInflated))
+        return fail(why.isEmpty() ? QCoreApplication::translate("ThemeLibrary", "The file is not a package.") : why);
+    int tried = 0;
+    qint64 inflated = 0;
+    bool over = false;
     auto tryPart = [&](const QString &name) {
-        if (!pkg.hasPart(name) || pkg.partSize(name) > kMaxThemePartBytes) return false;
+        if (over || tried >= kMaxThemePartsTried || !pkg.hasPart(name)) return false;
+        ++tried;
+        const qint64 size = pkg.partSize(name);
+        if (size < 0 || size > kMaxThemePartBytes) return false;
+        inflated += size;
+        if (inflated > kMaxThemeFileBytes) {
+            over = true;
+            return false;
+        }
         Theme t;
         if (!readTheme(pkg.part(name), &t, nullptr)) return false;
         *theme = t;
@@ -401,23 +507,24 @@ bool readThemeFromPackage(const QByteArray &zip, Theme *theme, QString *error)
         for (const Relationship &r : pkg.relationshipsOfType(main, QStringLiteral("/theme")))
             if (!r.external && tryPart(r.target)) return true;
     static const QRegularExpression named(QStringLiteral("^/(?:ppt|word|xl|theme)/theme/theme\\d*\\.xml$"), QRegularExpression::CaseInsensitiveOption);
-    int looked = 0;
     for (const QString &name : pkg.partNames()) {
-        if (++looked > kMaxThemePackageEntries) break;
+        if (tried >= kMaxThemePartsTried || over) break;
         if (named.match(name).hasMatch() && tryPart(name)) return true;
     }
+    if (over) return fail(QCoreApplication::translate("ThemeLibrary", "The theme parts of the file are too large."));
     return fail(QCoreApplication::translate("ThemeLibrary", "The file holds no theme."));
 }
 
 bool readThemeFile(const QString &path, Theme *theme, QString *error)
 {
+    const bool themeFile = path.endsWith(QLatin1String(".thmx"), Qt::CaseInsensitive);
     QByteArray bytes;
     QString why;
-    if (!readWholeFile(path, &bytes, &why, qint64(1) << 30)) {
+    if (!readWholeFile(path, &bytes, &why, themeFile ? kMaxThemeFileBytes : qint64(1) << 30)) {
         if (error) *error = why;
         return false;
     }
-    return readThemeFromPackage(bytes, theme, error);
+    return readThemeFromPackage(bytes, theme, error, themeFile);
 }
 
 } // namespace jp::office
