@@ -13,6 +13,25 @@
     </message>
 </context>
 <context>
+    <name>AutoCorrectDialog</name>
+    <message>
+        <source>Capitalize first letter of sentences</source>
+        <translation>Capitalise first letter of sentences</translation>
+    </message>
+    <message>
+        <source>Capitalize first letter of table cells</source>
+        <translation>Capitalise first letter of table cells</translation>
+    </message>
+    <message>
+        <source>Capitalize names of days</source>
+        <translation>Capitalise names of days</translation>
+    </message>
+    <message>
+        <source>Do not capitalize after these abbreviations:</source>
+        <translation>Do not capitalise after these abbreviations:</translation>
+    </message>
+</context>
+<context>
     <name>BarcodeDialog</name>
     <message>
         <source>Without it, the clear space round the bars shows what is behind the barcode, so on a colored background a scanner may not read it.</source>
@@ -291,6 +310,14 @@ Download it from %2 now? (%3, once.)</translation>
         <source>Print in shades of gray, whatever the colors are.</source>
         <translation>Print in shades of grey, whatever the colours are.</translation>
     </message>
+    <message>
+        <source>Color</source>
+        <translation>Colour</translation>
+    </message>
+    <message>
+        <source>Color as it is, shades of gray, or black and white alone (every point is black or white).</source>
+        <translation>Colour as it is, shades of grey, or black and white alone (every point is black or white).</translation>
+    </message>
 </context>
 <context>
     <name>Ribbon</name>
@@ -451,8 +478,8 @@ Download it from %2 now? (%3, once.)</translation>
 <context>
     <name>Widgets</name>
     <message>
-        <source>Color model:</source>
-        <translation>Colour model:</translation>
+        <source>Color model</source>
+        <translation>Colour model</translation>
     </message>
 </context>
 <context>
@@ -464,17 +491,6 @@ Download it from %2 now? (%3, once.)</translation>
     <message>
         <source>Copyright © 2026 JeffOffice LLC.&lt;br&gt;&lt;br&gt;%1 is free software under the &lt;a href="%2"&gt;GNU General Public License v3.0&lt;/a&gt;. It comes with ABSOLUTELY NO WARRANTY; see the license for details. &lt;a href="%3"&gt;Read the license on gnu.org&lt;/a&gt;.&lt;br&gt;&lt;br&gt;%1 is an independent open-source project. It is not affiliated with, endorsed by or supported by any other software company. Product names are trademarks of their owners.</source>
         <translation>Copyright © 2026 JeffOffice LLC.&lt;br&gt;&lt;br&gt;%1 is free software under the &lt;a href="%2"&gt;GNU General Public Licence v3.0&lt;/a&gt;. It comes with ABSOLUTELY NO WARRANTY; see the licence for details. &lt;a href="%3"&gt;Read the licence on gnu.org&lt;/a&gt;.&lt;br&gt;&lt;br&gt;%1 is an independent open-source project. It is not affiliated with, endorsed by or supported by any other software company. Product names are trademarks of their owners.</translation>
-    </message>
-</context>
-<context>
-    <name>jp::BackgroundDialog</name>
-    <message>
-        <source>Background Color</source>
-        <translation>Background Colour</translation>
-    </message>
-    <message>
-        <source>Solid fill color:</source>
-        <translation>Solid fill colour:</translation>
     </message>
 </context>
 <context>
@@ -572,10 +588,6 @@ Download it from %2 now? (%3, once.)</translation>
         <translation>Gridline colour</translation>
     </message>
     <message>
-        <source>Gridline color:</source>
-        <translation>Gridline colour:</translation>
-    </message>
-    <message>
         <source>Colors</source>
         <translation>Colours</translation>
     </message>
@@ -641,6 +653,13 @@ Download it from %2 now? (%3, once.)</translation>
     </message>
 </context>
 <context>
+    <name>jp::DeckFileScreen</name>
+    <message>
+        <source>Color:</source>
+        <translation>Colour:</translation>
+    </message>
+</context>
+<context>
     <name>jp::DeckWindow</name>
     <message>
         <source>Center</source>
@@ -649,6 +668,18 @@ Download it from %2 now? (%3, once.)</translation>
     <message>
         <source>Capitalize Each Word</source>
         <translation>Capitalise Each Word</translation>
+    </message>
+    <message>
+        <source>Align Center</source>
+        <translation>Align Centre</translation>
+    </message>
+    <message>
+        <source>Top Center</source>
+        <translation>Top Centre</translation>
+    </message>
+    <message>
+        <source>Bottom Center</source>
+        <translation>Bottom Centre</translation>
     </message>
     <message>
         <source>&amp;Grayscale</source>
@@ -743,6 +774,22 @@ Download it from %2 now? (%3, once.)</translation>
 <context>
     <name>jp::FormatCellsDialog</name>
     <message>
+        <source>&amp;Color</source>
+        <translation>&amp;Colour</translation>
+    </message>
+    <message>
+        <source>&amp;Background Color</source>
+        <translation>&amp;Background Colour</translation>
+    </message>
+    <message>
+        <source>P&amp;attern Color</source>
+        <translation>P&amp;attern Colour</translation>
+    </message>
+    <message>
+        <source>&amp;Second Color</source>
+        <translation>&amp;Second Colour</translation>
+    </message>
+    <message>
         <source>Center</source>
         <translation>Centre</translation>
     </message>
@@ -753,10 +800,6 @@ Download it from %2 now? (%3, once.)</translation>
     <message>
         <source>Font Color</source>
         <translation>Font Colour</translation>
-    </message>
-    <message>
-        <source>&amp;Color:</source>
-        <translation>&amp;Colour:</translation>
     </message>
     <message>
         <source>Line Color</source>
@@ -775,16 +818,8 @@ Download it from %2 now? (%3, once.)</translation>
         <translation>No Colour</translation>
     </message>
     <message>
-        <source>&amp;Background Color:</source>
-        <translation>&amp;Background Colour:</translation>
-    </message>
-    <message>
         <source>Pattern Color</source>
         <translation>Pattern Colour</translation>
-    </message>
-    <message>
-        <source>P&amp;attern Color:</source>
-        <translation>P&amp;attern Colour:</translation>
     </message>
     <message>
         <source>All one color</source>
@@ -797,10 +832,6 @@ Download it from %2 now? (%3, once.)</translation>
     <message>
         <source>Second Color</source>
         <translation>Second Colour</translation>
-    </message>
-    <message>
-        <source>&amp;Second Color:</source>
-        <translation>&amp;Second Colour:</translation>
     </message>
     <message>
         <source>From the center out</source>
@@ -861,6 +892,21 @@ Download it from %2 now? (%3, once.)</translation>
     <message>
         <source>Line color</source>
         <translation>Line colour</translation>
+    </message>
+    <message>
+        <source>Color</source>
+        <translation>Colour</translation>
+    </message>
+</context>
+<context>
+    <name>jp::ListDialogs</name>
+    <message>
+        <source>Centered</source>
+        <translation>Centred</translation>
+    </message>
+    <message>
+        <source>Bullet Color</source>
+        <translation>Bullet Colour</translation>
     </message>
     <message>
         <source>Color</source>
@@ -968,6 +1014,13 @@ Download it from %2 now? (%3, once.)</translation>
     </message>
 </context>
 <context>
+    <name>jp::PageNumbers</name>
+    <message>
+        <source>center</source>
+        <translation>centre</translation>
+    </message>
+</context>
+<context>
     <name>jp::PageSetupDialog</name>
     <message>
         <source>Colors and fills are left out; text and lines are black.</source>
@@ -975,10 +1028,24 @@ Download it from %2 now? (%3, once.)</translation>
     </message>
 </context>
 <context>
+    <name>jp::PictureTools</name>
+    <message>
+        <source>More Outline Colors…</source>
+        <translation>More Outline Colours…</translation>
+    </message>
+</context>
+<context>
     <name>jp::PivotOptionsDialog</name>
     <message>
         <source>Merge and center cells with labels</source>
         <translation>Merge and centre cells with labels</translation>
+    </message>
+</context>
+<context>
+    <name>jp::PubExport</name>
+    <message>
+        <source>the colors of bullets</source>
+        <translation>the colours of bullets</translation>
     </message>
 </context>
 <context>
@@ -1044,8 +1111,8 @@ Download it from %2 now? (%3, once.)</translation>
         <translation>Text colour</translation>
     </message>
     <message>
-        <source>Where to put the color</source>
-        <translation>Where to put the colour</translation>
+        <source>Where to put the color or icon</source>
+        <translation>Where to put the colour or icon</translation>
     </message>
     <message>
         <source>No color</source>
@@ -1087,10 +1154,6 @@ Download it from %2 now? (%3, once.)</translation>
         <source>Summarize value field by</source>
         <translation>Summarise value field by</translation>
     </message>
-    <message>
-        <source>Summarize value field by:</source>
-        <translation>Summarise value field by:</translation>
-    </message>
 </context>
 <context>
     <name>jp::VariantGallery</name>
@@ -1118,6 +1181,10 @@ Download it from %2 now? (%3, once.)</translation>
         <translation>Page Colour</translation>
     </message>
     <message>
+        <source>Optimize for</source>
+        <translation>Optimise for</translation>
+    </message>
+    <message>
         <source>Compare was canceled.</source>
         <translation>Compare was cancelled.</translation>
     </message>
@@ -1132,10 +1199,6 @@ Download it from %2 now? (%3, once.)</translation>
     <message>
         <source>Align Center Left</source>
         <translation>Align Centre Left</translation>
-    </message>
-    <message>
-        <source>Gray Frame</source>
-        <translation>Grey Frame</translation>
     </message>
     <message>
         <source>Align Center</source>
@@ -1177,6 +1240,25 @@ Download it from %2 now? (%3, once.)</translation>
     <message>
         <source>There was not room to make the pages gray, so some are in color.</source>
         <translation>There was not room to make the pages grey, so some are in colour.</translation>
+    </message>
+</context>
+<context>
+    <name>jp::crunch::SortState</name>
+    <message>
+        <source>Gray</source>
+        <translation>Grey</translation>
+    </message>
+    <message>
+        <source>Empty gray box</source>
+        <translation>Empty grey box</translation>
+    </message>
+    <message>
+        <source>Full gray box</source>
+        <translation>Full grey box</translation>
+    </message>
+    <message>
+        <source>Gray box, %1 of %2 filled</source>
+        <translation>Grey box, %1 of %2 filled</translation>
     </message>
 </context>
 <context>
@@ -1245,12 +1327,27 @@ Download it from %2 now? (%3, once.)</translation>
 <context>
     <name>jp::write::LayoutDialogs</name>
     <message>
+        <source>Color</source>
+        <translation>Colour</translation>
+    </message>
+    <message>
         <source>Center</source>
         <translation>Centre</translation>
     </message>
+</context>
+<context>
+    <name>jp::write::MultilevelDialog</name>
     <message>
-        <source>Color:</source>
-        <translation>Colour:</translation>
+        <source>Centered</source>
+        <translation>Centred</translation>
+    </message>
+    <message>
+        <source>Color</source>
+        <translation>Colour</translation>
+    </message>
+    <message>
+        <source>Number Color</source>
+        <translation>Number Colour</translation>
     </message>
 </context>
 <context>
