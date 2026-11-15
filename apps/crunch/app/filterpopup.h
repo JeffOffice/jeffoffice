@@ -38,7 +38,7 @@ public:
     explicit FilterPopup(const Input &input, QWidget *parent = nullptr);
     // The values of the column are listed: the list is filled in, and the menus that depend on it (colors, the kind of filters) are made.
     void setList(const jp::crunch::FilterList &list);
-    // The icons of the conditional formats in the column (as SortLevel::icon has them), and whether some cells have none: Sort by a Color offers them too. Said before the list is.
+    // The icons of the conditional formats in the column (as SortLevel::icon has them), and whether some cells have none: Keep a Color and Sort by a Color offer them. Said before the list is.
     void setIcons(const QStringList &keys, bool none)
     {
         m_iconKeys = keys;

@@ -264,6 +264,10 @@ bool parseAutoFilterElement(const QByteArray &xml, AutoFilter *out)
                 const int dxf = k.attrOr("dxfId").toInt(&dxfGood);
                 c.dxf = dxfGood ? dxf : -1;
                 c.fontColor = !k.attrOr("cellColor").isEmpty() && !flag(k.attrOr("cellColor"), true);
+            } else if (l == QLatin1String("iconFilter")) {
+                c.kind = FilterColumn::Kind::Icon;
+                c.iconSet = k.attrOr("iconSet").left(40);
+                c.iconId = std::clamp(k.attrOr("iconId").toInt(), 0, 20);
             }
         }
         f.columns.append(c);

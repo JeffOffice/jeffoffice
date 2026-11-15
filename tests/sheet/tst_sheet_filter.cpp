@@ -137,6 +137,25 @@ private Q_SLOTS:
         QVERIFY(out.contains("x &amp; y"));
     }
 
+    void aFilterByIconIsReadAndWrittenAgain()
+    {
+        const QByteArray xml = sheetWith(QStringLiteral("<autoFilter ref=\"A1:C20\"><filterColumn colId=\"1\"><iconFilter iconSet=\"3Arrows\" iconId=\"2\"/></filterColumn>"
+                                                        "<filterColumn colId=\"2\"><iconFilter iconSet=\"NoIcons\" iconId=\"0\"/></filterColumn></autoFilter>"));
+        const Sheet s = readIt(xml);
+        QCOMPARE(int(s.autoFilter.columns[0].kind), int(FilterColumn::Kind::Icon));
+        QCOMPARE(s.autoFilter.columns[0].iconSet, QStringLiteral("3Arrows"));
+        QCOMPARE(s.autoFilter.columns[0].iconId, 2);
+        QCOMPARE(s.autoFilter.columns[1].iconSet, QStringLiteral("NoIcons"));
+        QVERIFY(s.autoFilter.active());
+        SheetChanges c;
+        c.replaceAutoFilter = true;
+        c.autoFilter = s.autoFilter;
+        const QByteArray out = patch(xml, c);
+        QVERIFY2(!out.startsWith("FAILED"), out.constData());
+        QVERIFY(out.contains("<iconFilter iconSet=\"3Arrows\" iconId=\"2\"/>"));
+        QVERIFY(readIt(out).autoFilter == s.autoFilter);
+    }
+
     void aFilterIsPutWhereTheFormatHasItAndTakenAwayWhenThereIsNone()
     {
         const QString after = QStringLiteral("<mergeCells count=\"1\"><mergeCell ref=\"C1:D1\"/></mergeCells><pageMargins left=\"1\" right=\"1\" top=\"1\" bottom=\"1\" header=\"0\" footer=\"0\"/>");

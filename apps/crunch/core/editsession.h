@@ -774,6 +774,11 @@ public:
     std::vector<quint32> hiddenRowsIn(int sheet, quint32 first, quint32 last, bool any = false) const;
     // The color a color condition asks for, as a color: the one it names, or the one its format in the file has.
     jp::office::sheet::ColorSpec colorOfCondition(const jp::office::sheet::FilterColumn &condition) const;
+    // What a filter by icon asks about a cell: the icon its conditional formats give it, as "set:place" (places from 0, the lowest), or nothing. The session does not draw the sheet, so
+    // the window gives it (as a sort's spec does); without it a filter by icon is refused.
+    void setIconSource(std::function<QString(int sheet, quint32 row, quint32 col)> source) { m_iconSource = std::move(source); }
+    // The icon an icon condition asks for, as "set:place"; empty for cells with none.
+    static QString iconKeyOfCondition(const jp::office::sheet::FilterColumn &condition);
 
     // Inserts or deletes rows, columns, or cells: the cells after them move over (down, right, left, or up) and everything that refers to them follows (formulas on every sheet, defined
     // names, merged cells, tables, and, in the file, conditional formats, validations, hyperlinks, charts, print areas, and the rest); a reference to cells that are deleted becomes #REF!.
@@ -1393,6 +1398,7 @@ private:
     std::vector<int> shadowingSheets(const QString &name) const;
     NameTable m_nameTable;
     std::vector<jp::office::sheet::NameRename> m_nameRenames;   // names given other names since the file was read or saved that are done (not undone), for the file
+    std::function<QString(int, quint32, quint32)> m_iconSource;   // the icons the conditional formats give (see setIconSource)
     CalcSettings m_calcNow, m_calcFile;                          // how it calculates, and how the file says
     std::set<int> m_mergesChanged;   // the sheets whose merged ranges a step changed since the file was read or saved
     std::set<int> m_filtersChanged;  // and those whose filter a step changed

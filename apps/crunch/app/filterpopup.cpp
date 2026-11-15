@@ -194,15 +194,30 @@ void FilterPopup::setList(const FilterList &list)
         m_filterColors->setEnabled(true);
         m_sortColors->setEnabled(true);
     }
-    // the icons of conditional formats can be sorted by (not kept: a filter by icon is not made yet)
+    // the icons of conditional formats can be filtered by and sorted by
     if (!m_iconKeys.isEmpty() || m_iconNone) {
-        if (!m_sortColors->isEmpty()) m_sortColors->addSeparator();
-        m_sortColors->addAction(tr("Icons"))->setEnabled(false);
-        for (const QString &icon : m_iconKeys) {
-            connect(m_sortColors->addAction(jp::crunch::iconLabel(icon)), &QAction::triggered, this, [this, icon] { Q_EMIT sortByIconRequested(icon); });
+        for (int sort = 0; sort < 2; ++sort) {
+            QMenu *menu = sort ? m_sortColors : m_filterColors;
+            if (!menu->isEmpty()) menu->addSeparator();
+            menu->addAction(tr("Icons"))->setEnabled(false);
+            auto add = [&](const QString &icon, const QString &text) {
+                connect(menu->addAction(text), &QAction::triggered, this, [this, icon, sort] {
+                    if (sort) {
+                        Q_EMIT sortByIconRequested(icon);
+                        return;
+                    }
+                    FilterColumn f;
+                    f.kind = FilterColumn::Kind::Icon;
+                    const qsizetype colon = icon.lastIndexOf(QLatin1Char(':'));
+                    f.iconSet = colon < 0 ? QStringLiteral("NoIcons") : icon.left(colon);
+                    f.iconId = colon < 0 ? 0 : icon.mid(colon + 1).toInt();
+                    Q_EMIT conditionChosen(f);
+                });
+            };
+            for (const QString &icon : m_iconKeys) add(icon, jp::crunch::iconLabel(icon));
+            if (m_iconNone) add(QString(), tr("No icon"));
+            menu->setEnabled(true);
         }
-        if (m_iconNone) connect(m_sortColors->addAction(tr("No icon")), &QAction::triggered, this, [this] { Q_EMIT sortByIconRequested(QString()); });
-        m_sortColors->setEnabled(true);
     }
     // the filters of the kind of column
     m_kindMenu->clear();

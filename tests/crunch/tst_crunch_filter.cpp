@@ -19,6 +19,8 @@
 #include <QDoubleSpinBox>
 #include <QLineEdit>
 #include <QMenu>
+#include <QDir>
+#include <QPainter>
 #include <QPointer>
 #include <QPushButton>
 #include <QRadioButton>
@@ -1061,6 +1063,120 @@ private Q_SLOTS:
         QCOMPARE(shown(e, QStringLiteral("B2:B4")), QStringLiteral("5|12|7"));
         e.win.w.undoStack()->redo();
         QVERIFY(s->savedSort(0).valid);
+    }
+
+    // A filter by icon: the session cannot see the icons (the window says them), the drop-down lists them with Keep a Color, and the rows with the icon chosen are what shows.
+    void aFilterByIconShowsOnlyTheRowsWithThatIcon()
+    {
+        EditWindow e;
+        const QString icons = QStringLiteral("<conditionalFormatting sqref=\"B2:B6\"><cfRule type=\"iconSet\" priority=\"1\"><iconSet iconSet=\"3Arrows\"><cfvo type=\"percent\" val=\"0\"/>"
+                                             "<cfvo type=\"num\" val=\"3\"/><cfvo type=\"num\" val=\"5\"/></iconSet></cfRule></conditionalFormatting>");
+        QVERIFY(e.open(bookOfSheets({{"A1=Name", "B1=Qty", "A2=e", "B2=5", "A3=a", "B3=1", "A4=c", "B4=3", "A5=b", "B5=2", "A6=d", "B6=4", "A7=f", "B7=text"}}, {{0, icons}})));
+        CrunchWindow &w = e.win.w;
+        // the session alone does not know the icons: it says so and changes nothing
+        FilterColumn low;
+        low.kind = FilterColumn::Kind::Icon;
+        low.iconSet = QStringLiteral("3Arrows");
+        low.iconId = 0;
+        AutoFilter f = range(QStringLiteral("A1:B7"));
+        low.column = 1;
+        f.columns.append(low);
+        QVERIFY(!w.session()->setFilter(0, f, QStringLiteral("Filtering")).ok);
+        QCOMPARE(w.undoStack()->count(), 0);
+        e.select(QStringLiteral("A3"));
+        w.act(QStringLiteral("filter.toggle"))->trigger();
+        w.showFilterPopup(0, 1);
+        FilterPopup *popup = w.filterPopup();
+        QTRY_VERIFY(popup->listed());
+        QMenu *keep = popup->findChild<QMenu *>(QStringLiteral("filterColors"));
+        QVERIFY(keep->isEnabled());
+        QStringList names;
+        QAction *lowest = nullptr, *none = nullptr;
+        for (QAction *a : keep->actions()) {
+            names << a->text();
+            if (a->text() == QLatin1String("3 Arrows, icon 1")) lowest = a;
+            if (a->text() == QLatin1String("No icon")) none = a;
+        }
+        QVERIFY2(lowest && none, qPrintable(names.join(QLatin1Char('|'))));
+        lowest->trigger();
+        QTRY_VERIFY(w.session()->calculation()->autoFilterOf(0).active());
+        QCOMPARE(shownRows(e, 2, 7), QStringLiteral("3 5"));
+        const FilterColumn made = w.session()->calculation()->autoFilterOf(0).columns[0];
+        QCOMPARE(int(made.kind), int(FilterColumn::Kind::Icon));
+        QCOMPARE(made.iconSet, QStringLiteral("3Arrows"));
+        QCOMPARE(made.iconId, 0);
+        QCOMPARE(w.undoStack()->count(), 2);                                                 // (the buttons, and the filter)
+        // saved as the standard iconFilter, and read back
+        QVERIFY2(saveIt(e), "saved");
+        QByteArray part;
+        const jp::office::sheet::Sheet back = savedSheet(e.path, &part);
+        QVERIFY2(part.contains("<iconFilter iconSet=\"3Arrows\" iconId=\"0\"/>"), part.constData());
+        QCOMPARE(int(back.autoFilter.columns[0].kind), int(FilterColumn::Kind::Icon));
+        QCOMPARE(back.autoFilter.columns[0].iconId, 0);
+        // the cells with no icon
+        w.showFilterPopup(0, 1);
+        popup = w.filterPopup();
+        QTRY_VERIFY(popup->listed());
+        for (QAction *a : popup->findChild<QMenu *>(QStringLiteral("filterColors"))->actions())
+            if (a->text() == QLatin1String("No icon")) a->trigger();
+        QTRY_COMPARE(shownRows(e, 2, 7), QStringLiteral("7"));
+        // Undo brings the rows back
+        w.undoStack()->undo();
+        QCOMPARE(shownRows(e, 2, 7), QStringLiteral("3 5"));
+    }
+
+    // A picture of the drop-down with the icons listed under Keep a Color (set JC_SHOT_DIR).
+    void aPictureOfTheIconFilter()
+    {
+        const QString dir = QString::fromLocal8Bit(qgetenv("JC_SHOT_DIR"));
+        if (dir.isEmpty()) QSKIP("set JC_SHOT_DIR to take the picture");
+        QDir().mkpath(dir);
+        EditWindow e;
+        const QString icons = QStringLiteral("<conditionalFormatting sqref=\"B2:B6\"><cfRule type=\"iconSet\" priority=\"1\"><iconSet iconSet=\"3Arrows\"><cfvo type=\"percent\" val=\"0\"/>"
+                                             "<cfvo type=\"num\" val=\"3\"/><cfvo type=\"num\" val=\"5\"/></iconSet></cfRule></conditionalFormatting>");
+        QVERIFY(e.open(bookOfSheets({{"A1=Name", "B1=Qty", "A2=e", "B2=5", "A3=a", "B3=1", "A4=c", "B4=3", "A5=b", "B5=2", "A6=d", "B6=4", "A7=f", "B7=text"}}, {{0, icons}})));
+        CrunchWindow &w = e.win.w;
+        w.resize(1100, 640);
+        e.select(QStringLiteral("A3"));
+        w.act(QStringLiteral("filter.toggle"))->trigger();
+        w.showFilterPopup(0, 1);
+        FilterPopup *popup = w.filterPopup();
+        QTRY_VERIFY(popup->listed());
+        QMenu *keep = popup->findChild<QMenu *>(QStringLiteral("filterColors"));
+        const QRect where = popup->actionGeometry(keep->menuAction());
+        keep->popup(popup->mapToGlobal(QPoint(popup->width() - 2, where.top())));
+        QCoreApplication::processEvents();
+        QPixmap shot = w.grab();
+        QPainter p(&shot);
+        p.drawPixmap(w.mapFromGlobal(popup->pos()), popup->grab());
+        p.drawPixmap(w.mapFromGlobal(keep->pos()), keep->grab());
+        p.end();
+        QVERIFY(shot.save(dir + QStringLiteral("/icon-filter.png")));
+    }
+
+    // A file's filter by icon is read from a sheet and kept when the sheet is saved again.
+    void aFileWithAFilterByIconKeepsIt()
+    {
+        EditWindow e;
+        const QString icons = QStringLiteral("<conditionalFormatting sqref=\"B2:B6\"><cfRule type=\"iconSet\" priority=\"1\"><iconSet iconSet=\"3Arrows\"><cfvo type=\"percent\" val=\"0\"/>"
+                                             "<cfvo type=\"num\" val=\"3\"/><cfvo type=\"num\" val=\"5\"/></iconSet></cfRule></conditionalFormatting>");
+        QVERIFY(e.open(bookOfSheets({{"A1=Name", "B1=Qty", "A2=e", "B2=5", "A3=a", "B3=1"}}, {{0, icons}})));
+        FilterColumn top;
+        top.kind = FilterColumn::Kind::Icon;
+        top.iconSet = QStringLiteral("3Arrows");
+        top.iconId = 2;
+        e.win.w.session()->setIconSource([](int, quint32 row, quint32) { return row == 1 ? QStringLiteral("3Arrows:2") : QStringLiteral("3Arrows:0"); });
+        AutoFilter f = range(QStringLiteral("A1:B3"));
+        top.column = 1;
+        f.columns.append(top);
+        QVERIFY(filterWith(e, f));
+        QVERIFY2(saveIt(e), "saved");
+        Window second;
+        QVERIFY(second.open(e.copyOfFile()));
+        const AutoFilter again = second.w.session()->calculation()->autoFilterOf(0);
+        QCOMPARE(int(again.columns[0].kind), int(FilterColumn::Kind::Icon));
+        QCOMPARE(again.columns[0].iconSet, QStringLiteral("3Arrows"));
+        QCOMPARE(again.columns[0].iconId, 2);
     }
 
     // The drop-down's Sort by a Color also lists the icons of conditional formats in the column, and sorts by the one that is chosen.

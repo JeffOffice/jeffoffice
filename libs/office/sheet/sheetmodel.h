@@ -1372,7 +1372,7 @@ struct CondRule {
 };
 
 // What a filter asks of the cells of one column (a `filterColumn`): the values that are let through, or one or two conditions, or the top or bottom of the values, or a kind of date or
-// the values above or below the average, or a color.
+// the values above or below the average, or a color, or an icon.
 struct FilterColumn {
     // A group of dates a list of values lets through: all those in a year, a month, a day, ... (the parts that are `has` are the group).
     struct DateGroup {
@@ -1386,7 +1386,7 @@ struct FilterColumn {
         QString value;      // as the file writes it; the characters ? and * mean any one and any run, as in Find
         bool operator==(const Condition &o) const { return op == o.op && value == o.value; }
     };
-    enum class Kind : quint8 { None, Values, Custom, Top10, Dynamic, Color } kind = Kind::None;
+    enum class Kind : quint8 { None, Values, Custom, Top10, Dynamic, Color, Icon } kind = Kind::None;
     quint32 column = 0;         // the column, from the first of the filter's range (`colId`)
     bool hideButton = false;    // the column has no drop-down button (`hiddenButton`)
     // Values: what is let through (the text the cells show), whether empty cells are, and groups of dates.
@@ -1409,11 +1409,14 @@ struct FilterColumn {
     ColorSpec color;
     bool fontColor = false;
     qint32 dxf = -1;
+    // Icon: the icon of a conditional format's set the cells have (`iconFilter`): the set's name ("3Arrows") and the place of the icon in it from 0, the lowest; the set "NoIcons" is the cells with none.
+    QString iconSet;
+    qint32 iconId = 0;
     bool operator==(const FilterColumn &o) const
     {
         return kind == o.kind && column == o.column && hideButton == o.hideButton && values == o.values && blank == o.blank && dates == o.dates && conditions == o.conditions && both == o.both
                && top == o.top && percent == o.percent && count == o.count && limit == o.limit && hasLimit == o.hasLimit && dynamic == o.dynamic && dynVal == o.dynVal && dynMax == o.dynMax
-               && hasDynVal == o.hasDynVal && color == o.color && fontColor == o.fontColor && dxf == o.dxf;
+               && hasDynVal == o.hasDynVal && color == o.color && fontColor == o.fontColor && dxf == o.dxf && iconSet == o.iconSet && iconId == o.iconId;
     }
 };
 

@@ -789,6 +789,9 @@ QByteArray autoFilterElementOf(const AutoFilter &f, const QByteArray &prefix)
         case FilterColumn::Kind::Color:
             out += name("colorFilter") + (c.dxf >= 0 ? " dxfId=\"" + QByteArray::number(c.dxf) + "\"" : "") + (c.fontColor ? " cellColor=\"0\"" : "") + "/>";
             break;
+        case FilterColumn::Kind::Icon:
+            out += name("iconFilter") + " iconSet=\"" + text(c.iconSet.isEmpty() ? QStringLiteral("NoIcons") : c.iconSet) + "\" iconId=\"" + QByteArray::number(c.iconId) + "\"/>";
+            break;
         case FilterColumn::Kind::None: break;
         }
         out += close("filterColumn");

@@ -60,6 +60,7 @@ struct EditSession::FilterPlan {
         bool useRange = false, threshold = false, above = true, atLeast = false;
         ColorSpec wanted;
         qint64 wantedKey = -1;               // Color: the color it comes to (see colorKey)
+        QString wantedIcon;                  // Icon: the icon as "set:place" (empty for cells with none)
         bool needNumbers = false;
         std::vector<double> collected;       // the numbers of the column, for the top and the average
     };
@@ -94,6 +95,12 @@ ColorSpec EditSession::colorOfCondition(const FilterColumn &c) const
     const DifferentialFormat &d = dxfs[c.dxf];
     if (c.fontColor) return d.fontColor;
     return d.fill.bg.isSet() ? d.fill.bg : d.fill.fg;
+}
+
+QString EditSession::iconKeyOfCondition(const FilterColumn &c)
+{
+    if (c.iconSet.isEmpty() || c.iconSet == QLatin1String("NoIcons")) return QString();
+    return c.iconSet + QLatin1Char(':') + QString::number(c.iconId);
 }
 
 bool EditSession::rowFilteredOut(int sheet, quint32 row) const
@@ -157,6 +164,8 @@ AutoFilter EditSession::filterCleared(int sheet, int table) const
         c.conditions.clear();
         c.dxf = -1;
         c.color = ColorSpec();
+        c.iconSet.clear();
+        c.iconId = 0;
         kept.append(c);
     }
     f.columns = kept;
@@ -265,6 +274,10 @@ std::shared_ptr<EditSession::FilterPlan> EditSession::planFilter(int sheet, cons
             case FilterColumn::Kind::Color:
                 c.wanted = colorOfCondition(fc);
                 c.wantedKey = colorKey(c.wanted);
+                break;
+            case FilterColumn::Kind::Icon:
+                if (!m_iconSource) return refuse(tr("The icons of the cells are not known here, so the filter by icon can't be made."));
+                c.wantedIcon = iconKeyOfCondition(fc);
                 break;
             case FilterColumn::Kind::None: break;
             }
@@ -517,6 +530,9 @@ bool EditSession::prepareFilter(FilterPlan &plan, qint64 budget)
                 pass = colorKey(color) == c.wantedKey;
                 break;
             }
+            case FilterColumn::Kind::Icon:
+                pass = m_iconSource(plan.sheet, row, c.col) == c.wantedIcon;
+                break;
             case FilterColumn::Kind::None: break;
             }
             if (!pass) {

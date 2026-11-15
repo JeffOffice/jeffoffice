@@ -2045,6 +2045,10 @@ bool SheetReader::read(QIODevice *in)
                     filterColumn.dxf = good ? dxf : -1;
                     // (the cells' own color, unless the file says cellColor="0": then it is the text's)
                     filterColumn.fontColor = !attribute(r, "cellColor").isEmpty() && !parseBool(attribute(r, "cellColor").toString(), true);
+                } else if (isElement(r, "iconFilter")) {
+                    filterColumn.kind = FilterColumn::Kind::Icon;
+                    filterColumn.iconSet = attribute(r, "iconSet").left(40).toString();
+                    filterColumn.iconId = qint32(boundedNumber(attribute(r, "iconId"), 0, 20, 0));
                 }
             } else if (inFilterColumn && depth == 5) {
                 if (isElement(r, "filter") && filterColumn.kind == FilterColumn::Kind::Values) {

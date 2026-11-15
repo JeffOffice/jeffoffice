@@ -173,6 +173,8 @@ bool CrunchWindow::applyFilter(const AutoFilter &filter, const QString &text, in
     if (m_edit.active) commitEdit(CellEditor::Way::Stay);
     if (m_edit.active || !editingAllowed() || m_filterPlan) return false;
     QString why;
+    // (a filter by icon asks the conditional formats of the sheet that is shown, as a sort by icon does)
+    m_session->setIconSource([this, shown = m_sheet, icons = iconSource()](int sheet, quint32 row, quint32 col) { return sheet == shown ? icons(row, col) : QString(); });
     m_filterPlan = m_session->planFilter(m_sheet, filter, &why, table);
     if (!m_filterPlan) {
         notice(tr("Filter"), why);
@@ -275,6 +277,7 @@ void CrunchWindow::showFilterPopup(qint64 row, qint64 col)
             if (icon.isEmpty()) none = true;
             else if (!keys.contains(icon)) keys.append(icon);
         }
+        keys.sort();   // (a set's icons from the lowest)
         popup->setIcons(keys, none);
     }
     m_listRun = std::make_unique<crunch::FilterListRun>(m_session.get(), m_sheet, f, column);
