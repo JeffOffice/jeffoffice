@@ -3,6 +3,8 @@
 #include <QMessageBox>
 #include <QBuffer>
 #include "deckhelpers.h"
+#include "app/picturetools.h"
+#include "core/picturestyles.h"
 
 class DeckTableTests : public QObject {
     Q_OBJECT
@@ -473,6 +475,113 @@ private Q_SLOTS:
         QVERIFY(std::abs(theTable(ed)->rect.width() - width) < 0.01);
         ed->undo();
         QCOMPARE(theTable(ed)->colW[0], before);
+    }
+
+    // The Picture Format tab's Picture Styles gallery, Picture Border, and Picture Effects: a click gives the picture a style as one step (its frame and crop stay), the menus set
+    // a border and an effect, and the picture keeps them when the presentation is saved and read again.
+    void pictureStylesBorderAndEffectsAreSetFromTheTab()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        DeckWindow w;
+        Editor *ed = w.editor();
+        PictureItem *pic = pictureOnSlide(w, dir);
+        QVERIFY(pic);
+        const QString id = pic->id;
+        const QRectF frame = pic->rect;
+        w.ribbon()->buildAllTabs();
+        auto *gallery = w.ribbon()->findChild<Gallery *>(QStringLiteral("pictureStyleGallery"));
+        QVERIFY(gallery);
+        const QVector<GalleryItem> items = gallery->items();
+        QVERIFY(items.size() >= 20 && items.size() <= 28);
+        for (const GalleryItem &item : items) QVERIFY2(!item.tip.isEmpty() && !item.icon.isNull(), qPrintable(item.id));
+        const int snapshot = pictureStyleIndex(QStringLiteral("snapshot"));
+        QVERIFY(snapshot > 0);
+        const int steps = ed->undoStack()->count();
+        gallery->activate(QString::number(snapshot));
+        QCOMPARE(ed->undoStack()->count(), steps + 1);
+        auto picture = [&] { return static_cast<PictureItem *>(ed->doc()->item(id)); };
+        QVERIFY(picture()->fx.shadow.on);
+        QVERIFY(!picture()->stroke.isNone());
+        QCOMPARE(picture()->rect, frame);
+        ed->undo();
+        QVERIFY(picture()->stroke.isNone() && !picture()->fx.shadow.on);
+        ed->redo();
+        // Picture Effects: a bevel and a reflection from the menu; each is a step.
+        QMenu effects;
+        fillPictureEffectsMenu(&effects, ed);
+        for (const QString &want : {QStringLiteral("Bevel"), QStringLiteral("Reflection")})
+            for (QAction *a : effects.actions())
+                if (a->menu() && a->text() == want) {
+                    const QList<QAction *> entries = a->menu()->actions();
+                    QVERIFY(entries.size() > 2);
+                    entries[2]->trigger();
+                }
+        QVERIFY(picture()->fx.bevel.type > 0);
+        QVERIFY(picture()->fx.reflection.on);
+        // The frame, the shadow, and the bevel are in the saved file.
+        QString err;
+        auto back = deck::importPresentation(deck::exportPresentation(*ed->doc(), &err), &err);
+        QVERIFY2(back, qPrintable(err));
+        const PictureItem *saved = nullptr;
+        for (const ItemPtr &it : back->pages[0]->items)
+            if (it->type() == ItemType::Picture) saved = static_cast<const PictureItem *>(it.get());
+        QVERIFY(saved);
+        // The shots of the gallery and the tab, for looking at (when the folder is named).
+        if (const QString shots = qEnvironmentVariable("JO_PICSTYLES_SHOTS"); !shots.isEmpty()) {
+            QDir().mkpath(shots);
+            QFrame *popup = galleryPopup(items, QSize(60, 46), 6, {}, [](const QString &) {}, &w);
+            popup->show();
+            popup->grab().save(shots + QStringLiteral("/jeffdeck-picture-styles-gallery.png"));
+            delete popup;
+            w.resize(1440, 900);
+            w.show();
+            w.ribbon()->showTab(w.ribbon()->tab(QStringLiteral("Picture Format")));
+            w.grab().save(shots + QStringLiteral("/jeffdeck-picture-format-tab.png"));
+        }
+        QCOMPARE(saved->fx.bevel.type, picture()->fx.bevel.type);
+        QVERIFY(saved->fx.reflection.on && saved->fx.shadow.on);
+        QCOMPARE(saved->stroke.width, picture()->stroke.width);
+    }
+
+    // Change Picture puts a picture from a file in the frame, keeping the frame and the formatting, as one step; Reset Picture and Reset Picture & Size take the look off.
+    void changePictureAndResetPictureFromTheTab()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        DeckWindow w;
+        Editor *ed = w.editor();
+        PictureItem *pic = pictureOnSlide(w, dir);
+        QVERIFY(pic);
+        const QString id = pic->id, old = pic->imageId;
+        auto picture = [&] { return static_cast<PictureItem *>(ed->doc()->item(id)); };
+        ed->beginChange(QStringLiteral("Dress"));
+        pic->maskShape = QStringLiteral("ellipse");
+        pic->fx.glow.on = true;
+        pic->stroke = Stroke::line(ColorRef::rgb(Qt::blue), 4);
+        ed->endChange();
+        const QRectF frame = picture()->rect;
+        QImage other(400, 200, QImage::Format_RGB32);
+        other.fill(Qt::green);
+        const QString path = dir.filePath(QStringLiteral("green.png"));
+        QVERIFY(other.save(path));
+        const int steps = ed->undoStack()->count();
+        QVERIFY(w.changePictureFromFile(path));
+        QCOMPARE(ed->undoStack()->count(), steps + 1);
+        QVERIFY(picture()->imageId != old);
+        QCOMPARE(picture()->rect, frame);
+        QCOMPARE(picture()->maskShape, QStringLiteral("ellipse"));
+        QVERIFY(picture()->fx.glow.on);
+        QCOMPARE(picture()->stroke.width, 4.0);
+        QVERIFY(!w.changePictureFromFile(dir.filePath(QStringLiteral("none.png"))));
+        QVERIFY(command(w, "pic.reset"));
+        QCOMPARE(picture()->maskShape, QStringLiteral("rect"));
+        QVERIFY(!picture()->fx.any() && picture()->stroke.isNone());
+        ed->undo();
+        QVERIFY(picture()->fx.glow.on);
+        QVERIFY(command(w, "pic.resetSize"));
+        QCOMPARE(picture()->rect.size(), QSizeF(300, 150));   // the 400 by 200 pixels at 96 to the inch
+        QVERIFY(!picture()->fx.any());
     }
 
     // Crop to Shape offers closed shapes only, and only those a presentation file has by name (a shape without one would be saved as a rectangle).

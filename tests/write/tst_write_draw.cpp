@@ -24,6 +24,8 @@
 #include "core/fontops.h"
 #include "core/items.h"
 #include "core/pictureops.h"
+#include "core/picturestyles.h"
+#include "app/formatpresets.h"
 #include "core/threadtime.h"
 #include "core/writedoc.h"
 #include "text/textprops.h"
@@ -3213,6 +3215,180 @@ private Q_SLOTS:
         // Not a picture; and not where there is none.
         QCOMPARE(changePictureFile(*doc, 7, QByteArray("not a picture")), PictureResult::Unreadable);
         QCOMPARE(changePictureFile(*doc, 2, pngOf(10, 10)), PictureResult::Refused);
+    }
+
+    // Picture Styles: each style of the shared gallery (its shape, border, and effects) is put on a picture as one step that undoes; the size, place, and cut stay; the saved .docx
+    // holds the style's shape, line, and effects and reads back as the same look (and drawn: the page's picture has the effects).
+    void everyPictureStyleIsPutOnAPictureAndKeptInTheFile()
+    {
+        for (int k = 0; k < pictureStyleCount(); ++k) {
+            auto doc = textDoc({"Before after"});
+            QTextCursor c(doc->story());
+            c.setPosition(7);
+            QCOMPARE(insertPicture(*doc, c, pngOf(160, 80), QStringLiteral("bar"), PictureWrap::Square), PictureResult::Ok);
+            QVERIFY(setPictureCrop(*doc, 7, 0.1, 0, 0, 0));
+            const PictureInfo before = pictureAt(*doc, doc->story(), 7);
+            PictureItem want;
+            QVERIFY(applyPictureStyle(&want, k));
+            const bool plain = want.maskShape == QLatin1String("rect") && want.stroke.isNone() && !want.fx.any();
+            QCOMPARE(setPictureStyle(*doc, 7, k), !plain);
+            const QByteArray name = pictureStyleId(k).toLatin1();
+            const PictureInfo now = pictureAt(*doc, doc->story(), 7);
+            QVERIFY2(now.width == before.width && now.height == before.height && now.cropLeft == before.cropLeft, name.constData());
+            auto back = open(doc->toDocx());
+            QVERIFY(back);
+            const PictureInfo saved = pictureAt(*back, back->story(), 7);
+            QVERIFY2(saved.cropShape == (office::presetForShape(want.maskShape).isEmpty() ? QStringLiteral("rect") : office::presetForShape(want.maskShape)), name.constData());
+            QCOMPARE(saved.lineWeight > 0, !want.stroke.isNone());
+            if (!want.stroke.isNone()) QVERIFY2(std::abs(saved.lineWeight - want.stroke.width) < 0.01, name.constData());
+            for (WriteDoc *d : {doc.get(), back.get()}) {
+                const auto pic = pictureOfPage(*d);
+                QVERIFY2(pic, name.constData());
+                QCOMPARE(pic->maskShape, want.maskShape);
+                QCOMPARE(pic->fx.shadow.on, want.fx.shadow.on);
+                QCOMPARE(pic->fx.glow.on, want.fx.glow.on);
+                QCOMPARE(pic->fx.reflection.on, want.fx.reflection.on);
+                QCOMPARE(pic->fx.bevel.type, want.fx.bevel.type);
+                QVERIFY2(std::abs(pic->fx.softEdge - want.fx.softEdge) < 0.01 && std::abs(pic->fx.rot3d.y - want.fx.rot3d.y) < 0.01, name.constData());
+                QCOMPARE(int(pic->stroke.compound), int(want.stroke.compound));
+            }
+            // The same look comes back from an .odt (the shape, border, and effects are kept in the picture's own graphic style).
+            QString err;
+            const QByteArray odt = doc->toOdt(&err);
+            QVERIFY2(!odt.isEmpty(), qPrintable(err));
+            auto fromOdt = WriteDoc::fromOdt(odt, &err);
+            QVERIFY2(fromOdt, qPrintable(err));
+            {
+                const auto pic = pictureOfPage(*fromOdt);
+                QVERIFY2(pic, name.constData());
+                QCOMPARE(pic->maskShape, want.maskShape);
+                QCOMPARE(pic->fx.shadow.on, want.fx.shadow.on);
+                QCOMPARE(pic->fx.glow.on, want.fx.glow.on);
+                QCOMPARE(pic->fx.reflection.on, want.fx.reflection.on);
+                QCOMPARE(pic->fx.bevel.type, want.fx.bevel.type);
+                QVERIFY2(std::abs(pic->fx.softEdge - want.fx.softEdge) < 0.01 && std::abs(pic->fx.rot3d.y - want.fx.rot3d.y) < 0.01, name.constData());
+                QCOMPARE(pic->stroke.isNone(), want.stroke.isNone());
+            }
+            if (plain) continue;
+            QVERIFY(doc->undo());
+            QCOMPARE(pictureAt(*doc, doc->story(), 7).cropShape, QStringLiteral("rect"));
+            QVERIFY(!pictureOfPage(*doc)->fx.any());
+            QVERIFY(doc->redo());
+        }
+    }
+
+    // The Picture Format tab's gallery and Picture Effects menu act on the selected picture: a click on a style is one step of Undo, and a pick in the menu adds an effect.
+    void theGalleryAndTheEffectsMenuActOnTheSelectedPicture()
+    {
+        Win win;
+        WriteDoc *doc = win.w.document();
+        QTextCursor c(doc->story());
+        c.setPosition(5);
+        QCOMPARE(insertPicture(*doc, c, pngOf(200, 120, QColor(60, 140, 200)), QStringLiteral("blue"), PictureWrap::InFrontOfText), PictureResult::Ok);
+        win.w.view()->selectPicture(5);
+        win.w.ribbon()->buildAllTabs();
+        auto *gallery = win.w.ribbon()->findChild<Gallery *>(QStringLiteral("pictureStyles"));
+        QVERIFY(gallery);
+        const QVector<GalleryItem> items = gallery->items();
+        QVERIFY(items.size() >= 20 && items.size() <= 28);
+        QCOMPARE(items.size(), pictureStyleCount());
+        const int oval = pictureStyleIndex(QStringLiteral("oval-frame"));
+        gallery->activate(QString::number(oval));
+        QCOMPARE(pictureAt(*doc, doc->story(), 5).cropShape, QStringLiteral("ellipse"));
+        QVERIFY(pictureOfPage(*doc)->fx.shadow.on);
+        QVERIFY(doc->undo());   // (one step: the shape, border, and effects go together)
+        QCOMPARE(pictureAt(*doc, doc->story(), 5).cropShape, QStringLiteral("rect"));
+        QVERIFY(!pictureOfPage(*doc)->fx.shadow.on && pictureAt(*doc, doc->story(), 5).lineWeight == 0);
+        // The shots of the gallery, for looking at (when the folder is named).
+        const QString dir = qEnvironmentVariable("JO_PICSTYLES_SHOTS");
+        if (!dir.isEmpty()) {
+            QDir().mkpath(dir);
+            QFrame *popup = galleryPopup(items, QSize(60, 46), 6, {}, [](const QString &) {}, &win.w);
+            popup->show();
+            popup->grab().save(dir + QStringLiteral("/jeffwrite-picture-styles-gallery.png"));
+            delete popup;
+            gallery->activate(QString::number(pictureStyleIndex(QStringLiteral("bevel-frame"))));
+            win.w.resize(1500, 800);
+            win.w.ribbon()->showTab(win.w.ribbon()->tab(QStringLiteral("Picture Format")));
+            win.w.grab().save(dir + QStringLiteral("/jeffwrite-picture-format-tab.png"));
+        }
+    }
+
+    // Picture Effects: a shadow, reflection, glow, soft edges, bevel, and turn in space are set one at a time (each a step that undoes), the others stay, and the picture's effects that the
+    // engine has no setting for stay as the file had them. A border's dashes are drawn; Reset Picture takes the shape and effects off, and Reset Picture & Size gives the picture its own size.
+    void aPicturesEffectsAreSetOneAtATimeAndResetTakesThemOff()
+    {
+        auto doc = textDoc({"Before after"});
+        QTextCursor c(doc->story());
+        c.setPosition(7);
+        QCOMPARE(insertPicture(*doc, c, pngOf(160, 80), QStringLiteral("bar"), PictureWrap::Square), PictureResult::Ok);
+        QVERIFY(setPictureEffects(*doc, 7, [](Effects &fx) { formatpresets::applyShadow(fx, 0); }));
+        QVERIFY(!setPictureEffects(*doc, 7, [](Effects &fx) { formatpresets::applyShadow(fx, 0); }));
+        QVERIFY(setPictureEffects(*doc, 7, [](Effects &fx) { formatpresets::applyBevel(fx, 3); }));
+        QVERIFY(setPictureEffects(*doc, 7, [](Effects &fx) { formatpresets::applyRotation(fx, 1); }));
+        QVERIFY(setPictureEffects(*doc, 7, [](Effects &fx) { formatpresets::applyGlow(fx, 1, ColorRef::scheme(Accent1)); }));
+        QVERIFY(setPictureEffects(*doc, 7, [](Effects &fx) { formatpresets::applyReflection(fx, 0); }));
+        QVERIFY(setPictureEffects(*doc, 7, [](Effects &fx) { formatpresets::applySoftEdge(fx, 2); }));
+        auto pic = pictureOfPage(*doc);
+        QVERIFY(pic->fx.shadow.on && pic->fx.glow.on && pic->fx.reflection.on && pic->fx.bevel.type == 4 && pic->fx.rot3d.y == 30 && pic->fx.softEdge == 5);
+        // (In the file, in the schema's order: the effect list, then the scene, then the bevel.)
+        const QByteArray x = documentXml(doc->toDocx());
+        const qsizetype list = x.indexOf("<a:effectLst>"), scene = x.indexOf("<a:scene3d>"), solid = x.indexOf("<a:sp3d>"), end = x.indexOf("</pic:spPr>");
+        QVERIFY(list > 0 && scene > list && solid > scene && end > solid);
+        QVERIFY(x.contains("<a:bevelT") && x.contains("prst=\"angle\""));
+        auto back = open(doc->toDocx());
+        QVERIFY(back);
+        QCOMPARE(pictureOfPage(*back)->fx.toJson(), pic->fx.toJson());
+        QVERIFY(setPictureEffects(*doc, 7, [](Effects &fx) { fx.bevel.type = 0; }));
+        QVERIFY(pictureOfPage(*doc)->fx.shadow.on);
+        QVERIFY(!documentXml(doc->toDocx()).contains("<a:bevelT"));
+        QVERIFY(doc->undo());
+        QCOMPARE(pictureOfPage(*doc)->fx.bevel.type, 4);
+        // A dashed border is drawn dashed, and double.
+        QVERIFY(setShapeLine(*doc, 7, QStringLiteral("112233"), 3, QStringLiteral("dash")));
+        QCOMPARE(int(pictureOfPage(*doc)->stroke.dash), int(Stroke::DashLine));
+        // Reset Picture: the shape, the border, and the effects go; Reset Picture & Size: the size the picture has in its file (160 by 80 pixels at 96 to the inch).
+        QVERIFY(setPictureCropShape(*doc, 7, QStringLiteral("ellipse")));
+        QVERIFY(setPictureSize(*doc, 7, 300, 150));
+        QVERIFY(resetPicture(*doc, 7));
+        pic = pictureOfPage(*doc);
+        QVERIFY(!pic->fx.any() && pic->stroke.isNone());
+        QCOMPARE(pic->maskShape, QStringLiteral("rect"));
+        QCOMPARE(pictureAt(*doc, doc->story(), 7).width, 300.0);
+        QVERIFY(doc->undo());
+        QVERIFY(resetPictureAndSize(*doc, 7));
+        const PictureInfo info = pictureAt(*doc, doc->story(), 7);
+        QVERIFY(std::abs(info.width - 120) < 0.01 && std::abs(info.height - 60) < 0.01);
+        QVERIFY(!resetPictureAndSize(*doc, 7));
+    }
+
+    // Change Picture keeps the colors, border, shape, and effects, and a cut when the new picture has the old one's proportions.
+    void aChangedPictureKeepsItsLookAndItsCutWhenTheProportionsAreTheSame()
+    {
+        auto doc = textDoc({"Before after"});
+        QTextCursor c(doc->story());
+        c.setPosition(7);
+        QCOMPARE(insertPicture(*doc, c, pngOf(160, 80), QStringLiteral("red"), PictureWrap::Square, QStringLiteral("A red bar")), PictureResult::Ok);
+        QVERIFY(setPictureCrop(*doc, 7, 0.2, 0, 0, 0));
+        QVERIFY(setPictureStyle(*doc, 7, pictureStyleIndex(QStringLiteral("snapshot"))));
+        QVERIFY(setPictureCorrections(*doc, 7, 0.3, 0));
+        const PictureInfo before = pictureAt(*doc, doc->story(), 7);
+        QCOMPARE(changePictureFile(*doc, 7, pngOf(320, 160, QColor(20, 20, 200))), PictureResult::Ok);
+        PictureInfo after = pictureAt(*doc, doc->story(), 7);
+        QCOMPARE(after.width, before.width);
+        QCOMPARE(after.height, before.height);
+        QVERIFY(std::abs(after.cropLeft - 0.2) < 1e-6);
+        QVERIFY(std::abs(after.brightness - 0.3) < 1e-6);
+        QVERIFY(after.lineWeight > 0);
+        QVERIFY(pictureOfPage(*doc)->fx.shadow.on);
+        // Other proportions: no cut, the width stays; the look stays.
+        QCOMPARE(changePictureFile(*doc, 7, pngOf(100, 100, QColor(200, 20, 20))), PictureResult::Ok);
+        after = pictureAt(*doc, doc->story(), 7);
+        QCOMPARE(after.cropLeft, 0.0);
+        // (The cut is given back to the picture before it takes the new proportions: its frame is as wide as the whole old picture was.)
+        QVERIFY(std::abs(after.width - before.width / 0.8) < 0.01 && std::abs(after.width - after.height) < 0.01);
+        QVERIFY(after.lineWeight > 0 && std::abs(after.brightness - 0.3) < 1e-6);
+        QVERIFY(pictureOfPage(*doc)->fx.shadow.on);
     }
 
     // Compress Pictures: a picture is made no more detailed than the target asks for the size it is shown at, in the saved file's own picture part, with its frame and place as they were.

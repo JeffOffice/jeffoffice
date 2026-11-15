@@ -9,6 +9,8 @@
 #ifdef Q_OS_LINUX
 #include <sys/xattr.h>
 #endif
+#include "app/picturetools.h"
+#include "core/picturestyles.h"
 #include <QBuffer>
 #include <QMessageBox>
 #include <QRandomGenerator>
@@ -111,6 +113,213 @@ private Q_SLOTS:
         QVERIFY2(after < before / 4, qPrintable(QStringLiteral("%1 bytes before, %2 after").arg(before).arg(after)));
         ed->undo();
         QCOMPARE(static_cast<jp::PictureItem *>(ed->doc()->item(pic->id))->imageId, original);
+    }
+
+    // The pictures the Picture Format tab's tests use: a 160 by 80 picture of a colored bar, 80 wide at 100,100 on the page.
+    static std::shared_ptr<jp::PictureItem> pictureForStyles(jp::Editor *ed, const QColor &c = Qt::red, int px = 160, int py = 80)
+    {
+        QImage img(px, py, QImage::Format_RGB32);
+        img.fill(c);
+        QByteArray png;
+        QBuffer buf(&png);
+        buf.open(QIODevice::WriteOnly);
+        img.save(&buf, "PNG");
+        auto pic = std::make_shared<jp::PictureItem>();
+        pic->imageId = ed->doc()->addImage(png, "png");
+        pic->rect = QRectF(100, 100, 160, 80);
+        pic->imgRect = QRectF(0, 0, 160, 80);
+        ed->addItem(pic, true);
+        return pic;
+    }
+
+    // Picture Styles: the gallery offers a score of looks of our own, each with a name and a tile of its own, and a click gives the picture the style's shape, border, and
+    // effects as one step of Undo (its size, place, and crop stay). The saved publication reads back with the style.
+    void pictureStylesGalleryAppliesAStyleAsOneStepAndTheFileKeepsIt()
+    {
+        jp::MainWindow w;
+        w.resize(1400, 900);
+        w.show();
+        jp::Editor *ed = w.editor();
+        auto pic = pictureForStyles(ed);
+        w.ribbon()->buildAllTabs();
+        auto *gallery = w.ribbon()->findChild<jp::Gallery *>(QStringLiteral("pictureStyles"));
+        QVERIFY(gallery);
+        const QVector<jp::GalleryItem> items = gallery->items();
+        QVERIFY(items.size() >= 20 && items.size() <= 28);
+        QCOMPARE(items.size(), jp::pictureStyleCount());
+        QSet<QString> names;
+        QVector<QImage> tiles;
+        for (const jp::GalleryItem &item : items) {
+            QVERIFY2(!item.tip.isEmpty() && !names.contains(item.tip), qPrintable(item.tip));
+            names << item.tip;
+            tiles << item.icon.pixmap(QSize(60, 46)).toImage();
+            QVERIFY(!tiles.last().isNull());
+        }
+        // The tiles are drawn with the effects (a picture styled with a shadow has pixels a plain one has not), and no two of them are alike.
+        for (int i = 1; i < tiles.size(); ++i) QVERIFY2(tiles[i] != tiles[0], qPrintable(items[i].tip));
+        const int glow = jp::pictureStyleIndex(QStringLiteral("glow")), oval = jp::pictureStyleIndex(QStringLiteral("oval-frame")), bevel = jp::pictureStyleIndex(QStringLiteral("bevel"));
+        QVERIFY(glow > 0 && oval > 0 && bevel > 0);
+        const QRectF frame = pic->rect;
+        const int steps = ed->undoStack()->count();
+        gallery->activate(QString::number(oval));
+        QCOMPARE(ed->undoStack()->count(), steps + 1);
+        auto *now = static_cast<jp::PictureItem *>(ed->doc()->item(pic->id));
+        QCOMPARE(now->maskShape, QStringLiteral("ellipse"));
+        QVERIFY(!now->stroke.isNone());
+        QVERIFY(now->fx.shadow.on);
+        QCOMPARE(now->rect, frame);
+        // Another style takes the first one's look off; a bevel and a glow are the engine's own.
+        gallery->activate(QString::number(bevel));
+        now = static_cast<jp::PictureItem *>(ed->doc()->item(pic->id));
+        QCOMPARE(now->maskShape, QStringLiteral("rect"));
+        QVERIFY(now->stroke.isNone() && !now->fx.shadow.on);
+        QVERIFY(now->fx.bevel.type > 0);
+        gallery->activate(QString::number(glow));
+        QVERIFY(static_cast<jp::PictureItem *>(ed->doc()->item(pic->id))->fx.glow.on);
+        ed->undo();
+        QVERIFY(static_cast<jp::PictureItem *>(ed->doc()->item(pic->id))->fx.bevel.type > 0);
+        gallery->activate(QString::number(oval));
+        QString err;
+        auto back = jp::publicationFromBytes(jp::publicationBytes(*ed->doc(), QImage()), &err);
+        QVERIFY2(back, qPrintable(err));
+        const jp::PictureItem *saved = nullptr;
+        for (const auto &page : back->pages)
+            for (const auto &it : page->items)
+                if (it->type() == jp::ItemType::Picture) saved = static_cast<const jp::PictureItem *>(it.get());
+        QVERIFY(saved);
+        QCOMPARE(saved->maskShape, QStringLiteral("ellipse"));
+        QVERIFY(saved->fx.shadow.on);
+        QCOMPARE(saved->stroke.width, 5.0);
+    }
+
+    // Picture Border and Picture Effects: the menus the Picture Format tab opens set the border's color, weight, and dashes, and a bevel, a turn in space, and the rest, each one step.
+    void pictureBorderAndEffectsMenusSetTheLook()
+    {
+        jp::MainWindow w;
+        w.resize(1400, 900);
+        w.show();
+        jp::Editor *ed = w.editor();
+        auto pic = pictureForStyles(ed);
+        QMenu effects;
+        jp::fillPictureEffectsMenu(&effects, ed);
+        QStringList titles;
+        for (QAction *a : effects.actions())
+            if (a->menu()) titles << a->text();
+        QCOMPARE(titles, (QStringList{QStringLiteral("Shadow"), QStringLiteral("Reflection"), QStringLiteral("Glow"), QStringLiteral("Soft Edges"), QStringLiteral("Bevel"), QStringLiteral("3-D Rotation")}));
+        auto pick = [&](const QString &menu, const QString &entry) {
+            for (QAction *a : effects.actions())
+                if (a->menu() && a->text() == menu)
+                    for (QAction *e : a->menu()->actions())
+                        if (e->text() == entry) {
+                            e->trigger();
+                            return true;
+                        }
+            return false;
+        };
+        auto picture = [&] { return static_cast<jp::PictureItem *>(ed->doc()->item(pic->id)); };
+        const int steps = ed->undoStack()->count();
+        QVERIFY(pick(QStringLiteral("Bevel"), QStringLiteral("Soft Round")));
+        QCOMPARE(picture()->fx.bevel.type, 5);
+        QVERIFY(pick(QStringLiteral("3-D Rotation"), QStringLiteral("Perspective Left")));
+        QVERIFY(picture()->fx.rot3d.y != 0);
+        QVERIFY(pick(QStringLiteral("Shadow"), QStringLiteral("Offset Bottom")));
+        QVERIFY(picture()->fx.shadow.on);
+        QVERIFY(pick(QStringLiteral("Reflection"), QStringLiteral("Half Reflection")));
+        QVERIFY(pick(QStringLiteral("Glow"), QStringLiteral("10 Point Glow")));
+        QVERIFY(pick(QStringLiteral("Soft Edges"), QStringLiteral("5 Point")));
+        QCOMPARE(picture()->fx.softEdge, 5.0);
+        QCOMPARE(ed->undoStack()->count(), steps + 6);
+        QVERIFY(pick(QStringLiteral("Bevel"), QStringLiteral("No Bevel")));
+        QCOMPARE(picture()->fx.bevel.type, 0);
+        ed->undo();
+        QCOMPARE(picture()->fx.bevel.type, 5);
+        // The border: a weight and a dash on a picture that has none give it a line.
+        QMenu border;
+        jp::fillPictureBorderMenu(&border, ed, &w);
+        QMenu *weight = nullptr, *dashes = nullptr;
+        for (QAction *a : border.actions())
+            if (a->menu() && a->text() == QStringLiteral("Weight")) weight = a->menu();
+            else if (a->menu() && a->text() == QStringLiteral("Dashes")) dashes = a->menu();
+        QVERIFY(weight && dashes);
+        QVERIFY(picture()->stroke.isNone());
+        for (QAction *a : weight->actions())
+            if (a->text() == QStringLiteral("4.5 pt")) a->trigger();
+        QCOMPARE(picture()->stroke.width, 4.5);
+        QVERIFY(!picture()->stroke.isNone());
+        for (QAction *a : dashes->actions())
+            if (a->text() == jp::dashName(jp::Stroke::DashLine)) a->trigger();
+        QCOMPARE(int(picture()->stroke.dash), int(jp::Stroke::DashLine));
+    }
+
+    // Change Picture keeps the frame, the crop of a picture of the same proportions, and the formatting; Reset Picture takes the formatting and the crop off; Reset Picture & Size
+    // also gives the picture the size it has in its file. Each is one step.
+    void changePictureKeepsTheLookAndResetPictureTakesItOff()
+    {
+        jp::MainWindow w;
+        w.resize(1400, 900);
+        w.show();
+        jp::Editor *ed = w.editor();
+        auto pic = pictureForStyles(ed, Qt::red, 160, 80);
+        auto picture = [&] { return static_cast<jp::PictureItem *>(ed->doc()->item(pic->id)); };
+        ed->beginChange(QStringLiteral("Dress"));
+        pic->maskShape = QStringLiteral("roundRect");
+        pic->stroke = jp::Stroke::line(jp::ColorRef::rgb(Qt::blue), 3);
+        pic->fx.shadow.on = true;
+        pic->fx.bevel.type = 2;
+        pic->brightness = 20;
+        pic->imgRect = QRectF(-10, -5, 180, 90);   // cropped by 10 and 5 points on the left and top
+        ed->endChange();
+        const QRectF frame = pic->rect;
+        const QString oldImage = pic->imageId;
+        // The same proportions: the picture is put in, and everything else stays.
+        QImage same(320, 160, QImage::Format_RGB32);
+        same.fill(Qt::green);
+        QByteArray png;
+        QBuffer buf(&png);
+        buf.open(QIODevice::WriteOnly);
+        same.save(&buf, "PNG");
+        const QString newImage = ed->doc()->addImage(png, "png");
+        int steps = ed->undoStack()->index();
+        QVERIFY(jp::changePictureTo(ed, pic->id, newImage));
+        QCOMPARE(ed->undoStack()->index(), steps + 1);
+        QCOMPARE(picture()->imageId, newImage);
+        QCOMPARE(picture()->rect, frame);
+        QCOMPARE(picture()->imgRect, QRectF(-10, -5, 180, 90));
+        QCOMPARE(picture()->maskShape, QStringLiteral("roundRect"));
+        QCOMPARE(picture()->stroke.width, 3.0);
+        QVERIFY(picture()->fx.shadow.on && picture()->fx.bevel.type == 2 && picture()->brightness == 20);
+        ed->undo();
+        QCOMPARE(picture()->imageId, oldImage);
+        // Other proportions: the frame stays and the picture fills it.
+        QImage square(100, 100, QImage::Format_RGB32);
+        square.fill(Qt::yellow);
+        png.clear();
+        QBuffer buf2(&png);
+        buf2.open(QIODevice::WriteOnly);
+        square.save(&buf2, "PNG");
+        QVERIFY(jp::changePictureTo(ed, pic->id, ed->doc()->addImage(png, "png")));
+        QCOMPARE(picture()->rect, frame);
+        QVERIFY(picture()->imgRect.width() >= frame.width() - 0.01 && picture()->imgRect.height() >= frame.height() - 0.01);
+        QVERIFY(picture()->fx.shadow.on && picture()->maskShape == QStringLiteral("roundRect"));
+        ed->undo();
+        // Reset Picture: the look and the crop go; the picture is all there is in the frame, around the same middle.
+        steps = ed->undoStack()->index();
+        ed->select(pic->id);
+        QTRY_VERIFY(w.act(QStringLiteral("pic.reset"))->isEnabled());
+        w.act(QStringLiteral("pic.reset"))->trigger();
+        QCOMPARE(ed->undoStack()->index(), steps + 1);
+        QCOMPARE(picture()->maskShape, QStringLiteral("rect"));
+        QVERIFY(picture()->stroke.isNone() && !picture()->fx.any() && picture()->brightness == 0);
+        QCOMPARE(picture()->imgRect, QRectF(QPointF(0, 0), picture()->rect.size()));
+        QCOMPARE(picture()->rect.center(), QPointF(frame.center().x() + 0, frame.center().y() + 0));
+        ed->undo();
+        QVERIFY(picture()->fx.shadow.on);
+        // Reset Picture & Size: the size the picture has in its file (96 pixels to the inch): 160 by 80 pixels is 120 by 60 points.
+        QTRY_VERIFY(w.act(QStringLiteral("pic.resetSize"))->isEnabled());
+        w.act(QStringLiteral("pic.resetSize"))->trigger();
+        QCOMPARE(picture()->rect.size(), QSizeF(120, 60));
+        QCOMPARE(picture()->rect.center(), frame.center());
+        QVERIFY(!picture()->fx.any());
     }
 
     // Ctrl+drag copies a picture, and a copy let go over another picture stays

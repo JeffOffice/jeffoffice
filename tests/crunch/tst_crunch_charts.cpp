@@ -49,6 +49,8 @@
 #include <QTimer>
 #include <QToolButton>
 #include <QPushButton>
+#include "app/formatpresets.h"
+#include "core/picturestyles.h"
 
 using namespace crunchtest;
 using namespace drawtest;
@@ -3280,6 +3282,64 @@ private Q_SLOTS:
         for (auto it = parts.begin(); it != parts.end(); ++it)
             if (it.key().startsWith(QLatin1String("xl/media/"))) ++media;
         QCOMPARE(media, 1);
+    }
+
+    // Picture Styles, Picture Effects, Change Picture, and Reset Picture: a style gives the picture its shape, border, and effects in the saved drawing (in the schema's order); an effect is
+    // added without taking the others; Change Picture keeps the look and the size of a picture of the same proportions; Reset Picture takes the look off. Each is one step that undoes.
+    void aPictureTakesAStyleEffectsAChangeAndAReset()
+    {
+        EditWindow e;
+        QVERIFY(e.open(plainBook()));
+        QVERIFY(e.settle());
+        QTRY_VERIFY(e.win.w.objects()->shownSheet() == 0);
+        crunch::SheetObjects *o = e.win.w.objects();
+        QVERIFY(e.win.w.insertPictureFile(e.folder.write(QStringLiteral("wide.png"), pngBytes(960, 480, Qt::green))));
+        auto drawing = [&] { return save(e) ? partsOf(e.path).value(QStringLiteral("xl/drawings/drawing1.xml")) : QByteArray(); };
+        const grid::ObjectBox box = o->layer()->boxNow(o->layer()->selectedId());
+        const int steps = e.win.w.undoStack()->count();
+        const int snapshot = jp::pictureStyleIndex(QStringLiteral("snapshot")), oval = jp::pictureStyleIndex(QStringLiteral("oval-frame"));
+        QVERIFY(snapshot > 0 && oval > 0);
+        QVERIFY(e.win.w.applyPictureStyle(snapshot));
+        QCOMPARE(e.win.w.undoStack()->undoText(), QStringLiteral("Picture Style"));
+        QByteArray x = drawing();
+        QVERIFY(!x.isEmpty());
+        QVERIFY2(x.contains("<a:outerShdw") && x.contains("<a:ln") && x.contains("prst=\"rect\""), x.constData());
+        QVERIFY(x.indexOf("<a:prstGeom") < x.indexOf("<a:ln") && x.indexOf("<a:ln") < x.indexOf("<a:effectLst"));
+        QVERIFY(e.win.w.applyPictureStyle(oval));
+        x = drawing();
+        QVERIFY2(x.contains("prst=\"ellipse\""), x.constData());
+        QCOMPARE(o->layer()->boxNow(o->layer()->selectedId()).w, box.w);
+        // Effects are added one at a time; the shadow stays when a bevel and a turn are put in.
+        QVERIFY(e.win.w.setPictureEffects([](Effects &fx) { formatpresets::applyBevel(fx, 2); }));
+        QVERIFY(e.win.w.setPictureEffects([](Effects &fx) { formatpresets::applyRotation(fx, 1); }));
+        QVERIFY(!e.win.w.setPictureEffects([](Effects &fx) { formatpresets::applyRotation(fx, 1); }));
+        x = drawing();
+        QVERIFY2(x.contains("<a:bevelT") && x.contains("<a:scene3d") && x.contains("<a:outerShdw"), x.constData());
+        QVERIFY(x.indexOf("<a:effectLst") < x.indexOf("<a:scene3d") && x.indexOf("<a:scene3d") < x.indexOf("<a:sp3d"));
+        // Change Picture: the same proportions keep the size, and the look stays.
+        const QString other = e.folder.write(QStringLiteral("other.png"), pngBytes(480, 240, Qt::red));
+        QVERIFY(e.win.w.changePictureFromFile(other));
+        QCOMPARE(o->layer()->boxNow(o->layer()->selectedId()).w, box.w);
+        QCOMPARE(o->layer()->boxNow(o->layer()->selectedId()).h, box.h);
+        x = drawing();
+        QVERIFY2(x.contains("prst=\"ellipse\"") && x.contains("<a:bevelT"), x.constData());
+        QVERIFY(!e.win.w.changePictureFromFile(e.folder.write(QStringLiteral("not.png"), QByteArray("not a picture"))));
+        // Reset Picture takes it all off; one step; Undo gives it back.
+        const int before = e.win.w.undoStack()->count();
+        QVERIFY(e.win.w.resetPicture(false));
+        QCOMPARE(e.win.w.undoStack()->count(), before + 1);
+        x = drawing();
+        QVERIFY2(!x.contains("<a:ln") && !x.contains("effectLst") && !x.contains("<a:bevelT") && !x.contains("scene3d") && x.contains("prst=\"rect\""), x.constData());
+        e.win.w.undoStack()->undo();
+        QVERIFY(drawing().contains("<a:bevelT"));
+        const std::vector<int> back = o->idsOf(o->shownSheet());
+        QVERIFY(!back.empty());
+        o->layer()->select(back.front());
+        QVERIFY(e.win.w.resetPicture(true));
+        const grid::ObjectBox natural = o->layer()->boxNow(o->layer()->selectedId());
+        QCOMPARE(natural.w, 480.0);
+        QCOMPARE(natural.h, 240.0);
+        QVERIFY(e.win.w.undoStack()->count() > steps);
     }
 
     // Compress Pictures: the picture is made again with its file smaller (as large as the target asks for the size it is shown at), in one step; the saved workbook has only the smaller

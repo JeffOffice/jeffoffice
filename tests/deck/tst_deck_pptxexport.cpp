@@ -3,6 +3,7 @@
 #include "core/printheaderfooter.h"
 #include "io/zip.h"
 #include "app/listmenus.h"
+#include "core/picturestyles.h"
 
 class DeckPptxExportTests : public QObject {
     Q_OBJECT
@@ -1111,6 +1112,64 @@ private Q_SLOTS:
         int hiddenCount = 0;
         for (const jp::ItemPtr &it : third->pages[0]->items) hiddenCount += it->hidden;
         QCOMPARE(hiddenCount, 1);
+    }
+
+    // Picture Styles are kept in .pptx: each style of the gallery (its shape, border, shadow, reflection, glow, soft edges, bevel, and turn in space) reads back as it was, and read
+    // and written again it is the same. In .odp the border, shadow, glow, soft edges, reflection, bevel, and turn come back too.
+    void everyPictureStyleIsKeptInPptxAndOdp()
+    {
+        QImage image(60, 40, QImage::Format_RGB32);
+        image.fill(Qt::darkCyan);
+        QByteArray png;
+        QBuffer buf(&png);
+        buf.open(QIODevice::WriteOnly);
+        image.save(&buf, "PNG");
+        auto picOf = [](const jp::Document &d) -> const jp::PictureItem * {
+            for (const jp::ItemPtr &it : d.pages[0]->items)
+                if (it->type() == jp::ItemType::Picture) return static_cast<const jp::PictureItem *>(it.get());
+            return nullptr;
+        };
+        for (const bool odp : {false, true}) {
+            for (int k = 0; k < jp::pictureStyleCount(); ++k) {
+                auto d = deck::newPresentation();
+                d->pages[0]->items.clear();
+                auto pic = std::make_shared<jp::PictureItem>();
+                pic->imageId = d->addImage(png, QStringLiteral("png"));
+                pic->rect = QRectF(100, 100, 240, 160);
+                pic->imgRect = QRectF(0, 0, 240, 160);
+                jp::applyPictureStyle(pic.get(), k);
+                d->pages[0]->items.push_back(pic);
+                QString err;
+                const QByteArray bytes = odp ? deck::exportOdp(*d, false, &err) : deck::exportPresentation(*d, &err);
+                QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+                auto back = odp ? deck::importOdp(bytes, &err) : deck::importPresentation(bytes, &err);
+                QVERIFY2(back, qPrintable(err));
+                const jp::PictureItem *got = picOf(*back);
+                const QByteArray what = (odp ? "odp " : "pptx ") + jp::pictureStyleId(k).toLatin1();
+                QVERIFY2(got, what.constData());
+                if (!odp) QCOMPARE(got->maskShape, pic->maskShape);
+                // (A picture cut to a shape is saved in .odp as the picture it shows, effects and all: its look is in its pixels.)
+                if (odp && pic->maskShape != QLatin1String("rect")) continue;
+                QCOMPARE(got->stroke.isNone(), pic->stroke.isNone());
+                if (!pic->stroke.isNone()) {
+                    QVERIFY2(std::abs(got->stroke.width - pic->stroke.width) < 0.01, what.constData());
+                    if (!odp) QCOMPARE(int(got->stroke.compound), int(pic->stroke.compound));
+                }
+                QCOMPARE(got->fx.shadow.on, pic->fx.shadow.on);
+                QCOMPARE(got->fx.glow.on, pic->fx.glow.on);
+                QVERIFY2(std::abs(got->fx.softEdge - pic->fx.softEdge) < 0.01, what.constData());
+                QCOMPARE(got->fx.reflection.on, pic->fx.reflection.on);
+                QCOMPARE(got->fx.bevel.type, pic->fx.bevel.type);
+                QVERIFY2(std::abs(got->fx.bevel.width - pic->fx.bevel.width) < 0.01, what.constData());
+                QVERIFY2(std::abs(got->fx.rot3d.y - pic->fx.rot3d.y) < 0.01 && std::abs(got->fx.rot3d.x - pic->fx.rot3d.x) < 0.01, what.constData());
+                QVERIFY2(std::abs(got->fx.rot3d.perspective - pic->fx.rot3d.perspective) < 0.01, what.constData());
+                // Written again, the same.
+                const QByteArray again = odp ? deck::exportOdp(*back, false, &err) : deck::exportPresentation(*back, &err);
+                auto third = odp ? deck::importOdp(again, &err) : deck::importPresentation(again, &err);
+                QVERIFY2(third, qPrintable(err));
+                QCOMPARE(picOf(*third)->fx.toJson(), got->fx.toJson());
+            }
+        }
     }
 
     // A name with control characters (and a very long one) is written as XML a file can hold: the characters are left out, for a shape, a table, and in .odp too.
