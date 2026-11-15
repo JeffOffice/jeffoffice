@@ -599,7 +599,7 @@ Reading it: on its own decks JeffDeck's mean and its share under 2 are already b
 Suite-wide rules decided October 11, 2026 (see Decided): nothing in a file runs or reaches out until the person allows it, every file reader is fuzzed and held to limits on memory and time, and a damaged file opens as far as it can without crashing.
 
 - [x] **1.0** A damaged or hostile file never crashes the program: it opens what it can and lists what it left out, checked with random damage on `.ppt` and with hostile `.pptx` and `.odp` files
-- [~] **1.0** Nothing in a presentation runs or reaches out until the person allows it: macros, links, linked media, and remote content *(macros are kept and never run, and a link opens only when it is clicked in the show; what happens with linked files and linked media is the Trust Center item in Options)*
+- [~] **1.0** Nothing in a presentation runs or reaches out until the person allows it: macros, links, linked media, and remote content *(macros are kept and never run, and a link opens only when it is clicked in the show; what happens with linked files and linked media is the Security page item in Options)*
 - [~] **1.0** Every file reader is fuzzed and held to limits on memory and time *(random damage on `.ppt`, hostile `.pptx` and `.odp` files, and pictures held to budgets are done; limits on memory and time for every reader could not be confirmed)*
 
 ## File formats
