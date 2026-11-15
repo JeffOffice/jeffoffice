@@ -168,13 +168,15 @@ static QString garamondFamily()
 // A run's stylistic set and discretionary ligatures shape its own letters, in the middle of a paragraph as well as at its start: the run sets the same width there as alone.
 void FlowTests::aFontWithStylisticSetsAndOldStyleFiguresShapesThemPerRun()
 {
-    const QString family = QStringLiteral("EB Garamond ExtraBold");   // (its sets 1 to 7, and its discretionary ligatures)
-    QVERIFY2(QFontDatabase::hasFamily(family), "the bundled EB Garamond ExtraBold is not registered");
+    // (its sets 1 to 7, and its discretionary ligatures; ExtraBold is a style of the family, not a family of its own on Windows and the Mac)
+    const QString family = garamondFamily();
+    QVERIFY2(!family.isEmpty(), "the bundled EB Garamond is not registered");
     auto width = [&](const QString &text, const QMap<int, int> &choices, bool afterPlain) {
         QTextDocument doc;
         QTextCursor c(&doc);
         QTextCharFormat plain;
         plain.setFontFamilies({family});
+        plain.setFontWeight(QFont::ExtraBold);
         plain.setFontPointSize(24);
         QTextCharFormat run = plain;
         for (auto it = choices.cbegin(); it != choices.cend(); ++it) run.setProperty(it.key(), it.value());
