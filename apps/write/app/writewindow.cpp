@@ -2,6 +2,7 @@
 #include "app/keymap.h"
 #include "app/ribboncustom.h"
 #include "app/writewindow.h"
+#include "core/pagenumberops.h"
 #include "core/startuptrace.h"
 
 #include "io/crypto.h"
