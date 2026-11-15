@@ -813,8 +813,7 @@ bool MainWindow::maybeSave()
 {
     m_ed->flushTyping();
     if (!m_ed->isModified()) return true;
-    const auto r = jp::plainQuestion(this, QStringLiteral("JeffPub"), tr("Do you want to save changes to %1?").arg(m_ed->displayName()),
-                                         QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel, QMessageBox::Save);
+    const auto r = jp::askSaveChanges(this, m_ed->displayName());
     if (r == QMessageBox::Cancel) return false;
     if (r == QMessageBox::Save) return save();
     return true;
@@ -1148,7 +1147,7 @@ void MainWindow::exportPdfWithOptions()
     if (s.pdfx) {
         const QStringList problems = pressProblems(*d);
         if (!problems.isEmpty()) {
-            QMessageBox box(QMessageBox::Warning, tr("Create PDF"),
+            jp::MessageBox box(QMessageBox::Warning, tr("Create PDF"),
                             tr("Before you send this to a printer:"), QMessageBox::NoButton, this);
             box.setTextFormat(Qt::PlainText);
             box.setInformativeText(QStringLiteral("• ") + problems.mid(0, 8).join(QStringLiteral("\n• ")) +

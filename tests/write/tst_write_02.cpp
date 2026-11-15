@@ -1,3 +1,4 @@
+#include "../withdialog.h"
 #include "core/booklet.h"
 #include "core/datafolder.h"
 #include "tst_write.h"
@@ -80,6 +81,19 @@ void WriteTests::theWritePrintPageIsInFourGroups()
     sameRow("printPerSheet", "printScaleTo");
     sameRow("printOrientation", "printPaper");
     QVERIFY(pos("printPrinter").y() < pos("printRangeAll").y() && pos("printReverse").y() < pos("printPerSheet").y() && pos("printScaleTo").y() < pos("printOrientation").y());
+}
+
+// Closing a window with changes asks with the shared box (red triangle, the question, the grey line, Don't Save at the left, Cancel and Save at the right); Cancel keeps the window.
+void WriteTests::theCloseBoxAsksToSaveChanges()
+{
+    WriteWindow w;
+    w.setDocument(open(makeDocx(paragraphs(3), kStyles)), QString());
+    w.show();
+    w.document()->setModified(true);
+    const QString problems = answerCloseBox([&] { w.close(); }, w.displayName(), QMessageBox::Cancel);
+    QVERIFY2(problems.isEmpty(), qPrintable(problems));
+    QVERIFY(w.isVisible());
+    w.document()->setModified(false);
 }
 
 namespace {

@@ -264,6 +264,7 @@ private Q_SLOTS:
     void thePictureButtonsOfTheHeaderEditor();
     void aHeaderPictureAddedThroughPageSetupSavesAndComesOut();
     void thePrintPageIsInFourGroupsOfTwoFieldsToARow();
+    void theCloseBoxAsksToSaveChanges();
     void aHeaderPictureSurvivesRowsBeingInserted();
     void aCopyOfASheetWithHeaderPicturesHasThemToo();
     void aJobSaysWhereTheCellsOfAPageAre();

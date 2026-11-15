@@ -2,6 +2,7 @@
 // EditSession took when the save began (the window can be looked at and scrolled meanwhile, but nothing is changed until it is done), and is written to a file of its own that then takes the
 // place of the old one, so a save that fails leaves the old file as it was.
 
+#include "app/uistyle.h"
 #include "app/crunchwindow.h"
 
 #include "app/filetasks.h"
@@ -364,20 +365,13 @@ bool CrunchWindow::askAboutChanges()
     }
     const QString name = m_path.isEmpty() ? displayName() : QFileInfo(m_path).fileName();
     const QString title = appInfo().name;
-    const QString text = tr("Do you want to save the changes you made to \"%1\"?").arg(name);
+    const QString text = jp::saveChangesText(name);
     Answer answer = Answer::Cancel;
     if (m_asker) {
         answer = m_asker(title, text);
     } else {
-        jp::MessageBox box(QMessageBox::Warning, title, text, QMessageBox::NoButton, this);
-        box.setTextFormat(Qt::PlainText);
-        QPushButton *saveButton = box.addButton(tr("Save"), QMessageBox::AcceptRole);
-        QPushButton *discardButton = box.addButton(tr("Don't Save"), QMessageBox::DestructiveRole);
-        box.addButton(tr("Cancel"), QMessageBox::RejectRole);
-        box.setDefaultButton(saveButton);
-        box.exec();
-        QAbstractButton *clicked = box.clickedButton();
-        answer = clicked == saveButton ? Answer::Save : clicked == discardButton ? Answer::Discard : Answer::Cancel;
+        const QMessageBox::StandardButton clicked = jp::askSaveChanges(this, name);
+        answer = clicked == QMessageBox::Save ? Answer::Save : clicked == QMessageBox::Discard ? Answer::Discard : Answer::Cancel;
     }
     if (answer == Answer::Discard) return true;
     if (answer == Answer::Save) {

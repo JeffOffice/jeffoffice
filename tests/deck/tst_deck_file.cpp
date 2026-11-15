@@ -1,5 +1,6 @@
 // JeffDeck's tests of the file screen, saving from the window, and reusing slides.
 #include "../cmdsearchcheck.h"
+#include "../withdialog.h"
 #include "../aboutchecks.h"
 #include "../recoverygate.h"
 #include "../settingguard.h"
@@ -866,6 +867,18 @@ private Q_SLOTS:
         setStackTurnerStandIn(nullptr);
         setDuplexSupportStandIn(nullptr);
         sides->setCurrentIndex(0);
+        w.editor()->markSaved();
+    }
+
+    // Closing a window with changes asks with the shared box (red triangle, the question, the grey line, Don't Save at the left, Cancel and Save at the right); Cancel keeps the window.
+    void theCloseBoxAsksToSaveChanges()
+    {
+        DeckWindow w;
+        w.show();
+        w.editor()->markUnsaved();
+        const QString problems = answerCloseBox([&] { w.close(); }, w.editor()->displayName(), QMessageBox::Cancel);
+        QVERIFY2(problems.isEmpty(), qPrintable(problems));
+        QVERIFY(w.isVisible());
         w.editor()->markSaved();
     }
 

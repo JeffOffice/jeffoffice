@@ -38,6 +38,18 @@ class PubWindowTests : public QObject {
     Q_OBJECT
 
 private Q_SLOTS:
+    // Closing a window with changes asks with the shared box (red triangle, the question, the grey line, Don't Save at the left, Cancel and Save at the right); Cancel keeps the window.
+    void theCloseBoxAsksToSaveChanges()
+    {
+        jp::MainWindow w;
+        w.show();
+        w.editor()->markUnsaved();
+        const QString problems = answerCloseBox([&] { w.close(); }, w.editor()->displayName(), QMessageBox::Cancel);
+        QVERIFY2(problems.isEmpty(), qPrintable(problems));
+        QVERIFY(w.isVisible());
+        w.editor()->markSaved();
+    }
+
     void initTestCase() { initPubTestCase(); }
 
     // The first window of a start that opens a file: shown and drawn before the file is read; a file the system asks to open meanwhile is kept and given to the app's own

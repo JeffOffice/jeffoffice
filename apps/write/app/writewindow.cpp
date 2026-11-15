@@ -1,3 +1,4 @@
+#include "app/uistyle.h"
 #include "app/commandsearch.h"
 #include "app/shapetextedit.h"
 #include "app/keymap.h"
@@ -846,13 +847,9 @@ bool WriteWindow::eventFilter(QObject *o, QEvent *e)
 bool WriteWindow::maybeSave()
 {
     if (!isModified()) return true;
-    jp::MessageBox box(QMessageBox::Question, appInfo().name, tr("Do you want to save changes to %1?").arg(displayName()), QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel, this);
-    box.setTextFormat(Qt::PlainText);
-    box.setDefaultButton(QMessageBox::Save);
-    box.button(QMessageBox::Discard)->setText(tr("Don't Save"));
-    box.exec();
-    if (box.clickedButton() == box.button(QMessageBox::Save)) return save();
-    if (box.clickedButton() != box.button(QMessageBox::Discard)) return false;
+    const QMessageBox::StandardButton answer = jp::askSaveChanges(this, displayName());
+    if (answer == QMessageBox::Save) return save();
+    if (answer != QMessageBox::Discard) return false;
     dropRecoveryCopy();
     return true;
 }

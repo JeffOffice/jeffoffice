@@ -1,3 +1,4 @@
+#include "app/uistyle.h"
 #include "app/commandsearch.h"
 #include "app/keymap.h"
 #include "app/ribboncustom.h"
@@ -611,14 +612,9 @@ bool DeckWindow::maybeSave()
     m_ed->flushTyping();
     m_ed->endCrop(true);   // a crop in progress is a change to ask about, and to save
     if (!m_ed->isModified()) return true;
-    jp::MessageBox box(QMessageBox::Question, appInfo().name, tr("Do you want to save changes to %1?").arg(m_ed->displayName()),
-                    QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel, this);
-    box.setTextFormat(Qt::PlainText);
-    box.setDefaultButton(QMessageBox::Save);
-    box.button(QMessageBox::Discard)->setText(tr("Don't Save"));
-    box.exec();
-    if (box.clickedButton() == box.button(QMessageBox::Save)) return save();
-    if (box.clickedButton() != box.button(QMessageBox::Discard)) return false;
+    const QMessageBox::StandardButton answer = jp::askSaveChanges(this, m_ed->displayName());
+    if (answer == QMessageBox::Save) return save();
+    if (answer != QMessageBox::Discard) return false;
     dropRecoveryCopy();
     return true;
 }

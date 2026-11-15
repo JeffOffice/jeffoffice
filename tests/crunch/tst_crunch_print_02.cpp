@@ -1,4 +1,5 @@
 #include "tst_crunch_print.h"
+#include "../withdialog.h"
 
 
 // Where the view is scrolled to and where the cursor is are taken when the file is saved, not when the panes were frozen: a sheet frozen and then scrolled and moved on is saved so; and a sheet
@@ -1320,4 +1321,19 @@ void CrunchPrintTests::thePrintPageIsInFourGroupsOfTwoFieldsToARow()
     QVERIFY(pos("printGray").y() < pos("printPageSetup").y());
     QVERIFY(at("printPageSetup")->property("link").toBool());
     QVERIFY(pos("printPrinter").y() < pos("printWhat").y() && pos("printReverse").y() < pos("printPerSheet").y() && pos("printScaleToPaper").y() < pos("printOrientation").y());
+}
+
+// Closing a window with changes asks with the shared box; Cancel keeps the window.
+void CrunchPrintTests::theCloseBoxAsksToSaveChanges()
+{
+    EditWindow e;
+    QVERIFY(e.open(budgetWorkbook()));
+    e.win.w.setAttribute(Qt::WA_DeleteOnClose, false);
+    e.select(QStringLiteral("A1"));
+    e.enter(QStringLiteral("8"));
+    QVERIFY(e.settle());
+    const QString problems = answerCloseBox([&] { e.win.w.close(); }, QStringLiteral("book.xlsx"), QMessageBox::Cancel);
+    QVERIFY2(problems.isEmpty(), qPrintable(problems));
+    QVERIFY(e.win.w.isVisible());
+    QVERIFY(e.win.w.isModified());
 }

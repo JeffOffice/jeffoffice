@@ -2,6 +2,9 @@
 // For the test programs that answer a modal dialog their command opens (the window tests of every app).
 #include <QApplication>
 #include <QDialog>
+#include <QLabel>
+#include <QMessageBox>
+#include <QPushButton>
 #include <QString>
 #include <QTimer>
 #include <QtTest>
@@ -51,4 +54,42 @@ inline void withDialog(const std::function<void()> &open, const QString &objectN
     open();
     QCOMPARE(opened, objectName);
     QVERIFY2(!leftOpen, "the dialog was left open");
+}
+
+// The box a window asks about unsaved changes with when it closes (libs/shell/app/uistyle.h, the same in the four apps): runs `closeIt`, which makes the window ask, finds the box,
+// checks it (red triangle, the question with the name, the grey line, Don't Save at the left, Cancel then Save at the right, Save the accent-filled default), and presses `press`
+// (Save, Discard, or Cancel). The problems found, empty when it is right.
+inline QString answerCloseBox(const std::function<void()> &closeIt, const QString &name, QMessageBox::StandardButton press)
+{
+    QString problems;
+    bool seen = false;
+    QTimer poll, watchdog;
+    watchdog.setSingleShot(true);
+    QObject::connect(&poll, &QTimer::timeout, [&] {
+        auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget());
+        if (!box || !box->isVisible()) return;
+        QAbstractButton *save = box->button(QMessageBox::Save), *discard = box->button(QMessageBox::Discard), *cancel = box->button(QMessageBox::Cancel);
+        if (!save || !discard || !cancel || !box->findChild<QLabel *>(QStringLiteral("jpBoxSign"))) return;   // (not laid out yet)
+        poll.stop();
+        seen = true;
+        auto x = [&](QWidget *w) { return w->mapTo(box, QPoint(0, 0)).x(); };
+        if (box->icon() != QMessageBox::Warning) problems += QStringLiteral("not a warning sign; ");
+        if (box->text() != QStringLiteral("Save changes to \"%1\"?").arg(name)) problems += QStringLiteral("text is ") + box->text() + QStringLiteral("; ");
+        if (box->informativeText() != QStringLiteral("If you don't save, your changes since the last save are lost.")) problems += QStringLiteral("detail is ") + box->informativeText() + QStringLiteral("; ");
+        if (discard->text() != QStringLiteral("Don't Save")) problems += QStringLiteral("discard says ") + discard->text() + QStringLiteral("; ");
+        if (!(x(discard) < x(cancel) && x(cancel) < x(save))) problems += QStringLiteral("buttons are not Don't Save, Cancel, Save; ");
+        if (box->defaultButton() != save || !save->property("primary").toBool()) problems += QStringLiteral("Save is not the default; ");
+        if (!save->icon().isNull() || !cancel->icon().isNull() || !discard->icon().isNull()) problems += QStringLiteral("icons on buttons; ");
+        box->button(press)->click();
+    });
+    QObject::connect(&watchdog, &QTimer::timeout, [&] {
+        problems += QStringLiteral("no box; ");
+        if (auto *m = QApplication::activeModalWidget()) m->close();
+    });
+    poll.start(20);
+    watchdog.start(10000);
+    closeIt();
+    poll.stop();
+    if (!seen && !problems.contains(QLatin1String("no box"))) problems += QStringLiteral("no box; ");
+    return problems;
 }

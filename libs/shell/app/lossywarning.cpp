@@ -94,7 +94,7 @@ LossyChoice askLossy(QWidget *parent, const LossyAsk &ask)
     if (standIn()) {
         choice = standIn()(ask, &dontAsk);
     } else {
-        QMessageBox box(QMessageBox::Warning, QCoreApplication::translate("jp::LossyWarning", "Save"), lossyReport(ask), QMessageBox::NoButton, parent);
+        jp::MessageBox box(QMessageBox::Warning, QCoreApplication::translate("jp::LossyWarning", "Save"), lossyReport(ask), QMessageBox::NoButton, parent);
         box.setObjectName(QStringLiteral("lossyWarning"));
         box.setTextFormat(Qt::PlainText);
         QPushButton *anyway = box.addButton(QCoreApplication::translate("jp::LossyWarning", "Save Anyway"), QMessageBox::AcceptRole);

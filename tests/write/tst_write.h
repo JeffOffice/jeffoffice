@@ -890,6 +890,7 @@ private Q_SLOTS:
     void thePaperIsDescribedAsTheSectionSetsIt();
     void thePrintScreenHasThePrinterCopiesCollateRangeAndPreview();
     void theWritePrintPageIsInFourGroups();
+    void theCloseBoxAsksToSaveChanges();
     void thePrintPageSidesChoiceSetsTheDuplexModeOfTheJob();
     void thePrintPageSidesChoiceByHandPrintsTwoRuns();
     void thePrintPageSidesChoiceFollowsThePrinterAndTheFileTarget();
