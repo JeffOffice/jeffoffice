@@ -27,6 +27,9 @@
 #include "io/zip.h"
 #include "core/picturestyles.h"
 #include "app/formatpresets.h"
+#include "app/themedialogs.h"
+#include "core/themeops.h"
+#include "core/writeprops.h"
 #include "core/threadtime.h"
 #include "core/writedoc.h"
 #include "text/textprops.h"
@@ -60,6 +63,7 @@
 #include <QApplication>
 #include <QListWidget>
 #include <QDialog>
+#include <QMenu>
 #include <QLabel>
 #include <QTableWidget>
 #include <QRegularExpression>
@@ -673,6 +677,180 @@ private Q_SLOTS:
         QVERIFY(!partOf(doc->toDocx(), QStringLiteral("/word/theme/theme1.xml")).contains("Theme Two"));
         QVERIFY(doc->redo());
         QCOMPARE(doc->theme()->minorLatin, QStringLiteral("Theme Two"));
+    }
+
+    // ---------------------------------------------------------------- themes
+    // Design > Colors, Fonts, and Themes: the theme's colors and fonts change as one step; the runs and styles that take a theme slot follow, a plain color stays.
+    void themeColorsRecolorThemedRunsAndStylesAsOneStepThatUndoes()
+    {
+        auto doc = WriteDoc::blank();
+        QTextCursor c(doc->story());
+        insertText(*doc, c, QStringLiteral("themed plain"));
+        const office::Theme before = *doc->theme();
+        const QColor oldAccent = before.colors[office::Theme::Accent1];
+        auto colorRun = [&](int from, int to, const QColor &color, const QString &attrs) {
+            QTextCursor r(doc->story());
+            r.setPosition(from);
+            r.setPosition(to, QTextCursor::KeepAnchor);
+            QTextCharFormat f;
+            f.setForeground(QBrush(color));
+            if (!attrs.isEmpty()) {
+                f.setProperty(prop::ColorAttrs, attrs);
+                f.setProperty(prop::ColorAttrsRgb, color.name(QColor::HexRgb).mid(1).toUpper());
+            }
+            r.mergeCharFormat(f);
+        };
+        colorRun(0, 6, oldAccent, QStringLiteral("accent1;;"));
+        colorRun(7, 12, QColor(0xFF, 0, 0), QString());
+        const QString heading = doc->styleSheet().find(QStringLiteral("Heading1"))->rPr.color->val;
+        const QByteArray docxBefore = doc->toDocx();
+        QVERIFY(partOf(docxBefore, QStringLiteral("/word/theme/theme1.xml")).contains(oldAccent.name(QColor::HexRgb).mid(1).toUpper().toUtf8()));
+
+        const office::ThemeColors colors = office::builtinThemeColors().at(3);
+        QVERIFY(applyThemeColors(*doc, colors));
+        QVERIFY(office::themeColorsOf(*doc->theme()) == colors);
+        auto fg = [&](int at) {
+            QTextCursor r(doc->story());
+            r.setPosition(at);
+            return r.charFormat().foreground().color();
+        };
+        QCOMPARE(fg(3), colors.colors[office::Theme::Accent1]);
+        QCOMPARE(fg(10), QColor(0xFF, 0, 0));                  // a plain color stays
+        QVERIFY(doc->styleSheet().find(QStringLiteral("Heading1"))->rPr.color->val != heading);
+        // saved and opened again, the document has the new theme and the runs keep their slot
+        const QByteArray saved = doc->toDocx();
+        const QString newHex = colors.colors[office::Theme::Accent1].name(QColor::HexRgb).mid(1).toUpper();
+        QVERIFY(partOf(saved, QStringLiteral("/word/theme/theme1.xml")).contains(newHex.toUtf8()));
+        QVERIFY(partOf(saved, QStringLiteral("/word/document.xml")).contains(("w:val=\"" + newHex + "\" w:themeColor=\"accent1\"").toUtf8()));
+        auto reopened = open(saved);
+        QVERIFY(reopened->theme());
+        QVERIFY(office::themeColorsOf(*reopened->theme()) == colors);
+        QTextCursor r(reopened->story());
+        r.setPosition(3);
+        QCOMPARE(r.charFormat().foreground().color(), colors.colors[office::Theme::Accent1]);
+        // one Undo puts all of it back, one Redo does it again
+        QVERIFY(doc->undo());
+        QCOMPARE(doc->theme()->colors[office::Theme::Accent1], oldAccent);
+        QCOMPARE(fg(3), oldAccent);
+        QCOMPARE(doc->styleSheet().find(QStringLiteral("Heading1"))->rPr.color->val, heading);
+        QVERIFY(!partOf(doc->toDocx(), QStringLiteral("/word/theme/theme1.xml")).contains(newHex.toUtf8()));
+        QVERIFY(doc->redo());
+        QCOMPARE(fg(3), colors.colors[office::Theme::Accent1]);
+        // the same colors again change nothing
+        QVERIFY(!applyThemeColors(*doc, colors));
+    }
+
+    void themeFontsAndAWholeThemeChangeTheDocumentAndResetPutsTheOldOneBack()
+    {
+        auto doc = WriteDoc::blank();
+        const office::Theme first = documentTheme(*doc);
+        QVERIFY(canChangeTheme(*doc));
+        QVERIFY(applyThemeFonts(*doc, {QStringLiteral("Pair"), QStringLiteral("Caladea"), QStringLiteral("Carlito")}));
+        QCOMPARE(doc->theme()->majorLatin, QStringLiteral("Caladea"));
+        QCOMPARE(doc->theme()->fontSchemeName, QStringLiteral("Pair"));
+        const QByteArray part = partOf(doc->toDocx(), QStringLiteral("/word/theme/theme1.xml"));
+        QVERIFY(part.contains("Caladea"));
+        QVERIFY(part.contains("fmtScheme"));   // the rest of the part stayed
+        QVERIFY(doc->undo());
+        QCOMPARE(doc->theme()->majorLatin, first.majorLatin);
+        // a whole theme from a theme file, then Reset with the theme the document had
+        office::Theme file = office::withThemeColors(office::defaultTheme(), office::builtinThemeColors().at(6));
+        file = office::withThemeFonts(file, {QStringLiteral("Other"), QStringLiteral("Carlito"), QStringLiteral("Caladea")});
+        file.xml = office::writeTheme(file);
+        office::Theme fromFile;
+        QVERIFY(office::readThemeFromPackage(office::writeThemeFile(file), &fromFile));
+        QVERIFY(applyTheme(*doc, fromFile));
+        QVERIFY(office::themeColorsOf(*doc->theme()) == office::builtinThemeColors().at(6));
+        QCOMPARE(doc->theme()->minorLatin, QStringLiteral("Caladea"));
+        QVERIFY(applyTheme(*doc, first));
+        QVERIFY(office::themeColorsOf(*doc->theme()) == office::themeColorsOf(first));
+        QCOMPARE(doc->theme()->minorLatin, first.minorLatin);
+        QVERIFY(doc->undo());   // (Reset is one step too)
+        QCOMPARE(doc->theme()->minorLatin, QStringLiteral("Caladea"));
+    }
+
+    void aDocumentWithNoThemeTakesNone()
+    {
+        auto doc = open(makeDocx("<w:p><w:r><w:t>words</w:t></w:r></w:p>"));
+        QVERIFY(!canChangeTheme(*doc));
+        QVERIFY(!applyThemeColors(*doc, office::builtinThemeColors().first()));
+        QVERIFY(!applyThemeFonts(*doc, {QStringLiteral("x"), QStringLiteral("Carlito"), QStringLiteral("Carlito")}));
+    }
+
+    void theDesignTabListsThemesColorsAndFontsAndTheyApplyInOneStep()
+    {
+        QTemporaryDir store;
+        QVERIFY(store.isValid());
+        office::setThemeStoreFolder(store.path());
+        struct Reset { ~Reset() { office::setThemeStoreFolder(QString()); } } resetStore;
+        WriteWindow w;
+        w.resize(1100, 800);
+        w.show();
+        auto *colors = w.findChild<QMenu *>(QStringLiteral("themeColorsMenu"));
+        auto *fonts = w.findChild<QMenu *>(QStringLiteral("themeFontsMenu"));
+        auto *themes = w.findChild<QMenu *>(QStringLiteral("themesMenu"));
+        QVERIFY(colors && fonts && themes);
+        auto entry = [](QMenu *menu, const QString &text) -> QAction * {
+            for (QAction *a : menu->actions())
+                if (a->text().startsWith(text)) return a;
+            return nullptr;
+        };
+        const office::Theme first = *w.document()->theme();
+        // Create New Theme Colors: the box, then the set is kept for every app and chosen
+        Q_EMIT colors->aboutToShow();
+        QVERIFY(entry(colors, QStringLiteral("Create New Theme Colors")));
+        QVERIFY(entry(colors, QStringLiteral("Lagoon")));
+        QVERIFY(entry(colors, QStringLiteral("Reset to the Template")));
+        colors->adjustSize();
+        shotOf(colors, QStringLiteral("write-theme-colors-gallery"));
+        withDialog([&] { entry(colors, QStringLiteral("Create New Theme Colors"))->trigger(); }, QStringLiteral("themeColorsDialog"), [&](QDialog *d) {
+            auto *box = qobject_cast<ThemeColorsDialog *>(d);
+            QVERIFY(box);
+            box->setSlot(office::Theme::Accent1, QColor(0x12, 0x34, 0x56));
+            box->nameEdit()->setText(QStringLiteral("Made Here"));
+            shotOf(d, QStringLiteral("write-create-new-theme-colors"));
+        });
+        QCOMPARE(office::customThemeColors().size(), 1);
+        QCOMPARE(w.document()->theme()->colors[office::Theme::Accent1], QColor(0x12, 0x34, 0x56));
+        QVERIFY(w.document()->undo());
+        QCOMPARE(w.document()->theme()->colors[office::Theme::Accent1], first.colors[office::Theme::Accent1]);
+        // the list now shows it first, under Custom, and picking it applies it
+        Q_EMIT colors->aboutToShow();
+        QAction *made = entry(colors, QStringLiteral("Made Here"));
+        QVERIFY(made);
+        made->trigger();
+        QCOMPARE(w.document()->theme()->colors[office::Theme::Accent1], QColor(0x12, 0x34, 0x56));
+        // Themes: a built-in one changes colors and fonts together; Reset puts the opened theme back
+        Q_EMIT themes->aboutToShow();
+        QAction *lagoon = entry(themes, QStringLiteral("Lagoon"));
+        QVERIFY(lagoon);
+        lagoon->trigger();
+        QVERIFY(office::themeColorsOf(*w.document()->theme()) == office::builtinThemeColors().first());
+        QVERIFY(w.resetTheme());
+        QVERIFY(office::themeColorsOf(*w.document()->theme()) == office::themeColorsOf(first));
+        QCOMPARE(w.document()->theme()->minorLatin, first.minorLatin);
+        // Fonts: Create New, with its box
+        Q_EMIT fonts->aboutToShow();
+        QVERIFY(entry(fonts, QStringLiteral("Create New Theme Fonts")));
+        withDialog([&] { entry(fonts, QStringLiteral("Create New Theme Fonts"))->trigger(); }, QStringLiteral("themeFontsDialog"), [&](QDialog *d) {
+            auto *box = qobject_cast<ThemeFontsDialog *>(d);
+            QVERIFY(box);
+            box->headingBox()->setCurrentText(QStringLiteral("Caladea"));
+            box->nameEdit()->setText(QStringLiteral("My Pair"));
+            shotOf(d, QStringLiteral("write-create-new-theme-fonts"));
+        });
+        QCOMPARE(w.document()->theme()->majorLatin, QStringLiteral("Caladea"));
+        QCOMPARE(office::customThemeFonts().size(), 1);
+        // Save Current Theme writes a file; Browse for Themes takes it back
+        QTemporaryDir dir;
+        const QString file = dir.filePath(QStringLiteral("out.thmx"));
+        QVERIFY(w.saveThemeFile(file));
+        QVERIFY(w.resetTheme());
+        QCOMPARE(w.document()->theme()->majorLatin, first.majorLatin);
+        QVERIFY(w.applyThemeFile(file));
+        QCOMPARE(w.document()->theme()->majorLatin, QStringLiteral("Caladea"));
+        QVERIFY(w.document()->undo());
+        QCOMPARE(w.document()->theme()->majorLatin, first.majorLatin);
     }
 
     void theReplaceFontsCommandAsksAndReplaces()

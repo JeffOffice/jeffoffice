@@ -145,6 +145,11 @@ public:
     void reflectShapeEditor();
     // Replaces the document shown (as a new window's blank one, or one just read); the path is "" for an unsaved one.
     void setDocument(std::unique_ptr<write::WriteDoc> doc, const QString &path);
+    // Design > Themes: a theme file (.thmx), or the theme of a presentation, template, or document, put on this document (its colors, fonts, and effect styles); Save Current Theme writes
+    // the document's own as a .thmx file; Reset gives back the theme the document was opened with. Each is one step of the history. False, with the reason shown, if a file can't be used.
+    bool applyThemeFile(const QString &path);
+    bool saveThemeFile(const QString &path);
+    bool resetTheme();
     // Opens a .docx in this window if it holds a new document nobody has touched, else in a window of its own. False, with the reason
     // shown, if the file can't be read.
     // `how`: as it is (the default), read-only, as a copy (an unsaved document made from the file; the file is never written), or in a window of its own even if this one holds nothing.
@@ -430,6 +435,8 @@ private:
     void outlineEdited();
     void refreshViewUi();
     void layoutRibbonParts(RibbonParts &parts);
+    void themeRibbonParts(RibbonParts &parts);
+    void createThemeActions();
     void refreshLayoutUi();
     void insertRibbonParts(RibbonParts &parts);
     void refreshInsertUi();
@@ -543,6 +550,7 @@ private:
     QList<FontCombo *> m_fontCombos;
     QList<SizeCombo *> m_sizeCombos;
     QList<ColorButton *> m_colorButtons;
+    office::Theme m_openedTheme;   // the document's theme as it was opened (Reset to the template's theme)
     QList<ColorButton *> m_pageColorButtons;   // (Design > Page Color)
     QList<MeasureSpin *> m_indentFields;
     QWidget *m_styleGallery = nullptr;
