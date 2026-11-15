@@ -345,16 +345,16 @@ void CrunchPrintTests::aJobSaysWhereTheCellsOfAPageAre()
     QVERIFY(!job->cellAt(0, QPointF(5, 5), &row, &col));          // (the margin)
     QVERIFY(!job->cellRect(0, 50, 0, &second));                    // (a row of the second page)
     QVERIFY(job->cellRect(1, 50, 0, &second));
-    QVERIFY(qAbs(second.top() - 54 - 5 * a1.height()) < 3);        // (the page begins at row 45: row 50 is five rows down)
+    QVERIFY(qAbs(second.top() - 54 - 3 * a1.height()) < 3);        // (the page begins at row 47: row 50 is three rows down)
     QCOMPARE(job->pageOfCell(0, 50, 0), 1);
     QCOMPARE(job->pageOfCell(0, 0, 0), 0);
     QCOMPARE(job->pageOfCell(0, 99, 1), 2);
     QCOMPARE(job->pageOfCell(0, 500, 0), -1);
     QRectF part, whole;
-    QVERIFY(job->rangeRect(0, 40, 0, 60, 1, &part));    // (rows 40 to 44 are on the first page)
+    QVERIFY(job->rangeRect(0, 40, 0, 60, 1, &part));    // (rows 40 to 46 are on the first page)
     QVERIFY(job->cellRect(0, 40, 0, &whole));
     QVERIFY(qAbs(part.top() - whole.top()) < 0.5);
-    QVERIFY(job->cellRect(0, 44, 1, &whole));
+    QVERIFY(job->cellRect(0, 46, 1, &whole));
     QVERIFY(qAbs(part.bottom() - whole.bottom()) < 0.5 && qAbs(part.right() - whole.right()) < 0.5);
     QVERIFY(!job->rangeRect(0, 50, 0, 60, 1, &part));
 }

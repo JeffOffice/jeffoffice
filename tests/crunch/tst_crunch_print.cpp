@@ -611,7 +611,7 @@ void CrunchPrintTests::theMomentOfTheFieldsIsTakenOncePerJob()
 
     // a sheet of the same number in every cell, three pages, a date and a time in the header: the texts of its pages are the same if the header is
     QString rows;
-    for (int r = 1; r <= 135; ++r) rows += QStringLiteral("<row r=\"%1\"><c r=\"A%1\"><v>7</v></c></row>").arg(r);
+    for (int r = 1; r <= 141; ++r) rows += QStringLiteral("<row r=\"%1\"><c r=\"A%1\"><v>7</v></c></row>").arg(r);
     EditWindow same;
     QVERIFY(same.open(buildXlsx({worksheet(rows, QStringLiteral("<headerFooter><oddHeader>&amp;D &amp;T</oddHeader></headerFooter>"))})));
     int reads = 0;
@@ -1188,7 +1188,7 @@ void CrunchPrintTests::thePrintScreenShowsThePagesAndFollowsTheChoices()
     // a choice makes the job again: wide paper cuts the sheet into more pages, and the scaling into one
     QComboBox *orientation = w.findChild<QComboBox *>(QStringLiteral("printOrientation")), *scaling = w.findChild<QComboBox *>(QStringLiteral("printScaling"));
     orientation->setCurrentIndex(orientation->findData(int(PageOrientation::Landscape)));
-    QCOMPARE(page->text(), QStringLiteral("Page 1 of 4"));
+    QCOMPARE(page->text(), QStringLiteral("Page 1 of 3"));
     scaling->setCurrentIndex(scaling->findData(int(crunch::PrintScaling::FitSheet)));
     QCOMPARE(page->text(), QStringLiteral("Page 1 of 1"));
     QVERIFY(!next->isEnabled());
@@ -1204,7 +1204,7 @@ void CrunchPrintTests::thePrintScreenShowsThePagesAndFollowsTheChoices()
     scaling->setCurrentIndex(0);
     QLineEdit *range = w.findChild<QLineEdit *>(QStringLiteral("printRange"));
     range->setText(QStringLiteral("2-3"));
-    QCOMPARE(w.findChild<QLabel *>(QStringLiteral("printPage"))->text(), QStringLiteral("Page 2 of 4"));
+    QCOMPARE(w.findChild<QLabel *>(QStringLiteral("printPage"))->text(), QStringLiteral("Page 2 of 3"));
     range->setText(QStringLiteral("99"));
     QVERIFY(!w.findChild<QPushButton *>(QStringLiteral("printButton"))->isEnabled());
     range->setText(QString());
@@ -2160,22 +2160,22 @@ void CrunchPrintTests::thePageBreaksShowOnTheSheetAfterAPreview()
     w.act(QStringLiteral("file.print"))->trigger();
     w.hideFileScreen();
     QTRY_VERIFY(e.view()->hasPageBreaks());
-    QTRY_COMPARE(rowLines(), (QList<qint64>{45, 90}));   // (45 rows to a page: the pages begin at rows 46 and 91)
+    QTRY_COMPARE(rowLines(), (QList<qint64>{47, 94}));   // (47 rows to a page, as the printer makes the rows: the pages begin at rows 48 and 95)
     QVERIFY(!e.view()->pageBreakRows()[0].manual);
     // a break set by hand moves the lines, and is drawn as one set by hand
     e.view()->selectCell(30, 0);
     w.act(QStringLiteral("breaks.insert"))->trigger();
-    QTRY_COMPARE(rowLines(), (QList<qint64>{30, 75}));
+    QTRY_COMPARE(rowLines(), (QList<qint64>{30, 77}));
     QVERIFY(e.view()->pageBreakRows()[0].manual);
     // what is typed past the last cell makes another page, and the line follows it
     QVERIFY(w.session()->type(0, 199, 0, QStringLiteral("x")).ok);
-    QTRY_COMPARE(rowLines(), (QList<qint64>{30, 75, 120, 165}));
+    QTRY_COMPARE(rowLines(), (QList<qint64>{30, 77, 124, 171}));
     pressUndo(e.view());
-    QTRY_COMPARE(rowLines(), (QList<qint64>{30, 75}));
+    QTRY_COMPARE(rowLines(), (QList<qint64>{30, 77}));
     w.act(QStringLiteral("view.pageBreaks"))->trigger();   // (off)
     QTRY_VERIFY(!e.view()->hasPageBreaks());
     w.act(QStringLiteral("view.pageBreaks"))->trigger();
-    QTRY_COMPARE(rowLines(), (QList<qint64>{30, 75}));
+    QTRY_COMPARE(rowLines(), (QList<qint64>{30, 77}));
 }
 
 
@@ -2514,18 +2514,18 @@ void CrunchPrintTests::draggingALineMovesABreakAsOneStep()
     QVERIFY(e.open(rowsWithFormulas(100, {})));
     CrunchWindow &w = e.win.w;
     w.setViewKind(1);
-    e.view()->setZoom(0.4);
+    e.view()->setZoom(0.3);
     auto rowLines = [&] {
         QList<qint64> at;
         for (const auto &l : e.view()->pageBreakRows()) at << l.before;
         return at;
     };
-    QTRY_COMPARE(rowLines(), (QList<qint64>{45, 90}));
+    QTRY_COMPARE(rowLines(), (QList<qint64>{47, 94}));
     QTRY_COMPARE(e.view()->breakAreas().size(), size_t(1));
     const int steps = w.session()->undoStack()->count();
     const grid::GridLayout &L = e.view()->sheet().layout();
     const int x = L.xEdge(1, false) + 5;
-    const QPoint from(x, L.yEdge(45, false)), to(x, L.yEdge(30, false) + 2);
+    const QPoint from(x, L.yEdge(47, false)), to(x, L.yEdge(30, false) + 2);
     QVERIFY(e.view()->breakGrabAt(from).kind == grid::GridView::BreakGrab::Kind::Line);
     QTest::mousePress(e.view()->viewport(), Qt::LeftButton, Qt::NoModifier, from);
     QTest::mouseMove(e.view()->viewport(), to);
@@ -2535,15 +2535,15 @@ void CrunchPrintTests::draggingALineMovesABreakAsOneStep()
     QCOMPARE(now.rowBreaks.size(), 1);
     QCOMPARE(now.rowBreaks[0].before, 30u);
     QVERIFY(now.rowBreaks[0].manual);
-    QTRY_COMPARE(rowLines(), (QList<qint64>{30, 75}));
+    QTRY_COMPARE(rowLines(), (QList<qint64>{30, 77}));
     QVERIFY(e.view()->pageBreakRows()[0].manual);
     pressUndo(e.view());
     QCOMPARE(w.session()->pages().sheet(0).rowBreaks.size(), 0);
-    QTRY_COMPARE(rowLines(), (QList<qint64>{45, 90}));
+    QTRY_COMPARE(rowLines(), (QList<qint64>{47, 94}));
     // a break set by hand is moved the same way (the old one goes, no second is left behind)
     pressRedo(e.view());
     QCOMPARE(w.session()->pages().sheet(0).rowBreaks.size(), 1);
-    QTRY_COMPARE(rowLines(), (QList<qint64>{30, 75}));
+    QTRY_COMPARE(rowLines(), (QList<qint64>{30, 77}));
     const QPoint again(x, L.yEdge(30, false)), moved(x, L.yEdge(20, false) + 2);
     QTest::mousePress(e.view()->viewport(), Qt::LeftButton, Qt::NoModifier, again);
     QTest::mouseMove(e.view()->viewport(), moved);

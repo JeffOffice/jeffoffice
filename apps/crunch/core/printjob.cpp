@@ -307,6 +307,7 @@ PrintJob::BuildState PrintJob::buildStep(jp::grid::Work &work, QString *why)
                 geometry->layout.cols = jp::grid::Axis(1, w);
                 info.geometry = geometry;
                 info.cols = geometry->layout.cols;
+                info.rows = geometry->layout.rows;
                 info.print.paper = paper;
                 jp::office::sheet::CellRange block;
                 block.valid = true;
@@ -324,10 +325,11 @@ PrintJob::BuildState PrintJob::buildStep(jp::grid::Work &work, QString *why)
             }
             info.geometry = data.geometry ? data.geometry : std::shared_ptr<const jp::grid::GridGeometry>(GridSheet::makeGeometry(*data.sheet, *data.styles));
             info.cols = jp::grid::printColumnAxis(*data.sheet, *data.styles);   // (what the page is drawn by; the cuts are made by the finer ones below)
+            info.rows = jp::grid::printRowAxis(*data.sheet, 1, true);
             b.cutCols = jp::grid::printColumnAxis(*data.sheet, *data.styles, jp::grid::kCutFine);
             std::vector<jp::grid::ObjectBox> boxes;
             {
-                PageObjectPainter objects(m_source->objects(sheet), info.geometry->layout.rows, info.cols);
+                PageObjectPainter objects(m_source->objects(sheet), info.rows, info.cols);
                 if (!info.setup.draft) boxes = objects.boxes();
                 work.add(qint64(data.sheet->columns.size()) + qint64(objects.count()));
             }
@@ -346,7 +348,7 @@ PrintJob::BuildState PrintJob::buildStep(jp::grid::Work &work, QString *why)
                 q.selection = m_options.selection;
             }
             q.maxPages = int(std::max<qint64>(1, std::min<qint64>(b.room, jp::grid::kMaxSheetPages)));
-            b.rowTask = std::make_unique<jp::grid::RowAxisTask>(*data.sheet, jp::grid::kCutFine);
+            b.rowTask = std::make_unique<jp::grid::RowAxisTask>(*data.sheet, jp::grid::kCutFine, true);
             b.stage = Build::Stage::Rows;
             break;
         }
@@ -487,8 +489,8 @@ PrintJob::Context &PrintJob::contextFor(int infoIndex)
         c.grid = std::make_unique<GridSheet>();
         c.painter = std::make_unique<PagePainter>(c.grid.get());
         c.painter->setBaseFont(m_source->baseFontFamily(), m_source->baseFontPoints());
-        c.objects = std::make_unique<PageObjectPainter>(m_source->objects(info.sheet), info.geometry->layout.rows, info.cols);
-        c.objects->fitFirstTo(double(info.cols.total()), double(info.geometry->layout.rows.total()));
+        c.objects = std::make_unique<PageObjectPainter>(m_source->objects(info.sheet), info.rows, info.cols);
+        c.objects->fitFirstTo(double(info.cols.total()), double(info.rows.total()));
         return c;
     }
     GridData data = m_source->data(info.sheet);
@@ -496,6 +498,7 @@ PrintJob::Context &PrintJob::contextFor(int infoIndex)
     c.grid = std::make_unique<GridSheet>();
     c.grid->setData(data);
     c.grid->layout().cols = info.cols;
+    c.grid->layout().rows = info.rows;
     c.grid->setErrorDisplay(info.setup.errors == jp::office::sheet::PrintErrors::Blank ? GridSheet::ErrorDisplay::Blank
                             : info.setup.errors == jp::office::sheet::PrintErrors::Dash  ? GridSheet::ErrorDisplay::Dash
                             : info.setup.errors == jp::office::sheet::PrintErrors::NA    ? GridSheet::ErrorDisplay::NA
@@ -504,7 +507,7 @@ PrintJob::Context &PrintJob::contextFor(int infoIndex)
     c.painter->setBaseFont(m_source->baseFontFamily(), m_source->baseFontPoints());
     c.painter->setAsyncPictures(m_asyncPictures);
     c.painter->setScreenMarks(m_screenGrid, m_screenHeadings);
-    if (!info.setup.draft) c.objects = std::make_unique<PageObjectPainter>(m_source->objects(info.sheet), info.geometry->layout.rows, info.cols);
+    if (!info.setup.draft) c.objects = std::make_unique<PageObjectPainter>(m_source->objects(info.sheet), info.rows, info.cols);
     return c;
 }
 
@@ -588,7 +591,7 @@ bool PrintJob::paintColors(QPainter *painter, int page)
     }
     const jp::grid::PageCut &cut = info.print.pages[size_t(pg.index)];
     if (info.chart) {
-        const jp::grid::PageMetrics m = jp::grid::pageMetrics(info.print, cut, info.setup, info.geometry->layout.rows, info.cols);
+        const jp::grid::PageMetrics m = jp::grid::pageMetrics(info.print, cut, info.setup, info.rows, info.cols);
         if (c.objects && c.objects->count() > 0) {
             painter->save();
             painter->translate(m.cells.left(), m.cells.top());

@@ -197,6 +197,36 @@ private Q_SLOTS:
         QCOMPARE(z.size(2), 20);
     }
 
+    // The printer measures a row in its own pixels: 8 for each point of the file's height, cut, and one more (at 600 to the inch). The usual Arial row (12.75 points) is 103 of them, 12.36
+    // points, so a page holds more of them than the file's height says.
+    void aRowPrintsAsTheScreenPixelsMakeIt()
+    {
+        QCOMPARE(printRowPoints(12.75), 103.0 * 72 / 600);
+        QCOMPARE(printRowPoints(12.0), 97.0 * 72 / 600);
+        QCOMPARE(printRowPoints(16.5), 133.0 * 72 / 600);
+        QCOMPARE(printRowPoints(12.95), 104.0 * 72 / 600);
+        QCOMPARE(printRowPoints(0), 0.0);
+        Fixture f(99, 1);
+        f.sheet.format.defaultRowHeight = 12.75;
+        RowSpec own;
+        own.row = 1;
+        own.height = 16.5;
+        own.customHeight = true;
+        f.sheet.rowSpecs = {own};
+        QCOMPARE(printRowAxis(f.sheet, kCutFine, true).size(0), 132);   // 12.36 points in eighths of a pixel
+        QCOMPARE(printRowAxis(f.sheet, kCutFine, true).size(1), 170);   // 15.96 (a height set by hand is cut the same)
+        QCOMPARE(printRowAxis(f.sheet, kCutFine).size(0), 136);         // (not for paper: the file's height)
+        f.sheet.rowSpecs.clear();
+        Axis onPaper = printRowAxis(f.sheet, kCutFine, true);
+        f.request.rows = &onPaper;
+        f.request.rowFine = kCutFine;
+        QCOMPARE(rowsOf(f.run()), QStringLiteral("0-54 55-99"));
+        Axis asFile = printRowAxis(f.sheet, kCutFine);
+        f.request.rows = &asFile;
+        QCOMPARE(rowsOf(f.run()), QStringLiteral("0-52 53-99"));
+    }
+
+
     // A finer axis cuts the page where the width really ends: ten columns of 50.4 points are 504, and a page with 503 points to print on holds nine, not the ten that columns held to whole pixels
     // (67 of them, 50.25 points each) would say.
     void aFinerAxisCutsToThePoint()

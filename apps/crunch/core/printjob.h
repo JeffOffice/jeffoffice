@@ -241,6 +241,7 @@ private:
         std::shared_ptr<const jp::grid::GridGeometry> geometry;
         bool chart = false;                     // a chart sheet: one page with the chart over the whole of its room
         jp::grid::Axis cols;                    // the columns as they are on paper, in the grid's pixels (what the page is drawn by)
+        jp::grid::Axis rows;                    // the rows as they are on paper, the same way
         int firstNumber = 1;
         int firstPage = 0;
         std::vector<QStringList> notePages;     // the lines of the pages of notes after the sheet's pages (comments printed at the end)

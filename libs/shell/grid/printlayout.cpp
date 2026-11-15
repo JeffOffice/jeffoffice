@@ -36,6 +36,14 @@ double printColumnPoints(double fileWidth, int digitPixels, int dpi)
     return px * 72.0 / double(dpi);
 }
 
+double printRowPoints(double filePoints, int dpi)
+{
+    if (!(filePoints > 0)) return 0;
+    // (the printer makes a point of height 8 of its pixels at 600 to the inch, cuts what is over, and adds one)
+    const double px = std::floor(filePoints * double(dpi) / 75.0 + 1e-6) + 1.0;
+    return px * 72.0 / double(dpi);
+}
+
 Axis printColumnAxis(const Sheet &sheet, const Styles &styles, int fine, int dpi)
 {
     using jp::office::sheet::ColumnSpan;
@@ -74,6 +82,7 @@ struct RowAxisTask::Impl {
 
     const Sheet *sheet;
     int fine;
+    bool paper;   // the rows are as tall as they print (printRowPoints), not as the file says
     int defaultRow;
     Axis rows;
     Stage stage = Stage::Copy;
@@ -87,14 +96,17 @@ struct RowAxisTask::Impl {
     size_t listed = 0;
     QVector<jp::office::sheet::RowSpec> source;   // the specs of the rows by the places of the rows (a sheet may hold them by id)
 
-    Impl(const Sheet &s, int f)
-        : sheet(&s), fine(std::clamp(f, 1, 64)), defaultRow(std::max(1, sizeFor(s.format.defaultRowHeight > 0 ? s.format.defaultRowHeight : 15))), rows(qint64(jp::office::sheet::kMaxRows), defaultRow)
+    Impl(const Sheet &s, int f, bool onPaper)
+        : sheet(&s), fine(std::clamp(f, 1, 64)), paper(onPaper), defaultRow(0), rows(qint64(jp::office::sheet::kMaxRows), 1)
     {
+        defaultRow = std::max(1, sizeFor(heightOf(s.format.defaultRowHeight > 0 ? s.format.defaultRowHeight : 15)));
+        rows = Axis(qint64(jp::office::sheet::kMaxRows), defaultRow);
         specs.reserve(size_t(s.rowSpecs.size()));
         source = s.placedRowSpecs();
     }
     int sizeFor(double points) const { return int(std::lround(std::clamp(points, 0.0, 1000.0) / kPointsPerPixel * fine)); }
-    int sizeOf(const RowSpec &s) const { return s.hidden ? 0 : s.height >= 0 ? sizeFor(s.height) : defaultRow; }
+    double heightOf(double points) const { return paper ? printRowPoints(points) : points; }
+    int sizeOf(const RowSpec &s) const { return s.hidden ? 0 : s.height >= 0 ? sizeFor(heightOf(s.height)) : defaultRow; }
 
     bool step(Work &w)
     {
@@ -209,14 +221,14 @@ struct RowAxisTask::Impl {
     }
 };
 
-RowAxisTask::RowAxisTask(const Sheet &sheet, int fine) : d(std::make_unique<Impl>(sheet, fine)) {}
+RowAxisTask::RowAxisTask(const Sheet &sheet, int fine, bool onPaper) : d(std::make_unique<Impl>(sheet, fine, onPaper)) {}
 RowAxisTask::~RowAxisTask() = default;
 bool RowAxisTask::step(Work &work) { return d->step(work); }
 Axis RowAxisTask::take() { return d->rows; }
 
-Axis printRowAxis(const Sheet &sheet, int fine)
+Axis printRowAxis(const Sheet &sheet, int fine, bool onPaper)
 {
-    RowAxisTask task(sheet, fine);
+    RowAxisTask task(sheet, fine, onPaper);
     Work all;
     task.step(all);
     return task.take();

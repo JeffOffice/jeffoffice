@@ -48,12 +48,17 @@ double printColumnPoints(double fileWidth, int digitPixels, int dpi = kPrinterDp
 // cut by (a fine axis cuts to a small part of a point, where whole pixels would be wrong by a third of a point in every column) and, with `fine` 1, for the painter to draw with;
 // hidden columns have none.
 Axis printColumnAxis(const Sheet &sheet, const Styles &styles, int fine = 1, int dpi = kPrinterDpi);
-// The sizes of the sheet's rows, the same way: the height in points the file gives, in 1/`fine` of a pixel (with `fine` 1, the rows the grid has).
-Axis printRowAxis(const Sheet &sheet, int fine = 1);
+// The height of a row on paper, in points. The printer makes each point of the row's height 8 pixels at 600 to the inch (a little less than the 8.33 there are), cuts what is over, and adds
+// one pixel: the usual Arial row (12.75 points) is 103 printer pixels (12.36 points), a row of 12 points 97, 12.95 points 104, and 16.5 points 133. A page holds a few percent more rows
+// than the file's heights say.
+double printRowPoints(double filePoints, int dpi = kPrinterDpi);
+// The sizes of the sheet's rows, the same way: the height in points the file gives, in 1/`fine` of a pixel (with `fine` 1, the rows the grid has). `onPaper`: the heights they print at
+// (printRowPoints), for the page layout.
+Axis printRowAxis(const Sheet &sheet, int fine = 1, bool onPaper = false);
 // The same, made a step at a time (see Work): `step` goes on until the work is spent and says whether the axis is done; `take` is the axis once it is.
 class RowAxisTask {
 public:
-    explicit RowAxisTask(const Sheet &sheet, int fine = 1);
+    explicit RowAxisTask(const Sheet &sheet, int fine = 1, bool onPaper = false);
     ~RowAxisTask();
     bool step(Work &work);
     Axis take();
