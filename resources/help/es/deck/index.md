@@ -5,7 +5,7 @@ Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando 
 
 ## Primeros pasos
 
-- [Bienvenida a JeffDeck](start)
+- [Bienvenido a JeffDeck](start)
 - [Orientarse en la ventana](window)
 - [Abrir y guardar presentaciones](open-save)
 - [Recuperar trabajo sin guardar](recover)
@@ -14,7 +14,7 @@ Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando 
 
 - [Agregar, cambiar y eliminar diapositivas](slides)
 - [Reutilizar diapositivas de otra presentación](reuse)
-- [Vista Esquema, Clasificador de diapositivas y Vista Patrón de diapositivas](views)
+- [Vista Esquema, Clasificador de diapositivas y vista Patrón de diapositivas](views)
 - [Tamaño de diapositiva, fondo y pies de página](design)
 
 ## En una diapositiva
@@ -26,14 +26,14 @@ Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando 
 - [Notas del orador](notes)
 - [Comentarios](comments)
 
-## Animación
+## Movimiento
 
 - [Transiciones entre diapositivas](transitions)
 - [Animaciones](animations)
 
-## Mostrar la presentación
+## Presentarla
 
-- [Iniciar la presentación con diapositivas y usar la Vista Moderador](show)
+- [Reproducir la presentación con diapositivas y usar la Vista Moderador](show)
 
 ## Imprimir y compartir
 
@@ -43,10 +43,11 @@ Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando 
 
 - [Usar JeffDeck con el teclado](keyboard)
 - [Cambiar la configuración de JeffDeck](options)
+- [Seguridad: a qué puede conectarse un archivo](security)
 - [Elegir un idioma](language)
 - [La pantalla Archivo](file-screen)
 
 ## Pestañas de la cinta de opciones
 
 - [Inicio](tab-home), [Insertar](tab-insert), [Diseño](tab-design), [Transiciones](tab-transitions), [Animaciones](tab-animations), [Presentación con diapositivas](tab-slide-show), [Revisar](tab-review) y [Vista](tab-view)
-- [Reproducción](tab-playback) aparece mientras hay un vídeo o un sonido seleccionado
+- [Reproducción](tab-playback) se muestra cuando hay un vídeo o un sonido seleccionado

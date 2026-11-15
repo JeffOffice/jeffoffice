@@ -1,7 +1,7 @@
 # Bantuan JeffDeck
-<!-- keywords: isi, bantuan, topik, mulai -->
+<!-- keywords: daftar isi, bantuan, topik, memulai -->
 
-Ketik di kotak pencarian di atas untuk mencari topik, atau perintah yang ingin dijalankan. Tekan **F1** kapan saja untuk mendapatkan bantuan tentang yang sedang Anda kerjakan: tab pita yang sedang Anda buka, panel yang sedang Anda gunakan, atau objek yang sedang Anda pilih.
+Ketik di kotak pencarian di atas untuk mencari topik, atau perintah yang ingin dijalankan. Tekan **F1** kapan saja untuk mendapatkan bantuan tentang yang sedang Anda lakukan: tab pita yang sedang Anda buka, panel yang sedang Anda gunakan, atau objek yang sedang Anda pilih.
 
 ## Memulai
 
@@ -35,14 +35,15 @@ Ketik di kotak pencarian di atas untuk mencari topik, atau perintah yang ingin d
 
 - [Memutar presentasi slaid dan menggunakan Tampilan Presenter](show)
 
-## Mencetak dan berbagi
+## Cetak dan bagikan
 
 - [Cetak, PDF, dan gambar slaid](printing)
 
 ## Bantuan dan pengaturan
 
-- [Menggunakan JeffDeck dengan papan ketik](keyboard)
+- [Menggunakan JeffDeck dengan keyboard](keyboard)
 - [Mengubah pengaturan JeffDeck](options)
+- [Keamanan: apa yang dapat dijangkau sebuah berkas](security)
 - [Memilih bahasa](language)
 - [Layar Berkas](file-screen)
 

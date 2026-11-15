@@ -662,7 +662,12 @@
 <context>
     <name>AppWindow</name>
     <message>
-        <location filename="../libs/shell/app/appwindow.cpp" line="+253"/>
+        <location filename="../libs/shell/app/appwindow.cpp" line="+271"/>
+        <source>Enable Editing</source>
+        <translation type="unfinished">Увімкнути редагування</translation>
+    </message>
+    <message>
+        <location line="+22"/>
         <source>This file is open for reading only. Use Save a Copy, or Save As, to make a copy you can change.</source>
         <translation type="unfinished">Цей файл відкрито лише для читання. Щоб створити копію, яку можна змінювати, скористайтеся командою «Зберегти копію» або «Зберегти як».</translation>
     </message>
@@ -2047,7 +2052,7 @@ Back page story	4</source>
         <translation type="unfinished">Довга штрихпунктирна з двома крапками</translation>
     </message>
     <message>
-        <location filename="../libs/page/core/document.cpp" line="+516"/>
+        <location filename="../libs/page/core/document.cpp" line="+517"/>
         <source>Organization Name</source>
         <translation type="unfinished">Назва організації</translation>
     </message>
@@ -2385,7 +2390,7 @@ Back page story	4</source>
         <translation type="unfinished">CSV (*.csv)</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/optionsdialog.cpp" line="+70"/>
+        <location filename="../libs/page/app/optionsdialog.cpp" line="+71"/>
         <source>Grammar</source>
         <translation type="unfinished">Граматика</translation>
     </message>
@@ -2540,8 +2545,13 @@ Back page story	4</source>
         <translation type="unfinished">Параметри автовиправлення...</translation>
     </message>
     <message>
+        <location line="+14"/>
+        <source>Security</source>
+        <translation type="unfinished">Безпека</translation>
+    </message>
+    <message>
         <location filename="../libs/shell/app/commandsearch.cpp" line="-15"/>
-        <location filename="../libs/page/app/optionsdialog.cpp" line="-33"/>
+        <location filename="../libs/page/app/optionsdialog.cpp" line="-47"/>
         <source>General</source>
         <translation type="unfinished">Загальні</translation>
     </message>
@@ -2598,7 +2608,7 @@ Back page story	4</source>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../libs/page/app/optionsdialog.cpp" line="+13"/>
+        <location filename="../libs/page/app/optionsdialog.cpp" line="+16"/>
         <source>Ribbon</source>
         <translation type="unfinished">Стрічка</translation>
     </message>
@@ -5013,7 +5023,7 @@ Back page story	4</source>
     </message>
     <message>
         <location filename="../libs/page/app/saveoptions.cpp" line="+29"/>
-        <location filename="../apps/pub/app/mainwindow.cpp" line="+410"/>
+        <location filename="../apps/pub/app/mainwindow.cpp" line="+411"/>
         <location filename="../apps/write/app/writewindow.cpp" line="+793"/>
         <source>Save</source>
         <translation type="unfinished">Зберегти</translation>
@@ -7353,6 +7363,100 @@ Open them with your email program to send.</source>
     </message>
 </context>
 <context>
+    <name>LinkedMedia</name>
+    <message>
+        <location filename="../apps/deck/app/linkedmedia.cpp" line="+126"/>
+        <source>This linked movie is too large to play from a link (the most is 256 MB).</source>
+        <translation type="unfinished">Це пов&apos;язане відео завелике, щоб відтворити його за посиланням (максимум 256 МБ).</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>This linked sound is too large to play from a link (the most is 256 MB).</source>
+        <translation type="unfinished">Цей пов&apos;язаний звук завеликий, щоб відтворити його за посиланням (максимум 256 МБ).</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>This linked file is not a movie, so it isn&apos;t played.</source>
+        <translation type="unfinished">Це пов&apos;язаний файл не є відео, тому його не відтворено.</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>This linked file is not a sound, so it isn&apos;t played.</source>
+        <translation type="unfinished">Це пов&apos;язаний файл не є звуком, тому його не відтворено.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>This linked movie took too long to read, so it isn&apos;t played.</source>
+        <translation type="unfinished">Читання цього пов&apos;язаного відео тривало занадто довго, тому його не відтворено.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>This linked sound took too long to read, so it isn&apos;t played.</source>
+        <translation type="unfinished">Читання цього пов&apos;язаного звуку тривало занадто довго, тому його не відтворено.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>This linked movie can&apos;t be read (it is missing, a link or special file, or not allowed to be read), so it isn&apos;t played.</source>
+        <translation type="unfinished">Це пов&apos;язане відео неможливо прочитати (його немає, це посилання або спеціальний файл, або читання заборонено), тому його не відтворено.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>This linked sound can&apos;t be read (it is missing, a link or special file, or not allowed to be read), so it isn&apos;t played.</source>
+        <translation type="unfinished">Цей пов&apos;язаний звук неможливо прочитати (його немає, це посилання або спеціальний файл, або читання заборонено), тому його не відтворено.</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>This movie is linked from outside the presentation, so it can&apos;t be played here.</source>
+        <translation type="unfinished">Це відео пов&apos;язане із зовнішньою презентацією, тому його не можна відтворити тут.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>This sound is linked from outside the presentation, so it can&apos;t be played here.</source>
+        <translation type="unfinished">Цей звук пов&apos;язаний із зовнішньою презентацією, тому його не можна відтворити тут.</translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>This movie is linked to a file that is not on this computer, is not allowed, or is not a movie file, so it isn&apos;t played.</source>
+        <translation type="unfinished">Це відео пов&apos;язане з файлом, якого немає на цьому комп&apos;ютері, який заборонено використовувати або який не є відеофайлом, тому його не відтворено.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>This sound is linked to a file that is not on this computer, is not allowed, or is not a sound file, so it isn&apos;t played.</source>
+        <translation type="unfinished">Цей звук пов&apos;язаний з файлом, якого немає на цьому комп&apos;ютері, який заборонено використовувати або який не є звуковим файлом, тому його не відтворено.</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <location line="+29"/>
+        <source>Linked Media</source>
+        <translation type="unfinished">Пов&apos;язані медіа</translation>
+    </message>
+    <message>
+        <location line="-28"/>
+        <source>This slide has a movie that is linked to a file on this computer. Play it?</source>
+        <translation type="unfinished">На цьому слайді є відео, пов&apos;язане з файлом на цьому комп&apos;ютері. Відтворити його?</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>This slide has a sound that is linked to a file on this computer. Play it?</source>
+        <translation type="unfinished">На цьому слайді є звук, пов&apos;язаний з файлом на цьому комп&apos;ютері. Відтворити його?</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>This linked movie isn&apos;t played, because you chose not to play it.</source>
+        <translation type="unfinished">Це пов&apos;язане відео не відтворено, оскільки ви вирішили його не відтворювати.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>This linked sound isn&apos;t played, because you chose not to play it.</source>
+        <translation type="unfinished">Цей пов&apos;язаний звук не відтворено, оскільки ви вирішили його не відтворювати.</translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <source>This show has movies or sounds that are linked to files on this computer. Play them?</source>
+        <translation type="unfinished">У цьому показі є відео або звуки, пов&apos;язані з файлами на цьому комп&apos;ютері. Відтворити їх?</translation>
+    </message>
+</context>
+<context>
     <name>Main</name>
     <message>
         <location filename="../apps/pub/main.cpp" line="-93"/>
@@ -7498,7 +7602,7 @@ Open them with your email program to send.</source>
 <context>
     <name>MainWindow</name>
     <message>
-        <location filename="../apps/pub/app/mainwindow.cpp" line="+603"/>
+        <location filename="../apps/pub/app/mainwindow.cpp" line="+612"/>
         <source>A picture on page %1 has low resolution (%2 ppi; printers ask for 300).</source>
         <translation type="unfinished">Малюнок на сторінці %1 має низьку роздільну здатність (%2 ppi; друкарні вимагають 300).</translation>
     </message>
@@ -7552,7 +7656,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">завантаження не завершено (%1)</translation>
     </message>
     <message>
-        <location line="+601"/>
+        <location line="+605"/>
         <source>All Pictures (*.png *.jpg *.jpeg *.gif *.bmp *.tif *.tiff *.webp *.svg *.wmf *.emf *.ico *.pdf)</source>
         <translation type="unfinished">Усі малюнки (*.png *.jpg *.jpeg *.gif *.bmp *.tif *.tiff *.webp *.svg *.wmf *.emf *.ico *.pdf)</translation>
     </message>
@@ -16959,6 +17063,39 @@ Desktop publishing</source>
     </message>
 </context>
 <context>
+    <name>Trust</name>
+    <message>
+        <location filename="../libs/shell/app/trust.cpp" line="+102"/>
+        <source>This file came from the internet or another computer, so it is open for reading only.</source>
+        <translation type="unfinished">Цей файл надійшов з інтернету або з іншого комп&apos;ютера, тому його відкрито лише для читання.</translation>
+    </message>
+    <message>
+        <location line="+41"/>
+        <source>Yes</source>
+        <translation type="unfinished">Так</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>No</source>
+        <translation type="unfinished">Ні</translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>Pictures that are linked to a file instead of kept in the publication. Only a file in the publication&apos;s own folder is read when it opens, and no other is ever read.</source>
+        <translation type="unfinished">Малюнки, пов&apos;язані з файлом, а не збережені у публікації. Під час відкриття читається лише файл у власній папці публікації, а інші не читаються ніколи.</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Values a workbook reads from other workbooks. A workbook on another computer is never read when a file opens.</source>
+        <translation type="unfinished">Значення, які книга читає з інших книг. Книга на іншому комп&apos;ютері ніколи не читається під час відкриття файлу.</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>A movie or sound that a slide links to a file instead of holding. Only a movie or sound file whose name is on this computer is played; a web address, a file on another computer, and a program never are. A network drive that looks like a local one is read like a local file.</source>
+        <translation type="unfinished">Відео або звук, які слайд пов&apos;язує з файлом замість того, щоб зберігати його. Відтворюється лише відео- або звуковий файл, чия назва знаходиться на цьому комп&apos;ютері; веб-адреса, файл на іншому комп&apos;ютері та програма ніколи не відтворюються. Мережевий диск, який схожий на локальний, читається як локальний файл.</translation>
+    </message>
+</context>
+<context>
     <name>VersionStore</name>
     <message>
         <location filename="../libs/shell/app/versionstore.cpp" line="+84"/>
@@ -20196,8 +20333,8 @@ Source: %3</source>
         <location filename="../apps/crunch/app/crunchwindow_drawborder.cpp" line="+40"/>
         <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+336"/>
         <location line="+53"/>
-        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="+116"/>
-        <location line="+213"/>
+        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="+118"/>
+        <location line="+217"/>
         <location line="+67"/>
         <location line="+166"/>
         <location line="+15"/>
@@ -20208,7 +20345,7 @@ Source: %3</source>
         <location line="+118"/>
         <location line="+10"/>
         <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="+900"/>
-        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="+344"/>
+        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="+345"/>
         <location filename="../apps/crunch/app/crunchwindow_savecopy.cpp" line="+157"/>
         <location filename="../apps/crunch/app/crunchwindow_sort.cpp" line="+293"/>
         <location line="+22"/>
@@ -20233,8 +20370,8 @@ Source: %3</source>
     </message>
     <message>
         <location line="+9"/>
-        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-471"/>
-        <location line="+102"/>
+        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-475"/>
+        <location line="+106"/>
         <location line="+77"/>
         <location line="+66"/>
         <location line="+3"/>
@@ -20265,7 +20402,7 @@ Source: %3</source>
     </message>
     <message>
         <location line="+0"/>
-        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-270"/>
+        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-274"/>
         <source>All Files (*)</source>
         <translation type="unfinished">Усі файли (*)</translation>
     </message>
@@ -20285,7 +20422,7 @@ Source: %3</source>
         <location filename="../apps/crunch/app/crunchwindow_drawings.cpp" line="+102"/>
         <location filename="../apps/crunch/app/crunchwindow_oldformat.cpp" line="+37"/>
         <location line="+10"/>
-        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="-288"/>
+        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="-289"/>
         <location line="+34"/>
         <location line="+14"/>
         <location line="+5"/>
@@ -20293,7 +20430,7 @@ Source: %3</source>
         <location line="+4"/>
         <location line="+55"/>
         <location line="+72"/>
-        <location line="+33"/>
+        <location line="+34"/>
         <location line="+30"/>
         <location filename="../apps/crunch/app/crunchwindow_savecopy.cpp" line="-108"/>
         <location line="+26"/>
@@ -20316,7 +20453,7 @@ Source: %3</source>
     </message>
     <message>
         <location line="+3"/>
-        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="-156"/>
+        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="-157"/>
         <source>Save a Copy…</source>
         <translation type="unfinished">Зберегти копію…</translation>
     </message>
@@ -20628,7 +20765,7 @@ Source: %3</source>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_calc.cpp" line="+102"/>
         <location line="+15"/>
-        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="+266"/>
+        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="+270"/>
         <source>Calculating…</source>
         <translation type="unfinished">Обчислення…</translation>
     </message>
@@ -23001,7 +23138,7 @@ Source: %3</source>
         <location line="+15"/>
         <location filename="../apps/crunch/app/crunchwindow_csv.cpp" line="-60"/>
         <location line="+54"/>
-        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="+84"/>
+        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="+85"/>
         <location filename="../apps/crunch/app/crunchwindow_savecopy.cpp" line="+0"/>
         <source>%1 couldn&apos;t save &quot;%2&quot;.
 %3
@@ -23042,8 +23179,8 @@ The file that was there is as it was.</source>
         <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-362"/>
         <location filename="../apps/crunch/app/crunchwindow_print.cpp" line="+44"/>
         <location filename="../apps/crunch/app/crunchwindow_protect.cpp" line="+67"/>
-        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="-124"/>
-        <location line="+156"/>
+        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="-125"/>
+        <location line="+157"/>
         <source>Cancel</source>
         <translation type="unfinished">Скасувати</translation>
     </message>
@@ -23087,7 +23224,7 @@ The file that was there is as it was.</source>
         <translation type="unfinished">Цей вигляд змінив би приховані рядки й стовпці більше, ніж дозволено для вигляду (%1). Нічого не змінено.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_datatools.cpp" line="+21"/>
+        <location filename="../apps/crunch/app/crunchwindow_datatools.cpp" line="+22"/>
         <source>Edit Links…</source>
         <translation type="unfinished">Змінити посилання…</translation>
     </message>
@@ -23098,7 +23235,7 @@ The file that was there is as it was.</source>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+63"/>
+        <location line="+70"/>
         <location line="+23"/>
         <location line="+7"/>
         <location line="+5"/>
@@ -23108,8 +23245,8 @@ The file that was there is as it was.</source>
         <translation type="unfinished">Видалити дублікати</translation>
     </message>
     <message>
-        <location line="-97"/>
-        <location line="+118"/>
+        <location line="-104"/>
+        <location line="+125"/>
         <location line="+19"/>
         <location line="+6"/>
         <source>Text to Columns</source>
@@ -23402,27 +23539,27 @@ The file that was there is as it was.</source>
         <translation type="unfinished">Книга у вигляді PDF</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-103"/>
+        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-107"/>
         <source>%1 can&apos;t open &quot;%2&quot;.
 The file isn&apos;t there.</source>
         <translation type="unfinished">%1 не може відкрити «%2».
 Файл не знайдено.</translation>
     </message>
     <message>
-        <location line="+56"/>
-        <location line="+193"/>
+        <location line="+59"/>
+        <location line="+194"/>
         <source>Open and Repair</source>
         <translation type="unfinished">Відкрити й відновити</translation>
     </message>
     <message>
-        <location line="-193"/>
+        <location line="-194"/>
         <source>%1 can&apos;t repair &quot;%2&quot;.
 %3</source>
         <translation type="unfinished">%1 не може відновити «%2».
 %3</translation>
     </message>
     <message>
-        <location line="+26"/>
+        <location line="+27"/>
         <source>Opening %1…</source>
         <translation type="unfinished">Відкривається %1…</translation>
     </message>
@@ -27124,7 +27261,7 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished">Копію не можна прочитати.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="-284"/>
+        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="-285"/>
         <source>This workbook is open for reading only, so it is saved under a new name.</source>
         <translation type="unfinished">Цю книгу відкрито лише для читання, тому її буде збережено під новою назвою.</translation>
     </message>
@@ -27220,7 +27357,7 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished">Деяким раніше збереженим версіям не вдалося присвоїти новий пароль, тому вони залишилися без змін.</translation>
     </message>
     <message>
-        <location line="+9"/>
+        <location line="+10"/>
         <source>Saved %1. Rows, columns, and cells deleted before this save can&apos;t be undone now, nor can what you did before that.</source>
         <translation type="unfinished">Збережено %1. Рядки, стовпці й комірки, видалені до цього збереження, тепер не можна відмінити, як і дії, виконані раніше.</translation>
     </message>
@@ -29984,11 +30121,11 @@ The file can&apos;t be read.</source>
     </message>
     <message>
         <location line="+5"/>
-        <location filename="../apps/deck/app/deckwindow_file.cpp" line="+117"/>
+        <location filename="../apps/deck/app/deckwindow_file.cpp" line="+121"/>
         <location line="+1"/>
-        <location line="+50"/>
+        <location line="+53"/>
         <location line="+1"/>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="+335"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="+336"/>
         <source>Open</source>
         <translation type="unfinished">Відкрити</translation>
     </message>
@@ -30723,7 +30860,7 @@ The file can&apos;t be read.</source>
         <location line="-155"/>
         <location line="+155"/>
         <location filename="../apps/deck/app/deckwindow_design.cpp" line="+144"/>
-        <location filename="../apps/deck/app/deckwindow_file.cpp" line="-127"/>
+        <location filename="../apps/deck/app/deckwindow_file.cpp" line="-133"/>
         <location filename="../apps/deck/app/deckwindow_media.cpp" line="+104"/>
         <location line="+102"/>
         <source>All Files (*)</source>
@@ -31224,7 +31361,7 @@ The file can&apos;t be read.</source>
     </message>
     <message>
         <location filename="../apps/deck/app/deckwindow.cpp" line="+0"/>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-288"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-289"/>
         <location line="+127"/>
         <location line="+1"/>
         <location line="+6"/>
@@ -31325,7 +31462,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Презентації (*.pptx *.potx *.ppsx *.ppt *.pps *.pot *.odp *.otp)</translation>
     </message>
     <message>
-        <location line="+74"/>
+        <location line="+77"/>
         <location filename="../apps/deck/app/deckwindow_media.cpp" line="-285"/>
         <location line="+97"/>
         <source>%1 can&apos;t open &quot;%2&quot;.
@@ -31344,7 +31481,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Копія %1</translation>
     </message>
     <message>
-        <location line="+16"/>
+        <location line="+19"/>
         <source>Marked as final: this presentation is open for reading only. Open File &gt; Info and choose Marked as Final to edit it.</source>
         <translation type="unfinished">Позначено як остаточну: презентація відкрита лише для читання. Щоб її редагувати, відкрийте Файл &gt; Відомості й виберіть Позначити як остаточну.</translation>
     </message>
@@ -32545,7 +32682,7 @@ The file can&apos;t be read.</source>
     </message>
     <message>
         <location line="-3"/>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="+6"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="+7"/>
         <source>Saved %1</source>
         <translation type="unfinished">Збережено %1</translation>
     </message>
@@ -32829,7 +32966,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Стрілки ліворуч і праворуч зменшують і збільшують масштаб.</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-186"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-187"/>
         <location line="+65"/>
         <source>Save As</source>
         <translation type="unfinished">Зберегти як</translation>
@@ -32924,7 +33061,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Деякі раніше збережені версії не вдалося захистити новим паролем, вони залишилися без змін.</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+8"/>
         <source>Saved %1. Left out, as this kind of file can&apos;t hold it: %2</source>
         <translation type="unfinished">Збережено %1. Пропущено, оскільки цей тип файлу не може їх зберігати: %2</translation>
     </message>
@@ -34431,19 +34568,6 @@ The file can&apos;t be read.</source>
         <location filename="../apps/pub/templates/changetemplate.cpp" line="+688"/>
         <source>Change Template</source>
         <translation type="unfinished">Змінити шаблон</translation>
-    </message>
-</context>
-<context>
-    <name>jp::EditorMedia</name>
-    <message>
-        <location filename="../apps/deck/app/editormedia.cpp" line="+107"/>
-        <source>This movie is linked from outside the presentation, so it can&apos;t be played here.</source>
-        <translation type="unfinished">Цей відеофайл пов&apos;язаний із зовнішнім джерелом, тому його не можна відтворити тут.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>This sound is linked from outside the presentation, so it can&apos;t be played here.</source>
-        <translation type="unfinished">Цей звуковий файл пов&apos;язаний із зовнішнім джерелом, тому його не можна відтворити тут.</translation>
     </message>
 </context>
 <context>
@@ -39365,7 +39489,7 @@ Source: %3</source>
 <context>
     <name>jp::MainWindow</name>
     <message>
-        <location filename="../apps/pub/app/mainwindow.cpp" line="-1623"/>
+        <location filename="../apps/pub/app/mainwindow.cpp" line="-1636"/>
         <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+601"/>
         <source>%1 (%2)</source>
         <translation type="unfinished">%1 (%2)</translation>
@@ -39408,48 +39532,48 @@ Source: %3</source>
     </message>
     <message>
         <location line="+0"/>
-        <location line="+266"/>
+        <location line="+275"/>
         <location line="+18"/>
         <source>.pub Publication Files (*.pub)</source>
         <translation type="unfinished">Файли публікацій .pub (*.pub)</translation>
     </message>
     <message>
-        <location line="-284"/>
-        <location line="+579"/>
+        <location line="-293"/>
+        <location line="+588"/>
         <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+394"/>
         <source>All Files (*)</source>
         <translation type="unfinished">Усі файли (*)</translation>
     </message>
     <message>
-        <location line="-545"/>
+        <location line="-551"/>
         <location line="+18"/>
-        <location line="+32"/>
-        <location line="+38"/>
+        <location line="+34"/>
+        <location line="+41"/>
         <location line="+1"/>
-        <location line="+269"/>
+        <location line="+270"/>
         <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-569"/>
         <source>Open</source>
         <translation type="unfinished">Відкрити</translation>
     </message>
     <message>
-        <location line="-358"/>
+        <location line="-364"/>
         <location line="+18"/>
-        <location line="+32"/>
+        <location line="+34"/>
         <source>JeffPub can&apos;t open &quot;%1&quot;.
 %2</source>
         <translation type="unfinished">JeffPub не може відкрити «%1».
 %2</translation>
     </message>
     <message>
-        <location line="-21"/>
+        <location line="-23"/>
         <location line="+6"/>
-        <location line="+48"/>
+        <location line="+53"/>
         <location line="+1"/>
         <source>Open and Repair</source>
         <translation type="unfinished">Відкрити та відновити</translation>
     </message>
     <message>
-        <location line="-55"/>
+        <location line="-60"/>
         <source>&quot;%1&quot; has a password, and a file with a password can&apos;t be repaired. Open it with its password instead.</source>
         <translation type="unfinished">«%1» захищено паролем, а файл із паролем не можна відновити. Відкрийте його, використовуючи пароль.</translation>
     </message>
@@ -39461,7 +39585,7 @@ Source: %3</source>
 %2</translation>
     </message>
     <message>
-        <location line="+31"/>
+        <location line="+33"/>
         <source>Repaired %1</source>
         <translation type="unfinished">Відновлено %1</translation>
     </message>
@@ -39471,7 +39595,7 @@ Source: %3</source>
         <translation type="unfinished">Копія %1</translation>
     </message>
     <message>
-        <location line="+9"/>
+        <location line="+12"/>
         <source>Marked as final: this publication is open for reading only. Open File &gt; Info and choose Marked as Final to edit it.</source>
         <translation type="unfinished">Позначено як остаточний: цю публікацію можна лише переглядати. Щоб її редагувати, відкрийте Файл &gt; Відомості та виберіть «Позначити як остаточний».</translation>
     </message>
@@ -39597,18 +39721,18 @@ They&apos;re kept when you save as a JeffPub publication (.jpub).</source>
         <translation type="unfinished">Деякі версії, збережені раніше, не вдалося захистити новим паролем, тому вони залишилися без змін.</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+7"/>
         <source>Saved a copy as %1</source>
         <translation type="unfinished">Збережено копію як %1</translation>
     </message>
     <message>
         <location line="+3"/>
-        <location line="+1048"/>
+        <location line="+1051"/>
         <source>Saved %1</source>
         <translation type="unfinished">Збережено %1</translation>
     </message>
     <message>
-        <location line="-1038"/>
+        <location line="-1041"/>
         <location line="+14"/>
         <source>%1 copy</source>
         <translation type="unfinished">%1 копія</translation>
@@ -39736,7 +39860,7 @@ They&apos;re kept when you save as a JeffPub publication (.jpub).</source>
         <location line="+60"/>
         <location line="+67"/>
         <location line="+13"/>
-        <location line="+165"/>
+        <location line="+166"/>
         <location line="+48"/>
         <location line="+100"/>
         <location line="+4"/>
@@ -39747,7 +39871,7 @@ They&apos;re kept when you save as a JeffPub publication (.jpub).</source>
         <translation type="unfinished">Створити PDF</translation>
     </message>
     <message>
-        <location line="-519"/>
+        <location line="-520"/>
         <source>Minimum size (online viewing, pictures at 96 dpi)</source>
         <translation type="unfinished">Мінімальний розмір (для перегляду в мережі, малюнки 96 dpi)</translation>
     </message>
@@ -39897,7 +40021,7 @@ They&apos;re kept when you save as a JeffPub publication (.jpub).</source>
         <translation type="unfinished">Відкрити перевірку дизайну</translation>
     </message>
     <message>
-        <location line="+169"/>
+        <location line="+170"/>
         <source>the color profile isn&apos;t one for printing in CMYK</source>
         <translation type="unfinished">профіль кольору не призначений для друку в CMYK</translation>
     </message>
@@ -39956,7 +40080,12 @@ They&apos;re kept when you save as a JeffPub publication (.jpub).</source>
         <translation type="unfinished">(без тегів для програм озвучування екрана: %1)</translation>
     </message>
     <message>
-        <location line="+18"/>
+        <location line="+1"/>
+        <source>Some linked pictures were not updated, so their previews are used in the PDF. Use Update Link first for the whole pictures.</source>
+        <translation type="unfinished">Деякі пов&apos;язані малюнки не було оновлено, тому у PDF використано їхній попередній перегляд. Спочатку використайте Оновити зв&apos;язок для всіх малюнків цілком.</translation>
+    </message>
+    <message>
+        <location line="+19"/>
         <location line="+8"/>
         <location line="+4"/>
         <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-1254"/>
@@ -40088,7 +40217,12 @@ They&apos;re kept when you save as a JeffPub publication (.jpub).</source>
         <translation type="unfinished">Веб-сторінка (*.html)</translation>
     </message>
     <message>
-        <location line="+165"/>
+        <location line="+66"/>
+        <source>Some linked pictures were not updated, so their previews are printed. Use Update Link first for the whole pictures.</source>
+        <translation type="unfinished">Деякі пов&apos;язані малюнки не було оновлено, тому друкуються їхні попередні перегляди. Спочатку використайте Оновити зв&apos;язок для всіх малюнків цілком.</translation>
+    </message>
+    <message>
+        <location line="+100"/>
         <location line="+48"/>
         <source>Insert Picture</source>
         <translation type="unfinished">Вставити малюнок</translation>
@@ -47267,17 +47401,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
 <context>
     <name>jp::ShowMedia</name>
     <message>
-        <location filename="../apps/deck/app/showmedia.cpp" line="+81"/>
-        <source>This movie is linked from outside the presentation, so it can&apos;t be played here.</source>
-        <translation type="unfinished">Цей фільм пов&apos;язано із зовнішнім джерелом поза презентацією, тому його не можна відтворити тут.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>This sound is linked from outside the presentation, so it can&apos;t be played here.</source>
-        <translation type="unfinished">Цей звук пов&apos;язано із зовнішнім джерелом поза презентацією, тому його не можна відтворити тут.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
+        <location filename="../apps/deck/app/showmedia.cpp" line="+92"/>
         <source>There is no movie here to play.</source>
         <translation type="unfinished">Тут немає фільму для відтворення.</translation>
     </message>
@@ -47420,7 +47544,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Презентацію %1 не можна відкрити.</translation>
     </message>
     <message>
-        <location line="+466"/>
+        <location line="+472"/>
         <source>Pointer Options</source>
         <translation type="unfinished">Параметри покажчика</translation>
     </message>
@@ -48902,7 +49026,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
 <context>
     <name>jp::TransitionPreview</name>
     <message>
-        <location filename="../apps/deck/app/slideshow.cpp" line="+166"/>
+        <location filename="../apps/deck/app/slideshow.cpp" line="+167"/>
         <source>Transition Preview</source>
         <translation type="unfinished">Попередній перегляд переходу</translation>
     </message>
@@ -51576,27 +51700,27 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Перейти до виноски</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_file.cpp" line="+89"/>
+        <location filename="../apps/write/app/writewindow_file.cpp" line="+90"/>
         <source>New</source>
         <translation type="unfinished">Створити</translation>
     </message>
     <message>
         <location line="+5"/>
-        <location line="+111"/>
-        <location line="+44"/>
-        <location line="+432"/>
+        <location line="+115"/>
+        <location line="+45"/>
+        <location line="+433"/>
         <location filename="../apps/write/core/designops.cpp" line="+27"/>
         <source>Open</source>
         <translation type="unfinished">Відкрити</translation>
     </message>
     <message>
-        <location line="-586"/>
+        <location line="-592"/>
         <source>Close</source>
         <translation type="unfinished">Закрити</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+162"/>
+        <location line="+167"/>
         <location line="+5"/>
         <location line="+3"/>
         <location line="+1"/>
@@ -51614,18 +51738,18 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <location line="+3"/>
         <location line="+14"/>
         <location line="+10"/>
-        <location line="+28"/>
+        <location line="+29"/>
         <source>Save</source>
         <translation type="unfinished">Зберегти</translation>
     </message>
     <message>
-        <location line="-420"/>
-        <location line="+200"/>
+        <location line="-426"/>
+        <location line="+205"/>
         <source>Save As</source>
         <translation type="unfinished">Зберегти як</translation>
     </message>
     <message>
-        <location line="-199"/>
+        <location line="-204"/>
         <source>Print…</source>
         <translation type="unfinished">Друк…</translation>
     </message>
@@ -51651,13 +51775,13 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     </message>
     <message>
         <location line="+0"/>
-        <location line="+168"/>
+        <location line="+173"/>
         <location line="+21"/>
         <source>Rich Text Format (*.rtf)</source>
         <translation type="unfinished">Rich Text Format (*.rtf)</translation>
     </message>
     <message>
-        <location line="-189"/>
+        <location line="-194"/>
         <source>OpenDocument Text (*.odt *.fodt *.ott)</source>
         <translation type="unfinished">OpenDocument Text (*.odt *.fodt *.ott)</translation>
     </message>
@@ -51671,7 +51795,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Усі файли (*)</translation>
     </message>
     <message>
-        <location line="+50"/>
+        <location line="+54"/>
         <source>Open Plain Text</source>
         <translation type="unfinished">Відкрити простий текст</translation>
     </message>
@@ -51698,7 +51822,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Копія %1</translation>
     </message>
     <message>
-        <location line="+17"/>
+        <location line="+18"/>
         <source>Marked as final: this document is open for reading only. Open File &gt; Info and choose Marked as Final to edit it.</source>
         <translation type="unfinished">Позначено як остаточний: цей документ відкрито лише для читання. Відкрийте Файл &gt; Відомості й виберіть Позначити як остаточний, щоб редагувати його.</translation>
     </message>
@@ -51924,7 +52048,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Деякі версії, збережені раніше, не вдалося захистити новим паролем, і вони залишилися без змін.</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+8"/>
         <location filename="../apps/write/app/writewindow_output.cpp" line="+312"/>
         <source>Saved %1</source>
         <translation type="unfinished">Збережено %1</translation>
@@ -65421,6 +65545,97 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     </message>
 </context>
 <context>
+    <name>jp::trust::TrustPage</name>
+    <message>
+        <location filename="../libs/shell/app/trust.cpp" line="+18"/>
+        <source>Macros:</source>
+        <translation type="unfinished">Макроси:</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Macros in a file are kept in it, and are never run. There is no setting to run them.</source>
+        <translation type="unfinished">Макроси у файлі зберігаються в ньому і ніколи не виконуються. Немає параметра для їх запуску.</translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <location line="+6"/>
+        <source>Ask me first</source>
+        <translation type="unfinished">Спитати перед виконанням</translation>
+    </message>
+    <message>
+        <location line="-6"/>
+        <location line="+1"/>
+        <source>Update them</source>
+        <translation type="unfinished">Оновлювати їх</translation>
+    </message>
+    <message>
+        <location line="-1"/>
+        <location line="+1"/>
+        <source>Never update them</source>
+        <translation type="unfinished">Ніколи не оновлювати</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Linked files and workbook links:</source>
+        <translation type="unfinished">Пов&apos;язані файли й зв&apos;язки з книгами:</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>This doesn&apos;t apply in this app: it has no linked files to update.</source>
+        <translation type="unfinished">Це не стосується цієї програми: вона не має пов&apos;язаних файлів для оновлення.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Play it</source>
+        <translation type="unfinished">Відтворити</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Never play it</source>
+        <translation type="unfinished">Ніколи не відтворювати</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Linked movies and sounds:</source>
+        <translation type="unfinished">Пов&apos;язані відео й звуки:</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>This doesn&apos;t apply in this app: it has no linked movies or sounds to play.</source>
+        <translation type="unfinished">Це не стосується цієї програми: вона не має пов&apos;язаних відео чи звуків для відтворення.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Open as read-only first</source>
+        <translation type="unfinished">Спочатку відкрити лише для читання</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Open normally</source>
+        <translation type="unfinished">Відкрити звичайно</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Files from the internet or other computers:</source>
+        <translation type="unfinished">Файли з інтернету або інших комп&apos;ютерів:</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>A file that was downloaded, or is on another computer, opens for reading only. The bar under it has Enable Editing for that one file, and Save As makes a copy you can change.</source>
+        <translation type="unfinished">Файл, який було завантажено або який розташовано на іншому комп&apos;ютері, відкривається лише для читання. Смуга під ним містить Увімкнути редагування для цього одного файлу, а Зберегти як створює копію, яку можна змінювати.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Links that start a program:</source>
+        <translation type="unfinished">Посилання, що запускають програму:</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>These are always refused, and there is no setting to allow them. A link to a file on another computer is never followed without asking.</source>
+        <translation type="unfinished">Такі посилання завжди відхиляються, і немає параметра, щоб їх дозволити. Посилання на файл на іншому комп&apos;ютері ніколи не відкривається без запиту.</translation>
+    </message>
+</context>
+<context>
     <name>jp::write::Access</name>
     <message>
         <location filename="../apps/write/core/accessops.cpp" line="+68"/>
@@ -69287,7 +69502,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">JeffWrite відкриває посилання лише на веб-адреси та адреси електронної пошти.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview_pictures.cpp" line="+110"/>
+        <location filename="../apps/write/app/pageview_pictures.cpp" line="+111"/>
         <source>Select three or more objects first: click one, then hold Ctrl and click the others.</source>
         <translation type="unfinished">Виділіть три або більше об&apos;єктів: спочатку клацніть один, потім утримуйте Ctrl і клацніть інші.</translation>
     </message>

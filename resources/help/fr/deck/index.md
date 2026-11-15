@@ -1,9 +1,9 @@
 # Aide de JeffDeck
-<!-- keywords: sommaire, aide, rubriques, démarrer, contenu, commencer -->
+<!-- keywords: sommaire, aide, rubriques, démarrer -->
 
-Saisissez un terme dans la zone de recherche ci-dessus pour trouver une rubrique ou une commande à exécuter. Appuyez sur **F1** à tout moment pour obtenir de l'aide sur ce que vous faites : l'onglet du ruban affiché, le volet ouvert ou l'objet sélectionné.
+Saisissez un mot dans la zone de recherche ci-dessus pour trouver une rubrique ou une commande à exécuter. Appuyez à tout moment sur **F1** pour obtenir de l'aide sur ce que vous faites : l'onglet du ruban où vous vous trouvez, le volet ouvert ou l'objet sélectionné.
 
-## Prise en main
+## Mise en route
 
 - [Bienvenue dans JeffDeck](start)
 - [Se repérer dans la fenêtre](window)
@@ -31,22 +31,23 @@ Saisissez un terme dans la zone de recherche ci-dessus pour trouver une rubrique
 - [Transitions entre les diapositives](transitions)
 - [Animations](animations)
 
-## Diffuser
+## Diaporama
 
 - [Lancer le diaporama et utiliser le mode Présentateur](show)
 
-## Imprimer et partager
+## Impression et partage
 
-- [Impression, PDF et images des diapositives](printing)
+- [Imprimer, PDF et images de diapositives](printing)
 
 ## Aide et paramètres
 
 - [Utiliser JeffDeck au clavier](keyboard)
 - [Modifier les paramètres de JeffDeck](options)
+- [Sécurité : ce à quoi un fichier peut accéder](security)
 - [Choisir une langue](language)
 - [L'écran Fichier](file-screen)
 
 ## Onglets du ruban
 
-- [Accueil](tab-home), [Insertion](tab-insert), [Conception](tab-design), [Transitions](tab-transitions), [Animations](tab-animations), [Diaporama](tab-slide-show), [Révision](tab-review) et [Affichage](tab-view)
+- [Accueil](tab-home), [Insertion](tab-insert), [Création](tab-design), [Transitions](tab-transitions), [Animations](tab-animations), [Diaporama](tab-slide-show), [Révision](tab-review) et [Affichage](tab-view)
 - [Lecture](tab-playback) s'affiche lorsqu'une vidéo ou un son est sélectionné

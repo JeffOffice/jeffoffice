@@ -1,11 +1,11 @@
 # Ajuda do JeffDeck
-<!-- keywords: conteúdo, ajuda, tópicos, início, índice, sumário -->
+<!-- keywords: conteúdo, ajuda, tópicos, começar, índice, sumário -->
 
-Digite na caixa de pesquisa acima para encontrar um tópico ou um comando a executar. Pressione **F1** a qualquer momento para obter ajuda sobre o que você está fazendo: a guia da faixa de opções em que você está, o painel em que você está ou o objeto selecionado.
+Digite na caixa de pesquisa acima para encontrar um tópico ou um comando a executar. Pressione **F1** a qualquer momento para obter ajuda sobre o que você está fazendo: a guia da faixa de opções em que você está, o painel em que você se encontra ou o objeto selecionado.
 
 ## Primeiros passos
 
-- [Bem-vindo ao JeffDeck](start)
+- [Boas-vindas ao JeffDeck](start)
 - [Conheça a janela](window)
 - [Abrir e salvar apresentações](open-save)
 - [Recuperar trabalho não salvo](recover)
@@ -14,8 +14,8 @@ Digite na caixa de pesquisa acima para encontrar um tópico ou um comando a exec
 
 - [Adicionar, alterar e excluir slides](slides)
 - [Reutilizar slides de outra apresentação](reuse)
-- [Modo de Exibição de Estrutura de Tópicos, Classificação de Slides e Modo de Exibição de Slide Mestre](views)
-- [Tamanho do slide, plano de fundo e rodapés](design)
+- [Modo de exibição de Estrutura de Tópicos, Classificação de Slides e modo de exibição de Slide Mestre](views)
+- [Tamanho, plano de fundo e rodapés do slide](design)
 
 ## No slide
 
@@ -37,12 +37,13 @@ Digite na caixa de pesquisa acima para encontrar um tópico ou um comando a exec
 
 ## Imprimir e compartilhar
 
-- [Imprimir, PDF e imagens de slides](printing)
+- [Imprimir, PDF e imagens dos slides](printing)
 
 ## Ajuda e configurações
 
 - [Usar o JeffDeck com o teclado](keyboard)
 - [Alterar as configurações do JeffDeck](options)
+- [Segurança: a que um arquivo pode se conectar](security)
 - [Escolher um idioma](language)
 - [A tela Arquivo](file-screen)
 

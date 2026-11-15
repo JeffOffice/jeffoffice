@@ -9,18 +9,18 @@ Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando 
 - [Abrir y guardar libros](open-save)
 - [Información: propiedades, contraseñas e Inspeccionar](info)
 - [Abrir libros protegidos con contraseña](open-password)
-- [Escribir en las celdas](edit-cells)
-- [Reglas para lo que puede contener una celda](rules)
+- [Escribir en celdas](edit-cells)
+- [Reglas para el contenido de una celda](rules)
 
 ## Ver un libro
 
 - [Seleccionar celdas y desplazarse](select-and-move)
 - [Cambiar la vista](view)
-- [Cómo se muestran y se calculan las fórmulas](formulas)
+- [Cómo se muestran y calculan las fórmulas](formulas)
 - [Nombres para celdas y valores](names)
 - [Formatos condicionales](conditional-formats)
 
-## Modificar un libro
+## Cambiar un libro
 
 - [Dar formato a las celdas](format-cells)
 - [Formatos de número e idioma](number-formats)
@@ -52,4 +52,5 @@ Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando 
 
 - [Usar JeffCrunch con el teclado](keyboard)
 - [Cambiar la configuración de JeffCrunch](options)
+- [Seguridad: a qué puede acceder un archivo](security)
 - [Elegir un idioma](language)

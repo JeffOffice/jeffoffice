@@ -1,11 +1,11 @@
 # Ajuda do JeffCrunch
-<!-- keywords: conteúdo, ajuda, tópicos, início, índice -->
+<!-- keywords: conteúdo, ajuda, tópicos, início, iniciar -->
 
-Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a executar. Prima **F1** em qualquer altura para obter ajuda sobre o que está a fazer: o separador do friso em que se encontra ou a página do ecrã Ficheiro em que está.
+Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a executar. Prima **F1** a qualquer momento para obter ajuda sobre o que está a fazer: o separador do friso em que está, ou a página do ecrã Ficheiro em que se encontra.
 
 ## Primeiros passos
 
-- [Bem-vindo ao JeffCrunch](start)
+- [Boas-vindas ao JeffCrunch](start)
 - [Abrir e guardar livros](open-save)
 - [Informações: propriedades, palavras-passe e Inspecionar](info)
 - [Abrir livros protegidos por palavra-passe](open-password)
@@ -52,4 +52,5 @@ Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a exe
 
 - [Utilizar o JeffCrunch com o teclado](keyboard)
 - [Alterar as definições do JeffCrunch](options)
+- [Segurança: o que um ficheiro pode aceder na Internet](security)
 - [Escolher um idioma](language)

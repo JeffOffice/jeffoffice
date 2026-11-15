@@ -662,7 +662,12 @@
 <context>
     <name>AppWindow</name>
     <message>
-        <location filename="../libs/shell/app/appwindow.cpp" line="+253"/>
+        <location filename="../libs/shell/app/appwindow.cpp" line="+271"/>
+        <source>Enable Editing</source>
+        <translation type="unfinished">Bewerken inschakelen</translation>
+    </message>
+    <message>
+        <location line="+22"/>
         <source>This file is open for reading only. Use Save a Copy, or Save As, to make a copy you can change.</source>
         <translation type="unfinished">Dit bestand is alleen geopend om te lezen. Gebruik Kopie opslaan of Opslaan als om een kopie te maken die u kunt wijzigen.</translation>
     </message>
@@ -1961,7 +1966,7 @@ Artikel achterpagina	4</translation>
         <translation type="unfinished">%1 (donkerder %2%)</translation>
     </message>
     <message>
-        <location filename="../libs/page/core/document.cpp" line="+516"/>
+        <location filename="../libs/page/core/document.cpp" line="+517"/>
         <source>Organization Name</source>
         <translation type="unfinished">Naam organisatie</translation>
     </message>
@@ -4631,7 +4636,7 @@ Artikel achterpagina	4</translation>
         <translation type="unfinished">&lt;b&gt;Publicatie&lt;/b&gt;&lt;br&gt;Pagina&apos;s: %1&lt;br&gt;Woorden: %2&lt;br&gt;Tekens (zonder spaties): %3&lt;br&gt;Tekens (met spaties): %4&lt;br&gt;Alinea&apos;s: %5&lt;br&gt;Tekstvakken: %6&lt;br&gt;Afbeeldingen: %7%8</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/optionsdialog.cpp" line="+70"/>
+        <location filename="../libs/page/app/optionsdialog.cpp" line="+71"/>
         <source>Grammar</source>
         <translation type="unfinished">Grammatica</translation>
     </message>
@@ -4781,8 +4786,13 @@ Artikel achterpagina	4</translation>
         <translation type="unfinished">AutoCorrectie-opties...</translation>
     </message>
     <message>
+        <location line="+14"/>
+        <source>Security</source>
+        <translation type="unfinished">Beveiliging</translation>
+    </message>
+    <message>
         <location filename="../libs/shell/app/commandsearch.cpp" line="-15"/>
-        <location filename="../libs/page/app/optionsdialog.cpp" line="-33"/>
+        <location filename="../libs/page/app/optionsdialog.cpp" line="-47"/>
         <source>General</source>
         <translation type="unfinished">Algemeen</translation>
     </message>
@@ -4839,7 +4849,7 @@ Artikel achterpagina	4</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../libs/page/app/optionsdialog.cpp" line="+13"/>
+        <location filename="../libs/page/app/optionsdialog.cpp" line="+16"/>
         <source>Ribbon</source>
         <translation type="unfinished">Lint</translation>
     </message>
@@ -4867,13 +4877,13 @@ Artikel achterpagina	4</translation>
         <translation type="unfinished"> minuten</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/optionsdialog.cpp" line="-115"/>
+        <location filename="../libs/page/app/optionsdialog.cpp" line="-118"/>
         <source>Always create backup copy</source>
         <translation type="unfinished">Altijd een reservekopie maken</translation>
     </message>
     <message>
         <location filename="../libs/page/app/saveoptions.cpp" line="-15"/>
-        <location filename="../apps/pub/app/mainwindow.cpp" line="+410"/>
+        <location filename="../apps/pub/app/mainwindow.cpp" line="+411"/>
         <location filename="../apps/write/app/writewindow.cpp" line="+793"/>
         <source>Save</source>
         <translation type="unfinished">Opslaan</translation>
@@ -4948,7 +4958,7 @@ Artikel achterpagina	4</translation>
         <translation type="unfinished">Geavanceerd</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/optionsdialog.cpp" line="+140"/>
+        <location filename="../libs/page/app/optionsdialog.cpp" line="+143"/>
         <source>Display Language</source>
         <translation type="unfinished">Weergavetaal</translation>
     </message>
@@ -7346,6 +7356,100 @@ Open deze bestanden in uw e-mailprogramma om ze te verzenden.</translation>
     </message>
 </context>
 <context>
+    <name>LinkedMedia</name>
+    <message>
+        <location filename="../apps/deck/app/linkedmedia.cpp" line="+126"/>
+        <source>This linked movie is too large to play from a link (the most is 256 MB).</source>
+        <translation type="unfinished">Deze gekoppelde film is te groot om vanaf een koppeling af te spelen (het maximum is 256 MB).</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>This linked sound is too large to play from a link (the most is 256 MB).</source>
+        <translation type="unfinished">Dit gekoppelde geluid is te groot om vanaf een koppeling af te spelen (het maximum is 256 MB).</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>This linked file is not a movie, so it isn&apos;t played.</source>
+        <translation type="unfinished">Dit gekoppelde bestand is geen film, dus het wordt niet afgespeeld.</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>This linked file is not a sound, so it isn&apos;t played.</source>
+        <translation type="unfinished">Dit gekoppelde bestand is geen geluid, dus het wordt niet afgespeeld.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>This linked movie took too long to read, so it isn&apos;t played.</source>
+        <translation type="unfinished">Het lezen van deze gekoppelde film duurde te lang, dus hij wordt niet afgespeeld.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>This linked sound took too long to read, so it isn&apos;t played.</source>
+        <translation type="unfinished">Het lezen van dit gekoppelde geluid duurde te lang, dus het wordt niet afgespeeld.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>This linked movie can&apos;t be read (it is missing, a link or special file, or not allowed to be read), so it isn&apos;t played.</source>
+        <translation type="unfinished">Deze gekoppelde film kan niet worden gelezen (hij ontbreekt, is een koppeling of speciaal bestand, of mag niet worden gelezen), dus hij wordt niet afgespeeld.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>This linked sound can&apos;t be read (it is missing, a link or special file, or not allowed to be read), so it isn&apos;t played.</source>
+        <translation type="unfinished">Dit gekoppelde geluid kan niet worden gelezen (het ontbreekt, is een koppeling of speciaal bestand, of mag niet worden gelezen), dus het wordt niet afgespeeld.</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>This movie is linked from outside the presentation, so it can&apos;t be played here.</source>
+        <translation type="unfinished">Deze film is gekoppeld aan een bestand buiten de presentatie, dus hij kan hier niet worden afgespeeld.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>This sound is linked from outside the presentation, so it can&apos;t be played here.</source>
+        <translation type="unfinished">Dit geluid is gekoppeld aan een bestand buiten de presentatie, dus het kan hier niet worden afgespeeld.</translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>This movie is linked to a file that is not on this computer, is not allowed, or is not a movie file, so it isn&apos;t played.</source>
+        <translation type="unfinished">Deze film is gekoppeld aan een bestand dat niet op deze computer staat, niet is toegestaan of geen filmbestand is, dus hij wordt niet afgespeeld.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>This sound is linked to a file that is not on this computer, is not allowed, or is not a sound file, so it isn&apos;t played.</source>
+        <translation type="unfinished">Dit geluid is gekoppeld aan een bestand dat niet op deze computer staat, niet is toegestaan of geen geluidsbestand is, dus het wordt niet afgespeeld.</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <location line="+29"/>
+        <source>Linked Media</source>
+        <translation type="unfinished">Gekoppelde media</translation>
+    </message>
+    <message>
+        <location line="-28"/>
+        <source>This slide has a movie that is linked to a file on this computer. Play it?</source>
+        <translation type="unfinished">Deze dia bevat een film die is gekoppeld aan een bestand op deze computer. Afspelen?</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>This slide has a sound that is linked to a file on this computer. Play it?</source>
+        <translation type="unfinished">Deze dia bevat een geluid dat is gekoppeld aan een bestand op deze computer. Afspelen?</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>This linked movie isn&apos;t played, because you chose not to play it.</source>
+        <translation type="unfinished">Deze gekoppelde film wordt niet afgespeeld, omdat u ervoor hebt gekozen dit niet te doen.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>This linked sound isn&apos;t played, because you chose not to play it.</source>
+        <translation type="unfinished">Dit gekoppelde geluid wordt niet afgespeeld, omdat u ervoor hebt gekozen dit niet te doen.</translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <source>This show has movies or sounds that are linked to files on this computer. Play them?</source>
+        <translation type="unfinished">Deze diavoorstelling bevat films of geluiden die zijn gekoppeld aan bestanden op deze computer. Ze afspelen?</translation>
+    </message>
+</context>
+<context>
     <name>Main</name>
     <message>
         <location filename="../apps/pub/main.cpp" line="-93"/>
@@ -7491,7 +7595,7 @@ Open deze bestanden in uw e-mailprogramma om ze te verzenden.</translation>
 <context>
     <name>MainWindow</name>
     <message>
-        <location filename="../apps/pub/app/mainwindow.cpp" line="+603"/>
+        <location filename="../apps/pub/app/mainwindow.cpp" line="+612"/>
         <source>A picture on page %1 has low resolution (%2 ppi; printers ask for 300).</source>
         <translation type="unfinished">Een afbeelding op pagina %1 heeft een lage resolutie (%2 ppi; drukkerijen vragen 300).</translation>
     </message>
@@ -7545,7 +7649,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <translation type="unfinished">het downloaden is niet voltooid (%1)</translation>
     </message>
     <message>
-        <location line="+601"/>
+        <location line="+605"/>
         <source>All Pictures (*.png *.jpg *.jpeg *.gif *.bmp *.tif *.tiff *.webp *.svg *.wmf *.emf *.ico *.pdf)</source>
         <translation type="unfinished">Alle afbeeldingen (*.png *.jpg *.jpeg *.gif *.bmp *.tif *.tiff *.webp *.svg *.wmf *.emf *.ico *.pdf)</translation>
     </message>
@@ -16949,6 +17053,39 @@ Desktop publishing</translation>
     </message>
 </context>
 <context>
+    <name>Trust</name>
+    <message>
+        <location filename="../libs/shell/app/trust.cpp" line="+102"/>
+        <source>This file came from the internet or another computer, so it is open for reading only.</source>
+        <translation type="unfinished">Dit bestand is afkomstig van internet of een andere computer, dus het is alleen geopend om te lezen.</translation>
+    </message>
+    <message>
+        <location line="+41"/>
+        <source>Yes</source>
+        <translation type="unfinished">Ja</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>No</source>
+        <translation type="unfinished">Nee</translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>Pictures that are linked to a file instead of kept in the publication. Only a file in the publication&apos;s own folder is read when it opens, and no other is ever read.</source>
+        <translation type="unfinished">Afbeeldingen die zijn gekoppeld aan een bestand in plaats van opgeslagen in de publicatie. Alleen een bestand in dezelfde map als de publicatie wordt bij het openen gelezen; andere bestanden worden nooit gelezen.</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Values a workbook reads from other workbooks. A workbook on another computer is never read when a file opens.</source>
+        <translation type="unfinished">Waarden die een werkmap uit andere werkmappen leest. Een werkmap op een andere computer wordt nooit gelezen wanneer een bestand wordt geopend.</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>A movie or sound that a slide links to a file instead of holding. Only a movie or sound file whose name is on this computer is played; a web address, a file on another computer, and a program never are. A network drive that looks like a local one is read like a local file.</source>
+        <translation type="unfinished">Een film of geluid dat een dia koppelt aan een bestand in plaats van het zelf op te slaan. Alleen een film- of geluidsbestand waarvan de naam op deze computer staat, wordt afgespeeld; een webadres, een bestand op een andere computer en een programma nooit. Een netwerkstation dat op een lokaal station lijkt, wordt gelezen als een lokaal bestand.</translation>
+    </message>
+</context>
+<context>
     <name>VersionStore</name>
     <message>
         <location filename="../libs/shell/app/versionstore.cpp" line="+84"/>
@@ -20164,8 +20301,8 @@ Bron: %3</translation>
         <location filename="../apps/crunch/app/crunchwindow_drawborder.cpp" line="+40"/>
         <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+336"/>
         <location line="+53"/>
-        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="+116"/>
-        <location line="+213"/>
+        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="+118"/>
+        <location line="+217"/>
         <location line="+67"/>
         <location line="+166"/>
         <location line="+15"/>
@@ -20176,7 +20313,7 @@ Bron: %3</translation>
         <location line="+118"/>
         <location line="+10"/>
         <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="+900"/>
-        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="+344"/>
+        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="+345"/>
         <location filename="../apps/crunch/app/crunchwindow_savecopy.cpp" line="+157"/>
         <location filename="../apps/crunch/app/crunchwindow_sort.cpp" line="+293"/>
         <location line="+22"/>
@@ -20201,8 +20338,8 @@ Bron: %3</translation>
     </message>
     <message>
         <location line="+9"/>
-        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-471"/>
-        <location line="+102"/>
+        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-475"/>
+        <location line="+106"/>
         <location line="+77"/>
         <location line="+66"/>
         <location line="+3"/>
@@ -20362,7 +20499,7 @@ Bron: %3</translation>
     </message>
     <message>
         <location line="-639"/>
-        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-270"/>
+        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-274"/>
         <source>All Files (*)</source>
         <translation type="unfinished">Alle bestanden (*)</translation>
     </message>
@@ -20397,7 +20534,7 @@ Bron: %3</translation>
         <location filename="../apps/crunch/app/crunchwindow_drawings.cpp" line="+102"/>
         <location filename="../apps/crunch/app/crunchwindow_oldformat.cpp" line="+37"/>
         <location line="+10"/>
-        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="-288"/>
+        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="-289"/>
         <location line="+34"/>
         <location line="+14"/>
         <location line="+5"/>
@@ -20405,7 +20542,7 @@ Bron: %3</translation>
         <location line="+4"/>
         <location line="+55"/>
         <location line="+72"/>
-        <location line="+33"/>
+        <location line="+34"/>
         <location line="+30"/>
         <location filename="../apps/crunch/app/crunchwindow_savecopy.cpp" line="-108"/>
         <location line="+26"/>
@@ -21463,7 +21600,7 @@ Bron: %3</translation>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_calc.cpp" line="+102"/>
         <location line="+15"/>
-        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="+266"/>
+        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="+270"/>
         <source>Calculating…</source>
         <translation type="unfinished">Berekenen…</translation>
     </message>
@@ -23974,27 +24111,27 @@ Bron: %3</translation>
         <translation type="unfinished">Ongedaan gemaakt: %1</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-465"/>
+        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-469"/>
         <source>%1 can&apos;t open &quot;%2&quot;.
 The file isn&apos;t there.</source>
         <translation type="unfinished">%1 kan &quot;%2&quot; niet openen.
 Het bestand bestaat niet.</translation>
     </message>
     <message>
-        <location line="+56"/>
-        <location line="+193"/>
+        <location line="+59"/>
+        <location line="+194"/>
         <source>Open and Repair</source>
         <translation type="unfinished">Openen en herstellen</translation>
     </message>
     <message>
-        <location line="-193"/>
+        <location line="-194"/>
         <source>%1 can&apos;t repair &quot;%2&quot;.
 %3</source>
         <translation type="unfinished">%1 kan &quot;%2&quot; niet herstellen.
 %3</translation>
     </message>
     <message>
-        <location line="+26"/>
+        <location line="+27"/>
         <source>Opening %1…</source>
         <translation type="unfinished">%1 openen…</translation>
     </message>
@@ -24069,7 +24206,7 @@ Dit bestand is beveiligd met een wachtwoord. Wachtwoord:</translation>
         <translation type="unfinished">Berekenen… %1%</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="-184"/>
+        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="-185"/>
         <source>Nothing to save: %1 is as it was.</source>
         <translation type="unfinished">Niets op te slaan: %1 is niet gewijzigd.</translation>
     </message>
@@ -24222,7 +24359,7 @@ Dit bestand is beveiligd met een wachtwoord. Wachtwoord:</translation>
         <translation type="unfinished">De werkmap kan niet met het wachtwoord worden beveiligd.</translation>
     </message>
     <message>
-        <location line="+58"/>
+        <location line="+59"/>
         <source>Saved %1. Rows, columns, and cells deleted before this save can&apos;t be undone now, nor can what you did before that.</source>
         <translation type="unfinished">%1 is opgeslagen. Rijen, kolommen en cellen die vóór deze opslag zijn verwijderd, kunnen nu niet meer ongedaan worden gemaakt, evenmin als wat u daarvoor hebt gedaan.</translation>
     </message>
@@ -24236,8 +24373,8 @@ Dit bestand is beveiligd met een wachtwoord. Wachtwoord:</translation>
         <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-410"/>
         <location filename="../apps/crunch/app/crunchwindow_print.cpp" line="+18"/>
         <location filename="../apps/crunch/app/crunchwindow_protect.cpp" line="+67"/>
-        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="-120"/>
-        <location line="+156"/>
+        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="-121"/>
+        <location line="+157"/>
         <source>Cancel</source>
         <translation type="unfinished">Annuleren</translation>
     </message>
@@ -24346,7 +24483,7 @@ Dit bestand is beveiligd met een wachtwoord. Wachtwoord:</translation>
         <translation type="unfinished">De oneven pagina&apos;s zijn naar de printer gestuurd. Draai de stapel om als ze zijn afgedrukt, plaats hem terug in de papierlade en druk opnieuw af met &quot;Alleen even pagina&apos;s&quot;.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="-145"/>
+        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="-146"/>
         <source>Not saved: %1 was changed by another program.</source>
         <translation type="unfinished">Niet opgeslagen: %1 is door een ander programma gewijzigd.</translation>
     </message>
@@ -24364,7 +24501,7 @@ Dit bestand is beveiligd met een wachtwoord. Wachtwoord:</translation>
     </message>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_print.cpp" line="-43"/>
-        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="+30"/>
+        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="+31"/>
         <source>Saved %1</source>
         <translation type="unfinished">%1 opgeslagen</translation>
     </message>
@@ -25009,7 +25146,7 @@ Het bestaande bestand is ongewijzigd gebleven.</translation>
         <translation type="unfinished">Het filteren is gestopt.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_datatools.cpp" line="+21"/>
+        <location filename="../apps/crunch/app/crunchwindow_datatools.cpp" line="+22"/>
         <source>Edit Links…</source>
         <translation type="unfinished">Koppelingen bewerken…</translation>
     </message>
@@ -25020,7 +25157,7 @@ Het bestaande bestand is ongewijzigd gebleven.</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+63"/>
+        <location line="+70"/>
         <location line="+23"/>
         <location line="+7"/>
         <location line="+5"/>
@@ -25030,8 +25167,8 @@ Het bestaande bestand is ongewijzigd gebleven.</translation>
         <translation type="unfinished">Duplicaten verwijderen</translation>
     </message>
     <message>
-        <location line="-97"/>
-        <location line="+118"/>
+        <location line="-104"/>
+        <location line="+125"/>
         <location line="+19"/>
         <location line="+6"/>
         <source>Text to Columns</source>
@@ -25530,7 +25667,7 @@ Het bestaande bestand is ongewijzigd gebleven.</translation>
         <translation type="unfinished">De werkmap wordt met een wachtwoord beveiligd wanneer u opslaat.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="-44"/>
+        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="-45"/>
         <source>Some versions kept before couldn&apos;t be given the new password, and stay as they were.</source>
         <translation type="unfinished">Sommige eerder bewaarde versies kunnen het nieuwe wachtwoord niet krijgen en blijven zoals ze waren.</translation>
     </message>
@@ -29961,16 +30098,16 @@ Het bestand kan niet worden gelezen.</translation>
     </message>
     <message>
         <location line="+5"/>
-        <location filename="../apps/deck/app/deckwindow_file.cpp" line="+117"/>
+        <location filename="../apps/deck/app/deckwindow_file.cpp" line="+121"/>
         <location line="+1"/>
-        <location line="+50"/>
+        <location line="+53"/>
         <location line="+1"/>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="+335"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="+336"/>
         <source>Open</source>
         <translation type="unfinished">Openen</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_file.cpp" line="-127"/>
+        <location filename="../apps/deck/app/deckwindow_file.cpp" line="-133"/>
         <source>Presentations (*.pptx *.potx *.ppsx *.ppt *.pps *.pot *.odp *.otp)</source>
         <translation type="unfinished">Presentaties (*.pptx *.potx *.ppsx *.ppt *.pps *.pot *.odp *.otp)</translation>
     </message>
@@ -30909,7 +31046,7 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Hiermee worden de lettertypen die bij het programma horen en die de dia&apos;s gebruiken in het bestand opgenomen, zodat de dia&apos;s er hetzelfde uitzien op een computer die ze niet heeft. Het bestand wordt hierdoor groter. Lettertypen die elke computer heeft, zoals Calibri en Arial, worden nooit opgenomen.</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_file.cpp" line="+74"/>
+        <location filename="../apps/deck/app/deckwindow_file.cpp" line="+77"/>
         <location filename="../apps/deck/app/deckwindow_media.cpp" line="-72"/>
         <location line="+97"/>
         <source>%1 can&apos;t open &quot;%2&quot;.
@@ -30928,7 +31065,7 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Kopie van %1</translation>
     </message>
     <message>
-        <location line="+16"/>
+        <location line="+19"/>
         <source>Marked as final: this presentation is open for reading only. Open File &gt; Info and choose Marked as Final to edit it.</source>
         <translation type="unfinished">Als definitief gemarkeerd: deze presentatie is alleen geopend om te lezen. Open Bestand &gt; Info en kies Als definitief markeren om haar te bewerken.</translation>
     </message>
@@ -31182,7 +31319,7 @@ Het bestand kan niet worden gelezen.</translation>
         <location line="+7"/>
         <location filename="../apps/deck/app/deckwindow_output.cpp" line="-84"/>
         <location line="+194"/>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-182"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-183"/>
         <location line="+60"/>
         <source>%1 couldn&apos;t save &quot;%2&quot;.
 %3%4</source>
@@ -31992,7 +32129,7 @@ Het bestand kan niet worden gelezen.</translation>
     </message>
     <message>
         <location filename="../apps/deck/app/deckwindow_output.cpp" line="-73"/>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="+14"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="+15"/>
         <source>Saved %1</source>
         <translation type="unfinished">%1 opgeslagen</translation>
     </message>
@@ -33437,7 +33574,7 @@ Het bestand kan niet worden gelezen.</translation>
         <location line="+11"/>
         <location line="+5"/>
         <location line="+17"/>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-123"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-124"/>
         <source>Version History</source>
         <translation type="unfinished">Versiegeschiedenis</translation>
     </message>
@@ -34406,19 +34543,6 @@ Het bestand kan niet worden gelezen.</translation>
         <location line="+5"/>
         <source>Paste Formatting</source>
         <translation type="unfinished">Opmaak plakken</translation>
-    </message>
-</context>
-<context>
-    <name>jp::EditorMedia</name>
-    <message>
-        <location filename="../apps/deck/app/editormedia.cpp" line="+107"/>
-        <source>This movie is linked from outside the presentation, so it can&apos;t be played here.</source>
-        <translation type="unfinished">Deze film is gekoppeld van buiten de presentatie en kan hier dus niet worden afgespeeld.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>This sound is linked from outside the presentation, so it can&apos;t be played here.</source>
-        <translation type="unfinished">Dit geluid is gekoppeld van buiten de presentatie en kan hier dus niet worden afgespeeld.</translation>
     </message>
 </context>
 <context>
@@ -39336,7 +39460,7 @@ Bron: %3</translation>
 <context>
     <name>jp::MainWindow</name>
     <message>
-        <location filename="../apps/pub/app/mainwindow.cpp" line="-1623"/>
+        <location filename="../apps/pub/app/mainwindow.cpp" line="-1636"/>
         <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+601"/>
         <source>%1 (%2)</source>
         <translation type="unfinished">%1 (%2)</translation>
@@ -39362,27 +39486,27 @@ Bron: %3</translation>
         <translation type="unfinished">Uw tekst en afbeeldingen zijn naar het nieuwe ontwerp verplaatst.</translation>
     </message>
     <message>
-        <location line="+44"/>
+        <location line="+47"/>
         <location line="+18"/>
-        <location line="+32"/>
-        <location line="+38"/>
+        <location line="+34"/>
+        <location line="+41"/>
         <location line="+1"/>
-        <location line="+269"/>
+        <location line="+270"/>
         <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-488"/>
         <source>Open</source>
         <translation type="unfinished">Openen</translation>
     </message>
     <message>
-        <location line="-358"/>
+        <location line="-364"/>
         <location line="+18"/>
-        <location line="+32"/>
+        <location line="+34"/>
         <source>JeffPub can&apos;t open &quot;%1&quot;.
 %2</source>
         <translation type="unfinished">JeffPub kan &quot;%1&quot; niet openen.
 %2</translation>
     </message>
     <message>
-        <location line="+42"/>
+        <location line="+45"/>
         <source>Opened .pub file. %1</source>
         <translation type="unfinished">.pub-bestand geopend. %1</translation>
     </message>
@@ -39422,39 +39546,39 @@ Deze blijven behouden als u opslaat als JeffPub-publicatie (.jpub).</translation
 %2%3</translation>
     </message>
     <message>
-        <location line="+24"/>
-        <location line="+1048"/>
+        <location line="+25"/>
+        <location line="+1051"/>
         <source>Saved %1</source>
         <translation type="unfinished">%1 opgeslagen</translation>
     </message>
     <message>
-        <location line="-1037"/>
+        <location line="-1040"/>
         <location line="+18"/>
         <source>JeffPub Publication (*.jpub)</source>
         <translation type="unfinished">JeffPub-publicatie (*.jpub)</translation>
     </message>
     <message>
-        <location line="-284"/>
-        <location line="+266"/>
+        <location line="-293"/>
+        <location line="+275"/>
         <location line="+18"/>
         <source>.pub Publication Files (*.pub)</source>
         <translation type="unfinished">.pub-publicatiebestanden (*.pub)</translation>
     </message>
     <message>
-        <location line="-495"/>
+        <location line="-504"/>
         <source> (Read-Only)</source>
         <translation type="unfinished"> (alleen-lezen)</translation>
     </message>
     <message>
-        <location line="+274"/>
+        <location line="+277"/>
         <location line="+6"/>
-        <location line="+48"/>
+        <location line="+53"/>
         <location line="+1"/>
         <source>Open and Repair</source>
         <translation type="unfinished">Openen en herstellen</translation>
     </message>
     <message>
-        <location line="-55"/>
+        <location line="-60"/>
         <source>&quot;%1&quot; has a password, and a file with a password can&apos;t be repaired. Open it with its password instead.</source>
         <translation type="unfinished">&quot;%1&quot; heeft een wachtwoord, en een bestand met wachtwoord kan niet worden hersteld. Open het in plaats daarvan met het wachtwoord.</translation>
     </message>
@@ -39466,7 +39590,7 @@ Deze blijven behouden als u opslaat als JeffPub-publicatie (.jpub).</translation
 %2</translation>
     </message>
     <message>
-        <location line="+31"/>
+        <location line="+33"/>
         <source>Repaired %1</source>
         <translation type="unfinished">%1 hersteld</translation>
     </message>
@@ -39476,7 +39600,7 @@ Deze blijven behouden als u opslaat als JeffPub-publicatie (.jpub).</translation
         <translation type="unfinished">Kopie van %1</translation>
     </message>
     <message>
-        <location line="+9"/>
+        <location line="+12"/>
         <source>Marked as final: this publication is open for reading only. Open File &gt; Info and choose Marked as Final to edit it.</source>
         <translation type="unfinished">Gemarkeerd als definitief: deze publicatie is alleen open om te lezen. Open Bestand &gt; Info en kies Markeren als definitief om haar te bewerken.</translation>
     </message>
@@ -39554,7 +39678,7 @@ Een JeffPub-publicatie (.jpub) bewaart alles ervan.</translation>
         <translation type="unfinished">Sommige eerder bewaarde versies konden niet het nieuwe wachtwoord krijgen en blijven zoals ze waren.</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+7"/>
         <source>Saved a copy as %1</source>
         <translation type="unfinished">Kopie opgeslagen als %1</translation>
     </message>
@@ -39681,7 +39805,7 @@ Een JeffPub-publicatie (.jpub) bewaart alles ervan.</translation>
         <location line="+60"/>
         <location line="+67"/>
         <location line="+13"/>
-        <location line="+165"/>
+        <location line="+166"/>
         <location line="+48"/>
         <location line="+100"/>
         <location line="+4"/>
@@ -39692,7 +39816,7 @@ Een JeffPub-publicatie (.jpub) bewaart alles ervan.</translation>
         <translation type="unfinished">PDF maken</translation>
     </message>
     <message>
-        <location line="-519"/>
+        <location line="-520"/>
         <source>Minimum size (online viewing, pictures at 96 dpi)</source>
         <translation type="unfinished">Minimale grootte (online weergave, afbeeldingen op 96 dpi)</translation>
     </message>
@@ -39792,8 +39916,8 @@ Een JeffPub-publicatie (.jpub) bewaart alles ervan.</translation>
         <translation type="unfinished">Kleurprofielen (*.icc *.icm)</translation>
     </message>
     <message>
-        <location line="-579"/>
-        <location line="+579"/>
+        <location line="-588"/>
+        <location line="+588"/>
         <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+563"/>
         <source>All Files (*)</source>
         <translation type="unfinished">Alle bestanden (*)</translation>
@@ -39849,7 +39973,7 @@ Een JeffPub-publicatie (.jpub) bewaart alles ervan.</translation>
         <translation type="unfinished">Ontwerpcontrole openen</translation>
     </message>
     <message>
-        <location line="+169"/>
+        <location line="+170"/>
         <source>the color profile isn&apos;t one for printing in CMYK</source>
         <translation type="unfinished">het kleurprofiel is geen profiel voor afdrukken in CMYK</translation>
     </message>
@@ -39908,7 +40032,12 @@ Een JeffPub-publicatie (.jpub) bewaart alles ervan.</translation>
         <translation type="unfinished">(niet getagd voor schermlezers: %1)</translation>
     </message>
     <message>
-        <location line="+18"/>
+        <location line="+1"/>
+        <source>Some linked pictures were not updated, so their previews are used in the PDF. Use Update Link first for the whole pictures.</source>
+        <translation type="unfinished">Sommige gekoppelde afbeeldingen zijn niet bijgewerkt, dus hun voorvertoningen worden in de PDF gebruikt. Gebruik eerst Koppeling bijwerken voor de volledige afbeeldingen.</translation>
+    </message>
+    <message>
+        <location line="+19"/>
         <location line="+8"/>
         <location line="+4"/>
         <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-1254"/>
@@ -40038,7 +40167,12 @@ Een JeffPub-publicatie (.jpub) bewaart alles ervan.</translation>
         <translation type="unfinished">Webpagina (*.html)</translation>
     </message>
     <message>
-        <location line="+165"/>
+        <location line="+66"/>
+        <source>Some linked pictures were not updated, so their previews are printed. Use Update Link first for the whole pictures.</source>
+        <translation type="unfinished">Sommige gekoppelde afbeeldingen zijn niet bijgewerkt, dus hun voorvertoningen worden afgedrukt. Gebruik eerst Koppeling bijwerken voor de volledige afbeeldingen.</translation>
+    </message>
+    <message>
+        <location line="+100"/>
         <location line="+48"/>
         <source>Insert Picture</source>
         <translation type="unfinished">Afbeelding invoegen</translation>
@@ -40124,7 +40258,7 @@ Een JeffPub-publicatie (.jpub) bewaart alles ervan.</translation>
         <translation type="unfinished">Nieuwe lege publicatie</translation>
     </message>
     <message>
-        <location filename="../apps/pub/app/mainwindow.cpp" line="-1614"/>
+        <location filename="../apps/pub/app/mainwindow.cpp" line="-1627"/>
         <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+178"/>
         <source>Publications (*.jpub *.pub)</source>
         <translation type="unfinished">Publicaties (*.jpub *.pub)</translation>
@@ -43340,7 +43474,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Publicatie controleren</translation>
     </message>
     <message>
-        <location filename="../apps/pub/app/mainwindow.cpp" line="+246"/>
+        <location filename="../apps/pub/app/mainwindow.cpp" line="+254"/>
         <location filename="../apps/pub/app/mainwindow_info.cpp" line="+19"/>
         <location line="+12"/>
         <location line="+17"/>
@@ -47234,17 +47368,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
 <context>
     <name>jp::ShowMedia</name>
     <message>
-        <location filename="../apps/deck/app/showmedia.cpp" line="+81"/>
-        <source>This movie is linked from outside the presentation, so it can&apos;t be played here.</source>
-        <translation type="unfinished">Deze film is gekoppeld van buiten de presentatie en kan hier dus niet worden afgespeeld.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>This sound is linked from outside the presentation, so it can&apos;t be played here.</source>
-        <translation type="unfinished">Dit geluid is gekoppeld van buiten de presentatie en kan hier dus niet worden afgespeeld.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
+        <location filename="../apps/deck/app/showmedia.cpp" line="+92"/>
         <source>There is no movie here to play.</source>
         <translation type="unfinished">Er is hier geen film om af te spelen.</translation>
     </message>
@@ -47387,7 +47511,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">De presentatie %1 kan niet worden geopend.</translation>
     </message>
     <message>
-        <location line="+466"/>
+        <location line="+472"/>
         <source>Pointer Options</source>
         <translation type="unfinished">Opties voor aanwijzer</translation>
     </message>
@@ -48869,7 +48993,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
 <context>
     <name>jp::TransitionPreview</name>
     <message>
-        <location filename="../apps/deck/app/slideshow.cpp" line="+166"/>
+        <location filename="../apps/deck/app/slideshow.cpp" line="+167"/>
         <source>Transition Preview</source>
         <translation type="unfinished">Voorbeeld van overgang</translation>
     </message>
@@ -52509,21 +52633,21 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Niet opslaan</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_file.cpp" line="+89"/>
+        <location filename="../apps/write/app/writewindow_file.cpp" line="+90"/>
         <source>New</source>
         <translation type="unfinished">Nieuw</translation>
     </message>
     <message>
         <location line="+5"/>
-        <location line="+111"/>
-        <location line="+44"/>
-        <location line="+432"/>
+        <location line="+115"/>
+        <location line="+45"/>
+        <location line="+433"/>
         <location filename="../apps/write/core/designops.cpp" line="+27"/>
         <source>Open</source>
         <translation type="unfinished">Openen</translation>
     </message>
     <message>
-        <location line="-560"/>
+        <location line="-566"/>
         <location filename="../apps/write/app/writewindow_insert.cpp" line="+138"/>
         <location filename="../apps/write/app/writewindow_pictures.cpp" line="+190"/>
         <location filename="../apps/write/app/writewindow_shapes.cpp" line="-308"/>
@@ -52533,13 +52657,13 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location line="+0"/>
-        <location line="+168"/>
+        <location line="+173"/>
         <location line="+21"/>
         <source>Rich Text Format (*.rtf)</source>
         <translation type="unfinished">Rich Text Format (*.rtf)</translation>
     </message>
     <message>
-        <location line="-189"/>
+        <location line="-194"/>
         <source>OpenDocument Text (*.odt *.fodt *.ott)</source>
         <translation type="unfinished">OpenDocument-tekst (*.odt *.fodt *.ott)</translation>
     </message>
@@ -52555,7 +52679,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location filename="../apps/write/app/writewindow_file.cpp" line="+1"/>
-        <location line="+162"/>
+        <location line="+167"/>
         <location line="+5"/>
         <location line="+3"/>
         <location line="+1"/>
@@ -52573,18 +52697,18 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <location line="+3"/>
         <location line="+14"/>
         <location line="+10"/>
-        <location line="+28"/>
+        <location line="+29"/>
         <source>Save</source>
         <translation type="unfinished">Opslaan</translation>
     </message>
     <message>
-        <location line="-420"/>
-        <location line="+200"/>
+        <location line="-426"/>
+        <location line="+205"/>
         <source>Save As</source>
         <translation type="unfinished">Opslaan als</translation>
     </message>
     <message>
-        <location line="-199"/>
+        <location line="-204"/>
         <source>Print…</source>
         <translation type="unfinished">Afdrukken…</translation>
     </message>
@@ -52604,7 +52728,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Opties</translation>
     </message>
     <message>
-        <location line="+69"/>
+        <location line="+73"/>
         <source>Open Plain Text</source>
         <translation type="unfinished">Platte tekst openen</translation>
     </message>
@@ -52631,7 +52755,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Kopie van %1</translation>
     </message>
     <message>
-        <location line="+17"/>
+        <location line="+18"/>
         <source>Marked as final: this document is open for reading only. Open File &gt; Info and choose Marked as Final to edit it.</source>
         <translation type="unfinished">Als definitief markeren: dit document is alleen geopend om te lezen. Open Bestand &gt; Info en kies Als definitief markeren om het te bewerken.</translation>
     </message>
@@ -52751,12 +52875,12 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
 %3%4</translation>
     </message>
     <message>
-        <location line="-335"/>
+        <location line="-340"/>
         <source>Documents (*.docx *.docm *.dotx *.dotm *.doc *.dot *.rtf *.odt *.fodt *.ott *.txt *.html *.htm)</source>
         <translation type="unfinished">Documenten (*.docx *.docm *.dotx *.dotm *.doc *.dot *.rtf *.odt *.fodt *.ott *.txt *.html *.htm)</translation>
     </message>
     <message>
-        <location line="+146"/>
+        <location line="+151"/>
         <source>This document came from a web page, which %1 doesn&apos;t write over, so it is saved as a new .docx file.</source>
         <translation type="unfinished">Dit document komt van een webpagina, die %1 niet overschrijft, dus wordt het opgeslagen als een nieuw .docx-bestand.</translation>
     </message>
@@ -52832,7 +52956,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Kopie opgeslagen als %1</translation>
     </message>
     <message>
-        <location line="+16"/>
+        <location line="+17"/>
         <location filename="../apps/write/app/writewindow_output.cpp" line="+4"/>
         <source>Saved %1</source>
         <translation type="unfinished">%1 opgeslagen</translation>
@@ -53012,7 +53136,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">%1 geëxporteerd</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_file.cpp" line="-285"/>
+        <location filename="../apps/write/app/writewindow_file.cpp" line="-286"/>
         <location filename="../apps/write/app/writewindow_output.cpp" line="-22"/>
         <location line="+3"/>
         <location line="+152"/>
@@ -65369,6 +65493,97 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
 </context>
 <context>
+    <name>jp::trust::TrustPage</name>
+    <message>
+        <location filename="../libs/shell/app/trust.cpp" line="+18"/>
+        <source>Macros:</source>
+        <translation type="unfinished">Macro&apos;s:</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Macros in a file are kept in it, and are never run. There is no setting to run them.</source>
+        <translation type="unfinished">Macro&apos;s in een bestand blijven erin bewaard en worden nooit uitgevoerd. Er is geen instelling om ze uit te voeren.</translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <location line="+6"/>
+        <source>Ask me first</source>
+        <translation type="unfinished">Eerst vragen</translation>
+    </message>
+    <message>
+        <location line="-6"/>
+        <location line="+1"/>
+        <source>Update them</source>
+        <translation type="unfinished">Bijwerken</translation>
+    </message>
+    <message>
+        <location line="-1"/>
+        <location line="+1"/>
+        <source>Never update them</source>
+        <translation type="unfinished">Nooit bijwerken</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Linked files and workbook links:</source>
+        <translation type="unfinished">Gekoppelde bestanden en werkmapkoppelingen:</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>This doesn&apos;t apply in this app: it has no linked files to update.</source>
+        <translation type="unfinished">Dit geldt niet in deze app: die heeft geen gekoppelde bestanden om bij te werken.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Play it</source>
+        <translation type="unfinished">Afspelen</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Never play it</source>
+        <translation type="unfinished">Nooit afspelen</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Linked movies and sounds:</source>
+        <translation type="unfinished">Gekoppelde films en geluiden:</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>This doesn&apos;t apply in this app: it has no linked movies or sounds to play.</source>
+        <translation type="unfinished">Dit geldt niet in deze app: die heeft geen gekoppelde films of geluiden om af te spelen.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Open as read-only first</source>
+        <translation type="unfinished">Eerst als alleen-lezen openen</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Open normally</source>
+        <translation type="unfinished">Normaal openen</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Files from the internet or other computers:</source>
+        <translation type="unfinished">Bestanden van internet of andere computers:</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>A file that was downloaded, or is on another computer, opens for reading only. The bar under it has Enable Editing for that one file, and Save As makes a copy you can change.</source>
+        <translation type="unfinished">Een bestand dat is gedownload of op een andere computer staat, wordt alleen-lezen geopend. De balk eronder heeft Bewerken inschakelen voor dat ene bestand, en Opslaan als maakt een kopie die u kunt wijzigen.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Links that start a program:</source>
+        <translation type="unfinished">Koppelingen die een programma starten:</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>These are always refused, and there is no setting to allow them. A link to a file on another computer is never followed without asking.</source>
+        <translation type="unfinished">Deze worden altijd geweigerd, en er is geen instelling om ze toe te staan. Een koppeling naar een bestand op een andere computer wordt nooit gevolgd zonder te vragen.</translation>
+    </message>
+</context>
+<context>
     <name>jp::write::Access</name>
     <message>
         <location filename="../apps/write/core/accessops.cpp" line="+68"/>
@@ -69234,7 +69449,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">JeffWrite volgt alleen koppelingen naar webadressen en e-mailadressen.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview_pictures.cpp" line="+110"/>
+        <location filename="../apps/write/app/pageview_pictures.cpp" line="+111"/>
         <source>Select three or more objects first: click one, then hold Ctrl and click the others.</source>
         <translation type="unfinished">Selecteer eerst drie of meer objecten: klik op één en houd vervolgens Ctrl ingedrukt terwijl u de andere aanklikt.</translation>
     </message>

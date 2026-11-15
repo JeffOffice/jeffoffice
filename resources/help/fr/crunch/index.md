@@ -1,16 +1,16 @@
 # Aide de JeffCrunch
-<!-- keywords: sommaire, aide, rubriques, démarrer -->
+<!-- keywords: sommaire, aide, rubriques, démarrer, débuter, contenu -->
 
-Tapez dans la zone de recherche ci-dessus pour trouver une rubrique ou une commande à exécuter. Appuyez à tout moment sur **F1** pour obtenir de l'aide sur ce que vous faites : l'onglet du ruban où vous vous trouvez, ou la page de l'écran Fichier où vous vous trouvez.
+Tapez dans la zone de recherche ci-dessus pour trouver une rubrique ou une commande à exécuter. Appuyez sur **F1** à tout moment pour obtenir de l'aide sur ce que vous faites : l'onglet du ruban ou la page de l'écran Fichier où vous vous trouvez.
 
-## Pour commencer
+## Pour bien démarrer
 
 - [Bienvenue dans JeffCrunch](start)
 - [Ouvrir et enregistrer des classeurs](open-save)
 - [Informations : propriétés, mots de passe et Inspecter](info)
 - [Ouvrir des classeurs protégés par un mot de passe](open-password)
 - [Saisir du texte dans les cellules](edit-cells)
-- [Règles sur le contenu d'une cellule](rules)
+- [Règles de contenu d'une cellule](rules)
 
 ## Consulter un classeur
 
@@ -29,7 +29,7 @@ Tapez dans la zone de recherche ci-dessus pour trouver une rubrique ou une comma
 - [Insérer et supprimer des lignes, des colonnes et des cellules](insert-delete)
 - [Modifier la largeur des colonnes et la hauteur des lignes](sizes)
 - [Couper, copier et coller](clipboard)
-- [Recopier des cellules et faire la somme](fill-sum)
+- [Remplir des cellules et faire la somme](fill-sum)
 - [Rechercher, remplacer et atteindre](find-replace)
 - [Trier et filtrer](sort-filter)
 - [Outils de données](data-tools)
@@ -44,7 +44,7 @@ Tapez dans la zone de recherche ci-dessus pour trouver une rubrique ou une comma
 
 ## Imprimer
 
-- [Mettre en page les feuilles](page-layout)
+- [Mettre en page les pages](page-layout)
 - [La boîte de dialogue Mise en page](page-setup)
 - [Imprimer et créer un PDF](printing)
 
@@ -52,4 +52,5 @@ Tapez dans la zone de recherche ci-dessus pour trouver une rubrique ou une comma
 
 - [Utiliser JeffCrunch au clavier](keyboard)
 - [Modifier les paramètres de JeffCrunch](options)
+- [Sécurité : vers quoi un fichier peut se connecter](security)
 - [Choisir une langue](language)

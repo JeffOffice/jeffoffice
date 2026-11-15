@@ -1,7 +1,7 @@
 # JeffDeck-Hilfe
-<!-- keywords: Inhalt, Hilfe, Themen, Start, Inhaltsverzeichnis, Hilfethemen, Übersicht -->
+<!-- keywords: Inhalt, Hilfe, Themen, Start, Hilfethemen, Übersicht -->
 
-Geben Sie oben im Suchfeld einen Begriff ein, um ein Thema oder einen auszuführenden Befehl zu finden. Drücken Sie jederzeit **F1**, um Hilfe zu dem zu erhalten, was Sie gerade tun: zur Registerkarte des Menübands, auf der Sie sich befinden, zum Bereich, in dem Sie arbeiten, oder zum ausgewählten Objekt.
+Geben Sie oben im Suchfeld einen Begriff ein, um ein Thema oder einen Befehl zu finden, den Sie ausführen möchten. Drücken Sie jederzeit **F1**, um Hilfe zu dem zu erhalten, was Sie gerade tun: zur aktuellen Registerkarte des Menübands, zum aktuellen Bereich oder zum ausgewählten Objekt.
 
 ## Erste Schritte
 
@@ -14,7 +14,7 @@ Geben Sie oben im Suchfeld einen Begriff ein, um ein Thema oder einen auszuführ
 
 - [Folien hinzufügen, ändern und löschen](slides)
 - [Folien aus einer anderen Präsentation wiederverwenden](reuse)
-- [Gliederungsansicht, Foliensortierung und Folienmasteransicht](views)
+- [Gliederungsansicht, Foliensortierung und Folienmaster-Ansicht](views)
 - [Foliengröße, Hintergrund und Fußzeilen](design)
 
 ## Auf einer Folie
@@ -31,11 +31,11 @@ Geben Sie oben im Suchfeld einen Begriff ein, um ein Thema oder einen auszuführ
 - [Übergänge zwischen Folien](transitions)
 - [Animationen](animations)
 
-## Vorführen
+## Präsentation
 
 - [Bildschirmpräsentation abspielen und die Referentenansicht verwenden](show)
 
-## Drucken und teilen
+## Drucken und Freigeben
 
 - [Drucken, PDF und Folienbilder](printing)
 
@@ -43,10 +43,11 @@ Geben Sie oben im Suchfeld einen Begriff ein, um ein Thema oder einen auszuführ
 
 - [JeffDeck mit der Tastatur verwenden](keyboard)
 - [JeffDecks Einstellungen ändern](options)
-- [Eine Sprache auswählen](language)
-- [Die Backstage-Ansicht „Datei“](file-screen)
+- [Sicherheit: worauf eine Datei zugreifen darf](security)
+- [Sprache auswählen](language)
+- [Der Bereich „Datei“](file-screen)
 
-## Die Registerkarten des Menübands
+## Registerkarten des Menübands
 
 - [Start](tab-home), [Einfügen](tab-insert), [Entwurf](tab-design), [Übergänge](tab-transitions), [Animationen](tab-animations), [Bildschirmpräsentation](tab-slide-show), [Überprüfen](tab-review) und [Ansicht](tab-view)
-- [Wiedergabe](tab-playback) wird angezeigt, während ein Video oder Audio ausgewählt ist
+- [Wiedergabe](tab-playback) wird angezeigt, während ein Film oder Ton ausgewählt ist

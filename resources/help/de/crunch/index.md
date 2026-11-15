@@ -1,26 +1,26 @@
 # JeffCrunch-Hilfe
 <!-- keywords: Inhalt, Hilfe, Themen, Start, Hilfethemen, Übersicht -->
 
-Geben Sie oben im Suchfeld einen Begriff ein, um ein Thema oder einen Befehl zu finden, den Sie ausführen möchten. Drücken Sie jederzeit **F1**, um Hilfe zu dem zu erhalten, was Sie gerade tun: zur Registerkarte des Menübands oder zur Seite im Menü „Datei“, auf der Sie sich befinden.
+Geben Sie oben in das Suchfeld ein, um ein Thema oder einen auszuführenden Befehl zu finden. Drücken Sie jederzeit **F1**, um Hilfe zu dem zu erhalten, was Sie gerade tun: zur Registerkarte des Menübands oder zur Seite „Datei“, auf der Sie sich gerade befinden.
 
 ## Erste Schritte
 
 - [Willkommen bei JeffCrunch](start)
 - [Arbeitsmappen öffnen und speichern](open-save)
 - [Info: Eigenschaften, Kennwörter und Arbeitsmappe prüfen](info)
-- [Kennwortgeschützte Arbeitsmappen öffnen](open-password)
+- [Arbeitsmappen mit Kennwortschutz öffnen](open-password)
 - [In Zellen eingeben](edit-cells)
 - [Regeln für den Inhalt einer Zelle](rules)
 
-## Eine Arbeitsmappe ansehen
+## Arbeitsmappe ansehen
 
-- [Zellen auswählen und navigieren](select-and-move)
+- [Zellen auswählen und sich bewegen](select-and-move)
 - [Ansicht ändern](view)
-- [Formeln anzeigen und berechnen](formulas)
+- [Anzeige und Berechnung von Formeln](formulas)
 - [Namen für Zellen und Werte](names)
 - [Bedingte Formatierungen](conditional-formats)
 
-## Eine Arbeitsmappe ändern
+## Arbeitsmappe ändern
 
 - [Zellen formatieren](format-cells)
 - [Zahlenformate und Ihre Sprache](number-formats)
@@ -35,12 +35,12 @@ Geben Sie oben im Suchfeld einen Begriff ein, um ein Thema oder einen Befehl zu 
 - [Datentools](data-tools)
 - [Tabellen](tables)
 - [Pivot-Tabellen](pivot-tables)
-- [Eine Funktion einfügen](insert-function)
-- [Eine Funktion mit dem Dialogfeld „Funktionsargumente“ eingeben](function-arguments)
+- [Funktion einfügen](insert-function)
+- [Funktion mit dem Dialogfeld „Funktionsargumente“ eingeben](function-arguments)
 - [Diagramme, Bilder und Formen](charts)
 - [Gleichungen](equations)
 - [Notizen und Links](notes-links)
-- [Ein Blatt oder die Arbeitsmappe schützen](protect)
+- [Blatt oder Arbeitsmappe schützen](protect)
 
 ## Drucken
 
@@ -51,5 +51,6 @@ Geben Sie oben im Suchfeld einen Begriff ein, um ein Thema oder einen Befehl zu 
 ## Schneller arbeiten
 
 - [JeffCrunch mit der Tastatur verwenden](keyboard)
-- [Einstellungen von JeffCrunch ändern](options)
+- [JeffCrunch-Einstellungen ändern](options)
+- [Sicherheit: worauf eine Datei zugreifen darf](security)
 - [Sprache auswählen](language)

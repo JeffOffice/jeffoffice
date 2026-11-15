@@ -1,85 +1,89 @@
-# Змінення параметрів JeffWrite
-<!-- keywords: перезапис, клавіша Insert, введення замінює виділений текст, Ctrl+клацання, перехід за посиланням, перетягування й переміщення, особиста інформація, видалення особистої інформації, додатково, одиниці, одиниці виміру, дюйми, сантиметри, параметри, налаштування, уподобання, збереження, формат за замовчуванням, тека за замовчуванням, розташування файлів за замовчуванням, відновлення, символи форматування, лінії сітки, відображення, статистика використання, номер встановлення, конфіденційність, повідомлення про конфіденційність, JP_NO_TELEMETRY, видалення статистики, оновлення, про програму, настроювання клавіатури, настроювання стрічки, настроювання панелі швидкого доступу, панель швидкого доступу, додати команду на панель швидкого доступу, приховати вкладку, приховати групу, додати вкладку, додати групу, перейменувати вкладку, скинути стрічку, змінити комбінації клавіш, призначити клавіші, скинути клавіші -->
+# Зміна параметрів JeffWrite
+<!-- keywords: перезапис, клавіша Insert, введення замінює виділене, Ctrl+клацання, перехід за посиланням, перетягування, особиста інформація, видалити особисту інформацію, додатково, одиниці, одиниці вимірювання, дюйми, сантиметри, параметри, настройки, налаштування, уподобання, збереження, формат за замовчуванням, тека за замовчуванням, розташування файлів за замовчуванням, відновлення, символи форматування, лінії сітки, відображення, статистика використання, номер встановлення, конфіденційність, повідомлення про конфіденційність, JP_NO_TELEMETRY, видалити статистику, оновлення, про програму, настроїти клавіатуру, настроїти стрічку, настроїти панель швидкого доступу, панель швидкого доступу, додати команду на панель швидкого доступу, приховати вкладку, приховати групу, додати вкладку, додати групу, перейменувати вкладку, скинути стрічку, змінити комбінації клавіш, призначити клавіші знову, скинути клавіші -->
 
-Your settings are in the **JeffWrite Options** window. Click **File > Options** to open it. Click **OK** to keep your changes, or **Cancel** to throw them away.
+Параметри JeffWrite розміщено у вікні **Параметри JeffWrite**. Щоб його відкрити, клацніть **Файл > Параметри**. Клацніть **OK**, щоб зберегти зміни, або **Скасувати**, щоб їх відмінити.
 
-## Save
+## Збереження
 
-The **Save** page of the Options window has four choices.
+На сторінці **Збереження** вікна параметрів є чотири пункти.
 
-- **Save new documents as** picks the kind of file that **Save As** offers first for a document that has no file yet: a .docx file or an .odt file.
-- **Save automatic recovery information every** is how many minutes pass between the spare copies JeffWrite keeps of unsaved work. See [Open, save, print, and export](open-save).
-- **Default file location** is the folder the **Open** and **Save As** boxes start in. Click **Browse** to pick it. Leave it empty to start in your Documents folder.
-- **Remove personal information from this file when saving** takes out the author, the person who saved the file last, the company, the manager, the names and initials on comments, and the names and times on tracked changes, from the file that is written (a .docx or .odt file, a template, and a document sent by email). What the file says stays as it is. The file's custom properties are left as they are, and the document you have open is not changed. It is the same choice in every JeffOffice app: change it in one and it changes in all of them. To do this just once, use **Inspect Document** in [Info](info). The same box is on the **Info** page.
+- **Зберігати нові документи як** визначає тип файлу, який команда **Зберегти як** пропонує першим для документа, що ще не має файлу: файл .docx або .odt.
+- **Зберігати інформацію для автоматичного відновлення кожні** — скільки хвилин проходить між резервними копіями незбережених змін, які JeffWrite зберігає. Див. [Відкриття, збереження, друк і експорт](open-save).
+- **Розташування файлів за замовчуванням** — тека, з якої починаються вікна **Відкрити** та **Зберегти як**. Щоб її вибрати, клацніть **Огляд**. Якщо залишити поле порожнім, відкриття почнеться з теки «Документи».
+- **Видаляти особисту інформацію з цього файлу під час збереження** вилучає з файлу, що записується (файлу .docx або .odt, шаблону й документа, надісланого електронною поштою), відомості про автора, особу, яка востаннє зберегла файл, компанію, керівника, імена й ініціали в коментарях, а також імена та час у відстежених змінах. Вміст файлу залишається без змін. Користувацькі властивості файлу не змінюються, а відкритий документ не змінюється. Цей параметр однаковий у всіх застосунках JeffOffice: змінивши його в одному, ви змінюєте його у всіх. Щоб зробити це одноразово, скористайтеся командою **Перевірити документ** на сторінці [Відомості](info). Той самий пункт є й на сторінці **Відомості**.
 
-## Display
+## Відображення
 
-The **Display** page chooses what a window shows when it opens.
+На сторінці **Відображення** вибирають, що показує вікно під час відкриття.
 
-- **Show formatting marks** turns on the paragraph marks and other signs that do not print. Each window can still turn them on or off with the **¶** button.
-- **Show table gridlines** draws the faint edges of table cells that have no lines.
+- **Показувати символи форматування** вмикає знаки абзаців та інші позначки, які не друкуються. Кожне вікно можна й далі вмикати або вимикати кнопкою **¶**.
+- **Показувати лінії сітки таблиць** малює слабкі межі комірок таблиць, які не мають ліній.
 
-A change on this page applies to the window you are in at once, and to each window you open after it.
+Зміна на цій сторінці одразу застосовується до вікна, у якому ви працюєте, і до кожного вікна, яке ви відкриєте пізніше.
 
-## Advanced
+## Додатково
 
-**Show measurements in** picks the unit for the ruler and the dialogs: inches, centimeters, millimeters, points, or picas. A point is 1/72 of an inch. A pica is 12 points.
+**Показувати одиниці вимірювання в** визначає одиниці для лінійки та діалогових вікон: дюйми, сантиметри, міліметри, пункти або піки. Пункт — це 1/72 дюйма. Пік — це 12 пунктів.
 
-**Use Ctrl+click to follow a link** is on at first: you hold **Ctrl** and click a link to go to it, and a plain click only puts the cursor in the link's words. Turn it off to follow a link with a plain click. Holding **Shift** while you click still selects text.
+**Використовувати Ctrl+клацання для переходу за посиланням** спочатку увімкнено: щоб перейти за посиланням, потрібно утримувати **Ctrl** і клацнути його; звичайне клацання лише ставить курсор у текст посилання. Вимкніть цей пункт, щоб переходити за посиланням звичайним клацанням. Клацання з утримуваною клавішею **Shift** і далі виділяє текст.
 
-**Allow text to be dragged and dropped** lets you select words and drag them to a new place. Hold **Ctrl** while you drop to copy them instead of moving them. Turn it off if you drag by accident.
+**Дозволити перетягування тексту** дає змогу виділити слова й перетягнути їх на нове місце. Щоб під час відпускання копіювати, а не переміщувати, утримуйте **Ctrl**. Вимкніть цей пункт, якщо ви часто перетягуєте випадково.
 
-**Typing replaces the selected text** is on at first: when words are selected and you type, the new letters take their place. Turn it off and the new letters go after the selected words instead.
+**Введення замінює виділений текст** спочатку увімкнено: якщо слова виділено і ви друкуєте, нові літери займають їхнє місце. Вимкніть цей пункт, і нові літери дописуватимуться після виділених слів.
 
-**Use the Insert key to turn overtype mode on and off** is off at first. When it is on, the **Insert** key switches between two ways of typing. Normally each letter you type pushes the letters after it along. In **overtype** mode each letter you type replaces the letter after the cursor. Press **Insert** again to go back.
+**Використовувати клавішу Insert для перемикання режиму перезапису** спочатку вимкнено. Коли її увімкнено, клавіша **Insert** перемикає два способи введення. Зазвичай кожна літера, яку ви вводите, відсуває літери після неї. У режимі **перезапису** кожна літера замінює літеру після курсора. Щоб повернутися, натисніть **Insert** ще раз.
 
-These choices apply to the window you are in at once, and to each window you open after it.
+Ці параметри одразу застосовуються до вікна, у якому ви працюєте, і до кожного вікна, яке ви відкриєте пізніше.
 
-## Customize
+## Настроювання
 
-The **Customize** tab has three pages, **Ribbon**, **Quick Toolbar**, and **Keyboard**. The **Keyboard** page is where you choose the shortcut keys for JeffWrite's commands. See "Choose your own shortcut keys" in the keyboard topic.
+Вкладка **Настроювання** має три сторінки: **Стрічка**, **Панель швидкого доступу** та **Клавіатура**. На сторінці **Клавіатура** вибирають комбінації клавіш для команд JeffWrite. Див. «Призначення власних комбінацій клавіш» у темі про клавіатуру.
 
-### Customize the ribbon
+### Настроювання стрічки
 
-The **Ribbon** page lists the ribbon's tabs, each with its groups.
+На сторінці **Стрічка** перелічено вкладки стрічки з їхніми групами.
 
-- **Hide or show a tab or a group.** Clear the box beside it to hide it, and tick the box to show it again. A hidden group takes no room, and its commands still work from their shortcut keys. **Home** has no box, because it always stays, and so does the **File** button. A tab that appears only when something is selected, such as a picture or a table, is at the end of the list and has no box.
-- **Make your own tab or group.** Type a name in the **Name** box and click **New Tab**. To make a group, choose a tab and click **New Group**. A group of your own can go on any tab, including a tab that appears only when something is selected.
-- **Put commands in your group.** Choose your group, find a command in the **Commands** list (type in the **Search commands** box to narrow the list), and click **Add Command**. Any command that has a name can go in. A command can be in a group only once.
-- **Rename.** Choose a tab, group, or command of your own, type the new name, and click **Rename**. A command you rename does the same thing, and the new name is only what its button says. Rename a command with an empty name to give it its own name back.
-- **Reorder.** Choose a tab and click **Move Up** or **Move Down**. You can move the ribbon's own tabs as well as yours, but not the tabs that appear only when something is selected. Your groups and your commands move the same way within their tab or group. The ribbon's own groups stay in their order.
-- **Take away.** Choose a tab, group, or command of your own and click **Remove**.
+- **Приховати або показати вкладку чи групу.** Щоб приховати, зніміть прапорець поруч, щоб показати знову, поставте його. Прихована група не займає місця, а її команди й далі працюють за комбінаціями клавіш. Для **Основне** прапорця немає, бо ця вкладка завжди на місці, так само як і кнопка **Файл**. Вкладка, що з'являється лише тоді, коли щось виділено, як-от малюнок чи таблиця, стоїть у кінці списку й прапорця не має.
+- **Створити власну вкладку чи групу.** Введіть назву в полі **Назва** і клацніть **Нова вкладка**. Щоб створити групу, виберіть вкладку й клацніть **Нова група**. Власну групу можна розмістити на будь-якій вкладці, зокрема на тій, що з'являється лише за виділення.
+- **Додати команди до своєї групи.** Виберіть свою групу, знайдіть команду у списку **Команди** (щоб звузити список, введіть текст у полі **Пошук команд**) і клацніть **Додати команду**. Можна додати будь-яку команду, що має назву. Одна команда може бути в групі лише раз.
+- **Перейменувати.** Виберіть власну вкладку, групу чи команду, введіть нову назву і клацніть **Перейменувати**. Перейменована команда працює так само, а нова назва лише відображається на її кнопці. Щоб повернути команді її початкову назву, перейменуйте її на порожню.
+- **Змінити порядок.** Виберіть вкладку і клацніть **Перемістити вгору** або **Перемістити вниз**. Можна переміщувати як вбудовані вкладки стрічки, так і свої, але не вкладки, що з'являються лише за виділення. Свої групи та команди переміщуються так само, у межах своєї вкладки чи групи. Вбудовані групи зберігають свій порядок.
+- **Видалити.** Виберіть власну вкладку, групу чи команду і клацніть **Видалити**.
 
-**Reset One** puts back the chosen tab: it is shown, its groups are shown, and the groups you added to it are gone. A tab of your own is taken away. **Reset All** puts back the whole ribbon, including the order of the tabs.
+**Скинути один** повертає вибрану вкладку: її показано, показано її групи, а групи, які ви до неї додали, зникають. Власна вкладка видаляється. **Скинути все** повертає всю стрічку, включно з порядком вкладок.
 
-Nothing changes until you click **OK**. Then every open JeffWrite window shows your ribbon, and so does every window you open later. JeffWrite keeps only what differs from the usual ribbon, so a tab or group a later version adds shows up on its own. Your tabs and groups get KeyTips (the letters shown when you press **Alt**) that do not clash with the others. You can have 20 tabs of your own, 30 groups of your own on a tab, and 60 commands in a group.
+Нічого не змінюється, доки ви не клацнете **OK**. Після цього кожне відкрите вікно JeffWrite показуватиме вашу стрічку, так само як і кожне вікно, відкрите пізніше. JeffWrite зберігає лише те, що відрізняється від звичайної стрічки, тож вкладка чи група, які додасть пізніша версія, з'являться самостійно. Ваші вкладки й групи отримують підказки клавіш (літери, що з'являються після натискання **Alt**), які не збігаються з іншими. Можна мати 20 власних вкладок, 30 власних груп на вкладці та 60 команд у групі.
 
-### Customize the quick toolbar
+### Настроювання панелі швидкого доступу
 
-The **Quick Toolbar** page is for the small toolbar at the top left of the window. Its left list shows what is on the toolbar now, and the **Commands** list on the right has every command that has a name (type in the **Search commands** box to narrow it, the same as on the **Ribbon** page).
+Сторінка **Панель швидкого доступу** стосується маленької панелі у верхньому лівому куті вікна. Її ліворуч список показує, що зараз є на панелі, а праворуч список **Команди** містить усі команди, що мають назву (щоб звузити список, введіть текст у полі **Пошук команд**, так само як на сторінці **Стрічка**).
 
-- **Add a command.** Choose it in the **Commands** list and click **Add Command**. It goes at the end of the toolbar. A command that opens a menu keeps its menu on the toolbar. A command can be on the toolbar only once.
-- **Right-click.** You can also right-click any command on the ribbon and choose **Add to Quick Toolbar**, or right-click a button on the toolbar and choose **Remove from Quick Toolbar**. The same menu has **Customize the Quick Toolbar** and **Customize the Ribbon**, which open this page.
-- **Move it below the ribbon.** Check **Show Quick Toolbar below the ribbon** to put the toolbar in a row under the ribbon instead of at the top left. The two right-click menus have **Show Quick Toolbar Below the Ribbon** too. JeffWrite remembers the choice.
-- **Add a separator.** Click **Add Separator** to put a thin line at the end, then move it where you want it.
-- **Reorder.** Choose a command or a separator in the left list and click **Move Up** or **Move Down**.
-- **Take away.** Choose it and click **Remove**.
+- **Додати команду.** Виберіть її в списку **Команди** і клацніть **Додати команду**. Вона з'явиться в кінці панелі. Команда, що відкриває меню, зберігає своє меню на панелі. Одна команда може бути на панелі лише раз.
+- **Права кнопка миші.** Ви також можете клацнути правою кнопкою будь-яку команду на стрічці й вибрати **Додати на панель швидкого доступу**, або клацнути правою кнопкою кнопку на панелі й вибрати **Вилучити з панелі швидкого доступу**. У тому самому меню є пункти **Настроїти панель швидкого доступу** та **Настроїти стрічку**, які відкривають цю сторінку.
+- **Перенести під стрічку.** Позначте **Показувати панель швидкого доступу під стрічкою**, щоб розмістити панель рядком під стрічкою, а не у верхньому лівому куті. У обох меню правої кнопки є пункт **Показувати панель швидкого доступу під стрічкою**. JeffWrite запам'ятовує цей вибір.
+- **Додати роздільник.** Клацніть **Додати роздільник**, щоб додати тонку лінію в кінець, а потім перемістіть її туди, де вона потрібна.
+- **Змінити порядок.** Виберіть команду або роздільник у лівому списку і клацніть **Перемістити вгору** або **Перемістити вниз**.
+- **Видалити.** Виберіть його і клацніть **Видалити**.
 
-**Reset One** puts back the chosen command: where JeffWrite usually has it, or off the toolbar when JeffWrite does not usually have it there. **Reset All** puts back the toolbar JeffWrite comes with. Reset All on this page does not change your ribbon, and Reset All on the **Ribbon** page does not change your toolbar.
+**Скинути один** повертає вибрану команду: туди, де JeffWrite зазвичай її розміщує, або знімає з панелі, якщо зазвичай її там немає. **Скинути все** повертає панель, з якою постачається JeffWrite. Скидання на цій сторінці не змінює вашу стрічку, а скидання на сторінці **Стрічка** не змінює вашу панель.
 
-Nothing changes until you click **OK**. Then every open JeffWrite window shows your toolbar, and so does every window you open later. The toolbar can have 100 commands and separators in all. When there are more buttons than fit in a third of the window's width, the rest wait behind a **»** button at the end of the toolbar, so the title of the window is never pushed off the screen. JeffWrite keeps a command in your list when a later version no longer has it, and shows it again if the command comes back. The buttons get KeyTips, the numbers 1 to 9 and then two letters, in the order they are on the toolbar. The toolbar always sits at the top left, beside the **File** button.
+Нічого не змінюється, доки ви не клацнете **OK**. Після цього кожне відкрите вікно JeffWrite показуватиме вашу панель, так само як і кожне вікно, відкрите пізніше. На панелі може бути до 100 команд і роздільників разом. Якщо кнопок більше, ніж вміщується в третину ширини вікна, решта чекає за кнопкою **»** в кінці панелі, тож назва вікна ніколи не зсувається з екрана. JeffWrite зберігає команду у вашому списку, навіть якщо пізніша версія її більше не має, і показує її знову, коли вона повертається. Кнопки отримують підказки клавіш: числа від 1 до 9, а потім дві літери, у порядку розташування на панелі. Панель завжди розташована у верхньому лівому куті, поруч із кнопкою **Файл**.
 
-## Usage statistics
+## Статистика використання
 
-**Send anonymous usage statistics** lets you share facts about how JeffWrite is used. Anonymous means the facts say nothing about who you are. When this is on, JeffWrite sends these facts once a day, and on the day you update: that it is JeffWrite, its version, your operating system and language, how many times it was started, how often each command is used, and what kind of file you opened or saved. If JeffWrite ever closes by surprise, it also sends a crash report the next time it starts. JeffWrite never sends your files, their names, or anything in them, and nothing you typed. If this is off, no crash report is sent either.
+**Надсилати анонімну статистику використання** дає змогу ділитися відомостями про те, як використовується JeffWrite. Анонімно означає, що відомості не розкривають, хто ви. Коли цей пункт увімкнено, JeffWrite надсилає ці відомості раз на день, а також у день оновлення: що це JeffWrite, його версію, вашу операційну систему та мову, скільки разів програму запускали, як часто використовується кожна команда та який тип файлу ви відкривали або зберігали. Якщо JeffWrite несподівано закривається, під час наступного запуску він також надсилає звіт про збій. JeffWrite ніколи не надсилає ваші файли, їхні назви чи будь-що з їхнього вмісту, а також нічого з того, що ви ввели. Якщо цей пункт вимкнено, звіти про збої також не надсилаються.
 
-The choice belongs to all the JeffOffice apps: change it here and it changes in each of them. JeffWrite asks about it the first time it starts, in a window called **Help improve JeffWrite**.
+Цей вибір стосується всіх застосунків JeffOffice: змінивши його тут, ви змінюєте його в кожному з них. JeffWrite запитує про це під час першого запуску у вікні **Допоможіть покращити JeffWrite**.
 
-- **Privacy notice** next to the check box opens our privacy notice at jeffoffice.com/privacy. It says what is sent, where it goes, and how long we keep it. We keep statistics for 24 months.
-- **Install number** is shown under the check box. It is a random number made up for your copy of JeffOffice, the same in every JeffOffice app. It says nothing about you. Click **Copy** to copy it. If statistics are off, or no number has been made yet, it says **none**.
-- To have the statistics we already hold deleted, send your install number to info@jeffoffice.com **before** you turn statistics off. Turning them off erases the number from your computer, and without it we cannot tell which records are yours.
-- To turn statistics off without opening JeffWrite, set the environment variable `JP_NO_TELEMETRY` to any value before you start it. Nothing is then counted or sent, and JeffWrite does not ask the first-run question.
+- **Повідомлення про конфіденційність** поруч із прапорцем відкриває наше повідомлення про конфіденційність на jeffoffice.com/privacy. У ньому сказано, що надсилається, куди це йде і як довго ми зберігаємо дані. Статистику ми зберігаємо 24 місяці.
+- **Номер встановлення** показано під прапорцем. Це випадкове число, створене для вашої копії JeffOffice, однакове у всіх застосунках JeffOffice. Воно нічого не говорить про вас. Щоб скопіювати його, клацніть **Копіювати**. Якщо статистику вимкнено або номер ще не створено, там буде написано **немає**.
+- Щоб видалити статистику, яку ми вже маємо, надішліть свій номер встановлення на адресу info@jeffoffice.com **перед** тим, як вимкнути статистику. Вимкнення стирає номер з вашого комп'ютера, і без нього ми не можемо визначити, які записи належать вам.
+- Щоб вимкнути статистику, не відкриваючи JeffWrite, перед запуском встановіть змінну середовища `JP_NO_TELEMETRY` з будь-яким значенням. Тоді нічого не враховується і не надсилається, а JeffWrite не ставить питання під час першого запуску.
 
-## Related
+## Безпека
 
-- [Welcome to JeffWrite](start)
+Вкладка **Безпека** визначає, що JeffWrite робить із об'єктами, на які може посилатися файл: пов'язаними файлами, пов'язаними відео та звуками й файлами з інтернету. Макроси зберігаються у файлі та ніколи не виконуються, а посилання, яке могло б запустити програму, завжди відхиляється. Див. [Безпека](security).
+
+## Пов'язане
+
+- [Ласкаво просимо до JeffWrite](start)

@@ -1,5 +1,5 @@
 # Ajuda do JeffCrunch
-<!-- keywords: conteúdo, ajuda, tópicos, começar -->
+<!-- keywords: conteúdo, ajuda, tópicos, início, sumário, começar -->
 
 Digite na caixa de pesquisa acima para encontrar um tópico ou um comando a executar. Pressione **F1** a qualquer momento para obter ajuda sobre o que você está fazendo: a guia da faixa de opções em que você está, ou a página da tela Arquivo em que você está.
 
@@ -14,11 +14,11 @@ Digite na caixa de pesquisa acima para encontrar um tópico ou um comando a exec
 
 ## Examinar uma pasta de trabalho
 
-- [Selecionar células e navegar](select-and-move)
+- [Selecionar células e se movimentar](select-and-move)
 - [Alterar o modo de exibição](view)
 - [Como as fórmulas são exibidas e calculadas](formulas)
 - [Nomes para células e valores](names)
-- [Formatações condicionais](conditional-formats)
+- [Formatação condicional](conditional-formats)
 
 ## Alterar uma pasta de trabalho
 
@@ -52,4 +52,5 @@ Digite na caixa de pesquisa acima para encontrar um tópico ou um comando a exec
 
 - [Usar o JeffCrunch com o teclado](keyboard)
 - [Alterar as configurações do JeffCrunch](options)
+- [Segurança: a que um arquivo pode se conectar](security)
 - [Escolher um idioma](language)

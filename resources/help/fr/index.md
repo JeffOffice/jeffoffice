@@ -1,24 +1,24 @@
 # Aide de JeffPub
-<!-- keywords: sommaire, aide, rubriques, démarrage -->
+<!-- keywords: sommaire, aide, rubriques, démarrer, contenu, table des matières -->
 
-Saisissez un terme dans la zone de recherche ci-dessus pour trouver une rubrique ou une commande à exécuter. Appuyez à tout moment sur **F1** pour obtenir de l'aide sur ce que vous faites : l'onglet du ruban actif, la boîte de dialogue ouverte ou l'objet sélectionné.
+Saisissez un terme dans la zone de recherche ci-dessus pour trouver une rubrique ou une commande à exécuter. Appuyez à tout moment sur **F1** pour obtenir de l'aide sur ce que vous faites : l'onglet du ruban où vous vous trouvez, la boîte de dialogue ouverte ou l'objet sélectionné.
 
-## Premiers pas
+## Prise en main
 
 - [Bienvenue dans JeffPub](start)
 - [Se repérer dans la fenêtre](window)
-- [Créer une nouvelle composition](create)
+- [Créer une composition](create)
 - [Ouvrir et enregistrer des compositions](open-save)
-- [Travailler avec les fichiers .pub](pub-files)
+- [Travailler avec des fichiers .pub](pub-files)
 - [Récupérer un travail non enregistré](recover)
 
 ## Texte
 
 - [Ajouter et mettre en forme des zones de texte](text-boxes)
-- [Chaîner le texte entre les zones de texte](linked-text)
+- [Faire circuler le texte entre des zones de texte](linked-text)
 - [Mettre en forme le texte](formatting-text)
 - [Puces, numérotation et tabulations](lists-tabs)
-- [Utiliser les styles](styles)
+- [Utiliser des styles](styles)
 - [Ajouter du texte artistique](text-art)
 - [Ajouter une équation](equations)
 - [Créer et modifier des tableaux](tables)
@@ -44,7 +44,7 @@ Saisissez un terme dans la zone de recherche ci-dessus pour trouver une rubrique
 - [Changer le modèle d'une composition](change-template)
 - [Pages maîtres, en-têtes et numéros de page](master-pages)
 - [Ajouter, déplacer et supprimer des pages](pages)
-- [Règles, repères et magnétisme](guides)
+- [Règles, repères et alignement](guides)
 
 ## Publipostage
 
@@ -54,7 +54,7 @@ Saisissez un terme dans la zone de recherche ci-dessus pour trouver une rubrique
 
 - [Imprimer une composition](printing)
 - [Fichiers PDF et imprimeurs](pdf)
-- [Enregistrer en tant qu'image, page web ou livre électronique](export)
+- [Enregistrer en image, en page web ou en livre électronique](export)
 
 ## Aide et paramètres
 
@@ -63,6 +63,7 @@ Saisissez un terme dans la zone de recherche ci-dessus pour trouver une rubrique
 - [Vérifier votre conception](design-checker)
 - [Commentaires](comments)
 - [Modifier les paramètres de JeffPub](options)
+- [Sécurité : ce qu'un fichier peut atteindre](security)
 - [Choisir une langue](language)
 - [Obtenir de l'aide et signaler un problème](support)
 

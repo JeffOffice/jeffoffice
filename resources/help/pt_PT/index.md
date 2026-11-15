@@ -1,13 +1,13 @@
-# JeffPub Ajuda
-<!-- keywords: conteúdo, ajuda, tópicos, início -->
+# Ajuda do JeffPub
+<!-- keywords: índice, ajuda, tópicos, início, conteúdo -->
 
 Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a executar. Prima **F1** a qualquer momento para obter ajuda sobre o que está a fazer: o separador do friso em que está, a caixa de diálogo aberta ou o objeto selecionado.
 
 ## Primeiros passos
 
 - [Bem-vindo ao JeffPub](start)
-- [Conheça a janela](window)
-- [Criar uma nova publicação](create)
+- [Conhecer a janela](window)
+- [Iniciar uma nova publicação](create)
 - [Abrir e guardar publicações](open-save)
 - [Trabalhar com ficheiros .pub](pub-files)
 - [Recuperar trabalho não guardado](recover)
@@ -15,7 +15,7 @@ Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a exe
 ## Texto
 
 - [Adicionar e formatar caixas de texto](text-boxes)
-- [Fazer fluir texto entre caixas de texto](linked-text)
+- [Encadear texto entre caixas de texto](linked-text)
 - [Formatar texto](formatting-text)
 - [Marcas, numeração e tabulações](lists-tabs)
 - [Utilizar estilos](styles)
@@ -53,20 +53,21 @@ Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a exe
 ## Imprimir e partilhar
 
 - [Imprimir uma publicação](printing)
-- [Ficheiros PDF e gráficas](pdf)
+- [Ficheiros PDF e gráficas comerciais](pdf)
 - [Guardar como imagem, página Web ou livro eletrónico](export)
 
 ## Ajuda e definições
 
 - [Utilizar o JeffPub com o teclado](keyboard)
 - [Leitores de ecrã, alto contraste e texto alternativo](accessibility)
-- [Verificar a sua estrutura](design-checker)
+- [Verificar a estrutura](design-checker)
 - [Comentários](comments)
 - [Alterar as definições do JeffPub](options)
+- [Segurança: a que um ficheiro pode aceder](security)
 - [Escolher um idioma](language)
 - [Obter ajuda e comunicar problemas](support)
 
 ## Separadores do friso
 
 - [Ficheiro](tab-file), [Base](tab-home), [Inserir](tab-insert), [Estrutura da Página](tab-page-design), [Correspondência](tab-mailings), [Rever](tab-review), [Ver](tab-view) e [Ajuda](tab-help)
-- Separadores que aparecem quando seleciona algo: [Caixa de Texto](tab-text-box), [Formato da Forma](tab-shape-format), [Formato da Imagem](tab-picture-format), [Estrutura da Tabela e Esquema da Tabela](tab-table), [Formato do Texto Artístico](tab-text-art) e [Página Modelo](tab-master-page)
+- Separadores que aparecem ao selecionar algo: [Caixa de Texto](tab-text-box), [Formato da Forma](tab-shape-format), [Formato da Imagem](tab-picture-format), [Estrutura da Tabela e Esquema da Tabela](tab-table), [Formato do Texto Artístico](tab-text-art) e [Página Modelo](tab-master-page)
