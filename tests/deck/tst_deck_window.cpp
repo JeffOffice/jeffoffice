@@ -145,7 +145,7 @@ private Q_SLOTS:
             QVERIFY(from);
             const int at = from->findData(QStringLiteral("Zephyr Test"));
             QVERIFY(at >= 0);
-            QVERIFY(from->itemText(at).contains(QLatin1String("2 use")));
+            QVERIFY(from->itemText(at).contains(QLatin1String("used in 2")));
             from->setCurrentIndex(at);
             dlg->findChild<QComboBox *>(QStringLiteral("replaceFontsTo"))->setEditText(QStringLiteral("Zephyr Other"));
         });

@@ -525,7 +525,7 @@ int DeckWindow::exportSlidePictures(const deck::SlidePicturesOptions &options)
         jp::plainWarning(this, tr("Save Slides as Pictures"), tr("%1 couldn't save the pictures.\n%2%3").arg(appInfo().name, err, saveFailureHint(err)));
         return 0;
     }
-    statusBar()->showMessage(tr("Saved %n picture(s) in %1", nullptr, int(made.size())).arg(QDir::toNativeSeparators(options.folder)), 5000);
+    statusBar()->showMessage(tr("Saved the pictures in %1: %2").arg(QDir::toNativeSeparators(options.folder)).arg(made.size()), 5000);
     return int(made.size());
 }
 

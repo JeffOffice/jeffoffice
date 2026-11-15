@@ -17,7 +17,7 @@ namespace jp {
 QString ReplaceFontsResult::message() const
 {
     if (uses <= 0) return QString();
-    return QCoreApplication::translate("jp::ReplaceFonts", "Replaced %n use(s) of %1 with %2.", nullptr, uses).arg(from, to);
+    return QCoreApplication::translate("jp::ReplaceFonts", "Replaced %1 with %2 (places changed: %3).").arg(from, to).arg(uses);
 }
 
 QVector<FontUse> fontUsesOf(const QMap<QString, int> &families)
@@ -50,7 +50,7 @@ ReplaceFontsResult askReplaceFonts(QWidget *parent, const ReplaceFontsHost &host
         QString text = u.shown.isEmpty() ? u.key : u.shown;
         names << text;
         if (!u.theme && !installed.contains(u.key.toLower())) text += QCoreApplication::translate("jp::ReplaceFonts", " (not installed)");
-        from->addItem(QCoreApplication::translate("jp::ReplaceFonts", "%1 (%n use(s))", nullptr, u.uses).arg(text), u.key);
+        from->addItem(QCoreApplication::translate("jp::ReplaceFonts", "%1 (used in %2)").arg(text).arg(u.uses), u.key);
     }
     form->addRow(QCoreApplication::translate("jp::ReplaceFonts", "Replace:"), from);
     auto *to = new QComboBox(&dlg);
