@@ -1,6 +1,7 @@
 // JeffPub's tests of its Info page: the properties a .jpub keeps, Mark as Final, Inspect Publication, and Version History. Every file is made here, in a temporary folder.
 #include <QElapsedTimer>
 #include "pubhelpers.h"
+#include "app/lossywarning.h"
 #include "../isolatesettings.h"
 #include "app/backstage.h"
 #include "app/filedialogs.h"
@@ -1074,9 +1075,14 @@ private Q_SLOTS:
         w.editor()->markSaved();
     }
 
-    // A protected publication saved as a .pub file: asked first; Yes saves it without the password, No writes nothing.
+    // A protected publication saved as a .pub file: asked first, with the password in the one list; Save Anyway saves it without the password, Cancel writes nothing.
     void savingAProtectedPublicationAsPubAsksFirst()
     {
+        const auto reset = qScopeGuard([] {
+            jp::setLossyStandIn(nullptr);
+            jp::lossyForgetAll();
+        });
+        jp::lossyForgetAll();
         QTemporaryDir dir;
         jp::MainWindow w;
         Quiet quiet(w);
@@ -1084,17 +1090,17 @@ private Q_SLOTS:
         QVERIFY(w.saveTo(jpub));
         choosePassword(w, QStringLiteral("hunter2"));
         QString said;
-        {
-            BoxAnswer no(false, &said);
-            QVERIFY(!w.saveTo(pub));
-        }
-        QVERIFY(said.contains(QLatin1String(".pub")));
+        jp::LossyChoice answer = jp::LossyChoice::Cancel;
+        jp::setLossyStandIn([&](const jp::LossyAsk &a, bool *) {
+            said = a.lost.join(QLatin1Char('\n'));
+            return answer;
+        });
+        QVERIFY(!w.saveTo(pub));
+        QVERIFY(said.contains(QLatin1String("password")));
         QVERIFY(!QFileInfo::exists(pub));
         QVERIFY(w.isPasswordProtected());
-        {
-            BoxAnswer yes(true, nullptr);
-            QVERIFY(w.saveTo(pub));
-        }
+        answer = jp::LossyChoice::SaveAnyway;
+        QVERIFY(w.saveTo(pub));
         QVERIFY(QFileInfo::exists(pub));
         QVERIFY(!w.isPasswordProtected());
         QVERIFY(!fileBytes(pub).contains("EncryptedPackage"));
