@@ -1694,7 +1694,7 @@ QByteArray Exporter::run(QString *error)
     }
     writePresentation();
     if (m_droppedLinks > 0)
-        note(QCoreApplication::translate("PptxExport", "%n link(s) to a slide that is no longer in the presentation were left out.", nullptr, m_droppedLinks));
+        note(QCoreApplication::translate("PptxExport", "Links to a slide that is no longer in the presentation were left out (%1).").arg(m_droppedLinks));
 
     const QByteArray bytes = m_pkg.finish();
     if (bytes.isEmpty()) {

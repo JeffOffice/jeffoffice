@@ -741,12 +741,12 @@ private Q_SLOTS:
         QString err;
         QStringList skipped;
         QVERIFY(!deck::exportPresentation(*d, &err, &skipped).isEmpty());
-        QVERIFY2(skipped.filter(QStringLiteral("link")).isEmpty(), "both slides are there");
+        QVERIFY2(skipped.filter(QStringLiteral("no longer")).isEmpty(), "both slides are there");
         d->pages.erase(d->pages.begin() + 2);
         skipped.clear();
         const QByteArray bytes = deck::exportPresentation(*d, &err, &skipped);
         QVERIFY(!bytes.isEmpty());
-        QStringList said = skipped.filter(QStringLiteral("link"));
+        QStringList said = skipped.filter(QStringLiteral("no longer"));
         QCOMPARE(said.size(), 1);
         QVERIFY2(said.first().contains(QStringLiteral("no longer")), qPrintable(said.first()));
         auto back = deck::importPresentation(bytes, &err);

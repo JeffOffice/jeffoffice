@@ -1,5 +1,6 @@
 // JeffDeck's tests of open document presentations: reading, writing, and saving from the window.
 #include "deckhelpers.h"
+#include "office/hyperlink.h"
 #include "core/version.h"
 
 namespace odptest {
@@ -448,11 +449,12 @@ private Q_SLOTS:
         QCOMPARE(numbers->begin().textList()->format().property(tp::NumberFormat).toInt(), 1);
         QCOMPARE(numbers->blockCount(), 2);
         const QTextDocument *linked = d->storyDoc(link->storyId);
-        // A link to a program or a file is not followed: its text stays text.
+        // A link to a file is kept as a link (a program is refused when it is clicked in the show, never run on opening).
         QCOMPARE(linked->toPlainText(), QStringLiteral("Visit the site now run"));
         QStringList hrefs;
         for (auto it = linked->begin().begin(); !it.atEnd(); ++it) hrefs << it.fragment().charFormat().anchorHref();
-        QCOMPARE(hrefs, (QStringList{QString(), "https://example.com/a?b=1&c=2", QString()}));
+        QCOMPARE(hrefs, (QStringList{QString(), "https://example.com/a?b=1&c=2", QString(), "file:///bin/sh"}));
+        QVERIFY(office::isProgramFile(hrefs.last()));
     }
 
     // Pictures with their crop, shapes by their type or their path, lines with arrows, groups, tables with
