@@ -333,6 +333,13 @@ void CrunchWindow::changePage(const QString &text, const std::function<void(Page
     updatePageActions();
 }
 
+// The bytes of the pictures of every sheet but the one in view (see workbookPictureBytes).
+qint64 CrunchWindow::picturesOfOtherSheets() const
+{
+    if (!m_session || !m_loaded) return 0;
+    return jp::office::sheet::workbookPictureBytes(*m_loaded->book, [this](int sheet) -> const PageSetup * { return sheet < m_session->pages().sheetCount() ? &m_session->pages().sheet(sheet) : nullptr; }, m_sheet);
+}
+
 // Page Layout > Background: a picture file, tiled behind the cells of the sheet in view (on the screen only; it is not printed). One step of Undo.
 void CrunchWindow::chooseBackground()
 {
@@ -351,10 +358,12 @@ void CrunchWindow::chooseBackground()
         return;
     }
     // a file is read back with the pictures of its headers, footers, and backgrounds held to one total: what would go over it is refused now, not lost when the file is opened again
-    qint64 total = qint64(bg.image.size());
-    for (int i = 0; i < m_session->pages().sheetCount(); ++i) {
-        const PageSetup &other = m_session->pages().sheet(i);
-        total += jp::office::sheet::pictureBytesOf(other) - (i == m_sheet ? qint64(other.background.image.size()) : 0);
+    // (every sheet's pictures count, the one being changed with its header and footer pictures and the new background)
+    qint64 total = qint64(bg.image.size()) + picturesOfOtherSheets();
+    {
+        PageSetup own = m_session->pages().sheet(m_sheet);
+        own.background = jp::office::sheet::SheetBackground();
+        total += jp::office::sheet::pictureBytesOf(own);
     }
     if (total > jp::office::sheet::kMaxHeaderPictureBytesInBook) {
         notice(tr("Background"), tr("This picture would make the pictures of the workbook (backgrounds, headers, and footers) larger than a file can keep, %1 MB. Delete a background you don't need first, or use a smaller picture.").arg(jp::office::sheet::kMaxHeaderPictureBytesInBook >> 20));
@@ -382,6 +391,7 @@ void CrunchWindow::pageSetupDialog(int tab)
     request.fileName = m_path.isEmpty() ? displayName() : QFileInfo(m_path).fileName();
     request.selectionText = m_view->rangeName();
     request.tab = tab;
+    request.otherPictureBytes = picturesOfOtherSheets() + qint64(request.setup.background.image.size());
     request.metric = jp::defaultUnit(QLocale()) != jp::Unit::Inch;
     if (m_pageSetupAsker) {
         if (!m_pageSetupAsker(&request)) return;

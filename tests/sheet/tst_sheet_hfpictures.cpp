@@ -559,8 +559,29 @@ private Q_SLOTS:
             QVERIFY(reopened.readSheet(i, &sheet));
             QCOMPARE(sheet.page.background.image.size(), fake.size());   // (none went missing)
         }
+        const QByteArray sixtyMegabytes = saved;   // (eight sheets hold 7.5 MB each, 60 MB: the ninth sheet and the file's own pictures are what is left)
         QVERIFY(!save(9, &saved, &why));
         QVERIFY2(why.contains(QStringLiteral("too large together")), qPrintable(why));
+        // the sheets that are not saved now count as the file has them: a background or a header picture on the ninth sheet alone is refused, a small one is not
+        auto saveNinth = [&](const std::function<void(PageSetup *)> &fill, QString *problem) {
+            Package original;
+            Workbook wb;
+            if (!original.readLazy(sixtyMegabytes, problem) || !wb.open(original, problem)) return false;
+            SaveChanges changes;
+            changes.sheets[8].setPage = true;
+            fill(&changes.sheets[8].page);
+            QByteArray out;
+            return saveXlsx(wb, changes, &out, problem);
+        };
+        QVERIFY(!saveNinth([&](PageSetup *p) { p->background.image = fake; p->background.extension = QStringLiteral("png"); }, &why));
+        QVERIFY2(why.contains(QStringLiteral("too large together")), qPrintable(why));
+        QVERIFY(!saveNinth([&](PageSetup *p) {
+            HeaderPicture pic = pictureAt(QStringLiteral("CH"), fake);
+            p->headerFooter.oddHeader = QStringLiteral("&C&G");
+            p->headerFooter.pictures.append(pic);
+        }, &why));
+        QVERIFY2(why.contains(QStringLiteral("too large together")), qPrintable(why));
+        QVERIFY2(saveNinth([&](PageSetup *p) { p->background.image = QByteArray("\x89PNG\r\n\x1a\n", 8) + QByteArray(1000000, 'x'); p->background.extension = QStringLiteral("png"); }, &why), qPrintable(why));
     }
 
     // The ids of the forms of a page: the short forms (an F or an E after the two letters) and the long ones (FIRST and EVEN) are read alike, as the long ones, in any case; a text with no

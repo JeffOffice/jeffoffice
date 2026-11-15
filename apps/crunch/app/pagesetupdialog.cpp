@@ -392,7 +392,8 @@ void HeaderFooterEditor::addPicture()
         ++count;
         bytes += p.image.size();
     }
-    if (count >= jp::office::sheet::kMaxHeaderPictures || bytes > 4 * jp::office::sheet::kMaxHeaderPictureBytes) return refuse(tr("There are already as many pictures in the headers and footers as there can be."));
+    if (count >= jp::office::sheet::kMaxHeaderPictures) return refuse(tr("There are already as many pictures in the headers and footers as there can be."));
+    if (bytes + m_otherBytes > jp::office::sheet::kMaxHeaderPictureBytesInBook) return refuse(tr("This picture would make the pictures of the workbook (backgrounds, headers, and footers) larger than a file can keep, %1 MB. Delete a picture you don't need first.").arg(jp::office::sheet::kMaxHeaderPictureBytesInBook >> 20));
     for (qsizetype i = m_hf.pictures.size(); i-- > 0;)
         if (m_hf.pictures[i].place.compare(pic.place, Qt::CaseInsensitive) == 0) m_hf.pictures.removeAt(i);
     m_hf.pictures.append(pic);
@@ -762,6 +763,7 @@ void PageSetupDialog::editHeaderFooter(bool header)
         m.header = now.margin[4] / unit;
         m.footer = now.margin[5] / unit;
         editor.setPictureRoom(headerPictureRoom(m, header));
+        editor.setOtherPictureBytes(m_request.otherPictureBytes);
     }
     if (m_hfEditorAsker) {
         if (!m_hfEditorAsker(&editor)) return;

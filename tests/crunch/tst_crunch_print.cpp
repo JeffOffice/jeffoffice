@@ -831,6 +831,68 @@ void CrunchPrintTests::aLargePictureIsTiledAtItsRealSize()
     QCOMPARE(w.view()->backgroundScale(), 1.0);
 }
 
+// The sheets this window did not change count too, as the file has their pictures: a workbook opened from a file that holds 66 MB of backgrounds takes no more on another sheet, by the Background
+// command or by a picture in a header (the Page Setup dialog's, which is told what the rest of the workbook holds).
+void CrunchPrintTests::picturesOfSheetsNotChangedCountWhenAPictureIsChosen()
+{
+    QVector<QByteArray> sheets;
+    for (int i = 0; i < 9; ++i) sheets.append(worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row>")));
+    QByteArray file;
+    {
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx(sheets)));
+        QVERIFY(e.settle());
+        const QByteArray fake = QByteArray("\x89PNG\r\n\x1a\n", 8) + QByteArray(8300000, 'x');
+        for (int i = 0; i < 8; ++i) {
+            PageSetup p = e.win.w.session()->pages().sheet(i);
+            p.background.image = fake;
+            p.background.extension = QStringLiteral("png");
+            QVERIFY(e.win.w.session()->setPageSetup(i, p, QStringLiteral("Background")).ok);
+        }
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(saved), "the save failed");
+        QFile f(e.path);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        file = f.readAll();
+    }
+    EditWindow e;
+    QVERIFY(e.open(file, QStringLiteral("held.xlsx")));
+    CrunchWindow &w = e.win.w;
+    QVERIFY(e.settle());
+    QVERIFY(!w.session()->pages().sheet(0).background.isEmpty());   // (read back from the file)
+    QTemporaryDir dir;
+    QImage noise(700, 700, QImage::Format_RGB32);
+    for (int y = 0; y < noise.height(); ++y)
+        for (int x = 0; x < noise.width(); ++x) noise.setPixel(x, y, qRgb(int(QRandomGenerator::global()->bounded(256)), int(QRandomGenerator::global()->bounded(256)), int(QRandomGenerator::global()->bounded(256))));
+    const QString path = dir.filePath(QStringLiteral("noise.png"));
+    QVERIFY(noise.save(path));
+    QString told;
+    w.setNotifier([&](const QString &, const QString &text) { told = text; });
+    w.setPictureAsker([path] { return path; });
+    w.setActiveSheet(8);
+    QVERIFY(e.settle());
+    const int steps = w.session()->undoStack()->index();
+    w.act(QStringLiteral("page.background"))->trigger();
+    QCOMPARE(w.session()->undoStack()->index(), steps);
+    QVERIFY(told.contains(QStringLiteral("larger than a file can keep")));
+    // the header editor of the Page Setup dialog is told what the rest of the workbook holds, and refuses the same picture
+    PageSetupRequest request;
+    request.setup = w.session()->pages().sheet(8);
+    request.otherPictureBytes = 66400000;
+    HeaderFooterEditor editor(true, request.setup.headerFooter, QStringLiteral("S"), QStringLiteral("f"));
+    editor.setOtherPictureBytes(request.otherPictureBytes);
+    editor.setPictureAsker([path] { return path; });
+    editor.findChild<QPushButton *>(QStringLiteral("hfPicture"))->click();
+    QVERIFY(editor.texts().pictures.isEmpty());
+    QVERIFY(editor.findChild<QLabel *>(QStringLiteral("hfPictureState"))->text().contains(QStringLiteral("larger than a file can keep")));
+    // with nothing else held it is taken
+    HeaderFooterEditor free(true, request.setup.headerFooter, QStringLiteral("S"), QStringLiteral("f"));
+    free.setPictureAsker([path] { return path; });
+    free.findChild<QPushButton *>(QStringLiteral("hfPicture"))->click();
+    QCOMPARE(free.texts().pictures.size(), 1);
+}
+
 // A file that is not a picture, a type that is not allowed, a picture too large: told, and the sheet is as it was.
 void CrunchPrintTests::aBadBackgroundPictureIsRefusedWithAReason()
 {

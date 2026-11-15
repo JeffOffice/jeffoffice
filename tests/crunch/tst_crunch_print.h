@@ -203,6 +203,7 @@ private Q_SLOTS:
     void aBadBackgroundPictureIsRefusedWithAReason();
     void picturesOverTheTotalAFileKeepsAreRefusedWhenChosen();
     void aLargePictureIsTiledAtItsRealSize();
+    void picturesOfSheetsNotChangedCountWhenAPictureIsChosen();
     void theDialogShowsTheSetupAndGivesItBackUnchanged();
     void thePageTabHasThePrintQuality();
     void changesInTheDialogGoBack();

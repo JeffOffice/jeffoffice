@@ -1765,9 +1765,11 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
     std::vector<BackgroundWrite> backgroundWrites;
     {
         // (what a file is read back with is bounded as a whole: the pictures of the sheets saved now must come to no more than that, or some would be left out when it is opened again)
-        qint64 total = 0;
-        for (const auto &[sheet, sc] : requested.sheets)
-            if (sc.setPage) total += pictureBytesOf(sc.page);
+        // (the whole workbook: the sheets saved now with the pictures they are to have, and the others with the pictures the file has)
+        const qint64 total = workbookPictureBytes(book, [&](int sheet) -> const PageSetup * {
+            const auto it = requested.sheets.find(sheet);
+            return it != requested.sheets.end() && it->second.setPage ? &it->second.page : nullptr;
+        });
         if (total > kMaxHeaderPictureBytesInBook)
             return fail(QCoreApplication::translate("jp::office::sheet::Save", "The pictures in the headers, footers, and backgrounds of the sheets are too large together to be saved."));
         QSet<QString> taken;

@@ -607,6 +607,7 @@ public:
     void armPageBreaks();
     void updatePageBreaks();
     void chooseBackground();
+    qint64 picturesOfOtherSheets() const;
     void dataFormCommand();
     void showBackground();   // the picture behind the cells of the sheet in view, from its page setup
     // How the sheet in view is shown: 0 the cells as they are, 1 the sheet cut into the pages it prints on (the printed cells light and the rest shaded, the pages numbered, the lines

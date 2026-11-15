@@ -530,6 +530,16 @@ void CrunchWindow::insertHeaderPicture()
         notice(tr("Picture"), why);
         return;
     }
+    {
+        // (the pictures of the whole workbook are held to what a file is read back with)
+        const PageSetup &own = m_session->pages().sheet(m_sheet);
+        qint64 total = qint64(picture.image.size()) + picturesOfOtherSheets() + qint64(own.background.image.size());
+        for (const jp::office::sheet::HeaderPicture &p : own.headerFooter.pictures) total += p.image.size();
+        if (total > jp::office::sheet::kMaxHeaderPictureBytesInBook) {
+            notice(tr("Picture"), tr("This picture would make the pictures of the workbook (backgrounds, headers, and footers) larger than a file can keep, %1 MB. Delete a picture you don't need first.").arg(jp::office::sheet::kMaxHeaderPictureBytesInBook >> 20));
+            return;
+        }
+    }
     m_zone.picture = picture;
     m_zone.hasPicture = true;
     const QChar part = m_zone.zone == 0 ? QLatin1Char('L') : m_zone.zone == 1 ? QLatin1Char('C') : QLatin1Char('R');

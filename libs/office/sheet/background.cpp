@@ -2,7 +2,10 @@
 
 #include "sheet/sheetreader.h"
 
+#include <algorithm>
+
 #include <QMutexLocker>
+#include <QSet>
 
 namespace jp::office::sheet {
 
@@ -36,6 +39,38 @@ void Workbook::readBackground(const QString &sheetPart, PageSetup *page) const
     bg.image = image;
     bg.extension = extension == QLatin1String("jpg") ? QStringLiteral("jpeg") : extension;
     bg.part = rel.target;
+}
+
+qint64 Workbook::pictureBytesInFile(int index) const
+{
+    if (index < 0 || index >= m_info.sheets.size()) return 0;
+    const SheetEntry &entry = m_info.sheets[index];
+    if (entry.deleted || entry.isNew || entry.part.isEmpty() || entry.kind != SheetKind::Worksheet) return 0;
+    QSet<QString> seen;
+    qint64 total = 0;
+    auto addImage = [&](const QString &target) {
+        if (seen.contains(target.toLower())) return;
+        seen.insert(target.toLower());
+        total += std::min(std::max<qint64>(0, m_package.partSize(target)), kMaxHeaderPictureBytes);
+    };
+    for (const Relationship &r : m_package.relationshipsOfType(entry.part, QStringLiteral("/image")))
+        if (!r.external) addImage(r.target);
+    for (const Relationship &r : m_package.relationshipsOfType(entry.part, QStringLiteral("/vmlDrawing")))
+        if (!r.external)
+            for (const Relationship &image : m_package.relationshipsOfType(r.target, QStringLiteral("/image")))
+                if (!image.external) addImage(image.target);
+    return total;
+}
+
+qint64 workbookPictureBytes(const Workbook &book, const std::function<const PageSetup *(int sheet)> &pageOf, int skipSheet)
+{
+    qint64 total = 0;
+    for (int i = 0; i < book.info().sheets.size(); ++i) {
+        if (i == skipSheet) continue;
+        const PageSetup *page = pageOf ? pageOf(i) : nullptr;
+        total += page ? pictureBytesOf(*page) : book.pictureBytesInFile(i);
+    }
+    return total;
 }
 
 } // namespace jp::office::sheet

@@ -584,6 +584,40 @@ private Q_SLOTS:
         QCOMPARE(e.shownAt(QStringLiteral("A3")), QStringLiteral("Bo"));   // (the hidden row was not touched)
     }
 
+    // A row that an AutoFilter hides is not a record either: the form counts, finds, and deletes only the rows the filter shows.
+    void rowsHiddenByAFilterAreNotRecords()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=Name", "B1=Qty", "A2=Ann", "B2=5", "A3=Bo", "B3=150", "A4=Cy", "B4=40", "A5=Di", "B5=200"})));
+        QVERIFY(e.settle());
+        EditSession *session = e.win.w.session();
+        // the filter: Qty above 100 (Bo and Di stay, Ann and Cy are hidden)
+        jp::office::sheet::AutoFilter filter;
+        filter.ref = rangeOf(QStringLiteral("A1:B5"));
+        jp::office::sheet::FilterColumn condition;
+        condition.kind = jp::office::sheet::FilterColumn::Kind::Custom;
+        condition.column = 1;
+        condition.conditions.append({jp::office::sheet::FilterColumn::Op::Greater, QStringLiteral("100")});
+        filter.columns.append(condition);
+        QVERIFY(session->setFilter(0, filter, QStringLiteral("Filtering")).ok);
+        QVERIFY(e.settle());
+        QVERIFY(session->rowFilteredOut(0, 1));   // (Ann's row)
+        crunch::DataForm f;
+        QVERIFY(f.open(session, 0, 2, 0));
+        QCOMPARE(f.recordCount(), qint64(2));
+        QCOMPARE(f.editText(0, 0), QStringLiteral("Bo"));
+        QCOMPARE(f.editText(1, 0), QStringLiteral("Di"));
+        QCOMPARE(f.findNext(0), qint64(1));
+        e.select(QStringLiteral("A3"));
+        e.win.w.setDataFormAsker([&](DataFormDialog *d) {
+            QCOMPARE(d->positionLabel()->text(), QStringLiteral("1 of 2"));
+            d->findNextButton()->click();
+            QCOMPARE(d->fieldBox(0)->text(), QStringLiteral("Di"));
+            d->closeButton()->click();
+        });
+        e.win.w.act(QStringLiteral("data.form"))->trigger();
+    }
+
     // A field the sheet refuses leaves nothing behind: the fields before it are taken back, and Redo has nothing to redo.
     void aRefusedFieldLeavesNoStepToRedo()
     {
