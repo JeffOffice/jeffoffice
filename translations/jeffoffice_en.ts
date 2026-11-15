@@ -15,7 +15,7 @@
 <context>
     <name>Dialogs</name>
     <message numerus="yes">
-        <location filename="../apps/pub/app/dialogs.cpp" line="+1975"/>
+        <location filename="../apps/pub/app/dialogs.cpp" line="+1976"/>
         <source>Added %n page(s) for the rest of the text.</source>
         <translation>
             <numerusform>Added %n page for the rest of the text.</numerusform>
@@ -61,7 +61,7 @@
 <context>
     <name>Import</name>
     <message numerus="yes">
-        <location filename="../apps/pub/io/importers.cpp" line="+513"/>
+        <location filename="../apps/pub/io/importers.cpp" line="+514"/>
         <source>Created %n email file(s) in %1.</source>
         <translation>
             <numerusform>Created %n email file in %1.</numerusform>
@@ -212,7 +212,7 @@
 <context>
     <name>jp::DeckWindow</name>
     <message numerus="yes">
-        <location filename="../apps/deck/app/deckwindow_output.cpp" line="+209"/>
+        <location filename="../apps/deck/app/deckwindow_output.cpp" line="+210"/>
         <source>%n page(s)</source>
         <translation>
             <numerusform>%n page</numerusform>
@@ -220,7 +220,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="+271"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="+272"/>
         <source>Saved %1, but %n object(s) can&apos;t be saved in this kind of file yet.</source>
         <translation>
             <numerusform>Saved %1, but %n object can&apos;t be saved in this kind of file yet.</numerusform>
@@ -275,7 +275,7 @@
 <context>
     <name>jp::MainWindow</name>
     <message numerus="yes">
-        <location filename="../apps/pub/app/mainwindow.cpp" line="+1581"/>
+        <location filename="../apps/pub/app/mainwindow.cpp" line="+1582"/>
         <source>Saved %n drawing(s).</source>
         <translation>
             <numerusform>Saved %n drawing.</numerusform>

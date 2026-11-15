@@ -62,8 +62,8 @@
         <translation type="unfinished">Ubicación predeterminada de fichero</translation>
     </message>
     <message>
-        <source>Default file location:</source>
-        <translation type="unfinished">Ubicación predeterminada de fichero:</translation>
+        <source>Default file location</source>
+        <translation>Ubicación predeterminada de fichero</translation>
     </message>
 </context>
 <context>

@@ -93,28 +93,52 @@
         <translation>Centre</translation>
     </message>
     <message>
-        <source>Fill color:</source>
-        <translation>Fill colour:</translation>
-    </message>
-    <message>
-        <source>Line color:</source>
-        <translation>Line colour:</translation>
+        <source>Color</source>
+        <translation>Colour</translation>
     </message>
     <message>
         <source>Colors and Lines</source>
         <translation>Colours and Lines</translation>
     </message>
     <message>
+        <source>Fill color</source>
+        <translation>Fill colour</translation>
+    </message>
+    <message>
+        <source>Line color</source>
+        <translation>Line colour</translation>
+    </message>
+    <message>
+        <source>Color model</source>
+        <translation>Colour model</translation>
+    </message>
+    <message>
         <source>Grayscale</source>
         <translation>Greyscale</translation>
     </message>
     <message>
-        <source>Create New Color Scheme</source>
-        <translation>Create New Colour Scheme</translation>
+        <source>Color scheme name</source>
+        <translation>Colour scheme name</translation>
     </message>
     <message>
-        <source>Color scheme name:</source>
-        <translation>Colour scheme name:</translation>
+        <source>Colors</source>
+        <translation>Colours</translation>
+    </message>
+    <message>
+        <source>Color 1</source>
+        <translation>Colour 1</translation>
+    </message>
+    <message>
+        <source>Color 2</source>
+        <translation>Colour 2</translation>
+    </message>
+    <message>
+        <source>Base color</source>
+        <translation>Base colour</translation>
+    </message>
+    <message>
+        <source>Create New Color Scheme</source>
+        <translation>Create New Colour Scheme</translation>
     </message>
     <message>
         <source>Color Scheme</source>
@@ -127,22 +151,6 @@
     <message>
         <source>From center</source>
         <translation>From centre</translation>
-    </message>
-    <message>
-        <source>Colors:</source>
-        <translation>Colours:</translation>
-    </message>
-    <message>
-        <source>Color 1:</source>
-        <translation>Colour 1:</translation>
-    </message>
-    <message>
-        <source>Color 2:</source>
-        <translation>Colour 2:</translation>
-    </message>
-    <message>
-        <source>Base color:</source>
-        <translation>Base colour:</translation>
     </message>
     <message>
         <source>Capitalization</source>
@@ -183,14 +191,6 @@
     <message>
         <source>Process plus spot colors</source>
         <translation>Process plus spot colours</translation>
-    </message>
-    <message>
-        <source>Color model:</source>
-        <translation>Colour model:</translation>
-    </message>
-    <message>
-        <source>Spot colors:</source>
-        <translation>Spot colours:</translation>
     </message>
     <message>
         <source>Spot Color</source>
@@ -496,8 +496,8 @@ Download it from %2 now? (%3, once.)</translation>
 <context>
     <name>jp::Backstage</name>
     <message>
-        <source>Color scheme:</source>
-        <translation>Colour scheme:</translation>
+        <source>Color scheme</source>
+        <translation>Colour scheme</translation>
     </message>
     <message>
         <source>Composite grayscale</source>
@@ -508,16 +508,16 @@ Download it from %2 now? (%3, once.)</translation>
         <translation>Colour bars</translation>
     </message>
     <message>
-        <source>Color:</source>
-        <translation>Colour:</translation>
-    </message>
-    <message>
         <source>An ISO 19005 (PDF/A-1b) file for long-term storage and court or records filing: every font embedded, standard sRGB color, no transparency.</source>
         <translation>An ISO 19005 (PDF/A-1b) file for long-term storage and court or records filing: every font embedded, standard sRGB colour, no transparency.</translation>
     </message>
     <message>
         <source>An ISO 15930 file (PDF/X-1a or PDF/X-4), the kind printers and print-on-demand services ask for: every color in ink, fonts embedded, trim and bleed marked. PDF/X-4 keeps transparency and carries the printing condition's color profile.</source>
         <translation>An ISO 15930 file (PDF/X-1a or PDF/X-4), the kind printers and print-on-demand services ask for: every colour in ink, fonts embedded, trim and bleed marked. PDF/X-4 keeps transparency and carries the printing condition's colour profile.</translation>
+    </message>
+    <message>
+        <source>Color</source>
+        <translation>Colour</translation>
     </message>
     <message>
         <source>Color in PDF pages</source>
@@ -655,8 +655,8 @@ Download it from %2 now? (%3, once.)</translation>
 <context>
     <name>jp::DeckFileScreen</name>
     <message>
-        <source>Color:</source>
-        <translation>Colour:</translation>
+        <source>Color</source>
+        <translation>Colour</translation>
     </message>
 </context>
 <context>
@@ -916,10 +916,6 @@ Download it from %2 now? (%3, once.)</translation>
 <context>
     <name>jp::MainWindow</name>
     <message>
-        <source>Optimize for:</source>
-        <translation>Optimise for:</translation>
-    </message>
-    <message>
         <source>PDF/X-4: Your printer's color profile (%1)</source>
         <translation>PDF/X-4: Your printer's colour profile (%1)</translation>
     </message>
@@ -930,6 +926,10 @@ Download it from %2 now? (%3, once.)</translation>
     <message>
         <source>Color profiles (*.icc *.icm)</source>
         <translation>Colour profiles (*.icc *.icm)</translation>
+    </message>
+    <message>
+        <source>Optimize for</source>
+        <translation>Optimise for</translation>
     </message>
     <message>
         <source>"%1" isn't a color profile for printing in CMYK.</source>
@@ -1071,14 +1071,6 @@ Download it from %2 now? (%3, once.)</translation>
     <message>
         <source>Laser pointer color</source>
         <translation>Laser pointer colour</translation>
-    </message>
-    <message>
-        <source>Pen color:</source>
-        <translation>Pen colour:</translation>
-    </message>
-    <message>
-        <source>Laser pointer color:</source>
-        <translation>Laser pointer colour:</translation>
     </message>
     <message>
         <source>Pen Color</source>
