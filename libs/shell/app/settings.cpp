@@ -219,7 +219,9 @@ QString keepSettingsApart()
     qputenv("XDG_CACHE_HOME", (folder + QStringLiteral("/cache")).toUtf8());
     qputenv("XDG_STATE_HOME", (folder + QStringLiteral("/state")).toUtf8());
 #else
-    // (the system's own folders cannot be moved by the environment: Qt's test folders are named apart from the person's)
+    // (the system's own folders cannot be moved by the environment: Qt's test folders are named apart from the person's, and they lie under the home folder, so the home is this run's folder: nothing is left in the person's)
+    qputenv("USERPROFILE", folder.toUtf8());
+    qputenv("HOME", folder.toUtf8());
     QStandardPaths::setTestModeEnabled(true);
 #endif
     keptApart = folder;
