@@ -1,7 +1,7 @@
 # Usare gli stili
-<!-- keywords: stile, raccolta stili, stile paragrafo, stile carattere, titolo 1, titolo 2, titolo 3, titolo, nuovo stile, modifica stile, cambiare stile, importa stili, normale, corpo del testo, sottotitolo -->
+<!-- keywords: stile, stili, galleria stili, stile paragrafo, stile carattere, titolo 1, titolo 2, titolo 3, titolo, nuovo stile, modifica stile, cambia stile, importa stili, normale, corpo del testo, sottotitolo -->
 
-Uno stile è un insieme di formattazioni salvato con un nome. Quando si applica lo stile **Titolo 1**, al testo vengono assegnati in un solo passaggio il tipo di carattere, la dimensione, il colore e la spaziatura dello stile. Se in seguito si modifica lo stile, cambiano anche tutti i paragrafi che lo utilizzano.
+Uno stile è un insieme di formattazioni salvato con un nome. Quando applichi lo stile **Titolo 1**, il testo assume in un colpo solo il carattere, la dimensione, il colore e la spaziatura di quello stile. Se modifichi lo stile in seguito, cambiano anche tutti i paragrafi che lo usano.
 
 Esistono due tipi di stile:
 
@@ -10,48 +10,49 @@ Esistono due tipi di stile:
 
 ## Applicare uno stile
 
-1. Fare clic in un paragrafo oppure selezionare il testo. Per uno stile carattere, selezionare le parole.
-2. In **Home > Stili** fare clic su uno stile nella raccolta.
+1. Fai clic in un paragrafo oppure seleziona il testo. Per uno stile carattere, seleziona le parole.
+2. In **Home > Stili**, fai clic su uno stile nella galleria.
 
-Se invece è selezionata una casella di testo, lo stile viene applicato a tutti i suoi paragrafi. La raccolta mostra alcuni stili. Usare le frecce **Riga precedente** e **Riga successiva** per visualizzarne altri, oppure il pulsante **Mostra tutto** per visualizzarli tutti.
+Se invece è selezionata una casella di testo, lo stile si applica a tutti i suoi paragrafi. La galleria mostra solo alcuni stili. Usa le frecce **Riga precedente** e **Riga successiva** per vederne altri, oppure il pulsante **Mostra tutti** per vederli tutti.
 
-Una nuova pubblicazione contiene inizialmente questi stili: Normale, Corpo del testo, Titolo, Sottotitolo, da Titolo 1 a Titolo 4, Citazione, Didascalia, Elenco puntato, Indirizzo, Nome organizzazione, Slogan, Telefono Fax Posta elettronica, Enfasi e Forte. Gli stili dei titoli utilizzano il carattere titolo della pubblicazione, quindi scegliendo una nuova combinazione tipi di carattere cambiano anch'essi. Vedere [Combinazioni colori e tipi di carattere](color-schemes).
+Una nuova pubblicazione inizia con questi stili: Normale, Corpo del testo, Titolo, Sottotitolo, Titolo 1 - Titolo 4, Citazione, Didascalia, Elenco puntato, Indirizzo, Nome organizzazione, Slogan, Telefono Fax Email, Enfasi e Forte. Gli stili dei titoli usano il carattere dei titoli della pubblicazione, quindi scegliere una nuova combinazione di tipi di carattere li modifica. Vedi [Combinazioni di colori e tipi di carattere](color-schemes).
 
-Usare **Titolo 1**, **Titolo 2** e **Titolo 3** per i titoli. JeffPub crea il sommario a partire da questi stili. Vedere [Sommario, note a piè di pagina e note di chiusura](references).
+Usa **Titolo 1**, **Titolo 2** e **Titolo 3** per i tuoi titoli. JeffPub crea un sommario a partire da essi. Vedi [Sommario, note a piè di pagina e note di chiusura](references).
 
 ## Creare un nuovo stile
 
-1. Formattare un testo nel modo in cui si vuole che appaia lo stile. Lasciarvi il punto di inserimento.
-2. Fare clic su **Mostra tutto** nella raccolta **Stili**, quindi su **Nuovo stile…**.
-3. Digitare un **Nome stile**. Verificare o modificare le altre impostazioni.
-4. Fare clic su **OK**.
+1. Formatta un testo come vuoi che appaia lo stile. Lascia il cursore al suo interno.
+2. Fai clic su **Mostra tutti** nella galleria **Stili**, quindi su **Nuovo stile…**.
+3. Digita un **Nome stile**. Controlla o modifica le altre impostazioni.
+4. Fai clic su **OK**.
 
-Il nuovo stile viene visualizzato nella raccolta. Non è ancora applicato al testo, quindi fare clic su di esso nella raccolta.
+Il nuovo stile compare nella galleria. Non è ancora applicato al testo, quindi fai clic su di esso nella galleria.
 
-Per procedere più rapidamente, scegliere **Nuovo stile da esempio**. Assegnare un nome allo stile basato sul testo selezionato. JeffPub crea lo stile e lo applica immediatamente.
+Per un metodo più rapido, scegli **Nuovo stile da esempio**. Digita un nome per lo stile, basato sul testo selezionato. JeffPub crea lo stile e lo applica subito.
 
 ## Modificare uno stile
 
-1. Fare clic in un paragrafo che utilizza lo stile.
-2. Fare clic su **Mostra tutto** nella raccolta **Stili**, quindi su **Modifica stile…**.
-3. Modificare il tipo di carattere, la dimensione, il grassetto, il corsivo, il colore, l'allineamento o la spaziatura. Fare clic su **OK**.
+1. Fai clic in un paragrafo che usa lo stile.
+2. Fai clic su **Mostra tutti** nella galleria **Stili**, quindi su **Modifica stile…**.
+3. Cambia il carattere, la dimensione, il grassetto, il corsivo, il colore, l'allineamento, i rientri o la spaziatura. Fai clic su **OK**.
 
-Tutti i paragrafi con quello stile cambiano immediatamente.
+Ogni paragrafo con quello stile cambia subito.
 
 La finestra di dialogo offre anche queste opzioni:
 
-- **Stile del paragrafo successivo:** lo stile che si ottiene premendo INVIO alla fine di un paragrafo. Dopo un titolo, di solito si sceglie **Normale**.
-- **Stile carattere:** selezionare questa opzione per creare uno stile che formatta solo il testo selezionato.
-- **Basato su:** JeffPub salva questa scelta, ma uno stile non cambia quando cambia lo stile su cui è basato.
+- **Stile per il paragrafo successivo:** lo stile che ottieni premendo Invio alla fine di un paragrafo. Dopo un titolo, di solito vuoi **Normale**.
+- **Stile carattere:** selezionalo per creare uno stile che formatta solo il testo selezionato.
+- **Basato su:** lo stile da cui parte questo. Uno stile conserva solo ciò che modifichi, quindi quando cambi lo stile di base cambiano anche tutti gli stili basati su di esso, e il testo che li usa. Un'impostazione indica **da base** quando proviene dallo stile di base, e **impostato qui** quando la imposta questo stile. **Ripristina dalla base** riporta un'impostazione a quella di base. Il testo che hai formattato a mano mantiene il suo aspetto.
+- **Elimina stile:** rimuove lo stile. Gli stili basati su di esso passano a basarsi sullo stile di base di quello eliminato e restano uguali nell'aspetto.
 
 ## Importare stili da un'altra pubblicazione
 
-1. Fare clic su **Mostra tutto** nella raccolta **Stili**, quindi su **Importa stili…**.
-2. Scegliere una pubblicazione JeffPub o un file .pub.
+1. Fai clic su **Mostra tutti** nella galleria **Stili**, quindi su **Importa stili…**.
+2. Scegli una pubblicazione JeffPub o un file .pub.
 
-Gli stili con lo stesso nome vengono sostituiti. Gli altri stili vengono aggiunti. Il testo già scritto mantiene il suo aspetto finché non si applica di nuovo lo stile.
+Gli stili con lo stesso nome vengono sostituiti. Gli altri stili vengono aggiunti. Il testo di uno stile sostituito assume il nuovo aspetto, tranne ciò che hai impostato a mano sul testo.
 
-## Argomenti correlati
+## Vedi anche
 
 - [Formattare il testo](formatting-text)
 - [Elenchi puntati, numerazione e tabulazioni](lists-tabs)
