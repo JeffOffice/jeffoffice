@@ -61,36 +61,6 @@ void shapeStylePreset(int row, int slot, Fill *fill, Stroke *stroke, Effects *fx
     }
 }
 
-void pictureStylePreset(int k, PictureItem *pic)
-{
-    pic->maskShape = QStringLiteral("rect");
-    pic->stroke = Stroke::none();
-    pic->fx = Effects();
-    const ColorRef white = ColorRef::rgb(Qt::white), dark = ColorRef::rgb(QColor(40, 40, 40));
-    switch (k) {
-    case 0: break;
-    case 1: pic->stroke = Stroke::line(dark, 1); break;
-    case 2: pic->stroke = Stroke::line(white, 6); pic->fx.shadow.on = true; pic->fx.shadow.blur = 6; break;
-    case 3: pic->maskShape = "roundRect"; break;
-    case 4: pic->maskShape = "roundRect"; pic->stroke = Stroke::line(white, 4); pic->fx.shadow.on = true; break;
-    case 5: pic->maskShape = "ellipse"; break;
-    case 6: pic->maskShape = "ellipse"; pic->stroke = Stroke::line(white, 5); pic->fx.shadow.on = true; break;
-    case 7: pic->stroke = Stroke::line(dark, 8); break;
-    case 8: pic->fx.shadow.on = true; pic->fx.shadow.blur = 10; pic->fx.shadow.distance = 6; break;
-    case 9: pic->fx.softEdge = 10; break;
-    case 10: pic->fx.reflection.on = true; pic->fx.reflection.size = 0.4; break;
-    case 11: pic->maskShape = "snip2diag"; pic->stroke = Stroke::line(ColorRef::scheme(Accent1), 2); break;
-    case 12: pic->maskShape = "octagon"; break;
-    case 13: pic->maskShape = "hexagon"; pic->stroke = Stroke::line(ColorRef::scheme(Accent2), 2); break;
-    case 14: pic->stroke = Stroke::line(ColorRef::scheme(Accent1), 4); pic->stroke.compound = Stroke::Double; break;
-    case 15: pic->fx.rot3d.y = 25; pic->fx.rot3d.perspective = 40; pic->fx.shadow.on = true; break;
-    case 16: pic->maskShape = "round1"; pic->stroke = Stroke::line(white, 3); break;
-    case 17: pic->fx.glow.on = true; pic->fx.glow.size = 8; break;
-    case 18: pic->fx.bevel.type = 1; pic->fx.bevel.width = 6; break;
-    default: pic->maskShape = "plaque"; pic->stroke = Stroke::line(ColorRef::scheme(Accent3), 2); break;
-    }
-}
-
 Fill backgroundPreset(const QString &id)
 {
     if (id == QLatin1String("none")) return Fill();

@@ -37,7 +37,53 @@ const ReflectionPreset kReflections[] = {
 const double kGlows[] = {5, 10, 18};
 const double kSoftEdges[] = {1, 2.5, 5, 10, 25, 50};
 
+struct BevelPreset {
+    const char *name;
+    int type;
+    double size;
+};
+
+const BevelPreset kBevels[] = {
+    {QT_TRANSLATE_NOOP("FormatPane", "Circle"), 1, 6},      {QT_TRANSLATE_NOOP("FormatPane", "Relaxed Inset"), 2, 6}, {QT_TRANSLATE_NOOP("FormatPane", "Cool Slant"), 3, 6},
+    {QT_TRANSLATE_NOOP("FormatPane", "Angle"), 4, 6},       {QT_TRANSLATE_NOOP("FormatPane", "Soft Round"), 5, 6},    {QT_TRANSLATE_NOOP("FormatPane", "Convex"), 6, 6},
+    {QT_TRANSLATE_NOOP("FormatPane", "Slope"), 7, 5},       {QT_TRANSLATE_NOOP("FormatPane", "Divot"), 8, 5},
+};
+
+struct RotationPreset {
+    const char *name;
+    double x, y, perspective;
+};
+
+const RotationPreset kRotations[] = {
+    {QT_TRANSLATE_NOOP("FormatPane", "No Rotation"), 0, 0, 0},          {QT_TRANSLATE_NOOP("FormatPane", "Perspective Left"), 0, 30, 30},
+    {QT_TRANSLATE_NOOP("FormatPane", "Perspective Right"), 0, -30, 30}, {QT_TRANSLATE_NOOP("FormatPane", "Perspective Above"), 30, 0, 30},
+    {QT_TRANSLATE_NOOP("FormatPane", "Perspective Below"), -30, 0, 30}, {QT_TRANSLATE_NOOP("FormatPane", "Off Axis"), 15, 25, 30},
+};
+
 } // namespace
+
+int bevelCount() { return int(std::size(kBevels)); }
+
+QString bevelName(int i) { return say(kBevels[std::clamp(i, 0, bevelCount() - 1)].name); }
+
+void applyBevel(Effects &fx, int i)
+{
+    const BevelPreset &p = kBevels[std::clamp(i, 0, bevelCount() - 1)];
+    fx.bevel.type = p.type;
+    fx.bevel.width = fx.bevel.height = p.size;
+}
+
+int rotationCount() { return int(std::size(kRotations)); }
+
+QString rotationName(int i) { return say(kRotations[std::clamp(i, 0, rotationCount() - 1)].name); }
+
+void applyRotation(Effects &fx, int i)
+{
+    const RotationPreset &p = kRotations[std::clamp(i, 0, rotationCount() - 1)];
+    fx.rot3d.x = p.x;
+    fx.rot3d.y = p.y;
+    fx.rot3d.perspective = p.perspective;
+}
 
 int shadowCount() { return int(std::size(kShadows)); }
 

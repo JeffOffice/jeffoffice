@@ -625,6 +625,10 @@ struct Shape {
     double biLevelThreshold = 0.5;
     double borderWeight = 0;              // the heaviest of its sides'
     QString borderColor;
+    QString borderDash;                   // how the border is dashed (the drawing format's name: "dash", "sysDot"; empty for solid)
+    // A picture's shape properties (pic:spPr) as written, inside a root that declares the usual prefixes (empty when it has none or it is longer than 64 KB): its effects
+    // (shadow, reflection, glow, soft edges, bevel, and a turn in space) are read from it by the one who draws the picture (the shared drawing reader).
+    QByteArray picLook;
     // The weights of the sides of a picture's border, in points (top, left, bottom, right): the sides the file sets, 0 for the others.
     double borderSides[4] = {0, 0, 0, 0};
     // The shape's own numbers (VML's adj, a list of numbers some of which it leaves empty: those are not a number), as written.

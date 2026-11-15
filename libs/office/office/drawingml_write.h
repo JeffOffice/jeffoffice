@@ -117,4 +117,11 @@ QString presetForShape(const QString &shapeId);
 QString textWarpPreset(const QString &transform);
 QString textArtTransformOfWarp(const QString &prst);
 
+// The effects of an object as the elements of a shape's properties that hold them: the effect list (shadow, glow, reflection, and soft edges), the scene (the turn in
+// space), and the solid (the bevel), each empty when there is nothing to write. The scheme gives the colors the effects name; a color is written as its RGB.
+struct EffectElements {
+    QByteArray list, scene, solid;
+};
+EffectElements writeEffectElements(const Effects &fx, const ColorScheme &colors);
+
 } // namespace jp::office

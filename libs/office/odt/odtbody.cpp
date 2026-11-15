@@ -573,10 +573,43 @@ QByteArray Reader::drawing(const Odf &o, int frame, ParaCtx *pc, bool *ok)
     if (image >= 0) {
         const QString rid = imageRelationship(o, image);
         if (rid.isEmpty()) return QByteArray();
+        // The picture's shape, border, and effects: as the writer kept them (in an attribute of ours: only the elements of a picture's look, none longer than a bounded size), else the border the
+        // style gives.
+        QByteArray look = "<a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom>";
+        {
+            const Props &gp = resolved(QStringLiteral("graphic"), o.at(frame, "draw:style-name"));
+            // (The attribute is in a namespace of ours the reader has no prefix for: it is known by its own name.)
+            const QString kept = gp.value(QStringLiteral("gr:picture-look"));
+            bool used = false;
+            if (!kept.isEmpty() && kept.size() <= 32768) {
+                static const QStringList allowed = {QStringLiteral("prstGeom"), QStringLiteral("ln"), QStringLiteral("effectLst"), QStringLiteral("scene3d"), QStringLiteral("sp3d")};
+                wml::XmlTree lt;
+                if (lt.parse("<x xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\">" + kept.toUtf8() + "</x>", nullptr)) {
+                    QByteArray out;
+                    bool geometry = false, good = true;
+                    int count = 0;
+                    for (int k = lt.firstChild(lt.root()); k >= 0 && good; k = lt.next(k)) {
+                        good = allowed.contains(QString::fromUtf8(lt.localName(k))) && ++count <= 5;
+                        geometry = geometry || lt.localName(k) == "prstGeom";
+                        out += lt.raw(k);
+                    }
+                    if (good && count > 0) {
+                        look = (geometry ? QByteArray() : look) + out;
+                        used = true;
+                    }
+                }
+            }
+            if (!used && gp.value(QStringLiteral("gr:draw:stroke")) == QLatin1String("solid")) {
+                bool okw = false;
+                const qint64 w = lengthToEmu(gp.value(QStringLiteral("gr:svg:stroke-width")), &okw);
+                const QString c = colorHex(gp.value(QStringLiteral("gr:svg:stroke-color")));
+                look += "<a:ln w=\"" + num(okw && w > 0 ? std::min<qint64>(w, 1270000) : 9525) + "\"><a:solidFill><a:srgbClr val=\"" + (c.isEmpty() ? QByteArray("000000") : c.toLatin1()) + "\"/></a:solidFill></a:ln>";
+            }
+        }
         const QByteArray graphic = "<a:graphic><a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/picture\"><pic:pic><pic:nvPicPr><pic:cNvPr id=\"" + num(id) +
                                    "\" name=\"Picture " + num(id) + "\"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed=\"" + rid.toLatin1() +
                                    "\"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"" + num(cx) + "\" cy=\"" + num(cy) +
-                                   "\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic>";
+                                   "\"/></a:xfrm>" + look + "</pic:spPr></pic:pic></a:graphicData></a:graphic>";
         *ok = true;
         return anchorXml(o, frame, QString(), cx, cy, graphic, id);
     }

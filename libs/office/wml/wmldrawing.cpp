@@ -744,6 +744,7 @@ void readDrawing(const XmlTree &t, int drawing, QVector<Shape> *out)
                 const int picNode = t.parent(t.parent(n));
                 for (int k = picNode >= 0 ? t.firstChild(picNode) : -1; k >= 0; k = t.next(k)) {
                     if (t.localName(k) != "spPr") continue;
+                    if (const QByteArray look = t.raw(k); look.size() <= 65536) s.picLook = "<x " + declarations() + ">" + look + "</x>";
                     for (int ln = t.firstChild(k); ln >= 0; ln = t.next(ln)) {
                         if (t.localName(ln) == "xfrm" && t.has(ln, "rot")) {
                             const double turn = std::fmod(t.attr(ln, "rot").toDouble() / 60000.0, 360.0);
@@ -762,6 +763,8 @@ void readDrawing(const XmlTree &t, int drawing, QVector<Shape> *out)
                                 if (t.localName(c) == "srgbClr") color = t.attr(c, "val").toUpper();
                         }
                         const double weight = t.has(ln, "w") ? std::clamp(emu(t.attr(ln, "w")), 0.0, 1000.0) : 0.75;
+                        for (int f = t.firstChild(ln); f >= 0; f = t.next(f))
+                            if (t.localName(f) == "prstDash" && t.attr(f, "val") != QLatin1String("solid")) s.borderDash = t.attr(f, "val");
                         if (solid && weight > 0) {
                             s.borderWeight = weight;
                             s.borderColor = color;

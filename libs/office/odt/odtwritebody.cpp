@@ -1030,6 +1030,26 @@ QByteArray Writer::drawingXml(const T &t, int drawing, ParaCtx *pc, int depth)
                 }
             }
     }
+    // A picture's shape, border, and effects (what its shape properties hold besides its place): kept as written in an attribute of ours, so that a picture reads back as it was, and the
+    // border also as the format's own.
+    if (blip >= 0) {
+        const int pic = t.parent(t.parent(blip));
+        int sp = -1;
+        for (int k = pic >= 0 ? t.firstChild(pic) : -1; k >= 0; k = t.next(k))
+            if (t.localName(k) == "spPr") sp = k;
+        QByteArray look;
+        for (int k = sp >= 0 ? t.firstChild(sp) : -1; k >= 0; k = t.next(k)) {
+            const QByteArray name = t.localName(k);
+            if (name == "prstGeom" || name == "ln" || name == "effectLst" || name == "scene3d" || name == "sp3d") look += t.raw(k);
+            if (name == "ln" && t.child(k, "noFill", t.ns(k)) < 0) {
+                const int sf = t.child(k, "solidFill", t.ns(k));
+                const int clr = sf >= 0 ? t.firstChild(sf) : -1;
+                const QString hex = clr >= 0 ? hexColorOrEmpty(t.attr(clr, "val")) : QString();
+                if (sf >= 0) gp += " draw:stroke=\"solid\" svg:stroke-color=\"#" + (hex.isEmpty() ? QByteArray("000000") : hex.toUtf8()) + "\" svg:stroke-width=\"" + emuLength(std::max<qint64>(6350, t.attr(k, "w").toLongLong())) + "\"";
+            }
+        }
+        if (!look.isEmpty() && look.size() <= 32768) gp += " jo:picture-look=\"" + esc(look) + "\"";
+    }
     // A text box's padding, fill, and line, from its shape.
     QByteArray boxProps;
     if (txbx >= 0 || (blip < 0 && !shapePrst.isEmpty())) {

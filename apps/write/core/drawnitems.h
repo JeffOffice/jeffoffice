@@ -17,8 +17,8 @@ constexpr int kMostLetteringCharacters = 1000;
 constexpr double kMostLetteringSide = 2000;
 
 // Sets the picture's place in its frame (the whole picture, outside the frame by what the shape cuts), its clear color, and its border from the shape. The
-// picture's frame (rect) is set already.
-void dressPicture(PictureItem &pic, const office::wml::Shape &s);
+// picture's frame (rect) is set already. Its effects, and the dashes and rules of its border, are read from the shape properties (`theme` gives the colors a name stands for).
+void dressPicture(PictureItem &pic, const office::wml::Shape &s, const office::Theme *theme = nullptr);
 // The lines that are a picture's border where it is not its outline: one for each side the file sets, from the picture's corners (none when all four are set: that is the
 // outline).
 QVector<std::shared_ptr<LineItem>> borderLines(const office::wml::Shape &s);

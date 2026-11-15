@@ -327,6 +327,51 @@ void applyEffects(const QDomElement &list, const StyleContext &sc, Effects *fx)
     if (!soft.isNull()) fx->softEdge = std::clamp(parseLength(attr(soft, QStringLiteral("rad")), 0), 0.0, kMaxEffectRadius);
 }
 
+// The bevel names of the standard, in the order of Bevel::type (1 up).
+const char *const kBevelPresets[] = {"circle", "relaxedInset", "coolSlant", "angle", "softRound", "convex", "slope", "divot", "riblet", "hardEdge", "artDeco", "cross"};
+
+// What a:scene3d and a:sp3d say that the effects hold: the camera's turn (latitude is a turn about the across axis, longitude about the upright one) and
+// its field of view, and the top bevel.
+void applyScene(const QDomElement &properties, Effects *fx)
+{
+    const QDomElement camera = childNamed(childNamed(properties, "scene3d"), "camera");
+    if (!camera.isNull()) {
+        const QString prst = attr(camera, QStringLiteral("prst"));
+        const QDomElement rot = childNamed(camera, "rot");
+        auto turn = [](double deg) {
+            deg = std::fmod(deg, 360.0);
+            return deg > 180 ? deg - 360 : deg < -180 ? deg + 360 : deg;
+        };
+        if (!rot.isNull()) {
+            fx->rot3d.x = turn(parseAngle(attr(rot, QStringLiteral("lat")), 0));
+            fx->rot3d.y = turn(parseAngle(attr(rot, QStringLiteral("lon")), 0));
+        } else if (prst == QLatin1String("perspectiveLeft")) {
+            fx->rot3d.y = 30;
+        } else if (prst == QLatin1String("perspectiveRight")) {
+            fx->rot3d.y = -30;
+        } else if (prst == QLatin1String("perspectiveAbove")) {
+            fx->rot3d.x = 30;
+        } else if (prst == QLatin1String("perspectiveBelow")) {
+            fx->rot3d.x = -30;
+        }
+        // (The field of view is kept in degrees of 60,000ths; the camera is flat for an orthographic one.)
+        if (prst.startsWith(QLatin1String("orthographic"))) fx->rot3d.perspective = 0;
+        else if (camera.hasAttribute(QStringLiteral("fov"))) fx->rot3d.perspective = std::clamp(parseAngle(attr(camera, QStringLiteral("fov")), 0) / 1.2, 0.0, 100.0);
+        else fx->rot3d.perspective = 30;
+    }
+    const QDomElement bevel = childNamed(childNamed(properties, "sp3d"), "bevelT");
+    if (!bevel.isNull()) {
+        // (No name is the usual bevel, a circle.)
+        const QString prst = attr(bevel, QStringLiteral("prst"));
+        int type = 1;
+        for (int i = 0; i < int(sizeof(kBevelPresets) / sizeof(kBevelPresets[0])); ++i)
+            if (prst == QLatin1String(kBevelPresets[i])) type = i + 1;
+        fx->bevel.type = type;
+        fx->bevel.width = std::clamp(parseLength(attr(bevel, QStringLiteral("w")), 6), 0.0, 100.0);
+        fx->bevel.height = std::clamp(parseLength(attr(bevel, QStringLiteral("h")), 6), 0.0, 100.0);
+    }
+}
+
 } // namespace
 
 QDomElement childNamed(const QDomElement &e, const char *local)
@@ -475,6 +520,12 @@ Stroke resolveLine(const QVector<QDomElement> &properties, const QDomElement &st
 Effects resolveEffects(const QVector<QDomElement> &properties, const QDomElement &style, const StyleContext &sc)
 {
     Effects fx;
+    // (The turn and the bevel are the shape's own: a style's list has none.)
+    for (const QDomElement &p : properties)
+        if (!childNamed(p, "scene3d").isNull() || !childNamed(p, "sp3d").isNull()) {
+            applyScene(p, &fx);
+            break;
+        }
     for (const QDomElement &p : properties) {
         const QDomElement list = childNamed(p, "effectLst");
         if (!list.isNull()) {

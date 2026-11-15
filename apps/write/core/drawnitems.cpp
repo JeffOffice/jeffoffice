@@ -24,7 +24,7 @@ ColorRef colorOf(const QString &rgb) { return ColorRef::rgb(QColor(QLatin1Char('
 
 } // namespace
 
-void dressPicture(PictureItem &pic, const Shape &s)
+void dressPicture(PictureItem &pic, const Shape &s, const office::Theme *theme)
 {
     const double w = pic.rect.width(), h = pic.rect.height();
     const double keepW = 1 - s.cropL - s.cropR, keepH = 1 - s.cropT - s.cropB;
@@ -57,7 +57,8 @@ void dressPicture(PictureItem &pic, const Shape &s)
         }
         if (!listed.isEmpty()) pic.takeEffects(listed);
     }
-    if (!s.cropShape.isEmpty()) pic.maskShape = s.cropShape;
+    // (The shape is named as the drawing format names it; the picture's mask is by the shape library's name for it.)
+    if (!s.cropShape.isEmpty()) pic.maskShape = office::shapeForPreset(s.cropShape).isEmpty() ? s.cropShape : office::shapeForPreset(s.cropShape);
     pic.rotation = s.rotation;
     if (!s.clearColor.isEmpty()) {
         pic.hasTransparentColor = true;
@@ -66,6 +67,28 @@ void dressPicture(PictureItem &pic, const Shape &s)
     // The border is the outline where all four sides are set (the heaviest weight); fewer are lines beside the picture (borderLines).
     if (s.borderWeight > 0 && s.borderSides[0] > 0 && s.borderSides[1] > 0 && s.borderSides[2] > 0 && s.borderSides[3] > 0)
         pic.stroke = Stroke::line(colorOf(s.borderColor.isEmpty() ? QStringLiteral("000000") : s.borderColor), s.borderWeight);
+    // Its effects, and how its border is dashed and ruled, from its shape properties (a shadow, reflection, glow, soft edges, bevel, and a turn in space).
+    if (s.picLook.isEmpty()) return;
+    QDomDocument look;
+    if (!office::parseXml(s.picLook, &look)) return;
+    const QDomElement spPr = look.documentElement().firstChildElement();
+    if (spPr.isNull()) return;
+    office::DrawingContext ctx;
+    QDomDocument themeDoc;
+    if (theme) {
+        ctx.theme = *theme;
+        if (!theme->xml.isEmpty() && office::parseXml(theme->xml, &themeDoc))
+            for (QDomElement e = themeDoc.documentElement().firstChildElement(); !e.isNull(); e = e.nextSiblingElement())
+                if (e.localName() == QLatin1String("themeElements"))
+                    for (QDomElement f = e.firstChildElement(); !f.isNull(); f = f.nextSiblingElement())
+                        if (f.localName() == QLatin1String("fmtScheme")) ctx.formats = f;
+    }
+    pic.fx = office::readEffects(spPr, QDomElement(), ctx);
+    if (!pic.stroke.isNone()) {
+        const Stroke ruled = office::readLine(spPr, QDomElement(), ctx);
+        pic.stroke.dash = ruled.dash;
+        pic.stroke.compound = ruled.compound;
+    }
 }
 
 QVector<std::shared_ptr<LineItem>> borderLines(const Shape &s)

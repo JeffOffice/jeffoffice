@@ -36,4 +36,15 @@ int softEdgeCount();
 QString softEdgeName(int i);
 void applySoftEdge(Effects &fx, int i);
 
+// Bevels (the top bevel of a shape or picture, the types of Effects::bevel): circle, relaxed inset, cool slant, angle, soft round, convex, slope, and
+// divot, each 6 points wide and high but for the slope and divot, which are a little smaller.
+int bevelCount();
+QString bevelName(int i);
+void applyBevel(Effects &fx, int i);
+
+// Turns in space (Effects::rot3d): none, perspective left, right, above, and below, and off axis; each with its angles and the perspective it is seen at.
+int rotationCount();
+QString rotationName(int i);
+void applyRotation(Effects &fx, int i);
+
 } // namespace jp::formatpresets

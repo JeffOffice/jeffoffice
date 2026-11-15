@@ -13,6 +13,7 @@
 #include "office/xml.h"
 #include "render/shapes.h"
 
+#include <QBuffer>
 #include <QCoreApplication>
 #include <QCryptographicHash>
 #include <QXmlStreamReader>
@@ -267,6 +268,46 @@ void writeEffects(QXmlStreamWriter &w, const Effects &fx, const DrawingWriteCont
         attribute(w, "rad", extent(std::clamp(fx.softEdge, 0.0, 1584.0)));
         w.writeEndElement();
     }
+    w.writeEndElement();
+}
+
+const char *const kBevelNames[] = {"circle", "relaxedInset", "coolSlant", "angle", "softRound", "convex", "slope", "divot", "riblet", "hardEdge", "artDeco", "cross"};
+
+// The turn in space and the bevel an object has, as a:scene3d and a:sp3d (they come after the effect list): the camera is turned by the effects' angles, with the
+// field of view that is its perspective (read as applyScene does), and the bevel is the top one.
+void writeScene(QXmlStreamWriter &w, const Effects &fx)
+{
+    const bool turned = fx.rot3d.x || fx.rot3d.y, beveled = fx.bevel.type > 0 && fx.bevel.type <= int(sizeof(kBevelNames) / sizeof(kBevelNames[0]));
+    if (!turned && !beveled) return;
+    begin(w, "a:scene3d");
+    begin(w, "a:camera");
+    const double perspective = std::clamp(fx.rot3d.perspective, 0.0, 100.0);
+    attribute(w, "prst", QString::fromLatin1(!turned || perspective <= 0 ? "orthographicFront" : "perspectiveFront"));
+    if (turned && perspective > 0) attribute(w, "fov", std::clamp<qint64>(rounded(perspective * 72000), 0, 10800000));
+    if (turned) {
+        begin(w, "a:rot");
+        attribute(w, "lat", angle(fx.rot3d.x));
+        attribute(w, "lon", angle(fx.rot3d.y));
+        attribute(w, "rev", QStringLiteral("0"));
+        w.writeEndElement();
+    }
+    w.writeEndElement();
+    begin(w, "a:lightRig");
+    attribute(w, "rig", QStringLiteral("threePt"));
+    attribute(w, "dir", QStringLiteral("t"));
+    w.writeEndElement();
+    w.writeEndElement();
+}
+
+void writeSolid(QXmlStreamWriter &w, const Effects &fx)
+{
+    if (fx.bevel.type <= 0 || fx.bevel.type > int(sizeof(kBevelNames) / sizeof(kBevelNames[0]))) return;
+    begin(w, "a:sp3d");
+    begin(w, "a:bevelT");
+    attribute(w, "w", extent(std::clamp(fx.bevel.width, 0.0, 100.0)));
+    attribute(w, "h", extent(std::clamp(fx.bevel.height, 0.0, 100.0)));
+    attribute(w, "prst", QString::fromLatin1(kBevelNames[fx.bevel.type - 1]));
+    w.writeEndElement();
     w.writeEndElement();
 }
 
@@ -605,6 +646,8 @@ void writeLook(QXmlStreamWriter &w, const Item &it, DrawingWriteContext &ctx, bo
     if (!styled || !(it.stroke == look.stroke)) writeLine(w, it.stroke, ctx);
     // (A fill and a line that are none are written as none; effects with none to write are an empty list: the style would give them back.)
     if (!styled || it.fx.toJson() != look.fx.toJson()) writeEffects(w, it.fx, ctx, styled);
+    writeScene(w, it.fx);
+    writeSolid(w, it.fx);
 }
 
 // The item's style reference, after its properties.
@@ -1452,6 +1495,25 @@ QString textArtTransformOfWarp(const QString &prst)
             return transform.isEmpty() ? QStringLiteral("plain") : transform;
         }
     return QString();
+}
+
+EffectElements writeEffectElements(const Effects &fx, const ColorScheme &colors)
+{
+    DrawingWriteContext ctx;
+    ctx.colors = colors;
+    auto made = [&](const std::function<void(QXmlStreamWriter &)> &write) {
+        QByteArray out;
+        QBuffer buffer(&out);
+        buffer.open(QIODevice::WriteOnly);
+        QXmlStreamWriter w(&buffer);
+        write(w);
+        return out;
+    };
+    EffectElements e;
+    e.list = made([&](QXmlStreamWriter &w) { writeEffects(w, fx, ctx); });
+    e.scene = made([&](QXmlStreamWriter &w) { writeScene(w, fx); });
+    e.solid = made([&](QXmlStreamWriter &w) { writeSolid(w, fx); });
+    return e;
 }
 
 } // namespace jp::office
