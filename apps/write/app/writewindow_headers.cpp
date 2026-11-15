@@ -158,6 +158,7 @@ bool WriteWindow::insertPageNumberDesign(const QString &id)
                                 place.footer ? tr("The footer already has text. Replace it with the page number, or keep it and add the number?")
                                              : tr("The header already has text. Replace it with the page number, or keep it and add the number?"),
                                 QMessageBox::NoButton, this);
+                box.setTextFormat(Qt::PlainText);
                 QPushButton *replace = box.addButton(tr("Replace"), QMessageBox::AcceptRole);
                 QPushButton *keep = box.addButton(tr("Keep and Add"), QMessageBox::AcceptRole);
                 box.addButton(QMessageBox::Cancel);
