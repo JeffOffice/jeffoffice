@@ -503,8 +503,7 @@ void CrunchWindow::createActions()
         // (a workbook made from a template, with no file yet, is first offered a name as a workbook)
         const QString kind = saveKind();
         const QString shown = m_path.isEmpty() && kind == QLatin1String("xltx") ? QStringLiteral("xlsx") : kind;
-        // (a workbook with no file yet starts in the default folder of Options > Save)
-        const QString start = m_path.isEmpty() ? defaultFolder() + QLatin1Char('/') + displayName() + QLatin1Char('.') + shown : m_path;
+        const QString start = m_path.isEmpty() ? displayName() + QLatin1Char('.') + shown : m_path;
         const QString filter = crunch::workbookKindFilter(shown) + QStringLiteral(";;") + crunch::copyFilters() + QStringLiteral(";;") + crunch::csvFilter() + QStringLiteral(";;") + crunch::tabFilter();
         const QString p = askForSavePath(tr("Save Workbook As"), start, filter);
         if (!p.isEmpty()) saveAs(p);

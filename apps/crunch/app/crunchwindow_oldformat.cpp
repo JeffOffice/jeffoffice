@@ -8,6 +8,7 @@
 
 #include <QFileDialog>
 #include <QFileInfo>
+#include "app/settings.h"
 
 namespace jp {
 
@@ -21,7 +22,8 @@ bool CrunchWindow::isTheOriginal(const QString &path) const { return crunch::sam
 QString CrunchWindow::askForSavePath(const QString &caption, const QString &start, const QString &filter)
 {
     QString picked;
-    const QString chosen = m_savePicker ? m_savePicker(start, filter) : QFileDialog::getSaveFileName(this, caption, start, filter, &picked);
+    // (a name with no folder starts in the default folder of Options > Save)
+    const QString chosen = m_savePicker ? m_savePicker(start, filter) : QFileDialog::getSaveFileName(this, caption, QFileInfo(start).isRelative() && !start.contains(QLatin1Char('/')) ? defaultFolder() + QLatin1Char('/') + start : start, filter, &picked);
     if (m_savePicker) picked = m_pickedFilter;
     // (a name chosen with the .csv kind of file and no ending is a .csv, whatever the dialog of the system does)
     return crunch::withPickedEnding(chosen, picked);

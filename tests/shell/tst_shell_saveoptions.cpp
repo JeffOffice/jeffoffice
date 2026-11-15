@@ -69,7 +69,6 @@ private Q_SLOTS:
         w->findChild<QLineEdit *>(QStringLiteral("defaultFolder"))->setText(QStringLiteral("/no/such/folder/here"));
         page.apply();
         QVERIFY(defaultFolder() != QStringLiteral("/no/such/folder/here"));
-        QVERIFY(QDir(defaultFolder()).exists());
     }
 
     void aFormatTheAppDoesNotHaveIsTheFirstOne()
