@@ -5,7 +5,8 @@
 #include "app/pageview.h"
 #include <QKeyEvent>
 #include <QTimer>
-#include <QPlainTextEdit>
+#include "app/shapetextedit.h"
+#include "core/spellcheck.h"
 #include "core/barcodeitem.h"
 #include "core/editops.h"
 #include "flow/paginator.h"
@@ -1160,40 +1161,63 @@ bool PageView::beginShapeTextEdit(const QString &typed)
     if (m_shapeEditor || !m_doc || m_readOnly || m_hf.active || m_note.active || position < 0) return false;
     const PictureInfo info = pictureAt(*m_doc, m_doc->story(), position);
     if (!info.valid || !info.editable || (info.kind != DrawnKind::Shape && info.kind != DrawnKind::TextBox)) return false;
-    const std::optional<QStringList> words = textBoxText(*m_doc, position);
-    if (!words) return false;
+    std::unique_ptr<QTextDocument> story = textBoxStory(*m_doc, position);
+    if (!story) {
+        // (What the box holds is more than the editor takes: a table, or words linked on in other boxes.)
+        if (textBoxText(*m_doc, position)) return false;
+        Q_EMIT notice(tr("This text box holds more than words (a table, a picture, a field, or a list), so its words can't be edited here."));
+        return false;
+    }
     QRectF r;
     if (!pictureRect(position, &r)) return false;
-    m_shapeEditor = new QPlainTextEdit(viewport());
+    const TextBoxLook box = textBoxLook(*m_doc, position);
+    ShapeTextLook look;
+    look.anchor = box.anchor == QLatin1String("ctr") ? Qt::AlignVCenter : box.anchor == QLatin1String("b") ? Qt::AlignBottom : Qt::AlignTop;
+    look.wrap = box.wrap;
+    look.autofit = box.autofit;
+    look.zoom = m_zoom;
+    const double s = scale();
+    look.insets = QMarginsF(box.insets.left() * s, box.insets.top() * s, box.insets.right() * s, box.insets.bottom() * s);
+    m_shapeEditor = new ShapeTextEdit(viewport());
     m_shapeEditorAt = position;
-    m_shapeEditor->setFrameShape(QFrame::NoFrame);
-    m_shapeEditor->setStyleSheet(QStringLiteral("QPlainTextEdit { background: rgba(255, 255, 255, 190); color: black; }"));
-    m_shapeEditor->setGeometry(r.toRect().adjusted(2, 2, -2, -2));
-    m_shapeEditor->setPlainText(words->join(QLatin1Char('\n')));
-    m_shapeEditor->installEventFilter(this);
-    m_shapeEditor->show();
-    m_shapeEditor->setFocus(Qt::OtherFocusReason);
-    QTextCursor end = m_shapeEditor->textCursor();
-    end.movePosition(QTextCursor::End);
-    m_shapeEditor->setTextCursor(end);
-    if (!typed.isEmpty()) m_shapeEditor->insertPlainText(typed);
+    SpellCheck *check = nullptr;
+    if (m_spellOn) check = new SpellCheck(story.get(), m_shapeEditor);
+    if (check && m_spell) check->setDefaultLanguage(m_spell->defaultLanguage());
+    if (check) m_shapeEditor->setSpellCheck([check](QTextDocument *d) { return check->misspelledIn(0, d->characterCount()); });
+    // (The lists are the document's own: its numbering gives the bullets, and writes them back.)
+    WriteDoc *doc = m_doc;
+    m_shapeEditor->setBulletMaker([doc](QTextCursor &c, bool on) {
+        if (on) toggleList(*doc, c, false);
+        else clearList(*doc, c);
+    });
+    connect(m_shapeEditor, &ShapeTextEdit::finished, this, [this] { endShapeTextEdit(true); });
+    connect(m_shapeEditor, &ShapeTextEdit::focusLeft, this, [this] {
+        // (A click on the page puts the words in the shape; a click on a box or a button of the ribbon does not, since its command is for the words.)
+        QTimer::singleShot(0, this, [this] {
+            const QWidget *now = QApplication::focusWidget();
+            if (m_shapeEditor && now && (now == this || now == viewport())) endShapeTextEdit(true);
+        });
+    });
+    m_shapeEditor->begin(std::move(story), r.toRect(), look, typed);
     return true;
 }
 
 void PageView::endShapeTextEdit(bool keep)
 {
     if (!m_shapeEditor) return;
-    QPlainTextEdit *editor = m_shapeEditor;
+    ShapeTextEdit *editor = m_shapeEditor;
     const int position = m_shapeEditorAt;
-    const QStringList paragraphs = editor->toPlainText().split(QLatin1Char('\n'));
+    const bool changed = editor->changed();
+    editor->setSpellCheck(nullptr);
+    qDeleteAll(editor->findChildren<SpellCheck *>());
+    std::unique_ptr<QTextDocument> story = editor->take();
     m_shapeEditor = nullptr;
     m_shapeEditorAt = -1;
-    editor->removeEventFilter(this);
-    editor->hide();
+    editor->disconnect(this);
     editor->deleteLater();
-    if (keep && m_doc && position >= 0 && isDrawnObjectAt(m_doc->story(), position)) {
+    if (keep && changed && story && m_doc && position >= 0 && isDrawnObjectAt(m_doc->story(), position)) {
         m_doc->pictureNotice.clear();
-        if (setTextBoxText(*m_doc, position, paragraphs)) {
+        if (setTextBoxStory(*m_doc, position, story.get())) {
             selectPicture(position);
             Q_EMIT contentChanged();
         } else if (!m_doc->pictureNotice.isEmpty()) {
@@ -1204,23 +1228,10 @@ void PageView::endShapeTextEdit(bool keep)
     viewport()->update();
 }
 
-bool PageView::eventFilter(QObject *watched, QEvent *event)
+void PageView::focusText()
 {
-    if (watched == m_shapeEditor && m_shapeEditor) {
-        if (event->type() == QEvent::KeyPress && static_cast<QKeyEvent *>(event)->key() == Qt::Key_Escape) {
-            endShapeTextEdit(true);
-            return true;
-        }
-        if (event->type() == QEvent::FocusOut) {
-            // (a click on the page, a ribbon button, or another window: the words are kept)
-            QTimer::singleShot(0, this, [this] {
-                // (Focus went to another place of this window, or the pointer pressed on the page.)
-                const QWidget *now = QApplication::focusWidget();
-                if (m_shapeEditor && !m_shapeEditor->hasFocus() && now && now != m_shapeEditor && now->window() == window()) endShapeTextEdit(true);
-            });
-        }
-    }
-    return QAbstractScrollArea::eventFilter(watched, event);
+    if (m_shapeEditor) m_shapeEditor->setFocus(Qt::OtherFocusReason);
+    else setFocus(Qt::OtherFocusReason);
 }
 
 } // namespace jp::write

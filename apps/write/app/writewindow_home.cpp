@@ -1,5 +1,6 @@
 // JeffWrite's Home tab commands that are small and have a dialog or a menu of their own: Change Case and Sort, and Word Count (Review).
 
+#include "app/shapetextedit.h"
 #include "app/writewindow.h"
 
 #include "app/homedialogs.h"
@@ -247,8 +248,9 @@ void WriteWindow::createMiniToolbar()
     auto *font = new FontCombo(m_mini);
     connect(font, &FontCombo::familyChosen, this, [this](const QString &f) {
         if (refuseIfReadOnly()) return;
-        if (m_doc) write::setFontFamily(*m_doc, m_view->cursor(), f);
-        m_view->setFocus();
+        if (auto *typing = m_view->shapeEditor()) typing->setFontFamilyName(f);
+        else if (m_doc) write::setFontFamily(*m_doc, m_view->cursor(), f);
+        m_view->focusText();
     });
     m_fontCombos << font;
     column->addWidget(font);
@@ -268,8 +270,10 @@ void WriteWindow::createMiniToolbar()
     color->setCurrent(ColorRef::rgb(QColor(0xC0, 0, 0)));
     connect(color, &ColorButton::colorPicked, this, [this](const ColorRef &c) {
         if (!m_doc || refuseIfReadOnly()) return;
-        write::setTextColor(*m_doc, m_view->cursor(), c.isNone() ? QColor() : c.resolve(m_doc->flow().env.colors));
-        m_view->setFocus();
+        const QColor chosen = c.isNone() ? QColor() : c.resolve(m_doc->flow().env.colors);
+        if (auto *typing = m_view->shapeEditor()) typing->setColor(chosen.isValid() ? chosen : QColor(Qt::black));
+        else write::setTextColor(*m_doc, m_view->cursor(), chosen);
+        m_view->focusText();
     });
     m_colorButtons << color;
     row->addWidget(color);

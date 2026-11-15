@@ -254,6 +254,18 @@ void renumberPastedTextBoxChains(WriteDoc &doc, int from, int to);
 std::optional<QStringList> textBoxText(const WriteDoc &doc, int position);
 // Puts these paragraphs in the text box: each has the first paragraph's alignment and the first run's look. False when the box holds more than words, or the words are already so.
 bool setTextBoxText(WriteDoc &doc, int position, const QStringList &paragraphs);
+// The words of a text box or shape as a story to be typed in (with every look the words have: the runs' fonts, sizes, colors, and the paragraphs' alignments and lists), or none for an object
+// that takes no words (a picture, a line, a group, text art). A shape with no text box yet has an empty story, its words centered as a shape's are. Written back with setTextBoxStory: one step
+// that undoes (false when the words are as they were, or are past the limits).
+std::unique_ptr<QTextDocument> textBoxStory(WriteDoc &doc, int position);
+bool setTextBoxStory(WriteDoc &doc, int position, QTextDocument *story);
+// How the object sets its words: where they sit up and down ("t", "ctr", or "b"), whether the lines break at its width, whether they shrink to fit, and the room kept round them, in points.
+struct TextBoxLook {
+    QString anchor = QStringLiteral("t");
+    bool wrap = true, autofit = false;
+    QMarginsF insets = QMarginsF(7.2, 3.6, 7.2, 3.6);
+};
+TextBoxLook textBoxLook(const WriteDoc &doc, int position);
 
 // The yellow handles of a shape (a rounded rectangle's corner, an arrow's head, a star's points, a callout's tail): each is the number of the adjustment it sets and where it sits, in points
 // from the frame's top left corner (before the turn). None for a shape with no adjustments, a shape that is flipped, a picture, or any other object.

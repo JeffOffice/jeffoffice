@@ -272,6 +272,10 @@ public:
     // Whether the header or footer part of the story, as the file has it, is one that has not been made editable (the story then is a form for the pages to show); its part's XML as read is
     // given in `*source`. False for a story that is edited (its own contents are the truth) or that is none of a header's.
     bool headerFooterAsRead(const QTextDocument *story, QByteArray *source) const;
+    // The words of a text box (its w:txbxContent, with the prefixes it uses declared) as a story to be typed in, in the form the headers are edited in, and the story written back as the
+    // box's content (w:txbxContent with no prefixes declared). The story is the caller's: the document keeps no history of it, and what is typed in it is not a step until it is written back.
+    std::unique_ptr<QTextDocument> boxEditStory(const QByteArray &txbxContent);
+    QByteArray boxContentOfStory(QTextDocument *story);
     // Whether the story is a header's or a footer's, and which section and slot first has it (-1 for none).
     bool isHeaderFooterStory(const QTextDocument *story) const;
     bool headerFooterSlotOf(const QTextDocument *story, int *section, bool *footer, int *slot) const;

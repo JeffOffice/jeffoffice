@@ -2404,6 +2404,82 @@ bool setTextBoxText(WriteDoc &doc, int position, const QStringList &paragraphs)
     });
 }
 
+std::unique_ptr<QTextDocument> textBoxStory(WriteDoc &doc, int position)
+{
+    const QTextDocument *story = doc.story();
+    if (!story || position < 0 || position + 1 > story->characterCount() - 1) return nullptr;
+    Inline atom;
+    if (!drawingAtomOf(formatAfter(story, position), &atom)) return nullptr;
+    Model m;
+    if (!parseDrawing(atom.raw, &m) || m.graphic.contains("<wpg:wgp") || m.graphic.contains("linkedTxbx")) return nullptr;
+    const BoxContent box = boxContentOf(m.graphic);
+    QByteArray xml;
+    if (box.begin < 0) {
+        if (!shapeTakesText(m.graphic)) return nullptr;
+        xml = "<w:txbxContent " + declarations() + "><w:p><w:pPr><w:jc w:val=\"center\"/></w:pPr></w:p></w:txbxContent>";
+    } else {
+        xml = "<w:txbxContent " + declarations() + ">" + box.inner + "</w:txbxContent>";
+    }
+    return doc.boxEditStory(xml);
+}
+
+bool setTextBoxStory(WriteDoc &doc, int position, QTextDocument *story)
+{
+    if (!story || story->blockCount() > kMostBoxParagraphs || story->characterCount() > kMostBoxTextLength) return false;
+    const QByteArray content = doc.boxContentOfStory(story);
+    return changePicture(doc, position, [&](Model &m) {
+        const BoxContent box = boxContentOf(m.graphic);
+        const bool add = box.begin < 0;
+        if (add && !shapeTakesText(m.graphic)) return false;
+        if (!add && m.graphic.mid(box.begin, box.end - box.begin) == content) return false;
+        if (add) {
+            // (A shape with no words that is given none keeps no text box.)
+            if (story->toPlainText().trimmed().isEmpty()) return false;
+            const qsizetype body = m.graphic.indexOf("<wps:bodyPr");
+            const qsizetype where = body >= 0 ? body : m.graphic.lastIndexOf("</wps:wsp>");
+            if (where < 0) return false;
+            m.graphic = m.graphic.left(where) + "<wps:txbx>" + content + "</wps:txbx>" + m.graphic.mid(where);
+            return true;
+        }
+        m.graphic = m.graphic.left(box.begin) + content + m.graphic.mid(box.end);
+        return true;
+    });
+}
+
+TextBoxLook textBoxLook(const WriteDoc &doc, int position)
+{
+    TextBoxLook look;
+    const QTextDocument *story = doc.story();
+    if (!story || position < 0 || position + 1 > story->characterCount() - 1) return look;
+    Inline atom;
+    if (!drawingAtomOf(formatAfter(story, position), &atom)) return look;
+    Model m;
+    if (!parseDrawing(atom.raw, &m)) return look;
+    const qsizetype at = m.graphic.indexOf("<wps:bodyPr");
+    if (at < 0) return look;
+    const qsizetype gt = m.graphic.indexOf('>', at);
+    const QByteArray tag = m.graphic.mid(at, gt < 0 ? -1 : gt - at);
+    auto attr = [&](const char *name) {
+        const qsizetype k = tag.indexOf(QByteArray(" ") + name + "=\"");
+        if (k < 0) return QString();
+        const qsizetype from = k + 3 + qstrlen(name), to = tag.indexOf('"', from);
+        return to < 0 ? QString() : QString::fromUtf8(tag.mid(from, to - from));
+    };
+    const QString anchor = attr("anchor");
+    if (anchor == QLatin1String("ctr") || anchor == QLatin1String("b")) look.anchor = anchor;
+    look.wrap = attr("wrap") != QLatin1String("none");
+    auto inset = [&](const char *name, double fallback) {
+        bool ok = false;
+        const double v = attr(name).toDouble(&ok);
+        return ok ? std::clamp(v / kEmuPerPoint, 0.0, 1000.0) : fallback;
+    };
+    look.insets = QMarginsF(inset("lIns", 7.2), inset("tIns", 3.6), inset("rIns", 7.2), inset("bIns", 3.6));
+    const qsizetype close = m.graphic.indexOf("</wps:bodyPr>", at);
+    const QByteArray inside = close < 0 ? QByteArray() : m.graphic.mid(at, close - at);
+    look.autofit = inside.contains("<a:normAutofit") || inside.contains("<a:spAutoFit");
+    return look;
+}
+
 // ---- linked text boxes: the words of the first box of a chain go on in the boxes that follow it (core/boxlinks.h)
 
 namespace {

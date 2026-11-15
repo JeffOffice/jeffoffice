@@ -1,6 +1,7 @@
 // The keyboard, the mouse, the input method, and the clipboard in the page view.
 
 #include "app/pageview.h"
+#include "app/shapetextedit.h"
 
 #include "core/autoops.h"
 #include "core/editops.h"
@@ -44,6 +45,10 @@ bool s_copiedWhole = true;   // the words last copied from here were whole words
 
 void PageView::undo()
 {
+    if (m_shapeEditor) {
+        m_shapeEditor->undo();
+        return;
+    }
     if (!m_doc) return;
     m_pictureDrag = PictureDrag();   // (a drag of a picture is over: what it would have done is not done)
     viewport()->update();
@@ -59,6 +64,10 @@ void PageView::undo()
 
 void PageView::redo()
 {
+    if (m_shapeEditor) {
+        m_shapeEditor->redo();
+        return;
+    }
     if (!m_doc) return;
     m_pictureDrag = PictureDrag();   // (a drag of a picture is over: what it would have done is not done)
     viewport()->update();
@@ -74,6 +83,10 @@ void PageView::redo()
 
 void PageView::copy()
 {
+    if (m_shapeEditor) {
+        m_shapeEditor->copy();
+        return;
+    }
     if (!m_doc || !m_cursor.hasSelection()) return;
     const Clip clip = copySelection(*m_doc, m_cursor);
     const QTextDocumentFragment &f = clip.fragment;
@@ -102,6 +115,10 @@ bool PageView::smartCutPaste() { return Settings::get().value(QStringLiteral("ed
 
 void PageView::cut()
 {
+    if (m_shapeEditor) {
+        m_shapeEditor->cut();
+        return;
+    }
     if (!m_doc || !m_cursor.hasSelection()) return;
     copy();
     if (smartCutPaste()) smartRemoveSelection(*m_doc, m_cursor);
@@ -111,6 +128,10 @@ void PageView::cut()
 
 void PageView::paste()
 {
+    if (m_shapeEditor) {
+        m_shapeEditor->paste();
+        return;
+    }
     if (!m_doc) return;
     const int pasteFrom = m_cursor.selectionStart(), pasteSelectionEnd = m_cursor.selectionEnd();
     const QMimeData *mime = QApplication::clipboard()->mimeData();
@@ -262,6 +283,10 @@ void PageView::updatePasteButton()
 
 void PageView::selectAll()
 {
+    if (m_shapeEditor) {
+        m_shapeEditor->selectAll();
+        return;
+    }
     if (!m_doc) return;
     m_cursor.select(QTextCursor::Document);
     caretMoved();
@@ -469,7 +494,7 @@ void PageView::keyPressEvent(QKeyEvent *e)
             return;
         }
     }
-    if ((e->key() == Qt::Key_Return || e->key() == Qt::Key_Enter || e->key() == Qt::Key_F2) && !(e->modifiers() & (Qt::ControlModifier | Qt::ShiftModifier)) && selectedPicture() >= 0 && beginShapeTextEdit()) {
+    if (keyOnSelectedShape(e, nullptr) == SelectedShapeKey::Begin && selectedPicture() >= 0 && beginShapeTextEdit()) {
         e->accept();
         return;
     }
@@ -492,7 +517,8 @@ void PageView::keyPressEvent(QKeyEvent *e)
     const QString text = e->text();
     const bool shortcut = (e->modifiers() & (Qt::ControlModifier | Qt::MetaModifier)) && !(e->modifiers() & Qt::AltModifier);
     // A shape or text box that is selected takes the words typed: they go in it, in place.
-    if (!text.isEmpty() && !shortcut && text[0].isPrint() && selectedPicture() >= 0 && beginShapeTextEdit(text)) {
+    QString typedOnShape;
+    if (!shortcut && keyOnSelectedShape(e, &typedOnShape) == SelectedShapeKey::BeginTyped && selectedPicture() >= 0 && beginShapeTextEdit(typedOnShape)) {
         e->accept();
         return;
     }

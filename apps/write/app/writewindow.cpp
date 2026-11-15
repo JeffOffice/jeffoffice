@@ -1,4 +1,5 @@
 #include "app/commandsearch.h"
+#include "app/shapetextedit.h"
 #include "app/keymap.h"
 #include "app/ribboncustom.h"
 #include "app/writewindow.h"
@@ -346,9 +347,9 @@ void WriteWindow::createFormatActions()
     mk("edit.paste", tr("Paste"), "clipboard-paste", QKeySequence::Paste, [v] { v->paste(); });
     mk("edit.selectAll", tr("Select All"), "", QKeySequence::SelectAll, [v] { v->selectAll(); });
 
-    mk("fmt.bold", tr("Bold"), "bold", QKeySequence::Bold, [edit] { edit([](write::WriteDoc &d, QTextCursor &c) { write::toggleBold(d, c); }); }, true);
-    mk("fmt.italic", tr("Italic"), "italic", QKeySequence::Italic, [edit] { edit([](write::WriteDoc &d, QTextCursor &c) { write::toggleItalic(d, c); }); }, true);
-    mk("fmt.underline", tr("Underline"), "underline", QKeySequence::Underline, [edit] { edit([](write::WriteDoc &d, QTextCursor &c) { write::toggleUnderline(d, c); }); }, true);
+    mk("fmt.bold", tr("Bold"), "bold", QKeySequence::Bold, [edit, v] { if (auto *typing = v->shapeEditor()) typing->toggleBold(); else edit([](write::WriteDoc &d, QTextCursor &c) { write::toggleBold(d, c); }); }, true);
+    mk("fmt.italic", tr("Italic"), "italic", QKeySequence::Italic, [edit, v] { if (auto *typing = v->shapeEditor()) typing->toggleItalic(); else edit([](write::WriteDoc &d, QTextCursor &c) { write::toggleItalic(d, c); }); }, true);
+    mk("fmt.underline", tr("Underline"), "underline", QKeySequence::Underline, [edit, v] { if (auto *typing = v->shapeEditor()) typing->toggleUnderline(); else edit([](write::WriteDoc &d, QTextCursor &c) { write::toggleUnderline(d, c); }); }, true);
     mk("fmt.strike", tr("Strikethrough"), "strikethrough", QKeySequence(), [edit] { edit([](write::WriteDoc &d, QTextCursor &c) { write::toggleStrike(d, c); }); }, true);
     mk("fmt.subscript", tr("Subscript"), "subscript", QKeySequence(Qt::CTRL | Qt::Key_Equal), [edit] { edit([](write::WriteDoc &d, QTextCursor &c) { write::toggleSubscript(d, c); }); }, true);
     mk("fmt.superscript", tr("Superscript"), "superscript", QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_Equal), [edit] { edit([](write::WriteDoc &d, QTextCursor &c) { write::toggleSuperscript(d, c); }); }, true);
@@ -358,18 +359,18 @@ void WriteWindow::createFormatActions()
             write::setCharBorder(d, c, on);
         });
     }, true);
-    mk("fmt.grow", tr("Increase Font Size"), "a-arrow-up", QKeySequence(Qt::CTRL | Qt::Key_BracketRight), [edit] { edit([](write::WriteDoc &d, QTextCursor &c) { write::changeFontSize(d, c, 1); }); });
-    mk("fmt.shrink", tr("Decrease Font Size"), "a-arrow-down", QKeySequence(Qt::CTRL | Qt::Key_BracketLeft), [edit] { edit([](write::WriteDoc &d, QTextCursor &c) { write::changeFontSize(d, c, -1); }); });
+    mk("fmt.grow", tr("Increase Font Size"), "a-arrow-up", QKeySequence(Qt::CTRL | Qt::Key_BracketRight), [edit, v] { if (auto *typing = v->shapeEditor()) typing->growFont(1); else edit([](write::WriteDoc &d, QTextCursor &c) { write::changeFontSize(d, c, 1); }); });
+    mk("fmt.shrink", tr("Decrease Font Size"), "a-arrow-down", QKeySequence(Qt::CTRL | Qt::Key_BracketLeft), [edit, v] { if (auto *typing = v->shapeEditor()) typing->growFont(-1); else edit([](write::WriteDoc &d, QTextCursor &c) { write::changeFontSize(d, c, -1); }); });
     mk("fmt.clear", tr("Clear All Formatting"), "remove-formatting", QKeySequence(Qt::CTRL | Qt::Key_Space), [edit] { edit([](write::WriteDoc &d, QTextCursor &c) { write::clearFormatting(d, c); }); });
 
-    mk("fmt.alignLeft", tr("Align Left"), "align-left", QKeySequence(Qt::CTRL | Qt::Key_L), [edit] { edit([](write::WriteDoc &d, QTextCursor &c) { write::setAlignment(d, c, Qt::AlignLeft); }); }, true);
-    mk("fmt.alignCenter", tr("Center"), "align-center", QKeySequence(Qt::CTRL | Qt::Key_E), [edit] { edit([](write::WriteDoc &d, QTextCursor &c) { write::setAlignment(d, c, Qt::AlignHCenter); }); }, true);
-    mk("fmt.alignRight", tr("Align Right"), "align-right", QKeySequence(Qt::CTRL | Qt::Key_R), [edit] { edit([](write::WriteDoc &d, QTextCursor &c) { write::setAlignment(d, c, Qt::AlignRight); }); }, true);
-    mk("fmt.justify", tr("Justify"), "align-justify", QKeySequence(Qt::CTRL | Qt::Key_J), [edit] { edit([](write::WriteDoc &d, QTextCursor &c) { write::setAlignment(d, c, Qt::AlignJustify); }); }, true);
-    mk("para.bullets", tr("Bullets"), "list", QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_L), [edit] { edit([](write::WriteDoc &d, QTextCursor &c) { write::toggleList(d, c, false); }); }, true);
+    mk("fmt.alignLeft", tr("Align Left"), "align-left", QKeySequence(Qt::CTRL | Qt::Key_L), [edit, v] { if (auto *typing = v->shapeEditor()) typing->setAlign(Qt::AlignLeft); else edit([](write::WriteDoc &d, QTextCursor &c) { write::setAlignment(d, c, Qt::AlignLeft); }); }, true);
+    mk("fmt.alignCenter", tr("Center"), "align-center", QKeySequence(Qt::CTRL | Qt::Key_E), [edit, v] { if (auto *typing = v->shapeEditor()) typing->setAlign(Qt::AlignHCenter); else edit([](write::WriteDoc &d, QTextCursor &c) { write::setAlignment(d, c, Qt::AlignHCenter); }); }, true);
+    mk("fmt.alignRight", tr("Align Right"), "align-right", QKeySequence(Qt::CTRL | Qt::Key_R), [edit, v] { if (auto *typing = v->shapeEditor()) typing->setAlign(Qt::AlignRight); else edit([](write::WriteDoc &d, QTextCursor &c) { write::setAlignment(d, c, Qt::AlignRight); }); }, true);
+    mk("fmt.justify", tr("Justify"), "align-justify", QKeySequence(Qt::CTRL | Qt::Key_J), [edit, v] { if (auto *typing = v->shapeEditor()) typing->setAlign(Qt::AlignJustify); else edit([](write::WriteDoc &d, QTextCursor &c) { write::setAlignment(d, c, Qt::AlignJustify); }); }, true);
+    mk("para.bullets", tr("Bullets"), "list", QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_L), [edit, v] { if (auto *typing = v->shapeEditor()) typing->setBullets(!typing->hasBullets()); else edit([](write::WriteDoc &d, QTextCursor &c) { write::toggleList(d, c, false); }); }, true);
     mk("para.numbers", tr("Numbering"), "list-ordered", QKeySequence(), [edit] { edit([](write::WriteDoc &d, QTextCursor &c) { write::toggleList(d, c, true); }); }, true);
-    mk("para.indentInc", tr("Increase Indent"), "indent-increase", QKeySequence(Qt::CTRL | Qt::Key_M), [edit] { edit([](write::WriteDoc &d, QTextCursor &c) { write::changeIndent(d, c, 36); }); });
-    mk("para.indentDec", tr("Decrease Indent"), "indent-decrease", QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_M), [edit] { edit([](write::WriteDoc &d, QTextCursor &c) { write::changeIndent(d, c, -36); }); });
+    mk("para.indentInc", tr("Increase Indent"), "indent-increase", QKeySequence(Qt::CTRL | Qt::Key_M), [edit, v] { if (auto *typing = v->shapeEditor()) typing->indent(1); else edit([](write::WriteDoc &d, QTextCursor &c) { write::changeIndent(d, c, 36); }); });
+    mk("para.indentDec", tr("Decrease Indent"), "indent-decrease", QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_M), [edit, v] { if (auto *typing = v->shapeEditor()) typing->indent(-1); else edit([](write::WriteDoc &d, QTextCursor &c) { write::changeIndent(d, c, -36); }); });
     struct Spacing { const char *id; const char *text; double value; };
     for (const Spacing &s : {Spacing{"ls.1", "1.0", 1.0}, Spacing{"ls.1.15", "1.15", 1.15}, Spacing{"ls.1.5", "1.5", 1.5}, Spacing{"ls.2", "2.0", 2.0}, Spacing{"ls.2.5", "2.5", 2.5}, Spacing{"ls.3", "3.0", 3.0}}) {
         const double value = s.value;

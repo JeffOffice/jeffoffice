@@ -134,6 +134,30 @@ bool WriteDoc::makeEditable(HeaderPart &part)
     return true;
 }
 
+std::unique_ptr<QTextDocument> WriteDoc::boxEditStory(const QByteArray &txbxContent)
+{
+    QVector<Block> blocks;
+    if (!readBlocks(txbxContent, &blocks, false)) return nullptr;
+    leaveOutDeletedParagraphs(&blocks, true);
+    auto s = std::make_unique<QTextDocument>();
+    s->setDocumentMargin(0);
+    s->setDefaultFont(story()->defaultFont());
+    s->setUndoRedoEnabled(false);
+    fillStory(s.get(), blocks, true, QString(), false, false, -1, true);
+    s->setModified(false);
+    return s;
+}
+
+QByteArray WriteDoc::boxContentOfStory(QTextDocument *story)
+{
+    QVector<Block> blocks;
+    VectorSink sink(&blocks);
+    exportInto(sink, story);
+    QByteArray out = "<w:txbxContent>";
+    for (const Block &b : blocks) out += blockXml(b);
+    return out + "</w:txbxContent>";
+}
+
 QTextDocument *WriteDoc::editableHeaderFooter(int section, bool footer, int slot)
 {
     QTextDocument *s = headerFooterStory(section, footer, slot);

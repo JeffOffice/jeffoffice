@@ -9,6 +9,8 @@
 #include "app/help.h"
 #include "app/onlinepictures.h"
 #include "app/pageview.h"
+#include "app/shapetextedit.h"
+#include "../shell/shapetexttest.h"
 #include "app/ribbon.h"
 #include "app/writewindow.h"
 #include "core/appinfo.h"
@@ -398,6 +400,19 @@ struct Win {
         return false;
     }
 };
+
+// A shape of the first position of the window's document, selected, and its words' editor opened with `key`.
+ShapeTextEdit *editShape(Win &win, Qt::Key key, const QString &preset = QStringLiteral("rect"))
+{
+    WriteDoc *doc = win.w.document();
+    QTextCursor c(doc->story());
+    c.setPosition(0);
+    if (insertShape(*doc, c, preset, QSizeF(240, 120)) != PictureResult::Ok || !setPicturePlace(*doc, 0, 150, 150)) return nullptr;
+    win.w.view()->refresh();
+    win.w.view()->selectPicture(0);
+    QTest::keyClick(win.w.view()->viewport(), key);
+    return win.w.view()->shapeEditor();
+}
 
 // Where the top left corner of the first page is in a window like Win (the same size and zoom): a shape set at a known place is drawn there.
 QPointF pageOrigin()
@@ -1079,8 +1094,8 @@ private Q_SLOTS:
         QVERIFY(!win.w.view()->editingShapeText());
         QTest::keyClick(vp, Qt::Key_H);
         QVERIFY(win.w.view()->editingShapeText());
-        QTest::keyClicks(win.w.view()->findChild<QPlainTextEdit *>(), QStringLiteral("i"));
-        QTest::keyClick(win.w.view()->findChild<QPlainTextEdit *>(), Qt::Key_Escape);
+        QTest::keyClicks(win.w.view()->shapeEditor(), QStringLiteral("i"));
+        QTest::keyClick(win.w.view()->shapeEditor(), Qt::Key_Escape);
         QVERIFY(!win.w.view()->editingShapeText());
         QCOMPARE(textBoxText(*doc, 0)->join(QLatin1Char('|')), QStringLiteral("hi"));
         QCOMPARE(win.w.view()->selectedPicture(), 0);
@@ -1095,7 +1110,7 @@ private Q_SLOTS:
         QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
         QTest::mouseDClick(vp, Qt::LeftButton, Qt::NoModifier, r.center().toPoint());
         QVERIFY(win.w.view()->editingShapeText());
-        QPlainTextEdit *edit = win.w.view()->findChild<QPlainTextEdit *>();
+        ShapeTextEdit *edit = win.w.view()->shapeEditor();
         QVERIFY(edit);
         QCOMPARE(edit->toPlainText(), QStringLiteral("hi"));
         QTest::keyClick(edit, Qt::Key_End, Qt::ControlModifier);
@@ -1118,6 +1133,100 @@ private Q_SLOTS:
         win.w.view()->selectPicture(1);
         QTest::keyClick(vp, Qt::Key_X);
         QVERIFY(!win.w.view()->editingShapeText());
+    }
+
+    void typingInAShapeKeepsItsLookThroughUndoSaveAndReopenInBothFileKinds()
+    {
+        Win win;
+        WriteDoc *doc = win.w.document();
+        ShapeTextEdit *edit = editShape(win, Qt::Key_F2);
+        QVERIFY(edit);
+        jptest::typeAndFormat(edit);
+        QTest::keyClick(edit, Qt::Key_Escape);
+        QVERIFY(!win.w.view()->editingShapeText());
+        jptest::verifyFormatted(textBoxStory(*doc, 0).get());
+        // (One step: what was typed and every look.)
+        QVERIFY(doc->undo());
+        QVERIFY(textBoxText(*doc, 0)->join(QString()).isEmpty());
+        QVERIFY(doc->redo());
+        jptest::verifyFormatted(textBoxStory(*doc, 0).get());
+        const QByteArray docx = doc->toDocx();
+        auto back = open(docx);
+        QVERIFY(back);
+        jptest::verifyFormatted(textBoxStory(*back, 0).get());
+        QString err;
+        const QByteArray odt = doc->toOdt(&err);
+        QVERIFY2(!odt.isEmpty(), qPrintable(err));
+        auto fromOdt = WriteDoc::fromOdt(odt, &err);
+        QVERIFY2(fromOdt, qPrintable(err));
+        jptest::verifyFormatted(textBoxStory(*fromOdt, 0).get());
+    }
+
+    void inAShapeEscF2AndEnterAndATypedKeyBeginAndEndTheEdit()
+    {
+        Win win;
+        WriteDoc *doc = win.w.document();
+        ShapeTextEdit *edit = editShape(win, Qt::Key_Return);
+        QVERIFY(edit);
+        QTest::keyClicks(edit, QStringLiteral("one"));
+        QTest::keyClick(edit, Qt::Key_Escape);
+        QVERIFY(!win.w.view()->editingShapeText());
+        QCOMPARE(win.w.view()->selectedPicture(), 0);   // (Esc leaves the shape selected)
+        QCOMPARE(textBoxStory(*doc, 0)->toPlainText(), QStringLiteral("one"));
+        QTest::keyClick(win.w.view()->viewport(), Qt::Key_F2);
+        QVERIFY(win.w.view()->editingShapeText());
+        QCOMPARE(win.w.view()->shapeEditor()->toPlainText(), QStringLiteral("one"));
+        QTest::keyClick(win.w.view()->shapeEditor(), Qt::Key_Escape);
+        QTest::keyClick(win.w.view()->viewport(), Qt::Key_Z);   // (typing on the selected shape starts the edit and goes after its words)
+        QVERIFY(win.w.view()->editingShapeText());
+        QCOMPARE(win.w.view()->shapeEditor()->toPlainText(), QStringLiteral("onez"));
+        QTest::keyClick(win.w.view()->shapeEditor(), Qt::Key_Escape);
+    }
+
+    void aShapesCommandsOfTheRibbonAndItsBulletsGoToTheWordsBeingTyped()
+    {
+        Win win;
+        WriteDoc *doc = win.w.document();
+        ShapeTextEdit *edit = editShape(win, Qt::Key_F2);
+        QVERIFY(edit);
+        QTest::keyClicks(edit, QStringLiteral("item"));
+        edit->selectAll();
+        win.w.act(QStringLiteral("fmt.bold"))->trigger();
+        win.w.act(QStringLiteral("fmt.alignRight"))->trigger();
+        win.w.act(QStringLiteral("para.bullets"))->trigger();
+        QVERIFY(edit->hasBullets());
+        QTest::keyClick(edit, Qt::Key_Escape);
+        auto story = textBoxStory(*doc, 0);
+        QVERIFY(story->firstBlock().textList());
+        QVERIFY(story->firstBlock().begin().fragment().charFormat().font().bold());
+        QCOMPARE(story->firstBlock().blockFormat().alignment() & Qt::AlignHorizontal_Mask, Qt::AlignRight);
+        auto back = open(doc->toDocx());
+        QVERIFY(textBoxStory(*back, 0)->firstBlock().textList());
+    }
+
+    void wordsCopiedFromOneShapeAndPastedInAnotherKeepTheirLook()
+    {
+        Win win;
+        WriteDoc *doc = win.w.document();
+        ShapeTextEdit *edit = editShape(win, Qt::Key_F2);
+        QVERIFY(edit);
+        jptest::typeAndFormat(edit);
+        edit->selectAll();
+        win.w.view()->copy();
+        QTest::keyClick(edit, Qt::Key_Escape);
+        QTextCursor d(doc->story());
+        d.setPosition(1);
+        QCOMPARE(insertShape(*doc, d, QStringLiteral("rect"), QSizeF(240, 120)), PictureResult::Ok);
+        QVERIFY(setPicturePlace(*doc, 1, 150, 400));
+        win.w.view()->refresh();
+        win.w.view()->selectPicture(1);
+        QTest::keyClick(win.w.view()->viewport(), Qt::Key_F2);
+        edit = win.w.view()->shapeEditor();
+        QVERIFY(edit);
+        win.w.view()->paste();
+        QCOMPARE(edit->toPlainText(), QStringLiteral("Hello big world"));
+        QTest::keyClick(edit, Qt::Key_Escape);
+        jptest::verifyFormatted(textBoxStory(*doc, 1).get());
     }
 
     void aShapeTakesSeveralEffectsAndEachIsPutInAndTakenOutWithoutTouchingTheOthers()

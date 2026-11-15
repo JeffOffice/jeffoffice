@@ -1,5 +1,5 @@
 #pragma once
-class QPlainTextEdit;
+namespace jp { class ShapeTextEdit; }
 // The view of the document's pages: a continuous column of pages on a gray ground, or several across, drawn at a zoom of 10% to 500%.
 // Only the pages in view are made (the paginator keeps where each starts, and makes a page when it is asked for) and the rest of the
 // document is laid out in the background, so the first page shows at once, and the number of pages grows while a long document is
@@ -274,9 +274,13 @@ public:
     void beginShapeDraw(const QString &preset);
     // The words of the selected shape or text box are typed in place: an editor over the shape (a double click, or a key typed with the shape selected). Escape, or a click elsewhere, puts the
     // words in the shape as one step that undoes.
+    // (`typed` is what was typed with the shape selected, and goes after its words.)
     bool beginShapeTextEdit(const QString &typed = QString());
     void endShapeTextEdit(bool keep = true);
     bool editingShapeText() const { return m_shapeEditor != nullptr; }
+    // The editor over the shape while its words are typed in (the commands of the ribbon and the keys go to it), and the keyboard put back where the words are typed.
+    ShapeTextEdit *shapeEditor() const { return m_shapeEditor; }
+    void focusText();
     bool drawingShape() const { return !m_shapeDraw.isEmpty(); }
     bool insertIconObject(const QString &name);
     bool insertTextBoxObject(const TextBoxDesign &design);
@@ -523,9 +527,9 @@ private:
         QPointF from, to;                   // on that page, in points
     };
     ToolDrag m_toolDrag;
-    QPlainTextEdit *m_shapeEditor = nullptr;
+    ShapeTextEdit *m_shapeEditor = nullptr;
     int m_shapeEditorAt = -1;
-    bool eventFilter(QObject *watched, QEvent *event) override;
+    double m_shapeEditorTop = 0;
     QString m_shapeDraw;   // the shape the pointer is drawing (its preset), empty when it is not
     void finishShapeDraw(const QPoint &viewportPos, Qt::KeyboardModifiers modifiers);
     void finishTableTool(const QPoint &viewportPos);

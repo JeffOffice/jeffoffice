@@ -1,6 +1,7 @@
 // JeffWrite's ribbon (its layout is resources/ribbon.json, built by ribbonbuilder.cpp): the controls and menus the file names, and the
 // status bar.
 
+#include "app/shapetextedit.h"
 #include "app/writewindow.h"
 
 #include "app/icons.h"
@@ -128,8 +129,9 @@ void WriteWindow::ribbonParts(RibbonParts &parts)
         auto *font = new FontCombo();
         connect(font, &FontCombo::familyChosen, this, [this](const QString &f) {
             if (refuseIfReadOnly()) return;
-            if (m_doc) write::setFontFamily(*m_doc, m_view->cursor(), f);
-            m_view->setFocus();
+            if (auto *typing = m_view->shapeEditor()) typing->setFontFamilyName(f);
+            else if (m_doc) write::setFontFamily(*m_doc, m_view->cursor(), f);
+            m_view->focusText();
         });
         m_fontCombos << font;
         return font;
@@ -138,8 +140,9 @@ void WriteWindow::ribbonParts(RibbonParts &parts)
         auto *size = new SizeCombo();
         connect(size, &SizeCombo::sizeChosen, this, [this](double s) {
             if (refuseIfReadOnly()) return;
-            if (m_doc) write::setFontSize(*m_doc, m_view->cursor(), s);
-            m_view->setFocus();
+            if (auto *typing = m_view->shapeEditor()) typing->setFontSizePt(s);
+            else if (m_doc) write::setFontSize(*m_doc, m_view->cursor(), s);
+            m_view->focusText();
         });
         m_sizeCombos << size;
         return size;
@@ -149,8 +152,10 @@ void WriteWindow::ribbonParts(RibbonParts &parts)
         b->setCurrent(ColorRef::rgb(QColor(0xC0, 0, 0)));
         connect(b, &ColorButton::colorPicked, this, [this](const ColorRef &c) {
             if (!m_doc || refuseIfReadOnly()) return;
-            write::setTextColor(*m_doc, m_view->cursor(), c.isNone() ? QColor() : c.resolve(m_doc->flow().env.colors));
-            m_view->setFocus();
+            const QColor color = c.isNone() ? QColor() : c.resolve(m_doc->flow().env.colors);
+            if (auto *typing = m_view->shapeEditor()) typing->setColor(color.isValid() ? color : QColor(Qt::black));
+            else write::setTextColor(*m_doc, m_view->cursor(), color);
+            m_view->focusText();
         });
         m_colorButtons << b;
         return b;
