@@ -101,14 +101,16 @@ QJsonArray setsOf(const char *kind, bool *bad = nullptr)
 }
 
 // A file of sets that can't be read is never written over: it is kept as "<name>.bad" (an earlier one of that name goes), and the person is told.
-void keepUnusableStore(const char *kind)
+// Returns false when it could not be moved aside, and the save is then refused rather than writing over it.
+bool keepUnusableStore(const char *kind)
 {
     bool bad = false;
     setsOf(kind, &bad);
-    if (!bad) return;
+    if (!bad) return true;
     QFile::remove(storeFile(kind) + QStringLiteral(".bad"));
-    if (QFile::rename(storeFile(kind), storeFile(kind) + QStringLiteral(".bad")))
-        noticesHeld() << QCoreApplication::translate("ThemeLibrary", "The file of your own theme sets could not be read. It was kept as %1.bad, and a new file was started.").arg(QLatin1String(kind));
+    if (!QFile::rename(storeFile(kind), storeFile(kind) + QStringLiteral(".bad"))) return false;
+    noticesHeld() << QCoreApplication::translate("ThemeLibrary", "The file of your own theme sets could not be read. It was kept as %1.bad, and a new file was started.").arg(QLatin1String(kind));
+    return true;
 }
 
 QJsonObject toJson(const ThemeColors &c)
@@ -163,7 +165,7 @@ template <class T> QVector<T> readSets(const char *kind)
 
 template <class T> bool saveSet(const char *kind, const T &set)
 {
-    keepUnusableStore(kind);
+    if (!keepUnusableStore(kind)) return false;
     QVector<T> all = readSets<T>(kind);
     bool replaced = false;
     for (T &t : all)
