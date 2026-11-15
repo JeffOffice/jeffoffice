@@ -591,6 +591,35 @@ void Gallery::openMore()
 }
 
 namespace {
+// A gallery list that shows no picture as the current one (no focus outline) until the mouse or a key moves into it: the list has a current item from the start, for the keys to move from,
+// but it is not drawn until then.
+class QuietUntilUsed : public QStyledItemDelegate {
+public:
+    explicit QuietUntilUsed(QListWidget *list) : QStyledItemDelegate(list), m_list(list)
+    {
+        list->installEventFilter(this);
+        list->viewport()->installEventFilter(this);
+        list->setMouseTracking(true);
+    }
+    bool eventFilter(QObject *, QEvent *e) override
+    {
+        if (!m_used && (e->type() == QEvent::KeyPress || e->type() == QEvent::MouseMove || e->type() == QEvent::MouseButtonPress)) {
+            m_used = true;
+            m_list->viewport()->update();
+        }
+        return false;
+    }
+    void initStyleOption(QStyleOptionViewItem *option, const QModelIndex &index) const override
+    {
+        QStyledItemDelegate::initStyleOption(option, index);
+        if (!m_used) option->state &= ~(QStyle::State_HasFocus | QStyle::State_MouseOver);
+    }
+
+private:
+    QListWidget *m_list;
+    bool m_used = false;
+};
+
 // Enter, Return or Space on a gallery list picks its current tile.
 class PickOnEnter : public QObject {
 public:
@@ -637,6 +666,7 @@ QFrame *galleryPopup(const QVector<GalleryItem> &items, const QSize &itemSize, i
             pop->close();
             onPick(id);
         });
+        list->setItemDelegate(new QuietUntilUsed(list));
         new PickOnEnter(list, [pop, onPick](const QString &id) {
             pop->close();
             onPick(id);
@@ -690,7 +720,7 @@ QFrame *galleryPopup(const QVector<GalleryItem> &items, const QSize &itemSize, i
     pop->show();
     if (auto *first = pop->findChild<QListWidget *>()) {
         first->setFocus(Qt::PopupFocusReason);
-        if (first->count()) first->setCurrentRow(0, QItemSelectionModel::NoUpdate);   // (the keys start from the first, which is not shown chosen)
+        // (No picture is the current one until the mouse or a key moves into the list: nothing is drawn as chosen; an arrow key then starts from the first.)
     }
     Q_UNUSED(totalRows);
     return pop;

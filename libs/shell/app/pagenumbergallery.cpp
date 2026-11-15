@@ -281,6 +281,7 @@ void paintPageNumberDesign(QPainter *p, const QRectF &rc, const PageNumberDesign
         // (A short side is drawn larger, a long one as it is.)
         const double growW = box.rect.width() < 100 ? 1.5 : 1.0, growH = box.rect.height() < 100 ? 1.5 : 1.0;
         r = QRectF(r.center().x() - r.width() * growW / 2, r.center().y() - r.height() * growH / 2, r.width() * growW, r.height() * growH);
+        r = r.intersected(page.adjusted(0.5, 0.5, -0.5, -0.5));   // (nothing is drawn past the page's edge)
         p->setPen(Qt::NoPen);
         p->setBrush(accent);
         if (box.preset == QLatin1String("ellipse")) p->drawEllipse(r);
@@ -299,17 +300,19 @@ void paintPageNumberDesign(QPainter *p, const QRectF &rc, const PageNumberDesign
     }
     const bool top = d.area == PageNumberArea::Top;
     const double textH = fm.height();
-    const double rowH = std::max(26.0 * k, textH + 6);   // (the row is as tall as its letters need, and a little more)
-    const double cy = top ? page.top() + margins.top() * k / 2 : page.bottom() - margins.bottom() * k / 2;
-    const QRectF row(page.left() + margins.left() * k, cy - rowH / 2, (220 - margins.left() - margins.right()) * k, rowH);
+    const PageNumberRule rule = pageNumberRule(d);
+    // The number and its rule are stacked in the margin, inside the page: from a little below the top edge for the top, to a little above the bottom edge for the bottom; the rule is two
+    // pixels from the letters, on the side of them the design says.
+    const double stack = textH + (rule == PageNumberRule::None ? 0 : 3);
+    const double y0 = top ? page.top() + 3 : page.bottom() - 3 - stack;
+    const double textTop = rule == PageNumberRule::Above ? y0 + 3 : y0;
+    const QRectF row(page.left() + margins.left() * k, textTop, (220 - margins.left() - margins.right()) * k, textH);
     const Qt::Alignment al = d.side == PageNumberSide::Left ? Qt::AlignLeft : d.side == PageNumberSide::Right ? Qt::AlignRight : Qt::AlignHCenter;
     p->setPen(ink);
     p->drawText(row, al | Qt::AlignVCenter | Qt::TextDontClip, text);
-    const PageNumberRule rule = pageNumberRule(d);
     if (rule != PageNumberRule::None) {
-        // (The rule lies clear of the letters: the height of the letters and two pixels from the middle of the row.)
         p->setPen(QPen(ink, 1));
-        const double y = rule == PageNumberRule::Above ? row.center().y() - textH / 2 - 2 : row.center().y() + textH / 2 + 2;
+        const double y = rule == PageNumberRule::Above ? y0 + 0.5 : y0 + textH + 2;
         p->drawLine(QPointF(row.left(), y), QPointF(row.right(), y));
     }
     p->restore();

@@ -102,8 +102,20 @@ void WriteTests::theGalleryListsTheDesigns()
     for (const GalleryItem &it : items) {
         const std::optional<PageNumberDesign> d = pageNumberDesignById(it.id);
         QVERIFY(d);
+        const int w0 = size.width(), h0 = size.height();
         const QImage img = it.icon.pixmap(size).toImage().convertToFormat(QImage::Format_ARGB32);
         QVERIFY(!img.isNull());
+        // No design paints outside its page: round the picture's page (a gray frame) the transparent margin stays transparent.
+        {
+            const double ph = h0 * 0.94, pw = std::min(w0 * 0.9, ph * 0.775);
+            const QRectF pageRect((w0 - pw) / 2, (h0 - ph) / 2, pw, ph);
+            const QRectF outer = pageRect.adjusted(-1.6, -1.6, 1.6, 1.6);
+            int outside = 0;
+            for (int y = 0; y < img.height(); ++y)
+                for (int x = 0; x < img.width(); ++x)
+                    if (!outer.contains(x + 0.5, y + 0.5) && img.pixelColor(x, y).alpha() != 0) ++outside;
+            QVERIFY2(outside == 0, qPrintable(it.id + QStringLiteral(": %1 pixels outside the page").arg(outside)));
+        }
         auto inked = [&](const QRect &band) {
             int count = 0;
             for (int y = band.top(); y <= band.bottom(); ++y)
@@ -138,8 +150,22 @@ void WriteTests::theGalleryListsTheDesigns()
     QFrame *pop = galleryPopup(items, size, 9, {}, [](const QString &) {}, &parent);
     auto *list = pop->findChild<QListWidget *>();
     QVERIFY(list);
-    QCOMPARE(list->currentRow(), 0);
     QVERIFY(list->selectedItems().isEmpty());
+    // Nothing is drawn as the current picture until the mouse or a key moves into the list: the strip under the first picture (where the outline was) is the list's own background, and after a
+    // key it is not (the keys still show where they are).
+    auto stripUnder = [&](int row) {
+        const QRect cell = list->visualItemRect(list->item(row));
+        const QImage shown = list->viewport()->grab().toImage();
+        const QColor base = shown.pixelColor(shown.width() - 2, shown.height() - 2);
+        int different = 0;
+        for (int x = cell.left() + 2; x < cell.right() - 2; ++x)
+            for (int y = cell.bottom() - 4; y <= cell.bottom(); ++y) different += shown.pixelColor(x, y) != base;
+        return different;
+    };
+    QCOMPARE(stripUnder(0), 0);
+    QTest::keyClick(list, Qt::Key_Right);
+    QVERIFY(list->currentRow() >= 0);
+    QVERIFY2(stripUnder(list->currentRow()) > 0, "the key's picture is not shown");
     pop->close();
 }
 
