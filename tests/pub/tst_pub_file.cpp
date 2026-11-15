@@ -2024,5 +2024,12 @@ void PubFileTests::pubWriterStyles()
         QVERIFY(std::abs(got->blk.topMargin() - 12) < 0.01);
     }
 
+// The cards of each page of the backstage show all their text, clear of the chevron, in a wide window and a narrower one.
+void PubFileTests::everyCardOfTheBackstageIsWholeAtEveryWidth()
+{
+    jp::MainWindow w;
+    w.show();
+    jptest::checkFileScreenCards(&w, {QStringLiteral("new"), QStringLiteral("open"), QStringLiteral("info"), QStringLiteral("print"), QStringLiteral("export")}, 2);
+}
 
 JP_TEST_CLASS(PubFileTests)

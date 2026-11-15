@@ -21,12 +21,16 @@ Unit defaultUnit(const QLocale &region);
 // States, Canada, and a few countries beside them); everywhere else on A4.
 bool usesLetterPaper(const QLocale &region);
 
-// Keeps this run's settings out of the person's own. Called at the start of every app's main(), once the application object is made:
-// - when JP_SETTINGS_FOLDER names a folder (a test program sets it for the programs it starts), the settings are kept there;
-// - when JP_TESTING is set without a folder (a test run that did not name one), or the run is a --screenshot, the settings are kept in a temporary folder that goes
-//   away at the end; a screenshot starts from a copy of the person's settings, so it looks as the person's program does, but what it opens or changes stays out of them.
-// Any other run keeps its settings where the person's are. Returns the folder used, or nothing when the settings are the person's.
+// Keeps this run's settings and data out of the person's own. Called at the start of every app's main(), once the application object is made. A run is kept apart when
+// JP_SETTINGS_FOLDER is set (a test program sets it, to a folder of its own, for the programs it starts), when JP_TESTING is set, or when it is a --screenshot:
+// - the settings, and the data, cache, and state folders (recovery copies, versions, templates, defaults, the crash report), are kept in that folder, or in a temporary one
+//   made only then, which goes away at the end;
+// - a screenshot without JP_TESTING starts from a copy of the person's settings files, so it looks as the person's program does, and what it opens or changes stays in the copy.
+// A run that cannot be kept apart (no folder can be made) says so and stops with an error; it never goes on with the person's own. Any other run is not touched.
+// Returns the folder used, or nothing when the run is the person's.
 JO_COMMON_EXPORT QString keepSettingsApart();
+// Whether keepSettingsApart() has kept this run apart (a run that is must not move or migrate the person's old files).
+JO_COMMON_EXPORT bool settingsKeptApart();
 
 // For an app that kept its settings and files under another name: copies
 // the keys `to` lacks, and moves the folder unless `to` already exists.

@@ -1,4 +1,5 @@
 #include "tst_crunch_edit.h"
+#include "../cardchecks.h"
 #include "core/sortspec.h"
 using jp::crunch::EditSession;
 using jp::crunch::SortSpec;
@@ -1385,51 +1386,18 @@ void CrunchEditTests::aFileThatOpensElsewhereClosesTheFileScreen()
     QCOMPARE(crunchWindows().size(), windows + 1);
 }
 
-// What a card shows is whole: its title and its description, wrapped, fit inside it from the top to the bottom, never reach the chevron at its right, and every card of a row is as tall as the row.
-static void checkCard(const ActionCard *c, const QString &where)
-{
-    const QString at = where + QLatin1Char(' ') + c->text() + QStringLiteral(" at ") + QString::number(c->width());
-    QVERIFY2(c->height() >= c->heightForWidth(c->width()), qPrintable(at + QStringLiteral(": the card is shorter than its text")));
-    const QRect inside = c->rect();
-    const QRect title = c->titleRect(c->width()), description = c->descriptionRect(c->width()), chevron = c->chevronRect(c->width(), c->height());
-    QVERIFY2(inside.contains(title) && inside.contains(description), qPrintable(at + QStringLiteral(": the text leaves the card")));
-    QVERIFY2(!title.intersects(chevron) && !description.intersects(chevron), qPrintable(at + QStringLiteral(": the text runs under the chevron")));
-    QVERIFY2(description.bottom() < inside.height(), qPrintable(at + QStringLiteral(": the description is cut off at the bottom")));
-}
-
-// Every card of every page of the File screen, in a wide window and a narrow one.
+// Every card of every page of the File screen, in a wide window and a narrower one (the checks are in tests/cardchecks.h, which each app's tests use).
 void CrunchEditTests::aCardsDescriptionFitsInsideItAndStaysClearOfItsChevron()
 {
     Window w;
     QVERIFY(w.openBlank());
-    for (const int width : {1230, 800}) {
-        w.w.resize(width, 990);
-        for (const QString &page : {QStringLiteral("new"), QStringLiteral("open"), QStringLiteral("info"), QStringLiteral("print"), QStringLiteral("export")}) {
-            w.w.showFileScreen(page);
-            auto *screen = w.w.findChild<CrunchFileScreen *>();
-            QVERIFY(screen);
-            QTRY_VERIFY(screen->isVisible() && screen->width() == width);
-            QCoreApplication::processEvents();
-            int cards = 0;
-            QMap<int, int> rowHeight;   // (the top of a row of cards, and the height of its first)
-            for (auto *b : screen->findChildren<QAbstractButton *>()) {
-                auto *c = dynamic_cast<ActionCard *>(b);
-                if (!c || !c->isVisibleTo(screen)) continue;
-                ++cards;
-                checkCard(c, page + QLatin1Char(' ') + QString::number(width));
-                const int top = c->mapTo(screen, QPoint(0, 0)).y();
-                if (!rowHeight.contains(top)) rowHeight.insert(top, c->height());
-                QCOMPARE(c->height(), rowHeight.value(top));
-            }
-            if (page == QLatin1String("open")) QVERIFY2(cards >= 3, "the Open page has its cards");
-        }
-    }
+    jptest::checkFileScreenCards(&w.w, {QStringLiteral("new"), QStringLiteral("open"), QStringLiteral("info"), QStringLiteral("print"), QStringLiteral("export")}, 3);
 }
 
 // The same card with long German text, three in a row, at several widths: the row grows to the tallest card's text and each card shows all of its own.
 void CrunchEditTests::cardsInARowKeepTheirTextWhateverTheLanguageOrWidth()
 {
-    for (const int width : {1000, 800, 640, 480}) {
+    for (const int width : {1000, 800, 640, 480, 300}) {
         QWidget host;
         auto *row = new CardRow(12);
         row->setContentsMargins(0, 0, 0, 0);
@@ -1447,9 +1415,12 @@ void CrunchEditTests::cardsInARowKeepTheirTextWhateverTheLanguageOrWidth()
         host.show();
         QTRY_VERIFY(host.isVisible() && cards.last()->width() > 0);
         QCoreApplication::processEvents();
+        if (width <= 480) QVERIFY2(cards[0]->y() != cards[1]->y() || cards[1]->y() != cards[2]->y(), "three cards in a row of 480 pixels");
+        if (width <= 300) QVERIFY2(cards[0]->y() != cards[1]->y() && cards[1]->y() != cards[2]->y(), "cards side by side in 300 pixels");
         for (auto *c : cards) {
-            checkCard(c, QStringLiteral("German"));
+            jptest::checkCard(c, QStringLiteral("German"));
             QVERIFY2(c->x() >= 0 && c->geometry().right() < width, "a card leaves its window");
+            if (width >= 800) QCOMPARE(c->y(), cards.first()->y());   // (three side by side)
             for (auto *other : cards)
                 if (other->y() == c->y()) QCOMPARE(other->height(), c->height());
         }

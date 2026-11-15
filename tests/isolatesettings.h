@@ -38,6 +38,12 @@ inline const QString &isolatedSettingsFolder()
         // (a program the run starts, an app made to take a screenshot, finds these in its environment and keeps its settings in the same folder: it is not this process, and would otherwise write to the person's)
         qputenv("JP_TESTING", "1");
         qputenv("JP_SETTINGS_FOLDER", dir.path().toUtf8());
+#if defined(Q_OS_UNIX) && !defined(Q_OS_MACOS)
+        // (the data and cache folders too: recovery copies, versions, templates, and what else the apps keep there. Where the environment cannot move them, a test that writes there uses TestModeGuard.)
+        qputenv("XDG_DATA_HOME", (dir.path() + QStringLiteral("/data")).toUtf8());
+        qputenv("XDG_CACHE_HOME", (dir.path() + QStringLiteral("/cache")).toUtf8());
+        qputenv("XDG_STATE_HOME", (dir.path() + QStringLiteral("/state")).toUtf8());
+#endif
         return true;
     }();
     Q_UNUSED(redirected)

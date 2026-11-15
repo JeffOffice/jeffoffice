@@ -127,7 +127,13 @@ public:
     QSize sizeHint() const override { return QSize(300, heightForWidth(300)); }
     QSize minimumSizeHint() const override { return QSize(kTextLeft + kChevronStrip + 60, heightForWidth(kTextLeft + kChevronStrip + 60)); }   // (a row of cards stacks them before they get this narrow)
     bool hasHeightForWidth() const override { return true; }
-    int heightForWidth(int w) const override { return std::max(64, kPad + titleHeight(w) + 2 + descriptionHeight(w) + kPad); }
+    // (a card is never wider than its maximum, so a layout that asks at a wider width gets the height the card will really have)
+    int heightForWidth(int w) const override
+    {
+        w = std::min(w, maximumWidth());
+        return std::max(64, kPad + titleHeight(w) + 2 + descriptionHeight(w) + kPad);
+    }
+    const QString &description() const { return m_desc; }
 
 protected:
     void resizeEvent(QResizeEvent *e) override

@@ -1,6 +1,7 @@
 #pragma once
 // JeffPub's tests of reading and writing .pub files, and templates.
 #include "../plainprobe.h"
+#include "../cardchecks.h"
 #include "pubhelpers.h"
 #include <libmspub/jp_hooks.h>
 #include <private/qabstractfileengine_p.h>
@@ -84,6 +85,7 @@ private Q_SLOTS:
     void templateOptions();
     void changeTemplate();
     void hostilePublicationTextIsShownAsText();
+    void everyCardOfTheBackstageIsWholeAtEveryWidth();
     void textFileImportNeverReadsThePicturesItNames();
     void changeTemplateGallery();
     void templatesFitTheirText();

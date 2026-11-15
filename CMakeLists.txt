@@ -341,6 +341,7 @@ qt_add_executable(jptests
   tests/shell/tst_shell_lossywarn.cpp
   tests/shell/tst_shell_booklet.cpp
   tests/shell/tst_shell_defaults.cpp
+  tests/shell/tst_shell_isolation.cpp
   tests/shell/tst_shell_grammar.cpp
   tests/shell/tst_shell_grammar_rules.cpp
   tests/shell/tst_shell_keymap.cpp
@@ -828,6 +829,9 @@ target_include_directories(crunchtests PRIVATE ${CMAKE_SOURCE_DIR}/tests)
 target_compile_definitions(crunchtests PRIVATE JC_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 # (a test runs the program itself, as it ends: the one this build makes, built before the tests are)
 add_dependencies(crunchtests jeffcrunch)
+# (the isolation test starts every app, to see that none touches the person's settings and data)
+add_dependencies(jptests jeffpub jeffdeck jeffwrite jeffcrunch)
+target_compile_definitions(jptests PRIVATE JO_EXE_PUB="$<TARGET_FILE:jeffpub>" JO_EXE_DECK="$<TARGET_FILE:jeffdeck>" JO_EXE_WRITE="$<TARGET_FILE:jeffwrite>" JO_EXE_CRUNCH="$<TARGET_FILE:jeffcrunch>")
 target_compile_definitions(crunchtests PRIVATE JC_CRUNCH_EXE="$<TARGET_FILE:jeffcrunch>")
 set_target_properties(crunchtests PROPERTIES WIN32_EXECUTABLE OFF)
 add_test(NAME crunchtests COMMAND crunchtests)
