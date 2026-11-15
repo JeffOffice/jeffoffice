@@ -3,6 +3,7 @@
 // out), and offers to save anyway, to save in the app's own full format beside it instead, or to cancel. "Don't ask again for this file" is kept for the session. Check Compatibility in
 // File > Info shows the same list without saving (lossyReport). A test stands in for the dialog with a function.
 
+#include <QList>
 #include <QString>
 #include <QStringList>
 #include <functional>
@@ -39,5 +40,22 @@ void lossyForgetAll();
 
 // A test's answer: given the question and the state of the box's check box (set it to true to say "don't ask again"). An empty function asks as usual.
 void setLossyStandIn(const std::function<LossyChoice(const LossyAsk &ask, bool *dontAskAgain)> &standIn);
+
+// Whether a test has put a function in place of the box.
+bool lossyStandInSet();
+
+// What a window found a file would lose, kept until its document changes (bump() on every change), so that saving the same document again is not worked out twice. `key` tells the
+// kinds apart (a file's ending).
+class LossyCache {
+public:
+    void bump() { ++m_rev; }
+    QStringList get(const QString &key, const std::function<QStringList()> &compute);
+
+private:
+    quint64 m_rev = 0, m_at = 0;
+    bool m_valid = false;
+    QString m_key;
+    QStringList m_lost;
+};
 
 } // namespace jp

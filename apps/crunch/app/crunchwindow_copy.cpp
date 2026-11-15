@@ -163,7 +163,7 @@ void CrunchWindow::onCopyMade(bool ok, const QString &message, const QString &pa
             if (answer == LossAnswer::SaveXlsx) {
                 const bool closing = m_closeAfterSave;
                 setStatus(tr("Not saved as .%1.").arg(crunch::copyKindOf(path)));
-                act("file.saveAs")->trigger();
+                saveAs(lossyOwnFormatPath(path, QStringLiteral(".xlsx")));   // (beside the file, as the other apps do)
                 m_closeAfterSave = closing && (m_saving || !m_saveAfterCalculation.isNull());
             } else {
                 m_closeAfterSave = false;

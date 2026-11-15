@@ -302,13 +302,20 @@ QVector<write::DocVersion> MainWindow::versions() const
     return write::VersionStore(m_ed->filePath(), QStringLiteral(".jpub")).list();
 }
 
+// What a .pub file would lose: what the writer leaves out (hidden objects, lists, the rest; found by writing to memory, kept until the publication changes), a password, and the final mark.
+QStringList MainWindow::pubLosses()
+{
+    QStringList lost = m_lossCache.get(QStringLiteral("pub"), [&] { return publisherLosses(*m_ed->doc()); });
+    if (m_fileProtected) lost << tr("The password: a .pub file can't keep a password.");
+    if (markedAsFinal()) lost << tr("The mark that the publication is final.");
+    return lost;
+}
+
 void MainWindow::checkCompatibility()
 {
     if (!m_ed->doc()) return;
     m_ed->endTextEdit();
-    QStringList lost = publisherLosses(*m_ed->doc());
-    if (m_fileProtected) lost << tr("The password: a .pub file can't keep a password.");
-    if (markedAsFinal()) lost << tr("The mark that the publication is final.");
+    const QStringList lost = pubLosses();
     notice(tr("Check Compatibility"), lossyReport({QString(), tr("publication"), QStringLiteral(".pub"), QStringLiteral(".jpub"), lost}), !lost.isEmpty());
 }
 

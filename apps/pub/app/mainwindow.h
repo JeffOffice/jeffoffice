@@ -5,6 +5,7 @@
 // controls it names in mainwindow_ribbon.cpp.
 
 #include "app/appwindow.h"
+#include "app/lossywarning.h"
 #include "app/missingfonts.h"
 #include "core/pictureinsert.h"
 #include "app/filetasks.h"
@@ -129,6 +130,7 @@ public:
     void setMarkedFinal(bool on);
     QVector<InspectItem> inspectItems();
     void inspectPublication();
+    QStringList pubLosses();   // everything a .pub file would lose, for the save warning and Check Compatibility alike
     void checkCompatibility();   // File > Info: what a .pub file can't hold, said without saving
     QVector<write::DocVersion> versions() const;
     bool saveVersion(const QString &name);
@@ -284,6 +286,7 @@ private:
     QString m_recoveryCopy;         // this window's automatic recovery copy, if written
     QString m_recoveredFrom;        // a recovered document's original file, for Save As
     std::function<void(const QString &, const QString &)> m_notifier;
+    LossyCache m_lossCache;   // what a .pub save would lose, until the publication changes
     bool m_fileProtected = false;   // the file is saved with a password (a .jpub file's package inside the encrypted container)
     QString m_filePassword;
     write::VersionKey m_versions;   // what the versions kept for the file are protected with (they follow a new password when the file is saved)

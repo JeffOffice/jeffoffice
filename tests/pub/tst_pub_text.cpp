@@ -3920,15 +3920,13 @@ private Q_SLOTS:
         QVERIFY(jp::publisherListLosses(*ed->doc()).isEmpty());
         QTemporaryDir dir;
         QString said;
-        QString press;
+        QMessageBox::ButtonRole press = QMessageBox::RejectRole;
         QTimer timer;
         QObject::connect(&timer, &QTimer::timeout, [&] {
             if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
                 said = box->text();
-                if (press == QLatin1String("Cancel")) box->button(QMessageBox::Cancel)->click();
-                else
-                    for (QAbstractButton *b : box->buttons())
-                        if (b->text() == press) b->click();
+                for (QAbstractButton *b : box->buttons())
+                    if (box->buttonRole(b) == press) b->click();
             }
         });
         timer.start(20);
@@ -3939,23 +3937,23 @@ private Q_SLOTS:
             std::function<void(QTextListFormat &)> change;
             const char *word;
         };
-        const QVector<Case> cases = {{[](QTextListFormat &lf) { lf.setProperty(jp::tp::ListLevel, 2); }, "levels"},
-                                     {[](QTextListFormat &lf) { lf.setProperty(jp::tp::BulletColor, QStringLiteral("#CC0000")); }, "colors"},
-                                     {[](QTextListFormat &lf) { lf.setProperty(jp::tp::BulletPicture, QByteArray("png")); }, "picture"},
-                                     {[](QTextListFormat &lf) { lf.setProperty(jp::tp::BulletChar, QStringLiteral("ab")); }, "symbol font"}};
+        const QVector<Case> cases = {{[](QTextListFormat &lf) { lf.setProperty(jp::tp::ListLevel, 2); }, "The levels of list items"},
+                                     {[](QTextListFormat &lf) { lf.setProperty(jp::tp::BulletColor, QStringLiteral("#CC0000")); }, "The colors of bullets"},
+                                     {[](QTextListFormat &lf) { lf.setProperty(jp::tp::BulletPicture, QByteArray("png")); }, "Picture bullets"},
+                                     {[](QTextListFormat &lf) { lf.setProperty(jp::tp::BulletChar, QStringLiteral("ab")); }, "Bullets that no symbol font has"}};
         for (const Case &c : cases) {
             QTextDocument *s = ed->doc()->storyDoc(box->storyId);
             QTextListFormat lf = jp::listFormatOf(bullet);
             c.change(lf);
             QTextCursor edit(s->findBlockByNumber(2));
-            edit.createList(lf);
+            ed->change(QStringLiteral("List"), [&] { edit.createList(lf); });
             said.clear();
-            press = QStringLiteral("Cancel");
+            press = QMessageBox::RejectRole;
             const QString target = dir.filePath(QStringLiteral("x.pub"));
             QVERIFY(!w.saveTo(target));
-            QVERIFY2(said.contains(QLatin1String(c.word), Qt::CaseInsensitive), qPrintable(said));
+            QVERIFY2(said.contains(QLatin1String(c.word)), qPrintable(said));
             QVERIFY(!QFileInfo::exists(target));
-            edit.block().textList()->remove(edit.block());
+            ed->change(QStringLiteral("List"), [&] { edit.block().textList()->remove(edit.block()); });
         }
         QVERIFY(jp::publisherListLosses(*ed->doc()).isEmpty());
         // Start numbers and number text are named too.
@@ -3963,16 +3961,16 @@ private Q_SLOTS:
         stepped.bullet = false;
         stepped.text = QStringLiteral("Step %1:");
         stepped.start = 3;
-        QTextCursor(story->findBlockByNumber(2)).createList(jp::listFormatOf(stepped));
+        ed->change(QStringLiteral("List"), [&] { QTextCursor(story->findBlockByNumber(2)).createList(jp::listFormatOf(stepped)); });
         const QStringList lost = jp::publisherListLosses(*ed->doc());
         QCOMPARE(lost.size(), 2);
         // The three answers.
         said.clear();
-        press = QStringLiteral("Save as .jpub");
+        press = QMessageBox::ActionRole;
         QVERIFY(w.saveTo(dir.filePath(QStringLiteral("b.pub"))));
         QVERIFY(QFileInfo::exists(dir.filePath(QStringLiteral("b.jpub"))));
         QVERIFY(!QFileInfo::exists(dir.filePath(QStringLiteral("b.pub"))));
-        press = QStringLiteral("Save Anyway");
+        press = QMessageBox::AcceptRole;
         QVERIFY(w.saveTo(dir.filePath(QStringLiteral("c.pub"))));
         QVERIFY(QFileInfo::exists(dir.filePath(QStringLiteral("c.pub"))));
     }

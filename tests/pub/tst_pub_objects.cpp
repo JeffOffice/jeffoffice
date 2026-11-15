@@ -2540,13 +2540,13 @@ private Q_SLOTS:
         QTemporaryDir dir;
         QVERIFY(dir.isValid());
         QString said;
-        QString answer = QStringLiteral("Cancel");
+        QMessageBox::ButtonRole answer = QMessageBox::RejectRole;
         QTimer timer;
         QObject::connect(&timer, &QTimer::timeout, [&] {
             if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
                 said = box->text();
                 for (QAbstractButton *b : box->buttons())
-                    if (b->text() == answer) b->click();
+                    if (box->buttonRole(b) == answer) b->click();
             }
         });
         timer.start(20);
@@ -2558,13 +2558,13 @@ private Q_SLOTS:
         said.clear();
         QVERIFY(w.saveTo(dir.filePath(QStringLiteral("a.jpub"))));
         QVERIFY(said.isEmpty());
-        answer = QStringLiteral("Save Anyway");
+        answer = QMessageBox::AcceptRole;
         QVERIFY(w.saveTo(path));
         QVERIFY(QFileInfo::exists(path));
     }
 
-    // The warning before a .pub save is the shared one: it shows the list (the writer's own, here a hidden object), each choice does what it says, a publication that loses nothing shows nothing,
-    // and Check Compatibility lists the same without saving.
+    // The warning before a .pub save is the shared one: it shows the list (the writer's own, here a hidden object, and the password and the final mark), each choice does what it says, a
+    // publication that loses nothing shows nothing, and Check Compatibility lists the same without saving.
     void aLossyPubSaveShowsTheListAndEachChoiceDoesWhatItSays()
     {
         jp::lossyForgetAll();
@@ -2580,7 +2580,7 @@ private Q_SLOTS:
         QVERIFY(dir.isValid());
         int asked = 0;
         QString seen, own;
-        jp::LossyChoice answer = jp::LossyChoice::Cancel;
+        jp::LossyChoice answer = jp::LossyChoice::SaveAnyway;
         bool tick = false;
         jp::setLossyStandIn([&](const jp::LossyAsk &a, bool *dontAsk) {
             ++asked;
@@ -2589,32 +2589,81 @@ private Q_SLOTS:
             *dontAsk = tick;
             return answer;
         });
-        // Nothing lost: nothing is shown.
+        // Nothing lost: nothing is shown, twice (the second save uses what was found).
+        QVERIFY(w.saveTo(dir.filePath(QStringLiteral("plain.pub"))));
         QVERIFY(w.saveTo(dir.filePath(QStringLiteral("plain.pub"))));
         QCOMPARE(asked, 0);
+        // A .jpub shows nothing either.
+        QVERIFY(w.saveTo(dir.filePath(QStringLiteral("plain.jpub"))));
+        QCOMPARE(asked, 0);
+        // A change that loses something is seen at the next save.
         auto s = std::make_shared<jp::ShapeItem>();
         s->hidden = true;
         ed->addItem(s);
-        const QString pub = dir.filePath(QStringLiteral("a.pub"));
-        QVERIFY(!w.saveTo(pub));
+        const QString pub = dir.filePath(QStringLiteral("a.pub")), jpub = dir.filePath(QStringLiteral("a.jpub"));
+        QVERIFY(w.saveTo(pub));
         QCOMPARE(asked, 1);
         QVERIFY2(seen.contains(QStringLiteral("Hidden objects")), qPrintable(seen));
         QCOMPARE(own, QStringLiteral(".jpub"));
-        QVERIFY(!QFileInfo::exists(pub));
+        QVERIFY(QFileInfo::exists(pub));
+        QFile written(pub);
+        QVERIFY(written.open(QIODevice::ReadOnly));
+        const QByteArray pubBytes = written.readAll();
+        written.close();
+        // Cancel: nothing written, still unsaved.
+        ed->change(QStringLiteral("Add"), [&] { ed->addItem(std::make_shared<jp::ShapeItem>()); });
+        QVERIFY(ed->isModified());
+        answer = jp::LossyChoice::Cancel;
+        QVERIFY(!w.saveTo(pub));
+        QVERIFY(ed->isModified());
+        QCOMPARE(ed->filePath(), pub);
+        QFile again(pub);
+        QVERIFY(again.open(QIODevice::ReadOnly));
+        QCOMPARE(again.readAll(), pubBytes);
+        again.close();
+        // Save as the own format: a .jpub beside it, the window is that file and saved, and the .pub is as it was.
         answer = jp::LossyChoice::SaveOwnFormat;
         QVERIFY(w.saveTo(pub));
-        QVERIFY(QFileInfo::exists(dir.filePath(QStringLiteral("a.jpub"))));
-        QVERIFY(!QFileInfo::exists(pub));
+        QVERIFY(QFileInfo::exists(jpub));
+        QCOMPARE(ed->filePath(), jpub);
+        QVERIFY(!ed->isModified());
+        QVERIFY2(w.windowTitle().startsWith(QStringLiteral("a - ")), qPrintable(w.windowTitle()));   // (the name, without its ending)
+        QFile last(pub);
+        QVERIFY(last.open(QIODevice::ReadOnly));
+        QCOMPARE(last.readAll(), pubBytes);
+        last.close();
+        // Don't ask again: the next save of that file is not asked, and the status bar names what was left out.
         answer = jp::LossyChoice::SaveAnyway;
         tick = true;
+        asked = 0;
         QVERIFY(w.saveTo(pub));
-        QVERIFY(QFileInfo::exists(pub));
-        const int before = asked;
+        QCOMPARE(asked, 1);
         QVERIFY(w.saveTo(pub));
-        QCOMPARE(asked, before);
+        QCOMPARE(asked, 1);
+        // (the box is off for this file, and the status bar says what was left out)
+        QVERIFY2(w.statusBar()->currentMessage().contains(QStringLiteral("Hidden objects")), qPrintable(w.statusBar()->currentMessage()));
+        // The final mark and a password are in the same list.
+        jp::lossyForgetAll();
+        tick = false;
+        QStringList told;
+        w.setNotifier([&](const QString &, const QString &text) { told << text; });
+        QVERIFY(w.saveTo(jpub));
+        w.setMarkedFinal(true);   // (a .pub file can't hold the mark, so it is a .jpub that is marked)
+        asked = 0;
+        QVERIFY(w.saveTo(pub));
+        QCOMPARE(asked, 1);
+        QVERIFY2(seen.contains(QStringLiteral("final")), qPrintable(seen));
+        asked = 0;
+        w.checkCompatibility();
+        QVERIFY(!told.isEmpty() && told.last().contains(QStringLiteral("Hidden objects")));
+        QCOMPARE(asked, 0);
+        // A notifier and no stand-in: nothing is asked, the save goes on.
+        jp::setLossyStandIn(nullptr);
+        QVERIFY(w.saveTo(dir.filePath(QStringLiteral("quiet.pub"))));
+        QVERIFY(QFileInfo::exists(dir.filePath(QStringLiteral("quiet.pub"))));
         // (a picture of the real box, when asked for with JO_LOSSY_SHOT: the folder to put it in)
+        w.setNotifier(nullptr);
         if (!qEnvironmentVariableIsEmpty("JO_LOSSY_SHOT")) {
-            jp::setLossyStandIn(nullptr);
             jp::lossyForgetAll();
             QTimer finder;
             QObject::connect(&finder, &QTimer::timeout, [&] {
@@ -2622,15 +2671,11 @@ private Q_SLOTS:
                 if (!box) return;
                 box->grab().save(qEnvironmentVariable("JO_LOSSY_SHOT") + QStringLiteral("/pub.png"));
                 for (QAbstractButton *b : box->buttons())
-                    if (b->text() == QLatin1String("Cancel")) b->click();
+                    if (box->buttonRole(b) == QMessageBox::RejectRole) b->click();
             });
             finder.start(20);
             QVERIFY(!w.saveTo(pub));
         }
-        QStringList told;
-        w.setNotifier([&](const QString &, const QString &text) { told << text; });
-        w.checkCompatibility();
-        QVERIFY(!told.isEmpty() && told.last().contains(QStringLiteral("Hidden objects")));
     }
 
     // A page of 20,000 objects: the pane lists them, Select All, a nudge, and a drag of a row 1,000 places each take about a second at most (the bound is three) (a list copied for each row, a search of the

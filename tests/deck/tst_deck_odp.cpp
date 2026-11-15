@@ -2737,7 +2737,7 @@ private Q_SLOTS:
         int asked = 0;
         QStringList seenLost;
         QString seenOwn;
-        jp::LossyChoice answer = jp::LossyChoice::Cancel;
+        jp::LossyChoice answer = jp::LossyChoice::SaveAnyway;
         bool tick = false;
         jp::setLossyStandIn([&](const jp::LossyAsk &a, bool *dontAsk) {
             ++asked;
@@ -2746,32 +2746,59 @@ private Q_SLOTS:
             *dontAsk = tick;
             return answer;
         });
-        const QString odp = dir.filePath(QStringLiteral("talk.odp"));
-        // Cancel: the list was shown, nothing is written.
-        QVERIFY(!w.saveTo(odp));
+        const QString odp = dir.filePath(QStringLiteral("talk.odp")), pptx = dir.filePath(QStringLiteral("talk.pptx"));
+        // Save anyway: the list was shown, and the .odp is written.
+        QVERIFY(w.saveTo(odp));
         QCOMPARE(asked, 1);
         QVERIFY2(seenLost.join(QLatin1Char('\n')).contains(QStringLiteral("Sections")), qPrintable(seenLost.join(QLatin1Char('\n'))));
         QCOMPARE(seenOwn, QStringLiteral(".pptx"));
-        QVERIFY(!QFileInfo::exists(odp));
-        // Save as the own format: a .pptx beside it, and no .odp.
+        const QByteArray odpBytes = fileBytes(odp);
+        QVERIFY(!odpBytes.isEmpty());
+        // Cancel: nothing is written, and the presentation is still unsaved.
+        w.editor()->change(QStringLiteral("Add"), [&] { deck::addSlide(*w.editor()->doc(), *deck::layoutOfType(*w.editor()->doc(), QStringLiteral("blank"))); });
+        QVERIFY(w.editor()->isModified());
+        answer = jp::LossyChoice::Cancel;
+        QVERIFY(!w.saveTo(odp));
+        QCOMPARE(fileBytes(odp), odpBytes);
+        QVERIFY(w.editor()->isModified());
+        QCOMPARE(w.editor()->filePath(), odp);
+        // Save as the own format: a .pptx beside it, the window is now that file and saved, and the .odp is as it was.
         answer = jp::LossyChoice::SaveOwnFormat;
         QVERIFY(w.saveTo(odp));
-        QVERIFY(QFileInfo::exists(dir.filePath(QStringLiteral("talk.pptx"))));
-        QVERIFY(!QFileInfo::exists(odp));
-        // Save anyway, and don't ask again: written, and the next save of that file is not asked.
+        QVERIFY(QFileInfo::exists(pptx));
+        QCOMPARE(fileBytes(odp), odpBytes);
+        QCOMPARE(w.editor()->filePath(), pptx);
+        QVERIFY(!w.editor()->isModified());
+        QVERIFY2(w.windowTitle().contains(QStringLiteral("talk.pptx")), qPrintable(w.windowTitle()));
+        // A .pptx shows nothing.
+        asked = 0;
+        QVERIFY(w.saveTo(pptx));
+        QCOMPARE(asked, 0);
+        // Don't ask again: written, and the next save of that file is not asked, by its name through a link too.
         answer = jp::LossyChoice::SaveAnyway;
         tick = true;
         QVERIFY(w.saveTo(odp));
-        QVERIFY(QFileInfo::exists(odp));
-        const int before = asked;
+        QCOMPARE(asked, 1);
         QVERIFY(w.saveTo(odp));
-        QCOMPARE(asked, before);
-        // Nothing lost: nothing is shown.
+        QCOMPARE(asked, 1);
+        // Nothing lost: nothing is shown; a change that loses something is seen at the next save (what was found is not kept past a change).
         jp::lossyForgetAll();
         DeckWindow plain;
         asked = 0;
-        QVERIFY(plain.saveTo(dir.filePath(QStringLiteral("plain.odp"))));
+        const QString plainPath = dir.filePath(QStringLiteral("plain.odp"));
+        QVERIFY(plain.saveTo(plainPath));
+        QVERIFY(plain.saveTo(plainPath));
         QCOMPARE(asked, 0);
+        plain.editor()->change(QStringLiteral("Add"), [&] { deck::addSection(*plain.editor()->doc(), 0, QStringLiteral("New")); });
+        QVERIFY(plain.saveTo(plainPath));
+        QCOMPARE(asked, 1);
+        // A template of that kind offers a .potx.
+        jp::lossyForgetAll();
+        answer = jp::LossyChoice::SaveOwnFormat;
+        QVERIFY(w.saveTo(dir.filePath(QStringLiteral("design.otp"))));
+        QCOMPARE(seenOwn, QStringLiteral(".potx"));
+        QVERIFY(QFileInfo::exists(dir.filePath(QStringLiteral("design.potx"))));
+        QVERIFY(!QFileInfo::exists(dir.filePath(QStringLiteral("design.otp"))));
         // (a picture of the real box, when asked for with JO_LOSSY_SHOT: the folder to put it in)
         if (!qEnvironmentVariableIsEmpty("JO_LOSSY_SHOT")) {
             jp::setLossyStandIn(nullptr);
@@ -2782,17 +2809,53 @@ private Q_SLOTS:
                 if (!box) return;
                 box->grab().save(qEnvironmentVariable("JO_LOSSY_SHOT") + QStringLiteral("/deck.png"));
                 for (QAbstractButton *b : box->buttons())
-                    if (b->text() == QLatin1String("Cancel")) b->click();
+                    if (box->buttonRole(b) == QMessageBox::RejectRole) b->click();
             });
             finder.start(20);
             QVERIFY(!w.saveTo(odp));
         }
         // Check Compatibility lists the same without saving.
+        jp::setLossyStandIn([&](const jp::LossyAsk &, bool *) {
+            ++asked;
+            return jp::LossyChoice::Cancel;
+        });
+        asked = 0;
         QStringList told;
         w.setNotifier([&](const QString &, const QString &text) { told << text; });
         w.checkCompatibility();
         QVERIFY(!told.isEmpty() && told.last().contains(QStringLiteral("Sections")));
         QCOMPARE(asked, 0);
+    }
+
+    // A window with a notifier and no stand-in (as a test has) is never stopped by the box: the save goes on.
+    void aLossyOdpSaveWithNoStandInAndANotifierAsksNothing()
+    {
+        jp::lossyForgetAll();
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        DeckWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        deck::addSection(*w.editor()->doc(), 0, QStringLiteral("Opening"));
+        QVERIFY(w.saveTo(dir.filePath(QStringLiteral("talk.odp"))));
+        QVERIFY(QFileInfo::exists(dir.filePath(QStringLiteral("talk.odp"))));
+    }
+
+    // The final mark, which an .odp can't hold, is in the one list, not a message of its own; and the file is saved without it.
+    void theFinalMarkIsInTheOdpList()
+    {
+        jp::lossyForgetAll();
+        const auto reset = qScopeGuard([] { jp::setLossyStandIn(nullptr); });
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        DeckWindow w;
+        w.setMarkedFinal(true);
+        QStringList seen;
+        jp::setLossyStandIn([&](const jp::LossyAsk &a, bool *) {
+            seen = a.lost;
+            return jp::LossyChoice::SaveAnyway;
+        });
+        QVERIFY(w.saveTo(dir.filePath(QStringLiteral("final.odp"))));
+        QVERIFY2(seen.join(QLatin1Char(' ')).contains(QStringLiteral("final")), qPrintable(seen.join(QLatin1Char(' '))));
     }
 };
 

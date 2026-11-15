@@ -189,6 +189,10 @@ MainWindow::MainWindow(QWidget *parent) : AppWindow(parent)
     connect(&m_refreshTimer, &QTimer::timeout, this, &MainWindow::refreshUi);
     auto queue = [this] { m_refreshTimer.start(); };
     connect(m_ed, &Editor::changed, this, queue);
+    // (what a save would lose is worked out again after any change)
+    connect(m_ed, &Editor::changed, this, [this] { m_lossCache.bump(); });
+    connect(m_ed, &Editor::documentReplaced, this, [this] { m_lossCache.bump(); });
+    connect(m_ed->undoStack(), &QUndoStack::indexChanged, this, [this] { m_lossCache.bump(); });
     connect(m_ed, &Editor::selectionChanged, this, [this, queue] { updateContextTabs(); queue(); });
     connect(m_ed, &Editor::textCursorChanged, this, queue);
     connect(m_ed, &Editor::pageChanged, this, [this, queue] { m_pages->refresh(); queue(); });
@@ -675,31 +679,28 @@ bool MainWindow::saveTo(const QString &pathIn, bool asCopy)
         else jp::plainWarning(this, tr("Save"), text);
         return false;
     }
-    // A .pub file can't keep a password: the person is asked before it is written without one.
     const bool toPub = path.endsWith(QLatin1String(".pub"), Qt::CaseInsensitive);
-    if (toPub && m_fileProtected
-        && jp::plainQuestion(this, tr("Save"), tr("This publication is protected with a password, and a .pub file can't keep a password. Save it as a .pub file without one?"), QMessageBox::Yes | QMessageBox::No,
-                             QMessageBox::No) != QMessageBox::Yes)
-        return false;
-    // Nor can it keep everything else: what would be lost (the writer's own list) is named, and the person chooses to save anyway, to save as a .jpub instead, or to cancel.
+    // A .pub file can't keep a password, a hidden object, every list, or the mark that it is final, and more: what would be lost (the writer's own list) is named in one box, and the person chooses
+    // to save anyway, to save as a .jpub instead, or to cancel. (With neither a stand-in nor a window that says things itself, as a test has, nothing is asked.)
+    QStringList lostNow;
     if (toPub) {
         m_ed->endTextEdit();
-        const LossyChoice choice = askLossy(this, {path, tr("publication"), QStringLiteral(".pub"), QStringLiteral(".jpub"), lossyAskedNotAgain(path) ? QStringList() : publisherLosses(*m_ed->doc())});
-        if (choice == LossyChoice::Cancel) return false;
-        if (choice == LossyChoice::SaveOwnFormat) return saveTo(lossyOwnFormatPath(path, QStringLiteral(".jpub")), asCopy);
+        lostNow = pubLosses();
+        if (lossyStandInSet() || !m_notifier) {
+            const LossyChoice choice = askLossy(this, {path, tr("publication"), QStringLiteral(".pub"), QStringLiteral(".jpub"), lostNow});
+            if (choice == LossyChoice::Cancel) return false;
+            if (choice == LossyChoice::SaveOwnFormat) return saveTo(lossyOwnFormatPath(path, QStringLiteral(".jpub")), asCopy);
+        }
     }
     const QString password = m_fileProtected && !toPub ? m_filePassword : QString();
-    QString err;
+    QString err, leftOut;
     const QImage thumb = pageThumbnail(0, 256);
     m_ed->endTextEdit();
     // Options > Save > Remove personal information: the names in the properties (the author, who saved last, the company, and the manager) are left out of the file that is written; the open
     // publication keeps them, and nothing of it changes.
     NamesOutScope namesOut(m_ed->doc()->props, privacy::removeOnSave());
-    // The mark that a publication is final is a property a .pub file does not keep: said, so that the window and the file do not disagree.
-    if (path.endsWith(QLatin1String(".pub"), Qt::CaseInsensitive) && markedAsFinal()) {
-        notice(tr("Save"), tr("This publication is marked as final, and a .pub file can't hold that mark. The file is saved without it."));
-        if (!asCopy) m_ed->doc()->props.custom = office::withMarkAsFinal(m_ed->doc()->props.custom, false);
-    }
+    // The mark that a publication is final is a property a .pub file does not keep: it was said in the list before, and the file is saved without it.
+    if (path.endsWith(QLatin1String(".pub"), Qt::CaseInsensitive) && markedAsFinal() && !asCopy) m_ed->doc()->props.custom = office::withMarkAsFinal(m_ed->doc()->props.custom, false);
     // Options > "Always create backup copy": the file as it was before this save is kept as "Backup of <name>".
     if (!backupBeforeSave(this, path, password)) return false;
     if (path.endsWith(QLatin1String(".pub"), Qt::CaseInsensitive)) {
@@ -707,6 +708,7 @@ bool MainWindow::saveTo(const QString &pathIn, bool asCopy)
             jp::plainWarning(this, tr("Save"), err);
             return false;
         }
+        leftOut = lostNow.join(QStringLiteral("; "));   // (said in the status bar below: the box may have been switched off for this file)
     } else {
         if (!path.endsWith(QLatin1String(".jpub"), Qt::CaseInsensitive)) path += QStringLiteral(".jpub");
         // (a copy has the time and the author a save gives, and the publication open here keeps its own)
@@ -745,10 +747,12 @@ bool MainWindow::saveTo(const QString &pathIn, bool asCopy)
     telemetry::count(path.endsWith(QLatin1String(".pub"), Qt::CaseInsensitive) ? QStringLiteral("file.save.pub") : QStringLiteral("file.save.jpub"));
     updateTitle();
     if (asCopy) {
-        statusBar()->showMessage(tr("Saved a copy as %1").arg(QFileInfo(path).fileName()), 4000);
+        if (!leftOut.isEmpty()) statusBar()->showMessage(tr("Saved a copy as %1. Left out, as this kind of file can't hold it: %2").arg(QFileInfo(path).fileName(), leftOut), 15000);
+        else statusBar()->showMessage(tr("Saved a copy as %1").arg(QFileInfo(path).fileName()), 4000);
         return true;
     }
-    statusBar()->showMessage(tr("Saved %1").arg(QFileInfo(path).fileName()), 4000);
+    if (!leftOut.isEmpty()) statusBar()->showMessage(tr("Saved %1. Left out, as this kind of file can't hold it: %2").arg(QFileInfo(path).fileName(), leftOut), 15000);
+    else statusBar()->showMessage(tr("Saved %1").arg(QFileInfo(path).fileName()), 4000);
     return true;
 }
 

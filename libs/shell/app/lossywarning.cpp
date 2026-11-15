@@ -13,7 +13,14 @@ namespace jp {
 
 namespace {
 
-constexpr int kMaxRemembered = 1000;   // (files the person said not to ask about: more than that are not kept)
+constexpr int kMaxRemembered = 1000;   // (files the person said not to ask about: past that the oldest is forgotten)
+
+// The files, oldest first; the set is for the look-up.
+QList<QString> &order()
+{
+    static QList<QString> list;
+    return list;
+}
 
 QSet<QString> &notAgain()
 {
@@ -27,11 +34,17 @@ std::function<LossyChoice(const LossyAsk &, bool *)> &standIn()
     return f;
 }
 
+// The same file has the same key before it is saved (it does not exist yet) and after: the folder is made canonical (a link, a short name, /var on a Mac) and the file's name is added as written.
+// Names are not told apart by case where the system doesn't.
 QString keyOf(const QString &path)
 {
     const QFileInfo info(path);
-    const QString canonical = info.canonicalFilePath();
-    return canonical.isEmpty() ? info.absoluteFilePath() : canonical;
+    const QString dir = QFileInfo(info.absolutePath()).canonicalFilePath();
+    QString key = (dir.isEmpty() ? info.absolutePath() : dir) + QLatin1Char('/') + info.fileName();
+#if defined(Q_OS_WIN) || defined(Q_OS_MACOS)
+    key = key.toCaseFolded();
+#endif
+    return key;
 }
 
 QString listText(const QStringList &lost)
@@ -62,7 +75,13 @@ QString lossyOwnFormatPath(const QString &path, const QString &ownFormat)
 
 bool lossyAskedNotAgain(const QString &path) { return notAgain().contains(keyOf(path)); }
 
-void lossyForgetAll() { notAgain().clear(); }
+void lossyForgetAll()
+{
+    notAgain().clear();
+    order().clear();
+}
+
+bool lossyStandInSet() { return bool(standIn()); }
 
 void setLossyStandIn(const std::function<LossyChoice(const LossyAsk &, bool *)> &f) { standIn() = f; }
 
@@ -89,8 +108,25 @@ LossyChoice askLossy(QWidget *parent, const LossyAsk &ask)
         dontAsk = check->isChecked();
         choice = box.clickedButton() == anyway ? LossyChoice::SaveAnyway : box.clickedButton() == own ? LossyChoice::SaveOwnFormat : LossyChoice::Cancel;
     }
-    if (choice == LossyChoice::SaveAnyway && dontAsk && notAgain().size() < kMaxRemembered) notAgain().insert(keyOf(ask.path));
+    if (choice == LossyChoice::SaveAnyway && dontAsk) {
+        const QString key = keyOf(ask.path);
+        if (!notAgain().contains(key)) {
+            notAgain().insert(key);
+            order().append(key);
+            while (order().size() > kMaxRemembered) notAgain().remove(order().takeFirst());
+        }
+    }
     return choice;
+}
+
+QStringList LossyCache::get(const QString &key, const std::function<QStringList()> &compute)
+{
+    if (m_valid && m_at == m_rev && m_key == key) return m_lost;
+    m_lost = compute();
+    m_key = key;
+    m_at = m_rev;
+    m_valid = true;
+    return m_lost;
 }
 
 } // namespace jp

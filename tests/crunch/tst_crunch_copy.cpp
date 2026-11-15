@@ -224,13 +224,14 @@ private Q_SLOTS:
             Win o;
             QVERIFY(o.open(xlsxWithRules(), QStringLiteral("rules.xlsx")));
             o.lossAnswer = CrunchWindow::LossAnswer::SaveXlsx;
-            o.answer = o.dir.filePath(QStringLiteral("other.xlsx"));
             QSignalSpy copied(&o.w, &CrunchWindow::copyExported), saved(&o.w, &CrunchWindow::saved);
             QVERIFY(o.w.saveAs(o.dir.filePath(QStringLiteral("copy.xls"))));
             QVERIFY(copied.count() > 0 || copied.wait(20000));
             QCOMPARE(copied.first().at(1).toBool(), false);
             QVERIFY(saved.count() > 0 || saved.wait(20000));
-            QVERIFY(QFile::exists(o.answer));
+            // (written beside the name asked for, with no file box)
+            QVERIFY(QFile::exists(o.dir.filePath(QStringLiteral("copy.xlsx"))));
+            QVERIFY(o.asked.isEmpty());
             QVERIFY(!QFile::exists(o.dir.filePath(QStringLiteral("copy.xls"))));
         }
     }

@@ -74,6 +74,10 @@ void DeckWindow::createSaveActions()
         m_versions.reset();
         m_personalInfoRemoved = false;
     });
+    // (what a save would lose is worked out again after any change)
+    connect(m_ed, &Editor::changed, this, [this] { m_lossCache.bump(); });
+    connect(m_ed, &Editor::documentReplaced, this, [this] { m_lossCache.bump(); });
+    connect(m_ed->undoStack(), &QUndoStack::indexChanged, this, [this] { m_lossCache.bump(); });
     connect(m_ed, &Editor::modifiedChanged, this, [this](bool modified) {
         if (!modified) dropRecoveryCopy();
     });
@@ -176,14 +180,19 @@ bool embedFontsOnSave() { return Settings::get().value(QStringLiteral("save/embe
 
 } // namespace
 
-// What the open document kind would leave out of the presentation, by writing it to memory as a save would; nothing is put on disk. Nothing is worked out for a file the person asked not to be asked about.
+// What the open document kind would leave out of the presentation: what the writer leaves out (found by writing to memory as a save would, kept until the presentation changes; nothing is put on
+// disk), and the mark that it is final. A password is not here: a protected presentation is never saved as .odp (saveTo says so first). Check Compatibility lists the same, and the password.
 QStringList DeckWindow::odpLosses(const QString &path)
 {
-    QStringList skipped;
-    if (lossyAskedNotAgain(path)) return skipped;
-    QString err;
-    deck::exportOdp(*m_ed->doc(), deck::presentationKindOf(path) == deck::PresentationKind::Template, &err, &skipped);
-    return skipped;
+    const bool tmpl = deck::presentationKindOf(path) == deck::PresentationKind::Template;
+    QStringList lost = m_lossCache.get(tmpl ? QStringLiteral("otp") : QStringLiteral("odp"), [&] {
+        QStringList skipped;
+        QString err;
+        deck::exportOdp(*m_ed->doc(), tmpl, &err, &skipped);
+        return skipped;
+    });
+    if (markedAsFinal()) lost << tr("The mark that the presentation is final.");
+    return lost;
 }
 
 bool DeckWindow::saveTo(const QString &path, bool asCopy)
@@ -207,8 +216,8 @@ bool DeckWindow::saveTo(const QString &path, bool asCopy)
     m_ed->endTextEdit();
     m_ed->endCrop(true);   // what is written is a step, and a crop still going on is not yet
     // What an .odp file can't hold is said before anything is written, with the choice of a .pptx beside it (the list is what the writer itself leaves out).
-    if (odf) {
-        const QStringList lost = odpLosses(path);
+    if (odf && (lossyStandInSet() || !m_notifier)) {
+        const QStringList lost = lossyAskedNotAgain(path) ? QStringList() : odpLosses(path);
         const bool tmpl = deck::presentationKindOf(path) == deck::PresentationKind::Template;
         const LossyChoice choice = askLossy(this, {path, tr("presentation"), QStringLiteral(".") + QFileInfo(path).suffix().toLower(), tmpl ? QStringLiteral(".potx") : QStringLiteral(".pptx"), lost});
         if (choice == LossyChoice::Cancel) return false;
@@ -218,11 +227,8 @@ bool DeckWindow::saveTo(const QString &path, bool asCopy)
     const bool namesOut = privacy::removeOnSave();
     QStringList namesProblems;
     Document *doc = m_ed->doc();
-    // The mark that a presentation is final is a property a .odp file does not keep: said, so that the window and the file do not disagree.
-    if (odf && markedAsFinal()) {
-        notice(tr("Save"), tr("This presentation is marked as final, and a .odp file can't hold that mark. The file is saved without it."));
-        if (!asCopy) doc->props.custom = office::withMarkAsFinal(doc->props.custom, false);
-    }
+    // The mark that a presentation is final is a property a .odp file does not keep: it was said in the list before, and the file is saved without it.
+    if (odf && markedAsFinal() && !asCopy) doc->props.custom = office::withMarkAsFinal(doc->props.custom, false);
     // (a copy has the time and the author a save gives, and the presentation open here keeps its own)
     const QDateTime modifiedBefore = doc->props.modified;
     const QString authorBefore = doc->props.author;

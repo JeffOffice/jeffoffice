@@ -4,6 +4,7 @@
 #include "../testrunner.h"
 
 #include <QCheckBox>
+#include <QDir>
 #include <QFile>
 #include <QMessageBox>
 #include <QPushButton>
@@ -93,6 +94,7 @@ private Q_SLOTS:
     {
         QString text;
         QStringList buttons;
+        QList<QMessageBox::ButtonRole> roles;
         bool hasCheck = false;
         QTimer finder;
         QObject::connect(&finder, &QTimer::timeout, [&] {
@@ -100,16 +102,19 @@ private Q_SLOTS:
             if (!box) return;
             text = box->text();
             for (QAbstractButton *b : box->buttons()) buttons << b->text();
+            for (QAbstractButton *b : box->buttons()) roles << box->buttonRole(b);
+            std::sort(roles.begin(), roles.end());
             hasCheck = box->checkBox() && box->checkBox()->text().contains(QLatin1String("again"));
             box->checkBox()->setChecked(true);
             for (QAbstractButton *b : box->buttons())
-                if (b->text() == QLatin1String("Save Anyway")) b->click();
+                if (box->buttonRole(b) == QMessageBox::AcceptRole) b->click();
         });
         finder.start(20);
         const LossyAsk ask{QStringLiteral("/tmp/x/a.odp"), QStringLiteral("presentation"), QStringLiteral(".odp"), QStringLiteral(".pptx"), {QStringLiteral("Sections"), QStringLiteral("Glows")}};
         QCOMPARE(askLossy(nullptr, ask), LossyChoice::SaveAnyway);
         QVERIFY(text.contains(QLatin1String("Sections")) && text.contains(QLatin1String("Glows")) && text.contains(QLatin1String(".odp")));
         QVERIFY(buttons.contains(QStringLiteral("Save Anyway")) && buttons.contains(QStringLiteral("Save as .pptx")));
+        QCOMPARE(roles, (QList<QMessageBox::ButtonRole>{QMessageBox::AcceptRole, QMessageBox::RejectRole, QMessageBox::ActionRole}));
         QVERIFY(hasCheck);
         QVERIFY(lossyAskedNotAgain(ask.path));
     }
@@ -134,6 +139,66 @@ private Q_SLOTS:
         QVERIFY(f.open(QIODevice::WriteOnly));
         f.close();
         QCOMPARE(lossyOwnFormatPath(odp, QStringLiteral(".pptx")), dir.filePath(QStringLiteral("deck (2).pptx")));
+    }
+
+    // The same file is the same file before it is saved and after, and by another way to its folder (a link, as /var is on a Mac, or a short name on Windows).
+    void theSameFileHasTheSameKeyBeforeAndAfterItExists()
+    {
+#ifdef Q_OS_WIN
+        QSKIP("a link needs more than a plain folder here");
+#else
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QVERIFY(QDir(dir.path()).mkdir(QStringLiteral("real")));
+        QVERIFY(QFile::link(dir.filePath(QStringLiteral("real")), dir.filePath(QStringLiteral("link"))));
+        setLossyStandIn([&](const LossyAsk &, bool *dontAsk) {
+            *dontAsk = true;
+            return LossyChoice::SaveAnyway;
+        });
+        const QString viaLink = dir.filePath(QStringLiteral("link/a.odp")), real = dir.filePath(QStringLiteral("real/a.odp"));
+        // (not saved yet: the file is not there)
+        askLossy(nullptr, {viaLink, QStringLiteral("presentation"), QStringLiteral(".odp"), QStringLiteral(".pptx"), {QStringLiteral("Sections")}});
+        QVERIFY(lossyAskedNotAgain(viaLink));
+        QFile f(real);
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.close();
+        // (saved: the file is there, and is named by its real folder)
+        QVERIFY(lossyAskedNotAgain(real));
+        QVERIFY(lossyAskedNotAgain(viaLink));
+        QVERIFY(!lossyAskedNotAgain(dir.filePath(QStringLiteral("real/b.odp"))));
+#endif
+    }
+
+    void pastTheCapTheOldestIsForgottenAndTheNewestKept()
+    {
+        setLossyStandIn([&](const LossyAsk &, bool *dontAsk) {
+            *dontAsk = true;
+            return LossyChoice::SaveAnyway;
+        });
+        const auto ask = [](int n) { return LossyAsk{QStringLiteral("/nonexistent-folder/f%1.odp").arg(n), QStringLiteral("presentation"), QStringLiteral(".odp"), QStringLiteral(".pptx"), {QStringLiteral("Sections")}}; };
+        for (int n = 0; n < 1005; ++n) askLossy(nullptr, ask(n));
+        QVERIFY(!lossyAskedNotAgain(ask(0).path));
+        QVERIFY(!lossyAskedNotAgain(ask(4).path));
+        QVERIFY(lossyAskedNotAgain(ask(5).path));
+        QVERIFY(lossyAskedNotAgain(ask(1004).path));
+    }
+
+    void whatAWindowFoundIsKeptUntilItsDocumentChanges()
+    {
+        LossyCache cache;
+        int worked = 0;
+        const auto compute = [&] {
+            ++worked;
+            return QStringList{QStringLiteral("Sections")};
+        };
+        QCOMPARE(cache.get(QStringLiteral("odp"), compute), QStringList{QStringLiteral("Sections")});
+        cache.get(QStringLiteral("odp"), compute);
+        QCOMPARE(worked, 1);
+        cache.get(QStringLiteral("otp"), compute);   // (another kind)
+        QCOMPARE(worked, 2);
+        cache.bump();
+        cache.get(QStringLiteral("otp"), compute);
+        QCOMPARE(worked, 3);
     }
 };
 

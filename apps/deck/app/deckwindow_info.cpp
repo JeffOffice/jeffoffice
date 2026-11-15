@@ -401,11 +401,8 @@ void DeckWindow::checkCompatibility()
     m_notes->commit();
     if (m_outline) m_outline->commit();
     m_ed->endTextEdit();
-    QStringList lost;
-    QString err;
-    deck::exportOdp(*m_ed->doc(), false, &err, &lost);
+    QStringList lost = odpLosses(QStringLiteral("x.odp"));
     if (m_fileProtected) lost << tr("The password: a .odp file can't hold a password yet.");
-    if (markedAsFinal()) lost << tr("The mark that the presentation is final.");
     notice(tr("Check Compatibility"), lossyReport({QString(), tr("presentation"), QStringLiteral(".odp"), QStringLiteral(".pptx"), lost}), !lost.isEmpty());
 }
 

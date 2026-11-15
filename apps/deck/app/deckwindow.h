@@ -3,6 +3,7 @@
 // edited with its notes below, and the status bar.
 
 #include "app/appwindow.h"
+#include "app/lossywarning.h"
 #include "app/missingfonts.h"
 #include "app/filetasks.h"
 #include "app/formatpane.h"
@@ -564,6 +565,7 @@ private:
     recovery::AsyncWriter m_recoveryWriter{this};   // makes the copy on a worker thread
     QString m_recoveredFrom;     // a recovered presentation's original file, for Save As
     std::function<void(const QString &, const QString &)> m_notifier;
+    LossyCache m_lossCache;   // what an .odp save would lose, until the presentation changes
     std::function<bool(const QUrl &)> m_urlOpener;
     QString m_templatePath;      // a template this window wrote: saving again writes over it
     std::function<QString(const QString &, const QString &)> m_pathChooser;
