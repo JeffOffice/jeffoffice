@@ -1670,9 +1670,10 @@ private Q_SLOTS:
         QString handout = QString::fromUtf8(e.zip.value(QStringLiteral("ppt/handoutMasters/handoutMaster1.xml")));
         // Places far outside the page, negative, and too big for any number; and thousands of shapes before the places that count.
         QString crowd;
-        for (int i = 0; i < 20000; ++i) crowd += QStringLiteral("<p:sp><p:nvSpPr><p:cNvPr id=\"%1\" name=\"x\"/><p:cNvSpPr/><p:nvPr><p:ph type=\"hdr\" idx=\"%1\"/></p:nvPr></p:nvSpPr><p:spPr><a:xfrm><a:off x=\"5\" y=\"5\"/><a:ext cx=\"100\" cy=\"100\"/></a:xfrm></p:spPr></p:sp>").arg(1000 + i);
+        for (int i = 0; i < 3000; ++i) crowd += QStringLiteral("<p:sp><p:nvSpPr><p:cNvPr id=\"%1\" name=\"x\"/><p:cNvSpPr/><p:nvPr><p:ph type=\"hdr\" idx=\"%1\"/></p:nvPr></p:nvSpPr><p:spPr><a:xfrm><a:off x=\"5\" y=\"5\"/><a:ext cx=\"100\" cy=\"100\"/></a:xfrm></p:spPr></p:sp>").arg(1000 + i);
         const QRegularExpression offs(QStringLiteral("<a:off x=\"\\d+\" y=\"\\d+\"/><a:ext cx=\"\\d+\" cy=\"\\d+\"/>"));
         QString wild = notes;
+        wild.replace(QStringLiteral("<p:spTree>"), QStringLiteral("<p:spTree>") + crowd);
         wild.replace(offs, QStringLiteral("<a:off x=\"-9000000000000\" y=\"99999999999999999999\"/><a:ext cx=\"9223372036854775807\" cy=\"-5\"/>"));
         QString wildHandout = handout;
         wildHandout.replace(offs, QStringLiteral("<a:off x=\"1e9\" y=\"NaN\"/><a:ext cx=\"0\" cy=\"0\"/>"));
@@ -1692,6 +1693,8 @@ private Q_SLOTS:
         auto read = deck::importPresentation(zip.finish(), &err);
         QVERIFY2(read, qPrintable(err));
         QVERIFY2(timer.elapsed() < 20000, "the crowd of shapes costs bounded work");
+        // The cap is what bounds it: of 3,000 shapes in each master, no more than kMaxMasterShapes are looked at (and that many were, so the cap was reached).
+        QCOMPARE(deck::pptxImportWorkForTest().masterShapesRead, qint64(deck::kMaxMasterShapes));
         const QSizeF page(540, 720);
         for (const QRectF &r : {deck::notesMasterOf(*read, page).header, deck::notesMasterOf(*read, page).body, deck::notesMasterOf(*read, page).slideImage, deck::handoutMasterOf(*read, page).area,
                                 deck::handoutMasterOf(*read, page).header}) {
@@ -1699,6 +1702,94 @@ private Q_SLOTS:
         }
         QVERIFY(deck::isHandoutCount(deck::handoutMasterOf(*read, page).perPage));
         QVERIFY(!deck::hasHandoutPerPage(*read));
+    }
+
+    // Reset Layout on a handout master a file had puts the standard's places back for good: what the file had is let go, so saving and opening again reads the standard's places.
+    void resettingAForeignHandoutMasterSticks()
+    {
+        auto d = deck::newPresentation();
+        deck::PrintHeaderFooter hf;
+        hf.header = true;
+        hf.headerText = QStringLiteral("Head");
+        deck::setPrintHeaderFooter(*d, deck::PrintedPages::Handouts, hf);
+        QString err;
+        Exported first;
+        QString why;
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &first, &why), qPrintable(why));
+        const QString name = QStringLiteral("ppt/handoutMasters/handoutMaster1.xml");
+        QString foreign = QString::fromUtf8(first.zip.value(name));
+        foreign.replace(QRegularExpression(QStringLiteral("<p:bg>.*</p:bg>")), QStringLiteral("<p:bg><p:bgPr><a:solidFill><a:srgbClr val=\"112233\"/></a:solidFill><a:effectLst/></p:bgPr></p:bg>"));
+        foreign.replace(QStringLiteral("<a:off x=\"0\" y=\"0\"/><a:ext cx=\"2971800\""), QStringLiteral("<a:off x=\"1000000\" y=\"2000000\"/><a:ext cx=\"1500000\""));
+        ZipWriter zip;
+        for (auto it = first.zip.cbegin(); it != first.zip.cend(); ++it) zip.add(it.key(), it.key() == name ? foreign.toUtf8() : it.value(), true);
+        auto read = deck::importPresentation(zip.finish(), &err);
+        QVERIFY2(read, qPrintable(err));
+        QVERIFY(deck::hasHandoutMaster(*read));
+        QVERIFY(!deck::keptHandoutMaster(*read).isEmpty());
+        deck::clearHandoutMaster(*read);
+        QVERIFY(!deck::hasHandoutMaster(*read) && deck::keptHandoutMaster(*read).isEmpty());
+        QVERIFY(!read->appData.contains(QStringLiteral("handoutMasterReadLayout")));
+        auto again = deck::importPresentation(deck::exportPresentation(*read, &err), &err);
+        QVERIFY2(again, qPrintable(err));
+        QVERIFY2(!deck::hasHandoutMaster(*again), "the standard's places");
+        Exported out;
+        QVERIFY2(unpack(deck::exportPresentation(*read, &err), &out, &why), qPrintable(why));
+        QVERIFY(!part(out, QStringLiteral("/") + name).contains(QLatin1String("112233")));
+        // (the header text the person chose is still there)
+        QCOMPARE(deck::printHeaderFooter(*again, deck::PrintedPages::Handouts).headerText, QStringLiteral("Head"));
+    }
+
+    // A handout master written by hand, as another program may write one (an alternate-content block, an extension list with more than ours, and an extension nobody here knows):
+    // read and written with no change it is the same bytes; changed once, everything it had that we do not know is still there.
+    void aForeignHandoutMasterKeepsWhatItHas()
+    {
+        const QString xml = QStringLiteral(
+            "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n"
+            "<p:handoutMaster xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" "
+            "xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\" xmlns:mc=\"http://schemas.openxmlformats.org/markup-compatibility/2006\" xmlns:x=\"urn:example:unknown\">"
+            "<p:cSld><p:bg><p:bgPr><a:solidFill><a:srgbClr val=\"EEEEEE\"/></a:solidFill><a:effectLst/></p:bgPr></p:bg><p:spTree>"
+            "<p:nvGrpSpPr><p:cNvPr id=\"1\" name=\"\"/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/>"
+            "<p:sp><p:nvSpPr><p:cNvPr id=\"2\" name=\"Header Placeholder 1\"/><p:cNvSpPr/><p:nvPr><p:ph type=\"hdr\" sz=\"quarter\"/></p:nvPr></p:nvSpPr>"
+            "<p:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"2971800\" cy=\"458788\"/></a:xfrm></p:spPr><p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:endParaRPr lang=\"en-US\"/></a:p></p:txBody></p:sp>"
+            "<mc:AlternateContent><mc:Choice Requires=\"x\"><p:sp><p:nvSpPr><p:cNvPr id=\"50\" name=\"ChoiceShape\"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr/></p:sp></mc:Choice>"
+            "<mc:Fallback><p:sp><p:nvSpPr><p:cNvPr id=\"51\" name=\"FallbackShape\"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr/></p:sp></mc:Fallback></mc:AlternateContent>"
+            "</p:spTree><p:extLst><p:ext uri=\"{AAAAAAAA-0000-4000-8000-000000000001}\"><x:thing x:keep=\"yes\"/></p:ext>"
+            "<p:ext uri=\"{AAAAAAAA-0000-4000-8000-000000000002}\"><x:other/></p:ext></p:extLst></p:cSld>"
+            "<p:clrMap bg1=\"lt1\" tx1=\"dk1\" bg2=\"lt2\" tx2=\"dk2\" accent1=\"accent1\" accent2=\"accent2\" accent3=\"accent3\" accent4=\"accent4\" accent5=\"accent5\" accent6=\"accent6\" hlink=\"hlink\" folHlink=\"folHlink\"/>"
+            "<p:hf hdr=\"1\" ftr=\"0\" dt=\"0\" sldNum=\"1\"/>"
+            "<p:extLst><p:ext uri=\"{BBBBBBBB-0000-4000-8000-000000000003}\"><x:handoutOnly/></p:ext></p:extLst></p:handoutMaster>");
+        auto d = deck::newPresentation();
+        deck::PrintHeaderFooter hf;
+        hf.header = true;
+        deck::setPrintHeaderFooter(*d, deck::PrintedPages::Handouts, hf);
+        QString err, why;
+        Exported base;
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &base, &why), qPrintable(why));
+        const QString name = QStringLiteral("ppt/handoutMasters/handoutMaster1.xml");
+        ZipWriter zip;
+        for (auto it = base.zip.cbegin(); it != base.zip.cend(); ++it) zip.add(it.key(), it.key() == name ? xml.toUtf8() : it.value(), true);
+        const QByteArray file = zip.finish();
+        auto read = deck::importPresentation(file, &err);
+        QVERIFY2(read, qPrintable(err));
+        Exported same;
+        QVERIFY2(unpack(deck::exportPresentation(*read, &err), &same, &why), qPrintable(why));
+        QCOMPARE(same.zip.value(name), xml.toUtf8());
+        // Edited once: the header moves, and the handouts lie across.
+        deck::HandoutMaster m = deck::handoutMasterOf(*read, QSizeF(540, 720));
+        m.custom = true;
+        m.header = QRectF(0.2, 0.2, 0.3, 0.05);
+        m.landscape = true;
+        deck::setHandoutMaster(*read, m);
+        Exported changed;
+        QVERIFY2(unpack(deck::exportPresentation(*read, &err), &changed, &why), qPrintable(why));
+        QVERIFY2(packageProblem(changed).isEmpty(), qPrintable(packageProblem(changed)));
+        const QString out = part(changed, QStringLiteral("/") + name);
+        for (const char *kept : {"mc:AlternateContent", "mc:Fallback", "ChoiceShape", "FallbackShape", "AAAAAAAA-0000-4000-8000-000000000001", "x:keep", "AAAAAAAA-0000-4000-8000-000000000002", "BBBBBBBB-0000-4000-8000-000000000003", "x:handoutOnly", "EEEEEE"})
+            QVERIFY2(out.contains(QLatin1String(kept)), kept);
+        QVERIFY2(out.contains(QStringLiteral("x=\"%1\"").arg(qRound64(0.2 * 6858000))), "the header moved");
+        QVERIFY2(out.contains(QLatin1String("landscape=\"1\"")), "the orientation is kept in our extension");
+        auto back = deck::importPresentation(deck::exportPresentation(*read, &err), &err);
+        QVERIFY(back && deck::handoutMasterOf(*back, QSizeF(540, 720)).landscape);
     }
 };
 

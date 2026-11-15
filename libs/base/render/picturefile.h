@@ -14,6 +14,8 @@ enum class PictureFormat { Png, Jpeg, Gif, Tiff, Bmp };
 
 // The file name's ending for a format, without the dot ("png", "jpg", "gif", "tif", "bmp").
 QString pictureExtension(PictureFormat format);
+// Whether this program can write the format (Qt writes TIFF only where its TIFF plugin is installed; the rest are always there).
+bool pictureFormatAvailable(PictureFormat format);
 // The format a file name's ending names (not case sensitive); false when it names none.
 bool pictureFormatOfExtension(const QString &extension, PictureFormat *format);
 

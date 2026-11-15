@@ -11,7 +11,10 @@
 #include "io/pdfcrypt.h"
 #include "core/notesmaster.h"
 #include "core/printheaderfooter.h"
+#include <QBuffer>
 #include <QImageReader>
+#include "render/picturefile.h"
+#include "render/svgexport.h"
 #include <QXmlStreamReader>
 #include "../settingguard.h"
 
@@ -1992,6 +1995,8 @@ private Q_SLOTS:
         };
         for (const Case &c : {Case{deck::SlidePictureFormat::Png, "png", "png"}, Case{deck::SlidePictureFormat::Gif, "gif", "gif"}, Case{deck::SlidePictureFormat::Tiff, "tiff", "tif"},
                               Case{deck::SlidePictureFormat::Bmp, "bmp", "bmp"}}) {
+            // (Qt writes TIFF only where its TIFF plugin is installed; the type is not offered where it is not)
+            if (c.format == deck::SlidePictureFormat::Tiff && !jp::pictureFormatAvailable(jp::PictureFormat::Tiff)) continue;
             QTemporaryDir dir;
             QVERIFY(dir.isValid());
             deck::SlidePicturesOptions o;
@@ -2120,6 +2125,98 @@ private Q_SLOTS:
                 QImageReader reader(path);
                 QVERIFY2(reader.canRead() && reader.size() == QSize(1920, 1080), ending);
             }
+        }
+    }
+
+    // The picture types this computer can write: TIFF is offered only where Qt has its plugin, the rest always.
+    void tiffIsOfferedOnlyWhereItCanBeWritten()
+    {
+        const bool plugin = QImageWriter::supportedImageFormats().contains("tiff");
+        QCOMPARE(jp::pictureFormatAvailable(jp::PictureFormat::Tiff), plugin);
+        for (jp::PictureFormat f : {jp::PictureFormat::Png, jp::PictureFormat::Jpeg, jp::PictureFormat::Gif, jp::PictureFormat::Bmp}) QVERIFY(jp::pictureFormatAvailable(f));
+        if (!plugin) QSKIP("this Qt has no TIFF writer: the type is not offered, and the rest is checked by everyPictureFormatWritesValidFiles");
+        QByteArray tiff;
+        QBuffer buf(&tiff);
+        buf.open(QIODevice::WriteOnly);
+        QImage img(8, 8, QImage::Format_RGB32);
+        img.fill(Qt::red);
+        QVERIFY(jp::writePicture(&buf, img, jp::PictureFormat::Tiff));
+        QVERIFY(tiff.startsWith("II") || tiff.startsWith("MM"));
+    }
+
+    // The SVG of a JeffDeck slide says JeffDeck made it; JeffPub's own text is the default of the shared writer.
+    void svgSlidesNameTheAppThatMadeThem()
+    {
+        auto d = outputDeck();
+        LayoutCache cache;
+        const QByteArray svg = deck::slideSvg(*d, &cache, 0);
+        QVERIFY(svg.contains("Made with JeffDeck"));
+        QVERIFY(!svg.contains("JeffPub"));
+        PaintContext ctx;
+        ctx.doc = d.get();
+        ctx.cache = &cache;
+        QVERIFY(jp::pageSvg(ctx, 0, QStringLiteral("t")).contains("Made with JeffPub"));
+        QVERIFY(jp::pageSvg(ctx, 0, QStringLiteral("t"), false, QStringLiteral("Made with Other")).contains("Made with Other"));
+    }
+
+    // An SVG holds every picture at its full size, so a slide with more pixels of pictures than the limit is refused, with the reason, before anything is written.
+    void anSvgOfTooManyPicturePixelsIsRefused()
+    {
+        auto d = outputDeck();
+        ImageData big;
+        big.format = QStringLiteral("png");
+        big.pixelSize = QSize(20000, 20000);   // 400 million pixels, never decoded
+        d->images.insert(QStringLiteral("hostile"), big);
+        addPicture(*d->pages[0], QStringLiteral("hostile"), QRectF(0, 0, 100, 100));
+        QVERIFY(deck::slidePicturePixels(*d, 0) > deck::kMostSlidePicturePixels);
+        QCOMPARE(deck::slidePicturePixels(*d, 1), qint64(0));
+        LayoutCache cache;
+        QString why;
+        QVERIFY(deck::slideSvg(*d, &cache, 0, &why).isEmpty());
+        QVERIFY2(why.contains(QLatin1String("slide 1")) && why.contains(QLatin1String("PNG")), qPrintable(why));
+        QVERIFY(!deck::slideSvg(*d, &cache, 1).isEmpty());
+        QTemporaryDir dir;
+        deck::SlidePicturesOptions o;
+        o.folder = dir.path();
+        o.format = deck::SlidePictureFormat::Svg;
+        const deck::SlidePicturesResult r = deck::exportSlidePictures(*d, &cache, o);
+        QCOMPARE(r.error, why);
+        QVERIFY(!QFileInfo::exists(dir.filePath(deck::slidePictureName(0, deck::SlidePictureFormat::Svg))));
+    }
+
+    // A GIF of a gradient has its error spread (Floyd-Steinberg), so over a small block the colors average to the picture's, where cutting each pixel to a palette color would band.
+    void gifDitheringKeepsGradientsSmooth()
+    {
+        QImage img(400, 100, QImage::Format_RGB32);
+        for (int y = 0; y < img.height(); ++y)
+            for (int x = 0; x < img.width(); ++x) {
+                const int v = x * 255 / 399;
+                img.setPixel(x, y, qRgb(v, std::min(255, v + y / 6), std::min(255, v + y / 12)));
+            }
+        QImage back;
+        QVERIFY(back.loadFromData(jp::encodeGif(img), "GIF"));
+        QCOMPARE(back.size(), img.size());
+        double worst = 0;
+        for (int by = 0; by + 8 <= img.height(); by += 8)
+            for (int bx = 0; bx + 8 <= img.width(); bx += 8) {
+                double a[3] = {0, 0, 0}, b[3] = {0, 0, 0};
+                for (int y = by; y < by + 8; ++y)
+                    for (int x = bx; x < bx + 8; ++x) {
+                        const QRgb p = img.pixel(x, y), q = back.pixel(x, y);
+                        a[0] += qRed(p); a[1] += qGreen(p); a[2] += qBlue(p);
+                        b[0] += qRed(q); b[1] += qGreen(q); b[2] += qBlue(q);
+                    }
+                for (int k = 0; k < 3; ++k) worst = std::max(worst, std::abs(a[k] - b[k]) / 64);
+            }
+        QVERIFY2(worst < 3.5, qPrintable(QString::number(worst)));
+        // A picture with see-through parts is put on white, from any format of pixels.
+        for (QImage::Format f : {QImage::Format_ARGB32, QImage::Format_ARGB32_Premultiplied, QImage::Format_RGBA8888}) {
+            QImage clear(20, 20, QImage::Format_ARGB32);
+            clear.fill(Qt::transparent);
+            QImage conv = clear.convertToFormat(f);
+            QImage g;
+            QVERIFY(g.loadFromData(jp::encodeGif(conv), "GIF"));
+            QVERIFY(colorsNear(QColor(g.pixel(5, 5)), Qt::white, 10));
         }
     }
 };

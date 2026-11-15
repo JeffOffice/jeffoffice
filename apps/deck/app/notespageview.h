@@ -41,6 +41,12 @@ public:
     QRectF placeRect(deck::NotesPart part) const;
     QRectF placeRect(deck::HandoutPart part) const;
     NotesPane *notesBox() const { return m_box; }
+    // The label of a place, as drawn: its words cut short with "..." to the box's width, in a size that fits its height (a box too small for any words has none). Static so a test can check
+    // that what is drawn fits at every zoom.
+    static QFont labelFont(const QFont &base, const QRectF &box, double scale);
+    static QString labelText(const QString &text, const QFont &font, const QRectF &box);
+    // How many times the layout was read from the presentation (the layouts are kept while the document is as it was, so a drag does not read them for each move).
+    int layoutReads() const { return m_reads; }
     void commit();   // saves the notes typed
     void reload();
 
@@ -75,8 +81,8 @@ private:
     Hit hitAt(const QPointF &at) const;
     QRectF toView(const QRectF &fractions) const;
     QRectF toFractions(const QRectF &view) const;
-    deck::NotesMaster notesNow() const;
-    deck::HandoutMaster handoutNow() const;
+    const deck::NotesMaster &notesNow() const;
+    const deck::HandoutMaster &handoutNow() const;
     void paintMaster(QPainter &p);
     void change(const QString &label, const std::function<void(Document &)> &fn);
 
@@ -88,6 +94,10 @@ private:
     QPointF m_dragFrom;
     QRectF m_dragStart, m_dragNow;   // fractions
     int m_selected = -1;
+    mutable bool m_notesKept = false, m_handoutKept = false;
+    mutable deck::NotesMaster m_notesLayout;
+    mutable deck::HandoutMaster m_handoutLayout;
+    mutable int m_reads = 0;
     bool m_fitPending = false;
 };
 

@@ -6,6 +6,7 @@
 #include "core/printheaderfooter.h"
 #include "io/deckoutput.h"
 
+#include <QFontMetricsF>
 #include <QKeyEvent>
 #include <QMouseEvent>
 #include <QPainter>
@@ -67,10 +68,12 @@ NotesPageView::NotesPageView(Editor *ed, QWidget *parent) : QAbstractScrollArea(
     m_box->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     m_box->hide();
     connect(ed, &Editor::pageChanged, this, [this] {
+        m_notesKept = m_handoutKept = false;
         m_box->reload();
         viewport()->update();
     });
     connect(ed, &Editor::changed, this, [this] {
+        m_notesKept = m_handoutKept = false;
         if (m_mode == Mode::NotesPage) m_box->reload();
         updateRanges();
         layoutBox();
@@ -87,7 +90,7 @@ QSizeF NotesPageView::paper() const
     const QSizeF base = deck::localePaper();
     const Document *d = m_ed->doc();
     if (m_mode != Mode::HandoutMaster || !d) return base;
-    return deck::handoutPaper(deck::handoutMasterOf(*d, base), base);
+    return deck::handoutPaper(handoutNow(), base);
 }
 
 void NotesPageView::setMode(Mode mode)
@@ -157,12 +160,38 @@ QRectF NotesPageView::toFractions(const QRectF &v) const
     return QRectF((v.x() - page.x()) / page.width(), (v.y() - page.y()) / page.height(), v.width() / page.width(), v.height() / page.height());
 }
 
-deck::NotesMaster NotesPageView::notesNow() const { return deck::notesMasterOf(*m_ed->doc(), deck::localePaper()); }
-
-deck::HandoutMaster NotesPageView::handoutNow() const
+const deck::NotesMaster &NotesPageView::notesNow() const
 {
-    const QSizeF base = deck::localePaper();
-    return deck::handoutMasterOf(*m_ed->doc(), base);
+    if (!m_notesKept) {
+        m_notesLayout = deck::notesMasterOf(*m_ed->doc(), deck::localePaper());
+        m_notesKept = true;
+        ++m_reads;
+    }
+    return m_notesLayout;
+}
+
+const deck::HandoutMaster &NotesPageView::handoutNow() const
+{
+    if (!m_handoutKept) {
+        m_handoutLayout = deck::handoutMasterOf(*m_ed->doc(), deck::localePaper());
+        m_handoutKept = true;
+        ++m_reads;
+    }
+    return m_handoutLayout;
+}
+
+QFont NotesPageView::labelFont(const QFont &base, const QRectF &box, double scale)
+{
+    QFont f = base;
+    // The size of the text follows the zoom, but never more than the box is high.
+    f.setPixelSize(std::max(1, int(std::min(10 * scale, box.height() - 2))));
+    return f;
+}
+
+QString NotesPageView::labelText(const QString &text, const QFont &font, const QRectF &box)
+{
+    if (font.pixelSize() < 5) return QString();
+    return QFontMetricsF(font).elidedText(text, Qt::ElideRight, std::max(0.0, box.width() - 6));
 }
 
 QRectF NotesPageView::slideImageRect() const
@@ -256,7 +285,12 @@ void NotesPageView::paintMaster(QPainter &p)
         p.setPen(pen);
         p.drawRect(r);
         p.setPen(dim ? QColor(0xA0, 0xA0, 0xA0) : label);
-        p.drawText(r.adjusted(4, 2, -4, -2), Qt::AlignLeft | Qt::AlignTop, text);
+        // (the words fit the box: in a size its height holds, cut short to its width, at any zoom)
+        const QFont small = labelFont(font, r, scale());
+        p.save();
+        p.setFont(small);
+        p.drawText(r.adjusted(3, 0, -3, 0), Qt::AlignLeft | (r.height() > 3 * small.pixelSize() ? Qt::AlignTop : Qt::AlignVCenter), labelText(text, small, r));
+        p.restore();
         if (selected) {
             p.setPen(Qt::NoPen);
             p.setBrush(palette().color(QPalette::Highlight));
@@ -280,7 +314,8 @@ void NotesPageView::paintMaster(QPainter &p)
                 static const char *const samples[] = {QT_TR_NOOP("Click to edit Master text styles"), QT_TR_NOOP("Second level"), QT_TR_NOOP("Third level")};
                 QRectF line = r.adjusted(4, 2 + font.pixelSize() * 1.6, -4, 0);
                 for (int i = 0; i < 3; ++i) {
-                    p.drawText(QRectF(line.x() + i * font.pixelSize() * 1.5, line.y() + i * font.pixelSize() * 1.4, line.width(), font.pixelSize() * 1.4), Qt::AlignLeft | Qt::AlignVCenter, tr(samples[i]));
+                    p.drawText(QRectF(line.x() + i * font.pixelSize() * 1.5, line.y() + i * font.pixelSize() * 1.4, line.width(), font.pixelSize() * 1.4), Qt::AlignLeft | Qt::AlignVCenter,
+                               QFontMetricsF(font).elidedText(tr(samples[i]), Qt::ElideRight, std::max(0.0, line.width() - i * font.pixelSize() * 1.5)));
                 }
             }
             outline(r, int(part), notesLabel(part), dimmed(int(part)));

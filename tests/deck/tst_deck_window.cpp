@@ -2660,6 +2660,77 @@ private Q_SLOTS:
         w.act("pagemaster.close")->trigger();
         QCOMPARE(w.view(), DeckWindow::View::Normal);
     }
+
+    // The labels of the places in the master views fit their boxes (cut short with "..." to the width, in a size the height holds) at the smallest zoom and at a normal one, in the
+    // small header, date, footer, and number boxes too.
+    void masterLabelsFitTheirBoxes()
+    {
+        DeckWindow w;
+        w.resize(1440, 900);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        const QFont base = w.font();
+        for (const char *view : {"view.notesMaster", "view.handoutMaster"}) {
+            w.act(view)->trigger();
+            NotesPageView *v = w.notesPageView();
+            QTRY_VERIFY(v->isVisible() && v->viewport()->width() > 300);
+            for (double zoom : {0.1, 0.25, 0.5, 1.0}) {
+                v->setZoom(zoom);
+                const double scale = v->zoom() * v->logicalDpiX() / 72.0;
+                const QStringList texts{QStringLiteral("Header"), QStringLiteral("Date"), QStringLiteral("Footer"), QStringLiteral("Page Number"), QStringLiteral("Slide Image")};
+                const QVector<QRectF> boxes = QString::fromLatin1(view) == QLatin1String("view.notesMaster")
+                    ? QVector<QRectF>{v->placeRect(deck::NotesPart::Header), v->placeRect(deck::NotesPart::Date), v->placeRect(deck::NotesPart::Footer), v->placeRect(deck::NotesPart::Number), v->placeRect(deck::NotesPart::SlideImage)}
+                    : QVector<QRectF>{v->placeRect(deck::HandoutPart::Header), v->placeRect(deck::HandoutPart::Date), v->placeRect(deck::HandoutPart::Footer), v->placeRect(deck::HandoutPart::Number), v->placeRect(deck::HandoutPart::Area)};
+                for (int i = 0; i < boxes.size(); ++i) {
+                    const QFont f = NotesPageView::labelFont(base, boxes[i], scale);
+                    const QString shown = NotesPageView::labelText(texts[i], f, boxes[i]);
+                    const QString where = QStringLiteral("%1 zoom %2 box %3").arg(QLatin1String(view)).arg(zoom).arg(i);
+                    QVERIFY2(f.pixelSize() <= boxes[i].height(), qPrintable(where));
+                    if (shown.isEmpty()) continue;
+                    QVERIFY2(QFontMetricsF(f).horizontalAdvance(shown) <= boxes[i].width(), qPrintable(where));
+                    QVERIFY2(QFontMetricsF(f).height() <= boxes[i].height() + 3, qPrintable(where + QStringLiteral(" height")));
+                }
+            }
+            // At a normal zoom the words are there, whole, in the big boxes.
+            v->setZoom(1.0);
+            QCOMPARE(NotesPageView::labelText(QStringLiteral("Slide Image"), NotesPageView::labelFont(base, QRectF(0, 0, 400, 300), 1.33), QRectF(0, 0, 400, 300)), QStringLiteral("Slide Image"));
+            QVERIFY(NotesPageView::labelText(QStringLiteral("Slide Image"), NotesPageView::labelFont(base, QRectF(0, 0, 30, 12), 1.33), QRectF(0, 0, 30, 12)).endsWith(QChar(0x2026)));
+            w.act("view.normal")->trigger();
+        }
+        // Screenshots at the smallest and a normal zoom.
+        w.act("view.handoutMaster")->trigger();
+        QTRY_VERIFY(w.notesPageView()->isVisible());
+        w.notesPageView()->setZoom(1.0);
+        shotOf(&w, QStringLiteral("deck-handout-master"));
+        w.act("view.notesMaster")->trigger();
+        w.notesPageView()->setZoom(1.0);
+        shotOf(&w, QStringLiteral("deck-notes-master"));
+        w.notesPageView()->setZoom(0.1);
+        shotOf(&w, QStringLiteral("deck-notes-master-smallest"));
+    }
+
+    // A drag reads the layout from the presentation once, not for each move of the mouse; a change is read again.
+    void aDragDoesNotReadTheLayoutForEachMove()
+    {
+        DeckWindow w;
+        w.resize(1440, 900);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        w.act("view.notesMaster")->trigger();
+        NotesPageView *v = w.notesPageView();
+        QTRY_VERIFY(v->isVisible() && v->viewport()->width() > 300);
+        const QPoint from = v->placeRect(deck::NotesPart::Footer).center().toPoint();
+        QTest::mousePress(v->viewport(), Qt::LeftButton, Qt::NoModifier, from);
+        const int before = v->layoutReads();
+        for (int i = 1; i <= 40; ++i) QTest::mouseMove(v->viewport(), from + QPoint(-(i * 15) / 40, -2 * i));
+        QVERIFY2(v->layoutReads() - before <= 1, qPrintable(QString::number(v->layoutReads() - before)));
+        QTest::mouseRelease(v->viewport(), Qt::LeftButton, Qt::NoModifier, from + QPoint(-15, -80));
+        // The change is seen: the footer is where it was dropped.
+        QVERIFY(deck::hasNotesMaster(*w.editor()->doc()));
+        QVERIFY(qAbs(v->placeRect(deck::NotesPart::Footer).center().x() - (from.x() - 15)) < 2);
+        w.editor()->undo();
+        QVERIFY(qAbs(v->placeRect(deck::NotesPart::Footer).center().x() - from.x()) < 2);
+    }
 };
 
 JP_TEST_CLASS(DeckWindowTests)

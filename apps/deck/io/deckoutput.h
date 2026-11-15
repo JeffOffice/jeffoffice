@@ -121,8 +121,11 @@ struct SlidePicturesResult {
 // kMostSlidePicturePixels).
 QString slidePictureName(int index, bool jpeg);
 QString slidePictureName(int index, SlidePictureFormat format);
-// One slide as a vector picture (SVG).
-QByteArray slideSvg(const Document &d, LayoutCache *cache, int slide);
+// One slide as a vector picture (SVG). A drawing holds each picture at its full size, so a slide whose pictures come to more than kMostSlidePicturePixels in all (on the slide, its layout,
+// and its master) is refused: the result is empty and `why` says so (empty too when there is no such slide).
+QByteArray slideSvg(const Document &d, LayoutCache *cache, int slide, QString *why = nullptr);
+// The pixels of the pictures a slide draws, counted each time one is used.
+qint64 slidePicturePixels(const Document &d, int slide);
 QStringList slidePictureNames(const Document &d, const SlidePicturesOptions &o);
 int slidePictureWidth(const Document &d, int width);
 SlidePicturesResult exportSlidePictures(const Document &d, LayoutCache *cache, const SlidePicturesOptions &o);

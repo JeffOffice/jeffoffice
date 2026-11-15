@@ -33,8 +33,11 @@ std::unique_ptr<Document> importPresentationFile(const QString &path, QString *e
 
 // Counted since the program began on this thread, for tests of cost: the placeholders of layouts and masters looked at to match the placeholders of slides to them (each once
 // to be indexed, and a few lookups for each placeholder asked about; a list gone through for each would count its length each time).
+// The most shapes of a notes master or handout master that are looked at for its places.
+constexpr int kMaxMasterShapes = 64;
 struct PptxImportWork {
     qint64 placeholdersExamined = 0;
+    qint64 masterShapesRead = 0;   // the most shapes of one notes master or handout master looked at for its places (never more than kMaxMasterShapes)
     qint64 chartPartsParsed = 0;   // the chart parts read and parsed (a part that frames name again at many sizes is parsed once)
 };
 PptxImportWork pptxImportWorkForTest();

@@ -224,6 +224,8 @@ void clearHandoutMaster(Document &d)
 {
     d.appData.remove(kHandoutKey);
     d.appData.remove(kPerPageKey);
+    // The master a file had goes too, with what it was read as: Reset puts the standard's places back, and a foreign master's would only be written again and read again.
+    for (const char *key : {"handoutMasterReadLayout", "handoutMasterXml", "handoutMasterRels", "handoutMasterRead"}) d.appData.remove(QLatin1String(key));
 }
 
 NotesPageGeometry notesPageGeometry(const NotesMaster &m, const QSizeF &paper, const QSizeF &slide)

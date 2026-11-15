@@ -302,7 +302,8 @@ bool exportPictureCommand(DeckWindow *w, const PathChooser &chooser)
                               {deck::SlidePictureFormat::Bmp, DeckWindow::tr("BMP Picture (*.bmp)")},
                               {deck::SlidePictureFormat::Svg, DeckWindow::tr("SVG Drawing (*.svg)")}};
     QStringList filters;
-    for (const Kind &k : kinds) filters << k.filter;
+    for (const Kind &k : kinds)
+        if (k.format == deck::SlidePictureFormat::Svg || jp::pictureFormatAvailable(jp::PictureFormat(int(k.format)))) filters << k.filter;
     QString selected = kinds[0].filter;
     const QString suggested = suggestedPath(w, DeckWindow::tr("%1 - Slide %2").arg(ed->displayName()).arg(slide + 1), QStringLiteral(".png"));
     QString path = chooser ? chooser(suggested, selected) : askSavePath(w, DeckWindow::tr("Export Slide as Picture"), suggested, filters.join(QStringLiteral(";;")), &selected);
@@ -323,15 +324,19 @@ bool exportPictureCommand(DeckWindow *w, const PathChooser &chooser)
     // A picture is written whole or not at all: the old file stays if this one fails.
     QSaveFile file(path);
     bool ok = false;
+    QString why;
     if (format == deck::SlidePictureFormat::Svg) {
-        const QByteArray svg = deck::slideSvg(*ed->doc(), &ed->cache(), slide);
+        // (a slide whose pictures are too big for a drawing is refused with the reason)
+        const QByteArray svg = deck::slideSvg(*ed->doc(), &ed->cache(), slide, &why);
         ok = !svg.isEmpty() && file.open(QIODevice::WriteOnly) && file.write(svg) == svg.size() && file.commit();
+    } else if (!jp::pictureFormatAvailable(jp::PictureFormat(int(format)))) {
+        why = DeckWindow::tr("This computer can't write that type of picture.");
     } else {
-        const QImage img = deck::slideImage(*ed->doc(), &ed->cache(), slide);
-        ok = !img.isNull() && file.open(QIODevice::WriteOnly) && jp::writePicture(&file, img, jp::PictureFormat(int(format)), 92) && file.commit();
+        const QImage img = deck::slideImage(*ed->doc(), &ed->cache(), slide, deck::slidePictureWidth(*ed->doc(), 1920));
+        ok = !img.isNull() && file.open(QIODevice::WriteOnly) && jp::writePicture(&file, img, jp::PictureFormat(int(format)), 92, &why) && file.commit();
     }
     if (!ok) {
-        const QString err = file.error() != QFileDevice::NoError ? file.errorString() : DeckWindow::tr("The picture can't be made.");
+        const QString err = file.error() != QFileDevice::NoError ? file.errorString() : why.isEmpty() ? DeckWindow::tr("The picture can't be made.") : why;
         jp::plainWarning(w, DeckWindow::tr("Export Slide as Picture"),
                              DeckWindow::tr("%1 couldn't save \"%2\".\n%3%4").arg(appInfo().name, QFileInfo(path).fileName(), err, saveFailureHint(err)));
         return false;
@@ -349,12 +354,13 @@ bool askSlidePictures(DeckWindow *w, deck::SlidePicturesOptions *options)
     auto *form = new QFormLayout(&dlg);
     auto *format = new QComboBox(&dlg);
     format->setObjectName(QStringLiteral("slidePicturesFormat"));
-    format->addItem(DeckWindow::tr("PNG"));
-    format->addItem(DeckWindow::tr("JPEG"));
-    format->addItem(DeckWindow::tr("GIF"));
-    format->addItem(DeckWindow::tr("TIFF"));
-    format->addItem(DeckWindow::tr("BMP"));
-    format->addItem(DeckWindow::tr("SVG (drawing)"));
+    format->addItem(DeckWindow::tr("PNG"), int(deck::SlidePictureFormat::Png));
+    format->addItem(DeckWindow::tr("JPEG"), int(deck::SlidePictureFormat::Jpeg));
+    format->addItem(DeckWindow::tr("GIF"), int(deck::SlidePictureFormat::Gif));
+    // (TIFF only where this computer can write it)
+    if (jp::pictureFormatAvailable(jp::PictureFormat::Tiff)) format->addItem(DeckWindow::tr("TIFF"), int(deck::SlidePictureFormat::Tiff));
+    format->addItem(DeckWindow::tr("BMP"), int(deck::SlidePictureFormat::Bmp));
+    format->addItem(DeckWindow::tr("SVG (drawing)"), int(deck::SlidePictureFormat::Svg));
     form->addRow(DeckWindow::tr("Picture type:"), format);
     auto *folder = new QLineEdit(&dlg);
     folder->setObjectName(QStringLiteral("slidePicturesFolder"));
@@ -376,7 +382,7 @@ bool askSlidePictures(DeckWindow *w, deck::SlidePicturesOptions *options)
     width->setValue(options->width);
     form->addRow(DeckWindow::tr("Width:"), width);
     // (an SVG drawing has no width in pixels: it scales)
-    QObject::connect(format, &QComboBox::currentIndexChanged, &dlg, [width](int index) { width->setEnabled(index != int(deck::SlidePictureFormat::Svg)); });
+    QObject::connect(format, &QComboBox::currentIndexChanged, &dlg, [width, format](int index) { width->setEnabled(format->itemData(index).toInt() != int(deck::SlidePictureFormat::Svg)); });
     auto *hidden = new QCheckBox(DeckWindow::tr("Include hidden slides"), &dlg);
     hidden->setObjectName(QStringLiteral("slidePicturesHidden"));
     hidden->setChecked(options->hidden);
@@ -386,7 +392,7 @@ bool askSlidePictures(DeckWindow *w, deck::SlidePicturesOptions *options)
     QObject::connect(buttons, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
     QObject::connect(buttons, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
     if (dlg.exec() != QDialog::Accepted) return false;
-    options->format = deck::SlidePictureFormat(format->currentIndex());
+    options->format = deck::SlidePictureFormat(format->currentData().toInt());
     options->jpeg = false;
     options->folder = folder->text().trimmed();
     options->width = width->value();

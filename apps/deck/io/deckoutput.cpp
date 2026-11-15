@@ -709,16 +709,36 @@ namespace {
 SlidePictureFormat formatOf(const SlidePicturesOptions &o) { return o.format == SlidePictureFormat::Png && o.jpeg ? SlidePictureFormat::Jpeg : o.format; }
 }
 
-QByteArray slideSvg(const Document &d, LayoutCache *cache, int slide)
+qint64 slidePicturePixels(const Document &d, int slide)
+{
+    if (slide < 0 || slide >= d.pages.size()) return 0;
+    qint64 total = 0;
+    auto count = [&](const ItemList &items) {
+        for (const auto &it : items)
+            if (const auto *pic = dynamic_cast<const PictureItem *>(it.get())) {
+                const auto found = d.images.constFind(pic->imageId);
+                if (found != d.images.cend()) total += qint64(found->pixelSize.width()) * found->pixelSize.height();
+            }
+    };
+    count(d.pages[slide]->items);
+    if (const MasterPage *m = d.masterFor(*d.pages[slide])) count(m->items);
+    return total;
+}
+
+QByteArray slideSvg(const Document &d, LayoutCache *cache, int slide, QString *why)
 {
     if (slide < 0 || slide >= d.pages.size()) return {};
+    if (slidePicturePixels(d, slide) > kMostSlidePicturePixels) {
+        if (why) *why = QCoreApplication::translate("jp::deck::Output", "The pictures on slide %1 come to more than %2 million pixels, too many for an SVG drawing, which holds each at its full size. Save the slide as a PNG instead.").arg(slide + 1).arg(kMostSlidePicturePixels / 1000000);
+        return {};
+    }
     LayoutCache own;
     PaintContext ctx;
     ctx.doc = &d;
     ctx.cache = cache ? cache : &own;
     ctx.opt.output = true;
     const QString title = slideTitle(d, slide).trimmed();
-    return pageSvg(ctx, slide, title.isEmpty() ? QCoreApplication::translate("jp::deck::Output", "Slide %1").arg(slide + 1) : title);
+    return pageSvg(ctx, slide, title.isEmpty() ? QCoreApplication::translate("jp::deck::Output", "Slide %1").arg(slide + 1) : title, false, QStringLiteral("Made with JeffDeck"));
 }
 
 QStringList slidePictureNames(const Document &d, const SlidePicturesOptions &o)
@@ -757,15 +777,21 @@ SlidePicturesResult exportSlidePictures(const Document &d, LayoutCache *cache, c
         // (Whole or not at all: the old file stays if this one fails.)
         QSaveFile file(dir.filePath(name));
         bool made = false;
+        QString pictureWhy;
         if (format == SlidePictureFormat::Svg) {
-            const QByteArray svg = slideSvg(d, cache, i);
+            QString refused;
+            const QByteArray svg = slideSvg(d, cache, i, &refused);
+            if (!refused.isEmpty()) {
+                result.error = refused;
+                return result;
+            }
             made = !svg.isEmpty() && file.open(QIODevice::WriteOnly) && file.write(svg) == svg.size();
         } else {
             const QImage img = slideImage(d, cache, i, result.widthUsed);
-            made = !img.isNull() && file.open(QIODevice::WriteOnly) && writePicture(&file, img, PictureFormat(int(format)), 92);
+            made = !img.isNull() && file.open(QIODevice::WriteOnly) && writePicture(&file, img, PictureFormat(int(format)), 92, &pictureWhy);
         }
         if (!made || !file.commit()) {
-            result.error = file.error() != QFileDevice::NoError ? file.errorString() : QCoreApplication::translate("jp::deck::Output", "The picture of slide %1 can't be made.").arg(i + 1);
+            result.error = file.error() != QFileDevice::NoError ? file.errorString() : !pictureWhy.isEmpty() ? pictureWhy : QCoreApplication::translate("jp::deck::Output", "The picture of slide %1 can't be made.").arg(i + 1);
             return result;
         }
         result.written << name;

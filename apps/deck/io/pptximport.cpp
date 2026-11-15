@@ -894,7 +894,6 @@ void Importer::readSize(const QDomElement &presentation)
 
 // The places of a notes master or handout master (as fractions of its page) and its background, kept as the presentation's layout when they are not the standard's. Of a master's shapes at
 // most kMaxMasterShapes are looked at, and each place is held inside the page and to a least size (core/notesmaster sanitizedPlace). Reads the handout's extension of our own too.
-constexpr int kMaxMasterShapes = 64;
 constexpr qint64 kMaxMasterEmu = qint64(1) << 40;
 
 bool placeOf(const QDomElement &sp, QRectF *out, const QSizeF &page)
@@ -930,7 +929,9 @@ void readMasterLayout(const QDomElement &root, bool notes, Document &doc)
     const HandoutMaster handoutStandard = hm;
     int seen = 0;
     for (const QDomElement &sp : office::children(pChild(pChild(root, "cSld"), "spTree"), office::ns::P, QStringLiteral("sp"))) {
-        if (++seen > kMaxMasterShapes) break;
+        if (seen >= kMaxMasterShapes) break;
+        ++seen;
+        g_work.masterShapesRead = std::max<qint64>(g_work.masterShapesRead, seen);
         PhRef ph;
         QRectF r;
         if (!placeholderOf(sp, &ph) || !placeOf(sp, &r, page)) continue;
