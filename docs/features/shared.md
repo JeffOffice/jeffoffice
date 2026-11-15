@@ -312,3 +312,7 @@ Last reviewed October 16, 2026.
 ## Typing in a shape (November 14, 2026)
 
 The words in a shape or text box are typed in one editor, `jp::ShapeTextEdit` (libs/shell/app/shapetextedit.h), with the same keys in every app: Ctrl+B, I, U, E, L, R, and J, Ctrl+[ and Ctrl+] for the size, Esc to keep the words and leave the shape selected, F2 or Enter on a selected shape to start, and a character typed on a selected shape to start with it added to the words. JeffWrite and JeffCrunch host it over the shape and write the words back as one step of their own Undo; JeffPub and JeffDeck edit a shape's words on their canvas and take the font-size steps and the typed-key rule from the same library. tests/shell/shapetexttest.h is the check each app's test runs on its own editor.
+
+## One dialog style (November 15, 2026)
+
+Done November 15, 2026: one modern style for message boxes, settings dialogs, the Print page, File pages, and side panes, written in `docs/design/STYLE.md` and built from `libs/shell/app/uistyle.h` (section headings, `jp::Section`, `jp::ButtonBox`, `jp::MessageBox`, signs by kind, `jp::PrintColumn`, `jp::askSaveChanges`). JeffCrunch, JeffWrite, and libs/shell are clean under `tools/check_ui_style.py`; the save-on-close box is the same in all four apps; the Print page groups are done for JeffCrunch and JeffWrite. Not done: JeffDeck and JeffPub dialogs (titled group boxes, colons on labels, hand-built button boxes), their Print pages, and libs/page's colons.

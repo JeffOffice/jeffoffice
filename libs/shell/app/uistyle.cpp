@@ -1,6 +1,7 @@
 #include "app/uistyle.h"
 
 #include "app/icons.h"
+#include "app/plaintext.h"
 #include "core/appinfo.h"
 
 #include <QApplication>
@@ -394,8 +395,8 @@ void MessageBox::restyle()
         auto *v = new QVBoxLayout(box);
         v->setContentsMargins(0, 0, 0, 0);
         v->setSpacing(6);
-        auto *head = new QLabel(lead, box);
-        head->setTextFormat(textFormat() == Qt::PlainText ? Qt::PlainText : textFormat());
+        auto *head = plainLabel(new QLabel(lead, box));
+        if (textFormat() != Qt::PlainText) head->setTextFormat(textFormat());
         head->setWordWrap(true);
         QFont hf = head->font();
         hf.setPixelSize(15);
@@ -406,7 +407,7 @@ void MessageBox::restyle()
         head->setTextInteractionFlags(Qt::TextSelectableByMouse);
         v->addWidget(head);
         if (!rest.isEmpty()) {
-            auto *detail = new QLabel(rest, box);
+            auto *detail = plainLabel(new QLabel(rest, box));
             detail->setTextFormat(head->textFormat());
             detail->setWordWrap(true);
             QFont df = detail->font();
