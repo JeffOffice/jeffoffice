@@ -369,7 +369,7 @@ private Q_SLOTS:
             {QStringLiteral("anim.painter"), QStringLiteral("it arms the animation painter, and nothing shows until a shape is clicked")},
             {QStringLiteral("review.wordCount"), QStringLiteral("it tells the counts in a message and changes nothing")},
         };
-        m_app.neverRun = {};
+        m_app.neverRun = {{QStringLiteral("pagemaster.close"), QStringLiteral("it closes the Notes Master or Handout Master view, and waits until one is open (the window tests open them)")}};
     }
 
     // ---- 1. the first five minutes

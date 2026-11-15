@@ -24,6 +24,11 @@ const int kCounts[] = {1, 2, 3, 4, 6, 9};
 
 void DeckWindow::createNotesMasterActions()
 {
+    // A command of the tabs, used from anywhere else, opens the view it works in first (the notes master unless it is for the handout).
+    auto inView = [this](bool handout) {
+        const View want = handout ? View::HandoutMaster : View::NotesMaster;
+        if (m_view != want && !(!handout && m_view == View::HandoutMaster)) setView(want);
+    };
     // The header, date, footer, and number of the page being edited: on or off, as the Header & Footer choice of the notes pages or the handouts.
     struct Field {
         const char *id;
@@ -37,7 +42,8 @@ void DeckWindow::createNotesMasterActions()
     for (const Field &f : fields) {
         const QString id = QString::fromLatin1(f.id);
         auto member = f.flag;
-        mk(id, f.text, QString(), QKeySequence(), [this, id, member] {
+        mk(id, f.text, QString(), QKeySequence(), [this, id, member, inView] {
+            inView(false);
             Document *d = m_ed->doc();
             if (!d || (m_view != View::NotesMaster && m_view != View::HandoutMaster)) return;
             const deck::PrintedPages pages = m_view == View::NotesMaster ? deck::PrintedPages::Notes : deck::PrintedPages::Handouts;
@@ -48,24 +54,26 @@ void DeckWindow::createNotesMasterActions()
             m_ed->endChange();
         }, true);
     }
-    mk(QStringLiteral("pagemaster.headerFooter"), tr("Header and Footer…"), QStringLiteral("panel-top"), QKeySequence(), [this] { showPrintHeaderFooter(); });
-    mk(QStringLiteral("pagemaster.reset"), tr("Reset Layout"), QStringLiteral("rotate-ccw"), QKeySequence(), [this] { m_notesPage->resetLayout(); });
-    mk(QStringLiteral("pagemaster.background"), tr("Background Color…"), QStringLiteral("palette"), QKeySequence(), [this] {
+    mk(QStringLiteral("pagemaster.headerFooter"), tr("Header and Footer…"), QStringLiteral("panel-top"), QKeySequence(), [this, inView] { inView(false); showPrintHeaderFooter(); });
+    mk(QStringLiteral("pagemaster.reset"), tr("Reset Layout"), QStringLiteral("rotate-ccw"), QKeySequence(), [this, inView] { inView(false); m_notesPage->resetLayout(); });
+    mk(QStringLiteral("pagemaster.background"), tr("Background Color…"), QStringLiteral("palette"), QKeySequence(), [this, inView] {
+        inView(false);
         const QColor now = QColorDialog::getColor(Qt::white, this, tr("Background Color"));
         if (now.isValid()) m_notesPage->setBackground(now);
     });
-    mk(QStringLiteral("pagemaster.backgroundNone"), tr("No Background Color"), QStringLiteral("eraser"), QKeySequence(), [this] { m_notesPage->setBackground(QColor()); });
+    mk(QStringLiteral("pagemaster.backgroundNone"), tr("No Background Color"), QStringLiteral("eraser"), QKeySequence(), [this, inView] { inView(false); m_notesPage->setBackground(QColor()); });
     mk(QStringLiteral("pagemaster.close"), tr("Close Master View"), QStringLiteral("x"), QKeySequence(), [this] { closeMasters(); });
+    act("pagemaster.close")->setEnabled(false);   // (as Close Master View of the slide masters: it waits for a master view)
 
     // Handout Master: slides on a page, and how the page lies.
     auto *counts = new QActionGroup(this);
     for (int n : kCounts) {
-        QAction *a = mk(QStringLiteral("handout.per.%1").arg(n), n == 1 ? tr("1 Slide") : tr("%1 Slides").arg(n), QString(), QKeySequence(), [this, n] { m_notesPage->setHandoutCount(n); }, true);
+        QAction *a = mk(QStringLiteral("handout.per.%1").arg(n), n == 1 ? tr("1 Slide") : tr("%1 Slides").arg(n), QString(), QKeySequence(), [this, n, inView] { inView(true); m_notesPage->setHandoutCount(n); }, true);
         counts->addAction(a);
     }
     auto *shapes = new QActionGroup(this);
-    shapes->addAction(mk(QStringLiteral("handout.portrait"), tr("Portrait"), QStringLiteral("rectangle-vertical"), QKeySequence(), [this] { m_notesPage->setHandoutLandscape(false); }, true));
-    shapes->addAction(mk(QStringLiteral("handout.landscape"), tr("Landscape"), QStringLiteral("rectangle-horizontal"), QKeySequence(), [this] { m_notesPage->setHandoutLandscape(true); }, true));
+    shapes->addAction(mk(QStringLiteral("handout.portrait"), tr("Portrait"), QStringLiteral("rectangle-vertical"), QKeySequence(), [this, inView] { inView(true); m_notesPage->setHandoutLandscape(false); }, true));
+    shapes->addAction(mk(QStringLiteral("handout.landscape"), tr("Landscape"), QStringLiteral("rectangle-horizontal"), QKeySequence(), [this, inView] { inView(true); m_notesPage->setHandoutLandscape(true); }, true));
     connect(m_ed, &Editor::changed, this, &DeckWindow::refreshNotesMasterActions);
     connect(m_ed, &Editor::pageChanged, this, &DeckWindow::refreshNotesMasterActions);
     refreshNotesMasterActions();
@@ -77,12 +85,7 @@ void DeckWindow::refreshNotesMasterActions()
     const Document *d = m_ed ? m_ed->doc() : nullptr;
     const bool notes = m_view == View::NotesMaster, handout = m_view == View::HandoutMaster;
     if (!d || !m_notesPage) return;
-    // (they work in their own views)
-    for (const char *id : {"pagemaster.header", "pagemaster.date", "pagemaster.footer", "pagemaster.number", "pagemaster.headerFooter", "pagemaster.reset", "pagemaster.background", "pagemaster.backgroundNone", "pagemaster.close"})
-        act(id)->setEnabled(notes || handout);
-    for (int n : kCounts) act(QStringLiteral("handout.per.%1").arg(n))->setEnabled(handout);
-    act("handout.portrait")->setEnabled(handout);
-    act("handout.landscape")->setEnabled(handout);
+    act("pagemaster.close")->setEnabled(notes || handout);
     if (notes || handout) {
         const deck::PrintHeaderFooter hf = deck::printHeaderFooter(*d, notes ? deck::PrintedPages::Notes : deck::PrintedPages::Handouts);
         act("pagemaster.header")->setChecked(hf.header);
