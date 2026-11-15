@@ -794,6 +794,7 @@ void Editor::setDropCap(int lines, int chars, const QString &font)
     if (isEditingText()) {
         beginChange(tr("Drop Cap"));
         m_cursor.mergeBlockFormat(f);
+        markDirectBlocks(QTextCursor(m_cursor.block()), f);
         endChange();
         Q_EMIT textCursorChanged();
         return;
@@ -801,7 +802,11 @@ void Editor::setDropCap(int lines, int chars, const QString &font)
     auto targets = formatTargets();
     if (targets.isEmpty()) return;
     beginChange(tr("Drop Cap"));
-    for (QTextCursor c : targets) QTextCursor(c.document()->begin()).mergeBlockFormat(f);
+    for (QTextCursor c : targets) {
+        QTextCursor first(c.document()->begin());
+        first.mergeBlockFormat(f);
+        markDirectBlocks(first, f);
+    }
     endChange();
 }
 

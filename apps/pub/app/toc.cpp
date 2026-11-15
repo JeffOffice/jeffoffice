@@ -80,6 +80,8 @@ void writeTable(const Document &doc, QTextDocument *sd, int firstPos, int lastEn
         QTextBlockFormat bf;
         QTextCharFormat cf;
         styled(level == 0 ? QStringLiteral("Heading 2") : QStringLiteral("Normal"), &bf, &cf);
+        const QTextBlockFormat styleBf = bf;   // (what the entry sets over its style is its own: a style change leaves it)
+        const QTextCharFormat styleCf = cf;
         bf.setProperty(tp::TocLevel, level);
         if (level > 0) {
             const double indent = (level - 1) * 18.0;
@@ -92,6 +94,8 @@ void writeTable(const Document &doc, QTextDocument *sd, int firstPos, int lastEn
             bf.setProperty(tp::TabLeaders, QStringLiteral("."));
             if (bold) cf.setFontWeight(QFont::Bold);
         }
+        tp::addDirectDiff(bf, styleBf);
+        tp::addDirectDiff(cf, styleCf);
         if (first) {
             c.setBlockFormat(bf);
             c.setBlockCharFormat(cf);

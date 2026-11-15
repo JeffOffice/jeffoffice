@@ -614,7 +614,10 @@ void dropCapDialog(QWidget *p, Editor *ed)
     f.setProperty(tp::DropCapColor, color->current().isNone() ? QString() : color->current().toString());
     if (ed->isEditingText()) {
         ed->beginChange(QCoreApplication::translate("Dialogs", "Drop Cap"));
-        ed->cursor().mergeBlockFormat(f);
+        QTextCursor cur = ed->cursor();
+        cur.mergeBlockFormat(f);
+        QTextBlockFormat own = cur.blockFormat();   // (the drop cap is set by hand: a style change leaves it)
+        if (tp::addDirect(own, f)) cur.setBlockFormat(own);
         ed->endChange();
     } else {
         ed->mergeBlockFormat(f, QCoreApplication::translate("Dialogs", "Drop Cap"));

@@ -11,6 +11,7 @@
 #include <QLineEdit>
 #include <QDialogButtonBox>
 #include "app/dialogs.h"
+#include "app/toc.h"
 #include <QBuffer>
 #include "../timing.h"
 #include <libmspub/jp_hooks.h>
@@ -882,6 +883,133 @@ private Q_SLOTS:
         QVERIFY(plain > 0 && derived > 0);
         qInfo() << "style change over 100 frames: no derived styles" << plain / 1000000.0 << "ms, chains of five" << derived / 1000000.0 << "ms";
         QVERIFY2(derived < plain * 4 + 20 * 1000000, qPrintable(QStringLiteral("derived %1 ms against %2 ms").arg(derived / 1000000.0).arg(plain / 1000000.0)));
+    }
+
+    // A hand-set drop cap stays when the style changes its own drop cap.
+    void aHandSetDropCapSurvivesAStyleChange()
+    {
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        jp::Document *doc = ed->doc();
+        jp::TextStyle dc = made(QStringLiteral("DC"), QStringLiteral("Normal"));
+        dc.blk.setProperty(jp::tp::DropCapLines, 0);
+        doc->styles << dc;
+        auto hand = boxIn(ed, QStringLiteral("hand"), QStringLiteral("DC"));
+        auto plain = boxIn(ed, QStringLiteral("plain"), QStringLiteral("DC"), QRectF(72, 200, 200, 40));
+        ed->beginTextEdit(hand->id, 0);
+        ed->setDropCap(3, 1, QString());
+        ed->endTextEdit();
+        QVector<jp::TextStyle> next = doc->styles;
+        find(next, QStringLiteral("DC"))->blk.setProperty(jp::tp::DropCapLines, 2);
+        doc->changeStyles(next);
+        QCOMPARE(paraOf(ed, hand).intProperty(jp::tp::DropCapLines), 3);
+        QCOMPARE(paraOf(ed, plain).intProperty(jp::tp::DropCapLines), 2);
+    }
+
+    // A tab stop set by hand (the ruler, or Set Tab) stays when the style's tab stops change.
+    void aHandSetTabStopSurvivesAStyleChange()
+    {
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        jp::Document *doc = ed->doc();
+        jp::TextStyle tabbed = made(QStringLiteral("Tabbed"), QStringLiteral("Normal"));
+        tabbed.blk.setTabPositions({QTextOption::Tab(72, QTextOption::LeftTab)});
+        doc->styles << tabbed;
+        auto hand = boxIn(ed, QStringLiteral("hand"), QStringLiteral("Tabbed"));
+        auto plain = boxIn(ed, QStringLiteral("plain"), QStringLiteral("Tabbed"), QRectF(72, 200, 200, 40));
+        ed->beginTextEdit(hand->id, 0);
+        QTextBlockFormat bf;
+        bf.setTabPositions({QTextOption::Tab(36, QTextOption::LeftTab)});
+        ed->mergeBlockFormat(bf, QStringLiteral("Set Tab"));
+        ed->endTextEdit();
+        QVector<jp::TextStyle> next = doc->styles;
+        find(next, QStringLiteral("Tabbed"))->blk.setTabPositions({QTextOption::Tab(144, QTextOption::LeftTab)});
+        doc->changeStyles(next);
+        QCOMPARE(paraOf(ed, hand).tabPositions().value(0).position, 36.0);
+        QCOMPARE(paraOf(ed, plain).tabPositions().value(0).position, 144.0);
+    }
+
+    // What a table of contents sets over its style is its own: a style change leaves it.
+    void aTableOfContentsEntryKeepsWhatItSetsOverItsStyle()
+    {
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        jp::Document *doc = ed->doc();
+        auto box = boxIn(ed, QStringLiteral("x"), QString());
+        ed->select(box->id);
+        ed->beginTextEdit(box->id, 0);
+        jp::insertTableOfContents(ed);
+        ed->endTextEdit();
+        QTextDocument *d = doc->storyDoc(box->storyId);
+        QTextBlock entry;
+        for (QTextBlock b = d->begin(); b.isValid(); b = b.next())
+            if (b.blockFormat().hasProperty(jp::tp::TocLevel) && b.blockFormat().intProperty(jp::tp::TocLevel) == 1) entry = b;
+        QVERIFY(entry.isValid());
+        const double top = entry.blockFormat().topMargin();
+        QVERIFY(top > 0);
+        QVector<jp::TextStyle> next = doc->styles;
+        find(next, QStringLiteral("Normal"))->blk.setTopMargin(top + 11);
+        doc->changeStyles(next);
+        QCOMPARE(doc->storyDoc(box->storyId)->findBlock(entry.position()).blockFormat().topMargin(), top);
+    }
+
+    // Text in a table cell formatted by hand keeps it when its style changes.
+    void aHandSetTableCellSizeSurvivesAStyleChange()
+    {
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        jp::Document *doc = ed->doc();
+        auto t = std::static_pointer_cast<jp::TableItem>(ed->newTable(QRectF(72, 72, 288, 72), 1, 2));
+        ed->addItem(t);
+        for (int c = 0; c < 2; ++c) QTextCursor(doc->storyDoc(t->cell(0, c).storyId)).insertText(QStringLiteral("cell"));
+        ed->beginTextEdit(t->id, 0, 0, 0);
+        QTextCursor cur = ed->cursor();
+        cur.select(QTextCursor::Document);
+        ed->setCursor(cur);
+        ed->setFontSize(30);
+        ed->endTextEdit();
+        QVector<jp::TextStyle> next = doc->styles;
+        find(next, QStringLiteral("Normal"))->chr.setFontPointSize(15);
+        doc->changeStyles(next);
+        auto sizeOf = [&](int c) { return doc->storyDoc(t->cell(0, c).storyId)->firstBlock().begin().fragment().charFormat().fontPointSize(); };
+        QCOMPARE(sizeOf(0), 30.0);
+        QCOMPARE(sizeOf(1), 15.0);
+    }
+
+    // Enter after a paragraph made flush by hand starts the next one flush too; after one not set by hand it takes the next style's indent.
+    void enterKeepsAHandMadeFlushParagraph()
+    {
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        jp::Document *doc = ed->doc();
+        jp::TextStyle head = made(QStringLiteral("Head"), QStringLiteral("Normal"));
+        head.blk.setLeftMargin(30);
+        head.next = QStringLiteral("Text");
+        jp::TextStyle text = made(QStringLiteral("Text"), QStringLiteral("Normal"));
+        text.blk.setLeftMargin(20);
+        doc->styles << head << text;
+        auto hand = boxIn(ed, QStringLiteral("hand"), QStringLiteral("Head"));
+        auto plain = boxIn(ed, QStringLiteral("plain"), QStringLiteral("Head"), QRectF(72, 200, 200, 40));
+        ed->beginTextEdit(hand->id, 0);
+        QTextBlockFormat flush;
+        flush.setLeftMargin(0);
+        ed->mergeBlockFormat(flush, QStringLiteral("Indent"));
+        ed->endTextEdit();
+        auto enterAtEnd = [&](const std::shared_ptr<jp::TextItem> &box) {
+            ed->beginTextEdit(box->id, 0);
+            QTextCursor cur = ed->cursor();
+            cur.movePosition(QTextCursor::End);
+            ed->setCursor(cur);
+            QTest::keyClick(w.canvas(), Qt::Key_Return);
+            const QTextBlockFormat bf = ed->editDoc()->findBlockByNumber(1).blockFormat();
+            ed->endTextEdit();
+            return bf;
+        };
+        const QTextBlockFormat afterHand = enterAtEnd(hand), afterPlain = enterAtEnd(plain);
+        QCOMPARE(afterHand.stringProperty(jp::tp::StyleName), QStringLiteral("Text"));
+        QCOMPARE(afterHand.leftMargin(), 0.0);
+        QCOMPARE(afterPlain.stringProperty(jp::tp::StyleName), QStringLiteral("Text"));
+        QCOMPARE(afterPlain.leftMargin(), 20.0);
     }
 
     // Format Page Numbers sets the numbers' style and the first page's number
