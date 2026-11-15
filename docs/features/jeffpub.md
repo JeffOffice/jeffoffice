@@ -55,7 +55,7 @@ Features JeffPub has that Publisher never did, then the ones planned before Jeff
 ### Info
 - [x] **1.0** Encrypt with a password: open and save a password-protected `.jpub` publication *(File > Info; AES-256 around the whole `.jpub`; the password is asked for on open, a wrong one asks again, and Cancel stops; versions, backup copies, and Save a Copy stay protected, and no recovery copy of it is written; a `.pub` file can't hold a password, so the card is off for one, and saving a protected publication as `.pub` asks first)*
 - [ ] **1.0** Check Compatibility: names what an older or other format can't hold before saving
-- [ ] **1.0** Show a publication's folder and copy its path
+- [x] **1.0** Show a publication's folder and copy its path *(Info: Open File Location, which asks first for a file on another computer, and Copy Path; both grey until saved; shared: libs/shell Info page)*
 - [ ] **later** Add a digital signature with a certificate on your computer
 - [x] **1.0** Business Information: create, edit, and switch between named sets (name, tagline, contact person, title, address, phone/fax/email, logo)
 - [x] **1.0** Commercial Print Information: color model (RGB, process CMYK, spot colors, process + spot) and embedded-font management *(spot colors are named inks: they print on their own separation plates and are Separation colors in PDFs; a process-color publication makes a CMYK PDF, with colors entered as CMYK kept exactly)*
@@ -122,6 +122,7 @@ Features JeffPub has that Publisher never did, then the ones planned before Jeff
 - [x] **1.0** Objects: Draw Text Box, Table, Pictures, Shapes
 - [x] **1.0** Arrange: Wrap Text, Bring Forward or to Front, Send Backward or to Back, Group, Ungroup, Regroup, Align and Distribute (relative to margin guides or objects), Rotate and Flip
 - [x] **1.0** Editing: Find, Replace (match case, whole word, search direction), Go To (Ctrl+G, a page by its number or a comment by its number, or the next or previous one), Select (Select All Text in Text Box, Select All, Select Objects, Select Object by Type)
+- [x] **1.0** Replace Fonts (Home > Editing): lists every font the publication names, with how many places use each, and puts another in the place of the one picked in text frames, shapes, table cells, master pages, text styles, and Text Art, and in the list of fonts a `.pub` file named, as one step of Undo; the font scheme's heading and body fonts are listed apart and change only when picked *(shared: libs/shell replacefonts and libs/page pagefonts, which JeffDeck uses too)*
 - [x] **1.0** Go to Page (F5), a page number typed into a window *(a key and a command, not a ribbon button)*
 - [ ] **later** Show Clipboard: a pane that lists what was copied lately, to paste any of it
 - [ ] **later** East Asian text layout: phonetic guides above characters, enclosed characters, horizontal text inside a vertical line, East Asian justification, and editing marks

@@ -61,7 +61,7 @@ JeffDeck's File screen has New, Open, Save, Save As, Print, Export, Close, Optio
 - [x] **1.0** Check Accessibility (see Review; also under File > Info)
 - [~] **1.0** Check Compatibility: names what an older or other format can't hold before saving *(after saving an `.odp`, a message lists what was left out; nothing is checked ahead of time, and nothing for `.ppt`)*
 - [~] **1.0** **(alt)** Version history without a cloud service: named local copies of a presentation, compared and restored from Info *(kept, opened as a copy, restored, and deleted from File > Info; no compare; a version of a protected presentation is protected too)*
-- [ ] **1.0** Show a presentation's folder and copy its path
+- [x] **1.0** Show a presentation's folder and copy its path *(Info: Open File Location, which asks first for a file on another computer, and Copy Path; both grey until saved; shared: libs/shell Info page)*
 - [ ] **later** Compress Media and Optimize Media Compatibility
 - [ ] **later** Add a digital signature with a certificate on your computer
 
@@ -101,8 +101,8 @@ JeffDeck's File screen has New, Open, Save, Save As, Print, Export, Close, Optio
 
 ### Export and Share
 - [x] **1.0** Export to PDF with the same Print what, Order, and Range choices, real text with fonts inside, the presentation's title as the PDF's title, and the page count shown before saving
-- [~] **1.0** Export a slide as a picture: the current slide to PNG or JPEG, 1920 pixels across, on white *(not all slides at once, not other sizes, not GIF, TIFF, BMP, or SVG)*
-- [ ] **1.0** Export all slides as pictures into a folder, and as a presentation of pictures
+- [~] **1.0** Export a slide as a picture: the current slide to PNG or JPEG, 1920 pixels across, on white *(not other sizes, not GIF, TIFF, BMP, or SVG)*
+- [~] **1.0** Export all slides as pictures into a folder, and as a presentation of pictures *(File > Export > Save Slides as Pictures: PNG or JPEG, a folder, a width (1920 at first), and Slide 1, Slide 2, and so on as the file names, hidden slides only when asked, drawn by the same code as the single-slide export; not a presentation of pictures)*
 - [ ] **1.0** Create a Video: MP4 of the show with transitions, animations, rehearsed timings, and narration, in a size chosen *(the design notes put it after the first release; it is the one big output the preview lacks)*
 - [x] **1.0** PDF extras: bookmarks for each slide title, tags for screen readers, and PDF/A *(done November 10, 2026: the Export to PDF box has Document structure tags for accessibility and Create bookmarks, both on; a bookmark for each slide (its title, or "Slide N"), a section for each slide, its title a heading, its objects in the slide's order, alt text on pictures and shapes, a table as rows and cells; PDF/A-1b keeps both)* *(shared: JeffPub's PDF export)*
 - [x] **1.0** PDF with a password *(Export to PDF > Encrypt with a password… asks for a password to open the PDF and, if wanted, a second to limit printing, copying, and changing; AES-256, and the plain PDF is never written to disk; shared: libs/base/io/pdfcrypt.h)*
@@ -189,7 +189,7 @@ JeffDeck's File screen has New, Open, Save, Save As, Print, Export, Close, Optio
 - [x] **1.0** (needed to drop Preview) Find (Ctrl+F) in slide text, tables, shapes, Text Art, and notes, with whole word and match case *(Home > Editing > Find opens a Find and Replace pane on the right; it searches every slide in order from the current one, shows each match on its slide, and can leave the notes out; the search is shared with JeffPub in libs/page/app/findreplace)*
 - [x] **1.0** Go To: slide, section, comment, and object *(Home > Editing > Go To, Ctrl+G, has JeffWrite's layout: a Go to what list, the entry, and Next, Previous, and Go To; a section by name or number, a comment by number or the next or previous one, opening in the Comments pane, an object by the name on the Selection pane, selected on its slide; one pass over the slides per press, in apps/deck/core/gotoplace)*
 - [x] **1.0** (needed to drop Preview) Replace (Ctrl+H), one match at a time or Replace All as one undo step that says how many it changed
-- [ ] **1.0** Replace Fonts
+- [x] **1.0** Replace Fonts *(Home > Editing > Replace Fonts: lists every font the presentation names, with how many places use each, and puts another in the place of the one picked in the text of slides, notes, tables, shapes, Text Art, masters, and layouts, and in the text styles, as one step of Undo; the theme's heading and body fonts are listed apart and change only when picked, as Design > Fonts does; shared: libs/shell replacefonts and libs/page pagefonts)*
 - [x] **1.0** Select All (Ctrl+A) in an object, on a slide, and in the Slide Sorter
 - [~] **1.0** Select Objects and the Selection Pane (see Drawing) *(Select Objects is in Home > Editing > Select, with Select All; the Selection Pane is in Home > Drawing > Arrange and shows the slide's objects by name)*
 - [x] **1.0** Undo and Redo: every change is one step that restores the whole presentation
