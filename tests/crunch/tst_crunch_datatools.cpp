@@ -812,8 +812,8 @@ private Q_SLOTS:
         e.win.w.setDataFormAsker([&](DataFormDialog *d) {
             ran = true;
             QCOMPARE(d->fieldBoxCount(), 3);
-            QCOMPARE(d->fieldLabel(0)->text(), QStringLiteral("Name:"));
-            QCOMPARE(d->fieldLabel(2)->text(), QStringLiteral("Double:"));
+            QCOMPARE(d->fieldLabel(0)->text(), QStringLiteral("Name"));
+            QCOMPARE(d->fieldLabel(2)->text(), QStringLiteral("Double"));
             QCOMPARE(d->positionLabel()->text(), QStringLiteral("2 of 3"));
             QCOMPARE(d->fieldBox(0)->text(), QStringLiteral("Bo"));
             QCOMPARE(d->fieldBox(1)->text(), QStringLiteral("150"));
