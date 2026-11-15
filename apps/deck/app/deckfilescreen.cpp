@@ -17,6 +17,7 @@
 #include "core/appinfo.h"
 #include "core/deck.h"
 #include "io/deckoutput.h"
+#include "io/presentationdefaults.h"
 #include "render/renderer.h"
 
 #include <QAction>
@@ -153,7 +154,7 @@ void DeckFileScreen::startBlank()
         m_win->act("file.new")->trigger();
     } else {
         ed->endTextEdit();
-        ed->setDocument(deck::newPresentation());
+        ed->setDocument(deck::newDefaultPresentation());
         m_win->canvas()->zoomToFit(Canvas::Fit::WholePage);
     }
     Q_EMIT closeRequested();
@@ -168,7 +169,7 @@ QWidget *DeckFileScreen::buildNew()
     // The tile shows the blank presentation's first slide.
     const qreal dpr = devicePixelRatioF();
     const QSize box(336, 210);
-    auto blank = deck::newPresentation();
+    auto blank = deck::newDefaultPresentation();
     LayoutCache cache;
     QImage first = deck::slideImage(*blank, &cache, 0, qRound((box.width() - 16) * dpr));
     first.setDevicePixelRatio(dpr);

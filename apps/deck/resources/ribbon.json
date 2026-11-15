@@ -570,6 +570,10 @@
             {
               "large": "design.formatBackground",
               "keytip": "FB"
+            },
+            {
+              "large": "design.setDefaultTheme",
+              "keytip": "SD"
             }
           ]
         }

@@ -31,6 +31,7 @@
 #include <QTextCursor>
 #include <QTextList>
 #include "app/plaintext.h"
+#include "io/presentationdefaults.h"
 
 namespace jp {
 
@@ -238,6 +239,15 @@ void DeckWindow::createDesignActions()
         if (dlg.exec() == QDialog::Accepted) askSlideSize(dlg.size());
     });
     mk("design.slideSize", tr("Slide Size"), "ratio", QKeySequence(), [] {});
+    mk("design.setDefaultSlideSize", tr("Set as Default Slide Size"), "", QKeySequence(), [this] {
+        deck::setDefaultSlideSize(m_ed->doc()->pageSize());
+        statusBar()->showMessage(tr("New presentations will start at this slide size."), 5000);
+    });
+    mk("design.setDefaultTheme", tr("Set as Default Theme"), "palette", QKeySequence(), [this] {
+        QString problem;
+        if (deck::setDefaultTheme(*m_ed->doc(), &problem)) statusBar()->showMessage(tr("New presentations will start with this theme."), 5000);
+        else jp::plainWarning(this, tr("Set as Default Theme"), problem);
+    });
     mk("design.formatBackground", tr("Format Background"), "paint-roller", QKeySequence(), [this] { showFormatBackground(); });
 }
 

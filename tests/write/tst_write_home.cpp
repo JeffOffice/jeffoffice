@@ -18,6 +18,9 @@
 #include "core/compareops.h"
 #include "core/gotoops.h"
 #include "core/outlineops.h"
+#include "core/normaltemplate.h"
+#include "core/pagesetup.h"
+#include "app/userdefaults.h"
 #include "core/editops.h"
 #include "core/pictureops.h"
 #include "core/reviewops.h"
@@ -140,6 +143,13 @@ void shot(QWidget *w, const QString &name)
 }
 
 // Runs `open` (which opens a modal dialog named `objectName`), fills the dialog in, and accepts it (or rejects it).
+// With JO_SHOT_DIR set, saves a picture of the widget there as `name`.png (for the screenshots of a change's dialogs); otherwise does nothing.
+void shotOf(QWidget *widget, const QString &name)
+{
+    const QString dir = qEnvironmentVariable("JO_SHOT_DIR");
+    if (!dir.isEmpty() && widget) widget->grab().save(dir + QLatin1Char('/') + name + QStringLiteral(".png"));
+}
+
 void withDialog(const std::function<void()> &open, const QString &objectName, const std::function<void(QDialog *)> &fill, bool accept = true)
 {
     QString opened;
@@ -985,6 +995,8 @@ private Q_SLOTS:
 
     void setAsDefaultGivesTheNormalStyleTheFontChosen()
     {
+        QFile::remove(normalTemplatePath());
+        setDefaultScopeStandIn([](const QString &) { return DefaultScope::ThisDocument; });
         WriteWindow w;
         w.setNotifier([](const QString &, const QString &) {});
         w.show();
@@ -992,17 +1004,114 @@ private Q_SLOTS:
         w.view()->selectAll();
         withDialog([&w] { w.act(QStringLiteral("fmt.fontDialog"))->trigger(); }, QStringLiteral("fontDialog"), [](QDialog *d) {
             d->findChild<QDoubleSpinBox *>(QStringLiteral("fontSize"))->setValue(15);
-            // (Polled: the box is answered when it is there, however long the machine takes to show it.)
-            auto *poll = new QTimer(d);
-            QObject::connect(poll, &QTimer::timeout, poll, [] {
-                for (QWidget *top : QApplication::topLevelWidgets())
-                    if (auto *box = qobject_cast<QMessageBox *>(top); box && box->isVisible()) box->button(QMessageBox::Yes)->click();
-            });
-            poll->start(20);
             d->findChild<QPushButton *>(QStringLiteral("setAsDefault"))->click();
         }, false);
+        setDefaultScopeStandIn(nullptr);
         const QByteArray styles = part(w.document()->toDocx(), QStringLiteral("/word/styles.xml"));
         QVERIFY2(styles.contains("<w:sz w:val=\"30\"/>"), styles.constData());
+        // (this document only: no template was made)
+        QVERIFY(!QFile::exists(normalTemplatePath()));
+    }
+
+    // ---- Set as Default for all new documents: the Normal template
+    void theNormalTemplateIsMadeOnFirstUseAndNewDocumentsStartFromIt()
+    {
+        QFile::remove(normalTemplatePath());
+        QVERIFY(!QFile::exists(normalTemplatePath()));
+        QCOMPARE(pageSetupOf(newBlankDocument()->sectionProps(0), false).left, 72.0);
+        QVERIFY(changeNormalTemplate([](WriteDoc &d) {
+            office::wml::SectionProps p = d.sectionProps(0);
+            p.left = 720;   // (twentieths of a point: half an inch)
+            d.setSectionProps(0, p);
+        }));
+        QVERIFY(QFile::exists(normalTemplatePath()));
+        QCOMPARE(pageSetupOf(newBlankDocument()->sectionProps(0), false).left, 36.0);
+        // A second change keeps the first.
+        QVERIFY(changeNormalTemplate([](WriteDoc &d) {
+            office::wml::SectionProps p = d.sectionProps(0);
+            p.right = 1080;
+            d.setSectionProps(0, p);
+        }));
+        const SectionSetup now = pageSetupOf(newBlankDocument()->sectionProps(0), false);
+        QCOMPARE(now.left, 36.0);
+        QCOMPARE(now.right, 54.0);
+        QFile::remove(normalTemplatePath());
+    }
+
+    void aNewWindowStartsFromTheNormalTemplate()
+    {
+        QFile::remove(normalTemplatePath());
+        QVERIFY(changeNormalTemplate([](WriteDoc &d) {
+            office::wml::SectionProps p = d.sectionProps(0);
+            p.top = 360;
+            d.setSectionProps(0, p);
+        }));
+        WriteWindow w;
+        QCOMPARE(pageSetupOf(w.document()->sectionProps(0), false).top, 18.0);
+        QFile::remove(normalTemplatePath());
+    }
+
+    void fontSetAsDefaultForAllNewDocumentsWritesTheNormalTemplate()
+    {
+        QFile::remove(normalTemplatePath());
+        QString asked;
+        setDefaultScopeStandIn([&asked](const QString &what) {
+            asked = what;
+            return DefaultScope::AllNew;
+        });
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        w.setDocument(open(makeDocx(para(run("some words")))), QString());
+        w.view()->selectAll();
+        withDialog([&w] { w.act(QStringLiteral("fmt.fontDialog"))->trigger(); }, QStringLiteral("fontDialog"), [](QDialog *d) {
+            d->findChild<QDoubleSpinBox *>(QStringLiteral("fontSize"))->setValue(17);
+            shotOf(d, QStringLiteral("write-font-dialog"));
+            d->findChild<QPushButton *>(QStringLiteral("setAsDefault"))->click();
+        }, false);
+        setDefaultScopeStandIn(nullptr);
+        QVERIFY(!asked.isEmpty());
+        QVERIFY(QFile::exists(normalTemplatePath()));
+        QVERIFY2(part(newBlankDocument()->toDocx(), QStringLiteral("/word/styles.xml")).contains("<w:sz w:val=\"34\"/>"), "the new document's Normal style is 17 pt");
+        QFile::remove(normalTemplatePath());
+    }
+
+    void paragraphSetAsDefaultSetsTheNormalStyleSpacing()
+    {
+        QFile::remove(normalTemplatePath());
+        setDefaultScopeStandIn([](const QString &) { return DefaultScope::AllNew; });
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        w.setDocument(open(makeDocx(para(run("a paragraph")))), QString());
+        w.view()->selectAll();
+        withDialog([&w] { w.act(QStringLiteral("para.dialog"))->trigger(); }, QStringLiteral("paragraphDialog"), [](QDialog *d) {
+            d->findChild<QDoubleSpinBox *>(QStringLiteral("after"))->setValue(24);
+            shotOf(d, QStringLiteral("write-paragraph-dialog"));
+            d->findChild<QPushButton *>(QStringLiteral("setAsDefault"))->click();
+        }, false);
+        setDefaultScopeStandIn(nullptr);
+        QVERIFY(QFile::exists(normalTemplatePath()));
+        const QByteArray styles = part(newBlankDocument()->toDocx(), QStringLiteral("/word/styles.xml"));
+        QVERIFY2(styles.contains("w:after=\"480\""), styles.constData());
+        QFile::remove(normalTemplatePath());
+    }
+
+    void pageSetupSetAsDefaultForAllNewDocumentsWritesTheNormalTemplate()
+    {
+        QFile::remove(normalTemplatePath());
+        setDefaultScopeStandIn([](const QString &) { return DefaultScope::AllNew; });
+        auto doc = open(makeDocx(para(run("text"))));
+        withDialog([&doc] { pageSetupDialog(nullptr, doc.get(), 0); }, QStringLiteral("pageSetupDialog"), [](QDialog *d) {
+            d->findChild<QDoubleSpinBox *>(QStringLiteral("left"))->setValue(30);
+            shotOf(d, QStringLiteral("write-page-setup-dialog"));
+            d->findChild<QPushButton *>(QStringLiteral("setAsDefault"))->click();
+        }, false);
+        setDefaultScopeStandIn(nullptr);
+        QVERIFY(QFile::exists(normalTemplatePath()));
+        QCOMPARE(pageSetupOf(newBlankDocument()->sectionProps(0), false).left, 30.0);
+        QCOMPARE(pageSetupOf(doc->sectionProps(0), false).left, 30.0);   // (and this document, as OK does)
+        QFile::remove(normalTemplatePath());
     }
 
     void theParagraphBoxSetsLineAndPageBreakChoicesAndTheOutlineLevel()

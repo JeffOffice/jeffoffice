@@ -255,6 +255,7 @@ void DeckWindow::ribbonMenuParts(RibbonParts &parts)
             if (p.key != QLatin1String("standard") && p.key != QLatin1String("widescreen")) m->addAction(act(("design.size." + p.key).toLatin1().constData()));
         m->addSeparator();
         m->addAction(act("design.sizeCustom"));
+        m->addAction(act("design.setDefaultSlideSize"));
         return m;
     };
 }

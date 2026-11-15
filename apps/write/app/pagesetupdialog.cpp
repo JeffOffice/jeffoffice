@@ -3,6 +3,8 @@
 #include "app/writedialogs.h"
 
 #include "app/widgets.h"
+#include "app/userdefaults.h"
+#include "core/normaltemplate.h"
 #include "core/pagesetup.h"
 #include "core/pictureops.h"
 #include "core/writedoc.h"
@@ -16,6 +18,7 @@
 #include <QGroupBox>
 #include <QLabel>
 #include <QPlainTextEdit>
+#include <QPushButton>
 #include <QRadioButton>
 #include <QSignalBlocker>
 #include <QTabWidget>
@@ -189,6 +192,13 @@ bool pageSetupDialog(QWidget *parent, WriteDoc *doc, int section, QTextCursor *c
     row->addRow(QCoreApplication::translate("jp::write::Dialogs", "Apply to:"), applyTo);
     v->addLayout(row);
     auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    auto *setDefault = buttons->addButton(QCoreApplication::translate("jp::write::Dialogs", "Set as Default…"), QDialogButtonBox::ResetRole);
+    setDefault->setObjectName(QStringLiteral("setAsDefault"));
+    DefaultScope makeDefault = DefaultScope::Cancel;
+    QObject::connect(setDefault, &QPushButton::clicked, &dlg, [&] {
+        makeDefault = askDefaultScope(&dlg, QCoreApplication::translate("jp::write::Dialogs", "the margins and paper size chosen here"));
+        if (makeDefault != DefaultScope::Cancel) dlg.accept();
+    });
     v->addWidget(buttons);
     QObject::connect(buttons, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
     QObject::connect(buttons, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
@@ -209,7 +219,22 @@ bool pageSetupDialog(QWidget *parent, WriteDoc *doc, int section, QTextCursor *c
     after.start = start->currentData().toString();
     after.differentFirstPage = firstPage->isChecked();
     after.differentOddEven = oddEven->isChecked();
-    const PageSetupScope scope = PageSetupScope(applyTo->currentData().toInt());
+    // Set as Default: the margins and the paper (not how a section starts, or its headers) go to the Normal template, which new documents start from.
+    if (makeDefault == DefaultScope::AllNew)
+        changeNormalTemplate([after](WriteDoc &target) {
+            SectionSetup now = pageSetupOf(target.sectionProps(0), target.differentOddEven());
+            SectionSetup chosen = now;
+            chosen.paperWidth = after.paperWidth;
+            chosen.paperHeight = after.paperHeight;
+            chosen.landscape = after.landscape;
+            chosen.top = after.top;
+            chosen.bottom = after.bottom;
+            chosen.left = after.left;
+            chosen.right = after.right;
+            chosen.gutter = after.gutter;
+            applyPageSetup(target, 0, PageSetupScope::WholeDocument, now, chosen);
+        });
+    const PageSetupScope scope = makeDefault == DefaultScope::ThisDocument ? PageSetupScope::WholeDocument : PageSetupScope(applyTo->currentData().toInt());
     if (scope == PageSetupScope::ThisPointForward && cursor) return applyPageSetupFromCursor(*doc, *cursor, before, after) > 0;
     return applyPageSetup(*doc, section, scope, before, after) > 0;
 }

@@ -2,6 +2,7 @@
 #include "app/keymap.h"
 #include "app/ribboncustom.h"
 #include "app/writewindow.h"
+#include "core/normaltemplate.h"
 #include "core/pagenumberops.h"
 #include "core/startuptrace.h"
 
@@ -172,7 +173,7 @@ WriteWindow::WriteWindow(QWidget *parent) : AppWindow(parent)
     m_wordTimer.setInterval(500);
     connect(&m_wordTimer, &QTimer::timeout, this, &WriteWindow::updateWords);
 
-    setDocument(write::WriteDoc::blank(), QString());
+    setDocument(write::newBlankDocument(), QString());
     applyDisplayDefaults();
     applyEditingDefaults();
     resize(1280, 800);

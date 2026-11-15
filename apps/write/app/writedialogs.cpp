@@ -3,6 +3,8 @@
 #include "app/icons.h"
 #include "app/pageview.h"
 #include "core/homeops.h"
+#include "core/normaltemplate.h"
+#include "app/userdefaults.h"
 #include "flow/flowdocument.h"
 #include "app/widgets.h"
 #include "core/editops.h"
@@ -162,6 +164,45 @@ void setDefaultFont(WriteDoc &doc, const QString &family, double size, int style
         office::wml::Color c;
         c.val = QStringLiteral("%1").arg(rgb.rgb() & 0xFFFFFF, 6, 16, QLatin1Char('0')).toUpper();
         def.rPr.color = c;
+    }
+    QTextCursor at(doc.story());
+    QString problem;
+    modifyStyle(doc, at, id, def, &problem);
+}
+
+// What the Paragraph box sets besides its checkboxes: Set as Default gives it to the Normal style.
+struct ParagraphDefaults {
+    int align = 0;                          // the alignment box's index: left, centered, right, justified
+    double left = 0, right = 0, first = 0;   // points; `first` is negative for a hanging indent
+    double before = 0, after = 0;           // points
+    int lineKind = 0;                       // the line spacing box's index: single, 1.5 lines, double, at least, exactly, multiple
+    double lineValue = 1;                   // the "at" points (at least, exactly) or the multiple
+};
+
+// The document's Normal style takes the paragraph settings given: Set as Default in the Paragraph box.
+void setDefaultParagraph(WriteDoc &doc, const ParagraphDefaults &p)
+{
+    const QString id = doc.defaultParagraphStyle();
+    const std::optional<office::wml::Style> now = styleOfDocument(doc, id);
+    if (!now) return;
+    office::wml::Style def = *now;
+    static const char *const jc[] = {"left", "center", "right", "both"};
+    def.pPr.jc = QString::fromLatin1(jc[std::clamp(p.align, 0, 3)]);
+    def.pPr.indLeft = int(std::lround(p.left * 20));
+    def.pPr.indRight = int(std::lround(p.right * 20));
+    def.pPr.indFirst = int(std::lround(p.first * 20));
+    def.pPr.before = int(std::lround(p.before * 20));
+    def.pPr.after = int(std::lround(p.after * 20));
+    def.pPr.beforeAuto = def.pPr.afterAuto = std::nullopt;
+    if (p.lineKind <= 2) {
+        def.pPr.line = p.lineKind == 0 ? 240 : p.lineKind == 1 ? 360 : 480;
+        def.pPr.lineRule = QStringLiteral("auto");
+    } else if (p.lineKind <= 4) {
+        def.pPr.line = int(std::lround(p.lineValue * 20));
+        def.pPr.lineRule = p.lineKind == 3 ? QStringLiteral("atLeast") : QStringLiteral("exact");
+    } else {
+        def.pPr.line = int(std::lround(p.lineValue * 240));
+        def.pPr.lineRule = QStringLiteral("auto");
     }
     QTextCursor at(doc.story());
     QString problem;
@@ -433,13 +474,10 @@ void fontDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     v->addWidget(buttons);
     QObject::connect(buttons, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
     QObject::connect(buttons, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
-    bool makeDefault = false;
+    DefaultScope makeDefault = DefaultScope::Cancel;
     QObject::connect(setDefault, &QPushButton::clicked, &dlg, [&] {
-        if (plainQuestion(&dlg, QCoreApplication::translate("jp::write::Dialogs", "Set as Default"),
-                          QCoreApplication::translate("jp::write::Dialogs", "Make the font, size, and look chosen here the default for all new text in this document?"), QMessageBox::Yes | QMessageBox::Cancel) == QMessageBox::Yes) {
-            makeDefault = true;
-            dlg.accept();
-        }
+        makeDefault = askDefaultScope(&dlg, QCoreApplication::translate("jp::write::Dialogs", "the font, size, and look chosen here"));
+        if (makeDefault != DefaultScope::Cancel) dlg.accept();
     });
     if (dlg.exec() != QDialog::Accepted) return;
 
@@ -549,8 +587,16 @@ void fontDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
         }
     });
     c.endEditBlock();
-    // Set as Default: the document's Normal style takes the font, size, and look chosen (the characters selected took them above).
-    if (makeDefault) setDefaultFont(*doc, familyChanged ? chosen : (familyMixed ? QString() : family), sizeMixed ? 0 : size->value(), style->currentIndex(), color->mixed() ? ColorRef::none() : color->current(), colors);
+    // Set as Default: the Normal style takes the font, size, and look chosen (the characters selected took them above): the document's, or the Normal template's for all new documents.
+    if (makeDefault != DefaultScope::Cancel) {
+        const QString defFamily = familyChanged ? chosen : (familyMixed ? QString() : family);
+        const double defSize = sizeMixed ? 0 : size->value();
+        const int defStyle = style->currentIndex();
+        const ColorRef defColor = color->mixed() ? ColorRef::none() : color->current();
+        auto apply = [=](WriteDoc &target) { setDefaultFont(target, defFamily, defSize, defStyle, defColor, colors); };
+        if (makeDefault == DefaultScope::AllNew) changeNormalTemplate(apply);
+        else apply(*doc);
+    }
 }
 
 void tabsDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
@@ -768,6 +814,13 @@ void paragraphDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     auto *tabs = buttons->addButton(QCoreApplication::translate("jp::write::Dialogs", "Tabs…"), QDialogButtonBox::ActionRole);
     tabs->setObjectName(QStringLiteral("tabsButton"));
     QObject::connect(tabs, &QPushButton::clicked, &dlg, [&] { tabsDialog(&dlg, doc, cursor); });
+    auto *setDefault = buttons->addButton(QCoreApplication::translate("jp::write::Dialogs", "Set as Default…"), QDialogButtonBox::ResetRole);
+    setDefault->setObjectName(QStringLiteral("setAsDefault"));
+    DefaultScope makeDefault = DefaultScope::Cancel;
+    QObject::connect(setDefault, &QPushButton::clicked, &dlg, [&] {
+        makeDefault = askDefaultScope(&dlg, QCoreApplication::translate("jp::write::Dialogs", "the alignment, indents, and spacing chosen here"));
+        if (makeDefault != DefaultScope::Cancel) dlg.accept();
+    });
     v->addWidget(buttons);
     QObject::connect(buttons, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
     QObject::connect(buttons, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
@@ -828,6 +881,19 @@ void paragraphDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
             else bf.setLineHeight(multiple->value() * 100, QTextBlockFormat::ProportionalHeight);
         }
     });
+    if (makeDefault != DefaultScope::Cancel) {
+        ParagraphDefaults d;
+        d.align = align->currentIndex();
+        d.left = left->value();
+        d.right = right->value();
+        d.first = firstNow;
+        d.before = before->value();
+        d.after = after->value();
+        d.lineKind = k;
+        d.lineValue = k == 5 ? multiple->value() : at->value();
+        if (makeDefault == DefaultScope::AllNew) changeNormalTemplate([d](WriteDoc &target) { setDefaultParagraph(target, d); });
+        else setDefaultParagraph(*doc, d);
+    }
 }
 
 void zoomDialog(QWidget *parent, PageView *view)

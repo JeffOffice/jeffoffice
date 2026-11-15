@@ -317,6 +317,7 @@ qt_add_executable(jptests
   tests/pub/tst_pub_update.cpp
   tests/pub/tst_pub_window.cpp
   tests/shell/tst_shell_fileinfo.cpp
+  tests/shell/tst_shell_defaults.cpp
   tests/shell/tst_shell_grammar.cpp
   tests/shell/tst_shell_grammar_rules.cpp
   tests/shell/tst_shell_keymap.cpp

@@ -13,6 +13,7 @@
 #include "app/writewindow.h"
 #include "core/appinfo.h"
 #include "core/printing.h"
+#include "core/normaltemplate.h"
 #include "core/templates.h"
 
 #include <QCoreApplication>
@@ -141,7 +142,7 @@ void WriteFileScreen::startBlank()
 {
     // A new document nobody has touched gives way; any other stays, and the new one opens in a window of its own (as Open does).
     if (m_win->isModified() || !m_win->filePath().isEmpty()) m_win->act("file.new")->trigger();
-    else m_win->setDocument(write::WriteDoc::blank(), QString());
+    else m_win->setDocument(write::newBlankDocument(), QString());
     Q_EMIT closeRequested();
 }
 
@@ -154,7 +155,7 @@ QWidget *WriteFileScreen::buildNew()
     // The tile shows the blank document's first page.
     const qreal dpr = devicePixelRatioF();
     const QSize box(144, 188);
-    auto blank = write::WriteDoc::blank();
+    auto blank = write::newBlankDocument();
     QImage first(QSize(qRound((box.width() - 16) * dpr), qRound((box.width() - 16) * dpr * 11 / 8.5)), QImage::Format_RGB32);
     first.fill(Qt::white);
     first.setDevicePixelRatio(dpr);

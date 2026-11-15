@@ -70,7 +70,7 @@ JeffDeck's File screen has New, Open, Save, Save As, Print, Export, Close, Optio
 - [~] **1.0** Template gallery with live previews: the nine built-in themes, each with its variants, shown as places to start (they are only in the Design tab now), and your own templates under My Templates *(done: your own templates, saved with File > Save as Template, under My Templates on the New page; not done: the built-in themes as places to start)*
 - [x] **1.0** A presentation opened from a template (`.potx`, `.otp`) is saved as a new presentation, so the template stays as it was
 - [ ] **1.0** More built-in templates written by JeffOffice and open-licensed: a lesson, a report, a pitch, a photo album, and a training deck
-- [ ] **1.0** The default for new presentations: set the theme, fonts, and slide size every new presentation starts with
+- [x] **1.0** The default for new presentations: set the theme, fonts, and slide size every new presentation starts with *(Design > Set as Default Theme keeps the current theme, with its fonts and colors, in the app's data folder; Design > Slide Size > Set as Default Slide Size keeps the size; a new blank presentation takes both)*
 - [ ] **later** Photo Album (Insert > Photo Album) and templates found online
 
 ### Open, Save, Save As, and Close

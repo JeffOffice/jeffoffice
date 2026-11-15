@@ -1,5 +1,7 @@
 // JeffDeck's tests of themes and variants.
 #include "deckhelpers.h"
+#include "app/userdefaults.h"
+#include "io/presentationdefaults.h"
 
 struct BackdropDeck {
     std::unique_ptr<Document> doc;
@@ -2643,6 +2645,47 @@ private Q_SLOTS:
         QVERIFY2(empty && !deck::hasSections(*empty), qPrintable(err));
         auto emptyList = edited(QStringLiteral(" "));
         QVERIFY2(emptyList && !deck::hasSections(*emptyList), qPrintable(err));
+    }
+
+    // ---- Set as default: the theme and the slide size that new presentations start from ----
+    void newPresentationsStartFromTheDefaultThemeAndSlideSize()
+    {
+        using namespace jp::deck;
+        QFile::remove(deck::defaultThemePath());
+        deck::clearDefaultSlideSize();
+        QCOMPARE(themeOf(*deck::newDefaultPresentation()).name, themeOf(*newPresentation()).name);   // (none set: as always)
+        const int theme = 3;
+        QVERIFY(builtinThemeName(theme) != themeOf(*newPresentation()).name);
+        QVERIFY(deck::setDefaultTheme(*themePresentation(theme)));
+        QVERIFY(QFile::exists(deck::defaultThemePath()));
+        QCOMPARE(themeOf(*deck::newDefaultPresentation()).name, builtinThemeName(theme));
+        QCOMPARE(deck::newDefaultPresentation()->pages.size(), 1);   // (a blank presentation: the title slide alone)
+        QCOMPARE(deck::newDefaultPresentation()->pageSize(), QSizeF(kSlideWidth, kSlideHeight));
+        deck::setDefaultSlideSize(QSizeF(kStandardWidth, kStandardHeight));
+        QCOMPARE(deck::newDefaultPresentation()->pageSize(), QSizeF(kStandardWidth, kStandardHeight));
+        QCOMPARE(themeOf(*deck::newDefaultPresentation()).name, builtinThemeName(theme));   // (both at once)
+        QFile::remove(deck::defaultThemePath());
+        deck::clearDefaultSlideSize();
+        QCOMPARE(deck::newDefaultPresentation()->pageSize(), QSizeF(kSlideWidth, kSlideHeight));
+    }
+
+    void theDesignTabSetsTheDefaultThemeAndSlideSize()
+    {
+        using namespace jp::deck;
+        QFile::remove(deck::defaultThemePath());
+        deck::clearDefaultSlideSize();
+        DeckWindow w;
+        w.editor()->setDocument(themePresentation(3));
+        QVERIFY(w.act("design.setDefaultTheme"));
+        w.act("design.setDefaultTheme")->trigger();
+        QVERIFY(QFile::exists(deck::defaultThemePath()));
+        QCOMPARE(themeOf(*deck::newDefaultPresentation()).name, builtinThemeName(3));
+        setSlideSize(*w.editor()->doc(), QSizeF(kStandardWidth, kStandardHeight));
+        QVERIFY(w.act("design.setDefaultSlideSize"));
+        w.act("design.setDefaultSlideSize")->trigger();
+        QCOMPARE(deck::newDefaultPresentation()->pageSize(), w.editor()->doc()->pageSize());
+        QFile::remove(deck::defaultThemePath());
+        deck::clearDefaultSlideSize();
     }
 };
 

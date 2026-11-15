@@ -24,6 +24,7 @@
 #include "app/widgets.h"
 #include "core/appinfo.h"
 #include "core/deck.h"
+#include "io/presentationdefaults.h"
 #include "core/embeddedfonts.h"
 #include "core/sections.h"
 #include "core/themes.h"
@@ -68,7 +69,7 @@ DeckWindow::DeckWindow(QWidget *parent) : AppWindow(parent)
     }));
     m_ed = new Editor(this);
     m_ed->setNewDocumentName(tr("Presentation1"));
-    m_ed->setDocument(deck::newPresentation());
+    m_ed->setDocument(deck::newDefaultPresentation());
     m_fontsOf = m_ed->doc();
     // A presentation's view: no rulers, guides, or boundaries until they are asked for (the canvas outlines empty placeholders itself).
     m_ed->view.guides = false;
