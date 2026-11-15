@@ -1020,6 +1020,19 @@ private Q_SLOTS:
     void theHeaderAndFooterTabNavigatesAndInsertsDatesAndSetsNumbering();
     void removeHeaderAndFooterLetGoOfTheSectionsOwnAndBlankWhatItWouldShare();
     void headerDesignsFillAHeaderWithFieldsAndTabsInOneStep();
+    // The Page Number gallery (tst_write_pagenum.cpp)
+    void theGalleryListsTheDesigns();
+    void eachDesignIsInsertedSavedReopenedAndLaidOutWithTheRightNumbers();
+    void theBoxesOfADesignAreAnchoredDrawingsWithTheFieldInThem();
+    void pageXOfYShowsTheCountOfThePages();
+    void theSectionsNumberFormatIsUsed();
+    void aDesignGoesToTheKindOfPageTheCursorIsOn();
+    void replaceAndKeepDecideWhatBecomesOfTheText();
+    void removePageNumbersLeavesTheOtherTextAlone();
+    void aDesignIsOneStepOfUndo();
+    void theDesignsOfTheCurrentPositionPutTheNumberAtTheCaret();
+    void theWindowOffersTheGalleryOnInsertAndOnTheHeaderAndFooterTab();
+    void aDesignChosenInTheWindowIsAskedAboutAndIsOneStep();
     void documentInformationIsPutInAsFields();
     void theHeaderAndFooterTabHasTheOptions();
     void editingInAHeaderWorksAsInTheText();
