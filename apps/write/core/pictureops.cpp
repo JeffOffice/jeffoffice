@@ -2242,6 +2242,8 @@ bool distributeObjects(WriteDoc &doc, const QVector<std::pair<int, QRectF>> &obj
         at += length(r) + gap;
     }
     return changed;
+}
+
 PictureResult insertIcon(WriteDoc &doc, QTextCursor &c, const QString &name, double size, PictureWrap wrap)
 {
     size = std::clamp(size, kLeastPictureSize, kMostPictureSize);
