@@ -1569,32 +1569,43 @@ static bool documentHasNoComplexScript(const QTextDocument *doc)
     return none;
 }
 
+// Whether a paragraph has letters of a script that is shaped with ligatures of its own, asked once and only where the answer is wanted.
+struct ComplexOf {
+    const QTextBlock &b;
+    mutable int known = -1;
+    bool operator()() const
+    {
+        if (known < 0) known = paragraphHasComplexScript(b) ? 1 : 0;
+        return known == 1;
+    }
+};
+
 // (A word processor's text has no ligatures unless its file asks, and not the letters of the scripts that need them: those are shaped as the font does.)
-static bool suppressesLigatures(const QTextCharFormat &cf, const LayoutEnv &env, const QTextBlock &b)
+static bool suppressesLigatures(const QTextCharFormat &cf, const LayoutEnv &env, const ComplexOf &complex)
 {
-    return env.noLigatures || (env.wordLines && !cf.hasProperty(tp::Ligatures) && !paragraphHasComplexScript(b));
+    return env.noLigatures || (env.wordLines && !cf.hasProperty(tp::Ligatures) && !complex());
 }
 
 // The OpenType features the first run of a paragraph asks for, which its layout font has (the other runs' differ where they ask).
-static QMap<QFont::Tag, quint32> blockFeatures(const QTextBlock &b, const LayoutEnv &env)
+static QMap<QFont::Tag, quint32> blockFeatures(const QTextBlock &b, const LayoutEnv &env, const ComplexOf &complex)
 {
     QTextCharFormat cf = b.charFormat();
     auto it = b.begin();
     if (!it.atEnd()) cf = it.fragment().charFormat();
-    return tp::ot::features(cf, suppressesLigatures(cf, env, b));
+    return tp::ot::features(cf, suppressesLigatures(cf, env, complex));
 }
 
 // The features of a run that asks for others than its paragraph's font has: every one the font has that the run does not, set the other way, so that the run is as it asks.
-static void runFeatures(QTextCharFormat &rf, const QTextCharFormat &cf, const LayoutEnv &env, const QTextBlock &b, const QMap<QFont::Tag, quint32> &block)
+static void runFeatures(QTextCharFormat &rf, const QTextCharFormat &cf, const LayoutEnv &env, const ComplexOf &complex, const QMap<QFont::Tag, quint32> &block)
 {
-    QMap<QFont::Tag, quint32> own = tp::ot::features(cf, suppressesLigatures(cf, env, b));
+    QMap<QFont::Tag, quint32> own = tp::ot::features(cf, suppressesLigatures(cf, env, complex));
     if (own == block) return;
     for (const auto &[tag, on] : block.asKeyValueRange())
         if (!own.contains(tag)) own.insert(tag, on ? 0 : 1);
     rf.setFontFeatures(own);
 }
 
-QFont baseFontFor(const QTextBlock &b, const LayoutEnv &env)
+static QFont baseFontWith(const QTextBlock &b, const LayoutEnv &env, const ComplexOf &complex)
 {
     QTextCharFormat cf = b.charFormat();
     // Prefer the first fragment's format so empty-paragraph height matches its text.
@@ -1605,12 +1616,17 @@ QFont baseFontFor(const QTextBlock &b, const LayoutEnv &env)
     // runs that say none would take from here.)
     if (env.wordLines) f.setStretch(QFont::AnyStretch);
     // Paragraph-level OpenType features (a run that asks for others has its own: see blockFeatures).
-    for (const auto &[tag, on] : blockFeatures(b, env).asKeyValueRange()) f.setFeature(tag, on);
+    for (const auto &[tag, on] : blockFeatures(b, env, complex).asKeyValueRange()) f.setFeature(tag, on);
     // Other capitals are made in the layout's text, run by run (buildOnce); Qt
     // would take them from this font, the first run's, for the whole paragraph.
     if (hasTrueSmallCaps(b)) f.setFeature(QFont::Tag("smcp"), 1);
     else f.setCapitalization(QFont::MixedCase);
     return f;
+}
+
+QFont baseFontFor(const QTextBlock &b, const LayoutEnv &env)
+{
+    return baseFontWith(b, env, ComplexOf{b});
 }
 
 // ---------- block mapping ----------
@@ -3361,7 +3377,8 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         const int dropLines = tail ? 0 : bf.intProperty(tp::DropCapLines);
         int dropRemaining = dropLines > 0 ? std::max(1, bf.intProperty(tp::DropCapChars)) : 0;
         QVector<QTextLayout::FormatRange> ranges;
-        const QMap<QFont::Tag, quint32> blockFeats = blockFeatures(b, env);   // (what the paragraph's layout font has: a run that asks for others has its own)
+        const ComplexOf blockComplex{b};
+        const QMap<QFont::Tag, quint32> blockFeats = blockFeatures(b, env, blockComplex);   // (what the paragraph's layout font has: a run that asks for others has its own)
         QHash<int, QTextCharFormat> resolved;   // (the look of each format of the story that the runs have, made once: a paragraph of hundreds of thousands of runs has few)
         QTextCharFormat dropFmt;
         // The paragraph's text from where the rest of it begins, and no more than the window holds.
@@ -3428,7 +3445,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             if (const auto known = resolved.constFind(frag.charFormatIndex()); known != resolved.constEnd()) rf = known.value();
             else {
                 rf = resolveCharFormat(cf, env, behind);
-                runFeatures(rf, cf, env, b, blockFeats);
+                runFeatures(rf, cf, env, blockComplex, blockFeats);
                 resolved.insert(frag.charFormatIndex(), rf);
             }
             // An object set in the text: an em dash (a line may break on
@@ -3747,7 +3764,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         }
         B->cut = cutShort;
         // Qt draws U+2028 as a line break; keep it.
-        const QFont base = baseFontFor(b, env);
+        const QFont base = baseFontWith(b, env, blockComplex);
         // (A word processor's line that shows no text is the height of the paragraph mark's font.)
         QFont markFont;
         double markSize = 0;
