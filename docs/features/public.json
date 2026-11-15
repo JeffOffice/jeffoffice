@@ -87,7 +87,8 @@
        "text": "c45acd284a8704f7477ea67a11612b4d09349462ddef91768ca0309c9afe7b54"
       },
       {
-       "status": "partly",
+       "hide_soon": true,
+       "status": "done",
        "text": "33012a11d6067be747980ed91de39869019b2c8579b53ffe0e9b0ab6a5545109"
       }
      ]
@@ -120,7 +121,8 @@
          "text": "135d4304ff9046749cc6334a243d077ac5cfed0fc04e100a01e67955144110d4"
         },
         {
-         "status": "partly",
+         "hide_soon": true,
+         "status": "done",
          "text": "2127b02106e075b5290f99961f49b74820ac1591fa36222a8c091e064befc3f8"
         },
         {
@@ -137,6 +139,10 @@
          "hide_soon": true,
          "status": "done",
          "text": "be121da03303adc8a052cda13953abb822b4dad709806354f90ea8edc0a4f708"
+        },
+        {
+         "status": "partly",
+         "text": "655b052c16ed763d535449d4823431af9bcfc10e8080d683c409fb8acfab4007"
         }
        ]
       },
@@ -239,7 +245,8 @@
        "heading": "f82e937e6fe5ac63354ccc95f0d3cd102d99403b6a05e79fdf2c0fb8b8034989",
        "items": [
         {
-         "status": "partly",
+         "hide_soon": true,
+         "status": "done",
          "text": "352af623689b5cb2c2f8771b49600670bbb5ad10794a7d414b4926635ac6804a"
         },
         {
@@ -418,7 +425,8 @@
          "text": "f12ab3fb7dbad203ef1cf2e099a707f732655ee720a576c0326dca5c07babd77"
         },
         {
-         "status": "partly",
+         "hide_soon": true,
+         "status": "done",
          "text": "bae15634168309e8350b3b0309ee8f64a4a836c66faa2138c5210aac3aed4b8d"
         },
         {
@@ -568,7 +576,8 @@
          "text": "c490e1191bacecaf6269ead06e990028290494b1a1eb4aa85f49a8d78ef8b885"
         },
         {
-         "status": "partly",
+         "hide_soon": true,
+         "status": "done",
          "text": "a96884d5e4cd243b4f143d9dfe088f0d37d3913647d8ad507b53bd7b7bca6b73"
         },
         {
@@ -758,7 +767,8 @@
        "heading": "4faa242c5db36e5582ca1518733bcd8ab40cdac4e49c0f4d8d11586facf609ba",
        "items": [
         {
-         "status": "partly",
+         "hide_soon": true,
+         "status": "done",
          "text": "8dfb6c309e6b74619208989aeec3a0af335c1a4a99eb7c5be2c355ff7f08535d"
         },
         {
@@ -870,7 +880,8 @@
        "heading": "6bcfa3b05a9333f6c9ddfbd47c3d55766822df971eab35eb39db34bb09019e52",
        "items": [
         {
-         "status": "partly",
+         "hide_soon": true,
+         "status": "done",
          "text": "1e5a2018f18177c9bb96edc78c515dab4976a1bb141c6d4a70baae4508b449fa"
         },
         {
@@ -964,7 +975,8 @@
          "text": "51787acc6c5d892d35ff3c74a338558e59a965ccc6a79e6a5afd1389a4fbf5c1"
         },
         {
-         "status": "partly",
+         "hide_soon": true,
+         "status": "done",
          "text": "5616b3062c183d4483b822d1ff8d778d446840289d97e2c9d194c1cb0c9d8cbd"
         }
        ]
@@ -1202,7 +1214,8 @@
          "text": "ce30db5db371901c1dbbcd571377340dd7bd78a0e16307ee20e97fbdaaa9d7f7"
         },
         {
-         "status": "partly",
+         "hide_soon": true,
+         "status": "done",
          "text": "044d958297d94436c68f2818ec0de46cf2886e0adc2c275fcf95e81a3015324c"
         },
         {
@@ -2460,7 +2473,8 @@
          "text": "5f844670d287dd3594c4f960328c3b1dbda26c71bf6da50c5d348901e1237768"
         },
         {
-         "status": "partly",
+         "hide_soon": true,
+         "status": "done",
          "text": "1e987b7140aa9156f4c443080aba94d1a7a6d7404e5da9cb0591611177233fa0"
         },
         {
@@ -2982,8 +2996,8 @@
          "text": "6504981cca18cc20e7b41e9adee492af950ea516e2a78925f76c12b4665fc1db"
         },
         {
-         "status": "todo",
-         "text": "ce42fed70f854ddc534b5eb6a7ba566989eed0790d78c2523811952dab40362e"
+         "status": "partly",
+         "text": "1972bd196c94a9c5faf8e954c5488af7a703b82bf3dec807867256403197ca7e"
         },
         {
          "status": "partly",
@@ -3040,7 +3054,12 @@
     {
      "groups": [],
      "heading": "260aa091e1eaa2b0b7ede93346626b5372ec996033e077fbc05196befe3bb0aa",
-     "items": []
+     "items": [
+      {
+       "status": "partly",
+       "text": "3e123aa27d0a237743432aca53f6a1e6ef31f32f89d11e79cc8be28f534c61dd"
+      }
+     ]
     },
     {
      "groups": [
@@ -3063,8 +3082,8 @@
          "text": "c5d49438e4621f381760553ad6496dbbf6c5182073335feee57d19ec099db4a0"
         },
         {
-         "status": "todo",
-         "text": "0bd860cda4599639aacc85bb0fb5d5305942098906a4c243f56bddfbb05009ce"
+         "status": "partly",
+         "text": "5a86d9c62a51c298fd3a24b82cab4ab0301b84dcbd83d0369ef78ea4bee7fa8a"
         },
         {
          "status": "todo",
@@ -3090,8 +3109,9 @@
          "text": "dce273b94fc4989ac55c640833a48783ba9bee9cc408444c3f732f2b4a7f6be3"
         },
         {
-         "status": "todo",
-         "text": "06b8109dc8212ece693ba7e2a480054a863e7d112405c1ba4b722a3100133045"
+         "hide_soon": true,
+         "status": "done",
+         "text": "627332d6aa14092e93af18abda8f3df99477445fcd6386f6ec349eaff886f092"
         }
        ]
       }
@@ -3421,8 +3441,8 @@
        "text": "98f659bdff47d9ed861f749515b25fc0306ecc84dd9064186680f70042d151ad"
       },
       {
-       "status": "todo",
-       "text": "d3aa6dbeef54ec67a333e5deda0b0d691e1aaa6d598dc5cde208f661d48470fb"
+       "status": "partly",
+       "text": "121533bfbc396e245b265b70e96236d628497d98dff41eb9ad49df93aea362f2"
       },
       {
        "hide_soon": true,
@@ -3490,7 +3510,8 @@
          "text": "fe2f02c0a1a6b6a49f5c052bf0572c3cbc6bec349f8ef7c7d3f0f1c417e6a2a9"
         },
         {
-         "status": "partly",
+         "hide_soon": true,
+         "status": "done",
          "text": "c65bd5950db6c1212f881caf2abfeb1713d45489da3f484dc69e3f81ed109100"
         },
         {
@@ -3777,7 +3798,8 @@
        "text": "d0e1710182d7000598379c7dd09232487304b881cb99169600c879627243eb27"
       },
       {
-       "status": "partly",
+       "hide_soon": true,
+       "status": "done",
        "text": "2a097396755e8aae084fca274d81bda98dad9330c96f49672ba9a3d57815c46e"
       },
       {
@@ -3826,7 +3848,8 @@
        "text": "9d0b6477bdb4b3a244be799016c47df8a491a58d014a971895129af355ecd2a4"
       },
       {
-       "status": "partly",
+       "hide_soon": true,
+       "status": "done",
        "text": "ae159ced970bf7d91e473761a975a9e6cf844e8955294dd51cc4652bfa8f5dd1"
       },
       {
@@ -4083,7 +4106,8 @@
          "text": "ca7a26d37c19b607e8b8c54fc0ff09cb23807ce847942b4fe4623612b43319dc"
         },
         {
-         "status": "partly",
+         "hide_soon": true,
+         "status": "done",
          "text": "6717cea7aba852fa14684c07cbf024acc2b2bb020ba359f7ad5492625c30ef33"
         }
        ]
@@ -4559,6 +4583,10 @@
        "hide_soon": true,
        "status": "done",
        "text": "eed310de942dd127bb1801c1f59eb181b3ed57227c706f790e1065289c55cfde"
+      },
+      {
+       "status": "partly",
+       "text": "186b760f3f7c8fd11efc76684fe25b02b86ae87e86f41fcf7d790349147c893a"
       }
      ]
     },
@@ -4605,8 +4633,9 @@
        "text": "19046a1cd8998e5a2b24240e6fb7a444c49506e67cdf56b99299098f4329848e"
       },
       {
-       "status": "todo",
-       "text": "740738b7372e00cc6c42aadf2d3e0bdf8863cd30c52a3dc07bb7dbde57346099"
+       "hide_soon": true,
+       "status": "done",
+       "text": "ba430fbcd281ee39fd8349536ccd1d224a9e3debeda3521ae83ee9a216e52a8a"
       },
       {
        "hide_soon": true,
@@ -4758,7 +4787,7 @@
       },
       {
        "status": "partly",
-       "text": "122661c9d39d450b53845d0d4a72783bf9378844f70130e9291ff453f57fd8f9"
+       "text": "9f652e0760db20020b11954d15796002f6c59789452162884b2bf2cfb18e2ead"
       },
       {
        "hide_soon": true,
@@ -6689,7 +6718,8 @@
        "text": "67f1567c49bb1cd696b0ba198d4618fda3fcf77a06f59acedfb6e06326f631b1"
       },
       {
-       "status": "partly",
+       "hide_soon": true,
+       "status": "done",
        "text": "cc2d684375c333c6edcb1900db52617a297b9d4c6329d49e2ebb6ee1e8ecfca1"
       }
      ]
@@ -6842,11 +6872,13 @@
          "text": "c8eec498160814fb1de39c704ec1644c9e665e91c859937c886663175c8ce148"
         },
         {
-         "status": "partly",
+         "hide_soon": true,
+         "status": "done",
          "text": "0659a683b678ff6223f6257905d46f994d9ca976169d29173d6747430275f704"
         },
         {
-         "status": "partly",
+         "hide_soon": true,
+         "status": "done",
          "text": "f4df4cd8c1c2a6aea9606f094fafc8a7f5f97ad8094a7d379ffd4932b7ac8fc1"
         },
         {
@@ -7018,7 +7050,8 @@
        "heading": "e8990ffa51d668f992e6446d843b64bfea0965eef06d7c9ee0bfa2e92d5842a7",
        "items": [
         {
-         "status": "partly",
+         "hide_soon": true,
+         "status": "done",
          "text": "700e5144522e5c247cf389eae3b4ab120d1231052ff4b7afd82b37e8878193f2"
         },
         {
@@ -7079,7 +7112,8 @@
        "heading": "c150c6a5abb92c0582b63aa4004a5ab6e70d91473165f56636260a52c305598d",
        "items": [
         {
-         "status": "partly",
+         "hide_soon": true,
+         "status": "done",
          "text": "e0c283b355f63d4a3d562af689e15be69bd9a7e463ee4331c7d00f9055f37260"
         },
         {
@@ -7118,7 +7152,8 @@
          "text": "778b25cf94fb73ec6b48b40f0a15248d600b60c752da6b67a2385bbd6feebda8"
         },
         {
-         "status": "partly",
+         "hide_soon": true,
+         "status": "done",
          "text": "5058a408f8857a2bfe96fcaa37e519fb90bf282b11cb511415aeab827b9ce5d4"
         },
         {
@@ -7139,7 +7174,8 @@
          "text": "3343f63c37bf32fb3c5bb2f0c7041fd9a06250155ebea060d54fa5ddda90ed60"
         },
         {
-         "status": "partly",
+         "hide_soon": true,
+         "status": "done",
          "text": "436160768f7ba084000e6ce4971cee9724339158270b5eb5782cd3b79823401f"
         }
        ]
@@ -7276,7 +7312,8 @@
        "heading": "53aca3e608811ff23a094cc07562dc8364445a5ae054d2af86818a7d61a03ce0",
        "items": [
         {
-         "status": "partly",
+         "hide_soon": true,
+         "status": "done",
          "text": "36152519681de2483d82d984ef97ddd57383136f44948f0d16332beb538c8931"
         },
         {
@@ -7916,18 +7953,6 @@
     "fr": ""
    }
   },
-  "06b8109dc8212ece693ba7e2a480054a863e7d112405c1ba4b722a3100133045": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Format Background pane",
-    "es": "Panel Formato del fondo",
-    "fr": "Volet Format de l’arrière-plan"
-   }
-  },
   "06c37a2d73586a3c26f444045969f16cfc0c1365425358423072316a17f51116": {
    "drop": false,
    "en": "Charts, pictures, and shapes print in place with their cells, or not, as each one’s print setting says. A draft leaves them out, and a chart sheet prints as one page with its chart.",
@@ -8408,18 +8433,6 @@
     "fr": "Insertion d’un segment pour un tableau"
    }
   },
-  "0bd860cda4599639aacc85bb0fb5d5305942098906a4c243f56bddfbb05009ce": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Variants: theme effects, new theme colors and fonts, and reset",
-    "es": "Variantes: efectos del tema, nuevos colores y fuentes del tema, y restablecer",
-    "fr": "Variantes : effets du thème, nouvelles couleurs et polices du thème, et réinitialisation"
-   }
-  },
   "0c4bd5c40174422d6bc7b04515bed92a1ff47b274e00aa16c5488e50380bb220": {
    "drop": false,
    "en": "Record tab",
@@ -8756,16 +8769,16 @@
     "fr": ""
    }
   },
-  "122661c9d39d450b53845d0d4a72783bf9378844f70130e9291ff453f57fd8f9": {
+  "121533bfbc396e245b265b70e96236d628497d98dff41eb9ad49df93aea362f2": {
    "drop": false,
-   "en": "Grammar and style checking runs on your computer in text boxes, shapes, and table cells, in English. Grammar and style issues get a blue dotted line, and spelling keeps its red wave. Right-click shows the message and suggestions, and a suggestion changes the text as one step that can be undone. Ignore This Issue and Ignore All are available, the Spelling check (`F7`) continues on to grammar issues, and only the changed paragraph is checked again.",
-   "es": "La revisión gramatical y de estilo se ejecuta en su equipo en cuadros de texto, formas y celdas de tabla, en inglés. Los problemas de gramática y estilo se marcan con una línea azul punteada, y la ortografía conserva su onda roja. Al hacer clic con el botón derecho se muestran el mensaje y las sugerencias, y una sugerencia cambia el texto en un solo paso que se puede deshacer. Están disponibles Ignorar este problema e Ignorar todo, la revisión ortográfica (`F7`) continúa con los problemas gramaticales, y solo se vuelve a revisar el párrafo modificado.",
-   "fr": "La vérification de la grammaire et du style s’exécute sur votre ordinateur dans les zones de texte, les formes et les cellules de tableau, en anglais. Les problèmes de grammaire et de style sont soulignés par une ligne pointillée bleue, et l’orthographe garde sa vague rouge. Un clic droit affiche le message et les suggestions, et une suggestion modifie le texte en une seule étape qui peut être annulée. Ignorer ce problème et Tout ignorer sont disponibles, la vérification orthographique (`F7`) passe ensuite aux problèmes de grammaire, et seul le paragraphe modifié est revérifié.",
+   "en": "See all slides from the slide show menu.",
+   "es": "Vea todas las diapositivas desde el menú de la presentación.",
+   "fr": "Affichez toutes les diapositives depuis le menu du diaporama.",
    "soon": {
     "drop": false,
-    "en": "More grammar rules and languages other than English",
-    "es": "Más reglas gramaticales e idiomas distintos del inglés",
-    "fr": "Plus de règles de grammaire et langues autres que l’anglais"
+    "en": "Show menu: Last Viewed, Show Presenter View, Zoom, Arrow Options, Speaker Notes, and Subtitle Settings",
+    "es": "Menú de la presentación: Última vista, Mostrar vista del presentador, Zoom, Opciones de flecha, Notas del orador y Configuración de subtítulos",
+    "fr": "Menu du diaporama : Dernière vue, Afficher le mode Présentateur, Zoom, Options de flèche, Notes du présentateur et Paramètres des sous-titres"
    }
   },
   "122725696a78e7591e2d4e2356992cf3dfb74122fdcda571a8f242ec2b42876f": {
@@ -9236,6 +9249,18 @@
     "fr": "Polices de remplacement de même largeur de lettres pour les polices absentes des classeurs"
    }
   },
+  "186b760f3f7c8fd11efc76684fe25b02b86ae87e86f41fcf7d790349147c893a": {
+   "drop": false,
+   "en": "Distribute selected shapes horizontally or vertically with equal gaps, using the Arrange group.",
+   "es": "Distribuya las formas seleccionadas horizontal o verticalmente con espacios iguales, mediante el grupo Organizar.",
+   "fr": "Répartissez les formes sélectionnées horizontalement ou verticalement avec des écarts égaux, à l’aide du groupe Organiser.",
+   "soon": {
+    "drop": false,
+    "en": "Equalize width, height, or both across selected shapes",
+    "es": "Igualar el ancho, el alto o ambos en las formas seleccionadas",
+    "fr": "Uniformisation de la largeur, de la hauteur ou des deux pour les formes sélectionnées"
+   }
+  },
   "186c2b1deb8ad1e2ead27f6c451b794e9ccb662be94a3a523a0b494f3c9a4afb": {
    "drop": false,
    "en": "Choose automatic, automatic except data tables, or manual calculation, and turn `Calculate Before Save` on or off; the mode is kept as saved. In manual mode the status bar shows \"Calculate\" when results are out of date, and a click on it calculates the formulas.",
@@ -9330,6 +9355,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "1972bd196c94a9c5faf8e954c5488af7a703b82bf3dec807867256403197ca7e": {
+   "drop": false,
+   "en": "The Header and Footer box has a choice to include notes pages and handouts.",
+   "es": "El cuadro Encabezado y pie de página tiene una opción para incluir las páginas de notas y los folletos.",
+   "fr": "La boîte En-tête et pied de page propose d’inclure les pages de notes et les documents.",
+   "soon": {
+    "drop": false,
+    "en": "Notes and Handouts tab: header, date, page number, and footer",
+    "es": "Pestaña Notas y folletos: encabezado, fecha, número de página y pie de página",
+    "fr": "Onglet Notes et documents : en-tête, date, numéro de page et pied de page"
    }
   },
   "19a54351aac8e72da3af3437b54ec0bf87127b07712bd91fb227c00e23b03ed3": {
@@ -12068,6 +12105,18 @@
     "fr": ""
    }
   },
+  "3e123aa27d0a237743432aca53f6a1e6ef31f32f89d11e79cc8be28f534c61dd": {
+   "drop": false,
+   "en": "Use a pen and a highlighter during the slide show.",
+   "es": "Use un bolígrafo y un resaltador durante la presentación.",
+   "fr": "Utilisez un stylo et un surligneur pendant le diaporama.",
+   "soon": {
+    "drop": false,
+    "en": "Pencil, pen thicknesses, and your own favorite pens",
+    "es": "Lápiz, grosores de pluma y sus propias plumas favoritas",
+    "fr": "Crayon, épaisseurs de stylo et vos propres stylos favoris"
+   }
+  },
   "3e2ea13d39d6bffa3267412de9daa6ab8071fe24ce083eab901f3de600e55112": {
    "drop": false,
    "en": "`CELL` works.",
@@ -14168,6 +14217,18 @@
     "fr": "Autres liens et contenu distant : bloqués tant qu’ils ne sont pas autorisés"
    }
   },
+  "5a86d9c62a51c298fd3a24b82cab4ab0301b84dcbd83d0369ef78ea4bee7fa8a": {
+   "drop": false,
+   "en": "Choose from a gallery of theme variants.",
+   "es": "Elija entre una galería de variantes de tema.",
+   "fr": "Choisissez parmi une galerie de variantes de thème.",
+   "soon": {
+    "drop": false,
+    "en": "Variant effects, new theme colors and fonts, and Reset",
+    "es": "Efectos de variantes, nuevos colores y fuentes de tema, y Restablecer",
+    "fr": "Effets de variantes, nouvelles couleurs et polices de thème, et Réinitialiser"
+   }
+  },
   "5a912bbe95d2bbe5f06fedd3f95c9888c138aba4f36e2c39f34450a8b79ff65e": {
    "drop": false,
    "en": "Set the axes and their titles, the chart title, data labels, gridlines, and the legend.",
@@ -14828,6 +14889,18 @@
     "fr": "Index : colonnes et marquage automatique depuis une liste de mots"
    }
   },
+  "627332d6aa14092e93af18abda8f3df99477445fcd6386f6ec349eaff886f092": {
+   "drop": false,
+   "en": "Format the slide background in the Format Background pane.",
+   "es": "Dé formato al fondo de la diapositiva en el panel Formato del fondo.",
+   "fr": "Mettez en forme l’arrière-plan de la diapositive dans le volet Format de l’arrière-plan.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "62ba419b7f98fe9fc1128a5aed94135380712bfb7dcd158548de223978364d60": {
    "drop": false,
    "en": "Lines with width, dashes, caps, joins, and arrowheads.",
@@ -15054,6 +15127,18 @@
     "en": "Indent left and right and spacing before and after: boxes on the tab",
     "es": "Sangría izquierda y derecha y espaciado anterior y posterior: cuadros en la pestaña",
     "fr": "Retrait gauche et droit et espacement avant et après : champs dans l’onglet"
+   }
+  },
+  "655b052c16ed763d535449d4823431af9bcfc10e8080d683c409fb8acfab4007": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Links to Files: see Edit Links under Data",
+    "es": "Vínculos a archivos: consulte Editar vínculos en Datos",
+    "fr": "Liens vers les fichiers : voir Modifier les liens sous Données"
    }
   },
   "656bb2546ffbbab9fbc6d46467ff75827a26d44648fdb6810ac6321e1eaa5bae": {
@@ -16290,18 +16375,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "740738b7372e00cc6c42aadf2d3e0bdf8863cd30c52a3dc07bb7dbde57346099": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Equation editor",
-    "es": "Editor de ecuaciones",
-    "fr": "Éditeur d’équations"
    }
   },
   "747f04533a17f0892ba282f42021c623f6cd2ceedcd8c792c04abdb841a87dba": {
@@ -19268,6 +19341,18 @@
     "fr": ""
    }
   },
+  "9f652e0760db20020b11954d15796002f6c59789452162884b2bf2cfb18e2ead": {
+   "drop": false,
+   "en": "Grammar and style checking runs on your own computer in text boxes, shapes, and table cells. Issues get a blue dotted line, and right-clicking shows the message and suggestions. A suggestion changes the text as one step that can be undone. Use Ignore This Issue or Ignore All, and the Spelling check (`F7`) continues on to grammar issues after spelling. Only the changed paragraph is checked again. English, French, German, and Spanish text is checked, one language for each paragraph.",
+   "es": "La revisión de gramática y estilo se ejecuta en su propio equipo en cuadros de texto, formas y celdas de tabla. Los problemas se marcan con una línea punteada azul, y al hacer clic con el botón derecho se muestran el mensaje y las sugerencias. Una sugerencia cambia el texto en un solo paso que se puede deshacer. Use Ignorar este problema o Ignorar todo, y la revisión ortográfica (`F7`) continúa con los problemas de gramática después de la ortografía. Solo se vuelve a revisar el párrafo modificado. Se revisa texto en inglés, francés, alemán y español, un idioma por párrafo.",
+   "fr": "La vérification de la grammaire et du style s’exécute sur votre propre ordinateur dans les zones de texte, les formes et les cellules de tableau. Les problèmes sont soulignés d’une ligne pointillée bleue, et un clic droit affiche le message et les suggestions. Une suggestion modifie le texte en une seule étape annulable. Utilisez Ignorer ce problème ou Tout ignorer ; la vérification orthographique (`F7`) passe aux problèmes de grammaire après l’orthographe. Seul le paragraphe modifié est revérifié. Le texte en anglais, français, allemand et espagnol est vérifié, une langue par paragraphe.",
+   "soon": {
+    "drop": false,
+    "en": "More grammar and style rules",
+    "es": "Más reglas de gramática y estilo",
+    "fr": "Davantage de règles de grammaire et de style"
+   }
+  },
   "9f6cc5d35f270f1bf7f90a6e6edc9c5a8143edc2429e4411f8f180c65a02a002": {
    "drop": true,
    "en": "",
@@ -20816,6 +20901,18 @@
     "fr": ""
    }
   },
+  "ba430fbcd281ee39fd8349536ccd1d224a9e3debeda3521ae83ee9a216e52a8a": {
+   "drop": false,
+   "en": "Insert and edit equations with an equation editor.",
+   "es": "Inserte y edite ecuaciones con un editor de ecuaciones.",
+   "fr": "Insérez et modifiez des équations avec un éditeur d’équations.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "ba70f1c66a75655a89185731312cc5b92c6691bff5e6371363223f4863963c7d": {
    "drop": false,
    "en": "Links",
@@ -22268,18 +22365,6 @@
     "fr": ""
    }
   },
-  "ce42fed70f854ddc534b5eb6a7ba566989eed0790d78c2523811952dab40362e": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Header and footer for notes and handouts: header, date, page number, and footer",
-    "es": "Encabezado y pie de página para notas y documentos: encabezado, fecha, número de página y pie",
-    "fr": "En-tête et pied de page pour les notes et les documents : en-tête, date, numéro de page et pied de page"
-   }
-  },
   "ce4e017e0e4483f4e35032b973de31c6c281995a6491279ca8bddb94b9736a31": {
    "drop": false,
    "en": "Design tab",
@@ -22710,18 +22795,6 @@
     "en": "Touch and pen input, and high-DPI scaling on every system",
     "es": "Entrada táctil y con lápiz, y escalado de alta resolución en todos los sistemas",
     "fr": "Saisie tactile et au stylet, et mise à l’échelle haute résolution sur tous les systèmes"
-   }
-  },
-  "d3aa6dbeef54ec67a333e5deda0b0d691e1aaa6d598dc5cde208f661d48470fb": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "More show menu items: See All Slides, Last Viewed, Show Presenter View, Zoom into the slide, Arrow Options, Speaker Notes, and Subtitle Settings",
-    "es": "Más opciones del menú de la presentación: Ver todas las diapositivas, Última vista, Mostrar vista del presentador, Ampliar la diapositiva, Opciones de flecha, Notas del orador y Configuración de subtítulos",
-    "fr": "Autres commandes du menu du diaporama : Voir toutes les diapositives, Dernière vue, Afficher le mode Présentateur, Zoom sur la diapositive, Options de flèche, Notes du présentateur et Paramètres des sous-titres"
    }
   },
   "d3dad535f086d11de90ebc213eb818f9e8a270329fb411ebd8781696b43a3437": {
