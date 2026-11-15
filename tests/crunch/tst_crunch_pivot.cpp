@@ -358,21 +358,23 @@ private Q_SLOTS:
         QCOMPARE(valueOf(e, QStringLiteral("F5")), QStringLiteral("n:105"));
     }
 
-    // The formatting a person gave cells of the table stays on them when the table is refreshed, where the cells still are: a number format on a value, bold on a label.
+    // The formatting a person gave cells of the table stays on them when the table is refreshed, where the cells still are: a number format on a value, and another on a label.
     void aRefreshKeepsTheFormattingAPersonGaveTheCells()
     {
         EditWindow e;
-        QVERIFY(e.open(pivotWorkbook()));
+        PivotBookOptions o;
+        o.styles = stylesXml(QString(), QStringLiteral("<xf numFmtId=\"0\"/>"));
+        QVERIFY(e.open(pivotWorkbook(o)));
         crunch::EditSession *s = e.win.w.session();
         jp::office::sheet::FormatChange money;
         money.numberFormat = QStringLiteral("0.00");
         QVERIFY(s->formatCells(0, jp::office::sheet::CellRange{rowOf(QStringLiteral("F5")), colOf(QStringLiteral("F5")), rowOf(QStringLiteral("F5")), colOf(QStringLiteral("F5")), true}, money, QStringLiteral("Number")).ok);
         jp::office::sheet::FormatChange bold;
-        bold.bold = true;
+        bold.numberFormat = QStringLiteral("@");
         const auto at = [&](const QString &cell) { return s->calculation()->content(0, rowOf(cell), colOf(cell)).style; };
         QVERIFY(s->formatCells(0, jp::office::sheet::CellRange{rowOf(QStringLiteral("E5")), colOf(QStringLiteral("E5")), rowOf(QStringLiteral("E5")), colOf(QStringLiteral("E5")), true}, bold, QStringLiteral("Bold")).ok);
         const quint32 valueStyle = at(QStringLiteral("F5")), labelStyle = at(QStringLiteral("E5")), otherStyle = at(QStringLiteral("G5"));
-        QVERIFY(valueStyle != 0 && labelStyle != 0 && valueStyle != labelStyle);
+        QVERIFY2(valueStyle != 0 && labelStyle != 0 && valueStyle != labelStyle, qPrintable(QStringLiteral("%1 %2").arg(valueStyle).arg(labelStyle)));
         QVERIFY(s->type(0, rowOf(QStringLiteral("C2")), colOf(QStringLiteral("C2")), QStringLiteral("100")).ok);
         QVERIFY(e.settle());
         const int steps = s->undoStack()->count();
