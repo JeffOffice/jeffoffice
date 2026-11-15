@@ -10,6 +10,7 @@
 #include "app/onlinepictures.h"
 #include "app/pageview.h"
 #include "app/shapetextedit.h"
+#include "app/widgets.h"
 #include "../shell/shapetexttest.h"
 #include "app/ribbon.h"
 #include "app/writewindow.h"
@@ -62,6 +63,8 @@
 #include <QTest>
 #include <QPlainTextEdit>
 #include <QTimer>
+#include <QMessageBox>
+#include <QTemporaryDir>
 #include <QTextCursor>
 #include <QTextDocument>
 #include <QCheckBox>
@@ -412,6 +415,29 @@ ShapeTextEdit *editShape(Win &win, Qt::Key key, const QString &preset = QStringL
     win.w.view()->selectPicture(0);
     QTest::keyClick(win.w.view()->viewport(), key);
     return win.w.view()->shapeEditor();
+}
+
+// A shape that is a text box holding `content` (the inside of its w:txbxContent), as the paragraph a window opens with.
+QByteArray boxParagraph(const QByteArray &content, const QByteArray &around = QByteArray())
+{
+    const QByteArray drawing = shapeDrawing("<a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom>", "<a:solidFill><a:srgbClr val=\"CCDDEE\"/></a:solidFill>", 3048000, 1524000,
+                                            "<wps:txbx><w:txbxContent>" + content + "</w:txbxContent></wps:txbx>");
+    return around.isEmpty() ? drawing : around;
+}
+
+// The text box of a window made by boxParagraph, selected, its editor opened with `key`.
+ShapeTextEdit *editBox(Win &win, Qt::Key key = Qt::Key_F2)
+{
+    win.w.view()->refresh();
+    win.w.view()->selectPicture(0);
+    QTest::keyClick(win.w.view()->viewport(), key);
+    return win.w.view()->shapeEditor();
+}
+
+QByteArray fileBytes(const QString &path)
+{
+    QFile f(path);
+    return f.open(QIODevice::ReadOnly) ? f.readAll() : QByteArray();
 }
 
 // Where the top left corner of the first page is in a window like Win (the same size and zoom): a shape set at a known place is drawn there.
@@ -1228,6 +1254,171 @@ private Q_SLOTS:
         QCOMPARE(edit->toPlainText(), QStringLiteral("Hello big world"));
         QTest::keyClick(edit, Qt::Key_Escape);
         jptest::verifyFormatted(textBoxStory(*doc, 1).get());
+    }
+
+    // Save, Ctrl+S, and Save As put the words being typed in a shape in the file, and Close asks to save them.
+    void saveAndCloseCommitTheWordsBeingTypedInAShape()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        Win win;
+        ShapeTextEdit *edit = editShape(win, Qt::Key_F2);
+        QVERIFY(edit);
+        QTest::keyClicks(edit, QStringLiteral("first"));
+        // (a save puts the words in and ends the edit; F2 on the shape that stays selected opens it again, after its words)
+        auto reopen = [&]() -> ShapeTextEdit * {
+            if (!win.w.view()->shapeEditor()) QTest::keyClick(win.w.view()->viewport(), Qt::Key_F2);
+            return win.w.view()->shapeEditor();
+        };
+        const QString path = dir.filePath(QStringLiteral("a.docx"));
+        QVERIFY(win.w.saveTo(path));
+        QTRY_VERIFY(textBoxStory(*open(fileBytes(path)), 0) && textBoxStory(*open(fileBytes(path)), 0)->toPlainText() == QLatin1String("first"));
+        // (the edit goes on, and Ctrl+S commits the words typed since)
+        edit = reopen();
+        QVERIFY(edit);
+        QTest::keyClicks(edit, QStringLiteral(" second"));
+        win.w.act(QStringLiteral("file.save"))->trigger();
+        QTRY_VERIFY(textBoxStory(*open(fileBytes(path)), 0) && textBoxStory(*open(fileBytes(path)), 0)->toPlainText() == QLatin1String("first second"));
+        // Close: the words not yet in the document make it modified, and the question's Save puts them in the file.
+        edit = reopen();
+        QVERIFY(edit);
+        QTest::keyClicks(edit, QStringLiteral(" third"));
+        QVERIFY(win.w.isModified());
+        QTimer answer;
+        answer.setInterval(20);
+        connect(&answer, &QTimer::timeout, this, [&] {
+            if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) box->button(QMessageBox::Save)->click();
+        });
+        answer.start();
+        win.w.close();
+        answer.stop();
+        QTRY_VERIFY(textBoxStory(*open(fileBytes(path)), 0) && textBoxStory(*open(fileBytes(path)), 0)->toPlainText() == QLatin1String("first second third"));
+    }
+
+    // Words past what a text box may hold are not dropped without a word: the edit stays open and the person is told.
+    void wordsPastTheLimitKeepTheEditOpenAndTellThePerson()
+    {
+        Win win;
+        WriteDoc *doc = win.w.document();
+        ShapeTextEdit *edit = editShape(win, Qt::Key_F2);
+        QVERIFY(edit);
+        QSignalSpy told(win.w.view(), &PageView::notice);
+        edit->insertPlainText(QString(50100, QLatin1Char('a')));
+        QTest::keyClick(edit, Qt::Key_Escape);
+        QVERIFY(win.w.view()->editingShapeText());
+        QVERIFY(!told.isEmpty());
+        QVERIFY(textBoxText(*doc, 0)->join(QString()).isEmpty());
+        // (cut back, it goes in)
+        edit->selectAll();
+        edit->insertPlainText(QStringLiteral("short"));
+        QTest::keyClick(edit, Qt::Key_Escape);
+        QVERIFY(!win.w.view()->editingShapeText());
+        QCOMPARE(textBoxText(*doc, 0)->join(QString()), QStringLiteral("short"));
+    }
+
+    // A text box of thousands of paragraphs is not read into an editor: the person is told, and nothing is changed.
+    void aHugeTextBoxIsRefusedBeforeItIsReadAndTheEditorTellsWhy()
+    {
+        QByteArray many;
+        for (int i = 0; i < 2100; ++i) many += "<w:p><w:r><w:t>p</w:t></w:r></w:p>";
+        Win win(boxParagraph(many));
+        QSignalSpy told(win.w.view(), &PageView::notice);
+        QVERIFY(!editBox(win));
+        QVERIFY(!win.w.view()->editingShapeText());
+        QVERIFY(!told.isEmpty());
+    }
+
+    // The copy of a text box kept for older programs (mc:AlternateContent's Fallback) is not left holding the old words.
+    void editingATextBoxDoesNotLeaveItsOldWordsInTheFallback()
+    {
+        const QByteArray inner = "<w:p><w:r><w:t>OLDWORDS</w:t></w:r></w:p>";
+        const QByteArray drawing = shapeDrawing("<a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom>", "<a:solidFill><a:srgbClr val=\"CCDDEE\"/></a:solidFill>", 3048000, 1524000,
+                                                "<wps:txbx><w:txbxContent>" + inner + "</w:txbxContent></wps:txbx>");
+        // (the paragraph's run holds the drawing: it goes inside a choice, with a fallback of its own)
+        QByteArray run = drawing.mid(drawing.indexOf("<w:r>"), drawing.lastIndexOf("</w:r>") + 6 - drawing.indexOf("<w:r>"));
+        const QByteArray choice = "<w:r><mc:AlternateContent xmlns:mc=\"http://schemas.openxmlformats.org/markup-compatibility/2006\" xmlns:v=\"urn:schemas-microsoft-com:vml\"><mc:Choice Requires=\"wps\">" +
+                                  run.mid(5, run.size() - 11) + "</mc:Choice><mc:Fallback><w:pict><v:shape type=\"#_x0000_t202\" style=\"width:240pt;height:120pt\"><v:textbox><w:txbxContent>" + inner +
+                                  "</w:txbxContent></v:textbox></v:shape></w:pict></mc:Fallback></mc:AlternateContent></w:r>";
+        QVERIFY2(open(makeDocx("<w:p>" + choice + "</w:p>")), "the document opens");
+        Win win("<w:p>" + choice + "</w:p>");
+        ShapeTextEdit *edit = editBox(win);
+        QVERIFY(edit);
+        QCOMPARE(edit->toPlainText(), QStringLiteral("OLDWORDS"));
+        edit->selectAll();
+        edit->insertPlainText(QStringLiteral("NEWWORDS"));
+        QTest::keyClick(edit, Qt::Key_Escape);
+        const QByteArray xml = documentXml(win.w.document()->toDocx());
+        QVERIFY(xml.contains("NEWWORDS"));
+        QVERIFY2(!xml.contains("OLDWORDS"), "the fallback still has the old words");
+    }
+
+    // A text box that holds a table, a field, a hyperlink, a bookmark, a content control, a footnote reference, and a tracked change keeps every one of them when a word of it is changed.
+    void aTextBoxKeepsEverythingItHoldsWhenOneWordIsChanged()
+    {
+        const QByteArray rich =
+            "<w:p><w:r><w:t xml:space=\"preserve\">Alpha beta </w:t></w:r><w:fldSimple w:instr=\" PAGE \"><w:r><w:t>1</w:t></w:r></w:fldSimple>"
+            "<w:hyperlink w:anchor=\"mark\"><w:r><w:t>jump</w:t></w:r></w:hyperlink><w:bookmarkStart w:id=\"7\" w:name=\"mark\"/><w:bookmarkEnd w:id=\"7\"/>"
+            "<w:ins w:id=\"9\" w:author=\"A\" w:date=\"2026-01-01T00:00:00Z\"><w:r><w:t>inserted</w:t></w:r></w:ins><w:r><w:footnoteReference w:id=\"2\"/></w:r></w:p>"
+            "<w:sdt><w:sdtPr><w:alias w:val=\"Pick\"/></w:sdtPr><w:sdtContent><w:p><w:r><w:t>control</w:t></w:r></w:p></w:sdtContent></w:sdt>"
+            "<w:tbl><w:tblPr/><w:tblGrid><w:gridCol w:w=\"2000\"/></w:tblGrid><w:tr><w:tc><w:tcPr><w:tcW w:w=\"2000\" w:type=\"dxa\"/></w:tcPr><w:p><w:r><w:t>cell</w:t></w:r></w:p></w:tc></w:tr></w:tbl><w:p/>";
+        Win win(boxParagraph(rich));
+        ShapeTextEdit *edit = editBox(win);
+        QVERIFY2(edit, "the editor opens on a box with more than words");
+        QTextCursor found = edit->document()->find(QStringLiteral("Alpha"));
+        QVERIFY(!found.isNull());
+        found.insertText(QStringLiteral("Omega"));
+        QTest::keyClick(edit, Qt::Key_Escape);
+        const QByteArray saved = win.w.document()->toDocx();
+        const QByteArray xml = documentXml(saved);
+        QVERIFY(xml.contains("Omega") && !xml.contains("Alpha"));
+        for (const char *piece : {"<w:tbl>", "PAGE", "w:hyperlink", "w:bookmarkStart", "<w:sdt>", "w:footnoteReference", "<w:ins ", "control", "cell", "inserted"})
+            QVERIFY2(xml.contains(piece), piece);
+        auto back = open(saved);
+        QVERIFY(back);
+        const QByteArray again = documentXml(back->toDocx());
+        for (const char *piece : {"Omega", "<w:tbl>", "PAGE", "w:hyperlink", "w:bookmarkStart", "<w:sdt>", "w:footnoteReference", "<w:ins "})
+            QVERIFY2(again.contains(piece), piece);
+    }
+
+    // Bullets made while typing in a shape are the shape's: the body's text and its history are not touched.
+    void bulletsInAShapeLeaveTheBodyAndItsHistoryAlone()
+    {
+        Win win;
+        WriteDoc *doc = win.w.document();
+        ShapeTextEdit *edit = editShape(win, Qt::Key_F2);
+        QVERIFY(edit);
+        QTest::keyClicks(edit, QStringLiteral("item"));
+        const int revision = doc->story()->revision();
+        const int steps = doc->story()->availableUndoSteps();
+        const QString body = doc->story()->toPlainText();
+        win.w.act(QStringLiteral("para.bullets"))->trigger();
+        QVERIFY(edit->hasBullets());
+        QCOMPARE(doc->story()->revision(), revision);
+        QCOMPARE(doc->story()->availableUndoSteps(), steps);
+        QCOMPARE(doc->story()->toPlainText(), body);
+        for (QTextBlock b = doc->story()->begin(); b.isValid(); b = b.next()) QVERIFY(!b.textList());
+        win.w.act(QStringLiteral("para.bullets"))->trigger();
+        QVERIFY(!edit->hasBullets());
+        QCOMPARE(doc->story()->revision(), revision);
+    }
+
+    // The ribbon shows the look of the words being typed in a shape: the bold, italic, and underline buttons, and the size box.
+    void theRibbonShowsTheLookOfTheWordsBeingTypedInAShape()
+    {
+        Win win;
+        ShapeTextEdit *edit = editShape(win, Qt::Key_F2);
+        QVERIFY(edit);
+        QTest::keyClicks(edit, QStringLiteral("ab"));
+        edit->selectAll();
+        QTest::keyClick(edit, Qt::Key_B, Qt::ControlModifier);
+        QTRY_VERIFY(win.w.act(QStringLiteral("fmt.bold"))->isChecked());
+        QTest::keyClick(edit, Qt::Key_I, Qt::ControlModifier);
+        QTRY_VERIFY(win.w.act(QStringLiteral("fmt.italic"))->isChecked());
+        QVERIFY(!win.w.act(QStringLiteral("fmt.underline"))->isChecked());
+        QTest::keyClick(edit, Qt::Key_B, Qt::ControlModifier);
+        QTRY_VERIFY(!win.w.act(QStringLiteral("fmt.bold"))->isChecked());
+        edit->setFontSizePt(18);
+        QTRY_VERIFY(std::any_of(win.w.findChildren<SizeCombo *>().begin(), win.w.findChildren<SizeCombo *>().end(), [](SizeCombo *c) { return c->currentText().toDouble() == 18.0; }));
     }
 
     void aShapeTakesSeveralEffectsAndEachIsPutInAndTakenOutWithoutTouchingTheOthers()

@@ -2404,14 +2404,20 @@ bool setTextBoxText(WriteDoc &doc, int position, const QStringList &paragraphs)
     });
 }
 
-std::unique_ptr<QTextDocument> textBoxStory(WriteDoc &doc, int position)
+std::unique_ptr<QTextDocument> textBoxStory(WriteDoc &doc, int position, bool *tooBig)
 {
+    if (tooBig) *tooBig = false;
     const QTextDocument *story = doc.story();
     if (!story || position < 0 || position + 1 > story->characterCount() - 1) return nullptr;
     Inline atom;
     if (!drawingAtomOf(formatAfter(story, position), &atom)) return nullptr;
     Model m;
     if (!parseDrawing(atom.raw, &m) || m.graphic.contains("<wpg:wgp") || m.graphic.contains("linkedTxbx")) return nullptr;
+    // (a box of more than the editor takes is not read at all: the paragraphs are counted in the text, before anything walks them)
+    if (m.graphic.size() > (qsizetype(8) << 20) || m.graphic.count("<w:p>") + m.graphic.count("<w:p ") > kMostBoxParagraphs) {
+        if (tooBig) *tooBig = true;
+        return nullptr;
+    }
     const BoxContent box = boxContentOf(m.graphic);
     QByteArray xml;
     if (box.begin < 0) {
@@ -2423,11 +2429,16 @@ std::unique_ptr<QTextDocument> textBoxStory(WriteDoc &doc, int position)
     return doc.boxEditStory(xml);
 }
 
-bool setTextBoxStory(WriteDoc &doc, int position, QTextDocument *story)
+bool setTextBoxStory(WriteDoc &doc, int position, QTextDocument *story, bool *refused)
 {
-    if (!story || story->blockCount() > kMostBoxParagraphs || story->characterCount() > kMostBoxTextLength) return false;
+    if (refused) *refused = false;
+    if (!story) return false;
+    if (story->blockCount() > kMostBoxParagraphs || story->characterCount() > kMostBoxTextLength) {
+        if (refused) *refused = true;
+        return false;
+    }
     const QByteArray content = doc.boxContentOfStory(story);
-    return changePicture(doc, position, [&](Model &m) {
+    const bool done = changePicture(doc, position, [&](Model &m) {
         const BoxContent box = boxContentOf(m.graphic);
         const bool add = box.begin < 0;
         if (add && !shapeTakesText(m.graphic)) return false;
@@ -2444,6 +2455,8 @@ bool setTextBoxStory(WriteDoc &doc, int position, QTextDocument *story)
         m.graphic = m.graphic.left(box.begin) + content + m.graphic.mid(box.end);
         return true;
     });
+    if (!done && refused && !doc.pictureNotice.isEmpty()) *refused = true;
+    return done;
 }
 
 TextBoxLook textBoxLook(const WriteDoc &doc, int position)

@@ -140,6 +140,9 @@ public:
     QString displayName() const;
     QString filePath() const { return m_path; }
     bool isModified() const;
+    bool commitShapeText();
+    // Shows the look of the words being typed in a shape on the ribbon's buttons and boxes.
+    void reflectShapeEditor();
     // Replaces the document shown (as a new window's blank one, or one just read); the path is "" for an unsaved one.
     void setDocument(std::unique_ptr<write::WriteDoc> doc, const QString &path);
     // Opens a .docx in this window if it holds a new document nobody has touched, else in a window of its own. False, with the reason

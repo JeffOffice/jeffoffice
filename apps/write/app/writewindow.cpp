@@ -156,6 +156,7 @@ WriteWindow::WriteWindow(QWidget *parent) : AppWindow(parent)
     auto queue = [this] { m_refreshTimer.start(); };
     connect(m_view, &write::PageView::caretChanged, this, queue);
     connect(m_view, &write::PageView::contentChanged, this, queue);
+    connect(m_view, &write::PageView::shapeTextLookChanged, this, [this] { reflectShapeEditor(); });
     connect(m_view, &write::PageView::pagesChanged, this, queue);
     connect(m_view, &write::PageView::contextMenuWanted, this, &WriteWindow::showContextMenu);
     connect(m_view, &write::PageView::selectionMade, this, &WriteWindow::paintFormatNow);
@@ -236,7 +237,32 @@ QStringList WriteWindow::actionIds() const
 
 QString WriteWindow::displayName() const { return m_path.isEmpty() ? m_untitled : QFileInfo(m_path).completeBaseName(); }
 
-bool WriteWindow::isModified() const { return m_doc && m_doc->isModified(); }
+bool WriteWindow::isModified() const { return (m_doc && m_doc->isModified()) || (m_view && m_view->shapeEditor() && m_view->shapeEditor()->changed()); }
+
+// The look of the words being typed in a shape, on the buttons and boxes of the ribbon.
+void WriteWindow::reflectShapeEditor()
+{
+    ShapeTextEdit *e = m_view ? m_view->shapeEditor() : nullptr;
+    if (!e) return;
+    const QTextCharFormat cf = e->charFormat();
+    act("fmt.bold")->setChecked(cf.fontWeight() >= QFont::DemiBold);
+    act("fmt.italic")->setChecked(cf.fontItalic());
+    act("fmt.underline")->setChecked(cf.underlineStyle() != QTextCharFormat::NoUnderline);
+    const Qt::Alignment al = e->textCursor().block().blockFormat().alignment() & Qt::AlignHorizontal_Mask;
+    act("fmt.alignLeft")->setChecked(al == Qt::AlignLeft || al == 0 || al == Qt::AlignLeading);
+    act("fmt.alignCenter")->setChecked(al == Qt::AlignHCenter);
+    act("fmt.alignRight")->setChecked(al == Qt::AlignRight || al == Qt::AlignTrailing);
+    act("fmt.justify")->setChecked(al == Qt::AlignJustify);
+    act("para.bullets")->setChecked(e->hasBullets());
+    const double size = e->fontSizePt();
+    QString family = cf.fontFamilies().toStringList().value(0);
+    if (family.isEmpty()) family = e->document()->defaultFont().family();
+    for (FontCombo *f : m_fontCombos) f->setCurrentFamily(family);
+    for (SizeCombo *s : m_sizeCombos) s->setSize(size > 0 ? size : 11);
+}
+
+// The words being typed in a shape are put in the document (the edit ends); false when the box refuses them.
+bool WriteWindow::commitShapeText() { return !m_view || m_view->commitShapeText(true); }
 
 void WriteWindow::setDocument(std::unique_ptr<write::WriteDoc> doc, const QString &path)
 {
@@ -584,6 +610,7 @@ void WriteWindow::refreshUi()
     }
     for (SizeCombo *s : m_sizeCombos) s->setSize(cf.fontPointSize() > 0 ? cf.fontPointSize() : 11);
     for (ColorButton *b : m_colorButtons) b->setScheme(m_doc->flow().env.colors);
+    if (m_view->shapeEditor()) reflectShapeEditor();   // (what the words being typed in a shape have, not the body's)
 
     // Page setup of the section the caret is in.
     const int section = m_view->cursorSection();

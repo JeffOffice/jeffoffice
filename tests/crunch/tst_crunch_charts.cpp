@@ -6,6 +6,7 @@
 
 #include "app/chartdialogs.h"
 #include "app/shapetextedit.h"
+#include "app/sheettabs.h"
 #include "../shell/shapetexttest.h"
 #include "app/crunchinfo.h"
 #include "app/help.h"
@@ -3092,6 +3093,8 @@ private Q_SLOTS:
         edit->selectAll();
         e.win.w.act(QStringLiteral("fmt.bold"))->trigger();
         e.win.w.act(QStringLiteral("fmt.alignRight"))->trigger();
+        QTRY_VERIFY(e.win.w.act(QStringLiteral("fmt.bold"))->isChecked());   // (the ribbon shows the words' look)
+        QTRY_VERIFY(e.win.w.act(QStringLiteral("fmt.alignRight"))->isChecked());
         e.win.w.act(QStringLiteral("fmt.growFont"))->trigger();
         QTest::keyClick(edit, Qt::Key_Escape);
         edit = editShape(e, Qt::Key_F2);
@@ -3126,6 +3129,117 @@ private Q_SLOTS:
         QVERIFY(edit);
         jptest::verifyEditor(edit);
         QTest::keyClick(edit, Qt::Key_Escape);
+    }
+
+    // A shape with a txBody of `paragraphs` (a:p elements), anchored over cells G3 to J7, as a workbook of two sheets with a second shape lower down.
+    static QByteArray bookWithTextShape(const QString &paragraphs, const QString &extraInShape = QString(), const QByteArray &theme = QByteArray())
+    {
+        const QString body = QStringLiteral("<xdr:txBody><a:bodyPr/><a:lstStyle/>") + paragraphs + QStringLiteral("</xdr:txBody>");
+        QString first = shapeElement(2, QStringLiteral("First"));
+        first.replace(QStringLiteral("</xdr:sp>"), extraInShape + body + QStringLiteral("</xdr:sp>"));
+        const QString anchors = twoCell(6, 2, 9, 6, first) + twoCell(6, 8, 9, 12, shapeElement(3, QStringLiteral("Second")));
+        QVector<QByteArray> sheets{dataSheet(), dataSheet()};
+        sheets[0].replace("</worksheet>", "<drawing r:id=\"rIdD1\"/></worksheet>");
+        QVector<sheettest::ExtraPart> parts;
+        parts.append({QStringLiteral("xl/drawings/drawing1.xml"), drawingPart(anchors), QStringLiteral("application/vnd.openxmlformats-officedocument.drawing+xml"), 0, QStringLiteral("rIdD1"), QStringLiteral("drawing"),
+                      QStringLiteral("../drawings/drawing1.xml")});
+        return sheettest::withParts(sheettest::buildXlsx(sheets, QByteArray(), QString(), QString(), QByteArray(), {QStringLiteral("One"), QStringLiteral("Two")}, QString(), theme), parts);
+    }
+
+    // The first shape of the first sheet, picked, and its editor opened with F2 (none if it did not open).
+    static jp::ShapeTextEdit *editFirst(EditWindow &e)
+    {
+        crunch::SheetObjects *o = e.win.w.objects();
+        if (o->shownSheet() != 0 || o->idsOf(0).empty()) return nullptr;
+        o->layer()->select(o->idsOf(0).front());
+        return editShape(e, Qt::Key_F2);
+    }
+
+    // The words typed in a shape are kept whatever the person clicks next: a cell, another object, or another sheet's tab.
+    void typedWordsAreKeptWhenTheClickGoesElsewhere()
+    {
+        for (int how = 0; how < 3; ++how) {
+            EditWindow e;
+            QVERIFY(e.open(bookWithTextShape(QString())));
+            QVERIFY(e.settle());
+            QTRY_VERIFY(e.win.w.objects()->shownSheet() == 0 && e.win.w.objects()->layer()->count() == 2);
+            crunch::SheetObjects *o = e.win.w.objects();
+            jp::ShapeTextEdit *edit = editFirst(e);
+            QVERIFY(edit);
+            QTest::keyClicks(edit, QStringLiteral("kept"));
+            const int steps = e.win.w.undoStack()->count();
+            if (how == 0) QTest::mouseClick(e.view()->viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(70, 30));
+            else if (how == 1) o->layer()->select(o->idsOf(0).back());
+            else e.win.w.findChild<crunch::SheetTabBar *>()->setCurrentIndex(1);
+            QTRY_VERIFY(!e.win.w.editingShapeText());
+            QVERIFY2(e.win.w.undoStack()->count() > steps, qPrintable(QStringLiteral("how %1").arg(how)));
+            if (how == 2) e.win.w.findChild<crunch::SheetTabBar *>()->setCurrentIndex(0);
+            QTRY_VERIFY(o->shownSheet() == 0 && o->idsOf(0).size() == 2);
+            edit = editFirst(e);
+            QVERIFY2(edit, qPrintable(QStringLiteral("how %1").arg(how)));
+            QCOMPARE(edit->toPlainText(), QStringLiteral("kept"));
+            QTest::keyClick(edit, Qt::Key_Escape);
+        }
+    }
+
+    // A shape whose words have a link, or hold more than the editor can write back (an equation, too many paragraphs), is not opened: the person is told, and the shape is as it was.
+    void aShapeWithMoreThanTheEditorHoldsIsNotOpenedAndLosesNothing()
+    {
+        const QString link = QStringLiteral("<a:p><a:r><a:rPr><a:hlinkClick xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" r:id=\"rIdL9\"/></a:rPr><a:t>Link</a:t></a:r></a:p>");
+        const QString equation = QStringLiteral("<a:p><a:r><a:t>t</a:t></a:r><mc:AlternateContent xmlns:mc=\"http://schemas.openxmlformats.org/markup-compatibility/2006\"><mc:Choice Requires=\"a14\"><a:r><a:t>x</a:t></a:r></mc:Choice>"
+                                                "<mc:Fallback><a:r><a:t>x</a:t></a:r></mc:Fallback></mc:AlternateContent></a:p>");
+        QString many;
+        for (int i = 0; i < 10100; ++i) many += QStringLiteral("<a:p><a:r><a:t>p</a:t></a:r></a:p>");
+        for (const QString &paragraphs : {link, equation, many}) {
+            EditWindow e;
+            QVERIFY(e.open(bookWithTextShape(paragraphs)));
+            QVERIFY(e.settle());
+            QTRY_VERIFY(e.win.w.objects()->shownSheet() == 0 && e.win.w.objects()->layer()->count() == 2);
+            const int steps = e.win.w.undoStack()->count();
+            e.win.told.clear();
+            QVERIFY(!editFirst(e));
+            QVERIFY(!e.win.w.editingShapeText());
+            QVERIFY(!e.win.told.isEmpty());
+            QCOMPARE(e.win.w.undoStack()->count(), steps);
+        }
+    }
+
+    // A color of the workbook's theme stays a theme color when the words are edited (accent1 stays accent1), and the words of a shape with a dark style are edited in its text color.
+    void editingAShapesWordsKeepsItsThemeColorsAndShowsItsTextColor()
+    {
+        const QByteArray theme = QByteArray(
+            "<?xml version=\"1.0\"?>\n<a:theme xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" name=\"T\"><a:themeElements><a:clrScheme name=\"C\">"
+            "<a:dk1><a:srgbClr val=\"111111\"/></a:dk1><a:lt1><a:srgbClr val=\"EEDDCC\"/></a:lt1><a:dk2><a:srgbClr val=\"222222\"/></a:dk2><a:lt2><a:srgbClr val=\"DDDDDD\"/></a:lt2>"
+            "<a:accent1><a:srgbClr val=\"AA0000\"/></a:accent1><a:accent2><a:srgbClr val=\"00AA00\"/></a:accent2><a:accent3><a:srgbClr val=\"0000AA\"/></a:accent3>"
+            "<a:accent4><a:srgbClr val=\"AAAA00\"/></a:accent4><a:accent5><a:srgbClr val=\"00AAAA\"/></a:accent5><a:accent6><a:srgbClr val=\"AA00AA\"/></a:accent6>"
+            "<a:hlink><a:srgbClr val=\"0000FF\"/></a:hlink><a:folHlink><a:srgbClr val=\"800080\"/></a:folHlink></a:clrScheme>"
+            "<a:fontScheme name=\"F\"><a:majorFont><a:latin typeface=\"Arial\"/></a:majorFont><a:minorFont><a:latin typeface=\"Arial\"/></a:minorFont></a:fontScheme></a:themeElements></a:theme>");
+        const QString words = QStringLiteral("<a:p><a:r><a:rPr sz=\"1400\"><a:solidFill><a:schemeClr val=\"accent1\"/></a:solidFill></a:rPr><a:t>Colored</a:t></a:r></a:p>");
+        const QString style = QStringLiteral("<xdr:style><a:lnRef idx=\"1\"><a:schemeClr val=\"accent1\"/></a:lnRef><a:fillRef idx=\"1\"><a:schemeClr val=\"accent1\"/></a:fillRef><a:effectRef idx=\"0\"><a:schemeClr val=\"accent1\"/></a:effectRef>"
+                                              "<a:fontRef idx=\"minor\"><a:schemeClr val=\"lt1\"/></a:fontRef></xdr:style>");
+        EditWindow e;
+        QVERIFY(e.open(bookWithTextShape(words, QString(), theme)));
+        QVERIFY(e.settle());
+        QTRY_VERIFY(e.win.w.objects()->shownSheet() == 0 && e.win.w.objects()->layer()->count() == 2);
+        jp::ShapeTextEdit *edit = editFirst(e);
+        QVERIFY(edit);
+        QTextCursor found = edit->document()->find(QStringLiteral("Colored"));
+        QVERIFY(!found.isNull());
+        found.insertText(QStringLiteral("Changed"));
+        QTest::keyClick(edit, Qt::Key_Escape);
+        QVERIFY(save(e));
+        const QByteArray drawing = partsOf(e.path).value(QStringLiteral("xl/drawings/drawing1.xml"));
+        QVERIFY2(drawing.contains("Changed") && drawing.contains("val=\"accent1\""), drawing.constData());
+        QVERIFY2(!drawing.contains("AA0000"), "the theme color was written as a plain color");
+        // (a shape with a style that sets its words' color: they are edited in it)
+        EditWindow dark;
+        QVERIFY(dark.open(bookWithTextShape(QStringLiteral("<a:p><a:r><a:t>Light</a:t></a:r></a:p>"), style, theme)));
+        QVERIFY(dark.settle());
+        QTRY_VERIFY(dark.win.w.objects()->shownSheet() == 0 && dark.win.w.objects()->layer()->count() == 2);
+        jp::ShapeTextEdit *light = editFirst(dark);
+        QVERIFY(light);
+        QCOMPARE(light->palette().color(QPalette::Text), QColor(0xEE, 0xDD, 0xCC));
+        QTest::keyClick(light, Qt::Key_Escape);
     }
 
     // A picture is cropped to a shape of window (the sides or the top and bottom cut from the middle, and the picture is as large as what is left), and shown whole again.

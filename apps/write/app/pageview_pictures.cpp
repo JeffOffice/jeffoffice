@@ -1161,8 +1161,13 @@ bool PageView::beginShapeTextEdit(const QString &typed)
     if (m_shapeEditor || !m_doc || m_readOnly || m_hf.active || m_note.active || position < 0) return false;
     const PictureInfo info = pictureAt(*m_doc, m_doc->story(), position);
     if (!info.valid || !info.editable || (info.kind != DrawnKind::Shape && info.kind != DrawnKind::TextBox)) return false;
-    std::unique_ptr<QTextDocument> story = textBoxStory(*m_doc, position);
+    bool tooBig = false;
+    std::unique_ptr<QTextDocument> story = textBoxStory(*m_doc, position, &tooBig);
     if (!story) {
+        if (tooBig) {
+            Q_EMIT notice(tr("This text box holds too many paragraphs to be typed in here."));
+            return false;
+        }
         // (What the box holds is more than the editor takes: a table, or words linked on in other boxes.)
         if (textBoxText(*m_doc, position)) return false;
         Q_EMIT notice(tr("This text box holds more than words (a table, a picture, a field, or a list), so its words can't be edited here."));
@@ -1198,34 +1203,61 @@ bool PageView::beginShapeTextEdit(const QString &typed)
             if (m_shapeEditor && now && (now == this || now == viewport())) endShapeTextEdit(true);
         });
     });
+    connect(m_shapeEditor, &ShapeTextEdit::formatChanged, this, &PageView::shapeTextLookChanged);
+    // (the words are in the document before it is written to bytes: a save, a recovery copy, an export)
+    m_doc->setFlushHook([this] { commitShapeText(false); });
     m_shapeEditor->begin(std::move(story), r.toRect(), look, typed);
+    Q_EMIT shapeTextLookChanged();
     return true;
 }
 
-void PageView::endShapeTextEdit(bool keep)
+bool PageView::endShapeTextEdit(bool keep)
 {
-    if (!m_shapeEditor) return;
+    if (!m_shapeEditor) return true;
     ShapeTextEdit *editor = m_shapeEditor;
     const int position = m_shapeEditorAt;
-    const bool changed = editor->changed();
-    editor->setSpellCheck(nullptr);
-    qDeleteAll(editor->findChildren<SpellCheck *>());
-    std::unique_ptr<QTextDocument> story = editor->take();
-    m_shapeEditor = nullptr;
-    m_shapeEditorAt = -1;
-    editor->disconnect(this);
-    editor->deleteLater();
-    if (keep && changed && story && m_doc && position >= 0 && isDrawnObjectAt(m_doc->story(), position)) {
+    if (keep && editor->changed() && m_doc && position >= 0 && isDrawnObjectAt(m_doc->story(), position)) {
+        // (the words go in while the editor is open: if the box can't hold them, they are still there to be cut back)
+        bool refused = false;
         m_doc->pictureNotice.clear();
-        if (setTextBoxStory(*m_doc, position, story.get())) {
+        std::unique_ptr<QTextDocument> story = editor->snapshot();
+        if (setTextBoxStory(*m_doc, position, story.get(), &refused)) {
             selectPicture(position);
             Q_EMIT contentChanged();
-        } else if (!m_doc->pictureNotice.isEmpty()) {
-            Q_EMIT notice(m_doc->pictureNotice);
+        } else if (refused) {
+            Q_EMIT notice(m_doc->pictureNotice.isEmpty() ? tr("This text box can't hold that many words (at most 50,000 letters in 2,000 paragraphs), so they are not put in it yet. Take some out, and press Esc again.") : m_doc->pictureNotice);
+            return false;
         }
     }
+    editor->setSpellCheck(nullptr);
+    qDeleteAll(editor->findChildren<SpellCheck *>());
+    editor->take();
+    m_shapeEditor = nullptr;
+    m_shapeEditorAt = -1;
+    if (m_doc) m_doc->setFlushHook(nullptr);
+    editor->disconnect(this);
+    editor->deleteLater();
     setFocus(Qt::OtherFocusReason);
     viewport()->update();
+    Q_EMIT shapeTextLookChanged();
+    return true;
+}
+
+bool PageView::commitShapeText(bool close)
+{
+    if (!m_shapeEditor) return true;
+    if (close) return endShapeTextEdit(true);
+    if (!m_shapeEditor->changed() || !m_doc || m_shapeEditorAt < 0 || !isDrawnObjectAt(m_doc->story(), m_shapeEditorAt)) return true;
+    bool refused = false;
+    m_doc->pictureNotice.clear();
+    std::unique_ptr<QTextDocument> story = m_shapeEditor->snapshot();
+    if (setTextBoxStory(*m_doc, m_shapeEditorAt, story.get(), &refused)) {
+        Q_EMIT contentChanged();
+    } else if (refused) {
+        Q_EMIT notice(m_doc->pictureNotice.isEmpty() ? tr("This text box can't hold that many words (at most 50,000 letters in 2,000 paragraphs), so they are not put in it yet. Take some out, and press Esc again.") : m_doc->pictureNotice);
+        return false;
+    }
+    return true;
 }
 
 void PageView::focusText()

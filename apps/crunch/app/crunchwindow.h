@@ -1568,13 +1568,16 @@ private:
     qint64 m_drawFromRow = -1, m_drawFromCol = -1;
     void insertPicture();
     bool placeObjectClip(const crunch::ObjectClip &clip, const QString &stepText, const jp::office::sheet::DrawingAnchor *at = nullptr, int order = -1);
-    bool restyleObject(const QString &stepText, const std::function<bool(QDomElement &, jp::grid::ObjectBox *)> &edit, bool pictureOnly = false);
+    // `forId`: the object to change, when it is not the one that is picked (the words typed in a shape are put in it whatever is picked by then).
+    bool restyleObject(const QString &stepText, const std::function<bool(QDomElement &, jp::grid::ObjectBox *)> &edit, bool pictureOnly = false, int forId = -1);
     void editObjectText();
     // The words of the picked shape or text box are typed in place, in the shared editor over the shape (F2 or Enter, a double click, or a character typed with the shape picked): Esc, or a click
     // elsewhere, puts them in the shape, one step that undoes, with every look they were given. `typed` goes after the words.
     bool beginShapeTextEdit(int id, const QString &typed = QString());
     void endShapeTextEdit(bool keep = true);
     void focusText();
+    // The look of the words being typed in a shape, on the ribbon's buttons and boxes.
+    void reflectShapeEditor();
     void compressPicturesDialog();
     void insertEquationDialog();
     void showSelectionPane();
@@ -1586,6 +1589,7 @@ private:
     std::function<bool(ShapeTextChoices *)> m_shapeTextAsker;
     jp::ShapeTextEdit *m_shapeEditor = nullptr;
     int m_shapeEditorId = -1;
+    bool m_shapeTextRefused = false;   // the last start of an edit was refused with a notice (the key that asked is taken, not passed on to the cells)
     std::function<bool(jp::TextArtItem *)> m_textArtAsker;
     void chartRibbonParts(RibbonParts &parts);
     void functionRibbonParts(RibbonParts &parts);

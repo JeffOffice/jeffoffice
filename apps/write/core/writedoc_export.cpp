@@ -343,6 +343,7 @@ QByteArray WriteDoc::toHtml(bool singleFile, const QString &title, const QString
 
 bool WriteDoc::exportDocument(office::wml::Document *result, bool template_, bool macros)
 {
+    if (m_flushHook) m_flushHook();
     syncSections();
     office::wml::Document out = m_wml;
     exportBody(&out.body);

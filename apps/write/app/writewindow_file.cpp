@@ -252,6 +252,7 @@ bool WriteWindow::openFile(const QString &path, OpenHow how)
 
 bool WriteWindow::save()
 {
+    if (!commitShapeText()) return false;
     // A document open for reading only is saved as a copy under a new name.
     if (isReadOnly()) {
         notice(tr("Save"), tr("This document is open for reading only, so it is saved under a new name."));
@@ -278,6 +279,7 @@ void WriteWindow::notice(const QString &title, const QString &text, bool warning
 
 bool WriteWindow::saveAs()
 {
+    if (!commitShapeText()) return false;
     const QString from = m_path.isEmpty() ? m_recoveredFrom : m_path;
     const QString dir = from.isEmpty() ? jp::defaultFolder() : QFileInfo(from).absolutePath();
     // (a document open for reading only is offered a name of its own, not the file's)
@@ -300,7 +302,7 @@ bool WriteWindow::saveAs()
 
 bool WriteWindow::saveCopy()
 {
-    if (!m_doc) return false;
+    if (!m_doc || !commitShapeText()) return false;
     const QString from = m_path.isEmpty() ? m_recoveredFrom : m_path;
     const QString dir = from.isEmpty() ? QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation) : QFileInfo(from).absolutePath();
     const QString name = tr("%1 copy").arg(from.isEmpty() ? displayName() : QFileInfo(from).completeBaseName());
@@ -318,7 +320,7 @@ bool WriteWindow::saveCopy()
 
 bool WriteWindow::saveAsTemplate()
 {
-    if (!m_doc) return false;
+    if (!m_doc || !commitShapeText()) return false;
     const QString path = askMyTemplatePath(this, displayName(), QStringLiteral(".dotx"));
     if (path.isEmpty()) return false;
     QString err;
@@ -346,7 +348,7 @@ bool WriteWindow::saveAsTemplate()
 
 bool WriteWindow::saveTo(const QString &path, bool asCopy)
 {
-    if (!m_doc) return false;
+    if (!m_doc || !commitShapeText()) return false;
     // A document open for reading only is never written over its own file, and a copy is never saved over the file this window has open (it would be the same as saving).
     if (asCopy ? sameFile(path, m_path) : isReadOnly() && sameFile(path, m_path)) {
         notice(tr("Save"), asCopy ? tr("A copy can't be saved over \"%1\". Choose another name.").arg(QFileInfo(path).fileName()) : tr("This document is open for reading only. Choose another name for it."));
@@ -600,6 +602,7 @@ void WriteWindow::makeRecoveryCopy(bool now)
     const int ms = std::max(1, Settings::get().autoRecoverMinutes()) * 60 * 1000;
     if (m_recoverTimer.interval() != ms) m_recoverTimer.start(ms);
     if (!m_doc || !isModified()) return;
+    if (m_view) m_view->commitShapeText(false);   // (the words being typed are in the copy; the edit goes on)
     // A document protected with a password is never written out as plain text: no copy is kept for it, and the person is told.
     if (m_fileProtected) {
         // (a copy written before the document was protected holds its text in the clear: it goes)

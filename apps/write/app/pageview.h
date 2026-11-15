@@ -276,11 +276,18 @@ public:
     // words in the shape as one step that undoes.
     // (`typed` is what was typed with the shape selected, and goes after its words.)
     bool beginShapeTextEdit(const QString &typed = QString());
-    void endShapeTextEdit(bool keep = true);
+    // False when the words are refused (more than a box may hold): the person is told, and the edit stays open.
+    bool endShapeTextEdit(bool keep = true);
+    // The words being typed are put in the document: with `close` the edit ends, without it goes on (a recovery copy, a file written while the person types). False when refused.
+    bool commitShapeText(bool close);
     bool editingShapeText() const { return m_shapeEditor != nullptr; }
     // The editor over the shape while its words are typed in (the commands of the ribbon and the keys go to it), and the keyboard put back where the words are typed.
     ShapeTextEdit *shapeEditor() const { return m_shapeEditor; }
     void focusText();
+Q_SIGNALS:
+    // The look of the words being typed in a shape changed (the caret moved, or a format was set): the ribbon follows.
+    void shapeTextLookChanged();
+public:
     bool drawingShape() const { return !m_shapeDraw.isEmpty(); }
     bool insertIconObject(const QString &name);
     bool insertTextBoxObject(const TextBoxDesign &design);

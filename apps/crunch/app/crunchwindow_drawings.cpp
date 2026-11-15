@@ -95,16 +95,18 @@ void CrunchWindow::setupObjects()
         stack->endMacro();
     });
     m_objects->layer()->setDeleteHook([this](int id) { deleteObject(id); });
-    m_objects->layer()->setTextEditHook([this](int id, const QString &typed) { return beginShapeTextEdit(id, typed); });
+    m_objects->layer()->setTextEditHook([this](int id, const QString &typed) {
+        m_shapeTextRefused = false;
+        return beginShapeTextEdit(id, typed) || m_shapeTextRefused;
+    });
     m_objects->setSaveNote([this](const QString &text) { notice(tr("Save"), text); });
     // the person moves or sizes an object, picks one, or asks for its menu
     connect(m_objects->layer(), &jp::grid::ObjectLayer::objectMoved, this, [this](int id, const jp::office::sheet::DrawingAnchor &anchor) { moveObject(id, anchor); });
     connect(m_objects->layer(), &jp::grid::ObjectLayer::contextMenuRequested, this, [this](int id, const QPoint &global) { objectContextMenu(id, global); });
     connect(m_objects->layer(), &jp::grid::ObjectLayer::objectActivated, this, [this](int id) {
-        if (beginShapeTextEdit(id)) return;   // (a shape or text box: its words are typed in place)
         QString line;
         if (m_objects->equationOf(m_sheet, id, &line, nullptr)) insertEquationDialog();   // (an equation opens its editor)
-        else propertiesDialog();
+        else if (!beginShapeTextEdit(id)) propertiesDialog();   // (a shape or text box: its words are typed in place)
     });
     connect(m_objects->layer(), &jp::grid::ObjectLayer::selectionChanged, this, [this](int) { updateChartState(); });
     connect(m_view, &grid::GridView::viewChanged, this, [this] { m_chartButtonsTimer.start(); });

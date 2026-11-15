@@ -355,7 +355,7 @@ bool WriteWindow::exportPdfAsk()
 
 bool WriteWindow::exportPdfPages(const WriteOutputOptions &options)
 {
-    if (!m_doc) return false;
+    if (!m_doc || !commitShapeText()) return false;
     HiddenTextOff noHidden(m_doc.get());
     EditedStoryHeld held(m_doc->pager(), m_view->inHeaderFooter() ? m_view->headerFooterEdit().story : nullptr);
     const QVector<int> pages = outputPages(options);
@@ -675,6 +675,7 @@ QVector<WriteOutputOptions> WriteWindow::handDuplexRuns(const WriteOutputOptions
 
 bool WriteWindow::printOutput(const WriteOutputOptions &options)
 {
+    if (!commitShapeText()) return false;
     if (!m_doc) return false;
     // Both sides by hand (a file has no sides): the odd pages, the stack turned over, then the even pages.
     if (options.byHand && !options.toFile) {

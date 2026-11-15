@@ -257,6 +257,41 @@ private Q_SLOTS:
         QCOMPARE(back->firstBlock().begin().fragment().charFormat().fontPointSize(), 10.0);
     }
 
+    // Typing into an empty paragraph whose end mark says 24 points, at 200% and 133%: it reads back as 24 points, the paragraph's mark too, and a size the story had keeps its exact digits.
+    void anEmptyParagraphAndEverySizeComeBackExactlyFromAZoom()
+    {
+        for (double zoom : {2.0, 1.33, 1.37, 0.7}) {
+            QWidget host;
+            auto d = story();
+            QTextCursor c(d.get());
+            QTextCharFormat f;
+            f.setFontPointSize(24);
+            c.setBlockCharFormat(f);
+            ShapeTextLook look;
+            look.zoom = zoom;
+            ShapeTextEdit e(&host);
+            e.begin(std::move(d), QRect(0, 0, 300, 200), look);
+            QCOMPARE(e.fontSizePt(), 24.0);
+            QTest::keyClicks(&e, QStringLiteral("x"));
+            auto back = e.take();
+            QCOMPARE(back->firstBlock().begin().fragment().charFormat().fontPointSize(), 24.0);
+            QCOMPARE(back->firstBlock().charFormat().fontPointSize(), 24.0);
+        }
+        QWidget host;
+        auto d = story(QStringLiteral("abc"));
+        QTextCursor c(d.get());
+        c.select(QTextCursor::Document);
+        QTextCharFormat f;
+        f.setFontPointSize(10.35);
+        c.mergeCharFormat(f);
+        ShapeTextLook look;
+        look.zoom = 1.37;
+        ShapeTextEdit e(&host);
+        e.begin(std::move(d), QRect(0, 0, 300, 200), look);
+        auto back = e.take();
+        QCOMPARE(back->firstBlock().begin().fragment().charFormat().fontPointSize(), 10.35);
+    }
+
     void noWrapKeepsOneLine()
     {
         QWidget host;

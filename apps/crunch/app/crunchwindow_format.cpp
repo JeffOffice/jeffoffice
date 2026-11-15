@@ -221,6 +221,10 @@ void CrunchWindow::updateFormatState(bool force)
             if (b) b->setEnabled(open);
         if (m_numberBox) m_numberBox->setEnabled(open);
     }
+    if (m_shapeEditor) {   // (the words being typed in a shape: the buttons show theirs, not the cell's)
+        reflectShapeEditor();
+        return;
+    }
     if (!open || m_formatting) return;
     // (the format the buttons show is that of the cell format of the cell with the cursor, with whether it is merged and what the Copy Formatting is doing: a cell that has the same as the
     // last one shown needs nothing done, and a person's edit, which keeps the cursor on cells of the same format, then costs the buttons nothing)

@@ -10,7 +10,10 @@
 #include <QApplication>
 #include "office/drawingml_write.h"
 #include "office/drawingml.h"
+#include "office/drawingml_color.h"
 #include "app/shapetextedit.h"
+#include "app/spelling.h"
+#include "app/settings.h"
 #include "app/crunchwindow.h"
 
 #include "app/compresspictures.h"
@@ -281,8 +284,47 @@ QDomElement firstNamed(const QDomElement &e, const QString &local, int depth = 0
 
 QString hexOf(const QColor &c) { return c.name().mid(1).toUpper(); }
 
+// Whether the words of a text body are only what the editor reads and writes back: paragraphs of runs, line breaks, and fields, as many as it reads. Anything else (an equation in an
+// alternate-content element, say) would be lost when the paragraphs are written again, and so is not edited here.
+bool wordsFitTheEditor(const QDomElement &body)
+{
+    int paragraphs = 0, runs = 0;
+    for (QDomElement e = body.firstChildElement(); !e.isNull(); e = e.nextSiblingElement()) {
+        const QString name = e.localName();
+        if (name == QLatin1String("bodyPr") || name == QLatin1String("lstStyle")) continue;
+        if (name != QLatin1String("p") || ++paragraphs > 10000) return false;
+        for (QDomElement c = e.firstChildElement(); !c.isNull(); c = c.nextSiblingElement()) {
+            const QString n = c.localName();
+            if (n == QLatin1String("r") || n == QLatin1String("fld") || n == QLatin1String("br")) {
+                if (++runs > 20000) return false;
+                // (a run that links somewhere has a relationship that the copy of the shape does not carry)
+                if (!firstNamed(c, QStringLiteral("hlinkClick")).isNull() || !firstNamed(c, QStringLiteral("hlinkMouseOver")).isNull()) return false;
+            } else if (n != QLatin1String("pPr") && n != QLatin1String("endParaRPr")) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+// The color the shape's style gives its words (the style's font reference), read as the workbook's theme gives it; invalid when it gives none.
+QColor styleTextColor(const QDomElement &sp, const jp::office::Theme &theme)
+{
+    const QDomElement ref = firstNamed(childNamed(sp, QStringLiteral("style")), QStringLiteral("fontRef"));
+    if (ref.isNull()) return QColor();
+    const QDomElement clr = ref.firstChildElement();
+    if (clr.isNull()) return QColor();
+    const QString v = clr.attribute(QStringLiteral("val"));
+    if (clr.localName() == QLatin1String("srgbClr")) return QColor(QLatin1Char('#') + v);
+    static const QHash<QString, int> index = {{QStringLiteral("dk1"), 0}, {QStringLiteral("lt1"), 1}, {QStringLiteral("dk2"), 2}, {QStringLiteral("lt2"), 3}, {QStringLiteral("accent1"), 4}, {QStringLiteral("accent2"), 5},
+                                              {QStringLiteral("accent3"), 6}, {QStringLiteral("accent4"), 7}, {QStringLiteral("accent5"), 8}, {QStringLiteral("accent6"), 9}, {QStringLiteral("hlink"), 10},
+                                              {QStringLiteral("folHlink"), 11}, {QStringLiteral("tx1"), 0}, {QStringLiteral("bg1"), 1}, {QStringLiteral("tx2"), 2}, {QStringLiteral("bg2"), 3}};
+    const auto it = index.constFind(v);
+    return it == index.cend() ? QColor() : theme.colors[it.value()];
+}
+
 // The words of a shape's text body written back as its paragraphs (the body's properties and list styles stay): the shape's txBody is made if it has none.
-bool setTextStory(QDomElement &sp, QTextDocument *story)
+bool setTextStory(QDomElement &sp, QTextDocument *story, const jp::office::Theme &theme)
 {
     if (sp.localName() != QLatin1String("sp")) return false;
     QDomDocument doc = sp.ownerDocument();
@@ -314,17 +356,43 @@ bool setTextStory(QDomElement &sp, QTextDocument *story)
     {
         QXmlStreamWriter w(&xml);
         jp::office::DrawingWriteContext ctx;
+        ctx.theme = theme;   // (a color of the workbook's theme is written as that color of the theme, not as the color it is today)
         jp::office::writeParagraphs(w, story, ctx);
     }
     QDomDocument made;
     if (!made.setContent("<w xmlns:a=\"" + kA.toUtf8() + "\">" + xml + "</w>", QDomDocument::ParseOption::UseNamespaceProcessing)) return false;
+    // The colors the words had as colors of the theme (the text engine holds the color they come to): each, by what it comes to, to be put back as the theme color it was.
+    QHash<QString, QDomElement> themed;
+    {
+        QList<QDomElement> pending{body};
+        for (int steps = 0; !pending.isEmpty() && steps < 100000; ++steps) {
+            const QDomElement e = pending.takeLast();
+            if (e.localName() == QLatin1String("schemeClr") && e.parentNode().toElement().localName() == QLatin1String("solidFill")) {
+                const QColor c = jp::office::readColor(e.parentNode().toElement(), theme, jp::office::ColorMap());
+                if (c.isValid() && !themed.contains(c.name().toUpper())) themed.insert(c.name().toUpper(), e.cloneNode(true).toElement());
+            }
+            for (QDomElement c = e.firstChildElement(); !c.isNull(); c = c.nextSiblingElement()) pending << c;
+        }
+    }
     QList<QDomElement> go;
     for (QDomElement e = body.firstChildElement(); !e.isNull(); e = e.nextSiblingElement())
         if (e.localName() == QLatin1String("p")) go << e;
     for (QDomElement &e : go) body.removeChild(e);
     bool any = false;
     for (QDomElement p = made.documentElement().firstChildElement(); !p.isNull(); p = p.nextSiblingElement()) {
-        body.appendChild(doc.importNode(p, true));
+        QDomElement imported = doc.importNode(p, true).toElement();
+        QList<QDomElement> walk{imported};
+        QList<QDomElement> plain;
+        for (int steps = 0; !walk.isEmpty() && steps < 100000; ++steps) {
+            const QDomElement e = walk.takeLast();
+            if (e.localName() == QLatin1String("srgbClr") && e.parentNode().toElement().localName() == QLatin1String("solidFill") && e.childNodes().isEmpty()) plain << e;
+            for (QDomElement c = e.firstChildElement(); !c.isNull(); c = c.nextSiblingElement()) walk << c;
+        }
+        for (const QDomElement &e : plain) {
+            const auto it = themed.constFind((QLatin1Char('#') + e.attribute(QStringLiteral("val"))).toUpper());
+            if (it != themed.cend()) e.parentNode().replaceChild(doc.importNode(it.value(), true), e);
+        }
+        body.appendChild(imported);
         any = true;
     }
     if (!any) body.appendChild(newA(doc, "p"));
@@ -334,9 +402,9 @@ bool setTextStory(QDomElement &sp, QTextDocument *story)
 } // namespace
 
 // Changes the element of the picked object with `edit` (which may also read what the object is, and says false when there is nothing to change), and puts the result in its place.
-bool CrunchWindow::restyleObject(const QString &stepText, const std::function<bool(QDomElement &, grid::ObjectBox *)> &edit, bool pictureOnly)
+bool CrunchWindow::restyleObject(const QString &stepText, const std::function<bool(QDomElement &, grid::ObjectBox *)> &edit, bool pictureOnly, int forId)
 {
-    const int id = pickedObject();
+    const int id = forId >= 0 ? forId : pickedObject();
     if (id < 0 || !m_session || !m_objects || m_chartSheetShown) return false;
     const ObjectKind kind = m_objects->kindOf(m_sheet, id);
     if (kind != ObjectKind::Picture && kind != ObjectKind::Shape && kind != ObjectKind::Connector) {
@@ -590,13 +658,23 @@ bool CrunchWindow::beginShapeTextEdit(int id, const QString &typed)
     if (m_shapeEditor || !m_session || !m_objects || !m_view || m_chartSheetShown || m_edit.active || !editingAllowed()) return false;
     if (id < 0 || id != pickedObject() || pickedObjects().size() != 1 || m_objects->kindOf(m_sheet, id) != ObjectKind::Shape || pickedIsTextArt()) return false;
     crunch::ObjectClip clip;
-    if (!m_objects->copyElement(m_sheet, id, &clip, nullptr)) return false;
+    QString why;
+    // (what can't be told is told when the person asked for the edit; a key typed that does not begin one goes on to the cells)
+    auto refuse = [&](const QString &text) {
+        if (typed.isEmpty()) {
+            m_shapeTextRefused = true;
+            notice(tr("Edit Text"), text);
+        }
+        return false;
+    };
+    if (!m_objects->copyElement(m_sheet, id, &clip, &why)) return refuse(why.isEmpty() ? tr("This shape's text can't be edited here.") : why);
     const QByteArray wrapped = "<w xmlns:xdr=\"" + kXdr.toUtf8() + "\" xmlns:a=\"" + kA.toUtf8() + "\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"" + clip.namespaces
                                + ">" + clip.elementXml + "</w>";
     QDomDocument dom;
     if (!dom.setContent(wrapped, QDomDocument::ParseOption::UseNamespaceProcessing)) return false;
     const QDomElement sp = dom.documentElement().firstChildElement();
     if (sp.localName() != QLatin1String("sp")) return false;
+    if (!childNamed(sp, QStringLiteral("txBody")).isNull() && !wordsFitTheEditor(childNamed(sp, QStringLiteral("txBody")))) return refuse(tr("This shape's text can't be edited here: it holds more than the editor can keep (a link, an equation, or very many paragraphs)."));
     const QDomElement geometry = firstNamed(sp, QStringLiteral("prstGeom"));
     static const QStringList linear{QStringLiteral("line"), QStringLiteral("straightConnector1")};
     if (!geometry.isNull() && (linear.contains(geometry.attribute(QStringLiteral("prst"))) || geometry.attribute(QStringLiteral("prst")).contains(QLatin1String("Connector")))) return false;
@@ -610,7 +688,9 @@ bool CrunchWindow::beginShapeTextEdit(int id, const QString &typed)
     ShapeTextLook look;
     const double zoom = m_view->zoom();
     if (!body.isNull()) {
-        jp::office::readTextBody(body, story.get(), jp::office::DrawingContext());
+        jp::office::DrawingContext context;
+        context.theme = m_objects->theme();   // (the workbook's own colors: a theme color stays one)
+        jp::office::readTextBody(body, story.get(), context);
         const QDomElement props = childNamed(body, QStringLiteral("bodyPr"));
         if (!props.isNull()) {
             const QString anchor = props.attribute(QStringLiteral("anchor"));
@@ -625,7 +705,10 @@ bool CrunchWindow::beginShapeTextEdit(int id, const QString &typed)
         }
     }
     look.zoom = zoom;
+    look.textColor = styleTextColor(sp, m_objects->theme());
     m_shapeEditor = new ShapeTextEdit(m_view->viewport());
+    if (jp::spellAsYouType()) m_shapeEditor->setSpellCheck([](QTextDocument *d) { return jp::misspellings(d); });
+    connect(m_shapeEditor, &ShapeTextEdit::formatChanged, this, [this] { reflectShapeEditor(); });
     m_shapeEditorId = id;
     connect(m_shapeEditor, &ShapeTextEdit::finished, this, [this] { endShapeTextEdit(true); });
     connect(m_shapeEditor, &ShapeTextEdit::focusLeft, this, [this] {
@@ -636,6 +719,7 @@ bool CrunchWindow::beginShapeTextEdit(int id, const QString &typed)
         });
     });
     m_shapeEditor->begin(std::move(story), frame, look, typed);
+    reflectShapeEditor();
     return true;
 }
 
@@ -650,10 +734,39 @@ void CrunchWindow::endShapeTextEdit(bool keep)
     m_shapeEditorId = -1;
     editor->disconnect(this);
     editor->deleteLater();
-    if (keep && changed && story && id >= 0 && id == pickedObject())
-        restyleObject(tr("Edit Text"), [&](QDomElement &el, grid::ObjectBox *) { return setTextStory(el, story.get()); });
+    // (the words go in the shape they were typed in, whatever is picked by now: the click that ended the edit picked something else, or nothing, and that stays so)
+    if (keep && changed && story && id >= 0 && m_objects && !m_objects->isDeleted(m_sheet, id)) {
+        const int pickedNow = pickedObject();
+        const jp::office::Theme &theme = m_objects->theme();
+        restyleObject(tr("Edit Text"), [&](QDomElement &el, grid::ObjectBox *) { return setTextStory(el, story.get(), theme); }, false, id);
+        if (pickedNow != id && m_objects->layer()->selectedId() != pickedNow) m_objects->layer()->select(pickedNow);
+    }
     m_view->setFocus(Qt::OtherFocusReason);
     m_view->viewport()->update();
+}
+
+// The look of the words being typed in a shape, on the ribbon's buttons and boxes (not the look of the cell under the shape).
+void CrunchWindow::reflectShapeEditor()
+{
+    if (!m_shapeEditor) return;
+    const QTextCharFormat cf = m_shapeEditor->charFormat();
+    auto check = [this](const char *id, bool on) {
+        if (QAction *a = act(QString::fromLatin1(id))) a->setChecked(on);
+    };
+    check("fmt.bold", cf.fontWeight() >= QFont::DemiBold);
+    check("fmt.italic", cf.fontItalic());
+    check("fmt.underline", cf.underlineStyle() != QTextCharFormat::NoUnderline);
+    const Qt::Alignment al = m_shapeEditor->textCursor().block().blockFormat().alignment() & Qt::AlignHorizontal_Mask;
+    check("fmt.alignLeft", al == Qt::AlignLeft || al == 0 || al == Qt::AlignLeading);
+    check("fmt.alignCenter", al == Qt::AlignHCenter);
+    check("fmt.alignRight", al == Qt::AlignRight || al == Qt::AlignTrailing);
+    const double size = m_shapeEditor->fontSizePt();
+    QString family = cf.fontFamilies().toStringList().value(0);
+    if (family.isEmpty()) family = m_shapeEditor->document()->defaultFont().family();
+    for (const auto &c : m_fontCombos)
+        if (c) c->setCurrentFamily(family);
+    for (const auto &c : m_sizeCombos)
+        if (c) c->setSize(size > 0 ? size : 11);
 }
 
 void CrunchWindow::focusText()

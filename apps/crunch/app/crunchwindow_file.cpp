@@ -516,6 +516,7 @@ QString CrunchWindow::hiddenSheetText()
 void CrunchWindow::setActiveSheet(int sheetIndex)
 {
     if (!m_loaded || !m_loaded->book || sheetIndex == m_sheet || sheetIndex < 0 || sheetIndex >= m_loaded->book->info().sheets.size()) return;
+    if (m_shapeEditor) endShapeTextEdit(true);   // (the words typed in a shape go in it, on the sheet it is on, before another is shown)
     if (!sheetHasTab(sheetIndex)) {
         if (!m_loaded->book->info().sheets[sheetIndex].deleted) setStatus(hiddenSheetText());
         return;

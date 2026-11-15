@@ -275,6 +275,8 @@ public:
     // The words of a text box (its w:txbxContent, with the prefixes it uses declared) as a story to be typed in, in the form the headers are edited in, and the story written back as the
     // box's content (w:txbxContent with no prefixes declared). The story is the caller's: the document keeps no history of it, and what is typed in it is not a step until it is written back.
     std::unique_ptr<QTextDocument> boxEditStory(const QByteArray &txbxContent);
+    // Called first when the document is written to bytes (a save, a recovery copy, an export): the words being typed in a shape are put in the document before it is.
+    void setFlushHook(std::function<void()> hook) { m_flushHook = std::move(hook); }
     QByteArray boxContentOfStory(QTextDocument *story);
     // Whether the story is a header's or a footer's, and which section and slot first has it (-1 for none).
     bool isHeaderFooterStory(const QTextDocument *story) const;
@@ -778,6 +780,7 @@ private:
     std::unique_ptr<NoteFields> m_styleRefSource;   // (answers STYLEREF for the pages; the notes' own is above, there when the file has notes)
     std::unique_ptr<QTextDocument> m_noticeStory, m_continuationStory;   // (the file's continuation notice and its separator for the part of a note that goes on, made when a page sets them)
     QString m_notePart;                                               // the footnotes part's name
+    std::function<void()> m_flushHook;
     QHash<QString, QVector<office::wml::Block>> m_noteBlocks;         // by "fn" and Id
     QVector<office::wml::Block> m_noteNotice;                         // the paragraphs of the file's continuation notice (none: no room is kept for one)
     QVector<office::wml::Block> m_noteContinuation;                   // the paragraphs of the file's separator for the part of a note that goes on (none: the separator's)

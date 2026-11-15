@@ -12,6 +12,7 @@
 #include <QTextDocument>
 #include <QTextList>
 
+#include <QVector>
 #include <algorithm>
 #include <cmath>
 #include <iterator>
@@ -55,26 +56,42 @@ double nextFontSize(double points, int direction)
 
 namespace {
 
-// The sizes in a story times `factor` (to show it at a zoom, and back).
-void scaleSizes(QTextDocument *story, double factor)
+// Every size a story holds (its default font, each run's, and each paragraph's end mark: what typing in an empty paragraph takes), changed by `map`. The places are collected first, and
+// the sizes put in afterward, so that nothing changes under the walk.
+void mapSizes(QTextDocument *story, const std::function<double(double)> &map)
 {
-    if (qFuzzyCompare(factor, 1.0)) return;
-    QFont f = story->defaultFont();
-    if (f.pointSizeF() > 0) {
-        f.setPointSizeF(std::round(f.pointSizeF() * factor * 100) / 100);
-        story->setDefaultFont(f);
-    }
-    for (QTextBlock b = story->begin(); b.isValid(); b = b.next())
+    struct Run {
+        int from, to;
+        double size;
+    };
+    QVector<Run> runs;
+    QVector<QPair<int, double>> marks;
+    for (QTextBlock b = story->begin(); b.isValid(); b = b.next()) {
+        if (b.charFormat().hasProperty(QTextFormat::FontPointSize)) marks << qMakePair(b.position(), b.charFormat().fontPointSize());
         for (auto it = b.begin(); !it.atEnd(); ++it) {
             const QTextFragment fr = it.fragment();
-            if (!fr.charFormat().hasProperty(QTextFormat::FontPointSize)) continue;
-            QTextCursor c(story);
-            c.setPosition(fr.position());
-            c.setPosition(fr.position() + fr.length(), QTextCursor::KeepAnchor);
-            QTextCharFormat cf;
-            cf.setFontPointSize(std::round(fr.charFormat().fontPointSize() * factor * 100) / 100);
-            c.mergeCharFormat(cf);
+            if (fr.charFormat().hasProperty(QTextFormat::FontPointSize)) runs << Run{fr.position(), fr.position() + fr.length(), fr.charFormat().fontPointSize()};
         }
+    }
+    QFont f = story->defaultFont();
+    if (f.pointSizeF() > 0) {
+        f.setPointSizeF(map(f.pointSizeF()));
+        story->setDefaultFont(f);
+    }
+    for (const Run &r : runs) {
+        QTextCursor c(story);
+        c.setPosition(r.from);
+        c.setPosition(r.to, QTextCursor::KeepAnchor);
+        QTextCharFormat cf;
+        cf.setFontPointSize(map(r.size));
+        c.mergeCharFormat(cf);
+    }
+    for (const auto &m : marks) {
+        QTextCursor c(story->findBlock(m.first));
+        QTextCharFormat cf = c.blockCharFormat();
+        cf.setFontPointSize(map(m.second));
+        c.setBlockCharFormat(cf);
+    }
 }
 
 } // namespace
@@ -109,6 +126,7 @@ ShapeTextEdit::ShapeTextEdit(QWidget *parent) : QTextEdit(parent)
 
 ShapeTextEdit::~ShapeTextEdit()
 {
+    blockSignals(true);   // (a host that is going away is told nothing)
     delete m_back.data();
     // (the story is the editor's until take(): it is not the editor's own document, so the editor stops using it first)
     if (m_story) setDocument(new QTextDocument(this));
@@ -122,7 +140,8 @@ void ShapeTextEdit::begin(std::unique_ptr<QTextDocument> story, const QRect &fra
     m_story = std::move(story);
     m_story->setDocumentMargin(0);
     m_story->setUndoRedoEnabled(false);
-    scaleSizes(m_story.get(), look.zoom);
+    m_originals.clear();
+    if (!qFuzzyCompare(look.zoom, 1.0)) mapSizes(m_story.get(), [this](double v) { return scaled(v); });
     m_story->setUndoRedoEnabled(true);
     m_story->clearUndoRedoStacks();
     setDocument(m_story.get());
@@ -142,6 +161,10 @@ void ShapeTextEdit::begin(std::unique_ptr<QTextDocument> story, const QRect &fra
         Q_EMIT formatChanged();
     });
     connect(this, &QTextEdit::currentCharFormatChanged, this, [this] { Q_EMIT formatChanged(); });
+    connect(this, &QTextEdit::cursorPositionChanged, this, [this] { Q_EMIT formatChanged(); });
+    QPalette pal = palette();
+    pal.setColor(QPalette::Text, look.textColor.isValid() ? look.textColor : QColor(Qt::black));
+    setPalette(pal);
     if (!typed.isEmpty()) {
         if (replace) selectAll();
         textCursor().insertText(typed);
@@ -162,9 +185,33 @@ std::unique_ptr<QTextDocument> ShapeTextEdit::take()
     setDocument(new QTextDocument(this));
     if (m_back) m_back->hide();
     out->setUndoRedoEnabled(false);
-    scaleSizes(out.get(), 1 / m_look.zoom);
+    if (!qFuzzyCompare(m_look.zoom, 1.0)) mapSizes(out.get(), [this](double v) { return unscaled(v); });
     hide();
     return out;
+}
+
+double ShapeTextEdit::scaled(double points)
+{
+    if (qFuzzyCompare(m_look.zoom, 1.0)) return points;
+    const double shown = std::round(points * m_look.zoom * 1000) / 1000;
+    m_originals.insert(qRound64(shown * 1000), points);   // (a size is given back as it was, to its last digit)
+    return shown;
+}
+
+double ShapeTextEdit::unscaled(double shown) const
+{
+    if (qFuzzyCompare(m_look.zoom, 1.0)) return shown;
+    const auto it = m_originals.constFind(qRound64(shown * 1000));
+    return it != m_originals.cend() ? it.value() : std::round(shown / m_look.zoom * 100) / 100;
+}
+
+std::unique_ptr<QTextDocument> ShapeTextEdit::snapshot() const
+{
+    if (!m_story) return nullptr;
+    std::unique_ptr<QTextDocument> copy(m_story->clone());
+    copy->setUndoRedoEnabled(false);
+    if (!qFuzzyCompare(m_look.zoom, 1.0)) mapSizes(copy.get(), [this](double v) { return unscaled(v); });
+    return copy;
 }
 
 void ShapeTextEdit::refit()
@@ -246,13 +293,13 @@ void ShapeTextEdit::setFontFamilyName(const QString &family)
 double ShapeTextEdit::fontSizePt() const
 {
     const QTextCharFormat f = currentCharFormat();
-    return f.hasProperty(QTextFormat::FontPointSize) ? std::round(f.fontPointSize() / m_look.zoom * 100) / 100 : 0;
+    return f.hasProperty(QTextFormat::FontPointSize) ? unscaled(f.fontPointSize()) : 0;
 }
 
 void ShapeTextEdit::setFontSizePt(double points)
 {
     QTextCharFormat f;
-    f.setFontPointSize(points * m_look.zoom);
+    f.setFontPointSize(scaled(points));
     mergeFormat(f);
 }
 
@@ -260,7 +307,7 @@ void ShapeTextEdit::growFont(int direction)
 {
     QTextCursor c = textCursor();
     if (!c.hasSelection()) {
-        const double cur = fontSizePt() > 0 ? fontSizePt() : document()->defaultFont().pointSizeF() / m_look.zoom;
+        const double cur = fontSizePt() > 0 ? fontSizePt() : unscaled(document()->defaultFont().pointSizeF());
         setFontSizePt(nextFontSize(cur > 0 ? cur : 11, direction));
         return;
     }
@@ -271,12 +318,12 @@ void ShapeTextEdit::growFont(int direction)
             const QTextFragment fr = it.fragment();
             const int fs = std::max(from, fr.position()), fe = std::min(to, fr.position() + fr.length());
             if (fs >= fe) continue;
-            const double cur = fr.charFormat().hasProperty(QTextFormat::FontPointSize) ? fr.charFormat().fontPointSize() / m_look.zoom : 11;
+            const double cur = fr.charFormat().hasProperty(QTextFormat::FontPointSize) ? unscaled(fr.charFormat().fontPointSize()) : 11;
             QTextCursor fc(document());
             fc.setPosition(fs);
             fc.setPosition(fe, QTextCursor::KeepAnchor);
             QTextCharFormat f;
-            f.setFontPointSize(nextFontSize(cur, direction) * m_look.zoom);
+            f.setFontPointSize(scaled(nextFontSize(cur, direction)));
             fc.mergeCharFormat(f);
         }
     c.endEditBlock();

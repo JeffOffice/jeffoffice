@@ -9,6 +9,7 @@
 
 #include <QColor>
 #include <QMarginsF>
+#include <QHash>
 #include <QPair>
 #include <QPointer>
 #include <QTextEdit>
@@ -26,6 +27,7 @@ struct ShapeTextLook {
     bool wrap = true;                      // lines break at the frame's width
     bool autofit = false;                  // the words shrink to fit (the editor keeps the caret in view; the host's page shows the shrunk words)
     QMarginsF insets = QMarginsF(7.2, 3.6, 7.2, 3.6);   // in pixels of the editor
+    QColor textColor;                      // the color words with none of their own are drawn in (empty: black)
     double zoom = 1;                       // the pixels of the editor to the points of the story (sizes shown larger or smaller; the story keeps its points)
 };
 
@@ -47,6 +49,8 @@ public:
     // The story, edited; and whether anything in it changed since begin().
     QTextDocument *story() const { return document(); }
     bool changed() const { return m_changed; }
+    // A copy of the story as it is now, in the story's own points (the edit goes on): for a host that puts the words in its document without ending it.
+    std::unique_ptr<QTextDocument> snapshot() const;
     // Ends the edit: the story is taken from the editor (the host writes it back); `finished` is sent once.
     std::unique_ptr<QTextDocument> take();
 
@@ -95,6 +99,8 @@ protected:
     void insertFromMimeData(const QMimeData *source) override;
 
 private:
+    double scaled(double points);
+    double unscaled(double shown) const;
     void refit();
     void marksChanged();
     void mergeFormat(const QTextCharFormat &f);
@@ -106,6 +112,7 @@ private:
     int m_marks = 0;
     std::unique_ptr<QTextDocument> m_story;
     QPointer<QWidget> m_back;
+    QHash<qint64, double> m_originals;   // the sizes shown at a zoom, each with the size it was (so that they are given back exactly)
 };
 
 } // namespace jp
