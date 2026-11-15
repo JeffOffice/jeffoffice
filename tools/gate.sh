@@ -16,7 +16,7 @@ SUITES="crunchchecks writechecks crunchtests writetests officetests pubchecks de
 HAVE=$(grep -rhoE 'add_executable\((\w+)' --include=CMakeLists.txt . | sed 's/add_executable(//' | sort -u)
 SUITES=$(for s in $SUITES; do case $s in *checks) echo $s;; *) echo "$HAVE" | grep -qx "$s" && echo $s;; esac; done | tr '\n' ' ')
 for c in check_layers check_translate_calls check_plurals check_plain_text check_ui_style check_third_party check_deb_copyright check_feature_counts check_ffmpeg_components check_export_macro; do echo "== $c: $(python3 tools/$c.py 2>&1 | tail -1)" >> "$L"; done
-# (the dialog style: a problem in JeffCrunch, JeffWrite, or libs/shell fails the gate at once, as a failed build does)
+# (the dialog style: a problem in any app or in libs/shell or libs/page fails the gate at once, as a failed build does)
 if ! UISTYLE=$(python3 tools/check_ui_style.py 2>&1); then
   echo "FAIL!  : check_ui_style: $(echo "$UISTYLE" | tail -1)" >> "$L"; echo "STYLE CHECK FAILED" >> "$L"; echo DONE >> "$L"; exit 1
 fi
