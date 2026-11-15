@@ -201,6 +201,8 @@ private Q_SLOTS:
     void aBackgroundIsShownOnTheScreenAndNeverPrinted();
     void aBackgroundIsOneStepOfUndoAndSavedWithTheFile();
     void aBadBackgroundPictureIsRefusedWithAReason();
+    void picturesOverTheTotalAFileKeepsAreRefusedWhenChosen();
+    void aLargePictureIsTiledAtItsRealSize();
     void theDialogShowsTheSetupAndGivesItBackUnchanged();
     void thePageTabHasThePrintQuality();
     void changesInTheDialogGoBack();

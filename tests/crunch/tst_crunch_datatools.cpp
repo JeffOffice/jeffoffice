@@ -7,6 +7,7 @@
 #include "app/removeduplicatesdialog.h"
 #include "core/appinfo.h"
 #include "core/dataform.h"
+#include "core/advancedfilter.h"
 #include "core/fonts.h"
 #include "crunchbooks.h"
 #include "crunchwindowhelpers.h"
@@ -547,6 +548,153 @@ private Q_SLOTS:
         session->undoStack()->undo();
         QVERIFY(e.settle());
         QCOMPARE(shown(e, QStringLiteral("A2:C4")), QStringLiteral("Ann|5|10|Bo|150|300|Cy|40|80"));
+    }
+
+    // The records a form shows are the rows that are shown: a row hidden by hand or by a filter is not shown, counted, found, or deleted.
+    void hiddenAndFilteredRowsAreNotRecords()
+    {
+        EditWindow e;
+        const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\" t=\"inlineStr\"><is><t>Name</t></is></c><c r=\"B1\"><v>0</v></c></row>"
+                                            "<row r=\"2\"><c r=\"A2\" t=\"inlineStr\"><is><t>Ann</t></is></c><c r=\"B2\"><v>5</v></c></row>"
+                                            "<row r=\"3\" hidden=\"1\"><c r=\"A3\" t=\"inlineStr\"><is><t>Bo</t></is></c><c r=\"B3\"><v>150</v></c></row>"
+                                            "<row r=\"4\"><c r=\"A4\" t=\"inlineStr\"><is><t>Cy</t></is></c><c r=\"B4\"><v>40</v></c></row>");
+        QVERIFY(e.open(buildXlsx({worksheet(rows)})));
+        QVERIFY(e.settle());
+        crunch::DataForm f;
+        QVERIFY(f.open(e.win.w.session(), 0, 1, 0));
+        QCOMPARE(f.recordCount(), qint64(2));   // (Ann and Cy: Bo is hidden)
+        QCOMPARE(f.editText(1, 0), QStringLiteral("Cy"));
+        QCOMPARE(f.findNext(0), qint64(1));
+        f.setCriteria({QString(), QStringLiteral(">100")});   // (Bo meets it, and is not shown)
+        QCOMPARE(f.findNext(-1), qint64(-1));
+        f.clearCriteria();
+        // the window counts what is shown, and Delete takes out the record shown and no hidden one
+        e.select(QStringLiteral("A2"));
+        e.win.w.setDataFormAsker([&](DataFormDialog *d) {
+            QCOMPARE(d->positionLabel()->text(), QStringLiteral("1 of 2"));
+            d->findNextButton()->click();
+            QCOMPARE(d->fieldBox(0)->text(), QStringLiteral("Cy"));
+            d->setDeleteAsker([](const QString &) { return true; });
+            d->deleteButton()->click();
+            QCOMPARE(d->fieldBox(0)->text(), QStringLiteral("Ann"));
+            d->closeButton()->click();
+        });
+        e.win.w.act(QStringLiteral("data.form"))->trigger();
+        QVERIFY(e.settle());
+        QCOMPARE(e.shownAt(QStringLiteral("A3")), QStringLiteral("Bo"));   // (the hidden row was not touched)
+    }
+
+    // A field the sheet refuses leaves nothing behind: the fields before it are taken back, and Redo has nothing to redo.
+    void aRefusedFieldLeavesNoStepToRedo()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=a", "B1=b", "C1=c", "D1=d", "A2=1", "B2=2", "C2=3", "D2=4"})));
+        QVERIFY(e.settle());
+        EditSession *session = e.win.w.session();
+        crunch::DataForm f;
+        QVERIFY(f.open(session, 0, 1, 0));
+        const int before = session->undoStack()->index();
+        const EditSession::Outcome o = f.change(0, {QStringLiteral("x"), QStringLiteral("y"), QStringLiteral("=1+"), QStringLiteral("z")});
+        QVERIFY(!o.ok);
+        QVERIFY(e.settle());
+        QCOMPARE(session->undoStack()->index(), before);
+        QVERIFY(!session->undoStack()->canRedo());   // (a step undone is not left to be redone)
+        QCOMPARE(shown(e, QStringLiteral("A2:D2")), QStringLiteral("1|2|3|4"));
+        // the same for a new record
+        const EditSession::Outcome n = f.add({QStringLiteral("p"), QStringLiteral("q"), QStringLiteral("=1+"), QString()});
+        QVERIFY(!n.ok);
+        QVERIFY(e.settle());
+        QCOMPARE(session->undoStack()->index(), before);
+        QVERIFY(!session->undoStack()->canRedo());
+        QCOMPARE(shown(e, QStringLiteral("A3:D3")), QStringLiteral("|||"));
+        QCOMPARE(f.recordCount(), qint64(1));
+    }
+
+    // A form of very many fields reads each field of a record once and sets its look once: the work grows with the fields, not with their square.
+    void aRecordOfManyFieldsIsShownInWorkThatGrowsWithTheFields()
+    {
+        QStringList specs;
+        for (int c = 0; c < 256; ++c) {
+            specs << QStringLiteral("%1=h%2").arg(QString::fromLatin1(jp::office::sheet::columnName(quint32(c)).toLatin1()), QString::number(c));
+        }
+        // (the data row is made from the column names too)
+        QStringList data;
+        for (int c = 0; c < 256; ++c) data << QStringLiteral("%1=v%2").arg(QString::fromLatin1(jp::office::sheet::columnName(quint32(c)).toLatin1()) + QLatin1Char('2'), QString::number(c));
+        EditWindow e;
+        QVERIFY(e.open(sheetOf(specs + data)));
+        QVERIFY(e.settle());
+        DataFormDialog d(e.win.w.session(), 0, 1, 0, QStringLiteral("Form"));
+        QVERIFY(d.ready());
+        QCOMPARE(d.fieldBoxCount(), 256);
+        QVERIFY2(d.form().reads() <= 4 * 256, qPrintable(QString::number(d.form().reads())));   // (it was 256 reads of the record for each field: 65,000)
+        const qint64 first = d.form().reads();
+        d.findNextButton()->click();
+        QVERIFY2(d.form().reads() - first <= 5 * 256 + 600, qPrintable(QString::number(d.form().reads() - first)));
+    }
+
+    // A list too long to be found whole says so: the form has the first rows of it.
+    void aListTooLongToBeFoundWholeIsSaidSo()
+    {
+        QStringList specs{"A1=Name", "B1=Qty"};
+        for (int r = 2; r <= 200; ++r) specs << QStringLiteral("A%1=n%1").arg(r) << QStringLiteral("B%1=%1").arg(r);
+        EditWindow e;
+        QVERIFY(e.open(sheetOf(specs)));
+        QVERIFY(e.settle());
+        DataFormDialog whole(e.win.w.session(), 0, 1, 0, QStringLiteral("Form"));
+        QVERIFY(whole.ready());
+        QVERIFY(!whole.form().truncated());
+        QVERIFY(whole.noticeLabel()->isHidden());
+        QCOMPARE(whole.form().recordCount(), qint64(199));
+        DataFormDialog part(e.win.w.session(), 0, 1, 0, QStringLiteral("Form"), nullptr, 100);   // (a search that may do little work)
+        QVERIFY(part.ready());
+        QVERIFY(part.form().truncated());
+        QVERIFY(!part.noticeLabel()->isHidden());
+        QVERIFY(part.noticeLabel()->text().contains(QString::number(part.form().recordCount())));
+        QVERIFY(part.form().recordCount() < 199);
+    }
+
+    // The conditions of the form (and the Advanced Filter, which shares them): a pattern with many stars is matched in work that grows with the text and the pattern, not without end; a run of
+    // stars is one; a pattern is cut at 255 characters.
+    void aHostilePatternIsMatchedInBoundedWork()
+    {
+        using jp::calc::Value;
+        QString hostile;
+        for (int i = 0; i < 40; ++i) hostile += QStringLiteral("a*");
+        hostile += QLatin1Char('b');
+        const Value text = Value::text(QString(30000, QLatin1Char('a')));
+        const crunch::Condition c = crunch::parseCondition(hostile, Value::text(hostile));
+        QElapsedTimer timer;
+        timer.start();
+        QVERIFY(!crunch::conditionMet(c, text));
+        QVERIFY2(timer.elapsed() < 2000, qPrintable(QString::number(timer.elapsed())));
+        // the same pattern does match where it should
+        QVERIFY(crunch::conditionMet(c, Value::text(QString(50, QLatin1Char('a')) + QLatin1Char('b'))));
+        // runs of stars are one, a pattern is cut, and ? and * still mean what they did
+        QCOMPARE(crunch::parseCondition(QStringLiteral("a***b"), Value::text(QStringLiteral("a***b"))).text, QStringLiteral("a*b"));
+        QCOMPARE(crunch::parseCondition(QString(1000, QLatin1Char('x')) + QLatin1Char('*'), Value::text(QString())).text.size(), 255);
+        const crunch::Condition begins = crunch::parseCondition(QStringLiteral("a?c*"), Value::text(QStringLiteral("a?c*")));
+        QVERIFY(crunch::conditionMet(begins, Value::text(QStringLiteral("ABCDEF"))));
+        QVERIFY(!crunch::conditionMet(begins, Value::text(QStringLiteral("ab"))));
+        const crunch::Condition equal = crunch::parseCondition(QStringLiteral("=a*c"), Value::text(QStringLiteral("=a*c")));
+        QVERIFY(crunch::conditionMet(equal, Value::text(QStringLiteral("abbbc"))));
+        QVERIFY(!crunch::conditionMet(equal, Value::text(QStringLiteral("abbbcd"))));
+    }
+
+    // A number typed as a condition is read in the workbook's language: "150,5" is 150.5 where the comma is the decimal mark.
+    void aCriterionIsReadInTheWorkbooksLanguage()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=Name", "B1=Qty", "A2=Ann", "B2=150.5", "A3=Bo", "B3=2"})));
+        QVERIFY(e.settle());
+        e.win.w.setLocale(QLocale(QLocale::German, QLocale::Germany));
+        crunch::DataForm f;
+        QVERIFY(f.open(e.win.w.session(), 0, 1, 0));
+        f.setCriteria({QString(), QStringLiteral("150,5")});
+        QVERIFY(f.matches(0));
+        QVERIFY(!f.matches(1));
+        f.setCriteria({QString(), QStringLiteral(">=100,25")});
+        QVERIFY(f.matches(0));
+        QVERIFY(!f.matches(1));
     }
 
     void aTableIsAListToo()

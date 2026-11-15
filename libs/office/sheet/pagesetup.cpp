@@ -18,6 +18,13 @@ bool PageSetup::operator==(const PageSetup &o) const
            && background == o.background && rowBreaks == o.rowBreaks && colBreaks == o.colBreaks && printArea == o.printArea && titles == o.titles;
 }
 
+qint64 pictureBytesOf(const PageSetup &page)
+{
+    qint64 total = page.background.image.size();
+    for (const HeaderPicture &p : page.headerFooter.pictures) total += p.image.size();
+    return total;
+}
+
 bool backgroundTypeAllowed(const QString &extension)
 {
     const QString e = extension.toLower();

@@ -371,9 +371,9 @@ private Q_SLOTS:
         QCOMPARE(back.page.background.image, blue);
     }
 
-    void aBackgroundChangedKeepsItsLinkAndOneTakenOutLeavesNothing()
+    void aBackgroundChangedReplacesItsImagePartAndOneTakenOutLeavesNothing()
     {
-        const QByteArray red = pngBytes(8, 4, Qt::red), green = pngBytes(5, 5, Qt::green);
+        const QByteArray red = pngBytes(8, 4, Qt::red), green = pngBytes(5, 5, Qt::green), blue = pngBytes(6, 6, Qt::blue);
         const QByteArray book = bookWithBackground(red);
         Sheet before;
         Workbook wb;
@@ -387,7 +387,26 @@ private Q_SLOTS:
         Sheet sheet;
         QVERIFY(saveWith(book, page, &saved, &again, &reopened, &sheet));
         QCOMPARE(sheet.page.background.image, green);
-        QCOMPARE(sheet.page.background.rel, QStringLiteral("rIdB1"));   // (the link the file had)
+        // exactly one image part is the background's: the old one went with its relationship (each replace-and-save used to leave one more)
+        auto mediaParts = [](const Package &p) {
+            int n = 0;
+            for (const QString &name : p.partNames())
+                if (name.startsWith(QLatin1String("/xl/media/"), Qt::CaseInsensitive)) ++n;
+            return n;
+        };
+        QCOMPARE(mediaParts(again), 1);
+        QVERIFY(!again.hasPart(QStringLiteral("/xl/media/background1.png")));
+        QCOMPARE(again.relationshipsOfType(QStringLiteral("/xl/worksheets/sheet1.xml"), QStringLiteral("/image")).size(), 1);
+        // replaced again, from the file just written: still one
+        PageSetup next = sheet.page;
+        next.background.image = blue;
+        Package third;
+        Workbook thirdBook;
+        Sheet thirdSheet;
+        QByteArray savedAgain;
+        QVERIFY(saveWith(saved, next, &savedAgain, &third, &thirdBook, &thirdSheet));
+        QCOMPARE(thirdSheet.page.background.image, blue);
+        QCOMPARE(mediaParts(third), 1);
         // taken out: the element, the link, and the image go
         page.background = SheetBackground();
         page.background.rel = QStringLiteral("rIdB1");
@@ -395,7 +414,7 @@ private Q_SLOTS:
         QVERIFY(sheet.page.background.isEmpty());
         QVERIFY(!again.part(QStringLiteral("/xl/worksheets/sheet1.xml")).contains("<picture"));
         QVERIFY(again.relationshipsOfType(QStringLiteral("/xl/worksheets/sheet1.xml"), QStringLiteral("/image")).isEmpty());
-        QVERIFY(!again.hasPart(QStringLiteral("/xl/media/background1.png")));
+        QCOMPARE(mediaParts(again), 0);
     }
 
     // A change to something else leaves the picture's part as it was.
@@ -452,6 +471,30 @@ private Q_SLOTS:
         page.orientation = PageOrientation::Landscape;
         QVERIFY(saveWith(hostile, page, &saved, &again, &reopened, &back));
         QCOMPARE(again.part(QStringLiteral("/xl/media/background1.png")).size(), big.size());
+        // a picture that is replaced after it was refused on reading: its part goes too (one image part is left, the new one)
+        PageSetup replaced = sheet.page;
+        replaced.background.image = red;
+        replaced.background.extension = QStringLiteral("png");
+        Package p3;
+        Workbook w3;
+        Sheet s3;
+        QVERIFY(saveWith(hostile, replaced, &saved, &p3, &w3, &s3));
+        QCOMPARE(s3.page.background.image, red);
+        int media = 0;
+        for (const QString &name : p3.partNames())
+            if (name.startsWith(QLatin1String("/xl/media/"), Qt::CaseInsensitive)) ++media;
+        QCOMPARE(media, 1);
+        // a link to something outside the file (an address): no picture, and nothing is fetched
+        {
+            QMap<QString, QByteArray> all;
+            QVERIFY(jp::readZip(bookWithBackground(red), all));
+            all[QStringLiteral("xl/worksheets/_rels/sheet1.xml.rels")] = QByteArray("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">"
+                                                                                "<Relationship Id=\"rIdB1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/image\" Target=\"http://example.com/tile.png\" TargetMode=\"External\"/></Relationships>");
+            jp::ZipWriter z;
+            for (auto it = all.begin(); it != all.end(); ++it) z.add(it.key(), it.value(), true);
+            QVERIFY(readFirstSheet(z.finish(), &sheet, &wb, &package));
+            QVERIFY(sheet.page.background.isEmpty());
+        }
         // a background a person gives that is too large, or is not a picture, is refused by the save
         const QByteArray plain = plainBook(QString());
         QVERIFY(readFirstSheet(plain, &sheet, &wb, &package));
@@ -482,6 +525,42 @@ private Q_SLOTS:
         Package package;
         QVERIFY(readFirstSheet(withParts(buildXlsx({sheetXml}), parts), &sheet, &wb, &package));
         QCOMPARE(sheet.page.background.image, red);   // (the first)
+    }
+
+    // The pictures of a file are read back within one total (the headers', footers', and backgrounds' together): what a save would write past it is refused, so that no picture goes missing when the file
+    // is opened again. Eight pictures of 7.5 MB are under it; nine are over.
+    void backgroundsOfManySheetsAreHeldToWhatAFileIsReadBackWith()
+    {
+        const QByteArray fake = QByteArray("\x89PNG\r\n\x1a\n", 8) + QByteArray(7500000, 'x');
+        const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row>");
+        QVector<QByteArray> sheets;
+        for (int i = 0; i < 9; ++i) sheets.append(worksheet(rows));
+        const QByteArray many = buildXlsx(sheets);
+        auto save = [&](int n, QByteArray *out, QString *why) {
+            Package original;
+            Workbook wb;
+            if (!original.readLazy(many, why) || !wb.open(original, why)) return false;
+            SaveChanges changes;
+            for (int i = 0; i < n; ++i) {
+                changes.sheets[i].setPage = true;
+                changes.sheets[i].page.background.image = fake;
+                changes.sheets[i].page.background.extension = QStringLiteral("png");
+            }
+            return saveXlsx(wb, changes, out, why);
+        };
+        QByteArray saved;
+        QString why;
+        QVERIFY2(save(8, &saved, &why), qPrintable(why));
+        Package again;
+        Workbook reopened;
+        QVERIFY(again.readLazy(saved, &why) && reopened.open(again, &why));
+        for (int i = 0; i < 8; ++i) {
+            Sheet sheet;
+            QVERIFY(reopened.readSheet(i, &sheet));
+            QCOMPARE(sheet.page.background.image.size(), fake.size());   // (none went missing)
+        }
+        QVERIFY(!save(9, &saved, &why));
+        QVERIFY2(why.contains(QStringLiteral("too large together")), qPrintable(why));
     }
 
     // The ids of the forms of a page: the short forms (an F or an E after the two letters) and the long ones (FIRST and EVEN) are read alike, as the long ones, in any case; a text with no

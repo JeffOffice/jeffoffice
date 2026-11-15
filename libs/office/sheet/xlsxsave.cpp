@@ -1764,6 +1764,12 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
     };
     std::vector<BackgroundWrite> backgroundWrites;
     {
+        // (what a file is read back with is bounded as a whole: the pictures of the sheets saved now must come to no more than that, or some would be left out when it is opened again)
+        qint64 total = 0;
+        for (const auto &[sheet, sc] : requested.sheets)
+            if (sc.setPage) total += pictureBytesOf(sc.page);
+        if (total > kMaxHeaderPictureBytesInBook)
+            return fail(QCoreApplication::translate("jp::office::sheet::Save", "The pictures in the headers, footers, and backgrounds of the sheets are too large together to be saved."));
         QSet<QString> taken;
         for (const auto &[sheet, sc] : requested.sheets) {
             if (!sc.setPage || sheet < 0 || sheet >= book.info().sheets.size()) continue;
@@ -1793,18 +1799,13 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
                     for (const SheetEntry &e : book.info().sheets)
                         if (!e.part.isEmpty()) taken.insert(e.part.toLower());
                 }
-                if (!fileSetup.background.part.isEmpty() && fileSetup.background.image == bg.image && package.hasPart(fileSetup.background.part)) {
-                    w.imagePart = fileSetup.background.part;   // (the picture the file has, kept)
-                } else {
-                    w.imageIsNew = true;
-                    w.imagePart = freePartName(QStringLiteral("/xl/media/bgimage"), QStringLiteral(".") + w.extension, taken);
-                    taken.insert(w.imagePart.toLower());
-                }
-                w.relId = w.fileRel;
-                if (w.relId.isEmpty()) {
-                    w.newRel = true;
-                    w.relId = QStringLiteral("rIdBackground");
-                }
+                // (a changed picture is a new image part under a new relationship; the file's own relationship is released below, and the image it named goes with it unless something else names it)
+                w.imageIsNew = true;
+                w.imagePart = freePartName(QStringLiteral("/xl/media/bgimage"), QStringLiteral(".") + w.extension, taken);
+                taken.insert(w.imagePart.toLower());
+                w.newRel = true;
+                w.relId = QStringLiteral("rIdBackground");
+                if (w.fileRel == w.relId) w.relId = QStringLiteral("rIdBackground2");
             }
             backgroundWrites.push_back(std::move(w));
         }
@@ -2260,7 +2261,7 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
         if (w.remove) released.emplace_back(book.info().sheets[w.sheet].part, QStringList{w.fileRel});
     // (the background picture taken out, and its image when nothing else names it)
     for (const BackgroundWrite &w : backgroundWrites)
-        if (w.remove) released.emplace_back(book.info().sheets[w.sheet].part, QStringList{w.fileRel});
+        if (!w.fileRel.isEmpty()) released.emplace_back(book.info().sheets[w.sheet].part, QStringList{w.fileRel});
     if (!released.empty()) {
         QHash<QString, QVector<QPair<QString, QString>>> into;   // by the part a relationship goes to (lower case): (the part it is from, its id), both lower case
         auto addRelationships = [&](const QString &source) {

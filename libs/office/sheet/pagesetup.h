@@ -88,7 +88,7 @@ struct SheetBackground {
     QString part;               // the part it was read from (empty for one a person added)
     QString rel;                // the relationship from the sheet to it, as the file has it (not part of what the setup says)
     bool isEmpty() const { return image.isEmpty(); }
-    bool operator==(const SheetBackground &o) const { return image == o.image && extension == o.extension; }
+    bool operator==(const SheetBackground &o) const { return extension == o.extension && (image.constData() == o.image.constData() || image == o.image); }   // (the same bytes held twice are not compared)
 };
 // The file types a background may be (the extension), and whether the bytes begin as that type's file does.
 bool backgroundTypeAllowed(const QString &extension);
@@ -170,6 +170,9 @@ void readBreakAttributes(const QXmlStreamAttributes &a, bool rows, PageSetup *ou
 void readFitToPageAttributes(const QXmlStreamAttributes &a, PageSetup *out);
 // The text of one child of `headerFooter` (oddHeader, oddFooter, evenHeader, evenFooter, firstHeader, firstFooter) by its name; false for another name.
 QString *headerFooterText(PageSetup *out, QStringView childName);
+
+// The bytes of the pictures a page setup holds (its background and the pictures of its headers and footers): what counts against kMaxHeaderPictureBytesInBook.
+qint64 pictureBytesOf(const PageSetup &page);
 
 // ---- the names
 

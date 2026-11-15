@@ -578,6 +578,34 @@ private Q_SLOTS:
         QCOMPARE(px(k.render(), 0, 0), kWhite);
     }
 
+    // A picture held smaller than it is (one over 2,400 pixels on a side) is tiled at its real size, and the gridlines under text that spills over a cell are covered with the picture again.
+    void aBackgroundIsScaledBackAndKeepsTheSpillOfTextClean()
+    {
+        QImage tile(4, 4, QImage::Format_RGB32);
+        for (int y = 0; y < 4; ++y)
+            for (int x = 0; x < 4; ++x) tile.setPixel(x, y, x < 2 ? QColor(Qt::red).rgb() : QColor(Qt::blue).rgb());
+        Fixture f;
+        f.options.gridlines = false;
+        f.options.background = &tile;
+        f.options.backgroundScale = 2;
+        f.build();
+        const QImage img = f.render();
+        QCOMPARE(px(img, 3, 0), QColor(Qt::red).rgb());     // (two pixels of the held picture are four)
+        QCOMPARE(px(img, 4, 0), QColor(Qt::blue).rgb());
+        QCOMPARE(px(img, 8, 0), QColor(Qt::red).rgb());
+        // text that runs over the gridline between two cells: the line is not there, and the picture is
+        QImage plain(4, 4, QImage::Format_RGB32);
+        plain.fill(QColor(0xC0, 0xE0, 0xC0));
+        Fixture g;
+        g.text(0, 0, QStringLiteral("A text that is much longer than its cell is wide"));
+        g.options.gridlines = true;
+        g.options.background = &plain;
+        g.build();
+        const QImage spill = g.render();
+        QCOMPARE(px(spill, 63, 1), plain.pixel(0, 0));   // (the gridline under the spilling text: the picture, not the paper's white or the line's gray)
+        QCOMPARE(px(spill, 63, 30), g.options.gridColor.rgb());   // (a row with no text keeps its line)
+    }
+
     // The selection is the cells tinted, a border of the accent color, and the active cell left plain; the headers of what is selected are marked.
     void theSelectionIsTintedBorderedAndTheHeadersShowIt()
     {

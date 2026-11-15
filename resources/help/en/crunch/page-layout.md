@@ -61,7 +61,7 @@ Only the pages in view are drawn, so a sheet of thousands of pages opens at once
 
 **Background** (in the **Page Setup** group) puts a picture behind the cells of the sheet. Choose a PNG, JPEG, GIF, or BMP picture. The picture is repeated like tiles to fill the sheet, and it moves with the cells when you scroll. A cell that has a fill color hides the picture, so give the cells you want to read easily a fill. The picture shows on the screen only: it is not printed, and it does not go into a PDF.
 
-**Delete Background** takes the picture away. Both are steps you can undo. The picture is saved with the sheet and comes back when you open the workbook. A picture file larger than 8 MB, or with too many dots, is refused.
+**Delete Background** takes the picture away. Both are steps you can undo. The picture is saved with the sheet and comes back when you open the workbook. In an .ods copy it is saved as the page's background picture, which other programs may print. A picture file larger than 8 MB, or with too many dots, is refused, and so is a picture that would make all the pictures of the workbook (backgrounds, headers, and footers) larger than 64 MB together. A picture of more than 2,400 dots on a side is still tiled at its real size.
 
 ## More choices
 

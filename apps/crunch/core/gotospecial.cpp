@@ -174,7 +174,7 @@ QVector<QPair<QString, QString>> goToNames(const EditSession &session, int sheet
     return out;
 }
 
-CellRange currentRegion(const EditSession &session, int sheet, quint32 row, quint32 col, bool *truncated)
+CellRange currentRegion(const EditSession &session, int sheet, quint32 row, quint32 col, bool *truncated, qint64 maxWork)
 {
     if (truncated) *truncated = false;
     CellRange box;
@@ -201,7 +201,7 @@ CellRange currentRegion(const EditSession &session, int sheet, quint32 row, quin
         return any;
     };
     // Each side is grown as far as it goes before the next is looked at (a side is looked at again if another has grown), and a side past the cells the sheet reaches is not looked at.
-    auto over = [&] { return walk.stepped + walk.compared > kMaxSpecialWork; };
+    auto over = [&] { return walk.stepped + walk.compared > maxWork; };
     bool grew = true;
     while (grew && !over()) {
         grew = false;

@@ -5,7 +5,7 @@
 
 #include "core/editsession.h"
 
-#include <QRegularExpression>
+#include <QLocale>
 
 #include <vector>
 
@@ -30,11 +30,12 @@ struct Condition {
     double number = 0;
     QString text;      // folded
     bool blank = false;
-    QRegularExpression pattern;   // for text with ? or *
     bool wild = false;
 };
 // `value` is what the typed text is as a value (a number when it is one and has no sign before it: it then means "equal to").
-Condition parseCondition(const QString &typed, const jp::calc::Value &value);
+// The language a number is read in is `locale` (the workbook's). A pattern with ? and * in it is matched without backtracking, a run of * is one, and a pattern is at most kMaxPatternChars long.
+constexpr int kMaxPatternChars = 255;
+Condition parseCondition(const QString &typed, const jp::calc::Value &value, const QLocale &locale = QLocale());
 bool conditionMet(const Condition &c, const jp::calc::Value &v);
 
 AdvancedFilterResult advancedFilterRows(const EditSession &session, int sheet, const AdvancedFilterSpec &spec);

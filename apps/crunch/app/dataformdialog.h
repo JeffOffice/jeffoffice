@@ -21,7 +21,7 @@ class DataFormDialog : public QDialog {
     Q_OBJECT
 public:
     // `session` must outlive the dialog. Use ready() before showing it: a cell with no list round it gives no form, and problem() says why.
-    DataFormDialog(crunch::EditSession *session, int sheet, quint32 row, quint32 col, const QString &title, QWidget *parent = nullptr);
+    DataFormDialog(crunch::EditSession *session, int sheet, quint32 row, quint32 col, const QString &title, QWidget *parent = nullptr, qint64 regionWork = crunch::kMaxSpecialWork);
     bool ready() const { return m_ready; }
     QString problem() const { return m_problem; }
 
@@ -35,6 +35,7 @@ public:
     // What the window shows, and the commands under the buttons (the buttons call these).
     QLabel *positionLabel() const { return m_position; }
     QLabel *statusLabel() const { return m_status; }
+    QLabel *noticeLabel() const { return m_notice; }   // (a list too long to be found whole)
     QLineEdit *fieldBox(int field) const { return field >= 0 && field < int(m_boxes.size()) ? m_boxes[size_t(field)] : nullptr; }
     int fieldBoxCount() const { return int(m_boxes.size()); }
     QLabel *fieldLabel(int field) const { return field >= 0 && field < int(m_labels.size()) ? m_labels[size_t(field)] : nullptr; }
@@ -60,6 +61,7 @@ Q_SIGNALS:
 private:
     void build(const QString &title);
     void showRecord(qint64 record);
+    void setLook(QLineEdit *box, bool readOnly, const QString &why);
     void showBlank(Mode mode);
     QStringList typed() const;
     bool commitCurrent(bool *added = nullptr);   // the record's texts are written (or the new record added); false, with the problem told, when that is refused: the form stays where it is
@@ -73,7 +75,7 @@ private:
     QFormLayout *m_fields = nullptr;
     std::vector<QLineEdit *> m_boxes;
     std::vector<QLabel *> m_labels;
-    QLabel *m_position = nullptr, *m_status = nullptr;
+    QLabel *m_position = nullptr, *m_status = nullptr, *m_notice = nullptr;
     QPushButton *m_new = nullptr, *m_delete = nullptr, *m_restore = nullptr, *m_previous = nullptr, *m_next = nullptr, *m_criteria = nullptr, *m_close = nullptr;
     std::function<bool(const QString &)> m_deleteAsker;
     std::function<void(const QString &)> m_notifier;

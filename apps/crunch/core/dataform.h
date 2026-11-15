@@ -5,6 +5,7 @@
 
 #include "core/advancedfilter.h"
 #include "core/editsession.h"
+#include "core/gotospecial.h"
 
 #include <QString>
 #include <QStringList>
@@ -15,6 +16,8 @@ namespace jp::crunch {
 // The most fields a form shows (the first columns of a wider list), and the most records looked at in one search for a record that meets the criteria.
 constexpr int kMaxFormFields = 256;
 constexpr qint64 kMaxFormSearch = 2000000;
+// The most records a form holds (the rows of a sheet).
+constexpr qint64 kMaxFormRecords = 1048576;
 
 class DataForm {
 public:
@@ -24,17 +27,22 @@ public:
     };
 
     // The form for the list round the cell (`row`, `col`); false, with `why`, when there is none: the cell is empty, or the list has a header row and no data under it and is not a table.
-    bool open(EditSession *session, int sheet, quint32 row, quint32 col, QString *why = nullptr);
+    // `regionWork` is how much work the search for the block of cells may do (a test makes it small).
+    bool open(EditSession *session, int sheet, quint32 row, quint32 col, QString *why = nullptr, qint64 regionWork = kMaxSpecialWork);
+    // The block of cells was too large to be found whole: the form has the first rows of it.
+    bool truncated() const { return m_truncated; }
     bool isOpen() const { return m_session != nullptr; }
     int sheet() const { return m_sheet; }
     const std::vector<Field> &fields() const { return m_fields; }
     int fieldCount() const { return int(m_fields.size()); }
     bool isTable() const { return m_table >= 0; }
-    // The list as it is now (with its header row), and the number of records (rows of data; a table's row of totals is not one).
+    // The list as it is now (with its header row), and the number of records: the rows of data that are shown (a row hidden by hand or by a filter is not one; a table's row of totals is not either).
     jp::office::sheet::CellRange list() const;
     qint64 recordCount() const;
     // The record shown (from 0); the row of the sheet it is in.
     qint64 current() const { return m_current; }
+    // How many times a text of a field was read from the sheet (for a test of the window's work).
+    qint64 reads() const { return m_reads; }
     quint32 rowOf(qint64 record) const;
     bool setCurrent(qint64 record);
 
@@ -67,6 +75,11 @@ public:
 
 private:
     void refresh();
+    void rollBack(int before);
+    mutable qint64 m_reads = 0;
+    bool m_truncated = false;
+    std::vector<quint32> m_rows;   // the sheet row of each record, in order
+    qint64 m_dataFirst = 0, m_dataLast = -1;
     EditSession *m_session = nullptr;
     int m_sheet = 0;
     int m_table = -1;

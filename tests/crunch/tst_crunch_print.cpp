@@ -1,4 +1,7 @@
 #include "tst_crunch_print.h"
+#include <QBuffer>
+#include <QImageReader>
+#include <QRandomGenerator>
 #include "findbooks.h"
 
 #include "../plainpdfwatch.h"
@@ -655,6 +658,11 @@ void CrunchPrintTests::aBackgroundIsShownOnTheScreenAndNeverPrinted()
     tile.fill(QColor(0, 0xC0, 0));   // (a green that nothing else in the sheet is)
     const QString path = dir.filePath(QStringLiteral("tile.png"));
     QVERIFY(tile.save(path));
+    // the print as it is before a background: the same after it (the picture is on the screen only)
+    QString why;
+    const std::unique_ptr<crunch::PrintJob> plainJob = w.makePrintJob(crunch::PrintJobOptions(), &why);
+    QVERIFY2(plainJob, qPrintable(why));
+    const QImage plainPage = plainJob->preview(0, 612);
     w.setPictureAsker([path] { return path; });
     QVERIFY(w.act(QStringLiteral("page.background"))->isEnabled());
     QVERIFY(!w.act(QStringLiteral("page.deleteBackground"))->isEnabled());   // (nothing to delete yet)
@@ -664,19 +672,23 @@ void CrunchPrintTests::aBackgroundIsShownOnTheScreenAndNeverPrinted()
     QVERIFY(w.view()->hasBackground());
     QVERIFY(w.act(QStringLiteral("page.deleteBackground"))->isEnabled());
     // on the screen: a cell with nothing in it shows the picture, and a cell with a fill hides it
+    // (the view is drawn into a picture of its own, a pixel to a pixel, so that this holds on any screen and with no window shown)
     w.resize(900, 600);
-    w.show();
-    QVERIFY(QTest::qWaitForWindowExposed(&w));
-    const QImage screen = w.view()->viewport()->grab().toImage();
+    w.view()->resize(800, 500);
+    QImage screen(w.view()->viewport()->size(), QImage::Format_RGB32);
+    screen.setDevicePixelRatio(1);
+    screen.fill(Qt::white);
+    w.view()->viewport()->render(&screen);
+    QVERIFY(!screen.isNull() && screen.width() > 100);
     int green = 0;
     for (int y = 0; y < screen.height(); ++y)
         for (int x = 0; x < screen.width(); ++x) green += screen.pixel(x, y) == QColor(0, 0xC0, 0).rgb();
     QVERIFY2(green > screen.width() * screen.height() / 4, qPrintable(QString::number(green)));
     // printed: none of it
-    QString why;
     const std::unique_ptr<crunch::PrintJob> job = w.makePrintJob(crunch::PrintJobOptions(), &why);
     QVERIFY2(job, qPrintable(why));
     const QImage page = job->preview(0, 612);
+    QVERIFY(page == plainPage);   // (pixel for pixel the page that was made with no background)
     for (int y = 0; y < page.height(); ++y)
         for (int x = 0; x < page.width(); ++x) QVERIFY(page.pixel(x, y) != QColor(0, 0xC0, 0).rgb());
     if (!qEnvironmentVariableIsEmpty("JP_SHOT_DIR")) {
@@ -752,6 +764,73 @@ void CrunchPrintTests::aBackgroundIsOneStepOfUndoAndSavedWithTheFile()
     QVERIFY(!third.win.w.view()->hasBackground());
 }
 
+// A file is read back with the pictures of its backgrounds, headers, and footers held to one total: the ninth big background is refused when it is chosen, with a reason, and no step is made.
+void CrunchPrintTests::picturesOverTheTotalAFileKeepsAreRefusedWhenChosen()
+{
+    QVector<QByteArray> sheets;
+    for (int i = 0; i < 9; ++i) sheets.append(worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row>")));
+    EditWindow e;
+    QVERIFY(e.open(buildXlsx(sheets)));
+    CrunchWindow &w = e.win.w;
+    QVERIFY(e.settle());
+    const QByteArray fake = QByteArray("\x89PNG\r\n\x1a\n", 8) + QByteArray(8300000, 'x');   // (eight of these are 66 MB: under the total, which is 64 MiB)
+    for (int i = 0; i < 8; ++i) {
+        PageSetup p = w.session()->pages().sheet(i);
+        p.background.image = fake;
+        p.background.extension = QStringLiteral("png");
+        QVERIFY(w.session()->setPageSetup(i, p, QStringLiteral("Background")).ok);
+    }
+    QTemporaryDir dir;
+    QImage noise(700, 700, QImage::Format_RGB32);
+    for (int y = 0; y < noise.height(); ++y)
+        for (int x = 0; x < noise.width(); ++x) noise.setPixel(x, y, qRgb(int(QRandomGenerator::global()->bounded(256)), int(QRandomGenerator::global()->bounded(256)), int(QRandomGenerator::global()->bounded(256))));
+    const QString path = dir.filePath(QStringLiteral("noise.png"));
+    QVERIFY(noise.save(path));
+    QVERIFY(QFileInfo(path).size() > 800000);
+    QString told;
+    w.setNotifier([&](const QString &, const QString &text) { told = text; });
+    w.setPictureAsker([path] { return path; });
+    w.setActiveSheet(8);
+    QVERIFY(e.settle());
+    const int steps = w.session()->undoStack()->index();
+    w.act(QStringLiteral("page.background"))->trigger();
+    QCOMPARE(w.session()->undoStack()->index(), steps);
+    QVERIFY(told.contains(QStringLiteral("larger than a file can keep")));
+    QVERIFY(w.session()->pages().sheet(8).background.isEmpty());
+    // replacing a big one with this one is fine: its own bytes are not counted twice
+    w.setActiveSheet(0);
+    QVERIFY(e.settle());
+    w.act(QStringLiteral("page.background"))->trigger();
+    QCOMPARE(w.session()->undoStack()->index(), steps + 1);
+}
+
+// A picture of more than 2,400 pixels on a side is held smaller and tiled at the size it really is.
+void CrunchPrintTests::aLargePictureIsTiledAtItsRealSize()
+{
+    EditWindow e;
+    QVERIFY(e.open(rowsWithFormulas(10, {})));
+    CrunchWindow &w = e.win.w;
+    QVERIFY(e.settle());
+    QTemporaryDir dir;
+    QImage wide(4800, 40, QImage::Format_RGB32);
+    wide.fill(Qt::darkCyan);
+    const QString path = dir.filePath(QStringLiteral("wide.png"));
+    QVERIFY(wide.save(path));
+    w.setPictureAsker([path] { return path; });
+    w.act(QStringLiteral("page.background"))->trigger();
+    QVERIFY(e.settle());
+    QVERIFY(w.view()->hasBackground());
+    QCOMPARE(w.view()->backgroundScale(), 2.0);   // (held at 2,400 pixels, so tiled twice as large)
+    QImage small(10, 10, QImage::Format_RGB32);
+    small.fill(Qt::red);
+    const QString smallPath = dir.filePath(QStringLiteral("small.png"));
+    QVERIFY(small.save(smallPath));
+    w.setPictureAsker([smallPath] { return smallPath; });
+    w.act(QStringLiteral("page.background"))->trigger();
+    QVERIFY(e.settle());
+    QCOMPARE(w.view()->backgroundScale(), 1.0);
+}
+
 // A file that is not a picture, a type that is not allowed, a picture too large: told, and the sheet is as it was.
 void CrunchPrintTests::aBadBackgroundPictureIsRefusedWithAReason()
 {
@@ -776,12 +855,34 @@ void CrunchPrintTests::aBadBackgroundPictureIsRefusedWithAReason()
     big.close();
     QVERIFY(!loadBackgroundPicture(big.fileName(), &bg, &why));
     QVERIFY(why.contains(QStringLiteral("too large")));
-    // more pixels than every picture is held to: a header that says 20000 x 20000 pixels (the file itself is small)
-    QImage huge(20000, 1000, QImage::Format_Mono);
-    huge.fill(0);
-    const QString hugePath = dir.filePath(QStringLiteral("huge.png"));
-    QVERIFY(huge.save(hugePath));
-    QVERIFY(!loadBackgroundPicture(hugePath, &bg, &why));
+    // more pixels than every picture is held to: a header that says 20000 x 20000 pixels (the file is a few bytes, and none of it is decoded)
+    {
+        auto be32 = [](quint32 v) { return QByteArray(1, char(v >> 24)) + QByteArray(1, char(v >> 16)) + QByteArray(1, char(v >> 8)) + QByteArray(1, char(v)); };
+        auto crc32 = [](const QByteArray &data) {
+            quint32 crc = 0xFFFFFFFFu;
+            for (const char ch : data) {
+                crc ^= quint8(ch);
+                for (int k = 0; k < 8; ++k) crc = (crc >> 1) ^ (0xEDB88320u & (0u - (crc & 1u)));
+            }
+            return ~crc;
+        };
+        const QByteArray ihdrBody = QByteArray("IHDR") + be32(20000) + be32(20000) + QByteArray("\x01\x00\x00\x00\x00", 5);
+        QByteArray png = QByteArray("\x89PNG\r\n\x1a\n", 8) + be32(13) + ihdrBody + be32(crc32(ihdrBody));
+        const QByteArray dataBody = QByteArray("IDAT");   // (no data in it: the reader is only asked how large the picture says it is)
+        png += be32(0) + dataBody + be32(crc32(dataBody));
+        const QByteArray endBody = QByteArray("IEND");
+        png += be32(0) + endBody + be32(crc32(endBody));
+        QFile hugeFile(dir.filePath(QStringLiteral("huge.png")));
+        QVERIFY(hugeFile.open(QIODevice::WriteOnly));
+        hugeFile.write(png);
+        hugeFile.close();
+        QVERIFY(hugeFile.size() < 100);
+        QBuffer probe(&png);
+        QVERIFY(probe.open(QIODevice::ReadOnly));
+        QCOMPARE(QImageReader(&probe).size(), QSize(20000, 20000));   // (the file says what it says)
+        QVERIFY(!loadBackgroundPicture(hugeFile.fileName(), &bg, &why));
+        QVERIFY(why.contains(QStringLiteral("too large")));
+    }
     // through the command: a notice, and no step
     w.setPictureAsker([p = notPicture.fileName()] { return p; });
     const int steps = w.session()->undoStack()->count();

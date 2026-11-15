@@ -8,6 +8,8 @@
 
 #include <QCoreApplication>
 #include <QLocale>
+#include <QUndoCommand>
+#include <algorithm>
 
 namespace jp::crunch {
 
@@ -24,22 +26,30 @@ EditSession::Outcome refuse(const QString &why)
     return o;
 }
 
-// What a condition typed in the form is as a value: a number when it reads as one (so that "5" means equal to 5), else the text.
-Value typedValue(const QString &typed)
+// What a condition typed in the form is as a value: a number when it reads as one in the workbook's language (so that "5" means equal to 5), else the text.
+Value typedValue(const QString &typed, const QLocale &locale)
 {
     bool ok = false;
-    double v = QLocale().toDouble(typed.trimmed(), &ok);
+    double v = locale.toDouble(typed.trimmed(), &ok);
     if (!ok) v = QLocale::c().toDouble(typed.trimmed(), &ok);
     return ok ? Value::number(v) : Value::text(typed);
 }
 
+// A step that changes nothing, and is not kept: pushed after a step was undone, it takes what could be redone off the stack.
+class Forget : public QUndoCommand {
+public:
+    Forget() { setObsolete(true); }
+};
+
 } // namespace
 
-bool DataForm::open(EditSession *session, int sheet, quint32 row, quint32 col, QString *why)
+bool DataForm::open(EditSession *session, int sheet, quint32 row, quint32 col, QString *why, qint64 regionWork)
 {
     *this = DataForm();
     auto fail = [&](const QString &text) {
         if (why) *why = text;
+        m_session = nullptr;
+        m_fields.clear();
         return false;
     };
     if (!session || !session->workbook()) return fail(QCoreApplication::translate("jp::crunch::DataForm", "There is no list here."));
@@ -50,16 +60,9 @@ bool DataForm::open(EditSession *session, int sheet, quint32 row, quint32 col, Q
         const Table &t = session->workbook()->tables()[m_table];
         for (int i = 0; i < t.columns.size() && i < kMaxFormFields; ++i) m_fields.push_back({t.columns[i], t.col1 + quint32(i)});
     } else {
-        bool truncated = false;
-        const CellRange region = currentRegion(*session, sheet, row, col, &truncated);
-        if (!region.valid || region.cellCount() < 2 || region.row2 <= region.row1) {
-            m_session = nullptr;
+        const CellRange region = currentRegion(*session, sheet, row, col, &m_truncated, regionWork);
+        if (!region.valid || region.cellCount() < 2 || region.row2 <= region.row1 || (session->displayText(sheet, region.row1, region.col1).isEmpty() && region.col1 == region.col2))
             return fail(QCoreApplication::translate("jp::crunch::DataForm", "The form needs a list: a row of names for the fields, and at least one row of data under it."));
-        }
-        if (session->displayText(sheet, region.row1, region.col1).isEmpty() && region.col1 == region.col2) {
-            m_session = nullptr;
-            return fail(QCoreApplication::translate("jp::crunch::DataForm", "The form needs a list: a row of names for the fields, and at least one row of data under it."));
-        }
         m_list = region;
         for (quint32 c = region.col1; c <= region.col2 && int(m_fields.size()) < kMaxFormFields; ++c) {
             QString name = session->displayText(sheet, region.row1, c).trimmed();
@@ -68,47 +71,47 @@ bool DataForm::open(EditSession *session, int sheet, quint32 row, quint32 col, Q
         }
     }
     refresh();
-    if (recordCount() < 1) {
-        m_session = nullptr;
-        m_fields.clear();
-        return fail(QCoreApplication::translate("jp::crunch::DataForm", "The list has no data under its names yet. Type a row of data under the names first."));
-    }
-    m_current = 0;
+    if (recordCount() < 1) return fail(QCoreApplication::translate("jp::crunch::DataForm", "The list has no data under its names yet (or every row of it is hidden). Type a row of data under the names first."));
     // the record with the cell is shown first
-    if (row >= rowOf(0) && qint64(row) <= qint64(rowOf(0)) + recordCount() - 1) m_current = qint64(row) - qint64(rowOf(0));
+    m_current = 0;
+    const auto at = std::lower_bound(m_rows.begin(), m_rows.end(), row);
+    if (at != m_rows.end() && *at == row) m_current = at - m_rows.begin();
     return true;
 }
 
 void DataForm::refresh()
 {
-    if (m_table >= 0 && m_session && m_session->workbook() && m_table < m_session->workbook()->tables().size()) {
+    m_rows.clear();
+    if (!m_session || !m_session->workbook()) return;
+    if (m_table >= 0 && m_table < m_session->workbook()->tables().size()) {
         const Table &t = m_session->workbook()->tables()[m_table];
         m_list.row1 = t.row1;
         m_list.row2 = quint32(std::max<qint64>(t.row1, t.dataLast()));
         m_list.col1 = t.col1;
         m_list.col2 = t.col2;
         m_list.valid = true;
-        if (t.headerRows == 0) m_list.row1 = t.dataFirst() > 0 ? t.dataFirst() - 1 : 0;   // (the row above the data stands for the names)
+        m_dataFirst = t.dataFirst();
+        m_dataLast = t.hasData() ? t.dataLast() : -1;
+    } else {
+        m_dataFirst = qint64(m_list.row1) + 1;
+        m_dataLast = m_list.row2;
+    }
+    if (m_dataLast < m_dataFirst) return;
+    // the rows hidden by hand or by a filter are not records
+    const std::vector<quint32> hidden = m_session->hiddenRowsIn(m_sheet, quint32(m_dataFirst), quint32(m_dataLast), true);
+    size_t h = 0;
+    for (qint64 r = m_dataFirst; r <= m_dataLast && qint64(m_rows.size()) < kMaxFormRecords; ++r) {
+        while (h < hidden.size() && hidden[h] < r) ++h;
+        if (h < hidden.size() && hidden[h] == r) continue;
+        m_rows.push_back(quint32(r));
     }
 }
 
 CellRange DataForm::list() const { return m_list; }
 
-qint64 DataForm::recordCount() const
-{
-    if (!m_session || !m_list.valid) return 0;
-    if (m_table >= 0) {
-        const Table &t = m_session->workbook()->tables()[m_table];
-        return t.hasData() ? qint64(t.dataLast()) - qint64(t.dataFirst()) + 1 : 0;
-    }
-    return qint64(m_list.row2) - qint64(m_list.row1);
-}
+qint64 DataForm::recordCount() const { return qint64(m_rows.size()); }
 
-quint32 DataForm::rowOf(qint64 record) const
-{
-    if (m_table >= 0) return m_session->workbook()->tables()[m_table].dataFirst() + quint32(record);
-    return m_list.row1 + 1 + quint32(record);
-}
+quint32 DataForm::rowOf(qint64 record) const { return m_rows[size_t(record)]; }
 
 bool DataForm::setCurrent(qint64 record)
 {
@@ -119,21 +122,19 @@ bool DataForm::setCurrent(qint64 record)
 
 QString DataForm::editText(qint64 record, int field) const
 {
-    if (field < 0 || field >= fieldCount()) return QString();
+    if (field < 0 || field >= fieldCount() || record < 0 || record >= recordCount()) return QString();
+    ++m_reads;
     return m_session->editText(m_sheet, rowOf(record), m_fields[size_t(field)].col);
 }
 
 QString DataForm::shownText(qint64 record, int field) const
 {
-    if (field < 0 || field >= fieldCount()) return QString();
+    if (field < 0 || field >= fieldCount() || record < 0 || record >= recordCount()) return QString();
+    ++m_reads;
     return m_session->displayText(m_sheet, rowOf(record), m_fields[size_t(field)].col);
 }
 
-bool DataForm::isReadOnly(qint64 record, int field) const
-{
-    if (field < 0 || field >= fieldCount()) return false;
-    return editText(record, field).startsWith(QLatin1Char('='));
-}
+bool DataForm::isReadOnly(qint64 record, int field) const { return editText(record, field).startsWith(QLatin1Char('=')); }
 
 bool DataForm::isCalculatedColumn(int field) const
 {
@@ -145,20 +146,22 @@ bool DataForm::isCalculatedColumn(int field) const
 QStringList DataForm::values(qint64 record) const
 {
     QStringList out;
-    for (int f = 0; f < fieldCount(); ++f) out << (isReadOnly(record, f) ? shownText(record, f) : editText(record, f));
+    for (int f = 0; f < fieldCount(); ++f) {
+        const QString text = editText(record, f);
+        out << (text.startsWith(QLatin1Char('=')) ? shownText(record, f) : text);
+    }
     return out;
 }
 
 void DataForm::setCriteria(const QStringList &typed)
 {
-    m_criteria.clear();
-    m_conditions.clear();
-    m_active.clear();
+    clearCriteria();
     bool any = false;
+    const QLocale locale = m_session ? m_session->locale() : QLocale();
     for (int f = 0; f < fieldCount(); ++f) {
         const QString t = f < typed.size() ? typed[f].trimmed() : QString();
         m_criteria << t;
-        m_conditions.push_back(t.isEmpty() ? Condition() : parseCondition(t, typedValue(t)));
+        m_conditions.push_back(t.isEmpty() ? Condition() : parseCondition(t, typedValue(t, locale), locale));
         m_active.push_back(!t.isEmpty());
         any = any || !t.isEmpty();
     }
@@ -197,6 +200,16 @@ qint64 DataForm::findPrevious(qint64 from) const
     return -1;
 }
 
+// What a refused field leaves behind: the fields before it are taken back, and the step is not left to be redone.
+void DataForm::rollBack(int before)
+{
+    QUndoStack *stack = m_session->undoStack();
+    stack->endMacro();
+    if (stack->index() > before) stack->undo();
+    stack->push(new Forget);
+    refresh();
+}
+
 EditSession::Outcome DataForm::change(qint64 record, const QStringList &typed)
 {
     if (!m_session || record < 0 || record >= recordCount()) return refuse(QCoreApplication::translate("jp::crunch::DataForm", "There is no such record."));
@@ -211,8 +224,7 @@ EditSession::Outcome DataForm::change(qint64 record, const QStringList &typed)
     for (int f : changed) {
         const EditSession::Outcome o = m_session->type(m_sheet, rowOf(record), m_fields[size_t(f)].col, typed[f]);
         if (!o.ok) {
-            stack->endMacro();
-            if (stack->index() > before) stack->undo();
+            rollBack(before);
             return o;
         }
     }
@@ -229,13 +241,14 @@ EditSession::Outcome DataForm::add(const QStringList &typed, bool *added)
     bool any = false;
     for (int f = 0; f < fieldCount() && f < typed.size(); ++f) any = any || !typed[f].isEmpty();
     if (!any) return ok;
-    const qint64 last = m_table >= 0 ? qint64(m_session->workbook()->tables()[m_table].dataLast()) : qint64(m_list.row2);
-    // (a table that has a row of totals gets the new row above it, as the table's own typing does not: the form says it can't)
-    if (m_table >= 0 && m_session->workbook()->tables()[m_table].totalsRows > 0) return refuse(QCoreApplication::translate("jp::crunch::DataForm", "The table has a row of totals under its data. Turn the totals off to add a record here, or type the new row in the sheet."));
-    const qint64 row = last + 1;
+    // (a table with a row of totals under its data: the typing that grows a table does not make room above the totals)
+    if (m_table >= 0 && m_session->workbook()->tables()[m_table].totalsRows > 0)
+        return refuse(QCoreApplication::translate("jp::crunch::DataForm", "The table has a row of totals under its data. Turn the totals off to add a record here, or type the new row in the sheet."));
+    const qint64 row = (m_table >= 0 ? m_dataLast : qint64(m_list.row2)) + 1;
     if (row >= qint64(1048576)) return refuse(QCoreApplication::translate("jp::crunch::DataForm", "The list is at the last row of the sheet."));
     for (int f = 0; f < fieldCount(); ++f)
-        if (!m_session->editText(m_sheet, quint32(row), m_fields[size_t(f)].col).isEmpty()) return refuse(QCoreApplication::translate("jp::crunch::DataForm", "The list can't be extended: there is something under it. Move it away, or insert a row."));
+        if (!m_session->editText(m_sheet, quint32(row), m_fields[size_t(f)].col).isEmpty())
+            return refuse(QCoreApplication::translate("jp::crunch::DataForm", "The list can't be extended: there is something under it. Move it away, or insert a row."));
     QUndoStack *stack = m_session->undoStack();
     const int before = stack->index();
     stack->beginMacro(QCoreApplication::translate("jp::crunch::DataForm", "New Record"));
@@ -244,8 +257,7 @@ EditSession::Outcome DataForm::add(const QStringList &typed, bool *added)
         if (typed[f].startsWith(QLatin1Char('=')) && isCalculatedColumn(f)) continue;
         const EditSession::Outcome o = m_session->type(m_sheet, quint32(row), m_fields[size_t(f)].col, typed[f]);
         if (!o.ok) {
-            stack->endMacro();
-            if (stack->index() > before) stack->undo();
+            rollBack(before);
             return o;
         }
     }
@@ -268,12 +280,9 @@ EditSession::Outcome DataForm::remove(qint64 record)
     block.valid = true;
     const EditSession::Outcome o = m_session->deleteCells(m_sheet, block, true);
     if (!o.ok) return o;
-    if (m_table < 0) {
-        if (m_list.row2 > m_list.row1) --m_list.row2;
-    }
+    if (m_table < 0 && m_list.row2 > m_list.row1) --m_list.row2;
     refresh();
-    m_current = std::min(record, recordCount() - 1);
-    if (recordCount() < 1) m_current = 0;
+    m_current = recordCount() < 1 ? 0 : std::min(record, recordCount() - 1);
     return o;
 }
 

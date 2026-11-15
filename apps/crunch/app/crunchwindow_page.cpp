@@ -350,6 +350,16 @@ void CrunchWindow::chooseBackground()
         notice(tr("Background"), why);
         return;
     }
+    // a file is read back with the pictures of its headers, footers, and backgrounds held to one total: what would go over it is refused now, not lost when the file is opened again
+    qint64 total = qint64(bg.image.size());
+    for (int i = 0; i < m_session->pages().sheetCount(); ++i) {
+        const PageSetup &other = m_session->pages().sheet(i);
+        total += jp::office::sheet::pictureBytesOf(other) - (i == m_sheet ? qint64(other.background.image.size()) : 0);
+    }
+    if (total > jp::office::sheet::kMaxHeaderPictureBytesInBook) {
+        notice(tr("Background"), tr("This picture would make the pictures of the workbook (backgrounds, headers, and footers) larger than a file can keep, %1 MB. Delete a background you don't need first, or use a smaller picture.").arg(jp::office::sheet::kMaxHeaderPictureBytesInBook >> 20));
+        return;
+    }
     changePage(tr("Background"), [&bg](PageSetup *s) {
         s->background.image = bg.image;
         s->background.extension = bg.extension;

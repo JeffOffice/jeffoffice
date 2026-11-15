@@ -11,13 +11,17 @@
 
 namespace jp {
 
-DataFormDialog::DataFormDialog(crunch::EditSession *session, int sheet, quint32 row, quint32 col, const QString &title, QWidget *parent) : QDialog(parent), m_title(title), m_session(session)
+DataFormDialog::DataFormDialog(crunch::EditSession *session, int sheet, quint32 row, quint32 col, const QString &title, QWidget *parent, qint64 regionWork) : QDialog(parent), m_title(title), m_session(session)
 {
     setObjectName(QStringLiteral("dataForm"));
-    m_ready = m_form.open(session, sheet, row, col, &m_problem);
+    m_ready = m_form.open(session, sheet, row, col, &m_problem, regionWork);
     if (!m_ready) return;
     build(title);
     showRecord(m_form.current());
+    if (m_form.truncated()) {
+        m_notice->setText(tr("This list is very long. The form shows only its first %1 rows.").arg(m_form.recordCount()));
+        m_notice->show();
+    }
 }
 
 void DataFormDialog::build(const QString &title)
@@ -52,6 +56,12 @@ void DataFormDialog::build(const QString &title)
     scroll->setMinimumHeight(std::min(360, 40 + 32 * m_form.fieldCount()));
     scroll->setMinimumWidth(380);
     left->addWidget(scroll, 1);
+    m_notice = new QLabel(this);
+    m_notice->setObjectName(QStringLiteral("dataFormNotice"));
+    m_notice->setTextFormat(Qt::PlainText);
+    m_notice->setWordWrap(true);
+    m_notice->hide();
+    left->addWidget(m_notice);
     m_status = new QLabel(this);
     m_status->setObjectName(QStringLiteral("dataFormStatus"));
     m_status->setTextFormat(Qt::PlainText);
@@ -110,20 +120,29 @@ void DataFormDialog::updateButtons()
     Q_UNUSED(isNew);
 }
 
+// A box that shows what a formula comes to (or a column's own value) is read-only and dimmed; set only when it is not so already.
+void DataFormDialog::setLook(QLineEdit *box, bool readOnly, const QString &why)
+{
+    if (box->isReadOnly() == readOnly && box->property("looked").isValid()) return;
+    box->setProperty("looked", true);
+    box->setReadOnly(readOnly);
+    box->setFocusPolicy(readOnly ? Qt::NoFocus : Qt::StrongFocus);
+    box->setToolTip(readOnly ? jp::plainToolTip(why) : QString());
+    box->setStyleSheet(readOnly ? QStringLiteral("QLineEdit { background: palette(window); color: palette(placeholder-text); }") : QString());
+}
+
 void DataFormDialog::showRecord(qint64 record)
 {
     m_mode = Mode::Record;
     m_form.setCurrent(record);
+    // (the texts are read from the sheet once for the record, and a box's look is set only when it changes: a list of very many fields is not worked over again for each)
+    const QStringList texts = m_form.values(record);
     for (int f = 0; f < m_form.fieldCount(); ++f) {
         QLineEdit *box = m_boxes[size_t(f)];
         const bool readOnly = m_form.isReadOnly(record, f);
-        box->setReadOnly(readOnly);
-        box->setText(m_form.values(record)[f]);
+        setLook(box, readOnly, tr("This field holds a formula. Change it in the sheet."));
+        box->setText(texts[f]);
         box->setCursorPosition(0);
-        box->setFocusPolicy(readOnly ? Qt::NoFocus : Qt::StrongFocus);
-        box->setProperty("formula", readOnly);
-        box->setToolTip(readOnly ? jp::plainToolTip(tr("This field holds a formula. Change it in the sheet.")) : QString());
-        box->setStyleSheet(readOnly ? QStringLiteral("QLineEdit { background: palette(window); color: palette(placeholder-text); }") : QString());
     }
     m_position->setText(tr("%1 of %2").arg(record + 1).arg(m_form.recordCount()));
     updateButtons();
@@ -143,12 +162,8 @@ void DataFormDialog::showBlank(Mode mode)
         QLineEdit *box = m_boxes[size_t(f)];
         // a new record has no value for what a table's column works out; every field takes a condition
         const bool readOnly = !criteria && m_form.isCalculatedColumn(f);
-        box->setReadOnly(readOnly);
+        setLook(box, readOnly, tr("This column works out its own value."));
         box->setText(criteria && f < m_form.criteria().size() ? m_form.criteria()[f] : QString());
-        box->setFocusPolicy(readOnly ? Qt::NoFocus : Qt::StrongFocus);
-        box->setProperty("formula", readOnly);
-        box->setToolTip(readOnly ? jp::plainToolTip(tr("This column works out its own value.")) : QString());
-        box->setStyleSheet(readOnly ? QStringLiteral("QLineEdit { background: palette(window); color: palette(placeholder-text); }") : QString());
     }
     m_position->setText(criteria ? tr("Criteria") : tr("New Record"));
     updateButtons();

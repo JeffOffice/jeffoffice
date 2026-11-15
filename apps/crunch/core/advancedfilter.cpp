@@ -24,18 +24,43 @@ AdvancedFilterResult refuse(const QString &why)
     return r;
 }
 
-bool readNumber(const QString &text, double *out)
+bool readNumber(const QString &text, const QLocale &locale, double *out)
 {
     bool ok = false;
-    double v = QLocale().toDouble(text.trimmed(), &ok);
+    double v = locale.toDouble(text.trimmed(), &ok);
     if (!ok) v = QLocale::c().toDouble(text.trimmed(), &ok);
     if (ok) *out = v;
     return ok;
 }
 
+// A text against a pattern with ? (one character) and * (any run), as a loop that goes back no further than the last *: the work is at most the length of the text times that of the pattern,
+// whatever the pattern is (a regular expression of many stars can take longer than the life of the machine). `prefix`: the text need only begin so.
+bool globMatches(const QString &pattern, const QString &text, bool prefix)
+{
+    qsizetype p = 0, s = 0, star = -1, mark = 0;
+    while (s < text.size()) {
+        if (p < pattern.size() && pattern[p] == QLatin1Char('*')) {
+            star = p++;
+            mark = s;
+        } else if (p < pattern.size() && (pattern[p] == QLatin1Char('?') || pattern[p] == text[s])) {
+            ++p;
+            ++s;
+        } else if (prefix && p == pattern.size()) {
+            return true;
+        } else if (star >= 0) {
+            p = star + 1;
+            s = ++mark;
+        } else {
+            return false;
+        }
+    }
+    while (p < pattern.size() && pattern[p] == QLatin1Char('*')) ++p;
+    return p == pattern.size();
+}
+
 } // namespace
 
-Condition parseCondition(const QString &typed, const Value &value)
+Condition parseCondition(const QString &typed, const Value &value, const QLocale &locale)
 {
     Condition c;
     if (value.isNumber() && !typed.startsWith(QLatin1Char('='))) {
@@ -59,7 +84,7 @@ Condition parseCondition(const QString &typed, const Value &value)
         return c;
     }
     double n = 0;
-    if (signed_ && readNumber(t, &n)) {
+    if (signed_ && readNumber(t, locale, &n)) {
         c.numeric = true;
         c.number = n;
         return c;
@@ -67,9 +92,9 @@ Condition parseCondition(const QString &typed, const Value &value)
     c.text = t.toCaseFolded();
     c.wild = c.text.contains(QLatin1Char('?')) || c.text.contains(QLatin1Char('*'));
     if (c.wild) {
-        QString re;
-        for (const QChar ch : c.text) re += ch == QLatin1Char('?') ? QStringLiteral(".") : ch == QLatin1Char('*') ? QStringLiteral(".*") : QRegularExpression::escape(QString(ch));
-        c.pattern = QRegularExpression(QLatin1Char('^') + re + (c.op == Condition::Op::Begins ? QString() : QStringLiteral("$")), QRegularExpression::DotMatchesEverythingOption);
+        // a run of stars is one, and a pattern is at most kMaxPatternChars long
+        c.text.replace(QRegularExpression(QStringLiteral("\\*{2,}")), QStringLiteral("*"));
+        c.text = c.text.left(kMaxPatternChars);
     }
     return c;
 }
@@ -92,7 +117,7 @@ bool conditionMet(const Condition &c, const Value &v)
     }
     if (!v.isText()) return c.op == Condition::Op::NotEqual;
     const QString s = v.text().toCaseFolded();
-    const bool same = c.wild ? c.pattern.match(s).hasMatch() : (c.op == Condition::Op::Begins ? s.startsWith(c.text) : s == c.text);
+    const bool same = c.wild ? globMatches(c.text, s, c.op == Condition::Op::Begins) : (c.op == Condition::Op::Begins ? s.startsWith(c.text) : s == c.text);
     switch (c.op) {
     case Condition::Op::Begins:
     case Condition::Op::Equal: return same;
@@ -154,7 +179,7 @@ AdvancedFilterResult advancedFilterRows(const EditSession &session, int sheet, c
             const QString typed = session.editText(sheet, r, cc);
             if (v.isEmpty() && typed.isEmpty()) continue;
             if (listColumn[cc - crit.col1] < 0) continue;
-            tests.push_back({quint32(listColumn[cc - crit.col1]), parseCondition(typed, v)});
+            tests.push_back({quint32(listColumn[cc - crit.col1]), parseCondition(typed, v, session.locale())});
         }
         if (tests.empty()) anyOpen = true;
         rowsOfTests.push_back(std::move(tests));
