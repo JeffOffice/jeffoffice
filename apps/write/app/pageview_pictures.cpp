@@ -14,6 +14,7 @@
 #include "core/writeprops.h"
 #include "text/textprops.h"
 
+#include <QApplication>
 #include <QCoreApplication>
 #include <QDragEnterEvent>
 #include <QDragMoveEvent>
