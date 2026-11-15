@@ -200,5 +200,14 @@ void setAllBackgrounds(Document &d, const QColor &color);
 // The same for any fill: gradient (linear or radial, with its stops), picture, or pattern as well as solid.
 void setSlideBackground(Page &slide, const Fill &fill);
 void setAllBackgrounds(Document &d, const Fill &fill);
+// Reset Background: a slide's own background goes, so it shows its layout's (or the master's); for all, every slide's and layout's own goes and the slide
+// masters keep theirs.
+void resetSlideBackground(Page &slide);
+void resetAllBackgrounds(Document &d);
+
+// Whether the notes pages stand upright (the default) or lie on their side; the choice turns the notes page size, which presentation files keep (notesSz,
+// the notes page's layout).
+bool notesArePortrait(const Document &d);
+void setNotesPortrait(Document &d, bool portrait);
 
 } // namespace jp::deck

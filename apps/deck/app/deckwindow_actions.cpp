@@ -235,8 +235,8 @@ void DeckWindow::createDesignActions()
         sizes->addAction(mk(("design.size." + p.key).toLatin1().constData(), text, "", QKeySequence(), [this, size] { askSlideSize(size); }, true));
     }
     mk("design.sizeCustom", tr("Custom Slide Size…"), "", QKeySequence(), [this] {
-        SlideSizeDialog dlg(m_ed->doc()->pageSize(), this);
-        if (dlg.exec() == QDialog::Accepted) askSlideSize(dlg.size());
+        SlideSizeDialog dlg(m_ed->doc()->pageSize(), deck::notesArePortrait(*m_ed->doc()), this);
+        if (dlg.exec() == QDialog::Accepted) askSlideSize(dlg.size(), dlg.notesPortrait() ? 1 : 0);
     });
     mk("design.slideSize", tr("Slide Size"), "ratio", QKeySequence(), [] {});
     mk("design.setDefaultSlideSize", tr("Set as Default Slide Size"), "", QKeySequence(), [this] {
@@ -296,22 +296,25 @@ void DeckWindow::createViewActions()
 }
 
 // ---------------- what the commands do ----------------
-void DeckWindow::setSlideSize(const QSizeF &size, bool scale)
+void DeckWindow::setSlideSize(const QSizeF &size, bool scale, int notes)
 {
-    if (size.isEmpty() || size == m_ed->doc()->pageSize()) return;
+    const bool notesChange = notes >= 0 && deck::notesArePortrait(*m_ed->doc()) != (notes == 1);
+    if (size.isEmpty() || (size == m_ed->doc()->pageSize() && !notesChange)) return;
     m_notes->commit();
     if (m_outline) m_outline->commit();
     m_ed->endTextEdit();
     const OwnEdit own(this);
     m_ed->beginChange(tr("Slide Size"));
-    deck::setSlideSize(*m_ed->doc(), size, scale);
+    if (size != m_ed->doc()->pageSize()) deck::setSlideSize(*m_ed->doc(), size, scale);
+    if (notesChange) deck::setNotesPortrait(*m_ed->doc(), notes == 1);
     m_ed->endChange();
 }
 
 // A new size asks whether the content scales to it or keeps its own size.
-void DeckWindow::askSlideSize(const QSizeF &size)
+void DeckWindow::askSlideSize(const QSizeF &size, int notes)
 {
     if (size == m_ed->doc()->pageSize()) {
+        setSlideSize(size, true, notes);   // (only the notes pages can change)
         refreshUi();   // the check on the chosen size stays
         return;
     }
@@ -324,8 +327,8 @@ void DeckWindow::askSlideSize(const QSizeF &size)
     box.addButton(QMessageBox::Cancel);
     box.setDefaultButton(fit);
     box.exec();
-    if (box.clickedButton() == fit) setSlideSize(size, true);
-    else if (box.clickedButton() == keep) setSlideSize(size, false);
+    if (box.clickedButton() == fit) setSlideSize(size, true, notes);
+    else if (box.clickedButton() == keep) setSlideSize(size, false, notes);
     else refreshUi();
 }
 
@@ -345,7 +348,30 @@ void DeckWindow::setBackground(const Fill &fill, bool all)
     m_ed->beginChange(tr("Format Background"));
     if (all) deck::setAllBackgrounds(*d, fill);
     else if (open) open->background = fill;
-    else deck::setSlideBackground(*d->pages[i], fill);
+    else
+        for (int slide : selectedSlides())
+            if (slide >= 0 && slide < d->pages.size()) deck::setSlideBackground(*d->pages[slide], fill);
+    m_ed->endChange();
+}
+
+void DeckWindow::resetBackground(bool all)
+{
+    Document *d = m_ed->doc();
+    MasterPage *open = m_view == View::Master ? d->master(m_ed->masterView()) : nullptr;
+    m_ed->endTextEdit();
+    if (open && !all) {
+        // A layout follows its slide master again; the slide master itself has nothing to follow.
+        if (!deck::isLayout(*open)) return;
+        m_ed->beginChange(tr("Reset Background"));
+        open->background = Fill();
+        m_ed->endChange();
+        return;
+    }
+    m_ed->beginChange(tr("Reset Background"));
+    if (all) deck::resetAllBackgrounds(*d);
+    else
+        for (int slide : selectedSlides())
+            if (slide >= 0 && slide < d->pages.size()) deck::resetSlideBackground(*d->pages[slide]);
     m_ed->endChange();
 }
 
@@ -385,7 +411,8 @@ void DeckWindow::showFormatBackground()
     if (dlg.exec() != QDialog::Accepted) return;
     // The fill and the box are one step.
     m_ed->beginChange(tr("Format Background"));
-    setBackground(dlg.fill(), dlg.applyToAll());
+    if (dlg.resetRequested()) resetBackground(false);
+    else setBackground(dlg.fill(), dlg.applyToAll());
     if (dlg.hideGraphics() != hidden) hideBackgroundGraphics(dlg.hideGraphics());
     m_ed->endChange();
 }

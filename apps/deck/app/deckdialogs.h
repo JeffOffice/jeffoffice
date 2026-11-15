@@ -64,6 +64,8 @@ public:
     // The Hide background graphics box: the pictures and shapes of the slide masters under the page stop showing.
     void setHideGraphics(bool hide);
     bool hideGraphics() const;
+    // Whether Reset Background was pressed (the background goes back to the layout's).
+    bool resetRequested() const { return m_reset; }
     FillEditor *fillEditor() const { return m_editor; }
 
 private:
@@ -71,6 +73,7 @@ private:
     FillEditor *m_editor;
     Fill m_fill;
     std::function<QString()> m_pick;
+    bool m_reset = false;
     bool m_all = false;
 };
 
@@ -98,18 +101,21 @@ private:
 class SlideSizeDialog : public QDialog {
     Q_OBJECT
 public:
-    SlideSizeDialog(const QSizeF &current, QWidget *parent = nullptr);
+    SlideSizeDialog(const QSizeF &current, bool notesPortrait = true, QWidget *parent = nullptr);
     // The size in points.
     QSizeF size() const;
     bool isPortrait() const;
+    // The notes pages' orientation.
+    bool notesPortrait() const { return m_notesPortrait->isChecked(); }
 
 private:
     void showPreset(int index);
     void orientationChosen(bool portrait);
     QComboBox *m_preset;
     QDoubleSpinBox *m_width, *m_height;
-    QRadioButton *m_landscape, *m_portrait;
+    QRadioButton *m_landscape, *m_portrait, *m_notesLandscape, *m_notesPortrait;
     bool m_loading = false;
+    QSizeF m_was;
 };
 
 // Rows and columns for Insert > Table > Insert Table.

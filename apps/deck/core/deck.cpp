@@ -1236,4 +1236,27 @@ void setAllBackgrounds(Document &d, const Fill &fill)
     for (auto &p : d.pages) p->background = Fill();
 }
 
+void resetSlideBackground(Page &slide) { slide.background = Fill(); }
+
+void resetAllBackgrounds(Document &d)
+{
+    for (auto &m : d.masters)
+        if (isLayout(*m)) m->background = Fill();
+    for (auto &p : d.pages) p->background = Fill();
+}
+
+bool notesArePortrait(const Document &d)
+{
+    const QJsonObject size = d.appData.value(QStringLiteral("notesSize")).toObject();
+    return size.value(QStringLiteral("h")).toDouble(720) >= size.value(QStringLiteral("w")).toDouble(540);
+}
+
+void setNotesPortrait(Document &d, bool portrait)
+{
+    if (notesArePortrait(d) == portrait) return;
+    const QJsonObject size = d.appData.value(QStringLiteral("notesSize")).toObject();
+    const double w = size.value(QStringLiteral("w")).toDouble(540), h = size.value(QStringLiteral("h")).toDouble(720);
+    d.appData[QStringLiteral("notesSize")] = QJsonObject{{"w", h}, {"h", w}};
+}
+
 } // namespace jp::deck

@@ -3,6 +3,7 @@
 #include "../withdialog.h"
 #include "core/linkareas.h"
 #include "core/remotepath.h"
+#include "app/slidesorter.h"
 #include "core/shapetypes.h"
 #include "office/hyperlink.h"
 
@@ -134,6 +135,41 @@ private Q_SLOTS:
         });
         QTRY_COMPARE(ed->doc()->pageSize(), QSizeF(360, 576));
         QCOMPARE(ed->doc()->setup.sizeName, QStringLiteral("Custom"));
+    }
+
+    // The notes page has an orientation of its own, kept in .pptx (notesSz) and .odp (the notes page's layout).
+    void notesOrientationRoundTrips()
+    {
+        auto d = deck::newPresentation();
+        QVERIFY(deck::notesArePortrait(*d));
+        deck::setNotesPortrait(*d, false);
+        QVERIFY(!deck::notesArePortrait(*d));
+        QString err;
+        auto viaPptx = deck::importPresentation(deck::exportPresentation(*d, &err), &err);
+        QVERIFY2(viaPptx, qPrintable(err));
+        QVERIFY(!deck::notesArePortrait(*viaPptx));
+        auto viaOdp = deck::importOdp(deck::exportOdp(*d, false, &err), &err);
+        QVERIFY2(viaOdp, qPrintable(err));
+        QVERIFY(!deck::notesArePortrait(*viaOdp));
+        deck::setNotesPortrait(*d, true);
+        QVERIFY(deck::notesArePortrait(*d));
+    }
+
+    // The Custom Slide Size box has the notes' orientation; a change of it alone is one step that undoes.
+    void customSlideSizeBoxSetsNotesOrientation()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        withDialog([&] { w.act("design.sizeCustom")->trigger(); }, QStringLiteral("slideSizeDialog"), [&](QDialog *dlg) {
+            auto *landscape = dlg->findChild<QRadioButton *>(QStringLiteral("notesLandscape"));
+            auto *portrait = dlg->findChild<QRadioButton *>(QStringLiteral("notesPortrait"));
+            QVERIFY(landscape && portrait && portrait->isChecked());
+            landscape->setChecked(true);
+        });
+        QTRY_VERIFY(!deck::notesArePortrait(*ed->doc()));
+        QCOMPARE(ed->doc()->pageSize(), QSizeF(960, 540));
+        ed->undo();
+        QVERIFY(deck::notesArePortrait(*ed->doc()));
     }
 
     // Portrait, paper, and banner decks save in .pptx and .odp and open as they were, and their slides print, export, and draw in their own shape.
@@ -1026,6 +1062,104 @@ private Q_SLOTS:
                 const QColor a = was.pixelColor(at), b = now.pixelColor(at);
                 QVERIFY2(std::abs(a.red() - b.red()) < 40 && std::abs(a.green() - b.green()) < 40 && std::abs(a.blue() - b.blue()) < 40, qPrintable(what + QStringLiteral(" at %1,%2: %3 and %4").arg(at.x()).arg(at.y()).arg(a.name(), b.name())));
             }
+        }
+    }
+    // Reset Background takes a slide's own background away, so it shows its layout's again; it is one step that undoes.
+    void resetBackgroundIsOneStep()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        w.newSlide();
+        w.newSlide();
+        w.setBackground(gradientFill(Fill::Linear), true);
+        ed->doc()->pages[1]->background = gradientFill(Fill::Radial);
+        ed->doc()->pages[2]->background = gradientFill(Fill::Radial);
+        const int at = ed->currentPage();
+        w.resetBackground(false);
+        QVERIFY(ed->doc()->pages[at]->background.isNone());
+        ed->undo();
+        QCOMPARE(ed->doc()->pages[at]->background.gradType, Fill::Radial);
+        w.resetBackground(true);
+        for (auto &p : ed->doc()->pages) QVERIFY(p->background.isNone());
+        QCOMPARE(ed->doc()->masters[0]->background.type, Fill::Gradient);
+        ed->undo();
+        QCOMPARE(ed->doc()->pages[1]->background.type, Fill::Gradient);
+        QCOMPARE(ed->doc()->pages[2]->background.type, Fill::Gradient);
+    }
+
+    // The Format Background box has Reset Background.
+    void formatBackgroundBoxResets()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        ed->doc()->pages[0]->background = gradientFill(Fill::Radial);
+        withDialog([&] { w.act("design.formatBackground")->trigger(); }, QStringLiteral("backgroundDialog"), [](QDialog *dlg) {
+            auto *reset = dlg->findChild<QPushButton *>(QStringLiteral("resetBackground"));
+            QVERIFY(reset);
+            reset->click();
+        });
+        QVERIFY(ed->doc()->pages[0]->background.isNone());
+        ed->undo();
+        QCOMPARE(ed->doc()->pages[0]->background.type, Fill::Gradient);
+    }
+
+    // With slides selected in the slide sorter, a background is set on each of them and no other.
+    void backgroundGoesToTheSelectedSlides()
+    {
+        DeckWindow w;
+        w.resize(1300, 850);
+        w.show();
+        w.newSlide();
+        w.newSlide();
+        w.newSlide();
+        w.setView(DeckWindow::View::Sorter);
+        w.slideSorter()->select({1, 3}, 3);
+        w.setBackground(gradientFill(Fill::Linear), false);
+        Document *d = w.editor()->doc();
+        QVERIFY(d->pages[0]->background.isNone() && d->pages[2]->background.isNone());
+        QCOMPARE(d->pages[1]->background.type, Fill::Gradient);
+        QCOMPARE(d->pages[3]->background.type, Fill::Gradient);
+        w.editor()->undo();
+        QVERIFY(d->pages[1]->background.isNone() && d->pages[3]->background.isNone());
+    }
+
+    // Every part of a gradient (rectangular and path types, a stop's transparency) and of a picture fill (tiled, scaled, clear) is saved and read back the same.
+    void everyBackgroundSettingRoundTrips()
+    {
+        QImage png(8, 8, QImage::Format_RGB32);
+        png.fill(QColor(0x40, 0x80, 0xC0));
+        QByteArray bytes;
+        QBuffer buf(&bytes);
+        buf.open(QIODevice::WriteOnly);
+        png.save(&buf, "PNG");
+        for (int format = 0; format < 2; ++format) {
+            const QString what = format == 0 ? QStringLiteral("pptx") : QStringLiteral("odp");
+            auto d = deck::newPresentation();
+            for (int i = 0; i < 3; ++i) deck::addSlide(*d, *deck::layoutOfType(*d, QStringLiteral("obj")));
+            Fill rect = gradientFill(Fill::Rectangular);
+            rect.stops[1].transparency = 0.4;
+            deck::setSlideBackground(*d->pages[0], rect);
+            deck::setSlideBackground(*d->pages[1], gradientFill(Fill::PathGrad));
+            Fill tiled;
+            tiled.type = Fill::Picture;
+            tiled.imageId = d->addImage(bytes, QStringLiteral("png"), QString());
+            tiled.tile = true;
+            tiled.tileScale = 2.0;
+            tiled.transparency = 0.25;
+            deck::setSlideBackground(*d->pages[2], tiled);
+            QString err;
+            std::unique_ptr<Document> back;
+            if (format == 0) back = deck::importPresentation(deck::exportPresentation(*d, &err), &err);
+            else back = deck::importOdp(deck::exportOdp(*d, false, &err), &err);
+            QVERIFY2(back, qPrintable(err));
+            const Fill r = back->pages[0]->background;
+            QVERIFY2(r.type == Fill::Gradient && r.gradType == Fill::Rectangular, qPrintable(what));
+            // (A file of .odp fades from the first stop's opacity to the last's, and keeps a stop's own only in a linear gradient.)
+            QVERIFY2(format == 1 || (r.stops.size() == 3 && std::abs(r.stops[1].transparency - 0.4) < 0.02), qPrintable(what));
+            QVERIFY2(back->pages[1]->background.type == Fill::Gradient && (format == 1 || back->pages[1]->background.gradType == Fill::PathGrad), qPrintable(what));
+            const Fill t = back->pages[2]->background;
+            QVERIFY2(t.type == Fill::Picture || t.type == Fill::Texture, qPrintable(what));
+            QVERIFY2(t.tile && std::abs(t.tileScale - 2.0) < 0.05 && std::abs(t.transparency - 0.25) < 0.02, qPrintable(what));
         }
     }
 };

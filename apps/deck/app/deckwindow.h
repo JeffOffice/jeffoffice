@@ -194,10 +194,13 @@ public:
     void resetSlide();
     // Gives the slides another size, everything on them scaled to fit (as
     // one step that undoes).
-    void setSlideSize(const QSizeF &size, bool scale = true);
+    // `notes` 1 or 0 sets the notes pages upright or on their side in the same step; -1 leaves them.
+    void setSlideSize(const QSizeF &size, bool scale = true, int notes = -1);
     // A solid background for the slide being edited, or for all of them.
     void setBackground(const QColor &color, bool all);
     void setBackground(const Fill &fill, bool all);
+    // Reset Background: the selected slides (every slide and layout with `all`) show their layout's background again.
+    void resetBackground(bool all);
     // Header & Footer for the slide being edited, or for all of them.
     void applyFooters(const deck::FooterOptions &options, bool all);
     // Design > Themes and Variants (deckwindow_design.cpp), each one step that undoes. A theme is one of the built-in ones (by number) or
@@ -441,7 +444,7 @@ private:
     void showFormatBackground();
     QString chooseBackgroundPicture();
     void showLinkDialog();
-    void askSlideSize(const QSizeF &size);
+    void askSlideSize(const QSizeF &size, int notes = -1);
     void insertPictureFromFile();
     void updateTitle();
     bool maybeSave();

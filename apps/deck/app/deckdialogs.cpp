@@ -3,6 +3,7 @@
 #include "app/widgets.h"
 #include "office/hyperlink.h"
 
+#include <QButtonGroup>
 #include <QCheckBox>
 #include <QDialogButtonBox>
 #include <QFileDialog>
@@ -163,7 +164,15 @@ BackgroundDialog::BackgroundDialog(const Fill &current, const ColorScheme &schem
         m_editor->setFills({m_fill});
     });
     lay->addSpacing(6);
-    lay->addWidget(applyButtons(this, &m_all));
+    QDialogButtonBox *buttons = applyButtons(this, &m_all);
+    QPushButton *reset = buttons->addButton(tr("Reset Background"), QDialogButtonBox::ResetRole);
+    reset->setObjectName(QStringLiteral("resetBackground"));
+    reset->setAutoDefault(false);
+    connect(reset, &QPushButton::clicked, this, [this] {
+        m_reset = true;
+        accept();
+    });
+    lay->addWidget(buttons);
 }
 
 void BackgroundDialog::setHideGraphics(bool hide) { m_hide->setChecked(hide); }
@@ -265,7 +274,7 @@ void LinkDialog::setDisplayShown(const QString &text, bool shown)
 
 constexpr double kLeastInches = 0.5, kMostInches = 56;
 
-SlideSizeDialog::SlideSizeDialog(const QSizeF &current, QWidget *parent) : QDialog(parent)
+SlideSizeDialog::SlideSizeDialog(const QSizeF &current, bool notesPortrait, QWidget *parent) : QDialog(parent), m_was(current)
 {
     setWindowTitle(tr("Slide Size"));
     setObjectName(QStringLiteral("slideSizeDialog"));
@@ -301,6 +310,22 @@ SlideSizeDialog::SlideSizeDialog(const QSizeF &current, QWidget *parent) : QDial
     orient->addWidget(m_landscape);
     orient->addWidget(m_portrait);
     form->addRow(tr("Orientation:"), orient);
+    m_notesPortrait = new QRadioButton(tr("Portrait"), this);
+    m_notesPortrait->setObjectName(QStringLiteral("notesPortrait"));
+    m_notesLandscape = new QRadioButton(tr("Landscape"), this);
+    m_notesLandscape->setObjectName(QStringLiteral("notesLandscape"));
+    (notesPortrait ? m_notesPortrait : m_notesLandscape)->setChecked(true);
+    auto *notes = new QHBoxLayout();
+    notes->addWidget(m_notesPortrait);
+    notes->addWidget(m_notesLandscape);
+    form->addRow(tr("Notes pages:"), notes);
+    // Each pair is a choice of its own.
+    auto *slidesGroup = new QButtonGroup(this);
+    slidesGroup->addButton(m_landscape);
+    slidesGroup->addButton(m_portrait);
+    auto *notesGroup = new QButtonGroup(this);
+    notesGroup->addButton(m_notesPortrait);
+    notesGroup->addButton(m_notesLandscape);
     lay->addLayout(form);
     m_loading = true;
     m_width->setValue(current.width() / 72);
@@ -352,7 +377,12 @@ void SlideSizeDialog::orientationChosen(bool portrait)
     }
 }
 
-QSizeF SlideSizeDialog::size() const { return QSizeF(m_width->value() * 72, m_height->value() * 72); }
+// A width or height left as it was is the size it was, not the rounded one the box shows (13.333 inches is not 960 points).
+QSizeF SlideSizeDialog::size() const
+{
+    auto side = [](const QDoubleSpinBox *box, double was) { return std::abs(box->value() * 72 - was) < 0.05 ? was : box->value() * 72; };
+    return QSizeF(side(m_width, m_was.width()), side(m_height, m_was.height()));
+}
 bool SlideSizeDialog::isPortrait() const { return m_portrait->isChecked(); }
 
 TableSizeDialog::TableSizeDialog(QWidget *parent) : QDialog(parent)
