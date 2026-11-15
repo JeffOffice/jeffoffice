@@ -938,6 +938,7 @@ void WriteDoc::setSectionProps(int index, const SectionProps &props)
 
 int WriteDoc::changeSections(int from, int to, const std::function<bool(SectionProps &)> &change)
 {
+    ++m_headerEpoch;
     const int count = int(m_sections.size());
     from = std::clamp(from, 0, count - 1);
     to = std::clamp(to, from, count - 1);

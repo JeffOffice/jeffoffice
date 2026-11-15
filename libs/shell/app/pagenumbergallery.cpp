@@ -4,6 +4,7 @@
 
 #include <QCoreApplication>
 #include <QFont>
+#include <QFontMetricsF>
 #include <QPainter>
 #include <QPainterPath>
 #include <algorithm>
@@ -152,7 +153,7 @@ PageNumberType pageNumberType(const PageNumberDesign &d)
     case PageNumberLook::Tab:
     case PageNumberLook::Bar:
         t.bold = true;
-        t.size = d.area == PageNumberArea::Cursor ? 0 : 11;
+        t.size = d.area == PageNumberArea::Cursor ? 0 : d.area == PageNumberArea::Margin ? 9 : 11;
         t.onAccent = true;
         break;
     default: break;
@@ -181,28 +182,29 @@ PageNumberBox pageNumberBox(const PageNumberDesign &d, const QSizeF &page, const
     const double W = page.width(), H = page.height();
     double w = 0, h = 0;
     if (d.area == PageNumberArea::Cursor) {
-        b.rect = QRectF(0, 0, 18, 18);
+        b.rect = QRectF(0, 0, 20, 20);
         return b;
     }
     if (d.area == PageNumberArea::Margin) {
+        // (A box in the margin is centered in the strip it is in, and the box is as wide as the strip lets it be: a four-digit number in it still fits.)
         const double room = d.side == PageNumberSide::Left ? m.left() : m.right();
-        if (d.look == PageNumberLook::Circle) w = h = std::clamp(room - 8, 14.0, 26.0);
+        if (d.look == PageNumberLook::Circle) w = h = std::clamp(room - 4, 22.0, 30.0);
         else if (d.look == PageNumberLook::Tab) {
-            w = d.turned ? std::clamp(room - 4, 14.0, 26.0) : std::clamp(room - 4, 16.0, 34.0);
-            h = d.turned ? 54 : 26;
+            w = std::clamp(room - 4, 22.0, 34.0);
+            h = d.turned ? 56 : 28;
         } else {   // a vertical bar
-            w = std::clamp(room - 20, 12.0, 20.0);
+            w = std::clamp(room - 12, 22.0, 26.0);
             h = 120;
         }
-        double x = d.side == PageNumberSide::Left ? (room - w) / 2 : W - room + (room - w) / 2;
-        if (d.look == PageNumberLook::Tab) x = d.side == PageNumberSide::Left ? 0 : W - w;
+        const double x = d.side == PageNumberSide::Left ? (room - w) / 2 : W - room + (room - w) / 2;
         b.rect = QRectF(std::max(0.0, x), H / 2 - h / 2, w, h);
         return b;
     }
-    if (d.look == PageNumberLook::Circle) w = h = 26;
-    else if (d.look == PageNumberLook::RoundedBox) { w = 40; h = 22; }
-    else if (d.look == PageNumberLook::Tab) { w = 46; h = 22; }
-    else { w = std::max(24.0, W - m.left() - m.right()); h = 22; }
+    // (Wide enough for four digits at the size the number is set: a bold 11 point digit is about 7 points across.)
+    if (d.look == PageNumberLook::Circle) w = h = 34;
+    else if (d.look == PageNumberLook::RoundedBox) { w = 48; h = 24; }
+    else if (d.look == PageNumberLook::Tab) { w = 54; h = 24; }
+    else { w = std::max(24.0, W - m.left() - m.right()); h = 24; }
     const bool top = d.area == PageNumberArea::Top;
     const double y = top ? std::max(10.0, m.top() / 2 - h / 2) : std::min(H - h - 10, H - m.bottom() / 2 - h / 2);
     double x = (W - w) / 2;
@@ -226,11 +228,12 @@ void paintPageNumberDesign(QPainter *p, const QRectF &rc, const PageNumberDesign
 {
     p->save();
     p->setRenderHint(QPainter::Antialiasing);
-    // A small page, drawn as if it were 220 by 284 units across with margins of 30 and 36: the box a design has is its size on a larger page, so it reads in the picture.
-    const double ph = rc.height() * 0.94, pw = std::min(rc.width() * 0.84, ph * 0.775);
+    // A small page, drawn as if it were 220 by 284 units across with margins of 22 and 36: the box a design has is its size on a larger page, drawn a little larger so that its number reads.
+    const double ph = rc.height() * 0.94, pw = std::min(rc.width() * 0.9, ph * 0.775);
     const QRectF page(rc.center().x() - pw / 2, rc.center().y() - ph / 2, pw, ph);
     const double k = pw / 220.0;
-    const QMarginsF margins(30, 36, 30, 36);
+    const QMarginsF margins(22, 44, 22, 44);
+    constexpr int kLeastPixel = 8;   // (the smallest letters a picture draws: smaller ones can't be read)
     p->setPen(QPen(QColor(0x9A, 0xA0, 0xA8), 1));
     p->setBrush(Qt::white);
     p->drawRect(page);
@@ -240,8 +243,8 @@ void paintPageNumberDesign(QPainter *p, const QRectF &rc, const PageNumberDesign
     p->setBrush(QColor(0xD2, 0xD6, 0xDB));
     const bool inline_ = d.area == PageNumberArea::Cursor;
     const double lineStep = 17;
-    for (double y = 60; y < 284 - 56; y += lineStep) {
-        if (inline_ && y > 120 && y < 150) continue;
+    for (double y = 76; y < 284 - 70; y += lineStep) {
+        if (inline_ && y > 120 && y < 154) continue;
         p->drawRect(toPage(QRectF(margins.left(), y, 220 - margins.left() - margins.right() - ((int(y) % 3) ? 0 : 30), 5)));
     }
     const PageNumberType type = pageNumberType(d);
@@ -249,40 +252,41 @@ void paintPageNumberDesign(QPainter *p, const QRectF &rc, const PageNumberDesign
     QString text;
     for (const PageNumberPiece &piece : pieces) text += piece.kind == PageNumberPiece::Page ? QStringLiteral("1") : piece.kind == PageNumberPiece::Count ? QStringLiteral("9") : piece.text;
     QFont f = p->font();
-    f.setPixelSize(std::max(5, int(std::lround((type.size > 0 ? type.size * 0.62 : 15) * k))));
+    f.setPixelSize(type.size >= 20 ? 11 : kLeastPixel);
     f.setBold(type.bold);
     p->setFont(f);
+    const QFontMetricsF fm(f);
     const QColor ink(0x30, 0x34, 0x3a);
     if (inline_) {
         const double cy = 135;
-        const QRectF line = toPage(QRectF(margins.left(), cy - 11, 220 - margins.left() - margins.right(), 22));
+        const QRectF line = toPage(QRectF(margins.left(), cy - 14, 220 - margins.left() - margins.right(), 28));
         if (d.look == PageNumberLook::Circle) {
-            const QRectF dot = toPage(QRectF(110 - 10, cy - 10, 20, 20));
+            const double dot = std::max(12.0, 20 * k);
+            const QRectF r(line.center().x() - dot / 2, line.center().y() - dot / 2, dot, dot);
             p->setPen(Qt::NoPen);
             p->setBrush(accent);
-            p->drawEllipse(dot);
+            p->drawEllipse(r);
             p->setPen(Qt::white);
-            p->setFont(f);
-            p->drawText(dot, Qt::AlignCenter, text);
+            p->drawText(r, Qt::AlignCenter, text);
         } else {
             p->setPen(ink);
-            p->drawText(line, Qt::AlignCenter, text);
+            p->drawText(line, Qt::AlignCenter | Qt::TextDontClip, text);
         }
         p->restore();
         return;
     }
     if (pageNumberHasBox(d)) {
         const PageNumberBox box = pageNumberBox(d, QSizeF(220, 284), margins);
-        const QRectF r = toPage(box.rect);
+        QRectF r = toPage(box.rect);
+        // (A short side is drawn larger, a long one as it is.)
+        const double growW = box.rect.width() < 100 ? 1.5 : 1.0, growH = box.rect.height() < 100 ? 1.5 : 1.0;
+        r = QRectF(r.center().x() - r.width() * growW / 2, r.center().y() - r.height() * growH / 2, r.width() * growW, r.height() * growH);
         p->setPen(Qt::NoPen);
         p->setBrush(accent);
         if (box.preset == QLatin1String("ellipse")) p->drawEllipse(r);
         else if (box.preset == QLatin1String("roundRect")) p->drawRoundedRect(r, r.height() * 0.3, r.height() * 0.3);
         else p->drawRect(r);
         p->setPen(Qt::white);
-        QFont bf = f;
-        bf.setPixelSize(std::max(5, int(std::lround(std::min(r.width(), r.height()) * 0.5))));
-        p->setFont(bf);
         if (box.turned) {
             p->translate(r.center());
             p->rotate(-90);
@@ -294,22 +298,24 @@ void paintPageNumberDesign(QPainter *p, const QRectF &rc, const PageNumberDesign
         return;
     }
     const bool top = d.area == PageNumberArea::Top;
-    const double rowH = type.size > 0 ? std::max(20.0, type.size * 1.1) : 20;
-    const double cy = top ? margins.top() / 2 : 284 - margins.bottom() / 2;
-    const QRectF row = toPage(QRectF(margins.left(), cy - rowH / 2, 220 - margins.left() - margins.right(), rowH));
+    const double textH = fm.height();
+    const double rowH = std::max(26.0 * k, textH + 6);   // (the row is as tall as its letters need, and a little more)
+    const double cy = top ? page.top() + margins.top() * k / 2 : page.bottom() - margins.bottom() * k / 2;
+    const QRectF row(page.left() + margins.left() * k, cy - rowH / 2, (220 - margins.left() - margins.right()) * k, rowH);
     const Qt::Alignment al = d.side == PageNumberSide::Left ? Qt::AlignLeft : d.side == PageNumberSide::Right ? Qt::AlignRight : Qt::AlignHCenter;
     p->setPen(ink);
-    p->drawText(row, al | Qt::AlignVCenter, text);
+    p->drawText(row, al | Qt::AlignVCenter | Qt::TextDontClip, text);
     const PageNumberRule rule = pageNumberRule(d);
     if (rule != PageNumberRule::None) {
-        p->setPen(QPen(ink, std::max(1.0, k * 0.9)));
-        const double y = rule == PageNumberRule::Above ? row.top() : row.bottom();
+        // (The rule lies clear of the letters: the height of the letters and two pixels from the middle of the row.)
+        p->setPen(QPen(ink, 1));
+        const double y = rule == PageNumberRule::Above ? row.center().y() - textH / 2 - 2 : row.center().y() + textH / 2 + 2;
         p->drawLine(QPointF(row.left(), y), QPointF(row.right(), y));
     }
     p->restore();
 }
 
-QSize pageNumberItemSize() { return QSize(48, 60); }
+QSize pageNumberItemSize() { return QSize(56, 72); }
 
 QVector<GalleryItem> pageNumberGalleryItems(const QColor &accent, const std::function<bool(const PageNumberDesign &)> &accepts)
 {

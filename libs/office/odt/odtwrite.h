@@ -152,7 +152,7 @@ private:
     QByteArray m_bodyXml;
     QHash<QString, QString> m_images;                  // relationship Id of the part -> its path in the package
     QVector<QPair<QString, QByteArray>> m_pictures;
-    int m_imageCount = 0, m_frameCount = 0, m_noteCount = 0, m_endnoteCount = 0, m_tableCount = 0, m_sectionCount = 0, m_commentCounter = 0, m_bookmarkSeq = 0;
+    int m_imageCount = 0, m_frameCount = 0, m_noteCount = 0, m_endnoteCount = 0, m_tableCount = 0, m_sectionCount = 0, m_commentCounter = 0, m_bookmarkSeq = 0, m_galleryMarks = 0;
     QSet<QString> m_sequences;
     QMap<QString, QString> m_fontFaces;                // name -> generic
     QSet<QString> m_commentsStarted;

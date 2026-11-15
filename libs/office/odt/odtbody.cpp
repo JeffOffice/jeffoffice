@@ -506,6 +506,24 @@ void Reader::inlineElement(const Odf &o, int n, ParaCtx *pc, const RunFmt &fmt, 
                o.is(n, "text:reference-mark-end")) {
         const QString name = bookmarkNameOf(o.at(n, "text:name"));
         if (name.isEmpty()) return;
+        // The pair of hidden bookmarks that the file keeps for what the Page Number gallery put in: a content control that names the gallery, as it was.
+        if (name.startsWith(QLatin1String("_JOPageNumbers_"))) {
+            static const QHash<QString, QByteArray> galleries = {{QStringLiteral("Top"), "Page Numbers (Top of Page)"}, {QStringLiteral("Bottom"), "Page Numbers (Bottom of Page)"},
+                                                                 {QStringLiteral("Margins"), "Page Numbers (Margins)"}, {QStringLiteral("Position"), "Page Numbers (Current Position)"}};
+            const auto g = galleries.constFind(name.section(QLatin1Char('_'), 2, 2));
+            if (g == galleries.constEnd() || o.is(n, "text:bookmark")) return;
+            if (o.is(n, "text:bookmark-end")) {
+                if (m_galleryOpen.remove(name)) pc->runs += "</w:sdtContent></w:sdt>";
+            } else if (!m_galleryOpen.contains(name) && m_galleryOpen.size() < 16) {
+                // (Only a start that has its end among the same paragraph's contents: a control left open would break the paragraph.)
+                bool closes = false;
+                for (int sib = o.tree().next(n); sib >= 0 && !closes; sib = o.tree().next(sib)) closes = o.is(sib, "text:bookmark-end") && bookmarkNameOf(o.at(sib, "text:name")) == name;
+                if (!closes) return;
+                m_galleryOpen.insert(name);
+                pc->runs += "<w:sdt><w:sdtPr><w:docPartObj><w:docPartGallery w:val=\"" + g.value() + "\"/><w:docPartUnique/></w:docPartObj></w:sdtPr><w:sdtContent>";
+            }
+            return;
+        }
         auto idOf = [&](bool create) {
             const auto it = m_bookmarkIds.constFind(name);
             if (it != m_bookmarkIds.constEnd()) return it.value();

@@ -149,7 +149,7 @@ bool WriteWindow::insertPageNumberDesign(const QString &id)
             return false;
         }
         write::PageNumberText what = write::PageNumberText::Replace;
-        if (design->area != PageNumberArea::Margin && write::pageNumberTargetHoldsText(*m_doc, place)) {
+        if (write::pageNumberTargetHoldsText(*m_doc, place)) {
             int answer = 0;
             if (m_pageNumberAsker) {
                 answer = m_pageNumberAsker();
@@ -171,6 +171,7 @@ bool WriteWindow::insertPageNumberDesign(const QString &id)
         done = write::insertPageNumberDesign(*m_doc, page, id, what);
         if (done && m_view->inHeaderFooter()) m_view->refreshHeaderFooter(false);
     }
+    if (!done) statusBar()->showMessage(tr("The page number could not be put in, and nothing was changed."), 6000);
     m_view->setFocus(Qt::OtherFocusReason);
     m_view->viewport()->update();
     refreshUi();

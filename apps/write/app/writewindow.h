@@ -172,8 +172,10 @@ public:
     // step that undoes. False for a design that is not one, or one that could not go in (the person cancelled the question).
     QVector<GalleryItem> pageNumberItems() const;
     bool insertPageNumberDesign(const QString &id);
-    // Remove Page Numbers, and Format Page Numbers (for the section the caret is in).
+    // Remove Page Numbers: what the gallery marked, in every header and footer; one step of Undo. How many marks went.
     int removePageNumbers();
+    // For tests: brings the commands' state up to date (the work refreshUi does after every change).
+    void refreshForTest() { refreshUi(); }
     void setLinkOpener(const std::function<void(const QString &)> &opener) { m_linkOpener = opener; }
     void setPictureChooser(const std::function<QString()> &chooser) { m_pictureChooser = chooser; }
     // Compress Pictures with the choices made (no box): every picture of the document or the selected ones, as one step that undoes; the bytes saved.
@@ -536,6 +538,10 @@ private:
     std::function<bool(double &, int &)> m_hyphenationAsker;
     std::function<bool(QString &, QString &, QString &)> m_alignmentTabAsker;
     std::function<int()> m_pageNumberAsker;
+    // Whether the headers and footers hold marked page numbers, kept for the document and the header epoch it was worked out for (refreshUi runs after every change).
+    const write::WriteDoc *m_pageNumbersDoc = nullptr;
+    quint64 m_pageNumbersEpoch = 0;
+    bool m_pageNumbersMarked = false;
     std::function<bool(const QString &)> m_linkAsker;
     std::function<QString()> m_textFileChooser;
     NavigationPane *m_nav = nullptr;

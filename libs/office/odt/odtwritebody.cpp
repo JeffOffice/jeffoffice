@@ -1329,7 +1329,20 @@ void Writer::emitInline(const T &t, int parent, ParaCtx *pc, int depth)
         } else if (name == "smartTag" || name == "customXml" || name == "dir" || name == "bdo" || name == "ins" || name == "moveTo") emitInline(t, c, pc, depth + 1);
         else if (name == "sdt") {
             const int content = t.child(c, "sdtContent");
-            if (content >= 0) emitInline(t, content, pc, depth + 1);
+            if (content < 0) continue;
+            // A content control that the Page Number gallery marks its numbers with stays as a pair of hidden bookmarks named for the gallery, so that opening the file again makes the control again.
+            QByteArray mark;
+            if (const int pr = t.child(c, "sdtPr"); pr >= 0)
+                if (const int obj = t.child(pr, "docPartObj"); obj >= 0)
+                    if (const int gallery = t.child(obj, "docPartGallery"); gallery >= 0) {
+                        const QString val = t.attr(gallery, "val");
+                        static const QHash<QString, QByteArray> codes = {{QStringLiteral("Page Numbers (Top of Page)"), "Top"}, {QStringLiteral("Page Numbers (Bottom of Page)"), "Bottom"},
+                                                                         {QStringLiteral("Page Numbers (Margins)"), "Margins"}, {QStringLiteral("Page Numbers (Current Position)"), "Position"}};
+                        if (codes.contains(val)) mark = "_JOPageNumbers_" + codes.value(val) + "_" + QByteArray::number(++m_galleryMarks);
+                    }
+            if (!mark.isEmpty()) pc->xml += "<text:bookmark-start text:name=\"" + mark + "\"/>";
+            emitInline(t, content, pc, depth + 1);
+            if (!mark.isEmpty()) pc->xml += "<text:bookmark-end text:name=\"" + mark + "\"/>";
         } else if ((name == "del" || name == "moveFrom") && m_sink == &m_content && m_changeCount < kMaxMadeParts) {
             // The deleted text is kept with the change, and the change is marked where it was.
             ParaCtx dpc;

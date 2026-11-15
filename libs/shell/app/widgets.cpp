@@ -690,7 +690,7 @@ QFrame *galleryPopup(const QVector<GalleryItem> &items, const QSize &itemSize, i
     pop->show();
     if (auto *first = pop->findChild<QListWidget *>()) {
         first->setFocus(Qt::PopupFocusReason);
-        if (first->count()) first->setCurrentRow(0);
+        if (first->count()) first->setCurrentRow(0, QItemSelectionModel::NoUpdate);   // (the keys start from the first, which is not shown chosen)
     }
     Q_UNUSED(totalRows);
     return pop;

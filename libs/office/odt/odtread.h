@@ -229,7 +229,7 @@ private:
     const Odf *m_styleO = nullptr;
     QString m_owner;                                  // the part whose relationships a picture or link made now belongs to
     double m_pageTextWidth = 9360;
-    QSet<QString> m_bookmarkOpen, m_bookmarkDone, m_annotationEnds;
+    QSet<QString> m_bookmarkOpen, m_bookmarkDone, m_annotationEnds, m_galleryOpen;
     QHash<QString, int> m_commentOpen;
     struct Change {
         bool insertion = false, deletion = false;

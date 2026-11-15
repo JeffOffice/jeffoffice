@@ -237,6 +237,7 @@ bool WriteWindow::isModified() const { return m_doc && m_doc->isModified(); }
 void WriteWindow::setDocument(std::unique_ptr<write::WriteDoc> doc, const QString &path)
 {
     if (m_outlineOn) setOutlineMode(false);
+    m_pageNumbersDoc = nullptr;
     m_split->setDocument(nullptr);
     m_view->setDocument(nullptr);
     m_doc = std::move(doc);
@@ -608,7 +609,12 @@ void WriteWindow::refreshUi()
         const bool editing = m_view->inHeaderFooter();
         const write::PageView::HeaderFooterEdit &e = m_view->headerFooterEdit();
         for (const char *id : {"hf.close", "hf.pageNumber", "hf.pageNumberFormat", "hf.alignmentTab", "hf.dateTime", "hf.removeHeader", "hf.removeFooter", "hf.differentFirst", "hf.differentOddEven", "hf.showDocumentText"}) act(QString::fromLatin1(id))->setEnabled(editing);
-        act(QStringLiteral("pn.remove"))->setEnabled(write::hasPageNumbers(*m_doc));
+        if (m_pageNumbersDoc != m_doc.get() || m_pageNumbersEpoch != m_doc->headerEpoch()) {
+            m_pageNumbersMarked = write::hasPageNumbers(*m_doc);
+            m_pageNumbersDoc = m_doc.get();
+            m_pageNumbersEpoch = m_doc->headerEpoch();
+        }
+        act(QStringLiteral("pn.remove"))->setEnabled(m_pageNumbersMarked);
         // (A header, a footer, or a note takes no break of a page or a section.)
         if (editing || m_view->inNote())
             for (const char *id : {"insert.pageBreak", "layout.sectionBreak"}) act(QString::fromLatin1(id))->setEnabled(false);

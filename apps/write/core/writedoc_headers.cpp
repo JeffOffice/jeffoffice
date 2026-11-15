@@ -170,6 +170,14 @@ int WriteDoc::headerSlotOf(int section, bool firstOfSection, int pageNumber) con
     return m_flow->sections[section].slotFor(firstOfSection, pageNumber);
 }
 
+bool WriteDoc::headerFooterAsRead(const QTextDocument *story, QByteArray *source) const
+{
+    const HeaderPart *part = partOfStory(story);
+    if (!part || part->editForm || part->created || part->unreadable || part->missing) return false;
+    *source = partData(part->name);
+    return true;
+}
+
 bool WriteDoc::isHeaderFooterStory(const QTextDocument *story) const { return partOfStory(story) != nullptr; }
 
 bool WriteDoc::headerFooterSlotOf(const QTextDocument *story, int *section, bool *footer, int *slot) const
@@ -196,6 +204,7 @@ bool WriteDoc::isPendingHeaderFooter(const QTextDocument *story) const
 
 bool WriteDoc::createHeaderFooter(int section, bool footer, int slot, bool lazy)
 {
+    ++m_headerEpoch;
     if (section < 0 || section >= sectionCount()) return false;
     slot = std::clamp(slot, 0, 2);
     // The empty one that is shown to be typed in: asked for again, it is the one (made at once, if it is not asked for lazily); another slot's takes its place.
@@ -299,6 +308,7 @@ void WriteDoc::discardPendingHeaderFooter()
 
 bool WriteDoc::setLinkedToPrevious(int section, bool footer, int slot, bool linked)
 {
+    ++m_headerEpoch;
     if (section <= 0 || section >= sectionCount()) return false;
     slot = std::clamp(slot, 0, 2);
     SectionProps props = sectionProps(section);
@@ -337,6 +347,7 @@ bool WriteDoc::setLinkedToPrevious(int section, bool footer, int slot, bool link
 
 bool WriteDoc::removeHeaderFooter(int section, bool footer)
 {
+    ++m_headerEpoch;
     if (section < 0 || section >= sectionCount()) return false;
     discardPendingHeaderFooter();
     bool any = false;
@@ -378,6 +389,7 @@ bool WriteDoc::differentFirstPage(int section) const
 
 void WriteDoc::setDifferentFirstPage(int section, bool on)
 {
+    ++m_headerEpoch;
     if (section < 0 || section >= sectionCount() || differentFirstPage(section) == on) return;
     SectionProps props = sectionProps(section);
     props.titlePg = on;
@@ -430,6 +442,7 @@ void WriteDoc::setHyphenateCaps(bool on)
 
 void WriteDoc::setDifferentOddEven(bool on)
 {
+    ++m_headerEpoch;
     if (m_wml.evenAndOddHeaders == on) return;
     SectionProps last = m_last;
     last.oddEvenHeaders = on;
@@ -780,6 +793,7 @@ void WriteDoc::stepAdded(QTextDocument *story)
 
 void WriteDoc::storyEdited(QTextDocument *story)
 {
+    if (story != this->story()) ++m_headerEpoch;
     // The first edit of the empty header or footer that was shown to be typed in makes it, in the document.
     if (m_pending.section >= 0 && isPendingHeaderFooter(story)) commitPending();
     // The next edit of any other story is not a continuation of its last step (the steps are in the order they were made).
@@ -844,6 +858,7 @@ QSet<quint64> WriteDoc::stepSerials() const
 
 QTextDocument *WriteDoc::undo(QTextCursor *cursor)
 {
+    ++m_headerEpoch;
     discardPendingHeaderFooter();   // (the empty one shown to be typed in is no step)
     if (m_undoLog.isEmpty()) return nullptr;
     const quint64 group = m_undoLog.last().group;
@@ -876,6 +891,7 @@ QTextDocument *WriteDoc::undoOne(QTextCursor *cursor)
 
 QTextDocument *WriteDoc::redo(QTextCursor *cursor)
 {
+    ++m_headerEpoch;
     discardPendingHeaderFooter();
     if (m_redoLog.isEmpty()) return nullptr;
     const quint64 group = m_redoLog.last().group;

@@ -1034,6 +1034,15 @@ private Q_SLOTS:
     void theWindowOffersTheGalleryOnInsertAndOnTheHeaderAndFooterTab();
     void aDesignChosenInTheWindowIsAskedAboutAndIsOneStep();
     void theDesignsAreInThePdfAndThePrintout();
+    void removePageNumbersTakesOnlyWhatTheGalleryMarked();
+    void theMarkSurvivesSavingAsDocxAndOdt();
+    void savingTwiceMakesNoDuplicateBoxes();
+    void aMarkedBlockOfAnotherProgramsFileIsRemovedWithItsShapes();
+    void aDesignIsAllOrNothingWhenAStepFails();
+    void theRemoveCommandsStateIsCachedAndFollowsTheHeaders();
+    void aBoxIsSetFromTheMarginsAndFollowsAnotherPageSize();
+    void aBoxFitsAFourDigitNumber();
+    void aMarginDesignAsksWhatToDoWithTheText();
     void documentInformationIsPutInAsFields();
     void theHeaderAndFooterTabHasTheOptions();
     void editingInAHeaderWorksAsInTheText();

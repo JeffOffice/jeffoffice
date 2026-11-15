@@ -263,6 +263,9 @@ public:
     int headerSlotOf(int section, bool firstOfSection, int pageNumber) const;
     // The story of the slot in the form it is edited in (made once, with what the program can't edit kept as pieces to write back where they were); null for none.
     QTextDocument *editableHeaderFooter(int section, bool footer, int slot);
+    // Whether the header or footer part of the story, as the file has it, is one that has not been made editable (the story then is a form for the pages to show); its part's XML as read is
+    // given in `*source`. False for a story that is edited (its own contents are the truth) or that is none of a header's.
+    bool headerFooterAsRead(const QTextDocument *story, QByteArray *source) const;
     // Whether the story is a header's or a footer's, and which section and slot first has it (-1 for none).
     bool isHeaderFooterStory(const QTextDocument *story) const;
     bool headerFooterSlotOf(const QTextDocument *story, int *section, bool *footer, int *slot) const;
@@ -329,6 +332,11 @@ public:
     // The steps of the text and of the headers and footers in the order they were made: an undo undoes the last, wherever it was, and a redo does it again. Returns the story the
     // step was in (null when there was none); the cursor, if given, is put where the step changed the story.
     bool canUndo() const { return !m_undoLog.isEmpty(); }
+    // A number that grows with every edit of a header or footer, every change of the sections or of which header a section has, and every Undo and Redo: what a cached answer about the
+    // headers (whether any holds a page number) is kept for.
+    quint64 headerEpoch() const { return m_headerEpoch; }
+    // Gives up the steps that could be done again (after a step was undone because it could not be finished).
+    void discardRedo() { m_redoLog.clear(); }
     bool canRedo() const { return !m_redoLog.isEmpty(); }
     QTextDocument *undo(QTextCursor *cursor = nullptr);
     QTextDocument *redo(QTextCursor *cursor = nullptr);
@@ -882,6 +890,7 @@ private:
         quint64 group = 0;   // the steps made while a StepGroup lived have the same: they are undone and done again together
     };
     QVector<Step> m_undoLog, m_redoLog;
+    quint64 m_headerEpoch = 0;
     quint64 m_openGroup = 0, m_nextGroup = 1;
     int m_groupDepth = 0;
     QTextDocument *undoOne(QTextCursor *cursor);
