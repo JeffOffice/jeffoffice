@@ -118,7 +118,7 @@
         },
         {
          "status": "partly",
-         "text": "135d4304ff9046749cc6334a243d077ac5cfed0fc04e100a01e67955144110d4"
+         "text": "686875ca101595565f3d9aec4566dce92469c69b9d93af9da2d31cf4cc6d8355"
         },
         {
          "hide_soon": true,
@@ -2501,8 +2501,9 @@
          "text": "a9938b6312365a63db87c256939d6ce473366d4e7d9769bfa8d6c35818097469"
         },
         {
-         "status": "todo",
-         "text": "2132c27d243179890c5da6a94d8a84c76bdd5ef1780e76d050843ec343146d56"
+         "hide_soon": true,
+         "status": "done",
+         "text": "dc21daba224164ac255a0b0f613b2acdc7f178dcf78d0010a4adb934519f84c9"
         },
         {
          "hide_soon": true,
@@ -4280,8 +4281,9 @@
          "text": "1a9028c5532632d9e5f89d31f2a3721dcc8d5029467f42d6e6ede936532b12a2"
         },
         {
-         "status": "todo",
-         "text": "6bafbadbcd7bce2e0954b9326c428123205e422f86672d4fe669312a8a3247c6"
+         "hide_soon": true,
+         "status": "done",
+         "text": "116e5f5da98340890ce1e378fba27eb23d95f534baa0be2c1de645c43f18c9ba"
         },
         {
          "hide_soon": true,
@@ -5742,7 +5744,7 @@
         {
          "hide_soon": true,
          "status": "done",
-         "text": "9595adef49329bdeec3a26ac85fe9a9ed92f0c4175037f2897e69b462aa51490"
+         "text": "83b998cc32a30e8b7450c11b4e19fa3e724370c438e1ba7d297a037312777494"
         },
         {
          "status": "partly",
@@ -8711,6 +8713,18 @@
     "fr": "Débordement des résultats dans les cellules voisines de la formule"
    }
   },
+  "116e5f5da98340890ce1e378fba27eb23d95f534baa0be2c1de645c43f18c9ba": {
+   "drop": false,
+   "en": "Check what a `.pub` file can't hold, such as hidden objects, a password, or the final mark, before saving. Saving as `.pub` shows the same list with the choice to save anyway, save as `.jpub`, or cancel.",
+   "es": "Compruebe lo que un archivo `.pub` no puede contener, como objetos ocultos, una contraseña o la marca de final, antes de guardar. Al guardar como `.pub` se muestra la misma lista, con la opción de guardar de todos modos, guardar como `.jpub` o cancelar.",
+   "fr": "Vérifiez ce qu’un fichier `.pub` ne peut pas contenir, comme des objets masqués, un mot de passe ou la marque finale, avant d’enregistrer. L’enregistrement en `.pub` affiche la même liste, avec le choix d’enregistrer quand même, d’enregistrer en `.jpub` ou d’annuler.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "119de554cb24fc5abace1dc8ad0f6b61dbfb616876b2375ec5c842205cd1d654": {
    "drop": false,
    "en": "The Navigation pane has Headings (click to go to a heading, collapse, promote, and demote, each as one step), Pages (small pictures of the first 60 pages), and Results (a word’s places with the words around them, listed as text, under each heading, or under each page).",
@@ -8913,18 +8927,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "135d4304ff9046749cc6334a243d077ac5cfed0fc04e100a01e67955144110d4": {
-   "drop": false,
-   "en": "Check Compatibility lists what a workbook has that an `.xls` file cannot hold, including charts, pictures, notes, pivot tables, tables, conditional formats, validation, filters, protection, form controls, macros, and links. It counts formulas saved as their values and says what was cut for the limits on rows, columns, sheets, texts, formats, fonts, and colors. `File > Info > Check Compatibility` shows the same list without saving anything.",
-   "es": "Comprobar compatibilidad enumera lo que un libro tiene y un archivo `.xls` no puede contener, como gráficos, imágenes, notas, tablas dinámicas, tablas, formatos condicionales, validación, filtros, protección, controles de formulario, macros y vínculos. Cuenta las fórmulas guardadas como sus valores e indica lo que se recortó por los límites de filas, columnas, hojas, textos, formatos, fuentes y colores. `File > Info > Check Compatibility` muestra la misma lista sin guardar nada.",
-   "fr": "Vérifier la compatibilité énumère ce qu’un classeur contient et qu’un fichier `.xls` ne peut pas conserver, comme les graphiques, images, notes, tableaux croisés dynamiques, tableaux, mises en forme conditionnelles, validations, filtres, protections, contrôles de formulaire, macros et liens. Il compte les formules enregistrées sous forme de valeurs et indique ce qui a été supprimé en raison des limites de lignes, de colonnes, de feuilles, de textes, de formats, de polices et de couleurs. `File > Info > Check Compatibility` affiche la même liste sans rien enregistrer.",
-   "soon": {
-    "drop": false,
-    "en": "Compatibility check for `.ods` and `.csv` files, with newer functions and slicers named",
-    "es": "Comprobación de compatibilidad para archivos `.ods` y `.csv`, con indicación de funciones más recientes y segmentaciones",
-    "fr": "Vérification de la compatibilité pour les fichiers `.ods` et `.csv`, avec indication des fonctions récentes et des segments"
    }
   },
   "13768bf65a173ce4513e0e4abbaf9931b5da2e89fae6b56be0722b463595ac4f": {
@@ -9909,18 +9911,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "2132c27d243179890c5da6a94d8a84c76bdd5ef1780e76d050843ec343146d56": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Warning before saving to a file type that can’t hold everything in the presentation, with the choice to save a `.pptx` as well",
-    "es": "Advertencia antes de guardar en un tipo de archivo que no puede contener todo lo de la presentación, con la opción de guardar también un `.pptx`",
-    "fr": "Avertissement avant l’enregistrement dans un type de fichier qui ne peut pas tout contenir, avec le choix d’enregistrer aussi un `.pptx`"
    }
   },
   "213354f21904622f635ec7509bd542c360097e7db1702c4437eb41622a38800c": {
@@ -15383,6 +15373,18 @@
     "fr": ""
    }
   },
+  "686875ca101595565f3d9aec4566dce92469c69b9d93af9da2d31cf4cc6d8355": {
+   "drop": false,
+   "en": "Before saving as `.xls`, `.ods`, or `.ots`, a warning lists what the file can't hold and the limits that cut content, with the choice to save anyway, save as `.xlsx`, or cancel. Check Compatibility in File > Info lists the same for `.xls` without saving. A `.csv` file has its own warning.",
+   "es": "Antes de guardar como `.xls`, `.ods` o `.ots`, un aviso enumera lo que el archivo no puede contener y los límites que recortan contenido, con la opción de guardar de todos modos, guardar como `.xlsx` o cancelar. Comprobar compatibilidad en Archivo > Información muestra lo mismo para `.xls` sin guardar. Un archivo `.csv` tiene su propio aviso.",
+   "fr": "Avant l’enregistrement en `.xls`, `.ods` ou `.ots`, un avertissement liste ce que le fichier ne peut pas contenir et les limites qui suppriment du contenu, avec le choix d’enregistrer quand même, d’enregistrer en `.xlsx` ou d’annuler. La vérification de compatibilité dans Fichier > Informations affiche la même chose pour `.xls` sans enregistrer. Un fichier `.csv` a son propre avertissement.",
+   "soon": {
+    "drop": false,
+    "en": "Check Compatibility for `.ods` and `.csv`, and for newer functions and slicers",
+    "es": "Comprobar compatibilidad para `.ods` y `.csv`, y para funciones más recientes y segmentaciones",
+    "fr": "Vérification de compatibilité pour `.ods` et `.csv`, et pour les fonctions plus récentes et les segmentations"
+   }
+  },
   "689127f2e98deea85bc06c6cf7178a31c2f40a9086a336cf0ae555e1bf004a21": {
    "drop": false,
    "en": "Change the style and warp of a text style box from the Shape Format tab.",
@@ -15705,18 +15707,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "6bafbadbcd7bce2e0954b9326c428123205e422f86672d4fe669312a8a3247c6": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Check Compatibility: lists what an older or other format cannot hold before saving",
-    "es": "Comprobar compatibilidad: indica lo que un formato anterior u otro no puede contener antes de guardar",
-    "fr": "Vérifier la compatibilité : indique ce qu’un format plus ancien ou autre ne peut pas contenir avant l’enregistrement"
    }
   },
   "6bcfa3b05a9333f6c9ddfbd47c3d55766822df971eab35eb39db34bb09019e52": {
@@ -17531,6 +17521,18 @@
     "fr": ""
    }
   },
+  "83b998cc32a30e8b7450c11b4e19fa3e724370c438e1ba7d297a037312777494": {
+   "drop": false,
+   "en": "Before saving as `.odt`, a warning lists what the format can't hold. Choose to save as `.odt` anyway, save as `.docx` instead, or cancel. Check Compatibility in Info shows the same list.",
+   "es": "Antes de guardar como `.odt`, un aviso enumera lo que el formato no puede contener. Elija guardar como `.odt` de todos modos, guardar como `.docx` o cancelar. Comprobar compatibilidad en Información muestra la misma lista.",
+   "fr": "Avant l’enregistrement en `.odt`, un avertissement liste ce que le format ne peut pas contenir. Choisissez d’enregistrer quand même en `.odt`, d’enregistrer en `.docx` ou d’annuler. La vérification de compatibilité dans Informations affiche la même liste.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "83c5ea97ca2c06ab309c5b727e157f864f42ec677e302746267c366078b1f866": {
    "drop": false,
    "en": "Insert > Text Box offers six designs: Simple, Plain, Sidebar, Pull Quote, Banner, and Note.",
@@ -18592,18 +18594,6 @@
    "en": "Right-click commented words to Reply to, Resolve, or Delete a comment.",
    "es": "Haga clic derecho en palabras con comentario para responder, resolver o eliminar el comentario.",
    "fr": "Faites un clic droit sur des mots commentés pour répondre à un commentaire, le résoudre ou le supprimer.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "9595adef49329bdeec3a26ac85fe9a9ed92f0c4175037f2897e69b462aa51490": {
-   "drop": false,
-   "en": "Saving as `.odt` first lists what the format can't hold. Choose to save as `.odt` anyway, save a `.docx` beside it instead, or cancel.",
-   "es": "Al guardar como `.odt`, primero se muestra lo que el formato no puede contener. Elija guardar como `.odt` de todos modos, guardar un `.docx` junto a él, o cancelar.",
-   "fr": "L’enregistrement au format `.odt` indique d’abord ce que le format ne peut pas contenir. Choisissez d’enregistrer quand même en `.odt`, d’enregistrer plutôt un `.docx` à côté, ou d’annuler.",
    "soon": {
     "drop": true,
     "en": "",
@@ -23356,6 +23346,18 @@
    "en": "Choose which kinds of issues the checker flags (grammar, punctuation, capitalization, word choice, repetition, and style) under Options > Proofing > Grammar settings. Style is off until you turn it on, and the choice applies both to issues marked as you type and to the Spelling check (`F7`).",
    "es": "Elija qué tipos de problemas señala el corrector (gramática, puntuación, mayúsculas, elección de palabras, repetición y estilo) en Options > Proofing > Grammar settings. El estilo está desactivado hasta que usted lo active, y la elección se aplica tanto a los problemas marcados mientras escribe como a la revisión ortográfica (`F7`).",
    "fr": "Choisissez les types de problèmes signalés par le correcteur (grammaire, ponctuation, majuscules, choix des mots, répétition et style) sous Options > Proofing > Grammar settings. Le style est désactivé tant que vous ne l’activez pas, et le choix s’applique à la fois aux problèmes signalés pendant la saisie et à la vérification orthographique (`F7`).",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "dc21daba224164ac255a0b0f613b2acdc7f178dcf78d0010a4adb934519f84c9": {
+   "drop": false,
+   "en": "Before saving as `.odp` or `.otp`, a warning lists what the file can't hold. Choose to save anyway, save as `.pptx` (or `.potx` for a template), or cancel. Check Compatibility in File > Info shows the same list without saving.",
+   "es": "Antes de guardar como `.odp` o `.otp`, un aviso enumera lo que el archivo no puede contener. Elija guardar de todos modos, guardar como `.pptx` (o `.potx` para una plantilla) o cancelar. Comprobar compatibilidad en Archivo > Información muestra la misma lista sin guardar.",
+   "fr": "Avant l’enregistrement en `.odp` ou `.otp`, un avertissement liste ce que le fichier ne peut pas contenir. Choisissez d’enregistrer quand même, d’enregistrer en `.pptx` (ou `.potx` pour un modèle) ou d’annuler. La vérification de compatibilité dans Fichier > Informations affiche la même liste sans enregistrer.",
    "soon": {
     "drop": true,
     "en": "",
