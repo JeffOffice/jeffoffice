@@ -20,6 +20,7 @@
 #include <QAction>
 #include <QApplication>
 #include <QLabel>
+#include <QPushButton>
 #include <QRegularExpression>
 #include <QScopeGuard>
 #include <QLineEdit>
