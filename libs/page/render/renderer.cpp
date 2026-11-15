@@ -1617,7 +1617,8 @@ void Renderer::paintBackground(QPainter *p, const PaintContext &ctx, const Fill 
 void Renderer::paintMaster(QPainter *p, const PaintContext &ctx, const MasterPage &m, double xOffset)
 {
     p->save();
-    if (m.twoPage) p->setClipRect(QRectF(QPointF(0, 0), ctx.doc->pageSize()), Qt::IntersectClip);
+    // (a slide's master and layout art that is drawn past the slide's edge, as a design that bleeds, is cut at the edge wherever the slide is shown: it never lies on the area round it)
+    if (m.twoPage || ctx.doc->slideText) p->setClipRect(QRectF(QPointF(0, 0), ctx.doc->pageSize()), Qt::IntersectClip);
     p->translate(xOffset, 0);
     paintItems(p, ctx, m.items);
     p->restore();
@@ -1658,7 +1659,10 @@ void Renderer::paintMasterView(QPainter *p, const PaintContext &ctx, const Maste
     paintBackground(p, ctx, backgroundOf(m, chain), r);
     if (!chain.isEmpty() && chain.last()->id == m.id) chain.removeLast();
     paintMastersUnder(p, ctx, m, chain, 0);
+    p->save();
+    if (ctx.doc->slideText) p->setClipRect(QRectF(QPointF(0, 0), ctx.doc->pageSize()), Qt::IntersectClip);
     paintItems(p, ctx, m.items);
+    p->restore();
 }
 
 // Catalog merge: the catalog area's other cells repeat the objects in its
