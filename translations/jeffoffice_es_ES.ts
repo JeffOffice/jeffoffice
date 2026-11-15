@@ -26,6 +26,10 @@
 <context>
     <name>Dialogs</name>
     <message>
+        <source>.pub Publication Files (*.pub)</source>
+        <translation type="unfinished">Ficheros de publicación .pub (*.pub)</translation>
+    </message>
+    <message>
         <source>Existing file or web page</source>
         <translation type="unfinished">Fichero o página web existente</translation>
     </message>
@@ -993,8 +997,8 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Después de pulsar Entrar, mover la selección:</translation>
     </message>
     <message>
-        <source>Out of date: press F9 to recalculate</source>
-        <translation type="unfinished">Desactualizado: pulse F9 para recalcular</translation>
+        <source>Some formulas are out of date. Click, or press F9, to calculate.</source>
+        <translation type="unfinished">Algunas fórmulas están desactualizadas. Haga clic o pulse F9 para calcular.</translation>
     </message>
     <message>
         <source>the file</source>
@@ -1171,6 +1175,10 @@ No se puede leer el fichero.</translation>
         <translation type="unfinished">%1 no pudo crear el fichero PDF "%2".</translation>
     </message>
     <message>
+        <source>Files with these names are already in the folder (%1 of %2). Replace them?</source>
+        <translation type="unfinished">Ya hay ficheros con estos nombres en la carpeta (%1 de %2). ¿Reemplazarlos?</translation>
+    </message>
+    <message>
         <source>This presentation is protected with a password, and a .%1 file can't hold a password yet. Save it as a .pptx file, or remove the password first (File &gt; Info).</source>
         <translation type="unfinished">Esta presentación está protegida con contraseña, y un fichero .%1 todavía no puede contenerla. Guárdela como fichero .pptx o quite antes la contraseña (Archivo &gt; Información).</translation>
     </message>
@@ -1268,12 +1276,12 @@ No se puede leer el fichero.</translation>
 <context>
     <name>jp::EditLinksDialog</name>
     <message>
-        <source>This workbook reads values from these workbooks. Until it is opened again with them, it shows the values its file stored.</source>
-        <translation type="unfinished">Este libro lee valores de estos libros. Hasta que se vuelva a abrir con ellos, muestra los valores guardados en su fichero.</translation>
+        <source>This workbook reads values from these workbooks. Until you update them, it shows the values its file stored.</source>
+        <translation type="unfinished">Este libro lee valores de estos libros. Hasta que los actualice, muestra los valores que guardó su fichero.</translation>
     </message>
     <message>
-        <source>Cells given the values the source has now: %1. Cells that combine them with other values keep the values their file stored: %2.</source>
-        <translation type="unfinished">Celdas con los valores que tiene ahora el origen: %1. Las celdas que los combinan con otros valores conservan los valores guardados en su fichero: %2.</translation>
+        <source>Cells given the values the source has now: %1. Cells the source could not give a value to keep the values their file stored: %2.</source>
+        <translation type="unfinished">Celdas con los valores que tiene ahora el origen: %1. Celdas a las que el origen no pudo dar un valor, que mantienen los valores guardados en su fichero: %2.</translation>
     </message>
     <message>
         <source>Workbooks (*.xlsx *.xlsm *.xls *.ods);;All files (*)</source>
@@ -1352,6 +1360,14 @@ No se encontraron los ficheros de la Ayuda junto al programa. Volver a instalar 
         <translation type="unfinished">Una propiedad personalizada es un nombre con un valor que usted elige, como Proyecto o Cliente. Los campos del fichero pueden mostrarla.</translation>
     </message>
     <message>
+        <source>Open File Location</source>
+        <translation type="unfinished">Abrir ubicación del fichero</translation>
+    </message>
+    <message>
+        <source>This file is on another computer. Opening its location may take a while, and the computer will see that you asked. Open it?</source>
+        <translation type="unfinished">Este fichero está en otro equipo. Abrir su ubicación puede tardar un poco, y el equipo verá que lo ha solicitado. ¿Abrirlo?</translation>
+    </message>
+    <message>
         <source>This file is protected: it asks for a password when it is opened. Change the password or take it away.</source>
         <translation type="unfinished">Este fichero está protegido: pide una contraseña al abrirlo. Cambie la contraseña o quítela.</translation>
     </message>
@@ -1377,6 +1393,14 @@ No se encontraron los ficheros de la Ayuda junto al programa. Volver a instalar 
     <message>
         <source>A web page or a file</source>
         <translation type="unfinished">Una página web o un fichero</translation>
+    </message>
+    <message>
+        <source>Path of the file</source>
+        <translation type="unfinished">Ruta del fichero</translation>
+    </message>
+    <message>
+        <source>Link to File</source>
+        <translation type="unfinished">Vincular a fichero</translation>
     </message>
     <message>
         <source>Recent files</source>
@@ -1420,6 +1444,14 @@ No se encontraron los ficheros de la Ayuda junto al programa. Volver a instalar 
     <message>
         <source>This publication has hidden objects. The .pub format can't keep them hidden, so they will be visible the next time it opens. Save it as a .pub file anyway?</source>
         <translation type="unfinished">Esta publicación tiene objetos ocultos. El formato .pub no puede conservarlos ocultos, así que se mostrarán la próxima vez que se abra. ¿Desea guardarla como fichero .pub de todos modos?</translation>
+    </message>
+    <message>
+        <source>A .pub file can't keep everything about this publication's lists: %1.
+
+A JeffPub publication (.jpub) keeps all of it.</source>
+        <translation type="unfinished">Un fichero .pub no puede conservar todo lo relacionado con las listas de esta publicación: %1.
+
+Una publicación de JeffPub (.jpub) lo conserva todo.</translation>
     </message>
     <message>
         <source>This publication is marked as final, and a .pub file can't hold that mark. The file is saved without it.</source>
@@ -1483,6 +1515,17 @@ No se encontraron los ficheros de la Ayuda junto al programa. Volver a instalar 
     <message>
         <source>This file can't be read as a movie or sound.</source>
         <translation type="unfinished">Este fichero no se puede leer como película ni como sonido.</translation>
+    </message>
+</context>
+<context>
+    <name>jp::MissingFonts</name>
+    <message>
+        <source>This computer has no font for each font below, so another font is shown and written to PDF in its place. The file keeps the font's name unless you press Replace in Document.</source>
+        <translation type="unfinished">Este equipo no tiene las fuentes que aparecen abajo, así que se muestra otra fuente y se escribe en PDF en su lugar. El fichero conserva el nombre de la fuente, a menos que pulse Reemplazar en el documento.</translation>
+    </message>
+    <message>
+        <source>Changes the selected font to the font used instead, in the file itself</source>
+        <translation type="unfinished">Cambia la fuente seleccionada por la fuente usada en su lugar, en el propio fichero</translation>
     </message>
 </context>
 <context>
@@ -1582,6 +1625,13 @@ No se encontraron los ficheros de la Ayuda junto al programa. Volver a instalar 
     </message>
 </context>
 <context>
+    <name>jp::SlideShow</name>
+    <message>
+        <source>This link goes to a file on another computer. Open it?</source>
+        <translation type="unfinished">Este vínculo lleva a un fichero de otro equipo. ¿Abrirlo?</translation>
+    </message>
+</context>
+<context>
     <name>jp::TextImportDialog</name>
     <message>
         <source>Open a Text File</source>
@@ -1669,6 +1719,10 @@ No se encontraron los ficheros de la Ayuda junto al programa. Volver a instalar 
 <context>
     <name>jp::WriteWindow</name>
     <message>
+        <source>Drag a point to reshape. Ctrl+click a point to delete it, or the outline to add one. Press Esc when done.</source>
+        <translation type="unfinished">Arrastre un punto para cambiar la forma. Ctrl+clic en un punto para eliminarlo, o en el contorno para añadir uno. Pulse Esc al terminar.</translation>
+    </message>
+    <message>
         <source>All Files (*)</source>
         <translation type="unfinished">Todos los ficheros (*)</translation>
     </message>
@@ -1745,12 +1799,16 @@ No se encontraron los ficheros de la Ayuda junto al programa. Volver a instalar 
 %2</translation>
     </message>
     <message>
-        <source>Makes a PDF/A-1b file: every font is in the file, so it looks the same in years. It is not tagged for screen readers.</source>
-        <translation type="unfinished">Crea un fichero PDF/A-1b: todas las fuentes se incluyen en el fichero, así que tendrá el mismo aspecto dentro de años. No está etiquetado para lectores de pantalla.</translation>
-    </message>
-    <message>
         <source>PDF/A is turned off, because a PDF with a password can't be a PDF/A file.</source>
         <translation type="unfinished">PDF/A está desactivado, porque un PDF con contraseña no puede ser un fichero PDF/A.</translation>
+    </message>
+    <message>
+        <source>Minimum size makes the pictures no finer than 150 pixels to the inch, so that the file is smaller.</source>
+        <translation type="unfinished">El tamaño mínimo hace que las imágenes no tengan más de 150 píxeles por pulgada, para que el fichero sea más pequeño.</translation>
+    </message>
+    <message>
+        <source>Makes a PDF/A-2b file: every font is in the file, so it looks the same in years.</source>
+        <translation type="unfinished">Crea un fichero PDF/A-2b: todas las fuentes se incluyen en el fichero, así se verá igual dentro de años.</translation>
     </message>
     <message>
         <source>This makes a message file. Nothing is sent. Open the file in your email program, add who it is for, and send it.</source>
@@ -2275,6 +2333,10 @@ No se encontraron los ficheros de la Ayuda junto al programa. Volver a instalar 
     <message>
         <source>A pivot table could not be put in the file's list of parts.</source>
         <translation type="unfinished">No se pudo agregar una tabla dinámica a la lista de partes del fichero.</translation>
+    </message>
+    <message>
+        <source>A link to another workbook could not be put in the file's list of parts.</source>
+        <translation type="unfinished">No se pudo añadir un vínculo a otro libro a la lista de partes del fichero.</translation>
     </message>
     <message>
         <source>A part of the file that holds notes is not in the form this program changes.</source>
