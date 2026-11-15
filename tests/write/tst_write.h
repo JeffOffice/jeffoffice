@@ -1033,6 +1033,7 @@ private Q_SLOTS:
     void theDesignsOfTheCurrentPositionPutTheNumberAtTheCaret();
     void theWindowOffersTheGalleryOnInsertAndOnTheHeaderAndFooterTab();
     void aDesignChosenInTheWindowIsAskedAboutAndIsOneStep();
+    void theDesignsAreInThePdfAndThePrintout();
     void documentInformationIsPutInAsFields();
     void theHeaderAndFooterTabHasTheOptions();
     void editingInAHeaderWorksAsInTheText();

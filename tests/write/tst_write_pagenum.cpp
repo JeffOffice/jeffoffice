@@ -4,7 +4,10 @@
 #include "tst_write.h"
 #include "app/pagenumbergallery.h"
 #include "core/pagenumberops.h"
+#include "render/pdfpage.h"
 #include "text/textengine.h"
+
+#include <QTemporaryDir>
 
 namespace {
 
@@ -367,4 +370,41 @@ void WriteTests::aDesignChosenInTheWindowIsAskedAboutAndIsOneStep()
     QCOMPARE(shownOnPage(*doc, 1, QStringLiteral("flow-footer-flow")), QString());
     w.view()->undo();
     QCOMPARE(shownOnPage(*doc, 1, QStringLiteral("flow-footer-flow")), QStringLiteral("2 | 2"));
+}
+
+// The designs are in the PDF and in the print-out: each page has its own number (and the count), the circle's number too, in the words of the page.
+void WriteTests::theDesignsAreInThePdfAndThePrintout()
+{
+    QTemporaryDir dir;
+    WriteWindow w;
+    w.setNotifier([](const QString &, const QString &) {});
+    w.setDocument(openPages(3), QString());
+    QVERIFY(w.insertPageNumberDesign(QStringLiteral("bottom.ofCount.center")));
+    QVERIFY(w.insertPageNumberDesign(QStringLiteral("top.circle.right")));
+    QString target = dir.filePath(QStringLiteral("export.pdf"));
+    w.setSavePathChooser([&](const QString &, const QString &) { return target; });
+    auto pageWords = [](const QString &path) {
+        QFile f(path);
+        QStringList out;
+        if (!f.open(QIODevice::ReadOnly)) return out;
+        const jp::PdfDocument pdf(f.readAll());
+        for (int i = 0; pdf.isValid() && i < pdf.pageCount(); ++i) out << pdf.text(i);
+        return out;
+    };
+    auto check = [&](const QString &path, const QString &how) {
+        const QStringList pages = pageWords(path);
+        QVERIFY2(pages.size() == 3, qPrintable(how + QStringLiteral(": %1 pages").arg(pages.size())));
+        for (int i = 0; i < 3; ++i) {
+            QVERIFY2(pages[i].contains(QStringLiteral("Page %1 of 3").arg(i + 1)), qPrintable(how + QStringLiteral(" page %1: ").arg(i + 1) + pages[i]));
+            // (the circle's number, on its own: the number a second time)
+            QVERIFY2(pages[i].count(QString::number(i + 1)) >= 3, qPrintable(how + QStringLiteral(" page %1: ").arg(i + 1) + pages[i]));
+        }
+    };
+    QVERIFY(w.exportPdf());
+    check(target, QStringLiteral("export"));
+    target = dir.filePath(QStringLiteral("print.pdf"));
+    WriteOutputOptions o;
+    o.toFile = true;
+    QVERIFY(w.printOutput(o));
+    check(target, QStringLiteral("print"));
 }
