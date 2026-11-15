@@ -307,6 +307,7 @@ qt_add_executable(jptests
   tests/pub/tst_pub_fonts.cpp
   tests/pub/tst_pub_objects.cpp
   tests/pub/tst_pub_pages.cpp
+  tests/pub/tst_pub_pagenum.cpp
   tests/pub/tst_pub_pdf.cpp
   tests/pub/tst_pub_pdfcrypt.cpp
   tests/pub/tst_pub_pictures.cpp

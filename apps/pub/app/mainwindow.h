@@ -12,6 +12,7 @@
 #include "app/pageaccesspane.h"
 #include "app/pageselectionpane.h"
 #include "app/versionstore.h"
+#include "app/widgets.h"
 #include "office/packageprops.h"
 #include "io/pdfcrypt.h"
 
@@ -58,6 +59,10 @@ public:
     ~MainWindow() override;
 
     Editor *editor() const { return m_ed; }
+    // The Page Number gallery's designs as the menu shows them, and one put on the master page of the page shown (or, for the current position, in the text being typed). False when it
+    // could not be put in.
+    QVector<GalleryItem> pageNumberItems() const;
+    bool insertPageNumberDesign(const QString &id);
     Canvas *canvas() const { return m_canvas; }
     Ribbon *ribbon() const override { return m_ribbon; }
     QAction *act(const QString &id) const override;

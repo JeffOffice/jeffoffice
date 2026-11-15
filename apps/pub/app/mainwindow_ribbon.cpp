@@ -11,6 +11,7 @@
 #include "app/mainwindow.h"
 #include "app/taskpane.h"
 #include "app/textartgallery.h"
+#include "app/pagenumbergallery.h"
 
 #include "app/dialogs.h"
 #include "app/icons.h"
@@ -583,6 +584,17 @@ void MainWindow::ribbonGalleryParts(RibbonParts &parts)
             editTextArt(w->id);
         });
         return wa;
+    };
+
+    // Insert > Header & Footer > Page Number, and the Master Page tab's: the gallery of designs put on the master page, with Insert Page Count, Format Page Numbers, and Remove Page Numbers under it.
+    parts.widgets[QStringLiteral("pageNumberButton")] = [this]() -> QWidget * {
+        auto *b = new GalleryButton(icon("hash"), tr("Page Number"), pageNumberItemSize(), 5, true);
+        b->setObjectName(QStringLiteral("pageNumberButton"));
+        b->setToolTip(tr("Page Number"));
+        b->setItemsProvider([this] { return pageNumberItems(); });
+        b->setFooterActions({act("ins.pageCount"), act("ins.pageNumberFormat"), act("ins.pageNumberRemove")});
+        connect(b, &GalleryButton::activated, this, [this](const QString &id) { insertPageNumberDesign(id); });
+        return b;
     };
 
     // Page Design > Schemes and Page Background.

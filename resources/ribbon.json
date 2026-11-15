@@ -138,8 +138,7 @@
       {"name": "Header & Footer", "keytip": "ZH", "items": [
         {"large": "ins.header", "keytip": "HD"},
         {"large": "ins.footer", "keytip": "FT"},
-        {"large": "ins.pageNumber", "keytip": "PN", "split": true, "menu": [
-          "ins.pageNumber", "ins.pageCount", "ins.pageNumberFormat"]}
+        {"widget": "pageNumberButton", "keytip": "PN"}
       ]}
     ]},
     {"name": "Page Design", "keytip": "P", "groups": [
@@ -282,7 +281,7 @@
       ]},
       {"name": "Header & Footer", "keytip": "ZH", "items": [
         {"large": "mp.showHeaderFooter", "keytip": "HF"},
-        {"small": "ins.pageNumber", "keytip": "PN"},
+        {"widget": "pageNumberButton", "keytip": "PN"},
         {"small": "ins.date", "keytip": "DA"},
         {"small": "ins.time", "keytip": "TI"}
       ]},

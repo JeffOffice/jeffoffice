@@ -7,6 +7,7 @@
 #include "io/importers.h"
 #include "app/appfuncs.h"
 #include "app/pagegoto.h"
+#include "app/pagenumbers.h"
 #include "translate/translator.h"
 #include "app/mainwindow.h"
 #include "render/renderer.h"
@@ -56,6 +57,22 @@
 #include "app/plaintext.h"
 
 namespace jp {
+
+QVector<GalleryItem> MainWindow::pageNumberItems() const { return pageNumberGalleryItems(pubPageNumberAccent(m_ed), pubOffersPageNumberDesign); }
+
+bool MainWindow::insertPageNumberDesign(const QString &id)
+{
+    const std::optional<PageNumberDesign> design = pageNumberDesignById(id);
+    if (!design || !pubOffersPageNumberDesign(*design)) return false;
+    if (design->area == PageNumberArea::Cursor && !m_ed->isEditingText()) {
+        statusBar()->showMessage(tr("Click in text where the page number goes, then choose the design."), 6000);
+        return false;
+    }
+    const bool done = placePageNumberDesign(m_ed, id);
+    if (done && design->area != PageNumberArea::Cursor && m_ed->doc()->masters.size() > 0 && m_ed->masterView().isEmpty())
+        statusBar()->showMessage(tr("The page number is on the master page, so every page that uses it shows it."), 6000);
+    return done;
+}
 
 void MainWindow::createActions()
 {
@@ -378,6 +395,9 @@ void MainWindow::createActions()
     });
     mk("ins.pageCount", tr("Insert Page Count"), "", QKeySequence(), [ed] { ed->insertField(QStringLiteral("pages")); });
     mk("ins.pageNumberFormat", tr("Format Page Numbers…"), "", QKeySequence(), [this] { pageNumberFormatDialog(this, m_ed); });
+    mk("ins.pageNumberRemove", tr("Remove Page Numbers"), "eraser", QKeySequence(), [this] {
+        if (removePageNumbers(m_ed) == 0) statusBar()->showMessage(tr("The master pages have no page numbers to remove."), 6000);
+    });
     for (const QString &k : BusinessInfo::keys()) {
         mk("biz." + k, BusinessInfo::label(k), "", QKeySequence(), [this, k] {
             if (m_ed->isEditingText()) { m_ed->insertField("biz:" + k); return; }
