@@ -1385,6 +1385,77 @@ void CrunchEditTests::aFileThatOpensElsewhereClosesTheFileScreen()
     QCOMPARE(crunchWindows().size(), windows + 1);
 }
 
+// What a card shows is whole: its title and its description, wrapped, fit inside it from the top to the bottom, never reach the chevron at its right, and every card of a row is as tall as the row.
+static void checkCard(const ActionCard *c, const QString &where)
+{
+    const QString at = where + QLatin1Char(' ') + c->text() + QStringLiteral(" at ") + QString::number(c->width());
+    QVERIFY2(c->height() >= c->heightForWidth(c->width()), qPrintable(at + QStringLiteral(": the card is shorter than its text")));
+    const QRect inside = c->rect();
+    const QRect title = c->titleRect(c->width()), description = c->descriptionRect(c->width()), chevron = c->chevronRect(c->width(), c->height());
+    QVERIFY2(inside.contains(title) && inside.contains(description), qPrintable(at + QStringLiteral(": the text leaves the card")));
+    QVERIFY2(!title.intersects(chevron) && !description.intersects(chevron), qPrintable(at + QStringLiteral(": the text runs under the chevron")));
+    QVERIFY2(description.bottom() < inside.height(), qPrintable(at + QStringLiteral(": the description is cut off at the bottom")));
+}
+
+// Every card of every page of the File screen, in a wide window and a narrow one.
+void CrunchEditTests::aCardsDescriptionFitsInsideItAndStaysClearOfItsChevron()
+{
+    Window w;
+    QVERIFY(w.openBlank());
+    for (const int width : {1230, 800}) {
+        w.w.resize(width, 990);
+        for (const QString &page : {QStringLiteral("new"), QStringLiteral("open"), QStringLiteral("info"), QStringLiteral("print"), QStringLiteral("export")}) {
+            w.w.showFileScreen(page);
+            auto *screen = w.w.findChild<CrunchFileScreen *>();
+            QVERIFY(screen);
+            QTRY_VERIFY(screen->isVisible() && screen->width() == width);
+            QCoreApplication::processEvents();
+            int cards = 0;
+            QMap<int, int> rowHeight;   // (the top of a row of cards, and the height of its first)
+            for (auto *b : screen->findChildren<QAbstractButton *>()) {
+                auto *c = dynamic_cast<ActionCard *>(b);
+                if (!c || !c->isVisibleTo(screen)) continue;
+                ++cards;
+                checkCard(c, page + QLatin1Char(' ') + QString::number(width));
+                const int top = c->mapTo(screen, QPoint(0, 0)).y();
+                if (!rowHeight.contains(top)) rowHeight.insert(top, c->height());
+                QCOMPARE(c->height(), rowHeight.value(top));
+            }
+            if (page == QLatin1String("open")) QVERIFY2(cards >= 3, "the Open page has its cards");
+        }
+    }
+}
+
+// The same card with long German text, three in a row, at several widths: the row grows to the tallest card's text and each card shows all of its own.
+void CrunchEditTests::cardsInARowKeepTheirTextWhateverTheLanguageOrWidth()
+{
+    for (const int width : {1000, 800, 640, 480}) {
+        QWidget host;
+        auto *row = new CardRow(12);
+        row->setContentsMargins(0, 0, 0, 0);
+        host.setLayout(row);
+        const QStringList titles = {QStringLiteral("Arbeitsmappe durchsuchen"), QStringLiteral("Eine Textdatei \u00F6ffnen"), QStringLiteral("Nicht gespeicherte Arbeit wiederherstellen")};
+        const QStringList texts = {QStringLiteral("Eine Arbeitsmappe von Ihrem Computer \u00F6ffnen."),
+                                   QStringLiteral("W\u00E4hlen Sie, wie die Spalten einer .csv- oder .txt-Datei gelesen werden, und \u00F6ffnen Sie sie dann."),
+                                   QStringLiteral("Kopien nicht gespeicherter Arbeit \u00F6ffnen, die JeffCrunch aufbewahrt hat, als es unerwartet geschlossen wurde.")};
+        QList<ActionCard *> cards;
+        for (int i = 0; i < 3; ++i) {
+            cards << new ActionCard(QStringLiteral("folder-open"), titles[i], texts[i], &host);
+            row->addWidget(cards.last());
+        }
+        host.resize(width, 400);
+        host.show();
+        QTRY_VERIFY(host.isVisible() && cards.last()->width() > 0);
+        QCoreApplication::processEvents();
+        for (auto *c : cards) {
+            checkCard(c, QStringLiteral("German"));
+            QVERIFY2(c->x() >= 0 && c->geometry().right() < width, "a card leaves its window");
+            for (auto *other : cards)
+                if (other->y() == c->y()) QCOMPARE(other->height(), c->height());
+        }
+    }
+}
+
 // The New page of the File screen: its card leaves a new workbook nobody changed as it is (and closes the screen), and makes a window of its own when the workbook has been changed.
 void CrunchEditTests::theFileScreensNewPageMakesABlankWorkbook()
 {

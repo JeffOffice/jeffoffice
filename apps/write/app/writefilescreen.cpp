@@ -236,14 +236,13 @@ QWidget *WriteFileScreen::buildOpen()
     auto *v = new QVBoxLayout(w);
     v->setContentsMargins(40, 30, 40, 30);
     v->addWidget(heading(tr("Open"), w));
-    auto *cards = new QHBoxLayout();
-    cards->setSpacing(12);
+    auto *cards = new CardRow(12);
     auto *browse = new ActionCard(QStringLiteral("folder-open"), tr("Browse"), tr("Open a document from your computer."), w);
     connect(browse, &QAbstractButton::clicked, this, [this] { m_win->act("file.open")->trigger(); });
     auto *recover = new ActionCard(QStringLiteral("life-buoy"), tr("Recover Unsaved Work"), tr("Open copies of unsaved work %1 kept when it closed unexpectedly.").arg(appInfo().name), w);
     connect(recover, &QAbstractButton::clicked, this, [this] { m_win->offerRecovery(true); });
-    cards->addWidget(browse, 1);
-    cards->addWidget(recover, 1);
+    cards->addWidget(browse);
+    cards->addWidget(recover);
     v->addLayout(cards);
     v->addWidget(moreWaysToOpenCard(w, [this](OpenHow how) { m_win->browseAndOpen(how); }));
     v->addSpacing(14);

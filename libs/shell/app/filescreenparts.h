@@ -6,6 +6,7 @@
 #include "app/icons.h"
 
 #include <QAbstractButton>
+#include <QLayout>
 #include <QList>
 #include <QEvent>
 #include <QFontMetrics>
@@ -112,25 +113,30 @@ public:
         setText(title);
         setCursor(Qt::PointingHandCursor);
         setAttribute(Qt::WA_Hover);
-        setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+        setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
         setMaximumWidth(820);
     }
-    QSize sizeHint() const override
-    {
-        const QFontMetrics fm(font());
-        const int textW = std::max(200, width() - 92);
-        const int dh = fm.boundingRect(QRect(0, 0, textW, 1000), Qt::TextWordWrap, m_desc).height();
-        return QSize(520, std::max(64, 22 + fm.height() + 4 + dh));
-    }
+    // The room the card gives its text: from the right of the icon tile to the left of the chevron, which keeps its own strip at the right so no word runs under it.
+    static constexpr int kTextLeft = 68, kChevronStrip = 40, kPad = 12;
+    int textWidth(int cardWidth) const { return std::max(60, cardWidth - kTextLeft - kChevronStrip); }
+    // The part of the card where the title and the description are drawn (the whole of both, wrapped, at this width).
+    QRect titleRect(int cardWidth) const { return QRect(kTextLeft, kPad, textWidth(cardWidth), titleHeight(cardWidth)); }
+    QRect descriptionRect(int cardWidth) const { return QRect(kTextLeft, kPad + titleHeight(cardWidth) + 2, textWidth(cardWidth), descriptionHeight(cardWidth)); }
+    // The chevron, which the text never reaches.
+    QRect chevronRect(int cardWidth, int cardHeight) const { return QRect(cardWidth - 22, cardHeight / 2 - 6, 8, 12); }
+    QSize sizeHint() const override { return QSize(300, heightForWidth(300)); }
+    QSize minimumSizeHint() const override { return QSize(kTextLeft + kChevronStrip + 60, heightForWidth(kTextLeft + kChevronStrip + 60)); }   // (a row of cards stacks them before they get this narrow)
     bool hasHeightForWidth() const override { return true; }
-    int heightForWidth(int w) const override
-    {
-        const QFontMetrics fm(font());
-        const int dh = fm.boundingRect(QRect(0, 0, std::max(200, w - 92), 1000), Qt::TextWordWrap, m_desc).height();
-        return std::max(64, 22 + fm.height() + 4 + dh);
-    }
+    int heightForWidth(int w) const override { return std::max(64, kPad + titleHeight(w) + 2 + descriptionHeight(w) + kPad); }
 
 protected:
+    void resizeEvent(QResizeEvent *e) override
+    {
+        QAbstractButton::resizeEvent(e);
+        // (a layout works out heights at widths of its own; the card is never shorter than its text at the width it really has)
+        const int h = heightForWidth(width());
+        if (h != minimumHeight()) setMinimumHeight(h);
+    }
     void paintEvent(QPaintEvent *) override
     {
         QPainter p(this);
@@ -161,17 +167,15 @@ protected:
         tf.setWeight(QFont::DemiBold);
         p.setFont(tf);
         p.setPen(uiText());
-        const QFontMetrics fm(font());
-        const QRectF tr(tile.right() + 14, r.top() + 11, r.right() - tile.right() - 28, fm.height() + 2);
-        p.drawText(tr, Qt::AlignLeft | Qt::AlignVCenter, text());
+        p.drawText(titleRect(width()), Qt::AlignLeft | Qt::AlignTop | Qt::TextWordWrap, text());
         p.setFont(font());
         QColor dc = uiText();
         dc.setAlphaF(0.68f);
         p.setPen(dc);
-        p.drawText(QRectF(tr.left(), tr.bottom() + 2, tr.width(), r.bottom() - tr.bottom() - 8), Qt::TextWordWrap | Qt::AlignLeft | Qt::AlignTop, m_desc);
+        p.drawText(descriptionRect(width()), Qt::TextWordWrap | Qt::AlignLeft | Qt::AlignTop, m_desc);
         // Chevron on the right.
         p.setPen(QPen(hover ? accent : dc, 1.6, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
-        const QPointF c(r.right() - 18, r.center().y());
+        const QPointF c(chevronRect(width(), height()).center());
         p.drawPolyline(QPolygonF({c + QPointF(-3, -5), c + QPointF(2, 0), c + QPointF(-3, 5)}));
     }
     bool event(QEvent *e) override
@@ -181,7 +185,83 @@ protected:
     }
 
 private:
+    int titleHeight(int cardWidth) const
+    {
+        QFont tf = font();
+        tf.setWeight(QFont::DemiBold);
+        return std::max(QFontMetrics(tf).height() + 2, QFontMetrics(tf).boundingRect(QRect(0, 0, textWidth(cardWidth), 100000), Qt::TextWordWrap, text()).height());
+    }
+    int descriptionHeight(int cardWidth) const { return QFontMetrics(font()).boundingRect(QRect(0, 0, textWidth(cardWidth), 100000), Qt::TextWordWrap, m_desc).height(); }
     QString m_icon, m_desc;
+};
+
+// Cards side by side that stack when the window is too narrow to give each a readable line: as many to a row as leave each at least kWide pixels, down to one to a row. A row is
+// as tall as its tallest card (each card taller than its own text is made as tall as the row), and every card shows all its text.
+class CardRow : public QLayout {
+public:
+    static constexpr int kWide = 230;
+    explicit CardRow(int spacing = 12) : m_spacing(spacing) {}
+    ~CardRow() override { qDeleteAll(m_items); }
+    void addItem(QLayoutItem *item) override { m_items << item; }
+    int count() const override { return int(m_items.size()); }
+    QLayoutItem *itemAt(int i) const override { return m_items.value(i); }
+    QLayoutItem *takeAt(int i) override { return i >= 0 && i < m_items.size() ? m_items.takeAt(i) : nullptr; }
+    Qt::Orientations expandingDirections() const override { return Qt::Horizontal; }
+    bool hasHeightForWidth() const override { return true; }
+    int heightForWidth(int w) const override { return arrange(QRect(0, 0, w, 0), false); }
+    QSize minimumSize() const override
+    {
+        int w = 0;
+        for (const QLayoutItem *i : m_items) w = std::max(w, i->minimumSize().width());
+        return QSize(w, heightForWidth(w));
+    }
+    QSize sizeHint() const override
+    {
+        int w = 0;
+        for (const QLayoutItem *i : m_items) w += i->sizeHint().width() + m_spacing;
+        w = std::max(0, w - m_spacing);
+        return QSize(w, heightForWidth(w));
+    }
+    void setGeometry(const QRect &r) override
+    {
+        QLayout::setGeometry(r);
+        arrange(r, true);
+    }
+
+private:
+    int columnsFor(int width) const
+    {
+        const int n = std::max(1, int(m_items.size()));
+        for (int k = n; k > 1; --k)
+            if ((width - (k - 1) * m_spacing) / k >= kWide) return k;
+        return 1;
+    }
+    // Lays the cards out in the rectangle (or only measures, when `place` is false) and returns the height used.
+    int arrange(const QRect &r, bool place) const
+    {
+        const int k = columnsFor(r.width());
+        const int each = (r.width() - (k - 1) * m_spacing) / k;
+        int y = r.y(), done = 0;
+        while (done < m_items.size()) {
+            const int inRow = std::min<int>(k, int(m_items.size()) - done);
+            int rowHeight = 0;
+            for (int j = 0; j < inRow; ++j) {
+                QLayoutItem *item = m_items[done + j];
+                const int w = std::min(each, item->maximumSize().width());
+                rowHeight = std::max(rowHeight, item->hasHeightForWidth() ? item->heightForWidth(w) : item->sizeHint().height());
+            }
+            if (place)
+                for (int j = 0; j < inRow; ++j) {
+                    QLayoutItem *item = m_items[done + j];
+                    item->setGeometry(QRect(r.x() + j * (each + m_spacing), y, std::min(each, item->maximumSize().width()), rowHeight));
+                }
+            y += rowHeight + m_spacing;
+            done += inRow;
+        }
+        return std::max(0, y - m_spacing - r.y());
+    }
+    QList<QLayoutItem *> m_items;
+    int m_spacing;
 };
 
 // The app's badge: its two letters in a rounded square in its color, drawn for
