@@ -20,7 +20,9 @@ set -u
 
 ext=""; [ "${RUNNER_OS:-}" = "Windows" ] && ext=".exe"
 
-# Seconds of the test classes that take the longest (Windows, Nov 14 2026, run 43634499414), for dealing the classes of a program to its parts.
+# Seconds of the test classes that take the longest (Windows, Nov 14 2026, run 43634499414), for dealing the classes of a program to its parts. They are stale:
+# on Nov 15 the two parts of crunchtests, dealt equal by these, took 266 s and 738 s on Windows (run 43728103514). Every run now prints the 12 slowest classes of each
+# part ("<part> CLASSTIME <class> <seconds>", from JP_CLASS_TIMES, tests/testrunner.cpp): take the weights from there.
 WEIGHTS="CrunchReviewTests=139 CrunchPrintTests=125 CrunchStructModelTests=112 CrunchWindowTests=72 CrunchBarcodeTests=65 CrunchCellsTests=48
 CrunchHostileTests=31 CrunchEditTests=29 CrunchPivotTests=27 CrunchXlsTests=24 CrunchSortTests=20 CrunchChartTests=19 CrunchDrawingTests=19
 CrunchProtectTests=18 CrunchKeepTests=18 CrunchScenarioShapeTests=17 CrunchSheetsTests=16 CrunchPointTests=14 CrunchTablesTests=13 CrunchProofTests=13
@@ -28,6 +30,8 @@ CrunchFormatUiTests=12 CrunchSparklineTests=10 CrunchNotesTests=9 CrunchInfoTest
 SheetEvalTests=118 SheetStructureTests=40 SheetCalculationTests=18 SheetPivotTests=17 SheetOdsChartTests=13 SheetCryptTests=13
 DeckTableLimitsTests=66 DeckThemeTests=32 DeckFileTests=23 DeckMediaTests=18 DeckMasterTests=15
 PubCommentTests=39 PubCommandsTests=36 PubPictureTests=21 PubObjectsTests=15 PubExportTests=15 PubFindTests=14"
+# Until the weights are set again, the last part of a program is dealt this much less (as if it already held it): the parts of crunchtests took 266 s and 738 s (Nov 15).
+LAST_PART_HOLDS=150
 
 # A program the build did not make (a CI part builds only the targets in tools/ci_targets.sh) stops everything here, by name.
 missing=0
@@ -52,10 +56,11 @@ for A in "$@"; do
                 echo "$N.rest $N - $rest" >> "$parts"
             fi ;;
         crunchtests|sheettests|jdtests|jptests)
-            args=$(QT_QPA_PLATFORM=offscreen "$P" --classes 2>/dev/null | awk -v k="$k" -v n="$n" -v w="$(echo $WEIGHTS)" '
+            args=$(QT_QPA_PLATFORM=offscreen "$P" --classes 2>/dev/null | awk -v k="$k" -v n="$n" -v hold="$LAST_PART_HOLDS" -v w="$(echo $WEIGHTS)" '
                 BEGIN { m = split(w, a, /[ \n]+/); for (i = 1; i <= m; i++) { split(a[i], kv, "="); wt[kv[1]] = kv[2] } }
                 NF { c[++t] = $0; v[t] = ($0 in wt) ? wt[$0] : 1 }
                 END {
+                    if (n > 1) sum[n] = hold
                     # (heaviest first, ties in the order of the list; each to the part with the least so far, the lower part number on a tie)
                     for (i = 1; i <= t; i++) { best = 0; for (j = 1; j <= t; j++) if (!done[j] && (best == 0 || v[j] > v[best])) best = j; done[best] = 1
                         p = 1; for (q = 2; q <= n; q++) if (sum[q] < sum[p]) p = q
@@ -90,6 +95,7 @@ sed 's/[[:space:]]*$//' "$parts" > "$parts.trim" && mv "$parts.trim" "$parts"
 # shellcheck disable=SC2016
 xargs -P "$jobs" -L 1 bash -c 'id=$1; prog=$2; shard=$3; shift 3; started=$(date +%s)
     if [ "$shard" != "-" ]; then export JO_APPCHECK_SHARD=$shard; fi
+    export JP_CLASS_TIMES=1
     "build/$prog'"$ext"'" "$@" -v1 -o "$id-results.txt,txt" -o -,txt > "$id.log" 2>&1; echo $? > "$id.code"
     echo "$id finished in $(( $(date +%s) - started )) s"' _ < "$parts"
 
@@ -102,6 +108,8 @@ while read -r ID N SHARD ARGS; do
     ncode=$(cat "$ID.code" 2>/dev/null || echo 1)
     echo "--- $ID-results.txt"; cat "$ID-results.txt" 2>/dev/null || echo "(no results file: the program did not start)"
     echo "$ID exit code: $ncode"
+    # (the seconds of each test class, to deal the classes by: WEIGHTS below)
+    grep -a '^CLASSTIME ' "$ID.log" 2>/dev/null | tr -d '\r' | sort -k3 -n -r | head -12 | sed "s/^/$ID /"
     if [ "$ncode" -ne 0 ]; then echo "--- $ID.log (the end)"; tail -60 "$ID.log"; fi
     # A crash: a nonzero exit with no failed test in the totals (QtTest exits with the number of failures; a program of several classes
     # prints a totals line for each class that finished, so a totals line alone doesn't say the program did). The stack of the first

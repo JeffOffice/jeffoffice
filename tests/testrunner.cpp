@@ -2,6 +2,7 @@
 #include "testrunner.h"
 #include "isolatesettings.h"
 
+#include <QElapsedTimer>
 #include <QFile>
 #include <QMetaMethod>
 #include <QtTest>
@@ -169,7 +170,11 @@ int main(int argc, char *argv[])
         std::vector<char *> cargv;
         for (std::string &s : args) cargv.push_back(s.data());
         cargv.push_back(nullptr);
+        QElapsedTimer classClock;
+        classClock.start();
         const int code = QTest::qExec(object.get(), int(args.size()), cargv.data());
+        // (JP_CLASS_TIMES: the seconds of each class, which tools/ci_tests.sh prints, for the weights it deals the classes by)
+        if (qEnvironmentVariableIsSet("JP_CLASS_TIMES")) std::fprintf(stderr, "CLASSTIME %s %lld\n", c.name.c_str(), static_cast<long long>(classClock.elapsed() / 1000));
         object.reset();
         for (const std::string &file : results) append(file + ".part", file);
         if (code != 0) {
