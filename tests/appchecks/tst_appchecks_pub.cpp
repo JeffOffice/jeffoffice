@@ -529,7 +529,9 @@ private Q_SLOTS:
             {QStringLiteral("arr.relMargins"), QStringLiteral("a setting that only the next Align reads: its check mark is all of it")},
             {QStringLiteral("win.cascade"), QStringLiteral("it places the open windows, and there is one")},
         };
-        m_app.neverRun = {};
+        m_app.neverRun = {
+            {QStringLiteral("ins.pageNumberRemove"), QStringLiteral("it works only where a master page has a page number, which no place here has; the page number tests run it on one")},
+        };
     }
 
     // ---- 1. the first five minutes

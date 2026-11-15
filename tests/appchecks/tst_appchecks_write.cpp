@@ -668,6 +668,7 @@ private Q_SLOTS:
         m_app.neverRun = {
             {QStringLiteral("arrange.distribute.h"), QStringLiteral("it needs three objects selected together, which no place here has; theEffectsMenuAndDistributeWorkFromTheWindowOneStepEach runs it on three")},
             {QStringLiteral("arrange.distribute.v"), QStringLiteral("it needs three objects selected together, which no place here has; distributeSpreadsThreeObjectsToEqualGapsInOneStep runs the down direction, and its twin is run from the window on three")},
+            {QStringLiteral("pn.remove"), QStringLiteral("it works only where a header or footer has a page number, which no place here has; the page number tests run it on one")},
             {QStringLiteral("view.resetWindowPosition"), QStringLiteral("it works on two windows set side by side, which no place here has; the View > Window test runs it on a pair")},
             {QStringLiteral("mail.updateLabels"), QStringLiteral("it is for a sheet of labels that Mailings > Labels makes, which no place here has; the mail tests run it on one")},
             {QStringLiteral("outline.promote"), QStringLiteral("it works only in Outline view, which no place here is in; the outline tests run it there")},
