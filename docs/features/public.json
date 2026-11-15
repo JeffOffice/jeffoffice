@@ -25791,9 +25791,9 @@
    "fr": "",
    "soon": {
     "drop": false,
-    "en": "OpenType choices: ligatures, number spacing and forms, stylistic sets, and contextual alternates",
-    "es": "Opciones OpenType: ligaduras, espaciado y formas de números, conjuntos estilísticos y alternativas contextuales",
-    "fr": "Options OpenType : ligatures, espacement et formes des chiffres, jeux stylistiques et variantes contextuelles"
+    "en": "Font features: ligatures, number spacing and forms, stylistic sets, and contextual alternates",
+    "es": "Funciones de fuente: ligaduras, espaciado y formas de números, conjuntos estilísticos y alternativas contextuales",
+    "fr": "Fonctions de police : ligatures, espacement et formes des chiffres, jeux stylistiques et variantes contextuelles"
    }
   },
   "fe2f02c0a1a6b6a49f5c052bf0572c3cbc6bec349f8ef7c7d3f0f1c417e6a2a9": {

@@ -1781,23 +1781,50 @@ void WriteTests::pdfOutputSetsTheLettersAsTheScreenDoes()
 void WriteTests::aLigatureInAPdfIsCopiedAsItsLetters()
 {
     QVERIFY2(QFontDatabase::hasFamily(QStringLiteral("Carlito")), "the face the program carries is not registered");
-    QTemporaryDir dir;
-    WriteWindow w;
-    w.setNotifier([](const QString &, const QString &) {});
-    auto doc = open(makeDocx("<w:p><w:r><w:rPr><w:rFonts w:ascii=\"Carlito\" w:hAnsi=\"Carlito\"/><w:sz w:val=\"48\"/></w:rPr><w:t>office fi ffi</w:t></w:r></w:p>"));
-    QVERIFY(doc);
-    QTextCursor c(doc->story());
-    c.select(QTextCursor::Document);
-    changeCharFormat(*doc, c, [](QTextCharFormat &f) { f.setProperty(tp::Ligatures, tp::ot::ligatureValueOfKinds(tp::ot::kLigStandard)); });
-    w.setDocument(std::move(doc), QString());
-    w.setSavePathChooser([&](const QString &, const QString &) { return dir.filePath(QStringLiteral("out.pdf")); });
-    QVERIFY(w.exportPdf());
-    QFile f(dir.filePath(QStringLiteral("out.pdf")));
-    QVERIFY(f.open(QIODevice::ReadOnly));
-    const jp::PdfDocument pdf(f.readAll());
-    const QString text = pdf.text(0).simplified();
-    QVERIFY2(text.contains(QStringLiteral("office fi ffi")), qPrintable(text));
-    for (const QChar ligature : {QChar(0xFB00), QChar(0xFB01), QChar(0xFB02), QChar(0xFB03), QChar(0xFB04)}) QVERIFY(!text.contains(ligature));
+    // (The text with the standard ligatures asked for, and with none: the ink of the page is as much narrower with them as the glyph for "fi" and "ffi" is, so the PDF
+    // draws the ligature glyph; and what is copied out of it is the letters.)
+    struct Page {
+        QString text;
+        double ink = 0;
+    };
+    auto page = [&](int ligatures) {
+        QTemporaryDir dir;
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        auto doc = open(makeDocx("<w:p><w:r><w:rPr><w:rFonts w:ascii=\"Carlito\" w:hAnsi=\"Carlito\"/><w:sz w:val=\"72\"/></w:rPr><w:t>office fi ffi</w:t></w:r></w:p>"));
+        Page out;
+        if (!doc) return out;
+        QTextCursor c(doc->story());
+        c.select(QTextCursor::Document);
+        changeCharFormat(*doc, c, [&](QTextCharFormat &f) { f.setProperty(tp::Ligatures, ligatures); });
+        w.setDocument(std::move(doc), QString());
+        w.setSavePathChooser([&](const QString &, const QString &) { return dir.filePath(QStringLiteral("out.pdf")); });
+        if (!w.exportPdf()) return out;
+        QFile f(dir.filePath(QStringLiteral("out.pdf")));
+        if (!f.open(QIODevice::ReadOnly)) return out;
+        const jp::PdfDocument pdf(f.readAll());
+        out.text = pdf.text(0).simplified();
+        QImage img(pdf.pageSize(0).toSize() * 4, QImage::Format_RGB32);
+        img.fill(Qt::white);
+        {
+            QPainter paint(&img);
+            paint.drawImage(0, 0, pdf.render(0, img.size()));
+        }
+        int left = img.width(), right = -1;
+        for (int y = 0; y < img.height(); ++y)
+            for (int x = 0; x < img.width(); ++x)
+                if (qGray(img.pixel(x, y)) < 128) {
+                    left = std::min(left, x);
+                    right = std::max(right, x);
+                }
+        out.ink = right < left ? 0 : (right - left + 1) / 4.0;
+        return out;
+    };
+    const Page joined = page(tp::ot::ligatureValueOfKinds(tp::ot::kLigStandard)), apart = page(tp::ot::ligatureValueOfKinds(0));
+    QVERIFY(joined.ink > 0 && apart.ink > 0);
+    QVERIFY2(apart.ink - joined.ink > 1.0, "the PDF does not draw the ligature glyphs");
+    QVERIFY2(joined.text.contains(QStringLiteral("office fi ffi")), qPrintable(joined.text));
+    for (const QChar ligature : {QChar(0xFB00), QChar(0xFB01), QChar(0xFB02), QChar(0xFB03), QChar(0xFB04)}) QVERIFY(!joined.text.contains(ligature));
 }
 
 
