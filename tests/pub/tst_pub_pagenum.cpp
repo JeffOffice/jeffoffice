@@ -160,15 +160,15 @@ private Q_SLOTS:
         QVERIFY(placePageNumberDesign(&s.ed, QStringLiteral("bottom.circle.right")));
         QCOMPARE(int(doc->masters[0]->items.size()), 2);
         QCOMPARE(shownOnMaster(*doc, 1), QStringLiteral("Draft | 2"));
-        // A field in the note is a number too, and goes.
+        // A field in the note is the person's own number: Remove leaves it.
         QTextCursor c(doc->storyDoc(note->storyId));
         c.movePosition(QTextCursor::End);
         QTextCharFormat f;
         f.setProperty(tp::Field, QStringLiteral("page"));
         c.insertText(QString(QChar::ObjectReplacementCharacter), f);
         QCOMPARE(shownOnMaster(*doc, 2), QStringLiteral("Draft3 | 3"));
-        QCOMPARE(removePageNumbers(&s.ed), 2);
-        for (int i = 0; i < 3; ++i) QCOMPARE(shownOnMaster(*doc, i), QStringLiteral("Draft"));
+        QCOMPARE(removePageNumbers(&s.ed), 1);   // (the circle's box: the gallery's only)
+        for (int i = 0; i < 3; ++i) QCOMPARE(shownOnMaster(*doc, i), QStringLiteral("Draft%1").arg(i + 1));
         QCOMPARE(int(doc->masters[0]->items.size()), 1);
         // Undone, in one step.
         s.ed.undo();
@@ -220,6 +220,66 @@ private Q_SLOTS:
         const int before = int(ed->doc()->masters[0]->items.size());
         QVERIFY(w.insertPageNumberDesign(QStringLiteral("bottom.plain.center")));
         QCOMPARE(int(ed->doc()->masters[0]->items.size()), before + 1);
+    }
+
+    // A master that already has a page number in the person's own text: a design asks (cancel changes nothing, Keep adds the design beside the number, Replace takes the number out of its
+    // text); and Remove Page Numbers takes only the design's boxes, never a page number of the person's own.
+    void aPageNumberOfThePersonsOwnIsAskedAboutAndNeverRemoved()
+    {
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        jp::Document *doc = ed->doc();
+        auto note = std::static_pointer_cast<jp::TextItem>(ed->newTextBox(QRectF(72, 20, 200, 20), QStringLiteral("Draft")));
+        doc->masters[0]->items.push_back(note);
+        QTextCursor c(doc->storyDoc(note->storyId));
+        c.movePosition(QTextCursor::End);
+        QTextCharFormat f;
+        f.setProperty(jp::tp::Field, QStringLiteral("page"));
+        c.insertText(QString(QChar::ObjectReplacementCharacter), f);
+        QVERIFY(jp::pubMasterHasOwnPageNumber(ed));
+        int asked = 0, answer = 0;
+        w.setPageNumberAsker([&] {
+            ++asked;
+            return answer;
+        });
+        QVERIFY(!w.insertPageNumberDesign(QStringLiteral("bottom.plain.center")));
+        QCOMPARE(asked, 1);
+        QCOMPARE(int(doc->masters[0]->items.size()), 1);
+        answer = 2;
+        QVERIFY(w.insertPageNumberDesign(QStringLiteral("bottom.plain.center")));
+        QCOMPARE(int(doc->masters[0]->items.size()), 2);
+        QCOMPARE(shownOnMaster(*doc, 0), QStringLiteral("Draft1 | 1"));
+        QCOMPARE(jp::removePageNumbers(ed), 1);
+        QCOMPARE(shownOnMaster(*doc, 0), QStringLiteral("Draft1"));   // (the person's own stays)
+        QVERIFY(jp::pubMasterHasOwnPageNumber(ed));
+        answer = 1;
+        QVERIFY(w.insertPageNumberDesign(QStringLiteral("top.plain.right")));
+        QCOMPARE(asked, 3);
+        QCOMPARE(shownOnMaster(*doc, 0), QStringLiteral("Draft | 1"));   // (taken out of its text)
+        QVERIFY(!jp::pubMasterHasOwnPageNumber(ed));
+        // A margin design asks too, and a master with none is not asked.
+        QVERIFY(w.insertPageNumberDesign(QStringLiteral("margin.left.circle")));
+        QCOMPARE(asked, 3);
+    }
+
+    // Remove Page Numbers is on only while a master has a box of a design, and follows Undo and Redo.
+    void theRemoveCommandFollowsTheMasters()
+    {
+        jp::MainWindow w;
+        w.refreshForTest();
+        QVERIFY(!w.act(QStringLiteral("ins.pageNumberRemove"))->isEnabled());
+        QVERIFY(w.insertPageNumberDesign(QStringLiteral("top.plain.center")));
+        w.refreshForTest();
+        QVERIFY(w.act(QStringLiteral("ins.pageNumberRemove"))->isEnabled());
+        w.editor()->undo();
+        w.refreshForTest();
+        QVERIFY(!w.act(QStringLiteral("ins.pageNumberRemove"))->isEnabled());
+        w.editor()->redo();
+        w.refreshForTest();
+        QVERIFY(w.act(QStringLiteral("ins.pageNumberRemove"))->isEnabled());
+        w.act(QStringLiteral("ins.pageNumberRemove"))->trigger();
+        w.refreshForTest();
+        QVERIFY(!w.act(QStringLiteral("ins.pageNumberRemove"))->isEnabled());
     }
 };
 

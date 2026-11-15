@@ -17,14 +17,22 @@ bool pubOffersPageNumberDesign(const PageNumberDesign &d);
 // The accent of the publication's color scheme, the color the designs' pictures and shapes are drawn in.
 QColor pubPageNumberAccent(const Editor *ed);
 
-// Puts the design `id` on the master page of the page the editor shows (the first master where the page has none): a box of an earlier design goes first, and the other items of the master stay.
-// A design of the current position goes in the text being typed, and nothing is done (false) when none is. One step of Undo.
-bool placePageNumberDesign(Editor *ed, const QString &id);
+// What becomes of a page number or count of the person's own on the master (a field in text they wrote) when a design goes on: it is left (Keep), or taken out of that text (Replace).
+enum class PubOwnNumbers { Keep, Replace };
 
-// Takes the page number and page count fields out of the master pages, and the boxes of the designs (and of the older Page Number box); the other text of the masters stays. One step of Undo.
-// Returns how many items and fields went.
+// Whether the master page that the page the editor shows uses has a page number or count that the gallery did not put there (a field in the person's own text): what a design put on
+// would be asked about.
+bool pubMasterHasOwnPageNumber(const Editor *ed);
+
+// Puts the design `id` on the master page of the page the editor shows (the first master where the page has none): the boxes of an earlier design go first, and the other items of the master
+// stay; with `Replace` a page number of the person's own on the master is taken out of its text. A design of the current position goes in the text being typed, and nothing is done (false)
+// when none is. One step of Undo.
+bool placePageNumberDesign(Editor *ed, const QString &id, PubOwnNumbers own = PubOwnNumbers::Keep);
+
+// Takes the boxes of the designs (the items named "Page Number", and their rules) off the master pages, and nothing else: a page number in the person's own text stays. One step of Undo.
+// Returns how many items went.
 int removePageNumbers(Editor *ed);
-// Whether a master page has a page number or count, or a box of a design (Remove Page Numbers has something to do).
+// Whether a master page has a box of a design (Remove Page Numbers has something to do).
 bool hasPageNumbers(const Editor *ed);
 
 } // namespace jp

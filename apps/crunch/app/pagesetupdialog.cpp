@@ -25,6 +25,7 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QLocale>
+#include <QMessageBox>
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QRadioButton>
@@ -647,7 +648,24 @@ void PageSetupDialog::buildHeaderFooter(QWidget *tab)
             const std::optional<PageNumberDesign> design = pageNumberDesignById(id);
             if (!design) return;
             QString &text = header ? m_setup.headerFooter.oddHeader : m_setup.headerFooter.oddFooter;
-            text = jp::crunch::withPageNumberDesign(text, *design);
+            bool keep = false;
+            if (jp::crunch::partHoldsOtherText(text, *design)) {
+                QMessageBox box(QMessageBox::Question, tr("Page Number"), tr("That part already has text. Replace it with the page number, or keep it and add the number?"), QMessageBox::NoButton, this);
+                box.setTextFormat(Qt::PlainText);
+                QPushButton *replace = box.addButton(tr("Replace"), QMessageBox::AcceptRole);
+                QPushButton *keepIt = box.addButton(tr("Keep and Add"), QMessageBox::AcceptRole);
+                box.addButton(QMessageBox::Cancel);
+                box.exec();
+                if (box.clickedButton() != replace && box.clickedButton() != keepIt) return;
+                keep = box.clickedButton() == keepIt;
+            }
+            QString refused;
+            const QString made = jp::crunch::withPageNumberDesign(text, *design, keep, &refused);
+            if (!refused.isEmpty()) {
+                QMessageBox::information(this, tr("Page Number"), refused);
+                return;
+            }
+            text = made;
             refreshHeaderFooterPreview();
         });
         (header ? hr : fr)->addWidget(b);

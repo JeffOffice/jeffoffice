@@ -24,6 +24,8 @@
 #include <QSlider>
 #include <QKeyEvent>
 #include <QLocale>
+#include <QMessageBox>
+#include <QPushButton>
 #include <QPlainTextEdit>
 #include <QScrollBar>
 #include <QTimer>
@@ -442,7 +444,31 @@ bool CrunchWindow::insertPageNumberDesign(const QString &id)
     const int form = m_zoneEditor ? m_zone.form : 0;
     const HeaderFooter &hf = m_session->pages().sheet(m_sheet).headerFooter;
     const QString now = header ? (form == 2 ? hf.firstHeader : form == 1 ? hf.evenHeader : hf.oddHeader) : (form == 2 ? hf.firstFooter : form == 1 ? hf.evenFooter : hf.oddFooter);
-    applyHeaderForm(header, crunch::withPageNumberDesign(now, *design));
+    // Words already in that part: replaced by the number, or kept with the number after them.
+    bool keep = false;
+    if (crunch::partHoldsOtherText(now, *design)) {
+        int answer = 0;
+        if (m_pageNumberAsker) {
+            answer = m_pageNumberAsker();
+        } else {
+            QMessageBox box(QMessageBox::Question, tr("Page Number"), tr("That part of the header or footer already has text. Replace it with the page number, or keep it and add the number?"), QMessageBox::NoButton, this);
+            box.setTextFormat(Qt::PlainText);
+            QPushButton *replace = box.addButton(tr("Replace"), QMessageBox::AcceptRole);
+            QPushButton *keepIt = box.addButton(tr("Keep and Add"), QMessageBox::AcceptRole);
+            box.addButton(QMessageBox::Cancel);
+            box.exec();
+            answer = box.clickedButton() == replace ? 1 : box.clickedButton() == keepIt ? 2 : 0;
+        }
+        if (answer == 0) return false;
+        keep = answer == 2;
+    }
+    QString refused;
+    const QString made = crunch::withPageNumberDesign(now, *design, keep, &refused);
+    if (!refused.isEmpty()) {
+        setStatus(refused);
+        return false;
+    }
+    applyHeaderForm(header, made);
     return true;
 }
 

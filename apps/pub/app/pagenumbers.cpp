@@ -46,6 +46,26 @@ void putPieces(QTextCursor &c, const PageNumberDesign &d)
     }
 }
 
+QString storyOf(const Item &it)
+{
+    if (it.type() == ItemType::Text) return static_cast<const TextItem &>(it).storyId;
+    if (it.type() == ItemType::Shape) return static_cast<const ShapeItem &>(it).storyId;
+    return {};
+}
+
+// The positions of the page number and count fields in a story.
+QVector<int> pageFieldsIn(const QTextDocument *story)
+{
+    QVector<int> at;
+    for (int i = 0; i < story->characterCount() - 1; ++i) {
+        if (story->characterAt(i) != QChar::ObjectReplacementCharacter) continue;
+        QTextCursor probe(const_cast<QTextDocument *>(story));
+        probe.setPosition(i + 1);
+        if (isPageField(probe.charFormat().stringProperty(tp::Field))) at << i;
+    }
+    return at;
+}
+
 Qt::Alignment alignmentOf(PageNumberSide side) { return side == PageNumberSide::Left ? Qt::AlignLeft : side == PageNumberSide::Right ? Qt::AlignRight : Qt::AlignHCenter; }
 
 } // namespace
@@ -58,7 +78,23 @@ QColor pubPageNumberAccent(const Editor *ed)
     return ColorRef::scheme(Accent1).resolve(ed->doc()->colors);
 }
 
-bool placePageNumberDesign(Editor *ed, const QString &id)
+bool pubMasterHasOwnPageNumber(const Editor *ed)
+{
+    const Document *d = ed ? ed->doc() : nullptr;
+    if (!d || d->pages.isEmpty() || d->masters.isEmpty()) return false;
+    const int at = std::clamp(ed->currentPage(), 0, int(d->pages.size()) - 1);
+    const MasterPage *master = d->masterFor(*d->pages[at]);
+    if (!master) master = d->masters.first().get();
+    for (const ItemPtr &it : master->items) {
+        if (isDesignItem(*it)) continue;
+        const QString id = storyOf(*it);
+        const QTextDocument *story = id.isEmpty() ? nullptr : d->storyDoc(id);
+        if (story && !pageFieldsIn(story).isEmpty()) return true;
+    }
+    return false;
+}
+
+bool placePageNumberDesign(Editor *ed, const QString &id, PubOwnNumbers own)
 {
     const std::optional<PageNumberDesign> design = pageNumberDesignById(id);
     if (!ed || !design) return false;
@@ -78,6 +114,19 @@ bool placePageNumberDesign(Editor *ed, const QString &id)
     ed->change(QCoreApplication::translate("jp::PageNumbers", "Page Number"), [&] {
         auto &items = master->items;
         items.erase(std::remove_if(items.begin(), items.end(), [](const ItemPtr &it) { return isDesignItem(*it); }), items.end());
+        if (own == PubOwnNumbers::Replace)
+            for (const ItemPtr &it : items) {
+                const QString story = storyOf(*it);
+                QTextDocument *doc = story.isEmpty() ? nullptr : d->storyDoc(story);
+                if (!doc) continue;
+                const QVector<int> at = pageFieldsIn(doc);
+                for (int i = int(at.size()) - 1; i >= 0; --i) {
+                    QTextCursor c(doc);
+                    c.setPosition(at[i]);
+                    c.setPosition(at[i] + 1, QTextCursor::KeepAnchor);
+                    c.removeSelectedText();
+                }
+            }
         const QRectF content = QRectF(QPointF(0, 0), page).marginsRemoved(margins);
         const PageNumberType type = pageNumberType(*design);
         if (pageNumberHasBox(*design)) {
@@ -138,20 +187,8 @@ bool hasPageNumbers(const Editor *ed)
     const Document *d = ed ? ed->doc() : nullptr;
     if (!d) return false;
     for (const auto &master : d->masters)
-        for (const ItemPtr &it : master->items) {
+        for (const ItemPtr &it : master->items)
             if (isDesignItem(*it)) return true;
-            QString storyId;
-            if (it->type() == ItemType::Text) storyId = static_cast<TextItem *>(it.get())->storyId;
-            else if (it->type() == ItemType::Shape) storyId = static_cast<ShapeItem *>(it.get())->storyId;
-            const QTextDocument *story = storyId.isEmpty() ? nullptr : d->storyDoc(storyId);
-            if (!story) continue;
-            for (int i = 0; i < story->characterCount() - 1; ++i) {
-                if (story->characterAt(i) != QChar::ObjectReplacementCharacter) continue;
-                QTextCursor probe(const_cast<QTextDocument *>(story));
-                probe.setPosition(i + 1);
-                if (isPageField(probe.charFormat().stringProperty(tp::Field))) return true;
-            }
-        }
     return false;
 }
 
@@ -166,27 +203,6 @@ int removePageNumbers(Editor *ed)
             const auto gone = std::remove_if(items.begin(), items.end(), [](const ItemPtr &it) { return isDesignItem(*it); });
             count += int(items.end() - gone);
             items.erase(gone, items.end());
-            for (const ItemPtr &it : items) {
-                QString storyId;
-                if (it->type() == ItemType::Text) storyId = static_cast<TextItem *>(it.get())->storyId;
-                else if (it->type() == ItemType::Shape) storyId = static_cast<ShapeItem *>(it.get())->storyId;
-                QTextDocument *story = storyId.isEmpty() ? nullptr : d->storyDoc(storyId);
-                if (!story) continue;
-                QVector<int> at;
-                for (int i = 0; i < story->characterCount() - 1; ++i) {
-                    if (story->characterAt(i) != QChar::ObjectReplacementCharacter) continue;
-                    QTextCursor probe(story);
-                    probe.setPosition(i + 1);
-                    if (isPageField(probe.charFormat().stringProperty(tp::Field))) at << i;
-                }
-                for (int i = int(at.size()) - 1; i >= 0; --i) {
-                    QTextCursor c(story);
-                    c.setPosition(at[i]);
-                    c.setPosition(at[i] + 1, QTextCursor::KeepAnchor);
-                    c.removeSelectedText();
-                    ++count;
-                }
-            }
         }
     });
     return count;

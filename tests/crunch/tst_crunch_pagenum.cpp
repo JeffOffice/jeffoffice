@@ -112,7 +112,13 @@ private Q_SLOTS:
         setHeaderFooter(w, [](HeaderFooter *hf) { hf->oddFooter = QStringLiteral("&LDraft&CPage &P of &N"); });
         QVERIFY(w.insertPageNumberDesign(QStringLiteral("bottom.plain.right")));
         QCOMPARE(w.session()->pages().sheet(0).headerFooter.oddFooter, QStringLiteral("&LDraft&R&P"));
+        int asked = 0;
+        w.setPageNumberAsker([&] {
+            ++asked;
+            return 1;
+        });
         QVERIFY(w.insertPageNumberDesign(QStringLiteral("bottom.ofCount.left")));
+        QCOMPARE(asked, 1);
         QCOMPARE(w.session()->pages().sheet(0).headerFooter.oddFooter, QStringLiteral("&LPage &P of &N"));   // (the left part held "Draft": it is the design's now, as the design says)
     }
 
@@ -226,6 +232,68 @@ private Q_SLOTS:
         const HeaderFooter hf = dialog.setup().headerFooter;
         QCOMPARE(hf.oddHeader, QStringLiteral("&CPage &P of &N"));
         QCOMPARE(hf.oddFooter, QStringLiteral("&R&B&22&P"));
+    }
+
+    // A literal ampersand in the words (&&) is not a code: "Smith &&Partners" has no page number to take out, "&&N" is the letters "&N", and a design after such words keeps them.
+    void anAmpersandInTheWordsIsNotACode()
+    {
+        EditWindow e;
+        QVERIFY(e.open(rowsWithFormulas(100, {})));
+        CrunchWindow &w = e.win.w;
+        QVERIFY(!jp::crunch::hasPageNumbers(QStringLiteral("&LSmith &&Partners&C&&N&R&&P")));
+        QCOMPARE(jp::crunch::withoutPageNumbers(QStringLiteral("&LSmith &&Partners&C&&N&R&&P")), QStringLiteral("&LSmith &&Partners&C&&N&R&&P"));
+        QCOMPARE(jp::crunch::withoutPageNumbers(QStringLiteral("&LSmith &&Partners &P&C&&N")), QStringLiteral("&LSmith &&Partners &C&&N"));
+        setHeaderFooter(w, [](HeaderFooter *hf) { hf->oddFooter = QStringLiteral("&LSmith &&Partners&C&&N"); });
+        QCOMPARE(w.removePageNumbers(), 0);   // (nothing is a page number)
+        QCOMPARE(w.session()->pages().sheet(0).headerFooter.oddFooter, QStringLiteral("&LSmith &&Partners&C&&N"));
+        // The words are text for the question, and a number is put after them, and the center that spells "&N" is text too (not emptied as a number).
+        w.setPageNumberAsker([] { return 2; });
+        QVERIFY(w.insertPageNumberDesign(QStringLiteral("bottom.plain.left")));
+        QCOMPARE(w.session()->pages().sheet(0).headerFooter.oddFooter, QStringLiteral("&LSmith &&Partners &P&C&&N"));
+        QCOMPARE(w.removePageNumbers(), 1);
+        QCOMPARE(w.session()->pages().sheet(0).headerFooter.oddFooter, QStringLiteral("&LSmith &&Partners &C&&N"));
+        // What a real number is: "&P" and "&N" after an escaped ampersand are codes again.
+        QVERIFY(jp::crunch::hasPageNumbers(QStringLiteral("&C&&&P")));
+        QCOMPARE(jp::crunch::withoutPageNumbers(QStringLiteral("&C&&&P x")), QStringLiteral("&C&& x"));
+    }
+
+    // A part with words asks: Replace puts the number in their place, Keep puts it after them with a space, Cancel changes nothing; and a result past 255 characters is refused with a word in the
+    // status bar.
+    void aPartWithWordsAsksAndTheResultIsCapped()
+    {
+        EditWindow e;
+        QVERIFY(e.open(rowsWithFormulas(100, {})));
+        CrunchWindow &w = e.win.w;
+        setHeaderFooter(w, [](HeaderFooter *hf) { hf->oddHeader = QStringLiteral("&CAnnual Report&RFor Review"); });
+        int asked = 0, answer = 0;
+        w.setPageNumberAsker([&] {
+            ++asked;
+            return answer;
+        });
+        QVERIFY(!w.insertPageNumberDesign(QStringLiteral("top.ofCount.center")));
+        QCOMPARE(asked, 1);
+        QCOMPARE(w.session()->pages().sheet(0).headerFooter.oddHeader, QStringLiteral("&CAnnual Report&RFor Review"));
+        answer = 2;
+        QVERIFY(w.insertPageNumberDesign(QStringLiteral("top.ofCount.center")));
+        QCOMPARE(w.session()->pages().sheet(0).headerFooter.oddHeader, QStringLiteral("&CAnnual Report Page &P of &N&RFor Review"));
+        answer = 1;
+        QVERIFY(w.insertPageNumberDesign(QStringLiteral("top.plain.center")));
+        QCOMPARE(w.session()->pages().sheet(0).headerFooter.oddHeader, QStringLiteral("&C&P&RFor Review"));
+        QCOMPARE(asked, 3);
+        // A part that is a number only is replaced without asking.
+        QVERIFY(w.insertPageNumberDesign(QStringLiteral("top.bold.center")));
+        QCOMPARE(asked, 3);
+        // The cap: 250 letters and the number's code would be past 255.
+        const QString words = QString(250, QLatin1Char('x'));
+        setHeaderFooter(w, [&](HeaderFooter *hf) { hf->oddFooter = QStringLiteral("&C") + words; });
+        answer = 2;
+        QVERIFY(!w.insertPageNumberDesign(QStringLiteral("bottom.ofCount.center")));
+        QCOMPARE(w.session()->pages().sheet(0).headerFooter.oddFooter, QStringLiteral("&C") + words);
+        QVERIFY2(w.statusText().contains(QStringLiteral("255")), qPrintable(w.statusText()));
+        // Under the cap it goes in.
+        setHeaderFooter(w, [&](HeaderFooter *hf) { hf->oddFooter = QStringLiteral("&C") + words.left(200); });
+        QVERIFY(w.insertPageNumberDesign(QStringLiteral("bottom.plain.center")));
+        QCOMPARE(w.session()->pages().sheet(0).headerFooter.oddFooter, QStringLiteral("&C") + words.left(200) + QStringLiteral(" &P"));
     }
 };
 

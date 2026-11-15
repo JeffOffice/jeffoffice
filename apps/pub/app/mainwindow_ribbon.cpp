@@ -1109,7 +1109,12 @@ void MainWindow::refreshUi()
 
     act("edit.undo")->setEnabled(ed->undoStack()->canUndo() || editing);
     act("edit.redo")->setEnabled(ed->undoStack()->canRedo());
-    act("ins.pageNumberRemove")->setEnabled(hasPageNumbers(ed));
+    if (m_pageNumbersDoc != d || m_pageNumbersStep != ed->undoStack()->index() || m_pageNumbersStep < 0) {
+        m_pageNumbersOn = hasPageNumbers(ed);
+        m_pageNumbersDoc = d;
+        m_pageNumbersStep = ed->undoStack()->index();
+    }
+    act("ins.pageNumberRemove")->setEnabled(m_pageNumbersOn);
     // (each shows the key the command has now, which Options > Customize can change)
     act("edit.undo")->setToolTip(jp::plainToolTip(KeyMap::tipWithShownKey(tr("Undo %1 (Ctrl+Z)").arg(ed->undoStack()->undoText()), QStringLiteral("Ctrl+Z"), act("edit.undo"))));
     act("edit.redo")->setToolTip(jp::plainToolTip(KeyMap::tipWithShownKey(tr("Redo %1 (Ctrl+Y)").arg(ed->undoStack()->redoText()), QStringLiteral("Ctrl+Y"), act("edit.redo"))));

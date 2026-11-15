@@ -15,9 +15,16 @@ bool offersPageNumberDesign(const PageNumberDesign &d);
 // What a design says, as the codes of a header or footer part: "&P", "Page &P of &N", "&B&22&P".
 QString pageNumberCode(const PageNumberDesign &d);
 
+// The most characters a part of a header or footer may have (the original's own limit).
+constexpr int kMostPartChars = 255;
+
+// Whether the part that the design names already has text that is not a page number (the words round a number, formatting, and spaces are not): what Replace or Keep is asked about.
+bool partHoldsOtherText(const QString &text, const PageNumberDesign &d);
+
 // The text of a header (footer) with the design put in the part it names (left, center, or right). The parts that held only page numbers (their codes and the words round them) are
-// emptied, so that the number is not there twice; the parts with other text keep it.
-QString withPageNumberDesign(const QString &text, const PageNumberDesign &d);
+// emptied, so that the number is not there twice; the parts with other text keep it. With `keepText` the words already in the part stay and the number follows them after a space; if that
+// would make the part longer than kMostPartChars the text is returned as it was and `*refused` says why.
+QString withPageNumberDesign(const QString &text, const PageNumberDesign &d, bool keepText = false, QString *refused = nullptr);
 
 // The text with the page number and count taken out: the codes &P and &N, and the words "Page" and "of" that are left alone in their part. Other text stays. Empty parts are left out.
 QString withoutPageNumbers(const QString &text);

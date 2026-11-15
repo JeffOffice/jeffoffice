@@ -556,6 +556,8 @@ public:
     // count out of the sheet's headers and footers. Each is one step of Undo. False when the design could not be put in.
     QVector<GalleryItem> pageNumberItems() const;
     bool insertPageNumberDesign(const QString &id);
+    // What asks what to do with the words a part already has when a design goes in it (tests stand in for the box): 1 replaces them, 2 keeps them and puts the number after them, 0 cancels.
+    void setPageNumberAsker(const std::function<int()> &asker) { m_pageNumberAsker = asker; }
     int removePageNumbers();
 
     // ---- printing (crunchwindow_print.cpp)
@@ -1386,6 +1388,7 @@ private:
     // Changes how the sheet in view prints: one step of Undo named `text`; what is wrong is told.
     void changePage(const QString &text, const std::function<void(jp::office::sheet::PageSetup *)> &change);
     std::function<bool(PageSetupRequest *)> m_pageSetupAsker;
+    std::function<int()> m_pageNumberAsker;
     std::function<QString()> m_pictureAsker;
     std::function<void(QPrinter &)> m_printerPreparer;
     std::function<bool(int, int)> m_progressHook;

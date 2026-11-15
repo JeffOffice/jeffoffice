@@ -54,6 +54,8 @@
 #include <QTextList>
 #include <QTextDocumentFragment>
 #include <QMimeData>
+#include <QMessageBox>
+#include <QPushButton>
 #include "app/plaintext.h"
 
 namespace jp {
@@ -68,7 +70,25 @@ bool MainWindow::insertPageNumberDesign(const QString &id)
         statusBar()->showMessage(tr("Click in text where the page number goes, then choose the design."), 6000);
         return false;
     }
-    const bool done = placePageNumberDesign(m_ed, id);
+    // A page number of the person's own on the master: taken out of its text, or left beside the design.
+    PubOwnNumbers own = PubOwnNumbers::Keep;
+    if (design->area != PageNumberArea::Cursor && pubMasterHasOwnPageNumber(m_ed)) {
+        int answer = 0;
+        if (m_pageNumberAsker) {
+            answer = m_pageNumberAsker();
+        } else {
+            QMessageBox box(QMessageBox::Question, tr("Page Number"), tr("The master page already has a page number in its own text. Replace it with the design, or keep it and add the design?"), QMessageBox::NoButton, this);
+            box.setTextFormat(Qt::PlainText);
+            QPushButton *replace = box.addButton(tr("Replace"), QMessageBox::AcceptRole);
+            QPushButton *keep = box.addButton(tr("Keep and Add"), QMessageBox::AcceptRole);
+            box.addButton(QMessageBox::Cancel);
+            box.exec();
+            answer = box.clickedButton() == replace ? 1 : box.clickedButton() == keep ? 2 : 0;
+        }
+        if (answer == 0) return false;
+        own = answer == 1 ? PubOwnNumbers::Replace : PubOwnNumbers::Keep;
+    }
+    const bool done = placePageNumberDesign(m_ed, id, own);
     if (done && design->area != PageNumberArea::Cursor && m_ed->doc()->masters.size() > 0 && m_ed->masterView().isEmpty())
         statusBar()->showMessage(tr("The page number is on the master page, so every page that uses it shows it."), 6000);
     return done;

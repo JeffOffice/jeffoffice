@@ -63,6 +63,10 @@ public:
     // could not be put in.
     QVector<GalleryItem> pageNumberItems() const;
     bool insertPageNumberDesign(const QString &id);
+    // What asks what to do with a page number of the person's own on the master when a design goes on (tests stand in for the box): 1 takes it out of its text, 2 keeps it, 0 cancels.
+    void setPageNumberAsker(const std::function<int()> &asker) { m_pageNumberAsker = asker; }
+    // For tests: brings the commands' state up to date.
+    void refreshForTest() { refreshUi(); }
     Canvas *canvas() const { return m_canvas; }
     Ribbon *ribbon() const override { return m_ribbon; }
     QAction *act(const QString &id) const override;
@@ -250,6 +254,11 @@ private:
     QSplitter *m_split;
     QHash<QString, QAction *> m_actions;
     QString m_ribbonError;
+    std::function<int()> m_pageNumberAsker;
+    // Whether a master holds a box of a design, kept for the document and the step of the history it was worked out at (refreshUi runs after every change).
+    const Document *m_pageNumbersDoc = nullptr;
+    int m_pageNumbersStep = -1;
+    bool m_pageNumbersOn = false;
 
     // Ribbon controls that mirror the selection.
     QVector<FontCombo *> m_fontCombos;
