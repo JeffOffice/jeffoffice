@@ -679,9 +679,11 @@ private Q_SLOTS:
         QTRY_VERIFY_WITH_TIMEOUT(e.win.w.barcodeTriesForTest() >= 1000 && e.win.w.barcodeFailuresToldForTest() == 1, 300000);
         letGo();
         qInfo("1000 swaps: %lld ms, longest turn %lld ms, %lld MB more", clock.elapsed(), e.win.w.longestBarcodeTurnForTest(), (residentKb() - before) / 1024);
-        // (a checked build, with the memory and undefined-behavior checkers, runs slower and sets JP_TEST_TIME_SCALE; 500 ms leaves room
-        // for a busy shared CI machine, which measured 222 and 270 ms on Nov 14, and still fails a fill done in one long turn)
-        QVERIFY2(e.win.w.longestBarcodeTurnForTest() < 500 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")), qPrintable(QString::number(e.win.w.longestBarcodeTurnForTest())));
+        // (the work of a turn is bounded by count: at most 40 swaps, so 1,000 swaps take at least 25 turns; a fill done in one long turn fails both.
+        // The clock is only a loose bound: a busy Windows runner took 2,794 ms for one turn on Nov 15, against 222 and 270 ms measured Nov 14.)
+        QVERIFY2(e.win.w.mostBarcodeSwapsInATurnForTest() <= 40, qPrintable(QString::number(e.win.w.mostBarcodeSwapsInATurnForTest())));
+        QVERIFY2(e.win.w.barcodeTurnsForTest() >= 25, qPrintable(QString::number(e.win.w.barcodeTurnsForTest())));
+        QVERIFY2(e.win.w.longestBarcodeTurnForTest() < 30000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")), qPrintable(QString::number(e.win.w.longestBarcodeTurnForTest())));
         QVERIFY(clock.elapsed() < 240000);
         QVERIFY2((residentKb() - before) / 1024 < 3000, qPrintable(QString::number((residentKb() - before) / 1024)));
         QCOMPARE(e.win.w.undoStack()->count(), steps + 1);   // (the swaps are part of the step of the fill)

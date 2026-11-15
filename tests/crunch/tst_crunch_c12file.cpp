@@ -188,7 +188,7 @@ private Q_SLOTS:
         };
         e.win.w.act(QStringLiteral("protect.editRanges"))->trigger();
         crunch::EditSession *s = e.win.w.session();
-        QTRY_COMPARE(s->protectionOf(0).editRanges.size(), 3);
+        QTRY_COMPARE_WITH_TIMEOUT(s->protectionOf(0).editRanges.size(), 3, 60000);   // (a SHA-512 password hash: over 5 s on a busy Windows runner, Nov 15)
         const EditRange mine = s->protectionOf(0).editRanges[2];
         QCOMPARE(mine.password.algorithm, QStringLiteral("SHA-512"));
         QVERIFY(!mine.password.hash.isEmpty());
@@ -207,7 +207,7 @@ private Q_SLOTS:
         QVERIFY(second.w.session()->protectionOf(0).editRanges[0].password.legacy.isEmpty());
         // Undo puts the file's ranges back
         e.win.w.act(QStringLiteral("edit.undo"))->trigger();
-        QTRY_COMPARE(s->protectionOf(0).editRanges.size(), 2);
+        QTRY_COMPARE_WITH_TIMEOUT(s->protectionOf(0).editRanges.size(), 2, 60000);
     }
 
     // Typing in a cell of a range that has a password asks for it; the right one opens the range for the rest of the session, a wrong one leaves it closed.

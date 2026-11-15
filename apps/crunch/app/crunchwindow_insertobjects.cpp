@@ -651,6 +651,8 @@ void CrunchWindow::syncLinkedBarcodes()
         setStatus(tr("The workbook holds as many new objects as can be saved in one go. The barcodes left are made again from their cells after you save."));
         ++m_barcodeFailuresTold;
     }
+    ++m_barcodeTurns;
+    m_mostBarcodeSwapsInATurn = std::max(m_mostBarcodeSwapsInATurn, int(made.size()));
     if (!edits.empty() && !m_session->amendLastStep(edits)) {
         const crunch::EditSession::Outcome o = m_session->changeObjects(edits, tr("Update Barcodes"));
         if (!o.ok)

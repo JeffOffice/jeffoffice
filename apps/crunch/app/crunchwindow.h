@@ -303,6 +303,8 @@ public:
     // For tests: how many barcodes the sync tried to make from a cell, and the longest turn it took, in milliseconds.
     qint64 barcodeTriesForTest() const { return m_barcodeTries; }
     qint64 longestBarcodeTurnForTest() const { return m_longestBarcodeTurn; }
+    int mostBarcodeSwapsInATurnForTest() const { return m_mostBarcodeSwapsInATurn; }
+    int barcodeTurnsForTest() const { return m_barcodeTurns; }
     qint64 barcodeFailuresToldForTest() const { return m_barcodeFailuresTold; }
     // Insert > Barcodes From Cells: a barcode for each filled cell of the range, with the cell's text as its data and the type and look of `look`, one under the next to the right of the range, as one step.
     // Cells whose text the code can't hold are named in `problems` and get none; more than `most` cells make none (`tooMany`).
@@ -1695,6 +1697,7 @@ private:
     bool m_barcodeSyncPending = false, m_barcodeQueueBuilt = false, m_barcodeRescan = false, m_barcodeLimited = false;
     std::vector<std::pair<int, int>> m_barcodeQueue;   // the linked barcodes still to be made again (sheet, id)
     qint64 m_barcodeTries = 0, m_longestBarcodeTurn = 0, m_barcodeFailuresTold = 0;
+    int m_mostBarcodeSwapsInATurn = 0, m_barcodeTurns = 0;   // (tests: the work of a turn is bounded by count, not only by the clock)
     QHash<quint64, QString> m_barcodeFailed;           // by barcode: the text of its cell that it could not be made from
     bool m_loading = false, m_calculating = false, m_haveFirstScreen = false, m_haveCalc = false;
     qint64 m_changesNoted = 0;             // the changes the worker has been sent that the window has taken note of (WorkbookLoader::changesMade)
