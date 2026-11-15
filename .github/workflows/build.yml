@@ -224,7 +224,7 @@ jobs:
           # (aqtinstall 3.3.0, the newest release, looks for Windows MinGW Qt 6.11 in the wrong folder: pinned to the commit that lists it)
           aqtsource: 'git+https://github.com/miurahr/aqtinstall.git@5a49f2b391ae8ee1d3c0dd87f8b33c1d49a4deb7'
           version: '6.11.3'
-          modules: 'qtimageformats qtmultimedia'
+          modules: 'qtimageformats qtmultimedia qtspeech'
           cache: true
 
       # Windows builds with MinGW-w64 (GCC), the compiler Qt ships for Windows.
@@ -235,7 +235,7 @@ jobs:
           aqtsource: 'git+https://github.com/miurahr/aqtinstall.git@5a49f2b391ae8ee1d3c0dd87f8b33c1d49a4deb7'
           version: '6.11.3'
           arch: 'win64_mingw'
-          modules: 'qtimageformats qtmultimedia'
+          modules: 'qtimageformats qtmultimedia qtspeech'
           tools: 'tools_mingw1310'
           cache: true
 
@@ -248,7 +248,7 @@ jobs:
           host: 'mac'
           target: 'desktop'
           arch: 'clang_64'
-          modules: 'qtimageformats qtmultimedia'
+          modules: 'qtimageformats qtmultimedia qtspeech'
           cache: true
 
       - name: Ninja (macOS)

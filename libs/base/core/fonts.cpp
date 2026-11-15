@@ -550,6 +550,7 @@ static T byStyle(const T (&v)[4], bool bold, bool italic)
 
 int substituteStretch(const QString &family, bool bold, bool italic)
 {
+    if (fontReplacement(family).size()) return 100;
     if (haveFamily(family)) return 100;
     if (const StandInWidths *w = measuredStandIn(family))
         if (const int s = byStyle(w->stretch, bold, italic)) return s;
@@ -570,6 +571,7 @@ QList<StandInStretch> standInStretchesForTest()
 
 double substituteSpaceEm(const QString &family, bool bold, bool italic)
 {
+    if (fontReplacement(family).size()) return 0;
     if (haveFamily(family)) return 0;
     if (const StandInWidths *w = measuredStandIn(family))
         if (const double em = byStyle(w->space, bold, italic); em > 0) return em;
@@ -590,6 +592,7 @@ double substituteSpaceEm(const QString &family, bool bold, bool italic)
 // drawing changes; widths, line breaks and spacing stay.
 double substituteHeightScale(const QString &family, bool bold)
 {
+    if (fontReplacement(family).size()) return 1;
     struct Heights { const char *standIn; double regular, bold; };
     static const QHash<QString, Heights> t = {
         {"Arial Rounded MT Bold", {"Nunito", 1.042, 0}},
@@ -670,6 +673,7 @@ double substituteHeightScale(const QString &family, bool bold)
 // stand-in's own bold italic has curled letters (EB Garamond's m and n).
 double substituteItalicShear(const QString &family, bool bold)
 {
+    if (fontReplacement(family).size()) return 0;
     struct Lacks { bool regular, bold; };   // the italic of the family's regular face, of its bold one
     static const QHash<QString, Lacks> t = {
         {"Eras Bold ITC", {true, true}},
@@ -713,6 +717,7 @@ static const QHash<QString, NamedWeights> &weightsByName()
 
 int substituteWeight(const QString &family, bool bold)
 {
+    if (fontReplacement(family).size()) return 0;
     static QHash<QString, int> cache;
     static int cacheGeneration = -1;
     if (cacheGeneration != fontGeneration()) {
@@ -874,6 +879,7 @@ bool symbolBullet(const QString &family, uint code, SymbolBullet *out)
 
 QString substituteFor(const QString &family)
 {
+    if (fontReplacement(family).size()) return {};   // (a font the person chose a stand-in for is treated as installed: the stand-in is drawn as it is)
     if (haveFamily(family)) return {};
     return standInOnThisPlatform(table().value(family));
 }
@@ -901,6 +907,7 @@ QString standInOnThisPlatform(const QString &standIn)
 
 QString substituteStyleName(const QString &family, bool bold, bool italic)
 {
+    if (fontReplacement(family).size()) return {};
     if (haveFamily(family)) return {};
     const QString standIn = table().value(family), here = standInOnThisPlatform(standIn);
     if (here.size() < standIn.size()) return standIn.mid(here.size()).trimmed();
@@ -1021,6 +1028,46 @@ static void substitute(const QStringList &keys)
 }
 
 void installFontSubstitutions() { substitute(missingSubstituteKeys()); }
+
+static std::mutex &replacementLock()
+{
+    static std::mutex m;
+    return m;
+}
+
+static QHash<QString, QString> &replacements()
+{
+    static QHash<QString, QString> r;   // (lowercase family -> the font drawn instead)
+    return r;
+}
+
+QString fontReplacement(const QString &family)
+{
+    std::lock_guard<std::mutex> hold(replacementLock());
+    return replacements().value(family.toLower());
+}
+
+void setFontReplacement(const QString &family, const QString &replacement)
+{
+    {
+        std::lock_guard<std::mutex> hold(replacementLock());
+        // The substitutes the family had before any choice (the stand-in of the table), to put back.
+        static QHash<QString, QStringList> before;
+        const QString key = family.toLower();
+        if (!before.contains(key)) before.insert(key, QFont::substitutes(family));
+        QFont::removeSubstitutions(family);
+        QStringList list = before.value(key);
+        if (replacement.isEmpty()) {
+            replacements().remove(key);
+        } else {
+            replacements().insert(key, replacement);
+            list.removeAll(replacement);
+            list.prepend(replacement);
+        }
+        if (!list.isEmpty()) QFont::insertSubstitutions(family, list);
+    }
+    fontsChanged();
+}
 
 } // namespace jp
 

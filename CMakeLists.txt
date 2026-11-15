@@ -12,6 +12,9 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
 endif()
 
 find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Widgets Svg PrintSupport Network Xml Test CorePrivate)
+# Read Aloud speaks with the system's voices through Qt TextToSpeech (qtspeech, the module the CI installs beside qtmultimedia). A Qt without it still builds:
+# the programs then have no voice to offer (libs/shell/app/readaloud.cpp).
+find_package(Qt6 6.5 QUIET COMPONENTS TextToSpeech)
 
 # Release builds only (the packages): link-time optimization, and no code or data that nothing uses (each function and variable in a
 # section of its own, and the linker drops the sections nothing refers to). It is applied to the shared library (jeffoffice-common and the
@@ -136,6 +139,10 @@ jo_library(jo_office libs/office)
 target_link_libraries(jo_office PUBLIC jo_text Qt6::Xml)
 jo_library(jo_shell libs/shell)
 target_link_libraries(jo_shell PUBLIC jo_office)
+if(TARGET Qt6::TextToSpeech)
+  target_compile_definitions(jo_shell PUBLIC JO_TTS=1)
+  target_link_libraries(jo_shell PUBLIC Qt6::TextToSpeech)
+endif()
 jo_library(jo_page libs/page)
 target_link_libraries(jo_page PUBLIC jo_shell)
 jo_library(jo_flow libs/flow)
@@ -168,6 +175,10 @@ foreach(layer ${JO_LAYERS})
 endforeach()
 target_link_libraries(jeffoffice-common PUBLIC Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Svg Qt6::PrintSupport Qt6::Network Qt6::Xml
                       PRIVATE jp_hunspell jp_zlib pdfium jp_qpdfwrap)
+if(TARGET Qt6::TextToSpeech)
+  target_link_libraries(jeffoffice-common PUBLIC Qt6::TextToSpeech)
+  target_compile_definitions(jeffoffice-common PUBLIC JO_TTS=1)
+endif()
 if(JO_TRANSLATE)
   # (the engine's static libraries are inside the library and not exported, like the other third-party code)
   target_link_libraries(jeffoffice-common PRIVATE jo_bergamot_engine)
@@ -222,6 +233,9 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     target_link_libraries(${lib}_linkcheck PRIVATE Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Svg Qt6::PrintSupport Qt6::Network Qt6::Xml jp_hunspell jp_zlib pdfium jp_qpdfwrap)
     if(JO_TRANSLATE)
       target_link_libraries(${lib}_linkcheck PRIVATE jo_bergamot_engine)
+    endif()
+    if(TARGET Qt6::TextToSpeech)
+      target_link_libraries(${lib}_linkcheck PRIVATE Qt6::TextToSpeech)
     endif()
     target_include_directories(${lib}_linkcheck PRIVATE $<TARGET_PROPERTY:jeffoffice-common,INTERFACE_INCLUDE_DIRECTORIES>)
   endforeach()
@@ -323,6 +337,8 @@ qt_add_executable(jptests
   tests/shell/tst_shell_grammar_rules.cpp
   tests/shell/tst_shell_keymap.cpp
   tests/shell/tst_shell_saveoptions.cpp
+  tests/shell/tst_shell_missingfonts.cpp
+  tests/shell/tst_shell_readaloud.cpp
   tests/shell/tst_shell_translate.cpp
   tests/shell/tst_shell_ribbon.cpp
   tests/shell/tst_shell_cmdsearch.cpp
