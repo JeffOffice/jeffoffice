@@ -280,6 +280,8 @@ struct SaveChanges {
     qint64 cellFormatsBefore = 0;
     // And fonts, fills, and borders added (each list begins at the place the `...Before` says), and named styles with their formats among the style formats (cellStyleXfs).
     QVector<FontSpec> newFonts;
+    // Fonts of the file given other names (by place among the file's fonts, with the name now): each `font` is written again with its new name, where it stands.
+    std::map<quint32, QString> renamedFonts;
     QVector<FillSpec> newFills;
     QVector<BorderSpec> newBorders;
     qint64 fontsBefore = 0, fillsBefore = 0, bordersBefore = 0;

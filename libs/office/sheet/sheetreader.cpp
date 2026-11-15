@@ -2545,6 +2545,9 @@ bool Workbook::open(const Package &package, QString *error, const Limits &limits
             if (theme.colors[order[i]].isValid()) m_styles.theme[i] = theme.colors[order[i]].rgb() & 0xFFFFFF;
         m_styles.majorFont = theme.majorLatin;
         m_styles.minorFont = theme.minorLatin;
+        m_themePartName = rel.target;
+        m_themeMajorInFile = theme.majorLatin;
+        m_themeMinorInFile = theme.minorLatin;
         break;
     }
     return true;
@@ -3102,6 +3105,66 @@ quint32 Workbook::fontPlace(const FontSpec &font)
     m_fontsAdded.append(font);
     m_fontIndex.emplace(hashOf(font), quint32(m_styles.fonts.size() - 1));
     return quint32(m_styles.fonts.size() - 1);
+}
+
+QVector<QPair<quint32, QString>> Workbook::renameFonts(const QString &from, const QString &to)
+{
+    QVector<QPair<quint32, QString>> done;
+    for (int i = 0; i < m_styles.fonts.size(); ++i) {
+        const FontSpec &f = m_styles.fonts[i];
+        if (!f.scheme.isEmpty() || f.name.compare(from, Qt::CaseInsensitive) != 0 || f.name == to) continue;
+        done.append({quint32(i), f.name});
+        setFontName(quint32(i), to);
+    }
+    return done;
+}
+
+void Workbook::setFontName(quint32 index, const QString &name)
+{
+    if (index >= quint32(m_styles.fonts.size())) return;
+    const QString before = m_styles.fonts[int(index)].name;
+    if (before == name) return;
+    if (qint64(index) < m_fontsInFile) {
+        // (the file's own: remembered by the name it has, so that a rename put back is no change)
+        const auto kept = m_fontFileNames.find(index);
+        if (kept == m_fontFileNames.end()) m_fontFileNames[index] = before;
+        else if (kept->second == name) m_fontFileNames.erase(kept);
+    } else if (qint64(index) - m_fontsInFile < m_fontsAdded.size()) {
+        m_fontsAdded[int(qint64(index) - m_fontsInFile)].name = name;
+    }
+    m_styles.fonts[int(index)].name = name;
+    m_fontIndexMade = false;
+}
+
+void Workbook::setThemeFont(bool major, const QString &name)
+{
+    (major ? m_styles.majorFont : m_styles.minorFont) = name;
+    m_fontIndexMade = false;
+}
+
+QByteArray Workbook::themePartNow(QString *name) const
+{
+    if (m_themePartName.isEmpty() || (m_styles.majorFont == m_themeMajorInFile && m_styles.minorFont == m_themeMinorInFile)) return QByteArray();
+    QString xml = QString::fromUtf8(m_package.part(m_themePartName));
+    if (xml.isEmpty()) return QByteArray();
+    auto put = [&](const char *kind, const QString &now, const QString &was) {
+        if (now == was) return;
+        const QRegularExpression re(QStringLiteral("(<a:%1>\\s*<a:latin typeface=\")[^\"]*(\")").arg(QLatin1String(kind)));
+        QString replacement = QStringLiteral("\\1") + QString(now).toHtmlEscaped().replace(QLatin1Char('\\'), QStringLiteral("\\\\")) + QStringLiteral("\\2");
+        xml.replace(re, replacement);
+    };
+    put("majorFont", m_styles.majorFont, m_themeMajorInFile);
+    put("minorFont", m_styles.minorFont, m_themeMinorInFile);
+    if (name) *name = m_themePartName;
+    return xml.toUtf8();
+}
+
+std::map<quint32, QString> Workbook::renamedFonts() const
+{
+    std::map<quint32, QString> out;
+    for (const auto &kept : m_fontFileNames)
+        if (kept.first < quint32(m_styles.fonts.size()) && m_styles.fonts[int(kept.first)].name != kept.second) out[kept.first] = m_styles.fonts[int(kept.first)].name;
+    return out;
 }
 
 qint32 Workbook::dxfFor(const DifferentialFormat &f)
@@ -3776,6 +3839,9 @@ void Workbook::savedTo(const Package &package, const SavedCounts &counts)
     m_numFmtsAdded = m_numFmtsAdded.mid(numberFormats);
     m_formatsAdded = m_formatsAdded.mid(cellFormats);
     m_fontsAdded = m_fontsAdded.mid(counts.fonts);
+    m_fontFileNames.clear();   // (the file has the names the fonts have now)
+    m_themeMajorInFile = m_styles.majorFont;
+    m_themeMinorInFile = m_styles.minorFont;
     m_fillsAdded = m_fillsAdded.mid(counts.fills);
     m_bordersAdded = m_bordersAdded.mid(counts.borders);
     m_stylesAdded = m_stylesAdded.mid(counts.styles);

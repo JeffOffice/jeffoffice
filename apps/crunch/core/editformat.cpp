@@ -267,7 +267,76 @@ QString fontNamed(const jp::office::sheet::Styles &styles, quint32 style, QHash<
 
 } // namespace
 
-QMap<QString, qint64> EditSession::cellFontsUsed() const
+// Fonts put back, or given, as a step: Undo and Redo name the fonts as they were and are (the first Redo is a no-op: the step is pushed after the fonts are renamed).
+class FontsRenamed : public QUndoCommand {
+public:
+    FontsRenamed(EditSession *session, QVector<QPair<quint32, QString>> before, QString to, const QString &text) : QUndoCommand(text), m_session(session), m_before(std::move(before)), m_to(std::move(to)) {}
+    void redo() override
+    {
+        if (m_first) {
+            m_first = false;
+            return;
+        }
+        QVector<QPair<quint32, QString>> now;
+        for (const auto &f : std::as_const(m_before)) now.append({f.first, m_to});
+        if (!m_session->setFontNames(now)) m_session->giveUpUndo(text(), true);
+    }
+    void undo() override
+    {
+        if (!m_session->setFontNames(m_before)) m_session->giveUpUndo(text(), false);
+    }
+
+private:
+    EditSession *m_session;
+    QVector<QPair<quint32, QString>> m_before;
+    QString m_to;
+    bool m_first = true;
+};
+
+// The theme's heading or body font given another name, as a step.
+class ThemeFontRenamed : public QUndoCommand {
+public:
+    ThemeFontRenamed(EditSession *session, bool major, QString before, QString to, const QString &text)
+        : QUndoCommand(text), m_session(session), m_major(major), m_before(std::move(before)), m_to(std::move(to)) {}
+    void redo() override
+    {
+        if (m_first) {
+            m_first = false;
+            return;
+        }
+        if (!m_session->setThemeFontName(m_major, m_to)) m_session->giveUpUndo(text(), true);
+    }
+    void undo() override
+    {
+        if (!m_session->setThemeFontName(m_major, m_before)) m_session->giveUpUndo(text(), false);
+    }
+
+private:
+    EditSession *m_session;
+    bool m_major;
+    QString m_before, m_to;
+    bool m_first = true;
+};
+
+bool EditSession::setThemeFontName(bool major, const QString &name)
+{
+    std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold();
+    if (!hold) return false;
+    m_book->book->setThemeFont(major, name);
+    Q_EMIT stylesChanged();
+    return true;
+}
+
+bool EditSession::setFontNames(const QVector<QPair<quint32, QString>> &fonts)
+{
+    std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold();
+    if (!hold) return false;
+    for (const auto &f : fonts) m_book->book->setFontName(f.first, f.second);
+    Q_EMIT stylesChanged();
+    return true;
+}
+
+QMap<QString, qint64> EditSession::cellFontsUsed(QMap<QString, qint64> *stylesOnly, QMap<QString, QString> *theme, QMap<QString, qint64> *themeCells) const
 {
     QMap<QString, qint64> out;
     if (!m_book || !m_book->calc || !m_book->book) return out;
@@ -277,8 +346,26 @@ QMap<QString, qint64> EditSession::cellFontsUsed() const
         m_book->calc->sheet(sheet).cells.forEachInRange(0, 0, kMaxRows - 1, kMaxColumns - 1, [&](quint32, quint32, const Cell &c) {
             const QString name = fontNamed(styles, c.style, &seen);
             if (!name.isEmpty()) ++out[name];
+            else if (themeCells) {
+                const QString& scheme = styles.font(styles.format(c.style).font).scheme;
+                if (scheme == QLatin1String("major")) ++(*themeCells)[QStringLiteral("+Heading")];
+                else if (scheme == QLatin1String("minor")) ++(*themeCells)[QStringLiteral("+Body")];
+            }
             return true;
         });
+    }
+    if (theme) {
+        if (!styles.majorFont.isEmpty()) theme->insert(QStringLiteral("+Heading"), styles.majorFont);
+        if (!styles.minorFont.isEmpty()) theme->insert(QStringLiteral("+Body"), styles.minorFont);
+    }
+    if (stylesOnly) {
+        // The named styles (the style formats, the Normal style first among them) and the formats they are among: a font only they use is a font of styles.
+        auto add = [&](quint32 fontIndex) {
+            const jp::office::sheet::FontSpec &f = styles.font(fontIndex);
+            if (f.scheme.isEmpty() && !f.name.isEmpty()) ++(*stylesOnly)[f.name];
+        };
+        for (const jp::office::sheet::CellFormat &x : styles.styleXfs) add(x.font);
+        if (styles.fonts.size() > 0) add(0);   // (the default font: the first of the file's)
     }
     return out;
 }
@@ -299,61 +386,65 @@ EditSession::Outcome EditSession::replaceCellFont(const QString &from, const QSt
         return out;
     }
     if (from.isEmpty() || to.isEmpty() || from.compare(to, Qt::CaseInsensitive) == 0 || !m_book || !m_book->calc || !m_book->book) return out;
-    FormatChange change;
-    change.fontName = to;
-    const QString text = tr("Replace Fonts");
-    const jp::office::sheet::Styles &styles = m_book->book->styles();
-    QHash<quint32, QString> seen;
-    // Every sheet is looked at first, and nothing is changed unless all of it can be: a limit or a sheet that won't take the change is said before the first cell changes.
-    struct Sheet {
-        int sheet;
-        std::vector<RestyleTarget> targets;
-    };
-    std::vector<Sheet> work;
-    qint64 total = 0;
-    QSet<quint32> bases;
-    for (int sheet = 0; sheet < m_book->calc->sheetCount(); ++sheet) {
-        Sheet one{sheet, {}};
-        m_book->calc->sheet(sheet).cells.forEachInRange(0, 0, kMaxRows - 1, kMaxColumns - 1, [&](quint32 row, quint32 col, const Cell &c) {
-            if (fontNamed(styles, c.style, &seen).compare(from, Qt::CaseInsensitive) == 0) {
-                one.targets.push_back({row, col, &change});
-                bases.insert(c.style);
+    if (from == QLatin1String("+Heading") || from == QLatin1String("+Body")) {
+        // The theme's own font: changed only when it is the one picked (the cells that follow it keep following it).
+        const bool major = from == QLatin1String("+Heading");
+        QString was;
+        {
+            std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold();
+            if (!hold) {
+                out.ok = false;
+                out.problem = tr("The workbook is busy. Try again in a moment.");
+                return out;
             }
-            return true;
-        });
-        if (one.targets.empty()) continue;
-        total += qint64(one.targets.size());
-        if (QString notAllowed; !canEditSheet(sheet, &notAllowed) || !allows(sheet, Allow::FormatCells, &notAllowed)) {
+            was = major ? m_book->book->styles().majorFont : m_book->book->styles().minorFont;
+            if (was.isEmpty() || was == to) return out;
+            m_book->book->setThemeFont(major, to);
+        }
+        QMap<QString, qint64> themeCells;
+        cellFontsUsed(nullptr, nullptr, &themeCells);
+        if (cells) *cells = std::max<qint64>(themeCells.value(from), 1);
+        m_lastCalculated = false;
+        m_undo.push(new ThemeFontRenamed(this, major, was, to, tr("Replace Fonts")));
+        Q_EMIT stylesChanged();
+        return out;
+    }
+    // A sheet with cells in the font that won't take formatting refuses the whole change, before anything changes.
+    {
+        const jp::office::sheet::Styles &styles = m_book->book->styles();
+        QHash<quint32, QString> seen;
+        for (int sheet = 0; sheet < m_book->calc->sheetCount(); ++sheet) {
+            bool uses = false;
+            m_book->calc->sheet(sheet).cells.forEachInRange(0, 0, kMaxRows - 1, kMaxColumns - 1, [&](quint32, quint32, const Cell &c) {
+                if (fontNamed(styles, c.style, &seen).compare(from, Qt::CaseInsensitive) != 0) return true;
+                uses = true;
+                if (cells) ++*cells;
+                return true;
+            });
+            if (!uses) continue;
+            if (QString notAllowed; !canEditSheet(sheet, &notAllowed) || !allows(sheet, Allow::FormatCells, &notAllowed)) {
+                out.ok = false;
+                out.problem = notAllowed;
+                if (cells) *cells = 0;
+                return out;
+            }
+        }
+    }
+    QVector<QPair<quint32, QString>> before;
+    {
+        std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold();
+        if (!hold) {
             out.ok = false;
-            out.problem = notAllowed;
+            out.problem = tr("The workbook is busy. Try again in a moment.");
+            if (cells) *cells = 0;
             return out;
         }
-        work.push_back(std::move(one));
+        before = m_book->book->renameFonts(from, to);
     }
-    if (total > kMaxStyledCells) {
-        out.ok = false;
-        out.problem = tr("That font is in %1 cells, more than one step can change (%2). Nothing was changed.").arg(QLocale().toString(total), QLocale().toString(kMaxStyledCells));
-        return out;
-    }
-    if (qint64(styles.formats.size()) + qint64(bases.size()) > jp::office::sheet::kMaxCellFormatsWritten) {
-        out.ok = false;
-        out.problem = tr("This workbook has as many different formats as a workbook can hold (%1 cell formats). Nothing was changed.").arg(QLocale().toString(jp::office::sheet::kMaxCellFormatsWritten));
-        return out;
-    }
-    if (work.empty()) return out;
-    // (every sheet's change is one step of Undo; a sheet that fails after all takes the others' back, and leaves no step to redo)
-    m_undo.beginMacro(text);
-    for (const Sheet &one : work) {
-        const Outcome done = restyle(one.sheet, one.targets, text);
-        if (!done.ok) {
-            m_undo.endMacro();
-            if (const QUndoCommand *top = m_undo.command(m_undo.index() - 1)) const_cast<QUndoCommand *>(top)->setObsolete(true);
-            m_undo.undo();
-            return done;
-        }
-    }
-    m_undo.endMacro();
-    if (cells) *cells = total;
+    if (before.isEmpty()) return out;
+    m_lastCalculated = false;
+    m_undo.push(new FontsRenamed(this, before, to, tr("Replace Fonts")));
+    Q_EMIT stylesChanged();
     return out;
 }
 

@@ -79,6 +79,8 @@ public:
 
     explicit LookTable(const jp::office::sheet::Styles *styles = nullptr);
     void setStyles(const jp::office::sheet::Styles *styles);
+    // Lets every look go, for styles that changed where they stand (a font renamed).
+    void reset() { setStyles(m_styles); }
     // The look of a cell format (the plain look for one the file doesn't have), made when first asked for. The reference holds until trim().
     const CellLook &look(quint32 xf) const;
     // The look of a cell format with the changes of a differential format (a rule of conditional formatting), made when first asked for and kept by the format and `key` (a number the caller

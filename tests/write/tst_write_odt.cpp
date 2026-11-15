@@ -133,6 +133,12 @@ private Q_SLOTS:
         QCOMPARE(m_stroke, QByteArray("7790B3"));   // (the theme's dark 1, with its luminance halfway to white)
         strokeOf("<a:schemeClr val=\"tx1\"><a:tint val=\"50000\"/></a:schemeClr>");   // (black, half way to white)
         QCOMPARE(m_stroke, QByteArray("8F949B"));   // (the same, half way to white)
+        strokeOf("<a:schemeClr val=\"tx1\"><a:shade val=\"50000\"/></a:schemeClr>");   // (half as bright: toward black)
+        {
+            const QColor base = doc->theme()->colors[office::Theme::Dark1], got(QStringLiteral("#") + QString::fromLatin1(m_stroke));
+            QVERIFY(got.isValid());
+            QVERIFY2(qAbs(got.red() - base.red() / 2) <= 1 && qAbs(got.green() - base.green() / 2) <= 1 && qAbs(got.blue() - base.blue() / 2) <= 1, m_stroke.constData());
+        }
     }
 
     void anOdtOpensWithItsTextAndLooks()

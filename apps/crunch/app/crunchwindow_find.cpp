@@ -526,10 +526,20 @@ void CrunchWindow::replaceFonts()
     if (!m_session || m_edit.active) return;
     ReplaceFontsHost host;
     host.fontsUsed = [this] {
-        QMap<QString, int> uses;
-        const QMap<QString, qint64> cells = m_session->cellFontsUsed();
-        for (auto it = cells.constBegin(); it != cells.constEnd(); ++it) uses.insert(it.key(), int(std::min<qint64>(it.value(), 2000000000)));
-        return fontUsesOf(uses);
+        QMap<QString, int> content, styles;
+        QMap<QString, qint64> stylesOnly;
+        QMap<QString, QString> theme;
+        QMap<QString, qint64> themeCells;
+        const QMap<QString, qint64> cells = m_session->cellFontsUsed(&stylesOnly, &theme, &themeCells);
+        for (auto it = cells.constBegin(); it != cells.constEnd(); ++it) content.insert(it.key(), int(std::min<qint64>(it.value(), 2000000000)));
+        for (auto it = stylesOnly.constBegin(); it != stylesOnly.constEnd(); ++it) styles.insert(it.key(), 1);
+        QVector<FontUse> out = fontUsesOf(content, styles);
+        // The theme's two fonts, offered and changed only when picked.
+        if (theme.contains(QStringLiteral("+Heading")) && themeCells.value(QStringLiteral("+Heading")) > 0)
+            out.push_back({QStringLiteral("+Heading"), tr("%1 (Headings)").arg(theme.value(QStringLiteral("+Heading"))), int(themeCells.value(QStringLiteral("+Heading"))), true});
+        if (theme.contains(QStringLiteral("+Body")) && themeCells.value(QStringLiteral("+Body")) > 0)
+            out.push_back({QStringLiteral("+Body"), tr("%1 (Body)").arg(theme.value(QStringLiteral("+Body"))), int(themeCells.value(QStringLiteral("+Body"))), true});
+        return out;
     };
     host.replace = [this](const QString &from, const QString &to) {
         qint64 cells = 0;

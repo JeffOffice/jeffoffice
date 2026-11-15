@@ -357,6 +357,16 @@ public:
     QVector<AddedNumberFormat> addedNumberFormats() const { return m_numFmtsAdded; }
     QVector<AddedCellFormat> addedCellFormats() const { return m_formatsAdded; }
     QVector<FontSpec> addedFonts() const { return m_fontsAdded; }
+    // Replace Fonts: the fonts named `from` (without regard to case; not the theme's, which name none) are named `to` where they stand, so that every cell format, named style, and the
+    // default that uses them follows. Returns the places renamed with the names they had. A font of the file is written with its new name in place (renamedFonts); no font is added.
+    QVector<QPair<quint32, QString>> renameFonts(const QString &from, const QString &to);
+    void setFontName(quint32 index, const QString &name);
+    // The theme's heading (major) and body (minor) fonts: the fonts that say "major" or "minor" mean these. Renaming one changes the theme part when the workbook is saved (themePartNow).
+    void setThemeFont(bool major, const QString &name);
+    // The theme part as it is written now (the file's own with the two names put in), by its name; empty when the names are the file's or the workbook has no theme.
+    QByteArray themePartNow(QString *name) const;
+    // The fonts of the file whose names are not what the file has (by place), for saving.
+    std::map<quint32, QString> renamedFonts() const;
     // The place of the differential format that is only a fill of this color (or, with `font`, only a font of it): one the workbook has, else one added at the end (the file's `dxfs`).
     // -1 if the workbook has no styles part to put one in, or has as many as it may.
     qint32 dxfForColor(const ColorSpec &color, bool font);
@@ -514,6 +524,8 @@ private:
     quint32 findOrAddFormat(quint32 base, const CellFormat &format);
     std::unordered_multimap<quint64, quint32> m_fontIndex, m_fillIndex, m_borderIndex;   // the fonts, fills, and borders by a hash of what they are (made when first needed)
     bool m_fontIndexMade = false, m_fillIndexMade = false, m_borderIndexMade = false;
+    QString m_themePartName, m_themeMajorInFile, m_themeMinorInFile;   // the theme part, and the two fonts it names (as the file has them)
+    std::map<quint32, QString> m_fontFileNames;   // the names the file has for the fonts renamed since it was opened or saved (by place)
     struct HeaderImages {
         QMutex mutex;
         QHash<QString, QByteArray> images;

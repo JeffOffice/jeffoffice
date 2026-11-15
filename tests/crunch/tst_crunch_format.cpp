@@ -10,6 +10,7 @@
 #include "crunchwindowhelpers.h"
 #include "editwindow.h"
 #include "grid/gridview.h"
+#include "io/zip.h"
 
 #include <QAction>
 #include <QApplication>
@@ -225,6 +226,54 @@ private Q_SLOTS:
         QVERIFY(s->replaceCellFont(QStringLiteral("Zephyr Two"), QStringLiteral("Zephyr Three"), &cells).ok);
         QCOMPARE(cells, qint64(5));
         QCOMPARE(lookAt(e, QStringLiteral("D4")).family, QStringLiteral("Zephyr Three"));
+    }
+
+    // The renamed font is written where it stands: the saved file has no font of the old name anywhere, no font and no cell format more than before, and opens with the new name; Undo
+    // after a save, and a second save, put the old name back in the same place.
+    void aReplacedFontIsWrittenInPlaceAndTheOldNameIsGoneFromTheFile()
+    {
+        EditWindow e;
+        QVERIFY(e.open(formatBook()));
+        crunch::EditSession *s = e.win.w.session();
+        FormatChange zephyr;
+        zephyr.fontName = QStringLiteral("Zephyr Test");
+        QVERIFY(s->formatCells(0, rangeOf(QStringLiteral("B2:C3")), zephyr, QStringLiteral("Formatting")).ok);
+        QSignalSpy first(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(first, 20000), qPrintable(e.win.told.join('|') + e.win.w.statusText()));
+        auto stylesOf = [&](const QString &path) {
+            QFile f(path);
+            QByteArray all = f.open(QIODevice::ReadOnly) ? f.readAll() : QByteArray();
+            QMap<QString, QByteArray> parts;
+            readZip(all, parts);
+            return parts.value(QStringLiteral("xl/styles.xml"));
+        };
+        const QByteArray before = stylesOf(e.copyOfFile());
+        QVERIFY(before.contains("Zephyr Test"));
+        const qsizetype fonts = before.count("<font>") + before.count("<font ");
+        const qsizetype formats = before.count("<xf ");
+        qint64 cells = 0;
+        QVERIFY(s->replaceCellFont(QStringLiteral("zephyr test"), QStringLiteral("Zephyr Two"), &cells).ok);
+        QCOMPARE(cells, qint64(4));
+        QSignalSpy second(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(second, 20000), qPrintable(e.win.told.join('|') + e.win.w.statusText()));
+        const QByteArray after = stylesOf(e.copyOfFile());
+        QVERIFY(!after.contains("Zephyr Test"));
+        QCOMPARE(after.count("Zephyr Two"), qsizetype(1));   // (one font entry, not one for each cell format)
+        QCOMPARE(after.count("<font>") + after.count("<font "), fonts);
+        QCOMPARE(after.count("<xf "), formats);
+        Window reopened;
+        QVERIFY(reopened.open(e.copyOfFile()));
+        QCOMPARE(reopened.w.view()->sheet().looks().look(reopened.w.calculation()->sheet(0).cells.find(1, 1)->style).family, QStringLiteral("Zephyr Two"));
+        // Undo gives the old name back, in the same place, and the file after another save has it again.
+        e.win.w.act(QStringLiteral("edit.undo"))->trigger();
+        QSignalSpy third(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(third, 20000), qPrintable(e.win.told.join('|') + e.win.w.statusText()));
+        const QByteArray undone = stylesOf(e.copyOfFile());
+        QVERIFY(undone.contains("Zephyr Test") && !undone.contains("Zephyr Two"));
+        QCOMPARE(undone.count("<xf "), formats);
     }
 
     // A formatting command is one step: the cells have the font and fill, the format is the same for the same change (never made twice), Undo and Redo give it and take it back, and the

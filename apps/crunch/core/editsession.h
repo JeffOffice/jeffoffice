@@ -905,8 +905,15 @@ public:
     Outcome formatCells(int sheet, const jp::office::sheet::CellRange &range, const jp::office::sheet::FormatChange &change, const QString &text);
     // Replace Fonts: the fonts the cells of the workbook are set in, by name, with how many cells each (a cell that follows the theme's font names none), and the change of one for another in
     // every cell that has it, on every sheet, as one step of Undo. `cells` is how many cells changed. Not ok when a sheet that is protected, or a cell that is locked on it, can't be changed.
-    QMap<QString, qint64> cellFontsUsed() const;
+    // `styles`, when given, gets the fonts only styles name (the named cell styles, the Normal style among them) and the theme's own fonts are left out; the names are counted once each.
+    // `theme`, when given, gets how many cells use the theme's heading font ("+Heading") and body font ("+Body"), for the theme fonts the workbook has.
+    QMap<QString, qint64> cellFontsUsed(QMap<QString, qint64> *styles = nullptr, QMap<QString, QString> *theme = nullptr, QMap<QString, qint64> *themeCells = nullptr) const;
+    // The fonts are renamed where they stand in the workbook's styles (so every cell format, named style, and the default follow, and the file's own list of fonts is written with the new name in
+    // place), as one step of Undo. `cells` is how many cells use the font. Not ok, and nothing changed, when a sheet that has cells in it is protected against formatting.
     Outcome replaceCellFont(const QString &from, const QString &to, qint64 *cells = nullptr);
+    // (the steps of Replace Fonts: Undo and Redo give the fonts their names; false when the workbook could not be held)
+    bool setFontNames(const QVector<QPair<quint32, QString>> &fonts);
+    bool setThemeFontName(bool major, const QString &name);
     // The borders of a block: which of its edges (the sides on the outside of the block, the lines between its cells, a diagonal) are given the line; a line of no style takes them away. The
     // cells beside the block that share its outer edges are given the same line on the side that meets it, as in the programs people know.
     enum BorderEdge { EdgeLeft = 1, EdgeRight = 2, EdgeTop = 4, EdgeBottom = 8, EdgeInsideHorizontal = 16, EdgeInsideVertical = 32, EdgeDiagonalUp = 64, EdgeDiagonalDown = 128 };
@@ -1151,6 +1158,8 @@ public:
     bool placeOfMark(quint64 key, int *sheet, quint32 *row, quint32 *col) const;
 
 Q_SIGNALS:
+    // The styles changed where they stand (fonts renamed, by a step, Undo, or Redo): the window makes the looks again and draws.
+    void stylesChanged();
     // The sheets were changed (added, deleted, renamed, moved, shown, hidden, or given a color) by a step, Undo, or Redo: the window makes its tabs again.
     void sheetsChanged();
     // The formatting inside the text of cells of a sheet changed (a step, Undo, or Redo): the window draws the sheet's texts again.
@@ -1183,6 +1192,8 @@ private:
     friend class ChangeCells;
     friend class StyleMade;
     friend class StyleHidden;
+    friend class FontsRenamed;
+    friend class ThemeFontRenamed;
     // A step could not be undone or done again: every step is forgotten (the workbook is not as the stack says), and `stepFailed` says so.
     void giveUpUndo(const QString &stepText, bool redoing);
     // Forgets every step that is done (and what each holds): Undo does not go back over them.

@@ -46,6 +46,10 @@ void CrunchWindow::createEditing()
     });
     m_formatShown = FormatShown();   // (a workbook of its own: the buttons show its cell with the cursor)
     connect(m_session.get(), &crunch::EditSession::cellsChanged, this, &CrunchWindow::onCellsChanged);
+    connect(m_session.get(), &crunch::EditSession::stylesChanged, this, [this] {
+        m_view->sheet().resetLooks();
+        m_view->viewport()->update();
+    });
     connect(m_session.get(), &crunch::EditSession::cellsMoved, this, &CrunchWindow::onCellsMoved);
     connect(m_session.get(), &crunch::EditSession::sizesChanged, this, &CrunchWindow::onSizesChanged);
     // the grid asks for the formatting inside a text, and draws a sheet's texts again when it changes

@@ -553,6 +553,54 @@ bool patchStyles(const QByteArray &xml, const SaveChanges &changes, QByteArray *
         for (const FillSpec &f : changes.newFills) items += prefixed(fillXml(f), p);
         if (!appendToList(&result, "fills", items, changes.newFills.size())) return bad();
     }
+    if (!changes.renamedFonts.empty()) {
+        // (in place: the nth font of the list keeps everything it says but its name)
+        Tag open;
+        if (!findStart(result, "fonts", &open, root.end) || open.selfClosing) return bad();
+        Tag close;
+        if (!findEnd(result, open, &close)) return bad();
+        QByteArray rebuilt = result.mid(open.end, close.start - open.end);
+        QByteArray out;
+        qsizetype pos = 0;
+        quint32 index = 0;
+        for (;;) {
+            Tag font;
+            if (!xmlscan::nextTag(rebuilt, pos, &font)) break;
+            if (font.local != "font" || font.closing) {
+                out += rebuilt.mid(pos, font.end - pos);
+                pos = font.end;
+                continue;
+            }
+            Tag fontEnd = font;
+            QByteArray element;
+            if (font.selfClosing) {
+                element = rebuilt.mid(font.start, font.end - font.start);
+            } else {
+                if (!findEnd(rebuilt, font, &fontEnd)) return bad();
+                element = rebuilt.mid(font.start, fontEnd.end - font.start);
+            }
+            const auto renamed = changes.renamedFonts.find(index);
+            if (renamed != changes.renamedFonts.end()) {
+                const QByteArray name = xmlscan::escapeAttribute(renamed->second);
+                Tag nameTag;
+                if (findStart(element, "name", &nameTag, 0)) {
+                    QByteArray tag = element.mid(nameTag.start, nameTag.end - nameTag.start);
+                    setAttribute(&tag, "val", name);
+                    element = element.left(nameTag.start) + tag + element.mid(nameTag.end);
+                } else if (font.selfClosing) {
+                    element = "<" + p + "font><" + p + "name val=\"" + name + "\"/></" + p + "font>";
+                } else {
+                    const qsizetype at = element.indexOf('>') + 1;
+                    element.insert(at, "<" + p + "name val=\"" + name + "\"/>");
+                }
+            }
+            out += rebuilt.mid(pos, font.start - pos) + element;
+            pos = font.selfClosing ? font.end : fontEnd.end;
+            ++index;
+        }
+        out += rebuilt.mid(pos);
+        result = result.left(open.end) + out + result.mid(close.start);
+    }
     if (!changes.newFonts.isEmpty()) {
         QByteArray items;
         for (const FontSpec &f : changes.newFonts) items += prefixed(fontXml(f), p);
@@ -3030,7 +3078,7 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
         replaced.insert(index, patched);
     }
     // ---- the styles
-    if (!changes.newCellFormats.isEmpty() || !changes.newNumberFormats.isEmpty() || !changes.newFonts.isEmpty() || !changes.newFills.isEmpty() || !changes.newBorders.isEmpty() || !changes.newStyles.isEmpty() || !changes.styleVisibility.isEmpty() || !changes.newDxfs.isEmpty() || !changes.newTableStyles.isEmpty()) {
+    if (!changes.newCellFormats.isEmpty() || !changes.newNumberFormats.isEmpty() || !changes.newFonts.isEmpty() || !changes.renamedFonts.empty() || !changes.newFills.isEmpty() || !changes.newBorders.isEmpty() || !changes.newStyles.isEmpty() || !changes.styleVisibility.isEmpty() || !changes.newDxfs.isEmpty() || !changes.newTableStyles.isEmpty()) {
         const int index = entryOfPart(book.stylesPart());
         QByteArray xml, patched;
         if (index < 0 || !inflate(index, &xml)) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The styles part is not in the file."));

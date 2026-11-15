@@ -63,6 +63,8 @@ public:
     GridLayout &layout() { return m_layout; }
     const GridLayout &layout() const { return m_layout; }
     const LookTable &looks() const { return m_looks; }
+    // The styles changed where they stand (a font was renamed): the looks made from them are made again.
+    void resetLooks() { m_looks.reset(); }
 
     // The cell, or null.
     const Cell *cellAt(quint32 row, quint32 col) const;
