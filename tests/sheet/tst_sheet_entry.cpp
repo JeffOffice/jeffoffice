@@ -365,7 +365,7 @@ private Q_SLOTS:
             const QString prefix = name == QLatin1String("FILTER") || name == QLatin1String("SORT") ? QStringLiteral("_xlfn._xlws.") : QStringLiteral("_xlfn.");
             QCOMPARE(toFileFormula(name.toLower() + QLatin1String("(A1)")), prefix + name + QLatin1String("(A1)"));
             QCOMPARE(toFileFormula(name + QLatin1String(" (A1)")), prefix + name + QLatin1String(" (A1)"));   // (one argument: LET and LAMBDA name no parameter)
-            QCOMPARE(jp::grid::displayFormula(prefix + name + QLatin1String("(A1)")), name + QLatin1String("(A1)"));
+            QCOMPARE(jp::grid::displayFormula(prefix + name + QLatin1String("(A1)")), name == QLatin1String("SINGLE") ? QStringLiteral("@A1") : name + QLatin1String("(A1)"));   // (SINGLE is the mark @)
             QCOMPARE(toFileFormula(prefix + name + QLatin1String("(A1)")), prefix + name + QLatin1String("(A1)"));   // (already as a file has it)
         }
         // what this program has of them is all on the list
