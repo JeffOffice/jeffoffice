@@ -362,8 +362,8 @@
          "text": "f903f431e4802d6db7bc2d5d54e8afe5b89b2c9aead34c595a178394ad05d003"
         },
         {
-         "status": "todo",
-         "text": "b1eac767ba26a2e0227c8aec122fc8c94f0da1c1bf672a2f38c52a4b042117ff"
+         "status": "partly",
+         "text": "a0869cc3da074daff4ad10c0f983a6da3d36c1aea6ec4f47d1ed170d03f71992"
         },
         {
          "hide_soon": true,
@@ -2634,8 +2634,8 @@
          "text": "ceb61b3722fc46c569af74262f57019cbc0b6042d576bf701f8fcd3faba4ee2a"
         },
         {
-         "status": "todo",
-         "text": "e40ae9fdef2bab9a2dd6a0379d458d15d475259203f78876729b99a8afe342af"
+         "status": "partly",
+         "text": "1156490c35834bae6a428f27324783dd9ef880ecfe0f26e7572e5036684a114a"
         },
         {
          "hide_soon": true,
@@ -4003,7 +4003,7 @@
       },
       {
        "status": "partly",
-       "text": "d0982d849a7ffb80b053632caba431b0cda09a891a8025f6ecad374a81ce673c"
+       "text": "e74750b4b53f1556936033e7624db4c7b95aeb185ac01f9dad8c8f73369146da"
       },
       {
        "status": "partly",
@@ -4506,8 +4506,8 @@
          "text": "cb0c4275143581137ce684697c4e92504edcc566d7fa60923422eff47790a9e7"
         },
         {
-         "status": "todo",
-         "text": "b2ddc20805b4f790ec97d46c77067d009f485376a5219d0e6d2adfcd6551afab"
+         "status": "partly",
+         "text": "7bd6a91efb0e5f86ecd45185d8a24bd1e678c5ba8eb65c98bc426c83be3ffc77"
         },
         {
          "hide_soon": true,
@@ -5835,8 +5835,8 @@
        "heading": "fa357a48a90057cdd87ffeca7f3ff8467a9a4a8e255c91b81fae06c0bcc85e7d",
        "items": [
         {
-         "status": "todo",
-         "text": "0e0fc072ce3755363cec5bcdb5075f68ffda6d67cd452f07d7fcda684e131a62"
+         "status": "partly",
+         "text": "52a08d7a207650138152c3f248f8c9db85037c443a4e5c29f4831687bfe74aea"
         },
         {
          "status": "partly",
@@ -8541,18 +8541,6 @@
     "fr": ""
    }
   },
-  "0e0fc072ce3755363cec5bcdb5075f68ffda6d67cd452f07d7fcda684e131a62": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Security settings for linked files, linked media, and macros (kept, never run)",
-    "es": "Ajustes de seguridad para archivos vinculados, medios vinculados y macros (se conservan, nunca se ejecutan)",
-    "fr": "Paramètres de sécurité pour les fichiers liés, les médias liés et les macros (conservés, jamais exécutés)"
-   }
-  },
   "0e4424f3649c3d89259bbe1c73fa4504500c1cc1dc0b84b0d636fa6295274b4f": {
    "drop": false,
    "en": "Insert one or more pictures from this device, placed in the middle of the slide and kept inside the presentation. Drop picture files on a slide to place each where it lands; PNG, JPEG, GIF, BMP, TIFF, WebP, SVG, WMF, EMF, ICO, and PDF files are read.",
@@ -8690,6 +8678,18 @@
    "en": "Export pages as pictures in PNG, JPEG, GIF, TIFF, or BMP at a chosen resolution.",
    "es": "Exporte las páginas como imágenes PNG, JPEG, GIF, TIFF o BMP con la resolución que elija.",
    "fr": "Exportez les pages sous forme d’images PNG, JPEG, GIF, TIFF ou BMP à la résolution choisie.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "1156490c35834bae6a428f27324783dd9ef880ecfe0f26e7572e5036684a114a": {
+   "drop": false,
+   "en": "Options has a Security page. Macros are kept in the file and never run. A link that would start a program is always refused. Files from the internet or another computer open as read-only first or normally. A linked movie or sound is never played, played after one question when the show starts, or played at once, and only files on this computer play. A bar under a held-back file offers Enable Editing for that one file.",
+   "es": "Options tiene una página de seguridad. Las macros se conservan en el archivo y nunca se ejecutan. Un vínculo que iniciaría un programa siempre se rechaza. Los archivos de internet o de otro equipo se abren primero en modo de solo lectura o de forma normal. Una película o un sonido vinculado nunca se reproduce, se reproduce tras una pregunta al iniciar la presentación o se reproduce de inmediato, y solo se reproducen archivos de este equipo. Una barra bajo un archivo retenido ofrece Enable Editing para ese único archivo.",
+   "fr": "Options comporte une page Sécurité. Les macros sont conservées dans le fichier et ne sont jamais exécutées. Un lien qui lancerait un programme est toujours refusé. Les fichiers provenant d’internet ou d’un autre ordinateur s’ouvrent d’abord en lecture seule ou normalement. Une vidéo ou un son lié n’est jamais lu, est lu après une question au début du diaporama ou est lu immédiatement, et seuls les fichiers de cet ordinateur sont lus. Une barre sous un fichier retenu propose Enable Editing pour ce seul fichier.",
    "soon": {
     "drop": true,
     "en": "",
@@ -13677,6 +13677,18 @@
     "fr": ""
    }
   },
+  "52a08d7a207650138152c3f248f8c9db85037c443a4e5c29f4831687bfe74aea": {
+   "drop": false,
+   "en": "Options has a Security page. Macros are kept in the file and never run. A link that would start a program is always refused. Files from the internet or another computer open as read-only first or normally. A bar under a held-back file offers Enable Editing for that one file.",
+   "es": "Options tiene una página de seguridad. Las macros se conservan en el archivo y nunca se ejecutan. Un vínculo que iniciaría un programa siempre se rechaza. Los archivos de internet o de otro equipo se abren primero en modo de solo lectura o de forma normal. Una barra bajo un archivo retenido ofrece Enable Editing para ese único archivo.",
+   "fr": "Options comporte une page Sécurité. Les macros sont conservées dans le fichier et ne sont jamais exécutées. Un lien qui lancerait un programme est toujours refusé. Les fichiers provenant d’internet ou d’un autre ordinateur s’ouvrent d’abord en lecture seule ou normalement. Une barre sous un fichier retenu propose Enable Editing pour ce seul fichier.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "530e2a06ebacb4a9783fd47ab8cc50342a965550bd0455eaf0b1b85a36c1e7d2": {
    "drop": false,
    "en": "Create a PDF in standard, minimum size, high quality, or commercial press quality, with page ranges, document properties, PDF/A, and PDF/X-1a. Open the PDF after saving it. A booklet can be saved as its printed sheets, two pages to a side in folding order, or as single pages.",
@@ -16893,6 +16905,18 @@
     "fr": ""
    }
   },
+  "7bd6a91efb0e5f86ecd45185d8a24bd1e678c5ba8eb65c98bc426c83be3ffc77": {
+   "drop": false,
+   "en": "Options has a Security page. Macros are kept in the file and never run. A link that would start a program is always refused. Files from the internet or another computer open as read-only first or normally. Linked pictures in the publication’s folder are updated when it opens or never. A bar under a held-back file offers Enable Editing for that one file.",
+   "es": "Options tiene una página de seguridad. Las macros se conservan en el archivo y nunca se ejecutan. Un vínculo que iniciaría un programa siempre se rechaza. Los archivos de internet o de otro equipo se abren primero en modo de solo lectura o de forma normal. Las imágenes vinculadas de la carpeta de la publicación se actualizan al abrirla o nunca. Una barra bajo un archivo retenido ofrece Enable Editing para ese único archivo.",
+   "fr": "Options comporte une page Sécurité. Les macros sont conservées dans le fichier et ne sont jamais exécutées. Un lien qui lancerait un programme est toujours refusé. Les fichiers provenant d’internet ou d’un autre ordinateur s’ouvrent d’abord en lecture seule ou normalement. Les images liées du dossier de la publication sont mises à jour à l’ouverture ou jamais. Une barre sous un fichier retenu propose Enable Editing pour ce seul fichier.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "7bfc791bc79adeabbd52694ec08cec23c2123c03cdb322dc988cb2df373cc35d": {
    "drop": true,
    "en": "",
@@ -19413,6 +19437,18 @@
     "fr": ""
    }
   },
+  "a0869cc3da074daff4ad10c0f983a6da3d36c1aea6ec4f47d1ed170d03f71992": {
+   "drop": false,
+   "en": "Options has a Security page. Macros are kept in the file and never run. A link that would start a program is always refused. Files from the internet or another computer open as read-only first or normally. Links to other workbooks are updated when a workbook opens, never, or after a question.",
+   "es": "Options tiene una página de seguridad. Las macros se conservan en el archivo y nunca se ejecutan. Un vínculo que iniciaría un programa siempre se rechaza. Los archivos de internet o de otro equipo se abren primero en modo de solo lectura o de forma normal. Los vínculos a otros libros se actualizan al abrir un libro, nunca o tras una pregunta.",
+   "fr": "Options comporte une page Sécurité. Les macros sont conservées dans le fichier et ne sont jamais exécutées. Un lien qui lancerait un programme est toujours refusé. Les fichiers provenant d’internet ou d’un autre ordinateur s’ouvrent d’abord en lecture seule ou normalement. Les liens vers d’autres classeurs sont mis à jour à l’ouverture d’un classeur, jamais ou après une question.",
+   "soon": {
+    "drop": false,
+    "en": "External data connections and add-ins from the Store",
+    "es": "Conexiones de datos externas y complementos de la tienda",
+    "fr": "Connexions de données externes et compléments du Store"
+   }
+  },
   "a0a699829db6cc393e5aaa348b65607a22d89e6d0bb3e3ce296f2dd1d8b7db9d": {
    "drop": false,
    "en": "Print all pages, only the odd pages, or only the even pages within the page range. After the odd pages are sent to a printer, a message says to turn the stack over and print the even pages.",
@@ -20409,18 +20445,6 @@
     "fr": ""
    }
   },
-  "b1eac767ba26a2e0227c8aec122fc8c94f0da1c1bf672a2f38c52a4b042117ff": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Security settings for external links, data connections, macros, and files from outside",
-    "es": "Ajustes de seguridad para vínculos externos, conexiones de datos, macros y archivos externos",
-    "fr": "Paramètres de sécurité pour les liaisons externes, les connexions de données, les macros et les fichiers externes"
-   }
-  },
   "b2439b963581010bf393c3c808015eb428498c02414b492bfd4ba13c9126b317": {
    "drop": false,
    "en": "The 2010 extension form of a data bar is read, drawn, and written into a copy of the sheet. A rule that reads another sheet is drawn when the file stores it in the ordinary form.",
@@ -20455,18 +20479,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "b2ddc20805b4f790ec97d46c77067d009f485376a5219d0e6d2adfcd6551afab": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Security settings for linked files, linked media, and macros (kept, never run)",
-    "es": "Ajustes de seguridad para archivos vinculados, medios vinculados y macros (se conservan, nunca se ejecutan)",
-    "fr": "Paramètres de sécurité pour les fichiers liés, les médias liés et les macros (conservés, jamais exécutés)"
    }
   },
   "b333494907331ca893505121d044eab9844a9efd3ce899164c51995fdd1837d4": {
@@ -22581,18 +22593,6 @@
     "fr": ""
    }
   },
-  "d0982d849a7ffb80b053632caba431b0cda09a891a8025f6ecad374a81ce673c": {
-   "drop": false,
-   "en": "Macros are kept and never run, and a link opens only when you click it in the show.",
-   "es": "Las macros se conservan y nunca se ejecutan, y un vínculo solo se abre cuando usted hace clic en él durante la presentación.",
-   "fr": "Les macros sont conservées et ne s’exécutent jamais, et un lien ne s’ouvre que lorsque vous cliquez dessus pendant le diaporama.",
-   "soon": {
-    "drop": false,
-    "en": "Linked files and linked media: trust settings in Options",
-    "es": "Archivos y medios vinculados: ajustes de confianza en Opciones",
-    "fr": "Fichiers et médias liés : paramètres de confiance dans les Options"
-   }
-  },
   "d0e1710182d7000598379c7dd09232487304b881cb99169600c879627243eb27": {
    "drop": false,
    "en": "Picture color changes are drawn in the order a file lists them: brightness and contrast, gray, black and white from a threshold, a color made clear or changed, one color for all, a duotone, a turned hue, and a tint. They apply to pictures, picture fills, and backgrounds.",
@@ -23913,18 +23913,6 @@
     "fr": "Reflet et biseau sur les lettres"
    }
   },
-  "e40ae9fdef2bab9a2dd6a0379d458d15d475259203f78876729b99a8afe342af": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Trust settings: what happens with linked files, linked media, and macros (kept, never run)",
-    "es": "Opciones de confianza: qué ocurre con los archivos vinculados, los medios vinculados y las macros (se conservan, nunca se ejecutan)",
-    "fr": "Paramètres de confiance : sort des fichiers liés, des médias liés et des macros (conservées, jamais exécutées)"
-   }
-  },
   "e415dbb3e7dad30fa65de19cf8fa2583f1d6858ddc548aeec48b72e1810b1f14": {
    "drop": false,
    "en": "Merge & Center, Merge Across, Merge Cells, and Unmerge Cells. A merged area keeps the top-left cell’s value and asks before emptying the others. Sort moves merged areas of one size with their rows and refuses other sizes, a fill never goes into or out of a merged area and says so, a filter hides rows by what their cells hold, and print draws a merged area as one cell.",
@@ -24194,6 +24182,18 @@
    "en": "Recover unsaved documents from the copies that automatic recovery kept.",
    "es": "Recupere documentos sin guardar a partir de las copias que conservó la recuperación automática.",
    "fr": "Récupérez les documents non enregistrés à partir des copies conservées par la récupération automatique.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "e74750b4b53f1556936033e7624db4c7b95aeb185ac01f9dad8c8f73369146da": {
+   "drop": false,
+   "en": "Macros are kept in the file and never run. A link opens only when it is clicked in the show.",
+   "es": "Las macros se conservan en el archivo y nunca se ejecutan. Un vínculo solo se abre cuando se hace clic en él durante la presentación.",
+   "fr": "Les macros sont conservées dans le fichier et ne sont jamais exécutées. Un lien ne s’ouvre que lorsque vous cliquez dessus pendant le diaporama.",
    "soon": {
     "drop": true,
     "en": "",
