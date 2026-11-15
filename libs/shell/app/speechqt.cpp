@@ -2,6 +2,7 @@
 #ifdef JO_TTS
 #include "app/readaloud.h"
 
+#include <QLibrary>
 #include <QLocale>
 #include <QTextToSpeech>
 #include <QVoice>
@@ -12,9 +13,25 @@ namespace jp {
 
 namespace {
 
+// The engine to ask Qt for, chosen here so that no plug-in is loaded that can't work (Qt prints a warning for each that fails): on Linux the speech-dispatcher plug-in only when its
+// library can be loaded, else flite when it is there; elsewhere the system's own. Empty: none.
+QString chooseEngine()
+{
+    const QStringList engines = QTextToSpeech::availableEngines();
+#ifdef Q_OS_LINUX
+    if (engines.contains(QLatin1String("speechd")) && !speechdMissingForTest() && QLibrary(QStringLiteral("speechd"), 2).load()) return QStringLiteral("speechd");
+    if (engines.contains(QLatin1String("flite"))) return QStringLiteral("flite");
+    return QString();
+#else
+    for (const QString &e : engines)
+        if (e != QLatin1String("mock")) return e;
+    return QString();
+#endif
+}
+
 class SystemSpeechEngine : public SpeechEngine {
 public:
-    SystemSpeechEngine() : m_tts(new QTextToSpeech(this))
+    explicit SystemSpeechEngine(const QString &engine) : m_tts(new QTextToSpeech(engine, this))
     {
         connect(m_tts, &QTextToSpeech::sayingWord, this, [this](const QString &, qsizetype id, qsizetype start, qsizetype length) {
             if (id == m_id) Q_EMIT wordSpoken(m_token, int(start), int(length));
@@ -92,7 +109,11 @@ private:
 
 } // namespace
 
-SpeechEngine *makeSystemSpeechEngine() { return new SystemSpeechEngine; }
+SpeechEngine *makeSystemSpeechEngine()
+{
+    const QString engine = chooseEngine();
+    return engine.isEmpty() ? nullptr : new SystemSpeechEngine(engine);
+}
 
 } // namespace jp
 #endif

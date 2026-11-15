@@ -42,8 +42,15 @@ const double kSpeeds[] = {0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 3.0};
 } // namespace
 
 #ifdef JO_TTS
-SpeechEngine *makeSystemSpeechEngine();   // speechqt.cpp
+SpeechEngine *makeSystemSpeechEngine();   // speechqt.cpp (null when this computer has no engine to load)
 #endif
+
+namespace {
+bool g_speechdMissing = false;
+}
+
+void setSpeechdMissingForTest(bool missing) { g_speechdMissing = missing; }
+bool speechdMissingForTest() { return g_speechdMissing; }
 
 void setSpeechEngineFactory(const SpeechEngineFactory &f) { factory() = f; }
 
@@ -51,7 +58,8 @@ SpeechEngine *makeSpeechEngine()
 {
     if (factory()) return factory()();
 #ifdef JO_TTS
-    return makeSystemSpeechEngine();
+    if (SpeechEngine *e = makeSystemSpeechEngine()) return e;
+    return new SilentEngine;   // (no engine on this computer: no voices, and nothing was loaded to warn about)
 #else
     return new SilentEngine;
 #endif

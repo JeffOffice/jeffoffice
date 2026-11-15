@@ -9,7 +9,11 @@
 #include <QDockWidget>
 #include <QLabel>
 #include <QMainWindow>
+#include <QScopeGuard>
 #include <QSignalSpy>
+#ifdef JO_TTS
+#include <QTextToSpeech>
+#endif
 #include <QTextDocument>
 #include <QToolButton>
 #include <QtTest>
@@ -257,6 +261,34 @@ private Q_SLOTS:
         QCOMPARE(bar.state(), ReadAloudBar::State::Stopped);
         QCOMPARE(closed.size(), 1);
         QVERIFY(m.cleared > 0);
+    }
+    void withoutLibspeechdNoPluginIsLoadedNoWarningIsPrintedAndTheBarSaysNoVoices()
+    {
+#ifndef Q_OS_LINUX
+        QSKIP("speech-dispatcher is a Linux library");
+#else
+        setSpeechEngineFactory({});
+        setSpeechdMissingForTest(true);
+        const auto reset = qScopeGuard([] { setSpeechdMissingForTest(false); });
+        static QStringList warnings;
+        warnings.clear();
+        const QtMessageHandler before = qInstallMessageHandler([](QtMsgType type, const QMessageLogContext &, const QString &message) {
+            if (type != QtDebugMsg) warnings << message;
+        });
+        Marks m;
+        QString note;
+        {
+            ReadAloudBar bar(hostFor({{QStringLiteral("One"), 0, 0}}, &m));
+            bar.start();
+            note = bar.note();
+        }
+        qInstallMessageHandler(before);
+        QVERIFY2(warnings.isEmpty(), qPrintable(warnings.join(QLatin1Char('\n'))));
+        if (!speechIsBuiltIn()) QSKIP("this build has no system voices at all");
+#ifdef JO_TTS
+        if (!QTextToSpeech::availableEngines().contains(QStringLiteral("flite"))) QVERIFY2(note.contains(QStringLiteral("No voices")), qPrintable(note));   // (flite, when there is one, may have voices)
+#endif
+#endif
     }
     void theRateRunsFromSlowToFast()
     {

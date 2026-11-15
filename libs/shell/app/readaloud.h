@@ -53,6 +53,10 @@ using SpeechEngineFactory = std::function<SpeechEngine *()>;
 JO_COMMON_EXPORT void setSpeechEngineFactory(const SpeechEngineFactory &factory);
 // A new engine (the caller owns it): the system's voices, or, in a program built without Qt TextToSpeech, one with no voices.
 JO_COMMON_EXPORT SpeechEngine *makeSpeechEngine();
+// A test's way to make speech-dispatcher's library (libspeechd) count as missing on Linux, as on a computer that has none: the engine is then chosen without it (flite when there is
+// one, else none), and no plug-in load warning is printed.
+JO_COMMON_EXPORT void setSpeechdMissingForTest(bool missing);
+JO_COMMON_EXPORT bool speechdMissingForTest();
 // Whether this build speaks with the system's voices (Qt TextToSpeech is in it).
 JO_COMMON_EXPORT bool speechIsBuiltIn();
 // The engine's rate for a speed as people say it (1 is normal, 0.5 half, 3 three times as fast).
