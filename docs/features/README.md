@@ -4,7 +4,7 @@ JeffOffice is an independent project. Each app aims to work with Office files an
 
 | App | What it does | State | Done | Partly | Not yet | List |
 |---|---|---|---:|---:|---:|---|
-| JeffPub | Desktop publishing for flyers, newsletters, brochures, cards, and other print pieces; opens and saves Publisher's `.pub` files | beta (0.28.0) | 225 | 16 | 64 | [jeffpub.md](jeffpub.md) |
+| JeffPub | Desktop publishing for flyers, newsletters, brochures, cards, and other print pieces; opens and saves Publisher's `.pub` files | beta (0.28.0) | 226 | 15 | 64 | [jeffpub.md](jeffpub.md) |
 | JeffDeck | Presentations and slide shows; saves `.pptx` and `.odp`, and opens `.ppt` too | beta (0.28.0) | 232 | 73 | 184 | [jeffdeck.md](jeffdeck.md) |
 | JeffWrite | Documents and reports; saves `.docx` and `.rtf`, and opens `.doc` and `.odt` too | beta (0.28.0) | 133 | 175 | 119 | [jeffwrite.md](jeffwrite.md) |
 | JeffCrunch | Spreadsheets and calculation; saves `.xlsx` (and `.xls` and `.ods` copies), and opens `.xls`, `.ods`, and `.csv` | beta (0.28.0) | 201 | 198 | 114 | [jeffcrunch.md](jeffcrunch.md) |

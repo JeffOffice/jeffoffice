@@ -34,7 +34,7 @@ For a faster way, choose **New Style by Example**. Type a name for the style, ba
 
 1. Click in a paragraph that uses the style.
 2. Click **Show all** in the **Styles** gallery, and then click **Modify Style…**.
-3. Change the font, size, bold, italic, color, alignment, or spacing. Click **OK**.
+3. Change the font, size, bold, italic, color, alignment, indents, or spacing. Click **OK**.
 
 Every paragraph with that style changes right away.
 
@@ -42,14 +42,15 @@ The dialog also has these choices:
 
 - **Style for the next paragraph:** the style you get when you press Enter at the end of a paragraph. After a heading, you usually want **Normal**.
 - **Character style:** check it to make a style that formats only selected text.
-- **Based on:** JeffPub saves this choice, but a style does not change when the style it is based on changes.
+- **Based on:** the style this one starts from. A style keeps only what you change in it, so when you change the base style, every style based on it changes too, and so does the text in them. A setting says **from base** when it comes from the base style, and **set here** when this style sets it. **Reset to base** gives a setting back to the base. Text that you formatted yourself keeps its look.
+- **Delete Style:** removes the style. Styles based on it are based on its own base instead, and look the same.
 
 ## Bring in styles from another publication
 
 1. Click **Show all** in the **Styles** gallery, and then click **Import Styles…**.
 2. Choose a JeffPub publication or a .pub file.
 
-Styles with the same name are replaced. Other styles are added. Text you have already written keeps its look until you apply the style again.
+Styles with the same name are replaced. Other styles are added. Text in a replaced style takes its new look, except for what you set on the text yourself.
 
 ## Related
 
