@@ -1533,7 +1533,7 @@
         },
         {
          "status": "partly",
-         "text": "7a5170a518cedbfa510003597b3db868542406bcf3e443043ba7fa37538cf878"
+         "text": "e80fb930d6c47de477dc3fc8559a26697bb9732836f285bb95f6c66785b2640d"
         },
         {
          "status": "partly",
@@ -3553,12 +3553,14 @@
          "text": "e7c6d65cbb1cb5cd969bfc1ec44ea33de0900de1f69d587a0d3dc7d61260b600"
         },
         {
-         "status": "todo",
-         "text": "0942b9f1f36d623017a8c4266087711c24415571c3799165e20d4faa21198e47"
+         "hide_soon": true,
+         "status": "done",
+         "text": "6cfd369e09de8aa41fa8dac0a443af7c2256e0bf0522d3a29c46ba7f83435cc7"
         },
         {
-         "status": "todo",
-         "text": "82ef7fff0497eb89f94e4c2e2bd6051425de6ec995bcdaf152aad5d570892ffd"
+         "hide_soon": true,
+         "status": "done",
+         "text": "1bb01f6e5dac9741e12e5ee49b688e65f4f3c0896c730bd40eb4f5073ed98456"
         },
         {
          "status": "partly",
@@ -6830,11 +6832,11 @@
         },
         {
          "status": "partly",
-         "text": "fb416e14dbdef7685cfafb35d8d2a3b26036ae88392c4b4179b5bd0c4e96c1f3"
+         "text": "ee2e69b5520ffce94415f9d22e7824399f635b3e549ede61540007f3e3483ed0"
         },
         {
          "status": "partly",
-         "text": "bc3b3f4c947da059031460fc8f6cb3d229e878651c4fad18870f81cff878968a"
+         "text": "1b93dc245163c4b7427260c23c72fc129dd4a73ba3135579a8c47012df3df61f"
         }
        ]
       },
@@ -8107,18 +8109,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "0942b9f1f36d623017a8c4266087711c24415571c3799165e20d4faa21198e47": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Change Picture (keeping size, place, and formatting) and Reset Picture",
-    "es": "Cambiar imagen (conservando tamaño, posición y formato) y Restablecer imagen",
-    "fr": "Changer d’image (en conservant la taille, la position et la mise en forme) et Réinitialiser l’image"
    }
   },
   "0944eee1a26ab758c4fee6866d7f1c517ae9d3e02bd18f61f059be58d3e787c6": {
@@ -9451,6 +9441,30 @@
     "en": "Floating tables: edit; diagonal borders in a cell",
     "es": "Tablas flotantes: edición; bordes diagonales en una celda",
     "fr": "Tableaux flottants : modification ; bordures diagonales dans une cellule"
+   }
+  },
+  "1b93dc245163c4b7427260c23c72fc129dd4a73ba3135579a8c47012df3df61f": {
+   "drop": false,
+   "en": "Change a picture from a file, keeping its place, frame width, wrap, alt text, colors, border, shape, and effects. Reset a picture to remove its shape and effects, or reset it with its size.",
+   "es": "Cambie una imagen desde un archivo conservando su posición, ancho de marco, ajuste de texto, texto alternativo, colores, borde, forma y efectos. Restablezca una imagen para quitarle la forma y los efectos, o restablézcala junto con su tamaño.",
+   "fr": "Changez une image à partir d’un fichier en conservant son emplacement, la largeur de son cadre, son habillage, son texte alternatif, ses couleurs, sa bordure, sa forme et ses effets. Réinitialisez une image pour retirer sa forme et ses effets, ou réinitialisez-la avec sa taille.",
+   "soon": {
+    "drop": false,
+    "en": "Change Picture from the clipboard or online, and the Format Picture pane",
+    "es": "Cambiar imagen desde el portapapeles o en línea, y el panel Formato de imagen",
+    "fr": "Changer l’image depuis le presse-papiers ou en ligne, et le volet Format de l’image"
+   }
+  },
+  "1bb01f6e5dac9741e12e5ee49b688e65f4f3c0896c730bd40eb4f5073ed98456": {
+   "drop": false,
+   "en": "Apply a picture style from a gallery of 26 (frames, shadow, reflection, and rounded corners), set a picture border with color, weight, and dashes, and add shadow, reflection, glow, soft edges, bevel, and 3-D rotation effects. Styles are saved in `.pptx` and `.odp` files.",
+   "es": "Aplique un estilo de imagen de una galería de 26 (marcos, sombra, reflejo y esquinas redondeadas), defina un borde de imagen con color, grosor y guiones, y agregue efectos de sombra, reflejo, resplandor, bordes suaves, bisel y rotación 3D. Los estilos se guardan en archivos `.pptx` y `.odp`.",
+   "fr": "Appliquez un style d’image parmi une galerie de 26 (cadres, ombre, reflet et coins arrondis), définissez une bordure d’image avec couleur, épaisseur et tirets, et ajoutez des effets d’ombre, de reflet, de lueur, de bords adoucis, de biseau et de rotation 3D. Les styles sont enregistrés dans les fichiers `.pptx` et `.odp`.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "1be568c161a3c35590cec71871949b56da7013ea8ab81729ca9a7a3894ca9cf8": {
@@ -15921,6 +15935,18 @@
     "fr": "Déclencheurs d’animation au clic sur une forme, et sons avec effets"
    }
   },
+  "6cfd369e09de8aa41fa8dac0a443af7c2256e0bf0522d3a29c46ba7f83435cc7": {
+   "drop": false,
+   "en": "Change a picture while keeping its frame, size, place, and formatting, and reset a picture to remove its shape, border, effects, color changes, and crop.",
+   "es": "Cambie una imagen conservando su marco, tamaño, posición y formato, y restablezca una imagen para quitarle la forma, el borde, los efectos, los cambios de color y el recorte.",
+   "fr": "Changez une image en conservant son cadre, sa taille, son emplacement et sa mise en forme, et réinitialisez une image pour retirer sa forme, sa bordure, ses effets, ses modifications de couleur et son recadrage.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "6d01d7c652eb55a2a8ca0607f52f327c255a19e5a83026f685e4b6167595800a": {
    "drop": false,
    "en": "New Cell Style saves the look of the current cell under a name, offers it in the gallery, applies it to the selected cells, and saves it with the workbook. Delete Cell Style removes a style from the gallery and returns its cells to Normal, in one step of Undo.",
@@ -16821,18 +16847,6 @@
     "fr": "Modification des diagrammes"
    }
   },
-  "7a5170a518cedbfa510003597b3db868542406bcf3e443043ba7fa37538cf878": {
-   "drop": false,
-   "en": "The Picture Format tab has Picture Border (color, none, weight, dashes) and Rotate (turns and flips).",
-   "es": "La pestaña Formato de imagen incluye Borde de imagen (color, ninguno, grosor, guiones) y Girar (giros y volteos).",
-   "fr": "L’onglet Format de l’image propose Bordure de l’image (couleur, aucune, épaisseur, tirets) et Rotation (rotations et retournements).",
-   "soon": {
-    "drop": false,
-    "en": "Picture styles, picture effects, and picture layout",
-    "es": "Estilos de imagen, efectos de imagen y diseño de imagen",
-    "fr": "Styles d’image, effets d’image et disposition d’image"
-   }
-  },
   "7aa4a1fb9d2d2518fe9cdc2bd3f154c31becd6ff37ba7f213d63a4161f198e97": {
    "drop": true,
    "en": "",
@@ -17443,18 +17457,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "82ef7fff0497eb89f94e4c2e2bd6051425de6ec995bcdaf152aad5d570892ffd": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Picture Styles (frames, shadow, reflection, and rounded corners), Picture Border, and Picture Effects",
-    "es": "Estilos de imagen (marcos, sombra, reflejo y esquinas redondeadas), borde de imagen y efectos de imagen",
-    "fr": "Styles d’image (cadres, ombre, reflet et coins arrondis), bordure d’image et effets d’image"
    }
   },
   "82efcaed507b64710199194b1133676f75018cb9064c831b3165c27bc832c87b": {
@@ -20997,18 +20999,6 @@
     "fr": ""
    }
   },
-  "bc3b3f4c947da059031460fc8f6cb3d229e878651c4fad18870f81cff878968a": {
-   "drop": false,
-   "en": "Picture Format > Change Picture replaces a picture with one from a file, keeping the same place, frame width, wrap, and alt text.",
-   "es": "Formato de imagen > Cambiar imagen reemplaza una imagen por otra de un archivo, conservando la misma posición, ancho de marco, ajuste y texto alternativo.",
-   "fr": "Format de l’image > Changer l’image remplace une image par une autre issue d’un fichier, en conservant le même emplacement, la même largeur de cadre, le même habillage et le même texte de remplacement.",
-   "soon": {
-    "drop": false,
-    "en": "Change Picture from the clipboard or online, and the Format Picture pane",
-    "es": "Cambiar imagen desde el portapapeles o en línea, y el panel Formato de imagen",
-    "fr": "Changement d’image depuis le presse-papiers ou en ligne, et volet Format de l’image"
-   }
-  },
   "bc799c05a9d36ac69d755343f5f76b646f8245a208ebc0b996df9103dd28ff3a": {
    "drop": false,
    "en": "About",
@@ -24225,6 +24215,18 @@
     "fr": "Netteté, saturation, température et définition d’une couleur transparente"
    }
   },
+  "e80fb930d6c47de477dc3fc8559a26697bb9732836f285bb95f6c66785b2640d": {
+   "drop": false,
+   "en": "Apply a picture style from a gallery of 26, set a picture border with color, weight, and dashes, add shadow, reflection, glow, soft edges, bevel, and 3-D rotation effects, rotate and flip, change a picture, and reset it. Each change is one step of Undo, and pictures are saved in `.xlsx` files.",
+   "es": "Aplique un estilo de imagen de una galería de 26, defina un borde con color, grosor y guiones, agregue efectos de sombra, reflejo, resplandor, bordes suaves, bisel y rotación 3D, gire y voltee, cambie una imagen y restablézcala. Cada cambio es un paso de Deshacer, y las imágenes se guardan en archivos `.xlsx`.",
+   "fr": "Appliquez un style d’image parmi une galerie de 26, définissez une bordure avec couleur, épaisseur et tirets, ajoutez des effets d’ombre, de reflet, de lueur, de bords adoucis, de biseau et de rotation 3D, faites pivoter et retournez, changez une image et réinitialisez-la. Chaque modification est une étape d’annulation, et les images sont enregistrées dans les fichiers `.xlsx`.",
+   "soon": {
+    "drop": false,
+    "en": "Picture Layout and keeping picture effects in `.ods` files",
+    "es": "Diseño de imagen y conservación de los efectos de imagen en archivos `.ods`",
+    "fr": "Disposition d’image et conservation des effets d’image dans les fichiers `.ods`"
+   }
+  },
   "e812c82aafbdbb764566f224ffe149528a4fc7a342863e9657beb031606bea6b": {
    "drop": false,
    "en": "The Sum menu inserts common summary formulas.",
@@ -24631,6 +24633,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "ee2e69b5520ffce94415f9d22e7824399f635b3e549ede61540007f3e3483ed0": {
+   "drop": false,
+   "en": "Apply a picture style from a gallery of 26, set a border with color, weight, and dashes, and add shadow, reflection, glow, soft edges, bevel, and 3-D rotation effects. Styles are saved in `.docx` and `.odt` files.",
+   "es": "Aplique un estilo de imagen de una galería de 26, defina un borde con color, grosor y guiones, y agregue efectos de sombra, reflejo, resplandor, bordes suaves, bisel y rotación 3D. Los estilos se guardan en archivos `.docx` y `.odt`.",
+   "fr": "Appliquez un style d’image parmi une galerie de 26, définissez une bordure avec couleur, épaisseur et tirets, et ajoutez des effets d’ombre, de reflet, de lueur, de bords adoucis, de biseau et de rotation 3D. Les styles sont enregistrés dans les fichiers `.docx` et `.odt`.",
+   "soon": {
+    "drop": false,
+    "en": "Format Picture pane",
+    "es": "Panel Formato de imagen",
+    "fr": "Volet Format de l’image"
    }
   },
   "ee422eeb40c0d66b0025dd8625c381c8c1c2ebf5c5facdca2b2c75fb39aab37c": {
@@ -25591,18 +25605,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "fb416e14dbdef7685cfafb35d8d2a3b26036ae88392c4b4179b5bd0c4e96c1f3": {
-   "drop": false,
-   "en": "Picture Format > Picture Border sets the color, weight, and dashes, and a gallery of eight frames sets them together, including No Border. Borders in a file are drawn.",
-   "es": "Formato de imagen > Borde de imagen establece el color, el grosor y los guiones, y una galería de ocho marcos los establece juntos, incluida la opción Sin borde. Los bordes de un documento se dibujan.",
-   "fr": "Format de l’image > Bordure de l’image définit la couleur, l’épaisseur et les tirets, et une galerie de huit cadres les définit ensemble, y compris Aucune bordure. Les bordures d’un fichier sont dessinées.",
-   "soon": {
-    "drop": false,
-    "en": "Picture effects: shadow, reflection, glow, soft edges, bevel, and 3-D rotation",
-    "es": "Efectos de imagen: sombra, reflejo, resplandor, bordes suaves, bisel y rotación 3D",
-    "fr": "Effets d’image : ombre, reflet, lueur, contours progressifs, biseau et rotation 3D"
    }
   },
   "fb48970b217a8a2d6e54fff009d229178284a3065cdf03e7309d01c1cbc9c2e7": {
