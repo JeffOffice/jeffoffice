@@ -23,8 +23,11 @@ QMap<QString, QByteArray> snapshot(const QString &top)
     const QDir root(top);
     for (QDirIterator it(top, QDir::AllEntries | QDir::NoDotAndDotDot | QDir::Hidden, QDirIterator::Subdirectories); it.hasNext();) {
         const QString path = it.next();
+        const QString rel = root.relativeFilePath(path);
+        // (on Windows and macOS the run keeps its data in Qt's test folders, named apart from the person's, under the home: "qttest")
+        if (rel.contains(QStringLiteral("/qttest")) || rel == QLatin1String("AppData") || rel == QLatin1String("AppData/Roaming") || rel == QLatin1String("AppData/Local")) continue;
         QFile f(path);
-        all.insert(root.relativeFilePath(path), it.fileInfo().isFile() && f.open(QIODevice::ReadOnly) ? f.readAll() : QByteArray("<folder>"));
+        all.insert(rel, it.fileInfo().isFile() && f.open(QIODevice::ReadOnly) ? f.readAll() : QByteArray("<folder>"));
     }
     return all;
 }
