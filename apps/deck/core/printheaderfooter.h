@@ -5,6 +5,7 @@
 
 #include "core/document.h"
 
+#include <QJsonArray>
 #include <QString>
 
 namespace jp::deck {
@@ -37,6 +38,9 @@ void setPrintHeaderFooter(Document &d, PrintedPages pages, const PrintHeaderFoot
 // master has no hf element. Only the hf element and the texts of its header, footer, and date places change, and only when the person changed the choice.
 void keepHandoutMaster(Document &d, const QByteArray &xml, const PrintHeaderFooter *read);
 QByteArray keptHandoutMaster(const Document &d);
+// The relationships of the kept master and the parts they name (its theme, its pictures), as the file had them: each {id, type, target, external, contentType, data (base64)}.
+void keepHandoutRelationships(Document &d, const QJsonArray &rels);
+QJsonArray keptHandoutRelationships(const Document &d);
 // Whether the choice of the handouts now is not the one the kept master held (or the master held none and one was made).
 bool handoutMasterEdited(const Document &d);
 // What the master held when it was read.

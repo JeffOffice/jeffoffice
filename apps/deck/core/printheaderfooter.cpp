@@ -2,6 +2,7 @@
 
 #include <QJsonObject>
 #include <QByteArray>
+#include <QJsonArray>
 
 namespace jp::deck {
 
@@ -62,6 +63,9 @@ void keepHandoutMaster(Document &d, const QByteArray &xml, const PrintHeaderFoot
     if (read) d.appData[kReadKey] = toJson(*read);
     else d.appData.remove(kReadKey);
 }
+
+void keepHandoutRelationships(Document &d, const QJsonArray &rels) { d.appData[QStringLiteral("handoutMasterRels")] = rels; }
+QJsonArray keptHandoutRelationships(const Document &d) { return d.appData.value(QStringLiteral("handoutMasterRels")).toArray(); }
 
 QByteArray keptHandoutMaster(const Document &d) { return QByteArray::fromBase64(d.appData.value(kMasterKey).toString().toLatin1()); }
 

@@ -898,6 +898,23 @@ void Importer::readPrintHeaderFooter(const QString &mainPart)
         const char *relationship, *root;
         PrintedPages pages;
     };
+    // The relationships of a handout master and the parts they name (its theme and pictures), kept with it, up to 20 MB.
+    auto keepParts = [&](const QString &master) {
+        QJsonArray rels;
+        qint64 total = 0;
+        for (const office::Relationship &r : m_pkg.relationships(master)) {
+            QJsonObject o{{QStringLiteral("id"), r.id}, {QStringLiteral("type"), r.type}, {QStringLiteral("target"), r.target}, {QStringLiteral("external"), r.external}};
+            if (!r.external) {
+                const QByteArray data = m_pkg.part(r.target);
+                total += data.size();
+                if (total > (qint64(20) << 20)) return;
+                o[QStringLiteral("contentType")] = m_pkg.contentType(r.target);
+                o[QStringLiteral("data")] = QString::fromLatin1(data.toBase64());
+            }
+            rels.append(o);
+        }
+        keepHandoutRelationships(m_doc, rels);
+    };
     for (const Kind &kind : {Kind{"/notesMaster", "notesMaster", PrintedPages::Notes}, Kind{"/handoutMaster", "handoutMaster", PrintedPages::Handouts}}) {
         const QVector<office::Relationship> masters = m_pkg.relationshipsOfType(mainPart, QLatin1String(kind.relationship));
         if (masters.isEmpty() || masters[0].external) continue;
@@ -909,7 +926,10 @@ void Importer::readPrintHeaderFooter(const QString &mainPart)
         // (a handout master the file has is kept as it is, to be written back as it was)
         const bool keep = kind.pages == PrintedPages::Handouts && m_pkg.partSize(masters[0].target) <= (qint64(4) << 20);
         if (hf.isNull()) {
-            if (keep) keepHandoutMaster(m_doc, m_pkg.part(masters[0].target), nullptr);
+            if (keep) {
+                keepHandoutMaster(m_doc, m_pkg.part(masters[0].target), nullptr);
+                keepParts(masters[0].target);
+            }
             continue;
         }
         PrintHeaderFooter out;
@@ -930,7 +950,10 @@ void Importer::readPrintHeaderFooter(const QString &mainPart)
             else out.dateText = text;
         }
         setPrintHeaderFooter(m_doc, kind.pages, out);
-        if (keep) keepHandoutMaster(m_doc, m_pkg.part(masters[0].target), &out);
+        if (keep) {
+            keepHandoutMaster(m_doc, m_pkg.part(masters[0].target), &out);
+            keepParts(masters[0].target);
+        }
     }
 }
 

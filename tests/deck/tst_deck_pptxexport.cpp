@@ -171,8 +171,31 @@ private Q_SLOTS:
         custom.replace(QRegularExpression(QStringLiteral("<p:bg>.*</p:bg>")), QStringLiteral("<p:bg><p:bgPr><a:solidFill><a:srgbClr val=\"FFEEDD\"/></a:solidFill><a:effectLst/></p:bgPr></p:bg>"));
         custom.replace(QStringLiteral("</p:spTree>"), QStringLiteral("<p:sp><p:nvSpPr><p:cNvPr id=\"99\" name=\"OurOwnShape\"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x=\"100\" y=\"100\"/><a:ext cx=\"500000\" cy=\"500000\"/></a:xfrm>"
                                                                   "<a:prstGeom prst=\"ellipse\"><a:avLst/></a:prstGeom></p:spPr></p:sp></p:spTree>"));
+        // It has a theme of its own and a picture of its own.
+        const QString themeName = relationshipTargets(first, QStringLiteral("/ppt/handoutMasters/handoutMaster1.xml"), QStringLiteral("/theme")).value(0).mid(1);
+        QVERIFY(!themeName.isEmpty());
+        QByteArray ownTheme = first.zip.value(themeName);
+        ownTheme.replace("</a:theme>", "<!--HANDOUT-OWN-THEME--></a:theme>");
+        QImage picture(3, 2, QImage::Format_RGB32);
+        picture.fill(QColor(12, 200, 99));
+        QByteArray png;
+        QBuffer pngBuffer(&png);
+        pngBuffer.open(QIODevice::WriteOnly);
+        picture.save(&pngBuffer, "PNG");
+        const QString relsName = QStringLiteral("ppt/handoutMasters/_rels/handoutMaster1.xml.rels");
+        QString rels = QString::fromUtf8(first.zip.value(relsName));
+        rels.replace(QStringLiteral("</Relationships>"), QStringLiteral("<Relationship Id=\"rId9\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/image\" Target=\"../media/handoutpic.png\"/></Relationships>"));
+        custom.replace(QStringLiteral("</p:spTree>"), QStringLiteral("<p:pic><p:nvPicPr><p:cNvPr id=\"98\" name=\"OurPicture\"/><p:cNvPicPr/><p:nvPr/></p:nvPicPr><p:blipFill><a:blip r:embed=\"rId9\"/><a:stretch><a:fillRect/></a:stretch></p:blipFill>"
+                                                                  "<p:spPr><a:xfrm><a:off x=\"200\" y=\"200\"/><a:ext cx=\"300000\" cy=\"300000\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></p:spPr></p:pic></p:spTree>"));
+        QString types = QString::fromUtf8(first.zip.value(QStringLiteral("[Content_Types].xml")));
+        if (!types.contains(QLatin1String("Extension=\"png\"")))
+            types.replace(QStringLiteral("</Types>"), QStringLiteral("<Default Extension=\"png\" ContentType=\"image/png\"/></Types>"));
         ZipWriter zip;
-        for (auto it = first.zip.cbegin(); it != first.zip.cend(); ++it) zip.add(it.key(), it.key() == name ? custom.toUtf8() : it.value(), true);
+        for (auto it = first.zip.cbegin(); it != first.zip.cend(); ++it) {
+            const QString key = it.key();
+            zip.add(key, key == name ? custom.toUtf8() : key == themeName ? ownTheme : key == relsName ? rels.toUtf8() : key == QLatin1String("[Content_Types].xml") ? types.toUtf8() : it.value(), true);
+        }
+        zip.add(QStringLiteral("ppt/media/handoutpic.png"), png, true);
         const QByteArray file = zip.finish();
 
         // Read and written again with no change: the master is as it was, to the byte.
@@ -182,6 +205,14 @@ private Q_SLOTS:
         QVERIFY2(unpack(deck::exportPresentation(*read, &err), &same, &why), qPrintable(why));
         QVERIFY2(packageProblem(same).isEmpty(), qPrintable(packageProblem(same)));
         QCOMPARE(QString::fromUtf8(same.zip.value(name)), custom);
+        // Its theme and its picture are still its own, and identical.
+        auto ownedBy = [&](const Exported &e) {
+            QStringList out;
+            for (const QString &type : {QStringLiteral("/theme"), QStringLiteral("/image")})
+                for (const QString &target : relationshipTargets(e, QStringLiteral("/ppt/handoutMasters/handoutMaster1.xml"), type)) out << QString::fromLatin1(e.zip.value(target.mid(1)).toBase64());
+            return out;
+        };
+        QCOMPARE(ownedBy(same), (QStringList{QString::fromLatin1(ownTheme.toBase64()), QString::fromLatin1(png.toBase64())}));
 
         // The person changes the header and turns the footer off: the shape and the background stay.
         deck::PrintHeaderFooter now = deck::printHeaderFooter(*read, deck::PrintedPages::Handouts);
@@ -195,6 +226,8 @@ private Q_SLOTS:
         const QString out = QString::fromUtf8(edited.zip.value(name));
         QVERIFY2(out.contains(QLatin1String("OurOwnShape")) && out.contains(QLatin1String("FFEEDD")), qPrintable(out));
         QVERIFY(out.contains(QLatin1String("New header")) && !out.contains(QLatin1String("Original header")));
+        QCOMPARE(ownedBy(edited), ownedBy(same));
+        QVERIFY(out.contains(QLatin1String("OurPicture")));
         QVERIFY(out.contains(QLatin1String("Original footer")));   // (its text was not touched: only the footer's switch)
         QVERIFY2(out.contains(QRegularExpression(QStringLiteral("<p:hf[^>]*ftr=\"0\""))), qPrintable(out));
         auto back = deck::importPresentation(deck::exportPresentation(*read, &err), &err);

@@ -1530,8 +1530,33 @@ static QString editedHandoutMaster(const QByteArray &kept, const PrintHeaderFoot
 void Exporter::writeHandoutMaster()
 {
     if (m_handoutMasterRel.isEmpty()) return;
-    m_pkg.addRelationship(kHandoutMasterPart, kRelBase + QStringLiteral("theme"), m_handoutThemePart);
-    m_pkg.addPart(m_handoutThemePart, withStandardFontNames(m_themeXml), QStringLiteral("application/vnd.openxmlformats-officedocument.theme+xml"));
+    // A master the file had keeps all it had: its relationships, with the same ids, and the parts they name (its own theme, its pictures), under a free name where theirs is taken.
+    const QJsonArray kept = keptHandoutRelationships(m_doc);
+    bool hasTheme = false;
+    QString keptXml = QString::fromUtf8(keptHandoutMaster(m_doc));
+    for (const QJsonValue &v : kept) {
+        const QJsonObject o = v.toObject();
+        QString target = o.value(QStringLiteral("target")).toString();
+        const bool external = o.value(QStringLiteral("external")).toBool();
+        if (!external) {
+            const QByteArray data = QByteArray::fromBase64(o.value(QStringLiteral("data")).toString().toLatin1());
+            if (!m_pkg.partData(target).isEmpty()) {
+                const int dot = target.lastIndexOf(QLatin1Char('.'));
+                for (int n = 2; !m_pkg.partData(target).isEmpty() || n == 2; ++n) {
+                    target = (dot > 0 ? target.left(dot) : target) + QStringLiteral("-h%1").arg(n) + (dot > 0 ? o.value(QStringLiteral("target")).toString().mid(dot) : QString());
+                    if (m_pkg.partData(target).isEmpty()) break;
+                }
+            }
+            m_pkg.addPart(target, data, o.value(QStringLiteral("contentType")).toString());
+        }
+        m_pkg.addRelationshipWithId(kHandoutMasterPart, o.value(QStringLiteral("id")).toString(), o.value(QStringLiteral("type")).toString(), target, external);
+        hasTheme |= o.value(QStringLiteral("type")).toString().endsWith(QLatin1String("/theme"));
+    }
+    if (!hasTheme) {
+        m_pkg.addRelationship(kHandoutMasterPart, kRelBase + QStringLiteral("theme"), m_handoutThemePart);
+        m_pkg.addPart(m_handoutThemePart, withStandardFontNames(m_themeXml), QStringLiteral("application/vnd.openxmlformats-officedocument.theme+xml"));
+    }
+    Q_UNUSED(keptXml)
     const PrintHeaderFooter hf = printHeaderFooter(m_doc, PrintedPages::Handouts);
     if (const QByteArray kept = keptHandoutMaster(m_doc); !kept.isEmpty()) {
         QString xml = handoutMasterEdited(m_doc) ? editedHandoutMaster(kept, handoutMasterRead(m_doc), hf, m_doc.appData.contains(QStringLiteral("handoutMasterRead"))) : QString::fromUtf8(kept);
