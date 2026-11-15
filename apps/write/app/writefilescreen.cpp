@@ -142,7 +142,11 @@ void WriteFileScreen::startBlank()
 {
     // A new document nobody has touched gives way; any other stays, and the new one opens in a window of its own (as Open does).
     if (m_win->isModified() || !m_win->filePath().isEmpty()) m_win->act("file.new")->trigger();
-    else m_win->setDocument(write::newBlankDocument(), QString());
+    else {
+        QString note;
+        m_win->setDocument(write::newBlankDocument(&note), QString());
+        if (!note.isEmpty()) m_win->statusBar()->showMessage(note, 15000);
+    }
     Q_EMIT closeRequested();
 }
 

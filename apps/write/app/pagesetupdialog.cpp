@@ -4,6 +4,7 @@
 
 #include "app/widgets.h"
 #include "app/userdefaults.h"
+#include "app/normaltemplateui.h"
 #include "core/normaltemplate.h"
 #include "core/pagesetup.h"
 #include "core/pictureops.h"
@@ -105,7 +106,16 @@ bool pageSetupDialog(QWidget *parent, WriteDoc *doc, int section, QTextCursor *c
     booklet->setCurrentIndex(std::max(0, int(booklet->findData(doc->bookFoldSheets()))));
     booklet->setEnabled(doc->bookFold());
     mf->addRow(QCoreApplication::translate("jp::write::Dialogs", "Sheets per booklet:"), booklet);
-    QObject::connect(multiple, &QComboBox::currentIndexChanged, booklet, [=] { booklet->setEnabled(multiple->currentData().toBool()); });
+    // (book fold is facing pages: the side margins are the inside, where the gutter is, and the outside)
+    auto leftLabel = mf->labelForField(left), rightLabel = mf->labelForField(right);
+    auto facing = [=] {
+        const bool fold = multiple->currentData().toBool();
+        booklet->setEnabled(fold);
+        if (auto *l = qobject_cast<QLabel *>(leftLabel)) l->setText(fold ? QCoreApplication::translate("jp::write::Dialogs", "Inside:") : QCoreApplication::translate("jp::write::Dialogs", "Left:"));
+        if (auto *r = qobject_cast<QLabel *>(rightLabel)) r->setText(fold ? QCoreApplication::translate("jp::write::Dialogs", "Outside:") : QCoreApplication::translate("jp::write::Dialogs", "Right:"));
+    };
+    QObject::connect(multiple, &QComboBox::currentIndexChanged, &dlg, facing);
+    facing();
     tabs->addTab(marginsPage, QCoreApplication::translate("jp::write::Dialogs", "Margins"));
 
     // ---- Paper
@@ -238,7 +248,8 @@ bool pageSetupDialog(QWidget *parent, WriteDoc *doc, int section, QTextCursor *c
     doc->setBookFold(multiple->currentData().toBool(), booklet->currentData().toInt());
     // Set as Default: the margins and the paper (not how a section starts, or its headers) go to the Normal template, which new documents start from.
     if (makeDefault == DefaultScope::AllNew)
-        changeNormalTemplate([after](WriteDoc &target) {
+        setNormalTemplate(&dlg, [after, fold = multiple->currentData().toBool(), perBooklet = booklet->currentData().toInt()](WriteDoc &target) {
+            target.setBookFold(fold, perBooklet);
             SectionSetup now = pageSetupOf(target.sectionProps(0), target.differentOddEven());
             SectionSetup chosen = now;
             chosen.paperWidth = after.paperWidth;

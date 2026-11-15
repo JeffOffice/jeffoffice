@@ -19,6 +19,8 @@
 #include "core/gotoops.h"
 #include "core/outlineops.h"
 #include "core/normaltemplate.h"
+#include "app/normaltemplateui.h"
+#include "office/packageprops.h"
 #include "core/pagesetup.h"
 #include "app/userdefaults.h"
 #include "core/editops.h"
@@ -37,6 +39,9 @@
 #include "text/textprops.h"
 
 #include <QAction>
+#include <QLockFile>
+#include <QThread>
+#include <thread>
 #include <QElapsedTimer>
 #include <QSignalSpy>
 #include <QLabel>
@@ -1111,6 +1116,211 @@ private Q_SLOTS:
         QVERIFY(QFile::exists(normalTemplatePath()));
         QCOMPARE(pageSetupOf(newBlankDocument()->sectionProps(0), false).left, 30.0);
         QCOMPARE(pageSetupOf(doc->sectionProps(0), false).left, 30.0);   // (and this document, as OK does)
+        QFile::remove(normalTemplatePath());
+    }
+
+    // ---- the Normal template: what can go wrong with the file
+    static void putTemplateFile(const QByteArray &bytes)
+    {
+        QFile f(normalTemplatePath());
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write(bytes);
+    }
+
+    void aCorruptNormalTemplateFallsBackToTheProgramsOwnSettingsWithANote()
+    {
+        putTemplateFile("this is not a document");
+        QCOMPARE(int(normalTemplateState()), int(NormalTemplateState::Unreadable));
+        QString note;
+        auto doc = newBlankDocument(&note);
+        QVERIFY(doc);
+        QVERIFY(note.contains(QStringLiteral("Normal template")));
+        QCOMPARE(pageSetupOf(doc->sectionProps(0), false).left, 72.0);
+        WriteWindow w;
+        QVERIFY2(w.statusBar()->currentMessage().contains(QStringLiteral("Normal template")), qPrintable(w.statusBar()->currentMessage()));
+        QFile::remove(normalTemplatePath());
+    }
+
+    void aNormalTemplateOverFiftyMegabytesIsNotUsed()
+    {
+        QFile::remove(normalTemplatePath());
+        {
+            QFile f(normalTemplatePath());
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            QVERIFY(f.resize(kMaxNormalTemplateBytes + 1));
+        }
+        QCOMPARE(int(normalTemplateState()), int(NormalTemplateState::Unreadable));
+        QString note;
+        QVERIFY(newBlankDocument(&note));
+        QVERIFY(!note.isEmpty());
+        QFile::remove(normalTemplatePath());
+    }
+
+    void aNormalTemplateDeletedWhileTheProgramRunsFallsBackCleanly()
+    {
+        QFile::remove(normalTemplatePath());
+        QVERIFY(changeNormalTemplate([](WriteDoc &d) {
+            office::wml::SectionProps p = d.sectionProps(0);
+            p.left = 720;
+            d.setSectionProps(0, p);
+        }));
+        WriteWindow first;
+        QCOMPARE(pageSetupOf(first.document()->sectionProps(0), false).left, 36.0);
+        QVERIFY(QFile::remove(normalTemplatePath()));
+        QString note;
+        auto fresh = newBlankDocument(&note);
+        QVERIFY(fresh && note.isEmpty());
+        QCOMPARE(pageSetupOf(fresh->sectionProps(0), false).left, 72.0);
+        WriteWindow second;
+        QCOMPARE(pageSetupOf(second.document()->sectionProps(0), false).left, 72.0);
+        QVERIFY(changeNormalTemplate([](WriteDoc &) {}));   // (made again)
+        QVERIFY(QFile::exists(normalTemplatePath()));
+        QFile::remove(normalTemplatePath());
+    }
+
+    void aReadOnlyNormalTemplateStartsDocumentsButIsNotChangedAndSaysWhy()
+    {
+        QFile::remove(normalTemplatePath());
+        QVERIFY(changeNormalTemplate([](WriteDoc &d) {
+            office::wml::SectionProps p = d.sectionProps(0);
+            p.left = 720;
+            d.setSectionProps(0, p);
+        }));
+        const QString folder = QFileInfo(normalTemplatePath()).absolutePath();
+        const auto folderWas = QFile::permissions(folder);
+        QFile::setPermissions(normalTemplatePath(), QFileDevice::ReadOwner);
+        QFile::setPermissions(folder, QFileDevice::ReadOwner | QFileDevice::ExeOwner);
+        struct Restore {
+            QString folder;
+            QFileDevice::Permissions was;
+            ~Restore()
+            {
+                QFile::setPermissions(folder, was);
+                QFile::setPermissions(normalTemplatePath(), QFileDevice::ReadOwner | QFileDevice::WriteOwner);
+                QFile::remove(normalTemplatePath());
+            }
+        } restore{folder, folderWas};
+        QCOMPARE(pageSetupOf(newBlankDocument()->sectionProps(0), false).left, 36.0);   // (it is still read)
+        QString error;
+        const bool changed = changeNormalTemplate([](WriteDoc &) {}, &error);
+        if (changed) QSKIP("this account can write to a read-only folder");
+        QVERIFY(!error.isEmpty());
+        QString shown;
+        setNormalTemplatePrompts(nullptr, [&shown](const QString &text) { shown = text; });
+        QVERIFY(!setNormalTemplate(nullptr, [](WriteDoc &) {}));
+        setNormalTemplatePrompts(nullptr, nullptr);
+        QVERIFY2(shown.startsWith(QStringLiteral("couldn't save the default: ")), qPrintable(shown));
+    }
+
+    void aTemplateKeepsWhatItHoldsButStartsOverItsPropertiesCommentsAndChanges()
+    {
+        QFile::remove(normalTemplatePath());
+        auto t = open(makeDocx(para(run("kept words")) + "<w:p><w:ins w:id=\"1\" w:author=\"A\" w:date=\"2026-01-01T00:00:00Z\"><w:r><w:t>tracked words</w:t></w:r></w:ins></w:p>"));
+        QTextCursor c(t->story());
+        c.setPosition(2);
+        c.setPosition(4, QTextCursor::KeepAnchor);
+        QVERIFY(addComment(*t, c, QStringLiteral("a note")) >= 0);
+        office::PackageProps props;
+        props.creator = QStringLiteral("Someone Else");
+        props.title = QStringLiteral("Old title");
+        props.created = QDateTime(QDate(2020, 1, 2), QTime(3, 4), Qt::UTC);
+        t->setPackageProps(props);
+        office::wml::SectionProps p = t->sectionProps(0);
+        p.left = 720;
+        t->setSectionProps(0, p);
+        const QByteArray bytes = t->toDocx();
+        QVERIFY(!bytes.isEmpty());
+        // (the file does have them)
+        auto raw = WriteDoc::fromDocx(bytes);
+        QVERIFY(raw && !comments(*raw).isEmpty() && revisionCount(raw->story()) > 0 && raw->packageProps().creator == QStringLiteral("Someone Else"));
+        putTemplateFile(bytes);
+        auto fresh = newBlankDocument();
+        QVERIFY(fresh);
+        const QString text = fresh->story()->toPlainText();
+        QVERIFY2(text.contains(QStringLiteral("kept words")) && text.contains(QStringLiteral("tracked words")), qPrintable(text));
+        QCOMPARE(pageSetupOf(fresh->sectionProps(0), false).left, 36.0);
+        QVERIFY(comments(*fresh).isEmpty());
+        QCOMPARE(revisionCount(fresh->story()), 0);
+        const office::PackageProps now = fresh->packageProps();
+        QVERIFY(now.creator.isEmpty() && now.title.isEmpty() && !now.created.isValid());
+        QVERIFY(!fresh->isModified());
+        QFile::remove(normalTemplatePath());
+    }
+
+    // An unreadable template is not replaced unasked: the person is asked, and a No leaves it as it is.
+    void anUnreadableNormalTemplateIsReplacedOnlyWhenThePersonSaysYes()
+    {
+        putTemplateFile("damaged");
+        int asked = 0;
+        setNormalTemplatePrompts([&asked] {
+            ++asked;
+            return false;
+        }, nullptr);
+        QVERIFY(!setNormalTemplate(nullptr, [](WriteDoc &) {}));
+        QCOMPARE(asked, 1);
+        QCOMPARE(int(normalTemplateState()), int(NormalTemplateState::Unreadable));
+        setNormalTemplatePrompts([&asked] {
+            ++asked;
+            return true;
+        }, nullptr);
+        QVERIFY(setNormalTemplate(nullptr, [](WriteDoc &) {}));
+        QCOMPARE(asked, 2);
+        QCOMPARE(int(normalTemplateState()), int(NormalTemplateState::Usable));
+        setNormalTemplatePrompts(nullptr, nullptr);
+        QFile::remove(normalTemplatePath());
+    }
+
+    // Two windows changing the template at once do not lose an update: a change waits for the file's lock, and then starts from what the other left.
+    void aChangeWaitsForTheLockAndKeepsTheOtherWindowsChange()
+    {
+        QFile::remove(normalTemplatePath());
+        // The other window's change, made ready: a template with a top margin of its own.
+        auto theirs = WriteDoc::blank();
+        office::wml::SectionProps top = theirs->sectionProps(0);
+        top.top = 360;
+        theirs->setSectionProps(0, top);
+        const QByteArray theirBytes = theirs->toDocx();
+        QLockFile other(normalTemplatePath() + QStringLiteral(".lock"));
+        QVERIFY(other.tryLock());
+        std::thread finish([&other, theirBytes] {
+            QThread::msleep(400);
+            putTemplateFile(theirBytes);   // (the other window saves, then lets go of the lock)
+            other.unlock();
+        });
+        QElapsedTimer waited;
+        waited.start();
+        const bool changed = changeNormalTemplate([](WriteDoc &d) {
+            office::wml::SectionProps p = d.sectionProps(0);
+            p.right = 1080;
+            d.setSectionProps(0, p);
+        });
+        finish.join();
+        QVERIFY(changed);
+        QVERIFY2(waited.elapsed() >= 300, qPrintable(QString::number(waited.elapsed())));
+        // (it read the file once the lock was let go: both changes are there)
+        const SectionSetup now = pageSetupOf(newBlankDocument()->sectionProps(0), false);
+        QCOMPARE(now.top, 18.0);
+        QCOMPARE(now.right, 54.0);
+        QFile::remove(normalTemplatePath());
+    }
+
+    // Set as Default for all new documents carries Book fold too (and the mirrored margins it brings).
+    void pageSetupSetAsDefaultCarriesBookFold()
+    {
+        QFile::remove(normalTemplatePath());
+        setDefaultScopeStandIn([](const QString &) { return DefaultScope::AllNew; });
+        auto doc = open(makeDocx(para(run("text"))));
+        withDialog([&doc] { pageSetupDialog(nullptr, doc.get(), 0); }, QStringLiteral("pageSetupDialog"), [](QDialog *d) {
+            auto *multiple = d->findChild<QComboBox *>(QStringLiteral("multiplePages"));
+            multiple->setCurrentIndex(multiple->findData(true));
+            d->findChild<QComboBox *>(QStringLiteral("sheetsPerBooklet"))->setCurrentIndex(d->findChild<QComboBox *>(QStringLiteral("sheetsPerBooklet"))->findData(8));
+            d->findChild<QPushButton *>(QStringLiteral("setAsDefault"))->click();
+        }, false);
+        setDefaultScopeStandIn(nullptr);
+        auto fresh = newBlankDocument();
+        QVERIFY(fresh->bookFold());
+        QCOMPARE(fresh->bookFoldSheets(), 8);
+        QVERIFY(fresh->mirrorMargins());
         QFile::remove(normalTemplatePath());
     }
 

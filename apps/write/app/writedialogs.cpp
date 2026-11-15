@@ -3,6 +3,7 @@
 #include "app/icons.h"
 #include "app/pageview.h"
 #include "core/homeops.h"
+#include "app/normaltemplateui.h"
 #include "core/normaltemplate.h"
 #include "app/userdefaults.h"
 #include "flow/flowdocument.h"
@@ -594,7 +595,7 @@ void fontDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
         const int defStyle = style->currentIndex();
         const ColorRef defColor = color->mixed() ? ColorRef::none() : color->current();
         auto apply = [=](WriteDoc &target) { setDefaultFont(target, defFamily, defSize, defStyle, defColor, colors); };
-        if (makeDefault == DefaultScope::AllNew) changeNormalTemplate(apply);
+        if (makeDefault == DefaultScope::AllNew) setNormalTemplate(&dlg, apply);
         else apply(*doc);
     }
 }
@@ -891,7 +892,7 @@ void paragraphDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
         d.after = after->value();
         d.lineKind = k;
         d.lineValue = k == 5 ? multiple->value() : at->value();
-        if (makeDefault == DefaultScope::AllNew) changeNormalTemplate([d](WriteDoc &target) { setDefaultParagraph(target, d); });
+        if (makeDefault == DefaultScope::AllNew) setNormalTemplate(&dlg, [d](WriteDoc &target) { setDefaultParagraph(target, d); });
         else setDefaultParagraph(*doc, d);
     }
 }

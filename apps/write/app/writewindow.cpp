@@ -173,13 +173,15 @@ WriteWindow::WriteWindow(QWidget *parent) : AppWindow(parent)
     m_wordTimer.setInterval(500);
     connect(&m_wordTimer, &QTimer::timeout, this, &WriteWindow::updateWords);
 
-    setDocument(write::newBlankDocument(), QString());
+    QString templateNote;
+    setDocument(write::newBlankDocument(&templateNote), QString());
     applyDisplayDefaults();
     applyEditingDefaults();
     resize(1280, 800);
     updateTitle();
     startupMark("win: before first refresh");
     refreshUi();
+    if (!templateNote.isEmpty()) statusBar()->showMessage(templateNote, 15000);
     startupMark("win: ctor end");
 }
 
