@@ -469,9 +469,10 @@ void CommandSearchBox::ensureIndex()
 void CommandSearchBox::focusBox()
 {
     // Not while the File screen covers the window, or the ribbon is put away (the box is not there to type in).
-    if (!m_ribbon || !m_ribbon->isVisible() || !isVisible()) return;
+    if (!m_ribbon || !m_ribbon->isVisible()) return;
     if (FileScreen *fs = m_win->fileScreen(); fs && fs->isVisible()) return;
     m_indexed = false;
+    setWide(true);   // (a box with no room at rest shows now)
     setFocus(Qt::ShortcutFocusReason);
     selectAll();
     refill();

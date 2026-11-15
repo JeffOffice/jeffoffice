@@ -1182,9 +1182,11 @@ public:
         if (m_search) {
             int least = 0;
             for (HeaderButton *b : shown) least += fm.horizontalAdvance(m_r->m_tabs[b->tab()].title) + 14 + (m_r->m_tabs[b->tab()].group.isEmpty() ? 0 : 12) + 4;
-            m_searchRest = std::clamp(avail - least - 8, 28, 160);
+            // 160 at rest, less when the tabs need the room, down to the icon alone (24); where even that would fold a tab, no box at rest (Alt+Q or a click on the icon's place still opens it).
+            const int free = avail - least - 4;
+            m_searchRest = free >= 24 ? std::min(free, 160) : m_search->property("jpWide").toBool() ? 160 : 0;   // (with the cursor in it, tabs fold for it rather than it covering them)
         }
-        const int room = avail - (m_search ? m_searchRest + 8 : 0);
+        const int room = avail - (m_search && m_searchRest ? m_searchRest + 4 : 0);
         const int pad = shown.isEmpty() ? 26 : std::clamp((room - text) / int(shown.size()), 14, 26);
         auto widthOf = [&](HeaderButton *b) { return fm.horizontalAdvance(m_r->m_tabs[b->tab()].title) + pad + (m_r->m_tabs[b->tab()].group.isEmpty() ? 0 : 12) + 4; };
         int total = 0;
@@ -1240,9 +1242,11 @@ public:
             // Wider (up to 300) while it has the cursor, but only into the empty room left of it in the tab row: never over a tab, a contextual tab, or the » button.
             const int restLeft = width() - 60 - 6 - m_searchRest;
             const int tabsEnd = !m_more->isHidden() ? m_more->geometry().right() + 1 : x;
+            const bool wide = m_search->property("jpWide").toBool();
             int w = m_searchRest;
-            if (m_search->property("jpWide").toBool()) w = std::min(300, m_searchRest + std::max(0, restLeft - tabsEnd - 4));
-            m_search->setGeometry(width() - 60 - 6 - w, top(), w, pillH);
+            if (wide) w = std::min(300, m_searchRest + std::max(0, restLeft - tabsEnd - 4));
+            m_search->setGeometry(width() - 60 - 6 - w, top(), std::max(w, 1), pillH);
+            m_search->setVisible(w > 0);
             m_search->raise();
         }
         m_collapse->setToolTip(m_r->m_minimized ? QCoreApplication::translate("Ribbon", "Expand the Ribbon (Ctrl+F1)") : QCoreApplication::translate("Ribbon", "Collapse the Ribbon (Ctrl+F1)"));
