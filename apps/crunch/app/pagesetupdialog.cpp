@@ -662,7 +662,7 @@ void PageSetupDialog::buildHeaderFooter(QWidget *tab)
             QString refused;
             const QString made = jp::crunch::withPageNumberDesign(text, *design, keep, &refused);
             if (!refused.isEmpty()) {
-                QMessageBox::information(this, tr("Page Number"), refused);
+                jp::plainInformation(this, tr("Page Number"), refused);
                 return;
             }
             text = made;
