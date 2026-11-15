@@ -1497,12 +1497,13 @@ void checkTrustCenterPage(Adapter &app)
     struct Reset {
         ~Reset()
         {
-            jp::trust::setLinkedFiles(jp::trust::Choice::Ask);
+            jp::trust::setLinkedFiles(jp::trust::appliesTo(jp::appInfo().fileName).linkedFilesAsks ? jp::trust::Choice::Ask : jp::trust::Choice::Yes);
             jp::trust::setLinkedMedia(jp::trust::Choice::Never);
             jp::trust::setOutsideFilesReadOnly(true);
         }
     } reset;
-    jp::trust::setLinkedFiles(jp::trust::Choice::Ask);
+    const jp::trust::Choice filesDefault = jp::trust::appliesTo(jp::appInfo().fileName).linkedFilesAsks ? jp::trust::Choice::Ask : jp::trust::Choice::Yes;
+    jp::trust::setLinkedFiles(filesDefault);
     jp::trust::setLinkedMedia(jp::trust::Choice::Never);
     jp::trust::setOutsideFilesReadOnly(true);
     const jp::trust::Applies applies = jp::trust::appliesTo(jp::appInfo().fileName);
@@ -1532,11 +1533,11 @@ void checkTrustCenterPage(Adapter &app)
         QCOMPARE(text("trustLinkedFilesNote").contains(QStringLiteral("doesn't apply")), !applies.linkedFiles);
         QCOMPARE(text("trustLinkedMediaNote").contains(QStringLiteral("doesn't apply")), !applies.linkedMedia);
         shotOf(dlg, QStringLiteral("trust-center-") + jp::appInfo().fileName);
-        files->setCurrentIndex(2);
+        files->setCurrentIndex(applies.linkedFilesAsks ? 2 : 1);   // (never update them)
         media->setCurrentIndex(1);
         outside->setCurrentIndex(1);
     }, false);
-    QCOMPARE(jp::trust::linkedFiles(), jp::trust::Choice::Ask);
+    QCOMPARE(jp::trust::linkedFiles(), filesDefault);
     QCOMPARE(jp::trust::linkedMedia(), jp::trust::Choice::Never);
     QVERIFY(jp::trust::outsideFilesReadOnly());
     // OK: the rows that apply are kept, and the others are left as they were.
@@ -1544,11 +1545,11 @@ void checkTrustCenterPage(Adapter &app)
         QWidget *page = dlg->findChild<QWidget *>(QStringLiteral("trustPage"));
         QVERIFY(page);
         // (a grayed row can't be changed by a person; the value is set here anyway, to see that OK would not keep it)
-        page->findChild<QComboBox *>(QStringLiteral("trustLinkedFiles"))->setCurrentIndex(2);
+        page->findChild<QComboBox *>(QStringLiteral("trustLinkedFiles"))->setCurrentIndex(applies.linkedFilesAsks ? 2 : 1);
         page->findChild<QComboBox *>(QStringLiteral("trustLinkedMedia"))->setCurrentIndex(1);
         page->findChild<QComboBox *>(QStringLiteral("trustOutside"))->setCurrentIndex(1);
     });
-    QCOMPARE(jp::trust::linkedFiles(), applies.linkedFiles ? jp::trust::Choice::Never : jp::trust::Choice::Ask);
+    QCOMPARE(jp::trust::linkedFiles(), applies.linkedFiles ? jp::trust::Choice::Never : filesDefault);
     QCOMPARE(jp::trust::linkedMedia(), applies.linkedMedia ? jp::trust::Choice::Yes : jp::trust::Choice::Never);
     QVERIFY(!jp::trust::outsideFilesReadOnly());
 }

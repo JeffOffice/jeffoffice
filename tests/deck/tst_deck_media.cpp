@@ -2,6 +2,10 @@
 #include "deckhelpers.h"
 #include "app/linkedmedia.h"
 #include "app/trust.h"
+#include <QThread>
+#ifndef Q_OS_WIN
+#include <sys/stat.h>
+#endif
 
 #include <private/qplatformmediaintegration_p.h>
 #include <QAudioDevice>
@@ -1958,15 +1962,17 @@ private Q_SLOTS:
         QVERIFY2(lp->error().contains(QStringLiteral("linked")), qPrintable(lp->error()));
     }
 
-    // A movie or sound linked to a file plays as Options > Security says: never (the default, and what it always did), after a question, or at once. Only a movie or sound file on this
-    // computer is ever played: a web address, a file on another computer, a program, a text, and a file that is not there are refused, whatever is chosen.
-    void aLinkedFileIsPlayedOnlyAsTheTrustCenterSays()
+    // A movie or sound linked to a file plays as Options > Security says: never (the default, and what it always did), after a question, or at once. Only a movie or sound file whose name is on this
+    // computer is ever played: a web address, a file on another computer, a program, a stream or device name, a link or special file, a text, a file that leaves the folder, one that is too
+    // large, and one that is not there are refused, whatever is chosen, each for its own reason.
+    void aLinkedFileIsPlayedOnlyAsTheSecurityPageSays()
     {
         struct Reset {
             ~Reset()
             {
                 trust::setLinkedMedia(trust::Choice::Never);
                 trust::setAskStandIn({});
+                setLinkedMediaReadStandIn({});
             }
         } reset;
         QTemporaryDir dir;
@@ -1976,9 +1982,11 @@ private Q_SLOTS:
             if (f.open(QIODevice::WriteOnly)) f.write(bytes);
             return dir.filePath(name);
         };
-        const QString wav = write(QStringLiteral("tune.wav"), testWav(500));
+        const QByteArray wavBytes = testWav(500);
+        const QString wav = write(QStringLiteral("tune.wav"), wavBytes);
         write(QStringLiteral("notes.txt"), "hello");
         write(QStringLiteral("run.sh"), "#!/bin/sh\n");
+        write(QStringLiteral("text.wav"), "this is only text, and no sound at all in it, whatever its name says\n");
         QVERIFY(QFileInfo(wav).size() > 0);
         auto picture = [](const QString &link) {
             auto pic = std::make_shared<PictureItem>();
@@ -1986,32 +1994,89 @@ private Q_SLOTS:
             pic->mediaLink = link;
             return pic;
         };
-        // (whether the sound was given its file, and what it said when it was not)
-        auto given = [&](const QString &link, const QString &base, QHash<QString, bool> *answers = nullptr, QString *why = nullptr) {
+        // (whether the sound was given its file, the bytes it was given, and what it said when it was not)
+        auto given = [&](const QString &link, QString *why = nullptr, QByteArray *bytes = nullptr, LinkedMediaMemory *memory = nullptr, int wait = 20000) {
             MediaPlayback pb;
-            giveLinkedMedia(&pb, *picture(link), base, nullptr, answers);
+            giveLinkedMedia(&pb, *picture(link), dir.path(), nullptr, memory, wait);
             if (why) *why = pb.error();
+            if (bytes) *bytes = pb.file();
             return !pb.failed();
         };
         QString why;
+        QByteArray got;
         // never: the file is not read, and the sound says it is linked
-        QVERIFY(!given(wav, dir.path(), nullptr, &why));
+        QVERIFY(!given(wav, &why, &got));
         QVERIFY2(why.contains(QStringLiteral("linked from outside")), qPrintable(why));
-        // at once
+        QVERIFY(got.isEmpty());
+        // at once: the bytes of the file reach the player (no sound device is needed to see it)
         trust::setLinkedMedia(trust::Choice::Yes);
-        QVERIFY(given(wav, dir.path()));
-        QVERIFY(given(QStringLiteral("tune.wav"), dir.path()));   // (counted from the presentation's folder)
-        QVERIFY(given(QUrl::fromLocalFile(wav).toString(), QString()));
-        QVERIFY(!given(QStringLiteral("tune.wav"), QString()));    // (no folder to count from)
-        for (const QString &link : {QStringLiteral("https://example.com/a.mp3"), QStringLiteral("ftp://example.com/a.mp3"), QStringLiteral("\\\\host\\share\\a.wav"), QStringLiteral("//host/share/a.wav"),
-                                    QStringLiteral("file://host/share/a.wav"), QStringLiteral("file://///host/share/a.wav"), QStringLiteral("\\\\?\\UNC\\host\\share\\a.wav"),
-                                    QStringLiteral("notes.txt"), QStringLiteral("./run.sh"), QStringLiteral("run.sh"), QStringLiteral("missing.wav"), QStringLiteral("rtsp://example.com/live.mp3"),
-                                    QStringLiteral("C:\\tools\\run.exe"), QString()}) {
-            QVERIFY2(!given(link, dir.path(), nullptr, &why), qPrintable(link));
-            QVERIFY2(why.contains(QStringLiteral("linked")), qPrintable(link + QStringLiteral(": ") + why));
-            QVERIFY2(linkedMediaFile(link, dir.path()).isEmpty(), qPrintable(link));
+        QVERIFY2(given(wav, &why, &got), qPrintable(why));
+        QCOMPARE(got, wavBytes);
+        QVERIFY(given(QStringLiteral("tune.wav"), &why, &got));   // (counted from the presentation's folder)
+        QCOMPARE(got, wavBytes);
+        QVERIFY(given(QUrl::fromLocalFile(wav).toString(), &why, &got));
+        QCOMPARE(got, wavBytes);
+        // refused by its name: it is not on this computer, or is no file to play
+        const QString byName = QStringLiteral("is not on this computer, is not allowed, or is not a sound file");
+        for (const QString &link : {QStringLiteral("https://example.com/a.mp3"), QStringLiteral("ftp://example.com/a.mp3"), QStringLiteral("rtsp://example.com/live.mp3"), QStringLiteral("\\\\server\\share\\a.wav"),
+                                    QStringLiteral("//host/share/a.wav"), QStringLiteral("file://host/share/a.wav"), QStringLiteral("file://///host/share/a.wav"), QStringLiteral("\\\\?\\UNC\\host\\share\\a.wav"),
+                                    QStringLiteral("notes.txt"), QStringLiteral("./run.sh"), QStringLiteral("run.sh"), QStringLiteral("C:\\tools\\run.exe"), QString(), QStringLiteral("../outside/tune.wav"),
+                                    QStringLiteral("sub/../../tune.wav"), QStringLiteral("tune.wav:stream"), QStringLiteral("C:\\a\\tune.wav:Zone.Identifier"), QStringLiteral("CON.mp4"), QStringLiteral("sub\\NUL.wav"),
+                                    QStringLiteral("COM1.mp3"), QStringLiteral("/dev/zero")}) {
+            QVERIFY2(!given(link, &why, &got), qPrintable(link));
+            QVERIFY2(why.contains(byName), qPrintable(link + QStringLiteral(": ") + why));
+            QVERIFY2(got.isEmpty() && linkedMediaFile(link, dir.path()).isEmpty(), qPrintable(link));
         }
         QCOMPARE(linkedMediaFile(wav, QString()), wav);
+        QVERIFY(linkedMediaFile(QStringLiteral("tune.wav"), QString()).isEmpty());   // (no folder to count from)
+        // refused when it is read, each for its own reason
+        QVERIFY(!given(QStringLiteral("missing.wav"), &why));
+        QVERIFY2(why.contains(QStringLiteral("can't be read")), qPrintable(why));
+        QVERIFY(!given(QStringLiteral("text.wav"), &why));   // (a text is a list of places to fetch, whatever its name)
+        QVERIFY2(why.contains(QStringLiteral("is not a sound")), qPrintable(why));
+#ifndef Q_OS_WIN
+        // a link to the file, and a pipe: never opened (a pipe would wait for a writer forever)
+        QVERIFY(QFile::link(wav, dir.filePath(QStringLiteral("alias.wav"))));
+        QVERIFY(!given(QStringLiteral("alias.wav"), &why));
+        QVERIFY2(why.contains(QStringLiteral("a link or special file")), qPrintable(why));
+        const QByteArray fifo = QFile::encodeName(dir.filePath(QStringLiteral("pipe.wav")));
+        if (mkfifo(fifo.constData(), 0600) == 0) {
+            QVERIFY(!given(QStringLiteral("pipe.wav"), &why));
+            QVERIFY2(why.contains(QStringLiteral("a link or special file")), qPrintable(why));
+        }
+        QCOMPARE(readLinkedMediaFile(QStringLiteral("/dev/zero")).problem, QStringLiteral("notFile"));   // (a device, whatever its name)
+#endif
+        // too large: its size is asked before anything is read (a sparse file, so no space goes)
+        {
+            QFile big(dir.filePath(QStringLiteral("big.wav")));
+            QVERIFY(big.open(QIODevice::WriteOnly));
+            QVERIFY(big.resize(kMostLinkedMediaBytes + 1));
+            big.close();
+            QVERIFY(!given(QStringLiteral("big.wav"), &why));
+            QVERIFY2(why.contains(QStringLiteral("too large")), qPrintable(why));
+            QCOMPARE(readLinkedMediaFile(dir.filePath(QStringLiteral("big.wav"))).problem, QStringLiteral("tooLarge"));
+            QCOMPARE(readLinkedMediaFile(wav, 100).problem, QStringLiteral("tooLarge"));   // (and what is read is counted: a size that lies)
+        }
+        // a link that failed is not read again for as long as the window lives, and one that takes too long is given up
+        int reads = 0;
+        setLinkedMediaReadStandIn([&](const QString &) {
+            ++reads;
+            LinkedRead r;
+            r.problem = QStringLiteral("unreadable");
+            return r;
+        });
+        LinkedMediaMemory memory;
+        QVERIFY(!given(QStringLiteral("dead.wav"), &why, nullptr, &memory));
+        QVERIFY(!given(QStringLiteral("dead.wav"), &why, nullptr, &memory));
+        QVERIFY2(why.contains(QStringLiteral("can't be read")), qPrintable(why));
+        QCOMPARE(reads, 1);
+        setLinkedMediaReadStandIn([](const QString &) {
+            QThread::msleep(400);
+            return LinkedRead();
+        });
+        QVERIFY(!given(QStringLiteral("slow.wav"), &why, nullptr, nullptr, 60));
+        QVERIFY2(why.contains(QStringLiteral("took too long")), qPrintable(why));
+        setLinkedMediaReadStandIn({});
         // a question first: asked once for a link, and not at all for one that is refused anyway
         trust::setLinkedMedia(trust::Choice::Ask);
         int asked = 0;
@@ -2020,19 +2085,28 @@ private Q_SLOTS:
             ++asked;
             return answer;
         });
-        QHash<QString, bool> answers;
-        QVERIFY(!given(wav, dir.path(), &answers, &why));
+        LinkedMediaMemory answers;
+        QVERIFY(!given(wav, &why, &got, &answers));
         QVERIFY2(why.contains(QStringLiteral("chose not to")), qPrintable(why));
-        QVERIFY(!given(wav, dir.path(), &answers));
+        QVERIFY(!given(wav, nullptr, nullptr, &answers));
         QCOMPARE(asked, 1);
-        QVERIFY(!given(QStringLiteral("https://example.com/a.mp3"), dir.path(), &answers));
-        QVERIFY(!given(QStringLiteral("\\\\host\\share\\a.wav"), dir.path(), &answers));
+        QVERIFY(!given(QStringLiteral("https://example.com/a.mp3"), nullptr, nullptr, &answers));
+        QVERIFY(!given(QStringLiteral("\\\\server\\share\\a.wav"), nullptr, nullptr, &answers));
         QCOMPARE(asked, 1);
         answer = true;
-        QHash<QString, bool> yesAnswers;
-        QVERIFY(given(wav, dir.path(), &yesAnswers));
-        QVERIFY(given(wav, dir.path(), &yesAnswers));
+        LinkedMediaMemory yesAnswers;
+        QVERIFY(given(wav, &why, &got, &yesAnswers));
+        QCOMPARE(got, wavBytes);
+        QVERIFY(given(wav, &why, &got, &yesAnswers));
         QCOMPARE(asked, 2);
+        // a show asks once, when it starts, for every linked file it has; and not again for each
+        LinkedMediaMemory show;
+        QVERIFY(askAboutLinkedMedia({wav, dir.filePath(QStringLiteral("two.wav"))}, nullptr, &show));
+        QCOMPARE(asked, 3);
+        QVERIFY(given(wav, nullptr, nullptr, &show));
+        QVERIFY(given(QStringLiteral("tune.wav"), nullptr, nullptr, &show));
+        QCOMPARE(asked, 3);
+        QVERIFY(askAboutLinkedMedia({}, nullptr, &show));   // (nothing linked: nothing asked)
     }
 
     // The window's player gives a linked sound its file only when the choice says so (and always says why not otherwise).

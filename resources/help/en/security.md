@@ -13,11 +13,10 @@ Macros are small programs kept inside a file. JeffPub keeps them in the file, so
 
 This is about pictures that are **linked** to a file instead of kept inside the publication. The choice is what JeffPub does when it opens a publication that has some.
 
-- **Ask me first** is the usual choice. If a linked picture's file has changed, JeffPub asks whether to update the picture from the file. If nothing has changed, it does not ask.
-- **Update them** reads the files without asking.
-- **Never update them** leaves every picture as it was saved. Each one shows **Not updated** until you use **Update Link** on it.
+- **Update them** is the usual choice. When a publication opens, JeffPub reads each linked picture's file again if the file is in the publication's own folder, so the picture is up to date. It never asks.
+- **Never update them** leaves every picture as it was saved. Each one shows **Not updated** until you use **Update Link** on it. **Export as PDF** and **Print** then tell you in the status bar that previews were used for pictures that have no whole copy in the publication.
 
-Whatever you choose, JeffPub only reads a file that is in the publication's own folder (or a folder you have said is all right). Any other linked file waits until you ask for it.
+JeffPub only reads a file that is in the publication's own folder (or a folder you have said is all right). Any other linked file waits until you ask for it.
 
 ## Linked movies and sounds
 
@@ -27,7 +26,7 @@ This does not apply in JeffPub: it has no linked movies or sounds to play. The r
 
 A file you downloaded, or that sits on another computer in your network, may not be safe. This choice says how JeffPub opens it.
 
-- **Open as read-only first** is the usual choice. The file opens so you can read it, but you can't change it. The status bar says so. To change it, use **Save As** to make a copy, or switch this setting to the next choice.
+- **Open as read-only first** is the usual choice. The file opens so you can read it, but you can't change it. A bar under the file says so. Click **Enable Editing** on the bar to change that one file (until you close the program). When you save it in place afterward, JeffPub takes the download mark off the file. Or use **Save As** to make a copy, or switch this setting to the next choice.
 - **Open normally** opens every file the same way.
 
 A file you open with **Open as Copy**, **Open and Repair**, or **Open Read-Only** from the **File** screen opens that way whatever this says.

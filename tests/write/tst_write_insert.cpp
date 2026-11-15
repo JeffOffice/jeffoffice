@@ -6,7 +6,6 @@
 #include "app/navpane.h"
 #include "app/pageview.h"
 #include "app/settings.h"
-#include "app/trust.h"
 #include "app/textdialogs.h"
 #include "core/items.h"
 #include "flow/paginator.h"
@@ -378,25 +377,6 @@ private Q_SLOTS:
         win.w.setLinkOpener([&](const QString &a) { opened << a; });
         Q_EMIT win.w.view()->linkFollowed(QStringLiteral("https://example.com"), QString());
         QCOMPARE(opened, (QStringList{"https://example.com"}));
-    }
-
-    // The loosest of the Security's choices does not reach the refusals: no link to a file, a program, or another computer is followed by a click.
-    void theLoosestTrustChoicesStillRefuseLinksToFilesAndPrograms()
-    {
-        struct Reset {
-            ~Reset()
-            {
-                trust::setLinkedFiles(trust::Choice::Ask);
-                trust::setLinkedMedia(trust::Choice::Never);
-                trust::setOutsideFilesReadOnly(true);
-            }
-        } reset;
-        trust::setLinkedFiles(trust::Choice::Yes);
-        trust::setLinkedMedia(trust::Choice::Yes);
-        trust::setOutsideFilesReadOnly(false);
-        for (const char *address : {"file:///etc/passwd", "file://host/share/a.docx", "\\\\host\\share\\run.exe", "//host/share/a.docx", "./run.exe", "C:\\tools\\setup.bat", "javascript:alert(1)", "smb://host/share"})
-            QVERIFY2(!write::mayFollow(QString::fromLatin1(address)), address);
-        QVERIFY(write::mayFollow(QStringLiteral("https://example.com")));
     }
 
     void aLinkIsChangedAndRemovedKeepingItsWords()

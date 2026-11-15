@@ -223,7 +223,7 @@ bool CrunchWindow::openFile(const QString &path, OpenHow how)
     }
     if (replacing) dropWorkbook();
     setReadOnly(how == OpenHow::ReadOnly);
-    if (heldBack) statusBar()->showMessage(trust::heldBackText(), 15000);
+    if (heldBack) showHeldBack(path);
     m_openHow = how;
     m_personalInfoRemoved = false;
     m_editedProps.reset();

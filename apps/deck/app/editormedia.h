@@ -9,6 +9,7 @@
 // Nothing is decoded until a person presses Play (the bar's, or the
 // Playback tab's); selecting, hovering, and drawing never read the file.
 
+#include "app/linkedmedia.h"
 #include "app/mediaplayer.h"
 
 #include <QHash>
@@ -68,7 +69,7 @@ private:
     bool act(const QString &id, MediaBar::Part part, const QPointF &pos, bool dragging);
     DeckCanvas *m_canvas;
     QHash<QString, QPointer<MediaPlayback>> m_players;
-    QHash<QString, bool> m_linkedAnswers;   // what was answered for each linked file asked about (Options > Security)
+    LinkedMediaMemory m_linked;   // what was answered and refused for each linked file (Options > Security)
     QString m_hover;
     QString m_drag;
     MediaBar::Part m_dragPart = MediaBar::Part::None;

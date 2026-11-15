@@ -21,7 +21,7 @@ This does not apply in JeffWrite: it has no linked movies or sounds to play. The
 
 A file you downloaded, or that sits on another computer in your network, may not be safe. This choice says how JeffWrite opens it.
 
-- **Open as read-only first** is the usual choice. The file opens so you can read it, but you can't change it. The status bar says so. To change it, use **Save As** to make a copy, or switch this setting to the next choice.
+- **Open as read-only first** is the usual choice. The file opens so you can read it, but you can't change it. A bar under the file says so. Click **Enable Editing** on the bar to change that one file (until you close the program). When you save it in place afterward, the download mark is taken off the file. Or use **Save As** to make a copy, or switch this setting to the next choice.
 - **Open normally** opens every file the same way.
 
 A file you open with **Open as Copy**, **Open and Repair**, or **Open Read-Only** from the **File** screen opens that way whatever this says.

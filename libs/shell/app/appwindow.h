@@ -69,6 +69,10 @@ public:
     static bool commandAllowedReadOnly(const QString &id);
     // Whether a control of the ribbon that is not a command (named as the ribbon file names its widgets) may be used in a read-only document.
     static bool ribbonControlAllowedReadOnly(const QString &name);
+    // A file held back for reading because it came from the internet or another computer (Options > Security): a bar in the status bar says so, with Enable Editing for this file only (until
+    // the program closes). Enabling makes the window an ordinary one, and a save in place of that file takes the download mark off it (noteSaved, which each app's save calls).
+    void showHeldBack(const QString &path);
+    void noteSaved(const QString &path);
     // Says, in the status bar, why a change was refused.
     void refuseReadOnlyChange();
     // True, after saying why, when a change is asked for in a read-only document: for a control that changes the document without being a command (a box, a gallery, a menu made in code).
@@ -95,6 +99,8 @@ protected:
     // After the window brought the controls of tabs made late up to date (which can turn a control on that read-only turned off): turned off again.
     void keepRibbonReadOnly();
     bool m_readOnly = false;
+    QWidget *m_heldBar = nullptr;
+    QString m_heldPath, m_enabledPath;
     OptionsStart m_optionsStart = OptionsStart::Default;
     QString m_optionsPage;
     bool m_fullScreenWanted = false, m_wasMaximized = false;

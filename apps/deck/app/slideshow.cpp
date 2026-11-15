@@ -2113,6 +2113,7 @@ void SlideShow::showEvent(QShowEvent *e)
     QWidget::showEvent(e);
     if (m_started) return;
     m_started = true;
+    m_media->askAboutLinks(this);
     m_media->arrive(m_slide, m_done);
     // The time on the first slide counts from when it is on the screen.
     if (m_recording && !m_recId.isEmpty()) {

@@ -1,4 +1,5 @@
 #include "core/document.h"
+#include "core/remotepath.h"
 #include <QSet>
 #include "core/chartobject.h"
 
@@ -1158,9 +1159,17 @@ QString rootOf(const QStringList &roots, const QString &path)
     return QString();
 }
 
+#ifdef Q_OS_WIN
+constexpr bool kStreamsAreNames = true;
+#else
+constexpr bool kStreamsAreNames = false;
+#endif
+
 bool pathInside(const QStringList &roots, const QString &path, int hops)
 {
     if (path.isEmpty() || isDevicePath(path) || !QDir::isAbsolutePath(path)) return false;
+    // (a stream of a file or a device name is no file to read, where the system has them)
+    if (isWindowsSpecialPath(path, kStreamsAreNames)) return false;
     const QString clean = QDir::cleanPath(path);
     const QString root = rootOf(roots, clean);
     if (root.isEmpty()) return false;
@@ -1234,17 +1243,11 @@ static bool needsPdfPassword(const QString &path)
     return PdfDocument::looksLikePdf(file) && PdfDocument(file).needsPassword();
 }
 
-int Document::updatableLinks() const
+int Document::previewLinkCount() const
 {
     int n = 0;
-    for (auto it = images.cbegin(); it != images.cend(); ++it) {
-        const ImageData &d = it.value();
-        if (!d.linked || !mayFollow(d.sourcePath)) continue;
-        const QFileInfo fi(d.sourcePath);
-        if (!fi.isFile()) continue;
-        const bool stored = d.keepsCopy && !d.bytes.isEmpty();
-        if (!stored || d.changed || fi.size() != d.fileSize || fi.lastModified().toMSecsSinceEpoch() != d.fileTime) ++n;
-    }
+    for (auto it = images.cbegin(); it != images.cend(); ++it)
+        if (it->linked && !it->followed && !it->keepsCopy) ++n;
     return n;
 }
 

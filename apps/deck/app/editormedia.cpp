@@ -106,7 +106,7 @@ MediaPlayback *EditorMedia::playbackFor(const PictureItem &pic)
         slot->setPlay(deck::mediaPlayOf(*d->pages[page], pic));
         slot->setCaptions(deck::captionCuesOf(*d, pic));
         // A linked file plays as Options > Security says (never, until it is chosen).
-        if (data == d->media.cend() && !pic.mediaLink.isEmpty()) giveLinkedMedia(slot, pic, m_canvas->editor()->filePath().isEmpty() ? QString() : QFileInfo(m_canvas->editor()->filePath()).absolutePath(), m_canvas, &m_linkedAnswers);
+        if (data == d->media.cend() && !pic.mediaLink.isEmpty()) giveLinkedMedia(slot, pic, m_canvas->editor()->filePath().isEmpty() ? QString() : QFileInfo(m_canvas->editor()->filePath()).absolutePath(), m_canvas, &m_linked);
     }
     return slot;
 }

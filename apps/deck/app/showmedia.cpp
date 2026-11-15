@@ -54,6 +54,15 @@ const PictureItem *ShowMedia::pictureWithId(const QString &id) const
     return nullptr;
 }
 
+void ShowMedia::askAboutLinks(QWidget *parent)
+{
+    QStringList links;
+    for (const auto &page : m_doc->pages)
+        for (const PictureItem *pic : deck::mediaPicturesOf(*page))
+            if (!pic->mediaLink.isEmpty() && !m_doc->media.contains(pic->mediaId) && links.size() < 16) links << pic->mediaLink;
+    askAboutLinkedMedia(links, parent, &m_linked);
+}
+
 ShowMedia::Entry *ShowMedia::entryOnSlide(const QString &itemId)
 {
     const auto it = m_entries.find(QString::number(m_slide) + QLatin1Char(':') + itemId);
@@ -79,7 +88,7 @@ ShowMedia::Entry *ShowMedia::entryFor(const PictureItem &pic, bool create)
     pb->setCaptions(deck::captionCuesOf(*m_doc, pic));
     if (data == m_doc->media.cend()) {
         // A linked file plays as Options > Security says (never, until it is chosen).
-        if (!pic.mediaLink.isEmpty()) giveLinkedMedia(pb, pic, m_baseDir, m_view, &m_linkedAnswers);
+        if (!pic.mediaLink.isEmpty()) giveLinkedMedia(pb, pic, m_baseDir, m_view, &m_linked);
         else pb->setUnavailable(e.play.video ? tr("There is no movie here to play.") : tr("There is no sound here to play."));
     }
     connect(pb, &MediaPlayback::changed, m_view, qOverload<>(&QWidget::update));

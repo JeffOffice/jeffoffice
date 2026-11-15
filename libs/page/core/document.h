@@ -480,9 +480,8 @@ public:
     // With `readFiles` false (Options > Security: not until asked, or never) no file is read: the stored
     // copies and previews stand, as for a link `mayFollow` does not allow.
     void refreshLinks(bool readFiles = true);
-    // How many links `refreshLinks` would read a file for: a link to a file that `mayFollow` allows and that is there,
-    // whose stored copy is gone or the file is not the one it was made from (its size or date differ). No file is read.
-    int updatableLinks() const;
+    // How many linked pictures are drawn from a small preview because the link was not updated and no whole copy is kept (what PDF export and printing then use for them).
+    int previewLinkCount() const;
     // Whether the publication came from a file. What a file names (a linked
     // picture, a mail merge list's picture) is then read only when it lies in
     // the publication's own folder or below, until the user asks for it.

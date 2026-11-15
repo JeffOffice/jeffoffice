@@ -13,6 +13,7 @@
 // The slide show (slideshow.h) owns one and tells it where it is: it holds
 // no decoder until a movie or sound is asked to play.
 
+#include "app/linkedmedia.h"
 #include "app/mediaplayer.h"
 #include "core/media.h"
 
@@ -53,6 +54,8 @@ public:
     // Over the slide, after it is painted: the movies that play, a message for a file that can't, and the control bar.
     void paint(QPainter *p);
 
+    // When the show starts, with "Ask me first" chosen: one question for every linked movie or sound the show has (so none is asked in the middle of the full screen).
+    void askAboutLinks(QWidget *parent);
     // The folder of the presentation playing, which a linked file with a relative name is counted from.
     void setBaseDirectory(const QString &dir) { m_baseDir = dir; }
 
@@ -90,7 +93,7 @@ private:
     bool controlsOf(const QPointF &pos, QString *id, MediaBar::Part *part) const;
     const Document *m_doc;
     QString m_baseDir;                      // the presentation's folder, for a linked file named by a relative path
-    QHash<QString, bool> m_linkedAnswers;   // what was answered for each linked file asked about (Options > Security)
+    LinkedMediaMemory m_linked;             // what was answered and refused for each linked file (Options > Security)
     QWidget *m_view;
     int m_slide = -1;
     QString m_pageId;   // of the slide on the screen: the presentation may be edited while the show plays

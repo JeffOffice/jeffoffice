@@ -1,10 +1,14 @@
 // JeffPub's tests of pictures: linked, online, dropped, and the building blocks.
+#include <QPushButton>
 #include "pubhelpers.h"
 #include "core/pictureinsert.h"
 #include "core/version.h"
 #include "../isolatesettings.h"
 #include "io/jpubfile.h"
 #include "app/trust.h"
+#ifdef Q_OS_LINUX
+#include <sys/xattr.h>
+#endif
 #include <QBuffer>
 #include <QMessageBox>
 #include <QRandomGenerator>
@@ -1114,9 +1118,9 @@ private Q_SLOTS:
         QVERIFY2(!found.join('|').contains(QStringLiteral("linked, not embedded")), qPrintable(found.join('|')));
     }
 
-    // What a publication does with its linked pictures when it opens is Options > Security's choice: "Update them" reads the files (as it always did, and only the ones in the
-    // publication's own folder), "Never" leaves every picture as it was saved, and "Ask" asks, only when a file has something to give, and reads them on a yes.
-    void linkedPicturesFollowTheTrustChoice()
+    // What a publication does with its linked pictures when it opens is Options > Security's choice: "Update them" (the default, as it always was) reads the files in the publication's own
+    // folder with no question, and "Never" leaves every picture as it was saved. A file outside the folder is never read, and nothing is asked on any way of opening.
+    void linkedPicturesFollowTheSecurityChoice()
     {
         QTemporaryDir dir, other;
         QVERIFY(dir.isValid() && other.isValid());
@@ -1135,16 +1139,15 @@ private Q_SLOTS:
         const QByteArray nearNew = linkFileBytes(near), farNew = linkFileBytes(far);
         QVERIFY(nearNew != nearOld && farNew != farOld);
         int asked = 0;
-        bool answer = false;
         jp::trust::setAskStandIn([&](const QString &) {
             ++asked;
-            return answer;
+            return true;
         });
         struct Reset {
             ~Reset()
             {
                 jp::trust::setAskStandIn({});
-                jp::trust::setLinkedFiles(jp::trust::Choice::Ask);
+                jp::trust::setLinkedFiles(jp::trust::Choice::Yes);
             }
         } reset;
         // The ids are by the file each picture is linked to.
@@ -1158,56 +1161,59 @@ private Q_SLOTS:
             return jp::LinkStatus::Embedded;
         };
         QByteArray b;
-        {
-            jp::trust::setLinkedFiles(jp::trust::Choice::Never);
+        // the default: today's behavior (the choice was never made, so it is not "ask")
+        QCOMPARE(jp::trust::linkedFiles(QStringLiteral("jeffpub")), jp::trust::Choice::Yes);
+        for (jp::OpenHow how : {jp::OpenHow::Normal, jp::OpenHow::ReadOnly, jp::OpenHow::Copy, jp::OpenHow::NewWindow}) {
             jp::MainWindow w;
-            QVERIFY(w.openFile(path));
-            QCOMPARE(state(w, near, &b), jp::LinkStatus::NotUpdated);
-            QCOMPARE(b, nearOld);
-            QCOMPARE(asked, 0);
-        }
-        {
-            jp::trust::setLinkedFiles(jp::trust::Choice::Yes);
-            jp::MainWindow w;
-            QVERIFY(w.openFile(path));
+            QVERIFY(w.openFile(path, how));
+            if (how == jp::OpenHow::NewWindow) continue;   // (the picture is in the window that was made for it)
             QCOMPARE(state(w, near, &b), jp::LinkStatus::Linked);
             QCOMPARE(b, nearNew);
-            // (a file outside the publication's folder is not read, whatever is chosen)
-            QCOMPARE(state(w, far, &b), jp::LinkStatus::NotUpdated);
+            QCOMPARE(state(w, far, &b), jp::LinkStatus::NotUpdated);   // (outside the folder: never read)
             QCOMPARE(b, farOld);
-            QCOMPARE(asked, 0);
-            // (nor a file on another computer: the check that says so does not look at the choice)
             QVERIFY(!w.editor()->doc()->mayFollow(QStringLiteral("\\\\host\\share\\a.png")));
             QVERIFY(!w.editor()->doc()->mayFollow(QStringLiteral("//host/share/a.png")));
-            QVERIFY(w.editor()->doc()->mayFollow(near));
         }
+        QCOMPARE(asked, 0);
         {
-            jp::trust::setLinkedFiles(jp::trust::Choice::Ask);
-            answer = false;
+            jp::trust::setLinkedFiles(jp::trust::Choice::Never, QStringLiteral("jeffpub"));
             jp::MainWindow w;
             QVERIFY(w.openFile(path));
-            QCOMPARE(asked, 1);
             QCOMPARE(state(w, near, &b), jp::LinkStatus::NotUpdated);
             QCOMPARE(b, nearOld);
+            QCOMPARE(asked, 0);
+            // (Update Link is still the person's own way to the file)
+            QVERIFY(w.editor()->doc()->mayFollow(near));
         }
-        const QString again = dir.filePath(QStringLiteral("again.jpub"));
+    }
+
+    // With "Never", a linked picture that keeps no copy is drawn from its preview, and PDF export and printing say so in the status bar.
+    void exportAndPrintSayWhenLinkedPicturesUsePreviews()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString file = linkPicture(dir.filePath(QStringLiteral("photo.png")), QSize(800, 600), QColor(20, 120, 200));
+        const QString path = dir.filePath(QStringLiteral("book.jpub"));
         {
-            answer = true;
             jp::MainWindow w;
-            QVERIFY(w.openFile(path));
-            QCOMPARE(asked, 2);
-            QCOMPARE(state(w, near, &b), jp::LinkStatus::Linked);
-            QCOMPARE(b, nearNew);
-            QCOMPARE(state(w, far, &b), jp::LinkStatus::NotUpdated);
-            QCOMPARE(b, farOld);
-            QVERIFY(w.saveTo(again));
+            w.editor()->setDocument(jp::Document::blank(QSizeF(612, 792)));
+            w.insertFiles({file}, QPointF(-1, -1), jp::PictureInsert::Link);
+            QVERIFY(w.saveTo(path));
         }
-        {
-            // nothing has changed since the save, so there is nothing to ask about
-            jp::MainWindow w;
-            QVERIFY(w.openFile(again));
-            QCOMPARE(asked, 2);
-        }
+        struct Reset {
+            ~Reset() { jp::trust::setLinkedFiles(jp::trust::Choice::Yes); }
+        } reset;
+        jp::trust::setLinkedFiles(jp::trust::Choice::Never, QStringLiteral("jeffpub"));
+        jp::MainWindow w;
+        QVERIFY(w.openFile(path));
+        QCOMPARE(w.editor()->doc()->previewLinkCount(), 1);
+        QVERIFY(w.exportPdfTo(dir.filePath(QStringLiteral("out.pdf")), jp::MainWindow::PdfSettings()));
+        QVERIFY2(w.statusBar()->currentMessage().contains(QStringLiteral("previews")), qPrintable(w.statusBar()->currentMessage()));
+        // the default reads the file, so there is nothing to say
+        jp::trust::setLinkedFiles(jp::trust::Choice::Yes, QStringLiteral("jeffpub"));
+        jp::MainWindow again;
+        QVERIFY(again.openFile(path));
+        QCOMPARE(again.editor()->doc()->previewLinkCount(), 0);
     }
 
     // A file from the internet or another computer opens for reading first, unless Options > Security says to open it as any other.
@@ -1249,6 +1255,68 @@ private Q_SLOTS:
         jp::MainWindow w;
         QVERIFY(w.openFile(path));
         QVERIFY(!w.isReadOnly());
+    }
+
+    // The bar of a file held back has Enable Editing: that file only, for the session. Saved in place afterwards, a file with a download mark loses it.
+    void enableEditingOpensThatFileForChangesAndOnlyThatFile()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString a = dir.filePath(QStringLiteral("a.jpub")), b = dir.filePath(QStringLiteral("b.jpub"));
+        {
+            jp::MainWindow w;
+            w.editor()->setDocument(jp::Document::blank(QSizeF(612, 792)));
+            QVERIFY(w.saveTo(a));
+            QVERIFY(w.saveTo(b));
+        }
+        jp::trust::setOutsideStandIn([&](const QString &p) { return p == a || p == b; });
+        struct Reset {
+            ~Reset() { jp::trust::setOutsideStandIn({}); }
+        } reset;
+        jp::MainWindow w;
+        w.show();
+        QVERIFY(w.openFile(a));
+        QVERIFY(w.isReadOnly());
+        auto *enable = w.findChild<QPushButton *>(QStringLiteral("enableEditing"));
+        QVERIFY2(enable, "the held-back bar has no Enable Editing button");
+        QVERIFY(w.findChild<QWidget *>(QStringLiteral("heldBackBar")));
+        enable->click();
+        QVERIFY(!w.isReadOnly());
+        QTRY_VERIFY(!w.findChild<QWidget *>(QStringLiteral("heldBackBar")));
+        jp::MainWindow again;
+        QVERIFY(again.openFile(a));
+        QVERIFY(!again.isReadOnly());   // (this file, now)
+        jp::MainWindow other;
+        QVERIFY(other.openFile(b));
+        QVERIFY(other.isReadOnly());   // (and not the other one)
+    }
+
+    // A file with the system's real download mark is held back, and a save in place after Enable Editing leaves it without the mark.
+    void aSaveInPlaceAfterEnableEditingTakesTheDownloadMarkOff()
+    {
+#ifdef Q_OS_LINUX
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString path = dir.filePath(QStringLiteral("down.jpub"));
+        {
+            jp::MainWindow w;
+            w.editor()->setDocument(jp::Document::blank(QSizeF(612, 792)));
+            QVERIFY(w.saveTo(path));
+        }
+        const QByteArray url = "https://example.com/down.jpub";
+        if (setxattr(QFile::encodeName(path).constData(), "user.xdg.origin.url", url.constData(), size_t(url.size()), 0) != 0) QSKIP("this file system keeps no extended attributes, so a download mark can not be set");
+        QVERIFY(jp::trust::fromOutside(path));
+        jp::MainWindow w;
+        w.show();
+        QVERIFY(w.openFile(path));
+        QVERIFY(w.isReadOnly());
+        w.findChild<QPushButton *>(QStringLiteral("enableEditing"))->click();
+        QVERIFY(!w.isReadOnly());
+        QVERIFY(w.saveTo(path));
+        QVERIFY(!jp::trust::fromOutside(path));
+#else
+        QSKIP("this checks the Linux mark; the Windows and Mac marks are checked in the shell tests");
+#endif
     }
 
     // The path relative to the publication wins when the publication was

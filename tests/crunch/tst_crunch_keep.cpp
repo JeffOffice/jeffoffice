@@ -21,6 +21,7 @@
 
 #include <QBuffer>
 #include <QDir>
+#include <QPushButton>
 #include <QTableWidget>
 #include <QElapsedTimer>
 #include <QtEndian>
@@ -668,6 +669,22 @@ private Q_SLOTS:
         QCOMPARE(asked, 0);
         QCOMPARE(touches, 0);
         QCOMPARE(shown, QStringLiteral("6"));
+        // (a device name is never opened either, at the loosest choice)
+        {
+            trust::setLinkedFiles(trust::Choice::Yes);
+            EditWindow e;
+            e.folder.write(QStringLiteral("prices.xlsx"), bookOfSheets({{"A1=7", "A2=8", "A3=9"}}));
+            const QByteArray book = repack(moreLinkBook(), [](Parts &p) { p[QStringLiteral("xl/externalLinks/_rels/externalLink1.xml.rels")].replace("prices.xlsx", "CON.xlsx"); });
+            QVERIFY(e.open(book, QStringLiteral("links.xlsx")));
+            QVERIFY(e.settle());
+            QCoreApplication::processEvents();
+            QVERIFY(e.settle());
+            QCOMPARE(e.win.w.session()->externals()->fileTouches(), 0);
+            QCOMPARE(e.shownAt(QStringLiteral("A6")), QStringLiteral("6"));
+            const std::vector<crunch::EditSession::ExternalSource> sources = e.win.w.session()->externalLinkSources(false);
+            QCOMPARE(int(sources.size()), 1);
+            QVERIFY(sources[0].network);   // (held back like a file on another computer)
+        }
     }
 
     // A workbook from the internet or another computer opens for reading first, unless Options > Security says to open it as any other.
@@ -691,6 +708,28 @@ private Q_SLOTS:
         trust::setOutsideStandIn([&](const QString &p) { return p == again; });
         QVERIFY(second.win.open(again));
         QVERIFY(!second.win.w.isReadOnly());
+    }
+
+    // The bar of a workbook held back has Enable Editing: that file only, for the session.
+    void enableEditingOpensThatWorkbookForChangesAndOnlyThatOne()
+    {
+        struct Reset {
+            ~Reset() { trust::setOutsideStandIn({}); }
+        } reset;
+        EditWindow first;
+        const QString a = first.folder.write(QStringLiteral("a.xlsx"), moreLinkBook()), b = first.folder.write(QStringLiteral("b.xlsx"), moreLinkBook());
+        trust::setOutsideStandIn([&](const QString &p) { return p == a || p == b; });
+        QVERIFY(first.win.open(a));
+        QVERIFY(first.win.w.isReadOnly());
+        auto *enable = first.win.w.findChild<QPushButton *>(QStringLiteral("enableEditing"));
+        QVERIFY2(enable, "the held-back bar has no Enable Editing button");
+        enable->click();
+        QVERIFY(!first.win.w.isReadOnly());
+        QTRY_VERIFY(!first.win.w.findChild<QWidget *>(QStringLiteral("heldBackBar")));
+        // (a file open in a window is brought forward, not opened again: what is asked is how it would open)
+        QVERIFY(trust::editingAllowed(a));
+        QCOMPARE(trust::openHowFor(a, OpenHow::Normal), OpenHow::Normal);
+        QCOMPARE(trust::openHowFor(b, OpenHow::Normal), OpenHow::ReadOnly);
     }
 
     // A link whose target is on another computer is neither asked about nor read when the file opens (the question is asked from the link parts alone), "update" leaves it, and Edit Links says it was not read.

@@ -591,18 +591,9 @@ bool MainWindow::openFile(const QString &path, OpenHow how)
         doc = importPublisher(bytes, &err, &rep);
         fromPub = true;
     } else {
-        // The linked pictures are read from their files as Options > Security says: when it opens (the choice "Update them"), never, or after a question about the ones that have something
-        // to read (only a file in the publication's own folder is ever read for a link).
-        const trust::Choice links = trust::linkedFiles();
-        doc = publicationFromBytes(bytes, &err, QFileInfo(path).absolutePath(), links == trust::Choice::Yes);
-        if (doc && links == trust::Choice::Ask && how != OpenHow::Repair)
-            if (doc->updatableLinks() > 0) {
-                QApplication::restoreOverrideCursor();
-                const bool yes = trust::ask(this, tr("Linked Pictures"), tr("This publication has pictures linked to files on this computer that have changed or are not kept in it. Update them from the files now?"),
-                                            tr("You can change this under Security in Options."));
-                QApplication::setOverrideCursor(Qt::WaitCursor);
-                if (yes) doc->refreshLinks();
-            }
+        // The linked pictures in the publication's own folder are read when it opens, as they always were (Options > Security: "Update them"); with "Never" none is read, and each shows what the
+        // publication stored until Update Link. No question is asked: nothing else is ever read for a link.
+        doc = publicationFromBytes(bytes, &err, QFileInfo(path).absolutePath(), trust::linkedFiles() != trust::Choice::Never);
     }
     QApplication::restoreOverrideCursor();
     if (!doc) {
@@ -630,7 +621,7 @@ bool MainWindow::openFile(const QString &path, OpenHow how)
         m_ed->setDocument(std::move(doc), path);
         if (how == OpenHow::ReadOnly) {
             setReadOnly(true);
-            if (heldBack) statusBar()->showMessage(trust::heldBackText(), 15000);
+            if (heldBack) showHeldBack(path);
         }
         // A publication marked as final opens for reading only (the Info page lets it be edited again).
         else if (how == OpenHow::Normal && markedAsFinal()) {
@@ -774,6 +765,7 @@ bool MainWindow::saveTo(const QString &pathIn, bool asCopy)
         if (m_versions.follow(path, QStringLiteral(".jpub"), password) > 0)
             notice(tr("Version History"), tr("Some versions kept before couldn't be given the new password, and stay as they were."), true);
     }
+    noteSaved(path);   // (a file whose editing was enabled loses its download mark)
     Settings::get().addRecentFile(path);
     telemetry::count(path.endsWith(QLatin1String(".pub"), Qt::CaseInsensitive) ? QStringLiteral("file.save.pub") : QStringLiteral("file.save.jpub"));
     updateTitle();
@@ -1325,6 +1317,7 @@ bool MainWindow::exportPdfTo(const QString &path, const PdfSettings &sIn)
 {
     m_ed->endTextEdit();
     Document *d = m_ed->doc();
+    const bool usedPreviews = d->previewLinkCount() > 0;
     PdfSettings s = sIn;
     const auto wipePasswords = qScopeGuard([&s] { s.protect.wipe(); });
     // A PDF with a password is made in memory, and the file is written once, encrypted: the plain PDF is never on the disk.
@@ -1580,7 +1573,9 @@ bool MainWindow::exportPdfTo(const QString &path, const PdfSettings &sIn)
     }
     QApplication::restoreOverrideCursor();
     statusBar()->showMessage(tr("Exported %1%2").arg(QFileInfo(path).fileName(), s.pdfx ? (x4 ? QStringLiteral(" (PDF/X-4)") : QStringLiteral(" (PDF/X-1a)")) : s.archival ? QStringLiteral(" (PDF/A)") : QString()) +
-                             (notTagged.isEmpty() ? QString() : QLatin1Char(' ') + tr("(not tagged for screen readers: %1)").arg(notTagged)), notTagged.isEmpty() ? 5000 : 8000);
+                             (notTagged.isEmpty() ? QString() : QLatin1Char(' ') + tr("(not tagged for screen readers: %1)").arg(notTagged)) +
+                             (usedPreviews ? QLatin1Char(' ') + tr("Some linked pictures were not updated, so their previews are used in the PDF. Use Update Link first for the whole pictures.") : QString()),
+                             notTagged.isEmpty() && !usedPreviews ? 5000 : 12000);
     // Not for exports from the command line, which show no window.
     if (openPdfAfterSaving() && isVisible() && openFileHook) openFileHook(path);
     return true;
@@ -1836,6 +1831,7 @@ bool MainWindow::exportHtmlTo(const QString &path)
 void MainWindow::printPublication()
 {
     m_ed->endTextEdit();
+    if (m_ed->doc()->previewLinkCount() > 0) statusBar()->showMessage(tr("Some linked pictures were not updated, so their previews are printed. Use Update Link first for the whole pictures."), 12000);
     QPrinter printer(QPrinter::HighResolution);
     printer.setDocName(m_ed->displayName());
     printer.setPageSize(QPageSize(m_ed->doc()->setup.sheet, QPageSize::Point));

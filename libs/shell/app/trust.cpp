@@ -2,11 +2,14 @@
 
 #include "app/plaintext.h"
 #include "app/settings.h"
+#include "core/appinfo.h"
 #include "core/remotepath.h"
 
 #include <QComboBox>
 #include <QCoreApplication>
+#include <QDir>
 #include <QFile>
+#include <QSet>
 #include <QFileInfo>
 #include <QFormLayout>
 #include <QLabel>
@@ -14,8 +17,7 @@
 #include <QPushButton>
 #include <QVBoxLayout>
 
-#ifdef Q_OS_WIN
-#else
+#ifndef Q_OS_WIN
 #include <sys/types.h>
 #include <sys/xattr.h>
 #endif
@@ -62,8 +64,15 @@ bool markedAsDownloaded(const QString &path)
 
 } // namespace
 
-Choice linkedFiles() { return choiceOf(QStringLiteral("trust/linkedFiles"), Choice::Ask); }
-void setLinkedFiles(Choice c) { storeChoice(QStringLiteral("trust/linkedFiles"), c); }
+static QString filesKey(const QString &app) { return QStringLiteral("trust/linkedFiles/") + (app.isEmpty() ? appInfo().fileName : app); }
+static bool asksAboutFiles(const QString &app) { return (app.isEmpty() ? appInfo().fileName : app) != QLatin1String("jeffpub"); }
+
+Choice linkedFiles(const QString &app)
+{
+    const Choice c = choiceOf(filesKey(app), asksAboutFiles(app) ? Choice::Ask : Choice::Yes);
+    return c == Choice::Ask && !asksAboutFiles(app) ? Choice::Yes : c;
+}
+void setLinkedFiles(Choice c, const QString &app) { storeChoice(filesKey(app), c); }
 Choice linkedMedia() { return choiceOf(QStringLiteral("trust/linkedMedia"), Choice::Never); }
 void setLinkedMedia(Choice c) { storeChoice(QStringLiteral("trust/linkedMedia"), c); }
 bool outsideFilesReadOnly() { return Settings::get().value(QStringLiteral("trust/outsideReadOnly"), true).toBool(); }
@@ -83,14 +92,44 @@ bool fromOutside(const QString &path)
 OpenHow openHowFor(const QString &path, OpenHow how, bool *held)
 {
     if (held) *held = false;
-    if (how != OpenHow::Normal || !outsideFilesReadOnly() || !fromOutside(path)) return how;
+    if (how != OpenHow::Normal || !outsideFilesReadOnly() || editingAllowed(path) || !fromOutside(path)) return how;
     if (held) *held = true;
     return OpenHow::ReadOnly;
 }
 
 QString heldBackText()
 {
-    return QCoreApplication::translate("Trust", "This file came from the internet or another computer, so it is open for reading only. To change it, use Save As to make a copy, or choose \"Open normally\" under Security in Options.");
+    return QCoreApplication::translate("Trust", "This file came from the internet or another computer, so it is open for reading only.");
+}
+
+namespace {
+QSet<QString> g_editingAllowed;
+QString canonicalOrClean(const QString &path)
+{
+    const QString c = QFileInfo(path).canonicalFilePath();
+    return c.isEmpty() ? QDir::cleanPath(path) : c;
+}
+} // namespace
+
+void allowEditing(const QString &path) { g_editingAllowed.insert(canonicalOrClean(path)); }
+bool editingAllowed(const QString &path) { return g_editingAllowed.contains(canonicalOrClean(path)); }
+
+bool clearOutsideMark(const QString &path)
+{
+    if (path.isEmpty() || isOnAnotherComputer(path)) return false;
+#ifdef Q_OS_WIN
+    return QFile::remove(path + QStringLiteral(":Zone.Identifier"));
+#else
+    const QByteArray name = QFile::encodeName(path);
+    bool any = false;
+#ifdef Q_OS_MACOS
+    any = removexattr(name.constData(), "com.apple.quarantine", 0) == 0;
+#else
+    any = removexattr(name.constData(), "user.xdg.origin.url") == 0;
+    any = removexattr(name.constData(), "user.xdg.referrer.url") == 0 || any;
+#endif
+    return any;
+#endif
 }
 
 void setAskStandIn(const std::function<bool(const QString &)> &standIn) { g_askStandIn = standIn; }
@@ -112,15 +151,17 @@ bool ask(QWidget *parent, const QString &title, const QString &question, const Q
 Applies appliesTo(const QString &appFileName)
 {
     Applies a;
+    a.app = appFileName;
     if (appFileName == QLatin1String("jeffpub")) {
         a.linkedFiles = true;
-        a.linkedFilesAbout = QCoreApplication::translate("Trust", "Pictures that are linked to a file instead of kept in the publication. Only a file in the publication's own folder is read when it opens.");
+        a.linkedFilesAbout = QCoreApplication::translate("Trust", "Pictures that are linked to a file instead of kept in the publication. Only a file in the publication's own folder is read when it opens, and no other is ever read.");
     } else if (appFileName == QLatin1String("jeffcrunch")) {
         a.linkedFiles = true;
+        a.linkedFilesAsks = true;
         a.linkedFilesAbout = QCoreApplication::translate("Trust", "Values a workbook reads from other workbooks. A workbook on another computer is never read when a file opens.");
     } else if (appFileName == QLatin1String("jeffdeck")) {
         a.linkedMedia = true;
-        a.linkedMediaAbout = QCoreApplication::translate("Trust", "A movie or sound that a slide links to a file instead of holding. Only a file on this computer is played; a web address or another computer never is.");
+        a.linkedMediaAbout = QCoreApplication::translate("Trust", "A movie or sound that a slide links to a file instead of holding. Only a movie or sound file whose name is on this computer is played; a web address, a file on another computer, and a program never are. A network drive that looks like a local one is read like a local file.");
     }
     return a;
 }
@@ -155,8 +196,12 @@ TrustPage::TrustPage(const Applies &applies, QWidget *parent) : QWidget(parent)
         cl->addWidget(text);
         form->addRow(label, col);
     };
-    m_files = choiceBox(QStringLiteral("trustLinkedFiles"), {tr("Ask me first"), tr("Update them"), tr("Never update them")}, applies.linkedFiles);
-    m_files->setCurrentIndex(int(linkedFiles()));
+    // (JeffPub has no question to put: it reads what is in the publication's folder, or nothing)
+    m_files = applies.linkedFilesAsks ? choiceBox(QStringLiteral("trustLinkedFiles"), {tr("Ask me first"), tr("Update them"), tr("Never update them")}, applies.linkedFiles)
+                                      : choiceBox(QStringLiteral("trustLinkedFiles"), {tr("Update them"), tr("Never update them")}, applies.linkedFiles);
+    m_filesApp = applies.app;
+    m_filesAsks = applies.linkedFilesAsks;
+    m_files->setCurrentIndex(m_filesAsks ? int(linkedFiles(applies.app)) : linkedFiles(applies.app) == Choice::Never ? 1 : 0);
     row(tr("Linked files and workbook links:"), m_files, applies.linkedFiles, applies.linkedFilesAbout, tr("This doesn't apply in this app: it has no linked files to update."));
     m_media = choiceBox(QStringLiteral("trustLinkedMedia"), {tr("Ask me first"), tr("Play it"), tr("Never play it")}, applies.linkedMedia);
     m_media->setCurrentIndex(int(linkedMedia()));
@@ -164,14 +209,14 @@ TrustPage::TrustPage(const Applies &applies, QWidget *parent) : QWidget(parent)
     m_outside = choiceBox(QStringLiteral("trustOutside"), {tr("Open as read-only first"), tr("Open normally")}, true);
     m_outside->setCurrentIndex(outsideFilesReadOnly() ? 0 : 1);
     row(tr("Files from the internet or other computers:"), m_outside, true,
-        tr("A file that was downloaded, or is on another computer, opens for reading only. Save As makes a copy you can change."), QString());
+        tr("A file that was downloaded, or is on another computer, opens for reading only. The bar under it has Enable Editing for that one file, and Save As makes a copy you can change."), QString());
     form->addRow(tr("Links that start a program:"), note(tr("These are always refused, and there is no setting to allow them. A link to a file on another computer is never followed without asking."), QStringLiteral("trustPrograms")));
     outer->addStretch(1);
 }
 
 void TrustPage::apply()
 {
-    if (m_files->isEnabled()) setLinkedFiles(Choice(m_files->currentData().toInt()));
+    if (m_files->isEnabled()) setLinkedFiles(m_filesAsks ? Choice(m_files->currentData().toInt()) : m_files->currentData().toInt() == 1 ? Choice::Never : Choice::Yes, m_filesApp);
     if (m_media->isEnabled()) setLinkedMedia(Choice(m_media->currentData().toInt()));
     setOutsideFilesReadOnly(m_outside->currentIndex() == 0);
 }

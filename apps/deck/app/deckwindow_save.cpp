@@ -236,6 +236,7 @@ bool DeckWindow::saveTo(const QString &path, bool asCopy)
         notice(tr("Version History"), tr("Some versions kept before couldn't be given the new password, and stay as they were."), true);
     m_recoveredFrom.clear();
     m_templatePath = deck::presentationKindOf(path) == deck::PresentationKind::Template ? path : QString();
+    noteSaved(path);   // (a file whose editing was enabled loses its download mark)
     Settings::get().addRecentFile(path);
     telemetry::count(QStringLiteral("file.save.") + fileKind(path));
     updateTitle();

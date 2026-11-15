@@ -40,6 +40,8 @@ public:
 
     // The file to play (its bytes, and its extension to tell the decoder what it is) and how. Nothing is read yet.
     void setFile(const QByteArray &bytes, const QString &extension);
+    // What it was given to play (for a test: the bytes that reached the player).
+    const QByteArray &file() const { return m_bytes; }
     void setPlay(const deck::MediaPlay &play);
     const deck::MediaPlay &settings() const { return m_play; }
 

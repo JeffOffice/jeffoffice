@@ -333,6 +333,7 @@ void CrunchWindow::onSaved(bool ok, const QString &message, const QString &path,
         if (m_recoveredCopy) recovery::discard(*std::exchange(m_recoveredCopy, std::nullopt));
         m_editedProps.reset();   // (the file has them now)
         setWindowModified(m_session->isModified());
+        noteSaved(path);   // (a file whose editing was enabled loses its download mark)
         Settings::get().addRecentFile(path);
         telemetry::count(QStringLiteral("file.save.") + crunch::fileKind(path));
         // (a save is the point after which what it saved of rows, columns, or cells deleted is not given back by Undo: that is said)

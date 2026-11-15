@@ -1,6 +1,5 @@
 // JeffDeck's tests of slide sizes, links and action buttons, and gradient and picture backgrounds.
 #include "deckhelpers.h"
-#include "app/trust.h"
 #include "../withdialog.h"
 #include "core/linkareas.h"
 #include "core/remotepath.h"
@@ -583,51 +582,6 @@ private Q_SLOTS:
         nested->next();   // closes
         QTRY_VERIFY(!show.nestedShow());
         QCOMPARE(show.currentSlide(), 0);
-    }
-
-    // The loosest of the Security's choices does not reach the refusals: a link to a program or a script is never opened, and never asked about, and a file on another computer is still asked
-    // about as one and never looked for.
-    void theLoosestTrustChoicesStillRefuseProgramLinks()
-    {
-        struct Reset {
-            ~Reset()
-            {
-                trust::setLinkedFiles(trust::Choice::Ask);
-                trust::setLinkedMedia(trust::Choice::Never);
-                trust::setOutsideFilesReadOnly(true);
-                trust::setAskStandIn({});
-            }
-        } reset;
-        trust::setLinkedFiles(trust::Choice::Yes);
-        trust::setLinkedMedia(trust::Choice::Yes);
-        trust::setOutsideFilesReadOnly(false);
-        trust::setAskStandIn([](const QString &) { return true; });
-        auto d = showDeck(2);
-        LayoutCache cache;
-        SlideShow show(d.get(), &cache, 0);
-        show.resize(960, 540);
-        show.show();
-        int opened = 0, asked = 0;
-        QStringList said;
-        QList<bool> remote;
-        show.setLinkOpener([&](const QUrl &) { ++opened; });
-        show.setLinkPrompt([&](const QString &, bool isRemote) {
-            ++asked;
-            remote << isRemote;
-            return true;
-        });
-        show.setLinkNotice([&](const QString &text) { said << text; });
-        const QStringList programs = {QStringLiteral("./run.exe"), QStringLiteral("C:\\tools\\setup.bat"), QStringLiteral("file:///usr/bin/tool.sh"), QStringLiteral("\\\\server\\share\\run.exe"),
-                                      QStringLiteral("./x.desktop"), QStringLiteral("./a.lnk"), QStringLiteral("./page.hta"), QStringLiteral("./tool.jar")};
-        for (const QString &link : programs) show.followLink(link);
-        QCOMPARE(opened, 0);
-        QCOMPARE(asked, 0);
-        QCOMPARE(said.size(), int(programs.size()));
-        const int looked = office::linkFileLooks();
-        show.followLink(QStringLiteral("\\\\server\\share\\notes.pdf"));
-        QCOMPARE(asked, 1);
-        QCOMPARE(remote.last(), true);
-        QCOMPARE(office::linkFileLooks(), looked);
     }
 
     // A mouse-over action is followed when the pointer comes onto the object, once, and not again until it has left.

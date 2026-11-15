@@ -958,6 +958,39 @@ private Q_SLOTS:
         QVERIFY(!w.isReadOnly());
     }
 
+    // The bar of a presentation held back has Enable Editing: that file only, for the session.
+    void enableEditingOpensThatPresentationForChangesAndOnlyThatOne()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString a = dir.filePath(QStringLiteral("a.pptx")), b = dir.filePath(QStringLiteral("b.pptx"));
+        {
+            DeckWindow w;
+            w.newSlide();
+            QVERIFY(w.saveTo(a));
+            QVERIFY(w.saveTo(b));
+        }
+        trust::setOutsideStandIn([&](const QString &p) { return p == a || p == b; });
+        struct Reset {
+            ~Reset() { trust::setOutsideStandIn({}); }
+        } reset;
+        DeckWindow w;
+        w.show();
+        QVERIFY(w.openFile(a));
+        QVERIFY(w.isReadOnly());
+        auto *enable = w.findChild<QPushButton *>(QStringLiteral("enableEditing"));
+        QVERIFY2(enable, "the held-back bar has no Enable Editing button");
+        enable->click();
+        QVERIFY(!w.isReadOnly());
+        QTRY_VERIFY(!w.findChild<QWidget *>(QStringLiteral("heldBackBar")));
+        DeckWindow again;
+        QVERIFY(again.openFile(a));
+        QVERIFY(!again.isReadOnly());
+        DeckWindow other;
+        QVERIFY(other.openFile(b));
+        QVERIFY(other.isReadOnly());
+    }
+
     // In a presentation open for reading only, nothing changes it: not the notes or the outline typed, not a change the editor is asked for (by a pane, a box, or a drag), not the slide
     // show's set-up, timings, or custom shows; and the boxes of the ribbon are off.
     void aReadOnlyPresentationIsChangedByNothing()

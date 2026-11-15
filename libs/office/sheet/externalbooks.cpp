@@ -83,6 +83,12 @@ Resolved resolveTarget(const QString &target, const QString &baseDir)
     if (r.web || r.path.isEmpty()) return r;
     // (one check for every app that follows a link: libs/base/core/remotepath.h)
     if (jp::isOnAnotherComputer(target) || jp::isOnAnotherComputer(r.path)) r.network = true;
+    // (a stream of a file, or a device name, is never opened: it is held back like a file on another computer, which is never read either)
+#ifdef Q_OS_WIN
+    if (jp::isWindowsSpecialPath(r.path)) r.network = true;
+#else
+    if (jp::isWindowsSpecialPath(r.path, false)) r.network = true;
+#endif
     return r;
 }
 

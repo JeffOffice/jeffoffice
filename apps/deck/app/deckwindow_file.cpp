@@ -151,7 +151,7 @@ bool DeckWindow::openFile(const QString &path, OpenHow how)
         target->m_versions.reset(wasProtected ? openedWith : QString());
         if (how == OpenHow::ReadOnly) {
             target->setReadOnly(true);
-            if (heldBack) target->statusBar()->showMessage(trust::heldBackText(), 15000);
+            if (heldBack) target->showHeldBack(path);
         }
         // A presentation marked as final opens for reading only (the Info page lets it be edited again).
         else if (how == OpenHow::Normal && target->markedAsFinal() && deck::presentationKindOf(path) != deck::PresentationKind::Template) {

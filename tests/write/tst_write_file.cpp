@@ -1358,6 +1358,42 @@ private Q_SLOTS:
         QVERIFY(w.openFile(down));
         QVERIFY(!w.isReadOnly());
     }
+
+    // The bar of a document held back has Enable Editing: that file only, for the session (and the note is still there after the document is set).
+    void enableEditingOpensThatDocumentForChangesAndOnlyThatOne()
+    {
+        struct Reset {
+            ~Reset() { trust::setOutsideStandIn({}); }
+        } reset;
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        auto make = [&](const QString &name) {
+            QFile f(dir.filePath(name));
+            if (f.open(QIODevice::WriteOnly)) f.write(headingsDocx(para(nullptr, "Some words.")));
+            return dir.filePath(name);
+        };
+        const QString a = make(QStringLiteral("a.docx")), b = make(QStringLiteral("b.docx"));
+        QVERIFY(QFileInfo(a).size() > 0 && QFileInfo(b).size() > 0);
+        trust::setOutsideStandIn([&](const QString &p) { return p == a || p == b; });
+        WriteWindow w;
+        Quiet quiet(w);
+        w.show();
+        QVERIFY(w.openFile(a));
+        QVERIFY(w.isReadOnly());
+        auto *enable = w.findChild<QPushButton *>(QStringLiteral("enableEditing"));
+        QVERIFY2(enable, "the held-back bar has no Enable Editing button");
+        enable->click();
+        QVERIFY(!w.isReadOnly());
+        QTRY_VERIFY(!w.findChild<QWidget *>(QStringLiteral("heldBackBar")));
+        WriteWindow again;
+        Quiet quietAgain(again);
+        QVERIFY(again.openFile(a));
+        QVERIFY(!again.isReadOnly());
+        WriteWindow other;
+        Quiet quietOther(other);
+        QVERIFY(other.openFile(b));
+        QVERIFY(other.isReadOnly());
+    }
 };
 
 QTEST_MAIN(FileTests)

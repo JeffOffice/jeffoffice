@@ -1,4 +1,9 @@
 #include "app/appwindow.h"
+#include <QPushButton>
+#include <QLabel>
+#include <QHBoxLayout>
+#include "app/filetasks.h"
+#include "app/trust.h"
 
 #include "app/ribbon.h"
 
@@ -225,6 +230,10 @@ bool AppWindow::ribbonControlAllowedReadOnly(const QString &name)
 void AppWindow::setReadOnly(bool on)
 {
     m_readOnly = on;
+    if (!on && m_heldBar) {
+        m_heldBar->deleteLater();
+        m_heldBar = nullptr;
+    }
     // The ribbon's controls that are not commands (the font box, the size box, color buttons, galleries, number boxes) and its menus of commands made in code are turned off in a
     // document open for reading only, and on again after; what a command's own button does is decided by the command's id.
     Ribbon *r = ribbon();
@@ -246,6 +255,37 @@ void AppWindow::keepRibbonReadOnly()
 void AppWindow::ribbonTabMade(RibbonTab *tab)
 {
     if (m_readOnly && tab) applyReadOnlyToTab(tab, true);
+}
+
+void AppWindow::showHeldBack(const QString &path)
+{
+    if (m_heldBar) m_heldBar->deleteLater();
+    m_heldPath = path;
+    auto *bar = new QWidget(this);
+    bar->setObjectName(QStringLiteral("heldBackBar"));
+    auto *row = new QHBoxLayout(bar);
+    row->setContentsMargins(4, 0, 4, 0);
+    auto *text = new QLabel(trust::heldBackText(), bar);
+    text->setTextFormat(Qt::PlainText);
+    row->addWidget(text);
+    auto *enable = new QPushButton(QCoreApplication::translate("AppWindow", "Enable Editing"), bar);
+    enable->setObjectName(QStringLiteral("enableEditing"));
+    enable->setFlat(false);
+    row->addWidget(enable);
+    QObject::connect(enable, &QPushButton::clicked, this, [this] {
+        trust::allowEditing(m_heldPath);
+        m_enabledPath = m_heldPath;
+        setReadOnly(false);   // (the bar goes with the read-only state)
+    });
+    statusBar()->addWidget(bar);
+    m_heldBar = bar;
+}
+
+void AppWindow::noteSaved(const QString &path)
+{
+    if (m_enabledPath.isEmpty() || !sameFile(path, m_enabledPath)) return;
+    trust::clearOutsideMark(path);
+    m_enabledPath.clear();
 }
 
 void AppWindow::refuseReadOnlyChange()

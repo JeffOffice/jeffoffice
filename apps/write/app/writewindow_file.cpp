@@ -225,8 +225,8 @@ bool WriteWindow::openFile(const QString &path, OpenHow how)
     const bool leftOut = doc->leftSomethingOut();
     if (copy) target->m_untitled = (repairing ? tr("Repaired %1") : tr("Copy of %1")).arg(QFileInfo(path).completeBaseName());
     target->setReadOnly(how == OpenHow::ReadOnly);
-    if (heldBack) target->statusBar()->showMessage(trust::heldBackText(), 15000);
     target->setDocument(std::move(doc), tmpl || copy ? QString() : path);
+    if (heldBack) target->showHeldBack(path);   // (after the document is set: it clears the status bar)
     target->m_macrosNoted = false;
     target->m_textFormKnown = textFormChosen && !copy;
     target->m_textForm = textForm;
@@ -510,6 +510,7 @@ bool WriteWindow::saveTo(const QString &path, bool asCopy)
     if (isReadOnly() && !m_readOnlyByProtection) setReadOnly(false);   // (a protected document is saved as it is: the protection stays)
     m_recoveredFrom.clear();
     dropRecoveryCopy();
+    noteSaved(path);   // (a file whose editing was enabled loses its download mark)
     Settings::get().addRecentFile(path);
     telemetry::count(QStringLiteral("file.save.") + fileKind(path));
     updateTitle();
