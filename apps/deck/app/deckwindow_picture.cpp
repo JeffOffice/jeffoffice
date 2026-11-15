@@ -155,6 +155,12 @@ void DeckWindow::refreshCrop()
     if (m_ribbon) m_ribbon->setContextVisible(QStringLiteral("Picture Tools"), shows);
     for (QAction *a : m_actions)
         if (a->objectName().startsWith(QLatin1String("pic.")) && a->objectName() != QLatin1String("pic.crop")) a->setEnabled(!pictures.isEmpty());
+    // Change Picture and Reset Picture work on a picture of a file (not a movie, a sound, or a chart, which have no picture to change).
+    bool plain = false;
+    for (const PictureItem *p : pictures) plain = plain || (p->mediaKind.isEmpty() && p->chartXml.isEmpty());
+    act("pic.change")->setEnabled(shows);
+    act("pic.reset")->setEnabled(plain);
+    act("pic.resetSize")->setEnabled(plain);
     act("pic.crop")->setEnabled(shows);
     act("pic.crop")->setChecked(shows && m_ed->cropItem == pictures[0]->id);
 }

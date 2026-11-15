@@ -786,8 +786,7 @@ void WriteWindow::shapeRibbonParts(RibbonParts &parts)
         auto *g = new Gallery(QSize(60, 46), 6);
         g->setObjectName(QStringLiteral("pictureStyles"));
         g->setTitle(tr("Picture Styles"));
-        g->setItemsProvider([this] { return pictureStyleItems(m_doc ? m_doc->flow().env.colors : ColorScheme()); });
-        g->reload();
+        g->setItemsProvider([this] { return pictureStyleItems(m_doc ? m_doc->flow().env.colors : builtinColorSchemes().value(0)); });
         connect(g, &Gallery::activated, this, [this](const QString &id) {
             const int i = id.toInt();
             if (i < 0 || i >= pictureStyleCount()) return;
