@@ -1078,7 +1078,9 @@ private Q_SLOTS:
         qInfo("SPELLING walk of 1,000,000 text cells: %lld ms in all, the longest slice %lld ms", total.elapsed(), d.longestSliceMs());
         QCOMPARE(d.current()->word, QStringLiteral("zzqxwrd"));
         QCOMPARE(d.current()->row, quint32(999998));
-        QVERIFY2(d.longestSliceMs() < 300, qPrintable(QString::number(d.longestSliceMs())));
+        // (a slice is bounded by the cells it looks at, which no runner's load changes; the clock is only a very loose check, as a shared runner may stop the program for seconds: 2940 ms on Nov 15)
+        QVERIFY2(d.longestSliceCells() <= crunch::SpellWalk::kMaxCellsPerStep + 32, qPrintable(QString::number(d.longestSliceCells())));
+        QVERIFY2(d.longestSliceMs() < 30000, qPrintable(QString::number(d.longestSliceMs())));
     }
 
     // ---- the cell editor measures once, and the address rule is fast

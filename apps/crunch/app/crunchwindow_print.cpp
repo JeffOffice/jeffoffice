@@ -238,6 +238,7 @@ qint64 CrunchWindow::pageBreakSliceWork() { return kPageBreakSliceWork; }
 
 void CrunchWindow::updatePageBreaks()
 {
+    m_breaksTimer.stop();   // (a call made now takes the place of one waiting on the timer: that one would begin the job again, and its counts, midway or after the first job had finished)
     cancelPageBreaks();
     if (!m_view) return;
     if (!m_breaksArmed || !(act(QStringLiteral("view.pageBreaks"))->isChecked() || m_viewKind != 0) || !m_loaded || !m_haveCalc || m_chartSheetShown) {

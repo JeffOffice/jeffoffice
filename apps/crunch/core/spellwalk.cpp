@@ -89,7 +89,10 @@ SpellWalk::Result SpellWalk::step(qint64 budgetMs, SpellHit *hit)
     int looked = 0;
     for (; m_at < m_cells.size(); ++m_at, m_offset = 0) {
         // (the clock is read now and then, not at every cell)
-        if (budgetMs > 0 && (++looked & 31) == 0 && clock.elapsed() >= budgetMs) return Result::More;
+        if (budgetMs > 0 && (++looked & 31) == 0 && (looked >= kMaxCellsPerStep || clock.elapsed() >= budgetMs)) {
+            m_mostLooked = std::max(m_mostLooked, looked);
+            return Result::More;
+        }
         QString text, language;
         bool noProof = false;
         if (!spellableText(*m_session, m_sheet, m_cells[m_at].first, m_cells[m_at].second, &text, &language, &noProof) || noProof) continue;
@@ -103,9 +106,11 @@ SpellWalk::Result SpellWalk::step(qint64 budgetMs, SpellHit *hit)
             hit->text = text;
             hit->language = language;
             m_offset = range.second;
+            m_mostLooked = std::max(m_mostLooked, looked);
             return Result::Found;
         }
     }
+    m_mostLooked = std::max(m_mostLooked, looked);
     return Result::Done;
 }
 

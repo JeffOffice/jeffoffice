@@ -18,8 +18,9 @@ inline void shotOf(QWidget *widget, const QString &name)
 }
 
 // Runs `open`, which makes a modal dialog, and meanwhile runs `fill` on that dialog, then presses OK (Cancel when `accept` is false). `fill` may use QVERIFY and
-// QCOMPARE: a failed one leaves `fill`, not the dialog. The dialog is always closed from outside `fill`, and a watchdog closes whatever is still open after ten
-// seconds and fails the test, so that a failure ends the test and never leaves it waiting on a dialog (on CI that costs the whole job).
+// QCOMPARE: a failed one leaves `fill`, not the dialog. The dialog is always closed from outside `fill`, and a watchdog closes whatever is still open after
+// a minute and fails the test, so that a failure ends the test and never leaves it waiting on a dialog (on CI that costs the whole job). It guards against a hang, and it counts from when the
+// dialog is found (a loaded CI machine ran the checks 5 to 8 times slower on Nov 15, and ten seconds from the start were gone before a slow fill was done: "the dialog was left open").
 inline void withDialog(const std::function<void()> &open, const QString &objectName, const std::function<void(QDialog *)> &fill, bool accept = true)
 {
     QString opened;
@@ -42,6 +43,7 @@ inline void withDialog(const std::function<void()> &open, const QString &objectN
             return;
         }
         if (dlg) opened = dlg->objectName();
+        if (dlg) watchdog.start(60000);
         if (dlg && opened == objectName) fill(dlg);
         closeAll(accept && opened == objectName);
     });
@@ -50,7 +52,7 @@ inline void withDialog(const std::function<void()> &open, const QString &objectN
         closeAll(false);
     });
     once.start(0);
-    watchdog.start(10000);
+    watchdog.start(60000);
     open();
     QCOMPARE(opened, objectName);
     QVERIFY2(!leftOpen, "the dialog was left open");
