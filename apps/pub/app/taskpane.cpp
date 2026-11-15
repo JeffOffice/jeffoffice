@@ -50,7 +50,7 @@ TaskPane::TaskPane(MainWindow *win) : QWidget(win), m_win(win)
     m_title = plainLabel(new QLabel(this));
     QFont f = m_title->font();
     f.setBold(true);
-    f.setPointSizeF(f.pointSizeF() * 1.15);
+    f.setPixelSize(15);   // a pane's title (docs/design/STYLE.md)
     m_title->setFont(f);
     auto *close = new QToolButton(this);
     close->setIcon(icon("x"));
@@ -114,7 +114,7 @@ public:
         m_print->setChecked(true);
         v->addWidget(m_all);
         v->addWidget(m_print);
-        v->addWidget(new QLabel(tr("Select an item to fix:"), this));
+        v->addWidget(new QLabel(tr("Select an item to fix"), this));
         m_list = new QListWidget(this);
         m_list->setAccessibleName(tr("Problems found"));
         m_list->setWordWrap(true);
@@ -234,12 +234,12 @@ public:
         auto *v = new QVBoxLayout(this);
         v->setContentsMargins(0, 0, 0, 0);
         // Each label names its box for screen readers (its buddy).
-        auto *findLabel = new QLabel(tr("Find what:"), this);
+        auto *findLabel = new QLabel(tr("Find what"), this);
         v->addWidget(findLabel);
         m_find = new QLineEdit(this);
         findLabel->setBuddy(m_find);
         v->addWidget(m_find);
-        auto *replaceLabel = new QLabel(tr("Replace with:"), this);
+        auto *replaceLabel = new QLabel(tr("Replace with"), this);
         v->addWidget(replaceLabel);
         m_replace = new QLineEdit(this);
         m_replace->setObjectName("replace");
@@ -520,7 +520,7 @@ public:
         {
             auto *w = new QWidget();
             auto *l = new QVBoxLayout(w);
-            l->addWidget(new QLabel(tr("Click in a text box, then click a field to insert it:"), w));
+            l->addWidget(new QLabel(tr("Click in a text box, then click a field to insert it"), w));
             m_fields = new QListWidget(w);
             l->addWidget(m_fields, 1);
             connect(m_fields, &QListWidget::itemDoubleClicked, this, [this](QListWidgetItem *it) {
@@ -641,16 +641,16 @@ public:
             m_rows = new QSpinBox(m_areaBox);
             m_cols = new QSpinBox(m_areaBox);
             for (QSpinBox *sb : {m_rows, m_cols}) sb->setRange(1, 20);
-            form->addRow(tr("Rows:"), m_rows);
-            form->addRow(tr("Columns:"), m_cols);
+            form->addRow(tr("Rows"), m_rows);
+            form->addRow(tr("Columns"), m_cols);
             for (MeasureSpin **ms : {&m_x, &m_y, &m_w, &m_h}) {
                 *ms = new MeasureSpin(m_areaBox);
                 (*ms)->setRange(0, 10000);
             }
-            form->addRow(tr("Left:"), m_x);
-            form->addRow(tr("Top:"), m_y);
-            form->addRow(tr("Width:"), m_w);
-            form->addRow(tr("Height:"), m_h);
+            form->addRow(tr("Left"), m_x);
+            form->addRow(tr("Top"), m_y);
+            form->addRow(tr("Width"), m_w);
+            form->addRow(tr("Height"), m_h);
             for (QSpinBox *sb : {m_rows, m_cols}) connect(sb, &QSpinBox::valueChanged, this, &CatalogPane::areaEdited);
             for (MeasureSpin *ms : {m_x, m_y, m_w, m_h}) connect(ms, &QDoubleSpinBox::valueChanged, this, &CatalogPane::areaEdited);
             auto *hint = new QLabel(tr("Put the fields for one item in the first cell. Double-click a field to add it there (or into the text box you're typing in)."), m_areaBox);
@@ -820,7 +820,7 @@ public:
     {
         auto *v = new QVBoxLayout(this);
         v->setContentsMargins(0, 0, 0, 0);
-        auto *qLabel = new QLabel(tr("Search for:"), this);
+        auto *qLabel = new QLabel(tr("Search for"), this);
         v->addWidget(qLabel);
         m_q = new QLineEdit(this);
         qLabel->setBuddy(m_q);

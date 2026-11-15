@@ -1,4 +1,5 @@
 #include "app/themegallery.h"
+#include "app/uistyle.h"
 
 #include "app/editor.h"
 #include "app/icons.h"
@@ -375,10 +376,7 @@ QFrame *ThemeGallery::openAll()
     auto *column = new QVBoxLayout(pop);
     column->setContentsMargins(4, 4, 4, 4);
     column->setSpacing(2);
-    auto *title = new QLabel(tr("Built-In"), pop);
-    QFont f = title->font();
-    f.setBold(true);
-    title->setFont(f);
+    QLabel *title = sectionHeading(tr("Built-In"), pop);
     title->setStyleSheet(QStringLiteral("padding:3px 2px;"));
     column->addWidget(title);
     auto *all = new PictureGrid(112, 3, true, pop);

@@ -65,8 +65,8 @@ bool askCommentAuthor(QWidget *parent)
     name->setObjectName(QStringLiteral("commentAuthorName"));
     auto *initials = new QLineEdit(comments::initialsFor(name->text()), &dlg);
     initials->setObjectName(QStringLiteral("commentAuthorInitials"));
-    form->addRow(QCoreApplication::translate("CommentsPane", "Name:"), name);
-    form->addRow(QCoreApplication::translate("CommentsPane", "Initials:"), initials);
+    form->addRow(QCoreApplication::translate("CommentsPane", "Name"), name);
+    form->addRow(QCoreApplication::translate("CommentsPane", "Initials"), initials);
     auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
     form->addRow(buttons);
     auto typedInitials = std::make_shared<bool>(false);
@@ -99,6 +99,7 @@ CommentsPane::CommentsPane(Editor *ed, QWidget *parent) : QWidget(parent), m_ed(
     auto *title = new QLabel(tr("Comments"), this);
     QFont bold = title->font();
     bold.setBold(true);
+    bold.setPixelSize(15);
     title->setFont(bold);
     head->addWidget(title, 1);
     auto *close = new QToolButton(this);
