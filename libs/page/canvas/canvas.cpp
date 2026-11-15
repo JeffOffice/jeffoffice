@@ -2748,10 +2748,15 @@ void Canvas::handleTextKey(QKeyEvent *e)
             nbf.clearProperty(tp::StartInNextBox);
             QTextCharFormat ncf = c.charFormat();
             if (ts && atEnd && !ts->next.isEmpty() && ts->next != style) {
-                if (const TextStyle *nx = m_ed->doc()->style(ts->next)) {
-                    tp::setProperties(nbf, nx->blk);
-                    nbf.setProperty(tp::StyleName, nx->name);
-                    ncf = nx->chr;
+                if (m_ed->doc()->style(ts->next)) {
+                    // The next style as the style gives it (with what its bases set), over what this one's look gave the paragraph.
+                    const TextStyle was = m_ed->doc()->resolvedStyle(style), nx = m_ed->doc()->resolvedStyle(ts->next);
+                    const QMap<int, QVariant> wasBlk = was.blk.properties();
+                    for (auto k = wasBlk.cbegin(); k != wasBlk.cend(); ++k)
+                        if (nbf.property(k.key()) == k.value()) nbf.clearProperty(k.key());
+                    tp::setProperties(nbf, nx.blk);
+                    nbf.setProperty(tp::StyleName, nx.name);
+                    ncf = nx.chr;
                 }
             }
             c.insertBlock(nbf, ncf);

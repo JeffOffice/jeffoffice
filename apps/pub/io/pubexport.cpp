@@ -810,6 +810,14 @@ private:
                 m_styleNames << st.name;
         return m_styleNames;
     }
+    // A named style's character look with what its bases set, kept for the paragraphs that follow.
+    const QTextCharFormat &styleChrOf(const QString &name)
+    {
+        auto it = m_styleChr.find(name);
+        if (it == m_styleChr.end()) it = m_styleChr.insert(name, m_doc.resolvedStyle(name).chr);
+        return it.value();
+    }
+    QHash<QString, QTextCharFormat> m_styleChr;
     QStringList m_styleNames;
     bool m_styleNamesDone = false;
     void addStory(int textId, const QTextDocument *doc) { addStory(textId, QVector<const QTextDocument *>{doc}); }
@@ -1063,8 +1071,7 @@ void PubWriter::addStory(int textId, const QVector<const QTextDocument *> &docs,
     for (QTextBlock b = doc->begin(); b.isValid(); b = b.next()) {
         QTextCharFormat last = b.charFormat();
         const QString styleName = b.blockFormat().stringProperty(tp::StyleName);
-        const TextStyle *st = styleNames().contains(styleName) ? m_doc.style(styleName) : nullptr;
-        const QTextCharFormat styleChr = st ? st->chr : QTextCharFormat();
+        const QTextCharFormat styleChr = styleNames().contains(styleName) ? styleChrOf(styleName) : QTextCharFormat();   // (with what its bases set)
         for (auto it = b.begin(); !it.atEnd(); ++it) {
             const QTextFragment fr = it.fragment();
             if (!fr.isValid()) continue;
@@ -2414,10 +2421,11 @@ QByteArray PubWriter::write(QStringList *skipped)
     const quint32 fontSeq = m_fonts.isEmpty() && m_textIds.isEmpty() ? 0 : next++;
     // Fonts the style sheet names, so the font table, written first, has them.
     for (const QString &name : styleNames())
-        if (const TextStyle *st = m_doc.style(name)) {
-            charBlocks(st->chr);
+        if (m_doc.style(name)) {
+            const TextStyle st = m_doc.resolvedStyle(name);
+            charBlocks(st.chr);
             QTextDocument tmp;
-            QTextCursor(&tmp).setBlockFormat(st->blk);
+            QTextCursor(&tmp).setBlockFormat(st.blk);
             paraBlocks(tmp.begin());
         }
     if (m_fonts.isEmpty()) m_fonts << m_doc.fonts.body;
@@ -2708,7 +2716,7 @@ QByteArray PubWriter::write(QStringList *skipped)
         links << link(0) << link(0);
         const QStringList named = styleNames();
         for (int i = 0; i < named.size(); ++i) {
-            const TextStyle *st = m_doc.style(named[i]);
+            const TextStyle st = m_doc.resolvedStyle(named[i]);   // (a .pub style holds all its settings)
             // The name: its length in characters, the name in UTF-16, then a
             // zero id (built-in styles have a negative id and no name).
             QByteArray n;
@@ -2717,10 +2725,10 @@ QByteArray PubWriter::write(QStringList *skipped)
             putU32(n, 0);
             names << n;
             QTextDocument tmp;
-            QTextCursor(&tmp).setBlockFormat(st->blk);
+            QTextCursor(&tmp).setBlockFormat(st.blk);
             QVector<B> para = paraBlocks(tmp.begin());
             para.erase(std::remove_if(para.begin(), para.end(), [](const B &b) { return b.id == 0x19; }), para.end());
-            props << styleEntry(overlay(normalCharB, charBlocks(st->chr))) << styleEntry(overlay(normalParaB, para));
+            props << styleEntry(overlay(normalCharB, charBlocks(st.chr))) << styleEntry(overlay(normalParaB, para));
             links << link(quint32(i + 1)) << link(quint32(i + 1));
         }
         secs << Section{"STSH", "STSH", 0, offsetTable(names, magic, 4, 0), false};

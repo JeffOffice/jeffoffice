@@ -1016,7 +1016,7 @@ static bool insertOnlinePicture(MainWindow *win, const QString &path, const onli
         auto t = std::static_pointer_cast<TextItem>(ed->newTextBox(QRectF(pic->rect.left(), pic->rect.bottom() + 4, pic->rect.width(), 22), online::credit(p)));
         QTextCursor c(ed->doc()->storyDoc(t->storyId));
         c.select(QTextCursor::Document);
-        if (const TextStyle *s = ed->doc()->style(QStringLiteral("Caption"))) { c.mergeCharFormat(s->chr); c.mergeBlockFormat(s->blk); }
+        if (ed->doc()->style(QStringLiteral("Caption"))) { const TextStyle s = ed->doc()->resolvedStyle(QStringLiteral("Caption")); c.mergeCharFormat(s.chr); c.mergeBlockFormat(s.blk); }
         ed->surfaceItems().push_back(t);
         pic->caption = t->id;
     });

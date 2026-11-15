@@ -539,6 +539,19 @@ public:
     // A style with what it doesn't set taken from the style it's based on
     // (and that one's, and so on). A null name when there is no such style.
     TextStyle resolvedStyle(const QString &name) const;
+    // Whether basing `style` on `base` would make a loop of bases (a style on itself, or on one that comes to be based on it).
+    bool styleLoops(const QString &style, const QString &base) const;
+    // Breaks any loop of bases (as a file may hold): the link that closes the loop is dropped.
+    void repairStyleLinks();
+    // Replaces the styles with `next` (`renamed` maps a style's old name to its new one) and carries what changed in each style's look, with its
+    // bases', to the text in it: a paragraph, or a run in a character style, keeps what it was given directly, and takes the new look in what it
+    // had of the old. Returns how many paragraphs and runs changed.
+    int changeStyles(const QVector<TextStyle> &next, const QHash<QString, QString> &renamed = {});
+    // The style with only what it sets over its base (a style made from a look gives each of its settings, those the base gives too).
+    TextStyle onlyWhatDiffers(TextStyle s) const;
+    // Removes a style: the styles based on it are based on its own base instead, with what they took from it set in them so they look the same.
+    // Text in it keeps its look and is no longer in a style.
+    void deleteStyle(const QString &name);
     BusinessInfo &business() { return biz[std::clamp(bizCurrent, 0, int(biz.size()) - 1)]; }
     const BusinessInfo &business() const { return biz[std::clamp(bizCurrent, 0, int(biz.size()) - 1)]; }
 

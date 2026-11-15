@@ -1,4 +1,5 @@
 #include "core/document.h"
+#include <QSet>
 #include "core/chartobject.h"
 
 #include <cmath>
@@ -1657,25 +1658,233 @@ const TextStyle *Document::style(const QString &name) const
     return nullptr;
 }
 
-TextStyle Document::resolvedStyle(const QString &name) const
+// A style over the styles it is based on, given the styles and where each name is (a missing base, or a loop, ends the chain).
+static TextStyle resolveIn(const QVector<TextStyle> &styles, const QHash<QString, int> &at, const QString &name)
 {
-    const TextStyle *s = style(name);
-    if (!s) return TextStyle();
-    // The chain from the style to its furthest base, stopping at a loop.
-    QVector<const TextStyle *> chain{s};
-    while (chain.size() < 16 && !chain.last()->basedOn.isEmpty()) {
-        const TextStyle *b = style(chain.last()->basedOn);
-        if (!b || chain.contains(b)) break;
-        chain << b;
+    const auto first = at.constFind(name);
+    if (first == at.cend()) return TextStyle();
+    QVector<const TextStyle *> chain{&styles[first.value()]};
+    while (chain.size() <= styles.size() && !chain.last()->basedOn.isEmpty()) {
+        const auto b = at.constFind(chain.last()->basedOn);
+        if (b == at.cend() || chain.contains(&styles[b.value()])) break;
+        chain << &styles[b.value()];
     }
-    TextStyle out = *s;
+    TextStyle out = *chain.first();
     out.chr = QTextCharFormat();
     out.blk = QTextBlockFormat();
     for (auto it = chain.crbegin(); it != chain.crend(); ++it) {
         tp::setProperties(out.chr, (*it)->chr);
         tp::setProperties(out.blk, (*it)->blk);
     }
+    out.blk.setProperty(tp::StyleName, out.name);
     return out;
+}
+
+static QHash<QString, int> styleIndex(const QVector<TextStyle> &styles)
+{
+    QHash<QString, int> at;
+    at.reserve(styles.size());
+    for (int i = styles.size() - 1; i >= 0; --i) at.insert(styles[i].name, i);   // (the first of a name wins, as style() finds it)
+    return at;
+}
+
+TextStyle Document::resolvedStyle(const QString &name) const
+{
+    return resolveIn(styles, styleIndex(styles), name);
+}
+
+bool Document::styleLoops(const QString &style, const QString &base) const
+{
+    QString at = base;
+    for (int steps = 0; !at.isEmpty() && steps <= styles.size(); ++steps) {
+        if (at == style) return true;
+        const TextStyle *s = this->style(at);
+        if (!s) return false;
+        at = s->basedOn;
+    }
+    return !at.isEmpty();   // (a loop that never comes back to `style` is a loop already)
+}
+
+void Document::repairStyleLinks()
+{
+    const QHash<QString, int> at = styleIndex(styles);
+    for (int i = 0; i < styles.size(); ++i) {
+        QSet<QString> seen{styles[i].name};
+        int last = i;
+        for (;;) {
+            const QString base = styles[last].basedOn;
+            if (base.isEmpty()) break;
+            const auto b = at.constFind(base);
+            if (b == at.cend()) break;
+            if (seen.contains(base)) {
+                styles[last].basedOn.clear();
+                break;
+            }
+            seen.insert(base);
+            last = b.value();
+        }
+    }
+}
+
+namespace {
+struct PropChange {
+    int key;
+    QVariant was, now;
+};
+struct StyleChange {
+    QString to;
+    QVector<PropChange> chr, blk;
+    bool any() const { return !chr.isEmpty() || !blk.isEmpty(); }
+};
+
+template<class F>
+QVector<PropChange> propChanges(const F &was, const F &now, int skip)
+{
+    QVector<PropChange> out;
+    const QMap<int, QVariant> a = was.properties(), b = now.properties();
+    for (auto it = a.cbegin(); it != a.cend(); ++it)
+        if (it.key() != skip && b.value(it.key()) != it.value()) out.append({it.key(), it.value(), b.value(it.key())});
+    for (auto it = b.cbegin(); it != b.cend(); ++it)
+        if (it.key() != skip && !a.contains(it.key())) out.append({it.key(), QVariant(), it.value()});
+    return out;
+}
+
+// Gives `f` what changed, in the properties still as they were.
+template<class F>
+bool carry(F &f, const QVector<PropChange> &changes)
+{
+    bool did = false;
+    for (const PropChange &c : changes) {
+        if (f.property(c.key) != c.was) continue;
+        if (c.now.isValid()) f.setProperty(c.key, c.now);
+        else f.clearProperty(c.key);
+        did = true;
+    }
+    return did;
+}
+} // namespace
+
+int Document::changeStyles(const QVector<TextStyle> &next, const QHash<QString, QString> &renamed)
+{
+    const QHash<QString, int> oldAt = styleIndex(styles);
+    const QVector<TextStyle> oldStyles = styles;
+    styles = next;
+    {
+        // A style that names another by its old name follows the rename.
+        const QHash<QString, int> named = styleIndex(styles);
+        for (TextStyle &s : styles) {
+            if (renamed.contains(s.basedOn) && !named.contains(s.basedOn)) s.basedOn = renamed.value(s.basedOn);
+            if (renamed.contains(s.next) && !named.contains(s.next)) s.next = renamed.value(s.next);
+        }
+    }
+    repairStyleLinks();
+    const QHash<QString, int> newAt = styleIndex(styles);
+    QHash<QString, StyleChange> changes;   // by the style's old name
+    for (auto it = oldAt.cbegin(); it != oldAt.cend(); ++it) {
+        const QString to = renamed.value(it.key(), it.key());
+        if (!newAt.contains(to)) continue;
+        StyleChange c;
+        c.to = to;
+        const TextStyle was = resolveIn(oldStyles, oldAt, it.key()), now = resolveIn(styles, newAt, to);
+        c.chr = propChanges(was.chr, now.chr, tp::CharStyle);
+        c.blk = propChanges(was.blk, now.blk, tp::StyleName);
+        if (c.any() || to != it.key()) changes.insert(it.key(), c);
+    }
+    int n = 0;
+    if (!changes.isEmpty()) {
+        for (auto st = stories.cbegin(); st != stories.cend(); ++st) {
+            QTextDocument *d = (*st)->doc.get();
+            if (!d) continue;
+            QTextCursor edit(d);
+            edit.beginEditBlock();
+            for (QTextBlock b = d->begin(); b.isValid(); b = b.next()) {
+                const QString name = b.blockFormat().stringProperty(tp::StyleName);
+                const auto own = changes.constFind(name.isEmpty() ? QStringLiteral("Normal") : name);   // (a paragraph in no style is in Normal)
+                QTextCursor c(b);
+                if (own != changes.cend()) {
+                    QTextBlockFormat bf = b.blockFormat();
+                    bool did = carry(bf, own->blk);
+                    if (!name.isEmpty() && own->to != name) {
+                        bf.setProperty(tp::StyleName, own->to);
+                        did = true;
+                    }
+                    if (did) {
+                        c.setBlockFormat(bf);
+                        ++n;
+                    }
+                    QTextCharFormat cf = b.charFormat();
+                    if (carry(cf, own->chr)) c.setBlockCharFormat(cf);
+                }
+                struct Run {
+                    int at, len;
+                    QTextCharFormat f;
+                };
+                QVector<Run> runs;
+                for (auto it = b.begin(); !it.atEnd(); ++it) {
+                    const QTextFragment fr = it.fragment();
+                    QTextCharFormat f = fr.charFormat();
+                    bool did = false;
+                    if (own != changes.cend()) did = carry(f, own->chr);
+                    if (const QString cs = f.stringProperty(tp::CharStyle); !cs.isEmpty()) {
+                        if (const auto k = changes.constFind(cs); k != changes.cend()) {
+                            did = carry(f, k->chr) || did;
+                            if (k->to != cs) {
+                                f.setProperty(tp::CharStyle, k->to);
+                                did = true;
+                            }
+                        }
+                    }
+                    if (did) runs.append({fr.position(), fr.length(), f});
+                }
+                for (const Run &r : runs) {
+                    c.setPosition(r.at);
+                    c.setPosition(r.at + r.len, QTextCursor::KeepAnchor);
+                    c.setCharFormat(r.f);
+                    ++n;
+                }
+            }
+            edit.endEditBlock();
+        }
+    }
+    return n;
+}
+
+TextStyle Document::onlyWhatDiffers(TextStyle s) const
+{
+    const TextStyle base = resolvedStyle(s.basedOn);
+    if (base.name.isEmpty()) return s;
+    const QMap<int, QVariant> chr = s.chr.properties(), blk = s.blk.properties();
+    for (auto it = chr.cbegin(); it != chr.cend(); ++it)
+        if (base.chr.property(it.key()) == it.value()) s.chr.clearProperty(it.key());
+    for (auto it = blk.cbegin(); it != blk.cend(); ++it)
+        if (it.key() != tp::StyleName && base.blk.property(it.key()) == it.value()) s.blk.clearProperty(it.key());
+    return s;
+}
+
+void Document::deleteStyle(const QString &name)
+{
+    const int at = int(std::find_if(styles.cbegin(), styles.cend(), [&](const TextStyle &s) { return s.name == name; }) - styles.cbegin());
+    if (at >= styles.size()) return;
+    const QString base = styles[at].basedOn == name || styleLoops(name, styles[at].basedOn) ? QString() : styles[at].basedOn;
+    QVector<TextStyle> next = styles;
+    QVector<TextStyle> probe = styles;
+    probe.removeAt(at);
+    for (TextStyle &p : probe)
+        if (p.basedOn == name) p.basedOn = base;
+    const QHash<QString, int> probeAt = styleIndex(probe);
+    for (TextStyle &child : next) {
+        if (child.basedOn != name || child.name == name) continue;
+        const TextStyle was = resolvedStyle(child.name), now = resolveIn(probe, probeAt, child.name);
+        child.basedOn = base;
+        // What the child took from the deleted style, and the base does not give, is the child's own now.
+        for (const PropChange &c : propChanges(now.chr, was.chr, tp::CharStyle)) c.now.isValid() ? child.chr.setProperty(c.key, c.now) : child.chr.clearProperty(c.key);
+        for (const PropChange &c : propChanges(now.blk, was.blk, tp::StyleName)) c.now.isValid() ? child.blk.setProperty(c.key, c.now) : child.blk.clearProperty(c.key);
+    }
+    next.removeAt(at);
+    for (TextStyle &s : next)
+        if (s.next == name) s.next = s.name;
+    styles = next;
+    repairStyleLinks();
 }
 
 static QJsonObject pageBaseJ(const PageBase &p)
@@ -1922,6 +2131,7 @@ void Document::fromJson(const QJsonObject &o)
     extra.erase(std::remove_if(extra.begin(), extra.end(), [&](const ItemPtr &it) { return namesMissingStory(*this, *it); }), extra.end());
     styles.clear();
     for (const auto &v : o["styles"].toArray()) styles << TextStyle::fromJson(v.toObject());
+    repairStyleLinks();
     if (styles.isEmpty()) styles = defaultStyles();
     biz.clear();
     for (const auto &v : o["business"].toArray()) biz << BusinessInfo::fromJson(v.toObject());

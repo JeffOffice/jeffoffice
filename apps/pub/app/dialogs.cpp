@@ -45,6 +45,9 @@
 #include <QRadioButton>
 #include <QRegularExpression>
 #include <QSlider>
+#include <functional>
+#include <QToolButton>
+#include <QStandardItemModel>
 #include <QSpinBox>
 #include <QStackedWidget>
 #include <QTabWidget>
@@ -1241,7 +1244,15 @@ void styleDialog(QWidget *p, Editor *ed, const QString &styleName)
     auto *name = new QLineEdit(s.name, &dlg.d);
     auto *basedOn = new QComboBox(&dlg.d), *next = new QComboBox(&dlg.d);
     basedOn->addItem(QCoreApplication::translate("Dialogs", "(none)"));
-    for (const auto &st : doc->styles) { basedOn->addItem(st.name); next->addItem(st.name); }
+    for (const auto &st : doc->styles) {
+        basedOn->addItem(st.name);
+        next->addItem(st.name);
+        // A style cannot be based on itself, or on one that comes to be based on it.
+        if (existing && (st.name == styleName || doc->styleLoops(styleName, st.name))) {
+            if (auto *m = qobject_cast<QStandardItemModel *>(basedOn->model())) m->item(basedOn->count() - 1)->setEnabled(false);
+        }
+    }
+    if (!existing) next->addItem(s.name);   // (the new style itself)
     basedOn->setCurrentText(s.basedOn.isEmpty() ? QCoreApplication::translate("Dialogs", "(none)") : s.basedOn);
     next->setCurrentText(s.next.isEmpty() ? s.name : s.next);
     auto *charOnly = new QCheckBox(QCoreApplication::translate("Dialogs", "Character style (applies to selected text only)"), &dlg.d);
@@ -1249,86 +1260,185 @@ void styleDialog(QWidget *p, Editor *ed, const QString &styleName)
     auto *font = new QComboBox(&dlg.d);
     font->addItem(QCoreApplication::translate("Dialogs", "(scheme font)"));
     font->addItems(visibleFontFamilies());
-    if (s.chr.hasProperty(QTextFormat::FontFamilies)) font->setCurrentText(s.chr.fontFamilies().toStringList().value(0));
     auto *size = new DecimalSpin(&dlg.d);
     size->setRange(1, 999);
-    size->setValue(s.chr.hasProperty(QTextFormat::FontPointSize) ? s.chr.fontPointSize() : 11);
     auto *bold = new QCheckBox(QCoreApplication::translate("Dialogs", "Bold"), &dlg.d), *italic = new QCheckBox(QCoreApplication::translate("Dialogs", "Italic"), &dlg.d);
-    bold->setChecked(s.chr.fontWeight() >= QFont::DemiBold);
-    italic->setChecked(s.chr.fontItalic());
-    auto *color = colorPick(ed, s.chr.stringProperty(tp::ColorRefP).isEmpty() ? ColorRef::scheme(Main) : ColorRef::fromString(s.chr.stringProperty(tp::ColorRefP)), false, &dlg.d);
-    auto *before = points(s.blk.topMargin(), &dlg.d), *after = points(s.blk.bottomMargin(), &dlg.d);
+    auto *color = colorPick(ed, ColorRef::scheme(Main), false, &dlg.d);
+    auto *before = points(0, &dlg.d), *after = points(0, &dlg.d), *left = points(0, &dlg.d, -1000), *first = points(0, &dlg.d, -1000);
     auto *align = new QComboBox(&dlg.d);
     align->addItems({QCoreApplication::translate("Dialogs", "Left"), QCoreApplication::translate("Dialogs", "Center"), QCoreApplication::translate("Dialogs", "Right"), QCoreApplication::translate("Dialogs", "Justify")});
-    const Qt::Alignment al = s.blk.alignment() & Qt::AlignHorizontal_Mask;
-    align->setCurrentIndex(al == Qt::AlignHCenter ? 1 : al == Qt::AlignRight ? 2 : al == Qt::AlignJustify ? 3 : 0);
-    // Choosing a style to base this one on starts it with that style's look.
-    QObject::connect(basedOn, &QComboBox::currentIndexChanged, &dlg.d, [&, doc](int i) {
-        if (i <= 0) return;
-        const TextStyle b = doc->resolvedStyle(basedOn->currentText());
-        if (b.chr.hasProperty(QTextFormat::FontFamilies)) font->setCurrentText(b.chr.fontFamilies().toStringList().value(0));
-        else font->setCurrentIndex(0);
-        if (b.chr.hasProperty(QTextFormat::FontPointSize)) size->setValue(b.chr.fontPointSize());
-        bold->setChecked(b.chr.fontWeight() >= QFont::DemiBold);
-        italic->setChecked(b.chr.fontItalic());
-        before->setValue(b.blk.topMargin());
-        after->setValue(b.blk.bottomMargin());
-        const Qt::Alignment ba = b.blk.alignment() & Qt::AlignHorizontal_Mask;
-        align->setCurrentIndex(ba == Qt::AlignHCenter ? 1 : ba == Qt::AlignRight ? 2 : ba == Qt::AlignJustify ? 3 : 0);
+    const Qt::Alignment als[] = {Qt::AlignLeft, Qt::AlignHCenter, Qt::AlignRight, Qt::AlignJustify};
+
+    // Each setting is the style's own or comes from the style it is based on (shown as such, with a button that gives it back to the base).
+    struct Field {
+        bool own = false;
+        QLabel *tag = nullptr;
+        QToolButton *reset = nullptr;
+        std::function<void(const TextStyle &)> show;      // the inherited value, in the control
+        std::function<bool(const TextStyle &)> differs;   // whether the control holds something else
+        std::function<void(TextStyle &)> store, clear;    // the control's value into the style's own settings, or out of them
+    };
+    std::vector<std::shared_ptr<Field>> fields;
+    bool loading = false;
+    auto inherited = [&] { return basedOn->currentIndex() == 0 ? TextStyle() : doc->resolvedStyle(basedOn->currentText()); };
+    auto refresh = [&](Field &f) {
+        f.tag->setText(f.own ? QCoreApplication::translate("Dialogs", "set here") : QCoreApplication::translate("Dialogs", "from base"));
+        f.reset->setEnabled(f.own && basedOn->currentIndex() > 0);
+    };
+    auto addField = [&](const QString &label, QWidget *w, bool own, std::function<void(const TextStyle &)> show, std::function<bool(const TextStyle &)> differs,
+                        std::function<void(TextStyle &)> store, std::function<void(TextStyle &)> clear) {
+        auto f = std::make_shared<Field>();
+        f->own = own;
+        f->show = show;
+        f->differs = differs;
+        f->store = store;
+        f->clear = clear;
+        f->tag = new QLabel(&dlg.d);
+        f->reset = new QToolButton(&dlg.d);
+        f->reset->setText(QCoreApplication::translate("Dialogs", "Reset to base"));
+        auto *row = new QHBoxLayout();
+        row->addWidget(w, 1);
+        row->addWidget(f->tag);
+        row->addWidget(f->reset);
+        form->addRow(label, row);
+        fields.push_back(f);
+        Field *raw = f.get();
+        QObject::connect(f->reset, &QToolButton::clicked, &dlg.d, [&, raw] {
+            raw->own = false;
+            loading = true;
+            raw->show(inherited());
+            loading = false;
+            refresh(*raw);
+        });
+        return f;
+    };
+    auto edited = [&](const std::shared_ptr<Field> &f) {
+        if (loading) return;
+        f->own = true;
+        refresh(*f);
+    };
+    auto hasChr = [&](int key) { return s.chr.hasProperty(key); };
+    auto hasBlk = [&](int key) { return s.blk.hasProperty(key); };
+    auto fontOf = [](const TextStyle &t) { return t.chr.hasProperty(QTextFormat::FontFamilies) ? t.chr.fontFamilies().toStringList().value(0) : QString(); };
+    auto fFont = addField(QCoreApplication::translate("Dialogs", "Font:"), font, hasChr(QTextFormat::FontFamilies),
+                          [=](const TextStyle &t) { font->setCurrentText(fontOf(t).isEmpty() ? font->itemText(0) : fontOf(t)); },
+                          [=](const TextStyle &t) { return (font->currentIndex() > 0 ? font->currentText() : QString()) != fontOf(t); },
+                          [=](TextStyle &t) { if (font->currentIndex() > 0) t.chr.setFontFamilies(QStringList{font->currentText()}); else t.chr.clearProperty(QTextFormat::FontFamilies); },
+                          [](TextStyle &t) { t.chr.clearProperty(QTextFormat::FontFamilies); });
+    auto sizeOf = [](const TextStyle &t) { return t.chr.hasProperty(QTextFormat::FontPointSize) ? t.chr.fontPointSize() : 11.0; };
+    auto fSize = addField(QCoreApplication::translate("Dialogs", "Size:"), size, hasChr(QTextFormat::FontPointSize),
+                          [=](const TextStyle &t) { size->setValue(sizeOf(t)); }, [=](const TextStyle &t) { return qAbs(size->value() - sizeOf(t)) > 0.001; },
+                          [=](TextStyle &t) { t.chr.setFontPointSize(size->value()); }, [](TextStyle &t) { t.chr.clearProperty(QTextFormat::FontPointSize); });
+    auto fBold = addField(QString(), bold, hasChr(QTextFormat::FontWeight),
+                          [=](const TextStyle &t) { bold->setChecked(t.chr.fontWeight() >= QFont::DemiBold); },
+                          [=](const TextStyle &t) { return bold->isChecked() != (t.chr.fontWeight() >= QFont::DemiBold); },
+                          [=](TextStyle &t) { t.chr.setFontWeight(bold->isChecked() ? QFont::Bold : QFont::Normal); }, [](TextStyle &t) { t.chr.clearProperty(QTextFormat::FontWeight); });
+    auto fItalic = addField(QString(), italic, hasChr(QTextFormat::FontItalic),
+                            [=](const TextStyle &t) { italic->setChecked(t.chr.fontItalic()); }, [=](const TextStyle &t) { return italic->isChecked() != t.chr.fontItalic(); },
+                            [=](TextStyle &t) { t.chr.setFontItalic(italic->isChecked()); }, [](TextStyle &t) { t.chr.clearProperty(QTextFormat::FontItalic); });
+    auto colorOf = [](const TextStyle &t) { return t.chr.stringProperty(tp::ColorRefP).isEmpty() ? ColorRef::scheme(Main) : ColorRef::fromString(t.chr.stringProperty(tp::ColorRefP)); };
+    auto fColor = addField(QCoreApplication::translate("Dialogs", "Color:"), color, hasChr(tp::ColorRefP),
+                           [=](const TextStyle &t) { color->setCurrent(colorOf(t)); }, [=](const TextStyle &t) { return color->current().toString() != colorOf(t).toString(); },
+                           [=](TextStyle &t) { t.chr.setProperty(tp::ColorRefP, color->current().toString()); }, [](TextStyle &t) { t.chr.clearProperty(tp::ColorRefP); });
+    auto alignOf = [](const TextStyle &t) {
+        const Qt::Alignment al = t.blk.alignment() & Qt::AlignHorizontal_Mask;
+        return al == Qt::AlignHCenter ? 1 : al == Qt::AlignRight ? 2 : al == Qt::AlignJustify ? 3 : 0;
+    };
+    auto fAlign = addField(QCoreApplication::translate("Dialogs", "Alignment:"), align, hasBlk(QTextFormat::BlockAlignment),
+                           [=](const TextStyle &t) { align->setCurrentIndex(alignOf(t)); }, [=](const TextStyle &t) { return align->currentIndex() != alignOf(t); },
+                           [=](TextStyle &t) { t.blk.setAlignment(als[align->currentIndex()]); }, [](TextStyle &t) { t.blk.clearProperty(QTextFormat::BlockAlignment); });
+    auto fBefore = addField(QCoreApplication::translate("Dialogs", "Space before:"), before, hasBlk(QTextFormat::BlockTopMargin),
+                            [=](const TextStyle &t) { before->setValue(t.blk.topMargin()); }, [=](const TextStyle &t) { return qAbs(before->value() - t.blk.topMargin()) > 0.001; },
+                            [=](TextStyle &t) { t.blk.setTopMargin(before->value()); }, [](TextStyle &t) { t.blk.clearProperty(QTextFormat::BlockTopMargin); });
+    auto fAfter = addField(QCoreApplication::translate("Dialogs", "Space after:"), after, hasBlk(QTextFormat::BlockBottomMargin),
+                           [=](const TextStyle &t) { after->setValue(t.blk.bottomMargin()); }, [=](const TextStyle &t) { return qAbs(after->value() - t.blk.bottomMargin()) > 0.001; },
+                           [=](TextStyle &t) { t.blk.setBottomMargin(after->value()); }, [](TextStyle &t) { t.blk.clearProperty(QTextFormat::BlockBottomMargin); });
+    auto fLeft = addField(QCoreApplication::translate("Dialogs", "Left indent:"), left, hasBlk(QTextFormat::BlockLeftMargin),
+                          [=](const TextStyle &t) { left->setValue(t.blk.leftMargin()); }, [=](const TextStyle &t) { return qAbs(left->value() - t.blk.leftMargin()) > 0.001; },
+                          [=](TextStyle &t) { t.blk.setLeftMargin(left->value()); }, [](TextStyle &t) { t.blk.clearProperty(QTextFormat::BlockLeftMargin); });
+    auto fFirst = addField(QCoreApplication::translate("Dialogs", "First-line indent:"), first, hasBlk(QTextFormat::TextIndent),
+                           [=](const TextStyle &t) { first->setValue(t.blk.textIndent()); }, [=](const TextStyle &t) { return qAbs(first->value() - t.blk.textIndent()) > 0.001; },
+                           [=](TextStyle &t) { t.blk.setTextIndent(first->value()); }, [](TextStyle &t) { t.blk.clearProperty(QTextFormat::TextIndent); });
+    // The controls show the style as it is: its own settings where it has them, the base's where it has not.
+    {
+        const TextStyle shown = existing ? doc->resolvedStyle(styleName) : s;
+        const TextStyle base0 = inherited();
+        loading = true;
+        for (auto &f : fields) {
+            f->show(shown);
+            // A new style starts with the look of the selected text, and sets what that has that its base does not.
+            if (!existing) f->own = f->differs(base0);
+        }
+        loading = false;
+        for (auto &f : fields) refresh(*f);
+    }
+    QObject::connect(font, &QComboBox::currentIndexChanged, &dlg.d, [=, &edited] { edited(fFont); });
+    QObject::connect(size, &QDoubleSpinBox::valueChanged, &dlg.d, [=, &edited] { edited(fSize); });
+    QObject::connect(bold, &QCheckBox::toggled, &dlg.d, [=, &edited] { edited(fBold); });
+    QObject::connect(italic, &QCheckBox::toggled, &dlg.d, [=, &edited] { edited(fItalic); });
+    QObject::connect(color, &ColorButton::colorPicked, &dlg.d, [=, &edited] { edited(fColor); });
+    QObject::connect(align, &QComboBox::currentIndexChanged, &dlg.d, [=, &edited] { edited(fAlign); });
+    QObject::connect(before, &QDoubleSpinBox::valueChanged, &dlg.d, [=, &edited] { edited(fBefore); });
+    QObject::connect(after, &QDoubleSpinBox::valueChanged, &dlg.d, [=, &edited] { edited(fAfter); });
+    QObject::connect(left, &QDoubleSpinBox::valueChanged, &dlg.d, [=, &edited] { edited(fLeft); });
+    QObject::connect(first, &QDoubleSpinBox::valueChanged, &dlg.d, [=, &edited] { edited(fFirst); });
+    // Choosing another style to base this one on: what the style does not set itself follows it, and a choice that would make a loop is not taken.
+    int lastBase = basedOn->currentIndex();
+    QObject::connect(basedOn, &QComboBox::currentIndexChanged, &dlg.d, [&](int i) {
+        if (existing && i > 0 && (basedOn->currentText() == styleName || doc->styleLoops(styleName, basedOn->currentText()))) {
+            basedOn->setCurrentIndex(lastBase);
+            return;
+        }
+        lastBase = i;
+        const TextStyle b = inherited();
+        loading = true;
+        for (auto &f : fields)
+            if (!f->own) f->show(b);
+        loading = false;
+        for (auto &f : fields) refresh(*f);
     });
-    form->addRow(QCoreApplication::translate("Dialogs", "Style name:"), name);
-    form->addRow(QCoreApplication::translate("Dialogs", "Based on:"), basedOn);
-    form->addRow(QCoreApplication::translate("Dialogs", "Style for the next paragraph:"), next);
-    form->addRow(charOnly);
-    form->addRow(QCoreApplication::translate("Dialogs", "Font:"), font);
-    form->addRow(QCoreApplication::translate("Dialogs", "Size:"), size);
-    auto *bi = new QHBoxLayout();
-    bi->addWidget(bold);
-    bi->addWidget(italic);
-    form->addRow(bi);
-    form->addRow(QCoreApplication::translate("Dialogs", "Color:"), color);
-    form->addRow(QCoreApplication::translate("Dialogs", "Alignment:"), align);
-    form->addRow(QCoreApplication::translate("Dialogs", "Space before:"), before);
-    form->addRow(QCoreApplication::translate("Dialogs", "Space after:"), after);
+    form->insertRow(0, QCoreApplication::translate("Dialogs", "Style name:"), name);
+    form->insertRow(1, QCoreApplication::translate("Dialogs", "Based on:"), basedOn);
+    form->insertRow(2, QCoreApplication::translate("Dialogs", "Style for the next paragraph:"), next);
+    form->insertRow(3, charOnly);
     dlg.v->addLayout(form);
+    bool deleteIt = false;
+    if (existing && styleName != QLatin1String("Normal")) {
+        auto *del = dlg.bb->addButton(QCoreApplication::translate("Dialogs", "Delete Style"), QDialogButtonBox::DestructiveRole);
+        QObject::connect(del, &QPushButton::clicked, &dlg.d, [&] {
+            deleteIt = true;
+            dlg.d.accept();
+        });
+    }
     if (!dlg.exec()) return;
-    const QString newName = name->text().trimmed().isEmpty() ? s.name : name->text().trimmed();
+    if (deleteIt) {
+        ed->change(QCoreApplication::translate("Dialogs", "Delete Style"), [&] { doc->deleteStyle(styleName); });
+        return;
+    }
+    QString newName = name->text().trimmed().isEmpty() ? s.name : name->text().trimmed();
+    if (doc->style(newName) && (!existing || newName != styleName)) newName = existing ? styleName : s.name;   // (a name another style has is not taken)
+    const bool nextIsSelf = !existing && next->currentIndex() == next->count() - 1;
     s.name = newName;
     s.basedOn = basedOn->currentIndex() == 0 ? QString() : basedOn->currentText();
-    s.next = next->currentText();
+    s.next = nextIsSelf ? newName : next->currentText();
     s.charOnly = charOnly->isChecked();
-    if (font->currentIndex() > 0) s.chr.setFontFamilies(QStringList{font->currentText()});
-    else s.chr.clearProperty(QTextFormat::FontFamilies);
-    s.chr.setFontPointSize(size->value());
-    s.chr.setFontWeight(bold->isChecked() ? QFont::Bold : QFont::Normal);
-    s.chr.setFontItalic(italic->isChecked());
-    s.chr.setProperty(tp::ColorRefP, color->current().toString());
-    const Qt::Alignment als[] = {Qt::AlignLeft, Qt::AlignHCenter, Qt::AlignRight, Qt::AlignJustify};
-    s.blk.setAlignment(als[align->currentIndex()]);
-    s.blk.setTopMargin(before->value());
-    s.blk.setBottomMargin(after->value());
+    for (auto &f : fields) {
+        if (f->own) f->store(s);
+        else f->clear(s);
+    }
     s.blk.setProperty(tp::StyleName, s.name);
-    ed->change(existing ? QCoreApplication::translate("Dialogs", "Modify Style") : QCoreApplication::translate("Dialogs", "New Style"), [&] {
-        bool replaced = false;
-        for (auto &st : doc->styles)
-            if (st.name == styleName && existing) { st = s; replaced = true; }
-        if (!replaced) doc->styles << s;
-        // Restyle paragraphs that use this style.
-        if (existing) {
-            for (auto it = doc->stories.begin(); it != doc->stories.end(); ++it) {
-                QTextDocument *d = (*it)->doc.get();
-                for (QTextBlock b = d->begin(); b.isValid(); b = b.next()) {
-                    if (b.blockFormat().stringProperty(tp::StyleName) != styleName) continue;
-                    QTextCursor c(b);
-                    QTextBlockFormat bf = b.blockFormat();
-                    tp::setProperties(bf, s.blk);
-                    c.setBlockFormat(bf);
-                    c.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
-                    c.mergeCharFormat(s.chr);
-                }
-            }
+    if (!existing) s = doc->onlyWhatDiffers(s);   // (a new style holds only what it sets over its base)
+    QVector<TextStyle> all = doc->styles;
+    QHash<QString, QString> renamed;
+    bool replaced = false;
+    for (auto &st : all)
+        if (existing && st.name == styleName) {
+            st = s;
+            replaced = true;
         }
-    });
+    if (!replaced) all << s;
+    if (existing && newName != styleName) renamed.insert(styleName, newName);
+    ed->change(existing ? QCoreApplication::translate("Dialogs", "Modify Style") : QCoreApplication::translate("Dialogs", "New Style"), [&] { doc->changeStyles(all, renamed); });
 }
 
 // ---------------- Options ----------------

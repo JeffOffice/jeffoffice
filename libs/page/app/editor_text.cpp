@@ -335,8 +335,8 @@ void Editor::clearFormatting()
         QTextDocument *d = c.document();
         for (QTextBlock b = d->findBlock(s); b.isValid() && b.position() <= e; b = b.next()) {
             const QString st = b.blockFormat().stringProperty(tp::StyleName);
-            const TextStyle *ts = m_doc->style(st.isEmpty() ? QStringLiteral("Normal") : st);
-            QTextCharFormat base = ts ? ts->chr : QTextCharFormat();
+            const TextStyle ts = m_doc->resolvedStyle(st.isEmpty() ? QStringLiteral("Normal") : st);   // (with what its bases set)
+            QTextCharFormat base = ts.chr;
             QTextCursor bc(d);
             bc.setPosition(std::max(s, b.position()));
             bc.setPosition(std::min(e, b.position() + b.length() - 1), QTextCursor::KeepAnchor);
@@ -655,7 +655,9 @@ void Editor::applyStyle(const QString &name)
     for (QTextCursor c : targets) {
         if (s->charOnly) {
             if (isEditingText()) selectWordIfCollapsed(c);
-            c.mergeCharFormat(s->chr);
+            QTextCharFormat cf = s->chr;
+            cf.setProperty(tp::CharStyle, name);   // (so a change to the style reaches the text)
+            c.mergeCharFormat(cf);
             continue;
         }
         QTextDocument *d = c.document();

@@ -291,12 +291,14 @@ void MainWindow::createActions()
         auto src = loadAnyPublication(p, &err);
         if (!src) { jp::plainWarning(this, tr("Import Styles"), err); return; }
         m_ed->change(tr("Import Styles"), [&] {
+            QVector<TextStyle> all = m_ed->doc()->styles;
             for (const auto &s : src->styles) {
                 bool replaced = false;
-                for (auto &mine : m_ed->doc()->styles)
+                for (auto &mine : all)
                     if (mine.name == s.name) { mine = s; replaced = true; }
-                if (!replaced) m_ed->doc()->styles << s;
+                if (!replaced) all << s;
             }
+            m_ed->doc()->changeStyles(all);
         });
     });
     mk("style.byExample", tr("New Style by Example"), "", QKeySequence(), [this] {
@@ -311,7 +313,7 @@ void MainWindow::createActions()
             s.blk.setProperty(tp::StyleName, s.name);
             s.basedOn = QStringLiteral("Normal");
             s.next = s.name;
-            m_ed->doc()->styles << s;
+            m_ed->doc()->styles << m_ed->doc()->onlyWhatDiffers(s);
         });
         m_ed->applyStyle(name.trimmed());
     });
@@ -1256,7 +1258,7 @@ void MainWindow::createActions()
         ed->doc()->storyDoc(t->storyId);
         QTextCursor c(ed->doc()->storyDoc(t->storyId));
         c.select(QTextCursor::Document);
-        if (const TextStyle *s = ed->doc()->style("Caption")) { c.mergeCharFormat(s->chr); c.mergeBlockFormat(s->blk); }
+        if (ed->doc()->style("Caption")) { const TextStyle s = ed->doc()->resolvedStyle("Caption"); c.mergeCharFormat(s.chr); c.mergeBlockFormat(s.blk); }
         ed->surfaceItems().push_back(t);
         p->caption = t->id;
         ed->endChange();

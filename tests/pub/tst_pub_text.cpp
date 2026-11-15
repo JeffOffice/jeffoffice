@@ -2,6 +2,9 @@
 #include "pubhelpers.h"
 #include "app/listmenus.h"
 #include <QMessageBox>
+#include <QStandardItemModel>
+#include <QToolButton>
+#include "app/dialogs.h"
 #include <QBuffer>
 #include "../timing.h"
 #include <libmspub/jp_hooks.h>
@@ -127,6 +130,409 @@ private Q_SLOTS:
         // A loop of bases ends.
         ed->doc()->styles[ed->doc()->styles.size() - 2].basedOn = QStringLiteral("Child");
         QCOMPARE(ed->doc()->resolvedStyle(QStringLiteral("Child")).chr.fontPointSize(), 20.0);
+    }
+
+private:
+    // A text box whose one paragraph is in a style, as Apply Style leaves it (the style's look in the paragraph, and its name).
+    static std::shared_ptr<jp::TextItem> boxIn(jp::Editor *ed, const QString &text, const QString &style, const QRectF &where = QRectF(72, 72, 200, 40))
+    {
+        auto box = std::static_pointer_cast<jp::TextItem>(ed->newTextBox(where, text));
+        ed->addItem(box);
+        if (!style.isEmpty()) {
+            const jp::TextStyle s = ed->doc()->resolvedStyle(style);
+            QTextCursor c(ed->doc()->storyDoc(box->storyId));
+            c.select(QTextCursor::Document);
+            QTextBlockFormat bf = c.blockFormat();
+            jp::tp::setProperties(bf, s.blk);
+            c.setBlockFormat(bf);
+            c.mergeCharFormat(s.chr);
+            c.mergeBlockCharFormat(s.chr);
+        }
+        return box;
+    }
+    static QTextCharFormat runOf(jp::Editor *ed, const std::shared_ptr<jp::TextItem> &box)
+    {
+        return ed->doc()->storyDoc(box->storyId)->firstBlock().begin().fragment().charFormat();
+    }
+    static QTextBlockFormat paraOf(jp::Editor *ed, const std::shared_ptr<jp::TextItem> &box)
+    {
+        return ed->doc()->storyDoc(box->storyId)->firstBlock().blockFormat();
+    }
+    static jp::TextStyle *find(QVector<jp::TextStyle> &v, const QString &name)
+    {
+        for (auto &s : v)
+            if (s.name == name) return &s;
+        return nullptr;
+    }
+    static jp::TextStyle made(const QString &name, const QString &base, double size = 0)
+    {
+        jp::TextStyle s;
+        s.name = name;
+        s.basedOn = base;
+        s.next = name;
+        if (size > 0) s.chr.setFontPointSize(size);
+        s.blk.setProperty(jp::tp::StyleName, name);
+        return s;
+    }
+
+private Q_SLOTS:
+    // Text in a style follows a change to the style it is based on (it kept the look the style had when it was applied): for what the
+    // changed style does not set itself, down a chain of styles, and not for what the text was given directly.
+    void textFollowsItsStylesBase()
+    {
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        jp::Document *doc = ed->doc();
+        jp::TextStyle base = made(QStringLiteral("Base"), QString(), 12);
+        base.chr.setFontItalic(true);
+        base.blk.setLeftMargin(10);
+        base.blk.setTopMargin(3);
+        jp::TextStyle child = made(QStringLiteral("Child"), QStringLiteral("Base"));
+        child.chr.setFontWeight(QFont::Bold);
+        jp::TextStyle grand = made(QStringLiteral("Grand"), QStringLiteral("Child"), 30);
+        jp::TextStyle own = made(QStringLiteral("Own"), QStringLiteral("Base"));
+        own.chr.setFontItalic(true);
+        own.blk.setTopMargin(9);
+        doc->styles << base << child << grand << own;
+        auto inChild = boxIn(ed, QStringLiteral("child"), QStringLiteral("Child"));
+        auto inGrand = boxIn(ed, QStringLiteral("grand"), QStringLiteral("Grand"));
+        auto inOwn = boxIn(ed, QStringLiteral("own"), QStringLiteral("Own"));
+        auto direct = boxIn(ed, QStringLiteral("direct"), QStringLiteral("Child"));
+        {
+            QTextCursor c(doc->storyDoc(direct->storyId));
+            c.select(QTextCursor::Document);
+            QTextCharFormat f;
+            f.setFontPointSize(40);
+            c.mergeCharFormat(f);
+        }
+        QCOMPARE(runOf(ed, inChild).fontPointSize(), 12.0);
+        QVector<jp::TextStyle> next = doc->styles;
+        jp::TextStyle *b = find(next, QStringLiteral("Base"));
+        b->chr.setFontPointSize(14);
+        b->chr.setFontItalic(false);
+        b->blk.setLeftMargin(20);
+        b->blk.setTopMargin(4);
+        QVERIFY(doc->changeStyles(next) > 0);
+        QCOMPARE(runOf(ed, inChild).fontPointSize(), 14.0);
+        QVERIFY(!runOf(ed, inChild).fontItalic());
+        QCOMPARE(runOf(ed, inChild).fontWeight(), int(QFont::Bold));   // (its own)
+        QCOMPARE(paraOf(ed, inChild).leftMargin(), 20.0);
+        QCOMPARE(paraOf(ed, inChild).topMargin(), 4.0);
+        QCOMPARE(runOf(ed, inGrand).fontPointSize(), 30.0);            // (its own size stays)
+        QVERIFY(!runOf(ed, inGrand).fontItalic());                      // (two levels down)
+        QCOMPARE(paraOf(ed, inGrand).leftMargin(), 20.0);
+        QVERIFY(runOf(ed, inOwn).fontItalic());                         // (it sets italic itself)
+        QCOMPARE(paraOf(ed, inOwn).topMargin(), 9.0);
+        QCOMPARE(paraOf(ed, inOwn).leftMargin(), 20.0);
+        QCOMPARE(runOf(ed, direct).fontPointSize(), 40.0);              // (given directly to the text)
+        QCOMPARE(paraOf(ed, direct).leftMargin(), 20.0);
+        QCOMPARE(paraOf(ed, inChild).stringProperty(jp::tp::StyleName), QStringLiteral("Child"));
+        // The style itself holds what it set, nothing more.
+        QVERIFY(!doc->style(QStringLiteral("Child"))->chr.hasProperty(QTextFormat::FontPointSize));
+        QCOMPARE(doc->resolvedStyle(QStringLiteral("Grand")).blk.leftMargin(), 20.0);
+    }
+
+    // A character style's text follows it too.
+    void characterStyleTextFollowsItsBase()
+    {
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        jp::Document *doc = ed->doc();
+        jp::TextStyle base = made(QStringLiteral("Mark"), QString(), 0);
+        base.charOnly = true;
+        base.chr.setFontUnderline(true);
+        jp::TextStyle mark = made(QStringLiteral("Loud"), QStringLiteral("Mark"));
+        mark.charOnly = true;
+        mark.chr.setFontWeight(QFont::Bold);
+        doc->styles << base << mark;
+        auto box = boxIn(ed, QStringLiteral("some words"), QString());
+        ed->beginTextEdit(box->id, 0);
+        ed->applyStyle(QStringLiteral("Loud"));   // (the word at the cursor)
+        ed->endTextEdit();
+        QVERIFY(runOf(ed, box).fontUnderline());
+        QVector<jp::TextStyle> next = doc->styles;
+        find(next, QStringLiteral("Mark"))->chr.setFontUnderline(false);
+        find(next, QStringLiteral("Mark"))->chr.setFontStrikeOut(true);
+        doc->changeStyles(next);
+        QVERIFY(!runOf(ed, box).fontUnderline());
+        QVERIFY(runOf(ed, box).fontStrikeOut());
+        QCOMPARE(runOf(ed, box).fontWeight(), int(QFont::Bold));
+    }
+
+    // A chain of five styles: a change at the top reaches the bottom, unless a style between sets the property.
+    void aChainOfStylesInheritsAtEveryLevel()
+    {
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        jp::Document *doc = ed->doc();
+        doc->styles << made(QStringLiteral("L0"), QString(), 10);
+        for (int i = 1; i < 5; ++i) doc->styles << made(QStringLiteral("L%1").arg(i), QStringLiteral("L%1").arg(i - 1));
+        find(doc->styles, QStringLiteral("L2"))->blk.setBottomMargin(7);
+        find(doc->styles, QStringLiteral("L0"))->blk.setBottomMargin(1);
+        auto low = boxIn(ed, QStringLiteral("low"), QStringLiteral("L4"));
+        auto mid = boxIn(ed, QStringLiteral("mid"), QStringLiteral("L1"));
+        QCOMPARE(runOf(ed, low).fontPointSize(), 10.0);
+        QVector<jp::TextStyle> next = doc->styles;
+        find(next, QStringLiteral("L0"))->chr.setFontPointSize(16);
+        find(next, QStringLiteral("L0"))->blk.setBottomMargin(2);
+        doc->changeStyles(next);
+        QCOMPARE(runOf(ed, low).fontPointSize(), 16.0);
+        QCOMPARE(paraOf(ed, low).bottomMargin(), 7.0);   // (L2's own)
+        QCOMPARE(paraOf(ed, mid).bottomMargin(), 2.0);
+    }
+
+    // A loop of bases is refused: the question the dialog asks, and a file that holds one is read with the loop broken.
+    void loopsOfBasesAreRefused()
+    {
+        jp::Document doc;
+        doc.styles << made(QStringLiteral("A"), QString(), 10) << made(QStringLiteral("B"), QStringLiteral("A")) << made(QStringLiteral("C"), QStringLiteral("B"));
+        QVERIFY(doc.styleLoops(QStringLiteral("A"), QStringLiteral("C")));
+        QVERIFY(doc.styleLoops(QStringLiteral("A"), QStringLiteral("A")));
+        QVERIFY(!doc.styleLoops(QStringLiteral("C"), QStringLiteral("A")));
+        QVERIFY(!doc.styleLoops(QStringLiteral("B"), QString()));
+        find(doc.styles, QStringLiteral("A"))->basedOn = QStringLiteral("C");   // what a damaged file could hold
+        jp::Document back;
+        back.fromJson(doc.toJson());
+        int links = 0;
+        for (const char *n : {"A", "B", "C"})
+            if (!back.style(QString::fromLatin1(n))->basedOn.isEmpty()) ++links;
+        QCOMPARE(links, 2);   // (one of the three links is dropped)
+        QVERIFY(!back.styleLoops(QStringLiteral("A"), QStringLiteral("C")) || !back.styleLoops(QStringLiteral("C"), QStringLiteral("A")));
+        for (const char *n : {"A", "B", "C"}) {
+            const QString name = QString::fromLatin1(n);
+            // every chain ends
+            QString at = name;
+            int steps = 0;
+            while (!back.style(at)->basedOn.isEmpty() && steps++ < 10) at = back.style(at)->basedOn;
+            QVERIFY(steps < 10);
+        }
+    }
+
+    // Modify Style: a setting the style does not set shows the base's value, marked as inherited, and Reset to base gives a setting back;
+    // a style the dialog would make a loop with cannot be chosen as the base.
+    void modifyStyleShowsInheritedAndResets()
+    {
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        jp::Document *doc = ed->doc();
+        doc->styles << made(QStringLiteral("Base"), QString(), 17) << made(QStringLiteral("Child"), QStringLiteral("Base")) << made(QStringLiteral("Grand"), QStringLiteral("Child"));
+        QString failure;
+        QTimer poll;
+        poll.setInterval(20);
+        QObject::connect(&poll, &QTimer::timeout, [&] {
+            auto *d = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+            if (!d) return;
+            poll.stop();
+            const auto combos = d->findChildren<QComboBox *>();
+            const auto spins = d->findChildren<QDoubleSpinBox *>();
+            QList<QToolButton *> resets;
+            for (auto *t : d->findChildren<QToolButton *>())
+                if (t->text() == QCoreApplication::translate("Dialogs", "Reset to base")) resets << t;
+            if (combos.size() < 2 || spins.isEmpty() || resets.size() < 2) {
+                failure = QStringLiteral("controls missing");
+                d->reject();
+                return;
+            }
+            auto *basedOn = combos[0];
+            auto *model = qobject_cast<QStandardItemModel *>(basedOn->model());
+            QStringList refused;
+            for (int i = 0; i < basedOn->count(); ++i)
+                if (model && !model->item(i)->isEnabled()) refused << basedOn->itemText(i);
+            refused.sort();
+            if (refused != QStringList{QStringLiteral("Child"), QStringLiteral("Grand")}) failure = QStringLiteral("loops offered: ") + refused.join(QLatin1Char(','));
+            auto *size = spins[0];
+            if (size->value() != 17.0 || resets[1]->isEnabled()) failure += QStringLiteral(" inherited size not shown as inherited");
+            size->setValue(21);
+            if (!resets[1]->isEnabled()) failure += QStringLiteral(" reset not offered");
+            resets[1]->click();
+            if (size->value() != 17.0 || resets[1]->isEnabled()) failure += QStringLiteral(" reset did not give back the base's size");
+            basedOn->setCurrentText(QStringLiteral("Grand"));   // a loop: not taken
+            if (basedOn->currentText() != QStringLiteral("Base")) failure += QStringLiteral(" loop taken");
+            size->setValue(19);   // kept as the style's own
+            d->accept();
+        });
+        poll.start();
+        jp::styleDialog(&w, ed, QStringLiteral("Child"));
+        QVERIFY2(failure.isEmpty(), qPrintable(failure));
+        QCOMPARE(doc->style(QStringLiteral("Child"))->chr.fontPointSize(), 19.0);
+        QCOMPARE(doc->style(QStringLiteral("Child"))->basedOn, QStringLiteral("Base"));
+        QVERIFY(!doc->style(QStringLiteral("Child"))->blk.hasProperty(QTextFormat::BlockTopMargin));   // (what it does not set is not stored)
+        QVERIFY(!doc->style(QStringLiteral("Child"))->chr.hasProperty(QTextFormat::FontWeight));
+    }
+
+    // Deleting a base style: the styles based on it are based on its base, and look as they did.
+    void deletingABaseKeepsTheChildrensLook()
+    {
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        jp::Document *doc = ed->doc();
+        jp::TextStyle base = made(QStringLiteral("Base"), QString(), 12);
+        base.blk.setLeftMargin(5);
+        jp::TextStyle mid = made(QStringLiteral("Mid"), QStringLiteral("Base"), 15);
+        mid.chr.setFontWeight(QFont::Bold);
+        mid.blk.setTopMargin(8);
+        jp::TextStyle leaf = made(QStringLiteral("Leaf"), QStringLiteral("Mid"));
+        leaf.chr.setFontItalic(true);
+        doc->styles << base << mid << leaf;
+        auto box = boxIn(ed, QStringLiteral("leaf"), QStringLiteral("Leaf"));
+        const jp::TextStyle before = doc->resolvedStyle(QStringLiteral("Leaf"));
+        ed->change(QStringLiteral("Delete Style"), [&] { doc->deleteStyle(QStringLiteral("Mid")); });
+        QVERIFY(!doc->style(QStringLiteral("Mid")));
+        QCOMPARE(doc->style(QStringLiteral("Leaf"))->basedOn, QStringLiteral("Base"));
+        const jp::TextStyle after = doc->resolvedStyle(QStringLiteral("Leaf"));
+        QCOMPARE(after.chr.fontPointSize(), before.chr.fontPointSize());
+        QCOMPARE(after.chr.fontWeight(), before.chr.fontWeight());
+        QVERIFY(after.chr.fontItalic());
+        QCOMPARE(after.blk.topMargin(), 8.0);
+        QCOMPARE(after.blk.leftMargin(), 5.0);
+        QCOMPARE(runOf(ed, box).fontPointSize(), 15.0);   // the text is as it was
+        // The new link works: the base's own change reaches what the leaf takes from it.
+        QVector<jp::TextStyle> next = doc->styles;
+        find(next, QStringLiteral("Base"))->blk.setLeftMargin(30);
+        doc->changeStyles(next);
+        QCOMPARE(paraOf(ed, box).leftMargin(), 30.0);
+        QCOMPARE(runOf(ed, box).fontPointSize(), 15.0);
+    }
+
+    // Renaming a base keeps the links and the text's style.
+    void renamingABaseKeepsTheLinks()
+    {
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        jp::Document *doc = ed->doc();
+        doc->styles << made(QStringLiteral("Base"), QString(), 12) << made(QStringLiteral("Child"), QStringLiteral("Base"));
+        doc->styles.last().next = QStringLiteral("Base");
+        auto box = boxIn(ed, QStringLiteral("x"), QStringLiteral("Base"));
+        QVector<jp::TextStyle> next = doc->styles;
+        jp::TextStyle *renamedStyle = find(next, QStringLiteral("Base"));
+        renamedStyle->name = QStringLiteral("Root");
+        renamedStyle->chr.setFontPointSize(13);
+        doc->changeStyles(next, {{QStringLiteral("Base"), QStringLiteral("Root")}});
+        QCOMPARE(doc->style(QStringLiteral("Child"))->basedOn, QStringLiteral("Root"));
+        QCOMPARE(doc->style(QStringLiteral("Child"))->next, QStringLiteral("Root"));
+        QCOMPARE(paraOf(ed, box).stringProperty(jp::tp::StyleName), QStringLiteral("Root"));
+        QCOMPARE(runOf(ed, box).fontPointSize(), 13.0);
+        QCOMPARE(doc->resolvedStyle(QStringLiteral("Child")).chr.fontPointSize(), 13.0);
+    }
+
+    // A style change and all it reaches is one Undo step, and Redo gives it back.
+    void aStyleChangeIsOneUndoStep()
+    {
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        jp::Document *doc = ed->doc();
+        doc->styles << made(QStringLiteral("Base"), QString(), 12) << made(QStringLiteral("Child"), QStringLiteral("Base"));
+        auto a = boxIn(ed, QStringLiteral("a"), QStringLiteral("Child"));
+        auto b = boxIn(ed, QStringLiteral("b"), QStringLiteral("Base"), QRectF(72, 200, 200, 40));
+        const QString aId = a->storyId, bId = b->storyId;
+        auto size = [&](const QString &story) { return ed->doc()->storyDoc(story)->firstBlock().begin().fragment().charFormat().fontPointSize(); };
+        QVector<jp::TextStyle> next = doc->styles;
+        find(next, QStringLiteral("Base"))->chr.setFontPointSize(20);
+        ed->change(QStringLiteral("Modify Style"), [&] { ed->doc()->changeStyles(next); });
+        QCOMPARE(size(aId), 20.0);
+        QCOMPARE(size(bId), 20.0);
+        ed->undo();
+        QCOMPARE(size(aId), 12.0);
+        QCOMPARE(size(bId), 12.0);
+        QCOMPARE(ed->doc()->style(QStringLiteral("Base"))->chr.fontPointSize(), 12.0);
+        ed->redo();
+        QCOMPARE(size(aId), 20.0);
+        QCOMPARE(size(bId), 20.0);
+        QCOMPARE(ed->doc()->style(QStringLiteral("Base"))->chr.fontPointSize(), 20.0);
+    }
+
+    // Enter at the end of a paragraph starts one in the style for the following paragraph, with what that style takes from its bases.
+    void enterAppliesTheStyleForTheFollowingParagraph()
+    {
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        jp::Document *doc = ed->doc();
+        jp::TextStyle body = made(QStringLiteral("BodyBase"), QString(), 11);
+        body.blk.setBottomMargin(6);
+        jp::TextStyle text = made(QStringLiteral("Text"), QStringLiteral("BodyBase"));
+        text.chr.setFontItalic(true);
+        jp::TextStyle head = made(QStringLiteral("Head"), QStringLiteral("BodyBase"), 24);
+        head.next = QStringLiteral("Text");
+        head.blk.setAlignment(Qt::AlignHCenter);
+        doc->styles << body << text << head;
+        auto box = boxIn(ed, QStringLiteral("Title"), QStringLiteral("Head"));
+        ed->beginTextEdit(box->id, 0);
+        QTextCursor c = ed->cursor();
+        c.movePosition(QTextCursor::End);
+        ed->setCursor(c);
+        QTest::keyClick(w.canvas(), Qt::Key_Return);
+        QTextDocument *d = ed->editDoc();
+        QCOMPARE(d->blockCount(), 2);
+        const QTextBlock second = d->findBlockByNumber(1);
+        QCOMPARE(second.blockFormat().stringProperty(jp::tp::StyleName), QStringLiteral("Text"));
+        QCOMPARE(second.blockFormat().bottomMargin(), 6.0);   // (from the style's base)
+        QVERIFY(second.blockFormat().alignment() != Qt::AlignHCenter);   // (not the heading's)
+        QCOMPARE(second.charFormat().fontPointSize(), 11.0);
+        QVERIFY(second.charFormat().fontItalic());
+        ed->endTextEdit();
+    }
+
+    // Saved and read again, styles keep their links and hold only what they set; a document made before (each style holding all its settings)
+    // is read with the look it had.
+    void styleLinksAreSavedAndOldDocumentsLookTheSame()
+    {
+        jp::Document doc;
+        doc.styles << made(QStringLiteral("Base"), QString(), 14) << made(QStringLiteral("Child"), QStringLiteral("Base"));
+        doc.styles.last().chr.setFontItalic(true);
+        jp::Document back;
+        back.fromJson(doc.toJson());
+        QCOMPARE(back.style(QStringLiteral("Child"))->basedOn, QStringLiteral("Base"));
+        QVERIFY(!back.style(QStringLiteral("Child"))->chr.hasProperty(QTextFormat::FontPointSize));
+        QCOMPARE(back.resolvedStyle(QStringLiteral("Child")).chr.fontPointSize(), 14.0);
+        QVERIFY(back.resolvedStyle(QStringLiteral("Child")).chr.fontItalic());
+        // An older document: the style names Normal as its base and holds every setting.
+        jp::Document old;
+        jp::TextStyle flat = made(QStringLiteral("Flat"), QStringLiteral("Normal"), 18);
+        flat.chr.setFontWeight(QFont::Bold);
+        flat.chr.setFontItalic(false);
+        flat.blk.setTopMargin(3);
+        flat.blk.setBottomMargin(4);
+        old.styles << flat;
+        const jp::TextStyle before = old.resolvedStyle(QStringLiteral("Flat"));
+        jp::Document again;
+        again.fromJson(old.toJson());
+        const jp::TextStyle after = again.resolvedStyle(QStringLiteral("Flat"));
+        QCOMPARE(after.chr.properties(), before.chr.properties());
+        QCOMPARE(after.blk.properties(), before.blk.properties());
+        QCOMPARE(after.chr.fontPointSize(), 18.0);
+        QCOMPARE(after.blk.topMargin(), 3.0);
+    }
+
+    // 200 styles in chains of five, 500 text frames: a change to the top of every chain reaches all the text in well under a fifth of a second.
+    void changingBaseStylesIsFast()
+    {
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        jp::Document *doc = ed->doc();
+        const int builtIn = doc->styles.size();
+        for (int c = 0; c < 40; ++c) {
+            doc->styles << made(QStringLiteral("R%1_0").arg(c), QString(), 10);
+            for (int l = 1; l < 5; ++l) doc->styles << made(QStringLiteral("R%1_%2").arg(c).arg(l), QStringLiteral("R%1_%2").arg(c).arg(l - 1));
+        }
+        QCOMPARE(doc->styles.size() - builtIn, 200);
+        QStringList stories;
+        for (int i = 0; i < 500; ++i) {
+            auto box = boxIn(ed, QStringLiteral("frame %1").arg(i), QStringLiteral("R%1_%2").arg(i % 40).arg(i % 5), QRectF(10 + (i % 20) * 25, 10 + (i / 20) * 25, 20, 20));
+            stories << box->storyId;
+        }
+        double now = 10;
+        auto flip = [&] {
+            now = now == 10 ? 14 : 10;
+            QVector<jp::TextStyle> next = ed->doc()->styles;
+            for (auto &s : next)
+                if (s.name.endsWith(QLatin1String("_0"))) s.chr.setFontPointSize(now);
+            ed->change(QStringLiteral("Modify Style"), [&] { ed->doc()->changeStyles(next); });
+        };
+        const qint64 ns = bestNanoseconds(flip, 3);
+        qInfo() << "base style change over 500 frames:" << ns / 1000000 << "ms";
+        QCOMPARE(ed->doc()->storyDoc(stories[0])->firstBlock().begin().fragment().charFormat().fontPointSize(), now);
+        QCOMPARE(ed->doc()->storyDoc(stories[499])->firstBlock().begin().fragment().charFormat().fontPointSize(), now);
+        QVERIFY2(ns < 200 * 1000000, qPrintable(QStringLiteral("took %1 ms").arg(ns / 1000000)));
     }
 
     // Format Page Numbers sets the numbers' style and the first page's number

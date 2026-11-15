@@ -67,8 +67,9 @@ static Stroke g_borderStroke = Stroke::line(ColorRef::scheme(Main), 0.75);
 // couldn't be read), and the style's name under it.
 static void drawStylePreview(QPainter *p, const QRectF &rc, Editor *e, const QString &name, bool large)
 {
-    const TextStyle *st = e->doc()->style(name);
-    if (!st) return;
+    if (!e->doc()->style(name)) return;
+    const TextStyle resolved = e->doc()->resolvedStyle(name);   // (with what its bases set)
+    const TextStyle *st = &resolved;
     LayoutEnv env;
     env.colors = e->doc()->colors;
     env.fonts = e->doc()->fonts;
