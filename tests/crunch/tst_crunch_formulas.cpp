@@ -33,6 +33,9 @@
 #include <QUndoStack>
 #include <QTemporaryDir>
 #include <QSettings>
+#include <QScrollBar>
+#include <QTextBrowser>
+#include "app/help.h"
 
 #include "../localepin.h"
 #include "../testrunner.h"
@@ -145,6 +148,81 @@ private Q_SLOTS:
         QCOMPARE(crunch::hintHtml(*sum, 3, QLatin1Char(',')), QStringLiteral("SUM(number1, <b>...</b>)"));
         QCOMPARE(crunch::hintPlain(*crunch::docOf(QStringLiteral("PI")), 0, QLatin1Char(','), &marked), QStringLiteral("PI()"));
         QCOMPARE(marked, -1);
+    }
+
+    // The tip for the call the cursor is in: the innermost function whose brackets hold the cursor, with the argument the cursor is at marked, however the calls are nested.
+    void nestedFunctionsGetTheTipOfTheInnermostCall()
+    {
+        const QChar comma = QLatin1Char(',');
+        auto tip = [&](const QString &text, int *marked = nullptr) {
+            const crunch::FormulaSpot spot = crunch::spotAt(text, int(text.size()), comma);
+            const crunch::FunctionDoc *doc = crunch::docOf(spot.function);
+            return doc ? crunch::hintPlain(*doc, spot.argument, comma, marked) : QString();
+        };
+        int marked = -2;
+        QCOMPARE(tip(QStringLiteral("=SUM(A1,"), &marked), QStringLiteral("SUM(number1, ...)"));
+        QCOMPARE(marked, 1);
+        QCOMPARE(tip(QStringLiteral("=IF(A1>0,SUM(B1,C1),ROUND(2,"), &marked), QStringLiteral("ROUND(number, num_digits)"));
+        QCOMPARE(marked, 1);
+        QCOMPARE(tip(QStringLiteral("=IF(A1>0,SUM(B1,"), &marked), QStringLiteral("SUM(number1, ...)"));
+        QCOMPARE(marked, 1);
+        // back in the outer call once the inner one is closed: IF's third argument
+        QCOMPARE(tip(QStringLiteral("=IF(A1>0,SUM(B1,C1),"), &marked), QStringLiteral("IF(condition, value_if_true, [value_if_false])"));
+        QCOMPARE(marked, 2);
+        QCOMPARE(tip(QStringLiteral("=IF(SUM(A1:A3)>3,ROUND(MAX("), &marked), QStringLiteral("MAX(number1, ...)"));
+        QCOMPARE(marked, 0);
+        QCOMPARE(tip(QStringLiteral("=1+2")), QString());
+        // the same in html: the one argument in bold
+        const crunch::FormulaSpot spot = crunch::spotAt(QStringLiteral("=IF(A1,ROUND(2,"), 15, comma);
+        QCOMPARE(crunch::hintHtml(*crunch::docOf(spot.function), spot.argument, comma), QStringLiteral("ROUND(number, <b>num_digits</b>)"));
+    }
+
+    // Help has an entry for each function, found by the topic and heading the catalog names; the page of each kind lists all its functions.
+    void everyFunctionHasAHelpEntryThatTheLookupFinds()
+    {
+        int count = 0;
+        const crunch::FunctionDoc *docs = crunch::functionDocs(&count);
+        QVERIFY(count > 400);
+        QStringList problems;
+        for (int i = 0; i < count; ++i) {
+            const QString topicAndHeading = crunch::helpTopicOf(docs[i]);
+            const int hash = topicAndHeading.indexOf(QLatin1Char('#'));
+            const help::Topic t = help::topic(topicAndHeading.left(hash));
+            if (t.isNull()) {
+                problems << topicAndHeading + QStringLiteral(": no topic");
+                continue;
+            }
+            const QString entry = QStringLiteral("\n## ") + topicAndHeading.mid(hash + 1) + QStringLiteral("\n");
+            if (!t.markdown.contains(entry)) problems << topicAndHeading + QStringLiteral(": no entry");
+            else if (!t.markdown.contains(QLatin1String("`") + crunch::signatureOf(docs[i]) + QLatin1String("`"))) problems << topicAndHeading + QStringLiteral(": signature differs");
+        }
+        QVERIFY2(problems.isEmpty(), qPrintable(problems.mid(0, 10).join(QStringLiteral("; "))));
+    }
+
+    // A click on the function's name in the tip opens Help at that function's entry; the rest of the tip is not a link.
+    void aClickOnTheFunctionNameInTheTipOpensItsHelp()
+    {
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        CrunchWindow &w = e.win.w;
+        w.setLocale(kEnglish);
+        QVERIFY(e.settle());
+        FormulaHelper *h = w.formulaHelper();
+        e.select(QStringLiteral("F1"));
+        e.type(QStringLiteral("=ROUND(A1,"));
+        QVERIFY(h->isHintOpen());
+        QVERIFY(h->hint()->text().contains(QStringLiteral("<a href=\"ROUND\">ROUND</a>(")));
+        QCOMPARE(h->hint()->text().count(QStringLiteral("<a ")), 1);
+        QVERIFY(!w.helpView());
+        QSignalSpy spy(h, &FormulaHelper::functionHelpRequested);
+        Q_EMIT h->hint()->linkActivated(QStringLiteral("ROUND"));
+        QCOMPARE(spy.count(), 1);
+        QVERIFY(w.helpView());
+        QCOMPARE(w.helpView()->currentTopic(), QStringLiteral("functions-math-trig"));
+        QCOMPARE(w.helpView()->currentHeading(), QStringLiteral("ROUND"));
+        // the entry is under the heading: the page is scrolled to it
+        QTRY_VERIFY(w.helpView()->browser()->verticalScrollBar()->value() > 0);
+        QVERIFY(w.isEditing());   // (the entry going on is not given up)
     }
 
     // ---- the list

@@ -24,7 +24,7 @@ AREAS = {
     "shell": "libs/shell",
     "page": "libs/page",
 }
-DEFAULT_AREAS = ["crunch", "write", "shell"]   # (deck, pub, and page join when their dialogs are done)
+DEFAULT_AREAS = list(AREAS)   # (every app and library)
 MARK = "style: reviewed"
 LIT = r'"(?:[^"\\]|\\.)*"'
 # the implementation of the shared pieces themselves

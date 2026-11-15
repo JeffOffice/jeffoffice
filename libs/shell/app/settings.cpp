@@ -13,6 +13,11 @@
 #include <QLocale>
 #include <QRegularExpression>
 #include <QStandardPaths>
+#include <QTemporaryDir>
+#include <QCoreApplication>
+#include <cstdio>
+#include <cstdlib>
+#include <memory>
 
 namespace jp {
 
@@ -161,6 +166,64 @@ bool usesLetterPaper(const QLocale &region)
                                                      QLocale::Chile,        QLocale::Venezuela,  QLocale::CostaRica, QLocale::Guatemala,   QLocale::Panama,
                                                      QLocale::DominicanRepublic, QLocale::ElSalvador, QLocale::Nicaragua, QLocale::Honduras, QLocale::PuertoRico};
     return letter.contains(region.territory());
+}
+
+namespace {
+QString keptApart;
+std::unique_ptr<QTemporaryDir> temporaryRoot;   // (taken away again when the program ends)
+
+// A run that was asked to keep apart from the person's data and cannot do it stops: it never goes on with the person's own.
+[[noreturn]] void cannotKeepApart(const QString &why)
+{
+    std::fprintf(stderr, "Cannot keep this run's settings apart from the person's: %s\n", qPrintable(why));
+    std::exit(1);
+}
+} // namespace
+
+bool settingsKeptApart() { return !keptApart.isEmpty(); }
+
+QString keepSettingsApart()
+{
+    if (!keptApart.isEmpty()) return keptApart;
+    const bool named = qEnvironmentVariableIsSet("JP_SETTINGS_FOLDER");
+    const bool testing = qEnvironmentVariableIsSet("JP_TESTING");
+    const QStringList args = QCoreApplication::arguments();
+    const bool shot = std::any_of(args.begin(), args.end(), [](const QString &a) { return a == QLatin1String("--screenshot") || a.startsWith(QLatin1String("--screenshot=")); });
+    if (!named && !testing && !shot) return {};   // (a normal launch: no folder is made)
+    QString folder = qEnvironmentVariable("JP_SETTINGS_FOLDER");
+    // (the person's settings folder, found before the settings are moved: after, it would be this run's own)
+    const QString real = QFileInfo(QSettings(QSettings::IniFormat, QSettings::UserScope, QStringLiteral("JeffOffice"), QStringLiteral("JeffOffice")).fileName()).absolutePath();
+    if (folder.isEmpty()) {
+        temporaryRoot = std::make_unique<QTemporaryDir>();
+        if (!temporaryRoot->isValid()) cannotKeepApart(QStringLiteral("no temporary folder"));
+        folder = temporaryRoot->path();
+    }
+    for (const QString &sub : {QString(), QStringLiteral("data"), QStringLiteral("cache"), QStringLiteral("state")})
+        if (!QDir().mkpath(folder + (sub.isEmpty() ? QString() : QLatin1Char('/') + sub))) cannotKeepApart(QStringLiteral("cannot make ") + folder);
+    // A screenshot (not a test run) starts from a copy of the person's settings files (where they are files: not the registry or the preferences), in the folder of the organization's name where Qt reads them, so the picture looks as the person's
+    // program does; what the run opens or changes stays in the copy.
+    if (shot && !testing && !named) {
+        const QString org = QFileInfo(real).fileName();
+        const QString into = folder + QLatin1Char('/') + org;
+        if (!QDir().mkpath(into)) cannotKeepApart(QStringLiteral("cannot make ") + into);
+        for (const QFileInfo &fi : QDir(real).entryInfoList({QStringLiteral("*.conf"), QStringLiteral("*.ini")}, QDir::Files)) QFile::copy(fi.absoluteFilePath(), into + QLatin1Char('/') + fi.fileName());
+    }
+#if !(defined(Q_OS_UNIX) && !defined(Q_OS_MACOS))
+    QSettings::setDefaultFormat(QSettings::IniFormat);   // (where the system's own store is the registry or the preferences, the run keeps its settings in files)
+#endif
+    QSettings::setPath(QSettings::NativeFormat, QSettings::UserScope, folder);
+    QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, folder);
+    // The data, cache, and state folders (recovery copies, versions, templates, defaults, dictionaries, the crash report, translation models) go the same way.
+#if defined(Q_OS_UNIX) && !defined(Q_OS_MACOS)
+    qputenv("XDG_DATA_HOME", (folder + QStringLiteral("/data")).toUtf8());
+    qputenv("XDG_CACHE_HOME", (folder + QStringLiteral("/cache")).toUtf8());
+    qputenv("XDG_STATE_HOME", (folder + QStringLiteral("/state")).toUtf8());
+#else
+    // (the system's own folders cannot be moved by the environment: Qt's test folders are named apart from the person's)
+    QStandardPaths::setTestModeEnabled(true);
+#endif
+    keptApart = folder;
+    return keptApart;
 }
 
 Settings::Settings()

@@ -1,4 +1,5 @@
 #include "io/pptxshow.h"
+#include "core/notesmaster.h"
 
 #include "core/showsettings.h"
 #include "office/drawingml_color.h"
@@ -8,6 +9,7 @@
 #include <QDomDocument>
 #include <QJsonArray>
 #include <QJsonObject>
+#include <QRegularExpression>
 #include <QSet>
 #include <algorithm>
 
@@ -159,7 +161,15 @@ void readShowProperties(const QDomElement &presProps, const office::Theme &theme
     const QVector<CustomShow> shows = customShowsOf(doc);
     for (const QDomElement &c : office::children(presProps)) {
         const QString name = c.localName();
-        if (name == QLatin1String("htmlPubPr") || name == QLatin1String("webPr") || name == QLatin1String("prnPr")) keep(before, c);
+        if (name == QLatin1String("prnPr") && office::isElement(c, P, name)) {
+            // (how many slides a handout page holds: "handouts6" and so on)
+            const QString what = office::attr(c, QStringLiteral("prnWhat"));
+            if (what.startsWith(QLatin1String("handouts"))) {
+                const int per = what.mid(8).toInt();
+                if (isHandoutCount(per)) setHandoutPerPage(doc, per);
+            }
+            keep(before, c);
+        } else if (name == QLatin1String("htmlPubPr") || name == QLatin1String("webPr")) keep(before, c);
         else if (name == QLatin1String("clrMru") || name == QLatin1String("extLst")) keep(after, c);
         else if (name == QLatin1String("showPr") && office::isElement(c, P, name) && !kept.contains(QStringLiteral("showPr"))) {   // the first only
             kept["showPr"] = true;
@@ -244,7 +254,19 @@ QString presentationPropertiesXml(const Document &doc, const QString &namespaces
             if (keepable(v.toString())) out += v.toString();
         return out;
     };
-    inner += keptXml("before");
+    QString before = keptXml("before");
+    // The handouts' slides to a page: said in the print settings (the first, as kept, with its attribute replaced; else one of its own).
+    if (hasHandoutPerPage(doc)) {
+        const QString per = QStringLiteral("handouts%1").arg(handoutMasterOf(doc, QSizeF(540, 720)).perPage);
+        static const QRegularExpression what(QStringLiteral("(<p:prnPr\\b[^>]*?\\bprnWhat=\")[^\"]*(\")"));
+        if (before.contains(QLatin1String("prnPr"))) {
+            before.replace(what, QStringLiteral("\\1") + per + QStringLiteral("\\2"));
+            if (!before.contains(QLatin1String("prnWhat=\"") + per)) before.replace(QLatin1String("<p:prnPr"), QStringLiteral("<p:prnPr prnWhat=\"%1\"").arg(per));
+        } else {
+            before += QStringLiteral("<p:prnPr prnWhat=\"%1\"/>").arg(per);
+        }
+    }
+    inner += before;
     const QString showExt = keptXml("showExt");
     if (s != ShowSettings() || kept.value(QStringLiteral("showPr")).toBool() || !showExt.isEmpty()) {
         QString show = QStringLiteral("<p:showPr");

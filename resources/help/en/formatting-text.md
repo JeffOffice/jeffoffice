@@ -60,3 +60,7 @@ From the keyboard: select the text or object whose look you want and press **Ctr
 - [Bullets, numbering, and tabs](lists-tabs)
 - [Use styles](styles)
 - [The Home tab](tab-home)
+
+## Font features
+
+In the **Font** box, the **Advanced** tab has ligatures, number spacing, number forms, stylistic sets, and contextual alternates. Each starts as the font's own choice. A font without such shapes looks the same. JeffPub keeps the choices in its own files only. A saved presentation does not hold them.

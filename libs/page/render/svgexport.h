@@ -12,7 +12,8 @@ namespace jp {
 
 // With `withText`, each text is also in the drawing as a text element with no ink (its letters are outlines): what draws the drawing into a PDF can
 // then say the words as text, that can be found and copied.
-QByteArray pageSvg(const PaintContext &ctx, int pageIndex, const QString &title, bool withText = false);
+// `description` is the drawing's desc element: what made it (JeffPub's own text unless an app gives its own).
+QByteArray pageSvg(const PaintContext &ctx, int pageIndex, const QString &title, bool withText = false, const QString &description = QStringLiteral("Made with JeffPub"));
 bool writePageSvg(const PaintContext &ctx, int pageIndex, const QString &path, const QString &title, QString *error);
 
 } // namespace jp

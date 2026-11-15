@@ -1,5 +1,5 @@
 # Data tools
-<!-- keywords: scenario manager, scenarios, what-if, what if, scenario summary, data, data tab, text to columns, split, separator, comma, tab, fixed width, remove duplicates, goal seek, subtotal, totals, advanced filter, conditions, data validation, circle invalid data, red oval, clear validation circles, consolidate, combine ranges, allow, list, drop-down, input message, error alert, repeated rows, unique, text file, csv, from text, columns, delimiter, quotes, edit links, update values, change source, links, external, source, break link, check status, open source -->
+<!-- keywords: form, data form, data entry, record, records, new record, find next, find prev, criteria, scenario manager, scenarios, what-if, what if, scenario summary, data, data tab, text to columns, split, separator, comma, tab, fixed width, remove duplicates, goal seek, subtotal, totals, advanced filter, conditions, data validation, circle invalid data, red oval, clear validation circles, consolidate, combine ranges, allow, list, drop-down, input message, error alert, repeated rows, unique, text file, csv, from text, columns, delimiter, quotes, edit links, update values, change source, links, external, source, break link, check status, open source -->
 
 The **Data** tab has the tools that work on a list of values: getting text from a file, putting a list in order, cutting text into columns, and taking out repeated rows.
 
@@ -16,6 +16,20 @@ If a workbook has formulas that read another workbook (such as ='[Prices.xlsx]Sh
 - **Change Source** lets you pick another file for the chosen link, for example when the workbook was moved. The formulas stay as they are. The new place is written to the file when you save, and **Undo** takes the change back.
 - **Open Source** opens the chosen source in a new window, when it can be found.
 - **Break Link** turns every cell that reads the chosen source into the value it shows now, and a name that stood for a place in it into **#REF!**. JeffCrunch asks first. Break Link is one step, so **Undo** brings the formulas, the names, and the links back, until you save the workbook. When no link is left, the file is saved without the parts that held them.
+
+## Form
+
+**Form** (in the **Data Tools** group, and in the search box) shows one row of a list at a time, as a small form. A list is a table, or a block of cells with a row of names on top and a row of data under each name. Click any cell of the list first.
+
+- Each box is one column, labeled with the name in the top row. Type in a box to change the value. A box that is grayed out holds a formula: the form shows what it comes to, and you change the formula in the sheet.
+- **Find Next** and **Find Prev** go to the next and the earlier row. Going to another row, or pressing **Enter**, writes what you typed in this one.
+- **New** shows an empty form. Fill it in, then press **New** again, **Find Next**, or **Close**. The row is added under the last row of the list. A table grows by one row. If a cell under the list is not empty, the form tells you and adds nothing.
+- **Delete** takes out the row you are looking at, after it asks you. The rows under it move up. A table always keeps at least one row of data. A row that is hidden, or that a filter hides, is not shown in the form, is not counted, and is never deleted by it. If the list is too long to be found whole, the form says that it shows only the first rows.
+- **Restore** takes back what you typed in this row, before you leave it.
+- **Criteria** lets you look for rows. Type a condition in one or more boxes, then press **Find Next** or **Find Prev**. A condition is a value, such as **Ann** (text matches the start of the word, and **?** and ***** stand for letters), or a value after a sign: **>100**, **<=5**, **<>0**, **=Oslo**. A row must meet every condition you type. Press **Form** to go back, or **Clear** to start again. While criteria are set, **Find Next** and **Find Prev** skip the rows that do not meet them.
+- **Close** writes the row and closes the form.
+
+Each row you change, add, or delete is one step, so **Undo** in the sheet takes it back in one go.
 
 ## Sort and filter
 

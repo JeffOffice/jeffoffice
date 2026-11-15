@@ -397,7 +397,7 @@ void DeckWindow::addShowParts(RibbonParts &parts)
         return box;
     };
     parts.widgets[QStringLiteral("advanceAfter")] = [this, ed, syncs, label, seconds] {
-        auto *box = new QCheckBox(tr("After:"));
+        auto *box = new QCheckBox(tr("After"));
         box->setObjectName(QStringLiteral("advanceAfter"));
         box->setToolTip(tr("After: the slide show moves on from this slide by itself after this many seconds."));
         connect(box, &QCheckBox::toggled, this, [ed, label, seconds](bool on) {

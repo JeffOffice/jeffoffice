@@ -2,6 +2,7 @@
 #include "app/crunchwindow.h"
 
 #include "app/datatoolsdialogs.h"
+#include "app/dataformdialog.h"
 #include "app/editlinksdialog.h"
 #include "app/linkprogress.h"
 #include "app/plaintext.h"
@@ -24,8 +25,31 @@ void CrunchWindow::createDataToolsActions()
     mk("data.fromText", tr("From Text/CSV"), "file-text", QKeySequence(), [this] { act("file.openText")->trigger(); });
     mk("data.removeDuplicates", tr("Remove Duplicates"), "list-x", QKeySequence(), [this] { removeDuplicatesDialog(); });
     mk("data.textToColumns", tr("Text to Columns"), "table-columns-split", QKeySequence(), [this] { textToColumnsDialog(); });
-    for (const char *id : {"data.removeDuplicates", "data.textToColumns"}) m_opsActions << QString::fromLatin1(id);
+    mk("data.form", tr("Form…"), "clipboard-list", QKeySequence(), [this] { dataFormCommand(); });
+    for (const char *id : {"data.removeDuplicates", "data.textToColumns", "data.form"}) m_opsActions << QString::fromLatin1(id);
     updateEditActions();
+}
+
+// Data > Form: the list round the cell with the cursor (the table it is in, or the block of cells), one record at a time. Each record changed, added, or deleted is one step of Undo.
+void CrunchWindow::dataFormCommand()
+{
+    if (m_edit.active) commitEdit(CellEditor::Way::Stay);
+    if (m_edit.active || !editingAllowed() || !m_session || !m_loaded) return;
+    const grid::Selection &sel = m_view->selection();
+    const QString sheetName = m_loaded->book->info().sheets.value(m_sheet).name;
+    DataFormDialog dialog(m_session.get(), m_sheet, quint32(std::max<qint64>(0, sel.activeRow)), quint32(std::max<qint64>(0, sel.activeCol)), sheetName.isEmpty() ? tr("Form") : sheetName, this);
+    if (!dialog.ready()) {
+        notice(tr("Form"), dialog.problem());
+        return;
+    }
+    qint64 before = m_loader.changesMade();
+    connect(&dialog, &DataFormDialog::recordsChanged, this, [this, &before] {
+        if (m_loader.changesMade() != before) m_calculating = true;
+        before = m_loader.changesMade();
+        setWindowModified(true);
+    });
+    if (m_dataFormAsker) m_dataFormAsker(&dialog);
+    else dialog.exec();
 }
 
 // Data > Edit Links: the workbooks this one reads.

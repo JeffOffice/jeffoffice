@@ -1143,6 +1143,7 @@ public:
         std::map<quint64, jp::calc::Value> results;            // the results it holds (to be the file's, once it is written)
         std::vector<quint64> touchedFormulas;                  // the formula cells it holds whole, with the results they were given
         std::map<quint64, jp::calc::Value> touchedResults;
+        std::map<int, QString> backgroundRels;                 // set by the save: the relationship each sheet names its background picture by now (see SaveReport)
         std::map<int, QString> headerDrawings;                 // set by the save: the drawing of header and footer pictures each sheet names now (see SaveReport)
     };
     // `pivotParts` false: the pivot tables' changed parts are not made (a copy as .xls or .ods does not keep the tables, only what they show in the cells)

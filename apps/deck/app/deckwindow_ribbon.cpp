@@ -50,6 +50,7 @@ void DeckWindow::buildRibbon()
     addAnimationParts(parts);
     addDesignParts(parts);
     addMasterParts(parts);
+    addNotesMasterParts(parts);
     parts.launchers[QStringLiteral("font")] = [this] { act("fmt.fontDialog")->trigger(); };
     parts.launchers[QStringLiteral("paragraph")] = [this] { act("para.dialog")->trigger(); };
     jp::buildRibbon(m_ribbon, json, parts, this, &m_ribbonErrors);

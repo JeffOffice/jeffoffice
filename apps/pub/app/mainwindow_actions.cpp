@@ -37,6 +37,7 @@
 #include "render/textart.h"
 #include "templates/templates.h"
 #include "text/dictionaries.h"
+#include "text/opentype.h"
 #include "text/textprops.h"
 
 #include <QAction>
@@ -606,7 +607,10 @@ void MainWindow::createActions()
     mk("pd.customMargins", tr("Custom Margins…"), "", QKeySequence(), [this] { gridGuidesDialog(this, m_ed, 0); });
     mk("pd.newPageSize", tr("Create New Page Size…"), "file-plus", QKeySequence(), [this] { createPageSizeDialog(this, m_ed); });
     mk("pd.customSizes", tr("Edit Custom Page Sizes…"), "", QKeySequence(), [this] { customPageSizesDialog(this, m_ed); });
-    mk("pd.newColorScheme", tr("Create New Color Scheme…"), "palette", QKeySequence(), [this] { colorSchemeDialog(this, m_ed); });
+    mk("pd.newColorScheme", tr("Create New Color Scheme…"), "palette", QKeySequence(), [this] {
+        colorSchemeDialog(this, m_ed);
+        if (m_schemeGallery) fillSchemeGallery();
+    });
     mk("pd.newFontScheme", tr("Create New Font Scheme…"), "type", QKeySequence(), [this] { fontSchemeDialog(this, m_ed); });
     mk("pd.updateFonts", tr("Update Font Scheme"), "refresh-cw", QKeySequence(), [ed] {
         // Re-applies scheme fonts to text whose fonts were set by styles.
@@ -1131,7 +1135,9 @@ void MainWindow::createActions()
     const QString numSpacing[] = {tr("Default Spacing"), tr("Proportional"), tr("Tabular")};
     for (int i = 0; i < 3; ++i) mk(QStringLiteral("numspacing.%1").arg(i), numSpacing[i], "", QKeySequence(), [ed, i] { ed->setCharProperty(tp::NumberSpacing, i, tr("Number Spacing")); });
     const QString ligNames[] = {tr("Standard Ligatures"), tr("No Ligatures"), tr("All Ligatures")};
-    for (int i = 0; i < 3; ++i) mk(QStringLiteral("lig.%1").arg(i), ligNames[i], "", QKeySequence(), [ed, i] { ed->setCharProperty(tp::Ligatures, i, tr("Ligatures")); });
+    // (The numbers the Font box's choices hold: standard only, none, and all.)
+    const int ligValues[] = {tp::ot::ligatureValueOfKinds(tp::ot::kLigStandard), tp::ot::ligatureValueOfKinds(0), tp::ot::ligatureValueOfKinds(tp::ot::kLigKinds)};
+    for (int i = 0; i < 3; ++i) mk(QStringLiteral("lig.%1").arg(i), ligNames[i], "", QKeySequence(), [ed, v = ligValues[i]] { ed->setCharProperty(tp::Ligatures, v, tr("Ligatures")); });
     for (int i = 0; i <= 20; ++i) mk(QStringLiteral("ss.%1").arg(i), i ? tr("Stylistic Set %1").arg(i) : tr("Default Set"), "", QKeySequence(), [ed, i] { ed->setCharProperty(tp::StylisticSet, i, tr("Stylistic Set")); });
 
     // ---------------- Pictures ----------------

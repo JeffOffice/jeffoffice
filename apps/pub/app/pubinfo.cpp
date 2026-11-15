@@ -12,6 +12,7 @@ namespace jp {
 
 void moveFromJeffPub79()
 {
+    if (settingsKeptApart()) return;   // (a test run or a screenshot never moves the person's old settings and files)
     const QString marker = QStringLiteral("migration/jeffpub79");
     QSettings now(QSettings::defaultFormat(), QSettings::UserScope, QStringLiteral("JeffOffice"), QStringLiteral("JeffPub"));
     if (now.value(marker).toBool()) return;

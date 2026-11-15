@@ -1,4 +1,5 @@
 #include "io/pptxexport.h"
+#include "core/notesmaster.h"
 #include "core/printheaderfooter.h"
 
 #include "core/animation.h"
@@ -511,11 +512,11 @@ QByteArray renderThumbnail(const Document &doc)
 
 class Exporter {
 public:
-    Exporter(const Document &doc, PresentationKind kind, QStringList *skipped, bool embedFonts)
-        : m_doc(doc), m_kind(kind), m_callerSkipped(skipped), m_embedFonts(embedFonts), m_keptFonts(EmbeddedFonts::facesOf(&doc)) {}
+    Exporter(const Document &doc, PresentationKind kind, QStringList *skipped, bool embedFonts, bool macros = false)
+        : m_doc(doc), m_kind(kind), m_macros(macros), m_callerSkipped(skipped), m_embedFonts(embedFonts), m_keptFonts(EmbeddedFonts::facesOf(&doc)) {}
     // For a presentation made again from a snapshot (exportSnapshot): the fonts its file carried and the picture of its first slide are what the window had when the snapshot was taken.
-    Exporter(const Document &doc, PresentationKind kind, bool embedFonts, const QVector<EmbeddedFace> &keptFonts, const QByteArray &thumbnail)
-        : m_doc(doc), m_kind(kind), m_callerSkipped(nullptr), m_embedFonts(embedFonts), m_keptFonts(keptFonts), m_thumbnail(thumbnail), m_thumbnailGiven(true) {}
+    Exporter(const Document &doc, PresentationKind kind, bool embedFonts, const QVector<EmbeddedFace> &keptFonts, const QByteArray &thumbnail, bool macros = false)
+        : m_doc(doc), m_kind(kind), m_macros(macros), m_callerSkipped(nullptr), m_embedFonts(embedFonts), m_keptFonts(keptFonts), m_thumbnail(thumbnail), m_thumbnailGiven(true) {}
     QByteArray run(QString *error);
 
 private:
@@ -573,6 +574,7 @@ private:
 
     const Document &m_doc;
     PresentationKind m_kind;
+    bool m_macros;                               // written as a macro-enabled kind: the macro project the file had is kept, as it was
     QStringList *m_callerSkipped;
     bool m_embedFonts;                           // the program's own fonts that the text uses go in the file
     QVector<EmbeddedFace> m_keptFonts;           // the fonts the file this came from carried
@@ -1389,6 +1391,103 @@ void Exporter::writeNotesSlide(int slide, int number)
     add(part, kTypeBase + QStringLiteral("notesSlide+xml"), xml);
 }
 
+// The page's background: its own color, or the theme's.
+static QString backgroundXml(const QColor &color)
+{
+    if (!color.isValid()) return QStringLiteral("<p:bg><p:bgRef idx=\"1001\"><a:schemeClr val=\"bg1\"/></p:bgRef></p:bg>");
+    return QStringLiteral("<p:bg><p:bgPr><a:solidFill><a:srgbClr val=\"%1\"/></a:solidFill><a:effectLst/></p:bgPr></p:bg>").arg(color.name().mid(1).toUpper());
+}
+
+// The namespace and extension of the handout master's own settings: whether the handouts lie across, and where their slides go (the standard has no place for either).
+static const QString kDeckNs = QStringLiteral("http://jeffoffice.com/ns/deck"), kHandoutExtUri = QStringLiteral("{7B0F4F1E-5E7A-4C55-9D3B-2F6E1A9C0D11}");
+
+static QString handoutExtensionXml(const HandoutMaster &m, const HandoutMaster &standard)
+{
+    if (!m.landscape && m.area == standard.area) return QString();
+    return QStringLiteral("<p:extLst><p:ext uri=\"%1\"><jo:handout xmlns:jo=\"%2\" landscape=\"%3\" area=\"%4 %5 %6 %7\"/></p:ext></p:extLst>")
+        .arg(kHandoutExtUri, kDeckNs).arg(m.landscape ? 1 : 0).arg(m.area.x(), 0, 'f', 6).arg(m.area.y(), 0, 'f', 6).arg(m.area.width(), 0, 'f', 6).arg(m.area.height(), 0, 'f', 6);
+}
+
+// A handout master the file had, with its places and background changed to the layout the presentation has now: each of the header, date, footer, and number places whose place changed, the
+// background where it changed, and the extension that holds the rest. All else stays as it was.
+static QString editedHandoutLayout(const QByteArray &xml, const HandoutMaster &now, const HandoutMaster &was, const QSizeF &page, const HandoutMaster &standard)
+{
+    QDomDocument dom;
+    if (!dom.setContent(xml, true)) return QString::fromUtf8(xml);
+    const QString pns = QStringLiteral("http://schemas.openxmlformats.org/presentationml/2006/main"), ans = QStringLiteral("http://schemas.openxmlformats.org/drawingml/2006/main");
+    QDomElement root = dom.documentElement();
+    auto setPlace = [&](const char *type, const QRectF &place) {
+        const QDomNodeList shapes = dom.elementsByTagNameNS(pns, QStringLiteral("sp"));
+        for (int i = 0; i < shapes.size(); ++i) {
+            const QDomElement sp = shapes.at(i).toElement();
+            const QDomNodeList phs = sp.elementsByTagNameNS(pns, QStringLiteral("ph"));
+            if (phs.isEmpty() || phs.at(0).toElement().attribute(QStringLiteral("type")) != QLatin1String(type)) continue;
+            QDomElement shapeProps;
+            for (QDomElement c = sp.firstChildElement(); !c.isNull(); c = c.nextSiblingElement())
+                if (c.localName() == QLatin1String("spPr")) shapeProps = c;
+            if (shapeProps.isNull()) return;
+            QDomElement xfrm;
+            for (QDomElement c = shapeProps.firstChildElement(); !c.isNull(); c = c.nextSiblingElement())
+                if (c.localName() == QLatin1String("xfrm")) xfrm = c;
+            if (xfrm.isNull()) {
+                xfrm = dom.createElementNS(ans, QStringLiteral("a:xfrm"));
+                shapeProps.insertBefore(xfrm, shapeProps.firstChild());
+            }
+            while (!xfrm.firstChild().isNull()) xfrm.removeChild(xfrm.firstChild());
+            QDomElement off = dom.createElementNS(ans, QStringLiteral("a:off")), ext = dom.createElementNS(ans, QStringLiteral("a:ext"));
+            off.setAttribute(QStringLiteral("x"), QString::number(office::pointsToEmu(place.x() * page.width())));
+            off.setAttribute(QStringLiteral("y"), QString::number(office::pointsToEmu(place.y() * page.height())));
+            ext.setAttribute(QStringLiteral("cx"), QString::number(office::pointsToEmu(place.width() * page.width())));
+            ext.setAttribute(QStringLiteral("cy"), QString::number(office::pointsToEmu(place.height() * page.height())));
+            xfrm.appendChild(off);
+            xfrm.appendChild(ext);
+            return;
+        }
+    };
+    if (now.header != was.header) setPlace("hdr", now.header);
+    if (now.date != was.date) setPlace("dt", now.date);
+    if (now.footer != was.footer) setPlace("ftr", now.footer);
+    if (now.number != was.number) setPlace("sldNum", now.number);
+    if (now.background.isValid() != was.background.isValid() || (now.background.isValid() && now.background.rgb() != was.background.rgb())) {
+        QDomDocument piece;
+        piece.setContent(QStringLiteral("<r xmlns:p=\"%1\" xmlns:a=\"%2\">%3</r>").arg(pns, ans, backgroundXml(now.background)), true);
+        for (QDomElement c = root.firstChildElement(); !c.isNull(); c = c.nextSiblingElement()) {
+            if (c.localName() != QLatin1String("cSld")) continue;
+            QDomElement bg;
+            for (QDomElement k = c.firstChildElement(); !k.isNull(); k = k.nextSiblingElement())
+                if (k.localName() == QLatin1String("bg")) bg = k;
+            const QDomNode made = dom.importNode(piece.documentElement().firstChildElement(), true);
+            if (bg.isNull()) c.insertBefore(made, c.firstChild());
+            else c.replaceChild(made, bg);
+            break;
+        }
+    }
+    if (now.landscape != was.landscape || now.area != was.area) {
+        // The extension with the settings of our own: replaced where there, else made (the extension list is the last child).
+        QDomElement list;
+        for (QDomElement c = root.firstChildElement(); !c.isNull(); c = c.nextSiblingElement())
+            if (c.localName() == QLatin1String("extLst")) list = c;
+        if (list.isNull()) {
+            list = dom.createElementNS(pns, QStringLiteral("p:extLst"));
+            root.appendChild(list);
+        }
+        for (QDomElement c = list.firstChildElement(); !c.isNull();) {
+            const QDomElement next = c.nextSiblingElement();
+            if (c.attribute(QStringLiteral("uri")) == kHandoutExtUri) list.removeChild(c);
+            c = next;
+        }
+        const QString extXml = handoutExtensionXml(now, standard);
+        if (!extXml.isEmpty()) {
+            QDomDocument piece;
+            piece.setContent(QStringLiteral("<r xmlns:p=\"%1\">%2</r>").arg(pns, extXml), true);
+            const QDomElement ext = piece.documentElement().firstChildElement().firstChildElement();
+            list.appendChild(dom.importNode(ext, true));
+        }
+        if (list.firstChildElement().isNull()) root.removeChild(list);
+    }
+    return QString::fromUtf8(dom.toByteArray());
+}
+
 // The hf element of a notes master or handout master: which of its header, footer, date, and number are on.
 static QString hfElement(const PrintHeaderFooter &hf)
 {
@@ -1408,11 +1507,23 @@ void Exporter::writeNotesMaster()
     auto place = [&](qint64 px, qint64 py, qint64 cx, qint64 cy) {
         return QStringLiteral("<a:xfrm><a:off x=\"%1\" y=\"%2\"/><a:ext cx=\"%3\" cy=\"%4\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom>").arg(px).arg(py).arg(cx).arg(cy);
     };
-    auto small = [&](int id, const QString &name, const QString &ph, qint64 px, qint64 py, const QString &align, const QString &anchor, const QString &text) {
+    // The places: the standard's proportions, or the layout the presentation has (the master's fractions of the page).
+    struct Box {
+        qint64 x, y, cx, cy;
+    };
+    Box stdImage{x(685800), y(1143000), imageW, imageH}, stdBody{x(685800), y(4400550), x(5486400), y(3600450)}, stdHeader{0, 0, x(2971800), y(458788)}, stdDate{x(3884613), 0, x(2971800), y(458788)},
+        stdFooter{0, y(8685213), x(2971800), y(458788)}, stdNumber{x(3884613), y(8685213), x(2971800), y(458788)};
+    const bool own = hasNotesMaster(m_doc);
+    const NotesMaster layout = notesMasterOf(m_doc, m_notesSize);
+    const NotesPageGeometry geo = notesPageGeometry(layout, m_notesSize, slide);
+    auto boxOf = [&](const QRectF &r, const Box &standard) { return own ? Box{office::pointsToEmu(r.x()), office::pointsToEmu(r.y()), office::pointsToEmu(r.width()), office::pointsToEmu(r.height())} : standard; };
+    const Box boxImage = boxOf(geo.slideImage, stdImage), boxBody = boxOf(geo.body, stdBody), boxHeader = boxOf(geo.header, stdHeader), boxDate = boxOf(geo.date, stdDate),
+              boxFooter = boxOf(geo.footer, stdFooter), boxNumber = boxOf(geo.number, stdNumber);
+    auto small = [&](int id, const QString &name, const QString &ph, const Box &b, const QString &align, const QString &anchor, const QString &text) {
         return QStringLiteral("<p:sp><p:nvSpPr><p:cNvPr id=\"%1\" name=\"%2\"/><p:cNvSpPr><a:spLocks noGrp=\"1\"/></p:cNvSpPr><p:nvPr><p:ph %3/></p:nvPr></p:nvSpPr><p:spPr>%4</p:spPr>"
                               "<p:txBody><a:bodyPr vert=\"horz\" lIns=\"91440\" tIns=\"45720\" rIns=\"91440\" bIns=\"45720\" rtlCol=\"0\"%5/><a:lstStyle><a:lvl1pPr algn=\"%6\"><a:defRPr sz=\"1200\"/></a:lvl1pPr></a:lstStyle>"
                               "%7</p:txBody></p:sp>")
-            .arg(id).arg(name, ph, place(px, py, x(2971800), y(458788)), anchor.isEmpty() ? QString() : QStringLiteral(" anchor=\"%1\"").arg(anchor), align, text);
+            .arg(id).arg(name, ph, place(b.x, b.y, b.cx, b.cy), anchor.isEmpty() ? QString() : QStringLiteral(" anchor=\"%1\"").arg(anchor), align, text);
     };
     // The header and footer the presentation chose for its notes pages: their texts sit in the master's own places, and the hf element says which are on.
     const bool chose = hasPrintHeaderFooter(m_doc, PrintedPages::Notes);
@@ -1431,20 +1542,19 @@ void Exporter::writeNotesMaster()
     for (int level = 0; level < 5; ++level)
         texts += QStringLiteral("<a:p><a:pPr lvl=\"%1\"/><a:r><a:rPr lang=\"en-US\"/><a:t>%2</a:t></a:r></a:p>").arg(level).arg(QLatin1String(samples[level]));
 
-    QString xml = QStringLiteral("<p:notesMaster%1><p:cSld><p:bg><p:bgRef idx=\"1001\"><a:schemeClr val=\"bg1\"/></p:bgRef></p:bg><p:spTree>"
+    QString xml = QStringLiteral("<p:notesMaster%1><p:cSld>").arg(kNamespaces) + backgroundXml(own ? layout.background : QColor()) + QStringLiteral("<p:spTree>"
                                  "<p:nvGrpSpPr><p:cNvPr id=\"1\" name=\"\"/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>"
-                                 "<p:grpSpPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"0\" cy=\"0\"/><a:chOff x=\"0\" y=\"0\"/><a:chExt cx=\"0\" cy=\"0\"/></a:xfrm></p:grpSpPr>")
-                      .arg(kNamespaces);
-    xml += small(2, QStringLiteral("Header Placeholder 1"), QStringLiteral("type=\"hdr\" sz=\"quarter\""), 0, 0, QStringLiteral("l"), QString(), empty);
-    xml += small(3, QStringLiteral("Date Placeholder 2"), QStringLiteral("type=\"dt\" idx=\"1\""), x(3884613), 0, QStringLiteral("r"), QString(), dateParagraph);
+                                 "<p:grpSpPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"0\" cy=\"0\"/><a:chOff x=\"0\" y=\"0\"/><a:chExt cx=\"0\" cy=\"0\"/></a:xfrm></p:grpSpPr>");
+    xml += small(2, QStringLiteral("Header Placeholder 1"), QStringLiteral("type=\"hdr\" sz=\"quarter\""), boxHeader, QStringLiteral("l"), QString(), empty);
+    xml += small(3, QStringLiteral("Date Placeholder 2"), QStringLiteral("type=\"dt\" idx=\"1\""), boxDate, QStringLiteral("r"), QString(), dateParagraph);
     xml += QStringLiteral("<p:sp><p:nvSpPr><p:cNvPr id=\"4\" name=\"Slide Image Placeholder 3\"/><p:cNvSpPr><a:spLocks noGrp=\"1\" noRot=\"1\" noChangeAspect=\"1\"/></p:cNvSpPr>"
                           "<p:nvPr><p:ph type=\"sldImg\" idx=\"2\"/></p:nvPr></p:nvSpPr><p:spPr>%1<a:noFill/><a:ln w=\"12700\"><a:solidFill><a:prstClr val=\"black\"/></a:solidFill></a:ln></p:spPr></p:sp>")
-               .arg(place(x(685800), y(1143000), imageW, imageH));
+               .arg(place(boxImage.x, boxImage.y, boxImage.cx, boxImage.cy));
     xml += QStringLiteral("<p:sp><p:nvSpPr><p:cNvPr id=\"5\" name=\"Notes Placeholder 4\"/><p:cNvSpPr><a:spLocks noGrp=\"1\"/></p:cNvSpPr><p:nvPr><p:ph type=\"body\" sz=\"quarter\" idx=\"3\"/></p:nvPr></p:nvSpPr>"
                           "<p:spPr>%1</p:spPr><p:txBody><a:bodyPr vert=\"horz\" lIns=\"91440\" tIns=\"45720\" rIns=\"91440\" bIns=\"45720\" rtlCol=\"0\"/><a:lstStyle/>%2</p:txBody></p:sp>")
-               .arg(place(x(685800), y(4400550), x(5486400), y(3600450)), texts);
-    xml += small(6, QStringLiteral("Footer Placeholder 5"), QStringLiteral("type=\"ftr\" sz=\"quarter\" idx=\"4\""), 0, y(8685213), QStringLiteral("l"), QStringLiteral("b"), footerParagraph);
-    xml += small(7, QStringLiteral("Slide Number Placeholder 6"), QStringLiteral("type=\"sldNum\" sz=\"quarter\" idx=\"5\""), x(3884613), y(8685213), QStringLiteral("r"), QStringLiteral("b"), number);
+               .arg(place(boxBody.x, boxBody.y, boxBody.cx, boxBody.cy), texts);
+    xml += small(6, QStringLiteral("Footer Placeholder 5"), QStringLiteral("type=\"ftr\" sz=\"quarter\" idx=\"4\""), boxFooter, QStringLiteral("l"), QStringLiteral("b"), footerParagraph);
+    xml += small(7, QStringLiteral("Slide Number Placeholder 6"), QStringLiteral("type=\"sldNum\" sz=\"quarter\" idx=\"5\""), boxNumber, QStringLiteral("r"), QStringLiteral("b"), number);
     xml += QStringLiteral("</p:spTree></p:cSld><p:clrMap bg1=\"lt1\" tx1=\"dk1\" bg2=\"lt2\" tx2=\"dk2\" accent1=\"accent1\" accent2=\"accent2\" accent3=\"accent3\" accent4=\"accent4\" "
                           "accent5=\"accent5\" accent6=\"accent6\" hlink=\"hlink\" folHlink=\"folHlink\"/>");
     if (chose) xml += hfElement(hf);
@@ -1560,36 +1670,48 @@ void Exporter::writeHandoutMaster()
     const PrintHeaderFooter hf = printHeaderFooter(m_doc, PrintedPages::Handouts);
     if (const QByteArray kept = keptHandoutMaster(m_doc); !kept.isEmpty()) {
         QString xml = handoutMasterEdited(m_doc) ? editedHandoutMaster(kept, handoutMasterRead(m_doc), hf, m_doc.appData.contains(QStringLiteral("handoutMasterRead"))) : QString::fromUtf8(kept);
+        // (the places and the background, only where the person changed them)
+        if (hasHandoutMaster(m_doc)) {
+            const HandoutMaster now = handoutMasterOf(m_doc, m_notesSize);
+            HandoutMaster was = handoutMasterFromJson(m_doc.appData.value(QStringLiteral("handoutMasterReadLayout")).toObject(), defaultHandoutMaster(m_notesSize));
+            was.perPage = now.perPage;   // (how many slides a page holds is in the print settings, not in the master)
+            if (now != was) xml = editedHandoutLayout(xml.toUtf8(), now, was, m_notesSize, defaultHandoutMaster(m_notesSize));
+        }
         // (the part is written with a declaration of its own)
         if (xml.startsWith(QLatin1String("<?xml"))) xml = xml.mid(xml.indexOf(QLatin1String("?>")) + 2).trimmed();
         add(kHandoutMasterPart, kTypeBase + QStringLiteral("handoutMaster+xml"), xml);
         return;
     }
-    const qint64 nw = office::pointsToEmu(m_notesSize.width()), nh = office::pointsToEmu(m_notesSize.height());
+    const bool own = hasHandoutMaster(m_doc);
+    const HandoutMaster layout = handoutMasterOf(m_doc, m_notesSize);
     auto typed = [](const QString &text) {
         return text.isEmpty() ? QStringLiteral("<a:p><a:endParaRPr lang=\"en-US\"/></a:p>") : QStringLiteral("<a:p><a:r><a:rPr lang=\"en-US\"/><a:t>%1</a:t></a:r></a:p>").arg(esc(text));
     };
     const QString number = QStringLiteral("<a:p><a:fld id=\"{9A1B2C3D-0000-4000-8000-000000000003}\" type=\"slidenum\"><a:rPr lang=\"en-US\"/><a:t>\u2039#\u203A</a:t></a:fld><a:endParaRPr lang=\"en-US\"/></a:p>");
     const QString date = QStringLiteral("<a:p><a:fld id=\"{9A1B2C3D-0000-4000-8000-000000000004}\" type=\"datetimeFigureOut\"><a:rPr lang=\"en-US\"/><a:t>%1</a:t></a:fld><a:endParaRPr lang=\"en-US\"/></a:p>")
                              .arg(esc(m_doc.props.modified.date().toString(Qt::ISODate)));
-    auto place = [&](int id, const QString &name, const QString &ph, qint64 px, qint64 py, const QString &align, const QString &anchor, const QString &text) {
+    auto place = [&](int id, const QString &name, const QString &ph, const QRectF &box, const QString &align, const QString &anchor, const QString &text) {
         return QStringLiteral("<p:sp><p:nvSpPr><p:cNvPr id=\"%1\" name=\"%2\"/><p:cNvSpPr><a:spLocks noGrp=\"1\"/></p:cNvSpPr><p:nvPr><p:ph %3/></p:nvPr></p:nvSpPr><p:spPr><a:xfrm><a:off x=\"%4\" y=\"%5\"/>"
                               "<a:ext cx=\"%6\" cy=\"%7\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></p:spPr><p:txBody><a:bodyPr vert=\"horz\" lIns=\"91440\" tIns=\"45720\" rIns=\"91440\" bIns=\"45720\" rtlCol=\"0\"%8/>"
                               "<a:lstStyle><a:lvl1pPr algn=\"%9\"><a:defRPr sz=\"1200\"/></a:lvl1pPr></a:lstStyle>%10</p:txBody></p:sp>")
-            .arg(id).arg(name, ph).arg(px).arg(py).arg(nw * 2971800 / kNotesWidth).arg(nh * 458788 / kNotesHeight).arg(anchor.isEmpty() ? QString() : QStringLiteral(" anchor=\"%1\"").arg(anchor), align, text);
+            .arg(id).arg(name, ph).arg(office::pointsToEmu(box.x())).arg(office::pointsToEmu(box.y())).arg(office::pointsToEmu(box.width())).arg(office::pointsToEmu(box.height())).arg(anchor.isEmpty() ? QString() : QStringLiteral(" anchor=\"%1\"").arg(anchor), align, text);
     };
-    QString xml = QStringLiteral("<p:handoutMaster%1><p:cSld><p:bg><p:bgRef idx=\"1001\"><a:schemeClr val=\"bg1\"/></p:bgRef></p:bg><p:spTree>"
+    QString xml = QStringLiteral("<p:handoutMaster%1><p:cSld>").arg(kNamespaces) + backgroundXml(own ? layout.background : QColor()) + QStringLiteral("<p:spTree>"
                                  "<p:nvGrpSpPr><p:cNvPr id=\"1\" name=\"\"/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>"
-                                 "<p:grpSpPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"0\" cy=\"0\"/><a:chOff x=\"0\" y=\"0\"/><a:chExt cx=\"0\" cy=\"0\"/></a:xfrm></p:grpSpPr>")
-                      .arg(kNamespaces);
-    const qint64 right = nw * 3884613 / kNotesWidth, bottom = nh * 8685213 / kNotesHeight;
-    xml += place(2, QStringLiteral("Header Placeholder 1"), QStringLiteral("type=\"hdr\" sz=\"quarter\""), 0, 0, QStringLiteral("l"), QString(), typed(hf.headerText));
-    xml += place(3, QStringLiteral("Date Placeholder 2"), QStringLiteral("type=\"dt\" sz=\"quarter\" idx=\"1\""), right, 0, QStringLiteral("r"), QString(), hf.dateText.isEmpty() ? date : typed(hf.dateText));
-    xml += place(4, QStringLiteral("Footer Placeholder 3"), QStringLiteral("type=\"ftr\" sz=\"quarter\" idx=\"2\""), 0, bottom, QStringLiteral("l"), QStringLiteral("b"), typed(hf.footerText));
-    xml += place(5, QStringLiteral("Slide Number Placeholder 4"), QStringLiteral("type=\"sldNum\" sz=\"quarter\" idx=\"3\""), right, bottom, QStringLiteral("r"), QStringLiteral("b"), number);
+                                 "<p:grpSpPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"0\" cy=\"0\"/><a:chOff x=\"0\" y=\"0\"/><a:chExt cx=\"0\" cy=\"0\"/></a:xfrm></p:grpSpPr>");
+    // (the standard's places, or the layout the presentation has)
+    const QSizeF notes = m_notesSize;
+    const double sw = notes.width() / kNotesWidth * 12700, sh = notes.height() / kNotesHeight * 12700;
+    auto standard = [&](qint64 x, qint64 y) { return QRectF(x * sw / 12700 * 1.0, y * sh / 12700 * 1.0, 2971800 * sw / 12700, 458788 * sh / 12700); };
+    auto rect = [&](const QRectF &fraction, const QRectF &standardPlace) { return own ? QRectF(fraction.x() * notes.width(), fraction.y() * notes.height(), fraction.width() * notes.width(), fraction.height() * notes.height()) : standardPlace; };
+    xml += place(2, QStringLiteral("Header Placeholder 1"), QStringLiteral("type=\"hdr\" sz=\"quarter\""), rect(layout.header, standard(0, 0)), QStringLiteral("l"), QString(), typed(hf.headerText));
+    xml += place(3, QStringLiteral("Date Placeholder 2"), QStringLiteral("type=\"dt\" sz=\"quarter\" idx=\"1\""), rect(layout.date, standard(3884613, 0)), QStringLiteral("r"), QString(), hf.dateText.isEmpty() ? date : typed(hf.dateText));
+    xml += place(4, QStringLiteral("Footer Placeholder 3"), QStringLiteral("type=\"ftr\" sz=\"quarter\" idx=\"2\""), rect(layout.footer, standard(0, 8685213)), QStringLiteral("l"), QStringLiteral("b"), typed(hf.footerText));
+    xml += place(5, QStringLiteral("Slide Number Placeholder 4"), QStringLiteral("type=\"sldNum\" sz=\"quarter\" idx=\"3\""), rect(layout.number, standard(3884613, 8685213)), QStringLiteral("r"), QStringLiteral("b"), number);
     xml += QStringLiteral("</p:spTree></p:cSld><p:clrMap bg1=\"lt1\" tx1=\"dk1\" bg2=\"lt2\" tx2=\"dk2\" accent1=\"accent1\" accent2=\"accent2\" accent3=\"accent3\" accent4=\"accent4\" "
                           "accent5=\"accent5\" accent6=\"accent6\" hlink=\"hlink\" folHlink=\"folHlink\"/>");
     xml += hfElement(hf);
+    if (own) xml += handoutExtensionXml(layout, defaultHandoutMaster(notes));
     xml += QStringLiteral("</p:handoutMaster>");
     add(kHandoutMasterPart, kTypeBase + QStringLiteral("handoutMaster+xml"), xml);
 }
@@ -1712,8 +1834,7 @@ void Exporter::writePresentation()
                               "<a:solidFill><a:schemeClr val=\"tx1\"/></a:solidFill><a:latin typeface=\"+mn-lt\"/><a:ea typeface=\"+mn-ea\"/><a:cs typeface=\"+mn-cs\"/></a:defRPr></a:lvl%1pPr>")
                    .arg(i + 1).arg(457200 * i);
     xml += QStringLiteral("</p:defaultTextStyle>") + sectionListXml(m_doc) + QStringLiteral("</p:presentation>");
-    const char *type_ = m_kind == PresentationKind::Template ? "template.main+xml" : m_kind == PresentationKind::Show ? "slideshow.main+xml" : "presentation.main+xml";
-    add(kPresentationPart, kTypeBase + QLatin1String(type_), xml);
+    add(kPresentationPart, office::macroMainType(office::MacroProgram::Presentation, m_kind == PresentationKind::Template ? office::MacroKind::Template : m_kind == PresentationKind::Show ? office::MacroKind::Show : office::MacroKind::Plain, m_macros), xml);
 }
 
 // The comments are written in the older form, the one every version of the
@@ -1838,7 +1959,7 @@ QByteArray Exporter::run(QString *error)
         m_slideRel << m_pkg.addRelationship(kPresentationPart, kRelBase + QStringLiteral("slide"), QStringLiteral("/ppt/slides/slide%1.xml").arg(i + 1));
     m_notesMasterRel = m_pkg.addRelationship(kPresentationPart, kRelBase + QStringLiteral("notesMaster"), kNotesMasterPart);
     // (a handout master the file had is written back; one is made only when the file had none and the person chose a header and footer)
-    if (hasPrintHeaderFooter(m_doc, PrintedPages::Handouts) || !keptHandoutMaster(m_doc).isEmpty()) m_handoutMasterRel = m_pkg.addRelationship(kPresentationPart, kRelBase + QStringLiteral("handoutMaster"), kHandoutMasterPart);
+    if (hasPrintHeaderFooter(m_doc, PrintedPages::Handouts) || hasHandoutMaster(m_doc) || !keptHandoutMaster(m_doc).isEmpty()) m_handoutMasterRel = m_pkg.addRelationship(kPresentationPart, kRelBase + QStringLiteral("handoutMaster"), kHandoutMasterPart);
     m_pkg.addRelationship(kPresentationPart, kRelBase + QStringLiteral("presProps"), QStringLiteral("/ppt/presProps.xml"));
     m_pkg.addRelationship(kPresentationPart, kRelBase + QStringLiteral("viewProps"), QStringLiteral("/ppt/viewProps.xml"));
     m_pkg.addRelationship(kPresentationPart, kRelBase + QStringLiteral("theme"), m_masters.front().themePart);
@@ -1862,6 +1983,8 @@ QByteArray Exporter::run(QString *error)
         m_fonts = writeEmbeddedFonts(m_pkg, kPresentationPart, m_fontUse, m_keptFonts, m_embedFonts);
     }
     writePresentation();
+    // The macro project is kept only in a macro-enabled kind, as it was and never run; in any other kind it is left out.
+    if (m_macros) office::writeMacroProject(&m_pkg, kPresentationPart, presentationMacros(m_doc), QStringLiteral("/ppt/"));
     if (m_droppedLinks > 0)
         note(QCoreApplication::translate("PptxExport", "Links to a slide that is no longer in the presentation were left out (%1).").arg(m_droppedLinks));
 
@@ -1878,10 +2001,19 @@ QByteArray Exporter::run(QString *error)
 
 PresentationKind kindOfFileName(const QString &path)
 {
-    if (path.endsWith(QLatin1String(".potx"), Qt::CaseInsensitive) || path.endsWith(QLatin1String(".pot"), Qt::CaseInsensitive)) return PresentationKind::Template;
-    if (path.endsWith(QLatin1String(".ppsx"), Qt::CaseInsensitive) || path.endsWith(QLatin1String(".pps"), Qt::CaseInsensitive)) return PresentationKind::Show;
+    if (path.endsWith(QLatin1String(".potx"), Qt::CaseInsensitive) || path.endsWith(QLatin1String(".pot"), Qt::CaseInsensitive) || path.endsWith(QLatin1String(".potm"), Qt::CaseInsensitive)) return PresentationKind::Template;
+    if (path.endsWith(QLatin1String(".ppsx"), Qt::CaseInsensitive) || path.endsWith(QLatin1String(".pps"), Qt::CaseInsensitive) || path.endsWith(QLatin1String(".ppsm"), Qt::CaseInsensitive)) return PresentationKind::Show;
     return PresentationKind::Presentation;
 }
+
+bool isMacroEnabledFileName(const QString &path)
+{
+    for (const char *ending : {".pptm", ".ppsm", ".potm"})
+        if (path.endsWith(QLatin1String(ending), Qt::CaseInsensitive)) return true;
+    return false;
+}
+
+office::MacroProject presentationMacros(const Document &doc) { return office::macroProjectFromJson(doc.appData.value(QStringLiteral("macros")).toObject()); }
 
 // Text that shrinks on overflow is saved at the fit it has now (fontScale and lnSpcReduction), so that the file opens the same in other programs;
 // text a file shrank keeps what the file said until it is edited.
@@ -1912,7 +2044,7 @@ static void settleFits(Document &doc)
             }
 }
 
-QByteArray exportPresentation(const Document &doc, QString *error, QStringList *skipped, PresentationKind kind, bool embedFonts)
+QByteArray exportPresentation(const Document &doc, QString *error, QStringList *skipped, PresentationKind kind, bool embedFonts, bool macros)
 {
     bool live = false;
     for (const auto &page : doc.pages)
@@ -1920,9 +2052,9 @@ QByteArray exportPresentation(const Document &doc, QString *error, QStringList *
     if (live && doc.slideText) {
         const std::unique_ptr<Document> fitted = Document::fromSnapshot(doc.snapshot());
         settleFits(*fitted);
-        return Exporter(*fitted, kind, skipped, embedFonts).run(error);
+        return Exporter(*fitted, kind, skipped, embedFonts, macros).run(error);
     }
-    return Exporter(doc, kind, skipped, embedFonts).run(error);
+    return Exporter(doc, kind, skipped, embedFonts, macros).run(error);
 }
 
 ExportSnapshot snapshotForExport(const Document &doc)
@@ -1934,11 +2066,11 @@ ExportSnapshot snapshotForExport(const Document &doc)
     return s;
 }
 
-QByteArray exportSnapshot(const ExportSnapshot &snapshot, QString *error, PresentationKind kind, bool embedFonts)
+QByteArray exportSnapshot(const ExportSnapshot &snapshot, QString *error, PresentationKind kind, bool embedFonts, bool macros)
 {
     const std::unique_ptr<Document> doc = Document::fromSnapshot(snapshot.doc);
     if (doc->slideText) settleFits(*doc);
-    return Exporter(*doc, kind, embedFonts, snapshot.keptFonts, snapshot.thumbnail).run(error);
+    return Exporter(*doc, kind, embedFonts, snapshot.keptFonts, snapshot.thumbnail, macros).run(error);
 }
 
 bool savePresentationFile(const Document &doc, const QString &path, QString *error, QStringList *skipped, bool embedFonts, const QString &password, bool removePersonal, QStringList *personalProblems)
@@ -1947,7 +2079,7 @@ bool savePresentationFile(const Document &doc, const QString &path, QString *err
         if (error) *error = why;
         return false;
     };
-    QByteArray bytes = exportPresentation(doc, error, skipped, kindOfFileName(path), embedFonts);
+    QByteArray bytes = exportPresentation(doc, error, skipped, kindOfFileName(path), embedFonts, isMacroEnabledFileName(path));
     if (bytes.isEmpty()) return false;
     if (removePersonal) bytes = office::removePersonalFromPackage(bytes, nullptr, personalProblems);
     if (!password.isEmpty()) {

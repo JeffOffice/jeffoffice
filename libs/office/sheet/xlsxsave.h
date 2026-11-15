@@ -141,6 +141,9 @@ struct SheetChanges {
     // this from the page setup's pictures; whoever asks for a save does not).
     bool hfSet = false;
     QString hfRel;
+    // The relationship the sheet's `picture` (its background) is to name (empty: the element is taken out), when the picture is not as the file has it (set by saving from the page setup).
+    bool bgSet = false;
+    QString bgRel;
     // The sparklines the sheet has now, when a person changed them: the extension that holds them is made from these in place of the file's (none left: it is taken out).
     // Rules of conditional formatting a person made or cleared. The file's own elements stay as they are, byte for byte, but for their priorities (each is the one the file gave it, which names the
     // rule, plus `condShift`), the cells of a rule that was trimmed, and the rules taken away (`condRemoved`, by priority in the file, with the 2010 entries that go with them); the rules made here
@@ -191,7 +194,7 @@ struct SheetChanges {
     QString drawingRelId;
     // The links from the sheet to its tables' parts: the ids of the relationships of tables made here (saving sets them, from SaveChanges::addedTables), and of tables taken out.
     std::vector<QString> addTableRels, removeTableRels;
-    bool empty() const { return !replaceSparklines && !replaceValidations && !replaceIgnoredErrors && !replaceScenarios && !condEdit && drawingRelId.isEmpty() && addTableRels.empty() && removeTableRels.empty() && !showRows && !replaceAutoFilter && filterMode < 0 && cells.empty() && results.empty() && !replaceColumns && !replaceMerges && !replaceFormat && !replaceTabColor && tabSelected < 0 && viewKind < 0 && viewZoom == 0 && viewNormalZoom == 0 && !setPane && !hfSet && noteOps.empty() && controlsNow.empty() && unlinks.empty() && links.empty() && !setProtection && skeleton.isEmpty() && rows.empty() && copyFromPart.isEmpty() && !setPage; }
+    bool empty() const { return !replaceSparklines && !replaceValidations && !replaceIgnoredErrors && !replaceScenarios && !condEdit && drawingRelId.isEmpty() && addTableRels.empty() && removeTableRels.empty() && !showRows && !replaceAutoFilter && filterMode < 0 && cells.empty() && results.empty() && !replaceColumns && !replaceMerges && !replaceFormat && !replaceTabColor && tabSelected < 0 && viewKind < 0 && viewZoom == 0 && viewNormalZoom == 0 && !setPane && !hfSet && !bgSet && noteOps.empty() && controlsNow.empty() && unlinks.empty() && links.empty() && !setProtection && skeleton.isEmpty() && rows.empty() && copyFromPart.isEmpty() && !setPage; }
 };
 
 // A column of a table renamed (by a person, in its header): the formulas outside the cells that name it (defined names, validations, conditional formats, charts) follow.
@@ -425,6 +428,7 @@ struct SaveReport {
     qint64 cellsChanged = 0, resultsChanged = 0;
     bool calcChainDropped = false;
     QStringList changedParts;            // the names, as the file has them
+    std::map<int, QString> backgroundRels;   // by the sheet's place: the relationship its background picture is named by now (empty: it has none), for the sheets whose picture was written
     std::map<int, QString> headerDrawings;   // by the sheet's place: the relationship its header and footer pictures are named by now (empty: it has none), for the sheets whose pictures were written
 };
 

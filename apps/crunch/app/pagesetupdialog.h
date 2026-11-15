@@ -30,11 +30,15 @@ struct PageSetupRequest {
     QString selectionText;      // the selection as "A1:D20", for the print area box's tip
     int tab = 0;                // 0 Page, 1 Margins, 2 Header and Footer, 3 Sheet
     bool metric = false;        // margins in centimeters
+    qint64 otherPictureBytes = 0;   // the bytes of the pictures the workbook holds beside those of this setup headers and footers (the backgrounds, and the other sheets pictures)
 };
 
 // A picture's file read to be put in a header or footer: kept as the file has it, with the size it is drawn at (its pixels at 96 to the inch, the longest side held to two inches), a title from
 // the file's name, and no place yet. False, with the reason in plain words, when the file is not a PNG, JPEG, GIF, or BMP picture, is too large, or can't be read.
 bool loadHeaderPicture(const QString &path, jp::office::sheet::HeaderPicture *out, QString *problem, double roomPoints = 0);
+// A picture file for a sheet's background (Page Layout > Background): a PNG, JPEG, GIF, or BMP picture within the sizes every picture is held to; false, with `problem` as a sentence, for any other.
+// Only the image and its type are set (the link the file names it by is the sheet's own).
+bool loadBackgroundPicture(const QString &path, jp::office::sheet::SheetBackground *out, QString *problem);
 // How tall a picture may be to fit the margin it goes in: the margin's room between the header's (footer's) distance from the edge and the cells, in points (at least 12).
 double headerPictureRoom(const jp::office::sheet::PageMargins &margins, bool header);
 
@@ -55,6 +59,7 @@ public:
     void setPictureAsker(const std::function<QString()> &asker) { m_pictureAsker = asker; }
     // How tall a picture put in may be, in points, so that it fits the margin (0: no limit): a picture is made to fit it, and can be made larger afterwards.
     void setPictureRoom(double points) { m_room = points; }
+    void setOtherPictureBytes(qint64 bytes) { m_otherBytes = bytes; }   // (what the rest of the pictures of the workbook come to: a file is read back within one total)
     // What was said of the last picture that was refused (empty when it was taken).
     QString pictureProblem() const;
 
@@ -88,6 +93,7 @@ private:
     QPushButton *m_addPicture = nullptr, *m_dropPicture = nullptr;
     std::function<QString()> m_pictureAsker;
     double m_room = 0;
+    qint64 m_otherBytes = 0;
     bool m_loading = false;
 };
 

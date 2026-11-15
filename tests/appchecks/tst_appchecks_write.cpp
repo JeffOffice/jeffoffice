@@ -666,6 +666,7 @@ private Q_SLOTS:
             {QStringLiteral("review.show.formatting"), QStringLiteral("it chooses whether the bars for changes of formatting are painted in the pages' margin, which no control shows; the window's tests check the painting")},
         };
         m_app.neverRun = {
+            {QStringLiteral("design.themes.reset"), QStringLiteral("it is on only once the theme differs from the one the document was opened with, which no place here changes; theDesignTabListsThemesColorsAndFontsAndTheyApplyInOneStep runs it after a change")},
             {QStringLiteral("arrange.distribute.h"), QStringLiteral("it needs three objects selected together, which no place here has; theEffectsMenuAndDistributeWorkFromTheWindowOneStepEach runs it on three")},
             {QStringLiteral("arrange.distribute.v"), QStringLiteral("it needs three objects selected together, which no place here has; distributeSpreadsThreeObjectsToEqualGapsInOneStep runs the down direction, and its twin is run from the window on three")},
             {QStringLiteral("pn.remove"), QStringLiteral("it works only where a header or footer has a page number, which no place here has; the page number tests run it on one")},
@@ -803,6 +804,23 @@ private Q_SLOTS:
             m_app.settle(w.get());
             const Outcome o = observe(m_app, w.get(), nullptr, watch, [] {}, false, 3000);
             QVERIFY2(!o.changed, qPrintable(o.how + o.detail));
+        }
+    }
+
+    // And an effect that arrives late (a worker, a timer) is still seen: the wait ends when the change comes, and a call that changes nothing is waited for only to the ceiling.
+    void aCallWhoseEffectComesLateIsSeen()
+    {
+        Watch watch;
+        std::unique_ptr<AppWindow> w(m_app.launch());
+        QVERIFY(w);
+        m_app.settle(w.get());
+        for (const int late : {300, 700}) {
+            QElapsedTimer clock;
+            clock.start();
+            const Outcome o = observe(m_app, w.get(), nullptr, watch, [late] { QTimer::singleShot(late, [] { QGuiApplication::clipboard()->setText(QStringLiteral("late")); }); }, false, 3000);
+            QVERIFY2(o.changed, qPrintable(QString::number(late)));
+            QVERIFY(clock.elapsed() >= late - 50);
+            QGuiApplication::clipboard()->clear();
         }
     }
 

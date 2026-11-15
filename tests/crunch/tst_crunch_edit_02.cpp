@@ -1,4 +1,5 @@
 #include "tst_crunch_edit.h"
+#include "../cardchecks.h"
 #include "core/sortspec.h"
 using jp::crunch::EditSession;
 using jp::crunch::SortSpec;
@@ -1383,6 +1384,47 @@ void CrunchEditTests::aFileThatOpensElsewhereClosesTheFileScreen()
     QVERIFY(e.win.w.openFile(other));
     QVERIFY(!screen->isVisible());
     QCOMPARE(crunchWindows().size(), windows + 1);
+}
+
+// Every card of every page of the File screen, in a wide window and a narrower one (the checks are in tests/cardchecks.h, which each app's tests use).
+void CrunchEditTests::aCardsDescriptionFitsInsideItAndStaysClearOfItsChevron()
+{
+    Window w;
+    QVERIFY(w.openBlank());
+    jptest::checkFileScreenCards(&w.w, {QStringLiteral("new"), QStringLiteral("open"), QStringLiteral("info"), QStringLiteral("print"), QStringLiteral("export")}, 3);
+}
+
+// The same card with long German text, three in a row, at several widths: the row grows to the tallest card's text and each card shows all of its own.
+void CrunchEditTests::cardsInARowKeepTheirTextWhateverTheLanguageOrWidth()
+{
+    for (const int width : {1000, 800, 640, 480, 300}) {
+        QWidget host;
+        auto *row = new CardRow(12);
+        row->setContentsMargins(0, 0, 0, 0);
+        host.setLayout(row);
+        const QStringList titles = {QStringLiteral("Arbeitsmappe durchsuchen"), QStringLiteral("Eine Textdatei \u00F6ffnen"), QStringLiteral("Nicht gespeicherte Arbeit wiederherstellen")};
+        const QStringList texts = {QStringLiteral("Eine Arbeitsmappe von Ihrem Computer \u00F6ffnen."),
+                                   QStringLiteral("W\u00E4hlen Sie, wie die Spalten einer .csv- oder .txt-Datei gelesen werden, und \u00F6ffnen Sie sie dann."),
+                                   QStringLiteral("Kopien nicht gespeicherter Arbeit \u00F6ffnen, die JeffCrunch aufbewahrt hat, als es unerwartet geschlossen wurde.")};
+        QList<ActionCard *> cards;
+        for (int i = 0; i < 3; ++i) {
+            cards << new ActionCard(QStringLiteral("folder-open"), titles[i], texts[i], &host);
+            row->addWidget(cards.last());
+        }
+        host.resize(width, 400);
+        host.show();
+        QTRY_VERIFY(host.isVisible() && cards.last()->width() > 0);
+        QCoreApplication::processEvents();
+        if (width <= 480) QVERIFY2(cards[0]->y() != cards[1]->y() || cards[1]->y() != cards[2]->y(), "three cards in a row of 480 pixels");
+        if (width <= 300) QVERIFY2(cards[0]->y() != cards[1]->y() && cards[1]->y() != cards[2]->y(), "cards side by side in 300 pixels");
+        for (auto *c : cards) {
+            jptest::checkCard(c, QStringLiteral("German"));
+            QVERIFY2(c->x() >= 0 && c->geometry().right() < width, "a card leaves its window");
+            if (width >= 800) QCOMPARE(c->y(), cards.first()->y());   // (three side by side)
+            for (auto *other : cards)
+                if (other->y() == c->y()) QCOMPARE(other->height(), c->height());
+        }
+    }
 }
 
 // The New page of the File screen: its card leaves a new workbook nobody changed as it is (and closes the screen), and makes a window of its own when the workbook has been changed.

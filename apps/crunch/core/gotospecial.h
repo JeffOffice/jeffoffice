@@ -47,6 +47,6 @@ SpecialResult goToSpecial(const EditSession &session, int sheet, const jp::offic
 
 // The block of cells around a cell that has no empty row and column between its cells (the block Ctrl+A selects, and what sorting and filtering take when one cell is selected); the cell
 // itself if it and its neighbors are empty. `truncated` is set if the work limit was reached (the block found so far is given).
-jp::office::sheet::CellRange currentRegion(const EditSession &session, int sheet, quint32 row, quint32 col, bool *truncated = nullptr);
+jp::office::sheet::CellRange currentRegion(const EditSession &session, int sheet, quint32 row, quint32 col, bool *truncated = nullptr, qint64 maxWork = kMaxSpecialWork);
 
 } // namespace jp::crunch

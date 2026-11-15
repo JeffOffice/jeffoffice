@@ -123,6 +123,23 @@
   ],
   "outline.groupRows": [
    "collapse rows"
+  ],
+  "data.form": [
+   "data entry",
+   "record",
+   "records",
+   "new record",
+   "form"
+  ],
+  "page.background": [
+   "wallpaper",
+   "picture behind cells",
+   "tile",
+   "sheet background"
+  ],
+  "page.deleteBackground": [
+   "remove background",
+   "remove picture behind cells"
   ]
  },
  "file": {

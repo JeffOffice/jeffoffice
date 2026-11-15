@@ -20,7 +20,7 @@ namespace jp::deck {
 std::unique_ptr<Document> importAnyPresentationFile(const QString &path, QString *error = nullptr);
 
 // The two formats JeffDeck writes: the newer presentation files (.pptx, .potx,
-// .ppsx) and the open document ones (.odp, .otp). The ending of a file's name
+// .ppsx, and with macros kept as they were .pptm, .potm, .ppsm) and the open document ones (.odp, .otp). The ending of a file's name
 // says which; any other ending is a .pptx.
 enum class FileFormat { Pptx, Odp };
 FileFormat formatOfFileName(const QString &path);
@@ -28,7 +28,7 @@ FileFormat formatOfFileName(const QString &path);
 // show (.ppsx, .pps), or a presentation (anything else, .odp included).
 PresentationKind presentationKindOf(const QString &path);
 // Whether JeffDeck writes files with that ending itself (.pptx, .potx,
-// .ppsx, .odp, .otp); an old binary file (.ppt, .pps, .pot) or another ending
+// .ppsx, .pptm, .potm, .ppsm, .odp, .otp); an old binary file (.ppt, .pps, .pot) or another ending
 // is read, never written over.
 bool isWrittenEnding(const QString &path);
 // Writes the presentation at `path`, in the format its ending asks for

@@ -3,6 +3,7 @@
 #include "core/color.h"
 #include "core/fieldcode.h"
 #include "core/writeprops.h"
+#include "text/opentype.h"
 #include "text/textprops.h"
 
 #include <QDataStream>
@@ -347,6 +348,148 @@ const UnderlineVal kUnderlineVals[] = {
 
 } // namespace
 
+namespace {
+
+// An element of a run's properties that holds an OpenType choice, kept as written: the choice's property and the number it comes to (0: the default; -1: it says
+// nothing that can be used). Only the start of an element is read, and no more than twenty sets of a list.
+struct OpenTypeElement {
+    int property = 0;
+    int value = -1;
+};
+
+constexpr int kMostOpenTypeBytes = 4000;
+
+bool onOff(const QString &val, bool none)
+{
+    if (val.isEmpty()) return none;
+    return val == QLatin1String("1") || val == QLatin1String("true") || val == QLatin1String("on");
+}
+
+// Which choice an element is of (an index into the five of reconcileOpenType, in the order of the schema), or -1: only the element's name is looked at, so that
+// the elements of a run that are not these cost no more than that.
+int openTypeKind(const QByteArray &xml)
+{
+    if (xml.size() < 4 || xml[0] != '<') return -1;
+    qsizetype end = 1, local = 1;
+    while (end < xml.size() && xml[end] != ' ' && xml[end] != '>' && xml[end] != '/' && xml[end] != '\t' && xml[end] != '\n' && xml[end] != '\r') {
+        if (xml[end] == ':') local = end + 1;
+        ++end;
+    }
+    const QByteArrayView name = QByteArrayView(xml).mid(local, end - local);
+    static const char *const names[] = {"ligatures", "numForm", "numSpacing", "stylisticSets", "cntxtAlts"};
+    for (int i = 0; i < 5; ++i)
+        if (name == QByteArrayView(names[i])) return i;
+    return -1;
+}
+
+OpenTypeElement openTypeElement(const RawChild &ch)
+{
+    if (openTypeKind(ch.xml) < 0) return OpenTypeElement();
+    static const QRegularExpression head(QStringLiteral("^<(?:[^\\s:>/]+:)?(ligatures|numForm|numSpacing|stylisticSets|cntxtAlts)(?=[\\s/>])"));
+    static const QRegularExpression valueOf(QStringLiteral("\\bval=\"(\\w{0,64})\""));
+    static const QRegularExpression setOf(QStringLiteral("<(?:[^\\s:>/]+:)?styleSet(?=[\\s/>])([^>]*)>"));
+    static const QRegularExpression idOf(QStringLiteral("\\bid=\"(\\d{1,4})\""));
+    OpenTypeElement out;
+    const QString xml = QString::fromUtf8(ch.xml.left(kMostOpenTypeBytes));
+    const QRegularExpressionMatch m = head.match(xml);
+    if (!m.hasMatch()) return out;
+    const QString name = m.captured(1);
+    const qsizetype end = xml.indexOf(QLatin1Char('>'));
+    const QRegularExpressionMatch v = valueOf.match(xml.left(end < 0 ? xml.size() : end));
+    const QString val = v.hasMatch() ? v.captured(1) : QString();
+    if (name == QLatin1String("ligatures")) {
+        out.property = tp::Ligatures;
+        if (const int kinds = tp::ot::ligatureKindsOfName(val); kinds >= 0) out.value = tp::ot::ligatureValueOfKinds(kinds);
+    } else if (name == QLatin1String("numForm")) {
+        out.property = tp::NumberStyle;
+        out.value = val == QLatin1String("lining") ? 1 : val == QLatin1String("oldStyle") ? 2 : val == QLatin1String("default") ? 0 : -1;
+    } else if (name == QLatin1String("numSpacing")) {
+        out.property = tp::NumberSpacing;
+        out.value = val == QLatin1String("proportional") ? 1 : val == QLatin1String("tabular") ? 2 : val == QLatin1String("default") ? 0 : -1;
+    } else if (name == QLatin1String("cntxtAlts")) {
+        out.property = tp::ContextualAlts;
+        out.value = onOff(val, true) ? 1 : 2;
+    } else {
+        // (the first set that is on, of at most twenty listed)
+        out.property = tp::StylisticSet;
+        out.value = 0;
+        int seen = 0;
+        for (QRegularExpressionMatchIterator it = setOf.globalMatch(xml); it.hasNext() && seen < tp::ot::kMostStylisticSet; ++seen) {
+            const QString attrs = it.next().captured(1);
+            const QRegularExpressionMatch id = idOf.match(attrs), on = valueOf.match(attrs);
+            const int n = id.hasMatch() ? id.captured(1).toInt() : 0;
+            if (n >= 1 && n <= tp::ot::kMostStylisticSet && onOff(on.hasMatch() ? on.captured(1) : QString(), true)) {
+                out.value = n;
+                break;
+            }
+        }
+    }
+    return out;
+}
+
+// The element that says a choice, in a prefix the file's root declares (the w14 of the file is where they are put).
+QByteArray openTypeXml(int property, int value)
+{
+    switch (property) {
+    case tp::Ligatures: {
+        return "<w14:ligatures w14:val=\"" + tp::ot::ligatureNameOfKinds(tp::ot::ligatureKindsOf(value)) + "\"/>";
+    }
+    case tp::NumberStyle: return value == 1 ? "<w14:numForm w14:val=\"lining\"/>" : "<w14:numForm w14:val=\"oldStyle\"/>";
+    case tp::NumberSpacing: return value == 1 ? "<w14:numSpacing w14:val=\"proportional\"/>" : "<w14:numSpacing w14:val=\"tabular\"/>";
+    case tp::StylisticSet: return "<w14:stylisticSets><w14:styleSet w14:id=\"" + QByteArray::number(value) + "\" w14:val=\"1\"/></w14:stylisticSets>";
+    default: return value == 1 ? "<w14:cntxtAlts/>" : "<w14:cntxtAlts w14:val=\"0\"/>";
+    }
+}
+
+// Whether a property's number is one the file can say.
+bool openTypeValueIsSayable(int property, int value)
+{
+    switch (property) {
+    case tp::Ligatures: return value == tp::ot::kLigNone || value == tp::ot::kLigAllOlder || (value >= tp::ot::kLigBase + 1 && value < tp::ot::kLigBase + 16);
+    case tp::StylisticSet: return value >= 1 && value <= tp::ot::kMostStylisticSet;
+    default: return value == 1 || value == 2;
+    }
+}
+
+// Makes a run's kept elements say what its format says: an element the file wrote that still says it stays as written; one whose choice was changed or cleared goes,
+// and a choice the file had no element for is written.
+void reconcileOpenType(QVector<RawChild> *extra, const QTextCharFormat &f)
+{
+    static const int properties[] = {tp::Ligatures, tp::NumberStyle, tp::NumberSpacing, tp::StylisticSet, tp::ContextualAlts};
+    int now[5];
+    bool kept[5] = {};
+    for (int k = 0; k < 5; ++k) now[k] = f.hasProperty(properties[k]) ? f.intProperty(properties[k]) : 0;
+    // (Each element is looked at once. The ones that stay are given the places of the schema among the w14 elements, after the others the file has.)
+    for (int i = 0; i < extra->size();) {
+        const int k = openTypeKind(extra->at(i).xml);
+        if (k < 0) {
+            ++i;
+            continue;
+        }
+        const OpenTypeElement e = openTypeElement(extra->at(i));
+        if (e.value < 0) {   // (one that says nothing usable: left as it is)
+            ++i;
+        } else if (e.value == now[k]) {
+            kept[k] = true;
+            (*extra)[i].rank = office::wml::runChildRank("ligatures") + 1 + k;
+            ++i;
+        } else {
+            extra->removeAt(i);
+        }
+    }
+    for (int k = 0; k < 5; ++k) {
+        if (kept[k] || !openTypeValueIsSayable(properties[k], now[k])) continue;
+        RawChild c;
+        c.rank = office::wml::runChildRank("ligatures") + 1 + k;
+        c.xml = openTypeXml(properties[k], now[k]);
+        int at = 0;
+        while (at < extra->size() && extra->at(at).rank <= c.rank) ++at;
+        extra->insert(at, c);
+    }
+}
+
+} // namespace
+
 QTextCharFormat charFormatOf(const RunProps &r, const Theme *theme, const RunProps *direct)
 {
     QTextCharFormat cf;
@@ -426,14 +569,11 @@ QTextCharFormat charFormatOf(const RunProps &r, const Theme *theme, const RunPro
         cf.setProperty(prop::CharShade, fill);
         if (!cf.hasProperty(tp::HighlightRefP)) cf.setProperty(tp::HighlightRefP, ColorRef::rgb(QColor(QLatin1Char('#') + fill)).toString());
     }
-    // The ligatures the run asks for (w14:ligatures, kept as written): none, the standard ones, or the discretionary ones too; a run that says nothing has what
-    // the text engine gives a word processor's text (none).
+    // The OpenType choices the run asks for (w14:ligatures, numForm, numSpacing, stylisticSets, and cntxtAlts, kept as written); a run that says nothing has what
+    // the text engine gives a word processor's text (no ligatures).
     for (const RawChild &ch : r.extra) {
-        static const QRegularExpression ligatures(QStringLiteral("^<[^\\s:>/]+:ligatures\\b[^>]*:val=\"(\\w+)\""));
-        const QRegularExpressionMatch m = ligatures.match(QString::fromUtf8(ch.xml.left(200)));
-        if (!m.hasMatch()) continue;
-        const QString val = m.captured(1);
-        cf.setProperty(tp::Ligatures, val == QLatin1String("none") ? 1 : val.contains(QLatin1String("iscretional")) || val == QLatin1String("all") ? 2 : 0);
+        const OpenTypeElement e = openTypeElement(ch);
+        if (e.property && e.value > 0) cf.setProperty(e.property, e.value);
     }
     if (!r.extra.isEmpty()) setStored(cf, prop::RawRPr, packRaw(r.extra));
     if (direct && direct->fonts && direct->fonts->hasOtherScripts()) cf.setProperty(prop::FontsOther, packOtherFonts(*direct->fonts));
@@ -512,6 +652,7 @@ RunProps runPropsOf(const QTextCharFormat &f)
     r.highlight = h.isEmpty() ? QStringLiteral("none") : highlightName(ColorRef::fromString(h).rgbValue());
     r.style = f.stringProperty(tp::CharStyle);
     if (f.hasProperty(prop::RawRPr)) r.extra = unpackRaw(storedBytes(f, prop::RawRPr));
+    reconcileOpenType(&r.extra, f);
     // The shading and the border a person gave the text, when the run keeps none as the file wrote it (the color behind the letters is the shading's, not a highlight).
     {
         const QString shade = f.stringProperty(prop::CharShade);

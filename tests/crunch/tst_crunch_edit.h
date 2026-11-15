@@ -168,6 +168,8 @@ private Q_SLOTS:
     void closingAChangedNewWorkbookThroughSave();
     void theNewShortcutMakesAWindow();
     void theFileScreensNewPageMakesABlankWorkbook();
+    void aCardsDescriptionFitsInsideItAndStaysClearOfItsChevron();
+    void cardsInARowKeepTheirTextWhateverTheLanguageOrWidth();
     void aFileThatOpensElsewhereClosesTheFileScreen();
     void escCancelsASaveThatWaitsForTheCalculation();
     void aSharedFormulaSurvivesItsFirstCellBeingTypedOver();

@@ -153,7 +153,7 @@ private:
 
 } // namespace
 
-QByteArray pageSvg(const PaintContext &ctx, int pageIndex, const QString &title, bool withText)
+QByteArray pageSvg(const PaintContext &ctx, int pageIndex, const QString &title, bool withText, const QString &description)
 {
     const QSizeF size = ctx.doc->pageSize();
     QBuffer buf;
@@ -165,7 +165,7 @@ QByteArray pageSvg(const PaintContext &ctx, int pageIndex, const QString &title,
     gen.setSize(size.toSize());
     gen.setViewBox(QRectF(QPointF(0, 0), size));
     gen.setTitle(title);
-    gen.setDescription(QStringLiteral("Made with JeffPub"));
+    gen.setDescription(description);
     {
         QPainter out(&gen);
         OutlineDevice dev(&out, size.toSize(), withText);

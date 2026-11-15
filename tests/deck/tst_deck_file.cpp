@@ -1,3 +1,4 @@
+#include "../cardchecks.h"
 // JeffDeck's tests of the file screen, saving from the window, and reusing slides.
 #include "../cmdsearchcheck.h"
 #include "../withdialog.h"
@@ -39,6 +40,14 @@ class DeckFileTests : public QObject {
 
 private Q_SLOTS:
     void initTestCase() { initDeckTestCase(); }
+
+    // The cards of each page of the File screen show all their text, clear of the chevron, in a wide window and a narrower one.
+    void everyCardOfTheFileScreenIsWholeAtEveryWidth()
+    {
+        DeckWindow w;
+        w.show();
+        jptest::checkFileScreenCards(&w, {QStringLiteral("new"), QStringLiteral("open"), QStringLiteral("info"), QStringLiteral("print"), QStringLiteral("export")}, 2);
+    }
 
     // The button on the File screen with this text, if it is showing.
     static QAbstractButton *screenButton(QWidget *screen, const QString &text)

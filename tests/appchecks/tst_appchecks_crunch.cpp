@@ -26,6 +26,7 @@
 #include <QClipboard>
 #include <QFileInfo>
 #include <QGuiApplication>
+#include <QTimer>
 #include <QLabel>
 #include <QToolButton>
 #include <QStatusBar>
@@ -364,6 +365,15 @@ private Q_SLOTS:
                 w->view()->selectRange(0, 0, 1, 1);
                 w->act(QStringLiteral("printarea.set"))->trigger();
             }),
+            in(QStringLiteral("a picture behind the cells"), [](CrunchWindow *w) {
+                static QTemporaryDir folder;
+                const QString path = folder.filePath(QStringLiteral("tile.png"));
+                QImage tile(4, 4, QImage::Format_RGB32);
+                tile.fill(Qt::darkGreen);
+                tile.save(path);
+                w->setPictureAsker([path] { return path; });
+                w->act(QStringLiteral("page.background"))->trigger();
+            }),
             in(QStringLiteral("a sheet that runs over a page"), [](CrunchWindow *w) {
                 w->setSizeAsker([](CrunchWindow::SizeRequest *r) {
                     r->value = 400;
@@ -533,6 +543,7 @@ private Q_SLOTS:
             {QStringLiteral("link."), {QStringLiteral("a cell with a link")}},
             {QStringLiteral("filter."), {QStringLiteral("a filter on"), QStringLiteral("a filter on, and a value changed after")}},
             {QStringLiteral("printarea."), {QStringLiteral("a print area set")}},
+            {QStringLiteral("page.deleteBackground"), {QStringLiteral("a picture behind the cells")}},
             {QStringLiteral("sheet."), {QStringLiteral("a second sheet"), QStringLiteral("a hidden sheet")}},
             {QStringLiteral("formulas.trace"), {QStringLiteral("a formula's cell selected")}},
             {QStringLiteral("formulas.traceError"), {QStringLiteral("an error that comes from a cell it reads")}},
@@ -715,6 +726,23 @@ private Q_SLOTS:
             m_app.settle(w.get());
             const Outcome o = observe(m_app, w.get(), nullptr, watch, [] {}, false, 3000);
             QVERIFY2(!o.changed, qPrintable(o.how + o.detail));
+        }
+    }
+
+    // And an effect that arrives late (a worker, a timer) is still seen: the wait ends when the change comes, and a call that changes nothing is waited for only to the ceiling.
+    void aCallWhoseEffectComesLateIsSeen()
+    {
+        Watch watch;
+        std::unique_ptr<AppWindow> w(m_app.launch());
+        QVERIFY(w);
+        m_app.settle(w.get());
+        for (const int late : {300, 700}) {
+            QElapsedTimer clock;
+            clock.start();
+            const Outcome o = observe(m_app, w.get(), nullptr, watch, [late] { QTimer::singleShot(late, [] { QGuiApplication::clipboard()->setText(QStringLiteral("late")); }); }, false, 3000);
+            QVERIFY2(o.changed, qPrintable(QString::number(late)));
+            QVERIFY(clock.elapsed() >= late - 50);
+            QGuiApplication::clipboard()->clear();
         }
     }
 

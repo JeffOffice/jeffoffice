@@ -1,4 +1,5 @@
 #include "io/deckoutput.h"
+#include "core/notesmaster.h"
 #include "core/printheaderfooter.h"
 
 #include "app/settings.h"
@@ -10,6 +11,7 @@
 #include "core/reuse.h"
 #include "io/pdfbookmarks.h"
 #include "render/pagetags.h"
+#include "render/svgexport.h"
 #include "text/textengine.h"
 #include "text/textprops.h"
 
@@ -35,9 +37,8 @@ namespace jp::deck {
 
 namespace {
 
-// In points: notes pages and the outline keep 0.75 inch clear on every side,
-// a handout's header and footer sit 0.5 inch in from the page's edges.
-constexpr double kMargin = 54, kEdge = 36;
+// In points: the outline keeps 0.75 inch clear on every side (the places of notes pages and handouts are core/notesmaster's).
+constexpr double kMargin = 54;
 constexpr double kFrameWidth = 1;
 const QColor kInk(0x20, 0x20, 0x20);
 const QColor kFrame(0x40, 0x40, 0x40);
@@ -89,23 +90,6 @@ QRectF fitInside(const QSizeF &size, const QRectF &box)
     const double k = std::min(box.width() / size.width(), box.height() / size.height());
     const QSizeF fitted = size * k;
     return QRectF(box.center() - QPointF(fitted.width() / 2, fitted.height() / 2), fitted);
-}
-
-struct Grid {
-    int columns = 1, rows = 1;
-    bool lines = false;   // lines for notes beside each slide
-};
-
-Grid gridOf(PrintLayout layout)
-{
-    switch (layout) {
-    case PrintLayout::Handout2: return {1, 2, false};
-    case PrintLayout::Handout3: return {1, 3, true};
-    case PrintLayout::Handout4: return {2, 2, false};
-    case PrintLayout::Handout6: return {2, 3, false};
-    case PrintLayout::Handout9: return {3, 3, false};
-    default: return {};
-    }
 }
 
 // ---- the outline ----
@@ -308,34 +292,40 @@ void paintSlidePage(const Sheet &s, int slide)
     drawSlide(s, slide, target, s.o.frameSlides);
 }
 
-// The header, date, footer, and page number of a notes page or a handout (Print > Header & Footer), at the page's four corners. `number` is the page's number.
-void paintHeaderFooter(const Sheet &s, PrintedPages pages, int number)
+// The header, date, footer, and page number of a notes page or a handout (Print > Header & Footer), in the places the master gives them. `number` is the page's number.
+void paintHeaderFooter(const Sheet &s, PrintedPages pages, int number, const QRectF &header, const QRectF &date, const QRectF &footer, const QRectF &numberBox)
 {
     const PrintHeaderFooter hf = printHeaderFooter(s.d, pages);
     const Face label(s.d.fonts.body, 10);
-    const QRectF header(kEdge, kEdge - 6, s.paper.width() - 2 * kEdge, 12), footer(kEdge, s.paper.height() - kEdge - 6, s.paper.width() - 2 * kEdge, 12);
     ArtifactSpan lines(s.tagger, s.p);
     if (hf.header && !hf.headerText.isEmpty()) label.draw(s.p, header, Qt::AlignLeft, plain(hf.headerText));
-    if (hf.date) label.draw(s.p, header, Qt::AlignRight, hf.dateText.isEmpty() ? QLocale().toString(QDate::currentDate(), QLocale::ShortFormat) : plain(hf.dateText));
+    if (hf.date) label.draw(s.p, date, Qt::AlignRight, hf.dateText.isEmpty() ? QLocale().toString(QDate::currentDate(), QLocale::ShortFormat) : plain(hf.dateText));
     if (hf.footer && !hf.footerText.isEmpty()) label.draw(s.p, footer, Qt::AlignLeft, plain(hf.footerText));
-    if (hf.pageNumber) label.draw(s.p, footer, Qt::AlignRight, QString::number(number));
+    if (hf.pageNumber) label.draw(s.p, numberBox, Qt::AlignRight, QString::number(number));
+}
+
+// The page's own color, when the master has one.
+void paintPageBackground(const Sheet &s, const QColor &color)
+{
+    if (!color.isValid()) return;
+    ArtifactSpan paper(s.tagger, s.p);
+    s.p->fillRect(QRectF(QPointF(0, 0), s.paper), color);
 }
 
 void paintNotesPage(const Sheet &s, int slide)
 {
-    const double w = s.paper.width() - 2 * kMargin, half = s.paper.height() / 2;
-    // The slide at the top, as large as the upper half lets it be, and the notes under it.
-    QRectF target = fitInside(s.d.pageSize(), QRectF(kMargin, kMargin, w, half - kMargin - 18));
-    target.moveTop(kMargin);
-    drawSlide(s, slide, target, true);
+    const NotesMaster master = notesMasterOf(s.d, s.paper);
+    const NotesPageGeometry g = notesPageGeometry(master, s.paper, s.d.pageSize());
+    paintPageBackground(s, master.background);
+    // The slide at the top, and the notes under it.
+    drawSlide(s, slide, g.slideImage, true);
     // The notes are set as a text box would set them, shrinking to fit what room there is.
     const Page &page = *s.d.pages[slide];
-    if (!page.notesStoryId.isEmpty() && s.d.story(page.notesStoryId)) {
+    if (!s.o.skipNotesText && !page.notesStoryId.isEmpty() && s.d.story(page.notesStoryId)) {
         auto box = std::make_shared<TextItem>();
         box->id = QStringLiteral("output-notes-") + page.id;
         box->storyId = page.notesStoryId;
-        const double top = target.bottom() + 24;
-        box->rect = QRectF(kMargin, top, w, std::max(s.paper.height() - kMargin - 24 - top, 20.0));
+        box->rect = g.body;
         box->insets = QMarginsF(0, 0, 0, 0);
         box->autofit = TextItem::ShrinkOnOverflow;
         s.p->save();
@@ -346,34 +336,31 @@ void paintNotesPage(const Sheet &s, int slide)
         if (s.ctx.mark) s.ctx.mark(s.p, *box, false);
         s.p->restore();
     }
-    paintHeaderFooter(s, PrintedPages::Notes, slide + 1);
+    paintHeaderFooter(s, PrintedPages::Notes, slide + 1, g.header, g.date, g.footer, g.number);
 }
 
 void paintHandoutPage(const Sheet &s, const QVector<int> &slides, int page)
 {
-    const Grid grid = gridOf(s.o.layout);
-    const int per = grid.columns * grid.rows;
+    const int per = slidesPerPage(s.o.layout);
+    const HandoutMaster master = handoutMasterOf(s.d, s.paper);
+    const HandoutGeometry g = handoutGeometry(master, s.paper, per, s.o.horizontalOrder);
     // (a handout's header, footer, and lines to write on are decoration, drawn between its slides)
     PageTagger *tagger = s.tagger;
-    paintHeaderFooter(s, PrintedPages::Handouts, page + 1);
-    const QRectF area(kEdge, 60, s.paper.width() - 2 * kEdge, s.paper.height() - 120);
-    const double cellW = area.width() / grid.columns, cellH = area.height() / grid.rows;
+    paintPageBackground(s, master.background);
+    paintHeaderFooter(s, PrintedPages::Handouts, page + 1, g.header, g.date, g.footer, g.number);
     constexpr double gap = 10;
     for (int k = 0; k < per; ++k) {
         const int at = page * per + k;
         if (at >= slides.size()) break;
-        const int column = s.o.horizontalOrder ? k % grid.columns : k / grid.rows, row = s.o.horizontalOrder ? k / grid.columns : k % grid.rows;
-        const QRectF cell(area.left() + column * cellW, area.top() + row * cellH, cellW, cellH);
-        QRectF room = cell.adjusted(gap, gap, -gap, -gap);
-        if (grid.lines) room.setWidth(cell.width() * 0.46 - gap);
-        const QRectF target = fitInside(s.d.pageSize(), room);
+        const HandoutSlot &slot = g.slots[k];
+        const QRectF target = fitInside(s.d.pageSize(), slot.room);
         drawSlide(s, slides[at], target, true);
-        if (!grid.lines) continue;
+        if (!slot.lines) continue;
         // Lines to write on, down the slide's height.
         ArtifactSpan writing(tagger, s.p);
         s.p->save();
         s.p->setPen(QPen(kRule, 0.75));
-        const double from = cell.left() + cell.width() * 0.52, to = cell.right() - gap;
+        const double from = slot.cell.left() + slot.cell.width() * 0.52, to = slot.cell.right() - gap;
         for (int i = 1; i <= 5; ++i) {
             const double y = target.top() + target.height() * i / 5;
             s.p->drawLine(QPointF(from, y), QPointF(to, y));
@@ -510,7 +497,9 @@ QSizeF localePaper()
 QSizeF outputPageSize(const Document &d, const OutputOptions &o, const QSizeF &paper)
 {
     if (o.layout == PrintLayout::Slides) return d.pageSize();
-    return paper.isEmpty() ? (o.paper.isEmpty() ? localePaper() : o.paper) : paper;
+    const QSizeF sheet = paper.isEmpty() ? (o.paper.isEmpty() ? localePaper() : o.paper) : paper;
+    // (a handout lies across when its master says so)
+    return slidesPerPage(o.layout) && paper.isEmpty() && hasHandoutMaster(d) ? handoutPaper(handoutMasterOf(d, sheet), sheet) : sheet;
 }
 
 QSizeF printSheetSize(const Document &d, const OutputOptions &o)
@@ -697,16 +686,66 @@ QImage slideImage(const Document &d, LayoutCache *cache, int slide, int width)
     return img;
 }
 
-QString slidePictureName(int index, bool jpeg)
+QString slidePictureExtension(SlidePictureFormat format)
 {
-    return QCoreApplication::translate("jp::deck::Output", "Slide %1").arg(index + 1) + (jpeg ? QStringLiteral(".jpg") : QStringLiteral(".png"));
+    switch (format) {
+    case SlidePictureFormat::Jpeg: return QStringLiteral("jpg");
+    case SlidePictureFormat::Gif: return QStringLiteral("gif");
+    case SlidePictureFormat::Tiff: return QStringLiteral("tif");
+    case SlidePictureFormat::Bmp: return QStringLiteral("bmp");
+    case SlidePictureFormat::Svg: return QStringLiteral("svg");
+    default: return QStringLiteral("png");
+    }
+}
+
+QString slidePictureName(int index, SlidePictureFormat format)
+{
+    return QCoreApplication::translate("jp::deck::Output", "Slide %1").arg(index + 1) + QLatin1Char('.') + slidePictureExtension(format);
+}
+
+QString slidePictureName(int index, bool jpeg) { return slidePictureName(index, jpeg ? SlidePictureFormat::Jpeg : SlidePictureFormat::Png); }
+
+namespace {
+SlidePictureFormat formatOf(const SlidePicturesOptions &o) { return o.format == SlidePictureFormat::Png && o.jpeg ? SlidePictureFormat::Jpeg : o.format; }
+}
+
+qint64 slidePicturePixels(const Document &d, int slide)
+{
+    if (slide < 0 || slide >= d.pages.size()) return 0;
+    qint64 total = 0;
+    auto count = [&](const ItemList &items) {
+        for (const auto &it : items)
+            if (const auto *pic = dynamic_cast<const PictureItem *>(it.get())) {
+                const auto found = d.images.constFind(pic->imageId);
+                if (found != d.images.cend()) total += qint64(found->pixelSize.width()) * found->pixelSize.height();
+            }
+    };
+    count(d.pages[slide]->items);
+    if (const MasterPage *m = d.masterFor(*d.pages[slide])) count(m->items);
+    return total;
+}
+
+QByteArray slideSvg(const Document &d, LayoutCache *cache, int slide, QString *why)
+{
+    if (slide < 0 || slide >= d.pages.size()) return {};
+    if (slidePicturePixels(d, slide) > kMostSlidePicturePixels) {
+        if (why) *why = QCoreApplication::translate("jp::deck::Output", "The pictures on slide %1 come to more than %2 million pixels, too many for an SVG drawing, which holds each at its full size. Save the slide as a PNG instead.").arg(slide + 1).arg(kMostSlidePicturePixels / 1000000);
+        return {};
+    }
+    LayoutCache own;
+    PaintContext ctx;
+    ctx.doc = &d;
+    ctx.cache = cache ? cache : &own;
+    ctx.opt.output = true;
+    const QString title = slideTitle(d, slide).trimmed();
+    return pageSvg(ctx, slide, title.isEmpty() ? QCoreApplication::translate("jp::deck::Output", "Slide %1").arg(slide + 1) : title, false, QStringLiteral("Made with JeffDeck"));
 }
 
 QStringList slidePictureNames(const Document &d, const SlidePicturesOptions &o)
 {
     QStringList names;
     for (int i = 0; i < d.pages.size(); ++i)
-        if (o.hidden || !d.pages[i]->hidden) names << slidePictureName(i, o.jpeg);
+        if (o.hidden || !d.pages[i]->hidden) names << slidePictureName(i, formatOf(o));
     return names;
 }
 
@@ -733,12 +772,26 @@ SlidePicturesResult exportSlidePictures(const Document &d, LayoutCache *cache, c
     int done = 0;
     for (int i = 0; i < d.pages.size(); ++i) {
         if (d.pages[i]->hidden && !o.hidden) continue;
-        const QString name = slidePictureName(i, o.jpeg);
-        const QImage img = slideImage(d, cache, i, result.widthUsed);
+        const SlidePictureFormat format = formatOf(o);
+        const QString name = slidePictureName(i, format);
         // (Whole or not at all: the old file stays if this one fails.)
         QSaveFile file(dir.filePath(name));
-        if (img.isNull() || !file.open(QIODevice::WriteOnly) || !img.save(&file, o.jpeg ? "JPEG" : "PNG", o.jpeg ? 92 : -1) || !file.commit()) {
-            result.error = file.error() != QFileDevice::NoError ? file.errorString() : QCoreApplication::translate("jp::deck::Output", "The picture of slide %1 can't be made.").arg(i + 1);
+        bool made = false;
+        QString pictureWhy;
+        if (format == SlidePictureFormat::Svg) {
+            QString refused;
+            const QByteArray svg = slideSvg(d, cache, i, &refused);
+            if (!refused.isEmpty()) {
+                result.error = refused;
+                return result;
+            }
+            made = !svg.isEmpty() && file.open(QIODevice::WriteOnly) && file.write(svg) == svg.size();
+        } else {
+            const QImage img = slideImage(d, cache, i, result.widthUsed);
+            made = !img.isNull() && file.open(QIODevice::WriteOnly) && writePicture(&file, img, PictureFormat(int(format)), 92, &pictureWhy);
+        }
+        if (!made || !file.commit()) {
+            result.error = file.error() != QFileDevice::NoError ? file.errorString() : !pictureWhy.isEmpty() ? pictureWhy : QCoreApplication::translate("jp::deck::Output", "The picture of slide %1 can't be made.").arg(i + 1);
             return result;
         }
         result.written << name;

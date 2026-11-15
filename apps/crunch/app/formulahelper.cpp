@@ -48,6 +48,10 @@ FormulaHelper::FormulaHelper(QObject *parent) : QObject(parent)
     m_hint->setMargin(4);
     m_hint->setAutoFillBackground(true);
     m_hint->setAccessibleName(tr("Arguments of the function"));
+    // the function's name in it is a link to its Help (the label takes no focus: the entry goes on)
+    m_hint->setTextInteractionFlags(Qt::LinksAccessibleByMouse);
+    m_hint->setOpenExternalLinks(false);
+    connect(m_hint, &QLabel::linkActivated, this, [this](const QString &name) { Q_EMIT functionHelpRequested(name); });
     connect(m_list, &QListWidget::currentRowChanged, this, [this] { markChanged(); });
     connect(m_list, &QListWidget::itemClicked, this, [this] { acceptMarked(); });
 }
@@ -164,7 +168,11 @@ void FormulaHelper::showHint(QLineEdit *line, const FormulaSpot &spot)
     }
     const QChar separator = m_separator ? m_separator() : QLatin1Char(',');
     // plain: reviewed: a built-in function's own text, no file text
-    m_hint->setText(hintHtml(*doc, spot.argument, separator));
+    QString html = hintHtml(*doc, spot.argument, separator);
+    const QString name = QString::fromLatin1(doc->name);
+    if (html.startsWith(name)) html = QStringLiteral("<a href=\"%1\">%1</a>").arg(name) + html.mid(name.size());
+    // plain: reviewed: a built-in function's own text (its name is a link), no file text
+    m_hint->setText(html);
     m_hint->adjustSize();
 }
 

@@ -198,6 +198,12 @@ private Q_SLOTS:
     void printingSendsTheCopiesAndCanBeStopped();
     void theMomentOfTheFieldsIsTakenOncePerJob();
     void aPageCanBeSeenAsAPicture();
+    void aBackgroundIsShownOnTheScreenAndNeverPrinted();
+    void aBackgroundIsOneStepOfUndoAndSavedWithTheFile();
+    void aBadBackgroundPictureIsRefusedWithAReason();
+    void picturesOverTheTotalAFileKeepsAreRefusedWhenChosen();
+    void aLargePictureIsTiledAtItsRealSize();
+    void picturesOfSheetsNotChangedCountWhenAPictureIsChosen();
     void theDialogShowsTheSetupAndGivesItBackUnchanged();
     void thePageTabHasThePrintQuality();
     void changesInTheDialogGoBack();

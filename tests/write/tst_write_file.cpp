@@ -1,6 +1,7 @@
 // Tests of JeffWrite's File screen: where editing stopped, the warning before a save to a format that holds less, and the Options pages. Every file is made here in code.
 
 #include "../isolatesettings.h"
+#include "../cardchecks.h"
 #include "../localepin.h"
 #include "../pdfmarkcheck.h"
 #include "app/filescreen.h"
@@ -179,6 +180,13 @@ void moveTo(WriteWindow &w, int pos)
 class FileTests : public QObject {
     Q_OBJECT
 private Q_SLOTS:
+    // The cards of each page of the File screen show all their text, clear of the chevron, in a wide window and a narrower one.
+    void everyCardOfTheFileScreenIsWholeAtEveryWidth()
+    {
+        WriteWindow w;
+        w.show();
+        jptest::checkFileScreenCards(&w, {QStringLiteral("new"), QStringLiteral("open"), QStringLiteral("info"), QStringLiteral("print"), QStringLiteral("export")}, 2);
+    }
     void initTestCase()
     {
         Q_INIT_RESOURCE(resources);

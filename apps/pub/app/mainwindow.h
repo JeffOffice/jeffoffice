@@ -276,6 +276,7 @@ private:
     QVector<MeasureSpin *> m_tableWidthSpins, m_tableHeightSpins;   // Table Layout > Size: the table's own
     Gallery *m_styleGallery = nullptr;
     Gallery *m_schemeGallery = nullptr;
+    void fillSchemeGallery();
 
     // Status bar.
     QLabel *m_pageLabel, *m_posLabel, *m_sizeLabel, *m_zoomLabel;

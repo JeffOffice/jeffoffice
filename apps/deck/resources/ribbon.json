@@ -950,6 +950,10 @@
             {
               "large": "view.sorter",
               "keytip": "SB"
+            },
+            {
+              "large": "view.notesPage",
+              "keytip": "NP"
             }
           ]
         },
@@ -960,6 +964,14 @@
             {
               "large": "view.master",
               "keytip": "SM"
+            },
+            {
+              "large": "view.notesMaster",
+              "keytip": "NT"
+            },
+            {
+              "large": "view.handoutMaster",
+              "keytip": "HM"
             }
           ]
         },
@@ -1239,6 +1251,204 @@
           "items": [
             {
               "large": "master.close",
+              "keytip": "CM"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Notes Master",
+      "keytip": "JN",
+      "context": "Notes Master",
+      "color": "notesMaster",
+      "groups": [
+        {
+          "name": "Placeholders",
+          "keytip": "ZP",
+          "items": [
+            {
+              "row": [
+                {
+                  "widget": "pmHeaderCheck",
+                  "keytip": "PH"
+                }
+              ]
+            },
+            {
+              "row": [
+                {
+                  "widget": "pmDateCheck",
+                  "keytip": "PD"
+                }
+              ]
+            },
+            {
+              "row": [
+                {
+                  "widget": "pmFooterCheck",
+                  "keytip": "PF"
+                }
+              ]
+            },
+            {
+              "row": [
+                {
+                  "widget": "pmNumberCheck",
+                  "keytip": "PN"
+                }
+              ]
+            },
+            {
+              "large": "pagemaster.headerFooter",
+              "keytip": "HF"
+            }
+          ]
+        },
+        {
+          "name": "Background",
+          "keytip": "ZB",
+          "items": [
+            {
+              "large": {
+                "id": "ribbon.notesBackground",
+                "text": "Background Color",
+                "icon": "palette"
+              },
+              "keytip": "BG",
+              "menu": [
+                "pagemaster.background",
+                "pagemaster.backgroundNone"
+              ]
+            },
+            {
+              "large": "pagemaster.reset",
+              "keytip": "RL"
+            }
+          ]
+        },
+        {
+          "name": "Close",
+          "keytip": "ZC",
+          "items": [
+            {
+              "large": "pagemaster.close",
+              "keytip": "CM"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Handout Master",
+      "keytip": "JH",
+      "context": "Handout Master",
+      "color": "notesMaster",
+      "groups": [
+        {
+          "name": "Page Setup",
+          "keytip": "ZG",
+          "items": [
+            {
+              "large": {
+                "id": "ribbon.handoutCount",
+                "text": "Slides Per Page",
+                "icon": "layout-list"
+              },
+              "keytip": "SP",
+              "menu": [
+                "handout.per.1",
+                "handout.per.2",
+                "handout.per.3",
+                "handout.per.4",
+                "handout.per.6",
+                "handout.per.9"
+              ]
+            },
+            {
+              "large": {
+                "id": "ribbon.handoutShape",
+                "text": "Handout Orientation",
+                "icon": "rectangle-vertical"
+              },
+              "keytip": "HO",
+              "menu": [
+                "handout.portrait",
+                "handout.landscape"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Placeholders",
+          "keytip": "ZP",
+          "items": [
+            {
+              "row": [
+                {
+                  "widget": "pmHeaderCheck",
+                  "keytip": "PH"
+                }
+              ]
+            },
+            {
+              "row": [
+                {
+                  "widget": "pmDateCheck",
+                  "keytip": "PD"
+                }
+              ]
+            },
+            {
+              "row": [
+                {
+                  "widget": "pmFooterCheck",
+                  "keytip": "PF"
+                }
+              ]
+            },
+            {
+              "row": [
+                {
+                  "widget": "pmNumberCheck",
+                  "keytip": "PN"
+                }
+              ]
+            },
+            {
+              "large": "pagemaster.headerFooter",
+              "keytip": "HF"
+            }
+          ]
+        },
+        {
+          "name": "Background",
+          "keytip": "ZB",
+          "items": [
+            {
+              "large": {
+                "id": "ribbon.handoutBackground",
+                "text": "Background Color",
+                "icon": "palette"
+              },
+              "keytip": "BG",
+              "menu": [
+                "pagemaster.background",
+                "pagemaster.backgroundNone"
+              ]
+            },
+            {
+              "large": "pagemaster.reset",
+              "keytip": "RL"
+            }
+          ]
+        },
+        {
+          "name": "Close",
+          "keytip": "ZC",
+          "items": [
+            {
+              "large": "pagemaster.close",
               "keytip": "CM"
             }
           ]

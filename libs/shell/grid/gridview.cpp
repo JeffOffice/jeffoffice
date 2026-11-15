@@ -2,10 +2,13 @@
 
 #include "app/icons.h"
 #include "core/threadtime.h"
+#include "grid/hfpicturecache.h"
 #include "grid/textwalk.h"
 #include "sheet/cellref.h"
 
 #include <QApplication>
+#include <QBuffer>
+#include <QImageReader>
 #include <QKeyEvent>
 #include <QMouseEvent>
 #include <QPainter>
@@ -887,11 +890,31 @@ void GridView::setGridlineColor(const QColor &color)
     viewport()->update();
 }
 
+void GridView::setBackgroundPicture(const QByteArray &image)
+{
+    // (the same bytes held again, as a page setup read after each step gives them, are not compared: they are one buffer)
+    if (image.constData() == m_backgroundBytes.constData() && image.size() == m_backgroundBytes.size()) return;
+    if (image == m_backgroundBytes) return;
+    m_backgroundBytes = image;
+    m_background = image.isEmpty() ? QImage() : HeaderPictureCache::instance().get(image, true, nullptr);
+    // a picture is held at most 2,400 pixels on a side: it is tiled at the size it really is
+    m_backgroundScale = 1;
+    if (!m_background.isNull()) {
+        QBuffer buffer(&m_backgroundBytes);
+        buffer.open(QIODevice::ReadOnly);
+        const QSize real = QImageReader(&buffer).size();
+        if (real.isValid() && m_background.width() > 0) m_backgroundScale = double(real.width()) / m_background.width();
+    }
+    viewport()->update();
+}
+
 PaintOptions GridView::paintOptions() const
 {
     PaintOptions o;
     o.gridlines = m_gridlines;
     o.gridColor = m_gridColor;
+    o.background = m_background.isNull() ? nullptr : &m_background;
+    o.backgroundScale = m_backgroundScale;
     o.headers = m_headings;
     o.selection = m_cellsEnabled ? &m_selection : nullptr;
     o.fillHandle = m_cellsEnabled && m_dragEditing;

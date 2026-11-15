@@ -84,6 +84,42 @@
         </dict>
         <dict>
             <key>CFBundleTypeName</key>
+            <string>Macro-enabled presentation (.pptm)</string>
+            <key>CFBundleTypeRole</key>
+            <string>Editor</string>
+            <key>LSHandlerRank</key>
+            <string>Alternate</string>
+            <key>CFBundleTypeExtensions</key>
+            <array>
+                <string>pptm</string>
+            </array>
+        </dict>
+        <dict>
+            <key>CFBundleTypeName</key>
+            <string>Macro-enabled presentation template (.potm)</string>
+            <key>CFBundleTypeRole</key>
+            <string>Editor</string>
+            <key>LSHandlerRank</key>
+            <string>Alternate</string>
+            <key>CFBundleTypeExtensions</key>
+            <array>
+                <string>potm</string>
+            </array>
+        </dict>
+        <dict>
+            <key>CFBundleTypeName</key>
+            <string>Macro-enabled slide show (.ppsm)</string>
+            <key>CFBundleTypeRole</key>
+            <string>Editor</string>
+            <key>LSHandlerRank</key>
+            <string>Alternate</string>
+            <key>CFBundleTypeExtensions</key>
+            <array>
+                <string>ppsm</string>
+            </array>
+        </dict>
+        <dict>
+            <key>CFBundleTypeName</key>
             <string>Presentation (.ppt)</string>
             <key>CFBundleTypeRole</key>
             <string>Editor</string>

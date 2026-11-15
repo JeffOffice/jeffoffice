@@ -3,6 +3,10 @@
 #include <QScopeGuard>
 #include "../withdialog.h"
 #include "app/commentspane.h"
+#include "office/themelib.h"
+#include "io/jpubfile.h"
+#include <QMessageBox>
+#include <QTemporaryDir>
 #include "core/comments.h"
 #include <QLabel>
 #include <QLineEdit>
@@ -1065,6 +1069,100 @@ private Q_SLOTS:
             QCOMPARE(back->pages.size(), doc->pages.size());
             QCOMPARE(back->pageSize(), doc->pageSize());
         }
+    }
+
+    // Color schemes made in any app are shared: a scheme another app made is in the gallery, one made here is kept for them, and a name that a set already has (or a built-in scheme has) never
+    // replaces anything unasked. A publication saved with no scheme touched is the same bytes.
+    void colorSchemesAreSharedAndNeverReplacedUnasked()
+    {
+        QTemporaryDir store, files;
+        QVERIFY(store.isValid() && files.isValid());
+        jp::office::setThemeStoreFolder(store.path());
+        const auto resetStore = qScopeGuard([] { jp::office::setThemeStoreFolder(QString()); });
+        jp::office::ThemeColors theirs = jp::office::builtinThemeColors().at(4);
+        theirs.name = QStringLiteral("Shared Set");
+        QVERIFY(jp::office::saveCustomThemeColors(theirs));
+        jp::MainWindow w;
+        w.show();
+        auto galleryNames = [&] {
+            QStringList names;
+            for (jp::Gallery *g : w.findChildren<jp::Gallery *>())
+                for (const jp::GalleryItem &item : g->items()) names << item.id;
+            return names;
+        };
+        QVERIFY(galleryNames().contains(QStringLiteral("Shared Set")));
+        // an answer for each box that opens, in order, looked for every 20 ms
+        struct Script {
+            QList<std::function<bool(QDialog *)>> steps;
+            QTimer timer;
+            int at = 0;
+        };
+        auto run = [&](const QList<std::function<bool(QDialog *)>> &steps) {
+            Script script;
+            script.steps = steps;
+            script.timer.setInterval(20);
+            QObject::connect(&script.timer, &QTimer::timeout, [&script] {
+                auto *modal = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+                if (modal && script.at < script.steps.size() && script.steps[script.at](modal)) ++script.at;
+            });
+            script.timer.start();
+            QTimer::singleShot(10000, &script.timer, [] {
+                if (QWidget *m = QApplication::activeModalWidget()) m->close();
+            });
+            w.act(QStringLiteral("pd.newColorScheme"))->trigger();
+            QCOMPARE(script.at, int(script.steps.size()));
+        };
+        auto nameIt = [](const QString &name) {
+            return [name](QDialog *d) {
+                if (d->objectName() != QLatin1String("colorSchemeDialog")) return false;
+                d->findChild<QLineEdit *>()->setText(name);
+                d->accept();
+                return true;
+            };
+        };
+        auto cancel = [](QDialog *d) {
+            if (d->objectName() != QLatin1String("colorSchemeDialog")) return false;
+            d->reject();
+            return true;
+        };
+        auto press = [](QMessageBox::StandardButton b) {
+            return [b](QDialog *d) {
+                auto *box = qobject_cast<QMessageBox *>(d);
+                if (!box) return false;
+                box->button(b)->click();
+                return true;
+            };
+        };
+        auto saveBytes = [&](const QString &name) {
+            QString err;
+            const QString path = files.filePath(name);
+            if (!jp::savePublication(*w.editor()->doc(), path, QImage(), &err)) return QByteArray();
+            QFile f(path);
+            return f.open(QIODevice::ReadOnly) ? f.readAll() : QByteArray();
+        };
+        const QByteArray before = saveBytes(QStringLiteral("a.jpub"));
+        QVERIFY(!before.isEmpty());
+        const jp::ColorScheme was = w.editor()->doc()->colors;
+        // the same name as a set another app made, in another case: asked, and No changes nothing; so does a built-in name
+        run({nameIt(QStringLiteral("shared set")), press(QMessageBox::No), cancel});
+        QCOMPARE(jp::office::customThemeColors().size(), 1);
+        QCOMPARE(w.editor()->doc()->colors.name, was.name);
+        run({nameIt(jp::builtinColorSchemes().first().name), press(QMessageBox::Ok), cancel});
+        QCOMPARE(jp::office::customThemeColors().size(), 1);
+        QCOMPARE(saveBytes(QStringLiteral("b.jpub")), before);   // (nothing was touched)
+        // a new name: kept for every app, and in the gallery
+        run({nameIt(QStringLiteral("Pub Made"))});
+        QCOMPARE(w.editor()->doc()->colors.name, QStringLiteral("Pub Made"));
+        QCOMPARE(jp::office::customThemeColors().size(), 2);
+        QVERIFY(galleryNames().contains(QStringLiteral("Pub Made")));
+        // with Yes, the set of that name is replaced
+        run({nameIt(QStringLiteral("SHARED SET")), press(QMessageBox::Yes)});
+        QCOMPARE(jp::office::customThemeColors().size(), 2);
+        // a scheme made here comes back as the eight colors it was
+        jp::ColorScheme made;
+        for (const jp::office::ThemeColors &c : jp::office::customThemeColors())
+            if (c.name.compare(QStringLiteral("shared set"), Qt::CaseInsensitive) == 0) made = jp::office::schemeFromThemeColors(c);
+        for (int i = 0; i < jp::SlotCount; ++i) QCOMPARE(made.c[i].rgb(), w.editor()->doc()->colors.c[i].rgb());
     }
 };
 

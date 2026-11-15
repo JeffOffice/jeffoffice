@@ -164,7 +164,7 @@ void spellingDialog(QWidget *p, Editor *ed)
             inGrammar = true;
             si = 0;
             pos = 0;
-            notInTitle->setText(QCoreApplication::translate("Proofing", "Grammar and style:"));
+            notInTitle->setText(QCoreApplication::translate("Proofing", "Grammar and style"));
             add->setEnabled(false);
             chgAll->setEnabled(false);
             return next();

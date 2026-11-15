@@ -1,5 +1,6 @@
 // JeffDeck's tests of writing a presentation file.
 #include "deckhelpers.h"
+#include "core/notesmaster.h"
 #include "core/printheaderfooter.h"
 #include "io/zip.h"
 #include "app/listmenus.h"
@@ -36,9 +37,235 @@ private Q_SLOTS:
         }
     }
 
+    // A macro-enabled presentation (.pptm, .ppsm, .potm) is opened with its macro project untouched and never run, and saved as the same kind it is written back to the
+    // byte, with the types and links other programs need; saved as a plain kind the project is left out whole.
+    void aMacroPresentationKeepsItsProjectInItsOwnKind()
+    {
+        const QByteArray project("\xD0\xCF\x11\xE0 our own bytes, not a project \x00\x01\x02\xFF", 40), signature("\xD0\xCF\x11\xE0 signature bytes \x00\x10\x20", 24);
+        struct Case { const char *ending, *mainType; } cases[] = {
+            {"pptm", "application/vnd.ms-powerpoint.presentation.macroEnabled.main+xml"},
+            {"ppsm", "application/vnd.ms-powerpoint.slideshow.macroEnabled.main+xml"},
+            {"potm", "application/vnd.ms-powerpoint.template.macroEnabled.main+xml"}};
+        for (const Case &c : cases) {
+            const QString ending = QString::fromLatin1(c.ending);
+            QTemporaryDir dir;
+            QVERIFY(dir.isValid());
+            const QString source = dir.filePath(QStringLiteral("macros.") + ending);
+            {
+                QFile f(source);
+                QVERIFY(f.open(QIODevice::WriteOnly));
+                const QByteArray made = macroPptx(QString::fromLatin1(c.mainType), project, signature);
+                QVERIFY(!made.isEmpty());
+                f.write(made);
+            }
+            QString err;
+            auto doc = deck::importAnyPresentationFile(source, &err);
+            QVERIFY2(doc, qPrintable(err));
+            QVERIFY(!deck::presentationMacros(*doc).isEmpty());
+            QVERIFY(deck::isWrittenEnding(source));
+
+            // the same kind: the project and its signature come back to the byte
+            const QString same = dir.filePath(QStringLiteral("again.") + ending);
+            QVERIFY2(deck::saveAnyPresentationFile(*doc, same, &err), qPrintable(err));
+            QFile sameFile(same);
+            QVERIFY(sameFile.open(QIODevice::ReadOnly));
+            Exported kept;
+            QString why;
+            QVERIFY2(unpack(sameFile.readAll(), &kept, &why), qPrintable(why));
+            QVERIFY2(packageProblem(kept).isEmpty(), qPrintable(packageProblem(kept)));
+            QCOMPARE(kept.zip.value(QStringLiteral("ppt/vbaProject.bin")), project);
+            QCOMPARE(kept.zip.value(QStringLiteral("ppt/vbaProjectSignature.bin")), signature);
+            QCOMPARE(kept.pkg.contentType(QStringLiteral("/ppt/presentation.xml")), QString::fromLatin1(c.mainType));
+            QCOMPARE(kept.pkg.contentType(QStringLiteral("/ppt/vbaProject.bin")), QStringLiteral("application/vnd.ms-office.vbaProject"));
+            QCOMPARE(kept.pkg.contentType(QStringLiteral("/ppt/vbaProjectSignature.bin")), QStringLiteral("application/vnd.ms-office.vbaProjectSignature"));
+            QCOMPARE(relationshipTargets(kept, QStringLiteral("/ppt/presentation.xml"), QStringLiteral("/vbaProject")), QStringList{QStringLiteral("/ppt/vbaProject.bin")});
+            QCOMPARE(relationshipTargets(kept, QStringLiteral("/ppt/vbaProject.bin"), QStringLiteral("/vbaProjectSignature")), QStringList{QStringLiteral("/ppt/vbaProjectSignature.bin")});
+            // (and it opens again, as the same kind, with the project still there)
+            auto again = deck::importAnyPresentationFile(same, &err);
+            QVERIFY2(again, qPrintable(err));
+            QVERIFY(deck::presentationMacros(*again).parts.size() == 2);
+
+            // a plain kind: no project, no signature, no link, no macro type
+            const QString plainEnding = ending == QLatin1String("ppsm") ? QStringLiteral("ppsx") : ending == QLatin1String("potm") ? QStringLiteral("potx") : QStringLiteral("pptx");
+            const QString plain = dir.filePath(QStringLiteral("plain.") + plainEnding);
+            QVERIFY2(deck::saveAnyPresentationFile(*doc, plain, &err), qPrintable(err));
+            QFile plainFile(plain);
+            QVERIFY(plainFile.open(QIODevice::ReadOnly));
+            Exported gone;
+            QVERIFY2(unpack(plainFile.readAll(), &gone, &why), qPrintable(why));
+            QVERIFY2(packageProblem(gone).isEmpty(), qPrintable(packageProblem(gone)));
+            for (const QString &name : gone.zip.keys()) QVERIFY2(!name.contains(QLatin1String("vba")), qPrintable(name));
+            const QString types = QString::fromUtf8(gone.zip.value(QStringLiteral("[Content_Types].xml")));
+            QVERIFY2(!types.contains(QLatin1String("macroEnabled")) && !types.contains(QLatin1String("vba")), qPrintable(types));
+            QVERIFY(!QString::fromUtf8(gone.zip.value(QStringLiteral("ppt/_rels/presentation.xml.rels"))).contains(QLatin1String("vba")));
+            QVERIFY(!gone.pkg.contentType(QStringLiteral("/ppt/presentation.xml")).contains(QLatin1String("macroEnabled")));
+        }
+    }
+
+    // A macro project over a bound (a part of 32 MiB, or more than 8 parts, or 64 MiB together) is not kept, the file is then the plain kind, and the person is told.
+    void aMacroProjectOverTheBoundIsLeftOut()
+    {
+        QByteArray big(int(office::kMaxMacroPartBytes) + 1, 'x');
+        big.replace(0, 4, QByteArray::fromHex("D0CF11E0"));
+        QString err;
+        const QByteArray made = macroPptx(QStringLiteral("application/vnd.ms-powerpoint.presentation.macroEnabled.main+xml"), big, QByteArray());
+        QVERIFY(!made.isEmpty());
+        auto doc = deck::importPresentation(made, &err);
+        QVERIFY2(doc, qPrintable(err));
+        QVERIFY(deck::presentationMacros(*doc).isEmpty());
+        QVERIFY2(err.contains(QLatin1String("too large")), qPrintable(err));
+        // the bytes in a document's own data are held to the same bounds
+        office::MacroProject p;
+        p.parts.push_back(office::MacroPart{QStringLiteral("/ppt/vbaProject.bin"), QStringLiteral("application/vnd.ms-office.vbaProject"), big, -1, false});
+        QVERIFY(office::macroProjectFromJson(office::macroProjectToJson(p)).isEmpty());
+        office::MacroProject many;
+        for (int i = 0; i <= office::kMaxMacroParts; ++i) many.parts.push_back(office::MacroPart{QStringLiteral("/ppt/p%1.bin").arg(i), QStringLiteral("application/vnd.ms-office.vbaProject"), QByteArray("x"), -1, false});
+        QVERIFY(office::macroProjectFromJson(office::macroProjectToJson(many)).isEmpty());
+    }
+
+    // The macro link of a file names a project only if the part is one: of the project type and a compound file by its first bytes; a link to a slide, a picture, a part of
+    // another type, a place outside the file, or an address is not taken.
+    void aMacroLinkToAnythingButAProjectIsNotTaken()
+    {
+        const QByteArray project("\xD0\xCF\x11\xE0 our own bytes", 20);
+        const QString macroType = QStringLiteral("application/vnd.ms-powerpoint.presentation.macroEnabled.main+xml");
+        struct Case { const char *target; bool external; } cases[] = {{"slides/slide1.xml", false}, {"../docProps/app.xml", false}, {"../../vbaProject.bin", false}, {"http://example.com/vbaProject.bin", true}};
+        for (const Case &c : cases) {
+            const QByteArray bytes = macroPptx(macroType, project, QByteArray(), c.target, c.external);
+            QVERIFY(!bytes.isEmpty());
+            QString err;
+            auto doc = deck::importPresentation(bytes, &err);
+            QVERIFY2(doc, qPrintable(err));
+            QVERIFY2(deck::presentationMacros(*doc).isEmpty(), c.target);
+        }
+        // a project that is not a compound file is not one
+        auto notOne = deck::importPresentation(macroPptx(macroType, QByteArray("<p:sld/> not a project"), QByteArray()));
+        QVERIFY(notOne);
+        QVERIFY(deck::presentationMacros(*notOne).isEmpty());
+        // the right link is taken
+        auto good = deck::importPresentation(macroPptx(macroType, project, QByteArray()));
+        QVERIFY(good && deck::presentationMacros(*good).parts.size() == 1);
+    }
+
+    // A plain file with a link to a macro project does not carry the project into a macro-enabled kind when it is saved as one.
+    void aPlainFileCarriesNoMacroProject()
+    {
+        const QByteArray project("\xD0\xCF\x11\xE0 our own bytes", 20);
+        const QByteArray bytes = macroPptx(QStringLiteral("application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"), project, QByteArray());
+        QVERIFY(!bytes.isEmpty());
+        QString err;
+        auto doc = deck::importPresentation(bytes, &err);
+        QVERIFY2(doc, qPrintable(err));
+        QVERIFY(deck::presentationMacros(*doc).isEmpty());
+        Exported out;
+        QString why;
+        QVERIFY2(unpack(deck::exportPresentation(*doc, &err, nullptr, deck::PresentationKind::Presentation, false, true), &out, &why), qPrintable(why));
+        for (const QString &name : out.zip.keys()) QVERIFY2(!name.contains(QLatin1String("vba")), qPrintable(name));
+    }
+
+    // The bounds hold on the package as well as on a document's data: more than 8 parts, or more than 64 MiB together, is left out whole; the size a part claims is read
+    // from the package's directory, and a part that claims more than the bound is never inflated.
+    void theMacroBoundsHoldOnAPackage()
+    {
+        auto packageOf = [&](int projects, qsizetype each) {
+            office::PackageWriter w;
+            w.addPart(QStringLiteral("/ppt/presentation.xml"), QByteArray("<x/>"), QStringLiteral("application/vnd.ms-powerpoint.presentation.macroEnabled.main+xml"));
+            w.addRelationship(QStringLiteral("/"), QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"), QStringLiteral("/ppt/presentation.xml"));
+            QByteArray bytes(each, '\0');
+            bytes.replace(0, 4, QByteArray::fromHex("D0CF11E0"));
+            for (int i = 0; i < projects; ++i) {
+                const QString name = QStringLiteral("/ppt/vba%1.bin").arg(i);
+                w.addPart(name, bytes, QStringLiteral("application/vnd.ms-office.vbaProject"));
+                w.addRelationship(QStringLiteral("/ppt/presentation.xml"), QStringLiteral("http://schemas.microsoft.com/office/2006/relationships/vbaProject"), name);
+            }
+            return w.finish();
+        };
+        office::Package p8, p9, big;
+        QVERIFY(p8.read(packageOf(office::kMaxMacroParts, 100)));
+        QVERIFY(p9.read(packageOf(office::kMaxMacroParts + 1, 100)));
+        QVERIFY(big.read(packageOf(3, 24 << 20)));
+        const office::MacroProject eight = office::readMacroProject(p8, QStringLiteral("/ppt/presentation.xml"));
+        QCOMPARE(int(eight.parts.size()), office::kMaxMacroParts);
+        QVERIFY(!eight.leftOut);
+        QVERIFY(office::readMacroProject(p9, QStringLiteral("/ppt/presentation.xml")).leftOut);
+        const office::MacroProject together = office::readMacroProject(big, QStringLiteral("/ppt/presentation.xml"));
+        QVERIFY(together.leftOut && together.isEmpty());
+        // a part whose entry claims 1.9 GiB (and holds four bytes): refused by its size, before anything is inflated
+        QMap<QString, QByteArray> zipParts;
+        const QByteArray good = packageOf(1, 100);
+        QString why;
+        QVERIFY2(readZip(good, zipParts, &why), qPrintable(why));
+        ZipWriter zip;
+        for (auto it = zipParts.cbegin(); it != zipParts.cend(); ++it) {
+            if (it.key() == QLatin1String("ppt/vba0.bin")) zip.addRaw(it.key(), 8, 0, 4, quint64(1900) << 20, "abcd");
+            else zip.add(it.key(), it.value(), true);
+        }
+        office::Package lazy;
+        QVERIFY(lazy.readLazy(zip.finish()));
+        QVERIFY(lazy.partSize(QStringLiteral("/ppt/vba0.bin")) > office::kMaxMacroPartBytes);
+        QVERIFY(office::readMacroProject(lazy, QStringLiteral("/ppt/presentation.xml")).leftOut);
+    }
+
+    // A project survives the path that settles live text fits first (a shape that shrinks its text), and a name the writer already holds is not written twice.
+    void aMacroProjectSurvivesTheLiveFitPathAndTakenNames()
+    {
+        const QByteArray project("\xD0\xCF\x11\xE0 our own bytes", 20);
+        auto doc = deck::importPresentation(macroPptx(QStringLiteral("application/vnd.ms-powerpoint.presentation.macroEnabled.main+xml"), project, QByteArray()));
+        QVERIFY(doc);
+        auto s = std::make_shared<ShapeItem>();
+        s->shape = QStringLiteral("roundRect");
+        s->rect = QRectF(100, 100, 150, 60);
+        s->storyId = doc->createStory(QStringLiteral("alpha beta gamma delta epsilon zeta eta theta"));
+        s->shrinks = true;
+        doc->pages[0]->items.push_back(s);
+        QString err, why;
+        Exported out;
+        QVERIFY2(unpack(deck::exportPresentation(*doc, &err, nullptr, deck::PresentationKind::Presentation, false, true), &out, &why), qPrintable(why));
+        QCOMPARE(out.zip.value(QStringLiteral("ppt/vbaProject.bin")), project);
+        // a project whose name an empty part of the package already has goes under another, and nothing is written twice
+        office::PackageWriter w;
+        w.addPart(QStringLiteral("/ppt/vbaProject.bin"), QByteArray(), QStringLiteral("application/xml"));
+        office::MacroProject mp;
+        mp.parts.push_back(office::MacroPart{QStringLiteral("/ppt/vbaProject.bin"), QStringLiteral("application/vnd.ms-office.vbaProject"), project, -1, false});
+        office::writeMacroProject(&w, QStringLiteral("/ppt/presentation.xml"), mp, QStringLiteral("/ppt/"));
+        QCOMPARE(w.partData(QStringLiteral("/ppt/vbaProject.bin")), QByteArray());
+        QCOMPARE(w.partData(QStringLiteral("/ppt/vbaProject2.bin")), project);
+    }
+
     void initTestCase() { initDeckTestCase(); }
 
 private:
+
+    // A presentation made here with a macro project of our own bytes in it, as the file of that kind has one: the main part of the type given, the project and its
+    // signature as parts of the types that name them, and the links to them.
+    static QByteArray macroPptx(const QString &mainType, const QByteArray &project, const QByteArray &signature, const QByteArray &linkTarget = "vbaProject.bin", bool externalLink = false)
+    {
+        auto d = deck::newPresentation();
+        QString err, why;
+        Exported base;
+        if (!unpack(deck::exportPresentation(*d, &err), &base, &why)) return QByteArray();
+        ZipWriter zip;
+        for (auto it = base.zip.cbegin(); it != base.zip.cend(); ++it) {
+            QByteArray data = it.value();
+            if (it.key() == QLatin1String("[Content_Types].xml")) {
+                if (!data.contains("application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml")) return QByteArray();   // (the caller checks: a test that changed nothing would test nothing)
+                data.replace("application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml", mainType.toUtf8());
+                data.replace("</Types>", QByteArray("<Override PartName=\"/ppt/vbaProject.bin\" ContentType=\"application/vnd.ms-office.vbaProject\"/>") +
+                                             (signature.isEmpty() ? QByteArray() : QByteArray("<Override PartName=\"/ppt/vbaProjectSignature.bin\" ContentType=\"application/vnd.ms-office.vbaProjectSignature\"/>")) + "</Types>");
+            } else if (it.key() == QLatin1String("ppt/_rels/presentation.xml.rels")) {
+                data.replace("</Relationships>", "<Relationship Id=\"rIdVba\" Type=\"http://schemas.microsoft.com/office/2006/relationships/vbaProject\" Target=\"" + linkTarget + (externalLink ? "\" TargetMode=\"External\"/></Relationships>" : "\"/></Relationships>"));
+            }
+            zip.add(it.key(), data, true);
+        }
+        zip.add(QStringLiteral("ppt/vbaProject.bin"), project, true);
+        if (!signature.isEmpty()) {
+            zip.add(QStringLiteral("ppt/vbaProjectSignature.bin"), signature, true);
+            zip.add(QStringLiteral("ppt/_rels/vbaProject.bin.rels"),
+                    "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">"
+                    "<Relationship Id=\"rId1\" Type=\"http://schemas.microsoft.com/office/2006/relationships/vbaProjectSignature\" Target=\"vbaProjectSignature.bin\"/></Relationships>", true);
+        }
+        return zip.finish();
+    }
 
     // The local names of an element's children, in order.
     static QStringList childNames(const QByteArray &xml)
@@ -1330,6 +1557,239 @@ private Q_SLOTS:
                 QCOMPARE(list->format().intProperty(jp::tp::ListLevel), cases[i].level);
             }
         }
+    }
+
+    // ---- Notes Master and Handout Master layouts (November 15, 2026)
+
+    // The places of the notes master and handout master, the page's background, how many slides a handout holds, and whether it lies across are in the file and come back; a file with
+    // none has the layout printing always had.
+    void notesMasterAndHandoutMasterLayoutsAreKeptInTheFile()
+    {
+        auto d = deck::newPresentation();
+        const QSizeF page(540, 720);
+        deck::NotesMaster nm = deck::notesMasterOf(*d, page);
+        nm.custom = true;
+        nm.slideImage = QRectF(0.05, 0.1, 0.5, 0.25);
+        nm.body = QRectF(0.05, 0.5, 0.9, 0.4);
+        nm.header = QRectF(0.0, 0.0, 0.3, 0.05);
+        nm.date = QRectF(0.6, 0.0, 0.3, 0.05);
+        nm.footer = QRectF(0.0, 0.93, 0.3, 0.05);
+        nm.number = QRectF(0.6, 0.93, 0.3, 0.05);
+        nm.background = QColor(0xDD, 0xEE, 0xFF);
+        deck::setNotesMaster(*d, nm);
+        deck::HandoutMaster hm = deck::handoutMasterOf(*d, page);
+        hm.custom = true;
+        hm.landscape = true;
+        hm.area = QRectF(0.1, 0.12, 0.8, 0.76);
+        hm.header = QRectF(0.02, 0.02, 0.4, 0.05);
+        hm.background = QColor(0xFF, 0xEE, 0xDD);
+        hm.perPage = 4;
+        deck::setHandoutMaster(*d, hm);
+        QString err;
+        const QByteArray bytes = deck::exportPresentation(*d, &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        Exported e;
+        QString why;
+        QVERIFY2(unpack(bytes, &e, &why), qPrintable(why));
+        QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+        const QString notesXml = QString::fromUtf8(e.zip.value(QStringLiteral("ppt/notesMasters/notesMaster1.xml")));
+        QVERIFY2(notesXml.contains(QLatin1String("<a:srgbClr val=\"DDEEFF\"/>")), qPrintable(notesXml.left(600)));
+        QVERIFY2(notesXml.contains(QStringLiteral("<a:off x=\"%1\" y=\"%2\"/>").arg(qRound64(0.05 * 6858000)).arg(qRound64(0.5 * 9144000))), "the notes' place");
+        const QString handoutXml = QString::fromUtf8(e.zip.value(QStringLiteral("ppt/handoutMasters/handoutMaster1.xml")));
+        QVERIFY2(handoutXml.contains(QLatin1String("FFEEDD")) && handoutXml.contains(QLatin1String("landscape=\"1\"")), qPrintable(handoutXml.left(600)));
+        QVERIFY2(part(e, QStringLiteral("/ppt/presProps.xml")).contains(QLatin1String("prnWhat=\"handouts4\"")), qPrintable(part(e, QStringLiteral("/ppt/presProps.xml"))));
+        auto back = deck::importPresentation(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        QVERIFY(deck::hasNotesMaster(*back) && deck::hasHandoutMaster(*back));
+        const deck::NotesMaster nb = deck::notesMasterOf(*back, page);
+        for (deck::NotesPart part : {deck::NotesPart::Body, deck::NotesPart::Header, deck::NotesPart::Date, deck::NotesPart::Footer, deck::NotesPart::Number})
+            QVERIFY2(deck::nearly(nb.part(part), nm.part(part), 0.002), qPrintable(QString::number(int(part))));
+        // (the slide's picture is in the slide's shape inside its place: it is the picture that comes back)
+        const QRectF imageWas = deck::notesPageGeometry(nm, page, d->pageSize()).slideImage, imageBack = deck::notesPageGeometry(nb, page, back->pageSize()).slideImage;
+        QVERIFY2(qAbs(imageWas.left() - imageBack.left()) < 0.5 && qAbs(imageWas.top() - imageBack.top()) < 0.5 && qAbs(imageWas.width() - imageBack.width()) < 0.5, "the slide picture");
+        QCOMPARE(nb.background, nm.background);
+        const deck::HandoutMaster hb = deck::handoutMasterOf(*back, page);
+        QVERIFY(hb.landscape && hb.perPage == 4);
+        QCOMPARE(hb.background, hm.background);
+        QVERIFY(deck::nearly(hb.area, hm.area, 0.0001) && deck::nearly(hb.header, hm.header, 0.002));
+        // Written again, the same file's layout: nothing drifts.
+        Exported again;
+        QVERIFY2(unpack(deck::exportPresentation(*back, &err), &again, &why), qPrintable(why));
+        QCOMPARE(part(again, QStringLiteral("/ppt/handoutMasters/handoutMaster1.xml")), part(e, QStringLiteral("/ppt/handoutMasters/handoutMaster1.xml")));
+
+        // A presentation with no layout of its own has none after, and one that only chose its header and footer has the standard's places, which are the same as none.
+        auto plain = deck::newPresentation();
+        deck::PrintHeaderFooter hf;
+        hf.header = true;
+        hf.headerText = QStringLiteral("Head");
+        deck::setPrintHeaderFooter(*plain, deck::PrintedPages::Handouts, hf);
+        deck::setPrintHeaderFooter(*plain, deck::PrintedPages::Notes, hf);
+        auto plainBack = deck::importPresentation(deck::exportPresentation(*plain, &err), &err);
+        QVERIFY2(plainBack, qPrintable(err));
+        QVERIFY(!deck::hasNotesMaster(*plainBack) && !deck::hasHandoutMaster(*plainBack) && !deck::hasHandoutPerPage(*plainBack));
+        QVERIFY(!deck::notesMasterOf(*plainBack, QSizeF(612, 792)).custom);
+
+        // A master the file had keeps all it had; the place of the header moves when the person moves it, and the shape of its own stays.
+        QString custom = QString::fromUtf8(e.zip.value(QStringLiteral("ppt/handoutMasters/handoutMaster1.xml")));
+        custom.replace(QStringLiteral("</p:spTree>"), QStringLiteral("<p:sp><p:nvSpPr><p:cNvPr id=\"99\" name=\"OurOwnShape\"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x=\"100\" y=\"100\"/><a:ext cx=\"500000\" cy=\"500000\"/></a:xfrm>"
+                                                                  "<a:prstGeom prst=\"ellipse\"><a:avLst/></a:prstGeom></p:spPr></p:sp></p:spTree>"));
+        ZipWriter zip;
+        for (auto it = e.zip.cbegin(); it != e.zip.cend(); ++it) zip.add(it.key(), it.key() == QLatin1String("ppt/handoutMasters/handoutMaster1.xml") ? custom.toUtf8() : it.value(), true);
+        auto read = deck::importPresentation(zip.finish(), &err);
+        QVERIFY2(read, qPrintable(err));
+        Exported same;
+        QVERIFY2(unpack(deck::exportPresentation(*read, &err), &same, &why), qPrintable(why));
+        QCOMPARE(part(same, QStringLiteral("/ppt/handoutMasters/handoutMaster1.xml")).contains(QLatin1String("OurOwnShape")), true);
+        deck::HandoutMaster moved = deck::handoutMasterOf(*read, page);
+        moved.header = QRectF(0.3, 0.3, 0.2, 0.05);
+        moved.background = QColor(1, 2, 3);
+        deck::setHandoutMaster(*read, moved);
+        Exported changed;
+        QVERIFY2(unpack(deck::exportPresentation(*read, &err), &changed, &why), qPrintable(why));
+        QVERIFY2(packageProblem(changed).isEmpty(), qPrintable(packageProblem(changed)));
+        const QString changedXml = part(changed, QStringLiteral("/ppt/handoutMasters/handoutMaster1.xml"));
+        QVERIFY(changedXml.contains(QLatin1String("OurOwnShape")) && changedXml.contains(QLatin1String("010203")) && !changedXml.contains(QLatin1String("FFEEDD")));
+        QVERIFY(changedXml.contains(QStringLiteral("x=\"%1\"").arg(qRound64(0.3 * 6858000))));
+        auto movedBack = deck::importPresentation(deck::exportPresentation(*read, &err), &err);
+        QVERIFY(movedBack && deck::nearly(deck::handoutMasterOf(*movedBack, page).header, moved.header, 0.002));
+    }
+
+    // A master that lies about its places, its size, or its count is read within limits: places inside the page, no more than 64 shapes looked at, no count but the six.
+    void hostileNotesAndHandoutMastersAreBounded()
+    {
+        auto d = deck::newPresentation();
+        deck::PrintHeaderFooter hf;
+        hf.header = true;
+        deck::setPrintHeaderFooter(*d, deck::PrintedPages::Notes, hf);
+        deck::setPrintHeaderFooter(*d, deck::PrintedPages::Handouts, hf);
+        QString err;
+        Exported e;
+        QString why;
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &e, &why), qPrintable(why));
+        QString notes = QString::fromUtf8(e.zip.value(QStringLiteral("ppt/notesMasters/notesMaster1.xml")));
+        QString handout = QString::fromUtf8(e.zip.value(QStringLiteral("ppt/handoutMasters/handoutMaster1.xml")));
+        // Places far outside the page, negative, and too big for any number; and thousands of shapes before the places that count.
+        QString crowd;
+        for (int i = 0; i < 3000; ++i) crowd += QStringLiteral("<p:sp><p:nvSpPr><p:cNvPr id=\"%1\" name=\"x\"/><p:cNvSpPr/><p:nvPr><p:ph type=\"hdr\" idx=\"%1\"/></p:nvPr></p:nvSpPr><p:spPr><a:xfrm><a:off x=\"5\" y=\"5\"/><a:ext cx=\"100\" cy=\"100\"/></a:xfrm></p:spPr></p:sp>").arg(1000 + i);
+        const QRegularExpression offs(QStringLiteral("<a:off x=\"\\d+\" y=\"\\d+\"/><a:ext cx=\"\\d+\" cy=\"\\d+\"/>"));
+        QString wild = notes;
+        wild.replace(QStringLiteral("<p:spTree>"), QStringLiteral("<p:spTree>") + crowd);
+        wild.replace(offs, QStringLiteral("<a:off x=\"-9000000000000\" y=\"99999999999999999999\"/><a:ext cx=\"9223372036854775807\" cy=\"-5\"/>"));
+        QString wildHandout = handout;
+        wildHandout.replace(offs, QStringLiteral("<a:off x=\"1e9\" y=\"NaN\"/><a:ext cx=\"0\" cy=\"0\"/>"));
+        wildHandout.replace(QStringLiteral("<p:spTree>"), QStringLiteral("<p:spTree>") + crowd);
+        wildHandout.replace(QStringLiteral("</p:handoutMaster>"), QStringLiteral("<p:extLst><p:ext uri=\"{7B0F4F1E-5E7A-4C55-9D3B-2F6E1A9C0D11}\"><jo:handout xmlns:jo=\"http://jeffoffice.com/ns/deck\" landscape=\"1\" area=\"nan inf -1 1e300\"/></p:ext></p:extLst></p:handoutMaster>"));
+        QString props = part(e, QStringLiteral("/ppt/presProps.xml"));
+        props.replace(QRegularExpression(QStringLiteral("<p:presentationPr([^>]*)/>")), QStringLiteral("<p:presentationPr\\1><p:prnPr prnWhat=\"handouts99999\"/></p:presentationPr>"));
+        ZipWriter zip;
+        for (auto it = e.zip.cbegin(); it != e.zip.cend(); ++it) {
+            const QString key = it.key();
+            const QByteArray data = key == QLatin1String("ppt/notesMasters/notesMaster1.xml") ? wild.toUtf8() : key == QLatin1String("ppt/handoutMasters/handoutMaster1.xml") ? wildHandout.toUtf8()
+                                    : key == QLatin1String("ppt/presProps.xml") ? props.toUtf8() : it.value();
+            zip.add(key, data, true);
+        }
+        QElapsedTimer timer;
+        timer.start();
+        auto read = deck::importPresentation(zip.finish(), &err);
+        QVERIFY2(read, qPrintable(err));
+        QVERIFY2(timer.elapsed() < 20000, "the crowd of shapes costs bounded work");
+        // The cap is what bounds it: of 3,000 shapes in each master, no more than kMaxMasterShapes are looked at (and that many were, so the cap was reached).
+        QCOMPARE(deck::pptxImportWorkForTest().masterShapesRead, qint64(deck::kMaxMasterShapes));
+        const QSizeF page(540, 720);
+        for (const QRectF &r : {deck::notesMasterOf(*read, page).header, deck::notesMasterOf(*read, page).body, deck::notesMasterOf(*read, page).slideImage, deck::handoutMasterOf(*read, page).area,
+                                deck::handoutMasterOf(*read, page).header}) {
+            QVERIFY2(r.left() >= 0 && r.top() >= 0 && r.right() <= 1.0000001 && r.bottom() <= 1.0000001 && r.width() >= 0.0049 && r.height() >= 0.0049, qPrintable(QStringLiteral("%1,%2 %3x%4").arg(r.x()).arg(r.y()).arg(r.width()).arg(r.height())));
+        }
+        QVERIFY(deck::isHandoutCount(deck::handoutMasterOf(*read, page).perPage));
+        QVERIFY(!deck::hasHandoutPerPage(*read));
+    }
+
+    // Reset Layout on a handout master a file had puts the standard's places back for good: what the file had is let go, so saving and opening again reads the standard's places.
+    void resettingAForeignHandoutMasterSticks()
+    {
+        auto d = deck::newPresentation();
+        deck::PrintHeaderFooter hf;
+        hf.header = true;
+        hf.headerText = QStringLiteral("Head");
+        deck::setPrintHeaderFooter(*d, deck::PrintedPages::Handouts, hf);
+        QString err;
+        Exported first;
+        QString why;
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &first, &why), qPrintable(why));
+        const QString name = QStringLiteral("ppt/handoutMasters/handoutMaster1.xml");
+        QString foreign = QString::fromUtf8(first.zip.value(name));
+        foreign.replace(QRegularExpression(QStringLiteral("<p:bg>.*</p:bg>")), QStringLiteral("<p:bg><p:bgPr><a:solidFill><a:srgbClr val=\"112233\"/></a:solidFill><a:effectLst/></p:bgPr></p:bg>"));
+        foreign.replace(QStringLiteral("<a:off x=\"0\" y=\"0\"/><a:ext cx=\"2971800\""), QStringLiteral("<a:off x=\"1000000\" y=\"2000000\"/><a:ext cx=\"1500000\""));
+        ZipWriter zip;
+        for (auto it = first.zip.cbegin(); it != first.zip.cend(); ++it) zip.add(it.key(), it.key() == name ? foreign.toUtf8() : it.value(), true);
+        auto read = deck::importPresentation(zip.finish(), &err);
+        QVERIFY2(read, qPrintable(err));
+        QVERIFY(deck::hasHandoutMaster(*read));
+        QVERIFY(!deck::keptHandoutMaster(*read).isEmpty());
+        deck::clearHandoutMaster(*read);
+        QVERIFY(!deck::hasHandoutMaster(*read) && deck::keptHandoutMaster(*read).isEmpty());
+        QVERIFY(!read->appData.contains(QStringLiteral("handoutMasterReadLayout")));
+        auto again = deck::importPresentation(deck::exportPresentation(*read, &err), &err);
+        QVERIFY2(again, qPrintable(err));
+        QVERIFY2(!deck::hasHandoutMaster(*again), "the standard's places");
+        Exported out;
+        QVERIFY2(unpack(deck::exportPresentation(*read, &err), &out, &why), qPrintable(why));
+        QVERIFY(!part(out, QStringLiteral("/") + name).contains(QLatin1String("112233")));
+        // (the header text the person chose is still there)
+        QCOMPARE(deck::printHeaderFooter(*again, deck::PrintedPages::Handouts).headerText, QStringLiteral("Head"));
+    }
+
+    // A handout master written by hand, as another program may write one (an alternate-content block, an extension list with more than ours, and an extension nobody here knows):
+    // read and written with no change it is the same bytes; changed once, everything it had that we do not know is still there.
+    void aForeignHandoutMasterKeepsWhatItHas()
+    {
+        const QString xml = QStringLiteral(
+            "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n"
+            "<p:handoutMaster xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" "
+            "xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\" xmlns:mc=\"http://schemas.openxmlformats.org/markup-compatibility/2006\" xmlns:x=\"urn:example:unknown\">"
+            "<p:cSld><p:bg><p:bgPr><a:solidFill><a:srgbClr val=\"EEEEEE\"/></a:solidFill><a:effectLst/></p:bgPr></p:bg><p:spTree>"
+            "<p:nvGrpSpPr><p:cNvPr id=\"1\" name=\"\"/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr/>"
+            "<p:sp><p:nvSpPr><p:cNvPr id=\"2\" name=\"Header Placeholder 1\"/><p:cNvSpPr/><p:nvPr><p:ph type=\"hdr\" sz=\"quarter\"/></p:nvPr></p:nvSpPr>"
+            "<p:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"2971800\" cy=\"458788\"/></a:xfrm></p:spPr><p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:endParaRPr lang=\"en-US\"/></a:p></p:txBody></p:sp>"
+            "<mc:AlternateContent><mc:Choice Requires=\"x\"><p:sp><p:nvSpPr><p:cNvPr id=\"50\" name=\"ChoiceShape\"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr/></p:sp></mc:Choice>"
+            "<mc:Fallback><p:sp><p:nvSpPr><p:cNvPr id=\"51\" name=\"FallbackShape\"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr/></p:sp></mc:Fallback></mc:AlternateContent>"
+            "</p:spTree><p:extLst><p:ext uri=\"{AAAAAAAA-0000-4000-8000-000000000001}\"><x:thing x:keep=\"yes\"/></p:ext>"
+            "<p:ext uri=\"{AAAAAAAA-0000-4000-8000-000000000002}\"><x:other/></p:ext></p:extLst></p:cSld>"
+            "<p:clrMap bg1=\"lt1\" tx1=\"dk1\" bg2=\"lt2\" tx2=\"dk2\" accent1=\"accent1\" accent2=\"accent2\" accent3=\"accent3\" accent4=\"accent4\" accent5=\"accent5\" accent6=\"accent6\" hlink=\"hlink\" folHlink=\"folHlink\"/>"
+            "<p:hf hdr=\"1\" ftr=\"0\" dt=\"0\" sldNum=\"1\"/>"
+            "<p:extLst><p:ext uri=\"{BBBBBBBB-0000-4000-8000-000000000003}\"><x:handoutOnly/></p:ext></p:extLst></p:handoutMaster>");
+        auto d = deck::newPresentation();
+        deck::PrintHeaderFooter hf;
+        hf.header = true;
+        deck::setPrintHeaderFooter(*d, deck::PrintedPages::Handouts, hf);
+        QString err, why;
+        Exported base;
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &base, &why), qPrintable(why));
+        const QString name = QStringLiteral("ppt/handoutMasters/handoutMaster1.xml");
+        ZipWriter zip;
+        for (auto it = base.zip.cbegin(); it != base.zip.cend(); ++it) zip.add(it.key(), it.key() == name ? xml.toUtf8() : it.value(), true);
+        const QByteArray file = zip.finish();
+        auto read = deck::importPresentation(file, &err);
+        QVERIFY2(read, qPrintable(err));
+        Exported same;
+        QVERIFY2(unpack(deck::exportPresentation(*read, &err), &same, &why), qPrintable(why));
+        QCOMPARE(same.zip.value(name), xml.toUtf8());
+        // Edited once: the header moves, and the handouts lie across.
+        deck::HandoutMaster m = deck::handoutMasterOf(*read, QSizeF(540, 720));
+        m.custom = true;
+        m.header = QRectF(0.2, 0.2, 0.3, 0.05);
+        m.landscape = true;
+        deck::setHandoutMaster(*read, m);
+        Exported changed;
+        QVERIFY2(unpack(deck::exportPresentation(*read, &err), &changed, &why), qPrintable(why));
+        QVERIFY2(packageProblem(changed).isEmpty(), qPrintable(packageProblem(changed)));
+        const QString out = part(changed, QStringLiteral("/") + name);
+        for (const char *kept : {"mc:AlternateContent", "mc:Fallback", "ChoiceShape", "FallbackShape", "AAAAAAAA-0000-4000-8000-000000000001", "x:keep", "AAAAAAAA-0000-4000-8000-000000000002", "BBBBBBBB-0000-4000-8000-000000000003", "x:handoutOnly", "EEEEEE"})
+            QVERIFY2(out.contains(QLatin1String(kept)), kept);
+        QVERIFY2(out.contains(QStringLiteral("x=\"%1\"").arg(qRound64(0.2 * 6858000))), "the header moved");
+        QVERIFY2(out.contains(QLatin1String("landscape=\"1\"")), "the orientation is kept in our extension");
+        auto back = deck::importPresentation(deck::exportPresentation(*read, &err), &err);
+        QVERIFY(back && deck::handoutMasterOf(*back, QSizeF(540, 720)).landscape);
     }
 };
 

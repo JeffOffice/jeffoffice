@@ -1,6 +1,6 @@
 // JeffDeck entry point.
 //
-//   JeffDeck [file ...]                 open presentations (.pptx, .potx, .ppsx, .ppt, .pps, .pot, .odp, .otp), or start a new one
+//   JeffDeck [file ...]                 open presentations (.pptx, .pptm, .potx, .potm, .ppsx, .ppsm, .ppt, .pps, .pot, .odp, .otp), or start a new one
 //   JeffDeck --screenshot <png> [--size WxH]
 //                                         render the window to a PNG and quit
 //                                         (works with QT_QPA_PLATFORM=offscreen)
@@ -79,6 +79,7 @@ int main(int argc, char **argv)
     QApplication::setApplicationVersion(jp::versionText());
     QApplication::setHighDpiScaleFactorRoundingPolicy(Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
     QApplication app(argc, argv);
+    jp::keepSettingsApart();   // (a test run or a screenshot never changes the person's own settings)
     jp::startupMark("QApplication built");
     jp::crash::install(jp::crash::reportPath());   // sent with the statistics on the next start, if they're on
     jp::recovery::setCopySuffix(QStringLiteral(".pptx"));   // automatic recovery keeps presentations

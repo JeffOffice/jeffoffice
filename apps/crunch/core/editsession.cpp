@@ -2143,6 +2143,7 @@ void EditSession::saved(const Snapshot &snapshot, const Package &package)
     m_fileBookProtection = m_book->book->info().protection;
     m_fileCustomViews = m_book->book->info().customViews;
     for (const auto &[sheet, rel] : snapshot.headerDrawings) m_pages.setHeaderDrawing(sheet, rel);
+    for (const auto &[sheet, rel] : snapshot.backgroundRels) m_pages.setBackgroundRel(sheet, rel);
     forgetDeletesInFile();
     // what differs from the file is what differs from the file just written
     for (auto it = m_results.begin(); it != m_results.end();) {

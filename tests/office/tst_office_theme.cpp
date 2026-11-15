@@ -1,5 +1,7 @@
 // Tests of libs/office: the theme and DrawingML colors.
 #include "officehelpers.h"
+#include "office/themelib.h"
+#include <QFileInfo>
 
 namespace {
 
@@ -572,6 +574,275 @@ private Q_SLOTS:
                 if (parseXml(bad, &doc)) readColor(doc.documentElement(), colorTestTheme(), ColorMap(), QColor(Qt::red));
             }
         }
+    }
+
+    // ---- the shared theme sets, the user's folder, and theme files
+
+    void builtinThemeSetsAreComplete()
+    {
+        const auto &colors = builtinThemeColors();
+        QVERIFY(colors.size() >= 10);
+        QSet<QString> names;
+        for (const ThemeColors &c : colors) {
+            QVERIFY(!c.name.isEmpty());
+            QVERIFY2(!names.contains(c.name), qPrintable(c.name));
+            names.insert(c.name);
+            for (const QColor &col : c.colors) QVERIFY(col.isValid());
+        }
+        jp::initCore();
+        QVERIFY(!builtinThemeFonts().isEmpty());
+        QCOMPARE(builtinThemePacks().size(), colors.size());
+        for (int i = 0; i < Theme::ColorCount; ++i) QVERIFY(!themeSlotLabel(i).isEmpty());
+    }
+
+    void aPartKeepsItsOtherThingsWhenColorsAndFontsChange()
+    {
+        Theme t;
+        QVERIFY(readTheme(handWrittenTheme(), &t));
+        ThemeColors c = builtinThemeColors().at(1);
+        const Theme changed = withThemeFonts(withThemeColors(t, c), ThemeFonts{QStringLiteral("Mine"), QStringLiteral("Zephyr Heading"), QStringLiteral("Zephyr Body")});
+        Theme back;
+        QVERIFY(readTheme(writeTheme(changed), &back));
+        QVERIFY(themeColorsOf(back) == c);
+        QCOMPARE(back.colorSchemeName, c.name);
+        QCOMPARE(back.majorLatin, QStringLiteral("Zephyr Heading"));
+        QCOMPARE(back.minorLatin, QStringLiteral("Zephyr Body"));
+        QCOMPARE(back.fontSchemeName, QStringLiteral("Mine"));
+        // (the part's own format scheme is still there: the part was patched, not made again)
+        const QByteArray was = handWrittenTheme(), now = writeTheme(changed);
+        for (const char *kept : {"fmtScheme", "fillStyleLst"})
+            QCOMPARE(now.contains(kept), was.contains(kept));
+    }
+
+    void customSetsAreKeptInTheFolderAndBounded()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        setThemeStoreFolder(dir.path());
+        struct Reset { ~Reset() { setThemeStoreFolder(QString()); } } reset;
+        QVERIFY(customThemeColors().isEmpty());
+        ThemeColors c = builtinThemeColors().at(2);
+        c.name = QStringLiteral("  My Colors ");
+        QVERIFY(saveCustomThemeColors(c));
+        QVERIFY(saveCustomThemeFonts({QStringLiteral("My Fonts"), QStringLiteral("Zephyr Heading"), QStringLiteral("Zephyr Body")}));
+        QCOMPARE(customThemeColors().size(), 1);
+        QCOMPARE(customThemeColors().first().name, QStringLiteral("My Colors"));
+        QVERIFY(customThemeColors().first() == c);
+        // the same name in another case replaces it
+        c.colors[Theme::Accent1] = QColor(1, 2, 3);
+        c.name = QStringLiteral("my colors");
+        QVERIFY(saveCustomThemeColors(c));
+        QCOMPARE(customThemeColors().size(), 1);
+        QCOMPARE(customThemeColors().first().colors[Theme::Accent1], QColor(1, 2, 3));
+        QCOMPARE(customThemeFonts().size(), 1);
+        QVERIFY(!saveCustomThemeColors(ThemeColors()));   // no name
+        QVERIFY(removeCustomThemeColors(QStringLiteral("MY COLORS")));
+        QVERIFY(customThemeColors().isEmpty());
+        QVERIFY(!removeCustomThemeColors(QStringLiteral("nothing")));
+        // a hostile file: too big, too many sets, bad colors, a long name
+        QFile f(dir.path() + QStringLiteral("/colors.json"));
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        QByteArray many = "{\"sets\":[";
+        for (int i = 0; i < kMaxCustomThemeSets + 50; ++i) {
+            if (i) many += ',';
+            many += "{\"name\":\"n" + QByteArray::number(i) + "\",\"colors\":[\"#000000\",\"#000000\",\"#000000\",\"#000000\",\"#000000\",\"#000000\",\"#000000\",\"#000000\",\"#000000\",\"#000000\",\"#000000\",\"#000000\"]}";
+        }
+        many += ",{\"name\":\"bad\",\"colors\":[\"x\"]}]}";
+        f.write(many);
+        f.close();
+        QCOMPARE(customThemeColors().size(), kMaxCustomThemeSets);
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write(QByteArray(int(kMaxThemeStoreBytes) + 10, ' '));
+        f.close();
+        QVERIFY(customThemeColors().isEmpty());
+        ThemeColors longName = builtinThemeColors().first();
+        longName.name = QString(500, QLatin1Char('x'));
+        QFile::remove(f.fileName());
+        QVERIFY(saveCustomThemeColors(longName));
+        QCOMPARE(customThemeColors().first().name.size(), kMaxThemeNameLength);
+    }
+
+    void aThemeFileWritesAndReadsBack()
+    {
+        Theme t = withThemeColors(defaultTheme(), builtinThemeColors().at(3));
+        t.majorLatin = QStringLiteral("Zephyr Heading");
+        t.name = QStringLiteral("Mine");
+        const QByteArray file = writeThemeFile(t);
+        QVERIFY(file.startsWith("PK"));
+        Theme back;
+        QString err;
+        QVERIFY2(readThemeFromPackage(file, &back, &err), qPrintable(err));
+        QVERIFY(themeColorsOf(back) == builtinThemeColors().at(3));
+        QCOMPARE(back.majorLatin, QStringLiteral("Zephyr Heading"));
+        QCOMPARE(back.name, QStringLiteral("Mine"));
+        QTemporaryDir dir;
+        QFile f(dir.path() + QStringLiteral("/a.thmx"));
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write(file);
+        f.close();
+        Theme fromFile;
+        QVERIFY(readThemeFile(f.fileName(), &fromFile, &err));
+        QCOMPARE(fromFile.name, QStringLiteral("Mine"));
+        QVERIFY(!readThemeFile(dir.path() + QStringLiteral("/none.thmx"), &fromFile, &err));
+    }
+
+    void aThemeIsFoundInsideAPackageOfAnotherKind()
+    {
+        // a presentation-like package: the main part links its theme
+        PackageWriter w;
+        const QString ct = QStringLiteral("application/vnd.openxmlformats-officedocument.theme+xml");
+        w.addPart(QStringLiteral("/ppt/presentation.xml"), "<p/>", QStringLiteral("application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"));
+        w.addPart(QStringLiteral("/ppt/theme/theme1.xml"), writeTheme(withThemeColors(defaultTheme(), builtinThemeColors().at(5))), ct);
+        w.addRelationship(QStringLiteral("/"), QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"), QStringLiteral("/ppt/presentation.xml"));
+        w.addRelationship(QStringLiteral("/ppt/presentation.xml"), QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme"), QStringLiteral("/ppt/theme/theme1.xml"));
+        Theme t;
+        QVERIFY(readThemeFromPackage(w.finish(), &t));
+        QVERIFY(themeColorsOf(t) == builtinThemeColors().at(5));
+        // a package with no theme, and bytes that are no package
+        PackageWriter none;
+        none.addPart(QStringLiteral("/a.xml"), "<a/>", QStringLiteral("application/xml"));
+        QString err;
+        QVERIFY(!readThemeFromPackage(none.finish(), &t, &err));
+        QVERIFY(!err.isEmpty());
+        QVERIFY(!readThemeFromPackage(QByteArray("not a zip at all"), &t, &err));
+        // a theme part over the limit is not read
+        PackageWriter big;
+        QByteArray part = writeTheme(defaultTheme());
+        part.insert(part.indexOf("</a:theme>"), QByteArray(int(kMaxThemePartBytes) + 10, ' '));
+        big.addPart(QStringLiteral("/theme/theme/theme1.xml"), part, ct);
+        QVERIFY(!readThemeFromPackage(big.finish(), &t, &err));
+    }
+
+    void pubSchemesRoundTripThroughTheTwelveColors()
+    {
+        for (const jp::ColorScheme &s : jp::builtinColorSchemes().mid(0, 12)) {
+            const ThemeColors c = themeColorsFromScheme(s);
+            const jp::ColorScheme back = schemeFromThemeColors(c);
+            for (int i = 0; i < jp::SlotCount; ++i) QCOMPARE(back.c[i], s.c[i]);
+            QCOMPARE(back.name, s.name);
+        }
+    }
+
+    // ---- limits on what a theme file may hold
+    void aPackageWithManyThemePartsIsGivenUpOnAfterEight()
+    {
+        PackageWriter w;
+        const QString ct = QStringLiteral("application/vnd.openxmlformats-officedocument.theme+xml");
+        w.addPart(QStringLiteral("/word/document.xml"), "<w/>", QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"));
+        w.addRelationship(QStringLiteral("/"), QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"), QStringLiteral("/word/document.xml"));
+        // sixty parts that are no theme, and a real one after them: only eight are looked at
+        for (int i = 1; i <= 60; ++i) w.addPart(QStringLiteral("/word/theme/theme%1.xml").arg(i), "<junk/>", ct);
+        w.addPart(QStringLiteral("/word/theme/theme99.xml"), writeTheme(defaultTheme()), ct);
+        Theme t;
+        QString err;
+        QElapsedTimer timer;
+        timer.start();
+        QVERIFY(!readThemeFromPackage(w.finish(), &t, &err));
+        QVERIFY(timer.elapsed() < 2000);
+        QVERIFY(!err.isEmpty());
+        // parts that are large together are stopped by the byte limit, before the rest are inflated
+        PackageWriter big;
+        const QByteArray part = "<junk>" + QByteArray(int(kMaxThemePartBytes) - 5000, ' ') + "</junk>";
+        for (int i = 1; i <= 7; ++i) big.addPart(QStringLiteral("/theme/theme/theme%1.xml").arg(i), part + QByteArray::number(i), ct);
+        QVERIFY(!readThemeFromPackage(big.finish(), &t, &err));
+        QVERIFY(err.contains(QLatin1String("large")));
+    }
+
+    void aThemeFileWhoseDirectoryClaimsAGigabyteIsRefusedAtOnce()
+    {
+        const QByteArray good = writeThemeFile(defaultTheme());
+        // every central directory record says its entry inflates to a gigabyte
+        QByteArray lying = good;
+        int at = 0, patched = 0;
+        while ((at = lying.indexOf(QByteArray("PK\x01\x02", 4), at)) >= 0) {
+            const quint32 size = quint32(1) << 30;
+            for (int i = 0; i < 4; ++i) lying[at + 24 + i] = char((size >> (8 * i)) & 0xFF);
+            at += 4;
+            ++patched;
+        }
+        QVERIFY(patched > 0);
+        Theme t;
+        QString err;
+        QElapsedTimer timer;
+        timer.start();
+        QVERIFY(!readThemeFromPackage(lying, &t, &err, true));
+        QVERIFY(timer.elapsed() < 2000);
+        QVERIFY(!err.isEmpty());
+        // a file over the limit on disk is not read at all
+        QTemporaryDir dir;
+        QFile f(dir.filePath(QStringLiteral("huge.thmx")));
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        QVERIFY(f.resize(kMaxThemeFileBytes + 1));
+        f.close();
+        QVERIFY(!readThemeFile(f.fileName(), &t, &err));
+        // and the honest one still reads
+        QVERIFY(readThemeFromPackage(good, &t, &err, true));
+    }
+
+    // ---- the folder of the person's own sets
+    void aFileOfSetsThatCantBeReadIsKeptAsBadAndNeverWrittenOver()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        setThemeStoreFolder(dir.path());
+        struct Reset { ~Reset() { setThemeStoreFolder(QString()); } } reset;
+        auto write = [&](const QByteArray &bytes) {
+            QFile f(dir.filePath(QStringLiteral("colors.json")));
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write(bytes);
+        };
+        for (const QByteArray &bad : {QByteArray("{ this is not json"), QByteArray("[1,2,3]"), QByteArray(int(kMaxThemeStoreBytes) + 10, ' ')}) {
+            write(bad);
+            takeThemeStoreNotices();
+            QVERIFY(customThemeColors().isEmpty());
+            QVERIFY(!removeCustomThemeColors(QStringLiteral("x")));
+            // the bad file is still there after a refused removal
+            QCOMPARE(QFileInfo(dir.filePath(QStringLiteral("colors.json"))).size(), qint64(bad.size()));
+            QVERIFY(saveCustomThemeColors(builtinThemeColors().first()));
+            QFile kept(dir.filePath(QStringLiteral("colors.json.bad")));
+            QVERIFY(kept.open(QIODevice::ReadOnly));
+            QCOMPARE(kept.size(), qint64(bad.size()));
+            kept.close();
+            QCOMPARE(customThemeColors().size(), 1);
+            QCOMPARE(takeThemeStoreNotices().size(), 1);
+            QVERIFY(takeThemeStoreNotices().isEmpty());   // (told once)
+            QFile::remove(dir.filePath(QStringLiteral("colors.json.bad")));
+            QFile::remove(dir.filePath(QStringLiteral("colors.json")));
+        }
+    }
+
+    void controlCharactersAreLeftOutOfNamesAndFonts()
+    {
+        QTemporaryDir dir;
+        setThemeStoreFolder(dir.path());
+        struct Reset { ~Reset() { setThemeStoreFolder(QString()); } } reset;
+        QCOMPARE(cleanThemeText(QStringLiteral("A\u0001B\u007F￿ ")), QStringLiteral("AB"));
+        ThemeColors c = builtinThemeColors().first();
+        c.name = QStringLiteral("A\u0001");
+        QVERIFY(saveCustomThemeColors(c));
+        QCOMPARE(customThemeColors().first().name, QStringLiteral("A"));
+        QVERIFY(saveCustomThemeFonts({QStringLiteral("F\u0002"), QStringLiteral("H\u0003x"), QStringLiteral("B\u0004")}));
+        QCOMPARE(customThemeFonts().first().heading, QStringLiteral("Hx"));
+        // in a part, the names are written clean, and the part reads again
+        Theme t = withThemeFonts(withThemeColors(defaultTheme(), c), {QStringLiteral("F\u0002"), QStringLiteral("H\u0003x"), QStringLiteral("B\u0004")});
+        Theme back;
+        QVERIFY(readTheme(writeTheme(t), &back));
+        QCOMPARE(back.colorSchemeName, QStringLiteral("A"));
+        QCOMPARE(back.majorLatin, QStringLiteral("Hx"));
+        t.xml = writeTheme(t);
+        const Theme patched = withThemeColors(withThemeFonts(t, {QStringLiteral("F\u0002"), QStringLiteral("H"), QStringLiteral("B")}), c);
+        QVERIFY(readTheme(patched.xml, &back));
+        QCOMPARE(back.colorSchemeName, QStringLiteral("A"));
+        // a part with no place for the colors is not changed
+        Theme odd = t;
+        odd.xml = "<a:theme xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"/>";
+        bool ok = true;
+        const Theme same = withThemeColors(odd, builtinThemeColors().at(1), &ok);
+        QVERIFY(!ok);
+        QCOMPARE(same.xml, odd.xml);
+        QVERIFY(same.colors[Theme::Accent1] == odd.colors[Theme::Accent1]);
+        withThemeFonts(odd, {QStringLiteral("x"), QStringLiteral("y"), QStringLiteral("z")}, &ok);
+        QVERIFY(!ok);
     }
 };
 

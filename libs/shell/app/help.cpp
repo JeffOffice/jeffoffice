@@ -28,7 +28,10 @@
 #include <QScreen>
 #include <QSysInfo>
 #include <QTextBlock>
+#include <QAbstractTextDocumentLayout>
+#include <QScrollBar>
 #include <QTextBrowser>
+#include <QTimer>
 #include <QTextCursor>
 #include <QToolButton>
 #include <QUrlQuery>
@@ -447,23 +450,44 @@ HelpView::HelpView(AppWindow *win, QWidget *parent, bool commands) : QWidget(par
         QString id = u.path();
         if (id.startsWith(QLatin1String("./"))) id = id.mid(2);
         if (id.endsWith(QLatin1String(".md"))) id.chop(3);
-        if (!id.isEmpty()) showTopic(id);
+        if (!id.isEmpty()) showTopic(u.fragment().isEmpty() ? id : id + QLatin1Char('#') + u.fragment());
     });
     updateButtons();
 }
 
-void HelpView::showTopic(const QString &id)
+// "topic#Heading" shows the topic with the section of that heading at the top.
+void HelpView::showTopic(const QString &wanted)
 {
+    const int hash = wanted.indexOf(QLatin1Char('#'));
+    const QString id = hash < 0 ? wanted : wanted.left(hash);
+    const QString heading = hash < 0 ? QString() : wanted.mid(hash + 1);
     if (!m_search->text().isEmpty()) {
         const QSignalBlocker b(m_search);
         m_search->clear();
     }
     m_results->hide();
     m_browser->show();
-    if (id == m_current) return;
-    if (!m_current.isEmpty()) m_history << m_current;
-    m_ahead.clear();
-    go(id, true);
+    if (id != m_current) {
+        if (!m_current.isEmpty()) m_history << m_current;
+        m_ahead.clear();
+        go(id, true);
+    }
+    m_heading = heading;
+    if (!heading.isEmpty()) {
+        scrollToHeading();
+        QTimer::singleShot(0, this, [this] { scrollToHeading(); });   // (once the text has its width)
+    }
+}
+
+void HelpView::scrollToHeading()
+{
+    if (m_heading.isEmpty()) return;
+    QTextDocument *doc = m_browser->document();
+    for (QTextBlock b = doc->begin(); b.isValid(); b = b.next()) {
+        if (!b.blockFormat().headingLevel() || b.text().trimmed().compare(m_heading, Qt::CaseInsensitive) != 0) continue;
+        m_browser->verticalScrollBar()->setValue(int(doc->documentLayout()->blockBoundingRect(b).top()));
+        return;
+    }
 }
 
 void HelpView::go(const QString &id, bool)

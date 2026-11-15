@@ -520,6 +520,33 @@
           "items": [
             {
               "large": {
+                "id": "ribbon.themes",
+                "text": "Themes",
+                "icon": "palette"
+              },
+              "keytip": "TH",
+              "menu": "@themesMenu"
+            },
+            {
+              "large": {
+                "id": "ribbon.themeColors",
+                "text": "Colors",
+                "icon": "swatch-book"
+              },
+              "keytip": "TC",
+              "menu": "@themeColorsMenu"
+            },
+            {
+              "large": {
+                "id": "ribbon.themeFonts",
+                "text": "Fonts",
+                "icon": "type"
+              },
+              "keytip": "TF",
+              "menu": "@themeFontsMenu"
+            },
+            {
+              "large": {
                 "id": "ribbon.paragraphSpacing",
                 "text": "Paragraph Spacing",
                 "icon": "chevrons-up-down"

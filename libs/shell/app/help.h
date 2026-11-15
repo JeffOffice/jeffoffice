@@ -85,8 +85,9 @@ class JO_COMMON_EXPORT HelpView : public QWidget {
 public:
     // `commands`: the search finds commands too (not while a dialog holds the window).
     explicit HelpView(AppWindow *win, QWidget *parent = nullptr, bool commands = true);
-    void showTopic(const QString &id);       // "index" is the contents
+    void showTopic(const QString &id);       // "index" is the contents; "topic#Heading" scrolls to that heading
     QString currentTopic() const { return m_current; }
+    QString currentHeading() const { return m_heading; }
     void search(const QString &text);        // as if typed in the search box
     QLineEdit *searchBox() const { return m_search; }
     QListWidget *results() const { return m_results; }
@@ -100,6 +101,7 @@ private:
     void showResults(const QString &text);
     void activate(QListWidgetItem *it);
     void go(const QString &id, bool record);
+    void scrollToHeading();
     void updateButtons();
     AppWindow *m_win;
     bool m_commands;
@@ -107,7 +109,7 @@ private:
     QListWidget *m_results;
     QTextBrowser *m_browser;
     QToolButton *m_back, *m_forward, *m_home;
-    QString m_current;
+    QString m_current, m_heading;
     QStringList m_history;   // topics before the current one
     QStringList m_ahead;     // topics Back left
 };

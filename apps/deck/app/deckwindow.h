@@ -13,7 +13,9 @@
 #include "app/pageselectionpane.h"
 #include "app/pdfprotection.h"
 #include "app/versionstore.h"
+#include "core/themes.h"
 #include "office/packageprops.h"
+#include "office/themelib.h"
 #include "app/slideshow.h"
 
 #include <QHash>
@@ -53,6 +55,7 @@ class TableItem;
 struct TableStyles;
 class HelpWindow;
 class MasterPane;
+class NotesPageView;
 class NotesPane;
 class OnlinePicturesPane;
 class OutlineView;
@@ -112,8 +115,11 @@ public:
     // notes), Outline (the text in the thumbnails' place), the Slide Sorter, and
     // Slide Master view (the slide masters and layouts in the thumbnails' place,
     // the one chosen on the canvas, and the Slide Master tab).
-    enum class View { Normal, Outline, Sorter, Master };
+    // Notes Page shows a slide's page the way its notes print (the notes typed on the page); Notes Master and Handout Master edit the layout of the printed notes
+    // page and handout (deckwindow_notesmaster.cpp), and Close Master View returns to the view they were opened from.
+    enum class View { Normal, Outline, Sorter, Master, NotesPage, NotesMaster, HandoutMaster };
     View view() const { return m_view; }
+    static bool borrowsZoom(View view);   // the views that use the zoom controls for their own zoom
     void setView(View view);
     // Slide Master view (deckwindow_master.cpp). It opens on a slide master or layout (the layout of the slide being edited when none is
     // named), and Close Master View returns to the slide. Each command is one step that undoes. Insert Slide Master and Insert Layout
@@ -121,6 +127,7 @@ public:
     // master or layout that slides stand on); Preserve is for the master or layout named. Insert Placeholder (on a layout) selects the
     // new placeholder and returns its id, or "" when there is no layout open.
     MasterPane *masterPane() const { return m_masterPane; }
+    NotesPageView *notesPageView() const { return m_notesPage; }
     void editMasters(const QString &page = QString());
     void closeMasters();
     QString insertSlideMaster();
@@ -211,6 +218,17 @@ public:
     void applyTheme(int theme, bool allSlides);
     bool applyThemeFile(const QString &path, bool allSlides);
     void browseForTheme(bool allSlides = true);
+    // Save Current Theme: the first slide master's theme (its colors, fonts, and the effect styles of its part) written as a .thmx file; false, with the reason shown, if it can't be written. The
+    // other way is Browse for Themes: a .thmx file (or a document's theme part) gives its colors and fonts, as one step.
+    bool saveThemeFile(const QString &path);
+    void saveCurrentTheme();
+    // Reset to the template's theme: the colors and fonts the presentation had when it was opened or made (one step); false if it has them already.
+    bool resetTheme();
+    // Whether the presentation's colors and fonts differ from those it was opened with.
+    bool themeChanged() const;
+    // Theme colors and fonts of the Colors and Fonts galleries, chosen from a menu or made in Create New.
+    void chooseThemeColors(const office::ThemeColors &colors);
+    void chooseThemeFonts(const office::ThemeFonts &fonts);
     void chooseVariant(int variant);
     void chooseColors(const deck::ColorSet &colors);
     void chooseFonts(const deck::FontSet &fonts);
@@ -411,6 +429,9 @@ private:
     void tellAboutShow(const QString &text);
     void createViewModeActions();   // deckwindow_views.cpp
     void createMasterActions();     // deckwindow_master.cpp
+    void createNotesMasterActions();   // deckwindow_notesmaster.cpp
+    void addNotesMasterParts(struct RibbonParts &parts);
+    void refreshNotesMasterActions();
     void addMasterParts(struct RibbonParts &parts);
     bool enterMasterView();
     void leaveMasterView();
@@ -530,6 +551,8 @@ private:
     std::shared_ptr<void> m_animations;   // what the animation controls do (deckwindow_animations.cpp)
     OutlineView *m_outline = nullptr;    // in the split, where the thumbnails are in Normal view
     MasterPane *m_masterPane = nullptr;  // in the split, in Slide Master view
+    NotesPageView *m_notesPage = nullptr;   // in the split, in the Notes Page, Notes Master, and Handout Master views
+    View m_viewBeforeMasters = View::Normal;   // where Close Master View returns from Notes Master or Handout Master
     bool m_notesWereShown = true;        // the notes box before Slide Master view hid it
     QSet<QString> m_waiting;             // the commands Slide Master view turned off
     bool m_switchingView = false;        // setView is changing what the editor shows: its signals are its own
@@ -567,6 +590,7 @@ private:
     std::function<void(const QString &, const QString &)> m_notifier;
     LossyCache m_lossCache;   // what an .odp save would lose, until the presentation changes
     std::function<bool(const QUrl &)> m_urlOpener;
+    deck::DeckTheme m_openedTheme;   // the presentation's theme as it was opened or made: what Reset to the template's theme gives back
     QString m_templatePath;      // a template this window wrote: saving again writes over it
     std::function<QString(const QString &, const QString &)> m_pathChooser;
     std::function<void(QPrinter &)> m_printerPreparer;
@@ -576,6 +600,9 @@ private:
     bool m_fileProtected = false;         // the file is saved with a password
     QString m_filePassword;
     write::VersionKey m_versions;   // what the versions kept for the file are protected with (they follow a new password when the file is saved)
+    bool hasMacros() const;
+    void noteMacrosLeftOut(const QString &path);
+    bool m_macrosNoted = false;           // the person was told that the macros of this presentation are not saved (in a file of a kind that can't hold them)
     bool m_personalInfoRemoved = false;   // Inspect took the names out of the properties: they stay out until the presentation is closed
     bool m_protectionNoted = false;       // a note was made that no recovery copy is kept
     void notice(const QString &title, const QString &text, bool warning = false);

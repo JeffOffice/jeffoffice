@@ -81,6 +81,7 @@ int main(int argc, char **argv)
     QApplication::setApplicationVersion(jp::versionText());
     QApplication::setHighDpiScaleFactorRoundingPolicy(Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
     QApplication app(argc, argv);
+    jp::keepSettingsApart();   // (a test run or a screenshot never changes the person's own settings)
     jp::startupMark("QApplication built");
     jp::crash::install(jp::crash::reportPath());   // sent with the statistics on the next start, if they're on
     jp::recovery::setCopySuffix(QStringLiteral(".docx"));   // automatic recovery keeps documents

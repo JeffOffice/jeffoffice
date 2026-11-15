@@ -157,6 +157,7 @@ private:
     QString pageStyle(const Page &page, const Footer &f, bool background);
     QString masterPageStyle(const MasterOut &m);
     QString pageLayoutFor(const QSizeF &size);
+    QString handoutMasterXml();
     QByteArray thumbnail() const;
     QString addPicture(const QString &imageId);
     // A picture of bytes the document doesn't hold (a barcode's PNG), kept in the package once for its key.

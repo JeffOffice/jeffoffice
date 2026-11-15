@@ -18,6 +18,7 @@
 #include "sheet/oldsavecommon.h"
 
 #include <QCoreApplication>
+#include <QCryptographicHash>
 #include <QHash>
 #include <QSet>
 
@@ -635,6 +636,21 @@ private:
                + QStringLiteral("</style:%1>").arg(tag);
     }
 
+    // The package name of the picture behind a sheet's cells, put in the package once (empty for none, or a picture that is not of an allowed kind or would be past the total of pictures).
+    QString backgroundFile(const jp::office::sheet::SheetBackground &bg)
+    {
+        if (bg.isEmpty() || !backgroundTypeAllowed(bg.extension) || !backgroundBytesMatch(bg.image, bg.extension)) return QString();
+        const QString ext = bg.extension.toLower() == QLatin1String("jpeg") ? QStringLiteral("jpg") : bg.extension.toLower();
+        const QString file = QStringLiteral("Pictures/bg") + QString::fromLatin1(QCryptographicHash::hash(bg.image, QCryptographicHash::Sha1).toHex().left(24)) + QLatin1Char('.') + ext;
+        if (!m_pictureNames.contains(file)) {
+            if (m_pictureBytes + bg.image.size() > odsdraw::kMaxPictureTotal) return QString();
+            m_pictureBytes += bg.image.size();
+            m_pictureNames.insert(file);
+            m_pictures.push_back({file, bg.image});
+        }
+        return file;
+    }
+
     // The master page (and its page layout) for how a sheet prints, made once for each distinct setup; its name.
     QString masterPageFor(const PageSetup &p)
     {
@@ -659,7 +675,10 @@ private:
         if (p.comments != PrintComments::None) print += QStringLiteral(" annotations");
         layout += QStringLiteral(" style:print=\"%1\" style:print-page-order=\"%2\"").arg(print, p.pageOrder == PageOrder::OverThenDown ? QStringLiteral("ltr") : QStringLiteral("ttb"));
         if (p.useFirstPageNumber) layout += QStringLiteral(" style:first-page-number=\"%1\"").arg(p.firstPageNumber);
-        layout += QStringLiteral("/>");
+        // the picture behind the cells: the page layout's background image, tiled (kept in the document; it is the one place the format has for it)
+        const QString background = backgroundFile(p.background);
+        if (background.isEmpty()) layout += QStringLiteral("/>");
+        else layout += QStringLiteral("><style:background-image xlink:href=\"%1\" xlink:type=\"simple\" xlink:actuate=\"onLoad\" style:repeat=\"repeat\"/></style:page-layout-properties>").arg(esc(background));
         // (the header's height is what the top margin has beyond the header's own: the way the other program reads the margins of a sheet)
         // (a page with no header or footer still names them, empty: the other program gives a page that names none a header of its own height)
         layout += QStringLiteral("<style:header-style><style:header-footer-properties fo:min-height=\"%1\" fo:margin-left=\"0cm\" fo:margin-right=\"0cm\" fo:margin-bottom=\"0cm\"/></style:header-style>").arg(hasHeader ? cm(m.top - m.header) : QStringLiteral("0cm"));

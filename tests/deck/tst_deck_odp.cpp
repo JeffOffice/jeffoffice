@@ -4,6 +4,7 @@
 #include "app/lossywarning.h"
 #include "office/hyperlink.h"
 #include "core/version.h"
+#include "core/notesmaster.h"
 
 namespace odptest {
 
@@ -2857,6 +2858,102 @@ private Q_SLOTS:
         });
         QVERIFY(w.saveTo(dir.filePath(QStringLiteral("final.odp"))));
         QVERIFY2(seen.join(QLatin1Char(' ')).contains(QStringLiteral("final")), qPrintable(seen.join(QLatin1Char(' '))));
+    }
+
+    // The notes page's places and the handout master are in the file (the master page's notes, and style:handout-master) and come back; a presentation with none writes none.
+    void notesAndHandoutMasterLayoutsAreKeptInOpenDocumentFiles()
+    {
+        auto d = deck::newPresentation();
+        const QSizeF page = deck::localePaper();
+        QString err;
+        {
+            QStringList skipped;
+            QMap<QString, QByteArray> plain;
+            QVERIFY2(readZip(deck::exportOdp(*d, false, &err, &skipped), plain, &err), qPrintable(err));
+            QVERIFY(!plain.value(QStringLiteral("styles.xml")).contains("style:handout-master"));
+            auto plainBack = deck::importOdp(deck::exportOdp(*d, false, &err), &err);
+            QVERIFY2(plainBack, qPrintable(err));
+            QVERIFY(!deck::hasNotesMaster(*plainBack) && !deck::hasHandoutMaster(*plainBack) && !deck::hasHandoutPerPage(*plainBack));
+        }
+        deck::NotesMaster nm = deck::notesMasterOf(*d, page);
+        nm.custom = true;
+        nm.slideImage = QRectF(0.08, 0.12, 0.6, 0.3);
+        nm.body = QRectF(0.08, 0.55, 0.84, 0.35);
+        nm.header = QRectF(0.0, 0.0, 0.4, 0.05);
+        nm.date = QRectF(0.55, 0.0, 0.4, 0.05);
+        nm.footer = QRectF(0.0, 0.94, 0.4, 0.05);
+        nm.number = QRectF(0.55, 0.94, 0.4, 0.05);
+        nm.background = QColor(0xDD, 0xEE, 0xFF);
+        deck::setNotesMaster(*d, nm);
+        deck::HandoutMaster hm = deck::handoutMasterOf(*d, page);
+        hm.custom = true;
+        hm.landscape = true;
+        hm.perPage = 6;
+        hm.area = deck::defaultHandoutMaster(page.transposed()).area;
+        hm.header = QRectF(0.03, 0.03, 0.4, 0.05);
+        hm.background = QColor(0xFF, 0xEE, 0xDD);
+        deck::setHandoutMaster(*d, hm);
+        const QByteArray odp = deck::exportOdp(*d, false, &err);
+        QVERIFY2(!odp.isEmpty(), qPrintable(err));
+        QMap<QString, QByteArray> files;
+        QVERIFY2(readZip(odp, files, &err), qPrintable(err));
+        const QByteArray styles = files.value(QStringLiteral("styles.xml"));
+        QVERIFY(styles.count("<draw:page-thumbnail") >= 7);
+        QVERIFY(styles.contains("style:handout-master"));
+        auto back = deck::importOdp(odp, &err);
+        QVERIFY2(back, qPrintable(err));
+        QVERIFY(deck::hasNotesMaster(*back));
+        QVERIFY(deck::hasHandoutMaster(*back));
+        const deck::NotesMaster nb = deck::notesMasterOf(*back, page);
+        // (the notes page of the file is its own size: the places are fractions of it)
+        for (deck::NotesPart part : {deck::NotesPart::Body, deck::NotesPart::Header, deck::NotesPart::Date, deck::NotesPart::Footer, deck::NotesPart::Number})
+            QVERIFY2(deck::nearly(nb.part(part), nm.part(part), 0.004), qPrintable(QString::number(int(part))));
+        QCOMPARE(nb.background, nm.background);
+        const deck::HandoutMaster hb = deck::handoutMasterOf(*back, page);
+        QVERIFY(hb.landscape && hb.perPage == 6);
+        QCOMPARE(hb.background, hm.background);
+        QVERIFY(deck::nearly(hb.header, hm.header, 0.004));
+        QVERIFY2(deck::nearly(hb.area, hm.area, 0.004), qPrintable(QStringLiteral("%1,%2 %3x%4").arg(hb.area.x()).arg(hb.area.y()).arg(hb.area.width()).arg(hb.area.height())));
+        // Three to a page: the area is found from the slides beside their lines.
+        for (int n : {1, 2, 3, 4, 9}) {
+            hm.perPage = n;
+            deck::setHandoutMaster(*d, hm);
+            auto again = deck::importOdp(deck::exportOdp(*d, false, &err), &err);
+            QVERIFY2(again, qPrintable(err));
+            QCOMPARE(deck::handoutMasterOf(*again, page).perPage, n);
+            QVERIFY2(deck::nearly(deck::handoutMasterOf(*again, page).area, hm.area, 0.004), qPrintable(QString::number(n)));
+        }
+    }
+
+    // A handout master with more thumbnails than any page holds, and places that are not numbers, is read within limits.
+    void hostileHandoutMastersInOpenDocumentFilesAreBounded()
+    {
+        auto d = deck::newPresentation();
+        deck::HandoutMaster hm = deck::handoutMasterOf(*d, deck::localePaper());
+        hm.custom = true;
+        hm.perPage = 4;
+        deck::setHandoutMaster(*d, hm);
+        QString err;
+        QMap<QString, QByteArray> files;
+        QVERIFY2(readZip(deck::exportOdp(*d, false, &err), files, &err), qPrintable(err));
+        QString styles = QString::fromUtf8(files.value(QStringLiteral("styles.xml")));
+        QString crowd;
+        for (int i = 0; i < 100000; ++i) crowd += QStringLiteral("<draw:page-thumbnail svg:x=\"1cm\" svg:y=\"1cm\" svg:width=\"1cm\" svg:height=\"1cm\" presentation:class=\"page\"/>");
+        const int at = styles.indexOf(QLatin1String("</style:handout-master>"));
+        QVERIFY(at > 0);
+        styles.insert(at, crowd);
+        styles.replace(QRegularExpression(QStringLiteral("svg:x=\"[0-9.]+cm\" svg:y=\"[0-9.]+cm\" svg:width=\"[0-9.]+cm\" svg:height=\"[0-9.]+cm\" presentation:class=\"header\"")),
+                       QStringLiteral("svg:x=\"1e400cm\" svg:y=\"-5cm\" svg:width=\"nancm\" svg:height=\"0cm\" presentation:class=\"header\""));
+        ZipWriter zip;
+        for (auto it = files.cbegin(); it != files.cend(); ++it) zip.add(it.key(), it.key() == QLatin1String("styles.xml") ? styles.toUtf8() : it.value(), true);
+        QElapsedTimer timer;
+        timer.start();
+        auto read = deck::importOdp(zip.finish(), &err);
+        QVERIFY2(read, qPrintable(err));
+        QVERIFY(timer.elapsed() < 20000);
+        const deck::HandoutMaster back = deck::handoutMasterOf(*read, deck::localePaper());
+        QVERIFY(deck::isHandoutCount(back.perPage));
+        QVERIFY(back.header.left() >= 0 && back.header.right() <= 1.0000001 && back.header.width() >= 0.0049);
     }
 };
 

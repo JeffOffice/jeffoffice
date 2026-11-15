@@ -1,5 +1,5 @@
 # Print, PDF, and slide pictures
-<!-- keywords: print, printer, printing, copies, collate, collated, selection, last page first, reverse, zoom, slides, notes pages, handouts, outline, pdf, export, picture, png, jpeg, jpg, image, range, hidden slides, frame, grayscale, black and white, print preview, paper, letter, a4, password, encrypt, protect with a password -->
+<!-- keywords: print, printer, printing, copies, collate, collated, selection, last page first, reverse, zoom, slides, notes pages, handouts, outline, pdf, export, picture, png, jpeg, jpg, gif, tiff, tif, bmp, svg, vector, image, notes master, handout master, range, hidden slides, frame, grayscale, black and white, print preview, paper, letter, a4, password, encrypt, protect with a password -->
 
 You can print your presentation, save it as a PDF, or save a slide as a picture. All three are on the File screen.
 
@@ -23,7 +23,7 @@ The preview on the right shows each page that will come out, with arrows to move
 - **Handouts** put a grid of slides on each page, with a header and footer that hold the title, the date, and the page number. With 3 to a page, there are lines beside each slide to write on.
 - **Outline** prints the number and title of each slide, then its body text, indented by level.
 
-Notes pages, handouts, and the outline print on upright letter or A4 paper, whichever your region uses. Hidden slides are left out unless you check **Print hidden slides**.
+Notes pages, handouts, and the outline print on letter or A4 paper, whichever your region uses, held upright. A handout prints wide if its handout master says Landscape. The places of the slide, notes, header, date, footer, and page number come from the notes master and the handout master, which you change in **View > Master Views**. Hidden slides are left out unless you check **Print hidden slides**.
 
 ## Save as a PDF
 
@@ -51,7 +51,13 @@ When you insert a PDF that has a password as a picture, JeffDeck asks for the pa
 
 ## Save a slide as a picture
 
-Click **File > Export > Export Slide as Picture**. JeffDeck saves the slide you are on as a PNG or JPEG picture, 1920 pixels across, on a white background. It suggests the presentation's name and the slide's number as the file name.
+Click **File > Export > Export Slide as Picture**. JeffDeck saves the slide you are on as a PNG, JPEG, GIF, TIFF, BMP, or SVG picture. The kinds with pixels (all but SVG) are 1920 pixels across, on a white background. A GIF has at most 256 colors, so a photo in it may look rougher.
+
+An **SVG** picture is a drawing, not pixels. It is as sharp at any size, the letters are saved as shapes so any computer shows the same ones, and the pictures on the slide are inside the file. A slide that uses a few effects, such as a soft shadow, may look a little different in an SVG.
+
+JeffDeck suggests the presentation's name and the slide's number as the file name.
+
+To save every slide, click **Save Slides as Pictures** next to it. Choose the picture type (PNG, JPEG, GIF, TIFF, BMP, or SVG) and a folder. JeffDeck makes one file for each slide, named **Slide 1**, **Slide 2**, and so on. The **Width** box sets the pixels across and is not used for SVG.
 
 ## Related
 

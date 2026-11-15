@@ -3,8 +3,8 @@
 
 The **Design** tab changes how all the slides look.
 
-- **Themes** shows the nine themes as small pictures of their title slides. Click one to use it for every slide. Right-click one to apply it to the selected slides only, or to browse for a theme in another file.
-- **Variants** shows four other looks of the theme. Click one to use it. The arrow beside them opens a menu of **Colors**, **Fonts**, and **Background Styles**.
+- **Themes** shows the nine themes as small pictures of their title slides. Click one to use it for every slide. Right-click one to apply it to the selected slides only, to browse for a theme in another file, or to save your theme as a theme file.
+- **Variants** shows four other looks of the theme. Click one to use it. The arrow beside them opens a menu of **Colors**, **Fonts**, and **Background Styles**. In **Colors** and **Fonts** you can make your own sets and reset to the template's theme.
 - **Customize** has **Slide Size**, to choose **Standard (4:3)** or **Widescreen (16:9)**, and **Format Background**, which sets a solid color behind the slide or behind every slide.
 
 See [Slide size, background, and footers](design).

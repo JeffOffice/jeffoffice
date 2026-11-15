@@ -303,6 +303,12 @@ public:
     // The pictures of a sheet's headers and footers, read from the legacy drawing its `legacyDrawingHF` names (readSheet does this for a sheet that has one). Bounded: the shapes looked at, the
     // pictures kept, the bytes of one and of all those a workbook reads (an image shared by several sheets is read once).
     void readHeaderPictures(const QString &sheetPart, HeaderFooter *out) const;
+    // The picture a sheet's `picture` element names (page->background.rel is the relationship), read into page->background: a relationship of the image type to an image part of an allowed type
+    // (png, jpeg, gif, or bmp, that the bytes are of), not over kMaxHeaderPictureBytes, and within the workbook's budget for images; otherwise the sheet has no background.
+    void readBackground(const QString &sheetPart, PageSetup *page) const;
+    // The bytes of the images a sheet of the file holds (its background, and the pictures of the drawing of its headers and footers; an image named twice counts once), as the file has them, without
+    // reading the sheet: 0 for a sheet that was added or is not a worksheet.
+    qint64 pictureBytesInFile(int sheet) const;
     // How many drawings of header pictures have been read (parsed) since the workbook was opened: a drawing that sheets share is read once.
     int headerDrawingsRead() const { return m_headerImages->parses; }
     // The parts the workbook is made of (empty for one it has not): its own, the shared strings, and the styles.
@@ -578,5 +584,9 @@ private:
     mutable std::vector<std::pair<QString, int>> m_tablesInFile;   // the parts of the file that are tables' (by the part's name), and the sheet each is related to
     mutable std::shared_ptr<PivotBook> m_pivotBook;
 };
+
+// The bytes of all the pictures of a workbook (every sheet's background and header and footer pictures), the one count the limits on them are made from (a file is read back within
+// kMaxHeaderPictureBytesInBook): for a sheet `pageOf` gives the page setup that is to be, or null, and then the file's own pictures are counted. `skipSheet` is left out (-1: none).
+qint64 workbookPictureBytes(const Workbook &book, const std::function<const PageSetup *(int sheet)> &pageOf, int skipSheet = -1);
 
 } // namespace jp::office::sheet

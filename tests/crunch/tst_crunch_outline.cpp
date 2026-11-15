@@ -362,6 +362,21 @@ private Q_SLOTS:
         QTRY_VERIFY(e.win.w.columnGutter()->isHidden());
     }
 
+    // Recalculate All counts as a change the window has seen to the end: a step after it that leaves the workbook's values alone (a group) must not leave the window "calculating" for good, which
+    // would make a Save wait for a calculation that never comes (the checks of every command waited 20 seconds for it, again and again).
+    void aStepThatChangesNoValueAfterRecalculatingLeavesTheWindowReady()
+    {
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        QVERIFY(e.settle());
+        e.win.w.act(QStringLiteral("formulas.calculate"))->trigger();
+        QVERIFY(e.settle());
+        e.view()->selectRows(1, 2);
+        e.win.w.act(QStringLiteral("outline.groupRows"))->trigger();
+        QCOMPARE(rowState(e, 1).level, 1);
+        QTRY_VERIFY_WITH_TIMEOUT(!e.win.w.isCalculating(), 3000);
+    }
+
     // Drawing the margin looks at the lines in view of each part of the grid, not at every line between the frozen part and the part that scrolls: with row 1 frozen and a group of 99,999 lines, a view
     // 50,000 lines down is drawn from a few hundred looks, the groups are worked out once for the outline and not for each paint or click, and a change that is not to the lines (a merge) does not
     // make the outline again.

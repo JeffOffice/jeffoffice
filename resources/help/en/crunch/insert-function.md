@@ -18,3 +18,9 @@ A cell that has a rule for what may be entered can also have a message (a title 
 The **Function Library** group of the Formulas tab also has a button for each kind of function: **Financial**, **Logical**, **Text**, **Date & Time**, **Lookup & Reference**, **Math & Trig**, and **More Functions** (statistical, engineering, information, and database). Each opens a list of its functions. Rest the pointer on a name to read what it does. Choose one, and the **Function Arguments** dialog opens for it.
 
 **Recently Used** lists the last ten functions you picked, newest first.
+
+## Help on a function
+
+While you type a function in a cell or in the formula bar, a small tip under the cell shows how it is written, such as **SUM(number1, ...)**, with the argument you are typing in bold. In a formula with a function inside another, the tip is for the innermost one that holds the cursor. Click the function's name in the tip, and Help opens at its entry, with what it does and what each argument is. Every function has an entry, in the pages listed under "Every function" in the contents (for example [Math and trig functions](functions-math-trig)).
+
+When the cursor is inside a function's brackets, **fx** (or **Shift+F3**) opens the Function Arguments dialog for that function.

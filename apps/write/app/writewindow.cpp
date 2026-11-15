@@ -4,6 +4,7 @@
 #include "app/keymap.h"
 #include "app/ribboncustom.h"
 #include "app/writewindow.h"
+#include "core/themeops.h"
 #include "core/normaltemplate.h"
 #include "core/pagenumberops.h"
 #include "core/startuptrace.h"
@@ -282,6 +283,7 @@ void WriteWindow::setDocument(std::unique_ptr<write::WriteDoc> doc, const QStrin
             m_refreshTimer.start();
             if (m_outlineOn && !m_outlineBusy) m_outline->rebuild();
         });
+        m_openedTheme = write::documentTheme(*m_doc);
         resetEditPlaces();
         connect(m_doc->story(), &QTextDocument::contentsChange, this, [this](int position, int removed, int added) { recordPlace(position + added, removed, added); });
     }
@@ -336,6 +338,7 @@ void WriteWindow::createActions()
     createPictureAdjustActions();
     createInsertActions();
     createLayoutExtraActions();
+    createThemeActions();
     createViewExtraActions();
     createOutlineActions();
     createStyleActions();

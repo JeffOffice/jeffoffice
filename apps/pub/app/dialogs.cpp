@@ -1,5 +1,8 @@
 #include "app/dialogs.h"
 #include "app/uistyle.h"
+#include "office/themelib.h"
+#include "app/themedialogs.h"
+#include "app/plaintext.h"
 #include "app/saveoptions.h"
 #include "app/mergedialogs.h"
 #include "app/mainwindow.h"
@@ -1096,6 +1099,7 @@ void colorSchemeDialog(QWidget *p, Editor *ed)
 {
     ColorScheme s = ed->doc()->colors;
     Dlg dlg(p, QCoreApplication::translate("Dialogs", "Create New Color Scheme"));
+    dlg.d.setObjectName(QStringLiteral("colorSchemeDialog"));
     auto *form = new QFormLayout();
     QVector<QPushButton *> btns;
     for (int i = 0; i < SlotCount; ++i) {
@@ -1113,15 +1117,34 @@ void colorSchemeDialog(QWidget *p, Editor *ed)
     auto *name = new QLineEdit(QCoreApplication::translate("Dialogs", "Custom 1"), &dlg.d);
     form->addRow(QCoreApplication::translate("Dialogs", "Color scheme name"), name);
     dlg.v->addLayout(form);
-    if (!dlg.exec()) return;
-    s.name = name->text().trimmed().isEmpty() ? QStringLiteral("Custom") : name->text().trimmed();
+    // (a name no built-in scheme has, and one that replaces a set of that name only when the person says so: the sets are shared with every app)
+    for (bool first = true;; first = false) {
+        if (first ? !dlg.exec() : dlg.d.exec() != QDialog::Accepted) return;
+        s.name = name->text().trimmed().isEmpty() ? QStringLiteral("Custom") : office::cleanThemeText(name->text());
+        QStringList builtin;
+        for (const office::ThemeColors &c : office::builtinThemeColors()) builtin << c.name;
+        if (findColorScheme(s.name) || jp::themeNameTaken(builtin, s.name)) {
+            plainWarning(&dlg.d, QCoreApplication::translate("Dialogs", "Create New Color Scheme"), QCoreApplication::translate("Dialogs", "A built-in scheme has the name \"%1\". Choose another name.").arg(s.name));
+            continue;
+        }
+        bool taken = false;
+        for (const office::ThemeColors &c : office::customThemeColors()) taken = taken || c.name.compare(s.name, Qt::CaseInsensitive) == 0;
+        if (taken && plainQuestion(&dlg.d, QCoreApplication::translate("Dialogs", "Create New Color Scheme"), QCoreApplication::translate("Dialogs", "You already have colors named \"%1\". Replace them?").arg(s.name),
+                                   QMessageBox::Yes | QMessageBox::No, QMessageBox::No) != QMessageBox::Yes)
+            continue;
+        break;
+    }
     ed->change(QCoreApplication::translate("Dialogs", "Color Scheme"), [&] { ed->doc()->colors = s; });
+    // (kept in the user's settings folder, in the format every app shares, so the scheme shows in their galleries too)
+    office::saveCustomThemeColors(office::themeColorsFromScheme(s));
+    jp::showThemeStoreNotices(p);
 }
 
 void fontSchemeDialog(QWidget *p, Editor *ed)
 {
     FontScheme s = ed->doc()->fonts;
     Dlg dlg(p, QCoreApplication::translate("Dialogs", "Create New Font Scheme"));
+    dlg.d.setObjectName(QStringLiteral("fontSchemeDialog"));
     auto *form = new QFormLayout();
     auto *heading = new QComboBox(&dlg.d), *body = new QComboBox(&dlg.d);
     heading->addItems(visibleFontFamilies());
@@ -1153,9 +1176,23 @@ void fontSchemeDialog(QWidget *p, Editor *ed)
     upd();
     dlg.v->addLayout(form);
     dlg.v->addWidget(sample);
-    if (!dlg.exec()) return;
-    s = FontScheme{name->text().trimmed().isEmpty() ? QStringLiteral("Custom") : name->text().trimmed(), heading->currentText(), body->currentText()};
+    for (bool first = true;; first = false) {
+        if (first ? !dlg.exec() : dlg.d.exec() != QDialog::Accepted) return;
+        s = FontScheme{name->text().trimmed().isEmpty() ? QStringLiteral("Custom") : office::cleanThemeText(name->text()), heading->currentText(), body->currentText()};
+        if (findFontScheme(s.name)) {
+            plainWarning(&dlg.d, QCoreApplication::translate("Dialogs", "Create New Font Scheme"), QCoreApplication::translate("Dialogs", "A built-in scheme has the name \"%1\". Choose another name.").arg(s.name));
+            continue;
+        }
+        bool taken = false;
+        for (const office::ThemeFonts &f : office::customThemeFonts()) taken = taken || f.name.compare(s.name, Qt::CaseInsensitive) == 0;
+        if (taken && plainQuestion(&dlg.d, QCoreApplication::translate("Dialogs", "Create New Font Scheme"), QCoreApplication::translate("Dialogs", "You already have fonts named \"%1\". Replace them?").arg(s.name),
+                                   QMessageBox::Yes | QMessageBox::No, QMessageBox::No) != QMessageBox::Yes)
+            continue;
+        break;
+    }
     ed->change(QCoreApplication::translate("Dialogs", "Font Scheme"), [&] { ed->doc()->fonts = s; });
+    office::saveCustomThemeFonts({s.name, s.heading, s.body});
+    jp::showThemeStoreNotices(p);
 }
 
 void shadowDialog(QWidget *p, Editor *ed)

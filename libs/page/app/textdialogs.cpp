@@ -4,6 +4,7 @@
 #include "app/textdialogs.h"
 
 #include "app/appwords.h"
+#include "app/opentypebox.h"
 #include "app/editor.h"
 #include "app/settings.h"
 #include "app/widgets.h"
@@ -158,7 +159,15 @@ void fontDialog(QWidget *p, Editor *ed)
     grid->addWidget(underline, 3, 0);
     grid->addWidget(new QLabel(QCoreApplication::translate("Dialogs", "Color")), 2, 1);
     grid->addWidget(color, 3, 1);
-    dlg.v->addLayout(grid);
+    // Two pages: the font and its effects, and the Advanced page (the OpenType choices); the preview is below them both.
+    auto *tabs = new QTabWidget(&dlg.d);
+    tabs->setObjectName(QStringLiteral("fontTabs"));
+    auto *fontPage = new QWidget(tabs), *advancedPage = new QWidget(tabs);
+    auto *fv = new QVBoxLayout(fontPage), *av = new QVBoxLayout(advancedPage);
+    tabs->addTab(fontPage, QCoreApplication::translate("Dialogs", "Font"));
+    tabs->addTab(advancedPage, QCoreApplication::translate("Dialogs", "Advanced"));
+    dlg.v->addWidget(tabs);
+    fv->addLayout(grid);
     auto *effects = new jp::Section(QCoreApplication::translate("Dialogs", "Effects"), &dlg.d);
     auto *eg = new QGridLayout(effects);
     struct Fx { const char *name; QCheckBox *box = nullptr; };
@@ -178,7 +187,12 @@ void fontDialog(QWidget *p, Editor *ed)
     engrave->setChecked(cur.boolProperty(tp::Engrave));
     const QList<QCheckBox *> boxes{sup, sub, strike, smallcaps, allcaps, shadow, outline, emboss, engrave};
     for (int i = 0; i < boxes.size(); ++i) eg->addWidget(boxes[i], i / 3, i % 3);
-    dlg.v->addWidget(effects);
+    fv->addWidget(effects);
+    fv->addStretch(1);
+    auto *openType = new OpenTypeBox(advancedPage);
+    openType->setFormats({cur});
+    av->addWidget(openType);
+    av->addStretch(1);
     auto *preview = plainLabel(new QLabel(forThisApp(QCoreApplication::translate("Dialogs", "JeffPub sample text")), &dlg.d));
     preview->setMinimumHeight(48);
     preview->setAlignment(Qt::AlignCenter);
@@ -191,8 +205,10 @@ void fontDialog(QWidget *p, Editor *ed)
         f.setUnderline(underline->currentIndex() > 0);
         f.setStrikeOut(strike->isChecked());
         f.setCapitalization(smallcaps->isChecked() ? QFont::SmallCaps : allcaps->isChecked() ? QFont::AllUppercase : QFont::MixedCase);
+        for (const auto &[tag, on] : openType->features().asKeyValueRange()) f.setFeature(tag, on);
         preview->setFont(f);
     };
+    QObject::connect(openType, &OpenTypeBox::edited, &dlg.d, updatePreview);
     QObject::connect(font, &FontCombo::familyChosen, &dlg.d, updatePreview);
     QObject::connect(style, &QComboBox::currentIndexChanged, &dlg.d, updatePreview);
     QObject::connect(size, &QDoubleSpinBox::valueChanged, &dlg.d, updatePreview);
@@ -217,7 +233,10 @@ void fontDialog(QWidget *p, Editor *ed)
     cf.setProperty(tp::Engrave, engrave->isChecked());
     if (outline->isChecked()) cf.setProperty(tp::OutlineRef, color->current().toString());
     cf.setProperty(tp::ColorRefP, color->current().toString());
+    const OpenTypeBox::Change openTypeChange = openType->change();
+    for (const auto &[property, value] : openTypeChange.set) cf.setProperty(property, value);
     ed->mergeCharFormat(cf, QCoreApplication::translate("Dialogs", "Font"));
+    for (const int property : openTypeChange.clear) ed->clearCharProperty(property, QCoreApplication::translate("Dialogs", "Font"));
     if (slide && shadow->isChecked() != shadowWas) ed->setTextShadow(shadow->isChecked(), QCoreApplication::translate("Dialogs", "Font"));
     if (!outline->isChecked()) ed->clearCharProperty(tp::OutlineRef, QCoreApplication::translate("Dialogs", "Font"));
     ed->endChange();

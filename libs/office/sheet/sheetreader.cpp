@@ -1982,6 +1982,9 @@ bool SheetReader::read(QIODevice *in)
                 } else if (isElement(r, "legacyDrawingHF")) {
                     for (const QXmlStreamAttribute &a : r.attributes())
                         if (a.name() == QLatin1String("id") && !a.namespaceUri().isEmpty() && sameNamespace(a.namespaceUri().toString(), ns::R)) m_sheet.page.headerFooter.drawingRel = a.value().toString();
+                } else if (isElement(r, "picture") && !inExtension && m_sheet.page.background.rel.isEmpty()) {
+                    for (const QXmlStreamAttribute &a : r.attributes())
+                        if (a.name() == QLatin1String("id") && !a.namespaceUri().isEmpty() && sameNamespace(a.namespaceUri().toString(), ns::R)) m_sheet.page.background.rel = a.value().toString().left(255);
                 } else if (isElement(r, "rowBreaks")) {
                     inBreaks = 1;
                 } else if (isElement(r, "colBreaks")) {
@@ -4088,6 +4091,7 @@ bool Workbook::readSheet(int index, Sheet *out, const std::function<bool(qint64)
     }
     applyPrintNames(m_info, index, out);
     if (!out->page.headerFooter.drawingRel.isEmpty()) readHeaderPictures(entry.part, &out->page.headerFooter);
+    if (!out->page.background.rel.isEmpty()) readBackground(entry.part, &out->page);
     if (!out->links.isEmpty()) {
         // the addresses outside the workbook are in the sheet's relationships
         QHash<QString, QString> targets;

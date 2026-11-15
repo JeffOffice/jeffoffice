@@ -531,6 +531,81 @@ private Q_SLOTS:
         QVERIFY(inkIn(moved, QRect(0, 20, 64, 20)) > 3);         // "Left" is under the frozen row
     }
 
+    // A picture tiled behind the cells (the sheet's background): cells with no fill show it, a cell with a fill hides it, it moves with the cells when the sheet scrolls, and a paint for paper
+    // (black and white, as a page is) has none.
+    void aBackgroundIsTiledUnderTheCellsAndMovesWithThem()
+    {
+        // a tile of 4 x 4 pixels: its left half red, its right half blue
+        QImage tile(4, 4, QImage::Format_RGB32);
+        for (int y = 0; y < 4; ++y)
+            for (int x = 0; x < 4; ++x) tile.setPixel(x, y, x < 2 ? QColor(Qt::red).rgb() : QColor(Qt::blue).rgb());
+        Fixture f;
+        const quint32 green = f.fill(PatternKind::Solid, 0x00FF00);
+        f.blank(1, 1, green);
+        f.options.gridlines = false;
+        f.options.background = &tile;
+        f.build();
+        QImage img = f.render();
+        QCOMPARE(px(img, 0, 0), QColor(Qt::red).rgb());
+        QCOMPARE(px(img, 1, 0), QColor(Qt::red).rgb());
+        QCOMPARE(px(img, 2, 0), QColor(Qt::blue).rgb());
+        QCOMPARE(px(img, 4, 0), QColor(Qt::red).rgb());     // (the tile repeats)
+        QCOMPARE(px(img, 8 * 4 + 2, 4 * 5 + 1), QColor(Qt::blue).rgb());
+        QCOMPARE(px(img, 64 + 10, 20 + 10), QColor(0x00FF00).rgb());   // (a fill hides it)
+        // it moves with the cells: scrolled by 2 pixels, what was at x = 2 is at x = 0
+        f.grid.layout().setScroll(2, 0);
+        img = f.render();
+        QCOMPARE(px(img, 0, 0), QColor(Qt::blue).rgb());
+        QCOMPARE(px(img, 2, 0), QColor(Qt::red).rgb());
+        // text over it keeps the picture around the letters (the cell is not painted over)
+        Fixture g;
+        g.text(0, 0, QStringLiteral("W"));
+        g.options.gridlines = true;
+        g.options.background = &tile;
+        g.build();
+        img = g.render();
+        const QRgb beside = px(img, 60, 2);   // (right of the letter, inside the cell)
+        QVERIFY(beside == QColor(Qt::red).rgb() || beside == QColor(Qt::blue).rgb());
+        // for paper: none (a page printed in black and white, or any page: the print never sets one)
+        Fixture h;
+        h.options.background = &tile;
+        h.options.monochrome = true;
+        h.build();
+        img = h.render();
+        QCOMPARE(px(img, 0, 0), kWhite);
+        Fixture k;
+        k.build();   // (no picture set: the paper)
+        QCOMPARE(px(k.render(), 0, 0), kWhite);
+    }
+
+    // A picture held smaller than it is (one over 2,400 pixels on a side) is tiled at its real size, and the gridlines under text that spills over a cell are covered with the picture again.
+    void aBackgroundIsScaledBackAndKeepsTheSpillOfTextClean()
+    {
+        QImage tile(4, 4, QImage::Format_RGB32);
+        for (int y = 0; y < 4; ++y)
+            for (int x = 0; x < 4; ++x) tile.setPixel(x, y, x < 2 ? QColor(Qt::red).rgb() : QColor(Qt::blue).rgb());
+        Fixture f;
+        f.options.gridlines = false;
+        f.options.background = &tile;
+        f.options.backgroundScale = 2;
+        f.build();
+        const QImage img = f.render();
+        QCOMPARE(px(img, 3, 0), QColor(Qt::red).rgb());     // (two pixels of the held picture are four)
+        QCOMPARE(px(img, 4, 0), QColor(Qt::blue).rgb());
+        QCOMPARE(px(img, 8, 0), QColor(Qt::red).rgb());
+        // text that runs over the gridline between two cells: the line is not there, and the picture is
+        QImage plain(4, 4, QImage::Format_RGB32);
+        plain.fill(QColor(0xC0, 0xE0, 0xC0));
+        Fixture g;
+        g.text(0, 0, QStringLiteral("A text that is much longer than its cell is wide"));
+        g.options.gridlines = true;
+        g.options.background = &plain;
+        g.build();
+        const QImage spill = g.render();
+        QCOMPARE(px(spill, 63, 1), plain.pixel(0, 0));   // (the gridline under the spilling text: the picture, not the paper's white or the line's gray)
+        QCOMPARE(px(spill, 63, 30), g.options.gridColor.rgb());   // (a row with no text keeps its line)
+    }
+
     // The selection is the cells tinted, a border of the accent color, and the active cell left plain; the headers of what is selected are marked.
     void theSelectionIsTintedBorderedAndTheHeadersShowIt()
     {

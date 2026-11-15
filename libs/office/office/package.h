@@ -176,6 +176,8 @@ public:
     // What was added, as it is: a part's bytes by its name (empty for one that is not there), and the relationships from a source with their targets as the parts they name (absolute names;
     // an external target as it was given). For a caller that takes the parts and links out of the writer without packing them into a ZIP and reading that.
     QByteArray partData(const QString &name) const;
+    // Whether a part of that name (in any case) was added, empty or not.
+    bool hasPart(const QString &name) const;
     QVector<Relationship> relationshipsFrom(const QString &source) const;
     // The ZIP: [Content_Types].xml first, then the package's relationships,
     // the parts in the order added, and the other relationships; deflated.

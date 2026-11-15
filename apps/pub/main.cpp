@@ -66,6 +66,7 @@ int main(int argc, char **argv)
     QApplication::setApplicationVersion(jp::versionText());
     QApplication::setHighDpiScaleFactorRoundingPolicy(Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
     QApplication app(argc, argv);
+    jp::keepSettingsApart();   // (a test run or a screenshot never changes the person's own settings)
     jp::startupMark("QApplication built");
     QApplication::setWindowIcon(QIcon(QStringLiteral(":/app.png")));
     jp::moveFromJeffPub79();   // settings and files kept under the old name

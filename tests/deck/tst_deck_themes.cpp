@@ -1,6 +1,9 @@
 // JeffDeck's tests of themes and variants.
 #include "deckhelpers.h"
+#include "../withdialog.h"
 #include "app/userdefaults.h"
+#include "app/themedialogs.h"
+#include "office/themelib.h"
 #include "io/presentationdefaults.h"
 
 struct BackdropDeck {
@@ -1018,7 +1021,7 @@ private Q_SLOTS:
         QStringList texts;
         for (QAction *a : menu->actions())
             if (!a->isSeparator()) texts << a->text();
-        QCOMPARE(texts, (QStringList{QStringLiteral("Apply to All Slides"), QStringLiteral("Apply to Selected Slides"), QStringLiteral("Browse for Themes…")}));
+        QCOMPARE(texts, (QStringList{QStringLiteral("Apply to All Slides"), QStringLiteral("Apply to Selected Slides"), QStringLiteral("Browse for Themes…"), QStringLiteral("Save Current Theme…")}));
         menu->actions().at(0)->trigger();
         QCOMPARE(chosen.last().at(0).toInt(), 3);
         QCOMPARE(chosen.last().at(1).toBool(), true);
@@ -1407,8 +1410,8 @@ private Q_SLOTS:
         QList<QAction *> schemes;
         for (QAction *a : colors->actions())
             if (a->isCheckable()) schemes << a;
-        QCOMPARE(schemes.size(), deck::colorSets().size());
-        QCOMPARE(schemes.size(), 18);
+        QCOMPARE(schemes.size(), deck::colorSets().size() + office::builtinThemeColors().size());   // (JeffDeck's own, then the sets every app has)
+        QCOMPARE(deck::colorSets().size(), 18);
         int checked = 0;
         for (QAction *a : schemes) checked += a->isChecked();
         QCOMPARE(checked, 1);
@@ -1444,6 +1447,333 @@ private Q_SLOTS:
         QTRY_COMPARE(variants->grid()->current(), 2);   // Ember's third variant is its colors on that background
         ed->undo();
         QCOMPARE(deck::backgroundStyleOf(ed->doc()->masters[0]->background, deck::themeOf(*ed->doc())), deck::builtinThemeVariants(ember)[0].background);
+    }
+
+    // ---- Theme Colors and Fonts the person makes, Reset, and theme files
+    static QAction *entry(QMenu *menu, const QString &text)
+    {
+        for (QAction *a : menu->actions())
+            if (a->text().startsWith(text)) return a;
+        return nullptr;
+    }
+
+    // Presses a button of the message box that is about to open (looking for it every 20 ms, for seconds); false if none opened.
+    static void answerNextBox(QMessageBox::StandardButton button, bool *said = nullptr)
+    {
+        QTimer::singleShot(0, [button, said] {
+            for (int tries = 0; tries < 250; ++tries) {
+                if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                    if (said) *said = true;
+                    box->button(button)->click();
+                    return;
+                }
+                QTest::qWait(20);
+            }
+        });
+    }
+
+    void sameNamesAskBeforeReplacingAndBuiltInNamesAreRefused()
+    {
+        QTemporaryDir store;
+        office::setThemeStoreFolder(store.path());
+        struct Reset { ~Reset() { office::setThemeStoreFolder(QString()); } } resetStore;
+        office::ThemeColors mine = office::builtinThemeColors().at(2);
+        mine.name = QStringLiteral("Mine");
+        ThemeColorsDialog first(mine);
+        first.nameEdit()->setText(QStringLiteral("Mine"));
+        first.accept();
+        QCOMPARE(office::customThemeColors().size(), 1);
+        // the same name in another case: asked, and No leaves the set as it was
+        ThemeColorsDialog again(mine);
+        again.setSlot(office::Theme::Accent1, QColor(9, 9, 9));
+        again.nameEdit()->setText(QStringLiteral("MINE"));
+        bool asked = false;
+        answerNextBox(QMessageBox::No, &asked);
+        again.accept();
+        QVERIFY(asked);
+        QCOMPARE(office::customThemeColors().first().colors[office::Theme::Accent1], mine.colors[office::Theme::Accent1]);
+        asked = false;
+        answerNextBox(QMessageBox::Yes, &asked);
+        again.accept();
+        QVERIFY(asked);
+        QCOMPARE(office::customThemeColors().size(), 1);
+        QCOMPARE(office::customThemeColors().first().colors[office::Theme::Accent1], QColor(9, 9, 9));
+        // a name a built-in set of any app has (JeffPub's too, and the app's own) is refused with a message
+        for (const QString &name : {QStringLiteral("lagoon"), jp::builtinColorSchemes().first().name, QStringLiteral("JeffOffice")}) {
+            ThemeColorsDialog clash(mine);
+            clash.setReservedNames({QStringLiteral("JeffOffice")});
+            clash.nameEdit()->setText(name);
+            asked = false;
+            answerNextBox(QMessageBox::Ok, &asked);
+            clash.accept();
+            QVERIFY2(asked, qPrintable(name));
+            QCOMPARE(clash.result().name, name);
+            QCOMPARE(office::customThemeColors().size(), 1);
+        }
+        // fonts the same way
+        ThemeFontsDialog fonts(office::ThemeFonts{QString(), QStringLiteral("Zephyr Heading"), QStringLiteral("Zephyr Body")});
+        fonts.nameEdit()->setText(jp::builtinFontSchemes().first().name);
+        asked = false;
+        answerNextBox(QMessageBox::Ok, &asked);
+        fonts.accept();
+        QVERIFY(asked);
+        QVERIFY(office::customThemeFonts().isEmpty());
+    }
+
+    void aNameWithAControlCharacterGoesThroughASavedPresentation()
+    {
+        DeckWindow w;
+        office::ThemeColors c = office::builtinThemeColors().at(3);
+        c.name = QStringLiteral("A\u0001");
+        w.chooseThemeColors(c);
+        w.chooseThemeFonts({QStringLiteral("F\u0002"), QStringLiteral("Zephyr\u0003 Heading"), QStringLiteral("Zephyr Body")});
+        QString err;
+        const QByteArray bytes = deck::exportPresentation(*w.editor()->doc(), &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        auto back = deck::importPresentation(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        QCOMPARE(deck::themeOf(*back).headingFont, QStringLiteral("Zephyr Heading"));
+        QCOMPARE(deck::themeOf(*back).colors[4], c.colors[4]);
+    }
+
+    void createNewThemeColorsAndFontsAreKeptAndChosenInOneStep()
+    {
+        QTemporaryDir store;
+        QVERIFY(store.isValid());
+        office::setThemeStoreFolder(store.path());
+        struct Reset { ~Reset() { office::setThemeStoreFolder(QString()); } } resetStore;
+        DeckWindow w;
+        Editor *ed = w.editor();
+        w.show();
+        auto *variants = w.findChild<VariantGallery *>();
+        QMenu *menu = variants->moreButton()->menu();
+        QMenu *colors = menu->findChild<QMenu *>(QStringLiteral("variantColors"));
+        QMenu *fonts = menu->findChild<QMenu *>(QStringLiteral("variantFonts"));
+        Q_EMIT colors->aboutToShow();
+        colors->adjustSize();
+        shotOf(colors, QStringLiteral("deck-theme-colors-gallery"));
+        QVERIFY(entry(colors, QStringLiteral("Create New Theme Colors")));
+        QVERIFY(entry(colors, QStringLiteral("Lagoon")));   // a built-in set every app has
+        // the box: twelve slots, a preview, a name; saving keeps the set where every app finds it
+        ThemeColorsDialog box(office::themeColorsOf(office::defaultTheme()));
+        for (int i = 0; i < office::Theme::ColorCount; ++i) QVERIFY(box.slotButton(i));
+        box.setSlot(office::Theme::Accent1, QColor(1, 2, 3));
+        QCOMPARE(box.preview()->colors().colors[office::Theme::Accent1], QColor(1, 2, 3));
+        box.nameEdit()->setText(QStringLiteral("Mine"));
+        box.show();
+        shotOf(&box, QStringLiteral("deck-create-new-theme-colors"));
+        box.accept();
+        QCOMPARE(office::customThemeColors().size(), 1);
+        QCOMPARE(office::customThemeColors().first().colors[office::Theme::Accent1], QColor(1, 2, 3));
+        // a built-in name is not taken
+        ThemeColorsDialog clash(office::builtinThemeColors().first());
+        clash.nameEdit()->setText(QStringLiteral("lagoon"));
+        answerNextBox(QMessageBox::Ok);
+        clash.accept();
+        QCOMPARE(office::customThemeColors().size(), 1);
+        // the menu lists it, and a choice restyles the presentation in one step
+        Q_EMIT colors->aboutToShow();
+        QAction *mine = entry(colors, QStringLiteral("Mine"));
+        QVERIFY(mine);
+        const QColor before = deck::themeOf(*ed->doc()).colors[4];
+        const QString headingBefore = deck::themeOf(*ed->doc()).headingFont;
+        const int undoBefore = ed->undoStack()->count();
+        mine->trigger();
+        QCOMPARE(deck::themeOf(*ed->doc()).colors[4], QColor(1, 2, 3));
+        QCOMPARE(ed->undoStack()->count(), undoBefore + 1);
+        // saved as a presentation and opened again with the changed theme
+        QString err;
+        const QByteArray bytes = deck::exportPresentation(*ed->doc(), &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        auto back = deck::importPresentation(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        QCOMPARE(deck::themeOf(*back).colors[4], QColor(1, 2, 3));
+        ed->undo();
+        QCOMPARE(deck::themeOf(*ed->doc()).colors[4], before);
+        ed->redo();
+        QCOMPARE(deck::themeOf(*ed->doc()).colors[4], QColor(1, 2, 3));
+        ed->undo();
+        // fonts the same way
+        jp::initCore();
+        office::ThemeFonts installed;   // (a pair that is installed here, other than the presentation's)
+        for (const office::ThemeFonts &f : office::builtinThemeFonts())
+            if (f.heading != headingBefore) installed = f;
+        QVERIFY(!installed.heading.isEmpty());
+        ThemeFontsDialog fontBox(office::ThemeFonts{QString(), installed.heading, installed.body});
+        fontBox.nameEdit()->setText(QStringLiteral("My Pair"));
+        QCOMPARE(fontBox.headingBox()->currentText(), installed.heading);
+        fontBox.accept();
+        QCOMPARE(office::customThemeFonts().size(), 1);
+        Q_EMIT fonts->aboutToShow();
+        QAction *pair = entry(fonts, QStringLiteral("My Pair"));
+        QVERIFY(pair);
+        pair->trigger();
+        QCOMPARE(deck::themeOf(*ed->doc()).headingFont, installed.heading);
+        auto fontsBack = deck::importPresentation(deck::exportPresentation(*ed->doc(), &err), &err);
+        QVERIFY(fontsBack);
+        const QString reopened = deck::themeOf(*fontsBack).headingFont;
+        QVERIFY2(!reopened.isEmpty() && reopened != headingBefore, qPrintable(reopened));   // (a file may name a face by its twin's name)
+        ed->undo();
+        QCOMPARE(deck::themeOf(*ed->doc()).headingFont, headingBefore);
+    }
+
+    void resetGivesBackTheThemeThePresentationWasOpenedWith()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        w.show();
+        QVERIFY(!w.themeChanged());
+        QVERIFY(!w.resetTheme());
+        const deck::DeckTheme first = deck::themeOf(*ed->doc());
+        w.chooseThemeColors(office::builtinThemeColors().at(4));
+        w.chooseThemeFonts({QStringLiteral("Pair"), QStringLiteral("Zephyr Heading"), QStringLiteral("Zephyr Body")});
+        QVERIFY(w.themeChanged());
+        QCOMPARE(deck::themeOf(*ed->doc()).colors[4], office::builtinThemeColors().at(4).colors[4]);
+        auto *variants = w.findChild<VariantGallery *>();
+        QMenu *colors = variants->moreButton()->menu()->findChild<QMenu *>(QStringLiteral("variantColors"));
+        Q_EMIT colors->aboutToShow();
+        QAction *reset = colors->findChild<QAction *>(QStringLiteral("resetThemeColors"));
+        QVERIFY(reset && reset->isEnabled());
+        reset->trigger();   // one step
+        const deck::DeckTheme now = deck::themeOf(*ed->doc());
+        for (int i = 0; i < 12; ++i) QCOMPARE(now.colors[i], first.colors[i]);
+        QCOMPARE(now.headingFont, first.headingFont);
+        QCOMPARE(now.bodyFont, first.bodyFont);
+        QVERIFY(!w.themeChanged());
+        ed->undo();
+        QCOMPARE(deck::themeOf(*ed->doc()).colors[4], office::builtinThemeColors().at(4).colors[4]);
+        QCOMPARE(deck::themeOf(*ed->doc()).headingFont, QStringLiteral("Zephyr Heading"));
+        Q_EMIT colors->aboutToShow();
+        QVERIFY(colors->findChild<QAction *>(QStringLiteral("resetThemeColors"))->isEnabled());
+    }
+
+    void saveCurrentThemeWritesAThemeFileAndBrowseTakesItOrADocumentsTheme()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        DeckWindow a;
+        a.chooseThemeColors(office::builtinThemeColors().at(7));
+        a.chooseThemeFonts({QStringLiteral("Pair"), QStringLiteral("Zephyr Heading"), QStringLiteral("Zephyr Body")});
+        const QString file = dir.filePath(QStringLiteral("mine.thmx"));
+        QVERIFY(a.saveThemeFile(file));
+        office::Theme read;
+        QString err;
+        QVERIFY2(office::readThemeFile(file, &read, &err), qPrintable(err));
+        QVERIFY(office::themeColorsOf(read) == office::builtinThemeColors().at(7));
+        QCOMPARE(read.majorLatin, QStringLiteral("Zephyr Heading"));
+        QVERIFY(read.xml.contains("effectStyleLst"));
+        // another presentation takes it: colors and fonts, one step
+        DeckWindow b;
+        Editor *ed = b.editor();
+        const QColor was = deck::themeOf(*ed->doc()).colors[4];
+        const QString headingWas = deck::themeOf(*ed->doc()).headingFont;
+        QVERIFY(b.applyThemeFile(file, true));
+        QCOMPARE(deck::themeOf(*ed->doc()).colors[4], office::builtinThemeColors().at(7).colors[4]);
+        QCOMPARE(deck::themeOf(*ed->doc()).headingFont, QStringLiteral("Zephyr Heading"));
+        ed->undo();
+        QCOMPARE(deck::themeOf(*ed->doc()).colors[4], was);
+        QCOMPARE(deck::themeOf(*ed->doc()).headingFont, headingWas);
+        // a document's theme part
+        office::PackageWriter pkg;
+        pkg.addPart(QStringLiteral("/word/document.xml"), "<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"/>",
+                    QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"));
+        pkg.addPart(QStringLiteral("/word/theme/theme1.xml"), office::writeTheme(office::withThemeColors(office::defaultTheme(), office::builtinThemeColors().at(2))),
+                    QStringLiteral("application/vnd.openxmlformats-officedocument.theme+xml"));
+        pkg.addRelationship(QStringLiteral("/"), QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"), QStringLiteral("/word/document.xml"));
+        pkg.addRelationship(QStringLiteral("/word/document.xml"), QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme"), QStringLiteral("/word/theme/theme1.xml"));
+        QFile docx(dir.filePath(QStringLiteral("doc.docx")));
+        QVERIFY(docx.open(QIODevice::WriteOnly));
+        docx.write(pkg.finish());
+        docx.close();
+        QVERIFY(b.applyThemeFile(docx.fileName(), true));
+        QCOMPARE(deck::themeOf(*ed->doc()).colors[4], office::builtinThemeColors().at(2).colors[4]);
+        ed->undo();
+        // a file with no theme in it changes nothing
+        QFile junk(dir.filePath(QStringLiteral("junk.thmx")));
+        QVERIFY(junk.open(QIODevice::WriteOnly));
+        junk.write("not a package");
+        junk.close();
+        const QColor keep = deck::themeOf(*ed->doc()).colors[4];
+        QTimer::singleShot(0, [] {
+            for (int tries = 0; tries < 200; ++tries) {
+                if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                    box->button(QMessageBox::Ok)->click();
+                    return;
+                }
+                QTest::qWait(10);
+            }
+        });
+        QVERIFY(!b.applyThemeFile(junk.fileName(), true));
+        QCOMPARE(deck::themeOf(*ed->doc()).colors[4], keep);
+    }
+
+    // The art of a theme's master and layouts that is drawn past the slide's edge (a design that bleeds) is cut at the edge wherever the slide is drawn, so it never lies on the grey area
+    // round the slide; a shape of the person's that sits half off the slide is still drawn there, so it can be found and dragged back.
+    static QImage slideOnGrey(const Document &d, int page, int margin, const QColor &grey)
+    {
+        LayoutCache cache;
+        PaintContext ctx;
+        ctx.doc = &d;
+        ctx.cache = &cache;
+        QImage img(QSize(int(d.pageSize().width()) + 2 * margin, int(d.pageSize().height()) + 2 * margin), QImage::Format_ARGB32_Premultiplied);
+        img.fill(grey);
+        QPainter p(&img);
+        p.setRenderHint(QPainter::Antialiasing);
+        p.translate(margin, margin);
+        Renderer::paintPage(&p, ctx, page);
+        return img;
+    }
+
+    static bool onlyGreyOutside(const QImage &img, int margin, const QColor &grey, QPoint *where = nullptr)
+    {
+        const QRect slide(margin, margin, img.width() - 2 * margin, img.height() - 2 * margin);
+        for (int y = 0; y < img.height(); ++y)
+            for (int x = 0; x < img.width(); ++x)
+                if (!slide.contains(x, y) && img.pixelColor(x, y) != grey) {
+                    if (where) *where = QPoint(x, y);
+                    return false;
+                }
+        return true;
+    }
+
+    void themeArtPastTheSlidesEdgeIsClippedInEveryTheme()
+    {
+        const QColor grey(0xC9, 0xCE, 0xD6);
+        const int margin = 80;
+        QStringList bleeding;
+        for (int theme = 0; theme < deck::builtinThemeCount(); ++theme) {
+            auto d = deck::themePresentation(theme);
+            const QRectF slide(QPointF(0, 0), d->pageSize());
+            bool bleeds = false;
+            for (const auto &m : d->masters)
+                for (const auto &it : m->items)
+                    if (!slide.contains(it->bounds())) bleeds = true;
+            if (bleeds) bleeding << deck::builtinThemeName(theme);
+            QPoint at;
+            const QImage img = slideOnGrey(*d, 0, margin, grey);
+            QVERIFY2(onlyGreyOutside(img, margin, grey, &at), qPrintable(QStringLiteral("%1: art outside the slide at %2,%3").arg(deck::builtinThemeName(theme)).arg(at.x()).arg(at.y())));
+        }
+        qInfo("themes with master or layout art past the slide's edge: %s", qPrintable(bleeding.join(QStringLiteral(", "))));
+        QVERIFY(bleeding.contains(QStringLiteral("Orchard")));
+        // Orchard's title slide, with the picture saved when asked for
+        auto orchard = deck::themePresentation(deck::builtinThemeIndex(QStringLiteral("Orchard")));
+        const QString dir = qEnvironmentVariable("JO_SHOT_DIR");
+        if (!dir.isEmpty()) {
+            slideOnGrey(*orchard, 0, margin, grey).save(dir + QStringLiteral("/orchard-title-after.png"));
+            orchard->slideText = false;   // (a document that is not a slide's draws as it did, with the art uncut: the picture of before)
+            slideOnGrey(*orchard, 0, margin, grey).save(dir + QStringLiteral("/orchard-title-before.png"));
+            orchard->slideText = true;
+        }
+        // a shape of the person's half off the slide still draws its off-slide half
+        auto shape = std::make_shared<ShapeItem>();
+        shape->name = QStringLiteral("half off");
+        shape->rect = QRectF(orchard->pageSize().width() - 100, 200, 200, 100);
+        shape->fill = Fill::solid(ColorRef::rgb(QColor(0xFF, 0x00, 0xFF)));
+        orchard->pages[0]->items.push_back(shape);
+        const QImage withShape = slideOnGrey(*orchard, 0, margin, grey);
+        const int outsideX = margin + int(orchard->pageSize().width()) + 50, y = margin + 250;
+        QCOMPARE(withShape.pixelColor(outsideX, y), QColor(0xFF, 0x00, 0xFF));
+        QCOMPARE(withShape.pixelColor(margin + int(orchard->pageSize().width()) - 50, y), QColor(0xFF, 0x00, 0xFF));
     }
 
     // A dark presentation opened from a file has light text where none was chosen, so a new text box can be read; a light one is as it was.

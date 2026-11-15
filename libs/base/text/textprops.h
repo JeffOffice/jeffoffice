@@ -69,6 +69,7 @@ enum : int {
     FieldCodeText,                               // QString: layout only, on the mark that stands for a field's code, the code in braces ("{ PAGE }"), shown in place of the result while the field's codes are shown
     MergeField,                                  // bool: layout only, on a field of a mail merge (its result, or its mark): the ones Highlight Merge Fields shades
     BlankFieldResult,                            // bool: layout only, the run is the result of a field (a reference) that is nothing but blanks: it is shown, and takes no part in its line's height (LayoutEnv::wordLines)
+    ContextualAlts,                              // int: 0 default, 1 on, 2 off (the font's contextual alternates, calt)
 
     // block
     StyleName = QTextFormat::UserProperty + 100, // QString paragraph style

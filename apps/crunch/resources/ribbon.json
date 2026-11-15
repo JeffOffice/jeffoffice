@@ -249,6 +249,8 @@
             {"large": {"id": "ribbon.paperSize", "text": "Size", "icon": "file"}, "keytip": "SZ", "menu": ["size.1", "size.5", "size.3", "size.7", "size.6", "size.8", "size.9", "size.11", "size.12", "size.13", "size.14", "size.20", "size.27", "size.28", "-", "size.more"]},
             {"large": {"id": "ribbon.printArea", "text": "Print Area", "icon": "printer"}, "keytip": "R", "menu": ["printarea.set", "printarea.add", "printarea.clear"]},
             {"large": {"id": "ribbon.breaks", "text": "Breaks", "icon": "separator-horizontal"}, "keytip": "B", "menu": ["breaks.insert", "breaks.remove", "breaks.reset"]},
+            {"large": "page.background", "keytip": "KG"},
+            {"large": "page.deleteBackground", "keytip": "KD"},
             {"large": "titles.dialog", "keytip": "T"},
             {"widget": "pageNumberButton", "keytip": "PN"}
           ]
@@ -390,7 +392,8 @@
             {"large": "data.validation", "keytip": "V"},
             {"small": "data.circleInvalid", "keytip": "CI"},
             {"small": "data.clearCircles", "keytip": "CC"},
-            {"large": "data.consolidate", "keytip": "O"}
+            {"large": "data.consolidate", "keytip": "O"},
+            {"large": "data.form", "keytip": "FM"}
           ]
         },
         {
