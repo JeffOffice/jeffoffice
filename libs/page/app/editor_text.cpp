@@ -94,6 +94,57 @@ static void selectWordIfCollapsed(QTextCursor &c)
     if (w.hasSelection() && !w.selectedText().trimmed().isEmpty()) c = w;
 }
 
+// Text formatted by hand tells which properties were: a change to its style does not reach those. These mark them in a range of runs (and the paragraphs' own
+// character formats), or in a range of paragraphs.
+static void markDirectChars(QTextCursor c, const QTextCharFormat &what)
+{
+    QTextDocument *d = c.document();
+    const int s = c.selectionStart(), e = c.selectionEnd();
+    for (QTextBlock b = d->findBlock(s); b.isValid() && b.position() <= e; b = b.next()) {
+        struct Run {
+            int at, len;
+            QTextCharFormat f;
+        };
+        QVector<Run> runs;
+        for (auto it = b.begin(); !it.atEnd(); ++it) {
+            const QTextFragment fr = it.fragment();
+            const int fs = std::max(s, fr.position()), fe = std::min(e, fr.position() + fr.length());
+            if (fs >= fe) continue;
+            QTextCharFormat cf = fr.charFormat();
+            if (tp::addDirect(cf, what)) runs.append({fs, fe - fs, cf});
+        }
+        for (const Run &r : runs) {
+            QTextCursor fc(d);
+            fc.setPosition(r.at);
+            fc.setPosition(r.at + r.len, QTextCursor::KeepAnchor);
+            fc.setCharFormat(r.f);
+        }
+        QTextCharFormat bcf = b.charFormat();
+        QTextCharFormat mine;   // (the properties the paragraph's own character format took)
+        const QMap<int, QVariant> props = what.properties();
+        for (auto it = props.cbegin(); it != props.cend(); ++it)
+            if (bcf.hasProperty(it.key())) mine.setProperty(it.key(), it.value());
+        if (tp::addDirect(bcf, mine)) QTextCursor(b).setBlockCharFormat(bcf);
+    }
+}
+
+static void markDirectBlocks(QTextCursor c, const QTextBlockFormat &what)
+{
+    QTextDocument *d = c.document();
+    const int s = c.selectionStart(), e = c.selectionEnd();
+    for (QTextBlock b = d->findBlock(s); b.isValid() && b.position() <= e; b = b.next()) {
+        QTextBlockFormat bf = b.blockFormat();
+        if (tp::addDirect(bf, what)) QTextCursor(b).setBlockFormat(bf);
+    }
+}
+
+// A paragraph's format set by hand: what it changes is its own.
+static void setBlockDirect(QTextBlock b, QTextBlockFormat bf)
+{
+    tp::addDirectDiff(bf, b.blockFormat());
+    QTextCursor(b).setBlockFormat(bf);
+}
+
 void Editor::mergeCharFormat(const QTextCharFormat &f, const QString &label)
 {
     auto targets = formatTargets();
@@ -105,10 +156,16 @@ void Editor::mergeCharFormat(const QTextCharFormat &f, const QString &label)
         if (c.hasSelection()) c.mergeCharFormat(f);
         m_cursor.mergeCharFormat(f);   // also affects text typed next
         if (!c.hasSelection() || c.selectionStart() == c.block().position()) c.mergeBlockCharFormat(f);
+        if (c.hasSelection()) markDirectChars(c, f);
+        if (!m_cursor.hasSelection()) {
+            QTextCharFormat typed = m_cursor.charFormat();
+            if (tp::addDirect(typed, f)) m_cursor.setCharFormat(typed);
+        }
     } else {
         for (QTextCursor &c : targets) {
             c.mergeCharFormat(f);
             c.mergeBlockCharFormat(f);
+            markDirectChars(c, f);
         }
     }
     endChange();
@@ -120,8 +177,14 @@ void Editor::mergeBlockFormat(const QTextBlockFormat &f, const QString &label)
     auto targets = formatTargets();
     if (targets.isEmpty()) return;
     beginChange(label);
-    for (QTextCursor &c : targets) c.mergeBlockFormat(f);
-    if (isEditingText()) m_cursor.mergeBlockFormat(f);
+    for (QTextCursor &c : targets) {
+        c.mergeBlockFormat(f);
+        markDirectBlocks(c, f);
+    }
+    if (isEditingText()) {
+        m_cursor.mergeBlockFormat(f);
+        markDirectBlocks(m_cursor, f);
+    }
     endChange();
     Q_EMIT textCursorChanged();
 }
@@ -153,11 +216,13 @@ void Editor::clearCharProperty(int prop, const QString &label)
                 fc.setPosition(fe, QTextCursor::KeepAnchor);
                 QTextCharFormat cf = fr.charFormat();
                 cf.clearProperty(prop);
+                tp::removeDirect(cf, {prop});
                 fc.setCharFormat(cf);
             }
             QTextCursor bc(b);
             QTextCharFormat bcf = b.charFormat();
             bcf.clearProperty(prop);
+            tp::removeDirect(bcf, {prop});
             bc.setBlockCharFormat(bcf);
         }
     }
@@ -188,19 +253,25 @@ void Editor::editCharFormats(const std::function<void(QTextCharFormat &)> &chang
                 fc.setPosition(fs);
                 fc.setPosition(fe, QTextCursor::KeepAnchor);
                 QTextCharFormat cf = fr.charFormat();
+                const QTextCharFormat before = cf;
                 change(cf);
+                tp::addDirectDiff(cf, before);
                 fc.setCharFormat(cf);
             }
             QTextCursor bc(b);
             QTextCharFormat bcf = b.charFormat();
+            const QTextCharFormat bcBefore = bcf;
             change(bcf);
+            tp::addDirectDiff(bcf, bcBefore);
             bc.setBlockCharFormat(bcf);
         }
     }
     // (What is typed next, with no selection: a selection's runs are done, each by itself, and a cursor's format would set them all alike.)
     if (isEditingText() && !m_cursor.hasSelection()) {
         QTextCharFormat cf = m_cursor.charFormat();
+        const QTextCharFormat before = cf;
         change(cf);
+        tp::addDirectDiff(cf, before);
         m_cursor.setCharFormat(cf);
     }
     endChange();
@@ -318,6 +389,7 @@ void Editor::growFont(int dir)
                 QTextCharFormat f;
                 f.setFontPointSize(next);
                 fc.mergeCharFormat(f);
+                markDirectChars(fc, f);
             }
     }
     endChange();
@@ -498,7 +570,7 @@ void Editor::setMultilevelList(const QVector<QTextListFormat> &levels, double in
                 bf.setLeftMargin(indent >= 0 ? indent : std::max(bf.leftMargin(), 18.0));
                 bf.setTextIndent(indent >= 0 ? -indent : -18);
                 bf.setIndent(0);
-                QTextCursor(b).setBlockFormat(bf);
+                setBlockDirect(b, bf);
             }
             putInList(b, levels.at(std::min(level, int(levels.size()) - 1)), level);
             if (b == last) break;
@@ -525,7 +597,7 @@ void Editor::setListLevel(int level)
                     QTextListFormat lf = l->format();
                     lf.setProperty(tp::ListLevel, to);
                     lf.setStart(1);
-                    QTextCursor(b).setBlockFormat(bf);
+                    setBlockDirect(b, bf);
                     putInList(b, lf, to);
                 }
             }
@@ -546,7 +618,7 @@ void Editor::changeIndent(int dir)
         for (QTextBlock b = d->findBlock(c.selectionStart()); b.isValid() && b.position() <= c.selectionEnd(); b = b.next()) {
             QTextBlockFormat bf = b.blockFormat();
             bf.setLeftMargin(std::max(0.0, bf.leftMargin() + dir * 18.0));
-            QTextCursor(b).setBlockFormat(bf);
+            setBlockDirect(b, bf);
             // A list item moves a level in or out: into the list of that level
             // just above it (so its numbers go on), or a new one, numbered
             // 1. a. i. or bulleted • ◦ ▪ by level.
@@ -606,7 +678,7 @@ void Editor::setList(int kind, int format, const QString &bullet, int start, dou
                 bf.setIndent(0);
                 bf.setTextIndent(0);
                 bf.setLeftMargin(std::max(0.0, bf.leftMargin() - 18));
-                QTextCursor(b).setBlockFormat(bf);
+                setBlockDirect(b, bf);
                 if (b == last) break;
             }
             continue;
@@ -652,37 +724,58 @@ void Editor::applyStyle(const QString &name)
     auto targets = formatTargets();
     if (targets.isEmpty()) return;
     beginChange(tr("Apply Style"));
+    // A style applied takes the properties it gives out of what was set by hand.
+    QSet<int> gives = tp::keysOf(s->chr);
+    gives.insert(QTextFormat::FontFamilies);   // (a style with no font of its own puts the scheme font back)
+    auto takeOver = [&](QTextCharFormat &f) { tp::removeDirect(f, gives); };
     for (QTextCursor c : targets) {
         if (s->charOnly) {
             if (isEditingText()) selectWordIfCollapsed(c);
             QTextCharFormat cf = s->chr;
             cf.setProperty(tp::CharStyle, name);   // (so a change to the style reaches the text)
             c.mergeCharFormat(cf);
+            // (each run keeps what it was given by hand, less what the style sets)
+            QTextDocument *d = c.document();
+            for (QTextBlock b = d->findBlock(c.selectionStart()); b.isValid() && b.position() <= c.selectionEnd(); b = b.next())
+                for (auto it = b.begin(); !it.atEnd(); ++it) {
+                    const QTextFragment fr = it.fragment();
+                    const int fs = std::max(c.selectionStart(), fr.position()), fe = std::min(c.selectionEnd(), fr.position() + fr.length());
+                    QTextCharFormat ff = fr.charFormat();
+                    if (fs >= fe || !tp::removeDirect(ff, gives)) continue;
+                    QTextCursor fc(d);
+                    fc.setPosition(fs);
+                    fc.setPosition(fe, QTextCursor::KeepAnchor);
+                    fc.setCharFormat(ff);
+                }
             continue;
         }
         QTextDocument *d = c.document();
+        const QSet<int> givesBlk = tp::keysOf(s->blk);
         for (QTextBlock b = d->findBlock(c.selectionStart()); b.isValid() && b.position() <= c.selectionEnd(); b = b.next()) {
             QTextCursor bc(b);
             QTextBlockFormat bf = b.blockFormat();
             tp::setProperties(bf, s->blk);
             bf.setProperty(tp::StyleName, name);
+            tp::removeDirect(bf, givesBlk);
             bc.setBlockFormat(bf);
             bc.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
             QTextCharFormat cf = s->chr;
             cf.setProperty(tp::CharStyle, QString());
             bc.mergeCharFormat(cf);
             bc.mergeBlockCharFormat(cf);
-            // Style fonts follow the scheme unless the style names a font.
-            if (!s->chr.hasProperty(QTextFormat::FontFamilies)) {
-                for (auto it = b.begin(); !it.atEnd(); ++it) {
-                    const QTextFragment fr = it.fragment();
-                    QTextCursor fc(d);
-                    fc.setPosition(fr.position());
-                    fc.setPosition(fr.position() + fr.length(), QTextCursor::KeepAnchor);
-                    QTextCharFormat ff = fr.charFormat();
-                    ff.clearProperty(QTextFormat::FontFamilies);
-                    fc.setCharFormat(ff);
-                }
+            QTextCharFormat bcf = b.charFormat();
+            takeOver(bcf);
+            QTextCursor(b).setBlockCharFormat(bcf);
+            // The runs: the style's look over theirs, the properties it sets no longer hand-set, and the scheme font where the style names none.
+            for (auto it = b.begin(); !it.atEnd(); ++it) {
+                const QTextFragment fr = it.fragment();
+                QTextCursor fc(d);
+                fc.setPosition(fr.position());
+                fc.setPosition(fr.position() + fr.length(), QTextCursor::KeepAnchor);
+                QTextCharFormat ff = fr.charFormat();
+                if (!s->chr.hasProperty(QTextFormat::FontFamilies)) ff.clearProperty(QTextFormat::FontFamilies);
+                takeOver(ff);
+                fc.setCharFormat(ff);
             }
         }
     }

@@ -1625,6 +1625,9 @@ std::unique_ptr<Document> importPublisher(const QByteArray &data, QString *error
         if (error) *error = QCoreApplication::translate("Import", "JeffPub could not read this .pub file. It may be damaged or use features that aren't supported yet.");
         return nullptr;
     }
+    // A .pub style holds all its settings; the ones its base gives the same follow it, and the text's own look is told from its style's.
+    doc->flatStylesToInherited();
+    doc->inferDirectFormatting();
     doc->props.created = QDateTime::currentDateTime();
     return doc;
 }

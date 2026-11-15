@@ -1705,7 +1705,10 @@ QStringList Editor::insertItemsJson(const QByteArray &json, const QString &label
             if (sid.isEmpty()) return;
             if (!storyMap.contains(sid)) {
                 const QString ns = m_doc->createStory();
-                if (stories.contains(sid)) storyFromJson(m_doc->storyDoc(ns), stories[sid].toObject());
+                if (stories.contains(sid)) {
+                    storyFromJson(m_doc->storyDoc(ns), stories[sid].toObject());
+                    m_doc->adoptText(m_doc->storyDoc(ns), 0, m_doc->storyDoc(ns)->characterCount());
+                }
                 storyMap[sid] = ns;
             }
             sid = storyMap[sid];
@@ -1758,7 +1761,9 @@ void Editor::paste(bool textOnly)
         if (!textOnly && md->hasFormat("application/x-jeffpub-text")) {
             QTextDocument tmp;
             storyFromJson(&tmp, QJsonDocument::fromJson(md->data("application/x-jeffpub-text")).object());
+            const int from = m_cursor.selectionStart();
             m_cursor.insertFragment(QTextDocumentFragment(&tmp));
+            m_doc->adoptText(m_cursor.document(), from, m_cursor.position());
         } else if (!textOnly && md->hasHtml()) {
             m_cursor.insertFragment(QTextDocumentFragment::fromHtml(md->html()));
         } else if (md->hasText()) {

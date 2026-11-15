@@ -128,6 +128,7 @@ enum : int {
     RaisedRef,                                   // bool (char format): layout only, a note's reference whose run names no style and says nothing of raising is shown raised on the page: never written to a file
     DoubleStrike,                                // bool (char format): the strike-through is drawn twice (a moved-away text, or a deletion the person asked to see double struck)
     BulletPicture,                               // QByteArray (list format): the bytes of the picture (PNG or JPEG) that is the bullet (a word processor's picture bullet), drawn in place of the marker's character (LayoutEnv::wordLines)
+    DirectProps,                                 // QString (char and block formats): the properties the text was given by hand, ",id,id," (the rest come from its style: a style change reaches them)
 };
 
 // How tracked changes are shown in the lines (LayoutEnv::revisionView, and the same number as the story's property kRevisionViewProperty, which the places that have no environment
@@ -289,6 +290,70 @@ inline void setProperties(QTextFormat &to, const QTextFormat &from)
 {
     const QMap<int, QVariant> props = from.properties();
     for (auto it = props.cbegin(); it != props.cend(); ++it) to.setProperty(it.key(), it.value());
+}
+
+// The properties of a run or a paragraph that were set by hand rather than taken from its style (tp::DirectProps): a change to the style does not reach them.
+inline bool isBookkeeping(int key) { return key == StyleName || key == CharStyle || key == DirectProps; }
+inline QSet<int> directOf(const QTextFormat &f)
+{
+    QSet<int> out;
+    const QString s = f.stringProperty(DirectProps);
+    if (s.isEmpty()) return out;
+    for (const QStringView part : QStringView(s).split(QLatin1Char(','), Qt::SkipEmptyParts)) out.insert(part.toInt());
+    return out;
+}
+inline void setDirectOf(QTextFormat &f, const QSet<int> &keys)
+{
+    if (keys.isEmpty()) {
+        f.clearProperty(DirectProps);
+        return;
+    }
+    QList<int> sorted(keys.cbegin(), keys.cend());
+    std::sort(sorted.begin(), sorted.end());
+    QString s = QStringLiteral(",");
+    for (int k : sorted) s += QString::number(k) + QLatin1Char(',');
+    f.setProperty(DirectProps, s);
+}
+// Adds the properties `what` sets to the format's hand-set ones; whether that changed anything.
+inline bool addDirect(QTextFormat &f, const QTextFormat &what)
+{
+    QSet<int> keys = directOf(f);
+    const int before = int(keys.size());
+    const QMap<int, QVariant> props = what.properties();
+    for (auto it = props.cbegin(); it != props.cend(); ++it)
+        if (!isBookkeeping(it.key())) keys.insert(it.key());
+    if (keys.size() == before) return false;
+    setDirectOf(f, keys);
+    return true;
+}
+// Adds the properties whose values differ between the two formats.
+inline void addDirectDiff(QTextFormat &after, const QTextFormat &before)
+{
+    const QMap<int, QVariant> a = after.properties(), b = before.properties();
+    QSet<int> keys = directOf(after);
+    for (auto it = a.cbegin(); it != a.cend(); ++it)
+        if (!isBookkeeping(it.key()) && b.value(it.key()) != it.value()) keys.insert(it.key());
+    for (auto it = b.cbegin(); it != b.cend(); ++it)
+        if (!isBookkeeping(it.key()) && !a.contains(it.key())) keys.insert(it.key());
+    setDirectOf(after, keys);
+}
+// Takes the properties out of the hand-set ones (a style applied over them, or the property cleared).
+inline bool removeDirect(QTextFormat &f, const QSet<int> &gone)
+{
+    QSet<int> keys = directOf(f);
+    const int before = int(keys.size());
+    keys.subtract(gone);
+    if (keys.size() == before) return false;
+    setDirectOf(f, keys);
+    return true;
+}
+inline QSet<int> keysOf(const QTextFormat &f)
+{
+    QSet<int> out;
+    const QMap<int, QVariant> props = f.properties();
+    for (auto it = props.cbegin(); it != props.cend(); ++it)
+        if (!isBookkeeping(it.key())) out.insert(it.key());
+    return out;
 }
 
 // Publisher's two kinds of letter spacing. Tracking is a percentage (100

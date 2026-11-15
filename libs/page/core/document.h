@@ -145,6 +145,8 @@ struct PageSetup {
     static PageSetup fromJson(const QJsonObject &o);
 };
 
+struct StyleSet;
+
 struct TextStyle {
     QString name;
     bool charOnly = false;
@@ -547,6 +549,14 @@ public:
     // bases', to the text in it: a paragraph, or a run in a character style, keeps what it was given directly, and takes the new look in what it
     // had of the old. Returns how many paragraphs and runs changed.
     int changeStyles(const QVector<TextStyle> &next, const QHash<QString, QString> &renamed = {});
+    // The text of the text boxes on pages (the stories that are in the style Normal when they name none).
+    QSet<QString> ordinaryStoryIds() const;
+    // For a document made before the text told which of its properties were set by hand: each style takes out what its base gives the same, and each run and
+    // paragraph takes the properties that differ from its style as its own (see tp::DirectProps).
+    void flatStylesToInherited();
+    void inferDirectFormatting();
+    // Text pasted in from elsewhere, from `from` to `to` in the story document: what differs from the style it names keeps its look, as set by hand.
+    void adoptText(QTextDocument *d, int from, int to);
     // The style with only what it sets over its base (a style made from a look gives each of its settings, those the base gives too).
     TextStyle onlyWhatDiffers(TextStyle s) const;
     // Removes a style: the styles based on it are based on its own base instead, with what they took from it set in them so they look the same.
@@ -578,6 +588,8 @@ public:
     static std::unique_ptr<Document> blank(const QSizeF &size, const QString &sizeName = QStringLiteral("Letter"), int pageCount = 1);
 
 private:
+    const StyleSet &styleSet() const;
+    mutable std::shared_ptr<StyleSet> m_styleSet;   // what `styles` come to, made again when they have been written to
     // The picture with these bytes, if one is kept: by the buffer itself, or
     // by a hash of the bytes (compared only when the hashes agree).
     QString findImage(const QByteArray &bytes) const;

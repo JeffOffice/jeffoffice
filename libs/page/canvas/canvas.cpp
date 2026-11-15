@@ -2711,6 +2711,7 @@ void Canvas::handleTextKey(QKeyEvent *e)
                     b.textList()->remove(b);
                     QTextBlockFormat bf = b.blockFormat();
                     bf.setTextIndent(0);
+                    tp::addDirectDiff(bf, b.blockFormat());
                     c.setBlockFormat(bf);
                 } else c.deletePreviousChar();
             }
@@ -2737,6 +2738,7 @@ void Canvas::handleTextKey(QKeyEvent *e)
                 QTextBlockFormat bf = b.blockFormat();
                 bf.setTextIndent(0);
                 bf.setLeftMargin(std::max(0.0, bf.leftMargin() - 18));
+                tp::addDirectDiff(bf, b.blockFormat());
                 c.setBlockFormat(bf);
                 return;
             }
@@ -2749,12 +2751,14 @@ void Canvas::handleTextKey(QKeyEvent *e)
             QTextCharFormat ncf = c.charFormat();
             if (ts && atEnd && !ts->next.isEmpty() && ts->next != style) {
                 if (m_ed->doc()->style(ts->next)) {
-                    // The next style as the style gives it (with what its bases set), over what this one's look gave the paragraph.
+                    // The next style as the style gives it (with what its bases set), over what this paragraph's own style gave it. What was set by hand stays.
                     const TextStyle was = m_ed->doc()->resolvedStyle(style), nx = m_ed->doc()->resolvedStyle(ts->next);
-                    const QMap<int, QVariant> wasBlk = was.blk.properties();
+                    const QSet<int> direct = tp::directOf(nbf);
+                    const QMap<int, QVariant> wasBlk = was.blk.properties(), nxBlk = nx.blk.properties();
                     for (auto k = wasBlk.cbegin(); k != wasBlk.cend(); ++k)
-                        if (nbf.property(k.key()) == k.value()) nbf.clearProperty(k.key());
-                    tp::setProperties(nbf, nx.blk);
+                        if (!direct.contains(k.key()) && !tp::isBookkeeping(k.key())) nbf.clearProperty(k.key());
+                    for (auto k = nxBlk.cbegin(); k != nxBlk.cend(); ++k)
+                        if (!direct.contains(k.key()) && !tp::isBookkeeping(k.key())) nbf.setProperty(k.key(), k.value());
                     nbf.setProperty(tp::StyleName, nx.name);
                     ncf = nx.chr;
                 }
@@ -3379,6 +3383,7 @@ void Ruler::mouseMoveEvent(QMouseEvent *e)
             bf.setTabPositions(tabs);
         }
         QTextCursor c = ed->cursor();
+        tp::addDirectDiff(bf, c.blockFormat());
         c.setBlockFormat(bf);
         ed->notifyLive();
         update();

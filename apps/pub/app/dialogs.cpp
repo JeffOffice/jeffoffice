@@ -1398,9 +1398,24 @@ void styleDialog(QWidget *p, Editor *ed, const QString &styleName)
         for (auto &f : fields) refresh(*f);
     });
     form->insertRow(0, QCoreApplication::translate("Dialogs", "Style name:"), name);
-    form->insertRow(1, QCoreApplication::translate("Dialogs", "Based on:"), basedOn);
-    form->insertRow(2, QCoreApplication::translate("Dialogs", "Style for the next paragraph:"), next);
-    form->insertRow(3, charOnly);
+    // A name another style has is refused: the message shows, and OK waits.
+    auto *nameNote = new QLabel(&dlg.d);
+    nameNote->setObjectName(QStringLiteral("styleNameNote"));
+    nameNote->setTextFormat(Qt::PlainText);
+    nameNote->setWordWrap(true);
+    nameNote->hide();
+    form->insertRow(1, QString(), nameNote);
+    auto checkName = [&, nameNote](const QString &text) {
+        const QString t = text.trimmed();
+        const bool clash = !t.isEmpty() && doc->style(t) && (!existing || t != styleName);
+        nameNote->setText(clash ? QCoreApplication::translate("Dialogs", "A style named \"%1\" already exists. Choose another name.").arg(t) : QString());
+        nameNote->setVisible(clash);
+        if (auto *ok = dlg.bb->button(QDialogButtonBox::Ok)) ok->setEnabled(!clash);
+    };
+    QObject::connect(name, &QLineEdit::textChanged, &dlg.d, checkName);
+    form->insertRow(2, QCoreApplication::translate("Dialogs", "Based on:"), basedOn);
+    form->insertRow(3, QCoreApplication::translate("Dialogs", "Style for the next paragraph:"), next);
+    form->insertRow(4, charOnly);
     dlg.v->addLayout(form);
     bool deleteIt = false;
     if (existing && styleName != QLatin1String("Normal")) {

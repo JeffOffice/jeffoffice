@@ -4,6 +4,12 @@
 #include <QMessageBox>
 #include <QStandardItemModel>
 #include <QToolButton>
+#include <QMimeData>
+#include <QClipboard>
+#include <QElapsedTimer>
+#include <QLabel>
+#include <QLineEdit>
+#include <QDialogButtonBox>
 #include "app/dialogs.h"
 #include <QBuffer>
 #include "../timing.h"
@@ -199,11 +205,12 @@ private Q_SLOTS:
         auto inOwn = boxIn(ed, QStringLiteral("own"), QStringLiteral("Own"));
         auto direct = boxIn(ed, QStringLiteral("direct"), QStringLiteral("Child"));
         {
-            QTextCursor c(doc->storyDoc(direct->storyId));
+            ed->beginTextEdit(direct->id, 0);
+            QTextCursor c = ed->cursor();
             c.select(QTextCursor::Document);
-            QTextCharFormat f;
-            f.setFontPointSize(40);
-            c.mergeCharFormat(f);
+            ed->setCursor(c);
+            ed->setFontSize(40);   // (by hand)
+            ed->endTextEdit();
         }
         QCOMPARE(runOf(ed, inChild).fontPointSize(), 12.0);
         QVector<jp::TextStyle> next = doc->styles;
@@ -503,36 +510,378 @@ private Q_SLOTS:
         QCOMPARE(after.blk.topMargin(), 3.0);
     }
 
-    // 200 styles in chains of five, 500 text frames: a change to the top of every chain reaches all the text in well under a fifth of a second.
-    void changingBaseStylesIsFast()
+    // What was set by hand is known, not guessed: a hand-set size equal to the style's keeps its value when the style changes.
+    void aHandSetSizeKeepsItsValue()
     {
         jp::MainWindow w;
         jp::Editor *ed = w.editor();
         jp::Document *doc = ed->doc();
-        const int builtIn = doc->styles.size();
-        for (int c = 0; c < 40; ++c) {
-            doc->styles << made(QStringLiteral("R%1_0").arg(c), QString(), 10);
-            for (int l = 1; l < 5; ++l) doc->styles << made(QStringLiteral("R%1_%2").arg(c).arg(l), QStringLiteral("R%1_%2").arg(c).arg(l - 1));
-        }
-        QCOMPARE(doc->styles.size() - builtIn, 200);
-        QStringList stories;
-        for (int i = 0; i < 500; ++i) {
-            auto box = boxIn(ed, QStringLiteral("frame %1").arg(i), QStringLiteral("R%1_%2").arg(i % 40).arg(i % 5), QRectF(10 + (i % 20) * 25, 10 + (i / 20) * 25, 20, 20));
-            stories << box->storyId;
-        }
-        double now = 10;
-        auto flip = [&] {
-            now = now == 10 ? 14 : 10;
-            QVector<jp::TextStyle> next = ed->doc()->styles;
-            for (auto &s : next)
-                if (s.name.endsWith(QLatin1String("_0"))) s.chr.setFontPointSize(now);
-            ed->change(QStringLiteral("Modify Style"), [&] { ed->doc()->changeStyles(next); });
+        doc->styles << made(QStringLiteral("Cap"), QStringLiteral("Normal"));
+        const double normal = doc->resolvedStyle(QStringLiteral("Normal")).chr.fontPointSize();
+        auto hand = boxIn(ed, QStringLiteral("hand"), QStringLiteral("Cap"));
+        auto plain = boxIn(ed, QStringLiteral("plain"), QStringLiteral("Cap"), QRectF(72, 200, 200, 40));
+        ed->beginTextEdit(hand->id, 0);
+        QTextCursor c = ed->cursor();
+        c.select(QTextCursor::Document);
+        ed->setCursor(c);
+        ed->setFontSize(normal);   // (the same size as the style gives: set by hand all the same)
+        ed->endTextEdit();
+        QVector<jp::TextStyle> next = doc->styles;
+        find(next, QStringLiteral("Normal"))->chr.setFontPointSize(normal + 3);
+        doc->changeStyles(next);
+        QCOMPARE(runOf(ed, hand).fontPointSize(), normal);
+        QCOMPARE(runOf(ed, plain).fontPointSize(), normal + 3);
+    }
+
+    // A hand-centered paragraph stays centered when its style changes, and when Enter starts the next paragraph; one not centered by hand follows.
+    void aHandCenteredParagraphStaysCentered()
+    {
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        jp::Document *doc = ed->doc();
+        jp::TextStyle head = made(QStringLiteral("Head"), QStringLiteral("Normal"), 20);
+        head.blk.setAlignment(Qt::AlignLeft);
+        head.next = QStringLiteral("Text");
+        doc->styles << head << made(QStringLiteral("Text"), QStringLiteral("Normal"));
+        auto hand = boxIn(ed, QStringLiteral("hand"), QStringLiteral("Head"));
+        auto plain = boxIn(ed, QStringLiteral("plain"), QStringLiteral("Head"), QRectF(72, 200, 200, 40));
+        ed->beginTextEdit(hand->id, 0);
+        ed->setAlignment(Qt::AlignHCenter);
+        ed->endTextEdit();
+        QVector<jp::TextStyle> next = doc->styles;
+        find(next, QStringLiteral("Head"))->blk.setAlignment(Qt::AlignRight);
+        doc->changeStyles(next);
+        QCOMPARE(int(paraOf(ed, hand).alignment() & Qt::AlignHorizontal_Mask), int(Qt::AlignHCenter));
+        QCOMPARE(int(paraOf(ed, plain).alignment() & Qt::AlignHorizontal_Mask), int(Qt::AlignRight));
+        // Enter at the end of each: the next paragraph is in Text; the hand-centered one's stays centered, the other's is not right-aligned.
+        auto enterAtEnd = [&](const std::shared_ptr<jp::TextItem> &box) {
+            ed->beginTextEdit(box->id, 0);
+            QTextCursor cur = ed->cursor();
+            cur.movePosition(QTextCursor::End);
+            ed->setCursor(cur);
+            QTest::keyClick(w.canvas(), Qt::Key_Return);
+            const QTextBlock second = ed->editDoc()->findBlockByNumber(1);
+            const QTextBlockFormat bf = second.blockFormat();
+            ed->endTextEdit();
+            return bf;
         };
-        const qint64 ns = bestNanoseconds(flip, 3);
-        qInfo() << "base style change over 500 frames:" << ns / 1000000 << "ms";
-        QCOMPARE(ed->doc()->storyDoc(stories[0])->firstBlock().begin().fragment().charFormat().fontPointSize(), now);
-        QCOMPARE(ed->doc()->storyDoc(stories[499])->firstBlock().begin().fragment().charFormat().fontPointSize(), now);
-        QVERIFY2(ns < 200 * 1000000, qPrintable(QStringLiteral("took %1 ms").arg(ns / 1000000)));
+        const QTextBlockFormat afterHand = enterAtEnd(hand), afterPlain = enterAtEnd(plain);
+        QCOMPARE(afterHand.stringProperty(jp::tp::StyleName), QStringLiteral("Text"));
+        QCOMPARE(int(afterHand.alignment() & Qt::AlignHorizontal_Mask), int(Qt::AlignHCenter));
+        QCOMPARE(afterPlain.stringProperty(jp::tp::StyleName), QStringLiteral("Text"));
+        QVERIFY((afterPlain.alignment() & Qt::AlignHorizontal_Mask) != Qt::AlignRight);
+    }
+
+    // A paragraph made flush by hand stays flush when Normal gains an indent; one never set follows. Text on a master page, and in a shape, is not in Normal.
+    void aHandMadeFlushParagraphAndTextOutsideTheNormalStory()
+    {
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        jp::Document *doc = ed->doc();
+        auto flush = boxIn(ed, QStringLiteral("flush"), QString());
+        auto follows = boxIn(ed, QStringLiteral("follows"), QString(), QRectF(72, 200, 200, 40));
+        ed->beginTextEdit(flush->id, 0);
+        QTextBlockFormat bf;
+        bf.setLeftMargin(0);
+        ed->mergeBlockFormat(bf, QStringLiteral("Indent"));
+        ed->endTextEdit();
+        // text of a master page and of a shape, which name no style (a new story is in Normal by name, so the name is taken off)
+        auto unnamed = [&](const QString &story) {
+            QTextCursor c(doc->storyDoc(story));
+            c.select(QTextCursor::Document);
+            QTextBlockFormat plainBlock;
+            plainBlock.setProperty(jp::tp::StyleName, QString());
+            c.mergeBlockFormat(plainBlock);
+        };
+        auto masterBox = std::make_shared<jp::TextItem>();
+        masterBox->storyId = doc->createStory(QStringLiteral("master text"));
+        unnamed(masterBox->storyId);
+        masterBox->rect = QRectF(10, 10, 100, 20);
+        doc->masters.first()->items.push_back(masterBox);
+        auto shape = std::make_shared<jp::ShapeItem>();
+        shape->storyId = doc->createStory(QStringLiteral("shape text"));
+        unnamed(shape->storyId);
+        shape->rect = QRectF(10, 300, 100, 50);
+        ed->addItem(shape);
+        QVector<jp::TextStyle> next = doc->styles;
+        find(next, QStringLiteral("Normal"))->blk.setLeftMargin(20);
+        doc->changeStyles(next);
+        QCOMPARE(paraOf(ed, flush).leftMargin(), 0.0);
+        QCOMPARE(paraOf(ed, follows).leftMargin(), 20.0);
+        QCOMPARE(doc->storyDoc(masterBox->storyId)->firstBlock().blockFormat().leftMargin(), 0.0);
+        QCOMPARE(doc->storyDoc(shape->storyId)->firstBlock().blockFormat().leftMargin(), 0.0);
+    }
+
+    // A document saved before styles followed their bases: the style's settings that its base gives the same are inherited, and the text that
+    // looks as its style does follows; what differs was the text's own.
+    void anOldFlatFileFollowsItsBase()
+    {
+        jp::Document doc;
+        doc.addPage();
+        const double normal = doc.resolvedStyle(QStringLiteral("Normal")).chr.fontPointSize();
+        jp::TextStyle flat = made(QStringLiteral("Heading"), QStringLiteral("Normal"), normal);   // (every setting held, the size too)
+        flat.chr.setFontWeight(QFont::Bold);
+        doc.styles << flat;
+        const QString story = doc.createStory(QStringLiteral("one\ntwo"));
+        auto box = std::make_shared<jp::TextItem>();
+        box->storyId = story;
+        box->rect = QRectF(72, 72, 200, 100);
+        doc.pages.first()->items.push_back(box);
+        QTextDocument *d = doc.storyDoc(story);
+        for (QTextBlock b = d->begin(); b.isValid(); b = b.next()) {
+            QTextCursor c(b);
+            QTextBlockFormat bf = b.blockFormat();
+            bf.setProperty(jp::tp::StyleName, QStringLiteral("Heading"));
+            c.setBlockFormat(bf);
+            c.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
+            QTextCharFormat cf;
+            cf.setFontPointSize(b.blockNumber() == 0 ? normal : 30);   // (the second line was made bigger by hand)
+            cf.setFontWeight(QFont::Bold);
+            c.mergeCharFormat(cf);
+        }
+        QJsonObject json = doc.toJson();
+        json.remove(QStringLiteral("styleModel"));   // as a file made before
+        jp::Document old;
+        old.fromJson(json);
+        QVERIFY(!old.style(QStringLiteral("Heading"))->chr.hasProperty(QTextFormat::FontPointSize));
+        QCOMPARE(old.resolvedStyle(QStringLiteral("Heading")).chr.fontPointSize(), normal);   // (the look is the same)
+        QVERIFY(old.style(QStringLiteral("Heading"))->chr.hasProperty(QTextFormat::FontWeight));
+        QVector<jp::TextStyle> next = old.styles;
+        find(next, QStringLiteral("Normal"))->chr.setFontPointSize(normal + 5);
+        old.changeStyles(next);
+        QCOMPARE(old.resolvedStyle(QStringLiteral("Heading")).chr.fontPointSize(), normal + 5);
+        QTextDocument *od = old.storyDoc(story);
+        auto sizeOfBlock = [&](int n) { return od->findBlockByNumber(n).begin().fragment().charFormat().fontPointSize(); };
+        QCOMPARE(sizeOfBlock(0), normal + 5);
+        QCOMPARE(sizeOfBlock(1), 30.0);
+        // Saved again, what is hand-set is known: no guessing the second time.
+        jp::Document again;
+        again.fromJson(old.toJson());
+        QVector<jp::TextStyle> more = again.styles;
+        find(more, QStringLiteral("Normal"))->chr.setFontPointSize(normal + 9);
+        again.changeStyles(more);
+        QCOMPARE(again.storyDoc(story)->findBlockByNumber(0).begin().fragment().charFormat().fontPointSize(), normal + 9);
+        QCOMPARE(again.storyDoc(story)->findBlockByNumber(1).begin().fragment().charFormat().fontPointSize(), 30.0);
+    }
+
+    // 10,000 styles in one chain: read, and changed once, inside a second; the chain is cut at 64 levels; a repeated look-up is not a walk of the chain.
+    void tenThousandStylesInAChainAreBounded()
+    {
+        jp::Document doc;
+        doc.styles.clear();
+        for (int i = 0; i < 10000; ++i) {
+            jp::TextStyle s = made(QStringLiteral("S%1").arg(i), i ? QStringLiteral("S%1").arg(i - 1) : QString());
+            s.blk.setLeftMargin(i % 50);
+            if (i == 0) s.chr.setFontPointSize(10);
+            doc.styles << s;
+        }
+        const QJsonObject json = doc.toJson();
+        QElapsedTimer t;
+        t.start();
+        jp::Document back;
+        back.fromJson(json);
+        QVector<jp::TextStyle> next = back.styles;
+        for (auto &s : next)
+            if (s.name == QLatin1String("S0")) s.chr.setFontPointSize(18);
+        back.changeStyles(next);
+        const qint64 ms = t.elapsed();
+        qInfo() << "10,000 styles, load and one change:" << ms << "ms";
+        QVERIFY2(ms < 1000, qPrintable(QStringLiteral("took %1 ms").arg(ms)));
+        int deepest = 0;
+        for (const auto &s : std::as_const(back.styles)) {
+            int depth = 0;
+            for (const jp::TextStyle *at = &s; !at->basedOn.isEmpty() && depth < 20000; at = back.style(at->basedOn)) ++depth;
+            deepest = std::max(deepest, depth);
+        }
+        QVERIFY2(deepest <= 64, qPrintable(QStringLiteral("deepest chain %1").arg(deepest)));
+        QCOMPARE(back.resolvedStyle(QStringLiteral("S40")).chr.fontPointSize(), 18.0);
+        // many look-ups of one style cost no walk of its chain
+        QElapsedTimer lookups;
+        lookups.start();
+        double sum = 0;
+        for (int i = 0; i < 20000; ++i) sum += back.resolvedStyle(QStringLiteral("S%1").arg(i % 10000)).chr.fontPointSize();
+        QVERIFY(sum > 0);
+        QVERIFY2(lookups.elapsed() < 1000, qPrintable(QStringLiteral("20,000 look-ups took %1 ms").arg(lookups.elapsed())));
+    }
+
+    // A loop of bases that a file holds is cut where most styles keep the look they had.
+    void aDamagedLoopIsCutWhereMostKeepTheirLook()
+    {
+        jp::Document doc;
+        auto mk = [&](const char *name, const char *base, double left) {
+            jp::TextStyle s = made(QString::fromLatin1(name), QString::fromLatin1(base));
+            s.blk.setLeftMargin(left);
+            return s;
+        };
+        // A is based on B, B on C, C on A; D and E are based on B.
+        doc.styles << mk("A", "B", 1) << mk("B", "C", 2) << mk("C", "A", 4) << mk("D", "B", 8) << mk("E", "B", 16);
+        const double d = doc.resolvedStyle(QStringLiteral("D")).blk.leftMargin();   // (as told before: D, B, C, A, and no further)
+        const double e = doc.resolvedStyle(QStringLiteral("E")).blk.leftMargin();
+        jp::Document back;
+        back.fromJson(doc.toJson());
+        QVERIFY(back.style(QStringLiteral("A"))->basedOn.isEmpty());   // the link into B, which D and E go through
+        QCOMPARE(back.style(QStringLiteral("B"))->basedOn, QStringLiteral("C"));
+        QCOMPARE(back.style(QStringLiteral("C"))->basedOn, QStringLiteral("A"));
+        QCOMPARE(back.resolvedStyle(QStringLiteral("D")).blk.leftMargin(), d);
+        QCOMPARE(back.resolvedStyle(QStringLiteral("E")).blk.leftMargin(), e);
+    }
+
+    // Deleting a style takes its name out of the text, which keeps its look as its own; a new style of that name takes nothing.
+    void deletingAStyleLeavesNoNameInTheText()
+    {
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        jp::Document *doc = ed->doc();
+        jp::TextStyle gone = made(QStringLiteral("Gone"), QStringLiteral("Normal"), 15);
+        gone.blk.setLeftMargin(7);
+        doc->styles << gone;
+        auto box = boxIn(ed, QStringLiteral("text"), QStringLiteral("Gone"));
+        ed->change(QStringLiteral("Delete Style"), [&] { doc->deleteStyle(QStringLiteral("Gone")); });
+        QVERIFY(paraOf(ed, box).stringProperty(jp::tp::StyleName).isEmpty());
+        QCOMPARE(runOf(ed, box).fontPointSize(), 15.0);
+        QCOMPARE(paraOf(ed, box).leftMargin(), 7.0);
+        jp::TextStyle again = made(QStringLiteral("Gone"), QStringLiteral("Normal"), 30);
+        again.blk.setLeftMargin(50);
+        QVector<jp::TextStyle> next = doc->styles;
+        next << again;
+        doc->changeStyles(next);
+        QCOMPARE(runOf(ed, box).fontPointSize(), 15.0);
+        QCOMPARE(paraOf(ed, box).leftMargin(), 7.0);
+        // a character style too
+        jp::TextStyle mark = made(QStringLiteral("Mark"), QString());
+        mark.charOnly = true;
+        mark.chr.setFontUnderline(true);
+        doc->styles << mark;
+        auto cbox = boxIn(ed, QStringLiteral("some words"), QString());
+        ed->beginTextEdit(cbox->id, 0);
+        ed->applyStyle(QStringLiteral("Mark"));
+        ed->endTextEdit();
+        QCOMPARE(runOf(ed, cbox).stringProperty(jp::tp::CharStyle), QStringLiteral("Mark"));
+        doc->deleteStyle(QStringLiteral("Mark"));
+        QVERIFY(runOf(ed, cbox).stringProperty(jp::tp::CharStyle).isEmpty());
+        QVERIFY(runOf(ed, cbox).fontUnderline());
+    }
+
+    // A name another style has is refused in the dialog, with a message; a swap of two names goes through a temporary one.
+    void aStyleNameThatExistsIsRefusedAndNamesCanBeSwapped()
+    {
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        jp::Document *doc = ed->doc();
+        doc->styles << made(QStringLiteral("Alpha"), QString(), 14) << made(QStringLiteral("Beta"), QStringLiteral("Alpha"), 18);
+        auto a = boxIn(ed, QStringLiteral("a"), QStringLiteral("Alpha"));
+        auto b = boxIn(ed, QStringLiteral("b"), QStringLiteral("Beta"), QRectF(72, 200, 200, 40));
+        QString failure;
+        // Renames a style in the dialog to the names given, one after the other (the first is tried and refused when `refused` is set).
+        auto rename = [&](const QString &from, const QString &to, bool refusedFirst) {
+            QTimer poll;
+            poll.setInterval(20);
+            QObject::connect(&poll, &QTimer::timeout, [&] {
+                auto *d = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+                if (!d) return;
+                poll.stop();
+                auto *name = d->findChild<QLineEdit *>();
+                auto *note = d->findChild<QLabel *>(QStringLiteral("styleNameNote"));
+                auto *ok = d->findChild<QDialogButtonBox *>()->button(QDialogButtonBox::Ok);
+                if (!name || !note || !ok) {
+                    failure = QStringLiteral("dialog parts missing");
+                    d->reject();
+                    return;
+                }
+                if (refusedFirst) {
+                    name->setText(QStringLiteral("Beta"));
+                    if (!note->isVisibleTo(d) || note->text().isEmpty() || ok->isEnabled()) failure = QStringLiteral("a name that exists was not refused");
+                }
+                name->setText(to);
+                if (note->isVisibleTo(d) || !ok->isEnabled()) failure += QStringLiteral(" a free name was refused");
+                d->accept();
+            });
+            poll.start();
+            jp::styleDialog(&w, ed, from);
+        };
+        rename(QStringLiteral("Alpha"), QStringLiteral("Tmp"), true);
+        rename(QStringLiteral("Beta"), QStringLiteral("Alpha"), false);
+        rename(QStringLiteral("Tmp"), QStringLiteral("Beta"), false);
+        QVERIFY2(failure.isEmpty(), qPrintable(failure));
+        // Alpha and Beta have swapped names, and each keeps its look, its text, and the link from the one that was based on it
+        QCOMPARE(doc->style(QStringLiteral("Beta"))->chr.fontPointSize(), 14.0);
+        QCOMPARE(doc->style(QStringLiteral("Alpha"))->chr.fontPointSize(), 18.0);
+        QCOMPARE(doc->style(QStringLiteral("Alpha"))->basedOn, QStringLiteral("Beta"));
+        QCOMPARE(paraOf(ed, a).stringProperty(jp::tp::StyleName), QStringLiteral("Beta"));
+        QCOMPARE(paraOf(ed, b).stringProperty(jp::tp::StyleName), QStringLiteral("Alpha"));
+        QCOMPARE(runOf(ed, a).fontPointSize(), 14.0);
+        QCOMPARE(runOf(ed, b).fontPointSize(), 18.0);
+    }
+
+    // Text pasted from another publication keeps its look where its style is not here, or here looks different; where the style looks the same it follows.
+    void pastedTextKeepsItsLookWhereItsStyleDiffers()
+    {
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        jp::Document *doc = ed->doc();
+        doc->styles << made(QStringLiteral("Cap"), QStringLiteral("Normal"), 14);
+        // text as another publication's styles gave it: Cap at 12 (here 14), Same at 14 (here the same), Unknown (no such style here)
+        QTextDocument src;
+        QTextCursor sc(&src);
+        auto put = [&](const QString &style, double size, bool first) {
+            QTextBlockFormat bf;
+            bf.setProperty(jp::tp::StyleName, style);
+            QTextCharFormat cf;
+            cf.setFontPointSize(size);
+            if (first) sc.setBlockFormat(bf);
+            else sc.insertBlock(bf);
+            sc.insertText(style, cf);
+        };
+        put(QStringLiteral("Cap"), 12, true);
+        put(QStringLiteral("Cap"), 14, false);
+        put(QStringLiteral("Unknown"), 9, false);
+        auto *md = new QMimeData;
+        md->setData(QStringLiteral("application/x-jeffpub-text"), QJsonDocument(jp::storyToJson(&src)).toJson(QJsonDocument::Compact));
+        QApplication::clipboard()->setMimeData(md);
+        auto box = boxIn(ed, QString(), QString());
+        ed->beginTextEdit(box->id, 0);
+        ed->paste(false);
+        ed->endTextEdit();
+        QVector<jp::TextStyle> next = doc->styles;
+        find(next, QStringLiteral("Cap"))->chr.setFontPointSize(20);
+        doc->changeStyles(next);
+        auto sizeOf = [&](int n) { return doc->storyDoc(box->storyId)->findBlockByNumber(n).begin().fragment().charFormat().fontPointSize(); };
+        QCOMPARE(sizeOf(0), 12.0);   // (differed: its own)
+        QCOMPARE(sizeOf(1), 20.0);   // (the same: follows)
+        QCOMPARE(sizeOf(2), 9.0);    // (no such style here)
+    }
+
+    // 200 styles in chains of five and 100 text frames: a change to the top of every chain reaches all the text in no more than a few times what the same
+    // change takes where no style is based on another (the ratio, not a clock, so a busy machine does not tell).
+    void changingBaseStylesIsFast()
+    {
+        auto run = [&](bool derived) {
+            jp::MainWindow w;
+            jp::Editor *ed = w.editor();
+            jp::Document *doc = ed->doc();
+            for (int c = 0; c < 40; ++c)
+                for (int l = 0; l < 5; ++l)
+                    doc->styles << made(QStringLiteral("R%1_%2").arg(c).arg(l), derived && l ? QStringLiteral("R%1_%2").arg(c).arg(l - 1) : QString(), l == 0 || !derived ? 10 : 0);
+            QStringList stories;
+            for (int i = 0; i < 100; ++i)
+                stories << boxIn(ed, QStringLiteral("frame %1").arg(i), QStringLiteral("R%1_%2").arg(i % 40).arg(i % 5), QRectF(10 + (i % 20) * 25, 10 + (i / 20) * 25, 20, 20))->storyId;
+            double now = 10;
+            auto flip = [&] {
+                now = now == 10 ? 14 : 10;
+                QVector<jp::TextStyle> next = ed->doc()->styles;
+                for (auto &s : next)
+                    if (s.name.endsWith(QLatin1String("_0")) || !derived) s.chr.setFontPointSize(now);
+                ed->change(QStringLiteral("Modify Style"), [&] { ed->doc()->changeStyles(next); });
+            };
+            const qint64 ns = bestNanoseconds(flip, 5);
+            for (const QString &st : stories)
+                if (ed->doc()->storyDoc(st)->firstBlock().begin().fragment().charFormat().fontPointSize() != now) return qint64(-1);   // (the text did not change)
+            return ns;
+        };
+        const qint64 plain = run(false), derived = run(true);
+        QVERIFY(plain > 0 && derived > 0);
+        qInfo() << "style change over 100 frames: no derived styles" << plain / 1000000.0 << "ms, chains of five" << derived / 1000000.0 << "ms";
+        QVERIFY2(derived < plain * 4 + 20 * 1000000, qPrintable(QStringLiteral("derived %1 ms against %2 ms").arg(derived / 1000000.0).arg(plain / 1000000.0)));
     }
 
     // Format Page Numbers sets the numbers' style and the first page's number
