@@ -1,3 +1,4 @@
+#include "app/uistyle.h"
 #include "app/filescreenparts.h"
 
 #include "core/appinfo.h"
@@ -88,17 +89,10 @@ QLabel *legalLinks(QWidget *parent)
 
 QLabel *sectionLabel(const QString &t, QWidget *parent)
 {
-    auto *l = new QLabel(t.toUpper(), parent);
+    auto *l = sectionHeading(t, parent);   // 11 px, medium, muted, in capitals (docs/design/STYLE.md)
     QFont f = l->font();
-    f.setPointSizeF(f.pointSizeF() * 0.78);
-    f.setWeight(QFont::DemiBold);
-    f.setLetterSpacing(QFont::PercentageSpacing, 108);
+    f.setLetterSpacing(QFont::PercentageSpacing, 104);
     l->setFont(f);
-    QPalette pl = l->palette();
-    QColor c = uiText();
-    c.setAlphaF(0.55f);
-    pl.setColor(QPalette::WindowText, c);
-    l->setPalette(pl);
     l->setContentsMargins(24, 14, 12, 4);
     return l;
 }

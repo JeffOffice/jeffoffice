@@ -50,11 +50,14 @@ protected:
         p.setPen(QPen(uiText(), 1.5, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
         if (isChecked()) p.drawPolyline(QPolygonF({c + QPointF(-4, -2), c + QPointF(0, 2), c + QPointF(4, -2)}));
         else p.drawPolyline(QPolygonF({c + QPointF(-2, -4), c + QPointF(2, 0), c + QPointF(-2, 4)}));
+        // the heading of the style (docs/design/STYLE.md): small, medium, muted, in capitals
         QFont f = font();
-        f.setBold(true);
+        f.setPixelSize(11);
+        f.setWeight(QFont::Medium);
         p.setFont(f);
+        p.setPen(uiMuted());
         const QRectF text(r.left() + 28, r.top(), r.width() - 34, r.height());
-        p.drawText(text, Qt::AlignVCenter | Qt::AlignLeft, QFontMetricsF(f).elidedText(this->text(), Qt::ElideRight, text.width()));
+        p.drawText(text, Qt::AlignVCenter | Qt::AlignLeft, QFontMetricsF(f).elidedText(QLocale().toUpper(this->text()), Qt::ElideRight, text.width()));
         if (hasFocus()) {
             p.setPen(QPen(focusRingColor(), 2));
             p.setBrush(Qt::NoBrush);

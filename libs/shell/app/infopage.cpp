@@ -1,3 +1,4 @@
+#include "app/uistyle.h"
 #include "app/infopage.h"
 
 #include "app/filescreenparts.h"
@@ -508,11 +509,7 @@ QWidget *buildInfoPage(QWidget *parent, const InfoHost &h)
             dv->addWidget(thumb, 0, Qt::AlignHCenter);
         }
     }
-    auto *dh = new QLabel(QCoreApplication::translate("jp::InfoPage", "Properties"), details);
-    QFont df = dh->font();
-    df.setWeight(QFont::DemiBold);
-    df.setPointSizeF(df.pointSizeF() * 1.1);
-    dh->setFont(df);
+    QLabel *dh = sectionHeading(QCoreApplication::translate("jp::InfoPage", "Properties"), details);
     dv->addWidget(dh);
     if (props.truncated) {
         auto *note = mutedLabel(QCoreApplication::translate("jp::InfoPage", "This file has more properties than %1 reads, so they are shown here but can't be changed. The file keeps them as they are.").arg(QCoreApplication::applicationName()), details);
