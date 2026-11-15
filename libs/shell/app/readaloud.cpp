@@ -1,5 +1,6 @@
 #include "app/readaloud.h"
 #include "app/icons.h"
+#include "app/plaintext.h"
 #include "app/settings.h"
 
 #include <QComboBox>
@@ -79,7 +80,7 @@ ReadAloudBar::ReadAloudBar(const ReadAloudHost &host, QWidget *parent) : QWidget
         auto *b = new QToolButton(this);
         b->setObjectName(QLatin1String(objectName));
         b->setIcon(jp::icon(QLatin1String(icon)));
-        b->setToolTip(name);
+        b->setToolTip(plainToolTip(name));
         b->setAccessibleName(name);
         b->setAutoRaise(true);
         b->setFocusPolicy(Qt::NoFocus);
@@ -93,13 +94,13 @@ ReadAloudBar::ReadAloudBar(const ReadAloudHost &host, QWidget *parent) : QWidget
     m_speed = new QComboBox(this);
     m_speed->setObjectName(QStringLiteral("readAloudSpeed"));
     m_speed->setAccessibleName(QCoreApplication::translate("jp::ReadAloudBar", "Speed"));
-    m_speed->setToolTip(m_speed->accessibleName());
+    m_speed->setToolTip(plainToolTip(m_speed->accessibleName()));
     m_speed->setFocusPolicy(Qt::NoFocus);
     for (double s : kSpeeds) m_speed->addItem(QStringLiteral("%1x").arg(s), s);
     m_voice = new QComboBox(this);
     m_voice->setObjectName(QStringLiteral("readAloudVoice"));
     m_voice->setAccessibleName(QCoreApplication::translate("jp::ReadAloudBar", "Voice"));
-    m_voice->setToolTip(m_voice->accessibleName());
+    m_voice->setToolTip(plainToolTip(m_voice->accessibleName()));
     m_voice->setFocusPolicy(Qt::NoFocus);
     m_voice->setSizeAdjustPolicy(QComboBox::AdjustToContents);
     m_note = new QLabel(this);
