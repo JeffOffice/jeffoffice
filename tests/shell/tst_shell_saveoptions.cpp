@@ -31,6 +31,8 @@ struct RemoteWatch : QAbstractFileEngineHandler {
 class ShellSaveOptionsTests : public QObject {
     Q_OBJECT
 private Q_SLOTS:
+    void init() { cleanup(); }   // (what another class of this program left in the settings is not what these start from)
+
     void cleanup()
     {
         Settings &st = Settings::get();
