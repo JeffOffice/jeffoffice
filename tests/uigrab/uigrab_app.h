@@ -9,6 +9,7 @@
 #include <QEventLoop>
 #include <QDir>
 #include <QFileDialog>
+#include <QTabWidget>
 #include <QTimer>
 #include <QWidget>
 
@@ -37,6 +38,12 @@ inline void grabDialogs(jp::AppWindow &w, const QString &dir)
                 if (!qobject_cast<QFileDialog *>(m)) {
                     m->grab().save(dir + QLatin1Char('/') + id + QStringLiteral(".png"));
                     grabbed = true;
+                    // a dialog with tabs: the other pages too (the Font dialog's Advanced page)
+                    if (auto *tabs = m->findChild<QTabWidget *>(QStringLiteral("fontTabs")); tabs && tabs->count() > 1) {
+                        tabs->setCurrentIndex(1);
+                        QApplication::processEvents();
+                        m->grab().save(dir + QLatin1Char('/') + id + QStringLiteral(".advanced.png"));
+                    }
                 }
                 if (auto *d = qobject_cast<QDialog *>(m)) d->reject(); else m->close();
             });
