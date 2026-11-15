@@ -9,7 +9,7 @@ The notes box is under the slide. Click it and type. It says **Click to add note
 
 What you type becomes one step that Ctrl+Z can take back once you pause, or when you click somewhere else.
 
-To type on a page that looks like the printed notes page, click **View > Presentation Views > Notes Page**. See [Outline view, the Slide Sorter, and Slide Master view](views).
+To type on a page that looks like the printed notes page, click **View > Presentation Views > Notes Page**.
 
 To change the height of the box, drag the line between it and the slide. To hide it and get more room for the slide, click **View > Show > Notes**, or the **Notes** button on the status bar. Click again to bring it back.
 

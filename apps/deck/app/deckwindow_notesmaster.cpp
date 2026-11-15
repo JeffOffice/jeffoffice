@@ -68,6 +68,7 @@ void DeckWindow::createNotesMasterActions()
     shapes->addAction(mk(QStringLiteral("handout.landscape"), tr("Landscape"), QStringLiteral("rectangle-horizontal"), QKeySequence(), [this] { m_notesPage->setHandoutLandscape(true); }, true));
     connect(m_ed, &Editor::changed, this, &DeckWindow::refreshNotesMasterActions);
     connect(m_ed, &Editor::pageChanged, this, &DeckWindow::refreshNotesMasterActions);
+    refreshNotesMasterActions();
 }
 
 // The check boxes and the choices of slides per page and orientation show what the presentation has.
@@ -76,6 +77,12 @@ void DeckWindow::refreshNotesMasterActions()
     const Document *d = m_ed ? m_ed->doc() : nullptr;
     const bool notes = m_view == View::NotesMaster, handout = m_view == View::HandoutMaster;
     if (!d || !m_notesPage) return;
+    // (they work in their own views)
+    for (const char *id : {"pagemaster.header", "pagemaster.date", "pagemaster.footer", "pagemaster.number", "pagemaster.headerFooter", "pagemaster.reset", "pagemaster.background", "pagemaster.backgroundNone", "pagemaster.close"})
+        act(id)->setEnabled(notes || handout);
+    for (int n : kCounts) act(QStringLiteral("handout.per.%1").arg(n))->setEnabled(handout);
+    act("handout.portrait")->setEnabled(handout);
+    act("handout.landscape")->setEnabled(handout);
     if (notes || handout) {
         const deck::PrintHeaderFooter hf = deck::printHeaderFooter(*d, notes ? deck::PrintedPages::Notes : deck::PrintedPages::Handouts);
         act("pagemaster.header")->setChecked(hf.header);

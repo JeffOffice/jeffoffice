@@ -23,7 +23,7 @@ The preview on the right shows each page that will come out, with arrows to move
 - **Handouts** put a grid of slides on each page, with a header and footer that hold the title, the date, and the page number. With 3 to a page, there are lines beside each slide to write on.
 - **Outline** prints the number and title of each slide, then its body text, indented by level.
 
-Notes pages, handouts, and the outline print on letter or A4 paper, whichever your region uses, held upright. A handout prints wide if its handout master says Landscape. The places of the slide, notes, header, date, footer, and page number come from the notes master and the handout master, which you change in **View > Master Views**. See [Outline view, the Slide Sorter, and Slide Master view](views). Hidden slides are left out unless you check **Print hidden slides**.
+Notes pages, handouts, and the outline print on letter or A4 paper, whichever your region uses, held upright. A handout prints wide if its handout master says Landscape. The places of the slide, notes, header, date, footer, and page number come from the notes master and the handout master, which you change in **View > Master Views**. Hidden slides are left out unless you check **Print hidden slides**.
 
 ## Save as a PDF
 

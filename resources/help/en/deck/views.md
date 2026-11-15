@@ -74,7 +74,7 @@ Notes Page view shows one slide the way its notes page will print. The slide is 
 - The header, date, footer, and page number show where the notes master puts them, if you turned them on. See **Header and Footer** below.
 - Press **Page Down** to go to the next slide and **Page Up** to go back. The slide pictures on the left follow you, and you can click one.
 - The zoom controls on the status bar, and **Ctrl** with the mouse wheel, make the page bigger or smaller. The page fits the window when the view opens.
-- Print and PDF show the same page. See [Print, PDF, and slide pictures](printing).
+- Print and PDF show the same page.
 
 ## Notes Master and Handout Master views
 
