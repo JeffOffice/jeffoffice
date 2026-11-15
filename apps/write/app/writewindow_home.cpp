@@ -1,5 +1,6 @@
 // JeffWrite's Home tab commands that are small and have a dialog or a menu of their own: Change Case and Sort, and Word Count (Review).
 
+#include "app/uistyle.h"
 #include "app/shapetextedit.h"
 #include "app/writewindow.h"
 
@@ -239,7 +240,7 @@ void WriteWindow::createMiniToolbar()
 {
     m_mini = new QFrame(m_view->viewport());
     m_mini->setObjectName(QStringLiteral("miniToolbar"));
-    m_mini->setFrameShape(QFrame::StyledPanel);
+    jp::softPanel(m_mini);
     m_mini->setAutoFillBackground(true);
     auto *column = new QVBoxLayout(m_mini);
     column->setContentsMargins(3, 2, 3, 2);

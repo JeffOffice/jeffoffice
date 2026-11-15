@@ -1280,3 +1280,44 @@ void CrunchPrintTests::thePrintScreensPaintClosureIsFreedWithTheScreen()
     }
     QVERIFY(closure.expired());
 }
+
+// The Print page: the Print button with Copies on top, then PRINTER, PAGES, LAYOUT, and PAPER under small headings, two fields to a row, Collated and Last page first on one line, Page Setup
+// as a link at the bottom (docs/design/STYLE.md); every control is still there under its name.
+void CrunchPrintTests::thePrintPageIsInFourGroupsOfTwoFieldsToARow()
+{
+    EditWindow e;
+    QVERIFY(e.open(budgetWorkbook()));
+    CrunchWindow &w = e.win.w;
+    w.resize(1300, 1100);
+    w.showFileScreen(QStringLiteral("print"));
+    auto at = [&](const char *name) {
+        QWidget *c = w.findChild<QWidget *>(QString::fromLatin1(name));
+        if (!c) qWarning("no control named %s", name);
+        return c;
+    };
+    for (const char *name : {"printButton", "printCopies", "printPrinter", "printPrinterSettings", "printWhat", "printRange", "printSides", "printDuplex", "printPerSheet", "printCollate", "printReverse",
+                             "printOrientation", "printPaper", "printScaleToPaper", "printMargins", "printScaling", "printIgnoreArea", "printGray", "printPageSetup", "printPreview"})
+        QVERIFY2(at(name), name);
+    QTRY_VERIFY(at("printGray")->isVisible());
+    auto pos = [&](const char *name) { return at(name)->mapTo(&w, QPoint(0, 0)); };
+    QStringList headings;
+    QList<QPair<int, QString>> found;
+    for (QLabel *l : w.findChildren<QLabel *>())
+        if (l->property("sectionHeading").toBool() && l->isVisible() && l->mapTo(&w, QPoint(0, 0)).x() > 200) found << qMakePair(l->mapTo(&w, QPoint(0, 0)).y(), l->text());
+    std::sort(found.begin(), found.end());
+    for (const auto &f : found) headings << f.second;
+    QCOMPARE(headings, (QStringList{QStringLiteral("PRINTER"), QStringLiteral("PAGES"), QStringLiteral("LAYOUT"), QStringLiteral("PAPER")}));
+    QVERIFY(qAbs(pos("printButton").y() - pos("printCopies").y()) < 30);
+    QVERIFY(pos("printButton").y() < pos("printPrinter").y());
+    auto sameRow = [&](const char *a, const char *b) { QVERIFY2(qAbs(pos(a).y() - pos(b).y()) < 6 && pos(a).x() < pos(b).x(), a); };
+    sameRow("printWhat", "printRange");
+    sameRow("printSides", "printDuplex");
+    sameRow("printCollate", "printReverse");
+    sameRow("printPerSheet", "printScaleToPaper");
+    sameRow("printOrientation", "printPaper");
+    sameRow("printMargins", "printScaling");
+    sameRow("printIgnoreArea", "printGray");
+    QVERIFY(pos("printGray").y() < pos("printPageSetup").y());
+    QVERIFY(at("printPageSetup")->property("link").toBool());
+    QVERIFY(pos("printPrinter").y() < pos("printWhat").y() && pos("printReverse").y() < pos("printPerSheet").y() && pos("printScaleToPaper").y() < pos("printOrientation").y());
+}

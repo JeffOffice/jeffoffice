@@ -42,6 +42,8 @@ JO_COMMON_EXPORT QWidget *labeled(const QString &label, QWidget *field, QWidget 
 JO_COMMON_EXPORT QWidget *checkPair(QWidget *a, QWidget *b, QWidget *parent = nullptr);
 // A button that looks like a link: accent text, no border.
 JO_COMMON_EXPORT QPushButton *linkButton(const QString &text, QWidget *parent = nullptr);
+// Makes an existing frame (a preview label) a soft grey panel: no frame line, the panel color, rounded.
+JO_COMMON_EXPORT void softPanel(QFrame *frame);
 // A soft grey panel for a preview (no sunken frame).
 JO_COMMON_EXPORT QFrame *previewPanel(QWidget *parent = nullptr);
 // A muted note under what it explains (12 px, wraps, shown as text).

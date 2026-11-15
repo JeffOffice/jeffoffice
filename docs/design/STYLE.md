@@ -14,8 +14,9 @@ replace all of these.
 ## Spacing (pixels)
 - Dialog margins 20 on every side; space between sections 16; between a heading and its rows 8.
 - Rows: 8 apart, fields 28 tall (4 + 4 padding, 13 px text). Radius 6 on fields and buttons, 8 on panels.
-- Label column: one per dialog, as wide as its longest label (at least 96), labels left-aligned
-  above nothing: to the left of the field, centered on it.
+- Label column: one per dialog, as wide as its longest label (at least 96); labels sit left of their
+  field, left-aligned and centered on its height (`jp::styleForm`, applied to every form of a dialog
+  when it is shown).
 - Space between buttons 8; the button row sits 16 below the last section.
 - Two fields on a row: 12 between them, a small (11 px, muted) label above each (`jp::twoUp`).
 
@@ -61,6 +62,12 @@ Same headings, labels, fields, and buttons as above. A pane's title is a 15 px b
 sections use `jp::sectionHeading`; its buttons are plain, with one primary at most.
 
 ## Words
-Sentence case for headings and buttons ("Page setup" is "Page Setup" only where it names a command).
-No colons after labels; no "...". Buttons name what they do: "Save", "Delete", not "OK", when the
+Titles of commands keep their capitals ("Page Setup"). No colons after labels; no "..." except on a
+button that opens another dialog. Buttons name what they do: "Save", "Delete", not "OK", when the
 dialog is a question.
+
+## What does it for you
+- Every `QDialogButtonBox` shown by the program gets the button order, the accent default, and no icons
+  (`jp::installButtonBoxStyle`, installed with the theme); write `jp::ButtonBox` in new code.
+- Every dialog of the program's own gets one label column and rows 8 apart in its forms when shown.
+- `QGroupBox` frames are gone from the style sheet; use `jp::Section` (drop-in) for a titled group.

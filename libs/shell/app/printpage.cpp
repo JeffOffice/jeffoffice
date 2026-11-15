@@ -224,6 +224,7 @@ void PrintColumn::top(QPushButton *print, QSpinBox *copies)
     row->addWidget(copies);
     row->addStretch(1);
     m_column->addLayout(row);
+    m_column->addSpacing(8);
 }
 
 void PrintColumn::group(const QString &heading, const QString &note)

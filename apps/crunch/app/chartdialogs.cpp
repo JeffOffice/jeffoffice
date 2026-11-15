@@ -101,7 +101,7 @@ InsertChartDialog::InsertChartDialog(const ChartPreviewFn &preview, ChartKind in
     m_big->setAccessibleName(tr("Preview of the chart"));
     m_big->setMinimumSize(360, 260);
     m_big->setAlignment(Qt::AlignCenter);
-    m_big->setFrameShape(QFrame::StyledPanel);
+    jp::softPanel(m_big);
     row->addWidget(m_list);
     row->addWidget(m_big, 1);
     outer->addLayout(row, 1);
@@ -468,7 +468,7 @@ ChangeChartTypeDialog::ChangeChartTypeDialog(const QStringList &seriesNames, con
     m_big->setAccessibleName(tr("Preview of the chart"));
     m_big->setMinimumSize(320, 220);
     m_big->setAlignment(Qt::AlignCenter);
-    m_big->setFrameShape(QFrame::StyledPanel);
+    jp::softPanel(m_big);
     right->addWidget(m_big, 1);
     m_table = new QTableWidget(int(m_names.size()), 3, this);
     m_table->setObjectName(QStringLiteral("seriesKinds"));

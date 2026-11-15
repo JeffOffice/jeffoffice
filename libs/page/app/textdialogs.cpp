@@ -182,7 +182,7 @@ void fontDialog(QWidget *p, Editor *ed)
     auto *preview = plainLabel(new QLabel(forThisApp(QCoreApplication::translate("Dialogs", "JeffPub sample text")), &dlg.d));
     preview->setMinimumHeight(48);
     preview->setAlignment(Qt::AlignCenter);
-    preview->setFrameShape(QFrame::StyledPanel);
+    jp::softPanel(preview);
     auto updatePreview = [&] {
         QFont f(chosenFamily.isEmpty() || chosenFamily.startsWith('+') ? (fam.startsWith('+') ? (fam == "+Heading" ? ed->doc()->fonts.heading : ed->doc()->fonts.body) : fam) : chosenFamily);
         f.setPointSizeF(std::min(size->value(), 28.0));

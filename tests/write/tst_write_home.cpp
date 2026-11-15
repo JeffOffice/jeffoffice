@@ -4,6 +4,7 @@
 #include "../cmdsearchcheck.h"
 #include "../isolatesettings.h"
 #include "app/widgets.h"
+#include "app/theme.h"
 #include "app/settings.h"
 #include "core/fontfiles.h"
 #include "app/writedialogs.h"
@@ -905,6 +906,7 @@ private Q_SLOTS:
     {
         const QString dir = qEnvironmentVariable("JW_SHOTS");
         if (dir.isEmpty()) QSKIP("JW_SHOTS is not set");
+        jp::applyUiTheme(1);
         WriteWindow w;
         w.setNotifier([](const QString &, const QString &) {});
         w.resize(1000, 700);
@@ -925,6 +927,46 @@ private Q_SLOTS:
         withDialog([&] { tabsDialog(&w, w.document(), &cursor); }, QStringLiteral("tabsDialog"), [&](QDialog *d) { d->grab().save(dir + QStringLiteral("/dialog-tabs.png")); });
         w.act(QStringLiteral("review.accessibility"))->trigger();
         w.grab().save(dir + QStringLiteral("/window-accessibility.png"));
+    }
+
+    // With JW_SHOTS set: a picture of every dialog the commands of JW_GRAB_IDS (or a standard list) open, named after the command.
+    void morePicturesOfTheDialogs()
+    {
+        const QString dir = qEnvironmentVariable("JW_SHOTS");
+        if (dir.isEmpty()) QSKIP("JW_SHOTS is not set");
+        jp::applyUiTheme(1);
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(1000, 700);
+        w.show();
+        w.setDocument(open(makeDocx(para(run("pear tree")) + para(run("Apple pie")) + para(run("cherry")))), QString());
+        w.view()->selectAll();
+        const QStringList ids = qEnvironmentVariable("JW_GRAB_IDS", QStringLiteral("edit.find,edit.replace,edit.goTo,insert.bookmark,insert.hyperlink,insert.field,insert.dateTime,layout.customMargins,layout.columns.more,layout.hyphenation.options,layout.lineNumbers.options,design.pageBorders,design.watermark.custom,refs.footnote,refs.crossReference,refs.insertCaption,refs.insertIndex,refs.markTocEntry,table.properties,table.sort,table.formula,mail.envelopes,mail.labels,insert.dropCap.options,zoom.dialog,fmt.charBorder,mail.wizard,insert.textFromFile")).split(QLatin1Char(','));
+        for (const QString &id : ids) {
+            QAction *a = w.act(id);
+            if (!a || !a->isEnabled()) { qWarning("no enabled action %s", qPrintable(id)); continue; }
+            bool grabbed = false;
+            QTimer poll, watchdog;
+            watchdog.setSingleShot(true);
+            QObject::connect(&poll, &QTimer::timeout, [&] {
+                QWidget *m = QApplication::activeModalWidget();
+                if (!m) return;
+                poll.stop();
+                QTimer::singleShot(150, [&, m] {
+                    m->grab().save(dir + QLatin1Char('/') + id + QStringLiteral(".png"));
+                    grabbed = true;
+                    if (auto *d = qobject_cast<QDialog *>(m)) d->reject(); else m->close();
+                });
+            });
+            QObject::connect(&watchdog, &QTimer::timeout, [&] {
+                if (QWidget *m = QApplication::activeModalWidget()) m->close();
+            });
+            poll.start(20);
+            watchdog.start(8000);
+            a->trigger();
+            poll.stop();
+            if (!grabbed) qWarning("no dialog for %s", qPrintable(id));
+        }
     }
 
     void theFontBoxLeftAloneChangesNothing()

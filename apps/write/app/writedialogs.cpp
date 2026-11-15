@@ -438,7 +438,7 @@ void fontDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     preview->setAccessibleName(QCoreApplication::translate("jp::write::Dialogs", "Preview"));
     preview->setMinimumHeight(56);
     preview->setAlignment(Qt::AlignCenter);
-    preview->setFrameShape(QFrame::StyledPanel);
+    jp::softPanel(preview);
     auto updatePreview = [&] {
         QString f = chosenFamily.isEmpty() ? family : chosenFamily;
         if (f == QLatin1String("+Heading")) f = fonts.heading;

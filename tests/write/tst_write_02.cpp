@@ -48,6 +48,40 @@ void WriteTests::thePrintScreenHasThePrinterCopiesCollateRangeAndPreview()
 }
 
 
+// The Print page's groups: PRINTER, PAGES, LAYOUT, and PAPER under small headings; Collated and Last page first on one line (docs/design/STYLE.md).
+void WriteTests::theWritePrintPageIsInFourGroups()
+{
+    WriteWindow w;
+    w.setDocument(open(makeDocx(paragraphs(20), kStyles)), QString());
+    w.resize(1300, 1100);
+    w.show();
+    w.act("file.print")->trigger();
+    auto at = [&](const char *name) {
+        QWidget *c = w.findChild<QWidget *>(QString::fromLatin1(name));
+        if (!c) qWarning("no control named %s", name);
+        return c;
+    };
+    for (const char *name : {"printButton", "printCopies", "printPrinter", "printCollate", "printReverse", "printSides", "printDuplex", "printPerSheet", "printScaleTo", "printOrientation", "printPaper",
+                             "printGray", "printRangeAll", "printRangeCurrent", "printRangeSelection", "printRangePages", "printRangeText", "printPreview"})
+        QVERIFY2(at(name), name);
+    QTRY_VERIFY(at("printGray")->isVisible());
+    auto pos = [&](const char *name) { return at(name)->mapTo(&w, QPoint(0, 0)); };
+    QList<QPair<int, QString>> found;
+    for (QLabel *l : w.findChildren<QLabel *>())
+        if (l->property("sectionHeading").toBool() && l->isVisible() && l->mapTo(&w, QPoint(0, 0)).x() > 200) found << qMakePair(l->mapTo(&w, QPoint(0, 0)).y(), l->text());
+    std::sort(found.begin(), found.end());
+    QStringList headings;
+    for (const auto &f : found) headings << f.second;
+    QCOMPARE(headings, (QStringList{QStringLiteral("PRINTER"), QStringLiteral("PAGES"), QStringLiteral("LAYOUT"), QStringLiteral("PAPER")}));
+    QVERIFY(qAbs(pos("printButton").y() - pos("printCopies").y()) < 30);
+    auto sameRow = [&](const char *a, const char *b) { QVERIFY2(qAbs(pos(a).y() - pos(b).y()) < 6 && pos(a).x() < pos(b).x(), a); };
+    sameRow("printSides", "printDuplex");
+    sameRow("printCollate", "printReverse");
+    sameRow("printPerSheet", "printScaleTo");
+    sameRow("printOrientation", "printPaper");
+    QVERIFY(pos("printPrinter").y() < pos("printRangeAll").y() && pos("printReverse").y() < pos("printPerSheet").y() && pos("printScaleTo").y() < pos("printOrientation").y());
+}
+
 namespace {
 // Printers that can and can't print on both sides, for a test: the names say which.
 struct DuplexStandIn {

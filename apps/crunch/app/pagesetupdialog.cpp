@@ -249,7 +249,7 @@ HeaderFooterEditor::HeaderFooterEditor(bool header, const HeaderFooter &texts, c
     m_preview->setObjectName(QStringLiteral("hfPreview"));
     m_preview->setWordWrap(true);
     m_preview->setTextFormat(Qt::PlainText);   // (header text comes from the file)
-    m_preview->setFrameShape(QFrame::StyledPanel);
+    jp::softPanel(m_preview);
     v->addWidget(m_preview);
     auto *ok = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
     connect(ok, &QDialogButtonBox::accepted, this, [this] {

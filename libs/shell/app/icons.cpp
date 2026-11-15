@@ -161,10 +161,11 @@ QMenu::icon { padding-left: 6px; }
 QGroupBox { border: none; background: transparent; margin-top: 22px; padding: 0; }
 QGroupBox[title=""] { margin-top: 0; }
 QGroupBox::title { subcontrol-origin: margin; subcontrol-position: top left; left: 0; padding: 0 0 6px 0; color: %1; font-size: 11px; font-weight: 500; }
+QPushButton[primary="true"]:disabled { background: %4; border-color: %4; color: %5; }
 QPushButton[link="true"] { background: transparent; border: none; color: %2; padding: 2px 0; min-height: 0; font-weight: 400; }
 QPushButton[link="true"]:hover { background: transparent; text-decoration: underline; }
 QFrame[previewPanel="true"] { background: %3; border: none; border-radius: 8px; }
-)").arg(uiMuted().name(), accent, uiPanel().name());
+)").arg(uiMuted().name(), accent, uiPanel().name(), uiLine().name(), uiMuted().name());
     return css;
 }
 

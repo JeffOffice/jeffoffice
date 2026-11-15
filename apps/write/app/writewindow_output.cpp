@@ -597,7 +597,7 @@ bool WriteWindow::askTextForm(const QString &title, const QString &intro, write:
         preview = new QLabel(&dialog);
         preview->setObjectName(QStringLiteral("textPreview"));
         preview->setTextFormat(Qt::PlainText);
-        preview->setFrameShape(QFrame::StyledPanel);
+        jp::softPanel(preview);
         preview->setMinimumHeight(80);
         preview->setAlignment(Qt::AlignTop | Qt::AlignLeft);
         layout->addWidget(preview);

@@ -889,6 +889,7 @@ private Q_SLOTS:
     void copiesComeOutCollatedOrEachPageTogether();
     void thePaperIsDescribedAsTheSectionSetsIt();
     void thePrintScreenHasThePrinterCopiesCollateRangeAndPreview();
+    void theWritePrintPageIsInFourGroups();
     void thePrintPageSidesChoiceSetsTheDuplexModeOfTheJob();
     void thePrintPageSidesChoiceByHandPrintsTwoRuns();
     void thePrintPageSidesChoiceFollowsThePrinterAndTheFileTarget();

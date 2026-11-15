@@ -78,7 +78,7 @@ TextToColumnsDialog::TextToColumnsDialog(const QStringList &lines, const QString
     m_preview = new QLabel(this);
     m_preview->setObjectName(QStringLiteral("splitPreview"));
     m_preview->setTextFormat(Qt::PlainText);
-    m_preview->setFrameShape(QFrame::StyledPanel);
+    jp::softPanel(m_preview);
     m_preview->setMinimumHeight(70);
     layout->addWidget(m_preview);
     auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);

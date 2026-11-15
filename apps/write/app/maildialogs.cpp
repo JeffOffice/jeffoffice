@@ -52,7 +52,7 @@ bool addressBlockDialog(QWidget *parent, const MergeSource &data, const QHash<QS
     v->addWidget(country);
     v->addWidget(new QLabel(tr(QT_TRANSLATE_NOOP("jp::write::MailDialogs", "Preview (first recipient):"))));
     auto *preview = new QLabel(&d);
-    preview->setFrameShape(QFrame::StyledPanel);
+    jp::softPanel(preview);
     preview->setMinimumHeight(90);
     preview->setAlignment(Qt::AlignTop | Qt::AlignLeft);
     v->addWidget(preview);
@@ -93,7 +93,7 @@ bool greetingLineDialog(QWidget *parent, const MergeSource &data, const QHash<QS
     v->addLayout(form);
     v->addWidget(new QLabel(tr(QT_TRANSLATE_NOOP("jp::write::MailDialogs", "Use {Title}, {First}, {Last}, and {Suffix} for the parts of the name."))));
     auto *preview = new QLabel(&d);
-    preview->setFrameShape(QFrame::StyledPanel);
+    jp::softPanel(preview);
     v->addWidget(preview);
     auto update = [=] {
         const int row = data.includedRows().value(0, 0);

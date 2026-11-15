@@ -5,6 +5,7 @@
 
 #include <QApplication>
 #include <QBoxLayout>
+#include <QDialog>
 #include <QEvent>
 #include <QFormLayout>
 #include <QFrame>
@@ -75,7 +76,6 @@ void styleForm(QFormLayout *form)
 {
     form->setLabelAlignment(Qt::AlignLeft | Qt::AlignVCenter);
     form->setFormAlignment(Qt::AlignLeft | Qt::AlignTop);
-    form->setFieldGrowthPolicy(QFormLayout::ExpandingFieldsGrow);
     form->setHorizontalSpacing(12);
     form->setVerticalSpacing(8);
 }
@@ -137,15 +137,20 @@ QPushButton *linkButton(const QString &text, QWidget *parent)
     return b;
 }
 
-QFrame *previewPanel(QWidget *parent)
+void softPanel(QFrame *f)
 {
-    auto *f = new QFrame(parent);
     f->setFrameShape(QFrame::NoFrame);
     f->setProperty("previewPanel", true);
     f->setAutoFillBackground(true);
     QPalette p = f->palette();
     p.setColor(QPalette::Window, uiPanel());
     f->setPalette(p);
+}
+
+QFrame *previewPanel(QWidget *parent)
+{
+    auto *f = new QFrame(parent);
+    softPanel(f);
     return f;
 }
 
@@ -255,6 +260,12 @@ public:
     bool eventFilter(QObject *o, QEvent *e) override
     {
         if (e->type() == QEvent::Show && o->isWidgetType()) {
+            if (auto *dlg = qobject_cast<QDialog *>(o); dlg && !dlg->property("jpDialogStyled").toBool() && !qobject_cast<QMessageBox *>(dlg) &&
+                                                      !QByteArrayView(dlg->metaObject()->className()).startsWith("Q")) {
+                dlg->setProperty("jpDialogStyled", true);
+                // one label column and rows 8 apart in every form of the dialog
+                for (QFormLayout *f : dlg->findChildren<QFormLayout *>()) styleForm(f);
+            }
             if (auto *box = qobject_cast<QDialogButtonBox *>(o); box && !dynamic_cast<ButtonBox *>(box) && !box->property("jpFiltered").toBool()) {
                 box->setProperty("jpFiltered", true);
                 QMetaObject::invokeMethod(box, [box] { arrangeButtons(box); }, Qt::QueuedConnection);
