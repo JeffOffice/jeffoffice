@@ -55,7 +55,9 @@ State rowState(EditWindow &e, quint32 row)
 QByteArray savedSheet(EditWindow &e)
 {
     QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
-    if (!e.win.w.save() || !savedOk(saved, 20000)) return QByteArray();
+    // (what went wrong is returned in place of the sheet, so the failing check prints it)
+    if (!e.win.w.save()) return "save() refused: " + e.win.w.statusText().toUtf8();
+    if (!savedOk(saved)) return "the save did not finish well: " + e.win.w.statusText().toUtf8();
     Package pk;
     QString why;
     if (!pk.readLazyFile(e.path, &why)) return QByteArray();

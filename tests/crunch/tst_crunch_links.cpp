@@ -401,7 +401,7 @@ private Q_SLOTS:
         e.win.w.act(QStringLiteral("edit.clear.links"))->trigger();                 // rId4, the e-mail address
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY2(savedOk(saved), "the save failed");
         Package p;
         QString why;
         QVERIFY2(p.readLazyFile(e.path, &why), qPrintable(why));
@@ -439,7 +439,7 @@ private Q_SLOTS:
         e.win.w.act(QStringLiteral("insert.link"))->trigger();
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY2(savedOk(saved), "the save failed");
         const QStringList links = savedLinks(e.path);
         QStringList expected = {"A3->https://example.org/changed", "C3=>Sheet2!C2", "E3->data/report.pdf", "G7=>Sheet1!A3", "D3->javascript:alert(1)"};
         expected.sort();
@@ -491,7 +491,7 @@ private Q_SLOTS:
         QCOMPARE(s->anchors().linkAt(0, 0, 1)->location, QStringLiteral("Sheet2!C4"));
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY2(savedOk(saved), "the save failed");
         QVERIFY(savedLinks(e.path).contains(QStringLiteral("B1=>Sheet2!C4")));
     }
 
@@ -511,7 +511,7 @@ private Q_SLOTS:
         QVERIFY(s->anchors().linkAt(0, 0, 0));
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY2(savedOk(saved), "the save failed");
         QCOMPARE(savedLinks(e.path), QStringList({QStringLiteral("A1=>Sheet1!C1")}));
     }
 

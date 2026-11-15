@@ -225,7 +225,7 @@ private Q_SLOTS:
         QTRY_VERIFY(rowPx(e, 0) > rowPx(e, 1));
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY2(savedOk(saved), "the save failed");
         QFile f(e.path);
         QVERIFY(f.open(QIODevice::ReadOnly));
         QMap<QString, QByteArray> parts;

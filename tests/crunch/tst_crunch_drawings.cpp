@@ -214,7 +214,7 @@ QStringList savedNames(const QString &path)
 bool saveWindow(EditWindow &e)
 {
     QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
-    return e.win.w.save() && savedOk(saved, 20000);
+    return e.win.w.save() && savedOk(saved);
 }
 
 
@@ -461,7 +461,7 @@ private Q_SLOTS:
         QCOMPARE(o->chartNow(0, 0).plots[0].series[0].values, (QVector<double>{10, 77, 30}));
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY2(savedOk(saved), "the save failed");
         const QString chart = QString::fromUtf8(savedParts(e.path).value(QStringLiteral("xl/charts/chart1.xml")));
         QVERIFY2(chart.contains(QStringLiteral("<c:f>Sales!$B$4:$B$6</c:f>")), qPrintable(chart));
         QVERIFY2(chart.contains(QStringLiteral("<c:v>77</c:v>")), qPrintable(chart));   // (the numbers under the reference as it is written)
@@ -614,7 +614,7 @@ private Q_SLOTS:
         QVERIFY(e.settle());
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY2(savedOk(saved), "the save failed");
         office::Package before, after;
         QString why;
         QVERIFY(before.readLazy(original, &why));
@@ -651,7 +651,7 @@ private Q_SLOTS:
         const QByteArray chartBefore = after.part(QStringLiteral("/xl/charts/chart1.xml"));
         saved.clear();
         QVERIFY(e.win.w.save());
-        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY2(savedOk(saved), "the save failed");
         office::Package third;
         QVERIFY(third.readLazyFile(e.path, &why));
         QCOMPARE(third.part(QStringLiteral("/xl/charts/chart1.xml")), chartBefore);
@@ -1234,13 +1234,13 @@ private Q_SLOTS:
         QCOMPARE(int(o->idsOf(0).size()), 6);
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY2(savedOk(saved), "the save failed");
         QVERIFY(savedParts(e.path).contains(QStringLiteral("xl/charts/chart2.xml")));
         QVERIFY(e.win.w.session()->canUndo());
         pressUndo(e.view());
         saved.clear();
         QVERIFY(e.win.w.save());
-        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY2(savedOk(saved), "the save failed");
         const QMap<QString, QByteArray> parts = savedParts(e.path);
         QVERIFY2(!parts.contains(QStringLiteral("xl/charts/chart2.xml")), "the chart's part is gone");
         QVERIFY(parts.contains(QStringLiteral("xl/charts/chart1.xml")));
@@ -1511,7 +1511,7 @@ private Q_SLOTS:
         QVERIFY(o->layer()->deviceRect(1, grid::Pane::Body) != moving);      // (the object of the cells moved)
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY2(savedOk(saved), "the save failed");
         // the file has the anchor as it was: an absolute one, the same place and size
         office::Package p;
         QString why;
@@ -1594,7 +1594,7 @@ private Q_SLOTS:
         QVERIFY(e.settle());
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY2(savedOk(saved), "the save failed");
         QVERIFY(!o->listed(1));
         QCOMPARE(o->objectsMade(), 0);
         QCOMPARE(o->chartPartsRead(), 0);
@@ -1624,7 +1624,7 @@ private Q_SLOTS:
             QCOMPARE(now.top(), box.top());
             QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
             QVERIFY(e.win.w.save());
-            QVERIFY2(savedOk(saved, 20000), "the save failed");
+            QVERIFY2(savedOk(saved), "the save failed");
             const SavedAnchor a = savedAnchor(e.path, QStringLiteral("Box"));
             QVERIFY(a.found);
             QCOMPARE(a.fromRow, 10);
@@ -1638,7 +1638,7 @@ private Q_SLOTS:
             QCOMPARE(o->layer()->deviceRect(2, grid::Pane::Body).height(), box.height());
             saved.clear();
             QVERIFY(e.win.w.save());
-            QVERIFY2(savedOk(saved, 20000), "the save failed");
+            QVERIFY2(savedOk(saved), "the save failed");
             const SavedAnchor b = savedAnchor(e.path, QStringLiteral("Box"));
             QVERIFY(b.found);
             QCOMPARE(b.fromRow, 10);
@@ -1976,7 +1976,7 @@ private Q_SLOTS:
         QVERIFY(e.settle());
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY2(savedOk(saved), "the save failed");
         QFile in(e.path);
         QVERIFY(in.open(QIODevice::ReadOnly));
         QFile f(out);
@@ -2020,7 +2020,7 @@ private Q_SLOTS:
         QVERIFY(e.settle());
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY2(savedOk(saved), "the save failed");
         office::Package before, after;
         QString why;
         QVERIFY(before.readLazy(original, &why));
@@ -2138,7 +2138,7 @@ private Q_SLOTS:
         QVERIFY(e.settle());
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY2(savedOk(saved), "the save failed");
         const QMap<QString, QByteArray> parts = savedParts(e.path);
         QVERIFY(parts.contains(QStringLiteral("xl/diagrams/data1.xml")) && parts.contains(QStringLiteral("xl/diagrams/layout1.xml")));
     }

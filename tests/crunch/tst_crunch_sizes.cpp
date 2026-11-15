@@ -299,7 +299,7 @@ private Q_SLOTS:
         e.win.w.act(QStringLiteral("format.unhideRows"))->trigger();
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY2(savedOk(saved), "the save failed");
         const QString xml = savedSheetXml(e.path);
         QVERIFY2(xml.contains(QStringLiteral("outlineLevel=\"1\"")), qPrintable(xml));              // (what the file said of the run it cut stays)
         QVERIFY2(xml.contains(QStringLiteral("<col min=\"2\" max=\"2\" width=\"12\"")), qPrintable(xml));

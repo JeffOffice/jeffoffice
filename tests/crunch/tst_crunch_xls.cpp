@@ -446,7 +446,7 @@ private Q_SLOTS:
         o.answer = o.folder.dir.filePath(QStringLiteral("copy"));
         QSignalSpy saved(&o.win.w, &CrunchWindow::saved);
         pressStandard(&o.win.w, QKeySequence::Save);
-        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY2(savedOk(saved), "the save failed");
         QCOMPARE(o.asked, QStringList{o.folder.dir.filePath(QStringLiteral("old.xlsx"))});
         // (the workbook kind comes first, and the copies in the older form and in OpenDocument are offered after it)
         QVERIFY2(o.filters.first().section(QLatin1String(";;"), 0, 0).contains(QLatin1String("*.xlsx")) && !o.filters.first().section(QLatin1String(";;"), 0, 0).contains(QLatin1String("*.xls)")), qPrintable(o.filters.first()));
@@ -511,7 +511,7 @@ private Q_SLOTS:
         // and the next Save asks, and tells, again
         o.answer = o.folder.dir.filePath(QStringLiteral("now.xlsx"));
         QVERIFY(o.win.w.save());
-        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY2(savedOk(saved), "the save failed");
         QCOMPARE(o.asked.size(), 2);
         QCOMPARE(o.told.size(), 2);
         QVERIFY(QFileInfo::exists(o.folder.dir.filePath(QStringLiteral("now.xlsx"))));
@@ -543,7 +543,7 @@ private Q_SLOTS:
         o.answer = o.folder.dir.filePath(QStringLiteral("renamed.xlsx"));
         QSignalSpy saved(&o.win.w, &CrunchWindow::saved);
         o.win.w.act("file.saveAs")->trigger();
-        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY2(savedOk(saved), "the save failed");
         QCOMPARE(saved.first().at(0).toString(), o.folder.dir.filePath(QStringLiteral("renamed.xlsx")));
         QVERIFY(QFileInfo::exists(o.folder.dir.filePath(QStringLiteral("renamed.xlsx"))));
         // (and the macro-enabled ending, which this workbook's file cannot have, becomes the plain one)
@@ -584,7 +584,7 @@ private Q_SLOTS:
         o.answer = o.folder.dir.filePath(QStringLiteral("closing.xlsx"));
         QSignalSpy saved(&o.win.w, &CrunchWindow::saved);
         o.win.w.close();
-        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY2(savedOk(saved), "the save failed");
         QTRY_VERIFY(!o.win.w.isVisible());
         QCOMPARE(questions.size(), 2);
         QVERIFY(o.originalIsUntouched());
@@ -616,7 +616,7 @@ private Q_SLOTS:
         QVERIFY2(o.told.last().contains(QLatin1String("opened from")), qPrintable(o.told.last()));
         o.answer = o.folder.dir.filePath(QStringLiteral("elsewhere.xlsx"));
         QVERIFY(o.win.w.save());
-        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY2(savedOk(saved), "the save failed");
         QVERIFY(o.originalIsUntouched());
         QVERIFY(QFileInfo::exists(o.folder.dir.filePath(QStringLiteral("elsewhere.xlsx"))));
     }
@@ -631,7 +631,7 @@ private Q_SLOTS:
         QVERIFY(o.settle());
         QSignalSpy saved(&o.win.w, &CrunchWindow::saved);
         pressStandard(&o.win.w, QKeySequence::Save);
-        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY2(savedOk(saved), "the save failed");
         QCOMPARE(saved.first().at(0).toString(), o.path);
         QVERIFY(o.asked.isEmpty());
         QVERIFY(o.told.isEmpty());
@@ -664,7 +664,7 @@ private Q_SLOTS:
         o.answer = o.folder.dir.filePath(QStringLiteral("copy"));
         QSignalSpy saved(&o.win.w, &CrunchWindow::saved);
         pressStandard(&o.win.w, QKeySequence::Save);
-        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY2(savedOk(saved), "the save failed");
         QCOMPARE(saved.first().at(1).toBool(), true);
         QVERIFY(o.originalIsUntouched());
         {

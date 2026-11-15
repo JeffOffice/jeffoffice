@@ -164,7 +164,7 @@ private Q_SLOTS:
             w.act(QStringLiteral("file.save"))->trigger();
         });
         QVERIFY(w.goalSeekIn(QStringLiteral("B1"), QStringLiteral("11"), QStringLiteral("A1")));
-        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY2(savedOk(saved), "the save failed");
         QVERIFY2(!trialAtSave.isEmpty() && trialAtSave != QLatin1String("4"), qPrintable(trialAtSave));   // (the save was asked for while a trial value was in the cell)
         QCOMPARE(savedCell(e.path, QStringLiteral("A1")), QStringLiteral("n:4"));      // (not a value tried on the way)
         QCOMPARE(savedCell(e.path, QStringLiteral("D1")), QStringLiteral("i:y"));

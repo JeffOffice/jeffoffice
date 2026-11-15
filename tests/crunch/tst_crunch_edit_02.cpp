@@ -11,7 +11,7 @@ void CrunchEditTests::saveAsWritesAnotherFileAndTheWindowIsThatFile()
     QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
     const QString other = e.folder.dir.filePath(QStringLiteral("copy"));   // (no ending: it is given one)
     QVERIFY(e.win.w.saveAs(other));
-    QVERIFY2(savedOk(saved, 20000), "the save failed");
+    QVERIFY2(savedOk(saved), "the save failed");
     QCOMPARE(saved.first().at(0).toString(), other + QStringLiteral(".xlsx"));
     QVERIFY(QFileInfo::exists(other + QStringLiteral(".xlsx")));
     QCOMPARE(e.win.w.filePath(), other + QStringLiteral(".xlsx"));
@@ -92,7 +92,7 @@ void spillRoundTrip(CrunchEditTests *test, const QString &typed, const QString &
     QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
     const QString target = e.folder.dir.filePath(QStringLiteral("spill.xlsx"));
     QVERIFY(e.win.w.saveAs(target));
-    QVERIFY2(savedOk(saved, 20000), "the save failed");
+    QVERIFY2(savedOk(saved), "the save failed");
     QFile f(target);
     QVERIFY(f.open(QIODevice::ReadOnly));
     const QByteArray bytes = f.readAll();
@@ -230,7 +230,7 @@ void CrunchEditTests::aSaveThatFailsLeavesTheOldFile()
     const QString existing = e.folder.write(QStringLiteral("existing.xlsx"), QByteArray("an old file that is not a workbook"));
     e.win.told.clear();
     QVERIFY(e.win.w.saveAs(existing));
-    QVERIFY2(savedOk(saved, 20000), "the save failed");
+    QVERIFY2(savedOk(saved), "the save failed");
     QCOMPARE(saved.last().at(1).toBool(), true);
     QCOMPARE(e.win.told.size(), 0);
     QCOMPARE(savedCell(existing, QStringLiteral("A1")), QStringLiteral("n:3"));
@@ -239,7 +239,7 @@ void CrunchEditTests::aSaveThatFailsLeavesTheOldFile()
     e.select(QStringLiteral("A2"));
     e.enter(QStringLiteral("4"));
     QVERIFY(e.win.w.save());
-    QVERIFY2(savedOk(saved, 20000), "the save failed");
+    QVERIFY2(savedOk(saved), "the save failed");
     QCOMPARE(saved.last().at(1).toBool(), true);
 }
 
@@ -279,7 +279,7 @@ void CrunchEditTests::closingAsksAboutChangesThatAreNotSaved()
         } else if (answer == CrunchWindow::Answer::Discard) {
             QVERIFY(!e.win.w.isVisible());
         } else {
-            QVERIFY2(savedOk(saved, 20000), "the save failed");
+            QVERIFY2(savedOk(saved), "the save failed");
             QTRY_VERIFY(!e.win.w.isVisible());
             Package p;
             QVERIFY(p.readLazyFile(e.path));
@@ -1097,7 +1097,7 @@ void CrunchEditTests::aSharedFormulaSurvivesItsFirstCellBeingTypedOver()
     QVERIFY(e.settle());
     QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
     QVERIFY(e.win.w.save());
-    QVERIFY2(savedOk(saved, 20000), "the save failed");
+    QVERIFY2(savedOk(saved), "the save failed");
     QCOMPARE(saved.first().at(1).toBool(), true);
     Package p;
     QVERIFY(p.readLazyFile(e.path));
@@ -1140,7 +1140,7 @@ void CrunchEditTests::onlyTheResultsTheEditChangedAreWritten()
     QVERIFY(e.settle());
     QCOMPARE(e.valueAt(QStringLiteral("C1")), QStringLiteral("n:10"));
     QVERIFY(e.win.w.save());
-    QVERIFY2(savedOk(saved, 20000), "the save failed");
+    QVERIFY2(savedOk(saved), "the save failed");
     QCOMPARE(savedValue(QStringLiteral("A1")), QStringLiteral("n:5"));
     QCOMPARE(savedValue(QStringLiteral("C1")), QStringLiteral("n:10"));    // the engine changed it
     QCOMPARE(savedValue(QStringLiteral("B1")), QStringLiteral("n:999"));   // worked out again, and the same (0): the file's own stays
@@ -1192,7 +1192,7 @@ void CrunchEditTests::theBytesOfACellsContentCountTheFormulaAsItIsHeld()
 bool CrunchEditTests::saveParts(EditWindow &e, QMap<QString, QByteArray> *parts)
 {
     QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
-    if (!e.win.w.save() || !savedOk(saved, 20000)) return false;
+    if (!e.win.w.save() || !savedOk(saved)) return false;
     QFile f(e.path);
     if (!f.open(QIODevice::ReadOnly)) return false;
     parts->clear();
@@ -1713,7 +1713,7 @@ void CrunchEditTests::aWorkbookWithMacrosKeepsThem()
     QVERIFY(!e.win.w.saveAs(e.folder.dir.filePath(QStringLiteral("macros.xlsb"))));
     QVERIFY(e.win.told.last().contains(QLatin1String(".xlsm")));
     QVERIFY(e.win.w.save());
-    QVERIFY2(savedOk(saved, 20000), "the save failed");
+    QVERIFY2(savedOk(saved), "the save failed");
     QFile f(e.path);
     QVERIFY(f.open(QIODevice::ReadOnly));
     const QByteArray now = f.readAll();

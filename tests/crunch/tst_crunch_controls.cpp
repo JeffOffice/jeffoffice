@@ -437,7 +437,7 @@ private Q_SLOTS:
         QVERIFY(e.settle());
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY2(savedOk(saved), "the save failed");
         const QMap<QString, QByteArray> parts = partsOf(e.path);
         QVERIFY2(parts.value(QStringLiteral("xl/ctrlProps/ctrlProp1.xml")).contains("checked=\"Checked\""), parts.value(QStringLiteral("xl/ctrlProps/ctrlProp1.xml")).constData());
         const QByteArray vml = parts.value(QStringLiteral("xl/drawings/vmlDrawing1.vml"));
@@ -491,7 +491,7 @@ private Q_SLOTS:
         QVERIFY(!e.win.w.objects()->layer()->isDeleted(e.win.w.objects()->layer()->object(int(ids.size()) - 1).id));
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY2(savedOk(saved), "the save failed");
         const QMap<QString, QByteArray> parts = partsOf(e.path);
         QString vmlName;
         for (auto it = parts.begin(); it != parts.end(); ++it)
@@ -628,7 +628,7 @@ private Q_SLOTS:
         QVERIFY(e.win.w.isModified());
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY2(savedOk(saved), "the save failed");
         QByteArray vml;
         const QMap<QString, QByteArray> parts = partsOf(e.path);
         for (auto it = parts.begin(); it != parts.end(); ++it)
@@ -655,7 +655,7 @@ private Q_SLOTS:
         {
             QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
             QVERIFY(e.win.w.save());
-            QVERIFY2(savedOk(saved, 20000), "the first save failed");
+            QVERIFY2(savedOk(saved), "the first save failed");
         }
         QMap<int, QByteArray> shapes = savedShapes(e.path);
         QCOMPARE(shapes.size(), 2);
@@ -666,7 +666,7 @@ private Q_SLOTS:
         {
             QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
             QVERIFY(e.win.w.save());
-            QVERIFY2(savedOk(saved, 20000), "the second save failed");
+            QVERIFY2(savedOk(saved), "the second save failed");
         }
         shapes = savedShapes(e.path);
         QCOMPARE(shapes.size(), 2);
@@ -704,7 +704,7 @@ private Q_SLOTS:
         QCOMPARE(e.valueAt(QStringLiteral("E4")), QStringLiteral("-"));
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY2(savedOk(saved), "the save failed");
         const QByteArray shape = savedShapes(e.path).value(1029);
         QVERIFY2(shape.contains("<x:Anchor>9, 2, 3, 2, 9, 22, 5, 2</x:Anchor>"), shape.constData());
         QVERIFY2(QRegularExpression(QStringLiteral("<x:FmlaLink>[^<]*\\$?E\\$?5</x:FmlaLink>")).match(QString::fromUtf8(shape)).hasMatch(), shape.constData());
@@ -724,7 +724,7 @@ private Q_SLOTS:
         QVERIFY(rectOf(e, QStringLiteral("Check Box 1")).isEmpty());
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY2(savedOk(saved), "the save failed");
         QByteArray sheetXml;
         const QMap<int, QByteArray> shapes = savedShapes(e.path, &sheetXml);
         QVERIFY(!shapes.contains(1025));
@@ -767,7 +767,7 @@ private Q_SLOTS:
         QVERIFY(e.win.w.objects()->layer()->isDeleted(box));
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY2(savedOk(saved), "the save failed");
         QByteArray sheetXml;
         const QMap<int, QByteArray> shapes = savedShapes(e.path, &sheetXml);
         QVERIFY(!shapes.contains(1025));
@@ -886,7 +886,7 @@ private Q_SLOTS:
         QVERIFY(e.settle());
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY2(savedOk(saved), "the save failed");
         const QMap<QString, QByteArray> now = partsOf(e.path);
         QMap<QString, QByteArray> was;
         jp::readZip(book, was);
@@ -909,7 +909,7 @@ private Q_SLOTS:
         QVERIFY(e.win.w.objects()->layer()->isDeleted(idOf(e, QStringLiteral("Check Box 1"))));
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY2(savedOk(saved), "the save failed");
         const QMap<QString, QByteArray> now = partsOf(e.path);
         QMap<QString, QByteArray> was;
         jp::readZip(book, was);

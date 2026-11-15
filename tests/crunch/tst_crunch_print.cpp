@@ -219,7 +219,7 @@ void CrunchPrintTests::aSavedFileHasTheSetupAndNothingElseChanges()
     before.close();
     QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
     QVERIFY(e.win.w.save());
-    QVERIFY2(savedOk(saved, 20000), "the save failed");
+    QVERIFY2(savedOk(saved), "the save failed");
     QVERIFY2(saved.first().at(1).toBool(), "the save failed");
     const PageSetup back = savedPage(e.path);
     QVERIFY(back == p);
@@ -468,7 +468,7 @@ void CrunchPrintTests::pageSetupFollowsTheSheetOperations()
     QVERIFY(e.settle());
     QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
     QVERIFY(e.win.w.save());
-    QVERIFY2(savedOk(saved, 20000), "the save failed");
+    QVERIFY2(savedOk(saved), "the save failed");
     Package package;
     QString why;
     QVERIFY2(package.readLazyFile(e.path, &why), qPrintable(why));
@@ -2370,7 +2370,7 @@ void CrunchPrintTests::insertedRowsAndAPrintAreaAreSavedTogether()
     QVERIFY(session->insertColumns(0, 0, 1).ok);
     QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
     QVERIFY(e.win.w.save());
-    QVERIFY2(savedOk(saved, 20000), "the save failed");
+    QVERIFY2(savedOk(saved), "the save failed");
     const PageSetup back = savedPage(e.path);
     QCOMPARE(areaOf(back), QStringLiteral("B2:C8"));
     QCOMPARE(back.rowBreaks.size(), 1);
@@ -2566,7 +2566,7 @@ void CrunchPrintTests::theViewIsSavedAndComesBack()
         // (a view alone, with no cell changed, is something to save)
         QSignalSpy saved(&w, &CrunchWindow::saved);
         QVERIFY(w.save());
-        QVERIFY2(savedOk(saved, 20000), qPrintable(e.win.told.join(QLatin1Char('|'))));
+        QVERIFY2(savedOk(saved), qPrintable(e.win.told.join(QLatin1Char('|'))));
         Package pk;
         QString why;
         QVERIFY(pk.readLazyFile(e.path, &why));
@@ -2587,7 +2587,7 @@ void CrunchPrintTests::theViewIsSavedAndComesBack()
     again.win.w.setViewKind(0);
     QSignalSpy saved(&again.win.w, &CrunchWindow::saved);
     QVERIFY(again.win.w.save());
-    QVERIFY2(savedOk(saved, 20000), qPrintable(again.win.told.join(QLatin1Char('|'))));
+    QVERIFY2(savedOk(saved), qPrintable(again.win.told.join(QLatin1Char('|'))));
     Package pk;
     QString why;
     QVERIFY(pk.readLazyFile(again.path, &why));
@@ -2612,7 +2612,7 @@ void CrunchPrintTests::frozenPanesAreSavedAndComeBack()
         w.act(QStringLiteral("view.freeze"))->trigger();
         QSignalSpy saved(&w, &CrunchWindow::saved);
         QVERIFY(w.save());
-        QVERIFY2(savedOk(saved, 20000), qPrintable(e.win.told.join(QLatin1Char('|'))));
+        QVERIFY2(savedOk(saved), qPrintable(e.win.told.join(QLatin1Char('|'))));
         Package pk;
         QString why;
         QVERIFY(pk.readLazyFile(e.path, &why));
@@ -2633,7 +2633,7 @@ void CrunchPrintTests::frozenPanesAreSavedAndComeBack()
     again.win.w.act(QStringLiteral("view.freezeRow"))->trigger();
     QSignalSpy saved(&again.win.w, &CrunchWindow::saved);
     QVERIFY(again.win.w.save());
-    QVERIFY2(savedOk(saved, 20000), qPrintable(again.win.told.join(QLatin1Char('|'))));
+    QVERIFY2(savedOk(saved), qPrintable(again.win.told.join(QLatin1Char('|'))));
     Package pk;
     QString why;
     QVERIFY(pk.readLazyFile(again.path, &why));
@@ -2669,7 +2669,7 @@ void CrunchPrintTests::splitPanesAreSavedAndComeBack()
 
         QSignalSpy saved(&w, &CrunchWindow::saved);
         QVERIFY(w.save());
-        QVERIFY2(savedOk(saved, 20000), qPrintable(e.win.told.join(QLatin1Char('|'))));
+        QVERIFY2(savedOk(saved), qPrintable(e.win.told.join(QLatin1Char('|'))));
         Package pk;
         QString why;
         QVERIFY(pk.readLazyFile(e.path, &why));
@@ -2698,7 +2698,7 @@ void CrunchPrintTests::splitPanesAreSavedAndComeBack()
     QVERIFY(!again.win.w.act(QStringLiteral("view.split"))->isChecked());
     QSignalSpy saved(&again.win.w, &CrunchWindow::saved);
     QVERIFY(again.win.w.save());
-    QVERIFY2(savedOk(saved, 20000), qPrintable(again.win.told.join(QLatin1Char('|'))));
+    QVERIFY2(savedOk(saved), qPrintable(again.win.told.join(QLatin1Char('|'))));
     Package pk;
     QString why;
     QVERIFY(pk.readLazyFile(again.path, &why));
@@ -2739,7 +2739,7 @@ void CrunchPrintTests::sheetRightToLeftIsSavedAndComesBack()
         QVERIFY(rtl->isChecked());
         QSignalSpy saved(&w, &CrunchWindow::saved);
         QVERIFY(w.save());
-        QVERIFY2(savedOk(saved, 20000), qPrintable(e.win.told.join(QLatin1Char('|'))));
+        QVERIFY2(savedOk(saved), qPrintable(e.win.told.join(QLatin1Char('|'))));
         Package pk;
         QString why;
         QVERIFY(pk.readLazyFile(e.path, &why));
@@ -2758,7 +2758,7 @@ void CrunchPrintTests::sheetRightToLeftIsSavedAndComesBack()
     QVERIFY(!again.view()->sheet().rightToLeft());
     QSignalSpy saved(&again.win.w, &CrunchWindow::saved);
     QVERIFY(again.win.w.save());
-    QVERIFY2(savedOk(saved, 20000), qPrintable(again.win.told.join(QLatin1Char('|'))));
+    QVERIFY2(savedOk(saved), qPrintable(again.win.told.join(QLatin1Char('|'))));
     Package pk;
     QString why;
     QVERIFY(pk.readLazyFile(again.path, &why));
@@ -2841,7 +2841,7 @@ void CrunchPrintTests::theTopPanesScrollAndRowsInsertedAboveTheBarAreKept()
     QVERIFY(lower >= 60);
     QSignalSpy saved(&w, &CrunchWindow::saved);
     QVERIFY(w.save());
-    QVERIFY2(savedOk(saved, 20000), qPrintable(e.win.told.join(QLatin1Char('|'))));
+    QVERIFY2(savedOk(saved), qPrintable(e.win.told.join(QLatin1Char('|'))));
     Package pk;
     QString why;
     QVERIFY(pk.readLazyFile(e.path, &why));

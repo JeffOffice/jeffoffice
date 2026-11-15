@@ -812,7 +812,7 @@ void CrunchEditTests::aFormulaTypedWithAPrefixedFunctionKeepsItsPrefixInTheFile(
     QCOMPARE(e.valueAt(QStringLiteral("F1")), QStringLiteral("e:#NAME?"));
     QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
     QVERIFY(e.win.w.save());
-    QVERIFY2(savedOk(saved, 20000), "the save failed");
+    QVERIFY2(savedOk(saved), "the save failed");
     QCOMPARE(savedFormula(e.path, QStringLiteral("F1")), QStringLiteral("_xlfn.IMAGE(\"x\")"));
     QCOMPARE(savedFormula(e.path, QStringLiteral("F2")), QStringLiteral("_xlfn.LET(_xlpm.x,A1,_xlpm.x*2)"));
     // and F2 shows it as it was typed
@@ -836,7 +836,7 @@ void CrunchEditTests::clearAllOnEmptyCellsLeavesNothingForTheWorker()
     QVERIFY(!e.win.w.isCalculating());
     QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
     QVERIFY(e.win.w.save());
-    QVERIFY2(savedOk(saved, 20000), "the save failed");
+    QVERIFY2(savedOk(saved), "the save failed");
     QCOMPARE(savedCell(e.path, QStringLiteral("A1")), QStringLiteral("n:100"));
 }
 
@@ -883,7 +883,7 @@ void CrunchEditTests::aSaveThatDoesNothingWhenResumedDoesNotLeaveTheWindowToClos
         w.setChangedAsker([](const QString &) { return CrunchWindow::ChangedAnswer::Overwrite; });
         QSignalSpy saved(&w, &CrunchWindow::saved);
         QVERIFY(w.save());
-        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY2(savedOk(saved), "the save failed");
         QVERIFY(w.isVisible());
     }
 }
@@ -911,7 +911,7 @@ void CrunchEditTests::saveACopyKeepsWorkingInTheOriginal()
     // The window can still save itself over its own file.
     QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
     QVERIFY(e.win.w.save());
-    QVERIFY2(savedOk(saved, 20000), "the save failed");
+    QVERIFY2(savedOk(saved), "the save failed");
     QCOMPARE(savedCell(e.path, QStringLiteral("A1")), QStringLiteral("n:42"));
     // A copy is never written over the workbook's own file.
     QStringList told;
@@ -934,7 +934,7 @@ void CrunchEditTests::aBackupCopyIsKeptOnSave()
         QVERIFY(e.settle());
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY2(savedOk(saved), "the save failed");
     };
     saveWith(QStringLiteral("2"));
     QVERIFY(!QFileInfo::exists(backup));   // (the option is off)
@@ -965,7 +965,7 @@ void CrunchEditTests::aWorkbookOpenedReadOnlyCannotBeChanged()
     e.win.w.setSavePicker([&](const QString &, const QString &) { return other; });
     QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
     QVERIFY(e.win.w.save());
-    QVERIFY2(savedOk(saved, 20000), "the save failed");
+    QVERIFY2(savedOk(saved), "the save failed");
     QCOMPARE(e.win.w.filePath(), other);
     QVERIFY(!e.win.w.isReadOnly());
     e.select(QStringLiteral("A1"));
@@ -1187,7 +1187,7 @@ void CrunchEditTests::aBackupThatFailsAsksBeforeTheWorkbookIsSaved()
     setBackupFailureStandIn([&](const QString &) { return true; });
     QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
     QVERIFY(e.win.w.save());
-    QVERIFY2(savedOk(saved, 20000), "the save failed");
+    QVERIFY2(savedOk(saved), "the save failed");
     QCOMPARE(savedCell(e.path, QStringLiteral("A1")), QStringLiteral("n:5"));
 }
 
@@ -1209,7 +1209,7 @@ void CrunchEditTests::aWorkbookOpenedAsACopyHasNoFile()
     e.win.w.setSavePicker([&](const QString &, const QString &) { return other; });
     QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
     QVERIFY(e.win.w.save());
-    QVERIFY2(savedOk(saved, 20000), "the save failed");
+    QVERIFY2(savedOk(saved), "the save failed");
     QCOMPARE(e.win.w.filePath(), other);
     QCOMPARE(savedCell(other, QStringLiteral("A1")), QStringLiteral("n:7"));
     QCOMPARE(savedCell(e.path, QStringLiteral("A1")), QStringLiteral("n:1"));
@@ -1324,7 +1324,7 @@ void CrunchEditTests::aWorkbookCanBeSavedAsTemplatesInBothKinds()
     QVERIFY(crunch::workbookKindsSavedAs(QStringLiteral("xlsx")).contains(QLatin1String("xltx")));
     QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
     QVERIFY(e.win.w.saveAs(xltx));
-    QVERIFY2(savedOk(saved, 20000), "the save failed");
+    QVERIFY2(savedOk(saved), "the save failed");
     {
         Package p;
         QString why;
@@ -1379,7 +1379,7 @@ void CrunchEditTests::aWorkbookCutShortOpensRepaired()
     QVERIFY(e.settle());
     QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
     QVERIFY(e.win.w.save());
-    QVERIFY2(savedOk(saved, 20000), "the save failed");
+    QVERIFY2(savedOk(saved), "the save failed");
     QCOMPARE(savedCell(other, QStringLiteral("A1")), QStringLiteral("n:5"));
     QCOMPARE(QFileInfo(path).size(), qint64(damaged.size()));
 }
@@ -1449,7 +1449,7 @@ void CrunchEditTests::formulasAreTypedAndShownWithTheLocalesSeparators()
     // the file has the format's own
     QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
     QVERIFY(e.win.w.save());
-    QVERIFY2(savedOk(saved, 20000), "the save failed");
+    QVERIFY2(savedOk(saved), "the save failed");
     QCOMPARE(savedFormula(e.path, QStringLiteral("F1")), QStringLiteral("SUM(A1,A2)"));
     QCOMPARE(savedFormula(e.path, QStringLiteral("F2")), QStringLiteral("A1*0.5+IF(A2>1,\"a,b\",\"c\")&\"\""));
     QCOMPARE(savedFormula(e.path, QStringLiteral("F4")), QStringLiteral("SUM(1.5,2.5)"));
@@ -1692,7 +1692,7 @@ void CrunchEditTests::typingInATableHeaderRenamesTheColumn()
     auto saveNow = [&] {
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY2(savedOk(saved), "the save failed");
     };
     // an empty name, and a header that is cleared: refused, with a message
     e.select(QStringLiteral("B1"));
@@ -2067,7 +2067,7 @@ void CrunchEditTests::undoPutsBackTheStoredResultOfAFormulaWithAFunctionTheProgr
     QVERIFY(e.settle());
     QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
     QVERIFY(e.win.w.save());
-    QVERIFY2(savedOk(saved, 20000), "the save failed");
+    QVERIFY2(savedOk(saved), "the save failed");
     QCOMPARE(savedFormula(e.path, QStringLiteral("A1")), QStringLiteral("_xlfn.IMAGE(\"x\")"));
     QCOMPARE(savedCell(e.path, QStringLiteral("A1")), QStringLiteral("n:88"));
     QCOMPARE(savedCell(e.path, QStringLiteral("B1")), QStringLiteral("n:89"));
@@ -2161,7 +2161,7 @@ void CrunchEditTests::anUndoAndARedoStillSaveTheResultsOfTheRedo()
         QVERIFY(e.win.w.isModified());
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY2(savedOk(saved), "the save failed");
         QVERIFY2(saved.first().at(1).toBool(), qPrintable(QString::number(variant)));
         QCOMPARE(savedCell(e.path, QStringLiteral("A1")), QStringLiteral("n:5"));
         QVERIFY2(savedCell(e.path, QStringLiteral("B1")) == QStringLiteral("n:10"), qPrintable(QStringLiteral("variant %1: B1 is %2").arg(variant).arg(savedCell(e.path, QStringLiteral("B1")))));
@@ -2225,7 +2225,7 @@ void CrunchEditTests::saveWritesWhatChangedAndKeepsTheRest()
     QVERIFY(e.win.w.windowTitle().contains(QLatin1String("[*]")) || e.win.w.isWindowModified());
     QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
     QVERIFY(e.win.w.save());
-    QVERIFY2(savedOk(saved, 20000), "the save failed");
+    QVERIFY2(savedOk(saved), "the save failed");
     QCOMPARE(saved.first().at(1).toBool(), true);
     QVERIFY(!e.win.w.isModified());
     QVERIFY(!e.win.w.isSaving());
@@ -2279,7 +2279,7 @@ void CrunchEditTests::aSecondSaveWritesWhatChangedSinceTheFirst()
     e.enter(QStringLiteral("5"));
     QVERIFY(e.settle());
     QVERIFY(e.win.w.save());
-    QVERIFY2(savedOk(saved, 20000), "the save failed");
+    QVERIFY2(savedOk(saved), "the save failed");
     e.select(QStringLiteral("A2"));
     e.enter(QStringLiteral("6"));
     QVERIFY(e.settle());

@@ -67,7 +67,7 @@ QByteArray fileBytes(const QString &path)
 bool saveWindow(EditWindow &e)
 {
     QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
-    return e.win.w.save() && savedOk(saved, 20000);
+    return e.win.w.save() && savedOk(saved);
 }
 
 } // namespace

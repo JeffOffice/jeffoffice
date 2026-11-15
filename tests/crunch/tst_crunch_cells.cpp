@@ -493,7 +493,7 @@ private Q_SLOTS:
         }
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY2(savedOk(saved), "the save failed");
         Window second;
         QVERIFY(second.open(e.copyOfFile()));
         const QString diff = differences(e.win.w.calculation(), second.w.calculation(), {"Total", "_xlnm.Print_Area"});
@@ -659,7 +659,7 @@ private Q_SLOTS:
             QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
             const bool modified = e.win.w.isModified();
             QVERIFY(e.win.w.save() || !modified);
-            if (modified) QVERIFY2(savedOk(saved, 20000), "the save failed");
+            if (modified) QVERIFY2(savedOk(saved), "the save failed");
             Window second;
             QVERIFY(second.open(e.copyOfFile()));
             const QString diff = differences(e.win.w.calculation(), second.w.calculation(), {"Total", "_xlnm.Print_Area"});
@@ -694,7 +694,7 @@ private Q_SLOTS:
         QVERIFY(e.settle());
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY2(savedOk(saved), "the save failed");
         const QString sheet = savedSheetText(e.path);
         QVERIFY2(sheet.contains(QStringLiteral("<f t=\"array\" ref=\"D5\">SUM(A1:A3*2)</f>")), qPrintable(sheet));
         QVERIFY2(sheet.contains(QStringLiteral("<c r=\"D6\"><v>9</v></c>")), qPrintable(sheet));
@@ -707,7 +707,7 @@ private Q_SLOTS:
         auto save = [](EditWindow &e) {
             QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
             QVERIFY(e.win.w.save());
-            QVERIFY2(savedOk(saved, 20000), "the save failed");
+            QVERIFY2(savedOk(saved), "the save failed");
         };
         auto agreeWithFile = [](EditWindow &e) {
             Window second;
@@ -782,7 +782,7 @@ private Q_SLOTS:
         QVERIFY(e.settle());
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY2(savedOk(saved), "the save failed");
         QVERIFY(e.win.w.session()->stepsForgottenBySave() > 0);
         QVERIFY2(e.win.w.statusText().contains(QStringLiteral("can't be undone")), qPrintable(e.win.w.statusText()));
         QVERIFY(!e.win.w.session()->canUndo());
@@ -1194,7 +1194,7 @@ private Q_SLOTS:
         QCOMPARE(s->calculation()->rowSpecsIn(0, 0, 100).size(), size_t(2));
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY2(savedOk(saved), "the save failed");
         Package p;
         QString why;
         QVERIFY(p.readLazyFile(e.path, &why));
@@ -1271,7 +1271,7 @@ private Q_SLOTS:
         QCOMPARE(s->calculation()->sheet(0).rowSpecs.size(), 1);
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY2(savedOk(saved), "the save failed");
         Package p;
         QString why;
         QVERIFY(p.readLazyFile(e.path, &why));
@@ -1377,7 +1377,7 @@ private Q_SLOTS:
         auto saveNow = [&] {
             QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
             QVERIFY(e.win.w.save());
-            QVERIFY2(savedOk(saved, 20000), "the save failed");
+            QVERIFY2(savedOk(saved), "the save failed");
         };
         // refused: the header row, all of the table's rows and columns, a block that takes part of it with it
         QVERIFY(!s->deleteRows(0, 0, 1).ok);
@@ -1490,7 +1490,7 @@ private Q_SLOTS:
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.settle());
         QVERIFY(e.win.w.save());
-        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY2(savedOk(saved), "the save failed");
         QVERIFY(s->deleteRows(0, 0, 1).ok);                                      // 4: a delete after the save
         QVERIFY(s->type(0, 4, 0, QStringLiteral("7")).ok);                       // 5
         QVERIFY(e.settle());
@@ -1519,7 +1519,7 @@ private Q_SLOTS:
         QCOMPARE(e.win.w.undoStack()->index(), 5);
         QVERIFY(e.win.w.isModified());
         QVERIFY(e.win.w.save());
-        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY2(savedOk(saved), "the save failed");
         Window second;
         QVERIFY(second.open(e.copyOfFile()));
         QCOMPARE(differences(e.win.w.calculation(), second.w.calculation(), {}), QString());
@@ -2030,7 +2030,7 @@ private Q_SLOTS:
         QVERIFY(storeDiffers(e).isEmpty());
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY2(savedOk(saved), "the save failed");
         Window fresh;
         QVERIFY(fresh.open(e.copyOfFile()));   // (opened and worked out from nothing)
         const office::sheet::Calculation *mine = s->calculation(), *theirs = fresh.w.calculation();
@@ -2122,7 +2122,7 @@ private Q_SLOTS:
             // and the file made of them is what the window shows
             QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
             QVERIFY(e.win.w.save());
-            QVERIFY2(savedOk(saved, 20000), "the save failed");
+            QVERIFY2(savedOk(saved), "the save failed");
             Window second;
             QVERIFY(second.open(e.copyOfFile()));
             QVERIFY(differences(e.win.w.calculation(), second.w.calculation(), {}).isEmpty());

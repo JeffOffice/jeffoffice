@@ -174,7 +174,7 @@ private Q_SLOTS:
         QVERIFY(e.settle());
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY2(savedOk(saved, 20000), qPrintable(e.win.told.join('|')));
+        QVERIFY2(savedOk(saved), qPrintable(e.win.told.join('|')));
         Window second;
         QVERIFY(second.open(e.copyOfFile()));
         const grid::GridSheet &g = second.w.view()->sheet();
@@ -668,7 +668,7 @@ private Q_SLOTS:
         QVERIFY(e.settle());
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY2(savedOk(saved, 20000), qPrintable(e.win.told.join('|')));
+        QVERIFY2(savedOk(saved), qPrintable(e.win.told.join('|')));
         Package p;
         QString why;
         QVERIFY2(p.readLazyFile(e.path, &why), qPrintable(why));
@@ -724,7 +724,7 @@ private Q_SLOTS:
         QVERIFY(e.settle());
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY2(savedOk(saved, 20000), qPrintable(e.win.told.join('|')));
+        QVERIFY2(savedOk(saved), qPrintable(e.win.told.join('|')));
         Package p;
         QString why;
         QVERIFY2(p.readLazyFile(e.path, &why), qPrintable(why));
@@ -780,7 +780,7 @@ private Q_SLOTS:
         QVERIFY(e.settle());
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY2(savedOk(saved, 20000), qPrintable(e.win.told.join('|')));
+        QVERIFY2(savedOk(saved), qPrintable(e.win.told.join('|')));
         Package p;
         QString why;
         QVERIFY2(p.readLazyFile(e.path, &why), qPrintable(why));
@@ -870,7 +870,7 @@ private Q_SLOTS:
         QVERIFY(e.settle());
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY2(savedOk(saved, 20000), qPrintable(e.win.told.join('|')));
+        QVERIFY2(savedOk(saved), qPrintable(e.win.told.join('|')));
         Package p;
         QString why;
         QVERIFY2(p.readLazyFile(e.path, &why), qPrintable(why));
@@ -955,7 +955,7 @@ private Q_SLOTS:
         QVERIFY(e.settle());
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY2(savedOk(saved, 20000), qPrintable(e.win.told.join('|')));
+        QVERIFY2(savedOk(saved), qPrintable(e.win.told.join('|')));
         Package p;
         QString why;
         QVERIFY2(p.readLazyFile(e.path, &why), qPrintable(why));
@@ -1315,7 +1315,7 @@ private Q_SLOTS:
         QVERIFY(e.settle());
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY2(savedOk(saved, 20000), qPrintable(e.win.told.join('|')));
+        QVERIFY2(savedOk(saved), qPrintable(e.win.told.join('|')));
         Package p;
         QString why;
         QVERIFY2(p.readLazyFile(e.path, &why), qPrintable(why));
@@ -1357,7 +1357,7 @@ private Q_SLOTS:
     {
         if (!e.settle()) return false;
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
-        return e.win.w.save() && savedOk(saved, 20000);
+        return e.win.w.save() && savedOk(saved);
     }
     // The part of the saved sheet after its cells, with the priorities made alike (the file's rules keep them but for the shift the rules made here give).
     static QString tailOfSaved(EditWindow &e)
@@ -1677,7 +1677,7 @@ private Q_SLOTS:
         QVERIFY2(e.win.w.session()->addCondRule(made, rule, jp::office::sheet::DifferentialFormat()).ok, "a rule on the new sheet");
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY(savedOk(saved, 20000));
+        QVERIFY(savedOk(saved));
         Package p;
         QString why;
         QVERIFY2(p.readLazyFile(e.path, &why), qPrintable(why));
@@ -1815,7 +1815,7 @@ private Q_SLOTS:
         QVERIFY(e.settle());
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY2(savedOk(saved, 20000), qPrintable(e.win.told.join('|')));
+        QVERIFY2(savedOk(saved), qPrintable(e.win.told.join('|')));
         Package p;
         QString why;
         QVERIFY2(p.readLazyFile(e.path, &why), qPrintable(why));
@@ -1837,7 +1837,7 @@ private Q_SLOTS:
         QVERIFY(e.settle());
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY2(savedOk(saved, 20000), qPrintable(e.win.told.join('|')));
+        QVERIFY2(savedOk(saved), qPrintable(e.win.told.join('|')));
         Package p;
         QString why;
         QVERIFY2(p.readLazyFile(e.path, &why), qPrintable(why));
@@ -1863,7 +1863,7 @@ private Q_SLOTS:
         QVERIFY(e.settle());
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY2(savedOk(saved, 20000), qPrintable(e.win.told.join('|')));
+        QVERIFY2(savedOk(saved), qPrintable(e.win.told.join('|')));
         Package p;
         QString why;
         QVERIFY2(p.readLazyFile(e.path, &why), qPrintable(why));
@@ -1897,7 +1897,7 @@ private Q_SLOTS:
         QVERIFY(e.settle());
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY2(savedOk(saved, 20000), qPrintable(e.win.told.join('|')));
+        QVERIFY2(savedOk(saved), qPrintable(e.win.told.join('|')));
         Package p;
         QString why;
         QVERIFY2(p.readLazyFile(e.path, &why), qPrintable(why));

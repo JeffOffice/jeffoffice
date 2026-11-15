@@ -194,7 +194,7 @@ private Q_SLOTS:
         QVERIFY(!mine.password.hash.isEmpty());
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY2(savedOk(saved), "the save failed");
         const QByteArray xml = savedPart(e.path, QStringLiteral("xl/worksheets/sheet1.xml"));
         const int prot = xml.indexOf("<sheetProtection"), ranges = xml.indexOf("<protectedRanges"), after = xml.indexOf("</protectedRanges>");
         QVERIFY2(prot >= 0 && ranges > prot && after > ranges, xml.constData());
@@ -403,7 +403,7 @@ private Q_SLOTS:
         QTRY_COMPARE(cells(), QStringLiteral("Open=A2:A3 Wide=B2:C5"));
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY2(savedOk(saved), "the save failed");
         const QByteArray xml = savedPart(e.path, QStringLiteral("xl/worksheets/sheet1.xml"));
         QVERIFY2(xml.contains("sqref=\"A2:A3\"") && xml.contains("sqref=\"B2:C5\""), xml.constData());
     }
@@ -438,7 +438,7 @@ private Q_SLOTS:
         QTRY_COMPARE(cells(), QStringLiteral("Down=A2:A3 Right=C2"));
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY2(savedOk(saved), "the save failed");
         const QByteArray xml = savedPart(e.path, QStringLiteral("xl/worksheets/sheet1.xml"));
         QVERIFY2(xml.contains("sqref=\"A2:A3\"") && xml.contains("sqref=\"C2\""), xml.constData());
     }

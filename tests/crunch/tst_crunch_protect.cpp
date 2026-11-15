@@ -354,7 +354,7 @@ private Q_SLOTS:
         const SheetProtection mine = e.win.w.session()->protectionOf(0);
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY2(savedOk(saved), "the save failed");
         const QByteArray xml = savedPart(e.path, QStringLiteral("xl/worksheets/sheet1.xml"));
         QVERIFY2(xml.contains("<sheetProtection"), xml.constData());
         QVERIFY(!xml.contains("correct horse") && !xml.contains("password="));
@@ -383,7 +383,7 @@ private Q_SLOTS:
         QVERIFY(s->type(0, 0, 1, QStringLiteral("7")).ok);
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY2(savedOk(saved), "the save failed");
         const QByteArray xml = savedPart(e.path, QStringLiteral("xl/worksheets/sheet1.xml"));
         QVERIFY2(xml.contains("<sheetProtection sheet=\"1\" password=\"CBEB\" formatCells=\"0\"/>"), xml.constData());
         // the right password takes it off
@@ -480,7 +480,7 @@ private Q_SLOTS:
         // saved, and the file has the lock and a hash
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY2(savedOk(saved), "the save failed");
         const QByteArray xml = savedPart(e.path, QStringLiteral("xl/workbook.xml"));
         QVERIFY2(xml.contains("<workbookProtection") && xml.contains("lockStructure=\"1\"") && xml.contains("workbookHashValue="), xml.constData());
         QVERIFY(!xml.contains("book pw"));

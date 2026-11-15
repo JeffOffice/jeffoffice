@@ -238,7 +238,7 @@ private Q_SLOTS:
         w.act(QStringLiteral("view.customViews"))->trigger();
         QSignalSpy saved(&w, &CrunchWindow::saved);
         QVERIFY(w.save());
-        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY2(savedOk(saved), "the save failed");
         const QByteArray xml = savedPart(e.path, QStringLiteral("xl/workbook.xml"));
         QVERIFY2(xml.contains("name=\"Plain\"") && xml.contains("autoUpdate=\"1\"") && xml.contains("mergeInterval=\"5\"") && xml.contains("windowWidth=\"16000\"") && xml.contains("activeSheetId=\"2\""), xml.constData());
         QVERIFY2(xml.contains("ex:uid=\"{U1}\"") && xml.contains("xmlns:ex=\"urn:example:other\""), xml.constData());
@@ -340,7 +340,7 @@ private Q_SLOTS:
         w.act(QStringLiteral("view.customViews"))->trigger();
         QSignalSpy saved(&w, &CrunchWindow::saved);
         QVERIFY(w.save());
-        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY2(savedOk(saved), "the save failed");
         const QByteArray xml = savedPart(e.path, QStringLiteral("xl/workbook.xml"));
         QVERIFY2(xml.contains("<customWorkbookViews><customWorkbookView name=\"Two &amp; &lt;more&gt;\" guid=\"{") && xml.contains("hiddenRows=\"2:3\"") && xml.contains("<extLst><ext uri=\"{"), xml.constData());
         QVERIFY2(xml.contains("activeSheetId=\"1\"") && xml.contains("windowWidth=\""), xml.constData());
@@ -463,7 +463,7 @@ private Q_SLOTS:
         QVERIFY(w.formulaProblems().empty());
         QSignalSpy saved(&w, &CrunchWindow::saved);
         QVERIFY(w.save());
-        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY2(savedOk(saved), "the save failed");
         const QByteArray sheet = savedPart(e.path, QStringLiteral("xl/worksheets/sheet1.xml"));
         QVERIFY2(sheet.contains("formula=\"1\"") && sheet.contains("twoDigitTextYear=\"1\""), sheet.constData());
     }
@@ -506,7 +506,7 @@ private Q_SLOTS:
         w.undoStack()->redo();
         QSignalSpy saved(&w, &CrunchWindow::saved);
         QVERIFY(w.save());
-        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY2(savedOk(saved), "the save failed");
         const QByteArray xml = savedPart(e.path, QStringLiteral("xl/workbook.xml"));
         QVERIFY2(xml.contains("<jocv:sheet name=\"Totals\"") && !xml.contains("<jocv:sheet name=\"Sheet2\""), xml.constData());
         // deleted, the sheet is no longer in any view; Undo brings it back
@@ -623,7 +623,7 @@ private Q_SLOTS:
         w.act(QStringLiteral("view.customViews"))->trigger();
         QSignalSpy saved(&w, &CrunchWindow::saved);
         QVERIFY(w.save());
-        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY2(savedOk(saved), "the save failed");
         const QByteArray xml = savedPart(e.path, QStringLiteral("xl/workbook.xml"));
         for (const char bad : {'\x01', '\x1f'}) QVERIFY(!xml.contains(bad));
         QVERIFY(xml.contains("name=\"A B  C \""));
@@ -654,7 +654,7 @@ private Q_SLOTS:
         w.act(QStringLiteral("view.customViews"))->trigger();
         QSignalSpy saved(&w, &CrunchWindow::saved);
         QVERIFY(w.save());
-        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY2(savedOk(saved), "the save failed");
         const QByteArray sheet = savedPart(e.path, QStringLiteral("xl/worksheets/sheet1.xml"));
         QVERIFY2(!sheet.contains("{DEAD-1}") && sheet.contains("{KEEP-2}") && sheet.contains("<customSheetViews>"), sheet.constData());
         // with the last one gone too, the list goes

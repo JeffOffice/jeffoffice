@@ -330,7 +330,7 @@ private Q_SLOTS:
         QVERIFY(s->newComment(0, 2, 0, QStringLiteral("A3?"), QStringLiteral("Ann Lee"), QStringLiteral("New Comment")).ok);
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY2(savedOk(saved), "the save failed");
         Window second;
         QVERIFY(second.open(e.copyOfFile()));
         const crunch::CellAnchors &a = second.w.session()->anchors();
@@ -393,7 +393,7 @@ private Q_SLOTS:
         QVERIFY(s->anchors().noteAt(0, 2, 0));   // (the notes stay)
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY2(savedOk(saved), "the save failed");
         Window second;
         QVERIFY(second.open(e.copyOfFile()));
         QVERIFY(!second.w.session()->anchors().noteAt(0, 3, 3));
@@ -538,7 +538,7 @@ private Q_SLOTS:
         // the file keeps it all: three notes, none a thread
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY2(savedOk(saved), "the save failed");
         Window second;
         QVERIFY(second.open(e.copyOfFile()));
         QCOMPARE(second.w.session()->anchors().notes(0).size(), size_t(3));
@@ -578,7 +578,7 @@ private Q_SLOTS:
         QVERIFY(s->setNote(0, 0, 0, QStringLiteral("changed"), QStringLiteral("Ann"), false, QStringLiteral("Edit Note")).ok);
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY2(savedOk(saved), "the save failed");
         QCOMPARE(threadPartOf(e.path), QString::fromUtf8(threads));   // (the part is byte for byte what it was)
         Window second;
         QVERIFY(second.open(e.copyOfFile()));
@@ -668,7 +668,7 @@ private Q_SLOTS:
         // and the file has both, and not the one that moved, where it was
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY2(savedOk(saved), "the save failed");
         Window second;
         QVERIFY(second.open(e.copyOfFile()));
         const crunch::CellAnchors &a = second.w.session()->anchors();
@@ -700,7 +700,7 @@ private Q_SLOTS:
         QVERIFY(s->setNote(0, 0, 0, QStringLiteral("changed"), QStringLiteral("Ann"), false, QStringLiteral("Edit Note")).ok);
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY2(savedOk(saved), "the save failed");
         QCOMPARE(threadPartOf(e.path), before);
         // and no list of people was made for a person the file had no name for
         QCOMPARE(threadPartOf(e.path, QStringLiteral("xl/persons/person.xml")), QStringLiteral("(no part)"));
@@ -911,7 +911,7 @@ private Q_SLOTS:
         e.win.w.act(QStringLiteral("notes.edit"))->trigger();
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY2(savedOk(saved), "the save failed");
         QCOMPARE(savedNoteText(e.path, QStringLiteral("A2")), QStringLiteral("Ann:\nchecked"));
         QCOMPARE(savedNoteText(e.path, QStringLiteral("B5")), QStringLiteral("made here"));
         QCOMPARE(savedNoteText(e.path, QStringLiteral("C4")), QStringLiteral("Bob says hi"));
@@ -938,7 +938,7 @@ private Q_SLOTS:
         e.win.w.act(QStringLiteral("notes.edit"))->trigger();
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY2(savedOk(saved), "the save failed");
         QCOMPARE(savedNoteText(e.path, QStringLiteral("B2")), QStringLiteral("one"));
         // a row inserted above, the note edited in its new place, then both undone and the file saved
         QVERIFY(s->insertRows(0, 0, 1).ok);
@@ -973,7 +973,7 @@ private Q_SLOTS:
         QVERIFY(s->setLink(made, link.range, link, QStringLiteral("Link")).ok);
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY2(savedOk(saved), "the save failed");
         Window second;
         QVERIFY(second.open(e.copyOfFile()));
         const crunch::CellAnchors &a = second.w.session()->anchors();
@@ -1123,7 +1123,7 @@ private Q_SLOTS:
         QVERIFY(s->type(0, 5, 0, QStringLiteral("7")).ok);
         QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
-        QVERIFY2(savedOk(saved, 20000), "the save failed");
+        QVERIFY2(savedOk(saved), "the save failed");
         QCOMPARE(savedNoteText(e.path, QStringLiteral("E20050")), QStringLiteral("n20050"));
     }
 

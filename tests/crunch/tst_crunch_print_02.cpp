@@ -15,7 +15,7 @@ void CrunchPrintTests::theScrollAndTheCursorAreTakenAtTheSave()
     QVERIFY(top > 10);
     auto saveAndRead = [&] {
         QSignalSpy saved(&w, &CrunchWindow::saved);
-        if (!w.save() || !savedOk(saved, 20000)) return QByteArray();
+        if (!w.save() || !savedOk(saved)) return QByteArray();
         Package pk;
         QString why;
         if (!pk.readLazyFile(e.path, &why)) return QByteArray();
@@ -107,7 +107,7 @@ void CrunchPrintTests::aHeaderPictureSurvivesASaveThatChangesOtherThings()
     QVERIFY(e.win.w.session()->setPageSetup(0, p, QStringLiteral("Orientation")).ok);
     QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
     QVERIFY(e.win.w.save());
-    QVERIFY2(savedOk(saved, 20000), qPrintable(e.win.told.join(QLatin1Char('|'))));
+    QVERIFY2(savedOk(saved), qPrintable(e.win.told.join(QLatin1Char('|'))));
     Package before, after;
     QString why;
     QVERIFY(before.readLazy(book, &why));
@@ -233,7 +233,7 @@ void CrunchPrintTests::aHeaderPictureAddedThroughPageSetupSavesAndComesOut()
     });
     auto saveNow = [&] {
         QSignalSpy saved(&w, &CrunchWindow::saved);
-        return w.save() && savedOk(saved, 20000);
+        return w.save() && savedOk(saved);
     };
     auto pictureCount = [&] {
         Package pk;
@@ -276,7 +276,7 @@ void CrunchPrintTests::aHeaderPictureSurvivesRowsBeingInserted()
     QVERIFY(e.win.w.session()->insertRows(0, 2, 3).ok);
     QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
     QVERIFY(e.win.w.save());
-    QVERIFY2(savedOk(saved, 20000), qPrintable(e.win.told.join(QLatin1Char('|'))));
+    QVERIFY2(savedOk(saved), qPrintable(e.win.told.join(QLatin1Char('|'))));
     Package before, after;
     QString why;
     QVERIFY(before.readLazy(book, &why));
@@ -299,7 +299,7 @@ void CrunchPrintTests::aCopyOfASheetWithHeaderPicturesHasThemToo()
     QCOMPARE(e.win.w.session()->pages().sheet(made).headerFooter.pictures.size(), 1);
     QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
     QVERIFY(e.win.w.save());
-    QVERIFY2(savedOk(saved, 20000), qPrintable(e.win.told.join(QLatin1Char('|'))));
+    QVERIFY2(savedOk(saved), qPrintable(e.win.told.join(QLatin1Char('|'))));
     Package pk;
     QString why;
     QVERIFY(pk.readLazyFile(e.path, &why));
@@ -552,7 +552,7 @@ void CrunchPrintTests::insertHeaderFooterOpensTheHeader()
     // the file (a save is written in the background: wait for it to be done before reading the file)
     QSignalSpy saved(&w, &CrunchWindow::saved);
     QVERIFY(w.save());
-    QVERIFY2(savedOk(saved, 20000), qPrintable(e.win.told.join(QLatin1Char('|'))));
+    QVERIFY2(savedOk(saved), qPrintable(e.win.told.join(QLatin1Char('|'))));
     EditWindow again;
     QVERIFY(again.win.open(e.copyOfFile()));
     QCOMPARE(again.win.w.session()->pages().sheet(0).headerFooter.oddHeader, QStringLiteral("&CBudget &P"));
@@ -673,7 +673,7 @@ void CrunchPrintTests::thePageLayoutViewIsSavedAndComesBack()
         w.pageView()->setZoom(0.75);
         QSignalSpy saved(&w, &CrunchWindow::saved);
         QVERIFY(w.save());
-        QVERIFY2(savedOk(saved, 20000), qPrintable(e.win.told.join(QLatin1Char('|'))));
+        QVERIFY2(savedOk(saved), qPrintable(e.win.told.join(QLatin1Char('|'))));
         Package pk;
         QString why;
         QVERIFY(pk.readLazyFile(e.path, &why));
@@ -734,7 +734,7 @@ void CrunchPrintTests::aZoomChangeAloneIsSaved()
     QVERIFY(!w.session()->isModified());
     QSignalSpy saved(&w, &CrunchWindow::saved);
     QVERIFY(w.save());
-    QVERIFY2(savedOk(saved, 20000), qPrintable(e.win.told.join(QLatin1Char('|'))));
+    QVERIFY2(savedOk(saved), qPrintable(e.win.told.join(QLatin1Char('|'))));
     Package pk;
     QString why;
     QVERIFY(pk.readLazyFile(e.path, &why));
@@ -771,7 +771,7 @@ void CrunchPrintTests::leavingAViewPutsTheCellsOwnZoomBack()
         QCOMPARE(w.session()->pages().normalZoom(0), 150);
         QSignalSpy saved(&w, &CrunchWindow::saved);
         QVERIFY(w.save());
-        QVERIFY2(savedOk(saved, 20000), qPrintable(e.win.told.join(QLatin1Char('|'))));
+        QVERIFY2(savedOk(saved), qPrintable(e.win.told.join(QLatin1Char('|'))));
         Package pk;
         QString why;
         QVERIFY(pk.readLazyFile(e.path, &why));
@@ -1245,7 +1245,7 @@ void CrunchPrintTests::firstAndEvenPagePicturesAreWrittenWithTheLongIds()
     QVERIFY(w.session()->setPageSetup(0, p, QStringLiteral("Pictures")).ok);
     QSignalSpy saved(&w, &CrunchWindow::saved);
     QVERIFY(w.save());
-    QVERIFY2(savedOk(saved, 20000), qPrintable(e.win.told.join(QLatin1Char('|'))));
+    QVERIFY2(savedOk(saved), qPrintable(e.win.told.join(QLatin1Char('|'))));
     Package pk;
     QString why;
     QVERIFY(pk.readLazyFile(e.path, &why));
