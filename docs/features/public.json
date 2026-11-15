@@ -307,6 +307,11 @@
         {
          "status": "todo",
          "text": "78a4a3cc4fcf2f23395e124bab580cb2045f468182ca77f2ad367883f724d328"
+        },
+        {
+         "hide_soon": true,
+         "status": "done",
+         "text": "5f49216dba72a795db867e6dcbde1e677fd2d19d3f8b157ae1744ebb9198bdce"
         }
        ]
       },
@@ -2493,8 +2498,9 @@
          "text": "6d612d31aa4321b4ceb58a64a3b62487fa6a87d5a0bf37884bb33605517246f7"
         },
         {
-         "status": "todo",
-         "text": "bf2ee60bbbd33d44c9d5a50121b027b673b434a62f793fe93702a7efae47fc7c"
+         "hide_soon": true,
+         "status": "done",
+         "text": "b40954ad2678d8dc579f66df89f32930bed3508001a231fe23c0e47a25257822"
         },
         {
          "status": "todo",
@@ -4049,8 +4055,9 @@
          "text": "2207b5feac3f03d13dc59a3092f72b5c86ce2df93a3eea743ce856c0b812b592"
         },
         {
-         "status": "todo",
-         "text": "1fa01fadb4a9c6789fdce4264f258857fb648f1856822f81c03a79b0e17fce36"
+         "hide_soon": true,
+         "status": "done",
+         "text": "1c4e6112b53705ca74a23115ace906859a38cdfa772096e959d1c60c9b608458"
         },
         {
          "hide_soon": true,
@@ -9481,6 +9488,18 @@
     "fr": ""
    }
   },
+  "1c4e6112b53705ca74a23115ace906859a38cdfa772096e959d1c60c9b608458": {
+   "drop": false,
+   "en": "Open and save `.pptm`, `.ppsm`, and `.potm` files. The macro project is kept unchanged and is never run.",
+   "es": "Abra y guarde archivos `.pptm`, `.ppsm` y `.potm`. El proyecto de macros se conserva sin cambios y nunca se ejecuta.",
+   "fr": "Ouvrez et enregistrez des fichiers `.pptm`, `.ppsm` et `.potm`. Le projet de macros est conservé sans modification et n’est jamais exécuté.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "1cd87d37f62bc26ea44e8392bd6425e5bf379a53fd43ed44028f284cb6d18702": {
    "drop": false,
    "en": "Free and open source (GPL-3.0), with no license fee, subscription, account, or sign-in, and nothing that has to be online.",
@@ -9743,18 +9762,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "1fa01fadb4a9c6789fdce4264f258857fb648f1856822f81c03a79b0e17fce36": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "`.pptm`, `.ppsm`, and `.potm`: open and save, keeping the macro project untouched",
-    "es": "`.pptm`, `.ppsm` y `.potm`: abrir y guardar, conservando intacto el proyecto de macros",
-    "fr": "`.pptm`, `.ppsm` et `.potm` : ouvrir et enregistrer, en conservant le projet de macros intact"
    }
   },
   "1fc313795adcf02fabaa0f7571fdb9f27c1ebe232d13f7432bf6b46f0099d20b": {
@@ -14634,6 +14641,18 @@
    "en": "Proofing and Accessibility",
    "es": "Revisión y accesibilidad",
    "fr": "Vérification et accessibilité",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "5f49216dba72a795db867e6dcbde1e677fd2d19d3f8b157ae1744ebb9198bdce": {
+   "drop": false,
+   "en": "Save as `.xlsm` and `.xltm`, keeping macros unchanged. Macros are never run. When saving as `.xlsx` or `.xltx`, the macros are left out and the app asks first.",
+   "es": "Guarde como `.xlsm` y `.xltm`, conservando las macros sin cambios. Las macros nunca se ejecutan. Al guardar como `.xlsx` o `.xltx`, las macros se omiten y la aplicación pregunta antes.",
+   "fr": "Enregistrez au format `.xlsm` et `.xltm` en conservant les macros sans modification. Les macros ne sont jamais exécutées. Lors de l’enregistrement en `.xlsx` ou `.xltx`, les macros sont omises et l’application demande d’abord confirmation.",
    "soon": {
     "drop": true,
     "en": "",
@@ -20509,6 +20528,18 @@
     "fr": ""
    }
   },
+  "b40954ad2678d8dc579f66df89f32930bed3508001a231fe23c0e47a25257822": {
+   "drop": false,
+   "en": "Open and save macro-enabled `.pptm`, `.ppsm`, and `.potm` files. The macro project is kept unchanged and is never run.",
+   "es": "Abra y guarde archivos con macros `.pptm`, `.ppsm` y `.potm`. El proyecto de macros se conserva sin cambios y nunca se ejecuta.",
+   "fr": "Ouvrez et enregistrez des fichiers `.pptm`, `.ppsm` et `.potm` avec macros. Le projet de macros est conservé sans modification et n’est jamais exécuté.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "b40da7575dc84295b5430a0e2039746f2a4dc0a27d95b8117f6d60deae26e65e": {
    "drop": false,
    "en": "External links do not update, data connections do not run, and macros are kept but never run when a file opens. In an opened `.csv`, a field that starts with `=` is kept as text unless \"Read formulas\" is ticked in the text import window; plain numbers such as -5 or +3 stay numbers.",
@@ -21179,18 +21210,6 @@
     "en": "A command to turn a sheet right to left",
     "es": "Un comando para cambiar una hoja a derecha a izquierda",
     "fr": "Une commande pour passer une feuille de droite à gauche"
-   }
-  },
-  "bf2ee60bbbd33d44c9d5a50121b027b673b434a62f793fe93702a7efae47fc7c": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Macro-enabled files (`.pptm`, `.ppsm`, `.potm`): open and save, with the macro project kept untouched and never run",
-    "es": "Archivos con macros (`.pptm`, `.ppsm`, `.potm`): abrir y guardar, con el proyecto de macros intacto y sin ejecutarlo nunca",
-    "fr": "Fichiers avec macros (`.pptm`, `.ppsm`, `.potm`) : ouverture et enregistrement, avec le projet de macros conservé intact et jamais exécuté"
    }
   },
   "bf39edab9209d8ec64561bc34821d292aaf6a4ec92300d1819724a4debb9d879": {
