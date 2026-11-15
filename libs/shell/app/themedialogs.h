@@ -43,6 +43,8 @@ class JO_COMMON_EXPORT ThemeColorsDialog : public QDialog {
 public:
     explicit ThemeColorsDialog(const office::ThemeColors &start, QWidget *parent = nullptr);
     office::ThemeColors result() const;
+    // Names a set of one's own may not have, besides those of every built-in set (the app's own built-in sets).
+    void setReservedNames(const QStringList &names) { m_reserved = names; }
     // For tests and the buttons: a slot's color, and the name.
     void setSlot(int slot, const QColor &color);
     QPushButton *slotButton(int slot) const { return m_buttons[slot]; }
@@ -53,6 +55,7 @@ public:
 private:
     void paintButton(int slot);
     office::ThemeColors m_colors;
+    QStringList m_reserved;
     QPushButton *m_buttons[office::Theme::ColorCount] = {};
     QLineEdit *m_name;
     ThemePreview *m_preview;
@@ -64,6 +67,7 @@ class JO_COMMON_EXPORT ThemeFontsDialog : public QDialog {
 public:
     explicit ThemeFontsDialog(const office::ThemeFonts &start, QWidget *parent = nullptr);
     office::ThemeFonts result() const;
+    void setReservedNames(const QStringList &names) { m_reserved = names; }
     QComboBox *headingBox() const { return m_heading; }
     QComboBox *bodyBox() const { return m_body; }
     QLineEdit *nameEdit() const { return m_name; }
@@ -72,11 +76,16 @@ public:
 
 private:
     void updatePreview();
+    QStringList m_reserved;
     QComboBox *m_heading, *m_body;
     QLineEdit *m_name;
     ThemePreview *m_preview;
 };
 
+// Whether a name (any case) is in the list.
+bool themeNameTaken(const QStringList &names, const QString &name);
+// Tells the person, once, what the sets folder did (a file it could not read was kept aside): to call after a save.
+void showThemeStoreNotices(QWidget *parent);
 // A name for a new set that no custom or built-in set has: "Custom 1", "Custom 2"...
 QString newThemeSetName(const QStringList &taken);
 // Four swatches in two rows of the set's colors, as a menu shows a scheme.
@@ -87,6 +96,8 @@ struct ThemeMenuHooks {
     std::function<void(const office::ThemeColors &)> chooseColors;
     std::function<void(const office::ThemeFonts &)> chooseFonts;
     std::function<void()> reset;   // empty: no Reset entry
+    // The names of the app's own built-in sets: a set of one's own may not have one.
+    QStringList reservedNames;
     // Where the new box is shown over.
     QWidget *dialogParent = nullptr;
 };

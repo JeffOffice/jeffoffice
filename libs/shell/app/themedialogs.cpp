@@ -12,6 +12,7 @@
 #include <QFormLayout>
 #include <QGridLayout>
 #include <QLineEdit>
+#include <QMessageBox>
 #include <QPainter>
 #include <QPushButton>
 #include <QVBoxLayout>
@@ -37,6 +38,23 @@ bool hasName(const QStringList &names, const QString &name)
     for (const QString &n : names)
         if (n.compare(name, Qt::CaseInsensitive) == 0) return true;
     return false;
+}
+
+// The names of every set that is built in, in any app: the shared ones, JeffPub's, and the app's own.
+QStringList builtinColorNames(const QStringList &reserved)
+{
+    QStringList out = reserved;
+    for (const ThemeColors &c : office::builtinThemeColors()) out << c.name;
+    for (const jp::ColorScheme &s : jp::builtinColorSchemes()) out << s.name;
+    return out;
+}
+
+QStringList builtinFontNames(const QStringList &reserved)
+{
+    QStringList out = reserved;
+    for (const ThemeFonts &f : office::builtinThemeFonts()) out << f.name;
+    for (const jp::FontScheme &s : jp::builtinFontSchemes()) out << s.name;
+    return out;
 }
 
 QStringList namesOf(const QVector<ThemeColors> &sets)
@@ -106,6 +124,13 @@ void ThemePreview::paintEvent(QPaintEvent *)
         p.setBrush(m_colors.colors[i]);
         p.drawRect(s);
     }
+}
+
+bool themeNameTaken(const QStringList &names, const QString &name) { return hasName(names, name); }
+
+void showThemeStoreNotices(QWidget *parent)
+{
+    for (const QString &notice : office::takeThemeStoreNotices()) jp::plainWarning(parent, QCoreApplication::translate("jp::ThemeDialogs", "Theme Sets"), notice);
 }
 
 QString newThemeSetName(const QStringList &taken)
@@ -199,14 +224,22 @@ void ThemeColorsDialog::accept()
         m_name->setFocus();
         return;
     }
-    // (a built-in name is no name for a set of one's own)
-    for (const ThemeColors &b : office::builtinThemeColors())
-        if (b.name.compare(c.name, Qt::CaseInsensitive) == 0) {
-            m_name->setFocus();
-            m_name->selectAll();
-            return;
-        }
-    if (!office::saveCustomThemeColors(c)) {
+    // (a built-in name is no name for a set of one's own: it would be hidden behind the built-in one)
+    if (hasName(builtinColorNames(m_reserved), c.name)) {
+        jp::plainWarning(this, windowTitle(), QCoreApplication::translate("jp::ThemeDialogs", "A built-in set has the name \"%1\". Choose another name.").arg(c.name));
+        m_name->setFocus();
+        m_name->selectAll();
+        return;
+    }
+    if (hasName(namesOf(office::customThemeColors()), c.name) &&
+        jp::plainQuestion(this, windowTitle(), QCoreApplication::translate("jp::ThemeDialogs", "You already have colors named \"%1\". Replace them?").arg(c.name), QMessageBox::Yes | QMessageBox::No, QMessageBox::No) != QMessageBox::Yes) {
+        m_name->setFocus();
+        m_name->selectAll();
+        return;
+    }
+    const bool saved = office::saveCustomThemeColors(c);
+    showThemeStoreNotices(this);
+    if (!saved) {
         jp::plainWarning(this, windowTitle(), QCoreApplication::translate("jp::ThemeDialogs", "The colors could not be saved."));
         return;
     }
@@ -270,13 +303,21 @@ void ThemeFontsDialog::accept()
         m_name->setFocus();
         return;
     }
-    for (const ThemeFonts &b : office::builtinThemeFonts())
-        if (b.name.compare(f.name, Qt::CaseInsensitive) == 0) {
-            m_name->setFocus();
-            m_name->selectAll();
-            return;
-        }
-    if (!office::saveCustomThemeFonts(f)) {
+    if (hasName(builtinFontNames(m_reserved), f.name)) {
+        jp::plainWarning(this, windowTitle(), QCoreApplication::translate("jp::ThemeDialogs", "A built-in set has the name \"%1\". Choose another name.").arg(f.name));
+        m_name->setFocus();
+        m_name->selectAll();
+        return;
+    }
+    if (hasName(namesOfFonts(office::customThemeFonts()), f.name) &&
+        jp::plainQuestion(this, windowTitle(), QCoreApplication::translate("jp::ThemeDialogs", "You already have fonts named \"%1\". Replace them?").arg(f.name), QMessageBox::Yes | QMessageBox::No, QMessageBox::No) != QMessageBox::Yes) {
+        m_name->setFocus();
+        m_name->selectAll();
+        return;
+    }
+    const bool saved = office::saveCustomThemeFonts(f);
+    showThemeStoreNotices(this);
+    if (!saved) {
         jp::plainWarning(this, windowTitle(), QCoreApplication::translate("jp::ThemeDialogs", "The fonts could not be saved."));
         return;
     }
@@ -306,6 +347,7 @@ void addThemeColorsEntries(QMenu *menu, const QVector<ThemeColors> &builtins, co
     create->setObjectName(QStringLiteral("createThemeColors"));
     QObject::connect(create, &QAction::triggered, menu, [hooks, current] {
         ThemeColorsDialog dlg(current, hooks.dialogParent ? hooks.dialogParent : QApplication::activeWindow());
+        dlg.setReservedNames(hooks.reservedNames);
         if (dlg.exec() == QDialog::Accepted) hooks.chooseColors(dlg.result());
     });
     if (!custom.isEmpty()) {
@@ -344,6 +386,7 @@ void addThemeFontsEntries(QMenu *menu, const QVector<ThemeFonts> &builtins, cons
     create->setObjectName(QStringLiteral("createThemeFonts"));
     QObject::connect(create, &QAction::triggered, menu, [hooks, current] {
         ThemeFontsDialog dlg(current, hooks.dialogParent ? hooks.dialogParent : QApplication::activeWindow());
+        dlg.setReservedNames(hooks.reservedNames);
         if (dlg.exec() == QDialog::Accepted) hooks.chooseFonts(dlg.result());
     });
     if (!custom.isEmpty()) {
