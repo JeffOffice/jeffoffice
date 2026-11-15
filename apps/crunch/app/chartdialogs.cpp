@@ -108,7 +108,7 @@ InsertChartDialog::InsertChartDialog(const ChartPreviewFn &preview, ChartKind in
     m_switch = new QCheckBox(tr("Swap rows and columns"), this);
     m_switch->setAccessibleName(tr("Swap rows and columns"));
     outer->addWidget(m_switch);
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
     connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
     outer->addWidget(buttons);
@@ -179,7 +179,7 @@ public:
         m_problem = plainLabel(new QLabel(this));
         m_problem->setWordWrap(true);
         form->addRow(m_problem);
-        auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
+        auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
         connect(buttons, &QDialogButtonBox::accepted, this, [this] {
             if (check()) accept();
         });
@@ -269,7 +269,7 @@ SelectDataDialog::SelectDataDialog(const SelectDataRequest &request, QWidget *pa
     m_problem = plainLabel(new QLabel(this));
     m_problem->setWordWrap(true);
     outer->addWidget(m_problem);
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
     connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
     outer->addWidget(buttons);
@@ -493,7 +493,7 @@ ChangeChartTypeDialog::ChangeChartTypeDialog(const QStringList &seriesNames, con
     row->addWidget(m_list);
     row->addLayout(right, 1);
     outer->addLayout(row, 1);
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
     connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
     outer->addWidget(buttons);
@@ -606,7 +606,7 @@ ObjectPropertiesDialog::ObjectPropertiesDialog(const ObjectProperties &now, QWid
     m_ratio->setChecked(now.keepProportions);
     form->addRow(m_ratio);
     outer->addLayout(form);
-    auto *group = new QGroupBox(tr("When cells change"), this);
+    auto *group = new jp::Section(tr("When cells change"), this);
     auto *g = new QVBoxLayout(group);
     m_sizes = new QRadioButton(tr("Moves and stretches with its cells"), group);
     m_moves = new QRadioButton(tr("Moves with its cells, keeps its size"), group);
@@ -629,7 +629,7 @@ ObjectPropertiesDialog::ObjectPropertiesDialog(const ObjectProperties &now, QWid
     connect(m_height, &QDoubleSpinBox::valueChanged, this, [this](double v) {
         if (m_ratio->isChecked() && m_ratioOf > 0 && !m_width->hasFocus()) m_width->setValue(v * m_ratioOf);
     });
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
     connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
     outer->addWidget(buttons);
@@ -708,7 +708,7 @@ FormatAxisDialog::FormatAxisDialog(const jp::office::ChartAxis &axis, const QStr
     for (const auto &u : units) m_units->addItem(tr(u.name), QString::fromLatin1(u.code));
     if (axis.dispUnit == QLatin1String("custom")) m_units->addItem(tr("Custom (%1)").arg(axis.dispUnitCustom), QStringLiteral("custom"));
     m_units->setCurrentIndex(std::max(0, m_units->findData(axis.dispUnit)));
-    if (axis.kind == jp::office::ChartAxis::Value) form->addRow(tr("Display units:"), m_units);
+    if (axis.kind == jp::office::ChartAxis::Value) form->addRow(tr("Display units"), m_units);
     m_unitLabel = new QCheckBox(tr("Show the units' name on the chart"), this);
     m_unitLabel->setObjectName(QStringLiteral("axisDisplayUnitsLabel"));
     m_unitLabel->setChecked(axis.dispUnitShowLabel);
@@ -723,7 +723,7 @@ FormatAxisDialog::FormatAxisDialog(const jp::office::ChartAxis &axis, const QStr
     m_crosses->setCurrentIndex(axis.hasCrossesAt ? 3 : std::max(0, m_crosses->findData(axis.crosses)));
     m_crossAt->setEnabled(m_crosses->currentIndex() == 3);
     connect(m_crosses, &QComboBox::currentIndexChanged, m_crossAt, [this](int i) { m_crossAt->setEnabled(i == 3); });
-    form->addRow(tr("The other axis crosses:"), m_crosses);
+    form->addRow(tr("The other axis crosses"), m_crosses);
     form->addRow(QString(), m_crossAt);
     m_linked = new QCheckBox(tr("Numbers as the cells show them"), this);
     m_linked->setChecked(axis.formatLinked);
@@ -731,7 +731,7 @@ FormatAxisDialog::FormatAxisDialog(const jp::office::ChartAxis &axis, const QStr
     m_format->setEnabled(!axis.formatLinked);
     connect(m_linked, &QCheckBox::toggled, m_format, [this](bool on) { m_format->setEnabled(!on); });
     form->addRow(m_linked);
-    form->addRow(tr("Number format:"), m_format);
+    form->addRow(tr("Number format"), m_format);
     auto ticks = [&](const QString &label, const QString &now, QComboBox **box) {
         *box = new QComboBox(this);
         (*box)->addItem(tr("None"), QStringLiteral("none"));
@@ -750,8 +750,8 @@ FormatAxisDialog::FormatAxisDialog(const jp::office::ChartAxis &axis, const QStr
     m_labels->addItem(tr("At the high end"), QStringLiteral("high"));
     m_labels->addItem(tr("None"), QStringLiteral("none"));
     m_labels->setCurrentIndex(std::max(0, m_labels->findData(axis.labelPosition)));
-    form->addRow(tr("Labels:"), m_labels);
-    m_rotate = new QCheckBox(tr("Turn the labels:"), this);
+    form->addRow(tr("Labels"), m_labels);
+    m_rotate = new QCheckBox(tr("Turn the labels"), this);
     m_rotate->setChecked(axis.hasRotation);
     m_angle = spin(axis.labelRotation);
     m_angle->setRange(-90, 90);
@@ -759,7 +759,7 @@ FormatAxisDialog::FormatAxisDialog(const jp::office::ChartAxis &axis, const QStr
     m_angle->setEnabled(axis.hasRotation);
     connect(m_rotate, &QCheckBox::toggled, m_angle, &QWidget::setEnabled);
     form->addRow(m_rotate, m_angle);
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
     connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
     form->addRow(buttons);

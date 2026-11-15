@@ -61,15 +61,15 @@ void CrunchWindow::createCalcActions()
             count->setAccessibleName(tr("Most rounds"));
             count->setRange(1, jp::office::sheet::Calculation::kMaxIterations);
             count->setValue(s.count);
-            form->addRow(tr("Most rounds:"), count);
+            form->addRow(tr("Most rounds"), count);
             auto *delta = new QDoubleSpinBox;
             delta->setAccessibleName(tr("Stop when no value changes by more than"));
             delta->setDecimals(6);
             delta->setRange(0, 1e9);
             delta->setValue(s.delta);
-            form->addRow(tr("Stop when no value changes by more than:"), delta);
+            form->addRow(tr("Stop when no value changes by more than"), delta);
             layout->addLayout(form);
-            auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+            auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
             layout->addWidget(buttons);
             connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
             connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
@@ -218,7 +218,7 @@ bool CrunchWindow::showCircularReferences()
     QDialog dialog(this);
     dialog.setWindowTitle(tr("Circular References"));
     auto *layout = new QVBoxLayout(&dialog);
-    layout->addWidget(new QLabel(tr("These cells read their own result:")));
+    layout->addWidget(new QLabel(tr("These cells read their own result")));
     auto *list = new QListWidget;
     list->setObjectName(QStringLiteral("circularList"));
     list->setAccessibleName(tr("Cells in circles"));
@@ -231,7 +231,7 @@ bool CrunchWindow::showCircularReferences()
     }
     layout->addWidget(list, 1);
     if (m_circular > qint64(cells.size())) layout->addWidget(new QLabel(tr("The first %n cell(s) are listed.", nullptr, int(cells.size()))));
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Close);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Close);
     layout->addWidget(buttons);
     connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
     connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);

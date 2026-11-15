@@ -1202,7 +1202,7 @@ QColor colorsDialog(QWidget *parent, const QColor &current, const QString &title
     auto *cf = new QFormLayout(custom);
     auto *model = new QComboBox(custom);
     model->addItems({QStringLiteral("RGB"), QStringLiteral("HSL"), QStringLiteral("CMYK")});
-    cf->addRow(QCoreApplication::translate("Widgets", "Color model:"), model);
+    cf->addRow(QCoreApplication::translate("Widgets", "Color model"), model);
     auto *stack = new QStackedWidget(custom);
     auto spinRow = [](QFormLayout *f, const QString &label, int max) {
         auto *s = new QSpinBox();
@@ -1237,12 +1237,12 @@ QColor colorsDialog(QWidget *parent, const QColor &current, const QString &title
     cf->addRow(stack);
     auto *hex = new QLineEdit(custom);
     hex->setMaxLength(7);
-    cf->addRow(QCoreApplication::translate("Widgets", "Hex:"), hex);
+    cf->addRow(QCoreApplication::translate("Widgets", "Hex"), hex);
     tabs->addTab(custom, QCoreApplication::translate("Widgets", "Custom"));
 
     // Transparency, and the new color beside the current one.
     auto *bottom = new QHBoxLayout();
-    bottom->addWidget(new QLabel(QCoreApplication::translate("Widgets", "Transparency:")));
+    bottom->addWidget(new QLabel(QCoreApplication::translate("Widgets", "Transparency")));
     auto *clear = new QSpinBox(&dlg);
     clear->setRange(0, 100);
     clear->setSuffix(QStringLiteral("%"));
@@ -1252,7 +1252,7 @@ QColor colorsDialog(QWidget *parent, const QColor &current, const QString &title
     preview->setFixedSize(96, 48);
     bottom->addWidget(preview);
     v->addLayout(bottom);
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
     v->addWidget(buttons);
     QObject::connect(buttons, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
     QObject::connect(buttons, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);

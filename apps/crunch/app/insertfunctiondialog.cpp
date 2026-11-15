@@ -29,7 +29,7 @@ InsertFunctionDialog::InsertFunctionDialog(QWidget *parent, const QString &searc
     m_search->setAccessibleName(tr("Search for a function"));
     m_search->setPlaceholderText(tr("A name, or what you want to do"));
     m_search->setClearButtonEnabled(true);
-    form->addRow(tr("Search:"), m_search);
+    form->addRow(tr("Search"), m_search);
     m_category = new QComboBox;
     m_category->setObjectName(QStringLiteral("functionCategory"));
     m_category->setAccessibleName(tr("Kind of function"));
@@ -37,7 +37,7 @@ InsertFunctionDialog::InsertFunctionDialog(QWidget *parent, const QString &searc
     for (FunctionCategory c : {FunctionCategory::Financial, FunctionCategory::DateTime, FunctionCategory::MathTrig, FunctionCategory::Statistical, FunctionCategory::LookupReference,
                                FunctionCategory::Text, FunctionCategory::Logical, FunctionCategory::Information, FunctionCategory::Database, FunctionCategory::Engineering})
         m_category->addItem(categoryName(c), int(c));
-    form->addRow(tr("Kind:"), m_category);
+    form->addRow(tr("Kind"), m_category);
     layout->addLayout(form);
     m_list = new QListWidget;
     m_list->setObjectName(QStringLiteral("functionList"));
@@ -60,14 +60,14 @@ InsertFunctionDialog::InsertFunctionDialog(QWidget *parent, const QString &searc
     m_summary->setTextFormat(Qt::PlainText);
     m_summary->setWordWrap(true);
     layout->addWidget(m_summary);
-    layout->addWidget(new QLabel(tr("Arguments:")));
+    layout->addWidget(new QLabel(tr("Arguments")));
     m_arguments = new QListWidget;
     m_arguments->setObjectName(QStringLiteral("functionArguments"));
     m_arguments->setAccessibleName(tr("Arguments of the function"));
     m_arguments->setMaximumHeight(110);
     m_arguments->setSelectionMode(QAbstractItemView::NoSelection);
     layout->addWidget(m_arguments);
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
     m_ok = buttons->button(QDialogButtonBox::Ok);
     layout->addWidget(buttons);
     connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);

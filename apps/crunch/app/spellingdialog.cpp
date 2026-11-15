@@ -30,11 +30,11 @@ SpellingDialog::SpellingDialog(CrunchWindow *window, int sheet, const jp::office
     m_change->setObjectName(QStringLiteral("spellingChange"));
     m_suggestions = new QListWidget(this);
     m_suggestions->setObjectName(QStringLiteral("spellingSuggestions"));
-    v->addWidget(plainLabel(new QLabel(QCoreApplication::translate("Proofing", "Not in dictionary:"), this)));
+    v->addWidget(plainLabel(new QLabel(QCoreApplication::translate("Proofing", "Not in dictionary"), this)));
     v->addWidget(m_notIn);
-    v->addWidget(plainLabel(new QLabel(QCoreApplication::translate("Proofing", "Change to:"), this)));
+    v->addWidget(plainLabel(new QLabel(QCoreApplication::translate("Proofing", "Change to"), this)));
     v->addWidget(m_change);
-    v->addWidget(plainLabel(new QLabel(QCoreApplication::translate("Proofing", "Suggestions:"), this)));
+    v->addWidget(plainLabel(new QLabel(QCoreApplication::translate("Proofing", "Suggestions"), this)));
     v->addWidget(m_suggestions);
     auto *row = new QHBoxLayout();
     struct Button {

@@ -70,7 +70,7 @@ static bool askText(QWidget *parent, const QString &name, const QString &editNam
     edit->setObjectName(editName);
     edit->setMinimumWidth(320);
     layout->addWidget(edit);
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
     QObject::connect(buttons, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
     QObject::connect(buttons, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
     layout->addWidget(buttons);
@@ -130,7 +130,7 @@ bool askChartData(QWidget *parent, office::sheet::ChartData *data, QString *noti
     QObject::connect(removeColumn, &QPushButton::clicked, table, [table] {
         if (table->columnCount() > 2) table->setColumnCount(table->columnCount() - 1);
     });
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
     QObject::connect(buttons, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
     QObject::connect(buttons, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
     layout->addWidget(buttons);

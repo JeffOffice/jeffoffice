@@ -87,7 +87,7 @@ QVector<OptionsPage> WriteWindow::optionsPages()
         f->units->addItem(QCoreApplication::translate("Dialogs", "Points"), int(Unit::Point));
         f->units->addItem(QCoreApplication::translate("Dialogs", "Picas"), int(Unit::Pica));
         f->units->setCurrentIndex(std::max(0, f->units->findData(int(Settings::get().unit()))));
-        form->addRow(QCoreApplication::translate("Dialogs", "Show measurements in:"), f->units);
+        form->addRow(QCoreApplication::translate("Dialogs", "Show measurements in"), f->units);
         f->ctrlLinks = new QCheckBox(QCoreApplication::translate("Dialogs", "Use Ctrl+click to follow a link"), page);
         f->ctrlLinks->setObjectName(QStringLiteral("ctrlClickLinks"));
         f->ctrlLinks->setChecked(Settings::get().value(QStringLiteral("edit/ctrlClickLinks"), true).toBool());

@@ -1,3 +1,4 @@
+#include "app/uistyle.h"
 #include "app/replacefonts.h"
 
 #include <QComboBox>
@@ -61,7 +62,7 @@ ReplaceFontsResult askReplaceFonts(QWidget *parent, const ReplaceFontsHost &host
         if (!u.theme && !installed.contains(u.key.toLower())) text += QCoreApplication::translate("jp::ReplaceFonts", " (not installed)");
         from->addItem(u.uses > 0 || u.theme ? QCoreApplication::translate("jp::ReplaceFonts", "%1 (used in %2)").arg(text).arg(u.uses) : QCoreApplication::translate("jp::ReplaceFonts", "%1 (styles only)").arg(text), u.key);
     }
-    form->addRow(QCoreApplication::translate("jp::ReplaceFonts", "Replace:"), from);
+    form->addRow(QCoreApplication::translate("jp::ReplaceFonts", "Replace"), from);
     auto *to = new QComboBox(&dlg);
     to->setObjectName(QStringLiteral("replaceFontsTo"));
     to->setEditable(true);
@@ -69,8 +70,8 @@ ReplaceFontsResult askReplaceFonts(QWidget *parent, const ReplaceFontsHost &host
     to->addItems(QFontDatabase::families());
     to->setCurrentIndex(-1);
     to->setPlaceholderText(QCoreApplication::translate("jp::ReplaceFonts", "Choose a font"));
-    form->addRow(QCoreApplication::translate("jp::ReplaceFonts", "With:"), to);
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    form->addRow(QCoreApplication::translate("jp::ReplaceFonts", "With"), to);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
     auto *ok = buttons->button(QDialogButtonBox::Ok);
     ok->setText(QCoreApplication::translate("jp::ReplaceFonts", "Replace"));
     ok->setObjectName(QStringLiteral("replaceFontsReplace"));

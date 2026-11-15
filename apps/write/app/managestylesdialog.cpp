@@ -62,7 +62,7 @@ void manageStylesDialog(QWidget *parent, WriteDoc *doc)
     priority->setRange(0, 99);
     priority->setAccessibleName(QCoreApplication::translate("jp::write::Dialogs", "Order in the lists"));
     auto *form = new QFormLayout;
-    form->addRow(QCoreApplication::translate("jp::write::Dialogs", "Order in the lists (lower comes first):"), priority);
+    form->addRow(QCoreApplication::translate("jp::write::Dialogs", "Order in the lists (lower comes first)"), priority);
     side->addWidget(gallery);
     side->addWidget(hidden);
     side->addWidget(locked);
@@ -89,7 +89,7 @@ void manageStylesDialog(QWidget *parent, WriteDoc *doc)
     }
     side->addWidget(limit);
     side->addStretch(1);
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
     side->addWidget(buttons);
     QObject::connect(buttons, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
     QObject::connect(buttons, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
@@ -202,13 +202,13 @@ bool exportStylesDialog(QWidget *parent, WriteDoc *doc)
     dlg.setObjectName(QStringLiteral("exportStylesDialog"));
     dlg.setWindowTitle(QCoreApplication::translate("jp::write::Dialogs", "Export Styles"));
     auto *column = new QVBoxLayout(&dlg);
-    column->addWidget(new QLabel(QCoreApplication::translate("jp::write::Dialogs", "Check the styles to save in a template file:"), &dlg));
+    column->addWidget(new QLabel(QCoreApplication::translate("jp::write::Dialogs", "Check the styles to save in a template file"), &dlg));
     auto *list = new QListWidget(&dlg);
     list->setObjectName(QStringLiteral("exportStylesList"));
     list->setAccessibleName(QCoreApplication::translate("jp::write::Dialogs", "Styles to export"));
     list->setMinimumHeight(220);
     column->addWidget(list, 1);
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
     column->addWidget(buttons);
     QObject::connect(buttons, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
     QObject::connect(buttons, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
@@ -248,7 +248,7 @@ bool importStylesDialog(QWidget *parent, WriteDoc *doc, const WriteDoc &other)
     dlg.setObjectName(QStringLiteral("importStylesDialog"));
     dlg.setWindowTitle(QCoreApplication::translate("jp::write::Dialogs", "Import Styles"));
     auto *column = new QVBoxLayout(&dlg);
-    column->addWidget(new QLabel(QCoreApplication::translate("jp::write::Dialogs", "Check the styles to copy into this document:"), &dlg));
+    column->addWidget(new QLabel(QCoreApplication::translate("jp::write::Dialogs", "Check the styles to copy into this document"), &dlg));
     auto *list = new QListWidget(&dlg);
     list->setObjectName(QStringLiteral("importStylesList"));
     list->setAccessibleName(QCoreApplication::translate("jp::write::Dialogs", "Styles to import"));
@@ -257,7 +257,7 @@ bool importStylesDialog(QWidget *parent, WriteDoc *doc, const WriteDoc &other)
     auto *replace = new QCheckBox(QCoreApplication::translate("jp::write::Dialogs", "Replace styles that have the same name"), &dlg);
     replace->setObjectName(QStringLiteral("importReplace"));
     column->addWidget(replace);
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
     column->addWidget(buttons);
     QObject::connect(buttons, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
     QObject::connect(buttons, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);

@@ -58,7 +58,7 @@ void showVersionHistory(QWidget *parent, const VersionHistoryHost &host)
     for (QPushButton *b : {keep, open, compare, restore, drop})
         if (b) row->addWidget(b);
     layout->addLayout(row);
-    auto *close = new QDialogButtonBox(QDialogButtonBox::Close, &dialog);
+    auto *close = new jp::ButtonBox(QDialogButtonBox::Close, &dialog);
     QObject::connect(close, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
     layout->addWidget(close);
     QDialog *dlg = &dialog;

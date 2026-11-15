@@ -1030,7 +1030,7 @@ void CrunchWindow::thesaurus()
     dlg.setObjectName(QStringLiteral("thesaurusDialog"));
     dlg.setWindowTitle(tr("Thesaurus"));
     auto *v = new QVBoxLayout(&dlg);
-    v->addWidget(plainLabel(new QLabel(tr("Look up:"), &dlg)));
+    v->addWidget(plainLabel(new QLabel(tr("Look up"), &dlg)));
     auto *query = new QLineEdit(word, &dlg);
     query->setObjectName(QStringLiteral("thesaurusQuery"));
     v->addWidget(query);
@@ -1056,7 +1056,7 @@ void CrunchWindow::thesaurus()
         list->setCurrentRow(0);
     };
     fill();
-    auto *buttons = new QDialogButtonBox(&dlg);
+    auto *buttons = new jp::ButtonBox(&dlg);
     auto *replace = buttons->addButton(tr("Replace"), QDialogButtonBox::AcceptRole);
     replace->setObjectName(QStringLiteral("thesaurusReplace"));
     auto *lookUp = buttons->addButton(tr("Look Up"), QDialogButtonBox::ActionRole);

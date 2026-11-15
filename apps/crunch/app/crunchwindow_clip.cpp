@@ -337,7 +337,7 @@ void CrunchWindow::pasteSpecial()
         QDialog dialog(this);
         dialog.setWindowTitle(tr("Paste Special"));
         auto *layout = new QVBoxLayout(&dialog);
-        auto *what = new QGroupBox(tr("Paste"));
+        auto *what = new jp::Section(tr("Paste"));
         auto *whatLayout = new QVBoxLayout(what);
         auto *whatGroup = new QButtonGroup(&dialog);
         const QStringList whatNames = {tr("All"), tr("Formulas"), tr("Values"), tr("Formats"), tr("All Except Borders"), tr("Formulas and Number Formats"), tr("Values and Number Formats"), tr("Column Widths"), tr("Comments and Notes")};
@@ -348,7 +348,7 @@ void CrunchWindow::pasteSpecial()
             whatLayout->addWidget(b);
         }
         layout->addWidget(what);
-        auto *op = new QGroupBox(tr("Operation"));
+        auto *op = new jp::Section(tr("Operation"));
         auto *opLayout = new QVBoxLayout(op);
         auto *opGroup = new QButtonGroup(&dialog);
         const QStringList opNames = {tr("None"), tr("Add"), tr("Subtract"), tr("Multiply"), tr("Divide")};
@@ -363,7 +363,7 @@ void CrunchWindow::pasteSpecial()
         auto *transpose = new QCheckBox(tr("Transpose"));
         layout->addWidget(blanks);
         layout->addWidget(transpose);
-        auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+        auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
         layout->addWidget(buttons);
         connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
         connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
@@ -392,13 +392,13 @@ bool CrunchWindow::setDefaultPaste()
         QDialog dialog(this);
         dialog.setWindowTitle(tr("Set Default Paste"));
         auto *layout = new QVBoxLayout(&dialog);
-        layout->addWidget(plainLabel(new QLabel(tr("When you click Paste or press Ctrl+V with cells copied, put in:"))));
+        layout->addWidget(plainLabel(new QLabel(tr("When you click Paste or press Ctrl+V with cells copied, put in"))));
         auto *box = new QComboBox;
         box->setAccessibleName(tr("Default paste"));
         for (const auto &k : kinds) box->addItem(k.text, int(k.what));
         box->setCurrentIndex(std::max(0, box->findData(what)));
         layout->addWidget(box);
-        auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+        auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
         layout->addWidget(buttons);
         connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
         connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);

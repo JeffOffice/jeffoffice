@@ -1,6 +1,7 @@
 // Conditional formatting from the Home tab: Highlight Cells Rules (greater than, less than, between, equal to, text that contains, duplicate values), Top/Bottom Rules (top and bottom items
 // and percent, above and below average), and Clear Rules. A rule is asked for in a small window (a value or two, and how the cells look); the work is the session's (core/editcond.cpp).
 
+#include "app/uistyle.h"
 #include "app/crunchwindow.h"
 
 #include "core/editsession.h"
@@ -133,18 +134,18 @@ bool CrunchWindow::askCondRule(CondAnswer *answer)
     if (value || count) {
         first = new QLineEdit(count ? QStringLiteral("10") : QString(), &dialog);
         first->setObjectName(QStringLiteral("condValue1"));
-        form->addRow(answer->kind == Kind::Between ? tr("From:") : count ? tr("How many:") : answer->kind == Kind::Contains ? tr("Text:") : tr("Value:"), first);
+        form->addRow(answer->kind == Kind::Between ? tr("From") : count ? tr("How many") : answer->kind == Kind::Contains ? tr("Text") : tr("Value"), first);
     }
     if (answer->kind == Kind::Between) {
         second = new QLineEdit(&dialog);
         second->setObjectName(QStringLiteral("condValue2"));
-        form->addRow(tr("To:"), second);
+        form->addRow(tr("To"), second);
     }
     auto *look = new QComboBox(&dialog);
     look->setObjectName(QStringLiteral("condPreset"));
     for (const Preset &p : kPresets) look->addItem(tr(p.name));
-    form->addRow(tr("Cells look like this:"), look);
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
+    form->addRow(tr("Cells look like this"), look);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
     layout->addWidget(buttons);
     connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);

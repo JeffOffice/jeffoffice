@@ -209,7 +209,7 @@ CustomPropertiesDialog::CustomPropertiesDialog(const QVector<office::CustomPrope
     row->addWidget(remove);
     row->addStretch(1);
     layout->addLayout(row);
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
     layout->addWidget(buttons);
     connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
@@ -340,7 +340,7 @@ InspectDialog::InspectDialog(const QString &heading, const QVector<InspectItem> 
         connect(button, &QPushButton::clicked, this, [this, i] { removeRow(i); });
     }
     layout->addLayout(grid);
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Close, this);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Close, this);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::accept);
     connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
     layout->addWidget(buttons);

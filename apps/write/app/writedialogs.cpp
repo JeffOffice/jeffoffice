@@ -326,7 +326,7 @@ void fontDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     place(QCoreApplication::translate("jp::write::Dialogs", "Underline color:"), underlineColor, 2, 2);
 
     // The effects: checked when all of the selection has one, clear when none does, and partly when some does.
-    auto *effects = new QGroupBox(QCoreApplication::translate("jp::write::Dialogs", "Effects"), &dlg);
+    auto *effects = new jp::Section(QCoreApplication::translate("jp::write::Dialogs", "Effects"), &dlg);
     auto *eg = new QGridLayout(effects);
     int slot = 0;
     auto effect = [&](const char *name, const QString &text, const std::function<bool(const QTextCharFormat &)> &has) {
@@ -369,7 +369,7 @@ void fontDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     v->addWidget(effects);
 
     // Character spacing: expanded or condensed, raised or lowered, and the size from which pairs of letters are kerned. A box that the selection does not agree on shows "(mixed)" and, left alone, changes nothing.
-    auto *spacingBox = new QGroupBox(QCoreApplication::translate("jp::write::Dialogs", "Character spacing"), &dlg);
+    auto *spacingBox = new jp::Section(QCoreApplication::translate("jp::write::Dialogs", "Character spacing"), &dlg);
     auto *sg = new QGridLayout(spacingBox);
     auto spacingOf = [](const QTextCharFormat &f) { return f.hasProperty(QTextFormat::FontLetterSpacing) && f.fontLetterSpacingType() == QFont::AbsoluteSpacing ? f.fontLetterSpacing() : 0.0; };
     auto raisedOf = [](const QTextCharFormat &f) { return f.intProperty(prop::Raised) / 2.0; };   // (half points in the file)
@@ -411,13 +411,13 @@ void fontDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     kernFrom->setRange(1, 1638);
     kernFrom->setSuffix(QCoreApplication::translate("jp::write::Dialogs", " pt"));
     kernFrom->setValue(kern0 > 0.001 ? kern0 : 12);
-    sg->addWidget(plainLabel(new QLabel(QCoreApplication::translate("jp::write::Dialogs", "Spacing:"), spacingBox)), 0, 0);
+    sg->addWidget(plainLabel(new QLabel(QCoreApplication::translate("jp::write::Dialogs", "Spacing"), spacingBox)), 0, 0);
     sg->addWidget(spacingKind, 0, 1);
-    sg->addWidget(plainLabel(new QLabel(QCoreApplication::translate("jp::write::Dialogs", "By:"), spacingBox)), 0, 2);
+    sg->addWidget(plainLabel(new QLabel(QCoreApplication::translate("jp::write::Dialogs", "By"), spacingBox)), 0, 2);
     sg->addWidget(spacingBy, 0, 3);
-    sg->addWidget(plainLabel(new QLabel(QCoreApplication::translate("jp::write::Dialogs", "Position:"), spacingBox)), 1, 0);
+    sg->addWidget(plainLabel(new QLabel(QCoreApplication::translate("jp::write::Dialogs", "Position"), spacingBox)), 1, 0);
     sg->addWidget(raisedKind, 1, 1);
-    sg->addWidget(plainLabel(new QLabel(QCoreApplication::translate("jp::write::Dialogs", "By:"), spacingBox)), 1, 2);
+    sg->addWidget(plainLabel(new QLabel(QCoreApplication::translate("jp::write::Dialogs", "By"), spacingBox)), 1, 2);
     sg->addWidget(raisedBy, 1, 3);
     sg->addWidget(kern, 2, 0, 1, 3);
     sg->addWidget(kernFrom, 2, 3);
@@ -469,7 +469,7 @@ void fontDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     updatePreview();
     v->addWidget(preview);
 
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
     auto *setDefault = buttons->addButton(QCoreApplication::translate("jp::write::Dialogs", "Set as Default…"), QDialogButtonBox::ResetRole);
     setDefault->setObjectName(QStringLiteral("setAsDefault"));
     v->addWidget(buttons);
@@ -636,10 +636,10 @@ void tabsDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     };
     refill();
     auto *form = new QFormLayout;
-    form->addRow(QCoreApplication::translate("jp::write::Dialogs", "Tab stop position:"), position);
-    form->addRow(QCoreApplication::translate("jp::write::Dialogs", "Tab stops to clear:"), list);
-    form->addRow(QCoreApplication::translate("jp::write::Dialogs", "Alignment:"), type);
-    form->addRow(QCoreApplication::translate("jp::write::Dialogs", "Leader:"), leader);
+    form->addRow(QCoreApplication::translate("jp::write::Dialogs", "Tab stop position"), position);
+    form->addRow(QCoreApplication::translate("jp::write::Dialogs", "Tab stops to clear"), list);
+    form->addRow(QCoreApplication::translate("jp::write::Dialogs", "Alignment"), type);
+    form->addRow(QCoreApplication::translate("jp::write::Dialogs", "Leader"), leader);
     v->addLayout(form);
     auto *row = new QHBoxLayout;
     auto *set = new QPushButton(QCoreApplication::translate("jp::write::Dialogs", "Set"), &dlg);
@@ -683,7 +683,7 @@ void tabsDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
         type->setCurrentIndex(std::max(0, type->findData(int(stops.at(i).type))));
         leader->setCurrentIndex(std::max(0, leader->findData(QChar(stops.at(i).leader))));
     });
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
     QObject::connect(buttons, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
     QObject::connect(buttons, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
     v->addWidget(buttons);
@@ -710,7 +710,7 @@ void paragraphDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     align->addItem(QCoreApplication::translate("jp::write::Dialogs", "Justified"), int(Qt::AlignJustify));
     const Qt::Alignment al = start.alignment() & Qt::AlignHorizontal_Mask;
     align->setCurrentIndex(al == Qt::AlignHCenter ? 1 : (al == Qt::AlignRight || al == Qt::AlignTrailing) ? 2 : al == Qt::AlignJustify ? 3 : 0);
-    form->addRow(QCoreApplication::translate("jp::write::Dialogs", "Alignment:"), align);
+    form->addRow(QCoreApplication::translate("jp::write::Dialogs", "Alignment"), align);
 
     auto *left = new MeasureSpin(&dlg), *right = new MeasureSpin(&dlg), *by = new MeasureSpin(&dlg);
     left->setObjectName(QStringLiteral("left"));
@@ -723,12 +723,12 @@ void paragraphDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     special->addItems({QCoreApplication::translate("jp::write::Dialogs", "(none)"), QCoreApplication::translate("jp::write::Dialogs", "First line"), QCoreApplication::translate("jp::write::Dialogs", "Hanging")});
     special->setCurrentIndex(start.textIndent() > 0.01 ? 1 : start.textIndent() < -0.01 ? 2 : 0);
     by->setPoints(std::abs(start.textIndent()));
-    form->addRow(QCoreApplication::translate("jp::write::Dialogs", "Indentation, left:"), left);
-    form->addRow(QCoreApplication::translate("jp::write::Dialogs", "Indentation, right:"), right);
+    form->addRow(QCoreApplication::translate("jp::write::Dialogs", "Indentation, left"), left);
+    form->addRow(QCoreApplication::translate("jp::write::Dialogs", "Indentation, right"), right);
     auto *row = new QHBoxLayout;
     row->addWidget(special);
     row->addWidget(by);
-    form->addRow(QCoreApplication::translate("jp::write::Dialogs", "Special:"), row);
+    form->addRow(QCoreApplication::translate("jp::write::Dialogs", "Special"), row);
 
     auto *before = new MeasureSpin(&dlg), *after = new MeasureSpin(&dlg), *at = new MeasureSpin(&dlg);
     before->setObjectName(QStringLiteral("before"));
@@ -736,8 +736,8 @@ void paragraphDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     at->setObjectName(QStringLiteral("at"));
     before->setPoints(start.topMargin());
     after->setPoints(start.bottomMargin());
-    form->addRow(QCoreApplication::translate("jp::write::Dialogs", "Spacing, before:"), before);
-    form->addRow(QCoreApplication::translate("jp::write::Dialogs", "Spacing, after:"), after);
+    form->addRow(QCoreApplication::translate("jp::write::Dialogs", "Spacing, before"), before);
+    form->addRow(QCoreApplication::translate("jp::write::Dialogs", "Spacing, after"), after);
     auto *lineType = new QComboBox(&dlg);
     lineType->setObjectName(QStringLiteral("lineSpacing"));
     lineType->addItems({QCoreApplication::translate("jp::write::Dialogs", "Single"), QCoreApplication::translate("jp::write::Dialogs", "1.5 lines"), QCoreApplication::translate("jp::write::Dialogs", "Double"), QCoreApplication::translate("jp::write::Dialogs", "At least"), QCoreApplication::translate("jp::write::Dialogs", "Exactly"), QCoreApplication::translate("jp::write::Dialogs", "Multiple")});
@@ -766,7 +766,7 @@ void paragraphDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     lineRow->addWidget(lineType);
     lineRow->addWidget(at);
     lineRow->addWidget(multiple);
-    form->addRow(QCoreApplication::translate("jp::write::Dialogs", "Line spacing:"), lineRow);
+    form->addRow(QCoreApplication::translate("jp::write::Dialogs", "Line spacing"), lineRow);
     auto show = [=] {
         const int k = lineType->currentIndex();
         at->setVisible(k == 3 || k == 4);
@@ -778,7 +778,7 @@ void paragraphDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     QObject::connect(special, &QComboBox::currentIndexChanged, &dlg, show);
 
     // Line and page breaks.
-    auto *breaks = new QGroupBox(QCoreApplication::translate("jp::write::Dialogs", "Line and page breaks"), &dlg);
+    auto *breaks = new jp::Section(QCoreApplication::translate("jp::write::Dialogs", "Line and page breaks"), &dlg);
     auto *bg = new QGridLayout(breaks);
     auto flag = [&](const char *name, const QString &text, bool on, int row, int column) {
         auto *box = new QCheckBox(text, breaks);
@@ -806,12 +806,12 @@ void paragraphDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     const int outline0 = start.hasProperty(prop::Outline) ? start.intProperty(prop::Outline) : 9;
     outline->setCurrentIndex(std::clamp(outline0 == 9 ? 0 : outline0 + 1, 0, 9));
     auto *outlineRow = new QHBoxLayout;
-    outlineRow->addWidget(plainLabel(new QLabel(QCoreApplication::translate("jp::write::Dialogs", "Outline level:"), breaks)));
+    outlineRow->addWidget(plainLabel(new QLabel(QCoreApplication::translate("jp::write::Dialogs", "Outline level"), breaks)));
     outlineRow->addWidget(outline, 1);
     bg->addLayout(outlineRow, 2, 1);
     v->addWidget(breaks);
 
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
     auto *tabs = buttons->addButton(QCoreApplication::translate("jp::write::Dialogs", "Tabs…"), QDialogButtonBox::ActionRole);
     tabs->setObjectName(QStringLiteral("tabsButton"));
     QObject::connect(tabs, &QPushButton::clicked, &dlg, [&] { tabsDialog(&dlg, doc, cursor); });
@@ -903,7 +903,7 @@ void zoomDialog(QWidget *parent, PageView *view)
     dlg.setObjectName(QStringLiteral("zoomDialog"));
     dlg.setWindowTitle(QCoreApplication::translate("jp::write::Dialogs", "Zoom"));
     auto *v = new QVBoxLayout(&dlg);
-    auto *box = new QGroupBox(QCoreApplication::translate("jp::write::Dialogs", "Zoom to"), &dlg);
+    auto *box = new jp::Section(QCoreApplication::translate("jp::write::Dialogs", "Zoom to"), &dlg);
     auto *bv = new QVBoxLayout(box);
     auto *group = new QButtonGroup(&dlg);
     struct Choice { const char *name; int id; };
@@ -928,7 +928,7 @@ void zoomDialog(QWidget *parent, PageView *view)
     across->setRange(1, 4);
     across->setValue(std::max(2, view->pagesAcross()));
     auto *acrossRow = new QHBoxLayout;
-    acrossRow->addWidget(new QLabel(QCoreApplication::translate("jp::write::Dialogs", "Pages across:"), box));
+    acrossRow->addWidget(new QLabel(QCoreApplication::translate("jp::write::Dialogs", "Pages across"), box));
     acrossRow->addWidget(across);
     bv->addLayout(acrossRow);
     v->addWidget(box);
@@ -949,7 +949,7 @@ void zoomDialog(QWidget *parent, PageView *view)
     };
     sync();
     QObject::connect(group, &QButtonGroup::buttonToggled, &dlg, sync);
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
     v->addWidget(buttons);
     QObject::connect(buttons, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
     QObject::connect(buttons, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);

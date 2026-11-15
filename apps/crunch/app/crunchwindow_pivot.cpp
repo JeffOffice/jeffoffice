@@ -1,5 +1,6 @@
 // Pivot tables in the window (core/editpivot.cpp does the work): the Pivot Table tab (Refresh, Change Data Source, Clear, the Field List, and the Design choices: subtotals, grand totals, and
 // the layout of the report), the Pivot Table Fields pane, and Refresh All on the Data tab. Every command is one step of Undo; a refusal is told in words.
+#include "app/uistyle.h"
 #include "app/crunchwindow.h"
 
 #include "app/pivotpane.h"
@@ -82,7 +83,7 @@ public:
         auto *form = new QFormLayout;
         m_source = new QLineEdit(source, this);
         m_source->setObjectName(QStringLiteral("pivotCreate.source"));
-        form->addRow(tr("The cells the data is in, with a row of names above it, or the name of a table:"), m_source);
+        form->addRow(tr("The cells the data is in, with a row of names above it, or the name of a table"), m_source);
         layout->addLayout(form);
         m_newSheet = new QRadioButton(tr("A new sheet"), this);
         m_newSheet->setObjectName(QStringLiteral("pivotCreate.newSheet"));
@@ -93,11 +94,11 @@ public:
         m_where->setObjectName(QStringLiteral("pivotCreate.where"));
         m_where->setEnabled(false);
         QObject::connect(m_existing, &QRadioButton::toggled, m_where, &QLineEdit::setEnabled);
-        layout->addWidget(new QLabel(tr("Where the pivot table goes:"), this));
+        layout->addWidget(new QLabel(tr("Where the pivot table goes"), this));
         layout->addWidget(m_newSheet);
         layout->addWidget(m_existing);
         layout->addWidget(m_where);
-        auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
+        auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
         QObject::connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
         QObject::connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
         layout->addWidget(buttons);
@@ -233,7 +234,7 @@ void CrunchWindow::insertRecommendedPivotCommand()
         layout->addWidget(about);
         connect(list, &QListWidget::currentRowChanged, about, [about, advice](int row) { about->setText(row >= 0 && row < advice.size() ? advice[row].description : QString()); });
         connect(list, &QListWidget::itemDoubleClicked, &dialog, &QDialog::accept);
-        auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
+        auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
         layout->addWidget(buttons);
         connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
         connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);

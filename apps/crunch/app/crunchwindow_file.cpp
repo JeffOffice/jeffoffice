@@ -255,7 +255,7 @@ bool CrunchWindow::askFilePasswordAgain(bool wrong)
     } else {
         QInputDialog dialog(this);
         dialog.setWindowTitle(tr("Password"));
-        dialog.setLabelText(wrong ? tr("The password is not correct.\n\nThis file is protected with a password. Password:") : tr("This file is protected with a password. Password:"));
+        dialog.setLabelText(wrong ? tr("The password is not correct.\n\nThis file is protected with a password. Password") : tr("This file is protected with a password. Password"));
         dialog.setTextEchoMode(QLineEdit::Password);
         dialog.setOkButtonText(tr("Open"));
         dialog.setCancelButtonText(tr("Cancel"));

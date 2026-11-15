@@ -1,3 +1,4 @@
+#include "app/uistyle.h"
 #include "app/listdialogs.h"
 
 #include <QCheckBox>
@@ -27,7 +28,7 @@ namespace {
 
 QDialogButtonBox *buttons(QDialog *d)
 {
-    auto *box = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, d);
+    auto *box = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, d);
     QObject::connect(box, &QDialogButtonBox::accepted, d, &QDialog::accept);
     QObject::connect(box, &QDialogButtonBox::rejected, d, &QDialog::reject);
     return box;
@@ -99,9 +100,9 @@ bool defineBulletDialog(QWidget *parent, ListLevelLook *look, const SymbolPicker
         pictureButton->setText(QCoreApplication::translate("jp::ListDialogs", "Picture… (chosen)"));
     });
     if (mode != ListBoxes::Plain) row->addWidget(pictureButton);
-    form->addRow(QCoreApplication::translate("jp::ListDialogs", "Bullet character:"), row);
+    form->addRow(QCoreApplication::translate("jp::ListDialogs", "Bullet character"), row);
     form->addRow(useFont);
-    form->addRow(QCoreApplication::translate("jp::ListDialogs", "Font:"), font);
+    form->addRow(QCoreApplication::translate("jp::ListDialogs", "Font"), font);
     auto *size = new QDoubleSpinBox(&d);
     size->setObjectName(QStringLiteral("bulletSize"));
     size->setRange(0, 200);
@@ -109,7 +110,7 @@ bool defineBulletDialog(QWidget *parent, ListLevelLook *look, const SymbolPicker
     size->setSuffix(QCoreApplication::translate("jp::ListDialogs", " pt"));
     size->setSpecialValueText(QCoreApplication::translate("jp::ListDialogs", "Same as the text"));
     size->setValue(look->sizePoints);
-    form->addRow(QCoreApplication::translate("jp::ListDialogs", "Size:"), size);
+    form->addRow(QCoreApplication::translate("jp::ListDialogs", "Size"), size);
     QColor color = look->color;
     auto *colorButton = new QPushButton(&d);
     colorButton->setObjectName(QStringLiteral("bulletColor"));
@@ -120,9 +121,9 @@ bool defineBulletDialog(QWidget *parent, ListLevelLook *look, const SymbolPicker
         if (picked.isValid()) color = picked;
         showColor();
     });
-    form->addRow(QCoreApplication::translate("jp::ListDialogs", "Color:"), colorButton);
+    form->addRow(QCoreApplication::translate("jp::ListDialogs", "Color"), colorButton);
     auto *align = alignmentBox(look->align, &d);
-    if (mode == ListBoxes::Full) form->addRow(QCoreApplication::translate("jp::ListDialogs", "Alignment:"), align);
+    if (mode == ListBoxes::Full) form->addRow(QCoreApplication::translate("jp::ListDialogs", "Alignment"), align);
     auto *column = new QVBoxLayout(&d);
     column->addLayout(form);
     column->addWidget(buttons(&d));
@@ -150,22 +151,22 @@ bool defineNumberFormatDialog(QWidget *parent, ListLevelLook *look, ListBoxes mo
     const NumberStyleName *names = numberStyleNames(&count);
     for (int i = 0; i < (mode != ListBoxes::Full ? std::min(count, 5) : count); ++i) style->addItem(QString::fromLatin1(names[i].example), QString::fromLatin1(names[i].id));
     style->setCurrentIndex(std::max(0, style->findData(look->numFmt)));
-    form->addRow(QCoreApplication::translate("jp::ListDialogs", "Number style:"), style);
+    form->addRow(QCoreApplication::translate("jp::ListDialogs", "Number style"), style);
     auto *text = new QLineEdit(look->bullet || look->text.isEmpty() ? QStringLiteral("%1.") : look->text, &d);
     text->setObjectName(QStringLiteral("numberFormat"));
     auto *punctuation = new QComboBox(&d);
     punctuation->setObjectName(QStringLiteral("numberPunctuation"));
     for (const char *f : {"%1.", "%1)", "(%1)", "%1"}) punctuation->addItem(QString::fromLatin1(f).replace(QStringLiteral("%1"), QStringLiteral("1")), QString::fromLatin1(f));
     punctuation->setCurrentIndex(std::max(0, punctuation->findData(look->text)));
-    if (plain) form->addRow(QCoreApplication::translate("jp::ListDialogs", "Punctuation:"), punctuation);
-    else form->addRow(QCoreApplication::translate("jp::ListDialogs", "Number format (%1 is the number):"), text);
+    if (plain) form->addRow(QCoreApplication::translate("jp::ListDialogs", "Punctuation"), punctuation);
+    else form->addRow(QCoreApplication::translate("jp::ListDialogs", "Number format (%1 is the number)"), text);
     auto *align = alignmentBox(look->align, &d);
-    if (mode == ListBoxes::Full) form->addRow(QCoreApplication::translate("jp::ListDialogs", "Alignment:"), align);
+    if (mode == ListBoxes::Full) form->addRow(QCoreApplication::translate("jp::ListDialogs", "Alignment"), align);
     auto *start = new QSpinBox(&d);
     start->setObjectName(QStringLiteral("numberStart"));
     start->setRange(0, 9999);
     start->setValue(look->start);
-    form->addRow(QCoreApplication::translate("jp::ListDialogs", "Start at:"), start);
+    form->addRow(QCoreApplication::translate("jp::ListDialogs", "Start at"), start);
     auto *preview = new QLabel(&d);
     auto update = [&] {
         QString shown = text->text();
@@ -177,7 +178,7 @@ bool defineNumberFormatDialog(QWidget *parent, ListLevelLook *look, ListBoxes mo
     QObject::connect(text, &QLineEdit::textChanged, &d, update);
     QObject::connect(style, &QComboBox::currentIndexChanged, &d, update);
     update();
-    form->addRow(QCoreApplication::translate("jp::ListDialogs", "Preview:"), preview);
+    form->addRow(QCoreApplication::translate("jp::ListDialogs", "Preview"), preview);
     auto *column = new QVBoxLayout(&d);
     column->addLayout(form);
     column->addWidget(buttons(&d));
@@ -209,7 +210,7 @@ bool defineMultilevelPlainDialog(QWidget *parent, QVector<ListLevelLook> *levels
     kind->setObjectName(QStringLiteral("levelKind"));
     kind->addItem(QCoreApplication::translate("jp::ListDialogs", "Bullet"), true);
     kind->addItem(QCoreApplication::translate("jp::ListDialogs", "Number"), false);
-    form->addRow(QCoreApplication::translate("jp::ListDialogs", "Level is a:"), kind);
+    form->addRow(QCoreApplication::translate("jp::ListDialogs", "Level is a"), kind);
     auto *character = new QLineEdit(&d);
     character->setObjectName(QStringLiteral("bulletCharacter"));
     character->setMaxLength(2);
@@ -226,24 +227,24 @@ bool defineMultilevelPlainDialog(QWidget *parent, QVector<ListLevelLook> *levels
         });
         row->addWidget(symbol);
     }
-    form->addRow(QCoreApplication::translate("jp::ListDialogs", "Bullet character:"), row);
+    form->addRow(QCoreApplication::translate("jp::ListDialogs", "Bullet character"), row);
     auto *style = new QComboBox(&d);
     style->setObjectName(QStringLiteral("numberStyle"));
     int count = 0;
     const NumberStyleName *names = numberStyleNames(&count);
     for (int i = 0; i < std::min(count, 5); ++i) style->addItem(QString::fromLatin1(names[i].example), QString::fromLatin1(names[i].id));
-    form->addRow(QCoreApplication::translate("jp::ListDialogs", "Number style:"), style);
+    form->addRow(QCoreApplication::translate("jp::ListDialogs", "Number style"), style);
     auto *punctuation = new QComboBox(&d);
     punctuation->setObjectName(QStringLiteral("numberPunctuation"));
     for (const char *f : {"%1.", "%1)", "(%1)", "%1"}) punctuation->addItem(QString::fromLatin1(f).replace(QStringLiteral("%1"), QStringLiteral("1")), QString::fromLatin1(f));
     auto *format = new QLineEdit(&d);
     format->setObjectName(QStringLiteral("numberFormat"));
-    if (typed) form->addRow(QCoreApplication::translate("jp::ListDialogs", "Number format (%1 is the number):"), format);
-    else form->addRow(QCoreApplication::translate("jp::ListDialogs", "Punctuation:"), punctuation);
+    if (typed) form->addRow(QCoreApplication::translate("jp::ListDialogs", "Number format (%1 is the number)"), format);
+    else form->addRow(QCoreApplication::translate("jp::ListDialogs", "Punctuation"), punctuation);
     auto *start = new QSpinBox(&d);
     start->setObjectName(QStringLiteral("numberStart"));
     start->setRange(1, 9999);
-    form->addRow(QCoreApplication::translate("jp::ListDialogs", "Start at:"), start);
+    form->addRow(QCoreApplication::translate("jp::ListDialogs", "Start at"), start);
     int current = 0;
     bool loading = false;
     auto store = [&] {

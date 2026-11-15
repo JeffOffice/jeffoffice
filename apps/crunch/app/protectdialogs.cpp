@@ -59,12 +59,12 @@ SetFilePasswordDialog::SetFilePasswordDialog(bool hasPassword, QWidget *parent) 
     m_password->setObjectName(QStringLiteral("filePassword"));
     m_password->setAccessibleName(tr("Password"));
     m_password->setEchoMode(QLineEdit::Password);
-    form->addRow(tr("Password:"), m_password);
+    form->addRow(tr("Password"), m_password);
     m_again = new QLineEdit(this);
     m_again->setObjectName(QStringLiteral("filePasswordAgain"));
     m_again->setAccessibleName(tr("Password again"));
     m_again->setEchoMode(QLineEdit::Password);
-    form->addRow(tr("Type it again:"), m_again);
+    form->addRow(tr("Type it again"), m_again);
     layout->addLayout(form);
     auto *warn = new QLabel(tr("A password can't be found again if it is forgotten. Keep it somewhere safe."), this);
     warn->setWordWrap(true);
@@ -73,7 +73,7 @@ SetFilePasswordDialog::SetFilePasswordDialog(bool hasPassword, QWidget *parent) 
     m_problem->setObjectName(QStringLiteral("filePasswordProblem"));
     m_problem->setWordWrap(true);
     layout->addWidget(m_problem);
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
     buttons->button(QDialogButtonBox::Ok)->setText(tr("Protect"));
     if (hasPassword) {
         QPushButton *remove = buttons->addButton(tr("Remove Password"), QDialogButtonBox::DestructiveRole);
@@ -122,17 +122,17 @@ ProtectSheetDialog::ProtectSheetDialog(const ProtectRequest &request, QWidget *p
     m_password->setObjectName(QStringLiteral("protectPassword"));
     m_password->setAccessibleName(tr("Password"));
     m_password->setEchoMode(QLineEdit::Password);
-    form->addRow(tr("Password (optional):"), m_password);
+    form->addRow(tr("Password (optional)"), m_password);
     m_again = new QLineEdit(this);
     m_again->setObjectName(QStringLiteral("protectPasswordAgain"));
     m_again->setAccessibleName(tr("Password again"));
     m_again->setEchoMode(QLineEdit::Password);
-    form->addRow(tr("Type it again:"), m_again);
+    form->addRow(tr("Type it again"), m_again);
     layout->addLayout(form);
     auto *warn = new QLabel(tr("A password can't be found again if it is forgotten. Keep it somewhere safe."), this);
     warn->setWordWrap(true);
     layout->addWidget(warn);
-    layout->addWidget(new QLabel(tr("Anyone may also:"), this));
+    layout->addWidget(new QLabel(tr("Anyone may also"), this));
     for (const Item &item : kItems) {
         auto *box = new QCheckBox(QCoreApplication::translate("jp::ProtectSheetDialog", item.label), this);
         box->setObjectName(QStringLiteral("protect_") + QLatin1String(item.id));
@@ -149,7 +149,7 @@ ProtectSheetDialog::ProtectSheetDialog(const ProtectRequest &request, QWidget *p
     m_problem->setObjectName(QStringLiteral("protectProblem"));
     m_problem->setWordWrap(true);
     layout->addWidget(m_problem);
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
     connect(buttons, &QDialogButtonBox::accepted, this, [this] {
         QString problem;
@@ -197,12 +197,12 @@ ProtectWorkbookDialog::ProtectWorkbookDialog(const WorkbookProtectRequest &reque
     m_password->setObjectName(QStringLiteral("protectPassword"));
     m_password->setAccessibleName(tr("Password"));
     m_password->setEchoMode(QLineEdit::Password);
-    form->addRow(tr("Password (optional):"), m_password);
+    form->addRow(tr("Password (optional)"), m_password);
     m_again = new QLineEdit(this);
     m_again->setObjectName(QStringLiteral("protectPasswordAgain"));
     m_again->setAccessibleName(tr("Password again"));
     m_again->setEchoMode(QLineEdit::Password);
-    form->addRow(tr("Type it again:"), m_again);
+    form->addRow(tr("Type it again"), m_again);
     layout->addLayout(form);
     auto *warn = new QLabel(tr("A password can't be found again if it is forgotten. Keep it somewhere safe."), this);
     warn->setWordWrap(true);
@@ -211,7 +211,7 @@ ProtectWorkbookDialog::ProtectWorkbookDialog(const WorkbookProtectRequest &reque
     m_problem->setObjectName(QStringLiteral("protectProblem"));
     m_problem->setWordWrap(true);
     layout->addWidget(m_problem);
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
     connect(buttons, &QDialogButtonBox::accepted, this, [this] {
         WorkbookProtectRequest probe;
@@ -278,7 +278,7 @@ EditRangesDialog::EditRangesDialog(const EditRangesRequest &request, QWidget *pa
         if (m_list->currentRow() >= 0) ask(m_list->currentRow());
     });
     connect(remove, &QPushButton::clicked, this, [this] { removeRow(m_list->currentRow()); });
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
     connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
     layout->addWidget(buttons);
@@ -383,16 +383,16 @@ void EditRangesDialog::ask(int row)
         title->setText(tr("Range%1").arg(m_request.ranges.size() + 1));
         cells->setText(m_request.selection);
     }
-    form->addRow(tr("Title:"), title);
-    form->addRow(tr("Refers to cells:"), cells);
-    form->addRow(had ? tr("New password (optional):") : tr("Password (optional):"), password);
-    form->addRow(tr("Type it again:"), again);
+    form->addRow(tr("Title"), title);
+    form->addRow(tr("Refers to cells"), cells);
+    form->addRow(had ? tr("New password (optional)") : tr("Password (optional)"), password);
+    form->addRow(tr("Type it again"), again);
     layout->addLayout(form);
     layout->addWidget(remove);
     QLabel *problem = plainLabel(new QLabel(&box));
     problem->setWordWrap(true);
     layout->addWidget(problem);
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &box);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &box);
     connect(buttons, &QDialogButtonBox::rejected, &box, &QDialog::reject);
     connect(buttons, &QDialogButtonBox::accepted, &box, [&] {
         if (password->text() != again->text()) {

@@ -435,9 +435,9 @@ QWidget *WriteFileScreen::buildPrint()
     QComboBox *zoom = makeZoomBox(w);
     auto *look = new QHBoxLayout();
     look->addStretch(1);
-    look->addWidget(new QLabel(tr("Show:"), w));
+    look->addWidget(new QLabel(tr("Show"), w));
     look->addWidget(across);
-    look->addWidget(new QLabel(tr("Zoom:"), w));
+    look->addWidget(new QLabel(tr("Zoom"), w));
     look->addWidget(zoom);
     auto *scroll = new QScrollArea(w);
     scroll->setObjectName(QStringLiteral("printPreviewScroll"));

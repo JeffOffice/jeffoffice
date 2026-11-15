@@ -1,3 +1,4 @@
+#include "app/uistyle.h"
 #include "app/autocorrectdialog.h"
 
 #include "app/autocorrectconfig.h"
@@ -283,7 +284,7 @@ bool autoCorrectDialog(QWidget *parent, const QString &language)
     auto *page = new AutoCorrectPage(language, &d);
     page->setObjectName(QStringLiteral("autoCorrectPage"));
     v->addWidget(page, 1);
-    auto *bb = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &d);
+    auto *bb = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &d);
     v->addWidget(bb);
     QObject::connect(bb, &QDialogButtonBox::accepted, &d, &QDialog::accept);
     QObject::connect(bb, &QDialogButtonBox::rejected, &d, &QDialog::reject);

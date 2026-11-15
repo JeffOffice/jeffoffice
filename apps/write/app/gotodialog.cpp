@@ -1,5 +1,6 @@
 // Go To (Ctrl+G): a page, section, line, bookmark, footnote, endnote, comment, field, table, graphic, equation, or heading, by number or name; the caret goes there (the work of finding the place is core/gotoops.h).
 
+#include "app/uistyle.h"
 #include "app/writedialogs.h"
 
 #include "app/pageview.h"
@@ -40,7 +41,7 @@ bool goToDialog(QWidget *parent, WriteDoc *doc, PageView *view)
     dlg.setObjectName(QStringLiteral("goToDialog"));
     dlg.setWindowTitle(QCoreApplication::translate("jp::write::GoToDialog", "Go To"));
     auto *v = new QVBoxLayout(&dlg);
-    v->addWidget(new QLabel(QCoreApplication::translate("jp::write::GoToDialog", "Go to what:"), &dlg));
+    v->addWidget(new QLabel(QCoreApplication::translate("jp::write::GoToDialog", "Go to what"), &dlg));
     auto *kinds = new QListWidget(&dlg);
     kinds->setObjectName(QStringLiteral("goToKinds"));
     kinds->setAccessibleName(QCoreApplication::translate("jp::write::GoToDialog", "Go to what"));
@@ -78,7 +79,7 @@ bool goToDialog(QWidget *parent, WriteDoc *doc, PageView *view)
     problem->setObjectName(QStringLiteral("goToProblem"));
     problem->setStyleSheet(QStringLiteral("color: #b00020"));
     v->addWidget(problem);
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Close, &dlg);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Close, &dlg);
     buttons->button(QDialogButtonBox::Ok)->setText(QCoreApplication::translate("jp::write::GoToDialog", "Go To"));
     v->addWidget(buttons);
     QObject::connect(buttons, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);

@@ -530,7 +530,7 @@ void CrunchWindow::createActions()
             for (const auto &item : {std::pair<QString, EnterMove>{tr("Down"), EnterMove::Down}, {tr("Right"), EnterMove::Right}, {tr("Up"), EnterMove::Up}, {tr("Left"), EnterMove::Left}, {tr("Don't move"), EnterMove::Stay}})
                 box->addItem(item.first, int(item.second));
             box->setCurrentIndex(box->findData(int(m_enterMove)));
-            layout->addRow(tr("After pressing Enter, move the selection:"), box);
+            layout->addRow(tr("After pressing Enter, move the selection"), box);
             *choice = box;
             auto *complete = new QCheckBox(tr("Offer to finish a text from the cells above and below (AutoComplete)"), page);
             complete->setObjectName(QStringLiteral("optionAutoComplete"));
@@ -559,7 +559,7 @@ void CrunchWindow::createActions()
             places->setValue(m_fixedDecimals != 0 ? m_fixedDecimals : 2);
             places->setEnabled(m_fixedDecimals != 0);
             connect(fixed, &QCheckBox::toggled, places, &QWidget::setEnabled);
-            layout->addRow(tr("Places:"), places);
+            layout->addRow(tr("Places"), places);
             return static_cast<QWidget *>(page);
         }, [this, choice] {
             if (*choice) {
@@ -584,20 +584,20 @@ void CrunchWindow::createActions()
             font->setObjectName(QStringLiteral("optionNewFont"));
             font->setAccessibleName(tr("Font of a new workbook"));
             font->setCurrentFont(QFont(Settings::get().value(QStringLiteral("crunch/newFont"), d.font).toString()));
-            layout->addRow(tr("Font of a new workbook:"), font);
+            layout->addRow(tr("Font of a new workbook"), font);
             auto *size = new QDoubleSpinBox(page);
             size->setObjectName(QStringLiteral("optionNewFontSize"));
             size->setAccessibleName(tr("Font size of a new workbook"));
             size->setRange(1, 409);
             size->setDecimals(1);
             size->setValue(Settings::get().value(QStringLiteral("crunch/newFontSize"), d.size).toDouble());
-            layout->addRow(tr("Font size:"), size);
+            layout->addRow(tr("Font size"), size);
             auto *sheets = new QSpinBox(page);
             sheets->setObjectName(QStringLiteral("optionNewSheets"));
             sheets->setAccessibleName(tr("Number of sheets in a new workbook"));
             sheets->setRange(1, 255);
             sheets->setValue(Settings::get().value(QStringLiteral("crunch/newSheets"), d.sheets).toInt());
-            layout->addRow(tr("Sheets in a new workbook:"), sheets);
+            layout->addRow(tr("Sheets in a new workbook"), sheets);
             (*newBook)[0] = font;
             (*newBook)[1] = size;
             (*newBook)[2] = sheets;
@@ -624,14 +624,14 @@ void CrunchWindow::createActions()
                 const QColor chosen = QColorDialog::getColor(color->property("color").value<QColor>(), this, tr("Gridline color"));
                 if (chosen.isValid()) paintColor(chosen);
             });
-            layout->addRow(tr("Gridline color:"), color);
+            layout->addRow(tr("Gridline color"), color);
             auto *zoom = new QSpinBox(page);
             zoom->setObjectName(QStringLiteral("optionDefaultZoom"));
             zoom->setAccessibleName(tr("Zoom of a new workbook"));
             zoom->setRange(10, 400);
             zoom->setSuffix(QStringLiteral("%"));
             zoom->setValue(defaultZoom());
-            layout->addRow(tr("Zoom of a new workbook:"), zoom);
+            layout->addRow(tr("Zoom of a new workbook"), zoom);
             auto *width = new QDoubleSpinBox(page);
             width->setObjectName(QStringLiteral("optionStandardWidth"));
             width->setAccessibleName(tr("Standard column width of this sheet"));
@@ -640,7 +640,7 @@ void CrunchWindow::createActions()
             const int mdw = m_view->sheet().looks().maxDigitWidth();
             width->setValue(grid::GridSheet::shownWidth(m_view->sheet().layout().cols.defaultSize() / double(std::max(1, mdw)), mdw));
             width->setEnabled(m_session && m_sheet >= 0 && !m_chartSheetShown);
-            layout->addRow(tr("Standard column width (this sheet):"), width);
+            layout->addRow(tr("Standard column width (this sheet)"), width);
             (*display)[0] = color;
             (*display)[1] = zoom;
             (*display)[2] = width;

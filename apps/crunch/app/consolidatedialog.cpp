@@ -1,3 +1,4 @@
+#include "app/uistyle.h"
 #include "app/consolidatedialog.h"
 
 #include "core/subtotal.h"
@@ -29,11 +30,11 @@ ConsolidateDialog::ConsolidateDialog(const QString &destination, QWidget *parent
     m_function->setObjectName(QStringLiteral("consolidateFunction"));
     m_function->setAccessibleName(tr("Function"));
     for (const crunch::SubtotalFunction &f : crunch::subtotalFunctions()) m_function->addItem(QCoreApplication::translate("jp::crunch::Subtotal", f.name), f.code);
-    form->addRow(tr("Function:"), m_function);
+    form->addRow(tr("Function"), m_function);
     m_destination = new QLineEdit(destination, this);
     m_destination->setObjectName(QStringLiteral("consolidateDestination"));
     m_destination->setAccessibleName(tr("Put the result at"));
-    form->addRow(tr("Put the result at:"), m_destination);
+    form->addRow(tr("Put the result at"), m_destination);
     layout->addLayout(form);
     auto *refRow = new QHBoxLayout;
     m_reference = new QLineEdit(this);
@@ -61,7 +62,7 @@ ConsolidateDialog::ConsolidateDialog(const QString &destination, QWidget *parent
     layout->addWidget(m_top);
     layout->addWidget(m_left);
     layout->addWidget(m_links);
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
     connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
     layout->addWidget(buttons);

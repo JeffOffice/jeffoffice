@@ -67,7 +67,7 @@ bool askCommentAuthor(QWidget *parent)
     initials->setObjectName(QStringLiteral("commentAuthorInitials"));
     form->addRow(QCoreApplication::translate("CommentsPane", "Name:"), name);
     form->addRow(QCoreApplication::translate("CommentsPane", "Initials:"), initials);
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
     form->addRow(buttons);
     auto typedInitials = std::make_shared<bool>(false);
     auto update = [=] { buttons->button(QDialogButtonBox::Ok)->setEnabled(!name->text().trimmed().isEmpty()); };

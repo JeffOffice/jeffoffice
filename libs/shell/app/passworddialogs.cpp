@@ -66,12 +66,12 @@ public:
         m_password->setObjectName(QStringLiteral("newPassword"));
         m_password->setAccessibleName(tr("Password"));
         m_password->setEchoMode(QLineEdit::Password);
-        form->addRow(tr("Password:"), m_password);
+        form->addRow(tr("Password"), m_password);
         m_again = new QLineEdit(this);
         m_again->setObjectName(QStringLiteral("newPasswordAgain"));
         m_again->setAccessibleName(tr("Password again"));
         m_again->setEchoMode(QLineEdit::Password);
-        form->addRow(tr("Type it again:"), m_again);
+        form->addRow(tr("Type it again"), m_again);
         layout->addLayout(form);
         auto *warn = new QLabel(tr("A password can't be found again if it is forgotten. Keep it somewhere safe."), this);
         warn->setWordWrap(true);
@@ -80,7 +80,7 @@ public:
         m_problem->setObjectName(QStringLiteral("newPasswordProblem"));
         m_problem->setWordWrap(true);
         layout->addWidget(m_problem);
-        auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
+        auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
         buttons->button(QDialogButtonBox::Ok)->setText(tr("Protect"));
         if (hasPassword) {
             QPushButton *remove = buttons->addButton(tr("Remove Password"), QDialogButtonBox::DestructiveRole);
@@ -133,21 +133,21 @@ public:
         layout->addWidget(intro);
         auto *form = new QFormLayout;
         m_open = passwordBox(QStringLiteral("pdfPassword"), tr("Password"));
-        form->addRow(tr("Password:"), m_open);
+        form->addRow(tr("Password"), m_open);
         m_openAgain = passwordBox(QStringLiteral("pdfPasswordAgain"), tr("Confirm password"));
-        form->addRow(tr("Confirm:"), m_openAgain);
+        form->addRow(tr("Confirm"), m_openAgain);
         layout->addLayout(form);
 
-        m_restrict = new QGroupBox(tr("Restrict printing, copying, and editing"), this);
+        m_restrict = new jp::Section(tr("Restrict printing, copying, and editing"), this);
         m_restrict->setObjectName(QStringLiteral("pdfRestrict"));
         m_restrict->setCheckable(true);
         m_restrict->setChecked(now.limited);
         auto *inner = new QVBoxLayout(m_restrict);
         auto *innerForm = new QFormLayout;
         m_owner = passwordBox(QStringLiteral("pdfOwnerPassword"), tr("Password for the limits"));
-        innerForm->addRow(tr("Password for the limits:"), m_owner);
+        innerForm->addRow(tr("Password for the limits"), m_owner);
         m_ownerAgain = passwordBox(QStringLiteral("pdfOwnerPasswordAgain"), tr("Confirm password for the limits"));
-        innerForm->addRow(tr("Confirm:"), m_ownerAgain);
+        innerForm->addRow(tr("Confirm"), m_ownerAgain);
         inner->addLayout(innerForm);
         m_print = new QCheckBox(tr("Allow printing"), m_restrict);
         m_print->setObjectName(QStringLiteral("pdfAllowPrint"));
@@ -171,7 +171,7 @@ public:
         m_problem->setObjectName(QStringLiteral("pdfProtectionProblem"));
         m_problem->setWordWrap(true);
         layout->addWidget(m_problem);
-        auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
+        auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
         buttons->button(QDialogButtonBox::Ok)->setText(tr("Encrypt"));
         if (hasPassword) {
             QPushButton *remove = buttons->addButton(tr("Remove Password"), QDialogButtonBox::DestructiveRole);
@@ -292,7 +292,7 @@ bool askOpenFilePassword(QWidget *parent, const QString &fileName, bool wrongBef
     edit->setAccessibleName(QCoreApplication::translate("jp::PasswordDialogs", "Password"));
     edit->setEchoMode(QLineEdit::Password);
     layout->addWidget(edit);
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
     QObject::connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
     QObject::connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
     layout->addWidget(buttons);

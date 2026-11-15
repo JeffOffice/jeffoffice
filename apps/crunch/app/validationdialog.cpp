@@ -1,3 +1,4 @@
+#include "app/uistyle.h"
 #include "app/validationdialog.h"
 
 #include "core/validationedit.h"
@@ -56,8 +57,8 @@ ValidationDialog::ValidationDialog(const std::optional<Validation> &rule, QWidge
     m_dropDown = new QCheckBox(tr("In-cell drop-down"), settings);
     m_dropDown->setObjectName(QStringLiteral("validationDropDown"));
     m_dropDown->setChecked(true);
-    form->addRow(tr("Allow:"), m_allow);
-    form->addRow(tr("Data:"), m_data);
+    form->addRow(tr("Allow"), m_allow);
+    form->addRow(tr("Data"), m_data);
     form->addRow(m_firstLabel, m_first);
     form->addRow(m_secondLabel, m_second);
     form->addRow(QString(), m_blank);
@@ -74,8 +75,8 @@ ValidationDialog::ValidationDialog(const std::optional<Validation> &rule, QWidge
     m_prompt = new QPlainTextEdit(input);
     m_prompt->setObjectName(QStringLiteral("validationPrompt"));
     inputForm->addRow(m_showInput);
-    inputForm->addRow(tr("Title:"), m_promptTitle);
-    inputForm->addRow(tr("Message:"), m_prompt);
+    inputForm->addRow(tr("Title"), m_promptTitle);
+    inputForm->addRow(tr("Message"), m_prompt);
     tabs->addTab(input, tr("Input Message"));
 
     auto *alert = new QWidget(tabs);
@@ -94,12 +95,12 @@ ValidationDialog::ValidationDialog(const std::optional<Validation> &rule, QWidge
     m_error = new QPlainTextEdit(alert);
     m_error->setObjectName(QStringLiteral("validationError"));
     alertForm->addRow(m_showError);
-    alertForm->addRow(tr("Style:"), m_style);
-    alertForm->addRow(tr("Title:"), m_errorTitle);
-    alertForm->addRow(tr("Message:"), m_error);
+    alertForm->addRow(tr("Style"), m_style);
+    alertForm->addRow(tr("Title"), m_errorTitle);
+    alertForm->addRow(tr("Message"), m_error);
     tabs->addTab(alert, tr("Error Alert"));
 
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
     auto *clear = buttons->addButton(tr("Clear All"), QDialogButtonBox::ResetRole);
     clear->setObjectName(QStringLiteral("validationClearAll"));
     connect(clear, &QPushButton::clicked, this, [this] {
@@ -143,13 +144,13 @@ void ValidationDialog::refreshBoxes()
     m_dropDown->setEnabled(type == Validation::Type::List);
     m_first->setEnabled(!any);
     m_firstLabel->setEnabled(!any);
-    if (type == Validation::Type::List) m_firstLabel->setText(tr("Source:"));
-    else if (type == Validation::Type::Custom) m_firstLabel->setText(tr("Formula:"));
-    else m_firstLabel->setText(two ? tr("Minimum:") : tr("Value:"));
+    if (type == Validation::Type::List) m_firstLabel->setText(tr("Source"));
+    else if (type == Validation::Type::Custom) m_firstLabel->setText(tr("Formula"));
+    else m_firstLabel->setText(two ? tr("Minimum") : tr("Value"));
     const bool showSecond = !any && !single && two;
     m_second->setVisible(showSecond);
     m_secondLabel->setVisible(showSecond);
-    m_secondLabel->setText(tr("Maximum:"));
+    m_secondLabel->setText(tr("Maximum"));
 }
 
 std::optional<Validation> ValidationDialog::rule(QString *problem) const

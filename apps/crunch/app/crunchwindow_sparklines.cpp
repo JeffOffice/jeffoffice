@@ -1,6 +1,7 @@
 // Sparklines in the window: Insert > Sparklines (Line, Column, Win/Loss) from the cells selected, and the Sparkline tab that shows while the selection has one: the data and where it goes, the
 // kind, which points are marked, the colors and the line's weight, the axis, and what to do with empty and hidden cells, and the commands to group, ungroup, and clear. Each change is one step
 // of Undo (EditSession::setSparklines). How a sparkline is drawn is in grid/sparklinepaint.h.
+#include "app/uistyle.h"
 #include "app/crunchwindow.h"
 
 #include "app/icons.h"
@@ -192,9 +193,9 @@ void CrunchWindow::insertSparklinesCommand(jp::office::sheet::SparklineGroup::Ty
         auto *whereBox = new QLineEdit(where, &dialog);
         whereBox->setObjectName(QStringLiteral("sparkline.where"));
         whereBox->setAccessibleName(tr("Location range"));
-        form->addRow(tr("Data range:"), dataBox);
-        form->addRow(tr("Location range:"), whereBox);
-        auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
+        form->addRow(tr("Data range"), dataBox);
+        form->addRow(tr("Location range"), whereBox);
+        auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
         form->addRow(buttons);
         connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
         connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
@@ -298,9 +299,9 @@ void CrunchWindow::editSparklineData(bool wholeGroup)
         whereBox->setObjectName(QStringLiteral("sparkline.where"));
         whereBox->setAccessibleName(tr("Location range"));
         whereBox->setReadOnly(!wholeGroup);
-        form->addRow(tr("Data range:"), dataBox);
-        form->addRow(tr("Location range:"), whereBox);
-        auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
+        form->addRow(tr("Data range"), dataBox);
+        form->addRow(tr("Location range"), whereBox);
+        auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
         form->addRow(buttons);
         connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
         connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);

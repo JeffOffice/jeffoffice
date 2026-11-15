@@ -45,7 +45,7 @@ QuickToolbarPage::QuickToolbarPage(AppWindow *win, QWidget *parent) : QWidget(pa
 
     auto *body = new QHBoxLayout;
     auto *left = new QVBoxLayout;
-    left->addWidget(plainLabel(new QLabel(tr("Quick toolbar:"), this)));
+    left->addWidget(plainLabel(new QLabel(tr("Quick toolbar"), this)));
     m_toolbar = new QListWidget(this);
     m_toolbar->setObjectName(QStringLiteral("quickList"));
     m_toolbar->setMinimumHeight(170);
@@ -54,7 +54,7 @@ QuickToolbarPage::QuickToolbarPage(AppWindow *win, QWidget *parent) : QWidget(pa
     body->addLayout(left, 3);
 
     auto *right = new QVBoxLayout;
-    right->addWidget(plainLabel(new QLabel(tr("Commands:"), this)));
+    right->addWidget(plainLabel(new QLabel(tr("Commands"), this)));
     m_search = new QLineEdit(this);
     m_search->setObjectName(QStringLiteral("quickSearch"));
     m_search->setPlaceholderText(tr("Search commands"));

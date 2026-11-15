@@ -52,7 +52,7 @@ QComboBox *leaderBox(QDialog *dlg, const char *name)
 
 QDialogButtonBox *okCancel(QDialog *dlg)
 {
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, dlg);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, dlg);
     QObject::connect(buttons, &QDialogButtonBox::accepted, dlg, &QDialog::accept);
     QObject::connect(buttons, &QDialogButtonBox::rejected, dlg, &QDialog::reject);
     return buttons;
@@ -264,7 +264,7 @@ bool markIndexEntryDialog(QWidget *parent, WriteDoc *doc, PageView *view)
     italic->setObjectName(QStringLiteral("indexItalic"));
     v->addWidget(bold);
     v->addWidget(italic);
-    auto *buttons = new QDialogButtonBox(&dlg);
+    auto *buttons = new jp::ButtonBox(&dlg);
     auto *mark = buttons->addButton(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Mark")), QDialogButtonBox::AcceptRole);
     auto *markAll = buttons->addButton(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Mark All")), QDialogButtonBox::ActionRole);
     buttons->addButton(QDialogButtonBox::Cancel);
@@ -559,7 +559,7 @@ bool manageSourcesDialog(QWidget *parent, WriteDoc *doc)
     auto *preview = new QLabel(&dlg);
     preview->setWordWrap(true);
     v->addWidget(preview);
-    auto *close = new QDialogButtonBox(QDialogButtonBox::Close, &dlg);
+    auto *close = new jp::ButtonBox(QDialogButtonBox::Close, &dlg);
     QObject::connect(close, &QDialogButtonBox::rejected, &dlg, &QDialog::accept);
     QObject::connect(close, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
     v->addWidget(close);
@@ -662,7 +662,7 @@ bool insertCitationDialog(QWidget *parent, WriteDoc *doc, PageView *view)
     auto *withTitle = new QCheckBox(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Show the title")), &dlg);
     withTitle->setObjectName(QStringLiteral("citeTitle"));
     for (QCheckBox *b : {noAuthor, noYear, withTitle}) v->addWidget(b);
-    auto *buttons = new QDialogButtonBox(&dlg);
+    auto *buttons = new jp::ButtonBox(&dlg);
     auto *insert = buttons->addButton(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Insert")), QDialogButtonBox::AcceptRole);
     auto *newSource = buttons->addButton(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "New Source...")), QDialogButtonBox::ActionRole);
     buttons->addButton(QDialogButtonBox::Cancel);
@@ -748,7 +748,7 @@ bool notesOptionsDialog(QWidget *parent, WriteDoc *doc, bool *endnotesChanged)
         c->addItem(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "*, \u2020, \u2021, \u00A7, ...")), QStringLiteral("chicago"));
     };
     auto makeBox = [&](const QString &title, bool endnotes) {
-        auto *group = new QGroupBox(title, &dlg);
+        auto *group = new jp::Section(title, &dlg);
         group->setObjectName(endnotes ? QStringLiteral("endnoteOptions") : QStringLiteral("footnoteOptions"));
         auto *form = new QFormLayout(group);
         Box b;
@@ -863,7 +863,7 @@ bool noteSeparatorsDialog(QWidget *parent, WriteDoc *doc, bool *endnotesChanged)
     QVector<Row> rows;
     bool any = false;
     for (const bool endnotes : {false, true}) {
-        auto *group = new QGroupBox(endnotes ? tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Endnotes")) : tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Footnotes")), &dlg);
+        auto *group = new jp::Section(endnotes ? tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Endnotes")) : tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Footnotes")), &dlg);
         group->setObjectName(endnotes ? QStringLiteral("endnoteSeparators") : QStringLiteral("footnoteSeparators"));
         auto *form = new QFormLayout(group);
         const bool has = doc->hasNotesOfKind(endnotes);

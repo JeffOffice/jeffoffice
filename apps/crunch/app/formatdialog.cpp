@@ -195,7 +195,7 @@ FormatCellsDialog::FormatCellsDialog(const Input &input, QWidget *parent) : QDia
     }
     m_building = false;
     layout->addWidget(m_tabs);
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
     layout->addWidget(buttons);
     connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
@@ -232,7 +232,7 @@ void FormatCellsDialog::buildNumber(QWidget *page)
     auto *outer = new QHBoxLayout(page);
     auto *left = new QVBoxLayout();
     m_categories = new QListWidget(page);
-    auto *categoryLabel = new QLabel(tr("&Category:"), page);
+    auto *categoryLabel = new QLabel(tr("&Category"), page);
     categoryLabel->setBuddy(m_categories);
     left->addWidget(categoryLabel);
     m_categories->setObjectName(QStringLiteral("numberCategory"));
@@ -241,7 +241,7 @@ void FormatCellsDialog::buildNumber(QWidget *page)
     left->addWidget(m_categories);
     outer->addLayout(left);
     auto *right = new QVBoxLayout();
-    auto *sampleBox = new QGroupBox(tr("Sample"), page);
+    auto *sampleBox = new jp::Section(tr("Sample"), page);
     auto *sampleLayout = new QVBoxLayout(sampleBox);
     m_sample = plainLabel(new QLabel(page));
     m_sample->setObjectName(QStringLiteral("numberSample"));
@@ -260,7 +260,7 @@ void FormatCellsDialog::buildNumber(QWidget *page)
     auto *places = new QHBoxLayout(m_optionsBox);
     places->setContentsMargins(0, 0, 0, 0);
     m_decimals = new QSpinBox(m_optionsBox);
-    auto *decimalsLabel = new QLabel(tr("&Decimal places:"), m_optionsBox);
+    auto *decimalsLabel = new QLabel(tr("&Decimal places"), m_optionsBox);
     decimalsLabel->setBuddy(m_decimals);
     places->addWidget(decimalsLabel);
     m_decimals->setObjectName(QStringLiteral("decimals"));
@@ -273,7 +273,7 @@ void FormatCellsDialog::buildNumber(QWidget *page)
     auto *symbolRow = new QHBoxLayout(m_symbolBox);
     symbolRow->setContentsMargins(0, 0, 0, 0);
     m_symbol = new QComboBox(m_symbolBox);
-    auto *symbolLabel = new QLabel(tr("&Symbol:"), m_symbolBox);
+    auto *symbolLabel = new QLabel(tr("&Symbol"), m_symbolBox);
     symbolLabel->setBuddy(m_symbol);
     symbolRow->addWidget(symbolLabel);
     m_symbol->setObjectName(QStringLiteral("symbol"));
@@ -303,7 +303,7 @@ void FormatCellsDialog::buildNumber(QWidget *page)
     auto *negativeRow = new QVBoxLayout(m_negativeBox);
     negativeRow->setContentsMargins(0, 0, 0, 0);
     m_negatives = new QListWidget(m_negativeBox);
-    auto *negativeLabel = new QLabel(tr("&Negative numbers:"), m_negativeBox);
+    auto *negativeLabel = new QLabel(tr("&Negative numbers"), m_negativeBox);
     negativeLabel->setBuddy(m_negatives);
     negativeRow->addWidget(negativeLabel);
     m_negatives->setObjectName(QStringLiteral("negatives"));
@@ -315,7 +315,7 @@ void FormatCellsDialog::buildNumber(QWidget *page)
     auto *typeRow = new QVBoxLayout(m_typesBox);
     typeRow->setContentsMargins(0, 0, 0, 0);
     m_types = new QListWidget(m_typesBox);
-    auto *typeLabel = new QLabel(tr("&Type:"), m_typesBox);
+    auto *typeLabel = new QLabel(tr("&Type"), m_typesBox);
     typeLabel->setBuddy(m_types);
     typeRow->addWidget(typeLabel);
     m_types->setObjectName(QStringLiteral("types"));
@@ -325,7 +325,7 @@ void FormatCellsDialog::buildNumber(QWidget *page)
     auto *customRow = new QVBoxLayout(m_customBox);
     customRow->setContentsMargins(0, 0, 0, 0);
     m_custom = new QLineEdit(m_customBox);
-    auto *customLabel = new QLabel(tr("&Type:"), m_customBox);
+    auto *customLabel = new QLabel(tr("&Type"), m_customBox);
     customLabel->setBuddy(m_custom);
     customRow->addWidget(customLabel);
     m_custom->setObjectName(QStringLiteral("customCode"));
@@ -527,27 +527,27 @@ void FormatCellsDialog::buildAlignment(QWidget *page)
 {
     const FormatView &v = m_in.view;
     auto *layout = new QVBoxLayout(page);
-    auto *text = new QGroupBox(tr("Text alignment"), page);
+    auto *text = new jp::Section(tr("Text alignment"), page);
     auto *form = new QFormLayout(text);
     m_horizontal = new QComboBox(text);
     m_horizontal->setObjectName(QStringLiteral("horizontal"));
     m_horizontal->addItems({tr("General"), tr("Left"), tr("Center"), tr("Right"), tr("Repeat to fill"), tr("Justify"), tr("Center over the selected cells"), tr("Spread evenly")});
     for (int i = 0; i < 8; ++i)
         if (kHorizontal[i] == v.horizontal) m_horizontal->setCurrentIndex(i);
-    form->addRow(tr("&Horizontal:"), m_horizontal);
+    form->addRow(tr("&Horizontal"), m_horizontal);
     m_indent = new QSpinBox(text);
     m_indent->setObjectName(QStringLiteral("indent"));
     m_indent->setRange(0, 250);
     m_indent->setValue(v.indent);
-    form->addRow(tr("&Indent:"), m_indent);
+    form->addRow(tr("&Indent"), m_indent);
     m_vertical = new QComboBox(text);
     m_vertical->setObjectName(QStringLiteral("vertical"));
     m_vertical->addItems({tr("Top"), tr("Center"), tr("Bottom"), tr("Justify"), tr("Distributed")});
     for (int i = 0; i < 5; ++i)
         if (kVertical[i] == v.vertical) m_vertical->setCurrentIndex(i);
-    form->addRow(tr("&Vertical:"), m_vertical);
+    form->addRow(tr("&Vertical"), m_vertical);
     layout->addWidget(text);
-    auto *control = new QGroupBox(tr("Text control"), page);
+    auto *control = new jp::Section(tr("Text control"), page);
     auto *cl = new QVBoxLayout(control);
     m_wrap = new QCheckBox(tr("&Wrap text"), control);
     m_wrap->setObjectName(QStringLiteral("wrap"));
@@ -562,7 +562,7 @@ void FormatCellsDialog::buildAlignment(QWidget *page)
     cl->addWidget(m_shrink);
     cl->addWidget(m_merge);
     layout->addWidget(control);
-    auto *orientation = new QGroupBox(tr("Orientation"), page);
+    auto *orientation = new jp::Section(tr("Orientation"), page);
     auto *ol = new QFormLayout(orientation);
     m_degrees = new QSpinBox(orientation);
     m_degrees->setObjectName(QStringLiteral("degrees"));
@@ -573,16 +573,16 @@ void FormatCellsDialog::buildAlignment(QWidget *page)
     m_verticalText = new QCheckBox(tr("&Text stacked vertically"), orientation);
     m_verticalText->setObjectName(QStringLiteral("stacked"));
     m_verticalText->setChecked(v.rotation == 255);
-    ol->addRow(tr("&Degrees:"), m_degrees);
+    ol->addRow(tr("&Degrees"), m_degrees);
     ol->addRow(m_verticalText);
     layout->addWidget(orientation);
-    auto *dir = new QGroupBox(tr("Right-to-left"), page);
+    auto *dir = new jp::Section(tr("Right-to-left"), page);
     auto *dl = new QFormLayout(dir);
     m_direction = new QComboBox(dir);
     m_direction->setObjectName(QStringLiteral("direction"));
     m_direction->addItems({tr("By the text"), tr("Left to right"), tr("Right to left")});
     m_direction->setCurrentIndex(std::max(0, std::min(2, v.readingOrder)));
-    dl->addRow(tr("Text &direction:"), m_direction);
+    dl->addRow(tr("Text &direction"), m_direction);
     layout->addWidget(dir);
     layout->addStretch(1);
     connect(m_horizontal, qOverload<int>(&QComboBox::currentIndexChanged), this, [this] { alignmentChanged(); });
@@ -618,30 +618,30 @@ void FormatCellsDialog::buildFont(QWidget *page)
     if (!v.fontName.isEmpty() && !families.contains(v.fontName, Qt::CaseInsensitive)) families.prepend(v.fontName);
     m_fontName->addItems(families);
     m_fontName->setCurrentText(v.fontName);
-    form->addRow(tr("&Font:"), m_fontName);
+    form->addRow(tr("&Font"), m_fontName);
     m_fontStyle = new QComboBox(page);
     m_fontStyle->setObjectName(QStringLiteral("fontStyle"));
     m_fontStyle->addItems({tr("Regular"), tr("Italic"), tr("Bold"), tr("Bold Italic")});
     m_fontStyle->setCurrentIndex((v.bold ? 2 : 0) + (v.italic ? 1 : 0));
-    form->addRow(tr("Font st&yle:"), m_fontStyle);
+    form->addRow(tr("Font st&yle"), m_fontStyle);
     m_fontSize = new QComboBox(page);
     m_fontSize->setObjectName(QStringLiteral("fontSize"));
     m_fontSize->setEditable(true);
     for (int s : {8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 26, 28, 36, 48, 72}) m_fontSize->addItem(QString::number(s));
     m_fontSize->setCurrentText(QString::number(v.fontSize, 'g', 4));
-    form->addRow(tr("&Size:"), m_fontSize);
+    form->addRow(tr("&Size"), m_fontSize);
     m_underline = new QComboBox(page);
     m_underline->setObjectName(QStringLiteral("underline"));
     m_underline->addItems({tr("None"), tr("Single"), tr("Double"), tr("Single Accounting"), tr("Double Accounting")});
     m_underline->setCurrentIndex(int(v.underline));
-    form->addRow(tr("&Underline:"), m_underline);
+    form->addRow(tr("&Underline"), m_underline);
     m_fontColor = new ColorButton(QStringLiteral("baseline"), tr("Font Color"), true, tr("Automatic"), page);
     m_fontColor->setObjectName(QStringLiteral("fontColor"));
     m_fontColor->setWell(true);
     m_fontColor->setCurrent(v.fontColor.isValid() ? ColorRef::rgb(v.fontColor) : ColorRef::none());
-    form->addRow(tr("&Color:"), m_fontColor);
+    form->addRow(tr("&Color"), m_fontColor);
     layout->addLayout(form);
-    auto *effects = new QGroupBox(tr("Effects"), page);
+    auto *effects = new jp::Section(tr("Effects"), page);
     auto *el = new QVBoxLayout(effects);
     m_strike = new QCheckBox(tr("Stri&kethrough"), effects);
     m_strike->setObjectName(QStringLiteral("strike"));
@@ -656,7 +656,7 @@ void FormatCellsDialog::buildFont(QWidget *page)
     el->addWidget(m_superscript);
     el->addWidget(m_subscript);
     layout->addWidget(effects);
-    auto *preview = new QGroupBox(tr("Preview"), page);
+    auto *preview = new jp::Section(tr("Preview"), page);
     auto *pl = new QVBoxLayout(preview);
     m_fontPreview = new QLabel(tr("Sample text 0123"), preview);
     m_fontPreview->setObjectName(QStringLiteral("fontPreview"));
@@ -720,10 +720,10 @@ void FormatCellsDialog::buildBorder(QWidget *page)
     const FormatView &v = m_in.view;
     auto *layout = new QHBoxLayout(page);
     auto *left = new QVBoxLayout();
-    auto *line = new QGroupBox(tr("Line"), page);
+    auto *line = new jp::Section(tr("Line"), page);
     auto *ll = new QVBoxLayout(line);
     m_lineStyles = new QListWidget(line);
-    auto *styleLabel = new QLabel(tr("St&yle:"), line);
+    auto *styleLabel = new QLabel(tr("St&yle"), line);
     styleLabel->setBuddy(m_lineStyles);
     ll->addWidget(styleLabel);
     m_lineStyles->setObjectName(QStringLiteral("lineStyle"));
@@ -739,14 +739,14 @@ void FormatCellsDialog::buildBorder(QWidget *page)
     m_lineColor->setObjectName(QStringLiteral("lineColor"));
     m_lineColor->setWell(true);
     m_lineColor->setCurrent(ColorRef::none());
-    auto *colorLabel = new QLabel(tr("&Color:"), line);
+    auto *colorLabel = new QLabel(tr("&Color"), line);
     colorLabel->setBuddy(m_lineColor);
     ll->addWidget(colorLabel);
     ll->addWidget(m_lineColor);
     left->addWidget(line);
     layout->addLayout(left);
     auto *right = new QVBoxLayout();
-    auto *presets = new QGroupBox(tr("Presets"), page);
+    auto *presets = new jp::Section(tr("Presets"), page);
     auto *pl = new QHBoxLayout(presets);
     const struct {
         const char *name;
@@ -769,7 +769,7 @@ void FormatCellsDialog::buildBorder(QWidget *page)
         });
     }
     right->addWidget(presets);
-    auto *border = new QGroupBox(tr("Border"), page);
+    auto *border = new jp::Section(tr("Border"), page);
     auto *grid = new QGridLayout(border);
     m_borderPreview = new BorderPreview(this);
     m_borderPreview->setObjectName(QStringLiteral("borderPreview"));
@@ -863,12 +863,12 @@ void FormatCellsDialog::buildFill(QWidget *page)
     m_fillColor->setObjectName(QStringLiteral("fillColor"));
     m_fillColor->setWell(true);
     m_fillColor->setCurrent(v.fillColor.isValid() ? ColorRef::rgb(v.fillColor) : ColorRef::none());
-    form->addRow(tr("&Background Color:"), m_fillColor);
+    form->addRow(tr("&Background Color"), m_fillColor);
     m_patternColor = new ColorButton(QStringLiteral("paint-bucket"), tr("Pattern Color"), true, tr("Automatic"), page);
     m_patternColor->setObjectName(QStringLiteral("patternColor"));
     m_patternColor->setWell(true);
     m_patternColor->setCurrent(v.patternColor.isValid() ? ColorRef::rgb(v.patternColor) : ColorRef::none());
-    form->addRow(tr("P&attern Color:"), m_patternColor);
+    form->addRow(tr("P&attern Color"), m_patternColor);
     m_patternStyle = new QComboBox(page);
     m_patternStyle->setObjectName(QStringLiteral("patternStyle"));
     const QStringList names = {tr("No pattern"),
@@ -893,10 +893,10 @@ void FormatCellsDialog::buildFill(QWidget *page)
     m_patternStyle->addItems(names);
     for (int i = 0; i < int(sizeof(kPatterns) / sizeof(kPatterns[0])); ++i)
         if (kPatterns[i] == v.pattern) m_patternStyle->setCurrentIndex(i);
-    form->addRow(tr("Pattern &Style:"), m_patternStyle);
+    form->addRow(tr("Pattern &Style"), m_patternStyle);
     layout->addLayout(form);
     // a gradient: the background color changes into a second one
-    auto *effects = new QGroupBox(tr("Gradient"), page);
+    auto *effects = new jp::Section(tr("Gradient"), page);
     auto *effectsForm = new QFormLayout(effects);
     m_gradientOn = new QCheckBox(tr("&Fill with a gradient of two colors"), effects);
     m_gradientOn->setObjectName(QStringLiteral("fillGradient"));
@@ -906,12 +906,12 @@ void FormatCellsDialog::buildFill(QWidget *page)
     m_gradientColor->setObjectName(QStringLiteral("gradientColor"));
     m_gradientColor->setWell(true);
     m_gradientColor->setCurrent(v.gradientColor.isValid() ? ColorRef::rgb(v.gradientColor) : ColorRef::none());
-    effectsForm->addRow(tr("&Second Color:"), m_gradientColor);
+    effectsForm->addRow(tr("&Second Color"), m_gradientColor);
     m_gradientStyle = new QComboBox(effects);
     m_gradientStyle->setObjectName(QStringLiteral("gradientStyle"));
     m_gradientStyle->addItems({tr("From left to right"), tr("From top to bottom"), tr("Diagonal, from top left"), tr("Diagonal, from top right"), tr("From the center out")});
     m_gradientStyle->setCurrentIndex(std::max(0, std::min(4, v.gradientStyle)));
-    effectsForm->addRow(tr("&Direction:"), m_gradientStyle);
+    effectsForm->addRow(tr("&Direction"), m_gradientStyle);
     layout->addWidget(effects);
     const bool wasOn = v.gradient;
     m_gradientColor->setEnabled(wasOn);
@@ -932,7 +932,7 @@ void FormatCellsDialog::buildFill(QWidget *page)
         m_fillTouched = true;
         updateFillSample();
     });
-    auto *sample = new QGroupBox(tr("Sample"), page);
+    auto *sample = new jp::Section(tr("Sample"), page);
     auto *sl = new QVBoxLayout(sample);
     m_fillSample = new QLabel(page);
     m_fillSample->setObjectName(QStringLiteral("fillSample"));

@@ -36,9 +36,9 @@ bool sortDialog(QWidget *parent, SortOptions *options, bool inTable)
     auto *v = new QVBoxLayout(&dlg);
     auto *grid = new QGridLayout;
     v->addLayout(grid);
-    grid->addWidget(plainLabel(new QLabel(inTable ? QCoreApplication::translate("jp::write::HomeDialogs", "Column:") : QCoreApplication::translate("jp::write::HomeDialogs", "Field:"), &dlg)), 0, 1);
-    grid->addWidget(plainLabel(new QLabel(QCoreApplication::translate("jp::write::HomeDialogs", "Type:"), &dlg)), 0, 2);
-    grid->addWidget(plainLabel(new QLabel(QCoreApplication::translate("jp::write::HomeDialogs", "Order:"), &dlg)), 0, 3);
+    grid->addWidget(plainLabel(new QLabel(inTable ? QCoreApplication::translate("jp::write::HomeDialogs", "Column") : QCoreApplication::translate("jp::write::HomeDialogs", "Field"), &dlg)), 0, 1);
+    grid->addWidget(plainLabel(new QLabel(QCoreApplication::translate("jp::write::HomeDialogs", "Type"), &dlg)), 0, 2);
+    grid->addWidget(plainLabel(new QLabel(QCoreApplication::translate("jp::write::HomeDialogs", "Order"), &dlg)), 0, 3);
     const char *const names[] = {QT_TRANSLATE_NOOP("jp::write::HomeDialogs", "Sort by"), QT_TRANSLATE_NOOP("jp::write::HomeDialogs", "Then by"), QT_TRANSLATE_NOOP("jp::write::HomeDialogs", "Then by")};
     struct Row { QSpinBox *field; QComboBox *type; QComboBox *order; };
     Row rows[3];
@@ -92,7 +92,7 @@ bool sortDialog(QWidget *parent, SortOptions *options, bool inTable)
     caseBox->setChecked(options->caseSensitive);
     v->addWidget(header);
     v->addWidget(caseBox);
-    auto *bb = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    auto *bb = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
     QObject::connect(bb, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
     QObject::connect(bb, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
     v->addWidget(bb);
@@ -128,7 +128,7 @@ void wordCountDialog(QWidget *parent, int pages, bool selection, const std::func
     v->addWidget(title);
     auto *grid = new QGridLayout;
     v->addLayout(grid);
-    const QStringList labels = {QCoreApplication::translate("jp::write::HomeDialogs", "Pages:"), QCoreApplication::translate("jp::write::HomeDialogs", "Words:"), QCoreApplication::translate("jp::write::HomeDialogs", "Characters (no spaces):"), QCoreApplication::translate("jp::write::HomeDialogs", "Characters (with spaces):"), QCoreApplication::translate("jp::write::HomeDialogs", "Paragraphs:"), QCoreApplication::translate("jp::write::HomeDialogs", "Lines:")};
+    const QStringList labels = {QCoreApplication::translate("jp::write::HomeDialogs", "Pages"), QCoreApplication::translate("jp::write::HomeDialogs", "Words"), QCoreApplication::translate("jp::write::HomeDialogs", "Characters (no spaces)"), QCoreApplication::translate("jp::write::HomeDialogs", "Characters (with spaces)"), QCoreApplication::translate("jp::write::HomeDialogs", "Paragraphs"), QCoreApplication::translate("jp::write::HomeDialogs", "Lines")};
     QVector<QLabel *> values;
     for (int i = 0; i < labels.size(); ++i) {
         grid->addWidget(plainLabel(new QLabel(labels.at(i), &dlg)), i, 0);
@@ -153,7 +153,7 @@ void wordCountDialog(QWidget *parent, int pages, bool selection, const std::func
     };
     QObject::connect(notes, &QCheckBox::toggled, &dlg, fill);
     fill();
-    auto *bb = new QDialogButtonBox(QDialogButtonBox::Close, &dlg);
+    auto *bb = new jp::ButtonBox(QDialogButtonBox::Close, &dlg);
     QObject::connect(bb, &QDialogButtonBox::rejected, &dlg, &QDialog::accept);
     QObject::connect(bb, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
     v->addWidget(bb);
@@ -166,13 +166,13 @@ int pasteSpecialDialog(QWidget *parent, const QStringList &choices)
     dlg.setObjectName(QStringLiteral("pasteSpecialDialog"));
     dlg.setWindowTitle(QCoreApplication::translate("jp::write::HomeDialogs", "Paste Special"));
     auto *v = new QVBoxLayout(&dlg);
-    v->addWidget(plainLabel(new QLabel(QCoreApplication::translate("jp::write::HomeDialogs", "Paste the clipboard as:"), &dlg)));
+    v->addWidget(plainLabel(new QLabel(QCoreApplication::translate("jp::write::HomeDialogs", "Paste the clipboard as"), &dlg)));
     auto *list = new QListWidget(&dlg);
     list->setObjectName(QStringLiteral("pasteChoices"));
     list->addItems(choices);
     if (list->count()) list->setCurrentRow(0);
     v->addWidget(list);
-    auto *bb = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    auto *bb = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
     QObject::connect(bb, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
     QObject::connect(bb, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
     QObject::connect(list, &QListWidget::itemDoubleClicked, &dlg, &QDialog::accept);
@@ -186,7 +186,7 @@ QString thesaurusDialog(QWidget *parent, const QString &word)
     dlg.setObjectName(QStringLiteral("thesaurusDialog"));
     dlg.setWindowTitle(QCoreApplication::translate("jp::write::HomeDialogs", "Thesaurus"));
     auto *v = new QVBoxLayout(&dlg);
-    v->addWidget(plainLabel(new QLabel(QCoreApplication::translate("jp::write::HomeDialogs", "Look up:"), &dlg)));
+    v->addWidget(plainLabel(new QLabel(QCoreApplication::translate("jp::write::HomeDialogs", "Look up"), &dlg)));
     auto *query = new QLineEdit(word, &dlg);
     query->setObjectName(QStringLiteral("thesaurusQuery"));
     v->addWidget(query);
@@ -212,7 +212,7 @@ QString thesaurusDialog(QWidget *parent, const QString &word)
         list->setCurrentRow(0);
     };
     fill();
-    auto *buttons = new QDialogButtonBox(&dlg);
+    auto *buttons = new jp::ButtonBox(&dlg);
     auto *replace = buttons->addButton(QCoreApplication::translate("jp::write::HomeDialogs", "Replace"), QDialogButtonBox::AcceptRole);
     replace->setObjectName(QStringLiteral("thesaurusReplace"));
     auto *lookUp = buttons->addButton(QCoreApplication::translate("jp::write::HomeDialogs", "Look Up"), QDialogButtonBox::ActionRole);
@@ -252,7 +252,7 @@ int restrictEditingDialog(QWidget *parent, bool enforced, const QString &current
         note->setText(QCoreApplication::translate("jp::write::HomeDialogs", "This document is protected: %1").arg(name));
         v->addWidget(note);
         if (hasPassword) {
-            v->addWidget(plainLabel(new QLabel(QCoreApplication::translate("jp::write::HomeDialogs", "Password to stop the protection:"), &dlg)));
+            v->addWidget(plainLabel(new QLabel(QCoreApplication::translate("jp::write::HomeDialogs", "Password to stop the protection"), &dlg)));
             password1 = new QLineEdit(&dlg);
             password1->setObjectName(QStringLiteral("protectPassword"));
             password1->setEchoMode(QLineEdit::Password);
@@ -269,18 +269,18 @@ int restrictEditingDialog(QWidget *parent, bool enforced, const QString &current
             kind->addItem(QCoreApplication::translate("jp::write::HomeDialogs", k.text), QString::fromLatin1(k.edit));
         }
         v->addWidget(kind);
-        v->addWidget(plainLabel(new QLabel(QCoreApplication::translate("jp::write::HomeDialogs", "Password (you can leave this empty):"), &dlg)));
+        v->addWidget(plainLabel(new QLabel(QCoreApplication::translate("jp::write::HomeDialogs", "Password (you can leave this empty)"), &dlg)));
         password1 = new QLineEdit(&dlg);
         password1->setObjectName(QStringLiteral("protectPassword"));
         password1->setEchoMode(QLineEdit::Password);
         v->addWidget(password1);
-        v->addWidget(plainLabel(new QLabel(QCoreApplication::translate("jp::write::HomeDialogs", "Type it again:"), &dlg)));
+        v->addWidget(plainLabel(new QLabel(QCoreApplication::translate("jp::write::HomeDialogs", "Type it again"), &dlg)));
         password2 = new QLineEdit(&dlg);
         password2->setObjectName(QStringLiteral("protectPassword2"));
         password2->setEchoMode(QLineEdit::Password);
         v->addWidget(password2);
     }
-    auto *bb = new QDialogButtonBox(QDialogButtonBox::Cancel, &dlg);
+    auto *bb = new jp::ButtonBox(QDialogButtonBox::Cancel, &dlg);
     auto *go = bb->addButton(enforced ? QCoreApplication::translate("jp::write::HomeDialogs", "Stop Protection") : QCoreApplication::translate("jp::write::HomeDialogs", "Start Enforcing"), QDialogButtonBox::AcceptRole);
     go->setObjectName(QStringLiteral("protectGo"));
     QObject::connect(bb, &QDialogButtonBox::accepted, &dlg, [&] {
@@ -351,9 +351,9 @@ bool trackOptionsDialog(QWidget *parent, QString *name, QString *initials, tp::R
     nameBox->setObjectName(QStringLiteral("userName"));
     auto *initialsBox = new QLineEdit(*initials, &dlg);
     initialsBox->setObjectName(QStringLiteral("userInitials"));
-    form->addWidget(plainLabel(new QLabel(QCoreApplication::translate("jp::write::HomeDialogs", "User name:"), &dlg)), 0, 0);
+    form->addWidget(plainLabel(new QLabel(QCoreApplication::translate("jp::write::HomeDialogs", "User name"), &dlg)), 0, 0);
     form->addWidget(nameBox, 0, 1);
-    form->addWidget(plainLabel(new QLabel(QCoreApplication::translate("jp::write::HomeDialogs", "Initials:"), &dlg)), 1, 0);
+    form->addWidget(plainLabel(new QLabel(QCoreApplication::translate("jp::write::HomeDialogs", "Initials"), &dlg)), 1, 0);
     form->addWidget(initialsBox, 1, 1);
 
     // How changes are drawn: a look and a color for each kind, the change bars, and whether moves and formatting are tracked as such.
@@ -364,7 +364,7 @@ bool trackOptionsDialog(QWidget *parent, QString *name, QString *initials, tp::R
     const QVector<std::pair<QString, int>> movedFromLooks = {{QCoreApplication::translate("jp::write::HomeDialogs", "Strikethrough"), M::DelStrike}, {QCoreApplication::translate("jp::write::HomeDialogs", "Double strikethrough"), M::DelDoubleStrike}, {QCoreApplication::translate("jp::write::HomeDialogs", "Color only"), M::DelColorOnly}};
     const QVector<std::pair<QString, int>> formattingLooks = {{QCoreApplication::translate("jp::write::HomeDialogs", "Bold"), M::FmtBold}, {QCoreApplication::translate("jp::write::HomeDialogs", "Color only"), M::FmtColorOnly}, {QCoreApplication::translate("jp::write::HomeDialogs", "(none)"), M::FmtNone}};
     const QVector<std::pair<QString, int>> barLooks = {{QCoreApplication::translate("jp::write::HomeDialogs", "Left border"), M::BarsLeft}, {QCoreApplication::translate("jp::write::HomeDialogs", "Right border"), M::BarsRight}, {QCoreApplication::translate("jp::write::HomeDialogs", "Outside border"), M::BarsOutside}, {QCoreApplication::translate("jp::write::HomeDialogs", "(none)"), M::BarsNone}};
-    auto *marks = new QGroupBox(QCoreApplication::translate("jp::write::HomeDialogs", "Markup"), &dlg);
+    auto *marks = new jp::Section(QCoreApplication::translate("jp::write::HomeDialogs", "Markup"), &dlg);
     auto *grid = new QGridLayout(marks);
     grid->addWidget(plainLabel(new QLabel(QCoreApplication::translate("jp::write::HomeDialogs", "Look"), marks)), 0, 1);
     grid->addWidget(plainLabel(new QLabel(QCoreApplication::translate("jp::write::HomeDialogs", "Color"), marks)), 0, 2);
@@ -410,7 +410,7 @@ bool trackOptionsDialog(QWidget *parent, QString *name, QString *initials, tp::R
     movedEnabled();
     v->addWidget(marks);
 
-    auto *bb = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    auto *bb = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
     QObject::connect(bb, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
     QObject::connect(bb, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
     v->addWidget(bb);
@@ -440,7 +440,7 @@ bool compareDialog(QWidget *parent, QString *revisedPath, CompareOptions *option
     dlg.setObjectName(QStringLiteral("compareDialog"));
     dlg.setWindowTitle(QCoreApplication::translate("jp::write::HomeDialogs", "Compare"));
     auto *v = new QVBoxLayout(&dlg);
-    v->addWidget(plainLabel(new QLabel(QCoreApplication::translate("jp::write::HomeDialogs", "This document is the original. Choose the revised version:"), &dlg)));
+    v->addWidget(plainLabel(new QLabel(QCoreApplication::translate("jp::write::HomeDialogs", "This document is the original. Choose the revised version"), &dlg)));
     auto *row = new QHBoxLayout;
     auto *path = new QLineEdit(*revisedPath, &dlg);
     path->setObjectName(QStringLiteral("revisedPath"));
@@ -453,7 +453,7 @@ bool compareDialog(QWidget *parent, QString *revisedPath, CompareOptions *option
                                                        QCoreApplication::translate("jp::write::HomeDialogs", "Documents (*.docx *.docm *.doc *.rtf *.odt *.fodt)") + QStringLiteral(";;") + QCoreApplication::translate("jp::write::HomeDialogs", "All Files (*)"));
         if (!p.isEmpty()) path->setText(p);
     });
-    v->addWidget(plainLabel(new QLabel(QCoreApplication::translate("jp::write::HomeDialogs", "Label the changes with this name:"), &dlg)));
+    v->addWidget(plainLabel(new QLabel(QCoreApplication::translate("jp::write::HomeDialogs", "Label the changes with this name"), &dlg)));
     auto *author = new QLineEdit(options->author, &dlg);
     author->setObjectName(QStringLiteral("compareAuthor"));
     v->addWidget(author);
@@ -469,7 +469,7 @@ bool compareDialog(QWidget *parent, QString *revisedPath, CompareOptions *option
     v->addWidget(byCharacter);
     v->addWidget(ignoreCase);
     v->addWidget(ignoreSpace);
-    auto *bb = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    auto *bb = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
     QObject::connect(bb, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
     QObject::connect(bb, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
     v->addWidget(bb);
@@ -546,7 +546,7 @@ void formattingDialog(QWidget *parent, const QVector<QPair<QString, QString>> &f
         ++row;
     }
     v->addLayout(grid);
-    auto *bb = new QDialogButtonBox(QDialogButtonBox::Close, &dlg);
+    auto *bb = new jp::ButtonBox(QDialogButtonBox::Close, &dlg);
     QObject::connect(bb, &QDialogButtonBox::rejected, &dlg, &QDialog::accept);
     v->addWidget(bb);
     dlg.exec();

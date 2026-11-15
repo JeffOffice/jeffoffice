@@ -182,7 +182,7 @@ bool CrunchWindow::nameFromCellsCommand()
             boxes[i]->setChecked(edges & kinds[i].edge);
             layout->addWidget(boxes[i]);
         }
-        auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+        auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
         layout->addWidget(buttons);
         connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
         connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
@@ -220,7 +220,7 @@ bool CrunchWindow::applyNamesCommand()
             auto *text = plainLabel(new QLabel(tr("There is no name for a block of cells yet. Make one with New Name first.")));
             text->setWordWrap(true);
             layout->addWidget(text);
-            auto *buttons = new QDialogButtonBox(QDialogButtonBox::Close);
+            auto *buttons = new jp::ButtonBox(QDialogButtonBox::Close);
             layout->addWidget(buttons);
             connect(buttons, &QDialogButtonBox::rejected, &none, &QDialog::reject);
             none.exec();
@@ -236,13 +236,13 @@ bool CrunchWindow::applyNamesCommand()
         QDialog dialog(this);
         dialog.setWindowTitle(tr("Apply Names"));
         auto *layout = new QVBoxLayout(&dialog);
-        layout->addWidget(new QLabel(tr("Choose the names to put in place of the cells they stand for:")));
+        layout->addWidget(new QLabel(tr("Choose the names to put in place of the cells they stand for")));
         auto *list = new QListWidget;
         list->setSelectionMode(QAbstractItemView::ExtendedSelection);
         for (const QString &n : all) list->addItem(n);
         list->selectAll();
         layout->addWidget(list);
-        auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+        auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
         layout->addWidget(buttons);
         connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
         connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);

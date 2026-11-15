@@ -152,7 +152,7 @@ SpellPane::SpellPane(PageView *view, QWidget *parent) : QWidget(parent), m_view(
     m_context->setWordWrap(true);
     m_context->setTextFormat(Qt::RichText);
     v->addWidget(m_context);
-    v->addWidget(new QLabel(tr("Suggestions:"), this));
+    v->addWidget(new QLabel(tr("Suggestions"), this));
     m_list = new QListWidget(this);
     m_list->setObjectName(QStringLiteral("spellSuggestions"));
     m_list->setAccessibleName(tr("Suggestions"));

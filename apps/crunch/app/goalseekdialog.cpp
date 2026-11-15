@@ -1,3 +1,4 @@
+#include "app/uistyle.h"
 #include "app/goalseekdialog.h"
 
 #include <QDialogButtonBox>
@@ -27,11 +28,11 @@ GoalSeekDialog::GoalSeekDialog(const QString &setCell, QWidget *parent) : QDialo
     m_change = new QLineEdit(this);
     m_change->setObjectName(QStringLiteral("goalChangeCell"));
     m_change->setAccessibleName(tr("Cell to change"));
-    form->addRow(tr("Cell with the formula:"), m_set);
-    form->addRow(tr("Value you want:"), m_value);
-    form->addRow(tr("Cell to change:"), m_change);
+    form->addRow(tr("Cell with the formula"), m_set);
+    form->addRow(tr("Value you want"), m_value);
+    form->addRow(tr("Cell to change"), m_change);
     layout->addLayout(form);
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
     connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
     layout->addWidget(buttons);

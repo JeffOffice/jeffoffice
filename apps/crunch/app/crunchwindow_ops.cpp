@@ -1,4 +1,5 @@
 // The commands on a block of cells that are not typing: Sum, fill, the clipboard, inserting and deleting, the sizes of rows and columns. Each asks the edit session for one step.
+#include "app/uistyle.h"
 #include "app/crunchwindow.h"
 
 #include "app/crunchinfo.h"
@@ -392,7 +393,7 @@ void CrunchWindow::fillSeriesDialog()
         form->addRow(tr("Step value"), step);
         auto *stop = new QLineEdit;
         form->addRow(tr("Stop value"), stop);
-        auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+        auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
         layout->addWidget(buttons);
         connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
         connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);

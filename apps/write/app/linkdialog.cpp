@@ -1,5 +1,6 @@
 // The Hyperlink dialog (the work on the document is core/linkops.h).
 
+#include "app/uistyle.h"
 #include "app/writedialogs.h"
 
 #include "app/pageview.h"
@@ -67,17 +68,17 @@ bool linkDialog(QWidget *parent, WriteDoc *doc, PageView *view)
     auto *tip = new QLineEdit(&dlg);
     tip->setObjectName(QStringLiteral("screenTip"));
     tip->setText(existing.screenTip);
-    form->addRow(QCoreApplication::translate("jp::write::LinkDialog", "Text to display:"), display);
-    form->addRow(QCoreApplication::translate("jp::write::LinkDialog", "Address:"), address);
-    form->addRow(QCoreApplication::translate("jp::write::LinkDialog", "Bookmark:"), bookmark);
-    form->addRow(QCoreApplication::translate("jp::write::LinkDialog", "Screen tip:"), tip);
+    form->addRow(QCoreApplication::translate("jp::write::LinkDialog", "Text to display"), display);
+    form->addRow(QCoreApplication::translate("jp::write::LinkDialog", "Address"), address);
+    form->addRow(QCoreApplication::translate("jp::write::LinkDialog", "Bookmark"), bookmark);
+    form->addRow(QCoreApplication::translate("jp::write::LinkDialog", "Screen tip"), tip);
     v->addLayout(form);
     auto *problem = new QLabel(&dlg);
     problem->setObjectName(QStringLiteral("problem"));
     problem->setWordWrap(true);
     problem->setTextFormat(Qt::PlainText);
     v->addWidget(problem);
-    auto *bb = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    auto *bb = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
     QPushButton *remove = nullptr;
     if (existing.valid()) {
         remove = bb->addButton(QCoreApplication::translate("jp::write::LinkDialog", "Remove Link"), QDialogButtonBox::DestructiveRole);

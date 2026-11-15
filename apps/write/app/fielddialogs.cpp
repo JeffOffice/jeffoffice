@@ -38,7 +38,7 @@ bool bookmarkDialog(QWidget *parent, WriteDoc *doc, PageView *view)
     dlg.setObjectName(QStringLiteral("bookmarkDialog"));
     dlg.setWindowTitle(QCoreApplication::translate("jp::write::FieldDialogs", "Bookmark"));
     auto *v = new QVBoxLayout(&dlg);
-    v->addWidget(new QLabel(QCoreApplication::translate("jp::write::FieldDialogs", "Bookmark name:"), &dlg));
+    v->addWidget(new QLabel(QCoreApplication::translate("jp::write::FieldDialogs", "Bookmark name"), &dlg));
     auto *name = new QLineEdit(&dlg);
     name->setObjectName(QStringLiteral("bookmarkName"));
     v->addWidget(name);
@@ -47,7 +47,7 @@ bool bookmarkDialog(QWidget *parent, WriteDoc *doc, PageView *view)
     list->setAccessibleName(QCoreApplication::translate("jp::write::FieldDialogs", "Bookmarks"));
     v->addWidget(list);
     auto *sortRow = new QHBoxLayout;
-    sortRow->addWidget(new QLabel(QCoreApplication::translate("jp::write::FieldDialogs", "Sort by:"), &dlg));
+    sortRow->addWidget(new QLabel(QCoreApplication::translate("jp::write::FieldDialogs", "Sort by"), &dlg));
     auto *byName = new QRadioButton(QCoreApplication::translate("jp::write::FieldDialogs", "Name"), &dlg);
     auto *byPlace = new QRadioButton(QCoreApplication::translate("jp::write::FieldDialogs", "Location"), &dlg);
     byName->setChecked(true);
@@ -64,7 +64,7 @@ bool bookmarkDialog(QWidget *parent, WriteDoc *doc, PageView *view)
     problem->setObjectName(QStringLiteral("bookmarkProblem"));
     problem->setStyleSheet(QStringLiteral("color: #b00020"));
     v->addWidget(problem);
-    auto *buttons = new QDialogButtonBox(&dlg);
+    auto *buttons = new jp::ButtonBox(&dlg);
     auto *add = buttons->addButton(QCoreApplication::translate("jp::write::FieldDialogs", "Add"), QDialogButtonBox::ActionRole);
     auto *del = buttons->addButton(QCoreApplication::translate("jp::write::FieldDialogs", "Delete"), QDialogButtonBox::ActionRole);
     auto *go = buttons->addButton(QCoreApplication::translate("jp::write::FieldDialogs", "Go To"), QDialogButtonBox::ActionRole);
@@ -145,16 +145,16 @@ bool crossReferenceDialog(QWidget *parent, WriteDoc *doc, PageView *view)
         if (!labels.contains(QString::fromLatin1(l), Qt::CaseInsensitive)) labels << QString::fromLatin1(l);
     for (const QString &l : std::as_const(labels)) types.push_back({l, RefKind::Caption, l});
     for (const Type &t : std::as_const(types)) type->addItem(t.text);
-    form->addRow(QCoreApplication::translate("jp::write::FieldDialogs", "Reference type:"), type);
+    form->addRow(QCoreApplication::translate("jp::write::FieldDialogs", "Reference type"), type);
     auto *what = new QComboBox(&dlg);
     what->setObjectName(QStringLiteral("refWhat"));
-    form->addRow(QCoreApplication::translate("jp::write::FieldDialogs", "Insert reference to:"), what);
+    form->addRow(QCoreApplication::translate("jp::write::FieldDialogs", "Insert reference to"), what);
     v->addLayout(form);
     auto *link = new QCheckBox(QCoreApplication::translate("jp::write::FieldDialogs", "Insert as hyperlink"), &dlg);
     link->setObjectName(QStringLiteral("refHyperlink"));
     link->setChecked(true);
     v->addWidget(link);
-    v->addWidget(new QLabel(QCoreApplication::translate("jp::write::FieldDialogs", "For which item:"), &dlg));
+    v->addWidget(new QLabel(QCoreApplication::translate("jp::write::FieldDialogs", "For which item"), &dlg));
     auto *items = new QListWidget(&dlg);
     items->setObjectName(QStringLiteral("refItems"));
     items->setAccessibleName(QCoreApplication::translate("jp::write::FieldDialogs", "Items"));
@@ -162,7 +162,7 @@ bool crossReferenceDialog(QWidget *parent, WriteDoc *doc, PageView *view)
     auto *problem = new QLabel(&dlg);
     problem->setStyleSheet(QStringLiteral("color: #b00020"));
     v->addWidget(problem);
-    auto *buttons = new QDialogButtonBox(&dlg);
+    auto *buttons = new jp::ButtonBox(&dlg);
     auto *insert = buttons->addButton(QCoreApplication::translate("jp::write::FieldDialogs", "Insert"), QDialogButtonBox::ActionRole);
     buttons->addButton(QDialogButtonBox::Close);
     v->addWidget(buttons);
@@ -224,7 +224,7 @@ bool fieldDialog(QWidget *parent, WriteDoc *doc, PageView *view)
     dlg.setObjectName(QStringLiteral("fieldDialog"));
     dlg.setWindowTitle(QCoreApplication::translate("jp::write::FieldDialogs", "Field"));
     auto *v = new QVBoxLayout(&dlg);
-    v->addWidget(new QLabel(QCoreApplication::translate("jp::write::FieldDialogs", "Field names:"), &dlg));
+    v->addWidget(new QLabel(QCoreApplication::translate("jp::write::FieldDialogs", "Field names"), &dlg));
     auto *list = new QListWidget(&dlg);
     list->setObjectName(QStringLiteral("fieldNames"));
     list->setAccessibleName(QCoreApplication::translate("jp::write::FieldDialogs", "Field names"));
@@ -257,14 +257,14 @@ bool fieldDialog(QWidget *parent, WriteDoc *doc, PageView *view)
                                     {QStringLiteral("Formula"), QStringLiteral("= 2 + 3")}};
     for (const Entry &e : entries) list->addItem(e.name);
     v->addWidget(list);
-    v->addWidget(new QLabel(QCoreApplication::translate("jp::write::FieldDialogs", "Field codes:"), &dlg));
+    v->addWidget(new QLabel(QCoreApplication::translate("jp::write::FieldDialogs", "Field codes"), &dlg));
     auto *code = new QLineEdit(&dlg);
     code->setObjectName(QStringLiteral("fieldCode"));
     v->addWidget(code);
     auto *preview = new QLabel(&dlg);
     preview->setObjectName(QStringLiteral("fieldPreview"));
     v->addWidget(preview);
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
     v->addWidget(buttons);
     QObject::connect(list, &QListWidget::currentRowChanged, &dlg, [&](int row) {
         if (row >= 0 && row < entries.size()) code->setText(entries[row].code);
@@ -291,7 +291,7 @@ QString editFieldDialog(QWidget *parent, const QString &codeNow)
     dlg.setObjectName(QStringLiteral("editFieldDialog"));
     dlg.setWindowTitle(QCoreApplication::translate("jp::write::FieldDialogs", "Edit Field"));
     auto *v = new QVBoxLayout(&dlg);
-    v->addWidget(new QLabel(QCoreApplication::translate("jp::write::FieldDialogs", "Field codes:"), &dlg));
+    v->addWidget(new QLabel(QCoreApplication::translate("jp::write::FieldDialogs", "Field codes"), &dlg));
     auto *code = new QLineEdit(codeNow, &dlg);
     code->setObjectName(QStringLiteral("fieldCode"));
     code->setMinimumWidth(360);
@@ -299,7 +299,7 @@ QString editFieldDialog(QWidget *parent, const QString &codeNow)
     auto *hint = new QLabel(&dlg);
     hint->setObjectName(QStringLiteral("fieldPreview"));
     v->addWidget(hint);
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
     v->addWidget(buttons);
     auto check = [&](const QString &t) {
         buttons->button(QDialogButtonBox::Ok)->setEnabled(!t.trimmed().isEmpty());
@@ -346,15 +346,15 @@ bool tableOfContentsDialog(QWidget *parent, WriteDoc *doc, PageView *view)
     levels->setObjectName(QStringLiteral("tocLevels"));
     levels->setRange(1, 9);
     levels->setValue(3);
-    form->addRow(QCoreApplication::translate("jp::write::FieldDialogs", "Tab leader:"), leader);
-    form->addRow(QCoreApplication::translate("jp::write::FieldDialogs", "Show levels:"), levels);
+    form->addRow(QCoreApplication::translate("jp::write::FieldDialogs", "Tab leader"), leader);
+    form->addRow(QCoreApplication::translate("jp::write::FieldDialogs", "Show levels"), levels);
     v->addLayout(form);
     QObject::connect(pages, &QCheckBox::toggled, &dlg, [&](bool on) {
         right->setEnabled(on);
         leader->setEnabled(on && right->isChecked());
     });
     QObject::connect(right, &QCheckBox::toggled, &dlg, [&](bool on) { leader->setEnabled(on && pages->isChecked()); });
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
     v->addWidget(buttons);
     QObject::connect(buttons, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
     QObject::connect(buttons, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
@@ -388,7 +388,7 @@ int updateTableDialog(QWidget *parent)
     only->setChecked(true);
     v->addWidget(only);
     v->addWidget(all);
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
     v->addWidget(buttons);
     QObject::connect(buttons, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
     QObject::connect(buttons, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);

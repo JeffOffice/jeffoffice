@@ -210,7 +210,7 @@ bool CrunchWindow::askShift(ShiftRequest *request)
         group->addButton(button, i);
         layout->addWidget(button);
     }
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
     layout->addWidget(buttons);
     connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
@@ -501,7 +501,7 @@ void CrunchWindow::setSizeDialog(bool column)
         value->setDecimals(2);
         value->setValue(request.value);
         form->addRow(column ? tr("Column width") : tr("Row height"), value);
-        auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+        auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
         layout->addWidget(buttons);
         connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
         connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
@@ -550,7 +550,7 @@ void CrunchWindow::defaultSizeDialog(bool column)
         auto *note = new QLabel(column ? tr("Columns that have no width of their own take this width.") : tr("Rows that have no height of their own take this height."));
         note->setWordWrap(true);
         layout->addWidget(note);
-        auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+        auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
         layout->addWidget(buttons);
         connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
         connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);

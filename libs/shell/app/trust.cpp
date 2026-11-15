@@ -179,7 +179,7 @@ TrustPage::TrustPage(const Applies &applies, QWidget *parent) : QWidget(parent)
         return l;
     };
     // Macros: not a choice.
-    form->addRow(tr("Macros:"), note(tr("Macros in a file are kept in it, and are never run. There is no setting to run them."), QStringLiteral("trustMacros")));
+    form->addRow(tr("Macros"), note(tr("Macros in a file are kept in it, and are never run. There is no setting to run them."), QStringLiteral("trustMacros")));
     auto choiceBox = [this](const QString &name, const QStringList &items, bool enabled) {
         auto *box = new QComboBox(this);
         box->setObjectName(name);
@@ -210,7 +210,7 @@ TrustPage::TrustPage(const Applies &applies, QWidget *parent) : QWidget(parent)
     m_outside->setCurrentIndex(outsideFilesReadOnly() ? 0 : 1);
     row(tr("Files from the internet or other computers:"), m_outside, true,
         tr("A file that was downloaded, or is on another computer, opens for reading only. The bar under it has Enable Editing for that one file, and Save As makes a copy you can change."), QString());
-    form->addRow(tr("Links that start a program:"), note(tr("These are always refused, and there is no setting to allow them. A link to a file on another computer is never followed without asking."), QStringLiteral("trustPrograms")));
+    form->addRow(tr("Links that start a program"), note(tr("These are always refused, and there is no setting to allow them. A link to a file on another computer is never followed without asking."), QStringLiteral("trustPrograms")));
     outer->addStretch(1);
 }
 

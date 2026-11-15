@@ -1,3 +1,4 @@
+#include "app/uistyle.h"
 #include "app/pivotpane.h"
 #include <algorithm>
 
@@ -577,11 +578,11 @@ GroupDialog::GroupDialog(const GroupChoice &c, QWidget *parent) : QDialog(parent
     m_start = new QLineEdit(c.startText, this);
     m_start->setObjectName(QStringLiteral("group.start"));
     m_start->setAccessibleName(tr("Starting at"));
-    form->addRow(tr("Starting at:"), m_start);
+    form->addRow(tr("Starting at"), m_start);
     m_end = new QLineEdit(c.endText, this);
     m_end->setObjectName(QStringLiteral("group.end"));
     m_end->setAccessibleName(tr("Ending at"));
-    form->addRow(tr("Ending at:"), m_end);
+    form->addRow(tr("Ending at"), m_end);
     if (c.isDate) {
         m_levels = new QListWidget(this);
         m_levels->setObjectName(QStringLiteral("group.levels"));
@@ -594,14 +595,14 @@ GroupDialog::GroupDialog(const GroupChoice &c, QWidget *parent) : QDialog(parent
             item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
             item->setCheckState(c.levels.contains(QLatin1String(p.first)) ? Qt::Checked : Qt::Unchecked);
         }
-        form->addRow(tr("By:"), m_levels);
+        form->addRow(tr("By"), m_levels);
     } else {
         m_step = new QLineEdit(c.stepText, this);
         m_step->setObjectName(QStringLiteral("group.step"));
         m_step->setAccessibleName(tr("By"));
-        form->addRow(tr("By:"), m_step);
+        form->addRow(tr("By"), m_step);
     }
-    auto *box = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
+    auto *box = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
     form->addRow(box);
     connect(box, &QDialogButtonBox::accepted, this, &QDialog::accept);
     connect(box, &QDialogButtonBox::rejected, this, &QDialog::reject);
@@ -635,21 +636,21 @@ CalculatedFieldDialog::CalculatedFieldDialog(const CalculatedFieldChoice &c, QWi
     m_name->setAccessibleName(tr("Name"));
     m_name->addItems(c.existingNames);
     m_name->setCurrentText(c.name);
-    form->addRow(tr("Name:"), m_name);
+    form->addRow(tr("Name"), m_name);
     m_formula = new QLineEdit(c.formula, this);
     m_formula->setObjectName(QStringLiteral("calc.formula"));
     m_formula->setAccessibleName(tr("Formula"));
     m_formula->setMinimumWidth(320);
-    form->addRow(tr("Formula:"), m_formula);
+    form->addRow(tr("Formula"), m_formula);
     m_fields = new QListWidget(this);
     m_fields->setObjectName(QStringLiteral("calc.fields"));
     m_fields->setAccessibleName(tr("Fields"));
     m_fields->addItems(c.fieldNames);
-    form->addRow(tr("Fields:"), m_fields);
+    form->addRow(tr("Fields"), m_fields);
     auto *hint = new QLabel(tr("Double-click a field to put its name in the formula. A field's name stands for its total in each cell."), this);
     hint->setWordWrap(true);
     form->addRow(hint);
-    auto *box = new QDialogButtonBox(this);
+    auto *box = new jp::ButtonBox(this);
     m_add = box->addButton(tr("Add"), QDialogButtonBox::AcceptRole);
     m_add->setObjectName(QStringLiteral("calc.add"));
     m_delete = box->addButton(tr("Delete"), QDialogButtonBox::DestructiveRole);
@@ -704,25 +705,25 @@ CalculatedItemDialog::CalculatedItemDialog(const CalculatedItemChoice &c, QWidge
     for (const CalculatedItemChoice::Field &f : c.fields) m_field->addItem(f.name);
     const int at = m_field->findText(c.field);
     if (at >= 0) m_field->setCurrentIndex(at);
-    form->addRow(tr("Field:"), m_field);
+    form->addRow(tr("Field"), m_field);
     m_name = new QComboBox(this);
     m_name->setEditable(true);
     m_name->setObjectName(QStringLiteral("calcItem.name"));
     m_name->setAccessibleName(tr("Name"));
-    form->addRow(tr("Name:"), m_name);
+    form->addRow(tr("Name"), m_name);
     m_formula = new QLineEdit(c.formula, this);
     m_formula->setObjectName(QStringLiteral("calcItem.formula"));
     m_formula->setAccessibleName(tr("Formula"));
     m_formula->setMinimumWidth(320);
-    form->addRow(tr("Formula:"), m_formula);
+    form->addRow(tr("Formula"), m_formula);
     m_items = new QListWidget(this);
     m_items->setObjectName(QStringLiteral("calcItem.items"));
     m_items->setAccessibleName(tr("Items"));
-    form->addRow(tr("Items:"), m_items);
+    form->addRow(tr("Items"), m_items);
     auto *hint = new QLabel(tr("Double-click an item to put its name in the formula. An item's name stands for its value in each cell."), this);
     hint->setWordWrap(true);
     form->addRow(hint);
-    auto *box = new QDialogButtonBox(this);
+    auto *box = new jp::ButtonBox(this);
     m_add = box->addButton(tr("Add"), QDialogButtonBox::AcceptRole);
     m_add->setObjectName(QStringLiteral("calcItem.add"));
     m_delete = box->addButton(tr("Delete"), QDialogButtonBox::DestructiveRole);
@@ -806,7 +807,7 @@ SolveOrderDialog::SolveOrderDialog(const SolveOrderChoice &c, QWidget *parent) :
     buttons->addWidget(down);
     buttons->addStretch(1);
     layout->addLayout(buttons);
-    auto *box = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
+    auto *box = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
     layout->addWidget(box);
     auto fill = [this](int select) {
         m_list->clear();
@@ -848,7 +849,7 @@ PivotOptionsDialog::PivotOptionsDialog(const PivotOptionsChoice &c, QWidget *par
         m_name = new QLineEdit(c.name, this);
         m_name->setObjectName(QStringLiteral("pivotOptions.name"));
         m_name->setAccessibleName(tr("Pivot table name"));
-        form->addRow(tr("Name:"), m_name);
+        form->addRow(tr("Name"), m_name);
         layout->addLayout(form);
         m_merge = check(tr("Merge and center cells with labels"), "pivotOptions.merge", c.mergeLabels);
         m_showError = check(tr("For error values show:"), "pivotOptions.showError", c.showError);
@@ -869,7 +870,7 @@ PivotOptionsDialog::PivotOptionsDialog(const PivotOptionsChoice &c, QWidget *par
         m_refresh = check(tr("Refresh the data when the file is opened"), "pivotOptions.refresh", c.refreshOnOpen);
     }
     m_generate = check(tr("Write GETPIVOTDATA when I click a value of a pivot table while typing a formula"), "pivotOptions.generate", c.generateGetPivotData);
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
     connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
     layout->addWidget(buttons);
@@ -905,18 +906,18 @@ FieldSettingsDialog::FieldSettingsDialog(const FieldSettings &settings, QWidget 
     auto *form = new QFormLayout(this);
     auto *source = new QLabel(settings.sourceName, this);
     source->setTextFormat(Qt::PlainText);
-    form->addRow(tr("Source name:"), source);
+    form->addRow(tr("Source name"), source);
     m_name = new QLineEdit(settings.name, this);
     m_name->setObjectName(QStringLiteral("field.name"));
     m_name->setAccessibleName(tr("Custom name"));
-    form->addRow(tr("Custom name:"), m_name);
+    form->addRow(tr("Custom name"), m_name);
     m_subtotals = new QComboBox(this);
     m_subtotals->setObjectName(QStringLiteral("field.subtotals"));
     m_subtotals->setAccessibleName(tr("Subtotals"));
     m_subtotals->addItem(tr("Automatic"), true);
     m_subtotals->addItem(tr("None"), false);
     m_subtotals->setCurrentIndex(settings.subtotals ? 0 : 1);
-    form->addRow(tr("Subtotals:"), m_subtotals);
+    form->addRow(tr("Subtotals"), m_subtotals);
     m_form = new QComboBox(this);
     m_form->setObjectName(QStringLiteral("field.form"));
     m_form->setAccessibleName(tr("Layout"));
@@ -924,7 +925,7 @@ FieldSettingsDialog::FieldSettingsDialog(const FieldSettings &settings, QWidget 
     m_form->addItem(tr("Outline form"), 1);
     m_form->addItem(tr("Tabular form"), 0);
     m_form->setCurrentIndex(settings.form == 2 ? 0 : settings.form == 1 ? 1 : 2);
-    form->addRow(tr("Show item labels in:"), m_form);
+    form->addRow(tr("Show item labels in"), m_form);
     m_blank = new QCheckBox(tr("Insert a blank line after each item"), this);
     m_blank->setObjectName(QStringLiteral("field.blank"));
     m_blank->setChecked(settings.blankRow);
@@ -943,13 +944,13 @@ FieldSettingsDialog::FieldSettingsDialog(const FieldSettings &settings, QWidget 
     m_sort->addItem(tr("Smallest to largest by a value"), 3);
     m_sort->addItem(tr("Largest to smallest by a value"), 4);
     m_sort->setCurrentIndex(settings.sortByData >= 0 ? (settings.sortByDescending ? 4 : 3) : settings.sort);
-    form->addRow(tr("Sort:"), m_sort);
+    form->addRow(tr("Sort"), m_sort);
     m_sortData = new QComboBox(this);
     m_sortData->setObjectName(QStringLiteral("field.sortData"));
     m_sortData->setAccessibleName(tr("Sort by this value"));
     for (int i = 0; i < settings.dataNames.size(); ++i) m_sortData->addItem(settings.dataNames[i], i);
     if (settings.sortByData >= 0) m_sortData->setCurrentIndex(settings.sortByData);
-    form->addRow(tr("by the value:"), m_sortData);
+    form->addRow(tr("by the value"), m_sortData);
     // filter
     m_filter = new QComboBox(this);
     m_filter->setObjectName(QStringLiteral("field.filter"));
@@ -963,20 +964,20 @@ FieldSettingsDialog::FieldSettingsDialog(const FieldSettings &settings, QWidget 
         {PivotFilter::ValueNotEquals, QT_TR_NOOP("Value does not equal")}, {PivotFilter::ValueBetween, QT_TR_NOOP("Value is between")},
         {PivotFilter::ValueNotBetween, QT_TR_NOOP("Value is not between")}, {PivotFilter::TopItems, QT_TR_NOOP("Top items (by a value)")}, {PivotFilter::BottomItems, QT_TR_NOOP("Bottom items (by a value)")}};
     for (const auto &k : kinds) m_filter->addItem(tr(k.second), int(k.first));
-    form->addRow(tr("Filter:"), m_filter);
+    form->addRow(tr("Filter"), m_filter);
     m_filterData = new QComboBox(this);
     m_filterData->setObjectName(QStringLiteral("field.filterData"));
     m_filterData->setAccessibleName(tr("Filter by this value"));
     for (int i = 0; i < settings.dataNames.size(); ++i) m_filterData->addItem(settings.dataNames[i], i);
-    form->addRow(tr("by the value:"), m_filterData);
+    form->addRow(tr("by the value"), m_filterData);
     m_text = new QLineEdit(this);
     m_text->setObjectName(QStringLiteral("field.filterText"));
     m_text->setAccessibleName(tr("Filter text or number"));
-    form->addRow(tr("Text or number:"), m_text);
+    form->addRow(tr("Text or number"), m_text);
     m_text2 = new QLineEdit(this);
     m_text2->setObjectName(QStringLiteral("field.filterText2"));
     m_text2->setAccessibleName(tr("Filter second number"));
-    form->addRow(tr("and:"), m_text2);
+    form->addRow(tr("and"), m_text2);
     m_items = new QListWidget(this);
     m_items->setObjectName(QStringLiteral("field.items"));
     m_items->setAccessibleName(tr("Items to show"));
@@ -985,8 +986,8 @@ FieldSettingsDialog::FieldSettingsDialog(const FieldSettings &settings, QWidget 
         w->setFlags(w->flags() | Qt::ItemIsUserCheckable);
         w->setCheckState(it.shown ? Qt::Checked : Qt::Unchecked);
     }
-    form->addRow(tr("Show these items:"), m_items);
-    auto *box = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
+    form->addRow(tr("Show these items"), m_items);
+    auto *box = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
     form->addRow(box);
     connect(box, &QDialogButtonBox::accepted, this, &QDialog::accept);
     connect(box, &QDialogButtonBox::rejected, this, &QDialog::reject);
@@ -1038,11 +1039,11 @@ void ValueFieldDialog::build(const ValueFieldSettings &settings)
     auto *form = new QFormLayout(this);
     m_source = new QLabel(settings.sourceName, this);
     m_source->setTextFormat(Qt::PlainText);   // (a field's name comes from a file)
-    form->addRow(tr("Source name:"), m_source);
+    form->addRow(tr("Source name"), m_source);
     m_name = new QLineEdit(settings.name, this);
     m_name->setObjectName(QStringLiteral("pivot.valueName"));
     m_name->setAccessibleName(tr("Custom name"));
-    form->addRow(tr("Custom name:"), m_name);
+    form->addRow(tr("Custom name"), m_name);
     m_functions = new QListWidget(this);
     m_functions->setObjectName(QStringLiteral("pivot.valueFunction"));
     m_functions->setAccessibleName(tr("Summarize value field by"));
@@ -1051,7 +1052,7 @@ void ValueFieldDialog::build(const ValueFieldSettings &settings)
         item->setData(Qt::UserRole, QString::fromLatin1(fn));
         if (settings.function == QLatin1String(fn)) m_functions->setCurrentItem(item);
     }
-    form->addRow(tr("Summarize value field by:"), m_functions);
+    form->addRow(tr("Summarize value field by"), m_functions);
     // Show Values As
     m_showAs = new QComboBox(this);
     m_showAs->setObjectName(QStringLiteral("pivot.showAs"));
@@ -1066,7 +1067,7 @@ void ValueFieldDialog::build(const ValueFieldSettings &settings)
         m_showAs->addItem(tr(k.second), QString::fromLatin1(k.first));
         if (settings.showAs == QLatin1String(k.first)) m_showAs->setCurrentIndex(m_showAs->count() - 1);
     }
-    form->addRow(tr("Show values as:"), m_showAs);
+    form->addRow(tr("Show values as"), m_showAs);
     m_baseField = new QComboBox(this);
     m_baseField->setObjectName(QStringLiteral("pivot.baseField"));
     m_baseField->setAccessibleName(tr("Base field"));
@@ -1074,11 +1075,11 @@ void ValueFieldDialog::build(const ValueFieldSettings &settings)
         m_baseField->addItem(b.name, b.field);
         if (b.field == settings.baseField) m_baseField->setCurrentIndex(m_baseField->count() - 1);
     }
-    form->addRow(tr("Base field:"), m_baseField);
+    form->addRow(tr("Base field"), m_baseField);
     m_baseItem = new QComboBox(this);
     m_baseItem->setObjectName(QStringLiteral("pivot.baseItem"));
     m_baseItem->setAccessibleName(tr("Base item"));
-    form->addRow(tr("Base item:"), m_baseItem);
+    form->addRow(tr("Base item"), m_baseItem);
     connect(m_baseField, &QComboBox::currentIndexChanged, this, [this] { baseChanged(); });
     connect(m_showAs, &QComboBox::currentIndexChanged, this, [this] {
         const QString k = m_showAs->currentData().toString();
@@ -1096,8 +1097,8 @@ void ValueFieldDialog::build(const ValueFieldSettings &settings)
     m_format->addItems({QString(), QStringLiteral("General"), QStringLiteral("0"), QStringLiteral("0.00"), QStringLiteral("#,##0"), QStringLiteral("#,##0.00"), QStringLiteral("$#,##0.00"),
                         QStringLiteral("0%"), QStringLiteral("0.00%"), QStringLiteral("m/d/yyyy")});
     m_format->setCurrentText(settings.numFmtCode);
-    form->addRow(tr("Number format (a code; empty keeps the cells' own):"), m_format);
-    auto *box = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
+    form->addRow(tr("Number format (a code; empty keeps the cells' own)"), m_format);
+    auto *box = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
     form->addRow(box);
     connect(box, &QDialogButtonBox::accepted, this, &QDialog::accept);
     connect(box, &QDialogButtonBox::rejected, this, &QDialog::reject);

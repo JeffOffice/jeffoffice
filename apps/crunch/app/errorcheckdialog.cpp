@@ -1,3 +1,4 @@
+#include "app/uistyle.h"
 #include "app/errorcheckdialog.h"
 
 #include <QDialogButtonBox>
@@ -24,7 +25,7 @@ ErrorCheckDialog::ErrorCheckDialog(const QStringList &cells, const QStringList &
     m_text->setMinimumWidth(360);
     layout->addWidget(m_title);
     layout->addWidget(m_text);
-    auto *buttons = new QDialogButtonBox(this);
+    auto *buttons = new jp::ButtonBox(this);
     m_ignore = buttons->addButton(tr("Ignore Error"), QDialogButtonBox::ActionRole);
     m_previous = buttons->addButton(tr("Previous"), QDialogButtonBox::ActionRole);
     m_next = buttons->addButton(tr("Next"), QDialogButtonBox::ActionRole);

@@ -42,11 +42,11 @@ FindDialog::FindDialog(QWidget *parent) : QDialog(parent)
     m_find->setAccessibleName(tr("Find what"));
     m_find->setMaxLength(255);
     m_find->setClearButtonEnabled(true);
-    form->addRow(tr("Find what:"), m_find);
+    form->addRow(tr("Find what"), m_find);
     m_replace = new QLineEdit;
     m_replace->setObjectName(QStringLiteral("replaceText"));
     m_replace->setAccessibleName(tr("Replace with"));
-    m_replaceLabel = new QLabel(tr("Replace with:"));
+    m_replaceLabel = new QLabel(tr("Replace with"));
     m_replaceLabel->setBuddy(m_replace);
     form->addRow(m_replaceLabel, m_replace);
     layout->addLayout(form);

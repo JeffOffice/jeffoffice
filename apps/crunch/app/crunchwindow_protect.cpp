@@ -216,7 +216,7 @@ void CrunchWindow::askPassword(const QString &what, const PasswordHash &hash, co
     } else {
         QInputDialog dialog(this);
         dialog.setWindowTitle(tr("Password"));
-        dialog.setLabelText(tr("Type the password for %1:").arg(what));
+        dialog.setLabelText(tr("Type the password for %1").arg(what));
         dialog.setTextEchoMode(QLineEdit::Password);
         if (dialog.exec() != QDialog::Accepted) return;
         req.password = dialog.textValue();

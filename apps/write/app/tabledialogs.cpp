@@ -44,7 +44,7 @@ void lengthRange(MeasureSpin *spin, bool negative)
 
 QDialogButtonBox *okCancel(QDialog *dlg, QVBoxLayout *v)
 {
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, dlg);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, dlg);
     v->addWidget(buttons);
     QObject::connect(buttons, &QDialogButtonBox::accepted, dlg, &QDialog::accept);
     QObject::connect(buttons, &QDialogButtonBox::rejected, dlg, &QDialog::reject);
@@ -59,7 +59,7 @@ bool insertTableDialog(QWidget *parent, NewTable *table)
     dlg.setObjectName(QStringLiteral("insertTableDialog"));
     dlg.setWindowTitle(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Insert Table")));
     auto *v = new QVBoxLayout(&dlg);
-    auto *size = new QGroupBox(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Table size")), &dlg);
+    auto *size = new jp::Section(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Table size")), &dlg);
     auto *form = new QFormLayout(size);
     auto *columns = new QSpinBox(size), *rows = new QSpinBox(size);
     columns->setObjectName(QStringLiteral("columns"));
@@ -71,7 +71,7 @@ bool insertTableDialog(QWidget *parent, NewTable *table)
     form->addRow(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Number of columns:")), columns);
     form->addRow(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Number of rows:")), rows);
     v->addWidget(size);
-    auto *fit = new QGroupBox(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Fit behavior")), &dlg);
+    auto *fit = new jp::Section(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Fit behavior")), &dlg);
     auto *fv = new QVBoxLayout(fit);
     auto *fixed = new QRadioButton(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Fixed column width")), fit), *contents = new QRadioButton(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Fit to contents")), fit), *window = new QRadioButton(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Fit to window")), fit);
     fixed->setObjectName(QStringLiteral("fixedWidth"));
@@ -364,7 +364,7 @@ bool bordersShadingDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
                                  {"right", QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Right"), BorderSide::Right},
                                  {"insideH", QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Between rows"), BorderSide::InsideH},
                                  {"insideV", QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Between columns"), BorderSide::InsideV}};
-    auto *sides = new QGroupBox(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Lines on")), bordersPage);
+    auto *sides = new jp::Section(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Lines on")), bordersPage);
     auto *sv = new QVBoxLayout(sides);
     QVector<QCheckBox *> boxes;
     for (const SideBox &s : sideBoxes) {
@@ -455,7 +455,7 @@ struct SeparatorChoice {
 
 SeparatorChoice addSeparatorChoice(QDialog *dlg, QVBoxLayout *v, bool withParagraphs, TextSeparator start, QChar startOther)
 {
-    auto *box = new QGroupBox(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Separate text at")), dlg);
+    auto *box = new jp::Section(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Separate text at")), dlg);
     auto *h = new QHBoxLayout(box);
     SeparatorChoice c;
     c.paragraphs = new QRadioButton(tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Paragraphs")), box);

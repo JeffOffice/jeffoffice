@@ -2,6 +2,7 @@
 // properties and the context menu of an object, and Copy, Cut, and Paste of a chart. Each change is one step of Undo (core/objectstate.h); the chart model it changes is
 // libs/office/sheet/chartedit.h's, and what it writes is libs/office/office/chart_write.h's.
 
+#include "app/uistyle.h"
 #include "app/crunchwindow.h"
 
 #include "app/chartdialogs.h"
@@ -652,7 +653,7 @@ void CrunchWindow::moveChartDialog()
         d.setObjectName(QStringLiteral("moveChartDialog"));
         d.setWindowTitle(tr("Move Chart"));
         auto *layout = new QVBoxLayout(&d);
-        auto *intro = new QLabel(tr("Choose where to put the chart:"), &d);
+        auto *intro = new QLabel(tr("Choose where to put the chart"), &d);
         layout->addWidget(intro);
         auto *newRadio = new QRadioButton(tr("New sheet:"), &d);
         auto *nameEdit = new QLineEdit(sheetName, &d);
@@ -678,7 +679,7 @@ void CrunchWindow::moveChartDialog()
         });
         nameEdit->setEnabled(canMakeSheet);
         combo->setEnabled(!canMakeSheet);
-        auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &d);
+        auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &d);
         connect(buttons, &QDialogButtonBox::accepted, &d, &QDialog::accept);
         connect(buttons, &QDialogButtonBox::rejected, &d, &QDialog::reject);
         layout->addWidget(buttons);
@@ -996,7 +997,7 @@ QMenu *CrunchWindow::buildChartElementsMenu(QWidget *owner)
                 QString text = now;
                 bool ok = false;
                 if (m_chartTextAsker) ok = m_chartTextAsker(tr("Value From Cells"), &text);
-                else text = QInputDialog::getText(this, tr("Value From Cells"), tr("The cells that hold the words for the labels, such as =Sheet1!$D$2:$D$4 (leave empty to take them away):"), QLineEdit::Normal, text, &ok);
+                else text = QInputDialog::getText(this, tr("Value From Cells"), tr("The cells that hold the words for the labels, such as =Sheet1!$D$2:$D$4 (leave empty to take them away)"), QLineEdit::Normal, text, &ok);
                 if (!ok) return;
                 text = text.trimmed();
                 if (text.startsWith(QLatin1Char('='))) text = text.mid(1).trimmed();
@@ -1027,7 +1028,7 @@ QMenu *CrunchWindow::buildChartElementsMenu(QWidget *owner)
                 QString code = parts.format;
                 bool ok = false;
                 if (m_chartTextAsker) ok = m_chartTextAsker(tr("Number Format"), &code);
-                else code = QInputDialog::getText(this, tr("Number Format"), tr("Format code for the numbers in the labels (leave empty to show the numbers as they are):"), QLineEdit::Normal, code, &ok);
+                else code = QInputDialog::getText(this, tr("Number Format"), tr("Format code for the numbers in the labels (leave empty to show the numbers as they are)"), QLineEdit::Normal, code, &ok);
                 if (!ok) return;
                 changePickedChart(tr("Data Labels"), [parts, code](Chart *c) {
                     ChartLabelParts now = parts;

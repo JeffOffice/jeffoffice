@@ -1,3 +1,4 @@
+#include "app/uistyle.h"
 #include "app/datatoolsdialogs.h"
 
 #include <QCheckBox>
@@ -47,7 +48,7 @@ TextToColumnsDialog::TextToColumnsDialog(const QStringList &lines, const QString
     m_comma->setChecked(true);
     for (QWidget *w : std::initializer_list<QWidget *>{m_tab, m_semicolon, m_comma, m_space, m_other, m_otherText}) separators->addWidget(w);
     separators->addStretch(1);
-    form->addRow(tr("Separators:"), separators);
+    form->addRow(tr("Separators"), separators);
     m_consecutive = new QCheckBox(tr("Treat separators in a row as one"), this);
     m_consecutive->setObjectName(QStringLiteral("splitConsecutive"));
     form->addRow(QString(), m_consecutive);
@@ -57,22 +58,22 @@ TextToColumnsDialog::TextToColumnsDialog(const QStringList &lines, const QString
     m_qualifier->addItem(tr("Double quote \""), QStringLiteral("\""));
     m_qualifier->addItem(tr("Single quote '"), QStringLiteral("'"));
     m_qualifier->addItem(tr("None"), QString());
-    form->addRow(tr("Text in quotes:"), m_qualifier);
+    form->addRow(tr("Text in quotes"), m_qualifier);
     m_breaks = new QLineEdit(this);
     m_breaks->setObjectName(QStringLiteral("splitBreaks"));
     m_breaks->setAccessibleName(tr("Places to split at"));
     m_breaks->setPlaceholderText(tr("For example 5, 12, 20"));
-    form->addRow(tr("Fixed places:"), m_breaks);
+    form->addRow(tr("Fixed places"), m_breaks);
     m_format = new QComboBox(this);
     m_format->setObjectName(QStringLiteral("splitFormat"));
     m_format->setAccessibleName(tr("Kind of value"));
     m_format->addItem(tr("General (numbers and dates are read)"));
     m_format->addItem(tr("Text (kept as it is)"));
-    form->addRow(tr("Each piece is:"), m_format);
+    form->addRow(tr("Each piece is"), m_format);
     m_destination = new QLineEdit(destination, this);
     m_destination->setObjectName(QStringLiteral("splitDestination"));
     m_destination->setAccessibleName(tr("First cell for the pieces"));
-    form->addRow(tr("Put the pieces from:"), m_destination);
+    form->addRow(tr("Put the pieces from"), m_destination);
     layout->addLayout(form);
     m_preview = new QLabel(this);
     m_preview->setObjectName(QStringLiteral("splitPreview"));
@@ -80,7 +81,7 @@ TextToColumnsDialog::TextToColumnsDialog(const QStringList &lines, const QString
     m_preview->setFrameShape(QFrame::StyledPanel);
     m_preview->setMinimumHeight(70);
     layout->addWidget(m_preview);
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
     layout->addWidget(buttons);
     connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);

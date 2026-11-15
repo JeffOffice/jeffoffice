@@ -106,7 +106,7 @@ QStringList pickIcons(QWidget *parent)
     v->addWidget(list, 1);
     auto *hint = plainLabel(new QLabel(&dlg));
     v->addWidget(hint);
-    auto *bb = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    auto *bb = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
     QPushButton *insert = bb->button(QDialogButtonBox::Ok);
     insert->setText(QCoreApplication::translate("IconPicker", "Insert"));
     v->addWidget(bb);

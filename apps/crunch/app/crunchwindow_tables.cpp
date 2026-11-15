@@ -406,9 +406,9 @@ void CrunchWindow::insertTableCommand()
         auto *names = new QCheckBox(tr("The first row holds the names of the columns"), &dialog);
         names->setChecked(headers);
         names->setObjectName(QStringLiteral("table.hasNames"));
-        form->addRow(tr("Cells:"), cells);
+        form->addRow(tr("Cells"), cells);
         form->addRow(names);
-        auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
+        auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
         form->addRow(buttons);
         connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
         connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
@@ -595,7 +595,7 @@ void CrunchWindow::newTableStyle()
         dialog.setObjectName(QStringLiteral("newTableStyleDialog"));
         auto *nameBox = new QLineEdit(tr("Table Style %1").arg(m_loaded->book->styles().tableStyles.size() + 1), &dialog);
         nameBox->setObjectName(QStringLiteral("tableStyleName"));
-        form->addRow(tr("Name:"), nameBox);
+        form->addRow(tr("Name"), nameBox);
         struct Row {
             QCheckBox *on;
             QToolButton *fill, *text;
@@ -636,7 +636,7 @@ void CrunchWindow::newTableStyle()
         Row *stripe = addRow(QStringLiteral("stripe"), tr("Row stripes"), true, QColor(0xE6EEF3), QColor(), false);
         Row *total = addRow(QStringLiteral("total"), tr("Totals row"), true, QColor(), QColor(), true);
         Row *first = addRow(QStringLiteral("first"), tr("First column"), false, QColor(), QColor(), true);
-        auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
+        auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
         connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
         connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
         form->addRow(buttons);

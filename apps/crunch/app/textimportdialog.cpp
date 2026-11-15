@@ -78,7 +78,7 @@ TextImportDialog::TextImportDialog(const TextImportRequest &request, QWidget *pa
     m_encoding->setAccessibleName(tr("Text encoding"));
     m_encoding->addItem(tr("Detect it"), int(Detect));
     for (const Code &c : kCodes) m_encoding->addItem(QCoreApplication::translate("jp::TextImportDialog", c.label), int(c.id));
-    form->addRow(tr("Text encoding:"), m_encoding);
+    form->addRow(tr("Text encoding"), m_encoding);
     auto *separators = new QHBoxLayout;
     auto box = [&](const QString &label, const QString &id, bool on) {
         auto *b = new QCheckBox(label, this);
@@ -104,10 +104,10 @@ TextImportDialog::TextImportDialog(const TextImportRequest &request, QWidget *pa
     QString others = use;
     for (const QChar c : QStringLiteral(",;\t |")) others.remove(c);
     m_other->setText(others);
-    separators->addWidget(new QLabel(tr("Other:"), this));
+    separators->addWidget(new QLabel(tr("Other"), this));
     separators->addWidget(m_other);
     separators->addStretch(1);
-    form->addRow(tr("Fields are separated by:"), separators);
+    form->addRow(tr("Fields are separated by"), separators);
     m_merge = new QCheckBox(tr("Count several separators in a row as one"), this);
     m_merge->setObjectName(QStringLiteral("sepMerge"));
     m_merge->setChecked(request.choices.mergeSeparators);
@@ -119,7 +119,7 @@ TextImportDialog::TextImportDialog(const TextImportRequest &request, QWidget *pa
     m_quote->addItem(tr("Single quote (')"), int('\''));
     m_quote->addItem(tr("None"), 0);
     m_quote->setCurrentIndex(std::max(0, m_quote->findData(request.choices.quote.unicode())));
-    form->addRow(tr("Text is in:"), m_quote);
+    form->addRow(tr("Text is in"), m_quote);
     m_fixed = new QCheckBox(tr("The columns have a fixed width"), this);
     m_fixed->setObjectName(QStringLiteral("textImportFixed"));
     m_fixed->setChecked(request.choices.fixedWidth);
@@ -131,7 +131,7 @@ TextImportDialog::TextImportDialog(const TextImportRequest &request, QWidget *pa
     QStringList places;
     for (const int b : request.choices.breaks) places << QString::number(b + 1);
     m_breaks->setText(places.join(QStringLiteral(", ")));
-    form->addRow(tr("Columns begin at:"), m_breaks);
+    form->addRow(tr("Columns begin at"), m_breaks);
     m_ruler = new QPlainTextEdit(this);
     m_ruler->setObjectName(QStringLiteral("textImportRuler"));
     m_ruler->setAccessibleName(tr("The first lines of the file. Click between two characters to start or end a column."));
@@ -140,7 +140,7 @@ TextImportDialog::TextImportDialog(const TextImportRequest &request, QWidget *pa
     m_ruler->setFont(QFontDatabase::systemFont(QFontDatabase::FixedFont));
     m_ruler->setMaximumHeight(110);
     m_ruler->viewport()->installEventFilter(this);
-    form->addRow(tr("Click to split:"), m_ruler);
+    form->addRow(tr("Click to split"), m_ruler);
     m_decimal = new QComboBox(this);
     m_decimal->setObjectName(QStringLiteral("textImportDecimal"));
     m_decimal->setAccessibleName(tr("Decimal mark"));
@@ -159,14 +159,14 @@ TextImportDialog::TextImportDialog(const TextImportRequest &request, QWidget *pa
     m_thousands->setCurrentIndex(std::max(0, m_thousands->findData(request.choices.thousandsMark.unicode())));
     auto *marks = new QHBoxLayout;
     marks->addWidget(m_decimal);
-    marks->addWidget(new QLabel(tr("Thousands:"), this));
+    marks->addWidget(new QLabel(tr("Thousands"), this));
     marks->addWidget(m_thousands);
     m_minus = new QCheckBox(tr("A minus sign may come after the number"), this);
     m_minus->setObjectName(QStringLiteral("textImportTrailingMinus"));
     m_minus->setChecked(request.choices.trailingMinus);
     marks->addWidget(m_minus);
     marks->addStretch(1);
-    form->addRow(tr("Decimal mark:"), marks);
+    form->addRow(tr("Decimal mark"), marks);
     m_formulas = new QCheckBox(tr("Read formulas"), this);
     m_formulas->setObjectName(QStringLiteral("textImportReadFormulas"));
     m_formulas->setToolTip(tr("A field that begins with an equals sign becomes a formula. Leave this off for a file you did not make, because a formula can be written to do harm."));
@@ -177,7 +177,7 @@ TextImportDialog::TextImportDialog(const TextImportRequest &request, QWidget *pa
     m_start->setAccessibleName(tr("First row to bring in"));
     m_start->setRange(1, 1000000);
     m_start->setValue(request.choices.firstRow + 1);
-    form->addRow(tr("Begin at row:"), m_start);
+    form->addRow(tr("Begin at row"), m_start);
     layout->addLayout(form);
     m_note = plainLabel(new QLabel(this));
     m_note->setObjectName(QStringLiteral("textImportNote"));
@@ -189,7 +189,7 @@ TextImportDialog::TextImportDialog(const TextImportRequest &request, QWidget *pa
     m_table->setEditTriggers(QAbstractItemView::NoEditTriggers);
     m_table->setSelectionMode(QAbstractItemView::NoSelection);
     layout->addWidget(m_table, 1);
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
     connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
     layout->addWidget(buttons);

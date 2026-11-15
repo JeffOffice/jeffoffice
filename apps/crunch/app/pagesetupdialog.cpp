@@ -144,7 +144,7 @@ HeaderFooterEditor::HeaderFooterEditor(bool header, const HeaderFooter &texts, c
     intro->setWordWrap(true);
     v->addWidget(intro);
     auto *top = new QHBoxLayout;
-    top->addWidget(new QLabel(tr("Text for:"), this));
+    top->addWidget(new QLabel(tr("Text for"), this));
     m_version = new QComboBox(this);
     m_version->setObjectName(QStringLiteral("hfVersion"));
     m_version->setAccessibleName(tr("Which pages this text is for"));
@@ -251,7 +251,7 @@ HeaderFooterEditor::HeaderFooterEditor(bool header, const HeaderFooter &texts, c
     m_preview->setTextFormat(Qt::PlainText);   // (header text comes from the file)
     m_preview->setFrameShape(QFrame::StyledPanel);
     v->addWidget(m_preview);
-    auto *ok = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
+    auto *ok = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
     connect(ok, &QDialogButtonBox::accepted, this, [this] {
         commit();
         accept();
@@ -458,7 +458,7 @@ PageSetupDialog::PageSetupDialog(const PageSetupRequest &request, QWidget *paren
     m_problem->setStyleSheet(QStringLiteral("color: #c42b1c;"));
     m_problem->hide();
     v->addWidget(m_problem);
-    m_buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
+    m_buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
     connect(m_buttons, &QDialogButtonBox::accepted, this, &PageSetupDialog::accept);
     connect(m_buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
     v->addWidget(m_buttons);
@@ -469,7 +469,7 @@ PageSetupDialog::PageSetupDialog(const PageSetupRequest &request, QWidget *paren
 void PageSetupDialog::buildPage(QWidget *tab)
 {
     auto *v = new QVBoxLayout(tab);
-    auto *direction = new QGroupBox(tr("Which way the paper turns"), tab);
+    auto *direction = new jp::Section(tr("Which way the paper turns"), tab);
     auto *dl = new QHBoxLayout(direction);
     m_portrait = new QRadioButton(tr("Tall"), direction);
     m_portrait->setObjectName(QStringLiteral("psPortrait"));
@@ -482,7 +482,7 @@ void PageSetupDialog::buildPage(QWidget *tab)
     dl->addStretch(1);
     (isLandscape(m_setup) ? m_landscape : m_portrait)->setChecked(true);
     v->addWidget(direction);
-    auto *size = new QGroupBox(tr("How big the cells print"), tab);
+    auto *size = new jp::Section(tr("How big the cells print"), tab);
     auto *g = new QGridLayout(size);
     m_scaleRadio = new QRadioButton(tr("Print at"), size);
     m_scaleRadio->setObjectName(QStringLiteral("psScaleRadio"));
@@ -531,7 +531,7 @@ void PageSetupDialog::buildPage(QWidget *tab)
         m_paper->addItem(m_setup.paperWidth > 0 ? tr("Size set by the file (%1 by %2 points)").arg(qRound(m_setup.paperWidth)).arg(qRound(m_setup.paperHeight)) : tr("Size set by the file"), m_setup.paperSize);
     }
     m_paper->setCurrentIndex(std::max(0, m_paper->findData(m_setup.paperSize)));
-    form->addRow(tr("Paper:"), m_paper);
+    form->addRow(tr("Paper"), m_paper);
     // the print quality: the dots per inch the printer is asked for (a value the file has that is not in the list is kept and listed)
     m_quality = new QComboBox(tab);
     m_quality->setObjectName(QStringLiteral("psQuality"));
@@ -539,7 +539,7 @@ void PageSetupDialog::buildPage(QWidget *tab)
     for (const int dpi : {150, 300, 600, 1200}) m_quality->addItem(tr("%1 dots per inch").arg(dpi), dpi);
     if (m_quality->findData(m_setup.horizontalDpi) < 0) m_quality->addItem(tr("%1 dots per inch").arg(m_setup.horizontalDpi), m_setup.horizontalDpi);
     m_quality->setCurrentIndex(std::max(0, m_quality->findData(m_setup.horizontalDpi)));
-    form->addRow(tr("Print quality:"), m_quality);
+    form->addRow(tr("Print quality"), m_quality);
     m_useFirst = new QCheckBox(tr("Start the page numbers at"), tab);
     m_useFirst->setObjectName(QStringLiteral("psUseFirst"));
     m_firstNumber = new QSpinBox(tab);
@@ -574,7 +574,7 @@ void PageSetupDialog::buildMargins(QWidget *tab)
     const bool metric = m_request.metric;
     auto *v = new QVBoxLayout(tab);
     auto *form = new QFormLayout;
-    static const char *const labels[6] = {QT_TR_NOOP("Left:"), QT_TR_NOOP("Right:"), QT_TR_NOOP("Top:"), QT_TR_NOOP("Bottom:"), QT_TR_NOOP("Header, from the top edge:"), QT_TR_NOOP("Footer, from the bottom edge:")};
+    static const char *const labels[6] = {QT_TR_NOOP("Left"), QT_TR_NOOP("Right"), QT_TR_NOOP("Top"), QT_TR_NOOP("Bottom"), QT_TR_NOOP("Header, from the top edge"), QT_TR_NOOP("Footer, from the bottom edge")};
     static const char *const names[6] = {"psMarginLeft", "psMarginRight", "psMarginTop", "psMarginBottom", "psMarginHeader", "psMarginFooter"};
     const double values[6] = {m_setup.margins.left, m_setup.margins.right, m_setup.margins.top, m_setup.margins.bottom, m_setup.margins.header, m_setup.margins.footer};
     for (int i = 0; i < 6; ++i) {
@@ -589,7 +589,7 @@ void PageSetupDialog::buildMargins(QWidget *tab)
         form->addRow(tr(labels[i]), m_margin[i]);
     }
     v->addLayout(form);
-    auto *center = new QGroupBox(tr("Put the cells in the middle of the page"), tab);
+    auto *center = new jp::Section(tr("Put the cells in the middle of the page"), tab);
     auto *cl = new QHBoxLayout(center);
     m_centerAcross = new QCheckBox(tr("Across the page"), center);
     m_centerAcross->setObjectName(QStringLiteral("psCenterAcross"));
@@ -674,8 +674,8 @@ void PageSetupDialog::buildHeaderFooter(QWidget *tab)
     hr->addWidget(editHeader);
     fr->addWidget(m_footerPreset, 1);
     fr->addWidget(editFooter);
-    form->addRow(tr("Header:"), hr);
-    form->addRow(tr("Footer:"), fr);
+    form->addRow(tr("Header"), hr);
+    form->addRow(tr("Footer"), fr);
     v->addLayout(form);
     m_headerShown = new QLabel(tab);
     m_headerShown->setObjectName(QStringLiteral("psHeaderShown"));
@@ -790,7 +790,7 @@ void PageSetupDialog::buildSheet(QWidget *tab)
     m_area->setPlaceholderText(tr("Everything that has something in it"));
     m_area->setToolTip(jp::plainToolTip(m_request.selectionText.isEmpty() ? tr("Cell ranges separated by commas, such as A1:D20, F1:G9. Each block prints on pages of its own.")
                                                           : tr("Cell ranges separated by commas, such as A1:D20, F1:G9 (the selection is %1). Each block prints on pages of its own.").arg(m_request.selectionText)));
-    form->addRow(tr("Cells to print:"), m_area);
+    form->addRow(tr("Cells to print"), m_area);
     QString rows, cols;
     if (m_setup.titles.hasRows) rows = QStringLiteral("%1:%2").arg(m_setup.titles.row1 + 1).arg(m_setup.titles.row2 + 1);
     if (m_setup.titles.hasCols) cols = QStringLiteral("%1:%2").arg(columnName(m_setup.titles.col1), columnName(m_setup.titles.col2));
@@ -802,10 +802,10 @@ void PageSetupDialog::buildSheet(QWidget *tab)
     m_titleCols->setObjectName(QStringLiteral("psTitleCols"));
     m_titleCols->setAccessibleName(tr("Columns to repeat at the left"));
     m_titleCols->setPlaceholderText(tr("None, or columns such as A:B"));
-    form->addRow(tr("Repeat these rows at the top:"), m_titleRows);
-    form->addRow(tr("Repeat these columns at the left:"), m_titleCols);
+    form->addRow(tr("Repeat these rows at the top"), m_titleRows);
+    form->addRow(tr("Repeat these columns at the left"), m_titleCols);
     v->addLayout(form);
-    auto *include = new QGroupBox(tr("Also print"), tab);
+    auto *include = new jp::Section(tr("Also print"), tab);
     auto *il = new QVBoxLayout(include);
     auto check = [&](const QString &name, const QString &text, bool on, const QString &tip = QString()) {
         auto *c = new QCheckBox(text, include);
@@ -829,7 +829,7 @@ void PageSetupDialog::buildSheet(QWidget *tab)
     m_notes->addItem(tr("Show them where they are"), int(PrintComments::AsDisplayed));
     m_notes->setCurrentIndex(std::max(0, m_notes->findData(int(m_setup.comments))));
     m_notes->setToolTip(tr("This is kept in the file for other programs. JeffCrunch does not read or print notes yet."));
-    form2->addRow(tr("Notes:"), m_notes);
+    form2->addRow(tr("Notes"), m_notes);
     m_errors = new QComboBox(tab);
     m_errors->setObjectName(QStringLiteral("psErrors"));
     m_errors->setAccessibleName(tr("Cells that show an error"));
@@ -838,9 +838,9 @@ void PageSetupDialog::buildSheet(QWidget *tab)
     m_errors->addItem(tr("Print two dashes"), int(PrintErrors::Dash));
     m_errors->addItem(tr("Print #N/A"), int(PrintErrors::NA));
     m_errors->setCurrentIndex(std::max(0, m_errors->findData(int(m_setup.errors))));
-    form2->addRow(tr("Cells that show an error:"), m_errors);
+    form2->addRow(tr("Cells that show an error"), m_errors);
     v->addLayout(form2);
-    auto *order = new QGroupBox(tr("Which page comes next"), tab);
+    auto *order = new jp::Section(tr("Which page comes next"), tab);
     auto *ol = new QHBoxLayout(order);
     m_down = new QRadioButton(tr("The one below, then the one to the right"), order);
     m_down->setObjectName(QStringLiteral("psDown"));

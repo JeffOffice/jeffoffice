@@ -31,10 +31,10 @@ bool askCompressPictures(QWidget *parent, const QString &allText, CompressChoice
     auto *crop = new QCheckBox(QCoreApplication::translate("jp::CompressPictures", "Delete cropped areas of pictures"), &dlg);
     crop->setObjectName(QStringLiteral("compressCrop"));
     crop->setChecked(true);
-    form->addRow(QCoreApplication::translate("jp::CompressPictures", "Target output:"), target);
+    form->addRow(QCoreApplication::translate("jp::CompressPictures", "Target output"), target);
     form->addRow(all);
     form->addRow(crop);
-    auto *bb = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    auto *bb = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
     form->addRow(bb);
     QObject::connect(bb, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
     QObject::connect(bb, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);

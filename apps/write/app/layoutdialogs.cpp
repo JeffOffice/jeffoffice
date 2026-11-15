@@ -1,5 +1,6 @@
 // The Layout and Design dialogs: More Columns, Line Numbers, and Page Borders (the work on the document is core/layoutops.h).
 
+#include "app/uistyle.h"
 #include "app/writedialogs.h"
 
 #include "app/widgets.h"
@@ -82,7 +83,7 @@ bool columnsDialog(QWidget *parent, WriteDoc *doc, int section)
     line->setObjectName(QStringLiteral("line"));
     line->setChecked(before.line);
     auto *form = new QFormLayout;
-    form->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Number of columns:"), count);
+    form->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Number of columns"), count);
     form->addRow(line);
     form->addRow(equal);
     v->addLayout(form);
@@ -111,7 +112,7 @@ bool columnsDialog(QWidget *parent, WriteDoc *doc, int section)
     v->addWidget(scroll, 1);
     auto *scope = scopeBox(&dlg);
     auto *scopeForm = new QFormLayout;
-    scopeForm->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Apply to:"), scope);
+    scopeForm->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Apply to"), scope);
     v->addLayout(scopeForm);
     // The rows shown are the columns there are; for equal columns only the spacing is free, the first row's, which all the others copy.
     auto refresh = [=] {
@@ -159,7 +160,7 @@ bool columnsDialog(QWidget *parent, WriteDoc *doc, int section)
     preset(QCoreApplication::translate("jp::write::LayoutDialogs", "Left"), 2, 1.0 / 3, 2.0 / 3);
     preset(QCoreApplication::translate("jp::write::LayoutDialogs", "Right"), 2, 2.0 / 3, 1.0 / 3);
     refresh();
-    auto *bb = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    auto *bb = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
     v->addWidget(bb);
     QObject::connect(bb, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
     QObject::connect(bb, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
@@ -196,10 +197,10 @@ bool alignmentTabDialog(QWidget *parent, QString *alignment, QString *relativeTo
     auto *lead = choice("leader", {{QCoreApplication::translate("jp::write::LayoutDialogs", "None"), QStringLiteral("none")}, {QCoreApplication::translate("jp::write::LayoutDialogs", "Dots"), QStringLiteral("dot")},
                                    {QCoreApplication::translate("jp::write::LayoutDialogs", "Dashes"), QStringLiteral("hyphen")}, {QCoreApplication::translate("jp::write::LayoutDialogs", "Line"), QStringLiteral("underscore")},
                                    {QCoreApplication::translate("jp::write::LayoutDialogs", "Middle dots"), QStringLiteral("middleDot")}}, *leader);
-    form->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Alignment:"), where);
-    form->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Align relative to:"), from);
-    form->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Leader:"), lead);
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    form->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Alignment"), where);
+    form->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Align relative to"), from);
+    form->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Leader"), lead);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
     form->addRow(buttons);
     QObject::connect(buttons, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
     QObject::connect(buttons, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
@@ -227,9 +228,9 @@ bool hyphenationDialog(QWidget *parent, double *zone, int *limit)
     n->setRange(0, 1000);
     n->setSpecialValueText(QCoreApplication::translate("jp::write::LayoutDialogs", "No limit"));
     n->setValue(*limit);
-    form->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Hyphenation zone:"), z);
-    form->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Limit consecutive hyphens to:"), n);
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    form->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Hyphenation zone"), z);
+    form->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Limit consecutive hyphens to"), n);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
     form->addRow(buttons);
     QObject::connect(buttons, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
     QObject::connect(buttons, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
@@ -268,19 +269,19 @@ bool lineNumbersDialog(QWidget *parent, WriteDoc *doc, int section)
     restart->addItem(QCoreApplication::translate("jp::write::LayoutDialogs", "Restart each section"));
     restart->addItem(QCoreApplication::translate("jp::write::LayoutDialogs", "Continuous"));
     restart->setCurrentIndex(int(before.restart));
-    form->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Start at:"), start);
-    form->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "From text:"), distance);
-    form->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Count by:"), by);
-    form->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Numbering:"), restart);
+    form->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Start at"), start);
+    form->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "From text"), distance);
+    form->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Count by"), by);
+    form->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Numbering"), restart);
     auto *scope = scopeBox(&dlg);
-    form->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Apply to:"), scope);
+    form->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Apply to"), scope);
     v->addLayout(form);
     auto enable = [=] {
         for (QWidget *w : {static_cast<QWidget *>(start), static_cast<QWidget *>(by), static_cast<QWidget *>(distance), static_cast<QWidget *>(restart)}) w->setEnabled(on->isChecked());
     };
     QObject::connect(on, &QCheckBox::toggled, &dlg, enable);
     enable();
-    auto *bb = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    auto *bb = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
     v->addWidget(bb);
     QObject::connect(bb, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
     QObject::connect(bb, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
@@ -302,7 +303,7 @@ bool pageBordersDialog(QWidget *parent, WriteDoc *doc, int section)
     dlg.setObjectName(QStringLiteral("pageBordersDialog"));
     dlg.setWindowTitle(QCoreApplication::translate("jp::write::LayoutDialogs", "Page Borders"));
     auto *v = new QVBoxLayout(&dlg);
-    auto *sides = new QGroupBox(QCoreApplication::translate("jp::write::LayoutDialogs", "Setting"), &dlg);
+    auto *sides = new jp::Section(QCoreApplication::translate("jp::write::LayoutDialogs", "Setting"), &dlg);
     auto *sv = new QHBoxLayout(sides);
     auto side = [&](const char *name, const QString &text, bool on) {
         auto *c = new QCheckBox(text, sides);
@@ -363,16 +364,16 @@ bool pageBordersDialog(QWidget *parent, WriteDoc *doc, int section)
     show->addItem(QCoreApplication::translate("jp::write::LayoutDialogs", "This section, first page only"), QStringLiteral("firstPage"));
     show->addItem(QCoreApplication::translate("jp::write::LayoutDialogs", "This section, all except first page"), QStringLiteral("notFirstPage"));
     show->setCurrentIndex(std::max(0, show->findData(before.display)));
-    form->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Style:"), style);
-    form->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Width:"), width);
-    form->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Color:"), color);
-    form->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Distance:"), space);
-    form->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Measure from:"), from);
-    form->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Pages:"), show);
+    form->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Style"), style);
+    form->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Width"), width);
+    form->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Color"), color);
+    form->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Distance"), space);
+    form->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Measure from"), from);
+    form->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Pages"), show);
     auto *scope = scopeBox(&dlg);
-    form->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Apply to:"), scope);
+    form->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Apply to"), scope);
     v->addLayout(form);
-    auto *bb = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    auto *bb = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
     v->addWidget(bb);
     QObject::connect(bb, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
     QObject::connect(bb, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
@@ -406,9 +407,9 @@ bool pageNumberFormatDialog(QWidget *parent, WriteDoc *doc, int section)
     format->setAccessibleName(QCoreApplication::translate("jp::write::LayoutDialogs", "Number format"));
     for (const auto &f : pageNumberFormats()) format->addItem(f.second, f.first);
     format->setCurrentIndex(std::max(0, format->findData(before.format)));
-    form->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Number format:"), format);
+    form->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Number format"), format);
     v->addLayout(form);
-    auto *chapter = new QGroupBox(QCoreApplication::translate("jp::write::LayoutDialogs", "Include chapter number"), &dlg);
+    auto *chapter = new jp::Section(QCoreApplication::translate("jp::write::LayoutDialogs", "Include chapter number"), &dlg);
     chapter->setObjectName(QStringLiteral("chapter"));
     chapter->setCheckable(true);
     chapter->setChecked(before.chapterStyle > 0);
@@ -427,10 +428,10 @@ bool pageNumberFormatDialog(QWidget *parent, WriteDoc *doc, int section)
     separator->addItem(QString(QChar(0x2014)) + QCoreApplication::translate("jp::write::LayoutDialogs", " (em dash)"), QStringLiteral("emDash"));
     separator->addItem(QString(QChar(0x2013)) + QCoreApplication::translate("jp::write::LayoutDialogs", " (en dash)"), QStringLiteral("enDash"));
     separator->setCurrentIndex(std::max(0, separator->findData(before.chapterSeparator)));
-    chapterForm->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Chapter starts with style:"), style);
-    chapterForm->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Use separator:"), separator);
+    chapterForm->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Chapter starts with style"), style);
+    chapterForm->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Use separator"), separator);
     v->addWidget(chapter);
-    auto *numbering = new QGroupBox(QCoreApplication::translate("jp::write::LayoutDialogs", "Page numbering"), &dlg);
+    auto *numbering = new jp::Section(QCoreApplication::translate("jp::write::LayoutDialogs", "Page numbering"), &dlg);
     auto *numberingLayout = new QVBoxLayout(numbering);
     auto *carry = new QRadioButton(QCoreApplication::translate("jp::write::LayoutDialogs", "Continue from previous section"), numbering);
     carry->setObjectName(QStringLiteral("continue"));
@@ -454,9 +455,9 @@ bool pageNumberFormatDialog(QWidget *parent, WriteDoc *doc, int section)
     v->addWidget(numbering);
     auto *scopeRow = new QFormLayout;
     auto *scope = scopeBox(&dlg);
-    scopeRow->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Apply to:"), scope);
+    scopeRow->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Apply to"), scope);
     v->addLayout(scopeRow);
-    auto *bb = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    auto *bb = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
     v->addWidget(bb);
     QObject::connect(bb, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
     QObject::connect(bb, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
@@ -500,12 +501,12 @@ bool dropCapDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     letters->setObjectName(QStringLiteral("letters"));
     letters->setRange(1, kMostDropCapChars);
     letters->setValue(before.chars);
-    form->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Position:"), position);
+    form->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Position"), position);
     form->addRow(useFont, font);
-    form->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Lines to drop:"), lines);
-    form->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Letters:"), letters);
+    form->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Lines to drop"), lines);
+    form->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Letters"), letters);
     v->addLayout(form);
-    auto *bb = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    auto *bb = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
     v->addWidget(bb);
     QObject::connect(bb, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
     QObject::connect(bb, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
@@ -559,14 +560,14 @@ bool watermarkDialog(QWidget *parent, WriteDoc *doc)
     layout->addItem(QCoreApplication::translate("jp::write::LayoutDialogs", "Diagonal"));
     layout->addItem(QCoreApplication::translate("jp::write::LayoutDialogs", "Horizontal"));
     layout->setCurrentIndex(before.diagonal ? 0 : 1);
-    form->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Text:"), text);
-    form->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Font:"), font);
-    form->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Size:"), size);
-    form->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Color:"), color);
+    form->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Text"), text);
+    form->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Font"), font);
+    form->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Size"), size);
+    form->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Color"), color);
     form->addRow(QString(), light);
-    form->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Layout:"), layout);
+    form->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Layout"), layout);
     v->addLayout(form);
-    auto *bb = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    auto *bb = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
     v->addWidget(bb);
     QObject::connect(bb, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
     QObject::connect(bb, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
@@ -596,7 +597,7 @@ bool dateTimeDialog(QWidget *parent, WriteDoc *doc, PageView *view)
     dlg.setObjectName(QStringLiteral("dateTimeDialog"));
     dlg.setWindowTitle(QCoreApplication::translate("jp::write::LayoutDialogs", "Date and Time"));
     auto *v = new QVBoxLayout(&dlg);
-    v->addWidget(new QLabel(QCoreApplication::translate("jp::write::LayoutDialogs", "Available formats:"), &dlg));
+    v->addWidget(new QLabel(QCoreApplication::translate("jp::write::LayoutDialogs", "Available formats"), &dlg));
     auto *list = new QListWidget(&dlg);
     list->setObjectName(QStringLiteral("formats"));
     for (const Form &f : forms) {
@@ -611,7 +612,7 @@ bool dateTimeDialog(QWidget *parent, WriteDoc *doc, PageView *view)
     update->setObjectName(QStringLiteral("update"));
     update->setChecked(true);
     v->addWidget(update);
-    auto *bb = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    auto *bb = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
     v->addWidget(bb);
     QObject::connect(bb, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
     QObject::connect(bb, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);

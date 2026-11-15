@@ -1,3 +1,4 @@
+#include "app/uistyle.h"
 #include "app/advancedfilterdialog.h"
 
 #include <QCheckBox>
@@ -37,14 +38,14 @@ AdvancedFilterDialog::AdvancedFilterDialog(const QString &list, QWidget *parent)
     m_copyTo->setObjectName(QStringLiteral("filterCopyTo"));
     m_copyTo->setAccessibleName(tr("Copy to"));
     m_copyTo->setEnabled(false);
-    form->addRow(tr("List range:"), m_list);
-    form->addRow(tr("Conditions range:"), m_criteria);
-    form->addRow(tr("Copy to:"), m_copyTo);
+    form->addRow(tr("List range"), m_list);
+    form->addRow(tr("Conditions range"), m_criteria);
+    form->addRow(tr("Copy to"), m_copyTo);
     layout->addLayout(form);
     m_unique = new QCheckBox(tr("Leave out rows that repeat an earlier one"), this);
     m_unique->setObjectName(QStringLiteral("filterUnique"));
     layout->addWidget(m_unique);
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
     connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
     layout->addWidget(buttons);

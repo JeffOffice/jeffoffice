@@ -79,7 +79,7 @@ void SlicerPane::setEntries(const QVector<Entry> &entries)
         QString shownCaption = e.caption;
         shownCaption.replace(QLatin1Char('&'), QStringLiteral("&&"));
         m_captions << shownCaption;
-        auto *box = new QGroupBox(shownCaption, m_body);
+        auto *box = new jp::Section(shownCaption, m_body);
         auto *inner = new QVBoxLayout(box);
         m_buttons.append(QVector<QAbstractButton *>());
         if (e.timeline) {

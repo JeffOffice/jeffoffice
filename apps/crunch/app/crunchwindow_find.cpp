@@ -403,10 +403,10 @@ void CrunchWindow::goToDialog()
         auto *edit = new QLineEdit;
         edit->setAccessibleName(tr("Reference"));
         auto *form = new QFormLayout;
-        form->addRow(tr("Go to:"), names);
-        form->addRow(tr("Reference:"), edit);
+        form->addRow(tr("Go to"), names);
+        form->addRow(tr("Reference"), edit);
         layout->addLayout(form);
-        auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+        auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
         auto *special = buttons->addButton(tr("Special…"), QDialogButtonBox::ActionRole);
         layout->addWidget(buttons);
         connect(names, &QListWidget::currentTextChanged, edit, &QLineEdit::setText);
@@ -462,7 +462,7 @@ void CrunchWindow::goToSpecialDialog()
             group->addButton(button, id++);
             layout->addWidget(button);
         }
-        auto *which = new QGroupBox(tr("For constants and formulas, include"));
+        auto *which = new jp::Section(tr("For constants and formulas, include"));
         auto *whichLayout = new QVBoxLayout(which);
         auto *numbers = new QCheckBox(tr("Numbers"));
         auto *text = new QCheckBox(tr("Text"));
@@ -475,7 +475,7 @@ void CrunchWindow::goToSpecialDialog()
         layout->addWidget(which);
         auto *same = new QCheckBox(tr("For a rule for what may be entered: only the same rule as the cell with the cursor"));
         layout->addWidget(same);
-        auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+        auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
         layout->addWidget(buttons);
         connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
         connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);

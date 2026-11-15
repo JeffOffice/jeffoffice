@@ -1,6 +1,8 @@
 #pragma once
 // Remove Duplicates asks which columns say that a row repeats: a box for each column of the table or range (all on) in a scroll area, so very many columns fit.
 
+#include "app/uistyle.h"
+
 #include <QCheckBox>
 #include <QCoreApplication>
 #include <QDialog>
@@ -87,7 +89,7 @@ private:
         layout->addLayout(row);
         QObject::connect(all, &QPushButton::clicked, this, [this] { checkAll(true); });
         QObject::connect(none, &QPushButton::clicked, this, [this] { checkAll(false); });
-        auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
+        auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
         QObject::connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
         QObject::connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
         layout->addWidget(buttons);

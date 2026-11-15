@@ -57,7 +57,7 @@ EditLinksDialog::EditLinksDialog(crunch::EditSession *session, const QString &ba
     row->addStretch(1);
     layout->addLayout(row);
     auto *startRow = new QHBoxLayout;
-    auto *startLabel = new QLabel(tr("When this workbook opens:"), this);
+    auto *startLabel = new QLabel(tr("When this workbook opens"), this);
     m_startup = new QComboBox(this);
     m_startup->setObjectName(QStringLiteral("editLinksStartup"));
     m_startup->addItem(tr("Ask whether to update the links"), int(crunch::EditSession::UpdateLinks::Ask));
@@ -77,7 +77,7 @@ EditLinksDialog::EditLinksDialog(crunch::EditSession *session, const QString &ba
         }
         Q_EMIT linksChanged();
     });
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Close, this);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Close, this);
     layout->addWidget(buttons);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
     connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);

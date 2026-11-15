@@ -111,23 +111,23 @@ bool askBarcode(QWidget *p, const QJsonObject &was, QJsonObject *out, bool forFi
     type->addItems({QCoreApplication::translate("BarcodeDialog", "Book (ISBN)"), QStringLiteral("EAN-13"), QStringLiteral("UPC-A"), QStringLiteral("EAN-8"),
                     QCoreApplication::translate("BarcodeDialog", "Code 128 (letters and digits)"), QCoreApplication::translate("BarcodeDialog", "Code 39 (capitals and digits)"), QCoreApplication::translate("BarcodeDialog", "QR code (any text, such as a web address)")});
     type->setCurrentIndex(std::clamp(setting("type", 0).toInt(), 0, int(Type::Qr)));
-    form->addRow(QCoreApplication::translate("BarcodeDialog", "Type:"), type);
+    form->addRow(QCoreApplication::translate("BarcodeDialog", "Type"), type);
     auto *data = new QLineEdit(&dlg);
     data->setText(setting("data", QString()).toString());
     data->setMinimumWidth(260);
-    form->addRow(QCoreApplication::translate("BarcodeDialog", "ISBN:"), data);
+    form->addRow(QCoreApplication::translate("BarcodeDialog", "ISBN"), data);
     auto *addOn = new QLineEdit(&dlg);
     addOn->setPlaceholderText(QCoreApplication::translate("BarcodeDialog", "none, or 2 or 5 digits"));
-    form->addRow(QCoreApplication::translate("BarcodeDialog", "Add-on:"), addOn);
+    form->addRow(QCoreApplication::translate("BarcodeDialog", "Add-on"), addOn);
     auto *qrLevel = new QComboBox(&dlg);
     qrLevel->addItems({QCoreApplication::translate("BarcodeDialog", "Low (repairs 7% damage)"), QCoreApplication::translate("BarcodeDialog", "Medium (15%)"), QCoreApplication::translate("BarcodeDialog", "Quartile (25%)"),
                        QCoreApplication::translate("BarcodeDialog", "High (30%)")});
     qrLevel->setCurrentIndex(std::clamp(setting("qrLevel", 1).toInt(), 0, 3));
-    form->addRow(QCoreApplication::translate("BarcodeDialog", "Error correction:"), qrLevel);
+    form->addRow(QCoreApplication::translate("BarcodeDialog", "Error correction"), qrLevel);
     v->addLayout(form);
 
     // A book's price add-on.
-    auto *price = new QGroupBox(QCoreApplication::translate("BarcodeDialog", "Price add-on"), &dlg);
+    auto *price = new jp::Section(QCoreApplication::translate("BarcodeDialog", "Price add-on"), &dlg);
     auto *pv = new QVBoxLayout(price);
     auto *noAddOn = new QRadioButton(QCoreApplication::translate("BarcodeDialog", "No add-on"), price);
     auto *withPrice = new QRadioButton(QCoreApplication::translate("BarcodeDialog", "Price:"), price);
@@ -155,7 +155,7 @@ bool askBarcode(QWidget *p, const QJsonObject &was, QJsonObject *out, bool forFi
     group->button(std::clamp(setting("priceMode", 1).toInt(), 0, 2))->setChecked(true);
     v->addWidget(price);
 
-    auto *size = new QGroupBox(QCoreApplication::translate("BarcodeDialog", "Size"), &dlg);
+    auto *size = new jp::Section(QCoreApplication::translate("BarcodeDialog", "Size"), &dlg);
     auto *sf = new QFormLayout(size);
     auto *mag = new QSpinBox(size);
     mag->setRange(50, 300);
@@ -169,8 +169,8 @@ bool askBarcode(QWidget *p, const QJsonObject &was, QJsonObject *out, bool forFi
     height->setValue(setting("height", 100).toInt());
     height->setToolTip(QCoreApplication::translate("BarcodeDialog", "Shorter bars save room; scanners need most of the standard height."));
     height->setFixedWidth(110);
-    sf->addRow(QCoreApplication::translate("BarcodeDialog", "Magnification:"), mag);
-    sf->addRow(QCoreApplication::translate("BarcodeDialog", "Bar height:"), height);
+    sf->addRow(QCoreApplication::translate("BarcodeDialog", "Magnification"), mag);
+    sf->addRow(QCoreApplication::translate("BarcodeDialog", "Bar height"), height);
     v->addWidget(size);
     auto *showText = new QCheckBox(QCoreApplication::translate("BarcodeDialog", "Print the digits"), &dlg);
     showText->setChecked(setting("text", true).toBool());
@@ -194,7 +194,7 @@ bool askBarcode(QWidget *p, const QJsonObject &was, QJsonObject *out, bool forFi
     problem->setStyleSheet(QStringLiteral("color:#c0392b;"));
     problem->setWordWrap(true);
     v->addWidget(problem);
-    auto *bb = new QDialogButtonBox(QDialogButtonBox::Cancel, &dlg);
+    auto *bb = new jp::ButtonBox(QDialogButtonBox::Cancel, &dlg);
     QPushButton *insert = bb->addButton(editing ? QCoreApplication::translate("BarcodeDialog", "Update") : QCoreApplication::translate("BarcodeDialog", "Insert"), QDialogButtonBox::AcceptRole);
     QObject::connect(bb, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
     QObject::connect(bb, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);

@@ -1,5 +1,6 @@
 // The dialog boxes of the Mailings tab (app/maildialogs.h).
 
+#include "app/uistyle.h"
 #include "app/maildialogs.h"
 
 #include "core/mergeops.h"
@@ -66,7 +67,7 @@ bool addressBlockDialog(QWidget *parent, const MergeSource &data, const QHash<QS
     QObject::connect(text, &QPlainTextEdit::textChanged, &d, update);
     QObject::connect(country, &QLineEdit::textChanged, &d, update);
     update();
-    auto *bb = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &d);
+    auto *bb = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &d);
     QObject::connect(bb, &QDialogButtonBox::accepted, &d, &QDialog::accept);
     QObject::connect(bb, &QDialogButtonBox::rejected, &d, &QDialog::reject);
     v->addWidget(bb);
@@ -101,7 +102,7 @@ bool greetingLineDialog(QWidget *parent, const MergeSource &data, const QHash<QS
     QObject::connect(formats, &QComboBox::currentTextChanged, &d, update);
     QObject::connect(other, &QLineEdit::textChanged, &d, update);
     update();
-    auto *bb = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &d);
+    auto *bb = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &d);
     QObject::connect(bb, &QDialogButtonBox::accepted, &d, &QDialog::accept);
     QObject::connect(bb, &QDialogButtonBox::rejected, &d, &QDialog::reject);
     v->addWidget(bb);
@@ -134,7 +135,7 @@ bool matchFieldsDialog(QWidget *parent, const MergeSource &data, QHash<QString, 
         form->addRow(labels.value(logical) + QLatin1Char(':'), box);
     }
     v->addLayout(form);
-    auto *bb = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &d);
+    auto *bb = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &d);
     QObject::connect(bb, &QDialogButtonBox::accepted, &d, &QDialog::accept);
     QObject::connect(bb, &QDialogButtonBox::rejected, &d, &QDialog::reject);
     v->addWidget(bb);
@@ -185,7 +186,7 @@ bool ruleDialog(QWidget *parent, const QString &rule, const QStringList &columns
         form->addRow(tr(QT_TRANSLATE_NOOP("jp::write::MailDialogs", "Bookmark:")), first);
         form->addRow(tr(QT_TRANSLATE_NOOP("jp::write::MailDialogs", "Value:")), second);
     }
-    auto *bb = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &d);
+    auto *bb = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &d);
     QObject::connect(bb, &QDialogButtonBox::accepted, &d, &QDialog::accept);
     QObject::connect(bb, &QDialogButtonBox::rejected, &d, &QDialog::reject);
     form->addRow(bb);
@@ -237,7 +238,7 @@ bool messageDialog(QWidget *parent, const QStringList &columns, QString *column,
         if (!dir.isEmpty()) where->setText(dir);
     });
     v->addLayout(form);
-    auto *bb = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &d);
+    auto *bb = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &d);
     QObject::connect(bb, &QDialogButtonBox::accepted, &d, &QDialog::accept);
     QObject::connect(bb, &QDialogButtonBox::rejected, &d, &QDialog::reject);
     v->addWidget(bb);
@@ -271,7 +272,7 @@ bool envelopeDialog(QWidget *parent, bool merging, EnvelopeChoice *choice)
     v->addLayout(form);
     QObject::connect(block, &QCheckBox::toggled, delivery, &QWidget::setDisabled);
     delivery->setDisabled(block->isChecked());
-    auto *bb = new QDialogButtonBox(QDialogButtonBox::Cancel, &d);
+    auto *bb = new jp::ButtonBox(QDialogButtonBox::Cancel, &d);
     auto *add = bb->addButton(tr(QT_TRANSLATE_NOOP("jp::write::MailDialogs", "Add to Document")), QDialogButtonBox::AcceptRole);
     auto *print = bb->addButton(tr(QT_TRANSLATE_NOOP("jp::write::MailDialogs", "Print")), QDialogButtonBox::AcceptRole);
     bool printNow = false;
@@ -359,7 +360,7 @@ bool labelsDialog(QWidget *parent, bool merging, LabelChoice *choice)
     v->addLayout(form);
     QObject::connect(block, &QCheckBox::toggled, address, &QWidget::setDisabled);
     address->setDisabled(block->isChecked());
-    auto *bb = new QDialogButtonBox(QDialogButtonBox::Cancel, &d);
+    auto *bb = new jp::ButtonBox(QDialogButtonBox::Cancel, &d);
     bb->addButton(tr(QT_TRANSLATE_NOOP("jp::write::MailDialogs", "New Document")), QDialogButtonBox::AcceptRole);
     auto *print = bb->addButton(tr(QT_TRANSLATE_NOOP("jp::write::MailDialogs", "Print")), QDialogButtonBox::AcceptRole);
     bool printNow = false;

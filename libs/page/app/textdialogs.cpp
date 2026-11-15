@@ -62,7 +62,7 @@ struct Dlg {
     {
         d.setWindowTitle(title);
         v = new QVBoxLayout(&d);
-        bb = new QDialogButtonBox(buttons, &d);
+        bb = new jp::ButtonBox(buttons, &d);
         QObject::connect(bb, &QDialogButtonBox::accepted, &d, &QDialog::accept);
         QObject::connect(bb, &QDialogButtonBox::rejected, &d, &QDialog::reject);
     }
@@ -159,7 +159,7 @@ void fontDialog(QWidget *p, Editor *ed)
     grid->addWidget(new QLabel(QCoreApplication::translate("Dialogs", "Color:")), 2, 1);
     grid->addWidget(color, 3, 1);
     dlg.v->addLayout(grid);
-    auto *effects = new QGroupBox(QCoreApplication::translate("Dialogs", "Effects"), &dlg.d);
+    auto *effects = new jp::Section(QCoreApplication::translate("Dialogs", "Effects"), &dlg.d);
     auto *eg = new QGridLayout(effects);
     struct Fx { const char *name; QCheckBox *box = nullptr; };
     QCheckBox *sup = new QCheckBox(QCoreApplication::translate("Dialogs", "Superscript")), *sub = new QCheckBox(QCoreApplication::translate("Dialogs", "Subscript")), *strike = new QCheckBox(QCoreApplication::translate("Dialogs", "Strikethrough"));
@@ -808,7 +808,7 @@ void symbolDialog(QWidget *p, const std::function<bool(QWidget *, const QString 
             edit->setMaximumSequenceLength(1);
             if (extras.keyOf) edit->setKeySequence(QKeySequence::fromString(extras.keyOf(c.first, c.second), QKeySequence::NativeText));
             v->addWidget(edit);
-            auto *bb = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &ask);
+            auto *bb = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &ask);
             QObject::connect(bb, &QDialogButtonBox::accepted, &ask, &QDialog::accept);
             QObject::connect(bb, &QDialogButtonBox::rejected, &ask, &QDialog::reject);
             v->addWidget(bb);

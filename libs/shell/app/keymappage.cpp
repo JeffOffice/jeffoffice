@@ -67,7 +67,7 @@ KeyboardPage::KeyboardPage(AppWindow *win, QWidget *parent) : QWidget(parent), m
 
     auto *row = new QHBoxLayout;
     auto *keysCol = new QVBoxLayout;
-    keysCol->addWidget(plainLabel(new QLabel(tr("Keys for this command:"), this)));
+    keysCol->addWidget(plainLabel(new QLabel(tr("Keys for this command"), this)));
     m_keys = new QListWidget(this);
     m_keys->setObjectName(QStringLiteral("keyCurrent"));
     m_keys->setMaximumHeight(72);
@@ -79,7 +79,7 @@ KeyboardPage::KeyboardPage(AppWindow *win, QWidget *parent) : QWidget(parent), m
     row->addLayout(keysCol, 1);
 
     auto *pressCol = new QVBoxLayout;
-    pressCol->addWidget(plainLabel(new QLabel(tr("Press the new keys:"), this)));
+    pressCol->addWidget(plainLabel(new QLabel(tr("Press the new keys"), this)));
     m_press = new QKeySequenceEdit(this);
     m_press->setObjectName(QStringLiteral("keyPress"));
     m_press->setMaximumSequenceLength(1);

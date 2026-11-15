@@ -226,7 +226,7 @@ void CrunchWindow::moveCopyCommand()
         QStringList names;
         for (const int s : request.sheets) names << info.sheets[s].name;
         layout->addWidget(plainLabel(new QLabel(tr("Sheets chosen: %1").arg(names.join(QStringLiteral(", "))))));
-        auto *label = new QLabel(tr("&Put the sheets in front of:"));
+        auto *label = new QLabel(tr("&Put the sheets in front of"));
         layout->addWidget(label);
         auto *list = new QListWidget;
         list->setObjectName(QStringLiteral("beforeSheet"));
@@ -243,7 +243,7 @@ void CrunchWindow::moveCopyCommand()
         auto *copy = new QCheckBox(tr("&Copy them, and leave the originals where they are"));
         copy->setObjectName(QStringLiteral("makeCopy"));
         layout->addWidget(copy);
-        auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+        auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
         layout->addWidget(buttons);
         connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
         connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);

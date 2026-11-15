@@ -24,7 +24,7 @@ CustomViewsDialog::CustomViewsDialog(const CustomViewsRequest &request, QWidget 
     about->setWordWrap(true);
     about->setTextFormat(Qt::PlainText);
     layout->addWidget(about);
-    auto *listLabel = new QLabel(tr("Views:"), this);
+    auto *listLabel = new QLabel(tr("Views"), this);
     layout->addWidget(listLabel);
     m_list = new QListWidget(this);
     m_list->setObjectName(QStringLiteral("customViewList"));
@@ -37,7 +37,7 @@ CustomViewsDialog::CustomViewsDialog(const CustomViewsRequest &request, QWidget 
     m_problem->setWordWrap(true);
     layout->addWidget(m_problem);
     auto *row = new QHBoxLayout;
-    auto *nameLabel = new QLabel(tr("Name:"), this);
+    auto *nameLabel = new QLabel(tr("Name"), this);
     m_name = new QLineEdit(this);
     m_name->setObjectName(QStringLiteral("customViewName"));
     m_name->setMaxLength(jp::office::sheet::kMaxCustomViewNameChars);

@@ -299,7 +299,7 @@ bool WriteWindow::exportPdfAsk()
     text->setEnabled(false);
     connect(which, &QComboBox::currentIndexChanged, &dialog, [which, text] { text->setEnabled(which->currentData().toInt() == int(WriteOutputOptions::Range::Pages)); });
     auto *form = new QFormLayout;
-    form->addRow(tr("Pages to include:"), which);
+    form->addRow(tr("Pages to include"), which);
     form->addRow(QString(), text);
     layout->addLayout(form);
     auto *note = new QLabel(tr("Type page numbers and ranges, separated by commas. p2s3 is the second page of section 3, and s3 is all of section 3."), &dialog);
@@ -310,7 +310,7 @@ bool WriteWindow::exportPdfAsk()
     size->addItem(tr("Standard (for publishing online and printing)"), false);
     size->addItem(tr("Minimum size (for publishing online)"), true);
     size->setToolTip(tr("Minimum size makes the pictures no finer than 150 pixels to the inch, so that the file is smaller."));
-    form->addRow(tr("Optimize for:"), size);
+    form->addRow(tr("Optimize for"), size);
     auto *properties = new QCheckBox(tr("Include document properties"), &dialog);
     properties->setObjectName(QStringLiteral("pdfProperties"));
     properties->setChecked(true);
@@ -331,7 +331,7 @@ bool WriteWindow::exportPdfAsk()
     auto *protect = new jp::PdfProtectionRow(&dialog);
     protect->forbiddenBy({archive}, tr("PDF/A is turned off, because a PDF with a password can't be a PDF/A file."));
     layout->addWidget(protect);
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
     connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
     layout->addWidget(buttons);
@@ -527,7 +527,7 @@ bool WriteWindow::exportEmailAsk()
     what->addItem(tr("The document, as a PDF"), int(EmailWhat::Pdf));
     what->addItem(tr("The pages, shown in the message"), int(EmailWhat::Pages));
     auto *form = new QFormLayout;
-    form->addRow(tr("Put in the message:"), what);
+    form->addRow(tr("Put in the message"), what);
     layout->addLayout(form);
     // A password for a PDF (a document as a file keeps its own password).
     auto *protect = new jp::PdfProtectionRow(&dialog);
@@ -535,7 +535,7 @@ bool WriteWindow::exportEmailAsk()
     auto syncProtect = [what, protect] { protect->setEnabled(what->currentData().toInt() == int(EmailWhat::Pdf)); };
     connect(what, &QComboBox::currentIndexChanged, &dialog, syncProtect);
     syncProtect();
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
     connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
     layout->addWidget(buttons);
@@ -573,7 +573,7 @@ bool WriteWindow::askTextForm(const QString &title, const QString &intro, write:
     for (const write::TextCodePage &page : write::textCodePages())
         if (page.number != 28591 && (sample || write::canWriteCodePage(page.number))) encoding->addItem(QCoreApplication::translate("jp::write::TextFile", page.label), page.number);
     encoding->setCurrentIndex(std::max(0, encoding->findData(form->encoding == write::TextEncoding::CodePage ? form->codePage : -(int(form->encoding) + 1))));
-    rows->addRow(tr("Encoding:"), encoding);
+    rows->addRow(tr("Encoding"), encoding);
     auto *ends = new QComboBox(&dialog);
     ends->setObjectName(QStringLiteral("textLineEnds"));
     ends->setAccessibleName(tr("Line ends"));
@@ -581,7 +581,7 @@ bool WriteWindow::askTextForm(const QString &title, const QString &intro, write:
     ends->addItem(tr("macOS and Linux (LF)"), int(write::LineEnds::Unix));
     ends->addItem(tr("Older Mac (CR)"), int(write::LineEnds::ClassicMac));
     ends->setCurrentIndex(std::max(0, ends->findData(int(form->ends))));
-    rows->addRow(tr("Line ends:"), ends);
+    rows->addRow(tr("Line ends"), ends);
     layout->addLayout(rows);
     QLabel *preview = nullptr;
     auto current = [&] {
@@ -608,7 +608,7 @@ bool WriteWindow::askTextForm(const QString &title, const QString &intro, write:
         connect(encoding, &QComboBox::currentIndexChanged, &dialog, refresh);
         refresh();
     }
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
     connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
     layout->addWidget(buttons);

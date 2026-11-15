@@ -32,7 +32,7 @@ struct Dlg {
     {
         d.setWindowTitle(title);
         v = new QVBoxLayout(&d);
-        bb = new QDialogButtonBox(buttons, &d);
+        bb = new jp::ButtonBox(buttons, &d);
         QObject::connect(bb, &QDialogButtonBox::accepted, &d, &QDialog::accept);
         QObject::connect(bb, &QDialogButtonBox::rejected, &d, &QDialog::reject);
     }

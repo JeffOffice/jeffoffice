@@ -1,3 +1,4 @@
+#include "app/uistyle.h"
 #include "app/csvsavedialog.h"
 
 
@@ -64,7 +65,7 @@ CsvSaveDialog::CsvSaveDialog(const QString &explanation, const crunch::CsvWrite 
     sepRow->addWidget(m_separator);
     sepRow->addWidget(m_other);
     sepRow->addStretch();
-    form->addRow(tr("Separator:"), sepRow);
+    form->addRow(tr("Separator"), sepRow);
     m_encoding = new QComboBox(this);
     m_encoding->setObjectName(QStringLiteral("csvEncoding"));
     m_encoding->setAccessibleName(tr("Text encoding"));
@@ -73,20 +74,20 @@ CsvSaveDialog::CsvSaveDialog(const QString &explanation, const crunch::CsvWrite 
     m_encoding->addItem(tr("Unicode (UTF-16, little end first)"), -3);
     m_encoding->addItem(tr("Unicode (UTF-16, big end first)"), -4);
     for (const Code &c : kPages) m_encoding->addItem(QCoreApplication::translate("jp::CsvSaveDialog", c.label), c.codePage);
-    form->addRow(tr("Text encoding:"), m_encoding);
+    form->addRow(tr("Text encoding"), m_encoding);
     m_lineEnd = new QComboBox(this);
     m_lineEnd->setObjectName(QStringLiteral("csvLineEnd"));
     m_lineEnd->setAccessibleName(tr("How lines end"));
     m_lineEnd->addItem(tr("Windows (carriage return and line feed)"), QStringLiteral("\r\n"));
     m_lineEnd->addItem(tr("Linux and Mac (line feed)"), QStringLiteral("\n"));
     m_lineEnd->addItem(tr("Old Mac (carriage return)"), QStringLiteral("\r"));
-    form->addRow(tr("Line ends:"), m_lineEnd);
+    form->addRow(tr("Line ends"), m_lineEnd);
     m_values = new QComboBox(this);
     m_values->setObjectName(QStringLiteral("csvValues"));
     m_values->setAccessibleName(tr("What the cells are written as"));
     m_values->addItem(tr("As shown in the cells"), false);
     m_values->addItem(tr("As stored (every digit, dates as ISO text)"), true);
-    form->addRow(tr("Cells:"), m_values);
+    form->addRow(tr("Cells"), m_values);
     layout->addLayout(form);
     // the choices now
     const int sep = m_separator->findData(QString(start.separator));
@@ -103,7 +104,7 @@ CsvSaveDialog::CsvSaveDialog(const QString &explanation, const crunch::CsvWrite 
     m_values->setCurrentIndex(start.asStored ? 1 : 0);
     refreshOther();
     connect(m_separator, &QComboBox::currentIndexChanged, this, [this] { refreshOther(); });
-    auto *buttons = new QDialogButtonBox(this);
+    auto *buttons = new jp::ButtonBox(this);
     QPushButton *go = buttons->addButton(tr("Save Values Only"), QDialogButtonBox::AcceptRole);
     go->setObjectName(QStringLiteral("csvSaveValues"));
     QPushButton *xlsx = buttons->addButton(tr("Save as .xlsx…"), QDialogButtonBox::ActionRole);

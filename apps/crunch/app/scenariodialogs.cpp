@@ -1,3 +1,4 @@
+#include "app/uistyle.h"
 #include "app/scenariodialogs.h"
 
 #include "core/scenarios.h"
@@ -29,7 +30,7 @@ ScenarioManagerDialog::ScenarioManagerDialog(QWidget *parent) : QDialog(parent)
     layout->addWidget(intro);
     auto *row = new QHBoxLayout;
     auto *left = new QVBoxLayout;
-    auto *label = new QLabel(tr("&Scenarios:"), this);
+    auto *label = new QLabel(tr("&Scenarios"), this);
     m_list = new QListWidget(this);
     m_list->setObjectName(QStringLiteral("scenarioList"));
     m_list->setAccessibleName(tr("Scenarios"));
@@ -57,7 +58,7 @@ ScenarioManagerDialog::ScenarioManagerDialog(QWidget *parent) : QDialog(parent)
     m_about->setWordWrap(true);
     m_about->setTextFormat(Qt::PlainText);
     layout->addWidget(m_about);
-    auto *box = new QDialogButtonBox(QDialogButtonBox::Close, this);
+    auto *box = new jp::ButtonBox(QDialogButtonBox::Close, this);
     connect(box, &QDialogButtonBox::rejected, this, &QDialog::reject);
     layout->addWidget(box);
     connect(add, &QPushButton::clicked, this, &ScenarioManagerDialog::addRequested);
@@ -120,9 +121,9 @@ ScenarioEditDialog::ScenarioEditDialog(bool adding, std::function<QString(const 
     m_comment->setObjectName(QStringLiteral("scenarioComment"));
     m_comment->setAccessibleName(tr("Comment"));
     m_comment->setMaxLength(255);
-    form->addRow(tr("Scenario &name:"), m_name);
-    form->addRow(tr("&Changing cells:"), m_cells);
-    form->addRow(tr("C&omment:"), m_comment);
+    form->addRow(tr("Scenario &name"), m_name);
+    form->addRow(tr("&Changing cells"), m_cells);
+    form->addRow(tr("C&omment"), m_comment);
     layout->addLayout(form);
     m_locked = new QCheckBox(tr("&Prevent changes (while the sheet is protected)"), this);
     m_locked->setObjectName(QStringLiteral("scenarioLocked"));
@@ -140,7 +141,7 @@ ScenarioEditDialog::ScenarioEditDialog(bool adding, std::function<QString(const 
     m_table->verticalHeader()->hide();
     m_table->setMinimumHeight(160);
     layout->addWidget(m_table);
-    auto *box = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
+    auto *box = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
     m_ok = box->button(QDialogButtonBox::Ok);
     connect(box, &QDialogButtonBox::accepted, this, &QDialog::accept);
     connect(box, &QDialogButtonBox::rejected, this, &QDialog::reject);

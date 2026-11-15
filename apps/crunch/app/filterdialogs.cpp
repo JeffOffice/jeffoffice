@@ -96,7 +96,7 @@ CustomFilterDialog::CustomFilterDialog(const QString &column, bool dates, jp::ca
     joiner->addStretch(1);
     grid->addLayout(joiner, 1, 0, 1, 2);
     if (!dates) layout->addWidget(new QLabel(tr("? stands for any one character and * for any stretch of characters.")));
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
     layout->addWidget(buttons);
     connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
@@ -245,7 +245,7 @@ TopFilterDialog::TopFilterDialog(const QString &column, const FilterColumn *curr
     row->addWidget(m_count);
     row->addWidget(m_unit);
     layout->addLayout(row);
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
     layout->addWidget(buttons);
     connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);

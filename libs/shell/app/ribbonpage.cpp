@@ -59,7 +59,7 @@ RibbonPage::RibbonPage(AppWindow *win, QWidget *parent) : QWidget(parent), m_win
 
     auto *body = new QHBoxLayout;
     auto *left = new QVBoxLayout;
-    left->addWidget(plainLabel(new QLabel(tr("Tabs and groups:"), this)));
+    left->addWidget(plainLabel(new QLabel(tr("Tabs and groups"), this)));
     m_tree = new QTreeWidget(this);
     m_tree->setObjectName(QStringLiteral("ribbonTree"));
     m_tree->setHeaderHidden(true);
@@ -70,7 +70,7 @@ RibbonPage::RibbonPage(AppWindow *win, QWidget *parent) : QWidget(parent), m_win
     body->addLayout(left, 3);
 
     auto *right = new QVBoxLayout;
-    right->addWidget(plainLabel(new QLabel(tr("Commands:"), this)));
+    right->addWidget(plainLabel(new QLabel(tr("Commands"), this)));
     m_search = new QLineEdit(this);
     m_search->setObjectName(QStringLiteral("ribbonSearch"));
     m_search->setPlaceholderText(tr("Search commands"));
@@ -89,7 +89,7 @@ RibbonPage::RibbonPage(AppWindow *win, QWidget *parent) : QWidget(parent), m_win
     col->addLayout(body, 1);
 
     auto *nameRow = new QHBoxLayout;
-    nameRow->addWidget(plainLabel(new QLabel(tr("Name:"), this)));
+    nameRow->addWidget(plainLabel(new QLabel(tr("Name"), this)));
     m_name = new QLineEdit(this);
     m_name->setObjectName(QStringLiteral("ribbonName"));
     m_name->setAccessibleName(tr("Name of the tab, group, or command"));

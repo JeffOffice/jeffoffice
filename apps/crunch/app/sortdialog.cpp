@@ -1,3 +1,4 @@
+#include "app/uistyle.h"
 #include "app/sortdialog.h"
 
 #include <QCheckBox>
@@ -84,7 +85,7 @@ SortDialog::SortDialog(const Provider &provider, const SortSpec &initial, QWidge
     options->addWidget(m_leftToRight);
     options->addStretch(1);
     layout->addLayout(options);
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
     layout->addWidget(buttons);
     connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);

@@ -46,14 +46,14 @@ TranslatePane::TranslatePane(TranslateHost *host, const translate::Translator &t
 
     auto *row = new QHBoxLayout;
     auto *fromBox = new QVBoxLayout;
-    auto *fromLabel = new QLabel(tr("From:"), this);
+    auto *fromLabel = new QLabel(tr("From"), this);
     m_from = new QComboBox(this);
     m_from->setObjectName(QStringLiteral("translateFrom"));
     fromLabel->setBuddy(m_from);
     fromBox->addWidget(fromLabel);
     fromBox->addWidget(m_from);
     auto *toBox = new QVBoxLayout;
-    auto *toLabel = new QLabel(tr("To:"), this);
+    auto *toLabel = new QLabel(tr("To"), this);
     m_to = new QComboBox(this);
     m_to->setObjectName(QStringLiteral("translateTo"));
     toLabel->setBuddy(m_to);
@@ -77,7 +77,7 @@ TranslatePane::TranslatePane(TranslateHost *host, const translate::Translator &t
     m_from->setCurrentIndex(std::max(0, m_from->findData(lastFrom)));
     m_to->setCurrentIndex(std::max(0, m_to->findData(lastTo)));
 
-    auto *originalLabel = new QLabel(tr("Original:"), this);
+    auto *originalLabel = new QLabel(tr("Original"), this);
     m_original = new QPlainTextEdit(this);
     m_original->setObjectName(QStringLiteral("translateOriginal"));
     m_original->setReadOnly(true);
@@ -126,7 +126,7 @@ TranslatePane::TranslatePane(TranslateHost *host, const translate::Translator &t
     m_progress->hide();
     v->addWidget(m_progress);
 
-    auto *resultLabel = new QLabel(tr("Translation:"), this);
+    auto *resultLabel = new QLabel(tr("Translation"), this);
     m_result = new QTextBrowser(this);
     m_result->setObjectName(QStringLiteral("translateResult"));
     m_result->setOpenLinks(false);

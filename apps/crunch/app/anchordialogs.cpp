@@ -50,7 +50,7 @@ NoteDialog::NoteDialog(const NoteRequest &request, QWidget *parent) : QDialog(pa
         why->setObjectName(QStringLiteral("noteReadOnly"));
         layout->addWidget(why);
     }
-    auto *buttons = new QDialogButtonBox(request.readOnly ? QDialogButtonBox::Close : (QDialogButtonBox::Ok | QDialogButtonBox::Cancel), this);
+    auto *buttons = new jp::ButtonBox(request.readOnly ? QDialogButtonBox::Close : (QDialogButtonBox::Ok | QDialogButtonBox::Cancel), this);
     connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
     layout->addWidget(buttons);
@@ -70,14 +70,14 @@ LinkDialog::LinkDialog(const LinkRequest &request, QWidget *parent) : QDialog(pa
     m_shown = new QLineEdit(request.link.display.isEmpty() ? request.shownText : request.link.display, this);
     m_shown->setObjectName(QStringLiteral("linkShown"));
     m_shown->setAccessibleName(tr("Text to show"));
-    form->addRow(tr("Text to show:"), m_shown);
+    form->addRow(tr("Text to show"), m_shown);
     m_kind = new QComboBox(this);
     m_kind->setObjectName(QStringLiteral("linkKind"));
     m_kind->setAccessibleName(tr("Go to"));
     m_kind->addItem(tr("A web page or a file"), WebKind);
     m_kind->addItem(tr("A place in this workbook"), PlaceKind);
     m_kind->addItem(tr("An e-mail address"), MailKind);
-    form->addRow(tr("Go to:"), m_kind);
+    form->addRow(tr("Go to"), m_kind);
     layout->addLayout(form);
     m_pages = new QStackedWidget(this);
     // a web page, or a file
@@ -87,7 +87,7 @@ LinkDialog::LinkDialog(const LinkRequest &request, QWidget *parent) : QDialog(pa
         m_address = new QLineEdit(page);
         m_address->setObjectName(QStringLiteral("linkAddress"));
         m_address->setAccessibleName(tr("Address"));
-        f->addRow(tr("Address:"), m_address);
+        f->addRow(tr("Address"), m_address);
         m_recent = new QComboBox(page);
         m_recent->setObjectName(QStringLiteral("linkRecent"));
         m_recent->setAccessibleName(tr("Recent files"));
@@ -96,7 +96,7 @@ LinkDialog::LinkDialog(const LinkRequest &request, QWidget *parent) : QDialog(pa
         connect(m_recent, &QComboBox::currentIndexChanged, this, [this](int i) {
             if (i > 0) m_address->setText(m_recent->itemData(i).toString());
         });
-        f->addRow(tr("Or a recent file:"), m_recent);
+        f->addRow(tr("Or a recent file"), m_recent);
         m_pages->addWidget(page);
     }
     // a place in the workbook
@@ -108,17 +108,17 @@ LinkDialog::LinkDialog(const LinkRequest &request, QWidget *parent) : QDialog(pa
         m_sheet->setAccessibleName(tr("Sheet"));
         m_sheet->addItems(request.sheetNames);
         m_sheet->setCurrentIndex(std::max(0, std::min(request.sheet, int(request.sheetNames.size()) - 1)));
-        f->addRow(tr("Sheet:"), m_sheet);
+        f->addRow(tr("Sheet"), m_sheet);
         m_cell = new QLineEdit(QStringLiteral("A1"), page);
         m_cell->setObjectName(QStringLiteral("linkCell"));
         m_cell->setAccessibleName(tr("Cell or cells"));
-        f->addRow(tr("Cell or cells:"), m_cell);
+        f->addRow(tr("Cell or cells"), m_cell);
         m_name = new QComboBox(page);
         m_name->setObjectName(QStringLiteral("linkName"));
         m_name->setAccessibleName(tr("Name"));
         m_name->addItem(tr("(none)"));
         m_name->addItems(request.names);
-        f->addRow(tr("Or a name:"), m_name);
+        f->addRow(tr("Or a name"), m_name);
         m_pages->addWidget(page);
     }
     // an e-mail address
@@ -128,11 +128,11 @@ LinkDialog::LinkDialog(const LinkRequest &request, QWidget *parent) : QDialog(pa
         m_mail = new QLineEdit(page);
         m_mail->setObjectName(QStringLiteral("linkMail"));
         m_mail->setAccessibleName(tr("E-mail address"));
-        f->addRow(tr("E-mail address:"), m_mail);
+        f->addRow(tr("E-mail address"), m_mail);
         m_subject = new QLineEdit(page);
         m_subject->setObjectName(QStringLiteral("linkSubject"));
         m_subject->setAccessibleName(tr("Subject"));
-        f->addRow(tr("Subject:"), m_subject);
+        f->addRow(tr("Subject"), m_subject);
         m_pages->addWidget(page);
     }
     layout->addWidget(m_pages);
@@ -140,13 +140,13 @@ LinkDialog::LinkDialog(const LinkRequest &request, QWidget *parent) : QDialog(pa
     m_tip = new QLineEdit(request.link.tip, this);
     m_tip->setObjectName(QStringLiteral("linkTip"));
     m_tip->setAccessibleName(tr("Screen tip"));
-    tipForm->addRow(tr("Screen tip:"), m_tip);
+    tipForm->addRow(tr("Screen tip"), m_tip);
     layout->addLayout(tipForm);
     m_note = plainLabel(new QLabel(this));
     m_note->setObjectName(QStringLiteral("linkProblem"));
     m_note->setWordWrap(true);
     layout->addWidget(m_note);
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
     connect(buttons, &QDialogButtonBox::accepted, this, [this] {
         QString problem;

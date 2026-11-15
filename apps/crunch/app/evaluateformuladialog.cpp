@@ -1,3 +1,4 @@
+#include "app/uistyle.h"
 #include "app/evaluateformuladialog.h"
 
 #include <QDialogButtonBox>
@@ -31,7 +32,7 @@ EvaluateFormulaDialog::EvaluateFormulaDialog(const QString &cell, const QString 
     m_note->setTextFormat(Qt::PlainText);
     m_note->setWordWrap(true);
     layout->addWidget(m_note);
-    auto *buttons = new QDialogButtonBox(this);
+    auto *buttons = new jp::ButtonBox(this);
     m_evaluate = buttons->addButton(tr("Evaluate"), QDialogButtonBox::ActionRole);
     m_evaluate->setObjectName(QStringLiteral("evaluateStep"));
     auto *restart = buttons->addButton(tr("Restart"), QDialogButtonBox::ActionRole);

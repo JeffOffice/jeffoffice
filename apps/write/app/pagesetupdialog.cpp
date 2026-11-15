@@ -1,5 +1,6 @@
 // The Page Setup dialog (the work on the document is core/pagesetup.h) and the Alt Text dialog.
 
+#include "app/uistyle.h"
 #include "app/writedialogs.h"
 
 #include "app/widgets.h"
@@ -78,16 +79,16 @@ bool pageSetupDialog(QWidget *parent, WriteDoc *doc, int section, QTextCursor *c
     auto *marginsPage = new QWidget;
     auto *mf = new QFormLayout(marginsPage);
     auto *top = spin("top", before.top), *bottom = spin("bottom", before.bottom), *left = spin("left", before.left), *right = spin("right", before.right), *gutter = spin("gutter", before.gutter);
-    mf->addRow(QCoreApplication::translate("jp::write::Dialogs", "Top:"), top);
-    mf->addRow(QCoreApplication::translate("jp::write::Dialogs", "Bottom:"), bottom);
-    mf->addRow(QCoreApplication::translate("jp::write::Dialogs", "Left:"), left);
-    mf->addRow(QCoreApplication::translate("jp::write::Dialogs", "Right:"), right);
-    mf->addRow(QCoreApplication::translate("jp::write::Dialogs", "Gutter:"), gutter);
+    mf->addRow(QCoreApplication::translate("jp::write::Dialogs", "Top"), top);
+    mf->addRow(QCoreApplication::translate("jp::write::Dialogs", "Bottom"), bottom);
+    mf->addRow(QCoreApplication::translate("jp::write::Dialogs", "Left"), left);
+    mf->addRow(QCoreApplication::translate("jp::write::Dialogs", "Right"), right);
+    mf->addRow(QCoreApplication::translate("jp::write::Dialogs", "Gutter"), gutter);
     auto *portrait = new QRadioButton(QCoreApplication::translate("jp::write::Dialogs", "Portrait"), marginsPage), *landscape = new QRadioButton(QCoreApplication::translate("jp::write::Dialogs", "Landscape"), marginsPage);
     portrait->setObjectName(QStringLiteral("portrait"));
     landscape->setObjectName(QStringLiteral("landscape"));
     (before.landscape ? landscape : portrait)->setChecked(true);
-    auto *orientation = new QGroupBox(QCoreApplication::translate("jp::write::Dialogs", "Orientation"), marginsPage);
+    auto *orientation = new jp::Section(QCoreApplication::translate("jp::write::Dialogs", "Orientation"), marginsPage);
     auto *ov = new QVBoxLayout(orientation);
     ov->addWidget(portrait);
     ov->addWidget(landscape);
@@ -98,21 +99,21 @@ bool pageSetupDialog(QWidget *parent, WriteDoc *doc, int section, QTextCursor *c
     multiple->addItem(QCoreApplication::translate("jp::write::Dialogs", "Normal"), false);
     multiple->addItem(QCoreApplication::translate("jp::write::Dialogs", "Book fold"), true);
     multiple->setCurrentIndex(doc->bookFold() ? 1 : 0);
-    mf->addRow(QCoreApplication::translate("jp::write::Dialogs", "Multiple pages:"), multiple);
+    mf->addRow(QCoreApplication::translate("jp::write::Dialogs", "Multiple pages"), multiple);
     auto *booklet = new QComboBox(marginsPage);
     booklet->setObjectName(QStringLiteral("sheetsPerBooklet"));
     booklet->addItem(QCoreApplication::translate("jp::write::Dialogs", "All"), 0);
     for (int n = 4; n <= 40; n += 4) booklet->addItem(QString::number(n), n);
     booklet->setCurrentIndex(std::max(0, int(booklet->findData(doc->bookFoldSheets()))));
     booklet->setEnabled(doc->bookFold());
-    mf->addRow(QCoreApplication::translate("jp::write::Dialogs", "Sheets per booklet:"), booklet);
+    mf->addRow(QCoreApplication::translate("jp::write::Dialogs", "Sheets per booklet"), booklet);
     // (book fold is facing pages: the side margins are the inside, where the gutter is, and the outside)
     auto leftLabel = mf->labelForField(left), rightLabel = mf->labelForField(right);
     auto facing = [=] {
         const bool fold = multiple->currentData().toBool();
         booklet->setEnabled(fold);
-        if (auto *l = qobject_cast<QLabel *>(leftLabel)) l->setText(fold ? QCoreApplication::translate("jp::write::Dialogs", "Inside:") : QCoreApplication::translate("jp::write::Dialogs", "Left:"));
-        if (auto *r = qobject_cast<QLabel *>(rightLabel)) r->setText(fold ? QCoreApplication::translate("jp::write::Dialogs", "Outside:") : QCoreApplication::translate("jp::write::Dialogs", "Right:"));
+        if (auto *l = qobject_cast<QLabel *>(leftLabel)) l->setText(fold ? QCoreApplication::translate("jp::write::Dialogs", "Inside") : QCoreApplication::translate("jp::write::Dialogs", "Left"));
+        if (auto *r = qobject_cast<QLabel *>(rightLabel)) r->setText(fold ? QCoreApplication::translate("jp::write::Dialogs", "Outside") : QCoreApplication::translate("jp::write::Dialogs", "Right"));
     };
     QObject::connect(multiple, &QComboBox::currentIndexChanged, &dlg, facing);
     facing();
@@ -127,9 +128,9 @@ bool pageSetupDialog(QWidget *parent, WriteDoc *doc, int section, QTextCursor *c
     size->addItem(QCoreApplication::translate("jp::write::Dialogs", "Custom size"));
     const double shownW = before.landscape ? before.paperHeight : before.paperWidth, shownH = before.landscape ? before.paperWidth : before.paperHeight;
     auto *width = spin("paperWidth", shownW), *height = spin("paperHeight", shownH);
-    pf->addRow(QCoreApplication::translate("jp::write::Dialogs", "Paper size:"), size);
-    pf->addRow(QCoreApplication::translate("jp::write::Dialogs", "Width:"), width);
-    pf->addRow(QCoreApplication::translate("jp::write::Dialogs", "Height:"), height);
+    pf->addRow(QCoreApplication::translate("jp::write::Dialogs", "Paper size"), size);
+    pf->addRow(QCoreApplication::translate("jp::write::Dialogs", "Width"), width);
+    pf->addRow(QCoreApplication::translate("jp::write::Dialogs", "Height"), height);
     tabs->addTab(paperPage, QCoreApplication::translate("jp::write::Dialogs", "Paper"));
     // The paper size box names the paper the width and height make (either way turned), else Custom.
     auto nameThePaper = [=] {
@@ -193,7 +194,7 @@ bool pageSetupDialog(QWidget *parent, WriteDoc *doc, int section, QTextCursor *c
     start->addItem(QCoreApplication::translate("jp::write::Dialogs", "Even page"), starts[2]);
     start->addItem(QCoreApplication::translate("jp::write::Dialogs", "Odd page"), starts[3]);
     start->setCurrentIndex(std::max(0, int(starts.indexOf(before.start))));
-    lf->addRow(QCoreApplication::translate("jp::write::Dialogs", "Section start:"), start);
+    lf->addRow(QCoreApplication::translate("jp::write::Dialogs", "Section start"), start);
     auto *firstPage = new QCheckBox(QCoreApplication::translate("jp::write::Dialogs", "Different first page"), layoutPage), *oddEven = new QCheckBox(QCoreApplication::translate("jp::write::Dialogs", "Different odd and even pages"), layoutPage);
     firstPage->setObjectName(QStringLiteral("differentFirstPage"));
     oddEven->setObjectName(QStringLiteral("differentOddEven"));
@@ -202,8 +203,8 @@ bool pageSetupDialog(QWidget *parent, WriteDoc *doc, int section, QTextCursor *c
     lf->addRow(firstPage);
     lf->addRow(oddEven);
     auto *header = spin("header", before.header), *footer = spin("footer", before.footer);
-    lf->addRow(QCoreApplication::translate("jp::write::Dialogs", "Header, from the edge:"), header);
-    lf->addRow(QCoreApplication::translate("jp::write::Dialogs", "Footer, from the edge:"), footer);
+    lf->addRow(QCoreApplication::translate("jp::write::Dialogs", "Header, from the edge"), header);
+    lf->addRow(QCoreApplication::translate("jp::write::Dialogs", "Footer, from the edge"), footer);
     tabs->addTab(layoutPage, QCoreApplication::translate("jp::write::Dialogs", "Layout"));
 
     // ---- Apply to
@@ -214,9 +215,9 @@ bool pageSetupDialog(QWidget *parent, WriteDoc *doc, int section, QTextCursor *c
     if (cursor) applyTo->addItem(QCoreApplication::translate("jp::write::Dialogs", "This point forward"), int(PageSetupScope::ThisPointForward));
     if (doc->sectionCount() == 1) applyTo->setCurrentIndex(1);
     auto *row = new QFormLayout;
-    row->addRow(QCoreApplication::translate("jp::write::Dialogs", "Apply to:"), applyTo);
+    row->addRow(QCoreApplication::translate("jp::write::Dialogs", "Apply to"), applyTo);
     v->addLayout(row);
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
     auto *setDefault = buttons->addButton(QCoreApplication::translate("jp::write::Dialogs", "Set as Default…"), QDialogButtonBox::ResetRole);
     setDefault->setObjectName(QStringLiteral("setAsDefault"));
     DefaultScope makeDefault = DefaultScope::Cancel;
@@ -282,7 +283,7 @@ bool altTextDialog(QWidget *parent, QString *alt)
     edit->setPlainText(*alt);
     edit->setMinimumSize(320, 110);
     v->addWidget(edit);
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
     v->addWidget(buttons);
     QObject::connect(buttons, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
     QObject::connect(buttons, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);

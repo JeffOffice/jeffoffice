@@ -1,3 +1,4 @@
+#include "app/uistyle.h"
 #include "app/filldialogs.h"
 
 #include <QComboBox>
@@ -14,7 +15,7 @@ FillAcrossDialog::FillAcrossDialog(const QStringList &names, int current, QWidge
     setObjectName(QStringLiteral("fillAcrossDialog"));
     setWindowTitle(tr("Fill Across Worksheets"));
     auto *layout = new QVBoxLayout(this);
-    auto *text = new QLabel(tr("Copy the selected cells to the same cells of these sheets:"), this);
+    auto *text = new QLabel(tr("Copy the selected cells to the same cells of these sheets"), this);
     text->setWordWrap(true);
     layout->addWidget(text);
     m_list = new QListWidget(this);
@@ -35,9 +36,9 @@ FillAcrossDialog::FillAcrossDialog(const QStringList &names, int current, QWidge
     m_what->addItem(tr("All"));
     m_what->addItem(tr("Contents"));
     m_what->addItem(tr("Formats"));
-    form->addRow(tr("Copy:"), m_what);
+    form->addRow(tr("Copy"), m_what);
     layout->addLayout(form);
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
     layout->addWidget(buttons);
     connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);

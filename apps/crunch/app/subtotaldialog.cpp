@@ -1,3 +1,4 @@
+#include "app/uistyle.h"
 #include "app/subtotaldialog.h"
 
 #include <QCheckBox>
@@ -29,10 +30,10 @@ SubtotalDialog::SubtotalDialog(const QStringList &names, QWidget *parent) : QDia
     m_function->setObjectName(QStringLiteral("subtotalFunction"));
     m_function->setAccessibleName(tr("Use function"));
     for (const crunch::SubtotalFunction &f : crunch::subtotalFunctions()) m_function->addItem(QCoreApplication::translate("jp::crunch::Subtotal", f.name), f.code);
-    form->addRow(tr("At each change in:"), m_at);
-    form->addRow(tr("Use function:"), m_function);
+    form->addRow(tr("At each change in"), m_at);
+    form->addRow(tr("Use function"), m_function);
     layout->addLayout(form);
-    layout->addWidget(new QLabel(tr("Add subtotal to:"), this));
+    layout->addWidget(new QLabel(tr("Add subtotal to"), this));
     m_columns = new QListWidget(this);
     m_columns->setObjectName(QStringLiteral("subtotalColumns"));
     m_columns->setAccessibleName(tr("Add subtotal to"));
@@ -49,7 +50,7 @@ SubtotalDialog::SubtotalDialog(const QStringList &names, QWidget *parent) : QDia
     m_pageBreaks = new QCheckBox(tr("Page break between groups"), this);
     m_pageBreaks->setObjectName(QStringLiteral("subtotalPageBreaks"));
     layout->addWidget(m_pageBreaks);
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
     auto *remove = buttons->addButton(tr("Remove All"), QDialogButtonBox::ResetRole);
     remove->setObjectName(QStringLiteral("subtotalRemoveAll"));
     connect(remove, &QPushButton::clicked, this, [this] {

@@ -127,7 +127,7 @@ FunctionArgumentsDialog::FunctionArgumentsDialog(QWidget *parent, const Function
     m_helpLink->hide();
     bottom->addWidget(m_helpLink);
     bottom->addStretch(1);
-    m_buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+    m_buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
     bottom->addWidget(m_buttons);
     layout->addLayout(bottom);
     connect(m_buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);

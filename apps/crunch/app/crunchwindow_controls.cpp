@@ -1,5 +1,6 @@
 // Form controls in the window: Insert > Form Controls puts one on the sheet, a click on one works it (it writes the cell it is linked to, or changes its own state, as one step of Undo), and
 // Format Control changes the cell, the range, and the limits of one. See core/sheetcontrols.h.
+#include "app/uistyle.h"
 #include "app/crunchwindow.h"
 
 #include "core/sheetcontrols.h"
@@ -226,15 +227,15 @@ void CrunchWindow::formatControlDialog(int id)
     checked->setChecked(c.checked == 1);
     if (hasState) form->addRow(checked);
     if (hasLimits) {
-        form->addRow(tr("Minimum value:"), min);
-        form->addRow(tr("Maximum value:"), max);
-        form->addRow(tr("Incremental change:"), inc);
-        if (c.kind == ControlKind::Scroll) form->addRow(tr("Page change:"), page);
+        form->addRow(tr("Minimum value"), min);
+        form->addRow(tr("Maximum value"), max);
+        form->addRow(tr("Incremental change"), inc);
+        if (c.kind == ControlKind::Scroll) form->addRow(tr("Page change"), page);
     }
-    if (hasRange) form->addRow(tr("Input range:"), range);
-    if (hasLink) form->addRow(tr("Cell link:"), link);
+    if (hasRange) form->addRow(tr("Input range"), range);
+    if (hasLink) form->addRow(tr("Cell link"), link);
     if (!hasLink && !hasRange && !hasLimits && !hasState) form->addRow(new QLabel(tr("This control has nothing to format here."), &dialog));
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
     form->addRow(buttons);
     connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);

@@ -1,3 +1,4 @@
+#include "app/uistyle.h"
 #include "app/equationdialog.h"
 
 #include "wml/wmlmathedit.h"
@@ -68,7 +69,7 @@ bool askEquation(QWidget *parent, const QString &title, QString *linear)
     preview->setTextFormat(Qt::PlainText);
     preview->setAccessibleName(QCoreApplication::translate("EquationDialog", "Equation preview"));
     layout->addWidget(preview);
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
     QObject::connect(buttons, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
     QObject::connect(buttons, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
     layout->addWidget(buttons);

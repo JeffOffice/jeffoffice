@@ -252,7 +252,7 @@ QStringList askPicturePaths(QWidget *parent, const QString &caption, const QStri
             choice->setObjectName(QStringLiteral("insertAs"));
             choice->setAccessibleName(label);
             choice->addItems(choices);
-            auto *name = new QLabel(QCoreApplication::translate("FileDialogs", "Insert &as:"), &dlg);
+            auto *name = new QLabel(QCoreApplication::translate("FileDialogs", "Insert &as"), &dlg);
             name->setBuddy(choice);
             const int row = grid->rowCount();
             grid->addWidget(name, row, 0);

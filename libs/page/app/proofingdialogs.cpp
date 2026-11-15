@@ -328,7 +328,7 @@ void thesaurusDialog(QWidget *p, Editor *ed)
     QObject::connect(q, &QLineEdit::textEdited, typing, qOverload<>(&QTimer::start));
     fill();
     if (list->count() && !list->item(0)->text().startsWith('(')) list->setCurrentRow(0);
-    auto *bb = new QDialogButtonBox(&dlg);
+    auto *bb = new jp::ButtonBox(&dlg);
     // Look up the chosen synonym in turn.
     auto *again = bb->addButton(QCoreApplication::translate("Proofing", "Look Up"), QDialogButtonBox::ActionRole);
     QObject::connect(again, &QPushButton::clicked, &dlg, [&] {

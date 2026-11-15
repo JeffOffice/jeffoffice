@@ -65,7 +65,7 @@ bool languageDialog(QWidget *parent, const QString &current, bool noProof, QStri
     dlg.setObjectName(QStringLiteral("languageDialog"));
     dlg.setWindowTitle(QCoreApplication::translate("jp::write::HomeDialogs", "Language"));
     auto *v = new QVBoxLayout(&dlg);
-    v->addWidget(plainLabel(new QLabel(QCoreApplication::translate("jp::write::HomeDialogs", "Mark the selected text as:"), &dlg)));
+    v->addWidget(plainLabel(new QLabel(QCoreApplication::translate("jp::write::HomeDialogs", "Mark the selected text as"), &dlg)));
     auto *list = new QListWidget(&dlg);
     list->setObjectName(QStringLiteral("languages"));
     int row = 0, near = -1;
@@ -83,7 +83,7 @@ bool languageDialog(QWidget *parent, const QString &current, bool noProof, QStri
     skip->setObjectName(QStringLiteral("doNotCheck"));
     skip->setChecked(noProof);
     v->addWidget(skip);
-    auto *bb = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    auto *bb = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
     QObject::connect(bb, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
     QObject::connect(bb, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
     QObject::connect(list, &QListWidget::itemDoubleClicked, &dlg, &QDialog::accept);
@@ -108,7 +108,7 @@ bool translateDialog(QWidget *parent, bool wholeDocument, QString *targetCode, Q
     dlg.setObjectName(QStringLiteral("translateDialog"));
     dlg.setWindowTitle(QCoreApplication::translate("jp::write::HomeDialogs", "Translate"));
     auto *v = new QVBoxLayout(&dlg);
-    auto *about = plainLabel(new QLabel(wholeDocument ? QCoreApplication::translate("jp::write::HomeDialogs", "Translate the whole document into:") : QCoreApplication::translate("jp::write::HomeDialogs", "Translate the selected text into:"), &dlg));
+    auto *about = plainLabel(new QLabel(wholeDocument ? QCoreApplication::translate("jp::write::HomeDialogs", "Translate the whole document into") : QCoreApplication::translate("jp::write::HomeDialogs", "Translate the selected text into"), &dlg));
     v->addWidget(about);
     auto *target = new QComboBox(&dlg);
     target->setObjectName(QStringLiteral("translateTarget"));
@@ -117,7 +117,7 @@ bool translateDialog(QWidget *parent, bool wholeDocument, QString *targetCode, Q
         if (*targetCode == QLatin1String(t.code)) target->setCurrentIndex(target->count() - 1);
     }
     v->addWidget(target);
-    v->addWidget(plainLabel(new QLabel(QCoreApplication::translate("jp::write::HomeDialogs", "Translation service (a LibreTranslate address):"), &dlg)));
+    v->addWidget(plainLabel(new QLabel(QCoreApplication::translate("jp::write::HomeDialogs", "Translation service (a LibreTranslate address)"), &dlg)));
     auto *address = new QLineEdit(*server, &dlg);
     address->setObjectName(QStringLiteral("translateServer"));
     v->addWidget(address);
@@ -130,7 +130,7 @@ bool translateDialog(QWidget *parent, bool wholeDocument, QString *targetCode, Q
         cut->setWordWrap(true);
         v->addWidget(cut);
     }
-    auto *bb = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    auto *bb = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
     QObject::connect(bb, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
     QObject::connect(bb, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
     v->addWidget(bb);

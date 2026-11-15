@@ -1,3 +1,4 @@
+#include "app/uistyle.h"
 #include "app/telemetry.h"
 #include "core/version.h"
 
@@ -169,7 +170,7 @@ void ask(QWidget *window)
     text->setMinimumWidth(420);
     auto *box = new QCheckBox(QCoreApplication::translate("Telemetry", "Send anonymous usage statistics"), &d);
     box->setChecked(true);
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok, &d);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok, &d);
     QObject::connect(buttons, &QDialogButtonBox::accepted, &d, &QDialog::accept);
     v->addWidget(text);
     v->addSpacing(6);

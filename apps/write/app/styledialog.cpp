@@ -2,6 +2,7 @@
 // updates itself. What it makes of the person's choices is a definition the commands of core/styleops.h take; only what the person changed is put in the definition, so that a dialog
 // closed with OK and nothing changed leaves the style, and the file, as they were.
 
+#include "app/uistyle.h"
 #include "app/writedialogs.h"
 
 #include "app/widgets.h"
@@ -86,7 +87,7 @@ bool styleDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor, const QStr
     name->setMaxLength(kMostStyleNameLength);
     name->setText((start.name.isEmpty() ? start.id : start.name).left(kMostStyleNameLength));
     name->setEnabled(!modify || start.customStyle);   // (a built-in style keeps its name)
-    form->addRow(QCoreApplication::translate("jp::write::StyleDialog", "Name:"), name);
+    form->addRow(QCoreApplication::translate("jp::write::StyleDialog", "Name"), name);
 
     auto *type = new QComboBox(&dlg);
     type->setObjectName(QStringLiteral("styleType"));
@@ -94,7 +95,7 @@ bool styleDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor, const QStr
     type->addItem(QCoreApplication::translate("jp::write::StyleDialog", "Character"), QStringLiteral("character"));
     type->setCurrentIndex(character ? 1 : 0);
     type->setEnabled(!modify);
-    form->addRow(QCoreApplication::translate("jp::write::StyleDialog", "Style type:"), type);
+    form->addRow(QCoreApplication::translate("jp::write::StyleDialog", "Style type"), type);
 
     auto *basedOn = new QComboBox(&dlg);
     basedOn->setObjectName(QStringLiteral("styleBasedOn"));
@@ -126,8 +127,8 @@ bool styleDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor, const QStr
         next->setEnabled(!isCharacter);
     });
     next->setEnabled(!character);
-    form->addRow(QCoreApplication::translate("jp::write::StyleDialog", "Based on:"), basedOn);
-    form->addRow(QCoreApplication::translate("jp::write::StyleDialog", "Style for the following paragraph:"), next);
+    form->addRow(QCoreApplication::translate("jp::write::StyleDialog", "Based on"), basedOn);
+    form->addRow(QCoreApplication::translate("jp::write::StyleDialog", "Style for the following paragraph"), next);
 
     auto *font = new FontCombo(&dlg);
     font->setObjectName(QStringLiteral("styleFont"));
@@ -144,7 +145,7 @@ bool styleDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor, const QStr
     auto *fontRow = new QHBoxLayout;
     fontRow->addWidget(font, 1);
     fontRow->addWidget(size);
-    form->addRow(QCoreApplication::translate("jp::write::StyleDialog", "Font:"), fontRow);
+    form->addRow(QCoreApplication::translate("jp::write::StyleDialog", "Font"), fontRow);
     auto *bold = new QCheckBox(QCoreApplication::translate("jp::write::StyleDialog", "Bold"), &dlg), *italic = new QCheckBox(QCoreApplication::translate("jp::write::StyleDialog", "Italic"), &dlg), *underline = new QCheckBox(QCoreApplication::translate("jp::write::StyleDialog", "Underline"), &dlg);
     bold->setObjectName(QStringLiteral("styleBold"));
     italic->setObjectName(QStringLiteral("styleItalic"));
@@ -196,13 +197,13 @@ bool styleDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor, const QStr
     line->setValue(paragraph.lineHeightType() == QTextBlockFormat::ProportionalHeight && paragraph.lineHeight() > 0 ? paragraph.lineHeight() / 100.0 : 1.0);
     const double lineStart = line->value();
     if (!character) {
-        form->addRow(QCoreApplication::translate("jp::write::StyleDialog", "Alignment:"), align);
-        form->addRow(QCoreApplication::translate("jp::write::StyleDialog", "Indentation, left:"), left);
-        form->addRow(QCoreApplication::translate("jp::write::StyleDialog", "Indentation, right:"), right);
-        form->addRow(QCoreApplication::translate("jp::write::StyleDialog", "First line:"), first);
-        form->addRow(QCoreApplication::translate("jp::write::StyleDialog", "Spacing, before:"), before);
-        form->addRow(QCoreApplication::translate("jp::write::StyleDialog", "Spacing, after:"), after);
-        form->addRow(QCoreApplication::translate("jp::write::StyleDialog", "Line spacing (lines):"), line);
+        form->addRow(QCoreApplication::translate("jp::write::StyleDialog", "Alignment"), align);
+        form->addRow(QCoreApplication::translate("jp::write::StyleDialog", "Indentation, left"), left);
+        form->addRow(QCoreApplication::translate("jp::write::StyleDialog", "Indentation, right"), right);
+        form->addRow(QCoreApplication::translate("jp::write::StyleDialog", "First line"), first);
+        form->addRow(QCoreApplication::translate("jp::write::StyleDialog", "Spacing, before"), before);
+        form->addRow(QCoreApplication::translate("jp::write::StyleDialog", "Spacing, after"), after);
+        form->addRow(QCoreApplication::translate("jp::write::StyleDialog", "Line spacing (lines)"), line);
     }
     const double leftStart = left->value(), rightStart = right->value(), firstStart = first->value(), beforeStart = before->value(), afterStart = after->value();
 
@@ -220,7 +221,7 @@ bool styleDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor, const QStr
     problem->setWordWrap(true);
     problem->setStyleSheet(QStringLiteral("color: #b00020"));
     v->addWidget(problem);
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
     v->addWidget(buttons);
     QObject::connect(buttons, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
     QObject::connect(buttons, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);

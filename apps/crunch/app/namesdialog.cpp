@@ -33,7 +33,7 @@ NameEditDialog::NameEditDialog(EditSession *session, int id, const EditSession::
     m_name = new QLineEdit(initial.name);
     m_name->setObjectName(QStringLiteral("nameBox"));
     m_name->setAccessibleName(tr("Name"));
-    form->addRow(tr("Name:"), m_name);
+    form->addRow(tr("Name"), m_name);
     m_scope = new QComboBox;
     m_scope->setObjectName(QStringLiteral("nameScope"));
     m_scope->setAccessibleName(tr("Where the name works"));
@@ -43,17 +43,17 @@ NameEditDialog::NameEditDialog(EditSession *session, int id, const EditSession::
     const int at = m_scope->findData(initial.scope);
     m_scope->setCurrentIndex(at < 0 ? 0 : at);
     m_scope->setEnabled(id < 0);   // (a name stays where it is: to move it, make it again)
-    form->addRow(tr("Works on:"), m_scope);
+    form->addRow(tr("Works on"), m_scope);
     m_text = new QLineEdit(initial.text);
     m_text->setObjectName(QStringLiteral("nameText"));
     m_text->setAccessibleName(tr("What the name stands for"));
     m_text->setPlaceholderText(tr("A block of cells such as =Sheet1!$A$1:$A$9, a number, or a formula"));
-    form->addRow(tr("Stands for:"), m_text);
+    form->addRow(tr("Stands for"), m_text);
     m_comment = new QLineEdit(initial.comment);
     m_comment->setObjectName(QStringLiteral("nameComment"));
     m_comment->setAccessibleName(tr("Comment"));
     m_comment->setMaxLength(255);
-    form->addRow(tr("Comment:"), m_comment);
+    form->addRow(tr("Comment"), m_comment);
     layout->addLayout(form);
     m_problem = new QLabel;
     m_problem->setObjectName(QStringLiteral("nameProblem"));
@@ -61,7 +61,7 @@ NameEditDialog::NameEditDialog(EditSession *session, int id, const EditSession::
     m_problem->setTextFormat(Qt::PlainText);
     m_problem->setAccessibleName(tr("What is wrong"));
     layout->addWidget(m_problem);
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
     m_ok = buttons->button(QDialogButtonBox::Ok);
     layout->addWidget(buttons);
     connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
@@ -273,7 +273,7 @@ NamesDialog::NamesDialog(EditSession *session, int sheet, const QString &selecti
     m_notice->setWordWrap(true);
     m_notice->setTextFormat(Qt::PlainText);
     layout->addWidget(m_notice);
-    auto *buttons = new QDialogButtonBox;
+    auto *buttons = new jp::ButtonBox;
     m_new = buttons->addButton(tr("New…"), QDialogButtonBox::ActionRole);
     m_edit = buttons->addButton(tr("Change…"), QDialogButtonBox::ActionRole);
     m_delete = buttons->addButton(tr("Delete"), QDialogButtonBox::ActionRole);
