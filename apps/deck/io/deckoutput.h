@@ -18,6 +18,7 @@
 
 #include <QImage>
 #include <QSizeF>
+#include <QStringList>
 #include <QString>
 #include <QVector>
 
@@ -88,5 +89,16 @@ bool exportPdf(const Document &d, const QString &path, const OutputOptions &o, Q
 
 // One slide as a picture `width` pixels across (the slide's shape), on white.
 QImage slideImage(const Document &d, LayoutCache *cache, int slide, int width = 1920);
+
+// Save slides as pictures: every slide to a folder, as "Slide 1", "Slide 2", and so on (a hidden slide keeps its number and is left out unless `hidden`), PNG or JPEG, `width`
+// pixels across, drawn as slideImage draws one. Each file is written whole or not at all. The names of the files written, in order; on failure what was written is kept and `error`
+// says why (a folder that is not there is not made).
+struct SlidePicturesOptions {
+    QString folder;
+    bool jpeg = false;
+    int width = 1920;
+    bool hidden = false;
+};
+QStringList exportSlidePictures(const Document &d, LayoutCache *cache, const SlidePicturesOptions &o, QString *error = nullptr);
 
 } // namespace jp::deck

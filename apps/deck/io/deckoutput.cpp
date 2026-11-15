@@ -13,6 +13,7 @@
 #include "text/textprops.h"
 
 #include <QCoreApplication>
+#include <QDir>
 #include <QDate>
 #include <QFileInfo>
 #include <QFontMetricsF>
@@ -680,6 +681,29 @@ QImage slideImage(const Document &d, LayoutCache *cache, int slide, int width)
     Renderer::paintPage(&p, ctx, slide);
     p.end();
     return img;
+}
+
+QStringList exportSlidePictures(const Document &d, LayoutCache *cache, const SlidePicturesOptions &o, QString *error)
+{
+    QStringList made;
+    auto fail = [&](const QString &why) {
+        if (error) *error = why;
+        return made;
+    };
+    const QDir dir(o.folder);
+    if (o.folder.isEmpty() || !dir.exists()) return fail(QCoreApplication::translate("jp::deck::Output", "The folder \"%1\" is not there.").arg(o.folder));
+    const int width = std::clamp(o.width, 16, 16000);
+    for (int i = 0; i < d.pages.size(); ++i) {
+        if (d.pages[i]->hidden && !o.hidden) continue;
+        const QString name = QCoreApplication::translate("jp::deck::Output", "Slide %1").arg(i + 1) + (o.jpeg ? QStringLiteral(".jpg") : QStringLiteral(".png"));
+        const QImage img = slideImage(d, cache, i, width);
+        // (Whole or not at all: the old file stays if this one fails.)
+        QSaveFile file(dir.filePath(name));
+        if (img.isNull() || !file.open(QIODevice::WriteOnly) || !img.save(&file, o.jpeg ? "JPEG" : "PNG", o.jpeg ? 92 : -1) || !file.commit())
+            return fail(file.error() != QFileDevice::NoError ? file.errorString() : QCoreApplication::translate("jp::deck::Output", "The picture of slide %1 can't be made.").arg(i + 1));
+        made << name;
+    }
+    return made;
 }
 
 } // namespace jp::deck

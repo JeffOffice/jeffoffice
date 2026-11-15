@@ -2,6 +2,8 @@
 #include "deckhelpers.h"
 #include "../localepin.h"
 #include "../pdfmarkcheck.h"
+#include "../withdialog.h"
+#include <QSpinBox>
 #include "../plainpdfwatch.h"
 #include "app/passworddialogs.h"
 #include "office/officecrypt.h"
@@ -1377,6 +1379,67 @@ private Q_SLOTS:
         });
         w.act("file.exportPicture")->trigger();
         QCOMPARE(label, QStringLiteral("OK"));
+    }
+    // File > Export > Save slides as pictures: every slide to a folder as slide 1, 2, and so on, PNG or JPEG, at the width asked (1920 by default), the hidden ones only when asked.
+    void windowSavesAllSlidesAsPictures()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        DeckWindow w;
+        w.newSlide();
+        w.newSlide();
+        w.newSlide();
+        w.editor()->doc()->pages[2]->hidden = true;
+        deck::setSlideBackground(*w.editor()->doc()->pages[0], QColor(0x20, 0x80, 0x40));
+        QVERIFY(w.act("file.exportSlidePictures"));
+        deck::SlidePicturesOptions o;
+        o.folder = dir.filePath(QStringLiteral("png"));
+        QVERIFY(QDir().mkpath(o.folder));
+        QCOMPARE(w.exportSlidePictures(o), 3);
+        QCOMPARE(QDir(o.folder).entryList(QDir::Files, QDir::Name), (QStringList{QStringLiteral("Slide 1.png"), QStringLiteral("Slide 2.png"), QStringLiteral("Slide 4.png")}));
+        const QImage first(o.folder + QStringLiteral("/Slide 1.png"));
+        QCOMPARE(first.size(), QSize(1920, 1080));
+        QCOMPARE(first.pixelColor(4, 4), QColor(0x20, 0x80, 0x40));
+        // JPEG at another width, with the hidden slide too.
+        o.folder = dir.filePath(QStringLiteral("jpg"));
+        QVERIFY(QDir().mkpath(o.folder));
+        o.jpeg = true;
+        o.width = 640;
+        o.hidden = true;
+        QCOMPARE(w.exportSlidePictures(o), 4);
+        QCOMPARE(QDir(o.folder).entryList(QDir::Files, QDir::Name).size(), 4);
+        const QString third = o.folder + QStringLiteral("/Slide 3.jpg");
+        QCOMPARE(QImage(third).size(), QSize(640, 360));
+        QCOMPARE(fileBytes(third).left(2), QByteArray("\xff\xd8"));
+        // A folder that is not there is said, and nothing is made.
+        QString label;
+        answerDialogs({QMessageBox::Ok}, &label);
+        o.folder = dir.filePath(QStringLiteral("missing/here"));
+        QCOMPARE(w.exportSlidePictures(o), 0);
+        QCOMPARE(label, QStringLiteral("OK"));
+        QVERIFY(!QFileInfo::exists(dir.filePath(QStringLiteral("missing"))));
+    }
+    // The box asks for the format, the folder, the width (1920 at first), and the hidden slides, and the command does what it says.
+    void theSlidePicturesBoxAsksAndSaves()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        DeckWindow w;
+        w.newSlide();
+        w.editor()->doc()->pages[1]->hidden = true;
+        withDialog([&] { w.act("file.exportSlidePictures")->trigger(); }, QStringLiteral("slidePicturesDialog"), [&](QDialog *d) {
+            auto *width = d->findChild<QSpinBox *>(QStringLiteral("slidePicturesWidth"));
+            QVERIFY(width);
+            QCOMPARE(width->value(), 1920);
+            QVERIFY(!d->findChild<QCheckBox *>(QStringLiteral("slidePicturesHidden"))->isChecked());
+            d->findChild<QLineEdit *>(QStringLiteral("slidePicturesFolder"))->setText(dir.path());
+            width->setValue(400);
+            d->findChild<QCheckBox *>(QStringLiteral("slidePicturesHidden"))->setChecked(true);
+            auto *format = d->findChild<QComboBox *>(QStringLiteral("slidePicturesFormat"));
+            format->setCurrentIndex(1);
+        });
+        QTRY_COMPARE(QDir(dir.path()).entryList(QDir::Files, QDir::Name), (QStringList{QStringLiteral("Slide 1.jpg"), QStringLiteral("Slide 2.jpg")}));
+        QCOMPARE(QImage(dir.filePath(QStringLiteral("Slide 1.jpg"))).width(), 400);
     }
     // Export to PDF can protect the file with a password: the file written is encrypted (AES-256), opens with the password and not without, and nothing else is left beside it.
     void anExportWithAPasswordIsEncrypted()

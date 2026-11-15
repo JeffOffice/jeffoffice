@@ -603,6 +603,12 @@ QWidget *DeckFileScreen::buildExport()
     row(QStringLiteral("file-output"), tr("Export to PDF"), tr("Slides, notes pages, handouts, or the outline, as a PDF that looks the same everywhere. Choose what to include first."),
         [this] { return m_win->exportPdf(); });
     row(QStringLiteral("image"), tr("Export Slide as Picture"), tr("The slide you're on, as a PNG or JPEG picture 1920 pixels across."), [this] { return m_win->exportPicture(); });
+    auto *slides = new ActionCard(QStringLiteral("images"), tr("Save Slides as Pictures"), tr("Every slide as a PNG or JPEG picture in a folder, named Slide 1, Slide 2, and so on. You choose the width, and whether hidden slides go too."), w);
+    slides->setObjectName(QStringLiteral("exportSlidePictures"));
+    connect(slides, &QAbstractButton::clicked, this, [this] {
+        if (m_win->exportSlidePicturesAsk()) Q_EMIT closeRequested();
+    });
+    v->addWidget(slides);
     auto *mail = new ActionCard(QStringLiteral("mail"), tr("Make an Email"), tr("A message file with the presentation, or a PDF of it, in it. Open it in your email program, add who it is for, and send it."), w);
     mail->setObjectName(QStringLiteral("exportEmail"));
     connect(mail, &QAbstractButton::clicked, this, [this] {

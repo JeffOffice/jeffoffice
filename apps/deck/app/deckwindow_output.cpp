@@ -22,6 +22,8 @@
 #include <QDialogButtonBox>
 #include <QDir>
 #include <QFile>
+#include <QFileDialog>
+#include <QSpinBox>
 #include <QFileInfo>
 #include <QFormLayout>
 #include <QHBoxLayout>
@@ -311,6 +313,53 @@ bool exportPictureCommand(DeckWindow *w, const PathChooser &chooser)
     return true;
 }
 
+// Save slides as pictures: the format, the folder, the width, and whether the hidden slides go too.
+bool askSlidePictures(DeckWindow *w, deck::SlidePicturesOptions *options)
+{
+    QDialog dlg(w);
+    dlg.setObjectName(QStringLiteral("slidePicturesDialog"));
+    dlg.setWindowTitle(DeckWindow::tr("Save Slides as Pictures"));
+    auto *form = new QFormLayout(&dlg);
+    auto *format = new QComboBox(&dlg);
+    format->setObjectName(QStringLiteral("slidePicturesFormat"));
+    format->addItem(DeckWindow::tr("PNG"));
+    format->addItem(DeckWindow::tr("JPEG"));
+    form->addRow(DeckWindow::tr("Picture type:"), format);
+    auto *folder = new QLineEdit(&dlg);
+    folder->setObjectName(QStringLiteral("slidePicturesFolder"));
+    const QString file = w->editor()->filePath();
+    folder->setText(options->folder.isEmpty() ? (file.isEmpty() ? QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation) : QFileInfo(file).absolutePath()) : options->folder);
+    auto *browse = new QPushButton(DeckWindow::tr("Browse…"), &dlg);
+    auto *row = new QHBoxLayout;
+    row->addWidget(folder, 1);
+    row->addWidget(browse);
+    form->addRow(DeckWindow::tr("Folder:"), row);
+    QObject::connect(browse, &QPushButton::clicked, &dlg, [&] {
+        const QString dir = QFileDialog::getExistingDirectory(&dlg, DeckWindow::tr("Save Slides as Pictures"), folder->text());
+        if (!dir.isEmpty()) folder->setText(dir);
+    });
+    auto *width = new QSpinBox(&dlg);
+    width->setObjectName(QStringLiteral("slidePicturesWidth"));
+    width->setRange(100, 8000);
+    width->setSuffix(DeckWindow::tr(" pixels"));
+    width->setValue(options->width);
+    form->addRow(DeckWindow::tr("Width:"), width);
+    auto *hidden = new QCheckBox(DeckWindow::tr("Include hidden slides"), &dlg);
+    hidden->setObjectName(QStringLiteral("slidePicturesHidden"));
+    hidden->setChecked(options->hidden);
+    form->addRow(hidden);
+    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    form->addRow(buttons);
+    QObject::connect(buttons, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
+    QObject::connect(buttons, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
+    if (dlg.exec() != QDialog::Accepted) return false;
+    options->jpeg = format->currentIndex() == 1;
+    options->folder = folder->text().trimmed();
+    options->width = width->value();
+    options->hidden = hidden->isChecked();
+    return true;
+}
+
 // Sets the printer up for the output: the paper chosen, else the locale's paper upright, or, for printed slides, the sheet turned the way the slides are shaped.
 void setUpPrinter(QPrinter *printer, const Document &doc, const deck::OutputOptions &options)
 {
@@ -465,10 +514,33 @@ bool DeckWindow::exportPdf() { return exportPdfCommand(this, m_pathChooser); }
 
 bool DeckWindow::exportPicture() { return exportPictureCommand(this, m_pathChooser); }
 
+int DeckWindow::exportSlidePictures(const deck::SlidePicturesOptions &options)
+{
+    settle(this);
+    QString err;
+    QApplication::setOverrideCursor(Qt::WaitCursor);
+    const QStringList made = deck::exportSlidePictures(*m_ed->doc(), &m_ed->cache(), options, &err);
+    QApplication::restoreOverrideCursor();
+    if (!err.isEmpty()) {
+        jp::plainWarning(this, tr("Save Slides as Pictures"), tr("%1 couldn't save the pictures.\n%2%3").arg(appInfo().name, err, saveFailureHint(err)));
+        return 0;
+    }
+    statusBar()->showMessage(tr("Saved %n picture(s) in %1", nullptr, int(made.size())).arg(QDir::toNativeSeparators(options.folder)), 5000);
+    return int(made.size());
+}
+
+bool DeckWindow::exportSlidePicturesAsk()
+{
+    deck::SlidePicturesOptions options;
+    if (!askSlidePictures(this, &options)) return false;
+    return exportSlidePictures(options) > 0;
+}
+
 void DeckWindow::createOutputActions()
 {
     mk("file.exportPdf", tr("Export to PDF…"), "file-output", QKeySequence(), [this] { exportPdf(); });
     mk("file.exportPicture", tr("Export Slide as Picture…"), "image", QKeySequence(), [this] { exportPicture(); });
+    mk("file.exportSlidePictures", tr("Save Slides as Pictures…"), "images", QKeySequence(), [this] { exportSlidePicturesAsk(); });
     mk("file.print", tr("Print…"), "printer", QKeySequence::Print, [this] { showFileScreen(QStringLiteral("print")); });
 }
 

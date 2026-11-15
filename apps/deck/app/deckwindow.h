@@ -66,6 +66,7 @@ enum class PlaceholderKind;
 struct ColorSet;
 struct FontSet;
 struct FooterOptions;
+struct SlidePicturesOptions;
 struct MasterParts;
 struct MediaPlay;
 struct OutputOptions;
@@ -275,6 +276,8 @@ public:
     // in Replace with. (deckwindow_find.cpp)
     DeckFindPane *findPane() const { return m_find; }
     void showFindPane(bool replace = false);
+    // Replace Fonts: the box that swaps one font the presentation uses for another everywhere (slides, notes, masters, and layouts); one step of Undo.
+    void replaceFonts();
     // Opens a presentation file (.pptx, .potx, .ppsx, .ppt, .pps, .pot, .odp, .otp) in this window if it
     // holds a new presentation nobody has touched, else in a window of its
     // own. False, with the reason shown, if the file can't be read.
@@ -358,6 +361,9 @@ public:
     QPrinter &printer();
     bool exportPdf();
     bool exportPicture();
+    // Save slides as pictures: every slide to a folder as Slide 1, Slide 2, and so on; how many were written (0, and the reason said, when none could be). The Ask form shows the box first.
+    int exportSlidePictures(const deck::SlidePicturesOptions &options);
+    bool exportSlidePicturesAsk();
     // Make an Email: a message as a .eml file (asking where to put it) with the presentation, or the presentation as a PDF; the person opens it in an email program. Nothing is sent.
     enum class EmailWhat { Presentation, Pdf };
     // `protect`: a password for the PDF of the Pdf form (the presentation as a file keeps the password the presentation has)
