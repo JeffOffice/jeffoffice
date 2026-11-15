@@ -9,7 +9,10 @@
 #include "app/passworddialogs.h"
 #include "office/officecrypt.h"
 #include "io/pdfcrypt.h"
+#include "core/notesmaster.h"
 #include "core/printheaderfooter.h"
+#include <QImageReader>
+#include <QXmlStreamReader>
 #include "../settingguard.h"
 
 class DeckOutputTests : public QObject {
@@ -1825,6 +1828,300 @@ private Q_SLOTS:
         QVERIFY(w.editor()->isModified());
     }
 
+
+    // ---- Notes Master and Handout Master (November 15, 2026)
+
+    // The layout printing always had is what a presentation with no master gets: the slide at the top as large as the upper half lets it be, the notes under it, and the header, date,
+    // footer, and number in the page's four corners.
+    void aPresentationWithNoNotesMasterHasTheLayoutPrintingAlwaysHad()
+    {
+        auto d = outputDeck();
+        QVERIFY(!deck::hasNotesMaster(*d) && !deck::hasHandoutMaster(*d));
+        const QSizeF paper = deck::localePaper(), slide = d->pageSize();
+        const deck::NotesMaster m = deck::notesMasterOf(*d, paper);
+        QVERIFY(!m.custom);
+        const deck::NotesPageGeometry g = deck::notesPageGeometry(m, paper, slide);
+        QVERIFY(qAbs(g.slideImage.left() - 54) < 0.01 && qAbs(g.slideImage.top() - 54) < 0.01);
+        QVERIFY2(qAbs(g.slideImage.width() / g.slideImage.height() - slide.width() / slide.height()) < 1e-6, "the slide keeps its shape");
+        QVERIFY(g.slideImage.bottom() <= paper.height() / 2);
+        QVERIFY(qAbs(g.body.top() - (g.slideImage.bottom() + 24)) < 0.01 && qAbs(g.body.left() - 54) < 0.01 && qAbs(g.body.width() - (paper.width() - 108)) < 0.01);
+        QVERIFY(g.header.left() == 36 && g.date.right() > paper.width() - 37 && g.footer.bottom() > paper.height() - 37 && g.number.right() > paper.width() - 37);
+        QVERIFY(g.header.right() <= g.date.left() + 0.01 && g.footer.right() <= g.number.left() + 0.01);
+    }
+
+    // The places of the notes page are the master's: moving the slide's picture moves the slide on the printed page.
+    void theNotesMasterMovesTheSlideOnThePrintedPage()
+    {
+        auto d = outputDeck();
+        deck::setSlideBackground(*d->pages[0], QColor(0xC0, 0x20, 0x20));
+        const QSizeF paper = deck::localePaper();
+        deck::NotesMaster m = deck::notesMasterOf(*d, paper);
+        m.custom = true;
+        m.slideImage = QRectF(0.5, 0.55, 0.4, 0.2);   // lower right, 245 by 158 points
+        deck::setNotesMaster(*d, m);
+        LayoutCache cache;
+        deck::OutputOptions o;
+        o.layout = deck::PrintLayout::NotesPages;
+        const QImage img = outputImage(*d, &cache, o, 0, paper, 2);
+        const QVector<QRect> slide = colorRegions(img, QColor(0xC0, 0x20, 0x20));
+        QCOMPARE(int(slide.size()), 1);
+        const QRectF want = deck::notesPageGeometry(deck::notesMasterOf(*d, paper), paper, d->pageSize()).slideImage;
+        QVERIFY2(qAbs(slide[0].left() / 2.0 - want.left()) < 3 && qAbs(slide[0].top() / 2.0 - want.top()) < 3 && qAbs(slide[0].width() / 2.0 - want.width()) < 4, "the slide is where the master puts it");
+        QVERIFY(slide[0].left() / 2.0 > paper.width() / 2 - 1 && slide[0].top() / 2.0 > paper.height() / 2 - 1);
+        // The background is the master's too.
+        m.background = QColor(0xDD, 0xEE, 0xFF);
+        deck::setNotesMaster(*d, m);
+        const QImage tinted = outputImage(*d, &cache, o, 0, paper, 2);
+        QVERIFY(colorsNear(QColor(tinted.pixel(6, 6)), QColor(0xDD, 0xEE, 0xFF)));
+        // It goes to the PDF as well.
+        QTemporaryDir dir;
+        deck::OutputOptions pdf = o;
+        QString err;
+        QVERIFY2(deck::exportPdf(*d, dir.filePath(QStringLiteral("n.pdf")), pdf, &err), qPrintable(err));
+    }
+
+    // A handout of N slides to a page has N places that tile its area, in reading order, each slide's room inside its cell; three leave lines beside each.
+    void handoutGeometryHoldsNSlidesToAPage()
+    {
+        const QSizeF paper = deck::localePaper();
+        const deck::HandoutMaster m = deck::defaultHandoutMaster(paper);
+        const struct {
+            int n, columns, rows;
+        } cases[] = {{1, 1, 1}, {2, 1, 2}, {3, 1, 3}, {4, 2, 2}, {6, 2, 3}, {9, 3, 3}};
+        for (const auto &c : cases) {
+            const deck::HandoutGeometry g = deck::handoutGeometry(m, paper, c.n, true);
+            QCOMPARE(int(g.slots.size()), c.n);
+            QSet<int> xs, ys;
+            double area = 0;
+            for (int k = 0; k < c.n; ++k) {
+                const deck::HandoutSlot &slot = g.slots[k];
+                QVERIFY2(g.area.adjusted(-0.01, -0.01, 0.01, 0.01).contains(slot.cell), qPrintable(QStringLiteral("%1 per page, cell %2").arg(c.n).arg(k)));
+                QVERIFY(slot.cell.adjusted(-0.01, -0.01, 0.01, 0.01).contains(slot.room));
+                QCOMPARE(slot.lines, c.n == 3);
+                xs << int(slot.cell.left() * 10);
+                ys << int(slot.cell.top() * 10);
+                area += slot.cell.width() * slot.cell.height();
+                for (int j = 0; j < k; ++j) QVERIFY(!g.slots[j].cell.adjusted(0.1, 0.1, -0.1, -0.1).intersects(slot.cell.adjusted(0.1, 0.1, -0.1, -0.1)));
+            }
+            QCOMPARE(int(xs.size()), c.columns);
+            QCOMPARE(int(ys.size()), c.rows);
+            QVERIFY2(qAbs(area - g.area.width() * g.area.height()) < 1, "the cells fill the area");
+            // Across, then down puts the second slide beside the first; down, then across puts it under.
+            if (c.n >= 4) {
+                QVERIFY(g.slots[1].cell.left() > g.slots[0].cell.left() && qAbs(g.slots[1].cell.top() - g.slots[0].cell.top()) < 0.01);
+                const deck::HandoutGeometry down = deck::handoutGeometry(m, paper, c.n, false);
+                QVERIFY(down.slots[1].cell.top() > down.slots[0].cell.top() && qAbs(down.slots[1].cell.left() - down.slots[0].cell.left()) < 0.01);
+            }
+        }
+        // The page lies across when its master says so.
+        deck::HandoutMaster wide = m;
+        wide.landscape = true;
+        QCOMPARE(deck::handoutPaper(wide, paper), paper.transposed());
+        QCOMPARE(deck::handoutPaper(m, paper), paper);
+        QCOMPARE(deck::handoutPaper(wide, paper.transposed()), paper.transposed());
+    }
+
+    // The handout master's places, background, and orientation reach the printed handout and its PDF.
+    void theHandoutMasterChangesThePrintedHandout()
+    {
+        auto d = showDeck(7);
+        for (auto &page : d->pages) deck::setSlideBackground(*page, QColor(0x1F, 0x5F, 0xBF));
+        deck::OutputOptions o;
+        o.layout = deck::PrintLayout::Handout6;
+        const QSizeF paper = deck::localePaper();
+        QCOMPARE(deck::outputPageSize(*d, o), paper);
+        deck::HandoutMaster m = deck::handoutMasterOf(*d, paper);
+        m.custom = true;
+        m.area = QRectF(0.1, 0.1, 0.5, 0.5);
+        m.background = QColor(0xFF, 0xEE, 0xDD);
+        deck::setHandoutMaster(*d, m);
+        LayoutCache cache;
+        const QImage img = outputImage(*d, &cache, o, 0, paper, 2);
+        QVERIFY(colorsNear(QColor(img.pixel(4, 4)), QColor(0xFF, 0xEE, 0xDD)));
+        const QVector<QRect> six = colorRegions(img, QColor(0x1F, 0x5F, 0xBF), 100);
+        QCOMPARE(int(six.size()), 6);
+        for (const QRect &slide : six) QVERIFY2(slide.right() < 2 * (0.6 * paper.width() + 1) && slide.bottom() < 2 * (0.6 * paper.height() + 1), "the slides fill the master's area");
+        // Lying across: the page, and the PDF's pages, are wider than tall.
+        m.landscape = true;
+        m.area = deck::defaultHandoutMaster(paper.transposed()).area;
+        deck::setHandoutMaster(*d, m);
+        QCOMPARE(deck::outputPageSize(*d, o), paper.transposed());
+        QTemporaryDir dir;
+        QString err;
+        const QString path = dir.filePath(QStringLiteral("h.pdf"));
+        QVERIFY2(deck::exportPdf(*d, path, o, &err), qPrintable(err));
+        const QVector<QSizeF> sizes = pdfPageSizes(fileBytes(path));
+        QCOMPARE(int(sizes.size()), 2);
+        QVERIFY(sizes[0].width() > sizes[0].height());
+        // How many slides a page holds is the master's, kept apart from its places.
+        deck::setHandoutPerPage(*d, 4);
+        QCOMPARE(deck::handoutMasterOf(*d, paper).perPage, 4);
+        deck::setHandoutPerPage(*d, 5);   // (not one of the counts)
+        QCOMPARE(deck::handoutMasterOf(*d, paper).perPage, 6);
+    }
+
+    // Places read from a file are held inside the page and to a least size, and a count that is not one of the six is not taken.
+    void placesAreHeldInsideThePage()
+    {
+        const QRectF fallback(0.1, 0.1, 0.2, 0.2);
+        const double nan = std::numeric_limits<double>::quiet_NaN(), inf = std::numeric_limits<double>::infinity();
+        QCOMPARE(deck::sanitizedPlace(QRectF(nan, 0, 0.5, 0.5), fallback), fallback);
+        QCOMPARE(deck::sanitizedPlace(QRectF(0, 0, inf, 0.5), fallback), fallback);
+        const QRectF big = deck::sanitizedPlace(QRectF(-5, -5, 1e9, 1e9), fallback);
+        QVERIFY(big.left() >= 0 && big.top() >= 0 && big.right() <= 1.0000001 && big.bottom() <= 1.0000001);
+        const QRectF tiny = deck::sanitizedPlace(QRectF(0.5, 0.5, 0, -3), fallback);
+        QVERIFY(tiny.width() >= 0.0049 && tiny.height() >= 0.0049);
+        QJsonObject o;
+        o[QStringLiteral("header")] = QJsonArray{1e300, -1e300, 1e300, 5};
+        o[QStringLiteral("body")] = QJsonArray{0.1, 0.2};   // the wrong length
+        const deck::NotesMaster read = deck::notesMasterFromJson(o, deck::defaultNotesMaster(QSizeF(612, 792), QSizeF(960, 540)));
+        QVERIFY(read.header.right() <= 1.0000001 && read.header.top() >= 0);
+        QCOMPARE(read.body, deck::defaultNotesMaster(QSizeF(612, 792), QSizeF(960, 540)).body);
+        QVERIFY(!deck::isHandoutCount(0) && !deck::isHandoutCount(5) && !deck::isHandoutCount(1000000) && deck::isHandoutCount(9));
+    }
+
+    // Slides as GIF, TIFF, BMP, and SVG pictures: one file to a slide, each a valid file of its type and size.
+    void everyPictureFormatWritesValidFiles()
+    {
+        auto d = outputDeck();   // five slides, the third hidden
+        deck::setSlideBackground(*d->pages[0], QColor(0xC0, 0x20, 0x20));
+        LayoutCache cache;
+        struct Case {
+            deck::SlidePictureFormat format;
+            const char *name, *extension;
+        };
+        for (const Case &c : {Case{deck::SlidePictureFormat::Png, "png", "png"}, Case{deck::SlidePictureFormat::Gif, "gif", "gif"}, Case{deck::SlidePictureFormat::Tiff, "tiff", "tif"},
+                              Case{deck::SlidePictureFormat::Bmp, "bmp", "bmp"}}) {
+            QTemporaryDir dir;
+            QVERIFY(dir.isValid());
+            deck::SlidePicturesOptions o;
+            o.folder = dir.path();
+            o.format = c.format;
+            o.width = 320;
+            const QStringList names = deck::slidePictureNames(*d, o);
+            QCOMPARE(int(names.size()), 4);
+            QVERIFY2(names[0].endsWith(QLatin1Char('.') + QLatin1String(c.extension)), c.name);
+            const deck::SlidePicturesResult r = deck::exportSlidePictures(*d, &cache, o);
+            QVERIFY2(r.error.isEmpty(), qPrintable(r.error));
+            QCOMPARE(r.written, names);
+            for (const QString &name : names) {
+                QImageReader reader(dir.filePath(name));
+                QVERIFY2(reader.canRead(), c.name);
+                QCOMPARE(QString::fromLatin1(reader.format()).toLower(), QString::fromLatin1(c.name));
+                QCOMPARE(reader.size(), QSize(320, 180));
+            }
+            // The first slide's background is the color asked for (a GIF's colors are cut down to 256: a few levels off is the same).
+            const QImage first(dir.filePath(names[0]));
+            QVERIFY2(!first.isNull(), c.name);
+            QVERIFY2(colorsNear(QColor(first.pixel(4, 4)), QColor(0xC0, 0x20, 0x20), 10), c.name);
+        }
+        // The old way of asking for a JPEG still works.
+        QTemporaryDir dir;
+        deck::SlidePicturesOptions jpeg;
+        jpeg.folder = dir.path();
+        jpeg.jpeg = true;
+        jpeg.width = 200;
+        QVERIFY(deck::exportSlidePictures(*d, &cache, jpeg).error.isEmpty());
+        QCOMPARE(QString::fromLatin1(QImageReader(dir.filePath(deck::slidePictureName(0, true))).format()).toLower(), QStringLiteral("jpeg"));
+    }
+
+    // An SVG slide is a drawing, not a picture of pixels: the slide's size, its letters as shapes, and no raster of the whole slide.
+    void svgSlidesAreVector()
+    {
+        auto d = outputDeck();
+        deck::setSlideBackground(*d->pages[0], QColor(0xC0, 0x20, 0x20));
+        LayoutCache cache;
+        QTemporaryDir dir;
+        deck::SlidePicturesOptions o;
+        o.folder = dir.path();
+        o.format = deck::SlidePictureFormat::Svg;
+        const deck::SlidePicturesResult r = deck::exportSlidePictures(*d, &cache, o);
+        QVERIFY2(r.error.isEmpty(), qPrintable(r.error));
+        QCOMPARE(int(r.written.size()), 4);
+        QCOMPARE(r.written[0], deck::slidePictureName(0, deck::SlidePictureFormat::Svg));
+        QFile f(dir.filePath(r.written[0]));
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        const QByteArray svg = f.readAll();
+        QXmlStreamReader xml(svg);
+        QVERIFY(xml.readNextStartElement());
+        QCOMPARE(xml.name().toString(), QStringLiteral("svg"));
+        const QString viewBox = xml.attributes().value(QStringLiteral("viewBox")).toString();
+        QVERIFY2(viewBox.split(QLatin1Char(' '), Qt::SkipEmptyParts).size() == 4, qPrintable(viewBox));
+        QVERIFY2(qAbs(viewBox.split(QLatin1Char(' '), Qt::SkipEmptyParts)[2].toDouble() - 960) < 0.5, qPrintable(viewBox));
+        int paths = 0, images = 0;
+        while (!xml.atEnd()) {
+            xml.readNext();
+            if (xml.isStartElement()) {
+                paths += xml.name() == QLatin1String("path");
+                images += xml.name() == QLatin1String("image");
+            }
+        }
+        QVERIFY2(!xml.hasError(), qPrintable(xml.errorString()));
+        QVERIFY2(paths > 0, "the letters are shapes");
+        QVERIFY2(images == 0, "no raster of the slide");
+        QVERIFY(svg.contains("C02020") || svg.contains("c02020") || svg.contains("rgb(192,32,32)"));
+        // The same slide, as a string: what the command for the current slide writes.
+        QCOMPARE(deck::slideSvg(*d, &cache, 0), svg);
+        QVERIFY(deck::slideSvg(*d, &cache, 99).isEmpty());
+    }
+
+    // The GIF writer: any picture comes back with its size and, where it has few colors, its colors; it refuses what GIF cannot hold.
+    void gifEncodingKeepsSizeAndColors()
+    {
+        QImage img(300, 200, QImage::Format_ARGB32);
+        img.fill(QColor(10, 120, 30));
+        {
+            QPainter p(&img);
+            p.fillRect(QRect(50, 40, 100, 80), QColor(240, 200, 20));
+            p.setPen(Qt::black);
+            for (int i = 0; i < 300; i += 3) p.drawLine(i, 0, 300 - i, 199);   // many pixels of changing codes: the table fills and clears
+        }
+        const QByteArray gif = jp::encodeGif(img);
+        QVERIFY(gif.startsWith("GIF89a") && gif.endsWith(char(0x3B)));
+        QImage back;
+        QVERIFY(back.loadFromData(gif, "GIF"));
+        QCOMPARE(back.size(), img.size());
+        QVERIFY(colorsNear(QColor(back.pixel(100, 80)), QColor(240, 200, 20), 10));
+        QVERIFY(colorsNear(QColor(back.pixel(280, 100)), QColor(10, 120, 30), 10));
+        // A noisy picture, which fills the 4096-code table over and over, is still read back whole.
+        QImage noise(400, 300, QImage::Format_RGB32);
+        quint32 seed = 12345;
+        for (int y = 0; y < noise.height(); ++y)
+            for (int x = 0; x < noise.width(); ++x) {
+                seed = seed * 1664525u + 1013904223u;
+                noise.setPixel(x, y, qRgb(int(seed >> 24) & 0xE0, int(seed >> 16) & 0xE0, int(seed >> 8) & 0xC0));
+            }
+        QImage noisy;
+        QVERIFY(noisy.loadFromData(jp::encodeGif(noise), "GIF"));
+        QCOMPARE(noisy.size(), noise.size());
+        // One pixel, and nothing.
+        QImage one(1, 1, QImage::Format_RGB32);
+        one.fill(Qt::blue);
+        QImage oneBack;
+        QVERIFY(oneBack.loadFromData(jp::encodeGif(one), "GIF"));
+        QVERIFY(colorsNear(QColor(oneBack.pixel(0, 0)), Qt::blue, 10));
+        QVERIFY(jp::encodeGif(QImage()).isEmpty());
+        QVERIFY(jp::encodeGif(QImage(70000, 1, QImage::Format_Mono)).isEmpty());
+    }
+
+    // The current slide as a picture, in each type, by the Export Slide as Picture command: the ending of the name chooses the type.
+    void exportingTheCurrentSlideChoosesTheTypeByTheName()
+    {
+        DeckWindow w;
+        QTemporaryDir dir;
+        for (const char *ending : {"gif", "tif", "bmp", "svg", "png"}) {
+            const QString path = dir.filePath(QStringLiteral("slide.") + QLatin1String(ending));
+            w.setSavePathChooser([&](const QString &, const QString &) { return path; });
+            QVERIFY2(w.exportPicture(), ending);
+            QVERIFY2(QFileInfo(path).size() > 100, ending);
+            if (QLatin1String(ending) == QLatin1String("svg")) {
+                QVERIFY(fileBytes(path).contains("<svg"));
+            } else {
+                QImageReader reader(path);
+                QVERIFY2(reader.canRead() && reader.size() == QSize(1920, 1080), ending);
+            }
+        }
+    }
 };
 
 JP_TEST_CLASS(DeckOutputTests)

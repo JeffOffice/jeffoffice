@@ -11,6 +11,7 @@
 #include "app/notespane.h"
 #include "app/pdfprotection.h"
 #include "app/settings.h"
+#include "core/notesmaster.h"
 #include "core/appinfo.h"
 #include "io/deckoutput.h"
 
@@ -290,20 +291,45 @@ bool exportPictureCommand(DeckWindow *w, const PathChooser &chooser)
     Editor *ed = w->editor();
     const int slide = ed->currentPage();
     // The dialog hands back the filter text it showed, so the choice is recognized by comparing with these same (translated) texts.
-    const QString pngFilter = DeckWindow::tr("PNG Picture (*.png)"), jpegFilter = DeckWindow::tr("JPEG Picture (*.jpg *.jpeg)");
-    QString selected = pngFilter;
+    struct Kind {
+        deck::SlidePictureFormat format;
+        QString filter;
+    };
+    const QVector<Kind> kinds{{deck::SlidePictureFormat::Png, DeckWindow::tr("PNG Picture (*.png)")},
+                              {deck::SlidePictureFormat::Jpeg, DeckWindow::tr("JPEG Picture (*.jpg *.jpeg)")},
+                              {deck::SlidePictureFormat::Gif, DeckWindow::tr("GIF Picture (*.gif)")},
+                              {deck::SlidePictureFormat::Tiff, DeckWindow::tr("TIFF Picture (*.tif *.tiff)")},
+                              {deck::SlidePictureFormat::Bmp, DeckWindow::tr("BMP Picture (*.bmp)")},
+                              {deck::SlidePictureFormat::Svg, DeckWindow::tr("SVG Drawing (*.svg)")}};
+    QStringList filters;
+    for (const Kind &k : kinds) filters << k.filter;
+    QString selected = kinds[0].filter;
     const QString suggested = suggestedPath(w, DeckWindow::tr("%1 - Slide %2").arg(ed->displayName()).arg(slide + 1), QStringLiteral(".png"));
-    QString path = chooser ? chooser(suggested, selected)
-                           : askSavePath(w, DeckWindow::tr("Export Slide as Picture"), suggested, pngFilter + QStringLiteral(";;") + jpegFilter, &selected);
+    QString path = chooser ? chooser(suggested, selected) : askSavePath(w, DeckWindow::tr("Export Slide as Picture"), suggested, filters.join(QStringLiteral(";;")), &selected);
     if (path.isEmpty()) return false;
+    // The ending of the name chooses the format; with none that is known, the filter chosen does.
+    deck::SlidePictureFormat format = deck::SlidePictureFormat::Png;
     const QString suffix = QFileInfo(path).suffix().toLower();
-    if (suffix != QLatin1String("png") && suffix != QLatin1String("jpg") && suffix != QLatin1String("jpeg"))
-        path += selected == jpegFilter ? QStringLiteral(".jpg") : QStringLiteral(".png");
-    const QImage img = deck::slideImage(*ed->doc(), &ed->cache(), slide);
-    const bool jpeg = QFileInfo(path).suffix().toLower() != QLatin1String("png");
+    jp::PictureFormat raster;
+    if (suffix == QLatin1String("svg")) {
+        format = deck::SlidePictureFormat::Svg;
+    } else if (jp::pictureFormatOfExtension(suffix, &raster)) {
+        format = deck::SlidePictureFormat(int(raster));
+    } else {
+        for (const Kind &k : kinds)
+            if (k.filter == selected) format = k.format;
+        path += QLatin1Char('.') + deck::slidePictureExtension(format);
+    }
     // A picture is written whole or not at all: the old file stays if this one fails.
     QSaveFile file(path);
-    bool ok = !img.isNull() && file.open(QIODevice::WriteOnly) && img.save(&file, jpeg ? "JPEG" : "PNG", jpeg ? 92 : -1) && file.commit();
+    bool ok = false;
+    if (format == deck::SlidePictureFormat::Svg) {
+        const QByteArray svg = deck::slideSvg(*ed->doc(), &ed->cache(), slide);
+        ok = !svg.isEmpty() && file.open(QIODevice::WriteOnly) && file.write(svg) == svg.size() && file.commit();
+    } else {
+        const QImage img = deck::slideImage(*ed->doc(), &ed->cache(), slide);
+        ok = !img.isNull() && file.open(QIODevice::WriteOnly) && jp::writePicture(&file, img, jp::PictureFormat(int(format)), 92) && file.commit();
+    }
     if (!ok) {
         const QString err = file.error() != QFileDevice::NoError ? file.errorString() : DeckWindow::tr("The picture can't be made.");
         jp::plainWarning(w, DeckWindow::tr("Export Slide as Picture"),
@@ -325,6 +351,10 @@ bool askSlidePictures(DeckWindow *w, deck::SlidePicturesOptions *options)
     format->setObjectName(QStringLiteral("slidePicturesFormat"));
     format->addItem(DeckWindow::tr("PNG"));
     format->addItem(DeckWindow::tr("JPEG"));
+    format->addItem(DeckWindow::tr("GIF"));
+    format->addItem(DeckWindow::tr("TIFF"));
+    format->addItem(DeckWindow::tr("BMP"));
+    format->addItem(DeckWindow::tr("SVG (drawing)"));
     form->addRow(DeckWindow::tr("Picture type:"), format);
     auto *folder = new QLineEdit(&dlg);
     folder->setObjectName(QStringLiteral("slidePicturesFolder"));
@@ -345,6 +375,8 @@ bool askSlidePictures(DeckWindow *w, deck::SlidePicturesOptions *options)
     width->setSuffix(DeckWindow::tr(" pixels"));
     width->setValue(options->width);
     form->addRow(DeckWindow::tr("Width:"), width);
+    // (an SVG drawing has no width in pixels: it scales)
+    QObject::connect(format, &QComboBox::currentIndexChanged, &dlg, [width](int index) { width->setEnabled(index != int(deck::SlidePictureFormat::Svg)); });
     auto *hidden = new QCheckBox(DeckWindow::tr("Include hidden slides"), &dlg);
     hidden->setObjectName(QStringLiteral("slidePicturesHidden"));
     hidden->setChecked(options->hidden);
@@ -354,7 +386,8 @@ bool askSlidePictures(DeckWindow *w, deck::SlidePicturesOptions *options)
     QObject::connect(buttons, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
     QObject::connect(buttons, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
     if (dlg.exec() != QDialog::Accepted) return false;
-    options->jpeg = format->currentIndex() == 1;
+    options->format = deck::SlidePictureFormat(format->currentIndex());
+    options->jpeg = false;
     options->folder = folder->text().trimmed();
     options->width = width->value();
     options->hidden = hidden->isChecked();
@@ -365,7 +398,8 @@ bool askSlidePictures(DeckWindow *w, deck::SlidePicturesOptions *options)
 void setUpPrinter(QPrinter *printer, const Document &doc, const deck::OutputOptions &options)
 {
     const QSizeF slide = doc.pageSize();
-    const bool wide = options.layout == deck::PrintLayout::Slides && slide.width() > slide.height();
+    // (a handout lies across when its master says so)
+    const bool wide = (options.layout == deck::PrintLayout::Slides && slide.width() > slide.height()) || (deck::slidesPerPage(options.layout) && deck::handoutMasterOf(doc, deck::localePaper()).landscape && deck::hasHandoutMaster(doc));
     printer->setPageSize(QPageSize(options.paper.isEmpty() ? deck::localePaper() : options.paper, QPageSize::Point, QString(), QPageSize::FuzzyMatch));
     printer->setPageOrientation(wide ? QPageLayout::Landscape : QPageLayout::Portrait);
     printer->setColorMode(options.grayscale ? QPrinter::GrayScale : QPrinter::Color);

@@ -1,5 +1,6 @@
 // JeffDeck's tests of writing a presentation file.
 #include "deckhelpers.h"
+#include "core/notesmaster.h"
 #include "core/printheaderfooter.h"
 #include "io/zip.h"
 #include "app/listmenus.h"
@@ -1556,6 +1557,148 @@ private Q_SLOTS:
                 QCOMPARE(list->format().intProperty(jp::tp::ListLevel), cases[i].level);
             }
         }
+    }
+
+    // ---- Notes Master and Handout Master layouts (November 15, 2026)
+
+    // The places of the notes master and handout master, the page's background, how many slides a handout holds, and whether it lies across are in the file and come back; a file with
+    // none has the layout printing always had.
+    void notesMasterAndHandoutMasterLayoutsAreKeptInTheFile()
+    {
+        auto d = deck::newPresentation();
+        const QSizeF page(540, 720);
+        deck::NotesMaster nm = deck::notesMasterOf(*d, page);
+        nm.custom = true;
+        nm.slideImage = QRectF(0.05, 0.1, 0.5, 0.25);
+        nm.body = QRectF(0.05, 0.5, 0.9, 0.4);
+        nm.header = QRectF(0.0, 0.0, 0.3, 0.05);
+        nm.date = QRectF(0.6, 0.0, 0.3, 0.05);
+        nm.footer = QRectF(0.0, 0.93, 0.3, 0.05);
+        nm.number = QRectF(0.6, 0.93, 0.3, 0.05);
+        nm.background = QColor(0xDD, 0xEE, 0xFF);
+        deck::setNotesMaster(*d, nm);
+        deck::HandoutMaster hm = deck::handoutMasterOf(*d, page);
+        hm.custom = true;
+        hm.landscape = true;
+        hm.area = QRectF(0.1, 0.12, 0.8, 0.76);
+        hm.header = QRectF(0.02, 0.02, 0.4, 0.05);
+        hm.background = QColor(0xFF, 0xEE, 0xDD);
+        hm.perPage = 4;
+        deck::setHandoutMaster(*d, hm);
+        QString err;
+        const QByteArray bytes = deck::exportPresentation(*d, &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        Exported e;
+        QString why;
+        QVERIFY2(unpack(bytes, &e, &why), qPrintable(why));
+        QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+        const QString notesXml = QString::fromUtf8(e.zip.value(QStringLiteral("ppt/notesMasters/notesMaster1.xml")));
+        QVERIFY2(notesXml.contains(QLatin1String("<a:srgbClr val=\"DDEEFF\"/>")), qPrintable(notesXml.left(600)));
+        QVERIFY2(notesXml.contains(QStringLiteral("<a:off x=\"%1\" y=\"%2\"/>").arg(qRound64(0.05 * 6858000)).arg(qRound64(0.5 * 9144000))), "the notes' place");
+        const QString handoutXml = QString::fromUtf8(e.zip.value(QStringLiteral("ppt/handoutMasters/handoutMaster1.xml")));
+        QVERIFY2(handoutXml.contains(QLatin1String("FFEEDD")) && handoutXml.contains(QLatin1String("landscape=\"1\"")), qPrintable(handoutXml.left(600)));
+        QVERIFY2(part(e, QStringLiteral("/ppt/presProps.xml")).contains(QLatin1String("prnWhat=\"handouts4\"")), qPrintable(part(e, QStringLiteral("/ppt/presProps.xml"))));
+        auto back = deck::importPresentation(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        QVERIFY(deck::hasNotesMaster(*back) && deck::hasHandoutMaster(*back));
+        const deck::NotesMaster nb = deck::notesMasterOf(*back, page);
+        for (deck::NotesPart part : {deck::NotesPart::Body, deck::NotesPart::Header, deck::NotesPart::Date, deck::NotesPart::Footer, deck::NotesPart::Number})
+            QVERIFY2(deck::nearly(nb.part(part), nm.part(part), 0.002), qPrintable(QString::number(int(part))));
+        // (the slide's picture is in the slide's shape inside its place: it is the picture that comes back)
+        const QRectF imageWas = deck::notesPageGeometry(nm, page, d->pageSize()).slideImage, imageBack = deck::notesPageGeometry(nb, page, back->pageSize()).slideImage;
+        QVERIFY2(qAbs(imageWas.left() - imageBack.left()) < 0.5 && qAbs(imageWas.top() - imageBack.top()) < 0.5 && qAbs(imageWas.width() - imageBack.width()) < 0.5, "the slide picture");
+        QCOMPARE(nb.background, nm.background);
+        const deck::HandoutMaster hb = deck::handoutMasterOf(*back, page);
+        QVERIFY(hb.landscape && hb.perPage == 4);
+        QCOMPARE(hb.background, hm.background);
+        QVERIFY(deck::nearly(hb.area, hm.area, 0.0001) && deck::nearly(hb.header, hm.header, 0.002));
+        // Written again, the same file's layout: nothing drifts.
+        Exported again;
+        QVERIFY2(unpack(deck::exportPresentation(*back, &err), &again, &why), qPrintable(why));
+        QCOMPARE(part(again, QStringLiteral("/ppt/handoutMasters/handoutMaster1.xml")), part(e, QStringLiteral("/ppt/handoutMasters/handoutMaster1.xml")));
+
+        // A presentation with no layout of its own has none after, and one that only chose its header and footer has the standard's places, which are the same as none.
+        auto plain = deck::newPresentation();
+        deck::PrintHeaderFooter hf;
+        hf.header = true;
+        hf.headerText = QStringLiteral("Head");
+        deck::setPrintHeaderFooter(*plain, deck::PrintedPages::Handouts, hf);
+        deck::setPrintHeaderFooter(*plain, deck::PrintedPages::Notes, hf);
+        auto plainBack = deck::importPresentation(deck::exportPresentation(*plain, &err), &err);
+        QVERIFY2(plainBack, qPrintable(err));
+        QVERIFY(!deck::hasNotesMaster(*plainBack) && !deck::hasHandoutMaster(*plainBack) && !deck::hasHandoutPerPage(*plainBack));
+        QVERIFY(!deck::notesMasterOf(*plainBack, QSizeF(612, 792)).custom);
+
+        // A master the file had keeps all it had; the place of the header moves when the person moves it, and the shape of its own stays.
+        QString custom = QString::fromUtf8(e.zip.value(QStringLiteral("ppt/handoutMasters/handoutMaster1.xml")));
+        custom.replace(QStringLiteral("</p:spTree>"), QStringLiteral("<p:sp><p:nvSpPr><p:cNvPr id=\"99\" name=\"OurOwnShape\"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x=\"100\" y=\"100\"/><a:ext cx=\"500000\" cy=\"500000\"/></a:xfrm>"
+                                                                  "<a:prstGeom prst=\"ellipse\"><a:avLst/></a:prstGeom></p:spPr></p:sp></p:spTree>"));
+        ZipWriter zip;
+        for (auto it = e.zip.cbegin(); it != e.zip.cend(); ++it) zip.add(it.key(), it.key() == QLatin1String("ppt/handoutMasters/handoutMaster1.xml") ? custom.toUtf8() : it.value(), true);
+        auto read = deck::importPresentation(zip.finish(), &err);
+        QVERIFY2(read, qPrintable(err));
+        Exported same;
+        QVERIFY2(unpack(deck::exportPresentation(*read, &err), &same, &why), qPrintable(why));
+        QCOMPARE(part(same, QStringLiteral("/ppt/handoutMasters/handoutMaster1.xml")).contains(QLatin1String("OurOwnShape")), true);
+        deck::HandoutMaster moved = deck::handoutMasterOf(*read, page);
+        moved.header = QRectF(0.3, 0.3, 0.2, 0.05);
+        moved.background = QColor(1, 2, 3);
+        deck::setHandoutMaster(*read, moved);
+        Exported changed;
+        QVERIFY2(unpack(deck::exportPresentation(*read, &err), &changed, &why), qPrintable(why));
+        QVERIFY2(packageProblem(changed).isEmpty(), qPrintable(packageProblem(changed)));
+        const QString changedXml = part(changed, QStringLiteral("/ppt/handoutMasters/handoutMaster1.xml"));
+        QVERIFY(changedXml.contains(QLatin1String("OurOwnShape")) && changedXml.contains(QLatin1String("010203")) && !changedXml.contains(QLatin1String("FFEEDD")));
+        QVERIFY(changedXml.contains(QStringLiteral("x=\"%1\"").arg(qRound64(0.3 * 6858000))));
+        auto movedBack = deck::importPresentation(deck::exportPresentation(*read, &err), &err);
+        QVERIFY(movedBack && deck::nearly(deck::handoutMasterOf(*movedBack, page).header, moved.header, 0.002));
+    }
+
+    // A master that lies about its places, its size, or its count is read within limits: places inside the page, no more than 64 shapes looked at, no count but the six.
+    void hostileNotesAndHandoutMastersAreBounded()
+    {
+        auto d = deck::newPresentation();
+        deck::PrintHeaderFooter hf;
+        hf.header = true;
+        deck::setPrintHeaderFooter(*d, deck::PrintedPages::Notes, hf);
+        deck::setPrintHeaderFooter(*d, deck::PrintedPages::Handouts, hf);
+        QString err;
+        Exported e;
+        QString why;
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &e, &why), qPrintable(why));
+        QString notes = QString::fromUtf8(e.zip.value(QStringLiteral("ppt/notesMasters/notesMaster1.xml")));
+        QString handout = QString::fromUtf8(e.zip.value(QStringLiteral("ppt/handoutMasters/handoutMaster1.xml")));
+        // Places far outside the page, negative, and too big for any number; and thousands of shapes before the places that count.
+        QString crowd;
+        for (int i = 0; i < 20000; ++i) crowd += QStringLiteral("<p:sp><p:nvSpPr><p:cNvPr id=\"%1\" name=\"x\"/><p:cNvSpPr/><p:nvPr><p:ph type=\"hdr\" idx=\"%1\"/></p:nvPr></p:nvSpPr><p:spPr><a:xfrm><a:off x=\"5\" y=\"5\"/><a:ext cx=\"100\" cy=\"100\"/></a:xfrm></p:spPr></p:sp>").arg(1000 + i);
+        const QRegularExpression offs(QStringLiteral("<a:off x=\"\\d+\" y=\"\\d+\"/><a:ext cx=\"\\d+\" cy=\"\\d+\"/>"));
+        QString wild = notes;
+        wild.replace(offs, QStringLiteral("<a:off x=\"-9000000000000\" y=\"99999999999999999999\"/><a:ext cx=\"9223372036854775807\" cy=\"-5\"/>"));
+        QString wildHandout = handout;
+        wildHandout.replace(offs, QStringLiteral("<a:off x=\"1e9\" y=\"NaN\"/><a:ext cx=\"0\" cy=\"0\"/>"));
+        wildHandout.replace(QStringLiteral("<p:spTree>"), QStringLiteral("<p:spTree>") + crowd);
+        wildHandout.replace(QStringLiteral("</p:handoutMaster>"), QStringLiteral("<p:extLst><p:ext uri=\"{7B0F4F1E-5E7A-4C55-9D3B-2F6E1A9C0D11}\"><jo:handout xmlns:jo=\"http://jeffoffice.com/ns/deck\" landscape=\"1\" area=\"nan inf -1 1e300\"/></p:ext></p:extLst></p:handoutMaster>"));
+        QString props = part(e, QStringLiteral("/ppt/presProps.xml"));
+        props.replace(QRegularExpression(QStringLiteral("<p:presentationPr([^>]*)/>")), QStringLiteral("<p:presentationPr\\1><p:prnPr prnWhat=\"handouts99999\"/></p:presentationPr>"));
+        ZipWriter zip;
+        for (auto it = e.zip.cbegin(); it != e.zip.cend(); ++it) {
+            const QString key = it.key();
+            const QByteArray data = key == QLatin1String("ppt/notesMasters/notesMaster1.xml") ? wild.toUtf8() : key == QLatin1String("ppt/handoutMasters/handoutMaster1.xml") ? wildHandout.toUtf8()
+                                    : key == QLatin1String("ppt/presProps.xml") ? props.toUtf8() : it.value();
+            zip.add(key, data, true);
+        }
+        QElapsedTimer timer;
+        timer.start();
+        auto read = deck::importPresentation(zip.finish(), &err);
+        QVERIFY2(read, qPrintable(err));
+        QVERIFY2(timer.elapsed() < 20000, "the crowd of shapes costs bounded work");
+        const QSizeF page(540, 720);
+        for (const QRectF &r : {deck::notesMasterOf(*read, page).header, deck::notesMasterOf(*read, page).body, deck::notesMasterOf(*read, page).slideImage, deck::handoutMasterOf(*read, page).area,
+                                deck::handoutMasterOf(*read, page).header}) {
+            QVERIFY2(r.left() >= 0 && r.top() >= 0 && r.right() <= 1.0000001 && r.bottom() <= 1.0000001 && r.width() >= 0.0049 && r.height() >= 0.0049, qPrintable(QStringLiteral("%1,%2 %3x%4").arg(r.x()).arg(r.y()).arg(r.width()).arg(r.height())));
+        }
+        QVERIFY(deck::isHandoutCount(deck::handoutMasterOf(*read, page).perPage));
+        QVERIFY(!deck::hasHandoutPerPage(*read));
     }
 };
 

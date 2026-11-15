@@ -1,5 +1,6 @@
 #include "io/pptximport.h"
 #include "office/macroparts.h"
+#include "core/notesmaster.h"
 #include "core/printheaderfooter.h"
 
 #include "core/appinfo.h"
@@ -891,6 +892,86 @@ void Importer::readSize(const QDomElement &presentation)
         m_doc.appData[QStringLiteral("notesSize")] = QJsonObject{{"w", office::emuToPoints(nx)}, {"h", office::emuToPoints(ny)}};
 }
 
+// The places of a notes master or handout master (as fractions of its page) and its background, kept as the presentation's layout when they are not the standard's. Of a master's shapes at
+// most kMaxMasterShapes are looked at, and each place is held inside the page and to a least size (core/notesmaster sanitizedPlace). Reads the handout's extension of our own too.
+constexpr int kMaxMasterShapes = 64;
+constexpr qint64 kMaxMasterEmu = qint64(1) << 40;
+
+bool placeOf(const QDomElement &sp, QRectF *out, const QSizeF &page)
+{
+    const QDomElement xfrm = aChild(pChild(sp, "spPr"), "xfrm");
+    if (xfrm.isNull() || page.width() <= 0 || page.height() <= 0) return false;
+    const QDomElement off = aChild(xfrm, "off"), ext = aChild(xfrm, "ext");
+    if (off.isNull() || ext.isNull()) return false;
+    bool ok[4] = {false, false, false, false};
+    const qint64 x = office::parseInt(office::attr(off, QStringLiteral("x")), 0, &ok[0]), y = office::parseInt(office::attr(off, QStringLiteral("y")), 0, &ok[1]);
+    const qint64 cx = office::parseInt(office::attr(ext, QStringLiteral("cx")), 0, &ok[2]), cy = office::parseInt(office::attr(ext, QStringLiteral("cy")), 0, &ok[3]);
+    if (!ok[0] || !ok[1] || !ok[2] || !ok[3] || std::abs(x) > kMaxMasterEmu || std::abs(y) > kMaxMasterEmu || cx <= 0 || cy <= 0 || cx > kMaxMasterEmu || cy > kMaxMasterEmu) return false;
+    const double w = page.width() * 12700.0, h = page.height() * 12700.0;
+    *out = QRectF(x / w, y / h, cx / w, cy / h);
+    return true;
+}
+
+QColor masterBackground(const QDomElement &root)
+{
+    const QDomElement fill = aChild(pChild(pChild(pChild(root, "cSld"), "bg"), "bgPr"), "solidFill");
+    const QDomElement rgb = aChild(fill, "srgbClr");
+    const QColor c(QLatin1Char('#') + office::attr(rgb, QStringLiteral("val")));
+    return rgb.isNull() || !c.isValid() ? QColor() : c;
+}
+
+void readMasterLayout(const QDomElement &root, bool notes, Document &doc)
+{
+    const QJsonObject size = doc.appData.value(QStringLiteral("notesSize")).toObject();
+    const QSizeF page(size.value(QStringLiteral("w")).toDouble(540), size.value(QStringLiteral("h")).toDouble(720));
+    NotesMaster nm = standardNotesMaster(doc.pageSize());
+    HandoutMaster hm = standardHandoutMaster();
+    const NotesMaster notesStandard = nm;
+    const HandoutMaster handoutStandard = hm;
+    int seen = 0;
+    for (const QDomElement &sp : office::children(pChild(pChild(root, "cSld"), "spTree"), office::ns::P, QStringLiteral("sp"))) {
+        if (++seen > kMaxMasterShapes) break;
+        PhRef ph;
+        QRectF r;
+        if (!placeholderOf(sp, &ph) || !placeOf(sp, &r, page)) continue;
+        if (ph.type == QLatin1String("hdr")) (notes ? nm.header : hm.header) = sanitizedPlace(r, notes ? nm.header : hm.header);
+        else if (ph.type == QLatin1String("dt")) (notes ? nm.date : hm.date) = sanitizedPlace(r, notes ? nm.date : hm.date);
+        else if (ph.type == QLatin1String("ftr")) (notes ? nm.footer : hm.footer) = sanitizedPlace(r, notes ? nm.footer : hm.footer);
+        else if (ph.type == QLatin1String("sldNum")) (notes ? nm.number : hm.number) = sanitizedPlace(r, notes ? nm.number : hm.number);
+        else if (notes && ph.type == QLatin1String("sldImg")) nm.slideImage = sanitizedPlace(r, nm.slideImage);
+        else if (notes && ph.type == QLatin1String("body")) nm.body = sanitizedPlace(r, nm.body);
+    }
+    const QColor background = masterBackground(root);
+    if (notes) {
+        nm.background = background;
+        // (the layout printing has is kept unless this one differs from the standard's)
+        bool same = !background.isValid();
+        for (NotesPart p : {NotesPart::SlideImage, NotesPart::Body, NotesPart::Header, NotesPart::Date, NotesPart::Footer, NotesPart::Number})
+            same = same && nearly(nm.part(p), notesStandard.part(p));
+        if (!same) setNotesMaster(doc, nm);
+        return;
+    }
+    hm.background = background;
+    // Our own extension: whether the handouts lie across, and where their slides go.
+    for (const QDomElement &list : office::children(root, office::ns::P, QStringLiteral("extLst")))
+        for (const QDomElement &ext : office::children(list, office::ns::P, QStringLiteral("ext"))) {
+            const QDomElement h = office::child(ext, QStringLiteral("http://jeffoffice.com/ns/deck"), QStringLiteral("handout"));
+            if (h.isNull()) continue;
+            hm.landscape = office::parseBool(office::attr(h, QStringLiteral("landscape")), false);
+            const QStringList v = office::attr(h, QStringLiteral("area")).split(QLatin1Char(' '), Qt::SkipEmptyParts);
+            if (v.size() == 4) hm.area = sanitizedPlace(QRectF(v[0].toDouble(), v[1].toDouble(), v[2].toDouble(), v[3].toDouble()), hm.area);
+        }
+    bool same = !background.isValid() && !hm.landscape && nearly(hm.area, handoutStandard.area, 1e-5);
+    for (HandoutPart p : {HandoutPart::Header, HandoutPart::Date, HandoutPart::Footer, HandoutPart::Number}) same = same && nearly(hm.part(p), handoutStandard.part(p));
+    // (the layout the file had, to see later what the person changed)
+    doc.appData[QStringLiteral("handoutMasterReadLayout")] = handoutMasterJson(hm);
+    if (!same) {
+        HandoutMaster layout = hm;
+        layout.perPage = handoutMasterOf(doc, page).perPage;
+        setHandoutMaster(doc, layout);
+    }
+}
+
 // The header and footer of the notes pages and handouts: the hf element of the notes master and of the handout master, and the text in their header, footer, and date places. A master
 // with no hf element says nothing (the program's own choice stays).
 void Importer::readPrintHeaderFooter(const QString &mainPart)
@@ -923,6 +1004,7 @@ void Importer::readPrintHeaderFooter(const QString &mainPart)
         QDomElement root;
         QString why;
         if (!parsePart(masters[0].target, QLatin1String(kind.root), "http://schemas.openxmlformats.org/presentationml/2006/main", &dom, &root, &why)) continue;
+        readMasterLayout(root, kind.pages == PrintedPages::Notes, m_doc);
         const QDomElement hf = pChild(root, "hf");
         // (a handout master the file has is kept as it is, to be written back as it was)
         const bool keep = kind.pages == PrintedPages::Handouts && m_pkg.partSize(masters[0].target) <= (qint64(4) << 20);

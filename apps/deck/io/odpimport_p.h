@@ -270,6 +270,8 @@ private:
     // odpimport.cpp
     void readMeta();
     bool readSize();
+    void readNotesLayout(const QDomElement &notes);
+    void readHandoutLayout();
     void readMasters();
     MasterInfo *masterByName(const QString &name);
     void readMasterPage(MasterInfo &m, int number);

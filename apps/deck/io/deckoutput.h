@@ -14,6 +14,7 @@
 #include "core/document.h"
 #include "io/pdfcrypt.h"
 #include "io/pdftags.h"
+#include "render/picturefile.h"
 #include "render/renderer.h"
 
 #include <QImage>
@@ -36,6 +37,7 @@ struct OutputOptions {
     bool grayscale = false;
     bool blackAndWhite = false;   // pure black and white (with grayscale): each point is black or white, nothing between
     bool scaleToFit = true;       // printed slides are scaled to fit the paper; else a slide that fits it is printed at its own size, centered (one that does not is still made to fit)
+    bool skipNotesText = false;   // notes pages without the notes' text (the Notes Page view shows it in a box to type in)
     QVector<int> slides;          // 0-based slides to print, in this order; empty: all
     bool horizontalOrder = true;  // handouts of 4 or more: across, then down (else down, then across)
     // For printing (the File screen's Print page): where the pages go, and how they come out.
@@ -98,9 +100,13 @@ QImage slideImage(const Document &d, LayoutCache *cache, int slide, int width = 
 // (the width used is in the result, and is less than asked when that happened). `progress`, when set, is called after each slide with how many are done and how many there are, and
 // says false to stop; the files written so far stay.
 constexpr qint64 kMostSlidePicturePixels = qint64(64) * 1000 * 1000;
+// The formats of a slide's picture: PNG, JPEG, GIF (at most 256 colors), TIFF, and BMP are pixels, `width` across; SVG is drawn as vectors (the letters as outlines, pictures inside), at the slide's own size.
+enum class SlidePictureFormat { Png, Jpeg, Gif, Tiff, Bmp, Svg };
+QString slidePictureExtension(SlidePictureFormat format);
 struct SlidePicturesOptions {
     QString folder;
-    bool jpeg = false;
+    bool jpeg = false;   // JPEG when `format` is left at PNG (kept for what asked for it so)
+    SlidePictureFormat format = SlidePictureFormat::Png;
     int width = 1920;
     bool hidden = false;
     std::function<bool(int done, int total)> progress;
@@ -114,6 +120,9 @@ struct SlidePicturesResult {
 // The file name of slide `index` (from 0), and the names the options would write (the slides that are shown, or all), in order; the width that would be used (held so the picture is at most
 // kMostSlidePicturePixels).
 QString slidePictureName(int index, bool jpeg);
+QString slidePictureName(int index, SlidePictureFormat format);
+// One slide as a vector picture (SVG).
+QByteArray slideSvg(const Document &d, LayoutCache *cache, int slide);
 QStringList slidePictureNames(const Document &d, const SlidePicturesOptions &o);
 int slidePictureWidth(const Document &d, int width);
 SlidePicturesResult exportSlidePictures(const Document &d, LayoutCache *cache, const SlidePicturesOptions &o);

@@ -7,6 +7,7 @@
 #include "core/comments.h"
 #include "core/fonts.h"
 #include "core/media.h"
+#include "core/notesmaster.h"
 #include "core/sections.h"
 #include "io/zip.h"
 #include "render/renderer.h"
@@ -644,17 +645,37 @@ void Exporter::writeMasterPage(X &x, const MasterOut &m, QString *presentationSt
     }
     writeItems(x, sc, holders);
 
-    // The notes page of this master.
+    // The notes page of this master: the standard's places, or the layout the presentation has (its slide picture, notes, and header, footer, date, and number).
+    const bool own = hasNotesMaster(m_doc);
+    const NotesMaster layout = notesMasterOf(m_doc, m_notesSize);
+    const NotesPageGeometry geo = notesPageGeometry(layout, m_notesSize, m_size);
     x.open("presentation:notes").attr("style:page-layout-name", pageLayoutFor(m_notesSize));
+    if (own && layout.background.isValid()) x.attr("draw:style-name", m_masterStyles.style(QStringLiteral("drawing-page"), QStringLiteral("Mdp"), QString(),
+                                                                         QStringLiteral("<style:drawing-page-properties%1/>").arg(fillAttrs(Fill::solid(ColorRef::rgb(layout.background)), m_notesSize))));
     const double sx = m_notesSize.width() / 540.0, sy = m_notesSize.height() / 720.0;
     const double imageW = 432 * sx, imageH = m_size.width() > 0 ? imageW * m_size.height() / m_size.width() : 243 * sy;
+    const QRectF image = own ? geo.slideImage : QRectF(54 * sx, 90 * sy, imageW, imageH), notes = own ? geo.body : QRectF(54 * sx, 346.5 * sy, 432 * sx, 283.5 * sy);
     x.open("draw:page-thumbnail").attr("presentation:style-name", m.prefix + QStringLiteral("title")).attr("draw:layer", "backgroundobjects");
-    x.len("svg:width", imageW).len("svg:height", imageH).len("svg:x", 54 * sx).len("svg:y", 90 * sy).attr("presentation:class", "page").close();
+    x.len("svg:width", image.width()).len("svg:height", image.height()).len("svg:x", image.x()).len("svg:y", image.y()).attr("presentation:class", "page").close();
     x.open("draw:frame").attr("presentation:style-name", m.prefix + QStringLiteral("notes")).attr("draw:layer", "backgroundobjects");
-    x.len("svg:width", 432 * sx).len("svg:height", 283.5 * sy).len("svg:x", 54 * sx).len("svg:y", 346.5 * sy);
+    x.len("svg:width", notes.width()).len("svg:height", notes.height()).len("svg:x", notes.x()).len("svg:y", notes.y());
     x.attr("presentation:class", "notes").attr("presentation:placeholder", "true");
     x.leaf("draw:text-box");
     x.close();
+    if (own) {
+        // (the places of the header, footer, date, and number, which the standard gives no place of their own)
+        const struct {
+            const char *cls;
+            QRectF box;
+        } more[] = {{"header", geo.header}, {"date-time", geo.date}, {"footer", geo.footer}, {"page-number", geo.number}};
+        for (const auto &o : more) {
+            x.open("draw:frame").attr("presentation:style-name", m.prefix + QStringLiteral("notes")).attr("draw:layer", "backgroundobjects");
+            x.len("svg:width", o.box.width()).len("svg:height", o.box.height()).len("svg:x", o.box.x()).len("svg:y", o.box.y());
+            x.attr("presentation:class", o.cls).attr("presentation:placeholder", "true");
+            x.leaf("draw:text-box");
+            x.close();
+        }
+    }
     x.close();
     x.close();
 
@@ -897,23 +918,26 @@ void Exporter::writeNotes(X &x, int index)
     const bool empty = !story || story->isEmpty() || story->toPlainText().trimmed().isEmpty();
     const double sx = m_notesSize.width() / 540.0, sy = m_notesSize.height() / 720.0;
     const double imageW = 432 * sx, imageH = m_size.width() > 0 ? imageW * m_size.height() / m_size.width() : 243 * sy;
+    const bool own = hasNotesMaster(m_doc);
+    const NotesPageGeometry geo = notesPageGeometry(notesMasterOf(m_doc, m_notesSize), m_notesSize, m_size);
+    const QRectF image = own ? geo.slideImage : QRectF(54 * sx, 90 * sy, imageW, imageH), body = own ? geo.body : QRectF(54 * sx, 346.5 * sy, 432 * sx, 283.5 * sy);
     const QString pageProps = QStringLiteral("<style:drawing-page-properties presentation:display-header=\"true\" presentation:display-footer=\"true\" "
                                              "presentation:display-page-number=\"false\" presentation:display-date-time=\"true\"/>");
     const QString pageStyleName = m_contentStyles.style(QStringLiteral("drawing-page"), QStringLiteral("dp"), QString(), pageProps);
     x.open("presentation:notes").attr("draw:style-name", pageStyleName);
     x.open("draw:page-thumbnail").attr("draw:style-name", m_contentStyles.style(QStringLiteral("graphic"), QStringLiteral("gr"), QString(), QStringLiteral("<style:graphic-properties style:protect=\"size\"/>")));
-    x.attr("draw:layer", "layout").len("svg:width", imageW).len("svg:height", imageH).len("svg:x", 54 * sx).len("svg:y", 90 * sy);
+    x.attr("draw:layer", "layout").len("svg:width", image.width()).len("svg:height", image.height()).len("svg:x", image.x()).len("svg:y", image.y());
     x.attr("draw:page-number", index + 1).attr("presentation:class", "page").close();
     Scope sc;
     sc.styles = &m_contentStyles;
     sc.layer = QStringLiteral("layout");
     sc.prefix = master.prefix;
     sc.background = Qt::white;
-    const QString props = QStringLiteral("<style:graphic-properties draw:fill=\"none\" draw:stroke=\"none\" draw:auto-grow-height=\"false\" fo:min-height=\"%1\"/>").arg(cm(283.5 * sy));
+    const QString props = QStringLiteral("<style:graphic-properties draw:fill=\"none\" draw:stroke=\"none\" draw:auto-grow-height=\"false\" fo:min-height=\"%1\"/>").arg(cm(body.height()));
     const QString frameStyle = m_contentStyles.style(QStringLiteral("presentation"), QStringLiteral("pr"), master.prefix + QStringLiteral("notes"), props);
     x.open("draw:frame").attr("presentation:style-name", frameStyle).attr("draw:layer", "layout");
     if (!empty) x.attr("draw:text-style-name", slideLinesStyle(sc));
-    x.len("svg:width", 432 * sx).len("svg:height", 283.5 * sy).len("svg:x", 54 * sx).len("svg:y", 346.5 * sy).attr("presentation:class", "notes");
+    x.len("svg:width", body.width()).len("svg:height", body.height()).len("svg:x", body.x()).len("svg:y", body.y()).attr("presentation:class", "notes");
     if (empty) x.attr("presentation:placeholder", "true");
     x.open("draw:text-box");
     if (!empty) {
@@ -979,8 +1003,41 @@ void Exporter::writeDefaultStyles(X &x) const
     x.close();
 }
 
+// The handout master: where its slides go (one thumbnail for each slide of a page), and its header, footer, date, and number. Only where the presentation has a layout for its handouts.
+QString Exporter::handoutMasterXml()
+{
+    if (!hasHandoutMaster(m_doc) && !hasHandoutPerPage(m_doc)) return QString();
+    const HandoutMaster layout = handoutMasterOf(m_doc, m_notesSize);
+    const QSizeF page = layout.landscape ? m_notesSize.transposed() : m_notesSize;
+    const HandoutGeometry geo = handoutGeometry(layout, page, layout.perPage, true);
+    X x;
+    x.open("style:handout-master").attr("style:page-layout-name", pageLayoutFor(page));
+    if (layout.background.isValid())
+        x.attr("draw:style-name", m_masterStyles.style(QStringLiteral("drawing-page"), QStringLiteral("Mdp"), QString(),
+                                                      QStringLiteral("<style:drawing-page-properties%1/>").arg(fillAttrs(Fill::solid(ColorRef::rgb(layout.background)), page))));
+    for (const HandoutSlot &slot : geo.slots) {
+        x.open("draw:page-thumbnail").attr("draw:layer", "backgroundobjects");
+        x.len("svg:width", slot.room.width()).len("svg:height", slot.room.height()).len("svg:x", slot.room.x()).len("svg:y", slot.room.y()).attr("presentation:class", "page").close();
+    }
+    const struct {
+        const char *cls;
+        QRectF box;
+    } more[] = {{"header", geo.header}, {"date-time", geo.date}, {"footer", geo.footer}, {"page-number", geo.number}};
+    for (const auto &o : more) {
+        x.open("draw:frame").attr("draw:layer", "backgroundobjects");
+        x.len("svg:width", o.box.width()).len("svg:height", o.box.height()).len("svg:x", o.box.x()).len("svg:y", o.box.y());
+        x.attr("presentation:class", o.cls).attr("presentation:placeholder", "true");
+        x.leaf("draw:text-box");
+        x.close();
+    }
+    x.close();
+    return x.str();
+}
+
 void Exporter::writeStyles(const QString &masterBody, const QString &presentationStyles)
 {
+    // (made first: its page layout and style are among the automatic styles written before it)
+    const QString handout = handoutMasterXml();
     X x;
     x.open("office:document-styles").attrs(kNamespaces);
     writeFontDecls(x);
@@ -1004,7 +1061,7 @@ void Exporter::writeStyles(const QString &masterBody, const QString &presentatio
     for (const QString &layout : std::as_const(m_pageLayoutXml)) x.raw(layout);
     m_masterStyles.write(x);
     x.close();
-    x.open("office:master-styles").raw(masterBody).close();
+    x.open("office:master-styles").raw(masterBody + handout).close();
     x.close();
     m_stylesXml = (kDeclaration + x.str()).toUtf8();
 }

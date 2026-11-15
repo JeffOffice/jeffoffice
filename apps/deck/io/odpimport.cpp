@@ -1,6 +1,7 @@
 #include "io/odpimport.h"
 
 #include "io/odpimport_p.h"
+#include "core/notesmaster.h"
 #include "io/presentationfile.h"
 
 #include "core/deck.h"
@@ -184,8 +185,124 @@ bool Reader::readSize()
         double w = 0, h = 0;
         if (!props.isNull() && parseLength(at(props, "fo:page-width"), &w) && parseLength(at(props, "fo:page-height"), &h) && w >= kMinSlide && h >= kMinSlide)
             m_doc.appData[QStringLiteral("notesSize")] = QJsonObject{{"w", w}, {"h", h}};
+        readNotesLayout(notes);
     }
+    readHandoutLayout();
     return true;
+}
+
+namespace {
+constexpr int kMaxLayoutFrames = 64;
+bool frameBox(const QDomElement &e, QRectF *out)
+{
+    double x = 0, y = 0, w = 0, h = 0;
+    if (!parseLength(at(e, "svg:x"), &x) || !parseLength(at(e, "svg:y"), &y) || !parseLength(at(e, "svg:width"), &w) || !parseLength(at(e, "svg:height"), &h) || w <= 0 || h <= 0) return false;
+    *out = QRectF(x, y, w, h);
+    return true;
+}
+QRectF asFraction(const QRectF &r, const QSizeF &page) { return QRectF(r.x() / page.width(), r.y() / page.height(), r.width() / page.width(), r.height() / page.height()); }
+} // namespace
+
+// The notes page's places in the master page: its slide picture, notes, and (where the file has them) header, footer, date, and number, as the presentation's layout when they are not the
+// ones printing has. At most kMaxLayoutFrames frames are looked at, and each place is held inside the page.
+void Reader::readNotesLayout(const QDomElement &notes)
+{
+    const QJsonObject size = m_doc.appData.value(QStringLiteral("notesSize")).toObject();
+    const QSizeF page(size.value(QStringLiteral("w")).toDouble(), size.value(QStringLiteral("h")).toDouble());
+    if (notes.isNull() || page.width() <= 0 || page.height() <= 0) return;
+    const NotesMaster standard = defaultNotesMaster(page, m_doc.pageSize()), fileStandard = [&] {
+        NotesMaster m = standard;
+        // (what this writer puts in a master page when the presentation has no layout: 0.75 inch in, the slide's picture above the notes)
+        const double sx = page.width() / 540.0, sy = page.height() / 720.0, imageW = 432 * sx;
+        m.slideImage = asFraction(QRectF(54 * sx, 90 * sy, imageW, m_doc.pageSize().width() > 0 ? imageW * m_doc.pageSize().height() / m_doc.pageSize().width() : 243 * sy), page);
+        m.body = asFraction(QRectF(54 * sx, 346.5 * sy, 432 * sx, 283.5 * sy), page);
+        return m;
+    }();
+    NotesMaster read = fileStandard;
+    bool found = false;
+    int seen = 0;
+    for (const QDomElement &frame : kids(notes, "draw:frame")) {
+        if (++seen > kMaxLayoutFrames) break;
+        QRectF box;
+        if (!frameBox(frame, &box)) continue;
+        const QString cls = at(frame, "presentation:class");
+        const QRectF f = sanitizedPlace(asFraction(box, page), QRectF());
+        if (cls == QLatin1String("notes")) read.body = f;
+        else if (cls == QLatin1String("header")) read.header = f, found = true;
+        else if (cls == QLatin1String("date-time")) read.date = f, found = true;
+        else if (cls == QLatin1String("footer")) read.footer = f, found = true;
+        else if (cls == QLatin1String("page-number")) read.number = f, found = true;
+    }
+    if (QRectF box; frameBox(kid(notes, "draw:page-thumbnail"), &box)) read.slideImage = sanitizedPlace(asFraction(box, page), read.slideImage);
+    const Bag bg = m_masterSheet->resolve(QStringLiteral("drawing-page"), at(notes, "draw:style-name"));
+    const Fill fill = fillOf(bg, *m_masterSheet);
+    if (fill.type == Fill::Solid && fill.color.kind() == ColorRef::Rgb) read.background = fill.color.rgbValue(), found = true;
+    // (the places a file has without header, footer, date, or number frames are the standard's)
+    if (!found) {
+        const bool same = nearly(read.slideImage, fileStandard.slideImage, 0.002) && nearly(read.body, fileStandard.body, 0.002);
+        if (same) return;
+    }
+    if (!found) {
+        read.header = standard.header;
+        read.date = standard.date;
+        read.footer = standard.footer;
+        read.number = standard.number;
+    }
+    read.custom = true;
+    if (found || read != fileStandard) setNotesMaster(m_doc, read);
+}
+
+// The handout master: how many slides a page holds (its thumbnails), whether it lies across, where its slides and header, footer, date, and number go, and its background.
+void Reader::readHandoutLayout()
+{
+    const QDomElement handout = kid(kid(m_styles, "office:master-styles"), "style:handout-master");
+    if (handout.isNull()) return;
+    const QDomElement props = kid(m_masterSheet->pageLayout(at(handout, "style:page-layout-name")), "style:page-layout-properties");
+    double w = 0, h = 0;
+    if (props.isNull() || !parseLength(at(props, "fo:page-width"), &w) || !parseLength(at(props, "fo:page-height"), &h) || w < kMinSlide || h < kMinSlide || w > kMaxSlide || h > kMaxSlide) return;
+    const QSizeF page(w, h);
+    HandoutMaster read = defaultHandoutMaster(page);
+    read.landscape = w > h;
+    QRectF slides;
+    int thumbs = 0, seen = 0;
+    for (const QDomElement &t : kids(handout, "draw:page-thumbnail")) {
+        if (++seen > kMaxLayoutFrames) break;
+        QRectF box;
+        if (!frameBox(t, &box)) continue;
+        ++thumbs;
+        slides = slides.isNull() ? box : slides.united(box);
+    }
+    if (isHandoutCount(thumbs)) setHandoutPerPage(m_doc, thumbs);
+    seen = 0;
+    bool places = false;
+    for (const QDomElement &frame : kids(handout, "draw:frame")) {
+        if (++seen > kMaxLayoutFrames) break;
+        QRectF box;
+        if (!frameBox(frame, &box)) continue;
+        const QString cls = at(frame, "presentation:class");
+        const QRectF f = sanitizedPlace(asFraction(box, page), QRectF());
+        if (cls == QLatin1String("header")) read.header = f, places = true;
+        else if (cls == QLatin1String("date-time")) read.date = f, places = true;
+        else if (cls == QLatin1String("footer")) read.footer = f, places = true;
+        else if (cls == QLatin1String("page-number")) read.number = f, places = true;
+    }
+    // The area the slides fill: what the thumbnails span, and the gap round each (as handoutGeometry leaves it).
+    if (isHandoutCount(thumbs) && !slides.isNull()) {
+        QRectF span = slides.adjusted(-10, -10, 10, 10);
+        // (three to a page leave the right of each cell for lines to write on: the slide fills 46 percent of its cell less the gap)
+        if (thumbs == 3) span.setWidth((slides.width() + 10) / 0.46);
+        read.area = sanitizedPlace(asFraction(span, page), read.area);
+    }
+    const Bag bg = m_masterSheet->resolve(QStringLiteral("drawing-page"), at(handout, "draw:style-name"));
+    const Fill fill = fillOf(bg, *m_masterSheet);
+    if (fill.type == Fill::Solid && fill.color.kind() == ColorRef::Rgb) read.background = fill.color.rgbValue(), places = true;
+    const HandoutMaster standard = defaultHandoutMaster(page);
+    bool same = !read.background.isValid() && !read.landscape;
+    for (HandoutPart p : {HandoutPart::Area, HandoutPart::Header, HandoutPart::Date, HandoutPart::Footer, HandoutPart::Number}) same = same && nearly(read.part(p), standard.part(p), 0.01);
+    if (same && !places) return;
+    read.custom = true;
+    read.perPage = handoutMasterOf(m_doc, page).perPage;
+    setHandoutMaster(m_doc, read);
 }
 
 // ---- masters and layouts
