@@ -89,7 +89,7 @@ public:
         m_all->setObjectName(QStringLiteral("outputRangeAll"));
         m_currentOnly = new QRadioButton(DeckWindow::tr("Current slide"), this);
         m_currentOnly->setObjectName(QStringLiteral("outputRangeCurrent"));
-        m_some = new QRadioButton(DeckWindow::tr("Slides:"), this);
+        m_some = new QRadioButton(DeckWindow::tr("Slides"), this);
         m_some->setObjectName(QStringLiteral("outputRangeSlides"));
         m_text = new QLineEdit(this);
         m_text->setObjectName(QStringLiteral("outputRangeText"));

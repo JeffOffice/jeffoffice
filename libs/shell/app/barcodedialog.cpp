@@ -130,7 +130,7 @@ bool askBarcode(QWidget *p, const QJsonObject &was, QJsonObject *out, bool forFi
     auto *price = new jp::Section(QCoreApplication::translate("BarcodeDialog", "Price add-on"), &dlg);
     auto *pv = new QVBoxLayout(price);
     auto *noAddOn = new QRadioButton(QCoreApplication::translate("BarcodeDialog", "No add-on"), price);
-    auto *withPrice = new QRadioButton(QCoreApplication::translate("BarcodeDialog", "Price:"), price);
+    auto *withPrice = new QRadioButton(QCoreApplication::translate("BarcodeDialog", "Price"), price);
     auto *noPrice = new QRadioButton(QCoreApplication::translate("BarcodeDialog", "No suggested price (90000)"), price);
     auto *group = new QButtonGroup(price);
     group->addButton(noAddOn, 0);

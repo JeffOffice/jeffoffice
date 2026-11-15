@@ -146,8 +146,8 @@ SetUpShowDialog::SetUpShowDialog(const deck::ShowSettings &s, const QVector<deck
     auto *slidesBox = new jp::Section(tr("Show slides"));
     auto *slidesLay = new QGridLayout(slidesBox);
     m_all = radio(slidesBox, QStringLiteral("slidesAll"), tr("All"));
-    m_range = radio(slidesBox, QStringLiteral("slidesRange"), tr("From:"));
-    m_custom = radio(slidesBox, QStringLiteral("slidesCustom"), tr("Custom show:"));
+    m_range = radio(slidesBox, QStringLiteral("slidesRange"), tr("From"));
+    m_custom = radio(slidesBox, QStringLiteral("slidesCustom"), tr("Custom show"));
     m_from = new QSpinBox();
     m_from->setObjectName(QStringLiteral("rangeFrom"));
     m_from->setAccessibleName(tr("From slide"));

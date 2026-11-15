@@ -1618,7 +1618,7 @@ private Q_SLOTS:
             QVERIFY(d);
             d->findChild<QLineEdit *>()->setText(QStringLiteral("978-0-306-40615-7"));
             for (auto *r : d->findChildren<QRadioButton *>())
-                if (r->text() == QLatin1String("Price:")) r->click();
+                if (r->text() == QLatin1String("Price")) r->click();
             d->findChild<QDoubleSpinBox *>()->setValue(19.95);
             if (!qEnvironmentVariableIsEmpty("JP_SHOT_DIR")) d->grab().save(qEnvironmentVariable("JP_SHOT_DIR") + "/barcode-dialog.png");
             for (auto *b : d->findChildren<QPushButton *>())

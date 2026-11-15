@@ -330,7 +330,7 @@ QWidget *DeckFileScreen::buildPrint()
     auto *selection = new QRadioButton(tr("Selection"), w);
     selection->setObjectName(QStringLiteral("printRangeSelection"));
     selection->setToolTip(tr("Print only the slides selected in the slide sorter, or the slide you are on."));
-    auto *some = new QRadioButton(DeckWindow::tr("Slides:"), w);
+    auto *some = new QRadioButton(DeckWindow::tr("Slides"), w);
     some->setObjectName(QStringLiteral("printRangeSlides"));
     auto *text = new QLineEdit(w);
     text->setObjectName(QStringLiteral("printRangeText"));

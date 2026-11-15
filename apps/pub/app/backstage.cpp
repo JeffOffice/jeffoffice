@@ -769,7 +769,7 @@ QWidget *Backstage::buildPrint()
     column.group(PrintColumn::paperHeading(), tr("(as the publication says unless changed)"));
     column.pair(tr("Paper"), paper, tr("Color"), color);
     column.wide(plates);
-    column.wide(marksBox);
+    column.field(tr("Marks"), marksBox);
     column.link(setupButton);
     left->addLayout(column.layout());
     left->addStretch(1);

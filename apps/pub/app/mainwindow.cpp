@@ -1839,7 +1839,7 @@ static int choosePdfPage(QWidget *parent, const PdfDocument &pdf, const QString 
     QDialog dlg(parent);
     dlg.setWindowTitle(QCoreApplication::translate("MainWindow", "Insert PDF Page"));
     auto *lay = new QVBoxLayout(&dlg);
-    lay->addWidget(plainLabel(new QLabel(QCoreApplication::translate("MainWindow", "%1 has %2 pages. Choose the page to insert").arg(name).arg(pages))));
+    lay->addWidget(plainLabel(new QLabel(QCoreApplication::translate("MainWindow", "%1 has %2 pages. Choose the page to insert.").arg(name).arg(pages))));
     auto *list = new QListWidget;
     list->setViewMode(QListView::IconMode);
     list->setIconSize(QSize(120, 120));

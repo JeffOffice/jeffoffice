@@ -1014,7 +1014,7 @@ void businessInfoDialog(QWidget *p, Editor *ed)
         if (k == "address") { auto *pe = new QPlainTextEdit(&dlg.d); pe->setFixedHeight(60); w = pe; }
         else w = new QLineEdit(&dlg.d);
         edits[k] = w;
-        form->addRow(QCoreApplication::translate("Dialogs", "%1").arg(BusinessInfo::label(k)), w);
+        form->addRow(BusinessInfo::label(k), w);
     }
     auto *setName = new QLineEdit(&dlg.d);
     form->addRow(QCoreApplication::translate("Dialogs", "Business Information set name"), setName);
@@ -1107,7 +1107,7 @@ void colorSchemeDialog(QWidget *p, Editor *ed)
             const QColor c = colorsDialog(b, s.c[i], slotName(i));
             if (c.isValid()) { s.c[i] = c; paint(); }
         });
-        form->addRow(QCoreApplication::translate("Dialogs", "%1").arg(slotName(i)), b);
+        form->addRow(slotName(i), b);
         btns << b;
     }
     auto *name = new QLineEdit(QCoreApplication::translate("Dialogs", "Custom 1"), &dlg.d);
@@ -1715,7 +1715,7 @@ void documentPropertiesDialog(QWidget *p, Editor *ed, int tab)
     const OverprintSettings op0 = ed->doc()->print.overprint;
     auto *opBox = new jp::Section(QCoreApplication::translate("Dialogs", "Overprint black in files for a printer (PDF/X)"), print);
     auto *og = new QGridLayout(opBox);
-    auto *opText = new QCheckBox(QCoreApplication::translate("Dialogs", "Text below:"), opBox);
+    auto *opText = new QCheckBox(QCoreApplication::translate("Dialogs", "Text below"), opBox);
     auto *opSize = new QDoubleSpinBox(opBox);
     opSize->setRange(1, 1638);
     opSize->setDecimals(1);

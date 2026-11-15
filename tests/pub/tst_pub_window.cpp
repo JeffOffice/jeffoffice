@@ -1952,19 +1952,19 @@ private Q_SLOTS:
             jp::Settings::get().setValue(QStringLiteral("ui/language"), QLatin1String(lang));
             return jp::installTranslations();
         };
-        const auto fill = [] { return QCoreApplication::translate("Dialogs", "Fill color:"); };
+        const auto fill = [] { return QCoreApplication::translate("Dialogs", "Fill color"); };
         const auto centre = [] { return QCoreApplication::translate("Dialogs", "Top center"); };
-        const auto other = [] { return QCoreApplication::translate("Dialogs", "Initials:"); };   // (spelled the same in all)
+        const auto other = [] { return QCoreApplication::translate("Dialogs", "Initials"); };   // (spelled the same in all)
         const auto pages = [](int n) { return QCoreApplication::translate("Dialogs", "Added %n page(s) for the rest of the text.", "", n); };
         QCOMPARE(say("en"), QStringLiteral("en"));
-        QCOMPARE(fill(), QStringLiteral("Fill color:"));
+        QCOMPARE(fill(), QStringLiteral("Fill color"));
         QCOMPARE(pages(1), QStringLiteral("Added 1 page for the rest of the text."));
         for (const char *lang : {"en_GB", "en_AU", "en_CA"}) {
             QCOMPARE(say(lang), QLatin1String(lang));
             QCOMPARE(jp::currentUiLanguage(), QLatin1String(lang));
-            QCOMPARE(fill(), QStringLiteral("Fill colour:"));
+            QCOMPARE(fill(), QStringLiteral("Fill colour"));
             QCOMPARE(centre(), QStringLiteral("Top centre"));
-            QCOMPARE(other(), QStringLiteral("Initials:"));
+            QCOMPARE(other(), QStringLiteral("Initials"));
             QCOMPARE(pages(1), QStringLiteral("Added 1 page for the rest of the text."));
             QCOMPARE(pages(3), QStringLiteral("Added 3 pages for the rest of the text."));
         }
@@ -1980,9 +1980,9 @@ private Q_SLOTS:
         say("en_GB");
         QCOMPARE(QCoreApplication::translate("Nowhere", "Spelled the same"), QStringLiteral("Spelled the same"));
         QCOMPARE(say("de"), QStringLiteral("de"));
-        QVERIFY(fill() != QStringLiteral("Fill colour:") && fill() != QStringLiteral("Fill color:"));
+        QVERIFY(fill() != QStringLiteral("Fill colour") && fill() != QStringLiteral("Fill color"));
         QCOMPARE(say("en"), QStringLiteral("en"));
-        QCOMPARE(fill(), QStringLiteral("Fill color:"));
+        QCOMPARE(fill(), QStringLiteral("Fill color"));
     }
 
     // Help follows the variant, page by page: a page with a different spelling is the variant's, and one without is the American English one.
@@ -2149,7 +2149,7 @@ private Q_SLOTS:
         };
         const auto recent = [] { return QCoreApplication::translate("jp::LinkDialog", "Recent files"); };
         const auto fileTab = [] { return QCoreApplication::translate("Ribbon", "File"); };
-        const auto initials = [] { return QCoreApplication::translate("Dialogs", "Initials:"); };   // (the same in both)
+        const auto initials = [] { return QCoreApplication::translate("Dialogs", "Initials"); };   // (the same in both)
         const auto openSave = [] { return jp::help::topic(QStringLiteral("open-save")).markdown; };
         QCOMPARE(say("es"), QStringLiteral("es"));
         QCOMPARE(recent(), QStringLiteral("Archivos recientes"));
@@ -2158,7 +2158,7 @@ private Q_SLOTS:
         QCOMPARE(jp::currentUiLanguage(), QStringLiteral("es_ES"));
         QCOMPARE(recent(), QStringLiteral("Ficheros recientes"));
         QCOMPARE(fileTab(), QStringLiteral("Archivo"));
-        QCOMPARE(initials(), QStringLiteral("Iniciales:"));
+        QCOMPARE(initials(), QStringLiteral("Iniciales"));
         const QString md = openSave();
         QVERIFY(md.contains(QLatin1String("ficheros .jpub")) && !md.contains(QLatin1String("archivos .jpub")));
         QVERIFY(md.contains(QLatin1String("**Archivo > Guardar**")));
