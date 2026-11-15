@@ -904,6 +904,8 @@ private Q_SLOTS:
     void reverseGroupsTheSheetsFirstWhenSeveralPagesShareOne();
     void bookFoldPrintsPagesInBookletOrderTwoToASideInLandscape();
     void bookFoldIsKeptInTheFile();
+    void bookFoldPutsTheGutterOnTheFoldEdgeOfBothPagesOfASide();
+    void bookFoldTurnsMirrorMarginsOnAndOffRestoresTheModeBefore();
     void collatedCopiesOnBothSidesEachBeginOnANewSheet();
     void aPrinterThatIsGoneOrCannotBeUsedIsSaidAndNothingIsSaved();
     void theSheetSequenceAndTheSendLimit();

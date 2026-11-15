@@ -1,3 +1,4 @@
+#include "core/booklet.h"
 #include "core/datafolder.h"
 #include "tst_write.h"
 #include "render/pdfpage.h"
@@ -768,6 +769,59 @@ void WriteTests::bookFoldIsKeptInTheFile()
     QVERIFY(!documentXmlOfPart(again->toDocx(), QStringLiteral("/word/settings.xml")).contains("bookFoldPrintingSheets"));
     again->setBookFold(false, 0);
     QVERIFY(!documentXmlOfPart(again->toDocx(), QStringLiteral("/word/settings.xml")).contains("bookFoldPrinting"));
+}
+
+
+// Book fold lays the margins out as facing pages (inside and outside), and the gutter is on the inside: after imposition the left page of a side has it on its right edge and the
+// right page on its left edge, which is the fold, on every side.
+void WriteTests::bookFoldPutsTheGutterOnTheFoldEdgeOfBothPagesOfASide()
+{
+    WriteWindow w;
+    w.setDocument(open(wordPages({QStringLiteral("Alpha"), QStringLiteral("Bravo"), QStringLiteral("Charlie"), QStringLiteral("Delta"), QStringLiteral("Echo")})), QString());
+    WriteDoc *doc = w.document();
+    const SectionSetup before = pageSetupOf(doc->sectionProps(0), false);
+    SectionSetup gutter = before;
+    gutter.gutter = 108;   // 1.5 inches
+    applyPageSetup(*doc, 0, PageSetupScope::WholeDocument, before, gutter);
+    doc->setBookFold(true, 0);
+    w.view()->paginateAll();
+    const int count = doc->pager().pageCount();
+    QVERIFY(count >= 5);
+    const double inside = before.left + 108, outside = before.right;
+    for (const QVector<int> &side : jp::bookletOrder(count)) {
+        auto margins = [&](int page) {
+            const flow::Paginator::Page p = doc->pager().page(page);
+            return QPair<double, double>(p.content.left(), p.size.width() - p.content.right());
+        };
+        if (side[0] >= 0) {
+            const auto m = margins(side[0]);
+            QCOMPARE(m.second, inside);
+            QCOMPARE(m.first, outside);
+        }
+        if (side[1] >= 0) {
+            const auto m = margins(side[1]);
+            QCOMPARE(m.first, inside);
+            QCOMPARE(m.second, outside);
+        }
+    }
+}
+
+
+// Choosing Book fold turns on mirrored margins; turning it off puts the mode back as it was (on stays on when it was on before).
+void WriteTests::bookFoldTurnsMirrorMarginsOnAndOffRestoresTheModeBefore()
+{
+    WriteWindow w;
+    w.setDocument(open(wordPages({QStringLiteral("Alpha")})), QString());
+    WriteDoc *doc = w.document();
+    QVERIFY(!doc->mirrorMargins());
+    doc->setBookFold(true, 0);
+    QVERIFY(doc->mirrorMargins());
+    doc->setBookFold(false, 0);
+    QVERIFY(!doc->mirrorMargins());
+    doc->setMirrorMargins(true);
+    doc->setBookFold(true, 8);
+    doc->setBookFold(false, 0);
+    QVERIFY(doc->mirrorMargins());
 }
 
 

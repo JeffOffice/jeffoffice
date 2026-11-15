@@ -408,8 +408,16 @@ void WriteDoc::setBookFold(bool on, int sheets)
 {
     sheets = on && sheets > 0 ? std::clamp(((sheets + 3) / 4) * 4, 4, 40) : 0;
     if (m_bookFold == on && m_bookFoldSheets == sheets) return;
+    const bool was = m_bookFold;
     m_bookFold = on;
     m_bookFoldSheets = sheets;
+    if (on && !was) {
+        m_mirrorBeforeBookFold = mirrorMargins();
+        setMirrorMargins(true);
+    } else if (!on && was && m_mirrorBeforeBookFold) {
+        setMirrorMargins(*m_mirrorBeforeBookFold);
+        m_mirrorBeforeBookFold.reset();
+    }
     setModified(true);
 }
 

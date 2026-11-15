@@ -230,6 +230,33 @@ private Q_SLOTS:
         QVERIFY(office::odt::looksLikeOdt(again.readAll()));
     }
 
+    // Book fold is kept in an .odt as a setting of its own (the standard has none for it), comes back, and goes on through another save.
+    void bookFoldSurvivesSavingAsOdtAndOpeningAgain()
+    {
+        QString err;
+        auto doc = WriteDoc::fromFile(makeOdt(kBody, kAuto), &err);
+        QVERIFY(doc);
+        QVERIFY(!doc->bookFold());
+        doc->setBookFold(true, 12);
+        QStringList notes;
+        const QByteArray odt = doc->toOdt(&err, &notes);
+        QVERIFY2(!odt.isEmpty(), qPrintable(err));
+        QVERIFY(odtPart(odt, QStringLiteral("settings.xml")).contains("JeffOfficeBookFold"));
+        auto back = WriteDoc::fromFile(odt, &err);
+        QVERIFY(back);
+        QVERIFY(back->bookFold());
+        QCOMPARE(back->bookFoldSheets(), 12);
+        auto again = WriteDoc::fromFile(back->toOdt(&err, &notes), &err);
+        QVERIFY(again && again->bookFold());
+        QCOMPARE(again->bookFoldSheets(), 12);
+        // Turned off, it is gone from the file.
+        back->setBookFold(false, 0);
+        const QByteArray plain = back->toOdt(&err, &notes);
+        QVERIFY(!odtPart(plain, QStringLiteral("settings.xml")).contains("JeffOfficeBookFold\" config:type=\"boolean\">true"));
+        auto off = WriteDoc::fromFile(plain, &err);
+        QVERIFY(off && !off->bookFold());
+    }
+
     void anOdtMadeFromADocxKeepsItsHeadingListAndTable()
     {
         QString err;

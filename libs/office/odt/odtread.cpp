@@ -761,9 +761,9 @@ bool Reader::read(const QByteArray &file, QString *error, QStringList *notes)
         m_out.addPart(QStringLiteral("/word/numbering.xml"), numberingXml(), wml + QStringLiteral("numbering+xml"));
         m_out.addRelationship(mainName, rel + QStringLiteral("numbering"), QStringLiteral("/word/numbering.xml"));
     }
+    const QByteArray items = layoutSettings();
     {
         // How the file says its text is laid out, kept with the document so that saving it as an .odt says the same.
-        const QByteArray items = layoutSettings();
         if (!items.isEmpty()) {
             m_out.addPart(QStringLiteral("/word/odfSettings.xml"), QByteArray(kXmlHeader) + "<odf:settings xmlns:odf=\"http://jeffoffice.com/odf\" xmlns:config=\"urn:oasis:names:tc:opendocument:xmlns:config:1.0\">" + items + "</odf:settings>",
                           QStringLiteral("application/xml"));
@@ -784,6 +784,13 @@ bool Reader::read(const QByteArray &file, QString *error, QStringList *notes)
     {
         QByteArray s = QByteArray(kXmlHeader) + "<w:settings " + docxNamespaces() + ">";
         if (m_evenOdd) s += "<w:evenAndOddHeaders/>";
+        // Book fold printing, kept as two items of ours in the settings.
+        if (items.contains("config:name=\"JeffOfficeBookFold\" config:type=\"boolean\">true<")) {
+            s += "<w:bookFoldPrinting/>";
+            static const QRegularExpression sheets(QStringLiteral("JeffOfficeBookFoldSheets\" config:type=\"int\">(\\d+)<"));
+            const QRegularExpressionMatch m = sheets.match(QString::fromLatin1(items));
+            if (m.hasMatch() && m.captured(1).toInt() > 0) s += "<w:bookFoldPrintingSheets w:val=\"" + m.captured(1).toUtf8() + "\"/>";
+        }
         bool ok = false;
         const qint64 tab = lengthToTwips(m_defaults.value(QStringLiteral("paragraph")).value(QStringLiteral("para:style:tab-stop-distance")), &ok);
         s += "<w:defaultTabStop w:val=\"" + num(ok && tab > 0 ? tab : 720) + "\"/></w:settings>";

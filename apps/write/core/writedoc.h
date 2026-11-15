@@ -245,7 +245,8 @@ public:
     // Facing pages with mirrored margins (the inside and outside margins swap on facing pages), and automatic hyphenation: the document's, one step of the history each.
     bool mirrorMargins() const { return m_flow->mirrorMargins; }
     // Book fold printing: the pages are printed in booklet order, two to a side, each booklet of `sheets` pages (0: all of the pages in one; otherwise a multiple of four). The document's,
-    // kept in its file; it is not a step of the history (a print setting), and it marks the document as changed.
+    // kept in its file; it is not a step of the history (a print setting), and it marks the document as changed. Book fold lays the margins out as facing pages, with the gutter on
+    // the inside (the fold); turning it off puts the mirrored margins back as they were before it was turned on.
     bool bookFold() const { return m_bookFold; }
     int bookFoldSheets() const { return m_bookFoldSheets; }
     void setBookFold(bool on, int sheets);
@@ -919,6 +920,7 @@ private:
     bool m_noHyphenCapsAtOpen = false;
     bool m_bookFold = false, m_bookFoldAtOpen = false;                 // book fold printing (the document's, kept in its settings; not a step of the history), and what the file had
     int m_bookFoldSheets = 0, m_bookFoldSheetsAtOpen = 0;
+    std::optional<bool> m_mirrorBeforeBookFold;   // the mirrored margins the document had when book fold was turned on here, to go back to when it is turned off
     bool m_mirrorAtOpen = false, m_hyphenAtOpen = false;               // the file's facing pages with mirrored margins, and automatic hyphenation, when it was read
     bool m_oddEvenAtOpen = false;                                      // the file's use of different headers on odd and even pages when it was read
     QSet<QString> m_released;                                          // parts the sections let go of (a reference taken out): written no more if nothing names them

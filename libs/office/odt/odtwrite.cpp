@@ -96,7 +96,7 @@ bool Writer::loadParts(QString *error)
         T st;
         if (st.parse(m_pkg.part(s), nullptr))
             for (int c = st.firstChild(st.root()); c >= 0; c = st.next(c))
-                if (st.localName(c) == "config-item") m_odfItems += "<config:config-item config:name=\"" + esc(st.attrAny(c, "name")) + "\" config:type=\"" + esc(st.attrAny(c, "type")) + "\">" + esc(st.text(c), false) + "</config:config-item>";
+                if (st.localName(c) == "config-item" && !st.attrAny(c, "name").startsWith(QLatin1String("JeffOfficeBookFold"))) m_odfItems += "<config:config-item config:name=\"" + esc(st.attrAny(c, "name")) + "\" config:type=\"" + esc(st.attrAny(c, "type")) + "\">" + esc(st.text(c), false) + "</config:config-item>";
     }
     if (const QString s = related("/fontTable"); !s.isEmpty() && m_pkg.hasPart(s)) {
         T ft;
@@ -903,7 +903,15 @@ QByteArray Writer::settingsXml() const
                   {"UseVariableWidthNBSP", "boolean", "false"}};
     QByteArray x = QByteArray(kXml) + "<office:document-settings" + kOdfNamespaces + " xmlns:config=\"urn:oasis:names:tc:opendocument:xmlns:config:1.0\" xmlns:ooo=\"http://openoffice.org/2004/office\" office:version=\"1.2\"><office:settings>"
                                        "<config:config-item-set config:name=\"ooo:configuration-settings\">";
-    if (!m_odfItems.isEmpty()) return x + m_odfItems + "</config:config-item-set></office:settings></office:document-settings>";
+    // Book fold printing has no setting of its own in the standard: it is kept as two items of ours, which a reader that does not know them leaves alone.
+    QByteArray bookFold;
+    if (m_settings && m_settings->child(m_settings->root(), "bookFoldPrinting") >= 0) {
+        bookFold = "<config:config-item config:name=\"JeffOfficeBookFold\" config:type=\"boolean\">true</config:config-item>";
+        if (const int sheets = m_settings->child(m_settings->root(), "bookFoldPrintingSheets"); sheets >= 0 && m_settings->val(sheets).toInt() > 0)
+            bookFold += "<config:config-item config:name=\"JeffOfficeBookFoldSheets\" config:type=\"int\">" + QByteArray::number(m_settings->val(sheets).toInt()) + "</config:config-item>";
+    }
+    if (!m_odfItems.isEmpty()) return x + m_odfItems + bookFold + "</config:config-item-set></office:settings></office:document-settings>";
+    x += bookFold;
     for (const auto &f : kFlags) x += QByteArray("<config:config-item config:name=\"") + f.name + "\" config:type=\"" + f.type + "\">" + f.value + "</config:config-item>";
     return x + "</config:config-item-set></office:settings></office:document-settings>";
 }
