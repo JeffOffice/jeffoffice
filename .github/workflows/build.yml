@@ -367,13 +367,14 @@ jobs:
           done
           exit 0
 
-      # One cache for each job (system, part, half), so that each has its own objects: ccache-<system>-<processors>-<part><half>-<commit>. A job restores
-      # the newest of its own, else the newest of any of its system (the first run after a change of the halves, or a half that has none yet), and saves a
-      # new one only when it compiled something, after the build (the Save step below). An entry holds one job's objects, and the Build step caps its size:
-      # macOS 1 GB (the release's two-processor entry, one job, 1.6 GB), Windows 0.5 GB. The four jobs of a system together keep 4 GB on macOS and 2 GB on
-      # Windows; with the Qt caches (2.0 GB) that is 8 GB of GitHub's 10 (a release's entry, rare, is the first to go), so each job's newest entry stays.
-      - name: Restore the compiler cache
-        if: runner.environment != 'self-hosted'
+      # The compiler cache of Windows and macOS (Nov 15 2026; before, one entry for each of a system's four jobs, 0.7 to 0.9 GB each, 6.7 GB in all): the four jobs of
+      # a system compile 74 percent of the same files (1,254 of the 1,706 any of them compiles), so they share one entry, ccache-<system>-<processors>-base-<commit>,
+      # saved by the job that compiles the most (tests, 2/2) with the cap below, and each other job keeps in a small entry of its own (ccache-delta-<system>-<processors>-
+      # <part><half>-<commit>) what it uses that the base lacks (tools/ci_ccache_delta.py). A job restores the newest base and its own newest delta (the first run
+      # after this change restores its old per-job entry instead), and saves only on main, and only when it compiled something. The Linux jobs on GitHub's own
+      # machines (pull requests) keep the one entry for each job they had; our own machine keeps its cache in a folder.
+      - name: Restore the compiler cache (Linux)
+        if: runner.os == 'Linux' && runner.environment != 'self-hosted'
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: .ccache
@@ -381,6 +382,37 @@ jobs:
           restore-keys: |
             ccache-${{ matrix.name }}-${{ matrix.name == 'macos' && env.MAC_ARCHS || '' }}-${{ matrix.part }}${{ matrix.shard }}-
             ccache-${{ matrix.name }}-${{ matrix.name == 'macos' && env.MAC_ARCHS || '' }}-
+
+      - name: Restore the compiler cache
+        id: restore-base
+        if: runner.os != 'Linux'
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: .ccache
+          key: ccache-${{ matrix.name }}-${{ matrix.name == 'macos' && env.MAC_ARCHS || '' }}-base-${{ github.sha }}
+          restore-keys: |
+            ccache-${{ matrix.name }}-${{ matrix.name == 'macos' && env.MAC_ARCHS || '' }}-base-
+            ccache-${{ matrix.name }}-${{ matrix.name == 'macos' && env.MAC_ARCHS || '' }}-${{ matrix.part }}${{ matrix.shard }}-
+            ccache-${{ matrix.name }}-${{ matrix.name == 'macos' && env.MAC_ARCHS || '' }}-tests2-
+
+      - name: Restore this job's part of the compiler cache
+        if: runner.os != 'Linux'
+        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: .ccache-delta
+          key: ccache-delta-${{ matrix.name }}-${{ matrix.name == 'macos' && env.MAC_ARCHS || '' }}-${{ matrix.part }}${{ matrix.shard }}-${{ github.sha }}
+          restore-keys: |
+            ccache-delta-${{ matrix.name }}-${{ matrix.name == 'macos' && env.MAC_ARCHS || '' }}-${{ matrix.part }}${{ matrix.shard }}-
+
+      # (the snapshot is taken of the base alone, before the delta goes in: the delta's entries are not the base's, so the job keeps them in its own entry)
+      - name: Put the cache parts together
+        if: runner.os != 'Linux'
+        shell: bash
+        run: |
+          PY=$(command -v python3 || command -v python); mkdir -p .ccache .ccache-delta
+          echo "base restored from: ${{ steps.restore-base.outputs.cache-matched-key }}"
+          $PY -I tools/ci_ccache_delta.py snap .ccache "$RUNNER_TEMP/ccache-base.json"
+          if [ -f .ccache-delta/delta.tar ]; then $PY -I tools/ci_ccache_delta.py unpack .ccache-delta/delta.tar .ccache; else echo "no delta of this job's own"; fi
 
       # Each shared library uses only the ones below it (libs/base < draw <
       # text < office < shell < page < flow < apps), and no app reaches into another.
@@ -448,10 +480,10 @@ jobs:
         shell: bash
         env:
           CCACHE_BASEDIR: ${{ github.workspace }}
-          # (the caps keep an entry of the compiler cache within its share of GitHub's 10 GB; the Build step trims to the cap before the Save step, and the
-          # objects a build used are the newest, so what a cap drops is what no job of this half used lately; Windows checks 2/2 outgrew 500M on Nov 7 and
-          # rebuilt 83% of its files each run, so Windows has 800M: one run's entries come to about 8.4 GB)
-          CCACHE_MAXSIZE: ${{ runner.environment == 'self-hosted' && '20G' || (matrix.name == 'windows' && '800M' || (matrix.name == 'linux' && '3G' || (contains(env.MAC_ARCHS, ';') && '1600M' || '1G'))) }}
+          # (the caps: a shared base entry of Windows or macOS holds the 1,700 files its four jobs compile, 0.9 GB on Windows and 1.2 on macOS, with room for a
+          # run or two of replaced ones; the entries of both systems and the Qt caches (1.5 GB) come to about 5 GB of GitHub's 10, 8.4 while a new base is saved
+          # before the old one is deleted. The Build step trims to the cap before the Save steps, and ccache keeps what a job used lately.)
+          CCACHE_MAXSIZE: ${{ runner.environment == 'self-hosted' && '20G' || (matrix.name == 'windows' && '1500M' || (matrix.name == 'linux' && '3G' || '2000M')) }}
           CCACHE_COMPILERCHECK: content
           # (only the job that packages: the others build their own programs)
           FULL_BUILD: ${{ github.event_name == 'workflow_dispatch' && inputs.mac_both && matrix.part == 'checks' && matrix.shard == 1 && 'true' || 'false' }}
@@ -470,6 +502,17 @@ jobs:
             echo "misses=${m:-unknown}" >> "$GITHUB_OUTPUT"
             ccache --cleanup
           fi
+
+      # What this job's cache holds beyond the base it restored (Windows, macOS): the delta, for its own entry. Made on every ref, so that a branch's log shows its size.
+      - name: Take this job's part of the compiler cache
+        id: delta
+        if: ${{ !cancelled() && runner.os != 'Linux' }}
+        continue-on-error: true
+        shell: bash
+        run: |
+          PY=$(command -v python3 || command -v python); mkdir -p .ccache-delta; rm -f .ccache-delta/delta.tar
+          $PY -I tools/ci_ccache_delta.py pack .ccache "$RUNNER_TEMP/ccache-base.json" .ccache-delta/delta.tar
+          du -sk .ccache | awk '{printf "whole cache: %.0f MB\n", $1/1024}'
 
       # Programs in the build folder find the GCC runtime through PATH, which can hold another GCC's copy first (the 20261004 runner image crashed in the
       # first test). Both jobs use the compiler's own copy, beside the programs, as the packaged program does.
@@ -506,8 +549,17 @@ jobs:
           fi
           exit 0
 
+      # Our own Linux machine runs the same programs in its local gate before a push (tools/gate.sh, through gatecheck.sh), which records each tree that passed in a
+      # file that the runner containers see read-only at /gated/trees. A tree in it already passed these Linux tests, so the two steps below skip their programs and
+      # the log says so; the build and the packaging above and below still run. No file (the containers without the mount, or GitHub's own machines): nothing is skipped.
+      - name: Already tested on this machine (Linux)
+        id: gated
+        if: runner.environment == 'self-hosted' && github.event_name != 'pull_request'
+        shell: bash
+        run: bash tools/ci_gated.sh
+
       - name: Test
-        if: matrix.part == 'tests'
+        if: matrix.part == 'tests' && steps.gated.outputs.skip != 'true'
         timeout-minutes: 45
         shell: bash
         run: |
@@ -527,7 +579,7 @@ jobs:
       # once on a blank document and once on one opened from a file. The four programs run side by side (they wait on conditions, not on time, so a busy machine only makes them
       # slower), each with its own results file. A hang fails in minutes, not hours.
       - name: App checks
-        if: matrix.part == 'checks'
+        if: matrix.part == 'checks' && steps.gated.outputs.skip != 'true'
         timeout-minutes: 25
         shell: bash
         run: |
@@ -980,29 +1032,56 @@ jobs:
           name: JeffOffice-${{ matrix.name }}
           path: dist/JeffOffice
 
-      # The compiler cache, as the Build step left it, when it compiled something (a run that only hit leaves the entry it restored as it is; restoring
-      # keeps it from being evicted), even when a later step failed. Only main's runs and Linux's save: a branch or pull request on Windows or macOS
-      # restores main's, and keeps its own out of the 10 GB.
-      - name: Save the compiler cache
-        id: save-ccache
-        if: ${{ !cancelled() && runner.environment != 'self-hosted' && (github.ref == 'refs/heads/main' || matrix.name == 'linux') && steps.build.outputs.misses != '' && steps.build.outputs.misses != '0' }}
+      # The compiler cache, as the Build step left it, when it compiled something (a run that only hit leaves the entries it restored as they are; restoring
+      # keeps them from being evicted), even when a later step failed. Only main's runs and Linux's save: a branch or pull request on Windows or macOS
+      # restores main's, and keeps its own out of the 10 GB. The base is saved by one job of a system (tests, 2/2, which compiles the most), the others save their
+      # delta; two jobs saving one key would keep only the first, so no key has two savers. A Mac release job (both processors) saves nothing: its objects are its own.
+      - name: Save the compiler cache (Linux)
+        id: save-ccache-linux
+        if: ${{ !cancelled() && runner.os == 'Linux' && runner.environment != 'self-hosted' && steps.build.outputs.misses != '' && steps.build.outputs.misses != '0' }}
         uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: .ccache
           key: ccache-${{ matrix.name }}-${{ matrix.name == 'macos' && env.MAC_ARCHS || '' }}-${{ matrix.part }}${{ matrix.shard }}-${{ github.sha }}
 
-      # The new entry replaces this job's older ones on this branch, so a push does not hold two sets in the 10 GB until GitHub drops some (it drops
-      # whichever it likes, our FFmpeg among them). A failure here only leaves them for GitHub to drop.
+      - name: Save the compiler cache
+        id: save-ccache
+        if: ${{ !cancelled() && runner.os != 'Linux' && github.ref == 'refs/heads/main' && matrix.part == 'tests' && matrix.shard == 2 && steps.build.outputs.misses != '' && steps.build.outputs.misses != '0' }}
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: .ccache
+          key: ccache-${{ matrix.name }}-${{ matrix.name == 'macos' && env.MAC_ARCHS || '' }}-base-${{ github.sha }}
+
+      - name: Save this job's part of the compiler cache
+        id: save-delta
+        if: ${{ !cancelled() && runner.os != 'Linux' && github.ref == 'refs/heads/main' && !(matrix.part == 'tests' && matrix.shard == 2) && !contains(env.MAC_ARCHS, ';') && steps.delta.outcome == 'success' && steps.build.outputs.misses != '' && steps.build.outputs.misses != '0' }}
+        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: .ccache-delta
+          key: ccache-delta-${{ matrix.name }}-${{ matrix.name == 'macos' && env.MAC_ARCHS || '' }}-${{ matrix.part }}${{ matrix.shard }}-${{ github.sha }}
+
+      # A new entry replaces the older ones on this branch, so a push does not hold two sets in the 10 GB until GitHub drops some (it drops whichever it likes,
+      # our FFmpeg among them). The job that saves the base also clears the per-job entries of before the shared base (the first run after this change). A
+      # failure here only leaves them for GitHub to drop.
       - name: Delete the older compiler caches
-        if: ${{ steps.save-ccache.outcome == 'success' }}
+        if: ${{ steps.save-ccache.outcome == 'success' || steps.save-ccache-linux.outcome == 'success' || steps.save-delta.outcome == 'success' }}
         continue-on-error: true
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          PREFIX: ccache-${{ matrix.name }}-${{ matrix.name == 'macos' && env.MAC_ARCHS || '' }}-${{ matrix.part }}${{ matrix.shard }}-
+          SYS: ccache-${{ matrix.name }}-${{ matrix.name == 'macos' && env.MAC_ARCHS || '' }}
+          PART: ${{ matrix.part }}${{ matrix.shard }}
+          WHICH: ${{ steps.save-ccache.outcome == 'success' && 'base' || (steps.save-delta.outcome == 'success' && 'delta' || 'linux') }}
         run: |
-          gh cache list -R "$GITHUB_REPOSITORY" --ref "$GITHUB_REF" -k "$PREFIX" -L 100 --json id,key -q ".[] | select(.key != \"$PREFIX$GITHUB_SHA\") | .id" |
-            while read -r id; do echo "deleting cache $id"; gh cache delete -R "$GITHUB_REPOSITORY" "$id"; done
+          case "$WHICH" in
+            base) PREFIXES="$SYS-base- $SYS-tests1- $SYS-tests2- $SYS-checks1- $SYS-checks2-"; KEEP="$SYS-base-$GITHUB_SHA" ;;
+            delta) PREFIXES="${SYS/ccache-/ccache-delta-}-$PART-"; KEEP="${SYS/ccache-/ccache-delta-}-$PART-$GITHUB_SHA" ;;
+            *) PREFIXES="$SYS-$PART-"; KEEP="$SYS-$PART-$GITHUB_SHA" ;;
+          esac
+          for PREFIX in $PREFIXES; do
+            gh cache list -R "$GITHUB_REPOSITORY" --ref "$GITHUB_REF" -k "$PREFIX" -L 100 --json id,key -q ".[] | select(.key != \"$KEEP\") | .id" |
+              while read -r id; do echo "deleting cache $id ($PREFIX)"; gh cache delete -R "$GITHUB_REPOSITORY" "$id"; done
+          done
 
   # A quick check of the Windows installer's script (a minute, not an hour): it is built here from stand-in files, by
   # hand-started runs only. The real installer is made by the Windows "checks" job above, from the real programs.
