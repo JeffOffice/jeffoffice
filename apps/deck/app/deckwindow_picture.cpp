@@ -7,7 +7,11 @@
 #include "app/editor.h"
 #include "app/icons.h"
 #include "app/pictureedit.h"
+#include "app/pictureask.h"
+#include "app/filedialogs.h"
 #include "app/picturecompress.h"
+#include "app/picturetools.h"
+#include "app/settings.h"
 #include "app/ribbon.h"
 #include "app/ribbonbuilder.h"
 #include "app/widgets.h"
@@ -16,7 +20,10 @@
 #include "render/shapes.h"
 
 #include <QAction>
+#include <QFileInfo>
 #include <QMenu>
+#include <QStandardPaths>
+#include <QStatusBar>
 
 namespace jp {
 
@@ -67,6 +74,16 @@ void DeckWindow::createCropActions()
         });
     });
 
+    mk("pic.change", tr("Change Picture…"), "image-up", QKeySequence(), [this] { changePictureFromFile(); });
+    mk("pic.reset", tr("Reset Picture"), "rotate-ccw", QKeySequence(), [this, ed] {
+        leaveCrop(ed);
+        resetSelectedPictures(ed, false);
+    });
+    mk("pic.resetSize", tr("Reset Picture & Size"), "rotate-ccw", QKeySequence(), [this, ed] {
+        leaveCrop(ed);
+        resetSelectedPictures(ed, true);
+    });
+
     mk("pic.compress", tr("Compress Pictures…"), "minimize-2", QKeySequence(), [this] {
         compressPicturesDialog(this, m_ed, tr("Apply to all pictures in the presentation"));
     });
@@ -103,6 +120,33 @@ void DeckWindow::cropPictureToShape(const QString &shape)
     });
 }
 
+bool DeckWindow::changePictureFromFile(const QString &chosen)
+{
+    auto *pic = dynamic_cast<PictureItem *>(m_ed->single());
+    if (!pic || pic->imageId.isEmpty() || !pic->mediaKind.isEmpty() || !pic->chartXml.isEmpty()) return false;
+    QString path = chosen;
+    if (path.isEmpty()) {
+        const QString dir = Settings::get().value(QStringLiteral("dirs/pictures"), QStandardPaths::writableLocation(QStandardPaths::PicturesLocation)).toString();
+        const QString filter = tr("All Pictures (*.png *.jpg *.jpeg *.gif *.bmp *.tif *.tiff *.webp *.svg *.wmf *.emf *.ico *.pdf)") + QStringLiteral(";;") + tr("All Files (*)");
+        const QStringList paths = askPicturePaths(this, tr("Change Picture"), dir, filter, false, nullptr);
+        if (paths.isEmpty()) return false;
+        Settings::get().setValue(QStringLiteral("dirs/pictures"), QFileInfo(paths.first()).absolutePath());
+        path = paths.first();
+    }
+    QByteArray bytes = readPictureBytes(path);
+    QString format;
+    QSize pixels;
+    bool asksNotToBeCopied = false;
+    if (bytes.isEmpty() || !readPictureFileAsking(this, path, 0, &bytes, &format, &pixels, nullptr, &asksNotToBeCopied)) {
+        statusBar()->showMessage(tr("%1 can't be read as a picture.").arg(QFileInfo(path).fileName()), 8000);
+        return false;
+    }
+    leaveCrop(m_ed);
+    const QString imageId = m_ed->doc()->addImage(bytes, format, path);
+    if (imageId.isEmpty()) return false;
+    return changePictureTo(m_ed, pic->id, imageId);
+}
+
 // The Picture Format tab shows while one picture is selected (a movie or sound has its own tab, Playback).
 void DeckWindow::refreshCrop()
 {
@@ -119,6 +163,30 @@ void DeckWindow::addCropParts(RibbonParts &parts)
 {
     parts.colors[QStringLiteral("pictureFormat")] = QColor(0x2F, 0x7D, 0x4F);
     parts.colors[QStringLiteral("table")] = QColor(0x8E, 0x2A, 0x5E);   // Table Design and Layout share it
+    // Picture Styles: the gallery of looks, then Picture Border and Picture Effects, which are made again each time they open (the colors are the presentation's now).
+    parts.widgets[QStringLiteral("pictureStyleGallery")] = [this]() -> QWidget * {
+        auto *gal = new Gallery(QSize(60, 46), 6);
+        gal->setObjectName(QStringLiteral("pictureStyleGallery"));
+        gal->setTitle(tr("Picture Styles"));
+        gal->setItemsProvider([this] { return pictureStyleItems(m_ed->doc()->colors); });
+        connect(gal, &Gallery::activated, this, [this](const QString &id) {
+            leaveCrop(m_ed);
+            applyPictureStyleToSelection(m_ed, id.toInt());
+            m_canvas->setFocus();
+        });
+        return gal;
+    };
+    parts.menus[QStringLiteral("pictureBorderMenu")] = [this](QWidget *owner) {
+        auto *m = new QMenu(owner);
+        connect(m, &QMenu::aboutToShow, m, [this, m] { fillPictureBorderMenu(m, m_ed, this, [this] { formatSelection(FormatPane::Tab::FillLine); }); });
+        return m;
+    };
+    parts.menus[QStringLiteral("pictureEffectsMenu")] = [this](QWidget *owner) {
+        auto *m = new QMenu(owner);
+        connect(m, &QMenu::aboutToShow, m, [this, m] { fillPictureEffectsMenu(m, m_ed, [this] { formatSelection(FormatPane::Tab::Effects); }); });
+        return m;
+    };
+    parts.launchers[QStringLiteral("pictureStyles")] = [this] { formatSelection(FormatPane::Tab::Picture); };
     // Crop to Shape: the closed shapes, as the Shapes gallery lists them, that a presentation file has by name (it saves the picture's shape as one of them).
     parts.widgets[QStringLiteral("cropToShapeButton")] = [this]() -> QWidget * {
         auto *b = new GalleryButton(icon("shapes"), tr("Crop to Shape"), QSize(24, 24), 12, true);

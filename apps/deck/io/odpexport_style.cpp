@@ -288,7 +288,9 @@ QString Exporter::effectAttrs(const Effects &fx)
     // A reflection has no place in this kind of file: it is kept in an attribute of our own (transparency, size, distance, and blur).
     if (fx.reflection.on)
         out += attrOf("jo:reflection", QStringLiteral("%1 %2 %3 %4").arg(number(fx.reflection.transparency, 4), number(fx.reflection.size, 4), number(fx.reflection.distance, 3), number(fx.reflection.blur, 3)));
-    if (fx.bevel.type || fx.rot3d.x || fx.rot3d.y) sayOnce(QStringLiteral("bevel"), QCoreApplication::translate("OdpExport", "Bevels and objects turned in space are saved flat."));
+    // A bevel and a turn in space have no place in this kind of file either: they are kept in attributes of our own (the bevel's type, width, and height; the turn's two angles and its perspective).
+    if (fx.bevel.type) out += attrOf("jo:bevel", QStringLiteral("%1 %2 %3").arg(QString::number(fx.bevel.type), number(fx.bevel.width, 3), number(fx.bevel.height, 3)));
+    if (fx.rot3d.x || fx.rot3d.y) out += attrOf("jo:rot3d", QStringLiteral("%1 %2 %3").arg(number(fx.rot3d.x, 3), number(fx.rot3d.y, 3), number(fx.rot3d.perspective, 3)));
     return out;
 }
 

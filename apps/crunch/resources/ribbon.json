@@ -691,7 +691,9 @@
           "name": "Adjust",
           "keytip": "ZA",
           "items": [
-            {"large": "object.compress", "keytip": "CM"}
+            {"large": "object.changePicture", "keytip": "CP"},
+            {"small": "object.compress", "keytip": "CM"},
+            {"small": "object.resetPicture", "keytip": "RP", "split": true, "menu": ["object.resetPicture", "object.resetPictureSize"]}
           ]
         },
         {
@@ -711,7 +713,9 @@
           "name": "Picture Styles",
           "keytip": "ZY",
           "items": [
-            {"row": [{"widget": "pictureBorder", "keytip": "PB"}, {"icon": {"id": "ribbon.pictureLine", "text": "Line Style", "icon": "minus"}, "keytip": "PL", "menu": "@outlineStyle"}]}
+            {"widget": "pictureStyleGallery", "keytip": "QP"},
+            {"row": [{"widget": "pictureBorder", "keytip": "PB"}, {"icon": {"id": "ribbon.pictureLine", "text": "Line Style", "icon": "minus"}, "keytip": "PL", "menu": "@outlineStyle"}]},
+            {"small": {"id": "ribbon.pictureEffects", "text": "Picture Effects", "icon": "sparkles"}, "keytip": "PE", "menu": "@pictureEffects"}
           ]
         },
         {

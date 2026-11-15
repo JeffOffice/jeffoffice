@@ -87,6 +87,7 @@
     QT_TRANSLATE_NOOP("Ribbon", "Outline"),
     QT_TRANSLATE_NOOP("Ribbon", "Page Layout"),
     QT_TRANSLATE_NOOP("Ribbon", "Page Setup"),
+    QT_TRANSLATE_NOOP("Ribbon", "Picture Effects"),
     QT_TRANSLATE_NOOP("Ribbon", "Picture Format"),
     QT_TRANSLATE_NOOP("Ribbon", "Picture Styles"),
     QT_TRANSLATE_NOOP("Ribbon", "Pivot Table"),

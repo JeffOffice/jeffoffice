@@ -240,6 +240,9 @@ public:
     void setCellShading(const ColorRef &color);
     // The Picture Format tab's Crop to Shape (deckwindow_picture.cpp), for the selected pictures: a shape's id, as the Shapes gallery has it.
     void cropPictureToShape(const QString &shape);
+    // Picture Format > Change Picture: the selected picture shows the picture of `path` (asked for when empty), keeping its size, place, crop, and formatting;
+    // one step. False when none is chosen or the file can't be read as a picture.
+    bool changePictureFromFile(const QString &path = QString());
     // A movie ("video") or a sound ("audio") from a file, put on the slide as the presentation program does: kept in the
     // presentation, with its first picture as the poster and the timing that plays it in the click sequence. False, with
     // the reason shown, when the file can't be put on the slide. (deckwindow_media.cpp)

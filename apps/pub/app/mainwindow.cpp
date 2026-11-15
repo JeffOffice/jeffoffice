@@ -3,6 +3,7 @@
 #include "app/keymap.h"
 #include "app/ribboncustom.h"
 #include "app/mainwindow.h"
+#include "app/picturetools.h"
 #include "core/comments.h"
 #include "core/version.h"
 #include "core/startuptrace.h"
@@ -1943,10 +1944,9 @@ void MainWindow::insertPictureFromFile(const QString &replaceItemId, const QPoin
         QSize px;
         int page = 0;
         if (!pic || !readPicture(this, paths.first(), &bytes, &fmt, &px, &page, &hash)) return;
-        m_ed->change(tr("Change Picture"), [&] {
-            pic->imageId = addPicture(m_ed->doc(), paths.first(), bytes, fmt, page, how, hash);
-            pic->fitImage(m_ed->doc()->imageSize(pic->imageId), true);
-        });
+        // (The picture keeps its size, place, crop, shape, border, effects, and colors; see changePictureTo.)
+        const QString imageId = addPicture(m_ed->doc(), paths.first(), bytes, fmt, page, how, hash);
+        changePictureTo(m_ed, pic->id, imageId);
         return;
     }
     insertFiles(paths, at, how);

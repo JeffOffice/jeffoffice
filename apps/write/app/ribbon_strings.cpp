@@ -98,6 +98,7 @@
     QT_TRANSLATE_NOOP("Ribbon", "Pages"),
     QT_TRANSLATE_NOOP("Ribbon", "Paragraph"),
     QT_TRANSLATE_NOOP("Ribbon", "Paragraph Spacing"),
+    QT_TRANSLATE_NOOP("Ribbon", "Picture Effects"),
     QT_TRANSLATE_NOOP("Ribbon", "Picture Format"),
     QT_TRANSLATE_NOOP("Ribbon", "Picture Styles"),
     QT_TRANSLATE_NOOP("Ribbon", "Picture Tools"),

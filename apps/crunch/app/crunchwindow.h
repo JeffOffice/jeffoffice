@@ -63,6 +63,7 @@
 #include <map>
 #include <QTemporaryFile>
 #include <memory>
+#include "core/style.h"
 #include <optional>
 #include <set>
 #include <unordered_map>
@@ -1511,6 +1512,13 @@ public:
     bool setObjectOutlineStyle(double weightPoints, const QString &dash);
     bool rotateObject(int quarterTurns, bool flipH, bool flipV);
     bool cropObject(int width, int height);
+    // Picture Format > Picture Styles, Picture Effects, Change Picture, and Reset Picture on the picked picture; each is one step of Undo (the picture is made again with its place, name, and order).
+    // A style is a number of the shared gallery (core/picturestyles.h); `change` sets the effects from what they are; Reset Picture also takes the crop off, and with `andSize` the picture is
+    // the size its file has (a pixel is a unit). Change Picture keeps the size and the crop of a picture of the same proportions and the look of any.
+    bool applyPictureStyle(int style);
+    bool setPictureEffects(const std::function<void(jp::Effects &)> &change);
+    bool resetPicture(bool andSize);
+    bool changePictureFromFile(const QString &path);
     // Compress Pictures with the choices made (no box): the pictures of the sheet, or the picked ones, made smaller for `ppi` pixels to the inch, as one step of Undo; the bytes saved.
     qint64 compressPictures(double ppi, bool all, bool deleteCropped, QString *problems = nullptr);
     // (`problems`, when given, is set to the words that say how many pictures were left out for a reason, and why.)
@@ -1578,7 +1586,9 @@ private:
     void insertPicture();
     bool placeObjectClip(const crunch::ObjectClip &clip, const QString &stepText, const jp::office::sheet::DrawingAnchor *at = nullptr, int order = -1);
     // `forId`: the object to change, when it is not the one that is picked (the words typed in a shape are put in it whatever is picked by then).
-    bool restyleObject(const QString &stepText, const std::function<bool(QDomElement &, jp::grid::ObjectBox *)> &edit, bool pictureOnly = false, int forId = -1);
+    // `withClip` (if set) is called with the copy of the object before `edit` is: it may change the copy's pictures (Change Picture puts the new one in).
+    bool restyleObject(const QString &stepText, const std::function<bool(QDomElement &, jp::grid::ObjectBox *)> &edit, bool pictureOnly = false, int forId = -1,
+                       const std::function<void(crunch::ObjectClip &)> &withClip = {});
     void editObjectText();
     // The words of the picked shape or text box are typed in place, in the shared editor over the shape (F2 or Enter, a double click, or a character typed with the shape picked): Esc, or a click
     // elsewhere, puts them in the shape, one step that undoes, with every look they were given. `typed` goes after the words.

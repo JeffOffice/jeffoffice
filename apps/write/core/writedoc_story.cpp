@@ -1795,7 +1795,7 @@ bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFo
                         if (image < 0 || part.width <= 0 || part.height <= 0) continue;
                         auto pic = std::make_shared<PictureItem>();
                         pic->rect = QRectF(0, 0, part.width, part.height);
-                        dressPicture(*pic, part);
+                        dressPicture(*pic, part, theme());
                         pic->imageId = QStringLiteral("flow-img:%1").arg(image);
                         pic->altText = part.alt;
                         child = pic;
@@ -1828,7 +1828,7 @@ bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFo
             // A picture in the line: an object set in the text, with no room round it of its own.
             auto pic = std::make_shared<PictureItem>();
             pic->rect = QRectF(0, 0, s.width, s.height);
-            dressPicture(*pic, s);
+            dressPicture(*pic, s, theme());
             if (shownMissing) showAsMissing(*pic);
             pic->imageId = QStringLiteral("flow-img:%1").arg(image);
             pic->wrap.left = pic->wrap.right = pic->wrap.top = pic->wrap.bottom = 0;
@@ -1881,7 +1881,7 @@ bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFo
             if (image < 0) continue;
             auto pic = std::make_shared<PictureItem>();
             pic->rect = QRectF(0, 0, s.width, s.height);
-            dressPicture(*pic, s);
+            dressPicture(*pic, s, theme());
             if (shownMissing) showAsMissing(*pic);
             pic->altText = s.alt;
             o.item = pic;

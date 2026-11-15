@@ -420,7 +420,7 @@
           "recolor.0", "recolor.1", "recolor.2", "recolor.3", "recolor.4", "-", "recolor.slot1", "recolor.slot2",
           "recolor.slot3", "recolor.slot4", "recolor.slot5", "-", "pic.transparent"]},
         {"small": "pic.compress", "keytip": "CM"},
-        {"small": "pic.reset", "keytip": "RP"},
+        {"small": "pic.reset", "keytip": "RP", "split": true, "menu": ["pic.reset", "pic.resetSize"]},
         {"small": "pic.toShapes", "keytip": "CS"},
         {"small": "obj.transparency", "keytip": "TR"}
       ]},
@@ -431,15 +431,7 @@
           {"dropdown": {"icon": "chevron-down", "tip": "Border Weight and Dashes"}, "keytip": "PD", "menu": [
             "weight.0.25", "weight.0.5", "weight.0.75", "weight.1", "weight.1.5", "weight.2.25", "weight.3", "weight.4.5",
             "weight.6", "-", "dash.0", "dash.1", "dash.2", "dash.3", "dash.4", "dash.5", "dash.6", "dash.7"]}]},
-        {"small": {"id": "ribbon.pictureEffects", "text": "Picture Effects", "icon": "sparkles"}, "keytip": "PE", "menu": [
-          {"submenu": "Shadow", "menu": ["shadow.0", "shadow.1", "shadow.2", "shadow.3", "shadow.4"]},
-          {"submenu": "Reflection", "menu": ["refl.0", "refl.1", "refl.2", "refl.3"]},
-          {"submenu": "Glow", "menu": ["glow.0", "glow.5", "glow.8", "glow.11", "glow.18"]},
-          {"submenu": "Soft Edges", "menu": ["soft.0", "soft.2", "soft.5", "soft.10", "soft.25"]},
-          {"submenu": "Bevel", "menu": ["bevel.0", "bevel.1", "bevel.2", "bevel.3", "bevel.4", "bevel.5", "bevel.6"]},
-          {"submenu": "3-D Rotation", "menu": [
-            "rot3d.No Rotation", "rot3d.Perspective Left", "rot3d.Perspective Right", "rot3d.Perspective Above",
-            "rot3d.Perspective Below", "rot3d.Off Axis"]}]},
+        {"small": {"id": "ribbon.pictureEffects", "text": "Picture Effects", "icon": "sparkles"}, "keytip": "PE", "menu": "@pictureEffectsMenu"},
         {"small": "pic.caption", "keytip": "CA"},
         {"row": [{"widget": "pictureShapeButton", "keytip": "PH"}]}
       ]},

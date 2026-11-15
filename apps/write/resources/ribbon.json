@@ -2068,7 +2068,12 @@
             },
             {
               "large": "picture.reset",
-              "keytip": "RP"
+              "keytip": "RP",
+              "split": true,
+              "menu": [
+                "picture.reset",
+                "picture.resetSize"
+              ]
             },
             {
               "large": "picture.compress",
@@ -2087,6 +2092,15 @@
             {
               "widget": "pictureBorder",
               "keytip": "PB"
+            },
+            {
+              "large": {
+                "id": "ribbon.pictureEffects",
+                "text": "Picture Effects",
+                "icon": "sparkles"
+              },
+              "keytip": "PE",
+              "menu": "@pictureEffects"
             },
             {
               "large": {

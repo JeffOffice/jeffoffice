@@ -17,6 +17,9 @@
 #include "app/crunchwindow.h"
 
 #include "app/compresspictures.h"
+#include "app/picturetools.h"
+#include "core/picturestyles.h"
+#include "office/drawingml_geometry.h"
 #include "app/icons.h"
 #include "app/plaintext.h"
 #include "app/ribbonbuilder.h"
@@ -25,7 +28,13 @@
 
 #include <QAction>
 #include <QComboBox>
+#include <QBuffer>
 #include <QDialog>
+#include <QFile>
+#include <QFileDialog>
+#include <QFileInfo>
+#include <QImageReader>
+#include <QStandardPaths>
 #include <QDialogButtonBox>
 #include <QDomDocument>
 #include <QDoubleSpinBox>
@@ -402,7 +411,7 @@ bool setTextStory(QDomElement &sp, QTextDocument *story, const jp::office::Theme
 } // namespace
 
 // Changes the element of the picked object with `edit` (which may also read what the object is, and says false when there is nothing to change), and puts the result in its place.
-bool CrunchWindow::restyleObject(const QString &stepText, const std::function<bool(QDomElement &, grid::ObjectBox *)> &edit, bool pictureOnly, int forId)
+bool CrunchWindow::restyleObject(const QString &stepText, const std::function<bool(QDomElement &, grid::ObjectBox *)> &edit, bool pictureOnly, int forId, const std::function<void(crunch::ObjectClip &)> &withClip)
 {
     const int id = forId >= 0 ? forId : pickedObject();
     if (id < 0 || !m_session || !m_objects || m_chartSheetShown) return false;
@@ -424,6 +433,7 @@ bool CrunchWindow::restyleObject(const QString &stepText, const std::function<bo
         notice(stepText, why);
         return false;
     }
+    if (withClip) withClip(clip);
     const QByteArray wrapped = "<w xmlns:xdr=\"" + kXdr.toUtf8() + "\" xmlns:a=\"" + kA.toUtf8() + "\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"" + clip.namespaces
                                + ">" + clip.elementXml + "</w>";
     QDomDocument doc;
@@ -481,6 +491,196 @@ bool CrunchWindow::setObjectOutline(const QColor &color, bool none)
 bool CrunchWindow::setObjectOutlineStyle(double weightPoints, const QString &dash)
 {
     return restyleObject(tr("Outline"), [&](QDomElement &el, grid::ObjectBox *) { return setLine(el, QString(), false, weightPoints, dash); });
+}
+
+namespace {
+
+// The elements of `xml` (the drawing format's, as text) put in the shape properties in place of those named `names`, after the elements of the kinds that come before them in the schema's
+// order (a list of what comes before: the geometry, the fills, the line, and the effects).
+void putElements(QDomElement &spPr, std::initializer_list<const char *> names, const QByteArray &xml, std::initializer_list<const char *> after)
+{
+    QList<QDomElement> go;
+    for (QDomElement c = spPr.firstChildElement(); !c.isNull(); c = c.nextSiblingElement())
+        if (isOneOf(c, names)) go << c;
+    for (QDomElement &c : go) spPr.removeChild(c);
+    if (xml.isEmpty()) return;
+    QDomDocument tmp;
+    if (!tmp.setContent("<x xmlns:a=\"" + kA.toUtf8() + "\">" + xml + "</x>", QDomDocument::ParseOption::UseNamespaceProcessing)) return;
+    QDomDocument target = spPr.ownerDocument();
+    for (QDomElement c = tmp.documentElement().firstChildElement(); !c.isNull(); c = c.nextSiblingElement()) {
+        QDomElement copy = target.importNode(c, true).toElement();
+        insertAfterLast(spPr, copy, after);
+    }
+}
+
+constexpr std::initializer_list<const char *> kBeforeLine = {"xfrm", "custGeom", "prstGeom", "noFill", "solidFill", "gradFill", "blipFill", "pattFill", "grpFill"};
+
+int effectRank(const QString &local)
+{
+    static const QStringList order = {QStringLiteral("blur"), QStringLiteral("fillOverlay"), QStringLiteral("glow"), QStringLiteral("innerShdw"), QStringLiteral("outerShdw"), QStringLiteral("prstShdw"),
+                                      QStringLiteral("reflection"), QStringLiteral("softEdge")};
+    const int i = int(order.indexOf(local));
+    return i < 0 ? int(order.size()) : i;
+}
+
+// The effect list of the shape properties with the kinds the menus set taken out and those of `made` (an a:effectLst as text, or empty) put in; the list's other effects stay, all in the schema's order.
+void mergeEffectList(QDomElement &spPr, const QByteArray &made)
+{
+    QList<QDomElement> kept;
+    QDomElement old = childNamed(spPr, QStringLiteral("effectLst"));
+    QDomDocument target = spPr.ownerDocument();
+    for (QDomElement c = old.firstChildElement(); !c.isNull(); c = c.nextSiblingElement())
+        if (!isOneOf(c, {"glow", "innerShdw", "outerShdw", "reflection", "softEdge"})) kept << c.cloneNode(true).toElement();
+    QList<QDomElement> fresh;
+    if (!made.isEmpty()) {
+        QDomDocument tmp;
+        if (tmp.setContent("<x xmlns:a=\"" + kA.toUtf8() + "\">" + made + "</x>", QDomDocument::ParseOption::UseNamespaceProcessing))
+            for (QDomElement c = tmp.documentElement().firstChildElement().firstChildElement(); !c.isNull(); c = c.nextSiblingElement()) fresh << target.importNode(c, true).toElement();
+    }
+    QList<QDomElement> all = kept + fresh;
+    if (!old.isNull()) spPr.removeChild(old);
+    if (all.isEmpty()) return;
+    std::stable_sort(all.begin(), all.end(), [](const QDomElement &a, const QDomElement &b) { return effectRank(a.localName()) < effectRank(b.localName()); });
+    QDomElement list = newA(target, "effectLst");
+    for (QDomElement &c : all) list.appendChild(c);
+    insertAfterLast(spPr, list, {"xfrm", "custGeom", "prstGeom", "noFill", "solidFill", "gradFill", "blipFill", "pattFill", "grpFill", "ln"});
+}
+
+bool flatEffectsDiffer(Effects a, Effects b)
+{
+    a.bevel = b.bevel = BevelFx();
+    a.rot3d = b.rot3d = Rotation3D();
+    return a.toJson() != b.toJson();
+}
+
+bool solidEffectsDiffer(const Effects &a, const Effects &b)
+{
+    return a.bevel.type != b.bevel.type || a.bevel.width != b.bevel.width || a.bevel.height != b.bevel.height || a.rot3d.x != b.rot3d.x || a.rot3d.y != b.rot3d.y ||
+           a.rot3d.perspective != b.rot3d.perspective;
+}
+
+// Puts the effects that changed from `was` in the picture's shape properties: the effect list for the flat ones, the scene and the solid for a bevel or a turn.
+bool putEffects(QDomElement &spPr, const Effects &fx, const Effects &was, const ColorScheme &colors)
+{
+    const office::EffectElements made = office::writeEffectElements(fx, colors);
+    bool changed = false;
+    if (flatEffectsDiffer(fx, was)) {
+        mergeEffectList(spPr, made.list);
+        changed = true;
+    }
+    if (solidEffectsDiffer(fx, was)) {
+        putElements(spPr, {"scene3d"}, made.scene, {"xfrm", "custGeom", "prstGeom", "noFill", "solidFill", "gradFill", "blipFill", "pattFill", "grpFill", "ln", "effectLst", "effectDag"});
+        putElements(spPr, {"sp3d"}, made.solid, {"xfrm", "custGeom", "prstGeom", "noFill", "solidFill", "gradFill", "blipFill", "pattFill", "grpFill", "ln", "effectLst", "effectDag", "scene3d"});
+        changed = true;
+    }
+    return changed;
+}
+
+Effects effectsOfPicture(const QDomElement &spPr)
+{
+    office::DrawingContext ctx;
+    return office::readEffects(spPr, QDomElement(), ctx);
+}
+
+} // namespace
+
+bool CrunchWindow::applyPictureStyle(int style)
+{
+    PictureItem look;
+    if (!jp::applyPictureStyle(&look, style)) return false;
+    const ColorScheme colors = workbookColors();
+    return restyleObject(tr("Picture Style"), [&](QDomElement &el, grid::ObjectBox *) {
+        QDomElement spPr = spPrOf(el);
+        if (spPr.isNull() || el.localName() != QLatin1String("pic")) return false;
+        QDomDocument doc = spPr.ownerDocument();
+        // The shape the picture is cut to.
+        const QString preset = office::presetForShape(look.maskShape).isEmpty() ? QStringLiteral("rect") : office::presetForShape(look.maskShape);
+        putElements(spPr, {"prstGeom", "custGeom"}, "<a:prstGeom prst=\"" + preset.toUtf8() + "\"><a:avLst/></a:prstGeom>", {"xfrm"});
+        // The border.
+        const QColor c = look.stroke.isNone() ? QColor() : look.stroke.color.resolve(colors);
+        QByteArray line = "<a:ln><a:noFill/></a:ln>";
+        if (c.isValid() && look.stroke.width > 0) {
+            static const char *const dashes[] = {"solid", "dot", "sysDot", "dash", "dashDot", "lgDash", "lgDashDot", "lgDashDotDot"};
+            line = "<a:ln w=\"" + QByteArray::number(qint64(std::llround(look.stroke.width * 12700))) + "\"" + (look.stroke.compound == Stroke::Double ? " cmpd=\"dbl\"" : "") + "><a:solidFill><a:srgbClr val=\"" +
+                   c.name(QColor::HexRgb).mid(1).toUpper().toLatin1() + "\"/></a:solidFill>" + (look.stroke.dash != Stroke::SolidLine ? "<a:prstDash val=\"" + QByteArray(dashes[std::clamp(int(look.stroke.dash), 0, 7)]) + "\"/>" : "") + "</a:ln>";
+        }
+        putElements(spPr, {"ln"}, line, kBeforeLine);
+        putEffects(spPr, look.fx, effectsOfPicture(spPr), colors);
+        return true;
+    }, true);
+}
+
+bool CrunchWindow::setPictureEffects(const std::function<void(Effects &)> &change)
+{
+    const ColorScheme colors = workbookColors();
+    return restyleObject(tr("Picture Effects"), [&](QDomElement &el, grid::ObjectBox *) {
+        QDomElement spPr = spPrOf(el);
+        if (spPr.isNull() || el.localName() != QLatin1String("pic")) return false;
+        const Effects was = effectsOfPicture(spPr);
+        Effects fx = was;
+        change(fx);
+        if (fx.toJson() == was.toJson()) return false;
+        return putEffects(spPr, fx, was, colors);
+    }, true);
+}
+
+bool CrunchWindow::resetPicture(bool andSize)
+{
+    QSize pixels;
+    return restyleObject(andSize ? tr("Reset Picture & Size") : tr("Reset Picture"), [&](QDomElement &el, grid::ObjectBox *box) {
+        QDomElement spPr = spPrOf(el);
+        if (spPr.isNull() || el.localName() != QLatin1String("pic")) return false;
+        // The shape, the border, and the effects go; the crop goes, and the frame shows the whole picture.
+        putElements(spPr, {"prstGeom", "custGeom"}, "<a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom>", {"xfrm"});
+        putElements(spPr, {"ln", "effectLst", "effectDag", "scene3d", "sp3d"}, QByteArray(), {});
+        const Crop now = cropOf(el);
+        const double showW = 1.0 - double(now.l + now.r) / 100000.0, showH = 1.0 - double(now.t + now.b) / 100000.0;
+        box->w = box->w / std::max(0.1, showW);
+        box->h = box->h / std::max(0.1, showH);
+        setCrop(el, Crop());
+        if (andSize && !pixels.isEmpty()) {
+            box->w = pixels.width();
+            box->h = pixels.height();
+        }
+        box->w = std::clamp(std::round(box->w), 4.0, 20000.0);
+        box->h = std::clamp(std::round(box->h), 4.0, 20000.0);
+        return true;
+    }, true, -1, [&](crunch::ObjectClip &clip) {
+        if (clip.media.size() != 1) return;
+        QBuffer in(&clip.media[0].bytes);
+        in.open(QIODevice::ReadOnly);
+        pixels = QImageReader(&in).size();
+    });
+}
+
+bool CrunchWindow::changePictureFromFile(const QString &path)
+{
+    if (pickedObject() < 0 || !m_objects || m_objects->kindOf(m_sheet, pickedObject()) != ObjectKind::Picture) return false;
+    const QString title = tr("Change Picture");
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly) || file.size() > crunch::kMaxClipMediaBytes) {
+        notice(title, tr("\"%1\" is not a picture JeffCrunch can read, or it is too large.").arg(QFileInfo(path).fileName()));
+        return false;
+    }
+    const QByteArray bytes = file.read(crunch::kMaxClipMediaBytes + 1);
+    crunch::ObjectClip fresh;
+    if (!pictureClip(bytes, QFileInfo(path).fileName(), 0, 0, QString(), &fresh) || fresh.media.size() != 1 || fresh.width <= 0 || fresh.height <= 0) return false;
+    return restyleObject(title, [&](QDomElement &el, grid::ObjectBox *box) {
+        if (el.localName() != QLatin1String("pic")) return false;
+        // A picture of the old proportions keeps the cut and the size; any other has no cut, keeps its width, and takes the new proportions.
+        const Crop now = cropOf(el);
+        const double showW = std::max(0.02, 1.0 - double(now.l + now.r) / 100000.0), showH = std::max(0.02, 1.0 - double(now.t + now.b) / 100000.0);
+        const double oldRatio = (box->w / showW) / std::max(1.0, box->h / showH), newRatio = fresh.width / std::max(1.0, fresh.height);
+        if (std::abs(oldRatio - newRatio) > 0.02 * newRatio) {
+            setCrop(el, Crop());
+            box->h = std::clamp(std::round(box->w * fresh.height / fresh.width), 4.0, 20000.0);
+        }
+        return true;
+    }, true, -1, [&](crunch::ObjectClip &clip) {
+        if (clip.media.size() != 1) return;
+        fresh.media[0].token = clip.media[0].token;
+        clip.media[0] = fresh.media[0];
+    });
 }
 
 bool CrunchWindow::rotateObject(int quarterTurns, bool flipH, bool flipV)
@@ -955,6 +1155,15 @@ void CrunchWindow::createObjectFormatActions()
     m_opsActions << QStringLiteral("object.selectionPane");
     auto mkObject = [this](const char *id, const QString &text, const char *icon, const std::function<void()> &fn) { mk(QString::fromLatin1(id), text, icon, QKeySequence(), fn, false, false); };
     mkObject("object.compress", tr("Compress Pictures…"), "minimize-2", [this] { compressPicturesDialog(); });
+    mkObject("object.changePicture", tr("Change Picture…"), "image-up", [this] {
+        const QString dir = Settings::get().value(QStringLiteral("dirs/pictures"), QStandardPaths::writableLocation(QStandardPaths::PicturesLocation)).toString();
+        const QString path = QFileDialog::getOpenFileName(this, tr("Change Picture"), dir, tr("Pictures (*.png *.jpg *.jpeg *.gif *.bmp *.tif *.tiff *.webp *.svg *.wmf *.emf)") + QStringLiteral(";;") + tr("All Files (*)"));
+        if (path.isEmpty()) return;
+        Settings::get().setValue(QStringLiteral("dirs/pictures"), QFileInfo(path).absolutePath());
+        changePictureFromFile(path);
+    });
+    mkObject("object.resetPicture", tr("Reset Picture"), "rotate-ccw", [this] { resetPicture(false); });
+    mkObject("object.resetPictureSize", tr("Reset Picture & Size"), "rotate-ccw", [this] { resetPicture(true); });
     mkObject("object.editText", tr("Edit Text…"), "text-cursor-input", [this] { editObjectText(); });
     mkObject("object.rotateRight", tr("Rotate Right 90°"), "rotate-cw", [this] { rotateObject(1, false, false); });
     mkObject("object.rotateLeft", tr("Rotate Left 90°"), "rotate-ccw", [this] { rotateObject(-1, false, false); });
@@ -986,6 +1195,20 @@ void CrunchWindow::objectFormatRibbonParts(RibbonParts &parts)
     parts.widgets[QStringLiteral("shapeFill")] = [fillButton]() -> QWidget * { return fillButton("object.fillColor", CrunchWindow::tr("Shape Fill"), CrunchWindow::tr("No Fill"), true); };
     parts.widgets[QStringLiteral("pictureBorder")] = [fillButton]() -> QWidget * { return fillButton("object.pictureBorder", CrunchWindow::tr("Picture Border"), CrunchWindow::tr("No Outline"), false); };
     parts.widgets[QStringLiteral("shapeOutline")] = [fillButton]() -> QWidget * { return fillButton("object.outlineColor", CrunchWindow::tr("Shape Outline"), CrunchWindow::tr("No Outline"), false); };
+    parts.widgets[QStringLiteral("pictureStyleGallery")] = [this]() -> QWidget * {
+        auto *gal = new Gallery(QSize(60, 46), 6);
+        gal->setObjectName(QStringLiteral("pictureStyleGallery"));
+        gal->setTitle(tr("Picture Styles"));
+        gal->setItemsProvider([this] { return pictureStyleItems(workbookColors()); });
+        connect(gal, &Gallery::activated, this, [this](const QString &id) { applyPictureStyle(id.toInt()); });
+        return gal;
+    };
+    parts.menus[QStringLiteral("pictureEffects")] = [this](QWidget *owner) {
+        auto *menu = new QMenu(owner);
+        menu->setObjectName(QStringLiteral("pictureEffectsMenu"));
+        fillPictureEffectsMenu(menu, [this](const QString &, const EffectChange &change) { setPictureEffects(change); });
+        return menu;
+    };
     parts.menus[QStringLiteral("outlineStyle")] = [this](QWidget *owner) {
         auto *menu = new QMenu(owner);
         menu->setObjectName(QStringLiteral("outlineStyleMenu"));

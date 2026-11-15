@@ -680,6 +680,27 @@ Effects Reader::effectsOf(const Bag &bag)
             fx.reflection.blur = std::clamp(v[3], 0.0, 1584.0);
         }
     }
+    // A bevel (type, width, height) and a turn in space (two angles and the perspective), in the attributes of our own that hold them.
+    if (const QStringList parts = bag.get(Graphic, "jo:bevel").split(QLatin1Char(' '), Qt::SkipEmptyParts); parts.size() == 3) {
+        double v[3] = {0, 0, 0};
+        bool ok = true;
+        for (int i = 0; i < 3; ++i) ok = parseNumber(parts[i], &v[i]) && ok;
+        if (ok && v[0] >= 1 && v[0] <= 12) {
+            fx.bevel.type = int(v[0]);
+            fx.bevel.width = std::clamp(v[1], 0.0, 100.0);
+            fx.bevel.height = std::clamp(v[2], 0.0, 100.0);
+        }
+    }
+    if (const QStringList parts = bag.get(Graphic, "jo:rot3d").split(QLatin1Char(' '), Qt::SkipEmptyParts); parts.size() == 3) {
+        double v[3] = {0, 0, 0};
+        bool ok = true;
+        for (int i = 0; i < 3; ++i) ok = parseNumber(parts[i], &v[i]) && ok;
+        if (ok) {
+            fx.rot3d.x = std::clamp(v[0], -180.0, 180.0);
+            fx.rot3d.y = std::clamp(v[1], -180.0, 180.0);
+            fx.rot3d.perspective = std::clamp(v[2], 0.0, 100.0);
+        }
+    }
     return fx;
 }
 

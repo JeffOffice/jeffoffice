@@ -10,6 +10,7 @@
 #include "app/pagenumbers.h"
 #include "translate/translator.h"
 #include "app/mainwindow.h"
+#include "app/picturetools.h"
 #include "render/renderer.h"
 #include "app/pagespane.h"
 #include "app/pictureedit.h"
@@ -1189,18 +1190,8 @@ void MainWindow::createActions()
     mk("pic.compress", tr("Compress Pictures…"), "minimize-2", QKeySequence(), [this] {
         compressPicturesDialog(this, m_ed, tr("Apply to all pictures in the publication"));
     });
-    mk("pic.reset", tr("Reset Picture"), "rotate-ccw", QKeySequence(), [ed] {
-        ed->forEachSelected(tr("Reset Picture"), [ed](Item *it) {
-            if (auto *p = dynamic_cast<PictureItem *>(it)) {
-                p->brightness = p->contrast = 0;
-                p->recolor = PictureItem::NoRecolor;
-                p->hasTransparentColor = false;
-                p->transparency = 0;
-                p->fx = Effects();
-                p->fitImage(ed->doc()->imageSize(p->imageId), true);
-            }
-        });
-    });
+    mk("pic.reset", tr("Reset Picture"), "rotate-ccw", QKeySequence(), [ed] { resetSelectedPictures(ed, false); });
+    mk("pic.resetSize", tr("Reset Picture & Size"), "rotate-ccw", QKeySequence(), [ed] { resetSelectedPictures(ed, true); });
     mk("pic.toShapes", tr("Convert to Shapes"), "shapes", QKeySequence(), [this, ed] {
         // An SVG picture becomes editable artwork shapes in its place.
         auto *pic = dynamic_cast<PictureItem *>(ed->single());

@@ -19,6 +19,7 @@
 #include "core/pathpoints.h"
 #include "office/drawingml.h"
 #include "office/drawingml_geometry.h"
+#include "office/xml.h"
 #include "office/theme.h"
 #include "sheet/chartmake.h"
 #include "core/writeprops.h"
@@ -2920,6 +2921,161 @@ bool setPictureCropShape(WriteDoc &doc, int position, const QString &preset)
     });
 }
 
+namespace {
+
+// A picture (not a shape, a text box, or a group) of a drawing: one that Picture Styles and Picture Effects change.
+bool isBlipPicture(const QByteArray &graphic) { return graphic.contains("blip") && !graphic.contains("wsp") && !graphic.contains("wpg"); }
+
+const QRegularExpression &declaredPrefixes()
+{
+    static const QRegularExpression declared(QStringLiteral(" xmlns(:[A-Za-z0-9]+)?=\"[^\"]*\""));
+    return declared;
+}
+
+// The order of the children of an effect list, as the standard gives them.
+int effectRank(const QByteArray &local)
+{
+    static const QByteArray order[] = {"blur", "fillOverlay", "glow", "innerShdw", "outerShdw", "prstShdw", "reflection", "softEdge"};
+    for (int i = 0; i < 8; ++i)
+        if (local == order[i]) return i;
+    return 8;
+}
+
+bool isMenuEffect(const QByteArray &local) { return local == "glow" || local == "innerShdw" || local == "outerShdw" || local == "reflection" || local == "softEdge"; }
+
+// The effect list with the kinds the menus set (a shadow, glow, reflection, and soft edges) taken from `old` and those of `made` put in; any other effect `old` had (a blur, a
+// fill overlay, a preset shadow) stays. Empty when none is left.
+QByteArray mergedEffectList(const QByteArray &old, const QByteArray &made)
+{
+    struct Kid {
+        int rank;
+        QByteArray raw;
+    };
+    QVector<Kid> kids;
+    auto take = [&](const QByteArray &list, bool menuKinds) {
+        if (list.isEmpty()) return;
+        XmlTree t;
+        if (!t.parse("<x " + declarations() + ">" + list + "</x>", nullptr)) return;
+        const int root = t.firstChild(t.root());
+        for (int c = root >= 0 ? t.firstChild(root) : -1; c >= 0; c = t.next(c))
+            if (isMenuEffect(t.localName(c)) == menuKinds) kids.push_back({effectRank(t.localName(c)), QString::fromUtf8(t.raw(c)).remove(declaredPrefixes()).toUtf8()});
+    };
+    take(old, false);
+    take(made, true);
+    if (kids.isEmpty()) return {};
+    std::stable_sort(kids.begin(), kids.end(), [](const Kid &a, const Kid &b) { return a.rank < b.rank; });
+    QByteArray out = "<a:effectLst>";
+    for (const Kid &k : kids) out += k.raw;
+    return out + "</a:effectLst>";
+}
+
+// The effects the shape properties' effect list, scene, and solid hold, as the shared reader reads them.
+Effects effectsOf(const QByteArray &list, const QByteArray &scene, const QByteArray &solid, const office::Theme *theme)
+{
+    QDomDocument dom;
+    if (!office::parseXml("<a:spPr " + declarations() + ">" + list + scene + solid + "</a:spPr>", &dom)) return Effects();
+    office::DrawingContext ctx;
+    if (theme) ctx.theme = *theme;
+    return office::readEffects(dom.documentElement(), QDomElement(), ctx);
+}
+
+// Whether two sets of effects differ in the flat ones (a shadow, glow, reflection, and soft edges), and in the 3-D ones (a bevel and a turn in space).
+bool flatEffectsDiffer(Effects a, Effects b)
+{
+    a.bevel = b.bevel = BevelFx();
+    a.rot3d = b.rot3d = Rotation3D();
+    return a.toJson() != b.toJson();
+}
+bool solidEffectsDiffer(const Effects &a, const Effects &b)
+{
+    return a.bevel.type != b.bevel.type || a.bevel.width != b.bevel.width || a.bevel.height != b.bevel.height || a.rot3d.x != b.rot3d.x || a.rot3d.y != b.rot3d.y ||
+           a.rot3d.perspective != b.rot3d.perspective;
+}
+
+// Puts the effects in the shape properties, those that changed from `was`: the effect list (with what else it held) for the flat ones, the scene and solid for a bevel or a turn. What
+// did not change stays as the file had it.
+bool putEffects(SpPr *sp, WriteDoc &doc, const Effects &fx, const Effects &was)
+{
+    const office::EffectElements made = office::writeEffectElements(fx, doc.flow().env.colors);
+    bool changed = false;
+    if (flatEffectsDiffer(fx, was)) {
+        const QByteArray list = childRaw(*sp, SlotEffects), newList = mergedEffectList(list, made.list);
+        if (newList != list) {
+            setSlot(sp, SlotEffects, "effectLst", newList);
+            changed = true;
+        }
+    }
+    if (solidEffectsDiffer(fx, was)) {
+        if (childRaw(*sp, SlotScene) != made.scene || childRaw(*sp, SlotSolid3d) != made.solid) {
+            setSlot(sp, SlotScene, "scene3d", made.scene);
+            setSlot(sp, SlotSolid3d, "sp3d", made.solid);
+            changed = true;
+        }
+    }
+    return changed;
+}
+
+QByteArray strokeLine(const QByteArray &old, const Stroke &stroke, const ColorScheme &colors)
+{
+    const QColor c = stroke.isNone() ? QColor() : stroke.color.resolve(colors);
+    if (!c.isValid() || stroke.width <= 0) return "<a:ln><a:noFill/></a:ln>";
+    return lineElement(old, c.name(QColor::HexRgb).mid(1).toUpper().toLatin1(), stroke.width, dashNames().value(int(stroke.dash), QStringLiteral("solid")));
+}
+
+} // namespace
+
+bool setPictureStyle(WriteDoc &doc, int position, int style)
+{
+    PictureItem look;
+    if (!applyPictureStyle(&look, style)) return false;
+    return changeSpPrOf(doc, position, false, [&](SpPr *sp, const Model &m) {
+        if (!isBlipPicture(m.graphic)) return false;
+        bool changed = false;
+        const QString preset = office::presetForShape(look.maskShape).isEmpty() ? QStringLiteral("rect") : office::presetForShape(look.maskShape);
+        const QByteArray geometry = geometryElement(preset);
+        if (childRaw(*sp, SlotGeometry) != geometry) {
+            setSlot(sp, SlotGeometry, "prstGeom", geometry);
+            changed = true;
+        }
+        const QByteArray oldLine = childRaw(*sp, SlotLine);
+        QByteArray line = strokeLine(oldLine, look.stroke, doc.flow().env.colors);
+        // (A double line is a compound line of the drawing format; any other line the old one had is a single one.)
+        static const QRegularExpression compound(QStringLiteral(" cmpd=\"[a-zA-Z]*\""));
+        line = QString::fromUtf8(line).remove(compound).toUtf8();
+        if (look.stroke.compound == Stroke::Double && line.startsWith("<a:ln") && !line.startsWith("<a:ln>") ) line.replace(0, 5, "<a:ln cmpd=\"dbl\"");
+        else if (look.stroke.compound == Stroke::Double && line.startsWith("<a:ln>")) line.replace(0, 6, "<a:ln cmpd=\"dbl\">");
+        // (A style with no border leaves a picture that has none as it is, and takes any other off.)
+        const bool noneNow = oldLine.isEmpty() || (oldLine.contains("<a:noFill/>") && !oldLine.contains("solidFill"));
+        if (look.stroke.isNone() || look.stroke.width <= 0) {
+            if (!noneNow) {
+                setSlot(sp, SlotLine, "ln", QByteArray());
+                changed = true;
+            }
+        } else if (line != oldLine) {
+            setSlot(sp, SlotLine, "ln", line);
+            changed = true;
+        }
+        const Effects was = effectsOf(childRaw(*sp, SlotEffects), childRaw(*sp, SlotScene), childRaw(*sp, SlotSolid3d), doc.theme());
+        // (A style takes the picture's effects off and puts its own: what the style does not have is gone.)
+        Effects now = look.fx;
+        return putEffects(sp, doc, now, was) || changed;
+    });
+}
+
+bool setPictureEffects(WriteDoc &doc, int position, const std::function<void(Effects &)> &change)
+{
+    return changeSpPrOf(doc, position, false, [&](SpPr *sp, const Model &m) {
+        if (!isBlipPicture(m.graphic)) return false;
+        const QByteArray list = childRaw(*sp, SlotEffects), scene = childRaw(*sp, SlotScene), solid = childRaw(*sp, SlotSolid3d);
+        Effects fx = effectsOf(list, scene, solid, doc.theme());
+        const QJsonObject before = fx.toJson();
+        const Effects was = fx;
+        change(fx);
+        if (fx.toJson() == before) return false;
+        return putEffects(sp, doc, fx, was);
+    });
+}
+
 bool alignObject(WriteDoc &doc, int position, ObjectAlign align, bool toPage)
 {
     return changePicture(doc, position, [&](Model &m) {
@@ -3814,21 +3970,78 @@ bool setPictureRecolor(WriteDoc &doc, int position, PictureRecolor recolor)
     });
 }
 
-bool resetPicture(WriteDoc &doc, int position)
+namespace {
+
+// The size of the picture file a blip names, in pixels (empty when it can't be read: a linked picture, one of a kind Qt does not read).
+QSize blipPixelSize(WriteDoc &doc, const QByteArray &graphic)
+{
+    BlipSpot b;
+    if (!findBlip(graphic, &b)) return {};
+    const QByteArray embed = attributeValue(attributesOf(b.startTag), "r:embed");
+    if (embed.isEmpty()) return {};
+    QByteArray bytes = doc.relatedPartData(QString::fromLatin1(embed));
+    if (bytes.isEmpty()) return {};
+    QBuffer buffer(&bytes);
+    buffer.open(QIODevice::ReadOnly);
+    QImageReader reader(&buffer);
+    return reader.size();
+}
+
+bool resetPictureOf(WriteDoc &doc, int position, bool andSize)
 {
     return changePicture(doc, position, [&](Model &m) {
         if (!m.graphic.contains("blip")) return false;
         bool changed = applyCut(m, std::array<double, 4>{0, 0, 0, 0}.data());
         changed = applyColors(m, 0, 0, PictureRecolor::None) || changed;
         SpPr sp;
-        if (splitSpPr(m.graphic, &sp) && !childRaw(sp, SlotLine).isEmpty()) {
-            setSlot(&sp, SlotLine, "ln", QByteArray());
-            m.graphic = joinSpPr(m.graphic, sp);
-            changed = true;
+        if (splitSpPr(m.graphic, &sp)) {
+            // The border, the shape the picture is cut to, and the effects.
+            bool spChanged = false;
+            if (!childRaw(sp, SlotLine).isEmpty()) {
+                setSlot(&sp, SlotLine, "ln", QByteArray());
+                spChanged = true;
+            }
+            if (isBlipPicture(m.graphic)) {
+                const QByteArray rect = geometryElement(QStringLiteral("rect")), shape = childRaw(sp, SlotGeometry);
+                if (!shape.isEmpty() && shape != rect) {
+                    setSlot(&sp, SlotGeometry, "prstGeom", rect);
+                    spChanged = true;
+                }
+                for (const int slot : {int(SlotEffects), int(SlotScene), int(SlotSolid3d)})
+                    if (!childRaw(sp, slot).isEmpty()) {
+                        setSlot(&sp, slot, "x", QByteArray());
+                        spChanged = true;
+                    }
+            }
+            if (spChanged) {
+                m.graphic = joinSpPr(m.graphic, sp);
+                changed = true;
+            }
+        }
+        if (andSize) {
+            // The size the picture has in its file (96 pixels to the inch).
+            const QSize px = blipPixelSize(doc, m.graphic);
+            if (!px.isEmpty()) {
+                double wp = px.width() * 0.75, hp = px.height() * 0.75;
+                clampKeepingRatio(&wp, &hp);
+                const qint64 w = qint64(std::llround(wp * kEmuPerPoint)), h = qint64(std::llround(hp * kEmuPerPoint));
+                if (w != m.cx || h != m.cy) {
+                    m.graphic = graphicWithSize(m.graphic, w, h);
+                    m.cx = w;
+                    m.cy = h;
+                    changed = true;
+                }
+            }
         }
         return changed;
     });
 }
+
+} // namespace
+
+bool resetPicture(WriteDoc &doc, int position) { return resetPictureOf(doc, position, false); }
+
+bool resetPictureAndSize(WriteDoc &doc, int position) { return resetPictureOf(doc, position, true); }
 
 PictureResult changePictureFile(WriteDoc &doc, int position, const QByteArray &bytes)
 {
@@ -3846,8 +4059,17 @@ PictureResult changePictureFile(WriteDoc &doc, int position, const QByteArray &b
     const bool changed = changePicture(doc, position, [&](Model &m) {
         BlipSpot b;
         if (!findBlip(m.graphic, &b)) return false;
-        double none[4] = {0, 0, 0, 0};
-        applyCut(m, none);
+        // The new picture goes where the old one was, with its cut and size when it has the old one's proportions; any other has no cut, and the frame keeps its width and takes
+        // its proportions. The colors, the border, the shape, and the effects stay.
+        double was[4];
+        cutOf(m.graphic, was);
+        const double wholeW = double(m.cx) / std::max(0.02, 1 - was[0] - was[2]), wholeH = double(m.cy) / std::max(0.02, 1 - was[1] - was[3]);
+        const double oldRatio = wholeW / std::max(1.0, wholeH), newRatio = double(p.size.width()) / std::max(1.0, double(p.size.height()));
+        const bool same = std::abs(oldRatio - newRatio) <= 0.02 * newRatio;
+        if (!same) {
+            double none[4] = {0, 0, 0, 0};
+            applyCut(m, none);
+        }
         if (!findBlip(m.graphic, &b)) return false;
         Attributes attrs = attributesOf(b.startTag);
         setAttribute(&attrs, "r:embed", quote(rid.toUtf8()));
@@ -3858,8 +4080,7 @@ PictureResult changePictureFile(WriteDoc &doc, int position, const QByteArray &b
         for (const auto &d : declared) start += " " + d.first + "=" + d.second;
         b.startTag = start + written(attrs) + (b.selfClosing ? "/>" : ">");
         m.graphic = withBlip(m.graphic, b);
-        // The colors of the old picture are not the new one's. The frame keeps its width and takes the new picture's proportions.
-        applyColors(m, 0, 0, PictureRecolor::None);
+        if (same) return true;
         const qint64 h = std::clamp<qint64>(qint64(std::llround(double(m.cx) * p.size.height() / std::max(1.0, p.size.width()))), qint64(kLeastPictureSize * kEmuPerPoint), qint64(kMostPictureSize * kEmuPerPoint));
         m.graphic = graphicWithSize(m.graphic, m.cx, h);
         m.cy = h;

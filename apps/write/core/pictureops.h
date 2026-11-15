@@ -5,6 +5,7 @@
 // one step that undoes and the file saved says what the pages show. Only pictures that are one plain drawing (a picture in line, or one anchored) can be changed; any other
 // (a picture of the older drawing format, a group) is kept as it is.
 
+#include "core/picturestyles.h"
 #include "core/writedoc.h"
 #include "sheet/chartops.h"
 
@@ -172,9 +173,17 @@ bool setPictureCrop(WriteDoc &doc, int position, double left, double top, double
 // How bright and how contrasting the picture is drawn, each from -1 to 1 (0 is as it is).
 bool setPictureCorrections(WriteDoc &doc, int position, double brightness, double contrast);
 bool setPictureRecolor(WriteDoc &doc, int position, PictureRecolor recolor);
-// Takes off the cut, the corrections, the recolor, and the border: the picture as it came in, at the scale it has (so its frame grows by what the cut took off).
+// Takes off the cut, the corrections, the recolor, the border, the shape it is cut to, and the effects: the picture as it came in, at the scale it has (so its frame grows by what the cut took off).
 bool resetPicture(WriteDoc &doc, int position);
-// Another picture in the place of this one, in the same frame width, with the same place, wrap, and alt text; its cuts and colors are not kept. The result is as insertPicture's.
+// Reset Picture & Size: the same, and the picture is the size it has in its file (96 pixels to the inch, held to the sizes a picture may be), the frame growing or shrinking at its corner.
+bool resetPictureAndSize(WriteDoc &doc, int position);
+// Picture Styles: the picture takes the look of style `style` of the shared gallery (core/picturestyles.h: the shape it is cut to, its border, and its effects), as one step. Its size, place,
+// cut, and colors stay. False for no picture that can be changed, or a style that is none, or one the picture already has.
+bool setPictureStyle(WriteDoc &doc, int position, int style);
+// Picture Effects: `change` sets the picture's effects (a shadow, reflection, glow, soft edges, a bevel, and a turn in space, as the shared drawing engine has them) from what they are; one step.
+// The effects the picture's file holds that the engine has no setting for stay. False when `change` makes no difference or the object is no picture.
+bool setPictureEffects(WriteDoc &doc, int position, const std::function<void(Effects &)> &change);
+// Another picture in the place of this one, with the same place, wrap, alt text, colors, border, shape, and effects; of the old one's proportions it keeps its size and cut, any other has no cut and the frame keeps its width and takes its proportions. The result is as insertPicture's.
 PictureResult changePictureFile(WriteDoc &doc, int position, const QByteArray &bytes);
 // The places of the body text's pictures (a picture that is a picture of the file: not a shape, a text box, a chart, or a group), in the order of the text.
 QVector<int> picturePositions(const WriteDoc &doc);

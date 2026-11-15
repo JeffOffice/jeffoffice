@@ -9,6 +9,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include "app/mainwindow.h"
+#include "app/picturetools.h"
 #include "app/taskpane.h"
 #include "app/textartgallery.h"
 #include "app/pagenumbergallery.h"
@@ -675,37 +676,18 @@ void MainWindow::ribbonGalleryParts(RibbonParts &parts)
         return gal;
     };
     parts.widgets[QStringLiteral("pictureStyles")] = [this]() -> QWidget * {
-        auto *gal = new Gallery(QSize(40, 40), 5);
+        auto *gal = new Gallery(QSize(60, 46), 6);
         Editor *e = m_ed;
-        gal->setItemsProvider([e] {
-            QVector<GalleryItem> v;
-            for (int k = 0; k < 20; ++k) {
-                v << GalleryItem{QString::number(k), tr("Picture Style %1").arg(k + 1), drawnIcon([e, k](QPainter *p, const QRectF &rc) {
-                    PictureItem pic;
-                    pictureStylePreset(k, &pic);
-                    const QRectF b = rc.adjusted(5, 5, -5, -5);
-                    const QPainterPath path = shapePath(pic.maskShape, b.size()).translated(b.topLeft());
-                    QLinearGradient lg(b.topLeft(), b.bottomRight());
-                    lg.setColorAt(0, QColor(120, 170, 220));
-                    lg.setColorAt(1, QColor(60, 120, 80));
-                    if (pic.fx.shadow.on) p->fillPath(path.translated(2, 2), QColor(0, 0, 0, 70));
-                    p->fillPath(path, lg);
-                    if (!pic.stroke.isNone()) {
-                        QPen pen = pic.stroke.pen(e->doc()->colors);
-                        pen.setWidthF(std::clamp(pic.stroke.width / 2, 0.75, 4.0));
-                        p->strokePath(path, pen);
-                    }
-                }), QString()};
-            }
-            return v;
-        });
-        connect(gal, &Gallery::activated, this, [this](const QString &id) {
-            m_ed->forEachSelected(tr("Picture Style"), [id](Item *it) {
-                if (auto *pic = dynamic_cast<PictureItem *>(it)) pictureStylePreset(id.toInt(), pic);
-            });
-        });
+        gal->setTitle(tr("Picture Styles"));
+        gal->setItemsProvider([e] { return pictureStyleItems(e->doc()->colors); });
+        connect(gal, &Gallery::activated, this, [this](const QString &id) { applyPictureStyleToSelection(m_ed, id.toInt()); });
         gal->setObjectName("pictureStyles");
         return gal;
+    };
+    parts.menus[QStringLiteral("pictureEffectsMenu")] = [this](QWidget *owner) {
+        auto *m = new QMenu(owner);
+        connect(m, &QMenu::aboutToShow, m, [this, m] { fillPictureEffectsMenu(m, m_ed, [this] { formatObjectDialog(this, m_ed, 0); }); });
+        return m;
     };
     parts.widgets[QStringLiteral("tableFormats")] = [this]() -> QWidget * {
         auto *gal = new Gallery(QSize(48, 36), 5);

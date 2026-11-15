@@ -11,6 +11,7 @@
 #include "app/filedialogs.h"
 #include "app/ribbonbuilder.h"
 #include "app/settings.h"
+#include "app/picturetools.h"
 #include "app/widgets.h"
 #include "core/equationops.h"
 #include "app/equationdialog.h"
@@ -146,18 +147,6 @@ const ShapeStyle kShapeStyles[] = {
     {QT_TRANSLATE_NOOP("jp::WriteWindow", "Outline"), "", "3B78B8", 2.25, "solid"},
     {QT_TRANSLATE_NOOP("jp::WriteWindow", "Dashed Outline"), "", "404040", 1.5, "dash"},
     {QT_TRANSLATE_NOOP("jp::WriteWindow", "Fill Only"), "27547F", "", 0, "solid"},
-};
-
-// The looks of the Picture Styles gallery: a border (the fill is not used).
-const ShapeStyle kPictureStyles[] = {
-    {QT_TRANSLATE_NOOP("jp::WriteWindow", "No Border"), "", "", 0, "solid"},
-    {QT_TRANSLATE_NOOP("jp::WriteWindow", "Thin Black Frame"), "", "000000", 0.75, "solid"},
-    {QT_TRANSLATE_NOOP("jp::WriteWindow", "Black Frame"), "", "000000", 2.25, "solid"},
-    {QT_TRANSLATE_NOOP("jp::WriteWindow", "Gray Frame"), "", "808080", 4.5, "solid"},
-    {QT_TRANSLATE_NOOP("jp::WriteWindow", "Blue Frame"), "", "3B78B8", 3, "solid"},
-    {QT_TRANSLATE_NOOP("jp::WriteWindow", "Dashed Frame"), "", "404040", 2.25, "dash"},
-    {QT_TRANSLATE_NOOP("jp::WriteWindow", "Dotted Frame"), "", "404040", 2.25, "sysDot"},
-    {QT_TRANSLATE_NOOP("jp::WriteWindow", "White Frame"), "", "FFFFFF", 6, "solid"},
 };
 
 QIcon swatchIcon(const ShapeStyle &s)
@@ -594,6 +583,10 @@ void WriteWindow::createPictureAdjustActions()
         m_view->changeSelectedPicture([](write::WriteDoc &d, int position) { return write::resetPicture(d, position); });
         m_view->setFocus(Qt::OtherFocusReason);
     });
+    mk("picture.resetSize", tr("Reset Picture & Size"), "refresh-ccw", QKeySequence(), [this] {
+        m_view->changeSelectedPicture([](write::WriteDoc &d, int position) { return write::resetPictureAndSize(d, position); });
+        m_view->setFocus(Qt::OtherFocusReason);
+    });
     mk("picture.change", tr("Change Picture…"), "replace", QKeySequence(), [this] { changeSelectedPicture(); });
     mk("picture.compress", tr("Compress Pictures…"), "minimize-2", QKeySequence(), [this] { compressPicturesDialog(); });
     static const int steps[] = {-40, -20, 20, 40};
@@ -790,23 +783,26 @@ void WriteWindow::shapeRibbonParts(RibbonParts &parts)
         return m;
     };
     parts.widgets[QStringLiteral("pictureStyles")] = [this]() -> QWidget * {
-        auto *g = new Gallery(QSize(60, 38), 6);
+        auto *g = new Gallery(QSize(60, 46), 6);
+        g->setObjectName(QStringLiteral("pictureStyles"));
         g->setTitle(tr("Picture Styles"));
-        g->setItemsProvider([] {
-            QVector<GalleryItem> items;
-            int i = 0;
-            for (const ShapeStyle &s : kPictureStyles) items << GalleryItem{QString::number(i++), QCoreApplication::translate("jp::WriteWindow", s.name), swatchIcon(s), QString()};
-            return items;
-        });
+        g->setItemsProvider([this] { return pictureStyleItems(m_doc ? m_doc->flow().env.colors : ColorScheme()); });
         g->reload();
         connect(g, &Gallery::activated, this, [this](const QString &id) {
             const int i = id.toInt();
-            if (i < 0 || i >= int(sizeof(kPictureStyles) / sizeof(kPictureStyles[0]))) return;
-            const ShapeStyle s = kPictureStyles[i];
-            m_view->changeSelectedPicture([s](write::WriteDoc &d, int position) { return write::setShapeLine(d, position, QString::fromLatin1(s.line), s.weight, QString::fromLatin1(s.dash)); });
+            if (i < 0 || i >= pictureStyleCount()) return;
+            m_view->changeSelectedPicture([i](write::WriteDoc &d, int position) { return write::setPictureStyle(d, position, i); });
             m_view->setFocus(Qt::OtherFocusReason);
         });
         return g;
+    };
+    parts.menus[QStringLiteral("pictureEffects")] = [this](QWidget *owner) {
+        auto *m = new QMenu(owner);
+        fillPictureEffectsMenu(m, [this](const QString &, const EffectChange &change) {
+            m_view->changeSelectedPicture([change](write::WriteDoc &d, int position) { return write::setPictureEffects(d, position, change); });
+            m_view->setFocus(Qt::OtherFocusReason);
+        });
+        return m;
     };
     parts.widgets[QStringLiteral("pictureBorder")] = [this]() -> QWidget * {
         auto *b = new ColorButton(QStringLiteral("pencil-line"), tr("Picture Border"), true, tr("No Outline"));

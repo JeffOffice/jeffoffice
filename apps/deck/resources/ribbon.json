@@ -1358,8 +1358,52 @@
           "keytip": "ZA",
           "items": [
             {
-              "large": "pic.compress",
+              "large": "pic.change",
+              "keytip": "CP"
+            },
+            {
+              "small": "pic.compress",
               "keytip": "CM"
+            },
+            {
+              "small": "pic.reset",
+              "keytip": "RP",
+              "split": true,
+              "menu": [
+                "pic.reset",
+                "pic.resetSize"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Picture Styles",
+          "keytip": "ZP",
+          "launcher": "pictureStyles",
+          "launcherTip": "Format Picture",
+          "launcherKeytip": "LP",
+          "items": [
+            {
+              "widget": "pictureStyleGallery",
+              "keytip": "QP"
+            },
+            {
+              "small": {
+                "id": "ribbon.pictureBorder",
+                "text": "Picture Border",
+                "icon": "pen-line"
+              },
+              "keytip": "PB",
+              "menu": "@pictureBorderMenu"
+            },
+            {
+              "small": {
+                "id": "ribbon.pictureEffects",
+                "text": "Picture Effects",
+                "icon": "sparkles"
+              },
+              "keytip": "PE",
+              "menu": "@pictureEffectsMenu"
             }
           ]
         },
