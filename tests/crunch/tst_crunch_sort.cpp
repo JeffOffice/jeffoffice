@@ -269,8 +269,10 @@ private Q_SLOTS:
         QCOMPARE(int(got.levels[0].by), int(SortLevel::By::Icon));
         QCOMPARE(got.levels[0].icon, QStringLiteral("3Arrows:0"));
         QVERIFY(!got.levels[0].onTop);
-        order->setCurrentIndex(0);
+        order->setCurrentIndex(1);                                                          // (the icons are listed lowest first)
         QCOMPARE(d.spec().levels[0].icon, QStringLiteral("3Arrows:2"));
+        order->setCurrentIndex(0);
+        QCOMPARE(d.spec().levels[0].icon, QStringLiteral("3Arrows:0"));
         order->setCurrentIndex(2);
         QVERIFY(d.spec().levels[0].icon.isEmpty());
     }
