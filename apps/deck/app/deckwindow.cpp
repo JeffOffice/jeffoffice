@@ -71,6 +71,7 @@ DeckWindow::DeckWindow(QWidget *parent) : AppWindow(parent)
     m_ed->setNewDocumentName(tr("Presentation1"));
     m_ed->setDocument(deck::newDefaultPresentation());
     m_fontsOf = m_ed->doc();
+    m_openedTheme = deck::themeOf(*m_ed->doc());
     // A presentation's view: no rulers, guides, or boundaries until they are asked for (the canvas outlines empty placeholders itself).
     m_ed->view.guides = false;
     m_ed->view.boundaries = false;

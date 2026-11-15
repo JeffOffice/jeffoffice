@@ -100,10 +100,15 @@ void DeckWindow::addMasterParts(RibbonParts &parts)
         menu->addAction(wa);
         menu->addSeparator();
         menu->addAction(tr("Browse for Themes…"), this, [this] { browseForTheme(true); });
+        menu->addAction(tr("Save Current Theme…"), this, [this] { saveCurrentTheme(); });
         connect(menu, &QMenu::aboutToShow, gallery, &ThemeGallery::reload);
         connect(gallery, &ThemeGallery::themeChosen, this, [this, menu](int theme, bool all) {
             menu->close();
             applyTheme(theme, all);
+        });
+        connect(gallery, &ThemeGallery::saveRequested, this, [this, menu] {
+            menu->close();
+            saveCurrentTheme();
         });
         connect(gallery, &ThemeGallery::browseRequested, this, [this, menu] {
             menu->close();

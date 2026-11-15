@@ -363,6 +363,7 @@ QMenu *ThemeGallery::contextMenu(int theme, QWidget *parent)
     menu->addAction(tr("Apply to Selected Slides"), this, [this, theme] { Q_EMIT themeChosen(theme, false); });
     menu->addSeparator();
     menu->addAction(icon(QStringLiteral("folder-open")), tr("Browse for Themes…"), this, [this] { Q_EMIT browseRequested(); });
+    menu->addAction(icon(QStringLiteral("save")), tr("Save Current Theme…"), this, [this] { Q_EMIT saveRequested(); });
     return menu;
 }
 
@@ -389,6 +390,14 @@ QFrame *ThemeGallery::openAll()
     browse->setFlat(true);
     browse->setStyleSheet(QStringLiteral("text-align:left; padding:4px 6px;"));
     column->addWidget(browse);
+    auto *save = new QPushButton(icon(QStringLiteral("save")), tr("Save Current Theme…"), pop);
+    save->setFlat(true);
+    save->setStyleSheet(QStringLiteral("text-align:left; padding:4px 6px;"));
+    column->addWidget(save);
+    connect(save, &QPushButton::clicked, pop, [this, pop] {
+        pop->close();
+        Q_EMIT saveRequested();
+    });
     connect(all, &PictureGrid::chosen, pop, [this, pop](int theme) {
         pop->close();
         Q_EMIT themeChosen(theme, true);

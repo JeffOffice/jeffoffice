@@ -13,7 +13,9 @@
 #include "app/pageselectionpane.h"
 #include "app/pdfprotection.h"
 #include "app/versionstore.h"
+#include "core/themes.h"
 #include "office/packageprops.h"
+#include "office/themelib.h"
 #include "app/slideshow.h"
 
 #include <QHash>
@@ -211,6 +213,17 @@ public:
     void applyTheme(int theme, bool allSlides);
     bool applyThemeFile(const QString &path, bool allSlides);
     void browseForTheme(bool allSlides = true);
+    // Save Current Theme: the first slide master's theme (its colors, fonts, and the effect styles of its part) written as a .thmx file; false, with the reason shown, if it can't be written. The
+    // other way is Browse for Themes: a .thmx file (or a document's theme part) gives its colors and fonts, as one step.
+    bool saveThemeFile(const QString &path);
+    void saveCurrentTheme();
+    // Reset to the template's theme: the colors and fonts the presentation had when it was opened or made (one step); false if it has them already.
+    bool resetTheme();
+    // Whether the presentation's colors and fonts differ from those it was opened with.
+    bool themeChanged() const;
+    // Theme colors and fonts of the Colors and Fonts galleries, chosen from a menu or made in Create New.
+    void chooseThemeColors(const office::ThemeColors &colors);
+    void chooseThemeFonts(const office::ThemeFonts &fonts);
     void chooseVariant(int variant);
     void chooseColors(const deck::ColorSet &colors);
     void chooseFonts(const deck::FontSet &fonts);
@@ -567,6 +580,7 @@ private:
     std::function<void(const QString &, const QString &)> m_notifier;
     LossyCache m_lossCache;   // what an .odp save would lose, until the presentation changes
     std::function<bool(const QUrl &)> m_urlOpener;
+    deck::DeckTheme m_openedTheme;   // the presentation's theme as it was opened or made: what Reset to the template's theme gives back
     QString m_templatePath;      // a template this window wrote: saving again writes over it
     std::function<QString(const QString &, const QString &)> m_pathChooser;
     std::function<void(QPrinter &)> m_printerPreparer;

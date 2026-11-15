@@ -97,6 +97,7 @@ public:
 Q_SIGNALS:
     void themeChosen(int theme, bool allSlides);
     void browseRequested();
+    void saveRequested();
 
 private:
     void setUp(PictureGrid *grid);

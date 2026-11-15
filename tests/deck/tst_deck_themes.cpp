@@ -1,6 +1,9 @@
 // JeffDeck's tests of themes and variants.
 #include "deckhelpers.h"
+#include "../withdialog.h"
 #include "app/userdefaults.h"
+#include "app/themedialogs.h"
+#include "office/themelib.h"
 #include "io/presentationdefaults.h"
 
 struct BackdropDeck {
@@ -1407,8 +1410,8 @@ private Q_SLOTS:
         QList<QAction *> schemes;
         for (QAction *a : colors->actions())
             if (a->isCheckable()) schemes << a;
-        QCOMPARE(schemes.size(), deck::colorSets().size());
-        QCOMPARE(schemes.size(), 18);
+        QCOMPARE(schemes.size(), deck::colorSets().size() + office::builtinThemeColors().size());   // (JeffDeck's own, then the sets every app has)
+        QCOMPARE(deck::colorSets().size(), 18);
         int checked = 0;
         for (QAction *a : schemes) checked += a->isChecked();
         QCOMPARE(checked, 1);
@@ -1444,6 +1447,179 @@ private Q_SLOTS:
         QTRY_COMPARE(variants->grid()->current(), 2);   // Ember's third variant is its colors on that background
         ed->undo();
         QCOMPARE(deck::backgroundStyleOf(ed->doc()->masters[0]->background, deck::themeOf(*ed->doc())), deck::builtinThemeVariants(ember)[0].background);
+    }
+
+    // ---- Theme Colors and Fonts the person makes, Reset, and theme files
+    static QAction *entry(QMenu *menu, const QString &text)
+    {
+        for (QAction *a : menu->actions())
+            if (a->text().startsWith(text)) return a;
+        return nullptr;
+    }
+
+    void createNewThemeColorsAndFontsAreKeptAndChosenInOneStep()
+    {
+        QTemporaryDir store;
+        QVERIFY(store.isValid());
+        office::setThemeStoreFolder(store.path());
+        struct Reset { ~Reset() { office::setThemeStoreFolder(QString()); } } resetStore;
+        DeckWindow w;
+        Editor *ed = w.editor();
+        w.show();
+        auto *variants = w.findChild<VariantGallery *>();
+        QMenu *menu = variants->moreButton()->menu();
+        QMenu *colors = menu->findChild<QMenu *>(QStringLiteral("variantColors"));
+        QMenu *fonts = menu->findChild<QMenu *>(QStringLiteral("variantFonts"));
+        Q_EMIT colors->aboutToShow();
+        colors->adjustSize();
+        shotOf(colors, QStringLiteral("deck-theme-colors-gallery"));
+        QVERIFY(entry(colors, QStringLiteral("Create New Theme Colors")));
+        QVERIFY(entry(colors, QStringLiteral("Lagoon")));   // a built-in set every app has
+        // the box: twelve slots, a preview, a name; saving keeps the set where every app finds it
+        ThemeColorsDialog box(office::themeColorsOf(office::defaultTheme()));
+        for (int i = 0; i < office::Theme::ColorCount; ++i) QVERIFY(box.slotButton(i));
+        box.setSlot(office::Theme::Accent1, QColor(1, 2, 3));
+        QCOMPARE(box.preview()->colors().colors[office::Theme::Accent1], QColor(1, 2, 3));
+        box.nameEdit()->setText(QStringLiteral("Mine"));
+        box.show();
+        shotOf(&box, QStringLiteral("deck-create-new-theme-colors"));
+        box.accept();
+        QCOMPARE(office::customThemeColors().size(), 1);
+        QCOMPARE(office::customThemeColors().first().colors[office::Theme::Accent1], QColor(1, 2, 3));
+        // a built-in name is not taken
+        ThemeColorsDialog clash(office::builtinThemeColors().first());
+        clash.nameEdit()->setText(QStringLiteral("lagoon"));
+        clash.accept();
+        QCOMPARE(office::customThemeColors().size(), 1);
+        // the menu lists it, and a choice restyles the presentation in one step
+        Q_EMIT colors->aboutToShow();
+        QAction *mine = entry(colors, QStringLiteral("Mine"));
+        QVERIFY(mine);
+        const QColor before = deck::themeOf(*ed->doc()).colors[4];
+        const QString headingBefore = deck::themeOf(*ed->doc()).headingFont;
+        const int undoBefore = ed->undoStack()->count();
+        mine->trigger();
+        QCOMPARE(deck::themeOf(*ed->doc()).colors[4], QColor(1, 2, 3));
+        QCOMPARE(ed->undoStack()->count(), undoBefore + 1);
+        // saved as a presentation and opened again with the changed theme
+        QString err;
+        const QByteArray bytes = deck::exportPresentation(*ed->doc(), &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        auto back = deck::importPresentation(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        QCOMPARE(deck::themeOf(*back).colors[4], QColor(1, 2, 3));
+        ed->undo();
+        QCOMPARE(deck::themeOf(*ed->doc()).colors[4], before);
+        ed->redo();
+        QCOMPARE(deck::themeOf(*ed->doc()).colors[4], QColor(1, 2, 3));
+        ed->undo();
+        // fonts the same way
+        ThemeFontsDialog fontBox(office::ThemeFonts{QString(), QStringLiteral("Caladea"), QStringLiteral("Carlito")});
+        fontBox.nameEdit()->setText(QStringLiteral("My Pair"));
+        QCOMPARE(fontBox.headingBox()->currentText(), QStringLiteral("Caladea"));
+        fontBox.accept();
+        QCOMPARE(office::customThemeFonts().size(), 1);
+        Q_EMIT fonts->aboutToShow();
+        QAction *pair = entry(fonts, QStringLiteral("My Pair"));
+        QVERIFY(pair);
+        pair->trigger();
+        QCOMPARE(deck::themeOf(*ed->doc()).headingFont, QStringLiteral("Caladea"));
+        auto fontsBack = deck::importPresentation(deck::exportPresentation(*ed->doc(), &err), &err);
+        QVERIFY(fontsBack);
+        const QString reopened = deck::themeOf(*fontsBack).headingFont;
+        QVERIFY2(reopened == QLatin1String("Caladea") || reopened == QLatin1String("Cambria"), qPrintable(reopened));   // (a file names the same face Cambria)
+        ed->undo();
+        QCOMPARE(deck::themeOf(*ed->doc()).headingFont, headingBefore);
+    }
+
+    void resetGivesBackTheThemeThePresentationWasOpenedWith()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        w.show();
+        QVERIFY(!w.themeChanged());
+        QVERIFY(!w.resetTheme());
+        const deck::DeckTheme first = deck::themeOf(*ed->doc());
+        w.chooseThemeColors(office::builtinThemeColors().at(4));
+        w.chooseThemeFonts({QStringLiteral("Pair"), QStringLiteral("Caladea"), QStringLiteral("Carlito")});
+        QVERIFY(w.themeChanged());
+        QCOMPARE(deck::themeOf(*ed->doc()).colors[4], office::builtinThemeColors().at(4).colors[4]);
+        auto *variants = w.findChild<VariantGallery *>();
+        QMenu *colors = variants->moreButton()->menu()->findChild<QMenu *>(QStringLiteral("variantColors"));
+        Q_EMIT colors->aboutToShow();
+        QAction *reset = colors->findChild<QAction *>(QStringLiteral("resetThemeColors"));
+        QVERIFY(reset && reset->isEnabled());
+        reset->trigger();   // one step
+        const deck::DeckTheme now = deck::themeOf(*ed->doc());
+        for (int i = 0; i < 12; ++i) QCOMPARE(now.colors[i], first.colors[i]);
+        QCOMPARE(now.headingFont, first.headingFont);
+        QCOMPARE(now.bodyFont, first.bodyFont);
+        QVERIFY(!w.themeChanged());
+        ed->undo();
+        QCOMPARE(deck::themeOf(*ed->doc()).colors[4], office::builtinThemeColors().at(4).colors[4]);
+        QCOMPARE(deck::themeOf(*ed->doc()).headingFont, QStringLiteral("Caladea"));
+        Q_EMIT colors->aboutToShow();
+        QVERIFY(colors->findChild<QAction *>(QStringLiteral("resetThemeColors"))->isEnabled());
+    }
+
+    void saveCurrentThemeWritesAThemeFileAndBrowseTakesItOrADocumentsTheme()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        DeckWindow a;
+        a.chooseThemeColors(office::builtinThemeColors().at(7));
+        a.chooseThemeFonts({QStringLiteral("Pair"), QStringLiteral("Caladea"), QStringLiteral("Carlito")});
+        const QString file = dir.filePath(QStringLiteral("mine.thmx"));
+        QVERIFY(a.saveThemeFile(file));
+        office::Theme read;
+        QString err;
+        QVERIFY2(office::readThemeFile(file, &read, &err), qPrintable(err));
+        QVERIFY(office::themeColorsOf(read) == office::builtinThemeColors().at(7));
+        QCOMPARE(read.majorLatin, QStringLiteral("Caladea"));
+        QVERIFY(read.xml.contains("effectStyleLst"));
+        // another presentation takes it: colors and fonts, one step
+        DeckWindow b;
+        Editor *ed = b.editor();
+        const QColor was = deck::themeOf(*ed->doc()).colors[4];
+        const QString headingWas = deck::themeOf(*ed->doc()).headingFont;
+        QVERIFY(b.applyThemeFile(file, true));
+        QCOMPARE(deck::themeOf(*ed->doc()).colors[4], office::builtinThemeColors().at(7).colors[4]);
+        QCOMPARE(deck::themeOf(*ed->doc()).headingFont, QStringLiteral("Caladea"));
+        ed->undo();
+        QCOMPARE(deck::themeOf(*ed->doc()).colors[4], was);
+        QCOMPARE(deck::themeOf(*ed->doc()).headingFont, headingWas);
+        // a document's theme part
+        office::PackageWriter pkg;
+        pkg.addPart(QStringLiteral("/word/document.xml"), "<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"/>",
+                    QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"));
+        pkg.addPart(QStringLiteral("/word/theme/theme1.xml"), office::writeTheme(office::withThemeColors(office::defaultTheme(), office::builtinThemeColors().at(2))),
+                    QStringLiteral("application/vnd.openxmlformats-officedocument.theme+xml"));
+        pkg.addRelationship(QStringLiteral("/"), QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"), QStringLiteral("/word/document.xml"));
+        pkg.addRelationship(QStringLiteral("/word/document.xml"), QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme"), QStringLiteral("/word/theme/theme1.xml"));
+        QFile docx(dir.filePath(QStringLiteral("doc.docx")));
+        QVERIFY(docx.open(QIODevice::WriteOnly));
+        docx.write(pkg.finish());
+        docx.close();
+        QVERIFY(b.applyThemeFile(docx.fileName(), true));
+        QCOMPARE(deck::themeOf(*ed->doc()).colors[4], office::builtinThemeColors().at(2).colors[4]);
+        ed->undo();
+        // a file with no theme in it changes nothing
+        QFile junk(dir.filePath(QStringLiteral("junk.thmx")));
+        QVERIFY(junk.open(QIODevice::WriteOnly));
+        junk.write("not a package");
+        junk.close();
+        const QColor keep = deck::themeOf(*ed->doc()).colors[4];
+        QTimer::singleShot(0, [] {
+            for (int tries = 0; tries < 200; ++tries) {
+                if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                    box->button(QMessageBox::Ok)->click();
+                    return;
+                }
+                QTest::qWait(10);
+            }
+        });
+        QVERIFY(!b.applyThemeFile(junk.fileName(), true));
+        QCOMPARE(deck::themeOf(*ed->doc()).colors[4], keep);
     }
 
     // A dark presentation opened from a file has light text where none was chosen, so a new text box can be read; a light one is as it was.

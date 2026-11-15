@@ -11,9 +11,11 @@
 #include "app/ribbonbuilder.h"
 #include "app/settings.h"
 #include "app/slidesorter.h"
+#include "app/themedialogs.h"
 #include "app/themegallery.h"
 #include "core/themes.h"
 #include "io/presentationfile.h"
+#include "office/themelib.h"
 
 #include <QAction>
 #include <QApplication>
@@ -23,6 +25,7 @@
 #include <QMenu>
 #include <QMessageBox>
 #include <QPainter>
+#include <QSaveFile>
 #include <QStandardPaths>
 #include <QWidgetAction>
 #include "app/plaintext.h"
@@ -31,27 +34,28 @@ namespace jp {
 
 namespace {
 
-// A scheme's colors for a menu: its two darks and lights, and two accents, in three columns of two.
-QIcon swatchIcon(const deck::ColorSet &set)
+office::ThemeColors sharedColors(const deck::ColorSet &set)
 {
-    const int size = 16;
-    QPixmap pix(size, size);
-    pix.fill(Qt::transparent);
-    QPainter p(&pix);
-    static const int slots[6] = {4, 5, 6, 2, 3, 7};
-    for (int i = 0; i < 6; ++i) {
-        p.setPen(QPen(QColor(0, 0, 0, 70), 1));
-        p.setBrush(set.colors[slots[i]]);
-        p.drawRect(QRect((i % 3) * 5, 1 + (i / 3) * 7, 5, 6));
-    }
-    return QIcon(pix);
+    office::ThemeColors c;
+    c.name = set.name;
+    for (int i = 0; i < 12; ++i) c.colors[i] = set.colors[i];
+    return c;
 }
 
-bool sameColors(const deck::ColorSet &set, const deck::DeckTheme &t)
+deck::ColorSet deckColors(const office::ThemeColors &set)
 {
-    for (int i = 0; i < 10; ++i)
-        if (set.colors[i] != t.colors[i]) return false;
-    return true;
+    deck::ColorSet c;
+    c.name = set.name;
+    for (int i = 0; i < 12; ++i) c.colors[i] = set.colors[i];
+    return c;
+}
+
+// The first slide master of a presentation, or null.
+const MasterPage *firstSlideMasterOf(const Document &d)
+{
+    for (const auto &m : d.masters)
+        if (deck::isSlideMaster(*m)) return m.get();
+    return nullptr;
 }
 
 } // namespace
@@ -116,6 +120,22 @@ bool DeckWindow::applyThemeFile(const QString &path, bool allSlides)
         }
         ~Restore() { off(); }
     } waiting;
+    const QString suffix = QFileInfo(path).suffix().toLower();
+    if (suffix == QLatin1String("thmx") || suffix == QLatin1String("docx") || suffix == QLatin1String("dotx")) {
+        // A theme file or a document: its theme part gives colors and fonts (there are no slide layouts in it).
+        office::Theme theme;
+        if (!office::readThemeFile(path, &theme, &why)) {
+            waiting.off();
+            jp::plainWarning(this, tr("Browse for Themes"), tr("%1 can't be read: %2").arg(QFileInfo(path).fileName(), why.isEmpty() ? tr("The file can't be read.") : why));
+            return false;
+        }
+        waiting.off();
+        changeDesign(tr("Theme"), [&theme](Document &doc) {
+            deck::applyColors(doc, deckColors(office::themeColorsOf(theme)));
+            deck::applyFonts(doc, deck::FontSet{theme.fontSchemeName, theme.majorLatin, theme.minorLatin});
+        });
+        return true;
+    }
     auto source = deck::importAnyPresentationFile(path, &why);
     if (!source) {
         waiting.off();
@@ -141,11 +161,65 @@ void DeckWindow::browseForTheme(bool allSlides)
 {
     const QString path = QFileDialog::getOpenFileName(this, tr("Browse for Themes"),
                                                       Settings::get().value(QStringLiteral("dirs/open"), QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation)).toString(),
-                                                      tr("Presentations and Templates (*.pptx *.potx *.ppsx *.pptm *.potm *.ppsm *.ppt *.pps *.pot)") + QStringLiteral(";;") + tr("All Files (*)"));
+                                                      tr("Themes, Presentations, and Templates (*.thmx *.pptx *.potx *.ppsx *.pptm *.potm *.ppsm *.ppt *.pps *.pot *.docx *.dotx)") + QStringLiteral(";;") + tr("All Files (*)"));
     if (path.isEmpty()) return;
     Settings::get().setValue(QStringLiteral("dirs/open"), QFileInfo(path).absolutePath());
     applyThemeFile(path, allSlides);
 }
+
+bool DeckWindow::saveThemeFile(const QString &path)
+{
+    const Document *d = m_ed->doc();
+    const MasterPage *master = d ? firstSlideMasterOf(*d) : nullptr;
+    if (!master) return false;
+    office::Theme theme;
+    if (!office::readTheme(deck::themePartOf(*d, *master), &theme)) return false;
+    theme.name = deck::themeOf(*d).name;
+    QSaveFile f(path);
+    if (!f.open(QIODevice::WriteOnly) || f.write(office::writeThemeFile(theme)) < 0 || !f.commit()) {
+        jp::plainWarning(this, tr("Save Current Theme"), tr("%1 can't be written.").arg(QFileInfo(path).fileName()));
+        return false;
+    }
+    return true;
+}
+
+void DeckWindow::saveCurrentTheme()
+{
+    const Document *d = m_ed->doc();
+    if (!d) return;
+    const QString folder = Settings::get().value(QStringLiteral("dirs/open"), QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation)).toString();
+    const QString path = QFileDialog::getSaveFileName(this, tr("Save Current Theme"), folder + QLatin1Char('/') + deck::themeOf(*d).name + QStringLiteral(".thmx"), tr("Theme Files (*.thmx)"));
+    if (path.isEmpty()) return;
+    saveThemeFile(path.endsWith(QLatin1String(".thmx"), Qt::CaseInsensitive) ? path : path + QStringLiteral(".thmx"));
+}
+
+bool DeckWindow::themeChanged() const
+{
+    const Document *d = m_ed->doc();
+    if (!d) return false;
+    const deck::DeckTheme now = deck::themeOf(*d);
+    for (int i = 0; i < 12; ++i)
+        if (now.colors[i] != m_openedTheme.colors[i]) return true;
+    return now.headingFont != m_openedTheme.headingFont || now.bodyFont != m_openedTheme.bodyFont;
+}
+
+bool DeckWindow::resetTheme()
+{
+    if (!themeChanged()) return false;
+    const deck::DeckTheme was = m_openedTheme;
+    changeDesign(tr("Reset Theme"), [&was](Document &doc) {
+        deck::ColorSet colors;
+        colors.name = was.name;
+        for (int i = 0; i < 12; ++i) colors.colors[i] = was.colors[i];
+        deck::applyColors(doc, colors);
+        deck::applyFonts(doc, deck::FontSet{was.name, was.headingFont, was.bodyFont});
+    });
+    return true;
+}
+
+void DeckWindow::chooseThemeColors(const office::ThemeColors &colors) { chooseColors(deckColors(colors)); }
+
+void DeckWindow::chooseThemeFonts(const office::ThemeFonts &fonts) { chooseFonts(deck::FontSet{fonts.name, fonts.heading, fonts.body}); }
 
 void DeckWindow::chooseVariant(int variant)
 {
@@ -182,16 +256,25 @@ void DeckWindow::fillColorsMenu(QMenu *colors)
     auto *now = new QWidgetAction(colors);
     now->setDefaultWidget(new ThemeColors(m_ed));
     colors->addAction(now);
-    colors->addSection(tr("Built-In"));
     const deck::DeckTheme theme = deck::themeOf(*d);
-    auto *group = new QActionGroup(colors);
+    // The built-in sets: those of JeffDeck's themes, then the ones every app has.
+    QVector<office::ThemeColors> builtins;
+    QStringList seen;
     for (const deck::ColorSet &set : deck::colorSets()) {
-        QAction *a = colors->addAction(swatchIcon(set), set.name);
-        a->setCheckable(true);
-        a->setChecked(sameColors(set, theme));
-        group->addAction(a);
-        connect(a, &QAction::triggered, this, [this, set] { chooseColors(set); });
+        builtins << sharedColors(set);
+        seen << set.name;
     }
+    for (const office::ThemeColors &set : office::builtinThemeColors())
+        if (!seen.contains(set.name)) builtins << set;
+    office::ThemeColors current;
+    current.name = theme.name;
+    for (int i = 0; i < 12; ++i) current.colors[i] = theme.colors[i];
+    jp::ThemeMenuHooks hooks;
+    hooks.dialogParent = this;
+    hooks.chooseColors = [this](const office::ThemeColors &c) { chooseThemeColors(c); };
+    hooks.reset = [this] { resetTheme(); };
+    jp::addThemeColorsEntries(colors, builtins, current, hooks);
+    if (QAction *reset = colors->findChild<QAction *>(QStringLiteral("resetThemeColors"))) reset->setEnabled(themeChanged());
 }
 
 // The Fonts menu: each scheme's heading and body fonts.
@@ -201,14 +284,14 @@ void DeckWindow::fillFontsMenu(QMenu *fonts)
     const Document *d = m_ed->doc();
     if (!d) return;
     const deck::DeckTheme theme = deck::themeOf(*d);
-    auto *group = new QActionGroup(fonts);
-    for (const deck::FontSet &set : deck::fontSets()) {
-        QAction *a = fonts->addAction(tr("%1  (%2 / %3)").arg(set.name, set.heading, set.body));
-        a->setCheckable(true);
-        a->setChecked(set.heading == theme.headingFont && set.body == theme.bodyFont);
-        group->addAction(a);
-        connect(a, &QAction::triggered, this, [this, set] { chooseFonts(set); });
-    }
+    QVector<office::ThemeFonts> builtins;
+    for (const deck::FontSet &set : deck::fontSets()) builtins << office::ThemeFonts{set.name, set.heading, set.body};
+    jp::ThemeMenuHooks hooks;
+    hooks.dialogParent = this;
+    hooks.chooseFonts = [this](const office::ThemeFonts &f) { chooseThemeFonts(f); };
+    hooks.reset = [this] { resetTheme(); };
+    jp::addThemeFontsEntries(fonts, builtins, office::ThemeFonts{theme.name, theme.headingFont, theme.bodyFont}, hooks);
+    if (QAction *reset = fonts->findChild<QAction *>(QStringLiteral("resetThemeFonts"))) reset->setEnabled(themeChanged());
 }
 
 // The Background Styles menu: the twelve of the theme, then Format Background. A choice closes `root`, the menu it is in.
@@ -232,8 +315,9 @@ void DeckWindow::addDesignParts(RibbonParts &parts)
 {
     Editor *ed = m_ed;
     // New text on a presentation that was opened from a file has the bullets of its layouts, and is light on a dark one, as on one made here.
-    connect(ed, &Editor::documentReplaced, this, [ed] {
+    connect(ed, &Editor::documentReplaced, this, [this, ed] {
         if (Document *d = ed->doc()) {
+            m_openedTheme = deck::themeOf(*d);
             deck::keepTextReadable(*d);
             deck::inheritLayoutLists(*d);
         }
@@ -242,6 +326,7 @@ void DeckWindow::addDesignParts(RibbonParts &parts)
         auto *gallery = new ThemeGallery(ed);
         connect(gallery, &ThemeGallery::themeChosen, this, [this](int theme, bool all) { applyTheme(theme, all); });
         connect(gallery, &ThemeGallery::browseRequested, this, [this] { browseForTheme(true); });
+        connect(gallery, &ThemeGallery::saveRequested, this, [this] { saveCurrentTheme(); });
         connect(ed, &Editor::changed, gallery, &ThemeGallery::reload);
         connect(ed, &Editor::documentReplaced, gallery, &ThemeGallery::reload);
         return gallery;
