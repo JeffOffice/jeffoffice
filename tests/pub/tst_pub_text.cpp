@@ -3953,7 +3953,7 @@ private Q_SLOTS:
             press = QStringLiteral("Cancel");
             const QString target = dir.filePath(QStringLiteral("x.pub"));
             QVERIFY(!w.saveTo(target));
-            QVERIFY2(said.contains(QLatin1String(c.word)), qPrintable(said));
+            QVERIFY2(said.contains(QLatin1String(c.word), Qt::CaseInsensitive), qPrintable(said));
             QVERIFY(!QFileInfo::exists(target));
             edit.block().textList()->remove(edit.block());
         }

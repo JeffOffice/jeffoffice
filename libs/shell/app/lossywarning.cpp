@@ -38,7 +38,7 @@ QString listText(const QStringList &lost)
 {
     QStringList lines;
     for (int i = 0; i < lost.size() && i < kLossyMaxShown; ++i) lines << lost.at(i);
-    if (lost.size() > kLossyMaxShown) lines << QCoreApplication::translate("jp::LossyWarning", "and %n more", nullptr, int(lost.size() - kLossyMaxShown));
+    if (lost.size() > kLossyMaxShown) lines << QCoreApplication::translate("jp::LossyWarning", "and %1 more").arg(lost.size() - kLossyMaxShown);
     return lines.join(QLatin1Char('\n'));
 }
 

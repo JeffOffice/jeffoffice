@@ -1,5 +1,6 @@
 // JeffPub's tests of comments: on an object or a place of a page, the Comments pane, Undo, the .jpub file, what a .pub file and a PDF leave out, and the limits on a file from a stranger.
 #include "pubhelpers.h"
+#include "app/lossywarning.h"
 #include "../isolatesettings.h"
 #include "app/commentspane.h"
 #include "app/infopage.h"
@@ -666,9 +667,12 @@ private Q_SLOTS:
         jp::Editor *ed = w.editor();
         comments::addComment(*ed->doc()->pages[0], kPat, QStringLiteral("Keep me"), QPointF(40, 50));
         QString said;
-        BoxWatch watch(&said);
+        jp::setLossyStandIn([&](const jp::LossyAsk &a, bool *) {
+            said = a.lost.join(QLatin1Char('\n'));
+            return jp::LossyChoice::SaveAnyway;
+        });
+        const auto reset = qScopeGuard([] { jp::setLossyStandIn(nullptr); });
         QVERIFY(w.saveTo(dir.filePath(QStringLiteral("a.pub"))));
-        QTRY_VERIFY(!said.isEmpty());
         QVERIFY2(said.contains(QLatin1String("comments are kept only in .jpub")), qPrintable(said));
         QCOMPARE(comments::commentCount(*ed->doc()->pages[0]), 1);
         // A .jpub file says nothing of the kind.
