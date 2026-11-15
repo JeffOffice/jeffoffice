@@ -2722,7 +2722,10 @@ private Q_SLOTS:
         const QPoint from = v->placeRect(deck::NotesPart::Footer).center().toPoint();
         QTest::mousePress(v->viewport(), Qt::LeftButton, Qt::NoModifier, from);
         const int before = v->layoutReads();
-        for (int i = 1; i <= 40; ++i) QTest::mouseMove(v->viewport(), from + QPoint(-(i * 15) / 40, -2 * i));
+        for (int i = 1; i <= 40; ++i) {
+            QTest::mouseMove(v->viewport(), from + QPoint(-(i * 15) / 40, -2 * i));
+            v->viewport()->repaint();   // (a paint for each move, as the screen would make: the paint reads the layout too)
+        }
         QVERIFY2(v->layoutReads() - before <= 1, qPrintable(QString::number(v->layoutReads() - before)));
         QTest::mouseRelease(v->viewport(), Qt::LeftButton, Qt::NoModifier, from + QPoint(-15, -80));
         // The change is seen: the footer is where it was dropped.
