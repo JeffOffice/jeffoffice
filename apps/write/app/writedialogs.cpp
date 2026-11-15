@@ -402,7 +402,7 @@ void fontDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     raisedBy->setRange(0, 1584);
     raisedBy->setSuffix(QCoreApplication::translate("jp::write::Dialogs", " pt"));
     raisedBy->setValue(std::abs(raised0));
-    auto *kern = new QCheckBox(QCoreApplication::translate("jp::write::Dialogs", "Kerning for fonts of this size and above:"), spacingBox);
+    auto *kern = new QCheckBox(QCoreApplication::translate("jp::write::Dialogs", "Kerning for fonts of this size and above"), spacingBox);
     kern->setObjectName(QStringLiteral("kerning"));
     kern->setTristate(kernMixed);
     kern->setCheckState(kernMixed ? Qt::PartiallyChecked : kern0 > 0.001 ? Qt::Checked : Qt::Unchecked);

@@ -59,7 +59,8 @@ inline void withDialog(const std::function<void()> &open, const QString &objectN
 // The box a window asks about unsaved changes with when it closes (libs/shell/app/uistyle.h, the same in the four apps): runs `closeIt`, which makes the window ask, finds the box,
 // checks it (red triangle, the question with the name, the grey line, Don't Save at the left, Cancel then Save at the right, Save the accent-filled default), and presses `press`
 // (Save, Discard, or Cancel). The problems found, empty when it is right.
-inline QString answerCloseBox(const std::function<void()> &closeIt, const QString &name, QMessageBox::StandardButton press)
+enum class CloseHow { Press, Escape, CloseX, Enter };
+inline QString answerCloseBox(const std::function<void()> &closeIt, const QString &name, QMessageBox::StandardButton press, CloseHow how = CloseHow::Press)
 {
     QString problems;
     bool seen = false;
@@ -80,7 +81,13 @@ inline QString answerCloseBox(const std::function<void()> &closeIt, const QStrin
         if (!(x(discard) < x(cancel) && x(cancel) < x(save))) problems += QStringLiteral("buttons are not Don't Save, Cancel, Save; ");
         if (box->defaultButton() != save || !save->property("primary").toBool()) problems += QStringLiteral("Save is not the default; ");
         if (!save->icon().isNull() || !cancel->icon().isNull() || !discard->icon().isNull()) problems += QStringLiteral("icons on buttons; ");
-        box->button(press)->click();
+        // how the person answers: pressing a button, Escape (Cancel), the X of the box (Cancel), or Enter (the accent-filled Save)
+        QMessageBox::StandardButton expected = press;
+        if (how == CloseHow::Press) box->button(press)->click();
+        else if (how == CloseHow::Escape) { expected = QMessageBox::Cancel; QTest::keyClick(box, Qt::Key_Escape); }
+        else if (how == CloseHow::CloseX) { expected = QMessageBox::Cancel; box->close(); }
+        else { expected = QMessageBox::Save; QTest::keyClick(box, Qt::Key_Return); }
+        if (box->clickedButton() != box->button(expected)) problems += QStringLiteral("the answer was not the expected button; ");
     });
     QObject::connect(&watchdog, &QTimer::timeout, [&] {
         problems += QStringLiteral("no box; ");

@@ -161,11 +161,14 @@ QMenu::icon { padding-left: 6px; }
 QGroupBox { border: none; background: transparent; margin-top: 22px; padding: 0; }
 QGroupBox[title=""] { margin-top: 0; }
 QGroupBox::title { subcontrol-origin: margin; subcontrol-position: top left; left: 0; padding: 0 0 6px 0; color: %1; font-size: 11px; font-weight: 500; }
+QGroupBox::indicator { subcontrol-origin: margin; subcontrol-position: top left; left: 0; top: -2px; width: 14px; height: 14px; border: 1px solid %7; border-radius: 4px; background: %6; }
+QGroupBox::indicator:hover { border-color: %2; }
+QGroupBox::indicator:checked { background: %2; border-color: %2; image: url(%8); }
 QPushButton[primary="true"]:disabled { background: %4; border-color: %4; color: %5; }
 QPushButton[link="true"] { background: transparent; border: none; color: %2; padding: 2px 0; min-height: 0; font-weight: 400; }
 QPushButton[link="true"]:hover { background: transparent; text-decoration: underline; }
 QFrame[previewPanel="true"] { background: %3; border: none; border-radius: 8px; }
-)").arg(uiMuted().name(), accent, uiPanel().name(), uiLine().name(), uiMuted().name());
+)").arg(uiMuted().name(), accent, uiPanel().name(), uiLine().name(), uiMuted().name(), field, borderHover, chevronFile(QStringLiteral("check"), QColor(Qt::white)));
     return css;
 }
 

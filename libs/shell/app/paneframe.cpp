@@ -1,6 +1,7 @@
 #include "app/paneframe.h"
 
 #include "app/icons.h"
+#include "app/uistyle.h"
 
 #include <QHBoxLayout>
 #include <QKeyEvent>
@@ -57,7 +58,7 @@ protected:
         p.setFont(f);
         p.setPen(uiMuted());
         const QRectF text(r.left() + 28, r.top(), r.width() - 34, r.height());
-        p.drawText(text, Qt::AlignVCenter | Qt::AlignLeft, QFontMetricsF(f).elidedText(QLocale().toUpper(this->text()), Qt::ElideRight, text.width()));
+        p.drawText(text, Qt::AlignVCenter | Qt::AlignLeft, QFontMetricsF(f).elidedText(upperCase(this->text()), Qt::ElideRight, text.width()));
         if (hasFocus()) {
             p.setPen(QPen(focusRingColor(), 2));
             p.setBrush(Qt::NoBrush);

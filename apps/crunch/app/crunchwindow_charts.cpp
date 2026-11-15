@@ -997,7 +997,7 @@ QMenu *CrunchWindow::buildChartElementsMenu(QWidget *owner)
                 QString text = now;
                 bool ok = false;
                 if (m_chartTextAsker) ok = m_chartTextAsker(tr("Value From Cells"), &text);
-                else text = QInputDialog::getText(this, tr("Value From Cells"), tr("The cells that hold the words for the labels, such as =Sheet1!$D$2:$D$4 (leave empty to take them away)"), QLineEdit::Normal, text, &ok);
+                else text = QInputDialog::getText(this, tr("Value From Cells"), tr("The cells that hold the words for the labels, such as =Sheet1!$D$2:$D$4 (leave empty to take them away):"), QLineEdit::Normal, text, &ok);
                 if (!ok) return;
                 text = text.trimmed();
                 if (text.startsWith(QLatin1Char('='))) text = text.mid(1).trimmed();
@@ -1028,7 +1028,7 @@ QMenu *CrunchWindow::buildChartElementsMenu(QWidget *owner)
                 QString code = parts.format;
                 bool ok = false;
                 if (m_chartTextAsker) ok = m_chartTextAsker(tr("Number Format"), &code);
-                else code = QInputDialog::getText(this, tr("Number Format"), tr("Format code for the numbers in the labels (leave empty to show the numbers as they are)"), QLineEdit::Normal, code, &ok);
+                else code = QInputDialog::getText(this, tr("Number Format"), tr("Format code for the numbers in the labels (leave empty to show the numbers as they are):"), QLineEdit::Normal, code, &ok);
                 if (!ok) return;
                 changePickedChart(tr("Data Labels"), [parts, code](Chart *c) {
                     ChartLabelParts now = parts;

@@ -309,7 +309,7 @@ bool setNumberingValueDialog(QWidget *parent, bool canContinue, NumberingValueCh
     (choice->continuePrevious && canContinue ? again : fresh)->setChecked(true);
     column->addWidget(fresh);
     column->addWidget(again);
-    auto *set = new QCheckBox(QCoreApplication::translate("jp::ListDialogs", "Set the value to:"), &d);
+    auto *set = new QCheckBox(QCoreApplication::translate("jp::ListDialogs", "Set the value to"), &d);
     set->setObjectName(QStringLiteral("setValue"));
     set->setChecked(choice->setValue || !canContinue);
     auto *value = new QSpinBox(&d);

@@ -44,9 +44,17 @@ private Q_SLOTS:
         jp::MainWindow w;
         w.show();
         w.editor()->markUnsaved();
-        const QString problems = answerCloseBox([&] { w.close(); }, w.editor()->displayName(), QMessageBox::Cancel);
+        for (const CloseHow how : {CloseHow::Press, CloseHow::Escape, CloseHow::CloseX}) {
+            const QString problems = answerCloseBox([&] { w.close(); }, w.editor()->displayName(), QMessageBox::Cancel, how);
+            QVERIFY2(problems.isEmpty(), qPrintable(problems));
+            QVERIFY(w.isVisible());
+        }
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QVERIFY(w.saveTo(dir.filePath(QStringLiteral("close.jpub"))));
+        w.editor()->markUnsaved();
+        const QString problems = answerCloseBox([&] { w.close(); }, w.editor()->displayName(), QMessageBox::Save, CloseHow::Enter);
         QVERIFY2(problems.isEmpty(), qPrintable(problems));
-        QVERIFY(w.isVisible());
         w.editor()->markSaved();
     }
 

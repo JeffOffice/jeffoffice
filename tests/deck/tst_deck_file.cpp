@@ -876,9 +876,17 @@ private Q_SLOTS:
         DeckWindow w;
         w.show();
         w.editor()->markUnsaved();
-        const QString problems = answerCloseBox([&] { w.close(); }, w.editor()->displayName(), QMessageBox::Cancel);
+        for (const CloseHow how : {CloseHow::Press, CloseHow::Escape, CloseHow::CloseX}) {
+            const QString problems = answerCloseBox([&] { w.close(); }, w.editor()->displayName(), QMessageBox::Cancel, how);
+            QVERIFY2(problems.isEmpty(), qPrintable(problems));
+            QVERIFY(w.isVisible());
+        }
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString target = dir.filePath(QStringLiteral("close.pptx"));
+        w.setSavePathChooser([&](const QString &, const QString &) { return target; });
+        const QString problems = answerCloseBox([&] { w.close(); }, w.editor()->displayName(), QMessageBox::Save, CloseHow::Enter);
         QVERIFY2(problems.isEmpty(), qPrintable(problems));
-        QVERIFY(w.isVisible());
         w.editor()->markSaved();
     }
 

@@ -686,7 +686,7 @@ FormatAxisDialog::FormatAxisDialog(const jp::office::ChartAxis &axis, const QStr
     m_reversed = new QCheckBox(tr("Values in reverse order"), this);
     m_reversed->setChecked(axis.reversed);
     form->addRow(m_reversed);
-    m_log = new QCheckBox(tr("Logarithmic scale, base:"), this);
+    m_log = new QCheckBox(tr("Logarithmic scale, base"), this);
     m_log->setObjectName(QStringLiteral("axisLog"));
     m_log->setChecked(axis.logBase >= 2);
     m_logBase = new QDoubleSpinBox(this);

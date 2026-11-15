@@ -34,7 +34,7 @@ TextToColumnsDialog::TextToColumnsDialog(const QStringList &lines, const QString
     m_semicolon = new QCheckBox(tr("Semicolon"), this);
     m_comma = new QCheckBox(tr("Comma"), this);
     m_space = new QCheckBox(tr("Space"), this);
-    m_other = new QCheckBox(tr("Other:"), this);
+    m_other = new QCheckBox(tr("Other"), this);
     m_otherText = new QLineEdit(this);
     m_otherText->setMaxLength(8);
     m_otherText->setMaximumWidth(60);

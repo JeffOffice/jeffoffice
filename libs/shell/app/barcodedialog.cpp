@@ -224,7 +224,7 @@ bool askBarcode(QWidget *p, const QJsonObject &was, QJsonObject *out, bool forFi
         const Type t = Type(type->currentIndex());
         const bool book = t == Type::Isbn, ean = t == Type::Ean13 || t == Type::UpcA || t == Type::Ean8, isQr = t == Type::Qr;
         if (auto *lab = qobject_cast<QLabel *>(form->labelForField(data)))
-            lab->setText(book ? QCoreApplication::translate("BarcodeDialog", "ISBN:") : ean ? QCoreApplication::translate("BarcodeDialog", "Digits:") : QCoreApplication::translate("BarcodeDialog", "Text:"));
+            lab->setText(book ? QCoreApplication::translate("BarcodeDialog", "ISBN") : ean ? QCoreApplication::translate("BarcodeDialog", "Digits") : QCoreApplication::translate("BarcodeDialog", "Text"));
         data->setPlaceholderText(book ? QCoreApplication::translate("BarcodeDialog", "978-1-23456-789-7 or a 10-digit ISBN") : ean ? QCoreApplication::translate("BarcodeDialog", "with or without the check digit") : isQr ? QCoreApplication::translate("BarcodeDialog", "https://example.com") : QString());
         price->setVisible(book);
         addOn->setVisible(ean && !forField);

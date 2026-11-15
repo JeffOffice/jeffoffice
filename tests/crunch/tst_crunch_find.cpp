@@ -782,7 +782,7 @@ private Q_SLOTS:
         QCOMPARE(d.findChild<QLineEdit *>(QStringLiteral("replaceText"))->accessibleName(), QStringLiteral("Replace with"));
         for (const char *want : {"Find what", "Replace with", "Find Next", "Replace", "Replace All"})
             QVERIFY2(words.contains(QString::fromLatin1(want)), want);
-        for (const char *gone : {"Look for:", "Change to:", "Next", "Change", "Change All"})
+        for (const char *gone : {"Look for", "Change to", "Next", "Change", "Change All"})
             QVERIFY2(!words.contains(QString::fromLatin1(gone)), gone);
     }
 

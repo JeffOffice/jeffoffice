@@ -1,6 +1,8 @@
 #include "app/uistyle.h"
 
 #include "app/icons.h"
+#include "app/i18n.h"
+#include "app/theme.h"
 #include "app/plaintext.h"
 #include "core/appinfo.h"
 
@@ -17,13 +19,28 @@
 #include <QProxyStyle>
 #include <QPushButton>
 #include <QStyleFactory>
+#include <QTimer>
 #include <QVBoxLayout>
 
+#include <algorithm>
 #include <memory>
 
 namespace jp {
 
+QString upperCase(const QString &text)
+{
+    const QString language = currentUiLanguage();
+    return (language.isEmpty() ? QLocale() : QLocale(language)).toUpper(text);
+}
+
 namespace {
+// Runs `apply` now and again whenever the look changes (light, dark, contrast), so that a color kept in a palette follows the theme.
+void followTheme(QWidget *w, const std::function<void()> &apply)
+{
+    apply();
+    QObject::connect(UiTheme::instance(), &UiTheme::changed, w, apply);
+}
+
 void repolish(QWidget *w)
 {
     w->style()->unpolish(w);
@@ -45,9 +62,11 @@ QLabel *smallLabel(const QString &text, QWidget *parent)
     QFont f = l->font();
     f.setPixelSize(11);
     l->setFont(f);
-    QPalette p = l->palette();
-    p.setColor(QPalette::WindowText, uiMuted());
-    l->setPalette(p);
+    followTheme(l, [l] {
+        QPalette p = l->palette();
+        p.setColor(QPalette::WindowText, uiMuted());
+        l->setPalette(p);
+    });
     l->setProperty("smallLabel", true);
     return l;
 }
@@ -55,22 +74,38 @@ QLabel *smallLabel(const QString &text, QWidget *parent)
 
 QLabel *sectionHeading(const QString &text, QWidget *parent)
 {
-    auto *l = new QLabel(QLocale().toUpper(text), parent);
+    auto *l = new QLabel(upperCase(text), parent);
     l->setTextFormat(Qt::PlainText);
     l->setFont(headingFont(l->font()));
-    QPalette p = l->palette();
-    p.setColor(QPalette::WindowText, uiMuted());
-    l->setPalette(p);
+    followTheme(l, [l] {
+        QPalette p = l->palette();
+        p.setColor(QPalette::WindowText, uiMuted());
+        l->setPalette(p);
+    });
     l->setProperty("sectionHeading", true);
     l->setAccessibleName(text);
     return l;
 }
 
-Section::Section(const QString &heading, QWidget *parent) : QGroupBox(QLocale().toUpper(heading), parent), m_heading(heading)
+Section::Section(const QString &heading, QWidget *parent) : QGroupBox(upperCase(heading), parent), m_heading(heading)
 {
     setProperty("section", true);
     setAccessibleName(heading);
     setFlat(true);
+}
+
+QSize Section::minimumSizeHint() const
+{
+    QSize hint = QGroupBox::minimumSizeHint();
+    hint.setWidth(std::max(hint.width(), fontMetrics().horizontalAdvance(title()) + (isCheckable() ? 30 : 4)));
+    return hint;
+}
+
+QSize Section::sizeHint() const
+{
+    QSize hint = QGroupBox::sizeHint();
+    hint.setWidth(std::max(hint.width(), minimumSizeHint().width()));
+    return hint;
 }
 
 void styleForm(QFormLayout *form)
@@ -132,9 +167,11 @@ QPushButton *linkButton(const QString &text, QWidget *parent)
     b->setFlat(true);
     b->setCursor(Qt::PointingHandCursor);
     b->setAutoDefault(false);
-    QPalette p = b->palette();
-    p.setColor(QPalette::ButtonText, uiAccent());
-    b->setPalette(p);
+    followTheme(b, [b] {
+        QPalette p = b->palette();
+        p.setColor(QPalette::ButtonText, uiAccent());
+        b->setPalette(p);
+    });
     return b;
 }
 
@@ -143,9 +180,11 @@ void softPanel(QFrame *f)
     f->setFrameShape(QFrame::NoFrame);
     f->setProperty("previewPanel", true);
     f->setAutoFillBackground(true);
-    QPalette p = f->palette();
-    p.setColor(QPalette::Window, uiPanel());
-    f->setPalette(p);
+    followTheme(f, [f] {
+        QPalette p = f->palette();
+        p.setColor(QPalette::Window, uiPanel());
+        f->setPalette(p);
+    });
 }
 
 QFrame *previewPanel(QWidget *parent)
@@ -163,64 +202,164 @@ QLabel *noteLabel(const QString &text, QWidget *parent)
     QFont f = l->font();
     f.setPixelSize(12);
     l->setFont(f);
-    QPalette p = l->palette();
-    p.setColor(QPalette::WindowText, uiMuted());
-    l->setPalette(p);
+    followTheme(l, [l] {
+        QPalette p = l->palette();
+        p.setColor(QPalette::WindowText, uiMuted());
+        l->setPalette(p);
+    });
     l->setProperty("note", true);
     return l;
 }
 
 // ---- buttons ----
 namespace {
-// The layout of the macOS: Help and Reset at the left, then the rest at the right with Cancel before the accept button; and no icons on buttons.
+// No icons on buttons.
 class ButtonStyle : public QProxyStyle {
 public:
     ButtonStyle() : QProxyStyle(QStyleFactory::create(QStringLiteral("Fusion"))) {}
     int styleHint(StyleHint hint, const QStyleOption *option, const QWidget *widget, QStyleHintReturn *ret) const override
     {
-        if (hint == SH_DialogButtonLayout) return QDialogButtonBox::MacLayout;
         if (hint == SH_DialogButtonBox_ButtonsHaveIcons) return 0;
         return QProxyStyle::styleHint(hint, option, widget, ret);
     }
 };
 
-QPushButton *theDefault(QDialogButtonBox *box)
+// Where a button sits among the ones at the right, in reading order: the helpers first, Cancel before the primary button, the primary last.
+int rank(QDialogButtonBox::ButtonRole role)
 {
-    QPushButton *accept = nullptr;
-    for (QAbstractButton *b : box->buttons()) {
-        auto *pb = qobject_cast<QPushButton *>(b);
-        if (!pb) continue;
-        if (pb->isDefault()) return pb;
-        const auto role = box->buttonRole(b);
-        if (!accept && (role == QDialogButtonBox::AcceptRole || role == QDialogButtonBox::YesRole)) accept = pb;
+    switch (role) {
+    case QDialogButtonBox::HelpRole: return 0;
+    case QDialogButtonBox::ResetRole: return 1;
+    case QDialogButtonBox::ActionRole: return 2;
+    case QDialogButtonBox::ApplyRole: return 3;
+    case QDialogButtonBox::NoRole: return 5;
+    case QDialogButtonBox::YesRole: return 6;
+    case QDialogButtonBox::AcceptRole: return 7;
+    case QDialogButtonBox::RejectRole: return 8;
+    default: return 2;
     }
-    return accept;
 }
 
-void moveDestructiveLeft(QDialogButtonBox *box)
+// The button Enter triggers, which is the one that gets the accent: the box's own default button (Qt makes the first accept button the default when the box is shown); none when
+// there is none, so that the accent is never on a button Enter does not press.
+QPushButton *chooseDefault(QDialogButtonBox *box)
 {
+    for (QAbstractButton *b : box->buttons())
+        if (auto *pb = qobject_cast<QPushButton *>(b); pb && pb->isDefault()) return pb;
+    return nullptr;
+}
+
+// Puts the buttons in the order of the style: a destructive choice alone at the left, then a stretch, then the rest in reading order with the primary last.
+void arrange(QDialogButtonBox *box)
+{
+    if (box->property("jpArranging").toBool()) return;
     auto *lay = qobject_cast<QBoxLayout *>(box->layout());
     if (!lay || box->orientation() != Qt::Horizontal) return;
-    int at = 0;
-    for (QAbstractButton *b : box->buttons()) {
-        const auto role = box->buttonRole(b);
-        if (role != QDialogButtonBox::DestructiveRole && role != QDialogButtonBox::ResetRole) continue;
-        if (lay->indexOf(b) == at) { ++at; continue; }
-        lay->removeWidget(b);
-        lay->insertWidget(at++, b);
+    box->setProperty("jpArranging", true);
+    // a destructive choice never becomes the default by taking the focus (Enter would throw something away)
+    for (QAbstractButton *b : box->buttons())
+        if (auto *pb = qobject_cast<QPushButton *>(b); pb && box->buttonRole(b) == QDialogButtonBox::DestructiveRole) {
+            pb->setAutoDefault(false);
+            if (pb->isDefault()) pb->setDefault(false);
+        }
+    // who is the primary: the one Enter triggers
+    QPushButton *primary = chooseDefault(box);
+    for (QAbstractButton *b : box->buttons())
+        if (b->property("primary").toBool() != (b == primary) && qobject_cast<QPushButton *>(b)) {
+            b->setProperty("primary", b == primary);
+            repolish(b);
+        }
+    // (the one that comes last: the primary, and before the default is known the first accept or yes button)
+    QAbstractButton *last = primary;
+    if (!last)
+        for (QAbstractButton *b : box->buttons())
+            if (box->buttonRole(b) == QDialogButtonBox::AcceptRole || box->buttonRole(b) == QDialogButtonBox::YesRole) { last = b; break; }
+    QList<QAbstractButton *> left, right;
+    for (QAbstractButton *b : box->buttons()) (box->buttonRole(b) == QDialogButtonBox::DestructiveRole && b != last ? left : right).append(b);
+    std::stable_sort(right.begin(), right.end(), [&](QAbstractButton *x, QAbstractButton *y) {
+        const int rx = x == last ? 100 : rank(box->buttonRole(x)), ry = y == last ? 100 : rank(box->buttonRole(y));
+        return rx < ry;
+    });
+    QList<QWidget *> want;
+    for (QAbstractButton *b : left) want << b;
+    want << nullptr;
+    for (QAbstractButton *b : right) want << b;
+    QList<QWidget *> have;
+    for (int i = 0; i < lay->count(); ++i) have << lay->itemAt(i)->widget();
+    // (a layout that has spacers of its own, or none, is made again whole; one already in order is left alone)
+    if (have != want) {
+        while (QLayoutItem *item = lay->takeAt(0)) {
+            delete item;   // (the layout item only; a button stays)
+        }
+        for (QAbstractButton *b : left) lay->addWidget(b);
+        lay->addStretch(1);
+        for (QAbstractButton *b : right) lay->addWidget(b);
     }
+    // no icons on buttons (a Qt layout of the macOS kind takes them off; the others leave them)
+    for (QAbstractButton *b : box->buttons())
+        if (!b->icon().isNull()) b->setIcon(QIcon());
+    // Tab follows the picture
+    QList<QAbstractButton *> order = left + right;
+    box->setFocusProxy(nullptr);   // (Qt's own layout gives the box the first button as its proxy, which a tab order set on the buttons would not follow)
+    for (int i = 0; i + 1 < order.size(); ++i) QWidget::setTabOrder(order[i], order[i + 1]);
+    box->setProperty("jpArranging", false);
 }
 
-void markPrimary(QDialogButtonBox *box)
-{
-    for (QAbstractButton *b : box->buttons()) {
-        if (b->property("primary").toBool()) return;   // the dialog chose its own
+// Watches a button box for everything that makes Qt lay its buttons out again (a button added, a style change, a layout request) and for the default button changing hands
+// (focus moving among the buttons), and puts the order and the accent right again.
+class BoxWatcher : public QObject {
+public:
+    explicit BoxWatcher(QDialogButtonBox *box) : QObject(box), m_box(box)
+    {
+        box->installEventFilter(this);
+        watchButtons();
     }
-    if (QPushButton *def = theDefault(box)) {
-        def->setProperty("primary", true);
-        repolish(def);
+    bool eventFilter(QObject *o, QEvent *e) override
+    {
+        if (o == m_box) {
+            switch (e->type()) {
+            case QEvent::Show: arrange(m_box); later(); break;
+            case QEvent::ChildAdded: case QEvent::ChildRemoved: case QEvent::StyleChange: case QEvent::LayoutRequest: case QEvent::EnabledChange: later(); break;
+            default: break;
+            }
+        } else if (e->type() == QEvent::FocusIn || e->type() == QEvent::FocusOut) {
+            later();
+        }
+        return false;
     }
-}
+
+private:
+    void watchButtons()
+    {
+        for (QAbstractButton *b : m_box->buttons())
+            if (!b->property("jpWatched").toBool()) {
+                b->setProperty("jpWatched", true);
+                b->installEventFilter(this);
+            }
+    }
+    void later()
+    {
+        if (m_pending) return;
+        m_pending = true;
+        QMetaObject::invokeMethod(this, [this] {
+            m_pending = false;
+            watchButtons();
+            arrange(m_box);
+            // (Qt may lay the buttons out again after this, from a call it queued itself: once more a moment later, which puts the order right again)
+            if (!m_again) {
+                m_again = true;
+                QTimer::singleShot(40, this, [this] {
+                    m_again = false;
+                    watchButtons();
+                    arrange(m_box);
+                });
+            }
+        }, Qt::QueuedConnection);
+    }
+    QDialogButtonBox *m_box;
+    bool m_pending = false;
+    bool m_again = false;
+};
 } // namespace
 
 void arrangeButtons(QDialogButtonBox *box)
@@ -230,9 +369,9 @@ void arrangeButtons(QDialogButtonBox *box)
         auto *style = new ButtonStyle;
         style->setParent(box);
         box->setStyle(style);
+        new BoxWatcher(box);
     }
-    moveDestructiveLeft(box);
-    markPrimary(box);
+    arrange(box);
 }
 
 ButtonBox::ButtonBox(QWidget *parent) : QDialogButtonBox(parent) { arrangeButtons(this); }
@@ -246,12 +385,7 @@ QPushButton *ButtonBox::addDestructive(const QString &text)
     return b;
 }
 
-bool ButtonBox::event(QEvent *e)
-{
-    const bool done = QDialogButtonBox::event(e);
-    if (e->type() == QEvent::Show || e->type() == QEvent::StyleChange) arrangeButtons(this);
-    return done;
-}
+bool ButtonBox::event(QEvent *e) { return QDialogButtonBox::event(e); }
 
 namespace {
 // The program's own boxes do it by themselves; every other button box (a dialog written before the style, a Qt one) gets it when it is shown.
@@ -261,15 +395,12 @@ public:
     bool eventFilter(QObject *o, QEvent *e) override
     {
         if (e->type() == QEvent::Show && o->isWidgetType()) {
+            if (auto *box = qobject_cast<QDialogButtonBox *>(o); box && !box->property("jpButtonStyle").toBool()) arrangeButtons(box);
             if (auto *dlg = qobject_cast<QDialog *>(o); dlg && !dlg->property("jpDialogStyled").toBool() && !qobject_cast<QMessageBox *>(dlg) &&
                                                       !QByteArrayView(dlg->metaObject()->className()).startsWith("Q")) {
                 dlg->setProperty("jpDialogStyled", true);
                 // one label column and rows 8 apart in every form of the dialog
                 for (QFormLayout *f : dlg->findChildren<QFormLayout *>()) styleForm(f);
-            }
-            if (auto *box = qobject_cast<QDialogButtonBox *>(o); box && !dynamic_cast<ButtonBox *>(box) && !box->property("jpFiltered").toBool()) {
-                box->setProperty("jpFiltered", true);
-                QMetaObject::invokeMethod(box, [box] { arrangeButtons(box); }, Qt::QueuedConnection);
             }
         }
         return false;
@@ -312,7 +443,7 @@ QPixmap boxSign(QMessageBox::Icon kind, int size, qreal pixelRatio)
     } else {
         p.drawEllipse(QRectF(2, 2, 28, 28));
     }
-    const QColor mark = uiHighContrast() ? QGuiApplication::palette().color(QPalette::Window) : QColor(Qt::white);
+    const QColor mark = uiHighContrast() ? QGuiApplication::palette().color(QPalette::Window) : uiDark() ? QColor(0x10, 0x14, 0x18) : QColor(Qt::white);   // (3:1 or better on the sign)
     QPen pen(mark, 3, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin);
     p.setBrush(Qt::NoBrush);
     p.setPen(pen);
@@ -350,12 +481,24 @@ QPixmap boxSign(QMessageBox::Icon kind, int size, qreal pixelRatio)
 
 void MessageBox::splitText(const QString &text, QString *lead, QString *rest)
 {
-    // The first sentence: up to a full stop, question mark, or exclamation mark followed by a space, or up to a line break.
+    // The first sentence: up to a full stop, question mark, or exclamation mark that is outside quotes, is followed by a space and then not by a lower-case letter (a file name such
+    // as "plan. xlsx" or "e.g. this" does not end one), or up to a line break.
     qsizetype cut = -1;
+    bool quoted = false;
     for (qsizetype i = 0; i < text.size(); ++i) {
         const QChar c = text.at(i);
+        if (c == QLatin1Char('"')) quoted = !quoted;
+        else if (c == QChar(0x201C)) quoted = true;
+        else if (c == QChar(0x201D)) quoted = false;
+        if (quoted) continue;
         if (c == QLatin1Char('\n')) { cut = i; break; }
-        if ((c == QLatin1Char('.') || c == QLatin1Char('?') || c == QLatin1Char('!')) && i + 1 < text.size() && text.at(i + 1).isSpace()) { cut = i + 1; break; }
+        if ((c == QLatin1Char('.') || c == QLatin1Char('?') || c == QLatin1Char('!')) && i + 1 < text.size() && text.at(i + 1).isSpace()) {
+            qsizetype j = i + 1;
+            while (j < text.size() && text.at(j).isSpace()) ++j;
+            if (j < text.size() && text.at(j).isLower()) continue;
+            cut = i + 1;
+            break;
+        }
     }
     if (cut < 0) {
         *lead = text.trimmed();
@@ -387,9 +530,9 @@ void MessageBox::restyle()
         int row = 0, col = 0, rowSpan = 1, colSpan = 1;
         grid->getItemPosition(grid->indexOf(textLabel), &row, &col, &rowSpan, &colSpan);
         QString lead, rest;
-        splitText(text(), &lead, &rest);
         const QString info = informativeText().trimmed();
-        if (!info.isEmpty()) rest = rest.isEmpty() ? info : rest + QLatin1Char('\n') + info;
+        if (info.isEmpty()) splitText(text(), &lead, &rest);   // (a caller that gives two parts is taken at its word)
+        else { lead = text().trimmed(); rest = info; }
         grid->setContentsMargins(20, 20, 20, 16);
         grid->setHorizontalSpacing(6);
         grid->setVerticalSpacing(16);
@@ -440,8 +583,8 @@ void MessageBox::restyle()
         grid->addWidget(sign, row, col, rowSpan, colSpan, Qt::AlignTop | Qt::AlignHCenter);
         sign->show();
     }
+    if (buttons().isEmpty()) addButton(QMessageBox::Ok);   // (the one Qt adds itself when it is shown: styled with the others)
     if (auto *bb = findChild<QDialogButtonBox *>()) {
-        bb->setProperty("jpFiltered", true);
         arrangeButtons(bb);
     }
 }

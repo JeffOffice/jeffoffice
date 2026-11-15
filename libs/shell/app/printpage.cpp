@@ -236,7 +236,7 @@ void PrintColumn::group(const QString &heading, const QString &note)
     row->addWidget(sectionHeading(heading, m_page));
     if (!note.isEmpty()) {
         QLabel *n = noteLabel(note, m_page);
-        n->setWordWrap(false);
+        n->setWordWrap(true);
         QFont f = n->font();
         f.setPixelSize(11);
         n->setFont(f);

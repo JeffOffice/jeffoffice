@@ -369,7 +369,7 @@ void SpellPane::show(const QPair<int, int> &range)
     m_complete = false;
     m_searching = false;
     m_view->setCursor(c);
-    m_status->setText(tr("Not in dictionary:"));
+    m_status->setText(tr("Not in dictionary"));
     m_wordLabel->setText(m_word);
     // The words around it, with it in bold.
     const QTextBlock block = story->findBlock(range.first);

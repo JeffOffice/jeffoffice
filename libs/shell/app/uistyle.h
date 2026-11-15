@@ -20,6 +20,8 @@ class QWidget;
 namespace jp {
 
 // ---- pieces ----
+// `text` in capitals by the rules of the language the program shows (not the computer's).
+JO_COMMON_EXPORT QString upperCase(const QString &text);
 // A small grey UPPERCASE heading that opens a group of rows (11 px, medium weight). The label's accessible name is the text as given.
 JO_COMMON_EXPORT QLabel *sectionHeading(const QString &text, QWidget *parent = nullptr);
 // A group of rows under such a heading, with no frame: a QGroupBox (so a layout is made on it as on any box) whose title the style sheet draws as the heading. The title is
@@ -28,6 +30,8 @@ class JO_COMMON_EXPORT Section : public QGroupBox {
 public:
     explicit Section(const QString &heading, QWidget *parent = nullptr);
     QString heading() const { return m_heading; }
+    QSize minimumSizeHint() const override;   // (wide enough for the heading and, when checkable, the box before it)
+    QSize sizeHint() const override;
 
 private:
     QString m_heading;
@@ -73,7 +77,7 @@ JO_COMMON_EXPORT void installButtonBoxStyle();
 // The sign at the left of a message box, by kind: a red triangle (Warning), a red circle with an X (Critical), a blue circle with an "i" (Information), a blue circle with a
 // "?" (Question). `size` is in device-independent pixels.
 JO_COMMON_EXPORT QPixmap boxSign(QMessageBox::Icon kind, int size = 32, qreal pixelRatio = 1.0);
-// A QMessageBox in the style: the sign, the first sentence of the text in bold with the rest (and the informative text) as a grey line under it, the buttons as ButtonBox
+// A QMessageBox in the style: the sign, the first sentence of the text in bold with the rest as a grey line under it (a box with an informative text is not split: the text is bold, the informative text grey), the buttons as ButtonBox
 // puts them. text(), informativeText(), button(), and clickedButton() are those of a QMessageBox.
 class JO_COMMON_EXPORT MessageBox : public QMessageBox {
 public:

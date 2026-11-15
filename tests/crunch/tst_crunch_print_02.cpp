@@ -1332,8 +1332,14 @@ void CrunchPrintTests::theCloseBoxAsksToSaveChanges()
     e.select(QStringLiteral("A1"));
     e.enter(QStringLiteral("8"));
     QVERIFY(e.settle());
-    const QString problems = answerCloseBox([&] { e.win.w.close(); }, QStringLiteral("book.xlsx"), QMessageBox::Cancel);
+    for (const CloseHow how : {CloseHow::Press, CloseHow::Escape, CloseHow::CloseX}) {
+        const QString problems = answerCloseBox([&] { e.win.w.close(); }, QStringLiteral("book.xlsx"), QMessageBox::Cancel, how);
+        QVERIFY2(problems.isEmpty(), qPrintable(problems));
+        QVERIFY(e.win.w.isVisible());
+        QVERIFY(e.win.w.isModified());
+    }
+    // Enter presses Save (the workbook is written where it is)
+    const QString problems = answerCloseBox([&] { e.win.w.close(); }, QStringLiteral("book.xlsx"), QMessageBox::Save, CloseHow::Enter);
     QVERIFY2(problems.isEmpty(), qPrintable(problems));
-    QVERIFY(e.win.w.isVisible());
-    QVERIFY(e.win.w.isModified());
+    QTRY_VERIFY(!e.win.w.isModified() || !e.win.w.isVisible());
 }

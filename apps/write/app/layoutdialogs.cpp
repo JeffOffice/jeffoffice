@@ -487,7 +487,7 @@ bool dropCapDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     position->setCurrentIndex(before.lines > 0 ? 1 : 0);
     auto *font = new QFontComboBox(&dlg);
     font->setObjectName(QStringLiteral("font"));
-    auto *useFont = new QCheckBox(QCoreApplication::translate("jp::write::LayoutDialogs", "Use a font of its own:"), &dlg);
+    auto *useFont = new QCheckBox(QCoreApplication::translate("jp::write::LayoutDialogs", "Use a font of its own"), &dlg);
     useFont->setObjectName(QStringLiteral("useFont"));
     useFont->setChecked(!before.font.isEmpty());
     if (!before.font.isEmpty()) font->setCurrentFont(QFont(before.font));

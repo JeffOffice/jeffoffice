@@ -90,9 +90,18 @@ void WriteTests::theCloseBoxAsksToSaveChanges()
     w.setDocument(open(makeDocx(paragraphs(3), kStyles)), QString());
     w.show();
     w.document()->setModified(true);
-    const QString problems = answerCloseBox([&] { w.close(); }, w.displayName(), QMessageBox::Cancel);
+    for (const CloseHow how : {CloseHow::Press, CloseHow::Escape, CloseHow::CloseX}) {
+        const QString problems = answerCloseBox([&] { w.close(); }, w.displayName(), QMessageBox::Cancel, how);
+        QVERIFY2(problems.isEmpty(), qPrintable(problems));
+        QVERIFY(w.isVisible());
+    }
+    // Enter presses Save (here it saves to a file of the test's own)
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString target = dir.filePath(QStringLiteral("close.docx"));
+    w.setSavePathChooser([&](const QString &, const QString &) { return target; });
+    const QString problems = answerCloseBox([&] { w.close(); }, w.displayName(), QMessageBox::Save, CloseHow::Enter);
     QVERIFY2(problems.isEmpty(), qPrintable(problems));
-    QVERIFY(w.isVisible());
     w.document()->setModified(false);
 }
 
