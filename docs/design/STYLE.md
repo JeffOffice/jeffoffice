@@ -6,8 +6,7 @@ pieces live in `libs/shell/app/uistyle.h` and the application style sheet (`mode
 
 ## Colors are palette roles, never literals
 Ask `jp::` for them, so dark mode and high contrast work: `uiText()` (text), `uiMuted()` (grey detail
-and headings), `uiAccent()` (the app's own color: default button, focus, the Information and
-Question signs), `uiDanger()` (red: Warning and Critical signs), `uiLine()` (borders), `uiPanel()`
+and headings), `uiAccent()` (the app's own color: default button, focus), `uiDanger()` (red: Warning and Critical signs), `uiLine()` (borders), `uiPanel()`
 (soft grey panels, previews), `uiCard()` (field and card fill). In high contrast the system's colors
 replace all of these.
 
@@ -21,7 +20,7 @@ replace all of these.
 - Two fields on a row: 12 between them, a small (11 px, muted) label above each (`jp::twoUp`).
 
 ## Message boxes (`jp::plainBox`; no hand-built `QMessageBox`)
-- A sign at the left, 32 px, by kind: Warning is a red triangle with "!", Critical a red circle
+- A sign at the left, 32 px, by kind (the blue is a fixed blue, not the app's color): Warning is a red triangle with "!", Critical a red circle
   with an X, Information a blue circle with an "i", Question a blue circle with a "?".
 - Text: the first sentence bold at 15 px, the rest as a muted detail line under it (13 px, wraps at
   about 360 px). A title with one sentence has no detail line.

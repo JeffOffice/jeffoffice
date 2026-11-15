@@ -296,7 +296,9 @@ QPixmap boxSign(QMessageBox::Icon kind, int size, qreal pixelRatio)
     const double s = size;
     p.scale(s / 32.0, s / 32.0);   // drawn on a 32 by 32 grid
     const bool red = kind == QMessageBox::Warning || kind == QMessageBox::Critical;
-    const QColor color = red ? uiDanger() : uiAccent();
+    // (blue for Information and Question whatever the app's own color is: the sign says what kind of box it is)
+    const QColor blue = uiHighContrast() ? uiAccent() : uiDark() ? QColor(0x7F, 0xB2, 0xFF) : QColor(0x1A, 0x5F, 0xD6);
+    const QColor color = red ? uiDanger() : blue;
     p.setPen(Qt::NoPen);
     p.setBrush(color);
     if (kind == QMessageBox::Warning) {
