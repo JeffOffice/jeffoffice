@@ -1,4 +1,5 @@
 #include "app/animationdialogs.h"
+#include "app/uistyle.h"
 
 #include "app/animationpane.h"
 #include "app/appwindow.h"
@@ -44,7 +45,7 @@ AnimationOptionsDialog::AnimationOptionsDialog(const deck::Anim &anim, bool hasT
             m_variant->setAccessibleName(tr("Direction"));
             for (const deck::EffectVariant &v : kind->variants) m_variant->addItem(v.name, v.key);
             m_variant->setCurrentIndex(std::max(0, m_variant->findData(anim.variant)));
-            form->addRow(kind->cls == deck::EffectClass::MotionPath ? tr("Path:") : tr("Direction:"), m_variant);
+            form->addRow(kind->cls == deck::EffectClass::MotionPath ? tr("Path") : tr("Direction"), m_variant);
         }
         if (kind->amount != deck::EffectKind::Amount::None) {
             m_amount = new QDoubleSpinBox();
@@ -56,7 +57,7 @@ AnimationOptionsDialog::AnimationOptionsDialog(const deck::Anim &anim, bool hasT
             m_amount->setSuffix(size ? tr(" %") : tr(" degrees"));
             m_amount->setValue(anim.amount);
             m_amount->setAccessibleName(size ? tr("Size") : tr("Amount"));
-            form->addRow(size ? tr("Size:") : tr("Amount:"), m_amount);
+            form->addRow(size ? tr("Size") : tr("Amount"), m_amount);
         }
         m_smoothStart = new QCheckBox(tr("Smooth start"));
         m_smoothStart->setObjectName(QStringLiteral("animSmoothStart"));
@@ -79,7 +80,7 @@ AnimationOptionsDialog::AnimationOptionsDialog(const deck::Anim &anim, bool hasT
         // An exit has hidden the shape already.
         m_after->setEnabled(kind->cls != deck::EffectClass::Exit);
         m_after->setToolTip(tr("After animation: what happens to the shape when the effect is over"));
-        form->addRow(tr("After animation:"), m_after);
+        form->addRow(tr("After animation"), m_after);
     }
     m_tabs->addTab(effect, tr("Effect"));
 
@@ -91,7 +92,7 @@ AnimationOptionsDialog::AnimationOptionsDialog(const deck::Anim &anim, bool hasT
     m_start->setAccessibleName(tr("Start"));
     for (deck::EffectStart s : {deck::EffectStart::OnClick, deck::EffectStart::WithPrevious, deck::EffectStart::AfterPrevious}) m_start->addItem(startLabel(s), int(s));
     m_start->setCurrentIndex(m_start->findData(int(anim.start)));
-    tform->addRow(tr("Start:"), m_start);
+    tform->addRow(tr("Start"), m_start);
     m_delay = new QDoubleSpinBox();
     m_delay->setObjectName(QStringLiteral("animDelay"));
     m_delay->setRange(0, 59);
@@ -101,7 +102,7 @@ AnimationOptionsDialog::AnimationOptionsDialog(const deck::Anim &anim, bool hasT
     m_delay->setValue(anim.delay / 1000.0);
     m_delay->setAccessibleName(tr("Delay"));
     m_delay->setEnabled(kind != nullptr);
-    tform->addRow(tr("Delay:"), m_delay);
+    tform->addRow(tr("Delay"), m_delay);
     m_duration = new QDoubleSpinBox();
     m_duration->setObjectName(QStringLiteral("animDuration"));
     m_duration->setRange(0.01, 59);
@@ -111,7 +112,7 @@ AnimationOptionsDialog::AnimationOptionsDialog(const deck::Anim &anim, bool hasT
     m_duration->setValue(anim.duration > 0 ? anim.duration / 1000.0 : 0.01);
     m_duration->setAccessibleName(tr("Duration"));
     m_duration->setEnabled(kind && kind->duration > 0);
-    tform->addRow(tr("Duration:"), m_duration);
+    tform->addRow(tr("Duration"), m_duration);
     m_repeat = new QComboBox();
     m_repeat->setObjectName(QStringLiteral("animRepeat"));
     m_repeat->setAccessibleName(tr("Repeat"));
@@ -125,7 +126,7 @@ AnimationOptionsDialog::AnimationOptionsDialog(const deck::Anim &anim, bool hasT
     }
     m_repeat->setCurrentIndex(found);
     m_repeat->setEnabled(kind != nullptr && (kind->duration > 0));
-    tform->addRow(tr("Repeat:"), m_repeat);
+    tform->addRow(tr("Repeat"), m_repeat);
     m_rewind = new QCheckBox(tr("Rewind when done playing"));
     m_rewind->setObjectName(QStringLiteral("animRewind"));
     m_rewind->setChecked(anim.rewind);
@@ -157,7 +158,7 @@ AnimationOptionsDialog::AnimationOptionsDialog(const deck::Anim &anim, bool hasT
     m_tabs->addTab(text, tr("Text Animation"));
     m_tabs->setCurrentIndex(tab);
 
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
     connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
     lay->addWidget(buttons);

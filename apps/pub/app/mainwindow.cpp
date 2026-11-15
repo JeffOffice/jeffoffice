@@ -1,5 +1,6 @@
 #include <QScopeGuard>
 #include "app/commandsearch.h"
+#include "app/uistyle.h"
 #include "app/keymap.h"
 #include "app/ribboncustom.h"
 #include "app/mainwindow.h"
@@ -887,7 +888,7 @@ void MainWindow::offerRecovery(bool askIfNone)
     }
     list->setMinimumSize(480, 180);
     v->addWidget(list);
-    auto *buttons = new QDialogButtonBox(&dlg);
+    auto *buttons = new jp::ButtonBox(&dlg);
     QPushButton *open = buttons->addButton(tr("Open"), QDialogButtonBox::AcceptRole);
     QPushButton *del = buttons->addButton(tr("Delete"), QDialogButtonBox::DestructiveRole);
     buttons->addButton(tr("Not Now"), QDialogButtonBox::RejectRole);
@@ -1028,7 +1029,7 @@ void MainWindow::exportPdfWithOptions()
     preset->addItems({tr("Minimum size (online viewing, pictures at 96 dpi)"), tr("Standard (online distribution, pictures at 150 dpi)"),
                       tr("High quality printing (desktop printers, pictures at 300 dpi)"), tr("Commercial press (full-resolution pictures, marks and bleeds)")});
     preset->setCurrentIndex(Settings::get().value(QStringLiteral("pdf/preset"), 2).toInt());
-    form->addRow(tr("Optimize for:"), preset);
+    form->addRow(tr("Optimize for"), preset);
     auto *range = new QComboBox(&dlg);
     range->addItems({tr("All pages"), tr("Current page"), tr("Pages from:")});
     auto *fromBox = new QSpinBox(&dlg), *toBox = new QSpinBox(&dlg);
@@ -1043,7 +1044,7 @@ void MainWindow::exportPdfWithOptions()
     auto syncRange = [=] { fromBox->setEnabled(range->currentIndex() == 2); toBox->setEnabled(range->currentIndex() == 2); };
     QObject::connect(range, &QComboBox::currentIndexChanged, &dlg, syncRange);
     syncRange();
-    form->addRow(tr("Pages:"), rh);
+    form->addRow(tr("Pages"), rh);
     auto *props = new QCheckBox(tr("Include document properties (title, author, subject, keywords)"), &dlg);
     props->setChecked(true);
     auto *tagsBox = new QCheckBox(tr("Document structure tags for accessibility"), &dlg);
@@ -1114,11 +1115,11 @@ void MainWindow::exportPdfWithOptions()
     form->addRow(bookmarksBox);
     form->addRow(pdfa);
     form->addRow(pdfx);
-    form->addRow(tr("Printing condition:"), condition);
+    form->addRow(tr("Printing condition"), condition);
     form->addRow(protect);
     form->addRow(openAfter);
     v->addLayout(form);
-    auto *bb = new QDialogButtonBox(QDialogButtonBox::Cancel, &dlg);
+    auto *bb = new jp::ButtonBox(QDialogButtonBox::Cancel, &dlg);
     bb->addButton(tr("Save PDF…"), QDialogButtonBox::AcceptRole);
     QObject::connect(bb, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
     QObject::connect(bb, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
@@ -1642,14 +1643,14 @@ void MainWindow::exportEpub()
     auto *form = new QFormLayout();
     auto *title = new QLineEdit(d->props.title.isEmpty() ? QFileInfo(m_ed->displayName()).completeBaseName() : d->props.title, &dlg);
     auto *author = new QLineEdit(d->props.author, &dlg);
-    form->addRow(tr("Title:"), title);
-    form->addRow(tr("Author:"), author);
+    form->addRow(tr("Title"), title);
+    form->addRow(tr("Author"), author);
     v->addLayout(form);
     auto *cover = new QCheckBox(tr("Use the first page as the cover"), &dlg);
     cover->setChecked(true);
     v->addWidget(cover);
     connect(fixed, &QRadioButton::toggled, cover, [cover](bool on) { cover->setEnabled(!on); });   // page 1 is the cover there
-    auto *bb = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    auto *bb = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
     connect(bb, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
     connect(bb, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
     v->addWidget(bb);
@@ -1838,7 +1839,7 @@ static int choosePdfPage(QWidget *parent, const PdfDocument &pdf, const QString 
     QDialog dlg(parent);
     dlg.setWindowTitle(QCoreApplication::translate("MainWindow", "Insert PDF Page"));
     auto *lay = new QVBoxLayout(&dlg);
-    lay->addWidget(plainLabel(new QLabel(QCoreApplication::translate("MainWindow", "%1 has %2 pages. Choose the page to insert:").arg(name).arg(pages))));
+    lay->addWidget(plainLabel(new QLabel(QCoreApplication::translate("MainWindow", "%1 has %2 pages. Choose the page to insert").arg(name).arg(pages))));
     auto *list = new QListWidget;
     list->setViewMode(QListView::IconMode);
     list->setIconSize(QSize(120, 120));
@@ -1866,7 +1867,7 @@ static int choosePdfPage(QWidget *parent, const PdfDocument &pdf, const QString 
     }
     list->setCurrentRow(0);
     lay->addWidget(list);
-    auto *bb = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+    auto *bb = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
     lay->addWidget(bb);
     QObject::connect(bb, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
     QObject::connect(bb, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);

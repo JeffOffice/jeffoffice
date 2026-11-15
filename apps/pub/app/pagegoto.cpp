@@ -1,6 +1,7 @@
 // Go To (Ctrl+G): a page by number, or a comment by number (or the next or previous one).
 
 #include "app/pagegoto.h"
+#include "app/uistyle.h"
 
 #include "app/commentspane.h"
 #include "app/mainwindow.h"
@@ -44,7 +45,7 @@ void showPageGoToDialog(MainWindow *window)
     dlg.setObjectName(QStringLiteral("goToDialog"));
     dlg.setWindowTitle(QCoreApplication::translate("jp::GoToDialog", "Go To"));
     auto *v = new QVBoxLayout(&dlg);
-    v->addWidget(plainLabel(new QLabel(QCoreApplication::translate("jp::GoToDialog", "Go to what:"), &dlg)));
+    v->addWidget(plainLabel(new QLabel(QCoreApplication::translate("jp::GoToDialog", "Go to what"), &dlg)));
     auto *kinds = new QListWidget(&dlg);
     kinds->setObjectName(QStringLiteral("goToKinds"));
     kinds->setAccessibleName(QCoreApplication::translate("jp::GoToDialog", "Go to what"));
@@ -76,7 +77,7 @@ void showPageGoToDialog(MainWindow *window)
     problem->setStyleSheet(QStringLiteral("color: #b00020"));
     problem->setWordWrap(true);
     v->addWidget(problem);
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Close, &dlg);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Close, &dlg);
     QPushButton *go = buttons->button(QDialogButtonBox::Ok);
     go->setText(QCoreApplication::translate("jp::GoToDialog", "Go To"));
     go->setObjectName(QStringLiteral("goToGo"));

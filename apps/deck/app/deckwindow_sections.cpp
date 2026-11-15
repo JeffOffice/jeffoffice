@@ -2,6 +2,7 @@
 // slides pane and the slide sorter ask for. Each is one step that undoes.
 
 #include "app/deckwindow.h"
+#include "app/uistyle.h"
 
 #include "app/editor.h"
 #include "app/notespane.h"
@@ -30,11 +31,11 @@ bool askSectionName(QWidget *parent, QString *name)
     dlg.setObjectName(QStringLiteral("renameSectionDialog"));
     dlg.setWindowTitle(QCoreApplication::translate("jp::DeckWindow", "Rename Section"));
     auto *column = new QVBoxLayout(&dlg);
-    auto *label = new QLabel(QCoreApplication::translate("jp::DeckWindow", "Section &name:"), &dlg);
+    auto *label = new QLabel(QCoreApplication::translate("jp::DeckWindow", "Section &name"), &dlg);
     auto *edit = new QLineEdit(*name, &dlg);
     edit->setObjectName(QStringLiteral("sectionName"));
     label->setBuddy(edit);
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
     column->addWidget(label);
     column->addWidget(edit);
     column->addWidget(buttons);

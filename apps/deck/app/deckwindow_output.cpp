@@ -3,6 +3,7 @@
 // screen's Print page asks for (it chooses what to print, and previews it).
 
 #include "app/deckwindow.h"
+#include "app/uistyle.h"
 #include "app/printpage.h"
 #include "app/printsides.h"
 
@@ -75,13 +76,13 @@ public:
         m_what->addItem(DeckWindow::tr("Handouts: 4 Slides Per Page"), int(deck::PrintLayout::Handout4));
         m_what->addItem(DeckWindow::tr("Handouts: 6 Slides Per Page"), int(deck::PrintLayout::Handout6));
         m_what->addItem(DeckWindow::tr("Handouts: 9 Slides Per Page"), int(deck::PrintLayout::Handout9));
-        form->addRow(DeckWindow::tr("Print &what:"), m_what);
+        form->addRow(DeckWindow::tr("Print &what"), m_what);
         m_order = new QComboBox(this);
         m_order->setObjectName(QStringLiteral("outputOrder"));
         m_order->setAccessibleName(DeckWindow::tr("Order of slides on a handout"));
         m_order->addItem(DeckWindow::tr("Horizontal"), true);
         m_order->addItem(DeckWindow::tr("Vertical"), false);
-        form->addRow(DeckWindow::tr("&Order:"), m_order);
+        form->addRow(DeckWindow::tr("&Order"), m_order);
 
         auto *range = new QVBoxLayout;
         m_all = new QRadioButton(DeckWindow::tr("All slides"), this);
@@ -103,7 +104,7 @@ public:
         range->addWidget(m_all);
         range->addWidget(m_currentOnly);
         range->addLayout(some);
-        form->addRow(DeckWindow::tr("Range:"), range);
+        form->addRow(DeckWindow::tr("Range"), range);
 
         m_hidden = new QCheckBox(DeckWindow::tr("Print &hidden slides"), this);
         m_hidden->setObjectName(QStringLiteral("outputHidden"));
@@ -135,7 +136,7 @@ public:
 
         auto *layout = new QVBoxLayout(this);
         layout->addLayout(form);
-        m_buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
+        m_buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
         m_ok = m_buttons->button(QDialogButtonBox::Ok);
         m_ok->setText(DeckWindow::tr("Export…"));
         layout->addWidget(m_buttons);
@@ -325,7 +326,7 @@ bool askSlidePictures(DeckWindow *w, deck::SlidePicturesOptions *options)
     format->setObjectName(QStringLiteral("slidePicturesFormat"));
     format->addItem(DeckWindow::tr("PNG"));
     format->addItem(DeckWindow::tr("JPEG"));
-    form->addRow(DeckWindow::tr("Picture type:"), format);
+    form->addRow(DeckWindow::tr("Picture type"), format);
     auto *folder = new QLineEdit(&dlg);
     folder->setObjectName(QStringLiteral("slidePicturesFolder"));
     const QString file = w->editor()->filePath();
@@ -334,7 +335,7 @@ bool askSlidePictures(DeckWindow *w, deck::SlidePicturesOptions *options)
     auto *row = new QHBoxLayout;
     row->addWidget(folder, 1);
     row->addWidget(browse);
-    form->addRow(DeckWindow::tr("Folder:"), row);
+    form->addRow(DeckWindow::tr("Folder"), row);
     QObject::connect(browse, &QPushButton::clicked, &dlg, [&] {
         const QString dir = QFileDialog::getExistingDirectory(&dlg, DeckWindow::tr("Save Slides as Pictures"), folder->text());
         if (!dir.isEmpty()) folder->setText(dir);
@@ -344,12 +345,12 @@ bool askSlidePictures(DeckWindow *w, deck::SlidePicturesOptions *options)
     width->setRange(100, 8000);
     width->setSuffix(DeckWindow::tr(" pixels"));
     width->setValue(options->width);
-    form->addRow(DeckWindow::tr("Width:"), width);
+    form->addRow(DeckWindow::tr("Width"), width);
     auto *hidden = new QCheckBox(DeckWindow::tr("Include hidden slides"), &dlg);
     hidden->setObjectName(QStringLiteral("slidePicturesHidden"));
     hidden->setChecked(options->hidden);
     form->addRow(hidden);
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
     form->addRow(buttons);
     QObject::connect(buttons, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
     QObject::connect(buttons, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);

@@ -1,4 +1,5 @@
 #include "io/importers.h"
+#include "app/uistyle.h"
 #include "app/printpage.h"
 
 #include "app/editor.h"
@@ -471,11 +472,11 @@ void mergeToEmailFiles(QWidget *parent, Editor *ed)
     for (int i = 0; i < d.merge.fields.size(); ++i)
         if (d.merge.fields[i].contains("mail", Qt::CaseInsensitive)) to->setCurrentIndex(i);
     auto *subject = new QLineEdit(d.props.title.isEmpty() ? ed->displayName() : d.props.title, &dlg);
-    form->addRow(QCoreApplication::translate("Import", "To:"), to);
-    form->addRow(QCoreApplication::translate("Import", "Subject:"), subject);
+    form->addRow(QCoreApplication::translate("Import", "To"), to);
+    form->addRow(QCoreApplication::translate("Import", "Subject"), subject);
     form->addRow(new QLabel(QCoreApplication::translate("Import", "JeffPub creates one ready-to-send email file (.eml) per recipient, with the publication as an inline picture.\n"
                                                                     "Open them with your email program to send."), &dlg));
-    auto *bb = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    auto *bb = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
     form->addRow(bb);
     QObject::connect(bb, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
     QObject::connect(bb, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);

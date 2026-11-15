@@ -149,7 +149,7 @@ private Q_SLOTS:
             auto *d = qobject_cast<QDialog *>(QApplication::activeModalWidget());
             if (!d) return;
             for (QLabel *l : d->findChildren<QLabel *>())
-                if (l->text() == QLatin1String("Address:") && l->buddy()) static_cast<QLineEdit *>(l->buddy())->setText(QStringLiteral("example.com"));
+                if (l->text() == QLatin1String("Address") && l->buddy()) static_cast<QLineEdit *>(l->buddy())->setText(QStringLiteral("example.com"));
             d->accept();
         });
         w.act(QStringLiteral("insert.link"))->trigger();
@@ -1222,7 +1222,7 @@ private Q_SLOTS:
                 for (int i = 0; i < tabs->count(); ++i) tabNames << tabs->tabText(i);
             }
             for (QLabel *l : d->findChildren<QLabel *>())
-                if (l->text() == QLatin1String("User name:") && l->buddy()) userName = static_cast<QLineEdit *>(l->buddy())->text();
+                if (l->text() == QLatin1String("User name") && l->buddy()) userName = static_cast<QLineEdit *>(l->buddy())->text();
             for (const char *name : {"updates", "stats", "betaUpdates"})
                 if (auto *box = d->findChild<QCheckBox *>(QLatin1String(name)); box && box->isVisibleTo(d)) online << box->text();
             d->reject();

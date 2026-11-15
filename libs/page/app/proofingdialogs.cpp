@@ -75,14 +75,14 @@ void spellingDialog(QWidget *p, Editor *ed)
     auto *v = new QVBoxLayout(&dlg);
     auto *notIn = new QLabel(&dlg);
     notIn->setObjectName(QStringLiteral("spellingNotIn"));
-    auto *notInTitle = new QLabel(QCoreApplication::translate("Proofing", "Not in dictionary:"));
+    auto *notInTitle = new QLabel(QCoreApplication::translate("Proofing", "Not in dictionary"));
     auto *change = new QLineEdit(&dlg);
     auto *sugg = new QListWidget(&dlg);
     v->addWidget(notInTitle);
     v->addWidget(notIn);
-    v->addWidget(new QLabel(QCoreApplication::translate("Proofing", "Change to:")));
+    v->addWidget(new QLabel(QCoreApplication::translate("Proofing", "Change to")));
     v->addWidget(change);
-    v->addWidget(new QLabel(QCoreApplication::translate("Proofing", "Suggestions:")));
+    v->addWidget(new QLabel(QCoreApplication::translate("Proofing", "Suggestions")));
     v->addWidget(sugg);
     auto *row = new QHBoxLayout();
     auto *ignore = new QPushButton(QCoreApplication::translate("Proofing", "Ignore"), &dlg), *ignoreAll = new QPushButton(QCoreApplication::translate("Proofing", "Ignore All"), &dlg);
@@ -301,7 +301,7 @@ void thesaurusDialog(QWidget *p, Editor *ed)
     auto *v = new QVBoxLayout(&dlg);
     auto *q = new QLineEdit(word, &dlg);
     auto *list = new QListWidget(&dlg);
-    v->addWidget(new QLabel(QCoreApplication::translate("Proofing", "Look up:")));
+    v->addWidget(new QLabel(QCoreApplication::translate("Proofing", "Look up")));
     v->addWidget(q);
     v->addWidget(list);
     auto fill = [&] {

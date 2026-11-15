@@ -1,4 +1,5 @@
 #include "app/mediadialogs.h"
+#include "app/uistyle.h"
 
 #include "app/mediaplayer.h"
 
@@ -39,13 +40,13 @@ MediaTrimDialog::MediaTrimDialog(const QString &title, qint64 length, int cutSta
     m_end->setValue(length > 0 ? std::max<qint64>(0, length - cutEndMs) / 1000.0 : 0);
     m_end->setEnabled(length > 0);
     if (length <= 0) m_end->setToolTip(tr("How long it is isn't known until it has been played, so the end can't be set yet."));
-    form->addRow(tr("&Start Time:"), m_start);
-    form->addRow(tr("&End Time:"), m_end);
+    form->addRow(tr("&Start Time"), m_start);
+    form->addRow(tr("&End Time"), m_end);
     column->addLayout(form);
     m_note = plainLabel(new QLabel(this));
     m_note->setWordWrap(true);
     column->addWidget(m_note);
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
     m_ok = buttons->button(QDialogButtonBox::Ok);
     connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);

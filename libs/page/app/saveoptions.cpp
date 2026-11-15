@@ -36,13 +36,13 @@ OptionsPage saveOptionsPage(const QVector<SaveFormat> &formats, const std::funct
         for (const SaveFormat &k : formats) f->format->addItem(k.label, k.key);
         f->format->setCurrentIndex(std::max(0, int(f->format->findData(defaultSaveFormat()))));
         f->format->setEnabled(formats.size() > 1);
-        form->addRow(QCoreApplication::translate("Dialogs", "Save new documents as:"), f->format);
+        form->addRow(QCoreApplication::translate("Dialogs", "Save new documents as"), f->format);
         f->minutes = new QSpinBox(w);
         f->minutes->setObjectName(QStringLiteral("autoRecoverMinutes"));
         f->minutes->setRange(1, 120);
         f->minutes->setValue(st.autoRecoverMinutes());
         f->minutes->setSuffix(QCoreApplication::translate("Dialogs", " minutes"));
-        form->addRow(QCoreApplication::translate("Dialogs", "Save automatic recovery information every:"), f->minutes);
+        form->addRow(QCoreApplication::translate("Dialogs", "Save automatic recovery information every"), f->minutes);
         auto *row = new QWidget(w);
         auto *rowLayout = new QHBoxLayout(row);
         rowLayout->setContentsMargins(0, 0, 0, 0);
@@ -56,7 +56,7 @@ OptionsPage saveOptionsPage(const QVector<SaveFormat> &formats, const std::funct
         });
         rowLayout->addWidget(f->folder, 1);
         rowLayout->addWidget(browse);
-        form->addRow(QCoreApplication::translate("Dialogs", "Default file location:"), row);
+        form->addRow(QCoreApplication::translate("Dialogs", "Default file location"), row);
         if (more) more(form, w);
         return w;
     };

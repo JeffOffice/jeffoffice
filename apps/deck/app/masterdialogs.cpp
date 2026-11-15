@@ -1,4 +1,5 @@
 #include "app/masterdialogs.h"
+#include "app/uistyle.h"
 
 #include <QCheckBox>
 #include <QDialogButtonBox>
@@ -26,7 +27,7 @@ MasterLayoutDialog::MasterLayoutDialog(const deck::MasterParts &p, QWidget *pare
     m_number = box(QStringLiteral("slideNumber"), tr("Slide number"), p.number);
     m_footer = box(QStringLiteral("footer"), tr("Footer"), p.footer);
     lay->addSpacing(6);
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
     connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
     lay->addWidget(buttons);

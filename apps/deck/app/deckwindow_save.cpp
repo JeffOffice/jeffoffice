@@ -3,6 +3,7 @@
 
 #include <QScopeGuard>
 #include "app/deckcanvas.h"
+#include "app/uistyle.h"
 #include "app/deckwindow.h"
 
 #include "app/editor.h"
@@ -358,7 +359,7 @@ void DeckWindow::offerRecovery(bool askIfNone)
     }
     list->setMinimumSize(480, 180);
     v->addWidget(list);
-    auto *buttons = new QDialogButtonBox(&dlg);
+    auto *buttons = new jp::ButtonBox(&dlg);
     QPushButton *open = buttons->addButton(tr("Open"), QDialogButtonBox::AcceptRole);
     QPushButton *del = buttons->addButton(tr("Delete"), QDialogButtonBox::DestructiveRole);
     buttons->addButton(tr("Not Now"), QDialogButtonBox::RejectRole);

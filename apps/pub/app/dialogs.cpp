@@ -1,4 +1,5 @@
 #include "app/dialogs.h"
+#include "app/uistyle.h"
 #include "app/saveoptions.h"
 #include "app/mergedialogs.h"
 #include "app/mainwindow.h"
@@ -78,7 +79,7 @@ struct Dlg {
     {
         d.setWindowTitle(title);
         v = new QVBoxLayout(&d);
-        bb = new QDialogButtonBox(buttons, &d);
+        bb = new jp::ButtonBox(buttons, &d);
         QObject::connect(bb, &QDialogButtonBox::accepted, &d, &QDialog::accept);
         QObject::connect(bb, &QDialogButtonBox::rejected, &d, &QDialog::reject);
     }
@@ -229,17 +230,17 @@ PageForm buildPageForm(QTabWidget *tabs, const PageSetup &s)
     auto *orient = new QHBoxLayout();
     orient->addWidget(portrait);
     orient->addWidget(land);
-    form->addRow(QCoreApplication::translate("Dialogs", "Layout type:"), f.layout);
-    form->addRow(QCoreApplication::translate("Dialogs", "Page size:"), f.preset);
-    form->addRow(QCoreApplication::translate("Dialogs", "Width:"), f.w);
-    form->addRow(QCoreApplication::translate("Dialogs", "Height:"), f.h);
-    form->addRow(QCoreApplication::translate("Dialogs", "Orientation:"), orient);
-    form->addRow(QCoreApplication::translate("Dialogs", "Paper width:"), f.sheetW);
-    form->addRow(QCoreApplication::translate("Dialogs", "Paper height:"), f.sheetH);
-    form->addRow(QCoreApplication::translate("Dialogs", "Side margin:"), f.side);
-    form->addRow(QCoreApplication::translate("Dialogs", "Top margin:"), f.top);
-    form->addRow(QCoreApplication::translate("Dialogs", "Horizontal gap:"), f.gapH);
-    form->addRow(QCoreApplication::translate("Dialogs", "Vertical gap:"), f.gapV);
+    form->addRow(QCoreApplication::translate("Dialogs", "Layout type"), f.layout);
+    form->addRow(QCoreApplication::translate("Dialogs", "Page size"), f.preset);
+    form->addRow(QCoreApplication::translate("Dialogs", "Width"), f.w);
+    form->addRow(QCoreApplication::translate("Dialogs", "Height"), f.h);
+    form->addRow(QCoreApplication::translate("Dialogs", "Orientation"), orient);
+    form->addRow(QCoreApplication::translate("Dialogs", "Paper width"), f.sheetW);
+    form->addRow(QCoreApplication::translate("Dialogs", "Paper height"), f.sheetH);
+    form->addRow(QCoreApplication::translate("Dialogs", "Side margin"), f.side);
+    form->addRow(QCoreApplication::translate("Dialogs", "Top margin"), f.top);
+    form->addRow(QCoreApplication::translate("Dialogs", "Horizontal gap"), f.gapH);
+    form->addRow(QCoreApplication::translate("Dialogs", "Vertical gap"), f.gapV);
     form->addRow(QString(), f.fits);
     tabs->addTab(page, QCoreApplication::translate("Dialogs", "Page"));
 
@@ -252,10 +253,10 @@ PageForm buildPageForm(QTabWidget *tabs, const PageSetup &s)
     f.gBottom = measure(s.margins.bottom(), mg);
     f.gLeft = measure(s.margins.left(), mg);
     f.gRight = measure(s.margins.right(), mg);
-    mf->addRow(QCoreApplication::translate("Dialogs", "Top:"), f.gTop);
-    mf->addRow(QCoreApplication::translate("Dialogs", "Bottom:"), f.gBottom);
-    mf->addRow(QCoreApplication::translate("Dialogs", "Left:"), f.gLeft);
-    mf->addRow(QCoreApplication::translate("Dialogs", "Right:"), f.gRight);
+    mf->addRow(QCoreApplication::translate("Dialogs", "Top"), f.gTop);
+    mf->addRow(QCoreApplication::translate("Dialogs", "Bottom"), f.gBottom);
+    mf->addRow(QCoreApplication::translate("Dialogs", "Left"), f.gLeft);
+    mf->addRow(QCoreApplication::translate("Dialogs", "Right"), f.gRight);
     tabs->addTab(mg, QCoreApplication::translate("Dialogs", "Margin Guides"));
 
     // Choosing a size fills the fields; a custom size brings its whole setup.
@@ -354,7 +355,7 @@ bool createPageSizeDialog(QWidget *p, Editor *ed, int editIndex, bool apply)
     auto *nameRow = new QFormLayout();
     auto *name = new QLineEdit(editing ? sizes.at(editIndex).toObject()["name"].toString() : QCoreApplication::translate("Dialogs", "Custom %1").arg(sizes.size() + 1), &dlg.d);
     name->setObjectName("pageSizeName");
-    nameRow->addRow(QCoreApplication::translate("Dialogs", "Name:"), name);
+    nameRow->addRow(QCoreApplication::translate("Dialogs", "Name"), name);
     dlg.v->addLayout(nameRow);
     auto *tabs = new QTabWidget(&dlg.d);
     const PageForm f = buildPageForm(tabs, start);
@@ -428,18 +429,18 @@ void gridGuidesDialog(QWidget *p, Editor *ed, int startTab)
     auto *cg = measure(mp->grid.colGap, g), *rg = measure(mp->grid.rowGap, g);
     auto *center = new QCheckBox(QCoreApplication::translate("Dialogs", "Add center guide between columns and rows"), g);
     center->setChecked(mp->grid.centerGuide);
-    gf->addRow(QCoreApplication::translate("Dialogs", "Columns:"), cols);
-    gf->addRow(QCoreApplication::translate("Dialogs", "Column spacing:"), cg);
-    gf->addRow(QCoreApplication::translate("Dialogs", "Rows:"), rows);
-    gf->addRow(QCoreApplication::translate("Dialogs", "Row spacing:"), rg);
+    gf->addRow(QCoreApplication::translate("Dialogs", "Columns"), cols);
+    gf->addRow(QCoreApplication::translate("Dialogs", "Column spacing"), cg);
+    gf->addRow(QCoreApplication::translate("Dialogs", "Rows"), rows);
+    gf->addRow(QCoreApplication::translate("Dialogs", "Row spacing"), rg);
     gf->addRow(center);
     tabs->addTab(g, QCoreApplication::translate("Dialogs", "Grid Guides"));
     auto *b = new QWidget();
     auto *bf = new QFormLayout(b);
     auto *spacing = points(mp->grid.baseline, b, 1, 200);
     auto *offset = points(mp->grid.baselineOffset, b, 0, 200);
-    bf->addRow(QCoreApplication::translate("Dialogs", "Horizontal baseline spacing:"), spacing);
-    bf->addRow(QCoreApplication::translate("Dialogs", "Offset:"), offset);
+    bf->addRow(QCoreApplication::translate("Dialogs", "Horizontal baseline spacing"), spacing);
+    bf->addRow(QCoreApplication::translate("Dialogs", "Offset"), offset);
     tabs->addTab(b, QCoreApplication::translate("Dialogs", "Baseline Guides"));
     auto *mg = new QWidget();
     auto *mgf = new QFormLayout(mg);
@@ -448,14 +449,14 @@ void gridGuidesDialog(QWidget *p, Editor *ed, int startTab)
     mgf->addRow(twoPage);
     const QMarginsF m = doc->setup.margins;
     auto *mt = measure(m.top(), mg), *mb = measure(m.bottom(), mg), *ml = measure(m.left(), mg), *mr = measure(m.right(), mg);
-    mgf->addRow(QCoreApplication::translate("Dialogs", "Top:"), mt);
-    mgf->addRow(QCoreApplication::translate("Dialogs", "Bottom:"), mb);
-    mgf->addRow(QCoreApplication::translate("Dialogs", "Left:"), ml);
-    mgf->addRow(QCoreApplication::translate("Dialogs", "Right:"), mr);
+    mgf->addRow(QCoreApplication::translate("Dialogs", "Top"), mt);
+    mgf->addRow(QCoreApplication::translate("Dialogs", "Bottom"), mb);
+    mgf->addRow(QCoreApplication::translate("Dialogs", "Left"), ml);
+    mgf->addRow(QCoreApplication::translate("Dialogs", "Right"), mr);
     // A two-page master's side guides are inside and outside.
     auto sideNames = [=](bool two) {
-        if (auto *l = qobject_cast<QLabel *>(mgf->labelForField(ml))) l->setText(two ? QCoreApplication::translate("Dialogs", "Inside:") : QCoreApplication::translate("Dialogs", "Left:"));
-        if (auto *l = qobject_cast<QLabel *>(mgf->labelForField(mr))) l->setText(two ? QCoreApplication::translate("Dialogs", "Outside:") : QCoreApplication::translate("Dialogs", "Right:"));
+        if (auto *l = qobject_cast<QLabel *>(mgf->labelForField(ml))) l->setText(two ? QCoreApplication::translate("Dialogs", "Inside") : QCoreApplication::translate("Dialogs", "Left"));
+        if (auto *l = qobject_cast<QLabel *>(mgf->labelForField(mr))) l->setText(two ? QCoreApplication::translate("Dialogs", "Outside") : QCoreApplication::translate("Dialogs", "Right"));
     };
     sideNames(mp->twoPage);
     QObject::connect(twoPage, &QCheckBox::toggled, mg, sideNames);
@@ -487,7 +488,7 @@ void rulerGuidesDialog(QWidget *p, Editor *ed)
     // One side: its guides listed by position, with a field to add one, move
     // the chosen one or add a run of them at even spacing.
     auto side = [&](const QString &title, const QString &from, QVector<double> *list, double limit) {
-        auto *box = new QGroupBox(title, &dlg.d);
+        auto *box = new jp::Section(title, &dlg.d);
         auto *v = new QVBoxLayout(box);
         auto *hint = plainLabel(new QLabel(from, box));
         hint->setEnabled(false);
@@ -505,7 +506,7 @@ void rulerGuidesDialog(QWidget *p, Editor *ed)
         auto *pos = measure(limit / 2, box, 0, limit);
         auto *add = new QPushButton(QCoreApplication::translate("Dialogs", "Add"), box), *move = new QPushButton(QCoreApplication::translate("Dialogs", "Move"), box);
         auto *posRow = new QHBoxLayout();
-        posRow->addWidget(new QLabel(QCoreApplication::translate("Dialogs", "Position:"), box));
+        posRow->addWidget(new QLabel(QCoreApplication::translate("Dialogs", "Position"), box));
         posRow->addWidget(pos);
         posRow->addWidget(add);
         posRow->addWidget(move);
@@ -517,7 +518,7 @@ void rulerGuidesDialog(QWidget *p, Editor *ed)
         rmRow->addWidget(removeAll);
         rmRow->addStretch(1);
         v->addLayout(rmRow);
-        auto *series = new QGroupBox(QCoreApplication::translate("Dialogs", "Add a series"), box);
+        auto *series = new jp::Section(QCoreApplication::translate("Dialogs", "Add a series"), box);
         auto *sf = new QFormLayout(series);
         auto *count = new QSpinBox(series);
         count->setRange(1, 200);
@@ -525,9 +526,9 @@ void rulerGuidesDialog(QWidget *p, Editor *ed)
         count->setFixedWidth(110);
         auto *start = measure(0, series, 0, limit), *every = measure(72, series, 1, limit);
         auto *addSeries = new QPushButton(QCoreApplication::translate("Dialogs", "Add Series"), series);
-        sf->addRow(QCoreApplication::translate("Dialogs", "Guides:"), count);
-        sf->addRow(QCoreApplication::translate("Dialogs", "First at:"), start);
-        sf->addRow(QCoreApplication::translate("Dialogs", "Spacing:"), every);
+        sf->addRow(QCoreApplication::translate("Dialogs", "Guides"), count);
+        sf->addRow(QCoreApplication::translate("Dialogs", "First at"), start);
+        sf->addRow(QCoreApplication::translate("Dialogs", "Spacing"), every);
         sf->addRow(addSeries);
         v->addWidget(series);
         refill(-1);
@@ -594,11 +595,11 @@ void dropCapDialog(QWidget *p, Editor *ed)
     QString chosen = bf.stringProperty(tp::DropCapFont);
     QObject::connect(font, &FontCombo::familyChosen, &dlg.d, [&](const QString &f) { chosen = f.startsWith('+') ? QString() : f; });
     auto *color = colorPick(ed, bf.stringProperty(tp::DropCapColor).isEmpty() ? ColorRef::scheme(Accent1) : ColorRef::fromString(bf.stringProperty(tp::DropCapColor)), true, &dlg.d);
-    form->addRow(QCoreApplication::translate("Dialogs", "Letter position:"), pos);
-    form->addRow(QCoreApplication::translate("Dialogs", "Size of letters (lines high):"), lines);
-    form->addRow(QCoreApplication::translate("Dialogs", "Number of letters:"), chars);
-    form->addRow(QCoreApplication::translate("Dialogs", "Font:"), font);
-    form->addRow(QCoreApplication::translate("Dialogs", "Color:"), color);
+    form->addRow(QCoreApplication::translate("Dialogs", "Letter position"), pos);
+    form->addRow(QCoreApplication::translate("Dialogs", "Size of letters (lines high)"), lines);
+    form->addRow(QCoreApplication::translate("Dialogs", "Number of letters"), chars);
+    form->addRow(QCoreApplication::translate("Dialogs", "Font"), font);
+    form->addRow(QCoreApplication::translate("Dialogs", "Color"), color);
     dlg.v->addLayout(form);
     auto *remove = new QPushButton(QCoreApplication::translate("Dialogs", "Remove"), &dlg.d);
     bool removed = false;
@@ -639,9 +640,9 @@ void textGradientDialog(QWidget *p, Editor *ed)
     const double angles[] = {0, 90, 45, -45};
     for (int i = 0; i < 4; ++i)
         if (std::abs(current.angle - angles[i]) < 0.5) dir->setCurrentIndex(i);
-    form->addRow(QCoreApplication::translate("Dialogs", "From:"), from);
-    form->addRow(QCoreApplication::translate("Dialogs", "To:"), to);
-    form->addRow(QCoreApplication::translate("Dialogs", "Direction:"), dir);
+    form->addRow(QCoreApplication::translate("Dialogs", "From"), from);
+    form->addRow(QCoreApplication::translate("Dialogs", "To"), to);
+    form->addRow(QCoreApplication::translate("Dialogs", "Direction"), dir);
     dlg.v->addLayout(form);
     if (!dlg.exec()) return;
     const Fill g = Fill::gradient(from->current(), to->current(), angles[dir->currentIndex()]);
@@ -686,15 +687,15 @@ void formatObjectDialog(QWidget *p, Editor *ed, int tab)
     for (QComboBox *c : {begin, end}) c->addItems({QCoreApplication::translate("Dialogs", "None"), QCoreApplication::translate("Dialogs", "Arrow"), QCoreApplication::translate("Dialogs", "Open arrow"), QCoreApplication::translate("Dialogs", "Stealth arrow"), QCoreApplication::translate("Dialogs", "Diamond"), QCoreApplication::translate("Dialogs", "Oval")});
     begin->setCurrentIndex(int(it->stroke.startArrow));
     end->setCurrentIndex(int(it->stroke.endArrow));
-    clf->addRow(QCoreApplication::translate("Dialogs", "Fill color:"), fillRow);
-    clf->addRow(QCoreApplication::translate("Dialogs", "Transparency:"), trans);
-    clf->addRow(QCoreApplication::translate("Dialogs", "Line color:"), lineColor);
-    clf->addRow(QCoreApplication::translate("Dialogs", "Line weight:"), lineWidth);
-    clf->addRow(QCoreApplication::translate("Dialogs", "Dash type:"), dash);
-    clf->addRow(QCoreApplication::translate("Dialogs", "Compound type:"), compound);
+    clf->addRow(QCoreApplication::translate("Dialogs", "Fill color"), fillRow);
+    clf->addRow(QCoreApplication::translate("Dialogs", "Transparency"), trans);
+    clf->addRow(QCoreApplication::translate("Dialogs", "Line color"), lineColor);
+    clf->addRow(QCoreApplication::translate("Dialogs", "Line weight"), lineWidth);
+    clf->addRow(QCoreApplication::translate("Dialogs", "Dash type"), dash);
+    clf->addRow(QCoreApplication::translate("Dialogs", "Compound type"), compound);
     if (it->type() == ItemType::Line) {
-        clf->addRow(QCoreApplication::translate("Dialogs", "Begin style:"), begin);
-        clf->addRow(QCoreApplication::translate("Dialogs", "End style:"), end);
+        clf->addRow(QCoreApplication::translate("Dialogs", "Begin style"), begin);
+        clf->addRow(QCoreApplication::translate("Dialogs", "End style"), end);
     }
     tabs->addTab(cl, QCoreApplication::translate("Dialogs", "Colors and Lines"));
     // Size.
@@ -712,9 +713,9 @@ void formatObjectDialog(QWidget *p, Editor *ed, int tab)
     const double ratio = it->rect.width() / std::max(1.0, it->rect.height());
     QObject::connect(w, &QDoubleSpinBox::valueChanged, sz, [=](double v) { if (lockAspect->isChecked() && !h->hasFocus()) { const QSignalBlocker b(h); h->setValue(v / ratio); } });
     QObject::connect(h, &QDoubleSpinBox::valueChanged, sz, [=](double v) { if (lockAspect->isChecked() && !w->hasFocus()) { const QSignalBlocker b(w); w->setValue(v * ratio); } });
-    szf->addRow(QCoreApplication::translate("Dialogs", "Height:"), h);
-    szf->addRow(QCoreApplication::translate("Dialogs", "Width:"), w);
-    szf->addRow(QCoreApplication::translate("Dialogs", "Rotation:"), rot);
+    szf->addRow(QCoreApplication::translate("Dialogs", "Height"), h);
+    szf->addRow(QCoreApplication::translate("Dialogs", "Width"), w);
+    szf->addRow(QCoreApplication::translate("Dialogs", "Rotation"), rot);
     szf->addRow(lockAspect);
     tabs->addTab(sz, QCoreApplication::translate("Dialogs", "Size"));
     // Layout.
@@ -730,14 +731,14 @@ void formatObjectDialog(QWidget *p, Editor *ed, int tab)
     side->addItems({QCoreApplication::translate("Dialogs", "Both sides"), QCoreApplication::translate("Dialogs", "Left only"), QCoreApplication::translate("Dialogs", "Right only"), QCoreApplication::translate("Dialogs", "Largest side")});
     side->setCurrentIndex(int(it->wrap.side));
     auto *dt = measure(it->wrap.top, lay), *db = measure(it->wrap.bottom, lay), *dl = measure(it->wrap.left, lay), *dr = measure(it->wrap.right, lay);
-    layf->addRow(QCoreApplication::translate("Dialogs", "Horizontal position:"), x);
-    layf->addRow(QCoreApplication::translate("Dialogs", "Vertical position:"), y);
-    layf->addRow(QCoreApplication::translate("Dialogs", "Wrapping style:"), wrap);
-    layf->addRow(QCoreApplication::translate("Dialogs", "Wrap text:"), side);
-    layf->addRow(QCoreApplication::translate("Dialogs", "Distance from text — top:"), dt);
-    layf->addRow(QCoreApplication::translate("Dialogs", "bottom:"), db);
-    layf->addRow(QCoreApplication::translate("Dialogs", "left:"), dl);
-    layf->addRow(QCoreApplication::translate("Dialogs", "right:"), dr);
+    layf->addRow(QCoreApplication::translate("Dialogs", "Horizontal position"), x);
+    layf->addRow(QCoreApplication::translate("Dialogs", "Vertical position"), y);
+    layf->addRow(QCoreApplication::translate("Dialogs", "Wrapping style"), wrap);
+    layf->addRow(QCoreApplication::translate("Dialogs", "Wrap text"), side);
+    layf->addRow(QCoreApplication::translate("Dialogs", "Distance from text — top"), dt);
+    layf->addRow(QCoreApplication::translate("Dialogs", "bottom"), db);
+    layf->addRow(QCoreApplication::translate("Dialogs", "left"), dl);
+    layf->addRow(QCoreApplication::translate("Dialogs", "right"), dr);
     tabs->addTab(lay, QCoreApplication::translate("Dialogs", "Layout"));
     // Text box.
     QMarginsF ins;
@@ -771,15 +772,15 @@ void formatObjectDialog(QWidget *p, Editor *ed, int tab)
     gap->setValue(colGap);
     cOn->setChecked(contOn);
     cFrom->setChecked(contFrom);
-    tbf->addRow(QCoreApplication::translate("Dialogs", "Vertical alignment:"), va);
-    if (isText) tbf->addRow(QCoreApplication::translate("Dialogs", "Text fitting:"), fit);
-    tbf->addRow(QCoreApplication::translate("Dialogs", "Left margin:"), tl);
-    tbf->addRow(QCoreApplication::translate("Dialogs", "Right margin:"), tr);
-    tbf->addRow(QCoreApplication::translate("Dialogs", "Top margin:"), tt);
-    tbf->addRow(QCoreApplication::translate("Dialogs", "Bottom margin:"), tbm);
+    tbf->addRow(QCoreApplication::translate("Dialogs", "Vertical alignment"), va);
+    if (isText) tbf->addRow(QCoreApplication::translate("Dialogs", "Text fitting"), fit);
+    tbf->addRow(QCoreApplication::translate("Dialogs", "Left margin"), tl);
+    tbf->addRow(QCoreApplication::translate("Dialogs", "Right margin"), tr);
+    tbf->addRow(QCoreApplication::translate("Dialogs", "Top margin"), tt);
+    tbf->addRow(QCoreApplication::translate("Dialogs", "Bottom margin"), tbm);
     if (isText) {
-        tbf->addRow(QCoreApplication::translate("Dialogs", "Columns:"), cols);
-        tbf->addRow(QCoreApplication::translate("Dialogs", "Column spacing:"), gap);
+        tbf->addRow(QCoreApplication::translate("Dialogs", "Columns"), cols);
+        tbf->addRow(QCoreApplication::translate("Dialogs", "Column spacing"), gap);
         tbf->addRow(cOn);
         tbf->addRow(cFrom);
     }
@@ -816,11 +817,11 @@ void formatObjectDialog(QWidget *p, Editor *ed, int tab)
         cellRotate->setChecked(cellRotate0);
         cp = new QWidget();
         auto *cpf = new QFormLayout(cp);
-        cpf->addRow(QCoreApplication::translate("Dialogs", "Vertical alignment:"), cellAlign);
-        cpf->addRow(QCoreApplication::translate("Dialogs", "Left margin:"), cellLeft);
-        cpf->addRow(QCoreApplication::translate("Dialogs", "Right margin:"), cellRight);
-        cpf->addRow(QCoreApplication::translate("Dialogs", "Top margin:"), cellTop);
-        cpf->addRow(QCoreApplication::translate("Dialogs", "Bottom margin:"), cellBottom);
+        cpf->addRow(QCoreApplication::translate("Dialogs", "Vertical alignment"), cellAlign);
+        cpf->addRow(QCoreApplication::translate("Dialogs", "Left margin"), cellLeft);
+        cpf->addRow(QCoreApplication::translate("Dialogs", "Right margin"), cellRight);
+        cpf->addRow(QCoreApplication::translate("Dialogs", "Top margin"), cellTop);
+        cpf->addRow(QCoreApplication::translate("Dialogs", "Bottom margin"), cellBottom);
         cpf->addRow(cellRotate);
         tabs->addTab(cp, QCoreApplication::translate("Dialogs", "Cell Properties"));
     }
@@ -840,10 +841,10 @@ void formatObjectDialog(QWidget *p, Editor *ed, int tab)
         contrast->setValue(int(pic->contrast));
         recolor->setCurrentIndex(int(pic->recolor));
         ptrans->setValue(int(pic->transparency * 100));
-        pf->addRow(QCoreApplication::translate("Dialogs", "Brightness:"), bright);
-        pf->addRow(QCoreApplication::translate("Dialogs", "Contrast:"), contrast);
-        pf->addRow(QCoreApplication::translate("Dialogs", "Color:"), recolor);
-        pf->addRow(QCoreApplication::translate("Dialogs", "Transparency:"), ptrans);
+        pf->addRow(QCoreApplication::translate("Dialogs", "Brightness"), bright);
+        pf->addRow(QCoreApplication::translate("Dialogs", "Contrast"), contrast);
+        pf->addRow(QCoreApplication::translate("Dialogs", "Color"), recolor);
+        pf->addRow(QCoreApplication::translate("Dialogs", "Transparency"), ptrans);
         tabs->addTab(pw, QCoreApplication::translate("Dialogs", "Picture"));
     }
     // Web / Alt text.
@@ -851,8 +852,8 @@ void formatObjectDialog(QWidget *p, Editor *ed, int tab)
     auto *wbf = new QFormLayout(wb);
     auto *alt = new QPlainTextEdit(it->altText, wb);
     auto *link = new QLineEdit(it->hyperlink, wb);
-    wbf->addRow(QCoreApplication::translate("Dialogs", "Alternative text:"), alt);
-    wbf->addRow(QCoreApplication::translate("Dialogs", "Hyperlink:"), link);
+    wbf->addRow(QCoreApplication::translate("Dialogs", "Alternative text"), alt);
+    wbf->addRow(QCoreApplication::translate("Dialogs", "Hyperlink"), link);
     tabs->addTab(wb, QCoreApplication::translate("Dialogs", "Alt Text"));
     // Map caller's tab index (0 colors, 1 size, 2 layout, 3 text box, 4 picture, 5 alt text, 6 cell properties).
     QWidget *want[] = {cl, sz, lay, tb, pw, wb, cp};
@@ -949,7 +950,7 @@ void insertPageDialog(QWidget *p, Editor *ed)
     auto *srcPage = new QSpinBox(&dlg.d);
     srcPage->setRange(1, ed->doc()->pages.size());
     srcPage->setValue(ed->currentPage() + 1);
-    form->addRow(QCoreApplication::translate("Dialogs", "Number of new pages:"), count);
+    form->addRow(QCoreApplication::translate("Dialogs", "Number of new pages"), count);
     form->addRow(before);
     form->addRow(after);
     form->addRow(blank);
@@ -960,7 +961,7 @@ void insertPageDialog(QWidget *p, Editor *ed)
     form->addRow(dupRow);
     auto *master = new QComboBox(&dlg.d);
     for (const auto &m : ed->doc()->masters) master->addItem(QStringLiteral("(%1) %2").arg(m->abbr, m->name), m->id);
-    form->addRow(QCoreApplication::translate("Dialogs", "Master page:"), master);
+    form->addRow(QCoreApplication::translate("Dialogs", "Master page"), master);
     dlg.v->addLayout(form);
     if (!dlg.exec()) return;
     int at = before->isChecked() ? ed->currentPage() - 1 : ed->currentPage();
@@ -1001,7 +1002,7 @@ void businessInfoDialog(QWidget *p, Editor *ed)
     setBox->setCurrentIndex(current);
     auto *newSet = new QPushButton(QCoreApplication::translate("Dialogs", "New…"), &dlg.d);
     auto *delSet = new QPushButton(QCoreApplication::translate("Dialogs", "Delete"), &dlg.d);
-    top->addWidget(new QLabel(QCoreApplication::translate("Dialogs", "Select a Business Information set:")));
+    top->addWidget(new QLabel(QCoreApplication::translate("Dialogs", "Select a Business Information set")));
     top->addWidget(setBox, 1);
     top->addWidget(newSet);
     top->addWidget(delSet);
@@ -1013,13 +1014,13 @@ void businessInfoDialog(QWidget *p, Editor *ed)
         if (k == "address") { auto *pe = new QPlainTextEdit(&dlg.d); pe->setFixedHeight(60); w = pe; }
         else w = new QLineEdit(&dlg.d);
         edits[k] = w;
-        form->addRow(QCoreApplication::translate("Dialogs", "%1:").arg(BusinessInfo::label(k)), w);
+        form->addRow(QCoreApplication::translate("Dialogs", "%1").arg(BusinessInfo::label(k)), w);
     }
     auto *setName = new QLineEdit(&dlg.d);
-    form->addRow(QCoreApplication::translate("Dialogs", "Business Information set name:"), setName);
+    form->addRow(QCoreApplication::translate("Dialogs", "Business Information set name"), setName);
     auto *logo = plainLabel(new QLabel(&dlg.d));
     logo->setFixedSize(96, 64);
-    logo->setFrameShape(QFrame::StyledPanel);
+    jp::softPanel(logo);
     logo->setAlignment(Qt::AlignCenter);
     auto *addLogo = new QPushButton(QCoreApplication::translate("Dialogs", "Add Logo…"), &dlg.d);
     auto *removeLogo = new QPushButton(QCoreApplication::translate("Dialogs", "Remove Logo"), &dlg.d);
@@ -1027,7 +1028,7 @@ void businessInfoDialog(QWidget *p, Editor *ed)
     logoRow->addWidget(logo);
     logoRow->addWidget(addLogo);
     logoRow->addWidget(removeLogo);
-    form->addRow(QCoreApplication::translate("Dialogs", "Logo:"), logoRow);
+    form->addRow(QCoreApplication::translate("Dialogs", "Logo"), logoRow);
     dlg.v->addLayout(form);
     auto load = [&](int i) {
         const BusinessInfo &b = sets[i];
@@ -1106,11 +1107,11 @@ void colorSchemeDialog(QWidget *p, Editor *ed)
             const QColor c = colorsDialog(b, s.c[i], slotName(i));
             if (c.isValid()) { s.c[i] = c; paint(); }
         });
-        form->addRow(QCoreApplication::translate("Dialogs", "%1:").arg(slotName(i)), b);
+        form->addRow(QCoreApplication::translate("Dialogs", "%1").arg(slotName(i)), b);
         btns << b;
     }
     auto *name = new QLineEdit(QCoreApplication::translate("Dialogs", "Custom 1"), &dlg.d);
-    form->addRow(QCoreApplication::translate("Dialogs", "Color scheme name:"), name);
+    form->addRow(QCoreApplication::translate("Dialogs", "Color scheme name"), name);
     dlg.v->addLayout(form);
     if (!dlg.exec()) return;
     s.name = name->text().trimmed().isEmpty() ? QStringLiteral("Custom") : name->text().trimmed();
@@ -1128,9 +1129,9 @@ void fontSchemeDialog(QWidget *p, Editor *ed)
     heading->setCurrentText(s.heading);
     body->setCurrentText(s.body);
     auto *name = new QLineEdit(QCoreApplication::translate("Dialogs", "Custom 1"), &dlg.d);
-    form->addRow(QCoreApplication::translate("Dialogs", "Heading font:"), heading);
-    form->addRow(QCoreApplication::translate("Dialogs", "Body font:"), body);
-    form->addRow(QCoreApplication::translate("Dialogs", "Font scheme name:"), name);
+    form->addRow(QCoreApplication::translate("Dialogs", "Heading font"), heading);
+    form->addRow(QCoreApplication::translate("Dialogs", "Body font"), body);
+    form->addRow(QCoreApplication::translate("Dialogs", "Font scheme name"), name);
     // (the preview is two plain labels set in the fonts, since a font's name is not safe to put into markup)
     auto *sample = new QWidget(&dlg.d);
     auto *sampleLayout = new QVBoxLayout(sample);
@@ -1177,11 +1178,11 @@ void shadowDialog(QWidget *p, Editor *ed)
     angle->setSuffix(QStringLiteral("°"));
     angle->setValue(int(s.angle));
     form->addRow(on);
-    form->addRow(QCoreApplication::translate("Dialogs", "Color:"), color);
-    form->addRow(QCoreApplication::translate("Dialogs", "Transparency:"), trans);
-    form->addRow(QCoreApplication::translate("Dialogs", "Blur:"), blur);
-    form->addRow(QCoreApplication::translate("Dialogs", "Distance:"), dist);
-    form->addRow(QCoreApplication::translate("Dialogs", "Angle:"), angle);
+    form->addRow(QCoreApplication::translate("Dialogs", "Color"), color);
+    form->addRow(QCoreApplication::translate("Dialogs", "Transparency"), trans);
+    form->addRow(QCoreApplication::translate("Dialogs", "Blur"), blur);
+    form->addRow(QCoreApplication::translate("Dialogs", "Distance"), dist);
+    form->addRow(QCoreApplication::translate("Dialogs", "Angle"), angle);
     dlg.v->addLayout(form);
     if (!dlg.exec()) return;
     ed->forEachSelected(QCoreApplication::translate("Dialogs", "Shadow"), [&](Item *x) {
@@ -1207,9 +1208,9 @@ void calendarDialog(QWidget *p, Editor *ed)
     year->setValue(QDate::currentDate().year());
     auto *style = new QComboBox(&dlg.d);
     style->addItems({QCoreApplication::translate("Dialogs", "Classic grid"), QCoreApplication::translate("Dialogs", "Banded"), QCoreApplication::translate("Dialogs", "Minimal"), QCoreApplication::translate("Dialogs", "Bold header"), QCoreApplication::translate("Dialogs", "One per page (12 months)")});
-    form->addRow(QCoreApplication::translate("Dialogs", "Month:"), month);
-    form->addRow(QCoreApplication::translate("Dialogs", "Year:"), year);
-    form->addRow(QCoreApplication::translate("Dialogs", "Design:"), style);
+    form->addRow(QCoreApplication::translate("Dialogs", "Month"), month);
+    form->addRow(QCoreApplication::translate("Dialogs", "Year"), year);
+    form->addRow(QCoreApplication::translate("Dialogs", "Design"), style);
     dlg.v->addLayout(form);
     if (!dlg.exec()) return;
     const QRectF content = QRectF(QPointF(0, 0), ed->doc()->pageSize()).marginsRemoved(ed->doc()->setup.margins);
@@ -1495,9 +1496,9 @@ void optionsDialog(QWidget *p, Editor *ed)
         dragText->setChecked(st.value("edit/dragText", true).toBool());
         auto *hyphenate = new QCheckBox(QCoreApplication::translate("Dialogs", "Automatically hyphenate in new text boxes"), adv);
         hyphenate->setChecked(st.value("edit/hyphenate", true).toBool());
-        af->addRow(QCoreApplication::translate("Dialogs", "Measurement units:"), units);
-        af->addRow(QCoreApplication::translate("Dialogs", "Arrow keys nudge objects by:"), nudge);
-        af->addRow(QCoreApplication::translate("Dialogs", "Show this number of Recent Publications:"), recent);
+        af->addRow(QCoreApplication::translate("Dialogs", "Measurement units"), units);
+        af->addRow(QCoreApplication::translate("Dialogs", "Arrow keys nudge objects by"), nudge);
+        af->addRow(QCoreApplication::translate("Dialogs", "Show this number of Recent Publications"), recent);
         af->addRow(wholeWord);
         af->addRow(dragText);
         af->addRow(hyphenate);
@@ -1534,8 +1535,8 @@ void pageNumberDialog(QWidget *p, Editor *ed)
     format->addItems({"1, 2, 3", "i, ii, iii", "I, II, III", "a, b, c"});
     auto *first = new QCheckBox(QCoreApplication::translate("Dialogs", "Show page number on first page"), &dlg.d);
     first->setChecked(true);
-    form->addRow(QCoreApplication::translate("Dialogs", "Position:"), pos);
-    form->addRow(QCoreApplication::translate("Dialogs", "Number format:"), format);
+    form->addRow(QCoreApplication::translate("Dialogs", "Position"), pos);
+    form->addRow(QCoreApplication::translate("Dialogs", "Number format"), format);
     form->addRow(first);
     dlg.v->addLayout(form);
     if (!dlg.exec()) return;
@@ -1587,8 +1588,8 @@ void pageNumberFormatDialog(QWidget *p, Editor *ed)
     start->setObjectName(QStringLiteral("start"));
     start->setRange(1, 1000);   // Publisher refuses a file starting past 1000
     start->setValue(d->setup.firstPageNumber);
-    form->addRow(QCoreApplication::translate("Dialogs", "Number format:"), format);
-    form->addRow(QCoreApplication::translate("Dialogs", "Start numbering at:"), start);
+    form->addRow(QCoreApplication::translate("Dialogs", "Number format"), format);
+    form->addRow(QCoreApplication::translate("Dialogs", "Start numbering at"), start);
     dlg.v->addLayout(form);
     auto *note = new QLabel(QCoreApplication::translate("Dialogs", "This changes every page number in the publication. A page number given its own format keeps it."), &dlg.d);
     note->setWordWrap(true);
@@ -1611,21 +1612,21 @@ void documentPropertiesDialog(QWidget *p, Editor *ed, int tab)
     auto *title = new QLineEdit(pr.title), *subject = new QLineEdit(pr.subject), *author = new QLineEdit(pr.author), *manager = new QLineEdit(pr.manager);
     auto *company = new QLineEdit(pr.company), *category = new QLineEdit(pr.category), *keywords = new QLineEdit(pr.keywords);
     auto *comments = new QPlainTextEdit(pr.comments);
-    form->addRow(QCoreApplication::translate("Dialogs", "Title:"), title);
-    form->addRow(QCoreApplication::translate("Dialogs", "Subject:"), subject);
-    form->addRow(QCoreApplication::translate("Dialogs", "Author:"), author);
-    form->addRow(QCoreApplication::translate("Dialogs", "Manager:"), manager);
-    form->addRow(QCoreApplication::translate("Dialogs", "Company:"), company);
-    form->addRow(QCoreApplication::translate("Dialogs", "Category:"), category);
-    form->addRow(QCoreApplication::translate("Dialogs", "Keywords:"), keywords);
-    form->addRow(QCoreApplication::translate("Dialogs", "Comments:"), comments);
+    form->addRow(QCoreApplication::translate("Dialogs", "Title"), title);
+    form->addRow(QCoreApplication::translate("Dialogs", "Subject"), subject);
+    form->addRow(QCoreApplication::translate("Dialogs", "Author"), author);
+    form->addRow(QCoreApplication::translate("Dialogs", "Manager"), manager);
+    form->addRow(QCoreApplication::translate("Dialogs", "Company"), company);
+    form->addRow(QCoreApplication::translate("Dialogs", "Category"), category);
+    form->addRow(QCoreApplication::translate("Dialogs", "Keywords"), keywords);
+    form->addRow(QCoreApplication::translate("Dialogs", "Comments"), comments);
     tabs->addTab(sum, QCoreApplication::translate("Dialogs", "Summary"));
     auto *print = new QWidget();
     auto *pf = new QFormLayout(print);
     auto *model = new QComboBox(print);
     model->addItems({QCoreApplication::translate("Dialogs", "RGB (best for desktop printers and screens)"), QCoreApplication::translate("Dialogs", "Single color (spot)"), QCoreApplication::translate("Dialogs", "Spot colors"), QCoreApplication::translate("Dialogs", "Process colors (CMYK)"), QCoreApplication::translate("Dialogs", "Process plus spot colors")});
     model->setCurrentIndex(int(ed->doc()->print.model));
-    pf->addRow(QCoreApplication::translate("Dialogs", "Color model:"), model);
+    pf->addRow(QCoreApplication::translate("Dialogs", "Color model"), model);
     // Spot colors: inks the print shop mixes, by name and color. They show
     // in every color drop-down, and print on plates of their own.
     QVector<QColor> spotColors = ed->doc()->print.spotColors;
@@ -1655,7 +1656,7 @@ void documentPropertiesDialog(QWidget *p, Editor *ed, int tab)
     sr->addStretch(1);
     sv->addWidget(spotList);
     sv->addLayout(sr);
-    pf->addRow(QCoreApplication::translate("Dialogs", "Spot colors:"), spotBox);
+    pf->addRow(QCoreApplication::translate("Dialogs", "Spot colors"), spotBox);
     // Name and color of one spot color.
     auto askSpot = [&](QString *name, QColor *color) {
         QDialog sd(&dlg.d);
@@ -1671,11 +1672,11 @@ void documentPropertiesDialog(QWidget *p, Editor *ed, int tab)
             const QColor got = colorsDialog(&sd, chosen, QCoreApplication::translate("Dialogs", "Spot Color"));
             if (got.isValid()) { chosen = got; paintBtn(); }
         });
-        auto *bb = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &sd);
+        auto *bb = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &sd);
         QObject::connect(bb, &QDialogButtonBox::accepted, &sd, &QDialog::accept);
         QObject::connect(bb, &QDialogButtonBox::rejected, &sd, &QDialog::reject);
-        f->addRow(QCoreApplication::translate("Dialogs", "Name:"), n);
-        f->addRow(QCoreApplication::translate("Dialogs", "Color:"), c);
+        f->addRow(QCoreApplication::translate("Dialogs", "Name"), n);
+        f->addRow(QCoreApplication::translate("Dialogs", "Color"), c);
         f->addRow(bb);
         if (sd.exec() != QDialog::Accepted) return false;
         *name = n->text().trimmed();
@@ -1712,7 +1713,7 @@ void documentPropertiesDialog(QWidget *p, Editor *ed, int tab)
     // Black overprinting in files for a printer (PDF/X): black prints over
     // the inks under it, so a shifted plate leaves no white edge.
     const OverprintSettings op0 = ed->doc()->print.overprint;
-    auto *opBox = new QGroupBox(QCoreApplication::translate("Dialogs", "Overprint black in files for a printer (PDF/X)"), print);
+    auto *opBox = new jp::Section(QCoreApplication::translate("Dialogs", "Overprint black in files for a printer (PDF/X)"), print);
     auto *og = new QGridLayout(opBox);
     auto *opText = new QCheckBox(QCoreApplication::translate("Dialogs", "Text below:"), opBox);
     auto *opSize = new QDoubleSpinBox(opBox);
@@ -1740,7 +1741,7 @@ void documentPropertiesDialog(QWidget *p, Editor *ed, int tab)
     og->addWidget(opSize, 0, 1);
     og->addWidget(opLines, 1, 0);
     og->addWidget(opFills, 2, 0);
-    og->addWidget(new QLabel(QCoreApplication::translate("Dialogs", "Black counts from:"), opBox), 3, 0);
+    og->addWidget(new QLabel(QCoreApplication::translate("Dialogs", "Black counts from"), opBox), 3, 0);
     og->addWidget(opThreshold, 3, 1);
     og->addWidget(opReset, 4, 0);
     og->setColumnStretch(2, 1);
@@ -1792,15 +1793,15 @@ void measurementWindow(QWidget *p, Editor *ed)
     auto *line = new DecimalSpin(win);
     line->setRange(0.1, 20);
     line->setSuffix(QStringLiteral(" sp"));
-    form->addRow(QCoreApplication::translate("Dialogs", "Horizontal position:"), x);
-    form->addRow(QCoreApplication::translate("Dialogs", "Vertical position:"), y);
-    form->addRow(QCoreApplication::translate("Dialogs", "Width:"), w);
-    form->addRow(QCoreApplication::translate("Dialogs", "Height:"), h);
-    form->addRow(QCoreApplication::translate("Dialogs", "Rotation:"), rot);
-    form->addRow(QCoreApplication::translate("Dialogs", "Tracking:"), track);
-    form->addRow(QCoreApplication::translate("Dialogs", "Text scaling:"), scale);
-    form->addRow(QCoreApplication::translate("Dialogs", "Kerning:"), kern);
-    form->addRow(QCoreApplication::translate("Dialogs", "Line spacing:"), line);
+    form->addRow(QCoreApplication::translate("Dialogs", "Horizontal position"), x);
+    form->addRow(QCoreApplication::translate("Dialogs", "Vertical position"), y);
+    form->addRow(QCoreApplication::translate("Dialogs", "Width"), w);
+    form->addRow(QCoreApplication::translate("Dialogs", "Height"), h);
+    form->addRow(QCoreApplication::translate("Dialogs", "Rotation"), rot);
+    form->addRow(QCoreApplication::translate("Dialogs", "Tracking"), track);
+    form->addRow(QCoreApplication::translate("Dialogs", "Text scaling"), scale);
+    form->addRow(QCoreApplication::translate("Dialogs", "Kerning"), kern);
+    form->addRow(QCoreApplication::translate("Dialogs", "Line spacing"), line);
     auto refresh = [=] {
         Item *it = ed->single();
         const bool on = it && it->type() != ItemType::Line && it->type() != ItemType::Group;
@@ -1882,7 +1883,7 @@ void hyphenationDialog(QWidget *p, Editor *ed)
     zone->setToolTip(QCoreApplication::translate("Dialogs", "A word is broken only if moving it whole to the next line would leave more space than this."));
     auto *form = new QFormLayout();
     form->addRow(autoH);
-    form->addRow(QCoreApplication::translate("Dialogs", "Hyphenation zone:"), zone);
+    form->addRow(QCoreApplication::translate("Dialogs", "Hyphenation zone"), zone);
     dlg.v->addLayout(form);
     auto *manual = dlg.bb->addButton(QCoreApplication::translate("Dialogs", "Insert Optional Hyphen"), QDialogButtonBox::ActionRole);
     manual->setEnabled(ed->isEditingText());

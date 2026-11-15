@@ -1,6 +1,7 @@
 // Make an Email: the presentation, or the presentation as a PDF, in a message file for an email program. The message is written by libs/shell/app/emailops.cpp.
 
 #include "app/deckwindow.h"
+#include "app/uistyle.h"
 
 #include "app/editor.h"
 #include "app/emailops.h"
@@ -119,7 +120,7 @@ bool DeckWindow::exportEmailAsk(const PdfProtection &fromPage)
     auto syncProtect = [what, protect] { protect->setEnabled(what->currentData().toInt() == int(EmailWhat::Pdf)); };
     connect(what, &QComboBox::currentIndexChanged, &dialog, syncProtect);
     syncProtect();
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
     connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
     layout->addWidget(buttons);

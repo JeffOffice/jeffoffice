@@ -1,4 +1,5 @@
 #include "app/deckdialogs.h"
+#include "app/uistyle.h"
 
 #include "app/widgets.h"
 #include "office/hyperlink.h"
@@ -21,7 +22,7 @@ namespace {
 // The row of buttons that end the Apply and Apply to All dialogs.
 QDialogButtonBox *applyButtons(QDialog *dlg, bool *all)
 {
-    auto *box = new QDialogButtonBox(dlg);
+    auto *box = new jp::ButtonBox(dlg);
     QPushButton *apply = box->addButton(QCoreApplication::translate("DeckDialogs", "Apply"), QDialogButtonBox::AcceptRole);
     QPushButton *applyAll = box->addButton(QCoreApplication::translate("DeckDialogs", "Apply to All"), QDialogButtonBox::AcceptRole);
     box->addButton(QDialogButtonBox::Cancel);
@@ -98,7 +99,7 @@ PrintHeaderFooterDialog::PrintHeaderFooterDialog(const deck::PrintHeaderFooter &
     m_number->setObjectName(QStringLiteral("hfPageNumber"));
     m_number->setChecked(start.pageNumber);
     lay->addWidget(m_number);
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
     connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
     lay->addWidget(buttons);
@@ -204,8 +205,8 @@ LinkDialog::LinkDialog(const QString &current, int slides, const QVector<QPair<i
         m_place->addItem(tr("Custom show, then back: %1").arg(show.second), office::customShowLink(show.first, true));
     }
     m_place->addItem(tr("End show"), QStringLiteral("#end"));
-    form->addRow(tr("Link to:"), m_kind);
-    m_displayLabel = new QLabel(tr("Text to display:"), this);
+    form->addRow(tr("Link to"), m_kind);
+    m_displayLabel = new QLabel(tr("Text to display"), this);
     form->addRow(m_displayLabel, m_display);
     auto *addressRow = new QWidget(this);
     auto *addressLay = new QHBoxLayout(addressRow);
@@ -213,9 +214,9 @@ LinkDialog::LinkDialog(const QString &current, int slides, const QVector<QPair<i
     addressLay->addWidget(m_address);
     auto *browse = new QPushButton(tr("Browse…"), addressRow);
     addressLay->addWidget(browse);
-    form->addRow(tr("Address:"), addressRow);
+    form->addRow(tr("Address"), addressRow);
     if (auto *label = qobject_cast<QLabel *>(form->labelForField(addressRow))) label->setBuddy(m_address);
-    form->addRow(tr("Place:"), m_place);
+    form->addRow(tr("Place"), m_place);
     lay->addLayout(form);
     setDisplayShown(QString(), false);
     const office::LinkTarget now = office::parseLink(current);
@@ -247,7 +248,7 @@ LinkDialog::LinkDialog(const QString &current, int slides, const QVector<QPair<i
         const QString path = QFileDialog::getOpenFileName(this, tr("Link to File"));
         if (!path.isEmpty()) m_address->setText(path);
     });
-    auto *box = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+    auto *box = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
     auto *remove = box->addButton(tr("Remove Link"), QDialogButtonBox::ResetRole);
     connect(remove, &QPushButton::clicked, this, [this] {
         m_removed = true;
@@ -311,13 +312,13 @@ SlideSizeDialog::SlideSizeDialog(const QSizeF &current, bool notesPortrait, QWid
     m_landscape->setObjectName(QStringLiteral("slideLandscape"));
     m_portrait = new QRadioButton(tr("Portrait"), this);
     m_portrait->setObjectName(QStringLiteral("slidePortrait"));
-    form->addRow(tr("Slides sized for:"), m_preset);
-    form->addRow(tr("Width:"), m_width);
-    form->addRow(tr("Height:"), m_height);
+    form->addRow(tr("Slides sized for"), m_preset);
+    form->addRow(tr("Width"), m_width);
+    form->addRow(tr("Height"), m_height);
     auto *orient = new QHBoxLayout();
     orient->addWidget(m_landscape);
     orient->addWidget(m_portrait);
-    form->addRow(tr("Orientation:"), orient);
+    form->addRow(tr("Orientation"), orient);
     m_notesPortrait = new QRadioButton(tr("Portrait"), this);
     m_notesPortrait->setObjectName(QStringLiteral("notesPortrait"));
     m_notesLandscape = new QRadioButton(tr("Landscape"), this);
@@ -326,7 +327,7 @@ SlideSizeDialog::SlideSizeDialog(const QSizeF &current, bool notesPortrait, QWid
     auto *notes = new QHBoxLayout();
     notes->addWidget(m_notesPortrait);
     notes->addWidget(m_notesLandscape);
-    form->addRow(tr("Notes pages:"), notes);
+    form->addRow(tr("Notes pages"), notes);
     // Each pair is a choice of its own.
     auto *slidesGroup = new QButtonGroup(this);
     slidesGroup->addButton(m_landscape);
@@ -355,7 +356,7 @@ SlideSizeDialog::SlideSizeDialog(const QSizeF &current, bool notesPortrait, QWid
     };
     connect(m_width, &QDoubleSpinBox::editingFinished, this, custom);
     connect(m_height, &QDoubleSpinBox::editingFinished, this, custom);
-    auto *box = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+    auto *box = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
     connect(box, &QDialogButtonBox::accepted, this, &QDialog::accept);
     connect(box, &QDialogButtonBox::rejected, this, &QDialog::reject);
     lay->addWidget(box);
@@ -404,10 +405,10 @@ TableSizeDialog::TableSizeDialog(QWidget *parent) : QDialog(parent)
     m_rows = new QSpinBox();
     m_rows->setRange(1, 100);
     m_rows->setValue(2);
-    form->addRow(tr("Number of &columns:"), m_cols);
-    form->addRow(tr("Number of &rows:"), m_rows);
+    form->addRow(tr("Number of &columns"), m_cols);
+    form->addRow(tr("Number of &rows"), m_rows);
     lay->addLayout(form);
-    auto *box = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+    auto *box = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
     connect(box, &QDialogButtonBox::accepted, this, &QDialog::accept);
     connect(box, &QDialogButtonBox::rejected, this, &QDialog::reject);
     lay->addWidget(box);

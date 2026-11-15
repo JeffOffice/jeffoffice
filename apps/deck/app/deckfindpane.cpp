@@ -21,13 +21,13 @@ DeckFindPane::DeckFindPane(DeckWindow *win, QWidget *parent) : QWidget(parent), 
     auto *v = new QVBoxLayout(this);
     v->setContentsMargins(6, 6, 6, 6);
     // Each label names its box for screen readers (its buddy).
-    auto *findLabel = new QLabel(tr("Find what:"), this);
+    auto *findLabel = new QLabel(tr("Find what"), this);
     v->addWidget(findLabel);
     m_find = new QLineEdit(this);
     m_find->setObjectName(QStringLiteral("findWhat"));
     findLabel->setBuddy(m_find);
     v->addWidget(m_find);
-    auto *replaceLabel = new QLabel(tr("Replace with:"), this);
+    auto *replaceLabel = new QLabel(tr("Replace with"), this);
     v->addWidget(replaceLabel);
     m_replace = new QLineEdit(this);
     m_replace->setObjectName(QStringLiteral("replaceWith"));

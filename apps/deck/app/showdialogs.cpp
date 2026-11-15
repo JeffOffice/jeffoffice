@@ -1,4 +1,5 @@
 #include "app/showdialogs.h"
+#include "app/uistyle.h"
 
 #include "app/appwindow.h"
 #include "app/help.h"
@@ -101,7 +102,7 @@ SetUpShowDialog::SetUpShowDialog(const deck::ShowSettings &s, const QVector<deck
         return r;
     };
 
-    auto *typeBox = new QGroupBox(tr("Show type"));
+    auto *typeBox = new jp::Section(tr("Show type"));
     auto *typeLay = new QVBoxLayout(typeBox);
     m_speaker = radio(typeBox, QStringLiteral("typeSpeaker"), tr("Presented by a speaker (full screen)"));
     m_individual = radio(typeBox, QStringLiteral("typeIndividual"), tr("Browsed by an individual (window)"));
@@ -111,7 +112,7 @@ SetUpShowDialog::SetUpShowDialog(const deck::ShowSettings &s, const QVector<deck
     typeLay->addWidget(m_kiosk);
     grid->addWidget(typeBox, 0, 0);
 
-    auto *optionsBox = new QGroupBox(tr("Show options"));
+    auto *optionsBox = new jp::Section(tr("Show options"));
     auto *optionsLay = new QVBoxLayout(optionsBox);
     m_loop = new QCheckBox(tr("Loop continuously until 'Esc'"));
     m_loop->setObjectName(QStringLiteral("loop"));
@@ -137,12 +138,12 @@ SetUpShowDialog::SetUpShowDialog(const deck::ShowSettings &s, const QVector<deck
     }
     m_laser->setCurrentIndex(laserAt);
     fillPen(m_pen);
-    colors->addRow(tr("Pen color:"), m_penBox);
-    colors->addRow(tr("Laser pointer color:"), m_laser);
+    colors->addRow(tr("Pen color"), m_penBox);
+    colors->addRow(tr("Laser pointer color"), m_laser);
     optionsLay->addLayout(colors);
     grid->addWidget(optionsBox, 0, 1);
 
-    auto *slidesBox = new QGroupBox(tr("Show slides"));
+    auto *slidesBox = new jp::Section(tr("Show slides"));
     auto *slidesLay = new QGridLayout(slidesBox);
     m_all = radio(slidesBox, QStringLiteral("slidesAll"), tr("All"));
     m_range = radio(slidesBox, QStringLiteral("slidesRange"), tr("From:"));
@@ -162,14 +163,14 @@ SetUpShowDialog::SetUpShowDialog(const deck::ShowSettings &s, const QVector<deck
     slidesLay->addWidget(m_all, 0, 0, 1, 4);
     slidesLay->addWidget(m_range, 1, 0);
     slidesLay->addWidget(m_from, 1, 1);
-    slidesLay->addWidget(new QLabel(tr("To:")), 1, 2);
+    slidesLay->addWidget(new QLabel(tr("To")), 1, 2);
     slidesLay->addWidget(m_to, 1, 3);
     slidesLay->addWidget(m_custom, 2, 0);
     slidesLay->addWidget(m_shows, 2, 1, 1, 3);
     slidesLay->setColumnStretch(3, 1);
     grid->addWidget(slidesBox, 1, 0);
 
-    auto *advanceBox = new QGroupBox(tr("Advance slides"));
+    auto *advanceBox = new jp::Section(tr("Advance slides"));
     auto *advanceLay = new QVBoxLayout(advanceBox);
     m_manual = radio(advanceBox, QStringLiteral("advanceManual"), tr("Manually"));
     m_timings = radio(advanceBox, QStringLiteral("advanceTimings"), tr("Using timings, if present"));
@@ -178,7 +179,7 @@ SetUpShowDialog::SetUpShowDialog(const deck::ShowSettings &s, const QVector<deck
     advanceLay->addStretch(1);
     grid->addWidget(advanceBox, 1, 1);
 
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
     connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
     lay->addWidget(buttons);
@@ -307,7 +308,7 @@ CustomShowEditDialog::CustomShowEditDialog(const Document &doc, const QVector<de
     }
     auto *lay = new QVBoxLayout(this);
     auto *nameRow = new QHBoxLayout();
-    nameRow->addWidget(new QLabel(tr("Slide show name:")));
+    nameRow->addWidget(new QLabel(tr("Slide show name")));
     m_name = new QLineEdit(m_show.name);
     m_name->setObjectName(QStringLiteral("showName"));
     m_name->setAccessibleName(tr("Slide show name"));
@@ -317,7 +318,7 @@ CustomShowEditDialog::CustomShowEditDialog(const Document &doc, const QVector<de
 
     auto *lists = new QHBoxLayout();
     auto *left = new QVBoxLayout();
-    left->addWidget(new QLabel(tr("Slides in presentation:")));
+    left->addWidget(new QLabel(tr("Slides in presentation")));
     m_presentation = new QListWidget();
     m_presentation->setObjectName(QStringLiteral("slidesInPresentation"));
     m_presentation->setAccessibleName(tr("Slides in presentation"));
@@ -341,7 +342,7 @@ CustomShowEditDialog::CustomShowEditDialog(const Document &doc, const QVector<de
     lists->addLayout(middle);
 
     auto *right = new QVBoxLayout();
-    right->addWidget(new QLabel(tr("Slides in custom show:")));
+    right->addWidget(new QLabel(tr("Slides in custom show")));
     m_mine = new QListWidget();
     m_mine->setObjectName(QStringLiteral("slidesInShow"));
     m_mine->setAccessibleName(tr("Slides in custom show"));
@@ -375,7 +376,7 @@ CustomShowEditDialog::CustomShowEditDialog(const Document &doc, const QVector<de
     lists->addLayout(order);
     lay->addLayout(lists, 1);
 
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
     m_ok = buttons->button(QDialogButtonBox::Ok);
     connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
@@ -456,7 +457,7 @@ CustomShowsDialog::CustomShowsDialog(const Document &doc, const QVector<deck::Cu
     setWindowTitle(tr("Custom Shows"));
     setObjectName(QStringLiteral("customShowsDialog"));
     auto *lay = new QVBoxLayout(this);
-    lay->addWidget(new QLabel(tr("Custom shows:")));
+    lay->addWidget(new QLabel(tr("Custom shows")));
     auto *row = new QHBoxLayout();
     m_list = new QListWidget();
     m_list->setObjectName(QStringLiteral("customShowList"));

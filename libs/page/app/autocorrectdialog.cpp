@@ -68,7 +68,7 @@ AutoCorrectPage::AutoCorrectPage(const QString &language, QWidget *parent) : QWi
     auto *outer = new QVBoxLayout(this);
     outer->setContentsMargins(0, 0, 0, 0);
     auto *top = new QHBoxLayout();
-    auto *languageLabel = new QLabel(QCoreApplication::translate("AutoCorrectDialog", "Language:"), this);
+    auto *languageLabel = new QLabel(QCoreApplication::translate("AutoCorrectDialog", "Language"), this);
     m_languages = new QComboBox(this);
     m_languages->setObjectName(QStringLiteral("autoCorrectLanguage"));
     languageLabel->setBuddy(m_languages);

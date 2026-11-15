@@ -77,7 +77,7 @@ bool grammarSettingsDialog(QWidget *p, quint32 *chosen)
     };
     Dlg dlg(p, QCoreApplication::translate("Dialogs", "Grammar Settings"));
     dlg.d.setObjectName(QStringLiteral("grammarSettingsDialog"));
-    auto *intro = new QLabel(QCoreApplication::translate("Dialogs", "Look for these kinds of issues:"), &dlg.d);
+    auto *intro = new QLabel(QCoreApplication::translate("Dialogs", "Look for these kinds of issues"), &dlg.d);
     dlg.v->addWidget(intro);
     const quint32 now = chosen ? *chosen : grammarKinds();
     QVector<QCheckBox *> boxes;
@@ -117,9 +117,9 @@ bool optionsDialog(QWidget *p, Editor *, const QVector<OptionsPage> &appPages, b
     theme->addItems({QCoreApplication::translate("Dialogs", "Use system setting"), QCoreApplication::translate("Dialogs", "Light"), QCoreApplication::translate("Dialogs", "Dark")});
     const int oldTheme = st.value("ui/theme", 0).toInt();
     theme->setCurrentIndex(oldTheme);
-    gf->addRow(QCoreApplication::translate("Dialogs", "User name:"), name);
-    gf->addRow(QCoreApplication::translate("Dialogs", "Initials:"), initials);
-    gf->addRow(QCoreApplication::translate("Dialogs", "Theme:"), theme);
+    gf->addRow(QCoreApplication::translate("Dialogs", "User name"), name);
+    gf->addRow(QCoreApplication::translate("Dialogs", "Initials"), initials);
+    gf->addRow(QCoreApplication::translate("Dialogs", "Theme"), theme);
     // Every app keeps the file as it was before a save writes over it, when asked to.
     auto *backup = new QCheckBox(QCoreApplication::translate("Dialogs", "Always create backup copy"), gen);
     backup->setObjectName(QStringLiteral("backupCopy"));
@@ -138,7 +138,7 @@ bool optionsDialog(QWidget *p, Editor *, const QVector<OptionsPage> &appPages, b
         if (!l.startsWith(QLatin1String("en_"))) uiLang->addItem(uiLanguageName(l), l);
     const QString oldLang = st.value("ui/language").toString();
     uiLang->setCurrentIndex(std::max(0, uiLang->findData(oldLang)));
-    gf->addRow(QCoreApplication::translate("Dialogs", "Display language:"), uiLang);
+    gf->addRow(QCoreApplication::translate("Dialogs", "Display language"), uiLang);
     // The choice the first start offered, which its message says is here,
     // and the update check: only in an app that sends and checks (the
     // choices are the suite's, the same in each app's Options).

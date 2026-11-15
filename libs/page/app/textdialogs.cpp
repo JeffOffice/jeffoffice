@@ -148,15 +148,15 @@ void fontDialog(QWidget *p, Editor *ed)
             pick = i;
         }
     underline->setCurrentIndex(std::max(0, pick));
-    grid->addWidget(new QLabel(QCoreApplication::translate("Dialogs", "Font:")), 0, 0);
+    grid->addWidget(new QLabel(QCoreApplication::translate("Dialogs", "Font")), 0, 0);
     grid->addWidget(font, 1, 0);
-    grid->addWidget(new QLabel(QCoreApplication::translate("Dialogs", "Font style:")), 0, 1);
+    grid->addWidget(new QLabel(QCoreApplication::translate("Dialogs", "Font style")), 0, 1);
     grid->addWidget(style, 1, 1);
-    grid->addWidget(new QLabel(QCoreApplication::translate("Dialogs", "Size:")), 0, 2);
+    grid->addWidget(new QLabel(QCoreApplication::translate("Dialogs", "Size")), 0, 2);
     grid->addWidget(size, 1, 2);
-    grid->addWidget(new QLabel(QCoreApplication::translate("Dialogs", "Underline:")), 2, 0);
+    grid->addWidget(new QLabel(QCoreApplication::translate("Dialogs", "Underline")), 2, 0);
     grid->addWidget(underline, 3, 0);
-    grid->addWidget(new QLabel(QCoreApplication::translate("Dialogs", "Color:")), 2, 1);
+    grid->addWidget(new QLabel(QCoreApplication::translate("Dialogs", "Color")), 2, 1);
     grid->addWidget(color, 3, 1);
     dlg.v->addLayout(grid);
     auto *effects = new jp::Section(QCoreApplication::translate("Dialogs", "Effects"), &dlg.d);
@@ -253,17 +253,17 @@ void paragraphDialog(QWidget *p, Editor *ed, int tab)
     auto *direction = new QComboBox(t1);
     direction->addItems({QCoreApplication::translate("Dialogs", "Left to right"), QCoreApplication::translate("Dialogs", "Right to left")});
     direction->setCurrentIndex(bf.layoutDirection() == Qt::RightToLeft ? 1 : 0);
-    f1->addRow(QCoreApplication::translate("Dialogs", "Alignment:"), align);
-    f1->addRow(QCoreApplication::translate("Dialogs", "Direction:"), direction);
-    f1->addRow(QCoreApplication::translate("Dialogs", "Left indent:"), left);
-    f1->addRow(QCoreApplication::translate("Dialogs", "First line indent:"), first);
-    f1->addRow(QCoreApplication::translate("Dialogs", "Right indent:"), right);
-    f1->addRow(QCoreApplication::translate("Dialogs", "Space before:"), before);
-    f1->addRow(QCoreApplication::translate("Dialogs", "Space after:"), after);
+    f1->addRow(QCoreApplication::translate("Dialogs", "Alignment"), align);
+    f1->addRow(QCoreApplication::translate("Dialogs", "Direction"), direction);
+    f1->addRow(QCoreApplication::translate("Dialogs", "Left indent"), left);
+    f1->addRow(QCoreApplication::translate("Dialogs", "First line indent"), first);
+    f1->addRow(QCoreApplication::translate("Dialogs", "Right indent"), right);
+    f1->addRow(QCoreApplication::translate("Dialogs", "Space before"), before);
+    f1->addRow(QCoreApplication::translate("Dialogs", "Space after"), after);
     auto *lrow = new QHBoxLayout();
     lrow->addWidget(lineType);
     lrow->addWidget(lineVal);
-    f1->addRow(QCoreApplication::translate("Dialogs", "Line spacing:"), lrow);
+    f1->addRow(QCoreApplication::translate("Dialogs", "Line spacing"), lrow);
     f1->addRow(baseline);
     tabs->addTab(t1, QCoreApplication::translate("Dialogs", "Indents and Spacing"));
     auto *t2 = new QWidget();
@@ -324,7 +324,7 @@ void paragraphDialog(QWidget *p, Editor *ed, int tab)
     defaultTab->setObjectName(QStringLiteral("defaultTabStop"));
     defaultTab->setAccessibleName(QCoreApplication::translate("Dialogs", "Default tab stops"));
     auto *defaultRow = new QFormLayout();
-    defaultRow->addRow(QCoreApplication::translate("Dialogs", "Default tab stops:"), defaultTab);
+    defaultRow->addRow(QCoreApplication::translate("Dialogs", "Default tab stops"), defaultTab);
     f3->addLayout(defaultRow);
     tabs->addTab(t3, QCoreApplication::translate("Dialogs", "Tabs"));
     tabs->setCurrentIndex(std::clamp(tab, 0, 2));
@@ -429,8 +429,8 @@ void bulletsDialog(QWidget *p, Editor *ed, bool numbering)
     format->addItems({"1. 2. 3.", "a. b. c.", "A. B. C.", "i. ii. iii.", "I. II. III.", "1) 2) 3)", "(1) (2) (3)"});
     auto *start = new QSpinBox(nw);
     start->setRange(1, 9999);
-    nf->addRow(QCoreApplication::translate("Dialogs", "Format:"), format);
-    nf->addRow(QCoreApplication::translate("Dialogs", "Start at:"), start);
+    nf->addRow(QCoreApplication::translate("Dialogs", "Format"), format);
+    nf->addRow(QCoreApplication::translate("Dialogs", "Start at"), start);
     tabs->addTab(nw, QCoreApplication::translate("Dialogs", "Numbering"));
     if (numbering) tabs->setCurrentIndex(1);
     dlg.v->addWidget(tabs);
@@ -440,7 +440,7 @@ void bulletsDialog(QWidget *p, Editor *ed, bool numbering)
     auto *indent = measure(bf.textIndent() < 0 ? -bf.textIndent() : 18, &dlg.d);
     indent->setObjectName(QStringLiteral("indent"));
     auto *indentRow = new QFormLayout();
-    indentRow->addRow(QCoreApplication::translate("Dialogs", "Indent list by:"), indent);
+    indentRow->addRow(QCoreApplication::translate("Dialogs", "Indent list by"), indent);
     dlg.v->addLayout(indentRow);
     if (!dlg.exec()) return;
     if (tabs->currentIndex() == 0) ed->setList(1, 0, customChar.isEmpty() ? chars[group->checkedId()] : customChar, 1, indent->value());
@@ -499,18 +499,18 @@ void characterSpacingDialog(QWidget *p, Editor *ed)
     kernFrom->setEnabled(kern->isChecked());
     QObject::connect(kern, &QCheckBox::toggled, kernFrom, &QWidget::setEnabled);
     auto *word = points(cf.fontWordSpacing(), &dlg.d, -50, 200);
-    form->addRow(QCoreApplication::translate("Dialogs", "Scaling (shrink or stretch):"), scale);
+    form->addRow(QCoreApplication::translate("Dialogs", "Scaling (shrink or stretch)"), scale);
     auto *trackRow = new QHBoxLayout();
     trackRow->addWidget(trackKind);
-    trackRow->addWidget(new QLabel(QCoreApplication::translate("Dialogs", "By this amount:"), &dlg.d));
+    trackRow->addWidget(new QLabel(QCoreApplication::translate("Dialogs", "By this amount"), &dlg.d));
     trackRow->addWidget(track);
-    form->addRow(QCoreApplication::translate("Dialogs", "Tracking (selected text):"), trackRow);
+    form->addRow(QCoreApplication::translate("Dialogs", "Tracking (selected text)"), trackRow);
     auto *kernByRow = new QHBoxLayout();
     kernByRow->addWidget(kernKind);
-    kernByRow->addWidget(new QLabel(QCoreApplication::translate("Dialogs", "By this amount:"), &dlg.d));
+    kernByRow->addWidget(new QLabel(QCoreApplication::translate("Dialogs", "By this amount"), &dlg.d));
     kernByRow->addWidget(kernBy);
-    form->addRow(QCoreApplication::translate("Dialogs", "Kerning (selected letters):"), kernByRow);
-    form->addRow(QCoreApplication::translate("Dialogs", "Word spacing:"), word);
+    form->addRow(QCoreApplication::translate("Dialogs", "Kerning (selected letters)"), kernByRow);
+    form->addRow(QCoreApplication::translate("Dialogs", "Word spacing"), word);
     auto *kernRow = new QHBoxLayout();
     kernRow->addWidget(kern);
     kernRow->addWidget(kernFrom);
@@ -555,9 +555,9 @@ void insertTableDialog(QWidget *p, Editor *ed)
     fmt->addItem(QCoreApplication::translate("Dialogs", "Numbers 1"), QStringLiteral("Numbers 1"));
     fmt->addItem(QCoreApplication::translate("Dialogs", "Numbers 2"), QStringLiteral("Numbers 2"));
     fmt->setCurrentIndex(1);
-    form->addRow(QCoreApplication::translate("Dialogs", "Number of rows:"), rows);
-    form->addRow(QCoreApplication::translate("Dialogs", "Number of columns:"), cols);
-    form->addRow(QCoreApplication::translate("Dialogs", "Table format:"), fmt);
+    form->addRow(QCoreApplication::translate("Dialogs", "Number of rows"), rows);
+    form->addRow(QCoreApplication::translate("Dialogs", "Number of columns"), cols);
+    form->addRow(QCoreApplication::translate("Dialogs", "Table format"), fmt);
     dlg.v->addLayout(form);
     if (!dlg.exec()) return;
     const QSizeF ps = ed->doc()->pageSize();
@@ -658,9 +658,9 @@ void symbolDialog(QWidget *p, const std::function<bool(QWidget *, const QString 
                                                             {QCoreApplication::translate("Dialogs", "Geometric Shapes"), {0x25A0, 0x25FF}}, {QCoreApplication::translate("Dialogs", "Miscellaneous Symbols"), {0x2600, 0x26FF}}, {QCoreApplication::translate("Dialogs", "Dingbats"), {0x2700, 0x27BF}}};
     for (const auto &r : ranges) subset->addItem(r.first);
     auto *top = new QHBoxLayout();
-    top->addWidget(new QLabel(QCoreApplication::translate("Dialogs", "Font:")));
+    top->addWidget(new QLabel(QCoreApplication::translate("Dialogs", "Font")));
     top->addWidget(font, 1);
-    top->addWidget(new QLabel(QCoreApplication::translate("Dialogs", "Subset:")));
+    top->addWidget(new QLabel(QCoreApplication::translate("Dialogs", "Subset")));
     top->addWidget(subset, 1);
     // (with Special Characters the symbols are the first tab; without, the box is what it was)
     QVBoxLayout *host = dlg.v;
@@ -802,7 +802,7 @@ void symbolDialog(QWidget *p, const std::function<bool(QWidget *, const QString 
             ask.setObjectName(QStringLiteral("symbolKeyDialog"));
             ask.setWindowTitle(QCoreApplication::translate("Dialogs", "Shortcut Key"));
             auto *v = new QVBoxLayout(&ask);
-            v->addWidget(plainLabel(new QLabel(QCoreApplication::translate("Dialogs", "Press the keys for inserting %1 (leave it empty to take the key off):").arg(c.first), &ask)));
+            v->addWidget(plainLabel(new QLabel(QCoreApplication::translate("Dialogs", "Press the keys for inserting %1 (leave it empty to take the key off)").arg(c.first), &ask)));
             auto *edit = new QKeySequenceEdit(&ask);
             edit->setObjectName(QStringLiteral("symbolKey"));
             edit->setMaximumSequenceLength(1);
@@ -824,7 +824,7 @@ void symbolDialog(QWidget *p, const std::function<bool(QWidget *, const QString 
         });
     }
     host->addWidget(grid, 1);
-    host->addWidget(new QLabel(QCoreApplication::translate("Dialogs", "Recently used symbols:"), &dlg.d));
+    host->addWidget(new QLabel(QCoreApplication::translate("Dialogs", "Recently used symbols"), &dlg.d));
     host->addWidget(recent);
     host->addWidget(code);
     if (keyLabel) dlg.v->addWidget(keyLabel);
@@ -872,10 +872,10 @@ void hyperlinkDialog(QWidget *p, Editor *ed)
     auto *pages = new QComboBox(&dlg.d);
     for (int i = 0; i < ed->doc()->pages.size(); ++i) pages->addItem(QCoreApplication::translate("Dialogs", "Page %1").arg(i + 1));
     auto *form = new QFormLayout();
-    form->addRow(QCoreApplication::translate("Dialogs", "Link to:"), kind);
-    form->addRow(QCoreApplication::translate("Dialogs", "Text to display:"), display);
-    form->addRow(QCoreApplication::translate("Dialogs", "Address:"), addr);
-    form->addRow(QCoreApplication::translate("Dialogs", "Page:"), pages);
+    form->addRow(QCoreApplication::translate("Dialogs", "Link to"), kind);
+    form->addRow(QCoreApplication::translate("Dialogs", "Text to display"), display);
+    form->addRow(QCoreApplication::translate("Dialogs", "Address"), addr);
+    form->addRow(QCoreApplication::translate("Dialogs", "Page"), pages);
     pages->setEnabled(false);
     QObject::connect(kind, &QComboBox::currentIndexChanged, &dlg.d, [=](int i) {
         pages->setEnabled(i == 1);
@@ -981,12 +981,12 @@ bool fillEffectsDialog(QWidget *p, Editor *ed, Fill &fill, const QString &title)
     angle->setValue(int(f.angle));
     auto *preset = new QComboBox(g);
     preset->addItems({QCoreApplication::translate("Dialogs", "Early Sunset"), QCoreApplication::translate("Dialogs", "Late Sunset"), QCoreApplication::translate("Dialogs", "Nightfall"), QCoreApplication::translate("Dialogs", "Daybreak"), QCoreApplication::translate("Dialogs", "Horizon"), QCoreApplication::translate("Dialogs", "Desert"), QCoreApplication::translate("Dialogs", "Ocean"), QCoreApplication::translate("Dialogs", "Calm Water"), QCoreApplication::translate("Dialogs", "Fire"), QCoreApplication::translate("Dialogs", "Fog"), QCoreApplication::translate("Dialogs", "Moss"), QCoreApplication::translate("Dialogs", "Peacock"), QCoreApplication::translate("Dialogs", "Wheat"), QCoreApplication::translate("Dialogs", "Parchment"), QCoreApplication::translate("Dialogs", "Mahogany"), QCoreApplication::translate("Dialogs", "Rainbow"), QCoreApplication::translate("Dialogs", "Gold"), QCoreApplication::translate("Dialogs", "Silver"), QCoreApplication::translate("Dialogs", "Chrome"), QCoreApplication::translate("Dialogs", "Brass")});
-    gf->addRow(QCoreApplication::translate("Dialogs", "Colors:"), oneTwo);
-    gf->addRow(QCoreApplication::translate("Dialogs", "Color 1:"), c1);
-    gf->addRow(QCoreApplication::translate("Dialogs", "Color 2:"), c2);
-    gf->addRow(QCoreApplication::translate("Dialogs", "Preset:"), preset);
-    gf->addRow(QCoreApplication::translate("Dialogs", "Shading style:"), gstyle);
-    gf->addRow(QCoreApplication::translate("Dialogs", "Angle:"), angle);
+    gf->addRow(QCoreApplication::translate("Dialogs", "Colors"), oneTwo);
+    gf->addRow(QCoreApplication::translate("Dialogs", "Color 1"), c1);
+    gf->addRow(QCoreApplication::translate("Dialogs", "Color 2"), c2);
+    gf->addRow(QCoreApplication::translate("Dialogs", "Preset"), preset);
+    gf->addRow(QCoreApplication::translate("Dialogs", "Shading style"), gstyle);
+    gf->addRow(QCoreApplication::translate("Dialogs", "Angle"), angle);
     tabs->addTab(g, QCoreApplication::translate("Dialogs", "Gradient"));
     // Texture / picture.
     auto *t = new QWidget();
@@ -1023,7 +1023,7 @@ bool fillEffectsDialog(QWidget *p, Editor *ed, Fill &fill, const QString &title)
     auto *pickPic = new QPushButton(QCoreApplication::translate("Dialogs", "Select Picture…"), pt);
     auto *picLabel = plainLabel(new QLabel(pt));
     picLabel->setFixedSize(200, 140);
-    picLabel->setFrameShape(QFrame::StyledPanel);
+    jp::softPanel(picLabel);
     auto *tile = new QCheckBox(QCoreApplication::translate("Dialogs", "Tile picture as texture"), pt);
     tile->setChecked(f.tile);
     pv->addWidget(pickPic);
@@ -1052,8 +1052,8 @@ bool fillEffectsDialog(QWidget *p, Editor *ed, Fill &fill, const QString &title)
     auto *fg = colorPick(ed, f.type == Fill::Pattern ? f.color : ColorRef::scheme(Main), false, pa);
     auto *bg = colorPick(ed, f.type == Fill::Pattern ? f.color2 : ColorRef::rgb(Qt::white), true, pa);
     paf->addRow(patList);
-    paf->addRow(QCoreApplication::translate("Dialogs", "Foreground:"), fg);
-    paf->addRow(QCoreApplication::translate("Dialogs", "Background:"), bg);
+    paf->addRow(QCoreApplication::translate("Dialogs", "Foreground"), fg);
+    paf->addRow(QCoreApplication::translate("Dialogs", "Background"), bg);
     tabs->addTab(pa, QCoreApplication::translate("Dialogs", "Pattern"));
     // Tint.
     auto *ti = new QWidget();
@@ -1062,8 +1062,8 @@ bool fillEffectsDialog(QWidget *p, Editor *ed, Fill &fill, const QString &title)
     auto *tintSlider = new QSlider(Qt::Horizontal, ti);
     tintSlider->setRange(-90, 90);
     tintSlider->setValue(f.color.lighten() ? -f.color.lighten() : f.color.darken());
-    tif->addRow(QCoreApplication::translate("Dialogs", "Base color:"), base);
-    tif->addRow(QCoreApplication::translate("Dialogs", "Tint (left) or shade (right):"), tintSlider);
+    tif->addRow(QCoreApplication::translate("Dialogs", "Base color"), base);
+    tif->addRow(QCoreApplication::translate("Dialogs", "Tint (left) or shade (right)"), tintSlider);
     tabs->addTab(ti, QCoreApplication::translate("Dialogs", "Tint"));
     tabs->setCurrentIndex(f.type == Fill::Gradient ? 0 : f.type == Fill::Texture ? 1 : f.type == Fill::Picture ? 2 : f.type == Fill::Pattern ? 3 : 0);
     dlg.v->addWidget(tabs);
@@ -1204,7 +1204,7 @@ void tintsDialog(QWidget *p, Editor *ed, const std::function<void(const ColorRef
     };
     QObject::connect(base, &QComboBox::currentIndexChanged, &dlg.d, fill);
     fill();
-    form->addRow(QCoreApplication::translate("Dialogs", "Base color:"), base);
+    form->addRow(QCoreApplication::translate("Dialogs", "Base color"), base);
     form->addRow(list);
     dlg.v->addLayout(form);
     if (!dlg.exec() || !list->currentItem()) return;
@@ -1226,9 +1226,9 @@ bool askTextArtText(QWidget *p, TextArtItem *w)
     bold->setChecked(w->bold);
     auto *italic = new QCheckBox(QCoreApplication::translate("Dialogs", "Italic"), &dlg.d);
     italic->setChecked(w->italic);
-    row->addWidget(new QLabel(QCoreApplication::translate("Dialogs", "Font:")));
+    row->addWidget(new QLabel(QCoreApplication::translate("Dialogs", "Font")));
     row->addWidget(font, 1);
-    row->addWidget(new QLabel(QCoreApplication::translate("Dialogs", "Size:")));
+    row->addWidget(new QLabel(QCoreApplication::translate("Dialogs", "Size")));
     row->addWidget(size);
     row->addWidget(bold);
     row->addWidget(italic);

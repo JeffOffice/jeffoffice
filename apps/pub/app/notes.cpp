@@ -1,4 +1,5 @@
 #include "app/notes.h"
+#include "app/uistyle.h"
 
 #include "app/editor.h"
 #include "core/document.h"
@@ -101,7 +102,7 @@ void noteDialog(QWidget *parent, Editor *ed, bool endnote)
     if (nd) edit->setPlainText(nd->toPlainText());
     edit->setMinimumSize(420, 140);
     v->addWidget(edit);
-    auto *bb = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    auto *bb = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
     QObject::connect(bb, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
     QObject::connect(bb, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
     v->addWidget(bb);
