@@ -619,7 +619,7 @@ jobs:
           # plugin, which needs FFmpeg's DLLs beside it: ours (the ffmpeg job),
           # which are in Qt's folder, so windeployqt brings them with the
           # plugin; if a version of it doesn't, they come from ours, never from
-          # Qt's. JeffPub doesn't link Qt Multimedia and gets neither.
+          # Qt's. (One folder for all the apps, so they share them.)
           foreach ($name in 'avcodec', 'avformat', 'avutil', 'swresample', 'swscale') {
             if (-not (Test-Path "dist/JeffOffice/$name-*.dll")) { Copy-Item "ffmpeg-out/windows/bin/$name-*.dll" dist/JeffOffice/ }
           }
@@ -852,6 +852,10 @@ jobs:
             cp build/libjeffoffice-common.dylib build/_deps/pdfium/lib/libpdfium.dylib "$fw/"
             "$QT_ROOT_DIR/bin/macdeployqt" dist/$app.app -executable="$fw/libjeffoffice-common.dylib"
             test -f "$fw/libjeffoffice-common.dylib"
+            # Read Aloud's Qt TextToSpeech needs the Qt Multimedia framework in every app, but only JeffDeck plays movies and sounds:
+            # the others carry no player plugin and no FFmpeg. Qt's test voice (mock) is in none.
+            rm -f dist/$app.app/Contents/PlugIns/texttospeech/libqtexttospeech_mock.dylib
+            if [ "$app" != JeffDeck ]; then rm -rf dist/$app.app/Contents/PlugIns/multimedia; rm -f "$fw"/libav*.dylib "$fw"/libsw*.dylib; fi
             # PDFium beside the Qt frameworks, where the program finds it,
             # and its license texts and those of the libraries in it.
             test -f "$fw/libpdfium.dylib" || cp build/_deps/pdfium/lib/libpdfium.dylib "$fw/"
@@ -885,7 +889,7 @@ jobs:
             lipo -archs dist/$app.app/Contents/MacOS/$app
           done
           # JeffDeck plays movies and sounds through Qt Multimedia's FFmpeg plugin; macdeployqt brings the plugin and
-          # FFmpeg's libraries with it. JeffPub doesn't link Qt Multimedia and gets neither.
+          # FFmpeg's libraries with it; the other apps have the Qt Multimedia framework (for Read Aloud) but neither of these.
           test -f dist/JeffDeck.app/Contents/PlugIns/multimedia/libffmpegmediaplugin.dylib
           # Read Aloud's voices (the Mac's own speech): Qt TextToSpeech and its plugin are in every app.
           for app in $apps; do
@@ -897,7 +901,10 @@ jobs:
           sh tools/use_ffmpeg.sh check dist/JeffDeck.app
           python3 tools/check_bundle_deps.py mac dist/JeffDeck.app
           for arch in $(echo "$MAC_ARCHS" | tr ';' ' '); do lipo -archs dist/JeffDeck.app/Contents/Frameworks/libavcodec.61.dylib | grep -q "$arch"; done
-          test ! -d dist/JeffPub.app/Contents/Frameworks/QtMultimedia.framework
+          for app in $apps; do
+            test ! -e dist/$app.app/Contents/PlugIns/texttospeech/libqtexttospeech_mock.dylib
+            if [ "$app" != JeffDeck ]; then test ! -d dist/$app.app/Contents/PlugIns/multimedia; ! ls dist/$app.app/Contents/Frameworks | grep -q '^libav'; fi
+          done
           test -f dist/JeffDeck.app/Contents/Resources/licenses/ffmpeg/ffmpeg.txt
           for app in $apps; do for f in LICENSE ADDITIONAL-TERMS.md licenses/LGPL-3.0.txt licenses/QT-NOTICE.txt licenses/LUCIDE-ISC.txt licenses/MPL-2.0.txt; do test -f dist/$app.app/Contents/Resources/$f; done; done
           # The packaged programs must start on their own bundled Qt (and PDFium).
