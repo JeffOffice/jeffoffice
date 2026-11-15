@@ -94,7 +94,7 @@ QStringList DataFormDialog::typed() const
 void DataFormDialog::tell(const QString &text)
 {
     if (m_notifier) m_notifier(text);
-    else QMessageBox::warning(this, m_title, text);
+    else jp::plainWarning(this, m_title, text);
 }
 
 void DataFormDialog::updateButtons()
@@ -197,7 +197,7 @@ void DataFormDialog::deleteRecord()
 {
     if (m_mode != Mode::Record || m_form.recordCount() < 1) return;
     const QString question = tr("Delete this record? It is taken out of the list and the rows under it move up. You can undo this in the sheet.");
-    const bool yes = m_deleteAsker ? m_deleteAsker(question) : QMessageBox::question(this, m_title, question, QMessageBox::Yes | QMessageBox::No, QMessageBox::No) == QMessageBox::Yes;
+    const bool yes = m_deleteAsker ? m_deleteAsker(question) : jp::plainQuestion(this, m_title, question, QMessageBox::Yes | QMessageBox::No, QMessageBox::No) == QMessageBox::Yes;
     if (!yes) return;
     const crunch::EditSession::Outcome o = m_form.remove(m_form.current());
     if (!o.ok) {

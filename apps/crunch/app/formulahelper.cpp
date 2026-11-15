@@ -171,6 +171,7 @@ void FormulaHelper::showHint(QLineEdit *line, const FormulaSpot &spot)
     QString html = hintHtml(*doc, spot.argument, separator);
     const QString name = QString::fromLatin1(doc->name);
     if (html.startsWith(name)) html = QStringLiteral("<a href=\"%1\">%1</a>").arg(name) + html.mid(name.size());
+    // plain: reviewed: a built-in function's own text (its name is a link), no file text
     m_hint->setText(html);
     m_hint->adjustSize();
 }

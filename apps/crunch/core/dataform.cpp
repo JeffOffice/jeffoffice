@@ -16,8 +16,6 @@ using jp::calc::Value;
 
 namespace {
 
-QString tr(const char *text) { return QCoreApplication::translate("jp::crunch::DataForm", text); }
-
 EditSession::Outcome refuse(const QString &why)
 {
     EditSession::Outcome o;
@@ -44,7 +42,7 @@ bool DataForm::open(EditSession *session, int sheet, quint32 row, quint32 col, Q
         if (why) *why = text;
         return false;
     };
-    if (!session || !session->workbook()) return fail(tr("There is no list here."));
+    if (!session || !session->workbook()) return fail(QCoreApplication::translate("jp::crunch::DataForm", "There is no list here."));
     m_session = session;
     m_sheet = sheet;
     m_table = session->tableAt(sheet, row, col);
@@ -56,16 +54,16 @@ bool DataForm::open(EditSession *session, int sheet, quint32 row, quint32 col, Q
         const CellRange region = currentRegion(*session, sheet, row, col, &truncated);
         if (!region.valid || region.cellCount() < 2 || region.row2 <= region.row1) {
             m_session = nullptr;
-            return fail(tr("The form needs a list: a row of names for the fields, and at least one row of data under it."));
+            return fail(QCoreApplication::translate("jp::crunch::DataForm", "The form needs a list: a row of names for the fields, and at least one row of data under it."));
         }
         if (session->displayText(sheet, region.row1, region.col1).isEmpty() && region.col1 == region.col2) {
             m_session = nullptr;
-            return fail(tr("The form needs a list: a row of names for the fields, and at least one row of data under it."));
+            return fail(QCoreApplication::translate("jp::crunch::DataForm", "The form needs a list: a row of names for the fields, and at least one row of data under it."));
         }
         m_list = region;
         for (quint32 c = region.col1; c <= region.col2 && int(m_fields.size()) < kMaxFormFields; ++c) {
             QString name = session->displayText(sheet, region.row1, c).trimmed();
-            if (name.isEmpty()) name = tr("Column %1").arg(jp::calc::columnLetters(c));
+            if (name.isEmpty()) name = QCoreApplication::translate("jp::crunch::DataForm", "Column %1").arg(jp::calc::columnLetters(c));
             m_fields.push_back({name, c});
         }
     }
@@ -73,7 +71,7 @@ bool DataForm::open(EditSession *session, int sheet, quint32 row, quint32 col, Q
     if (recordCount() < 1) {
         m_session = nullptr;
         m_fields.clear();
-        return fail(tr("The list has no data under its names yet. Type a row of data under the names first."));
+        return fail(QCoreApplication::translate("jp::crunch::DataForm", "The list has no data under its names yet. Type a row of data under the names first."));
     }
     m_current = 0;
     // the record with the cell is shown first
@@ -201,7 +199,7 @@ qint64 DataForm::findPrevious(qint64 from) const
 
 EditSession::Outcome DataForm::change(qint64 record, const QStringList &typed)
 {
-    if (!m_session || record < 0 || record >= recordCount()) return refuse(tr("There is no such record."));
+    if (!m_session || record < 0 || record >= recordCount()) return refuse(QCoreApplication::translate("jp::crunch::DataForm", "There is no such record."));
     QVector<int> changed;
     for (int f = 0; f < fieldCount() && f < typed.size(); ++f)
         if (!isReadOnly(record, f) && typed[f] != editText(record, f)) changed << f;
@@ -209,7 +207,7 @@ EditSession::Outcome DataForm::change(qint64 record, const QStringList &typed)
     if (changed.isEmpty()) return ok;
     QUndoStack *stack = m_session->undoStack();
     const int before = stack->index();
-    stack->beginMacro(tr("Edit Record"));
+    stack->beginMacro(QCoreApplication::translate("jp::crunch::DataForm", "Edit Record"));
     for (int f : changed) {
         const EditSession::Outcome o = m_session->type(m_sheet, rowOf(record), m_fields[size_t(f)].col, typed[f]);
         if (!o.ok) {
@@ -227,20 +225,20 @@ EditSession::Outcome DataForm::add(const QStringList &typed, bool *added)
 {
     if (added) *added = false;
     EditSession::Outcome ok;
-    if (!m_session) return refuse(tr("There is no list."));
+    if (!m_session) return refuse(QCoreApplication::translate("jp::crunch::DataForm", "There is no list."));
     bool any = false;
     for (int f = 0; f < fieldCount() && f < typed.size(); ++f) any = any || !typed[f].isEmpty();
     if (!any) return ok;
     const qint64 last = m_table >= 0 ? qint64(m_session->workbook()->tables()[m_table].dataLast()) : qint64(m_list.row2);
     // (a table that has a row of totals gets the new row above it, as the table's own typing does not: the form says it can't)
-    if (m_table >= 0 && m_session->workbook()->tables()[m_table].totalsRows > 0) return refuse(tr("The table has a row of totals under its data. Turn the totals off to add a record here, or type the new row in the sheet."));
+    if (m_table >= 0 && m_session->workbook()->tables()[m_table].totalsRows > 0) return refuse(QCoreApplication::translate("jp::crunch::DataForm", "The table has a row of totals under its data. Turn the totals off to add a record here, or type the new row in the sheet."));
     const qint64 row = last + 1;
-    if (row >= qint64(1048576)) return refuse(tr("The list is at the last row of the sheet."));
+    if (row >= qint64(1048576)) return refuse(QCoreApplication::translate("jp::crunch::DataForm", "The list is at the last row of the sheet."));
     for (int f = 0; f < fieldCount(); ++f)
-        if (!m_session->editText(m_sheet, quint32(row), m_fields[size_t(f)].col).isEmpty()) return refuse(tr("The list can't be extended: there is something under it. Move it away, or insert a row."));
+        if (!m_session->editText(m_sheet, quint32(row), m_fields[size_t(f)].col).isEmpty()) return refuse(QCoreApplication::translate("jp::crunch::DataForm", "The list can't be extended: there is something under it. Move it away, or insert a row."));
     QUndoStack *stack = m_session->undoStack();
     const int before = stack->index();
-    stack->beginMacro(tr("New Record"));
+    stack->beginMacro(QCoreApplication::translate("jp::crunch::DataForm", "New Record"));
     for (int f = 0; f < fieldCount() && f < typed.size(); ++f) {
         if (typed[f].isEmpty()) continue;
         if (typed[f].startsWith(QLatin1Char('=')) && isCalculatedColumn(f)) continue;
@@ -261,8 +259,8 @@ EditSession::Outcome DataForm::add(const QStringList &typed, bool *added)
 
 EditSession::Outcome DataForm::remove(qint64 record)
 {
-    if (!m_session || record < 0 || record >= recordCount()) return refuse(tr("There is no such record."));
-    if (recordCount() < 2 && m_table >= 0) return refuse(tr("A table keeps at least one row of data."));
+    if (!m_session || record < 0 || record >= recordCount()) return refuse(QCoreApplication::translate("jp::crunch::DataForm", "There is no such record."));
+    if (recordCount() < 2 && m_table >= 0) return refuse(QCoreApplication::translate("jp::crunch::DataForm", "A table keeps at least one row of data."));
     CellRange block;
     block.row1 = block.row2 = rowOf(record);
     block.col1 = m_list.col1;
