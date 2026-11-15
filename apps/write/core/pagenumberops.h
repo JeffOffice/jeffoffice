@@ -37,6 +37,8 @@ bool insertPageNumberAtCursor(WriteDoc &doc, QTextCursor &cursor, const QString 
 // Takes the PAGE and NUMPAGES fields out of every header and footer, the words of a design's "Page X of Y" that are left alone in their paragraph, the rule of a design, and the boxes of a
 // design; every other text of the headers and footers stays. One step that undoes. Returns how many fields and boxes went.
 int removePageNumbers(WriteDoc &doc);
+// Whether any header or footer has a PAGE or NUMPAGES field or a box of a design (Remove Page Numbers has something to do).
+bool hasPageNumbers(WriteDoc &doc);
 
 // The accent of the document's theme (a plain blue where it has no theme): the color the pictures of the designs are drawn in.
 QColor pageNumberAccent(const WriteDoc &doc);

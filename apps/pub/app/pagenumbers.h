@@ -24,5 +24,7 @@ bool placePageNumberDesign(Editor *ed, const QString &id);
 // Takes the page number and page count fields out of the master pages, and the boxes of the designs (and of the older Page Number box); the other text of the masters stays. One step of Undo.
 // Returns how many items and fields went.
 int removePageNumbers(Editor *ed);
+// Whether a master page has a page number or count, or a box of a design (Remove Page Numbers has something to do).
+bool hasPageNumbers(const Editor *ed);
 
 } // namespace jp

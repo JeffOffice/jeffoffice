@@ -133,6 +133,28 @@ bool placePageNumberDesign(Editor *ed, const QString &id)
     return true;
 }
 
+bool hasPageNumbers(const Editor *ed)
+{
+    const Document *d = ed ? ed->doc() : nullptr;
+    if (!d) return false;
+    for (const auto &master : d->masters)
+        for (const ItemPtr &it : master->items) {
+            if (isDesignItem(*it)) return true;
+            QString storyId;
+            if (it->type() == ItemType::Text) storyId = static_cast<TextItem *>(it.get())->storyId;
+            else if (it->type() == ItemType::Shape) storyId = static_cast<ShapeItem *>(it.get())->storyId;
+            const QTextDocument *story = storyId.isEmpty() ? nullptr : d->storyDoc(storyId);
+            if (!story) continue;
+            for (int i = 0; i < story->characterCount() - 1; ++i) {
+                if (story->characterAt(i) != QChar::ObjectReplacementCharacter) continue;
+                QTextCursor probe(const_cast<QTextDocument *>(story));
+                probe.setPosition(i + 1);
+                if (isPageField(probe.charFormat().stringProperty(tp::Field))) return true;
+            }
+        }
+    return false;
+}
+
 int removePageNumbers(Editor *ed)
 {
     Document *d = ed ? ed->doc() : nullptr;

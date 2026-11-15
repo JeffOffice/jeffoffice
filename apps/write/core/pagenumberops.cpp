@@ -407,6 +407,18 @@ bool insertPageNumberAtCursor(WriteDoc &doc, QTextCursor &cursor, const QString 
     return true;
 }
 
+bool hasPageNumbers(WriteDoc &doc)
+{
+    for (int s = 0; s < doc.sectionCount(); ++s)
+        for (const bool footer : {false, true})
+            for (int slot = 0; slot < 3; ++slot) {
+                if (!doc.hasOwnHeaderFooter(s, footer, slot)) continue;
+                QTextDocument *story = doc.headerFooterStory(s, footer, slot);
+                if (story && (!pageFieldsIn(story).isEmpty() || !designBoxesIn(story).isEmpty())) return true;
+            }
+    return false;
+}
+
 int removePageNumbers(WriteDoc &doc)
 {
     const WriteDoc::StepGroup group(doc);
