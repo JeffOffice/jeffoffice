@@ -1492,6 +1492,14 @@ private Q_SLOTS:
         Ribbon *r = w.ribbon();
         QToolButton *bold = commandButton(r, QStringLiteral("Home"), QStringLiteral("format.bold"));
         QVERIFY(bold);
+        // (the ribbon finds the control at the place of the click, so the button must be on show there: the window is as wide as its ribbon wants, which with the fonts of a machine that has few
+        // is 200 pixels, and its groups are collapsed into buttons; Linux CI, Nov 15)
+        w.resize(1400, 700);
+        auto atCenter = [r](QToolButton *b) {
+            QWidget *hit = r->childAt(r->mapFromGlobal(b->mapToGlobal(b->rect().center())));
+            return b->isVisible() && hit && (hit == b || b->isAncestorOf(hit));
+        };
+        QTRY_VERIFY(atCenter(bold));
         const QPoint local = bold->rect().center();
         QContextMenuEvent ev(QContextMenuEvent::Mouse, local, bold->mapToGlobal(local));
         QApplication::sendEvent(bold, &ev);
@@ -1501,6 +1509,7 @@ private Q_SLOTS:
         // on a quick toolbar button
         QToolButton *save = quickButton(r, QStringLiteral("file.save"));
         QVERIFY(save);
+        QTRY_VERIFY(atCenter(save));
         QContextMenuEvent ev2(QContextMenuEvent::Mouse, save->rect().center(), save->mapToGlobal(save->rect().center()));
         QApplication::sendEvent(save, &ev2);
         QVERIFY(r->contextMenu() && r->contextMenu()->isVisible());
