@@ -63,10 +63,14 @@ bool KeyTips::eventFilter(QObject *o, QEvent *e)
         hide();   // any other key goes on as usual
         return false;
     }
-    case QEvent::ShortcutOverride:
-        // A shortcut with Alt in it (Alt+Q, the command search) is used, not an Alt tapped alone: its release does not show the letters.
-        if (m_altDown && (static_cast<QKeyEvent *>(e)->modifiers() & Qt::AltModifier)) m_altUsed = true;
+    case QEvent::ShortcutOverride: {
+        // A shortcut with Alt in it (Alt+Q, the command search) is used, not an Alt tapped alone: its release does not show the letters. Holding Alt (auto-repeat), and Alt with Shift
+        // or another modifier key, are not shortcuts.
+        auto *k = static_cast<QKeyEvent *>(e);
+        const bool modifierKey = k->key() == Qt::Key_Alt || k->key() == Qt::Key_Shift || k->key() == Qt::Key_Control || k->key() == Qt::Key_Meta || k->key() == Qt::Key_AltGr;
+        if (m_altDown && !k->isAutoRepeat() && !modifierKey && (k->modifiers() & Qt::AltModifier)) m_altUsed = true;
         return false;
+    }
     case QEvent::KeyRelease: {
         auto *k = static_cast<QKeyEvent *>(e);
         if (k->key() != Qt::Key_Alt || k->isAutoRepeat() || !mine()) return false;

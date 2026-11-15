@@ -39,5 +39,7 @@ QString currentUiLanguage();
 
 // The English a text was translated from (what a command was named in the source), when the program shows another language and the text came from its translation; empty otherwise.
 QString sourceText(const QString &translated);
+// Every text that was translated to it (two English texts can have one translation).
+QStringList sourceTexts(const QString &translated);
 
 } // namespace jp

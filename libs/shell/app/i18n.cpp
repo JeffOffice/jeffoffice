@@ -10,6 +10,7 @@
 #include <QLibraryInfo>
 #include <QLocale>
 #include <QMutex>
+#include <QThread>
 #include <QTranslator>
 
 #include <utility>
@@ -54,12 +55,14 @@ namespace {
 QString s_language = QStringLiteral("en");
 QList<QTranslator *> s_installed;   // what installTranslations() put in, to take out again
 QMutex s_sourceLock;
-QHash<QString, QString> s_sources;   // a text as it was translated to the text it was written as (kept while a translation is in use)
-// Stands first among the translators: finds each text where the others would, and notes the English it came from.
+QMultiHash<QString, QString> s_sources;   // a text as it was translated to every text it was written as (kept while a translation is in use)
+// Stands first among the translators: finds each text where the others would, and notes the English it came from. Only the program's own thread is served (s_installed is changed there, and a
+// text asked for in another thread is found by the translators that follow, and not noted).
 class SourceRecorder : public QTranslator {
 public:
     QString translate(const char *context, const char *sourceText, const char *disambiguation, int n) const override
     {
+        if (!QCoreApplication::instance() || QThread::currentThread() != QCoreApplication::instance()->thread()) return QString();
         for (auto it = s_installed.crbegin(); it != s_installed.crend(); ++it) {
             if (*it == this) continue;
             const QString out = (*it)->translate(context, sourceText, disambiguation, n);
@@ -67,7 +70,7 @@ public:
             const QString source = QString::fromUtf8(sourceText);
             if (out != source && n < 0) {
                 const QMutexLocker lock(&s_sourceLock);
-                s_sources.insert(out, source);
+                if (!s_sources.contains(out, source)) s_sources.insert(out, source);
             }
             return out;
         }
@@ -84,6 +87,12 @@ QString sourceText(const QString &translated)
 {
     const QMutexLocker lock(&s_sourceLock);
     return s_sources.value(translated);
+}
+
+QStringList sourceTexts(const QString &translated)
+{
+    const QMutexLocker lock(&s_sourceLock);
+    return s_sources.values(translated);
 }
 
 QString pickUiLanguage(const QStringList &wanted, const QStringList &have)

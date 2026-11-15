@@ -1237,7 +1237,11 @@ public:
         m_collapse->setGeometry(width() - 30, top() - 1, 28, pillH);
         m_help->setGeometry(width() - 60, top() - 1, 28, pillH);
         if (m_search) {
-            const int w = m_search->property("jpWide").toBool() ? 300 : m_searchRest;   // (wider while it has the cursor, over the tabs)
+            // Wider (up to 300) while it has the cursor, but only into the empty room left of it in the tab row: never over a tab, a contextual tab, or the » button.
+            const int restLeft = width() - 60 - 6 - m_searchRest;
+            const int tabsEnd = !m_more->isHidden() ? m_more->geometry().right() + 1 : x;
+            int w = m_searchRest;
+            if (m_search->property("jpWide").toBool()) w = std::min(300, m_searchRest + std::max(0, restLeft - tabsEnd - 4));
             m_search->setGeometry(width() - 60 - 6 - w, top(), w, pillH);
             m_search->raise();
         }
@@ -1714,8 +1718,9 @@ void Ribbon::setQuickToolbarBelow(bool below)
     m_header->layoutButtons();
     m_header->placeQat();
     // The keyboard goes from the top row to the quick toolbar's row, as they are on the screen.
+    if (m_header->m_search) QWidget::setTabOrder(m_header->m_help, m_header->m_search);
     if (below) {
-        QWidget *last = m_header->m_help;
+        QWidget *last = m_header->m_search ? m_header->m_search : static_cast<QWidget *>(m_header->m_help);
         for (QWidget *w : std::as_const(m_header->qatItems))
             if (qobject_cast<QToolButton *>(w)) {
                 QWidget::setTabOrder(last, w);
@@ -1751,6 +1756,7 @@ void Ribbon::setSearchWidget(QWidget *w)
     if (w) {
         w->setParent(m_header);
         w->show();
+        QWidget::setTabOrder(m_header->m_help, w);   // (the keyboard reaches it right after Help)
     }
     m_header->layoutButtons();
 }

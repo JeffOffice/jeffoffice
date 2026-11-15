@@ -6,6 +6,7 @@
 #include "app/filescreen.h"
 #include "app/help.h"
 #include "app/i18n.h"
+#include "app/keytips.h"
 #include "app/ribbon.h"
 #include "app/ribbonbuilder.h"
 #include "app/settings.h"
@@ -16,6 +17,7 @@
 #include <QListWidget>
 #include <QMenu>
 #include <QSignalSpy>
+#include <QThread>
 #include <QTimer>
 #include <QTemporaryDir>
 #include <QToolButton>
@@ -41,7 +43,7 @@ const char *const kFile = R"({
     {"name": "Sheet", "keytip": "J", "groups": [
       {"name": "Cells", "keytip": "ZL", "items": [ {"small": "cells.deleteRows", "keytip": "DR"} ]} ]},
     {"name": "Chart Format", "keytip": "JC", "context": "Chart Tools", "color": "chart", "groups": [
-      {"name": "Styles", "keytip": "ZS", "items": [ {"large": "chart.style", "keytip": "S"} ]} ]}
+      {"name": "Styles", "keytip": "ZS", "items": [ {"large": "chart.style", "keytip": "S"}, {"small": "edit.copy", "keytip": "C"} ]} ]}
   ]})";
 
 const char *const kWords = R"({
@@ -83,7 +85,8 @@ public:
             auto *g = new Gallery(QSize(40, 30), 3);
             g->setItemsProvider([galleryItems] {
                 QVector<GalleryItem> items;
-                if (galleryItems == 2) items << GalleryItem{QStringLiteral("h1"), QStringLiteral("Heading 1"), QIcon(), QString()} << GalleryItem{QStringLiteral("title"), QStringLiteral("Title"), QIcon(), QString()};
+                if (galleryItems == 2) items << GalleryItem{QStringLiteral("h1"), QStringLiteral("Heading 1"), QIcon(), QString()} << GalleryItem{QStringLiteral("title"), QStringLiteral("Title"), QIcon(), QString()}
+                                                  << GalleryItem{QStringLiteral("raw"), QStringLiteral("<b>Raw</b> & co"), QIcon(), QString()};
                 else
                     for (int i = 0; i < galleryItems; ++i) items << GalleryItem{QString::number(i), QStringLiteral("Style %1").arg(i), QIcon(), QString()};
                 return items;
@@ -487,8 +490,302 @@ private Q_SLOTS:
     {
         CmdWindow w;
         w.show();
-        QVERIFY(w.box()->placeholderText().contains(QStringLiteral("Alt+Q")));
+        const QString keys = CommandSearchBox::shortcut().toString(QKeySequence::NativeText);   // (what this platform binds)
+        QVERIFY(w.box()->placeholderText().contains(keys));
+        QVERIFY(w.box()->toolTip().contains(keys));
         QVERIFY(w.box()->text().isEmpty());
+    }
+
+    void theKeyIsAltQAndOnAMacControlOptionQ()
+    {
+        QCOMPARE(CommandSearchBox::shortcutFor(false), QKeySequence(Qt::ALT | Qt::Key_Q));
+        QCOMPARE(CommandSearchBox::shortcutFor(true), QKeySequence(Qt::META | Qt::ALT | Qt::Key_Q));   // (Option+Q types a character there)
+    }
+
+    void aPlainAltShowsTheLettersAndAltQDoesNot()
+    {
+        CmdWindow w;
+        auto *tips = new KeyTips(&w, w.ribbon(), [] {});
+        w.show();
+        w.activateWindow();
+        QVERIFY(QTest::qWaitForWindowActive(&w));
+        QTest::keyPress(&w, Qt::Key_Alt);
+        QTest::keyRelease(&w, Qt::Key_Alt);
+        QCOMPARE(tips->level(), KeyTips::Top);   // (Alt tapped alone)
+        tips->hide();
+        QTest::keyPress(&w, Qt::Key_Alt);
+        QTest::keyClick(&w, Qt::Key_Q, Qt::AltModifier);
+        QTRY_VERIFY(w.box()->hasFocus());
+        QTest::keyRelease(&w, Qt::Key_Alt);
+        QCOMPARE(tips->level(), KeyTips::Off);   // (Alt used for Alt+Q: no letters)
+    }
+
+    void holdingAltOrAltThenShiftStillShowsTheLettersOnRelease()
+    {
+        CmdWindow w;
+        auto *tips = new KeyTips(&w, w.ribbon(), [] {});
+        w.show();
+        w.activateWindow();
+        QVERIFY(QTest::qWaitForWindowActive(&w));
+        QTest::keyPress(&w, Qt::Key_Alt);
+        QKeyEvent repeat(QEvent::ShortcutOverride, Qt::Key_Alt, Qt::AltModifier, QString(), true);   // (the key held down)
+        QApplication::sendEvent(&w, &repeat);
+        QKeyEvent shift(QEvent::ShortcutOverride, Qt::Key_Shift, Qt::AltModifier | Qt::ShiftModifier, QString(), false);   // (then Shift)
+        QApplication::sendEvent(&w, &shift);
+        QTest::keyRelease(&w, Qt::Key_Alt);
+        QCOMPARE(tips->level(), KeyTips::Top);
+    }
+
+    void f10DoesNotShowTheLetters()
+    {
+        CmdWindow w;
+        auto *tips = new KeyTips(&w, w.ribbon(), [] {});
+        w.show();
+        w.activateWindow();
+        QVERIFY(QTest::qWaitForWindowActive(&w));
+        QTest::keyClick(&w, Qt::Key_F10);
+        QCOMPARE(tips->level(), KeyTips::Off);   // (as before the search: F10 is not a KeyTips key)
+    }
+
+    void theBoxFollowsHelpInTheTabChain()
+    {
+        for (bool below : {false, true}) {
+            CmdWindow w;
+            w.ribbon()->setQuickToolbarBelow(below);
+            w.show();
+            w.activateWindow();
+            QVERIFY(QTest::qWaitForWindowActive(&w));
+            auto *help = w.ribbon()->findChild<QWidget *>(QStringLiteral("jpRibbonHelp"));
+            QVERIFY(help);
+            help->setFocus();
+            QCOMPARE(w.focusWidget(), help);
+            QTest::keyClick(help, Qt::Key_Tab);   // (the next in the chain, as Tab moves it)
+            QCOMPARE(w.focusWidget(), static_cast<QWidget *>(w.box()));
+        }
+    }
+
+    void theBoxNeverCoversATabAtRestOrWithTheCursor()
+    {
+        for (int width : {800, 1000, 1400}) {
+            CmdWindow w;
+            w.ribbon()->setContextVisible(QStringLiteral("Chart Tools"), true);
+            w.resize(width, 500);
+            w.show();
+            w.activateWindow();
+            QVERIFY(QTest::qWaitForWindowActive(&w));
+            for (bool focused : {false, true}) {
+                if (focused) w.box()->focusBox();
+                else w.box()->clearFocus();
+                QTRY_COMPARE(w.box()->hasFocus(), focused);
+                QApplication::processEvents();
+                const QRect box(w.ribbon()->mapFromGlobal(w.box()->mapToGlobal(QPoint(0, 0))), w.box()->size());
+                QVERIFY(w.box()->width() <= (focused ? 300 : 160));
+                QList<QWidget *> others;
+                for (int i = 0; i < w.ribbon()->tabCount(); ++i)
+                    if (w.ribbon()->tabButton(i) && w.ribbon()->tabButton(i)->isVisible()) others << w.ribbon()->tabButton(i);
+                if (w.ribbon()->moreButton()) others << w.ribbon()->moreButton();
+                for (QWidget *o : std::as_const(others)) {
+                    const QRect t(w.ribbon()->mapFromGlobal(o->mapToGlobal(QPoint(0, 0))), o->size());
+                    QVERIFY2(!t.intersects(box), qPrintable(QStringLiteral("%1 px, %2: %3").arg(width).arg(focused ? "focused" : "at rest").arg(o->accessibleName())));
+                }
+            }
+        }
+    }
+
+    void theBoxWithTheCursorStaysOffTheTabsWhenTheRowIsTight()
+    {
+        CmdWindow w;
+        w.ribbon()->setContextVisible(QStringLiteral("Chart Tools"), true);
+        w.show();
+        w.activateWindow();
+        QVERIFY(QTest::qWaitForWindowActive(&w));
+        int tight = 0;
+        for (int width = 700; width >= 200; width -= 4) {
+            w.resize(width, 400);
+            QApplication::processEvents();
+            if (foldedTabs(w.ribbon()) > 0) break;
+            tight = width;
+        }
+        QVERIFY(tight > 0);
+        w.resize(tight, 400);
+        w.box()->focusBox();
+        QTRY_VERIFY(w.box()->hasFocus());
+        QApplication::processEvents();
+        const QRect box(w.ribbon()->mapFromGlobal(w.box()->mapToGlobal(QPoint(0, 0))), w.box()->size());
+        for (int i = 0; i < w.ribbon()->tabCount(); ++i) {
+            QWidget *tab = w.ribbon()->tabButton(i);
+            if (!tab || !tab->isVisible()) continue;
+            const QRect t(w.ribbon()->mapFromGlobal(tab->mapToGlobal(QPoint(0, 0))), tab->size());
+            QVERIFY2(!t.intersects(box), qPrintable(w.ribbon()->tabName(i)));
+        }
+    }
+
+    void altQDoesNothingWithTheFileScreenOpenOrTheRibbonHidden()
+    {
+        CmdWindow w;
+        w.show();
+        w.activateWindow();
+        QVERIFY(QTest::qWaitForWindowActive(&w));
+        w.fileScreen()->setGeometry(w.rect());
+        w.fileScreen()->show();
+        QTest::keyClick(&w, Qt::Key_Q, Qt::AltModifier);
+        QVERIFY(!w.box()->hasFocus());
+        w.fileScreen()->hide();
+        w.ribbon()->hide();
+        QTest::keyClick(&w, Qt::Key_Q, Qt::AltModifier);
+        QVERIFY(!w.box()->hasFocus());
+        w.ribbon()->show();
+        QTest::keyClick(&w, Qt::Key_Q, Qt::AltModifier);   // (and it works again when they are not in the way)
+        QTRY_VERIFY(w.box()->hasFocus());
+    }
+
+    void aCommandWhoseButtonIsTurnedOffIsGreyAndDoesNotRun()
+    {
+        CmdWindow w;
+        w.show();
+        QToolButton *bold = nullptr;
+        for (QToolButton *b : w.ribbon()->tab(QStringLiteral("Home"))->findChildren<QToolButton *>())
+            if (b->defaultAction() == w.act(QStringLiteral("format.bold"))) bold = b;
+        QVERIFY(bold);
+        bold->setEnabled(false);   // (as a read-only document turns a control off: the command itself stays on)
+        QVERIFY(w.act(QStringLiteral("format.bold"))->isEnabled());
+        w.box()->setText(QStringLiteral("bold"));
+        const int row = rowOf(w.box(), QStringLiteral("Bold"));
+        QVERIFY(row >= 0);
+        QVERIFY(!(w.box()->list()->item(row)->flags() & Qt::ItemIsEnabled));
+        QTest::keyClick(w.box(), Qt::Key_Return);
+        QVERIFY(!w.ran.contains(QStringLiteral("format.bold")));
+    }
+
+    void whatTheListShowedIsCheckedAgainWhenEnterRunsIt()
+    {
+        CmdWindow w;
+        w.show();
+        w.box()->setText(QStringLiteral("bold"));
+        const int row = rowOf(w.box(), QStringLiteral("Bold"));
+        QVERIFY(w.box()->list()->item(row)->flags() & Qt::ItemIsEnabled);   // (on when listed)
+        w.act(QStringLiteral("format.bold"))->setEnabled(false);              // (off before Enter)
+        QTest::keyClick(w.box(), Qt::Key_Return);
+        QVERIFY(!w.ran.contains(QStringLiteral("format.bold")));
+        QVERIFY(w.box()->recent().isEmpty());
+    }
+
+    void theIndexIsMadeAgainWhenTheBoxGetsTheCursorByTheMouse()
+    {
+        CmdWindow w;
+        w.show();
+        w.activateWindow();
+        QVERIFY(QTest::qWaitForWindowActive(&w));
+        QVERIFY(listed(w.box(), QStringLiteral("zebra")).isEmpty());   // (the index is made now)
+        w.box()->setText(QString());
+        RibbonTab *tab = w.ribbon()->addTab(QStringLiteral("Extra"));
+        RibbonGroup *group = tab->addGroup(QStringLiteral("Animals"));
+        auto *zebra = new QAction(QStringLiteral("Zebra Stripes"), &w);
+        zebra->setObjectName(QStringLiteral("extra.zebra"));
+        group->addLarge(zebra);
+        tab->finish();
+        w.box()->setFocus(Qt::MouseFocusReason);
+        QTRY_VERIFY(w.box()->hasFocus());
+        QCOMPARE(listed(w.box(), QStringLiteral("zebra")).value(0), QStringLiteral("Zebra Stripes"));
+    }
+
+    void aCommandOnTwoTabsIsListedWhereItCanBeUsed()
+    {
+        CmdWindow w;
+        w.ribbon()->setContextVisible(QStringLiteral("Chart Tools"), true);
+        QToolButton *home = nullptr;
+        for (QToolButton *b : w.ribbon()->tab(QStringLiteral("Home"))->findChildren<QToolButton *>())
+            if (b->defaultAction() == w.act(QStringLiteral("edit.copy"))) home = b;
+        QVERIFY(home);
+        home->setEnabled(false);   // (the copy that comes first cannot be used; the one on the shown tab can)
+        w.show();
+        QCOMPARE(listed(w.box(), QStringLiteral("copy")).value(0), QStringLiteral("Copy"));
+        QCOMPARE(w.box()->shownResults().value(0).where, QStringLiteral("Chart Format > Styles"));
+        QVERIFY(w.box()->list()->item(0)->flags() & Qt::ItemIsEnabled);
+    }
+
+    void namesAreShownAsWrittenEvenWhenTheyLookLikeMarkup()
+    {
+        CmdWindow w;
+        w.show();
+        QCOMPARE(listed(w.box(), QStringLiteral("raw")).value(0), QStringLiteral("<b>Raw</b> & co"));
+    }
+
+    void everyEntryHasItsWordsReadOnceAndScoresAsIfNot()
+    {
+        CmdWindow w;
+        const QList<Entry> all = collect(&w, Words());
+        QVERIFY(all.size() > 10);
+        for (const Entry &e : all) {
+            QVERIFY2(e.indexed, qPrintable(e.name));
+            QVERIFY(!e.nameTok.isEmpty() || e.name.isEmpty());
+            Entry bare = e;   // (the same entry made by hand scores the same)
+            bare.indexed = false;
+            QCOMPARE(score(bare, QStringLiteral("para spacing")), score(e, QStringLiteral("para spacing")));
+        }
+    }
+
+    void aTranslatedTextRemembersEveryEnglishItCameFrom()
+    {
+        const QVariant before = Settings::get().value(QStringLiteral("ui/language"));
+        Settings::get().setValue(QStringLiteral("ui/language"), QStringLiteral("de"));
+        installTranslations();
+        const auto restore = qScopeGuard([&] {
+            Settings::get().setValue(QStringLiteral("ui/language"), before);
+            installTranslations();
+        });
+        const QString circle = QCoreApplication::translate("Animation", "Circle"), pie = QCoreApplication::translate("jp::WriteWindow", "Pie");
+        QCOMPARE(circle, pie);   // (one German word for two English ones)
+        QVERIFY(sourceTexts(circle).contains(QStringLiteral("Circle")));
+        QVERIFY(sourceTexts(circle).contains(QStringLiteral("Pie")));
+        QCOMPARE(sourceTexts(circle).count(QStringLiteral("Pie")), 1);   // (noted once)
+        CmdWindow w;
+        auto *action = new QAction(circle, &w);
+        action->setObjectName(QStringLiteral("test.kreis"));
+        w.ribbon()->tab(QStringLiteral("Layout"))->groups().first()->addSmall(action);
+        w.show();
+        QCOMPARE(listed(w.box(), QStringLiteral("circle")).value(0), circle);
+        QCOMPARE(listed(w.box(), QStringLiteral("pie")).value(0), circle);
+    }
+
+    void aTextAskedForInAnotherThreadIsNotNoted()
+    {
+        const QVariant before = Settings::get().value(QStringLiteral("ui/language"));
+        Settings::get().setValue(QStringLiteral("ui/language"), QStringLiteral("de"));
+        installTranslations();
+        const auto restore = qScopeGuard([&] {
+            Settings::get().setValue(QStringLiteral("ui/language"), before);
+            installTranslations();
+        });
+        QString german;
+        auto *worker = QThread::create([&german] { german = QCoreApplication::translate("Ribbon", "Bring Forward"); });
+        worker->start();
+        QVERIFY(worker->wait(10000));
+        delete worker;
+        QVERIFY(german != QStringLiteral("Bring Forward"));   // (the translation is still found there)
+        QVERIFY(sourceTexts(german).isEmpty());                // (and nothing was noted from the thread)
+        QCOMPARE(QCoreApplication::translate("Ribbon", "Bring Forward"), german);
+        QCOMPARE(sourceTexts(german), QStringList{QStringLiteral("Bring Forward")});   // (here it is)
+    }
+
+    void anIdlessCommandKeepsItsRecentSlotWhenTheLanguageChanges()
+    {
+        const QVariant before = Settings::get().value(QStringLiteral("ui/language"));
+        auto idIn = [](const QString &language) {
+            Settings::get().setValue(QStringLiteral("ui/language"), language);
+            installTranslations();
+            CmdWindow w;
+            auto *action = new QAction(QCoreApplication::translate("Ribbon", "Margins"), &w);   // (no object name)
+            w.ribbon()->tab(QStringLiteral("Layout"))->groups().first()->addSmall(action);
+            for (const Entry &e : collect(&w, Words()))
+                if (e.action == action) return e.id;
+            return QString();
+        };
+        const QString german = idIn(QStringLiteral("de")), english = idIn(QStringLiteral("en"));
+        Settings::get().setValue(QStringLiteral("ui/language"), before);
+        installTranslations();
+        QVERIFY(!german.isEmpty());
+        QCOMPARE(german, english);
     }
 
     void theBoxIsNarrowAtRestAndWideWithTheCursorWithoutFoldingATab()

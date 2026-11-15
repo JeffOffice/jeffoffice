@@ -52,7 +52,13 @@ struct Entry {
     QString itemId;
     int tab = -1;                   // the ribbon tab it is on
     bool opensMenu = false;         // Enter opens its menu rather than running it
+    // The words of the fields, read once when the entry is made (index()): a keystroke then reads only the query.
+    QStringList nameTok, whereTok, tipTok, englishTok, extraTok;
+    QString foldedName;
+    bool indexed = false;
 };
+// Reads the entry's words (collect() does this for each entry it makes; an entry made by hand is read when it is scored).
+void index(Entry &e);
 
 using Words = QHash<QString, QStringList>;   // "cmd:<id>", "file:<key>", "options:<page>" to extra words
 // The extra words in a data file's text (nothing for what is malformed).
@@ -91,6 +97,9 @@ public:
     // Back to the document: the list is put away, the text cleared.
     void leave();
     static QString recentKey();
+    // The key that puts the cursor in the box: Alt+Q, and on a Mac Control+Option+Q (Option+Q types a character there). `mac` names the platform (tests).
+    static QKeySequence shortcutFor(bool mac);
+    static QKeySequence shortcut();
     // The screen the list is placed on, in place of the window's own (a test's offscreen screen is 640 by 480): an empty rectangle puts it back.
     static void setScreenForTests(const QRect &screen);
 

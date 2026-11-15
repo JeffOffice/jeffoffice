@@ -35,6 +35,7 @@
 
 #include <QAction>
 #include <QElapsedTimer>
+#include <QSignalSpy>
 #include <QLabel>
 #include <QMenu>
 #include <QLineEdit>
@@ -2786,6 +2787,64 @@ private Q_SLOTS:
         const QString problem = jptest::commandSearchProblem(w, QStringLiteral(":/write/cmdsearch.json"), QStringLiteral("page size"), QStringLiteral("Size"));
         QVERIFY2(problem.isEmpty(), qPrintable(problem));
         jptest::saveCommandSearchPicture(w, QStringLiteral("jeffwrite"), QStringLiteral("page size"));
+    }
+
+    // In a read-only document the controls that change it are turned off, the menus' items too: the search lists them grey, and Enter runs nothing.
+    void aReadOnlyDocumentsTurnedOffMenuItemsAreNotRunFromTheSearch()
+    {
+        Q_INIT_RESOURCE(write);
+        WriteWindow w;
+        w.resize(1000, 700);
+        w.show();
+        w.setReadOnly(true);
+        auto *box = w.findChild<jp::CommandSearchBox *>();
+        QVERIFY(box);
+        const QList<jp::cmdsearch::Entry> all = jp::cmdsearch::collect(&w, jp::cmdsearch::Words());
+        const jp::cmdsearch::Entry *target = nullptr;
+        for (const auto &e : all)   // a menu item that is on itself, in a menu whose button was turned off
+            if (e.kind == jp::cmdsearch::Kind::Command && e.action && e.action->isEnabled() && e.button && !e.button->isEnabled() && !e.opensMenu && !e.name.isEmpty() && !e.action->objectName().isEmpty()) {
+                target = &e;
+                break;
+            }
+        QVERIFY2(target, "no menu item under a turned-off button");
+        QSignalSpy ran(target->action, &QAction::triggered);
+        QVERIFY(!jp::cmdsearch::available(*target, &w));
+        box->setText(target->name);
+        const int row = [&] {
+            for (int i = 0; i < box->list()->count(); ++i)
+                if (box->list()->item(i)->data(Qt::UserRole).toInt() >= 0 && box->shownResults().value(box->list()->item(i)->data(Qt::UserRole).toInt()).id == target->id) return i;
+            return -1;
+        }();
+        QVERIFY(row >= 0);
+        QVERIFY(!(box->list()->item(row)->flags() & Qt::ItemIsEnabled));
+        for (int i = 0; i < 12; ++i) QTest::keyClick(box, Qt::Key_Down);
+        QTest::keyClick(box, Qt::Key_Return);
+        QCOMPARE(ran.count(), 0);
+    }
+
+    // The search's time with every gallery item of the ribbon: the index (every tab, menu, and gallery) made when the box gets the cursor, and a keystroke's search over it.
+    void theSearchKeepsUpWithEveryGalleryItemOfTheRibbon()
+    {
+        Q_INIT_RESOURCE(write);
+        WriteWindow w;
+        w.resize(1000, 700);
+        w.show();
+        QElapsedTimer clock;
+        clock.start();
+        const QList<jp::cmdsearch::Entry> all = jp::cmdsearch::collect(&w, jp::cmdsearch::Words());
+        const qint64 indexMs = clock.elapsed();
+        int gallery = 0;
+        for (const auto &e : all) {
+            QVERIFY(e.indexed);
+            if (e.kind == jp::cmdsearch::Kind::Gallery) ++gallery;
+        }
+        const QStringList queries = {QStringLiteral("h"), QStringLiteral("he"), QStringLiteral("hea"), QStringLiteral("head"), QStringLiteral("headi"), QStringLiteral("heading"),
+                                     QStringLiteral("page siz"), QStringLiteral("paragrph"), QStringLiteral("line spacing"), QStringLiteral("table style")};
+        clock.restart();
+        for (int round = 0; round < 20; ++round)
+            for (const QString &q : queries) jp::cmdsearch::find(all, q);
+        const double perKeystroke = double(clock.nsecsElapsed()) / 1e6 / (20.0 * queries.size());
+        qInfo("search timing: %d entries (%d gallery items), index %lld ms, %.3f ms per keystroke", int(all.size()), gallery, indexMs, perKeystroke);
     }
 };
 
