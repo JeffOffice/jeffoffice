@@ -168,7 +168,7 @@ QString samplePages()
         + QStringLiteral("<draw:frame draw:style-name=\"gr4\" draw:layer=\"layout\" svg:width=\"6cm\" svg:height=\"2cm\" svg:x=\"2cm\" svg:y=\"13cm\"><draw:text-box>"
                          "<text:list text:style-name=\"L2\"><text:list-item><text:p>Three</text:p></text:list-item><text:list-item><text:p>Four</text:p></text:list-item></text:list></draw:text-box></draw:frame>")
         + QStringLiteral("<draw:frame draw:style-name=\"gr4\" draw:layer=\"layout\" svg:width=\"8cm\" svg:height=\"1cm\" svg:x=\"12cm\" svg:y=\"13cm\"><draw:text-box>"
-                         "<text:p>  Visit   <text:a xlink:href=\"https://example.com/a?b=1&amp;c=2\" xlink:type=\"simple\">the site</text:a><text:s/>now <text:a xlink:href=\"file:///bin/sh\">run</text:a></text:p></draw:text-box></draw:frame>")
+                         "<text:p>  Visit   <text:a xlink:href=\"https://example.com/a?b=1&amp;c=2\" xlink:type=\"simple\">the site</text:a><text:s/>now <text:a xlink:href=\"file:///opt/tools/start.sh\">run</text:a></text:p></draw:text-box></draw:frame>")
         + QStringLiteral("<draw:frame draw:style-name=\"gr1\" draw:layer=\"layout\" svg:width=\"3.5278cm\" svg:height=\"1.7639cm\" svg:x=\"2cm\" svg:y=\"10cm\">"
                          "<draw:image xlink:href=\"Pictures/a.png\" xlink:type=\"simple\" xlink:show=\"embed\" xlink:actuate=\"onLoad\"><text:p/></draw:image></draw:frame>")
         + QStringLiteral("</draw:page>");

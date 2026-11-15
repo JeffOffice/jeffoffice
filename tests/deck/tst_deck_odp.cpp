@@ -453,8 +453,8 @@ private Q_SLOTS:
         QCOMPARE(linked->toPlainText(), QStringLiteral("Visit the site now run"));
         QStringList hrefs;
         for (auto it = linked->begin().begin(); !it.atEnd(); ++it) hrefs << it.fragment().charFormat().anchorHref();
-        QCOMPARE(hrefs, (QStringList{QString(), "https://example.com/a?b=1&c=2", QString(), "file:///bin/sh"}));
-        QVERIFY(office::isProgramFile(hrefs.last()));
+        QCOMPARE(hrefs, (QStringList{QString(), "https://example.com/a?b=1&c=2", QString(), "file:///opt/tools/start.sh"}));
+        QVERIFY(office::isProgramFile(hrefs.last()));   // (by its ending, on every system: /bin/sh was a program only where it exists, so Windows failed; Nov 15 2026)
     }
 
     // Pictures with their crop, shapes by their type or their path, lines with arrows, groups, tables with
