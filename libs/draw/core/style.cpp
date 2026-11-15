@@ -283,15 +283,15 @@ Effects Effects::fromJson(const QJsonObject &o)
     }
     if (o.contains("bevel")) {
         const auto b = o["bevel"].toObject();
-        e.bevel.type = b["type"].toInt();
-        e.bevel.width = b["w"].toDouble(6);
-        e.bevel.height = b["h"].toDouble(6);
+        e.bevel.type = std::clamp(b["type"].toInt(), 0, 12);
+        e.bevel.width = std::clamp(b["w"].toDouble(6), 0.0, 100.0);
+        e.bevel.height = std::clamp(b["h"].toDouble(6), 0.0, 100.0);
     }
     if (o.contains("rot3d")) {
         const auto r = o["rot3d"].toObject();
-        e.rot3d.x = r["x"].toDouble();
-        e.rot3d.y = r["y"].toDouble();
-        e.rot3d.perspective = r["p"].toDouble();
+        e.rot3d.x = std::clamp(r["x"].toDouble(), -180.0, 180.0);
+        e.rot3d.y = std::clamp(r["y"].toDouble(), -180.0, 180.0);
+        e.rot3d.perspective = std::clamp(r["p"].toDouble(), 0.0, 100.0);
     }
     return e;
 }

@@ -13,6 +13,7 @@
 #include "core/texteffects.h"
 #include "wml/wmlmathpath.h"
 
+#include <atomic>
 #include <QCache>
 #include <QColorSpace>
 #include <QDateTime>
@@ -1315,11 +1316,27 @@ static void paintContent(QPainter *p, const PaintContext &ctx, const Item &it)
 }
 
 // Renders an item (local coordinates, no effects) into an image with padding.
-static QImage itemImage(const PaintContext &ctx, const Item &it, double sc, double pad, QRectF *localRect)
+// What an effect buffer may cost: the room round the object it holds (in points, and no more than a few times the object's own size) and its area in pixels. An effect
+// that wants more is drawn reduced (a file may ask for a blur of hundreds of points, at 400% zoom).
+namespace {
+constexpr double kMostEffectPad = 300;
+constexpr qint64 kMostEffectPixels = 4000000;
+std::atomic<qint64> g_largestEffectBuffer{0};
+}
+
+qint64 Renderer::largestEffectBufferForTest() { return g_largestEffectBuffer.load(); }
+
+// `effective` is the scale the buffer really has (it is smaller than `sc` when the area is held down).
+static QImage itemImage(const PaintContext &ctx, const Item &it, double sc, double pad, QRectF *localRect, double *effective = nullptr)
 {
     const QRectF lr = QRectF(QPointF(0, 0), it.rect.size()).adjusted(-pad, -pad, pad, pad);
     *localRect = lr;
-    const QSize px = (lr.size() * sc).toSize().expandedTo(QSize(1, 1)).boundedTo(QSize(6000, 6000));
+    QSizeF want = lr.size() * sc;
+    const double area = want.width() * want.height();
+    if (area > double(kMostEffectPixels)) want *= std::sqrt(double(kMostEffectPixels) / area);
+    const QSize px = want.toSize().expandedTo(QSize(1, 1)).boundedTo(QSize(6000, 6000));
+    for (qint64 seen = g_largestEffectBuffer.load(), now = qint64(px.width()) * px.height(); now > seen && !g_largestEffectBuffer.compare_exchange_weak(seen, now);) {}
+    if (effective) *effective = px.width() / std::max(1e-9, lr.width());
     QImage img(px, QImage::Format_ARGB32_Premultiplied);
     img.fill(Qt::transparent);
     QPainter ip(&img);
@@ -1340,6 +1357,162 @@ static QImage colorize(QImage img, const QColor &c)
     cp.end();
     return img;
 }
+
+// A bevel: a light edge at the top left and a dark one at the bottom right, inside the outline.
+static void drawBevel(QPainter *p, const QPainterPath &sil, const Effects &fx)
+{
+    p->save();
+    p->setClipPath(sil, Qt::IntersectClip);
+    const QRectF b = sil.boundingRect();
+    QLinearGradient lg(b.topLeft(), b.bottomRight());
+    lg.setColorAt(0, QColor(255, 255, 255, 170));
+    lg.setColorAt(0.5, QColor(255, 255, 255, 0));
+    lg.setColorAt(0.5001, QColor(0, 0, 0, 0));
+    lg.setColorAt(1, QColor(0, 0, 0, 120));
+    QPen pen(QBrush(lg), std::clamp(fx.bevel.width, 0.0, 100.0) * 2);
+    pen.setJoinStyle(Qt::RoundJoin);
+    p->strokePath(sil, pen);
+    p->restore();
+}
+
+namespace {
+
+// The images an object's effects are made of, in the object's own coordinates (`lr` is where each is drawn).
+struct EffectLayers {
+    QImage glow, shadow, reflection, body;
+    QRectF lr;
+    qint64 pixels = 0;
+};
+
+std::atomic<qint64> g_layersMade{0};
+std::atomic<bool> g_keepLayers{true};
+
+std::shared_ptr<const EffectLayers> makeEffectLayers(const PaintContext &ctx, const Item &it, double sc)
+{
+    const Effects &fx = it.fx;
+    const ColorScheme &cs = ctx.doc->colors;
+    const bool raster = fx.softEdge > 0 || fx.rot3d.x || fx.rot3d.y;
+    const bool glowOn = fx.glow.on && fx.glow.size > 0;
+    const double size = std::max(it.rect.width(), it.rect.height());
+    const double most = std::min(kMostEffectPad, std::max(24.0, size * 2));
+    const double pad = std::min(std::max({fx.shadow.blur * 2 + fx.shadow.distance, fx.glow.size * 2, 4.0}), most);
+    ++g_layersMade;
+    auto out = std::make_shared<EffectLayers>();
+    double eff = sc;
+    QImage img = itemImage(ctx, it, sc, pad, &out->lr, &eff);
+    out->pixels = qint64(img.width()) * img.height();
+    if (glowOn) {
+        QImage g = img;
+        boxBlur(g, std::max(1, int(std::min(fx.glow.size, pad / 2) * eff / 2)));
+        // Boost alpha so the glow spreads.
+        g = g.convertToFormat(QImage::Format_ARGB32);
+        for (int y = 0; y < g.height(); ++y) {
+            QRgb *l = reinterpret_cast<QRgb *>(g.scanLine(y));
+            for (int x = 0; x < g.width(); ++x) l[x] = qRgba(0, 0, 0, std::min(255, qAlpha(l[x]) * 3));
+        }
+        QColor gc = fx.glow.color.resolve(cs);
+        gc.setAlphaF(float(1 - fx.glow.transparency));
+        out->glow = colorize(g.convertToFormat(QImage::Format_ARGB32_Premultiplied), gc);
+    }
+    if (fx.shadow.on) {
+        QImage s = img;
+        const double blur = std::min(fx.shadow.blur, pad);
+        if (ctx.doc->slideText) {
+            // As the presentation program blurs it: the radius is the width of a box over the edge, a Gaussian of a third of it.
+            QImage a = s.convertToFormat(QImage::Format_Alpha8);
+            blurAlpha(a, blurSigma(blur) * eff);
+            s = a.convertToFormat(QImage::Format_ARGB32_Premultiplied);
+        } else {
+            boxBlur(s, std::max(0, int(blur * eff / 2)));
+        }
+        QColor c = fx.shadow.color.resolve(cs);
+        c.setAlphaF(float(1 - fx.shadow.transparency));
+        out->shadow = colorize(s, c);
+    }
+    if (fx.reflection.on) {
+        QImage rimg = img.flipped(Qt::Vertical);
+        if (fx.reflection.blur > 0) boxBlur(rimg, int(std::min(fx.reflection.blur, pad) * eff));
+        QImage mask(rimg.size(), QImage::Format_ARGB32_Premultiplied);
+        mask.fill(Qt::transparent);
+        {
+            QPainter mp(&mask);
+            QLinearGradient lg(0, 0, 0, rimg.height() * fx.reflection.size);
+            lg.setColorAt(0, QColor(0, 0, 0, int(255 * (1 - fx.reflection.transparency))));
+            lg.setColorAt(1, QColor(0, 0, 0, 0));
+            mp.fillRect(mask.rect(), lg);
+        }
+        QPainter rp(&rimg);
+        rp.setCompositionMode(QPainter::CompositionMode_DestinationIn);
+        rp.drawImage(0, 0, mask);
+        rp.end();
+        out->reflection = rimg;
+    }
+    if (raster) {
+        QImage body = img;
+        if (fx.softEdge > 0) {
+            QImage m = img;
+            boxBlur(m, std::max(1, int(std::min(fx.softEdge, pad) * eff / 2)));
+            m = m.convertToFormat(QImage::Format_ARGB32);
+            body = body.convertToFormat(QImage::Format_ARGB32);
+            for (int y = 0; y < body.height(); ++y) {
+                QRgb *b = reinterpret_cast<QRgb *>(body.scanLine(y));
+                const QRgb *mm = reinterpret_cast<const QRgb *>(m.constScanLine(y));
+                for (int x = 0; x < body.width(); ++x) {
+                    const int ma = std::clamp((qAlpha(mm[x]) - 128) * 2, 0, 255);
+                    b[x] = qRgba(qRed(b[x]), qGreen(b[x]), qBlue(b[x]), qAlpha(b[x]) * ma / 255);
+                }
+            }
+        }
+        if (fx.bevel.type) {
+            // The bevel goes on the picture before it is turned in space.
+            if (body.format() != QImage::Format_ARGB32_Premultiplied) body = body.convertToFormat(QImage::Format_ARGB32_Premultiplied);
+            QPainter bp(&body);
+            bp.setRenderHint(QPainter::Antialiasing);
+            bp.scale(body.width() / out->lr.width(), body.height() / out->lr.height());
+            bp.translate(-out->lr.topLeft());
+            drawBevel(&bp, Renderer::silhouette(*ctx.doc, it), fx);
+        }
+        out->body = body;
+        out->pixels += qint64(body.width()) * body.height();
+    }
+    return out;
+}
+
+// The layers of a picture are kept by what makes them (its look, its size, the scale, and the colors), so that a page of them scrolled does not blur each again at every step; the
+// cache holds a few and no more than a bounded number of pixels. Other objects (whose words or children are not in their look) are made each time.
+std::shared_ptr<const EffectLayers> effectLayers(const PaintContext &ctx, const Item &it, double sc)
+{
+    static QMutex lock;
+    static QList<QPair<QByteArray, std::shared_ptr<const EffectLayers>>> kept;
+    static qint64 keptPixels = 0;
+    const auto *pic = it.type() == ItemType::Picture ? static_cast<const PictureItem *>(&it) : nullptr;
+    if (!g_keepLayers || !pic || !pic->chartXml.isEmpty() || !pic->mediaKind.isEmpty()) return makeEffectLayers(ctx, it, sc);
+    QByteArray key = QJsonDocument(it.toJson()).toJson(QJsonDocument::Compact) + '|' + QByteArray::number(sc, 'g', 6) + (ctx.doc->slideText ? "|s" : "|p");
+    for (const QColor &c : ctx.doc->colors.c) key += c.name(QColor::HexRgb).toLatin1();
+    {
+        QMutexLocker locker(&lock);
+        for (int i = 0; i < kept.size(); ++i)
+            if (kept[i].first == key) {
+                kept.move(i, 0);
+                return kept[0].second;
+            }
+    }
+    const auto made = makeEffectLayers(ctx, it, sc);
+    QMutexLocker locker(&lock);
+    kept.prepend({key, made});
+    keptPixels += made->pixels;
+    while (kept.size() > 24 || (keptPixels > 40000000 && kept.size() > 1)) {
+        keptPixels -= kept.last().second->pixels;
+        kept.removeLast();
+    }
+    return made;
+}
+
+} // namespace
+
+void Renderer::keepEffectLayersForTest(bool on) { g_keepLayers = on; }
+
+qint64 Renderer::effectLayersMadeForTest() { return g_layersMade; }
 
 void Renderer::paintItem(QPainter *p, const PaintContext &ctx, const Item &it)
 {
@@ -1372,36 +1545,13 @@ void Renderer::paintItem(QPainter *p, const PaintContext &ctx, const Item &it)
     p->setTransform(it.transform(), true);
     const Effects &fx = it.fx;
     const bool raster = fx.softEdge > 0 || fx.rot3d.x || fx.rot3d.y;
-    if (fx.shadow.on || fx.glow.on || fx.reflection.on || raster) {
+    const bool glowOn = fx.glow.on && fx.glow.size > 0;
+    if (fx.shadow.on || glowOn || fx.reflection.on || raster) {
         const double sc = std::clamp(deviceScale(p), 0.5, 4.0);
-        const double pad = std::max({fx.shadow.blur * 2 + fx.shadow.distance, fx.glow.size * 2, 4.0});
-        QRectF lr;
-        QImage img = itemImage(ctx, it, sc, pad, &lr);
-        if (fx.glow.on) {
-            QImage g = img;
-            boxBlur(g, std::max(1, int(fx.glow.size * sc / 2)));
-            // Boost alpha so the glow spreads.
-            g = g.convertToFormat(QImage::Format_ARGB32);
-            for (int y = 0; y < g.height(); ++y) {
-                QRgb *l = reinterpret_cast<QRgb *>(g.scanLine(y));
-                for (int x = 0; x < g.width(); ++x) l[x] = qRgba(0, 0, 0, std::min(255, qAlpha(l[x]) * 3));
-            }
-            QColor gc = fx.glow.color.resolve(cs);
-            gc.setAlphaF(float(1 - fx.glow.transparency));
-            p->drawImage(lr, colorize(g.convertToFormat(QImage::Format_ARGB32_Premultiplied), gc));
-        }
-        if (fx.shadow.on) {
-            QImage s = img;
-            if (ctx.doc->slideText) {
-                // As the presentation program blurs it: the radius is the width of a box over the edge, a Gaussian of a third of it.
-                QImage a = s.convertToFormat(QImage::Format_Alpha8);
-                blurAlpha(a, blurSigma(fx.shadow.blur) * sc);
-                s = a.convertToFormat(QImage::Format_ARGB32_Premultiplied);
-            } else {
-                boxBlur(s, std::max(0, int(fx.shadow.blur * sc / 2)));
-            }
-            QColor c = fx.shadow.color.resolve(cs);
-            c.setAlphaF(float(1 - fx.shadow.transparency));
+        const std::shared_ptr<const EffectLayers> layers = effectLayers(ctx, it, sc);
+        const QRectF lr = layers->lr;
+        if (!layers->glow.isNull()) p->drawImage(lr, layers->glow);
+        if (!layers->shadow.isNull()) {
             // Keep the shadow direction fixed on the page regardless of rotation/flip.
             QTransform inv;
             inv.scale(it.flipH ? -1 : 1, it.flipV ? -1 : 1);
@@ -1414,47 +1564,18 @@ void Renderer::paintItem(QPainter *p, const PaintContext &ctx, const Item &it)
                 p->translate(mid + off);
                 p->scale(fx.shadow.size / 100, fx.shadow.size / 100);
                 p->translate(-mid);
-                p->drawImage(lr, colorize(s, c));
+                p->drawImage(lr, layers->shadow);
                 p->restore();
             } else {
-                p->drawImage(lr.translated(off), colorize(s, c));
+                p->drawImage(lr.translated(off), layers->shadow);
             }
         }
-        if (fx.reflection.on) {
-            QImage rimg = img.flipped(Qt::Vertical);
-            if (fx.reflection.blur > 0) boxBlur(rimg, int(fx.reflection.blur * sc));
-            QImage mask(rimg.size(), QImage::Format_ARGB32_Premultiplied);
-            mask.fill(Qt::transparent);
-            {
-                QPainter mp(&mask);
-                QLinearGradient lg(0, 0, 0, rimg.height() * fx.reflection.size);
-                lg.setColorAt(0, QColor(0, 0, 0, int(255 * (1 - fx.reflection.transparency))));
-                lg.setColorAt(1, QColor(0, 0, 0, 0));
-                mp.fillRect(mask.rect(), lg);
-            }
-            QPainter rp(&rimg);
-            rp.setCompositionMode(QPainter::CompositionMode_DestinationIn);
-            rp.drawImage(0, 0, mask);
-            rp.end();
+        if (!layers->reflection.isNull()) {
             const QRectF rr(lr.left(), it.rect.height() + fx.reflection.distance - (lr.bottom() - it.rect.height()), lr.width(), lr.height());
-            p->drawImage(rr, rimg);
+            p->drawImage(rr, layers->reflection);
         }
         if (raster) {
-            QImage body = img;
-            if (fx.softEdge > 0) {
-                QImage m = img;
-                boxBlur(m, std::max(1, int(fx.softEdge * sc / 2)));
-                m = m.convertToFormat(QImage::Format_ARGB32);
-                body = body.convertToFormat(QImage::Format_ARGB32);
-                for (int y = 0; y < body.height(); ++y) {
-                    QRgb *b = reinterpret_cast<QRgb *>(body.scanLine(y));
-                    const QRgb *mm = reinterpret_cast<const QRgb *>(m.constScanLine(y));
-                    for (int x = 0; x < body.width(); ++x) {
-                        const int ma = std::clamp((qAlpha(mm[x]) - 128) * 2, 0, 255);
-                        b[x] = qRgba(qRed(b[x]), qGreen(b[x]), qBlue(b[x]), qAlpha(b[x]) * ma / 255);
-                    }
-                }
-            }
+            const QImage &body = layers->body;
             if (fx.rot3d.x || fx.rot3d.y) {
                 const double ay = qDegreesToRadians(fx.rot3d.y), ax = qDegreesToRadians(fx.rot3d.x);
                 const double persp = 0.25 + fx.rot3d.perspective / 200.0;
@@ -1478,21 +1599,7 @@ void Renderer::paintItem(QPainter *p, const PaintContext &ctx, const Item &it)
         }
     }
     if (!raster) paintContent(p, ctx, it);
-    if (fx.bevel.type && !raster) {
-        const QPainterPath sil = silhouette(*ctx.doc, it);
-        p->save();
-        p->setClipPath(sil, Qt::IntersectClip);
-        const QRectF b = sil.boundingRect();
-        QLinearGradient lg(b.topLeft(), b.bottomRight());
-        lg.setColorAt(0, QColor(255, 255, 255, 170));
-        lg.setColorAt(0.5, QColor(255, 255, 255, 0));
-        lg.setColorAt(0.5001, QColor(0, 0, 0, 0));
-        lg.setColorAt(1, QColor(0, 0, 0, 120));
-        QPen pen(QBrush(lg), fx.bevel.width * 2);
-        pen.setJoinStyle(Qt::RoundJoin);
-        p->strokePath(sil, pen);
-        p->restore();
-    }
+    if (fx.bevel.type && !raster) drawBevel(p, silhouette(*ctx.doc, it), fx);
     p->restore();
 }
 

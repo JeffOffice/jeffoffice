@@ -1172,6 +1172,67 @@ private Q_SLOTS:
         }
     }
 
+    // A bevel and a turn in space read from an .odp that holds a number that is none (nan, inf) or too large are not taken as they are: a value that is no number leaves the effect off, and a large
+    // one is held to what the effects may have.
+    void odpBevelAndTurnNumbersAreCheckedWhenRead()
+    {
+        QImage image(60, 40, QImage::Format_RGB32);
+        image.fill(Qt::darkCyan);
+        QByteArray png;
+        QBuffer buf(&png);
+        buf.open(QIODevice::WriteOnly);
+        image.save(&buf, "PNG");
+        auto d = deck::newPresentation();
+        d->pages[0]->items.clear();
+        auto pic = std::make_shared<jp::PictureItem>();
+        pic->imageId = d->addImage(png, QStringLiteral("png"));
+        pic->rect = QRectF(100, 100, 240, 160);
+        pic->imgRect = QRectF(0, 0, 240, 160);
+        pic->fx.bevel.type = 3;
+        pic->fx.bevel.width = pic->fx.bevel.height = 6;
+        pic->fx.rot3d.y = 20;
+        pic->fx.rot3d.perspective = 30;
+        d->pages[0]->items.push_back(pic);
+        QString err;
+        const QByteArray odp = deck::exportOdp(*d, false, &err);
+        QVERIFY2(!odp.isEmpty(), qPrintable(err));
+        QMap<QString, QByteArray> parts;
+        QVERIFY(jp::readZip(odp, parts));
+        QVERIFY(parts.value(QStringLiteral("content.xml")).contains("jo:bevel=\"3 6 6\""));
+        auto read = [&](const QByteArray &bevel, const QByteArray &turn) {
+            jp::ZipWriter out;
+            for (auto it = parts.cbegin(); it != parts.cend(); ++it) {
+                QByteArray data = it.value();
+                if (it.key() == QLatin1String("content.xml")) {
+                    data.replace("jo:bevel=\"3 6 6\"", "jo:bevel=\"" + bevel + "\"");
+                    data.replace(QByteArray("jo:rot3d=\"0 20 30\""), "jo:rot3d=\"" + turn + "\"");
+                }
+                // (The first entry is the type's, stored as it was.)
+                out.add(it.key(), data, it.key() != QLatin1String("mimetype"));
+            }
+            QString e;
+            auto back = deck::importOdp(out.finish(), &e);
+            if (!back) return QPair<jp::Effects, bool>{jp::Effects(), false};
+            for (const jp::ItemPtr &it : back->pages[0]->items)
+                if (it->type() == jp::ItemType::Picture) return QPair<jp::Effects, bool>{it->fx, true};
+            return QPair<jp::Effects, bool>{jp::Effects(), false};
+        };
+        const auto good = read("3 6 6", "0 20 30");
+        QVERIFY(good.second && good.first.bevel.type == 3 && good.first.rot3d.y == 20);
+        for (const char *bad : {"nan 6 6", "3 nan 6", "3 6 inf", "inf 6 6"}) {
+            const auto r = read(bad, "0 20 30");
+            QVERIFY2(r.second && r.first.bevel.type == 0 && r.first.bevel.width == 6 + 0 * 1 && std::isfinite(r.first.bevel.width), bad);
+        }
+        for (const char *bad : {"nan 20 30", "0 inf 30", "0 20 nan", "-inf 0 0"}) {
+            const auto r = read("3 6 6", bad);
+            QVERIFY2(r.second && r.first.rot3d.x == 0 && r.first.rot3d.y == 0 && std::isfinite(r.first.rot3d.perspective), bad);
+        }
+        const auto huge = read("99 1e30 -1e30", "1e30 -1e30 1e30");
+        QVERIFY(huge.second);
+        QVERIFY(huge.first.bevel.type == 0 || (huge.first.bevel.type <= 12 && huge.first.bevel.width <= 100 && huge.first.bevel.height >= 0));
+        QVERIFY(std::abs(huge.first.rot3d.x) <= 180 && std::abs(huge.first.rot3d.y) <= 180 && huge.first.rot3d.perspective <= 100);
+    }
+
     // A name with control characters (and a very long one) is written as XML a file can hold: the characters are left out, for a shape, a table, and in .odp too.
     void objectNamesWithControlCharactersAreWrittenAsValidXml()
     {

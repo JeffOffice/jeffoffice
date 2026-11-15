@@ -2,12 +2,18 @@
 // an outline. Built here from paths and a few lines of XML.
 
 #include "core/pathpoints.h"
+#include "core/picturestyles.h"
 #include "office/drawingml_effects.h"
 #include "office/drawingml_geometry.h"
 #include "render/shapes.h"
 #include "pubhelpers.h"
 
+#include "office/drawingml.h"
+#include "office/xml.h"
+#include <QBuffer>
 #include <QDomDocument>
+#include <QElapsedTimer>
+#include <QJsonObject>
 #include <QTest>
 
 using namespace jp;
@@ -120,6 +126,162 @@ private Q_SLOTS:
         QVERIFY(xml.contains(QByteArray("l=\"") + QByteArray::number(qint64(std::llround(text.left() * 12700))) + "\""));
         QVERIFY(text.left() > 1);
     }
+    // ---- picture effects in the renderer
+
+    static std::shared_ptr<PictureItem> effectPicture(Document &doc, const QRectF &rect)
+    {
+        QImage img(120, 80, QImage::Format_RGB32);
+        QPainter ip(&img);
+        QLinearGradient lg(0, 0, 120, 80);
+        lg.setColorAt(0, QColor(40, 120, 220));
+        lg.setColorAt(1, QColor(240, 200, 40));
+        ip.fillRect(img.rect(), lg);
+        ip.end();
+        QByteArray png;
+        QBuffer buf(&png);
+        buf.open(QIODevice::WriteOnly);
+        img.save(&buf, "PNG");
+        auto pic = std::make_shared<PictureItem>();
+        pic->imageId = doc.addImage(png, QStringLiteral("png"));
+        pic->rect = rect;
+        pic->imgRect = QRectF(QPointF(0, 0), rect.size());
+        return pic;
+    }
+
+    static QImage paintOf(Document &doc, const PictureItem &pic, double zoom = 1, QSize size = QSize(320, 240))
+    {
+        QImage out(size, QImage::Format_ARGB32_Premultiplied);
+        out.fill(Qt::white);
+        QPainter p(&out);
+        p.setRenderHint(QPainter::Antialiasing);
+        p.scale(zoom, zoom);
+        PaintContext ctx;
+        ctx.doc = &doc;
+        Renderer::paintItem(&p, ctx, pic);
+        p.end();
+        return out;
+    }
+
+    static Effects effectsRead(const QByteArray &list)
+    {
+        QDomDocument dom;
+        const QByteArray xml = "<a:spPr xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\">" + list + "</a:spPr>";
+        if (!office::parseXml(xml, &dom)) return Effects();
+        office::DrawingContext ctx;
+        return office::readEffects(dom.documentElement(), QDomElement(), ctx);
+    }
+
+    // A file may ask for a blur of hundreds of points and a shadow a thousand points away (blurRad 2540000 and dist 20116800 are 200 and 1584 points): at 400 percent the buffers the effects
+    // are made in stay under the cap (4 million pixels each), and the picture is still drawn.
+    void hostileEffectSizesKeepTheEffectBuffersUnderTheCap()
+    {
+        Document doc;
+        auto pic = effectPicture(doc, QRectF(20, 20, 120, 80));
+        pic->fx = effectsRead("<a:effectLst><a:glow rad=\"2540000\"><a:srgbClr val=\"FF0000\"/></a:glow><a:outerShdw blurRad=\"2540000\" dist=\"20116800\" dir=\"2700000\"><a:srgbClr val=\"000000\"/></a:outerShdw>"
+                              "<a:reflection blurRad=\"2540000\" endPos=\"100000\"/><a:softEdge rad=\"2540000\"/></a:effectLst>");
+        QVERIFY(pic->fx.shadow.on && pic->fx.glow.on && pic->fx.reflection.on && pic->fx.softEdge > 0);
+        QVERIFY(pic->fx.shadow.blur >= 100 && pic->fx.shadow.distance >= 1000);
+        const QImage plain = paintOf(doc, *effectPicture(doc, QRectF(20, 20, 120, 80)), 4, QSize(1400, 1000));
+        const QImage shown = paintOf(doc, *pic, 4, QSize(1400, 1000));
+        QVERIFY(shown != plain);
+        QVERIFY2(Renderer::largestEffectBufferForTest() <= 4000000, qPrintable(QString::number(Renderer::largestEffectBufferForTest())));
+        // (Values held in a file of our own are held too.)
+        QJsonObject o{{"bevel", QJsonObject{{"type", 99}, {"w", 1e9}, {"h", -5}}}, {"rot3d", QJsonObject{{"x", 1e9}, {"y", -1e9}, {"p", 1e6}}}};
+        const Effects fx = Effects::fromJson(o);
+        QCOMPARE(fx.bevel.type, 12);
+        QCOMPARE(fx.bevel.width, 100.0);
+        QCOMPARE(fx.bevel.height, 0.0);
+        QCOMPARE(fx.rot3d.x, 180.0);
+        QCOMPARE(fx.rot3d.y, -180.0);
+        QCOMPARE(fx.rot3d.perspective, 100.0);
+    }
+
+    // The bevel is drawn with soft edges and with a turn in space too, not only on a picture with neither.
+    void aBevelIsDrawnWithSoftEdgesAndATurnInSpace()
+    {
+        Document doc;
+        for (const bool turned : {false, true}) {
+            auto pic = effectPicture(doc, QRectF(60, 50, 120, 80));
+            if (turned) pic->fx.rot3d.y = 25;
+            else pic->fx.softEdge = 6;
+            pic->fx.rot3d.perspective = 30;
+            const QImage without = paintOf(doc, *pic);
+            pic->fx.bevel.type = 1;
+            pic->fx.bevel.width = 8;
+            const QImage with = paintOf(doc, *pic);
+            QVERIFY2(with != without, turned ? "turn" : "soft edges");
+        }
+    }
+
+    // Reset Picture on a picture whose size is not known still takes the crop off (the picture fills its frame as the frame is).
+    void resetPictureTakesTheCropOffAPictureOfNoKnownSize()
+    {
+        PictureItem pic;
+        pic.imageId = QStringLiteral("x");
+        pic.rect = QRectF(10, 10, 100, 50);
+        pic.imgRect = QRectF(-20, -10, 160, 80);
+        pic.fx.shadow.on = true;
+        QVERIFY(resetPictureLook(&pic, QSize(), false));
+        QCOMPARE(pic.imgRect, QRectF(0, 0, 100, 50));
+        QVERIFY(!pic.fx.any());
+    }
+
+    // A glow with no radius draws nothing: it is not read as a glow, and one set with a size of 0 draws as none.
+    void aGlowWithNoRadiusDrawsNothing()
+    {
+        QVERIFY(!effectsRead("<a:effectLst><a:glow><a:srgbClr val=\"FF0000\"/></a:glow></a:effectLst>").glow.on);
+        QVERIFY(effectsRead("<a:effectLst><a:glow rad=\"127000\"><a:srgbClr val=\"FF0000\"/></a:glow></a:effectLst>").glow.on);
+        Document doc;
+        auto pic = effectPicture(doc, QRectF(60, 50, 120, 80));
+        const QImage plain = paintOf(doc, *pic);
+        pic->fx.glow.on = true;
+        pic->fx.glow.size = 0;
+        QCOMPARE(paintOf(doc, *pic), plain);
+    }
+
+    // A picture's effect images are made once and kept: ten shadowed pictures painted twenty times (a page scrolled) are blurred ten times, not two hundred. The time for the twenty passes is told.
+    void thePictureEffectsOfAPageAreMadeOnceForManyPaints()
+    {
+        Document doc;
+        QVector<std::shared_ptr<PictureItem>> pics;
+        for (int i = 0; i < 10; ++i) {
+            auto pic = effectPicture(doc, QRectF(10 + i * 20, 10 + i * 12, 120, 80));
+            pic->fx.shadow.on = true;
+            pic->fx.shadow.blur = 12 + i;
+            pic->fx.shadow.distance = 6;
+            pics << pic;
+        }
+        auto paints = [&] {
+            for (int pass = 0; pass < 20; ++pass) {
+                QImage out(400, 300, QImage::Format_ARGB32_Premultiplied);
+                out.fill(Qt::white);
+                QPainter p(&out);
+                p.translate(0, -pass);
+                PaintContext ctx;
+                ctx.doc = &doc;
+                for (const auto &pic : pics) Renderer::paintItem(&p, ctx, *pic);
+                p.end();
+            }
+        };
+        Renderer::keepEffectLayersForTest(false);
+        QElapsedTimer t;
+        t.start();
+        paints();
+        qInfo("10 shadowed pictures, 20 paints, images made at every paint: %lld ms", qint64(t.elapsed()));
+        Renderer::keepEffectLayersForTest(true);
+        const qint64 before = Renderer::effectLayersMadeForTest();
+        t.start();
+        paints();
+        qInfo("10 shadowed pictures, 20 paints, images kept: %lld ms", qint64(t.elapsed()));
+        QCOMPARE(Renderer::effectLayersMadeForTest() - before, qint64(10));
+        // (Changing a picture's look makes its images again.)
+        const qint64 made = Renderer::effectLayersMadeForTest();
+        pics[0]->fx.shadow.blur = 30;
+        paintOf(doc, *pics[0]);
+        QVERIFY(Renderer::effectLayersMadeForTest() > made);
+        QVERIFY(Renderer::effectLayersMadeForTest() - before <= 12);
+    }
+
 };
 
 JP_TEST_CLASS(DrawSharedTests)

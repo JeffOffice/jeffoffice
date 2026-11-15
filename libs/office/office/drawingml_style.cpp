@@ -316,8 +316,9 @@ void applyEffects(const QDomElement &list, const StyleContext &sc, Effects *fx)
     const QDomElement glow = childNamed(list, "glow");
     if (!glow.isNull()) {
         const QColor c = colorIn(glow, sc);
-        fx->glow.on = true;
+        // (A glow with no radius draws nothing: it is not one.)
         fx->glow.size = std::clamp(parseLength(attr(glow, QStringLiteral("rad")), 0), 0.0, kMaxEffectRadius);
+        fx->glow.on = fx->glow.size > 0;
         if (c.isValid()) {
             fx->glow.color = rgbRef(c);
             fx->glow.transparency = transparencyOf(c);

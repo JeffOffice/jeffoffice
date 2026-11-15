@@ -153,6 +153,11 @@ public:
     // is the item's `size`; the natural size of the equation at it, in points, is `natural` if given.
     static QPainterPath equationOutline(const EquationItem &w, QSizeF *natural = nullptr);
     // How many Text Art outlines, and how many pictures of a long one, have been made on this thread since the program began (both are kept): counts for tests of cost.
+    // The most pixels an effect buffer (a blurred shadow, a glow, a reflection) has been made with since the program began, and how many sets of them have been made (a picture's are
+    // kept for the next paint): for tests of cost.
+    static qint64 largestEffectBufferForTest();
+    static qint64 effectLayersMadeForTest();
+    static void keepEffectLayersForTest(bool on);   // off: every paint makes them again (to time what keeping them saves)
     static qint64 textArtOutlinesMadeForTest();
     static qint64 textArtPicturesMadeForTest();
     // shown: a picture drawn into pixels smaller than it is comes back at that size, each pixel the average of those it covers.

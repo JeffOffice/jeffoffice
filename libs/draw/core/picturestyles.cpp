@@ -154,7 +154,10 @@ bool resetPictureLook(PictureItem *pic, const QSize &px, bool andSize)
     pic->transparency = 0;
     pic->blackWhiteLevel = 0.5;
     pic->blipEffects.clear();
-    if (!px.isEmpty() && pic->imgRect.width() > 0 && pic->imgRect.height() > 0) {
+    if (px.isEmpty() || pic->imgRect.width() <= 0 || pic->imgRect.height() <= 0) {
+        // A picture of no known size has no whole picture to show: the crop is taken off all the same.
+        pic->imgRect = QRectF(QPointF(0, 0), pic->rect.size());
+    } else {
         // The frame grows (or shrinks) to hold the whole picture, which keeps its scale and its middle.
         const QPointF middle = pic->rect.center();
         const double scale = andSize ? 0.75 * px.width() / pic->imgRect.width() : 1.0;

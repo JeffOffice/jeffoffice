@@ -147,6 +147,7 @@ private Q_SLOTS:
         const QVector<jp::GalleryItem> items = gallery->items();
         QVERIFY(items.size() >= 20 && items.size() <= 28);
         QCOMPARE(items.size(), jp::pictureStyleCount());
+        QCOMPARE(items.size(), 26);
         QSet<QString> names;
         QVector<QImage> tiles;
         for (const jp::GalleryItem &item : items) {
@@ -157,6 +158,17 @@ private Q_SLOTS:
         }
         // The tiles are drawn with the effects (a picture styled with a shadow has pixels a plain one has not), and no two of them are alike.
         for (int i = 1; i < tiles.size(); ++i) QVERIFY2(tiles[i] != tiles[0], qPrintable(items[i].tip));
+        // The effects themselves are drawn in the tiles: a shadow, a glow, and a reflection put pixels outside the picture that the plain tile has not.
+        auto covered = [&](const QString &id) {
+            const QImage t = items[jp::pictureStyleIndex(id)].icon.pixmap(QSize(60, 46)).toImage().convertToFormat(QImage::Format_ARGB32);
+            int n = 0;
+            for (int y = 0; y < t.height(); ++y)
+                for (int x = 0; x < t.width(); ++x) n += qAlpha(t.pixel(x, y)) > 8;
+            return n;
+        };
+        const int plainCovered = covered(QStringLiteral("plain"));
+        for (const char *id : {"hard-shadow", "soft-shadow", "glow", "reflected"})
+            QVERIFY2(covered(QString::fromLatin1(id)) > plainCovered + 20, id);
         const int glow = jp::pictureStyleIndex(QStringLiteral("glow")), oval = jp::pictureStyleIndex(QStringLiteral("oval-frame")), bevel = jp::pictureStyleIndex(QStringLiteral("bevel"));
         QVERIFY(glow > 0 && oval > 0 && bevel > 0);
         const QRectF frame = pic->rect;

@@ -24,6 +24,7 @@
 #include "core/fontops.h"
 #include "core/items.h"
 #include "core/pictureops.h"
+#include "io/zip.h"
 #include "core/picturestyles.h"
 #include "app/formatpresets.h"
 #include "core/threadtime.h"
@@ -387,6 +388,17 @@ QString wordsOf(const std::shared_ptr<jp::flow::MaterializedPage> &page, const T
 }
 
 // The window on a document of one paragraph, the caret at the end of its first word.
+// A docx with the text of one part changed (the file's other parts as they were).
+QByteArray withPartReplaced(const QByteArray &docx, const QString &part, const std::function<QByteArray(const QByteArray &)> &change)
+{
+    QMap<QString, QByteArray> parts;
+    if (!readZip(docx, parts)) return {};
+    ZipWriter out;
+    for (auto it = parts.cbegin(); it != parts.cend(); ++it) out.add(it.key(), it.key() == part ? change(it.value()) : it.value(), true);
+    return out.finish();
+}
+
+
 struct Win {
     WriteWindow w;
     explicit Win(const QByteArray &paragraph = "<w:p><w:r><w:t>Hello world</w:t></w:r></w:p>")
@@ -3360,6 +3372,66 @@ private Q_SLOTS:
         const PictureInfo info = pictureAt(*doc, doc->story(), 7);
         QVERIFY(std::abs(info.width - 120) < 0.01 && std::abs(info.height - 60) < 0.01);
         QVERIFY(!resetPictureAndSize(*doc, 7));
+    }
+
+    // A bevel put in or taken off leaves the camera and the light the file has (here a preset of the camera that has no setting of ours) as they were; only a change of the turn writes the scene.
+    void aBevelEditKeepsTheFilesCameraAndLight()
+    {
+        auto doc = textDoc({"Before after"});
+        QTextCursor c(doc->story());
+        c.setPosition(7);
+        QCOMPARE(insertPicture(*doc, c, pngOf(160, 80), QStringLiteral("bar"), PictureWrap::Square), PictureResult::Ok);
+        QVERIFY(setPictureEffects(*doc, 7, [](Effects &fx) { formatpresets::applyBevel(fx, 3); }));
+        const QByteArray foreign = withPartReplaced(doc->toDocx(), QStringLiteral("word/document.xml"), [](const QByteArray &x) {
+            QByteArray y = x;
+            y.replace("<a:camera prst=\"orthographicFront\"/>", "<a:camera prst=\"perspectiveContrastingRightFacing\"/>");
+            y.replace("<a:lightRig rig=\"threePt\" dir=\"t\"/>", "<a:lightRig rig=\"balanced\" dir=\"b\"/>");
+            return y;
+        });
+        auto back = open(foreign);
+        QVERIFY(back);
+        QVERIFY(documentXml(foreign).contains("perspectiveContrastingRightFacing"));
+        QVERIFY(setPictureEffects(*back, 7, [](Effects &fx) { formatpresets::applyBevel(fx, 0); }));
+        QByteArray x = documentXml(back->toDocx());
+        QVERIFY2(x.contains("perspectiveContrastingRightFacing") && x.contains("rig=\"balanced\"") && x.contains("<a:bevelT") && x.contains("prst=\"circle\""), x.constData());
+        QVERIFY(!x.contains("orthographicFront"));
+        auto again = open(back->toDocx());
+        QVERIFY(setPictureEffects(*again, 7, [](Effects &fx) { fx.bevel.type = 0; }));
+        x = documentXml(again->toDocx());
+        QVERIFY(!x.contains("<a:bevelT") && x.contains("perspectiveContrastingRightFacing"));
+    }
+
+    // A document of 2,000 pictures opens without the shape properties of each being read again: the time to open one with no effects and one with a shadow on each is told.
+    void aDocumentOfThousandsOfPicturesOpensQuickly()
+    {
+        auto doc = textDoc({"Before after"});
+        QTextCursor c(doc->story());
+        c.setPosition(7);
+        QCOMPARE(insertPicture(*doc, c, pngOf(40, 20), QStringLiteral("bar"), PictureWrap::Inline), PictureResult::Ok);
+        QVERIFY(setShapeLine(*doc, 7, QStringLiteral("112233"), 2, QStringLiteral("solid")));
+        for (const bool shadowed : {false, true}) {
+            if (shadowed) QVERIFY(setPictureEffects(*doc, 7, [](Effects &fx) { formatpresets::applyShadow(fx, 0); }));
+            const QByteArray many = withPartReplaced(doc->toDocx(), QStringLiteral("word/document.xml"), [](const QByteArray &x) {
+                const qsizetype drawing = x.indexOf("<w:drawing");
+                const qsizetype start = x.lastIndexOf("<w:p>", drawing) >= 0 ? x.lastIndexOf("<w:p>", drawing) : x.lastIndexOf("<w:p ", drawing);
+                const qsizetype end = x.indexOf("</w:p>", drawing) + 6;
+                QByteArray paragraphs;
+                for (int i = 0; i < 2000; ++i) paragraphs += x.mid(start, end - start);
+                return x.left(start) + paragraphs + x.mid(end);
+            });
+            QVERIFY(!many.isEmpty());
+            QElapsedTimer t;
+            t.start();
+            auto big = open(many);
+            QVERIFY(big);
+            int pictures = 0;
+            for (int page = 0; page < 40; ++page) {
+                const auto made = big->pager().materialize(page);
+                if (!made) break;
+                for (const auto &it : made->doc->pages[0]->items) pictures += it->type() == ItemType::Picture;
+            }
+            qInfo("2000 pictures%s: opened and laid out in %lld ms (%d pictures on the pages looked at)", shadowed ? " with shadows" : "", qint64(t.elapsed()), pictures);
+        }
     }
 
     // Change Picture keeps the colors, border, shape, and effects, and a cut when the new picture has the old one's proportions.

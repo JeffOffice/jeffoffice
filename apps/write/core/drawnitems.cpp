@@ -67,21 +67,34 @@ void dressPicture(PictureItem &pic, const Shape &s, const office::Theme *theme)
     // The border is the outline where all four sides are set (the heaviest weight); fewer are lines beside the picture (borderLines).
     if (s.borderWeight > 0 && s.borderSides[0] > 0 && s.borderSides[1] > 0 && s.borderSides[2] > 0 && s.borderSides[3] > 0)
         pic.stroke = Stroke::line(colorOf(s.borderColor.isEmpty() ? QStringLiteral("000000") : s.borderColor), s.borderWeight);
-    // Its effects, and how its border is dashed and ruled, from its shape properties (a shadow, reflection, glow, soft edges, bevel, and a turn in space).
-    if (s.picLook.isEmpty()) return;
+    // Its effects, and how its border is dashed and ruled, from its shape properties (a shadow, reflection, glow, soft edges, bevel, and a turn in space). A picture that says none
+    // of them is not read again (a document of thousands of pictures is opened as often as it has them).
+    const QByteArray &raw = s.picLook;
+    if (!(raw.contains("effectLst") || raw.contains("scene3d") || raw.contains("sp3d") || raw.contains("prstDash") || raw.contains("cmpd"))) return;
     QDomDocument look;
-    if (!office::parseXml(s.picLook, &look)) return;
+    if (!office::parseXml(raw, &look)) return;
     const QDomElement spPr = look.documentElement().firstChildElement();
     if (spPr.isNull()) return;
     office::DrawingContext ctx;
-    QDomDocument themeDoc;
+    // The theme's format scheme is read once for the theme (the same theme is given for every picture of a document).
+    thread_local QByteArray cachedXml;
+    thread_local QDomDocument themeDoc;
+    thread_local QDomElement formats;
     if (theme) {
         ctx.theme = *theme;
-        if (!theme->xml.isEmpty() && office::parseXml(theme->xml, &themeDoc))
-            for (QDomElement e = themeDoc.documentElement().firstChildElement(); !e.isNull(); e = e.nextSiblingElement())
-                if (e.localName() == QLatin1String("themeElements"))
-                    for (QDomElement f = e.firstChildElement(); !f.isNull(); f = f.nextSiblingElement())
-                        if (f.localName() == QLatin1String("fmtScheme")) ctx.formats = f;
+        if (!theme->xml.isEmpty()) {
+            if (theme->xml != cachedXml) {
+                themeDoc = QDomDocument();
+                formats = QDomElement();
+                cachedXml = theme->xml;
+                if (office::parseXml(theme->xml, &themeDoc))
+                    for (QDomElement e = themeDoc.documentElement().firstChildElement(); !e.isNull(); e = e.nextSiblingElement())
+                        if (e.localName() == QLatin1String("themeElements"))
+                            for (QDomElement f = e.firstChildElement(); !f.isNull(); f = f.nextSiblingElement())
+                                if (f.localName() == QLatin1String("fmtScheme")) formats = f;
+            }
+            ctx.formats = formats;
+        }
     }
     pic.fx = office::readEffects(spPr, QDomElement(), ctx);
     if (!pic.stroke.isNone()) {

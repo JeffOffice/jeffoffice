@@ -2986,14 +2986,11 @@ bool flatEffectsDiffer(Effects a, Effects b)
     a.rot3d = b.rot3d = Rotation3D();
     return a.toJson() != b.toJson();
 }
-bool solidEffectsDiffer(const Effects &a, const Effects &b)
-{
-    return a.bevel.type != b.bevel.type || a.bevel.width != b.bevel.width || a.bevel.height != b.bevel.height || a.rot3d.x != b.rot3d.x || a.rot3d.y != b.rot3d.y ||
-           a.rot3d.perspective != b.rot3d.perspective;
-}
+bool bevelDiffers(const Effects &a, const Effects &b) { return a.bevel.type != b.bevel.type || a.bevel.width != b.bevel.width || a.bevel.height != b.bevel.height; }
+bool turnDiffers(const Effects &a, const Effects &b) { return a.rot3d.x != b.rot3d.x || a.rot3d.y != b.rot3d.y || a.rot3d.perspective != b.rot3d.perspective; }
 
-// Puts the effects in the shape properties, those that changed from `was`: the effect list (with what else it held) for the flat ones, the scene and solid for a bevel or a turn. What
-// did not change stays as the file had it.
+// Puts the effects that changed from `was` in the shape properties: the effect list (with what else it held) for the flat ones, the scene for a turn, and the solid for a bevel. What did
+// not change stays as the file had it: a bevel put in or taken off leaves the file's camera and light as they are (a bevel needs a scene, so one is made only where there is none).
 bool putEffects(SpPr *sp, WriteDoc &doc, const Effects &fx, const Effects &was)
 {
     const office::EffectElements made = office::writeEffectElements(fx, doc.flow().env.colors);
@@ -3005,10 +3002,21 @@ bool putEffects(SpPr *sp, WriteDoc &doc, const Effects &fx, const Effects &was)
             changed = true;
         }
     }
-    if (solidEffectsDiffer(fx, was)) {
-        if (childRaw(*sp, SlotScene) != made.scene || childRaw(*sp, SlotSolid3d) != made.solid) {
-            setSlot(sp, SlotScene, "scene3d", made.scene);
+    if (turnDiffers(fx, was)) {
+        // (A turn taken off with a bevel still there leaves the scene the bevel needs, with the flat camera.)
+        const QByteArray scene = made.scene;
+        if (childRaw(*sp, SlotScene) != scene) {
+            setSlot(sp, SlotScene, "scene3d", scene);
+            changed = true;
+        }
+    }
+    if (bevelDiffers(fx, was)) {
+        if (childRaw(*sp, SlotSolid3d) != made.solid) {
             setSlot(sp, SlotSolid3d, "sp3d", made.solid);
+            changed = true;
+        }
+        if (childRaw(*sp, SlotScene).isEmpty() && !made.scene.isEmpty()) {
+            setSlot(sp, SlotScene, "scene3d", made.scene);
             changed = true;
         }
     }
