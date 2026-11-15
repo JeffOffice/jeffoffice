@@ -363,6 +363,8 @@ private Q_SLOTS:
         m_app.skipped = {};
         m_app.quiet = {
             {QStringLiteral("design.slideSize"), QStringLiteral("the name of the Slide Size menu: its choices are the commands, and it has none of its own")},
+            {QStringLiteral("design.setDefaultSlideSize"), QStringLiteral("it keeps this slide size for new presentations, and nothing changes in this one")},
+            {QStringLiteral("design.setDefaultTheme"), QStringLiteral("it keeps this theme for new presentations, and nothing changes in this one")},
             {QStringLiteral("anim.painter"), QStringLiteral("it arms the animation painter, and nothing shows until a shape is clicked")},
             {QStringLiteral("review.wordCount"), QStringLiteral("it tells the counts in a message and changes nothing")},
         };
