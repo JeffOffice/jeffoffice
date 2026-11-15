@@ -666,6 +666,7 @@ private Q_SLOTS:
             {QStringLiteral("review.show.formatting"), QStringLiteral("it chooses whether the bars for changes of formatting are painted in the pages' margin, which no control shows; the window's tests check the painting")},
         };
         m_app.neverRun = {
+            {QStringLiteral("design.themes.reset"), QStringLiteral("it is on only once the theme differs from the one the document was opened with, which no place here changes; theDesignTabListsThemesColorsAndFontsAndTheyApplyInOneStep runs it after a change")},
             {QStringLiteral("arrange.distribute.h"), QStringLiteral("it needs three objects selected together, which no place here has; theEffectsMenuAndDistributeWorkFromTheWindowOneStepEach runs it on three")},
             {QStringLiteral("arrange.distribute.v"), QStringLiteral("it needs three objects selected together, which no place here has; distributeSpreadsThreeObjectsToEqualGapsInOneStep runs the down direction, and its twin is run from the window on three")},
             {QStringLiteral("pn.remove"), QStringLiteral("it works only where a header or footer has a page number, which no place here has; the page number tests run it on one")},
