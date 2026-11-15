@@ -736,6 +736,7 @@ private Q_SLOTS:
         });
         const QString circle = QCoreApplication::translate("Animation", "Circle"), pie = QCoreApplication::translate("jp::WriteWindow", "Pie");
         QCOMPARE(circle, pie);   // (one German word for two English ones)
+        QCoreApplication::translate("jp::WriteWindow", "Pie");   // (asked for again: noted once)
         QVERIFY(sourceTexts(circle).contains(QStringLiteral("Circle")));
         QVERIFY(sourceTexts(circle).contains(QStringLiteral("Pie")));
         QCOMPARE(sourceTexts(circle).count(QStringLiteral("Pie")), 1);   // (noted once)
