@@ -596,9 +596,9 @@ bool MainWindow::openFile(const QString &path, OpenHow how)
         const trust::Choice links = trust::linkedFiles();
         doc = publicationFromBytes(bytes, &err, QFileInfo(path).absolutePath(), links == trust::Choice::Yes);
         if (doc && links == trust::Choice::Ask && how != OpenHow::Repair)
-            if (const int n = doc->updatableLinks(); n > 0) {
+            if (doc->updatableLinks() > 0) {
                 QApplication::restoreOverrideCursor();
-                const bool yes = trust::ask(this, tr("Linked Pictures"), tr("This publication has %n picture(s) linked to files on this computer that have changed or are not kept in it. Update them from the files now?", nullptr, n),
+                const bool yes = trust::ask(this, tr("Linked Pictures"), tr("This publication has pictures linked to files on this computer that have changed or are not kept in it. Update them from the files now?"),
                                             tr("You can change this under Trust Center in Options."));
                 QApplication::setOverrideCursor(Qt::WaitCursor);
                 if (yes) doc->refreshLinks();

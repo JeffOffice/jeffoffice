@@ -218,10 +218,10 @@ bool optionsDialog(QWidget *p, Editor *, const QVector<OptionsPage> &appPages, b
     pf->addRow(autoformat);
     pf->addRow(autolink);
     tabs->addTab(proof, QCoreApplication::translate("Dialogs", "Proofing"));
-    // The Trust Center: what a file may reach out to, the same page in every app (the rows of what the app has none of say so).
+    for (const OptionsPage &page : appPages) tabs->addTab(page.build(), page.title);
+    // The Trust Center: what a file may reach out to, the same page in every app, after the app's own (the rows of what the app has none of say so).
     auto *trustPage = new trust::TrustPage(trust::appliesTo(appInfo().fileName), tabs);
     tabs->addTab(trustPage, QCoreApplication::translate("Dialogs", "Trust Center"));
-    for (const OptionsPage &page : appPages) tabs->addTab(page.build(), page.title);
     // Customize: the ribbon, the quick toolbar, and the keyboard (the commands of the window this was opened from).
     KeyboardPage *keyboard = nullptr;
     RibbonPage *ribbonPage = nullptr;

@@ -1229,7 +1229,7 @@ private Q_SLOTS:
         });
         w.act(QStringLiteral("file.options"))->trigger();
         QCOMPARE(title, QStringLiteral("JeffDeck Options"));
-        QCOMPARE(tabNames, (QStringList{"General", "Proofing", "View", "Save", "Customize"}));
+        QCOMPARE(tabNames, (QStringList{"General", "Proofing", "View", "Save", "Trust Center", "Customize"}));
         QCOMPARE(shown, QStringLiteral("General"));
         QCOMPARE(userName, Settings::get().userName());
         // JeffDeck checks for updates and sends statistics (when chosen) like JeffPub, so the choices are here, in its own words.
