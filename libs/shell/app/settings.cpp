@@ -13,6 +13,8 @@
 #include <QLocale>
 #include <QRegularExpression>
 #include <QStandardPaths>
+#include <QTemporaryDir>
+#include <QCoreApplication>
 
 namespace jp {
 
@@ -161,6 +163,31 @@ bool usesLetterPaper(const QLocale &region)
                                                      QLocale::Chile,        QLocale::Venezuela,  QLocale::CostaRica, QLocale::Guatemala,   QLocale::Panama,
                                                      QLocale::DominicanRepublic, QLocale::ElSalvador, QLocale::Nicaragua, QLocale::Honduras, QLocale::PuertoRico};
     return letter.contains(region.territory());
+}
+
+QString keepSettingsApart()
+{
+    static QString kept;
+    static QTemporaryDir temporary;   // (taken away again when the program ends)
+    if (!kept.isEmpty()) return kept;
+    QString folder = qEnvironmentVariable("JP_SETTINGS_FOLDER");
+    const bool testing = qEnvironmentVariableIsSet("JP_TESTING");
+    const QStringList args = QCoreApplication::arguments();
+    const bool shot = std::any_of(args.begin(), args.end(), [](const QString &a) { return a == QLatin1String("--screenshot") || a.startsWith(QLatin1String("--screenshot=")); });
+    if (folder.isEmpty() && !testing && !shot) return {};
+    if (folder.isEmpty()) {
+        if (!temporary.isValid()) return {};
+        folder = temporary.path();
+        if (shot && !testing) {
+            const QString real = QFileInfo(QSettings(QSettings::IniFormat, QSettings::UserScope, QStringLiteral("JeffOffice"), QStringLiteral("JeffOffice")).fileName()).absolutePath();
+            for (const QFileInfo &fi : QDir(real).entryInfoList({QStringLiteral("*.conf"), QStringLiteral("*.ini")}, QDir::Files)) QFile::copy(fi.absoluteFilePath(), QDir(folder).filePath(fi.fileName()));
+        }
+    }
+    QSettings::setDefaultFormat(QSettings::IniFormat);
+    QSettings::setPath(QSettings::NativeFormat, QSettings::UserScope, folder);
+    QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, folder);
+    kept = folder;
+    return kept;
 }
 
 Settings::Settings()

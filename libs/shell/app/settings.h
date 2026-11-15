@@ -21,6 +21,13 @@ Unit defaultUnit(const QLocale &region);
 // States, Canada, and a few countries beside them); everywhere else on A4.
 bool usesLetterPaper(const QLocale &region);
 
+// Keeps this run's settings out of the person's own. Called at the start of every app's main(), once the application object is made:
+// - when JP_SETTINGS_FOLDER names a folder (a test program sets it for the programs it starts), the settings are kept there;
+// - when JP_TESTING is set without a folder (a test run that did not name one), or the run is a --screenshot, the settings are kept in a temporary folder that goes
+//   away at the end; a screenshot starts from a copy of the person's settings, so it looks as the person's program does, but what it opens or changes stays out of them.
+// Any other run keeps its settings where the person's are. Returns the folder used, or nothing when the settings are the person's.
+JO_COMMON_EXPORT QString keepSettingsApart();
+
 // For an app that kept its settings and files under another name: copies
 // the keys `to` lacks, and moves the folder unless `to` already exists.
 void copyMissingSettings(const QSettings &from, QSettings &to);

@@ -3,6 +3,7 @@
 #include "../sheet/drawinghelpers.h"
 #include "../office/diagramsample.h"
 #include "../stablesaves.h"
+#include "../isolatesettings.h"
 #include "savedok.h"
 #include "editwindow.h"
 
@@ -17,10 +18,12 @@
 #include "office/xml.h"
 
 #include <QDir>
+#include <QDirIterator>
 #include <QMenu>
 #include <QRegularExpression>
 #include <QSet>
 #include <QProcess>
+#include <QTemporaryDir>
 #include <QRandomGenerator>
 #include <QToolButton>
 #include <QThreadPool>
@@ -1818,6 +1821,47 @@ private Q_SLOTS:
         const QImage img(png);
         QVERIFY(!img.isNull());
         QVERIFY(img.width() >= 700 && img.height() >= 500);
+    }
+
+    // A program the tests start never writes the person's settings: with nothing in its environment that names a settings folder, in a home folder of its own standing for the person's, a run that opens a workbook
+    // for a screenshot leaves no settings file there (the Recent list is in it), and with the folder named by the run's environment the Recent list is in that folder and not in the person's.
+    void aProgramTheTestsStartKeepsTheRecentListOutOfThePersonsSettings()
+    {
+        const QString exe = QStringLiteral(JC_CRUNCH_EXE);
+        QVERIFY2(QFileInfo::exists(exe), qPrintable(exe));
+        Folder folder;
+        const QString book = folder.write(QStringLiteral("book.xlsx"), drawingBook());
+        // (whether a settings file anywhere under the folder has the workbook in its Recent list: the files are in a folder of the organization's name)
+        auto holds = [](const QString &top) {
+            for (QDirIterator it(top, {QStringLiteral("*.conf"), QStringLiteral("*.ini")}, QDir::Files, QDirIterator::Subdirectories); it.hasNext();) {
+                QFile f(it.next());
+                if (f.open(QIODevice::ReadOnly) && f.readAll().contains("book.xlsx")) return true;
+            }
+            return false;
+        };
+        QTemporaryDir home;   // (stands for the person's home)
+        QVERIFY(home.isValid());
+        auto run = [&](const QString &settingsFolder) {
+            QProcess child;
+            QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+            env.remove(QStringLiteral("JP_TESTING"));
+            env.remove(QStringLiteral("JP_SETTINGS_FOLDER"));
+            if (!settingsFolder.isEmpty()) env.insert(QStringLiteral("JP_SETTINGS_FOLDER"), settingsFolder);
+            env.insert(QStringLiteral("HOME"), home.path());
+            env.insert(QStringLiteral("XDG_CONFIG_HOME"), home.filePath(QStringLiteral(".config")));
+            env.insert(QStringLiteral("QT_QPA_PLATFORM"), QStringLiteral("offscreen"));
+            env.insert(QStringLiteral("JP_NO_TELEMETRY"), QStringLiteral("1"));
+            child.setProcessEnvironment(env);
+            child.start(exe, {QStringLiteral("--screenshot"), folder.dir.filePath(QStringLiteral("shot.png")), QStringLiteral("--size"), QStringLiteral("700x500"), book});
+            return child.waitForStarted() && child.waitForFinished(120000) && child.exitStatus() == QProcess::NormalExit && child.exitCode() == 0;
+        };
+        QVERIFY(run(QString()));
+        QVERIFY2(!holds(home.path()), "a screenshot run wrote its Recent list to the person's settings");
+        QTemporaryDir named;
+        QVERIFY(named.isValid());
+        QVERIFY(run(named.path()));
+        QVERIFY(holds(named.path()));
+        QVERIFY2(!holds(home.path()), "a run with a settings folder named wrote to the person's settings too");
     }
 
     // A chart sheet prints as one page with its chart over the room the page has inside its margins (the page setup of the chart sheet is read: the paper, its turn, the margins), and

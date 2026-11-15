@@ -35,6 +35,9 @@ inline const QString &isolatedSettingsFolder()
         QSettings::setDefaultFormat(QSettings::IniFormat);
         QSettings::setPath(QSettings::NativeFormat, QSettings::UserScope, dir.path());
         QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, dir.path());
+        // (a program the run starts, an app made to take a screenshot, finds these in its environment and keeps its settings in the same folder: it is not this process, and would otherwise write to the person's)
+        qputenv("JP_TESTING", "1");
+        qputenv("JP_SETTINGS_FOLDER", dir.path().toUtf8());
         return true;
     }();
     Q_UNUSED(redirected)
