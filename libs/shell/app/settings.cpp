@@ -222,6 +222,8 @@ QString keepSettingsApart()
     // (the system's own folders cannot be moved by the environment: Qt's test folders are named apart from the person's, and they lie under the home folder, so the home is this run's folder: nothing is left in the person's)
     qputenv("USERPROFILE", folder.toUtf8());
     qputenv("HOME", folder.toUtf8());
+    qputenv("APPDATA", (folder + QStringLiteral("/AppData/Roaming")).toUtf8());
+    qputenv("LOCALAPPDATA", (folder + QStringLiteral("/AppData/Local")).toUtf8());
     QStandardPaths::setTestModeEnabled(true);
 #endif
     keptApart = folder;
