@@ -103,6 +103,9 @@ public:
     // come to). A lazy package inflates it now, each time it is asked for, and keeps nothing: a caller that needs it twice keeps what it was given. The whole
     // part is held in memory, so a part that may be large is read with openPart.
     QByteArray part(const QString &name) const;
+    // A part given other bytes in memory (a program that changes what a file holds, and shows it at once, as Replace Fonts does): part, partSize, and openPart give these from now on. Call while
+    // no other thread reads the package.
+    void overridePart(const QString &name, const QByteArray &bytes);
     // How many bytes the part holds once inflated; -1 if there is no such part.
     qint64 partSize(const QString &name) const;
     // The part as a stream, inflated as it is read (see ZipEntryDevice); null
@@ -136,6 +139,7 @@ private:
 
     QMap<QString, QByteArray> m_parts;              // by part name, relationship parts too
     QHash<QString, QString> m_names;                // lower-cased part name -> name as stored
+    QHash<QString, QByteArray> m_partBytes;         // parts given other bytes in memory, by name as stored
     QHash<QString, QString> m_defaults;             // lower-cased extension -> content type
     QHash<QString, QString> m_overrides;            // lower-cased part name -> content type
     QHash<QString, QVector<Relationship>> m_rels;   // lower-cased source ("/" or part name) -> its links

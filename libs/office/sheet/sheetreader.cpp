@@ -3151,6 +3151,49 @@ QMap<QString, qint64> Workbook::partFontsUsed() const
     return counts;
 }
 
+QVector<QPair<QString, QByteArray>> Workbook::renameFontsInParts(const QString &from, const QString &to)
+{
+    QVector<QPair<QString, QByteArray>> was, now;
+    for (const QString &name : m_package.partNames()) {
+        if (!partNamesFontsInText(name)) continue;
+        const QByteArray bytes = m_package.part(name);
+        bool did = false;
+        const QByteArray renamed = renameFontsInText(bytes, from, to, &did);
+        if (!did) continue;
+        was.append({name, bytes});
+        now.append({name, renamed});
+    }
+    setPartBytes(now);
+    return was;
+}
+
+void Workbook::setPartBytes(const QVector<QPair<QString, QByteArray>> &parts)
+{
+    for (const auto &p : parts) {
+        m_package.overridePart(p.first, p.second);
+        // (the package the window's objects read from, when it is another)
+        if (m_objectPackage) const_cast<Package &>(*m_objectPackage).overridePart(p.first, p.second);
+    }
+}
+
+QVector<QPair<quint32, QString>> Workbook::renameSharedRichFonts(const QString &from, const QString &to)
+{
+    QVector<QPair<quint32, QString>> was;
+    for (int i = 0; i < m_shared.richFonts.size(); ++i) {
+        FontSpec &f = m_shared.richFonts[i];
+        if (!f.scheme.isEmpty() || f.name.compare(from, Qt::CaseInsensitive) != 0 || f.name == to) continue;
+        was.append({quint32(i), f.name});
+        f.name = to;
+    }
+    return was;
+}
+
+void Workbook::setSharedRichFontNames(const QVector<QPair<quint32, QString>> &fonts)
+{
+    for (const auto &f : fonts)
+        if (f.first < quint32(m_shared.richFonts.size())) m_shared.richFonts[int(f.first)].name = f.second;
+}
+
 void Workbook::addFontTextRename(const QString &from, const QString &to) { m_fontTextRenames.append({from, to}); }
 
 void Workbook::undoFontTextRename(const QString &from, const QString &to)

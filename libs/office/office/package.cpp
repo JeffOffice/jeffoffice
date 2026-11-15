@@ -466,9 +466,18 @@ QStringList Package::partNames() const { return m_parts.keys(); }
 
 bool Package::hasPart(const QString &name) const { return m_names.contains(nameKey(name)); }
 
+void Package::overridePart(const QString &name, const QByteArray &bytes)
+{
+    const QString stored = m_names.value(nameKey(name));
+    if (stored.isEmpty()) return;
+    m_partBytes.insert(stored, bytes);
+}
+
 QByteArray Package::part(const QString &name) const
 {
     const QString stored = m_names.value(nameKey(name));
+    if (!m_partBytes.isEmpty())
+        if (const auto o = m_partBytes.constFind(stored); o != m_partBytes.cend()) return *o;
     if (!m_lazy) return m_parts.value(stored);
     const auto entry = m_lazy->entries.constFind(stored);
     QByteArray bytes;
@@ -480,6 +489,8 @@ qint64 Package::partSize(const QString &name) const
 {
     const QString stored = m_names.value(nameKey(name));
     if (!m_names.contains(nameKey(name))) return -1;
+    if (!m_partBytes.isEmpty())
+        if (const auto o = m_partBytes.constFind(stored); o != m_partBytes.cend()) return o->size();
     if (!m_lazy) return m_parts.value(stored).size();
     const auto entry = m_lazy->entries.constFind(stored);
     return entry == m_lazy->entries.cend() ? -1 : entry->usize;
@@ -489,9 +500,9 @@ std::unique_ptr<QIODevice> Package::openPart(const QString &name) const
 {
     if (!m_names.contains(nameKey(name))) return nullptr;
     const QString stored = m_names.value(nameKey(name));
-    if (!m_lazy) {
+    if (!m_lazy || m_partBytes.contains(stored)) {
         auto buffer = std::make_unique<QBuffer>();
-        buffer->setData(m_parts.value(stored));
+        buffer->setData(m_partBytes.contains(stored) ? m_partBytes.value(stored) : m_parts.value(stored));
         buffer->open(QIODevice::ReadOnly);
         return buffer;
     }

@@ -3494,6 +3494,16 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
         }
     }
 
+    // (the sheets whose inline strings have runs in fonts: written through the renames, though nothing else in them changed)
+    if (!changes.fontTextRenames.isEmpty())
+        for (const int sheet : changes.richTextSheets) {
+            if (sheet < 0 || sheet >= book.info().sheets.size()) continue;
+            const SheetEntry &se = book.info().sheets[sheet];
+            if (se.deleted || se.isNew || se.kind != SheetKind::Worksheet || se.part.isEmpty()) continue;
+            const int index = entryOfPart(se.part);
+            if (index >= 0 && !sheetOfEntry.contains(index) && !replaced.contains(index) && !dropped.contains(index)) sheetOfEntry.insert(index, sheet);
+        }
+
     // ---- the new ZIP, entry by entry in the old order
     ZipWriter zip;
     ZipSink sink(&zip);
@@ -3521,7 +3531,8 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
             bool ok = device.open(QIODevice::ReadOnly);
             // (a sheet that loses entries of deleted custom views is written to memory first, and those taken out)
             BufferSink whole;
-            PartSink *target = stripEntries.contains(i) ? static_cast<PartSink *>(&whole) : static_cast<PartSink *>(&sink);
+            const bool renameText = !changes.fontTextRenames.isEmpty() && changes.richTextSheets.contains(sheet);
+            PartSink *target = stripEntries.contains(i) || renameText ? static_cast<PartSink *>(&whole) : static_cast<PartSink *>(&sink);
             if (ok && mover && patch) {
                 // (the file's cells are put in the places the edits leave them, and then the cells that changed are put in)
                 BufferSink moved;
@@ -3534,8 +3545,10 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
                 ok = patchSheet(&device, target, changed != changes.sheets.end() ? changed->second : noChanges, hasShared, &why, cancel);
             }
             if (ok && target == &whole) {
-                QByteArray stripped;
-                ok = stripCustomSheetViews(whole.bytes, viewGuids, &stripped);
+                QByteArray stripped = whole.bytes;
+                if (stripEntries.contains(i)) ok = stripCustomSheetViews(whole.bytes, viewGuids, &stripped);
+                if (ok && renameText)
+                    for (const auto &r : changes.fontTextRenames) stripped = renameFontsInText(stripped, r.first, r.second);
                 if (ok) sink.write(stripped.constData(), stripped.size());
             }
             if (!ok) {

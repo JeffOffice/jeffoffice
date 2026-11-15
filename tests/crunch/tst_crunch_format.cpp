@@ -11,6 +11,7 @@
 #include "editwindow.h"
 #include "grid/gridview.h"
 #include "io/zip.h"
+#include "core/sheetobjects.h"
 
 #include <QAction>
 #include <QApplication>
@@ -83,6 +84,8 @@ QByteArray richBook()
     const QByteArray shared = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<sst xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" count=\"1\" uniqueCount=\"1\"><si><r><rPr><b/><rFont val=\"Zephyr Test\"/></rPr><t>rich </t></r><r><t>text</t></r></si></sst>";
     QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\" t=\"s\"><v>0</v></c><c r=\"B1\"><v>2</v></c><c r=\"C1\"><v>3</v></c></row>");
     for (int r = 2; r <= 3; ++r) rows += QStringLiteral("<row r=\"%1\"><c r=\"A%1\"><v>%2</v></c><c r=\"B%1\"><v>%3</v></c><c r=\"C%1\"><v>%4</v></c></row>").arg(r).arg(r * 3 - 2).arg(r * 3 - 1).arg(r * 3);
+    // (and a rich inline string in the same font)
+    rows.replace(QStringLiteral("<c r=\"A2\"><v>4</v></c>"), QStringLiteral("<c r=\"A2\" t=\"inlineStr\"><is><r><rPr><rFont val=\"Zephyr Test\"/></rPr><t>in</t></r><r><t>line</t></r></is></c>"));
     QByteArray sheet = worksheet(rows);
     sheet.replace("</worksheet>", "<drawing r:id=\"rIdD1\"/></worksheet>");
     QVector<ExtraPart> parts;
@@ -115,8 +118,8 @@ QByteArray ruledBook()
     return buildXlsx({worksheet(rows, after)}, QByteArray(), QString(), QString(), styles);
 }
 
-CellRange columns(quint32 first, quint32 last) { return CellRange{0, first, 1048575, last, true}; }
-CellRange rows(quint32 first, quint32 last) { return CellRange{first, 0, last, 16383, true}; }
+jp::office::sheet::CellRange columns(quint32 first, quint32 last) { return jp::office::sheet::CellRange{0, first, 1048575, last, true}; }
+jp::office::sheet::CellRange rows(quint32 first, quint32 last) { return jp::office::sheet::CellRange{first, 0, last, 16383, true}; }
 
 // The format of a cell of the grid, as the grid draws it.
 const grid::CellLook &lookAt(EditWindow &e, const QString &ref)
@@ -299,14 +302,40 @@ private Q_SLOTS:
         QVERIFY(sent.value(QStringLiteral("xl/sharedStrings.xml")).contains("Zephyr Test"));
         QVERIFY(sent.value(QStringLiteral("xl/drawings/drawing1.xml")).contains("Zephyr Test"));
         QVERIFY(sent.value(QStringLiteral("xl/charts/chart1.xml")).contains("Zephyr Test"));
+        QVERIFY(sent.value(QStringLiteral("xl/worksheets/sheet1.xml")).contains("Zephyr Test"));   // (the inline string's run)
         // (the fonts of the rich text, the shape, and the chart are listed with the cells')
         QMap<QString, qint64> stylesOnly;
-        QCOMPARE(s->cellFontsUsed(&stylesOnly).value(QStringLiteral("Zephyr Test")), qint64(4 + 1 + 1 + 3));
+        QCOMPARE(s->cellFontsUsed(&stylesOnly).value(QStringLiteral("Zephyr Test")), qint64(4 + 1 + 1 + 3 + 1));
         const qsizetype fonts = before.count("<font>") + before.count("<font ");
         const qsizetype formats = before.count("<xf ");
+        // What is in memory shows the font at once, and again after Undo and Redo: the letters of the shape, the chart's title, and the run of rich text.
+        crunch::SheetObjects *objects = e.win.w.objects();
+        QVERIFY(objects);
+        QTRY_VERIFY(objects->shownSheet() == 0 && objects->idsOf(0).size() == 2);
+        int shape = -1, chart = -1;
+        for (const int id : objects->idsOf(0)) (objects->kindOf(0, id) == jp::office::sheet::ObjectKind::Chart ? chart : shape) = id;
+        QVERIFY(shape >= 0 && chart >= 0);
+        auto richFont = [&] {
+            const auto rich = s->richOf(0, 0, 0);
+            if (!rich) return QStringLiteral("(no rich text)");
+            for (const auto &run : rich->runs)
+                if (run.font != jp::office::sheet::RichRun::kCellFont && run.font < quint32(rich->fonts.size())) return rich->fonts[int(run.font)].name;
+            return QStringLiteral("(no run in a font)");
+        };
+        auto inMemory = [&](const QString &want) {
+            QCOMPARE(objects->textFontOf(0, shape), want);
+            QCOMPARE(objects->chartNow(0, chart).title.font.family, want);
+            QCOMPARE(richFont(), want);
+        };
+        inMemory(QStringLiteral("Zephyr Test"));
         qint64 cells = 0;
         QVERIFY(s->replaceCellFont(QStringLiteral("zephyr test"), QStringLiteral("Zephyr Two"), &cells).ok);
-        QCOMPARE(cells, qint64(4 + 1 + 1 + 3));   // (four cells, a rich run, a shape's letters, and a chart's title, labels, and axis)
+        QCOMPARE(cells, qint64(4 + 1 + 1 + 3 + 1));
+        inMemory(QStringLiteral("Zephyr Two"));
+        e.win.w.act(QStringLiteral("edit.undo"))->trigger();
+        inMemory(QStringLiteral("Zephyr Test"));
+        e.win.w.act(QStringLiteral("edit.redo"))->trigger();
+        inMemory(QStringLiteral("Zephyr Two"));   // (four cells, a rich run, an inline run, a shape's letters, and a chart's title, labels, and axis)
         QSignalSpy second(&e.win.w, &CrunchWindow::saved);
         QVERIFY(e.win.w.save());
         QVERIFY2(savedOk(second, 20000), qPrintable(e.win.told.join('|') + e.win.w.statusText()));
@@ -324,7 +353,7 @@ private Q_SLOTS:
         QVERIFY(reopened.open(e.copyOfFile()));
         QCOMPARE(reopened.w.view()->sheet().looks().look(reopened.w.calculation()->sheet(0).cells.find(1, 1)->style).family, QStringLiteral("Zephyr Two"));
         QCOMPARE(reopened.w.session()->cellFontsUsed().value(QStringLiteral("Zephyr Test")), qint64(0));
-        QCOMPARE(reopened.w.session()->cellFontsUsed().value(QStringLiteral("Zephyr Two")), qint64(4 + 1 + 1 + 3));
+        QCOMPARE(reopened.w.session()->cellFontsUsed().value(QStringLiteral("Zephyr Two")), qint64(4 + 1 + 1 + 3 + 1));
         // Undo gives the old name back, in the same place, and the file after another save has it again.
         e.win.w.act(QStringLiteral("edit.undo"))->trigger();
         QSignalSpy third(&e.win.w, &CrunchWindow::saved);
@@ -334,7 +363,7 @@ private Q_SLOTS:
         QVERIFY(undone.contains("Zephyr Test") && !undone.contains("Zephyr Two"));
         QCOMPARE(undone.count("<xf "), formats);
         const QMap<QString, QByteArray> back = partsOf(e.copyOfFile());
-        for (const char *part : {"xl/sharedStrings.xml", "xl/drawings/drawing1.xml", "xl/charts/chart1.xml"}) {
+        for (const char *part : {"xl/sharedStrings.xml", "xl/drawings/drawing1.xml", "xl/charts/chart1.xml", "xl/worksheets/sheet1.xml"}) {
             QVERIFY2(back.value(QString::fromLatin1(part)).contains("Zephyr Test"), part);
             QVERIFY2(!back.value(QString::fromLatin1(part)).contains("Zephyr Two"), part);
         }
@@ -347,7 +376,7 @@ private Q_SLOTS:
         EditWindow e;
         QVERIFY(e.open(formatBook()));
         crunch::EditSession *s = e.win.w.session();
-        const CellRange block = rangeOf(QStringLiteral("B2:C3"));
+        const jp::office::sheet::CellRange block = rangeOf(QStringLiteral("B2:C3"));
         FormatChange bold;
         bold.bold = true;
         bold.fontSize = 14;
@@ -461,7 +490,7 @@ private Q_SLOTS:
         QVERIFY(s->clearFormats(0, rangeOf(QStringLiteral("A1:C3"))).ok);
         QVERIFY(!lookAt(e, QStringLiteral("B2")).italic);
         QCOMPARE(e.valueAt(QStringLiteral("B2")), QStringLiteral("n:5"));   // (the values stay)
-        QVERIFY(s->formatCells(0, CellRange{0, 0, 1048575, 16383, true}, italic, QStringLiteral("Formatting")).ok);   // (the whole sheet is the columns')
+        QVERIFY(s->formatCells(0, jp::office::sheet::CellRange{0, 0, 1048575, 16383, true}, italic, QStringLiteral("Formatting")).ok);   // (the whole sheet is the columns')
     }
 
     // The borders of a block: the outside edges and the lines between its cells, the cells beside it that share an edge have the line on their side, and a line of no style takes them away.
@@ -563,7 +592,7 @@ private Q_SLOTS:
         // a merge over a merge replaces it
         o = s->mergeCells(0, rangeOf(QStringLiteral("A1:A3")), K::Merge, true);
         QVERIFY(o.ok);
-        for (const CellRange &m : e.win.w.calculation()->mergesOf(0)) QVERIFY(m.row1 != m.row2 ? (m.col1 == 0 && m.col2 == 0) : m.col1 > 0);
+        for (const jp::office::sheet::CellRange &m : e.win.w.calculation()->mergesOf(0)) QVERIFY(m.row1 != m.row2 ? (m.col1 == 0 && m.col2 == 0) : m.col1 > 0);
     }
 
     // Conditional formats are shown from the file: the color scale, the fill of a rule, the bar, and the icon; they are worked out again when a value changes (the lowest and highest move) and

@@ -127,6 +127,11 @@ public:
     // Rows or columns were inserted or deleted (or that was undone): the objects, and the charts' references, are where those edits put them. Only the edit that is new is worked in,
     // unless the list of edits is not the one before with one more at its end (an Undo): the objects are then worked out again from what they were.
     void cellsMoved();
+    // Parts that name fonts in their text (drawings, charts) have other bytes in the package now (Replace Fonts, Undo, Redo): the letters of the shapes the file gave, and the charts the file
+    // gave, are made again from them (an object a person changed is left as it is), and the sheet is drawn again.
+    void partsChanged(const QStringList &parts);
+    // The font the first run of the words of a shape or text box is set in, as it is made now (for a test of what Replace Fonts shows); empty for an object with no words.
+    QString textFontOf(int sheet, int id);
     // Sheets were added, copied, renamed, or deleted (or that was undone): there is room for the sheets there are, and the charts' references name the sheets as they are called now (a
     // sheet that was deleted is `#REF!` in them, and a sheet given its name later is not the one they read).
     void sheetsChanged();

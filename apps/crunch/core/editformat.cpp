@@ -1,6 +1,7 @@
 // Formatting the cells: fonts, fills, borders, number formats, alignment, protection, named styles, merged cells, and clearing. One step each, made of the cells whose formats changed (as they
 // were and as they are), the formats of whole columns and rows, and the merged ranges. See EditSession::formatCells.
 #include "core/editsession.h"
+#include "sheet/fonttext.h"
 
 #include "sheet/builtinstyles.h"
 
@@ -270,8 +271,8 @@ QString fontNamed(const jp::office::sheet::Styles &styles, quint32 style, QHash<
 // Fonts put back, or given, as a step: Undo and Redo name the fonts as they were and are (the first Redo is a no-op: the step is pushed after the fonts are renamed).
 class FontsRenamed : public QUndoCommand {
 public:
-    FontsRenamed(EditSession *session, QVector<QPair<quint32, QString>> before, QString from, QString to, const QString &text)
-        : QUndoCommand(text), m_session(session), m_before(std::move(before)), m_from(std::move(from)), m_to(std::move(to)) {}
+    FontsRenamed(EditSession *session, QVector<QPair<quint32, QString>> before, QString from, QString to, EditSession::FontText fontText, const QString &text)
+        : QUndoCommand(text), m_session(session), m_before(std::move(before)), m_from(std::move(from)), m_to(std::move(to)), m_text(std::move(fontText)) {}
     void redo() override
     {
         if (m_first) {
@@ -280,17 +281,18 @@ public:
         }
         QVector<QPair<quint32, QString>> now;
         for (const auto &f : std::as_const(m_before)) now.append({f.first, m_to});
-        if (!m_session->setFontNames(now, m_from, m_to, true)) m_session->giveUpUndo(text(), true);
+        if (!m_session->setFontNames(now, m_from, m_to, true, &m_text)) m_session->giveUpUndo(text(), true);
     }
     void undo() override
     {
-        if (!m_session->setFontNames(m_before, m_from, m_to, false)) m_session->giveUpUndo(text(), false);
+        if (!m_session->setFontNames(m_before, m_from, m_to, false, &m_text)) m_session->giveUpUndo(text(), false);
     }
 
 private:
     EditSession *m_session;
     QVector<QPair<quint32, QString>> m_before;
     QString m_from, m_to;
+    EditSession::FontText m_text;
     bool m_first = true;
 };
 
@@ -328,15 +330,33 @@ bool EditSession::setThemeFontName(bool major, const QString &name)
     return true;
 }
 
-bool EditSession::setFontNames(const QVector<QPair<quint32, QString>> &fonts, const QString &from, const QString &to, bool doing)
+bool EditSession::setFontNames(const QVector<QPair<quint32, QString>> &fonts, const QString &from, const QString &to, bool doing, const FontText *text)
 {
     std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold();
     if (!hold) return false;
     for (const auto &f : fonts) m_book->book->setFontName(f.first, f.second);
+    QStringList changedParts;
+    if (text) {
+        // (the parts, and the runs of rich text, as they were or are: what is made from them next shows it)
+        m_book->book->setPartBytes(doing ? text->partsAfter : text->partsBefore);
+        for (const auto &p : (doing ? text->partsAfter : text->partsBefore)) changedParts << p.first;
+        if (doing) {
+            QVector<QPair<quint32, QString>> named;
+            for (const auto &f : text->shared) named.append({f.first, text->to});
+            m_book->book->setSharedRichFontNames(named);
+            QVector<std::tuple<int, quint32, QString>> inSheets;
+            for (const auto &f : text->sheets) inSheets.append({std::get<0>(f), std::get<1>(f), text->to});
+            m_book->calc->setRichFontNames(inSheets);
+        } else {
+            m_book->book->setSharedRichFontNames(text->shared);
+            m_book->calc->setRichFontNames(text->sheets);
+        }
+    }
     // (and the fonts the text of the parts names: written into them when the workbook is saved)
     if (doing) m_book->book->addFontTextRename(from, to);
     else m_book->book->undoFontTextRename(from, to);
     Q_EMIT stylesChanged();
+    if (text) Q_EMIT fontTextChanged(changedParts);
     return true;
 }
 
@@ -364,6 +384,10 @@ QMap<QString, qint64> EditSession::cellFontsUsed(QMap<QString, qint64> *stylesOn
         if (hold) {
             const QMap<QString, qint64> inParts = m_book->book->partFontsUsed();
             for (auto it = inParts.constBegin(); it != inParts.constEnd(); ++it) out[it.key()] += it.value();
+            // (the runs of inline strings: the fonts they name now)
+            for (int sheet = 0; sheet < m_book->calc->sheetCount(); ++sheet)
+                for (const jp::office::sheet::FontSpec &f : m_book->calc->sheet(sheet).richFonts)
+                    if (f.scheme.isEmpty() && !f.name.isEmpty()) ++out[f.name];
         }
     }
     if (theme) {
@@ -445,6 +469,8 @@ EditSession::Outcome EditSession::replaceCellFont(const QString &from, const QSt
     QVector<QPair<quint32, QString>> before;
     qint64 inParts = 0;
     QString named;
+    QStringList changedNow;
+    FontText fontText;
     {
         std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold();
         if (!hold) {
@@ -454,22 +480,35 @@ EditSession::Outcome EditSession::replaceCellFont(const QString &from, const QSt
             return out;
         }
         before = m_book->book->renameFonts(from, to);
+        // (what the text of the parts names, counted before it is renamed)
         const QMap<QString, qint64> parts = m_book->book->partFontsUsed();
         for (auto it = parts.constBegin(); it != parts.constEnd(); ++it)
             if (it.key().compare(from, Qt::CaseInsensitive) == 0) {
                 inParts += it.value();
                 if (named.isEmpty()) named = it.key();
             }
+        // (the parts and the runs of rich text, in memory as well: the window shows them at once)
+        fontText.partsBefore = m_book->book->renameFontsInParts(from, to);
+        for (const auto &p : std::as_const(fontText.partsBefore)) {
+            fontText.partsAfter.append({p.first, jp::office::sheet::renameFontsInText(p.second, from, to)});
+            changedNow << p.first;
+        }
+        fontText.shared = m_book->book->renameSharedRichFonts(from, to);
+        fontText.sheets = m_book->calc->renameRichFonts(from, to);
+        fontText.to = to;
+        inParts += fontText.sheets.size();
         // (Undo gives the name back as the file spells it, not as it was typed)
         if (!before.isEmpty()) named = before.first().second;
+        else if (named.isEmpty() && !fontText.sheets.isEmpty()) named = std::get<2>(fontText.sheets.first());
         if (named.isEmpty()) named = from;
         if (inParts > 0) m_book->book->addFontTextRename(named, to);
     }
-    if (before.isEmpty() && inParts == 0) return out;
+    if (before.isEmpty() && inParts == 0 && fontText.partsBefore.isEmpty() && fontText.shared.isEmpty() && fontText.sheets.isEmpty()) return out;
     if (cells) *cells += inParts;
     m_lastCalculated = false;
-    m_undo.push(new FontsRenamed(this, before, named, to, tr("Replace Fonts")));
+    m_undo.push(new FontsRenamed(this, before, named, to, std::move(fontText), tr("Replace Fonts")));
     Q_EMIT stylesChanged();
+    Q_EMIT fontTextChanged(changedNow);
     return out;
 }
 

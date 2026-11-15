@@ -46,6 +46,12 @@ void CrunchWindow::createEditing()
     });
     m_formatShown = FormatShown();   // (a workbook of its own: the buttons show its cell with the cursor)
     connect(m_session.get(), &crunch::EditSession::cellsChanged, this, &CrunchWindow::onCellsChanged);
+    connect(m_session.get(), &crunch::EditSession::fontTextChanged, this, [this](const QStringList &parts) {
+        // (the shapes and charts are made again from the parts, and the cells' rich text is drawn again)
+        if (m_objects) m_objects->partsChanged(parts);
+        m_view->sheet().invalidateTexts();
+        m_view->viewport()->update();
+    });
     connect(m_session.get(), &crunch::EditSession::stylesChanged, this, [this] {
         m_view->sheet().resetLooks();
         m_view->viewport()->update();

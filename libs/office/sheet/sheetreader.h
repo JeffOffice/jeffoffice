@@ -364,6 +364,13 @@ public:
     // The fonts the text of the file's parts name (rich runs of shared strings, shapes, charts, and comments), by name, with the renames not yet saved applied; and those renames, which are
     // written into the parts when the workbook is saved (the first to be undone is the last made).
     QMap<QString, qint64> partFontsUsed() const;
+    // Replace Fonts, in memory: each such part with the name `from` given as `to` (the package the window reads the parts from is given the bytes, so that what is made from them afterward
+    // shows it); the names of the parts changed with the bytes they had. setPartBytes gives parts bytes back (Undo, Redo). The shared strings' runs name their fonts in richFonts: renamed and put
+    // back the same way.
+    QVector<QPair<QString, QByteArray>> renameFontsInParts(const QString &from, const QString &to);
+    void setPartBytes(const QVector<QPair<QString, QByteArray>> &parts);
+    QVector<QPair<quint32, QString>> renameSharedRichFonts(const QString &from, const QString &to);
+    void setSharedRichFontNames(const QVector<QPair<quint32, QString>> &fonts);
     void addFontTextRename(const QString &from, const QString &to);
     void undoFontTextRename(const QString &from, const QString &to);
     QVector<QPair<QString, QString>> fontTextRenames() const { return m_fontTextRenames; }

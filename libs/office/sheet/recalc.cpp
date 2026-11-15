@@ -27,6 +27,27 @@ using namespace jp::calc;
 // ---------------------------------------------------------------------------------------------------------------------------------------------------
 // the cells of a workbook
 
+QVector<std::tuple<int, quint32, QString>> WorkbookSource::renameRichFonts(const QString &from, const QString &to)
+{
+    QVector<std::tuple<int, quint32, QString>> was;
+    for (size_t s = 0; s < m_sheets.size(); ++s)
+        for (int i = 0; i < m_sheets[s].richFonts.size(); ++i) {
+            FontSpec &f = m_sheets[s].richFonts[i];
+            if (!f.scheme.isEmpty() || f.name.compare(from, Qt::CaseInsensitive) != 0 || f.name == to) continue;
+            was.append({int(s), quint32(i), f.name});
+            f.name = to;
+        }
+    return was;
+}
+
+void WorkbookSource::setRichFontNames(const QVector<std::tuple<int, quint32, QString>> &fonts)
+{
+    for (const auto &f : fonts) {
+        const int s = std::get<0>(f);
+        if (s >= 0 && size_t(s) < m_sheets.size() && std::get<1>(f) < quint32(m_sheets[size_t(s)].richFonts.size())) m_sheets[size_t(s)].richFonts[int(std::get<1>(f))].name = std::get<2>(f);
+    }
+}
+
 WorkbookSource::WorkbookSource(const Workbook &book, qint64 maxBytes) : m_book(book), m_maxBytes(maxBytes)
 {
     const WorkbookInfo &info = book.info();

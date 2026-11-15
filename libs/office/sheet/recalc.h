@@ -21,6 +21,7 @@
 #include <QSet>
 
 #include <deque>
+#include <tuple>
 #include <unordered_map>
 #include <functional>
 #include <memory>
@@ -85,6 +86,10 @@ public:
     // The defined names by "<sheet>|<NAME>" (the sheet counted from 0, or -1), and what each stands for (for the yardstick of saving).
     QHash<QString, QString> definedNameTexts() const;   // (in places)
     const Sheet &sheet(int i) const { return m_sheets[size_t(i)]; }
+    // Replace Fonts: the fonts the runs of the sheets' inline strings name, given another name (those named `from`, without regard to case), and the places they had; put back by setRichFontNames.
+    // Call with the worker held back.
+    QVector<std::tuple<int, quint32, QString>> renameRichFonts(const QString &from, const QString &to);
+    void setRichFontNames(const QVector<std::tuple<int, quint32, QString>> &fonts);
     const SharedStrings &shared() const { return m_book.sharedStrings(); }
     jp::calc::Value valueOf(const Sheet &sheet, const Cell &cell) const;
 

@@ -1,4 +1,5 @@
 #include "core/sheetobjects.h"
+#include "text/fontreplace.h"
 
 #include "core/barcodeclip.h"
 #include "grid/gridsheet.h"
@@ -1034,6 +1035,84 @@ void SheetObjects::cellsChanged(const std::vector<jp::grid::ValueStore::Item> &c
             else o->reads = ChartReadIndex();   // (drawn from the cells again when its sheet is shown)
         }
     }
+}
+
+namespace {
+
+// The typefaces of the letters (a:latin, a:ea, a:cs) of one document's elements given the values of the other's, which has the same shape (a part with only its fonts renamed).
+void copyTypefaces(const QDomElement &from, QDomElement to)
+{
+    const QString tag = to.localName();
+    if ((tag == QLatin1String("latin") || tag == QLatin1String("ea") || tag == QLatin1String("cs")) && to.hasAttribute(QStringLiteral("typeface")) && from.localName() == tag)
+        to.setAttribute(QStringLiteral("typeface"), from.attribute(QStringLiteral("typeface")));
+    QDomElement a = from.firstChildElement(), b = to.firstChildElement();
+    for (; !a.isNull() && !b.isNull(); a = a.nextSiblingElement(), b = b.nextSiblingElement()) copyTypefaces(a, b);
+}
+
+} // namespace
+
+void SheetObjects::partsChanged(const QStringList &parts)
+{
+    if (!m_book || parts.isEmpty()) return;
+    QSet<QString> changed;
+    for (const QString &p : parts) changed.insert(p.toLower());
+    for (size_t si = 0; si < m_sheets.size(); ++si) {
+        Sheet &s = m_sheets[si];
+        const bool shown = int(si) == m_shown;
+        if (s.listed && s.drawing.document && !s.drawingPart.isEmpty() && changed.contains(s.drawingPart.toLower())) {
+            QString why;
+            if (const std::shared_ptr<QDomDocument> fresh = parseDrawing(m_book->objectPackage().part(s.drawingPart), &why)) {
+                copyTypefaces(fresh->documentElement(), s.drawing.document->documentElement());
+                // (a shape that was made is made again from its element, unless a person made or changed it)
+                for (const std::shared_ptr<Object> &o : s.objects) {
+                    if (!o->built || !o->item || o->ownDoc || o->madeHere || o->deleted || o->meta.kind == ObjectKind::Chart || o->meta.kind == ObjectKind::Diagram) continue;
+                    if (const jp::ItemPtr again = readShape(o->meta.element, o->ownContext ? *o->ownContext : *s.context)) {
+                        o->item = again;
+                        if (shown) m_layer.invalidate(o->id);
+                    }
+                }
+            }
+        }
+        // the charts of the parts that changed, as the file gave them
+        QHash<QString, std::shared_ptr<const Chart>> again;
+        for (const std::shared_ptr<Object> &o : s.objects) {
+            if (o->meta.kind != ObjectKind::Chart || !o->built || !o->chart || o->chart != o->fileChart || o->deleted || !changed.contains(o->meta.chartPart.toLower())) continue;
+            std::shared_ptr<const Chart> chart = again.value(o->meta.chartPart);
+            if (!chart) {
+                auto parsed = std::make_shared<Chart>();
+                QString error;
+                if (!readChart(m_book->objectPackage().part(o->meta.chartPart), m_theme, ColorMap(), parsed.get(), &error)) continue;
+                chart = parsed;
+                again.insert(o->meta.chartPart, chart);
+                s.parsed.insert(o->meta.chartPart, chart);
+            }
+            o->chart = o->fileChart = chart;
+            o->drawnKey = 0;
+            if (shown) m_layer.invalidate(o->id);
+        }
+    }
+    m_layer.layoutChanged();
+}
+
+QString SheetObjects::textFontOf(int sheet, int id)
+{
+    Object *o = find(sheet, id);
+    if (!o) return {};
+    ensureBuilt(sheet, *o);
+    QString family;
+    if (o->item) {
+        jp::ItemList one{o->item};
+        jp::walkItems(one, [&](const jp::ItemPtr &it) {
+            if (!family.isEmpty()) return;
+            QString story;
+            if (it->type() == jp::ItemType::Text) story = static_cast<const jp::TextItem *>(it.get())->storyId;
+            else if (it->type() == jp::ItemType::Shape) story = static_cast<const jp::ShapeItem *>(it.get())->storyId;
+            if (story.isEmpty() || !m_doc->storyDoc(story)) return;
+            const QStringList families = jp::fontFamiliesOf(m_doc->storyDoc(story)->begin().begin().fragment().charFormat());
+            if (!families.isEmpty()) family = families.first();
+        });
+    }
+    return family;
 }
 
 void SheetObjects::cellsMoved()

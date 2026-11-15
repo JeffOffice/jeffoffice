@@ -912,7 +912,15 @@ public:
     // place), as one step of Undo. `cells` is how many cells use the font. Not ok, and nothing changed, when a sheet that has cells in it is protected against formatting.
     Outcome replaceCellFont(const QString &from, const QString &to, qint64 *cells = nullptr);
     // (the steps of Replace Fonts: Undo and Redo give the fonts their names; false when the workbook could not be held)
-    bool setFontNames(const QVector<QPair<quint32, QString>> &fonts, const QString &from, const QString &to, bool doing);
+    // What Replace Fonts changed in memory besides the fonts of the styles: the bytes of the parts that name fonts in their text (before and after), and the fonts the runs of rich text name
+    // (the places with the names they had); Undo and Redo give them back, and the window's drawings, charts, and cells are made from them again.
+    struct FontText {
+        QVector<QPair<QString, QByteArray>> partsBefore, partsAfter;
+        QVector<QPair<quint32, QString>> shared;
+        QVector<std::tuple<int, quint32, QString>> sheets;
+        QString to;
+    };
+    bool setFontNames(const QVector<QPair<quint32, QString>> &fonts, const QString &from, const QString &to, bool doing, const FontText *text = nullptr);
     bool setThemeFontName(bool major, const QString &name);
     // The borders of a block: which of its edges (the sides on the outside of the block, the lines between its cells, a diagonal) are given the line; a line of no style takes them away. The
     // cells beside the block that share its outer edges are given the same line on the side that meets it, as in the programs people know.
@@ -1160,6 +1168,8 @@ public:
 Q_SIGNALS:
     // The styles changed where they stand (fonts renamed, by a step, Undo, or Redo): the window makes the looks again and draws.
     void stylesChanged();
+    // The parts that name fonts in their text (shapes, charts, comments), or the runs of rich text, got other fonts, by a step, Undo, or Redo: `parts` are the parts' names.
+    void fontTextChanged(const QStringList &parts);
     // The sheets were changed (added, deleted, renamed, moved, shown, hidden, or given a color) by a step, Undo, or Redo: the window makes its tabs again.
     void sheetsChanged();
     // The formatting inside the text of cells of a sheet changed (a step, Undo, or Redo): the window draws the sheet's texts again.

@@ -284,6 +284,8 @@ struct SaveChanges {
     std::map<quint32, QString> renamedFonts;
     // And the fonts that the text of parts names (rich runs, shapes, charts, comments): each rename in order, applied to every such part of the file when it is written.
     QVector<QPair<QString, QString>> fontTextRenames;
+    // The sheets whose inline strings have runs with fonts (their sheet parts are written with the renames too, whatever else is changed in them).
+    QSet<int> richTextSheets;
     QVector<FillSpec> newFills;
     QVector<BorderSpec> newBorders;
     qint64 fontsBefore = 0, fillsBefore = 0, bordersBefore = 0;
