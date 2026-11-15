@@ -725,6 +725,7 @@ QWidget *Backstage::buildPrint()
     mg->addWidget(jobInfo, 2, 1);
     mg->addWidget(allowBleeds, 3, 0);
     auto *plates = new QWidget(w);
+    plates->setObjectName(QStringLiteral("printPlates"));
     auto *pl = new QHBoxLayout(plates);
     pl->setContentsMargins(0, 0, 0, 0);
     QList<QCheckBox *> plateBoxes;

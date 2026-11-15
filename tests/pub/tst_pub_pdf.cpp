@@ -159,6 +159,12 @@ private Q_SLOTS:
         sameRow("printCollate", "printReverse");
         sameRow("printPaper", "printColor");
         QVERIFY(at("printPageSetup")->property("link").toBool());
+        // the plates (one box for each) are shown for separations, and only then
+        QVERIFY(!at("printPlates")->isVisible());
+        qobject_cast<QComboBox *>(at("printColor"))->setCurrentIndex(2);
+        QTRY_VERIFY(at("printPlates")->isVisible());
+        qobject_cast<QComboBox *>(at("printColor"))->setCurrentIndex(0);
+        QTRY_VERIFY(!at("printPlates")->isVisible());
         QVERIFY(pos("printColor").y() < pos("printPageSetup").y());
         QVERIFY(pos("printPrinter").y() < pos("printRange").y() && pos("printReverse").y() < pos("printLayout").y() && pos("printLayout").y() < pos("printPaper").y());
     }

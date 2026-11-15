@@ -26,7 +26,7 @@ private Q_SLOTS:
         w.show();
         QVERIFY(QTest::qWaitForWindowExposed(&w));
         uigrab::grabDialogs(w, dir + QStringLiteral("/dialogs"));
-        uigrab::grabPages(w, dir + QStringLiteral("/pages"));
+        uigrab::grabPages(w, dir + QStringLiteral("/pages"), {QStringLiteral("new"), QStringLiteral("open"), QStringLiteral("info"), QStringLiteral("print"), QStringLiteral("export"), QStringLiteral("about")});
     }
 };
 

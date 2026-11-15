@@ -52,11 +52,12 @@ inline void grabDialogs(jp::AppWindow &w, const QString &dir)
     }
 }
 
-inline void grabPages(jp::AppWindow &w, const QString &dir)
+// `pages` are the keys of the File screen's pages (a command such as Save As or Options is not a page: it opens a dialog).
+inline void grabPages(jp::AppWindow &w, const QString &dir, const QStringList &pages)
 {
     QDir().mkpath(dir);
-    for (const char *page : {"info", "new", "open", "saveas", "export", "print", "options", "about"}) {
-        w.showFileScreenPage(QString::fromLatin1(page));
+    for (const QString &page : pages) {
+        w.showFileScreenPage(page);
         QApplication::processEvents();
         QTimer t;
         t.setSingleShot(true);
@@ -64,7 +65,7 @@ inline void grabPages(jp::AppWindow &w, const QString &dir)
         QObject::connect(&t, &QTimer::timeout, &loop, &QEventLoop::quit);
         t.start(400);
         loop.exec();
-        w.grab().save(dir + QLatin1Char('/') + QString::fromLatin1(page) + QStringLiteral(".png"));
+        w.grab().save(dir + QLatin1Char('/') + page + QStringLiteral(".png"));
     }
 }
 
