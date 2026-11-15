@@ -264,7 +264,7 @@ jobs:
 
       - name: Linux packages
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y ninja-build libgl1-mesa-dev libxkbcommon-dev libfuse2 libpulse-dev
+        run: sudo apt-get update && sudo apt-get install -y ninja-build libgl1-mesa-dev libxkbcommon-dev libfuse2 libpulse-dev libspeechd2
 
       # A compiler cache kept from run to run in GitHub's own cache, so a push recompiles what it changed and what
       # includes that, not everything. Each system's own package manager provides ccache.
