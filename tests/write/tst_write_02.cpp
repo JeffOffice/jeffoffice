@@ -100,8 +100,10 @@ void WriteTests::theCloseBoxAsksToSaveChanges()
     QVERIFY(dir.isValid());
     const QString target = dir.filePath(QStringLiteral("close.docx"));
     w.setSavePathChooser([&](const QString &, const QString &) { return target; });
+    QVERIFY(!QFileInfo::exists(target));
     const QString problems = answerCloseBox([&] { w.close(); }, w.displayName(), QMessageBox::Save, CloseHow::Enter);
     QVERIFY2(problems.isEmpty(), qPrintable(problems));
+    QTRY_VERIFY(QFileInfo(target).size() > 0);   // (Enter saved: the file is there and has something in it)
     w.document()->setModified(false);
 }
 

@@ -306,10 +306,56 @@ private Q_SLOTS:
             QTRY_VERIFY((accented = box.button(QMessageBox::Yes)->property("primary").toBool() ? box.button(QMessageBox::Yes) : box.button(QMessageBox::No)->property("primary").toBool() ? box.button(QMessageBox::No) : nullptr) || def == QMessageBox::NoButton);
             if (def != QMessageBox::NoButton) QCOMPARE(accented, static_cast<QAbstractButton *>(box.button(def)));
             if (def != QMessageBox::NoButton) QVERIFY(!box.button(def == QMessageBox::Yes ? QMessageBox::No : QMessageBox::Yes)->property("primary").toBool());
+            // the accent is on the default button and on no other
+            for (QAbstractButton *b : {box.button(QMessageBox::Yes), box.button(QMessageBox::No)})
+                QTRY_COMPARE(b->property("primary").toBool(), qobject_cast<QPushButton *>(b)->isDefault());
             QTest::keyClick(&box, Qt::Key_Return);
             // Enter pressed the accented button, or, with no accent, the box's default
             if (accented) QCOMPARE(box.clickedButton(), accented);
         }
+        // no button is the default (two plain actions): the accent is on none
+        QDialog dlg;
+        auto *v = new QVBoxLayout(&dlg);
+        auto *bb = new ButtonBox(&dlg);
+        QPushButton *one = bb->addButton(QStringLiteral("One"), QDialogButtonBox::ActionRole), *two = bb->addButton(QStringLiteral("Two"), QDialogButtonBox::ActionRole);
+        one->setAutoDefault(false);
+        two->setAutoDefault(false);
+        v->addWidget(bb);
+        dlg.show();
+        QTest::qWait(150);
+        QVERIFY(!one->isDefault() && !two->isDefault());
+        QVERIFY(!one->property("primary").toBool());
+        QVERIFY(!two->property("primary").toBool());
+    }
+
+    // Don't Save taking the focus does not make it the default, and it takes no accent: Enter still means Save.
+    void aDestructiveButtonTakingFocusIsNotTheDefault()
+    {
+        std::unique_ptr<MessageBox> box(saveChangesBox(nullptr, QStringLiteral("Plan")));
+        box->show();
+        QTRY_VERIFY(box->isVisible());
+        QAbstractButton *discard = box->button(QMessageBox::Discard), *save = box->button(QMessageBox::Save);
+        QTRY_VERIFY(save->property("primary").toBool());
+        discard->setFocus();
+        QEvent focus(QEvent::FocusIn);
+        QCoreApplication::sendEvent(discard, &focus);
+        QTest::qWait(150);
+        QVERIFY(!qobject_cast<QPushButton *>(discard)->isDefault());
+        QVERIFY(!discard->property("primary").toBool());
+        QVERIFY(qobject_cast<QPushButton *>(save)->isDefault());
+        QVERIFY(save->property("primary").toBool());
+        // and a late destructive button of a plain ButtonBox is no default either
+        QDialog dlg;
+        auto *v = new QVBoxLayout(&dlg);
+        auto *bb = new ButtonBox(QDialogButtonBox::Save | QDialogButtonBox::Cancel, &dlg);
+        QPushButton *dont = bb->addButton(QStringLiteral("Don't Save"), QDialogButtonBox::DestructiveRole);
+        v->addWidget(bb);
+        dlg.show();
+        dont->setFocus();
+        QTest::qWait(150);
+        QVERIFY(!dont->isDefault());
+        QVERIFY(!dont->property("primary").toBool());
+        QVERIFY(bb->button(QDialogButtonBox::Save)->property("primary").toBool());
     }
 
     // When the default changes hands (focus moves among the buttons), the accent follows.
@@ -349,9 +395,11 @@ private Q_SLOTS:
         };
         for (const int theme : {1, 2}) {
             jp::applyUiTheme(theme);
-            for (const QMessageBox::Icon k : {QMessageBox::Critical, QMessageBox::Information}) {
+            for (const QMessageBox::Icon k : {QMessageBox::Critical, QMessageBox::Information, QMessageBox::Warning, QMessageBox::Question}) {
                 const QImage im = boxSign(k, 32, 1.0).toImage();
-                const QColor sign = im.pixelColor(6, 16), mark = k == QMessageBox::Critical ? im.pixelColor(16, 16) : im.pixelColor(16, 19);
+                // a point of the sign's own color, and a point of the mark on it
+                const QColor sign = k == QMessageBox::Warning ? im.pixelColor(16, 26) : im.pixelColor(6, 16);
+                const QColor mark = k == QMessageBox::Critical ? im.pixelColor(16, 16) : k == QMessageBox::Information ? im.pixelColor(16, 19) : k == QMessageBox::Warning ? im.pixelColor(16, 15) : im.pixelColor(16, 23);
                 const double a = lum(sign) + 0.05, b = lum(mark) + 0.05;
                 QVERIFY2((std::max(a, b) / std::min(a, b)) >= 3.0, qPrintable(QStringLiteral("theme %1 kind %2").arg(theme).arg(int(k))));
             }

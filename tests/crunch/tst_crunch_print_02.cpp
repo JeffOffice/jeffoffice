@@ -1338,8 +1338,11 @@ void CrunchPrintTests::theCloseBoxAsksToSaveChanges()
         QVERIFY(e.win.w.isVisible());
         QVERIFY(e.win.w.isModified());
     }
-    // Enter presses Save (the workbook is written where it is)
+    // Enter presses Save (the workbook is written where it is: the file changes)
+    const QByteArray before = [&] { QFile f(e.path); return f.open(QIODevice::ReadOnly) ? f.readAll() : QByteArray(); }();
+    QVERIFY(!before.isEmpty());
     const QString problems = answerCloseBox([&] { e.win.w.close(); }, QStringLiteral("book.xlsx"), QMessageBox::Save, CloseHow::Enter);
     QVERIFY2(problems.isEmpty(), qPrintable(problems));
     QTRY_VERIFY(!e.win.w.isModified() || !e.win.w.isVisible());
+    QTRY_VERIFY([&] { QFile f(e.path); return f.open(QIODevice::ReadOnly) && f.readAll() != before; }());
 }

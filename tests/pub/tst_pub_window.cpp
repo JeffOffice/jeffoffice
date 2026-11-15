@@ -53,8 +53,12 @@ private Q_SLOTS:
         QVERIFY(dir.isValid());
         QVERIFY(w.saveTo(dir.filePath(QStringLiteral("close.jpub"))));
         w.editor()->markUnsaved();
+        const QString savedPath = dir.filePath(QStringLiteral("close.jpub"));
+        QFile::remove(savedPath);   // (what Enter writes is then new)
+        QVERIFY(!QFileInfo::exists(savedPath));
         const QString problems = answerCloseBox([&] { w.close(); }, w.editor()->displayName(), QMessageBox::Save, CloseHow::Enter);
         QVERIFY2(problems.isEmpty(), qPrintable(problems));
+        QTRY_VERIFY(QFileInfo(savedPath).size() > 0);
         w.editor()->markSaved();
     }
 

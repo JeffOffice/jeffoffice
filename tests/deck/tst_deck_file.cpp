@@ -885,8 +885,10 @@ private Q_SLOTS:
         QVERIFY(dir.isValid());
         const QString target = dir.filePath(QStringLiteral("close.pptx"));
         w.setSavePathChooser([&](const QString &, const QString &) { return target; });
+        QVERIFY(!QFileInfo::exists(target));
         const QString problems = answerCloseBox([&] { w.close(); }, w.editor()->displayName(), QMessageBox::Save, CloseHow::Enter);
         QVERIFY2(problems.isEmpty(), qPrintable(problems));
+        QTRY_VERIFY(QFileInfo(target).size() > 0);   // (Enter saved: the file is there and has something in it)
         w.editor()->markSaved();
     }
 
