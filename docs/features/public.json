@@ -625,11 +625,11 @@
        "items": [
         {
          "status": "partly",
-         "text": "58b99f1b368fe801709c1dcafc81dfe03e0b540e28945fb94b59da408c991126"
+         "text": "f36f81512df4a5a56a0e8777e741d7d81266bc8d694ec2d81455ad783220c73a"
         },
         {
          "status": "partly",
-         "text": "b89caaf0bc2b07d5ff1a380da6f5d6c0490f900c6bd5d7b4f8085d9c2d33dcf0"
+         "text": "a77c9801626636a74bde61cb0af65d195fea027e26e53205f0f093e44dc586e5"
         },
         {
          "hide_soon": true,
@@ -1286,8 +1286,9 @@
        "text": "e935df1f9f79e1f38d439283b9d44129327e98a71e518b8a882cf9b0ec07f5f9"
       },
       {
-       "status": "partly",
-       "text": "119be82562b25872bc4b3f8204953e89cd62d627492e18756fdcb0da80778ac9"
+       "hide_soon": true,
+       "status": "done",
+       "text": "f9c4489502e898496cb1982f262eb3ea79157c3ed05a1f681e2728cbfbb35a15"
       },
       {
        "status": "todo",
@@ -1331,7 +1332,7 @@
         {
          "hide_soon": true,
          "status": "done",
-         "text": "b74269e812ac94829375d207541f5a441b22d5bcdaedba656efe8e0192ec1cad"
+         "text": "6a3c5c5eadf7d089cf9153023ae5f516b5f83504e8a5e5b6e5796fb7efdc4d33"
         },
         {
          "status": "partly",
@@ -1357,7 +1358,7 @@
         {
          "hide_soon": true,
          "status": "done",
-         "text": "6d38246ca79bddd5d63aa320eb3ed32021b2f6b4804c8d697285b75a96b3d7e1"
+         "text": "5b4750eeb9b028fd5f837d4682b759e3a8006257ea9babdae64d6d623250371c"
         },
         {
          "status": "partly",
@@ -1551,7 +1552,7 @@
         },
         {
          "status": "partly",
-         "text": "0a133e34789eda8908467b1a9b46a6c3d06866579682cbc2af38ea8e1f57591d"
+         "text": "ecc7de4d86ee11544c06a197818b455aeeae7ceffb8a2c613f99ae15345229fa"
         },
         {
          "hide_soon": true,
@@ -1666,7 +1667,7 @@
         {
          "hide_soon": true,
          "status": "done",
-         "text": "71de13157924f45c53efb88af1f5fecca0ef674e866289a0bb0c3e1e813b19a8"
+         "text": "e2e36689d284a1aeefa898aac3dfb0aca24ead9e659e775923fb374d03eb3904"
         },
         {
          "status": "todo",
@@ -1902,8 +1903,9 @@
          "text": "27784d2a45abe2cd7b45158813a1f5ef51d5f37c09892ec23c1e00b9a6c146d0"
         },
         {
-         "status": "todo",
-         "text": "751d642aff665d05726194cd49fc8831e19b62b8d624eb230d87da90c0cdfb7c"
+         "hide_soon": true,
+         "status": "done",
+         "text": "20f946e579cbf30b575fe6a9b4ff1ada16388ecb5885605d97994a1a39682987"
         },
         {
          "status": "partly",
@@ -3361,8 +3363,9 @@
        "text": "95f35cc5dba06357e05f1b627f8b68d58d6035865127fd9b94fa8c71135aead2"
       },
       {
-       "status": "todo",
-       "text": "2b37c7dc5f89533ea13a17188915d83aaa8029a595f568978b9c4230f2f5ca23"
+       "hide_soon": true,
+       "status": "done",
+       "text": "c9f2c22572bb3311a79d234fc0137918f3b9c61fd81a2000376f6cdc8e33fc14"
       },
       {
        "status": "partly",
@@ -4573,7 +4576,7 @@
       {
        "hide_soon": true,
        "status": "done",
-       "text": "c9149d2fc7f4e9d4897f2be5f1c4278023e239388ade6ef3df82086928205224"
+       "text": "33222b5023371fa47a253e1f54a9373d02d4657efd9d9b67700107ed78eee2ca"
       }
      ]
     },
@@ -4809,8 +4812,9 @@
        "text": "568fd18bf27ed741676599a9a17168b826588d93ca5a11bda547ecf415b8ff16"
       },
       {
-       "status": "todo",
-       "text": "159fa175f23d9400c0d7f41c5363a5af2d303b4c6f49f012217624a0063bfe8a"
+       "hide_soon": true,
+       "status": "done",
+       "text": "61d9e9b43d9329d84be7170bfdee5c668571bf3f5c0ae77360f2c666691efc95"
       }
      ]
     },
@@ -6650,8 +6654,9 @@
        "text": "222aa69426816070c90cabcee12689eb0da436c88e4c864931a156dcb6f87f03"
       },
       {
-       "status": "partly",
-       "text": "9e330c2662d1f26c68a3cf8c33c77dd4fe2c99bcc1a0bfc77dbf70dd899caa14"
+       "hide_soon": true,
+       "status": "done",
+       "text": "093cd7ed0e774bb3c4866ad5f43c2affa3660b3729b5c432bb598f39cfa77f58"
       }
      ]
     },
@@ -6776,12 +6781,12 @@
        "items": [
         {
          "status": "partly",
-         "text": "97ae00f1bb1a7ebaba93da672b53212699574be01038a280c2d0aa12e88e3c31"
+         "text": "a30d636826ae517f66bbbe3948833ab2be91e5d0d727662d2c91e58d536e7b86"
         },
         {
          "hide_soon": true,
          "status": "done",
-         "text": "ea11678afdeadf04c4c85805338215a1a913b61b836059cc69deede07c2e6ab2"
+         "text": "c8eec498160814fb1de39c704ec1644c9e665e91c859937c886663175c8ce148"
         },
         {
          "status": "partly",
@@ -8014,6 +8019,18 @@
     "fr": ""
    }
   },
+  "093cd7ed0e774bb3c4866ad5f43c2affa3660b3729b5c432bb598f39cfa77f58": {
+   "drop": false,
+   "en": "Search the ribbon commands, File screen entries, Options pages, and gallery items from a search box in the top row of the ribbon. Press `Alt+Q` (`Control+Option+Q` on a Mac) to go to it; the results ignore case and accents and tolerate one wrong letter.",
+   "es": "Busque comandos de la cinta de opciones, entradas de la pantalla Archivo, páginas de Opciones y elementos de galerías desde un cuadro de búsqueda en la fila superior de la cinta. Pulse `Alt+Q` (`Control+Option+Q` en Mac) para ir a él; los resultados ignoran mayúsculas y acentos y toleran una letra equivocada.",
+   "fr": "Recherchez les commandes du ruban, les entrées de l’écran Fichier, les pages d’Options et les éléments des galeries depuis une zone de recherche en haut du ruban. Appuyez sur `Alt+Q` (`Control+Option+Q` sur Mac) pour y accéder; les résultats ignorent la casse et les accents et tolèrent une lettre erronée.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "0942b9f1f36d623017a8c4266087711c24415571c3799165e20d4faa21198e47": {
    "drop": true,
    "en": "",
@@ -8180,18 +8197,6 @@
     "en": "Icons, and online pictures from open image libraries",
     "es": "Iconos e imágenes en línea de bibliotecas de imágenes abiertas",
     "fr": "Icônes et images en ligne issues de bibliothèques d’images libres"
-   }
-  },
-  "0a133e34789eda8908467b1a9b46a6c3d06866579682cbc2af38ea8e1f57591d": {
-   "drop": false,
-   "en": "Insert the page number, number of pages, date, time, folder, file name, sheet name, or a picture into a header or footer. Pick from eight ready-made forms for each of the header and footer, and jump to the header or footer.",
-   "es": "Inserte en un encabezado o pie de página el número de página, el número de páginas, la fecha, la hora, la carpeta, el nombre del archivo, el nombre de la hoja o una imagen. Elija entre ocho formas predefinidas para el encabezado y para el pie de página, y vaya directamente al encabezado o al pie de página.",
-   "fr": "Insérez dans un en-tête ou un pied de page le numéro de page, le nombre de pages, la date, l’heure, le dossier, le nom du fichier, le nom de la feuille ou une image. Choisissez parmi huit modèles prêts à l’emploi pour l’en-tête et pour le pied de page, et accédez directement à l’en-tête ou au pied de page.",
-   "soon": {
-    "drop": false,
-    "en": "Format Picture for header and footer pictures",
-    "es": "Formato de imagen para las imágenes del encabezado y del pie de página",
-    "fr": "Format d’image pour les images de l’en-tête et du pied de page"
    }
   },
   "0a297e6a2e0e489dbb2a27ad72d615088056bc727c019543283a169c8848c529": {
@@ -8650,18 +8655,6 @@
     "fr": "Débordement des résultats dans les cellules voisines de la formule"
    }
   },
-  "119be82562b25872bc4b3f8204953e89cd62d627492e18756fdcb0da80778ac9": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Command search: a ribbon box that finds a command by what it does and runs it",
-    "es": "Búsqueda de comandos: un cuadro en la cinta de opciones que encuentra un comando por lo que hace y lo ejecuta",
-    "fr": "Recherche de commandes : une zone du ruban qui trouve une commande selon sa fonction et l’exécute"
-   }
-  },
   "119de554cb24fc5abace1dc8ad0f6b61dbfb616876b2375ec5c842205cd1d654": {
    "drop": false,
    "en": "The Navigation pane has Headings (click to go to a heading, collapse, promote, and demote, each as one step), Pages (small pictures of the first 60 pages), and Results (a word’s places with the words around them, listed as text, under each heading, or under each page).",
@@ -8996,18 +8989,6 @@
     "en": "Precision as displayed, save external link values, ignore other programs that use DDE, and system separators",
     "es": "Precisión según se muestra, guardar valores de vínculos externos, ignorar otros programas que usan DDE y separadores del sistema",
     "fr": "Précision telle qu’affichée, enregistrement des valeurs de liens externes, exclusion des autres programmes utilisant DDE et séparateurs du système"
-   }
-  },
-  "159fa175f23d9400c0d7f41c5363a5af2d303b4c6f49f012217624a0063bfe8a": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Command search: a box on the ribbon that finds a command by what it does and runs it",
-    "es": "Búsqueda de comandos: un cuadro en la cinta de opciones que encuentra un comando según lo que hace y lo ejecuta",
-    "fr": "Recherche de commandes : une zone dans le ruban qui trouve une commande selon sa fonction et l’exécute"
    }
   },
   "15d3ebd2474eaa13d4b72804fd81f0a1553298ba707601709ccad9f8a669aace": {
@@ -9723,6 +9704,18 @@
    "en": "Insert Function opens from the fx button on the formula bar: search by what a function does, browse by category, see help for each argument, and see the live result of the arguments typed so far in the Function Arguments dialog (`Shift+F3`).",
    "es": "Insertar función se abre desde el botón fx de la barra de fórmulas: busque por lo que hace una función, explore por categoría, vea la ayuda de cada argumento y consulte el resultado en vivo de los argumentos escritos hasta el momento en el cuadro Argumentos de función (`Shift+F3`).",
    "fr": "Insérer une fonction s’ouvre depuis le bouton fx de la barre de formule : recherchez selon ce que fait une fonction, parcourez par catégorie, consultez l’aide de chaque argument et voyez le résultat en direct des arguments saisis dans la boîte Arguments de la fonction (`Shift+F3`).",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "20f946e579cbf30b575fe6a9b4ff1ada16388ecb5885605d97994a1a39682987": {
+   "drop": false,
+   "en": "A formula whose result is a list fills the cells below and beside it, and `A1#` points to the whole block. The block follows its formula, `#SPILL!` appears when something is in the way, and older files show the mark `@` where the old rule applied.",
+   "es": "Una fórmula cuyo resultado es una lista llena las celdas de abajo y de al lado, y `A1#` apunta a todo el bloque. El bloque sigue a su fórmula, aparece `#SPILL!` cuando algo estorba, y los archivos antiguos muestran la marca `@` donde se aplicaba la regla anterior.",
+   "fr": "Une formule dont le résultat est une liste remplit les cellules en dessous et à côté, et `A1#` désigne tout le bloc. Le bloc suit sa formule, `#SPILL!` apparaît quand quelque chose gêne, et les anciens fichiers affichent la marque `@` là où l’ancienne règle s’appliquait.",
    "soon": {
     "drop": true,
     "en": "",
@@ -10738,18 +10731,6 @@
     "fr": "Liens vers un diaporama personnalisé et vers une autre présentation"
    }
   },
-  "2b37c7dc5f89533ea13a17188915d83aaa8029a595f568978b9c4230f2f5ca23": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Command search: a ribbon box that finds a command and runs it",
-    "es": "Búsqueda de comandos: un cuadro en la cinta de opciones que encuentra un comando y lo ejecuta",
-    "fr": "Recherche de commandes : une zone du ruban qui trouve une commande et l’exécute"
-   }
-  },
   "2b7836952e6d98cbc6951596ca1e0a7620ec6fbe8a9f78b2b82e2184de86c9c6": {
    "drop": false,
    "en": "Set page borders on a box or any sides, with a single, thick, double, dotted, or dashed line, and choose its width, color, and distance, measured from the text or the page edge. Apply them to all pages, the first page, or the rest, for the section or the whole document.",
@@ -11216,6 +11197,18 @@
     "en": "Barcodes saved in `.ods` files",
     "es": "Códigos de barras guardados en archivos `.ods`",
     "fr": "Codes-barres enregistrés dans les fichiers `.ods`"
+   }
+  },
+  "33222b5023371fa47a253e1f54a9373d02d4657efd9d9b67700107ed78eee2ca": {
+   "drop": false,
+   "en": "Insert page numbers on the master page from a gallery of designs for the top, bottom, margins, or text cursor, with position, format, and a start number from 1 to 1000. Page number settings are saved in `.pub` files.",
+   "es": "Inserte números de página en la página maestra desde una galería de diseños para la parte superior, la inferior, los márgenes o el cursor de texto, con posición, formato y un número inicial de 1 a 1000. Los ajustes del número de página se guardan en archivos `.pub`.",
+   "fr": "Insérez des numéros de page sur la page maîtresse à partir d’une galerie de modèles pour le haut, le bas, les marges ou le curseur de texte, avec position, format et numéro de départ de 1 à 1000. Les réglages de numérotation sont enregistrés dans les fichiers `.pub`.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "3335a7ed8f24a26fcbe6204df3ba18cc856bb696c3f79229e6ae129f29c55abf": {
@@ -13906,18 +13899,6 @@
     "fr": ""
    }
   },
-  "58b99f1b368fe801709c1dcafc81dfe03e0b540e28945fb94b59da408c991126": {
-   "drop": false,
-   "en": "Pivot tables show as saved, with the numbers in the cells, and are kept whole with their data and written back unchanged when not edited. A pivot table tab and a field list pane work on a table. Pivot charts, slicers, timelines, and filter panes are shown and kept as saved.",
-   "es": "Las tablas dinámicas se muestran como se guardaron, con los números en las celdas, y se conservan completas con sus datos y se escriben sin cambios si no se editan. Una pestaña de tabla dinámica y un panel de lista de campos funcionan sobre una tabla. Los gráficos dinámicos, segmentaciones, escalas de tiempo y paneles de filtro se muestran y se conservan como se guardaron.",
-   "fr": "Les tableaux croisés dynamiques s’affichent tels qu’enregistrés, avec les nombres dans les cellules, et sont conservés entiers avec leurs données et réécrits à l’identique s’ils ne sont pas modifiés. Un onglet de tableau croisé dynamique et un volet de liste de champs fonctionnent sur un tableau. Les graphiques croisés dynamiques, segments, chronologies et volets de filtre sont affichés et conservés tels qu’enregistrés.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "58cc9e1557531891621cb230c4c7f598f8a1f95c08f1abae9d24e74a9c836822": {
    "drop": false,
    "en": "Save your own templates with File > Save as Template and find them under My Templates on the New page.",
@@ -14151,6 +14132,18 @@
    "en": "Work with both date systems: the 1900 system, which counts February 29, 1900 (serial number 60), and the 1904 system used by Mac files. A serial number shows as a date in the file’s own system and converts when copied between workbooks that use different systems.",
    "es": "Trabaje con los dos sistemas de fechas: el sistema 1900, que cuenta el 29 de febrero de 1900 (número de serie 60), y el sistema 1904 usado por los documentos de Mac. Un número de serie se muestra como fecha en el sistema propio del documento y se convierte al copiarse entre libros con sistemas distintos.",
    "fr": "Travaillez avec les deux systèmes de dates : le système 1900, qui compte le 29 février 1900 (numéro de série 60), et le système 1904 utilisé par les fichiers Mac. Un numéro de série s’affiche comme date dans le système propre au fichier et se convertit lors d’une copie entre classeurs de systèmes différents.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "5b4750eeb9b028fd5f837d4682b759e3a8006257ea9babdae64d6d623250371c": {
+   "drop": false,
+   "en": "Refresh one or all pivot tables, change the data source, refresh when the file opens, and clear a table. Move a pivot table to a cell on the same sheet, and select its labels, values, or the whole table.",
+   "es": "Actualice una o todas las tablas dinámicas, cambie el origen de datos, actualice al abrir el archivo y borre una tabla. Mueva una tabla dinámica a una celda de la misma hoja y seleccione sus etiquetas, sus valores o la tabla completa.",
+   "fr": "Actualisez un ou tous les tableaux croisés dynamiques, changez la source de données, actualisez à l’ouverture du fichier et effacez un tableau. Déplacez un tableau croisé dynamique vers une cellule de la même feuille et sélectionnez ses étiquettes, ses valeurs ou le tableau entier.",
    "soon": {
     "drop": true,
     "en": "",
@@ -14655,6 +14648,18 @@
    "en": "Animations play click by click. A click while a step plays finishes it, steps that start by themselves begin when the slide appears, and the show shows slides whole when set to play without animation.",
    "es": "Las animaciones se reproducen clic a clic. Un clic mientras se reproduce un paso lo termina, los pasos automáticos comienzan al aparecer la diapositiva, y la presentación muestra las diapositivas completas si se configura sin animación.",
    "fr": "Les animations se jouent clic par clic. Un clic pendant une étape la termine, les étapes automatiques démarrent à l’apparition de la diapositive, et le diaporama affiche les diapositives entières lorsqu’il est réglé sans animation.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "61d9e9b43d9329d84be7170bfdee5c668571bf3f5c0ae77360f2c666691efc95": {
+   "drop": false,
+   "en": "Search the ribbon commands, File screen entries, Options pages, and gallery items from a search box in the top row of the ribbon. Press `Alt+Q` (`Control+Option+Q` on a Mac) to go to it; the results ignore case and accents and tolerate one wrong letter.",
+   "es": "Busque comandos de la cinta de opciones, entradas de la pantalla Archivo, páginas de Opciones y elementos de galerías desde un cuadro de búsqueda en la fila superior de la cinta. Pulse `Alt+Q` (`Control+Option+Q` en Mac) para ir a él; los resultados ignoran mayúsculas y acentos y toleran una letra equivocada.",
+   "fr": "Recherchez les commandes du ruban, les entrées de l’écran Fichier, les pages d’Options et les éléments des galeries depuis une zone de recherche en haut du ruban. Appuyez sur `Alt+Q` (`Control+Option+Q` sur Mac) pour y accéder; les résultats ignorent la casse et les accents et tolèrent une lettre erronée.",
    "soon": {
     "drop": true,
     "en": "",
@@ -15382,6 +15387,18 @@
     "fr": "Enregistrement d’une feuille en page HTML complète"
    }
   },
+  "6a3c5c5eadf7d089cf9153023ae5f516b5f83504e8a5e5b6e5796fb7efdc4d33": {
+   "drop": false,
+   "en": "Use the field list pane to check fields in or out and to drag them between the Filters, Columns, Rows, and Values boxes. Search for fields, defer layout updates, and change a value field’s summary and number format.",
+   "es": "Use el panel de la lista de campos para marcar o desmarcar campos y arrastrarlos entre los cuadros Filtros, Columnas, Filas y Valores. Busque campos, aplace las actualizaciones del diseño y cambie el resumen y el formato de número de un campo de valores.",
+   "fr": "Utilisez le volet de la liste des champs pour cocher ou décocher des champs et les faire glisser entre les zones Filtres, Colonnes, Lignes et Valeurs. Recherchez des champs, différez la mise à jour de la disposition et modifiez la synthèse et le format de nombre d’un champ de valeurs.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "6aace3cbb991a11d468d3ec90185eb8db8b3b2923db11da09c320266b73004d7": {
    "drop": false,
    "en": "View tab",
@@ -15718,18 +15735,6 @@
     "fr": "Boutons de gauche à droite et de droite à gauche"
    }
   },
-  "6d38246ca79bddd5d63aa320eb3ed32021b2f6b4804c8d697285b75a96b3d7e1": {
-   "drop": false,
-   "en": "Refresh one or all pivot tables from the source while keeping the layout and column widths, change the data source, refresh when the file opens, and clear a pivot table. You can also select its labels, values, or the whole table, and move it to a cell on the same sheet.",
-   "es": "Actualice una o todas las tablas dinámicas desde el origen conservando el diseño y el ancho de las columnas, cambie el origen de datos, actualice al abrir el archivo y borre una tabla dinámica. También puede seleccionar sus etiquetas, sus valores o la tabla completa, y moverla a una celda de la misma hoja.",
-   "fr": "Actualisez un ou tous les tableaux croisés dynamiques depuis la source en conservant la mise en page et la largeur des colonnes, changez la source de données, actualisez à l’ouverture du fichier et effacez un tableau croisé dynamique. Vous pouvez aussi sélectionner ses étiquettes, ses valeurs ou le tableau entier, et le déplacer vers une cellule de la même feuille.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "6d3969a81708e9d8eaa9a2e86e1d67794c91154441401866825975072e7c2e74": {
    "drop": false,
    "en": "File formats",
@@ -16018,18 +16023,6 @@
     "fr": ""
    }
   },
-  "71de13157924f45c53efb88af1f5fecca0ef674e866289a0bb0c3e1e813b19a8": {
-   "drop": false,
-   "en": "Use dynamic-array functions such as `FILTER`, `SORT`, `SORTBY`, `UNIQUE`, `SEQUENCE`, `RANDARRAY`, `XLOOKUP`, `XMATCH`, and `LET`. A formula whose result is a list fills the cells below and beside it, and `.xlsx` files that hold such formulas are read and saved.",
-   "es": "Utilice funciones de matriz dinámica como `FILTER`, `SORT`, `SORTBY`, `UNIQUE`, `SEQUENCE`, `RANDARRAY`, `XLOOKUP`, `XMATCH` y `LET`. Una fórmula cuyo resultado es una lista llena las celdas de abajo y de al lado, y los archivos `.xlsx` que contienen estas fórmulas se leen y se guardan.",
-   "fr": "Utilisez des fonctions de tableau dynamique telles que `FILTER`, `SORT`, `SORTBY`, `UNIQUE`, `SEQUENCE`, `RANDARRAY`, `XLOOKUP`, `XMATCH` et `LET`. Une formule dont le résultat est une liste remplit les cellules situées en dessous et à côté, et les fichiers `.xlsx` qui contiennent de telles formules sont lus et enregistrés.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "71e0f112c00c4a2a1d7bd12c8c4e325a9aacc145a1facf5b15d73d8f13779b45": {
    "drop": false,
    "en": "Turn cells into a table with a look from the gallery of 60 table looks (light, medium, and dark, each in black and the theme’s six colors), with header row, stripes, first and last column, and totals row drawn on the sheet. Looks defined by the workbook are drawn too.",
@@ -16256,18 +16249,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "751d642aff665d05726194cd49fc8831e19b62b8d624eb230d87da90c0cdfb7c": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Dynamic arrays and spill: a formula whose result is a list fills the cells below and beside it",
-    "es": "Matrices dinámicas y desbordamiento: una fórmula cuyo resultado es una lista llena las celdas de abajo y de al lado",
-    "fr": "Tableaux dynamiques et débordement : une formule dont le résultat est une liste remplit les cellules en dessous et à côté"
    }
   },
   "753da8574daf27eb6027f8a9da6136698e862c1e66b2f9aa658c45d0b4ddf7e7": {
@@ -18526,18 +18507,6 @@
     "fr": "Page d’options des formules"
    }
   },
-  "97ae00f1bb1a7ebaba93da672b53212699574be01038a280c2d0aa12e88e3c31": {
-   "drop": false,
-   "en": "Edit headers and footers by double-clicking a page’s top or bottom margin, or from Insert > Header and Footer. Insert page numbers, remove a section’s own header or footer, and choose from a gallery of seven designs: blank, a page number at the right, middle, or left, title or date with the page number, and three columns.",
-   "es": "Edite encabezados y pies de página haciendo doble clic en el margen superior o inferior de una página, o desde Insertar > Encabezado y pie de página. Inserte números de página, quite el encabezado o pie propio de una sección y elija entre una galería de siete diseños: en blanco, número de página a la derecha, al centro o a la izquierda, título o fecha con el número de página, y tres columnas.",
-   "fr": "Modifiez les en-têtes et pieds de page en double-cliquant sur la marge supérieure ou inférieure d’une page, ou depuis Insertion > En-tête et pied de page. Insérez des numéros de page, supprimez l’en-tête ou le pied de page propre à une section et choisissez parmi sept modèles : vierge, numéro de page à droite, au centre ou à gauche, titre ou date avec le numéro de page, et trois colonnes.",
-   "soon": {
-    "drop": false,
-    "en": "A larger gallery of built-in header and footer designs",
-    "es": "Una galería más amplia de diseños de encabezado y pie de página",
-    "fr": "Galerie plus large de modèles d’en-tête et de pied de page"
-   }
-  },
   "9848cd66c9afa034654c5f893684892375514c468e13863cc63777fc54a3cfc6": {
    "drop": false,
    "en": "Copy formatting from text and objects, once or, by holding `Shift` on the button, many times.",
@@ -19054,18 +19023,6 @@
     "fr": "Texte enregistré en `.xls` : ouverture comme texte"
    }
   },
-  "9e330c2662d1f26c68a3cf8c33c77dd4fe2c99bcc1a0bfc77dbf70dd899caa14": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Command search: a ribbon box that finds and runs a command",
-    "es": "Búsqueda de comandos: un cuadro en la cinta de opciones que encuentra y ejecuta un comando",
-    "fr": "Recherche de commandes : une zone du ruban qui trouve et exécute une commande"
-   }
-  },
   "9e46c4157614678a39254595e5841a1e5cf75b28be1c601ae4c1e3fc3faeb2f9": {
    "drop": true,
    "en": "",
@@ -19294,6 +19251,18 @@
     "fr": "Aligner, grouper, pivoter ou retourner, et organiser les formes et les zones de texte"
    }
   },
+  "a30d636826ae517f66bbbe3948833ab2be91e5d0d727662d2c91e58d536e7b86": {
+   "drop": false,
+   "en": "Edit, add, and remove headers and footers, choose from a gallery of designs, and insert page numbers at the top, bottom, in the margins, or at the cursor. Page number designs are saved in `.docx` and `.odt` files.",
+   "es": "Edite, agregue y elimine encabezados y pies de página, elija entre una galería de diseños e inserte números de página en la parte superior, inferior, en los márgenes o en el cursor. Los diseños de número de página se guardan en archivos `.docx` y `.odt`.",
+   "fr": "Modifiez, ajoutez et supprimez des en-têtes et pieds de page, choisissez parmi une galerie de modèles et insérez des numéros de page en haut, en bas, dans les marges ou au curseur. Les modèles de numéros de page sont enregistrés dans les fichiers `.docx` et `.odt`.",
+   "soon": {
+    "drop": false,
+    "en": "Larger gallery of built-in header and footer designs",
+    "es": "Galería más amplia de diseños integrados de encabezado y pie de página",
+    "fr": "Galerie plus large de modèles d’en-tête et de pied de page intégrés"
+   }
+  },
   "a35277c3c54655d73a4d376e0324bb748ee090c6a7548059a6b288f6e2a806c6": {
    "drop": false,
    "en": "Text on a picture, in a table cell, or in a shape with its own color does not turn light or dark with the slide’s background. A color that would read below 4.5 to 1 contrast moves toward light or dark just far enough.",
@@ -19508,6 +19477,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "a77c9801626636a74bde61cb0af65d195fea027e26e53205f0f093e44dc586e5": {
+   "drop": false,
+   "en": "Insert a pivot table from a range or a table onto a new sheet or an existing one, with the field list pane. The table is saved in `.xlsx` files, and a table made from a table or a name reads rows added under it when refreshed.",
+   "es": "Inserte una tabla dinámica a partir de un rango o una tabla en una hoja nueva o una existente, con el panel de la lista de campos. La tabla se guarda en archivos `.xlsx`, y una tabla creada a partir de una tabla o un nombre lee las filas añadidas debajo al actualizarse.",
+   "fr": "Insérez un tableau croisé dynamique à partir d’une plage ou d’un tableau, sur une nouvelle feuille ou une feuille existante, avec le volet de la liste des champs. Le tableau est enregistré dans les fichiers `.xlsx`, et un tableau créé à partir d’un tableau ou d’un nom lit les lignes ajoutées en dessous lors de l’actualisation.",
+   "soon": {
+    "drop": false,
+    "en": "Pivot table from another workbook’s data",
+    "es": "Tabla dinámica a partir de los datos de otro libro",
+    "fr": "Tableau croisé dynamique à partir des données d’un autre classeur"
    }
   },
   "a77d1267dc8984acde4d2c5f67b57802afd0e7a79d36b5fabd8048da7e037d03": {
@@ -20506,18 +20487,6 @@
     "fr": ""
    }
   },
-  "b74269e812ac94829375d207541f5a441b22d5bcdaedba656efe8e0192ec1cad": {
-   "drop": false,
-   "en": "The Pivot Table Fields pane lists the source fields and shows four boxes: Filters, Columns, Rows, and Values. Check fields in or out, move them between boxes, reorder them, or remove them. A search box filters the field list, and Defer Layout Update holds changes until Update.",
-   "es": "El panel Campos de tabla dinámica muestra los campos del origen y cuatro cuadros: Filtros, Columnas, Filas y Valores. Marque o desmarque campos, muévalos entre cuadros, cámbieles el orden o quítelos. Un cuadro de búsqueda filtra la lista de campos, y Aplazar actualización del diseño retiene los cambios hasta Actualizar.",
-   "fr": "Le volet Champs de tableau croisé dynamique liste les champs de la source et montre quatre zones : Filtres, Colonnes, Lignes et Valeurs. Cochez ou décochez des champs, déplacez-les entre les zones, réordonnez-les ou supprimez-les. Une zone de recherche filtre la liste des champs, et Différer la mise à jour du plan retient les modifications jusqu’à Mettre à jour.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "b770959a1d49b6b4cc8263ad173f3f3d00753404ddf584df7d6e758b3a088a24": {
    "drop": false,
    "en": "Insert shapes and icons on a slide.",
@@ -20612,18 +20581,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "b89caaf0bc2b07d5ff1a380da6f5d6c0490f900c6bd5d7b4f8085d9c2d33dcf0": {
-   "drop": false,
-   "en": "Insert a pivot table from selected cells or a table, onto a new sheet or at a cell. The Pivot Table Fields pane opens, the table is saved in an `.xlsx` file, and it is one step of Undo.",
-   "es": "Inserte una tabla dinámica a partir de celdas seleccionadas o de una tabla, en una hoja nueva o en una celda. Se abre el panel de campos de la tabla dinámica, la tabla se guarda en un archivo `.xlsx` y es un paso de Deshacer.",
-   "fr": "Insérez un tableau croisé dynamique à partir de cellules sélectionnées ou d’un tableau, dans une nouvelle feuille ou à une cellule. Le volet des champs du tableau croisé s’ouvre, le tableau est enregistré dans un fichier `.xlsx` et constitue une seule étape d’annulation.",
-   "soon": {
-    "drop": false,
-    "en": "Pivot table from another workbook’s data",
-    "es": "Tabla dinámica a partir de los datos de otro libro",
-    "fr": "Tableau croisé dynamique à partir des données d’un autre classeur"
    }
   },
   "b8a428790a7cf1496230f5037a4c78640a28567ed2f5be2c860b6e76d0334417": {
@@ -21694,11 +21651,11 @@
     "fr": ""
    }
   },
-  "c9030f6be891939aee4222a565168abceec13e3306953f2f79cf1750ce7a5dfe": {
+  "c8eec498160814fb1de39c704ec1644c9e665e91c859937c886663175c8ce148": {
    "drop": false,
-   "en": "Export to PDF.",
-   "es": "Exporte a PDF.",
-   "fr": "Exportez en PDF.",
+   "en": "Format page numbers as 1 2 3, a b c, A B C, i ii iii, I II III, or dashed, with the chapter number, continuing from the previous section, or starting at a chosen number.",
+   "es": "Dé formato a los números de página como 1 2 3, a b c, A B C, i ii iii, I II III o con guiones, con el número de capítulo, continuando desde la sección anterior o empezando en un número elegido.",
+   "fr": "Mettez en forme les numéros de page en 1 2 3, a b c, A B C, i ii iii, I II III ou avec tirets, avec le numéro de chapitre, en continuant depuis la section précédente ou en commençant à un numéro choisi.",
    "soon": {
     "drop": true,
     "en": "",
@@ -21706,11 +21663,11 @@
     "fr": ""
    }
   },
-  "c9149d2fc7f4e9d4897f2be5f1c4278023e239388ade6ef3df82086928205224": {
+  "c9030f6be891939aee4222a565168abceec13e3306953f2f79cf1750ce7a5dfe": {
    "drop": false,
-   "en": "Add a header or footer (opens the master page) and insert page numbers with position, format, and a start number from 1 to 1000. The first page number and style are saved in `.pub` files and read back. A publication has one numbering, so a later section of a file that numbers its pages on its own isn’t kept, and opening one says so.",
-   "es": "Agregue un encabezado o pie de página (abre la página maestra) e inserte números de página con posición, formato y un número inicial de 1 a 1000. El primer número de página y el estilo se guardan en archivos `.pub` y se leen de nuevo. Una publicación tiene una sola numeración, por lo que no se conserva una sección posterior de un archivo que numere sus páginas por separado, y al abrirlo se avisa.",
-   "fr": "Ajoutez un en-tête ou un pied de page (ouvre la page maître) et insérez des numéros de page avec position, format et numéro de départ de 1 à 1000. Le premier numéro de page et le style sont enregistrés dans les fichiers `.pub` et relus. Une publication n’a qu’une seule numérotation ; une section ultérieure d’un fichier qui numérote ses pages séparément n’est donc pas conservée, et l’ouverture le signale.",
+   "en": "Export to PDF.",
+   "es": "Exporte a PDF.",
+   "fr": "Exportez en PDF.",
    "soon": {
     "drop": true,
     "en": "",
@@ -21783,6 +21740,18 @@
    "en": "Sort paragraphs, list items, or table rows on up to three keys, each with a field, a type (text, number, or date), and an order. The first paragraph can be a header, and in a table the keys are columns. Sorting is one step of Undo.",
    "es": "Ordene párrafos, elementos de lista o filas de tabla con hasta tres claves, cada una con un campo, un tipo (texto, número o fecha) y un orden. El primer párrafo puede ser un encabezado y, en una tabla, las claves son columnas. La ordenación es un solo paso de Deshacer.",
    "fr": "Triez des paragraphes, des éléments de liste ou des lignes de tableau selon jusqu’à trois clés, chacune avec un champ, un type (texte, nombre ou date) et un ordre. Le premier paragraphe peut être un en-tête et, dans un tableau, les clés sont des colonnes. Le tri correspond à une seule étape d’annulation.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "c9f2c22572bb3311a79d234fc0137918f3b9c61fd81a2000376f6cdc8e33fc14": {
+   "drop": false,
+   "en": "Search the ribbon commands, File screen entries, Options pages, and gallery items from a search box in the top row of the ribbon. Press `Alt+Q` (`Control+Option+Q` on a Mac) to go to it; the results ignore case and accents and tolerate one wrong letter.",
+   "es": "Busque comandos de la cinta de opciones, entradas de la pantalla Archivo, páginas de Opciones y elementos de galerías desde un cuadro de búsqueda en la fila superior de la cinta. Pulse `Alt+Q` (`Control+Option+Q` en Mac) para ir a él; los resultados ignoran mayúsculas y acentos y toleran una letra equivocada.",
+   "fr": "Recherchez les commandes du ruban, les entrées de l’écran Fichier, les pages d’Options et les éléments des galeries depuis une zone de recherche en haut du ruban. Appuyez sur `Alt+Q` (`Control+Option+Q` sur Mac) pour y accéder; les résultats ignorent la casse et les accents et tolèrent une lettre erronée.",
    "soon": {
     "drop": true,
     "en": "",
@@ -23602,6 +23571,18 @@
     "fr": ""
    }
   },
+  "e2e36689d284a1aeefa898aac3dfb0aca24ead9e659e775923fb374d03eb3904": {
+   "drop": false,
+   "en": "Use dynamic-array functions: `FILTER`, `SORT`, `SORTBY`, `UNIQUE`, `SEQUENCE`, `RANDARRAY`, `XLOOKUP`, and `XMATCH`, plus `LET` to name values inside a formula. A formula whose result is a list fills the cells below and beside it.",
+   "es": "Use funciones de matriz dinámica: `FILTER`, `SORT`, `SORTBY`, `UNIQUE`, `SEQUENCE`, `RANDARRAY`, `XLOOKUP` y `XMATCH`, además de `LET` para dar nombre a valores dentro de una fórmula. Una fórmula cuyo resultado es una lista llena las celdas de abajo y de al lado.",
+   "fr": "Utilisez les fonctions de matrice dynamique : `FILTER`, `SORT`, `SORTBY`, `UNIQUE`, `SEQUENCE`, `RANDARRAY`, `XLOOKUP` et `XMATCH`, ainsi que `LET` pour nommer des valeurs dans une formule. Une formule dont le résultat est une liste remplit les cellules en dessous et à côté.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "e2fd2206fa5b5b1a3fe4e33bb4d514df7a7a6b5d7ed1ca3fbe1fa42be0cdfa47": {
    "drop": false,
    "en": "File (backstage)",
@@ -24214,18 +24195,6 @@
     "fr": ""
    }
   },
-  "ea11678afdeadf04c4c85805338215a1a913b61b836059cc69deede07c2e6ab2": {
-   "drop": false,
-   "en": "Format page numbers as 1 2 3, a b c, A B C, i ii iii, I II III, or dashed, with the chapter number, and continue from the previous section or start at a chosen number. Page Number Format on the Header & Footer tab applies to a section or the whole document, in one undoable step.",
-   "es": "Dé formato a los números de página como 1 2 3, a b c, A B C, i ii iii, I II III o con guiones, con el número de capítulo, y continúe desde la sección anterior o comience en un número elegido. Formato de número de página, en la pestaña Encabezado y pie de página, se aplica a una sección o a todo el documento, en un solo paso que se puede deshacer.",
-   "fr": "Mettez en forme les numéros de page en 1 2 3, a b c, A B C, i ii iii, I II III ou avec tirets, avec le numéro de chapitre, et poursuivez depuis la section précédente ou commencez à un numéro choisi. Format des numéros de page, dans l’onglet En-tête et pied de page, s’applique à une section ou à tout le document, en une seule étape annulable.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "ea5620b613cd32b756dba2d140face9915c0e992ec339ed67d670c9dfec1f15b": {
    "drop": false,
    "en": "Change Case switches selected text to sentence case, lowercase, UPPERCASE, capitalize each word, or toggle. `Shift+F3` cycles through the cases, and with no selection it changes the word at the caret.",
@@ -24392,6 +24361,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "ecc7de4d86ee11544c06a197818b455aeeae7ceffb8a2c613f99ae15345229fa": {
+   "drop": false,
+   "en": "Pick header and footer forms from galleries and use the insert buttons for page number, number of pages, date, time, file path, file name, sheet name, and picture. Go to the header or footer, and add page number designs as plain, Page X of Y, or bold, at the left, center, or right.",
+   "es": "Elija formas de encabezado y pie de página en las galerías y use los botones de inserción para número de página, número de páginas, fecha, hora, ruta del archivo, nombre del archivo, nombre de la hoja e imagen. Vaya al encabezado o al pie de página y agregue diseños de número de página simples, Página X de Y o en negrita, a la izquierda, al centro o a la derecha.",
+   "fr": "Choisissez des modèles d’en-tête et de pied de page dans les galeries et utilisez les boutons d’insertion pour le numéro de page, le nombre de pages, la date, l’heure, le chemin du fichier, le nom du fichier, le nom de la feuille et l’image. Accédez à l’en-tête ou au pied de page et ajoutez des numéros de page simples, Page X sur Y ou en gras, à gauche, au centre ou à droite.",
+   "soon": {
+    "drop": false,
+    "en": "Format Picture for header and footer pictures",
+    "es": "Formato de imagen para las imágenes del encabezado y del pie de página",
+    "fr": "Format de l’image pour les images d’en-tête et de pied de page"
    }
   },
   "ecd22afbdf0c4b9772ec879b4cd6d9c28df0a7e69711162ff082e62ac7b7ef73": {
@@ -24802,6 +24783,18 @@
     "fr": ""
    }
   },
+  "f36f81512df4a5a56a0e8777e741d7d81266bc8d694ec2d81455ad783220c73a": {
+   "drop": false,
+   "en": "Pivot tables and pivot charts in a workbook are shown as saved, with the numbers in the cells, the field list, and the filters. Slicers, timelines, and the data behind them are kept and written back as they were.",
+   "es": "Las tablas dinámicas y los gráficos dinámicos de un libro se muestran tal como se guardaron, con los números en las celdas, la lista de campos y los filtros. Las segmentaciones, las escalas de tiempo y los datos que hay detrás se conservan y se guardan tal como estaban.",
+   "fr": "Les tableaux croisés dynamiques et les graphiques croisés dynamiques d’un classeur s’affichent tels qu’enregistrés, avec les nombres dans les cellules, la liste des champs et les filtres. Les segments, les chronologies et les données sous-jacentes sont conservés et réécrits tels quels.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "f435c763d878352807cc472c21dfc3de6bc7f6da2d308edd21637618c42114b5": {
    "drop": false,
    "en": "The Shape Format tab has a gallery of 24 styles drawn from the theme, kept in `.pptx` and `.odp` files.",
@@ -25167,6 +25160,18 @@
    "en": "Add, rename, move up and down, and remove sections (the heading only, or with its slides), collapse and expand all, and remove all. Sections are shown in the slides pane and the Slide Sorter, and are saved in the file.",
    "es": "Agregue, cambie el nombre, suba y baje, y elimine secciones (solo el encabezado o con sus diapositivas), contraiga y expanda todas, y elimínelas todas. Las secciones se muestran en el panel de diapositivas y en el Clasificador de diapositivas, y se guardan en el archivo.",
    "fr": "Ajoutez, renommez, montez et descendez, et supprimez des sections (l’en-tête seul, ou avec ses diapositives), réduisez et développez toutes les sections, et supprimez-les toutes. Les sections s’affichent dans le volet des diapositives et le Trieur de diapositives, et sont enregistrées dans le fichier.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "f9c4489502e898496cb1982f262eb3ea79157c3ed05a1f681e2728cbfbb35a15": {
+   "drop": false,
+   "en": "Search the ribbon commands, File screen entries, Options pages, and gallery items from a search box in the top row of the ribbon. Press `Alt+Q` (`Control+Option+Q` on a Mac) to go to it; the results ignore case and accents and tolerate one wrong letter.",
+   "es": "Busque comandos de la cinta de opciones, entradas de la pantalla Archivo, páginas de Opciones y elementos de galerías desde un cuadro de búsqueda en la fila superior de la cinta. Pulse `Alt+Q` (`Control+Option+Q` en Mac) para ir a él; los resultados ignoran mayúsculas y acentos y toleran una letra equivocada.",
+   "fr": "Recherchez les commandes du ruban, les entrées de l’écran Fichier, les pages d’Options et les éléments des galeries depuis une zone de recherche en haut du ruban. Appuyez sur `Alt+Q` (`Control+Option+Q` sur Mac) pour y accéder; les résultats ignorent la casse et les accents et tolèrent une lettre erronée.",
    "soon": {
     "drop": true,
     "en": "",
