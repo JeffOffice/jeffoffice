@@ -11,7 +11,8 @@ trap 'rm -rf "$P"' EXIT
 bad=""
 note() { bad="$bad; $*"; }
 qt=$(sed -n 's/^Qt6_DIR:PATH=\(.*\)\/lib\/cmake\/Qt6$/\1/p' "$B/CMakeCache.txt")
-ninja -C "$B" jeffpub jeffdeck jeffwrite jeffcrunch jeffoffice-common jo_datacheck > "$P.build" 2>&1 || { echo "packaged layout: BUILD FAILED"; tail -5 "$P.build"; rm -f "$P.build"; exit 1; }
+# Capped like every other build (Nov 15: an uncapped ninja here let two compiler runs reach ~140 GB each and took the desktop down).
+systemd-run --user --scope -p MemoryMax=${JO_LAYOUT_MEM:-64G} -q ninja -C "$B" -j${JO_JOBS:-24} jeffpub jeffdeck jeffwrite jeffcrunch jeffoffice-common jo_datacheck > "$P.build" 2>&1 || { echo "packaged layout: BUILD FAILED"; tail -5 "$P.build"; rm -f "$P.build"; exit 1; }
 rm -f "$P.build"
 cmake --install "$B" --prefix "$P" > /dev/null 2>&1 || note "cmake --install failed"
 cmake --install "$B" --prefix "$P" --component check > /dev/null 2>&1 || note "install of jo_datacheck failed"
