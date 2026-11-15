@@ -68,6 +68,7 @@ private:
     bool act(const QString &id, MediaBar::Part part, const QPointF &pos, bool dragging);
     DeckCanvas *m_canvas;
     QHash<QString, QPointer<MediaPlayback>> m_players;
+    QHash<QString, bool> m_linkedAnswers;   // what was answered for each linked file asked about (Options > Trust Center)
     QString m_hover;
     QString m_drag;
     MediaBar::Part m_dragPart = MediaBar::Part::None;

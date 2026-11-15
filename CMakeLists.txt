@@ -344,6 +344,7 @@ qt_add_executable(jptests
   tests/shell/tst_shell_grammar_rules.cpp
   tests/shell/tst_shell_keymap.cpp
   tests/shell/tst_shell_saveoptions.cpp
+  tests/shell/tst_shell_trust.cpp
   tests/shell/tst_shell_missingfonts.cpp
   tests/shell/tst_shell_readaloud.cpp
   tests/shell/tst_shell_translate.cpp

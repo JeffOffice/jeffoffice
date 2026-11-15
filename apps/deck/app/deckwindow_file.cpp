@@ -25,6 +25,7 @@
 #include <QFileInfo>
 #include <QMessageBox>
 #include "app/plaintext.h"
+#include "app/trust.h"
 
 namespace jp {
 
@@ -60,6 +61,9 @@ void DeckWindow::setReadOnly(bool on)
 
 bool DeckWindow::openFile(const QString &path, OpenHow how)
 {
+    // A file from the internet or another computer opens for reading first (Options > Trust Center); a template is not opened for reading, it makes a new presentation.
+    bool heldBack = false;
+    if (deck::presentationKindOf(path) != deck::PresentationKind::Template) how = trust::openHowFor(path, how, &heldBack);
     QString notes;
     QApplication::setOverrideCursor(Qt::WaitCursor);
     office::RepairReport repair;
@@ -145,7 +149,10 @@ bool DeckWindow::openFile(const QString &path, OpenHow how)
         target->m_fileProtected = wasProtected;
         if (wasProtected) target->m_filePassword = openedWith;
         target->m_versions.reset(wasProtected ? openedWith : QString());
-        if (how == OpenHow::ReadOnly) target->setReadOnly(true);
+        if (how == OpenHow::ReadOnly) {
+            target->setReadOnly(true);
+            if (heldBack) target->statusBar()->showMessage(trust::heldBackText(), 15000);
+        }
         // A presentation marked as final opens for reading only (the Info page lets it be edited again).
         else if (how == OpenHow::Normal && target->markedAsFinal() && deck::presentationKindOf(path) != deck::PresentationKind::Template) {
             target->setReadOnly(true);

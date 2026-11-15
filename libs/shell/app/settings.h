@@ -28,7 +28,7 @@ bool moveDataFolder(const QString &from, const QString &to);
 
 // Whether a setting belongs to the whole suite rather than one app: the
 // theme, the language, the name and initials of the person using it, the
-// updates (setup installs every app at once), the speed and voice of Read Aloud, the stand-ins chosen for missing fonts, whether to send statistics,
+// updates (setup installs every app at once), the Trust Center choices (what a file may reach out to), the speed and voice of Read Aloud, the stand-ins chosen for missing fonts, whether to send statistics,
 // and the random id those statistics are sent under. Those are kept in the
 // suite's own store, so a choice made in one app holds in all of them;
 // everything else stays with the app (the statistics' counts too).

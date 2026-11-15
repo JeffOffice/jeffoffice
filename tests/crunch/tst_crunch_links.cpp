@@ -2,6 +2,7 @@
 // dialog, changing and removing links as steps of Undo, links following rows and columns, and the file keeping them. Nothing here opens a browser: the window's opener is a function the
 // test gives.
 #include "app/anchordialogs.h"
+#include "app/trust.h"
 #include "app/crunchinfo.h"
 #include "app/crunchwindow.h"
 #include "core/appinfo.h"
@@ -224,6 +225,40 @@ private Q_SLOTS:
         QVERIFY(seen.urls.isEmpty());
         QVERIFY(!asked);
         QVERIFY(!e.win.told.isEmpty());
+    }
+
+    // The loosest of the Trust Center's choices does not reach the refusals: a link to a program or a script is still never opened, and never asked about.
+    void theLoosestTrustChoicesStillRefuseProgramLinks()
+    {
+        struct Reset {
+            ~Reset()
+            {
+                trust::setLinkedFiles(trust::Choice::Ask);
+                trust::setLinkedMedia(trust::Choice::Never);
+                trust::setOutsideFilesReadOnly(true);
+                trust::setAskStandIn({});
+            }
+        } reset;
+        trust::setLinkedFiles(trust::Choice::Yes);
+        trust::setLinkedMedia(trust::Choice::Yes);
+        trust::setOutsideFilesReadOnly(false);
+        trust::setAskStandIn([](const QString &) { return true; });
+        EditWindow e;
+        QVERIFY(e.open(linksBook(true)));
+        Opened seen;
+        watchOpener(e, &seen);
+        bool asked = false;
+        e.win.w.setConfirmAsker([&asked](const QString &, const QString &) {
+            asked = true;
+            return true;
+        });
+        for (const char *cell : {"A4", "C1"}) {
+            e.win.told.clear();
+            QTest::mouseClick(e.view()->viewport(), Qt::LeftButton, Qt::ControlModifier, centerOf(e, QString::fromLatin1(cell)));
+            QVERIFY2(seen.urls.isEmpty(), cell);
+            QVERIFY2(!e.win.told.isEmpty(), cell);
+        }
+        QVERIFY(!asked);
     }
 
     void aLinkToAFileAsksFirstAndOpensItBesideTheWorkbook()

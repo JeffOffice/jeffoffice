@@ -143,7 +143,7 @@ public:
     // The show of another presentation a link started, which this one waits for (null when none runs).
     SlideShow *nestedShow() const { return m_nested; }
     // The folder a link to another presentation by a relative path is counted from (the folder of the file this one was opened from).
-    void setBaseDirectory(const QString &dir) { m_baseDir = dir; }
+    void setBaseDirectory(const QString &dir);
     // The file this presentation was opened from: a link back to it (or to any file already playing in a chain of nested shows) is refused.
     void setFilePath(const QString &path);
     // How many places a "show and come back" link is keeping to come back to.

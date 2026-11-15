@@ -1,5 +1,7 @@
 // JeffDeck's tests of movies and sounds: timing, playback, and the show.
 #include "deckhelpers.h"
+#include "app/linkedmedia.h"
+#include "app/trust.h"
 
 #include <private/qplatformmediaintegration_p.h>
 #include <QAudioDevice>
@@ -1954,6 +1956,131 @@ private Q_SLOTS:
         MediaPlayback *lp = w.canvas()->media()->playbackOf(linked->id);
         QVERIFY(lp && lp->failed());
         QVERIFY2(lp->error().contains(QStringLiteral("linked")), qPrintable(lp->error()));
+    }
+
+    // A movie or sound linked to a file plays as Options > Trust Center says: never (the default, and what it always did), after a question, or at once. Only a movie or sound file on this
+    // computer is ever played: a web address, a file on another computer, a program, a text, and a file that is not there are refused, whatever is chosen.
+    void aLinkedFileIsPlayedOnlyAsTheTrustCenterSays()
+    {
+        struct Reset {
+            ~Reset()
+            {
+                trust::setLinkedMedia(trust::Choice::Never);
+                trust::setAskStandIn({});
+            }
+        } reset;
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        auto write = [&](const QString &name, const QByteArray &bytes) {
+            QFile f(dir.filePath(name));
+            if (f.open(QIODevice::WriteOnly)) f.write(bytes);
+            return dir.filePath(name);
+        };
+        const QString wav = write(QStringLiteral("tune.wav"), testWav(500));
+        write(QStringLiteral("notes.txt"), "hello");
+        write(QStringLiteral("run.sh"), "#!/bin/sh\n");
+        QVERIFY(QFileInfo(wav).size() > 0);
+        auto picture = [](const QString &link) {
+            auto pic = std::make_shared<PictureItem>();
+            pic->mediaKind = QStringLiteral("audio");
+            pic->mediaLink = link;
+            return pic;
+        };
+        // (whether the sound was given its file, and what it said when it was not)
+        auto given = [&](const QString &link, const QString &base, QHash<QString, bool> *answers = nullptr, QString *why = nullptr) {
+            MediaPlayback pb;
+            giveLinkedMedia(&pb, *picture(link), base, nullptr, answers);
+            if (why) *why = pb.error();
+            return !pb.failed();
+        };
+        QString why;
+        // never: the file is not read, and the sound says it is linked
+        QVERIFY(!given(wav, dir.path(), nullptr, &why));
+        QVERIFY2(why.contains(QStringLiteral("linked from outside")), qPrintable(why));
+        // at once
+        trust::setLinkedMedia(trust::Choice::Yes);
+        QVERIFY(given(wav, dir.path()));
+        QVERIFY(given(QStringLiteral("tune.wav"), dir.path()));   // (counted from the presentation's folder)
+        QVERIFY(given(QUrl::fromLocalFile(wav).toString(), QString()));
+        QVERIFY(!given(QStringLiteral("tune.wav"), QString()));    // (no folder to count from)
+        for (const QString &link : {QStringLiteral("https://example.com/a.mp3"), QStringLiteral("ftp://example.com/a.mp3"), QStringLiteral("\\\\host\\share\\a.wav"), QStringLiteral("//host/share/a.wav"),
+                                    QStringLiteral("file://host/share/a.wav"), QStringLiteral("file://///host/share/a.wav"), QStringLiteral("\\\\?\\UNC\\host\\share\\a.wav"),
+                                    QStringLiteral("notes.txt"), QStringLiteral("./run.sh"), QStringLiteral("run.sh"), QStringLiteral("missing.wav"), QStringLiteral("rtsp://example.com/live.mp3"),
+                                    QStringLiteral("C:\\tools\\run.exe"), QString()}) {
+            QVERIFY2(!given(link, dir.path(), nullptr, &why), qPrintable(link));
+            QVERIFY2(why.contains(QStringLiteral("linked")), qPrintable(link + QStringLiteral(": ") + why));
+            QVERIFY2(linkedMediaFile(link, dir.path()).isEmpty(), qPrintable(link));
+        }
+        QCOMPARE(linkedMediaFile(wav, QString()), wav);
+        // a question first: asked once for a link, and not at all for one that is refused anyway
+        trust::setLinkedMedia(trust::Choice::Ask);
+        int asked = 0;
+        bool answer = false;
+        trust::setAskStandIn([&](const QString &) {
+            ++asked;
+            return answer;
+        });
+        QHash<QString, bool> answers;
+        QVERIFY(!given(wav, dir.path(), &answers, &why));
+        QVERIFY2(why.contains(QStringLiteral("chose not to")), qPrintable(why));
+        QVERIFY(!given(wav, dir.path(), &answers));
+        QCOMPARE(asked, 1);
+        QVERIFY(!given(QStringLiteral("https://example.com/a.mp3"), dir.path(), &answers));
+        QVERIFY(!given(QStringLiteral("\\\\host\\share\\a.wav"), dir.path(), &answers));
+        QCOMPARE(asked, 1);
+        answer = true;
+        QHash<QString, bool> yesAnswers;
+        QVERIFY(given(wav, dir.path(), &yesAnswers));
+        QVERIFY(given(wav, dir.path(), &yesAnswers));
+        QCOMPARE(asked, 2);
+    }
+
+    // The window's player gives a linked sound its file only when the choice says so (and always says why not otherwise).
+    void editorPlaysALinkedSoundOnlyWhenTheChoiceSays()
+    {
+        if (QMediaDevices::audioOutputs().isEmpty()) QSKIP("this machine has no audio output, which a sound needs to play on");
+        struct Reset {
+            ~Reset() { trust::setLinkedMedia(trust::Choice::Never); }
+        } reset;
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QByteArray wavBytes = testWav(3000);
+        if (!backendReads(wavBytes, "wav", false)) QSKIP("this Qt can't read a test sound");
+        QFile f(dir.filePath(QStringLiteral("tune.wav")));
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write(wavBytes);
+        f.close();
+        DeckWindow w;
+        w.resize(1280, 800);
+        w.show();
+        Editor *ed = w.editor();
+        Document *d = ed->doc();
+        QImage poster(320, 180, QImage::Format_RGB32);
+        poster.fill(QColor(240, 240, 240));
+        auto base = deck::newMediaPicture(*d, *d->pages[0], wavBytes, QStringLiteral("tune.wav"), poster, 3000);
+        QVERIFY(base);
+        auto linked = std::make_shared<PictureItem>();
+        linked->rect = QRectF(60, 60, 200, 120);
+        linked->imgRect = QRectF(0, 0, 200, 120);
+        linked->imageId = base->imageId;
+        linked->mediaKind = QStringLiteral("audio");
+        linked->mediaLink = dir.filePath(QStringLiteral("tune.wav"));
+        ed->beginChange(QStringLiteral("Insert"));
+        d->pages[0]->items.push_back(linked);
+        ed->endChange();
+        ed->select(linked->id);
+        w.canvas()->media()->play(linked->id);
+        MediaPlayback *never = w.canvas()->media()->playbackOf(linked->id);
+        QVERIFY(never && never->failed());
+        QVERIFY2(never->error().contains(QStringLiteral("linked")), qPrintable(never->error()));
+        w.canvas()->media()->stop();
+        trust::setLinkedMedia(trust::Choice::Yes);
+        w.canvas()->media()->play(linked->id);
+        MediaPlayback *yes = w.canvas()->media()->playbackOf(linked->id);
+        QVERIFY(yes);
+        QTRY_VERIFY_WITH_TIMEOUT(playerSettled(*yes, false), 15000);
+        QVERIFY2(!yes->failed(), qPrintable(yes->error()));
+        yes->stop();
     }
 
     // ---- movies and sounds in the slide show ----

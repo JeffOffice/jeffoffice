@@ -49,7 +49,7 @@ bool suiteWide(const QString &key)
     static const QStringList keys = {QStringLiteral("ui/theme"), QStringLiteral("ui/language"), QStringLiteral("user/name"),
                                      QStringLiteral("user/initials"), QStringLiteral("telemetry/enabled"), QStringLiteral("telemetry/install"),
                                      QStringLiteral("proof/checkAsYouType"), QStringLiteral("proof/checkGrammarAsYouType"), QStringLiteral("proof/grammarKinds"), QStringLiteral("speech/speed"), QStringLiteral("speech/voice")};
-    return key.startsWith(QLatin1String("updates/")) || key.startsWith(QLatin1String("fonts/replace/")) || keys.contains(key);
+    return key.startsWith(QLatin1String("updates/")) || key.startsWith(QLatin1String("trust/")) || key.startsWith(QLatin1String("fonts/replace/")) || keys.contains(key);
 }
 
 void moveToSuite(QSettings &app, QSettings &suite)

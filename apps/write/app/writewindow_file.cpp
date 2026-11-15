@@ -45,6 +45,7 @@
 #include <QStatusBar>
 #include <QVBoxLayout>
 #include "app/plaintext.h"
+#include "app/trust.h"
 
 namespace jp {
 
@@ -149,6 +150,10 @@ void WriteWindow::setReadOnly(bool on)
 
 bool WriteWindow::openFile(const QString &path, OpenHow how)
 {
+    // A file from the internet or another computer opens for reading first (Options > Trust Center); a template is not opened for reading, it makes a new document.
+    bool heldBack = false;
+    if (const QString suffix = QFileInfo(path).suffix().toLower(); suffix != QLatin1String("dotx") && suffix != QLatin1String("dotm") && suffix != QLatin1String("dot") && suffix != QLatin1String("ott"))
+        how = trust::openHowFor(path, how, &heldBack);
     QApplication::setOverrideCursor(Qt::WaitCursor);
     QByteArray bytes;
     QString err;
@@ -220,6 +225,7 @@ bool WriteWindow::openFile(const QString &path, OpenHow how)
     const bool leftOut = doc->leftSomethingOut();
     if (copy) target->m_untitled = (repairing ? tr("Repaired %1") : tr("Copy of %1")).arg(QFileInfo(path).completeBaseName());
     target->setReadOnly(how == OpenHow::ReadOnly);
+    if (heldBack) target->statusBar()->showMessage(trust::heldBackText(), 15000);
     target->setDocument(std::move(doc), tmpl || copy ? QString() : path);
     target->m_macrosNoted = false;
     target->m_textFormKnown = textFormChosen && !copy;

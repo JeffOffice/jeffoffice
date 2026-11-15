@@ -1234,14 +1234,28 @@ static bool needsPdfPassword(const QString &path)
     return PdfDocument::looksLikePdf(file) && PdfDocument(file).needsPassword();
 }
 
-void Document::refreshLinks()
+int Document::updatableLinks() const
+{
+    int n = 0;
+    for (auto it = images.cbegin(); it != images.cend(); ++it) {
+        const ImageData &d = it.value();
+        if (!d.linked || !mayFollow(d.sourcePath)) continue;
+        const QFileInfo fi(d.sourcePath);
+        if (!fi.isFile()) continue;
+        const bool stored = d.keepsCopy && !d.bytes.isEmpty();
+        if (!stored || d.changed || fi.size() != d.fileSize || fi.lastModified().toMSecsSinceEpoch() != d.fileTime) ++n;
+    }
+    return n;
+}
+
+void Document::refreshLinks(bool readFiles)
 {
     for (auto it = images.begin(); it != images.end(); ++it) {
         ImageData &d = it.value();
         if (!d.linked) continue;
         // A file the publication may not look at stays untouched, not even
         // asked after; what the publication stores stands in for it.
-        d.followed = d.followed || mayFollow(d.sourcePath);
+        if (readFiles) d.followed = d.followed || mayFollow(d.sourcePath);
         const LinkStatus status = linkStatus(it.key());
         // A stored copy that matches the file needs no reading of it.
         const bool stored = d.keepsCopy && !d.bytes.isEmpty();

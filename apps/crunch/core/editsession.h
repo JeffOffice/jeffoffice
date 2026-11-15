@@ -1066,6 +1066,7 @@ public:
     enum class UpdateLinks { Ask = 0, Always = 1, Never = 2 };
     UpdateLinks updateLinksMode() const;   // what the file says (and what the person set)
     UpdateLinks openingChoice() const;     // what happens when it opens: the file's "update" is a question; only the person's own choice here updates without asking
+    bool updateLinksChosen() const { return m_updateLinks >= 0; }   // the person set the Startup prompt in this session (it then decides, over Options > Trust Center)
     Outcome setUpdateLinksMode(UpdateLinks mode);
     void setUpdateLinksValue(int mode);   // (the step of Undo that the choice makes: -1 for what the file has)
     // Updates every link whose file is on this computer (the choice "update" at open); `updated` counts the cells given values.

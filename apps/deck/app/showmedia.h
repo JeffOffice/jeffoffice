@@ -53,6 +53,9 @@ public:
     // Over the slide, after it is painted: the movies that play, a message for a file that can't, and the control bar.
     void paint(QPainter *p);
 
+    // The folder of the presentation playing, which a linked file with a relative name is counted from.
+    void setBaseDirectory(const QString &dir) { m_baseDir = dir; }
+
     // For tests: the player of a picture (by the picture's id) on the slide now, or null.
     MediaPlayback *playbackOf(const QString &itemId) const;
     // Where the bar of the picture shows, in the window's coordinates.
@@ -86,6 +89,8 @@ private:
     bool showsFrame(const Entry &e) const;
     bool controlsOf(const QPointF &pos, QString *id, MediaBar::Part *part) const;
     const Document *m_doc;
+    QString m_baseDir;                      // the presentation's folder, for a linked file named by a relative path
+    QHash<QString, bool> m_linkedAnswers;   // what was answered for each linked file asked about (Options > Trust Center)
     QWidget *m_view;
     int m_slide = -1;
     QString m_pageId;   // of the slide on the screen: the presentation may be edited while the show plays

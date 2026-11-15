@@ -57,4 +57,5 @@ Type in the search box above to find a topic, or a command to run. Press **F1** 
 
 - [Use JeffWrite with the keyboard](keyboard)
 - [Change JeffWrite's settings](options)
+- [Trust Center: what a file may reach out to](trust-center)
 - [Choose a language](language)

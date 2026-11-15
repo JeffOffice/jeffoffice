@@ -1,7 +1,7 @@
 # Change JeffDeck's settings
 <!-- keywords: options, settings, preferences, theme, dark mode, language, user name, initials, ruler, snap, spelling, autocorrect, quotes, updates, beta, usage statistics, about, save, embed fonts, fonts, customize keyboard, customize the ribbon, customize the quick toolbar, quick toolbar, add a command to the quick toolbar, hide a tab, hide a group, add a tab, add a group, rename a tab, reset the ribbon, change shortcut keys, reassign keys, reset keys -->
 
-Your settings are in the **JeffDeck Options** window. Click **File > Options** to open it. It has five tabs. Click **OK** to keep your changes, or **Cancel** to throw them away.
+Your settings are in the **JeffDeck Options** window. Click **File > Options** to open it. It has six tabs. Click **OK** to keep your changes, or **Cancel** to throw them away.
 
 ## General
 
@@ -75,6 +75,10 @@ The **Quick Toolbar** page is for the small toolbar at the top left of the windo
 **Reset One** puts back the chosen command: where JeffDeck usually has it, or off the toolbar when JeffDeck does not usually have it there. **Reset All** puts back the toolbar JeffDeck comes with. Reset All on this page does not change your ribbon, and Reset All on the **Ribbon** page does not change your toolbar.
 
 Nothing changes until you click **OK**. Then every open JeffDeck window shows your toolbar, and so does every window you open later. The toolbar can have 100 commands and separators in all. When there are more buttons than fit in a third of the window's width, the rest wait behind a **»** button at the end of the toolbar, so the title of the window is never pushed off the screen. JeffDeck keeps a command in your list when a later version no longer has it, and shows it again if the command comes back. The buttons get KeyTips, the numbers 1 to 9 and then two letters, in the order they are on the toolbar. The toolbar always sits at the top left, beside the **File** button.
+
+## Trust Center
+
+The **Trust Center** tab decides what JeffDeck does about the things a file can point to: linked files, linked movies and sounds, and files from the internet. Macros are kept in a file and never run, and a link that would start a program is always refused. See [Trust Center](trust-center).
 
 ## Related
 

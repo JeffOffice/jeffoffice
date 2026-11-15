@@ -4,6 +4,7 @@
 #include "core/version.h"
 #include "../isolatesettings.h"
 #include "io/jpubfile.h"
+#include "app/trust.h"
 #include <QBuffer>
 #include <QMessageBox>
 #include <QRandomGenerator>
@@ -1111,6 +1112,143 @@ private Q_SLOTS:
         QVERIFY2(!found.filter(QStringLiteral("(Page 1)")).isEmpty(), qPrintable(found.join('|')));   // the checker did list things
         QVERIFY2(!found.join('|').contains(QStringLiteral("Linked picture is missing")), qPrintable(found.join('|')));
         QVERIFY2(!found.join('|').contains(QStringLiteral("linked, not embedded")), qPrintable(found.join('|')));
+    }
+
+    // What a publication does with its linked pictures when it opens is Options > Trust Center's choice: "Update them" reads the files (as it always did, and only the ones in the
+    // publication's own folder), "Never" leaves every picture as it was saved, and "Ask" asks, only when a file has something to give, and reads them on a yes.
+    void linkedPicturesFollowTheTrustChoice()
+    {
+        QTemporaryDir dir, other;
+        QVERIFY(dir.isValid() && other.isValid());
+        const QString near = linkPicture(dir.filePath(QStringLiteral("near.png")), QSize(800, 600), QColor(20, 120, 200));
+        const QString far = linkPicture(other.filePath(QStringLiteral("far.png")), QSize(800, 600), QColor(200, 120, 20));
+        const QString path = dir.filePath(QStringLiteral("book.jpub"));
+        QByteArray nearOld = linkFileBytes(near), farOld = linkFileBytes(far);
+        {
+            jp::MainWindow w;
+            w.editor()->setDocument(jp::Document::blank(QSizeF(612, 792)));
+            w.insertFiles({near, far}, QPointF(-1, -1), jp::PictureInsert::EmbedAndLink);
+            QVERIFY(w.saveTo(path));
+        }
+        linkPicture(near, QSize(500, 500), QColor(20, 200, 60));
+        linkPicture(far, QSize(500, 500), QColor(60, 20, 200));
+        const QByteArray nearNew = linkFileBytes(near), farNew = linkFileBytes(far);
+        QVERIFY(nearNew != nearOld && farNew != farOld);
+        int asked = 0;
+        bool answer = false;
+        jp::trust::setAskStandIn([&](const QString &) {
+            ++asked;
+            return answer;
+        });
+        struct Reset {
+            ~Reset()
+            {
+                jp::trust::setAskStandIn({});
+                jp::trust::setLinkedFiles(jp::trust::Choice::Ask);
+            }
+        } reset;
+        // The ids are by the file each picture is linked to.
+        auto state = [&](jp::MainWindow &w, const QString &file, QByteArray *bytes) {
+            const jp::Document *d = w.editor()->doc();
+            for (auto it = d->images.cbegin(); it != d->images.cend(); ++it)
+                if (it->linked && it->sourcePath == QDir::cleanPath(QFileInfo(file).absoluteFilePath())) {
+                    *bytes = it->bytes;
+                    return d->linkStatus(it.key());
+                }
+            return jp::LinkStatus::Embedded;
+        };
+        QByteArray b;
+        {
+            jp::trust::setLinkedFiles(jp::trust::Choice::Never);
+            jp::MainWindow w;
+            QVERIFY(w.openFile(path));
+            QCOMPARE(state(w, near, &b), jp::LinkStatus::NotUpdated);
+            QCOMPARE(b, nearOld);
+            QCOMPARE(asked, 0);
+        }
+        {
+            jp::trust::setLinkedFiles(jp::trust::Choice::Yes);
+            jp::MainWindow w;
+            QVERIFY(w.openFile(path));
+            QCOMPARE(state(w, near, &b), jp::LinkStatus::Linked);
+            QCOMPARE(b, nearNew);
+            // (a file outside the publication's folder is not read, whatever is chosen)
+            QCOMPARE(state(w, far, &b), jp::LinkStatus::NotUpdated);
+            QCOMPARE(b, farOld);
+            QCOMPARE(asked, 0);
+            // (nor a file on another computer: the check that says so does not look at the choice)
+            QVERIFY(!w.editor()->doc()->mayFollow(QStringLiteral("\\\\host\\share\\a.png")));
+            QVERIFY(!w.editor()->doc()->mayFollow(QStringLiteral("//host/share/a.png")));
+            QVERIFY(w.editor()->doc()->mayFollow(near));
+        }
+        {
+            jp::trust::setLinkedFiles(jp::trust::Choice::Ask);
+            answer = false;
+            jp::MainWindow w;
+            QVERIFY(w.openFile(path));
+            QCOMPARE(asked, 1);
+            QCOMPARE(state(w, near, &b), jp::LinkStatus::NotUpdated);
+            QCOMPARE(b, nearOld);
+        }
+        const QString again = dir.filePath(QStringLiteral("again.jpub"));
+        {
+            answer = true;
+            jp::MainWindow w;
+            QVERIFY(w.openFile(path));
+            QCOMPARE(asked, 2);
+            QCOMPARE(state(w, near, &b), jp::LinkStatus::Linked);
+            QCOMPARE(b, nearNew);
+            QCOMPARE(state(w, far, &b), jp::LinkStatus::NotUpdated);
+            QCOMPARE(b, farOld);
+            QVERIFY(w.saveTo(again));
+        }
+        {
+            // nothing has changed since the save, so there is nothing to ask about
+            jp::MainWindow w;
+            QVERIFY(w.openFile(again));
+            QCOMPARE(asked, 2);
+        }
+    }
+
+    // A file from the internet or another computer opens for reading first, unless Options > Trust Center says to open it as any other.
+    void aFileFromOutsideOpensForReadingFirst()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString path = dir.filePath(QStringLiteral("book.jpub")), mine = dir.filePath(QStringLiteral("mine.jpub"));
+        {
+            jp::MainWindow w;
+            w.editor()->setDocument(jp::Document::blank(QSizeF(612, 792)));
+            QVERIFY(w.saveTo(path));
+            QVERIFY(w.saveTo(mine));
+        }
+        jp::trust::setOutsideStandIn([&](const QString &p) { return p == path; });
+        struct Reset {
+            ~Reset()
+            {
+                jp::trust::setOutsideStandIn({});
+                jp::trust::setOutsideFilesReadOnly(true);
+            }
+        } reset;
+        {
+            jp::MainWindow w;
+            QVERIFY(w.openFile(path));
+            QVERIFY(w.isReadOnly());
+        }
+        {
+            jp::MainWindow w;
+            QVERIFY(w.openFile(mine));
+            QVERIFY(!w.isReadOnly());
+        }
+        {
+            jp::MainWindow w;
+            QVERIFY(w.openFile(path, jp::OpenHow::Copy));   // (a copy the person asked for is a document of their own)
+            QVERIFY(!w.isReadOnly());
+        }
+        jp::trust::setOutsideFilesReadOnly(false);
+        jp::MainWindow w;
+        QVERIFY(w.openFile(path));
+        QVERIFY(!w.isReadOnly());
     }
 
     // The path relative to the publication wins when the publication was

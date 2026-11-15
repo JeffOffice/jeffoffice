@@ -24,8 +24,9 @@ std::unique_ptr<Document> loadPublication(const QString &path, QString *error);
 // `folder` is where the bytes will be saved: linked pictures keep their paths
 // relative to it (empty: the publication's own folder).
 QByteArray publicationBytes(const Document &doc, const QImage &thumbnail, const QString &folder = QString(), bool embedLinks = false);
-// `folder` is where the publication was read from, for finding linked pictures.
-std::unique_ptr<Document> publicationFromBytes(const QByteArray &bytes, QString *error, const QString &folder = QString());
+// `folder` is where the publication was read from, for finding linked pictures. With `readLinks` false no linked file is read (Options > Trust Center): the stored copies and previews stand
+// until the links are updated (Document::refreshLinks).
+std::unique_ptr<Document> publicationFromBytes(const QByteArray &bytes, QString *error, const QString &folder = QString(), bool readLinks = true);
 
 // A publication's preview for lists of files: a .jpub's thumbnail, or the
 // picture a .pub file keeps in its summary (null when there is none).

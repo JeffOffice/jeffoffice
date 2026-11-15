@@ -11,6 +11,7 @@
 #include "app/icons.h"
 #include "core/appinfo.h"
 #include "app/theme.h"
+#include "app/trust.h"
 #include "io/zip.h"
 
 #include <QPainter>
@@ -1484,6 +1485,72 @@ QStringList checkRibbonLayout(Adapter &app)
     if (const QString report = qEnvironmentVariable("JP_RIBBON_REPORT"); !report.isEmpty())
         if (QFile f(report); f.open(QIODevice::WriteOnly | QIODevice::Truncate)) f.write(fails.join('\n').toUtf8());
     return fails;
+}
+
+void checkTrustCenterPage(Adapter &app)
+{
+    std::unique_ptr<jp::AppWindow> w(app.launch());
+    QVERIFY2(w, "the app made no window");
+    if (app.settle) app.settle(w.get());
+    QAction *options = w->act(QStringLiteral("file.options"));
+    QVERIFY(options);
+    struct Reset {
+        ~Reset()
+        {
+            jp::trust::setLinkedFiles(jp::trust::Choice::Ask);
+            jp::trust::setLinkedMedia(jp::trust::Choice::Never);
+            jp::trust::setOutsideFilesReadOnly(true);
+        }
+    } reset;
+    jp::trust::setLinkedFiles(jp::trust::Choice::Ask);
+    jp::trust::setLinkedMedia(jp::trust::Choice::Never);
+    jp::trust::setOutsideFilesReadOnly(true);
+    const jp::trust::Applies applies = jp::trust::appliesTo(jp::appInfo().fileName);
+    // Cancel: nothing is kept, and the page is as the app has it.
+    withDialog([&] { options->trigger(); }, QStringLiteral("optionsDialog"), [&](QDialog *dlg) {
+        QWidget *page = dlg->findChild<QWidget *>(QStringLiteral("trustPage"));
+        QVERIFY2(page, "Options has no Trust Center page");
+        QTabWidget *tabs = nullptr;
+        for (auto *t : dlg->findChildren<QTabWidget *>())
+            if (t->indexOf(page) >= 0) tabs = t;
+        QVERIFY(tabs);
+        QCOMPARE(tabs->tabText(tabs->indexOf(page)), QStringLiteral("Trust Center"));
+        tabs->setCurrentWidget(page);
+        auto *files = page->findChild<QComboBox *>(QStringLiteral("trustLinkedFiles"));
+        auto *media = page->findChild<QComboBox *>(QStringLiteral("trustLinkedMedia"));
+        auto *outside = page->findChild<QComboBox *>(QStringLiteral("trustOutside"));
+        QVERIFY(files && media && outside);
+        QCOMPARE(files->isEnabled(), applies.linkedFiles);
+        QCOMPARE(media->isEnabled(), applies.linkedMedia);
+        QVERIFY(outside->isEnabled());
+        QCOMPARE(files->currentIndex(), 0);   // (ask me first)
+        QCOMPARE(media->currentIndex(), 2);   // (never play it)
+        QCOMPARE(outside->currentIndex(), 0);   // (read-only first)
+        auto text = [&](const char *name) { return page->findChild<QLabel *>(QString::fromLatin1(name))->text(); };
+        QVERIFY2(text("trustMacros").contains(QStringLiteral("never run")), qPrintable(text("trustMacros")));
+        QVERIFY2(text("trustPrograms").contains(QStringLiteral("always refused")), qPrintable(text("trustPrograms")));
+        QCOMPARE(text("trustLinkedFilesNote").contains(QStringLiteral("doesn't apply")), !applies.linkedFiles);
+        QCOMPARE(text("trustLinkedMediaNote").contains(QStringLiteral("doesn't apply")), !applies.linkedMedia);
+        shotOf(dlg, QStringLiteral("trust-center-") + jp::appInfo().fileName);
+        files->setCurrentIndex(2);
+        media->setCurrentIndex(1);
+        outside->setCurrentIndex(1);
+    }, false);
+    QCOMPARE(jp::trust::linkedFiles(), jp::trust::Choice::Ask);
+    QCOMPARE(jp::trust::linkedMedia(), jp::trust::Choice::Never);
+    QVERIFY(jp::trust::outsideFilesReadOnly());
+    // OK: the rows that apply are kept, and the others are left as they were.
+    withDialog([&] { options->trigger(); }, QStringLiteral("optionsDialog"), [&](QDialog *dlg) {
+        QWidget *page = dlg->findChild<QWidget *>(QStringLiteral("trustPage"));
+        QVERIFY(page);
+        // (a grayed row can't be changed by a person; the value is set here anyway, to see that OK would not keep it)
+        page->findChild<QComboBox *>(QStringLiteral("trustLinkedFiles"))->setCurrentIndex(2);
+        page->findChild<QComboBox *>(QStringLiteral("trustLinkedMedia"))->setCurrentIndex(1);
+        page->findChild<QComboBox *>(QStringLiteral("trustOutside"))->setCurrentIndex(1);
+    });
+    QCOMPARE(jp::trust::linkedFiles(), applies.linkedFiles ? jp::trust::Choice::Never : jp::trust::Choice::Ask);
+    QCOMPARE(jp::trust::linkedMedia(), applies.linkedMedia ? jp::trust::Choice::Yes : jp::trust::Choice::Never);
+    QVERIFY(!jp::trust::outsideFilesReadOnly());
 }
 
 void checkKeyboardPage(Adapter &app)

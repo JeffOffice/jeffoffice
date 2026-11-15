@@ -6,6 +6,7 @@
 #include "app/linkprogress.h"
 #include "app/plaintext.h"
 #include "app/removeduplicatesdialog.h"
+#include "app/trust.h"
 #include "sheet/cellref.h"
 
 #include <QAction>
@@ -46,7 +47,14 @@ void CrunchWindow::linksOnOpen()
 {
     if (!m_session || !m_loaded || isReadOnly()) return;
     // (no file is touched before the person says yes: the question is made from the link parts of the workbook alone, since asking whether a file is there would reach a computer on a network)
-    const crunch::EditSession::UpdateLinks mode = m_session->openingChoice();
+    crunch::EditSession::UpdateLinks mode = m_session->openingChoice();
+    // Options > Trust Center decides for a file whose Startup prompt the person has not set here: "Never" leaves the stored values (as a file that says "never" does), and "Update them" updates without
+    // asking (a file that says "never" is still left, and a source on another computer is never read, below).
+    if (!m_session->updateLinksChosen() && mode != crunch::EditSession::UpdateLinks::Never) {
+        const jp::trust::Choice trusted = jp::trust::linkedFiles();
+        if (trusted == jp::trust::Choice::Never) mode = crunch::EditSession::UpdateLinks::Never;
+        else if (trusted == jp::trust::Choice::Yes) mode = crunch::EditSession::UpdateLinks::Always;
+    }
     if (mode == crunch::EditSession::UpdateLinks::Never) return;
     const std::vector<crunch::EditSession::ExternalSource> sources = m_session->externalLinkSources(false);
     if (sources.empty()) return;

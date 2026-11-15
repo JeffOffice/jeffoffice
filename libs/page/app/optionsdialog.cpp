@@ -14,6 +14,7 @@
 #include "app/i18n.h"
 #include "app/settings.h"
 #include "app/telemetry.h"
+#include "app/trust.h"
 #include "app/theme.h"
 #include "app/updater.h"
 #include "grammar/grammarrules.h"
@@ -217,6 +218,9 @@ bool optionsDialog(QWidget *p, Editor *, const QVector<OptionsPage> &appPages, b
     pf->addRow(autoformat);
     pf->addRow(autolink);
     tabs->addTab(proof, QCoreApplication::translate("Dialogs", "Proofing"));
+    // The Trust Center: what a file may reach out to, the same page in every app (the rows of what the app has none of say so).
+    auto *trustPage = new trust::TrustPage(trust::appliesTo(appInfo().fileName), tabs);
+    tabs->addTab(trustPage, QCoreApplication::translate("Dialogs", "Trust Center"));
     for (const OptionsPage &page : appPages) tabs->addTab(page.build(), page.title);
     // Customize: the ribbon, the quick toolbar, and the keyboard (the commands of the window this was opened from).
     KeyboardPage *keyboard = nullptr;
@@ -270,6 +274,7 @@ bool optionsDialog(QWidget *p, Editor *, const QVector<OptionsPage> &appPages, b
     st.setValue("proof/autolink", autolink->isChecked());
     for (const OptionsPage &page : appPages)
         if (page.apply) page.apply();
+    trustPage->apply();
     if (online) {
         if (stats->isChecked() != telemetry::enabled()) telemetry::setEnabled(stats->isChecked());
         st.setValue("updates/auto", updates->isChecked());

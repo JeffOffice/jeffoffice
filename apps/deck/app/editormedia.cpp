@@ -2,8 +2,10 @@
 
 #include "app/deckcanvas.h"
 #include "app/editor.h"
+#include "app/linkedmedia.h"
 #include "core/media.h"
 
+#include <QFileInfo>
 #include <QMouseEvent>
 #include <QPainter>
 #include <algorithm>
@@ -103,9 +105,8 @@ MediaPlayback *EditorMedia::playbackFor(const PictureItem &pic)
         if (data != d->media.cend()) slot->setFile(data->bytes, data->extension);
         slot->setPlay(deck::mediaPlayOf(*d->pages[page], pic));
         slot->setCaptions(deck::captionCuesOf(*d, pic));
-        if (data == d->media.cend() && !pic.mediaLink.isEmpty())
-            slot->setUnavailable(pic.mediaKind == QLatin1String("video") ? tr("This movie is linked from outside the presentation, so it can't be played here.")
-                                                                         : tr("This sound is linked from outside the presentation, so it can't be played here."));
+        // A linked file plays as Options > Trust Center says (never, until it is chosen).
+        if (data == d->media.cend() && !pic.mediaLink.isEmpty()) giveLinkedMedia(slot, pic, m_canvas->editor()->filePath().isEmpty() ? QString() : QFileInfo(m_canvas->editor()->filePath()).absolutePath(), m_canvas, &m_linkedAnswers);
     }
     return slot;
 }

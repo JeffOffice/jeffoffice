@@ -1488,7 +1488,7 @@ void SlideShow::openPresentation(const QString &address)
     auto *show = new SlideShow(holder->doc.get(), &holder->cache, 0);
     holder->setParent(show);
     show->m_depth = m_depth + 1;
-    show->m_baseDir = info.absolutePath();
+    show->setBaseDirectory(info.absolutePath());
     show->m_chain = m_chain + QStringList{canonical};
     show->setLinkPrompt(m_linkPrompt);
     show->setLinkOpener(m_linkOpener);
@@ -1512,7 +1512,13 @@ void SlideShow::setFilePath(const QString &path)
 {
     const QFileInfo info(path);
     m_chain = QStringList{info.canonicalFilePath().isEmpty() ? QDir::cleanPath(path) : info.canonicalFilePath()};
-    m_baseDir = info.absolutePath();
+    setBaseDirectory(info.absolutePath());
+}
+
+void SlideShow::setBaseDirectory(const QString &dir)
+{
+    m_baseDir = dir;
+    if (m_media) m_media->setBaseDirectory(dir);
 }
 
 // A word to the person that a link could not be followed: to the hook when there is one, else on the screen for a few seconds.

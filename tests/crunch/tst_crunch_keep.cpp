@@ -1,5 +1,6 @@
 // What a save keeps (the keep-on-save audit of the beta): every part of a workbook that JeffCrunch does not edit is written back as it was, byte for byte, and the sheet that was edited
 // keeps all that is not a cell. Each kind of part is tried in a workbook made here, with a cell edited elsewhere; a macro project is kept as a macro project is.
+#include "app/trust.h"
 #include "findbooks.h"
 #include "app/crunchinfo.h"
 #include "app/crunchwindow.h"
@@ -616,6 +617,80 @@ private Q_SLOTS:
             if (it.key().startsWith(QLatin1String("xl/externalLinks/externalLink")) && it.key().endsWith(QLatin1String(".xml"))) ++parts;
         QCOMPARE(parts, 1);
         QCOMPARE(now.value(QStringLiteral("xl/workbook.xml")).count("<externalReference "), 1);
+    }
+
+    // Options > Trust Center decides for a file whose Startup prompt the person has not set: "Update them" updates without asking, "Never" leaves the stored values, and "Ask" is what it always was.
+    // A file that says "never" is left alone whatever is chosen, and a source on another computer is not touched, however loose the choice.
+    void theTrustCenterChoiceDecidesWhenTheFileHasNoChoiceOfItsOwn()
+    {
+        struct Reset {
+            ~Reset()
+            {
+                trust::setLinkedFiles(trust::Choice::Ask);
+                trust::setOutsideStandIn({});
+                trust::setOutsideFilesReadOnly(true);
+            }
+        } reset;
+        auto opened = [](trust::Choice choice, const char *mode, bool network, int *asked, int *touches, QString *shown) {
+            trust::setLinkedFiles(choice);
+            EditWindow e;
+            e.win.linksAnswer = true;
+            e.folder.write(QStringLiteral("prices.xlsx"), bookOfSheets({{"A1=7", "A2=8", "A3=9"}}));
+            QByteArray book = moreLinkBook();
+            if (mode) book = repack(book, [&](Parts &p) { p[QStringLiteral("xl/workbook.xml")].replace("<sheets>", QByteArray("<workbookPr updateLinks=\"") + mode + "\"/><sheets>"); });
+            if (network) book = repack(book, [](Parts &p) { p[QStringLiteral("xl/externalLinks/_rels/externalLink1.xml.rels")].replace("prices.xlsx", "\\\\host\\share\\prices.xlsx"); });
+            const bool ok = e.open(book, QStringLiteral("links.xlsx")) && e.settle();
+            QCoreApplication::processEvents();
+            QCoreApplication::processEvents();
+            const bool fileNever = mode && std::strcmp(mode, "never") == 0;
+            if (ok && choice == trust::Choice::Ask && !fileNever) QTRY_COMPARE_WITH_TIMEOUT(e.win.linksAsked, 1, 10000);
+            if (ok && !network && choice != trust::Choice::Never && !fileNever) QTRY_COMPARE_WITH_TIMEOUT(e.shownAt(QStringLiteral("A6")), QStringLiteral("24"), 10000);
+            e.settle();
+            *asked = e.win.linksAsked;
+            *touches = ok ? e.win.w.session()->externals()->fileTouches() : -1;
+            *shown = ok ? e.shownAt(QStringLiteral("A6")) : QStringLiteral("not opened");
+        };
+        int asked = -1, touches = -1;
+        QString shown;
+        opened(trust::Choice::Ask, nullptr, false, &asked, &touches, &shown);   // (as it always was: asked, and the answer here is yes)
+        QCOMPARE(asked, 1);
+        QCOMPARE(shown, QStringLiteral("24"));
+        opened(trust::Choice::Yes, nullptr, false, &asked, &touches, &shown);
+        QCOMPARE(asked, 0);
+        QCOMPARE(shown, QStringLiteral("24"));
+        opened(trust::Choice::Never, nullptr, false, &asked, &touches, &shown);
+        QCOMPARE(asked, 0);
+        QCOMPARE(shown, QStringLiteral("6"));
+        opened(trust::Choice::Yes, "never", false, &asked, &touches, &shown);   // (the file's own "never" holds)
+        QCOMPARE(asked, 0);
+        QCOMPARE(shown, QStringLiteral("6"));
+        opened(trust::Choice::Yes, nullptr, true, &asked, &touches, &shown);   // (another computer: never read)
+        QCOMPARE(asked, 0);
+        QCOMPARE(touches, 0);
+        QCOMPARE(shown, QStringLiteral("6"));
+    }
+
+    // A workbook from the internet or another computer opens for reading first, unless Options > Trust Center says to open it as any other.
+    void aWorkbookFromOutsideOpensForReadingFirst()
+    {
+        struct Reset {
+            ~Reset()
+            {
+                trust::setOutsideStandIn({});
+                trust::setOutsideFilesReadOnly(true);
+            }
+        } reset;
+        EditWindow first;
+        const QString path = first.folder.write(QStringLiteral("down.xlsx"), moreLinkBook());
+        trust::setOutsideStandIn([&](const QString &p) { return p == path; });
+        QVERIFY(first.win.open(path));
+        QVERIFY(first.win.w.isReadOnly());
+        trust::setOutsideFilesReadOnly(false);
+        EditWindow second;
+        const QString again = second.folder.write(QStringLiteral("down.xlsx"), moreLinkBook());
+        trust::setOutsideStandIn([&](const QString &p) { return p == again; });
+        QVERIFY(second.win.open(again));
+        QVERIFY(!second.win.w.isReadOnly());
     }
 
     // A link whose target is on another computer is neither asked about nor read when the file opens (the question is asked from the link parts alone), "update" leaves it, and Edit Links says it was not read.

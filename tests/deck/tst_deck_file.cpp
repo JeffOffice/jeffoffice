@@ -6,6 +6,7 @@
 #include "core/threadcheck.h"
 #include "core/version.h"
 #include "deckhelpers.h"
+#include "app/trust.h"
 #include "app/notespane.h"
 #include "app/outlineview.h"
 #include "app/slidespane.h"
@@ -914,6 +915,47 @@ private Q_SLOTS:
         QString notes;
         QCOMPARE(deck::importAnyPresentationFile(dir.filePath(QStringLiteral("Backup of talk.pptx")), &notes)->pages.size(), slides + 1);
         QCOMPARE(deck::importAnyPresentationFile(path, &notes)->pages.size(), slides + 2);
+    }
+
+    // A presentation from the internet or another computer opens for reading first, unless Options > Trust Center says to open it as any other.
+    void aFileFromOutsideOpensForReadingFirst()
+    {
+        struct Reset {
+            ~Reset()
+            {
+                trust::setOutsideStandIn({});
+                trust::setOutsideFilesReadOnly(true);
+            }
+        } reset;
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString path = dir.filePath(QStringLiteral("talk.pptx")), mine = dir.filePath(QStringLiteral("mine.pptx"));
+        {
+            DeckWindow a;
+            a.newSlide();
+            QVERIFY(a.saveTo(path));
+            QVERIFY(a.saveTo(mine));
+        }
+        trust::setOutsideStandIn([&](const QString &p) { return p == path; });
+        {
+            DeckWindow w;
+            QVERIFY(w.openFile(path));
+            QVERIFY(w.isReadOnly());
+        }
+        {
+            DeckWindow w;
+            QVERIFY(w.openFile(mine));
+            QVERIFY(!w.isReadOnly());
+        }
+        {
+            DeckWindow w;
+            QVERIFY(w.openFile(path, OpenHow::Copy));
+            QVERIFY(!w.isReadOnly());
+        }
+        trust::setOutsideFilesReadOnly(false);
+        DeckWindow w;
+        QVERIFY(w.openFile(path));
+        QVERIFY(!w.isReadOnly());
     }
 
     // In a presentation open for reading only, nothing changes it: not the notes or the outline typed, not a change the editor is asked for (by a pane, a box, or a drag), not the slide

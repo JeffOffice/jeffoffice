@@ -16,6 +16,7 @@
 #include "app/settings.h"
 #include "app/sheettabs.h"
 #include "app/telemetry.h"
+#include "app/trust.h"
 #include "core/sheetobjects.h"
 #include "core/appinfo.h"
 #include "core/threadtime.h"
@@ -29,6 +30,7 @@
 #include <QFileDialog>
 #include <QTemporaryFile>
 #include <QFileInfo>
+#include <QStatusBar>
 #include <QStandardPaths>
 #include <QInputDialog>
 #include <QLabel>
@@ -182,6 +184,9 @@ bool CrunchWindow::openFile(const QString &path, OpenHow how)
         w->close();   // (it was made for this file: a window with nothing in it is not left)
         return false;
     }
+    // A file from the internet or another computer opens for reading first (Options > Trust Center).
+    bool heldBack = false;
+    how = trust::openHowFor(path, how, &heldBack);
     // a text file of values: how it is read is asked first (the window that opens it asks)
     std::shared_ptr<const jp::office::sheet::CsvImport> csv;
     if ((m_promptForText && jp::office::sheet::isDelimitedName(path)) || m_forceTextPrompt) {
@@ -218,6 +223,7 @@ bool CrunchWindow::openFile(const QString &path, OpenHow how)
     }
     if (replacing) dropWorkbook();
     setReadOnly(how == OpenHow::ReadOnly);
+    if (heldBack) statusBar()->showMessage(trust::heldBackText(), 15000);
     m_openHow = how;
     m_personalInfoRemoved = false;
     m_editedProps.reset();

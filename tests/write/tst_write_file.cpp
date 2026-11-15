@@ -6,6 +6,7 @@
 #include "app/filescreen.h"
 #include "app/optionsdialog.h"
 #include "app/settings.h"
+#include "app/trust.h"
 #include "app/pageview.h"
 #include "app/writeinfo.h"
 #include "app/writewindow.h"
@@ -1311,6 +1312,51 @@ private Q_SLOTS:
             QVERIFY(w.newFromBuiltInTemplate(QStringLiteral("report")));
             QVERIFY2(w.document()->sectionProps(0).pageW == c.w && w.document()->sectionProps(0).pageH == c.h, c.locale);
         }
+    }
+
+    // A document from the internet or another computer opens for reading first, unless Options > Trust Center says to open it as any other.
+    void aFileFromOutsideOpensForReadingFirst()
+    {
+        struct Reset {
+            ~Reset()
+            {
+                trust::setOutsideStandIn({});
+                trust::setOutsideFilesReadOnly(true);
+            }
+        } reset;
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        auto make = [&](const QString &name) {
+            QFile f(dir.filePath(name));
+            if (f.open(QIODevice::WriteOnly)) f.write(headingsDocx(para(nullptr, "Some words.")));
+            return dir.filePath(name);
+        };
+        const QString down = make(QStringLiteral("down.docx")), mine = make(QStringLiteral("mine.docx"));
+        QVERIFY(QFileInfo(down).size() > 0 && QFileInfo(mine).size() > 0);
+        trust::setOutsideStandIn([&](const QString &p) { return p == down; });
+        {
+            WriteWindow w;
+            Quiet quiet(w);
+            QVERIFY(w.openFile(down));
+            QVERIFY(w.isReadOnly());
+        }
+        {
+            WriteWindow w;
+            Quiet quiet(w);
+            QVERIFY(w.openFile(mine));
+            QVERIFY(!w.isReadOnly());
+        }
+        {
+            WriteWindow w;
+            Quiet quiet(w);
+            QVERIFY(w.openFile(down, OpenHow::Copy));
+            QVERIFY(!w.isReadOnly());
+        }
+        trust::setOutsideFilesReadOnly(false);
+        WriteWindow w;
+        Quiet quiet(w);
+        QVERIFY(w.openFile(down));
+        QVERIFY(!w.isReadOnly());
     }
 };
 

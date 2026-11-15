@@ -116,7 +116,7 @@ bool savePublication(const Document &doc, const QString &path, const QImage &thu
     return true;
 }
 
-std::unique_ptr<Document> publicationFromBytes(const QByteArray &bytes, QString *error, const QString &folder)
+std::unique_ptr<Document> publicationFromBytes(const QByteArray &bytes, QString *error, const QString &folder, bool readLinks)
 {
     QMap<QString, QByteArray> entries;
     if (!readZip(bytes, entries, error)) return nullptr;
@@ -163,7 +163,7 @@ std::unique_ptr<Document> publicationFromBytes(const QByteArray &bytes, QString 
     doc->fromFile = true;
     for (auto &image : doc->images)
         if (image.linked) image.followed = false;
-    doc->refreshLinks();
+    doc->refreshLinks(readLinks);
     return doc;
 }
 

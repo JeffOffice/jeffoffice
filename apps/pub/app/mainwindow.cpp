@@ -105,6 +105,7 @@
 #include <QPdfOutputIntent>
 #include <QProgressDialog>
 #include "app/plaintext.h"
+#include "app/trust.h"
 
 namespace jp {
 
@@ -538,6 +539,9 @@ bool MainWindow::openFile(const QString &path, OpenHow how)
         hideBackstage();
         return true;
     }
+    // A file from the internet or another computer opens for reading first (Options > Trust Center).
+    bool heldBack = false;
+    how = trust::openHowFor(path, how, &heldBack);
     // (a file larger than the apps open is refused before it is read: it would all be held at once)
     QByteArray bytes;
     QString err;
@@ -587,7 +591,18 @@ bool MainWindow::openFile(const QString &path, OpenHow how)
         doc = importPublisher(bytes, &err, &rep);
         fromPub = true;
     } else {
-        doc = publicationFromBytes(bytes, &err, QFileInfo(path).absolutePath());
+        // The linked pictures are read from their files as Options > Trust Center says: when it opens (the choice "Update them"), never, or after a question about the ones that have something
+        // to read (only a file in the publication's own folder is ever read for a link).
+        const trust::Choice links = trust::linkedFiles();
+        doc = publicationFromBytes(bytes, &err, QFileInfo(path).absolutePath(), links == trust::Choice::Yes);
+        if (doc && links == trust::Choice::Ask && how != OpenHow::Repair)
+            if (const int n = doc->updatableLinks(); n > 0) {
+                QApplication::restoreOverrideCursor();
+                const bool yes = trust::ask(this, tr("Linked Pictures"), tr("This publication has %n picture(s) linked to files on this computer that have changed or are not kept in it. Update them from the files now?", nullptr, n),
+                                            tr("You can change this under Trust Center in Options."));
+                QApplication::setOverrideCursor(Qt::WaitCursor);
+                if (yes) doc->refreshLinks();
+            }
     }
     QApplication::restoreOverrideCursor();
     if (!doc) {
@@ -613,7 +628,10 @@ bool MainWindow::openFile(const QString &path, OpenHow how)
         updateTitle();
     } else {
         m_ed->setDocument(std::move(doc), path);
-        if (how == OpenHow::ReadOnly) setReadOnly(true);
+        if (how == OpenHow::ReadOnly) {
+            setReadOnly(true);
+            if (heldBack) statusBar()->showMessage(trust::heldBackText(), 15000);
+        }
         // A publication marked as final opens for reading only (the Info page lets it be edited again).
         else if (how == OpenHow::Normal && markedAsFinal()) {
             setReadOnly(true);

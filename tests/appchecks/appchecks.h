@@ -228,6 +228,12 @@ void checkRibbonPage(Adapter &app);
 // command list. A window as launched; failures are QVERIFY failures.
 void checkQuickToolbarPage(Adapter &app);
 
+// ---- Trust Center
+// Options has a Trust Center page, the same in every app: macros kept and never run, a row for linked files and workbook links, one for linked movies and sounds, one for files from outside,
+// and the line that links to programs are always refused. A row for something the app has none of is grayed out and says it does not apply; OK keeps the choices of the rows that apply,
+// Cancel keeps nothing. With JO_SHOT_DIR set a picture of the page is saved there. A window as launched; failures are QVERIFY failures.
+void checkTrustCenterPage(Adapter &app);
+
 // The ribbon's right-click menu: a command's button offers Add to Quick Toolbar (kept, and on the toolbar), its toolbar button Remove, a tab or empty space the Customize items and Collapse; the
 // Customize items open Options at the Quick Toolbar and Ribbon pages; the menu key opens it on the focused command. A window as launched; failures are QVERIFY failures.
 void checkRibbonContextMenu(Adapter &app);
