@@ -3,6 +3,7 @@
 #include <QAbstractTextDocumentLayout>
 #include <QFocusEvent>
 #include <QKeyEvent>
+#include <QPainter>
 #include <QMimeData>
 #include <QPalette>
 #include <QScrollBar>
@@ -78,6 +79,19 @@ void scaleSizes(QTextDocument *story, double factor)
 
 } // namespace
 
+// The back of the editor: the words of the shape that the page still draws under it do not show through.
+class ShapeTextBack : public QWidget {
+public:
+    explicit ShapeTextBack(QWidget *parent) : QWidget(parent)
+    {
+        setAttribute(Qt::WA_TransparentForMouseEvents);
+        hide();
+    }
+
+protected:
+    void paintEvent(QPaintEvent *) override { QPainter(this).fillRect(rect(), QColor(255, 255, 255, 190)); }
+};
+
 ShapeTextEdit::ShapeTextEdit(QWidget *parent) : QTextEdit(parent)
 {
     setFrameShape(QFrame::NoFrame);
@@ -85,14 +99,17 @@ ShapeTextEdit::ShapeTextEdit(QWidget *parent) : QTextEdit(parent)
     setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     setAcceptRichText(true);
     QPalette p = palette();
-    p.setColor(QPalette::Base, QColor(255, 255, 255, 190));
+    // (the whole frame is backed, by a widget of its own under the editor: the viewport has no back, for the room round the words and the room the words are set down by)
+    p.setColor(QPalette::Base, Qt::transparent);
     p.setColor(QPalette::Text, Qt::black);
     setPalette(p);
+    viewport()->setAutoFillBackground(false);
     document()->setDocumentMargin(0);
 }
 
 ShapeTextEdit::~ShapeTextEdit()
 {
+    delete m_back.data();
     // (the story is the editor's until take(): it is not the editor's own document, so the editor stops using it first)
     if (m_story) setDocument(new QTextDocument(this));
 }
@@ -110,7 +127,11 @@ void ShapeTextEdit::begin(std::unique_ptr<QTextDocument> story, const QRect &fra
     m_story->clearUndoRedoStacks();
     setDocument(m_story.get());
     setLineWrapMode(look.wrap ? QTextEdit::WidgetWidth : QTextEdit::NoWrap);
+    if (!m_back) m_back = new ShapeTextBack(parentWidget());
     setGeometry(frame);
+    m_back->setGeometry(frame);
+    m_back->show();
+    m_back->stackUnder(this);
     QTextCursor c(m_story.get());
     c.movePosition(QTextCursor::End);
     setTextCursor(c);
@@ -139,6 +160,7 @@ std::unique_ptr<QTextDocument> ShapeTextEdit::take()
     disconnect(m_story.get(), nullptr, this, nullptr);
     std::unique_ptr<QTextDocument> out = std::move(m_story);
     setDocument(new QTextDocument(this));
+    if (m_back) m_back->hide();
     out->setUndoRedoEnabled(false);
     scaleSizes(out.get(), 1 / m_look.zoom);
     hide();
@@ -168,7 +190,14 @@ void ShapeTextEdit::refit()
 void ShapeTextEdit::resizeEvent(QResizeEvent *e)
 {
     QTextEdit::resizeEvent(e);
+    if (m_back) m_back->setGeometry(geometry());
     refit();
+}
+
+void ShapeTextEdit::moveEvent(QMoveEvent *e)
+{
+    QTextEdit::moveEvent(e);
+    if (m_back) m_back->setGeometry(geometry());
 }
 
 void ShapeTextEdit::focusOutEvent(QFocusEvent *e)

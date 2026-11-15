@@ -10,6 +10,7 @@
 #include <QColor>
 #include <QMarginsF>
 #include <QPair>
+#include <QPointer>
 #include <QTextEdit>
 #include <QVector>
 #include <functional>
@@ -90,6 +91,7 @@ protected:
     void keyPressEvent(QKeyEvent *e) override;
     void focusOutEvent(QFocusEvent *e) override;
     void resizeEvent(QResizeEvent *e) override;
+    void moveEvent(QMoveEvent *e) override;
     void insertFromMimeData(const QMimeData *source) override;
 
 private:
@@ -103,6 +105,7 @@ private:
     bool m_changed = false, m_done = false, m_refitting = false;
     int m_marks = 0;
     std::unique_ptr<QTextDocument> m_story;
+    QPointer<QWidget> m_back;
 };
 
 } // namespace jp
