@@ -1,5 +1,9 @@
 #include "app/pagesetupdialog.h"
 
+#include "core/pagenumbers.h"
+#include "app/icons.h"
+#include "app/pagenumbergallery.h"
+#include "app/widgets.h"
 #include "sheet/headerfooter.h"
 
 #include <QBuffer>
@@ -631,6 +635,23 @@ void PageSetupDialog::buildHeaderFooter(QWidget *tab)
     auto *editFooter = new QPushButton(tr("Edit footer…"), tab);
     editFooter->setObjectName(QStringLiteral("psEditFooter"));
     auto *hr = new QHBoxLayout, *fr = new QHBoxLayout;
+    // Page Number: the gallery's designs that a printed header (footer) can show, put in as its text for every page.
+    for (const bool header : {true, false}) {
+        auto *b = new GalleryButton(icon("hash"), tr("Page Number"), pageNumberItemSize(), 5, false, tab);
+        b->setObjectName(header ? QStringLiteral("psHeaderPageNumber") : QStringLiteral("psFooterPageNumber"));
+        b->setToolTip(tr("Page Number"));
+        b->setItemsProvider([header] {
+            return pageNumberGalleryItems(QColor(0x2F, 0x55, 0x97), [header](const PageNumberDesign &d) { return jp::crunch::offersPageNumberDesign(d) && d.area == (header ? PageNumberArea::Top : PageNumberArea::Bottom); });
+        });
+        connect(b, &GalleryButton::activated, this, [this, header](const QString &id) {
+            const std::optional<PageNumberDesign> design = pageNumberDesignById(id);
+            if (!design) return;
+            QString &text = header ? m_setup.headerFooter.oddHeader : m_setup.headerFooter.oddFooter;
+            text = jp::crunch::withPageNumberDesign(text, *design);
+            refreshHeaderFooterPreview();
+        });
+        (header ? hr : fr)->addWidget(b);
+    }
     hr->addWidget(m_headerPreset, 1);
     hr->addWidget(editHeader);
     fr->addWidget(m_footerPreset, 1);

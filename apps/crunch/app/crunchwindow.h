@@ -551,6 +551,12 @@ public:
     void setPageSetupAsker(const std::function<bool(PageSetupRequest *)> &asker) { m_pageSetupAsker = asker; }
     // Opens Page Setup on a tab (0 Page, 1 Margins, 2 Header and Footer, 3 Sheet); the change is one step of Undo.
     void pageSetupDialog(int tab = 0);
+    // The Page Number gallery: the designs a printed header or footer can show (text only), as the menu lists them; one put in as the left, center, or right part of the header or footer being
+    // edited (the pages in general, the even pages, or the first page), or at the caret of the part being typed in; and Remove Page Numbers, which takes the codes of the page number and
+    // count out of the sheet's headers and footers. Each is one step of Undo. False when the design could not be put in.
+    QVector<GalleryItem> pageNumberItems() const;
+    bool insertPageNumberDesign(const QString &id);
+    int removePageNumbers();
 
     // ---- printing (crunchwindow_print.cpp)
     // A job for what the options say, of the workbook as it is now: the sheet in view is the active sheet, and the selection the grid's if the options name none. Null, with the reason in

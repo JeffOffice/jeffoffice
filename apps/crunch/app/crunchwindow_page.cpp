@@ -6,6 +6,8 @@
 
 #include "app/pagesetupdialog.h"
 #include "app/settings.h"
+#include "app/icons.h"
+#include "app/pagenumbergallery.h"
 #include "app/ribbonbuilder.h"
 #include "core/editsession.h"
 #include "grid/gridview.h"
@@ -163,6 +165,16 @@ void CrunchWindow::pageRibbonParts(RibbonParts &parts)
 {
     parts.launchers[QStringLiteral("pageSetup")] = [this] { pageSetupDialog(0); };
     parts.colors[QStringLiteral("headerFooter")] = QColor(0x8A, 0x4B, 0x0F);
+    // Page Number: the designs a printed header or footer can show, with Format Page Numbers (the first page's number, in Page Setup) and Remove Page Numbers under them.
+    parts.widgets[QStringLiteral("pageNumberButton")] = [this]() -> QWidget * {
+        auto *b = new GalleryButton(icon("hash"), tr("Page Number"), pageNumberItemSize(), 5, true);
+        b->setObjectName(QStringLiteral("pageNumberButton"));
+        b->setToolTip(tr("Page Number"));
+        b->setItemsProvider([this] { return pageNumberItems(); });
+        b->setFooterActions({act(QStringLiteral("hf.pageNumberFormat")), act(QStringLiteral("hf.pageNumberRemove"))});
+        connect(b, &GalleryButton::activated, this, [this](const QString &id) { insertPageNumberDesign(id); });
+        return b;
+    };
     auto fitBox = [this](bool across) {
         auto *box = new QComboBox;
         box->setObjectName(across ? QStringLiteral("fitWidthBox") : QStringLiteral("fitHeightBox"));

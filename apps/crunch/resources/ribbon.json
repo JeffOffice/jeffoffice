@@ -249,7 +249,8 @@
             {"large": {"id": "ribbon.paperSize", "text": "Size", "icon": "file"}, "keytip": "SZ", "menu": ["size.1", "size.5", "size.3", "size.7", "size.6", "size.8", "size.9", "size.11", "size.12", "size.13", "size.14", "size.20", "size.27", "size.28", "-", "size.more"]},
             {"large": {"id": "ribbon.printArea", "text": "Print Area", "icon": "printer"}, "keytip": "R", "menu": ["printarea.set", "printarea.add", "printarea.clear"]},
             {"large": {"id": "ribbon.breaks", "text": "Breaks", "icon": "separator-horizontal"}, "keytip": "B", "menu": ["breaks.insert", "breaks.remove", "breaks.reset"]},
-            {"large": "titles.dialog", "keytip": "T"}
+            {"large": "titles.dialog", "keytip": "T"},
+            {"widget": "pageNumberButton", "keytip": "PN"}
           ]
         },
         {
@@ -580,7 +581,8 @@
           "keytip": "ZH",
           "items": [
             {"large": {"id": "ribbon.hfHeader", "text": "Header", "icon": "panel-top"}, "keytip": "HH", "menu": ["hf.header.none","hf.header.page","hf.header.pageOf","hf.header.sheet","hf.header.file","hf.header.sheetPage","hf.header.filePageOf","hf.header.dateSheetPage"]},
-            {"large": {"id": "ribbon.hfFooter", "text": "Footer", "icon": "panel-bottom"}, "keytip": "HF", "menu": ["hf.footer.none","hf.footer.page","hf.footer.pageOf","hf.footer.sheet","hf.footer.file","hf.footer.sheetPage","hf.footer.filePageOf","hf.footer.dateSheetPage"]}
+            {"large": {"id": "ribbon.hfFooter", "text": "Footer", "icon": "panel-bottom"}, "keytip": "HF", "menu": ["hf.footer.none","hf.footer.page","hf.footer.pageOf","hf.footer.sheet","hf.footer.file","hf.footer.sheetPage","hf.footer.filePageOf","hf.footer.dateSheetPage"]},
+            {"widget": "pageNumberButton", "keytip": "HP"}
           ]
         },
         {

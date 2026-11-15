@@ -9,6 +9,7 @@
 #include "app/settings.h"
 #include "app/ribbon.h"
 #include "core/editsession.h"
+#include "core/pagenumbers.h"
 #include "core/printjob.h"
 #include "grid/gridview.h"
 #include "grid/pagelayoutview.h"
@@ -157,6 +158,9 @@ void CrunchWindow::createPageLayoutActions()
     mk(QStringLiteral("hf.goHeader"), tr("Go to Header"), QStringLiteral("panel-top"), QKeySequence(), [this] { goToHeaderOrFooter(true); });
     mk(QStringLiteral("hf.goFooter"), tr("Go to Footer"), QStringLiteral("panel-bottom"), QKeySequence(), [this] { goToHeaderOrFooter(false); });
     m_opsActions << QStringLiteral("hf.goHeader") << QStringLiteral("hf.goFooter");
+    mk(QStringLiteral("hf.pageNumberFormat"), tr("Format Page Numbers…"), QStringLiteral("list-ordered"), QKeySequence(), [this] { pageSetupDialog(0); });
+    mk(QStringLiteral("hf.pageNumberRemove"), tr("Remove Page Numbers"), QStringLiteral("eraser"), QKeySequence(), [this] { removePageNumbers(); });
+    m_opsActions << QStringLiteral("hf.pageNumberFormat") << QStringLiteral("hf.pageNumberRemove");
     mk(QStringLiteral("hf.picture"), tr("Add Picture"), QStringLiteral("image"), QKeySequence(), [this] { insertHeaderPicture(); });
     auto flag = [this](const QString &id, const QString &text, const QString &undo, bool HeaderFooter::*member) {
         mk(id, text, QString(), QKeySequence(), [this, id, undo, member] {
@@ -405,6 +409,63 @@ void CrunchWindow::applyHeaderForm(bool header, const QString &text)
         *target = text;
         jp::office::sheet::dropUnusedHeaderPictures(&s->headerFooter);
     });
+}
+
+// ---- the Page Number gallery
+
+QVector<GalleryItem> CrunchWindow::pageNumberItems() const
+{
+    return pageNumberGalleryItems(ColorRef::scheme(Accent1).resolve(workbookColors()), crunch::offersPageNumberDesign);
+}
+
+// A design of the top or the bottom is the left, center, or right part of the header or footer of the version being typed in (the pages in general when none is), the other parts that held only
+// page numbers emptied; one of the caret's place is put in the part being typed in.
+bool CrunchWindow::insertPageNumberDesign(const QString &id)
+{
+    const std::optional<PageNumberDesign> design = pageNumberDesignById(id);
+    if (!design || !crunch::offersPageNumberDesign(*design)) return false;
+    if (design->area == PageNumberArea::Cursor) {
+        if (!m_zoneEditor) {
+            setStatus(tr("Click the top or bottom margin of a page in the Page Layout view first, then choose what to put in."));
+            return false;
+        }
+        insertHeaderCode(crunch::pageNumberCode(*design));
+        return true;
+    }
+    if (!m_session || !m_loaded || m_sheet < 0 || m_sheet >= m_session->pages().sheetCount()) return false;
+    QString why;
+    if (!m_session->canEdit(&why)) {
+        notice(tr("Header and Footer"), why);
+        return false;
+    }
+    const bool header = design->area == PageNumberArea::Top;
+    const int form = m_zoneEditor ? m_zone.form : 0;
+    const HeaderFooter &hf = m_session->pages().sheet(m_sheet).headerFooter;
+    const QString now = header ? (form == 2 ? hf.firstHeader : form == 1 ? hf.evenHeader : hf.oddHeader) : (form == 2 ? hf.firstFooter : form == 1 ? hf.evenFooter : hf.oddFooter);
+    applyHeaderForm(header, crunch::withPageNumberDesign(now, *design));
+    return true;
+}
+
+int CrunchWindow::removePageNumbers()
+{
+    if (!m_session || !m_loaded || m_sheet < 0 || m_sheet >= m_session->pages().sheetCount()) return 0;
+    QString why;
+    if (!m_session->canEdit(&why)) {
+        notice(tr("Header and Footer"), why);
+        return 0;
+    }
+    endZoneEdit(false);
+    int changed = 0;
+    changePage(tr("Remove Page Numbers"), [&](PageSetup *s) {
+        for (QString *text : {&s->headerFooter.oddHeader, &s->headerFooter.evenHeader, &s->headerFooter.firstHeader, &s->headerFooter.oddFooter, &s->headerFooter.evenFooter, &s->headerFooter.firstFooter})
+            if (crunch::hasPageNumbers(*text)) {
+                *text = crunch::withoutPageNumbers(*text);
+                ++changed;
+            }
+        jp::office::sheet::dropUnusedHeaderPictures(&s->headerFooter);
+    });
+    if (changed == 0) setStatus(tr("The headers and footers of this sheet have no page numbers to remove."));
+    return changed;
 }
 
 // Go to Header and Go to Footer: the middle of that part of the page being typed in (the first page when none is) is opened.
