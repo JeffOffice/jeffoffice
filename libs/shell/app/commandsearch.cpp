@@ -299,7 +299,6 @@ QString CommandSearchBox::recentKey() { return QStringLiteral("cmdsearch/recent"
 CommandSearchBox::CommandSearchBox(AppWindow *win, const QString &wordsResource) : QLineEdit(), m_win(win), m_resource(wordsResource)
 {
     setObjectName(QStringLiteral("jpCommandSearch"));
-    setClearButtonEnabled(true);
     setPlaceholderText(tr("Search commands"));
     setAccessibleName(tr("Search commands"));
     setAccessibleDescription(tr("Type what you want to do. Down goes to the commands found, and Enter runs the one chosen. Escape goes back to the document."));
