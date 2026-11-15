@@ -138,6 +138,12 @@ public:
     PresenterView *presenterView() const;
     // The movies and sounds of the slide on the screen.
     ShowMedia *media() const { return m_media; }
+    // The link of the object chosen with Tab on the slide on the screen (Enter follows it); empty when none is.
+    QString focusedLink() const;
+    // The show of another presentation a link started, which this one waits for (null when none runs).
+    SlideShow *nestedShow() const { return m_nested; }
+    // The folder a link to another presentation by a relative path is counted from (the folder of the file this one was opened from).
+    void setBaseDirectory(const QString &dir) { m_baseDir = dir; }
 
     void next();
     void previous();
@@ -260,6 +266,7 @@ protected:
     void resizeEvent(QResizeEvent *e) override;
     void showEvent(QShowEvent *e) override;
     void closeEvent(QCloseEvent *e) override;
+    bool focusNextPrevChild(bool next) override;
 
 private:
     struct Play {
@@ -298,6 +305,29 @@ private:
     void openPresenterView(QScreen *on);
     // The link under a point of the window, if the slide on it has one.
     QString linkAt(const QPointF &pos) const;
+    // The areas of the slide on the screen (worked out once), the states its animations have it in, and the click areas among them that are on the screen, one for each link.
+    const QVector<deck::LinkArea> &areasNow() const;
+    deck::States linkStates() const;
+    QVector<const deck::LinkArea *> tabAreas() const;
+    // A mouse-over action under a point of the window.
+    const deck::LinkArea *hoverAreaAt(const QPointF &pos) const;
+    void playCustomShow(int id, bool back);
+    void returnFromCustomShow();
+    void openPresentation(const QString &address);
+    struct Return {
+        QList<int> order;
+        QStringList orderIds;
+        bool hiddenToo = false;
+        int slide = 0;
+    };
+    QVector<Return> m_returns;       // the places a custom show followed with "and return" comes back to
+    int m_lastViewed = -1;
+    int m_focusIndex = -1;
+    int m_focusSlide = -1;
+    const Item *m_hoverItem = nullptr;
+    QPointer<SlideShow> m_nested;
+    QString m_baseDir;
+    int m_depth = 0;
     std::function<bool(const QString &, bool)> m_linkPrompt;
     std::function<void(const QUrl &)> m_linkOpener;
     std::function<void(const QString &)> m_linkNotice;

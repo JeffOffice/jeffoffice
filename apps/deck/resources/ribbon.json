@@ -471,6 +471,15 @@
               "keytip": "HF"
             },
             {
+              "large": {
+                "id": "ribbon.slideNumber",
+                "text": "Slide Number",
+                "icon": "panel-bottom"
+              },
+              "keytip": "SN",
+              "menu": "@slideNumberMenu"
+            },
+            {
               "widget": "textArtButton",
               "keytip": "WA"
             },

@@ -16,6 +16,7 @@
 #include "app/notespane.h"
 #include "app/textdialogs.h"
 #include "app/translate.h"
+#include "core/showsettings.h"
 #include <QStatusBar>
 #include "text/dictionaries.h"
 #include "text/textprops.h"
@@ -208,7 +209,9 @@ void DeckWindow::showLinkDialog()
     if (editing) current = ed->currentCharFormat().anchorHref();
     else if (const QVector<Item *> items = ed->selectedItems(); !items.isEmpty()) current = items.first()->hyperlink;
     else return;
-    LinkDialog dlg(current, int(ed->doc()->pages.size()), this);
+    QVector<QPair<int, QString>> shows;
+    for (const deck::CustomShow &s : deck::customShowsOf(*ed->doc())) shows.append({int(s.id), s.name});
+    LinkDialog dlg(current, int(ed->doc()->pages.size()), shows, this);
     const bool bare = editing && !ed->cursor().hasSelection();
     if (bare) dlg.setDisplayShown(QString(), true);
     if (dlg.exec() != QDialog::Accepted) return;

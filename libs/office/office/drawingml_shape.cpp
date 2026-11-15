@@ -459,6 +459,7 @@ void Reader::decorate(Item &it, const QDomElement &cNvPr, const Frame &frame, co
     it.hidden = parseBool(attr(cNvPr, QStringLiteral("hidden")));
     if (const std::optional<bool> lock = aspectLockOf(cNvPr)) it.lockAspect = *lock;
     it.hyperlink = hyperlinkOf(cNvPr);
+    it.hoverLink = linkOfClick(childNamed(cNvPr, "hlinkHover"), m_ctx);
     if (it.hyperlink.isEmpty()) it.keptClick = keptClickOf(childNamed(cNvPr, "hlinkClick"), m_ctx);
     it.wrap.mode = Wrap::None;
     const StyleContext sc = styleContext(frame.rect.size());

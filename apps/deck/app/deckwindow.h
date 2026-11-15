@@ -442,6 +442,11 @@ private:
     void refreshUi();
     void showHeaderFooter();
     void showFormatBackground();
+    void setSlideNumberOn(bool on);
+    void setSlideNumberSkipsTitle(bool skip);
+    // `across` and `down` are deck::NumberAcross and deck::NumberDown.
+    void moveSlideNumber(int across, int down);
+    void changeFooters(const deck::FooterOptions &o, const QString &step);
     QString chooseBackgroundPicture();
     void showLinkDialog();
     void askSlideSize(const QSizeF &size, int notes = -1);

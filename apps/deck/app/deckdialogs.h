@@ -82,7 +82,8 @@ private:
 class LinkDialog : public QDialog {
     Q_OBJECT
 public:
-    LinkDialog(const QString &current, int slides, QWidget *parent = nullptr);
+    // `shows`: the custom shows (their ids and names) a link can play.
+    LinkDialog(const QString &current, int slides, const QVector<QPair<int, QString>> &shows = {}, QWidget *parent = nullptr);
     // The link chosen ("" with nothing typed), and whether Remove Link was pressed.
     QString link() const;
     bool removed() const { return m_removed; }

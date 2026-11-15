@@ -17,11 +17,13 @@
 #include <QCursor>
 #include <QDesktopServices>
 #include <QDir>
+#include <QFileInfo>
 #include <QMessageBox>
 #include <QPushButton>
 #include <QToolTip>
 #include "app/plaintext.h"
 #include "core/linkareas.h"
+#include "io/presentationfile.h"
 #include "office/hyperlink.h"
 #include <QGuiApplication>
 #include <QKeyEvent>
@@ -685,6 +687,10 @@ void SlideShow::moveOn()
     int n = nextShown(m_pos + 1, 1);
     // A looping show starts again at its first slide.
     if (n < 0 && m_settings.looping()) n = nextShown(0, 1);
+    if (n < 0 && !m_returns.isEmpty()) {
+        returnFromCustomShow();
+        return;
+    }
     if (n < 0) {
         m_atEnd = true;
         m_media->end();
@@ -746,6 +752,8 @@ void SlideShow::showSlide(int pos, int steps)
     // A stroke being drawn stays on the slide it began on.
     m_drawing = m_erasing = false;
     m_pos = m_targetPos = pos;
+    m_focusIndex = -1;
+    if (m_slide != slideAt(pos) && m_slide >= 0) m_lastViewed = m_slide;
     m_slide = m_target = slideAt(pos);
     m_areasSlide = -1;
     m_done = std::min(steps, stepsOf(m_slide));
@@ -811,6 +819,8 @@ void SlideShow::endTransition()
     m_fromOverlay = m_toOverlay = QImage();
     m_morph.reset();
     m_drawing = m_erasing = false;
+    m_focusIndex = -1;
+    if (m_slide != m_target && m_slide >= 0) m_lastViewed = m_slide;
     m_slide = m_target;
     m_pos = m_targetPos;
     m_done = 0;
@@ -1056,6 +1066,20 @@ void SlideShow::paintEvent(QPaintEvent *)
         p.drawImage(0, 0, now);
         m_media->paint(&p);
         paintOverlay(&p, m_slide, slideRect());
+        // The link chosen with Tab has a ring round it.
+        if (m_focusSlide == m_slide && m_focusIndex >= 0) {
+            const QVector<const deck::LinkArea *> areas = tabAreas();
+            if (m_focusIndex < areas.size()) {
+                const QRectF at = slideRect();
+                const double k = at.width() / m_doc->pageSize().width();
+                const QRectF r = areas[m_focusIndex]->rect;
+                p.setBrush(Qt::NoBrush);
+                p.setPen(QPen(Qt::white, 3));
+                p.drawRect(QRectF(at.topLeft() + r.topLeft() * k, r.size() * k).adjusted(-2, -2, 2, 2));
+                p.setPen(QPen(QColor(0x1F, 0x6F, 0xE0), 1.5, Qt::DashLine));
+                p.drawRect(QRectF(at.topLeft() + r.topLeft() * k, r.size() * k).adjusted(-2, -2, 2, 2));
+            }
+        }
     }
 }
 
@@ -1102,6 +1126,10 @@ void SlideShow::keyPressEvent(QKeyEvent *e)
         m_typed.clear();
         return;
     }
+    if ((k == Qt::Key_Return || k == Qt::Key_Enter) && !focusedLink().isEmpty()) {
+        followLink(focusedLink());
+        return;
+    }
     m_typed.clear();
     switch (k) {
     case Qt::Key_Escape:
@@ -1145,6 +1173,30 @@ QPointF SlideShow::pageAt(const QPointF &pos) const
     return at.width() > 0 ? (pos - at.topLeft()) * (m_doc->pageSize().width() / at.width()) : QPointF();
 }
 
+// The areas of the slide on the screen are worked out once (with the layout the drawing made), not at every move of the mouse.
+const QVector<deck::LinkArea> &SlideShow::areasNow() const
+{
+    if (m_areasSlide != m_slide) {
+        m_areas = deck::linkAreas(*m_doc, *m_cache, m_slide, RenderOptions(), true);
+        m_areasSlide = m_slide;
+    }
+    return m_areas;
+}
+
+deck::States SlideShow::linkStates() const
+{
+    const Play &play = playOf(m_slide);
+    return play.timeline.isEmpty() ? deck::States() : deck::statesAt(play.timeline, play.geometry, m_playing >= 0 ? m_playing : m_done, m_playing >= 0 ? m_stepMs : -1);
+}
+
+// A shape the animations have not shown yet, or have hidden, has no link to click.
+static bool areaShown(const deck::LinkArea &area, const deck::States &states)
+{
+    const Item &item = *area.item;
+    const auto state = states.constFind(deck::Target{item.sourceId, -1, -1});
+    return !(item.sourceId > 0 && state != states.constEnd() && (!state->visible || state->opacity <= 0));
+}
+
 // The link of the topmost object or line of text with one under `pos`.
 QString SlideShow::linkAt(const QPointF &pos) const
 {
@@ -1152,22 +1204,59 @@ QString SlideShow::linkAt(const QPointF &pos) const
     const QRectF at = slideRect();
     if (!at.contains(pos)) return QString();
     const QPointF page = (pos - at.topLeft()) * (m_doc->pageSize().width() / at.width());
-    // A shape the animations have not shown yet, or have hidden, has no link to click.
-    const Play &play = playOf(m_slide);
-    const deck::States states = play.timeline.isEmpty() ? deck::States() : deck::statesAt(play.timeline, play.geometry, m_playing >= 0 ? m_playing : m_done, m_playing >= 0 ? m_stepMs : -1);
-    // The areas of the slide on the screen are worked out once (with the layout the drawing made), not at every move of the mouse.
-    if (m_areasSlide != m_slide) {
-        m_areas = deck::linkAreas(*m_doc, *m_cache, m_slide, RenderOptions());
-        m_areasSlide = m_slide;
-    }
-    const QVector<deck::LinkArea> &areas = m_areas;
-    for (auto it = areas.crbegin(); it != areas.crend(); ++it) {
-        if (!it->rect.contains(page)) continue;
-        const Item &item = *it->item;
-        if (const auto state = states.constFind(deck::Target{item.sourceId, -1, -1}); item.sourceId > 0 && state != states.constEnd() && (!state->visible || state->opacity <= 0)) continue;
-        return it->link;
-    }
+    const deck::States states = linkStates();
+    const QVector<deck::LinkArea> &areas = areasNow();
+    for (auto it = areas.crbegin(); it != areas.crend(); ++it)
+        if (!it->hover && it->rect.contains(page) && areaShown(*it, states)) return it->link;
     return QString();
+}
+
+// The mouse-over action of the topmost object under `pos` that has one.
+const deck::LinkArea *SlideShow::hoverAreaAt(const QPointF &pos) const
+{
+    if (m_atEnd || m_animating || m_blank.isValid() || m_slide < 0 || m_slide >= m_doc->pages.size()) return nullptr;
+    const QRectF at = slideRect();
+    if (!at.contains(pos)) return nullptr;
+    const QPointF page = (pos - at.topLeft()) * (m_doc->pageSize().width() / at.width());
+    const deck::States states = linkStates();
+    const QVector<deck::LinkArea> &areas = areasNow();
+    for (auto it = areas.crbegin(); it != areas.crend(); ++it)
+        if (it->hover && it->rect.contains(page) && areaShown(*it, states)) return &*it;
+    return nullptr;
+}
+
+// What Tab goes through: the links on the screen, bottom object first, a link on several lines of words once.
+QVector<const deck::LinkArea *> SlideShow::tabAreas() const
+{
+    QVector<const deck::LinkArea *> out;
+    if (m_atEnd || m_animating || m_blank.isValid() || m_slide < 0 || m_slide >= m_doc->pages.size()) return out;
+    const deck::States states = linkStates();
+    for (const deck::LinkArea &a : areasNow()) {
+        if (a.hover || !areaShown(a, states)) continue;
+        if (!out.isEmpty() && out.last()->item == a.item && out.last()->link == a.link) continue;
+        out << &a;
+    }
+    return out;
+}
+
+QString SlideShow::focusedLink() const
+{
+    if (m_focusSlide != m_slide || m_focusIndex < 0) return QString();
+    const QVector<const deck::LinkArea *> areas = tabAreas();
+    return m_focusIndex < areas.size() ? areas[m_focusIndex]->link : QString();
+}
+
+// Tab and Shift+Tab go from link to link on the slide, round at the ends; Esc and the other keys are as they were.
+bool SlideShow::focusNextPrevChild(bool next)
+{
+    if (isKiosk() || m_recording) return true;
+    const QVector<const deck::LinkArea *> areas = tabAreas();
+    if (areas.isEmpty()) return true;
+    const int now = m_focusSlide == m_slide ? m_focusIndex : -1, n = int(areas.size());
+    m_focusSlide = m_slide;
+    m_focusIndex = next ? (now + 1) % n : now <= 0 ? n - 1 : now - 1;
+    update();
+    return true;
 }
 
 void SlideShow::setLinkPrompt(std::function<bool(const QString &address, bool remote)> ask) { m_linkPrompt = std::move(ask); }
@@ -1189,19 +1278,25 @@ void SlideShow::followLink(const QString &link)
     case office::LinkKind::Last: goToPosition(count() - 1); return;
     case office::LinkKind::Slide: goTo(t.slide - 1); return;
     case office::LinkKind::EndShow: close(); return;
+    case office::LinkKind::LastViewed:
+        if (m_lastViewed >= 0) goTo(m_lastViewed);
+        return;
+    case office::LinkKind::CustomShow: playCustomShow(t.slide, t.back); return;
     case office::LinkKind::None: return;
     default: break;
     }
     const bool remote = office::isRemoteFile(t.address);
     // A program or a script is never run by a link: it is refused, and the person is told.
-    if (t.kind == office::LinkKind::File && office::isProgramFile(t.address)) {
+    if ((t.kind == office::LinkKind::File || t.kind == office::LinkKind::Deck) && office::isProgramFile(t.address)) {
         const QString text = tr("This link opens a program, so it was not opened.");
         if (m_linkNotice) m_linkNotice(text);
         else jp::plainWarning(this, tr("Open Link"), text);
         return;
     }
     QUrl url;
-    if (t.kind == office::LinkKind::File) {
+    if (t.kind == office::LinkKind::Deck) {
+        url = QUrl::fromLocalFile(t.address);   // (only to ask with: another presentation is read by its path)
+    } else if (t.kind == office::LinkKind::File) {
         if (remote) url = QUrl(t.address.startsWith(QLatin1String("file:"), Qt::CaseInsensitive) ? t.address : QUrl::fromLocalFile(t.address).toString());
         else if (t.address.startsWith(QLatin1String("file:"), Qt::CaseInsensitive)) url = QUrl(t.address);
         else if (QDir::isAbsolutePath(t.address)) url = QUrl::fromLocalFile(t.address);
@@ -1224,9 +1319,116 @@ void SlideShow::followLink(const QString &link)
         yes = box.clickedButton() != no && box.result() != QMessageBox::Cancel;
     }
     if (yes) {
-        if (m_linkOpener) m_linkOpener(url);
+        if (t.kind == office::LinkKind::Deck) openPresentation(t.address);
+        else if (m_linkOpener) m_linkOpener(url);
         else QDesktopServices::openUrl(url);
     }
+}
+
+// A custom show played from a link: its slides replace the show's, and with `back` the show comes back to the slide it was on when they are played.
+void SlideShow::playCustomShow(int id, bool back)
+{
+    const QVector<deck::CustomShow> shows = deck::customShowsOf(*m_doc);
+    const deck::CustomShow *cs = deck::customShowById(shows, id);
+    if (!cs) return;
+    QHash<QString, int> index;
+    for (int i = 0; i < m_doc->pages.size(); ++i) index.insert(m_doc->pages[i]->id, i);
+    QList<int> slides;
+    QStringList ids;
+    for (const QString &page : cs->slides)
+        if (index.contains(page)) {
+            slides << index.value(page);
+            ids << page;
+        }
+    if (slides.isEmpty()) return;
+    const Return here{m_order, m_orderIds, m_hiddenToo, m_slide};
+    const QList<int> order = m_order;
+    const QStringList orderIds = m_orderIds;
+    const bool hiddenToo = m_hiddenToo;
+    m_order = slides;
+    m_orderIds = ids;
+    m_hiddenToo = false;
+    const int first = nextShown(0, 1);
+    if (first < 0) {
+        m_order = order;
+        m_orderIds = orderIds;
+        m_hiddenToo = hiddenToo;
+        return;
+    }
+    if (back) m_returns << here;
+    else m_returns.clear();
+    finishTransition();
+    m_auto.stop();
+    m_blank = QColor();
+    m_atEnd = false;
+    m_images.clear();
+    showSlide(first);
+}
+
+// At the end of a custom show followed with "and return": the slide it was followed from, in the show it was in.
+void SlideShow::returnFromCustomShow()
+{
+    const Return r = m_returns.takeLast();
+    m_order = r.order;
+    m_orderIds = r.orderIds;
+    m_hiddenToo = r.hiddenToo;
+    int pos = positionOf(r.slide);
+    if (pos < 0 || !pageOf(slideAt(pos))) pos = nextShown(0, 1);
+    m_images.clear();
+    if (pos < 0) {
+        m_atEnd = true;
+        update();
+        return;
+    }
+    showSlide(pos);
+}
+
+namespace {
+// Holds the presentation a nested show plays (and its layouts) for as long as the show is there.
+class NestedHolder : public QObject {
+public:
+    std::unique_ptr<Document> doc;
+    LayoutCache cache;
+};
+} // namespace
+
+// Another presentation played as a show of its own over this one: it is read from its file only when the person has said yes, and when it ends this one goes on where it was.
+void SlideShow::openPresentation(const QString &address)
+{
+    constexpr int kMostDepth = 4;
+    if (m_nested || m_depth >= kMostDepth) return;
+    QString path = address;
+    if (path.startsWith(QLatin1String("file:"), Qt::CaseInsensitive)) path = QUrl(path).toLocalFile();
+    if (QDir::isRelativePath(path) && !m_baseDir.isEmpty()) path = QDir(m_baseDir).filePath(path);
+    QString err;
+    auto doc = deck::importAnyPresentationFile(path, &err);
+    if (!doc || doc->pages.isEmpty()) {
+        const QString text = tr("The presentation %1 can't be opened.").arg(QFileInfo(path).fileName());
+        if (m_linkNotice) m_linkNotice(text);
+        else jp::plainWarning(this, tr("Open Link"), text);
+        return;
+    }
+    auto *holder = new NestedHolder;
+    holder->setParent(this);
+    holder->doc = std::move(doc);
+    auto *show = new SlideShow(holder->doc.get(), &holder->cache, 0);
+    show->m_depth = m_depth + 1;
+    show->m_baseDir = QFileInfo(path).absolutePath();
+    show->setLinkPrompt(m_linkPrompt);
+    show->setLinkOpener(m_linkOpener);
+    show->setLinkNotice(m_linkNotice);
+    m_nested = show;
+    connect(show, &QObject::destroyed, holder, &QObject::deleteLater);
+    connect(show, &QObject::destroyed, this, [this] {
+        activateWindow();
+        setFocus();
+    });
+    show->setGeometry(geometry());
+    show->setWindowModality(Qt::ApplicationModal);
+    if (isFullScreen()) show->showFullScreen();
+    else show->show();
+    show->activateWindow();
+    show->setFocus();
 }
 
 void SlideShow::mousePressEvent(QMouseEvent *e)
@@ -1275,6 +1477,16 @@ void SlideShow::mouseMoveEvent(QMouseEvent *e)
         return;
     }
     if (m_pointer != Pointer::Arrow) return;
+    // A mouse-over action is followed once as the pointer comes onto the object, and not again until it has left.
+    if (const deck::LinkArea *over = hoverAreaAt(e->position()); over && !isKiosk()) {
+        if (m_hoverItem != over->item) {
+            m_hoverItem = over->item;
+            followLink(over->link);
+            return;
+        }
+    } else {
+        m_hoverItem = nullptr;
+    }
     if (!m_animating && !m_atEnd && !m_blank.isValid() && m_media->mouseMove(e->position())) {
         setCursor(Qt::ArrowCursor);
         return;

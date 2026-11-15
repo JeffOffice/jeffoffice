@@ -509,6 +509,13 @@ void writeIdentity(QXmlStreamWriter &w, const Item &it, int id, const QString &f
         attribute(w, "action", QStringLiteral("ppaction://media"));
         w.writeEndElement();
     }
+    QString hoverId, hoverAction;
+    if (!it.hoverLink.isEmpty() && ctx.slideCount > 0 && linkClickParts(ctx, it.hoverLink, &hoverId, &hoverAction)) {
+        begin(w, "a:hlinkHover");
+        attribute(w, "r:id", hoverId);
+        if (!hoverAction.isEmpty()) attribute(w, "action", hoverAction);
+        w.writeEndElement();
+    }
     const bool marked = !ctx.barcode.isEmpty();
     if (it.decorative) writeDecorative(w, marked ? std::function<void()>([&] { writeBarcodeMarkerExt(w, ctx.barcode, ctx.barcodePngHash, ctx.barcodeSvgHash); }) : std::function<void()>());
     else if (marked) writeBarcodeMarker(w, ctx.barcode, ctx.barcodePngHash, ctx.barcodeSvgHash);

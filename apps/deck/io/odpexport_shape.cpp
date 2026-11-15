@@ -148,10 +148,16 @@ void Exporter::writeInside(X &x, const Item &it)
     if (!it.altTitle.isEmpty()) x.open("svg:title").text(it.altTitle).close();
     // (An empty description beside a title says there is none, so that reading it back doesn't take the title for it.)
     if (!it.altText.isEmpty() || !it.altTitle.isEmpty()) x.open("svg:desc").text(it.altText).close();
-    if (!it.hyperlink.isEmpty()) {
+    if (!it.hyperlink.isEmpty() || !it.hoverLink.isEmpty()) {
         x.open("office:event-listeners");
-        x.open("presentation:event-listener").attr("script:event-name", "dom:click").attr("presentation:action", "show");
-        x.attr("xlink:href", it.hyperlink).attr("xlink:type", "simple").attr("xlink:show", "embed").attr("xlink:actuate", "onRequest").close();
+        if (!it.hyperlink.isEmpty()) {
+            x.open("presentation:event-listener").attr("script:event-name", "dom:click").attr("presentation:action", "show");
+            x.attr("xlink:href", it.hyperlink).attr("xlink:type", "simple").attr("xlink:show", "embed").attr("xlink:actuate", "onRequest").close();
+        }
+        if (!it.hoverLink.isEmpty()) {
+            x.open("presentation:event-listener").attr("script:event-name", "dom:mouseover").attr("presentation:action", "show");
+            x.attr("xlink:href", it.hoverLink).attr("xlink:type", "simple").attr("xlink:show", "embed").attr("xlink:actuate", "onRequest").close();
+        }
         x.close();
     }
 }

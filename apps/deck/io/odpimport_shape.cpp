@@ -207,10 +207,12 @@ ItemPtr Reader::readShape(const QDomElement &e, Scope &sc, const QTransform &t)
         if (display == QLatin1String("none")) it->hidden = true;
         if (const QString lock = a.get("jo:lock-aspect"); !lock.isEmpty()) it->lockAspect = lock == QLatin1String("true");
         if (const QByteArray ref = a.get("jo:style-ref").toUtf8(); !ref.isEmpty()) it->styleRef = StyleRef::fromJson(QJsonDocument::fromJson(ref).object());
+        for (const QDomElement &l : kids(kid(e, "office:event-listeners"), "presentation:event-listener"))
+            if (at(l, "script:event-name") == QLatin1String("dom:mouseover") && it->hoverLink.isEmpty() && isWebLink(at(l, "xlink:href"))) it->hoverLink = at(l, "xlink:href");
         if (it->hyperlink.isEmpty())
             for (const QDomElement &l : kids(kid(e, "office:event-listeners"), "presentation:event-listener")) {
                 const QString href = at(l, "xlink:href");
-                if (isWebLink(href)) {
+                if (isWebLink(href) && at(l, "script:event-name") != QLatin1String("dom:mouseover")) {
                     it->hyperlink = href;
                     break;
                 }

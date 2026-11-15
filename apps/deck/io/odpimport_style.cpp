@@ -38,6 +38,7 @@ QString canonicalPrefix(const QString &uri)
         {QStringLiteral("urn:oasis:names:tc:opendocument:xmlns:smil-compatible:1.0"), QStringLiteral("smil")},
         {QStringLiteral("urn:oasis:names:tc:opendocument:xmlns:animation:1.0"), QStringLiteral("anim")},
         {QStringLiteral("urn:oasis:names:tc:opendocument:xmlns:meta:1.0"), QStringLiteral("meta")},
+        {QStringLiteral("urn:oasis:names:tc:opendocument:xmlns:script:1.0"), QStringLiteral("script")},
         {QStringLiteral("urn:oasis:names:tc:opendocument:xmlns:datastyle:1.0"), QStringLiteral("number")},
         {QStringLiteral("urn:oasis:names:tc:opendocument:xmlns:chart:1.0"), QStringLiteral("chart")},
         {QStringLiteral("http://www.w3.org/1999/xlink"), QStringLiteral("xlink")},

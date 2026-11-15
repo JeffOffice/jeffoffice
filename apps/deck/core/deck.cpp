@@ -1238,6 +1238,68 @@ void setAllBackgrounds(Document &d, const Fill &fill)
 
 void resetSlideBackground(Page &slide) { slide.background = Fill(); }
 
+namespace {
+const Item *numberOf(const ItemList &items)
+{
+    for (const ItemPtr &it : items)
+        if (placeholderType(*it) == QLatin1String("sldNum")) return it.get();
+    return nullptr;
+}
+} // namespace
+
+SlideNumberPlace slideNumberPlace(const Document &d)
+{
+    SlideNumberPlace place;
+    const MasterPage *master = nullptr;
+    for (const auto &m : d.masters)
+        if (isSlideMaster(*m)) {
+            master = m.get();
+            break;
+        }
+    const Item *it = master ? numberOf(master->items) : nullptr;
+    if (!it) return place;
+    const QSizeF page = d.pageSize();
+    const QPointF middle = it->rect.center();
+    place.across = middle.x() < page.width() / 3 ? NumberAcross::Left : middle.x() > page.width() * 2 / 3 ? NumberAcross::Right : NumberAcross::Center;
+    place.down = middle.y() < page.height() / 2 ? NumberDown::Top : NumberDown::Bottom;
+    return place;
+}
+
+void setSlideNumberPlace(Document &d, const SlideNumberPlace &place)
+{
+    const QSizeF page = d.pageSize();
+    // The distance from the side: that of the slide master's title.
+    double marginX = 36;
+    for (const auto &m : d.masters)
+        if (isSlideMaster(*m)) {
+            for (const ItemPtr &it : m->items)
+                if (placeholderType(*it) == QLatin1String("title")) marginX = std::clamp(std::min(it->rect.left(), page.width() - it->rect.right()), 0.0, page.width() / 4);
+            break;
+        }
+    auto move = [&](const ItemList &items) {
+        for (const ItemPtr &ptr : items) {
+            Item &it = *ptr;
+            if (placeholderType(it) != QLatin1String("sldNum")) continue;
+            const double insetX = marginX;
+            const double insetY = std::clamp(std::min(it.rect.top(), page.height() - it.rect.bottom()), 0.0, page.height() / 4);
+            const double w = it.rect.width(), h = it.rect.height();
+            const double x = place.across == NumberAcross::Left ? insetX : place.across == NumberAcross::Right ? page.width() - insetX - w : (page.width() - w) / 2;
+            const double y = place.down == NumberDown::Top ? insetY : page.height() - insetY - h;
+            it.rect = QRectF(x, y, w, h);
+            if (it.type() != ItemType::Text) continue;
+            if (QTextDocument *sd = d.storyDoc(static_cast<TextItem &>(it).storyId)) {
+                QTextCursor c(sd);
+                c.select(QTextCursor::Document);
+                QTextBlockFormat bf;
+                bf.setAlignment(place.across == NumberAcross::Left ? Qt::AlignLeft : place.across == NumberAcross::Right ? Qt::AlignRight : Qt::AlignHCenter);
+                c.mergeBlockFormat(bf);
+            }
+        }
+    };
+    for (auto &m : d.masters) move(m->items);
+    for (auto &p : d.pages) move(p->items);
+}
+
 void resetAllBackgrounds(Document &d)
 {
     for (auto &m : d.masters)

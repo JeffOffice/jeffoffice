@@ -25,6 +25,7 @@
 #include "core/showsettings.h"
 #include "core/transition.h"
 
+#include <QFileInfo>
 #include <QAction>
 #include <QCheckBox>
 #include <QDoubleSpinBox>
@@ -537,6 +538,7 @@ void DeckWindow::playShow(int slide, const deck::ShowPlan &plan, bool recording,
     m_show = new SlideShow(m_ed->doc(), &m_ed->cache(), slide);
     if (rehearsal) m_show->setRehearsal(true);
     m_show->setSettings(settings);
+    if (!m_ed->filePath().isEmpty()) m_show->setBaseDirectory(QFileInfo(m_ed->filePath()).absolutePath());
     if (!plan.slides.isEmpty()) m_show->setSlides(plan.slides, plan.hidden);
     if (recording) m_show->setRecording(true);
     QScreen *s = screen();

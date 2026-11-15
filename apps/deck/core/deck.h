@@ -176,6 +176,18 @@ struct FooterOptions {
     QJsonObject toJson() const;
     static FooterOptions fromJson(const QJsonObject &o);
 };
+// Where the slide number goes on the slides: left, center, or right, at the top or the bottom. It is the place of the slide master's slide-number placeholder (the first
+// master's), which the layouts' and the slides' follow.
+enum class NumberAcross { Left, Center, Right };
+enum class NumberDown { Top, Bottom };
+struct SlideNumberPlace {
+    NumberAcross across = NumberAcross::Right;
+    NumberDown down = NumberDown::Bottom;
+    bool operator==(const SlideNumberPlace &o) const { return across == o.across && down == o.down; }
+};
+SlideNumberPlace slideNumberPlace(const Document &d);
+// Moves the slide-number placeholder of every slide master, layout, and slide to the place (its size and its distance from the edges stay, and its number is set to that side).
+void setSlideNumberPlace(Document &d, const SlideNumberPlace &place);
 // What the presentation says: its appData "footerOptions", or, when only
 // appData "footers" is on, all three.
 FooterOptions footerOptions(const Document &d);

@@ -178,7 +178,7 @@ BackgroundDialog::BackgroundDialog(const Fill &current, const ColorScheme &schem
 void BackgroundDialog::setHideGraphics(bool hide) { m_hide->setChecked(hide); }
 bool BackgroundDialog::hideGraphics() const { return m_hide->isChecked(); }
 
-LinkDialog::LinkDialog(const QString &current, int slides, QWidget *parent) : QDialog(parent)
+LinkDialog::LinkDialog(const QString &current, int slides, const QVector<QPair<int, QString>> &shows, QWidget *parent) : QDialog(parent)
 {
     setWindowTitle(tr("Insert Link"));
     setObjectName(QStringLiteral("linkDialog"));
@@ -186,7 +186,7 @@ LinkDialog::LinkDialog(const QString &current, int slides, QWidget *parent) : QD
     auto *form = new QFormLayout();
     m_kind = new QComboBox(this);
     m_kind->setObjectName(QStringLiteral("linkKind"));
-    m_kind->addItems({tr("Web page"), tr("Email address"), tr("Place in this presentation"), tr("File")});
+    m_kind->addItems({tr("Web page"), tr("Email address"), tr("Place in this presentation"), tr("File"), tr("Another presentation")});
     m_display = new QLineEdit(this);
     m_display->setObjectName(QStringLiteral("linkText"));
     m_address = new QLineEdit(this);
@@ -197,7 +197,12 @@ LinkDialog::LinkDialog(const QString &current, int slides, QWidget *parent) : QD
     m_place->addItem(tr("Previous slide"), QStringLiteral("#previous"));
     m_place->addItem(tr("First slide"), QStringLiteral("#first"));
     m_place->addItem(tr("Last slide"), QStringLiteral("#last"));
+    m_place->addItem(tr("Last slide viewed"), QStringLiteral("#lastviewed"));
     for (int i = 1; i <= slides; ++i) m_place->addItem(tr("Slide %1").arg(i), office::slideLink(i));
+    for (const auto &show : shows) {
+        m_place->addItem(tr("Custom show: %1").arg(show.second), office::customShowLink(show.first, false));
+        m_place->addItem(tr("Custom show, then back: %1").arg(show.second), office::customShowLink(show.first, true));
+    }
     m_place->addItem(tr("End show"), QStringLiteral("#end"));
     form->addRow(tr("Link to:"), m_kind);
     m_displayLabel = new QLabel(tr("Text to display:"), this);
@@ -217,21 +222,23 @@ LinkDialog::LinkDialog(const QString &current, int slides, QWidget *parent) : QD
     switch (now.kind) {
     case office::LinkKind::Mail: m_kind->setCurrentIndex(1); m_address->setText(now.address.mid(7)); break;
     case office::LinkKind::File: m_kind->setCurrentIndex(3); m_address->setText(now.address); break;
+    case office::LinkKind::Deck: m_kind->setCurrentIndex(4); m_address->setText(now.address); break;
     case office::LinkKind::None:
         if (!current.trimmed().isEmpty()) m_address->setText(current.trimmed());
         break;
     case office::LinkKind::Web: m_address->setText(now.address); break;
     default:
         m_kind->setCurrentIndex(2);
-        if (const int at = m_place->findData(now.kind == office::LinkKind::Slide ? office::slideLink(now.slide) : current.trimmed().toLower()); at >= 0) m_place->setCurrentIndex(at);
+        if (const int at = m_place->findData(now.kind == office::LinkKind::Slide ? office::slideLink(now.slide) : now.kind == office::LinkKind::CustomShow ? office::customShowLink(now.slide, now.back) : current.trimmed().toLower()); at >= 0)
+            m_place->setCurrentIndex(at);
         break;
     }
     auto refresh = [this, browse] {
         const int k = m_kind->currentIndex();
         m_place->setEnabled(k == 2);
         m_address->setEnabled(k != 2);
-        browse->setEnabled(k == 3);
-        m_address->setPlaceholderText(k == 1 ? tr("name@example.com") : k == 3 ? tr("Path of the file") : QStringLiteral("https://"));
+        browse->setEnabled(k == 3 || k == 4);
+        m_address->setPlaceholderText(k == 1 ? tr("name@example.com") : k == 3 ? tr("Path of the file") : k == 4 ? tr("Path of the presentation") : QStringLiteral("https://"));
     };
     connect(m_kind, &QComboBox::currentIndexChanged, this, refresh);
     refresh();
@@ -258,6 +265,7 @@ QString LinkDialog::link() const
     QString text = m_address->text().trimmed();
     if (text.isEmpty()) return QString();
     if (k == 1) return QStringLiteral("mailto:") + text.remove(QStringLiteral("mailto:"), Qt::CaseInsensitive);
+    if (k == 4) return office::presentationLink(text);
     // A web address typed without its scheme is one; a file is as typed, and is never looked for.
     if (k == 0 && !text.contains(QLatin1String("://"))) return QStringLiteral("https://") + text;
     return text;

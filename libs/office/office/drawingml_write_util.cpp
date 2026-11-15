@@ -336,6 +336,14 @@ bool linkClickParts(DrawingWriteContext &ctx, const QString &link, QString *rId,
     case LinkKind::First: *action = jump + QLatin1String("firstslide"); return true;
     case LinkKind::Last: *action = jump + QLatin1String("lastslide"); return true;
     case LinkKind::EndShow: *action = jump + QLatin1String("endshow"); return true;
+    case LinkKind::LastViewed: *action = jump + QLatin1String("lastslideviewed"); return true;
+    case LinkKind::CustomShow:
+        *action = QStringLiteral("ppaction://customshowjump?id=%1").arg(t.slide) + (t.back ? QStringLiteral("&return=true") : QString());
+        return true;
+    case LinkKind::Deck:
+        *rId = relateAddress(ctx, t.address);
+        if (!rId->isEmpty()) *action = QStringLiteral("ppaction://hlinkpres?slideindex=1&slidetitle=");
+        return !rId->isEmpty();
     case LinkKind::Slide:
         // A jump to a slide that is no longer there can't be written: it is counted, and the save says so.
         if (t.slide > ctx.slideCount) {

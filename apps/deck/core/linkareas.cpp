@@ -21,14 +21,15 @@ bool hasAnchor(const QTextDocument *td)
     return false;
 }
 
-void collect(const Document &d, LayoutCache &cache, const RenderOptions &opt, int slide, const ItemList &items, QVector<LinkArea> &out)
+void collect(const Document &d, LayoutCache &cache, const RenderOptions &opt, int slide, const ItemList &items, QVector<LinkArea> &out, bool withHover)
 {
     for (const ItemPtr &ptr : items) {
         const Item &it = *ptr;
         if (it.hidden) continue;
         if (!it.hyperlink.trimmed().isEmpty() && !it.bounds().isEmpty()) out.push_back({it.bounds(), it.hyperlink.trimmed(), &it});
+        if (withHover && !it.hoverLink.trimmed().isEmpty() && !it.bounds().isEmpty()) out.push_back({it.bounds(), it.hoverLink.trimmed(), &it, true});
         if (it.type() == ItemType::Group) {
-            collect(d, cache, opt, slide, static_cast<const GroupItem &>(it).children, out);
+            collect(d, cache, opt, slide, static_cast<const GroupItem &>(it).children, out, withHover);
         } else if (it.type() == ItemType::Text) {
             const auto &t = static_cast<const TextItem &>(it);
             const QTextDocument *td = d.storyDoc(t.storyId);
@@ -67,12 +68,12 @@ thread_local qint64 g_runs = 0;
 
 qint64 linkAreaRunsForTest() { return g_runs; }
 
-QVector<LinkArea> linkAreas(const Document &d, LayoutCache &cache, int slide, const RenderOptions &opt)
+QVector<LinkArea> linkAreas(const Document &d, LayoutCache &cache, int slide, const RenderOptions &opt, bool withHover)
 {
     ++g_runs;
     QVector<LinkArea> out;
     if (slide < 0 || slide >= d.pages.size()) return out;
-    collect(d, cache, opt, slide, d.pages[slide]->items, out);
+    collect(d, cache, opt, slide, d.pages[slide]->items, out, withHover);
     return out;
 }
 

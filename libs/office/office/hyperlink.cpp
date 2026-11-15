@@ -21,6 +21,28 @@ LinkTarget parseLink(const QString &linkIn)
     if (link.isEmpty()) return t;
     if (link.startsWith(QLatin1Char('#'))) {
         const QString word = link.mid(1).toLower();
+        if (word.startsWith(QLatin1String("deck:"))) {
+            if (!link.mid(6).trimmed().isEmpty()) {
+                t.kind = LinkKind::Deck;
+                t.address = link.mid(6);
+            }
+            return t;
+        }
+        if (word.startsWith(QLatin1String("show:")) || word.startsWith(QLatin1String("showback:"))) {
+            const bool back = word.startsWith(QLatin1String("showback:"));
+            bool ok = false;
+            const int id = word.mid(back ? 9 : 5).toInt(&ok);
+            if (ok && id >= 0) {
+                t.kind = LinkKind::CustomShow;
+                t.slide = id;
+                t.back = back;
+            }
+            return t;
+        }
+        if (word == QLatin1String("lastviewed")) {
+            t.kind = LinkKind::LastViewed;
+            return t;
+        }
         if (word == QLatin1String("next")) t.kind = LinkKind::Next;
         else if (word == QLatin1String("previous")) t.kind = LinkKind::Previous;
         else if (word == QLatin1String("first")) t.kind = LinkKind::First;
@@ -57,6 +79,8 @@ LinkTarget parseLink(const QString &linkIn)
 }
 
 QString slideLink(int number) { return QStringLiteral("#page%1").arg(number); }
+QString customShowLink(int id, bool back) { return QStringLiteral("#%1:%2").arg(back ? QStringLiteral("showback") : QStringLiteral("show")).arg(id); }
+QString presentationLink(const QString &path) { return QStringLiteral("#deck:") + path; }
 
 bool isRemoteFile(const QString &link) { return isOnAnotherComputer(link); }
 
@@ -71,7 +95,7 @@ int linkFileLooks() { return g_fileLooks.load(); }
 bool isProgramFile(const QString &link)
 {
     const LinkTarget t = parseLink(link);
-    if (t.kind != LinkKind::File) return false;
+    if (t.kind != LinkKind::File && t.kind != LinkKind::Deck) return false;
     const bool remote = isOnAnotherComputer(t.address);
     QString path = t.address;
     if (path.startsWith(QLatin1String("file:"), Qt::CaseInsensitive)) path = QUrl(path).toLocalFile();
@@ -112,7 +136,23 @@ QString linkOfClick(const QDomElement &click, const DrawingContext &ctx)
         if (what == QLatin1String("firstslide")) return QStringLiteral("#first");
         if (what == QLatin1String("lastslide")) return QStringLiteral("#last");
         if (what == QLatin1String("endshow")) return QStringLiteral("#end");
+        if (what == QLatin1String("lastslideviewed")) return QStringLiteral("#lastviewed");
         return QString();
+    }
+    static const QLatin1String customShow("ppaction://customshowjump?");
+    if (action.startsWith(customShow)) {
+        int showId = -1;
+        bool back = false;
+        for (const QString &part : action.mid(customShow.size()).split(QLatin1Char('&'))) {
+            const QString key = part.section(QLatin1Char('='), 0, 0), value = part.section(QLatin1Char('='), 1);
+            if (key == QLatin1String("id")) showId = value.toInt();
+            else if (key == QLatin1String("return")) back = value == QLatin1String("1") || value.compare(QLatin1String("true"), Qt::CaseInsensitive) == 0;
+        }
+        return showId >= 0 ? customShowLink(showId, back) : QString();
+    }
+    if (action.startsWith(QLatin1String("ppaction://hlinkpres"))) {
+        const Relationship rel = relationship();
+        return !rel.id.isEmpty() && rel.external && !rel.target.isEmpty() ? presentationLink(rel.target) : QString();
     }
     const Relationship rel = relationship();
     if (rel.id.isEmpty()) return QString();
@@ -132,8 +172,9 @@ QString keptClickOf(const QDomElement &click, const DrawingContext &ctx)
     if (click.isNull() || !ctx.slideNumberOf) return QString();
     const QString action = attr(click, QStringLiteral("action"));
     if (action.isEmpty() || action.startsWith(QLatin1String("ppaction://media")) || action.startsWith(QLatin1String("ppaction://hlinkshowjump")) ||
-        action == QLatin1String("ppaction://hlinksldjump") || action == QLatin1String("ppaction://hlinkfile"))
+        action == QLatin1String("ppaction://hlinksldjump") || action == QLatin1String("ppaction://hlinkfile") || action.startsWith(QLatin1String("ppaction://customshowjump?")))
         return QString();
+    if (action.startsWith(QLatin1String("ppaction://hlinkpres")) && !linkOfClick(click, ctx).isEmpty()) return QString();
     QString target;
     const QString id = attrNs(click, ns::R, QStringLiteral("id"));
     if (!id.isEmpty() && ctx.package) {

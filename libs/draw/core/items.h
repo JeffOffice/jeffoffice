@@ -49,6 +49,8 @@ public:
     // Not drawn, printed, or picked on the page (Selection Pane's eye); the object stays, with its place and its name.
     bool hidden = false;
     QString hyperlink;
+    // What the pointer coming onto the object does in a show (a mouse-over action), as a link; nothing when empty.
+    QString hoverLink;
     // A click action of a file that is no link here (a program, a macro: never followed), kept as the file had it so that saving does not lose it: the address it
     // names, then the element's XML (see office::keptClickOf). Written back as it was.
     QString keptClick;

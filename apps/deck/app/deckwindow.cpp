@@ -391,6 +391,16 @@ void DeckWindow::refreshUi()
     act("view.rulers")->setChecked(ed->view.rulers);
     act("view.gridlines")->setChecked(m_canvas->gridlines());
     act("view.guides")->setChecked(m_canvas->guides());
+    {
+        const deck::FooterOptions footers = deck::footerOptions(*d);
+        const deck::SlideNumberPlace place = deck::slideNumberPlace(*d);
+        act("insert.slideNumberOn")->setChecked(footers.slideNumber);
+        act("insert.slideNumberSkipTitle")->setChecked(footers.skipTitleSlide);
+        const char *down = place.down == deck::NumberDown::Top ? "top" : "bottom";
+        const char *across = place.across == deck::NumberAcross::Left ? "Left" : place.across == deck::NumberAcross::Center ? "Center" : "Right";
+        for (const char *id : {"topLeft", "topCenter", "topRight", "bottomLeft", "bottomCenter", "bottomRight"})
+            act((QByteArray("insert.slideNumberPlace.") + id).constData())->setChecked(QByteArray(id) == QByteArray(down) + across);
+    }
     act("design.sizeStandard")->setChecked(d->pageSize() == QSizeF(deck::kStandardWidth, deck::kStandardHeight));
     act("design.sizeWidescreen")->setChecked(d->pageSize() == QSizeF(deck::kSlideWidth, deck::kSlideHeight));
     for (const deck::SlideSizePreset &p : deck::slideSizePresets())

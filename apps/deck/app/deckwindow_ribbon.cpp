@@ -246,6 +246,18 @@ void DeckWindow::ribbonMenuParts(RibbonParts &parts)
     parts.menus[QStringLiteral("newSlideLayouts")] = [this](QWidget *owner) { return layoutMenu(owner, false); };
     parts.menus[QStringLiteral("changeLayout")] = [this](QWidget *owner) { return layoutMenu(owner, true); };
     parts.menus[QStringLiteral("switchWindowsMenu")] = [](QWidget *owner) { return AppWindow::switchWindowsMenu(owner, DeckWindow::staticMetaObject); };
+    // Slide Number: on or off, its place, and not on the title slide.
+    parts.menus[QStringLiteral("slideNumberMenu")] = [this](QWidget *owner) {
+        auto *m = new QMenu(owner);
+        m->addAction(act("insert.slideNumberOn"));
+        m->addSeparator();
+        for (const char *id : {"topLeft", "topCenter", "topRight", "bottomLeft", "bottomCenter", "bottomRight"}) m->addAction(act((QByteArray("insert.slideNumberPlace.") + id).constData()));
+        m->addSeparator();
+        m->addAction(act("insert.slideNumberSkipTitle"));
+        m->addSeparator();
+        m->addAction(act("insert.headerFooter"));
+        return m;
+    };
     // Slide Size: the sizes to choose from, one checked, and a size of one's own.
     parts.menus[QStringLiteral("slideSizes")] = [this](QWidget *owner) {
         auto *m = new QMenu(owner);

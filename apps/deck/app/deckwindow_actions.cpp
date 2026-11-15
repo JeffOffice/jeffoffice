@@ -11,6 +11,7 @@
 #include "app/icons.h"
 #include "app/notespane.h"
 #include "app/outlineview.h"
+#include "app/pagenumbergallery.h"
 #include "app/ribbon.h"
 #include "app/settings.h"
 #include "app/textdialogs.h"
@@ -24,6 +25,7 @@
 #include <QApplication>
 #include <QFileInfo>
 #include <QMessageBox>
+#include <QPainter>
 #include <QPushButton>
 #include <QStandardPaths>
 #include <QStatusBar>
@@ -217,6 +219,34 @@ void DeckWindow::createFormatActions()
 void DeckWindow::createInsertActions()
 {
     mk("insert.headerFooter", tr("Header and Footer"), "panel-bottom", QKeySequence(), [this] { showHeaderFooter(); });
+    // Slide Number: on or off, the place it goes, and not on the title slide.
+    mk("insert.slideNumber", tr("Slide Number"), "panel-bottom", QKeySequence(), [] {});
+    mk("insert.slideNumberOn", tr("Show Slide Number"), "", QKeySequence(), [this] { setSlideNumberOn(act("insert.slideNumberOn")->isChecked()); }, true);
+    auto *places = new QActionGroup(this);
+    struct Spot { const char *id; QString text; const char *design; deck::SlideNumberPlace place; };
+    const Spot spots[] = {
+        {"insert.slideNumberPlace.topLeft", tr("Top Left"), "top.plain.left", {deck::NumberAcross::Left, deck::NumberDown::Top}},
+        {"insert.slideNumberPlace.topCenter", tr("Top Center"), "top.plain.center", {deck::NumberAcross::Center, deck::NumberDown::Top}},
+        {"insert.slideNumberPlace.topRight", tr("Top Right"), "top.plain.right", {deck::NumberAcross::Right, deck::NumberDown::Top}},
+        {"insert.slideNumberPlace.bottomLeft", tr("Bottom Left"), "bottom.plain.left", {deck::NumberAcross::Left, deck::NumberDown::Bottom}},
+        {"insert.slideNumberPlace.bottomCenter", tr("Bottom Center"), "bottom.plain.center", {deck::NumberAcross::Center, deck::NumberDown::Bottom}},
+        {"insert.slideNumberPlace.bottomRight", tr("Bottom Right"), "bottom.plain.right", {deck::NumberAcross::Right, deck::NumberDown::Bottom}},
+    };
+    for (const Spot &s : spots) {
+        const int across = int(s.place.across), down = int(s.place.down);
+        QAction *a = mk(s.id, s.text, "", QKeySequence(), [this, across, down] { moveSlideNumber(across, down); }, true);
+        places->addAction(a);
+        // The picture is the shared gallery's design for that place: a small page with the number on it.
+        if (const auto design = pageNumberDesignById(QString::fromLatin1(s.design))) {
+            QPixmap pm(40, 30);
+            pm.fill(Qt::transparent);
+            QPainter p(&pm);
+            paintPageNumberDesign(&p, QRectF(0, 0, 40, 30), *design, palette().color(QPalette::Highlight));
+            p.end();
+            a->setIcon(QIcon(pm));
+        }
+    }
+    mk("insert.slideNumberSkipTitle", tr("Don't Show on Title Slide"), "", QKeySequence(), [this] { setSlideNumberSkipsTitle(act("insert.slideNumberSkipTitle")->isChecked()); }, true);
     createPictureActions();
 }
 
@@ -427,6 +457,46 @@ void DeckWindow::applyFooters(const deck::FooterOptions &options, bool all)
     m_ed->endTextEdit();
     m_ed->beginChange(tr("Header & Footer"));
     deck::applyFooters(*d, options, all ? nullptr : d->pages[i].get());
+    m_ed->endChange();
+}
+
+// Insert > Slide Number: the number on or off on every slide (the options of Header & Footer, with the date and footer as they were).
+void DeckWindow::setSlideNumberOn(bool on)
+{
+    deck::FooterOptions o = deck::footerOptions(*m_ed->doc());
+    if (o.slideNumber == on) return;
+    o.slideNumber = on;
+    changeFooters(o, tr("Slide Number"));
+}
+
+void DeckWindow::setSlideNumberSkipsTitle(bool skip)
+{
+    deck::FooterOptions o = deck::footerOptions(*m_ed->doc());
+    if (o.skipTitleSlide == skip) return;
+    o.skipTitleSlide = skip;
+    changeFooters(o, tr("Slide Number"));
+}
+
+void DeckWindow::changeFooters(const deck::FooterOptions &o, const QString &step)
+{
+    m_notes->commit();
+    if (m_outline) m_outline->commit();
+    m_ed->endTextEdit();
+    m_ed->beginChange(step);
+    deck::applyFooters(*m_ed->doc(), o);
+    m_ed->endChange();
+}
+
+// The place of the slide number: the placeholder of the master, the layouts, and the slides moves, as one step.
+void DeckWindow::moveSlideNumber(int across, int down)
+{
+    const deck::SlideNumberPlace place{deck::NumberAcross(across), deck::NumberDown(down)};
+    if (deck::slideNumberPlace(*m_ed->doc()) == place) return;
+    m_notes->commit();
+    if (m_outline) m_outline->commit();
+    m_ed->endTextEdit();
+    m_ed->beginChange(tr("Slide Number"));
+    deck::setSlideNumberPlace(*m_ed->doc(), place);
     m_ed->endChange();
 }
 
