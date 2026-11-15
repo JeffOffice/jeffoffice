@@ -637,7 +637,7 @@ void PageSetupDialog::buildHeaderFooter(QWidget *tab)
     auto *hr = new QHBoxLayout, *fr = new QHBoxLayout;
     // Page Number: the gallery's designs that a printed header (footer) can show, put in as its text for every page.
     for (const bool header : {true, false}) {
-        auto *b = new GalleryButton(icon("hash"), tr("Page Number"), pageNumberItemSize(), 5, false, tab);
+        auto *b = new GalleryButton(icon("hash"), tr("Page Number"), pageNumberItemSize(), 10, false, tab);
         b->setObjectName(header ? QStringLiteral("psHeaderPageNumber") : QStringLiteral("psFooterPageNumber"));
         b->setToolTip(tr("Page Number"));
         b->setItemsProvider([header] {

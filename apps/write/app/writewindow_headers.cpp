@@ -191,7 +191,7 @@ void WriteWindow::headerRibbonParts(RibbonParts &parts)
 {
     // Page Number: the gallery of designs (the top and bottom of the page, the margins, and the caret's place), with Format Page Numbers and Remove Page Numbers under it.
     parts.widgets[QStringLiteral("pageNumberButton")] = [this]() -> QWidget * {
-        auto *b = new GalleryButton(icon("hash"), tr("Page Number"), pageNumberItemSize(), 5, true);
+        auto *b = new GalleryButton(icon("hash"), tr("Page Number"), pageNumberItemSize(), 9, true);
         b->setObjectName(QStringLiteral("pageNumberButton"));
         b->setToolTip(tr("Page Number"));
         b->setItemsProvider([this] { return pageNumberItems(); });

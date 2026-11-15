@@ -309,7 +309,7 @@ void paintPageNumberDesign(QPainter *p, const QRectF &rc, const PageNumberDesign
     p->restore();
 }
 
-QSize pageNumberItemSize() { return QSize(52, 64); }
+QSize pageNumberItemSize() { return QSize(48, 60); }
 
 QVector<GalleryItem> pageNumberGalleryItems(const QColor &accent, const std::function<bool(const PageNumberDesign &)> &accepts)
 {

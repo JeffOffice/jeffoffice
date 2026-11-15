@@ -588,7 +588,7 @@ void MainWindow::ribbonGalleryParts(RibbonParts &parts)
 
     // Insert > Header & Footer > Page Number, and the Master Page tab's: the gallery of designs put on the master page, with Insert Page Count, Format Page Numbers, and Remove Page Numbers under it.
     parts.widgets[QStringLiteral("pageNumberButton")] = [this]() -> QWidget * {
-        auto *b = new GalleryButton(icon("hash"), tr("Page Number"), pageNumberItemSize(), 5, true);
+        auto *b = new GalleryButton(icon("hash"), tr("Page Number"), pageNumberItemSize(), 9, true);
         b->setObjectName(QStringLiteral("pageNumberButton"));
         b->setToolTip(tr("Page Number"));
         b->setItemsProvider([this] { return pageNumberItems(); });

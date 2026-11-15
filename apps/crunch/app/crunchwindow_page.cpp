@@ -167,7 +167,7 @@ void CrunchWindow::pageRibbonParts(RibbonParts &parts)
     parts.colors[QStringLiteral("headerFooter")] = QColor(0x8A, 0x4B, 0x0F);
     // Page Number: the designs a printed header or footer can show, with Format Page Numbers (the first page's number, in Page Setup) and Remove Page Numbers under them.
     parts.widgets[QStringLiteral("pageNumberButton")] = [this]() -> QWidget * {
-        auto *b = new GalleryButton(icon("hash"), tr("Page Number"), pageNumberItemSize(), 5, true);
+        auto *b = new GalleryButton(icon("hash"), tr("Page Number"), pageNumberItemSize(), 10, true);
         b->setObjectName(QStringLiteral("pageNumberButton"));
         b->setToolTip(tr("Page Number"));
         b->setItemsProvider([this] { return pageNumberItems(); });
