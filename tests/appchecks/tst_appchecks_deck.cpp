@@ -28,6 +28,7 @@
 #include <QCryptographicHash>
 #include <QFileInfo>
 #include <QGuiApplication>
+#include <QTimer>
 #include <QLabel>
 #include <QStatusBar>
 #include <memory>
@@ -483,6 +484,23 @@ private Q_SLOTS:
             m_app.settle(w.get());
             const Outcome o = observe(m_app, w.get(), nullptr, watch, [] {}, false, 3000);
             QVERIFY2(!o.changed, qPrintable(o.how + o.detail));
+        }
+    }
+
+    // And an effect that arrives late (a worker, a timer) is still seen: the wait ends when the change comes, and a call that changes nothing is waited for only to the ceiling.
+    void aCallWhoseEffectComesLateIsSeen()
+    {
+        Watch watch;
+        std::unique_ptr<AppWindow> w(m_app.launch());
+        QVERIFY(w);
+        m_app.settle(w.get());
+        for (const int late : {300, 700}) {
+            QElapsedTimer clock;
+            clock.start();
+            const Outcome o = observe(m_app, w.get(), nullptr, watch, [late] { QTimer::singleShot(late, [] { QGuiApplication::clipboard()->setText(QStringLiteral("late")); }); }, false, 3000);
+            QVERIFY2(o.changed, qPrintable(QString::number(late)));
+            QVERIFY(clock.elapsed() >= late - 50);
+            QGuiApplication::clipboard()->clear();
         }
     }
 

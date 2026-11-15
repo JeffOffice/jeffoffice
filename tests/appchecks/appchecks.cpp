@@ -638,6 +638,8 @@ QString clipboardState()
 
 } // namespace
 
+static qint64 g_waitedMs = 0;   // (JP_CHECKS_TIMES: what observe() spent waiting for a change)
+
 Outcome observe(Adapter &app, jp::AppWindow *w, const QAction *skip, Watch &watch, const std::function<void()> &doIt, bool quiet, int ceiling)
 {
     Outcome out;
@@ -700,7 +702,12 @@ Outcome observe(Adapter &app, jp::AppWindow *w, const QAction *skip, Watch &watc
     out.how = changes();
     // (JP_CHECKS_CEILING shortens the wait while the checks are being written; the tests run with the default)
     if (const int shorter = qEnvironmentVariableIntValue("JP_CHECKS_CEILING"); shorter > 0) ceiling = shorter;
-    if (out.how.isEmpty() && !quiet) waitFor([&] { return !(out.how = changes()).isEmpty(); }, ceiling);
+    if (out.how.isEmpty() && !quiet) {
+        QElapsedTimer waited;
+        waited.start();
+        waitFor([&] { return !(out.how = changes()).isEmpty(); }, ceiling);
+        g_waitedMs += waited.elapsed();
+    }
     if (checkable && out.how.isEmpty() && skip->isChecked() != markBefore) out.refusal = QStringLiteral("turned its mark over and nothing else");
     for (const QString &path : out.written)
         if (app.reopen)
@@ -836,6 +843,14 @@ QStringList runEveryAction(Adapter &app, bool fromFile, QStringList *report)
             if (report) *report << id + QLatin1String(": skipped (") + app.skipped.value(id) + QLatin1Char(')');
             continue;
         }
+        // (JP_CHECKS_TIMES: a line per command with the time it took, and how much of it was spent waiting for a change that did not come)
+        struct Timing {
+            QString id, state;
+            QElapsedTimer t;
+            qint64 waited0 = g_waitedMs;
+            Timing(const QString &i, const QString &s) : id(i), state(s) { t.start(); }
+            ~Timing() { if (qEnvironmentVariableIsSet("JP_CHECKS_TIMES")) std::fprintf(stderr, "TIME %6lld ms (waiting %6lld) %s (%s)\n", static_cast<long long>(t.elapsed()), static_cast<long long>(g_waitedMs - waited0), qPrintable(id), qPrintable(state)); }
+        } timing(id, state);
         if (qEnvironmentVariableIsSet("JP_TEST_TRACE")) {
             std::fprintf(stderr, "command %s (%s)\n", qPrintable(id), qPrintable(state));
             std::fflush(stderr);
