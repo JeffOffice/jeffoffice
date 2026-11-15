@@ -55,6 +55,7 @@ class TableItem;
 struct TableStyles;
 class HelpWindow;
 class MasterPane;
+class NotesPageView;
 class NotesPane;
 class OnlinePicturesPane;
 class OutlineView;
@@ -114,8 +115,11 @@ public:
     // notes), Outline (the text in the thumbnails' place), the Slide Sorter, and
     // Slide Master view (the slide masters and layouts in the thumbnails' place,
     // the one chosen on the canvas, and the Slide Master tab).
-    enum class View { Normal, Outline, Sorter, Master };
+    // Notes Page shows a slide's page the way its notes print (the notes typed on the page); Notes Master and Handout Master edit the layout of the printed notes
+    // page and handout (deckwindow_notesmaster.cpp), and Close Master View returns to the view they were opened from.
+    enum class View { Normal, Outline, Sorter, Master, NotesPage, NotesMaster, HandoutMaster };
     View view() const { return m_view; }
+    static bool borrowsZoom(View view);   // the views that use the zoom controls for their own zoom
     void setView(View view);
     // Slide Master view (deckwindow_master.cpp). It opens on a slide master or layout (the layout of the slide being edited when none is
     // named), and Close Master View returns to the slide. Each command is one step that undoes. Insert Slide Master and Insert Layout
@@ -123,6 +127,7 @@ public:
     // master or layout that slides stand on); Preserve is for the master or layout named. Insert Placeholder (on a layout) selects the
     // new placeholder and returns its id, or "" when there is no layout open.
     MasterPane *masterPane() const { return m_masterPane; }
+    NotesPageView *notesPageView() const { return m_notesPage; }
     void editMasters(const QString &page = QString());
     void closeMasters();
     QString insertSlideMaster();
@@ -424,6 +429,9 @@ private:
     void tellAboutShow(const QString &text);
     void createViewModeActions();   // deckwindow_views.cpp
     void createMasterActions();     // deckwindow_master.cpp
+    void createNotesMasterActions();   // deckwindow_notesmaster.cpp
+    void addNotesMasterParts(struct RibbonParts &parts);
+    void refreshNotesMasterActions();
     void addMasterParts(struct RibbonParts &parts);
     bool enterMasterView();
     void leaveMasterView();
@@ -543,6 +551,8 @@ private:
     std::shared_ptr<void> m_animations;   // what the animation controls do (deckwindow_animations.cpp)
     OutlineView *m_outline = nullptr;    // in the split, where the thumbnails are in Normal view
     MasterPane *m_masterPane = nullptr;  // in the split, in Slide Master view
+    NotesPageView *m_notesPage = nullptr;   // in the split, in the Notes Page, Notes Master, and Handout Master views
+    View m_viewBeforeMasters = View::Normal;   // where Close Master View returns from Notes Master or Handout Master
     bool m_notesWereShown = true;        // the notes box before Slide Master view hid it
     QSet<QString> m_waiting;             // the commands Slide Master view turned off
     bool m_switchingView = false;        // setView is changing what the editor shows: its signals are its own

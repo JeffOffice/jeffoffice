@@ -150,6 +150,7 @@ void DeckWindow::editMasters(const QString &page)
 void DeckWindow::closeMasters()
 {
     if (m_view == View::Master) setView(View::Normal);
+    else if (m_view == View::NotesMaster || m_view == View::HandoutMaster) setView(m_viewBeforeMasters);
 }
 
 void DeckWindow::ensureMasterView()

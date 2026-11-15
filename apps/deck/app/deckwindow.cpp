@@ -291,6 +291,7 @@ void DeckWindow::createActions()
     createAnimationActions();
     createViewModeActions();
     createMasterActions();
+    createNotesMasterActions();
     createSaveActions();
     createDialogActions();
     createEditingActions();

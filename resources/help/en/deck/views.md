@@ -1,5 +1,5 @@
 # Outline view, the Slide Sorter, and Slide Master view
-<!-- keywords: outline view, outline, slide sorter, sorter, views, normal view, slide master, slide master view, master view, layout, layouts, insert layout, insert slide master, master layout, insert placeholder, placeholder, preserve, rename layout, delete layout, close master view, hide background graphics, footers, title, thumbnails, grid, reorder slides, move slides, select slides, promote, demote, tab, titles, text only, zoom, thumbnails size -->
+<!-- keywords: outline view, outline, slide sorter, sorter, views, normal view, notes page, notes page view, notes master, handout master, handout, slides per page, page layout, slide master, slide master view, master view, layout, layouts, insert layout, insert slide master, master layout, insert placeholder, placeholder, preserve, rename layout, delete layout, close master view, hide background graphics, footers, title, thumbnails, grid, reorder slides, move slides, select slides, promote, demote, tab, titles, text only, zoom, thumbnails size -->
 
 Normal view is where you edit one slide at a time. Two other views help when you work on the whole presentation: **Outline View** for the words, and **Slide Sorter** for the order of the slides. **Slide Master view** is for the look that all your slides share. Switch on the **View** tab, in **Presentation Views** and **Master Views**, or with the buttons on the status bar.
 
@@ -66,9 +66,35 @@ A **slide master** is the page behind all your slides. It holds the title style,
 
 Each change is one step that Ctrl+Z takes back. A .pptx file keeps every slide master and layout, and so do other presentation programs that read it. An .odp file keeps the master pages and the layouts that slides use.
 
+## Notes Page view
+
+Notes Page view shows one slide the way its notes page will print. The slide is a picture near the top of a sheet of paper. The notes are under it. Click **View > Presentation Views > Notes Page** to open it.
+
+- Click in the notes and type. It is the same text as in the notes box under the slide. What you type is one step that Ctrl+Z takes back once you pause, or when you click somewhere else.
+- The header, date, footer, and page number show where the notes master puts them, if you turned them on. See **Header and Footer** below.
+- Press **Page Down** to go to the next slide and **Page Up** to go back. The slide pictures on the left follow you, and you can click one.
+- The zoom controls on the status bar, and **Ctrl** with the mouse wheel, make the page bigger or smaller. The page fits the window when the view opens.
+- Print and PDF show the same page. See [Print, PDF, and slide pictures](printing).
+
+## Notes Master and Handout Master views
+
+The **notes master** is the plan for every notes page: where the slide picture goes, where the notes go, and where the header, date, footer, and page number go. The **handout master** is the plan for every handout, which is a page with several slides on it. You change each one in its own view, on the **View** tab, in **Master Views**. A tab with its name comes up at the left of the ribbon. Each change is one step that Ctrl+Z takes back.
+
+**Move and resize a place.** Each place on the page is a box with a dotted line and its name in it. Drag a box to move it. Click it once to select it, then drag the small square at its lower right corner to change its size. A box stays on the page. On the notes page, the slide picture keeps the shape of your slides inside its box.
+
+**Notes Master** has the **Slide Image**, **Notes**, **Header**, **Date**, **Footer**, and **Page Number** boxes. The check boxes **Header**, **Date**, **Footer**, and **Slide Number** turn each on or off. **Header and Footer** opens the box where you type the words. They are the same choices as on the Print page, so a change in one shows in the other.
+
+**Handout Master** has the **Slides** box, which holds all the slides of a page, and the same four small boxes. **Slides Per Page** chooses 1, 2, 3, 4, 6, or 9 slides on a page. The gray boxes in the view show where each slide goes, and the lines beside them, with 3 to a page, are for writing. **Handout Orientation** chooses a tall page (**Portrait**) or a wide one (**Landscape**). When you change it, the boxes go back to their usual places for the new shape.
+
+**Background.** **Background Color** gives the page a color. **No Background Color** takes it away. **Reset Layout** puts every box back where JeffDeck puts it when you have changed nothing.
+
+**Close Master View** takes you back to the view you came from.
+
+What you set is used when you print notes pages and handouts, and in a PDF of them. A .pptx file keeps the places, the background, and how many slides a handout holds. An .odp file keeps them as well. A file that has no notes master or handout master gets the usual layout. Other programs may not keep how a handout lies on the page, or the box of its slides.
+
 ## Back to Normal view
 
-Click **View > Presentation Views > Normal**, or the **Normal** button on the status bar. In Slide Master view, click **Close Master View**.
+Click **View > Presentation Views > Normal**, or the **Normal** button on the status bar. In Slide Master view, click **Close Master View**. In Notes Master or Handout Master view, click **Close Master View** too.
 
 ## Related
 
