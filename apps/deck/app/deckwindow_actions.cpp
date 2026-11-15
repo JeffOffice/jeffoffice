@@ -220,7 +220,6 @@ void DeckWindow::createInsertActions()
 {
     mk("insert.headerFooter", tr("Header and Footer"), "panel-bottom", QKeySequence(), [this] { showHeaderFooter(); });
     // Slide Number: on or off, the place it goes, and not on the title slide.
-    mk("insert.slideNumber", tr("Slide Number"), "panel-bottom", QKeySequence(), [] {});
     mk("insert.slideNumberOn", tr("Show Slide Number"), "", QKeySequence(), [this] { setSlideNumberOn(act("insert.slideNumberOn")->isChecked()); }, true);
     auto *places = new QActionGroup(this);
     struct Spot { const char *id; QString text; const char *design; deck::SlideNumberPlace place; };

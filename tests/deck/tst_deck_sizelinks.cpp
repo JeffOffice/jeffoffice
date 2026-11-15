@@ -754,7 +754,6 @@ private Q_SLOTS:
         w.newSlide();
         w.newSlide();
         Document *d = ed->doc();
-        QVERIFY(w.act("insert.slideNumber"));
         QVERIFY(!numberPlaceholder(d->pages[1]->items));
         w.act("insert.slideNumberOn")->trigger();
         QVERIFY(numberPlaceholder(d->pages[0]->items) && numberPlaceholder(d->pages[1]->items) && numberPlaceholder(d->pages[2]->items));

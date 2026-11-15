@@ -100,6 +100,7 @@
     QT_TRANSLATE_NOOP("Ribbon", "Size"),
     QT_TRANSLATE_NOOP("Ribbon", "Size and Position"),
     QT_TRANSLATE_NOOP("Ribbon", "Slide Master"),
+    QT_TRANSLATE_NOOP("Ribbon", "Slide Number"),
     QT_TRANSLATE_NOOP("Ribbon", "Slide Show"),
     QT_TRANSLATE_NOOP("Ribbon", "Slide Size"),
     QT_TRANSLATE_NOOP("Ribbon", "Slides"),
