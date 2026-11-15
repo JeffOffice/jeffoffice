@@ -327,7 +327,7 @@
     <message>
         <location line="+3"/>
         <source>Lines</source>
-        <translation type="unfinished">Garis</translation>
+        <translation>Baris</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -725,13 +725,13 @@
         <location line="+4"/>
         <location line="+16"/>
         <source>Replace</source>
-        <translation type="unfinished">Ganti</translation>
+        <translation>Ganti</translation>
     </message>
     <message>
         <location line="-13"/>
         <location line="+13"/>
         <source>With</source>
-        <translation type="unfinished">Dengan</translation>
+        <translation>Dengan</translation>
     </message>
     <message>
         <location line="-10"/>
@@ -803,12 +803,7 @@
         <translation type="unfinished">Kode QR (teks apa pun, seperti alamat web)</translation>
     </message>
     <message>
-        <location line="+115"/>
-        <source>ISBN:</source>
-        <translation type="unfinished">ISBN:</translation>
-    </message>
-    <message>
-        <location line="-107"/>
+        <location line="+8"/>
         <source>none, or 2 or 5 digits</source>
         <translation type="unfinished">tidak ada, atau 2 atau 5 angka</translation>
     </message>
@@ -835,22 +830,23 @@
     <message>
         <location line="-10"/>
         <source>Type</source>
-        <translation type="unfinished">Jenis</translation>
+        <translation>Jenis</translation>
     </message>
     <message>
         <location line="+4"/>
+        <location line="+109"/>
         <source>ISBN</source>
         <translation>ISBN</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="-106"/>
         <source>Add-on</source>
-        <translation type="unfinished"></translation>
+        <translation>Add-on</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Error correction</source>
-        <translation type="unfinished"></translation>
+        <translation>Koreksi kesalahan</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -915,12 +911,12 @@
     <message>
         <location line="+2"/>
         <source>Magnification</source>
-        <translation type="unfinished"></translation>
+        <translation>Pembesaran</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Bar height</source>
-        <translation type="unfinished"></translation>
+        <translation>Tinggi batang</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -954,13 +950,13 @@
     </message>
     <message>
         <location line="+29"/>
-        <source>Digits:</source>
-        <translation type="unfinished">Angka:</translation>
+        <source>Digits</source>
+        <translation>Angka</translation>
     </message>
     <message>
         <location line="+0"/>
-        <source>Text:</source>
-        <translation type="unfinished">Teks:</translation>
+        <source>Text</source>
+        <translation>Teks</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -1380,7 +1376,7 @@ Berita halaman belakang	4</translation>
     <message>
         <location line="+58"/>
         <source>Copy</source>
-        <translation type="unfinished">Salin</translation>
+        <translation>Salin</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -1619,7 +1615,7 @@ Berita halaman belakang	4</translation>
     <message>
         <location line="+0"/>
         <source>Thousands</source>
-        <translation type="unfinished">Ribuan</translation>
+        <translation>Ribuan</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -2347,7 +2343,7 @@ Berita halaman belakang	4</translation>
     <message>
         <location line="+0"/>
         <source>Labels</source>
-        <translation type="unfinished">Label</translation>
+        <translation>Label</translation>
     </message>
     <message>
         <location filename="../libs/page/app/textdialogs.cpp" line="+371"/>
@@ -3009,7 +3005,7 @@ Berita halaman belakang	4</translation>
     <message>
         <location line="+0"/>
         <source>Leader</source>
-        <translation type="unfinished">Pengisi Tab</translation>
+        <translation>Pengisi Tab</translation>
     </message>
     <message>
         <location line="+9"/>
@@ -3133,7 +3129,7 @@ Berita halaman belakang	4</translation>
     <message>
         <location line="+1"/>
         <source>Numbering</source>
-        <translation type="unfinished">Penomoran</translation>
+        <translation>Penomoran</translation>
     </message>
     <message>
         <location filename="../apps/pub/app/dialogs.cpp" line="-254"/>
@@ -4090,7 +4086,7 @@ Berita halaman belakang	4</translation>
         <location line="+2"/>
         <location line="+1"/>
         <source>Bookmark</source>
-        <translation type="unfinished">Penanda</translation>
+        <translation>Penanda</translation>
     </message>
     <message>
         <location line="-3"/>
@@ -4651,7 +4647,7 @@ Berita halaman belakang	4</translation>
     <message>
         <location line="+1"/>
         <source>Punctuation</source>
-        <translation type="unfinished">Tanda Baca</translation>
+        <translation>Tanda baca</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -5168,7 +5164,7 @@ Berita halaman belakang	4</translation>
     <message>
         <location line="+5"/>
         <source>Lines</source>
-        <translation type="unfinished">Garis</translation>
+        <translation>Baris</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -5509,7 +5505,7 @@ Berita halaman belakang	4</translation>
     <message>
         <location line="+21"/>
         <source>Show measurements in</source>
-        <translation type="unfinished"></translation>
+        <translation>Tampilkan satuan ukuran dalam</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -5839,7 +5835,7 @@ Berita halaman belakang	4</translation>
     <message>
         <location line="+24"/>
         <source>Insert &amp;as</source>
-        <translation type="unfinished"></translation>
+        <translation>Sisipkan &amp;sebagai</translation>
     </message>
     <message>
         <location line="+21"/>
@@ -7821,7 +7817,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <location line="+6"/>
         <location line="+2"/>
         <source>Password</source>
-        <translation type="unfinished">Kata Sandi</translation>
+        <translation>Kata Sandi</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -7831,7 +7827,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
     <message>
         <location line="+2"/>
         <source>Type it again</source>
-        <translation type="unfinished"></translation>
+        <translation>Ketik ulang</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -8739,7 +8735,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <location line="+4"/>
         <location line="+1"/>
         <source>Password</source>
-        <translation type="unfinished">Kata Sandi</translation>
+        <translation>Kata Sandi</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -8755,13 +8751,13 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <location line="+6"/>
         <location line="+1"/>
         <source>Password for the limits</source>
-        <translation type="unfinished">Kata sandi untuk pembatasan</translation>
+        <translation>Kata sandi untuk pembatasan</translation>
     </message>
     <message>
         <location line="-10"/>
         <location line="+12"/>
         <source>Confirm</source>
-        <translation type="unfinished"></translation>
+        <translation>Konfirmasi</translation>
     </message>
     <message>
         <location line="-1"/>
@@ -9650,7 +9646,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
     <message>
         <location line="+15"/>
         <source>Paper size</source>
-        <translation type="unfinished">Ukuran Kertas</translation>
+        <translation>Ukuran kertas</translation>
     </message>
     <message>
         <location line="+16"/>
@@ -9738,7 +9734,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
     <message>
         <location line="+38"/>
         <source>Print</source>
-        <translation type="unfinished">Cetak</translation>
+        <translation>Cetak</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -11538,7 +11534,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
     <message>
         <location line="+1"/>
         <source>Lines</source>
-        <translation type="unfinished">Garis</translation>
+        <translation>Baris</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -11569,7 +11565,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="+1"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+4"/>
         <source>Margins</source>
-        <translation type="unfinished">Margin</translation>
+        <translation>Margin</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -11789,7 +11785,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="+2"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+4"/>
         <source>Show</source>
-        <translation type="unfinished">Tampilkan</translation>
+        <translation>Tampilkan</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -11959,13 +11955,13 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="+1"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+1"/>
         <source>Views</source>
-        <translation type="unfinished">Tampilan</translation>
+        <translation>Tampilan</translation>
     </message>
     <message>
         <location line="+1"/>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="+2"/>
         <source>Weight</source>
-        <translation type="unfinished">Ketebalan</translation>
+        <translation>Ketebalan</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -12331,7 +12327,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
     <message>
         <location line="+1"/>
         <source>Preview</source>
-        <translation type="unfinished">Pratinjau</translation>
+        <translation>Pratinjau</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -12615,7 +12611,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="+2"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+18"/>
         <source>Data</source>
-        <translation type="unfinished">Data</translation>
+        <translation>Data</translation>
     </message>
     <message>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="+3"/>
@@ -12902,7 +12898,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
     <message>
         <location line="+1"/>
         <source>Cells</source>
-        <translation type="unfinished">Sel</translation>
+        <translation>Sel</translation>
     </message>
     <message>
         <location filename="../apps/pub/app/ribbon_strings.cpp" line="-41"/>
@@ -12973,7 +12969,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
     <message>
         <location line="+2"/>
         <source>Footer</source>
-        <translation type="unfinished">Footer</translation>
+        <translation>Footer</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -13031,7 +13027,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
     <message>
         <location line="+1"/>
         <source>Header</source>
-        <translation type="unfinished">Header</translation>
+        <translation>Header</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -13116,7 +13112,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
     <message>
         <location line="+1"/>
         <source>Notes</source>
-        <translation type="unfinished">Catatan</translation>
+        <translation>Catatan</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -13151,7 +13147,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
     <message>
         <location line="+1"/>
         <source>Print</source>
-        <translation type="unfinished">Cetak</translation>
+        <translation>Cetak</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -13241,7 +13237,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
     <message>
         <location line="+2"/>
         <source>Subtotals</source>
-        <translation type="unfinished">Subtotal</translation>
+        <translation>Subtotal</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -13266,7 +13262,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
     <message>
         <location line="+1"/>
         <source>Type</source>
-        <translation type="unfinished">Jenis</translation>
+        <translation>Jenis</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -13277,7 +13273,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
 <context>
     <name>SaveChanges</name>
     <message>
-        <location filename="../libs/shell/app/uistyle.cpp" line="+449"/>
+        <location filename="../libs/shell/app/uistyle.cpp" line="+592"/>
         <source>Save changes to &quot;%1&quot;?</source>
         <translation type="unfinished"></translation>
     </message>
@@ -14705,7 +14701,7 @@ Buka di program email Anda, tambahkan penerima, lalu kirim.</translation>
     <message>
         <location line="+18"/>
         <source>Copy</source>
-        <translation type="unfinished">Salin</translation>
+        <translation>Salin</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -16320,7 +16316,7 @@ Penerbitan desktop</translation>
         <location line="+1"/>
         <location line="+36"/>
         <source>Labels</source>
-        <translation type="unfinished">Label</translation>
+        <translation>Label</translation>
     </message>
     <message>
         <location line="-36"/>
@@ -16905,7 +16901,7 @@ Penerbitan desktop</translation>
     <message>
         <location line="+0"/>
         <source>Letters</source>
-        <translation type="unfinished">Surat</translation>
+        <translation>Huruf</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -17144,7 +17140,7 @@ Penerbitan desktop</translation>
     <message>
         <location line="+6343"/>
         <source>Notes</source>
-        <translation type="unfinished">Catatan</translation>
+        <translation>Catatan</translation>
     </message>
 </context>
 <context>
@@ -17271,7 +17267,7 @@ Penerbitan desktop</translation>
     <message>
         <location line="+7"/>
         <source>Hex</source>
-        <translation type="unfinished"></translation>
+        <translation>Hex</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -17456,19 +17452,19 @@ Penerbitan desktop</translation>
         <location line="+7"/>
         <location line="+8"/>
         <source>List range</source>
-        <translation type="unfinished">Rentang daftar</translation>
+        <translation>Rentang daftar</translation>
     </message>
     <message>
         <location line="-5"/>
         <location line="+6"/>
         <source>Conditions range</source>
-        <translation type="unfinished">Rentang kondisi</translation>
+        <translation>Rentang kondisi</translation>
     </message>
     <message>
         <location line="-3"/>
         <location line="+4"/>
         <source>Copy to</source>
-        <translation type="unfinished">Salin ke</translation>
+        <translation>Salin ke</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -17839,7 +17835,7 @@ Penerbitan desktop</translation>
         <location line="+361"/>
         <location line="+37"/>
         <source>Print</source>
-        <translation type="unfinished">Cetak</translation>
+        <translation>Cetak</translation>
     </message>
     <message>
         <location line="-949"/>
@@ -18730,13 +18726,13 @@ Penerbitan desktop</translation>
         <location line="+3"/>
         <location line="+2"/>
         <source>Formula</source>
-        <translation type="unfinished">Rumus</translation>
+        <translation>Rumus</translation>
     </message>
     <message>
         <location line="+3"/>
         <location line="+2"/>
         <source>Fields</source>
-        <translation type="unfinished">Bidang</translation>
+        <translation>Bidang</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -18771,7 +18767,7 @@ Penerbitan desktop</translation>
         <location line="+5"/>
         <location line="+4"/>
         <source>Field</source>
-        <translation type="unfinished">Bidang</translation>
+        <translation>Bidang</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -18783,13 +18779,13 @@ Penerbitan desktop</translation>
         <location line="+3"/>
         <location line="+2"/>
         <source>Formula</source>
-        <translation type="unfinished">Rumus</translation>
+        <translation>Rumus</translation>
     </message>
     <message>
         <location line="+3"/>
         <location line="+1"/>
         <source>Items</source>
-        <translation type="unfinished">Item</translation>
+        <translation>Item</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -18977,7 +18973,7 @@ Sumber: %3</translation>
     <message>
         <location filename="../libs/page/app/chartactions.cpp" line="+20"/>
         <source>Column</source>
-        <translation type="unfinished">Kolom</translation>
+        <translation>Kolom</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -19361,7 +19357,7 @@ Sumber: %3</translation>
     <message>
         <location line="+2"/>
         <source>Search</source>
-        <translation type="unfinished">Cari</translation>
+        <translation>Cari</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -19680,7 +19676,7 @@ Sumber: %3</translation>
     <message>
         <location line="+3"/>
         <source>Target output</source>
-        <translation type="unfinished"></translation>
+        <translation>Keluaran target</translation>
     </message>
 </context>
 <context>
@@ -19699,13 +19695,13 @@ Sumber: %3</translation>
         <location line="+6"/>
         <location line="+2"/>
         <source>Function</source>
-        <translation type="unfinished">Fungsi</translation>
+        <translation>Fungsi</translation>
     </message>
     <message>
         <location line="+3"/>
         <location line="+1"/>
         <source>Put the result at</source>
-        <translation type="unfinished">Letakkan hasil di</translation>
+        <translation>Letakkan hasil di</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -19818,7 +19814,7 @@ Sumber: %3</translation>
         <location line="+1"/>
         <location line="+105"/>
         <source>Print</source>
-        <translation type="unfinished">Cetak</translation>
+        <translation>Cetak</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -20037,7 +20033,7 @@ Sumber: %3</translation>
     <message>
         <location line="-16"/>
         <source>Paper size</source>
-        <translation type="unfinished">Ukuran kertas</translation>
+        <translation>Ukuran kertas</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -20058,7 +20054,7 @@ Sumber: %3</translation>
         <location line="+3"/>
         <location line="+40"/>
         <source>Margins</source>
-        <translation type="unfinished">Margin</translation>
+        <translation>Margin</translation>
     </message>
     <message>
         <location line="-38"/>
@@ -20123,7 +20119,7 @@ Sumber: %3</translation>
     <message>
         <location line="+1"/>
         <source>Which pages</source>
-        <translation type="unfinished"></translation>
+        <translation>Halaman mana</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -20133,12 +20129,12 @@ Sumber: %3</translation>
     <message>
         <location line="+3"/>
         <source>Pages on a sheet</source>
-        <translation type="unfinished"></translation>
+        <translation>Halaman pada satu lembar</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Scale to paper</source>
-        <translation type="unfinished"></translation>
+        <translation>Skala ke kertas</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -20303,7 +20299,7 @@ Sumber: %3</translation>
     <message>
         <location line="+6"/>
         <source>Sheet</source>
-        <translation type="unfinished">Lembar</translation>
+        <translation>Lembar</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -20341,12 +20337,12 @@ Sumber: %3</translation>
     <message>
         <location line="+1"/>
         <source>Minimum</source>
-        <translation type="unfinished">Minimum</translation>
+        <translation>Minimum</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Maximum</source>
-        <translation type="unfinished">Maksimum</translation>
+        <translation>Maksimum</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -20538,7 +20534,7 @@ Sumber: %3</translation>
         <location line="-455"/>
         <location line="+4"/>
         <source>After pressing Enter, move the selection</source>
-        <translation type="unfinished">Setelah menekan Enter, pindahkan pilihan</translation>
+        <translation>Setelah menekan Enter, pindahkan pilihan</translation>
     </message>
     <message>
         <location line="-3"/>
@@ -20578,22 +20574,22 @@ Sumber: %3</translation>
     <message>
         <location line="+32"/>
         <source>Places</source>
-        <translation type="unfinished"></translation>
+        <translation>Tempat</translation>
     </message>
     <message>
         <location line="+32"/>
         <source>Font size</source>
-        <translation type="unfinished"></translation>
+        <translation>Ukuran font</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Sheets in a new workbook</source>
-        <translation type="unfinished"></translation>
+        <translation>Lembar dalam buku kerja baru</translation>
     </message>
     <message>
         <location line="+43"/>
         <source>Standard column width (this sheet)</source>
-        <translation type="unfinished"></translation>
+        <translation>Lebar kolom standar (lembar ini)</translation>
     </message>
     <message>
         <location line="-108"/>
@@ -20635,7 +20631,7 @@ Sumber: %3</translation>
         <location line="-399"/>
         <location line="+2"/>
         <source>Font of a new workbook</source>
-        <translation type="unfinished">Font buku kerja baru</translation>
+        <translation>Font untuk buku kerja baru</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -20658,13 +20654,13 @@ Sumber: %3</translation>
         <location line="+8"/>
         <location line="+3"/>
         <source>Gridline color</source>
-        <translation type="unfinished">Warna Garis Kisi</translation>
+        <translation>Warna garis kisi</translation>
     </message>
     <message>
         <location line="+3"/>
         <location line="+4"/>
         <source>Zoom of a new workbook</source>
-        <translation type="unfinished">Zoom buku kerja baru</translation>
+        <translation>Zoom buku kerja baru</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -21003,13 +20999,13 @@ Sumber: %3</translation>
         <location line="+5"/>
         <location line="+3"/>
         <source>Most rounds</source>
-        <translation type="unfinished">Iterasi maksimum</translation>
+        <translation>Iterasi maksimum</translation>
     </message>
     <message>
         <location line="+2"/>
         <location line="+4"/>
         <source>Stop when no value changes by more than</source>
-        <translation type="unfinished">Berhenti saat tidak ada nilai yang berubah lebih dari</translation>
+        <translation>Berhenti saat tidak ada nilai yang berubah lebih dari</translation>
     </message>
     <message>
         <location line="+29"/>
@@ -21126,7 +21122,7 @@ Sumber: %3</translation>
     <message>
         <location line="+7"/>
         <source>These cells read their own result</source>
-        <translation type="unfinished"></translation>
+        <translation>Sel-sel berikut membaca hasilnya sendiri</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -21440,7 +21436,7 @@ Sumber: %3</translation>
         <location line="+14"/>
         <location line="+10"/>
         <source>Sort</source>
-        <translation type="unfinished">Urutkan</translation>
+        <translation>Urutkan</translation>
     </message>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+1"/>
@@ -22001,7 +21997,7 @@ Sumber: %3</translation>
         <location line="+7"/>
         <location filename="../apps/crunch/app/crunchwindow_cond.cpp" line="+137"/>
         <source>Value</source>
-        <translation type="unfinished">Nilai</translation>
+        <translation>Nilai</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -22027,7 +22023,7 @@ Sumber: %3</translation>
     <message>
         <location line="+7"/>
         <source>Separator</source>
-        <translation type="unfinished">Pemisah</translation>
+        <translation>Pemisah</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -22067,7 +22063,12 @@ Sumber: %3</translation>
         <translation type="unfinished">Nilai Dari Sel</translation>
     </message>
     <message>
-        <location line="+0"/>
+        <location line="-12"/>
+        <source>The cells that hold the words for the labels, such as =Sheet1!$D$2:$D$4 (leave empty to take them away):</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
         <location line="+83"/>
         <source>&quot;%1&quot; isn&apos;t a range JeffCrunch can find. Write it like =Sheet1!$D$2:$D$4.</source>
         <translation type="unfinished">&quot;%1&quot; bukan rentang yang dapat ditemukan JeffCrunch. Tulis seperti =Sheet1!$D$2:$D$4.</translation>
@@ -22087,22 +22088,17 @@ Sumber: %3</translation>
         <translation type="unfinished">Format Angka</translation>
     </message>
     <message>
+        <location line="+0"/>
+        <source>Format code for the numbers in the labels (leave empty to show the numbers as they are):</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location line="-375"/>
         <source>Choose where to put the chart</source>
-        <translation type="unfinished"></translation>
+        <translation>Pilih tempat untuk meletakkan bagan</translation>
     </message>
     <message>
-        <location line="+344"/>
-        <source>The cells that hold the words for the labels, such as =Sheet1!$D$2:$D$4 (leave empty to take them away)</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+31"/>
-        <source>Format code for the numbers in the labels (leave empty to show the numbers as they are)</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+12"/>
+        <location line="+387"/>
         <source>Lines Across, Major</source>
         <translation type="unfinished">Garis Melintang, Utama</translation>
     </message>
@@ -22238,7 +22234,7 @@ Sumber: %3</translation>
         <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="+18"/>
         <location line="+1"/>
         <source>Lines</source>
-        <translation type="unfinished">Garis</translation>
+        <translation>Garis</translation>
     </message>
     <message>
         <location line="-3"/>
@@ -22353,7 +22349,7 @@ Sumber: %3</translation>
         <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-197"/>
         <location line="+8"/>
         <source>Copy</source>
-        <translation type="unfinished">Salin</translation>
+        <translation>Salin</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -22653,7 +22649,7 @@ Sumber: %3</translation>
     <message>
         <location line="+2"/>
         <source>When you click Paste or press Ctrl+V with cells copied, put in</source>
-        <translation type="unfinished"></translation>
+        <translation>Saat Anda klik Tempel atau tekan Ctrl+V dengan sel yang disalin, masukkan</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -22809,17 +22805,17 @@ Sumber: %3</translation>
     <message>
         <location line="+0"/>
         <source>How many</source>
-        <translation type="unfinished">Berapa banyak</translation>
+        <translation>Berapa banyak</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>To</source>
-        <translation type="unfinished"></translation>
+        <translation>Ke</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Cells look like this</source>
-        <translation type="unfinished"></translation>
+        <translation>Sel tampak seperti ini</translation>
     </message>
     <message>
         <location line="+25"/>
@@ -23115,7 +23111,7 @@ File yang ada sebelumnya tidak berubah.</translation>
     <message>
         <location line="+30"/>
         <source>Formula</source>
-        <translation type="unfinished">Rumus</translation>
+        <translation>Rumus</translation>
     </message>
     <message>
         <location line="+119"/>
@@ -23171,18 +23167,18 @@ Berkas tidak ditemukan.</translation>
         <location line="+2"/>
         <location line="+3"/>
         <source>Password</source>
-        <translation type="unfinished">Kata Sandi</translation>
+        <translation>Kata Sandi</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The password is not correct.
 
-This file is protected with a password. Password</source>
+This file is protected with a password. Password:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+0"/>
-        <source>This file is protected with a password. Password</source>
+        <source>This file is protected with a password. Password:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -23256,7 +23252,7 @@ This file is protected with a password. Password</source>
         <location line="+24"/>
         <location line="+51"/>
         <source>Filter</source>
-        <translation type="unfinished">Filter</translation>
+        <translation>Filter</translation>
     </message>
     <message>
         <location line="-202"/>
@@ -23333,7 +23329,7 @@ This file is protected with a password. Password</source>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_find.cpp" line="-412"/>
         <source>Find</source>
-        <translation type="unfinished">Temukan</translation>
+        <translation>Temukan</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -23451,7 +23447,7 @@ This file is protected with a password. Password</source>
     <message>
         <location line="+55"/>
         <source>Go to</source>
-        <translation type="unfinished">Buka</translation>
+        <translation>Buka</translation>
     </message>
     <message>
         <location filename="../apps/crunch/app/crunchwindow.cpp" line="-218"/>
@@ -23470,7 +23466,7 @@ This file is protected with a password. Password</source>
         <location line="+7"/>
         <location line="+3"/>
         <source>Reference</source>
-        <translation type="unfinished">Referensi</translation>
+        <translation>Referensi</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -23496,7 +23492,7 @@ This file is protected with a password. Password</source>
     <message>
         <location line="+2"/>
         <source>Cells that show an error</source>
-        <translation type="unfinished">Sel yang menampilkan kesalahan</translation>
+        <translation>Sel yang menampilkan kesalahan</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -24356,7 +24352,7 @@ This file is protected with a password. Password</source>
     <message>
         <location line="+19"/>
         <source>Choose the names to put in place of the cells they stand for</source>
-        <translation type="unfinished"></translation>
+        <translation>Pilih nama yang akan menggantikan sel yang diwakilinya</translation>
     </message>
     <message>
         <location line="+36"/>
@@ -24712,7 +24708,7 @@ This file is protected with a password. Password</source>
         <location filename="../apps/crunch/app/crunchwindow_pagelayout.cpp" line="-74"/>
         <location filename="../apps/crunch/app/crunchwindow_tabs2.cpp" line="+16"/>
         <source>Replace</source>
-        <translation type="unfinished">Ganti</translation>
+        <translation>Ganti</translation>
     </message>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_tabs2.cpp" line="+2"/>
@@ -24763,7 +24759,7 @@ This file is protected with a password. Password</source>
     <message>
         <location line="+5"/>
         <source>Notes</source>
-        <translation type="unfinished">Catatan</translation>
+        <translation>Catatan</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -25179,7 +25175,7 @@ This file is protected with a password. Password</source>
     <message>
         <location line="+2"/>
         <source>Type</source>
-        <translation type="unfinished">Jenis</translation>
+        <translation>Jenis</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -25327,7 +25323,7 @@ This file is protected with a password. Password</source>
         <location line="+1"/>
         <location line="+1"/>
         <source>Margins</source>
-        <translation type="unfinished">Margin</translation>
+        <translation>Margin</translation>
     </message>
     <message>
         <location line="-1"/>
@@ -25358,7 +25354,7 @@ This file is protected with a password. Password</source>
     <message>
         <location line="+3"/>
         <source>Paper size</source>
-        <translation type="unfinished">Ukuran kertas</translation>
+        <translation>Ukuran kertas</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -25487,7 +25483,7 @@ This file is protected with a password. Password</source>
         <location line="+22"/>
         <location line="+7"/>
         <source>Print</source>
-        <translation type="unfinished">Cetak</translation>
+        <translation>Cetak</translation>
     </message>
     <message>
         <location line="+9"/>
@@ -25739,13 +25735,13 @@ This file is protected with a password. Password</source>
         <location line="+46"/>
         <location line="+25"/>
         <source>Header</source>
-        <translation type="unfinished">Header</translation>
+        <translation>Header</translation>
     </message>
     <message>
         <location line="-25"/>
         <location line="+25"/>
         <source>Footer</source>
-        <translation type="unfinished">Footer</translation>
+        <translation>Footer</translation>
     </message>
     <message>
         <location line="+23"/>
@@ -25909,7 +25905,7 @@ This file is protected with a password. Password</source>
     <message>
         <location line="+26"/>
         <source>Subtotals</source>
-        <translation type="unfinished">Subtotal</translation>
+        <translation>Subtotal</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -26003,7 +25999,7 @@ This file is protected with a password. Password</source>
     <message>
         <location line="+2"/>
         <source>Labels</source>
-        <translation type="unfinished">Label</translation>
+        <translation>Label</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -26573,7 +26569,7 @@ This file is protected with a password. Password</source>
     </message>
     <message>
         <location line="-104"/>
-        <source>Type the password for %1</source>
+        <source>Type the password for %1:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -26836,7 +26832,7 @@ This file is protected with a password. Password</source>
     <message>
         <location line="+1"/>
         <source>&amp;Put the sheets in front of</source>
-        <translation type="unfinished"></translation>
+        <translation>&amp;Letakkan lembar di depan</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -27004,7 +27000,7 @@ This file is protected with a password. Password</source>
         <location line="+101"/>
         <location line="+5"/>
         <source>Data range</source>
-        <translation type="unfinished">Rentang data</translation>
+        <translation>Rentang data</translation>
     </message>
     <message>
         <location line="-107"/>
@@ -27012,7 +27008,7 @@ This file is protected with a password. Password</source>
         <location line="+103"/>
         <location line="+3"/>
         <source>Location range</source>
-        <translation type="unfinished">Rentang lokasi</translation>
+        <translation>Rentang lokasi</translation>
     </message>
     <message>
         <location line="-10"/>
@@ -27058,7 +27054,7 @@ This file is protected with a password. Password</source>
         <location line="-1"/>
         <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="+1"/>
         <source>Column</source>
-        <translation type="unfinished">Kolom</translation>
+        <translation>Kolom</translation>
     </message>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="-322"/>
@@ -27377,7 +27373,7 @@ This file is protected with a password. Password</source>
         <location line="+53"/>
         <location line="+1"/>
         <source>Across</source>
-        <translation type="unfinished">Mendatar</translation>
+        <translation>Mendatar</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -27388,7 +27384,7 @@ This file is protected with a password. Password</source>
         <location line="+2"/>
         <location line="+1"/>
         <source>Up and down</source>
-        <translation type="unfinished">Atas dan bawah</translation>
+        <translation>Atas dan bawah</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -27412,7 +27408,7 @@ This file is protected with a password. Password</source>
         <location line="+160"/>
         <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="+11"/>
         <source>Weight</source>
-        <translation type="unfinished">Ketebalan</translation>
+        <translation>Ketebalan</translation>
     </message>
     <message>
         <location line="-158"/>
@@ -27746,22 +27742,22 @@ This file is protected with a password. Password</source>
     <message>
         <location line="+1"/>
         <source>Incremental change</source>
-        <translation type="unfinished"></translation>
+        <translation>Perubahan bertahap</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Page change</source>
-        <translation type="unfinished"></translation>
+        <translation>Perubahan halaman</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Input range</source>
-        <translation type="unfinished"></translation>
+        <translation>Rentang masukan</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Cell link</source>
-        <translation type="unfinished"></translation>
+        <translation>Tautan sel</translation>
     </message>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="+16"/>
@@ -27909,7 +27905,7 @@ This file is protected with a password. Password</source>
     <message>
         <location line="+3"/>
         <source>Cells</source>
-        <translation type="unfinished">Sel</translation>
+        <translation>Sel</translation>
     </message>
     <message>
         <location line="+189"/>
@@ -29169,23 +29165,23 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+7"/>
         <source>Separator</source>
-        <translation type="unfinished">Pemisah</translation>
+        <translation>Pemisah</translation>
     </message>
     <message>
         <location line="+16"/>
         <source>Line ends</source>
-        <translation type="unfinished">Akhir baris</translation>
+        <translation>Akhir baris</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Cells</source>
-        <translation type="unfinished">Sel</translation>
+        <translation>Sel</translation>
     </message>
     <message>
         <location line="-19"/>
         <location line="+6"/>
         <source>Text encoding</source>
-        <translation type="unfinished">Pengodean teks</translation>
+        <translation>Pengodean teks</translation>
     </message>
     <message>
         <location line="-5"/>
@@ -29488,7 +29484,7 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+1"/>
         <source>Copy</source>
-        <translation type="unfinished">Salin</translation>
+        <translation>Salin</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -29498,7 +29494,7 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+6"/>
         <source>Show</source>
-        <translation type="unfinished">Tampilkan</translation>
+        <translation>Tampilkan</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -29532,7 +29528,7 @@ Berkas tidak dapat dibaca.</translation>
         <location line="+4"/>
         <location line="+4"/>
         <source>Views</source>
-        <translation type="unfinished">Tampilan</translation>
+        <translation>Tampilan</translation>
     </message>
     <message>
         <location line="+9"/>
@@ -29547,7 +29543,7 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+7"/>
         <source>Show</source>
-        <translation type="unfinished">Tampilkan</translation>
+        <translation>Tampilkan</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -29631,7 +29627,7 @@ Berkas tidak dapat dibaca.</translation>
         <location line="+167"/>
         <location line="+1"/>
         <source>Print</source>
-        <translation type="unfinished">Cetak</translation>
+        <translation>Cetak</translation>
     </message>
     <message>
         <location line="-167"/>
@@ -29928,7 +29924,7 @@ Berkas tidak dapat dibaca.</translation>
         <location line="+7"/>
         <location line="+14"/>
         <source>Replace</source>
-        <translation type="unfinished">Ganti</translation>
+        <translation>Ganti</translation>
     </message>
     <message>
         <location line="-155"/>
@@ -30153,7 +30149,7 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+1"/>
         <source>Copy</source>
-        <translation type="unfinished">Salin</translation>
+        <translation>Salin</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -30280,7 +30276,7 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+2"/>
         <source>Notes</source>
-        <translation type="unfinished">Catatan</translation>
+        <translation>Catatan</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -30443,7 +30439,7 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+1"/>
         <source>Numbering</source>
-        <translation type="unfinished">Penomoran</translation>
+        <translation>Penomoran</translation>
     </message>
     <message>
         <location filename="../apps/deck/app/deckwindow_animations.cpp" line="-419"/>
@@ -31359,7 +31355,7 @@ Berkas tidak dapat dibaca.</translation>
         <location filename="../apps/deck/app/deckwindow_output.cpp" line="-73"/>
         <location line="+35"/>
         <source>Print</source>
-        <translation type="unfinished">Cetak</translation>
+        <translation>Cetak</translation>
     </message>
     <message>
         <location line="-35"/>
@@ -31554,7 +31550,7 @@ Berkas tidak dapat dibaca.</translation>
         <location line="-165"/>
         <location line="+178"/>
         <source>Weight</source>
-        <translation type="unfinished">Ketebalan</translation>
+        <translation>Ketebalan</translation>
     </message>
     <message>
         <location line="-176"/>
@@ -31972,7 +31968,7 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location filename="../apps/deck/app/deckwindow_ribbon.cpp" line="+43"/>
         <source>Lines</source>
-        <translation type="unfinished">Garis</translation>
+        <translation>Baris</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -32408,7 +32404,7 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+0"/>
         <source>Words</source>
-        <translation type="unfinished">Kata</translation>
+        <translation>Kata</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -32464,7 +32460,7 @@ Berkas tidak dapat dibaca.</translation>
         <location filename="../apps/deck/app/deckwindow_animations.cpp" line="-229"/>
         <location filename="../apps/deck/app/deckwindow_show.cpp" line="-390"/>
         <source>Preview</source>
-        <translation type="unfinished">Pratinjau</translation>
+        <translation>Pratinjau</translation>
     </message>
     <message>
         <location filename="../apps/deck/app/deckwindow_show.cpp" line="+5"/>
@@ -32839,13 +32835,13 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location filename="../apps/deck/app/deckwindow_find.cpp" line="+21"/>
         <source>Find</source>
-        <translation type="unfinished">Temukan</translation>
+        <translation>Temukan</translation>
     </message>
     <message>
         <location line="+1"/>
         <location filename="../apps/deck/app/deckwindow_output.cpp" line="+28"/>
         <source>Replace</source>
-        <translation type="unfinished">Ganti</translation>
+        <translation>Ganti</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -33853,12 +33849,12 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+7"/>
         <source>Source</source>
-        <translation type="unfinished">Sumber</translation>
+        <translation>Sumber</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Type</source>
-        <translation type="unfinished">Jenis</translation>
+        <translation>Jenis</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -33981,7 +33977,7 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="-68"/>
         <source>When this workbook opens</source>
-        <translation type="unfinished"></translation>
+        <translation>Saat buku kerja ini dibuka</translation>
     </message>
     <message>
         <location line="+69"/>
@@ -34116,7 +34112,7 @@ Berkas tidak dapat dibaca.</translation>
         <location line="-20"/>
         <location line="+21"/>
         <source>Refers to cells</source>
-        <translation type="unfinished">Merujuk ke sel</translation>
+        <translation>Merujuk ke sel</translation>
     </message>
     <message>
         <location line="-18"/>
@@ -34141,17 +34137,17 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+5"/>
         <source>New password (optional)</source>
-        <translation type="unfinished"></translation>
+        <translation>Kata sandi baru (opsional)</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Password (optional)</source>
-        <translation type="unfinished"></translation>
+        <translation>Kata sandi (opsional)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Type it again</source>
-        <translation type="unfinished"></translation>
+        <translation>Ketik lagi</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -34539,7 +34535,7 @@ Berkas tidak dapat dibaca.</translation>
         <location line="-109"/>
         <location line="+109"/>
         <source>Numbering</source>
-        <translation type="unfinished">Penomoran</translation>
+        <translation>Penomoran</translation>
     </message>
     <message>
         <location line="+56"/>
@@ -34700,13 +34696,13 @@ Berkas tidak dapat dibaca.</translation>
         <location line="+8"/>
         <location line="+1"/>
         <source>Custom name</source>
-        <translation type="unfinished">Nama kustom</translation>
+        <translation>Nama kustom</translation>
     </message>
     <message>
         <location line="+3"/>
         <location line="+4"/>
         <source>Subtotals</source>
-        <translation type="unfinished">Subtotal</translation>
+        <translation>Subtotal</translation>
     </message>
     <message>
         <location line="-3"/>
@@ -34752,7 +34748,7 @@ Berkas tidak dapat dibaca.</translation>
         <location line="+7"/>
         <location line="+7"/>
         <source>Sort</source>
-        <translation type="unfinished">Urutkan</translation>
+        <translation>Urutkan</translation>
     </message>
     <message>
         <location line="-6"/>
@@ -34787,24 +34783,24 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="-41"/>
         <source>Source name</source>
-        <translation type="unfinished"></translation>
+        <translation>Nama sumber</translation>
     </message>
     <message>
         <location line="+19"/>
         <source>Show item labels in</source>
-        <translation type="unfinished"></translation>
+        <translation>Tampilkan label item dalam</translation>
     </message>
     <message>
         <location line="+25"/>
         <location line="+19"/>
         <source>by the value</source>
-        <translation type="unfinished"></translation>
+        <translation>berdasarkan nilai</translation>
     </message>
     <message>
         <location line="-15"/>
         <location line="+10"/>
         <source>Filter</source>
-        <translation type="unfinished">Filter</translation>
+        <translation>Filter</translation>
     </message>
     <message>
         <location line="-8"/>
@@ -34894,17 +34890,17 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+11"/>
         <source>Text or number</source>
-        <translation type="unfinished"></translation>
+        <translation>Teks atau angka</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>and</source>
-        <translation type="unfinished">dan</translation>
+        <translation>dan</translation>
     </message>
     <message>
         <location line="+9"/>
         <source>Show these items</source>
-        <translation type="unfinished"></translation>
+        <translation>Tampilkan item ini</translation>
     </message>
     <message>
         <location line="-19"/>
@@ -34987,7 +34983,7 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+0"/>
         <source>Preview</source>
-        <translation type="unfinished">Pratinjau</translation>
+        <translation>Pratinjau</translation>
     </message>
     <message>
         <location line="+19"/>
@@ -35005,7 +35001,7 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+2"/>
         <source>Copy the selected cells to the same cells of these sheets</source>
-        <translation type="unfinished"></translation>
+        <translation>Salin sel yang dipilih ke sel yang sama pada lembar-lembar ini</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -35035,7 +35031,7 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+1"/>
         <source>Copy</source>
-        <translation type="unfinished">Salin</translation>
+        <translation>Salin</translation>
     </message>
 </context>
 <context>
@@ -35157,7 +35153,7 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+10"/>
         <source>Search</source>
-        <translation type="unfinished">Cari</translation>
+        <translation>Cari</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -35455,7 +35451,7 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location filename="../apps/crunch/app/finddialog.cpp" line="+34"/>
         <source>Find</source>
-        <translation type="unfinished">Temukan</translation>
+        <translation>Temukan</translation>
     </message>
     <message>
         <location line="-5"/>
@@ -35466,7 +35462,7 @@ Berkas tidak dapat dibaca.</translation>
         <location line="+6"/>
         <location line="+56"/>
         <source>Replace</source>
-        <translation type="unfinished">Ganti</translation>
+        <translation>Ganti</translation>
     </message>
     <message>
         <location line="-54"/>
@@ -35494,7 +35490,7 @@ Berkas tidak dapat dibaca.</translation>
         <location line="+1"/>
         <location line="+53"/>
         <source>Sheet</source>
-        <translation type="unfinished">Lembar</translation>
+        <translation>Lembar</translation>
     </message>
     <message>
         <location line="-53"/>
@@ -35534,7 +35530,7 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+0"/>
         <source>Notes</source>
-        <translation type="unfinished">Catatan</translation>
+        <translation>Catatan</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -35671,7 +35667,7 @@ Berkas tidak dapat dibaca.</translation>
         <location line="+1"/>
         <location line="+59"/>
         <source>Replace</source>
-        <translation type="unfinished">Ganti</translation>
+        <translation>Ganti</translation>
     </message>
     <message>
         <location line="-58"/>
@@ -35754,19 +35750,14 @@ Berkas tidak dapat dibaca.</translation>
         <translation type="unfinished">Nilai dalam urutan terbalik</translation>
     </message>
     <message>
-        <location line="+3"/>
-        <source>Logarithmic scale, base:</source>
-        <translation type="unfinished">Skala logaritma, basis:</translation>
-    </message>
-    <message>
-        <location line="+16"/>
+        <location line="+19"/>
         <source>Hundreds</source>
         <translation type="unfinished">Ratusan</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Thousands</source>
-        <translation type="unfinished">Ribuan</translation>
+        <translation>Ribuan</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -35811,12 +35802,12 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+44"/>
         <source>Labels</source>
-        <translation type="unfinished">Label</translation>
+        <translation>Label</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Turn the labels</source>
-        <translation type="unfinished"></translation>
+        <translation>Putar label</translation>
     </message>
     <message>
         <location line="-42"/>
@@ -35851,14 +35842,19 @@ Berkas tidak dapat dibaca.</translation>
         <translation type="unfinished">Tidak ada</translation>
     </message>
     <message>
-        <location line="-40"/>
+        <location line="-62"/>
+        <source>Logarithmic scale, base</source>
+        <translation>Skala logaritma, basis</translation>
+    </message>
+    <message>
+        <location line="+22"/>
         <source>Display units</source>
-        <translation type="unfinished"></translation>
+        <translation>Satuan tampilan</translation>
     </message>
     <message>
         <location line="+15"/>
         <source>The other axis crosses</source>
-        <translation type="unfinished"></translation>
+        <translation>Sumbu lain memotong pada</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -35878,7 +35874,7 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+1"/>
         <source>Across</source>
-        <translation type="unfinished">Silang</translation>
+        <translation>Mendatar</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -36031,109 +36027,109 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+46"/>
         <source>&amp;Category</source>
-        <translation type="unfinished"></translation>
+        <translation>&amp;Kategori</translation>
     </message>
     <message>
         <location line="+28"/>
         <source>&amp;Decimal places</source>
-        <translation type="unfinished"></translation>
+        <translation>&amp;Tempat desimal</translation>
     </message>
     <message>
         <location line="+13"/>
         <source>&amp;Symbol</source>
-        <translation type="unfinished"></translation>
+        <translation>&amp;Simbol</translation>
     </message>
     <message>
         <location line="+30"/>
         <source>&amp;Negative numbers</source>
-        <translation type="unfinished"></translation>
+        <translation>&amp;Angka negatif</translation>
     </message>
     <message>
         <location line="+12"/>
         <location line="+10"/>
         <source>&amp;Type</source>
-        <translation type="unfinished"></translation>
+        <translation>&amp;Jenis</translation>
     </message>
     <message>
         <location line="+209"/>
         <source>&amp;Horizontal</source>
-        <translation type="unfinished"></translation>
+        <translation>&amp;Horizontal</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>&amp;Indent</source>
-        <translation type="unfinished"></translation>
+        <translation>&amp;Indentasi</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>&amp;Vertical</source>
-        <translation type="unfinished"></translation>
+        <translation>&amp;Vertikal</translation>
     </message>
     <message>
         <location line="+28"/>
         <source>&amp;Degrees</source>
-        <translation type="unfinished"></translation>
+        <translation>&amp;Derajat</translation>
     </message>
     <message>
         <location line="+9"/>
         <source>Text &amp;direction</source>
-        <translation type="unfinished"></translation>
+        <translation>Arah &amp;teks</translation>
     </message>
     <message>
         <location line="+36"/>
         <source>&amp;Font</source>
-        <translation type="unfinished"></translation>
+        <translation>&amp;Font</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Font st&amp;yle</source>
-        <translation type="unfinished"></translation>
+        <translation>Gaya &amp;font</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>&amp;Size</source>
-        <translation type="unfinished"></translation>
+        <translation>&amp;Ukuran</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>&amp;Underline</source>
-        <translation type="unfinished"></translation>
+        <translation>&amp;Garis Bawah</translation>
     </message>
     <message>
         <location line="+5"/>
         <location line="+100"/>
         <source>&amp;Color</source>
-        <translation type="unfinished"></translation>
+        <translation>&amp;Warna</translation>
     </message>
     <message>
         <location line="-16"/>
         <source>St&amp;yle</source>
-        <translation type="unfinished"></translation>
+        <translation>Ga&amp;ya</translation>
     </message>
     <message>
         <location line="+140"/>
         <source>&amp;Background Color</source>
-        <translation type="unfinished"></translation>
+        <translation>Warna &amp;Latar Belakang</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>P&amp;attern Color</source>
-        <translation type="unfinished"></translation>
+        <translation>Warna P&amp;ola</translation>
     </message>
     <message>
         <location line="+25"/>
         <source>Pattern &amp;Style</source>
-        <translation type="unfinished"></translation>
+        <translation>Gaya &amp;Pola</translation>
     </message>
     <message>
         <location line="+13"/>
         <source>&amp;Second Color</source>
-        <translation type="unfinished"></translation>
+        <translation>Warna Ke&amp;dua</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>&amp;Direction</source>
-        <translation type="unfinished"></translation>
+        <translation>&amp;Arah</translation>
     </message>
     <message>
         <location line="-670"/>
@@ -36332,7 +36328,7 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+7"/>
         <source>Preview</source>
-        <translation type="unfinished">Pratinjau</translation>
+        <translation>Pratinjau</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -37281,7 +37277,7 @@ Berkas tidak dapat dibaca.</translation>
         <location line="+6"/>
         <location line="+7"/>
         <source>Cell with the formula</source>
-        <translation type="unfinished">Sel dengan rumus</translation>
+        <translation>Sel dengan rumus</translation>
     </message>
     <message>
         <location line="-4"/>
@@ -37292,12 +37288,12 @@ Berkas tidak dapat dibaca.</translation>
         <location line="+3"/>
         <location line="+3"/>
         <source>Cell to change</source>
-        <translation type="unfinished">Sel yang akan diubah</translation>
+        <translation>Sel yang akan diubah</translation>
     </message>
     <message>
         <location line="-1"/>
         <source>Value you want</source>
-        <translation type="unfinished"></translation>
+        <translation>Nilai yang diinginkan</translation>
     </message>
 </context>
 <context>
@@ -37338,7 +37334,7 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+1"/>
         <source>Type</source>
-        <translation type="unfinished">Jenis</translation>
+        <translation>Jenis</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -37407,7 +37403,7 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+4"/>
         <source>Go to</source>
-        <translation type="unfinished">Buka</translation>
+        <translation>Buka</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -37542,13 +37538,13 @@ Resolusi efektif: %3 ppi</translation>
         <location line="+5"/>
         <location line="+1"/>
         <source>Starting at</source>
-        <translation type="unfinished">Dimulai pada</translation>
+        <translation>Dimulai pada</translation>
     </message>
     <message>
         <location line="+3"/>
         <location line="+1"/>
         <source>Ending at</source>
-        <translation type="unfinished">Berakhir pada</translation>
+        <translation>Berakhir pada</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -37556,7 +37552,7 @@ Resolusi efektif: %3 ppi</translation>
         <location line="+4"/>
         <location line="+1"/>
         <source>By</source>
-        <translation type="unfinished">Menurut</translation>
+        <translation>Menurut</translation>
     </message>
     <message>
         <location line="-13"/>
@@ -37619,7 +37615,7 @@ Resolusi efektif: %3 ppi</translation>
     <message>
         <location line="+2"/>
         <source>Footer</source>
-        <translation type="unfinished">Footer</translation>
+        <translation>Footer</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -37672,7 +37668,7 @@ Resolusi efektif: %3 ppi</translation>
     <message>
         <location line="+4"/>
         <source>Text for</source>
-        <translation type="unfinished"></translation>
+        <translation>Teks untuk</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -37966,7 +37962,7 @@ Tidak ada topik bantuan bernama &quot;%1&quot;.</translation>
     <message>
         <location line="+37"/>
         <source>Commands</source>
-        <translation type="unfinished">Perintah</translation>
+        <translation>Perintah</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -38062,12 +38058,12 @@ Tidak ada topik bantuan bernama &quot;%1&quot;.</translation>
     <message>
         <location line="+0"/>
         <source>Kind</source>
-        <translation type="unfinished">Jenis</translation>
+        <translation>Jenis</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Value</source>
-        <translation type="unfinished">Nilai</translation>
+        <translation>Nilai</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -38340,7 +38336,7 @@ Tidak ada topik bantuan bernama &quot;%1&quot;.</translation>
     <message>
         <location line="+1"/>
         <source>Author</source>
-        <translation type="unfinished">Penulis</translation>
+        <translation>Pengarang</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -38462,17 +38458,17 @@ Tidak ada topik bantuan bernama &quot;%1&quot;.</translation>
     <message>
         <location line="-12"/>
         <source>Search</source>
-        <translation type="unfinished">Cari</translation>
+        <translation>Cari</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>Kind</source>
-        <translation type="unfinished">Jenis</translation>
+        <translation>Jenis</translation>
     </message>
     <message>
         <location line="+23"/>
         <source>Arguments</source>
-        <translation type="unfinished"></translation>
+        <translation>Argumen</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -38539,7 +38535,7 @@ Tidak ada topik bantuan bernama &quot;%1&quot;.</translation>
         <location line="+20"/>
         <location line="+4"/>
         <source>Keys for this command</source>
-        <translation type="unfinished">Tombol untuk perintah ini</translation>
+        <translation>Tombol untuk perintah ini</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -38550,7 +38546,7 @@ Tidak ada topik bantuan bernama &quot;%1&quot;.</translation>
         <location line="+6"/>
         <location line="+4"/>
         <source>Press the new keys</source>
-        <translation type="unfinished">Tekan tombol baru</translation>
+        <translation>Tekan tombol baru</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -38841,13 +38837,13 @@ Tidak ada topik bantuan bernama &quot;%1&quot;.</translation>
         <location line="+5"/>
         <location line="+1"/>
         <source>Text to show</source>
-        <translation type="unfinished">Teks yang ditampilkan</translation>
+        <translation>Teks yang ditampilkan</translation>
     </message>
     <message>
         <location line="+3"/>
         <location line="+4"/>
         <source>Go to</source>
-        <translation type="unfinished">Buka</translation>
+        <translation>Buka</translation>
     </message>
     <message>
         <location line="-3"/>
@@ -39004,13 +39000,13 @@ Tidak ada topik bantuan bernama &quot;%1&quot;.</translation>
         <location line="+15"/>
         <location line="+3"/>
         <source>Sheet</source>
-        <translation type="unfinished">Lembar</translation>
+        <translation>Lembar</translation>
     </message>
     <message>
         <location line="+3"/>
         <location line="+1"/>
         <source>Cell or cells</source>
-        <translation type="unfinished">Sel atau sel-sel</translation>
+        <translation>Sel atau sel-sel</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -39027,7 +39023,7 @@ Tidak ada topik bantuan bernama &quot;%1&quot;.</translation>
         <location line="+11"/>
         <location line="+1"/>
         <source>E-mail address</source>
-        <translation type="unfinished">Alamat email</translation>
+        <translation>Alamat email</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -39039,17 +39035,17 @@ Tidak ada topik bantuan bernama &quot;%1&quot;.</translation>
         <location line="+7"/>
         <location line="+1"/>
         <source>Screen tip</source>
-        <translation type="unfinished">Tip layar</translation>
+        <translation>Tip layar</translation>
     </message>
     <message>
         <location line="-44"/>
         <source>Or a recent file</source>
-        <translation type="unfinished"></translation>
+        <translation>Atau berkas terbaru</translation>
     </message>
     <message>
         <location line="+22"/>
         <source>Or a name</source>
-        <translation type="unfinished"></translation>
+        <translation>Atau nama</translation>
     </message>
     <message>
         <location line="+92"/>
@@ -39135,7 +39131,7 @@ Tidak ada topik bantuan bernama &quot;%1&quot;.</translation>
         <location line="+10"/>
         <location line="+127"/>
         <source>Bullet character</source>
-        <translation type="unfinished"></translation>
+        <translation>Karakter poin</translation>
     </message>
     <message>
         <location line="-125"/>
@@ -39162,19 +39158,19 @@ Tidak ada topik bantuan bernama &quot;%1&quot;.</translation>
         <location line="-10"/>
         <location line="+82"/>
         <source>Number style</source>
-        <translation type="unfinished"></translation>
+        <translation>Gaya angka</translation>
     </message>
     <message>
         <location line="-75"/>
         <location line="+82"/>
         <source>Punctuation</source>
-        <translation type="unfinished">Tanda Baca</translation>
+        <translation>Tanda baca</translation>
     </message>
     <message>
         <location line="-81"/>
         <location line="+80"/>
         <source>Number format (%1 is the number)</source>
-        <translation type="unfinished"></translation>
+        <translation>Format angka (%1 adalah angkanya)</translation>
     </message>
     <message>
         <location line="-73"/>
@@ -39185,15 +39181,20 @@ Tidak ada topik bantuan bernama &quot;%1&quot;.</translation>
     <message>
         <location line="-66"/>
         <source>Preview</source>
-        <translation type="unfinished">Pratinjau</translation>
+        <translation>Pratinjau</translation>
     </message>
     <message>
         <location line="+32"/>
         <source>Level is a</source>
-        <translation type="unfinished"></translation>
+        <translation>Level adalah</translation>
     </message>
     <message>
-        <location line="-103"/>
+        <location line="+99"/>
+        <source>Set the value to</source>
+        <translation>Atur nilai menjadi</translation>
+    </message>
+    <message>
+        <location line="-202"/>
         <source> pt</source>
         <translation type="unfinished"> pt</translation>
     </message>
@@ -39247,11 +39248,6 @@ Tidak ada topik bantuan bernama &quot;%1&quot;.</translation>
         <location line="+2"/>
         <source>Continue previous list</source>
         <translation type="unfinished">Lanjutkan daftar sebelumnya</translation>
-    </message>
-    <message>
-        <location line="+6"/>
-        <source>Set the value to:</source>
-        <translation type="unfinished">Atur nilai menjadi:</translation>
     </message>
 </context>
 <context>
@@ -40218,7 +40214,7 @@ Sumber: %3</translation>
         <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-171"/>
         <location line="+1"/>
         <source>Print</source>
-        <translation type="unfinished">Cetak</translation>
+        <translation>Cetak</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -40253,7 +40249,7 @@ Sumber: %3</translation>
     <message>
         <location line="+1"/>
         <source>Copy</source>
-        <translation type="unfinished">Salin</translation>
+        <translation>Salin</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -40362,7 +40358,7 @@ Sumber: %3</translation>
         <location line="-99"/>
         <location line="+100"/>
         <source>Replace</source>
-        <translation type="unfinished">Ganti</translation>
+        <translation>Ganti</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -40527,7 +40523,7 @@ Sumber: %3</translation>
     <message>
         <location line="+4"/>
         <source>Numbering</source>
-        <translation type="unfinished">Penomoran</translation>
+        <translation>Penomoran</translation>
     </message>
     <message>
         <location line="+260"/>
@@ -40778,17 +40774,17 @@ Sumber: %3</translation>
     <message>
         <location line="+1"/>
         <source>Bookmark</source>
-        <translation type="unfinished">Penanda</translation>
+        <translation>Penanda</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Header</source>
-        <translation type="unfinished">Header</translation>
+        <translation>Header</translation>
     </message>
     <message>
         <location line="+13"/>
         <source>Footer</source>
-        <translation type="unfinished">Footer</translation>
+        <translation>Footer</translation>
     </message>
     <message>
         <location line="+30"/>
@@ -41188,7 +41184,7 @@ Sumber: %3</translation>
         <location line="+468"/>
         <location line="+1"/>
         <source>Margins</source>
-        <translation type="unfinished">Margin</translation>
+        <translation>Margin</translation>
     </message>
     <message>
         <location line="-466"/>
@@ -41810,7 +41806,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+1"/>
         <source>Fields</source>
-        <translation type="unfinished">Bidang</translation>
+        <translation>Bidang</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -42947,7 +42943,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+32"/>
         <source>Lines</source>
-        <translation type="unfinished">Garis</translation>
+        <translation>Baris</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -43271,7 +43267,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+2"/>
         <source>Words</source>
-        <translation type="unfinished">Kata</translation>
+        <translation>Kata</translation>
     </message>
     <message>
         <location line="+21"/>
@@ -43541,7 +43537,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+1"/>
         <source>Footer</source>
-        <translation type="unfinished">Footer</translation>
+        <translation>Footer</translation>
     </message>
 </context>
 <context>
@@ -43758,12 +43754,12 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+10"/>
         <source>Works on</source>
-        <translation type="unfinished">Berlaku pada</translation>
+        <translation>Berlaku pada</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Stands for</source>
-        <translation type="unfinished">Mewakili</translation>
+        <translation>Mewakili</translation>
     </message>
     <message>
         <location line="-12"/>
@@ -43868,17 +43864,17 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+1"/>
         <source>Value</source>
-        <translation type="unfinished">Nilai</translation>
+        <translation>Nilai</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Stands for</source>
-        <translation type="unfinished">Mewakili</translation>
+        <translation>Mewakili</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Works on</source>
-        <translation type="unfinished">Berlaku pada</translation>
+        <translation>Berlaku pada</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -43996,7 +43992,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <location filename="../apps/deck/app/notespane.cpp" line="+20"/>
         <location line="+45"/>
         <source>Notes</source>
-        <translation type="unfinished">Catatan</translation>
+        <translation>Catatan</translation>
     </message>
     <message>
         <location line="-44"/>
@@ -44121,7 +44117,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+2"/>
         <source>Search</source>
-        <translation type="unfinished">Cari</translation>
+        <translation>Cari</translation>
     </message>
     <message>
         <location line="+14"/>
@@ -44543,7 +44539,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+1"/>
         <source>Margins</source>
-        <translation type="unfinished">Margin</translation>
+        <translation>Margin</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -44553,7 +44549,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+1"/>
         <source>Sheet</source>
-        <translation type="unfinished">Lembar</translation>
+        <translation>Lembar</translation>
     </message>
     <message>
         <location line="+23"/>
@@ -44639,7 +44635,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+8"/>
         <source>Paper size</source>
-        <translation type="unfinished">Ukuran kertas</translation>
+        <translation>Ukuran kertas</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -44679,38 +44675,38 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+0"/>
         <source>Header, from the top edge</source>
-        <translation type="unfinished"></translation>
+        <translation>Header, dari tepi atas</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Footer, from the bottom edge</source>
-        <translation type="unfinished"></translation>
+        <translation>Footer, dari tepi bawah</translation>
     </message>
     <message>
         <location line="+100"/>
         <source>Header</source>
-        <translation type="unfinished">Header</translation>
+        <translation>Header</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Footer</source>
-        <translation type="unfinished">Footer</translation>
+        <translation>Footer</translation>
     </message>
     <message>
         <location line="+127"/>
         <source>Repeat these rows at the top</source>
-        <translation type="unfinished"></translation>
+        <translation>Ulangi baris ini di bagian atas</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Repeat these columns at the left</source>
-        <translation type="unfinished"></translation>
+        <translation>Ulangi kolom ini di sisi kiri</translation>
     </message>
     <message>
         <location line="-268"/>
         <location line="+4"/>
         <source>Print quality</source>
-        <translation type="unfinished">Kualitas cetak</translation>
+        <translation>Kualitas cetak</translation>
     </message>
     <message>
         <location line="-3"/>
@@ -44794,7 +44790,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+2"/>
         <source>Replace</source>
-        <translation type="unfinished">Ganti</translation>
+        <translation>Ganti</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -44898,7 +44894,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <location line="+9"/>
         <location line="+4"/>
         <source>Cells to print</source>
-        <translation type="unfinished">Sel yang akan dicetak</translation>
+        <translation>Sel yang akan dicetak</translation>
     </message>
     <message>
         <location line="-3"/>
@@ -44974,7 +44970,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <location line="+5"/>
         <location line="+6"/>
         <source>Notes</source>
-        <translation type="unfinished">Catatan</translation>
+        <translation>Catatan</translation>
     </message>
     <message>
         <location line="-5"/>
@@ -45000,7 +44996,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <location line="+4"/>
         <location line="+6"/>
         <source>Cells that show an error</source>
-        <translation type="unfinished">Sel yang menampilkan kesalahan</translation>
+        <translation>Sel yang menampilkan kesalahan</translation>
     </message>
     <message>
         <location line="-5"/>
@@ -45084,7 +45080,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
 <context>
     <name>jp::PaneFrame</name>
     <message>
-        <location filename="../libs/shell/app/paneframe.cpp" line="+207"/>
+        <location filename="../libs/shell/app/paneframe.cpp" line="+208"/>
         <location line="+1"/>
         <source>Close</source>
         <translation type="unfinished">Tutup</translation>
@@ -45129,7 +45125,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <location filename="../libs/shell/app/passworddialogs.cpp" line="+33"/>
         <location line="+7"/>
         <source>Password</source>
-        <translation type="unfinished">Kata Sandi</translation>
+        <translation>Kata Sandi</translation>
     </message>
     <message>
         <location line="-5"/>
@@ -45383,7 +45379,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+16"/>
         <source>Weight</source>
-        <translation type="unfinished">Ketebalan</translation>
+        <translation>Ketebalan</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -45476,7 +45472,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+6"/>
         <source>The cells the data is in, with a row of names above it, or the name of a table</source>
-        <translation type="unfinished"></translation>
+        <translation>Sel tempat data berada, dengan baris nama di atasnya, atau nama tabel</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -45491,7 +45487,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+6"/>
         <source>Where the pivot table goes</source>
-        <translation type="unfinished"></translation>
+        <translation>Tempat tabel pivot akan ditempatkan</translation>
     </message>
 </context>
 <context>
@@ -45559,7 +45555,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+6"/>
         <source>Search</source>
-        <translation type="unfinished">Cari</translation>
+        <translation>Cari</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -45846,7 +45842,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <location line="+2"/>
         <location line="+14"/>
         <source>Notes</source>
-        <translation type="unfinished">Catatan</translation>
+        <translation>Catatan</translation>
     </message>
     <message>
         <location line="-12"/>
@@ -45956,7 +45952,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+1"/>
         <source>Header</source>
-        <translation type="unfinished">Header</translation>
+        <translation>Header</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -45966,7 +45962,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+1"/>
         <source>Footer</source>
-        <translation type="unfinished">Footer</translation>
+        <translation>Footer</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -46077,22 +46073,22 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+6"/>
         <source>Password</source>
-        <translation type="unfinished">Kata Sandi</translation>
+        <translation>Kata Sandi</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Password (optional)</source>
-        <translation type="unfinished"></translation>
+        <translation>Kata Sandi (opsional)</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Type it again</source>
-        <translation type="unfinished"></translation>
+        <translation>Ketik ulang</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Anyone may also</source>
-        <translation type="unfinished"></translation>
+        <translation>Semua orang juga boleh</translation>
     </message>
     <message>
         <location line="-7"/>
@@ -46135,17 +46131,17 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+7"/>
         <source>Password</source>
-        <translation type="unfinished">Kata Sandi</translation>
+        <translation>Kata Sandi</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Password (optional)</source>
-        <translation type="unfinished"></translation>
+        <translation>Kata Sandi (opsional)</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Type it again</source>
-        <translation type="unfinished"></translation>
+        <translation>Ketik ulang</translation>
     </message>
     <message>
         <location line="-2"/>
@@ -46221,12 +46217,12 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="-4"/>
         <source>Quick toolbar</source>
-        <translation type="unfinished"></translation>
+        <translation>Bilah Alat Cepat</translation>
     </message>
     <message>
         <location line="+9"/>
         <source>Commands</source>
-        <translation type="unfinished">Perintah</translation>
+        <translation>Perintah</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -46342,7 +46338,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+51"/>
         <source>Separator</source>
-        <translation type="unfinished">Pemisah</translation>
+        <translation>Pemisah</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -46529,7 +46525,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+10"/>
         <source>With</source>
-        <translation type="unfinished">Dengan</translation>
+        <translation>Dengan</translation>
     </message>
     <message>
         <location line="-1"/>
@@ -46540,7 +46536,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <location line="-7"/>
         <location line="+11"/>
         <source>Replace</source>
-        <translation type="unfinished">Ganti</translation>
+        <translation>Ganti</translation>
     </message>
     <message>
         <location filename="../libs/page/app/pagefonts.cpp" line="-49"/>
@@ -46864,12 +46860,12 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="-24"/>
         <source>Tabs and groups</source>
-        <translation type="unfinished"></translation>
+        <translation>Tab dan grup</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>Commands</source>
-        <translation type="unfinished">Perintah</translation>
+        <translation>Perintah</translation>
     </message>
     <message>
         <location line="+19"/>
@@ -47039,17 +47035,17 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+2"/>
         <source>Scenario &amp;name</source>
-        <translation type="unfinished"></translation>
+        <translation>&amp;Nama skenario</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>&amp;Changing cells</source>
-        <translation type="unfinished"></translation>
+        <translation>&amp;Sel yang diubah</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>C&amp;omment</source>
-        <translation type="unfinished"></translation>
+        <translation>K&amp;omentar</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -47069,7 +47065,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+0"/>
         <source>Value</source>
-        <translation type="unfinished">Nilai</translation>
+        <translation>Nilai</translation>
     </message>
 </context>
 <context>
@@ -47087,7 +47083,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+5"/>
         <source>&amp;Scenarios</source>
-        <translation type="unfinished"></translation>
+        <translation>&amp;Skenario</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -47387,7 +47383,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <location line="+6"/>
         <location line="+2"/>
         <source>Password</source>
-        <translation type="unfinished">Kata Sandi</translation>
+        <translation>Kata Sandi</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -47397,7 +47393,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+2"/>
         <source>Type it again</source>
-        <translation type="unfinished"></translation>
+        <translation>Ketik sekali lagi</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -47921,7 +47917,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+1"/>
         <source>Copy</source>
-        <translation type="unfinished">Salin</translation>
+        <translation>Salin</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -48055,7 +48051,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+1"/>
         <source>Copy</source>
-        <translation type="unfinished">Salin</translation>
+        <translation>Salin</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -48116,7 +48112,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location filename="../apps/crunch/app/sortdialog.cpp" line="+46"/>
         <source>Sort</source>
-        <translation type="unfinished">Urutkan</translation>
+        <translation>Urutkan</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -48151,7 +48147,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+1"/>
         <source>Column</source>
-        <translation type="unfinished">Kolom</translation>
+        <translation>Kolom</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -48380,19 +48376,19 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <location line="+6"/>
         <location line="+6"/>
         <source>At each change in</source>
-        <translation type="unfinished">Pada setiap perubahan di</translation>
+        <translation>Pada setiap perubahan di</translation>
     </message>
     <message>
         <location line="-2"/>
         <location line="+3"/>
         <source>Use function</source>
-        <translation type="unfinished">Gunakan fungsi</translation>
+        <translation>Gunakan fungsi</translation>
     </message>
     <message>
         <location line="+2"/>
         <location line="+3"/>
         <source>Add subtotal to</source>
-        <translation type="unfinished">Tambahkan subtotal ke</translation>
+        <translation>Tambahkan subtotal ke</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -48635,7 +48631,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <location line="+6"/>
         <location line="+3"/>
         <source>Text encoding</source>
-        <translation type="unfinished">Pengodean teks</translation>
+        <translation>Pengodean teks</translation>
     </message>
     <message>
         <location line="-2"/>
@@ -48650,32 +48646,32 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+3"/>
         <source>Fields are separated by</source>
-        <translation type="unfinished"></translation>
+        <translation>Bidang dipisahkan oleh</translation>
     </message>
     <message>
         <location line="+12"/>
         <source>Text is in</source>
-        <translation type="unfinished"></translation>
+        <translation>Teks berada dalam</translation>
     </message>
     <message>
         <location line="+12"/>
         <source>Columns begin at</source>
-        <translation type="unfinished"></translation>
+        <translation>Kolom dimulai pada</translation>
     </message>
     <message>
         <location line="+9"/>
         <source>Click to split</source>
-        <translation type="unfinished"></translation>
+        <translation>Klik untuk memisahkan</translation>
     </message>
     <message>
         <location line="+19"/>
         <source>Thousands</source>
-        <translation type="unfinished">Ribuan</translation>
+        <translation>Ribuan</translation>
     </message>
     <message>
         <location line="+18"/>
         <source>Begin at row</source>
-        <translation type="unfinished"></translation>
+        <translation>Mulai dari baris</translation>
     </message>
     <message>
         <location line="-86"/>
@@ -48757,7 +48753,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <location line="+9"/>
         <location line="+23"/>
         <source>Decimal mark</source>
-        <translation type="unfinished">Tanda desimal</translation>
+        <translation>Tanda desimal</translation>
     </message>
     <message>
         <location line="-22"/>
@@ -48896,34 +48892,29 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <translation type="unfinished">Spasi</translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>Other:</source>
-        <translation type="unfinished">Lainnya:</translation>
-    </message>
-    <message>
-        <location line="+10"/>
+        <location line="+11"/>
         <source>Other separator</source>
         <translation type="unfinished">Pemisah Lainnya</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Separators</source>
-        <translation type="unfinished"></translation>
+        <translation>Pemisah</translation>
     </message>
     <message>
         <location line="+15"/>
         <source>Fixed places</source>
-        <translation type="unfinished"></translation>
+        <translation>Posisi tetap</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Each piece is</source>
-        <translation type="unfinished"></translation>
+        <translation>Setiap bagian adalah</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Put the pieces from</source>
-        <translation type="unfinished"></translation>
+        <translation>Letakkan bagian-bagian dari</translation>
     </message>
     <message>
         <location line="-24"/>
@@ -48931,10 +48922,15 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <translation type="unfinished">Perlakukan pemisah berurutan sebagai satu</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="-15"/>
+        <source>Other</source>
+        <translation>Lainnya</translation>
+    </message>
+    <message>
+        <location line="+20"/>
         <location line="+4"/>
         <source>Text in quotes</source>
-        <translation type="unfinished">Teks dalam tanda kutip</translation>
+        <translation>Teks dalam tanda kutip</translation>
     </message>
     <message>
         <location line="-3"/>
@@ -49136,7 +49132,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+3"/>
         <source>How many</source>
-        <translation type="unfinished">Berapa banyak</translation>
+        <translation>Berapa banyak</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -49146,7 +49142,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+1"/>
         <source>Items</source>
-        <translation type="unfinished">Item</translation>
+        <translation>Item</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -49217,23 +49213,23 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+7"/>
         <source>To</source>
-        <translation type="unfinished"></translation>
+        <translation>Ke</translation>
     </message>
     <message>
         <location line="+24"/>
         <source>Original</source>
-        <translation type="unfinished">Asli</translation>
+        <translation>Asli</translation>
     </message>
     <message>
         <location line="+49"/>
         <location line="+4"/>
         <source>Translation</source>
-        <translation type="unfinished">Terjemahan</translation>
+        <translation>Terjemahan</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Replace</source>
-        <translation type="unfinished">Ganti</translation>
+        <translation>Ganti</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -49494,7 +49490,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <location line="+9"/>
         <location line="+27"/>
         <source>Allow</source>
-        <translation type="unfinished">Izinkan</translation>
+        <translation>Izinkan</translation>
     </message>
     <message>
         <location line="-25"/>
@@ -49540,7 +49536,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <location line="+4"/>
         <location line="+20"/>
         <source>Data</source>
-        <translation type="unfinished">Data</translation>
+        <translation>Data</translation>
     </message>
     <message>
         <location line="-18"/>
@@ -49602,7 +49598,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <location line="-20"/>
         <location line="+21"/>
         <source>Message</source>
-        <translation type="unfinished"></translation>
+        <translation>Pesan</translation>
     </message>
     <message>
         <location line="-2"/>
@@ -49612,27 +49608,27 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+49"/>
         <source>Source</source>
-        <translation type="unfinished">Sumber</translation>
+        <translation>Sumber</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Formula</source>
-        <translation type="unfinished">Rumus</translation>
+        <translation>Rumus</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Minimum</source>
-        <translation type="unfinished">Minimum</translation>
+        <translation>Minimum</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Value</source>
-        <translation type="unfinished">Nilai</translation>
+        <translation>Nilai</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Maximum</source>
-        <translation type="unfinished">Maksimum</translation>
+        <translation>Maksimum</translation>
     </message>
     <message>
         <location line="-87"/>
@@ -49721,24 +49717,24 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <location line="+8"/>
         <location line="+1"/>
         <source>Custom name</source>
-        <translation type="unfinished">Nama kustom</translation>
+        <translation>Nama kustom</translation>
     </message>
     <message>
         <location line="+3"/>
         <location line="+6"/>
         <source>Summarize value field by</source>
-        <translation type="unfinished">Ringkas bidang nilai menurut</translation>
+        <translation>Ringkas bidang nilai menurut</translation>
     </message>
     <message>
         <location line="-13"/>
         <source>Source name</source>
-        <translation type="unfinished"></translation>
+        <translation>Nama sumber</translation>
     </message>
     <message>
         <location line="+17"/>
         <location line="+11"/>
         <source>Show values as</source>
-        <translation type="unfinished">Tampilkan nilai sebagai</translation>
+        <translation>Tampilkan nilai sebagai</translation>
     </message>
     <message>
         <location line="-9"/>
@@ -49808,19 +49804,19 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+35"/>
         <source>Number format (a code; empty keeps the cells&apos; own)</source>
-        <translation type="unfinished"></translation>
+        <translation>Format angka (kode; kosong mempertahankan milik sel)</translation>
     </message>
     <message>
         <location line="-27"/>
         <location line="+5"/>
         <source>Base field</source>
-        <translation type="unfinished">Bidang dasar</translation>
+        <translation>Bidang dasar</translation>
     </message>
     <message>
         <location line="+3"/>
         <location line="+1"/>
         <source>Base item</source>
-        <translation type="unfinished">Item dasar</translation>
+        <translation>Item dasar</translation>
     </message>
     <message>
         <location line="+13"/>
@@ -50007,7 +50003,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+8"/>
         <source>Sheet</source>
-        <translation type="unfinished">Lembar</translation>
+        <translation>Lembar</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -50017,12 +50013,12 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+0"/>
         <source>Value</source>
-        <translation type="unfinished">Nilai</translation>
+        <translation>Nilai</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Formula</source>
-        <translation type="unfinished">Rumus</translation>
+        <translation>Rumus</translation>
     </message>
 </context>
 <context>
@@ -50089,7 +50085,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <location line="+209"/>
         <location line="+1"/>
         <source>Print</source>
-        <translation type="unfinished">Cetak</translation>
+        <translation>Cetak</translation>
     </message>
     <message>
         <location line="-209"/>
@@ -50175,7 +50171,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+82"/>
         <source>Which pages</source>
-        <translation type="unfinished"></translation>
+        <translation>Halaman mana</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -50185,12 +50181,12 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+3"/>
         <source>Pages on a sheet</source>
-        <translation type="unfinished"></translation>
+        <translation>Halaman pada satu lembar</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Scale to paper</source>
-        <translation type="unfinished"></translation>
+        <translation>Skala ke kertas</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -50210,7 +50206,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+40"/>
         <source>Show</source>
-        <translation type="unfinished">Tampilkan</translation>
+        <translation>Tampilkan</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -50529,7 +50525,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+6"/>
         <source>Special</source>
-        <translation type="unfinished">Khusus</translation>
+        <translation>Khusus</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -50569,7 +50565,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+0"/>
         <source>Field</source>
-        <translation type="unfinished">Bidang</translation>
+        <translation>Bidang</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -50669,7 +50665,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+1"/>
         <source>Replace</source>
-        <translation type="unfinished">Ganti</translation>
+        <translation>Ganti</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -50792,7 +50788,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+1"/>
         <source>Letters</source>
-        <translation type="unfinished">Surat</translation>
+        <translation>Huruf</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -50813,7 +50809,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <location line="+431"/>
         <location line="+3"/>
         <source>Labels</source>
-        <translation type="unfinished">Label</translation>
+        <translation>Label</translation>
     </message>
     <message>
         <location line="-674"/>
@@ -51294,7 +51290,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+1"/>
         <source>Copy</source>
-        <translation type="unfinished">Salin</translation>
+        <translation>Salin</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -51386,7 +51382,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+1"/>
         <source>Numbering</source>
-        <translation type="unfinished">Penomoran</translation>
+        <translation>Penomoran</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -52164,13 +52160,13 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location filename="../apps/write/app/writewindow_find.cpp" line="+16"/>
         <source>Find</source>
-        <translation type="unfinished">Temukan</translation>
+        <translation>Temukan</translation>
     </message>
     <message>
         <location line="+1"/>
         <location filename="../apps/write/app/writewindow_headers.cpp" line="+163"/>
         <source>Replace</source>
-        <translation type="unfinished">Ganti</translation>
+        <translation>Ganti</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -52190,12 +52186,12 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location filename="../apps/write/app/writewindow_headers.cpp" line="-134"/>
         <source>Header</source>
-        <translation type="unfinished">Header</translation>
+        <translation>Header</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Footer</source>
-        <translation type="unfinished">Footer</translation>
+        <translation>Footer</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -52323,7 +52319,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+30"/>
         <source>Author</source>
-        <translation type="unfinished">Penulis</translation>
+        <translation>Pengarang</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -52559,7 +52555,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+1"/>
         <source>Words</source>
-        <translation type="unfinished">Kata</translation>
+        <translation>Kata</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -52569,12 +52565,12 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+1"/>
         <source>Characters (with spaces)</source>
-        <translation type="unfinished">Karakter (dengan spasi)</translation>
+        <translation>Karakter (dengan spasi)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Paragraphs</source>
-        <translation type="unfinished">Paragraf</translation>
+        <translation>Paragraf</translation>
     </message>
     <message>
         <location line="+46"/>
@@ -52863,7 +52859,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <location line="+1"/>
         <location filename="../apps/write/app/writewindow_shapes.cpp" line="+177"/>
         <source>Column</source>
-        <translation type="unfinished">Kolom</translation>
+        <translation>Kolom</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -52988,7 +52984,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location filename="../apps/write/app/writewindow_mail.cpp" line="+29"/>
         <source>Letters</source>
-        <translation type="unfinished">Surat</translation>
+        <translation>Huruf</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -53323,12 +53319,12 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <location line="+42"/>
         <location line="+40"/>
         <source>Print</source>
-        <translation type="unfinished">Cetak</translation>
+        <translation>Cetak</translation>
     </message>
     <message>
         <location line="-485"/>
         <source>Pages to include</source>
-        <translation type="unfinished"></translation>
+        <translation>Halaman yang disertakan</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -53495,12 +53491,12 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+2"/>
         <source>Put in the message</source>
-        <translation type="unfinished"></translation>
+        <translation>Masukkan dalam pesan</translation>
     </message>
     <message>
         <location line="+34"/>
         <source>Text encoding</source>
-        <translation type="unfinished">Pengodean teks</translation>
+        <translation>Pengodean teks</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -53515,13 +53511,13 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+6"/>
         <source>Encoding</source>
-        <translation type="unfinished"></translation>
+        <translation>Pengodean</translation>
     </message>
     <message>
         <location line="+3"/>
         <location line="+5"/>
         <source>Line ends</source>
-        <translation type="unfinished">Akhir baris</translation>
+        <translation>Akhir baris</translation>
     </message>
     <message>
         <location line="-2"/>
@@ -54053,7 +54049,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+1"/>
         <source>Original</source>
-        <translation type="unfinished">Asli</translation>
+        <translation>Asli</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -54545,7 +54541,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+14"/>
         <source>Lines</source>
-        <translation type="unfinished">Garis</translation>
+        <translation>Baris</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -57593,7 +57589,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <location line="+1"/>
         <location line="+9"/>
         <source>Formula</source>
-        <translation type="unfinished">Rumus</translation>
+        <translation>Rumus</translation>
     </message>
     <message>
         <location line="-1"/>
@@ -57603,7 +57599,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+2"/>
         <source>Field</source>
-        <translation type="unfinished">Bidang</translation>
+        <translation>Bidang</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -58917,7 +58913,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+1"/>
         <source>Special</source>
-        <translation type="unfinished">Khusus</translation>
+        <translation>Khusus</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -63966,12 +63962,12 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+1"/>
         <source>Minimum</source>
-        <translation type="unfinished">Minimum</translation>
+        <translation>Minimum</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Maximum</source>
-        <translation type="unfinished">Maksimum</translation>
+        <translation>Maksimum</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -65306,7 +65302,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <location line="+12"/>
         <location filename="../libs/office/sheet/tables.cpp" line="+250"/>
         <source>Column</source>
-        <translation type="unfinished">Kolom</translation>
+        <translation>Kolom</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -65551,7 +65547,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+0"/>
         <source>Macros</source>
-        <translation type="unfinished"></translation>
+        <translation>Makro</translation>
     </message>
     <message>
         <location line="+18"/>
@@ -65624,7 +65620,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+1"/>
         <source>Links that start a program</source>
-        <translation type="unfinished"></translation>
+        <translation>Tautan yang menjalankan program</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -65900,17 +65896,17 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+3"/>
         <source>Gutter</source>
-        <translation type="unfinished"></translation>
+        <translation>Tepi Jilid</translation>
     </message>
     <message>
         <location line="+16"/>
         <source>Multiple pages</source>
-        <translation type="unfinished"></translation>
+        <translation>Beberapa halaman</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>Sheets per booklet</source>
-        <translation type="unfinished"></translation>
+        <translation>Lembar per buklet</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -65925,7 +65921,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+15"/>
         <source>Paper size</source>
-        <translation type="unfinished"></translation>
+        <translation>Ukuran kertas</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -65940,22 +65936,22 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+64"/>
         <source>Section start</source>
-        <translation type="unfinished"></translation>
+        <translation>Mulai bagian</translation>
     </message>
     <message>
         <location line="+9"/>
         <source>Header, from the edge</source>
-        <translation type="unfinished"></translation>
+        <translation>Header, dari tepi</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Footer, from the edge</source>
-        <translation type="unfinished"></translation>
+        <translation>Footer, dari tepi</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>Apply to</source>
-        <translation type="unfinished"></translation>
+        <translation>Terapkan ke</translation>
     </message>
     <message>
         <location line="-131"/>
@@ -65985,7 +65981,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+15"/>
         <source>Margins</source>
-        <translation type="unfinished">Margin</translation>
+        <translation>Margin</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -66232,7 +66228,12 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <translation type="unfinished">Spasi karakter</translation>
     </message>
     <message>
-        <location line="+42"/>
+        <location line="+33"/>
+        <source>Kerning for fonts of this size and above</source>
+        <translation>Kerning untuk font dengan ukuran ini dan di atasnya</translation>
+    </message>
+    <message>
+        <location line="+9"/>
         <source>Spacing</source>
         <translation>Spasi</translation>
     </message>
@@ -66240,7 +66241,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <location line="+2"/>
         <location line="+4"/>
         <source>By</source>
-        <translation type="unfinished">Menurut</translation>
+        <translation>Dengan</translation>
     </message>
     <message>
         <location line="-2"/>
@@ -66250,12 +66251,12 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+221"/>
         <source>Tab stop position</source>
-        <translation type="unfinished"></translation>
+        <translation>Posisi tab berhenti</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Tab stops to clear</source>
-        <translation type="unfinished"></translation>
+        <translation>Tab berhenti yang akan dihapus</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -66266,32 +66267,32 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="-71"/>
         <source>Leader</source>
-        <translation type="unfinished">Pengisi Tab</translation>
+        <translation>Pengisi Tab</translation>
     </message>
     <message>
         <location line="+84"/>
         <source>Indentation, left</source>
-        <translation type="unfinished"></translation>
+        <translation>Indentasi kiri</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Indentation, right</source>
-        <translation type="unfinished"></translation>
+        <translation>Indentasi kanan</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Special</source>
-        <translation type="unfinished">Khusus</translation>
+        <translation>Khusus</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>Spacing, before</source>
-        <translation type="unfinished"></translation>
+        <translation>Spasi sebelum</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Spacing, after</source>
-        <translation type="unfinished"></translation>
+        <translation>Spasi sesudah</translation>
     </message>
     <message>
         <location line="+29"/>
@@ -66301,12 +66302,12 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+40"/>
         <source>Outline level</source>
-        <translation type="unfinished"></translation>
+        <translation>Level Garis Besar</translation>
     </message>
     <message>
         <location line="+122"/>
         <source>Pages across</source>
-        <translation type="unfinished"></translation>
+        <translation>Halaman ke samping</translation>
     </message>
     <message>
         <location filename="../apps/write/app/pagesetupdialog.cpp" line="-183"/>
@@ -66347,19 +66348,14 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <translation type="unfinished">Diturunkan</translation>
     </message>
     <message>
-        <location line="+6"/>
-        <source>Kerning for fonts of this size and above:</source>
-        <translation type="unfinished">Kerning untuk font dengan ukuran ini dan di atasnya:</translation>
-    </message>
-    <message>
-        <location line="+31"/>
+        <location line="+37"/>
         <source>AaBbYyZz</source>
         <translation type="unfinished">AaBbYyZz</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Preview</source>
-        <translation type="unfinished">Pratinjau</translation>
+        <translation>Pratinjau</translation>
     </message>
     <message>
         <location filename="../apps/write/app/pagesetupdialog.cpp" line="+122"/>
@@ -66487,7 +66483,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+13"/>
         <source>First line</source>
-        <translation type="unfinished">Baris Pertama</translation>
+        <translation>Baris pertama</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -66637,7 +66633,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+2"/>
         <source>Order in the lists (lower comes first)</source>
-        <translation type="unfinished"></translation>
+        <translation>Urutan dalam daftar (yang lebih rendah tampil lebih dulu)</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -66704,12 +66700,12 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="-33"/>
         <source>Check the styles to save in a template file</source>
-        <translation type="unfinished"></translation>
+        <translation>Centang gaya yang akan disimpan dalam berkas templat</translation>
     </message>
     <message>
         <location line="+46"/>
         <source>Check the styles to copy into this document</source>
-        <translation type="unfinished"></translation>
+        <translation>Centang gaya yang akan disalin ke dokumen ini</translation>
     </message>
     <message>
         <location line="-43"/>
@@ -66811,7 +66807,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <location filename="../apps/write/app/fielddialogs.cpp" line="+39"/>
         <location line="+102"/>
         <source>Bookmark</source>
-        <translation type="unfinished">Penanda</translation>
+        <translation>Penanda</translation>
     </message>
     <message>
         <location line="-94"/>
@@ -66892,27 +66888,27 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+9"/>
         <source>Sort by</source>
-        <translation type="unfinished">Urutkan berdasarkan</translation>
+        <translation>Urutkan berdasarkan</translation>
     </message>
     <message>
         <location line="+98"/>
         <source>Reference type</source>
-        <translation type="unfinished"></translation>
+        <translation>Jenis referensi</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Insert reference to</source>
-        <translation type="unfinished"></translation>
+        <translation>Sisipkan referensi ke</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>For which item</source>
-        <translation type="unfinished"></translation>
+        <translation>Untuk item mana</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Items</source>
-        <translation type="unfinished">Item</translation>
+        <translation>Item</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -67018,29 +67014,29 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+26"/>
         <source>Field</source>
-        <translation type="unfinished">Bidang</translation>
+        <translation>Bidang</translation>
     </message>
     <message>
         <location line="+35"/>
         <location line="+34"/>
         <source>Field codes</source>
-        <translation type="unfinished"></translation>
+        <translation>Kode bidang</translation>
     </message>
     <message>
         <location line="+55"/>
         <source>Tab leader</source>
-        <translation type="unfinished"></translation>
+        <translation>Pengisi tab</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Show levels</source>
-        <translation type="unfinished"></translation>
+        <translation>Tampilkan tingkat</translation>
     </message>
     <message>
         <location line="-123"/>
         <location line="+3"/>
         <source>Field names</source>
-        <translation type="unfinished">Nama bidang</translation>
+        <translation>Nama bidang</translation>
     </message>
     <message>
         <location line="+46"/>
@@ -67360,7 +67356,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+1"/>
         <source>Bookmark</source>
-        <translation type="unfinished">Penanda</translation>
+        <translation>Penanda</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -67400,7 +67396,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+1"/>
         <source>Field</source>
-        <translation type="unfinished">Bidang</translation>
+        <translation>Bidang</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -67501,7 +67497,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+7"/>
         <source>Sort by</source>
-        <translation type="unfinished">Urutkan berdasarkan</translation>
+        <translation>Urutkan berdasarkan</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -67617,7 +67613,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+16"/>
         <source>Replace</source>
-        <translation type="unfinished">Ganti</translation>
+        <translation>Ganti</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -67745,22 +67741,22 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="-41"/>
         <source>Mark the selected text as</source>
-        <translation type="unfinished"></translation>
+        <translation>Tandai teks yang dipilih sebagai</translation>
     </message>
     <message>
         <location line="+43"/>
         <source>Translate the whole document into</source>
-        <translation type="unfinished"></translation>
+        <translation>Terjemahkan seluruh dokumen ke</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Translate the selected text into</source>
-        <translation type="unfinished"></translation>
+        <translation>Terjemahkan teks yang dipilih ke</translation>
     </message>
     <message>
         <location line="+9"/>
         <source>Translation service (a LibreTranslate address)</source>
-        <translation type="unfinished"></translation>
+        <translation>Layanan terjemahan (alamat LibreTranslate)</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -67900,17 +67896,17 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="-308"/>
         <source>Column</source>
-        <translation type="unfinished">Kolom</translation>
+        <translation>Kolom</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Field</source>
-        <translation type="unfinished">Bidang</translation>
+        <translation>Bidang</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Type</source>
-        <translation type="unfinished">Jenis</translation>
+        <translation>Jenis</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -67925,32 +67921,32 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+0"/>
         <source>Words</source>
-        <translation type="unfinished">Kata</translation>
+        <translation>Kata</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Characters (no spaces)</source>
-        <translation type="unfinished"></translation>
+        <translation>Karakter (tanpa spasi)</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Characters (with spaces)</source>
-        <translation type="unfinished">Karakter (dengan spasi)</translation>
+        <translation>Karakter (dengan spasi)</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Paragraphs</source>
-        <translation type="unfinished">Paragraf</translation>
+        <translation>Paragraf</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Lines</source>
-        <translation type="unfinished">Garis</translation>
+        <translation>Baris</translation>
     </message>
     <message>
         <location line="+38"/>
         <source>Paste the clipboard as</source>
-        <translation type="unfinished"></translation>
+        <translation>Tempel papan klip sebagai</translation>
     </message>
     <message>
         <location line="+20"/>
@@ -67960,17 +67956,17 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+66"/>
         <source>Password to stop the protection</source>
-        <translation type="unfinished"></translation>
+        <translation>Kata sandi untuk menghentikan perlindungan</translation>
     </message>
     <message>
         <location line="+17"/>
         <source>Password (you can leave this empty)</source>
-        <translation type="unfinished"></translation>
+        <translation>Kata sandi (boleh dikosongkan)</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Type it again</source>
-        <translation type="unfinished"></translation>
+        <translation>Ketik lagi</translation>
     </message>
     <message>
         <location line="+77"/>
@@ -68124,12 +68120,12 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+2"/>
         <source>This document is the original. Choose the revised version</source>
-        <translation type="unfinished"></translation>
+        <translation>Dokumen ini adalah versi asli. Pilih versi yang direvisi</translation>
     </message>
     <message>
         <location line="+13"/>
         <source>Label the changes with this name</source>
-        <translation type="unfinished"></translation>
+        <translation>Beri label perubahan dengan nama ini</translation>
     </message>
     <message>
         <location line="-9"/>
@@ -68435,7 +68431,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+10"/>
         <source>Column</source>
-        <translation type="unfinished">Kolom</translation>
+        <translation>Kolom</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -68485,12 +68481,12 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+1"/>
         <source>Align relative to</source>
-        <translation type="unfinished"></translation>
+        <translation>Rata relatif terhadap</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Leader</source>
-        <translation type="unfinished">Pengisi Tab</translation>
+        <translation>Pengisi Tab</translation>
     </message>
     <message>
         <location line="+16"/>
@@ -68535,17 +68531,17 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+3"/>
         <source>From text</source>
-        <translation type="unfinished"></translation>
+        <translation>Dari teks</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Count by</source>
-        <translation type="unfinished"></translation>
+        <translation>Hitung per</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Numbering</source>
-        <translation type="unfinished">Penomoran</translation>
+        <translation>Penomoran</translation>
     </message>
     <message>
         <location line="+92"/>
@@ -68566,7 +68562,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+1"/>
         <source>Measure from</source>
-        <translation type="unfinished"></translation>
+        <translation>Ukur dari</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -68576,7 +68572,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+60"/>
         <source>Use separator</source>
-        <translation type="unfinished"></translation>
+        <translation>Gunakan pemisah</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -68584,19 +68580,24 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <translation type="unfinished">Mulai dari:</translation>
     </message>
     <message>
-        <location line="+66"/>
+        <location line="+52"/>
+        <source>Use a font of its own</source>
+        <translation>Gunakan font tersendiri</translation>
+    </message>
+    <message>
+        <location line="+14"/>
         <source>Position</source>
         <translation>Posisi</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Lines to drop</source>
-        <translation type="unfinished"></translation>
+        <translation>Baris yang diturunkan</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Letters</source>
-        <translation type="unfinished">Surat</translation>
+        <translation>Huruf</translation>
     </message>
     <message>
         <location line="+57"/>
@@ -68616,7 +68617,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+32"/>
         <source>Available formats</source>
-        <translation type="unfinished"></translation>
+        <translation>Format yang tersedia</translation>
     </message>
     <message>
         <location line="-296"/>
@@ -68661,7 +68662,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <location line="+97"/>
         <location line="+84"/>
         <source>Apply to</source>
-        <translation type="unfinished"></translation>
+        <translation>Terapkan ke</translation>
     </message>
     <message>
         <location line="-273"/>
@@ -68769,7 +68770,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <location line="+7"/>
         <location line="+12"/>
         <source>Chapter starts with style</source>
-        <translation type="unfinished">Bab dimulai dengan gaya</translation>
+        <translation>Bab dimulai dengan gaya</translation>
     </message>
     <message>
         <location line="-11"/>
@@ -68779,7 +68780,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+4"/>
         <source>Separator</source>
-        <translation type="unfinished">Pemisah</translation>
+        <translation>Pemisah</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -68830,7 +68831,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+1"/>
         <source>Limit consecutive hyphens to</source>
-        <translation type="unfinished"></translation>
+        <translation>Batasi penyambungan berturut-turut menjadi</translation>
     </message>
     <message>
         <location line="+248"/>
@@ -68843,12 +68844,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <translation type="unfinished">Dengan Huruf Awal Besar</translation>
     </message>
     <message>
-        <location line="+4"/>
-        <source>Use a font of its own:</source>
-        <translation type="unfinished">Gunakan font tersendiri:</translation>
-    </message>
-    <message>
-        <location line="+37"/>
+        <location line="+41"/>
         <source>Custom Watermark</source>
         <translation type="unfinished">Watermark Kustom</translation>
     </message>
@@ -68923,12 +68919,12 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+1"/>
         <source>Bookmark</source>
-        <translation type="unfinished">Penanda</translation>
+        <translation>Penanda</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Screen tip</source>
-        <translation type="unfinished">Tip layar</translation>
+        <translation>Tips layar</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -69230,17 +69226,17 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="-57"/>
         <source>Number style for this level</source>
-        <translation type="unfinished"></translation>
+        <translation>Gaya angka untuk level ini</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Number format (%1 to %9 are the numbers of the levels)</source>
-        <translation type="unfinished"></translation>
+        <translation>Format angka (%1 sampai %9 adalah nomor level)</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Include the number from level</source>
-        <translation type="unfinished"></translation>
+        <translation>Sertakan angka dari level</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -69250,27 +69246,27 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+3"/>
         <source>Restart the list after</source>
-        <translation type="unfinished"></translation>
+        <translation>Mulai ulang daftar setelah</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Number alignment</source>
-        <translation type="unfinished"></translation>
+        <translation>Perataan angka</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Number position at</source>
-        <translation type="unfinished"></translation>
+        <translation>Posisi angka pada</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Text indent at</source>
-        <translation type="unfinished"></translation>
+        <translation>Indentasi teks pada</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Follow the number with</source>
-        <translation type="unfinished"></translation>
+        <translation>Ikuti angka dengan</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -69290,12 +69286,12 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+5"/>
         <source>Link level to style</source>
-        <translation type="unfinished"></translation>
+        <translation>Tautkan level ke gaya</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Preview</source>
-        <translation type="unfinished">Pratinjau</translation>
+        <translation>Pratinjau</translation>
     </message>
     <message>
         <location line="+73"/>
@@ -69391,12 +69387,12 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location filename="../apps/write/app/pagepaint.cpp" line="+139"/>
         <source>Footer</source>
-        <translation type="unfinished">Footer</translation>
+        <translation>Footer</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Header</source>
-        <translation type="unfinished">Header</translation>
+        <translation>Header</translation>
     </message>
     <message>
         <location filename="../apps/write/app/pageview.cpp" line="+245"/>
@@ -69879,7 +69875,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+244"/>
         <source>and</source>
-        <translation type="unfinished">dan</translation>
+        <translation>dan</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -69957,8 +69953,8 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     </message>
     <message>
         <location line="+28"/>
-        <source>Not in dictionary:</source>
-        <translation type="unfinished">Tidak ada dalam kamus:</translation>
+        <source>Not in dictionary</source>
+        <translation>Tidak ada dalam kamus</translation>
     </message>
     <message>
         <location line="+30"/>
@@ -70016,7 +70012,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+8"/>
         <source>Style type</source>
-        <translation type="unfinished"></translation>
+        <translation>Jenis gaya</translation>
     </message>
     <message>
         <location line="+32"/>
@@ -70026,7 +70022,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+1"/>
         <source>Style for the following paragraph</source>
-        <translation type="unfinished"></translation>
+        <translation>Gaya untuk paragraf berikut</translation>
     </message>
     <message>
         <location line="+17"/>
@@ -70081,32 +70077,32 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+1"/>
         <source>Indentation, left</source>
-        <translation type="unfinished"></translation>
+        <translation>Indentasi, kiri</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Indentation, right</source>
-        <translation type="unfinished"></translation>
+        <translation>Indentasi, kanan</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>First line</source>
-        <translation type="unfinished">Baris Pertama</translation>
+        <translation>Baris pertama</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Spacing, before</source>
-        <translation type="unfinished"></translation>
+        <translation>Spasi, sebelum</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Spacing, after</source>
-        <translation type="unfinished"></translation>
+        <translation>Spasi, sesudah</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Line spacing (lines)</source>
-        <translation type="unfinished"></translation>
+        <translation>Spasi baris (baris)</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -70247,7 +70243,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+174"/>
         <source>Sort by</source>
-        <translation type="unfinished">Urutkan berdasarkan</translation>
+        <translation>Urutkan berdasarkan</translation>
     </message>
     <message>
         <location line="+0"/>

@@ -327,7 +327,7 @@
     <message>
         <location line="+3"/>
         <source>Lines</source>
-        <translation type="unfinished">Линии</translation>
+        <translation>Линии</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -339,13 +339,13 @@
         <location line="-1"/>
         <location line="+1"/>
         <source>Right</source>
-        <translation type="unfinished">Вправо</translation>
+        <translation>Справа</translation>
     </message>
     <message>
         <location line="-1"/>
         <location line="+1"/>
         <source>Left</source>
-        <translation type="unfinished">Влево</translation>
+        <translation>Слева</translation>
     </message>
     <message>
         <location line="-1"/>
@@ -725,13 +725,13 @@
         <location line="+4"/>
         <location line="+16"/>
         <source>Replace</source>
-        <translation type="unfinished">Заменить</translation>
+        <translation>Заменить</translation>
     </message>
     <message>
         <location line="-13"/>
         <location line="+13"/>
         <source>With</source>
-        <translation type="unfinished">С</translation>
+        <translation>С</translation>
     </message>
     <message>
         <location line="-10"/>
@@ -803,12 +803,7 @@
         <translation type="unfinished">QR-код (любой текст, например веб-адрес)</translation>
     </message>
     <message>
-        <location line="+115"/>
-        <source>ISBN:</source>
-        <translation type="unfinished">ISBN:</translation>
-    </message>
-    <message>
-        <location line="-107"/>
+        <location line="+8"/>
         <source>none, or 2 or 5 digits</source>
         <translation type="unfinished">нет, или 2 или 5 цифр</translation>
     </message>
@@ -835,22 +830,23 @@
     <message>
         <location line="-10"/>
         <source>Type</source>
-        <translation type="unfinished">Тип</translation>
+        <translation>Тип</translation>
     </message>
     <message>
         <location line="+4"/>
+        <location line="+109"/>
         <source>ISBN</source>
         <translation>ISBN</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="-106"/>
         <source>Add-on</source>
-        <translation type="unfinished"></translation>
+        <translation>Дополнение</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Error correction</source>
-        <translation type="unfinished"></translation>
+        <translation>Исправление ошибок</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -915,12 +911,12 @@
     <message>
         <location line="+2"/>
         <source>Magnification</source>
-        <translation type="unfinished"></translation>
+        <translation>Увеличение</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Bar height</source>
-        <translation type="unfinished"></translation>
+        <translation>Высота штрихов</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -954,13 +950,13 @@
     </message>
     <message>
         <location line="+29"/>
-        <source>Digits:</source>
-        <translation type="unfinished">Цифры:</translation>
+        <source>Digits</source>
+        <translation>Цифры</translation>
     </message>
     <message>
         <location line="+0"/>
-        <source>Text:</source>
-        <translation type="unfinished">Текст:</translation>
+        <source>Text</source>
+        <translation>Текст</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -1380,7 +1376,7 @@ Back page story	4</source>
     <message>
         <location line="+58"/>
         <source>Copy</source>
-        <translation type="unfinished">Копировать</translation>
+        <translation>Копировать</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -1621,7 +1617,7 @@ Back page story	4</source>
     <message>
         <location line="+0"/>
         <source>Thousands</source>
-        <translation type="unfinished">Тысячи</translation>
+        <translation>Разряды</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -2349,7 +2345,7 @@ Back page story	4</source>
     <message>
         <location line="+0"/>
         <source>Labels</source>
-        <translation type="unfinished">Наклейки</translation>
+        <translation>Подписи</translation>
     </message>
     <message>
         <location filename="../libs/page/app/textdialogs.cpp" line="+371"/>
@@ -3011,7 +3007,7 @@ Back page story	4</source>
     <message>
         <location line="+0"/>
         <source>Leader</source>
-        <translation type="unfinished">Заполнитель</translation>
+        <translation>Заполнитель</translation>
     </message>
     <message>
         <location line="+9"/>
@@ -3135,7 +3131,7 @@ Back page story	4</source>
     <message>
         <location line="+1"/>
         <source>Numbering</source>
-        <translation type="unfinished">Нумерация</translation>
+        <translation>Нумерация</translation>
     </message>
     <message>
         <location filename="../apps/pub/app/dialogs.cpp" line="-254"/>
@@ -4092,7 +4088,7 @@ Back page story	4</source>
         <location line="+2"/>
         <location line="+1"/>
         <source>Bookmark</source>
-        <translation type="unfinished">Закладка</translation>
+        <translation>Закладка</translation>
     </message>
     <message>
         <location line="-3"/>
@@ -4653,7 +4649,7 @@ Back page story	4</source>
     <message>
         <location line="+1"/>
         <source>Punctuation</source>
-        <translation type="unfinished">Пунктуация</translation>
+        <translation>Знаки препинания</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -5170,7 +5166,7 @@ Back page story	4</source>
     <message>
         <location line="+5"/>
         <source>Lines</source>
-        <translation type="unfinished">Линии</translation>
+        <translation>Линии</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -5513,7 +5509,7 @@ Back page story	4</source>
     <message>
         <location line="+21"/>
         <source>Show measurements in</source>
-        <translation type="unfinished"></translation>
+        <translation>Показывать единицы измерения в</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -5851,7 +5847,7 @@ Back page story	4</source>
     <message>
         <location line="+24"/>
         <source>Insert &amp;as</source>
-        <translation type="unfinished"></translation>
+        <translation>Вставить &amp;как</translation>
     </message>
     <message>
         <location line="+21"/>
@@ -7835,7 +7831,7 @@ Download it from %2 now? (%3, once.)</source>
         <location line="+6"/>
         <location line="+2"/>
         <source>Password</source>
-        <translation type="unfinished">Пароль</translation>
+        <translation>Пароль</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -7845,7 +7841,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location line="+2"/>
         <source>Type it again</source>
-        <translation type="unfinished"></translation>
+        <translation>Введите его ещё раз</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -8753,7 +8749,7 @@ Download it from %2 now? (%3, once.)</source>
         <location line="+4"/>
         <location line="+1"/>
         <source>Password</source>
-        <translation type="unfinished">Пароль</translation>
+        <translation>Пароль</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -8769,13 +8765,13 @@ Download it from %2 now? (%3, once.)</source>
         <location line="+6"/>
         <location line="+1"/>
         <source>Password for the limits</source>
-        <translation type="unfinished">Пароль для ограничений</translation>
+        <translation>Пароль для ограничений</translation>
     </message>
     <message>
         <location line="-10"/>
         <location line="+12"/>
         <source>Confirm</source>
-        <translation type="unfinished"></translation>
+        <translation>Подтверждение</translation>
     </message>
     <message>
         <location line="-1"/>
@@ -9666,7 +9662,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location line="+15"/>
         <source>Paper size</source>
-        <translation type="unfinished">Размер бумаги</translation>
+        <translation>Размер бумаги</translation>
     </message>
     <message>
         <location line="+16"/>
@@ -9739,7 +9735,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location line="+2"/>
         <source>Sides</source>
-        <translation type="unfinished">Стороны</translation>
+        <translation>Стороны</translation>
     </message>
     <message>
         <location line="+20"/>
@@ -9754,7 +9750,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location line="+38"/>
         <source>Print</source>
-        <translation type="unfinished">Печать</translation>
+        <translation>Печать</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -11554,7 +11550,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location line="+1"/>
         <source>Lines</source>
-        <translation type="unfinished">Линии</translation>
+        <translation>Линии</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -11585,7 +11581,7 @@ Download it from %2 now? (%3, once.)</source>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="+1"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+4"/>
         <source>Margins</source>
-        <translation type="unfinished">Поля</translation>
+        <translation>Поля</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -11805,7 +11801,7 @@ Download it from %2 now? (%3, once.)</source>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="+2"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+4"/>
         <source>Show</source>
-        <translation type="unfinished">Показ</translation>
+        <translation>Показ</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -11975,13 +11971,13 @@ Download it from %2 now? (%3, once.)</source>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="+1"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+1"/>
         <source>Views</source>
-        <translation type="unfinished">Виды</translation>
+        <translation>Виды</translation>
     </message>
     <message>
         <location line="+1"/>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="+2"/>
         <source>Weight</source>
-        <translation type="unfinished">Толщина</translation>
+        <translation>Толщина</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -12347,7 +12343,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location line="+1"/>
         <source>Preview</source>
-        <translation type="unfinished">Просмотр</translation>
+        <translation>Образец</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -12631,7 +12627,7 @@ Download it from %2 now? (%3, once.)</source>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="+2"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+18"/>
         <source>Data</source>
-        <translation type="unfinished">Данные</translation>
+        <translation>Данные</translation>
     </message>
     <message>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="+3"/>
@@ -12918,7 +12914,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location line="+1"/>
         <source>Cells</source>
-        <translation type="unfinished">Ячейки</translation>
+        <translation>Ячейки</translation>
     </message>
     <message>
         <location filename="../apps/pub/app/ribbon_strings.cpp" line="-41"/>
@@ -12989,7 +12985,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location line="+2"/>
         <source>Footer</source>
-        <translation type="unfinished">Нижний колонтитул</translation>
+        <translation>Нижний колонтитул</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -13047,7 +13043,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location line="+1"/>
         <source>Header</source>
-        <translation type="unfinished">Верхний колонтитул</translation>
+        <translation>Верхний колонтитул</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -13132,7 +13128,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location line="+1"/>
         <source>Notes</source>
-        <translation type="unfinished">Заметки</translation>
+        <translation>Заметки</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -13167,7 +13163,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location line="+1"/>
         <source>Print</source>
-        <translation type="unfinished">Печать</translation>
+        <translation>Печать</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -13257,7 +13253,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location line="+2"/>
         <source>Subtotals</source>
-        <translation type="unfinished">Промежуточные итоги</translation>
+        <translation>Промежуточные итоги</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -13282,7 +13278,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location line="+1"/>
         <source>Type</source>
-        <translation type="unfinished">Тип</translation>
+        <translation>Тип</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -13293,7 +13289,7 @@ Download it from %2 now? (%3, once.)</source>
 <context>
     <name>SaveChanges</name>
     <message>
-        <location filename="../libs/shell/app/uistyle.cpp" line="+449"/>
+        <location filename="../libs/shell/app/uistyle.cpp" line="+592"/>
         <source>Save changes to &quot;%1&quot;?</source>
         <translation type="unfinished"></translation>
     </message>
@@ -14725,7 +14721,7 @@ Open it in your email program, add recipients and send.</source>
     <message>
         <location line="+18"/>
         <source>Copy</source>
-        <translation type="unfinished">Копировать</translation>
+        <translation>Копировать</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -16340,7 +16336,7 @@ Desktop publishing</source>
         <location line="+1"/>
         <location line="+36"/>
         <source>Labels</source>
-        <translation type="unfinished">Наклейки</translation>
+        <translation>Подписи</translation>
     </message>
     <message>
         <location line="-36"/>
@@ -16925,7 +16921,7 @@ Desktop publishing</source>
     <message>
         <location line="+0"/>
         <source>Letters</source>
-        <translation type="unfinished">Письма</translation>
+        <translation>Букв</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -17164,7 +17160,7 @@ Desktop publishing</source>
     <message>
         <location line="+6343"/>
         <source>Notes</source>
-        <translation type="unfinished">Заметки</translation>
+        <translation>Заметки</translation>
     </message>
 </context>
 <context>
@@ -17291,7 +17287,7 @@ Desktop publishing</source>
     <message>
         <location line="+7"/>
         <source>Hex</source>
-        <translation type="unfinished"></translation>
+        <translation>Hex</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -17476,19 +17472,19 @@ Desktop publishing</source>
         <location line="+7"/>
         <location line="+8"/>
         <source>List range</source>
-        <translation type="unfinished">Диапазон списка</translation>
+        <translation>Диапазон списка</translation>
     </message>
     <message>
         <location line="-5"/>
         <location line="+6"/>
         <source>Conditions range</source>
-        <translation type="unfinished">Диапазон условий</translation>
+        <translation>Диапазон условий</translation>
     </message>
     <message>
         <location line="-3"/>
         <location line="+4"/>
         <source>Copy to</source>
-        <translation type="unfinished">Копировать в</translation>
+        <translation>Копировать в</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -17859,7 +17855,7 @@ Desktop publishing</source>
         <location line="+361"/>
         <location line="+37"/>
         <source>Print</source>
-        <translation type="unfinished">Печать</translation>
+        <translation>Печать</translation>
     </message>
     <message>
         <location line="-949"/>
@@ -18750,13 +18746,13 @@ Desktop publishing</source>
         <location line="+3"/>
         <location line="+2"/>
         <source>Formula</source>
-        <translation type="unfinished">Формула</translation>
+        <translation>Формула</translation>
     </message>
     <message>
         <location line="+3"/>
         <location line="+2"/>
         <source>Fields</source>
-        <translation type="unfinished">Поля</translation>
+        <translation>Поля</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -18791,7 +18787,7 @@ Desktop publishing</source>
         <location line="+5"/>
         <location line="+4"/>
         <source>Field</source>
-        <translation type="unfinished">Поле</translation>
+        <translation>Поле</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -18803,13 +18799,13 @@ Desktop publishing</source>
         <location line="+3"/>
         <location line="+2"/>
         <source>Formula</source>
-        <translation type="unfinished">Формула</translation>
+        <translation>Формула</translation>
     </message>
     <message>
         <location line="+3"/>
         <location line="+1"/>
         <source>Items</source>
-        <translation type="unfinished">Элементы</translation>
+        <translation>Элементы</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -18997,7 +18993,7 @@ Source: %3</source>
     <message>
         <location filename="../libs/page/app/chartactions.cpp" line="+20"/>
         <source>Column</source>
-        <translation type="unfinished">Гистограмма</translation>
+        <translation>Столбец</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -19381,7 +19377,7 @@ Source: %3</source>
     <message>
         <location line="+2"/>
         <source>Search</source>
-        <translation type="unfinished">Поиск</translation>
+        <translation>Поиск</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -19700,7 +19696,7 @@ Source: %3</source>
     <message>
         <location line="+3"/>
         <source>Target output</source>
-        <translation type="unfinished"></translation>
+        <translation>Назначение вывода</translation>
     </message>
 </context>
 <context>
@@ -19719,13 +19715,13 @@ Source: %3</source>
         <location line="+6"/>
         <location line="+2"/>
         <source>Function</source>
-        <translation type="unfinished">Функция</translation>
+        <translation>Функция</translation>
     </message>
     <message>
         <location line="+3"/>
         <location line="+1"/>
         <source>Put the result at</source>
-        <translation type="unfinished">Поместить результат в</translation>
+        <translation>Поместить результат в</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -19838,7 +19834,7 @@ Source: %3</source>
         <location line="+1"/>
         <location line="+105"/>
         <source>Print</source>
-        <translation type="unfinished">Печать</translation>
+        <translation>Печать</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -20057,7 +20053,7 @@ Source: %3</source>
     <message>
         <location line="-16"/>
         <source>Paper size</source>
-        <translation type="unfinished">Размер бумаги</translation>
+        <translation>Размер бумаги</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -20078,7 +20074,7 @@ Source: %3</source>
         <location line="+3"/>
         <location line="+40"/>
         <source>Margins</source>
-        <translation type="unfinished">Поля</translation>
+        <translation>Поля</translation>
     </message>
     <message>
         <location line="-38"/>
@@ -20143,22 +20139,22 @@ Source: %3</source>
     <message>
         <location line="+1"/>
         <source>Which pages</source>
-        <translation type="unfinished"></translation>
+        <translation>Какие страницы</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Sides</source>
-        <translation type="unfinished">Стороны</translation>
+        <translation>Стороны</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Pages on a sheet</source>
-        <translation type="unfinished"></translation>
+        <translation>Страниц на листе</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Scale to paper</source>
-        <translation type="unfinished"></translation>
+        <translation>Масштаб под бумагу</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -20323,7 +20319,7 @@ Source: %3</source>
     <message>
         <location line="+6"/>
         <source>Sheet</source>
-        <translation type="unfinished">Лист</translation>
+        <translation>Лист</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -20361,12 +20357,12 @@ Source: %3</source>
     <message>
         <location line="+1"/>
         <source>Minimum</source>
-        <translation type="unfinished">Минимум</translation>
+        <translation>Минимум</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Maximum</source>
-        <translation type="unfinished">Максимум</translation>
+        <translation>Максимум</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -20558,7 +20554,7 @@ Source: %3</source>
         <location line="-455"/>
         <location line="+4"/>
         <source>After pressing Enter, move the selection</source>
-        <translation type="unfinished">После нажатия Enter перемещать выделение</translation>
+        <translation>После нажатия Enter перемещать выделение</translation>
     </message>
     <message>
         <location line="-3"/>
@@ -20573,7 +20569,7 @@ Source: %3</source>
         <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="-124"/>
         <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="+1"/>
         <source>Right</source>
-        <translation type="unfinished">Вправо</translation>
+        <translation>Справа</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -20588,7 +20584,7 @@ Source: %3</source>
         <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="+0"/>
         <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="+1"/>
         <source>Left</source>
-        <translation type="unfinished">Влево</translation>
+        <translation>Слева</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -20598,22 +20594,22 @@ Source: %3</source>
     <message>
         <location line="+32"/>
         <source>Places</source>
-        <translation type="unfinished"></translation>
+        <translation>Знаков</translation>
     </message>
     <message>
         <location line="+32"/>
         <source>Font size</source>
-        <translation type="unfinished"></translation>
+        <translation>Размер шрифта</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Sheets in a new workbook</source>
-        <translation type="unfinished"></translation>
+        <translation>Листов в новой книге</translation>
     </message>
     <message>
         <location line="+43"/>
         <source>Standard column width (this sheet)</source>
-        <translation type="unfinished"></translation>
+        <translation>Стандартная ширина столбцов (этот лист)</translation>
     </message>
     <message>
         <location line="-108"/>
@@ -20655,7 +20651,7 @@ Source: %3</source>
         <location line="-399"/>
         <location line="+2"/>
         <source>Font of a new workbook</source>
-        <translation type="unfinished">Шрифт новой книги</translation>
+        <translation>Шрифт новой книги</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -20678,13 +20674,13 @@ Source: %3</source>
         <location line="+8"/>
         <location line="+3"/>
         <source>Gridline color</source>
-        <translation type="unfinished">Цвет линий сетки</translation>
+        <translation>Цвет линий сетки</translation>
     </message>
     <message>
         <location line="+3"/>
         <location line="+4"/>
         <source>Zoom of a new workbook</source>
-        <translation type="unfinished">Масштаб новой книги</translation>
+        <translation>Масштаб новой книги</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -21029,13 +21025,13 @@ Source: %3</source>
         <location line="+5"/>
         <location line="+3"/>
         <source>Most rounds</source>
-        <translation type="unfinished">Максимум итераций</translation>
+        <translation>Максимум итераций</translation>
     </message>
     <message>
         <location line="+2"/>
         <location line="+4"/>
         <source>Stop when no value changes by more than</source>
-        <translation type="unfinished">Остановить, когда ни одно значение не изменится больше чем на</translation>
+        <translation>Остановить, когда ни одно значение не изменится больше чем на</translation>
     </message>
     <message>
         <location line="+29"/>
@@ -21156,7 +21152,7 @@ Source: %3</source>
     <message>
         <location line="+7"/>
         <source>These cells read their own result</source>
-        <translation type="unfinished"></translation>
+        <translation>Эти ячейки ссылаются на собственный результат</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -21472,7 +21468,7 @@ Source: %3</source>
         <location line="+14"/>
         <location line="+10"/>
         <source>Sort</source>
-        <translation type="unfinished">Сортировка</translation>
+        <translation>Сортировка</translation>
     </message>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+1"/>
@@ -22033,7 +22029,7 @@ Source: %3</source>
         <location line="+7"/>
         <location filename="../apps/crunch/app/crunchwindow_cond.cpp" line="+137"/>
         <source>Value</source>
-        <translation type="unfinished">Значение</translation>
+        <translation>Значение</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -22059,7 +22055,7 @@ Source: %3</source>
     <message>
         <location line="+7"/>
         <source>Separator</source>
-        <translation type="unfinished">Разделитель</translation>
+        <translation>Разделитель</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -22099,7 +22095,12 @@ Source: %3</source>
         <translation type="unfinished">Значение из ячеек</translation>
     </message>
     <message>
-        <location line="+0"/>
+        <location line="-12"/>
+        <source>The cells that hold the words for the labels, such as =Sheet1!$D$2:$D$4 (leave empty to take them away):</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
         <location line="+83"/>
         <source>&quot;%1&quot; isn&apos;t a range JeffCrunch can find. Write it like =Sheet1!$D$2:$D$4.</source>
         <translation type="unfinished">«%1» — это не диапазон, который может найти JeffCrunch. Запишите его в виде =Лист1!$D$2:$D$4.</translation>
@@ -22119,22 +22120,17 @@ Source: %3</source>
         <translation type="unfinished">Числовой формат</translation>
     </message>
     <message>
+        <location line="+0"/>
+        <source>Format code for the numbers in the labels (leave empty to show the numbers as they are):</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location line="-375"/>
         <source>Choose where to put the chart</source>
-        <translation type="unfinished"></translation>
+        <translation>Выберите, куда поместить диаграмму</translation>
     </message>
     <message>
-        <location line="+344"/>
-        <source>The cells that hold the words for the labels, such as =Sheet1!$D$2:$D$4 (leave empty to take them away)</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+31"/>
-        <source>Format code for the numbers in the labels (leave empty to show the numbers as they are)</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+12"/>
+        <location line="+387"/>
         <source>Lines Across, Major</source>
         <translation type="unfinished">Линии по горизонтали, основные</translation>
     </message>
@@ -22165,13 +22161,13 @@ Source: %3</source>
         <location line="-7"/>
         <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="+5"/>
         <source>Top</source>
-        <translation type="unfinished">Сверху</translation>
+        <translation>Сверху</translation>
     </message>
     <message>
         <location line="+0"/>
         <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="+0"/>
         <source>Bottom</source>
-        <translation type="unfinished">Снизу</translation>
+        <translation>Снизу</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -22270,7 +22266,7 @@ Source: %3</source>
         <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="+18"/>
         <location line="+1"/>
         <source>Lines</source>
-        <translation type="unfinished">Линии</translation>
+        <translation>Линии</translation>
     </message>
     <message>
         <location line="-3"/>
@@ -22385,7 +22381,7 @@ Source: %3</source>
         <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-197"/>
         <location line="+8"/>
         <source>Copy</source>
-        <translation type="unfinished">Копировать</translation>
+        <translation>Копировать</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -22685,7 +22681,7 @@ Source: %3</source>
     <message>
         <location line="+2"/>
         <source>When you click Paste or press Ctrl+V with cells copied, put in</source>
-        <translation type="unfinished"></translation>
+        <translation>Когда вы нажмёте «Вставить» или Ctrl+V при скопированных ячейках, вставить</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -22836,22 +22832,22 @@ Source: %3</source>
     <message>
         <location line="-130"/>
         <source>From</source>
-        <translation type="unfinished"></translation>
+        <translation>От</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>How many</source>
-        <translation type="unfinished">Количество</translation>
+        <translation>Сколько</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>To</source>
-        <translation type="unfinished"></translation>
+        <translation>До</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Cells look like this</source>
-        <translation type="unfinished"></translation>
+        <translation>Ячейки выглядят так</translation>
     </message>
     <message>
         <location line="+25"/>
@@ -23147,7 +23143,7 @@ The file that was there is as it was.</source>
     <message>
         <location line="+30"/>
         <source>Formula</source>
-        <translation type="unfinished">Формула</translation>
+        <translation>Формула</translation>
     </message>
     <message>
         <location line="+119"/>
@@ -23203,18 +23199,18 @@ The file isn&apos;t there.</source>
         <location line="+2"/>
         <location line="+3"/>
         <source>Password</source>
-        <translation type="unfinished">Пароль</translation>
+        <translation>Пароль</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The password is not correct.
 
-This file is protected with a password. Password</source>
+This file is protected with a password. Password:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+0"/>
-        <source>This file is protected with a password. Password</source>
+        <source>This file is protected with a password. Password:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -23288,7 +23284,7 @@ This file is protected with a password. Password</source>
         <location line="+24"/>
         <location line="+51"/>
         <source>Filter</source>
-        <translation type="unfinished">Фильтр</translation>
+        <translation>Фильтр</translation>
     </message>
     <message>
         <location line="-202"/>
@@ -23487,7 +23483,7 @@ This file is protected with a password. Password</source>
     <message>
         <location line="+55"/>
         <source>Go to</source>
-        <translation type="unfinished">Перейти к</translation>
+        <translation>Перейти к</translation>
     </message>
     <message>
         <location filename="../apps/crunch/app/crunchwindow.cpp" line="-218"/>
@@ -23506,7 +23502,7 @@ This file is protected with a password. Password</source>
         <location line="+7"/>
         <location line="+3"/>
         <source>Reference</source>
-        <translation type="unfinished">Ссылка</translation>
+        <translation>Ссылка</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -23532,7 +23528,7 @@ This file is protected with a password. Password</source>
     <message>
         <location line="+2"/>
         <source>Cells that show an error</source>
-        <translation type="unfinished">Ячейки с ошибкой</translation>
+        <translation>Ячейки с ошибками</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -24398,7 +24394,7 @@ This file is protected with a password. Password</source>
     <message>
         <location line="+19"/>
         <source>Choose the names to put in place of the cells they stand for</source>
-        <translation type="unfinished"></translation>
+        <translation>Выберите имена, которые нужно подставить вместо ячеек, которые они обозначают</translation>
     </message>
     <message>
         <location line="+36"/>
@@ -24756,7 +24752,7 @@ This file is protected with a password. Password</source>
         <location filename="../apps/crunch/app/crunchwindow_pagelayout.cpp" line="-74"/>
         <location filename="../apps/crunch/app/crunchwindow_tabs2.cpp" line="+16"/>
         <source>Replace</source>
-        <translation type="unfinished">Заменить</translation>
+        <translation>Заменить</translation>
     </message>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_tabs2.cpp" line="+2"/>
@@ -24807,7 +24803,7 @@ This file is protected with a password. Password</source>
     <message>
         <location line="+5"/>
         <source>Notes</source>
-        <translation type="unfinished">Примечания</translation>
+        <translation>Заметки</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -25223,7 +25219,7 @@ This file is protected with a password. Password</source>
     <message>
         <location line="+2"/>
         <source>Type</source>
-        <translation type="unfinished">Тип</translation>
+        <translation>Тип</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -25371,7 +25367,7 @@ This file is protected with a password. Password</source>
         <location line="+1"/>
         <location line="+1"/>
         <source>Margins</source>
-        <translation type="unfinished">Поля</translation>
+        <translation>Поля</translation>
     </message>
     <message>
         <location line="-1"/>
@@ -25402,7 +25398,7 @@ This file is protected with a password. Password</source>
     <message>
         <location line="+3"/>
         <source>Paper size</source>
-        <translation type="unfinished">Размер бумаги</translation>
+        <translation>Размер бумаги</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -25531,7 +25527,7 @@ This file is protected with a password. Password</source>
         <location line="+22"/>
         <location line="+7"/>
         <source>Print</source>
-        <translation type="unfinished">Печать</translation>
+        <translation>Печать</translation>
     </message>
     <message>
         <location line="+9"/>
@@ -25783,13 +25779,13 @@ This file is protected with a password. Password</source>
         <location line="+46"/>
         <location line="+25"/>
         <source>Header</source>
-        <translation type="unfinished">Верхний колонтитул</translation>
+        <translation>Верхний колонтитул</translation>
     </message>
     <message>
         <location line="-25"/>
         <location line="+25"/>
         <source>Footer</source>
-        <translation type="unfinished">Нижний колонтитул</translation>
+        <translation>Нижний колонтитул</translation>
     </message>
     <message>
         <location line="+23"/>
@@ -25953,7 +25949,7 @@ This file is protected with a password. Password</source>
     <message>
         <location line="+26"/>
         <source>Subtotals</source>
-        <translation type="unfinished">Промежуточные итоги</translation>
+        <translation>Промежуточные итоги</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -26047,7 +26043,7 @@ This file is protected with a password. Password</source>
     <message>
         <location line="+2"/>
         <source>Labels</source>
-        <translation type="unfinished">Подписи</translation>
+        <translation>Подписи</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -26617,7 +26613,7 @@ This file is protected with a password. Password</source>
     </message>
     <message>
         <location line="-104"/>
-        <source>Type the password for %1</source>
+        <source>Type the password for %1:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -26880,7 +26876,7 @@ This file is protected with a password. Password</source>
     <message>
         <location line="+1"/>
         <source>&amp;Put the sheets in front of</source>
-        <translation type="unfinished"></translation>
+        <translation>&amp;Поместить листы перед</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -27048,7 +27044,7 @@ This file is protected with a password. Password</source>
         <location line="+101"/>
         <location line="+5"/>
         <source>Data range</source>
-        <translation type="unfinished">Диапазон данных</translation>
+        <translation>Диапазон данных</translation>
     </message>
     <message>
         <location line="-107"/>
@@ -27056,7 +27052,7 @@ This file is protected with a password. Password</source>
         <location line="+103"/>
         <location line="+3"/>
         <source>Location range</source>
-        <translation type="unfinished">Диапазон размещения</translation>
+        <translation>Диапазон размещения</translation>
     </message>
     <message>
         <location line="-10"/>
@@ -27102,7 +27098,7 @@ This file is protected with a password. Password</source>
         <location line="-1"/>
         <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="+1"/>
         <source>Column</source>
-        <translation type="unfinished">Столбец</translation>
+        <translation>Столбец</translation>
     </message>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="-322"/>
@@ -27421,7 +27417,7 @@ This file is protected with a password. Password</source>
         <location line="+53"/>
         <location line="+1"/>
         <source>Across</source>
-        <translation type="unfinished">По горизонтали</translation>
+        <translation>По горизонтали</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -27432,7 +27428,7 @@ This file is protected with a password. Password</source>
         <location line="+2"/>
         <location line="+1"/>
         <source>Up and down</source>
-        <translation type="unfinished">Сверху вниз</translation>
+        <translation>Сверху вниз</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -27456,7 +27452,7 @@ This file is protected with a password. Password</source>
         <location line="+160"/>
         <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="+11"/>
         <source>Weight</source>
-        <translation type="unfinished">Толщина</translation>
+        <translation>Толщина</translation>
     </message>
     <message>
         <location line="-158"/>
@@ -27790,22 +27786,22 @@ This file is protected with a password. Password</source>
     <message>
         <location line="+1"/>
         <source>Incremental change</source>
-        <translation type="unfinished"></translation>
+        <translation>Шаг изменения</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Page change</source>
-        <translation type="unfinished"></translation>
+        <translation>Изменение страницы</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Input range</source>
-        <translation type="unfinished"></translation>
+        <translation>Диапазон входных данных</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Cell link</source>
-        <translation type="unfinished"></translation>
+        <translation>Связанная ячейка</translation>
     </message>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="+16"/>
@@ -27953,7 +27949,7 @@ This file is protected with a password. Password</source>
     <message>
         <location line="+3"/>
         <source>Cells</source>
-        <translation type="unfinished">Ячейки</translation>
+        <translation>Ячейки</translation>
     </message>
     <message>
         <location line="+189"/>
@@ -29215,23 +29211,23 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+7"/>
         <source>Separator</source>
-        <translation type="unfinished">Разделитель</translation>
+        <translation>Разделитель</translation>
     </message>
     <message>
         <location line="+16"/>
         <source>Line ends</source>
-        <translation type="unfinished">Окончания строк</translation>
+        <translation>Окончания строк</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Cells</source>
-        <translation type="unfinished">Ячейки</translation>
+        <translation>Ячейки</translation>
     </message>
     <message>
         <location line="-19"/>
         <location line="+6"/>
         <source>Text encoding</source>
-        <translation type="unfinished">Кодировка текста</translation>
+        <translation>Кодировка текста</translation>
     </message>
     <message>
         <location line="-5"/>
@@ -29534,7 +29530,7 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+1"/>
         <source>Copy</source>
-        <translation type="unfinished">Копировать</translation>
+        <translation>Копировать</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -29544,7 +29540,7 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+6"/>
         <source>Show</source>
-        <translation type="unfinished">Показать</translation>
+        <translation>Показ</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -29578,7 +29574,7 @@ The file can&apos;t be read.</source>
         <location line="+4"/>
         <location line="+4"/>
         <source>Views</source>
-        <translation type="unfinished">Виды</translation>
+        <translation>Виды</translation>
     </message>
     <message>
         <location line="+9"/>
@@ -29593,7 +29589,7 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+7"/>
         <source>Show</source>
-        <translation type="unfinished">Показать</translation>
+        <translation>Показ</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -29677,7 +29673,7 @@ The file can&apos;t be read.</source>
         <location line="+167"/>
         <location line="+1"/>
         <source>Print</source>
-        <translation type="unfinished">Печать</translation>
+        <translation>Печать</translation>
     </message>
     <message>
         <location line="-167"/>
@@ -29974,7 +29970,7 @@ The file can&apos;t be read.</source>
         <location line="+7"/>
         <location line="+14"/>
         <source>Replace</source>
-        <translation type="unfinished">Заменить</translation>
+        <translation>Заменить</translation>
     </message>
     <message>
         <location line="-155"/>
@@ -30199,7 +30195,7 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+1"/>
         <source>Copy</source>
-        <translation type="unfinished">Копировать</translation>
+        <translation>Копировать</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -30326,7 +30322,7 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+2"/>
         <source>Notes</source>
-        <translation type="unfinished">Заметки</translation>
+        <translation>Заметки</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -30489,7 +30485,7 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+1"/>
         <source>Numbering</source>
-        <translation type="unfinished">Нумерация</translation>
+        <translation>Нумерация</translation>
     </message>
     <message>
         <location filename="../apps/deck/app/deckwindow_animations.cpp" line="-419"/>
@@ -30523,7 +30519,7 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+5"/>
         <source>Top</source>
-        <translation type="unfinished">По верхнему краю</translation>
+        <translation>Сверху</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -30533,7 +30529,7 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+0"/>
         <source>Bottom</source>
-        <translation type="unfinished">По нижнему краю</translation>
+        <translation>Снизу</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -31407,7 +31403,7 @@ The file can&apos;t be read.</source>
         <location filename="../apps/deck/app/deckwindow_output.cpp" line="-73"/>
         <location line="+35"/>
         <source>Print</source>
-        <translation type="unfinished">Печать</translation>
+        <translation>Печать</translation>
     </message>
     <message>
         <location line="-35"/>
@@ -31602,7 +31598,7 @@ The file can&apos;t be read.</source>
         <location line="-165"/>
         <location line="+178"/>
         <source>Weight</source>
-        <translation type="unfinished">Толщина</translation>
+        <translation>Толщина</translation>
     </message>
     <message>
         <location line="-176"/>
@@ -32020,7 +32016,7 @@ The file can&apos;t be read.</source>
     <message>
         <location filename="../apps/deck/app/deckwindow_ribbon.cpp" line="+43"/>
         <source>Lines</source>
-        <translation type="unfinished">Линии</translation>
+        <translation>Линии</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -32458,7 +32454,7 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+0"/>
         <source>Words</source>
-        <translation type="unfinished">Слова</translation>
+        <translation>Слова</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -32514,7 +32510,7 @@ The file can&apos;t be read.</source>
         <location filename="../apps/deck/app/deckwindow_animations.cpp" line="-229"/>
         <location filename="../apps/deck/app/deckwindow_show.cpp" line="-390"/>
         <source>Preview</source>
-        <translation type="unfinished">Просмотр</translation>
+        <translation>Образец</translation>
     </message>
     <message>
         <location filename="../apps/deck/app/deckwindow_show.cpp" line="+5"/>
@@ -32895,7 +32891,7 @@ The file can&apos;t be read.</source>
         <location line="+1"/>
         <location filename="../apps/deck/app/deckwindow_output.cpp" line="+28"/>
         <source>Replace</source>
-        <translation type="unfinished">Заменить</translation>
+        <translation>Заменить</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -33903,12 +33899,12 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+7"/>
         <source>Source</source>
-        <translation type="unfinished">Источник</translation>
+        <translation>Источник</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Type</source>
-        <translation type="unfinished">Тип</translation>
+        <translation>Тип</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -34031,7 +34027,7 @@ The file can&apos;t be read.</source>
     <message>
         <location line="-68"/>
         <source>When this workbook opens</source>
-        <translation type="unfinished"></translation>
+        <translation>При открытии этой книги</translation>
     </message>
     <message>
         <location line="+69"/>
@@ -34166,7 +34162,7 @@ The file can&apos;t be read.</source>
         <location line="-20"/>
         <location line="+21"/>
         <source>Refers to cells</source>
-        <translation type="unfinished">Ссылается на ячейки</translation>
+        <translation>Ссылается на ячейки</translation>
     </message>
     <message>
         <location line="-18"/>
@@ -34191,17 +34187,17 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+5"/>
         <source>New password (optional)</source>
-        <translation type="unfinished"></translation>
+        <translation>Новый пароль (необязательно)</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Password (optional)</source>
-        <translation type="unfinished"></translation>
+        <translation>Пароль (необязательно)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Type it again</source>
-        <translation type="unfinished"></translation>
+        <translation>Повторите ввод</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -34589,7 +34585,7 @@ The file can&apos;t be read.</source>
         <location line="-109"/>
         <location line="+109"/>
         <source>Numbering</source>
-        <translation type="unfinished">Нумерация</translation>
+        <translation>Нумерация</translation>
     </message>
     <message>
         <location line="+56"/>
@@ -34750,13 +34746,13 @@ The file can&apos;t be read.</source>
         <location line="+8"/>
         <location line="+1"/>
         <source>Custom name</source>
-        <translation type="unfinished">Пользовательское имя</translation>
+        <translation>Пользовательское имя</translation>
     </message>
     <message>
         <location line="+3"/>
         <location line="+4"/>
         <source>Subtotals</source>
-        <translation type="unfinished">Промежуточные итоги</translation>
+        <translation>Промежуточные итоги</translation>
     </message>
     <message>
         <location line="-3"/>
@@ -34802,7 +34798,7 @@ The file can&apos;t be read.</source>
         <location line="+7"/>
         <location line="+7"/>
         <source>Sort</source>
-        <translation type="unfinished">Сортировка</translation>
+        <translation>Сортировка</translation>
     </message>
     <message>
         <location line="-6"/>
@@ -34837,24 +34833,24 @@ The file can&apos;t be read.</source>
     <message>
         <location line="-41"/>
         <source>Source name</source>
-        <translation type="unfinished"></translation>
+        <translation>Имя источника</translation>
     </message>
     <message>
         <location line="+19"/>
         <source>Show item labels in</source>
-        <translation type="unfinished"></translation>
+        <translation>Показывать подписи элементов в</translation>
     </message>
     <message>
         <location line="+25"/>
         <location line="+19"/>
         <source>by the value</source>
-        <translation type="unfinished"></translation>
+        <translation>по значению</translation>
     </message>
     <message>
         <location line="-15"/>
         <location line="+10"/>
         <source>Filter</source>
-        <translation type="unfinished">Фильтр</translation>
+        <translation>Фильтр</translation>
     </message>
     <message>
         <location line="-8"/>
@@ -34944,17 +34940,17 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+11"/>
         <source>Text or number</source>
-        <translation type="unfinished"></translation>
+        <translation>Текст или число</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>and</source>
-        <translation type="unfinished">и</translation>
+        <translation>и</translation>
     </message>
     <message>
         <location line="+9"/>
         <source>Show these items</source>
-        <translation type="unfinished"></translation>
+        <translation>Показать эти элементы</translation>
     </message>
     <message>
         <location line="-19"/>
@@ -35037,7 +35033,7 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+0"/>
         <source>Preview</source>
-        <translation type="unfinished">Просмотр</translation>
+        <translation>Образец</translation>
     </message>
     <message>
         <location line="+19"/>
@@ -35055,7 +35051,7 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+2"/>
         <source>Copy the selected cells to the same cells of these sheets</source>
-        <translation type="unfinished"></translation>
+        <translation>Копировать выделенные ячейки в те же ячейки этих листов</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -35085,7 +35081,7 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+1"/>
         <source>Copy</source>
-        <translation type="unfinished">Копировать</translation>
+        <translation>Копировать</translation>
     </message>
 </context>
 <context>
@@ -35207,7 +35203,7 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+10"/>
         <source>Search</source>
-        <translation type="unfinished">Поиск</translation>
+        <translation>Поиск</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -35518,7 +35514,7 @@ The file can&apos;t be read.</source>
         <location line="+6"/>
         <location line="+56"/>
         <source>Replace</source>
-        <translation type="unfinished">Заменить</translation>
+        <translation>Заменить</translation>
     </message>
     <message>
         <location line="-54"/>
@@ -35546,7 +35542,7 @@ The file can&apos;t be read.</source>
         <location line="+1"/>
         <location line="+53"/>
         <source>Sheet</source>
-        <translation type="unfinished">Лист</translation>
+        <translation>Лист</translation>
     </message>
     <message>
         <location line="-53"/>
@@ -35586,7 +35582,7 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+0"/>
         <source>Notes</source>
-        <translation type="unfinished">Заметки</translation>
+        <translation>Заметки</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -35725,7 +35721,7 @@ The file can&apos;t be read.</source>
         <location line="+1"/>
         <location line="+59"/>
         <source>Replace</source>
-        <translation type="unfinished">Заменить</translation>
+        <translation>Заменить</translation>
     </message>
     <message>
         <location line="-58"/>
@@ -35810,19 +35806,14 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Значения в обратном порядке</translation>
     </message>
     <message>
-        <location line="+3"/>
-        <source>Logarithmic scale, base:</source>
-        <translation type="unfinished">Логарифмическая шкала, основание:</translation>
-    </message>
-    <message>
-        <location line="+16"/>
+        <location line="+19"/>
         <source>Hundreds</source>
         <translation type="unfinished">Сотни</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Thousands</source>
-        <translation type="unfinished">Тысячи</translation>
+        <translation>Разряды</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -35867,12 +35858,12 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+44"/>
         <source>Labels</source>
-        <translation type="unfinished"></translation>
+        <translation>Подписи</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Turn the labels</source>
-        <translation type="unfinished"></translation>
+        <translation>Повернуть подписи</translation>
     </message>
     <message>
         <location line="-42"/>
@@ -35907,14 +35898,19 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Нет</translation>
     </message>
     <message>
-        <location line="-40"/>
+        <location line="-62"/>
+        <source>Logarithmic scale, base</source>
+        <translation>Логарифмическая шкала, основание</translation>
+    </message>
+    <message>
+        <location line="+22"/>
         <source>Display units</source>
-        <translation type="unfinished"></translation>
+        <translation>Единицы отображения</translation>
     </message>
     <message>
         <location line="+15"/>
         <source>The other axis crosses</source>
-        <translation type="unfinished"></translation>
+        <translation>Другая ось пересекает</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -35934,7 +35930,7 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+1"/>
         <source>Across</source>
-        <translation type="unfinished">Пересекая ось</translation>
+        <translation>По горизонтали</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -36087,109 +36083,109 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+46"/>
         <source>&amp;Category</source>
-        <translation type="unfinished"></translation>
+        <translation>&amp;Категория</translation>
     </message>
     <message>
         <location line="+28"/>
         <source>&amp;Decimal places</source>
-        <translation type="unfinished"></translation>
+        <translation>&amp;Число десятичных знаков</translation>
     </message>
     <message>
         <location line="+13"/>
         <source>&amp;Symbol</source>
-        <translation type="unfinished"></translation>
+        <translation>&amp;Символ</translation>
     </message>
     <message>
         <location line="+30"/>
         <source>&amp;Negative numbers</source>
-        <translation type="unfinished"></translation>
+        <translation>&amp;Отрицательные числа</translation>
     </message>
     <message>
         <location line="+12"/>
         <location line="+10"/>
         <source>&amp;Type</source>
-        <translation type="unfinished"></translation>
+        <translation>&amp;Тип</translation>
     </message>
     <message>
         <location line="+209"/>
         <source>&amp;Horizontal</source>
-        <translation type="unfinished"></translation>
+        <translation>&amp;По горизонтали</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>&amp;Indent</source>
-        <translation type="unfinished"></translation>
+        <translation>&amp;Отступ</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>&amp;Vertical</source>
-        <translation type="unfinished"></translation>
+        <translation>&amp;По вертикали</translation>
     </message>
     <message>
         <location line="+28"/>
         <source>&amp;Degrees</source>
-        <translation type="unfinished"></translation>
+        <translation>&amp;Градусы</translation>
     </message>
     <message>
         <location line="+9"/>
         <source>Text &amp;direction</source>
-        <translation type="unfinished"></translation>
+        <translation>&amp;Направление текста</translation>
     </message>
     <message>
         <location line="+36"/>
         <source>&amp;Font</source>
-        <translation type="unfinished"></translation>
+        <translation>&amp;Шрифт</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Font st&amp;yle</source>
-        <translation type="unfinished"></translation>
+        <translation>Начерта&amp;ние</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>&amp;Size</source>
-        <translation type="unfinished"></translation>
+        <translation>&amp;Размер</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>&amp;Underline</source>
-        <translation type="unfinished"></translation>
+        <translation>&amp;Подчёркивание</translation>
     </message>
     <message>
         <location line="+5"/>
         <location line="+100"/>
         <source>&amp;Color</source>
-        <translation type="unfinished"></translation>
+        <translation>&amp;Цвет</translation>
     </message>
     <message>
         <location line="-16"/>
         <source>St&amp;yle</source>
-        <translation type="unfinished"></translation>
+        <translation>&amp;Стиль</translation>
     </message>
     <message>
         <location line="+140"/>
         <source>&amp;Background Color</source>
-        <translation type="unfinished"></translation>
+        <translation>&amp;Цвет фона</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>P&amp;attern Color</source>
-        <translation type="unfinished"></translation>
+        <translation>&amp;Цвет узора</translation>
     </message>
     <message>
         <location line="+25"/>
         <source>Pattern &amp;Style</source>
-        <translation type="unfinished"></translation>
+        <translation>&amp;Стиль узора</translation>
     </message>
     <message>
         <location line="+13"/>
         <source>&amp;Second Color</source>
-        <translation type="unfinished"></translation>
+        <translation>&amp;Второй цвет</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>&amp;Direction</source>
-        <translation type="unfinished"></translation>
+        <translation>&amp;Направление</translation>
     </message>
     <message>
         <location line="-670"/>
@@ -36216,7 +36212,7 @@ The file can&apos;t be read.</source>
         <location line="+0"/>
         <location line="+250"/>
         <source>Left</source>
-        <translation type="unfinished">По левому краю</translation>
+        <translation>Слева</translation>
     </message>
     <message>
         <location line="-250"/>
@@ -36228,7 +36224,7 @@ The file can&apos;t be read.</source>
         <location line="-11"/>
         <location line="+252"/>
         <source>Right</source>
-        <translation type="unfinished">По правому краю</translation>
+        <translation>Справа</translation>
     </message>
     <message>
         <location line="-252"/>
@@ -36255,13 +36251,13 @@ The file can&apos;t be read.</source>
         <location line="+11"/>
         <location line="+236"/>
         <source>Top</source>
-        <translation type="unfinished">По верхнему краю</translation>
+        <translation>Сверху</translation>
     </message>
     <message>
         <location line="-236"/>
         <location line="+238"/>
         <source>Bottom</source>
-        <translation type="unfinished">По нижнему краю</translation>
+        <translation>Снизу</translation>
     </message>
     <message>
         <location line="-238"/>
@@ -36388,7 +36384,7 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+7"/>
         <source>Preview</source>
-        <translation type="unfinished">Просмотр</translation>
+        <translation>Образец</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -36936,7 +36932,7 @@ The file can&apos;t be read.</source>
     <message>
         <location line="-25"/>
         <source>Top</source>
-        <translation type="unfinished">Сверху</translation>
+        <translation>Сверху</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -36956,7 +36952,7 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+1"/>
         <source>Bottom</source>
-        <translation type="unfinished">Снизу</translation>
+        <translation>Снизу</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -37337,7 +37333,7 @@ The file can&apos;t be read.</source>
         <location line="+6"/>
         <location line="+7"/>
         <source>Cell with the formula</source>
-        <translation type="unfinished">Ячейка с формулой</translation>
+        <translation>Ячейка с формулой</translation>
     </message>
     <message>
         <location line="-4"/>
@@ -37348,12 +37344,12 @@ The file can&apos;t be read.</source>
         <location line="+3"/>
         <location line="+3"/>
         <source>Cell to change</source>
-        <translation type="unfinished">Изменяемая ячейка</translation>
+        <translation>Изменяемая ячейка</translation>
     </message>
     <message>
         <location line="-1"/>
         <source>Value you want</source>
-        <translation type="unfinished"></translation>
+        <translation>Нужное значение</translation>
     </message>
 </context>
 <context>
@@ -37394,7 +37390,7 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+1"/>
         <source>Type</source>
-        <translation type="unfinished">Тип</translation>
+        <translation>Тип</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -37463,7 +37459,7 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+4"/>
         <source>Go to</source>
-        <translation type="unfinished">Перейти к</translation>
+        <translation>Перейти к</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -37598,13 +37594,13 @@ Effective resolution: %3 ppi</source>
         <location line="+5"/>
         <location line="+1"/>
         <source>Starting at</source>
-        <translation type="unfinished">Начиная с</translation>
+        <translation>Начиная с</translation>
     </message>
     <message>
         <location line="+3"/>
         <location line="+1"/>
         <source>Ending at</source>
-        <translation type="unfinished">Заканчивая</translation>
+        <translation>Заканчивая</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -37612,7 +37608,7 @@ Effective resolution: %3 ppi</source>
         <location line="+4"/>
         <location line="+1"/>
         <source>By</source>
-        <translation type="unfinished">С шагом</translation>
+        <translation>По</translation>
     </message>
     <message>
         <location line="-13"/>
@@ -37675,7 +37671,7 @@ Effective resolution: %3 ppi</source>
     <message>
         <location line="+2"/>
         <source>Footer</source>
-        <translation type="unfinished">Нижний колонтитул</translation>
+        <translation>Нижний колонтитул</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -37728,7 +37724,7 @@ Effective resolution: %3 ppi</source>
     <message>
         <location line="+4"/>
         <source>Text for</source>
-        <translation type="unfinished"></translation>
+        <translation>Текст для</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -38022,7 +38018,7 @@ There is no help topic called &quot;%1&quot;.</source>
     <message>
         <location line="+37"/>
         <source>Commands</source>
-        <translation type="unfinished">Команды</translation>
+        <translation>Команды</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -38118,12 +38114,12 @@ There is no help topic called &quot;%1&quot;.</source>
     <message>
         <location line="+0"/>
         <source>Kind</source>
-        <translation type="unfinished">Тип</translation>
+        <translation>Категория</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Value</source>
-        <translation type="unfinished">Значение</translation>
+        <translation>Значение</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -38518,17 +38514,17 @@ There is no help topic called &quot;%1&quot;.</source>
     <message>
         <location line="-12"/>
         <source>Search</source>
-        <translation type="unfinished">Поиск</translation>
+        <translation>Поиск</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>Kind</source>
-        <translation type="unfinished">Тип</translation>
+        <translation>Категория</translation>
     </message>
     <message>
         <location line="+23"/>
         <source>Arguments</source>
-        <translation type="unfinished"></translation>
+        <translation>Аргументы</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -38597,7 +38593,7 @@ There is no help topic called &quot;%1&quot;.</source>
         <location line="+20"/>
         <location line="+4"/>
         <source>Keys for this command</source>
-        <translation type="unfinished">Клавиши для этой команды</translation>
+        <translation>Клавиши для этой команды</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -38608,7 +38604,7 @@ There is no help topic called &quot;%1&quot;.</source>
         <location line="+6"/>
         <location line="+4"/>
         <source>Press the new keys</source>
-        <translation type="unfinished">Нажмите новые клавиши</translation>
+        <translation>Нажмите новые клавиши</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -38899,13 +38895,13 @@ There is no help topic called &quot;%1&quot;.</source>
         <location line="+5"/>
         <location line="+1"/>
         <source>Text to show</source>
-        <translation type="unfinished">Текст для отображения</translation>
+        <translation>Текст для отображения</translation>
     </message>
     <message>
         <location line="+3"/>
         <location line="+4"/>
         <source>Go to</source>
-        <translation type="unfinished">Перейти к</translation>
+        <translation>Перейти к</translation>
     </message>
     <message>
         <location line="-3"/>
@@ -39062,13 +39058,13 @@ There is no help topic called &quot;%1&quot;.</source>
         <location line="+15"/>
         <location line="+3"/>
         <source>Sheet</source>
-        <translation type="unfinished">Лист</translation>
+        <translation>Лист</translation>
     </message>
     <message>
         <location line="+3"/>
         <location line="+1"/>
         <source>Cell or cells</source>
-        <translation type="unfinished">Ячейка или ячейки</translation>
+        <translation>Ячейка или ячейки</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -39085,7 +39081,7 @@ There is no help topic called &quot;%1&quot;.</source>
         <location line="+11"/>
         <location line="+1"/>
         <source>E-mail address</source>
-        <translation type="unfinished">Адрес эл. почты</translation>
+        <translation>Адрес эл. почты</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -39097,17 +39093,17 @@ There is no help topic called &quot;%1&quot;.</source>
         <location line="+7"/>
         <location line="+1"/>
         <source>Screen tip</source>
-        <translation type="unfinished">Всплывающая подсказка</translation>
+        <translation>Всплывающая подсказка</translation>
     </message>
     <message>
         <location line="-44"/>
         <source>Or a recent file</source>
-        <translation type="unfinished"></translation>
+        <translation>Или недавний файл</translation>
     </message>
     <message>
         <location line="+22"/>
         <source>Or a name</source>
-        <translation type="unfinished"></translation>
+        <translation>Или имя</translation>
     </message>
     <message>
         <location line="+92"/>
@@ -39140,7 +39136,7 @@ There is no help topic called &quot;%1&quot;.</source>
     <message>
         <location filename="../libs/shell/app/listdialogs.cpp" line="+40"/>
         <source>Left</source>
-        <translation type="unfinished">Слева</translation>
+        <translation>Слева</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -39150,7 +39146,7 @@ There is no help topic called &quot;%1&quot;.</source>
     <message>
         <location line="+1"/>
         <source>Right</source>
-        <translation type="unfinished">Справа</translation>
+        <translation>Справа</translation>
     </message>
     <message>
         <location line="+20"/>
@@ -39193,7 +39189,7 @@ There is no help topic called &quot;%1&quot;.</source>
         <location line="+10"/>
         <location line="+127"/>
         <source>Bullet character</source>
-        <translation type="unfinished"></translation>
+        <translation>Знак маркера</translation>
     </message>
     <message>
         <location line="-125"/>
@@ -39220,19 +39216,19 @@ There is no help topic called &quot;%1&quot;.</source>
         <location line="-10"/>
         <location line="+82"/>
         <source>Number style</source>
-        <translation type="unfinished"></translation>
+        <translation>Стиль нумерации</translation>
     </message>
     <message>
         <location line="-75"/>
         <location line="+82"/>
         <source>Punctuation</source>
-        <translation type="unfinished">Пунктуация</translation>
+        <translation>Знаки препинания</translation>
     </message>
     <message>
         <location line="-81"/>
         <location line="+80"/>
         <source>Number format (%1 is the number)</source>
-        <translation type="unfinished"></translation>
+        <translation>Формат номера (%1 — номер)</translation>
     </message>
     <message>
         <location line="-73"/>
@@ -39243,15 +39239,20 @@ There is no help topic called &quot;%1&quot;.</source>
     <message>
         <location line="-66"/>
         <source>Preview</source>
-        <translation type="unfinished">Просмотр</translation>
+        <translation>Просмотр</translation>
     </message>
     <message>
         <location line="+32"/>
         <source>Level is a</source>
-        <translation type="unfinished"></translation>
+        <translation>Тип уровня</translation>
     </message>
     <message>
-        <location line="-103"/>
+        <location line="+99"/>
+        <source>Set the value to</source>
+        <translation>Задать значение</translation>
+    </message>
+    <message>
+        <location line="-202"/>
         <source> pt</source>
         <translation type="unfinished"> пт</translation>
     </message>
@@ -39305,11 +39306,6 @@ There is no help topic called &quot;%1&quot;.</source>
         <location line="+2"/>
         <source>Continue previous list</source>
         <translation type="unfinished">Продолжить предыдущий список</translation>
-    </message>
-    <message>
-        <location line="+6"/>
-        <source>Set the value to:</source>
-        <translation type="unfinished">Задать значение:</translation>
     </message>
 </context>
 <context>
@@ -40280,7 +40276,7 @@ Source: %3</source>
         <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-171"/>
         <location line="+1"/>
         <source>Print</source>
-        <translation type="unfinished">Печать</translation>
+        <translation>Печать</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -40315,7 +40311,7 @@ Source: %3</source>
     <message>
         <location line="+1"/>
         <source>Copy</source>
-        <translation type="unfinished">Копировать</translation>
+        <translation>Копировать</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -40424,7 +40420,7 @@ Source: %3</source>
         <location line="-99"/>
         <location line="+100"/>
         <source>Replace</source>
-        <translation type="unfinished">Заменить</translation>
+        <translation>Заменить</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -40589,7 +40585,7 @@ Source: %3</source>
     <message>
         <location line="+4"/>
         <source>Numbering</source>
-        <translation type="unfinished">Нумерация</translation>
+        <translation>Нумерация</translation>
     </message>
     <message>
         <location line="+260"/>
@@ -40840,17 +40836,17 @@ Source: %3</source>
     <message>
         <location line="+1"/>
         <source>Bookmark</source>
-        <translation type="unfinished">Закладка</translation>
+        <translation>Закладка</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Header</source>
-        <translation type="unfinished">Верхний колонтитул</translation>
+        <translation>Верхний колонтитул</translation>
     </message>
     <message>
         <location line="+13"/>
         <source>Footer</source>
-        <translation type="unfinished">Нижний колонтитул</translation>
+        <translation>Нижний колонтитул</translation>
     </message>
     <message>
         <location line="+30"/>
@@ -41250,7 +41246,7 @@ Source: %3</source>
         <location line="+468"/>
         <location line="+1"/>
         <source>Margins</source>
-        <translation type="unfinished">Поля</translation>
+        <translation>Поля</translation>
     </message>
     <message>
         <location line="-466"/>
@@ -41872,7 +41868,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+1"/>
         <source>Fields</source>
-        <translation type="unfinished">Поля</translation>
+        <translation>Поля</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -43009,7 +43005,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+32"/>
         <source>Lines</source>
-        <translation type="unfinished">Линии</translation>
+        <translation>Линии</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -43333,7 +43329,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+2"/>
         <source>Words</source>
-        <translation type="unfinished">Слова</translation>
+        <translation>Слова</translation>
     </message>
     <message>
         <location line="+21"/>
@@ -43603,7 +43599,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+1"/>
         <source>Footer</source>
-        <translation type="unfinished">Нижний колонтитул</translation>
+        <translation>Нижний колонтитул</translation>
     </message>
 </context>
 <context>
@@ -43820,12 +43816,12 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+10"/>
         <source>Works on</source>
-        <translation type="unfinished">Действует на</translation>
+        <translation>Действует на</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Stands for</source>
-        <translation type="unfinished">Обозначает</translation>
+        <translation>Обозначает</translation>
     </message>
     <message>
         <location line="-12"/>
@@ -43932,17 +43928,17 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+1"/>
         <source>Value</source>
-        <translation type="unfinished">Значение</translation>
+        <translation>Значение</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Stands for</source>
-        <translation type="unfinished">Обозначает</translation>
+        <translation>Обозначает</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Works on</source>
-        <translation type="unfinished">Действует на</translation>
+        <translation>Действует на</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -44060,7 +44056,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <location filename="../apps/deck/app/notespane.cpp" line="+20"/>
         <location line="+45"/>
         <source>Notes</source>
-        <translation type="unfinished">Заметки</translation>
+        <translation>Заметки</translation>
     </message>
     <message>
         <location line="-44"/>
@@ -44185,7 +44181,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+2"/>
         <source>Search</source>
-        <translation type="unfinished">Поиск</translation>
+        <translation>Поиск</translation>
     </message>
     <message>
         <location line="+14"/>
@@ -44609,7 +44605,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+1"/>
         <source>Margins</source>
-        <translation type="unfinished">Поля</translation>
+        <translation>Поля</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -44619,7 +44615,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+1"/>
         <source>Sheet</source>
-        <translation type="unfinished">Лист</translation>
+        <translation>Лист</translation>
     </message>
     <message>
         <location line="+23"/>
@@ -44705,7 +44701,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+8"/>
         <source>Paper size</source>
-        <translation type="unfinished">Размер бумаги</translation>
+        <translation>Размер бумаги</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -44725,58 +44721,58 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+43"/>
         <source>Left</source>
-        <translation type="unfinished"></translation>
+        <translation>Слева</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Right</source>
-        <translation type="unfinished"></translation>
+        <translation>Справа</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Top</source>
-        <translation type="unfinished"></translation>
+        <translation>Сверху</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Bottom</source>
-        <translation type="unfinished"></translation>
+        <translation>Снизу</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Header, from the top edge</source>
-        <translation type="unfinished"></translation>
+        <translation>Верхний колонтитул от верхнего края</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Footer, from the bottom edge</source>
-        <translation type="unfinished"></translation>
+        <translation>Нижний колонтитул от нижнего края</translation>
     </message>
     <message>
         <location line="+100"/>
         <source>Header</source>
-        <translation type="unfinished">Верхний колонтитул</translation>
+        <translation>Верхний колонтитул</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Footer</source>
-        <translation type="unfinished">Нижний колонтитул</translation>
+        <translation>Нижний колонтитул</translation>
     </message>
     <message>
         <location line="+127"/>
         <source>Repeat these rows at the top</source>
-        <translation type="unfinished"></translation>
+        <translation>Повторять эти строки вверху</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Repeat these columns at the left</source>
-        <translation type="unfinished"></translation>
+        <translation>Повторять эти столбцы слева</translation>
     </message>
     <message>
         <location line="-268"/>
         <location line="+4"/>
         <source>Print quality</source>
-        <translation type="unfinished">Качество печати</translation>
+        <translation>Качество печати</translation>
     </message>
     <message>
         <location line="-3"/>
@@ -44860,7 +44856,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+2"/>
         <source>Replace</source>
-        <translation type="unfinished">Заменить</translation>
+        <translation>Заменить</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -44964,7 +44960,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <location line="+9"/>
         <location line="+4"/>
         <source>Cells to print</source>
-        <translation type="unfinished">Ячейки для печати</translation>
+        <translation>Ячейки для печати</translation>
     </message>
     <message>
         <location line="-3"/>
@@ -45040,7 +45036,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <location line="+5"/>
         <location line="+6"/>
         <source>Notes</source>
-        <translation type="unfinished">Заметки</translation>
+        <translation>Заметки</translation>
     </message>
     <message>
         <location line="-5"/>
@@ -45066,7 +45062,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <location line="+4"/>
         <location line="+6"/>
         <source>Cells that show an error</source>
-        <translation type="unfinished">Ячейки с ошибками</translation>
+        <translation>Ячейки с ошибками</translation>
     </message>
     <message>
         <location line="-5"/>
@@ -45150,7 +45146,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
 <context>
     <name>jp::PaneFrame</name>
     <message>
-        <location filename="../libs/shell/app/paneframe.cpp" line="+207"/>
+        <location filename="../libs/shell/app/paneframe.cpp" line="+208"/>
         <location line="+1"/>
         <source>Close</source>
         <translation type="unfinished">Закрыть</translation>
@@ -45195,7 +45191,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <location filename="../libs/shell/app/passworddialogs.cpp" line="+33"/>
         <location line="+7"/>
         <source>Password</source>
-        <translation type="unfinished">Пароль</translation>
+        <translation>Пароль</translation>
     </message>
     <message>
         <location line="-5"/>
@@ -45449,7 +45445,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+16"/>
         <source>Weight</source>
-        <translation type="unfinished">Толщина</translation>
+        <translation>Толщина</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -45542,7 +45538,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+6"/>
         <source>The cells the data is in, with a row of names above it, or the name of a table</source>
-        <translation type="unfinished"></translation>
+        <translation>Ячейки с данными, над которыми находится строка заголовков, или имя таблицы</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -45557,7 +45553,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+6"/>
         <source>Where the pivot table goes</source>
-        <translation type="unfinished"></translation>
+        <translation>Куда поместить сводную таблицу</translation>
     </message>
 </context>
 <context>
@@ -45625,7 +45621,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+6"/>
         <source>Search</source>
-        <translation type="unfinished">Поиск</translation>
+        <translation>Поиск</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -45912,7 +45908,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <location line="+2"/>
         <location line="+14"/>
         <source>Notes</source>
-        <translation type="unfinished">Заметки</translation>
+        <translation>Заметки</translation>
     </message>
     <message>
         <location line="-12"/>
@@ -46022,7 +46018,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+1"/>
         <source>Header</source>
-        <translation type="unfinished">Верхний колонтитул</translation>
+        <translation>Верхний колонтитул</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -46032,7 +46028,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+1"/>
         <source>Footer</source>
-        <translation type="unfinished">Нижний колонтитул</translation>
+        <translation>Нижний колонтитул</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -46143,22 +46139,22 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+6"/>
         <source>Password</source>
-        <translation type="unfinished">Пароль</translation>
+        <translation>Пароль</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Password (optional)</source>
-        <translation type="unfinished"></translation>
+        <translation>Пароль (необязательно)</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Type it again</source>
-        <translation type="unfinished"></translation>
+        <translation>Введите его ещё раз</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Anyone may also</source>
-        <translation type="unfinished"></translation>
+        <translation>Остальным пользователям также разрешено</translation>
     </message>
     <message>
         <location line="-7"/>
@@ -46201,17 +46197,17 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+7"/>
         <source>Password</source>
-        <translation type="unfinished">Пароль</translation>
+        <translation>Пароль</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Password (optional)</source>
-        <translation type="unfinished"></translation>
+        <translation>Пароль (необязательно)</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Type it again</source>
-        <translation type="unfinished"></translation>
+        <translation>Введите его ещё раз</translation>
     </message>
     <message>
         <location line="-2"/>
@@ -46287,12 +46283,12 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="-4"/>
         <source>Quick toolbar</source>
-        <translation type="unfinished"></translation>
+        <translation>Панель быстрого доступа</translation>
     </message>
     <message>
         <location line="+9"/>
         <source>Commands</source>
-        <translation type="unfinished">Команды</translation>
+        <translation>Команды</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -46408,7 +46404,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+51"/>
         <source>Separator</source>
-        <translation type="unfinished">Разделитель</translation>
+        <translation>Разделитель</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -46595,7 +46591,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+10"/>
         <source>With</source>
-        <translation type="unfinished">С</translation>
+        <translation>С</translation>
     </message>
     <message>
         <location line="-1"/>
@@ -46606,7 +46602,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <location line="-7"/>
         <location line="+11"/>
         <source>Replace</source>
-        <translation type="unfinished">Заменить</translation>
+        <translation>Заменить</translation>
     </message>
     <message>
         <location filename="../libs/page/app/pagefonts.cpp" line="-49"/>
@@ -46930,12 +46926,12 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="-24"/>
         <source>Tabs and groups</source>
-        <translation type="unfinished"></translation>
+        <translation>Вкладки и группы</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>Commands</source>
-        <translation type="unfinished">Команды</translation>
+        <translation>Команды</translation>
     </message>
     <message>
         <location line="+19"/>
@@ -47105,17 +47101,17 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+2"/>
         <source>Scenario &amp;name</source>
-        <translation type="unfinished"></translation>
+        <translation>&amp;Имя сценария</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>&amp;Changing cells</source>
-        <translation type="unfinished"></translation>
+        <translation>&amp;Изменяемые ячейки</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>C&amp;omment</source>
-        <translation type="unfinished"></translation>
+        <translation>Прим&amp;ечание</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -47135,7 +47131,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+0"/>
         <source>Value</source>
-        <translation type="unfinished">Значение</translation>
+        <translation>Значение</translation>
     </message>
 </context>
 <context>
@@ -47153,7 +47149,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+5"/>
         <source>&amp;Scenarios</source>
-        <translation type="unfinished"></translation>
+        <translation>&amp;Сценарии</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -47453,7 +47449,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <location line="+6"/>
         <location line="+2"/>
         <source>Password</source>
-        <translation type="unfinished">Пароль</translation>
+        <translation>Пароль</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -47463,7 +47459,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+2"/>
         <source>Type it again</source>
-        <translation type="unfinished"></translation>
+        <translation>Введите его еще раз</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -47987,7 +47983,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+1"/>
         <source>Copy</source>
-        <translation type="unfinished">Копировать</translation>
+        <translation>Копировать</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -48121,7 +48117,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+1"/>
         <source>Copy</source>
-        <translation type="unfinished">Копировать</translation>
+        <translation>Копировать</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -48182,7 +48178,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location filename="../apps/crunch/app/sortdialog.cpp" line="+46"/>
         <source>Sort</source>
-        <translation type="unfinished">Сортировка</translation>
+        <translation>Сортировка</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -48217,7 +48213,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+1"/>
         <source>Column</source>
-        <translation type="unfinished">Столбец</translation>
+        <translation>Столбец</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -48446,19 +48442,19 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <location line="+6"/>
         <location line="+6"/>
         <source>At each change in</source>
-        <translation type="unfinished">При каждом изменении в</translation>
+        <translation>При каждом изменении в</translation>
     </message>
     <message>
         <location line="-2"/>
         <location line="+3"/>
         <source>Use function</source>
-        <translation type="unfinished">Использовать функцию</translation>
+        <translation>Использовать функцию</translation>
     </message>
     <message>
         <location line="+2"/>
         <location line="+3"/>
         <source>Add subtotal to</source>
-        <translation type="unfinished">Добавить промежуточный итог в</translation>
+        <translation>Добавить промежуточный итог в</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -48701,7 +48697,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <location line="+6"/>
         <location line="+3"/>
         <source>Text encoding</source>
-        <translation type="unfinished">Кодировка текста</translation>
+        <translation>Кодировка текста</translation>
     </message>
     <message>
         <location line="-2"/>
@@ -48716,32 +48712,32 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+3"/>
         <source>Fields are separated by</source>
-        <translation type="unfinished"></translation>
+        <translation>Поля разделены с помощью</translation>
     </message>
     <message>
         <location line="+12"/>
         <source>Text is in</source>
-        <translation type="unfinished"></translation>
+        <translation>Текст в формате</translation>
     </message>
     <message>
         <location line="+12"/>
         <source>Columns begin at</source>
-        <translation type="unfinished"></translation>
+        <translation>Столбцы начинаются с позиции</translation>
     </message>
     <message>
         <location line="+9"/>
         <source>Click to split</source>
-        <translation type="unfinished"></translation>
+        <translation>Щёлкните, чтобы разделить</translation>
     </message>
     <message>
         <location line="+19"/>
         <source>Thousands</source>
-        <translation type="unfinished">Тысячи</translation>
+        <translation>Разряды</translation>
     </message>
     <message>
         <location line="+18"/>
         <source>Begin at row</source>
-        <translation type="unfinished"></translation>
+        <translation>Начинать со строки</translation>
     </message>
     <message>
         <location line="-86"/>
@@ -48823,7 +48819,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <location line="+9"/>
         <location line="+23"/>
         <source>Decimal mark</source>
-        <translation type="unfinished">Десятичный разделитель</translation>
+        <translation>Десятичный разделитель</translation>
     </message>
     <message>
         <location line="-22"/>
@@ -48962,34 +48958,29 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Пробел</translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>Other:</source>
-        <translation type="unfinished">Другой:</translation>
-    </message>
-    <message>
-        <location line="+10"/>
+        <location line="+11"/>
         <source>Other separator</source>
         <translation type="unfinished">Другой разделитель</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Separators</source>
-        <translation type="unfinished"></translation>
+        <translation>Разделители</translation>
     </message>
     <message>
         <location line="+15"/>
         <source>Fixed places</source>
-        <translation type="unfinished"></translation>
+        <translation>Фиксированные позиции</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Each piece is</source>
-        <translation type="unfinished"></translation>
+        <translation>Каждая часть</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Put the pieces from</source>
-        <translation type="unfinished"></translation>
+        <translation>Поместить части, начиная с</translation>
     </message>
     <message>
         <location line="-24"/>
@@ -48997,10 +48988,15 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Считать несколько разделителей подряд одним</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="-15"/>
+        <source>Other</source>
+        <translation>Другой</translation>
+    </message>
+    <message>
+        <location line="+20"/>
         <location line="+4"/>
         <source>Text in quotes</source>
-        <translation type="unfinished">Текст в кавычках</translation>
+        <translation>Текст в кавычках</translation>
     </message>
     <message>
         <location line="-3"/>
@@ -49192,17 +49188,17 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+1"/>
         <source>Top</source>
-        <translation type="unfinished">Верхние</translation>
+        <translation>Сверху</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Bottom</source>
-        <translation type="unfinished">Нижние</translation>
+        <translation>Снизу</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>How many</source>
-        <translation type="unfinished">Количество</translation>
+        <translation>Сколько</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -49212,7 +49208,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+1"/>
         <source>Items</source>
-        <translation type="unfinished">Элементы</translation>
+        <translation>Элементы</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -49278,28 +49274,28 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="-71"/>
         <source>From</source>
-        <translation type="unfinished"></translation>
+        <translation>С языка</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>To</source>
-        <translation type="unfinished"></translation>
+        <translation>На язык</translation>
     </message>
     <message>
         <location line="+24"/>
         <source>Original</source>
-        <translation type="unfinished">Исходный</translation>
+        <translation>Исходный текст</translation>
     </message>
     <message>
         <location line="+49"/>
         <location line="+4"/>
         <source>Translation</source>
-        <translation type="unfinished">Перевод</translation>
+        <translation>Перевод</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Replace</source>
-        <translation type="unfinished">Заменить</translation>
+        <translation>Заменить</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -49560,7 +49556,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <location line="+9"/>
         <location line="+27"/>
         <source>Allow</source>
-        <translation type="unfinished">Разрешить</translation>
+        <translation>Разрешить</translation>
     </message>
     <message>
         <location line="-25"/>
@@ -49606,7 +49602,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <location line="+4"/>
         <location line="+20"/>
         <source>Data</source>
-        <translation type="unfinished">Данные</translation>
+        <translation>Данные</translation>
     </message>
     <message>
         <location line="-18"/>
@@ -49668,7 +49664,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <location line="-20"/>
         <location line="+21"/>
         <source>Message</source>
-        <translation type="unfinished"></translation>
+        <translation>Сообщение</translation>
     </message>
     <message>
         <location line="-2"/>
@@ -49678,27 +49674,27 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+49"/>
         <source>Source</source>
-        <translation type="unfinished">Источник</translation>
+        <translation>Источник</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Formula</source>
-        <translation type="unfinished">Формула</translation>
+        <translation>Формула</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Minimum</source>
-        <translation type="unfinished">Минимум</translation>
+        <translation>Минимум</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Value</source>
-        <translation type="unfinished">Значение</translation>
+        <translation>Значение</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Maximum</source>
-        <translation type="unfinished">Максимум</translation>
+        <translation>Максимум</translation>
     </message>
     <message>
         <location line="-87"/>
@@ -49787,24 +49783,24 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <location line="+8"/>
         <location line="+1"/>
         <source>Custom name</source>
-        <translation type="unfinished">Пользовательское имя</translation>
+        <translation>Пользовательское имя</translation>
     </message>
     <message>
         <location line="+3"/>
         <location line="+6"/>
         <source>Summarize value field by</source>
-        <translation type="unfinished">Суммировать поле значений по</translation>
+        <translation>Суммировать поле значений по</translation>
     </message>
     <message>
         <location line="-13"/>
         <source>Source name</source>
-        <translation type="unfinished"></translation>
+        <translation>Исходное имя</translation>
     </message>
     <message>
         <location line="+17"/>
         <location line="+11"/>
         <source>Show values as</source>
-        <translation type="unfinished">Показывать значения как</translation>
+        <translation>Показать значения как</translation>
     </message>
     <message>
         <location line="-9"/>
@@ -49874,19 +49870,19 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+35"/>
         <source>Number format (a code; empty keeps the cells&apos; own)</source>
-        <translation type="unfinished"></translation>
+        <translation>Числовой формат (код; если пусто, сохраняется формат ячеек)</translation>
     </message>
     <message>
         <location line="-27"/>
         <location line="+5"/>
         <source>Base field</source>
-        <translation type="unfinished">Базовое поле</translation>
+        <translation>Базовое поле</translation>
     </message>
     <message>
         <location line="+3"/>
         <location line="+1"/>
         <source>Base item</source>
-        <translation type="unfinished">Базовый элемент</translation>
+        <translation>Базовый элемент</translation>
     </message>
     <message>
         <location line="+13"/>
@@ -50073,7 +50069,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+8"/>
         <source>Sheet</source>
-        <translation type="unfinished">Лист</translation>
+        <translation>Лист</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -50083,12 +50079,12 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+0"/>
         <source>Value</source>
-        <translation type="unfinished">Значение</translation>
+        <translation>Значение</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Formula</source>
-        <translation type="unfinished">Формула</translation>
+        <translation>Формула</translation>
     </message>
 </context>
 <context>
@@ -50155,7 +50151,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <location line="+209"/>
         <location line="+1"/>
         <source>Print</source>
-        <translation type="unfinished">Печать</translation>
+        <translation>Печать</translation>
     </message>
     <message>
         <location line="-209"/>
@@ -50241,22 +50237,22 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+82"/>
         <source>Which pages</source>
-        <translation type="unfinished"></translation>
+        <translation>Какие страницы</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Sides</source>
-        <translation type="unfinished">Стороны</translation>
+        <translation>Печать на сторонах</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Pages on a sheet</source>
-        <translation type="unfinished"></translation>
+        <translation>Страниц на листе</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Scale to paper</source>
-        <translation type="unfinished"></translation>
+        <translation>Масштаб под бумагу</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -50276,7 +50272,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+40"/>
         <source>Show</source>
-        <translation type="unfinished"></translation>
+        <translation>Показ</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -50595,7 +50591,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+6"/>
         <source>Special</source>
-        <translation type="unfinished">Специальные символы</translation>
+        <translation>Особый</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -50635,7 +50631,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+0"/>
         <source>Field</source>
-        <translation type="unfinished">Поле</translation>
+        <translation>Поле</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -50735,7 +50731,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+1"/>
         <source>Replace</source>
-        <translation type="unfinished">Заменить</translation>
+        <translation>Заменить</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -50858,7 +50854,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+1"/>
         <source>Letters</source>
-        <translation type="unfinished">Письма</translation>
+        <translation>Букв</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -50879,7 +50875,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <location line="+431"/>
         <location line="+3"/>
         <source>Labels</source>
-        <translation type="unfinished">Наклейки</translation>
+        <translation>Подписи</translation>
     </message>
     <message>
         <location line="-674"/>
@@ -51360,7 +51356,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+1"/>
         <source>Copy</source>
-        <translation type="unfinished">Копировать</translation>
+        <translation>Копировать</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -51452,7 +51448,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+1"/>
         <source>Numbering</source>
-        <translation type="unfinished">Нумерация</translation>
+        <translation>Нумерация</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -52240,7 +52236,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <location line="+1"/>
         <location filename="../apps/write/app/writewindow_headers.cpp" line="+163"/>
         <source>Replace</source>
-        <translation type="unfinished">Заменить</translation>
+        <translation>Заменить</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -52260,12 +52256,12 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location filename="../apps/write/app/writewindow_headers.cpp" line="-134"/>
         <source>Header</source>
-        <translation type="unfinished">Верхний колонтитул</translation>
+        <translation>Верхний колонтитул</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Footer</source>
-        <translation type="unfinished">Нижний колонтитул</translation>
+        <translation>Нижний колонтитул</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -52635,7 +52631,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+1"/>
         <source>Words</source>
-        <translation type="unfinished">Слова</translation>
+        <translation>Слова</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -52645,12 +52641,12 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+1"/>
         <source>Characters (with spaces)</source>
-        <translation type="unfinished">Знаки (с пробелами)</translation>
+        <translation>Знаки (с пробелами)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Paragraphs</source>
-        <translation type="unfinished">Абзацы</translation>
+        <translation>Абзацы</translation>
     </message>
     <message>
         <location line="+46"/>
@@ -52939,7 +52935,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <location line="+1"/>
         <location filename="../apps/write/app/writewindow_shapes.cpp" line="+177"/>
         <source>Column</source>
-        <translation type="unfinished">Колонка</translation>
+        <translation>Столбец</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -53064,7 +53060,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location filename="../apps/write/app/writewindow_mail.cpp" line="+29"/>
         <source>Letters</source>
-        <translation type="unfinished">Письма</translation>
+        <translation>Букв</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -53399,12 +53395,12 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <location line="+42"/>
         <location line="+40"/>
         <source>Print</source>
-        <translation type="unfinished">Печать</translation>
+        <translation>Печать</translation>
     </message>
     <message>
         <location line="-485"/>
         <source>Pages to include</source>
-        <translation type="unfinished"></translation>
+        <translation>Страницы для включения</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -53571,12 +53567,12 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+2"/>
         <source>Put in the message</source>
-        <translation type="unfinished"></translation>
+        <translation>Вложить в сообщение</translation>
     </message>
     <message>
         <location line="+34"/>
         <source>Text encoding</source>
-        <translation type="unfinished">Кодировка текста</translation>
+        <translation>Кодировка текста</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -53591,13 +53587,13 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+6"/>
         <source>Encoding</source>
-        <translation type="unfinished"></translation>
+        <translation>Кодировка</translation>
     </message>
     <message>
         <location line="+3"/>
         <location line="+5"/>
         <source>Line ends</source>
-        <translation type="unfinished">Окончания строк</translation>
+        <translation>Окончания строк</translation>
     </message>
     <message>
         <location line="-2"/>
@@ -54129,7 +54125,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+1"/>
         <source>Original</source>
-        <translation type="unfinished">Исходный</translation>
+        <translation>Исходный текст</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -54621,7 +54617,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+14"/>
         <source>Lines</source>
-        <translation type="unfinished">Линии</translation>
+        <translation>Линии</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -57671,7 +57667,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <location line="+1"/>
         <location line="+9"/>
         <source>Formula</source>
-        <translation type="unfinished">Формула</translation>
+        <translation>Формула</translation>
     </message>
     <message>
         <location line="-1"/>
@@ -57681,7 +57677,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+2"/>
         <source>Field</source>
-        <translation type="unfinished">Поле</translation>
+        <translation>Поле</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -58997,7 +58993,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+1"/>
         <source>Special</source>
-        <translation type="unfinished">Специальный</translation>
+        <translation>Особый</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -64052,12 +64048,12 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+1"/>
         <source>Minimum</source>
-        <translation type="unfinished">Минимум</translation>
+        <translation>Минимум</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Maximum</source>
-        <translation type="unfinished">Максимум</translation>
+        <translation>Максимум</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -65404,7 +65400,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <location line="+12"/>
         <location filename="../libs/office/sheet/tables.cpp" line="+250"/>
         <source>Column</source>
-        <translation type="unfinished">Столбец</translation>
+        <translation>Столбец</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -65655,7 +65651,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+0"/>
         <source>Macros</source>
-        <translation type="unfinished"></translation>
+        <translation>Макросы</translation>
     </message>
     <message>
         <location line="+18"/>
@@ -65728,7 +65724,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+1"/>
         <source>Links that start a program</source>
-        <translation type="unfinished"></translation>
+        <translation>Ссылки, которые запускают программу</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -65994,27 +65990,27 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+18"/>
         <source>Top</source>
-        <translation type="unfinished"></translation>
+        <translation>Сверху</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Bottom</source>
-        <translation type="unfinished"></translation>
+        <translation>Снизу</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Gutter</source>
-        <translation type="unfinished"></translation>
+        <translation>Переплёт</translation>
     </message>
     <message>
         <location line="+16"/>
         <source>Multiple pages</source>
-        <translation type="unfinished"></translation>
+        <translation>Несколько страниц</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>Sheets per booklet</source>
-        <translation type="unfinished"></translation>
+        <translation>Листов в буклете</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -66029,7 +66025,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+15"/>
         <source>Paper size</source>
-        <translation type="unfinished">Размер бумаги</translation>
+        <translation>Размер бумаги</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -66044,22 +66040,22 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+64"/>
         <source>Section start</source>
-        <translation type="unfinished"></translation>
+        <translation>Начало раздела</translation>
     </message>
     <message>
         <location line="+9"/>
         <source>Header, from the edge</source>
-        <translation type="unfinished"></translation>
+        <translation>Верхний колонтитул от края</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Footer, from the edge</source>
-        <translation type="unfinished"></translation>
+        <translation>Нижний колонтитул от края</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>Apply to</source>
-        <translation type="unfinished"></translation>
+        <translation>Применить к</translation>
     </message>
     <message>
         <location line="-131"/>
@@ -66089,7 +66085,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+15"/>
         <source>Margins</source>
-        <translation type="unfinished">Поля</translation>
+        <translation>Поля</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -66336,7 +66332,12 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Интервал между знаками</translation>
     </message>
     <message>
-        <location line="+42"/>
+        <location line="+33"/>
+        <source>Kerning for fonts of this size and above</source>
+        <translation>Кернинг для шрифтов этого размера и больше</translation>
+    </message>
+    <message>
+        <location line="+9"/>
         <source>Spacing</source>
         <translation>Интервал</translation>
     </message>
@@ -66344,7 +66345,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <location line="+2"/>
         <location line="+4"/>
         <source>By</source>
-        <translation type="unfinished">С шагом</translation>
+        <translation>На</translation>
     </message>
     <message>
         <location line="-2"/>
@@ -66354,12 +66355,12 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+221"/>
         <source>Tab stop position</source>
-        <translation type="unfinished"></translation>
+        <translation>Положение позиции табуляции</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Tab stops to clear</source>
-        <translation type="unfinished"></translation>
+        <translation>Позиции табуляции для удаления</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -66370,32 +66371,32 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="-71"/>
         <source>Leader</source>
-        <translation type="unfinished">Заполнитель</translation>
+        <translation>Заполнитель</translation>
     </message>
     <message>
         <location line="+84"/>
         <source>Indentation, left</source>
-        <translation type="unfinished"></translation>
+        <translation>Отступ слева</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Indentation, right</source>
-        <translation type="unfinished"></translation>
+        <translation>Отступ справа</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Special</source>
-        <translation type="unfinished"></translation>
+        <translation>Особый</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>Spacing, before</source>
-        <translation type="unfinished"></translation>
+        <translation>Интервал перед</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Spacing, after</source>
-        <translation type="unfinished"></translation>
+        <translation>Интервал после</translation>
     </message>
     <message>
         <location line="+29"/>
@@ -66405,12 +66406,12 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+40"/>
         <source>Outline level</source>
-        <translation type="unfinished"></translation>
+        <translation>Уровень структуры</translation>
     </message>
     <message>
         <location line="+122"/>
         <source>Pages across</source>
-        <translation type="unfinished"></translation>
+        <translation>Страниц по горизонтали</translation>
     </message>
     <message>
         <location filename="../apps/write/app/pagesetupdialog.cpp" line="-183"/>
@@ -66451,19 +66452,14 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Опущенный</translation>
     </message>
     <message>
-        <location line="+6"/>
-        <source>Kerning for fonts of this size and above:</source>
-        <translation type="unfinished">Кернинг для шрифтов этого размера и больше:</translation>
-    </message>
-    <message>
-        <location line="+31"/>
+        <location line="+37"/>
         <source>AaBbYyZz</source>
         <translation type="unfinished">АаБбЯяЗз</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Preview</source>
-        <translation type="unfinished">Просмотр</translation>
+        <translation>Образец</translation>
     </message>
     <message>
         <location filename="../apps/write/app/pagesetupdialog.cpp" line="+122"/>
@@ -66488,7 +66484,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <location filename="../apps/write/app/writedialogs.cpp" line="+9"/>
         <location line="+89"/>
         <source>Left</source>
-        <translation type="unfinished">По левому краю</translation>
+        <translation>Слева</translation>
     </message>
     <message>
         <location filename="../apps/write/app/writedialogs.cpp" line="-88"/>
@@ -66501,7 +66497,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <location filename="../apps/write/app/writedialogs.cpp" line="+1"/>
         <location line="+89"/>
         <source>Right</source>
-        <translation type="unfinished">По правому краю</translation>
+        <translation>Справа</translation>
     </message>
     <message>
         <location filename="../apps/write/app/writedialogs.cpp" line="-88"/>
@@ -66591,7 +66587,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+13"/>
         <source>First line</source>
-        <translation type="unfinished">Первая строка</translation>
+        <translation>Первая строка</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -66741,7 +66737,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+2"/>
         <source>Order in the lists (lower comes first)</source>
-        <translation type="unfinished"></translation>
+        <translation>Порядок в списках (меньшие значения выше)</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -66808,12 +66804,12 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="-33"/>
         <source>Check the styles to save in a template file</source>
-        <translation type="unfinished"></translation>
+        <translation>Отметьте стили для сохранения в файл шаблона</translation>
     </message>
     <message>
         <location line="+46"/>
         <source>Check the styles to copy into this document</source>
-        <translation type="unfinished"></translation>
+        <translation>Отметьте стили для копирования в этот документ</translation>
     </message>
     <message>
         <location line="-43"/>
@@ -66915,7 +66911,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <location filename="../apps/write/app/fielddialogs.cpp" line="+39"/>
         <location line="+102"/>
         <source>Bookmark</source>
-        <translation type="unfinished">Закладка</translation>
+        <translation>Закладка</translation>
     </message>
     <message>
         <location line="-94"/>
@@ -66996,27 +66992,27 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+9"/>
         <source>Sort by</source>
-        <translation type="unfinished">Сортировать по</translation>
+        <translation>Сортировать по</translation>
     </message>
     <message>
         <location line="+98"/>
         <source>Reference type</source>
-        <translation type="unfinished"></translation>
+        <translation>Тип ссылки</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Insert reference to</source>
-        <translation type="unfinished"></translation>
+        <translation>Вставить ссылку на</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>For which item</source>
-        <translation type="unfinished"></translation>
+        <translation>Для какого элемента</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Items</source>
-        <translation type="unfinished">Элементы</translation>
+        <translation>Элементы</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -67122,29 +67118,29 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+26"/>
         <source>Field</source>
-        <translation type="unfinished">Поле</translation>
+        <translation>Поле</translation>
     </message>
     <message>
         <location line="+35"/>
         <location line="+34"/>
         <source>Field codes</source>
-        <translation type="unfinished"></translation>
+        <translation>Коды полей</translation>
     </message>
     <message>
         <location line="+55"/>
         <source>Tab leader</source>
-        <translation type="unfinished"></translation>
+        <translation>Заполнитель табуляции</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Show levels</source>
-        <translation type="unfinished"></translation>
+        <translation>Уровни</translation>
     </message>
     <message>
         <location line="-123"/>
         <location line="+3"/>
         <source>Field names</source>
-        <translation type="unfinished">Имена полей</translation>
+        <translation>Имена полей</translation>
     </message>
     <message>
         <location line="+46"/>
@@ -67464,7 +67460,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+1"/>
         <source>Bookmark</source>
-        <translation type="unfinished">Закладка</translation>
+        <translation>Закладка</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -67504,7 +67500,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+1"/>
         <source>Field</source>
-        <translation type="unfinished">Поле</translation>
+        <translation>Поле</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -67605,7 +67601,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+7"/>
         <source>Sort by</source>
-        <translation type="unfinished">Сортировать по</translation>
+        <translation>Сортировать по</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -67721,7 +67717,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+16"/>
         <source>Replace</source>
-        <translation type="unfinished">Заменить</translation>
+        <translation>Заменить</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -67849,22 +67845,22 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="-41"/>
         <source>Mark the selected text as</source>
-        <translation type="unfinished"></translation>
+        <translation>Пометить выделенный текст как</translation>
     </message>
     <message>
         <location line="+43"/>
         <source>Translate the whole document into</source>
-        <translation type="unfinished"></translation>
+        <translation>Перевести весь документ на</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Translate the selected text into</source>
-        <translation type="unfinished"></translation>
+        <translation>Перевести выделенный текст на</translation>
     </message>
     <message>
         <location line="+9"/>
         <source>Translation service (a LibreTranslate address)</source>
-        <translation type="unfinished"></translation>
+        <translation>Служба перевода (адрес LibreTranslate)</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -68004,17 +68000,17 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="-308"/>
         <source>Column</source>
-        <translation type="unfinished"></translation>
+        <translation>Столбец</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Field</source>
-        <translation type="unfinished">Поле</translation>
+        <translation>Поле</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Type</source>
-        <translation type="unfinished">Тип</translation>
+        <translation>Тип</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -68029,32 +68025,32 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+0"/>
         <source>Words</source>
-        <translation type="unfinished">Слова</translation>
+        <translation>Слова</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Characters (no spaces)</source>
-        <translation type="unfinished"></translation>
+        <translation>Знаки (без пробелов)</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Characters (with spaces)</source>
-        <translation type="unfinished">Знаки (с пробелами)</translation>
+        <translation>Знаки (с пробелами)</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Paragraphs</source>
-        <translation type="unfinished">Абзацы</translation>
+        <translation>Абзацы</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Lines</source>
-        <translation type="unfinished">Линии</translation>
+        <translation>Строки</translation>
     </message>
     <message>
         <location line="+38"/>
         <source>Paste the clipboard as</source>
-        <translation type="unfinished"></translation>
+        <translation>Вставить буфер обмена как</translation>
     </message>
     <message>
         <location line="+20"/>
@@ -68064,17 +68060,17 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+66"/>
         <source>Password to stop the protection</source>
-        <translation type="unfinished"></translation>
+        <translation>Пароль для снятия защиты</translation>
     </message>
     <message>
         <location line="+17"/>
         <source>Password (you can leave this empty)</source>
-        <translation type="unfinished"></translation>
+        <translation>Пароль (можно оставить пустым)</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Type it again</source>
-        <translation type="unfinished"></translation>
+        <translation>Повторите ввод</translation>
     </message>
     <message>
         <location line="+77"/>
@@ -68228,12 +68224,12 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+2"/>
         <source>This document is the original. Choose the revised version</source>
-        <translation type="unfinished"></translation>
+        <translation>Этот документ является исходным. Выберите исправленную версию</translation>
     </message>
     <message>
         <location line="+13"/>
         <source>Label the changes with this name</source>
-        <translation type="unfinished"></translation>
+        <translation>Назовите исправления этим именем</translation>
     </message>
     <message>
         <location line="-9"/>
@@ -68472,7 +68468,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+0"/>
         <source>Right</source>
-        <translation type="unfinished">Справа</translation>
+        <translation>Справа</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -68482,7 +68478,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+0"/>
         <source>Left</source>
-        <translation type="unfinished">Слева</translation>
+        <translation>Слева</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -68541,7 +68537,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+10"/>
         <source>Column</source>
-        <translation type="unfinished">Колонка</translation>
+        <translation>Столбец</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -68574,14 +68570,14 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <location line="+34"/>
         <location line="+121"/>
         <source>Left</source>
-        <translation type="unfinished">Слева</translation>
+        <translation>Слева</translation>
     </message>
     <message>
         <location line="-154"/>
         <location line="+34"/>
         <location line="+121"/>
         <source>Right</source>
-        <translation type="unfinished">Справа</translation>
+        <translation>Справа</translation>
     </message>
     <message>
         <location line="-116"/>
@@ -68591,12 +68587,12 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+1"/>
         <source>Align relative to</source>
-        <translation type="unfinished"></translation>
+        <translation>Выровнять относительно</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Leader</source>
-        <translation type="unfinished">Заполнитель</translation>
+        <translation>Заполнитель</translation>
     </message>
     <message>
         <location line="+16"/>
@@ -68641,17 +68637,17 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+3"/>
         <source>From text</source>
-        <translation type="unfinished"></translation>
+        <translation>Из текста</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Count by</source>
-        <translation type="unfinished"></translation>
+        <translation>Шаг</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Numbering</source>
-        <translation type="unfinished">Нумерация</translation>
+        <translation>Нумерация</translation>
     </message>
     <message>
         <location line="+92"/>
@@ -68672,7 +68668,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+1"/>
         <source>Measure from</source>
-        <translation type="unfinished"></translation>
+        <translation>Отсчитывать от</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -68682,7 +68678,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+60"/>
         <source>Use separator</source>
-        <translation type="unfinished"></translation>
+        <translation>Использовать разделитель</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -68690,19 +68686,24 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Начать с:</translation>
     </message>
     <message>
-        <location line="+66"/>
+        <location line="+52"/>
+        <source>Use a font of its own</source>
+        <translation>Использовать собственный шрифт</translation>
+    </message>
+    <message>
+        <location line="+14"/>
         <source>Position</source>
         <translation>Положение</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Lines to drop</source>
-        <translation type="unfinished"></translation>
+        <translation>Строк в буквице</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Letters</source>
-        <translation type="unfinished">Письма</translation>
+        <translation>Букв</translation>
     </message>
     <message>
         <location line="+57"/>
@@ -68722,7 +68723,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+32"/>
         <source>Available formats</source>
-        <translation type="unfinished"></translation>
+        <translation>Доступные форматы</translation>
     </message>
     <message>
         <location line="-296"/>
@@ -68737,12 +68738,12 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+9"/>
         <source>Top</source>
-        <translation type="unfinished">Сверху</translation>
+        <translation>Сверху</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Bottom</source>
-        <translation type="unfinished">Снизу</translation>
+        <translation>Снизу</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -68767,7 +68768,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <location line="+97"/>
         <location line="+84"/>
         <source>Apply to</source>
-        <translation type="unfinished"></translation>
+        <translation>Применить к</translation>
     </message>
     <message>
         <location line="-273"/>
@@ -68875,7 +68876,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <location line="+7"/>
         <location line="+12"/>
         <source>Chapter starts with style</source>
-        <translation type="unfinished">Глава начинается со стиля</translation>
+        <translation>Глава начинается со стиля</translation>
     </message>
     <message>
         <location line="-11"/>
@@ -68885,7 +68886,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+4"/>
         <source>Separator</source>
-        <translation type="unfinished">Разделитель</translation>
+        <translation>Разделитель</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -68936,7 +68937,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+1"/>
         <source>Limit consecutive hyphens to</source>
-        <translation type="unfinished"></translation>
+        <translation>Ограничить подряд идущие переносы до</translation>
     </message>
     <message>
         <location line="+248"/>
@@ -68949,12 +68950,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Утоплённая</translation>
     </message>
     <message>
-        <location line="+4"/>
-        <source>Use a font of its own:</source>
-        <translation type="unfinished">Использовать собственный шрифт:</translation>
-    </message>
-    <message>
-        <location line="+37"/>
+        <location line="+41"/>
         <source>Custom Watermark</source>
         <translation type="unfinished">Настраиваемая подложка</translation>
     </message>
@@ -69029,12 +69025,12 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+1"/>
         <source>Bookmark</source>
-        <translation type="unfinished">Закладка</translation>
+        <translation>Закладка</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Screen tip</source>
-        <translation type="unfinished">Всплывающая подсказка</translation>
+        <translation>Подсказка</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -69273,7 +69269,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="-54"/>
         <source>Left</source>
-        <translation type="unfinished">По левому краю</translation>
+        <translation>Слева</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -69283,7 +69279,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+1"/>
         <source>Right</source>
-        <translation type="unfinished">По правому краю</translation>
+        <translation>Справа</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -69336,17 +69332,17 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="-57"/>
         <source>Number style for this level</source>
-        <translation type="unfinished"></translation>
+        <translation>Стиль нумерации для этого уровня</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Number format (%1 to %9 are the numbers of the levels)</source>
-        <translation type="unfinished"></translation>
+        <translation>Формат номера (от %1 до %9 — номера уровней)</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Include the number from level</source>
-        <translation type="unfinished"></translation>
+        <translation>Включить номер из уровня</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -69356,27 +69352,27 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+3"/>
         <source>Restart the list after</source>
-        <translation type="unfinished"></translation>
+        <translation>Перезапускать список после</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Number alignment</source>
-        <translation type="unfinished"></translation>
+        <translation>Выравнивание номера</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Number position at</source>
-        <translation type="unfinished"></translation>
+        <translation>Положение номера на</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Text indent at</source>
-        <translation type="unfinished"></translation>
+        <translation>Отступ текста на</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Follow the number with</source>
-        <translation type="unfinished"></translation>
+        <translation>Знак после номера</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -69396,12 +69392,12 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+5"/>
         <source>Link level to style</source>
-        <translation type="unfinished"></translation>
+        <translation>Связать уровень со стилем</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Preview</source>
-        <translation type="unfinished">Просмотр</translation>
+        <translation>Образец</translation>
     </message>
     <message>
         <location line="+73"/>
@@ -69497,12 +69493,12 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location filename="../apps/write/app/pagepaint.cpp" line="+139"/>
         <source>Footer</source>
-        <translation type="unfinished">Нижний колонтитул</translation>
+        <translation>Нижний колонтитул</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Header</source>
-        <translation type="unfinished">Верхний колонтитул</translation>
+        <translation>Верхний колонтитул</translation>
     </message>
     <message>
         <location filename="../apps/write/app/pageview.cpp" line="+245"/>
@@ -69985,7 +69981,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+244"/>
         <source>and</source>
-        <translation type="unfinished">и</translation>
+        <translation>и</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -70063,8 +70059,8 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     </message>
     <message>
         <location line="+28"/>
-        <source>Not in dictionary:</source>
-        <translation type="unfinished">Нет в словаре:</translation>
+        <source>Not in dictionary</source>
+        <translation>Нет в словаре</translation>
     </message>
     <message>
         <location line="+30"/>
@@ -70122,7 +70118,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+8"/>
         <source>Style type</source>
-        <translation type="unfinished"></translation>
+        <translation>Тип стиля</translation>
     </message>
     <message>
         <location line="+32"/>
@@ -70132,7 +70128,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+1"/>
         <source>Style for the following paragraph</source>
-        <translation type="unfinished"></translation>
+        <translation>Стиль следующего абзаца</translation>
     </message>
     <message>
         <location line="+17"/>
@@ -70162,7 +70158,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+14"/>
         <source>Left</source>
-        <translation type="unfinished">По левому краю</translation>
+        <translation>Слева</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -70172,7 +70168,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+1"/>
         <source>Right</source>
-        <translation type="unfinished">По правому краю</translation>
+        <translation>Справа</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -70187,32 +70183,32 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+1"/>
         <source>Indentation, left</source>
-        <translation type="unfinished"></translation>
+        <translation>Отступ слева</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Indentation, right</source>
-        <translation type="unfinished"></translation>
+        <translation>Отступ справа</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>First line</source>
-        <translation type="unfinished">Первая строка</translation>
+        <translation>Первая строка</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Spacing, before</source>
-        <translation type="unfinished"></translation>
+        <translation>Интервал перед</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Spacing, after</source>
-        <translation type="unfinished"></translation>
+        <translation>Интервал после</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Line spacing (lines)</source>
-        <translation type="unfinished"></translation>
+        <translation>Междустрочный интервал (строки)</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -70323,22 +70319,22 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location filename="../apps/write/app/tabledialogs.cpp" line="+361"/>
         <source>Top</source>
-        <translation type="unfinished">Сверху</translation>
+        <translation>Сверху</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Bottom</source>
-        <translation type="unfinished">Снизу</translation>
+        <translation>Снизу</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Left</source>
-        <translation type="unfinished">Слева</translation>
+        <translation>Слева</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Right</source>
-        <translation type="unfinished">Справа</translation>
+        <translation>Справа</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -70353,7 +70349,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+174"/>
         <source>Sort by</source>
-        <translation type="unfinished">Сортировать по</translation>
+        <translation>Сортировать по</translation>
     </message>
     <message>
         <location line="+0"/>
