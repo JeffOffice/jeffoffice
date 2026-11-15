@@ -5,7 +5,10 @@
 #include "app/deckcanvas.h"
 #include "app/deckfilescreen.h"
 #include "app/editor.h"
+#include "app/lossywarning.h"
 #include "app/notespane.h"
+#include "app/outlineview.h"
+#include "io/odpexport.h"
 #include "app/passworddialogs.h"
 #include "app/plaintext.h"
 #include "app/settings.h"
@@ -107,6 +110,7 @@ QWidget *DeckWindow::buildInfoPage(QWidget *parent)
     h.hasPassword = [this] { return m_fileProtected; };
     h.encrypt = [this] { encryptWithPassword(); };
     h.inspect = [this] { inspectPresentation(); };
+    h.checkCompatibility = [this] { checkCompatibility(); };
     h.versionHistory = [this] { versionHistory(); };
     h.checkAccessibility = [this] {
         hideFileScreen();
@@ -388,6 +392,21 @@ void DeckWindow::versionHistory()
     host.restore = [this](const QString &file) { return restoreVersion(file); };
     showVersionHistory(this, host);
     if (m_fileScreen && m_fileScreen->isVisible()) showFileScreen(QStringLiteral("info"));
+}
+
+// Check Compatibility: what an .odp file would leave out of the presentation, by the writer's own list, said without saving.
+void DeckWindow::checkCompatibility()
+{
+    if (!m_ed->doc()) return;
+    m_notes->commit();
+    if (m_outline) m_outline->commit();
+    m_ed->endTextEdit();
+    QStringList lost;
+    QString err;
+    deck::exportOdp(*m_ed->doc(), false, &err, &lost);
+    if (m_fileProtected) lost << tr("The password: a .odp file can't hold a password yet.");
+    if (markedAsFinal()) lost << tr("The mark that the presentation is final.");
+    notice(tr("Check Compatibility"), lossyReport({QString(), tr("presentation"), QStringLiteral(".odp"), QStringLiteral(".pptx"), lost}), !lost.isEmpty());
 }
 
 } // namespace jp

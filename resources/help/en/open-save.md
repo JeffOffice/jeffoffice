@@ -1,5 +1,5 @@
 # Open and save publications
-<!-- keywords: open, save, save as, save a copy, close, recent files, pinned, file types, jpub, rename, backup, properties, info, mark as final, inspect, version history, new name, copy, Ctrl+S, read-only, read only, open as copy, new window, my templates, save as template, repair, open and repair, damaged -->
+<!-- keywords: open, save, save as, save a copy, close, recent files, pinned, file types, jpub, rename, backup, properties, info, mark as final, inspect, version history, new name, copy, Ctrl+S, read-only, read only, open as copy, new window, my templates, save as template, repair, open and repair, damaged, check compatibility, save anyway, dont ask again -->
 
 JeffPub saves your work in .jpub files. It also opens and saves .pub files. See [Work with .pub files](pub-files).
 
@@ -52,6 +52,7 @@ Click **File > Close**, or press Ctrl+F4. JeffPub asks whether to save changes, 
 
 **File > Info** shows where the file is, with **Show in Folder** and **Copy Path**. It shows facts about your publication: pages, page size, pictures, words, and dates. Type in the boxes to set its **Title**, **Author**, **Subject**, **Keywords**, **Categories**, **Comments**, **Company**, and **Manager**, and click **Custom Properties** for properties of your own. The change is saved with the publication, and **Ctrl+Z** takes it back. The page also opens your business information, the **Commercial Print Settings** (see [PDF files and print shops](pdf)), and the [Design Checker](design-checker).
 
+- **Check Compatibility** lists what a .pub file can't hold of your publication, without saving anything: hidden objects, some list looks, and anything else the .pub writer leaves out. When you save as a .pub file, JeffPub shows the same list **before** it writes anything. Choose **Save Anyway**, **Save as .jpub** (the .jpub file is put beside it, and nothing is lost), or **Cancel**. Tick **Don't ask again for this file** and JeffPub stops asking about that file until you close the program.
 - **Mark as Final** saves the publication and then holds it for reading only. When someone opens it, the title bar says it is read-only, and a note tells them it was marked as final. It is not a lock: choose **Marked as Final** again to edit it. A .pub file can't hold the mark, so save as a .jpub file first.
 - **Inspect Publication** lists what the file holds that you may not want to share, and removes it: the comments and the names of the people who wrote them, the author and other names in the properties, the business information, the mail merge list, and the objects parked on the scratch area beside the pages.
 - **Remove personal information from this file when saving**, under the cards, takes the author, the person who saved the file last, the company, and the manager out of the file each time you save, for a .jpub or a .pub file. It is the same box as in **Options**, and the same in every JeffOffice app.

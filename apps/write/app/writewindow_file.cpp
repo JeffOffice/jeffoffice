@@ -4,6 +4,7 @@
 
 #include "app/editor.h"
 #include "app/filedialogs.h"
+#include "app/lossywarning.h"
 #include "app/filetasks.h"
 #include "app/icons.h"
 #include "app/optionsdialog.h"
@@ -434,12 +435,10 @@ bool WriteWindow::saveTo(const QString &path, bool asCopy)
         for (const QString &what : std::as_const(notKept))
             if (!m_odtNoted.contains(what)) fresh << what;
         if (!fresh.isEmpty()) {
-            const FormatChoice choice = askFormatChoice(fresh, rtf ? QStringLiteral(".rtf") : QStringLiteral(".odt"));
+            const FormatChoice choice = askFormatChoice(fresh, rtf ? QStringLiteral(".rtf") : QStringLiteral(".odt"), path);
             if (choice == FormatChoice::Cancel) return false;
             if (choice == FormatChoice::Docx) {
-                QString beside = QFileInfo(path).absolutePath() + QLatin1Char('/') + QFileInfo(path).completeBaseName();
-                QString target = beside + QStringLiteral(".docx");
-                for (int n = 2; QFileInfo::exists(target); ++n) target = beside + QStringLiteral(" (%1).docx").arg(n);
+                const QString target = lossyOwnFormatPath(path, QStringLiteral(".docx"));
                 restoreMark();
                 return saveTo(target, asCopy);
             }
@@ -518,19 +517,12 @@ bool WriteWindow::saveTo(const QString &path, bool asCopy)
     return true;
 }
 
-WriteWindow::FormatChoice WriteWindow::askFormatChoice(const QStringList &lost, const QString &kind)
+WriteWindow::FormatChoice WriteWindow::askFormatChoice(const QStringList &lost, const QString &kind, const QString &path)
 {
     if (m_formatAsker) return m_formatAsker(lost);
-    QMessageBox box(QMessageBox::Warning, tr("Save"), tr("A %1 file can't hold some of what this document has. If you save it here, these parts are saved as they stand now or left out:\n\n%2").arg(kind, lost.join(QLatin1Char('\n'))), QMessageBox::NoButton, this);
-    box.setTextFormat(Qt::PlainText);
-    QPushButton *keep = box.addButton(tr("Save as %1 Anyway").arg(kind), QMessageBox::AcceptRole);
-    QPushButton *docx = box.addButton(tr("Save as .docx Instead"), QMessageBox::ActionRole);
-    box.addButton(QMessageBox::Cancel);
-    box.setDefaultButton(docx);
-    box.exec();
-    if (box.clickedButton() == keep) return FormatChoice::Keep;
-    if (box.clickedButton() == docx) return FormatChoice::Docx;
-    return FormatChoice::Cancel;
+    // (the warning every app gives, libs/shell/app/lossywarning.h)
+    const LossyChoice choice = askLossy(this, {path, tr("document"), kind, QStringLiteral(".docx"), lost});
+    return choice == LossyChoice::SaveAnyway ? FormatChoice::Keep : choice == LossyChoice::SaveOwnFormat ? FormatChoice::Docx : FormatChoice::Cancel;
 }
 
 // ---- Where editing stopped

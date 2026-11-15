@@ -4,6 +4,8 @@
 
 #include "app/backstage.h"
 #include "app/dialogs.h"
+#include "app/lossywarning.h"
+#include "io/importers.h"
 #include "app/passworddialogs.h"
 #include "app/plaintext.h"
 #include "app/privacy.h"
@@ -101,6 +103,7 @@ QWidget *MainWindow::buildInfoPage(QWidget *parent)
     h.encrypt = [this] { encryptWithPassword(); };
     h.encryptBlocked = [this] { return encryptBlocked(); };
     h.inspect = [this] { inspectPublication(); };
+    h.checkCompatibility = [this] { checkCompatibility(); };
     h.versionHistory = [this] { versionHistory(); };
     h.checkAccessibility = [this] {
         hideBackstage();
@@ -297,6 +300,16 @@ QVector<write::DocVersion> MainWindow::versions() const
 {
     if (m_ed->filePath().isEmpty()) return {};
     return write::VersionStore(m_ed->filePath(), QStringLiteral(".jpub")).list();
+}
+
+void MainWindow::checkCompatibility()
+{
+    if (!m_ed->doc()) return;
+    m_ed->endTextEdit();
+    QStringList lost = publisherLosses(*m_ed->doc());
+    if (m_fileProtected) lost << tr("The password: a .pub file can't keep a password.");
+    if (markedAsFinal()) lost << tr("The mark that the publication is final.");
+    notice(tr("Check Compatibility"), lossyReport({QString(), tr("publication"), QStringLiteral(".pub"), QStringLiteral(".jpub"), lost}), !lost.isEmpty());
 }
 
 bool MainWindow::saveVersion(const QString &name)

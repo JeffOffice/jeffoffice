@@ -2,6 +2,7 @@
 // document's facts and does what its cards ask.
 #include "app/writewindow.h"
 
+#include "app/lossywarning.h"
 #include "app/pageview.h"
 #include "app/passworddialogs.h"
 #include "app/plaintext.h"
@@ -205,8 +206,7 @@ QStringList WriteWindow::incompatibilities()
 void WriteWindow::checkCompatibility()
 {
     const QStringList kept = incompatibilities();
-    if (kept.isEmpty()) notice(tr("Check Compatibility"), tr("Nothing in this document is lost when it is saved as an OpenDocument text file (.odt)."));
-    else notice(tr("Check Compatibility"), tr("An OpenDocument text file (.odt) can't hold some of what this document has:\n\n%1").arg(kept.join(QLatin1Char('\n'))), true);
+    notice(tr("Check Compatibility"), lossyReport({QString(), tr("document"), QStringLiteral(".odt"), QStringLiteral(".docx"), kept}), !kept.isEmpty());
 }
 
 } // namespace jp

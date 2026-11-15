@@ -9,6 +9,7 @@
 #include "app/filedialogs.h"
 #include "app/filetasks.h"
 #include "app/icons.h"
+#include "app/lossywarning.h"
 #include "app/notespane.h"
 #include "app/outlineview.h"
 #include "app/recovery.h"
@@ -19,6 +20,7 @@
 #include "core/appinfo.h"
 #include "io/crypto.h"
 #include "io/deckoutput.h"
+#include "io/odpexport.h"
 #include "io/pptxexport.h"
 #include "io/pptximport.h"
 #include "io/presentationfile.h"
@@ -174,6 +176,16 @@ bool embedFontsOnSave() { return Settings::get().value(QStringLiteral("save/embe
 
 } // namespace
 
+// What the open document kind would leave out of the presentation, by writing it to memory as a save would; nothing is put on disk. Nothing is worked out for a file the person asked not to be asked about.
+QStringList DeckWindow::odpLosses(const QString &path)
+{
+    QStringList skipped;
+    if (lossyAskedNotAgain(path)) return skipped;
+    QString err;
+    deck::exportOdp(*m_ed->doc(), deck::presentationKindOf(path) == deck::PresentationKind::Template, &err, &skipped);
+    return skipped;
+}
+
 bool DeckWindow::saveTo(const QString &path, bool asCopy)
 {
     // A presentation open for reading only is never written over its own file, and a copy is never saved over the file this window has open (it would be the same as saving).
@@ -194,6 +206,14 @@ bool DeckWindow::saveTo(const QString &path, bool asCopy)
     if (m_outline) m_outline->commit();
     m_ed->endTextEdit();
     m_ed->endCrop(true);   // what is written is a step, and a crop still going on is not yet
+    // What an .odp file can't hold is said before anything is written, with the choice of a .pptx beside it (the list is what the writer itself leaves out).
+    if (odf) {
+        const QStringList lost = odpLosses(path);
+        const bool tmpl = deck::presentationKindOf(path) == deck::PresentationKind::Template;
+        const LossyChoice choice = askLossy(this, {path, tr("presentation"), QStringLiteral(".") + QFileInfo(path).suffix().toLower(), tmpl ? QStringLiteral(".potx") : QStringLiteral(".pptx"), lost});
+        if (choice == LossyChoice::Cancel) return false;
+        if (choice == LossyChoice::SaveOwnFormat) return saveTo(lossyOwnFormatPath(path, tmpl ? QStringLiteral(".potx") : QStringLiteral(".pptx")), asCopy);
+    }
     // Options > Save > Remove personal information: the names are taken out of the bytes that are written (the properties and the comments); the open presentation is not changed.
     const bool namesOut = privacy::removeOnSave();
     QStringList namesProblems;

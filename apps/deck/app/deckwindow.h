@@ -314,6 +314,8 @@ public:
     // Writes the file, and the presentation is saved and takes the file's name (not for a copy, which is only written).
     // On failure, says why and leaves the presentation unsaved.
     bool saveTo(const QString &path, bool asCopy = false);
+    QStringList odpLosses(const QString &path);   // what an .odp file would leave out, worked out by writing it to memory
+    void checkCompatibility();                  // File > Info: the same list, without saving
     // What Save As asks for a name with: the file dialog, unless this stands
     // in for it (tests). Given the name to suggest and the filter to start on;
     // returns the path chosen, empty for none.

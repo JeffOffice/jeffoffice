@@ -84,7 +84,7 @@ JeffDeck's File screen has New, Open, Save, Save As, Print, Export, Close, Optio
 - [x] **1.0** Open an encrypted presentation by asking for its password *(the shared password box; a wrong password asks again, Cancel opens nothing, and a damaged file says so)*
 - [ ] **1.0** Open and save the macro-enabled kinds (`.pptm`, `.ppsm`, `.potm`), keeping the macro project untouched and never running it *(macro projects: ours 0 of 19)*
 - [ ] **1.0** Save As lists `.ppt`, `.pps`, and `.pot`, with a warning of what they can't hold; until then Save on an old file asks for a new name (see File formats)
-- [ ] **1.0** A warning before saving to a kind that can't hold something in the presentation, naming what would change, with the choice to save a `.pptx` as well
+- [x] **1.0** A warning before saving to a kind that can't hold something in the presentation, naming what would change, with the choice to save a `.pptx` as well *(done November 15, 2026 for `.odp` and `.otp`, the only older kinds JeffDeck writes: the list the writer itself builds (sections, glows, and so on) is shown before anything is written, with Save Anyway, Save as .pptx (.potx for a template), and Cancel, and "Don't ask again for this file" for the session; File > Info > Check Compatibility lists the same without saving; shared: libs/shell lossywarning; not done: `.ppt`, `.pps`, and `.pot` are still not written)*
 - [x] **1.0** Backup copy kept on every save *(Options > General, shared by every app)*
 - [ ] **later** Protected View: files from the Internet open for reading only until you choose to edit them
 - [ ] **later** Open from a web address and save back

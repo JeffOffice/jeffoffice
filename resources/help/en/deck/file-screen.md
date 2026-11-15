@@ -1,5 +1,5 @@
 # The File screen
-<!-- keywords: file, file screen, backstage, new, open, save, save as, print, export, close, options, about, version, license, report a problem, source code, downloads, back to presentation, info, properties, title, author, subject, keywords, categories, comments, company, manager, custom properties, mark as final, final, read-only, password, encrypt, protect, open password, inspect presentation, personal information, speaker notes, hidden slides, off the slide, version history, versions, keep a version, go back, restore, show in folder, copy path -->
+<!-- keywords: file, file screen, backstage, new, open, save, save as, print, export, close, options, about, version, license, report a problem, source code, downloads, back to presentation, info, properties, title, author, subject, keywords, categories, comments, company, manager, custom properties, mark as final, final, read-only, password, encrypt, protect, open password, inspect presentation, personal information, speaker notes, hidden slides, off the slide, version history, versions, keep a version, go back, restore, show in folder, copy path, check compatibility, save anyway, dont ask again -->
 
 The **File** button, left of the tabs, opens the File screen. It covers the window and holds everything that works on the whole file: starting, opening, saving, printing, and exporting. Press Esc, or click **Back to presentation**, to return to your slides. **Alt+F** also opens it.
 
@@ -45,6 +45,12 @@ Click **Encrypt with Password** to ask for a password whenever the file is opene
 - While a presentation has a password, JeffDeck keeps no recovery copy of it, because that copy would not be protected. Save often.
 
 To open a protected file, open it as usual. JeffDeck asks for the password. If it is not right, you can try again, or click **Cancel**. If the file is damaged, JeffDeck says so.
+
+### Check Compatibility
+
+Click **Check Compatibility** to see what an **.odp** file can't hold of your presentation, without saving anything. The list comes from the same place JeffDeck uses when it saves, so it is exact. If nothing is listed, nothing is lost.
+
+When you save as an .odp or .otp file, JeffDeck shows that list **before** it writes anything. Choose **Save Anyway**, **Save as .pptx** (the .pptx file is put beside it, and nothing is lost), or **Cancel**. Tick **Don't ask again for this file** and JeffDeck stops asking about that file until you close the program.
 
 ### Inspect Presentation
 

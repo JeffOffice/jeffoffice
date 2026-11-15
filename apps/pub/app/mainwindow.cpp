@@ -9,6 +9,7 @@
 #include "core/startuptrace.h"
 #include "templates/changetemplate.h"
 #include "app/help.h"
+#include "app/lossywarning.h"
 #include "app/recovery.h"
 #include "app/keytips.h"
 #include <QComboBox>
@@ -680,34 +681,12 @@ bool MainWindow::saveTo(const QString &pathIn, bool asCopy)
         && jp::plainQuestion(this, tr("Save"), tr("This publication is protected with a password, and a .pub file can't keep a password. Save it as a .pub file without one?"), QMessageBox::Yes | QMessageBox::No,
                              QMessageBox::No) != QMessageBox::Yes)
         return false;
-    // Nor can a .pub file keep an object hidden: the person is asked before it is written with every object showing.
+    // Nor can it keep everything else: what would be lost (the writer's own list) is named, and the person chooses to save anyway, to save as a .jpub instead, or to cancel.
     if (toPub) {
-        bool anyHidden = false;
-        m_ed->doc()->forEachItem([&](Item *it, int, const QString &) { anyHidden = anyHidden || it->hidden; });
-        if (anyHidden
-            && jp::plainQuestion(this, tr("Save"), tr("This publication has hidden objects. The .pub format can't keep them hidden, so they will be visible the next time it opens. Save it as a .pub file anyway?"),
-                                 QMessageBox::Yes | QMessageBox::No, QMessageBox::No) != QMessageBox::Yes)
-            return false;
-    }
-    // Nor can it keep every list: what would be lost is named, and the person chooses to save anyway, to save as a .jpub instead, or to cancel.
-    if (toPub) {
-        const QStringList lost = publisherListLosses(*m_ed->doc());
-        if (!lost.isEmpty()) {
-            QMessageBox box(QMessageBox::Question, tr("Save"), tr("A .pub file can't keep everything about this publication's lists: %1.\n\nA JeffPub publication (.jpub) keeps all of it.").arg(lost.join(QStringLiteral("; "))),
-                            QMessageBox::NoButton, this);
-            box.setTextFormat(Qt::PlainText);
-            QPushButton *anyway = box.addButton(tr("Save Anyway"), QMessageBox::AcceptRole);
-            QPushButton *asJpub = box.addButton(tr("Save as .jpub"), QMessageBox::ActionRole);
-            box.addButton(QMessageBox::Cancel);
-            box.setDefaultButton(asJpub);
-            box.exec();
-            if (box.clickedButton() == asJpub) {
-                QString other = path;
-                other.chop(4);
-                return saveTo(other + QStringLiteral(".jpub"), asCopy);
-            }
-            if (box.clickedButton() != anyway) return false;
-        }
+        m_ed->endTextEdit();
+        const LossyChoice choice = askLossy(this, {path, tr("publication"), QStringLiteral(".pub"), QStringLiteral(".jpub"), lossyAskedNotAgain(path) ? QStringList() : publisherLosses(*m_ed->doc())});
+        if (choice == LossyChoice::Cancel) return false;
+        if (choice == LossyChoice::SaveOwnFormat) return saveTo(lossyOwnFormatPath(path, QStringLiteral(".jpub")), asCopy);
     }
     const QString password = m_fileProtected && !toPub ? m_filePassword : QString();
     QString err;
@@ -728,11 +707,6 @@ bool MainWindow::saveTo(const QString &pathIn, bool asCopy)
             jp::plainWarning(this, tr("Save"), err);
             return false;
         }
-        // Saved, but some objects have no .pub form yet: say which.
-        if (!err.isEmpty())
-            jp::plainInformation(this, tr("Save as .pub File"),
-                                     tr("\"%1\" was saved, but %2.\n\nThey're kept when you save as a JeffPub publication (.jpub).")
-                                         .arg(QFileInfo(path).fileName(), err));
     } else {
         if (!path.endsWith(QLatin1String(".jpub"), Qt::CaseInsensitive)) path += QStringLiteral(".jpub");
         // (a copy has the time and the author a save gives, and the publication open here keeps its own)

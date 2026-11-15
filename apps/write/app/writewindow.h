@@ -620,7 +620,7 @@ private:
     void applyEditingDefaults();   // Options > Advanced: how a link is followed, and dragging text
     void returnToPlace(const QString &path);
     static QString placeKey(const QString &path);
-    FormatChoice askFormatChoice(const QStringList &lost, const QString &kind = QStringLiteral(".odt"));
+    FormatChoice askFormatChoice(const QStringList &lost, const QString &kind, const QString &path);
     QSet<QString> m_odtNoted;       // (what the person was told an .odt file can't hold: told again only of what is new)
     std::function<bool(write::TextForm *, const QByteArray *)> m_textFormChooser;
     write::TextForm m_textForm;     // how the plain text file this document came from (or was saved to) is written

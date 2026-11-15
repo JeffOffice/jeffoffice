@@ -1,5 +1,6 @@
 // JeffDeck's tests of open document presentations: reading, writing, and saving from the window.
 #include "deckhelpers.h"
+#include "app/lossywarning.h"
 #include "office/hyperlink.h"
 #include "core/version.h"
 
@@ -2719,6 +2720,79 @@ private Q_SLOTS:
         QVERIFY(!plain->hidden);
         QCOMPARE(int(g->children.size()), 2);
         for (const jp::ItemPtr &c : g->children) QVERIFY(!c->hidden);
+    }
+
+    // What an .odp can't hold is said before anything is written (the writer's own list), with the choice of a .pptx beside it; a presentation that loses nothing is saved without a word.
+    void aLossyOdpSaveShowsTheListAndEachChoiceDoesWhatItSays()
+    {
+        jp::lossyForgetAll();
+        const auto reset = qScopeGuard([] {
+            jp::setLossyStandIn(nullptr);
+            jp::lossyForgetAll();
+        });
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        DeckWindow w;
+        deck::addSection(*w.editor()->doc(), 0, QStringLiteral("Opening"));
+        int asked = 0;
+        QStringList seenLost;
+        QString seenOwn;
+        jp::LossyChoice answer = jp::LossyChoice::Cancel;
+        bool tick = false;
+        jp::setLossyStandIn([&](const jp::LossyAsk &a, bool *dontAsk) {
+            ++asked;
+            seenLost = a.lost;
+            seenOwn = a.ownFormat;
+            *dontAsk = tick;
+            return answer;
+        });
+        const QString odp = dir.filePath(QStringLiteral("talk.odp"));
+        // Cancel: the list was shown, nothing is written.
+        QVERIFY(!w.saveTo(odp));
+        QCOMPARE(asked, 1);
+        QVERIFY2(seenLost.join(QLatin1Char('\n')).contains(QStringLiteral("Sections")), qPrintable(seenLost.join(QLatin1Char('\n'))));
+        QCOMPARE(seenOwn, QStringLiteral(".pptx"));
+        QVERIFY(!QFileInfo::exists(odp));
+        // Save as the own format: a .pptx beside it, and no .odp.
+        answer = jp::LossyChoice::SaveOwnFormat;
+        QVERIFY(w.saveTo(odp));
+        QVERIFY(QFileInfo::exists(dir.filePath(QStringLiteral("talk.pptx"))));
+        QVERIFY(!QFileInfo::exists(odp));
+        // Save anyway, and don't ask again: written, and the next save of that file is not asked.
+        answer = jp::LossyChoice::SaveAnyway;
+        tick = true;
+        QVERIFY(w.saveTo(odp));
+        QVERIFY(QFileInfo::exists(odp));
+        const int before = asked;
+        QVERIFY(w.saveTo(odp));
+        QCOMPARE(asked, before);
+        // Nothing lost: nothing is shown.
+        jp::lossyForgetAll();
+        DeckWindow plain;
+        asked = 0;
+        QVERIFY(plain.saveTo(dir.filePath(QStringLiteral("plain.odp"))));
+        QCOMPARE(asked, 0);
+        // (a picture of the real box, when asked for with JO_LOSSY_SHOT: the folder to put it in)
+        if (!qEnvironmentVariableIsEmpty("JO_LOSSY_SHOT")) {
+            jp::setLossyStandIn(nullptr);
+            jp::lossyForgetAll();
+            QTimer finder;
+            QObject::connect(&finder, &QTimer::timeout, [&] {
+                auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget());
+                if (!box) return;
+                box->grab().save(qEnvironmentVariable("JO_LOSSY_SHOT") + QStringLiteral("/deck.png"));
+                for (QAbstractButton *b : box->buttons())
+                    if (b->text() == QLatin1String("Cancel")) b->click();
+            });
+            finder.start(20);
+            QVERIFY(!w.saveTo(odp));
+        }
+        // Check Compatibility lists the same without saving.
+        QStringList told;
+        w.setNotifier([&](const QString &, const QString &text) { told << text; });
+        w.checkCompatibility();
+        QVERIFY(!told.isEmpty() && told.last().contains(QStringLiteral("Sections")));
+        QCOMPARE(asked, 0);
     }
 };
 

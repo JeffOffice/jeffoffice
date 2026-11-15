@@ -129,6 +129,7 @@ public:
     void setMarkedFinal(bool on);
     QVector<InspectItem> inspectItems();
     void inspectPublication();
+    void checkCompatibility();   // File > Info: what a .pub file can't hold, said without saving
     QVector<write::DocVersion> versions() const;
     bool saveVersion(const QString &name);
     bool restoreVersion(const QString &file);

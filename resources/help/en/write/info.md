@@ -53,7 +53,7 @@ Click **Remove All** next to a kind to take it out. You can undo what changes th
 
 Click **Check Compatibility** to see what an older kind of file can't hold. JeffWrite saves **.docx** and **.odt** files. A .docx file holds everything in your document. An .odt file can't hold a few things, and this list says which. If nothing is listed, nothing is lost.
 
-When you save as an .odt file, JeffWrite lists what the file can't hold **before** it writes anything. You can choose **Save as .odt Anyway**, **Save as .docx Instead** (the .docx file is put beside it, and nothing is lost), or **Cancel**.
+When you save as an .odt file, JeffWrite lists what the file can't hold **before** it writes anything. You can choose **Save Anyway**, **Save as .docx** (the .docx file is put beside it, and nothing is lost), or **Cancel**. Tick **Don't ask again for this file** and JeffWrite stops asking about that file until you close the program.
 
 ## Check Accessibility
 

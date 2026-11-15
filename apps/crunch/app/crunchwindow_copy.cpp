@@ -5,6 +5,7 @@
 
 #include "app/crunchwindow.h"
 
+#include "app/lossywarning.h"
 #include "app/oldformat.h"
 #include "app/otherformats.h"
 #include "app/telemetry.h"
@@ -121,9 +122,9 @@ void CrunchWindow::checkCompatibility()
                 self->notice(tr("Check Compatibility"), message);
                 return;
             }
-            const QString warning = crunch::copyWarning(QStringLiteral("xls"), copyReport.notKept, copyReport.trimmed);
-            if (warning.isEmpty()) self->notice(tr("Check Compatibility"), tr("Nothing in this workbook is lost when it is saved as an .xls file."), false);
-            else self->notice(tr("Check Compatibility"), warning);
+            QStringList lost = copyReport.notKept;
+            for (const QString &what : std::as_const(copyReport.trimmed)) lost << tr("Cut or changed to fit: %1").arg(what);
+            self->notice(tr("Check Compatibility"), lossyReport({QString(), tr("workbook"), QStringLiteral(".xls"), QStringLiteral(".xlsx"), lost}), !lost.isEmpty());
         }, Qt::QueuedConnection);
     });
     connect(thread, &QThread::finished, thread, &QObject::deleteLater);
@@ -148,7 +149,16 @@ void CrunchWindow::onCopyMade(bool ok, const QString &message, const QString &pa
     // what the file cannot hold: the person may go on, save an .xlsx instead, or give it up
     const QString warning = crunch::copyWarning(crunch::copyKindOf(path), notKept, trimmed);
     if (!warning.isEmpty()) {
-        const LossAnswer answer = askBeforeLosing(tr("Save"), warning, tr("Save Copy"), tr("Save as .xlsx…"));
+        // (the warning every app gives, libs/shell/app/lossywarning.h; a test stands in for the older question below, as before)
+        LossAnswer answer = LossAnswer::Continue;
+        if (m_lossAsker) {
+            answer = askBeforeLosing(tr("Save"), warning, tr("Save Copy"), tr("Save as .xlsx…"));
+        } else {
+            QStringList lost = notKept;
+            for (const QString &what : trimmed) lost << tr("Cut or changed to fit: %1").arg(what);
+            const LossyChoice choice = askLossy(this, {path, tr("workbook"), QStringLiteral(".") + crunch::copyKindOf(path), QStringLiteral(".xlsx"), lost});
+            answer = choice == LossyChoice::SaveAnyway ? LossAnswer::Continue : choice == LossyChoice::SaveOwnFormat ? LossAnswer::SaveXlsx : LossAnswer::Cancel;
+        }
         if (answer != LossAnswer::Continue) {
             if (answer == LossAnswer::SaveXlsx) {
                 const bool closing = m_closeAfterSave;

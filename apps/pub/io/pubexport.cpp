@@ -3171,6 +3171,23 @@ QStringList publisherListLosses(const Document &doc)
     return out;
 }
 
+QStringList publisherLosses(const Document &doc)
+{
+    QStringList phrases;
+    bool anyHidden = false;
+    doc.forEachItem([&](Item *it, int, const QString &) { anyHidden = anyHidden || it->hidden; });
+    if (anyHidden) phrases << QCoreApplication::translate("jp::PubExport", "hidden objects (the .pub format can't keep them hidden, so they are visible the next time it opens)");
+    phrases << publisherListLosses(doc);
+    // (what the writer itself leaves out: written to memory, as a save would, and nothing put on disk)
+    QStringList skipped;
+    PubWriter w(doc, QString(), QImage());
+    w.write(&skipped);
+    phrases << skipped;
+    QStringList out;
+    for (const QString &p : std::as_const(phrases)) out << (p.isEmpty() ? p : p.at(0).toUpper() + p.mid(1));
+    return out;
+}
+
 bool exportPublisher(const Document &doc, const QString &path, QString *error, const QImage &thumbnail)
 {
     QStringList skipped;

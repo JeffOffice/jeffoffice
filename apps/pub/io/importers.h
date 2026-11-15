@@ -93,6 +93,8 @@ void renderPlateInto(QPainter *p, const PaintContext &ctx, int page, int plate);
 bool exportPublisher(const Document &doc, const QString &path, QString *error, const QImage &thumbnail = QImage());
 // What a .pub file would lose of the publication's lists (empty when nothing): each a short phrase for a message ("the levels of list items"). A .jpub file keeps all of them.
 QStringList publisherListLosses(const Document &doc);
+// Everything a .pub file would lose of the publication, one phrase each (empty when nothing): hidden objects, the lists, and what the writer leaves out, found by writing it to memory.
+QStringList publisherLosses(const Document &doc);
 // A process color's inks as a .pub file keeps them: the values of drawing
 // properties 0x019F and 0x01A6 (0 when not needed).
 QPair<quint32, quint32> packPubInks(const QColor &cmyk);

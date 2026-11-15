@@ -54,7 +54,7 @@ Features JeffPub has that Publisher never did, then the ones planned before Jeff
 
 ### Info
 - [x] **1.0** Encrypt with a password: open and save a password-protected `.jpub` publication *(File > Info; AES-256 around the whole `.jpub`; the password is asked for on open, a wrong one asks again, and Cancel stops; versions, backup copies, and Save a Copy stay protected, and no recovery copy of it is written; a `.pub` file can't hold a password, so the card is off for one, and saving a protected publication as `.pub` asks first)*
-- [ ] **1.0** Check Compatibility: names what an older or other format can't hold before saving
+- [x] **1.0** Check Compatibility: names what an older or other format can't hold before saving *(done November 15, 2026: File > Info > Check Compatibility lists what a `.pub` file can't hold (hidden objects, list looks, what the writer leaves out, a password, the final mark) without saving; saving as `.pub` shows the same list in the shared warning (libs/shell lossywarning) with Save Anyway, Save as .jpub, and Cancel, and "Don't ask again for this file" for the session)*
 - [x] **1.0** Show a publication's folder and copy its path *(Info: Open File Location, which asks first for a file on another computer, and Copy Path; both grey until saved; shared: libs/shell Info page)*
 - [ ] **later** Add a digital signature with a certificate on your computer
 - [x] **1.0** Business Information: create, edit, and switch between named sets (name, tagline, contact person, title, address, phone/fax/email, logo)
