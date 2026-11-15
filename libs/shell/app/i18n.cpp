@@ -70,7 +70,7 @@ public:
             const QString source = QString::fromUtf8(sourceText);
             if (out != source && n < 0) {
                 const QMutexLocker lock(&s_sourceLock);
-                s_sources.insert(out, source);
+                if (!s_sources.contains(out, source)) s_sources.insert(out, source);
             }
             return out;
         }
