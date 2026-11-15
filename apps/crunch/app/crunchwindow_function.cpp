@@ -216,11 +216,11 @@ void CrunchWindow::functionArguments(const crunch::FunctionDoc &doc, const QStri
     if (m_edit.active) commitEdit(CellEditor::Way::Stay);
 }
 
-// The Help topic of a function: its own page when Help has one, else the page on the Function Arguments dialog.
+// The Help topic of a function: its entry in the page of its kind (every function the catalog has one), else the page on the Function Arguments dialog.
 QString CrunchWindow::functionHelpTopic(const QString &name) const
 {
-    const QString own = QStringLiteral("fn-") + name.toLower();
-    return help::topicIds().contains(own) ? own : QStringLiteral("function-arguments");
+    const crunch::FunctionDoc *doc = crunch::docOf(name);
+    return doc ? crunch::helpTopicOf(*doc) : QStringLiteral("function-arguments");
 }
 
 // The function is put in the formula: at the cursor of the entry being made (a formula has "=" in front of it already, or gets it), else in the cell with the cursor as a formula to go on with.

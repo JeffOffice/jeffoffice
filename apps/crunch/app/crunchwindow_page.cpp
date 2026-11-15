@@ -15,6 +15,8 @@
 
 #include <QAction>
 #include <QComboBox>
+#include <QFileDialog>
+#include <QImage>
 #include <QFileInfo>
 #include <QLocale>
 #include <QSpinBox>
@@ -132,6 +134,14 @@ void CrunchWindow::createPageActions()
         changePage(tr("Reset page breaks"), [](PageSetup *s) {
             s->rowBreaks.clear();
             s->colBreaks.clear();
+        });
+    });
+    page(QStringLiteral("page.background"), tr("Background"), QStringLiteral("image"), [this] { chooseBackground(); });
+    page(QStringLiteral("page.deleteBackground"), tr("Delete Background"), QStringLiteral("image-off"), [this] {
+        changePage(tr("Delete Background"), [](PageSetup *s) {
+            s->background.image.clear();   // (the link the file has stays, so that the save knows what to take out)
+            s->background.extension.clear();
+            s->background.part.clear();
         });
     });
     page(QStringLiteral("titles.dialog"), tr("Print Titles"), QStringLiteral("frame"), [this] { pageSetupDialog(3); });
@@ -255,6 +265,19 @@ void CrunchWindow::updatePrintAreaAction()
     if (!a) return;
     const bool ready = m_session && m_loaded && m_sheet >= 0 && m_sheet < m_session->pages().sheetCount();
     a->setEnabled(ready && m_session->canEdit() && !m_chartSheetShown && m_session->pages().sheet(m_sheet).hasPrintArea());
+    // (Delete Background is on with a picture to delete)
+    if (QAction *d = act(QStringLiteral("page.deleteBackground"))) d->setEnabled(ready && m_session->canEdit() && !m_chartSheetShown && !m_session->pages().sheet(m_sheet).background.isEmpty());
+}
+
+// The picture behind the cells of the sheet in view: the grid draws it tiled under the cells (the page setup keeps it for the file; a print never has it).
+void CrunchWindow::showBackground()
+{
+    const bool ready = m_session && m_loaded && m_sheet >= 0 && m_sheet < m_session->pages().sheetCount() && !m_chartSheetShown;
+    if (!ready) {
+        m_view->setBackgroundPicture(QByteArray());
+        return;
+    }
+    m_view->setBackgroundPicture(m_session->pages().sheet(m_sheet).background.image);
 }
 
 void CrunchWindow::updatePageActions()
@@ -276,6 +299,7 @@ void CrunchWindow::updatePageActions()
     check(QStringLiteral("sheetopt.gridPrint"), s.gridLines);
     check(QStringLiteral("sheetopt.headPrint"), s.headings);
     updatePrintAreaAction();
+    showBackground();
     const bool fit = s.fitToPage && (s.fitToWidth > 0 || s.fitToHeight > 0);
     auto setFit = [&](QComboBox *box, int pages) {
         if (!box) return;
@@ -307,6 +331,30 @@ void CrunchWindow::changePage(const QString &text, const std::function<void(Page
     const crunch::EditSession::Outcome o = m_session->setPageSetup(m_sheet, s, text);
     if (!o.ok) notice(tr("Page Setup"), o.problem);
     updatePageActions();
+}
+
+// Page Layout > Background: a picture file, tiled behind the cells of the sheet in view (on the screen only; it is not printed). One step of Undo.
+void CrunchWindow::chooseBackground()
+{
+    if (!m_session || !commitEdit(CellEditor::Way::Stay)) return;
+    if (m_sheet < 0 || m_sheet >= m_session->pages().sheetCount()) return;
+    QString why;
+    if (!m_session->canEdit(&why)) {
+        notice(tr("Background"), why);
+        return;
+    }
+    const QString path = m_pictureAsker ? m_pictureAsker() : QFileDialog::getOpenFileName(this, tr("Background"), QString(), tr("Pictures (*.png *.jpg *.jpeg *.gif *.bmp)"));
+    if (path.isEmpty()) return;
+    jp::office::sheet::SheetBackground bg;
+    if (!loadBackgroundPicture(path, &bg, &why)) {
+        notice(tr("Background"), why);
+        return;
+    }
+    changePage(tr("Background"), [&bg](PageSetup *s) {
+        s->background.image = bg.image;
+        s->background.extension = bg.extension;
+        s->background.part.clear();
+    });
 }
 
 void CrunchWindow::pageSetupDialog(int tab)

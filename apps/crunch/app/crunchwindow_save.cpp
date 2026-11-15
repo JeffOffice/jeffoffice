@@ -271,6 +271,7 @@ bool CrunchWindow::startSave(const QString &path)
         SaveReport report;
         bool ok = office::sheet::saveXlsx(*book, snapshot->changes, &bytes, &message, &report);
         if (ok && namesOut) bytes = office::removePersonalFromPackage(bytes, nullptr, namesProblems.get());
+        snapshot->backgroundRels = report.backgroundRels;
         snapshot->headerDrawings = report.headerDrawings;   // (read by the window after this thread has told it the save is over)
         if (ok) {
             QByteArray file = bytes;

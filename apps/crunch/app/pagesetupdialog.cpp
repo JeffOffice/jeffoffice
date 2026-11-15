@@ -124,6 +124,34 @@ bool loadHeaderPicture(const QString &path, jp::office::sheet::HeaderPicture *ou
     return true;
 }
 
+bool loadBackgroundPicture(const QString &path, jp::office::sheet::SheetBackground *out, QString *problem)
+{
+    auto refuse = [problem](const QString &why) {
+        if (problem) *problem = why;
+        return false;
+    };
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly)) return refuse(QCoreApplication::translate("SheetBackground", "The picture's file could not be opened."));
+    if (file.size() > jp::office::sheet::kMaxHeaderPictureBytes) return refuse(QCoreApplication::translate("SheetBackground", "That picture's file is too large for a background."));
+    jp::office::sheet::SheetBackground bg;
+    bg.image = file.read(jp::office::sheet::kMaxHeaderPictureBytes + 1);
+    if (bg.image.size() > jp::office::sheet::kMaxHeaderPictureBytes) return refuse(QCoreApplication::translate("SheetBackground", "That picture's file is too large for a background."));
+    QBuffer buffer(&bg.image);
+    buffer.open(QIODevice::ReadOnly);
+    QImageReader reader(&buffer);
+    const QByteArray format = reader.format().toLower();
+    if (format == "png") bg.extension = QStringLiteral("png");
+    else if (format == "jpeg" || format == "jpg") bg.extension = QStringLiteral("jpeg");
+    else if (format == "gif") bg.extension = QStringLiteral("gif");
+    else if (format == "bmp") bg.extension = QStringLiteral("bmp");
+    else return refuse(QCoreApplication::translate("SheetBackground", "That file is not a picture of a kind a background can be. Use a PNG, JPEG, GIF, or BMP picture."));
+    const QSize size = reader.size();
+    if (!size.isValid() || qint64(size.width()) * size.height() > jp::office::sheet::kMaxHeaderPicturePixels) return refuse(QCoreApplication::translate("SheetBackground", "That picture is too large for a background."));
+    if (!jp::office::sheet::backgroundBytesMatch(bg.image, bg.extension)) return refuse(QCoreApplication::translate("SheetBackground", "That file is not a picture of a kind a background can be. Use a PNG, JPEG, GIF, or BMP picture."));
+    *out = bg;
+    return true;
+}
+
 // ---- the editor of a header or footer
 
 HeaderFooterEditor::HeaderFooterEditor(bool header, const HeaderFooter &texts, const QString &sheetName, const QString &fileName, QWidget *parent)

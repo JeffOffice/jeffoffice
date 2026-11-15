@@ -15,7 +15,33 @@ bool PageSetup::operator==(const PageSetup &o) const
            && fitToHeight == o.fitToHeight && fitToPage == o.fitToPage && firstPageNumber == o.firstPageNumber && useFirstPageNumber == o.useFirstPageNumber && horizontalDpi == o.horizontalDpi && verticalDpi == o.verticalDpi && pageOrder == o.pageOrder
            && blackAndWhite == o.blackAndWhite && draft == o.draft && comments == o.comments && errors == o.errors && margins == o.margins && gridLines == o.gridLines
            && headings == o.headings && centerHorizontally == o.centerHorizontally && centerVertically == o.centerVertically && headerFooter == o.headerFooter
-           && rowBreaks == o.rowBreaks && colBreaks == o.colBreaks && printArea == o.printArea && titles == o.titles;
+           && background == o.background && rowBreaks == o.rowBreaks && colBreaks == o.colBreaks && printArea == o.printArea && titles == o.titles;
+}
+
+bool backgroundTypeAllowed(const QString &extension)
+{
+    const QString e = extension.toLower();
+    return e == QLatin1String("png") || e == QLatin1String("jpeg") || e == QLatin1String("jpg") || e == QLatin1String("gif") || e == QLatin1String("bmp");
+}
+
+bool backgroundBytesMatch(const QByteArray &image, const QString &extension)
+{
+    const QString e = extension.toLower();
+    if (e == QLatin1String("png")) return image.startsWith("\x89PNG\r\n\x1a\n");
+    if (e == QLatin1String("jpeg") || e == QLatin1String("jpg")) return image.startsWith("\xff\xd8\xff");
+    if (e == QLatin1String("gif")) return image.startsWith("GIF87a") || image.startsWith("GIF89a");
+    if (e == QLatin1String("bmp")) return image.startsWith("BM");
+    return false;
+}
+
+QString backgroundContentType(const QString &extension)
+{
+    const QString e = extension.toLower();
+    if (e == QLatin1String("png")) return QStringLiteral("image/png");
+    if (e == QLatin1String("jpeg") || e == QLatin1String("jpg")) return QStringLiteral("image/jpeg");
+    if (e == QLatin1String("gif")) return QStringLiteral("image/gif");
+    if (e == QLatin1String("bmp")) return QStringLiteral("image/bmp");
+    return QString();
 }
 
 QString canonicalHeaderPlace(const QString &place)

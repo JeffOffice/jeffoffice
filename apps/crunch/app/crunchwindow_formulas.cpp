@@ -56,6 +56,10 @@ void CrunchWindow::createFormulaHelper()
     m_helper->attach(m_cellEditor);
     m_helper->attach(m_formulaBar);
     m_helper->setSources([this]() -> const crunch::CompletionIndex & { return completionIndex(); }, [this](const crunch::Completion &c) { return completionDetail(c); });
+    connect(m_helper, &FormulaHelper::functionHelpRequested, this, [this](const QString &name) {
+        const crunch::FunctionDoc *doc = crunch::docOf(name);
+        if (doc) showHelp(crunch::helpTopicOf(*doc));
+    });
     m_helper->setSeparator([this] { return crunch::argumentSeparator(m_session ? m_session->locale() : QLocale()); });
 }
 

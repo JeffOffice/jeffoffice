@@ -77,6 +77,10 @@ public:
     void setShowGridlines(bool on);
     // The color the gridlines are drawn in (a view setting, not the sheet's).
     QColor gridlineColor() const { return m_gridColor; }
+    // A picture tiled behind the cells (the sheet's background): the file's bytes, decoded within the bounds every picture is held to (null for none, or one that can't be made). It is drawn on the
+    // screen only: a page that is printed or made into a PDF is painted without it.
+    void setBackgroundPicture(const QByteArray &image);
+    bool hasBackground() const { return !m_background.isNull(); }
     void setGridlineColor(const QColor &color);
     // The sheet reads from the right (column A at the right edge): the grid is laid out and drawn mirrored. (Set when a sheet is shown; the data's own view says it first.)
     void setRightToLeft(bool on);
@@ -435,6 +439,8 @@ private:
     Selection m_selection;
     bool m_gridlines = true, m_headings = true;
     QColor m_gridColor = QColor(0xD4, 0xD4, 0xD4);
+    QImage m_background;
+    QByteArray m_backgroundBytes;
     // the mouse
     enum class Drag { None, Cells, Rows, Columns, Fill, MoveCells, Resize, BreakLine, BreakEdge, Point, MarkMove, MarkResize, SplitBar } m_drag = Drag::None;
     bool m_splitDragCols = false, m_splitDragRows = false;   // the bars being dragged: the vertical one (the columns' split), the horizontal, or both at their crossing

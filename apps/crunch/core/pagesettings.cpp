@@ -202,6 +202,11 @@ void PageSettings::setHeaderDrawing(int index, const QString &rel)
     if (index >= 0 && index < int(m_sheets.size())) m_sheets[size_t(index)].headerFooter.drawingRel = rel;
 }
 
+void PageSettings::setBackgroundRel(int index, const QString &rel)
+{
+    if (index >= 0 && index < int(m_sheets.size())) m_sheets[size_t(index)].background.rel = rel;
+}
+
 void PageSettings::saved()
 {
     m_fileKinds = m_kinds;

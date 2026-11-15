@@ -80,6 +80,22 @@ struct HeaderPicture {
     bool operator==(const HeaderPicture &o) const { return place == o.place && image == o.image && extension == o.extension && width == o.width && height == o.height && title == o.title; }
 };
 
+// The picture tiled behind a sheet's cells (Page Layout > Background): shown on the screen, never printed. The file keeps it as an image part the sheet's `picture` element names by a
+// relationship; the image is kept as the file has it, so it is written back as it was unless a person changed it. At most kMaxHeaderPictureBytes (the other pictures' bound).
+struct SheetBackground {
+    QByteArray image;           // the picture's file
+    QString extension;          // "png", "jpeg", "gif", or "bmp" (lower case, without the dot)
+    QString part;               // the part it was read from (empty for one a person added)
+    QString rel;                // the relationship from the sheet to it, as the file has it (not part of what the setup says)
+    bool isEmpty() const { return image.isEmpty(); }
+    bool operator==(const SheetBackground &o) const { return image == o.image && extension == o.extension; }
+};
+// The file types a background may be (the extension), and whether the bytes begin as that type's file does.
+bool backgroundTypeAllowed(const QString &extension);
+bool backgroundBytesMatch(const QByteArray &image, const QString &extension);
+// The content type of the image part for an extension ("png" -> "image/png"); empty for none.
+QString backgroundContentType(const QString &extension);
+
 // The text of the header and the footer, as the file writes it (with the & codes that sheet/headerfooter.h reads), for the pages in general, the odd and even pages, and the first.
 struct HeaderFooter {
     QString oddHeader, oddFooter, evenHeader, evenFooter, firstHeader, firstFooter;
@@ -130,6 +146,7 @@ struct PageSetup {
     // printOptions
     bool gridLines = false, headings = false, centerHorizontally = false, centerVertically = false;
     HeaderFooter headerFooter;
+    SheetBackground background;
     // The breaks (in the order of the file, none twice), the print area (the blocks in the order they print), and the titles: from the sheet's own names.
     QVector<PageBreak> rowBreaks, colBreaks;
     int rowBreakElements = 0, colBreakElements = 0;   // how many `brk` elements were looked at while reading (not part of the setup)

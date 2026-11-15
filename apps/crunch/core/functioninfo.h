@@ -21,6 +21,9 @@ const FunctionDoc *functionDocs(int *count);
 // The one of a name (any case), or null.
 const FunctionDoc *docOf(const QString &name);
 QString categoryName(FunctionCategory category);
+// The Help topic that has the entries of the functions of a kind ("functions-math-trig"), and the topic of one function with its heading ("functions-math-trig#SUM": the page, then "#", then the name the entry's heading has).
+QString helpPageOf(FunctionCategory category);
+QString helpTopicOf(const FunctionDoc &doc);
 QString summaryOf(const FunctionDoc &doc);
 // The argument names in order ("[number2]" is optional, "..." is more of the last).
 QStringList argumentsOf(const FunctionDoc &doc);

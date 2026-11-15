@@ -617,6 +617,33 @@ private Q_SLOTS:
         QCOMPARE(val(c.ods, b, QStringLiteral("C2")), QStringLiteral("n:12"));
     }
 
+    // The picture behind the cells is the page layout's tiled background image in the .ods, with its file in the package (and the manifest); a sheet with none has no such element.
+    void anOdsCopyKeepsTheBackgroundPicture()
+    {
+        Copies c;
+        const QByteArray png = QByteArray::fromBase64("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg==");
+        const QByteArray sheet = worksheet(row(1, num(QStringLiteral("A1"), 1)), QStringLiteral("<pageMargins left=\"0.7\" right=\"0.7\" top=\"0.75\" bottom=\"0.75\" header=\"0.3\" footer=\"0.3\"/><picture r:id=\"rIdB1\"/>"));
+        QVector<ExtraPart> extra;
+        extra.append({QStringLiteral("xl/media/background1.png"), png, QStringLiteral("image/png"), 0, QStringLiteral("rIdB1"), QStringLiteral("image"), QStringLiteral("../media/background1.png")});
+        QVERIFY2(c.make(withParts(buildXlsx({sheet}), extra)), qPrintable(c.why));
+        QMap<QString, QByteArray> parts;
+        QVERIFY(jp::readZip(c.odsBytes, parts));
+        const QString styles = QString::fromUtf8(parts.value(QStringLiteral("styles.xml")));
+        QVERIFY2(styles.contains(QLatin1String("<style:background-image xlink:href=\"Pictures/bg")) && styles.contains(QLatin1String("style:repeat=\"repeat\"")), qPrintable(styles.left(3000)));
+        QString file;
+        for (auto it = parts.cbegin(); it != parts.cend(); ++it)
+            if (it.key().startsWith(QLatin1String("Pictures/bg"))) file = it.key();
+        QVERIFY(!file.isEmpty());
+        QCOMPARE(parts.value(file), png);
+        QVERIFY(QString::fromUtf8(parts.value(QStringLiteral("META-INF/manifest.xml"))).contains(file));
+        // none: no element
+        Copies d;
+        QVERIFY2(d.make(simple(row(1, num(QStringLiteral("A1"), 1)))), qPrintable(d.why));
+        QMap<QString, QByteArray> plain;
+        QVERIFY(jp::readZip(d.odsBytes, plain));
+        QVERIFY(!QString::fromUtf8(plain.value(QStringLiteral("styles.xml"))).contains(QLatin1String("background-image")));
+    }
+
     // The page setup and links are in the .ods in the form the other program reads: the page layout and master page, the breaks before rows, and a link around the text of its cell.
     void anOdsCopyHoldsThePageSetupAndLinks()
     {

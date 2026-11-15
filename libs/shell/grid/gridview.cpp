@@ -2,6 +2,7 @@
 
 #include "app/icons.h"
 #include "core/threadtime.h"
+#include "grid/hfpicturecache.h"
 #include "grid/textwalk.h"
 #include "sheet/cellref.h"
 
@@ -887,11 +888,20 @@ void GridView::setGridlineColor(const QColor &color)
     viewport()->update();
 }
 
+void GridView::setBackgroundPicture(const QByteArray &image)
+{
+    if (image == m_backgroundBytes) return;
+    m_backgroundBytes = image;
+    m_background = image.isEmpty() ? QImage() : HeaderPictureCache::instance().get(image, true, nullptr);
+    viewport()->update();
+}
+
 PaintOptions GridView::paintOptions() const
 {
     PaintOptions o;
     o.gridlines = m_gridlines;
     o.gridColor = m_gridColor;
+    o.background = m_background.isNull() ? nullptr : &m_background;
     o.headers = m_headings;
     o.selection = m_cellsEnabled ? &m_selection : nullptr;
     o.fillHandle = m_cellsEnabled && m_dragEditing;

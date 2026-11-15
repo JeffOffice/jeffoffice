@@ -962,6 +962,53 @@ QByteArray tailWithHeaderDrawing(const QByteArray &after, const QByteArray &relI
     return after.left(insertAt) + element + after.mid(insertAt);
 }
 
+// What follows a sheet's cells with the element that names its background picture (`picture`) made to name `relId` (taken out when it is empty): in place of the one the sheet has, or
+// where the format puts it (after the headers' drawing, before the embedded objects and the table parts).
+QByteArray tailWithBackground(const QByteArray &after, const QByteArray &relId, const QByteArray &prefix)
+{
+    static const QList<QByteArray> later = {"oleObjects", "controls", "webPublishItems", "tableParts", "extLst"};
+    Tag t;
+    qsizetype pos = 0, insertAt = -1, existingStart = -1, existingEnd = -1;
+    int depth = 0;
+    while (xmlscan::nextTag(after, pos, &t)) {
+        pos = t.end;
+        if (t.closing) {
+            if (--depth < 0) {
+                if (insertAt < 0) insertAt = t.start;   // </worksheet>
+                break;
+            }
+            continue;
+        }
+        if (depth == 0) {
+            if (t.local == "picture" && existingStart < 0) {
+                existingStart = t.start;
+                existingEnd = t.end;
+                if (!t.selfClosing) {
+                    Tag close;
+                    qsizetype p2 = t.end;
+                    int d2 = 1;
+                    while (d2 > 0 && xmlscan::nextTag(after, p2, &close)) {
+                        p2 = close.end;
+                        if (close.closing) --d2;
+                        else if (!close.selfClosing) ++d2;
+                    }
+                    existingEnd = p2;
+                    pos = p2;
+                    continue;
+                }
+            }
+            if (insertAt < 0 && later.contains(QByteArray(t.local))) insertAt = t.start;
+        }
+        if (!t.selfClosing) ++depth;
+    }
+    QByteArray element;
+    if (!relId.isEmpty())
+        element = "<" + prefix + "picture xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" r:id=\"" + xmlscan::escapeAttribute(QString::fromLatin1(relId)) + "\"/>";
+    if (existingStart >= 0) return after.left(existingStart) + element + after.mid(existingEnd);
+    if (element.isEmpty() || insertAt < 0) return after;
+    return after.left(insertAt) + element + after.mid(insertAt);
+}
+
 // A top-level element of the tail (from after "</sheetData>"): where it is, whole, or -1; and where one that comes after it in the format starts (or the sheet's end).
 struct TopElement {
     qsizetype start = -1, end = -1, insertAt = -1;
@@ -1808,6 +1855,8 @@ public:
         m_dropPivotSelection = changes.dropPivotSelection;
         m_hfSet = changes.hfSet;
         m_hfRel = changes.hfRel.toLatin1();
+        m_bgSet = changes.bgSet;
+        m_bgRel = changes.bgRel.toLatin1();
         if (changes.replaceSparklines) m_sparklines = &changes.sparklines;
         if (changes.condEdit) m_cond = &changes;
         m_legacyId = changes.legacyRelId.toLatin1();
@@ -2324,7 +2373,7 @@ private:
     // ---- what follows the rows
     bool tail()
     {
-        if (m_merges || m_validations || m_ignored || m_scenarios || m_page || m_filter || !m_drawingId.isEmpty() || m_hfSet || !m_legacyId.isEmpty() || m_links || m_protection || m_sparklines || m_cond || !m_dropControls.empty() || !m_addTables->empty() || !m_removeTables->empty()) {
+        if (m_merges || m_validations || m_ignored || m_scenarios || m_page || m_filter || !m_drawingId.isEmpty() || m_hfSet || m_bgSet || !m_legacyId.isEmpty() || m_links || m_protection || m_sparklines || m_cond || !m_dropControls.empty() || !m_addTables->empty() || !m_removeTables->empty()) {
             // (what follows the cells is held whole to change its merged ranges, its filter, its page setup, and its drawing)
             while (fill()) {
                 if (cancelled()) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The save was stopped."));
@@ -2346,6 +2395,7 @@ private:
                 if (!m_legacyId.isEmpty()) tail = tailWithLegacyDrawing(tail, m_legacyId, m_prefix);
                 if (m_links) tail = tailWithLinks(tail, *m_unlinks, *m_links, m_prefix);
                 if (m_hfSet) tail = tailWithHeaderDrawing(tail, m_hfRel, m_prefix);
+                if (m_bgSet) tail = tailWithBackground(tail, m_bgRel, m_prefix);
                 if (!m_addTables->empty() || !m_removeTables->empty()) tail = tailWithTableParts(tail, *m_addTables, *m_removeTables, m_prefix);
                 if (!m_dropControls.empty()) tail = tailWithoutControls(tail, m_dropControls);
                 if (m_cond) tail = tailWithCondEdit(tail, *m_cond, m_prefix);
@@ -2410,6 +2460,8 @@ private:
     bool m_formatOutline = false;
     bool m_hfSet = false;
     QByteArray m_hfRel;
+    bool m_bgSet = false;
+    QByteArray m_bgRel;
     QByteArray m_legacyId;
     std::vector<qint64> m_dropControls;
     const std::vector<CellRange> *m_unlinks = nullptr;

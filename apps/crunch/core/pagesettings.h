@@ -65,6 +65,7 @@ public:
     void saved();
     // The save wrote the pictures of a sheet's headers and footers: the drawing the sheet names them by now (empty: none).
     void setHeaderDrawing(int index, const QString &rel);
+    void setBackgroundRel(int index, const QString &rel);   // (after a save: the relationship the file names the sheet's background picture by now)
     // How many sheets would be put in a save (for tests).
     int touchedCount() const { return int(m_touched.size()); }
 

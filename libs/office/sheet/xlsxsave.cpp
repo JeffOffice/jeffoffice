@@ -1749,6 +1749,77 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
             rep.headerDrawings[w.sheet] = w.remove ? QString() : w.relId;
         }
     }
+    // ---- a picture behind a sheet's cells that a person put in, changed, or took out: the sheet is given the `picture` element that names its image (or loses it), and the image part and the
+    // relationship to it are made below.
+    struct BackgroundWrite {
+        int sheet = 0;
+        bool remove = false;
+        QString fileRel;              // the relationship the file has from the sheet to the image (empty if none)
+        QString relId;                // the one the sheet names it by now
+        bool newRel = false;
+        QString imagePart;
+        bool imageIsNew = false;
+        QByteArray image;
+        QString extension;
+    };
+    std::vector<BackgroundWrite> backgroundWrites;
+    {
+        QSet<QString> taken;
+        for (const auto &[sheet, sc] : requested.sheets) {
+            if (!sc.setPage || sheet < 0 || sheet >= book.info().sheets.size()) continue;
+            const SheetEntry &se = book.info().sheets[sheet];
+            if (se.deleted || se.kind != SheetKind::Worksheet) continue;
+            const SheetBackground &bg = sc.page.background;
+            const bool inFile = !se.isNew && sc.copyFromPart.isEmpty();
+            PageSetup fileSetup;
+            fileSetup.background.rel = inFile ? bg.rel : QString();
+            if (inFile && !fileSetup.background.rel.isEmpty()) book.readBackground(se.part, &fileSetup);
+            if (fileSetup.background == bg) continue;
+            BackgroundWrite w;
+            w.sheet = sheet;
+            w.remove = bg.isEmpty();
+            if (inFile && !bg.rel.isEmpty()) {
+                const Relationship rel = package.relationship(se.part, bg.rel);
+                if (!rel.id.isEmpty() && !rel.external && rel.type.endsWith(QLatin1String("/image"))) w.fileRel = rel.id;
+            }
+            if (w.remove && w.fileRel.isEmpty()) continue;   // (nothing in the file to take out)
+            if (!w.remove) {
+                if (bg.image.size() > kMaxHeaderPictureBytes || !backgroundTypeAllowed(bg.extension) || !backgroundBytesMatch(bg.image, bg.extension))
+                    return fail(QCoreApplication::translate("jp::office::sheet::Save", "The picture behind the sheet is too large, or is not a kind of picture that can be saved."));
+                w.image = bg.image;
+                w.extension = bg.extension.toLower() == QLatin1String("jpg") ? QStringLiteral("jpeg") : bg.extension.toLower();
+                if (taken.isEmpty()) {
+                    for (const QString &n : package.partNames()) taken.insert(n.toLower());
+                    for (const SheetEntry &e : book.info().sheets)
+                        if (!e.part.isEmpty()) taken.insert(e.part.toLower());
+                }
+                if (!fileSetup.background.part.isEmpty() && fileSetup.background.image == bg.image && package.hasPart(fileSetup.background.part)) {
+                    w.imagePart = fileSetup.background.part;   // (the picture the file has, kept)
+                } else {
+                    w.imageIsNew = true;
+                    w.imagePart = freePartName(QStringLiteral("/xl/media/bgimage"), QStringLiteral(".") + w.extension, taken);
+                    taken.insert(w.imagePart.toLower());
+                }
+                w.relId = w.fileRel;
+                if (w.relId.isEmpty()) {
+                    w.newRel = true;
+                    w.relId = QStringLiteral("rIdBackground");
+                }
+            }
+            backgroundWrites.push_back(std::move(w));
+        }
+    }
+    if (!backgroundWrites.empty()) {
+        if (useChanges == &requested) {
+            adjusted = requested;
+            useChanges = &adjusted;
+        }
+        for (const BackgroundWrite &w : backgroundWrites) {
+            adjusted.sheets[w.sheet].bgSet = true;
+            adjusted.sheets[w.sheet].bgRel = w.remove ? QString() : w.relId;
+            rep.backgroundRels[w.sheet] = w.remove ? QString() : w.relId;
+        }
+    }
     // ---- notes and links that a person put in or took out: the parts and relationships they need are planned here (the ids of the relationships go into the sheets' changes), and made below.
     struct NoteWrite {
         int sheet = 0;
@@ -1806,6 +1877,8 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
                     if (!h.vmlPart.isEmpty()) taken.insert(h.vmlPart.toLower());
                     for (const QString &image : h.imageParts) taken.insert(image.toLower());
                 }
+                for (const BackgroundWrite &b : backgroundWrites)
+                    if (!b.imagePart.isEmpty()) taken.insert(b.imagePart.toLower());
                 takenFilled = true;
             }
             if (!sc.noteOps.empty()) {
@@ -2185,6 +2258,9 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
     // (the drawing of header and footer pictures taken out, and what only it related to)
     for (const HeaderWrite &w : headerWrites)
         if (w.remove) released.emplace_back(book.info().sheets[w.sheet].part, QStringList{w.fileRel});
+    // (the background picture taken out, and its image when nothing else names it)
+    for (const BackgroundWrite &w : backgroundWrites)
+        if (w.remove) released.emplace_back(book.info().sheets[w.sheet].part, QStringList{w.fileRel});
     if (!released.empty()) {
         QHash<QString, QVector<QPair<QString, QString>>> into;   // by the part a relationship goes to (lower case): (the part it is from, its id), both lower case
         auto addRelationships = [&](const QString &source) {
@@ -2518,6 +2594,62 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
                 const auto made = madeRelsOf(se.part);
                 if (sheetRelsEntry < 0 && made.second) sheetRels = *made.second;
                 if (!addRelationship(sheetRels, w.relId, QStringLiteral("vmlDrawing"), target, &r2)) return bad();
+                if (sheetRelsEntry >= 0) replaced.insert(sheetRelsEntry, r2);
+                else if (made.second) *made.second = r2;
+                else newEntries.emplace_back(made.first, r2);
+            }
+        }
+        replaced.insert(typesEntry, types);
+    }
+    // ---- the image of a sheet's background, its type, and the sheet's link to it
+    if (std::any_of(backgroundWrites.begin(), backgroundWrites.end(), [](const BackgroundWrite &w) { return !w.remove; })) {
+        int typesEntry = -1;
+        for (int i = 0; i < directory.size(); ++i)
+            if (plain(directory[i].name) == QLatin1String("[content_types].xml")) {
+                typesEntry = i;
+                break;
+            }
+        QByteArray types;
+        if (typesEntry < 0 || !(replaced.contains(typesEntry) ? (types = replaced.value(typesEntry), true) : inflate(typesEntry, &types)))
+            return fail(QCoreApplication::translate("jp::office::sheet::Save", "The file's list of part types is not in it."));
+        auto relsEntryFor = [&](const QString &part) {
+            const QString name = package.entryName(part);
+            if (name.isEmpty()) return -1;
+            const int slash = name.lastIndexOf(QLatin1Char('/'));
+            return entryAt.value(plain((slash < 0 ? QString() : name.left(slash + 1)) + QStringLiteral("_rels/") + (slash < 0 ? name : name.mid(slash + 1)) + QStringLiteral(".rels")), -1);
+        };
+        auto bad = [&] { return fail(QCoreApplication::translate("jp::office::sheet::Save", "The picture behind a sheet could not be put in the file's list of parts.")); };
+        qint64 bytesAdded = 0;
+        for (const BackgroundWrite &w : backgroundWrites) {
+            if (w.remove) continue;
+            const SheetEntry &se = book.info().sheets[w.sheet];
+            if (w.imageIsNew) {
+                bytesAdded += w.image.size();
+                if (bytesAdded > kMaxAddedBytes) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The pictures behind the sheets are too large to be saved."));
+                newEntries.emplace_back(w.imagePart.startsWith(QLatin1Char('/')) ? w.imagePart.mid(1) : w.imagePart, w.image);
+                QByteArray t2;
+                if (!addContentDefault(types, w.extension == QLatin1String("jpeg") ? QStringLiteral("jpeg") : w.extension, backgroundContentType(w.extension), &t2)) return bad();
+                types = t2;
+            }
+            const QString target = relativeTarget(se.part, w.imagePart);
+            if (!w.newRel) {
+                // (the link the file has is made to name this image)
+                const int sheetRelsEntry = relsEntryFor(se.part);
+                QByteArray sheetRels, r2;
+                if (sheetRelsEntry < 0 || !(replaced.contains(sheetRelsEntry) ? (sheetRels = replaced.value(sheetRelsEntry), true) : inflate(sheetRelsEntry, &sheetRels))) return bad();
+                if (!retargetRelationshipById(sheetRels, w.relId, target, &r2)) return bad();
+                replaced.insert(sheetRelsEntry, r2);
+                continue;
+            }
+            if (se.isNew) {
+                newSheetRels[w.sheet] += relationshipXml(w.relId, QStringLiteral("image"), target);
+            } else {
+                const int sheetRelsEntry = relsEntryFor(se.part);
+                QByteArray sheetRels, r2;
+                if (sheetRelsEntry >= 0 && !(replaced.contains(sheetRelsEntry) ? (sheetRels = replaced.value(sheetRelsEntry), true) : inflate(sheetRelsEntry, &sheetRels))) return bad();
+                const auto made = madeRelsOf(se.part);
+                if (sheetRelsEntry < 0 && made.second) sheetRels = *made.second;
+                if (!addRelationship(sheetRels, w.relId, QStringLiteral("image"), target, &r2)) return bad();
                 if (sheetRelsEntry >= 0) replaced.insert(sheetRelsEntry, r2);
                 else if (made.second) *made.second = r2;
                 else newEntries.emplace_back(made.first, r2);

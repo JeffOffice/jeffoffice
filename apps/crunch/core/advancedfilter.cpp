@@ -24,16 +24,6 @@ AdvancedFilterResult refuse(const QString &why)
     return r;
 }
 
-struct Condition {
-    enum class Op { Begins, Equal, NotEqual, Less, LessEqual, Greater, GreaterEqual } op = Op::Begins;
-    bool numeric = false;
-    double number = 0;
-    QString text;      // folded
-    bool blank = false;
-    QRegularExpression pattern;   // for text with ? or *
-    bool wild = false;
-};
-
 bool readNumber(const QString &text, double *out)
 {
     bool ok = false;
@@ -42,6 +32,8 @@ bool readNumber(const QString &text, double *out)
     if (ok) *out = v;
     return ok;
 }
+
+} // namespace
 
 Condition parseCondition(const QString &typed, const Value &value)
 {
@@ -82,7 +74,7 @@ Condition parseCondition(const QString &typed, const Value &value)
     return c;
 }
 
-bool meets(const Condition &c, const Value &v)
+bool conditionMet(const Condition &c, const Value &v)
 {
     if (c.blank) return c.op == Condition::Op::NotEqual ? !v.isEmpty() : v.isEmpty();
     if (c.numeric) {
@@ -112,6 +104,8 @@ bool meets(const Condition &c, const Value &v)
     }
     return false;
 }
+
+namespace {
 
 QString keyOfRow(const EditSession &s, int sheet, quint32 row, const CellRange &list)
 {
@@ -172,7 +166,7 @@ AdvancedFilterResult advancedFilterRows(const EditSession &session, int sheet, c
         for (size_t t = 0; t < rowsOfTests.size() && !pass; ++t) {
             bool all = true;
             for (const Test &test : rowsOfTests[t])
-                if (!meets(test.cond, session.valueAt(sheet, row, test.column))) {
+                if (!conditionMet(test.cond, session.valueAt(sheet, row, test.column))) {
                     all = false;
                     break;
                 }

@@ -916,7 +916,17 @@ void GridPainter::paintPane(QPainter *p, Pane which, const QRect &clip, const Pa
     const size_t r0 = rowBefore >= 0 ? 1 : 0, r1 = R - (rowAfter < rowsAxis.count() ? 1 : 0);   // the rows drawn: [r0, r1)
     const size_t c0 = colBefore >= 0 ? 1 : 0, c1 = C - (colAfter < colsAxis.count() ? 1 : 0);
     // ---- the paper under the cells, and the gridlines on it
-    p->fillRect(QRect(firstCol.start, firstRow.start, lastCol.start + lastCol.size - firstCol.start, lastRow.start + lastRow.size - firstRow.start), o.paper);
+    const QRect paperRect(firstCol.start, firstRow.start, lastCol.start + lastCol.size - firstCol.start, lastRow.start + lastRow.size - firstRow.start);
+    p->fillRect(paperRect, o.paper);
+    if (o.background && !o.monochrome) {
+        // the picture is tiled from the corner of the sheet's first cell, so that it moves with the cells, at the sheet's zoom
+        QBrush tile(*o.background);
+        tile.setTransform(QTransform::fromScale(L.zoom(), L.zoom()));
+        p->save();
+        p->setBrushOrigin(L.xEdge(0, frozenCols), L.yEdge(0, frozenRows));
+        p->fillRect(paperRect, tile);
+        p->restore();
+    }
     if (o.gridlines) {
         const int x0 = firstCol.start, x1 = lastCol.start + lastCol.size, y0 = firstRow.start, y1 = lastRow.start + lastRow.size;
         for (size_t i = r0; i < r1; ++i) {
@@ -1180,7 +1190,7 @@ marked:
                 const qreal top = rs.start, bottom = lineAcross(p, rs.start + rs.size, -1, 1, false).first;
                 auto erase = [&](const Span &col) {
                     const QPair<qreal, qreal> across = lineAcross(p, col.start + col.size, -1, 1, true);
-                    p->fillRect(QRectF(across.first, top, across.second - across.first, bottom - top), o.paper);
+                    if (!o.background) p->fillRect(QRectF(across.first, top, across.second - across.first, bottom - top), o.paper);   // (not over a picture)
                 };
                 for (size_t k = j; k + 1 < c1 && sp.right > 0 && w.cols[k + 1].index <= w.cols[j].index + sp.right; ++k)
                     if (plain(k) && plain(k + 1)) erase(w.cols[k]);
@@ -1250,7 +1260,7 @@ marked:
         const CellLook &look = m_sheet->lookOf(m.row1, m.col1, xf);
         if (anchorCond && anchorCond->hasScale) p->fillRect(rect.adjusted(0, 0, o.gridlines ? -1 : 0, o.gridlines ? -1 : 0), QColor::fromRgba(anchorCond->scale));
         else if (look.hasFill()) drawFill(p, rect, look, o);
-        else p->fillRect(rect.adjusted(0, 0, o.gridlines ? -1 : 0, o.gridlines ? -1 : 0), o.paper);
+        else if (!o.background) p->fillRect(rect.adjusted(0, 0, o.gridlines ? -1 : 0, o.gridlines ? -1 : 0), o.paper);
         if (anchorCond && anchorCond->hasBar) drawBar(p, rect, anchorCond->bar, o.gridlines);
         if (look.hasBorder() || xf == 0) {
             auto lookOf = [&](quint32 r, quint32 c) -> const CellLook * {

@@ -35,6 +35,9 @@ struct PageSetupRequest {
 // A picture's file read to be put in a header or footer: kept as the file has it, with the size it is drawn at (its pixels at 96 to the inch, the longest side held to two inches), a title from
 // the file's name, and no place yet. False, with the reason in plain words, when the file is not a PNG, JPEG, GIF, or BMP picture, is too large, or can't be read.
 bool loadHeaderPicture(const QString &path, jp::office::sheet::HeaderPicture *out, QString *problem, double roomPoints = 0);
+// A picture file for a sheet's background (Page Layout > Background): a PNG, JPEG, GIF, or BMP picture within the sizes every picture is held to; false, with `problem` as a sentence, for any other.
+// Only the image and its type are set (the link the file names it by is the sheet's own).
+bool loadBackgroundPicture(const QString &path, jp::office::sheet::SheetBackground *out, QString *problem);
 // How tall a picture may be to fit the margin it goes in: the margin's room between the header's (footer's) distance from the edge and the cells, in points (at least 12).
 double headerPictureRoom(const jp::office::sheet::PageMargins &margins, bool header);
 

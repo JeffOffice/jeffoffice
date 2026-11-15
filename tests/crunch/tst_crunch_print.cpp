@@ -643,6 +643,153 @@ void CrunchPrintTests::theMomentOfTheFieldsIsTakenOncePerJob()
 }
 
 
+// Page Layout > Background: the picture is tiled behind the cells in the grid, and a page printed (or seen as a picture, or made into a PDF) does not have it.
+void CrunchPrintTests::aBackgroundIsShownOnTheScreenAndNeverPrinted()
+{
+    EditWindow e;
+    QVERIFY(e.open(rowsWithFormulas(10, {})));
+    CrunchWindow &w = e.win.w;
+    QVERIFY(e.settle());
+    QTemporaryDir dir;
+    QImage tile(2, 2, QImage::Format_RGB32);
+    tile.fill(QColor(0, 0xC0, 0));   // (a green that nothing else in the sheet is)
+    const QString path = dir.filePath(QStringLiteral("tile.png"));
+    QVERIFY(tile.save(path));
+    w.setPictureAsker([path] { return path; });
+    QVERIFY(w.act(QStringLiteral("page.background"))->isEnabled());
+    QVERIFY(!w.act(QStringLiteral("page.deleteBackground"))->isEnabled());   // (nothing to delete yet)
+    QVERIFY(!w.view()->hasBackground());
+    w.act(QStringLiteral("page.background"))->trigger();
+    QVERIFY(e.settle());
+    QVERIFY(w.view()->hasBackground());
+    QVERIFY(w.act(QStringLiteral("page.deleteBackground"))->isEnabled());
+    // on the screen: a cell with nothing in it shows the picture, and a cell with a fill hides it
+    w.resize(900, 600);
+    w.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&w));
+    const QImage screen = w.view()->viewport()->grab().toImage();
+    int green = 0;
+    for (int y = 0; y < screen.height(); ++y)
+        for (int x = 0; x < screen.width(); ++x) green += screen.pixel(x, y) == QColor(0, 0xC0, 0).rgb();
+    QVERIFY2(green > screen.width() * screen.height() / 4, qPrintable(QString::number(green)));
+    // printed: none of it
+    QString why;
+    const std::unique_ptr<crunch::PrintJob> job = w.makePrintJob(crunch::PrintJobOptions(), &why);
+    QVERIFY2(job, qPrintable(why));
+    const QImage page = job->preview(0, 612);
+    for (int y = 0; y < page.height(); ++y)
+        for (int x = 0; x < page.width(); ++x) QVERIFY(page.pixel(x, y) != QColor(0, 0xC0, 0).rgb());
+    if (!qEnvironmentVariableIsEmpty("JP_SHOT_DIR")) {
+        QImage big(64, 64, QImage::Format_RGB32);
+        QPainter p(&big);
+        for (int y = 0; y < 64; y += 8)
+            for (int x = 0; x < 64; x += 8) p.fillRect(x, y, 8, 8, ((x + y) / 8) % 2 ? QColor(0xF2, 0xC2, 0x4E) : QColor(0xFF, 0xF1, 0xC4));
+        p.end();
+        const QString shot = dir.filePath(QStringLiteral("pattern.png"));
+        QVERIFY(big.save(shot));
+        w.setPictureAsker([shot] { return shot; });
+        w.act(QStringLiteral("page.background"))->trigger();
+        QVERIFY(e.settle());
+        QTest::qWait(200);
+        QVERIFY(w.grab().save(qEnvironmentVariable("JP_SHOT_DIR") + QStringLiteral("/sheet-background.png")));
+    }
+}
+
+// The step is one Undo (and Redo), Delete Background takes it away, and the file keeps it: saved, and opened again.
+void CrunchPrintTests::aBackgroundIsOneStepOfUndoAndSavedWithTheFile()
+{
+    EditWindow e;
+    QVERIFY(e.open(rowsWithFormulas(10, {})));
+    CrunchWindow &w = e.win.w;
+    QVERIFY(e.settle());
+    QTemporaryDir dir;
+    QImage tile(4, 4, QImage::Format_RGB32);
+    tile.fill(Qt::blue);
+    const QString path = dir.filePath(QStringLiteral("tile.png"));
+    QVERIFY(tile.save(path));
+    w.setPictureAsker([path] { return path; });
+    const int steps = w.session()->undoStack()->count();
+    w.act(QStringLiteral("page.background"))->trigger();
+    QVERIFY(e.settle());
+    QCOMPARE(w.session()->undoStack()->count(), steps + 1);
+    QVERIFY(w.session()->pages().sheet(0).background.extension == QLatin1String("png"));
+    w.session()->undoStack()->undo();
+    QVERIFY(!w.view()->hasBackground());
+    w.session()->undoStack()->redo();
+    QVERIFY(w.view()->hasBackground());
+    // saved and opened again
+    QVERIFY(e.settle());
+    {
+        QSignalSpy saved(&w, &CrunchWindow::saved);
+        QVERIFY(w.save());
+        QVERIFY2(savedOk(saved), "the save failed");
+    }
+    EditWindow again;
+    QFile f(e.path);
+    QVERIFY(f.open(QIODevice::ReadOnly));
+    QVERIFY(again.open(f.readAll(), QStringLiteral("again.xlsx")));
+    QVERIFY(again.settle());
+    QVERIFY(again.win.w.view()->hasBackground());
+    QVERIFY(!again.win.w.session()->pages().sheet(0).background.isEmpty());
+    // Delete Background: one step, the picture gone, and gone from the file
+    QVERIFY(again.win.w.act(QStringLiteral("page.deleteBackground"))->isEnabled());
+    const int before = again.win.w.session()->undoStack()->count();
+    again.win.w.act(QStringLiteral("page.deleteBackground"))->trigger();
+    QCOMPARE(again.win.w.session()->undoStack()->count(), before + 1);
+    QVERIFY(!again.win.w.view()->hasBackground());
+    QVERIFY(!again.win.w.act(QStringLiteral("page.deleteBackground"))->isEnabled());
+    QVERIFY(again.settle());
+    {
+        QSignalSpy saved(&again.win.w, &CrunchWindow::saved);
+        QVERIFY(again.win.w.save());
+        QVERIFY2(savedOk(saved), "the save failed");
+    }
+    EditWindow third;
+    QFile g(again.path);
+    QVERIFY(g.open(QIODevice::ReadOnly));
+    QVERIFY(third.open(g.readAll(), QStringLiteral("third.xlsx")));
+    QVERIFY(third.settle());
+    QVERIFY(!third.win.w.view()->hasBackground());
+}
+
+// A file that is not a picture, a type that is not allowed, a picture too large: told, and the sheet is as it was.
+void CrunchPrintTests::aBadBackgroundPictureIsRefusedWithAReason()
+{
+    EditWindow e;
+    QVERIFY(e.open(rowsWithFormulas(10, {})));
+    CrunchWindow &w = e.win.w;
+    QVERIFY(e.settle());
+    QTemporaryDir dir;
+    QFile notPicture(dir.filePath(QStringLiteral("text.png")));
+    QVERIFY(notPicture.open(QIODevice::WriteOnly));
+    notPicture.write("this is not a picture");
+    notPicture.close();
+    jp::office::sheet::SheetBackground bg;
+    QString why;
+    QVERIFY(!loadBackgroundPicture(notPicture.fileName(), &bg, &why));
+    QVERIFY(!why.isEmpty());
+    QVERIFY(!loadBackgroundPicture(dir.filePath(QStringLiteral("missing.png")), &bg, &why));
+    // over the bytes every picture is held to
+    QFile big(dir.filePath(QStringLiteral("big.bmp")));
+    QVERIFY(big.open(QIODevice::WriteOnly));
+    big.write(QByteArray(int(jp::office::sheet::kMaxHeaderPictureBytes) + 1, 'x'));
+    big.close();
+    QVERIFY(!loadBackgroundPicture(big.fileName(), &bg, &why));
+    QVERIFY(why.contains(QStringLiteral("too large")));
+    // more pixels than every picture is held to: a header that says 20000 x 20000 pixels (the file itself is small)
+    QImage huge(20000, 1000, QImage::Format_Mono);
+    huge.fill(0);
+    const QString hugePath = dir.filePath(QStringLiteral("huge.png"));
+    QVERIFY(huge.save(hugePath));
+    QVERIFY(!loadBackgroundPicture(hugePath, &bg, &why));
+    // through the command: a notice, and no step
+    w.setPictureAsker([p = notPicture.fileName()] { return p; });
+    const int steps = w.session()->undoStack()->count();
+    w.act(QStringLiteral("page.background"))->trigger();
+    QCOMPARE(w.session()->undoStack()->count(), steps);
+    QVERIFY(!w.view()->hasBackground());
+}
+
 // A page as a picture: the width asked for, the height of the paper's shape, and ink on it.
 void CrunchPrintTests::aPageCanBeSeenAsAPicture()
 {

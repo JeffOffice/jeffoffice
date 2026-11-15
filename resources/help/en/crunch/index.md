@@ -42,6 +42,19 @@ Type in the search box above to find a topic, or a command to run. Press **F1** 
 - [Notes and links](notes-links)
 - [Protect a sheet or the workbook](protect)
 
+## Every function
+
+- [Financial functions](functions-financial)
+- [Date and time functions](functions-date-time)
+- [Math and trig functions](functions-math-trig)
+- [Statistical functions](functions-statistical)
+- [Lookup and reference functions](functions-lookup-reference)
+- [Text functions](functions-text)
+- [Logical functions](functions-logical)
+- [Information functions](functions-information)
+- [Database functions](functions-database)
+- [Engineering functions](functions-engineering)
+
 ## Print
 
 - [Set up the pages](page-layout)

@@ -780,6 +780,25 @@ QString categoryName(FunctionCategory category)
     return QString();
 }
 
+QString helpPageOf(FunctionCategory category)
+{
+    switch (category) {
+    case Cat::Financial: return QStringLiteral("functions-financial");
+    case Cat::DateTime: return QStringLiteral("functions-date-time");
+    case Cat::MathTrig: return QStringLiteral("functions-math-trig");
+    case Cat::Statistical: return QStringLiteral("functions-statistical");
+    case Cat::LookupReference: return QStringLiteral("functions-lookup-reference");
+    case Cat::Text: return QStringLiteral("functions-text");
+    case Cat::Logical: return QStringLiteral("functions-logical");
+    case Cat::Information: return QStringLiteral("functions-information");
+    case Cat::Database: return QStringLiteral("functions-database");
+    case Cat::Engineering: return QStringLiteral("functions-engineering");
+    }
+    return QString();
+}
+
+QString helpTopicOf(const FunctionDoc &doc) { return helpPageOf(doc.category) + QLatin1Char('#') + QString::fromLatin1(doc.name); }
+
 QString summaryOf(const FunctionDoc &doc) { return QCoreApplication::translate("jp::crunch::Functions", doc.summary); }
 
 QStringList argumentsOf(const FunctionDoc &doc)

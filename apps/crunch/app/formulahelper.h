@@ -38,6 +38,10 @@ public:
     // What the list shows now (the names, in order), for tests.
     QStringList offered() const;
 
+Q_SIGNALS:
+    // The function's name in the tip was clicked: its Help entry (the name is the one the catalog has, in capitals).
+    void functionHelpRequested(const QString &name);
+
 protected:
     bool eventFilter(QObject *watched, QEvent *event) override;
 

@@ -16,6 +16,7 @@
 #include <QBrush>
 #include <QColor>
 #include <QFont>
+#include <QImage>
 #include <QFontMetricsF>
 #include <QHash>
 #include <QPainter>
@@ -51,6 +52,7 @@ struct PaintOptions {
     QColor gridColor = QColor(0xD4, 0xD4, 0xD4);
     QColor backdrop = QColor(0xE6, 0xE6, 0xE6);            // beyond the last row and column
     QColor paper = QColor(Qt::white);                      // the cells with no fill
+    const QImage *background = nullptr;                    // a picture tiled over the paper, under the cells (on the screen; a page for paper has none)
     QColor headerBackground = QColor(0xF3, 0xF3, 0xF3);
     QColor headerText = QColor(0x44, 0x44, 0x44);
     QColor headerLine = QColor(0xC8, 0xC8, 0xC8);
