@@ -7,6 +7,8 @@
 #include "app/printpage.h"
 #include "app/translate.h"
 #include "app/translatepane.h"
+#include "app/missingfonts.h"
+#include "app/readaloud.h"
 #include <QStatusBar>
 #include "core/textexport.h"
 #include "app/filetasks.h"
@@ -187,6 +189,9 @@ public:
     void showOnlinePictures();
     // Review > Translate: the pane on the right translates the selected text (or the paragraph) on this computer.
     void showTranslatePane();
+    // Review > Read Aloud (the body from the caret or the selection, then the footnotes), and the fonts the document uses that this computer lacks (the bar made after a document opens).
+    jp::ReadAloudHost readAloudHost();
+    jp::MissingFontsHost missingFontsHost();
     write::Ruler *ruler() const { return m_ruler; }
     // Shows the vertical ruler when View > Vertical Ruler is on and the pages are on show (not in Outline view or Focus).
     void syncVerticalRuler();

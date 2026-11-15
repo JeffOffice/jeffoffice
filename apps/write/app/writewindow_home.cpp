@@ -162,6 +162,9 @@ void WriteWindow::createHomeActions()
         const bool whole = !sel.hasSelection();
         jp::translateText(this, [this](const QString &message, int ms) { statusBar()->showMessage(message, ms); }, whole ? m_doc->story()->toPlainText() : sel.selectedText(), whole, m_urlOpener);
     });
+    mk("review.readAloud", tr("Read Aloud"), "volume-2", QKeySequence(), [this] {
+        if (m_doc) jp::showReadAloud(this, readAloudHost());
+    });
     mk("review.accessibility", tr("Check Accessibility"), "accessibility", QKeySequence(), [this] {
         if (!m_doc) return;
         m_view->leaveHeaderFooter();

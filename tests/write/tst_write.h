@@ -1732,4 +1732,13 @@ private Q_SLOTS:
     void editingOneLevelOfARealListKeepsTheRest();
     void theAcceptanceSetOfRealListsKeepsItsNumbers();
     void aPictureBulletIsDrawnAndKeptInTheFile();
+    void readAloudIsACommandThatAReadOnlyDocumentKeeps();
+    void readAloudGoesFromTheCaretThroughTheTextAndThenTheFootnotes();
+    void readAloudReadsOnlyTheSelection();
+    void aDocumentWithAFontThisComputerLacksShowsTheMissingFontsBar();
+    void replaceInDocumentChangesTheRunsOfTheFontAsOneStep();
+    void aFontChoiceHoldsForTheNextDocumentAndTheFileKeepsTheName();
+
+public:
+    static std::unique_ptr<WriteDoc> speechDoc();
 };

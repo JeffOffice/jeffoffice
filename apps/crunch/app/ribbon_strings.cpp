@@ -116,6 +116,7 @@
     QT_TRANSLATE_NOOP("Ribbon", "Sparkline"),
     QT_TRANSLATE_NOOP("Ribbon", "Sparkline Color"),
     QT_TRANSLATE_NOOP("Ribbon", "Sparklines"),
+    QT_TRANSLATE_NOOP("Ribbon", "Speech"),
     QT_TRANSLATE_NOOP("Ribbon", "Style"),
     QT_TRANSLATE_NOOP("Ribbon", "Style Options"),
     QT_TRANSLATE_NOOP("Ribbon", "Styles"),

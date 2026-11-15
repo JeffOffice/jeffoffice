@@ -446,6 +446,8 @@
             {"small": "review.noProof", "keytip": "NP"}
           ]
         },
+        {"name": "Speech", "keytip": "ZD", "items": [
+          {"large": "review.readAloud", "keytip": "RD"}]},
         {
           "name": "Notes",
           "keytip": "ZN",

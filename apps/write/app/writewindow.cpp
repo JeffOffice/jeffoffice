@@ -275,6 +275,7 @@ void WriteWindow::setDocument(std::unique_ptr<write::WriteDoc> doc, const QStrin
     updateTitle();
     refreshUi();
     m_wordTimer.start();
+    if (m_doc) jp::checkMissingFonts(this, missingFontsHost());
 }
 
 void WriteWindow::updateTitle()

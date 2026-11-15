@@ -212,6 +212,8 @@
         {"large": "rev.translate", "keytip": "TR"},
         {"large": "rev.language", "keytip": "LA"}
       ]},
+      {"name": "Speech", "keytip": "ZD", "items": [
+        {"large": "rev.readAloud", "keytip": "RD"}]},
       {"name": "Check", "keytip": "ZC", "items": [
         {"large": "rev.designChecker", "keytip": "DC"},
         {"large": "rev.accessibility", "keytip": "AC"},

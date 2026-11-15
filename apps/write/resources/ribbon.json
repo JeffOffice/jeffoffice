@@ -1153,6 +1153,16 @@
           ]
         },
         {
+          "name": "Speech",
+          "keytip": "ZD",
+          "items": [
+            {
+              "large": "review.readAloud",
+              "keytip": "RD"
+            }
+          ]
+        },
+        {
           "name": "Comments",
           "keytip": "ZM",
           "items": [

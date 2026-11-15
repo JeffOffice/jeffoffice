@@ -166,7 +166,7 @@ bool AppWindow::commandAllowedReadOnly(const QString &id)
                  "zoom.onePage", "zoom.out", "zoom.page", "zoom.pageWidth", "zoom.selection", "zoom.width",
                  "comment.next", "comment.prev", "comment.show",
                  "edit.copy", "edit.selectAll", "edit.find", "edit.goTo", "edit.selectObjects",
-                 "review.nextChange", "review.previousChange", "review.nextComment", "review.previousComment", "review.reviewingPane", "review.wordCount", "review.accessibility", "review.translate", "review.compare"})
+                 "review.nextChange", "review.previousChange", "review.nextComment", "review.previousComment", "review.reviewingPane", "review.wordCount", "review.accessibility", "review.translate", "review.compare", "review.readAloud", "rev.readAloud"})
             ids.insert(QLatin1String(id));
         return ids;
     }();

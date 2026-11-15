@@ -2409,6 +2409,30 @@ void setFontFamily(WriteDoc &doc, QTextCursor &c, const QString &family)
     });
 }
 
+int replaceFont(WriteDoc &doc, const QString &from, const QString &to)
+{
+    QVector<QTextDocument *> stories{doc.story()};
+    for (int s = 0; s < doc.sectionCount(); ++s)
+        for (const bool footer : {false, true})
+            for (int slot = 0; slot < 3; ++slot)
+                if (doc.hasOwnHeaderFooter(s, footer, slot))
+                    if (QTextDocument *d = doc.headerFooterStory(s, footer, slot); d && !stories.contains(d)) stories << d;
+    const WriteDoc::StepGroup group(doc);
+    int changed = 0;
+    for (QTextDocument *d : std::as_const(stories)) {
+        QTextCursor c(d);
+        c.select(QTextCursor::Document);
+        changeCharFormat(doc, c, [&](QTextCharFormat &f) {
+            const QStringList families = f.fontFamilies().toStringList();
+            if (families.isEmpty() || families.first().compare(from, Qt::CaseInsensitive) != 0) return;
+            f.setFontFamilies({to});
+            f.clearProperty(tp::ThemeFont);
+            ++changed;
+        });
+    }
+    return changed;
+}
+
 void setFontSize(WriteDoc &doc, QTextCursor &c, double points)
 {
     const NoteScopeGuard scopeGuard(doc, c);
