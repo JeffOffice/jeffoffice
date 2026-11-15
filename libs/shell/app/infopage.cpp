@@ -69,9 +69,9 @@ bool openFileLocation(const QString &path, QWidget *parent)
     const FileLocationHooks &hooks = fileLocationHooks();
     if (isOnAnotherComputer(path)) {
         const bool yes = hooks.confirm ? hooks.confirm(parent, path)
-                                       : QMessageBox::question(parent, QCoreApplication::translate("jp::InfoPage", "Open File Location"),
-                                                               QCoreApplication::translate("jp::InfoPage", "This file is on another computer. Opening its location may take a while, and the computer will see that you asked. Open it?"),
-                                                               QMessageBox::Yes | QMessageBox::No, QMessageBox::No) == QMessageBox::Yes;
+                                       : plainQuestion(parent, QCoreApplication::translate("jp::InfoPage", "Open File Location"),
+                                                       QCoreApplication::translate("jp::InfoPage", "This file is on another computer. Opening its location may take a while, and the computer will see that you asked. Open it?"),
+                                                       QMessageBox::Yes | QMessageBox::No, QMessageBox::No) == QMessageBox::Yes;
         if (!yes) return false;
     }
     if (hooks.open) {
