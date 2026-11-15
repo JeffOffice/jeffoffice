@@ -917,7 +917,7 @@ private Q_SLOTS:
         QCOMPARE(deck::importAnyPresentationFile(path, &notes)->pages.size(), slides + 2);
     }
 
-    // A presentation from the internet or another computer opens for reading first, unless Options > Trust Center says to open it as any other.
+    // A presentation from the internet or another computer opens for reading first, unless Options > Security says to open it as any other.
     void aFileFromOutsideOpensForReadingFirst()
     {
         struct Reset {

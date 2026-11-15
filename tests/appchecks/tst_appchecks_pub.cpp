@@ -705,7 +705,7 @@ private Q_SLOTS:
     // Options > Customize > Quick Toolbar lists this app's quick toolbar and every command, adds commands and separators, and resets.
     void quickToolbarPageCustomizes() { checkQuickToolbarPage(m_app); }
 
-    // Options has a Trust Center page: macros kept and never run, a row for each kind of link the app has (the others say they do not apply), and programs always refused.
+    // Options has a Security page: macros kept and never run, a row for each kind of link the app has (the others say they do not apply), and programs always refused.
     void trustCenterPage() { checkTrustCenterPage(m_app); }
 
     // The ribbon's right-click menu: Add to and Remove from the quick toolbar, the Customize items, Collapse, and the menu key.

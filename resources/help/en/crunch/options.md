@@ -78,9 +78,9 @@ The choice belongs to all the JeffOffice apps: change it here and it changes in 
 - To have the statistics we already hold deleted, send your install number to info@jeffoffice.com **before** you turn statistics off. Turning them off erases the number from your computer, and without it we cannot tell which records are yours.
 - To turn statistics off without opening JeffCrunch, set the environment variable `JP_NO_TELEMETRY` to any value before you start it. Nothing is then counted or sent, and JeffCrunch does not ask the first-run question.
 
-## Trust Center
+## Security
 
-The **Trust Center** tab decides what JeffCrunch does about the things a file can point to: linked files, linked movies and sounds, and files from the internet. Macros are kept in a file and never run, and a link that would start a program is always refused. See [Trust Center](trust-center).
+The **Security** tab decides what JeffCrunch does about the things a file can point to: linked files, linked movies and sounds, and files from the internet. Macros are kept in a file and never run, and a link that would start a program is always refused. See [Security](security).
 
 ## Related
 

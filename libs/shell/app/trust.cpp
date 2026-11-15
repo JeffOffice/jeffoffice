@@ -90,7 +90,7 @@ OpenHow openHowFor(const QString &path, OpenHow how, bool *held)
 
 QString heldBackText()
 {
-    return QCoreApplication::translate("Trust", "This file came from the internet or another computer, so it is open for reading only. To change it, use Save As to make a copy, or choose \"Open normally\" under Trust Center in Options.");
+    return QCoreApplication::translate("Trust", "This file came from the internet or another computer, so it is open for reading only. To change it, use Save As to make a copy, or choose \"Open normally\" under Security in Options.");
 }
 
 void setAskStandIn(const std::function<bool(const QString &)> &standIn) { g_askStandIn = standIn; }

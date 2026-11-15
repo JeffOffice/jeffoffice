@@ -184,7 +184,7 @@ bool CrunchWindow::openFile(const QString &path, OpenHow how)
         w->close();   // (it was made for this file: a window with nothing in it is not left)
         return false;
     }
-    // A file from the internet or another computer opens for reading first (Options > Trust Center).
+    // A file from the internet or another computer opens for reading first (Options > Security).
     bool heldBack = false;
     how = trust::openHowFor(path, how, &heldBack);
     // a text file of values: how it is read is asked first (the window that opens it asks)

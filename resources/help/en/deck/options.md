@@ -76,9 +76,9 @@ The **Quick Toolbar** page is for the small toolbar at the top left of the windo
 
 Nothing changes until you click **OK**. Then every open JeffDeck window shows your toolbar, and so does every window you open later. The toolbar can have 100 commands and separators in all. When there are more buttons than fit in a third of the window's width, the rest wait behind a **»** button at the end of the toolbar, so the title of the window is never pushed off the screen. JeffDeck keeps a command in your list when a later version no longer has it, and shows it again if the command comes back. The buttons get KeyTips, the numbers 1 to 9 and then two letters, in the order they are on the toolbar. The toolbar always sits at the top left, beside the **File** button.
 
-## Trust Center
+## Security
 
-The **Trust Center** tab decides what JeffDeck does about the things a file can point to: linked files, linked movies and sounds, and files from the internet. Macros are kept in a file and never run, and a link that would start a program is always refused. See [Trust Center](trust-center).
+The **Security** tab decides what JeffDeck does about the things a file can point to: linked files, linked movies and sounds, and files from the internet. Macros are kept in a file and never run, and a link that would start a program is always refused. See [Security](security).
 
 ## Related
 

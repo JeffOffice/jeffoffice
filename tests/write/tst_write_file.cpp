@@ -1314,7 +1314,7 @@ private Q_SLOTS:
         }
     }
 
-    // A document from the internet or another computer opens for reading first, unless Options > Trust Center says to open it as any other.
+    // A document from the internet or another computer opens for reading first, unless Options > Security says to open it as any other.
     void aFileFromOutsideOpensForReadingFirst()
     {
         struct Reset {

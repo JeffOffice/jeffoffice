@@ -227,7 +227,7 @@ private Q_SLOTS:
         QVERIFY(!e.win.told.isEmpty());
     }
 
-    // The loosest of the Trust Center's choices does not reach the refusals: a link to a program or a script is still never opened, and never asked about.
+    // The loosest of the Security's choices does not reach the refusals: a link to a program or a script is still never opened, and never asked about.
     void theLoosestTrustChoicesStillRefuseProgramLinks()
     {
         struct Reset {

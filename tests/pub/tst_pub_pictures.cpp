@@ -1114,7 +1114,7 @@ private Q_SLOTS:
         QVERIFY2(!found.join('|').contains(QStringLiteral("linked, not embedded")), qPrintable(found.join('|')));
     }
 
-    // What a publication does with its linked pictures when it opens is Options > Trust Center's choice: "Update them" reads the files (as it always did, and only the ones in the
+    // What a publication does with its linked pictures when it opens is Options > Security's choice: "Update them" reads the files (as it always did, and only the ones in the
     // publication's own folder), "Never" leaves every picture as it was saved, and "Ask" asks, only when a file has something to give, and reads them on a yes.
     void linkedPicturesFollowTheTrustChoice()
     {
@@ -1210,7 +1210,7 @@ private Q_SLOTS:
         }
     }
 
-    // A file from the internet or another computer opens for reading first, unless Options > Trust Center says to open it as any other.
+    // A file from the internet or another computer opens for reading first, unless Options > Security says to open it as any other.
     void aFileFromOutsideOpensForReadingFirst()
     {
         QTemporaryDir dir;

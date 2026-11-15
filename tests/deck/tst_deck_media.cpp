@@ -1958,7 +1958,7 @@ private Q_SLOTS:
         QVERIFY2(lp->error().contains(QStringLiteral("linked")), qPrintable(lp->error()));
     }
 
-    // A movie or sound linked to a file plays as Options > Trust Center says: never (the default, and what it always did), after a question, or at once. Only a movie or sound file on this
+    // A movie or sound linked to a file plays as Options > Security says: never (the default, and what it always did), after a question, or at once. Only a movie or sound file on this
     // computer is ever played: a web address, a file on another computer, a program, a text, and a file that is not there are refused, whatever is chosen.
     void aLinkedFileIsPlayedOnlyAsTheTrustCenterSays()
     {

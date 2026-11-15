@@ -1509,12 +1509,12 @@ void checkTrustCenterPage(Adapter &app)
     // Cancel: nothing is kept, and the page is as the app has it.
     withDialog([&] { options->trigger(); }, QStringLiteral("optionsDialog"), [&](QDialog *dlg) {
         QWidget *page = dlg->findChild<QWidget *>(QStringLiteral("trustPage"));
-        QVERIFY2(page, "Options has no Trust Center page");
+        QVERIFY2(page, "Options has no Security page");
         QTabWidget *tabs = nullptr;
         for (auto *t : dlg->findChildren<QTabWidget *>())
             if (t->indexOf(page) >= 0) tabs = t;
         QVERIFY(tabs);
-        QCOMPARE(tabs->tabText(tabs->indexOf(page)), QStringLiteral("Trust Center"));
+        QCOMPARE(tabs->tabText(tabs->indexOf(page)), QStringLiteral("Security"));
         tabs->setCurrentWidget(page);
         auto *files = page->findChild<QComboBox *>(QStringLiteral("trustLinkedFiles"));
         auto *media = page->findChild<QComboBox *>(QStringLiteral("trustLinkedMedia"));

@@ -585,7 +585,7 @@ private Q_SLOTS:
         QCOMPARE(show.currentSlide(), 0);
     }
 
-    // The loosest of the Trust Center's choices does not reach the refusals: a link to a program or a script is never opened, and never asked about, and a file on another computer is still asked
+    // The loosest of the Security's choices does not reach the refusals: a link to a program or a script is never opened, and never asked about, and a file on another computer is still asked
     // about as one and never looked for.
     void theLoosestTrustChoicesStillRefuseProgramLinks()
     {

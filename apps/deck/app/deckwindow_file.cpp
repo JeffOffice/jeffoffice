@@ -61,7 +61,7 @@ void DeckWindow::setReadOnly(bool on)
 
 bool DeckWindow::openFile(const QString &path, OpenHow how)
 {
-    // A file from the internet or another computer opens for reading first (Options > Trust Center); a template is not opened for reading, it makes a new presentation.
+    // A file from the internet or another computer opens for reading first (Options > Security); a template is not opened for reading, it makes a new presentation.
     bool heldBack = false;
     if (deck::presentationKindOf(path) != deck::PresentationKind::Template) how = trust::openHowFor(path, how, &heldBack);
     QString notes;

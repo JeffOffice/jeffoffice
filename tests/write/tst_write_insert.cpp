@@ -380,7 +380,7 @@ private Q_SLOTS:
         QCOMPARE(opened, (QStringList{"https://example.com"}));
     }
 
-    // The loosest of the Trust Center's choices does not reach the refusals: no link to a file, a program, or another computer is followed by a click.
+    // The loosest of the Security's choices does not reach the refusals: no link to a file, a program, or another computer is followed by a click.
     void theLoosestTrustChoicesStillRefuseLinksToFilesAndPrograms()
     {
         struct Reset {

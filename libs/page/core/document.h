@@ -477,7 +477,7 @@ public:
     // file that is gone leaves the stored copy or the preview. Only the
     // files `mayFollow` allows: any other link is not touched, and shows the
     // stored copy or the preview as Not updated.
-    // With `readFiles` false (Options > Trust Center: not until asked, or never) no file is read: the stored
+    // With `readFiles` false (Options > Security: not until asked, or never) no file is read: the stored
     // copies and previews stand, as for a link `mayFollow` does not allow.
     void refreshLinks(bool readFiles = true);
     // How many links `refreshLinks` would read a file for: a link to a file that `mayFollow` allows and that is there,

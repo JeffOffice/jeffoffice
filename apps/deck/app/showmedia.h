@@ -90,7 +90,7 @@ private:
     bool controlsOf(const QPointF &pos, QString *id, MediaBar::Part *part) const;
     const Document *m_doc;
     QString m_baseDir;                      // the presentation's folder, for a linked file named by a relative path
-    QHash<QString, bool> m_linkedAnswers;   // what was answered for each linked file asked about (Options > Trust Center)
+    QHash<QString, bool> m_linkedAnswers;   // what was answered for each linked file asked about (Options > Security)
     QWidget *m_view;
     int m_slide = -1;
     QString m_pageId;   // of the slide on the screen: the presentation may be edited while the show plays

@@ -619,7 +619,7 @@ private Q_SLOTS:
         QCOMPARE(now.value(QStringLiteral("xl/workbook.xml")).count("<externalReference "), 1);
     }
 
-    // Options > Trust Center decides for a file whose Startup prompt the person has not set: "Update them" updates without asking, "Never" leaves the stored values, and "Ask" is what it always was.
+    // Options > Security decides for a file whose Startup prompt the person has not set: "Update them" updates without asking, "Never" leaves the stored values, and "Ask" is what it always was.
     // A file that says "never" is left alone whatever is chosen, and a source on another computer is not touched, however loose the choice.
     void theTrustCenterChoiceDecidesWhenTheFileHasNoChoiceOfItsOwn()
     {
@@ -670,7 +670,7 @@ private Q_SLOTS:
         QCOMPARE(shown, QStringLiteral("6"));
     }
 
-    // A workbook from the internet or another computer opens for reading first, unless Options > Trust Center says to open it as any other.
+    // A workbook from the internet or another computer opens for reading first, unless Options > Security says to open it as any other.
     void aWorkbookFromOutsideOpensForReadingFirst()
     {
         struct Reset {

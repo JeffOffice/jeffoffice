@@ -1,5 +1,5 @@
 #pragma once
-// The Trust Center choices of Options (the same in every app): what happens with linked files and the links of a workbook, with linked movies and sounds, and with a file that came from the
+// The Security choices of Options (the same in every app): what happens with linked files and the links of a workbook, with linked movies and sounds, and with a file that came from the
 // internet or another computer. Macros are not a choice: they are kept in the file and never run. A link that would start a program is not one either: it is always refused, and nothing here
 // reaches that, or the refusal of a file on another computer (office/hyperlink.h, core/remotepath.h); a choice only ever lets a link do what the person says to, among the files that may be followed.
 

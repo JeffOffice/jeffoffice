@@ -89,9 +89,9 @@ Click **File > About** to find these. The two check boxes are also on the **Gene
 - To turn statistics off for good without opening JeffPub, set the environment variable `JP_NO_TELEMETRY` to any value before you start it. Nothing is then counted or sent, and JeffPub does not ask the first-run question.
 - **Your name** is the same name as **User name** above.
 
-## Trust Center
+## Security
 
-The **Trust Center** tab decides what JeffPub does about the things a file can point to: linked files, linked movies and sounds, and files from the internet. Macros are kept in a file and never run, and a link that would start a program is always refused. See [Trust Center](trust-center).
+The **Security** tab decides what JeffPub does about the things a file can point to: linked files, linked movies and sounds, and files from the internet. Macros are kept in a file and never run, and a link that would start a program is always refused. See [Security](security).
 
 ## Related
 

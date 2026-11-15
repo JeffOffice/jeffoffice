@@ -539,7 +539,7 @@ bool MainWindow::openFile(const QString &path, OpenHow how)
         hideBackstage();
         return true;
     }
-    // A file from the internet or another computer opens for reading first (Options > Trust Center).
+    // A file from the internet or another computer opens for reading first (Options > Security).
     bool heldBack = false;
     how = trust::openHowFor(path, how, &heldBack);
     // (a file larger than the apps open is refused before it is read: it would all be held at once)
@@ -591,7 +591,7 @@ bool MainWindow::openFile(const QString &path, OpenHow how)
         doc = importPublisher(bytes, &err, &rep);
         fromPub = true;
     } else {
-        // The linked pictures are read from their files as Options > Trust Center says: when it opens (the choice "Update them"), never, or after a question about the ones that have something
+        // The linked pictures are read from their files as Options > Security says: when it opens (the choice "Update them"), never, or after a question about the ones that have something
         // to read (only a file in the publication's own folder is ever read for a link).
         const trust::Choice links = trust::linkedFiles();
         doc = publicationFromBytes(bytes, &err, QFileInfo(path).absolutePath(), links == trust::Choice::Yes);
@@ -599,7 +599,7 @@ bool MainWindow::openFile(const QString &path, OpenHow how)
             if (doc->updatableLinks() > 0) {
                 QApplication::restoreOverrideCursor();
                 const bool yes = trust::ask(this, tr("Linked Pictures"), tr("This publication has pictures linked to files on this computer that have changed or are not kept in it. Update them from the files now?"),
-                                            tr("You can change this under Trust Center in Options."));
+                                            tr("You can change this under Security in Options."));
                 QApplication::setOverrideCursor(Qt::WaitCursor);
                 if (yes) doc->refreshLinks();
             }

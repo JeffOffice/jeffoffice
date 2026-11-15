@@ -1,7 +1,7 @@
-# Trust Center: what a file may reach out to
+# Security: what a file may reach out to
 <!-- keywords: trust center, security, macros, linked files, links, linked pictures, linked media, internet, downloaded, read-only, protected, external links, programs, safe -->
 
-A file can point to other things: files, web pages, movies, even programs. The **Trust Center** is where you decide what JeffCrunch does about that. Click **File > Options**, then the **Trust Center** tab. Click **OK** to keep your changes, or **Cancel** to throw them away.
+A file can point to other things: files, web pages, movies, even programs. The **Security** page is where you decide what JeffCrunch does about that. Click **File > Options**, then the **Security** tab. Click **OK** to keep your changes, or **Cancel** to throw them away.
 
 These choices belong to all the JeffOffice apps: change one in one app and it changes in all of them. A row for something an app does not have says **This doesn't apply** and is grayed out.
 

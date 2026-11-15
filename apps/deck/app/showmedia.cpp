@@ -78,7 +78,7 @@ ShowMedia::Entry *ShowMedia::entryFor(const PictureItem &pic, bool create)
     pb->setPlay(e.play);
     pb->setCaptions(deck::captionCuesOf(*m_doc, pic));
     if (data == m_doc->media.cend()) {
-        // A linked file plays as Options > Trust Center says (never, until it is chosen).
+        // A linked file plays as Options > Security says (never, until it is chosen).
         if (!pic.mediaLink.isEmpty()) giveLinkedMedia(pb, pic, m_baseDir, m_view, &m_linkedAnswers);
         else pb->setUnavailable(e.play.video ? tr("There is no movie here to play.") : tr("There is no sound here to play."));
     }

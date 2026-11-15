@@ -63,7 +63,7 @@ Type in the search box above to find a topic, or a command to run. Press **F1** 
 - [Check your design](design-checker)
 - [Comments](comments)
 - [Change JeffPub's settings](options)
-- [Trust Center: what a file may reach out to](trust-center)
+- [Security: what a file may reach out to](security)
 - [Choose a language](language)
 - [Get help and report problems](support)
 

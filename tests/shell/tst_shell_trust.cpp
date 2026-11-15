@@ -1,4 +1,4 @@
-// The Trust Center of Options (libs/shell/app/trust.h): the choices and their defaults, how a file from outside is opened, the page every app shows, and that no choice
+// The Security of Options (libs/shell/app/trust.h): the choices and their defaults, how a file from outside is opened, the page every app shows, and that no choice
 // reaches the refusals that stay (a link that starts a program, a file on another computer).
 #include "app/filetasks.h"
 #include "app/settings.h"

@@ -1,5 +1,5 @@
 #pragma once
-// A movie or sound a slide links to a file instead of holding it. What is done is Options > Trust Center's choice: never played (the default), played, or played after a question.
+// A movie or sound a slide links to a file instead of holding it. What is done is Options > Security's choice: never played (the default), played, or played after a question.
 // Only a file on this computer is ever played, whatever the choice: a web address, a file on another computer, a program, and a file that is not a movie or sound are never read.
 
 #include <QHash>

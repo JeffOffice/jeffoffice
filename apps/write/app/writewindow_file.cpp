@@ -150,7 +150,7 @@ void WriteWindow::setReadOnly(bool on)
 
 bool WriteWindow::openFile(const QString &path, OpenHow how)
 {
-    // A file from the internet or another computer opens for reading first (Options > Trust Center); a template is not opened for reading, it makes a new document.
+    // A file from the internet or another computer opens for reading first (Options > Security); a template is not opened for reading, it makes a new document.
     bool heldBack = false;
     if (const QString suffix = QFileInfo(path).suffix().toLower(); suffix != QLatin1String("dotx") && suffix != QLatin1String("dotm") && suffix != QLatin1String("dot") && suffix != QLatin1String("ott"))
         how = trust::openHowFor(path, how, &heldBack);
