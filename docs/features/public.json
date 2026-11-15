@@ -821,7 +821,7 @@
         },
         {
          "status": "partly",
-         "text": "cca71c4acf5e3ba0b99ce558c062586cb9f51e4c1e85cf9abf97670a5d54d840"
+         "text": "3a561e1e34e84626d28619b5a2d4c5e4801a44a45113d7cc01505f5dd9d9bdc5"
         }
        ]
       },
@@ -852,8 +852,9 @@
          "text": "08f6ee380de54b8f4cbac7cc02c958c127ee77e8a9cd2424866ceab492c3127f"
         },
         {
-         "status": "todo",
-         "text": "6c767a0bdd2e75bb20845cebd3d8ca9d6635bfca754265cece23c95ca519c374"
+         "hide_soon": true,
+         "status": "done",
+         "text": "235c45ec7110b245f00c2143de134b1ebaeafe3d56db83b39df038129e1806eb"
         },
         {
          "hide_soon": true,
@@ -1297,8 +1298,9 @@
        "text": "f0cea6489a10036df2daf8bbdbcc3762135ffe4392ea5948a3af26227ca7ceb1"
       },
       {
-       "status": "todo",
-       "text": "8a8b2f747637f25b3cc0f777c75a0106c0f7a8833bea40c91e2ae683e6a89dba"
+       "hide_soon": true,
+       "status": "done",
+       "text": "a271f6ffec96d951b2a6f61809a1231909b90c708b64365cec92e95bf19f593e"
       }
      ]
     },
@@ -1320,8 +1322,9 @@
        "text": "f9c4489502e898496cb1982f262eb3ea79157c3ed05a1f681e2728cbfbb35a15"
       },
       {
-       "status": "todo",
-       "text": "753da8574daf27eb6027f8a9da6136698e862c1e66b2f9aa658c45d0b4ddf7e7"
+       "hide_soon": true,
+       "status": "done",
+       "text": "5c82bee2b590d88ead37ae6ffd864e1c853400c7af352e2d99db97eb95b2befb"
       }
      ]
     },
@@ -3090,11 +3093,12 @@
         },
         {
          "status": "partly",
-         "text": "5a86d9c62a51c298fd3a24b82cab4ab0301b84dcbd83d0369ef78ea4bee7fa8a"
+         "text": "45cd040187d913b09e33be792426af151d9599f607b111fb267091e29f380003"
         },
         {
-         "status": "todo",
-         "text": "68b2647cd070870f7d502842bc1af1f9f156a2ceabb9cae691bd87b19e567fe9"
+         "hide_soon": true,
+         "status": "done",
+         "text": "f3d0c98a81f78afa7650d19b2da4840af8673d972fe533639bb9bcec142e1e85"
         }
        ]
       },
@@ -3108,7 +3112,7 @@
         },
         {
          "status": "partly",
-         "text": "fa625701c88661d82582568327e005da21972a9944683e6d3469323460e2cd5c"
+         "text": "d16ed90f362cad912b08bd5783b4463fbfbfc01cee7e80c5d9f4d8b6e741ce83"
         },
         {
          "hide_soon": true,
@@ -3368,16 +3372,18 @@
        "text": "4461883c89e7b56b799693bd5b6b7bcea197e5ef41c0dde2c2e5324111343511"
       },
       {
-       "status": "todo",
-       "text": "cb038d846ddcb1575d3e8451d28c58f22795c0f87a834316ce49f90f01b7285a"
+       "hide_soon": true,
+       "status": "done",
+       "text": "534079f5b6f19e27b82cabf682f4906c0df88671ef69b77e687bc339e92123da"
       },
       {
        "status": "todo",
        "text": "d42d1b46597c6fbb081682cd34b74df5a837f32c783588a14e92f5f9ecbfb9c4"
       },
       {
-       "status": "partly",
-       "text": "f47d9eaa5acbff4f3a7463f96841367c4c9c426e6bd4331997c9fb093e957001"
+       "hide_soon": true,
+       "status": "done",
+       "text": "a4abce0f1d286080b4099650990990a25d1a84397c15c1f76da65c62c3d8c9ef"
       },
       {
        "hide_soon": true,
@@ -3726,12 +3732,13 @@
          "text": "6c46e2e61071f54c09ed3bce5056a923e757f9a5c5ec2ba50537a4bfed541afb"
         },
         {
-         "status": "todo",
-         "text": "664d7c3039fac094aedc08e0119f60a0938bdbcdb5631a8fb386ad5463202d39"
+         "status": "partly",
+         "text": "906db9992f3b28f381958180d6a0ee14730200ef402e584b17c28c5bcdfb63c0"
         },
         {
-         "status": "todo",
-         "text": "37c35ee3089fa36ec59e6dbc4e201c72c7d3232723c113ebef4d0cc817e200b7"
+         "hide_soon": true,
+         "status": "done",
+         "text": "e93dd02567211f5c201895cd57292358bd05ebafa82f7c3f0ec0edef442a8459"
         },
         {
          "status": "partly",
@@ -3912,8 +3919,8 @@
        "text": "a35277c3c54655d73a4d376e0324bb748ee090c6a7548059a6b288f6e2a806c6"
       },
       {
-       "status": "todo",
-       "text": "458f082e295efc8a087a2421e05047389d5976a753188c74573ed8417cef71e0"
+       "status": "partly",
+       "text": "b36238d9641e65a82e00c0dc46cdd69bbd8a3d22fa50d68501e54ca310cf400d"
       },
       {
        "hide_soon": true,
@@ -4141,8 +4148,9 @@
          "text": "b5554f93302bf91b68c9057f202b413de38f0354997a5021185faee0f0f2280d"
         },
         {
-         "status": "todo",
-         "text": "2371218a9357a2d5cf30f0897e64f2b4e13239de9d6d10db3260e2bb76812928"
+         "hide_soon": true,
+         "status": "done",
+         "text": "5b969dad8123c242f33b4b48ef3e80b6d2c895da631a38495b159f6039864c93"
         },
         {
          "status": "todo",
@@ -5993,8 +6001,9 @@
          "text": "11c37f0657022925677a61d7c156ebd98890dd8c678f666e4c796f7512961737"
         },
         {
-         "status": "todo",
-         "text": "fde238bc87dbf68de0b34f924f114346b601850f271ec5f65a2b6705a2051a36"
+         "hide_soon": true,
+         "status": "done",
+         "text": "2e5a2ac6b11f8556bcf7524915281e1ca11f325314869422ef1f856329786cb3"
         },
         {
          "hide_soon": true,
@@ -6283,12 +6292,13 @@
      "heading": "ce4e017e0e4483f4e35032b973de31c6c281995a6491279ca8bddb94b9736a31",
      "items": [
       {
-       "status": "todo",
-       "text": "40dff3a3f30448fcf26ca69da4d33c46af4dba5a44efd938db0ba5dca203a96c"
+       "status": "partly",
+       "text": "0a5231402411ebdabda6beb1ef49d4edc35726f0ce445c2733a245d53160e21f"
       },
       {
-       "status": "todo",
-       "text": "697af04fb1b30473766f5a256c983f7b76c98578ce9051a26ac33f469cd91fe9"
+       "hide_soon": true,
+       "status": "done",
+       "text": "ccdc41b7762ddef6e745fe08828da15bb6b6e96a0df3f6f5436becf1673b7ad4"
       },
       {
        "status": "partly",
@@ -8324,6 +8334,18 @@
     "fr": ""
    }
   },
+  "0a5231402411ebdabda6beb1ef49d4edc35726f0ce445c2733a245d53160e21f": {
+   "drop": false,
+   "en": "Apply a built-in theme (colors and fonts together), browse for a theme in `.thmx`, `.docx`, `.dotx`, `.pptx`, or `.potx` files, save the current theme as `.thmx`, and reset to the template's theme. Each is one Undo step.",
+   "es": "Aplique un tema integrado (colores y fuentes juntos), busque un tema en archivos `.thmx`, `.docx`, `.dotx`, `.pptx` o `.potx`, guarde el tema actual como `.thmx` y restablezca el tema de la plantilla. Cada acción es un paso de Deshacer.",
+   "fr": "Appliquez un thème intégré (couleurs et polices ensemble), recherchez un thème dans des fichiers `.thmx`, `.docx`, `.dotx`, `.pptx` ou `.potx`, enregistrez le thème actuel en `.thmx` et rétablissez le thème du modèle. Chaque action est une étape d’annulation.",
+   "soon": {
+    "drop": false,
+    "en": "Theme effects gallery",
+    "es": "Galería de efectos de tema",
+    "fr": "Galerie d’effets de thème"
+   }
+  },
   "0a74b15eae727daae53dc026dee3a9c9b7af758fbc48eea721c35aeb48a1fe47": {
    "drop": false,
    "en": "Change Template opens a gallery of its own, with the color scheme and font scheme starting at the publication’s own. Apply another design to this publication as one undo step, or make a new publication with your text and graphics and leave this one alone. Each story goes into the new design’s box with the same role, your pictures replace its placeholder pictures in reading order, and the page size and pages follow the design. Extra Content is a pane for stories and pictures with no place in the new design: place them on the page by button, double-click, or drag, or discard them. It is saved with the publication. Tables, shapes, lines, Text Art, and groups stay behind only when they are the old design’s own and unchanged; any other goes to Extra Content whole. No pages are added for leftovers, and items on master pages and page backgrounds stay with the old design.",
@@ -10184,6 +10206,18 @@
     "fr": "Plus de règles de grammaire, problèmes dans les tableaux, en-têtes, pieds de page et notes, et langues autres que l’anglais"
    }
   },
+  "235c45ec7110b245f00c2143de134b1ebaeafe3d56db83b39df038129e1806eb": {
+   "drop": false,
+   "en": "Set a picture as a tiled sheet background behind the cells, and delete it. It is shown on screen but never printed or exported to PDF. Backgrounds are saved in `.xlsx` and `.ods` files, and read from `.xlsx` files.",
+   "es": "Establezca una imagen como fondo en mosaico de la hoja detrás de las celdas, y elimínela. Se muestra en pantalla, pero nunca se imprime ni se exporta a PDF. Los fondos se guardan en archivos `.xlsx` y `.ods`, y se leen de archivos `.xlsx`.",
+   "fr": "Définissez une image comme arrière-plan en mosaïque de la feuille derrière les cellules, et supprimez-la. Elle s’affiche à l’écran, mais n’est jamais imprimée ni exportée en PDF. Les arrière-plans sont enregistrés dans les fichiers `.xlsx` et `.ods`, et lus depuis les fichiers `.xlsx`.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "2362094d5e005d53f738f180839c18400e264f4823f42766bfa6cd95d10d1cb1": {
    "drop": false,
    "en": "Insert an address block and a greeting line with a choice of formats and a preview, insert merge fields from the list's columns, match fields, highlight fields, and update labels. Address block formats in files are read.",
@@ -10206,18 +10240,6 @@
     "en": "Tagged PDF export",
     "es": "Exportación a PDF etiquetado",
     "fr": "Export en PDF balisé"
-   }
-  },
-  "2371218a9357a2d5cf30f0897e64f2b4e13239de9d6d10db3260e2bb76812928": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
    }
   },
   "23fd5cc048f070e73188d96572c256002a7ebb11dad6f0031e103c761aac6ed2": {
@@ -11072,6 +11094,18 @@
     "fr": ""
    }
   },
+  "2e5a2ac6b11f8556bcf7524915281e1ca11f325314869422ef1f856329786cb3": {
+   "drop": false,
+   "en": "Set ligatures, number spacing, number forms, a stylistic set from 1 to 20, and contextual alternates for text from the Advanced page of the Font box. They are kept in `.docx`, `.odt`, and `.jpub` files and used on screen and in PDF.",
+   "es": "Defina ligaduras, espaciado de números, formas de números, un conjunto estilístico del 1 al 20 y alternativas contextuales para el texto desde la página Avanzado del cuadro Fuente. Se conservan en archivos `.docx`, `.odt` y `.jpub`, y se usan en pantalla y en PDF.",
+   "fr": "Réglez les ligatures, l’espacement des chiffres, les formes de chiffres, un jeu stylistique de 1 à 20 et les alternatives contextuelles du texte depuis la page Avancé de la boîte Police. Ils sont conservés dans les fichiers `.docx`, `.odt` et `.jpub`, et utilisés à l’écran et en PDF.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "2e5b01edd90187e2f85a67c67d03c4989d934bc057cbedc61b095d98ac407d8d": {
    "drop": false,
    "en": "A quick toolbar with Save, Undo, Redo, and Print, reachable with KeyTips 1 to 4.",
@@ -11684,18 +11718,6 @@
     "fr": ""
    }
   },
-  "37c35ee3089fa36ec59e6dbc4e201c72c7d3232723c113ebef4d0cc817e200b7": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Handout Master view: slides per page, orientation, header, date, footer, and page number, and its background",
-    "es": "Vista Patrón de documentos: diapositivas por página, orientación, encabezado, fecha, pie de página y número de página, y su fondo",
-    "fr": "Affichage Masque du document : diapositives par page, orientation, en-tête, date, pied de page et numéro de page, et son arrière-plan"
-   }
-  },
   "37e594a047eb41b8889f01c4198c4bac0b9bc1d37476f14996d433fc3a0f6231": {
    "drop": false,
    "en": "Use CONCAT, NUMBERVALUE, TEXTJOIN, UNICHAR, and UNICODE, plus the byte-counting and full-width forms for East Asian text, such as LENB, LEFTB, ASC, and DBCS.",
@@ -11838,6 +11860,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "3a561e1e34e84626d28619b5a2d4c5e4801a44a45113d7cc01505f5dd9d9bdc5": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Themes: apply, save, and browse, with colors, fonts, and effects",
+    "es": "Temas: aplicar, guardar y buscar, con colores, fuentes y efectos",
+    "fr": "Thèmes : appliquer, enregistrer et parcourir, avec couleurs, polices et effets"
    }
   },
   "3a74b04aedbbed54323db0c68cdfa933d9a9e3a2e06668feda945ad3a917dec3": {
@@ -12344,18 +12378,6 @@
     "fr": ""
    }
   },
-  "40dff3a3f30448fcf26ca69da4d33c46af4dba5a44efd938db0ba5dca203a96c": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Themes gallery: apply, save, browse, and reset; a theme is colors, fonts, and effects",
-    "es": "Galería de temas: aplicar, guardar, buscar y restablecer; un tema son colores, fuentes y efectos",
-    "fr": "Galerie de thèmes : appliquer, enregistrer, parcourir et réinitialiser ; un thème regroupe couleurs, polices et effets"
-   }
-  },
   "40e64b20e2747df4daaec35f296eaa764f2d8753b002ad65d72c2830ecd3946c": {
    "drop": false,
    "en": "Insert a `.txt`, `.rtf`, `.html`, `.htm`, `.docx`, or `.md` file into a text box.",
@@ -12680,18 +12702,6 @@
     "fr": ""
    }
   },
-  "458f082e295efc8a087a2421e05047389d5976a753188c74573ed8417cef71e0": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Theme effects, custom color and font schemes, and theme files",
-    "es": "Efectos de tema, esquemas de color y de fuente personalizados, y archivos de tema",
-    "fr": "Effets de thème, jeux de couleurs et de polices personnalisés, et fichiers de thème"
-   }
-  },
   "45cb468a2f224e5be5ded33e48a28eacad205dab7dec7707defc051b28068f62": {
    "drop": false,
    "en": "Mark citations with `Alt+Shift+I` and insert a table of authorities with 16 categories, headings, \"passim,\" a leader, and update.",
@@ -12714,6 +12724,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "45cd040187d913b09e33be792426af151d9599f607b111fb267091e29f380003": {
+   "drop": false,
+   "en": "Choose a variant from the Variants gallery, create new theme colors (twelve slots, a preview, and a name) and new theme fonts from the Colors and Fonts menus, and reset to the template's theme in one step.",
+   "es": "Elija una variante en la galería Variantes, cree nuevos colores de tema (doce ranuras, una vista previa y un nombre) y nuevas fuentes de tema desde los menús Colores y Fuentes, y restablezca el tema de la plantilla en un solo paso.",
+   "fr": "Choisissez une variante dans la galerie Variantes, créez de nouvelles couleurs de thème (douze emplacements, un aperçu et un nom) et de nouvelles polices de thème depuis les menus Couleurs et Polices, et rétablissez le thème du modèle en une seule étape.",
+   "soon": {
+    "drop": false,
+    "en": "Variants > Effects: theme effect styles",
+    "es": "Variantes > Efectos: estilos de efectos del tema",
+    "fr": "Variantes > Effets : styles d’effets du thème"
    }
   },
   "46030e52feb48b10d3fd55b6acb1380f379ad3221392baa5dfe81df565c6c61d": {
@@ -13748,6 +13770,18 @@
     "fr": "Enregistrement de vos propres équations dans la galerie"
    }
   },
+  "534079f5b6f19e27b82cabf682f4906c0df88671ef69b77e687bc339e92123da": {
+   "drop": false,
+   "en": "Work on notes in the Notes Page view, which shows the slide with the notes box on a printed-style page, including the header, date, footer, and page number. Use `PageUp` and `PageDown` to change slides and zoom the page.",
+   "es": "Trabaje con las notas en la vista Página de notas, que muestra la diapositiva con el cuadro de notas en una página con aspecto de impresión, incluidos el encabezado, la fecha, el pie y el número de página. Use `PageUp` y `PageDown` para cambiar de diapositiva y amplíe o reduzca la página.",
+   "fr": "Travaillez sur les notes dans la vue Page de notes, qui affiche la diapositive avec la zone de notes sur une page d’aspect imprimé, avec l’en-tête, la date, le pied de page et le numéro de page. Utilisez `PageUp` et `PageDown` pour changer de diapositive et zoomez sur la page.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "5342981b939c13de0d328a703c5b3648cb98d9acb529e084a4e3cf1e974d7154": {
    "drop": false,
    "en": "Show a zero in cells with a zero value, kept with the sheet in `.xlsx`. Set the gridline color, the zoom a new workbook starts at, and the standard column width of the sheet in view in Options > Display. Other display options are ribbon commands.",
@@ -14240,18 +14274,6 @@
     "fr": "Autres liens et contenu distant : bloqués tant qu’ils ne sont pas autorisés"
    }
   },
-  "5a86d9c62a51c298fd3a24b82cab4ab0301b84dcbd83d0369ef78ea4bee7fa8a": {
-   "drop": false,
-   "en": "Choose from a gallery of theme variants.",
-   "es": "Elija entre una galería de variantes de tema.",
-   "fr": "Choisissez parmi une galerie de variantes de thème.",
-   "soon": {
-    "drop": false,
-    "en": "Variant effects, new theme colors and fonts, and Reset",
-    "es": "Efectos de variantes, nuevos colores y fuentes de tema, y Restablecer",
-    "fr": "Effets de variantes, nouvelles couleurs et polices de thème, et Réinitialiser"
-   }
-  },
   "5a912bbe95d2bbe5f06fedd3f95c9888c138aba4f36e2c39f34450a8b79ff65e": {
    "drop": false,
    "en": "Set the axes and their titles, the chart title, data labels, gridlines, and the legend.",
@@ -14420,6 +14442,18 @@
     "fr": ""
    }
   },
+  "5b969dad8123c242f33b4b48ef3e80b6d2c895da631a38495b159f6039864c93": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "5c0052f674d41882bae31b12d685ca6c1d303584e49d0069a6e704704fd29099": {
    "drop": false,
    "en": "Replace and Replace All with `Ctrl+H`, in the body, tables, headers, footers, and footnotes. Replace All is one step that says how many were replaced.",
@@ -14461,6 +14495,18 @@
    "en": "Click a picture placeholder to insert a picture.",
    "es": "Haga clic en un marcador de posición de imagen para insertar una imagen.",
    "fr": "Cliquez sur un espace réservé d’image pour insérer une image.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "5c82bee2b590d88ead37ae6ffd864e1c853400c7af352e2d99db97eb95b2befb": {
+   "drop": false,
+   "en": "See a tip under the cell while typing a function, with the current argument in bold. Its name links to the function's Help entry, and every function has one.",
+   "es": "Vea una sugerencia bajo la celda al escribir una función, con el argumento actual en negrita. Su nombre enlaza con la entrada de la función en la Ayuda, y cada función tiene una.",
+   "fr": "Voyez une info-bulle sous la cellule pendant la saisie d’une fonction, avec l’argument en cours en gras. Son nom renvoie à l’entrée d’aide de la fonction, et chaque fonction en a une.",
    "soon": {
     "drop": true,
     "en": "",
@@ -15248,18 +15294,6 @@
     "fr": "Champ HYPERLINK : mise à jour"
    }
   },
-  "664d7c3039fac094aedc08e0119f60a0938bdbcdb5631a8fb386ad5463202d39": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Notes Master view: the notes page’s slide image, notes body, header, date, footer, and page number, its text styles, and its background",
-    "es": "Vista Patrón de notas: imagen de la diapositiva, cuerpo de notas, encabezado, fecha, pie de página y número de página de la página de notas, sus estilos de texto y su fondo",
-    "fr": "Affichage Masque des notes : image de la diapositive, corps des notes, en-tête, date, pied de page et numéro de page de la page de notes, ses styles de texte et son arrière-plan"
-   }
-  },
   "66728dae6e735e6a9fca1a0ad301b80ee5c5fd7d3b3ccae06e7fca954c34441f": {
    "drop": false,
    "en": "Documents that hold merge fields keep them when saved and reopened (MERGEFIELD, NEXT, IF, ASK, and others), along with the data-source link.",
@@ -15416,18 +15450,6 @@
     "fr": "Styles de texte sur du texte ordinaire"
    }
   },
-  "68b2647cd070870f7d502842bc1af1f9f156a2ceabb9cae691bd87b19e567fe9": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Save current theme and open `.thmx` theme files",
-    "es": "Guardar el tema actual y abrir archivos de tema `.thmx`",
-    "fr": "Enregistrement du thème actuel et ouverture des fichiers de thème `.thmx`"
-   }
-  },
   "68bdf8edf8bcb0b4aafaad7e8d2741e2b041c46af9a356e06cd560b8ba1bf1cc": {
    "drop": false,
    "en": "Pages",
@@ -15546,18 +15568,6 @@
     "en": "Links to sources that are web addresses",
     "es": "Vínculos a orígenes que son direcciones web",
     "fr": "Liens vers des sources qui sont des adresses web"
-   }
-  },
-  "697af04fb1b30473766f5a256c983f7b76c98578ce9051a26ac33f469cd91fe9": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Theme Colors and Theme Fonts galleries: heading and body pairs, Create New, and restyling the whole document",
-    "es": "Galerías de colores y fuentes del tema: pares de títulos y cuerpo, Crear nuevo y nuevo estilo para todo el documento",
-    "fr": "Galeries de couleurs et de polices du thème : paires titre et corps, Créer, et restylage de tout le document"
    }
   },
   "698f03c7d1e0998511a15e2c9ab946feed7ee5d99a44b5826326fe4afa0ee241": {
@@ -15894,18 +15904,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "6c767a0bdd2e75bb20845cebd3d8ca9d6635bfca754265cece23c95ca519c374": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Background: a picture tiled behind a sheet's cells",
-    "es": "Fondo: una imagen en mosaico detrás de las celdas de una hoja",
-    "fr": "Arrière-plan : une image en mosaïque derrière les cellules d’une feuille"
    }
   },
   "6c9c4bf07b42c1fb80188b2b5742b5e88e2d9c47b185b9eb049c25afcac7d588": {
@@ -16482,18 +16480,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "753da8574daf27eb6027f8a9da6136698e862c1e66b2f9aa658c45d0b4ddf7e7": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Function help from the formula bar: the function being typed opens its page",
-    "es": "Ayuda de funciones desde la barra de fórmulas: la función que se escribe abre su página",
-    "fr": "Aide sur les fonctions depuis la barre de formule : la fonction saisie ouvre sa page"
    }
   },
   "75a36405d6ac1770c94c2ba7a0626c1f77e8fa748f174a5e1bf7ddbbc3ca2033": {
@@ -17936,18 +17922,6 @@
     "fr": ""
    }
   },
-  "8a8b2f747637f25b3cc0f777c75a0106c0f7a8833bea40c91e2ae683e6a89dba": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Data entry form for a table or list: one record at a time, with next, previous, new, delete, and find by criteria",
-    "es": "Formulario de entrada de datos para una tabla o lista: un registro a la vez, con siguiente, anterior, nuevo, eliminar y búsqueda por criterios",
-    "fr": "Formulaire de saisie pour un tableau ou une liste : un enregistrement à la fois, avec suivant, précédent, nouveau, supprimer et recherche par critères"
-   }
-  },
   "8a8c27269b23ff331891660759fe321d234c2062609144cdbc2e6ea6fbf6f6aa": {
    "drop": true,
    "en": "",
@@ -18294,6 +18268,18 @@
     "en": "Keyboard shortcuts for commands, all reassignable in Options",
     "es": "Métodos abreviados de teclado para los comandos, todos reasignables en Opciones",
     "fr": "Raccourcis clavier pour les commandes, tous réassignables dans Options"
+   }
+  },
+  "906db9992f3b28f381958180d6a0ee14730200ef402e584b17c28c5bcdfb63c0": {
+   "drop": false,
+   "en": "Edit the notes master: move and resize its six places, choose the header, date, footer, and slide number, set the background color, and reset the layout. The layout is used by the Notes Page view, printed notes pages, and PDF, and is saved in `.pptx` and `.odp` files.",
+   "es": "Edite el patrón de notas: mueva y cambie el tamaño de sus seis zonas, elija el encabezado, la fecha, el pie y el número de diapositiva, defina el color de fondo y restablezca el diseño. El diseño se usa en la vista Página de notas, en las páginas de notas impresas y en el PDF, y se guarda en archivos `.pptx` y `.odp`.",
+   "fr": "Modifiez le masque des notes : déplacez et redimensionnez ses six zones, choisissez l’en-tête, la date, le pied de page et le numéro de diapositive, définissez la couleur d’arrière-plan et réinitialisez la mise en page. La mise en page sert à la vue Page de notes, aux pages de notes imprimées et au PDF, et elle est enregistrée dans les fichiers `.pptx` et `.odp`.",
+   "soon": {
+    "drop": false,
+    "en": "Notes master text styles: edit",
+    "es": "Estilos de texto del patrón de notas: editar",
+    "fr": "Styles de texte du masque des notes : modifier"
    }
   },
   "908e56f9d41e2f11df0c45780cdeca715dd47b799273f0b7d5d6910f367bd389": {
@@ -19520,6 +19506,18 @@
     "fr": "Plus de règles de grammaire et langues autres que l’anglais"
    }
   },
+  "a271f6ffec96d951b2a6f61809a1231909b90c708b64365cec92e95bf19f593e": {
+   "drop": false,
+   "en": "Use a data entry form for a table or range to view one record at a time, with New, Delete, Restore, Find Prev, Find Next, and Criteria. Each change is one Undo step.",
+   "es": "Use un formulario de entrada de datos para una tabla o un rango y vea un registro a la vez, con Nuevo, Eliminar, Restaurar, Buscar anterior, Buscar siguiente y Criterios. Cada cambio es un paso de Deshacer.",
+   "fr": "Utilisez un formulaire de saisie pour un tableau ou une plage afin d’afficher un enregistrement à la fois, avec Nouveau, Supprimer, Restaurer, Précédent, Suivant et Critères. Chaque modification est une étape d’annulation.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "a29fab786be6ae254dffc39fb5b00576c6453857b3d938a6f0f8201db0e7af54": {
    "drop": false,
    "en": "Clipboard",
@@ -19621,6 +19619,18 @@
    "en": "Chart, Diagram, and graphics tabs",
    "es": "Pestañas de gráfico, diagrama y gráficos",
    "fr": "Onglets Graphique, Diagramme et Graphiques",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "a4abce0f1d286080b4099650990990a25d1a84397c15c1f76da65c62c3d8c9ef": {
+   "drop": false,
+   "en": "Switch to the Slide Master, Notes Master, and Handout Master views from View > Master Views, each with its own tab and a Close Master View button that returns to the previous view.",
+   "es": "Cambie a las vistas Patrón de diapositivas, Patrón de notas y Patrón de documentos desde Vista > Vistas de patrón, cada una con su propia pestaña y un botón Cerrar vista de patrón que vuelve a la vista anterior.",
+   "fr": "Passez aux vues Masque des diapositives, Masque des notes et Masque du document depuis Affichage > Modes Masque, chacune avec son propre onglet et un bouton Fermer le mode Masque qui revient à la vue précédente.",
    "soon": {
     "drop": true,
     "en": "",
@@ -20502,6 +20512,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "b36238d9641e65a82e00c0dc46cdd69bbd8a3d22fa50d68501e54ca310cf400d": {
+   "drop": false,
+   "en": "Custom color and font sets and theme files.",
+   "es": "Conjuntos personalizados de colores y fuentes, y archivos de tema.",
+   "fr": "Jeux personnalisés de couleurs et de polices, et fichiers de thème.",
+   "soon": {
+    "drop": false,
+    "en": "Theme effects",
+    "es": "Efectos de tema",
+    "fr": "Effets de thème"
    }
   },
   "b3bfa857d409675b5015d0baab471e7e4bd2108821b342707b0587d21107d944": {
@@ -22100,18 +22122,6 @@
     "fr": ""
    }
   },
-  "cb038d846ddcb1575d3e8451d28c58f22795c0f87a834316ce49f90f01b7285a": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Notes Page view: work on the notes in the shape of a printed page",
-    "es": "Vista Página de notas: trabajar con las notas con la forma de una página impresa",
-    "fr": "Vue Page de notes : travailler sur les notes sous la forme d’une page imprimée"
-   }
-  },
   "cb0633068bfec2eca272be54534b21f1a6f1614df0422e7ab47cdcbce45ca57e": {
    "drop": false,
    "en": "Format dates and times with `d dd ddd dddd`, `m mm mmm mmmm mmmmm`, `yy yyyy`, `h hh`, `mm`, `ss`, `AM/PM`, `[h]:mm:ss` for elapsed time beyond 24 hours, and tenths and hundredths of a second. `m` means month or minute depending on where it sits.",
@@ -22292,18 +22302,6 @@
     "fr": ""
    }
   },
-  "cca71c4acf5e3ba0b99ce558c062586cb9f51e4c1e85cf9abf97670a5d54d840": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Themes gallery, Colors, Fonts, and Effects: change, save, and create themes",
-    "es": "Galería de temas, colores, fuentes y efectos: cambiar, guardar y crear temas",
-    "fr": "Galerie de thèmes, couleurs, polices et effets : modifier, enregistrer et créer des thèmes"
-   }
-  },
   "ccd1867c60a4a53290d043d91e705765b60f2025eb7e6d141a1c4a162e6c686c": {
    "drop": false,
    "en": "After saving an `.odp` file, a message lists what was left out.",
@@ -22314,6 +22312,18 @@
     "en": "Compatibility check before saving, and for `.ppt` files",
     "es": "Comprobación de compatibilidad antes de guardar y para archivos `.ppt`",
     "fr": "Vérification de compatibilité avant l’enregistrement et pour les fichiers `.ppt`"
+   }
+  },
+  "ccdc41b7762ddef6e745fe08828da15bb6b6e96a0df3f6f5436becf1673b7ad4": {
+   "drop": false,
+   "en": "Change theme colors and fonts from the Colors and Fonts galleries, or create new sets. Text, styles, and drawings that use a theme color or font are restyled, colors set by hand stay, and the new theme is kept when saving a `.docx` file.",
+   "es": "Cambie los colores y las fuentes del tema desde las galerías Colores y Fuentes, o cree conjuntos nuevos. El texto, los estilos y los dibujos que usan un color o una fuente de tema se actualizan, los colores definidos manualmente se conservan y el nuevo tema se guarda en un archivo `.docx`.",
+   "fr": "Changez les couleurs et les polices du thème depuis les galeries Couleurs et Polices, ou créez de nouveaux jeux. Le texte, les styles et les dessins qui utilisent une couleur ou une police de thème sont mis à jour, les couleurs définies à la main restent, et le nouveau thème est conservé à l’enregistrement d’un fichier `.docx`.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "cd8607744af27f4fa7467afb10ba4be6c2e03e6cf0110b7a2fcb68705f8aaa8f": {
@@ -22638,6 +22648,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "d16ed90f362cad912b08bd5783b4463fbfbfc01cee7e80c5d9f4d8b6e741ce83": {
+   "drop": false,
+   "en": "Set a custom slide size from a list of sizes or a width and height from half an inch to 56 inches, choose Landscape or Portrait, and set the orientation of notes pages and handouts.",
+   "es": "Defina un tamaño de diapositiva personalizado a partir de una lista de tamaños o de un ancho y un alto de media pulgada a 56 pulgadas, elija orientación horizontal o vertical, y defina la orientación de las páginas de notas y de los folletos.",
+   "fr": "Définissez une taille de diapositive personnalisée à partir d’une liste de tailles ou d’une largeur et d’une hauteur de 0,5 à 56 pouces, choisissez Paysage ou Portrait, et réglez l’orientation des pages de notes et des documents.",
+   "soon": {
+    "drop": false,
+    "en": "First slide number: set",
+    "es": "Número de la primera diapositiva: definir",
+    "fr": "Numéro de la première diapositive : définir"
    }
   },
   "d18a513608a155b3abe7f1d2ce4d598d7e68b93ceae8d7434b35571c5348a7de": {
@@ -24356,6 +24378,18 @@
     "fr": "Raccourcis clavier : un tableau généré à partir des commandes elles-mêmes"
    }
   },
+  "e93dd02567211f5c201895cd57292358bd05ebafa82f7c3f0ec0edef442a8459": {
+   "drop": false,
+   "en": "Edit the handout master: choose 1, 2, 3, 4, 6, or 9 slides per page, set the orientation, header, date, footer, and page number, change the background color, and reset the layout. Printing and PDF use it, and it is saved in `.pptx` and `.odp` files.",
+   "es": "Edite el patrón de documentos: elija 1, 2, 3, 4, 6 o 9 diapositivas por página, defina la orientación, el encabezado, la fecha, el pie y el número de página, cambie el color de fondo y restablezca el diseño. La impresión y el PDF lo usan, y se guarda en archivos `.pptx` y `.odp`.",
+   "fr": "Modifiez le masque du document : choisissez 1, 2, 3, 4, 6 ou 9 diapositives par page, définissez l’orientation, l’en-tête, la date, le pied de page et le numéro de page, changez la couleur d’arrière-plan et réinitialisez la mise en page. L’impression et le PDF l’utilisent, et il est enregistré dans les fichiers `.pptx` et `.odp`.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "e95b95cbb4c215ea9313a70c2cb2975d4349046ea1249c686fe0e8bcf813b27a": {
    "drop": false,
    "en": "Saves `.xlsx` files that keep the workbook's values, formulas, and formatting.",
@@ -25064,6 +25098,18 @@
     "fr": ""
    }
   },
+  "f3d0c98a81f78afa7650d19b2da4840af8673d972fe533639bb9bcec142e1e85": {
+   "drop": false,
+   "en": "Save the current theme as a `.thmx` file and open `.thmx` theme files. Browse for Themes also takes the theme of a `.docx` or `.dotx` file, as well as presentation and template files.",
+   "es": "Guarde el tema actual como archivo `.thmx` y abra archivos de tema `.thmx`. Examinar temas también acepta el tema de un archivo `.docx` o `.dotx`, además de archivos de presentación y de plantilla.",
+   "fr": "Enregistrez le thème actuel dans un fichier `.thmx` et ouvrez des fichiers de thème `.thmx`. Parcourir les thèmes accepte aussi le thème d’un fichier `.docx` ou `.dotx`, ainsi que les fichiers de présentation et de modèle.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "f435c763d878352807cc472c21dfc3de6bc7f6da2d308edd21637618c42114b5": {
    "drop": false,
    "en": "The Shape Format tab has a gallery of 24 styles drawn from the theme, kept in `.pptx` and `.odp` files.",
@@ -25074,18 +25120,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "f47d9eaa5acbff4f3a7463f96841367c4c9c426e6bd4331997c9fb093e957001": {
-   "drop": false,
-   "en": "Slide Master view, on View > Master Views.",
-   "es": "Vista Patrón de diapositivas, en Vista > Vistas de patrón.",
-   "fr": "Affichage Masque des diapositives, dans Affichage > Modes Masque.",
-   "soon": {
-    "drop": false,
-    "en": "Handout Master and Notes Master views",
-    "es": "Vistas de patrón de documentos y de notas",
-    "fr": "Affichages Masque des documents et Masque des notes"
    }
   },
   "f4aa2f37993bc44c382c3f25b85ef5df0768e52c3f2480952a66d243ee31a35f": {
@@ -25496,18 +25530,6 @@
     "fr": "Export vidéo (MP4) avec les minutages et la narration du diaporama"
    }
   },
-  "fa625701c88661d82582568327e005da21972a9944683e6d3469323460e2cd5c": {
-   "drop": false,
-   "en": "Choose a slide size from a list or enter a width and height from half an inch to 56 inches, pick landscape or portrait, and set the orientation of notes pages.",
-   "es": "Elija un tamaño de diapositiva de una lista o introduzca un ancho y un alto de media pulgada a 56 pulgadas, elija orientación horizontal o vertical y defina la orientación de las páginas de notas.",
-   "fr": "Choisissez une taille de diapositive dans une liste ou saisissez une largeur et une hauteur de 0,5 à 56 pouces, choisissez l’orientation paysage ou portrait et définissez l’orientation des pages de notes.",
-   "soon": {
-    "drop": false,
-    "en": "First slide number and handout orientation",
-    "es": "Número de la primera diapositiva y orientación de los folletos",
-    "fr": "Numéro de la première diapositive et orientation des documents à distribuer"
-   }
-  },
   "fa93bc038329df48970e775c13a92c93cc8ba0bb095fc6df65b739f2a0cbf6a1": {
    "drop": false,
    "en": "Charts in a file are drawn from the values saved with them and saved whole; types read are column, bar, line, pie, doughnut, area, and scatter, in `.pptx` and `.odp` files. A duplicated slide keeps its chart, and a pasted copy is only a picture.",
@@ -25782,18 +25804,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "fde238bc87dbf68de0b34f924f114346b601850f271ec5f65a2b6705a2051a36": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Font features: ligatures, number spacing and forms, stylistic sets, and contextual alternates",
-    "es": "Funciones de fuente: ligaduras, espaciado y formas de números, conjuntos estilísticos y alternativas contextuales",
-    "fr": "Fonctions de police : ligatures, espacement et formes des chiffres, jeux stylistiques et variantes contextuelles"
    }
   },
   "fe2f02c0a1a6b6a49f5c052bf0572c3cbc6bec349f8ef7c7d3f0f1c417e6a2a9": {
