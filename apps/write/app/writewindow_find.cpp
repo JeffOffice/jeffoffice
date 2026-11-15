@@ -4,6 +4,7 @@
 
 #include "app/pageview.h"
 #include "app/writefindpane.h"
+#include "core/fontops.h"
 
 #include <QAction>
 #include <QDockWidget>
@@ -14,6 +15,7 @@ void WriteWindow::createEditingActions()
 {
     mk("edit.find", tr("Find"), "search", QKeySequence::Find, [this] { showFindPane(false); });
     mk("edit.replace", tr("Replace"), "replace", QKeySequence(Qt::CTRL | Qt::Key_H), [this] { showFindPane(true); });
+    mk("edit.replaceFonts", tr("Replace Fonts…"), "a-large-small", QKeySequence(), [this] { replaceFonts(); });
 }
 
 void WriteWindow::showFindPane(bool replace)
@@ -33,6 +35,19 @@ void WriteWindow::showFindPane(bool replace)
     m_findDock->show();
     m_findDock->raise();
     m_find->focusBox(replace);
+}
+
+void WriteWindow::replaceFonts()
+{
+    if (!m_doc || refuseIfReadOnly()) return;
+    m_view->leaveHeaderFooter();
+    m_view->leaveNote();
+    ReplaceFontsHost host;
+    host.fontsUsed = [this] { return write::fontsUsed(*m_doc); };
+    host.replace = [this](const QString &from, const QString &to) { return write::replaceFont(*m_doc, from, to); };
+    const ReplaceFontsResult done = askReplaceFonts(this, host);
+    statusBar()->showMessage(done.uses > 0 ? done.message() : tr("No fonts were replaced."), 6000);
+    m_view->setFocus(Qt::OtherFocusReason);
 }
 
 } // namespace jp

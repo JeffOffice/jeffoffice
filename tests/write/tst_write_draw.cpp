@@ -18,6 +18,7 @@
 #include "core/editops.h"
 #include "core/equationops.h"
 #include "core/fonts.h"
+#include "core/fontops.h"
 #include "core/items.h"
 #include "core/pictureops.h"
 #include "core/threadtime.h"
@@ -91,6 +92,30 @@ QByteArray documentXml(const QByteArray &zip)
     office::Package p;
     p.read(zip);
     return p.part(QStringLiteral("/word/document.xml"));
+}
+
+// A document with styles and one header, for the tests that read what is saved in each part: `body` and `sect` (the section's properties) are the XML inside the body.
+QByteArray docxWithStylesAndHeader(const QByteArray &body, const QByteArray &sect, const QByteArray &styles, const QByteArray &header)
+{
+    office::PackageWriter w;
+    const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
+    w.addPart(QStringLiteral("/word/document.xml"), QByteArray("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n<w:document ") + kNs + "><w:body>" + body + sect + "</w:body></w:document>",
+              QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"));
+    w.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+    w.addPart(QStringLiteral("/word/styles.xml"), QByteArray("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n<w:styles ") + kNs + ">" + styles + "</w:styles>",
+              QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"));
+    w.addRelationship(QStringLiteral("/word/document.xml"), rel + QStringLiteral("styles"), QStringLiteral("/word/styles.xml"));
+    w.addPart(QStringLiteral("/word/header1.xml"), QByteArray("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n<w:hdr ") + kNs + ">" + header + "</w:hdr>",
+              QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"));
+    w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdheader1"), rel + QStringLiteral("header"), QStringLiteral("/word/header1.xml"));
+    return w.finish();
+}
+
+QByteArray partOf(const QByteArray &zip, const QString &name)
+{
+    office::Package p;
+    p.read(zip);
+    return p.part(name);
 }
 
 std::unique_ptr<WriteDoc> open(const QByteArray &zip)
@@ -451,6 +476,76 @@ private Q_SLOTS:
                 QVERIFY2(pictureAt(*back, back->story(), 7).valid, qPrintable(preset));
                 QCOMPARE(pictureAt(*back, back->story(), 7).preset, info.preset);
             }
+    }
+
+    // ---------------------------------------------------------------- Replace Fonts
+    // Replace Fonts lists the fonts the document names and swaps one for another in the text, the styles, the text of a text box, and the header, in one step of Undo; a run that follows the
+    // theme's font is left to the theme.
+    void replaceFontsChangesEveryUseAsOneStepAndLeavesTheThemeAlone()
+    {
+        const QByteArray run = "<w:rPr><w:rFonts w:ascii=\"Zephyr\" w:hAnsi=\"Zephyr\"/></w:rPr>";
+        const QByteArray box = shapeDrawing("<a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom>", "", 1270000, 635000,
+                                            "<wps:txbx><w:txbxContent><w:p><w:r>" + run + "<w:t>in a box</w:t></w:r></w:p></w:txbxContent></wps:txbx>");
+        const QByteArray body = "<w:p><w:r>" + run + "<w:t>plain words</w:t></w:r></w:p>"
+                                "<w:p><w:pPr><w:pStyle w:val=\"Loud\"/></w:pPr><w:r><w:t>loud words</w:t></w:r></w:p>"
+                                "<w:p><w:r><w:rPr><w:rFonts w:asciiTheme=\"minorHAnsi\" w:hAnsiTheme=\"minorHAnsi\"/></w:rPr><w:t>theme words</w:t></w:r></w:p>" + box;
+        const QByteArray styles = "<w:style w:type=\"paragraph\" w:default=\"1\" w:styleId=\"Normal\"><w:name w:val=\"Normal\"/><w:qFormat/></w:style>"
+                                  "<w:style w:type=\"paragraph\" w:styleId=\"Loud\"><w:name w:val=\"Loud\"/><w:basedOn w:val=\"Normal\"/><w:rPr><w:rFonts w:ascii=\"Zephyr\" w:hAnsi=\"Zephyr\"/><w:b/></w:rPr></w:style>";
+        const QByteArray sect = "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/><w:pgSz w:w=\"12240\" w:h=\"15840\"/></w:sectPr>";
+        const QByteArray header = "<w:p><w:r>" + run + "<w:t>in the header</w:t></w:r></w:p>";
+        auto doc = open(docxWithStylesAndHeader(body, sect, styles, header));
+        QVERIFY(doc);
+        auto uses = [&](const QString &font) {
+            for (const FontUse &u : fontsUsed(*doc))
+                if (u.key.compare(font, Qt::CaseInsensitive) == 0) return u.uses;
+            return 0;
+        };
+        const int named = uses(QStringLiteral("Zephyr"));
+        QVERIFY2(named >= 5, qPrintable(QString::number(named)));   // (a run, the run the style gives its font, the style, the box's run, the header's run)
+        QCOMPARE(uses(QStringLiteral("Zephyr Two")), 0);
+        QCOMPARE(replaceFont(*doc, QStringLiteral("zephyr"), QStringLiteral("Zephyr Two")), named);
+        QCOMPARE(uses(QStringLiteral("Zephyr")), 0);
+        QCOMPARE(uses(QStringLiteral("Zephyr Two")), named);
+        // Nothing is left to change, and no step is made for it.
+        QCOMPARE(replaceFont(*doc, QStringLiteral("Zephyr"), QStringLiteral("Other")), 0);
+        const QByteArray after = doc->toDocx();
+        for (const QString &part : {QStringLiteral("/word/document.xml"), QStringLiteral("/word/styles.xml"), QStringLiteral("/word/header1.xml")}) {
+            const QByteArray text = partOf(after, part);
+            QVERIFY2(text.contains("Zephyr Two"), qPrintable(part));
+            QVERIFY2(!text.contains("\"Zephyr\""), qPrintable(part));
+        }
+        // The theme's own run is still the theme's.
+        {
+            const int at = int(doc->story()->toPlainText().indexOf(QStringLiteral("theme words")));
+            QVERIFY(at >= 0);
+            QTextCursor c(doc->story());
+            c.setPosition(at + 1);
+            QVERIFY(!c.charFormat().hasProperty(QTextFormat::FontFamilies));   // (it still names no font: it takes the theme's)
+        }
+        // One Undo takes all of it back, a Redo does it again.
+        QVERIFY(doc->undo());
+        QCOMPARE(uses(QStringLiteral("Zephyr")), named);
+        QCOMPARE(uses(QStringLiteral("Zephyr Two")), 0);
+        for (const QString &part : {QStringLiteral("/word/document.xml"), QStringLiteral("/word/styles.xml"), QStringLiteral("/word/header1.xml")})
+            QVERIFY2(!partOf(doc->toDocx(), part).contains("Zephyr Two"), qPrintable(part));
+        QVERIFY(doc->redo());
+        QCOMPARE(uses(QStringLiteral("Zephyr Two")), named);
+    }
+
+    void theReplaceFontsCommandAsksAndReplaces()
+    {
+        WriteWindow w;
+        w.show();
+        const QByteArray run = "<w:rPr><w:rFonts w:ascii=\"Zephyr\" w:hAnsi=\"Zephyr\"/></w:rPr>";
+        w.setDocument(open(makeDocx("<w:p><w:r>" + run + "<w:t>words</w:t></w:r></w:p>")), QString());
+        QVERIFY(w.act("edit.replaceFonts"));
+        withDialog([&] { w.act("edit.replaceFonts")->trigger(); }, QStringLiteral("replaceFontsDialog"), [](QDialog *d) {
+            auto *from = d->findChild<QComboBox *>(QStringLiteral("replaceFontsFrom"));
+            QVERIFY(from);
+            QVERIFY(from->itemText(0).startsWith(QLatin1String("Zephyr")));
+            d->findChild<QComboBox *>(QStringLiteral("replaceFontsTo"))->setEditText(QStringLiteral("Zephyr Two"));
+        });
+        QVERIFY(partOf(w.document()->toDocx(), QStringLiteral("/word/document.xml")).contains("Zephyr Two"));
     }
 
     // ---------------------------------------------------------------- icons put in
