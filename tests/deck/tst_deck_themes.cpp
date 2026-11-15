@@ -1021,7 +1021,7 @@ private Q_SLOTS:
         QStringList texts;
         for (QAction *a : menu->actions())
             if (!a->isSeparator()) texts << a->text();
-        QCOMPARE(texts, (QStringList{QStringLiteral("Apply to All Slides"), QStringLiteral("Apply to Selected Slides"), QStringLiteral("Browse for Themes…")}));
+        QCOMPARE(texts, (QStringList{QStringLiteral("Apply to All Slides"), QStringLiteral("Apply to Selected Slides"), QStringLiteral("Browse for Themes…"), QStringLiteral("Save Current Theme…")}));
         menu->actions().at(0)->trigger();
         QCOMPARE(chosen.last().at(0).toInt(), 3);
         QCOMPARE(chosen.last().at(1).toBool(), true);

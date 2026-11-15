@@ -54,6 +54,13 @@ void WriteWindow::createThemeActions()
         resetTheme();
         m_view->setFocus(Qt::OtherFocusReason);
     });
+    // (Reset shows only once the theme differs from the one the document was opened with: the menus set this as they open)
+    act("design.themes.reset")->setEnabled(false);
+}
+
+bool WriteWindow::themeDiffers() const
+{
+    return m_doc && write::canChangeTheme(*m_doc) && write::documentTheme(*m_doc).xml != m_openedTheme.xml;
 }
 
 bool WriteWindow::applyThemeFile(const QString &path)
@@ -115,7 +122,7 @@ void WriteWindow::themeRibbonParts(RibbonParts &parts)
             menu->addAction(act("design.themes.browse"));
             act("design.themes.save")->setEnabled(ok);
             menu->addAction(act("design.themes.save"));
-            act("design.themes.reset")->setEnabled(ok);
+            act("design.themes.reset")->setEnabled(themeDiffers());
             menu->addAction(act("design.themes.reset"));
         });
         return menu;
@@ -125,6 +132,7 @@ void WriteWindow::themeRibbonParts(RibbonParts &parts)
         menu->setObjectName(QStringLiteral("themeColorsMenu"));
         connect(menu, &QMenu::aboutToShow, menu, [this, menu] {
             menu->clear();
+            act("design.themes.reset")->setEnabled(themeDiffers());
             if (!m_doc || !write::canChangeTheme(*m_doc)) return;
             ThemeMenuHooks hooks;
             hooks.dialogParent = this;
@@ -147,6 +155,7 @@ void WriteWindow::themeRibbonParts(RibbonParts &parts)
         menu->setObjectName(QStringLiteral("themeFontsMenu"));
         connect(menu, &QMenu::aboutToShow, menu, [this, menu] {
             menu->clear();
+            act("design.themes.reset")->setEnabled(themeDiffers());
             if (!m_doc || !write::canChangeTheme(*m_doc)) return;
             ThemeMenuHooks hooks;
             hooks.dialogParent = this;

@@ -150,6 +150,7 @@ public:
     bool applyThemeFile(const QString &path);
     bool saveThemeFile(const QString &path);
     bool resetTheme();
+    bool themeDiffers() const;
     // Opens a .docx in this window if it holds a new document nobody has touched, else in a window of its own. False, with the reason
     // shown, if the file can't be read.
     // `how`: as it is (the default), read-only, as a copy (an unsaved document made from the file; the file is never written), or in a window of its own even if this one holds nothing.
