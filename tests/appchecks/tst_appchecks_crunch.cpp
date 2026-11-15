@@ -365,6 +365,15 @@ private Q_SLOTS:
                 w->view()->selectRange(0, 0, 1, 1);
                 w->act(QStringLiteral("printarea.set"))->trigger();
             }),
+            in(QStringLiteral("a picture behind the cells"), [](CrunchWindow *w) {
+                static QTemporaryDir folder;
+                const QString path = folder.filePath(QStringLiteral("tile.png"));
+                QImage tile(4, 4, QImage::Format_RGB32);
+                tile.fill(Qt::darkGreen);
+                tile.save(path);
+                w->setPictureAsker([path] { return path; });
+                w->act(QStringLiteral("page.background"))->trigger();
+            }),
             in(QStringLiteral("a sheet that runs over a page"), [](CrunchWindow *w) {
                 w->setSizeAsker([](CrunchWindow::SizeRequest *r) {
                     r->value = 400;
@@ -534,6 +543,7 @@ private Q_SLOTS:
             {QStringLiteral("link."), {QStringLiteral("a cell with a link")}},
             {QStringLiteral("filter."), {QStringLiteral("a filter on"), QStringLiteral("a filter on, and a value changed after")}},
             {QStringLiteral("printarea."), {QStringLiteral("a print area set")}},
+            {QStringLiteral("page.deleteBackground"), {QStringLiteral("a picture behind the cells")}},
             {QStringLiteral("sheet."), {QStringLiteral("a second sheet"), QStringLiteral("a hidden sheet")}},
             {QStringLiteral("formulas.trace"), {QStringLiteral("a formula's cell selected")}},
             {QStringLiteral("formulas.traceError"), {QStringLiteral("an error that comes from a cell it reads")}},
