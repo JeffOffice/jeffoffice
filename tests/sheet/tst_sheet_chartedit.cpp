@@ -445,11 +445,18 @@ private Q_SLOTS:
         // the other series is as it was, and a place with no series gives an empty look
         QCOMPARE(partLookOf(back, ChartPart::Series, 0).fill.name(), partLookOf(columns(), ChartPart::Series, 0).fill.name());
         QVERIFY(!partLookOf(back, ChartPart::Series, 9).fill.isValid());
-        // no fill takes the fill away
+        // no fill takes the fill away, for the page and for the plot (which is written as no fill, not as a fill that was never set)
         ChartPartLook none;
         none.noFill = true;
         setPartLook(&c, ChartPart::Area, 0, none);
         QVERIFY(roundTrip(c).backgroundNone);
+        setPartLook(&c, ChartPart::Plot, 0, none);
+        const Chart noPlot = roundTrip(c);
+        QVERIFY(noPlot.plotNone && !noPlot.plotFill.isValid());
+        QVERIFY(partLookOf(noPlot, ChartPart::Plot).noFill);
+        plot.fill = QColor(0xAA, 0xBB, 0xCC);
+        setPartLook(&c, ChartPart::Plot, 0, plot);
+        QVERIFY(!roundTrip(c).plotNone);
     }
 
     void colorsAndLooksAreOurOwnAndStay()

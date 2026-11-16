@@ -74,6 +74,10 @@ public:
             edit(&c);
             return office::writeChartPart(c) != before;
         });
+        if (!done) {
+            const PictureItem *pic = selectedChart(m_ed);
+            if (pic && !chartIsChangeable(*m_ed->doc(), *pic) && m_notice) m_notice(QCoreApplication::translate("jp::ChartActions", "This chart has parts that are kept as they are, so it can't be changed here."));
+        }
         if (m_done) m_done();
         return done;
     }
@@ -169,9 +173,9 @@ void ChartActions::create()
     m_host = std::make_unique<EditorChartHost>(m_ed, m_window, m_hooks.notice, m_hooks.done);
     m_design = new ChartDesign(m_host.get(), this);
     mk(QStringLiteral("chartdesign.editData"), QCoreApplication::translate("jp::ChartActions", "Edit Data…"), "table-2", [this] { m_design->editData(); });
-    mk(QStringLiteral("chartdesign.selectData"), QCoreApplication::translate("jp::ChartActions", "Select Data…"), "table-properties", [this] { m_design->selectData(); });
-    mk(QStringLiteral("chartdesign.switch"), QCoreApplication::translate("jp::ChartActions", "Switch Row/Column"), "arrow-left-right", [this] { m_design->switchRowsAndColumns(); });
-    mk(QStringLiteral("chartdesign.changeType"), QCoreApplication::translate("jp::ChartActions", "Change Chart Type…"), "chart-no-axes-combined", [this] { m_design->changeType(); });
+    mk(QStringLiteral("chartdesign.selectData"), QCoreApplication::translate("jp::ChartActions", "Chart Data…"), "table-properties", [this] { m_design->selectData(); });
+    mk(QStringLiteral("chartdesign.switch"), QCoreApplication::translate("jp::ChartActions", "Swap Rows and Columns"), "arrow-left-right", [this] { m_design->switchRowsAndColumns(); });
+    mk(QStringLiteral("chartdesign.changeType"), QCoreApplication::translate("jp::ChartActions", "Chart Kind…"), "chart-no-axes-combined", [this] { m_design->changeType(); });
     mk(QStringLiteral("chartdesign.formatPart"), QCoreApplication::translate("jp::ChartActions", "Format Chart Part…"), "paintbrush", [this] { m_design->formatPart(); });
     mk(QStringLiteral("chartdesign.axisH"), QCoreApplication::translate("jp::ChartActions", "Format Horizontal Axis…"), "ruler", [this] { m_design->formatAxis(true); });
     mk(QStringLiteral("chartdesign.axisV"), QCoreApplication::translate("jp::ChartActions", "Format Vertical Axis…"), "ruler", [this] { m_design->formatAxis(false); });
@@ -180,7 +184,11 @@ void ChartActions::create()
 void ChartActions::editData()
 {
     office::sheet::ChartInfo info = selectedChartInfo(m_ed);
-    if (!info.valid || !info.dataEditable) return;
+    if (!info.valid) return;
+    if (!info.dataEditable) {
+        if (m_hooks.notice) m_hooks.notice(m_design->dataProblem().isEmpty() ? QCoreApplication::translate("jp::ChartActions", "This chart has parts that are kept as they are, so its numbers can't be changed here.") : m_design->dataProblem());
+        return;
+    }
     office::sheet::ChartData data = info.data;
     QString notice;
     if (!askChartData(m_window, &data, &notice)) {
@@ -222,8 +230,13 @@ bool ChartActions::refresh()
     for (const QString &id : std::as_const(m_ids))
         if (id.startsWith(QLatin1String("chart."))) m_hooks.find(id)->setEnabled(editable);
     auto act = m_hooks.find;
-    act(QStringLiteral("chart.editData"))->setEnabled(editable && info.dataEditable);
-    for (const char *id : {"chartdesign.editData", "chartdesign.selectData", "chartdesign.switch"}) act(QString::fromLatin1(id))->setEnabled(editable && info.dataEditable);
+    // (the commands for the numbers are off for a chart whose numbers are not its own, and the tooltip says why)
+    const QString problem = editable ? m_design->dataProblem() : QString();
+    for (const char *id : {"chart.editData", "chartdesign.editData", "chartdesign.selectData", "chartdesign.switch"}) {
+        QAction *a = act(QString::fromLatin1(id));
+        a->setEnabled(editable && info.dataEditable && problem.isEmpty());
+        a->setToolTip(problem);
+    }
     act(QStringLiteral("chartdesign.changeType"))->setEnabled(editable);
     act(QStringLiteral("chartdesign.formatPart"))->setEnabled(editable);
     act(QStringLiteral("chartdesign.axisH"))->setEnabled(editable && info.hasAxes);
@@ -332,7 +345,10 @@ void ChartActions::placeButtons()
     if (pic && m_host->chartNow(&chart) && !m_ed->selectionBounds().isEmpty()) {
         const QRectF page = m_ed->selectionBounds();
         const QRect r = QRectF(m_canvas->pageToView(page.topLeft()), m_canvas->pageToView(page.bottomRight())).toAlignedRect();
-        if (!m_buttons) m_buttons = new ChartButtons(m_design, m_canvas->viewport(), m_icon, this);
+        if (!m_buttons) {
+            m_buttons = new ChartButtons(m_design, m_canvas->viewport(), m_icon, this);
+            connect(m_buttons, &ChartButtons::released, &m_buttonsTimer, qOverload<>(&QTimer::start));
+        }
         m_buttons->place(r);
     } else if (m_buttons) {
         m_buttons->hide();

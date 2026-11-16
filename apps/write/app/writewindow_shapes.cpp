@@ -410,7 +410,7 @@ void WriteWindow::createChartActions()
         m_view->changeSelectedPicture([on](write::WriteDoc &d, int position) { return write::setChartDataLabels(d, position, on); });
         m_view->setFocus(Qt::OtherFocusReason);
     }, true);
-    // The Chart Design tab: the editor every program shares (app/chartdesign.h).
+    // The Chart tab: the editor every program shares (app/chartdesign.h).
     m_chartDesign = new ChartDesign(this, this);
     auto design = [this](const char *id, const QString &text, const char *icon, const std::function<void()> &run) {
         mk(QString::fromLatin1(id), text, icon, QKeySequence(), [this, run] {
@@ -419,9 +419,9 @@ void WriteWindow::createChartActions()
         });
     };
     design("chartdesign.editData", tr("Edit Data…"), "table-2", [this] { m_chartDesign->editData(); });
-    design("chartdesign.selectData", tr("Select Data…"), "table-properties", [this] { m_chartDesign->selectData(); });
-    design("chartdesign.switch", tr("Switch Row/Column"), "arrow-left-right", [this] { m_chartDesign->switchRowsAndColumns(); });
-    design("chartdesign.changeType", tr("Change Chart Type…"), "chart-no-axes-combined", [this] { m_chartDesign->changeType(); });
+    design("chartdesign.selectData", tr("Chart Data…"), "table-properties", [this] { m_chartDesign->selectData(); });
+    design("chartdesign.switch", tr("Swap Rows and Columns"), "arrow-left-right", [this] { m_chartDesign->switchRowsAndColumns(); });
+    design("chartdesign.changeType", tr("Chart Kind…"), "chart-no-axes-combined", [this] { m_chartDesign->changeType(); });
     design("chartdesign.formatPart", tr("Format Chart Part…"), "paintbrush", [this] { m_chartDesign->formatPart(); });
     design("chartdesign.axisH", tr("Format Horizontal Axis…"), "ruler", [this] { m_chartDesign->formatAxis(true); });
     design("chartdesign.axisV", tr("Format Vertical Axis…"), "ruler", [this] { m_chartDesign->formatAxis(false); });
@@ -446,7 +446,6 @@ office::Theme WriteWindow::chartTheme() { return m_doc ? write::chartThemeOf(*m_
 
 bool WriteWindow::changeChart(const QString &label, const std::function<void(office::Chart *)> &edit)
 {
-    Q_UNUSED(label);
     return m_view->changeSelectedPicture([edit](write::WriteDoc &d, int position) { return write::changeChartAt(d, position, edit); });
 }
 
@@ -464,7 +463,10 @@ void WriteWindow::placeChartButtons()
     QRectF r;
     const int at = m_doc ? m_view->selectedPicture() : -1;
     if (at >= 0 && chartNow(&chart) && m_view->pictureRect(at, &r) && !r.isEmpty()) {
-        if (!m_chartButtons) m_chartButtons = new ChartButtons(m_chartDesign, m_view->viewport(), [this](const QString &name) { return icon(name); }, this);
+        if (!m_chartButtons) {
+            m_chartButtons = new ChartButtons(m_chartDesign, m_view->viewport(), [this](const QString &name) { return icon(name); }, this);
+            connect(m_chartButtons, &ChartButtons::released, &m_chartButtonsTimer, qOverload<>(&QTimer::start));
+        }
         m_chartButtons->place(r.toAlignedRect());
     } else if (m_chartButtons) {
         m_chartButtons->hide();
@@ -536,13 +538,18 @@ void WriteWindow::refreshChartUi()
     const int at = m_doc ? m_view->selectedPicture() : -1;
     const write::PictureInfo pic = at >= 0 ? write::pictureAt(*m_doc, m_doc->story(), at) : write::PictureInfo();
     const bool isChart = pic.valid && pic.kind == write::DrawnKind::Chart;
-    m_ribbon->setContextVisible(QStringLiteral("Chart Tools"), isChart, false);
+    m_ribbon->setContextVisible(QStringLiteral("Chart"), isChart, false);
     const write::ChartInfo info = isChart ? write::chartAt(*m_doc, at) : write::ChartInfo();
     const bool editable = isChart && pic.editable && info.valid;
     for (QAction *a : m_actions)
         if (a->objectName().startsWith(QLatin1String("chart."))) a->setEnabled(editable);
-    act("chart.editData")->setEnabled(editable && info.dataEditable);
-    for (const char *id : {"chartdesign.editData", "chartdesign.selectData", "chartdesign.switch"}) act(QString::fromLatin1(id))->setEnabled(editable && info.dataEditable);
+    // (the commands for the numbers are off for a chart whose numbers are not its own, and the tooltip says why)
+    const QString problem = editable ? m_chartDesign->dataProblem() : QString();
+    for (const char *id : {"chart.editData", "chartdesign.editData", "chartdesign.selectData", "chartdesign.switch"}) {
+        QAction *a = act(QString::fromLatin1(id));
+        a->setEnabled(editable && info.dataEditable && problem.isEmpty());
+        a->setToolTip(problem);
+    }
     for (const char *id : {"chartdesign.changeType", "chartdesign.formatPart"}) act(QString::fromLatin1(id))->setEnabled(editable);
     act("chartdesign.axisH")->setEnabled(editable && info.hasAxes);
     act("chartdesign.axisV")->setEnabled(editable && info.hasAxes);
@@ -593,7 +600,12 @@ void WriteWindow::editChartData()
     const int at = m_view->selectedPicture();
     if (!m_doc || at < 0) return;
     const write::ChartInfo info = write::chartAt(*m_doc, at);
-    if (!info.valid || !info.dataEditable) return;
+    if (!info.valid) return;
+    if (!info.dataEditable) {
+        const QString why = m_chartDesign->dataProblem();
+        statusBar()->showMessage(why.isEmpty() ? tr("This chart has parts that are kept as they are, so its numbers can't be changed here.") : why, 8000);
+        return;
+    }
     write::ChartData data = info.data;
     QString notice;
     if (!askChartData(this, &data, &notice)) {

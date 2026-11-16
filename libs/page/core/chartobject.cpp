@@ -178,6 +178,12 @@ office::sheet::ChartInfo chartInfoOfPicture(const Document &doc, const PictureIt
     return s ? s->info : office::sheet::ChartInfo();
 }
 
+bool chartIsChangeable(const Document &doc, const PictureItem &pic)
+{
+    const Said *s = said(doc, pic);
+    return s && s->fullyModeled;
+}
+
 bool changeChartOf(Document &doc, PictureItem &pic, const std::function<bool(office::Chart &)> &edit)
 {
     office::Chart chart;

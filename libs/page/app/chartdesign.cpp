@@ -12,7 +12,10 @@
 #include <QInputDialog>
 #include <QLineEdit>
 #include <QMenu>
+#include <QEvent>
+#include <QGuiApplication>
 #include <QPainter>
+#include <QTimer>
 #include <QSvgRenderer>
 
 #include <algorithm>
@@ -43,15 +46,17 @@ QMenu *ChartDesign::elementsMenu(QWidget *owner)
         Chart chart;
         if (!m_host->chartNow(&chart)) return;
         const ChartElements e = elementsOf(chart);
-        auto check = [&](QMenu *into, const QString &text, bool on, const std::function<void(Chart *)> &change, const QString &step) {
+        auto check = [&](QMenu *into, const QString &text, bool on, const std::function<void(Chart *)> &change, const QString &step, const char *key = nullptr) {
             QAction *a = into->addAction(text);
+            // (the name is the menu's and the English words of the entry, which do not change with the language: for tests and for the commands that look an entry up)
+            if (key) a->setObjectName(into->objectName() + QLatin1Char('.') + QLatin1String(key));
             a->setCheckable(true);
             a->setChecked(on);
             connect(a, &QAction::triggered, this, [this, change, step] { m_host->changeChart(step, change); });
             return a;
         };
-        auto choice = [&](QMenu *into, QActionGroup *group, const QString &text, bool on, const std::function<void(Chart *)> &change, const QString &step) {
-            QAction *a = check(into, text, on, change, step);
+        auto choice = [&](QMenu *into, QActionGroup *group, const QString &text, bool on, const std::function<void(Chart *)> &change, const QString &step, const char *key = nullptr) {
+            QAction *a = check(into, text, on, change, step, key);
             group->addAction(a);
             return a;
         };
@@ -79,12 +84,12 @@ QMenu *ChartDesign::elementsMenu(QWidget *owner)
         if (e.hasHorizontal || e.hasVertical) {
             QMenu *axes = menu->addMenu(tr("Axes"));
             axes->setObjectName(QStringLiteral("axesMenu"));
-            if (e.hasHorizontal) check(axes, tr("Horizontal"), e.axisHorizontal, [on = !e.axisHorizontal](Chart *c) { setAxisShown(c, true, on); }, tr("Axes"));
-            if (e.hasVertical) check(axes, tr("Vertical"), e.axisVertical, [on = !e.axisVertical](Chart *c) { setAxisShown(c, false, on); }, tr("Axes"));
+            if (e.hasHorizontal) check(axes, tr("Horizontal"), e.axisHorizontal, [on = !e.axisHorizontal](Chart *c) { setAxisShown(c, true, on); }, tr("Axes"), "Horizontal");
+            if (e.hasVertical) check(axes, tr("Vertical"), e.axisVertical, [on = !e.axisVertical](Chart *c) { setAxisShown(c, false, on); }, tr("Axes"), "Vertical");
             QMenu *titles = menu->addMenu(tr("Axis Titles"));
             titles->setObjectName(QStringLiteral("axisTitlesMenu"));
-            if (e.hasHorizontal) check(titles, tr("Horizontal"), e.axisTitleHorizontal, [on = !e.axisTitleHorizontal](Chart *c) { setAxisTitle(c, true, on); }, tr("Axis Titles"));
-            if (e.hasVertical) check(titles, tr("Vertical"), e.axisTitleVertical, [on = !e.axisTitleVertical](Chart *c) { setAxisTitle(c, false, on); }, tr("Axis Titles"));
+            if (e.hasHorizontal) check(titles, tr("Horizontal"), e.axisTitleHorizontal, [on = !e.axisTitleHorizontal](Chart *c) { setAxisTitle(c, true, on); }, tr("Axis Titles"), "Horizontal");
+            if (e.hasVertical) check(titles, tr("Vertical"), e.axisTitleVertical, [on = !e.axisTitleVertical](Chart *c) { setAxisTitle(c, false, on); }, tr("Axis Titles"), "Vertical");
             titles->addSeparator();
             if (e.hasHorizontal)
                 if (const ChartAxis *a = primaryAxis(chart, true))
@@ -93,27 +98,27 @@ QMenu *ChartDesign::elementsMenu(QWidget *owner)
                 if (const ChartAxis *a = primaryAxis(chart, false))
                     titleText(titles, tr("Vertical Title Text…"), tr("Axis Titles"), a->title, [](Chart *c, const QString &t, const QString &r) { setAxisTitleText(c, false, t, r); });
             if (e.hasSecondaryHorizontal) {
-                check(axes, tr("Second Horizontal"), e.axisSecondaryHorizontal, [on = !e.axisSecondaryHorizontal](Chart *c) { setAxisShown(c, true, on, true); }, tr("Axes"));
-                check(titles, tr("Second Horizontal"), e.axisTitleSecondaryHorizontal, [on = !e.axisTitleSecondaryHorizontal](Chart *c) { setAxisTitle(c, true, on, true); }, tr("Axis Titles"));
+                check(axes, tr("Second Horizontal"), e.axisSecondaryHorizontal, [on = !e.axisSecondaryHorizontal](Chart *c) { setAxisShown(c, true, on, true); }, tr("Axes"), "Second Horizontal");
+                check(titles, tr("Second Horizontal"), e.axisTitleSecondaryHorizontal, [on = !e.axisTitleSecondaryHorizontal](Chart *c) { setAxisTitle(c, true, on, true); }, tr("Axis Titles"), "Second Horizontal");
             }
             if (e.hasSecondaryVertical) {
-                check(axes, tr("Second Vertical"), e.axisSecondaryVertical, [on = !e.axisSecondaryVertical](Chart *c) { setAxisShown(c, false, on, true); }, tr("Axes"));
-                check(titles, tr("Second Vertical"), e.axisTitleSecondaryVertical, [on = !e.axisTitleSecondaryVertical](Chart *c) { setAxisTitle(c, false, on, true); }, tr("Axis Titles"));
+                check(axes, tr("Second Vertical"), e.axisSecondaryVertical, [on = !e.axisSecondaryVertical](Chart *c) { setAxisShown(c, false, on, true); }, tr("Axes"), "Second Vertical");
+                check(titles, tr("Second Vertical"), e.axisTitleSecondaryVertical, [on = !e.axisTitleSecondaryVertical](Chart *c) { setAxisTitle(c, false, on, true); }, tr("Axis Titles"), "Second Vertical");
             }
         }
         QMenu *title = menu->addMenu(tr("Chart Title"));
         title->setObjectName(QStringLiteral("chartTitleMenu"));
         auto *titleGroup = new QActionGroup(title);
-        choice(title, titleGroup, tr("None"), !e.title, [](Chart *c) { setChartTitle(c, TitleMode::None); }, tr("Chart Title"));
-        choice(title, titleGroup, tr("Above"), e.title && !e.titleOverlay, [](Chart *c) { setChartTitle(c, TitleMode::Above); }, tr("Chart Title"));
-        choice(title, titleGroup, tr("On Top"), e.titleOverlay, [](Chart *c) { setChartTitle(c, TitleMode::Overlay); }, tr("Chart Title"));
+        choice(title, titleGroup, tr("None"), !e.title, [](Chart *c) { setChartTitle(c, TitleMode::None); }, tr("Chart Title"), "None");
+        choice(title, titleGroup, tr("Above"), e.title && !e.titleOverlay, [](Chart *c) { setChartTitle(c, TitleMode::Above); }, tr("Chart Title"), "Above");
+        choice(title, titleGroup, tr("On Top"), e.titleOverlay, [](Chart *c) { setChartTitle(c, TitleMode::Overlay); }, tr("Chart Title"), "On Top");
         title->addSeparator();
         titleText(title, tr("Title Text…"), tr("Chart Title"), chart.title, [](Chart *c, const QString &t, const QString &r) { setChartTitleText(c, t, r); });
         QMenu *labels = menu->addMenu(tr("Data Labels"));
         labels->setObjectName(QStringLiteral("dataLabelsMenu"));
         auto *labelGroup = new QActionGroup(labels);
-        choice(labels, labelGroup, tr("None"), !e.labels, [](Chart *c) { setDataLabels(c, false); }, tr("Data Labels"));
-        choice(labels, labelGroup, tr("Usual place"), e.labels && e.labelPosition.isEmpty(), [](Chart *c) { setDataLabels(c, true); }, tr("Data Labels"));
+        choice(labels, labelGroup, tr("None"), !e.labels, [](Chart *c) { setDataLabels(c, false); }, tr("Data Labels"), "None");
+        choice(labels, labelGroup, tr("Usual place"), e.labels && e.labelPosition.isEmpty(), [](Chart *c) { setDataLabels(c, true); }, tr("Data Labels"), "Usual place");
         static const struct { const char *code; const char *name; } places[] = {{"ctr", QT_TRANSLATE_NOOP("jp::ChartDesign", "Center")}, {"inEnd", QT_TRANSLATE_NOOP("jp::ChartDesign", "Inside End")}, {"inBase", QT_TRANSLATE_NOOP("jp::ChartDesign", "Inside Base")},
                                                                                   {"outEnd", QT_TRANSLATE_NOOP("jp::ChartDesign", "Outside End")}, {"bestFit", QT_TRANSLATE_NOOP("jp::ChartDesign", "Best Fit")}, {"l", QT_TRANSLATE_NOOP("jp::ChartDesign", "Left")},
                                                                                   {"r", QT_TRANSLATE_NOOP("jp::ChartDesign", "Right")}, {"t", QT_TRANSLATE_NOOP("jp::ChartDesign", "Above")}, {"b", QT_TRANSLATE_NOOP("jp::ChartDesign", "Below")}};
@@ -121,7 +126,7 @@ QMenu *ChartDesign::elementsMenu(QWidget *owner)
         for (const auto &p : places) {
             const QString code = QString::fromLatin1(p.code);
             if (!allowed.contains(code)) continue;
-            choice(labels, labelGroup, QCoreApplication::translate("jp::ChartDesign", p.name), e.labels && e.labelPosition == code, [code](Chart *c) { setDataLabels(c, true, code); }, tr("Data Labels"));
+            choice(labels, labelGroup, QCoreApplication::translate("jp::ChartDesign", p.name), e.labels && e.labelPosition == code, [code](Chart *c) { setDataLabels(c, true, code); }, tr("Data Labels"), p.code);
         }
         {
             labels->addSeparator();
@@ -141,7 +146,7 @@ QMenu *ChartDesign::elementsMenu(QWidget *owner)
                     ChartLabelParts now = parts;
                     now.*member = on;
                     setDataLabelParts(c, now);
-                }, tr("Data Labels"));
+                }, tr("Data Labels"))->setObjectName(contains->objectName() + QStringLiteral(".part%1").arg(int(&part - list)));
             QMenu *separator = labels->addMenu(tr("Separator"));
             separator->setObjectName(QStringLiteral("labelSeparatorMenu"));
             auto *separatorGroup = new QActionGroup(separator);
@@ -152,7 +157,7 @@ QMenu *ChartDesign::elementsMenu(QWidget *owner)
                     ChartLabelParts now = parts;
                     now.separator = code;
                     setDataLabelParts(c, now);
-                }, tr("Data Labels"));
+                }, tr("Data Labels"))->setObjectName(separator->objectName() + QStringLiteral(".sep%1").arg(int(&sep - separators)));
             // Value From Cells: the labels show the words of a range of cells, one for each point (empty: none).
             if (m_host->chartHasCells()) {
                 QAction *fromCells = labels->addAction(tr("Value From Cells…"));
@@ -188,34 +193,34 @@ QMenu *ChartDesign::elementsMenu(QWidget *owner)
         if (e.hasHorizontal || e.hasVertical) {
             QMenu *grid = menu->addMenu(tr("Gridlines"));
             grid->setObjectName(QStringLiteral("gridlinesMenu"));
-            check(grid, tr("Lines Across, Major"), e.gridHorizontal, [on = !e.gridHorizontal](Chart *c) { setGridlines(c, true, false, on); }, tr("Gridlines"));
-            check(grid, tr("Lines Up and Down, Major"), e.gridVertical, [on = !e.gridVertical](Chart *c) { setGridlines(c, false, false, on); }, tr("Gridlines"));
-            check(grid, tr("Lines Across, Minor"), e.minorGridHorizontal, [on = !e.minorGridHorizontal](Chart *c) { setGridlines(c, true, true, on); }, tr("Gridlines"));
-            check(grid, tr("Lines Up and Down, Minor"), e.minorGridVertical, [on = !e.minorGridVertical](Chart *c) { setGridlines(c, false, true, on); }, tr("Gridlines"));
+            check(grid, tr("Lines Across, Major"), e.gridHorizontal, [on = !e.gridHorizontal](Chart *c) { setGridlines(c, true, false, on); }, tr("Gridlines"), "Lines Across, Major");
+            check(grid, tr("Lines Up and Down, Major"), e.gridVertical, [on = !e.gridVertical](Chart *c) { setGridlines(c, false, false, on); }, tr("Gridlines"), "Lines Up and Down, Major");
+            check(grid, tr("Lines Across, Minor"), e.minorGridHorizontal, [on = !e.minorGridHorizontal](Chart *c) { setGridlines(c, true, true, on); }, tr("Gridlines"), "Lines Across, Minor");
+            check(grid, tr("Lines Up and Down, Minor"), e.minorGridVertical, [on = !e.minorGridVertical](Chart *c) { setGridlines(c, false, true, on); }, tr("Gridlines"), "Lines Up and Down, Minor");
         }
         QMenu *legend = menu->addMenu(tr("Legend"));
         legend->setObjectName(QStringLiteral("legendMenu"));
         auto *legendGroup = new QActionGroup(legend);
-        choice(legend, legendGroup, tr("None"), !e.legend, [](Chart *c) { setLegend(c, QString()); }, tr("Legend"));
+        choice(legend, legendGroup, tr("None"), !e.legend, [](Chart *c) { setLegend(c, QString()); }, tr("Legend"), "None");
         const struct { const char *code; const char *name; } sides[] = {{"r", QT_TRANSLATE_NOOP("jp::ChartDesign", "Right")}, {"t", QT_TRANSLATE_NOOP("jp::ChartDesign", "Top")}, {"l", QT_TRANSLATE_NOOP("jp::ChartDesign", "Left")}, {"b", QT_TRANSLATE_NOOP("jp::ChartDesign", "Bottom")}};
         for (const auto &s : sides) {
             const QString code = QString::fromLatin1(s.code);
-            choice(legend, legendGroup, QCoreApplication::translate("jp::ChartDesign", s.name), e.legend && e.legendPosition == code, [code, over = e.legendOverlay](Chart *c) { setLegend(c, code, over); }, tr("Legend"));
+            choice(legend, legendGroup, QCoreApplication::translate("jp::ChartDesign", s.name), e.legend && e.legendPosition == code, [code, over = e.legendOverlay](Chart *c) { setLegend(c, code, over); }, tr("Legend"), s.code);
         }
         if (e.legend) {
             legend->addSeparator();
-            check(legend, tr("Over the Chart"), e.legendOverlay, [code = e.legendPosition, on = !e.legendOverlay](Chart *c) { setLegend(c, code, on); }, tr("Legend"));
+            check(legend, tr("Over the Chart"), e.legendOverlay, [code = e.legendPosition, on = !e.legendOverlay](Chart *c) { setLegend(c, code, on); }, tr("Legend"), "Over the Chart");
         }
         if (errorBarsApply(chart)) {
             QMenu *bars = menu->addMenu(tr("Error Bars"));
             bars->setObjectName(QStringLiteral("errorBarsMenu"));
             auto *barGroup = new QActionGroup(bars);
             const QString kind = errorBarsKind(chart);
-            choice(bars, barGroup, tr("None"), kind.isEmpty(), [](Chart *c) { setErrorBars(c, QString()); }, tr("Error Bars"));
-            choice(bars, barGroup, tr("Standard Error"), kind == QLatin1String("stdErr"), [](Chart *c) { setErrorBars(c, QStringLiteral("stdErr")); }, tr("Error Bars"));
-            choice(bars, barGroup, tr("Percentage (5%)"), kind == QLatin1String("percentage"), [](Chart *c) { setErrorBars(c, QStringLiteral("percentage"), 5); }, tr("Error Bars"));
-            choice(bars, barGroup, tr("Standard Deviation"), kind == QLatin1String("stdDev"), [](Chart *c) { setErrorBars(c, QStringLiteral("stdDev"), 1); }, tr("Error Bars"));
-            choice(bars, barGroup, tr("Fixed Value (1)"), kind == QLatin1String("fixedVal"), [](Chart *c) { setErrorBars(c, QStringLiteral("fixedVal"), 1); }, tr("Error Bars"));
+            choice(bars, barGroup, tr("None"), kind.isEmpty(), [](Chart *c) { setErrorBars(c, QString()); }, tr("Error Bars"), "None");
+            choice(bars, barGroup, tr("Standard Error"), kind == QLatin1String("stdErr"), [](Chart *c) { setErrorBars(c, QStringLiteral("stdErr")); }, tr("Error Bars"), "Standard Error");
+            choice(bars, barGroup, tr("Percentage (5%)"), kind == QLatin1String("percentage"), [](Chart *c) { setErrorBars(c, QStringLiteral("percentage"), 5); }, tr("Error Bars"), "Percentage (5%)");
+            choice(bars, barGroup, tr("Standard Deviation"), kind == QLatin1String("stdDev"), [](Chart *c) { setErrorBars(c, QStringLiteral("stdDev"), 1); }, tr("Error Bars"), "Standard Deviation");
+            choice(bars, barGroup, tr("Fixed Value (1)"), kind == QLatin1String("fixedVal"), [](Chart *c) { setErrorBars(c, QStringLiteral("fixedVal"), 1); }, tr("Error Bars"), "Fixed Value (1)");
             // Custom: the amounts above and below each point are read from cells typed in (empty: none on that side).
             if (m_host->chartHasCells()) {
                 QAction *custom = bars->addAction(tr("Custom…"));
@@ -252,35 +257,35 @@ QMenu *ChartDesign::elementsMenu(QWidget *owner)
                                                                              {QT_TRANSLATE_NOOP("jp::ChartDesign", "Legend Field Buttons"), PivotButton::Legend},
                                                                              {QT_TRANSLATE_NOOP("jp::ChartDesign", "Value Field Buttons"), PivotButton::Value}};
             for (const auto &k : kinds)
-                check(buttons, QCoreApplication::translate("jp::ChartDesign", k.name), pivotButtonsOn(chart, k.which), [which = k.which, on = !pivotButtonsOn(chart, k.which)](Chart *c) { setPivotButtons(c, which, on); }, tr("Field Buttons"));
+                check(buttons, QCoreApplication::translate("jp::ChartDesign", k.name), pivotButtonsOn(chart, k.which), [which = k.which, on = !pivotButtonsOn(chart, k.which)](Chart *c) { setPivotButtons(c, which, on); }, tr("Field Buttons"), k.name);
             buttons->addSeparator();
-            check(buttons, tr("Show All"), pivotButtonsOn(chart, PivotButton::All), [](Chart *c) { setPivotButtons(c, PivotButton::All, true); }, tr("Field Buttons"));
-            check(buttons, tr("Hide All"), chart.pivotButtons.set && !chart.pivotButtons.filter && !chart.pivotButtons.categories && !chart.pivotButtons.series && !chart.pivotButtons.data, [](Chart *c) { setPivotButtons(c, PivotButton::All, false); }, tr("Field Buttons"));
+            check(buttons, tr("Show All"), pivotButtonsOn(chart, PivotButton::All), [](Chart *c) { setPivotButtons(c, PivotButton::All, true); }, tr("Field Buttons"), "Show All");
+            check(buttons, tr("Hide All"), chart.pivotButtons.set && !chart.pivotButtons.filter && !chart.pivotButtons.categories && !chart.pivotButtons.series && !chart.pivotButtons.data, [](Chart *c) { setPivotButtons(c, PivotButton::All, false); }, tr("Field Buttons"), "Hide All");
         }
         if (plotLinesApply(chart, PlotLines::Drop)) {
             QMenu *lines = menu->addMenu(tr("Lines"));
             lines->setObjectName(QStringLiteral("plotLinesMenu"));
-            check(lines, tr("Drop Lines"), plotLinesOn(chart, PlotLines::Drop), [on = !plotLinesOn(chart, PlotLines::Drop)](Chart *c) { setPlotLines(c, PlotLines::Drop, on); }, tr("Lines"));
+            check(lines, tr("Drop Lines"), plotLinesOn(chart, PlotLines::Drop), [on = !plotLinesOn(chart, PlotLines::Drop)](Chart *c) { setPlotLines(c, PlotLines::Drop, on); }, tr("Lines"), "Drop Lines");
             if (plotLinesApply(chart, PlotLines::HighLow)) {
-                check(lines, tr("High-Low Lines"), plotLinesOn(chart, PlotLines::HighLow), [on = !plotLinesOn(chart, PlotLines::HighLow)](Chart *c) { setPlotLines(c, PlotLines::HighLow, on); }, tr("Lines"));
-                check(lines, tr("Up/Down Bars"), plotLinesOn(chart, PlotLines::UpDown), [on = !plotLinesOn(chart, PlotLines::UpDown)](Chart *c) { setPlotLines(c, PlotLines::UpDown, on); }, tr("Lines"));
+                check(lines, tr("High-Low Lines"), plotLinesOn(chart, PlotLines::HighLow), [on = !plotLinesOn(chart, PlotLines::HighLow)](Chart *c) { setPlotLines(c, PlotLines::HighLow, on); }, tr("Lines"), "High-Low Lines");
+                check(lines, tr("Up/Down Bars"), plotLinesOn(chart, PlotLines::UpDown), [on = !plotLinesOn(chart, PlotLines::UpDown)](Chart *c) { setPlotLines(c, PlotLines::UpDown, on); }, tr("Lines"), "Up/Down Bars");
             }
         }
         if (chart.type() != ChartType::Pie && chart.type() != ChartType::Doughnut) {
             QMenu *trend = menu->addMenu(tr("Trendline"));
             trend->setObjectName(QStringLiteral("trendlineMenu"));
             auto *trendGroup = new QActionGroup(trend);
-            choice(trend, trendGroup, tr("None"), e.trendline.isEmpty(), [](Chart *c) { setTrendlines(c, QString()); }, tr("Trendline"));
+            choice(trend, trendGroup, tr("None"), e.trendline.isEmpty(), [](Chart *c) { setTrendlines(c, QString()); }, tr("Trendline"), "None");
             static const struct { const char *code; const char *name; } kinds[] = {{"linear", QT_TRANSLATE_NOOP("jp::ChartDesign", "Linear")}, {"exp", QT_TRANSLATE_NOOP("jp::ChartDesign", "Exponential")}, {"log", QT_TRANSLATE_NOOP("jp::ChartDesign", "Logarithmic")},
                                                                                   {"poly", QT_TRANSLATE_NOOP("jp::ChartDesign", "Polynomial")}, {"power", QT_TRANSLATE_NOOP("jp::ChartDesign", "Power")}, {"movingAvg", QT_TRANSLATE_NOOP("jp::ChartDesign", "Moving Average")}};
             for (const auto &k : kinds) {
                 const QString code = QString::fromLatin1(k.code);
-                choice(trend, trendGroup, QCoreApplication::translate("jp::ChartDesign", k.name), e.trendline == code, [code](Chart *c) { setTrendlines(c, code); }, tr("Trendline"));
+                choice(trend, trendGroup, QCoreApplication::translate("jp::ChartDesign", k.name), e.trendline == code, [code](Chart *c) { setTrendlines(c, code); }, tr("Trendline"), k.name);
             }
             if (!e.trendline.isEmpty()) {
                 trend->addSeparator();
-                check(trend, tr("Show Equation"), e.trendlineEquation, [on = !e.trendlineEquation, r = e.trendlineRSquared](Chart *c) { setTrendlineDisplay(c, on, r); }, tr("Trendline"));
-                check(trend, tr("Show R-squared"), e.trendlineRSquared, [on = !e.trendlineRSquared, q = e.trendlineEquation](Chart *c) { setTrendlineDisplay(c, q, on); }, tr("Trendline"));
+                check(trend, tr("Show Equation"), e.trendlineEquation, [on = !e.trendlineEquation, r = e.trendlineRSquared](Chart *c) { setTrendlineDisplay(c, on, r); }, tr("Trendline"), "Show Equation");
+                check(trend, tr("Show R-squared"), e.trendlineRSquared, [on = !e.trendlineRSquared, q = e.trendlineEquation](Chart *c) { setTrendlineDisplay(c, q, on); }, tr("Trendline"), "Show R-squared");
             }
         }
     });
@@ -400,25 +405,7 @@ QMenu *ChartDesign::filtersMenu(QWidget *owner)
 
 // ---- the commands of the Chart Design tab
 
-bool chartOwnData(const Chart &chart, ChartData *data)
-{
-    if (!chart.pivotName.isEmpty()) return false;
-    const QVector<ChartSeries> series = seriesOf(chart);
-    if (series.isEmpty()) return false;
-    for (const ChartSeries &s : series)
-        if (!s.valueRef.isEmpty() || !s.categoryRef.isEmpty() || !s.nameRef.isEmpty()) return false;
-    ChartData out;
-    out.categories = series.first().categories;
-    // (A scatter's x numbers are its categories.)
-    if (out.categories.isEmpty())
-        for (double x : series.first().xValues) out.categories << QString::number(x, 'g', 15);
-    for (const ChartSeries &s : series) {
-        out.seriesNames << s.name;
-        out.values << s.values;
-    }
-    if (data) *data = out;
-    return chartDataIsUsable(out);
-}
+bool chartOwnData(const Chart &chart, ChartData *data) { return chartDataProblem(chart, data).isEmpty(); }
 
 bool switchedChartData(const ChartData &data, ChartData *out)
 {
@@ -442,11 +429,21 @@ bool ChartDesign::dataEditable() const
     return m_host->chartNow(&chart) && chartOwnData(chart, nullptr);
 }
 
+QString ChartDesign::dataProblem() const
+{
+    Chart chart;
+    return m_host->chartNow(&chart) ? chartDataProblem(chart) : QString();
+}
+
 void ChartDesign::editData()
 {
     Chart chart;
     ChartData data;
-    if (!m_host->chartNow(&chart) || !chartOwnData(chart, &data)) return;
+    if (!m_host->chartNow(&chart)) return;
+    if (const QString why = chartDataProblem(chart, &data); !why.isEmpty()) {
+        m_host->chartNotice(tr("Edit Data"), why);
+        return;
+    }
     QString notice;
     if (!askChartData(m_host->chartParent(), &data, &notice)) {
         if (!notice.isEmpty()) m_host->chartNotice(tr("Edit Data"), notice, false);
@@ -460,26 +457,34 @@ void ChartDesign::selectData()
 {
     Chart chart;
     ChartData data;
-    if (!m_host->chartNow(&chart) || !chartOwnData(chart, &data)) return;
+    if (!m_host->chartNow(&chart)) return;
+    if (const QString why = chartDataProblem(chart, &data); !why.isEmpty()) {
+        m_host->chartNotice(tr("Chart Data"), why);
+        return;
+    }
     SelectChartDataDialog dialog(data, m_host->chartParent());
     if (dialog.exec() != QDialog::Accepted) return;
     const ChartData made = dialog.result();
     const Theme theme = m_host->chartTheme();
-    m_host->changeChart(tr("Select Data"), [made, theme](Chart *c) { chartSetData(*c, made, theme); });
+    m_host->changeChart(tr("Chart Data"), [made, theme](Chart *c) { chartSetData(*c, made, theme); });
 }
 
 bool ChartDesign::switchRowsAndColumns()
 {
     Chart chart;
     ChartData data, switched;
-    if (!m_host->chartNow(&chart) || !chartOwnData(chart, &data)) return false;
+    if (!m_host->chartNow(&chart)) return false;
+    if (const QString why = chartDataProblem(chart, &data); !why.isEmpty()) {
+        m_host->chartNotice(tr("Swap Rows and Columns"), why);
+        return false;
+    }
     const ChartKind kind = kindOfChart(chart);
     if (kind == ChartKind::Scatter || kind == ChartKind::ScatterLines || kind == ChartKind::ScatterSmooth || !switchedChartData(data, &switched)) {
-        m_host->chartNotice(tr("Switch Row/Column"), tr("The rows and columns of this chart can't be turned the other way."));
+        m_host->chartNotice(tr("Swap Rows and Columns"), tr("The rows and columns of this chart can't be turned the other way."));
         return false;
     }
     const Theme theme = m_host->chartTheme();
-    return m_host->changeChart(tr("Switch Row/Column"), [switched, theme](Chart *c) { chartSetData(*c, switched, theme); });
+    return m_host->changeChart(tr("Swap Rows and Columns"), [switched, theme](Chart *c) { chartSetData(*c, switched, theme); });
 }
 
 void ChartDesign::changeType()
@@ -492,7 +497,7 @@ void ChartDesign::changeType()
     ChangeChartTypeDialog dialog(names, seriesKindsOf(chart), [chart, theme](const QVector<SeriesKind> &kinds, const QSize &px) { return chartPicture(withSeriesKinds(chart, kinds, theme), px); }, m_host->chartParent());
     if (dialog.exec() != QDialog::Accepted) return;
     const QVector<SeriesKind> chosen = dialog.kinds();
-    m_host->changeChart(tr("Change Chart Type"), [chosen, theme](Chart *c) { *c = withSeriesKinds(*c, chosen, theme); });
+    m_host->changeChart(tr("Chart Kind"), [chosen, theme](Chart *c) { *c = withSeriesKinds(*c, chosen, theme); });
 }
 
 void ChartDesign::formatAxis(bool horizontal)
@@ -562,15 +567,27 @@ ChartButtons::ChartButtons(ChartDesign *design, QWidget *viewport, const std::fu
     m_looks->setMenu(m_design->looksMenu(m_looks));
     m_filters = make("chartFiltersButton", "filter", tr("Chart Filters"));
     m_filters->setMenu(m_design->filtersMenu(m_filters));
+    m_viewport->installEventFilter(this);
+}
+
+bool ChartButtons::eventFilter(QObject *watched, QEvent *event)
+{
+    if (watched == m_viewport && event->type() == QEvent::MouseButtonRelease) QTimer::singleShot(0, this, [this] { Q_EMIT released(); });
+    return QObject::eventFilter(watched, event);
 }
 
 void ChartButtons::place(const QRect &chart)
 {
-    const int size = 26;
+    // (not while a button is down: the chart is being dragged or sized, and the buttons would be in the way)
+    if (QGuiApplication::mouseButtons() & Qt::LeftButton) {
+        hide();
+        return;
+    }
+    const int size = 26, gap = 12;   // (the gap keeps clear of the handles that stand on the frame)
     const QRect vp = m_viewport->rect();
-    int x = chart.right() + 6;
-    if (x + size > vp.right()) x = chart.right() - size - 4;   // (no room beside it: inside its corner)
-    x = std::clamp(x, 0, std::max(0, vp.right() - size));
+    int x = chart.right() + gap;
+    if (x + size > vp.right()) x = chart.left() - size - gap;   // (no room at the right: at the left)
+    if (x < 0) x = std::clamp(chart.right() - size - gap, 0, std::max(0, vp.right() - size));   // (no room at either side: inside, clear of the handles)
     const int y = std::clamp(chart.top(), 0, std::max(0, vp.bottom() - 3 * size - 8));
     m_elements->move(x, y);
     m_looks->move(x, y + size + 4);

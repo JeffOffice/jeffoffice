@@ -775,7 +775,7 @@ private:
         else w.writeEmptyElement(QStringLiteral("c:layout"));
         for (const ChartPlot &p : c.plots) plot(p);
         for (const ChartAxis &a : c.axes) axis(a);
-        shapeProps(c.plotFill, false, c.plotBorder, QColor(), 0, false, &c.plotKept);
+        shapeProps(c.plotFill, c.plotNone && !c.plotFill.isValid(), c.plotBorder, QColor(), 0, false, &c.plotKept);
         w.writeEndElement();
         if (c.legend.shown) legend(c.legend);
         flag("c:plotVisOnly", c.plotVisibleOnly);

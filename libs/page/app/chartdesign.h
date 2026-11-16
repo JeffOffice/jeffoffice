@@ -72,6 +72,8 @@ public:
     // The commands of the Chart Design tab, for a chart that holds its own numbers (every chart that has no cells).
     // Whether the numbers of the chart can be edited here: it plots numbers of its own, not cells.
     bool dataEditable() const;
+    // Why not, in a sentence (empty when it can, and for no chart): for the tooltip of a command that is off, and what a command says when it is chosen anyway.
+    QString dataProblem() const;
     void editData();
     void selectData();
     // The data with rows and columns the other way (the series become the categories); false (with a notice) when it can't be.
@@ -89,7 +91,8 @@ private:
 };
 
 // The three buttons beside a selected chart: Chart Parts (the elements menu), Chart Looks (colors and looks), and Chart Filters (the series). They are children of `viewport`, which the app
-// places the chart in; place() puts them at the right of `chart` (a rectangle in the viewport's coordinates), or inside its corner when there is no room.
+// places the chart in; place() puts them outside `chart` (a rectangle in the viewport's coordinates), at its right, or at its left when there is no room, so that they never cover its handles; they are
+// hidden while a mouse button is down (a drag).
 class ChartButtons : public QObject {
     Q_OBJECT
 public:
@@ -99,6 +102,11 @@ public:
     QToolButton *elements() const { return m_elements; }
     QToolButton *looks() const { return m_looks; }
     QToolButton *filters() const { return m_filters; }
+    bool eventFilter(QObject *watched, QEvent *event) override;
+
+Q_SIGNALS:
+    // A mouse button was let go on the viewport (a drag of the chart ended): the buttons may stand again.
+    void released();
 
 private:
     ChartDesign *m_design;

@@ -1,5 +1,5 @@
 # Charts
-<!-- keywords: chart, charts, graph, column chart, bar chart, line chart, pie chart, doughnut, area, scatter, insert chart, chart data, edit data, chart title, legend, data labels, chart type, chart format, axes, axis title, gridlines, chart style, chart design, add chart element, quick layout, change colors, select data, switch row column, format axis, error bars, trendline, chart filters, chart elements -->
+<!-- keywords: chart, charts, graph, column chart, bar chart, line chart, pie chart, doughnut, area, scatter, insert chart, chart data, edit data, chart title, legend, data labels, chart type, chart format, axes, axis title, gridlines, chart style, chart parts, layouts, colors, looks, chart data, swap rows and columns, chart kind, format axis, error bars, trendline, chart filters, chart elements -->
 
 A **chart** turns numbers into a picture, such as columns, a line, or slices of a pie. This topic shows how to put a chart on a slide, how to type its numbers, and how to change how it looks.
 
@@ -36,17 +36,17 @@ These commands are on the **Chart Format** tab. Each one is a single step to und
 - **Chart Styles** picks one of eight overall styles.
 - **Data Labels** writes each number on its column, point, or slice.
 
-## The Chart Design tab
+## The Chart tab
 
-Select a chart and the **Chart Design** tab opens beside the **Chart Format** tab. Everything on it changes the chart in one step you can undo.
+Select a chart and the **Chart** tab opens beside the **Chart Format** tab. Everything on it changes the chart in one step you can undo.
 
-- **Add Chart Element** adds, takes away, or places a part of the chart: **Axes**, **Axis Titles**, **Chart Title**, **Data Labels** (what they hold, where they go, and the mark between them), **Gridlines**, **Legend**, **Error Bars** (short bars that show how far a number may be off), **Lines** (drop lines, high-low lines, and up and down bars), and **Trendline** (a line that shows where the numbers are heading, with its equation if you want it).
-- **Quick Layout** sets several parts at once, such as the title, legend, labels, and gridlines.
-- **Change Colors** gives the series a new set of colors. **Chart Styles** gives the whole chart a look, such as plain, clean, dark, or soft.
-- **Switch Row/Column** turns the numbers around: the series become the words under the points, and those words become the series.
-- **Select Data** lists the series. Check the ones to draw, change their names, and move them up or down.
+- **Chart Parts** adds, takes away, or places a part of the chart: **Axes**, **Axis Titles**, **Chart Title**, **Data Labels** (what they hold, where they go, and the mark between them), **Gridlines**, **Legend**, **Error Bars** (short bars that show how far a number may be off), **Lines** (drop lines, high-low lines, and up and down bars), and **Trendline** (a line that shows where the numbers are heading, with its equation if you want it).
+- **Layouts** sets several parts at once, such as the title, legend, labels, and gridlines.
+- **Colors** gives the series a new set of colors. **Looks** gives the whole chart a look, such as plain, clean, dark, or soft.
+- **Swap Rows and Columns** turns the numbers around: the series become the words under the points, and those words become the series.
+- **Chart Data** lists the series. Check the ones to draw, change their names, and move them up or down.
 - **Edit Data** opens the table of numbers.
-- **Change Chart Type** shows a picture of each kind. Pick one kind for the whole chart, or pick a kind for each series, such as columns with a line over them.
+- **Chart Kind** shows a picture of each kind. Pick one kind for the whole chart, or pick a kind for each series, such as columns with a line over them.
 - **Format Chart Part** sets the fill and the line of the chart's page, of the plot (the box the marks stand in), or of one series. For a line, it also sets whether it is smooth and what mark stands at each point.
 - **Format Horizontal Axis** and **Format Vertical Axis** set the lowest and highest numbers, the size of each step, the order, where the other axis crosses, the look of the numbers, and the tick marks.
 
@@ -54,7 +54,7 @@ Select a chart and the **Chart Design** tab opens beside the **Chart Format** ta
 
 Three small buttons stand at the right of a selected chart.
 
-- **Chart Elements** (the plus) opens the same menu as **Add Chart Element**.
+- **Chart Elements** (the plus) opens the same menu as **Chart Parts**.
 - **Chart Colors and Styles** (the brush) lists the color sets and looks.
 - **Chart Filters** (the funnel) lists the series. Uncheck a series to leave it out of the picture. The file still keeps it, so it comes back when you check it again. A chart always keeps at least one series in view.
 

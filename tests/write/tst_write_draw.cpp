@@ -4,6 +4,7 @@
 #include "../isolatesettings.h"
 #include "../withdialog.h"
 #include "../chartmenu.h"
+#include <QStatusBar>
 #include "app/chartdesign.h"
 #include "app/chartdialogs.h"
 #include "sheet/chartedit.h"
@@ -4924,14 +4925,14 @@ private Q_SLOTS:
         QCOMPARE(info().data.values.value(0).value(0), 99.0);
     }
 
-    // The Chart Design tab, the buttons beside the chart, and the menus every program shares: each entry changes the chart one step, and what was added is kept in the .docx and read again.
+    // The Chart tab, the buttons beside the chart, and the menus every program shares: each entry changes the chart one step, and what was added is kept in the .docx and read again.
     void theChartDesignTabAndTheButtonsBesideAChartChangeItAndTheFileKeepsTheChanges()
     {
         Win win;
         win.w.act("insert.chart.column")->trigger();
         const int at = win.w.view()->selectedPicture();
         QVERIFY(at >= 0);
-        QTRY_VERIFY(win.tabShown(QStringLiteral("Chart Design")));
+        QTRY_VERIFY(win.tabShown(QStringLiteral("Chart")));
         QTRY_VERIFY(win.w.chartButtons() && win.w.chartButtons()->elements()->isVisible());
         QVERIFY(win.w.chartButtons()->looks()->isVisible() && win.w.chartButtons()->filters()->isVisible());
         for (const char *id : {"chartdesign.editData", "chartdesign.selectData", "chartdesign.switch", "chartdesign.changeType", "chartdesign.axisH", "chartdesign.axisV"}) QTRY_VERIFY(win.w.act(id)->isEnabled());
@@ -4941,13 +4942,13 @@ private Q_SLOTS:
             return c;
         };
         QMenu *menu = win.w.chartButtons()->elements()->menu();
-        QVERIFY(fireChartMenu(menu, {QStringLiteral("Chart Title"), QStringLiteral("Above")}));
+        QVERIFY(fireChartMenu(menu, QStringLiteral("chartTitleMenu.Above")));
         QVERIFY(chartAt(*win.w.document(), at).titleShown);
-        QVERIFY(fireChartMenu(menu, {QStringLiteral("Error Bars"), QStringLiteral("Fixed Value (1)")}));
+        QVERIFY(fireChartMenu(menu, QStringLiteral("errorBarsMenu.Fixed Value (1)")));
         QCOMPARE(office::sheet::errorBarsKind(chart()), QStringLiteral("fixedVal"));
-        QVERIFY(fireChartMenu(menu, {QStringLiteral("Trendline"), QStringLiteral("Linear")}));
+        QVERIFY(fireChartMenu(menu, QStringLiteral("trendlineMenu.Linear")));
         QCOMPARE(office::sheet::elementsOf(chart()).trendline, QStringLiteral("linear"));
-        QVERIFY(!findChartMenuEntry(menu, {QStringLiteral("Data Labels"), QStringLiteral("Value From Cells…")}));
+        QVERIFY(!findChartMenuEntry(menu, QStringLiteral("labelsFromCellsAction")));
         // The ribbon's menus are the same ones.
         std::unique_ptr<QMenu> colors(win.w.chartDesign()->colorsMenu(nullptr));
         const QByteArray before = win.w.document()->toDocx();
@@ -4977,25 +4978,61 @@ private Q_SLOTS:
         const QByteArray saved = win.w.document()->toDocx();
         auto back = open(saved);
         QVERIFY(back);
+        // (the chart is found again in the file that was opened: where it stands is not taken from the one that was saved)
+        int backAt = -1;
+        for (int p = 0; p < back->story()->characterCount() && backAt < 0; ++p)
+            if (isDrawnObjectAt(back->story(), p) && pictureAt(*back, back->story(), p).kind == DrawnKind::Chart) backAt = p;
+        QVERIFY(backAt >= 0);
         office::Chart again;
-        QVERIFY(readChartAt(*back, at, &again));
+        QVERIFY(readChartAt(*back, backAt, &again));
         QCOMPARE(office::sheet::errorBarsKind(again), QStringLiteral("fixedVal"));
         QVERIFY(again.title.present);
         QCOMPARE(office::sheet::partLookOf(again, office::sheet::ChartPart::Series, 0).fill.name(), QStringLiteral("#204060"));
-        QVERIFY(changeChartAt(*back, at, [](office::Chart *c) { office::sheet::setErrorBars(c, QStringLiteral("percentage"), 5); }));
-        QVERIFY(readChartAt(*back, at, &again));
+        QVERIFY(changeChartAt(*back, backAt, [](office::Chart *c) { office::sheet::setErrorBars(c, QStringLiteral("percentage"), 5); }));
+        QVERIFY(readChartAt(*back, backAt, &again));
         QCOMPARE(office::sheet::errorBarsKind(again), QStringLiteral("percentage"));
         // A change that makes no difference is no change.
-        QVERIFY(!changeChartAt(*back, at, [](office::Chart *) {}));
-        // (With JO_SHOT_DIR set: the Chart Design tab and two of its format panes, in the new look.)
+        QVERIFY(!changeChartAt(*back, backAt, [](office::Chart *) {}));
+        // (With JO_SHOT_DIR set: the Chart tab and two of its format panes, in the new look.)
         if (!qEnvironmentVariable("JO_SHOT_DIR").isEmpty()) {
             jp::applyUiTheme(1);
-            win.w.ribbon()->showTab(win.w.ribbon()->tab(QStringLiteral("Chart Design")));
+            win.w.ribbon()->showTab(win.w.ribbon()->tab(QStringLiteral("Chart")));
             QApplication::processEvents();
             shotOf(&win.w, QStringLiteral("write-chart-design"));
             withDialog([&] { win.w.act("chartdesign.formatPart")->trigger(); }, QStringLiteral("formatChartPartDialog"), [](QDialog *d) { shotOf(d, QStringLiteral("write-format-chart-part")); }, false);
             withDialog([&] { win.w.act("chartdesign.axisV")->trigger(); }, QStringLiteral("formatAxisDialog"), [](QDialog *d) { shotOf(d, QStringLiteral("write-format-axis")); }, false);
         }
+    }
+
+    // The names are JeffCrunch's, and the commands for the numbers of a chart whose numbers are not its own (c:f references and a workbook kept with it) are off, with the reason in the tooltip.
+    void theChartTabHasJeffCrunchsNamesAndTheDataCommandsOfAWorkbookChartAreOffWithTheReason()
+    {
+        Win win;
+        win.w.act("insert.chart.column")->trigger();
+        const int at = win.w.view()->selectedPicture();
+        QVERIFY(at >= 0);
+        QTRY_VERIFY(win.tabShown(QStringLiteral("Chart")));
+        QVERIFY(!win.tabShown(QStringLiteral("Chart Design")));
+        QCOMPARE(win.w.act("chartdesign.selectData")->text(), QStringLiteral("Chart Data…"));
+        QCOMPARE(win.w.act("chartdesign.changeType")->text(), QStringLiteral("Chart Kind…"));
+        QCOMPARE(win.w.act("chartdesign.switch")->text(), QStringLiteral("Swap Rows and Columns"));
+        QTRY_VERIFY(win.w.act("chartdesign.switch")->isEnabled());
+        QVERIFY(changeChartAt(*win.w.document(), at, [](office::Chart *c) {
+            for (office::ChartSeries &s : c->plots[0].series) {
+                s.valueRef = QStringLiteral("Sheet1!$B$2:$B$4");
+                s.categoryRef = QStringLiteral("Sheet1!$A$2:$A$4");
+            }
+            c->externalDataId = QStringLiteral("rId9");
+        }));
+        win.w.view()->selectPicture(at);
+        for (const char *id : {"chart.editData", "chartdesign.editData", "chartdesign.selectData", "chartdesign.switch"}) {
+            QTRY_VERIFY2(!win.w.act(id)->isEnabled(), id);
+            QVERIFY2(win.w.act(id)->toolTip().contains(QStringLiteral("workbook")), id);
+        }
+        QVERIFY(win.w.act("chartdesign.changeType")->isEnabled());
+        // (the old Edit Data command, asked for anyway, says why)
+        win.w.chartDesign()->editData();
+        QVERIFY(win.w.statusBar()->currentMessage().contains(QStringLiteral("workbook")));
     }
 
     // ---------------------------------------------------------------- diagrams
