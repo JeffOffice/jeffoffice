@@ -24,6 +24,12 @@ Click **Add Row** or **Add Column** for more, or **Remove Last Row** or **Remove
 
 For a scatter chart, the first column holds the numbers that place the points from left to right.
 
+## Charts saved by another program
+
+Some charts that other programs saved keep their numbers in a small **workbook** (a spreadsheet file) stored inside your file. Select such a chart and click **Chart Format > Edit Data**. The table shows the cells of that workbook that the chart reads. Change a number, a name under a point, or the name of a series, and click **OK**. The change goes into the workbook and into the chart together, as one step to undo, so other programs show the new numbers too.
+
+You cannot add or remove a row or a column of such a chart, and **Chart Data** and **Swap Rows and Columns** are dimmed, because the chart is tied to those cells. The same is true when the chart reads cells in another file, in a block that is not one column or one row, or in cells that hold a formula, a date, or words where a number should be. The command is dimmed, and its tip says why.
+
 ## Change how it looks
 
 These commands are on the **Chart Format** tab. Each one is a single step to undo, and the chart keeps its colours and the rest of its look.
@@ -41,7 +47,7 @@ These commands are on the **Chart Format** tab. Each one is a single step to und
 
 Select a chart and the **Chart** tab opens beside the **Chart Format** tab. Everything on it changes the chart in one step you can undo.
 
-- **Chart Parts** adds, takes away, or places a part of the chart: **Axes**, **Axis Titles**, **Chart Title**, **Data Labels** (what they hold, where they go, and the mark between them), **Gridlines**, **Legend**, **Error Bars** (short bars that show how far a number may be off), **Lines** (drop lines, high-low lines, and up and down bars), and **Trendline** (a line that shows where the numbers are heading, with its equation if you want it).
+- **Chart Parts** adds, takes away, or places a part of the chart: **Axes**, **Axis Titles**, **Chart Title**, **Data Labels** (what they hold, where they go, and the mark between them), **Gridlines**, **Legend**, **Error Bars** (short bars that show how far a number may be off), **Lines** (drop lines, high-low lines, and up and down bars), **Data Table** (a grid of the numbers under the chart, with a column for each category; its list turns the table on and off, and sets the lines between rows, the lines between columns, the outline, and the legend keys, which show each series' colour beside its name; it is offered for column, line, and area charts), and **Trendline** (a line that shows where the numbers are heading, with its equation if you want it).
 - **Layouts** sets several parts at once, such as the title, legend, labels, and gridlines.
 - **Colours** gives the series a new set of colours. **Looks** gives the whole chart a look, such as plain, clean, dark, or soft.
 - **Swap Rows and Columns** turns the numbers around: the series become the words under the points, and those words become the series.

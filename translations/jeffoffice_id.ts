@@ -1573,7 +1573,7 @@ Berita halaman belakang	4</translation>
     <message>
         <location filename="../libs/office/office/chart.cpp" line="+756"/>
         <location filename="../libs/office/sheet/chartdata.cpp" line="+440"/>
-        <location filename="../libs/office/sheet/chartedit.cpp" line="+972"/>
+        <location filename="../libs/office/sheet/chartedit.cpp" line="+1011"/>
         <location filename="../libs/office/sheet/chartmake.cpp" line="+470"/>
         <source>Series%1</source>
         <translation type="unfinished">Seri%1</translation>
@@ -1589,8 +1589,8 @@ Berita halaman belakang	4</translation>
         <translation type="unfinished">Bagan tidak memiliki gambar di dalamnya.</translation>
     </message>
     <message>
-        <location line="+129"/>
-        <location filename="../libs/office/sheet/chartedit.cpp" line="-832"/>
+        <location line="+142"/>
+        <location filename="../libs/office/sheet/chartedit.cpp" line="-871"/>
         <location filename="../libs/office/sheet/chartmake.cpp" line="-70"/>
         <location line="+9"/>
         <source>Chart Title</source>
@@ -1603,7 +1603,7 @@ Berita halaman belakang	4</translation>
         <translation type="unfinished">Judul Sumbu</translation>
     </message>
     <message>
-        <location line="+63"/>
+        <location line="+71"/>
         <source>Units of %1</source>
         <translation type="unfinished">Satuan %1</translation>
     </message>
@@ -1653,7 +1653,7 @@ Berita halaman belakang	4</translation>
         <translation type="unfinished">Triliunan</translation>
     </message>
     <message>
-        <location filename="../libs/office/office/chart_svg.cpp" line="+2080"/>
+        <location filename="../libs/office/office/chart_svg.cpp" line="+2147"/>
         <source>Chart</source>
         <translation type="unfinished">Bagan</translation>
     </message>
@@ -1714,7 +1714,7 @@ Berita halaman belakang	4</translation>
         <translation type="unfinished">Ini bukan templat bagan.</translation>
     </message>
     <message>
-        <location line="+303"/>
+        <location line="+342"/>
         <source>Colorful</source>
         <translation type="unfinished">Berwarna-warni</translation>
     </message>
@@ -7801,7 +7801,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
 <context>
     <name>NewPasswordDialog</name>
     <message>
-        <location filename="../libs/shell/app/passworddialogs.cpp" line="+60"/>
+        <location filename="../libs/shell/app/passworddialogs.cpp" line="+61"/>
         <source>Encrypt with Password</source>
         <translation type="unfinished">Enkripsi dengan Kata Sandi</translation>
     </message>
@@ -8973,8 +8973,8 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
     <message>
         <location line="+14"/>
         <location line="+22"/>
-        <source>The presentation is protected with a password, which %1 can&apos;t open yet.</source>
-        <translation type="unfinished">Presentasi dilindungi dengan kata sandi, yang belum dapat dibuka oleh %1.</translation>
+        <source>The presentation is protected with a password, so it has to be opened with the password.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="-20"/>
@@ -9247,7 +9247,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
 <context>
     <name>PptxImport</name>
     <message>
-        <location filename="../apps/deck/io/pptximport.cpp" line="+361"/>
+        <location filename="../apps/deck/io/pptximport.cpp" line="+362"/>
         <source>Only the first %1 comments and replies of the file are read.</source>
         <translation type="unfinished">Hanya %1 komentar dan balasan pertama dalam berkas yang dibaca.</translation>
     </message>
@@ -13845,12 +13845,13 @@ Buka di program email Anda, tambahkan penerima, lalu kirim.</translation>
         <translation type="unfinished">Nama sebuah lembar lebih panjang daripada file nyata mana pun.</translation>
     </message>
     <message>
-        <location line="+70"/>
+        <location filename="../libs/office/sheet/chartembed.cpp" line="+118"/>
+        <location filename="../libs/office/sheet/sheetreader.cpp" line="+70"/>
         <source>The sheet would take more memory to hold than any real file&apos;s does.</source>
         <translation type="unfinished">Lembar ini akan membutuhkan lebih banyak memori untuk disimpan daripada file nyata mana pun.</translation>
     </message>
     <message>
-        <location line="+114"/>
+        <location filename="../libs/office/sheet/sheetreader.cpp" line="+114"/>
         <location line="+4"/>
         <source>A row is outside the sheet.</source>
         <translation type="unfinished">Sebuah baris berada di luar lembar.</translation>
@@ -13913,13 +13914,14 @@ Buka di program email Anda, tambahkan penerima, lalu kirim.</translation>
         <translation type="unfinished">Pembacaan dihentikan.</translation>
     </message>
     <message>
-        <location line="-417"/>
+        <location filename="../libs/office/sheet/chartembed.cpp" line="+0"/>
+        <location filename="../libs/office/sheet/sheetreader.cpp" line="-417"/>
         <location filename="../libs/office/sheet/xls.cpp" line="-589"/>
         <source>The sheet has more cells than any real file has.</source>
         <translation type="unfinished">Lembar memiliki lebih banyak sel daripada file nyata mana pun.</translation>
     </message>
     <message>
-        <location line="+448"/>
+        <location filename="../libs/office/sheet/sheetreader.cpp" line="+448"/>
         <location line="+508"/>
         <source>The part is not a worksheet.</source>
         <translation type="unfinished">Bagian ini bukan lembar kerja.</translation>
@@ -19123,7 +19125,7 @@ Sumber: %3</translation>
 <context>
     <name>jp::Chart</name>
     <message>
-        <location filename="../libs/page/core/chartobject.cpp" line="+139"/>
+        <location filename="../libs/page/core/chartobject.cpp" line="+190"/>
         <location line="+1"/>
         <source>Chart</source>
         <translation type="unfinished">Bagan</translation>
@@ -19192,12 +19194,12 @@ Sumber: %3</translation>
         <translation type="unfinished">Sebaran</translation>
     </message>
     <message>
-        <location line="+44"/>
+        <location line="+45"/>
         <source>This chart has parts that are kept as they are, so it can&apos;t be changed here.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+52"/>
+        <location line="+63"/>
         <location line="+44"/>
         <source>Edit Data…</source>
         <translation type="unfinished">Edit Data…</translation>
@@ -19258,7 +19260,7 @@ Sumber: %3</translation>
         <translation type="unfinished">Label Data</translation>
     </message>
     <message>
-        <location line="-125"/>
+        <location line="-137"/>
         <source>No Legend</source>
         <translation type="unfinished">Tanpa Keterangan</translation>
     </message>
@@ -19283,14 +19285,14 @@ Sumber: %3</translation>
         <translation type="unfinished">Keterangan di Bawah</translation>
     </message>
     <message>
-        <location line="+69"/>
-        <location line="+94"/>
+        <location line="+81"/>
+        <location line="+98"/>
         <location line="+10"/>
         <source>Change Chart</source>
         <translation type="unfinished">Ubah Bagan</translation>
     </message>
     <message>
-        <location line="-44"/>
+        <location line="-48"/>
         <source>Chart Data…</source>
         <translation type="unfinished">Data Bagan…</translation>
     </message>
@@ -19320,7 +19322,7 @@ Sumber: %3</translation>
         <translation type="unfinished">Format Sumbu Vertikal…</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="+12"/>
         <source>This chart has parts that are kept as they are, so its numbers can&apos;t be changed here.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -19333,7 +19335,7 @@ Sumber: %3</translation>
 <context>
     <name>jp::ChartButtons</name>
     <message>
-        <location filename="../libs/page/app/chartdesign.cpp" line="+563"/>
+        <location filename="../libs/page/app/chartdesign.cpp" line="+620"/>
         <source>Chart Elements</source>
         <translation type="unfinished">Elemen Bagan</translation>
     </message>
@@ -19351,27 +19353,56 @@ Sumber: %3</translation>
 <context>
     <name>jp::ChartData</name>
     <message>
-        <location filename="../libs/office/sheet/chartops.cpp" line="+311"/>
+        <location filename="../libs/office/sheet/chartembed.cpp" line="-46"/>
+        <source>The workbook kept with this chart can&apos;t be read, so its numbers can&apos;t be changed here.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>This chart reads cells of the workbook kept with it that can&apos;t be followed (another sheet or file, a block that is not one column or one row, or cells past the sheet&apos;s), so its numbers can&apos;t be changed here.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Some cells of the workbook kept with this chart hold a formula, a date, a formatted number used as a name, or something that is not a number or words, so its numbers can&apos;t be changed here.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The workbook kept with this chart is too large to edit here, so its numbers can&apos;t be changed here.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Some numbers of this chart are larger than 1,000,000,000,000,000, so its numbers can&apos;t be changed here.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+70"/>
+        <location filename="../libs/office/sheet/chartops.cpp" line="+321"/>
         <source>This chart has no series.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location filename="../libs/office/sheet/chartops.cpp" line="+1"/>
         <source>This chart follows a pivot table, so its numbers are the table&apos;s.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location filename="../libs/office/sheet/chartembed.cpp" line="-61"/>
+        <location line="+261"/>
+        <location filename="../libs/office/sheet/chartops.cpp" line="+2"/>
         <source>The numbers of this chart are in a workbook that is kept with it, so they can&apos;t be changed here.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location filename="../libs/office/sheet/chartops.cpp" line="+4"/>
         <source>This chart reads its numbers from cells, so they can&apos;t be changed here.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+12"/>
+        <location filename="../libs/office/sheet/chartembed.cpp" line="-269"/>
+        <location filename="../libs/office/sheet/chartops.cpp" line="+12"/>
         <source>This chart has more than %1 series or %2 points, or numbers that are not numbers, so its numbers can&apos;t be changed here.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -19379,7 +19410,7 @@ Sumber: %3</translation>
 <context>
     <name>jp::ChartDesign</name>
     <message>
-        <location filename="../libs/page/app/chartdesign.cpp" line="-499"/>
+        <location filename="../libs/page/app/chartdesign.cpp" line="-555"/>
         <source>The words, or = and a cell such as =Sheet1!A1 to show what that cell holds:</source>
         <translation type="unfinished">Kata, atau = dan sel seperti =Sheet1!A1 untuk menampilkan isi sel tersebut:</translation>
     </message>
@@ -19456,12 +19487,12 @@ Sumber: %3</translation>
         <location line="+8"/>
         <location line="+84"/>
         <location line="+15"/>
-        <location line="+59"/>
+        <location line="+81"/>
         <source>None</source>
         <translation>Tidak Ada</translation>
     </message>
     <message>
-        <location line="-165"/>
+        <location line="-187"/>
         <location line="+11"/>
         <source>Above</source>
         <translation type="unfinished">Di Atas</translation>
@@ -19797,6 +19828,43 @@ Sumber: %3</translation>
     </message>
     <message>
         <location line="+4"/>
+        <location line="+5"/>
+        <location line="+12"/>
+        <source>Data Table</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-12"/>
+        <source>Show Data Table</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>This file format doesn&apos;t keep a data table.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Lines Between Rows</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Lines Between Columns</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Outline</source>
+        <translation>Garis Tepi</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Legend Keys</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
         <location line="+3"/>
         <location line="+5"/>
         <location line="+4"/>
@@ -19889,8 +19957,14 @@ Sumber: %3</translation>
         <translation type="unfinished">Seri</translation>
     </message>
     <message>
-        <location line="+50"/>
+        <location line="+56"/>
+        <source>The numbers of this chart are cells of a workbook that is kept with it, so a row or column can&apos;t be added, taken away, or swapped here. Edit Data changes the numbers and names.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
         <location line="+5"/>
+        <location line="+4"/>
         <location line="+4"/>
         <source>Edit Data</source>
         <translation type="unfinished">Edit Data</translation>
@@ -19943,7 +20017,7 @@ Sumber: %3</translation>
 <context>
     <name>jp::ChartDialogs</name>
     <message>
-        <location filename="../libs/page/app/chartedit.cpp" line="+84"/>
+        <location filename="../libs/page/app/chartedit.cpp" line="+94"/>
         <source>Chart Title</source>
         <translation type="unfinished">Judul Bagan</translation>
     </message>
@@ -19993,17 +20067,22 @@ Sumber: %3</translation>
         <translation type="unfinished">Hapus Kolom Terakhir</translation>
     </message>
     <message>
+        <location line="+4"/>
+        <source>These are the cells of the workbook kept with the chart. The first column holds the words under the points. The first row holds the names of the series. The other cells are numbers.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location line="+29"/>
         <source>Row %1 has a cell that is not a number, so the data was not changed.</source>
         <translation type="unfinished">Baris %1 memiliki sel yang bukan angka, sehingga data tidak diubah.</translation>
     </message>
     <message>
-        <location line="-47"/>
+        <location line="-51"/>
         <source>The first column holds the words under the points. The first row holds the names of the series. The other cells are numbers.</source>
         <translation type="unfinished">Kolom pertama berisi kata-kata di bawah titik. Baris pertama berisi nama seri. Sel lainnya berupa angka.</translation>
     </message>
     <message>
-        <location line="-79"/>
+        <location line="-89"/>
         <source>This file already holds the most charts it can (%1), so no chart was added.</source>
         <translation type="unfinished">Berkas ini sudah memuat bagan paling banyak yang dapat ditampung (%1), sehingga bagan tidak ditambahkan.</translation>
     </message>
@@ -30594,7 +30673,7 @@ Berkas tidak dapat dibaca.</translation>
     </message>
     <message>
         <location line="+5"/>
-        <location filename="../apps/deck/app/deckwindow_file.cpp" line="+132"/>
+        <location filename="../apps/deck/app/deckwindow_file.cpp" line="+137"/>
         <location line="+1"/>
         <location line="+59"/>
         <location line="+1"/>
@@ -30606,7 +30685,7 @@ Berkas tidak dapat dibaca.</translation>
         <location filename="../apps/deck/app/deckwindow_actions.cpp" line="+267"/>
         <location line="+155"/>
         <location filename="../apps/deck/app/deckwindow_design.cpp" line="+164"/>
-        <location filename="../apps/deck/app/deckwindow_file.cpp" line="-149"/>
+        <location filename="../apps/deck/app/deckwindow_file.cpp" line="-153"/>
         <location filename="../apps/deck/app/deckwindow_media.cpp" line="+104"/>
         <location line="+102"/>
         <location filename="../apps/deck/app/deckwindow_picture.cpp" line="+130"/>
@@ -30830,7 +30909,7 @@ Berkas tidak dapat dibaca.</translation>
     </message>
     <message>
         <location line="+13"/>
-        <location filename="../apps/deck/app/deckwindow_menu.cpp" line="+95"/>
+        <location filename="../apps/deck/app/deckwindow_menu.cpp" line="+102"/>
         <source>Layout</source>
         <translation>Tata letak</translation>
     </message>
@@ -31547,7 +31626,7 @@ Berkas tidak dapat dibaca.</translation>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+87"/>
+        <location line="+91"/>
         <location filename="../apps/deck/app/deckwindow_media.cpp" line="-72"/>
         <location line="+97"/>
         <source>%1 can&apos;t open &quot;%2&quot;.
@@ -32048,7 +32127,7 @@ Berkas tidak dapat dibaca.</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/deck/app/deckwindow_menu.cpp" line="-59"/>
+        <location filename="../apps/deck/app/deckwindow_menu.cpp" line="-63"/>
         <source>Format Shape…</source>
         <translation type="unfinished">Format Bentuk…</translation>
     </message>
@@ -33863,12 +33942,12 @@ Berkas tidak dapat dibaca.</translation>
     </message>
     <message>
         <location line="+28"/>
-        <location line="+46"/>
+        <location line="+50"/>
         <source>Text Fit</source>
         <translation type="unfinished">Pas Teks</translation>
     </message>
     <message>
-        <location line="-43"/>
+        <location line="-47"/>
         <source>Do not autofit</source>
         <translation type="unfinished">Jangan Pas Otomatis</translation>
     </message>
@@ -33893,7 +33972,7 @@ Berkas tidak dapat dibaca.</translation>
         <translation>Perataan</translation>
     </message>
     <message>
-        <location line="+18"/>
+        <location line="+22"/>
         <source>Grid and Guides</source>
         <translation type="unfinished">Kisi dan Panduan</translation>
     </message>
@@ -46363,12 +46442,12 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <translation type="unfinished">Batal</translation>
     </message>
     <message>
-        <location line="+40"/>
+        <location line="+43"/>
         <source>Checking the password…</source>
         <translation type="unfinished">Memeriksa kata sandi…</translation>
     </message>
     <message>
-        <location line="+35"/>
+        <location line="+9"/>
         <source>This file is protected in a way this program doesn&apos;t read.</source>
         <translation type="unfinished">Berkas ini dilindungi dengan cara yang tidak dibaca program ini.</translation>
     </message>
@@ -53315,8 +53394,8 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+0"/>
         <location filename="../apps/write/app/writewindow_insert.cpp" line="+138"/>
-        <location filename="../apps/write/app/writewindow_pictures.cpp" line="+263"/>
-        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+550"/>
+        <location filename="../apps/write/app/writewindow_pictures.cpp" line="+264"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+570"/>
         <location line="+60"/>
         <location filename="../apps/write/app/writewindow_themes.cpp" line="+44"/>
         <source>All Files (*)</source>
@@ -54304,7 +54383,7 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-678"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-698"/>
         <source>Plain</source>
         <translation type="unfinished">Polos</translation>
     </message>
@@ -54418,7 +54497,7 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location line="+3"/>
-        <location filename="../apps/write/app/writewindow_pictures.cpp" line="+204"/>
+        <location filename="../apps/write/app/writewindow_pictures.cpp" line="+210"/>
         <source>Left</source>
         <translation>Kiri</translation>
     </message>
@@ -55066,7 +55145,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">%1 dikirim ke printer</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_pictures.cpp" line="-413"/>
+        <location filename="../apps/write/app/writewindow_pictures.cpp" line="-419"/>
         <source>Square 1:1</source>
         <translation type="unfinished">Persegi 1:1</translation>
     </message>
@@ -55278,7 +55357,7 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location line="+32"/>
-        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+441"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+461"/>
         <location line="+60"/>
         <source>Pictures (*.png *.jpg *.jpeg *.gif *.bmp *.tif *.tiff *.webp *.svg)</source>
         <translation type="unfinished">Gambar (*.png *.jpg *.jpeg *.gif *.bmp *.tif *.tiff *.webp *.svg)</translation>
@@ -55319,7 +55398,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Tidak ada gambar di Papan Klip.</translation>
     </message>
     <message>
-        <location line="+68"/>
+        <location line="+74"/>
         <source>Wrap Text</source>
         <translation type="unfinished">Tata Letak Teks</translation>
     </message>
@@ -56174,7 +56253,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Rata Kiri Tengah</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-759"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-779"/>
         <location line="+253"/>
         <source>Line</source>
         <translation type="unfinished">Garis</translation>
@@ -56312,12 +56391,12 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location line="+10"/>
-        <location line="+970"/>
+        <location line="+990"/>
         <source>Edit Points</source>
         <translation type="unfinished">Edit Titik</translation>
     </message>
     <message>
-        <location line="-967"/>
+        <location line="-987"/>
         <source>Drag a point to reshape. Ctrl+click a point to delete it, or the outline to add one. Press Esc when done.</source>
         <translation type="unfinished">Seret titik untuk mengubah bentuk. Ctrl+klik titik untuk menghapusnya, atau garis tepi untuk menambahkan titik. Tekan Esc jika sudah selesai.</translation>
     </message>
@@ -56694,12 +56773,12 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Format Sumbu Vertikal…</translation>
     </message>
     <message>
-        <location line="+179"/>
+        <location line="+195"/>
         <source>This chart has parts that are kept as they are, so its numbers can&apos;t be changed here.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+61"/>
+        <location line="+65"/>
         <source>Reset Picture &amp; Size</source>
         <translation type="unfinished"></translation>
     </message>
@@ -57157,7 +57236,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Pilih</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_pictures.cpp" line="-372"/>
+        <location filename="../apps/write/app/writewindow_pictures.cpp" line="-378"/>
         <location filename="../apps/write/app/writewindow_tables.cpp" line="+6"/>
         <source>Fit</source>
         <translation type="unfinished">Pas</translation>
@@ -57239,7 +57318,7 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location filename="../apps/write/app/writewindow_outline.cpp" line="+23"/>
-        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-926"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-946"/>
         <source>Outline</source>
         <translation type="unfinished">Garis Besar</translation>
     </message>
@@ -71528,7 +71607,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location filename="../apps/write/app/pageview_input.cpp" line="-176"/>
         <location filename="../apps/write/app/pageview_pictures.cpp" line="+18"/>
-        <location filename="../apps/write/core/pictureops.cpp" line="+2077"/>
+        <location filename="../apps/write/core/pictureops.cpp" line="+2078"/>
         <source>That shape can&apos;t be put here.</source>
         <translation type="unfinished">Bentuk itu tidak dapat disisipkan di sini.</translation>
     </message>
@@ -71580,20 +71659,20 @@ The password couldn&apos;t be put on the file.</source>
         <location filename="../apps/write/core/pictureops.cpp" line="-3715"/>
         <location line="+363"/>
         <location line="+789"/>
-        <location line="+2777"/>
+        <location line="+2842"/>
         <source>A picture can&apos;t be put in a header, a footer, or a note yet.</source>
         <translation type="unfinished">Gambar belum dapat disisipkan di header, footer, atau catatan.</translation>
     </message>
     <message>
-        <location line="-3885"/>
+        <location line="-3950"/>
         <location line="+344"/>
         <location line="+787"/>
-        <location line="+2779"/>
+        <location line="+2844"/>
         <source>A picture can&apos;t be put here, or this document holds as many pictures and drawn objects as JeffWrite can show.</source>
         <translation type="unfinished">Gambar tidak dapat disisipkan di sini, atau dokumen ini sudah memuat gambar dan objek gambar sebanyak yang dapat ditampilkan JeffWrite.</translation>
     </message>
     <message>
-        <location line="-3874"/>
+        <location line="-3939"/>
         <source>This document holds as many pictures and drawn objects as JeffWrite can show. Save it, and open it again, to change more.</source>
         <translation type="unfinished">Dokumen ini memuat gambar dan objek gambar sebanyak yang dapat ditampilkan JeffWrite. Simpan, lalu buka kembali, untuk mengubah lebih banyak.</translation>
     </message>
@@ -71621,12 +71700,13 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Kotak teks ini berisi lebih dari sekadar kata-kata (tabel, gambar, bidang, atau daftar), sehingga kata-katanya tidak dapat diedit di sini.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/chartops.cpp" line="-256"/>
+        <location filename="../libs/office/sheet/chartops.cpp" line="-267"/>
         <source>Series %1</source>
         <translation type="unfinished">Seri %1</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/pictureops.cpp" line="+1895"/>
+        <location filename="../apps/write/core/pictureops.cpp" line="+1912"/>
+        <location line="+59"/>
         <source>This chart has parts that JeffWrite does not change, so it is kept as it is.</source>
         <translation type="unfinished">Bagan ini memiliki bagian yang tidak diubah JeffWrite, sehingga tetap dibiarkan apa adanya.</translation>
     </message>
@@ -71656,7 +71736,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Seri 2</translation>
     </message>
     <message>
-        <location line="+139"/>
+        <location line="+147"/>
         <source>Chart Title</source>
         <translation type="unfinished">Judul Bagan</translation>
     </message>
@@ -72553,7 +72633,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">tabel dengan lebih banyak sel daripada yang disimpan</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/writedoc_export.cpp" line="+327"/>
+        <location filename="../apps/write/core/writedoc_export.cpp" line="+344"/>
         <source>drop caps (the letters are saved as ordinary ones)</source>
         <translation type="unfinished">huruf awal besar (huruf disimpan sebagai huruf biasa)</translation>
     </message>

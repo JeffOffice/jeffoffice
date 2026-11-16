@@ -1574,7 +1574,7 @@ Article de dernière page	4</translation>
     <message>
         <location filename="../libs/office/office/chart.cpp" line="+756"/>
         <location filename="../libs/office/sheet/chartdata.cpp" line="+440"/>
-        <location filename="../libs/office/sheet/chartedit.cpp" line="+972"/>
+        <location filename="../libs/office/sheet/chartedit.cpp" line="+1011"/>
         <location filename="../libs/office/sheet/chartmake.cpp" line="+470"/>
         <source>Series%1</source>
         <translation type="unfinished">Série%1</translation>
@@ -1590,8 +1590,8 @@ Article de dernière page	4</translation>
         <translation type="unfinished">Le graphique ne contient aucun dessin.</translation>
     </message>
     <message>
-        <location line="+129"/>
-        <location filename="../libs/office/sheet/chartedit.cpp" line="-832"/>
+        <location line="+142"/>
+        <location filename="../libs/office/sheet/chartedit.cpp" line="-871"/>
         <location filename="../libs/office/sheet/chartmake.cpp" line="-70"/>
         <location line="+9"/>
         <source>Chart Title</source>
@@ -1604,7 +1604,7 @@ Article de dernière page	4</translation>
         <translation type="unfinished">Titre de l&apos;axe</translation>
     </message>
     <message>
-        <location line="+63"/>
+        <location line="+71"/>
         <source>Units of %1</source>
         <translation type="unfinished">Unités de %1</translation>
     </message>
@@ -1654,7 +1654,7 @@ Article de dernière page	4</translation>
         <translation type="unfinished">Billions</translation>
     </message>
     <message>
-        <location filename="../libs/office/office/chart_svg.cpp" line="+2080"/>
+        <location filename="../libs/office/office/chart_svg.cpp" line="+2147"/>
         <source>Chart</source>
         <translation type="unfinished">Graphique</translation>
     </message>
@@ -1685,7 +1685,7 @@ Article de dernière page	4</translation>
         <translation type="unfinished">Ce n&apos;est pas un modèle de graphique.</translation>
     </message>
     <message>
-        <location line="+303"/>
+        <location line="+342"/>
         <source>Colorful</source>
         <translation type="unfinished">Multicolore</translation>
     </message>
@@ -7808,7 +7808,7 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
 <context>
     <name>NewPasswordDialog</name>
     <message>
-        <location filename="../libs/shell/app/passworddialogs.cpp" line="+60"/>
+        <location filename="../libs/shell/app/passworddialogs.cpp" line="+61"/>
         <source>Encrypt with Password</source>
         <translation type="unfinished">Chiffrer avec un mot de passe</translation>
     </message>
@@ -8980,8 +8980,8 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
     <message>
         <location line="+14"/>
         <location line="+22"/>
-        <source>The presentation is protected with a password, which %1 can&apos;t open yet.</source>
-        <translation type="unfinished">La présentation est protégée par un mot de passe, que %1 ne peut pas encore ouvrir.</translation>
+        <source>The presentation is protected with a password, so it has to be opened with the password.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="-20"/>
@@ -9255,7 +9255,7 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
 <context>
     <name>PptxImport</name>
     <message>
-        <location filename="../apps/deck/io/pptximport.cpp" line="+361"/>
+        <location filename="../apps/deck/io/pptximport.cpp" line="+362"/>
         <source>Only the first %1 comments and replies of the file are read.</source>
         <translation type="unfinished">Seuls les %1 premiers commentaires et réponses du fichier sont lus.</translation>
     </message>
@@ -13615,12 +13615,13 @@ Ouvrez-le dans votre logiciel de messagerie, ajoutez les destinataires et envoye
         <translation type="unfinished">Le nom d&apos;une feuille est plus long que dans tout fichier réel.</translation>
     </message>
     <message>
-        <location line="+70"/>
+        <location filename="../libs/office/sheet/chartembed.cpp" line="+118"/>
+        <location filename="../libs/office/sheet/sheetreader.cpp" line="+70"/>
         <source>The sheet would take more memory to hold than any real file&apos;s does.</source>
         <translation type="unfinished">La feuille nécessiterait plus de mémoire que celle de tout fichier réel.</translation>
     </message>
     <message>
-        <location line="+114"/>
+        <location filename="../libs/office/sheet/sheetreader.cpp" line="+114"/>
         <location line="+4"/>
         <source>A row is outside the sheet.</source>
         <translation type="unfinished">Une ligne se trouve en dehors de la feuille.</translation>
@@ -13683,13 +13684,14 @@ Ouvrez-le dans votre logiciel de messagerie, ajoutez les destinataires et envoye
         <translation type="unfinished">La lecture a été interrompue.</translation>
     </message>
     <message>
-        <location line="-417"/>
+        <location filename="../libs/office/sheet/chartembed.cpp" line="+0"/>
+        <location filename="../libs/office/sheet/sheetreader.cpp" line="-417"/>
         <location filename="../libs/office/sheet/xls.cpp" line="-589"/>
         <source>The sheet has more cells than any real file has.</source>
         <translation type="unfinished">La feuille contient plus de cellules qu&apos;aucun fichier réel.</translation>
     </message>
     <message>
-        <location line="+448"/>
+        <location filename="../libs/office/sheet/sheetreader.cpp" line="+448"/>
         <location line="+508"/>
         <source>The part is not a worksheet.</source>
         <translation type="unfinished">La partie n&apos;est pas une feuille de calcul.</translation>
@@ -19133,7 +19135,7 @@ Source : %3</translation>
 <context>
     <name>jp::Chart</name>
     <message>
-        <location filename="../libs/page/core/chartobject.cpp" line="+139"/>
+        <location filename="../libs/page/core/chartobject.cpp" line="+190"/>
         <location line="+1"/>
         <source>Chart</source>
         <translation type="unfinished">Graphique</translation>
@@ -19202,19 +19204,19 @@ Source : %3</translation>
         <translation type="unfinished">Nuage de points</translation>
     </message>
     <message>
-        <location line="+44"/>
+        <location line="+45"/>
         <source>This chart has parts that are kept as they are, so it can&apos;t be changed here.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+37"/>
-        <location line="+94"/>
+        <location line="+48"/>
+        <location line="+98"/>
         <location line="+10"/>
         <source>Change Chart</source>
         <translation type="unfinished">Modifier le graphique</translation>
     </message>
     <message>
-        <location line="-89"/>
+        <location line="-93"/>
         <location line="+44"/>
         <source>Edit Data…</source>
         <translation type="unfinished">Modifier les données…</translation>
@@ -19305,7 +19307,7 @@ Source : %3</translation>
         <translation type="unfinished">Mettre en forme l&apos;axe vertical…</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="+12"/>
         <source>This chart has parts that are kept as they are, so its numbers can&apos;t be changed here.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -19315,7 +19317,7 @@ Source : %3</translation>
         <translation type="unfinished">Modifier les données du graphique</translation>
     </message>
     <message>
-        <location line="-158"/>
+        <location line="-174"/>
         <source>No Legend</source>
         <translation type="unfinished">Aucune légende</translation>
     </message>
@@ -19343,7 +19345,7 @@ Source : %3</translation>
 <context>
     <name>jp::ChartButtons</name>
     <message>
-        <location filename="../libs/page/app/chartdesign.cpp" line="+563"/>
+        <location filename="../libs/page/app/chartdesign.cpp" line="+620"/>
         <source>Chart Elements</source>
         <translation type="unfinished">Éléments du graphique</translation>
     </message>
@@ -19361,27 +19363,56 @@ Source : %3</translation>
 <context>
     <name>jp::ChartData</name>
     <message>
-        <location filename="../libs/office/sheet/chartops.cpp" line="+311"/>
+        <location filename="../libs/office/sheet/chartembed.cpp" line="-46"/>
+        <source>The workbook kept with this chart can&apos;t be read, so its numbers can&apos;t be changed here.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>This chart reads cells of the workbook kept with it that can&apos;t be followed (another sheet or file, a block that is not one column or one row, or cells past the sheet&apos;s), so its numbers can&apos;t be changed here.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Some cells of the workbook kept with this chart hold a formula, a date, a formatted number used as a name, or something that is not a number or words, so its numbers can&apos;t be changed here.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The workbook kept with this chart is too large to edit here, so its numbers can&apos;t be changed here.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Some numbers of this chart are larger than 1,000,000,000,000,000, so its numbers can&apos;t be changed here.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+70"/>
+        <location filename="../libs/office/sheet/chartops.cpp" line="+321"/>
         <source>This chart has no series.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location filename="../libs/office/sheet/chartops.cpp" line="+1"/>
         <source>This chart follows a pivot table, so its numbers are the table&apos;s.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location filename="../libs/office/sheet/chartembed.cpp" line="-61"/>
+        <location line="+261"/>
+        <location filename="../libs/office/sheet/chartops.cpp" line="+2"/>
         <source>The numbers of this chart are in a workbook that is kept with it, so they can&apos;t be changed here.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location filename="../libs/office/sheet/chartops.cpp" line="+4"/>
         <source>This chart reads its numbers from cells, so they can&apos;t be changed here.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+12"/>
+        <location filename="../libs/office/sheet/chartembed.cpp" line="-269"/>
+        <location filename="../libs/office/sheet/chartops.cpp" line="+12"/>
         <source>This chart has more than %1 series or %2 points, or numbers that are not numbers, so its numbers can&apos;t be changed here.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -19389,7 +19420,7 @@ Source : %3</translation>
 <context>
     <name>jp::ChartDesign</name>
     <message>
-        <location filename="../libs/page/app/chartdesign.cpp" line="-499"/>
+        <location filename="../libs/page/app/chartdesign.cpp" line="-555"/>
         <source>The words, or = and a cell such as =Sheet1!A1 to show what that cell holds:</source>
         <translation type="unfinished">Les mots, ou = et une cellule telle que =Feuille1!A1 pour afficher le contenu de cette cellule :</translation>
     </message>
@@ -19466,12 +19497,12 @@ Source : %3</translation>
         <location line="+8"/>
         <location line="+84"/>
         <location line="+15"/>
-        <location line="+59"/>
+        <location line="+81"/>
         <source>None</source>
         <translation>Aucun</translation>
     </message>
     <message>
-        <location line="-165"/>
+        <location line="-187"/>
         <location line="+11"/>
         <source>Above</source>
         <translation type="unfinished">Au-dessus</translation>
@@ -19807,6 +19838,43 @@ Source : %3</translation>
     </message>
     <message>
         <location line="+4"/>
+        <location line="+5"/>
+        <location line="+12"/>
+        <source>Data Table</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-12"/>
+        <source>Show Data Table</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>This file format doesn&apos;t keep a data table.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Lines Between Rows</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Lines Between Columns</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Outline</source>
+        <translation>Plan</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Legend Keys</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
         <location line="+3"/>
         <location line="+5"/>
         <location line="+4"/>
@@ -19899,8 +19967,14 @@ Source : %3</translation>
         <translation type="unfinished">Série</translation>
     </message>
     <message>
-        <location line="+50"/>
+        <location line="+56"/>
+        <source>The numbers of this chart are cells of a workbook that is kept with it, so a row or column can&apos;t be added, taken away, or swapped here. Edit Data changes the numbers and names.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
         <location line="+5"/>
+        <location line="+4"/>
         <location line="+4"/>
         <source>Edit Data</source>
         <translation type="unfinished">Modifier les données</translation>
@@ -19963,7 +20037,7 @@ Source : %3</translation>
         <translation type="unfinished">Insérer un graphique</translation>
     </message>
     <message>
-        <location line="+54"/>
+        <location line="+64"/>
         <source>Chart Title</source>
         <translation type="unfinished">Titre du graphique</translation>
     </message>
@@ -20013,12 +20087,17 @@ Source : %3</translation>
         <translation type="unfinished">Supprimer la dernière colonne</translation>
     </message>
     <message>
+        <location line="+4"/>
+        <source>These are the cells of the workbook kept with the chart. The first column holds the words under the points. The first row holds the names of the series. The other cells are numbers.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location line="+29"/>
         <source>Row %1 has a cell that is not a number, so the data was not changed.</source>
         <translation type="unfinished">La ligne %1 contient une cellule qui n&apos;est pas un nombre ; les données n&apos;ont donc pas été modifiées.</translation>
     </message>
     <message>
-        <location line="-47"/>
+        <location line="-51"/>
         <source>The first column holds the words under the points. The first row holds the names of the series. The other cells are numbers.</source>
         <translation type="unfinished">La première colonne contient les libellés sous les points. La première ligne contient les noms des séries. Les autres cellules sont des nombres.</translation>
     </message>
@@ -30617,7 +30696,7 @@ Le fichier est illisible.</translation>
     </message>
     <message>
         <location line="+5"/>
-        <location filename="../apps/deck/app/deckwindow_file.cpp" line="+132"/>
+        <location filename="../apps/deck/app/deckwindow_file.cpp" line="+137"/>
         <location line="+1"/>
         <location line="+59"/>
         <location line="+1"/>
@@ -30629,7 +30708,7 @@ Le fichier est illisible.</translation>
         <location filename="../apps/deck/app/deckwindow_actions.cpp" line="+267"/>
         <location line="+155"/>
         <location filename="../apps/deck/app/deckwindow_design.cpp" line="+164"/>
-        <location filename="../apps/deck/app/deckwindow_file.cpp" line="-149"/>
+        <location filename="../apps/deck/app/deckwindow_file.cpp" line="-153"/>
         <location filename="../apps/deck/app/deckwindow_media.cpp" line="+104"/>
         <location line="+102"/>
         <location filename="../apps/deck/app/deckwindow_picture.cpp" line="+130"/>
@@ -30853,7 +30932,7 @@ Le fichier est illisible.</translation>
     </message>
     <message>
         <location line="+13"/>
-        <location filename="../apps/deck/app/deckwindow_menu.cpp" line="+95"/>
+        <location filename="../apps/deck/app/deckwindow_menu.cpp" line="+102"/>
         <source>Layout</source>
         <translation>Disposition</translation>
     </message>
@@ -31570,7 +31649,7 @@ Le fichier est illisible.</translation>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+87"/>
+        <location line="+91"/>
         <location filename="../apps/deck/app/deckwindow_media.cpp" line="-72"/>
         <location line="+97"/>
         <source>%1 can&apos;t open &quot;%2&quot;.
@@ -32072,7 +32151,7 @@ Le fichier est illisible.</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/deck/app/deckwindow_menu.cpp" line="-59"/>
+        <location filename="../apps/deck/app/deckwindow_menu.cpp" line="-63"/>
         <source>Format Shape…</source>
         <translation type="unfinished">Format de la forme…</translation>
     </message>
@@ -33881,12 +33960,12 @@ Le fichier est illisible.</translation>
     </message>
     <message>
         <location line="+28"/>
-        <location line="+46"/>
+        <location line="+50"/>
         <source>Text Fit</source>
         <translation type="unfinished">Ajustement du texte</translation>
     </message>
     <message>
-        <location line="-43"/>
+        <location line="-47"/>
         <source>Do not autofit</source>
         <translation type="unfinished">Ne pas ajuster automatiquement</translation>
     </message>
@@ -33911,7 +33990,7 @@ Le fichier est illisible.</translation>
         <translation>Alignement</translation>
     </message>
     <message>
-        <location line="+18"/>
+        <location line="+22"/>
         <source>Grid and Guides</source>
         <translation type="unfinished">Grille et repères</translation>
     </message>
@@ -46396,12 +46475,12 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
         <translation type="unfinished">Annuler</translation>
     </message>
     <message>
-        <location line="+40"/>
+        <location line="+43"/>
         <source>Checking the password…</source>
         <translation type="unfinished">Vérification du mot de passe…</translation>
     </message>
     <message>
-        <location line="+35"/>
+        <location line="+9"/>
         <source>This file is protected in a way this program doesn&apos;t read.</source>
         <translation type="unfinished">Ce fichier est protégé d&apos;une manière que ce programme ne sait pas lire.</translation>
     </message>
@@ -53451,12 +53530,12 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
     </message>
     <message>
         <location line="+10"/>
-        <location line="+970"/>
+        <location line="+990"/>
         <source>Edit Points</source>
         <translation type="unfinished">Modifier les points</translation>
     </message>
     <message>
-        <location line="-967"/>
+        <location line="-987"/>
         <source>Drag a point to reshape. Ctrl+click a point to delete it, or the outline to add one. Press Esc when done.</source>
         <translation type="unfinished">Faites glisser un point pour le remodeler. Ctrl+clic sur un point pour le supprimer, ou sur le contour pour en ajouter un. Appuyez sur Échap une fois terminé.</translation>
     </message>
@@ -53827,12 +53906,12 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
         <translation type="unfinished">Mettre en forme l&apos;axe vertical…</translation>
     </message>
     <message>
-        <location line="+179"/>
+        <location line="+195"/>
         <source>This chart has parts that are kept as they are, so its numbers can&apos;t be changed here.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+61"/>
+        <location line="+65"/>
         <source>Reset Picture &amp; Size</source>
         <translation type="unfinished"></translation>
     </message>
@@ -54220,7 +54299,7 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
         <translation type="unfinished">Sélectionner</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_pictures.cpp" line="+102"/>
+        <location filename="../apps/write/app/writewindow_pictures.cpp" line="+103"/>
         <location filename="../apps/write/app/writewindow_tables.cpp" line="+6"/>
         <source>Fit</source>
         <translation type="unfinished">Ajuster</translation>
@@ -55079,7 +55158,7 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location line="+3"/>
-        <location filename="../apps/write/app/writewindow_pictures.cpp" line="+204"/>
+        <location filename="../apps/write/app/writewindow_pictures.cpp" line="+210"/>
         <source>Left</source>
         <translation>Gauche</translation>
     </message>
@@ -55873,7 +55952,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Insérer une note de fin</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_pictures.cpp" line="-413"/>
+        <location filename="../apps/write/app/writewindow_pictures.cpp" line="-419"/>
         <source>Square 1:1</source>
         <translation type="unfinished">Carré 1:1</translation>
     </message>
@@ -56126,7 +56205,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Le presse-papiers ne contient aucune image.</translation>
     </message>
     <message>
-        <location line="+68"/>
+        <location line="+74"/>
         <source>Wrap Text</source>
         <translation type="unfinished">Habillage du texte</translation>
     </message>
@@ -56701,7 +56780,7 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-688"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-708"/>
         <source>Plain</source>
         <translation type="unfinished">Simple</translation>
     </message>
@@ -71581,7 +71660,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location filename="../apps/write/app/pageview_input.cpp" line="-176"/>
         <location filename="../apps/write/app/pageview_pictures.cpp" line="+18"/>
-        <location filename="../apps/write/core/pictureops.cpp" line="+2077"/>
+        <location filename="../apps/write/core/pictureops.cpp" line="+2078"/>
         <source>That shape can&apos;t be put here.</source>
         <translation type="unfinished">Cette forme ne peut pas être placée ici.</translation>
     </message>
@@ -71633,20 +71712,20 @@ The password couldn&apos;t be put on the file.</source>
         <location filename="../apps/write/core/pictureops.cpp" line="-3715"/>
         <location line="+363"/>
         <location line="+789"/>
-        <location line="+2777"/>
+        <location line="+2842"/>
         <source>A picture can&apos;t be put in a header, a footer, or a note yet.</source>
         <translation type="unfinished">Il n&apos;est pas encore possible d&apos;insérer une image dans un en-tête, un pied de page ou une note.</translation>
     </message>
     <message>
-        <location line="-3885"/>
+        <location line="-3950"/>
         <location line="+344"/>
         <location line="+787"/>
-        <location line="+2779"/>
+        <location line="+2844"/>
         <source>A picture can&apos;t be put here, or this document holds as many pictures and drawn objects as JeffWrite can show.</source>
         <translation type="unfinished">Impossible d&apos;insérer une image ici, ou ce document contient déjà autant d&apos;images et d&apos;objets dessinés que JeffWrite peut en afficher.</translation>
     </message>
     <message>
-        <location line="-3874"/>
+        <location line="-3939"/>
         <source>This document holds as many pictures and drawn objects as JeffWrite can show. Save it, and open it again, to change more.</source>
         <translation type="unfinished">Ce document contient autant d&apos;images et d&apos;objets dessinés que JeffWrite peut en afficher. Enregistrez-le, puis rouvrez-le pour effectuer d&apos;autres modifications.</translation>
     </message>
@@ -71674,12 +71753,13 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Cette zone de texte contient autre chose que du texte (un tableau, une image, un champ ou une liste), son texte ne peut donc pas être modifié ici.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/chartops.cpp" line="-256"/>
+        <location filename="../libs/office/sheet/chartops.cpp" line="-267"/>
         <source>Series %1</source>
         <translation type="unfinished">Série %1</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/pictureops.cpp" line="+1895"/>
+        <location filename="../apps/write/core/pictureops.cpp" line="+1912"/>
+        <location line="+59"/>
         <source>This chart has parts that JeffWrite does not change, so it is kept as it is.</source>
         <translation type="unfinished">Ce graphique contient des éléments que JeffWrite ne modifie pas ; il est donc conservé tel quel.</translation>
     </message>
@@ -71709,7 +71789,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Série 2</translation>
     </message>
     <message>
-        <location line="+139"/>
+        <location line="+147"/>
         <source>Chart Title</source>
         <translation type="unfinished">Titre du graphique</translation>
     </message>
@@ -72606,7 +72686,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">tableau contenant plus de cellules que le nombre conservé</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/writedoc_export.cpp" line="+327"/>
+        <location filename="../apps/write/core/writedoc_export.cpp" line="+344"/>
         <source>drop caps (the letters are saved as ordinary ones)</source>
         <translation type="unfinished">lettrines (les lettres sont enregistrées comme des lettres ordinaires)</translation>
     </message>
