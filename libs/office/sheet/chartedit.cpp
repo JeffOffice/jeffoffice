@@ -637,9 +637,7 @@ void setPlotLines(Chart *chart, PlotLines kind, bool on)
 
 bool dataTableApplies(const Chart &chart)
 {
-    if (chart.plots.isEmpty()) return false;
-    const ChartPlot &first = chart.plots.first();
-    return (first.type == ChartType::Bar && !first.horizontal) || first.type == ChartType::Line || first.type == ChartType::Area;
+    return chartAllowsDataTable(chart);
 }
 
 bool dataTableOn(const Chart &chart, DataTablePart part)

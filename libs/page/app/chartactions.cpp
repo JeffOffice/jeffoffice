@@ -57,6 +57,7 @@ class EditorChartHost : public ChartDesignHost {
 public:
     EditorChartHost(Editor *ed, QWidget *window, const std::function<void(const QString &)> &notice, const std::function<void()> &done) : m_ed(ed), m_window(window), m_notice(notice), m_done(done) {}
     QWidget *chartParent() override { return m_window; }
+    bool chartKeepsDataTable() const override { return !isOpenDocumentPath(m_ed->filePath()); }
     bool chartNow(office::Chart *out) override
     {
         const PictureItem *pic = selectedChart(m_ed);

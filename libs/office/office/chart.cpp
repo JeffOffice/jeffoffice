@@ -1192,8 +1192,8 @@ bool Reader::read(const QDomElement &root, QString *error)
             t.font = readTxPr(cChild(table, "txPr"));
             const QDomElement tableProps = cChild(table, "spPr");
             t.line = readLine(tableProps);
-            QColor ignored;
-            t.kept = keptIn(tableProps, ignored);
+            readFill(tableProps, &t.fill, &t.noFill);
+            t.kept = keptIn(tableProps, t.fill);
         }
         const QDomElement spPr = cChild(area, "spPr");
         bool none = false;
@@ -1256,6 +1256,14 @@ bool Reader::read(const QDomElement &root, QString *error)
 }
 
 } // namespace
+
+bool chartAllowsDataTable(const Chart &chart)
+{
+    if (chart.plots.isEmpty()) return false;
+    for (const ChartPlot &p : chart.plots)
+        if (!((p.type == ChartType::Bar && !p.horizontal) || p.type == ChartType::Line || p.type == ChartType::Area)) return false;
+    return true;
+}
 
 // ---- frames
 

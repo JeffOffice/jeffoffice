@@ -311,7 +311,6 @@ private Q_SLOTS:
         QVERIFY(!jp::chartOwnData(chart, &out));
     }
 
-    // The names are JeffCrunch's: one name for one thing in every program.
     // The Chart Parts menu has a Data Table list: the table on and off, and its four options (alone, and only while the table is on); each is one step, drawn on the slide, and kept in the file.
     void theChartPartsMenuHasADataTableAndItsOptions()
     {
@@ -352,6 +351,12 @@ private Q_SLOTS:
         QVERIFY(chart().dataTable.present && !chart().dataTable.keys);
         ed->undo();
         QVERIFY(!chart().dataTable.present);
+        // a deck saved as an OpenDocument file does not keep a table: the entry is off, with the reason
+        ed->setFilePath(QStringLiteral("/tmp/none.odp"));
+        QAction *shown = findChartMenuEntry(menu, QStringLiteral("dataTableMenu.Show Data Table"));
+        QVERIFY(shown && !shown->isEnabled() && shown->toolTip().contains(QStringLiteral("doesn't keep a data table")));
+        ed->setFilePath(QStringLiteral("/tmp/none.pptx"));
+        QVERIFY(findChartMenuEntry(menu, QStringLiteral("dataTableMenu.Show Data Table"))->isEnabled());
         // a pie has none
         w.act(QStringLiteral("insert.chart.pie"))->trigger();
         QMenu *pieMenu = w.chartActions()->elementsMenu(&w);
@@ -438,6 +443,7 @@ private Q_SLOTS:
         for (QAction *a : entries(menu.get())) QVERIFY(!a);
     }
 
+    // The names are JeffCrunch's: one name for one thing in every program.
     void theChartTabAndItsCommandsHaveJeffCrunchsNames()
     {
         DeckWindow w;

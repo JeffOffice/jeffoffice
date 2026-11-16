@@ -35,6 +35,8 @@ public:
     virtual void chartNotice(const QString &title, const QString &text, bool warning = true) = 0;
     // A short text (the words of a title, a format code); false when cancelled.
     virtual bool askChartText(const QString &caption, const QString &prompt, QString *text);
+    // Whether the file the chart is in keeps a data table (an OpenDocument file does not: its charts are saved without one). The Data Table entries are off, with the reason, when not.
+    virtual bool chartKeepsDataTable() const { return true; }
     // Whether the chart's cells are there to be named: titles and labels may follow cells, and error bars may read them. An app with none keeps its charts' data in the charts.
     virtual bool chartHasCells() const { return false; }
     // `typed` made into a reference that is good for the chart ("Sheet1!$A$1"), one cell or a range; empty (after telling the person) when it names none.
@@ -116,6 +118,9 @@ private:
     std::function<QIcon(const QString &)> m_icon;
     QToolButton *m_elements = nullptr, *m_looks = nullptr, *m_filters = nullptr;
 };
+
+// Whether a file's ending is an OpenDocument one (.odt, .ods, .odp, their templates, and their flat forms).
+JO_COMMON_EXPORT bool isOpenDocumentPath(const QString &path);
 
 // The chart entries of the right-click menu of a selected chart, the same in every program: Chart Data, Swap Rows and Columns, Chart Kind, Format Chart Part, and the two axes, each the window's own
 // action `chartdesign.*` (found with `find`), so that an entry that is off says why in its tooltip, as the Chart tab's does. The menu shows tooltips.

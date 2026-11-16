@@ -3,8 +3,6 @@
 // entries for the chart that is selected) and finds an entry by its object name, which is its menu's name, a dot, and the entry's English words ("chartTitleMenu.Above"), never by the text it
 // shows, which is in the language of the program.
 #include <QAction>
-#include <QCoreApplication>
-#include <QEvent>
 #include <QMenu>
 #include <QMetaObject>
 #include <QString>
@@ -12,8 +10,6 @@
 inline QAction *findChartMenuEntry(QMenu *menu, const QString &objectName)
 {
     QMetaObject::invokeMethod(menu, "aboutToShow", Qt::DirectConnection);
-    // (the entries of the last time are gone for good, so that the one found is the new one)
-    QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
     // (a submenu of the last time is not deleted with its entries: the last found is the new one)
     const QList<QAction *> found = menu->findChildren<QAction *>(objectName);
     return found.isEmpty() ? nullptr : found.last();

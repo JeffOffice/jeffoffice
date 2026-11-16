@@ -1660,6 +1660,7 @@ private:
     void chartNotice(const QString &title, const QString &text, bool warning) override;
     bool askChartText(const QString &caption, const QString &prompt, QString *text) override;
     bool chartHasCells() const override { return true; }
+    bool chartKeepsDataTable() const override { return !isOpenDocumentPath(m_path); }
     QString chartCellRef(const QString &typed, bool oneCell, const QString &caption) override;
     void chartReadCells(jp::office::Chart *chart) override;
     ChartDesign *m_design = nullptr;

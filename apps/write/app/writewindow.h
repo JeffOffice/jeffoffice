@@ -425,6 +425,7 @@ private:
     void placeChartButtons();
     // (the shared chart editor, app/chartdesign.h, asks these of the window)
     QWidget *chartParent() override { return this; }
+    bool chartKeepsDataTable() const override { return !isOpenDocumentPath(m_path); }
     bool chartNow(office::Chart *out) override;
     office::Theme chartTheme() override;
     bool changeChart(const QString &label, const std::function<void(office::Chart *)> &edit) override;

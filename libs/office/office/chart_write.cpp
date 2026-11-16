@@ -775,14 +775,14 @@ private:
         else w.writeEmptyElement(QStringLiteral("c:layout"));
         for (const ChartPlot &p : c.plots) plot(p);
         for (const ChartAxis &a : c.axes) axis(a);
-        if (c.dataTable.present) {
+        if (c.dataTable.present && chartAllowsDataTable(c)) {
             const ChartDataTable &t = c.dataTable;
             w.writeStartElement(QStringLiteral("c:dTable"));
             flag("c:showHorzBorder", t.horzBorder);
             flag("c:showVertBorder", t.vertBorder);
             flag("c:showOutline", t.outline);
             flag("c:showKeys", t.keys);
-            shapeProps(QColor(), false, t.line, QColor(), 0, false, &t.kept);
+            shapeProps(t.fill, t.noFill, t.line, QColor(), 0, false, &t.kept);
             if (hasFont(t.font)) textProps(t.font, false, 0);
             w.writeEndElement();
         }

@@ -8,6 +8,7 @@
 
 #include <QActionGroup>
 #include <QCoreApplication>
+#include <QFileInfo>
 #include <QImage>
 #include <QInputDialog>
 #include <QLineEdit>
@@ -275,7 +276,13 @@ QMenu *ChartDesign::elementsMenu(QWidget *owner)
             QMenu *table = menu->addMenu(tr("Data Table"));
             table->setObjectName(QStringLiteral("dataTableMenu"));
             const bool shown = dataTableOn(chart, DataTablePart::Table);
-            check(table, tr("Show Data Table"), shown, [on = !shown](Chart *c) { setDataTable(c, DataTablePart::Table, on); }, tr("Data Table"), "Show Data Table");
+            const bool kept = m_host->chartKeepsDataTable();
+            table->setToolTipsVisible(true);
+            QAction *show = check(table, tr("Show Data Table"), shown, [on = !shown](Chart *c) { setDataTable(c, DataTablePart::Table, on); }, tr("Data Table"), "Show Data Table");
+            if (!kept) {
+                show->setEnabled(false);
+                show->setToolTip(tr("This file format doesn't keep a data table."));
+            }
             table->addSeparator();
             const struct { const char *name; DataTablePart part; } options[] = {{QT_TRANSLATE_NOOP("jp::ChartDesign", "Lines Between Rows"), DataTablePart::RowLines},
                                                                                 {QT_TRANSLATE_NOOP("jp::ChartDesign", "Lines Between Columns"), DataTablePart::ColumnLines},
@@ -284,7 +291,7 @@ QMenu *ChartDesign::elementsMenu(QWidget *owner)
             for (const auto &o : options) {
                 const bool on = dataTableOn(chart, o.part);
                 QAction *a = check(table, QCoreApplication::translate("jp::ChartDesign", o.name), on, [part = o.part, on = !on](Chart *c) { setDataTable(c, part, on); }, tr("Data Table"), o.name);
-                a->setEnabled(shown);
+                a->setEnabled(shown && kept);
             }
         }
         if (chart.type() != ChartType::Pie && chart.type() != ChartType::Doughnut) {
@@ -540,6 +547,13 @@ void ChartDesign::formatPart(int part)
     if (dialog.exec() != QDialog::Accepted) return;
     const Chart made = dialog.result();
     m_host->changeChart(tr("Format Chart Part"), [made](Chart *c) { *c = made; });
+}
+
+bool isOpenDocumentPath(const QString &path)
+{
+    static const QStringList endings = {QStringLiteral("odt"), QStringLiteral("ods"), QStringLiteral("odp"), QStringLiteral("ott"), QStringLiteral("ots"), QStringLiteral("otp"),
+                                        QStringLiteral("fodt"), QStringLiteral("fods"), QStringLiteral("fodp")};
+    return endings.contains(QFileInfo(path).suffix().toLower());
 }
 
 void addChartContextEntries(QMenu *menu, const std::function<QAction *(const QString &)> &find)

@@ -265,6 +265,8 @@ struct ChartDataTable {
     bool present = false;
     bool horzBorder = false, vertBorder = false, outline = false, keys = false;   // the lines between the rows, between the columns, around the table, and the series' keys beside the names
     ChartLine line;                 // how the lines look
+    QColor fill;                    // the table's own fill; invalid for none said
+    bool noFill = false;            // the file says no fill
     ChartFont font;
     ChartKept kept;                 // of the table's c:spPr
 };
@@ -338,6 +340,10 @@ bool readChart(const QByteArray &chartPartXml, const Theme &theme, const ColorMa
 
 // How many characters of number format codes were parsed on this thread since it began (a code past what a spreadsheet allows is not parsed): a count for tests of cost.
 qint64 chartFormatCharsReadForTest();
+
+// Whether a chart can have a data table: every plot is columns, lines, or areas (not bars across, scatter, pie, or a kind drawn as Other). One rule for what is drawn, what is written, and what the
+// menus offer.
+bool chartAllowsDataTable(const Chart &chart);
 
 // The largest a chart is drawn on a side, in points: the longest side a
 // slide has (56 inches). A frame that asks for more is drawn this large.

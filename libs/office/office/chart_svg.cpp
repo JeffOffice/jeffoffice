@@ -1482,11 +1482,15 @@ void ChartPainter::paintAxes(const QRectF &outer)
         bool line;
     };
     QVector<TableRow> tableRows;
-    if (c.dataTable.present && !scatter && !m_swap && m_n > 0 && m_n <= kChartDataTableMax) {
+    if (c.dataTable.present && chartAllowsDataTable(c) && m_n > 0 && m_n <= kChartDataTableMax) {
         for (const ChartPlot &plot : c.plots)
             for (const ChartSeries &s : plot.series) tableRows << TableRow{&s, plot.type == ChartType::Line};
         if (tableRows.size() > kChartDataTableMax) tableRows.clear();
     }
+    // (a table taller than half the chart, from a very large font, is not drawn: the plot area keeps its room)
+    const QFont tableFont = fontOf(c.dataTable.font, 10, false);
+    const double tableRowH = heightOf(tableFont) + 4;
+    if (!tableRows.isEmpty() && (tableRows.size() + 1) * tableRowH > outer.height() / 2) tableRows.clear();
     const bool tableOn = !tableRows.isEmpty();
     if (tableOn) m_between = true;   // (the columns of the table stand under the categories, which sit between marks)
     for (View &v : m_views) stack(&v);
@@ -1582,8 +1586,7 @@ void ChartPainter::paintAxes(const QRectF &outer)
     const double valLineH = heightOf(valFont), catLineH = heightOf(catFont);
     const QStringList cats = categoryLabels();
     // The table's size: a row for the categories and one for each series, and a column for the series' names (with their keys) on the left.
-    const QFont tableFont = fontOf(c.dataTable.font, 10, false);
-    const double tableRowH = heightOf(tableFont) + 4, tableH = tableOn ? (tableRows.size() + 1) * tableRowH : 0;
+    const double tableH = tableOn ? (tableRows.size() + 1) * tableRowH : 0;
     double tableNameW = 0;
     for (const TableRow &row : std::as_const(tableRows)) tableNameW = std::max(tableNameW, widthOf(tableFont, writable(row.series->name, kChartMaxLabel)));
     if (tableOn) tableNameW = std::min(tableNameW, outer.width() / 4) + (c.dataTable.keys ? 16 : 0) + 8;
@@ -1633,7 +1636,15 @@ void ChartPainter::paintAxes(const QRectF &outer)
             topSpace = valLabels ? std::max(0.0, valLineH / 2 - 1.5) : 0;
             if (valLabels && !catLabels && !tableOn) bottomSpace = std::max(bottomSpace, valLineH / 2);
         }
-        m_inner = fixed ? given : QRectF(given.left() + leftSpace, given.top() + topSpace, given.width() - leftSpace - rightSpace, given.height() - topSpace - bottomSpace);
+        // (a fixed inner place gives way to the table: its name column and rows stay inside the chart)
+        QRectF fixedInner = given;
+        if (fixed && tableOn) {
+            fixedInner.setLeft(std::max(given.left(), outer.left() + tableNameW));
+            fixedInner.setBottom(std::min(given.bottom(), outer.bottom() - tableH - catTitleH));
+            fixedInner.setRight(std::min(given.right(), outer.right()));
+            fixedInner.setTop(std::max(given.top(), outer.top()));
+        }
+        m_inner = fixed ? fixedInner : QRectF(given.left() + leftSpace, given.top() + topSpace, given.width() - leftSpace - rightSpace, given.height() - topSpace - bottomSpace);
         if (m_inner.width() < 10 || m_inner.height() < 10) return;
         m_slot = (m_swap ? m_inner.height() : m_inner.width()) / categoriesAcross();
         if (fixed) break;

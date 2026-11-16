@@ -4,7 +4,7 @@
 #include "office/chart_write.h"
 
 #include <QDomDocument>
-#include <QRegularExpression>
+#include <QXmlStreamReader>
 
 using namespace jp::office;
 
@@ -708,20 +708,40 @@ private Q_SLOTS:
         const QByteArray with = chartSvg(c, QSizeF(480, 288));
         QVERIFY(with.contains(">1234<") && with.contains(">3456<") && with.contains("East") && with.contains("Total"));
         auto plotHeight = [](const QByteArray &svg) {
-            // (the plot area's border is the one rectangle stroked in its color)
-            const QRegularExpressionMatch m = QRegularExpression(QStringLiteral("stroke=\"#123456\"[^>]*>\\s*<rect[^>]*height=\"([0-9.]+)\"")).match(QString::fromLatin1(svg));
-            return m.hasMatch() ? m.captured(1).toDouble() : -1.0;
+            // (the plot area's border is the first rectangle after the group stroked in its color)
+            QXmlStreamReader xml(svg);
+            bool inGroup = false;
+            while (!xml.atEnd()) {
+                if (xml.readNext() != QXmlStreamReader::StartElement) continue;
+                if (xml.name() == QLatin1String("g")) inGroup = xml.attributes().value(QLatin1String("stroke")) == QLatin1String("#123456");
+                else if (inGroup && xml.name() == QLatin1String("rect")) return xml.attributes().value(QLatin1String("height")).toDouble();
+            }
+            return -1.0;
         };
         QVERIFY(plotHeight(plain) > 0);
         QVERIFY(plotHeight(with) > 0 && plotHeight(with) < plotHeight(plain) - 40);
         // the categories are in the table's top row: without the table's own values they are drawn once more by the axis, and with it once
         QCOMPARE(with.count(">Q2<"), plain.count(">Q2<"));
         // a chart it does not suit is drawn as before, and so is one with too many categories
-        Chart pie = c;
-        pie.plots[0].horizontal = true;
-        Chart bars = pie;
+        Chart across = c;
+        across.plots[0].horizontal = true;
+        Chart bars = across;
         bars.dataTable.present = false;
-        QCOMPARE(chartSvg(pie, QSizeF(480, 288)), chartSvg(bars, QSizeF(480, 288)));
+        QCOMPARE(chartSvg(across, QSizeF(480, 288)), chartSvg(bars, QSizeF(480, 288)));
+        QVERIFY(!chartAllowsDataTable(across) && chartAllowsDataTable(c));
+        // (the same rule for the writer: a chart of a kind that has none is written without it, and a combo with a plot that is not columns, lines, or areas has none)
+        QVERIFY(!writeChartPart(across).contains("c:dTable"));
+        Chart other = c;
+        other.plots[1].type = ChartType::Other;
+        QVERIFY(!chartAllowsDataTable(other) && !writeChartPart(other).contains("c:dTable"));
+        Chart withPie = c;
+        withPie.plots[1].type = ChartType::Pie;
+        QVERIFY(!chartAllowsDataTable(withPie));
+        Chart otherFirst = c;
+        otherFirst.plots.swapItemsAt(0, 1);
+        QVERIFY(chartAllowsDataTable(otherFirst));
+        otherFirst.plots[0].type = ChartType::Other;
+        QVERIFY(!chartAllowsDataTable(otherFirst));
         Chart wide = c;
         QStringList cats;
         QVector<double> values;
@@ -738,6 +758,80 @@ private Q_SLOTS:
         wideNone.dataTable.present = false;
         QCOMPARE(chartSvg(wide, QSizeF(480, 288)), chartSvg(wideNone, QSizeF(480, 288)));
         QVERIFY(writeChartPart(wide).contains("c:dTable"));
+        // and so does one with more series than it is drawn for
+        Chart many = c;
+        many.plots.resize(1);
+        many.plots[0].series.clear();
+        for (int i = 0; i < kChartDataTableMax + 1; ++i) many.plots[0].series << seriesOf(QStringLiteral("S%1").arg(i), QString(), QString(), QString(), {"Q1", "Q2", "Q3"}, {7001.0 + i, 2, 3}, QColor("#445566"));
+        Chart manyNone = many;
+        manyNone.dataTable.present = false;
+        QCOMPARE(chartSvg(many, QSizeF(480, 3000)), chartSvg(manyNone, QSizeF(480, 3000)));
+        many.plots[0].series.removeLast();
+        QVERIFY(chartSvg(many, QSizeF(480, 3000)).contains(">7001<"));
+        // a font so large that the table would take over the chart leaves it out
+        Chart big = c;
+        big.dataTable.font.size = 200;
+        Chart bigNone = big;
+        bigNone.dataTable.present = false;
+        QCOMPARE(chartSvg(big, QSizeF(480, 288)), chartSvg(bigNone, QSizeF(480, 288)));
+    }
+
+    // A fixed inner place of the plot area gives way to the table, which stays inside the chart and clear of the legend; a table of a file that has parts the model does not hold (an extension) is not
+    // written over, and one with its own fill keeps it.
+    void aDataTableStaysInTheChartAndKeepsWhatTheFileHas()
+    {
+        Chart c = comboChart();
+        c.legend.shown = true;
+        c.legend.position = QStringLiteral("b");
+        c.plotManual = true;
+        c.plotInner = true;
+        c.plotX = 0.1;
+        c.plotY = 0.1;
+        c.plotW = 0.85;
+        c.plotH = 0.8;
+        c.plotBorder.set = true;
+        c.plotBorder.color = QColor("#123456");
+        c.dataTable.present = true;
+        c.dataTable.horzBorder = c.dataTable.vertBorder = c.dataTable.outline = true;
+        c.dataTable.line.set = true;
+        c.dataTable.line.color = QColor("#654321");
+        const QSizeF size(480, 288);
+        const QByteArray svg = chartSvg(c, size);
+        // the plot's rectangle (stroked #123456) and the table's outline (stroked #654321) lie inside the chart, and the table is under the plot
+        auto rectAfter = [&](const char *stroke) {
+            QXmlStreamReader xml(svg);
+            bool inGroup = false;
+            while (!xml.atEnd()) {
+                if (xml.readNext() != QXmlStreamReader::StartElement) continue;
+                if (xml.name() == QLatin1String("g")) inGroup = xml.attributes().value(QLatin1String("stroke")) == QLatin1String(stroke);
+                else if (inGroup && xml.name() == QLatin1String("rect")) {
+                    const auto a = xml.attributes();
+                    return QRectF(a.value(QLatin1String("x")).toDouble(), a.value(QLatin1String("y")).toDouble(), a.value(QLatin1String("width")).toDouble(), a.value(QLatin1String("height")).toDouble());
+                }
+            }
+            return QRectF();
+        };
+        const QRectF plot = rectAfter("#123456"), table = rectAfter("#654321");
+        QVERIFY(plot.isValid() && table.isValid());
+        QVERIFY(QRectF(QPointF(0, 0), size).contains(table));
+        QVERIFY(table.top() >= plot.bottom() - 0.5);
+        QVERIFY(table.bottom() < size.height() * 0.9);   // (the legend is along the bottom: the table ends above it)
+        // a table in a file with an extension of its own is read, but the part is not one that may be written over
+        const QByteArray part = writeChartPart(c);
+        QString why;
+        QVERIFY2(chartIsFullyModeled(part, &why), qPrintable(why));
+        QByteArray extended = part;
+        const int end = extended.indexOf("</c:dTable>");
+        QVERIFY(end > 0);
+        extended.insert(end, "<c:extLst><c:ext uri=\"{00000000-0000-0000-0000-000000000000}\" xmlns:x=\"urn:test\"><x:thing/></c:ext></c:extLst>");
+        QVERIFY(!chartIsFullyModeled(extended, &why));
+        // its fill is kept
+        Chart filled = c;
+        filled.dataTable.fill = QColor("#EEDDCC");
+        Chart back;
+        QVERIFY(readChart(writeChartPart(filled), defaultTheme(), ColorMap(), &back, &why));
+        QCOMPARE(back.dataTable.fill, QColor("#EEDDCC"));
+        QVERIFY(chartIsFullyModeled(writeChartPart(filled), &why));
     }
 
     // What the model has no place for but keeps as the file wrote it, or carries as a field, is written back: for each, the part is one that may be written over, what is written has the element,

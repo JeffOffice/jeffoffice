@@ -228,6 +228,15 @@ private Q_SLOTS:
         setDataTable(&c, DataTablePart::Table, false);
         QVERIFY(!dataTableOn(c, DataTablePart::Table) && !roundTrip(c).dataTable.present);
         QVERIFY(dataTableApplies(columns(ChartKind::Line)) && dataTableApplies(columns(ChartKind::Area)));
+        // a change of kind to one that has no table leaves it out of the file
+        Chart withTable = columns();
+        setDataTable(&withTable, DataTablePart::Table, true);
+        QVERIFY(writeChartPart(withTable).contains("c:dTable"));
+        for (ChartKind kind : {ChartKind::Pie, ChartKind::Bar, ChartKind::Scatter}) {
+            const Chart changed = withKind(withTable, kind, defaultTheme());
+            QVERIFY(!dataTableApplies(changed));
+            QVERIFY(!writeChartPart(changed).contains("c:dTable"));
+        }
         QVERIFY(!dataTableApplies(columns(ChartKind::Pie)) && !dataTableApplies(columns(ChartKind::Bar)) && !dataTableApplies(columns(ChartKind::Scatter)));
     }
 
