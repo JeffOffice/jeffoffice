@@ -37,8 +37,8 @@ jobs:
             os: macos-15
           - name: x86_64
             os: macos-15
-    # (the same machines as the build jobs below: the Linux build runs on our own, whose C library is the one ours must run on)
-    runs-on: ${{ (matrix.name == 'linux' && github.event_name != 'pull_request') && fromJSON('["self-hosted", "jo-linux"]') || matrix.os }}
+    # (the same machines as the build jobs below: the Linux build runs on our own, whose C library is the one ours must run on, and the Mac's on our own Mac)
+    runs-on: ${{ (matrix.name == 'linux' && github.event_name != 'pull_request') && fromJSON('["self-hosted", "jo-linux"]') || (matrix.os == 'macos-15' && github.event_name != 'pull_request') && fromJSON('["self-hosted", "jo-mac"]') || matrix.os }}
     timeout-minutes: 45
     steps:
       # Our own Linux machines keep their workspace between jobs, and a job's checkout changes the repository there for the next job (a sparse one did, on Nov 9,
@@ -182,7 +182,7 @@ jobs:
       # Which half of its part this job is ("1/2" or "2/2"; none on Linux, which runs a part in one job): tools/ci_targets.sh says what each half builds and runs.
       SHARD: ${{ matrix.name == 'linux' && '' || format('{0}/2', matrix.shard) }}
       # Our own machine keeps its compiler cache in a folder of its own, kept from run to run; GitHub's machines keep it in GitHub's cache.
-      CCACHE_DIR: ${{ (matrix.name == 'linux' && github.event_name != 'pull_request') && '/ccache' || format('{0}/.ccache', github.workspace) }}
+      CCACHE_DIR: ${{ (matrix.name == 'linux' && github.event_name != 'pull_request') && '/ccache' || (matrix.name == 'macos' && github.event_name != 'pull_request') && '/Users/Shared/jo-ccache' || format('{0}/.ccache', github.workspace) }}
       # (precompiled headers: without these, ccache caches no file that reads one; the header times because a fresh checkout's files are all new)
       CCACHE_SLOPPINESS: pch_defines,time_macros,include_file_mtime,include_file_ctime
     strategy:
@@ -207,8 +207,9 @@ jobs:
           # universal), unsigned for now.
           - name: macos
             os: macos-15
-    # Linux runs on our own machine (labels self-hosted + jo-linux), except for pull requests, which run on GitHub's: no one else's code runs there.
-    runs-on: ${{ (matrix.name == 'linux' && github.event_name != 'pull_request') && fromJSON('["self-hosted", "jo-linux"]') || matrix.os }}
+    # Linux runs on our own machine (labels self-hosted + jo-linux) and macOS on our own Mac (self-hosted + jo-mac), except for pull requests, which run on
+    # GitHub's: no one else's code runs there. (GitHub's Macs were often not there at all: whole runs waited, then were cancelled, Nov 16.)
+    runs-on: ${{ (matrix.name == 'linux' && github.event_name != 'pull_request') && fromJSON('["self-hosted", "jo-linux"]') || (matrix.os == 'macos-15' && github.event_name != 'pull_request') && fromJSON('["self-hosted", "jo-mac"]') || matrix.os }}
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -240,7 +241,7 @@ jobs:
           cache: true
 
       - uses: jurplel/install-qt-action@b344308e4483fc892e0d27b3cd1b173ebdd95f06 # v4.5.0
-        if: runner.os == 'macOS'
+        if: runner.os == 'macOS' && runner.environment != 'self-hosted'
         with:
           # (aqtinstall 3.3.0, the newest release, looks for Windows MinGW Qt 6.11 in the wrong folder: pinned to the commit that lists it)
           aqtsource: 'git+https://github.com/miurahr/aqtinstall.git@5a49f2b391ae8ee1d3c0dd87f8b33c1d49a4deb7'
@@ -250,6 +251,21 @@ jobs:
           arch: 'clang_64'
           modules: 'qtimageformats qtmultimedia qtspeech'
           cache: true
+
+      # Our own Mac keeps Qt in a folder of its own (the same version, from the same aqtinstall commit, installed there if it is missing); each job works on
+      # a copy-on-write clone of it, made in a moment, because a job puts our FFmpeg into its copy of Qt (below) and the next job needs Qt's own.
+      - name: Qt (our Mac)
+        if: runner.os == 'macOS' && runner.environment == 'self-hosted'
+        shell: bash
+        run: |
+          V=6.11.3; BASE=/Users/Shared/jo-qt
+          if [ ! -f "$BASE/$V/macos/lib/cmake/Qt6/Qt6Config.cmake" ]; then
+            [ -x "$BASE/venv/bin/aqt" ] || { python3 -m venv "$BASE/venv" && "$BASE/venv/bin/pip" -q install "git+https://github.com/miurahr/aqtinstall.git@5a49f2b391ae8ee1d3c0dd87f8b33c1d49a4deb7"; }
+            (cd "$BASE" && "$BASE/venv/bin/aqt" install-qt mac desktop $V clang_64 -m qtimageformats qtmultimedia qtspeech)
+          fi
+          Q="$RUNNER_TEMP/qt"; rm -rf "$Q"; cp -Rc "$BASE/$V/macos" "$Q"
+          { echo "QT_ROOT_DIR=$Q"; echo "Qt6_DIR=$Q/lib/cmake/Qt6"; echo "QT_PLUGIN_PATH=$Q/plugins"; echo "QML2_IMPORT_PATH=$Q/qml"; echo "PKG_CONFIG_PATH=$Q/lib/pkgconfig"; } >> "$GITHUB_ENV"
+          echo "$Q/bin" >> "$GITHUB_PATH"
 
       - name: Ninja (macOS)
         if: runner.os == 'macOS'
@@ -385,7 +401,7 @@ jobs:
 
       - name: Restore the compiler cache
         id: restore-base
-        if: runner.os != 'Linux'
+        if: runner.os != 'Linux' && runner.environment != 'self-hosted'
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: .ccache
@@ -396,7 +412,7 @@ jobs:
             ccache-${{ matrix.name }}-${{ matrix.name == 'macos' && env.MAC_ARCHS || '' }}-tests2-
 
       - name: Restore this job's part of the compiler cache
-        if: runner.os != 'Linux'
+        if: runner.os != 'Linux' && runner.environment != 'self-hosted'
         uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: .ccache-delta
@@ -406,7 +422,7 @@ jobs:
 
       # (the snapshot is taken of the base alone, before the delta goes in: the delta's entries are not the base's, so the job keeps them in its own entry)
       - name: Put the cache parts together
-        if: runner.os != 'Linux'
+        if: runner.os != 'Linux' && runner.environment != 'self-hosted'
         shell: bash
         run: |
           PY=$(command -v python3 || command -v python); mkdir -p .ccache .ccache-delta
@@ -506,7 +522,7 @@ jobs:
       # What this job's cache holds beyond the base it restored (Windows, macOS): the delta, for its own entry. Made on every ref, so that a branch's log shows its size.
       - name: Take this job's part of the compiler cache
         id: delta
-        if: ${{ !cancelled() && runner.os != 'Linux' }}
+        if: ${{ !cancelled() && runner.os != 'Linux' && runner.environment != 'self-hosted' }}
         continue-on-error: true
         shell: bash
         run: |
@@ -554,7 +570,7 @@ jobs:
       # the log says so; the build and the packaging above and below still run. No file (the containers without the mount, or GitHub's own machines): nothing is skipped.
       - name: Already tested on this machine (Linux)
         id: gated
-        if: runner.environment == 'self-hosted' && github.event_name != 'pull_request'
+        if: runner.os == 'Linux' && runner.environment == 'self-hosted' && github.event_name != 'pull_request'
         shell: bash
         run: bash tools/ci_gated.sh
 
@@ -1046,7 +1062,7 @@ jobs:
 
       - name: Save the compiler cache
         id: save-ccache
-        if: ${{ !cancelled() && runner.os != 'Linux' && github.ref == 'refs/heads/main' && matrix.part == 'tests' && matrix.shard == 2 && steps.build.outputs.misses != '' && steps.build.outputs.misses != '0' }}
+        if: ${{ !cancelled() && runner.os != 'Linux' && runner.environment != 'self-hosted' && github.ref == 'refs/heads/main' && matrix.part == 'tests' && matrix.shard == 2 && steps.build.outputs.misses != '' && steps.build.outputs.misses != '0' }}
         uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: .ccache
@@ -1054,7 +1070,7 @@ jobs:
 
       - name: Save this job's part of the compiler cache
         id: save-delta
-        if: ${{ !cancelled() && runner.os != 'Linux' && github.ref == 'refs/heads/main' && !(matrix.part == 'tests' && matrix.shard == 2) && !contains(env.MAC_ARCHS, ';') && steps.delta.outcome == 'success' && steps.build.outputs.misses != '' && steps.build.outputs.misses != '0' }}
+        if: ${{ !cancelled() && runner.os != 'Linux' && runner.environment != 'self-hosted' && github.ref == 'refs/heads/main' && !(matrix.part == 'tests' && matrix.shard == 2) && !contains(env.MAC_ARCHS, ';') && steps.delta.outcome == 'success' && steps.build.outputs.misses != '' && steps.build.outputs.misses != '0' }}
         uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: .ccache-delta
