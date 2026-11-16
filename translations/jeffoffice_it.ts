@@ -2363,7 +2363,7 @@ Articolo dell&apos;ultima pagina	4</translation>
         <translation type="unfinished">Orizzontale</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/textdialogs.cpp" line="+411"/>
+        <location filename="../libs/page/app/textdialogs.cpp" line="+414"/>
         <location filename="../apps/pub/app/dialogs.cpp" line="+27"/>
         <source>Page</source>
         <translation>Pagina</translation>
@@ -2429,7 +2429,7 @@ Articolo dell&apos;ultima pagina	4</translation>
         <translation type="unfinished">Modifica…</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/textdialogs.cpp" line="-569"/>
+        <location filename="../libs/page/app/textdialogs.cpp" line="-572"/>
         <location filename="../apps/pub/app/dialogs.cpp" line="+1"/>
         <location line="+615"/>
         <source>Delete</source>
@@ -2535,33 +2535,33 @@ Articolo dell&apos;ultima pagina	4</translation>
         <location line="+1"/>
         <location line="+1"/>
         <location line="+1"/>
-        <location line="+439"/>
+        <location line="+442"/>
         <location line="+568"/>
         <location filename="../apps/pub/app/dialogs.cpp" line="+29"/>
         <source>Font</source>
         <translation>Carattere</translation>
     </message>
     <message>
-        <location line="-1127"/>
+        <location line="-1130"/>
         <source>Regular</source>
         <translation type="unfinished">Normale</translation>
     </message>
     <message>
         <location line="+0"/>
-        <location line="+1125"/>
+        <location line="+1128"/>
         <location filename="../apps/pub/app/dialogs.cpp" line="+702"/>
         <source>Italic</source>
         <translation type="unfinished">Corsivo</translation>
     </message>
     <message>
-        <location line="-1125"/>
-        <location line="+1123"/>
+        <location line="-1128"/>
+        <location line="+1126"/>
         <location filename="../apps/pub/app/dialogs.cpp" line="+0"/>
         <source>Bold</source>
         <translation type="unfinished">Grassetto</translation>
     </message>
     <message>
-        <location line="-1123"/>
+        <location line="-1126"/>
         <source>Bold Italic</source>
         <translation type="unfinished">Grassetto corsivo</translation>
     </message>
@@ -3144,7 +3144,7 @@ Articolo dell&apos;ultima pagina	4</translation>
     </message>
     <message>
         <location filename="../libs/page/app/textdialogs.cpp" line="-380"/>
-        <location line="+1094"/>
+        <location line="+1097"/>
         <location filename="../apps/pub/app/dialogs.cpp" line="+11"/>
         <source>Size</source>
         <translation>Dimensioni</translation>
@@ -3731,7 +3731,7 @@ Articolo dell&apos;ultima pagina	4</translation>
         <translation type="unfinished">Formato oggetto</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/textdialogs.cpp" line="-543"/>
+        <location filename="../libs/page/app/textdialogs.cpp" line="-546"/>
         <source>Create Table</source>
         <translation type="unfinished">Crea tabella</translation>
     </message>
@@ -3894,24 +3894,29 @@ Articolo dell&apos;ultima pagina	4</translation>
     </message>
     <message>
         <location line="+14"/>
-        <location line="+74"/>
+        <location line="+77"/>
         <source>Symbol</source>
         <translation type="unfinished">Simbolo</translation>
     </message>
     <message>
-        <location line="-74"/>
-        <location line="+264"/>
+        <location line="-77"/>
+        <location line="+267"/>
         <source>Click in a text box first.</source>
         <translation type="unfinished">Fare prima clic in una casella di testo.</translation>
     </message>
     <message>
-        <location line="-258"/>
+        <location line="-261"/>
         <location line="+5"/>
         <source>Insert Symbol</source>
         <translation type="unfinished">Inserisci simbolo</translation>
     </message>
     <message>
-        <location line="+48"/>
+        <location line="+14"/>
+        <source>Spreadsheet cells as a table</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+37"/>
         <source>Nonbreaking Space</source>
         <translation type="unfinished">Spazio unificatore</translation>
     </message>
@@ -4963,7 +4968,7 @@ Articolo dell&apos;ultima pagina	4</translation>
     <message>
         <location filename="../libs/page/app/saveoptions.cpp" line="-15"/>
         <location filename="../apps/pub/app/mainwindow.cpp" line="+418"/>
-        <location filename="../apps/write/app/writewindow.cpp" line="+797"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="+801"/>
         <source>Save</source>
         <translation type="unfinished">Salvataggio</translation>
     </message>
@@ -5014,7 +5019,7 @@ Articolo dell&apos;ultima pagina	4</translation>
         <translation type="unfinished">Sillabazione automatica nelle nuove caselle di testo</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/textdialogs.cpp" line="-1028"/>
+        <location filename="../libs/page/app/textdialogs.cpp" line="-1031"/>
         <location filename="../apps/pub/app/dialogs.cpp" line="-14"/>
         <location filename="../apps/pub/app/mainwindow.cpp" line="+0"/>
         <location filename="../apps/write/app/writewindow.cpp" line="+0"/>
@@ -5201,7 +5206,7 @@ Articolo dell&apos;ultima pagina	4</translation>
         <translation type="unfinished">Proporzioni testo</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/textdialogs.cpp" line="+1037"/>
+        <location filename="../libs/page/app/textdialogs.cpp" line="+1040"/>
         <source>Tints</source>
         <translation type="unfinished">Tinte</translation>
     </message>
@@ -5274,7 +5279,7 @@ Articolo dell&apos;ultima pagina	4</translation>
         <translation type="unfinished">Trattini facoltativi aggiunti: %1.</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/textdialogs.cpp" line="-41"/>
+        <location filename="../libs/page/app/textdialogs.cpp" line="-44"/>
         <source>Paste Special</source>
         <translation type="unfinished">Incolla speciale</translation>
     </message>
@@ -30310,7 +30315,7 @@ Impossibile leggere il file.</translation>
         <translation type="unfinished">Non ci sono diapositive da stampare.</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow.cpp" line="+72"/>
+        <location filename="../apps/deck/app/deckwindow.cpp" line="+73"/>
         <source>Presentation1</source>
         <translation type="unfinished">Presentazione1</translation>
     </message>
@@ -30380,6 +30385,11 @@ Impossibile leggere il file.</translation>
         <location line="+1"/>
         <source>Keep Text Only</source>
         <translation type="unfinished">Mantieni solo testo</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Spreadsheet Cells as Table</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+1"/>
@@ -34551,7 +34561,7 @@ Impossibile leggere il file.</translation>
 <context>
     <name>jp::Editor</name>
     <message>
-        <location filename="../libs/page/app/editor.cpp" line="+152"/>
+        <location filename="../libs/page/app/editor.cpp" line="+153"/>
         <source>Publication1</source>
         <translation type="unfinished">Pubblicazione1</translation>
     </message>
@@ -34720,7 +34730,32 @@ Impossibile leggere il file.</translation>
         <translation type="unfinished">Taglia</translation>
     </message>
     <message>
-        <location line="+92"/>
+        <location line="+98"/>
+        <source>The clipboard has no spreadsheet cells to paste.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>Some of the pasted cells were left out: a pasted table has at most %1 rows and columns, and 4,000 characters in a cell.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Paste Cells</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Some of the pasted cells did not fit in the table and were left out.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Paste Table</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+17"/>
         <location line="+17"/>
         <source>Paste</source>
         <translation type="unfinished">Incolla</translation>
@@ -39837,7 +39872,7 @@ Origine: %3</translation>
     <name>jp::MainWindow</name>
     <message>
         <location filename="../apps/pub/app/mainwindow.cpp" line="-1608"/>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+603"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+604"/>
         <source>%1 (%2)</source>
         <translation type="unfinished">%1 (%2)</translation>
     </message>
@@ -39868,7 +39903,7 @@ Origine: %3</translation>
         <location line="+41"/>
         <location line="+1"/>
         <location line="+242"/>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-488"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-489"/>
         <source>Open</source>
         <translation type="unfinished">Apri</translation>
     </message>
@@ -40091,7 +40126,7 @@ Origine: %3</translation>
     <message>
         <location line="+9"/>
         <location line="+7"/>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+549"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+550"/>
         <location filename="../apps/pub/app/mainwindow_comments.cpp" line="+25"/>
         <source>Delete</source>
         <translation type="unfinished">Elimina</translation>
@@ -40134,7 +40169,7 @@ Origine: %3</translation>
         <location line="+4"/>
         <location line="+16"/>
         <location line="+51"/>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-545"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-546"/>
         <source>Create PDF</source>
         <translation type="unfinished">Crea PDF</translation>
     </message>
@@ -40241,7 +40276,7 @@ Origine: %3</translation>
     <message>
         <location line="-560"/>
         <location line="+560"/>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+566"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+567"/>
         <source>All Files (*)</source>
         <translation type="unfinished">Tutti i file (*)</translation>
     </message>
@@ -40379,8 +40414,8 @@ Origine: %3</translation>
         <location line="+19"/>
         <location line="+8"/>
         <location line="+4"/>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-1262"/>
-        <location line="+1133"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-1263"/>
+        <location line="+1134"/>
         <source>Save as Picture</source>
         <translation type="unfinished">Salva come immagine</translation>
     </message>
@@ -40491,7 +40526,7 @@ Origine: %3</translation>
     </message>
     <message>
         <location line="+75"/>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-1132"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-1133"/>
         <source>Save as Web Page</source>
         <translation type="unfinished">Salva come pagina Web</translation>
     </message>
@@ -40513,7 +40548,7 @@ Origine: %3</translation>
     </message>
     <message>
         <location line="-47"/>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+1021"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+1022"/>
         <source>Change Picture</source>
         <translation type="unfinished">Cambia immagine</translation>
     </message>
@@ -40554,7 +40589,7 @@ Origine: %3</translation>
         <translation type="unfinished">Questa equazione non può essere modificata.</translation>
     </message>
     <message>
-        <location line="+23"/>
+        <location line="+24"/>
         <location line="+33"/>
         <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+678"/>
         <location line="+10"/>
@@ -40581,7 +40616,7 @@ Origine: %3</translation>
         <translation>Zoom</translation>
     </message>
     <message>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-399"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-400"/>
         <source>New</source>
         <translation type="unfinished">Nuovo</translation>
     </message>
@@ -40591,8 +40626,8 @@ Origine: %3</translation>
         <translation type="unfinished">Nuova pubblicazione vuota</translation>
     </message>
     <message>
-        <location filename="../apps/pub/app/mainwindow.cpp" line="-1598"/>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+178"/>
+        <location filename="../apps/pub/app/mainwindow.cpp" line="-1599"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+179"/>
         <source>Publications (*.jpub *.pub)</source>
         <translation type="unfinished">Pubblicazioni (*.jpub *.pub)</translation>
     </message>
@@ -40602,7 +40637,7 @@ Origine: %3</translation>
         <translation type="unfinished">Pubblicazioni JeffPub (*.jpub)</translation>
     </message>
     <message>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-171"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-172"/>
         <location line="+1"/>
         <source>Print</source>
         <translation>Stampa</translation>
@@ -40653,7 +40688,7 @@ Origine: %3</translation>
         <translation type="unfinished">Mantieni solo testo</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="+2"/>
         <source>Paste Special…</source>
         <translation type="unfinished">Incolla speciale…</translation>
     </message>
@@ -40746,8 +40781,8 @@ Origine: %3</translation>
         <translation>Trova</translation>
     </message>
     <message>
-        <location line="-99"/>
-        <location line="+100"/>
+        <location line="-100"/>
+        <location line="+101"/>
         <source>Replace</source>
         <translation>Sostituisci</translation>
     </message>
@@ -41730,7 +41765,7 @@ Origine: %3</translation>
         <translation type="unfinished">Inserisci data</translation>
     </message>
     <message>
-        <location line="-330"/>
+        <location line="-331"/>
         <source>Click in text where the page number goes, then choose the design.</source>
         <translation type="unfinished">Fai clic nel testo dove va il numero di pagina, quindi scegli la struttura.</translation>
     </message>
@@ -41757,7 +41792,12 @@ Origine: %3</translation>
         <translation type="unfinished">Il numero di pagina si trova nella pagina master, quindi ogni pagina che la usa lo mostra.</translation>
     </message>
     <message>
-        <location line="+90"/>
+        <location line="+40"/>
+        <source>Spreadsheet Cells as Table</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+51"/>
         <source>Replace Fonts…</source>
         <translation type="unfinished">Sostituisci caratteri…</translation>
     </message>
@@ -43930,7 +43970,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <translation type="unfinished">Ripristinata &quot;%1&quot;. Salva la pubblicazione per mantenerla.</translation>
     </message>
     <message>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-1243"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-1244"/>
         <source>Info</source>
         <translation type="unfinished">Info</translation>
     </message>
@@ -52033,7 +52073,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
 <context>
     <name>jp::WriteWindow</name>
     <message>
-        <location filename="../apps/write/app/writewindow.cpp" line="-707"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="-711"/>
         <source>Document%1</source>
         <translation type="unfinished">Documento%1</translation>
     </message>
@@ -52391,7 +52431,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <translation type="unfinished">Opzioni incolla</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+9"/>
         <source>Bullets and Numbering</source>
         <translation type="unfinished">Elenchi puntati e numerazione</translation>
     </message>
@@ -54320,7 +54360,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <translation type="unfinished">%1 inviato alla stampante</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_home.cpp" line="+270"/>
+        <location filename="../apps/write/app/writewindow_home.cpp" line="+306"/>
         <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+152"/>
         <source>Font Color</source>
         <translation type="unfinished">Colore carattere</translation>
@@ -55635,7 +55675,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <translation type="unfinished">Vai a nota a piè di pagina</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_home.cpp" line="-227"/>
+        <location filename="../apps/write/app/writewindow_home.cpp" line="-263"/>
         <source>Sentence case</source>
         <translation type="unfinished">Maiuscole e minuscole della frase</translation>
     </message>
@@ -55701,12 +55741,62 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <translation type="unfinished">HTML</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+11"/>
         <source>There is nothing on the clipboard to paste.</source>
         <translation type="unfinished">Non c&apos;è nulla negli Appunti da incollare.</translation>
     </message>
     <message>
-        <location line="+17"/>
+        <location line="+16"/>
+        <source>Continue List</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>New List</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Merge List</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Put the caret outside a table to paste the cells as a table.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Put the caret in a table to paste the cells this way.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Table</source>
+        <translation type="unfinished">Tabella</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Nest Table</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Merge Table</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Insert as New Rows</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Overwrite Cells</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
         <source>Change Case</source>
         <translation type="unfinished">Cambia maiuscole/minuscole</translation>
     </message>
@@ -66584,8 +66674,8 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <translation type="unfinished">Impossibile creare il pacchetto del documento.</translation>
     </message>
     <message>
-        <location filename="../libs/office/wml/wmlhtmlread.cpp" line="+331"/>
-        <location line="+42"/>
+        <location filename="../libs/office/wml/wmlhtmlread.cpp" line="+355"/>
+        <location line="+95"/>
         <source>The web page is too large to open.</source>
         <translation type="unfinished">La pagina web è troppo grande per essere aperta.</translation>
     </message>
@@ -70526,7 +70616,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <translation>Intestazione</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview.cpp" line="+245"/>
+        <location filename="../apps/write/app/pageview.cpp" line="+250"/>
         <source>Place in this document: %1</source>
         <translation type="unfinished">Posizione in questo documento: %1</translation>
     </message>
@@ -70551,28 +70641,68 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <translation type="unfinished">Eliminato: %1</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview_input.cpp" line="+248"/>
+        <location filename="../apps/write/app/pageview_input.cpp" line="+443"/>
         <location line="+1"/>
         <source>Paste Options</source>
         <translation type="unfinished">Opzioni incolla</translation>
     </message>
     <message>
-        <location line="+9"/>
+        <location line="-29"/>
         <source>Keep Source Formatting</source>
         <translation type="unfinished">Mantieni formattazione originale</translation>
     </message>
     <message>
-        <location line="+0"/>
+        <location line="+1"/>
         <source>Merge Formatting</source>
         <translation type="unfinished">Unisci formattazione</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="+2"/>
         <source>Keep Text Only</source>
         <translation type="unfinished">Mantieni solo testo</translation>
     </message>
     <message>
-        <location line="+259"/>
+        <location line="+3"/>
+        <source>Continue List</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>New List</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Merge List</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Nest Table</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Merge Table</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Insert as New Rows</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Overwrite Cells</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Table</source>
+        <translation type="unfinished">Tabella</translation>
+    </message>
+    <message>
+        <location line="+267"/>
         <source>Overtype: typing replaces the letters after the caret. Press Insert to go back.</source>
         <translation type="unfinished">Sovrascrittura: la digitazione sostituisce i caratteri dopo il punto di inserimento. Premi Inserisci per tornare indietro.</translation>
     </message>
@@ -71401,7 +71531,17 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <translation type="unfinished">Una tabella può contenere al massimo 50.000 celle.</translation>
     </message>
     <message>
-        <location line="+2171"/>
+        <location line="+1884"/>
+        <source>A table can&apos;t be nested deeper than 8 tables.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>A table with that many columns is too wide for the cell it would be in.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+318"/>
         <source>A cell is split into at least two cells.</source>
         <translation type="unfinished">Una cella viene divisa in almeno due celle.</translation>
     </message>
@@ -71447,12 +71587,27 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
     </message>
     <message>
         <location line="+4"/>
-        <location line="+102"/>
+        <location line="+277"/>
         <source>Type the character that separates the cells.</source>
         <translation type="unfinished">Digitare il carattere che separa le celle.</translation>
     </message>
     <message>
-        <location line="-2"/>
+        <location line="-79"/>
+        <source>A table pasted from cells can have at most 500 rows and 63 columns.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+61"/>
+        <source>Some of the pasted cells were left out: a pasted table has at most 500 rows, 63 columns, and 4,000 characters in a cell.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Some of the pasted cells did not fit in the table and were left out.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+15"/>
         <source>A table that has a table in a cell has to be made into text from the inside out.</source>
         <translation type="unfinished">Una tabella che contiene una tabella in una cella deve essere convertita in testo partendo dall&apos;interno.</translation>
     </message>
