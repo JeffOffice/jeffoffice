@@ -265,6 +265,8 @@ public:
     void setEditWrap(bool on);
     bool editingWrap() const { return m_editWrap; }
     bool editingPoints() const { return pointsActive(); }
+    // Edit Points of a shape only (not Edit Wrap Points, which shows points too).
+    bool editingShapePoints() const { return m_editPoints && pointsActive(); }
     // Connect joins the two objects selected with a glued connector of this kind (see connectObjects); the connector is then selected.
     bool connectSelectedObjects(const QString &preset);
     bool ungroupSelectedObject();

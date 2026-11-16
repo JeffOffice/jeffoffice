@@ -2028,6 +2028,7 @@ private Q_SLOTS:
         QTextCursor c(doc->story());
         c.setPosition(0);
         QCOMPARE(insertPicture(*doc, c, pngOf(160, 160)), PictureResult::Ok);
+        QVERIFY(setPictureWrap(*doc, 0, PictureWrap::Square));
         auto steps = [&] {
             int n = 0;
             while (doc->canUndo() && doc->undo()) ++n;
@@ -2150,9 +2151,13 @@ private Q_SLOTS:
         QVERIFY(win.w.grab().save(dir + QStringLiteral("/shape-wrap-points.png")));
     }
 
-    void setAsDefaultLayoutMakesTheWrapOfNewPicturesAndAFreshRunKeepsTheOldDefault()
+    void setAsDefaultLayoutMakesTheWrapOfNewPicturesTheFileAndClipboardTake()
     {
-        Settings::get().setValue(QStringLiteral("pictures/wrapDefault"), QVariant());   // (this run's own settings: see isolatesettings.h)
+        // (This run's own settings: see isolatesettings.h. The key is cleared when the test ends, however it ends, so that no later insert in the run takes it.)
+        struct ClearWrapDefault {
+            ClearWrapDefault() { Settings::get().setValue(QStringLiteral("pictures/wrapDefault"), QVariant()); }
+            ~ClearWrapDefault() { Settings::get().setValue(QStringLiteral("pictures/wrapDefault"), QVariant()); }
+        } clear;
         Win win;
         write::WriteDoc *doc = win.w.document();
         QTextCursor c(doc->story());
@@ -2184,16 +2189,68 @@ private Q_SLOTS:
         QVERIFY(win.w.view()->insertPictureImage(image));
         QVERIFY(pictureAt(*doc, doc->story(), win.w.view()->selectedPicture()).wrap == PictureWrap::Square);
         QVERIFY(documentXml(doc->toDocx()).contains("wrapText=\"right\""));
-        // Another wrap asked for in the call is the caller's. A fresh run, with no setting, puts pictures in line again.
+        // Another wrap asked for in the call is the caller's. With no setting (as in a run that never used Set as Default Layout), pictures go in line again.
         QVERIFY(win.w.view()->insertPictureBytes(pngOf(50, 50), QStringLiteral("asked"), PictureWrap::BehindText));
         QVERIFY(pictureAt(*doc, doc->story(), win.w.view()->selectedPicture()).wrap == PictureWrap::BehindText);
         Settings::get().setValue(QStringLiteral("pictures/wrapDefault"), QVariant());
         QVERIFY(win.w.view()->insertPictureBytes(pngOf(50, 50), QStringLiteral("again")));
         QVERIFY(pictureAt(*doc, doc->story(), win.w.view()->selectedPicture()).wrap == PictureWrap::Inline);
-        // A setting that is not a layout is no layout.
-        Settings::get().setValue(QStringLiteral("pictures/wrapDefault"), QStringLiteral("square;sideways;1;2;3"));
-        QVERIFY(pictureWrapDefault() == PictureWrapDefault());
-        Settings::get().setValue(QStringLiteral("pictures/wrapDefault"), QVariant());
+    }
+
+    void aKeptDefaultLayoutThatIsNotOneIsIgnoredAndRoomOutOfRangeIsHeld()
+    {
+        struct ClearWrapDefault {
+            ClearWrapDefault() { Settings::get().setValue(QStringLiteral("pictures/wrapDefault"), QVariant()); }
+            ~ClearWrapDefault() { Settings::get().setValue(QStringLiteral("pictures/wrapDefault"), QVariant()); }
+        } clear;
+        auto keep = [](const QString &text) {
+            Settings::get().setValue(QStringLiteral("pictures/wrapDefault"), text);
+            return pictureWrapDefault();
+        };
+        QVERIFY(keep(QStringLiteral("square;right;1;2;3;4")).wrap == PictureWrap::Square);   // (a good one is read)
+        for (const char *bad : {"sideways;both;1;2;3;4", "square;sideways;1;2;3;4", "square;both;nan;2;3;4", "square;both;1;inf;3;4", "square;both;1;2;-inf;4", "square;both;1;2;3;", "square;both;;2;3;4",
+                                "square;both;1;2;3", "square;both;1;2;3;4;5", "", "square"})
+            QVERIFY2(keep(QString::fromLatin1(bad)) == PictureWrapDefault(), bad);
+        // A room below 0 or above the most is held to the limits.
+        const PictureWrapDefault held = keep(QStringLiteral("tight;left;-5;1e9;3;4"));
+        QVERIFY(held.wrap == PictureWrap::Tight && held.side == PictureWrapSide::Left);
+        QCOMPARE(held.top, 0.0);
+        QCOMPARE(held.bottom, kMostWrapDistance);
+        // And the layout that goes in is held the same.
+        Win win;
+        QVERIFY(win.w.view()->insertPictureBytes(pngOf(40, 40), QStringLiteral("held")));
+        const PictureInfo info = pictureAt(*win.w.document(), win.w.document()->story(), win.w.view()->selectedPicture());
+        QVERIFY(info.wrap == PictureWrap::Tight);
+        QCOMPARE(info.distTop, 0.0);
+        QCOMPARE(info.distBottom, kMostWrapDistance);
+    }
+
+    void editWrapPointsAndEditPointsTurnEachOtherOffInTheirCommands()
+    {
+        Win win;
+        write::WriteDoc *doc = win.w.document();
+        QTextCursor c(doc->story());
+        c.setPosition(0);
+        QCOMPARE(insertShape(*doc, c, QStringLiteral("rect"), QSizeF(160, 160)), PictureResult::Ok);
+        win.w.view()->refresh();
+        win.w.view()->selectPicture(0);
+        win.w.refreshNow();
+        QVERIFY(win.w.act("shape.editPoints")->isEnabled() && win.w.act("picture.wrap.editPoints")->isEnabled());
+        win.w.act("shape.editPoints")->trigger();
+        QVERIFY(win.w.act("shape.editPoints")->isChecked() && !win.w.act("picture.wrap.editPoints")->isChecked());
+        win.w.act("picture.wrap.editPoints")->trigger();
+        QVERIFY(win.w.view()->editingWrap() && !win.w.view()->editingShapePoints());
+        win.w.refreshNow();
+        QVERIFY(win.w.act("picture.wrap.editPoints")->isChecked());
+        QVERIFY(!win.w.act("shape.editPoints")->isChecked());
+        win.w.act("shape.editPoints")->trigger();
+        QVERIFY(win.w.view()->editingShapePoints() && !win.w.view()->editingWrap());
+        win.w.refreshNow();
+        QVERIFY(win.w.act("shape.editPoints")->isChecked());
+        QVERIFY(!win.w.act("picture.wrap.editPoints")->isChecked());
+        // Set as Default Layout is a picture's: no entry for a shape.
+        QVERIFY(!win.w.act("picture.wrap.setDefault")->isEnabled());
+        QVERIFY(!win.w.act("picture.wrap.setDefault")->isVisible());
     }
 
     void aCropWhoseFrameTheLimitsWouldChangeLeavesThePictureAsItWas()

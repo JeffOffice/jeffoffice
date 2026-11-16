@@ -385,6 +385,7 @@ void WriteWindow::refreshPictureUi()
     }
     act("picture.wrap.distance")->setEnabled(round);
     act("picture.wrap.setDefault")->setEnabled(editable && info.kind == write::DrawnKind::Picture);
+    act("picture.wrap.setDefault")->setVisible(!info.valid || info.kind == write::DrawnKind::Picture);   // (the layout is a picture's: no entry in the menus of a shape or a text box)
     act("picture.wrap.editPoints")->setEnabled(editable && info.floating && write::hasWrapPoints(info.kind) && (info.wrap == write::PictureWrap::Square || info.wrap == write::PictureWrap::Tight));
     if (!editable || !info.floating || !write::hasWrapPoints(info.kind) || (info.wrap != write::PictureWrap::Tight && info.wrap != write::PictureWrap::Square)) m_view->setEditWrap(false);
     act("picture.wrap.editPoints")->setChecked(m_view->editingWrap());

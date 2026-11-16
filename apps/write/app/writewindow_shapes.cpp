@@ -1084,7 +1084,7 @@ void WriteWindow::refreshShapeUi()
             act(QStringLiteral("shape.effect.") + QLatin1String(id))->setChecked(editable && m_doc && write::shapeHasEffect(*m_doc, at, kinds.value(QLatin1String(id))));
         }
     }
-    if (!act("shape.editPoints")->isEnabled() || !m_view->editingPoints()) act("shape.editPoints")->setChecked(m_view->editingPoints());
+    if (!act("shape.editPoints")->isEnabled() || !m_view->editingShapePoints()) act("shape.editPoints")->setChecked(m_view->editingShapePoints());
     act("shape.editText")->setEnabled(editable && write::textBoxText(*m_doc, at).has_value());
     act("shape.createLink")->setEnabled(info.valid && info.editable && info.kind == write::DrawnKind::TextBox && write::canLinkTextBoxFrom(*m_doc, at));
     act("shape.breakLink")->setEnabled(info.valid && info.editable && info.kind == write::DrawnKind::TextBox && write::hasLinkedTextBoxAfter(*m_doc, at));

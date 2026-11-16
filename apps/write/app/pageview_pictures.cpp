@@ -500,14 +500,20 @@ void PageView::setEditWrap(bool on)
 {
     if (m_editWrap == on) return;
     m_editWrap = on;
-    if (on) m_editPoints = false;   // (the outline the text goes round and the shape's own points are not edited together)
+    if (on && m_editPoints) {
+        m_editPoints = false;   // (the outline the text goes round and the shape's own points are not edited together)
+        Q_EMIT caretChanged();   // (the commands show which is on)
+    }
     viewport()->update();
 }
 
 void PageView::setEditPoints(bool on)
 {
     m_editPoints = on;
-    if (on) m_editWrap = false;
+    if (on && m_editWrap) {
+        m_editWrap = false;
+        Q_EMIT caretChanged();
+    }
     viewport()->update();
 }
 

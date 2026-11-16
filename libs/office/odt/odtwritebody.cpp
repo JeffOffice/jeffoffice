@@ -1106,7 +1106,9 @@ QByteArray Writer::drawingXml(const T &t, int drawing, ParaCtx *pc, int depth)
         QByteArray shape = "<draw:path draw:style-name=\"" + esc(pathStyleName) + "\"" + frameAttrs + " svg:width=\"" + emuLength(cx) + "\" svg:height=\"" + emuLength(cy) + "\" svg:viewBox=\"0 0 " +
                            QByteArray::number(pathW) + " " + QByteArray::number(pathH) + "\" svg:d=\"" + pathD + "\">";
         if (!descr.isEmpty()) shape += "<svg:desc>" + esc(descr, false) + "</svg:desc>";
-        return shape + contour + "</draw:path>";
+        // (The contour polygon is for a frame; a shape is wrapped by its own outline, and wrap-contour says so. The points edited by hand are not kept.)
+        if (!contour.isEmpty()) left(QCoreApplication::translate("odt", "edited wrap points on shapes"));
+        return shape + "</draw:path>";
     }
     if (blip >= 0 && !barcodeSettings.isEmpty()) frameAttrs += " xmlns:jo=\"urn:jeffoffice:names:extension:1.0\" jo:barcode=\"" + esc(barcodeSettingsText(barcodeSettings)) + "\" jo:barcode-sha256=\"" + esc(barcodeHash) + "\"";
     const QString style = m_sink->make("fr", "graphic", " style:parent-style-name=\"" + QByteArray(blip >= 0 ? "Graphics" : "Frame") + "\"", "<style:graphic-properties" + gp + boxProps + "/>");
@@ -1116,7 +1118,8 @@ QByteArray Writer::drawingXml(const T &t, int drawing, ParaCtx *pc, int depth)
         x = "<draw:custom-shape draw:style-name=\"" + esc(style) + "\"" + frameAttrs + shapeAttrs + " svg:width=\"" + emuLength(cx) + "\" svg:height=\"" + emuLength(cy) +
             "\"><draw:enhanced-geometry svg:viewBox=\"0 0 21600 21600\" draw:type=\"ooxml-" + shapePrst.toLatin1() + "\"" + geomAttrs + "/>";
         if (!descr.isEmpty()) x += "<svg:desc>" + esc(descr, false) + "</svg:desc>";
-        return x + contour + "</draw:custom-shape>";
+        if (!contour.isEmpty()) left(QCoreApplication::translate("odt", "edited wrap points on shapes"));
+        return x + "</draw:custom-shape>";
     }
     if (blip >= 0) {
         QString href;

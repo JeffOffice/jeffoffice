@@ -959,7 +959,7 @@ private Q_SLOTS:
     }
 
     // A shape's and a text box's outline is the contour polygon of its frame too, and is read back as it was.
-    void aShapeAndATextBoxKeepTheirWrapOutlineInAnOdt()
+    void aTextBoxKeepsItsWrapOutlineInAnOdtAndAShapeLeavesTheEditedPointsOut()
     {
         for (const bool textBox : {false, true}) {
             auto doc = WriteDoc::blank();
@@ -980,14 +980,25 @@ private Q_SLOTS:
             const QByteArray odt = doc->toOdt(&err);
             QVERIFY2(!odt.isEmpty(), qPrintable(err));
             const QByteArray content = odtPart(odt, QStringLiteral("content.xml"));
-            QVERIFY(content.contains("draw:points=\"10800,0 21600,21600 0,21600\""));
+            QStringList notes;
+            doc->toOdt(&err, &notes);
             auto back = WriteDoc::fromFile(odt, &err);
             QVERIFY2(back, qPrintable(err));
             const PictureInfo info = pictureAt(*back, back->story(), 0);
             QCOMPARE(info.kind, textBox ? DrawnKind::TextBox : DrawnKind::Shape);
-            QVERIFY(info.wrap == PictureWrap::Tight);
-            QCOMPARE(info.wrapOutline.size(), 3);
-            QVERIFY(std::abs(info.wrapOutline[0].x() - 0.5) < 0.0001 && std::abs(info.wrapOutline[2].y() - 1.0) < 0.0001);
+            if (textBox) {
+                // (A text box is a frame, which may hold the contour polygon.)
+                QVERIFY(content.contains("draw:points=\"10800,0 21600,21600 0,21600\""));
+                QVERIFY(info.wrap == PictureWrap::Tight);
+                QCOMPARE(info.wrapOutline.size(), 3);
+                QVERIFY(std::abs(info.wrapOutline[0].x() - 0.5) < 0.0001 && std::abs(info.wrapOutline[2].y() - 1.0) < 0.0001);
+            } else {
+                // A shape is not a frame: the polygon is not written inside it (other programs would drop or refuse it), the wrap follows the shape's own outline, and the points are named as left out.
+                QVERIFY(!content.contains("draw:contour-polygon"));
+                QVERIFY(content.contains("style:wrap-contour=\"true\""));
+                QVERIFY2(notes.join('|').contains("edited wrap points on shapes"), qPrintable(notes.join('|')));
+                QVERIFY(info.wrap == PictureWrap::Square);
+            }
             QVERIFY(std::abs(info.distLeft - 5.0) < 0.1 && std::abs(info.distTop - 3.0) < 0.1);
         }
     }
