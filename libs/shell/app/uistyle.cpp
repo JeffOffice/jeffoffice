@@ -16,6 +16,7 @@
 #include <QLabel>
 #include <QPainter>
 #include <QPainterPath>
+#include <QPointer>
 #include <QProxyStyle>
 #include <QPushButton>
 #include <QStyleFactory>
@@ -366,9 +367,15 @@ void arrangeButtons(QDialogButtonBox *box)
 {
     if (!box->property("jpButtonStyle").toBool()) {
         box->setProperty("jpButtonStyle", true);
-        auto *style = new ButtonStyle;
-        style->setParent(box);
-        box->setStyle(style);
+        // (one style for every box, owned by the application: a style owned by the box was deleted with the box's children, before a
+        // button added later, and that button's focus-out on the way went through the freed style. Nov 16: JeffDeck's Go To dialog
+        // crashed so in a test, and could on a system that clears focus late. ButtonStyle keeps no state of its own box.)
+        static QPointer<ButtonStyle> shared;
+        if (!shared) {
+            shared = new ButtonStyle;
+            shared->setParent(qApp);
+        }
+        box->setStyle(shared);
         new BoxWatcher(box);
     }
     arrange(box);

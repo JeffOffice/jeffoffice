@@ -13,6 +13,7 @@
 #include <QPushButton>
 #include <QVBoxLayout>
 #include <QBoxLayout>
+#include <QStyle>
 #include <QStyleOptionGroupBox>
 #include <QtTest>
 #include <cmath>
@@ -187,6 +188,27 @@ private Q_SLOTS:
         // (no install call here: applying the theme in initTestCase installed the filter, as it does in the programs)
         QTRY_VERIFY(pb->button(QDialogButtonBox::Ok)->property("primary").toBool());
         QVERIFY(leftOf(pdel, &plain) < leftOf(pb->button(QDialogButtonBox::Cancel), &plain));
+    }
+
+    // A box is deleted with a button added after it was made still holding the focus: nothing it was drawn with is gone first (Nov 16:
+    // the box's own style was deleted among its children before such a button, whose focus-out then went through it: a crash).
+    void aButtonBoxCanBeDeletedWhileALaterButtonHasTheFocus()
+    {
+        QDialog dlg;
+        auto *v = new QVBoxLayout(&dlg);
+        auto *bb = new ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Close, &dlg);
+        QPushButton *late = bb->addButton(QStringLiteral("Next"), QDialogButtonBox::ActionRole);
+        v->addWidget(bb);
+        // (the style a box is drawn with is not one of the box's own children, so deleting them can't free it first)
+        QVERIFY(bb->findChildren<QStyle *>(Qt::FindDirectChildrenOnly).isEmpty());
+        dlg.show();
+        dlg.activateWindow();
+        if (QTest::qWaitForWindowActive(&dlg)) {
+            late->setFocus();
+            QTRY_VERIFY(late->hasFocus());
+        }
+        delete bb;   // (a crash here before the fix, with the focus on "Next")
+        QVERIFY(dlg.findChildren<QPushButton *>().isEmpty());
     }
 
     // A section heading is the text in capitals, small, grey; its accessible name is the text as given; a Section keeps the text it was given.
