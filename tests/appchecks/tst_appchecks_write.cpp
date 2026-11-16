@@ -665,6 +665,7 @@ private Q_SLOTS:
             {QStringLiteral("shape.createLink"), QStringLiteral("it waits for a click on the text box that the words go on in, and changes nothing before it; createLinkAndBreakLinkWorkFromTheShapeFormatTab clicks it")},
             {QStringLiteral("shape.effect.none"), QStringLiteral("it takes the effect off a shape, and the shape it runs on has none; aShapeTakesOneEffectAtATimeSavedInTheFilesForm and theEffectsMenuAndDistributeWorkFromTheWindowOneStepEach run it with one")},
             {QStringLiteral("shape.editPoints"), QStringLiteral("it shows the points of the shape's outline for pulling and changes nothing itself; editPointsFromTheWindowDragsDeletesAndInsertsPointsInOneStepEach pulls them")},
+            {QStringLiteral("picture.wrap.editPoints"), QStringLiteral("it shows the points of the wrap outline for pulling and changes nothing itself; editWrapPointsOnAShapeAndATextBoxMakeAnOutlineInOneStepAndEscLeavesNoStep and the picture's test pull them")},
             {QStringLiteral("picture.wrap.setDefault"), QStringLiteral("it keeps the selected picture's layout in the program's settings and says so in the status bar; setAsDefaultLayoutMakesTheWrapOfNewPicturesTheFileAndClipboardTake checks it")},
             {QStringLiteral("picture.lockAspect"), QStringLiteral("it is the setting the next change of a picture's width or height reads, and changes nothing by itself")},
             {QStringLiteral("edit.copyFormat"), QStringLiteral("it only holds the look of the selection for Paste Format; the paste is the change")},
