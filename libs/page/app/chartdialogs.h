@@ -19,6 +19,7 @@ class QCheckBox;
 class QComboBox;
 class QDoubleSpinBox;
 class QLabel;
+class QPushButton;
 class QLineEdit;
 class QPlainTextEdit;
 class QListWidget;
@@ -150,6 +151,37 @@ private:
     jp::office::sheet::ChartData m_data;
     QListWidget *m_list = nullptr;
     QLabel *m_problem = nullptr;
+};
+
+// Format Chart Part: the look of the chart area, the plot area, or one series, set one part at a time: its fill (a color, or none), its line (a color, a width, or none), and for a series whether its line is
+// smooth and what mark stands at each point. It is given the chart and gives the chart back with the looks the person set; the parts left alone are as they were.
+class FormatChartPartDialog : public QDialog {
+    Q_OBJECT
+public:
+    // `part` is the place in the list: 0 the chart area, 1 the plot area, 2 and on the series in order.
+    FormatChartPartDialog(const jp::office::Chart &chart, int part, QWidget *parent = nullptr);
+    jp::office::Chart result() const;
+    // For tests and the window.
+    int partsShown() const;
+    void choosePart(int index);
+    void setFill(const QColor &color);
+    void setNoFill(bool on);
+    void setLineColor(const QColor &color);
+    void setLineWidth(double points);
+    void setSmooth(bool on);
+
+private:
+    void load(int index);
+    void store();
+    void pickColor(bool fill);
+    jp::office::Chart m_chart;
+    QVector<jp::office::sheet::ChartPartLook> m_looks;
+    int m_part = -1;
+    QComboBox *m_parts = nullptr, *m_marker = nullptr;
+    QCheckBox *m_noFill = nullptr, *m_noLine = nullptr, *m_smooth = nullptr;
+    QDoubleSpinBox *m_width = nullptr;
+    QPushButton *m_fillButton = nullptr, *m_lineButton = nullptr;
+    QColor m_fill, m_line;
 };
 
 // Format Axis: the bounds and units (automatic or a number), the order, where the other axis crosses, the labels' number format, turn, and place, and the tick marks of one axis. It is given the

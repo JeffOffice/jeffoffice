@@ -3,6 +3,9 @@
 #include "../chartmenu.h"
 #include "../withdialog.h"
 #include "app/chartactions.h"
+#include "app/chartdesign.h"
+#include "app/ribbon.h"
+#include "app/theme.h"
 #include "app/chartdialogs.h"
 #include "sheet/chartedit.h"
 #include "app/chartedit.h"
@@ -174,6 +177,15 @@ private Q_SLOTS:
         QVERIFY(readChartOf(*back, *chartsOn(*back).first(), &again));
         QVERIFY(again.title.present);
         QCOMPARE(office::sheet::errorBarsKind(again), QStringLiteral("fixedVal"));
+        // (With JO_SHOT_DIR set: the Chart Design tab and two of its format panes, in the new look.)
+        if (!qEnvironmentVariable("JO_SHOT_DIR").isEmpty()) {
+            jp::applyUiTheme(1);
+            w.ribbon()->showTab(w.ribbon()->tab(QStringLiteral("Chart Design")));
+            QApplication::processEvents();
+            shotOf(&w, QStringLiteral("deck-chart-design"));
+            withDialog([&] { w.act(QStringLiteral("chartdesign.formatPart"))->trigger(); }, QStringLiteral("formatChartPartDialog"), [](QDialog *d) { shotOf(d, QStringLiteral("deck-format-chart-part")); }, false);
+            withDialog([&] { w.act(QStringLiteral("chartdesign.axisV"))->trigger(); }, QStringLiteral("formatAxisDialog"), [](QDialog *d) { shotOf(d, QStringLiteral("deck-format-axis")); }, false);
+        }
     }
 
     void quickLayoutColorsAndStylesChangeTheChart()
@@ -240,6 +252,23 @@ private Q_SLOTS:
         const office::ChartAxis *axis = office::sheet::primaryAxis(c, false);
         QVERIFY(axis && !axis->autoMin);
         QCOMPARE(axis->min, -5.0);
+        // Format Chart Part: the page the chart stands on and one series.
+        withDialog([&] { w.act(QStringLiteral("chartdesign.formatPart"))->trigger(); }, QStringLiteral("formatChartPartDialog"), [](QDialog *d) {
+            auto *dialog = static_cast<FormatChartPartDialog *>(d);
+            QCOMPARE(dialog->partsShown(), 4);
+            dialog->setFill(QColor(0xFF, 0xF0, 0xC0));
+            dialog->choosePart(3);
+            dialog->setFill(QColor(0x20, 0x40, 0x60));
+            dialog->setLineWidth(2.5);
+        });
+        QVERIFY(readChartOf(*ed->doc(), *selectedChart(ed), &c));
+        QCOMPARE(office::sheet::partLookOf(c, office::sheet::ChartPart::Area).fill.name(), QStringLiteral("#fff0c0"));
+        QCOMPARE(office::sheet::partLookOf(c, office::sheet::ChartPart::Series, 1).fill.name(), QStringLiteral("#204060"));
+        QCOMPARE(office::sheet::partLookOf(c, office::sheet::ChartPart::Series, 1).line.width, 2.5);
+        QVERIFY(office::sheet::partLookOf(c, office::sheet::ChartPart::Series, 0).fill.name() != QStringLiteral("#204060"));
+        ed->undo();
+        QVERIFY(readChartOf(*ed->doc(), *selectedChart(ed), &c));
+        QVERIFY(office::sheet::partLookOf(c, office::sheet::ChartPart::Area).fill.name() != QStringLiteral("#fff0c0"));
     }
 
     void chartFiltersLeaveASeriesOutAndKeepTheLastOne()
@@ -255,6 +284,27 @@ private Q_SLOTS:
         QVERIFY(design->filterEntries()[1].shown);
         ed->undo();
         QVERIFY(design->filterEntries()[0].shown);
+    }
+
+    // Switching rows and columns never makes a chart with more series than a chart holds; a chart that reads cells has no numbers of its own to switch.
+    void switchingRowsAndColumnsIsHeldToTheMostSeriesAChartHas()
+    {
+        using namespace office::sheet;
+        ChartData wide;
+        for (int i = 0; i < kMostChartSeries + 1; ++i) wide.categories << QString::number(i);
+        wide.seriesNames << QStringLiteral("A");
+        wide.values << QVector<double>(wide.categories.size(), 1.0);
+        ChartData out;
+        QVERIFY(!jp::switchedChartData(wide, &out));
+        wide.categories.removeLast();
+        wide.values[0].removeLast();
+        QVERIFY(jp::switchedChartData(wide, &out));
+        QCOMPARE(int(out.seriesNames.size()), kMostChartSeries);
+        QCOMPARE(out.categories, wide.seriesNames);
+        office::Chart chart = chartOfData(ChartForm::Column, sampleChartData(), office::defaultTheme());
+        QVERIFY(jp::chartOwnData(chart, &out));
+        chart.plots[0].series[0].valueRef = QStringLiteral("Sheet1!$B$2:$B$4");
+        QVERIFY(!jp::chartOwnData(chart, &out));
     }
 
     // A chart made here is a chart part in the .pptx, and opens as a chart that can be changed, with the same data.
@@ -444,6 +494,13 @@ private Q_SLOTS:
         QVERIFY(jp::changeChartOf(*d, *chart, [&](office::Chart &c) { return office::sheet::chartSetForm(c, office::sheet::ChartForm::Pie, jp::chartThemeOfPicture(*d, *chart)); }));
         QVERIFY(chart->chartXml.contains("externalData"));
         QVERIFY(chart->chartXml.contains("userShapes"));
+        // What the chart editor's menus add (a title with its words, a legend below) is kept with the workbook too.
+        QVERIFY(jp::changeChartOf(*d, *chart, [](office::Chart &c) {
+            office::sheet::setChartTitleText(&c, QStringLiteral("Kept title"));
+            office::sheet::setLegend(&c, QStringLiteral("b"));
+            return true;
+        }));
+        QVERIFY(chart->chartXml.contains("Kept title") && chart->chartXml.contains("externalData") && chart->chartXml.contains("userShapes"));
         const QByteArray bytes = deck::exportPresentation(*d, &err);
         QVERIFY2(!bytes.isEmpty(), qPrintable(err));
         office::Package pkg;

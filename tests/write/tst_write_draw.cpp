@@ -4965,6 +4965,14 @@ private Q_SLOTS:
         QVERIFY(win.w.chartDesign()->setSeriesShown(0, false));
         QVERIFY(!win.w.chartDesign()->setSeriesShown(1, false));
         win.w.act("edit.undo")->trigger();
+        // Format Chart Part: one series takes a color and a line, and the file keeps them.
+        withDialog([&] { win.w.act("chartdesign.formatPart")->trigger(); }, QStringLiteral("formatChartPartDialog"), [](QDialog *d) {
+            auto *dialog = static_cast<FormatChartPartDialog *>(d);
+            dialog->choosePart(2);
+            dialog->setFill(QColor(0x20, 0x40, 0x60));
+            dialog->setLineWidth(3);
+        });
+        QCOMPARE(office::sheet::partLookOf(chart(), office::sheet::ChartPart::Series, 0).fill.name(), QStringLiteral("#204060"));
         // Save, open again: the chart still has what was added and can be changed.
         const QByteArray saved = win.w.document()->toDocx();
         auto back = open(saved);
@@ -4973,11 +4981,21 @@ private Q_SLOTS:
         QVERIFY(readChartAt(*back, at, &again));
         QCOMPARE(office::sheet::errorBarsKind(again), QStringLiteral("fixedVal"));
         QVERIFY(again.title.present);
+        QCOMPARE(office::sheet::partLookOf(again, office::sheet::ChartPart::Series, 0).fill.name(), QStringLiteral("#204060"));
         QVERIFY(changeChartAt(*back, at, [](office::Chart *c) { office::sheet::setErrorBars(c, QStringLiteral("percentage"), 5); }));
         QVERIFY(readChartAt(*back, at, &again));
         QCOMPARE(office::sheet::errorBarsKind(again), QStringLiteral("percentage"));
         // A change that makes no difference is no change.
         QVERIFY(!changeChartAt(*back, at, [](office::Chart *) {}));
+        // (With JO_SHOT_DIR set: the Chart Design tab and two of its format panes, in the new look.)
+        if (!qEnvironmentVariable("JO_SHOT_DIR").isEmpty()) {
+            jp::applyUiTheme(1);
+            win.w.ribbon()->showTab(win.w.ribbon()->tab(QStringLiteral("Chart Design")));
+            QApplication::processEvents();
+            shotOf(&win.w, QStringLiteral("write-chart-design"));
+            withDialog([&] { win.w.act("chartdesign.formatPart")->trigger(); }, QStringLiteral("formatChartPartDialog"), [](QDialog *d) { shotOf(d, QStringLiteral("write-format-chart-part")); }, false);
+            withDialog([&] { win.w.act("chartdesign.axisV")->trigger(); }, QStringLiteral("formatAxisDialog"), [](QDialog *d) { shotOf(d, QStringLiteral("write-format-axis")); }, false);
+        }
     }
 
     // ---------------------------------------------------------------- diagrams

@@ -79,6 +79,8 @@ public:
     void changeType();
     // Format Axis: the bounds, units, order, crossing, number format, and ticks of the horizontal or vertical axis.
     void formatAxis(bool horizontal);
+    // Format Chart Part: the look of the chart area, the plot area, or a series (`part`: 0, 1, or 2 and on for the series).
+    void formatPart(int part = 0);
 
     ChartDesignHost *host() const { return m_host; }
 

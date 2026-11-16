@@ -2,6 +2,7 @@
 
 #include "app/chartdialogs.h"
 #include "app/chartedit.h"
+#include "app/plaintext.h"
 #include "office/chart_write.h"
 #include "sheet/chartedit.h"
 
@@ -510,6 +511,16 @@ void ChartDesign::formatAxis(bool horizontal)
     m_host->changeChart(tr("Format Axis"), [horizontal, made](Chart *c) { setAxisFormat(c, horizontal, false, made); });
 }
 
+void ChartDesign::formatPart(int part)
+{
+    Chart chart;
+    if (!m_host->chartNow(&chart)) return;
+    FormatChartPartDialog dialog(chart, part, m_host->chartParent());
+    if (dialog.exec() != QDialog::Accepted) return;
+    const Chart made = dialog.result();
+    m_host->changeChart(tr("Format Chart Part"), [made](Chart *c) { *c = made; });
+}
+
 QImage chartPicture(const Chart &chart, const QSize &pixels)
 {
     if (pixels.isEmpty()) return QImage();
@@ -535,7 +546,7 @@ ChartButtons::ChartButtons(ChartDesign *design, QWidget *viewport, const std::fu
         auto *b = new QToolButton(m_viewport);
         b->setObjectName(QLatin1String(name));
         b->setIcon(m_icon(QLatin1String(iconName)));
-        b->setToolTip(tip);
+        b->setToolTip(plainToolTip(tip));
         b->setAccessibleName(tip);
         b->setPopupMode(QToolButton::InstantPopup);
         b->setFocusPolicy(Qt::NoFocus);

@@ -979,4 +979,72 @@ Chart switchedRowsColumns(const Chart &chart, const jp::office::Theme &theme, bo
     return chartFromSeries(fresh, kinds, theme, &chart);
 }
 
+ChartPartLook partLookOf(const Chart &chart, ChartPart part, int series)
+{
+    ChartPartLook look;
+    switch (part) {
+    case ChartPart::Area:
+        look.fill = chart.background;
+        look.noFill = chart.backgroundNone;
+        look.line = chart.border;
+        break;
+    case ChartPart::Plot:
+        look.fill = chart.plotFill;
+        look.line = chart.plotBorder;
+        break;
+    case ChartPart::Series: {
+        int n = 0;
+        for (const ChartPlot &p : chart.plots)
+            for (const ChartSeries &s : p.series)
+                if (n++ == series) {
+                    look.fill = s.color;
+                    look.noFill = s.noFill;
+                    look.line = s.outline;
+                    look.smooth = s.smooth;
+                    look.marker = s.marker.symbol;
+                }
+        break;
+    }
+    }
+    return look;
+}
+
+void setPartLook(Chart *chart, ChartPart part, int series, const ChartPartLook &look)
+{
+    switch (part) {
+    case ChartPart::Area:
+        chart->background = look.noFill ? QColor() : look.fill;
+        chart->backgroundNone = look.noFill;
+        chart->backgroundKept = ChartKept();
+        chart->border = look.line;
+        break;
+    case ChartPart::Plot:
+        chart->plotFill = look.noFill ? QColor() : look.fill;
+        chart->plotKept = ChartKept();
+        chart->plotBorder = look.line;
+        break;
+    case ChartPart::Series: {
+        int n = 0;
+        for (ChartPlot &p : chart->plots)
+            for (ChartSeries &s : p.series)
+                if (n++ == series) {
+                    s.noFill = look.noFill;
+                    ChartLine line = look.line;
+                    if (look.fill.isValid() && !look.noFill && look.fill != s.color) {
+                        // (a line that was the series' color stays the series' color)
+                        if (line.color.isValid() && line.color == s.outline.color && s.outline.color == s.color) line.color = look.fill;
+                        s.color = look.fill;
+                        s.colorFromFile = true;
+                        s.kept.fill.clear();
+                        if (s.marker.fill.isValid()) s.marker.fill = s.color;
+                    }
+                    s.outline = line;
+                    s.smooth = look.smooth;
+                    s.marker.symbol = look.marker;
+                }
+        break;
+    }
+    }
+}
+
 } // namespace jp::office::sheet

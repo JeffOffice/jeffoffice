@@ -422,6 +422,7 @@ void WriteWindow::createChartActions()
     design("chartdesign.selectData", tr("Select Data…"), "table-properties", [this] { m_chartDesign->selectData(); });
     design("chartdesign.switch", tr("Switch Row/Column"), "arrow-left-right", [this] { m_chartDesign->switchRowsAndColumns(); });
     design("chartdesign.changeType", tr("Change Chart Type…"), "chart-no-axes-combined", [this] { m_chartDesign->changeType(); });
+    design("chartdesign.formatPart", tr("Format Chart Part…"), "paintbrush", [this] { m_chartDesign->formatPart(); });
     design("chartdesign.axisH", tr("Format Horizontal Axis…"), "ruler", [this] { m_chartDesign->formatAxis(true); });
     design("chartdesign.axisV", tr("Format Vertical Axis…"), "ruler", [this] { m_chartDesign->formatAxis(false); });
     m_chartButtonsTimer.setSingleShot(true);
@@ -542,7 +543,7 @@ void WriteWindow::refreshChartUi()
         if (a->objectName().startsWith(QLatin1String("chart."))) a->setEnabled(editable);
     act("chart.editData")->setEnabled(editable && info.dataEditable);
     for (const char *id : {"chartdesign.editData", "chartdesign.selectData", "chartdesign.switch"}) act(QString::fromLatin1(id))->setEnabled(editable && info.dataEditable);
-    for (const char *id : {"chartdesign.changeType"}) act(QString::fromLatin1(id))->setEnabled(editable);
+    for (const char *id : {"chartdesign.changeType", "chartdesign.formatPart"}) act(QString::fromLatin1(id))->setEnabled(editable);
     act("chartdesign.axisH")->setEnabled(editable && info.hasAxes);
     act("chartdesign.axisV")->setEnabled(editable && info.hasAxes);
     m_chartButtonsTimer.start();

@@ -416,6 +416,42 @@ private Q_SLOTS:
         QVERIFY(labelPositionsFor(columns(ChartKind::Area)).isEmpty());
     }
 
+    // The looks of the chart area, the plot area, and a series are set one part at a time, written, and read again.
+    void thePartsOfAChartTakeALookEachAndItIsWritten()
+    {
+        Chart c = columns();
+        QVERIFY(!partLookOf(c, ChartPart::Area).fill.isValid() || partLookOf(c, ChartPart::Area).fill != QColor(Qt::yellow));
+        ChartPartLook area;
+        area.fill = QColor(Qt::yellow);
+        setPartLook(&c, ChartPart::Area, 0, area);
+        ChartPartLook plot;
+        plot.fill = QColor(0xEE, 0xEE, 0xFF);
+        plot.line.set = true;
+        plot.line.color = QColor(Qt::blue);
+        plot.line.width = 2;
+        setPartLook(&c, ChartPart::Plot, 0, plot);
+        ChartPartLook series = partLookOf(c, ChartPart::Series, 1);
+        series.fill = QColor(0x12, 0x34, 0x56);
+        series.line.set = true;
+        series.line.color = QColor(Qt::red);
+        series.line.width = 3;
+        setPartLook(&c, ChartPart::Series, 1, series);
+        const Chart back = roundTrip(c);
+        QCOMPARE(partLookOf(back, ChartPart::Area).fill.name(), QStringLiteral("#ffff00"));
+        QCOMPARE(partLookOf(back, ChartPart::Plot).fill.name(), QStringLiteral("#eeeeff"));
+        QCOMPARE(partLookOf(back, ChartPart::Plot).line.width, 2.0);
+        QCOMPARE(partLookOf(back, ChartPart::Series, 1).fill.name(), QStringLiteral("#123456"));
+        QCOMPARE(partLookOf(back, ChartPart::Series, 1).line.color.name(), QStringLiteral("#ff0000"));
+        // the other series is as it was, and a place with no series gives an empty look
+        QCOMPARE(partLookOf(back, ChartPart::Series, 0).fill.name(), partLookOf(columns(), ChartPart::Series, 0).fill.name());
+        QVERIFY(!partLookOf(back, ChartPart::Series, 9).fill.isValid());
+        // no fill takes the fill away
+        ChartPartLook none;
+        none.noFill = true;
+        setPartLook(&c, ChartPart::Area, 0, none);
+        QVERIFY(roundTrip(c).backgroundNone);
+    }
+
     void colorsAndLooksAreOurOwnAndStay()
     {
         QVERIFY(chartColorSchemeCount() >= 6 && chartStyleCount() >= 4 && chartLayoutCount() >= 4);
