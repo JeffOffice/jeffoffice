@@ -2,6 +2,7 @@
 // Frames that sit on a page. All geometry is in points (1/72 inch), in page
 // coordinates. `rect` is the unrotated frame; rotation turns it about its center.
 
+#include "core/itemsfwd.h"
 #include "core/style.h"
 #include "core/valign.h"
 
@@ -17,15 +18,6 @@
 #include <vector>
 
 namespace jp {
-
-enum class ItemType { Text, Picture, Shape, Line, Table, TextArt, Group, Equation };
-QString itemTypeName(ItemType t);
-
-class Item;
-using ItemPtr = std::shared_ptr<Item>;
-using ItemList = std::vector<ItemPtr>;
-
-QString newId(const char *prefix = "i");
 
 class Item {
 public:
@@ -148,9 +140,6 @@ public:
     QJsonObject toJson() const override;
     void fromJson(const QJsonObject &o) override;
 };
-
-// The most bytes of a chart part a picture keeps (a chart is kept as a chart while its part is no larger).
-constexpr qint64 kMaxChartPartBytes = 2 << 20;
 
 // What a video's caption tracks are held to. Real caption files: a two-hour film's is about 150 KB, with about 2,000 cues of under 200
 // characters each, in one to a dozen languages. The limits are well over ten times that: 4 MB a file, 32 tracks.
