@@ -201,9 +201,10 @@ QString safeClipHtml(const QString &html)
 {
     // (the addresses a page may name: data: and http(s): only; anything else, such as file:, a bare path, or a UNC name, goes)
     static const QRegularExpression img(QStringLiteral("<img\\b[^>]*>"), QRegularExpression::CaseInsensitiveOption);
-    static const QRegularExpression src(QStringLiteral("\\bsrc\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)'|([^\\s>]+))"), QRegularExpression::CaseInsensitiveOption);
+    // (an attribute name starts after a space, a quote, or a slash: "data-src" and "xsrc" are other attributes, so "\\b" was not enough; every src counts)
+    static const QRegularExpression src(QStringLiteral("(?<![\\w-])src\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)'|([^\\s>]+))"), QRegularExpression::CaseInsensitiveOption);
     static const QRegularExpression urlFn(QStringLiteral("url\\(\\s*(['\"]?)\\s*(?!data:|https?:)[^)]*\\)"), QRegularExpression::CaseInsensitiveOption);
-    static const QRegularExpression background(QStringLiteral("\\bbackground\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)'|([^\\s>]+))"), QRegularExpression::CaseInsensitiveOption);
+    static const QRegularExpression background(QStringLiteral("(?<![\\w-])background\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)'|([^\\s>]+))"), QRegularExpression::CaseInsensitiveOption);
     auto allowed = [](const QString &address) {
         const QString a = address.trimmed().toLower();
         return a.startsWith(QLatin1String("data:")) || a.startsWith(QLatin1String("http://")) || a.startsWith(QLatin1String("https://"));
@@ -217,8 +218,15 @@ QString safeClipHtml(const QString &html)
         const auto m = it.next();
         out += QStringView(html).mid(last, m.capturedStart() - last);
         last = m.capturedEnd();
-        const auto s = src.match(m.captured());
-        if (s.hasMatch() && allowed(addressOf(s))) out += m.captured();
+        // (kept only when it names a picture and every src it has is allowed: a second src, or one hidden after a data-src, can't slip a file in)
+        bool any = false, ok = true;
+        auto sit = src.globalMatch(m.captured());
+        while (sit.hasNext()) {
+            const auto s = sit.next();
+            any = true;
+            ok = ok && allowed(addressOf(s));
+        }
+        if (any && ok) out += m.captured();
     }
     out += QStringView(html).mid(last);
     out.replace(urlFn, QStringLiteral("none"));
