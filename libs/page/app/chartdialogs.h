@@ -3,6 +3,7 @@
 // hidden cells), Chart Kind (the kind of the chart, and of each series), and the Properties of an object over the cells (its size, and whether it follows the cells when they change).
 // Each is given what it shows as plain data and gives back what the person chose; the window turns that into a step of Undo.
 
+#include "core/export.h"
 #include "office/chart.h"
 #include "sheet/chartedit.h"
 #include "sheet/chartmake.h"
@@ -39,7 +40,7 @@ QString chartKindName(jp::office::sheet::ChartKind kind);
 // A picture of a chart for a kind and a way of reading the cells (-1 as the shape of the selection says, 0 series down columns, 1 along rows), at a size in pixels; null if there is nothing to chart.
 using ChartPreviewFn = std::function<QImage(jp::office::sheet::ChartKind kind, int inRows, const QSize &pixels)>;
 
-class InsertChartDialog : public QDialog {
+class JO_COMMON_EXPORT InsertChartDialog : public QDialog {
     Q_OBJECT
 public:
     // `only`, when it has kinds, lists those in that order (Recommended Charts), under `title`.
@@ -74,7 +75,7 @@ struct SelectDataRequest {
     std::function<QString(const jp::office::ChartSeries &)> nameOf;
 };
 
-class SelectDataDialog : public QDialog {
+class JO_COMMON_EXPORT SelectDataDialog : public QDialog {
     Q_OBJECT
 public:
     explicit SelectDataDialog(const SelectDataRequest &request, QWidget *parent = nullptr);
@@ -106,7 +107,7 @@ private:
     QLabel *m_problem = nullptr;
 };
 
-class ChangeChartTypeDialog : public QDialog {
+class JO_COMMON_EXPORT ChangeChartTypeDialog : public QDialog {
     Q_OBJECT
 public:
     // `preview` draws the chart with each series as the kinds say, at a size.
@@ -131,7 +132,7 @@ private:
 
 // Select Data for a chart that holds its own numbers: the series it plots (a check box to draw each, its name, its place in the order), and Switch Row/Column, which makes the series the
 // categories and the categories the series. It is given the data and gives back the data as the person left it.
-class SelectChartDataDialog : public QDialog {
+class JO_COMMON_EXPORT SelectChartDataDialog : public QDialog {
     Q_OBJECT
 public:
     SelectChartDataDialog(const jp::office::sheet::ChartData &data, QWidget *parent = nullptr);
@@ -155,7 +156,7 @@ private:
 
 // Format Chart Part: the look of the chart area, the plot area, or one series, set one part at a time: its fill (a color, or none), its line (a color, a width, or none), and for a series whether its line is
 // smooth and what mark stands at each point. It is given the chart and gives the chart back with the looks the person set; the parts left alone are as they were.
-class FormatChartPartDialog : public QDialog {
+class JO_COMMON_EXPORT FormatChartPartDialog : public QDialog {
     Q_OBJECT
 public:
     // `part` is the place in the list: 0 the chart area, 1 the plot area, 2 and on the series in order.
@@ -186,7 +187,7 @@ private:
 
 // Format Axis: the bounds and units (automatic or a number), the order, where the other axis crosses, the labels' number format, turn, and place, and the tick marks of one axis. It is given the
 // axis as it is and gives it back with those parts as the person set them.
-class FormatAxisDialog : public QDialog {
+class JO_COMMON_EXPORT FormatAxisDialog : public QDialog {
     Q_OBJECT
 public:
     FormatAxisDialog(const jp::office::ChartAxis &axis, const QString &title, QWidget *parent = nullptr);
@@ -213,7 +214,7 @@ struct ObjectProperties {
     bool prints = true;   // on the printed pages
 };
 
-class ObjectPropertiesDialog : public QDialog {
+class JO_COMMON_EXPORT ObjectPropertiesDialog : public QDialog {
     Q_OBJECT
 public:
     explicit ObjectPropertiesDialog(const ObjectProperties &now, QWidget *parent = nullptr);

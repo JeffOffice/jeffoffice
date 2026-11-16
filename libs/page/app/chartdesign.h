@@ -3,6 +3,7 @@
 // chart that open them, and the commands of the Chart Design tab (Edit Data, Select Data, Switch Row/Column, Change Chart Type, Format Axis). The model is changed by libs/office's
 // sheet/chartedit.h; what an app gives is where its chart is, how a change is made as one step that undoes, and (when it has cells) how a cell reference is read.
 
+#include "core/export.h"
 #include "office/chart.h"
 #include "office/theme.h"
 #include "sheet/chartops.h"
@@ -47,7 +48,7 @@ public:
     virtual void chartReadCells(office::Chart *chart) { Q_UNUSED(chart); }
 };
 
-class ChartDesign : public QObject {
+class JO_COMMON_EXPORT ChartDesign : public QObject {
     Q_OBJECT
 public:
     explicit ChartDesign(ChartDesignHost *host, QObject *parent = nullptr);
@@ -93,7 +94,7 @@ private:
 // The three buttons beside a selected chart: Chart Parts (the elements menu), Chart Looks (colors and looks), and Chart Filters (the series). They are children of `viewport`, which the app
 // places the chart in; place() puts them outside `chart` (a rectangle in the viewport's coordinates), at its right, or at its left when there is no room, so that they never cover its handles; they are
 // hidden while a mouse button is down (a drag).
-class ChartButtons : public QObject {
+class JO_COMMON_EXPORT ChartButtons : public QObject {
     Q_OBJECT
 public:
     ChartButtons(ChartDesign *design, QWidget *viewport, const std::function<QIcon(const QString &)> &icon, QObject *parent = nullptr);
