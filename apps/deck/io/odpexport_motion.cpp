@@ -3,6 +3,7 @@
 // other suite's files), the comments, and how the show plays.
 
 #include "io/odpexport_p.h"
+#include "core/items.h"
 
 #include "core/comments.h"
 #include "core/sections.h"

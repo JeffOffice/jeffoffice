@@ -1,4 +1,5 @@
 #include "app/pageview.h"
+#include "core/items.h"
 
 #include "app/icons.h"
 #include "app/pagepaint.h"

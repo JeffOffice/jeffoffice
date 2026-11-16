@@ -6,6 +6,7 @@
 // format that has them.
 
 #include "io/odpimport_p.h"
+#include "core/style.h"
 
 #include "core/fonts.h"
 #include "core/texteffects.h"

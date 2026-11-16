@@ -1,4 +1,5 @@
 #include "core/chartobject.h"
+#include "core/items.h"
 
 #include "office/chart_write.h"
 

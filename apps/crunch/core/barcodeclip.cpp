@@ -1,4 +1,5 @@
 #include "core/barcodeclip.h"
+#include "core/items.h"
 
 #include "core/barcodeitem.h"
 #include "office/barcodemarker.h"

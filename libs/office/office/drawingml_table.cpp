@@ -1,6 +1,7 @@
 // Tables in DrawingML (drawingml_table.h).
 
 #include "office/drawingml_table.h"
+#include "core/items.h"
 #include "office/package.h"
 
 #include "office/drawingml_style.h"

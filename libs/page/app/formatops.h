@@ -2,7 +2,8 @@
 // What the Format pane does to the objects, as plain functions on one object's fill, line, or frame: the pane and an app's Shape Fill, Shape
 // Outline, and Shape Effects menus both call them, so both reach the same settings.
 
-#include "core/items.h"
+#include "core/itemsfwd.h"
+#include "core/style.h"
 #include "core/texteffects.h"
 
 #include <QTextCharFormat>

@@ -3,6 +3,8 @@
 // thumbnails, PDF, pictures and the printer.
 
 #include "core/document.h"
+#include "core/fill.h"
+#include "core/stylefwd.h"
 #include "text/textengine.h"
 
 #include <QDateTime>

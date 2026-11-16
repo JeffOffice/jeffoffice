@@ -6,6 +6,7 @@
 // (a picture of the older drawing format, a group) is kept as it is.
 
 #include "core/picturestyles.h"
+#include "core/style.h"
 #include "core/wrapoutline.h"
 #include "core/writedoc.h"
 #include "sheet/chartops.h"

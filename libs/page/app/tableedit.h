@@ -6,6 +6,7 @@
 
 #include "app/editor.h"
 #include "core/document.h"
+#include "core/items.h"
 #include "office/drawingml_table.h"
 #include "office/theme.h"
 

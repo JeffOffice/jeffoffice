@@ -1,4 +1,5 @@
 #include "core/drawnitems.h"
+#include "core/items.h"
 
 #include "core/shapetypes.h"
 #include "office/drawingml.h"

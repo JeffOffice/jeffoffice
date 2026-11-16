@@ -2,7 +2,7 @@
 // What a drawn object of a file (a VML or DrawingML shape, read as wml::Shape) becomes beyond a plain box, picture, or line: the cuts, clear color, and
 // border of a picture, lettering on a path, a horizontal rule, and a shape of the drawing format's own kinds.
 
-#include "core/items.h"
+#include "core/itemsfwd.h"
 #include "office/theme.h"
 #include "wml/wml.h"
 

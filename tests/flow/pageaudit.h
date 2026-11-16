@@ -6,6 +6,7 @@
 // Nothing here knows a font: every expectation is made from the layout's own metrics.
 
 #include "core/document.h"
+#include "core/items.h"
 #include "flow/flowdocument.h"
 #include "flow/paginator.h"
 #include "render/renderer.h"

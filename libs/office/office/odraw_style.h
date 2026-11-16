@@ -2,7 +2,8 @@
 // What a shape's properties say about how it looks: colors, fill, outline,
 // shadow, and a hyperlink ([MS-ODRAW] 2.2.2 and 2.3).
 
-#include "core/items.h"
+#include "core/itemsfwd.h"
+#include "core/style.h"
 #include "office/odraw_props.h"
 
 namespace jp::office::odraw {

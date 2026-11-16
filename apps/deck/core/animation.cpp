@@ -1,4 +1,5 @@
 #include "core/animation.h"
+#include "core/items.h"
 
 #include "office/xml.h"
 

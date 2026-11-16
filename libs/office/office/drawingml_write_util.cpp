@@ -1,6 +1,7 @@
 // What the files that write DrawingML share (drawingml_write_util.h).
 
 #include "office/drawingml_write_util.h"
+#include "core/items.h"
 #include "office/hyperlink.h"
 #include "office/package.h"
 

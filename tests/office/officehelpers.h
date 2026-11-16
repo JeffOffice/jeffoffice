@@ -2,6 +2,7 @@
 // (never a real-world file). This is what the test classes (tst_office_*.cpp) share: the packages and the readers of their parts.
 #pragma once
 
+#include "core/items.h"
 #include "office/chart.h"
 #include "office/drawingml.h"
 #include "office/drawingml_props.h"

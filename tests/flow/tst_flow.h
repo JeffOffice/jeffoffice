@@ -5,6 +5,7 @@
 
 #include "core/document.h"
 #include "core/fonts.h"
+#include "core/items.h"
 #include "flow/flowdocument.h"
 #include "flow/paginator.h"
 #include "flow/tableflow.h"

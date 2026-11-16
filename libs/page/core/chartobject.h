@@ -4,7 +4,7 @@
 // frame has been sized anew are here; the presentation and publishing programs call them, and the window's controls are the editor's (app/chartedit.h).
 
 #include "core/document.h"
-#include "core/items.h"
+#include "core/itemsfwd.h"
 #include "office/chart.h"
 #include "office/theme.h"
 #include "sheet/chartops.h"

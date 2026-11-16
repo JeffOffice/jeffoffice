@@ -1,4 +1,5 @@
 #include "flow/paginator.h"
+#include "core/items.h"
 
 #include "text/textprops.h"
 

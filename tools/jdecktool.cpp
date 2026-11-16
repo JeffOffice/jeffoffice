@@ -17,6 +17,7 @@
 #include "core/appinfo.h"
 #include "core/deck.h"
 #include "core/fonts.h"
+#include "core/items.h"
 #include "io/deckoutput.h"
 #include "io/pptxexport.h"
 #include "io/presentationfile.h"

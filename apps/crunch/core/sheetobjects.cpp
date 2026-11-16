@@ -1,4 +1,5 @@
 #include "core/sheetobjects.h"
+#include "core/items.h"
 #include "text/fontreplace.h"
 
 #include "core/barcodeclip.h"

@@ -3,6 +3,7 @@
 // and fields; the counterpart of drawingml_text.cpp.
 
 #include "office/drawingml_props.h"
+#include "core/style.h"
 #include "office/drawingml_write.h"
 
 #include "office/drawingml_write_util.h"

@@ -3,7 +3,7 @@
 // margins, and columns), and the one story that has all the text, as a text box's story in JeffPub is (libs/text's text properties).
 // The Paginator (paginator.h) lays the story out in pages.
 
-#include "core/items.h"
+#include "core/itemsfwd.h"
 #include "flow/tabledata.h"
 #include "text/textengine.h"
 

@@ -1,4 +1,5 @@
 #include "app/pageoutput.h"
+#include "core/items.h"
 
 #include "app/pagepaint.h"
 #include "app/writetags.h"

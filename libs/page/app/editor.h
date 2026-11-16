@@ -7,6 +7,8 @@
 #include "core/export.h"
 #include "app/grammarcheck.h"
 #include "core/document.h"
+#include "core/items.h"
+#include "core/style.h"
 #include "render/renderer.h"
 
 #include <QObject>

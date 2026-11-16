@@ -1,4 +1,5 @@
 #include "core/color.h"
+#include "core/items.h"
 #include "core/themes.h"
 #include "core/themes_p.h"
 #include "office/theme.h"

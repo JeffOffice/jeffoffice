@@ -1,4 +1,5 @@
 #include "render/pagetags.h"
+#include "core/items.h"
 
 #include "text/textprops.h"
 

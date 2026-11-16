@@ -6,6 +6,7 @@
 #include "core/animation.h"
 #include "core/animation_presets.h"
 #include "core/deck.h"
+#include "core/items.h"
 #include "office/xml.h"
 #include "text/textprops.h"
 

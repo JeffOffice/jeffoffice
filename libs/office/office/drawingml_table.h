@@ -7,6 +7,7 @@
 // the text's formatting, so the table is drawn right without knowing styles.
 // The style's id is kept in TableItem::format to name it again when written.
 
+#include "core/style.h"
 #include "office/drawingml.h"
 #include "office/drawingml_write.h"
 

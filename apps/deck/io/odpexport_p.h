@@ -8,6 +8,7 @@
 #include "core/deck.h"
 #include "core/document.h"
 #include "core/showsettings.h"
+#include "core/style.h"
 #include "core/transition.h"
 
 #include <QColor>

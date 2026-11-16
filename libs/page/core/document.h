@@ -3,7 +3,8 @@
 // text stories, embedded pictures, styles, schemes, business information and
 // the mail-merge recipient list.
 
-#include "core/items.h"
+#include "core/fill.h"
+#include "core/itemsfwd.h"
 #include "office/customprop.h"
 #include "text/textengine.h"
 

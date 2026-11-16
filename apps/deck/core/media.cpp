@@ -1,4 +1,5 @@
 #include "core/media.h"
+#include "core/items.h"
 
 #include "core/animation.h"
 #include "office/package.h"

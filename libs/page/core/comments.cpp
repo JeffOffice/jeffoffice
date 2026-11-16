@@ -1,4 +1,5 @@
 #include "core/comments.h"
+#include "core/items.h"
 
 #include "app/settings.h"
 

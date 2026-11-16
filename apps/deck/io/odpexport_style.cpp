@@ -4,6 +4,7 @@
 // styles of dates.
 
 #include "io/odpexport_p.h"
+#include "core/style.h"
 
 #include <QCoreApplication>
 #include <QJsonDocument>

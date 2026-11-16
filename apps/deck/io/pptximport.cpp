@@ -1,4 +1,5 @@
 #include "io/pptximport.h"
+#include "core/items.h"
 #include "office/macroparts.h"
 #include "core/notesmaster.h"
 #include "core/printheaderfooter.h"

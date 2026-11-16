@@ -1,5 +1,6 @@
 #include "core/backdrop.h"
 #include "core/color.h"
+#include "core/items.h"
 #include "core/themes_p.h"
 #include "text/textprops.h"
 

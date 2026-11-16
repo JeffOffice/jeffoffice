@@ -2,6 +2,7 @@
 // as XML becomes the pieces of writeprops.h.
 
 #include "core/barcodeitem.h"
+#include "core/items.h"
 #include "office/barcodemarker.h"
 #include "core/fieldops.h"
 #include "core/writedoc.h"

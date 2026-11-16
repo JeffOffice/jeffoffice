@@ -1,4 +1,5 @@
 #include "core/linkareas.h"
+#include "core/items.h"
 
 #include "render/renderer.h"
 #include "text/textengine.h"

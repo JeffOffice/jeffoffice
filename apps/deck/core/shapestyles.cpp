@@ -1,4 +1,5 @@
 #include "core/shapestyles.h"
+#include "core/items.h"
 
 #include "core/themes.h"
 #include "text/textprops.h"

@@ -5,6 +5,7 @@
 
 #include "app/editor.h"
 #include "app/widgets.h"
+#include "core/style.h"
 
 #include <QMenu>
 #include <functional>

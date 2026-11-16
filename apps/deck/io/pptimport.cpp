@@ -1,4 +1,5 @@
 #include "io/pptimport.h"
+#include "core/items.h"
 
 #include "core/appinfo.h"
 #include "core/blipeffects.h"

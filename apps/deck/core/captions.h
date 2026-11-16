@@ -5,6 +5,7 @@
 // (anything but WebVTT) is written back as it was and shows nothing. Nothing here decodes a video.
 
 #include "core/document.h"
+#include "core/items.h"
 
 #include <QByteArray>
 #include <QString>

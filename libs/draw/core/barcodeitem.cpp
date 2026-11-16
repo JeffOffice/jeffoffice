@@ -1,4 +1,5 @@
 #include "core/barcodeitem.h"
+#include "core/items.h"
 
 #include <QBuffer>
 #include <QCryptographicHash>

@@ -5,7 +5,9 @@
 // Elements are matched by local name in either form of the namespace, so the
 // same code reads a slide's p:sp and a document's wps:wsp.
 
-#include "core/items.h"
+#include "core/itemsfwd.h"
+#include "core/fill.h"
+#include "core/stylefwd.h"
 #include "office/drawingml_color.h"
 
 #include <QDomDocument>

@@ -3,7 +3,7 @@
 // a page with no title, a table with no header row, a video with no captions; text that is hard to read against its background (the contrast of the two colors), and objects a screen reader reads in another order than their places on
 // the page suggest. A list, each with the page and the object, so that the window can go there.
 
-#include "core/items.h"
+#include "core/itemsfwd.h"
 
 #include <QColor>
 #include <QString>

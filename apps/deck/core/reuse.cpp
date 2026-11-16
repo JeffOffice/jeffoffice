@@ -1,4 +1,5 @@
 #include "core/reuse.h"
+#include "core/items.h"
 
 #include "core/deck.h"
 #include "core/sections.h"

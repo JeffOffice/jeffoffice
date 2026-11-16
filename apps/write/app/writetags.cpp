@@ -1,4 +1,5 @@
 #include "app/writetags.h"
+#include "core/items.h"
 
 #include "core/writeprops.h"
 

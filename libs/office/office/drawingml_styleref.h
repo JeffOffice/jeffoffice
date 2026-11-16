@@ -4,7 +4,8 @@
 // shape's look through drawingml_style.h; this is for the writers, and for an application that sets a reference itself (a Quick Style) and
 // needs the look that goes with it.
 
-#include "core/items.h"
+#include "core/itemsfwd.h"
+#include "core/style.h"
 #include "office/drawingml.h"
 
 #include <QByteArray>

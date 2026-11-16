@@ -1,4 +1,5 @@
 #include "core/masteredit.h"
+#include "core/items.h"
 
 #include "core/themes_p.h"
 #include "text/storyio.h"

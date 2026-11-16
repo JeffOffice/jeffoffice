@@ -1,4 +1,5 @@
 #include "core/gotoplace.h"
+#include "core/items.h"
 
 #include "app/pageselectionpane.h"
 #include "core/comments.h"

@@ -6,7 +6,7 @@
 // when it is let go).
 
 #include "core/export.h"
-#include "core/items.h"
+#include "core/itemsfwd.h"
 
 #include <QWidget>
 #include <functional>

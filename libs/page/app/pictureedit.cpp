@@ -1,4 +1,5 @@
 #include "app/pictureedit.h"
+#include "core/items.h"
 
 namespace jp {
 

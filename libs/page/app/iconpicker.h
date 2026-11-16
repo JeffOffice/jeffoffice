@@ -2,7 +2,8 @@
 // Insert > Icons: the bundled Lucide icons, inserted as editable artwork
 // shapes that take the line color and scale like pictures.
 
-#include "core/items.h"
+#include "core/color.h"
+#include "core/itemsfwd.h"
 
 #include <QByteArray>
 #include <QColor>

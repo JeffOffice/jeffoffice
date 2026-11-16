@@ -5,6 +5,7 @@
 // its own properties leave out. drawingml_shape.cpp reads the shapes
 // themselves; readFill, readLine, and readBackground (drawingml.h) are here.
 
+#include "core/style.h"
 #include "office/drawingml.h"
 
 #include <QDomDocument>

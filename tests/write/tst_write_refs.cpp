@@ -10,6 +10,7 @@
 #include "core/fieldcode.h"
 #include "core/fieldops.h"
 #include "core/indexops.h"
+#include "core/items.h"
 #include "core/refops.h"
 #include "core/styleops.h"
 #include "core/tocops.h"

@@ -3,6 +3,7 @@
 // (drawingml_write_util.h) are beside this.
 
 #include "office/drawingml_write.h"
+#include "core/items.h"
 #include "office/barcodemarker.h"
 #include "core/barcodeitem.h"
 

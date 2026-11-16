@@ -2,6 +2,7 @@
 // the placed objects of libs/draw, with what their property tables say.
 
 #include "office/odraw.h"
+#include "core/items.h"
 
 #include "core/blipeffects.h"
 #include "core/shapetypes.h"

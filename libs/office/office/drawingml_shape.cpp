@@ -3,6 +3,7 @@
 // how what is in it is placed in the page.
 
 #include "office/drawingml.h"
+#include "core/items.h"
 #include "office/package.h"
 
 #include "core/barcodeitem.h"

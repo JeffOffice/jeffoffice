@@ -6,7 +6,9 @@
 // part being written declares those namespaces on its root element.
 
 #include "core/color.h"
-#include "core/items.h"
+#include "core/itemsfwd.h"
+#include "core/fill.h"
+#include "core/stylefwd.h"
 #include "office/drawingml_color.h"
 #include "office/theme.h"
 

@@ -1,4 +1,5 @@
 #include "core/deck.h"
+#include "core/items.h"
 
 #include "core/color.h"
 #include "core/sections.h"

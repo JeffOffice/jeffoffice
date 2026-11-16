@@ -2,6 +2,7 @@
 // its layout of the text.)
 
 #include "flow/paginator.h"
+#include "core/items.h"
 
 #include <QTextBlock>
 #include <QTextCursor>

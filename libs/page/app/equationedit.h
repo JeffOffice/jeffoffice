@@ -2,7 +2,7 @@
 // Equations on a page (Insert > Equation in JeffPub): making the object from a typed line, and changing the line of one that is there. The model of the line is
 // libs/office/wml/wmlmathedit.h, the dialog that asks for it libs/shell/app/equationdialog.h, and the outlines are drawn by Renderer::equationOutline.
 
-#include "core/items.h"
+#include "core/itemsfwd.h"
 
 #include <QSizeF>
 #include <QString>

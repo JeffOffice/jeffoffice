@@ -1,4 +1,5 @@
 #include "render/diagramdrawing.h"
+#include "core/items.h"
 
 #include "office/chart.h"
 #include "office/diagram.h"

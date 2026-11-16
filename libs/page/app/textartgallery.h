@@ -3,7 +3,7 @@
 // which every app with pages shares.
 
 #include "app/widgets.h"
-#include "core/items.h"
+#include "core/itemsfwd.h"
 
 #include <QTextCharFormat>
 #include <QVector>

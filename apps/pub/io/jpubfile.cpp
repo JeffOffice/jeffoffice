@@ -1,4 +1,5 @@
 #include "io/jpubfile.h"
+#include "core/items.h"
 
 #include "app/recovery.h"
 #include "core/comments.h"

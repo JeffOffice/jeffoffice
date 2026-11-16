@@ -1,4 +1,5 @@
 #include "app/morph.h"
+#include "core/items.h"
 
 #include "app/slideshow.h"
 #include "core/media.h"

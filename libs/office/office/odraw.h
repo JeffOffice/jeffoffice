@@ -6,7 +6,8 @@
 // records (its anchor, its text, a placeholder's identity) is the caller's,
 // through the context's functions.
 
-#include "core/items.h"
+#include "core/fill.h"
+#include "core/itemsfwd.h"
 
 #include <QByteArray>
 #include <QColor>

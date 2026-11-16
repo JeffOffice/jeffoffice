@@ -3,7 +3,7 @@
 // the editor's Undo, and the pane follows the editor (a pick, a change, another page, Undo).
 
 #include "app/selectionpane.h"
-#include "core/items.h"
+#include "core/itemsfwd.h"
 
 #include <QPointer>
 

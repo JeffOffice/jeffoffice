@@ -2,7 +2,7 @@
 // The Picture Styles gallery's looks, for every app: a crop shape, a border, and effects (shadow, reflection, glow, soft edges, bevel, and a turn in
 // space), each made of what the drawing engine already draws. A style sets only those three things; the picture's size, place, crop, and colors stay.
 
-#include "core/items.h"
+#include "core/itemsfwd.h"
 
 namespace jp {
 

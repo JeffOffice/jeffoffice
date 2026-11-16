@@ -2,6 +2,7 @@
 // them are here, apart from its layout of the text.)
 
 #include "flow/paginator.h"
+#include "core/items.h"
 #include "core/wrapoutline.h"
 
 #include <QJsonDocument>

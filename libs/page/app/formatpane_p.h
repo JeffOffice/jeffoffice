@@ -6,7 +6,7 @@
 #include "app/formatpane.h"
 #include "app/propertyeditors.h"
 #include "app/widgets.h"
-#include "core/items.h"
+#include "core/itemsfwd.h"
 
 #include <QCheckBox>
 #include <QComboBox>

@@ -1,4 +1,5 @@
 #include "core/pageaccess.h"
+#include "core/items.h"
 
 #include "core/document.h"
 #include "render/renderer.h"

@@ -4,6 +4,7 @@
 // stack).
 
 #include "office/hyperlink.h"
+#include "core/style.h"
 #include "office/drawingml.h"
 #include "office/package.h"
 

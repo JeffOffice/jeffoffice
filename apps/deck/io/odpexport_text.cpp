@@ -4,6 +4,7 @@
 // the date).
 
 #include "io/odpexport_p.h"
+#include "core/items.h"
 
 #include "core/fonts.h"
 #include "core/texteffects.h"

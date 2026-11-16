@@ -1,4 +1,5 @@
 #include "core/picturestyles.h"
+#include "core/items.h"
 
 #include <QCoreApplication>
 #include <algorithm>

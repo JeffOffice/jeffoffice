@@ -1,4 +1,5 @@
 #include "io/odpimport.h"
+#include "core/items.h"
 
 #include "io/odpimport_p.h"
 #include "core/notesmaster.h"

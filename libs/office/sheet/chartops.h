@@ -4,7 +4,7 @@
 // processor, the presentation program, and the publishing program all make and change their charts with these, so a chart means the same wherever it is; each keeps the chart part
 // (chart_write.h) its own way and draws it with chartSvg.
 
-#include "core/items.h"
+#include "core/itemsfwd.h"
 #include "office/chart.h"
 #include "office/theme.h"
 #include "sheet/chartmake.h"

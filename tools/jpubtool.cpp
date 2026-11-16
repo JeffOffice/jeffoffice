@@ -7,6 +7,7 @@
 //                                                 vectors with PDFium's raster
 
 #include "core/fonts.h"
+#include "core/items.h"
 #include "io/cfb.h"
 #include "io/importers.h"
 #include "io/jpubfile.h"

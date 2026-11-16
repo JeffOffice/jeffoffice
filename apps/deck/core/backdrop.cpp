@@ -1,4 +1,5 @@
 #include "core/backdrop.h"
+#include "core/items.h"
 
 #include "core/color.h"
 #include "render/shapes.h"

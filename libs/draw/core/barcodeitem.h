@@ -4,7 +4,7 @@
 // file format saves; this makes the encoder's options, the group, and a vector picture of it from them.
 
 #include "core/barcode.h"
-#include "core/items.h"
+#include "core/itemsfwd.h"
 
 #include <QByteArray>
 #include <QJsonObject>
