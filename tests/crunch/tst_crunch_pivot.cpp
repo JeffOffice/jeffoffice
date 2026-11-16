@@ -2726,7 +2726,7 @@ private Q_SLOTS:
         QVERIFY(s->workbook()->pivots().cache(0).external);
         const auto refreshed = s->refreshPivot(0);
         QVERIFY(!refreshed.ok);
-        QVERIFY2(refreshed.problem.contains(QLatin1String("another workbook")), qPrintable(refreshed.problem));
+        QVERIFY2(refreshed.problem.contains(QLatin1String("keeps its last data")), qPrintable(refreshed.problem));
         QVERIFY(s->insertRows(0, 1, 1).ok);   // a row inside what would be the data
         finish(e);
         QVERIFY2(!s->workbook()->pivots().cache(0).source.valid, qPrintable(QString::number(s->workbook()->pivots().cache(0).source.row2)));
