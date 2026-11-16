@@ -1,5 +1,5 @@
 # Footnotes and endnotes
-<!-- keywords: footnote, endnote, note, notes, reference, citation, source, insert footnote, insert endnote, References tab, number, foot of the page, end of the document, caption, Ctrl+Alt+F, Ctrl+Alt+D, number format, start at, restart, convert, swap, separator, continuation notice, numbering, location, roman numerals, letters, symbols, footnote and endnote options -->
+<!-- keywords: custom mark, below text, columns, symbol, footnote, endnote, note, notes, reference, citation, source, insert footnote, insert endnote, References tab, number, foot of the page, end of the document, caption, Ctrl+Alt+F, Ctrl+Alt+D, number format, start at, restart, convert, swap, separator, continuation notice, numbering, location, roman numerals, letters, symbols, footnote and endnote options -->
 
 A **note** tells the reader more about some words without breaking up the sentence. A small raised number in the text, called the **reference**, points to the note that goes with it. A **footnote** is set at the bottom of the page that has its reference. An **endnote** is set after the last text of the document, or at the end of a section when the file asks for that.
 
@@ -12,6 +12,10 @@ JeffWrite puts the reference in the text and a new note at the foot of the page 
 
 Notes are numbered in the order of their references in the text. If you add a footnote before others, each later note goes up by one, and the reference in the text shows the new number too.
 
+## Use a mark of your own
+
+Open the box from **References > Footnote and Endnote**, and look at **New note** at the bottom. Choose **Footnote** or **Endnote**, type a mark such as \* or †† in **Custom mark** (or click **Symbol...** to pick one), and click **Insert**. The reference in the text and the note both begin with your mark instead of a number. A note with its own mark takes no number, so the notes after it are not counted any differently. Leave **Custom mark** empty and **Insert** numbers the note as usual. Insert is one step, so **Undo** takes back the reference, the mark, and the note together.
+
 ## Add an endnote
 
 Click where the reference should go, then click **References > Insert Endnote**, or press **Ctrl+Alt+D**. JeffWrite puts the reference in the text and a new endnote after the last text, with its number, and the caret moves into it. Endnotes have their own numbers, in the style the file asks for.
@@ -23,7 +27,8 @@ Click the small arrow in the corner of the **Footnotes** group on the **Referenc
 - **Number format** is how the numbers look: 1, 2, 3; a, b, c; A, B, C; i, ii, iii; I, II, III; or the marks \*, †, ‡, §.
 - **Start at** is the number the first note has. If you pick 3 and the format i, ii, iii, the first note shows iii.
 - **Numbering** says when the numbers begin again: never (**Continuous**), at each new section, or, for footnotes, at the top of each page.
-- **Location** (endnotes only) puts the endnotes at the end of each section or at the end of the document.
+- **Location** says where the notes are set. For footnotes, **Bottom of page** sets them at the foot of the page, and **Below text** sets them right after the last line of text on the page, so a short page has its notes close under the words. For endnotes, it puts them at the end of each section or at the end of the document.
+- **Columns** (footnotes only) sets the footnotes in two or more columns side by side at the foot of the page. Each note stays whole in one column, and a note that is too tall for its column is not cut.
 
 The footnotes change at once. For endnotes, JeffWrite reads the document again so that every mark and note takes the new look, and the **Undo** list starts over. The change is saved with the file, so other programs show the same numbers.
 
