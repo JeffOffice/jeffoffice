@@ -2510,6 +2510,104 @@
       ]
     },
     {
+      "name": "Chart Design",
+      "keytip": "JG",
+      "context": "Chart Tools",
+      "color": "chart",
+      "groups": [
+        {
+          "name": "Chart Layouts",
+          "keytip": "ZL",
+          "items": [
+            {
+              "large": {
+                "id": "ribbon.addElement",
+                "text": "Add Chart Element",
+                "icon": "plus"
+              },
+              "keytip": "AE",
+              "menu": "@chartElements"
+            },
+            {
+              "large": {
+                "id": "ribbon.quickLayout",
+                "text": "Quick Layout",
+                "icon": "layers"
+              },
+              "keytip": "QL",
+              "menu": "@chartLayouts"
+            }
+          ]
+        },
+        {
+          "name": "Chart Styles",
+          "keytip": "ZS",
+          "items": [
+            {
+              "large": {
+                "id": "ribbon.chartColors",
+                "text": "Change Colors",
+                "icon": "palette"
+              },
+              "keytip": "CC",
+              "menu": "@chartColors"
+            },
+            {
+              "large": {
+                "id": "ribbon.chartLooks",
+                "text": "Chart Styles",
+                "icon": "brush"
+              },
+              "keytip": "ST",
+              "menu": "@chartLooks"
+            }
+          ]
+        },
+        {
+          "name": "Data",
+          "keytip": "ZD",
+          "items": [
+            {
+              "large": "chartdesign.switch",
+              "keytip": "SW"
+            },
+            {
+              "large": "chartdesign.selectData",
+              "keytip": "SD"
+            },
+            {
+              "large": "chartdesign.editData",
+              "keytip": "ED"
+            }
+          ]
+        },
+        {
+          "name": "Type",
+          "keytip": "ZT",
+          "items": [
+            {
+              "large": "chartdesign.changeType",
+              "keytip": "CT"
+            }
+          ]
+        },
+        {
+          "name": "Axes",
+          "keytip": "ZX",
+          "items": [
+            {
+              "small": "chartdesign.axisH",
+              "keytip": "AH"
+            },
+            {
+              "small": "chartdesign.axisV",
+              "keytip": "AV"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Chart Format",
       "keytip": "JC",
       "context": "Chart Tools",

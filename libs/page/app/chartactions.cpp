@@ -1,6 +1,10 @@
 #include "app/chartactions.h"
 
+#include "canvas/canvas.h"
+#include "office/chart_write.h"
+
 #include <QActionGroup>
+#include <QScrollBar>
 #include <QCoreApplication>
 
 namespace jp {
@@ -41,6 +45,50 @@ const LegendName kLegends[] = {
     {"top", QT_TRANSLATE_NOOP("jp::ChartActions", "Legend at Top"), "t"},
     {"left", QT_TRANSLATE_NOOP("jp::ChartActions", "Legend at Left"), "l"},
     {"bottom", QT_TRANSLATE_NOOP("jp::ChartActions", "Legend at Bottom"), "b"},
+};
+
+} // namespace
+
+namespace {
+
+// What the shared chart editor asks of a window whose charts are objects of the page the editor holds.
+class EditorChartHost : public ChartDesignHost {
+public:
+    EditorChartHost(Editor *ed, QWidget *window, const std::function<void(const QString &)> &notice, const std::function<void()> &done) : m_ed(ed), m_window(window), m_notice(notice), m_done(done) {}
+    QWidget *chartParent() override { return m_window; }
+    bool chartNow(office::Chart *out) override
+    {
+        const PictureItem *pic = selectedChart(m_ed);
+        return pic && !m_ed->readOnly() && readChartOf(*m_ed->doc(), *pic, out);
+    }
+    office::Theme chartTheme() override
+    {
+        const PictureItem *pic = selectedChart(m_ed);
+        return pic ? chartThemeOfPicture(*m_ed->doc(), *pic) : office::Theme();
+    }
+    bool changeChart(const QString &label, const std::function<void(office::Chart *)> &edit) override
+    {
+        // (A change that makes no difference to the chart part is no change: it makes no step.)
+        const bool done = changeSelectedChart(m_ed, label, [&edit](office::Chart &c) {
+            const QByteArray before = office::writeChartPart(c);
+            edit(&c);
+            return office::writeChartPart(c) != before;
+        });
+        if (m_done) m_done();
+        return done;
+    }
+    void chartNotice(const QString &title, const QString &text, bool warning) override
+    {
+        Q_UNUSED(title);
+        Q_UNUSED(warning);
+        if (m_notice) m_notice(text);
+    }
+
+private:
+    Editor *m_ed;
+    QWidget *m_window;
+    std::function<void(const QString &)> m_notice;
+    std::function<void()> m_done;
 };
 
 } // namespace
@@ -117,6 +165,15 @@ void ChartActions::create()
         const bool on = find(QStringLiteral("chart.dataLabels"))->isChecked();
         change(changeLabel, [on](office::Chart &c) { return chartSetDataLabels(c, on); });
     }, true);
+    // The Chart Design tab: the editor every program shares.
+    m_host = std::make_unique<EditorChartHost>(m_ed, m_window, m_hooks.notice, m_hooks.done);
+    m_design = new ChartDesign(m_host.get(), this);
+    mk(QStringLiteral("chartdesign.editData"), QCoreApplication::translate("jp::ChartActions", "Edit Data…"), "table-2", [this] { m_design->editData(); });
+    mk(QStringLiteral("chartdesign.selectData"), QCoreApplication::translate("jp::ChartActions", "Select Data…"), "table-properties", [this] { m_design->selectData(); });
+    mk(QStringLiteral("chartdesign.switch"), QCoreApplication::translate("jp::ChartActions", "Switch Row/Column"), "arrow-left-right", [this] { m_design->switchRowsAndColumns(); });
+    mk(QStringLiteral("chartdesign.changeType"), QCoreApplication::translate("jp::ChartActions", "Change Chart Type…"), "chart-no-axes-combined", [this] { m_design->changeType(); });
+    mk(QStringLiteral("chartdesign.axisH"), QCoreApplication::translate("jp::ChartActions", "Format Horizontal Axis…"), "ruler", [this] { m_design->formatAxis(true); });
+    mk(QStringLiteral("chartdesign.axisV"), QCoreApplication::translate("jp::ChartActions", "Format Vertical Axis…"), "ruler", [this] { m_design->formatAxis(false); });
 }
 
 void ChartActions::editData()
@@ -165,6 +222,11 @@ bool ChartActions::refresh()
         if (id.startsWith(QLatin1String("chart."))) m_hooks.find(id)->setEnabled(editable);
     auto act = m_hooks.find;
     act(QStringLiteral("chart.editData"))->setEnabled(editable && info.dataEditable);
+    for (const char *id : {"chartdesign.editData", "chartdesign.selectData", "chartdesign.switch"}) act(QString::fromLatin1(id))->setEnabled(editable && info.dataEditable);
+    act(QStringLiteral("chartdesign.changeType"))->setEnabled(editable);
+    act(QStringLiteral("chartdesign.axisH"))->setEnabled(editable && info.hasAxes);
+    act(QStringLiteral("chartdesign.axisV"))->setEnabled(editable && info.hasAxes);
+    if (m_canvas) m_buttonsTimer.start();
     act(QStringLiteral("chart.title"))->setChecked(editable && info.titleShown);
     act(QStringLiteral("chart.dataLabels"))->setChecked(editable && info.dataLabels);
     for (const char *id : {"axis.category", "axis.value", "axisTitle.category", "axisTitle.value", "grid.valueMajor", "grid.valueMinor", "grid.categoryMajor"})
@@ -241,6 +303,38 @@ QMenu *ChartActions::legendMenu(QWidget *owner) const
         m->addAction(a);
     }
     return m;
+}
+
+QMenu *ChartActions::elementsMenu(QWidget *owner) const { return m_design->elementsMenu(owner); }
+QMenu *ChartActions::layoutsMenu(QWidget *owner) const { return m_design->layoutsMenu(owner); }
+QMenu *ChartActions::colorsMenu(QWidget *owner) const { return m_design->colorsMenu(owner); }
+QMenu *ChartActions::looksMenu(QWidget *owner) const { return m_design->stylesMenu(owner); }
+
+void ChartActions::attachButtons(Canvas *canvas, const std::function<QIcon(const QString &)> &icon)
+{
+    m_canvas = canvas;
+    m_icon = icon;
+    m_buttonsTimer.setSingleShot(true);
+    m_buttonsTimer.setInterval(0);
+    connect(&m_buttonsTimer, &QTimer::timeout, this, [this] { placeButtons(); });
+    for (QScrollBar *bar : {canvas->verticalScrollBar(), canvas->horizontalScrollBar()}) connect(bar, &QScrollBar::valueChanged, &m_buttonsTimer, qOverload<>(&QTimer::start));
+    connect(canvas, &Canvas::zoomChanged, &m_buttonsTimer, qOverload<>(&QTimer::start));
+    m_buttonsTimer.start();
+}
+
+// The buttons stand beside the chart that is selected (when it can be changed).
+void ChartActions::placeButtons()
+{
+    office::Chart chart;
+    const PictureItem *pic = selectedChart(m_ed);
+    if (pic && m_host->chartNow(&chart) && !m_ed->selectionBounds().isEmpty()) {
+        const QRectF page = m_ed->selectionBounds();
+        const QRect r = QRectF(m_canvas->pageToView(page.topLeft()), m_canvas->pageToView(page.bottomRight())).toAlignedRect();
+        if (!m_buttons) m_buttons = new ChartButtons(m_design, m_canvas->viewport(), m_icon, this);
+        m_buttons->place(r);
+    } else if (m_buttons) {
+        m_buttons->hide();
+    }
 }
 
 } // namespace jp
