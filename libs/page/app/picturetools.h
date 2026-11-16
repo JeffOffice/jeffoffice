@@ -32,4 +32,9 @@ void fillPictureEffectsMenu(QMenu *menu, Editor *ed, const std::function<void()>
 using EffectChange = std::function<void(Effects &)>;
 void fillPictureEffectsMenu(QMenu *menu, const std::function<void(const QString &label, const EffectChange &change)> &apply, const std::function<void()> &options = {});
 
+// Crop to Shape's gallery: the closed shapes of the Shapes gallery that a file keeps by a preset name (the id is the shape's id: office::presetForShape gives its preset).
+QVector<GalleryItem> cropShapeItems();
+// The Crop to Shape button for a Picture Format tab: the gallery above, and `chosen` called with the shape's id.
+GalleryButton *cropToShapeButton(const std::function<void(const QString &shapeId)> &chosen, const QString &objectName = QString());
+
 } // namespace jp

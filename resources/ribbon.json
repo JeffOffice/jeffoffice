@@ -438,6 +438,9 @@
       {"use": "Arrange"},
       {"name": "Crop", "keytip": "ZC", "items": [
         {"large": "pic.crop", "keytip": "CO"},
+        {"small": {"id": "ribbon.aspectRatio", "text": "Aspect Ratio", "icon": "ratio"}, "keytip": "AR", "menu": [
+          "pic.aspect.1x1", "pic.aspect.2x3", "pic.aspect.3x4", "pic.aspect.3x5", "pic.aspect.4x5", "pic.aspect.9x16",
+          "pic.aspect.3x2", "pic.aspect.4x3", "pic.aspect.5x3", "pic.aspect.5x4", "pic.aspect.16x9", "pic.aspect.16x10"]},
         {"small": "pic.fit", "keytip": "FT"},
         {"small": "pic.fill", "keytip": "FL"},
         {"row": [{"widget": "cropToShapeButton", "keytip": "CT"}]},

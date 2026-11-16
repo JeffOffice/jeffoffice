@@ -1266,7 +1266,7 @@ void CrunchWindow::updateChartState()
         const ObjectKind kind = picked ? m_objects->kindOf(m_sheet, id) : ObjectKind::Other;
         const bool picture = kind == ObjectKind::Picture, shape = kind == ObjectKind::Shape, line = kind == ObjectKind::Connector;
         for (const char *name : {"object.rotateRight", "object.rotateLeft", "object.flipH", "object.flipV"}) act(QString::fromLatin1(name))->setEnabled(picture || shape || line);
-        for (const char *name : {"object.cropSquare", "object.crop43", "object.crop34", "object.crop169", "object.crop916", "object.cropReset"}) act(QString::fromLatin1(name))->setEnabled(picture);
+        for (const char *name : {"object.cropSquare", "object.crop43", "object.crop34", "object.crop169", "object.crop916", "object.cropReset", "object.cropFill", "object.cropFit"}) act(QString::fromLatin1(name))->setEnabled(picture);
         act(QStringLiteral("object.editText"))->setEnabled(shape);
         act(QStringLiteral("object.compress"))->setEnabled(picture);
         for (const char *name : {"object.changePicture", "object.resetPicture", "object.resetPictureSize"}) act(QString::fromLatin1(name))->setEnabled(picture);

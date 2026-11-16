@@ -1231,6 +1231,19 @@ void MainWindow::createActions()
     mk("pic.fill", tr("Fill"), "expand", QKeySequence(), [ed] {
         ed->forEachSelected(tr("Fill"), [ed](Item *it) { if (auto *p = dynamic_cast<PictureItem *>(it)) p->fitImage(ed->doc()->imageSize(p->imageId), true); });
     });
+    // Aspect Ratio: the shapes slides and screens come in, wide ones and tall ones (as JeffDeck has them).
+    const struct { int w, h; QString name; } ratios[] = {
+        {1, 1, tr("Square 1:1")}, {2, 3, tr("Portrait 2:3")}, {3, 4, tr("Portrait 3:4")}, {3, 5, tr("Portrait 3:5")}, {4, 5, tr("Portrait 4:5")},
+        {9, 16, tr("Portrait 9:16")}, {3, 2, tr("Landscape 3:2")}, {4, 3, tr("Landscape 4:3")}, {5, 3, tr("Landscape 5:3")}, {5, 4, tr("Landscape 5:4")},
+        {16, 9, tr("Landscape 16:9")}, {16, 10, tr("Landscape 16:10")}};
+    for (const auto &r : ratios) {
+        const int w = r.w, h = r.h;
+        mk(QStringLiteral("pic.aspect.%1x%2").arg(w).arg(h), r.name, "ratio", QKeySequence(), [ed, w, h] {
+            ed->forEachSelected(tr("Aspect Ratio"), [ed, w, h](Item *it) {
+                if (auto *p = dynamic_cast<PictureItem *>(it); p && !p->imageId.isEmpty()) cropPictureToAspect(p, w, h);
+            });
+        });
+    }
     mk("pic.clearCrop", tr("Clear Crop"), "eraser", QKeySequence(), [ed] {
         ed->forEachSelected(tr("Clear Crop"), [ed](Item *it) {
             if (auto *p = dynamic_cast<PictureItem *>(it)) clearPictureCrop(p);

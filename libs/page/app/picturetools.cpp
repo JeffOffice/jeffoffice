@@ -3,6 +3,8 @@
 #include "app/formatpresets.h"
 #include "app/icons.h"
 #include "core/picturestyles.h"
+#include "office/drawingml_write.h"
+#include "render/shapes.h"
 #include "render/renderer.h"
 
 #include <QBuffer>
@@ -229,6 +231,23 @@ void fillPictureEffectsMenu(QMenu *menu, const std::function<void(const QString 
         menu->addSeparator();
         menu->addAction(icon("sliders-horizontal"), QCoreApplication::translate("jp::PictureTools", "More Effects Options…"), menu, options);
     }
+}
+
+QVector<GalleryItem> cropShapeItems()
+{
+    QVector<GalleryItem> v;
+    for (const auto &s : shapeLibrary())
+        if (!s.open && !office::presetForShape(s.id).isEmpty()) v << GalleryItem{s.id, s.name, shapeIcon(s.id), s.category};
+    return v;
+}
+
+GalleryButton *cropToShapeButton(const std::function<void(const QString &shapeId)> &chosen, const QString &objectName)
+{
+    auto *b = new GalleryButton(icon("shapes"), QCoreApplication::translate("jp::PictureTools", "Crop to Shape"), QSize(24, 24), 12, true);
+    if (!objectName.isEmpty()) b->setObjectName(objectName);
+    b->setItemsProvider([] { return cropShapeItems(); });
+    QObject::connect(b, &GalleryButton::activated, b, [chosen](const QString &id) { chosen(id); });
+    return b;
 }
 
 } // namespace jp

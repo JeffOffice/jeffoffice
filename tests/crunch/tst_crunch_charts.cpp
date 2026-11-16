@@ -3,6 +3,8 @@
 #include "../sheet/drawinghelpers.h"
 #include "editwindow.h"
 #include "savedok.h"
+#include "app/picturetools.h"
+#include "office/drawingml_write.h"
 
 #include "app/chartdialogs.h"
 #include "app/shapetextedit.h"
@@ -3282,6 +3284,56 @@ private Q_SLOTS:
         for (auto it = parts.begin(); it != parts.end(); ++it)
             if (it.key().startsWith(QLatin1String("xl/media/"))) ++media;
         QCOMPARE(media, 1);
+    }
+
+    // Fit shows the whole picture (the frame takes its shape), Fill covers the frame, Crop to Shape saves the picture's shape; each is one step of Undo, and the saved drawing says it.
+    void aPictureIsFilledFitAndCutToAShape()
+    {
+        EditWindow e;
+        QVERIFY(e.open(plainBook()));
+        QVERIFY(e.settle());
+        QTRY_VERIFY(e.win.w.objects()->shownSheet() == 0);
+        crunch::SheetObjects *o = e.win.w.objects();
+        QVERIFY(e.win.w.insertPictureFile(e.folder.write(QStringLiteral("wide.png"), pngBytes(960, 480, Qt::green))));
+        QVERIFY(e.win.w.act(QStringLiteral("object.cropFit"))->isEnabled() && e.win.w.act(QStringLiteral("object.cropFill"))->isEnabled());
+        QVERIFY(e.win.w.cropObject(1, 1));
+        grid::ObjectBox box = o->layer()->boxNow(o->layer()->selectedId());
+        QCOMPARE(box.w, 240.0);
+        QCOMPARE(box.h, 240.0);
+        // Fill: the frame stays, and the cut is the one that covers it (a quarter off each side of a picture twice as wide as it is high).
+        const int steps = e.win.w.undoStack()->count();
+        QVERIFY(e.win.w.fillOrFitObject(true));
+        QCOMPARE(e.win.w.undoStack()->count(), steps + 1);
+        box = o->layer()->boxNow(o->layer()->selectedId());
+        QCOMPARE(box.w, 240.0);
+        QCOMPARE(box.h, 240.0);
+        QVERIFY(save(e));
+        QVERIFY2(partsOf(e.path).value(QStringLiteral("xl/drawings/drawing1.xml")).contains("l=\"25000\""), "fill");
+        // Fit: all of the picture shows, and the frame is its shape inside the old one (half as high as wide).
+        QVERIFY(e.win.w.fillOrFitObject(false));
+        box = o->layer()->boxNow(o->layer()->selectedId());
+        QCOMPARE(box.w, 240.0);
+        QCOMPARE(box.h, 120.0);
+        QVERIFY(save(e));
+        QVERIFY(!partsOf(e.path).value(QStringLiteral("xl/drawings/drawing1.xml")).contains("srcRect"));
+        // Crop to Shape: the first shape of the gallery that is not a rectangle, saved as the picture's geometry; the same shape again is no step.
+        QString preset;
+        QString shapeId;
+        for (const jp::GalleryItem &item : jp::cropShapeItems())
+            if (const QString p = jp::office::presetForShape(item.id); !p.isEmpty() && p != QLatin1String("rect")) {
+                preset = p;
+                shapeId = item.id;
+                break;
+            }
+        QVERIFY(!preset.isEmpty());
+        const int before = e.win.w.undoStack()->count();
+        QVERIFY(e.win.w.cropObjectToShape(shapeId));
+        QCOMPARE(e.win.w.undoStack()->count(), before + 1);
+        QVERIFY(save(e));
+        QVERIFY2(partsOf(e.path).value(QStringLiteral("xl/drawings/drawing1.xml")).contains("prst=\"" + preset.toUtf8() + "\""), qPrintable(preset));
+        QVERIFY(!e.win.w.cropObjectToShape(shapeId));
+        QVERIFY(!e.win.w.cropObjectToShape(QStringLiteral("no such shape")));
+        QVERIFY(e.win.w.undoStack()->count() == before + 1);
     }
 
     // Picture Styles, Picture Effects, Change Picture, and Reset Picture: a style gives the picture its shape, border, and effects in the saved drawing (in the schema's order); an effect is

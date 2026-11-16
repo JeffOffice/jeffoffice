@@ -334,6 +334,32 @@ private Q_SLOTS:
         QVERIFY(!picture()->fx.any());
     }
 
+    // Aspect Ratio is on the Picture Format tab as it is in JeffDeck: the frame is cut to the shape around its middle, the picture stays where it is on the page, and it is one step.
+    void aspectRatioCutsTheFrameInOneStep()
+    {
+        jp::MainWindow w;
+        w.resize(1400, 900);
+        w.show();
+        jp::Editor *ed = w.editor();
+        auto pic = pictureForStyles(ed, Qt::red, 160, 80);
+        auto picture = [&] { return static_cast<jp::PictureItem *>(ed->doc()->item(pic->id)); };
+        const QRectF frame = picture()->rect;
+        ed->select(pic->id);
+        QAction *square = w.act(QStringLiteral("pic.aspect.1x1"));
+        QVERIFY(square);
+        QTRY_VERIFY(square->isEnabled());
+        const int steps = ed->undoStack()->index();
+        square->trigger();
+        QCOMPARE(ed->undoStack()->index(), steps + 1);
+        QVERIFY(std::abs(picture()->rect.width() - picture()->rect.height()) < 0.001);
+        QVERIFY(std::abs(picture()->rect.height() - frame.height()) < 0.001);
+        QCOMPARE(picture()->rect.center(), frame.center());
+        // (The picture stays where it was on the page: its place in the frame moves by what the frame lost.)
+        QVERIFY(std::abs(picture()->imgRect.x() + (frame.width() - frame.height()) / 2) < 0.001);
+        ed->undo();
+        QCOMPARE(picture()->rect, frame);
+    }
+
     // Ctrl+drag copies a picture, and a copy let go over another picture stays
     // where it was dropped (it swapped, which put the copy back over the
     // original, and gave the other picture the same image).

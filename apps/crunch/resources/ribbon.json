@@ -726,6 +726,9 @@
           "keytip": "ZZ",
           "items": [
             {"large": {"id": "ribbon.crop", "text": "Crop", "icon": "crop"}, "keytip": "CR", "menu": ["object.cropSquare", "object.crop43", "object.crop34", "object.crop169", "object.crop916", "-", "object.cropReset"]},
+            {"widget": "cropToShapeButton", "keytip": "CT"},
+            {"small": "object.cropFill", "keytip": "FL"},
+            {"small": "object.cropFit", "keytip": "FT"},
             {"large": "object.properties", "keytip": "PR"}
           ]
         }

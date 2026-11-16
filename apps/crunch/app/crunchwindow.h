@@ -1522,6 +1522,8 @@ public:
     bool setObjectOutlineStyle(double weightPoints, const QString &dash);
     bool rotateObject(int quarterTurns, bool flipH, bool flipV);
     bool cropObject(int width, int height);
+    bool fillOrFitObject(bool fill);
+    bool cropObjectToShape(const QString &shapeId);
     // Picture Format > Picture Styles, Picture Effects, Change Picture, and Reset Picture on the picked picture; each is one step of Undo (the picture is made again with its place, name, and order).
     // A style is a number of the shared gallery (core/picturestyles.h); `change` sets the effects from what they are; Reset Picture also takes the crop off, and with `andSize` the picture is
     // the size its file has (a pixel is a unit). Change Picture keeps the size and the crop of a picture of the same proportions and the look of any.

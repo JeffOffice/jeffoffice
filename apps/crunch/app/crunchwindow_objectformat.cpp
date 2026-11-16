@@ -19,6 +19,7 @@
 #include "app/compresspictures.h"
 #include "app/picturetools.h"
 #include "core/picturestyles.h"
+#include "core/picturecrop.h"
 #include "office/drawingml_geometry.h"
 #include "app/icons.h"
 #include "app/plaintext.h"
@@ -212,6 +213,16 @@ bool setCrop(QDomElement &pic, const Crop &c)
         insertAfterLast(blip, src, {"blip"});
     }
     return true;
+}
+
+Crop cropOfShares(const CropShares &c)
+{
+    Crop out;
+    out.l = std::clamp<qint64>(std::llround(c.left * 100000.0), 0, 90000);
+    out.r = std::clamp<qint64>(std::llround(c.right * 100000.0), 0, 90000 - out.l);
+    out.t = std::clamp<qint64>(std::llround(c.top * 100000.0), 0, 90000);
+    out.b = std::clamp<qint64>(std::llround(c.bottom * 100000.0), 0, 90000 - out.t);
+    return out;
 }
 
 QString textOf(const QDomElement &sp)
@@ -700,25 +711,52 @@ bool CrunchWindow::cropObject(int width, int height)
             box->w = box->w / std::max(0.1, showW);
             box->h = box->h / std::max(0.1, showH);
         } else {
-            const double aspect = box->w / std::max(1.0, box->h), target = double(width) / double(height);
-            next = now;
-            if (aspect > target) {
-                const double f = target / aspect;   // the share of the width that stays
-                const qint64 cut = qint64(std::llround(showW * (1.0 - f) * 100000.0 / 2.0));
-                next.l += cut;
-                next.r += cut;
-                box->w *= f;
-            } else if (aspect < target) {
-                const double f = aspect / target;
-                const qint64 cut = qint64(std::llround(showH * (1.0 - f) * 100000.0 / 2.0));
-                next.t += cut;
-                next.b += cut;
-                box->h *= f;
-            }
+            const CropShares was{double(now.l) / 100000.0, double(now.t) / 100000.0, double(now.r) / 100000.0, double(now.b) / 100000.0};
+            const CropPlan plan = planCropAspect(QSizeF(box->w, std::max(1.0, box->h)), was, width, height);
+            if (!plan.valid) return false;
+            next = cropOfShares(plan.shares);
+            box->w = plan.frame.width();
+            box->h = plan.frame.height();
         }
         box->w = std::max(4.0, std::round(box->w));
         box->h = std::max(4.0, std::round(box->h));
         return setCrop(el, next);
+    }, true);
+}
+
+// Fill (the frame stays, the picture covers it) and Fit (the whole picture shows, and the frame takes its shape), worked out from the picture's size in its file.
+bool CrunchWindow::fillOrFitObject(bool fill)
+{
+    QSizeF whole;
+    return restyleObject(fill ? tr("Fill") : tr("Fit"), [&](QDomElement &el, grid::ObjectBox *box) {
+        if (whole.isEmpty()) return false;
+        const QSizeF frame(box->w, std::max(1.0, box->h));
+        const CropPlan plan = fill ? planCropFill(frame, whole) : planCropFit(frame, whole, false);
+        if (!plan.valid) return false;
+        box->w = std::max(4.0, std::round(plan.frame.width()));
+        box->h = std::max(4.0, std::round(plan.frame.height()));
+        return setCrop(el, cropOfShares(plan.shares));
+    }, true, -1, [&](crunch::ObjectClip &clip) {
+        if (clip.media.size() != 1) return;
+        QByteArray bytes = clip.media[0].bytes;
+        QBuffer buffer(&bytes);
+        buffer.open(QIODevice::ReadOnly);
+        whole = QImageReader(&buffer).size();
+    });
+}
+
+// Crop to a shape: the picture's own shape geometry (a preset of the gallery), as a picture style sets it.
+bool CrunchWindow::cropObjectToShape(const QString &shapeId)
+{
+    const QString preset = office::presetForShape(shapeId);
+    if (preset.isEmpty()) return false;
+    return restyleObject(tr("Crop to Shape"), [&](QDomElement &el, grid::ObjectBox *) {
+        QDomElement spPr = spPrOf(el);
+        if (spPr.isNull() || el.localName() != QLatin1String("pic")) return false;
+        const QDomElement now = childNamed(spPr, QStringLiteral("prstGeom"));
+        if (!now.isNull() && now.attribute(QStringLiteral("prst")) == preset) return false;
+        putElements(spPr, {"prstGeom", "custGeom"}, "<a:prstGeom prst=\"" + preset.toUtf8() + "\"><a:avLst/></a:prstGeom>", {"xfrm"});
+        return true;
     }, true);
 }
 
@@ -1174,6 +1212,8 @@ void CrunchWindow::createObjectFormatActions()
     mkObject("object.crop34", tr("Portrait 3:4"), "crop", [this] { cropObject(3, 4); });
     mkObject("object.crop169", tr("Wide 16:9"), "crop", [this] { cropObject(16, 9); });
     mkObject("object.crop916", tr("Tall 9:16"), "crop", [this] { cropObject(9, 16); });
+    mkObject("object.cropFill", tr("Fill"), "expand", [this] { fillOrFitObject(true); });
+    mkObject("object.cropFit", tr("Fit"), "shrink", [this] { fillOrFitObject(false); });
     mkObject("object.cropReset", tr("Show the Whole Picture"), "crop", [this] { cropObject(0, 0); });
     createTextArtActions();
 }
@@ -1193,6 +1233,7 @@ void CrunchWindow::objectFormatRibbonParts(RibbonParts &parts)
         return b;
     };
     parts.widgets[QStringLiteral("shapeFill")] = [fillButton]() -> QWidget * { return fillButton("object.fillColor", CrunchWindow::tr("Shape Fill"), CrunchWindow::tr("No Fill"), true); };
+    parts.widgets[QStringLiteral("cropToShapeButton")] = [this]() -> QWidget * { return cropToShapeButton([this](const QString &id) { cropObjectToShape(id); }, QStringLiteral("cropToShapeButton")); };
     parts.widgets[QStringLiteral("pictureBorder")] = [fillButton]() -> QWidget * { return fillButton("object.pictureBorder", CrunchWindow::tr("Picture Border"), CrunchWindow::tr("No Outline"), false); };
     parts.widgets[QStringLiteral("shapeOutline")] = [fillButton]() -> QWidget * { return fillButton("object.outlineColor", CrunchWindow::tr("Shape Outline"), CrunchWindow::tr("No Outline"), false); };
     parts.widgets[QStringLiteral("pictureStyleGallery")] = [this]() -> QWidget * {

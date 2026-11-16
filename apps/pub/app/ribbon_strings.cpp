@@ -13,6 +13,7 @@
     QT_TRANSLATE_NOOP("Ribbon", "Apply To"),
     QT_TRANSLATE_NOOP("Ribbon", "Arrange"),
     QT_TRANSLATE_NOOP("Ribbon", "Arrows"),
+    QT_TRANSLATE_NOOP("Ribbon", "Aspect Ratio"),
     QT_TRANSLATE_NOOP("Ribbon", "Axes"),
     QT_TRANSLATE_NOOP("Ribbon", "Bevel"),
     QT_TRANSLATE_NOOP("Ribbon", "Border Weight and Dashes"),

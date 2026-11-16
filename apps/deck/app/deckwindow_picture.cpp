@@ -194,18 +194,7 @@ void DeckWindow::addCropParts(RibbonParts &parts)
     };
     parts.launchers[QStringLiteral("pictureStyles")] = [this] { formatSelection(FormatPane::Tab::Picture); };
     // Crop to Shape: the closed shapes, as the Shapes gallery lists them, that a presentation file has by name (it saves the picture's shape as one of them).
-    parts.widgets[QStringLiteral("cropToShapeButton")] = [this]() -> QWidget * {
-        auto *b = new GalleryButton(icon("shapes"), tr("Crop to Shape"), QSize(24, 24), 12, true);
-        b->setObjectName(QStringLiteral("cropToShapeButton"));
-        b->setItemsProvider([] {
-            QVector<GalleryItem> v;
-            for (const auto &s : shapeLibrary())
-                if (!s.open && !office::presetForShape(s.id).isEmpty()) v << GalleryItem{s.id, s.name, shapeIcon(s.id), s.category};
-            return v;
-        });
-        connect(b, &GalleryButton::activated, this, [this](const QString &id) { cropPictureToShape(id); });
-        return b;
-    };
+    parts.widgets[QStringLiteral("cropToShapeButton")] = [this]() -> QWidget * { return cropToShapeButton([this](const QString &id) { cropPictureToShape(id); }, QStringLiteral("cropToShapeButton")); };
 }
 
 } // namespace jp
