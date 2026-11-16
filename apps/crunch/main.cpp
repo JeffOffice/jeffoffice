@@ -13,6 +13,8 @@
 #include "app/crunchwindow.h"
 #include "app/ribbon.h"
 #include "app/focusring.h"
+#include "app/uistyle.h"
+#include "core/appinfo.h"
 #include "app/i18n.h"
 #include "app/icons.h"
 #include "app/recovery.h"
@@ -30,10 +32,18 @@
 #include <QCommandLineParser>
 #include <QDir>
 #include <QImage>
+#include <QMessageBox>
 #include <QFileOpenEvent>
 #include <QStatusBar>
 #include <memory>
 #include <QStyleFactory>
+#ifndef Q_OS_WIN
+#include <unistd.h>
+#else
+#include <io.h>
+#define isatty _isatty
+#define fileno _fileno
+#endif
 #include <QTimer>
 
 #ifdef Q_OS_WIN
@@ -102,7 +112,7 @@ int main(int argc, char **argv)
     QCommandLineOption stageOpt(QStringLiteral("backstage"), QCoreApplication::translate("Main", "Open on a File page."), QStringLiteral("page"));
     QCommandLineOption tabOpt(QStringLiteral("tab"), QCoreApplication::translate("Main", "Show this ribbon tab."), QStringLiteral("name"));
     QCommandLineOption insertOpt(QStringLiteral("insert"), QCoreApplication::translate("Main", "For --screenshot: put a picture or a shape on the sheet first."), QStringLiteral("picture|shape"));
-    QCommandLineOption sepOpt(QStringLiteral("separator"), QCoreApplication::translate("Main", "For a .csv, .tsv, or .txt file: what separates its fields (comma, semicolon, tab, space, bar, or one character). No question is asked."), QStringLiteral("separator"));
+    QCommandLineOption sepOpt(QStringLiteral("separator"), QCoreApplication::translate("Main", "For a .csv, .tsv, or .txt file: what separates its fields (comma, semicolon, tab, space, bar, or one character). No question is asked, for the files on this command line only."), QStringLiteral("separator"));
     QCommandLineOption encOpt(QStringLiteral("encoding"), QCoreApplication::translate("Main", "For a .csv, .tsv, or .txt file: its encoding (utf-8, utf-8-bom, utf-16le, utf-16be, latin1, mac-roman, windows-1252 or another page, iso-8859-N)."), QStringLiteral("encoding"));
     QCommandLineOption decOpt(QStringLiteral("decimal"), QCoreApplication::translate("Main", "For a .csv, .tsv, or .txt file: the mark in its numbers (point or comma)."), QStringLiteral("mark"));
     cli.addOptions({shotOpt, sizeOpt, zoomOpt, sheetOpt, stageOpt, tabOpt, insertOpt, sepOpt, encOpt, decOpt});
@@ -163,19 +173,24 @@ int main(int argc, char **argv)
         return app.exec();
     }
     w->setPromptForText(true);   // (a text file asks how it is read)
-    if (cli.isSet(sepOpt) || cli.isSet(encOpt) || cli.isSet(decOpt)) {   // (unless the command line says)
+    if (cli.isSet(sepOpt) || cli.isSet(encOpt) || cli.isSet(decOpt)) {   // (for the files on this command line, and only them)
         jp::office::sheet::CsvImport how;
         QString why;
-        if (!jp::crunch::textImportFromOptions(cli.value(sepOpt), cli.value(encOpt), cli.value(decOpt), &how, &why)) {
-            fprintf(stderr, "%s\n", qPrintable(why));
+        auto given = [&cli](const QCommandLineOption &o) { return cli.isSet(o) ? (cli.value(o).isNull() ? QStringLiteral("") : cli.value(o)) : QString(); };   // (an empty value is given and refused)
+        if (!jp::crunch::textImportFromOptions(given(sepOpt), given(encOpt), given(decOpt), &how, &why)) {
+            // (a program with no console shows it in a box)
+            if (isatty(fileno(stderr))) {
+                fprintf(stderr, "%s\n", qPrintable(why));
+            } else {
+                jp::MessageBox box(QMessageBox::Warning, jp::appInfo().name, QCoreApplication::translate("Main", "The command line is not understood"), QMessageBox::Ok);
+                box.setText(why);
+                box.setTextFormat(Qt::PlainText);
+                box.exec();
+            }
             return 2;
         }
         w->setTextImport(std::make_shared<const jp::office::sheet::CsvImport>(how));
     }
-#ifdef Q_OS_WIN
-    // Lets the installer see that JeffCrunch is running and ask to close it first (before the window shows).
-    if (plain) CreateMutexW(nullptr, FALSE, L"JeffCrunchRunning");
-#endif
     if (!start.showFirst(w, files.value(0))) return 0;
     w->show();
     jp::startupMark("window shown");
@@ -187,6 +202,7 @@ int main(int argc, char **argv)
         jp::traceDrawn(w, "file drawn");
         for (int i = 1; i < files.size(); ++i) w->openFile(files[i]);   // (each in a window of its own)
     }
+    w->setTextImport(nullptr);   // (a later File > Open or a drop asks as usual)
     if (start.staged() && !files.isEmpty() && w->statusBar()->currentMessage() == jp::openingStatus(files.first())) w->statusBar()->clearMessage();
     start.finish();
     // A normal exit takes this run's automatic recovery copies with it; copies a crashed run left are offered once the window is up.

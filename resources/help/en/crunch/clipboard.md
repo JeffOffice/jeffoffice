@@ -38,17 +38,17 @@ Three more choices are in the arrow under **Paste**. They work on cells you copi
 
 ## Text with commas, semicolons, or columns
 
-When the text you paste from another program is clearly a table, JeffCrunch opens the same window as opening a text file, so you can check how it is split before anything goes into the cells. It does this when the text has at least two lines, has no tab in it, and either has the same number of pieces on every line, split by commas, semicolons, or bars (a piece in quotes can hold a comma), or lines its pieces up in columns of the same width, with the same gaps of spaces on every line (at least three lines, and at least two gaps). The window starts with the way the text was found to be split. If the numbers have commas in them and the pieces are split by semicolons, the comma is the decimal mark. Click **OK** to put the pieces in, or **Cancel** to put in nothing.
+When the text you paste from another program is clearly a table, JeffCrunch opens the same window as opening a text file, so you can check how it is split before anything goes into the cells. This happens only with a plain **Paste** (**{key:Paste}**), never with **Paste Special** or one of its choices. It happens when the text has at least two lines and no tab, and either every line has the same number of pieces, at least three, split by commas, semicolons, or bars, with something in every column (a piece in quotes can hold a comma); or the pieces line up in columns of the same width, with the same gaps of spaces on every line (at least three lines, and at least two gaps). Numbers with thousands commas, such as 1,234, and lines of code or lists that end in a comma or a semicolon are not taken for a table. The window starts with the way the text was found to be split. If the numbers have commas in them and the pieces are split by semicolons, the comma is the decimal mark. Click **OK** to put the pieces in, or **Cancel** to put in nothing.
 
 Example: copy these lines from an email.
 
-    name,qty
-    Apple,12
-    Pear,3
+    name,qty,price
+    Apple,12,1.50
+    Pear,3,0.25
 
-Paste them, and the window shows two columns, with **Comma** ticked. One sentence on one line, or lines that have different numbers of commas, are pasted as words, with no window. Text with tabs goes straight into the cells, as it always did. To open the window for any text at all, choose **Paste Text Import** (above).
+Paste them with a third column, such as a price, and the window shows three columns, with **Comma** ticked. One sentence on one line, or lines that have different numbers of commas, or only two pieces to a line, are pasted as words, with no window. Text with tabs goes straight into the cells, as it always did. To open the window for any text at all, choose **Paste Text Import** (above).
 
-The same happens when you drag text from another program and drop it on the window: it goes in at the selected cell.
+The same happens when you drag text from another program and drop it on the grid: it goes in at the selected cell. A drop anywhere else on the window does nothing.
 
 ## Set Default Paste
 

@@ -748,6 +748,7 @@ protected:
     void resizeEvent(QResizeEvent *e) override;
     bool eventFilter(QObject *o, QEvent *e) override;
     void dragEnterEvent(QDragEnterEvent *e) override;
+    void dragMoveEvent(QDragMoveEvent *e) override;
     void dropEvent(QDropEvent *e) override;
 
 private:
@@ -1272,6 +1273,7 @@ private:
     void pasteTextImport();
     bool importPastedText(const QString &text, bool any);
     void dropText(const QString &text);
+    bool overGrid(const QPoint &windowPoint) const;
     void pasteLink();
     void pasteAsHyperlinks();
     bool ownClipboardBlock(crunch::ClipData *clip, const QString &title);

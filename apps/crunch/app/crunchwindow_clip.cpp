@@ -425,12 +425,17 @@ void CrunchWindow::pasteTextImport()
 // columns of fixed width it has, else a comma), the choices put to the person, and the fields entered as if typed, one step of Undo. False when the person cancelled or nothing was entered.
 bool CrunchWindow::importPastedText(const QString &text, bool any)
 {
+    if (text.size() > crunch::kMostPastedChars) {
+        notice(tr("Paste Text Import"), tr("That text is too long to split. Copy less of it, and try again."));
+        return true;
+    }
     TextImportRequest req;
     req.locale = QLocale();
-    req.head = text.toUtf8().left(jp::office::sheet::kCsvPreviewBytes);
-    req.size = text.toUtf8().size();
+    const QByteArray utf8 = text.toUtf8();   // (once)
+    req.head = utf8.left(jp::office::sheet::kCsvPreviewBytes);
+    req.size = utf8.size();
     req.choices.encodingSet = true;
-    if (!crunch::guessDelimitedText(text, &req.choices)) {
+    if (!crunch::guessDelimitedText(text, &req.choices, !any)) {
         if (!any) return false;
         req.choices.separators = text.contains(QLatin1Char('\t')) ? QStringLiteral("\t") : QStringLiteral(",");
     }
@@ -586,12 +591,15 @@ void CrunchWindow::pasteClipboard(const crunch::EditSession::PasteOptions &optio
     QVector<QStringList> table;
     jp::office::sheet::CsvImport guessed;
     if (!rich) {
-        // Text that is clearly commas, semicolons, bars, or columns of fixed width asks in the import window (a tab in it keeps it going straight into cells).
-        if (md->hasText() && crunch::guessDelimitedText(md->text(), &guessed)) {
-            importPastedText(md->text(), false);
+        const QString text = md->hasText() ? md->text() : QString();   // (read once)
+        // Text that is clearly commas, semicolons, bars, or columns of fixed width asks in the import window; a plain Paste only (Paste Special keeps its choice), and a tab in the
+        // text keeps it going straight into cells.
+        const bool plain = options.what == Options::What::All && options.operation == Options::Operation::None && !options.skipBlanks && !options.transpose;
+        if (plain && !text.isEmpty() && text.size() <= crunch::kMostPastedChars && crunch::guessDelimitedText(text, &guessed, true)) {
+            importPastedText(text, false);
             return;
         }
-        if (md->hasText()) table = crunch::parseTabSeparated(md->text());
+        if (!text.isEmpty()) table = crunch::parseTabSeparated(text);
         if (table.isEmpty() && md->hasHtml()) table = crunch::parseHtmlTable(md->html());
         if (table.isEmpty()) return;
     }

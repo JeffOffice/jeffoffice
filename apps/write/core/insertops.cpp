@@ -11,6 +11,7 @@
 #include <QDate>
 #include <QLocale>
 #include <QMimeData>
+#include <QRegularExpression>
 #include <QTextCursor>
 #include <memory>
 
@@ -185,6 +186,53 @@ QByteArray rtfOfMime(const QMimeData *mime)
         if (bytes.size() <= kMostPastedRtf && office::rtf::looksLikeRtf(bytes)) return bytes;
     }
     return {};
+}
+
+bool hasRtfFormat(const QMimeData *mime)
+{
+    if (!mime) return false;
+    const QStringList have = mime->formats();
+    for (const QString &f : rtfFormats())
+        if (have.contains(f)) return true;
+    return false;
+}
+
+QString safeClipHtml(const QString &html)
+{
+    // (the addresses a page may name: data: and http(s): only; anything else, such as file:, a bare path, or a UNC name, goes)
+    static const QRegularExpression img(QStringLiteral("<img\\b[^>]*>"), QRegularExpression::CaseInsensitiveOption);
+    static const QRegularExpression src(QStringLiteral("\\bsrc\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)'|([^\\s>]+))"), QRegularExpression::CaseInsensitiveOption);
+    static const QRegularExpression urlFn(QStringLiteral("url\\(\\s*(['\"]?)\\s*(?!data:|https?:)[^)]*\\)"), QRegularExpression::CaseInsensitiveOption);
+    static const QRegularExpression background(QStringLiteral("\\bbackground\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)'|([^\\s>]+))"), QRegularExpression::CaseInsensitiveOption);
+    auto allowed = [](const QString &address) {
+        const QString a = address.trimmed().toLower();
+        return a.startsWith(QLatin1String("data:")) || a.startsWith(QLatin1String("http://")) || a.startsWith(QLatin1String("https://"));
+    };
+    auto addressOf = [](const QRegularExpressionMatch &m) { return m.captured(1).isNull() ? (m.captured(2).isNull() ? m.captured(3) : m.captured(2)) : m.captured(1); };
+    QString out;
+    out.reserve(html.size());
+    qsizetype last = 0;
+    auto it = img.globalMatch(html);
+    while (it.hasNext()) {
+        const auto m = it.next();
+        out += QStringView(html).mid(last, m.capturedStart() - last);
+        last = m.capturedEnd();
+        const auto s = src.match(m.captured());
+        if (s.hasMatch() && allowed(addressOf(s))) out += m.captured();
+    }
+    out += QStringView(html).mid(last);
+    out.replace(urlFn, QStringLiteral("none"));
+    QString plain;
+    qsizetype from = 0;
+    auto bit = background.globalMatch(out);
+    while (bit.hasNext()) {
+        const auto m = bit.next();
+        plain += QStringView(out).mid(from, m.capturedStart() - from);
+        from = m.capturedEnd();
+        if (allowed(addressOf(m))) plain += m.captured();
+    }
+    plain += QStringView(out).mid(from);
+    return plain;
 }
 
 bool clipFromRtf(const QByteArray &bytes, Clip *out, QString *problem)

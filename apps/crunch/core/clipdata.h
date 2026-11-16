@@ -76,12 +76,14 @@ QVector<QStringList> parseHtmlTable(const QString &html);
 QVector<QStringList> splitDelimitedText(const QString &text, const jp::office::sheet::CsvImport &choices);
 
 // Whether text that came from another program is clearly delimited text, and how: no tab in it (tab-separated text goes straight into cells), at least two lines, and either the
-// same number of fields on every line (two or more) by commas, semicolons, or bars (a semicolon or bar wins over a comma that is there too; quotes are kept whole; a semicolon file whose
+// same number of fields on every line by commas, semicolons, or bars (a semicolon or bar wins over a comma that is there too; quotes are kept whole; a semicolon file whose
 // numbers have commas in them reads them as decimal marks), or, from three lines, columns of fixed width (the same gaps of spaces in every line, at least two of them). Only the first
-// kGuessBytes of the text and kGuessLines lines are looked at. The choices come back set to what was found (the rest left as they are); false when it is not clear.
+// kGuessBytes of the text and kGuessLines lines are looked at. `strict` (a paste or a drop: it asks without being asked) wants three or more fields on every line, no column empty on every
+// line, and no numbers with thousands marks; not strict (Paste Text Import, which was asked for) takes two fields. The choices come back set to what was found (the rest left as they are); false when it is not clear.
 constexpr qsizetype kGuessBytes = 65536;
 constexpr int kGuessLines = 100;
-bool guessDelimitedText(const QString &text, jp::office::sheet::CsvImport *choices);
+constexpr qint64 kMostPastedChars = qint64(32) << 20;   // the most characters of pasted or dropped text that are split (kMaxClipCells fields need no more)
+bool guessDelimitedText(const QString &text, jp::office::sheet::CsvImport *choices, bool strict = true);
 
 // How a text file of values is read when the command line says (--separator, --encoding, --decimal; each may be empty for "as the file is found to be"). The separator is comma,
 // semicolon, tab, space, or bar, or one character; the encoding is utf-8, utf-8-bom, utf-16le, utf-16be, latin1, mac-roman, windows-NNNN (a code page such as 1250), or iso-8859-N;
