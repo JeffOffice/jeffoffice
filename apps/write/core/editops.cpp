@@ -2985,13 +2985,7 @@ void applyListPaste(WriteDoc &doc, QTextCursor &c, int from, int to, ListPaste h
     QVector<QTextBlock> items;
     for (QTextBlock b = d->findBlock(from); b.isValid() && b.position() < to; b = b.next())
         if (b.position() >= from && !isLocked(b) && inListNow(doc, b)) items.push_back(b);
-    if (items.isEmpty()) return;
-    const bool numbered = beside.isValid() && listKindOf(doc, beside) == ListKind::Numbers;
-    if (how == ListPaste::Default) {
-        if (!beside.isValid() || listKindOf(doc, beside) != listKindOf(doc, items.first())) return;
-        how = ListPaste::Continue;
-    }
-    if ((how == ListPaste::Merge || how == ListPaste::Continue) && !beside.isValid()) return;
+    if (items.isEmpty() || (how != ListPaste::New && !beside.isValid())) return;
     const int besideId = beside.isValid() ? beside.blockFormat().intProperty(prop::NumId) : 0;
     const int besideLevel = beside.isValid() ? beside.blockFormat().intProperty(prop::NumLevel) : 0;
     NumberGuard numbers(doc, d);
@@ -3000,15 +2994,16 @@ void applyListPaste(WriteDoc &doc, QTextCursor &c, int from, int to, ListPaste h
         int shallowest = 8;
         for (const QTextBlock &b : std::as_const(items)) shallowest = std::min(shallowest, b.blockFormat().intProperty(prop::NumLevel));
         for (const QTextBlock &b : std::as_const(items)) setBlockList(doc, b, besideId, besideLevel + b.blockFormat().intProperty(prop::NumLevel) - shallowest, nullptr);
+    } else if (how == ListPaste::Continue) {
+        // The items of the beside one's kind are items of its list (its numbering), at the depth they had: the numbers go on through them and past them, and follow every later edit.
+        for (const QTextBlock &b : std::as_const(items))
+            if (listKindOf(doc, b) == listKindOf(doc, beside)) setBlockList(doc, b, besideId, b.blockFormat().intProperty(prop::NumLevel), nullptr);
     } else {
-        // Each list the items came from becomes one of its own look: it begins at 1 (New), or at the number after the item beside it (Continue, for numbers; bullets have no count to go on with).
-        int next = 1;
-        if (how == ListPaste::Continue && numbered && beside.textList()) next = beside.textList()->itemNumber(beside) + beside.textList()->format().start() + (beside.position() < from ? 1 : 0);
+        // Each list the items came from becomes a list of its own look that begins at 1.
         QHash<int, int> made;
         for (const QTextBlock &b : std::as_const(items)) {
             const int oldId = b.blockFormat().intProperty(prop::NumId), level = b.blockFormat().intProperty(prop::NumLevel);
-            if (how == ListPaste::Continue && (!numbered || oldId == besideId || listKindOf(doc, b) != ListKind::Numbers)) continue;
-            if (!made.contains(oldId)) made.insert(oldId, doc.addNumberingId(doc.numbering().definitionOf(oldId), level, how == ListPaste::New ? 1 : next));
+            if (!made.contains(oldId)) made.insert(oldId, doc.addNumberingId(doc.numbering().definitionOf(oldId), level, 1));
             setBlockList(doc, b, made.value(oldId), level, nullptr);
         }
     }
