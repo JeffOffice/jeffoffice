@@ -7512,7 +7512,7 @@ Abra-os no seu programa de email para enviar.</translation>
         <location line="+3"/>
         <location filename="../apps/deck/main.cpp" line="+92"/>
         <location filename="../apps/write/main.cpp" line="+94"/>
-        <location filename="../apps/crunch/main.cpp" line="+108"/>
+        <location filename="../apps/crunch/main.cpp" line="+109"/>
         <source>Save a screenshot of the window and quit.</source>
         <translation type="unfinished">Salvar uma captura de tela da janela e sair.</translation>
     </message>

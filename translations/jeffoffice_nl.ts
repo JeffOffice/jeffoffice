@@ -7512,7 +7512,7 @@ Open deze bestanden in uw e-mailprogramma om ze te verzenden.</translation>
         <location line="+3"/>
         <location filename="../apps/deck/main.cpp" line="+92"/>
         <location filename="../apps/write/main.cpp" line="+94"/>
-        <location filename="../apps/crunch/main.cpp" line="+108"/>
+        <location filename="../apps/crunch/main.cpp" line="+109"/>
         <source>Save a screenshot of the window and quit.</source>
         <translation type="unfinished">Een schermafbeelding van het venster opslaan en afsluiten.</translation>
     </message>
