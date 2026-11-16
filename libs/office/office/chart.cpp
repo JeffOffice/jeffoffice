@@ -1185,6 +1185,7 @@ bool Reader::read(const QDomElement &root, QString *error)
         const QDomElement spPr = cChild(area, "spPr");
         bool none = false;
         readFill(spPr, &c.plotFill, &none);
+        c.plotNone = none;
         c.plotBorder = readLine(spPr);
         c.plotKept = keptIn(spPr, c.plotFill);
     }

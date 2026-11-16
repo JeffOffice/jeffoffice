@@ -2159,9 +2159,9 @@
       ]
     },
     {
-      "name": "Chart Design",
+      "name": "Chart",
       "keytip": "JG",
-      "context": "Chart Tools",
+      "context": "Chart",
       "color": "chart",
       "groups": [
         {
@@ -2171,7 +2171,7 @@
             {
               "large": {
                 "id": "ribbon.addElement",
-                "text": "Add Chart Element",
+                "text": "Chart Parts",
                 "icon": "plus"
               },
               "keytip": "AE",
@@ -2180,7 +2180,7 @@
             {
               "large": {
                 "id": "ribbon.quickLayout",
-                "text": "Quick Layout",
+                "text": "Layouts",
                 "icon": "layers"
               },
               "keytip": "QL",
@@ -2189,13 +2189,13 @@
           ]
         },
         {
-          "name": "Chart Styles",
+          "name": "Looks",
           "keytip": "ZS",
           "items": [
             {
               "large": {
                 "id": "ribbon.chartColors",
-                "text": "Change Colors",
+                "text": "Colors",
                 "icon": "palette"
               },
               "keytip": "CC",
@@ -2204,7 +2204,7 @@
             {
               "large": {
                 "id": "ribbon.chartLooks",
-                "text": "Chart Styles",
+                "text": "Looks",
                 "icon": "brush"
               },
               "keytip": "ST",
@@ -2263,7 +2263,7 @@
     {
       "name": "Chart Format",
       "keytip": "JC",
-      "context": "Chart Tools",
+      "context": "Chart",
       "color": "chart",
       "groups": [
         {

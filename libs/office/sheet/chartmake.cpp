@@ -414,6 +414,7 @@ Chart chartFromSeries(const QVector<ChartSeries> &series, const QVector<SeriesKi
         c.background = like->background;
         c.border = like->border;
         c.plotFill = like->plotFill;
+        c.plotNone = like->plotNone;
         c.plotBorder = like->plotBorder;
         c.font = like->font;
         c.textColor = like->textColor;

@@ -723,6 +723,7 @@ void applyChartStyle(Chart *c, int style)
     c->background = QColor(Qt::white);
     c->border = ChartLine();
     c->plotFill = QColor();
+    c->plotNone = false;
     c->plotBorder = ChartLine();
     c->font.color = QColor();
     c->textColor = QColor(Qt::black);
@@ -752,6 +753,7 @@ void applyChartStyle(Chart *c, int style)
         c->border.set = true;
         c->border.none = true;
         c->plotFill = QColor(0xF2, 0xF2, 0xF2);
+        c->plotNone = false;
         gridColor(c, QColor(Qt::white), true);
         break;
     default: break;
@@ -990,6 +992,7 @@ ChartPartLook partLookOf(const Chart &chart, ChartPart part, int series)
         break;
     case ChartPart::Plot:
         look.fill = chart.plotFill;
+        look.noFill = chart.plotNone;
         look.line = chart.plotBorder;
         break;
     case ChartPart::Series: {
@@ -1020,6 +1023,7 @@ void setPartLook(Chart *chart, ChartPart part, int series, const ChartPartLook &
         break;
     case ChartPart::Plot:
         chart->plotFill = look.noFill ? QColor() : look.fill;
+        chart->plotNone = look.noFill;
         chart->plotKept = ChartKept();
         chart->plotBorder = look.line;
         break;

@@ -38,6 +38,8 @@ std::shared_ptr<PictureItem> makeChartObject(Document &doc, office::sheet::Chart
 office::sheet::ChartInfo chartInfoOfPicture(const Document &doc, const PictureItem &pic);
 // How many times a chart was read to say what it is (not found among the ones already said), on this thread since the program began: a count for tests of cost.
 qint64 chartInfosMadeForTest();
+// Whether the chart of the picture is one that is written back whole (changed in what the model holds without losing a part of the file's).
+bool chartIsChangeable(const Document &doc, const PictureItem &pic);
 // Changes the chart of the picture: `edit` changes the model and says whether it did; the picture is drawn again and keeps the new part. False if nothing changed.
 bool changeChartOf(Document &doc, PictureItem &pic, const std::function<bool(office::Chart &)> &edit);
 // Draws again the charts (on every page, master, and the scratch area) whose frames are another size than they were drawn at. True if any was.

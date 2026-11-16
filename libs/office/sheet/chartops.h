@@ -76,6 +76,10 @@ bool chartSetAxis(Chart &chart, ChartAxisKind axis, bool shown);
 bool chartSetGridlines(Chart &chart, ChartAxisKind axis, bool major, bool minor);
 bool chartSetAxisTitle(Chart &chart, ChartAxisKind axis, const QString &text);
 bool chartSetStyle(Chart &chart, int style);
+// Why the numbers of the chart can't be edited as the chart's own, in a sentence; empty when they can. They can't when the chart reads cells or a workbook kept with it (what the chart stores is a
+// copy of that workbook's numbers, and a copy changed here would drift from it), is a pivot chart, has no series, or has more series or points than a chart made here holds. `data`, when given, is
+// what the chart plots (set when the chart has series).
+QString chartDataProblem(const Chart &chart, ChartData *data = nullptr);
 // New numbers and words; false for a chart that reads cells (its data is theirs) or data that is not usable. The look of the series that were there stays with them.
 bool chartSetData(Chart &chart, const ChartData &data, const Theme &theme);
 

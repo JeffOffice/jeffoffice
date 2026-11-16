@@ -53,7 +53,7 @@ void DeckWindow::refreshChart()
 {
     if (!m_chartActions) return;
     const bool isChart = m_chartActions->refresh();
-    if (m_ribbon) m_ribbon->setContextVisible(QStringLiteral("Chart Tools"), isChart && m_ed->selection().size() == 1);
+    if (m_ribbon) m_ribbon->setContextVisible(QStringLiteral("Chart"), isChart && m_ed->selection().size() == 1);
 }
 
 } // namespace jp

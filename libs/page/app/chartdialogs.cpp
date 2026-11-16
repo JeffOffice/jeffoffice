@@ -453,7 +453,7 @@ Chart SelectDataDialog::result() const
 
 SelectChartDataDialog::SelectChartDataDialog(const ChartData &data, QWidget *parent) : QDialog(parent), m_data(data)
 {
-    setWindowTitle(tr("Select Data"));
+    setWindowTitle(tr("Chart Data"));
     setObjectName(QStringLiteral("selectChartDataDialog"));
     auto *outer = new QVBoxLayout(this);
     auto *help = plainLabel(new QLabel(tr("Check the series the chart draws. Change their names and their order here."), this));
@@ -468,7 +468,7 @@ SelectChartDataDialog::SelectChartDataDialog(const ChartData &data, QWidget *par
     auto *side = new QVBoxLayout;
     auto *up = new QPushButton(tr("Move Up"), this);
     auto *down = new QPushButton(tr("Move Down"), this);
-    auto *flip = new QPushButton(tr("Switch Row/Column"), this);
+    auto *flip = new QPushButton(tr("Swap Rows and Columns"), this);
     up->setObjectName(QStringLiteral("seriesUp"));
     down->setObjectName(QStringLiteral("seriesDown"));
     flip->setObjectName(QStringLiteral("seriesSwitch"));
@@ -554,8 +554,12 @@ void SelectChartDataDialog::switchRowsAndColumns()
     ChartData asListed;
     asListed.categories = now.categories;
     for (int r = 0; r < m_list->count(); ++r) {
-        const int at = m_list->item(r)->data(Qt::UserRole).toInt();
-        asListed.seriesNames << m_list->item(r)->text();
+        // (a series left unchecked is left out; one nobody named stays unnamed, as Swap Rows and Columns does it)
+        const QListWidgetItem *item = m_list->item(r);
+        if (item->checkState() != Qt::Checked) continue;
+        const int at = item->data(Qt::UserRole).toInt();
+        const bool numbered = now.seriesNames.value(at).isEmpty() && item->text() == tr("Series %1").arg(at + 1);
+        asListed.seriesNames << (numbered ? QString() : item->text());
         asListed.values << now.values.value(at);
     }
     ChartData made;

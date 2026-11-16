@@ -1,30 +1,21 @@
 #pragma once
-// For the tests of the chart editor's menus (the elements, layouts, and looks menus every program has from libs/page/app/chartdesign.h): opens a menu as a click would (its
-// aboutToShow runs, which makes the entries for the chart that is selected) and fires the entry at the end of a path of menu texts. False when the path is not there.
+// For the tests of the chart editor's menus (the elements menu every program has from libs/page/app/chartdesign.h): opens a menu as a click would (its aboutToShow runs, which makes the
+// entries for the chart that is selected) and finds an entry by its object name, which is its menu's name, a dot, and the entry's English words ("chartTitleMenu.Above"), never by the text it
+// shows, which is in the language of the program.
 #include <QAction>
 #include <QMenu>
 #include <QMetaObject>
-#include <QStringList>
+#include <QString>
 
-inline QAction *findChartMenuEntry(QMenu *menu, const QStringList &path)
+inline QAction *findChartMenuEntry(QMenu *menu, const QString &objectName)
 {
     QMetaObject::invokeMethod(menu, "aboutToShow", Qt::DirectConnection);
-    QMenu *m = menu;
-    QAction *found = nullptr;
-    for (int i = 0; i < path.size(); ++i) {
-        found = nullptr;
-        for (QAction *a : m->actions())
-            if (a->text() == path[i]) found = a;
-        if (!found) return nullptr;
-        if (i + 1 < path.size()) m = found->menu();
-        if (!m) return nullptr;
-    }
-    return found;
+    return menu->findChild<QAction *>(objectName);
 }
 
-inline bool fireChartMenu(QMenu *menu, const QStringList &path)
+inline bool fireChartMenu(QMenu *menu, const QString &objectName)
 {
-    QAction *a = findChartMenuEntry(menu, path);
+    QAction *a = findChartMenuEntry(menu, objectName);
     if (!a) return false;
     a->trigger();
     return true;

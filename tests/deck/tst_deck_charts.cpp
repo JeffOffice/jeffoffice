@@ -15,6 +15,10 @@
 #include "core/items.h"
 
 #include <QCheckBox>
+#include <QSet>
+#include <QSignalSpy>
+#include <QStatusBar>
+#include <QToolButton>
 #include <QDoubleSpinBox>
 #include <QXmlStreamReader>
 
@@ -125,7 +129,7 @@ private Q_SLOTS:
         }
     }
 
-    // The Chart Design tab and the buttons beside a selected chart (the editor every program shares): each entry of Add Chart Element changes the chart as one step, and Undo gives it back.
+    // The Chart tab and the buttons beside a selected chart (the editor every program shares): each entry of Add Chart Element changes the chart as one step, and Undo gives it back.
     void theElementsMenuChangesTheChartOneStepEach()
     {
         DeckWindow w;
@@ -147,19 +151,19 @@ private Q_SLOTS:
             return c;
         };
         QVERIFY(!selectedChartInfo(ed).titleShown);
-        QVERIFY(fireChartMenu(menu, {QStringLiteral("Chart Title"), QStringLiteral("Above")}));
+        QVERIFY(fireChartMenu(menu, QStringLiteral("chartTitleMenu.Above")));
         QVERIFY(selectedChartInfo(ed).titleShown);
-        QVERIFY(fireChartMenu(menu, {QStringLiteral("Error Bars"), QStringLiteral("Fixed Value (1)")}));
+        QVERIFY(fireChartMenu(menu, QStringLiteral("errorBarsMenu.Fixed Value (1)")));
         QCOMPARE(office::sheet::errorBarsKind(chart()), QStringLiteral("fixedVal"));
-        QVERIFY(fireChartMenu(menu, {QStringLiteral("Trendline"), QStringLiteral("Linear")}));
+        QVERIFY(fireChartMenu(menu, QStringLiteral("trendlineMenu.Linear")));
         QCOMPARE(office::sheet::elementsOf(chart()).trendline, QStringLiteral("linear"));
-        QVERIFY(fireChartMenu(menu, {QStringLiteral("Data Labels"), QStringLiteral("Outside End")}));
+        QVERIFY(fireChartMenu(menu, QStringLiteral("dataLabelsMenu.outEnd")));
         QCOMPARE(office::sheet::elementsOf(chart()).labelPosition, QStringLiteral("outEnd"));
-        QVERIFY(fireChartMenu(menu, {QStringLiteral("Gridlines"), QStringLiteral("Lines Across, Minor")}));
+        QVERIFY(fireChartMenu(menu, QStringLiteral("gridlinesMenu.Lines Across, Minor")));
         QVERIFY(office::sheet::elementsOf(chart()).minorGridHorizontal);
         // (A deck has no cells: the entries that read cells are not offered.)
-        QVERIFY(!findChartMenuEntry(menu, {QStringLiteral("Data Labels"), QStringLiteral("Value From Cells…")}));
-        QVERIFY(!findChartMenuEntry(menu, {QStringLiteral("Error Bars"), QStringLiteral("Custom…")}));
+        QVERIFY(!findChartMenuEntry(menu, QStringLiteral("labelsFromCellsAction")));
+        QVERIFY(!findChartMenuEntry(menu, QStringLiteral("customErrorBarsAction")));
         // Each was a step: five undos bring back the chart that was inserted.
         for (int i = 0; i < 5; ++i) ed->undo();
         QVERIFY(!selectedChartInfo(ed).titleShown);
@@ -177,10 +181,10 @@ private Q_SLOTS:
         QVERIFY(readChartOf(*back, *chartsOn(*back).first(), &again));
         QVERIFY(again.title.present);
         QCOMPARE(office::sheet::errorBarsKind(again), QStringLiteral("fixedVal"));
-        // (With JO_SHOT_DIR set: the Chart Design tab and two of its format panes, in the new look.)
+        // (With JO_SHOT_DIR set: the Chart tab and two of its format panes, in the new look.)
         if (!qEnvironmentVariable("JO_SHOT_DIR").isEmpty()) {
             jp::applyUiTheme(1);
-            w.ribbon()->showTab(w.ribbon()->tab(QStringLiteral("Chart Design")));
+            w.ribbon()->showTab(w.ribbon()->tab(QStringLiteral("Chart")));
             QApplication::processEvents();
             shotOf(&w, QStringLiteral("deck-chart-design"));
             withDialog([&] { w.act(QStringLiteral("chartdesign.formatPart"))->trigger(); }, QStringLiteral("formatChartPartDialog"), [](QDialog *d) { shotOf(d, QStringLiteral("deck-format-chart-part")); }, false);
@@ -305,6 +309,155 @@ private Q_SLOTS:
         QVERIFY(jp::chartOwnData(chart, &out));
         chart.plots[0].series[0].valueRef = QStringLiteral("Sheet1!$B$2:$B$4");
         QVERIFY(!jp::chartOwnData(chart, &out));
+    }
+
+    // The names are JeffCrunch's: one name for one thing in every program.
+    void theChartTabAndItsCommandsHaveJeffCrunchsNames()
+    {
+        DeckWindow w;
+        w.act(QStringLiteral("insert.chart.column"))->trigger();
+        QVERIFY(w.ribbon()->tab(QStringLiteral("Chart")));
+        QVERIFY(!w.ribbon()->tab(QStringLiteral("Chart Design")));
+        QCOMPARE(w.act(QStringLiteral("chartdesign.selectData"))->text(), QStringLiteral("Chart Data…"));
+        QCOMPARE(w.act(QStringLiteral("chartdesign.changeType"))->text(), QStringLiteral("Chart Kind…"));
+        QCOMPARE(w.act(QStringLiteral("chartdesign.switch"))->text(), QStringLiteral("Swap Rows and Columns"));
+        // (the old numbered styles are Chart Styles, on the Chart Format tab; the new looks are Looks, on the Chart tab: no menu has two names, and no name is two menus)
+        auto menuNames = [&](const QString &tab) {
+            QSet<QString> names;
+            for (QToolButton *b : w.ribbon()->tab(tab)->findChildren<QToolButton *>())
+                if (b->menu() && !b->text().isEmpty()) names.insert(b->text());
+            return names;
+        };
+        const QSet<QString> design = menuNames(QStringLiteral("Chart")), format = menuNames(QStringLiteral("Chart Format"));
+        QVERIFY(design.contains(QStringLiteral("Looks")) && design.contains(QStringLiteral("Chart Parts")) && design.contains(QStringLiteral("Layouts")) && design.contains(QStringLiteral("Colors")));
+        QVERIFY(format.contains(QStringLiteral("Chart Styles")));
+        QVERIFY(!design.contains(QStringLiteral("Chart Styles")) && !format.contains(QStringLiteral("Looks")));
+        // (the groups that fold into a button have the same names on both tabs, as they do in JeffCrunch: only menus are compared)
+        QSet<QString> shared = QSet<QString>(design).intersect(format);
+        for (const QString &group : {QStringLiteral("Data"), QStringLiteral("Format"), QStringLiteral("Chart Layouts")}) shared.remove(group);
+        QVERIFY2(shared.isEmpty(), qPrintable(QStringList(shared.values()).join(QLatin1Char(','))));
+    }
+
+    // New numbers are new series: a filter belongs to the series that was there, and a chart always draws something.
+    void switchingRowsAndColumnsAfterFilteringSeriesLeavesSomethingDrawn()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        office::sheet::ChartData data;
+        data.categories = {QStringLiteral("a"), QStringLiteral("b"), QStringLiteral("c")};
+        data.seriesNames = {QStringLiteral("S1"), QStringLiteral("S2"), QStringLiteral("S3"), QStringLiteral("S4")};
+        for (int s = 0; s < 4; ++s) data.values << QVector<double>{1.0 + s, 2.0 + s, 3.0 + s};
+        auto pic = jp::makeChartObject(*ed->doc(), office::sheet::ChartForm::Column, data, QRectF(100, 100, 400, 250));
+        QVERIFY(pic);
+        ed->surfaceItems().push_back(pic);
+        ed->select(pic->id);
+        ChartDesign *design = w.chartActions()->design();
+        for (int i = 0; i < 3; ++i) QVERIFY(design->setSeriesShown(i, false));
+        QVERIFY(design->switchRowsAndColumns());
+        const auto entries = design->filterEntries();
+        QCOMPARE(int(entries.size()), 3);
+        for (const auto &e : entries) QVERIFY(e.shown);
+        // (Edit Data does the same)
+        QVERIFY(design->setSeriesShown(0, false));
+        withDialog([&] { design->editData(); }, QStringLiteral("chartDataDialog"), [](QDialog *) {});
+        for (const auto &e : design->filterEntries()) QVERIFY(e.shown);
+    }
+
+    // The numbers of a chart that another program saved with its workbook (c:f references and c:externalData) or that is too big to edit here are not edited: the commands are off, the tooltip says why,
+    // and a command that is made anyway says it.
+    void aChartWhoseNumbersAreNotItsOwnHasItsDataCommandsOffWithTheReason()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        w.act(QStringLiteral("insert.chart.column"))->trigger();
+        QVERIFY(w.act(QStringLiteral("chartdesign.switch"))->isEnabled());
+        QCOMPARE(w.act(QStringLiteral("chartdesign.switch"))->toolTip(), w.act(QStringLiteral("chartdesign.switch"))->text());
+        PictureItem *pic = selectedChart(ed);
+        QVERIFY(pic);
+        QVERIFY(jp::changeChartOf(*ed->doc(), *pic, [](office::Chart &c) {
+            for (office::ChartSeries &s : c.plots[0].series) {
+                s.valueRef = QStringLiteral("Sheet1!$B$2:$B$4");
+                s.categoryRef = QStringLiteral("Sheet1!$A$2:$A$4");
+                s.nameRef = QStringLiteral("Sheet1!$B$1");
+            }
+            c.externalDataId = QStringLiteral("rId9");
+            return true;
+        }));
+        ed->select(pic->id);
+        w.chartActions()->refresh();
+        const char *ids[] = {"chart.editData", "chartdesign.editData", "chartdesign.selectData", "chartdesign.switch"};
+        for (const char *id : ids) {
+            QVERIFY2(!w.act(QString::fromLatin1(id))->isEnabled(), id);
+            QVERIFY2(w.act(QString::fromLatin1(id))->toolTip().contains(QStringLiteral("workbook")), id);
+        }
+        QVERIFY(w.act(QStringLiteral("chartdesign.changeType"))->isEnabled());
+        // (the old Edit Data command, asked for anyway, says why)
+        w.chartActions()->design()->editData();
+        QVERIFY(w.statusBar()->currentMessage().contains(QStringLiteral("workbook")));
+        // A chart past what a chart made here holds (25 series) has them off too, with the limit in the reason.
+        w.act(QStringLiteral("insert.chart.column"))->trigger();
+        PictureItem *big = selectedChart(ed);
+        QVERIFY(big && big != pic);
+        QVERIFY(jp::changeChartOf(*ed->doc(), *big, [](office::Chart &c) {
+            while (c.plots[0].series.size() < office::sheet::kMostChartSeries + 1) c.plots[0].series.append(c.plots[0].series.last());
+            return true;
+        }));
+        ed->select(big->id);
+        w.chartActions()->refresh();
+        for (const char *id : ids) {
+            QVERIFY2(!w.act(QString::fromLatin1(id))->isEnabled(), id);
+            QVERIFY2(w.act(QString::fromLatin1(id))->toolTip().contains(QString::number(office::sheet::kMostChartSeries)), id);
+        }
+        QVERIFY(!jp::chartOwnData(office::Chart(), nullptr));
+    }
+
+    // Select Data: after Swap Rows and Columns the series that were unchecked are left out, and a series nobody named stays unnamed.
+    void selectDataSwapLeavesOutUncheckedSeriesAndKeepsUnnamedOnesUnnamed()
+    {
+        office::sheet::ChartData data;
+        data.categories = {QStringLiteral("a"), QStringLiteral("b")};
+        data.seriesNames = {QString(), QStringLiteral("Named"), QStringLiteral("Gone")};
+        data.values = {{1, 2}, {3, 4}, {5, 6}};
+        SelectChartDataDialog dialog(data);
+        dialog.setSeriesChecked(2, false);
+        dialog.switchRowsAndColumns();
+        const office::sheet::ChartData made = dialog.result();
+        QCOMPARE(made.seriesNames, (QStringList{QStringLiteral("a"), QStringLiteral("b")}));
+        QCOMPARE(made.categories, (QStringList{QString(), QStringLiteral("Named")}));
+        QCOMPARE(dialog.seriesShown(), 2);
+        QVERIFY(dialog.seriesChecked(0) && dialog.seriesChecked(1));
+    }
+
+    // The buttons stand outside the chart (at its left when there is no room at its right), clear of its handles, and say when a mouse button was let go.
+    void theChartButtonsStandClearOfTheChartAndSayWhenAMouseButtonIsReleased()
+    {
+        QWidget view;
+        view.resize(400, 300);
+        ChartDesign *design = nullptr;
+        struct Host : ChartDesignHost {
+            QWidget *chartParent() override { return nullptr; }
+            bool chartNow(office::Chart *) override { return false; }
+            office::Theme chartTheme() override { return office::Theme(); }
+            bool changeChart(const QString &, const std::function<void(office::Chart *)> &) override { return false; }
+            void chartNotice(const QString &, const QString &, bool) override {}
+        } host;
+        design = new ChartDesign(&host, &view);
+        ChartButtons buttons(design, &view, [](const QString &) { return QIcon(); });
+        auto clear = [&](const QRect &chart) {
+            buttons.place(chart);
+            for (QToolButton *b : {buttons.elements(), buttons.looks(), buttons.filters()}) {
+                QVERIFY(b->isVisible() || !view.isVisible());
+                QVERIFY2(!b->geometry().intersects(chart.adjusted(-6, -6, 6, 6)), "a button is over the chart or its handles");
+            }
+        };
+        view.show();
+        clear(QRect(20, 40, 200, 150));    // room at the right
+        QVERIFY(buttons.elements()->x() > 220);
+        clear(QRect(150, 40, 245, 150));   // none at the right: at the left
+        QVERIFY(buttons.elements()->x() + buttons.elements()->width() < 150);
+        QSignalSpy released(&buttons, &ChartButtons::released);
+        QTest::mouseClick(&view, Qt::LeftButton, Qt::NoModifier, QPoint(5, 5));
+        QTRY_COMPARE(released.count(), 1);
     }
 
     // A chart made here is a chart part in the .pptx, and opens as a chart that can be changed, with the same data.

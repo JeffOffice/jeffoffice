@@ -89,23 +89,6 @@ const GroupAction kGroupActions[] = {
     {"chart.combo", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Combo"), "chart-no-axes-combined", ChartKind::Combo},
 };
 
-QImage renderChart(const Chart &chart, const QSize &pixels)
-{
-    if (pixels.isEmpty()) return QImage();
-    Chart shown = chart;
-    shown.drawTrendlines = true;
-    const QByteArray svg = chartSvg(shown, QSizeF(pixels.width() * 0.75, pixels.height() * 0.75));
-    QSvgRenderer renderer(svg);
-    if (!renderer.isValid()) return QImage();
-    QImage img(pixels, QImage::Format_ARGB32_Premultiplied);
-    img.fill(Qt::white);
-    QPainter p(&img);
-    p.setRenderHint(QPainter::Antialiasing);
-    p.setRenderHint(QPainter::TextAntialiasing);
-    renderer.render(&p, QRectF(QPointF(0, 0), QSizeF(pixels)));
-    return img;
-}
-
 } // namespace
 
 void CrunchWindow::createChartActions()
@@ -205,7 +188,7 @@ QImage CrunchWindow::chartPreviewImage(ChartKind kind, int inRows, const QSize &
     if (!chartPlanFor(kind, inRows, &plan, true)) return QImage();
     Chart chart = makeChart(kind, plan, m_objects->theme(), plan.points);
     if (m_objects->cells()) applyChartCells(&chart, m_sheet, *m_objects->cells());
-    return renderChart(chart, pixels);
+    return chartPicture(chart, pixels);
 }
 
 DrawingAnchor CrunchWindow::newObjectAnchor(double width, double height)
@@ -395,7 +378,7 @@ void CrunchWindow::saveChartAsPicture()
     const QSize pixels(std::clamp(int(box.w * 2), 40, 8000), std::clamp(int(box.h * 2), 40, 8000));
     Chart chart = m_objects->chartNow(m_sheet, id);
     if (m_objects->cells()) applyChartCells(&chart, m_sheet, *m_objects->cells());
-    const QImage image = renderChart(chart, pixels);
+    const QImage image = chartPicture(chart, pixels);
     if (image.isNull()) {
         notice(tr("Save as Picture"), tr("This chart can't be drawn as a picture."));
         return;
@@ -799,7 +782,7 @@ QDialog *CrunchWindow::makeChangeTypeDialog()
     QStringList names;
     for (const ChartSeries &s : seriesOf(chart)) names << s.name;
     const Theme theme = m_objects->theme();
-    return new ChangeChartTypeDialog(names, seriesKindsOf(chart), [chart, theme](const QVector<SeriesKind> &kinds, const QSize &px) { return renderChart(withSeriesKinds(chart, kinds, theme), px); }, this);
+    return new ChangeChartTypeDialog(names, seriesKindsOf(chart), [chart, theme](const QVector<SeriesKind> &kinds, const QSize &px) { return chartPicture(withSeriesKinds(chart, kinds, theme), px); }, this);
 }
 
 void CrunchWindow::changeChartTypeDialog()
@@ -1033,7 +1016,7 @@ bool CrunchWindow::copyObject(bool cut)
         clip.chartXml = writeChartPart(chart);
         clip.width = std::max(4.0, box.w);
         clip.height = std::max(4.0, box.h);
-        picture = renderChart(chart, QSize(int(clip.width), int(clip.height)));
+        picture = chartPicture(chart, QSize(int(clip.width), int(clip.height)));
     } else {
         QString why;
         if (!m_objects->copyElement(m_sheet, id, &clip, &why)) {

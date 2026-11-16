@@ -190,11 +190,8 @@ ChartInfo chartInfoOf(const Chart &made, const QByteArray &part)
         info.valueAxisTitle = a->title.present ? a->title.text : QString();
     }
     const QVector<ChartSeries> series = chartAllSeries(chart);
-    info.dataEditable = !series.isEmpty() && chartIsFullyModeled(part);
-    for (const ChartSeries &s : series) {
-        info.dataLabels = info.dataLabels || s.labels.shown();
-        if (!s.valueRef.isEmpty() || !s.categoryRef.isEmpty() || !s.nameRef.isEmpty()) info.dataEditable = false;
-    }
+    info.dataEditable = !series.isEmpty() && chartIsFullyModeled(part) && chartDataProblem(chart).isEmpty();
+    for (const ChartSeries &s : series) info.dataLabels = info.dataLabels || s.labels.shown();
     if (!series.isEmpty()) {
         info.data.categories = series.first().categories;
         // (A scatter's x numbers are its categories.)
@@ -308,9 +305,33 @@ bool chartSetStyle(Chart &chart, int style)
     return true;
 }
 
+QString chartDataProblem(const Chart &chart, ChartData *data)
+{
+    const QVector<ChartSeries> series = chartAllSeries(chart);
+    if (series.isEmpty()) return QCoreApplication::translate("jp::ChartData", "This chart has no series.");
+    if (!chart.pivotName.isEmpty()) return QCoreApplication::translate("jp::ChartData", "This chart follows a pivot table, so its numbers are the table's.");
+    if (!chart.externalDataId.isEmpty()) return QCoreApplication::translate("jp::ChartData", "The numbers of this chart are in a workbook that is kept with it, so they can't be changed here.");
+    for (const ChartSeries &s : series)
+        if (!s.valueRef.isEmpty() || !s.categoryRef.isEmpty() || !s.nameRef.isEmpty() || !s.xRef.isEmpty()) return QCoreApplication::translate("jp::ChartData", "This chart reads its numbers from cells, so they can't be changed here.");
+    ChartData out;
+    out.categories = series.first().categories;
+    // (A scatter's x numbers are its categories.)
+    if (out.categories.isEmpty())
+        for (double x : series.first().xValues) out.categories << QString::number(x, 'g', 15);
+    for (const ChartSeries &s : series) {
+        out.seriesNames << s.name;
+        out.values << s.values;
+    }
+    if (data) *data = out;
+    if (!chartDataIsUsable(out))
+        return QCoreApplication::translate("jp::ChartData", "This chart has more than %1 series or %2 points, or numbers that are not numbers, so its numbers can't be changed here.").arg(kMostChartSeries).arg(kMostChartCategories);
+    return QString();
+}
+
 bool chartSetData(Chart &chart, const ChartData &data, const Theme &theme)
 {
     if (!chartDataIsUsable(data)) return false;
+    if (!chart.externalDataId.isEmpty()) return false;
     const QVector<ChartSeries> old = chartAllSeries(chart);
     if (old.isEmpty()) return false;
     for (const ChartSeries &s : old)
@@ -326,6 +347,7 @@ bool chartSetData(Chart &chart, const ChartData &data, const Theme &theme)
         made.xValues = series[i].xValues;
         made.categoryNumbers.clear();
         made.categoryRefNumeric = false;
+        made.filtered = false;   // (a filter belongs to the series that was there: new numbers are new series, all shown)
         series[i] = made;
     }
     QVector<SeriesKind> kinds;

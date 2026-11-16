@@ -273,6 +273,7 @@ struct Chart {
     QColor background;              // the chart area's fill; invalid for none
     ChartLine border;               // the chart area's border
     QColor plotFill;                // the plot area's fill; invalid for none
+    bool plotNone = false;          // the file says the plot area has no fill
     ChartLine plotBorder;
     ChartKept backgroundKept, plotKept;   // of the c:spPr of the chart area and of the plot area
     bool backgroundNone = false;    // the file says the chart area has no fill
