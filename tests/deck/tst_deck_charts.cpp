@@ -312,6 +312,132 @@ private Q_SLOTS:
     }
 
     // The names are JeffCrunch's: one name for one thing in every program.
+    // The Chart Parts menu has a Data Table list: the table on and off, and its four options (alone, and only while the table is on); each is one step, drawn on the slide, and kept in the file.
+    void theChartPartsMenuHasADataTableAndItsOptions()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        w.act(QStringLiteral("insert.chart.column"))->trigger();
+        QVERIFY(selectedChart(ed));
+        QMenu *menu = w.chartActions()->elementsMenu(&w);
+        auto chart = [&] {
+            office::Chart c;
+            [&] { QVERIFY(readChartOf(*ed->doc(), *selectedChart(ed), &c)); }();
+            return c;
+        };
+        QVERIFY(!chart().dataTable.present);
+        QAction *keys = findChartMenuEntry(menu, QStringLiteral("dataTableMenu.Legend Keys"));
+        QVERIFY(keys && !keys->isEnabled() && !keys->isChecked());
+        QVERIFY(fireChartMenu(menu, QStringLiteral("dataTableMenu.Show Data Table")));
+        QVERIFY(chart().dataTable.present && chart().dataTable.horzBorder && chart().dataTable.vertBorder && chart().dataTable.outline && !chart().dataTable.keys);
+        keys = findChartMenuEntry(menu, QStringLiteral("dataTableMenu.Legend Keys"));
+        QVERIFY(keys->isEnabled());
+        QVERIFY(findChartMenuEntry(menu, QStringLiteral("dataTableMenu.Show Data Table"))->isChecked());
+        QVERIFY(fireChartMenu(menu, QStringLiteral("dataTableMenu.Legend Keys")));
+        QVERIFY(fireChartMenu(menu, QStringLiteral("dataTableMenu.Lines Between Columns")));
+        QVERIFY(chart().dataTable.keys && !chart().dataTable.vertBorder && chart().dataTable.horzBorder);
+        // it is in the file
+        QString err;
+        const QByteArray bytes = deck::exportPresentation(*ed->doc(), &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        auto back = deck::importPresentation(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        office::Chart again;
+        QVERIFY(readChartOf(*back, *chartsOn(*back).first(), &again));
+        QVERIFY(again.dataTable.present && again.dataTable.keys && !again.dataTable.vertBorder && again.dataTable.horzBorder && again.dataTable.outline);
+        // one step each: three steps back, no table
+        ed->undo();
+        QVERIFY(chart().dataTable.keys && chart().dataTable.vertBorder);
+        ed->undo();
+        QVERIFY(chart().dataTable.present && !chart().dataTable.keys);
+        ed->undo();
+        QVERIFY(!chart().dataTable.present);
+        // a pie has none
+        w.act(QStringLiteral("insert.chart.pie"))->trigger();
+        QMenu *pieMenu = w.chartActions()->elementsMenu(&w);
+        QVERIFY(!findChartMenuEntry(pieMenu, QStringLiteral("dataTableMenu.Show Data Table")));
+        ed->undo();
+        QCOMPARE(int(chartsOn(*ed->doc()).size()), 1);
+        // (With JO_SHOT_DIR set: a column chart with its table, and the right-click menu of a chart.)
+        if (!qEnvironmentVariable("JO_SHOT_DIR").isEmpty()) {
+            jp::applyUiTheme(1);
+            ed->select(chartsOn(*ed->doc()).first()->id);
+            QVERIFY(fireChartMenu(menu, QStringLiteral("dataTableMenu.Show Data Table")));
+            w.resize(1280, 800);
+            w.show();
+            QVERIFY(QTest::qWaitForWindowExposed(&w));
+            QApplication::processEvents();
+            shotOf(&w, QStringLiteral("deck-chart-data-table"));
+            std::unique_ptr<QMenu> context(w.slideContextMenu());
+            context->popup(w.canvas()->mapToGlobal(QPoint(380, 260)));
+            QApplication::processEvents();
+            shotOf(context.get(), QStringLiteral("deck-chart-context-menu"));
+            context->close();
+        }
+    }
+
+    // A chart's right-click menu has JeffCrunch's chart entries (Chart Data, Swap Rows and Columns, Chart Kind, Format Chart Part, and the two axes), by those names; for a chart whose numbers are not its
+    // own the data entries are shown off with the reason the Chart tab gives; a shape's menu has none of them.
+    void aChartsRightClickMenuHasTheChartEntries()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        const QStringList ids = {QStringLiteral("chartdesign.selectData"), QStringLiteral("chartdesign.switch"), QStringLiteral("chartdesign.changeType"), QStringLiteral("chartdesign.formatPart"),
+                                 QStringLiteral("chartdesign.axisH"), QStringLiteral("chartdesign.axisV")};
+        const QStringList names = {QStringLiteral("Chart Data…"), QStringLiteral("Swap Rows and Columns"), QStringLiteral("Chart Kind…"), QStringLiteral("Format Chart Part…"),
+                                   QStringLiteral("Format Horizontal Axis…"), QStringLiteral("Format Vertical Axis…")};
+        auto entries = [&](QMenu *menu) {
+            QList<QAction *> found;
+            for (const QString &id : ids) {
+                QAction *one = nullptr;
+                for (QAction *a : menu->actions())
+                    if (a->objectName() == id) one = a;
+                found << one;
+            }
+            return found;
+        };
+        w.act(QStringLiteral("insert.chart.column"))->trigger();
+        PictureItem *pic = selectedChart(ed);
+        QVERIFY(pic);
+        {
+            std::unique_ptr<QMenu> menu(w.slideContextMenu());
+            const QList<QAction *> found = entries(menu.get());
+            for (int i = 0; i < ids.size(); ++i) {
+                QVERIFY2(found[i], qPrintable(ids[i]));
+                QCOMPARE(found[i]->text(), names[i]);
+                QVERIFY2(found[i]->isEnabled(), qPrintable(ids[i]));
+            }
+            // (the entries are the window's own actions: one that is chosen does what the Chart tab's does)
+            QVERIFY(found[0] == w.act(ids[0]));
+            QVERIFY(menu->toolTipsVisible());
+        }
+        // a chart that reads a workbook: the data entries are off, with the reason
+        QVERIFY(jp::changeChartOf(*ed->doc(), *pic, [](office::Chart &c) {
+            for (office::ChartSeries &s : c.plots[0].series) s.valueRef = QStringLiteral("Sheet1!$B$2:$B$4");
+            c.externalDataId = QStringLiteral("rId9");
+            return true;
+        }));
+        ed->select(pic->id);
+        {
+            std::unique_ptr<QMenu> menu(w.slideContextMenu());
+            const QList<QAction *> found = entries(menu.get());
+            for (int i = 0; i < 2; ++i) {
+                QVERIFY2(found[i] && !found[i]->isEnabled(), qPrintable(ids[i]));
+                QVERIFY2(found[i]->toolTip().contains(QStringLiteral("workbook")), qPrintable(ids[i]));
+            }
+            QVERIFY(found[2]->isEnabled() && found[3]->isEnabled());
+        }
+        // a shape has none
+        auto shape = std::make_shared<ShapeItem>();
+        shape->shape = QStringLiteral("rect");
+        shape->rect = QRectF(600, 380, 200, 80);
+        ed->surfaceItems().push_back(shape);
+        ed->select(shape->id);
+        QVERIFY(!selectedChart(ed));
+        std::unique_ptr<QMenu> menu(w.slideContextMenu());
+        for (QAction *a : entries(menu.get())) QVERIFY(!a);
+    }
+
     void theChartTabAndItsCommandsHaveJeffCrunchsNames()
     {
         DeckWindow w;

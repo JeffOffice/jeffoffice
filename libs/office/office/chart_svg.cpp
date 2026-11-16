@@ -1476,6 +1476,19 @@ void ChartPainter::paintAxes(const QRectF &outer)
     m_n = 0;
     for (const ChartPlot &plot : c.plots)
         for (const ChartSeries &s : plot.series) m_n = std::max<int>(m_n, int(std::max(s.values.size(), s.categories.size())));
+    // The data table (columns, lines, and areas, with as many categories and series as it is drawn for): a row for each series, the categories along its top, which take the place of the axis' labels.
+    struct TableRow {
+        const ChartSeries *series;
+        bool line;
+    };
+    QVector<TableRow> tableRows;
+    if (c.dataTable.present && !scatter && !m_swap && m_n > 0 && m_n <= kChartDataTableMax) {
+        for (const ChartPlot &plot : c.plots)
+            for (const ChartSeries &s : plot.series) tableRows << TableRow{&s, plot.type == ChartType::Line};
+        if (tableRows.size() > kChartDataTableMax) tableRows.clear();
+    }
+    const bool tableOn = !tableRows.isEmpty();
+    if (tableOn) m_between = true;   // (the columns of the table stand under the categories, which sit between marks)
     for (View &v : m_views) stack(&v);
     m_percent = first.grouping == ChartGrouping::PercentStacked;
 
@@ -1568,6 +1581,12 @@ void ChartPainter::paintAxes(const QRectF &outer)
     const double secondTitleH = titleOf(m_val2, &secondTitleFont, &secondTitleColor);
     const double valLineH = heightOf(valFont), catLineH = heightOf(catFont);
     const QStringList cats = categoryLabels();
+    // The table's size: a row for the categories and one for each series, and a column for the series' names (with their keys) on the left.
+    const QFont tableFont = fontOf(c.dataTable.font, 10, false);
+    const double tableRowH = heightOf(tableFont) + 4, tableH = tableOn ? (tableRows.size() + 1) * tableRowH : 0;
+    double tableNameW = 0;
+    for (const TableRow &row : std::as_const(tableRows)) tableNameW = std::max(tableNameW, widthOf(tableFont, writable(row.series->name, kChartMaxLabel)));
+    if (tableOn) tableNameW = std::min(tableNameW, outer.width() / 4) + (c.dataTable.keys ? 16 : 0) + 8;
 
     // ---- the plot's place: what the file fixes, else what is left of `outer` after the labels and titles
     const bool manual = c.plotManual;
@@ -1602,8 +1621,9 @@ void ChartPainter::paintAxes(const QRectF &outer)
             const double width = (fixed ? given.width() : given.width() - leftSpace - rightSpace);
             const double slot = width / categoriesAcross();
             fit = fitLabels(cats, catFont, slot, *m_cat, true);
-            bottomSpace = (catLabels ? fit.extent + 2 : 0) + (outTick(*m_cat) ? tickLen : 0) + catTitleH;
-            if (!cats.isEmpty()) {
+            bottomSpace = tableOn ? tableH + catTitleH : (catLabels ? fit.extent + 2 : 0) + (outTick(*m_cat) ? tickLen : 0) + catTitleH;
+            if (tableOn) leftSpace = std::max(leftSpace, tableNameW);
+            if (!cats.isEmpty() && !tableOn) {
                 // The last label is given room as if it were level and centered under its category; a first one that is turned reaches left of its category.
                 const double half = m_between ? slot / 2 : 0;   // how far in from the edge the first category's label is centered
                 rightSpace = std::max(rightSpace, widthOf(catFont, cats.last()) / 2 + 3);
@@ -1611,7 +1631,7 @@ void ChartPainter::paintAxes(const QRectF &outer)
                 else leftSpace = std::max(leftSpace, widthOf(catFont, cats.first()) / 2 - half);
             }
             topSpace = valLabels ? std::max(0.0, valLineH / 2 - 1.5) : 0;
-            if (valLabels && !catLabels) bottomSpace = std::max(bottomSpace, valLineH / 2);
+            if (valLabels && !catLabels && !tableOn) bottomSpace = std::max(bottomSpace, valLineH / 2);
         }
         m_inner = fixed ? given : QRectF(given.left() + leftSpace, given.top() + topSpace, given.width() - leftSpace - rightSpace, given.height() - topSpace - bottomSpace);
         if (m_inner.width() < 10 || m_inner.height() < 10) return;
@@ -1741,7 +1761,43 @@ void ChartPainter::paintAxes(const QRectF &outer)
         QVector<double> marks;
         for (int i = 0; i <= (m_between ? m_n : std::max(0, m_n - 1)); ++i) marks << catAlong(i);
         axisLine(*m_cat, QPointF(m_inner.left(), y), QPointF(m_inner.right(), y), marks, true, QPointF(0, 1));
-        if (catLabels) {
+        if (tableOn) {
+            const ChartDataTable &t = c.dataTable;
+            const double top = m_inner.bottom(), left = m_inner.left() - tableNameW, right = m_inner.right();
+            const QColor color = colorOf(t.font);
+            m_p->save();
+            m_p->setPen(penFor(t.line, classic, 0.75));
+            m_p->setBrush(Qt::NoBrush);
+            if (t.horzBorder)
+                for (int r = 1; r <= tableRows.size(); ++r) m_p->drawLine(QPointF(left, top + r * tableRowH), QPointF(right, top + r * tableRowH));
+            if (t.vertBorder)
+                for (int i = 0; i < m_n; ++i) m_p->drawLine(QPointF(m_inner.left() + i * m_slot, top), QPointF(m_inner.left() + i * m_slot, top + tableH));
+            if (t.outline) m_p->drawRect(QRectF(left, top, right - left, tableH));
+            m_p->restore();
+            auto fitted = [&](const QString &text, double room) { return QFontMetricsF(tableFont, m_dev).elidedText(writable(text, kChartMaxLabel), Qt::ElideRight, std::max(0.0, room)); };
+            for (int i = 0; i < m_n && i < cats.size(); ++i) drawText(fitted(cats[i], m_slot - 4), tableFont, color, QPointF(catAlong(catUnit(i)), top + 2), 0.5, 0);
+            for (int r = 0; r < tableRows.size(); ++r) {
+                const ChartSeries &s = *tableRows[r].series;
+                const double rowTop = top + (r + 1) * tableRowH;
+                if (t.keys) {
+                    const QColor key = s.color.isValid() ? s.color : color;
+                    m_p->save();
+                    if (tableRows[r].line) {
+                        m_p->setPen(QPen(key, 2));
+                        m_p->drawLine(QPointF(left + 4, rowTop + tableRowH / 2), QPointF(left + 14, rowTop + tableRowH / 2));
+                    } else {
+                        m_p->setPen(Qt::NoPen);
+                        m_p->setBrush(key);
+                        m_p->drawRect(QRectF(left + 5, rowTop + tableRowH / 2 - 4, 8, 8));
+                    }
+                    m_p->restore();
+                }
+                drawText(fitted(s.name, tableNameW - (t.keys ? 16 : 0) - 8), tableFont, color, QPointF(left + 4 + (t.keys ? 16 : 0), rowTop + 2), 0, 0);
+                for (int i = 0; i < m_n && i < s.values.size(); ++i)
+                    if (std::isfinite(s.values[i])) drawText(fitted(formatChartNumber(s.values[i], s.format), m_slot - 4), tableFont, color, QPointF(catAlong(catUnit(i)), rowTop + 2), 0.5, 0);
+            }
+        }
+        if (catLabels && !tableOn) {
             const bool high = m_cat->labelPosition == QLatin1String("high"), low = m_cat->labelPosition == QLatin1String("low");
             const double edge = high ? m_inner.top() : low ? m_inner.bottom() : y;
             const double labelY = high ? edge - 2 - (outTick(*m_cat) ? tickLen : 0) : edge + 2 + (outTick(*m_cat) ? tickLen : 0);

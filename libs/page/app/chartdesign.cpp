@@ -271,6 +271,22 @@ QMenu *ChartDesign::elementsMenu(QWidget *owner)
                 check(lines, tr("Up/Down Bars"), plotLinesOn(chart, PlotLines::UpDown), [on = !plotLinesOn(chart, PlotLines::UpDown)](Chart *c) { setPlotLines(c, PlotLines::UpDown, on); }, tr("Lines"), "Up/Down Bars");
             }
         }
+        if (dataTableApplies(chart)) {
+            QMenu *table = menu->addMenu(tr("Data Table"));
+            table->setObjectName(QStringLiteral("dataTableMenu"));
+            const bool shown = dataTableOn(chart, DataTablePart::Table);
+            check(table, tr("Show Data Table"), shown, [on = !shown](Chart *c) { setDataTable(c, DataTablePart::Table, on); }, tr("Data Table"), "Show Data Table");
+            table->addSeparator();
+            const struct { const char *name; DataTablePart part; } options[] = {{QT_TRANSLATE_NOOP("jp::ChartDesign", "Lines Between Rows"), DataTablePart::RowLines},
+                                                                                {QT_TRANSLATE_NOOP("jp::ChartDesign", "Lines Between Columns"), DataTablePart::ColumnLines},
+                                                                                {QT_TRANSLATE_NOOP("jp::ChartDesign", "Outline"), DataTablePart::Outline},
+                                                                                {QT_TRANSLATE_NOOP("jp::ChartDesign", "Legend Keys"), DataTablePart::Keys}};
+            for (const auto &o : options) {
+                const bool on = dataTableOn(chart, o.part);
+                QAction *a = check(table, QCoreApplication::translate("jp::ChartDesign", o.name), on, [part = o.part, on = !on](Chart *c) { setDataTable(c, part, on); }, tr("Data Table"), o.name);
+                a->setEnabled(shown);
+            }
+        }
         if (chart.type() != ChartType::Pie && chart.type() != ChartType::Doughnut) {
             QMenu *trend = menu->addMenu(tr("Trendline"));
             trend->setObjectName(QStringLiteral("trendlineMenu"));
@@ -524,6 +540,13 @@ void ChartDesign::formatPart(int part)
     if (dialog.exec() != QDialog::Accepted) return;
     const Chart made = dialog.result();
     m_host->changeChart(tr("Format Chart Part"), [made](Chart *c) { *c = made; });
+}
+
+void addChartContextEntries(QMenu *menu, const std::function<QAction *(const QString &)> &find)
+{
+    menu->setToolTipsVisible(true);
+    for (const char *id : {"chartdesign.selectData", "chartdesign.switch", "chartdesign.changeType", "chartdesign.formatPart", "chartdesign.axisH", "chartdesign.axisV"})
+        if (QAction *a = find(QString::fromLatin1(id))) menu->addAction(a);
 }
 
 QImage chartPicture(const Chart &chart, const QSize &pixels)

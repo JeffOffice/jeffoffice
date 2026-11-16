@@ -258,11 +258,23 @@ struct ChartLegend {
     QVector<QByteArray> entries;    // its c:legendEntry elements (an entry taken off the legend), as the file wrote them
 };
 
+// The data table (c:dTable): the series' values in a grid under the plot area, one column for each category, with the series' names down its left side. A chart with more categories or series
+// than kChartDataTableMax is drawn without it (the file keeps it).
+constexpr int kChartDataTableMax = 64;
+struct ChartDataTable {
+    bool present = false;
+    bool horzBorder = false, vertBorder = false, outline = false, keys = false;   // the lines between the rows, between the columns, around the table, and the series' keys beside the names
+    ChartLine line;                 // how the lines look
+    ChartFont font;
+    ChartKept kept;                 // of the table's c:spPr
+};
+
 struct Chart {
     QVector<ChartPlot> plots;
     QVector<ChartAxis> axes;
     ChartTitle title;
     ChartLegend legend;
+    ChartDataTable dataTable;
     int style = 2;                  // c:style, 1 to 48
     bool drawTrendlines = false;    // the series' trendlines are drawn (and named in the legend); a program that has not asked for them draws a chart as it always has
     // What it is set in and drawn on, from the theme and the color map.

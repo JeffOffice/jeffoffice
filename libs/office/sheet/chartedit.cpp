@@ -633,6 +633,47 @@ void setPlotLines(Chart *chart, PlotLines kind, bool on)
     }
 }
 
+// ---- the data table
+
+bool dataTableApplies(const Chart &chart)
+{
+    if (chart.plots.isEmpty()) return false;
+    const ChartPlot &first = chart.plots.first();
+    return (first.type == ChartType::Bar && !first.horizontal) || first.type == ChartType::Line || first.type == ChartType::Area;
+}
+
+bool dataTableOn(const Chart &chart, DataTablePart part)
+{
+    const ChartDataTable &t = chart.dataTable;
+    if (!t.present) return false;
+    switch (part) {
+    case DataTablePart::Table: return true;
+    case DataTablePart::RowLines: return t.horzBorder;
+    case DataTablePart::ColumnLines: return t.vertBorder;
+    case DataTablePart::Outline: return t.outline;
+    case DataTablePart::Keys: return t.keys;
+    }
+    return false;
+}
+
+void setDataTable(Chart *chart, DataTablePart part, bool on)
+{
+    ChartDataTable &t = chart->dataTable;
+    if (part == DataTablePart::Table) {
+        t.present = on;
+        if (on && !t.horzBorder && !t.vertBorder && !t.outline && !t.keys) t.horzBorder = t.vertBorder = t.outline = true;
+        return;
+    }
+    if (!t.present) return;
+    switch (part) {
+    case DataTablePart::RowLines: t.horzBorder = on; break;
+    case DataTablePart::ColumnLines: t.vertBorder = on; break;
+    case DataTablePart::Outline: t.outline = on; break;
+    case DataTablePart::Keys: t.keys = on; break;
+    default: break;
+    }
+}
+
 // ---- colors and looks
 
 namespace {

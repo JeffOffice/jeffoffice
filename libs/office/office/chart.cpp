@@ -1182,6 +1182,19 @@ bool Reader::read(const QDomElement &root, QString *error)
             else if ((name == QLatin1String("catAx") || name == QLatin1String("valAx") || name == QLatin1String("dateAx") || name == QLatin1String("serAx")) && c.axes.size() < kMaxAxes)
                 c.axes << readAxis(e);
         }
+        if (const QDomElement table = cChild(area, "dTable"); !table.isNull()) {
+            ChartDataTable &t = c.dataTable;
+            t.present = true;
+            t.horzBorder = flagOf(cChild(table, "showHorzBorder"), false);
+            t.vertBorder = flagOf(cChild(table, "showVertBorder"), false);
+            t.outline = flagOf(cChild(table, "showOutline"), false);
+            t.keys = flagOf(cChild(table, "showKeys"), false);
+            t.font = readTxPr(cChild(table, "txPr"));
+            const QDomElement tableProps = cChild(table, "spPr");
+            t.line = readLine(tableProps);
+            QColor ignored;
+            t.kept = keptIn(tableProps, ignored);
+        }
         const QDomElement spPr = cChild(area, "spPr");
         bool none = false;
         readFill(spPr, &c.plotFill, &none);

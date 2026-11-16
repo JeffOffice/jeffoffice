@@ -211,6 +211,26 @@ private Q_SLOTS:
         QVERIFY(plotLinesApply(area, PlotLines::Drop) && !plotLinesApply(area, PlotLines::HighLow));
     }
 
+    // The data table is offered for columns, lines, and areas, comes on with the lines and outline (no keys), has each of its four options set alone, and is kept through writing.
+    void theDataTableGoesOnAndOffWithItsOptions()
+    {
+        Chart c = columns();
+        QVERIFY(dataTableApplies(c) && !dataTableOn(c, DataTablePart::Table));
+        setDataTable(&c, DataTablePart::Keys, true);   // (nothing to set while the table is off)
+        QVERIFY(!dataTableOn(c, DataTablePart::Table) && !dataTableOn(c, DataTablePart::Keys));
+        setDataTable(&c, DataTablePart::Table, true);
+        QVERIFY(dataTableOn(c, DataTablePart::Table) && dataTableOn(c, DataTablePart::RowLines) && dataTableOn(c, DataTablePart::ColumnLines) && dataTableOn(c, DataTablePart::Outline));
+        QVERIFY(!dataTableOn(c, DataTablePart::Keys));
+        setDataTable(&c, DataTablePart::Keys, true);
+        setDataTable(&c, DataTablePart::ColumnLines, false);
+        const Chart back = roundTrip(c);
+        QVERIFY(dataTableOn(back, DataTablePart::Keys) && !dataTableOn(back, DataTablePart::ColumnLines) && dataTableOn(back, DataTablePart::RowLines) && dataTableOn(back, DataTablePart::Outline));
+        setDataTable(&c, DataTablePart::Table, false);
+        QVERIFY(!dataTableOn(c, DataTablePart::Table) && !roundTrip(c).dataTable.present);
+        QVERIFY(dataTableApplies(columns(ChartKind::Line)) && dataTableApplies(columns(ChartKind::Area)));
+        QVERIFY(!dataTableApplies(columns(ChartKind::Pie)) && !dataTableApplies(columns(ChartKind::Bar)) && !dataTableApplies(columns(ChartKind::Scatter)));
+    }
+
     // "Value from cells" is set for every series from a reference, taken away again, and kept through writing and reading.
     void dataLabelsReadTheirWordsFromCells()
     {

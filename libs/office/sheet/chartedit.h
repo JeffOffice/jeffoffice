@@ -114,6 +114,13 @@ bool plotLinesApply(const Chart &chart, PlotLines kind);
 bool plotLinesOn(const Chart &chart, PlotLines kind);
 void setPlotLines(Chart *chart, PlotLines kind, bool on);
 
+// The data table under the plot area: the series' values in a grid lined up with the categories. Offered for columns, lines, and areas (not for bars across, scatter, or pie). Turning it on gives
+// the lines between rows and columns and the outline, without the keys; the four parts are each set alone.
+enum class DataTablePart : quint8 { Table, RowLines, ColumnLines, Outline, Keys };
+bool dataTableApplies(const Chart &chart);
+bool dataTableOn(const Chart &chart, DataTablePart part);
+void setDataTable(Chart *chart, DataTablePart part, bool on);
+
 // ---- colors and looks of our own
 int chartColorSchemeCount();
 QString chartColorSchemeName(int index);

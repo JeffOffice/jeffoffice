@@ -4925,6 +4925,36 @@ private Q_SLOTS:
         QCOMPARE(info().data.values.value(0).value(0), 99.0);
     }
 
+    // A chart's right-click menu has the chart entries JeffDeck's and JeffCrunch's have, by the same names; a picture's has none; and the Chart Parts menu has the Data Table list.
+    void aChartsRightClickMenuHasTheChartEntriesAndPartsHasADataTable()
+    {
+        Win win;
+        win.w.act("insert.chart.column")->trigger();
+        const int at = win.w.view()->selectedPicture();
+        QVERIFY(at >= 0);
+        QTRY_VERIFY(win.w.act("chartdesign.selectData")->isEnabled());
+        QMenu menu;
+        win.w.fillContextMenu(menu);
+        const QStringList ids = {QStringLiteral("chartdesign.selectData"), QStringLiteral("chartdesign.switch"), QStringLiteral("chartdesign.changeType"), QStringLiteral("chartdesign.formatPart"),
+                                 QStringLiteral("chartdesign.axisH"), QStringLiteral("chartdesign.axisV")};
+        const QStringList names = {QStringLiteral("Chart Data…"), QStringLiteral("Swap Rows and Columns"), QStringLiteral("Chart Kind…"), QStringLiteral("Format Chart Part…"),
+                                   QStringLiteral("Format Horizontal Axis…"), QStringLiteral("Format Vertical Axis…")};
+        for (int i = 0; i < ids.size(); ++i) {
+            QAction *found = nullptr;
+            for (QAction *a : menu.actions())
+                if (a->objectName() == ids[i]) found = a;
+            QVERIFY2(found, qPrintable(ids[i]));
+            QCOMPARE(found->text(), names[i]);
+            QVERIFY(found->isEnabled());
+        }
+        QVERIFY(menu.toolTipsVisible());
+        QMenu *parts = win.w.chartButtons()->elements()->menu();
+        QVERIFY(fireChartMenu(parts, QStringLiteral("dataTableMenu.Show Data Table")));
+        office::Chart chart;
+        QVERIFY(readChartAt(*win.w.document(), at, &chart));
+        QVERIFY(chart.dataTable.present && chart.dataTable.outline);
+    }
+
     // The Chart tab, the buttons beside the chart, and the menus every program shares: each entry changes the chart one step, and what was added is kept in the .docx and read again.
     void theChartDesignTabAndTheButtonsBesideAChartChangeItAndTheFileKeepsTheChanges()
     {

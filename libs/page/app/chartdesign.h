@@ -14,6 +14,7 @@
 #include <QVector>
 #include <functional>
 
+class QAction;
 class QMenu;
 class QWidget;
 
@@ -115,6 +116,10 @@ private:
     std::function<QIcon(const QString &)> m_icon;
     QToolButton *m_elements = nullptr, *m_looks = nullptr, *m_filters = nullptr;
 };
+
+// The chart entries of the right-click menu of a selected chart, the same in every program: Chart Data, Swap Rows and Columns, Chart Kind, Format Chart Part, and the two axes, each the window's own
+// action `chartdesign.*` (found with `find`), so that an entry that is off says why in its tooltip, as the Chart tab's does. The menu shows tooltips.
+JO_COMMON_EXPORT void addChartContextEntries(QMenu *menu, const std::function<QAction *(const QString &)> &find);
 
 // The chart as a picture at a size, for the dialogs that show what a choice does.
 QImage chartPicture(const office::Chart &chart, const QSize &pixels);

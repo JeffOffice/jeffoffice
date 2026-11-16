@@ -4,6 +4,7 @@
 #include "office/chart_write.h"
 
 #include <QDomDocument>
+#include <QRegularExpression>
 
 using namespace jp::office;
 
@@ -662,6 +663,81 @@ private Q_SLOTS:
         QVERIFY(with.contains("3 per. Mov. Avg. (Total)"));
         QVERIFY(with.contains("R"));
         QVERIFY(!without.contains("Fit"));
+    }
+
+    // A data table is read with its four options, kept through writing in the schema's place (after the axes, before the plot area's look), drawn under the plot area (which gives way for it, and
+    // whose categories move into the table's top row), and left out of the drawing for a chart it does not suit or one with more series or categories than it is drawn for.
+    void aDataTableIsReadWrittenAndDrawn()
+    {
+        Chart c = comboChart();
+        c.legend.shown = false;
+        c.plotBorder.set = true;
+        c.plotBorder.color = QColor("#123456");
+        c.plots[0].series[0].values = {1234, 2345, 3456};
+        const QByteArray plain = chartSvg(c, QSizeF(480, 288));
+        QVERIFY(!plain.contains(">1234<"));
+        QVERIFY(!writeChartPart(c).contains("c:dTable"));
+        c.dataTable.present = true;
+        c.dataTable.horzBorder = true;
+        c.dataTable.vertBorder = false;
+        c.dataTable.outline = true;
+        c.dataTable.keys = true;
+        const QByteArray part = writeChartPart(c);
+        QString why;
+        QVERIFY2(chartIsFullyModeled(part, &why), qPrintable(why));
+        const int at = part.indexOf("<c:dTable>");
+        QVERIFY(at > part.lastIndexOf("</c:valAx>") && at < part.lastIndexOf("</c:plotArea>"));
+        QVERIFY(part.mid(at, 200).startsWith("<c:dTable><c:showHorzBorder val=\"1\"/><c:showVertBorder val=\"0\"/><c:showOutline val=\"1\"/><c:showKeys val=\"1\"/>"));
+        Chart r;
+        QVERIFY(readChart(part, defaultTheme(), ColorMap(), &r, &why));
+        QVERIFY(r.dataTable.present && r.dataTable.horzBorder && !r.dataTable.vertBorder && r.dataTable.outline && r.dataTable.keys);
+        QCOMPARE(writeChartPart(r), part);
+        // each of the four is kept alone
+        for (int flags = 0; flags < 16; ++flags) {
+            Chart f = c;
+            f.dataTable.horzBorder = flags & 1;
+            f.dataTable.vertBorder = flags & 2;
+            f.dataTable.outline = flags & 4;
+            f.dataTable.keys = flags & 8;
+            Chart back;
+            QVERIFY(readChart(writeChartPart(f), defaultTheme(), ColorMap(), &back, &why));
+            QVERIFY(back.dataTable.present);
+            QCOMPARE(int(back.dataTable.horzBorder) | int(back.dataTable.vertBorder) << 1 | int(back.dataTable.outline) << 2 | int(back.dataTable.keys) << 3, flags);
+        }
+        // drawn: the values are in the picture, and the plot area is shorter
+        const QByteArray with = chartSvg(c, QSizeF(480, 288));
+        QVERIFY(with.contains(">1234<") && with.contains(">3456<") && with.contains("East") && with.contains("Total"));
+        auto plotHeight = [](const QByteArray &svg) {
+            // (the plot area's border is the one rectangle stroked in its color)
+            const QRegularExpressionMatch m = QRegularExpression(QStringLiteral("stroke=\"#123456\"[^>]*>\\s*<rect[^>]*height=\"([0-9.]+)\"")).match(QString::fromLatin1(svg));
+            return m.hasMatch() ? m.captured(1).toDouble() : -1.0;
+        };
+        QVERIFY(plotHeight(plain) > 0);
+        QVERIFY(plotHeight(with) > 0 && plotHeight(with) < plotHeight(plain) - 40);
+        // the categories are in the table's top row: without the table's own values they are drawn once more by the axis, and with it once
+        QCOMPARE(with.count(">Q2<"), plain.count(">Q2<"));
+        // a chart it does not suit is drawn as before, and so is one with too many categories
+        Chart pie = c;
+        pie.plots[0].horizontal = true;
+        Chart bars = pie;
+        bars.dataTable.present = false;
+        QCOMPARE(chartSvg(pie, QSizeF(480, 288)), chartSvg(bars, QSizeF(480, 288)));
+        Chart wide = c;
+        QStringList cats;
+        QVector<double> values;
+        for (int i = 0; i < kChartDataTableMax + 1; ++i) {
+            cats << QString::number(i);
+            values << 7000 + i;
+        }
+        for (ChartPlot &p : wide.plots)
+            for (ChartSeries &s : p.series) {
+                s.categories = cats;
+                s.values = values;
+            }
+        Chart wideNone = wide;
+        wideNone.dataTable.present = false;
+        QCOMPARE(chartSvg(wide, QSizeF(480, 288)), chartSvg(wideNone, QSizeF(480, 288)));
+        QVERIFY(writeChartPart(wide).contains("c:dTable"));
     }
 
     // What the model has no place for but keeps as the file wrote it, or carries as a field, is written back: for each, the part is one that may be written over, what is written has the element,
