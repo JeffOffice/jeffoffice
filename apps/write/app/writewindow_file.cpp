@@ -445,7 +445,14 @@ bool WriteWindow::saveTo(const QString &path, bool asCopy)
     QApplication::setOverrideCursor(Qt::WaitCursor);
     if (namesOut && !text && !rtf && !bytes.isEmpty()) bytes = office::removePersonalFromPackage(bytes, nullptr, &namesProblems);
     if (ott && !bytes.isEmpty()) bytes = office::odt::odfAsTemplate(bytes);
-    if (m_fileProtected && !bytes.isEmpty()) bytes = odt ? office::encryptOdf(bytes, m_filePassword, office::kMaxOpenFileBytes) : office::encryptPackage(bytes, m_filePassword);
+    if (m_fileProtected && !bytes.isEmpty()) {
+        bytes = odt ? office::encryptOdf(bytes, m_filePassword, office::kMaxOpenFileBytes) : office::encryptPackage(bytes, m_filePassword);
+        if (bytes.isEmpty()) {
+            QApplication::restoreOverrideCursor();
+            notice(tr("Save"), tr("%1 couldn't save \"%2\".\nThe password couldn't be put on the file.").arg(appInfo().name, QFileInfo(path).fileName()));
+            return false;
+        }
+    }
     bool ok = text || !bytes.isEmpty();
     if (ok) {
         QSaveFile out(path);

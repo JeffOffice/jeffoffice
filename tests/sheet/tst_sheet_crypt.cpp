@@ -7,6 +7,7 @@
 #include "io/crypto.h"
 #include "office/officecrypt.h"
 #include "sheet/ods.h"
+#include "office/binarycrypt.h"
 #include "office/odfcrypt.h"
 #include "office/odraw_inflate.h"
 #include "sheet/sheetcrypt.h"
@@ -24,6 +25,8 @@
 
 #include <atomic>
 #include <random>
+#include <thread>
+#include <vector>
 
 using namespace xlstest;
 namespace crypto = jp::crypto;
@@ -120,10 +123,10 @@ QByteArray protectBiff(const QByteArray &stream, Biff kind, const QString &passw
         base = QCryptographicHash::hash(salt + utf16(password, 255), QCryptographicHash::Sha1);
         crypto::Rc4 rc4(blockKey(0));
         W header;
-        header.u32(0x24).u32(0).u32(0x6801).u32(0x8004).u32(quint32(keyBits)).u32(1).u32(0).u32(0).raw(utf16(QStringLiteral("Microsoft Enhanced Cryptographic Provider v1.0"), 100)).u16(0);
+        header.u32(0x04).u32(0).u32(0x6801).u32(0x8004).u32(quint32(keyBits)).u32(1).u32(0).u32(0).raw(utf16(QStringLiteral("Microsoft Enhanced Cryptographic Provider v1.0"), 100)).u16(0);
         // (the verifier and then its hash are enciphered in one stream)
         const QByteArray both = rc4.apply(verifier + QCryptographicHash::hash(verifier, QCryptographicHash::Sha1));
-        body = W().u16(1).u16(4).u16(2).u32(0x24).u32(quint32(header.bytes().size())).raw(header).u32(16).raw(salt).raw(both.left(16)).u32(20).raw(both.mid(16));
+        body = W().u16(1).u16(4).u16(2).u32(0x04).u32(quint32(header.bytes().size())).raw(header).u32(16).raw(salt).raw(both.left(16)).u32(20).raw(both.mid(16));
     }
     const QByteArray filePass = rec(0x2F, body);
     QByteArray out = stream.left(first) + filePass;
@@ -219,24 +222,149 @@ QByteArray deflate(const QByteArray &data)
 // The known-answer file: made by tools/odf_encrypt_kat.py from the standard alone (Python's hashlib, zlib, and the cryptography package's AES), never by the program's own encoder.
 const char *const kOdfKnownAnswer =
     "UEsDBBQAAAAAAAAAcF1exjIMJwAAACcAAAAIAAAAbWltZXR5cGVhcHBsaWNhdGlvbi92bmQub2FzaXMub3BlbmRvY3VtZW50LnRl"
-    "eHRQSwMEFAAAAAAAAABwXQxIG52gAAAAoAAAAAsAAABjb250ZW50LnhtbNOX2sr7NyiSWl0T1JOuKQmW/rJpPxKl64EutHRLoxvn"
-    "EIhpaw8xGulTlYFXtmcx7w9YLfgHHcwtVzozOZsYZ9fn9p5ob/RX+sCnkzxkVgw6sugaXjHuwMqexwP3xIBEKfWsjzDEP1IkNLY2"
-    "TiWKvCchg4Puwj0ThLtMkUJ2G4nl4GwLJoV/gEX4pXmXN6n9CL88VzkDJTOXV8jBWtWFslxQSwMEFAAAAAAAAABwXQq0k7NwAAAA"
-    "cAAAAAoAAABzdHlsZXMueG1sNcytU9tDSzgVj/EKApHayop5xsArgbpf04nuuSKANK4/N/iBRuvlilmIGSg1XtUdSyMx6LozYW+F"
-    "7rphsa8na6KWfQaYabfeJUSGeLR9siz4c3gfueXzMB6tHyf3P7soXhVPD8I/VJk6v2H0COIX6FBLAwQUAAAACAAAAHBdCTZ3UCgC"
-    "AAAcBwAAFQAAAE1FVEEtSU5GL21hbmlmZXN0LnhtbNVTW3OiMBj9K0z6uANBrNQypZ31Wq+jtXXXxxiipEKCSRD01xdcW3E7drr7"
-    "st235Lucc77bzV0aBtqGCEk5c0HJMIFGGOYeZUsXPD229Cq4u70JEaMLIpXz+tCyNCbfvi6IBXM4klQ6DIVEOgo7PCLM4zgOCVPO"
-    "abyzJ3r7FfgtUGBb0IDoWbbYHmMXcRDoEVK+C2ABIiQeRbraRsQFKIoCipHKIOGGecZel1GUYyiSKgA/T4U5U3leVsYZ0hwRnrol"
-    "3WWOctUu1pR1V2yjXJvuIYWO0dgneCXj8ID35w29kD6yKrZeWoH3qC6Y2l1oYTgYDAWtNy5pb/wzlf5jtz2rpVNfbOC4DEcNPEm/"
-    "d9yiYBQsuaDKD7X3Jj3X5gJfqciBMEkSIykbXCyhZZolaF7mDckKvkBE5srwHBekUUYVRQGV+0npG4IVF1nhfWKp+WQnRTsRtq1E"
-    "L16vx657Mq4V2eoeEXSzz9XO2A/yRrVeo2WB06jDcIpmqoj4lYd5zLKlLplmcU0lCjJjs9acNNPxtOXjWfuBz+9rJrlPftMnFRJK"
-    "z3mWhB1QtQ+9H7XShOZ13kpP0uVhyueqyUTAc7tWdB33/fNHINU2IPJvbqBkXX2JG6D0qhFUr9tyNaedBZnVx5XFQ510vw3LciO4"
-    "GETD3Wjwgzw94396A+seCSM0eebr9pJVbI91YxR+oRvo1Ju0sx0HXYp5b8JFv27G/f/6Bo7W18ftC1BLAQIUAxQAAAAAAAAAcF1e"
-    "xjIMJwAAACcAAAAIAAAAAAAAAAAAAACAAQAAAABtaW1ldHlwZVBLAQIUAxQAAAAAAAAAcF0MSBudoAAAAKAAAAALAAAAAAAAAAAA"
-    "AACAAU0AAABjb250ZW50LnhtbFBLAQIUAxQAAAAAAAAAcF0KtJOzcAAAAHAAAAAKAAAAAAAAAAAAAACAARYBAABzdHlsZXMueG1s"
-    "UEsBAhQDFAAAAAgAAABwXQk2d1AoAgAAHAcAABUAAAAAAAAAAAAAAIABrgEAAE1FVEEtSU5GL21hbmlmZXN0LnhtbFBLBQYAAAAA"
-    "BAAEAOoAAAAJBAAAAAA=";
-const char *const kOdfKnownContentSha256 = "3e185c60452d5e06fb1217ab2f3ed5b3cdab289aa98621c4278a4b367d13eb8c";
+    "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";
+const char *const kOdfKnownBlowfish =
+    "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"
+    "AIkTAAAAAA==";
+const char *const kOdfKnownContentSha256 = "bb03dd35a27433033370fde8670088b7def9c9db20b3b627b3e283bbc27965e3";
 const QString kOdfKnownPassword = QString::fromUtf8("P\xc3\xa4ssword \xe2\x98\x83");
 
 // A package of the plain kind with the parts of a text document, for the protection tests.
@@ -1242,7 +1370,8 @@ private Q_SLOTS:
     }
     void aKnownAnswerFileFromASeparateScriptOpensWithItsPasswordOnly()
     {
-        const QByteArray file = QByteArray::fromBase64(kOdfKnownAnswer);
+        for (const char *form : {kOdfKnownAnswer, kOdfKnownBlowfish}) {
+        const QByteArray file = QByteArray::fromBase64(form);
         QVERIFY(oc::odfEncrypted(file));
         QByteArray out;
         QCOMPARE(oc::decryptOdf(file, QStringLiteral("wrong"), 1 << 30, false, &out), oc::CryptResult::WrongPassword);
@@ -1254,7 +1383,9 @@ private Q_SLOTS:
         QVERIFY(jp::readZip(out, parts));
         QCOMPARE(QString::fromLatin1(QCryptographicHash::hash(parts.value(QStringLiteral("content.xml")), QCryptographicHash::Sha256).toHex()), QString::fromLatin1(kOdfKnownContentSha256));
         QVERIFY(parts.value(QStringLiteral("content.xml")).startsWith("<?xml"));
+        QVERIFY(parts.value(QStringLiteral("content.xml")).size() > 3000);   // (more than 1,024 bytes once deflated: the checksum is of real data)
         QVERIFY(!parts.value(QStringLiteral("META-INF/manifest.xml")).contains("encryption-data"));
+        }
     }
 
     void aPackageIsProtectedInTheFormOfTheStandardAndOpensAgain()
@@ -1276,9 +1407,11 @@ private Q_SLOTS:
         QCOMPARE(parts.value(QStringLiteral("mimetype")), QByteArray("application/vnd.oasis.opendocument.text"));
         const QByteArray manifest = parts.value(QStringLiteral("META-INF/manifest.xml"));
         QCOMPARE(manifest.count("<manifest:encryption-data"), 5);   // content, styles, meta, and two pictures
+        QCOMPARE(manifest.count("full-path=\"styles.xml\""), 1);   // (each part is listed once, with its data, not again beside the plain listing)
+        QCOMPARE(manifest.count("<manifest:file-entry"), 6);       // the root and the five parts
         QVERIFY(manifest.contains("aes256-cbc"));
         QVERIFY(manifest.contains("iteration-count=\"1024\""));
-        // a salt and an iv for each part, all different
+        // one salt for the file (so one key to make, however many parts), and an iv for each part, all different
         QSet<QByteArray> salts, ivs;
         int at = 0;
         while ((at = manifest.indexOf("manifest:salt=\"", at)) >= 0) {
@@ -1290,7 +1423,7 @@ private Q_SLOTS:
             at += 23;
             ivs.insert(manifest.mid(at, manifest.indexOf('"', at) - at));
         }
-        QCOMPARE(salts.size(), 5);
+        QCOMPARE(salts.size(), 1);
         QCOMPARE(ivs.size(), 5);
         // opened with the password: every part as it was
         QByteArray out;
@@ -1309,6 +1442,15 @@ private Q_SLOTS:
         QVERIFY(none.isEmpty());
         // the same package protected twice is not the same bytes (random salts and ivs)
         QVERIFY(oc::encryptOdf(plain, QStringLiteral("secret"), 1 << 30, fast) != file);
+    }
+
+    void theObfuscationTakesAPasswordInTheWesternWindowsCoding()
+    {
+        QByteArray out;
+        QVERIFY(oc::bincrypt::ansiPassword(QString::fromUtf8("\xe2\x82\xac\xe2\x80\x99x\xe2\x80\x9c\xc3\xa9"), &out));   // euro sign, right quote, x, left double quote, e acute
+        QCOMPARE(out, QByteArray("\x80\x92x\x93\xe9"));
+        QVERIFY(!oc::bincrypt::ansiPassword(QString::fromUtf8("\xe4\xbd\xa0"), &out));   // a Chinese character has no place in it
+        QVERIFY(!oc::bincrypt::ansiPassword(QString(QChar(0x0080)), &out));
     }
 
     void aProtectedPackageIsReadByTheStandardsOwnRulesWithoutTheProgramsDecoder()
@@ -1390,8 +1532,8 @@ private Q_SLOTS:
             QCOMPARE(oc::decryptOdf(z.finish(), QStringLiteral("x"), 1 << 30, false, &out, [&asked] { ++asked; return false; }), oc::CryptResult::Damaged);
             QCOMPARE(asked, 0);
         }
-        // (work: parts with salts of their own, a million rounds each; the limit for all is six million, so seven are refused before any key is begun, and four are tried)
-        for (const int parts : {7, 4}) {
+        // (work: parts with salts of their own, a million rounds each; the limit for all is forty million, so forty-one are refused as too costly before any key is begun, and four are tried)
+        for (const int parts : {41, 4}) {
             QString manifest = head;
             jp::ZipWriter z;
             z.add(QStringLiteral("mimetype"), "application/vnd.oasis.opendocument.text", false);
@@ -1402,16 +1544,84 @@ private Q_SLOTS:
             manifest += QStringLiteral("</manifest:manifest>");
             z.add(QStringLiteral("META-INF/manifest.xml"), manifest.toUtf8(), true);
             QByteArray out;
-            int asked = 0;
+            std::atomic<int> asked{0};
             const oc::CryptResult r = oc::decryptOdf(z.finish(), QStringLiteral("x"), 1 << 30, false, &out, [&asked] { ++asked; return false; });
-            if (parts == 7) {
-                QCOMPARE(r, oc::CryptResult::Damaged);
-                QCOMPARE(asked, 0);   // (refused before the first key was begun)
+            if (parts == 41) {
+                QCOMPARE(r, oc::CryptResult::TooCostly);   // (not "damaged": the file needs too much work to unlock)
+                QCOMPARE(int(asked), 0);                   // (refused before the first key was begun)
             } else {
-                QCOMPARE(r, oc::CryptResult::WrongPassword);   // (four million: within the limit, so the work is done for the first part, and the password is not the one)
+                QCOMPARE(r, oc::CryptResult::WrongPassword);   // (four million rounds: within the limit, the work is done, and the password is not the one)
                 QVERIFY(asked > 0);
             }
         }
+    }
+
+    void aProtectedPackageOfTwoHundredPartsIsSavedAndOpensAgain()
+    {
+        // (it was a file the program wrote and could not open: one key for each of its parts at the usual count was more work than a file was allowed)
+        const QByteArray plain = plainOdfPackage(200);
+        QElapsedTimer t;
+        t.start();
+        const QByteArray file = oc::encryptOdf(plain, QStringLiteral("many"), 1 << 30);   // (the usual 100,000 rounds)
+        QVERIFY(!file.isEmpty());
+        const qint64 wrote = t.elapsed();
+        QByteArray out;
+        t.restart();
+        QCOMPARE(oc::decryptOdf(file, QStringLiteral("many"), 1 << 30, false, &out), oc::CryptResult::Ok);
+        qInfo() << "200 parts: wrote in" << wrote << "ms, opened in" << t.elapsed() << "ms";
+        QMap<QString, QByteArray> before, after;
+        QVERIFY(jp::readZip(plain, before));
+        QVERIFY(jp::readZip(out, after));
+        QCOMPARE(after.size(), before.size());
+        QCOMPARE(after.value(QStringLiteral("Pictures/p199.png")), before.value(QStringLiteral("Pictures/p199.png")));
+    }
+
+    void aFileFromAnotherProgramWithASaltForEveryPartOfThreeHundredPartsOpens()
+    {
+        // (made here with Qt's PBKDF2 and the cipher directly, 300 parts at the usual 100,000 rounds each, the keys made on several threads)
+        const int parts = 300;
+        QVector<QByteArray> salts(parts), keys(parts);
+        const QByteArray start = QCryptographicHash::hash(QByteArray("many parts"), QCryptographicHash::Sha256);
+        for (int i = 0; i < parts; ++i) salts[i] = randomBytes(16, 5000 + i);
+        {
+            std::atomic<int> next{0};
+            auto run = [&] {
+                for (int i = next++; i < parts; i = next++) keys[i] = QPasswordDigestor::deriveKeyPbkdf2(QCryptographicHash::Sha1, start, salts[i], 100000, 32);
+            };
+            std::vector<std::thread> pool;
+            for (int i = 0; i < 7; ++i) pool.emplace_back(run);
+            run();
+            for (std::thread &th : pool) th.join();
+        }
+        jp::ZipWriter z;
+        z.add(QStringLiteral("mimetype"), "application/vnd.oasis.opendocument.presentation", false);
+        QString manifest = QStringLiteral("<?xml version=\"1.0\"?><manifest:manifest xmlns:manifest=\"urn:oasis:names:tc:opendocument:xmlns:manifest:1.0\">");
+        for (int i = 0; i < parts; ++i) {
+            const QByteArray data = QByteArray("part number ") + QByteArray::number(i) + QByteArray(300, 'z');
+            const QByteArray iv = randomBytes(16, 9000 + i), packed = deflate(data);
+            const int pad = 16 - int(packed.size() % 16);
+            z.add(QStringLiteral("p%1.xml").arg(i), crypto::aesCbc(keys[i], iv, packed + QByteArray(pad, char(pad)), true), false);
+            manifest += QStringLiteral("<manifest:file-entry manifest:full-path=\"p%1.xml\" manifest:size=\"%2\"><manifest:encryption-data manifest:checksum-type=\"urn:oasis:names:tc:opendocument:xmlns:manifest:1.0#sha256-1k\" manifest:checksum=\"%3\">"
+                                       "<manifest:algorithm manifest:algorithm-name=\"http://www.w3.org/2001/04/xmlenc#aes256-cbc\" manifest:initialisation-vector=\"%4\"/>"
+                                       "<manifest:key-derivation manifest:key-derivation-name=\"PBKDF2\" manifest:key-size=\"32\" manifest:iteration-count=\"100000\" manifest:salt=\"%5\"/>"
+                                       "<manifest:start-key-generation manifest:start-key-generation-name=\"http://www.w3.org/2000/09/xmldsig#sha256\"/></manifest:encryption-data></manifest:file-entry>")
+                            .arg(i).arg(data.size()).arg(QString::fromLatin1(QCryptographicHash::hash(packed.left(1024), QCryptographicHash::Sha256).toBase64()))
+                            .arg(QString::fromLatin1(iv.toBase64())).arg(QString::fromLatin1(salts[i].toBase64()));
+        }
+        manifest += QStringLiteral("</manifest:manifest>");
+        z.add(QStringLiteral("META-INF/manifest.xml"), manifest.toUtf8(), true);
+        const QByteArray file = z.finish();
+        QByteArray out;
+        QElapsedTimer t;
+        t.start();
+        QCOMPARE(oc::decryptOdf(file, QStringLiteral("many parts"), 1 << 30, false, &out), oc::CryptResult::Ok);
+        qInfo() << "300 parts with a salt each opened in" << t.elapsed() << "ms";
+        QMap<QString, QByteArray> parts2;
+        QVERIFY(jp::readZip(out, parts2));
+        QCOMPARE(parts2.value(QStringLiteral("p299.xml")).left(15), QByteArray("part number 299"));
+        // stopped while the keys are made
+        std::atomic<int> asked{0};
+        QCOMPARE(oc::decryptOdf(file, QStringLiteral("many parts"), 1 << 30, false, &out, [&asked] { return ++asked > 3; }), oc::CryptResult::Cancelled);
     }
 
     void anArgon2PackageOpensWithItsPasswordAndNoOther()

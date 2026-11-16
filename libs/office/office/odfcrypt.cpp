@@ -254,13 +254,66 @@ CryptResult decryptOdf(const QByteArray &zip, const QString &password, qint64 ma
                 stretches.insert(p.salt + QByteArray::number(p.rounds) + ':' + QByteArray::number(keySize) + ':' + char('0' + v) + p.startKey.toUtf8());
                 roundsOfAll += p.rounds;   // (each is within the limit, and there are at most kMaxOdfParts of them: the sum cannot overflow)
             }
-        if (roundsOfAll > kMaxOdfTotalKeyRounds) return CryptResult::Damaged;
+        if (roundsOfAll > kMaxOdfTotalKeyRounds) return CryptResult::TooCostly;   // (the file asks for more work than the program does for one file: said so, not "damaged")
     }
     for (const Protection &p : std::as_const(protection))
         if (isArgon(p)) return protection.size() == 1 && protection.contains(QStringLiteral("encrypted-package")) ? decryptArgonPackage(zip, entries, protection.constBegin().value(), password, maxBytes, verifyOnly, plain, cancelled) : CryptResult::Unsupported;
     QByteArray pw = password.toUtf8();
-    qint64 rounds = 0, total = 0;
+    qint64 total = 0;
     QHash<QByteArray, QByteArray> keys;   // by the salt, the rounds, the size, and the start hash: one stretch for parts that share them
+    {
+        // Every distinct key is made now, side by side on as many threads as the machine has cores (at most eight); the parts below only look them up.
+        struct Job {
+            QByteArray cacheKey, salt, startKey, key;
+            qint64 rounds = 0;
+            int keySize = 0;
+        };
+        QList<Job> jobs;
+        for (const Protection &p : std::as_const(protection)) {
+            bool aes = false;
+            int keySize = 0;
+            if (checkPart(p, &aes, &keySize) != CryptResult::Ok) continue;   // (the same check was made above for all)
+            QVector<QCryptographicHash::Algorithm> algs;
+            if (p.startKey.isEmpty()) algs = {QCryptographicHash::Sha1, QCryptographicHash::Sha256};
+            else algs = {startHash(p.startKey)};
+            for (const QCryptographicHash::Algorithm a : algs) {
+                const QByteArray cacheKey = p.salt + QByteArray::number(p.rounds) + ':' + QByteArray::number(keySize) + ':' + QByteArray::number(int(a));
+                if (keys.contains(cacheKey)) continue;
+                keys.insert(cacheKey, QByteArray());
+                Job j;
+                j.cacheKey = cacheKey;
+                j.salt = p.salt;
+                j.rounds = p.rounds;
+                j.keySize = keySize;
+                j.startKey = QCryptographicHash::hash(pw, a);
+                jobs.append(j);
+            }
+        }
+        std::atomic<int> next{0};
+        std::atomic<bool> stopped{false};
+        auto run = [&] {
+            for (int i = next++; i < jobs.size() && !stopped; i = next++) {
+                Job &j = jobs[i];
+                j.key = pbkdf2Sha1(j.startKey, j.salt, j.rounds, j.keySize, cancelled);
+                crypto::wipe(j.startKey);
+                if (j.key.isEmpty()) stopped = true;
+            }
+        };
+        const int threads = std::max(1, std::min({8, int(std::thread::hardware_concurrency()), int(jobs.size())}));
+        std::vector<std::thread> pool;
+        for (int i = 1; i < threads; ++i) pool.emplace_back(run);
+        run();
+        for (std::thread &t : pool) t.join();
+        for (Job &j : jobs) {
+            keys[j.cacheKey] = j.key;
+            j.key.clear();
+        }
+        if (stopped) {
+            crypto::wipe(pw);
+            for (QByteArray &k : keys) crypto::wipe(k);
+            return CryptResult::Cancelled;
+        }
+    }
     jp::ZipWriter out;
     CryptResult result = CryptResult::Ok;
     for (const jp::ZipEntry &e : entries) {
@@ -312,23 +365,11 @@ CryptResult decryptOdf(const QByteArray &zip, const QString &password, qint64 ma
         for (const QCryptographicHash::Algorithm start : starts) {
             const QByteArray cacheKey = p.salt + QByteArray::number(p.rounds) + ':' + QByteArray::number(keySize) + ':' + QByteArray::number(int(start));
             // (the key is held in the cache only, and used from there: no second copy of it is left to be wiped)
-            QByteArray &key = keys[cacheKey];
+            const QByteArray &key = keys[cacheKey];
             if (key.isEmpty()) {
-                // (each part was checked against the limit above, so the sum cannot overflow)
-                rounds += p.rounds;
-                if (rounds > kMaxOdfTotalKeyRounds) {
-                    result = CryptResult::Damaged;
-                    broke = true;
-                    break;
-                }
-                QByteArray startKey = QCryptographicHash::hash(pw, start);
-                key = pbkdf2Sha1(startKey, p.salt, p.rounds, keySize, cancelled);
-                crypto::wipe(startKey);
-                if (key.isEmpty()) {
-                    result = CryptResult::Cancelled;
-                    broke = true;
-                    break;
-                }
+                result = CryptResult::Damaged;
+                broke = true;
+                break;
             }
             QByteArray data = QByteArray::fromRawData(zip.constData() + e.dataAt, qsizetype(e.csize));
             if (aes) {
@@ -415,8 +456,15 @@ struct Sealed {
 
 } // namespace
 
+namespace {
+qint64 g_protectLimitForTest = -1;
+}
+
+void setOdfProtectLimitForTest(qint64 maxBytes) { g_protectLimitForTest = maxBytes; }
+
 QByteArray encryptOdf(const QByteArray &zip, const QString &password, qint64 maxBytes, const OdfEncryptOptions &options, const std::function<bool()> &cancelled)
 {
+    if (g_protectLimitForTest >= 0) maxBytes = std::min(maxBytes, g_protectLimitForTest);
     if (options.rounds < 1 || options.rounds > kMaxOdfKeyRounds) return QByteArray();
     QVector<jp::ZipEntry> entries;
     if (!jp::readZipDirectory(zip, &entries) || entries.size() > kMaxOdfParts) return QByteArray();
@@ -432,6 +480,14 @@ QByteArray encryptOdf(const QByteArray &zip, const QString &password, qint64 max
     QByteArray pw = password.toUtf8();
     QByteArray start = QCryptographicHash::hash(pw, QCryptographicHash::Sha256);
     crypto::wipe(pw);
+    const QByteArray salt = randomBytes(16);
+    QByteArray key = pbkdf2Sha1(start, salt, options.rounds, 32, cancelled);
+    crypto::wipe(start);
+    if (key.isEmpty()) return QByteArray();
+    struct KeyWipe {
+        QByteArray &k;
+        ~KeyWipe() { crypto::wipe(k); }
+    } keyWipe{key};
     QHash<QString, Sealed> sealed;
     QVector<QString> order;
     qint64 total = 0;
@@ -452,7 +508,7 @@ QByteArray encryptOdf(const QByteArray &zip, const QString &password, qint64 max
         Sealed s;
         s.size = plain.size();
         s.rounds = options.rounds;
-        s.salt = randomBytes(16);
+        s.salt = salt;   // (one salt, so one key for the whole file; each part has its own iv, and the manifest still names the salt and the rounds for each part)
         s.iv = randomBytes(16);
         QByteArray packed = deflateRaw(plain);
         if (packed.isEmpty() && !plain.isEmpty()) {
@@ -460,42 +516,18 @@ QByteArray encryptOdf(const QByteArray &zip, const QString &password, qint64 max
             break;
         }
         s.checksum = QCryptographicHash::hash(QByteArrayView(packed).left(1024), QCryptographicHash::Sha256);
-        s.data = packed;   // (enciphered below, all the parts at once)
         crypto::wipe(plain);
+        const int pad = 16 - int(packed.size() % 16);
+        packed.append(QByteArray(pad, char(pad)));
+        s.data = crypto::aesCbc(key, s.iv, packed, true);
+        crypto::wipe(packed);
+        if (s.data.isEmpty()) {
+            failed = true;
+            break;
+        }
         sealed.insert(name, s);
         order.append(e.name);
     }
-    // Each part's key is its own stretch of the password, so the parts are done side by side, on as many threads as the machine has cores (at most eight).
-    if (!failed) {
-        QList<Sealed *> work;
-        for (auto it = sealed.begin(); it != sealed.end(); ++it) work.append(&it.value());
-        std::atomic<int> next{0};
-        std::atomic<bool> bad{false};
-        auto run = [&] {
-            for (int i = next++; i < work.size() && !bad; i = next++) {
-                Sealed &s = *work[i];
-                QByteArray key = pbkdf2Sha1(start, s.salt, s.rounds, 32, cancelled);
-                if (key.isEmpty()) {
-                    bad = true;
-                    break;
-                }
-                const int pad = 16 - int(s.data.size() % 16);
-                QByteArray padded = s.data + QByteArray(pad, char(pad));
-                crypto::wipe(s.data);
-                s.data = crypto::aesCbc(key, s.iv, padded, true);
-                crypto::wipe(key);
-                crypto::wipe(padded);
-                if (s.data.isEmpty()) bad = true;
-            }
-        };
-        const int threads = std::max(1, std::min({8, int(std::thread::hardware_concurrency()), int(work.size())}));
-        std::vector<std::thread> pool;
-        for (int i = 1; i < threads; ++i) pool.emplace_back(run);
-        run();
-        for (std::thread &t : pool) t.join();
-        failed = bad;
-    }
-    crypto::wipe(start);
     if (failed) return QByteArray();
 
     // The manifest: each part that was enciphered gets its size and how it was.
@@ -538,7 +570,10 @@ QByteArray encryptOdf(const QByteArray &zip, const QString &password, qint64 max
             } leave{r, depth};
             if (r.isStartElement() && r.name() == QLatin1String("file-entry")) {
                 prefix = r.prefix().toString();
-                const QString entryName = cleanName(r.attributes().value(QLatin1String("full-path")).toString());
+                QString fullPath;
+                for (const QXmlStreamAttribute &a : r.attributes())
+                    if (a.name() == QLatin1String("full-path")) fullPath = a.value().toString();   // (found by its local name: the manifest's attributes carry its prefix)
+                const QString entryName = cleanName(fullPath);
                 listed.insert(entryName);
                 const auto it = sealed.constFind(entryName);
                 if (it == sealed.constEnd()) {

@@ -760,6 +760,49 @@ private Q_SLOTS:
         QVERIFY(!e.alwaysReadOnlyBlocked().isEmpty());
     }
 
+    void turningAlwaysOpenReadOnlyOffKeepsAWindowThatIsReadOnlyForAnotherReason()
+    {
+        QTemporaryDir dir;
+        DeckWindow a;
+        Quiet quiet(a);
+        a.editor()->setDocument(sample());
+        a.setAlwaysOpenReadOnly(true);
+        QVERIFY(a.saveTo(dir.filePath(QStringLiteral("k.pptx"))));
+        // opened with Open Read-Only: turning the choice off leaves it read-only
+        DeckWindow b;
+        Quiet quietB(b);
+        QVERIFY(b.openFile(dir.filePath(QStringLiteral("k.pptx")), OpenHow::ReadOnly));
+        QVERIFY(b.isReadOnly());
+        b.setAlwaysOpenReadOnly(false);
+        QVERIFY(!b.alwaysOpensReadOnly());
+        QVERIFY(b.isReadOnly());
+        // marked final as well: the same
+        DeckWindow c;
+        Quiet quietC(c);
+        c.editor()->setDocument(sample());
+        c.setAlwaysOpenReadOnly(true);
+        QVERIFY(c.saveTo(dir.filePath(QStringLiteral("k2.pptx"))));
+        c.setMarkedFinal(true);
+        QVERIFY(c.isReadOnly());
+        c.setAlwaysOpenReadOnly(false);
+        QVERIFY(c.isReadOnly());
+        QVERIFY(c.markedAsFinal());
+    }
+
+    void alwaysOpenReadOnlyIsListedAndClearedWhenSavedAsAnOdp()
+    {
+        QTemporaryDir dir;
+        DeckWindow a;
+        Quiet quiet(a);
+        a.editor()->setDocument(sample());
+        a.setAlwaysOpenReadOnly(true);
+        QVERIFY(a.saveTo(dir.filePath(QStringLiteral("l.pptx"))));
+        QVERIFY(a.odpLosses(QStringLiteral("x.odp")).join(QLatin1Char('|')).contains(QLatin1String("always open")));
+        QVERIFY(a.saveTo(dir.filePath(QStringLiteral("l.odp"))));
+        QVERIFY(!a.alwaysOpensReadOnly());
+        QVERIFY(!a.odpLosses(QStringLiteral("x.odp")).join(QLatin1Char('|')).contains(QLatin1String("always open")));
+    }
+
     void inspectFindsNotesCommentsHiddenSlidesAndWhatIsOffTheSlide()
     {
         DeckWindow w;

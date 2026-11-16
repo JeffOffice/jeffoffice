@@ -356,6 +356,7 @@ public:
     bool alwaysOpensReadOnly() const;
     QString alwaysReadOnlyBlocked() const;
     void setAlwaysOpenReadOnly(bool on);
+    bool m_readOnlyByChoice = false;   // this window is read-only only because the presentation is set to always open that way
     // Whether the file asks for a password when it is opened (it was opened with one, or Encrypt with Password was used); the password is put on when the presentation is saved.
     bool isPasswordProtected() const { return m_fileProtected; }
     void encryptWithPassword();

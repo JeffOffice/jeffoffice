@@ -105,8 +105,12 @@ void DeckWindow::setAlwaysOpenReadOnly(bool on)
     }
     office::PackageProps p = properties();
     p.custom = office::withAlwaysOpenReadOnly(p.custom, on);
-    if (!on) setReadOnly(false);   // (the editor changes nothing while it is read-only)
+    // (the editor changes nothing while it is read-only, so the change is made with it lifted; a window that is read-only for another reason, opened so or marked final, is put back)
+    const bool keepReadOnly = isReadOnly() && !(!on && m_readOnlyByChoice);
+    if (isReadOnly()) setReadOnly(false);
     applyProperties(p);
+    if (keepReadOnly) setReadOnly(true);
+    if (!on) m_readOnlyByChoice = false;
     statusBar()->showMessage(on ? tr("This presentation will open for reading only. Save it to keep this choice.") : tr("This presentation will open for editing again. Save it to keep this choice."), 8000);
     if (m_fileScreen) showFileScreen(QStringLiteral("info"));
 }

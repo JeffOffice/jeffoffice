@@ -46,14 +46,24 @@ static std::array<quint16, 105> xorMatrix()
     return m;
 }
 
-// The password as the obfuscation takes it: the first 15 characters, one byte each. A password with a letter outside the Western set (Latin-1) has no such form, and is not the one
-// (it is not turned into another password).
+// The password as the obfuscation takes it: the first 15 characters, one byte each, in the Western Windows coding (the euro sign and the curly quotes have places in it, in 0x80 to 0x9F).
+// A password with a letter outside that coding has no such form, and is not the one (it is not turned into another password).
 bool ansiPassword(const QString &password, QByteArray *out)
 {
+    static const ushort kWest[32] = {0x20AC, 0x0081, 0x201A, 0x0192, 0x201E, 0x2026, 0x2020, 0x2021, 0x02C6, 0x2030, 0x0160, 0x2039, 0x0152, 0x008D, 0x017D, 0x008F,
+                                     0x0090, 0x2018, 0x2019, 0x201C, 0x201D, 0x2022, 0x2013, 0x2014, 0x02DC, 0x2122, 0x0161, 0x203A, 0x0153, 0x009D, 0x017E, 0x0178};
     out->clear();
     for (const QChar c : password.left(15)) {
-        if (c.unicode() > 255) return false;
-        out->append(char(c.unicode()));
+        const ushort u = c.unicode();
+        if (u < 0x80 || (u >= 0xA0 && u <= 0xFF)) {
+            out->append(char(u));
+            continue;
+        }
+        int found = -1;
+        for (int i = 0; i < 32; ++i)
+            if (kWest[i] == u) found = i;
+        if (found < 0) return false;
+        out->append(char(0x80 + found));
     }
     return true;
 }
@@ -160,6 +170,9 @@ CryptResult rc4Setup(const QByteArray &fp, bool verifyOnly, const QString &passw
         const quint32 headerSize = u32(fp, 2 + 8);
         if (headerSize < 32 || headerSize > 4096 || qint64(2) + 12 + headerSize + 4 + 16 + 16 + 4 + 20 > fp.size()) return CryptResult::Damaged;
         const quint32 algId = u32(fp, 2 + 12 + 8), hashId = u32(fp, 2 + 12 + 12);
+        // the flags the form relies on: made by the cryptographic provider (0x04), and not the AES kind (0x20)
+        const quint32 headerFlags = u32(fp, 2 + 12);
+        if (!(headerFlags & 0x04) || (headerFlags & 0x20)) return CryptResult::Unsupported;
         quint32 keySize = u32(fp, 2 + 12 + 16);
         if ((algId != 0x6801 && algId != 0) || (hashId != 0x8004 && hashId != 0)) return CryptResult::Unsupported;
         if (keySize == 0) keySize = 40;

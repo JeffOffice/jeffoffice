@@ -928,11 +928,11 @@ QByteArray DocWriter::buildProtected(const QString &password, int form) const
     } else if (form == 1) {
         const QByteArray base = QCryptographicHash::hash(salt + pw, QCryptographicHash::Sha1);
         keyFor = [base](int block) { return QCryptographicHash::hash(base + le32(quint32(block)), QCryptographicHash::Sha1).left(16); };
-        QByteArray header = le32(0x24) + le32(0) + le32(0x6801) + le32(0x8004) + le32(128) + le32(1) + le32(0) + le32(0) + utf16le(QStringLiteral("Provider")) + QByteArray(2, 0);
+        QByteArray header = le32(0x04) + le32(0) + le32(0x6801) + le32(0x8004) + le32(128) + le32(1) + le32(0) + le32(0) + utf16le(QStringLiteral("Provider")) + QByteArray(2, 0);
         QByteArray key0 = keyFor(0);
         jp::crypto::Rc4 rc4(key0);
         const QByteArray enc = rc4.apply(verifier + QCryptographicHash::hash(verifier, QCryptographicHash::Sha1));
-        description = QByteArray::fromHex("04000200") + le32(0x24) + le32(quint32(header.size())) + header + le32(16) + salt + enc.left(16) + le32(20) + enc.mid(16, 20);
+        description = QByteArray::fromHex("04000200") + le32(0x04) + le32(quint32(header.size())) + header + le32(16) + salt + enc.left(16) + le32(20) + enc.mid(16, 20);
     }
     DocWriter w = *this;
     w.password = true;
@@ -942,7 +942,11 @@ QByteArray DocWriter::buildProtected(const QString &password, int form) const
     QByteArray wd = f.stream(QStringLiteral("WordDocument")), tbl = f.stream(QStringLiteral("1Table")), dat = f.stream(QStringLiteral("Data"));
     if (form == 2) {
         // the obfuscation: the key and the verifier of the rules, kept in the header, and the bytes XORed with the table made from the password
-        const QByteArray ansi = password.toLatin1().left(15);
+        QByteArray ansi;
+        for (const QChar c : password.left(15)) {
+            const QByteArray one = c.unicode() == 0x20AC ? QByteArray(1, char(0x80)) : c.unicode() == 0x2019 ? QByteArray(1, char(0x92)) : QByteArray(1, char(c.unicode()));
+            ansi += one;
+        }
         static const quint16 initial[15] = {0xE1F0, 0x1D0F, 0xCC9C, 0x84C0, 0x110C, 0x0E10, 0xF1CE, 0x313E, 0x1872, 0xE139, 0xD40F, 0x84F9, 0x280C, 0xA96A, 0x4EC3};
         static const quint8 pad[15] = {0xBB, 0xFF, 0xFF, 0xBA, 0xFF, 0xFF, 0xB9, 0x80, 0x00, 0xBE, 0x0F, 0x00, 0xBF, 0x0F, 0x00};
         // (the matrix of the key: row r holds the 7 values of the r-th place, each the step of a 16-bit check value from the one before)

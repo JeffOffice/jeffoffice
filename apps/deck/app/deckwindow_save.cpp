@@ -210,6 +210,7 @@ QStringList DeckWindow::odpLosses(const QString &path)
         return skipped;
     });
     if (markedAsFinal()) lost << tr("The mark that the presentation is final.");
+    if (alwaysOpensReadOnly()) lost << tr("The choice to always open the presentation for reading only.");
     return lost;
 }
 
@@ -242,6 +243,7 @@ bool DeckWindow::saveTo(const QString &path, bool asCopy)
     Document *doc = m_ed->doc();
     // The mark that a presentation is final is a property a .odp file does not keep: it was said in the list before, and the file is saved without it.
     if (odf && markedAsFinal() && !asCopy) doc->props.custom = office::withMarkAsFinal(doc->props.custom, false);
+    if (odf && alwaysOpensReadOnly() && !asCopy) doc->props.custom = office::withAlwaysOpenReadOnly(doc->props.custom, false);
     // (a copy has the time and the author a save gives, and the presentation open here keeps its own)
     const QDateTime modifiedBefore = doc->props.modified;
     const QString authorBefore = doc->props.author;

@@ -172,6 +172,7 @@ bool DeckWindow::openFile(const QString &path, OpenHow how)
         // A presentation set to always open for reading only does (the Info page lets it be edited).
         else if (how == OpenHow::Normal && target->alwaysOpensReadOnly() && deck::presentationKindOf(path) != deck::PresentationKind::Template) {
             target->setReadOnly(true);
+            target->m_readOnlyByChoice = true;
             target->statusBar()->showMessage(tr("This presentation is open for reading only, as you chose. Open File > Info and choose Always Opens Read-Only to edit it."), 12000);
         }
     }

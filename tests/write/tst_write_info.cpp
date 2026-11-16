@@ -769,6 +769,21 @@ private Q_SLOTS:
         QVERIFY(fileBytes(path).contains("PK"));
     }
 
+    void aProtectionThatFailsOnSaveSaysWhyAndWritesNothing()
+    {
+        QTemporaryDir dir;
+        WriteWindow a;
+        Quiet quiet(a);
+        typeText(*a.document(), a.view()->cursor(), QStringLiteral("x"));
+        protect(a, QStringLiteral("pw"));
+        office::setOdfProtectLimitForTest(10);
+        const bool saved = a.saveTo(dir.filePath(QStringLiteral("f.odt")));
+        office::setOdfProtectLimitForTest(-1);
+        QVERIFY(!saved);
+        QVERIFY(!QFileInfo::exists(dir.filePath(QStringLiteral("f.odt"))));
+        QVERIFY2(quiet.said.last().contains(QLatin1String("password couldn't be put on the file")), qPrintable(quiet.said.last()));
+    }
+
     void inspectFindsAndRemovesWhatIsThere()
     {
         WriteWindow w;
