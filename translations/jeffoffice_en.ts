@@ -359,7 +359,7 @@
 <context>
     <name>jp::crunch::EditSession</name>
     <message numerus="yes">
-        <location filename="../apps/crunch/core/editsession.cpp" line="+1122"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="+1123"/>
         <source>Clearing %n cell(s)</source>
         <translation>
             <numerusform>Clearing %n cell</numerusform>
@@ -367,7 +367,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/crunch/core/editpivot.cpp" line="+1184"/>
+        <location filename="../apps/crunch/core/editpivot.cpp" line="+1288"/>
         <source>%n pivot table(s) were not read again when the file opened: there is too much data. Use Refresh All.</source>
         <translation>
             <numerusform>%n pivot table was not read again when the file opened: there is too much data. Use Refresh All.</numerusform>
@@ -378,7 +378,7 @@
 <context>
     <name>jp::crunch::SheetObjects</name>
     <message numerus="yes">
-        <location filename="../apps/crunch/core/sheetobjects.cpp" line="+1008"/>
+        <location filename="../apps/crunch/core/sheetobjects.cpp" line="+1009"/>
         <source>The file stores this object together with %n other(s), so they can&apos;t be deleted one at a time.</source>
         <translation>
             <numerusform>The file stores this object together with %n other object, so they can&apos;t be deleted one at a time.</numerusform>

@@ -123,7 +123,7 @@
         <translation type="unfinished">Atraso: quantos segundos o efeito aguarda antes de começar.</translation>
     </message>
     <message>
-        <location filename="../apps/deck/core/animation_edit.cpp" line="+50"/>
+        <location filename="../apps/deck/core/animation_edit.cpp" line="+51"/>
         <location line="+6"/>
         <source>From Bottom</source>
         <translation type="unfinished">A partir de baixo</translation>
@@ -2107,8 +2107,8 @@ Artigo da contracapa	4</translation>
 <context>
     <name>Deck</name>
     <message>
-        <location filename="../apps/deck/core/deck.cpp" line="+120"/>
-        <location filename="../apps/deck/core/masteredit.cpp" line="+236"/>
+        <location filename="../apps/deck/core/deck.cpp" line="+121"/>
+        <location filename="../apps/deck/core/masteredit.cpp" line="+237"/>
         <source>%1 Placeholder</source>
         <translation type="unfinished">Marcador de posição de %1</translation>
     </message>
@@ -2143,7 +2143,7 @@ Artigo da contracapa	4</translation>
         <translation type="unfinished">Secção predefinida</translation>
     </message>
     <message>
-        <location filename="../apps/deck/core/themes.cpp" line="+531"/>
+        <location filename="../apps/deck/core/themes.cpp" line="+532"/>
         <source>Decoration</source>
         <translation type="unfinished">Decoração</translation>
     </message>
@@ -2233,7 +2233,7 @@ Artigo da contracapa	4</translation>
         <translation type="unfinished">Conteúdo</translation>
     </message>
     <message>
-        <location filename="../apps/deck/core/shapestyles.cpp" line="+27"/>
+        <location filename="../apps/deck/core/shapestyles.cpp" line="+28"/>
         <source>Outline Only</source>
         <translation type="unfinished">Apenas contorno</translation>
     </message>
@@ -2274,7 +2274,7 @@ Artigo da contracapa	4</translation>
 <context>
     <name>DeckOutput</name>
     <message>
-        <location filename="../apps/deck/io/deckoutput.cpp" line="+582"/>
+        <location filename="../apps/deck/io/deckoutput.cpp" line="+583"/>
         <source>There are no slides to print.</source>
         <translation type="unfinished">Não existem diapositivos para imprimir.</translation>
     </message>
@@ -5540,7 +5540,7 @@ Artigo da contracapa	4</translation>
 <context>
     <name>DrawingWriter</name>
     <message>
-        <location filename="../libs/office/office/drawingml_write.cpp" line="+734"/>
+        <location filename="../libs/office/office/drawingml_write.cpp" line="+735"/>
         <location line="+161"/>
         <source>Placeholder</source>
         <translation type="unfinished">Marcador de Posição</translation>
@@ -7236,7 +7236,7 @@ Abra-os com o seu programa de correio eletrónico para os enviar.</translation>
         <translation type="unfinished">%1  ·  Página %2 de %3  ·  %4</translation>
     </message>
     <message>
-        <location filename="../apps/pub/io/jpubfile.cpp" line="+108"/>
+        <location filename="../apps/pub/io/jpubfile.cpp" line="+109"/>
         <source>The file couldn&apos;t be protected with the password.</source>
         <translation type="unfinished">Não foi possível proteger o ficheiro com a palavra-passe.</translation>
     </message>
@@ -7847,7 +7847,7 @@ Pretende transferi-lo de %2 agora? (%3, uma única vez.)</translation>
 <context>
     <name>OdpExport</name>
     <message>
-        <location filename="../apps/deck/io/odpexport.cpp" line="+427"/>
+        <location filename="../apps/deck/io/odpexport.cpp" line="+428"/>
         <location line="+9"/>
         <source>Slide Master</source>
         <translation type="unfinished">Modelo Global de Diapositivos</translation>
@@ -7911,12 +7911,12 @@ Pretende transferi-lo de %2 agora? (%3, uma única vez.)</translation>
         <translation type="unfinished">Não existe nenhum nome de ficheiro com o qual guardar.</translation>
     </message>
     <message>
-        <location filename="../apps/deck/io/odpexport_text.cpp" line="+493"/>
+        <location filename="../apps/deck/io/odpexport_text.cpp" line="+494"/>
         <source>Objects set in the middle of text are left out.</source>
         <translation type="unfinished">Os objetos colocados no meio do texto são omitidos.</translation>
     </message>
     <message>
-        <location filename="../apps/deck/io/odpexport_motion.cpp" line="+482"/>
+        <location filename="../apps/deck/io/odpexport_motion.cpp" line="+483"/>
         <source>Effects that start when an object is clicked can&apos;t be saved in this kind of file, except those that play a movie or sound.</source>
         <translation type="unfinished">Os efeitos que começam quando se clica num objeto não podem ser guardados neste tipo de ficheiro, exceto os que reproduzem um filme ou som.</translation>
     </message>
@@ -7941,7 +7941,7 @@ Pretende transferi-lo de %2 agora? (%3, uma única vez.)</translation>
         <translation type="unfinished">Não é possível guardar o último diapositivo do intervalo a mostrar; a apresentação decorre até ao fim.</translation>
     </message>
     <message>
-        <location filename="../apps/deck/io/odpexport_shape.cpp" line="+210"/>
+        <location filename="../apps/deck/io/odpexport_shape.cpp" line="+211"/>
         <source>Text Art is saved as a picture.</source>
         <translation type="unfinished">O Texto Artístico é guardado como imagem.</translation>
     </message>
@@ -7961,7 +7961,7 @@ Pretende transferi-lo de %2 agora? (%3, uma única vez.)</translation>
         <translation type="unfinished">As legendas de um filme não são guardadas num ficheiro de apresentação, por isso foram omitidas.</translation>
     </message>
     <message>
-        <location filename="../apps/deck/io/odpexport_style.cpp" line="+281"/>
+        <location filename="../apps/deck/io/odpexport_style.cpp" line="+282"/>
         <source>Inner shadows can&apos;t be saved in this kind of file.</source>
         <translation type="unfinished">Não é possível guardar sombras interiores neste tipo de ficheiro.</translation>
     </message>
@@ -7969,7 +7969,7 @@ Pretende transferi-lo de %2 agora? (%3, uma única vez.)</translation>
 <context>
     <name>OdpImport</name>
     <message>
-        <location filename="../apps/deck/io/odpimport.cpp" line="+93"/>
+        <location filename="../apps/deck/io/odpimport.cpp" line="+94"/>
         <source>The part is missing from the file.</source>
         <translation type="unfinished">A parte não existe no ficheiro.</translation>
     </message>
@@ -8873,7 +8873,7 @@ Pretende transferi-lo de %2 agora? (%3, uma única vez.)</translation>
 <context>
     <name>PptImport</name>
     <message>
-        <location filename="../apps/deck/io/pptimport.cpp" line="+780"/>
+        <location filename="../apps/deck/io/pptimport.cpp" line="+781"/>
         <source>Title Slide</source>
         <translation type="unfinished">Diapositivo de Título</translation>
     </message>
@@ -9084,7 +9084,7 @@ Pretende transferi-lo de %2 agora? (%3, uma única vez.)</translation>
 <context>
     <name>PptxExport</name>
     <message>
-        <location filename="../apps/deck/io/pptxexport.cpp" line="+791"/>
+        <location filename="../apps/deck/io/pptxexport.cpp" line="+792"/>
         <source>%1: a table, chart, or other frame that can&apos;t be read was left out.</source>
         <translation type="unfinished">%1: foi omitida uma tabela, gráfico ou outra moldura que não é possível ler.</translation>
     </message>
@@ -9230,7 +9230,7 @@ Pretende transferi-lo de %2 agora? (%3, uma única vez.)</translation>
 <context>
     <name>PptxImport</name>
     <message>
-        <location filename="../apps/deck/io/pptximport.cpp" line="+360"/>
+        <location filename="../apps/deck/io/pptximport.cpp" line="+361"/>
         <source>Only the first %1 comments and replies of the file are read.</source>
         <translation type="unfinished">Só são lidos os primeiros %1 comentários e respostas do ficheiro.</translation>
     </message>
@@ -19050,7 +19050,7 @@ Origem: %3</translation>
 <context>
     <name>jp::Chart</name>
     <message>
-        <location filename="../libs/page/core/chartobject.cpp" line="+138"/>
+        <location filename="../libs/page/core/chartobject.cpp" line="+139"/>
         <location line="+1"/>
         <source>Chart</source>
         <translation type="unfinished">Gráfico</translation>
@@ -21991,7 +21991,7 @@ Origem: %3</translation>
         <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="-716"/>
         <location line="+589"/>
         <location line="+1"/>
-        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="+385"/>
+        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="+495"/>
         <location line="+6"/>
         <location filename="../apps/crunch/app/crunchwindow_tables.cpp" line="-285"/>
         <source>Clear</source>
@@ -24295,7 +24295,7 @@ O ficheiro não existe.</translation>
         <translation type="unfinished">Este livro de trabalho tem mais cálculos por fazer do que um único cálculo. As fórmulas que ficaram mantêm os valores que tinham e são calculadas da próxima vez que alterar algo.</translation>
     </message>
     <message>
-        <location line="+50"/>
+        <location line="+54"/>
         <source>Calculating… %1%</source>
         <translation type="unfinished">A calcular… %1%</translation>
     </message>
@@ -24470,7 +24470,7 @@ O ficheiro não existe.</translation>
     </message>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_csv.cpp" line="-59"/>
-        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-412"/>
+        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-416"/>
         <location filename="../apps/crunch/app/crunchwindow_print.cpp" line="+18"/>
         <location filename="../apps/crunch/app/crunchwindow_protect.cpp" line="+67"/>
         <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="-122"/>
@@ -25267,7 +25267,7 @@ O ficheiro existente manteve-se inalterado.</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+93"/>
+        <location line="+109"/>
         <location line="+23"/>
         <location line="+7"/>
         <location line="+5"/>
@@ -25277,15 +25277,15 @@ O ficheiro existente manteve-se inalterado.</translation>
         <translation type="unfinished">Remover Duplicados</translation>
     </message>
     <message>
-        <location line="-127"/>
-        <location line="+148"/>
+        <location line="-143"/>
+        <location line="+164"/>
         <location line="+19"/>
         <location line="+6"/>
         <source>Text to Columns</source>
         <translation type="unfinished">Texto para Colunas</translation>
     </message>
     <message>
-        <location line="-172"/>
+        <location line="-188"/>
         <source>Form…</source>
         <translation type="unfinished"></translation>
     </message>
@@ -25296,7 +25296,17 @@ O ficheiro existente manteve-se inalterado.</translation>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+46"/>
+        <location line="+47"/>
+        <source>Pivot Tables</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Pivot tables in this workbook read their data from other files. Read those files now?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+15"/>
         <source>Links</source>
         <translation type="unfinished">Ligações</translation>
     </message>
@@ -26032,18 +26042,18 @@ Não é possível ler o ficheiro.</translation>
         <translation type="unfinished">Estas %1 não estão num grupo.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="-431"/>
+        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="-536"/>
         <location line="+7"/>
-        <location line="+217"/>
-        <location line="+301"/>
+        <location line="+316"/>
+        <location line="+307"/>
         <source>Pivot Table</source>
         <translation type="unfinished">Tabela Dinâmica</translation>
     </message>
     <message>
-        <location line="-525"/>
-        <location line="+294"/>
+        <location line="-630"/>
+        <location line="+393"/>
         <location line="+15"/>
-        <location line="+154"/>
+        <location line="+160"/>
         <location line="+29"/>
         <location line="+19"/>
         <location line="+116"/>
@@ -26057,7 +26067,7 @@ Não é possível ler o ficheiro.</translation>
         <translation type="unfinished">Clique primeiro numa célula de uma tabela dinâmica.</translation>
     </message>
     <message>
-        <location line="-946"/>
+        <location line="-952"/>
         <location line="+9"/>
         <location line="+78"/>
         <source>Create Pivot Table</source>
@@ -26123,22 +26133,12 @@ Não é possível ler o ficheiro.</translation>
     </message>
     <message>
         <location line="+3"/>
-        <location line="+13"/>
+        <location line="+19"/>
         <source>Change Data Source</source>
         <translation type="unfinished">Alterar Origem de Dados</translation>
     </message>
     <message>
-        <location line="-3"/>
-        <source>Change Pivot Table Data Source</source>
-        <translation type="unfinished">Alterar Origem de Dados da Tabela Dinâmica</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>The cells the data is in, with a row of names above it (for example Sheet1!A1:D100), or the name of a table:</source>
-        <translation type="unfinished">As células onde estão os dados, com uma linha de nomes por cima (por exemplo Folha1!A1:D100), ou o nome de uma tabela:</translation>
-    </message>
-    <message>
-        <location line="+11"/>
+        <location line="+8"/>
         <source>Clear Filters</source>
         <translation type="unfinished">Limpar Filtros</translation>
     </message>
@@ -34237,7 +34237,7 @@ Não é possível ler o ficheiro.</translation>
 <context>
     <name>jp::DiagramDrawing</name>
     <message>
-        <location filename="../libs/page/render/diagramdrawing.cpp" line="+214"/>
+        <location filename="../libs/page/render/diagramdrawing.cpp" line="+215"/>
         <source>Diagram (the file keeps no picture of it)</source>
         <translation type="unfinished">Diagrama (o ficheiro não guarda imagem dele)</translation>
     </message>
@@ -44982,7 +44982,7 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
 <context>
     <name>jp::PageAccess</name>
     <message>
-        <location filename="../libs/page/core/pageaccess.cpp" line="+268"/>
+        <location filename="../libs/page/core/pageaccess.cpp" line="+269"/>
         <source>Slide %1 has no title. People who use a screen reader find a slide by its title.</source>
         <translation type="unfinished">O diapositivo %1 não tem título. As pessoas que usam leitor de ecrã encontram um diapositivo pelo seu título.</translation>
     </message>
@@ -45930,7 +45930,7 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
 <context>
     <name>jp::PictureStyles</name>
     <message>
-        <location filename="../libs/draw/core/picturestyles.cpp" line="+30"/>
+        <location filename="../libs/draw/core/picturestyles.cpp" line="+31"/>
         <source>Plain</source>
         <translation type="unfinished">Simples</translation>
     </message>
@@ -46192,17 +46192,17 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
 <context>
     <name>jp::PivotCreateDialog</name>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="-1153"/>
+        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="-1191"/>
         <source>Create Pivot Table</source>
         <translation type="unfinished">Criar Tabela Dinâmica</translation>
     </message>
     <message>
-        <location line="+6"/>
-        <source>The cells the data is in, with a row of names above it, or the name of a table</source>
-        <translation>As células onde estão os dados, com uma linha de nomes por cima, ou o nome de uma tabela</translation>
+        <location line="+3"/>
+        <source>Where the data is, with a row of names above it</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+3"/>
         <source>A new sheet</source>
         <translation type="unfinished">Uma nova folha</translation>
     </message>
@@ -46212,7 +46212,7 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
         <translation type="unfinished">Esta folha ou outra, na célula:</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+9"/>
         <source>Where the pivot table goes</source>
         <translation>Onde colocar a tabela dinâmica</translation>
     </message>
@@ -46511,6 +46511,62 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
         <location line="+2"/>
         <source>Write GETPIVOTDATA when I click a value of a pivot table while typing a formula</source>
         <translation type="unfinished">Escrever GETPIVOTDATA quando clico num valor de uma tabela dinâmica enquanto escrevo uma fórmula</translation>
+    </message>
+</context>
+<context>
+    <name>jp::PivotSourceDialog</name>
+    <message>
+        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="+27"/>
+        <source>Change Pivot Table Data Source</source>
+        <translation type="unfinished">Alterar Origem de Dados da Tabela Dinâmica</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Where the data is, with a row of names above it</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>jp::PivotSourcePicker</name>
+    <message>
+        <location line="-113"/>
+        <source>A range in this workbook</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Sheet1!A1:D100, or the name of a table</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>A range in another file</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>The file</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Browse…</source>
+        <translation type="unfinished">Procurar…</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Sheet1!A1:D100, or the name of a table or range in that file</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>Choose the File</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Workbooks and data files (*.xlsx *.xlsm *.xls *.ods *.csv);;All files (*)</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -57213,7 +57269,7 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
 <context>
     <name>jp::crunch::Barcode</name>
     <message>
-        <location filename="../apps/crunch/core/barcodeclip.cpp" line="+20"/>
+        <location filename="../apps/crunch/core/barcodeclip.cpp" line="+21"/>
         <location line="+27"/>
         <source>That is not a barcode JeffCrunch can draw.</source>
         <translation type="unfinished">Não é um código de barras que o JeffCrunch consiga desenhar.</translation>
@@ -57370,7 +57426,7 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
 <context>
     <name>jp::crunch::EditSession</name>
     <message numerus="yes">
-        <location filename="../apps/crunch/core/editsession.cpp" line="+1122"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="+1123"/>
         <source>Clearing %n cell(s)</source>
         <translation type="unfinished">
             <numerusform>A limpar %n célula</numerusform>
@@ -59227,14 +59283,14 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
         <translation type="unfinished">Não há nada para anular.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editpivot.cpp" line="+77"/>
-        <location line="+192"/>
-        <location line="+626"/>
+        <location filename="../apps/crunch/core/editpivot.cpp" line="+81"/>
+        <location line="+244"/>
+        <location line="+661"/>
         <source>JeffCrunch can&apos;t read this pivot table.</source>
         <translation type="unfinished">O JeffCrunch não consegue ler esta tabela dinâmica.</translation>
     </message>
     <message>
-        <location line="-814"/>
+        <location line="-901"/>
         <source>This pivot table has lost the data it is made from.</source>
         <translation type="unfinished">Esta tabela dinâmica perdeu os dados a partir dos quais foi criada.</translation>
     </message>
@@ -59255,7 +59311,7 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
         <translation type="unfinished">Esta tabela dinâmica mostra um valor como algo que o JeffCrunch ainda não calcula. Mantém-se como está.</translation>
     </message>
     <message>
-        <location line="+28"/>
+        <location line="+80"/>
         <source>Type the cells the data is in, for example Sheet1!A1:D100, or the name of a table.</source>
         <translation type="unfinished">Escreva as células onde estão os dados, por exemplo Folha1!A1:D100, ou o nome de uma tabela.</translation>
     </message>
@@ -59302,12 +59358,12 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
     </message>
     <message>
         <location line="+36"/>
-        <location line="+518"/>
+        <location line="+535"/>
         <source>JeffCrunch can&apos;t read the data this pivot table is made from.</source>
         <translation type="unfinished">O JeffCrunch não consegue ler os dados a partir dos quais esta tabela dinâmica foi criada.</translation>
     </message>
     <message>
-        <location line="-479"/>
+        <location line="-496"/>
         <source>This pivot table can&apos;t be worked out: %1.</source>
         <translation type="unfinished">Não é possível calcular esta tabela dinâmica: %1.</translation>
     </message>
@@ -59318,38 +59374,38 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
     </message>
     <message>
         <location line="+15"/>
-        <location line="+1329"/>
+        <location line="+1377"/>
         <location line="+21"/>
         <source>The pivot table would go past the edge of the sheet.</source>
         <translation type="unfinished">A tabela dinâmica ultrapassaria o limite da folha.</translation>
     </message>
     <message>
-        <location line="-1300"/>
-        <location line="+1340"/>
+        <location line="-1348"/>
+        <location line="+1388"/>
         <source>The pivot table would cover cells that have something in them (%1). Clear those cells, or move the pivot table, and try again.</source>
         <translation type="unfinished">A tabela dinâmica cobriria células com conteúdo (%1). Limpe essas células ou mova a tabela dinâmica e tente novamente.</translation>
     </message>
     <message>
-        <location line="-1324"/>
+        <location line="-1372"/>
         <source>The pivot table would be larger than JeffCrunch changes at once.</source>
         <translation type="unfinished">A tabela dinâmica seria maior do que o JeffCrunch consegue alterar de uma só vez.</translation>
     </message>
     <message>
         <location line="+137"/>
-        <location line="+309"/>
+        <location line="+344"/>
         <source>These pivot tables were not refreshed:
 %1</source>
         <translation type="unfinished">As seguintes tabelas dinâmicas não foram atualizadas:
 %1</translation>
     </message>
     <message>
-        <location line="-288"/>
+        <location line="-306"/>
         <location filename="../apps/crunch/core/editrecommend.cpp" line="+8"/>
         <source>JeffCrunch can&apos;t find the cells &quot;%1&quot; stands for.</source>
         <translation type="unfinished">O JeffCrunch não consegue encontrar as células representadas por &quot;%1&quot;.</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <location filename="../apps/crunch/core/editrecommend.cpp" line="+5"/>
         <source>The data must be on a sheet of cells.</source>
         <translation type="unfinished">Os dados têm de estar numa folha de células.</translation>
@@ -59371,13 +59427,36 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
         <translation type="unfinished">Existem demasiados dados para criar uma tabela dinâmica num só passo (mais de %1 milhões de células). Utilize menos linhas ou colunas.</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="-13"/>
+        <location line="+16"/>
         <location filename="../apps/crunch/core/editrecommend.cpp" line="+12"/>
         <source>The data can&apos;t be read: %1.</source>
         <translation type="unfinished">Não é possível ler os dados: %1.</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="-481"/>
+        <location line="+19"/>
+        <source>The file &quot;%1&quot; can&apos;t be read from here.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-15"/>
+        <source>Save this workbook first: a file named without its folder is looked for in the folder this workbook is in.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <location line="+5"/>
+        <source>The file &quot;%1&quot; could not be read; the pivot keeps its last data.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>The data in &quot;%1&quot; can&apos;t be read: %2.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+466"/>
         <source>Pick a sheet of cells for the pivot table.</source>
         <translation type="unfinished">Escolha uma folha de células para a tabela dinâmica.</translation>
     </message>
@@ -59420,12 +59499,12 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
         <translation type="unfinished">Criar Tabela Dinâmica</translation>
     </message>
     <message>
-        <location line="+140"/>
+        <location line="+141"/>
         <source>This pivot table uses %1, which JeffCrunch can&apos;t read again yet.</source>
         <translation type="unfinished">Esta tabela dinâmica utiliza %1, que o JeffCrunch ainda não consegue ler novamente.</translation>
     </message>
     <message>
-        <location line="+10"/>
+        <location line="+20"/>
         <source>JeffCrunch can&apos;t read a pivot table made from this data.</source>
         <translation type="unfinished">O JeffCrunch não consegue ler uma tabela dinâmica criada a partir destes dados.</translation>
     </message>
@@ -59435,10 +59514,10 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
         <translation type="unfinished">Não é possível ler novamente os dados: %1.</translation>
     </message>
     <message>
-        <location line="+42"/>
+        <location line="+50"/>
         <location line="+127"/>
         <location line="+93"/>
-        <location line="+134"/>
+        <location line="+147"/>
         <location line="+48"/>
         <location line="+44"/>
         <location line="+80"/>
@@ -59448,13 +59527,13 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
         <location line="+70"/>
         <location line="+93"/>
         <location line="+30"/>
-        <location line="+23"/>
+        <location line="+41"/>
         <location line="+38"/>
         <source>There is no pivot table here.</source>
         <translation type="unfinished">Não existe nenhuma tabela dinâmica aqui.</translation>
     </message>
     <message>
-        <location line="-980"/>
+        <location line="-1011"/>
         <source>Refresh Pivot Table</source>
         <translation type="unfinished">Atualizar Tabela Dinâmica</translation>
     </message>
@@ -59573,7 +59652,7 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
         <translation type="unfinished">O item &quot;%1&quot; não foi encontrado na cópia dos dados.</translation>
     </message>
     <message>
-        <location line="+51"/>
+        <location line="+64"/>
         <source>Refresh</source>
         <translation type="unfinished">Atualizar</translation>
     </message>
@@ -59864,7 +59943,8 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
         <translation type="unfinished">Opções de Tabela Dinâmica</translation>
     </message>
     <message>
-        <location line="+27"/>
+        <location line="+33"/>
+        <location line="+12"/>
         <source>Change Pivot Table Data Source</source>
         <translation type="unfinished">Alterar Origem de Dados da Tabela Dinâmica</translation>
     </message>
@@ -64257,7 +64337,7 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
 <context>
     <name>jp::crunch::SheetObjects</name>
     <message>
-        <location filename="../apps/crunch/core/sheetobjects.cpp" line="+326"/>
+        <location filename="../apps/crunch/core/sheetobjects.cpp" line="+327"/>
         <source>a drawing that could not be read (%1)</source>
         <translation type="unfinished">um desenho que não foi possível ler (%1)</translation>
     </message>
@@ -64969,7 +65049,7 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
 <context>
     <name>jp::deck::GoToPlace</name>
     <message>
-        <location filename="../apps/deck/core/gotoplace.cpp" line="+27"/>
+        <location filename="../apps/deck/core/gotoplace.cpp" line="+28"/>
         <source>This presentation has no sections.</source>
         <translation type="unfinished">Esta apresentação não tem secções.</translation>
     </message>
@@ -66116,7 +66196,7 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
         <location line="+48"/>
         <location line="+13"/>
         <location filename="../libs/office/sheet/xlsxsave.cpp" line="+2137"/>
-        <location line="+1512"/>
+        <location line="+1519"/>
         <location line="+61"/>
         <source>The save was stopped.</source>
         <translation type="unfinished">A gravação foi interrompida.</translation>
@@ -66150,7 +66230,7 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
         <translation type="unfinished">Não foi possível guardar a folha.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/xlsxsave.cpp" line="-3487"/>
+        <location filename="../libs/office/sheet/xlsxsave.cpp" line="-3494"/>
         <location line="+21"/>
         <source>The shared strings part is not in the form this program changes.</source>
         <translation type="unfinished">A parte de cadeias partilhadas não está no formato que este programa altera.</translation>
@@ -66163,7 +66243,7 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
     <message>
         <location line="+365"/>
         <location line="+120"/>
-        <location line="+2613"/>
+        <location line="+2620"/>
         <location line="+5"/>
         <location line="+5"/>
         <location line="+5"/>
@@ -66172,18 +66252,18 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
         <translation type="unfinished">A parte do livro não está no formato que este programa altera.</translation>
     </message>
     <message>
-        <location line="-1969"/>
+        <location line="-1976"/>
         <source>The workbook was not opened from a file this program can save over.</source>
         <translation type="unfinished">O livro não foi aberto a partir de um ficheiro que este programa possa substituir.</translation>
     </message>
     <message>
         <location line="+468"/>
-        <location line="+1618"/>
+        <location line="+1625"/>
         <source>The file this workbook was opened from is damaged.</source>
         <translation type="unfinished">O ficheiro a partir do qual este livro foi aberto está danificado.</translation>
     </message>
     <message>
-        <location line="-2076"/>
+        <location line="-2083"/>
         <location line="+233"/>
         <location line="+174"/>
         <location line="+71"/>
@@ -66196,7 +66276,7 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
         <translation type="unfinished">Uma folha alterada não tem nenhuma parte no ficheiro.</translation>
     </message>
     <message>
-        <location line="+1106"/>
+        <location line="+1107"/>
         <source>The shared strings part is not in the file.</source>
         <translation type="unfinished">A parte de cadeias partilhadas não está no ficheiro.</translation>
     </message>
@@ -66211,15 +66291,15 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
         <translation type="unfinished">Uma tabela alterada não tem nenhuma parte no ficheiro.</translation>
     </message>
     <message>
-        <location line="-1087"/>
+        <location line="-1088"/>
         <location line="+6"/>
         <location line="+7"/>
-        <location line="+1536"/>
+        <location line="+1543"/>
         <source>A sheet of the file could not be read to be saved.</source>
         <translation type="unfinished">Não foi possível ler uma folha do ficheiro para a guardar.</translation>
     </message>
     <message>
-        <location line="-2064"/>
+        <location line="-2071"/>
         <source>Objects were put on a sheet this program can&apos;t put them on.</source>
         <translation type="unfinished">Foram colocados objetos numa folha onde este programa não os pode colocar.</translation>
     </message>
@@ -66260,12 +66340,12 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
         <location line="+56"/>
         <location line="+77"/>
         <location line="+75"/>
-        <location line="+140"/>
+        <location line="+141"/>
         <source>The file&apos;s list of part types is not in it.</source>
         <translation type="unfinished">A lista de tipos de partes do ficheiro não está no ficheiro.</translation>
     </message>
     <message>
-        <location line="-563"/>
+        <location line="-564"/>
         <location line="+143"/>
         <source>A drawing of the file is not in the form this program changes.</source>
         <translation type="unfinished">Um desenho do ficheiro não está no formato que este programa altera.</translation>
@@ -66301,7 +66381,7 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
         <translation type="unfinished">Não foi possível colocar uma tabela dinâmica na lista de partes do ficheiro.</translation>
     </message>
     <message>
-        <location line="+88"/>
+        <location line="+89"/>
         <source>A link to another workbook could not be put in the file&apos;s list of parts.</source>
         <translation type="unfinished">Não foi possível incluir uma ligação a outro livro na lista de partes do ficheiro.</translation>
     </message>
@@ -66328,7 +66408,7 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
         <translation type="unfinished">Não foi possível guardar os controlos de formulário de uma folha.</translation>
     </message>
     <message>
-        <location line="+177"/>
+        <location line="+183"/>
         <source>A chart that changed has no part in the file.</source>
         <translation type="unfinished">Um gráfico alterado não tem nenhuma parte no ficheiro.</translation>
     </message>
@@ -66355,8 +66435,8 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
         <translation type="unfinished">As relações do livro não estão no ficheiro.</translation>
     </message>
     <message>
-        <location line="-1117"/>
-        <location line="+1140"/>
+        <location line="-1124"/>
+        <location line="+1147"/>
         <location line="+5"/>
         <source>The workbook&apos;s relationships are not in the form this program changes.</source>
         <translation type="unfinished">As relações do livro não estão no formato que este programa altera.</translation>
@@ -70606,7 +70686,7 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
 <context>
     <name>jp::write::PageView</name>
     <message>
-        <location filename="../apps/write/app/pagepaint.cpp" line="+139"/>
+        <location filename="../apps/write/app/pagepaint.cpp" line="+140"/>
         <source>Footer</source>
         <translation>Rodapé</translation>
     </message>
@@ -70616,7 +70696,7 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
         <translation>Cabeçalho</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview.cpp" line="+250"/>
+        <location filename="../apps/write/app/pageview.cpp" line="+251"/>
         <source>Place in this document: %1</source>
         <translation type="unfinished">Local neste documento: %1</translation>
     </message>

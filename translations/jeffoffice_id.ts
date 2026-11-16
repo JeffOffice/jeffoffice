@@ -123,7 +123,7 @@
         <translation type="unfinished">Penundaan: berapa detik efek menunggu sebelum dimulai.</translation>
     </message>
     <message>
-        <location filename="../apps/deck/core/animation_edit.cpp" line="+50"/>
+        <location filename="../apps/deck/core/animation_edit.cpp" line="+51"/>
         <location line="+6"/>
         <source>From Bottom</source>
         <translation type="unfinished">Dari Bawah</translation>
@@ -2106,8 +2106,8 @@ Berita halaman belakang	4</translation>
 <context>
     <name>Deck</name>
     <message>
-        <location filename="../apps/deck/core/deck.cpp" line="+120"/>
-        <location filename="../apps/deck/core/masteredit.cpp" line="+236"/>
+        <location filename="../apps/deck/core/deck.cpp" line="+121"/>
+        <location filename="../apps/deck/core/masteredit.cpp" line="+237"/>
         <source>%1 Placeholder</source>
         <translation type="unfinished">Placeholder %1</translation>
     </message>
@@ -2212,7 +2212,7 @@ Berita halaman belakang	4</translation>
         <translation type="unfinished">Konten</translation>
     </message>
     <message>
-        <location filename="../apps/deck/core/shapestyles.cpp" line="+27"/>
+        <location filename="../apps/deck/core/shapestyles.cpp" line="+28"/>
         <source>Outline Only</source>
         <translation type="unfinished">Hanya Garis Tepi</translation>
     </message>
@@ -2237,7 +2237,7 @@ Berita halaman belakang	4</translation>
         <translation type="unfinished">%1 - Aksen %2</translation>
     </message>
     <message>
-        <location filename="../apps/deck/core/themes.cpp" line="+531"/>
+        <location filename="../apps/deck/core/themes.cpp" line="+532"/>
         <source>Decoration</source>
         <translation type="unfinished">Dekorasi</translation>
     </message>
@@ -2273,7 +2273,7 @@ Berita halaman belakang	4</translation>
 <context>
     <name>DeckOutput</name>
     <message>
-        <location filename="../apps/deck/io/deckoutput.cpp" line="+582"/>
+        <location filename="../apps/deck/io/deckoutput.cpp" line="+583"/>
         <source>There are no slides to print.</source>
         <translation type="unfinished">Tidak ada slaid untuk dicetak.</translation>
     </message>
@@ -5538,7 +5538,7 @@ Berita halaman belakang	4</translation>
 <context>
     <name>DrawingWriter</name>
     <message>
-        <location filename="../libs/office/office/drawingml_write.cpp" line="+734"/>
+        <location filename="../libs/office/office/drawingml_write.cpp" line="+735"/>
         <location line="+161"/>
         <source>Placeholder</source>
         <translation type="unfinished">Placeholder</translation>
@@ -7229,7 +7229,7 @@ Buka dengan program email Anda untuk mengirimnya.</translation>
         <translation type="unfinished">%1  ·  Halaman %2 dari %3  ·  %4</translation>
     </message>
     <message>
-        <location filename="../apps/pub/io/jpubfile.cpp" line="+108"/>
+        <location filename="../apps/pub/io/jpubfile.cpp" line="+109"/>
         <source>The file couldn&apos;t be protected with the password.</source>
         <translation type="unfinished">File tidak dapat dilindungi dengan kata sandi.</translation>
     </message>
@@ -7840,7 +7840,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
 <context>
     <name>OdpExport</name>
     <message>
-        <location filename="../apps/deck/io/odpexport.cpp" line="+427"/>
+        <location filename="../apps/deck/io/odpexport.cpp" line="+428"/>
         <location line="+9"/>
         <source>Slide Master</source>
         <translation type="unfinished">Master Slaid</translation>
@@ -7904,7 +7904,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <translation type="unfinished">Tidak ada nama berkas untuk menyimpan.</translation>
     </message>
     <message>
-        <location filename="../apps/deck/io/odpexport_motion.cpp" line="+482"/>
+        <location filename="../apps/deck/io/odpexport_motion.cpp" line="+483"/>
         <source>Effects that start when an object is clicked can&apos;t be saved in this kind of file, except those that play a movie or sound.</source>
         <translation type="unfinished">Efek yang dimulai saat objek diklik tidak dapat disimpan dalam jenis berkas ini, kecuali efek yang memutar film atau suara.</translation>
     </message>
@@ -7929,7 +7929,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <translation type="unfinished">Slaid terakhir dari rentang yang akan ditampilkan tidak dapat disimpan; tayangan berjalan sampai akhir.</translation>
     </message>
     <message>
-        <location filename="../apps/deck/io/odpexport_shape.cpp" line="+210"/>
+        <location filename="../apps/deck/io/odpexport_shape.cpp" line="+211"/>
         <source>Text Art is saved as a picture.</source>
         <translation type="unfinished">Seni Teks disimpan sebagai gambar.</translation>
     </message>
@@ -7949,12 +7949,12 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <translation type="unfinished">Keterangan film tidak disimpan dalam berkas presentasi, sehingga dilewati.</translation>
     </message>
     <message>
-        <location filename="../apps/deck/io/odpexport_style.cpp" line="+281"/>
+        <location filename="../apps/deck/io/odpexport_style.cpp" line="+282"/>
         <source>Inner shadows can&apos;t be saved in this kind of file.</source>
         <translation type="unfinished">Bayangan dalam tidak dapat disimpan dalam jenis berkas ini.</translation>
     </message>
     <message>
-        <location filename="../apps/deck/io/odpexport_text.cpp" line="+493"/>
+        <location filename="../apps/deck/io/odpexport_text.cpp" line="+494"/>
         <source>Objects set in the middle of text are left out.</source>
         <translation type="unfinished">Objek yang Sejajar dengan Teks tidak disertakan.</translation>
     </message>
@@ -7962,7 +7962,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
 <context>
     <name>OdpImport</name>
     <message>
-        <location filename="../apps/deck/io/odpimport.cpp" line="+93"/>
+        <location filename="../apps/deck/io/odpimport.cpp" line="+94"/>
         <source>The part is missing from the file.</source>
         <translation type="unfinished">Bagian tersebut tidak ada dalam berkas.</translation>
     </message>
@@ -8866,7 +8866,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
 <context>
     <name>PptImport</name>
     <message>
-        <location filename="../apps/deck/io/pptimport.cpp" line="+780"/>
+        <location filename="../apps/deck/io/pptimport.cpp" line="+781"/>
         <source>Title Slide</source>
         <translation type="unfinished">Slaid Judul</translation>
     </message>
@@ -9077,7 +9077,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
 <context>
     <name>PptxExport</name>
     <message>
-        <location filename="../apps/deck/io/pptxexport.cpp" line="+791"/>
+        <location filename="../apps/deck/io/pptxexport.cpp" line="+792"/>
         <source>%1: a table, chart, or other frame that can&apos;t be read was left out.</source>
         <translation type="unfinished">%1: tabel, bagan, atau bingkai lain yang tidak dapat dibaca dilewati.</translation>
     </message>
@@ -9222,7 +9222,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
 <context>
     <name>PptxImport</name>
     <message>
-        <location filename="../apps/deck/io/pptximport.cpp" line="+360"/>
+        <location filename="../apps/deck/io/pptximport.cpp" line="+361"/>
         <source>Only the first %1 comments and replies of the file are read.</source>
         <translation type="unfinished">Hanya %1 komentar dan balasan pertama dalam berkas yang dibaca.</translation>
     </message>
@@ -19040,7 +19040,7 @@ Sumber: %3</translation>
 <context>
     <name>jp::Chart</name>
     <message>
-        <location filename="../libs/page/core/chartobject.cpp" line="+138"/>
+        <location filename="../libs/page/core/chartobject.cpp" line="+139"/>
         <location line="+1"/>
         <source>Chart</source>
         <translation type="unfinished">Bagan</translation>
@@ -22516,7 +22516,7 @@ Sumber: %3</translation>
         <location line="+9"/>
         <location line="+294"/>
         <location line="+44"/>
-        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="+488"/>
+        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="+598"/>
         <source>Values</source>
         <translation type="unfinished">Nilai</translation>
     </message>
@@ -23032,7 +23032,7 @@ File yang ada sebelumnya tidak berubah.</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+93"/>
+        <location line="+109"/>
         <location line="+23"/>
         <location line="+7"/>
         <location line="+5"/>
@@ -23042,15 +23042,15 @@ File yang ada sebelumnya tidak berubah.</translation>
         <translation type="unfinished">Hapus Duplikat</translation>
     </message>
     <message>
-        <location line="-127"/>
-        <location line="+148"/>
+        <location line="-143"/>
+        <location line="+164"/>
         <location line="+19"/>
         <location line="+6"/>
         <source>Text to Columns</source>
         <translation type="unfinished">Teks ke Kolom</translation>
     </message>
     <message>
-        <location line="-172"/>
+        <location line="-188"/>
         <source>Form…</source>
         <translation type="unfinished"></translation>
     </message>
@@ -23061,7 +23061,17 @@ File yang ada sebelumnya tidak berubah.</translation>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+46"/>
+        <location line="+47"/>
+        <source>Pivot Tables</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Pivot tables in this workbook read their data from other files. Read those files now?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+15"/>
         <source>Links</source>
         <translation type="unfinished">Tautan</translation>
     </message>
@@ -23329,7 +23339,7 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished">Buku kerja ini memiliki lebih banyak yang harus dihitung daripada satu penghitungan. Rumus yang tersisa mempertahankan nilai yang dimilikinya, dan akan dihitung saat Anda mengubah sesuatu berikutnya.</translation>
     </message>
     <message>
-        <location line="+50"/>
+        <location line="+54"/>
         <source>Calculating… %1%</source>
         <translation type="unfinished">Menghitung… %1%</translation>
     </message>
@@ -25895,18 +25905,18 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished">Gambar (*.png *.jpg *.jpeg *.gif *.bmp)</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="-324"/>
+        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="-429"/>
         <location line="+7"/>
-        <location line="+217"/>
-        <location line="+301"/>
+        <location line="+316"/>
+        <location line="+307"/>
         <source>Pivot Table</source>
         <translation type="unfinished">Tabel Pivot</translation>
     </message>
     <message>
-        <location line="-525"/>
-        <location line="+294"/>
+        <location line="-630"/>
+        <location line="+393"/>
         <location line="+15"/>
-        <location line="+154"/>
+        <location line="+160"/>
         <location line="+29"/>
         <location line="+19"/>
         <location line="+116"/>
@@ -25920,7 +25930,7 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished">Klik sel di tabel pivot terlebih dahulu.</translation>
     </message>
     <message>
-        <location line="-946"/>
+        <location line="-952"/>
         <location line="+9"/>
         <location line="+78"/>
         <source>Create Pivot Table</source>
@@ -25986,22 +25996,12 @@ This file is protected with a password. Password:</source>
     </message>
     <message>
         <location line="+3"/>
-        <location line="+13"/>
+        <location line="+19"/>
         <source>Change Data Source</source>
         <translation type="unfinished">Ubah Sumber Data</translation>
     </message>
     <message>
-        <location line="-3"/>
-        <source>Change Pivot Table Data Source</source>
-        <translation type="unfinished">Ubah Sumber Data Tabel Pivot</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>The cells the data is in, with a row of names above it (for example Sheet1!A1:D100), or the name of a table:</source>
-        <translation type="unfinished">Sel tempat data berada, dengan baris nama di atasnya (misalnya Sheet1!A1:D100), atau nama tabel:</translation>
-    </message>
-    <message>
-        <location line="+11"/>
+        <location line="+8"/>
         <source>Clear Filters</source>
         <translation type="unfinished">Hapus Filter</translation>
     </message>
@@ -34212,7 +34212,7 @@ Berkas tidak dapat dibaca.</translation>
 <context>
     <name>jp::DiagramDrawing</name>
     <message>
-        <location filename="../libs/page/render/diagramdrawing.cpp" line="+214"/>
+        <location filename="../libs/page/render/diagramdrawing.cpp" line="+215"/>
         <source>Diagram (the file keeps no picture of it)</source>
         <translation type="unfinished">Diagram (berkas tidak menyimpan gambarnya)</translation>
     </message>
@@ -44949,7 +44949,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
 <context>
     <name>jp::PageAccess</name>
     <message>
-        <location filename="../libs/page/core/pageaccess.cpp" line="+268"/>
+        <location filename="../libs/page/core/pageaccess.cpp" line="+269"/>
         <source>Slide %1 has no title. People who use a screen reader find a slide by its title.</source>
         <translation type="unfinished">Slaid %1 tidak memiliki judul. Pengguna pembaca layar menemukan slaid berdasarkan judulnya.</translation>
     </message>
@@ -45897,7 +45897,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
 <context>
     <name>jp::PictureStyles</name>
     <message>
-        <location filename="../libs/draw/core/picturestyles.cpp" line="+30"/>
+        <location filename="../libs/draw/core/picturestyles.cpp" line="+31"/>
         <source>Plain</source>
         <translation type="unfinished">Polos</translation>
     </message>
@@ -46159,17 +46159,17 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
 <context>
     <name>jp::PivotCreateDialog</name>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="-1153"/>
+        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="-1191"/>
         <source>Create Pivot Table</source>
         <translation type="unfinished">Buat Tabel Pivot</translation>
     </message>
     <message>
-        <location line="+6"/>
-        <source>The cells the data is in, with a row of names above it, or the name of a table</source>
-        <translation>Sel tempat data berada, dengan baris nama di atasnya, atau nama tabel</translation>
+        <location line="+3"/>
+        <source>Where the data is, with a row of names above it</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+3"/>
         <source>A new sheet</source>
         <translation type="unfinished">Lembar baru</translation>
     </message>
@@ -46179,7 +46179,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <translation type="unfinished">Lembar ini atau lembar lain, di sel:</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+9"/>
         <source>Where the pivot table goes</source>
         <translation>Tempat tabel pivot akan ditempatkan</translation>
     </message>
@@ -46478,6 +46478,62 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <location line="+2"/>
         <source>Write GETPIVOTDATA when I click a value of a pivot table while typing a formula</source>
         <translation type="unfinished">Tulis GETPIVOTDATA saat saya mengklik nilai tabel pivot ketika mengetik rumus</translation>
+    </message>
+</context>
+<context>
+    <name>jp::PivotSourceDialog</name>
+    <message>
+        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="+27"/>
+        <source>Change Pivot Table Data Source</source>
+        <translation type="unfinished">Ubah Sumber Data Tabel Pivot</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Where the data is, with a row of names above it</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>jp::PivotSourcePicker</name>
+    <message>
+        <location line="-113"/>
+        <source>A range in this workbook</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Sheet1!A1:D100, or the name of a table</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>A range in another file</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>The file</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Browse…</source>
+        <translation type="unfinished">Telusuri…</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Sheet1!A1:D100, or the name of a table or range in that file</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>Choose the File</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Workbooks and data files (*.xlsx *.xlsm *.xls *.ods *.csv);;All files (*)</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -57175,7 +57231,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
 <context>
     <name>jp::crunch::Barcode</name>
     <message>
-        <location filename="../apps/crunch/core/barcodeclip.cpp" line="+20"/>
+        <location filename="../apps/crunch/core/barcodeclip.cpp" line="+21"/>
         <location line="+27"/>
         <source>That is not a barcode JeffCrunch can draw.</source>
         <translation type="unfinished">Itu bukan kode batang yang dapat digambar JeffCrunch.</translation>
@@ -57493,7 +57549,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <translation type="unfinished">JeffCrunch belum dapat menghitung ini (rumus ini menggunakan buku kerja lain, kolom tabel, atau fungsi yang tidak dimiliki JeffCrunch), sehingga tidak ada nilai yang ditampilkan.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editsession.cpp" line="+442"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="+443"/>
         <source>&quot;%1&quot; could not be done again, so Undo and Redo are not available any more for what came before it.</source>
         <translation type="unfinished">&quot;%1&quot; tidak dapat dilakukan ulang, sehingga Urungkan dan Ulangi tidak lagi tersedia untuk tindakan sebelumnya.</translation>
     </message>
@@ -58433,14 +58489,14 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <translation type="unfinished">Memindahkan sel</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editpivot.cpp" line="+77"/>
-        <location line="+192"/>
-        <location line="+626"/>
+        <location filename="../apps/crunch/core/editpivot.cpp" line="+81"/>
+        <location line="+244"/>
+        <location line="+661"/>
         <source>JeffCrunch can&apos;t read this pivot table.</source>
         <translation type="unfinished">JeffCrunch tidak dapat membaca tabel pivot ini.</translation>
     </message>
     <message>
-        <location line="-814"/>
+        <location line="-901"/>
         <source>This pivot table has lost the data it is made from.</source>
         <translation type="unfinished">Tabel pivot ini telah kehilangan data tempat ia dibuat.</translation>
     </message>
@@ -58461,7 +58517,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <translation type="unfinished">Tabel pivot ini menampilkan nilai sebagai sesuatu yang belum dapat dihitung oleh JeffCrunch. Tabel tetap seperti semula.</translation>
     </message>
     <message>
-        <location line="+28"/>
+        <location line="+80"/>
         <source>Type the cells the data is in, for example Sheet1!A1:D100, or the name of a table.</source>
         <translation type="unfinished">Ketik sel tempat datanya berada, misalnya Sheet1!A1:D100, atau nama tabel.</translation>
     </message>
@@ -58508,12 +58564,12 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     </message>
     <message>
         <location line="+36"/>
-        <location line="+518"/>
+        <location line="+535"/>
         <source>JeffCrunch can&apos;t read the data this pivot table is made from.</source>
         <translation type="unfinished">JeffCrunch tidak dapat membaca data tempat tabel pivot ini dibuat.</translation>
     </message>
     <message>
-        <location line="-479"/>
+        <location line="-496"/>
         <source>This pivot table can&apos;t be worked out: %1.</source>
         <translation type="unfinished">Tabel pivot ini tidak dapat dihitung: %1.</translation>
     </message>
@@ -58524,38 +58580,38 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     </message>
     <message>
         <location line="+15"/>
-        <location line="+1329"/>
+        <location line="+1377"/>
         <location line="+21"/>
         <source>The pivot table would go past the edge of the sheet.</source>
         <translation type="unfinished">Tabel pivot akan melewati tepi lembar.</translation>
     </message>
     <message>
-        <location line="-1300"/>
-        <location line="+1340"/>
+        <location line="-1348"/>
+        <location line="+1388"/>
         <source>The pivot table would cover cells that have something in them (%1). Clear those cells, or move the pivot table, and try again.</source>
         <translation type="unfinished">Tabel pivot akan menimpa sel yang berisi sesuatu (%1). Kosongkan sel tersebut, atau pindahkan tabel pivot, lalu coba lagi.</translation>
     </message>
     <message>
-        <location line="-1324"/>
+        <location line="-1372"/>
         <source>The pivot table would be larger than JeffCrunch changes at once.</source>
         <translation type="unfinished">Tabel pivot akan lebih besar daripada perubahan yang dapat dilakukan JeffCrunch sekaligus.</translation>
     </message>
     <message>
         <location line="+137"/>
-        <location line="+309"/>
+        <location line="+344"/>
         <source>These pivot tables were not refreshed:
 %1</source>
         <translation type="unfinished">Tabel pivot berikut tidak disegarkan:
 %1</translation>
     </message>
     <message>
-        <location line="-288"/>
+        <location line="-306"/>
         <location filename="../apps/crunch/core/editrecommend.cpp" line="+8"/>
         <source>JeffCrunch can&apos;t find the cells &quot;%1&quot; stands for.</source>
         <translation type="unfinished">JeffCrunch tidak dapat menemukan sel yang dimaksud &quot;%1&quot;.</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <location filename="../apps/crunch/core/editrecommend.cpp" line="+5"/>
         <source>The data must be on a sheet of cells.</source>
         <translation type="unfinished">Data harus berada pada lembar sel.</translation>
@@ -58577,13 +58633,36 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <translation type="unfinished">Data terlalu banyak untuk dibuat menjadi tabel pivot sekaligus (lebih dari %1 juta sel). Gunakan lebih sedikit baris atau kolom.</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="-13"/>
+        <location line="+16"/>
         <location filename="../apps/crunch/core/editrecommend.cpp" line="+12"/>
         <source>The data can&apos;t be read: %1.</source>
         <translation type="unfinished">Data tidak dapat dibaca: %1.</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="-481"/>
+        <location line="+19"/>
+        <source>The file &quot;%1&quot; can&apos;t be read from here.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-15"/>
+        <source>Save this workbook first: a file named without its folder is looked for in the folder this workbook is in.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <location line="+5"/>
+        <source>The file &quot;%1&quot; could not be read; the pivot keeps its last data.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>The data in &quot;%1&quot; can&apos;t be read: %2.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+466"/>
         <source>Pick a sheet of cells for the pivot table.</source>
         <translation type="unfinished">Pilih lembar sel untuk tabel pivot.</translation>
     </message>
@@ -58626,12 +58705,12 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <translation type="unfinished">Buat Tabel Pivot</translation>
     </message>
     <message>
-        <location line="+140"/>
+        <location line="+141"/>
         <source>This pivot table uses %1, which JeffCrunch can&apos;t read again yet.</source>
         <translation type="unfinished">Tabel pivot ini menggunakan %1, yang belum dapat dibaca ulang oleh JeffCrunch.</translation>
     </message>
     <message>
-        <location line="+10"/>
+        <location line="+20"/>
         <source>JeffCrunch can&apos;t read a pivot table made from this data.</source>
         <translation type="unfinished">JeffCrunch tidak dapat membaca tabel pivot yang dibuat dari data ini.</translation>
     </message>
@@ -58641,10 +58720,10 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <translation type="unfinished">Data tidak dapat dibaca ulang: %1.</translation>
     </message>
     <message>
-        <location line="+42"/>
+        <location line="+50"/>
         <location line="+127"/>
         <location line="+93"/>
-        <location line="+134"/>
+        <location line="+147"/>
         <location line="+48"/>
         <location line="+44"/>
         <location line="+80"/>
@@ -58654,13 +58733,13 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <location line="+70"/>
         <location line="+93"/>
         <location line="+30"/>
-        <location line="+23"/>
+        <location line="+41"/>
         <location line="+38"/>
         <source>There is no pivot table here.</source>
         <translation type="unfinished">Tidak ada tabel pivot di sini.</translation>
     </message>
     <message>
-        <location line="-980"/>
+        <location line="-1011"/>
         <source>Refresh Pivot Table</source>
         <translation type="unfinished">Segarkan Tabel Pivot</translation>
     </message>
@@ -58779,7 +58858,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <translation type="unfinished">Item &quot;%1&quot; tidak ditemukan dalam salinan data.</translation>
     </message>
     <message>
-        <location line="+51"/>
+        <location line="+64"/>
         <source>Refresh</source>
         <translation type="unfinished">Segarkan</translation>
     </message>
@@ -59069,7 +59148,8 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <translation type="unfinished">Opsi Tabel Pivot</translation>
     </message>
     <message>
-        <location line="+27"/>
+        <location line="+33"/>
+        <location line="+12"/>
         <source>Change Pivot Table Data Source</source>
         <translation type="unfinished">Ubah Sumber Data Tabel Pivot</translation>
     </message>
@@ -64217,7 +64297,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
 <context>
     <name>jp::crunch::SheetObjects</name>
     <message>
-        <location filename="../apps/crunch/core/sheetobjects.cpp" line="+326"/>
+        <location filename="../apps/crunch/core/sheetobjects.cpp" line="+327"/>
         <source>a drawing that could not be read (%1)</source>
         <translation type="unfinished">gambar yang tidak dapat dibaca (%1)</translation>
     </message>
@@ -64926,7 +65006,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
 <context>
     <name>jp::deck::GoToPlace</name>
     <message>
-        <location filename="../apps/deck/core/gotoplace.cpp" line="+27"/>
+        <location filename="../apps/deck/core/gotoplace.cpp" line="+28"/>
         <source>This presentation has no sections.</source>
         <translation type="unfinished">Presentasi ini tidak memiliki bagian.</translation>
     </message>
@@ -66103,7 +66183,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <location line="+48"/>
         <location line="+13"/>
         <location filename="../libs/office/sheet/xlsxsave.cpp" line="+2137"/>
-        <location line="+1512"/>
+        <location line="+1519"/>
         <location line="+61"/>
         <source>The save was stopped.</source>
         <translation type="unfinished">Penyimpanan dihentikan.</translation>
@@ -66152,7 +66232,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <translation type="unfinished">Bagan lembar berubah saat buku kerja sedang disimpan.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/xlsxsave.cpp" line="-3487"/>
+        <location filename="../libs/office/sheet/xlsxsave.cpp" line="-3494"/>
         <location line="+21"/>
         <source>The shared strings part is not in the form this program changes.</source>
         <translation type="unfinished">Bagian string bersama tidak dalam bentuk yang diubah program ini.</translation>
@@ -66165,7 +66245,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+365"/>
         <location line="+120"/>
-        <location line="+2613"/>
+        <location line="+2620"/>
         <location line="+5"/>
         <location line="+5"/>
         <location line="+5"/>
@@ -66174,7 +66254,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <translation type="unfinished">Bagian buku kerja tidak dalam bentuk yang diubah program ini.</translation>
     </message>
     <message>
-        <location line="-1969"/>
+        <location line="-1976"/>
         <source>The workbook was not opened from a file this program can save over.</source>
         <translation type="unfinished">Buku kerja tidak dibuka dari file yang dapat ditimpa program ini.</translation>
     </message>
@@ -66218,12 +66298,12 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     </message>
     <message>
         <location line="+46"/>
-        <location line="+1618"/>
+        <location line="+1625"/>
         <source>The file this workbook was opened from is damaged.</source>
         <translation type="unfinished">Berkas tempat buku kerja ini dibuka telah rusak.</translation>
     </message>
     <message>
-        <location line="-1590"/>
+        <location line="-1597"/>
         <source>A sheet that changed has no part in the file.</source>
         <translation type="unfinished">Sebuah lembar yang diubah tidak memiliki bagian dalam berkas.</translation>
     </message>
@@ -66236,23 +66316,23 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <location line="+16"/>
         <location line="+6"/>
         <location line="+7"/>
-        <location line="+1536"/>
+        <location line="+1543"/>
         <source>A sheet of the file could not be read to be saved.</source>
         <translation type="unfinished">Sebuah lembar dalam berkas tidak dapat dibaca untuk disimpan.</translation>
     </message>
     <message>
-        <location line="-1299"/>
+        <location line="-1306"/>
         <location line="+146"/>
         <location line="+79"/>
         <location line="+56"/>
         <location line="+77"/>
         <location line="+75"/>
-        <location line="+140"/>
+        <location line="+141"/>
         <source>The file&apos;s list of part types is not in it.</source>
         <translation type="unfinished">Daftar jenis bagian berkas tidak terdapat di dalam berkas.</translation>
     </message>
     <message>
-        <location line="-563"/>
+        <location line="-564"/>
         <location line="+143"/>
         <source>A drawing of the file is not in the form this program changes.</source>
         <translation type="unfinished">Sebuah gambar dalam berkas tidak berada dalam bentuk yang dapat diubah program ini.</translation>
@@ -66288,7 +66368,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <translation type="unfinished">Tabel Pivot tidak dapat dimasukkan ke dalam daftar bagian berkas.</translation>
     </message>
     <message>
-        <location line="+88"/>
+        <location line="+89"/>
         <source>A link to another workbook could not be put in the file&apos;s list of parts.</source>
         <translation type="unfinished">Tautan ke buku kerja lain tidak dapat ditempatkan dalam daftar bagian berkas.</translation>
     </message>
@@ -66330,7 +66410,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <translation type="unfinished">Sebuah tabel yang diubah tidak memiliki bagian dalam berkas.</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+11"/>
         <source>A chart that changed has no part in the file.</source>
         <translation type="unfinished">Sebuah bagan yang diubah tidak memiliki bagian dalam berkas.</translation>
     </message>
@@ -66357,8 +66437,8 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <translation type="unfinished">Relasi buku kerja tidak terdapat dalam berkas.</translation>
     </message>
     <message>
-        <location line="-1117"/>
-        <location line="+1140"/>
+        <location line="-1124"/>
+        <location line="+1147"/>
         <location line="+5"/>
         <source>The workbook&apos;s relationships are not in the form this program changes.</source>
         <translation type="unfinished">Relasi buku kerja tidak berada dalam bentuk yang dapat diubah program ini.</translation>
@@ -70553,7 +70633,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
 <context>
     <name>jp::write::PageView</name>
     <message>
-        <location filename="../apps/write/app/pagepaint.cpp" line="+139"/>
+        <location filename="../apps/write/app/pagepaint.cpp" line="+140"/>
         <source>Footer</source>
         <translation>Footer</translation>
     </message>
@@ -70563,7 +70643,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <translation>Header</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview.cpp" line="+250"/>
+        <location filename="../apps/write/app/pageview.cpp" line="+251"/>
         <source>Place in this document: %1</source>
         <translation type="unfinished">Tempatkan di dokumen ini: %1</translation>
     </message>

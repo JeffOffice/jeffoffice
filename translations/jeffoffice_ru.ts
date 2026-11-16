@@ -123,7 +123,7 @@
         <translation type="unfinished">Задержка: сколько секунд эффект ждёт перед началом.</translation>
     </message>
     <message>
-        <location filename="../apps/deck/core/animation_edit.cpp" line="+50"/>
+        <location filename="../apps/deck/core/animation_edit.cpp" line="+51"/>
         <location line="+6"/>
         <source>From Bottom</source>
         <translation type="unfinished">Снизу</translation>
@@ -2108,8 +2108,8 @@ Back page story	4</source>
 <context>
     <name>Deck</name>
     <message>
-        <location filename="../apps/deck/core/deck.cpp" line="+120"/>
-        <location filename="../apps/deck/core/masteredit.cpp" line="+236"/>
+        <location filename="../apps/deck/core/deck.cpp" line="+121"/>
+        <location filename="../apps/deck/core/masteredit.cpp" line="+237"/>
         <source>%1 Placeholder</source>
         <translation type="unfinished">%1 заполнитель</translation>
     </message>
@@ -2214,7 +2214,7 @@ Back page story	4</source>
         <translation type="unfinished">Содержимое</translation>
     </message>
     <message>
-        <location filename="../apps/deck/core/shapestyles.cpp" line="+27"/>
+        <location filename="../apps/deck/core/shapestyles.cpp" line="+28"/>
         <source>Outline Only</source>
         <translation type="unfinished">Только контур</translation>
     </message>
@@ -2239,7 +2239,7 @@ Back page story	4</source>
         <translation type="unfinished">%1 — акцент %2</translation>
     </message>
     <message>
-        <location filename="../apps/deck/core/themes.cpp" line="+531"/>
+        <location filename="../apps/deck/core/themes.cpp" line="+532"/>
         <source>Decoration</source>
         <translation type="unfinished">Оформление</translation>
     </message>
@@ -2275,7 +2275,7 @@ Back page story	4</source>
 <context>
     <name>DeckOutput</name>
     <message>
-        <location filename="../apps/deck/io/deckoutput.cpp" line="+582"/>
+        <location filename="../apps/deck/io/deckoutput.cpp" line="+583"/>
         <source>There are no slides to print.</source>
         <translation type="unfinished">Нет слайдов для печати.</translation>
     </message>
@@ -5542,7 +5542,7 @@ Back page story	4</source>
 <context>
     <name>DrawingWriter</name>
     <message>
-        <location filename="../libs/office/office/drawingml_write.cpp" line="+734"/>
+        <location filename="../libs/office/office/drawingml_write.cpp" line="+735"/>
         <location line="+161"/>
         <source>Placeholder</source>
         <translation type="unfinished">Заполнитель</translation>
@@ -7243,7 +7243,7 @@ Open them with your email program to send.</source>
         <translation type="unfinished">%1  ·  Страница %2 из %3  ·  %4</translation>
     </message>
     <message>
-        <location filename="../apps/pub/io/jpubfile.cpp" line="+108"/>
+        <location filename="../apps/pub/io/jpubfile.cpp" line="+109"/>
         <source>The file couldn&apos;t be protected with the password.</source>
         <translation type="unfinished">Не удалось защитить файл паролем.</translation>
     </message>
@@ -7854,7 +7854,7 @@ Download it from %2 now? (%3, once.)</source>
 <context>
     <name>OdpExport</name>
     <message>
-        <location filename="../apps/deck/io/odpexport.cpp" line="+427"/>
+        <location filename="../apps/deck/io/odpexport.cpp" line="+428"/>
         <location line="+9"/>
         <source>Slide Master</source>
         <translation type="unfinished">Образец слайдов</translation>
@@ -7918,7 +7918,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Не указано имя файла для сохранения.</translation>
     </message>
     <message>
-        <location filename="../apps/deck/io/odpexport_motion.cpp" line="+482"/>
+        <location filename="../apps/deck/io/odpexport_motion.cpp" line="+483"/>
         <source>Effects that start when an object is clicked can&apos;t be saved in this kind of file, except those that play a movie or sound.</source>
         <translation type="unfinished">Эффекты, которые запускаются щелчком по объекту, нельзя сохранить в этом формате файла, кроме эффектов воспроизведения фильма или звука.</translation>
     </message>
@@ -7943,7 +7943,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Последний слайд диапазона показа нельзя сохранить; показ идёт до конца.</translation>
     </message>
     <message>
-        <location filename="../apps/deck/io/odpexport_shape.cpp" line="+210"/>
+        <location filename="../apps/deck/io/odpexport_shape.cpp" line="+211"/>
         <source>Text Art is saved as a picture.</source>
         <translation type="unfinished">Художественный текст сохраняется как рисунок.</translation>
     </message>
@@ -7963,12 +7963,12 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Субтитры фильма не сохраняются в файле презентации в формате ODP, поэтому они не включены.</translation>
     </message>
     <message>
-        <location filename="../apps/deck/io/odpexport_style.cpp" line="+281"/>
+        <location filename="../apps/deck/io/odpexport_style.cpp" line="+282"/>
         <source>Inner shadows can&apos;t be saved in this kind of file.</source>
         <translation type="unfinished">Внутренние тени нельзя сохранить в этом формате файла.</translation>
     </message>
     <message>
-        <location filename="../apps/deck/io/odpexport_text.cpp" line="+493"/>
+        <location filename="../apps/deck/io/odpexport_text.cpp" line="+494"/>
         <source>Objects set in the middle of text are left out.</source>
         <translation type="unfinished">Объекты, расположенные посреди текста, пропущены.</translation>
     </message>
@@ -7976,7 +7976,7 @@ Download it from %2 now? (%3, once.)</source>
 <context>
     <name>OdpImport</name>
     <message>
-        <location filename="../apps/deck/io/odpimport.cpp" line="+93"/>
+        <location filename="../apps/deck/io/odpimport.cpp" line="+94"/>
         <source>The part is missing from the file.</source>
         <translation type="unfinished">В файле отсутствует часть.</translation>
     </message>
@@ -8880,7 +8880,7 @@ Download it from %2 now? (%3, once.)</source>
 <context>
     <name>PptImport</name>
     <message>
-        <location filename="../apps/deck/io/pptimport.cpp" line="+780"/>
+        <location filename="../apps/deck/io/pptimport.cpp" line="+781"/>
         <source>Title Slide</source>
         <translation type="unfinished">Титульный слайд</translation>
     </message>
@@ -9091,7 +9091,7 @@ Download it from %2 now? (%3, once.)</source>
 <context>
     <name>PptxExport</name>
     <message>
-        <location filename="../apps/deck/io/pptxexport.cpp" line="+791"/>
+        <location filename="../apps/deck/io/pptxexport.cpp" line="+792"/>
         <source>%1: a table, chart, or other frame that can&apos;t be read was left out.</source>
         <translation type="unfinished">%1: таблица, диаграмма или другой фрейм, который нельзя прочитать, пропущен.</translation>
     </message>
@@ -9238,7 +9238,7 @@ Download it from %2 now? (%3, once.)</source>
 <context>
     <name>PptxImport</name>
     <message>
-        <location filename="../apps/deck/io/pptximport.cpp" line="+360"/>
+        <location filename="../apps/deck/io/pptximport.cpp" line="+361"/>
         <source>Only the first %1 comments and replies of the file are read.</source>
         <translation type="unfinished">Прочитаны только первые примечания и ответы в файле: %1.</translation>
     </message>
@@ -19060,7 +19060,7 @@ Source: %3</source>
 <context>
     <name>jp::Chart</name>
     <message>
-        <location filename="../libs/page/core/chartobject.cpp" line="+138"/>
+        <location filename="../libs/page/core/chartobject.cpp" line="+139"/>
         <location line="+1"/>
         <source>Chart</source>
         <translation type="unfinished">Диаграмма</translation>
@@ -22548,7 +22548,7 @@ Source: %3</source>
         <location line="+9"/>
         <location line="+294"/>
         <location line="+44"/>
-        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="+488"/>
+        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="+598"/>
         <source>Values</source>
         <translation type="unfinished">Значения</translation>
     </message>
@@ -23064,7 +23064,7 @@ The file that was there is as it was.</source>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+93"/>
+        <location line="+109"/>
         <location line="+23"/>
         <location line="+7"/>
         <location line="+5"/>
@@ -23074,15 +23074,15 @@ The file that was there is as it was.</source>
         <translation type="unfinished">Удалить дубликаты</translation>
     </message>
     <message>
-        <location line="-127"/>
-        <location line="+148"/>
+        <location line="-143"/>
+        <location line="+164"/>
         <location line="+19"/>
         <location line="+6"/>
         <source>Text to Columns</source>
         <translation type="unfinished">Текст по столбцам</translation>
     </message>
     <message>
-        <location line="-172"/>
+        <location line="-188"/>
         <source>Form…</source>
         <translation type="unfinished"></translation>
     </message>
@@ -23093,7 +23093,17 @@ The file that was there is as it was.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+46"/>
+        <location line="+47"/>
+        <source>Pivot Tables</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Pivot tables in this workbook read their data from other files. Read those files now?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+15"/>
         <source>Links</source>
         <translation type="unfinished">Связи</translation>
     </message>
@@ -23361,7 +23371,7 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished">В этой книге требуется выполнить больше вычислений, чем за один проход. Оставшиеся формулы сохраняют прежние значения и будут вычислены при следующем изменении данных.</translation>
     </message>
     <message>
-        <location line="+50"/>
+        <location line="+54"/>
         <source>Calculating… %1%</source>
         <translation type="unfinished">Вычисление… %1%</translation>
     </message>
@@ -25939,18 +25949,18 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished">Изображения (*.png *.jpg *.jpeg *.gif *.bmp)</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="-324"/>
+        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="-429"/>
         <location line="+7"/>
-        <location line="+217"/>
-        <location line="+301"/>
+        <location line="+316"/>
+        <location line="+307"/>
         <source>Pivot Table</source>
         <translation type="unfinished">Сводная таблица</translation>
     </message>
     <message>
-        <location line="-525"/>
-        <location line="+294"/>
+        <location line="-630"/>
+        <location line="+393"/>
         <location line="+15"/>
-        <location line="+154"/>
+        <location line="+160"/>
         <location line="+29"/>
         <location line="+19"/>
         <location line="+116"/>
@@ -25964,7 +25974,7 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished">Сначала щёлкните ячейку сводной таблицы.</translation>
     </message>
     <message>
-        <location line="-946"/>
+        <location line="-952"/>
         <location line="+9"/>
         <location line="+78"/>
         <source>Create Pivot Table</source>
@@ -26030,22 +26040,12 @@ This file is protected with a password. Password:</source>
     </message>
     <message>
         <location line="+3"/>
-        <location line="+13"/>
+        <location line="+19"/>
         <source>Change Data Source</source>
         <translation type="unfinished">Изменить источник данных</translation>
     </message>
     <message>
-        <location line="-3"/>
-        <source>Change Pivot Table Data Source</source>
-        <translation type="unfinished">Изменить источник данных сводной таблицы</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>The cells the data is in, with a row of names above it (for example Sheet1!A1:D100), or the name of a table:</source>
-        <translation type="unfinished">Ячейки с данными, над которыми находится строка с именами (например, Sheet1!A1:D100), или имя таблицы:</translation>
-    </message>
-    <message>
-        <location line="+11"/>
+        <location line="+8"/>
         <source>Clear Filters</source>
         <translation type="unfinished">Очистить фильтры</translation>
     </message>
@@ -34262,7 +34262,7 @@ The file can&apos;t be read.</source>
 <context>
     <name>jp::DiagramDrawing</name>
     <message>
-        <location filename="../libs/page/render/diagramdrawing.cpp" line="+214"/>
+        <location filename="../libs/page/render/diagramdrawing.cpp" line="+215"/>
         <source>Diagram (the file keeps no picture of it)</source>
         <translation type="unfinished">Диаграмма (в файле не сохранено её изображение)</translation>
     </message>
@@ -45015,7 +45015,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
 <context>
     <name>jp::PageAccess</name>
     <message>
-        <location filename="../libs/page/core/pageaccess.cpp" line="+268"/>
+        <location filename="../libs/page/core/pageaccess.cpp" line="+269"/>
         <source>Slide %1 has no title. People who use a screen reader find a slide by its title.</source>
         <translation type="unfinished">Слайд %1 не имеет заголовка. Пользователи программ чтения с экрана находят слайд по его заголовку.</translation>
     </message>
@@ -45963,7 +45963,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
 <context>
     <name>jp::PictureStyles</name>
     <message>
-        <location filename="../libs/draw/core/picturestyles.cpp" line="+30"/>
+        <location filename="../libs/draw/core/picturestyles.cpp" line="+31"/>
         <source>Plain</source>
         <translation type="unfinished">Простая</translation>
     </message>
@@ -46225,17 +46225,17 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
 <context>
     <name>jp::PivotCreateDialog</name>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="-1153"/>
+        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="-1191"/>
         <source>Create Pivot Table</source>
         <translation type="unfinished">Создание сводной таблицы</translation>
     </message>
     <message>
-        <location line="+6"/>
-        <source>The cells the data is in, with a row of names above it, or the name of a table</source>
-        <translation>Ячейки с данными, над которыми находится строка заголовков, или имя таблицы</translation>
+        <location line="+3"/>
+        <source>Where the data is, with a row of names above it</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+3"/>
         <source>A new sheet</source>
         <translation type="unfinished">Новый лист</translation>
     </message>
@@ -46245,7 +46245,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Этот лист или другой, в ячейке:</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+9"/>
         <source>Where the pivot table goes</source>
         <translation>Куда поместить сводную таблицу</translation>
     </message>
@@ -46544,6 +46544,62 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <location line="+2"/>
         <source>Write GETPIVOTDATA when I click a value of a pivot table while typing a formula</source>
         <translation type="unfinished">Записывать GETPIVOTDATA при щелчке значения сводной таблицы во время ввода формулы</translation>
+    </message>
+</context>
+<context>
+    <name>jp::PivotSourceDialog</name>
+    <message>
+        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="+27"/>
+        <source>Change Pivot Table Data Source</source>
+        <translation type="unfinished">Изменить источник данных сводной таблицы</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Where the data is, with a row of names above it</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>jp::PivotSourcePicker</name>
+    <message>
+        <location line="-113"/>
+        <source>A range in this workbook</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Sheet1!A1:D100, or the name of a table</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>A range in another file</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>The file</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Browse…</source>
+        <translation type="unfinished">Обзор…</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Sheet1!A1:D100, or the name of a table or range in that file</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>Choose the File</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Workbooks and data files (*.xlsx *.xlsm *.xls *.ods *.csv);;All files (*)</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -57251,7 +57307,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
 <context>
     <name>jp::crunch::Barcode</name>
     <message>
-        <location filename="../apps/crunch/core/barcodeclip.cpp" line="+20"/>
+        <location filename="../apps/crunch/core/barcodeclip.cpp" line="+21"/>
         <location line="+27"/>
         <source>That is not a barcode JeffCrunch can draw.</source>
         <translation type="unfinished">Это не штрихкод, который может нарисовать JeffCrunch.</translation>
@@ -57569,7 +57625,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">JeffCrunch пока не может вычислить это (используются другая книга, столбцы таблицы или функция, которой нет в JeffCrunch), поэтому значение не показано.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editsession.cpp" line="+442"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="+443"/>
         <source>&quot;%1&quot; could not be done again, so Undo and Redo are not available any more for what came before it.</source>
         <translation type="unfinished">Действие «%1» нельзя повторить, поэтому отменить и повторить действия, выполненные до него, уже невозможно.</translation>
     </message>
@@ -58511,14 +58567,14 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Перемещение ячеек</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editpivot.cpp" line="+77"/>
-        <location line="+192"/>
-        <location line="+626"/>
+        <location filename="../apps/crunch/core/editpivot.cpp" line="+81"/>
+        <location line="+244"/>
+        <location line="+661"/>
         <source>JeffCrunch can&apos;t read this pivot table.</source>
         <translation type="unfinished">JeffCrunch не может прочитать эту сводную таблицу.</translation>
     </message>
     <message>
-        <location line="-814"/>
+        <location line="-901"/>
         <source>This pivot table has lost the data it is made from.</source>
         <translation type="unfinished">В этой сводной таблице утрачены данные, на основе которых она создана.</translation>
     </message>
@@ -58539,7 +58595,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Эта сводная таблица показывает значение как нечто, что JeffCrunch пока не вычисляет. Она останется без изменений.</translation>
     </message>
     <message>
-        <location line="+28"/>
+        <location line="+80"/>
         <source>Type the cells the data is in, for example Sheet1!A1:D100, or the name of a table.</source>
         <translation type="unfinished">Введите ячейки с данными, например Sheet1!A1:D100, или имя таблицы.</translation>
     </message>
@@ -58586,12 +58642,12 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     </message>
     <message>
         <location line="+36"/>
-        <location line="+518"/>
+        <location line="+535"/>
         <source>JeffCrunch can&apos;t read the data this pivot table is made from.</source>
         <translation type="unfinished">JeffCrunch не может прочитать данные, на основе которых создана эта сводная таблица.</translation>
     </message>
     <message>
-        <location line="-479"/>
+        <location line="-496"/>
         <source>This pivot table can&apos;t be worked out: %1.</source>
         <translation type="unfinished">Эту сводную таблицу невозможно вычислить: %1.</translation>
     </message>
@@ -58602,38 +58658,38 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     </message>
     <message>
         <location line="+15"/>
-        <location line="+1329"/>
+        <location line="+1377"/>
         <location line="+21"/>
         <source>The pivot table would go past the edge of the sheet.</source>
         <translation type="unfinished">Сводная таблица выйдет за край листа.</translation>
     </message>
     <message>
-        <location line="-1300"/>
-        <location line="+1340"/>
+        <location line="-1348"/>
+        <location line="+1388"/>
         <source>The pivot table would cover cells that have something in them (%1). Clear those cells, or move the pivot table, and try again.</source>
         <translation type="unfinished">Сводная таблица накроет ячейки, в которых есть данные (%1). Очистите эти ячейки или переместите сводную таблицу и повторите попытку.</translation>
     </message>
     <message>
-        <location line="-1324"/>
+        <location line="-1372"/>
         <source>The pivot table would be larger than JeffCrunch changes at once.</source>
         <translation type="unfinished">Сводная таблица будет больше, чем JeffCrunch может изменить за один раз.</translation>
     </message>
     <message>
         <location line="+137"/>
-        <location line="+309"/>
+        <location line="+344"/>
         <source>These pivot tables were not refreshed:
 %1</source>
         <translation type="unfinished">Эти сводные таблицы не были обновлены:
 %1</translation>
     </message>
     <message>
-        <location line="-288"/>
+        <location line="-306"/>
         <location filename="../apps/crunch/core/editrecommend.cpp" line="+8"/>
         <source>JeffCrunch can&apos;t find the cells &quot;%1&quot; stands for.</source>
         <translation type="unfinished">JeffCrunch не может найти ячейки, которые обозначает «%1».</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <location filename="../apps/crunch/core/editrecommend.cpp" line="+5"/>
         <source>The data must be on a sheet of cells.</source>
         <translation type="unfinished">Данные должны находиться на листе ячеек.</translation>
@@ -58655,13 +58711,36 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Данных слишком много, чтобы создать сводную таблицу за один шаг (больше %1 млн ячеек). Используйте меньше строк или столбцов.</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="-13"/>
+        <location line="+16"/>
         <location filename="../apps/crunch/core/editrecommend.cpp" line="+12"/>
         <source>The data can&apos;t be read: %1.</source>
         <translation type="unfinished">Не удалось прочитать данные: %1.</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="-481"/>
+        <location line="+19"/>
+        <source>The file &quot;%1&quot; can&apos;t be read from here.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-15"/>
+        <source>Save this workbook first: a file named without its folder is looked for in the folder this workbook is in.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <location line="+5"/>
+        <source>The file &quot;%1&quot; could not be read; the pivot keeps its last data.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>The data in &quot;%1&quot; can&apos;t be read: %2.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+466"/>
         <source>Pick a sheet of cells for the pivot table.</source>
         <translation type="unfinished">Выберите лист ячеек для сводной таблицы.</translation>
     </message>
@@ -58704,12 +58783,12 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Создать сводную таблицу</translation>
     </message>
     <message>
-        <location line="+140"/>
+        <location line="+141"/>
         <source>This pivot table uses %1, which JeffCrunch can&apos;t read again yet.</source>
         <translation type="unfinished">Эта сводная таблица использует %1, который JeffCrunch пока не может прочитать повторно.</translation>
     </message>
     <message>
-        <location line="+10"/>
+        <location line="+20"/>
         <source>JeffCrunch can&apos;t read a pivot table made from this data.</source>
         <translation type="unfinished">JeffCrunch не может прочитать сводную таблицу, созданную из этих данных.</translation>
     </message>
@@ -58719,10 +58798,10 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Не удалось повторно прочитать данные: %1.</translation>
     </message>
     <message>
-        <location line="+42"/>
+        <location line="+50"/>
         <location line="+127"/>
         <location line="+93"/>
-        <location line="+134"/>
+        <location line="+147"/>
         <location line="+48"/>
         <location line="+44"/>
         <location line="+80"/>
@@ -58732,13 +58811,13 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <location line="+70"/>
         <location line="+93"/>
         <location line="+30"/>
-        <location line="+23"/>
+        <location line="+41"/>
         <location line="+38"/>
         <source>There is no pivot table here.</source>
         <translation type="unfinished">Здесь нет сводной таблицы.</translation>
     </message>
     <message>
-        <location line="-980"/>
+        <location line="-1011"/>
         <source>Refresh Pivot Table</source>
         <translation type="unfinished">Обновить сводную таблицу</translation>
     </message>
@@ -58857,7 +58936,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Элемент «%1» не найден в копии данных.</translation>
     </message>
     <message>
-        <location line="+51"/>
+        <location line="+64"/>
         <source>Refresh</source>
         <translation type="unfinished">Обновить</translation>
     </message>
@@ -59149,7 +59228,8 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Параметры сводной таблицы</translation>
     </message>
     <message>
-        <location line="+27"/>
+        <location line="+33"/>
+        <location line="+12"/>
         <source>Change Pivot Table Data Source</source>
         <translation type="unfinished">Изменить источник данных сводной таблицы</translation>
     </message>
@@ -64297,7 +64377,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
 <context>
     <name>jp::crunch::SheetObjects</name>
     <message>
-        <location filename="../apps/crunch/core/sheetobjects.cpp" line="+326"/>
+        <location filename="../apps/crunch/core/sheetobjects.cpp" line="+327"/>
         <source>a drawing that could not be read (%1)</source>
         <translation type="unfinished">рисунок, который не удалось прочитать (%1)</translation>
     </message>
@@ -65012,7 +65092,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
 <context>
     <name>jp::deck::GoToPlace</name>
     <message>
-        <location filename="../apps/deck/core/gotoplace.cpp" line="+27"/>
+        <location filename="../apps/deck/core/gotoplace.cpp" line="+28"/>
         <source>This presentation has no sections.</source>
         <translation type="unfinished">В этой презентации нет разделов.</translation>
     </message>
@@ -66201,7 +66281,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <location line="+48"/>
         <location line="+13"/>
         <location filename="../libs/office/sheet/xlsxsave.cpp" line="+2137"/>
-        <location line="+1512"/>
+        <location line="+1519"/>
         <location line="+61"/>
         <source>The save was stopped.</source>
         <translation type="unfinished">Сохранение остановлено.</translation>
@@ -66250,7 +66330,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Диаграммы листа изменились во время сохранения книги.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/xlsxsave.cpp" line="-3487"/>
+        <location filename="../libs/office/sheet/xlsxsave.cpp" line="-3494"/>
         <location line="+21"/>
         <source>The shared strings part is not in the form this program changes.</source>
         <translation type="unfinished">Часть общих строк имеет формат, который эта программа не изменяет.</translation>
@@ -66263,7 +66343,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+365"/>
         <location line="+120"/>
-        <location line="+2613"/>
+        <location line="+2620"/>
         <location line="+5"/>
         <location line="+5"/>
         <location line="+5"/>
@@ -66272,7 +66352,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Часть книги имеет формат, который эта программа не изменяет.</translation>
     </message>
     <message>
-        <location line="-1969"/>
+        <location line="-1976"/>
         <source>The workbook was not opened from a file this program can save over.</source>
         <translation type="unfinished">Книга была открыта не из файла, поверх которого эта программа может сохранить.</translation>
     </message>
@@ -66316,12 +66396,12 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     </message>
     <message>
         <location line="+46"/>
-        <location line="+1618"/>
+        <location line="+1625"/>
         <source>The file this workbook was opened from is damaged.</source>
         <translation type="unfinished">Файл, из которого была открыта эта книга, повреждён.</translation>
     </message>
     <message>
-        <location line="-1590"/>
+        <location line="-1597"/>
         <source>A sheet that changed has no part in the file.</source>
         <translation type="unfinished">Изменённый лист не имеет части в файле.</translation>
     </message>
@@ -66334,23 +66414,23 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <location line="+16"/>
         <location line="+6"/>
         <location line="+7"/>
-        <location line="+1536"/>
+        <location line="+1543"/>
         <source>A sheet of the file could not be read to be saved.</source>
         <translation type="unfinished">Один из листов файла не удалось прочитать для сохранения.</translation>
     </message>
     <message>
-        <location line="-1299"/>
+        <location line="-1306"/>
         <location line="+146"/>
         <location line="+79"/>
         <location line="+56"/>
         <location line="+77"/>
         <location line="+75"/>
-        <location line="+140"/>
+        <location line="+141"/>
         <source>The file&apos;s list of part types is not in it.</source>
         <translation type="unfinished">В файле нет списка типов частей.</translation>
     </message>
     <message>
-        <location line="-563"/>
+        <location line="-564"/>
         <location line="+143"/>
         <source>A drawing of the file is not in the form this program changes.</source>
         <translation type="unfinished">Рисунок в файле имеет вид, который эта программа не умеет изменять.</translation>
@@ -66386,7 +66466,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Сводную таблицу не удалось поместить в список частей файла.</translation>
     </message>
     <message>
-        <location line="+88"/>
+        <location line="+89"/>
         <source>A link to another workbook could not be put in the file&apos;s list of parts.</source>
         <translation type="unfinished">Не удалось поместить ссылку на другую книгу в список частей файла.</translation>
     </message>
@@ -66428,7 +66508,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Изменённая таблица не имеет части в файле.</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+11"/>
         <source>A chart that changed has no part in the file.</source>
         <translation type="unfinished">Изменённая диаграмма не имеет части в файле.</translation>
     </message>
@@ -66455,8 +66535,8 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Связи книги отсутствуют в файле.</translation>
     </message>
     <message>
-        <location line="-1117"/>
-        <location line="+1140"/>
+        <location line="-1124"/>
+        <location line="+1147"/>
         <location line="+5"/>
         <source>The workbook&apos;s relationships are not in the form this program changes.</source>
         <translation type="unfinished">Связи книги имеют вид, который эта программа не умеет изменять.</translation>
@@ -70659,7 +70739,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
 <context>
     <name>jp::write::PageView</name>
     <message>
-        <location filename="../apps/write/app/pagepaint.cpp" line="+139"/>
+        <location filename="../apps/write/app/pagepaint.cpp" line="+140"/>
         <source>Footer</source>
         <translation>Нижний колонтитул</translation>
     </message>
@@ -70669,7 +70749,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation>Верхний колонтитул</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview.cpp" line="+250"/>
+        <location filename="../apps/write/app/pageview.cpp" line="+251"/>
         <source>Place in this document: %1</source>
         <translation type="unfinished">Место в этом документе: %1</translation>
     </message>

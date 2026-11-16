@@ -1,5 +1,5 @@
 # Pivot tables
-<!-- keywords: list formulas, calculated field, calculated item, solve order, formula field, report filter pages, pivot table, drill down, drill up, insert pivot table, create, make, select, move pivot table, getpivotdata, generate getpivotdata, refresh, refresh all, change data source, field list, fields, rows, columns, values, filters, report filter, grand total, subtotal, layout, compact, outline, tabular, clear, value field settings, sum, count, average, show values as, percent of total, difference, running total, number format, field settings, sort, filter, top, group, ungroup, dates, months, years, expand, collapse, options, style, banded rows, blank rows, repeat labels, refresh when the file opens, pivot chart, slicer, timeline, show details, drill down, rows behind a value -->
+<!-- keywords: another file, other workbook, external source, list formulas, calculated field, calculated item, solve order, formula field, report filter pages, pivot table, drill down, drill up, insert pivot table, create, make, select, move pivot table, getpivotdata, generate getpivotdata, refresh, refresh all, change data source, field list, fields, rows, columns, values, filters, report filter, grand total, subtotal, layout, compact, outline, tabular, clear, value field settings, sum, count, average, show values as, percent of total, difference, running total, number format, field settings, sort, filter, top, group, ungroup, dates, months, years, expand, collapse, options, style, banded rows, blank rows, repeat labels, refresh when the file opens, pivot chart, slicer, timeline, show details, drill down, rows behind a value -->
 
 A pivot table is a small report made from a long list. The list has one row for each sale, say; the report adds the sales up by region and month. You do not write any formulas. You say which columns of the list go down the side, which go across the top, and which one is added up, and the report fills itself in.
 
@@ -37,9 +37,11 @@ The words used here:
 
 1. Click a cell in the list, or select the cells you want to use. The list needs a row of names above its data.
 2. Choose **Insert**, then **Pivot Table**.
-3. The box shows the cells the data is in. Change them if they are not right. You can also type the name of a table.
+3. The box shows the cells the data is in. Change them if they are not right. You can also type the name of a table. To use a list that is in another file, choose **A range in another file**, pick the file with **Browse**, and type the range, or the name of a table or a name you made in that file, such as `Sheet1!A1:D100`. JeffCrunch reads workbooks (`.xlsx`, `.xlsm`, `.xls`, and `.ods`) and `.csv` files.
 4. Choose where the pivot table goes: **A new sheet** (the default), or a cell on this sheet or another. Pick a place where nothing else is, because the empty table covers about eighteen rows and three columns.
 5. Choose **OK**. The table starts empty, and the **Pivot Table Fields** pane opens. Check the fields you want: a field of numbers is added up, and any other field becomes a row. Then move fields to the boxes as the next sections say.
+
+When the data is in another file, the pivot table keeps a copy of it, so the table works and saves without that file. See Data in another file below.
 
 A new sheet is its own step of Undo, and so is the table. When you save as .xlsx the table is written the way the original program writes one, so it opens there as a pivot table. A copy saved as .xls or .ods keeps the numbers the table shows in its cells, but not the table itself, and the save tells you so.
 
@@ -75,6 +77,16 @@ If the report would grow over cells that have something in them, JeffCrunch does
 ## Change Data Source
 
 **Change Data Source** asks for the cells the list is in, including its first row of names. Type them like `Sheet1!A1:D100`, or type the name of a table or a name you made. JeffCrunch reads them and works the report out again. If a field of the list has the same name in the new cells, its place in the report stays.
+
+You can also point the table at a range in another file. In the box, choose **A range in another file**, pick the file, and type the range in it. Choosing **A range in this workbook** points the table back at cells here. Either change is one step of Undo.
+
+## Data in another file
+
+A pivot table made from another file keeps the data it was made from inside this workbook, so you can open, change, and save the workbook when the other file is gone. **Refresh** reads the other file again. If the file has moved, is missing, is too big, is not a workbook, or no longer has the range, the table keeps the data it had, and a message says that the file could not be read. A file that is on another computer on your network is not read until you choose it yourself in **Change Data Source**. One refresh reads each file once, and at most 32 files, 1 GB, and 30 seconds in all; a table past that keeps its data.
+
+If a workbook says its table should be read again when it opens, and the table's data is in another file, JeffCrunch asks first, in the same way it does for the links to other workbooks. Until you say yes, no file is read.
+
+A workbook saved as .xlsx stores where the file is. Choosing the file in the box stores its full address. A workbook that another program made, whose table points at a file by a short path such as `Prices.xlsx`, keeps that path, and JeffCrunch looks for the file in the same folder as the workbook. When you use **Save As** to save the workbook in another folder, a path like that is rewritten so that it still names the same file. Refresh does not follow any links the other file has to still other files.
 
 ## Clear
 
