@@ -2459,6 +2459,12 @@ private Q_SLOTS:
         QVERIFY(!safe.contains(QStringLiteral("file:")));
         QVERIFY(safe.contains(QStringLiteral("https://example.com/a.png")));
         QVERIFY(jp::write::safeClipHtml(QStringLiteral("<img src=\"data:image/png;base64,AAAA\">")).contains(QStringLiteral("data:image")));
+        // (an allowed address in another attribute, or a second src, does not let a file through)
+        for (const QString &tricky : {QStringLiteral("<img data-src=\"https://example.com/a.png\" src=\"file:///etc/hostname\">"),
+                                      QStringLiteral("<img src=\"https://example.com/a.png\" src=\"file:///etc/hostname\">"),
+                                      QStringLiteral("<img xsrc=\"https://example.com/a.png\" src='file:///etc/hostname'>"),
+                                      QStringLiteral("<table data-background=\"https://example.com/a.png\" background=\"file:///etc/hostname\"><tr><td>x</td></tr></table>")})
+            QVERIFY2(!jp::write::safeClipHtml(tricky).contains(QStringLiteral("file:")), qPrintable(tricky));
         WriteWindow w;
         emptyWindow(w);
         auto *mime = new QMimeData;
