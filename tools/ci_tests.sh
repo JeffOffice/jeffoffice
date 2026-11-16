@@ -56,7 +56,13 @@ for A in "$@"; do
                 echo "$N.rest $N - $rest" >> "$parts"
             fi ;;
         crunchtests|sheettests|jdtests|jptests)
-            args=$(QT_QPA_PLATFORM=offscreen "$P" --classes 2>/dev/null | awk -v k="$k" -v n="$n" -v hold="$LAST_PART_HOLDS" -v w="$(echo $WEIGHTS)" '
+            # (with CI_SPLIT=s, half k of n is itself s parts side by side: the classes are dealt to n*s parts and this job runs parts
+            # (k-1)*s+1 to k*s. A half of crunchtests on one processor took 621 s on our Windows machine, whose processors are slower
+            # one by one than GitHub's but five times as many; Nov 16)
+            list=$(QT_QPA_PLATFORM=offscreen "$P" --classes 2>/dev/null)
+            for s in $(seq 1 "$split"); do
+                kk=$(( (k - 1) * split + s )); nn=$(( n * split ))
+                args=$(echo "$list" | awk -v k="$kk" -v n="$nn" -v hold="$LAST_PART_HOLDS" -v w="$(echo $WEIGHTS)" '
                 BEGIN { m = split(w, a, /[ \n]+/); for (i = 1; i <= m; i++) { split(a[i], kv, "="); wt[kv[1]] = kv[2] } }
                 NF { c[++t] = $0; v[t] = ($0 in wt) ? wt[$0] : 1 }
                 END {
@@ -66,7 +72,8 @@ for A in "$@"; do
                         p = 1; for (q = 2; q <= n; q++) if (sum[q] < sum[p]) p = q
                         sum[p] += v[best]; if (p == k) printf "--class %s ", c[best] }
                 }')
-            [ -n "$args" ] && echo "$N.part$k $N - $args" >> "$parts" ;;
+                [ -n "$args" ] && echo "$N.part$kk $N - $args" >> "$parts"
+            done ;;
         *) echo "ci_tests.sh: $N cannot run in parts" >&2; exit 2 ;;
         esac
         continue
