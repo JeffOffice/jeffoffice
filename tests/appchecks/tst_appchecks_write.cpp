@@ -181,6 +181,13 @@ private Q_SLOTS:
                 mime->setHtml(QStringLiteral("<p><b>Pasted</b> words</p>"));
                 QGuiApplication::clipboard()->setMimeData(mime);
             }
+            if (id.startsWith(QLatin1String("edit.pasteList"))) QGuiApplication::clipboard()->setText(QStringLiteral("Pasted words"));
+            if (id.startsWith(QLatin1String("edit.pasteTable")) || id == QLatin1String("edit.pasteTable")) {
+                auto *mime = new QMimeData;
+                mime->setText(QStringLiteral("a\tb\nc\td\n"));
+                mime->setHtml(QStringLiteral("<table><tr><td>a</td><td>b</td></tr><tr><td>c</td><td>d</td></tr></table>"));
+                QGuiApplication::clipboard()->setMimeData(mime);
+            }
             if (id == QLatin1String("edit.pastePicture")) {
                 QImage image(40, 30, QImage::Format_ARGB32);
                 image.fill(QColor(160, 10, 60));
