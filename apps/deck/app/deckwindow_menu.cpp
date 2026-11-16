@@ -2,6 +2,8 @@
 
 #include "app/deckwindow.h"
 
+#include "app/chartdesign.h"
+#include "app/chartedit.h"
 #include "app/editor.h"
 #include "app/icons.h"
 #include "app/proofingdialogs.h"
@@ -16,6 +18,7 @@ namespace jp {
 QMenu *DeckWindow::slideContextMenu(QWidget *parent)
 {
     refreshUi();   // what the commands may do is up to date, not as of the last timer tick
+    refreshChart();
     auto *menu = new QMenu(parent ? parent : this);
     auto add = [this, menu](QMenu *to, std::initializer_list<const char *> ids) {
         for (const char *id : ids) (to ? to : menu)->addAction(act(QString::fromLatin1(id)));
@@ -85,6 +88,10 @@ QMenu *DeckWindow::slideContextMenu(QWidget *parent)
             add(align, {"fmt.alignLeft", "fmt.alignCenter", "fmt.alignRight", "fmt.justify"});
         }
         menu->addSeparator();
+        if (selectedChart(m_ed)) {
+            addChartContextEntries(menu, [this](const QString &id) { return act(id); });
+            menu->addSeparator();
+        }
         add(nullptr, {"shape.saveAsPicture", "shape.sizePos", "shape.format", "shape.altText", "insert.link", "comment.new"});
     } else {
         add(nullptr, {"edit.paste"});

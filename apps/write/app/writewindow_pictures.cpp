@@ -4,6 +4,7 @@
 #include "app/writewindow.h"
 
 #include "app/barcodedialog.h"
+#include "app/chartdesign.h"
 #include "core/mergeops.h"
 #include "app/filedialogs.h"
 #include "app/iconpicker.h"
@@ -402,6 +403,12 @@ void WriteWindow::refreshPictureUi()
 void WriteWindow::addPictureContextMenu(QMenu &menu)
 {
     menu.addSeparator();
+    // On a chart: the entries every program's chart menu has.
+    const int chartAt = m_view->selectedPicture();
+    if (m_doc && chartAt >= 0 && write::pictureAt(*m_doc, m_doc->story(), chartAt).kind == write::DrawnKind::Chart) {
+        addChartContextEntries(&menu, [this](const QString &id) { return act(id); });
+        menu.addSeparator();
+    }
     QMenu *wrap = menu.addMenu(tr("Wrap Text"));
     for (const char *id : {"inline", "square", "tight", "topBottom", "behind", "front"}) wrap->addAction(act(QStringLiteral("picture.wrap.") + QLatin1String(id)));
     addWrapDetails(wrap);
