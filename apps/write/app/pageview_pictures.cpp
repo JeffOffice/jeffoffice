@@ -3,6 +3,7 @@
 
 #include "app/icons.h"
 #include "app/pageview.h"
+#include "core/wrapoutline.h"
 #include <QKeyEvent>
 #include <QTimer>
 #include "app/shapetextedit.h"
@@ -467,25 +468,36 @@ const PageView::ShapeCache &PageView::shapeCache() const
 {
     const int position = selectedPicture(), revision = m_doc ? m_doc->story()->revision() : -1;
     ShapeCache &c = m_shapeCache;
-    if (c.valid && c.position == position && c.revision == revision && c.editPoints == m_editPoints) return c;
+    if (c.valid && c.position == position && c.revision == revision && c.editPoints == m_editPoints && c.editWrap == m_editWrap) return c;
     c = ShapeCache();
     c.valid = true;
     c.position = position;
     c.revision = revision;
     c.editPoints = m_editPoints;
+    c.editWrap = m_editWrap;
     if (m_doc && position >= 0 && !m_readOnly) {
         c.info = pictureAt(*m_doc, m_doc->story(), position);
         if (c.info.valid && c.info.editable && (c.info.kind == DrawnKind::Shape || c.info.kind == DrawnKind::TextBox)) {
             c.handles = shapeAdjustHandles(*m_doc, position);
             if (m_editPoints) c.points = shapePoints(*m_doc, position);
         }
+        // The points of a tight wrap's outline, in points from the picture's corner.
+        if (m_editWrap && c.info.valid && c.info.editable && c.info.kind == DrawnKind::Picture && c.info.floating && c.info.wrap == PictureWrap::Tight)
+            for (const QPointF &p : c.info.wrapOutline) c.points.push_back(QPointF(p.x() * c.info.width, p.y() * c.info.height));
     }
     return c;
 }
 
 bool PageView::pointsActive() const
 {
-    return m_editPoints && m_doc && !m_readOnly && !m_hf.active && !m_note.active && !shapeCache().points.isEmpty();
+    return (m_editPoints || m_editWrap) && m_doc && !m_readOnly && !m_hf.active && !m_note.active && !shapeCache().points.isEmpty();
+}
+
+void PageView::setEditWrap(bool on)
+{
+    if (m_editWrap == on) return;
+    m_editWrap = on;
+    viewport()->update();
 }
 
 void PageView::setEditPoints(bool on)
@@ -546,7 +558,7 @@ bool PageView::rotateHandlePoint(QPointF *point)
 PageView::PictureHandle PageView::pictureHandleAt(const QPoint &pos)
 {
     if (selectedPicture() < 0) return PictureHandle::None;
-    if (m_editPoints) {
+    if (m_editPoints || m_editWrap) {
         const QVector<QPointF> points = pointViewPositions();
         for (int i = 0; i < points.size(); ++i)
             if (std::abs(pos.x() - points[i].x()) <= kHandleSize / 2 + 2 && std::abs(pos.y() - points[i].y()) <= kHandleSize / 2 + 2) {
@@ -608,7 +620,17 @@ bool PageView::beginPictureDrag(QMouseEvent *e)
             m_doc->pictureNotice.clear();
             const double s = scale(), rotation = pictureAt(*m_doc, m_doc->story(), target).rotation;
             bool changed = false;
-            if (handle == PictureHandle::Point) {
+            if (m_editWrap) {
+                const PictureInfo now = shapeCache().info;
+                QPolygonF outline;
+                if (handle == PictureHandle::Point) {
+                    outline = jp::wrapOutlineWithout(now.wrapOutline, m_adjustHandleHit);
+                } else if (now.width > 0 && now.height > 0) {
+                    const QPointF local = turnedAboutCenter(pos, frame, -rotation);
+                    outline = jp::wrapOutlineWithPoint(now.wrapOutline, QPointF((local.x() - frame.left()) / s / now.width, (local.y() - frame.top()) / s / now.height), 6.0 / s, QSizeF(now.width, now.height));
+                }
+                changed = outline != now.wrapOutline && setPictureWrapOutline(*m_doc, target, outline);
+            } else if (handle == PictureHandle::Point) {
                 changed = deleteShapePoint(*m_doc, target, m_adjustHandleHit);
             } else {
                 const QPointF local = turnedAboutCenter(pos, frame, -rotation);
@@ -715,7 +737,13 @@ void PageView::endPictureDrag(const QPoint &pos, Qt::KeyboardModifiers modifiers
         changed = setShapeAdjustment(*m_doc, d.position, d.adjust, QPointF((local.x() - d.start.left()) / s, (local.y() - d.start.top()) / s));
     } else if (d.handle == PictureHandle::Point) {
         const QPointF local = turnedAboutCenter(d.at, d.start, -d.info.rotation);
-        changed = moveShapePoint(*m_doc, d.position, d.adjust, QPointF((local.x() - d.start.left()) / s, (local.y() - d.start.top()) / s));
+        if (m_editWrap) {
+            const PictureInfo now = shapeCache().info;
+            changed = now.width > 0 && now.height > 0
+                      && setPictureWrapOutline(*m_doc, d.position, jp::wrapOutlineMoved(now.wrapOutline, d.adjust, QPointF((local.x() - d.start.left()) / s / now.width, (local.y() - d.start.top()) / s / now.height)));
+        } else {
+            changed = moveShapePoint(*m_doc, d.position, d.adjust, QPointF((local.x() - d.start.left()) / s, (local.y() - d.start.top()) / s));
+        }
     } else if (d.handle == PictureHandle::Rotate) {
         const QPointF v = d.at - d.start.center();
         double degrees = std::atan2(v.y(), v.x()) * 180.0 / M_PI + 90.0;
@@ -818,7 +846,7 @@ void PageView::paintPictureHandles(QPainter &p)
         for (const QPointF &c : {b.topLeft(), QPointF(b.center().x(), b.top()), b.topRight(), QPointF(b.right(), b.center().y()), b.bottomRight(), QPointF(b.center().x(), b.bottom()), b.bottomLeft(),
                                   QPointF(b.left(), b.center().y())})
             p.drawRect(QRectF(c.x() - kHandleSize / 2, c.y() - kHandleSize / 2, kHandleSize, kHandleSize));
-        if (m_editPoints) {
+        if (m_editPoints || m_editWrap) {
             const QVector<QPointF> points = pointViewPositions();
             p.setRenderHint(QPainter::Antialiasing, true);
             p.setPen(QPen(accent, 1, Qt::DashLine));

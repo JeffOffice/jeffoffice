@@ -2266,6 +2266,23 @@
             {
               "widget": "pictureCropShape",
               "keytip": "CH"
+            },
+            {
+              "large": {
+                "id": "ribbon.aspectRatio",
+                "text": "Aspect Ratio",
+                "icon": "ratio"
+              },
+              "keytip": "AR",
+              "menu": "@pictureAspect"
+            },
+            {
+              "small": "picture.fill",
+              "keytip": "FL"
+            },
+            {
+              "small": "picture.fit",
+              "keytip": "FT"
             }
           ]
         }

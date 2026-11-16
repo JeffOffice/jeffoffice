@@ -15,13 +15,19 @@
 #include "app/ruler.h"
 #include "app/settings.h"
 #include "app/widgets.h"
+#include "app/uistyle.h"
 #include "app/writedialogs.h"
 #include "core/pictureops.h"
 
 #include <QAction>
 #include <QActionGroup>
 #include <QApplication>
+#include <QDialog>
+#include <QDialogButtonBox>
 #include <QDockWidget>
+#include <QDoubleSpinBox>
+#include <QFormLayout>
+#include <QLabel>
 #include <QClipboard>
 #include <QFile>
 #include <QFileInfo>
@@ -33,6 +39,25 @@
 #include <QVBoxLayout>
 
 namespace jp {
+
+namespace {
+
+struct AspectRatio {
+    int w, h;
+    QString name;
+};
+
+// The shapes of Aspect Ratio: a square, then the tall ones and the wide ones.
+const QVector<AspectRatio> &aspectRatios()
+{
+    static const QVector<AspectRatio> ratios = {
+        {1, 1, WriteWindow::tr("Square 1:1")},      {2, 3, WriteWindow::tr("Portrait 2:3")},   {3, 4, WriteWindow::tr("Portrait 3:4")},    {3, 5, WriteWindow::tr("Portrait 3:5")},
+        {4, 5, WriteWindow::tr("Portrait 4:5")},    {9, 16, WriteWindow::tr("Portrait 9:16")}, {3, 2, WriteWindow::tr("Landscape 3:2")},  {4, 3, WriteWindow::tr("Landscape 4:3")},
+        {5, 3, WriteWindow::tr("Landscape 5:3")},   {5, 4, WriteWindow::tr("Landscape 5:4")},  {16, 9, WriteWindow::tr("Landscape 16:9")}, {16, 10, WriteWindow::tr("Landscape 16:10")}};
+    return ratios;
+}
+
+}
 
 void WriteWindow::createPictureActions()
 {
@@ -62,6 +87,39 @@ void WriteWindow::createPictureActions()
             m_view->setFocus(Qt::OtherFocusReason);
         }, true);
     }
+    // Aspect Ratio, Fill, and Fit: one step each, from the shared plans (core/picturecrop.h).
+    for (const auto &r : aspectRatios()) {
+        const int w = r.w, h = r.h;
+        mk(QStringLiteral("picture.aspect.%1x%2").arg(w).arg(h), r.name, "ratio", QKeySequence(), [this, w, h] {
+            m_view->changeSelectedPicture([w, h](write::WriteDoc &d, int at) { return write::setPictureCropAspect(d, at, w, h); });
+            m_view->setFocus(Qt::OtherFocusReason);
+        });
+    }
+    mk("picture.fill", tr("Fill"), "expand", QKeySequence(), [this] {
+        m_view->changeSelectedPicture([](write::WriteDoc &d, int at) { return write::setPictureCropFill(d, at, true); });
+        m_view->setFocus(Qt::OtherFocusReason);
+    });
+    mk("picture.fit", tr("Fit"), "shrink", QKeySequence(), [this] {
+        m_view->changeSelectedPicture([](write::WriteDoc &d, int at) { return write::setPictureCropFill(d, at, false); });
+        m_view->setFocus(Qt::OtherFocusReason);
+    });
+    mk("picture.wrap.editPoints", tr("Edit Wrap Points"), "wrap-points", QKeySequence(), [this] { editWrapPoints(); }, true);
+    struct Side {
+        const char *id;
+        const char *text;
+        write::PictureWrapSide side;
+    };
+    for (const Side &w : {Side{"both", QT_TRANSLATE_NOOP("jp::WriteWindow", "Text on Both Sides"), write::PictureWrapSide::Both},
+                          Side{"left", QT_TRANSLATE_NOOP("jp::WriteWindow", "Text on the Left Only"), write::PictureWrapSide::Left},
+                          Side{"right", QT_TRANSLATE_NOOP("jp::WriteWindow", "Text on the Right Only"), write::PictureWrapSide::Right},
+                          Side{"largest", QT_TRANSLATE_NOOP("jp::WriteWindow", "Text on the Larger Side"), write::PictureWrapSide::Largest}}) {
+        const write::PictureWrapSide side = w.side;
+        mk(QStringLiteral("picture.wrap.side.") + QLatin1String(w.id), QCoreApplication::translate("jp::WriteWindow", w.text), "wrap-text", QKeySequence(), [this, side] {
+            m_view->changeSelectedPicture([side](write::WriteDoc &d, int at) { return write::setPictureWrapSide(d, at, side); });
+            m_view->setFocus(Qt::OtherFocusReason);
+        }, true);
+    }
+    mk("picture.wrap.distance", tr("Distance from Text…"), "wrap-text", QKeySequence(), [this] { wrapDistanceDialog(); });
     struct Order {
         const char *id;
         const char *text;
@@ -107,6 +165,12 @@ void WriteWindow::pictureRibbonParts(RibbonParts &parts)
             group->addAction(a);
             m->addAction(a);
         }
+        addWrapDetails(m);
+        return m;
+    };
+    parts.menus[QStringLiteral("pictureAspect")] = [this](QWidget *owner) {
+        auto *m = new QMenu(owner);
+        for (const auto &r : aspectRatios()) m->addAction(act(QStringLiteral("picture.aspect.%1x%2").arg(r.w).arg(r.h)));
         return m;
     };
     parts.menus[QStringLiteral("pictureForward")] = [this](QWidget *owner) {
@@ -301,6 +365,19 @@ void WriteWindow::refreshPictureUi()
                                                                         {"topBottom", write::PictureWrap::TopAndBottom}, {"behind", write::PictureWrap::BehindText},
                                                                         {"front", write::PictureWrap::InFrontOfText}};
     act("picture.decorative")->setChecked(editable && info.decorative);
+    // (A side and room round it are for a picture the text goes round; the outline is for a tight one, and the square one gets it when it is edited.)
+    const bool round = editable && info.floating && (info.wrap == write::PictureWrap::Square || info.wrap == write::PictureWrap::Tight || info.wrap == write::PictureWrap::TopAndBottom);
+    const bool sided = round && info.wrap != write::PictureWrap::TopAndBottom;
+    static const std::pair<const char *, write::PictureWrapSide> sides[] = {{"both", write::PictureWrapSide::Both}, {"left", write::PictureWrapSide::Left}, {"right", write::PictureWrapSide::Right},
+                                                                            {"largest", write::PictureWrapSide::Largest}};
+    for (const auto &w : sides) {
+        act(QStringLiteral("picture.wrap.side.") + QLatin1String(w.first))->setEnabled(sided);
+        act(QStringLiteral("picture.wrap.side.") + QLatin1String(w.first))->setChecked(sided && info.wrapSide == w.second);
+    }
+    act("picture.wrap.distance")->setEnabled(round);
+    act("picture.wrap.editPoints")->setEnabled(editable && info.floating && info.kind == write::DrawnKind::Picture && (info.wrap == write::PictureWrap::Square || info.wrap == write::PictureWrap::Tight));
+    if (!editable || !info.floating || info.kind != write::DrawnKind::Picture || info.wrap != write::PictureWrap::Tight) m_view->setEditWrap(false);
+    act("picture.wrap.editPoints")->setChecked(m_view->editingWrap());
     for (const auto &w : wraps) act(QStringLiteral("picture.wrap.") + QLatin1String(w.first))->setChecked(editable && info.wrap == w.second);
     m_updatingFields = true;
     if (m_pictureFields.size() >= 2 && info.valid) {
@@ -316,6 +393,7 @@ void WriteWindow::addPictureContextMenu(QMenu &menu)
     menu.addSeparator();
     QMenu *wrap = menu.addMenu(tr("Wrap Text"));
     for (const char *id : {"inline", "square", "tight", "topBottom", "behind", "front"}) wrap->addAction(act(QStringLiteral("picture.wrap.") + QLatin1String(id)));
+    addWrapDetails(wrap);
     QMenu *order = menu.addMenu(tr("Arrange"));
     for (const char *id : {"front", "forward", "back", "backward"}) order->addAction(act(QStringLiteral("picture.order.") + QLatin1String(id)));
     menu.addAction(act("arrange.group"));
@@ -323,6 +401,80 @@ void WriteWindow::addPictureContextMenu(QMenu &menu)
     menu.addAction(act("picture.altText"));
     menu.addAction(act("picture.decorative"));
     if (act("shape.editText")->isEnabled()) menu.addAction(act("shape.editText"));
+}
+
+// The side and the room round the picture, after the kinds of wrap in a menu.
+void WriteWindow::addWrapDetails(QMenu *menu)
+{
+    menu->addSeparator();
+    menu->addAction(act("picture.wrap.editPoints"));
+    QMenu *sides = menu->addMenu(tr("Text Sides"));
+    auto *group = new QActionGroup(sides);
+    for (const char *id : {"both", "left", "right", "largest"}) {
+        QAction *a = act(QStringLiteral("picture.wrap.side.") + QLatin1String(id));
+        group->addAction(a);
+        sides->addAction(a);
+    }
+    menu->addAction(act("picture.wrap.distance"));
+}
+
+// Edit Wrap Points: a square wrap becomes a tight one, with the frame's points to drag (Ctrl and a click on the outline puts one in, on a point takes it away); Esc, or this again, ends it.
+void WriteWindow::editWrapPoints()
+{
+    const int at = m_view->selectedPicture();
+    if (!m_doc || at < 0) return;
+    if (m_view->editingWrap()) {
+        m_view->setEditWrap(false);
+        refreshPictureUi();
+        return;
+    }
+    const write::PictureInfo info = write::pictureAt(*m_doc, m_doc->story(), at);
+    if (!info.valid || !info.editable || !info.floating || info.kind != write::DrawnKind::Picture) return;
+    if (info.wrap != write::PictureWrap::Tight || info.wrapOutline.size() < 3) {
+        const QPolygonF start = write::startingWrapOutline(info);
+        m_view->changeSelectedPicture([start](write::WriteDoc &d, int position) { return write::setPictureWrapOutline(d, position, start); });
+    }
+    m_view->setEditWrap(true);
+    refreshPictureUi();
+    m_view->setFocus(Qt::OtherFocusReason);
+}
+
+void WriteWindow::wrapDistanceDialog()
+{
+    const int at = m_view->selectedPicture();
+    if (!m_doc || at < 0) return;
+    const write::PictureInfo info = write::pictureAt(*m_doc, m_doc->story(), at);
+    if (!info.valid || !info.floating) return;
+    QDialog dlg(this);
+    dlg.setObjectName(QStringLiteral("wrapDistanceDialog"));
+    dlg.setWindowTitle(tr("Distance from Text"));
+    auto *layout = new QVBoxLayout(&dlg);
+    auto *label = new QLabel(tr("How much room the text leaves around the picture, in points."), &dlg);
+    label->setWordWrap(true);
+    layout->addWidget(label);
+    auto *form = new QFormLayout();
+    QDoubleSpinBox *edges[4];
+    const double values[4] = {info.distTop, info.distBottom, info.distLeft, info.distRight};
+    const QString names[4] = {tr("Top"), tr("Bottom"), tr("Left"), tr("Right")};
+    const char *objectNames[4] = {"distTop", "distBottom", "distLeft", "distRight"};
+    for (int i = 0; i < 4; ++i) {
+        edges[i] = new QDoubleSpinBox(&dlg);
+        edges[i]->setObjectName(QLatin1String(objectNames[i]));
+        edges[i]->setRange(0, write::kMostWrapDistance);
+        edges[i]->setDecimals(1);
+        edges[i]->setSuffix(tr(" pt"));
+        edges[i]->setValue(std::round(values[i] * 10.0) / 10.0);
+        form->addRow(names[i], edges[i]);
+    }
+    layout->addLayout(form);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    connect(buttons, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
+    connect(buttons, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
+    layout->addWidget(buttons);
+    if (dlg.exec() != QDialog::Accepted) return;
+    const double t = edges[0]->value(), b = edges[1]->value(), l = edges[2]->value(), r = edges[3]->value();
+    m_view->changeSelectedPicture([=](write::WriteDoc &d, int position) { return write::setPictureWrapDistances(d, position, t, b, l, r); });
+    m_view->setFocus(Qt::OtherFocusReason);
 }
 
 } // namespace jp

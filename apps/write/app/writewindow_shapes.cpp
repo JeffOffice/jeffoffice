@@ -1031,7 +1031,7 @@ void WriteWindow::refreshShapeUi()
         if (name.startsWith(QLatin1String("shape.weight.")) || name.startsWith(QLatin1String("shape.dash.")) || name.startsWith(QLatin1String("shape.rotate."))) a->setEnabled(drawn && info.kind != write::DrawnKind::Chart);
         if (name.startsWith(QLatin1String("arrange."))) a->setEnabled(drawn);
         if (name == QLatin1String("picture.crop") || name == QLatin1String("picture.reset") || name == QLatin1String("picture.change") || name == QLatin1String("picture.compress") || name.startsWith(QLatin1String("picture.correct.")) ||
-            name.startsWith(QLatin1String("picture.recolor.")))
+            name.startsWith(QLatin1String("picture.recolor.")) || name.startsWith(QLatin1String("picture.aspect.")) || name == QLatin1String("picture.fill") || name == QLatin1String("picture.fit"))
             a->setEnabled(picture);
     }
     if (picture) {

@@ -241,6 +241,9 @@ public:
     bool distributeSelectedObjects(bool horizontal);
     // Edit Points: the points of the selected shape's outline are shown and pulled (Ctrl+click a point takes it away, Ctrl+click the outline puts one in); Escape, or another selection, ends it.
     void setEditPoints(bool on);
+    // Edit Wrap Points: the outline of the selected picture's tight wrap, with a point to drag at each corner (Ctrl and a click on the outline puts one in, on a point takes it away).
+    void setEditWrap(bool on);
+    bool editingWrap() const { return m_editWrap; }
     bool editingPoints() const { return pointsActive(); }
     // Connect joins the two objects selected with a glued connector of this kind (see connectObjects); the connector is then selected.
     bool connectSelectedObjects(const QString &preset);
@@ -471,12 +474,12 @@ private:
         QPointF at;         // where the pointer is, for a yellow handle or the turning handle
     };
     int m_adjustHandleHit = 0;
-    bool m_editPoints = false;
+    bool m_editPoints = false, m_editWrap = false;
     int m_pointHit = -1;
     bool pointsActive() const;
     // What the selected shape is, its yellow handles, and its points, worked out once for a selection and a revision of the text and kept (the pages ask on every mouse move and every paint).
     struct ShapeCache {
-        bool valid = false, editPoints = false;
+        bool valid = false, editPoints = false, editWrap = false;
         int position = -1, revision = -1;
         PictureInfo info;
         QVector<ShapeHandle> handles;

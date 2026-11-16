@@ -450,6 +450,12 @@ void PageView::keyPressEvent(QKeyEvent *e)
         e->accept();
         return;
     }
+    if (e->key() == Qt::Key_Escape && m_editWrap) {
+        setEditWrap(false);
+        Q_EMIT caretChanged();
+        e->accept();
+        return;
+    }
     if (e->key() == Qt::Key_Escape && m_editPoints) {
         m_editPoints = false;
         viewport()->update();

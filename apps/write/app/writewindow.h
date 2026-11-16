@@ -422,6 +422,9 @@ private:
     void editChartTitle();
     void editChartAxisTitle(bool values);
     void cropSelectedPicture();
+    void editWrapPoints();
+    void addWrapDetails(QMenu *menu);
+    void wrapDistanceDialog();
     void changeSelectedPicture();
     void compressPicturesDialog();
     void shapeRibbonParts(RibbonParts &parts);

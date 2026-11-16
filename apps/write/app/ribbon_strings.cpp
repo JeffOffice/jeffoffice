@@ -11,6 +11,7 @@
     QT_TRANSLATE_NOOP("Ribbon", "Align"),
     QT_TRANSLATE_NOOP("Ribbon", "Alignment"),
     QT_TRANSLATE_NOOP("Ribbon", "Arrange"),
+    QT_TRANSLATE_NOOP("Ribbon", "Aspect Ratio"),
     QT_TRANSLATE_NOOP("Ribbon", "Axes"),
     QT_TRANSLATE_NOOP("Ribbon", "Bibliography"),
     QT_TRANSLATE_NOOP("Ribbon", "Borders"),
