@@ -17,6 +17,7 @@
 #include <QSizeF>
 #include <QStringList>
 #include <QVector>
+#include <QPolygonF>
 #include <QTextCursor>
 #include <functional>
 #include <optional>
@@ -25,6 +26,8 @@
 namespace jp::write {
 
 enum class PictureWrap { Inline, Square, Tight, TopAndBottom, BehindText, InFrontOfText };
+// Where the text goes beside a square or tight wrap: on both sides of the picture, only to its left or its right, or on the larger side.
+enum class PictureWrapSide { Both, Left, Right, Largest };
 // Where a floating picture goes among the floating pictures of the story (their layers: the ones behind the text, then the ones in front of it): to the very front or back of its
 // layer, or one step forward or backward, which past the end of the layer takes it behind (or in front of) the text.
 enum class PictureOrder { BringToFront, SendToBack, BringForward, SendBackward };
@@ -69,6 +72,9 @@ struct PictureInfo {
     bool editable = false;     // the program can change it (see above)
     bool floating = false;
     PictureWrap wrap = PictureWrap::Inline;
+    PictureWrapSide wrapSide = PictureWrapSide::Both;
+    double distTop = 0, distBottom = 0, distLeft = 0, distRight = 0;   // the room the wrapping text leaves, in points
+    QPolygonF wrapOutline;          // the outline a tight wrap follows, as shares of the picture's frame (empty: the frame itself)
     double width = 0, height = 0;   // points
     double left = 0, top = 0;       // a picture set at a place: from where it is measured (points)
     bool placeIsOffset = false;     // `left` and `top` are offsets (else the picture is aligned, and they are 0)
@@ -120,6 +126,16 @@ bool setPictureSize(WriteDoc &doc, int position, double width, double height);
 // The size and the place (the picture's top left corner on the page) in one step; with no place, only the size; with no size (0), only the place.
 bool setPictureBox(WriteDoc &doc, int position, double width, double height, const std::optional<QPointF> &pageTopLeft, bool keepGlue = false);
 bool setPictureWrap(WriteDoc &doc, int position, PictureWrap wrap);
+// Where the text goes beside a square or tight wrap (a picture in line, behind, or in front of the text has no side: false). One step; false when it makes no difference.
+bool setPictureWrapSide(WriteDoc &doc, int position, PictureWrapSide side);
+// The room the wrapping text leaves round the picture, each at most kMostWrapDistance points. One step; false when it makes no difference or a value is not usable.
+constexpr double kMostWrapDistance = 1584;
+bool setPictureWrapDistances(WriteDoc &doc, int position, double top, double bottom, double left, double right);
+// The outline a tight wrap follows (shares of the picture's frame; see core/wrapoutline.h for what is kept: at most kMostWrapPoints, none outside the reach). A square wrap becomes a
+// tight one; an empty outline gives the frame back. One step; false when it makes no difference.
+bool setPictureWrapOutline(WriteDoc &doc, int position, const QPolygonF &outline);
+// The outline Edit Wrap Points starts from: the picture's own if it has one, else the frame's corners and the middles of its sides.
+QPolygonF startingWrapOutline(const PictureInfo &info);
 // Moves the floating picture at `position` in the layers as `order` says, as one step that undoes (the pictures it passes are given heights to keep their order). False where it does
 // not move (an inline picture, or one already there); `canOrderPicture` says whether it would.
 bool setPictureOrder(WriteDoc &doc, int position, PictureOrder order);
@@ -327,6 +343,12 @@ bool setShapeRotation(WriteDoc &doc, int position, double degrees);
 bool setShapeGradient(WriteDoc &doc, int position, const QString &from, const QString &to, double angle);
 // Cuts the picture to a shape of the gallery (its preset name; "rect" takes the cut off); the picture's frame and size stay. One step.
 bool setPictureCropShape(WriteDoc &doc, int position, const QString &preset);
+// Aspect Ratio: the part of the picture that shows is cut, from its middle, to the shape width : height, and the frame shrinks with it so that the picture keeps its scale. One step;
+// false when it makes no difference or nothing would be left.
+bool setPictureCropAspect(WriteDoc &doc, int position, double width, double height);
+// Fill (the frame stays and the picture covers all of it, cut evenly on the sides that reach past it) and Fit (the whole picture shows in the frame, with room round it, or the frame
+// shrinks to its shape where the room would be more than the picture's own size). One step; false when it makes no difference or the picture's size can't be read.
+bool setPictureCropFill(WriteDoc &doc, int position, bool fill);
 // Where a floating object is lined up: across to the left, middle, or right, or down to the top, middle, or bottom, of the margins or the page (the other direction is kept). An object
 // that is in line with the text becomes a floating one (in front of the text).
 enum class ObjectAlign { Left, Center, Right, Top, Middle, Bottom };

@@ -6,6 +6,7 @@
 
 #include "core/fonts.h"
 #include "office/barcodemarker.h"
+#include "wml/wmlwrap.h"
 
 #include <QColor>
 #include <QCoreApplication>
@@ -963,6 +964,7 @@ QByteArray Writer::drawingXml(const T &t, int drawing, ParaCtx *pc, int depth)
     }
     // The frame's style: how it is set among the text.
     QByteArray gp;
+    QByteArray contour;   // a tight wrap's outline, as the frame holds it
     QByteArray frameAttrs = " draw:name=\"" + esc(name.isEmpty() ? QStringLiteral("Object%1").arg(++m_frameCount) : name) + "\"";
     if (inlineFrame) {
         gp = " style:vertical-pos=\"top\" style:vertical-rel=\"baseline\" style:horizontal-pos=\"center\" style:horizontal-rel=\"paragraph\" fo:margin-left=\"0in\" fo:margin-right=\"0in\" fo:margin-top=\"0in\" fo:margin-bottom=\"0in\" style:wrap=\"none\"";
@@ -1003,6 +1005,14 @@ QByteArray Writer::drawingXml(const T &t, int drawing, ParaCtx *pc, int depth)
             if (t.is(c, "wrapSquare", wp) || t.is(c, "wrapTight", wp) || t.is(c, "wrapThrough", wp)) {
                 const QString side = t.attr(c, "wrapText");
                 wrap = side == QLatin1String("left") ? "left" : side == QLatin1String("right") ? "right" : "parallel";
+                if (const QPolygonF outline = wml::readWrapPolygon(t, c); outline.size() >= 3 && !t.is(c, "wrapSquare", wp)) {
+                    // (The points are in units of 1/21600 of the frame, in a view box of that size over the frame's own size.)
+                    contour = "<draw:contour-polygon svg:width=\"" + emuLength(cx) + "\" svg:height=\"" + emuLength(cy) + "\" svg:viewBox=\"0 0 21600 21600\" draw:points=\"";
+                    for (int i = 0; i < outline.size(); ++i)
+                        contour += (i ? " " : "") + num(qint64(std::llround(outline[i].x() * 21600.0))) + "," + num(qint64(std::llround(outline[i].y() * 21600.0)));
+                    contour += "\"/>";
+                    extra += " style:wrap-contour=\"true\"";
+                }
             } else if (t.is(c, "wrapTopAndBottom", wp)) wrap = "none";
             else if (t.is(c, "wrapNone", wp)) {
                 wrap = "run-through";
@@ -1117,7 +1127,7 @@ QByteArray Writer::drawingXml(const T &t, int drawing, ParaCtx *pc, int depth)
         }
         x += " svg:height=\"" + emuLength(cy) + "\"><draw:image xlink:href=\"" + esc(href) + "\" xlink:type=\"simple\" xlink:show=\"embed\" xlink:actuate=\"onLoad\"/>";
         if (!descr.isEmpty()) x += "<svg:desc>" + esc(descr, false) + "</svg:desc>";
-        x += "</draw:frame>";
+        x += contour + "</draw:frame>";
         return x;
     }
     // A text box: the paragraphs it holds.

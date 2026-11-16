@@ -22,6 +22,7 @@
 #include "text/textprops.h"
 
 #include <QBuffer>
+#include <QImage>
 #include <QFile>
 #include <QTemporaryDir>
 #include <QTest>
@@ -919,6 +920,42 @@ private Q_SLOTS:
         QFile f(out);
         QVERIFY(f.open(QIODevice::WriteOnly));
         QCOMPARE(f.write(odt), odt.size());
+    }
+
+    // A tight wrap's outline is the frame's contour polygon in an .odt, and a picture's side and room round it are its wrap and margins; all of it is read back the same.
+    void aWrapOutlineAndItsRoomAreSavedAsTheFramesContourAndMargins()
+    {
+        auto doc = WriteDoc::blank();
+        QImage image(160, 160, QImage::Format_RGB32);
+        image.fill(Qt::red);
+        QByteArray png;
+        QBuffer buffer(&png);
+        buffer.open(QIODevice::WriteOnly);
+        image.save(&buffer, "PNG");
+        QTextCursor c(doc->story());
+        QCOMPARE(insertPicture(*doc, c, png), PictureResult::Ok);
+        QVERIFY(setPictureWrap(*doc, 0, PictureWrap::Tight));
+        QPolygonF triangle;
+        triangle << QPointF(0.5, 0) << QPointF(1, 1) << QPointF(0, 1);
+        QVERIFY(setPictureWrapOutline(*doc, 0, triangle));
+        QVERIFY(setPictureWrapSide(*doc, 0, PictureWrapSide::Right));
+        QVERIFY(setPictureWrapDistances(*doc, 0, 3, 4, 5, 6));
+        QString err;
+        QStringList notes;
+        const QByteArray odt = doc->toOdt(&err, &notes);
+        QVERIFY2(!odt.isEmpty(), qPrintable(err));
+        const QByteArray content = odtPart(odt, QStringLiteral("content.xml"));
+        QVERIFY(content.contains("<draw:contour-polygon"));
+        QVERIFY(content.contains("draw:points=\"10800,0 21600,21600 0,21600\""));
+        QVERIFY(content.contains("style:wrap-contour=\"true\""));
+        auto back = WriteDoc::fromFile(odt, &err);
+        QVERIFY2(back, qPrintable(err));
+        const PictureInfo info = pictureAt(*back, back->story(), 0);
+        QVERIFY(info.wrap == PictureWrap::Tight);
+        QCOMPARE(info.wrapOutline.size(), 3);
+        QVERIFY(std::abs(info.wrapOutline[0].x() - 0.5) < 0.0001 && std::abs(info.wrapOutline[2].y() - 1.0) < 0.0001);
+        QCOMPARE(info.wrapSide, PictureWrapSide::Right);
+        QVERIFY(std::abs(info.distLeft - 5.0) < 0.1 && std::abs(info.distTop - 3.0) < 0.1);
     }
 
     // The file is the same bytes each time it is saved, in whatever process.

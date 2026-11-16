@@ -1872,6 +1872,7 @@ bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFo
         o.side = s.side == Shape::SideLeft ? flow::FloatingObject::Side::Left : s.side == Shape::SideRight ? flow::FloatingObject::Side::Right
                  : s.side == Shape::SideLargest ? flow::FloatingObject::Side::Largest : flow::FloatingObject::Side::Both;
         o.gap = QMarginsF(s.gapLeft, s.gapTop, s.gapRight, s.gapBottom);
+        if (o.wrap == flow::FloatingObject::Wrap::Tight) o.outline = s.wrapOutline;
         if (s.hidden) o.wrap = flow::FloatingObject::Wrap::None;
         if (lettering) {
             if (!letteringFits(s)) continue;

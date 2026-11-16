@@ -26,6 +26,9 @@
 #include "text/textprops.h"
 #include "wml/wml.h"
 #include "wml/xmltree.h"
+#include "wml/wmlwrap.h"
+#include "core/wrapoutline.h"
+#include "core/picturecrop.h"
 
 #include <QBuffer>
 #include <QDomDocument>
@@ -760,6 +763,12 @@ PictureInfo pictureAt(const WriteDoc &doc, const QTextDocument *story, int posit
     info.valid = true;
     info.floating = s.floating;
     info.wrap = wrapOfShape(s);
+    info.wrapSide = s.side == Shape::SideLeft ? PictureWrapSide::Left : s.side == Shape::SideRight ? PictureWrapSide::Right : s.side == Shape::SideLargest ? PictureWrapSide::Largest : PictureWrapSide::Both;
+    info.distTop = s.gapTop;
+    info.distBottom = s.gapBottom;
+    info.distLeft = s.gapLeft;
+    info.distRight = s.gapRight;
+    info.wrapOutline = s.wrapOutline;
     info.width = s.width;
     info.height = s.height;
     info.alt = s.alt;
@@ -1024,6 +1033,106 @@ bool setPictureWrap(WriteDoc &doc, int position, PictureWrap wrap)
         m.wrap = wrap;
         return true;
     }, true);
+}
+
+namespace {
+
+const QRegularExpression &wrapStartTag()
+{
+    static const QRegularExpression start(QStringLiteral("^<(?:wp:)?(wrap[A-Za-z]+)\\b([^>]*?)/?>"));
+    return start;
+}
+
+// The wrap element as it is kept: the kind of wrap the model has (a through wrap stays through), the side the text goes on, and for a tight wrap its outline (the model's own
+// where `outline` is null, the frame's if it has none). The element's own distances go to the model first (they come before the anchor's when read), so that the anchor's are the ones.
+QByteArray rewrittenWrap(Model &m, const PictureWrapSide *side, const QPolygonF *outline)
+{
+    QString tag, attrs;
+    if (const QRegularExpressionMatch found = wrapStartTag().match(QString::fromUtf8(m.wrapRaw)); found.hasMatch()) {
+        if (m.wrapRawOf == m.wrap) tag = found.captured(1);
+        attrs = found.captured(2);
+        const struct { const char *name; qint64 *to; } dists[] = {{"distT", &m.distT}, {"distB", &m.distB}, {"distL", &m.distL}, {"distR", &m.distR}};
+        for (const auto &d : dists) {
+            const QRegularExpressionMatch v = QRegularExpression(QStringLiteral("\\b%1=\"(-?[0-9]+)\"").arg(QLatin1String(d.name))).match(attrs);
+            if (v.hasMatch()) *d.to = std::clamp<qint64>(v.captured(1).toLongLong(), 0, qint64(kMostWrapDistance * kEmuPerPoint));
+        }
+    }
+    const QRegularExpressionMatch text = QRegularExpression(QStringLiteral("\\bwrapText=\"([A-Za-z]+)\"")).match(attrs);
+    QString sideText = text.hasMatch() ? text.captured(1) : QStringLiteral("bothSides");
+    if (side) sideText = *side == PictureWrapSide::Left ? QStringLiteral("left") : *side == PictureWrapSide::Right ? QStringLiteral("right") : *side == PictureWrapSide::Largest ? QStringLiteral("largest") : QStringLiteral("bothSides");
+    if (m.wrap == PictureWrap::TopAndBottom) return "<wp:wrapTopAndBottom/>";
+    if (m.wrap == PictureWrap::Square) return "<wp:wrapSquare wrapText=\"" + sideText.toLatin1() + "\"/>";
+    if (m.wrap != PictureWrap::Tight) return wrapElement(m.wrap);
+    QPolygonF shape = outline ? *outline : office::wml::readWrapPolygonXml(m.wrapRaw);
+    if (shape.isEmpty()) shape = QPolygonF(QRectF(0, 0, 1, 1));
+    if (tag.isEmpty()) tag = QStringLiteral("wrapTight");
+    return "<wp:" + tag.toLatin1() + " wrapText=\"" + sideText.toLatin1() + "\">" + office::wml::wrapPolygonXml(shape, outline != nullptr || tag == QLatin1String("wrapThrough")) + "</wp:" + tag.toLatin1() + ">";
+}
+
+// A wrap that has a side and room round it: a floating picture that the text goes round.
+bool goesRound(const Model &m) { return m.floating && (m.wrap == PictureWrap::Square || m.wrap == PictureWrap::Tight || m.wrap == PictureWrap::TopAndBottom); }
+
+}
+
+bool setPictureWrapSide(WriteDoc &doc, int position, PictureWrapSide side)
+{
+    return changePicture(doc, position, [&](Model &m) {
+        if (!goesRound(m) || m.wrap == PictureWrap::TopAndBottom) return false;
+        const QRegularExpressionMatch text = QRegularExpression(QStringLiteral("\\bwrapText=\"([A-Za-z]+)\"")).match(QString::fromUtf8(m.wrapRawOf == m.wrap ? m.wrapRaw : wrapElement(m.wrap)));
+        const QString now = text.hasMatch() ? text.captured(1) : QStringLiteral("bothSides");
+        const QString wanted = side == PictureWrapSide::Left ? QStringLiteral("left") : side == PictureWrapSide::Right ? QStringLiteral("right") : side == PictureWrapSide::Largest ? QStringLiteral("largest") : QStringLiteral("bothSides");
+        if (now == wanted) return false;
+        m.wrapRaw = rewrittenWrap(m, &side, nullptr);
+        m.wrapRawOf = m.wrap;
+        return true;
+    }, true);
+}
+
+bool setPictureWrapDistances(WriteDoc &doc, int position, double top, double bottom, double left, double right)
+{
+    for (double v : {top, bottom, left, right})
+        if (!std::isfinite(v) || v < 0 || v > kMostWrapDistance) return false;
+    return changePicture(doc, position, [&](Model &m) {
+        if (!goesRound(m)) return false;
+        const qint64 t = qint64(std::llround(top * kEmuPerPoint)), b = qint64(std::llround(bottom * kEmuPerPoint)), l = qint64(std::llround(left * kEmuPerPoint)), r = qint64(std::llround(right * kEmuPerPoint));
+        const Model was = m;
+        m.wrapRaw = rewrittenWrap(m, nullptr, nullptr);
+        m.wrapRawOf = m.wrap;
+        m.distT = t;
+        m.distB = b;
+        m.distL = l;
+        m.distR = r;
+        // (A wrap element that had distances of its own has them moved to the anchor: a change though the numbers are the same.)
+        const QRegularExpression own(QStringLiteral("\\bdist[TBLR]=\""));
+        return m.distT != was.distT || m.distB != was.distB || m.distL != was.distL || m.distR != was.distR || own.match(QString::fromUtf8(was.wrapRaw)).hasMatch();
+    }, true);
+}
+
+bool setPictureWrapOutline(WriteDoc &doc, int position, const QPolygonF &outline)
+{
+    const QPolygonF kept = jp::boundedWrapOutline(QVector<QPointF>(outline.begin(), outline.end()));
+    if (!outline.isEmpty() && kept.isEmpty()) return false;
+    return changePicture(doc, position, [&](Model &m) {
+        if (!m.floating || (m.wrap != PictureWrap::Square && m.wrap != PictureWrap::Tight)) return false;
+        const PictureWrap was = m.wrap;
+        const QPolygonF before = was == PictureWrap::Tight ? office::wml::readWrapPolygonXml(m.wrapRaw) : QPolygonF();
+        if (kept == before && was == PictureWrap::Tight) return false;
+        m.wrap = PictureWrap::Tight;
+        m.wrapRaw = rewrittenWrap(m, nullptr, &kept);
+        m.wrapRawOf = m.wrap;
+        return true;
+    }, true);
+}
+
+QPolygonF startingWrapOutline(const PictureInfo &info)
+{
+    // (An outline that is the frame's four corners is where a file starts, not an edit: it gets the middles of the sides too.)
+    bool corners = info.wrapOutline.size() == 4;
+    for (const QPointF &p : info.wrapOutline) corners = corners && (p.x() == 0 || p.x() == 1) && (p.y() == 0 || p.y() == 1);
+    if (info.wrapOutline.size() >= 3 && !corners) return info.wrapOutline;
+    QPolygonF out;
+    out << QPointF(0, 0) << QPointF(0.5, 0) << QPointF(1, 0) << QPointF(1, 0.5) << QPointF(1, 1) << QPointF(0.5, 1) << QPointF(0, 1) << QPointF(0, 0.5);
+    return out;
 }
 
 namespace {
@@ -4050,6 +4159,48 @@ bool resetPictureOf(WriteDoc &doc, int position, bool andSize)
 bool resetPicture(WriteDoc &doc, int position) { return resetPictureOf(doc, position, false); }
 
 bool resetPictureAndSize(WriteDoc &doc, int position) { return resetPictureOf(doc, position, true); }
+
+namespace {
+
+// A crop worked out by core/picturecrop.h put into the picture: the cut, and the frame the plan gives (in place of the one that keeps the scale, which applyCut sets).
+bool applyCropPlan(Model &m, const CropPlan &plan)
+{
+    if (!plan.valid) return false;
+    const double now[4] = {plan.shares.left, plan.shares.top, plan.shares.right, plan.shares.bottom};
+    bool changed = applyCut(m, now);
+    const qint64 w = std::clamp<qint64>(qint64(std::llround(plan.frame.width())), qint64(kLeastPictureSize * kEmuPerPoint), qint64(kMostPictureSize * kEmuPerPoint));
+    const qint64 h = std::clamp<qint64>(qint64(std::llround(plan.frame.height())), qint64(kLeastPictureSize * kEmuPerPoint), qint64(kMostPictureSize * kEmuPerPoint));
+    if (m.cx != w || m.cy != h) {
+        m.graphic = graphicWithSize(m.graphic, w, h);
+        m.cx = w;
+        m.cy = h;
+        changed = true;
+    }
+    return changed;
+}
+
+}
+
+bool setPictureCropAspect(WriteDoc &doc, int position, double width, double height)
+{
+    return changePicture(doc, position, [&](Model &m) {
+        if (!m.graphic.contains("blip") || m.graphic.contains("wsp")) return false;
+        double was[4];
+        cutOf(m.graphic, was);
+        return applyCropPlan(m, planCropAspect(QSizeF(double(m.cx), double(m.cy)), CropShares{was[0], was[1], was[2], was[3]}, width, height));
+    });
+}
+
+bool setPictureCropFill(WriteDoc &doc, int position, bool fill)
+{
+    return changePicture(doc, position, [&](Model &m) {
+        if (!m.graphic.contains("blip") || m.graphic.contains("wsp")) return false;
+        const QSize px = blipPixelSize(doc, m.graphic);
+        if (px.isEmpty()) return false;
+        const QSizeF frame(double(m.cx), double(m.cy)), whole(px);
+        return applyCropPlan(m, fill ? planCropFill(frame, whole) : planCropFit(frame, whole, true));
+    });
+}
 
 PictureResult changePictureFile(WriteDoc &doc, int position, const QByteArray &bytes)
 {

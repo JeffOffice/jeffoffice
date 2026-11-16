@@ -1,4 +1,6 @@
 #include "tst_write.h"
+#include "core/wrapoutline.h"
+#include "wml/wml.h"
 
 
 // ---- endnotes: the most notes, in the window
@@ -696,6 +698,195 @@ void WriteTests::eachWrapOfAPictureShowsOnThePageIsOneStepAndSavesAndOpensTheSam
         QVERIFY(!pictureAt(*doc, doc->story(), 0).floating);
         QVERIFY(documentXml(doc->toDocx()).contains("<wp:inline"));
     }
+}
+
+
+// The text goes on the side the wrap says (left, right, the larger, both), and leaves the room it is told to; each is one step, and the file says it.
+void WriteTests::aWrapSideAndTheRoomRoundAPictureAreOneStepEachAndSave()
+{
+    auto doc = textDoc({longText()});
+    QTextCursor c(doc->story());
+    QCOMPARE(insertPicture(*doc, c, pngOf(160, 160)), PictureResult::Ok);
+    // (In line, a picture has no side and no room: nothing is done.)
+    QVERIFY(!setPictureWrapSide(*doc, 0, PictureWrapSide::Left));
+    QVERIFY(!setPictureWrapDistances(*doc, 0, 1, 2, 3, 4));
+    QVERIFY(setPictureWrap(*doc, 0, PictureWrap::Square));
+    QCOMPARE(pictureAt(*doc, doc->story(), 0).wrapSide, PictureWrapSide::Both);
+    QVERIFY(!setPictureWrapSide(*doc, 0, PictureWrapSide::Both));   // (as it is: no step)
+    QVERIFY(setPictureWrapSide(*doc, 0, PictureWrapSide::Left));
+    QCOMPARE(pictureAt(*doc, doc->story(), 0).wrapSide, PictureWrapSide::Left);
+    QVERIFY(documentXml(doc->toDocx()).contains("wrapText=\"left\""));
+    QVERIFY(doc->undo());
+    QCOMPARE(pictureAt(*doc, doc->story(), 0).wrapSide, PictureWrapSide::Both);
+    QVERIFY(doc->redo());
+    for (const auto &side : {std::pair<PictureWrapSide, const char *>{PictureWrapSide::Right, "right"}, {PictureWrapSide::Largest, "largest"}}) {
+        QVERIFY(setPictureWrapSide(*doc, 0, side.first));
+        const QByteArray xml = documentXml(doc->toDocx());
+        QVERIFY2(xml.contains(QByteArray("wrapText=\"") + side.second + "\""), side.second);
+        auto back = open(doc->toDocx());
+        QVERIFY(back);
+        QCOMPARE(pictureAt(*back, back->story(), 0).wrapSide, side.first);
+    }
+    // The room: top, bottom, left, and right, in points, kept in the anchor, and no wrap element holds another.
+    QVERIFY(setPictureWrapDistances(*doc, 0, 10, 20, 30, 40));
+    PictureInfo info = pictureAt(*doc, doc->story(), 0);
+    QCOMPARE(info.distTop, 10.0);
+    QCOMPARE(info.distBottom, 20.0);
+    QCOMPARE(info.distLeft, 30.0);
+    QCOMPARE(info.distRight, 40.0);
+    QCOMPARE(info.wrapSide, PictureWrapSide::Largest);   // (the side stays)
+    QByteArray xml = documentXml(doc->toDocx());
+    QVERIFY(xml.contains("distT=\"127000\"") && xml.contains("distR=\"508000\""));
+    QVERIFY(!setPictureWrapDistances(*doc, 0, 10, 20, 30, 40));
+    QVERIFY(!setPictureWrapDistances(*doc, 0, -1, 0, 0, 0));
+    QVERIFY(!setPictureWrapDistances(*doc, 0, 0, 0, 0, kMostWrapDistance + 1));
+    QVERIFY(!setPictureWrapDistances(*doc, 0, 0, 0, std::nan(""), 0));
+    auto back = open(doc->toDocx());
+    QVERIFY(back);
+    info = pictureAt(*back, back->story(), 0);
+    QCOMPARE(info.distLeft, 30.0);
+    QCOMPARE(info.distBottom, 20.0);
+    // The room moves the text: with 40 points on the right instead of 9, the line begins that much farther along (the picture is at the left, 120 points wide, and the text goes round).
+    QVERIFY(setPictureWrapSide(*doc, 0, PictureWrapSide::Both));
+    QVERIFY(setPictureWrapDistances(*doc, 0, 0, 0, 0, 5));
+    const double near = firstLineRect(*doc).left();
+    QVERIFY(setPictureWrapDistances(*doc, 0, 0, 0, 0, 60));
+    QVERIFY2(firstLineRect(*doc).left() > near + 40, qPrintable(QString::number(firstLineRect(*doc).left()) + " vs " + QString::number(near)));
+    // A file's own distances on the wrap element are the ones kept when the side changes (they come before the anchor's when read).
+    QVERIFY(doc->undo());
+    QVERIFY(doc->undo());
+    QCOMPARE(pictureAt(*doc, doc->story(), 0).distLeft, 30.0);
+}
+
+
+// Edit Wrap Points: a square wrap becomes a tight one with the outline given, the text goes round that outline and not the frame, it saves as a wrap polygon, and one step undoes.
+void WriteTests::theOutlineOfATightWrapIsEditedSavedAndFollowedByTheText()
+{
+    auto doc = textDoc({longText()});
+    QTextCursor c(doc->story());
+    QCOMPARE(insertPicture(*doc, c, pngOf(160, 160)), PictureResult::Ok);
+    QVERIFY(setPictureWrap(*doc, 0, PictureWrap::Tight));   // (tight until it has an outline of its own goes round its frame)
+    QVERIFY2(firstLineRect(*doc).left() >= 118, qPrintable(QString::number(firstLineRect(*doc).left())));
+    PictureInfo info = pictureAt(*doc, doc->story(), 0);
+    QCOMPARE(startingWrapOutline(info).size(), 8);   // (the corners and the middles of the sides)
+    QPolygonF triangle;
+    triangle << QPointF(0.5, 0) << QPointF(1, 1) << QPointF(0, 1);
+    QVERIFY(setPictureWrapOutline(*doc, 0, triangle));
+    QVERIFY(!setPictureWrapOutline(*doc, 0, triangle));
+    info = pictureAt(*doc, doc->story(), 0);
+    QVERIFY(info.wrap == PictureWrap::Tight);
+    QCOMPARE(info.wrapOutline.size(), 3);
+    QCOMPARE(info.wrapOutline[0], QPointF(0.5, 0));
+    // The first line is at the point of the triangle: it goes on past the point's side, not past the whole frame.
+    QVERIFY2(firstLineRect(*doc).left() < 100, qPrintable(QString::number(firstLineRect(*doc).left())));
+    const QByteArray xml = documentXml(doc->toDocx());
+    QVERIFY(xml.contains("<wp:wrapPolygon edited=\"1\">") && xml.contains("<wp:start x=\"10800\" y=\"0\"/>"));
+    auto back = open(doc->toDocx());
+    QVERIFY(back);
+    QCOMPARE(pictureAt(*back, back->story(), 0).wrapOutline, triangle);
+    QVERIFY2(firstLineRect(*back).left() < 100, "the outline lays out after opening");
+    // A square wrap given an outline becomes a tight one; an empty one gives the frame back; one that is not an outline is refused.
+    QVERIFY(setPictureWrap(*doc, 0, PictureWrap::Square));
+    QVERIFY(setPictureWrapOutline(*doc, 0, triangle));
+    QVERIFY(pictureAt(*doc, doc->story(), 0).wrap == PictureWrap::Tight);
+    QVERIFY(setPictureWrapOutline(*doc, 0, QPolygonF()));
+    QVERIFY(pictureAt(*doc, doc->story(), 0).wrapOutline.size() >= 3);   // (the frame's four corners)
+    QVERIFY2(firstLineRect(*doc).left() >= 118, qPrintable(QString::number(firstLineRect(*doc).left())));
+    QPolygonF two;
+    two << QPointF(0, 0) << QPointF(1, 1);
+    QVERIFY(!setPictureWrapOutline(*doc, 0, two));
+    QVERIFY(doc->undo());
+    QCOMPARE(pictureAt(*doc, doc->story(), 0).wrapOutline, triangle);
+    // The outline of a picture in line, behind the text, or in front of it is not set.
+    QVERIFY(setPictureWrap(*doc, 0, PictureWrap::BehindText));
+    QVERIFY(!setPictureWrapOutline(*doc, 0, triangle));
+}
+
+
+// A file's wrap outline is bounded where it is read, and so is what is set: at most jp::kMostWrapPoints, each held to the reach (the limit is the count: remove it and 500 points are kept).
+void WriteTests::aLongWrapOutlineIsHeldToTheMostPointsWhenSetAndWhenRead()
+{
+    auto doc = textDoc({longText()});
+    QTextCursor c(doc->story());
+    QCOMPARE(insertPicture(*doc, c, pngOf(160, 160)), PictureResult::Ok);
+    QVERIFY(setPictureWrap(*doc, 0, PictureWrap::Tight));
+    QPolygonF big;
+    for (int i = 0; i < 500; ++i) big << QPointF(0.5 + 0.4 * std::cos(i * 0.0126), 0.5 + 0.4 * std::sin(i * 0.0126));
+    big[3] = QPointF(1e9, -1e9);
+    QVERIFY(setPictureWrapOutline(*doc, 0, big));
+    const PictureInfo info = pictureAt(*doc, doc->story(), 0);
+    QCOMPARE(info.wrapOutline.size(), jp::kMostWrapPoints);
+    QCOMPARE(info.wrapOutline[3], QPointF(1.0 + jp::kWrapOutlineReach, -jp::kWrapOutlineReach));
+    QByteArray xml = documentXml(doc->toDocx());
+    QCOMPARE(xml.count("<wp:lineTo"), jp::kMostWrapPoints);
+    // A file that holds a thousand points reads as the most (the points after them are not looked at).
+    QByteArray hostile = "<wp:wrapPolygon edited=\"1\"><wp:start x=\"0\" y=\"0\"/>";
+    for (int i = 0; i < 1000; ++i) hostile += "<wp:lineTo x=\"" + QByteArray::number((i * 37) % 21600) + "\" y=\"" + QByteArray::number((i * 91) % 21600) + "\"/>";
+    hostile += "</wp:wrapPolygon>";
+    const int open1 = xml.indexOf("<wp:wrapPolygon"), close1 = xml.indexOf("</wp:wrapPolygon>") + int(sizeof("</wp:wrapPolygon>")) - 1;
+    QVERIFY(open1 > 0 && close1 > open1);
+    const QByteArray changed = xml.left(open1) + hostile + xml.mid(close1);
+    QVERIFY(changed.count("<wp:lineTo") == 1000);
+    const int drawingFrom = changed.indexOf("<w:drawing"), drawingTo = changed.indexOf("</w:drawing>") + int(sizeof("</w:drawing>")) - 1;
+    QVERIFY(drawingFrom >= 0 && drawingTo > drawingFrom);
+    const QByteArray drawing = changed.mid(drawingFrom, drawingTo - drawingFrom);
+    const QByteArray declared = "<w:drawing xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\" "
+                                "xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" xmlns:pic=\"http://schemas.openxmlformats.org/drawingml/2006/picture\" "
+                                "xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"";
+    const QVector<jp::office::wml::Shape> shapes = jp::office::wml::readShapes(declared + drawing.mid(int(sizeof("<w:drawing")) - 1));
+    QVERIFY(!shapes.isEmpty());
+    QCOMPARE(shapes.first().wrapOutline.size(), jp::kMostWrapPoints);
+}
+
+
+// Aspect Ratio, Fill, and Fit: one step each; the cut is saved as srcRect, and a picture cut to a shape keeps its size and its shape.
+void WriteTests::aPictureIsCutToAnAspectRatioFilledAndFittedInOneStepEach()
+{
+    auto doc = textDoc({longText()});
+    QTextCursor c(doc->story());
+    QCOMPARE(insertPicture(*doc, c, pngOf(200, 100)), PictureResult::Ok);   // 150 x 75 points, in line
+    const PictureInfo whole = pictureAt(*doc, doc->story(), 0);
+    QVERIFY(setPictureCropAspect(*doc, 0, 1, 1));
+    PictureInfo info = pictureAt(*doc, doc->story(), 0);
+    QVERIFY2(std::abs(info.width - whole.height) < 0.1 && std::abs(info.height - whole.height) < 0.1, qPrintable(QString::number(info.width)));
+    QVERIFY(std::abs(info.cropLeft - 0.25) < 0.001 && std::abs(info.cropRight - 0.25) < 0.001 && std::abs(info.cropTop) < 0.001);
+    QVERIFY(!setPictureCropAspect(*doc, 0, 1, 1));   // (it is that shape: no step)
+    QVERIFY(documentXml(doc->toDocx()).contains("<a:srcRect l=\"25000\" r=\"25000\"/>"));
+    // Fit: the frame stays and the picture has room above and below.
+    QVERIFY(setPictureCropFill(*doc, 0, false));
+    info = pictureAt(*doc, doc->story(), 0);
+    QVERIFY(std::abs(info.width - whole.height) < 0.1 && std::abs(info.height - whole.height) < 0.1);
+    QVERIFY2(std::abs(info.cropTop + 0.5) < 0.001 && std::abs(info.cropBottom + 0.5) < 0.001 && std::abs(info.cropLeft) < 0.001, qPrintable(QString::number(info.cropTop)));
+    QVERIFY(documentXml(doc->toDocx()).contains("t=\"-50000\""));
+    QVERIFY(!setPictureCropFill(*doc, 0, false));
+    // Fill: the room is gone and the sides are cut.
+    QVERIFY(setPictureCropFill(*doc, 0, true));
+    info = pictureAt(*doc, doc->story(), 0);
+    QVERIFY(std::abs(info.cropLeft - 0.25) < 0.001 && std::abs(info.cropTop) < 0.001 && std::abs(info.width - whole.height) < 0.1);
+    // Each is one step.
+    QVERIFY(doc->undo());
+    QVERIFY(std::abs(pictureAt(*doc, doc->story(), 0).cropTop + 0.5) < 0.001);
+    QVERIFY(doc->undo());
+    QVERIFY(std::abs(pictureAt(*doc, doc->story(), 0).cropLeft - 0.25) < 0.001);
+    QVERIFY(doc->undo());
+    QVERIFY(std::abs(pictureAt(*doc, doc->story(), 0).width - whole.width) < 0.1);
+    // A saved crop opens the same.
+    QVERIFY(doc->redo());
+    auto back = open(doc->toDocx());
+    QVERIFY(back);
+    QVERIFY(std::abs(pictureAt(*back, back->story(), 0).cropRight - 0.25) < 0.001);
+    // A cut that would leave nothing, a ratio that is not one, and a shape that is no picture change nothing.
+    QVERIFY(!setPictureCropAspect(*doc, 0, 0, 1));
+    QVERIFY(!setPictureCropAspect(*doc, 0, 1, std::nan("")));
+    QTextCursor d(doc->story());
+    d.movePosition(QTextCursor::End);
+    QCOMPARE(insertShape(*doc, d, QStringLiteral("rect")), PictureResult::Ok);
+    int shapeAt = -1;
+    for (int p = 0; p < doc->story()->characterCount() - 1; ++p)
+        if (pictureAt(*doc, doc->story(), p).kind == DrawnKind::Shape) shapeAt = p;
+    QVERIFY(shapeAt >= 0);
+    QVERIFY(!setPictureCropAspect(*doc, shapeAt, 1, 1));
+    QVERIFY(!setPictureCropFill(*doc, shapeAt, true));
 }
 
 

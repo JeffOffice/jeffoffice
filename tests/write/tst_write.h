@@ -1617,6 +1617,10 @@ private Q_SLOTS:
     void aPictureLargerThanTheColumnIsMadeToFitIt();
     void aPictureFromAnImageIsKeptAsPngAndSavesAndOpensTheSame();
     void eachWrapOfAPictureShowsOnThePageIsOneStepAndSavesAndOpensTheSame();
+    void aWrapSideAndTheRoomRoundAPictureAreOneStepEachAndSave();
+    void theOutlineOfATightWrapIsEditedSavedAndFollowedByTheText();
+    void aLongWrapOutlineIsHeldToTheMostPointsWhenSetAndWhenRead();
+    void aPictureIsCutToAnAspectRatioFilledAndFittedInOneStepEach();
     void aPictureMarkedAsDecorativeHasNoDescriptionAndKeepsTheMarkWhenSaved();
     void aPictureIsSizedPlacedAndDescribedInOneStepEach();
     void aPictureInTheTextMovesToAnotherPlaceInOneStep();

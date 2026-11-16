@@ -2,6 +2,8 @@
 
 #include "odt/odtread.h"
 #include "office/barcodemarker.h"
+#include "wml/wmlwrap.h"
+#include "core/wrapoutline.h"
 
 #include <QCoreApplication>
 #include <QDateTime>
@@ -251,6 +253,24 @@ QByteArray Reader::anchorXml(const Odf &o, int frame, const QString &styleName, 
     else if (wrap == QLatin1String("parallel") || wrap == QLatin1String("dynamic")) wrapXml = "<wp:wrapSquare wrapText=\"bothSides\"/>";
     else if (wrap == QLatin1String("biggest")) wrapXml = "<wp:wrapSquare wrapText=\"largest\"/>";
     else wrapXml = "<wp:wrapNone/>";
+    // A tight wrap's outline: the frame's contour polygon (its points in a view box over the frame), read as shares of the frame and bounded.
+    if (g("style:wrap-contour") == QLatin1String("true") && wrapXml.startsWith("<wp:wrapSquare")) {
+        if (const int poly = o.child(frame, "draw:contour-polygon"); poly >= 0) {
+            const QStringList box = o.at(poly, "svg:viewBox").split(QRegularExpression(QStringLiteral("[\\s,]+")), Qt::SkipEmptyParts);
+            const double minX = box.size() == 4 ? box[0].toDouble() : 0, minY = box.size() == 4 ? box[1].toDouble() : 0, w0 = box.size() == 4 ? box[2].toDouble() : 0, h0 = box.size() == 4 ? box[3].toDouble() : 0;
+            QVector<QPointF> points;
+            if (w0 > 0 && h0 > 0)
+                for (const QString &pair : o.at(poly, "draw:points").split(QLatin1Char(' '), Qt::SkipEmptyParts)) {
+                    const QStringList xy = pair.split(QLatin1Char(','));
+                    if (xy.size() == 2 && points.size() < jp::kMostWrapPoints) points.push_back(QPointF((xy[0].toDouble() - minX) / w0, (xy[1].toDouble() - minY) / h0));
+                }
+            const QByteArray outline = jp::office::wml::wrapPolygonXml(jp::boundedWrapOutline(points));
+            if (!outline.isEmpty()) {
+                const QByteArray side = wrapXml.mid(wrapXml.indexOf("wrapText=\"") + 10);
+                wrapXml = "<wp:wrapTight wrapText=\"" + side.left(side.indexOf('"')) + "\">" + outline + "</wp:wrapTight>";
+            }
+        }
+    }
     auto margin = [&](const char *side) {
         bool ok = false;
         QString v = g((QStringLiteral("fo:margin-") + QLatin1String(side)).toLatin1().constData());
