@@ -2816,7 +2816,7 @@
         },
         {
          "status": "partly",
-         "text": "3c3f196b120913084fc10c52a601c3bad6f42b2a8fcffc0cde8123b28aabeb75"
+         "text": "42b7ba4c25cc2c8c715c1a590ce2401c634aef93846d67c3d4be1fc507413208"
         }
        ]
       },
@@ -11994,18 +11994,6 @@
     "fr": ""
    }
   },
-  "3c3f196b120913084fc10c52a601c3bad6f42b2a8fcffc0cde8123b28aabeb75": {
-   "drop": false,
-   "en": "Text shrinks to fit its placeholder, a shape can grow to fit its text, and the Format Shape pane sets how text fits, margins, wrap, and columns for text boxes.",
-   "es": "El texto se reduce para ajustarse a su marcador de posición, una forma puede crecer para ajustarse a su texto y el panel Formato de forma define el ajuste del texto, los márgenes, el ajuste de línea y las columnas de los cuadros de texto.",
-   "fr": "Le texte se réduit pour tenir dans son espace réservé, une forme peut s’agrandir pour contenir son texte, et le volet Format de la forme règle l’ajustement du texte, les marges, le retour à la ligne et les colonnes des zones de texte.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "3c59d3c6c19bc79e78b88ceaaf8ad405ac36fb6b5e886502cf0552f705e6992f": {
    "drop": false,
    "en": "Spelling marks appear as you type in text being edited.",
@@ -12503,6 +12491,18 @@
    "en": "Save `.ods` files with formulas written in OpenFormula and results stored, so other office suites open them as they look here. Pictures, shapes, text boxes, text styles, groups, lines, and charts are saved with their place, size, and outline.",
    "es": "Guarde archivos `.ods` con fórmulas escritas en OpenFormula y resultados almacenados, de modo que otras suites ofimáticas los abran tal como se ven aquí. Las imágenes, formas, cuadros de texto, estilos de texto, grupos, líneas y gráficos se guardan con su posición, tamaño y contorno.",
    "fr": "Enregistrez des fichiers `.ods` avec des formules écrites en OpenFormula et les résultats stockés, afin que d’autres suites bureautiques les ouvrent tels qu’ils apparaissent ici. Les images, formes, zones de texte, styles de texte, groupes, lignes et graphiques sont enregistrés avec leur position, leur taille et leur contour.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "42b7ba4c25cc2c8c715c1a590ce2401c634aef93846d67c3d4be1fc507413208": {
+   "drop": false,
+   "en": "Text shrinks to fit its placeholder, a shape can grow to fit its text, and the Format Shape pane sets how text fits, margins, wrap, and columns for text boxes.",
+   "es": "El texto se reduce para ajustarse a su marcador de posición, una forma puede crecer para ajustarse a su texto, y el panel Formato de forma permite definir el ajuste del texto, los márgenes, el ajuste de línea y las columnas de los cuadros de texto.",
+   "fr": "Le texte se réduit pour tenir dans son espace réservé, une forme peut s’agrandir pour s’adapter à son texte, et le volet Format de la forme permet de régler l’ajustement du texte, les marges, le retour à la ligne et les colonnes des zones de texte.",
    "soon": {
     "drop": true,
     "en": "",
