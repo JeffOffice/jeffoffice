@@ -10,6 +10,7 @@
 #include <QCoreApplication>
 #include <QCryptographicHash>
 #include <QHash>
+#include <QRegularExpression>
 #include <QSet>
 #include <limits>
 #include <algorithm>
@@ -18,6 +19,12 @@
 namespace jp::office::wml {
 
 namespace {
+// Whether a note reference's element says its mark follows (w:customMarkFollows is a boolean: 1, true, or on).
+bool marksFollow(const QByteArray &element)
+{
+    static const QRegularExpression on(QStringLiteral("customMarkFollows\\s*=\\s*\"(?:1|true|on)\""));
+    return on.match(QString::fromLatin1(element.left(1024))).hasMatch();
+}
 
 const char kXmlHead[] = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n";
 const char kWNs[] = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
@@ -602,7 +609,7 @@ void writeInlines(QByteArray &out, const QVector<Inline> &content, qsizetype fro
             out += "<w:r>";
             if (!rpr.isEmpty()) out += "<w:rPr>" + rpr + "</w:rPr>";
             // (A note's reference that says its mark follows has the mark in its own run: w:customMarkFollows names the next child of the run.)
-            if ((a.tag == QLatin1String("footnoteReference") || a.tag == QLatin1String("endnoteReference")) && !a.display.isEmpty() && a.raw.contains("customMarkFollows") && deletedDepth == 0 && i + 1 < content.size() &&
+            if ((a.tag == QLatin1String("footnoteReference") || a.tag == QLatin1String("endnoteReference")) && !a.display.isEmpty() && marksFollow(a.raw) && deletedDepth == 0 && i + 1 < content.size() &&
                 content[i + 1].kind == Inline::Text && content[i + 1].text.startsWith(a.display) && !(whole && !whole->inlineKept(int(b), int(i + 1)))) {
                 out += a.raw + "<w:t xml:space=\"preserve\">" + escapeXml(xmlSafe(a.display)) + "</w:t></w:r>";
                 markAt = i + 1;

@@ -96,7 +96,7 @@ private:
     QByteArray pictureFrame(const T &t, int anchor, int blip, bool inlineOk, int depth);
     QByteArray frameStyle(const T &t, int anchor, bool inlineFrame, QString *anchorType, QString *extra);
     QByteArray imagePart(const QString &rid, QString *href);
-    QByteArray noteXml(const T &t, int ref, bool endnote, int depth);
+    QByteArray noteXml(const T &t, int ref, bool endnote, int depth, const QString &mark = QString());
     QByteArray commentStart(int id);
     // sections
     void collectSections();
@@ -181,6 +181,8 @@ private:
     int m_innerSections = 0;
     bool m_sectionWrapperOpen = false;
     bool m_inNote = false;
+    QString m_stripMark;      // while a note whose mark was typed is written: the mark its words begin with (it is the citation's label), and then the blank after it
+    bool m_stripBlank = false;
 };
 
 } // namespace jp::office::odt

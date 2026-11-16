@@ -1129,7 +1129,7 @@ QByteArray Writer::drawingXml(const T &t, int drawing, ParaCtx *pc, int depth)
     return x;
 }
 
-QByteArray Writer::noteXml(const T &t, int ref, bool endnote, int depth)
+QByteArray Writer::noteXml(const T &t, int ref, bool endnote, int depth, const QString &mark)
 {
     Q_UNUSED(t);
     const T *tree = endnote ? m_endnotes : m_footnotes;
@@ -1148,11 +1148,15 @@ QByteArray Writer::noteXml(const T &t, int ref, bool endnote, int depth)
     if (!rels.isEmpty()) m_source = rels.first().target;
     QByteArray inner;
     m_inNote = true;
+    m_stripMark = mark;
+    m_stripBlank = false;
     emitBlocks(*tree, note, &inner, depth + 4, false);
+    m_stripMark.clear();
+    m_stripBlank = false;
     m_inNote = false;
     m_source = oldSource;
     if (inner.isEmpty()) inner = "<text:p text:style-name=\"Standard\"/>";
-    return "<text:note text:id=\"" + QByteArray(endnote ? "edn" : "ftn") + num(count) + "\" text:note-class=\"" + (endnote ? "endnote" : "footnote") + "\"><text:note-citation>" + num(count) +
+    return "<text:note text:id=\"" + QByteArray(endnote ? "edn" : "ftn") + num(count) + "\" text:note-class=\"" + (endnote ? "endnote" : "footnote") + "\"><text:note-citation" + (mark.isEmpty() ? QByteArray() : " text:label=\"" + esc(mark) + "\"") + ">" + (mark.isEmpty() ? num(count) : esc(mark, false)) +
            "</text:note-citation><text:note-body>" + inner + "</text:note-body></text:note>";
 }
 
@@ -1187,11 +1191,26 @@ void Writer::emitRun(const T &t, int run, ParaCtx *pc, int depth)
     // (The text and marks of the run, made into one span.)
     qsizetype start = pc->xml.size();
     bool spanned = true;
+    int markText = -1;   // the child of the run that is the mark of the note the reference before it says follows (the citation has it)
     for (int c = t.firstChild(run); c >= 0; c = t.next(c)) {
+        if (c == markText) continue;
         const QByteArray name = t.localName(c);
         if (!pc->fields.isEmpty() && !pc->fields.last().result && name != "fldChar" && name != "instrText" && name != "delInstrText") continue;
-        if (name == "t" || name == "delText") emitText(pc, t.text(c), span);
-        else if (name == "tab" || name == "ptab") {
+        if (name == "t" || name == "delText") {
+            QString text = t.text(c);
+            if (!m_stripMark.isEmpty()) {
+                if (text.startsWith(m_stripMark)) {
+                    text = text.mid(m_stripMark.size());
+                    m_stripBlank = true;
+                }
+                m_stripMark.clear();
+            }
+            if (m_stripBlank && !text.isEmpty()) {
+                m_stripBlank = false;
+                if (text.startsWith(QLatin1Char(' '))) text = text.mid(1);
+            }
+            if (!text.isEmpty()) emitText(pc, text, span);
+        } else if (name == "tab" || name == "ptab") {
             pc->xml += "<text:tab/>";
             pc->lastSpace = true;
             pc->plain += QLatin1Char('\t');
@@ -1275,7 +1294,13 @@ void Writer::emitRun(const T &t, int run, ParaCtx *pc, int depth)
             if (!pc->fields.isEmpty()) pc->fields.last().instr += t.text(c);
         } else if (name == "footnoteReference" || name == "endnoteReference") {
             if (!pc->inNote) {
-                const QByteArray note = noteXml(t, c, name == "endnoteReference", depth);
+                QString mark;
+                if (const QString says = t.attr(c, "customMarkFollows"); says == QLatin1String("1") || says == QLatin1String("true") || says == QLatin1String("on"))
+                    if (const int next = t.next(c); next >= 0 && t.localName(next) == "t") {
+                        mark = t.text(next).left(16);
+                        markText = next;
+                    }
+                const QByteArray note = noteXml(t, c, name == "endnoteReference", depth, mark);
                 pc->xml += note;
                 pc->hasContent = true;
             }

@@ -995,12 +995,16 @@ QByteArray Reader::noteReference(const Odf &o, int note, ParaCtx *pc, const RunF
         b.para = true;
         blocks.prepend(b);
     }
-    blocks.first().content = ref + "<w:r><w:t xml:space=\"preserve\"> </w:t></w:r>" + blocks.first().content;
+    // (A citation with a label of its own shows that text, not a number: the reference says the mark follows, and the note begins with it.)
+    const int citation = o.child(note, "text:note-citation");
+    const QString label = citation >= 0 ? o.at(citation, "text:label").left(16) : QString();
+    const QByteArray character = endnote ? "<w:rPr><w:rStyle w:val=\"EndnoteReference\"/></w:rPr>" : "<w:rPr><w:rStyle w:val=\"FootnoteReference\"/></w:rPr>";
+    blocks.first().content = (label.isEmpty() ? ref : "<w:r>" + character + "<w:t xml:space=\"preserve\">" + esc(label, false) + "</w:t></w:r>") + "<w:r><w:t xml:space=\"preserve\"> </w:t></w:r>" + blocks.first().content;
     const QByteArray tag = endnote ? "w:endnote" : "w:footnote";
     (endnote ? m_endnotesBody : m_footnotesBody) += "<" + tag + " w:id=\"" + num(id) + "\">" + bodyBlocksXml(blocks, true) + "</" + tag + ">";
     Q_UNUSED(t);
     return QByteArray(endnote ? "<w:r><w:rPr><w:rStyle w:val=\"EndnoteReference\"/></w:rPr><w:endnoteReference w:id=\"" : "<w:r><w:rPr><w:rStyle w:val=\"FootnoteReference\"/></w:rPr><w:footnoteReference w:id=\"") + num(id) +
-           "\"/></w:r>";
+           (label.isEmpty() ? QByteArray("\"/></w:r>") : "\" w:customMarkFollows=\"1\"/><w:t xml:space=\"preserve\">" + esc(label, false) + "</w:t></w:r>");
 }
 
 // ---- blocks

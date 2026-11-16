@@ -1393,8 +1393,10 @@ private Q_SLOTS:
         auto layout = [&](const QByteArray &settings) {
             auto doc = open(makeDocxNotes(body, notes, QByteArray(), settings));
             QVector<QRectF> all;
-            for (int p = 0; doc && p < doc->pager().pageCount(); ++p)
-                for (const auto &item : doc->pager().materialize(p)->doc->pages[0]->items) all << item->rect;
+            for (int p = 0; doc && p < doc->pager().pageCount(); ++p) {
+                const auto page = doc->pager().materialize(p);
+                for (const auto &item : page->doc->pages[0]->items) all << item->rect;
+            }
             return all;
         };
         const QByteArray zoom = "<w:zoom w:percent=\"100\"/>";   // (a settings part, for both)
@@ -1422,11 +1424,11 @@ private Q_SLOTS:
         QVERIFY(doc);
         const QRectF note = noteRectOf(*doc, QStringLiteral("TABLENOTE"));
         QVERIFY(note.height() > 0);
-        QRectF tableRect;
-        for (const auto &item : doc->pager().materialize(0)->doc->pages[0]->items)
-            if (dynamic_cast<const TableItem *>(item.get())) tableRect = item->rect;
-        QVERIFY(tableRect.height() > 0);
-        QVERIFY2(!note.intersects(tableRect), qPrintable(QStringLiteral("note %1..%2, table %3..%4").arg(note.top()).arg(note.bottom()).arg(tableRect.top()).arg(tableRect.bottom())));
+        // The text and the table are at the top of the page; right after the text's first line is where the note would have gone, on the table. It is at the foot.
+        QVERIFY2(note.top() > 400, qPrintable(QString::number(note.top())));
+        // (And the same document without a table has it right below the text.)
+        auto plain = open(makeDocxNotes(para(run("Text before the table") + "<w:r><w:footnoteReference w:id=\"2\"/></w:r>") + para(run("Text after")), notes, QByteArray(), beneathSettings(true, 1)));
+        QVERIFY(noteRectOf(*plain, QStringLiteral("TABLENOTE")).top() < 200);
     }
 
     void theNotesOfAColumnAreBalancedOnlyUpToAFewHundred()

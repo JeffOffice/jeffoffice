@@ -327,6 +327,7 @@ QByteArray WriteDoc::toOdt(QString *error, QStringList *notes)
                 *notes << QCoreApplication::translate("odt", "drop caps (the letters are saved as ordinary ones)");
                 break;
             }
+        if (noteSettings(false).columns > 1) *notes << QCoreApplication::translate("odt", "footnote columns (the footnotes are saved in one column)");
     }
     return odt;
 }

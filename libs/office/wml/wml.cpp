@@ -814,6 +814,7 @@ namespace {
 // The settings with the footnotes' columns (w15:footnoteColumns, a child of the settings that no group holds) made as `columns` says: one element, and none for one column.
 QByteArray settingsWithFootnoteColumns(const QByteArray &settings, int columns)
 {
+    static const QByteArray w15Uri = "http://schemas.microsoft.com/office/word/2012/wordml";
     QVector<SettingsChild> children;
     qsizetype rootEnd = 0;
     QByteArray prefix;
@@ -822,8 +823,38 @@ QByteArray settingsWithFootnoteColumns(const QByteArray &settings, int columns)
     for (qsizetype i = children.size() - 1; i >= 0; --i)
         if (children[i].name == "footnoteColumns") out.remove(children[i].begin, children[i].end - children[i].begin);
     if (columns <= 1) return out;
+    // (The element is an extension: the root declares its namespace and the compatibility markup lists it as ignorable, so that a reader that does not know it passes over it.)
+    bool declared = false;
+    qsizetype at = 0;
+    while (at < out.size()) {
+        const qsizetype lt = out.indexOf('<', at);
+        if (lt < 0 || lt + 1 >= out.size()) break;
+        if (out[lt + 1] == '?' || out[lt + 1] == '!') {
+            at = out.indexOf('>', lt);
+            if (at < 0) break;
+            continue;
+        }
+        const qsizetype close = out.indexOf('>', lt);
+        if (close < 0) break;
+        QByteArray start = out.mid(lt, close - lt);
+        if (start.contains("xmlns:w15=\"" + w15Uri + "\"")) declared = true;
+        else if (!start.contains("xmlns:w15=")) {
+            start += " xmlns:w15=\"" + w15Uri + "\"";
+            declared = true;
+        }
+        if (declared) {
+            if (!start.contains("xmlns:mc=")) start += " xmlns:mc=\"http://schemas.openxmlformats.org/markup-compatibility/2006\"";
+            static const QRegularExpression ignorable(QStringLiteral("mc:Ignorable=\"([^\"]*)\""));
+            const QRegularExpressionMatch m = ignorable.match(QString::fromLatin1(start));
+            if (!m.hasMatch()) start += " mc:Ignorable=\"w15\"";
+            else if (!m.captured(1).split(QLatin1Char(' '), Qt::SkipEmptyParts).contains(QLatin1String("w15")))
+                start.replace(m.captured(0).toLatin1(), "mc:Ignorable=\"" + m.captured(1).toLatin1() + (m.captured(1).isEmpty() ? "" : " ") + "w15\"");
+        }
+        out = out.left(lt) + start + out.mid(close);
+        break;
+    }
     if (!settingsChildren(out, &children, &rootEnd, &prefix)) return settings;
-    return out.left(rootEnd) + "<w15:footnoteColumns xmlns:w15=\"http://schemas.microsoft.com/office/word/2012/wordml\" " + prefix + "val=\"" + QByteArray::number(std::min(columns, 64)) + "\"/>" + out.mid(rootEnd);
+    return out.left(rootEnd) + "<w15:footnoteColumns" + (declared ? "" : " xmlns:w15=\"" + w15Uri + "\"") + " " + prefix + "val=\"" + QByteArray::number(std::min(columns, kMaxFootnoteColumns)) + "\"/>" + out.mid(rootEnd);
 }
 
 QByteArray settingsWithNotePropertiesIn(const QByteArray &settings, bool endnotes, const NoteProperties &p);

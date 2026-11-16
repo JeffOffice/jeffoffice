@@ -423,9 +423,9 @@ public:
                 QString followingMark;
                 if (name == "footnoteReference" || name == "endnoteReference") {
                     const QString says = t.attr(c, "customMarkFollows");
-                    if (!says.isEmpty() && says != QLatin1String("0") && says != QLatin1String("false") && says != QLatin1String("off"))
-                        for (int k = t.next(c); k >= 0 && followingMark.size() < 64; k = t.next(k))
-                            if (t.localName(k) == "t") followingMark += textOf(k);
+                    // (Only the child of the run right after the reference is its mark, and at most 16 characters of it: a run of many children is not looked through for each reference.)
+                    if (says == QLatin1String("1") || says == QLatin1String("true") || says == QLatin1String("on"))
+                        if (const int k = t.next(c); k >= 0 && t.localName(k) == "t") followingMark = textOf(k).left(16);
                 }
                 if (!followingMark.isEmpty()) a.display = followingMark;
                 else if (name == "footnoteReference") a.display = QString::number(++footnotes);
@@ -1433,7 +1433,7 @@ NoteNumbering readNoteNumbering(const QByteArray &settings, const char *group)
     if (!tree.parse(settings, nullptr)) return n;
     if (QByteArrayView(group) == "footnotePr")
         if (const int w15 = tree.namespaceId("http://schemas.microsoft.com/office/word/2012/wordml"); w15 >= 0)
-            if (const int columns = tree.child(tree.root(), "footnoteColumns", w15); columns >= 0) n.columns = std::clamp(tree.val(columns).toInt(), 0, 64);
+            if (const int columns = tree.child(tree.root(), "footnoteColumns", w15); columns >= 0) n.columns = std::clamp(tree.val(columns).toInt(), 0, kMaxFootnoteColumns);
     const int notes = tree.child(tree.root(), group);
     if (notes < 0) return n;
     if (const int format = tree.child(notes, "numFmt"); format >= 0) n.format = tree.val(format);

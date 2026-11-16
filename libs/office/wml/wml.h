@@ -174,6 +174,7 @@ struct SectionProps {
     // The same for the document's facing pages with mirrored margins (w:mirrorMargins) and its automatic hyphenation (w:autoHyphenation).
     bool mirrorMargins = false, autoHyphenation = false;
     bool doNotHyphenateCaps = false;   // w:doNotHyphenateCaps: words in capitals are left whole
+    QByteArray footnoteSettings;       // the same for the footnotes' settings the person changed (a program's own record of them; empty: as the file has them)
     int hyphenationZone = 360, consecutiveHyphenLimit = 0;   // w:hyphenationZone (twentieths of a point) and w:consecutiveHyphenLimit (0: none), the settings' own
     QString pageColor;                // and the page color (w:background): "RRGGBB", empty for none
     bool hasPgSz = false, hasPgMar = false, hasCols = false;   // stated in the file
@@ -681,6 +682,8 @@ QByteArray notesPartXml(const QByteArray &original, bool endnotes, const NotesCh
 // group; one that names notes already is as it was. An empty part gives a minimal one.
 QByteArray settingsWithNoteSeparators(const QByteArray &settings, bool endnotes);
 // What a settings part says of how a kind of note is numbered and where it is set (its footnotePr or endnotePr group).
+// The most columns the footnotes are set in (w15:footnoteColumns): the reader clamps to it, the writer and the notes dialog stop at it.
+constexpr int kMaxFootnoteColumns = 64;
 struct NoteProperties {
     QString position;   // pageBottom, beneathText, sectEnd, or docEnd (empty: not said)
     QString format;     // numFmt (empty: not said)

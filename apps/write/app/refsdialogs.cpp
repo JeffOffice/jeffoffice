@@ -739,6 +739,7 @@ bool notesOptionsDialog(QWidget *parent, WriteDoc *doc, bool *endnotesChanged, N
     struct Box {
         QComboBox *position = nullptr, *format = nullptr, *restart = nullptr;
         QSpinBox *start = nullptr, *columns = nullptr;
+        int formatAt = 0, restartAt = 0, positionAt = 0, startWas = 1, columnsWas = 1;   // (what the boxes showed when the dialog opened: only what is changed from it is written back)
     };
     auto formats = [&](QComboBox *c) {
         c->addItem(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "1, 2, 3, ...")), QStringLiteral("decimal"));
@@ -780,7 +781,7 @@ bool notesOptionsDialog(QWidget *parent, WriteDoc *doc, bool *endnotesChanged, N
         if (!endnotes) {
             b.columns = new QSpinBox(group);
             b.columns->setObjectName(QStringLiteral("footnoteColumns"));
-            b.columns->setRange(1, 8);
+            b.columns->setRange(1, office::wml::kMaxFootnoteColumns);
             form->addRow(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Columns")), b.columns);
         }
         const WriteDoc::NoteSettings now = doc->noteSettings(endnotes);
@@ -789,6 +790,11 @@ bool notesOptionsDialog(QWidget *parent, WriteDoc *doc, bool *endnotesChanged, N
         b.restart->setCurrentIndex(std::max(0, b.restart->findData(now.restart)));
         if (b.position) b.position->setCurrentIndex(std::max(0, b.position->findData(now.position.isEmpty() ? (endnotes ? QStringLiteral("docEnd") : QStringLiteral("pageBottom")) : now.position)));
         if (b.columns) b.columns->setValue(now.columns);
+        b.formatAt = b.format->currentIndex();
+        b.restartAt = b.restart->currentIndex();
+        b.positionAt = b.position->currentIndex();
+        b.startWas = b.start->value();
+        b.columnsWas = b.columns ? b.columns->value() : 1;
         v->addWidget(group);
         return b;
     };
@@ -850,17 +856,16 @@ bool notesOptionsDialog(QWidget *parent, WriteDoc *doc, bool *endnotesChanged, N
     if (dlg.exec() != QDialog::Accepted) return false;
     WriteDoc::NoteSettings f = doc->noteSettings(false), e = doc->noteSettings(true);
     const WriteDoc::NoteSettings f0 = f, e0 = e;
-    f.format = foot.format->currentData().toString();
-    f.start = foot.start->value();
-    f.restart = foot.restart->currentData().toString();
-    f.columns = foot.columns->value();
-    // (Where the footnotes are set is left as the file has it when the choice is the one that shows.)
-    if (!(f0.position.isEmpty() && foot.position->currentData().toString() == QLatin1String("pageBottom"))) f.position = foot.position->currentData().toString();
-    e.format = end.format->currentData().toString();
-    e.start = end.start->value();
-    e.restart = end.restart->currentData().toString();
-    // (Where the endnotes are set is left as the file has it when the choice is the one that shows.)
-    if (!(e0.position.isEmpty() && end.position->currentData().toString() == QLatin1String("docEnd"))) e.position = end.position->currentData().toString();
+    // (A box left as it opened writes nothing: what the file has that no choice of the box shows, or more than it can hold, stays.)
+    if (foot.format->currentIndex() != foot.formatAt) f.format = foot.format->currentData().toString();
+    if (foot.start->value() != foot.startWas) f.start = foot.start->value();
+    if (foot.restart->currentIndex() != foot.restartAt) f.restart = foot.restart->currentData().toString();
+    if (foot.columns->value() != foot.columnsWas) f.columns = foot.columns->value();
+    if (foot.position->currentIndex() != foot.positionAt) f.position = foot.position->currentData().toString();
+    if (end.format->currentIndex() != end.formatAt) e.format = end.format->currentData().toString();
+    if (end.start->value() != end.startWas) e.start = end.start->value();
+    if (end.restart->currentIndex() != end.restartAt) e.restart = end.restart->currentData().toString();
+    if (end.position->currentIndex() != end.positionAt) e.position = end.position->currentData().toString();
     const bool footChanged = !(f == f0), endChanged = !(e == e0);
     if (footChanged) doc->setNoteSettings(false, f);
     if (endChanged) doc->setNoteSettings(true, e);

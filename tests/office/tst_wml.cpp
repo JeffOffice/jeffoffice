@@ -1507,7 +1507,7 @@ private Q_SLOTS:
         // The writer stops at the same number.
         NoteProperties p;
         p.columns = 1000;
-        QCOMPARE(readNoteNumbering(settingsWithNoteProperties(xmlDoc(QByteArray("<w:settings ") + kW + "/>"), false, p), "footnotePr").columns, columnsOf("99999"));
+        QCOMPARE(readNoteNumbering(settingsWithNoteProperties(xmlDoc(QByteArray("<w:settings ") + kW + "><w:zoom w:percent=\"100\"/></w:settings>"), false, p), "footnotePr").columns, columnsOf("99999"));
     }
 
     // The element is an extension: its namespace is declared on the root and listed as ignorable, whatever the part had.
@@ -1528,7 +1528,7 @@ private Q_SLOTS:
         QCOMPARE(listed.count("xmlns:mc="), 1);
         const QByteArray again = settingsWithNoteProperties(listed, false, p);
         QCOMPARE(again.count("xmlns:w15="), 1);
-        QCOMPARE(again.count("w15\""), 2);   // (the declaration and the list: one each)
+        QCOMPARE(again.count("w14 w15\""), 1);   // (listed once)
         QCOMPARE(again.count("footnoteColumns"), 1);
     }
 
