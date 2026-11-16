@@ -1,6 +1,7 @@
 // Tests of libs/office/odt: an OpenDocument text read into the parts of a .docx and a .docx written as an OpenDocument text. Every document is built here from a few lines of XML.
 
 #include "core/fonts.h"
+#include "core/wrapoutline.h"
 #include "io/zip.h"
 #include "io/zipindex.h"
 #include "odt/odt.h"
@@ -458,6 +459,46 @@ private Q_SLOTS:
         QVERIFY(media);
         wml::Document doc;
         QVERIFY(wml::readDocx(docx, &doc));
+    }
+
+    // The side the text goes on keeps its meaning through a save and an open: ODF's "biggest" is the larger side of DrawingML's wrapText="largest", and it is written back as "biggest".
+    void theLargestSideOfAWrapSurvivesTheRoundTrip()
+    {
+        for (const char *side : {"biggest", "left", "right", "parallel"}) {
+            Made m;
+            m.autoStyles = "<style:style style:name=\"fr1\" style:family=\"graphic\"><style:graphic-properties style:wrap=\"" + QByteArray(side) + "\" style:horizontal-pos=\"left\" style:horizontal-rel=\"paragraph\"/></style:style>";
+            m.body = "<text:p>x <draw:frame draw:style-name=\"fr1\" text:anchor-type=\"paragraph\" svg:width=\"1in\" svg:height=\"1in\"><draw:image xlink:href=\"Pictures/a.png\"/></draw:frame></text:p>";
+            m.extra.insert(QStringLiteral("Pictures/a.png"), kPng);
+            const QByteArray odt2 = fromDocxPackage(docxOf(m.build()));
+            QMap<QString, QByteArray> files;
+            QVERIFY(jp::readZip(odt2, files));
+            const QString c = QString::fromUtf8(files.value(QStringLiteral("content.xml")));
+            QVERIFY2(c.contains(QStringLiteral("style:wrap=\"%1\"").arg(QLatin1String(side))), side);
+            const QString again = part(docxOf(odt2), QStringLiteral("/word/document.xml"));
+            const QString want = QLatin1String(side) == QLatin1String("biggest") ? QStringLiteral("wrapText=\"largest\"") : QLatin1String(side) == QLatin1String("parallel") ? QStringLiteral("wrapText=\"bothSides\"") : QStringLiteral("wrapText=\"%1\"").arg(QLatin1String(side));
+            QVERIFY2(again.contains(want), side);
+        }
+    }
+
+    // A wrap contour from a file is bounded: a view box with no size makes no outline, and 600 points make 128, not 600.
+    void aHostileContourPolygonIsBounded()
+    {
+        QByteArray points;
+        for (int i = 0; i < 600; ++i) points += QByteArray::number(i % 100) + "," + QByteArray::number((i * 7) % 100) + " ";
+        auto docxWith = [&](const QByteArray &viewBox, const QByteArray &pts) {
+            Made m;
+            m.autoStyles = "<style:style style:name=\"fr1\" style:family=\"graphic\"><style:graphic-properties style:wrap=\"parallel\" style:wrap-contour=\"true\" style:horizontal-pos=\"left\" style:horizontal-rel=\"paragraph\"/></style:style>";
+            m.body = "<text:p>x <draw:frame draw:style-name=\"fr1\" text:anchor-type=\"paragraph\" svg:width=\"1in\" svg:height=\"1in\"><draw:image xlink:href=\"Pictures/a.png\"/>"
+                     "<draw:contour-polygon svg:width=\"1in\" svg:height=\"1in\" svg:viewBox=\"" + viewBox + "\" draw:points=\"" + pts + "\"/></draw:frame></text:p>";
+            m.extra.insert(QStringLiteral("Pictures/a.png"), kPng);
+            return part(docxOf(m.build()), QStringLiteral("/word/document.xml"));
+        };
+        const QString none = docxWith("0 0 0 0", points);
+        QVERIFY(none.contains(QLatin1String("<wp:wrapSquare")) && !none.contains(QLatin1String("wrapPolygon")));
+        const QString held = docxWith("0 0 100 100", points);
+        QVERIFY(held.contains(QLatin1String("<wp:wrapTight")));
+        QCOMPARE(held.count(QLatin1String("<wp:lineTo")), jp::kMostWrapPoints);   // (the start, the points kept after it, and the one that closes the polygon)
+        QVERIFY(!docxWith("0 0 100 100", "nan,nan inf,1 1,2").contains(QLatin1String("wrapPolygon")));
     }
 
     // An ODF path from another program becomes a freeform shape: relative commands (m, l, c), S, Q, and T, and the pairs of numbers that repeat a command, are read; a number that is not a finite

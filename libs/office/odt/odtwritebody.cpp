@@ -1004,7 +1004,7 @@ QByteArray Writer::drawingXml(const T &t, int drawing, ParaCtx *pc, int depth)
         for (int c = t.firstChild(anchor); c >= 0; c = t.next(c)) {
             if (t.is(c, "wrapSquare", wp) || t.is(c, "wrapTight", wp) || t.is(c, "wrapThrough", wp)) {
                 const QString side = t.attr(c, "wrapText");
-                wrap = side == QLatin1String("left") ? "left" : side == QLatin1String("right") ? "right" : "parallel";
+                wrap = side == QLatin1String("left") ? "left" : side == QLatin1String("right") ? "right" : side == QLatin1String("largest") ? "biggest" : "parallel";
                 if (const QPolygonF outline = wml::readWrapPolygon(t, c); outline.size() >= 3 && !t.is(c, "wrapSquare", wp)) {
                     // (The points are in units of 1/21600 of the frame, in a view box of that size over the frame's own size.)
                     contour = "<draw:contour-polygon svg:width=\"" + emuLength(cx) + "\" svg:height=\"" + emuLength(cy) + "\" svg:viewBox=\"0 0 21600 21600\" draw:points=\"";

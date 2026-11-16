@@ -276,7 +276,7 @@ QByteArray Reader::anchorXml(const Odf &o, int frame, const QString &styleName, 
         QString v = g((QStringLiteral("fo:margin-") + QLatin1String(side)).toLatin1().constData());
         if (v.isEmpty()) v = g("fo:margin");
         const qint64 e = lengthToEmu(v, &ok);
-        return ok ? e : 0;
+        return ok ? std::clamp<qint64>(e, 0, qint64(jp::kMostWrapDistance * 12700)) : 0;
     };
     const int z = o.at(frame, "draw:z-index").toInt();
     return "<w:drawing><wp:anchor distT=\"" + num(margin("top")) + "\" distB=\"" + num(margin("bottom")) + "\" distL=\"" + num(margin("left")) + "\" distR=\"" + num(margin("right")) +
