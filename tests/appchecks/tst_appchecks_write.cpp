@@ -187,6 +187,12 @@ private Q_SLOTS:
                 mime->setText(QStringLiteral("a\tb\nc\td\n"));
                 mime->setHtml(QStringLiteral("<table><tr><td>a</td><td>b</td></tr><tr><td>c</td><td>d</td></tr></table>"));
                 QGuiApplication::clipboard()->setMimeData(mime);
+                // The choices for a table in a table need the caret in one.
+                if (id != QLatin1String("edit.pasteTable") && asWrite(w)->document()) {
+                    QTextCursor at = asWrite(w)->view()->cursor();
+                    jp::write::NewTable made;
+                    if (jp::write::insertTable(*asWrite(w)->document(), at, made)) asWrite(w)->view()->setCursor(at);
+                }
             }
             if (id == QLatin1String("edit.pastePicture")) {
                 QImage image(40, 30, QImage::Format_ARGB32);
