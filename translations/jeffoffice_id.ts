@@ -52716,7 +52716,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+0"/>
         <location filename="../apps/write/app/writewindow_insert.cpp" line="+138"/>
-        <location filename="../apps/write/app/writewindow_pictures.cpp" line="+254"/>
+        <location filename="../apps/write/app/writewindow_pictures.cpp" line="+263"/>
         <location filename="../apps/write/app/writewindow_shapes.cpp" line="+470"/>
         <location line="+60"/>
         <location filename="../apps/write/app/writewindow_themes.cpp" line="+44"/>
@@ -53818,7 +53818,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     </message>
     <message>
         <location line="+3"/>
-        <location filename="../apps/write/app/writewindow_pictures.cpp" line="+200"/>
+        <location filename="../apps/write/app/writewindow_pictures.cpp" line="+204"/>
         <source>Left</source>
         <translation>Kiri</translation>
     </message>
@@ -54466,7 +54466,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <translation type="unfinished">%1 dikirim ke printer</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_pictures.cpp" line="-400"/>
+        <location filename="../apps/write/app/writewindow_pictures.cpp" line="-413"/>
         <source>Square 1:1</source>
         <translation type="unfinished">Persegi 1:1</translation>
     </message>
@@ -54617,7 +54617,17 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+2"/>
+        <source>Set as Default Layout</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Pictures you put in from now on are laid out like this one.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
         <source>Bring to Front</source>
         <translation type="unfinished">Bawa ke Depan</translation>
     </message>
@@ -54709,7 +54719,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <translation type="unfinished">Tidak ada gambar di Papan Klip.</translation>
     </message>
     <message>
-        <location line="+66"/>
+        <location line="+68"/>
         <source>Wrap Text</source>
         <translation type="unfinished">Tata Letak Teks</translation>
     </message>
@@ -54724,7 +54734,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+35"/>
+        <location line="+37"/>
         <source>Distance from Text</source>
         <translation type="unfinished"></translation>
     </message>
@@ -56511,7 +56521,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <translation type="unfinished">Pilih</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_pictures.cpp" line="-359"/>
+        <location filename="../apps/write/app/writewindow_pictures.cpp" line="-372"/>
         <location filename="../apps/write/app/writewindow_tables.cpp" line="+6"/>
         <source>Fit</source>
         <translation type="unfinished">Pas</translation>
@@ -70804,7 +70814,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <translation type="unfinished">Kelompok ini tidak dapat dipisahkan: sudah diputar, atau memiliki kelompok lain di dalamnya.</translation>
     </message>
     <message>
-        <location line="+976"/>
+        <location line="+987"/>
         <source>This text box holds too many paragraphs to be typed in here.</source>
         <translation type="unfinished">Kotak teks ini memuat terlalu banyak paragraf untuk diketik di sini.</translation>
     </message>
@@ -70823,7 +70833,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
 <context>
     <name>jp::write::Pictures</name>
     <message>
-        <location line="-395"/>
+        <location line="-396"/>
         <location line="+37"/>
         <source>That is not a picture JeffWrite can read.</source>
         <translation type="unfinished">Itu bukan gambar yang dapat dibaca JeffWrite.</translation>
@@ -70836,25 +70846,25 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+1"/>
         <location line="+36"/>
-        <location line="+18"/>
+        <location line="+19"/>
         <location line="+224"/>
         <source>That picture is too large to put in a document.</source>
         <translation type="unfinished">Gambar itu terlalu besar untuk dimasukkan ke dalam dokumen.</translation>
     </message>
     <message>
-        <location line="-260"/>
+        <location line="-261"/>
         <source>That is not a barcode JeffWrite can draw.</source>
         <translation type="unfinished">Itu bukan kode batang yang dapat digambar JeffWrite.</translation>
     </message>
     <message>
-        <location line="+35"/>
+        <location line="+36"/>
         <source>There is no picture on the clipboard that JeffWrite can read.</source>
         <translation type="unfinished">Tidak ada gambar di papan klip yang dapat dibaca JeffWrite.</translation>
     </message>
     <message>
         <location filename="../apps/write/app/pageview_input.cpp" line="-176"/>
         <location filename="../apps/write/app/pageview_pictures.cpp" line="+18"/>
-        <location filename="../apps/write/core/pictureops.cpp" line="+2015"/>
+        <location filename="../apps/write/core/pictureops.cpp" line="+2077"/>
         <source>That shape can&apos;t be put here.</source>
         <translation type="unfinished">Bentuk itu tidak dapat disisipkan di sini.</translation>
     </message>
@@ -70895,36 +70905,36 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     </message>
     <message>
         <location filename="../apps/write/core/editops.cpp" line="+2086"/>
-        <location filename="../apps/write/core/pictureops.cpp" line="-1440"/>
-        <location line="+329"/>
-        <location line="+1936"/>
+        <location filename="../apps/write/core/pictureops.cpp" line="-1500"/>
+        <location line="+340"/>
+        <location line="+1985"/>
         <location line="+1381"/>
         <source>The pictures in this document are as large together as JeffWrite puts in one, so this one is not added.</source>
         <translation type="unfinished">Gambar dalam dokumen ini jika digabungkan sudah sebesar yang dapat ditampung JeffWrite dalam satu gambar, sehingga gambar ini tidak ditambahkan.</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/pictureops.cpp" line="-3655"/>
-        <location line="+352"/>
-        <location line="+740"/>
+        <location filename="../apps/write/core/pictureops.cpp" line="-3715"/>
+        <location line="+363"/>
+        <location line="+789"/>
         <location line="+2753"/>
         <source>A picture can&apos;t be put in a header, a footer, or a note yet.</source>
         <translation type="unfinished">Gambar belum dapat disisipkan di header, footer, atau catatan.</translation>
     </message>
     <message>
-        <location line="-3812"/>
+        <location line="-3861"/>
         <location line="+344"/>
-        <location line="+738"/>
+        <location line="+787"/>
         <location line="+2755"/>
         <source>A picture can&apos;t be put here, or this document holds as many pictures and drawn objects as JeffWrite can show.</source>
         <translation type="unfinished">Gambar tidak dapat disisipkan di sini, atau dokumen ini sudah memuat gambar dan objek gambar sebanyak yang dapat ditampilkan JeffWrite.</translation>
     </message>
     <message>
-        <location line="-3801"/>
+        <location line="-3850"/>
         <source>This document holds as many pictures and drawn objects as JeffWrite can show. Save it, and open it again, to change more.</source>
         <translation type="unfinished">Dokumen ini memuat gambar dan objek gambar sebanyak yang dapat ditampilkan JeffWrite. Simpan, lalu buka kembali, untuk mengubah lebih banyak.</translation>
     </message>
     <message>
-        <location line="+1511"/>
+        <location line="+1560"/>
         <source>Edit Points is not offered for a shape that is flipped.</source>
         <translation type="unfinished">Edit Titik tidak tersedia untuk bentuk yang dibalik.</translation>
     </message>
@@ -71704,7 +71714,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     </message>
     <message>
         <location line="+303"/>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="+1402"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="+1405"/>
         <source>tables nested too deeply</source>
         <translation type="unfinished">tabel bersarang terlalu dalam</translation>
     </message>
@@ -71835,19 +71845,25 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <translation type="unfinished">tanda &quot;jangan periksa ejaan&quot;</translation>
     </message>
     <message>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="-807"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="-810"/>
         <source>form fields (kept as the text they show)</source>
         <translation type="unfinished">bidang formulir (disimpan sebagai teks yang ditampilkan)</translation>
     </message>
     <message>
         <location line="+181"/>
         <location line="+49"/>
-        <location line="+412"/>
+        <location line="+415"/>
         <source>drawings, shapes, and charts</source>
         <translation type="unfinished">gambar, bentuk, dan bagan</translation>
     </message>
     <message>
-        <location line="-249"/>
+        <location line="-267"/>
+        <location line="+11"/>
+        <source>edited wrap points on shapes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
         <source>pictures that can&apos;t be read</source>
         <translation type="unfinished">gambar yang tidak dapat dibaca</translation>
     </message>

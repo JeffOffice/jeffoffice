@@ -53648,7 +53648,7 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
     <message>
         <location line="-557"/>
         <location filename="../apps/write/app/writewindow_insert.cpp" line="+138"/>
-        <location filename="../apps/write/app/writewindow_pictures.cpp" line="+152"/>
+        <location filename="../apps/write/app/writewindow_pictures.cpp" line="+161"/>
         <location filename="../apps/write/app/writewindow_shapes.cpp" line="-310"/>
         <location line="+60"/>
         <location filename="../apps/write/app/writewindow_themes.cpp" line="+44"/>
@@ -54443,7 +54443,7 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
     </message>
     <message>
         <location line="+3"/>
-        <location filename="../apps/write/app/writewindow_pictures.cpp" line="+200"/>
+        <location filename="../apps/write/app/writewindow_pictures.cpp" line="+204"/>
         <source>Left</source>
         <translation>Izquierda</translation>
     </message>
@@ -55242,7 +55242,7 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
         <translation type="unfinished">Insertar nota al final</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_pictures.cpp" line="-400"/>
+        <location filename="../apps/write/app/writewindow_pictures.cpp" line="-413"/>
         <source>Square 1:1</source>
         <translation type="unfinished">Cuadrado 1:1</translation>
     </message>
@@ -55393,7 +55393,17 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+2"/>
+        <source>Set as Default Layout</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Pictures you put in from now on are laid out like this one.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
         <source>Bring to Front</source>
         <translation type="unfinished">Traer al frente</translation>
     </message>
@@ -55485,7 +55495,7 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
         <translation type="unfinished">No hay ninguna imagen en el Portapapeles.</translation>
     </message>
     <message>
-        <location line="+66"/>
+        <location line="+68"/>
         <source>Wrap Text</source>
         <translation type="unfinished">Ajustar texto</translation>
     </message>
@@ -55500,7 +55510,7 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+35"/>
+        <location line="+37"/>
         <source>Distance from Text</source>
         <translation type="unfinished"></translation>
     </message>
@@ -70857,7 +70867,7 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
         <translation type="unfinished">Este grupo no se puede desagrupar: está girado o contiene otro grupo.</translation>
     </message>
     <message>
-        <location line="+976"/>
+        <location line="+987"/>
         <source>This text box holds too many paragraphs to be typed in here.</source>
         <translation type="unfinished">Este cuadro de texto contiene demasiados párrafos para escribirlos aquí.</translation>
     </message>
@@ -70876,7 +70886,7 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
 <context>
     <name>jp::write::Pictures</name>
     <message>
-        <location line="-395"/>
+        <location line="-396"/>
         <location line="+37"/>
         <source>That is not a picture JeffWrite can read.</source>
         <translation type="unfinished">JeffWrite no puede leer esa imagen.</translation>
@@ -70889,25 +70899,25 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
     <message>
         <location line="+1"/>
         <location line="+36"/>
-        <location line="+18"/>
+        <location line="+19"/>
         <location line="+224"/>
         <source>That picture is too large to put in a document.</source>
         <translation type="unfinished">Esa imagen es demasiado grande para insertarla en un documento.</translation>
     </message>
     <message>
-        <location line="-260"/>
+        <location line="-261"/>
         <source>That is not a barcode JeffWrite can draw.</source>
         <translation type="unfinished">Ese no es un código de barras que JeffWrite pueda dibujar.</translation>
     </message>
     <message>
-        <location line="+35"/>
+        <location line="+36"/>
         <source>There is no picture on the clipboard that JeffWrite can read.</source>
         <translation type="unfinished">No hay ninguna imagen en el Portapapeles que JeffWrite pueda leer.</translation>
     </message>
     <message>
         <location filename="../apps/write/app/pageview_input.cpp" line="-176"/>
         <location filename="../apps/write/app/pageview_pictures.cpp" line="+18"/>
-        <location filename="../apps/write/core/pictureops.cpp" line="+2015"/>
+        <location filename="../apps/write/core/pictureops.cpp" line="+2077"/>
         <source>That shape can&apos;t be put here.</source>
         <translation type="unfinished">Esa forma no se puede colocar aquí.</translation>
     </message>
@@ -70948,36 +70958,36 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
     </message>
     <message>
         <location filename="../apps/write/core/editops.cpp" line="+2086"/>
-        <location filename="../apps/write/core/pictureops.cpp" line="-1440"/>
-        <location line="+329"/>
-        <location line="+1936"/>
+        <location filename="../apps/write/core/pictureops.cpp" line="-1500"/>
+        <location line="+340"/>
+        <location line="+1985"/>
         <location line="+1381"/>
         <source>The pictures in this document are as large together as JeffWrite puts in one, so this one is not added.</source>
         <translation type="unfinished">Las imágenes de este documento ya alcanzan el tamaño total máximo que JeffWrite admite en un documento, por lo que no se agrega esta.</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/pictureops.cpp" line="-3655"/>
-        <location line="+352"/>
-        <location line="+740"/>
+        <location filename="../apps/write/core/pictureops.cpp" line="-3715"/>
+        <location line="+363"/>
+        <location line="+789"/>
         <location line="+2753"/>
         <source>A picture can&apos;t be put in a header, a footer, or a note yet.</source>
         <translation type="unfinished">Todavía no se puede insertar una imagen en un encabezado, un pie de página o una nota.</translation>
     </message>
     <message>
-        <location line="-3812"/>
+        <location line="-3861"/>
         <location line="+344"/>
-        <location line="+738"/>
+        <location line="+787"/>
         <location line="+2755"/>
         <source>A picture can&apos;t be put here, or this document holds as many pictures and drawn objects as JeffWrite can show.</source>
         <translation type="unfinished">No se puede insertar una imagen aquí, o este documento ya contiene tantas imágenes y objetos de dibujo como JeffWrite puede mostrar.</translation>
     </message>
     <message>
-        <location line="-3801"/>
+        <location line="-3850"/>
         <source>This document holds as many pictures and drawn objects as JeffWrite can show. Save it, and open it again, to change more.</source>
         <translation type="unfinished">Este documento contiene tantas imágenes y objetos de dibujo como JeffWrite puede mostrar. Guárdelo y vuelva a abrirlo para hacer más cambios.</translation>
     </message>
     <message>
-        <location line="+1511"/>
+        <location line="+1560"/>
         <source>Edit Points is not offered for a shape that is flipped.</source>
         <translation type="unfinished">Modificar puntos no está disponible para una forma que esté volteada.</translation>
     </message>
@@ -71757,7 +71767,7 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
     </message>
     <message>
         <location line="+303"/>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="+1402"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="+1405"/>
         <source>tables nested too deeply</source>
         <translation type="unfinished">tablas anidadas a demasiada profundidad</translation>
     </message>
@@ -71888,19 +71898,25 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
         <translation type="unfinished">marcas de «no comprobar ortografía»</translation>
     </message>
     <message>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="-807"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="-810"/>
         <source>form fields (kept as the text they show)</source>
         <translation type="unfinished">campos de formulario (se conservan como el texto que muestran)</translation>
     </message>
     <message>
         <location line="+181"/>
         <location line="+49"/>
-        <location line="+412"/>
+        <location line="+415"/>
         <source>drawings, shapes, and charts</source>
         <translation type="unfinished">dibujos, formas y gráficos</translation>
     </message>
     <message>
-        <location line="-249"/>
+        <location line="-267"/>
+        <location line="+11"/>
+        <source>edited wrap points on shapes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
         <source>pictures that can&apos;t be read</source>
         <translation type="unfinished">imágenes que no se pueden leer</translation>
     </message>

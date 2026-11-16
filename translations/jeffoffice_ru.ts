@@ -52786,7 +52786,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+0"/>
         <location filename="../apps/write/app/writewindow_insert.cpp" line="+138"/>
-        <location filename="../apps/write/app/writewindow_pictures.cpp" line="+254"/>
+        <location filename="../apps/write/app/writewindow_pictures.cpp" line="+263"/>
         <location filename="../apps/write/app/writewindow_shapes.cpp" line="+470"/>
         <location line="+60"/>
         <location filename="../apps/write/app/writewindow_themes.cpp" line="+44"/>
@@ -53894,7 +53894,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     </message>
     <message>
         <location line="+3"/>
-        <location filename="../apps/write/app/writewindow_pictures.cpp" line="+200"/>
+        <location filename="../apps/write/app/writewindow_pictures.cpp" line="+204"/>
         <source>Left</source>
         <translation>Слева</translation>
     </message>
@@ -54542,7 +54542,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Отправлено на принтер: %1</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_pictures.cpp" line="-400"/>
+        <location filename="../apps/write/app/writewindow_pictures.cpp" line="-413"/>
         <source>Square 1:1</source>
         <translation type="unfinished">Квадрат 1:1</translation>
     </message>
@@ -54693,7 +54693,17 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+2"/>
+        <source>Set as Default Layout</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Pictures you put in from now on are laid out like this one.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
         <source>Bring to Front</source>
         <translation type="unfinished">На передний план</translation>
     </message>
@@ -54785,7 +54795,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">В буфере обмена нет рисунка.</translation>
     </message>
     <message>
-        <location line="+66"/>
+        <location line="+68"/>
         <source>Wrap Text</source>
         <translation type="unfinished">Обтекание текстом</translation>
     </message>
@@ -54800,7 +54810,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+35"/>
+        <location line="+37"/>
         <source>Distance from Text</source>
         <translation type="unfinished"></translation>
     </message>
@@ -56587,7 +56597,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Выделить</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_pictures.cpp" line="-359"/>
+        <location filename="../apps/write/app/writewindow_pictures.cpp" line="-372"/>
         <location filename="../apps/write/app/writewindow_tables.cpp" line="+6"/>
         <source>Fit</source>
         <translation type="unfinished">По размеру</translation>
@@ -70910,7 +70920,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Эту группу нельзя разгруппировать: она повёрнута или содержит другую группу.</translation>
     </message>
     <message>
-        <location line="+976"/>
+        <location line="+987"/>
         <source>This text box holds too many paragraphs to be typed in here.</source>
         <translation type="unfinished">Это текстовое поле содержит слишком много абзацев для ввода здесь.</translation>
     </message>
@@ -70929,7 +70939,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
 <context>
     <name>jp::write::Pictures</name>
     <message>
-        <location line="-395"/>
+        <location line="-396"/>
         <location line="+37"/>
         <source>That is not a picture JeffWrite can read.</source>
         <translation type="unfinished">Это не рисунок, который может открыть JeffWrite.</translation>
@@ -70942,25 +70952,25 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+1"/>
         <location line="+36"/>
-        <location line="+18"/>
+        <location line="+19"/>
         <location line="+224"/>
         <source>That picture is too large to put in a document.</source>
         <translation type="unfinished">Этот рисунок слишком большой для вставки в документ.</translation>
     </message>
     <message>
-        <location line="-260"/>
+        <location line="-261"/>
         <source>That is not a barcode JeffWrite can draw.</source>
         <translation type="unfinished">Это не штрихкод, который может построить JeffWrite.</translation>
     </message>
     <message>
-        <location line="+35"/>
+        <location line="+36"/>
         <source>There is no picture on the clipboard that JeffWrite can read.</source>
         <translation type="unfinished">В буфере обмена нет рисунка, который может открыть JeffWrite.</translation>
     </message>
     <message>
         <location filename="../apps/write/app/pageview_input.cpp" line="-176"/>
         <location filename="../apps/write/app/pageview_pictures.cpp" line="+18"/>
-        <location filename="../apps/write/core/pictureops.cpp" line="+2015"/>
+        <location filename="../apps/write/core/pictureops.cpp" line="+2077"/>
         <source>That shape can&apos;t be put here.</source>
         <translation type="unfinished">Эту фигуру нельзя вставить сюда.</translation>
     </message>
@@ -71001,36 +71011,36 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     </message>
     <message>
         <location filename="../apps/write/core/editops.cpp" line="+2086"/>
-        <location filename="../apps/write/core/pictureops.cpp" line="-1440"/>
-        <location line="+329"/>
-        <location line="+1936"/>
+        <location filename="../apps/write/core/pictureops.cpp" line="-1500"/>
+        <location line="+340"/>
+        <location line="+1985"/>
         <location line="+1381"/>
         <source>The pictures in this document are as large together as JeffWrite puts in one, so this one is not added.</source>
         <translation type="unfinished">Рисунки в этом документе вместе занимают столько же места, сколько JeffWrite может вставить за раз, поэтому этот рисунок не добавлен.</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/pictureops.cpp" line="-3655"/>
-        <location line="+352"/>
-        <location line="+740"/>
+        <location filename="../apps/write/core/pictureops.cpp" line="-3715"/>
+        <location line="+363"/>
+        <location line="+789"/>
         <location line="+2753"/>
         <source>A picture can&apos;t be put in a header, a footer, or a note yet.</source>
         <translation type="unfinished">Пока нельзя вставить рисунок в верхний или нижний колонтитул либо в примечание.</translation>
     </message>
     <message>
-        <location line="-3812"/>
+        <location line="-3861"/>
         <location line="+344"/>
-        <location line="+738"/>
+        <location line="+787"/>
         <location line="+2755"/>
         <source>A picture can&apos;t be put here, or this document holds as many pictures and drawn objects as JeffWrite can show.</source>
         <translation type="unfinished">Рисунок нельзя вставить сюда, или в этом документе уже столько рисунков и рисованных объектов, сколько JeffWrite может показать.</translation>
     </message>
     <message>
-        <location line="-3801"/>
+        <location line="-3850"/>
         <source>This document holds as many pictures and drawn objects as JeffWrite can show. Save it, and open it again, to change more.</source>
         <translation type="unfinished">В этом документе уже столько рисунков и рисованных объектов, сколько JeffWrite может показать. Сохраните его и откройте снова, чтобы изменить больше.</translation>
     </message>
     <message>
-        <location line="+1511"/>
+        <location line="+1560"/>
         <source>Edit Points is not offered for a shape that is flipped.</source>
         <translation type="unfinished">Изменение узлов недоступно для отражённой фигуры.</translation>
     </message>
@@ -71810,7 +71820,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     </message>
     <message>
         <location line="+303"/>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="+1402"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="+1405"/>
         <source>tables nested too deeply</source>
         <translation type="unfinished">таблицы слишком глубоко вложены</translation>
     </message>
@@ -71941,19 +71951,25 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">метки «не проверять орфографию»</translation>
     </message>
     <message>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="-807"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="-810"/>
         <source>form fields (kept as the text they show)</source>
         <translation type="unfinished">поля форм (сохраняются как показываемый в них текст)</translation>
     </message>
     <message>
         <location line="+181"/>
         <location line="+49"/>
-        <location line="+412"/>
+        <location line="+415"/>
         <source>drawings, shapes, and charts</source>
         <translation type="unfinished">рисунки, фигуры и диаграммы</translation>
     </message>
     <message>
-        <location line="-249"/>
+        <location line="-267"/>
+        <location line="+11"/>
+        <source>edited wrap points on shapes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
         <source>pictures that can&apos;t be read</source>
         <translation type="unfinished">рисунки, которые не удаётся прочитать</translation>
     </message>
