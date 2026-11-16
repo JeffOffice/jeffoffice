@@ -13,6 +13,7 @@
 #include "text/storyio.h"
 #include "core/comments.h"
 #include "text/textprops.h"
+#include "wml/wmlhtmlread.h"
 #include "render/shapes.h"
 
 #include <QApplication>
@@ -1752,6 +1753,45 @@ QStringList Editor::insertItemsJson(const QByteArray &json, const QString &label
     }
 }
 
+// Spreadsheet cells on the clipboard: written over the cells of the table that is selected (from its selected cell on; what is past its edge is left out), else a table of their own in the
+// middle of the page. One step. False when the clipboard holds no cells.
+bool Editor::pasteCells(const QMimeData *md)
+{
+    const auto cells = office::wml::clipTable(md->hasHtml() ? md->html() : QString(), md->hasText() ? md->text() : QString());
+    if (!cells || cells->rows.isEmpty()) return false;
+    auto put = [this](TableItem *t, int r, int c, const QString &text) {
+        TableCell &cell = t->cell(r, c);
+        if (cell.covered) return;
+        QTextDocument *story = m_doc->storyDoc(cell.storyId);
+        if (!story) return;
+        QTextCursor cur(story);
+        cur.select(QTextCursor::Document);
+        cur.insertText(QString(text).replace(QLatin1Char('\n'), QLatin1Char(' ')));
+    };
+    const int rows = std::min(int(cells->rows.size()), kMaxTableRowsOrColumns), cols = std::min(int(cells->rows[0].size()), kMaxTableRowsOrColumns);
+    if (auto *t = dynamic_cast<TableItem *>(single())) {
+        const CellRange at = targetCells();
+        const int r0 = at.valid() ? at.r0 : 0, c0 = at.valid() ? at.c0 : 0;
+        change(tr("Paste Cells"), [&] {
+            for (int r = 0; r < rows && r0 + r < t->rows; ++r)
+                for (int c = 0; c < cols && c0 + c < t->cols; ++c) put(t, r0 + r, c0 + c, cells->rows[r][c]);
+        });
+        if (r0 + rows > t->rows || c0 + cols > t->cols) Q_EMIT status(tr("Some of the pasted cells did not fit in the table and were left out."));
+        return true;
+    }
+    const QSizeF ps = m_doc->pageSize();
+    const QRectF where(ps.width() * 0.1, ps.height() * 0.1, ps.width() * 0.8, std::min(ps.height() * 0.8, rows * 22.0));
+    change(tr("Paste Table"), [&] {
+        auto t = std::static_pointer_cast<TableItem>(newTable(where, rows, cols));
+        for (int r = 0; r < rows; ++r)
+            for (int c = 0; c < cols; ++c) put(t.get(), r, c, cells->rows[r][c]);
+        surfaceItems().push_back(t);
+        m_sel = QStringList{t->id};
+    });
+    Q_EMIT selectionChanged();
+    return true;
+}
+
 void Editor::paste(bool textOnly)
 {
     const QMimeData *md = QApplication::clipboard()->mimeData();
@@ -1777,6 +1817,7 @@ void Editor::paste(bool textOnly)
         insertItemsJson(md->data(kItemsMime), tr("Paste"));
         return;
     }
+    if (!textOnly && !md->hasImage() && pasteCells(md)) return;
     if (md->hasImage() && !textOnly) {
         const QImage img = qvariant_cast<QImage>(md->imageData());
         QByteArray png;

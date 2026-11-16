@@ -1,6 +1,8 @@
 // JeffPub's tests of tables: editing, dividing cells, and saving them.
 #include "pubhelpers.h"
 #include "app/tableedit.h"
+#include <QClipboard>
+#include <QMimeData>
 
 class PubTableTests : public QObject {
     Q_OBJECT
@@ -41,6 +43,59 @@ private Q_SLOTS:
     }
 
     // Several table cells at once, as in Publisher: dragging across cells, or
+    // Spreadsheet cells on the clipboard (an HTML table, or lines with tabs) paste as a table of their own; with a table selected they are written over its cells, from the selected cell on.
+    void pastedSpreadsheetCellsMakeATableOrFillTheSelectedOne()
+    {
+        auto setCells = [](int rows, const QString &prefix = QStringLiteral("r")) {
+            auto *mime = new QMimeData;
+            QString html = QStringLiteral("<html><body><table>"), text;
+            for (int r = 0; r < rows; ++r) {
+                html += QStringLiteral("<tr><td>") + prefix + QString::number(r) + QStringLiteral("</td><td>") + QString::number(r) + QStringLiteral("</td></tr>");
+                text += prefix + QString::number(r) + QLatin1Char('\t') + QString::number(r) + QLatin1Char('\n');
+            }
+            mime->setHtml(html + QStringLiteral("</table></body></html>"));
+            mime->setText(text);
+            QGuiApplication::clipboard()->setMimeData(mime);
+        };
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        auto tables = [&] {
+            QVector<jp::TableItem *> out;
+            for (const auto &it : ed->doc()->pages[0]->items)
+                if (auto *t = dynamic_cast<jp::TableItem *>(it.get())) out << t;
+            return out;
+        };
+        auto text = [&](jp::TableItem *t, int r, int c) { return ed->doc()->storyDoc(t->cell(r, c).storyId)->toPlainText(); };
+        setCells(3);
+        ed->paste();
+        QCOMPARE(tables().size(), 1);
+        jp::TableItem *made = tables().first();
+        QCOMPARE(made->rows, 3);
+        QCOMPARE(made->cols, 2);
+        QCOMPARE(text(made, 2, 0), QStringLiteral("r2"));
+        QCOMPARE(text(made, 1, 1), QStringLiteral("1"));
+        ed->undo();
+        QCOMPARE(tables().size(), 0);
+        ed->redo();
+        QCOMPARE(tables().size(), 1);
+        // With the table selected: written over its cells, and what is past its edge is left out.
+        ed->select(tables().first()->id);
+        setCells(5, QStringLiteral("x"));
+        ed->paste();
+        QCOMPARE(tables().size(), 1);
+        QCOMPARE(tables().first()->rows, 3);
+        QCOMPARE(text(tables().first(), 2, 0), QStringLiteral("x2"));
+        ed->undo();
+        QCOMPARE(tables().size(), 1);
+        QCOMPARE(text(tables().first(), 2, 0), QStringLiteral("r2"));   // (back to the first paste's)
+        // A table pasted is bounded: at most as many rows as a table has.
+        ed->clearSelection();
+        setCells(jp::kMaxTableRowsOrColumns + 40);
+        ed->paste();
+        QCOMPARE(tables().size(), 2);
+        QCOMPARE(tables().last()->rows, jp::kMaxTableRowsOrColumns);
+    }
+
     // Shift+click, selects a block, shaded the way selected text is; a block
     // that touches part of a merged cell takes the whole cell.
     void tableCellsSelectedAsABlock()

@@ -13,6 +13,7 @@
 #include <QTextCursor>
 #include <QTimer>
 
+class QMimeData;
 class QThreadPool;
 class QWidget;
 #include <QUndoStack>
@@ -277,6 +278,8 @@ public:
     void copy();
     void cut();
     void paste(bool textOnly = false);
+    // Pastes the spreadsheet cells the clipboard holds (an HTML table, or lines with tabs): over the selected table's cells, else as a table of their own. False when there are none.
+    bool pasteCells(const QMimeData *md);
     // Objects as copying writes them (pictures and text with them), added to
     // the page being edited and selected: what pasting and building blocks
     // saved by Save as Building Block do. Returns their ids.
