@@ -205,6 +205,7 @@ private Q_SLOTS:
         m_app.prepare = [this](AppWindow *aw, const QString &id, bool fromFile) {
             auto *w = asPub(aw);
             if (id == QLatin1String("edit.paste") || id == QLatin1String("edit.pasteText")) QGuiApplication::clipboard()->setText(QStringLiteral("Pasted words"));
+            if (id == QLatin1String("edit.pasteCells")) QGuiApplication::clipboard()->setText(QStringLiteral("a\tb\nc\td\n"));
             if (id == QLatin1String("file.save")) m_app.type(w);   // (Save has something to save once something was changed)
             if (id == QLatin1String("zoom.page") || id == QLatin1String("zoom.width")) w->canvas()->setZoom(0.9);
             if (id == QLatin1String("page.prev") || id == QLatin1String("page.moveUp")) {   // (the first page has no page before it)
