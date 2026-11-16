@@ -110,7 +110,7 @@
         },
         {
          "status": "partly",
-         "text": "b012ab6f3872f74f257b3ba4d47639c70ad9ee71f8f310b53082e508b53fcdac"
+         "text": "31c1d069071d31f3697058bf804407460c09c8925e91d8d692af25ad28fa258b"
         },
         {
          "status": "partly",
@@ -2175,7 +2175,7 @@
         {
          "hide_soon": true,
          "status": "done",
-         "text": "d319775f3cb92056b352ad44bee47979014d8b408e6de4d907cfbbcd77a975b2"
+         "text": "b4cdd04c658f0f42fccb612e44468da67f996571d5aa55af0dc470fe9bc56fde"
         }
        ]
       },
@@ -2265,8 +2265,9 @@
          "text": "89b4ad4bc83ef8bf12adf13d95e11b9c9a304f5e4549d20760f76fbd3923ce3d"
         },
         {
-         "status": "todo",
-         "text": "3b285a21d5f3eb1b49bcb8142181b4dbce5a66d8a922910ce0fe01b5d26b95f5"
+         "hide_soon": true,
+         "status": "done",
+         "text": "6b54d0845ddca7ba2b9744af711f1b8f4f0068215e7ee7e2db64e154aacb4a22"
         }
        ]
       },
@@ -2402,8 +2403,9 @@
          "text": "f7598bdeee762d9be9b4bf5a47073d7fc8d86696be382737974d5bee4b02b296"
         },
         {
-         "status": "partly",
-         "text": "9e822963d487ee8531fc3e7aeccf5658ff9afb0b77fc795fbacde3ae5df133f9"
+         "hide_soon": true,
+         "status": "done",
+         "text": "8d0985e424ee9683c990f6771651888a9ada4b108450ef551fabb578ff2963c2"
         },
         {
          "status": "partly",
@@ -3604,12 +3606,14 @@
          "text": "350c51dce4cf51d847df9ed355fd2845ce83a2f4645d840c67e7b5547ee8e17e"
         },
         {
-         "status": "partly",
-         "text": "12fd2e193722e310f683728fad0d5878ba314d922430914b4f30e6d37652f8b4"
+         "hide_soon": true,
+         "status": "done",
+         "text": "0c0a2104aa05d6c1f2737c2f95c6468c85adfb6672100eda34ba6aec9cbbc3be"
         },
         {
-         "status": "partly",
-         "text": "4fbdee5b02e7e43f13d2dc6fc31c3005029a4af687364f72a33891fa6ae09b7c"
+         "hide_soon": true,
+         "status": "done",
+         "text": "5dd25093749ee28785a27d06e365cfef91980380a1c66eb067f7fd204e1ecdb1"
         },
         {
          "hide_soon": true,
@@ -3646,19 +3650,25 @@
         },
         {
          "status": "partly",
-         "text": "d40f172d8b41a532b49a6800f000bd3ab8376046d49f3955992c0489cd102918"
+         "text": "3d21c0d10aab13bdada490f83d012d8d1edae924a0883bd1d62b778bc5833eb3"
         },
         {
          "status": "partly",
-         "text": "5a912bbe95d2bbe5f06fedd3f95c9888c138aba4f36e2c39f34450a8b79ff65e"
+         "text": "16e990a95633f5d14ffa4d5d10e2554909ef7c1b0721ea0010aef554e7133cb4"
+        },
+        {
+         "hide_soon": true,
+         "status": "done",
+         "text": "6516a5a01a8acb0d710ee0dfbb3a07eb5f53748e44ca96132cd34f2cd33d4896"
         },
         {
          "status": "partly",
-         "text": "f5d31a5d5762be83ac0734f0f3a6430bde3452d9b9317c14e03d7e0dc6c1bcbe"
+         "text": "15a27c675889566f268b5197f11bb010deaaaf73038e803571bc8b59dd9d474e"
         },
         {
-         "status": "todo",
-         "text": "6fe81d09ae0ae5f6c054371b6a905f18f43e9b7ec7c4b1ebdbd37949cea19205"
+         "hide_soon": true,
+         "status": "done",
+         "text": "ee7e9ba1e7b8c6a1792786d888b94e9c74ce8f00f7d7db12e780574dddb03e06"
         }
        ]
       },
@@ -3714,8 +3724,9 @@
          "text": "230a6cc13b3adce8a770cb6fd4d21e0de0e35d8dc3e2ec9f6d10d7aaac40ba33"
         },
         {
-         "status": "partly",
-         "text": "28c020d51627989444be8c7352dd9b64d427346c01b861ff8231293dc3f5cf5e"
+         "hide_soon": true,
+         "status": "done",
+         "text": "6a56839859b2a1ad1ca7c39011c835f5706fdb03b295b60b373050252661c4dd"
         },
         {
          "hide_soon": true,
@@ -3760,8 +3771,9 @@
        "text": "b6c72f454353ed8217b95ac665751f1dbbc4d4537e81327ada4c2bcb19c7b3fa"
       },
       {
-       "status": "partly",
-       "text": "8edbe68aca28694011611b29c58fcb967d41d67e03edd361f982370c6fcdbf22"
+       "hide_soon": true,
+       "status": "done",
+       "text": "aa7f87daaab292fab1fa84805be2f800bd3a1e6549f6864f3800f891265e4a27"
       },
       {
        "status": "partly",
@@ -4069,7 +4081,7 @@
         {
          "hide_soon": true,
          "status": "done",
-         "text": "6bd3bb66bf7dfd1a1465f162aeef41e511e9705e122bcfff89b80aa4407e166e"
+         "text": "e3d11fcdddd2993de706bc666d8beeee4a40eb649f6907b3aefeb024f73f0074"
         },
         {
          "status": "todo",
@@ -5668,8 +5680,9 @@
          "text": "010a351f4927ce9cc27ea5140c123a728285c6ee044ca6fcc24b9b42babadcc5"
         },
         {
-         "status": "partly",
-         "text": "bdb2848bf272dd1a2bd219d6305ee58a2b4a739eaeadd3f54b723734b5664e71"
+         "hide_soon": true,
+         "status": "done",
+         "text": "093e9776f645d8cf75f5f4ae5866cf268d2f832635871fd1aa6f90d1fc939c1d"
         },
         {
          "hide_soon": true,
@@ -5926,7 +5939,7 @@
        "items": [
         {
          "status": "partly",
-         "text": "29a90b5dc8c319ce2dd0afb32a26528bf1e3da1e725f636c251643fe59b93b3a"
+         "text": "f546e9705ac8aca0a14e47e11aac9e03f62565016554a9fddbe99c2dcade2093"
         },
         {
          "hide_soon": true,
@@ -6941,7 +6954,7 @@
        "items": [
         {
          "status": "partly",
-         "text": "a8fdb432b812d48c0164d4cee4c016fcb223d8fca6968d4ac8bb8e35df8ad2db"
+         "text": "8a089cac5c76235ce5edada3152c96dcec9eb4c1aeaea3af1682a53aeed2cdc1"
         },
         {
          "status": "todo",
@@ -7309,8 +7322,9 @@
          "text": "a8e3e66605e8cdb6bf8760f7dfe06ba293773a1d680be4e5f5e757d21e34e7b9"
         },
         {
-         "status": "todo",
-         "text": "f774e6b03e954023191c037bbd4646ad0a45218fe1ea525389988eb231aa5f00"
+         "hide_soon": true,
+         "status": "done",
+         "text": "df57424e6f2d739be769171cff1141c3d93b23a62bc40677c23241d277a641e3"
         }
        ]
       },
@@ -7326,8 +7340,9 @@
          "text": "fca61840feebe0aab54c92d18ca9d589ee3f74a6ce228376b605e61c5d79741d"
         },
         {
-         "status": "todo",
-         "text": "15f1e745b938b247cbc52e36980c3768dc38f1c2e16c7d86ae3275cef8143569"
+         "hide_soon": true,
+         "status": "done",
+         "text": "0b105036aa91b99edfc01ea9395f3d2143edfdfe796da10ac75b8b4f4a820663"
         }
        ]
       },
@@ -7344,8 +7359,9 @@
          "text": "5cf4b2d579b46d6f507ca794c644eb4fc393cfb16d934a137d0fc459a26e88f3"
         },
         {
-         "status": "todo",
-         "text": "b59d2e4ed03d7021b2a853348fa513dd8e8babbe651e73ffd4810f9e53f6e7a8"
+         "hide_soon": true,
+         "status": "done",
+         "text": "5a0b303566f38b642b3a0fb23944dba8cf6a700d56efd4f7c309106cacffa323"
         }
        ]
       },
@@ -8132,6 +8148,18 @@
     "fr": ""
    }
   },
+  "093e9776f645d8cf75f5f4ae5866cf268d2f832635871fd1aa6f90d1fc939c1d": {
+   "drop": false,
+   "en": "Encrypt a document with a password and open it again with the password, in `.docx`, `.dotx`, `.odt`, and `.ott` files.",
+   "es": "Cifre un documento con una contraseña y vuelva a abrirlo con ella, en archivos `.docx`, `.dotx`, `.odt` y `.ott`.",
+   "fr": "Chiffrez un document avec un mot de passe et rouvrez-le avec celui-ci, dans des fichiers `.docx`, `.dotx`, `.odt` et `.ott`.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "0944eee1a26ab758c4fee6866d7f1c517ae9d3e02bd18f61f059be58d3e787c6": {
    "drop": false,
    "en": "Export a single-file web page (HTML), or export pages as SVG drawings.",
@@ -8384,6 +8412,18 @@
     "fr": "Styles de tableau : bordures, polices, bandes de colonnes, cellules d’angle, et modification ou suppression d’un style"
    }
   },
+  "0b105036aa91b99edfc01ea9395f3d2143edfdfe796da10ac75b8b4f4a820663": {
+   "drop": false,
+   "en": "Open password-protected `.doc` files. The app asks for the password until it is correct, and the document opens as a new `.docx` with the same password.",
+   "es": "Abra archivos `.doc` protegidos con contraseña. La aplicación solicita la contraseña hasta que sea correcta, y el documento se abre como un `.docx` nuevo con la misma contraseña.",
+   "fr": "Ouvrez des fichiers `.doc` protégés par mot de passe. L’application demande le mot de passe jusqu’à ce qu’il soit correct, et le document s’ouvre comme un nouveau `.docx` avec le même mot de passe.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "0b34cd64f82fde71f3a8b0ba442f605358125c966553788d079f42478c3b6ea5": {
    "drop": false,
    "en": "A file’s theme fonts and colors are read and used.",
@@ -8454,6 +8494,18 @@
     "en": "Insert Slicer for a table",
     "es": "Insertar segmentación de datos para una tabla",
     "fr": "Insertion d’un segment pour un tableau"
+   }
+  },
+  "0c0a2104aa05d6c1f2737c2f95c6468c85adfb6672100eda34ba6aec9cbbc3be": {
+   "drop": false,
+   "en": "Apply shading and borders to table cells, choose the pen style, weight, and color, draw borders with the pen, divide cells by drawing across them, and join cells with the eraser.",
+   "es": "Aplique sombreado y bordes a las celdas de una tabla, elija el estilo, el grosor y el color del lápiz, dibuje bordes con el lápiz, divida celdas dibujando a través de ellas y combine celdas con la goma de borrar.",
+   "fr": "Appliquez une trame de fond et des bordures aux cellules d’un tableau, choisissez le style, l’épaisseur et la couleur du stylo, tracez des bordures avec le stylo, divisez des cellules en traçant à travers et fusionnez des cellules avec la gomme.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "0c4bd5c40174422d6bc7b04515bed92a1ff47b274e00aa16c5488e50380bb220": {
@@ -8912,18 +8964,6 @@
     "fr": ""
    }
   },
-  "12fd2e193722e310f683728fad0d5878ba314d922430914b4f30e6d37652f8b4": {
-   "drop": false,
-   "en": "Shade cells, apply borders, and draw borders with a pen style, weight, and color.",
-   "es": "Sombree celdas, aplique bordes y dibuje bordes con un estilo, grosor y color de lápiz.",
-   "fr": "Ombrez les cellules, appliquez des bordures et dessinez des bordures avec un style, une épaisseur et une couleur de stylo.",
-   "soon": {
-    "drop": false,
-    "en": "Draw Table and Eraser",
-    "es": "Dibujar tabla y Borrador",
-    "fr": "Dessiner un tableau et Gomme"
-   }
-  },
   "13568da8935054403b7a6bc9f02824f6592d5243c5390c3a6f760ab308cec725": {
    "drop": false,
    "en": "Editing",
@@ -9092,6 +9132,18 @@
     "fr": "Précision telle qu’affichée, enregistrement des valeurs de liens externes, exclusion des autres programmes utilisant DDE et séparateurs du système"
    }
   },
+  "15a27c675889566f268b5197f11bb010deaaaf73038e803571bc8b59dd9d474e": {
+   "drop": false,
+   "en": "Format the fill and line of the chart area, the plot area, and each series, set smooth lines and marks, and format the horizontal and vertical axes.",
+   "es": "Dé formato al relleno y la línea del área del gráfico, del área de trazado y de cada serie, configure líneas suaves y marcadores, y dé formato a los ejes horizontal y vertical.",
+   "fr": "Mettez en forme le remplissage et le trait de la zone du graphique, de la zone de traçage et de chaque série, réglez les lignes lissées et les marques, et mettez en forme les axes horizontal et vertical.",
+   "soon": {
+    "drop": false,
+    "en": "Current Selection, Reset to Match Style, and text styles of chart elements",
+    "es": "Selección actual, restablecer para coincidir con el estilo y estilos de texto de los elementos del gráfico",
+    "fr": "Sélection active, rétablissement du style et styles de texte des éléments du graphique"
+   }
+  },
   "15d3ebd2474eaa13d4b72804fd81f0a1553298ba707601709ccad9f8a669aace": {
    "drop": true,
    "en": "",
@@ -9104,18 +9156,6 @@
     "fr": "Onglet Format du graphique : sélection active, styles de forme, styles de texte artistique, formes, zones de texte, images, taille et organisation"
    }
   },
-  "15f1e745b938b247cbc52e36980c3768dc38f1c2e16c7d86ae3275cef8143569": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Encrypted `.doc` files: open (RC4 and the older XOR scheme)",
-    "es": "Archivos `.doc` cifrados: abrir (RC4 y el esquema XOR anterior)",
-    "fr": "Fichiers `.doc` chiffrés : ouverture (RC4 et l’ancien schéma XOR)"
-   }
-  },
   "16b73cb77accbde6eb0425c028692ff364ff991d5215ebb4963f21721d87b791": {
    "drop": true,
    "en": "",
@@ -9126,6 +9166,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "16e990a95633f5d14ffa4d5d10e2554909ef7c1b0721ea0010aef554e7133cb4": {
+   "drop": false,
+   "en": "Add chart elements: axes, axis titles, chart title, data labels, gridlines, legend, error bars, lines, and trendline. Quick Layout sets several at once.",
+   "es": "Agregue elementos de gráfico: ejes, títulos de ejes, título del gráfico, etiquetas de datos, líneas de cuadrícula, leyenda, barras de error, líneas y línea de tendencia. El diseño rápido establece varios a la vez.",
+   "fr": "Ajoutez des éléments de graphique : axes, titres d’axes, titre du graphique, étiquettes de données, quadrillage, légende, barres d’erreur, lignes et courbe de tendance. La disposition rapide en règle plusieurs à la fois.",
+   "soon": {
+    "drop": false,
+    "en": "Data table chart element",
+    "es": "Elemento de tabla de datos del gráfico",
+    "fr": "Élément de tableau de données du graphique"
    }
   },
   "170abbe3fda5186dc803a541603034e8e85e1daeff0c7ba0e064e9b210f263fb": {
@@ -10664,18 +10716,6 @@
     "fr": ""
    }
   },
-  "28c020d51627989444be8c7352dd9b64d427346c01b861ff8231293dc3f5cf5e": {
-   "drop": false,
-   "en": "Edit the text of a master’s placeholders with the Home tab tools; how a level looks reaches the layouts and slides that had it.",
-   "es": "Edite el texto de los marcadores de posición del patrón con las herramientas de la pestaña Inicio; el aspecto de un nivel llega a los diseños y diapositivas que lo tenían.",
-   "fr": "Modifiez le texte des espaces réservés du masque avec les outils de l’onglet Accueil ; l’aspect d’un niveau se répercute sur les dispositions et diapositives qui l’avaient.",
-   "soon": {
-    "drop": false,
-    "en": "Separate text styles per level in a new master",
-    "es": "Estilos de texto separados por nivel en un patrón nuevo",
-    "fr": "Styles de texte distincts par niveau dans un nouveau masque"
-   }
-  },
   "28da2673b29550d10376f5387a763399db32c89865fc4d05140b2c95f6b968bf": {
    "drop": true,
    "en": "",
@@ -10770,18 +10810,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "29a90b5dc8c319ce2dd0afb32a26528bf1e3da1e725f636c251643fe59b93b3a": {
-   "drop": false,
-   "en": "Cut, Copy, Paste, and Select All keep the formatting of the text. The Paste menu offers Merge Formatting, Keep Text Only, and Picture when the clipboard has one. Paste Special (`Ctrl+Alt+V`) lists what the clipboard can be pasted as.",
-   "es": "Cortar, Copiar, Pegar y Seleccionar todo conservan el formato del texto. El menú Pegar ofrece Combinar formato, Mantener solo texto e Imagen cuando el portapapeles tiene una. Pegado especial (`Ctrl+Alt+V`) muestra las formas en que se puede pegar el contenido del portapapeles.",
-   "fr": "Couper, Copier, Coller et Tout sélectionner conservent la mise en forme du texte. Le menu Coller propose Fusionner la mise en forme, Conserver uniquement le texte et Image lorsque le Presse-papiers en contient une. Collage spécial (`Ctrl+Alt+V`) liste les formes sous lesquelles le contenu du Presse-papiers peut être collé.",
-   "soon": {
-    "drop": false,
-    "en": "Paste choices for lists and tables, the Paste Options button, and RTF from other programs",
-    "es": "Opciones de pegado para listas y tablas, el botón Opciones de pegado y RTF de otros programas",
-    "fr": "Options de collage pour les listes et les tableaux, bouton Options de collage et RTF provenant d’autres programmes"
    }
   },
   "29f980f4d1b7ce0eee0d54e07e54a832877a47fcf65a265792dfb5cb66dc2f6b": {
@@ -11310,6 +11338,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "31c1d069071d31f3697058bf804407460c09c8925e91d8d692af25ad28fa258b": {
+   "drop": false,
+   "en": "Protect with Password encrypts `.xlsx` files when they are saved.",
+   "es": "Proteger con contraseña cifra los archivos `.xlsx` al guardarlos.",
+   "fr": "Protéger avec un mot de passe chiffre les fichiers `.xlsx` lors de leur enregistrement.",
+   "soon": {
+    "drop": false,
+    "en": "Mark as Final",
+    "es": "Marcar como final",
+    "fr": "Marquer comme final"
    }
   },
   "31cd8faaf0632351cecf7ae278e47816f1cc05f69ad6a217c423e15b2ad3e01a": {
@@ -11996,18 +12036,6 @@
     "fr": "Vue Mode Web"
    }
   },
-  "3b285a21d5f3eb1b49bcb8142181b4dbce5a66d8a922910ce0fe01b5d26b95f5": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Paste and drop of delimited text through the import window, and `.csv` open from the command line",
-    "es": "Pegar y soltar texto delimitado mediante la ventana de importación, y abrir `.csv` desde la línea de comandos",
-    "fr": "Collage et dépôt de texte délimité via la fenêtre d’importation, et ouverture de `.csv` depuis la ligne de commande"
-   }
-  },
   "3b2b239b4e477eba04e308b7f682df58375e1578c16676750a595cf4216c4730": {
    "drop": false,
    "en": "Opens damaged `.pub` files as far as it can.",
@@ -12114,6 +12142,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "3d21c0d10aab13bdada490f83d012d8d1edae924a0883bd1d62b778bc5833eb3": {
+   "drop": false,
+   "en": "Edit Data opens the chart's data table, Select Data lists the series to check, rename, and reorder, and Switch Row/Column swaps the series and the labels under the points. Each is one step of Undo.",
+   "es": "Editar datos abre la tabla de datos del gráfico, Seleccionar datos muestra las series para marcarlas, cambiarles el nombre y ordenarlas, y Cambiar fila/columna intercambia las series y las etiquetas bajo los puntos. Cada acción es un paso de deshacer.",
+   "fr": "Modifier les données ouvre le tableau de données du graphique, Sélectionner les données liste les séries à cocher, renommer et réordonner, et Basculer ligne/colonne échange les séries et les libellés sous les points. Chaque action est une étape d’annulation.",
+   "soon": {
+    "drop": false,
+    "en": "Chart data editing in place on the slide",
+    "es": "Edición de los datos del gráfico directamente en la diapositiva",
+    "fr": "Modification des données du graphique directement sur la diapositive"
    }
   },
   "3d763902131a3134c33561915137f9329d98f52f0fe7b8bd81e921dbb25d1fd2": {
@@ -13436,18 +13476,6 @@
     "fr": ""
    }
   },
-  "4fbdee5b02e7e43f13d2dc6fc31c3005029a4af687364f72a33891fa6ae09b7c": {
-   "drop": false,
-   "en": "Select a table, column, row, or cell, delete, and insert above, below, left, and right.",
-   "es": "Seleccione una tabla, columna, fila o celda, elimine e inserte arriba, abajo, a la izquierda y a la derecha.",
-   "fr": "Sélectionnez un tableau, une colonne, une ligne ou une cellule, supprimez et insérez au-dessus, en dessous, à gauche et à droite.",
-   "soon": {
-    "drop": false,
-    "en": "View Gridlines",
-    "es": "Ver cuadrículas",
-    "fr": "Affichage du quadrillage"
-   }
-  },
   "4fd4b1059680e38ec52fcbd8eec019eb32662d0c4959522b0b25e42f6fe82706": {
    "drop": true,
    "en": "",
@@ -14324,16 +14352,16 @@
     "fr": "Autres liens et contenu distant : bloqués tant qu’ils ne sont pas autorisés"
    }
   },
-  "5a912bbe95d2bbe5f06fedd3f95c9888c138aba4f36e2c39f34450a8b79ff65e": {
+  "5a0b303566f38b642b3a0fb23944dba8cf6a700d56efd4f7c309106cacffa323": {
    "drop": false,
-   "en": "Set the axes and their titles, the chart title, data labels, gridlines, and the legend.",
-   "es": "Defina los ejes y sus títulos, el título del gráfico, las etiquetas de datos, las líneas de cuadrícula y la leyenda.",
-   "fr": "Définissez les axes et leurs titres, le titre du graphique, les étiquettes de données, le quadrillage et la légende.",
+   "en": "Paste or drop RTF from other programs onto the page, keeping looks, lists, tables, links, and pictures. Paste Options and Paste Special apply to it.",
+   "es": "Pegue o suelte RTF de otros programas en la página, conservando el aspecto, las listas, las tablas, los vínculos y las imágenes. Opciones de pegado y Pegado especial se aplican a él.",
+   "fr": "Collez ou déposez du RTF provenant d’autres programmes sur la page, en conservant l’aspect, les listes, les tableaux, les liens et les images. Les options de collage et le collage spécial s’y appliquent.",
    "soon": {
-    "drop": false,
-    "en": "Data table, error bars, trendlines, and quick layouts for charts",
-    "es": "Tabla de datos, barras de error, líneas de tendencia y diseños rápidos para gráficos",
-    "fr": "Tableau de données, barres d’erreur, courbes de tendance et dispositions rapides pour les graphiques"
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "5a9dce92eb2e0909128ab1c7ac1a0fd8102865008311b24c1e26d2663fa33630": {
@@ -14658,6 +14686,18 @@
     "en": "Symbols: shortcut key and AutoCorrect entry",
     "es": "Símbolos: tecla de método abreviado y entrada de autocorrección",
     "fr": "Symboles : touche de raccourci et entrée de correction automatique"
+   }
+  },
+  "5dd25093749ee28785a27d06e365cfef91980380a1c66eb067f7fd204e1ecdb1": {
+   "drop": false,
+   "en": "Select a table, column, row, or cell, delete rows and columns, and insert them above, below, left, or right. View Gridlines shows dashed gray lines on cell edges that have no line, on screen only.",
+   "es": "Seleccione una tabla, columna, fila o celda, elimine filas y columnas e insértelas arriba, abajo, a la izquierda o a la derecha. Ver líneas de cuadrícula muestra líneas grises discontinuas en los bordes de celda sin línea, solo en pantalla.",
+   "fr": "Sélectionnez un tableau, une colonne, une ligne ou une cellule, supprimez des lignes et des colonnes, et insérez-en au-dessus, en dessous, à gauche ou à droite. Afficher le quadrillage montre des lignes grises en pointillés sur les bords de cellule sans trait, à l’écran uniquement.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "5ddc52e9a1aaf8f5ef9c4096b64b7f75339a8c21e013bc79efb16532e1a9e6a8": {
@@ -15248,6 +15288,18 @@
     "fr": ""
    }
   },
+  "6516a5a01a8acb0d710ee0dfbb3a07eb5f53748e44ca96132cd34f2cd33d4896": {
+   "drop": false,
+   "en": "Change a chart's colors and style, and change the chart type for the whole chart or for each series.",
+   "es": "Cambie los colores y el estilo de un gráfico, y cambie el tipo de gráfico para todo el gráfico o para cada serie.",
+   "fr": "Modifiez les couleurs et le style d’un graphique, et changez le type de graphique pour l’ensemble ou pour chaque série.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "654ef67f184c2ce48b567f96ef59974c29328dfa8556eca5f697d5b90ee256b2": {
    "drop": true,
    "en": "",
@@ -15704,6 +15756,18 @@
     "fr": ""
    }
   },
+  "6a56839859b2a1ad1ca7c39011c835f5706fdb03b295b60b373050252661c4dd": {
+   "drop": false,
+   "en": "Edit the master's body text styles on five levels: bullet, font, size, color, indent, and spacing. Changes apply to the layouts and slides that use each level.",
+   "es": "Edite los estilos del texto del cuerpo del patrón en cinco niveles: viñeta, fuente, tamaño, color, sangría y espaciado. Los cambios se aplican a los diseños y diapositivas que usan cada nivel.",
+   "fr": "Modifiez les styles du texte du corps du masque sur cinq niveaux : puce, police, taille, couleur, retrait et espacement. Les changements s’appliquent aux dispositions et diapositives qui utilisent chaque niveau.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "6aace3cbb991a11d468d3ec90185eb8db8b3b2923db11da09c320266b73004d7": {
    "drop": false,
    "en": "View tab",
@@ -15733,6 +15797,18 @@
    "en": "Bundled open fonts include stand-ins with the same letter widths as common fonts. A missing common font keeps each letter’s own width and, from 14 pt, its own pair kerning, so lines break where they would with the real font. Where such a font has no italic or bold face, the stand-in is slanted or emboldened by the app.",
    "es": "Se incluyen fuentes abiertas, entre ellas sustitutas con el mismo ancho de letra que fuentes comunes. Una fuente común ausente conserva el ancho propio de cada letra y, desde 14 pt, su propio kerning de pares, de modo que las líneas se dividen donde lo harían con la fuente real. Si una fuente así no tiene cursiva o negrita, la aplicación inclina o engrosa la sustituta.",
    "fr": "Des polices libres sont fournies, dont des remplaçantes aux mêmes largeurs de lettres que des polices courantes. Une police courante absente conserve la largeur propre à chaque lettre et, à partir de 14 pt, son propre crénage de paires, de sorte que les lignes se coupent là où elles le feraient avec la vraie police. Si une telle police n’a pas de face italique ou grasse, l’application incline ou épaissit la remplaçante.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "6b54d0845ddca7ba2b9744af711f1b8f4f0068215e7ee7e2db64e154aacb4a22": {
+   "drop": false,
+   "en": "Paste or drop delimited text onto the grid and review it in the import window, with the separator guessed. Open a `.csv` file with `--separator`, `--encoding`, and `--decimal` options on the command line.",
+   "es": "Pegue o suelte texto delimitado en la cuadrícula y revíselo en la ventana de importación, con el separador detectado. Abra un archivo `.csv` con las opciones `--separator`, `--encoding` y `--decimal` en la línea de comandos.",
+   "fr": "Collez ou déposez du texte délimité sur la grille et vérifiez-le dans la fenêtre d’importation, avec le séparateur deviné. Ouvrez un fichier `.csv` avec les options `--separator`, `--encoding` et `--decimal` en ligne de commande.",
    "soon": {
     "drop": true,
     "en": "",
@@ -15781,18 +15857,6 @@
    "en": "Sheet Options",
    "es": "Opciones de la hoja",
    "fr": "Options de la feuille",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "6bd3bb66bf7dfd1a1465f162aeef41e511e9705e122bcfff89b80aa4407e166e": {
-   "drop": false,
-   "en": "Open encrypted `.pptx`, `.potx`, and `.ppsx` files and save them with a password, using AES-256 encryption.",
-   "es": "Abra archivos `.pptx`, `.potx` y `.ppsx` cifrados y guárdelos con contraseña, con cifrado AES-256.",
-   "fr": "Ouvrez des fichiers `.pptx`, `.potx` et `.ppsx` chiffrés et enregistrez-les avec un mot de passe, avec un chiffrement AES-256.",
    "soon": {
     "drop": true,
     "en": "",
@@ -16146,18 +16210,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "6fe81d09ae0ae5f6c054371b6a905f18f43e9b7ec7c4b1ebdbd37949cea19205": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Chart Format: Current Selection, Format Selection, Reset to Match Style, and the shape and text styles of the elements",
-    "es": "Formato de gráfico: selección actual, dar formato a la selección, restablecer para hacer coincidir el estilo, y los estilos de forma y de texto de los elementos",
-    "fr": "Format de graphique : sélection actuelle, mise en forme de la sélection, rétablir le style et styles de forme et de texte des éléments"
    }
   },
   "700e5144522e5c247cf389eae3b4ab120d1231052ff4b7afd82b37e8878193f2": {
@@ -17924,6 +17976,18 @@
     "fr": "Barre d’état : modes Modifier, Entrer et Pointer, nombre de filtres et choix des statistiques"
    }
   },
+  "8a089cac5c76235ce5edada3152c96dcec9eb4c1aeaea3af1682a53aeed2cdc1": {
+   "drop": false,
+   "en": "Add chart elements, apply quick layouts, colors, and styles, switch row and column, select and edit data, change the chart type (also per series), and format the chart parts and axes. Buttons beside a selected chart open Chart Elements, Chart Colors and Styles, and Chart Filters.",
+   "es": "Agregue elementos de gráfico, aplique diseños rápidos, colores y estilos, cambie fila y columna, seleccione y edite datos, cambie el tipo de gráfico (también por serie) y dé formato a las partes y a los ejes del gráfico. Los botones junto a un gráfico seleccionado abren Elementos, Colores y estilos, y Filtros del gráfico.",
+   "fr": "Ajoutez des éléments de graphique, appliquez des dispositions rapides, des couleurs et des styles, basculez ligne et colonne, sélectionnez et modifiez les données, changez le type de graphique (aussi par série) et mettez en forme les parties et les axes. Des boutons à côté d’un graphique sélectionné ouvrent Éléments, Couleurs et styles, et Filtres du graphique.",
+   "soon": {
+    "drop": false,
+    "en": "Data table element, embedded workbook editing, Current Selection, Reset to Match Style, and text styles of chart elements",
+    "es": "Elemento de tabla de datos, edición del libro incrustado, selección actual, restablecer estilo y estilos de texto de los elementos del gráfico",
+    "fr": "Élément de tableau de données, modification du classeur incorporé, sélection active, rétablissement du style et styles de texte des éléments du graphique"
+   }
+  },
   "8a42fc06a073286a989aecd9cf5282ffb8fb68a231b1877807257d11f9696176": {
    "drop": false,
    "en": "Cut, copy, and paste cells within a workbook and between workbooks. Values, formulas with their relative references moved, formats, and merged cells are pasted, and a cut moves the cells and what refers to them. Tab-separated text and HTML tables go in and out.",
@@ -18068,6 +18132,18 @@
     "fr": ""
    }
   },
+  "8d0985e424ee9683c990f6771651888a9ada4b108450ef551fabb578ff2963c2": {
+   "drop": false,
+   "en": "Mark a presentation as final so it opens read-only with a note, encrypt a `.pptx`, `.odp`, or `.otp` file with a password, and set a presentation to always open read-only.",
+   "es": "Marque una presentación como final para que se abra en modo de solo lectura con una nota, cifre un archivo `.pptx`, `.odp` u `.otp` con una contraseña y configure una presentación para que siempre se abra en modo de solo lectura.",
+   "fr": "Marquez une présentation comme finale pour qu’elle s’ouvre en lecture seule avec une note, chiffrez un fichier `.pptx`, `.odp` ou `.otp` avec un mot de passe et réglez une présentation pour qu’elle s’ouvre toujours en lecture seule.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "8d1e78d4db3534d900462db7fa9c2e9dc7ba71db72c97f45f0624f40f0d95404": {
    "drop": false,
    "en": "Open and save `.odt` documents, including styles, lists, tables, sections, headers and footers, notes, fields, pictures, text boxes, comments, and tracked changes. `.ott` files open as a new document.",
@@ -18174,18 +18250,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "8edbe68aca28694011611b29c58fcb967d41d67e03edd361f982370c6fcdbf22": {
-   "drop": false,
-   "en": "Right-click an object on the slide, or press `Shift+F10` or the Menu key, for Cut, Copy, Paste, Delete, Edit Text, Group or Ungroup, Order, text Alignment, Link, and New Comment.",
-   "es": "Haga clic con el botón derecho en un objeto de la diapositiva, o pulse `Shift+F10` o la tecla Menú, para Cortar, Copiar, Pegar, Eliminar, Editar texto, Agrupar o Desagrupar, Orden, Alineación del texto, Vínculo y Nuevo comentario.",
-   "fr": "Faites un clic droit sur un objet de la diapositive, ou appuyez sur `Shift+F10` ou sur la touche Menu, pour Couper, Copier, Coller, Supprimer, Modifier le texte, Grouper ou Dissocier, Ordre, Alignement du texte, Lien et Nouveau commentaire.",
-   "soon": {
-    "drop": false,
-    "en": "Object menu: paste options, save as picture, size and position, format, and alt text",
-    "es": "Menú del objeto: opciones de pegado, guardar como imagen, tamaño y posición, formato y texto alternativo",
-    "fr": "Menu de l’objet : options de collage, enregistrer comme image, taille et position, format et texte de remplacement"
    }
   },
   "8ee4fd000fb6d2e4b1770bffa6575cd8dd58f6a29f459072bd9f560b19179ee9": {
@@ -19316,18 +19380,6 @@
     "fr": "Symbole : n’importe quel caractère de n’importe quelle police, et symboles récents"
    }
   },
-  "9e822963d487ee8531fc3e7aeccf5658ff9afb0b77fc795fbacde3ae5df133f9": {
-   "drop": false,
-   "en": "Protect a presentation on the Info page: mark it as final (it opens read-only with a note), or encrypt it with a password to open and save a password-protected `.pptx` with strong encryption. An `.odp` file cannot hold the mark or a password, and a save to one says so.",
-   "es": "Proteja una presentación en la página Información: márquela como final (se abre en modo de solo lectura con una nota) o cífrela con contraseña para abrir y guardar un `.pptx` protegido con contraseña y cifrado seguro. Un archivo `.odp` no puede conservar la marca ni una contraseña, y al guardar en uno se le avisa.",
-   "fr": "Protégez une présentation sur la page Informations : marquez-la comme finale (elle s’ouvre en lecture seule avec une note) ou chiffrez-la avec un mot de passe pour ouvrir et enregistrer un `.pptx` protégé par mot de passe avec un chiffrement fort. Un fichier `.odp` ne peut pas conserver le marquage ni un mot de passe, et un enregistrement dans ce format le signale.",
-   "soon": {
-    "drop": false,
-    "en": "Always open read-only",
-    "es": "Abrir siempre en modo de solo lectura",
-    "fr": "Ouverture systématique en lecture seule"
-   }
-  },
   "9ebbc171279f2e91b493067b377c161a6b71228288f86736e07a658b255e8b09": {
    "drop": false,
    "en": "Insert a cover page from three designs (Classic, Band, and Plain), each with a title, subtitle, author, and date, one cover to a document, in one step that undoes. Remove Current Cover Page removes it.",
@@ -19916,18 +19968,6 @@
     "fr": "Enregistrement en `.docm` et `.dotm` avec conservation des macros"
    }
   },
-  "a8fdb432b812d48c0164d4cee4c016fcb223d8fca6968d4ac8bb8e35df8ad2db": {
-   "drop": false,
-   "en": "Edit chart data, change the chart type, show or set the chart title, set the legend position, add data labels, show or hide axes and axis titles, turn gridlines on or off, pick one of eight chart styles, and set wrap text, alt text, and size.",
-   "es": "Edite los datos del gráfico, cambie el tipo de gráfico, muestre o defina el título, establezca la posición de la leyenda, agregue etiquetas de datos, muestre u oculte ejes y títulos de ejes, active o desactive líneas de cuadrícula, elija uno de ocho estilos de gráfico y defina ajuste de texto, texto alternativo y tamaño.",
-   "fr": "Modifiez les données du graphique, changez son type, affichez ou définissez le titre, réglez la position de la légende, ajoutez des étiquettes de données, affichez ou masquez les axes et leurs titres, activez ou désactivez le quadrillage, choisissez l’un des huit styles de graphique et définissez l’habillage, le texte de remplacement et la taille.",
-   "soon": {
-    "drop": false,
-    "en": "Data tables, error bars, trendlines, quick layouts, colors, and formatting of each chart part",
-    "es": "Tablas de datos, barras de error, líneas de tendencia, diseños rápidos, colores y formato de cada parte del gráfico",
-    "fr": "Tableaux de données, barres d’erreur, courbes de tendance, dispositions rapides, couleurs et mise en forme de chaque élément du graphique"
-   }
-  },
   "a93e4681d33691014cf0795349be350b2def1360efd43b7f2c9153b56dec3eb9": {
    "drop": true,
    "en": "",
@@ -20029,6 +20069,18 @@
    "en": "Built-in Help that works offline: a Help pane with 51 topics in plain language, a contents page, links between topics, Back and Forward, and a search that finds topics and commands and runs the commands. Press `F1` to open the topic for what you are doing: the ribbon tab, task pane, File page, dialog, or selected object.",
    "es": "Ayuda integrada que funciona sin conexión: un panel de ayuda con 51 temas en lenguaje sencillo, una página de contenido, vínculos entre temas, Atrás y Adelante, y una búsqueda que encuentra temas y comandos y ejecuta los comandos. Pulse `F1` para abrir el tema correspondiente a lo que está haciendo: la pestaña de la cinta de opciones, el panel de tareas, la página Archivo, el cuadro de diálogo o el objeto seleccionado.",
    "fr": "Aide intégrée qui fonctionne hors ligne : un volet d’aide de 51 sujets en langage clair, une page de sommaire, des liens entre sujets, Précédent et Suivant, et une recherche qui trouve des sujets et des commandes et exécute les commandes. Appuyez sur `F1` pour ouvrir le sujet correspondant à ce que vous faites : l’onglet du ruban, le volet de tâches, la page Fichier, la boîte de dialogue ou l’objet sélectionné.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "aa7f87daaab292fab1fa84805be2f800bd3a1e6549f6864f3800f891265e4a27": {
+   "drop": false,
+   "en": "Right-click an object, or press `Shift+F10` or the Menu key, for Cut, Copy, Paste, Paste Options, Delete, Edit Text, Group or Ungroup, Order, Save as Picture, Size and Position, Format Shape, Alt Text, Link, and New Comment.",
+   "es": "Haga clic con el botón derecho en un objeto, o pulse `Shift+F10` o la tecla Menú, para Cortar, Copiar, Pegar, Opciones de pegado, Eliminar, Editar texto, Agrupar o Desagrupar, Orden, Guardar como imagen, Tamaño y posición, Formato de forma, Texto alternativo, Vínculo y Nuevo comentario.",
+   "fr": "Faites un clic droit sur un objet, ou appuyez sur `Shift+F10` ou sur la touche Menu, pour Couper, Copier, Coller, Options de collage, Supprimer, Modifier le texte, Grouper ou Dissocier, Ordre, Enregistrer comme image, Taille et position, Format de la forme, Texte de remplacement, Lien et Nouveau commentaire.",
    "soon": {
     "drop": true,
     "en": "",
@@ -20372,18 +20424,6 @@
     "fr": ""
    }
   },
-  "b012ab6f3872f74f257b3ba4d47639c70ad9ee71f8f310b53082e508b53fcdac": {
-   "drop": false,
-   "en": "Protect with Password encrypts `.xlsx` files when they are saved.",
-   "es": "Proteger con contraseña cifra los archivos `.xlsx` al guardarlos.",
-   "fr": "Protéger avec un mot de passe chiffre les fichiers `.xlsx` lors de leur enregistrement.",
-   "soon": {
-    "drop": false,
-    "en": "Mark as Final",
-    "es": "Marcar como final",
-    "fr": "Marquer comme final"
-   }
-  },
   "b06e867f989c89d6eb47e188b6048686882fbf7d8e170df8255d7b8f6d4830b1": {
    "drop": false,
    "en": "Options > Advanced sets measurement units (inches, centimeters, millimeters, points, or picas), used by the ruler and the dialogs.",
@@ -20636,6 +20676,18 @@
     "fr": "Modification des notes dans le mode Présentateur"
    }
   },
+  "b4cdd04c658f0f42fccb612e44468da67f996571d5aa55af0dc470fe9bc56fde": {
+   "drop": false,
+   "en": "Open encrypted `.xlsx`, `.xltx`, `.ods`, and `.ots` files and save them with a password.",
+   "es": "Abra archivos cifrados `.xlsx`, `.xltx`, `.ods` y `.ots` y guárdelos con una contraseña.",
+   "fr": "Ouvrez des fichiers chiffrés `.xlsx`, `.xltx`, `.ods` et `.ots` et enregistrez-les avec un mot de passe.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "b4f524446fabc6ae78dcbbb448253e68d8530fb51eca9c1763c560ab93a59176": {
    "drop": false,
    "en": "Right-click a cell (cut, copy, paste, insert, delete, clear, filter, sort, notes, links, Format Cells), a row heading, a column heading, a sheet tab, a selected object, or a chart to get a shortcut menu.",
@@ -20682,18 +20734,6 @@
     "en": "Slide pictures: all slides at once, other sizes, and GIF, TIFF, BMP, and SVG",
     "es": "Imágenes de diapositivas: todas a la vez, otros tamaños, y GIF, TIFF, BMP y SVG",
     "fr": "Images de diapositives : toutes à la fois, autres tailles, et GIF, TIFF, BMP et SVG"
-   }
-  },
-  "b59d2e4ed03d7021b2a853348fa513dd8e8babbe651e73ffd4810f9e53f6e7a8": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Paste and drop of RTF from other programs",
-    "es": "Pegar y soltar RTF desde otros programas",
-    "fr": "Collage et glisser-déposer de RTF depuis d’autres programmes"
    }
   },
   "b608a5e43ba423bc70e16ce5a8dbf74817f4b081b474bea911305d7324867973": {
@@ -21102,18 +21142,6 @@
     "en": "Equations laid out as printed, in `.doc` and `.odt` files, on screen, in print, and in PDF",
     "es": "Ecuaciones con el diseño impreso, en archivos `.doc` y `.odt`, en pantalla, en impresión y en PDF",
     "fr": "Équations mises en page comme à l’impression, dans les fichiers `.doc` et `.odt`, à l’écran, à l’impression et en PDF"
-   }
-  },
-  "bdb2848bf272dd1a2bd219d6305ee58a2b4a739eaeadd3f54b723734b5664e71": {
-   "drop": false,
-   "en": "Encrypt a `.docx` with a password using AES-256; opening it asks for the password, as often as needed.",
-   "es": "Cifre un `.docx` con una contraseña mediante AES-256; al abrirlo se solicita la contraseña, tantas veces como sea necesario.",
-   "fr": "Chiffrez un `.docx` avec un mot de passe en AES-256 ; son ouverture demande le mot de passe, autant de fois que nécessaire.",
-   "soon": {
-    "drop": false,
-    "en": "Password protection for `.odt` files",
-    "es": "Protección con contraseña para archivos `.odt`",
-    "fr": "Protection par mot de passe pour les fichiers `.odt`"
    }
   },
   "bddc8d737ee0e569a1843dbd3653afec67fec0ce99de6338bc96abbee5734144": {
@@ -22772,18 +22800,6 @@
     "fr": ""
    }
   },
-  "d319775f3cb92056b352ad44bee47979014d8b408e6de4d907cfbbcd77a975b2": {
-   "drop": false,
-   "en": "Open encrypted `.xlsx` files and save them with a password.",
-   "es": "Abra documentos `.xlsx` cifrados y guárdelos con contraseña.",
-   "fr": "Ouvrez des fichiers `.xlsx` chiffrés et enregistrez-les avec un mot de passe.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "d3249263d810ee621c98d5f165b93728e8307173b0c42f0ef10bbc98cc2b4100": {
    "drop": false,
    "en": "Work in a window with a Pages list (drag to move a page; right-click to add, copy, delete, rename, or move), a status bar (page buttons, pointer position, selected size, view buttons, and zoom), and task panes on the right (Find and Replace, Design Checker, Mail Merge, Research, Graphics Manager, Online Pictures, Catalog Merge, and Help).",
@@ -22842,18 +22858,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "d40f172d8b41a532b49a6800f000bd3ab8376046d49f3955992c0489cd102918": {
-   "drop": false,
-   "en": "Edit Data opens a data grid for a chart that holds its own numbers.",
-   "es": "Edit Data abre una cuadrícula de datos para un gráfico que contiene sus propios números.",
-   "fr": "Edit Data ouvre une grille de données pour un graphique qui contient ses propres valeurs.",
-   "soon": {
-    "drop": false,
-    "en": "Chart data grid in place, Select Data, and Switch Row/Column",
-    "es": "Cuadrícula de datos del gráfico en el lugar, Select Data y Switch Row/Column",
-    "fr": "Grille de données du graphique sur place, Select Data et Switch Row/Column"
    }
   },
   "d421b6c65828b3d9f8bcc52f4a412e1183cc18472ada7534595a63f8b623a20e": {
@@ -23636,6 +23640,18 @@
     "fr": ""
    }
   },
+  "df57424e6f2d739be769171cff1141c3d93b23a62bc40677c23241d277a641e3": {
+   "drop": false,
+   "en": "Open encrypted `.docx`, `.dotx`, `.odt`, and `.ott` files and save them with a password.",
+   "es": "Abra archivos cifrados `.docx`, `.dotx`, `.odt` y `.ott` y guárdelos con una contraseña.",
+   "fr": "Ouvrez des fichiers chiffrés `.docx`, `.dotx`, `.odt` et `.ott` et enregistrez-les avec un mot de passe.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "dfd1f09d255d29171974f5271ab08c89a677c21bf1a490e734c9dba5888e8d1e": {
    "drop": false,
    "en": "Press `Tab` to move between cells; pressing `Tab` in the last cell adds a row.",
@@ -23905,6 +23921,18 @@
    "en": "Use 23 text functions, including CONCATENATE, TEXT, LEFT, MID, RIGHT, FIND, SEARCH, SUBSTITUTE, TRIM, and PROPER.",
    "es": "Utilice 23 funciones de texto, entre ellas CONCATENATE, TEXT, LEFT, MID, RIGHT, FIND, SEARCH, SUBSTITUTE, TRIM y PROPER.",
    "fr": "Utilisez 23 fonctions de texte, dont CONCATENATE, TEXT, LEFT, MID, RIGHT, FIND, SEARCH, SUBSTITUTE, TRIM et PROPER.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "e3d11fcdddd2993de706bc666d8beeee4a40eb649f6907b3aefeb024f73f0074": {
+   "drop": false,
+   "en": "Open encrypted `.pptx`, `.potx`, `.ppsx`, `.odp`, and `.otp` files and save them with a password.",
+   "es": "Abra archivos cifrados `.pptx`, `.potx`, `.ppsx`, `.odp` y `.otp` y guárdelos con una contraseña.",
+   "fr": "Ouvrez des fichiers chiffrés `.pptx`, `.potx`, `.ppsx`, `.odp` et `.otp` et enregistrez-les avec un mot de passe.",
    "soon": {
     "drop": true,
     "en": "",
@@ -24740,6 +24768,18 @@
     "fr": ""
    }
   },
+  "ee7e9ba1e7b8c6a1792786d888b94e9c74ce8f00f7d7db12e780574dddb03e06": {
+   "drop": false,
+   "en": "Three buttons beside a selected chart open Chart Elements, Chart Colors and Styles, and Chart Filters.",
+   "es": "Tres botones junto a un gráfico seleccionado abren Elementos del gráfico, Colores y estilos del gráfico y Filtros del gráfico.",
+   "fr": "Trois boutons à côté d’un graphique sélectionné ouvrent Éléments du graphique, Couleurs et styles du graphique et Filtres du graphique.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "eeb1e5f15d848cf0b2802e4f24e1c52f6f8cd9da6c7399b6339d91ffc477988d": {
    "drop": false,
    "en": "Select by click, drag, `Shift`, whole rows and columns, `Ctrl+A`, `Ctrl`+arrows, `Shift+Space`, and `Ctrl+Space`. Type an address in the Name Box to go there.",
@@ -25160,6 +25200,18 @@
     "fr": ""
    }
   },
+  "f546e9705ac8aca0a14e47e11aac9e03f62565016554a9fddbe99c2dcade2093": {
+   "drop": false,
+   "en": "Cut, Copy, Paste, and Select All keep the formatting of the text. The Paste menu offers Merge Formatting, Keep Text Only, and Picture, and Paste Special (`Ctrl+Alt+V`) lists the formats the clipboard can be pasted as, including formatted text (RTF).",
+   "es": "Cortar, Copiar, Pegar y Seleccionar todo conservan el formato del texto. El menú Pegar ofrece Combinar formato, Mantener solo texto e Imagen, y Pegado especial (`Ctrl+Alt+V`) muestra los formatos en que se puede pegar el contenido del portapapeles, incluido el texto con formato (RTF).",
+   "fr": "Couper, Copier, Coller et Tout sélectionner conservent la mise en forme du texte. Le menu Coller propose Fusionner la mise en forme, Conserver le texte uniquement et Image, et Collage spécial (`Ctrl+Alt+V`) liste les formats sous lesquels le contenu du presse-papiers peut être collé, dont le texte mis en forme (RTF).",
+   "soon": {
+    "drop": false,
+    "en": "Paste choices for lists and tables, and the Paste Options button",
+    "es": "Opciones de pegado para listas y tablas, y el botón Opciones de pegado",
+    "fr": "Choix de collage pour les listes et les tableaux, et bouton Options de collage"
+   }
+  },
   "f5c1d40ddcc1c823b1e0c89b31c426be81eb2e1552a6e8fbaebbb7c5c5130157": {
    "drop": false,
    "en": "Wrap text in a cell. A row with no set height grows for wrapped text, a larger font, or an entry of several lines (`Alt+Enter` turns Wrap Text on), and follows the width of its column.",
@@ -25182,18 +25234,6 @@
     "en": "Version comparison",
     "es": "Comparación de versiones",
     "fr": "Comparaison de versions"
-   }
-  },
-  "f5d31a5d5762be83ac0734f0f3a6430bde3452d9b9317c14e03d7e0dc6c1bcbe": {
-   "drop": false,
-   "en": "Change the chart type among 12 kinds and apply one of eight chart styles.",
-   "es": "Cambie el tipo de gráfico entre 12 tipos y aplique uno de ocho estilos de gráfico.",
-   "fr": "Changez le type de graphique parmi 12 types et appliquez l’un des huit styles de graphique.",
-   "soon": {
-    "drop": false,
-    "en": "Change Colors for charts",
-    "es": "Cambio de colores de los gráficos",
-    "fr": "Changement des couleurs des graphiques"
    }
   },
   "f5db565cb2f968cc7e82188b07dfb112e0c4de1dbf5b318f84613b111dbba9bd": {
@@ -25290,18 +25330,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "f774e6b03e954023191c037bbd4646ad0a45218fe1ea525389988eb231aa5f00": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Encrypted files: open and save with a password",
-    "es": "Archivos cifrados: abrir y guardar con contraseña",
-    "fr": "Fichiers chiffrés : ouverture et enregistrement avec mot de passe"
    }
   },
   "f7b5ca003c1fe6389956641a205f0c187c11f4b3baf2fb756e9ae0c0921dbf20": {
