@@ -23,6 +23,7 @@
 #include <QTextCursor>
 #include <QSettings>
 #include <QSpinBox>
+#include <QHeaderView>
 #include <QTableWidget>
 #include <QTemporaryDir>
 
@@ -194,6 +195,31 @@ private Q_SLOTS:
         QVERIFY(!w.w.openFile(path));
         QVERIFY(!w.w.hasWorkbook());
         QVERIFY(!w.w.isLoading());
+    }
+
+    // The window reads cleanly: pasted text is named as such (not a blank name), the separator choices stand apart, and the
+    // preview has room for several rows (Nov 16: "Comma[ ]Semicolon" touched, " (62 bytes)", one row of preview).
+    void theDialogNamesPastedTextAndHasRoomForItsChoicesAndPreview()
+    {
+        TextImportRequest req;
+        req.head = "name,qty,price\nBob,12,1.5\nAl,7,9.5\nCy,3,2\n";
+        req.size = req.head.size();
+        req.locale = QLocale::c();
+        TextImportDialog dialog(req);
+        dialog.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&dialog));
+        auto *name = dialog.findChild<QLabel *>(QStringLiteral("textImportName"));
+        QVERIFY(name);
+        QVERIFY(name->text().startsWith(QStringLiteral("Pasted text")));
+        QStringList ids = {QStringLiteral("sepComma"), QStringLiteral("sepSemicolon"), QStringLiteral("sepTab"), QStringLiteral("sepSpace"), QStringLiteral("sepPipe")};
+        for (int i = 0; i + 1 < ids.size(); ++i) {
+            auto *a = dialog.findChild<QCheckBox *>(ids[i]), *b = dialog.findChild<QCheckBox *>(ids[i + 1]);
+            QVERIFY(a && b);
+            QVERIFY2(b->mapTo(&dialog, QPoint(0, 0)).x() - a->mapTo(&dialog, QPoint(a->width(), 0)).x() >= 10, qPrintable(ids[i]));
+        }
+        auto *table = dialog.findChild<QTableWidget *>(QStringLiteral("textImportPreview"));
+        QVERIFY(table);
+        QVERIFY(table->viewport()->height() >= 3 * table->verticalHeader()->defaultSectionSize());
     }
 
     // Fixed columns are chosen on the first lines (a click between two characters starts or ends a column, and the places can be typed), and the marks of numbers are chosen too: the preview

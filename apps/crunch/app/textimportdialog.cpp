@@ -67,9 +67,11 @@ TextImportDialog::TextImportDialog(const TextImportRequest &request, QWidget *pa
 {
     setObjectName(QStringLiteral("textImportDialog"));
     setWindowTitle(tr("Open a Text File"));
-    resize(820, 560);
+    resize(820, 700);   // (Nov 16: at 560 the preview showed one row)
     auto *layout = new QVBoxLayout(this);
-    auto *name = plainLabel(new QLabel(tr("%1 (%2 bytes)").arg(QFileInfo(request.path).fileName(), QLocale().toString(request.size)), this));
+    // (text that came from a paste has no file: it is named as pasted text)
+    auto *name = plainLabel(new QLabel(request.path.isEmpty() ? tr("Pasted text (%1 bytes)").arg(QLocale().toString(request.size))
+                                                              : tr("%1 (%2 bytes)").arg(QFileInfo(request.path).fileName(), QLocale().toString(request.size)), this));
     name->setObjectName(QStringLiteral("textImportName"));
     layout->addWidget(name);
     auto *form = new QFormLayout;
@@ -80,6 +82,7 @@ TextImportDialog::TextImportDialog(const TextImportRequest &request, QWidget *pa
     for (const Code &c : kCodes) m_encoding->addItem(QCoreApplication::translate("jp::TextImportDialog", c.label), int(c.id));
     form->addRow(tr("Text encoding"), m_encoding);
     auto *separators = new QHBoxLayout;
+    separators->setSpacing(16);   // (Nov 16: the choices ran into each other, "Comma[ ]Semicolon")
     auto box = [&](const QString &label, const QString &id, bool on) {
         auto *b = new QCheckBox(label, this);
         b->setObjectName(id);
@@ -158,6 +161,7 @@ TextImportDialog::TextImportDialog(const TextImportRequest &request, QWidget *pa
     m_thousands->addItem(tr("Apostrophe (')"), int('\''));
     m_thousands->setCurrentIndex(std::max(0, m_thousands->findData(request.choices.thousandsMark.unicode())));
     auto *marks = new QHBoxLayout;
+    marks->setSpacing(12);
     marks->addWidget(m_decimal);
     marks->addWidget(new QLabel(tr("Thousands"), this));
     marks->addWidget(m_thousands);
@@ -188,6 +192,7 @@ TextImportDialog::TextImportDialog(const TextImportRequest &request, QWidget *pa
     m_table->setAccessibleName(tr("Preview of the first rows"));
     m_table->setEditTriggers(QAbstractItemView::NoEditTriggers);
     m_table->setSelectionMode(QAbstractItemView::NoSelection);
+    m_table->setMinimumHeight(170);   // (several rows of the preview, whatever the form above takes)
     layout->addWidget(m_table, 1);
     auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
     connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
