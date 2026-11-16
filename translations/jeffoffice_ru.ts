@@ -2275,7 +2275,7 @@ Back page story	4</source>
 <context>
     <name>DeckOutput</name>
     <message>
-        <location filename="../apps/deck/io/deckoutput.cpp" line="+593"/>
+        <location filename="../apps/deck/io/deckoutput.cpp" line="+582"/>
         <source>There are no slides to print.</source>
         <translation type="unfinished">Нет слайдов для печати.</translation>
     </message>
@@ -2307,8 +2307,8 @@ Back page story	4</source>
 <context>
     <name>Dialogs</name>
     <message>
-        <location filename="../libs/page/app/textdialogs.cpp" line="+96"/>
-        <location filename="../apps/pub/app/dialogs.cpp" line="+113"/>
+        <location filename="../libs/page/app/textdialogs.cpp" line="+97"/>
+        <location filename="../apps/pub/app/dialogs.cpp" line="+116"/>
         <source>No Color</source>
         <translation type="unfinished">Без цвета</translation>
     </message>
@@ -2348,7 +2348,7 @@ Back page story	4</source>
         <translation>Подписи</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/textdialogs.cpp" line="+371"/>
+        <location filename="../libs/page/app/textdialogs.cpp" line="+389"/>
         <location filename="../apps/pub/app/dialogs.cpp" line="+3"/>
         <source>Custom</source>
         <translation type="unfinished">Пользовательский</translation>
@@ -2476,7 +2476,7 @@ Back page story	4</source>
     <message>
         <location filename="../libs/page/app/textdialogs.cpp" line="-1"/>
         <location filename="../apps/pub/app/dialogs.cpp" line="-68"/>
-        <location filename="../apps/pub/main.cpp" line="+174"/>
+        <location filename="../apps/pub/main.cpp" line="+175"/>
         <source>Add</source>
         <translation type="unfinished">Добавить</translation>
     </message>
@@ -2488,12 +2488,12 @@ Back page story	4</source>
     <message>
         <location line="+8"/>
         <location line="+89"/>
-        <location line="+1048"/>
+        <location line="+1082"/>
         <source>Remove</source>
         <translation type="unfinished">Удалить</translation>
     </message>
     <message>
-        <location line="-1137"/>
+        <location line="-1171"/>
         <source>Remove All</source>
         <translation type="unfinished">Удалить все</translation>
     </message>
@@ -2528,10 +2528,12 @@ Back page story	4</source>
         <translation type="unfinished">Отсчёт от левого края страницы</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/textdialogs.cpp" line="-197"/>
+        <location filename="../libs/page/app/textdialogs.cpp" line="-215"/>
         <location line="+40"/>
+        <location line="+15"/>
         <location line="+53"/>
-        <location line="+16"/>
+        <location line="+18"/>
+        <location line="+1"/>
         <location line="+1"/>
         <location line="+1"/>
         <location line="+439"/>
@@ -2541,26 +2543,26 @@ Back page story	4</source>
         <translation>Шрифт</translation>
     </message>
     <message>
-        <location line="-1109"/>
+        <location line="-1127"/>
         <source>Regular</source>
         <translation type="unfinished">Обычный</translation>
     </message>
     <message>
         <location line="+0"/>
-        <location line="+1107"/>
-        <location filename="../apps/pub/app/dialogs.cpp" line="+668"/>
+        <location line="+1125"/>
+        <location filename="../apps/pub/app/dialogs.cpp" line="+702"/>
         <source>Italic</source>
         <translation type="unfinished">Курсив</translation>
     </message>
     <message>
-        <location line="-1107"/>
-        <location line="+1105"/>
+        <location line="-1125"/>
+        <location line="+1123"/>
         <location filename="../apps/pub/app/dialogs.cpp" line="+0"/>
         <source>Bold</source>
         <translation type="unfinished">Полужирный</translation>
     </message>
     <message>
-        <location line="-1105"/>
+        <location line="-1123"/>
         <source>Bold Italic</source>
         <translation type="unfinished">Полужирный курсив</translation>
     </message>
@@ -2573,13 +2575,13 @@ Back page story	4</source>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+111"/>
-        <location filename="../apps/pub/app/dialogs.cpp" line="-576"/>
+        <location line="+129"/>
+        <location filename="../apps/pub/app/dialogs.cpp" line="-610"/>
         <source>Single</source>
         <translation type="unfinished">Одинарное</translation>
     </message>
     <message>
-        <location line="-110"/>
+        <location line="-128"/>
         <source>Words only</source>
         <translation type="unfinished">Только слова</translation>
     </message>
@@ -2605,7 +2607,7 @@ Back page story	4</source>
         <translation type="unfinished">Волнистая</translation>
     </message>
     <message>
-        <location filename="../apps/pub/app/dialogs.cpp" line="+643"/>
+        <location filename="../apps/pub/app/dialogs.cpp" line="+677"/>
         <source>Font:</source>
         <translation type="unfinished">Шрифт:</translation>
     </message>
@@ -2620,7 +2622,7 @@ Back page story	4</source>
         <translation type="unfinished">Цвет:</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/textdialogs.cpp" line="+23"/>
+        <location filename="../libs/page/app/textdialogs.cpp" line="+31"/>
         <source>Effects</source>
         <translation type="unfinished">Эффекты</translation>
     </message>
@@ -2673,12 +2675,12 @@ Back page story	4</source>
         <translation type="unfinished">Утопленный</translation>
     </message>
     <message>
-        <location line="+15"/>
+        <location line="+20"/>
         <source>JeffPub sample text</source>
         <translation type="unfinished">Пример текста JeffPub</translation>
     </message>
     <message>
-        <location line="+48"/>
+        <location line="+53"/>
         <location line="+145"/>
         <location line="+5"/>
         <source>Paragraph</source>
@@ -2687,10 +2689,10 @@ Back page story	4</source>
     <message>
         <location line="-145"/>
         <location line="+63"/>
-        <location filename="../apps/pub/app/dialogs.cpp" line="-930"/>
+        <location filename="../apps/pub/app/dialogs.cpp" line="-964"/>
         <location line="+196"/>
         <location line="+4"/>
-        <location line="+815"/>
+        <location line="+849"/>
         <source>Left</source>
         <translation>Левое</translation>
     </message>
@@ -2704,10 +2706,10 @@ Back page story	4</source>
     <message>
         <location line="-63"/>
         <location line="+63"/>
-        <location filename="../apps/pub/app/dialogs.cpp" line="-1014"/>
+        <location filename="../apps/pub/app/dialogs.cpp" line="-1048"/>
         <location line="+196"/>
         <location line="+4"/>
-        <location line="+814"/>
+        <location line="+848"/>
         <source>Right</source>
         <translation>Правое</translation>
     </message>
@@ -2743,7 +2745,7 @@ Back page story	4</source>
     </message>
     <message>
         <location line="+3"/>
-        <location filename="../apps/pub/app/dialogs.cpp" line="-634"/>
+        <location filename="../apps/pub/app/dialogs.cpp" line="-668"/>
         <source>Left to right</source>
         <translation type="unfinished">Слева направо</translation>
     </message>
@@ -2753,7 +2755,7 @@ Back page story	4</source>
         <translation type="unfinished">Справа налево</translation>
     </message>
     <message>
-        <location filename="../apps/pub/app/dialogs.cpp" line="+712"/>
+        <location filename="../apps/pub/app/dialogs.cpp" line="+746"/>
         <source>Alignment:</source>
         <translation type="unfinished">Выравнивание:</translation>
     </message>
@@ -2804,8 +2806,8 @@ Back page story	4</source>
     </message>
     <message>
         <location line="+5"/>
-        <location filename="../apps/pub/app/dialogs.cpp" line="-848"/>
-        <location line="+1029"/>
+        <location filename="../apps/pub/app/dialogs.cpp" line="-882"/>
+        <location line="+1063"/>
         <source>Position</source>
         <translation>Положение</translation>
     </message>
@@ -2816,7 +2818,7 @@ Back page story	4</source>
         <translation>Выравнивание</translation>
     </message>
     <message>
-        <location line="-136"/>
+        <location line="-154"/>
         <source>Font style</source>
         <translation>Начертание</translation>
     </message>
@@ -2827,16 +2829,16 @@ Back page story	4</source>
     </message>
     <message>
         <location line="+2"/>
-        <location filename="../apps/pub/app/dialogs.cpp" line="-936"/>
+        <location filename="../apps/pub/app/dialogs.cpp" line="-970"/>
         <location line="+244"/>
-        <location line="+335"/>
+        <location line="+369"/>
         <location line="+498"/>
         <source>Color</source>
         <translation>Цвет</translation>
     </message>
     <message>
-        <location line="+98"/>
-        <location filename="../apps/pub/app/dialogs.cpp" line="-1034"/>
+        <location line="+116"/>
+        <location filename="../apps/pub/app/dialogs.cpp" line="-1068"/>
         <source>Direction</source>
         <translation>Направление</translation>
     </message>
@@ -2867,7 +2869,7 @@ Back page story	4</source>
     </message>
     <message>
         <location line="+4"/>
-        <location filename="../apps/pub/app/dialogs.cpp" line="+1159"/>
+        <location filename="../apps/pub/app/dialogs.cpp" line="+1193"/>
         <source>Line spacing</source>
         <translation>Междустрочный интервал</translation>
     </message>
@@ -2884,7 +2886,7 @@ Back page story	4</source>
     <message>
         <location line="+4"/>
         <location line="+244"/>
-        <location filename="../apps/pub/app/dialogs.cpp" line="-1117"/>
+        <location filename="../apps/pub/app/dialogs.cpp" line="-1151"/>
         <location line="+41"/>
         <location line="+108"/>
         <source>None</source>
@@ -2946,7 +2948,7 @@ Back page story	4</source>
         <translation type="unfinished">Маркеры</translation>
     </message>
     <message>
-        <location line="-291"/>
+        <location line="-309"/>
         <source>Thick</source>
         <translation type="unfinished">Толстая</translation>
     </message>
@@ -2966,7 +2968,7 @@ Back page story	4</source>
         <translation type="unfinished">Двойная волнистая</translation>
     </message>
     <message>
-        <location line="+185"/>
+        <location line="+203"/>
         <location line="+2"/>
         <source>Default tab stops</source>
         <translation>Стандартные позиции табуляции</translation>
@@ -3142,8 +3144,8 @@ Back page story	4</source>
         <translation type="unfinished">Сохранять пропорции</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/textdialogs.cpp" line="-362"/>
-        <location line="+1076"/>
+        <location filename="../libs/page/app/textdialogs.cpp" line="-380"/>
+        <location line="+1094"/>
         <location filename="../apps/pub/app/dialogs.cpp" line="+11"/>
         <source>Size</source>
         <translation>Размер</translation>
@@ -3223,19 +3225,19 @@ Back page story	4</source>
     <message>
         <location line="+1"/>
         <location line="+482"/>
-        <location line="+1081"/>
+        <location line="+1115"/>
         <source>Width</source>
         <translation>Ширина</translation>
     </message>
     <message>
-        <location line="-1562"/>
+        <location line="-1596"/>
         <location line="+480"/>
-        <location line="+1083"/>
+        <location line="+1117"/>
         <source>Height</source>
         <translation>Высота</translation>
     </message>
     <message>
-        <location line="-1562"/>
+        <location line="-1596"/>
         <source>Orientation</source>
         <translation>Ориентация</translation>
     </message>
@@ -3361,12 +3363,12 @@ Back page story	4</source>
     <message>
         <location line="+1"/>
         <location line="+156"/>
-        <location line="+335"/>
+        <location line="+369"/>
         <source>Transparency</source>
         <translation>Прозрачность</translation>
     </message>
     <message>
-        <location line="-490"/>
+        <location line="-524"/>
         <source>Line color</source>
         <translation>Цвет линии</translation>
     </message>
@@ -3397,24 +3399,24 @@ Back page story	4</source>
     </message>
     <message>
         <location line="+20"/>
-        <location line="+1082"/>
+        <location line="+1116"/>
         <source>Rotation</source>
         <translation>Поворот</translation>
     </message>
     <message>
-        <location line="-1066"/>
-        <location line="+1062"/>
+        <location line="-1100"/>
+        <location line="+1096"/>
         <source>Horizontal position</source>
         <translation>Положение по горизонтали</translation>
     </message>
     <message>
-        <location line="-1061"/>
-        <location line="+1062"/>
+        <location line="-1095"/>
+        <location line="+1096"/>
         <source>Vertical position</source>
         <translation>Положение по вертикали</translation>
     </message>
     <message>
-        <location line="-1061"/>
+        <location line="-1095"/>
         <source>Wrapping style</source>
         <translation>Стиль обтекания</translation>
     </message>
@@ -3474,7 +3476,23 @@ Back page story	4</source>
         <translation type="unfinished">Добавить «Продолжение со страницы…»</translation>
     </message>
     <message>
-        <location line="+738"/>
+        <location line="+363"/>
+        <location line="+56"/>
+        <source>A built-in scheme has the name &quot;%1&quot;. Choose another name.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-51"/>
+        <source>You already have colors named &quot;%1&quot;. Replace them?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+56"/>
+        <source>You already have fonts named &quot;%1&quot;. Replace them?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+348"/>
         <source>Measurement units</source>
         <translation>Единицы измерения</translation>
     </message>
@@ -3560,7 +3578,7 @@ Back page story	4</source>
         <translation>Зона переноса</translation>
     </message>
     <message>
-        <location line="-1099"/>
+        <location line="-1133"/>
         <source>Text Box</source>
         <translation type="unfinished">Текстовое поле</translation>
     </message>
@@ -3630,12 +3648,12 @@ Back page story	4</source>
         <translation>Имя набора сведений о компании</translation>
     </message>
     <message>
-        <location line="+94"/>
+        <location line="+95"/>
         <source>Color scheme name</source>
         <translation>Имя цветовой схемы</translation>
     </message>
     <message>
-        <location line="+18"/>
+        <location line="+37"/>
         <source>Heading font</source>
         <translation>Шрифт заголовков</translation>
     </message>
@@ -3650,7 +3668,7 @@ Back page story	4</source>
         <translation>Имя схемы шрифтов</translation>
     </message>
     <message>
-        <location line="+49"/>
+        <location line="+63"/>
         <source>Blur</source>
         <translation>Размытие</translation>
     </message>
@@ -3692,7 +3710,7 @@ Back page story	4</source>
     </message>
     <message>
         <location filename="../libs/page/app/textdialogs.cpp" line="-164"/>
-        <location filename="../apps/pub/app/dialogs.cpp" line="-641"/>
+        <location filename="../apps/pub/app/dialogs.cpp" line="-675"/>
         <source>Tint</source>
         <translation type="unfinished">Оттенок</translation>
     </message>
@@ -4080,7 +4098,7 @@ Back page story	4</source>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/pub/app/dialogs.cpp" line="+237"/>
+        <location filename="../apps/pub/app/dialogs.cpp" line="+271"/>
         <source>Angle</source>
         <translation>Угол</translation>
     </message>
@@ -4117,8 +4135,8 @@ Back page story	4</source>
     </message>
     <message>
         <location line="+0"/>
-        <location filename="../apps/pub/app/dialogs.cpp" line="-827"/>
-        <location line="+1320"/>
+        <location filename="../apps/pub/app/dialogs.cpp" line="-861"/>
+        <location line="+1354"/>
         <source>Name</source>
         <translation>Имя</translation>
     </message>
@@ -4218,7 +4236,7 @@ Back page story	4</source>
     </message>
     <message>
         <location line="+8"/>
-        <location filename="../apps/pub/app/dialogs.cpp" line="-822"/>
+        <location filename="../apps/pub/app/dialogs.cpp" line="-856"/>
         <source>Hyperlink</source>
         <translation>Гиперссылка</translation>
     </message>
@@ -4302,27 +4320,31 @@ Back page story	4</source>
     </message>
     <message>
         <location line="+21"/>
+        <location line="+26"/>
+        <location line="+5"/>
         <source>Create New Color Scheme</source>
         <translation type="unfinished">Создание новой цветовой схемы</translation>
     </message>
     <message>
-        <location line="+15"/>
-        <location line="+18"/>
+        <location line="-15"/>
+        <location line="+37"/>
         <source>Custom 1</source>
         <translation type="unfinished">Пользовательская 1</translation>
     </message>
     <message>
-        <location line="-13"/>
+        <location line="-17"/>
         <source>Color Scheme</source>
         <translation type="unfinished">Цветовая схема</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+9"/>
+        <location line="+37"/>
+        <location line="+5"/>
         <source>Create New Font Scheme</source>
         <translation type="unfinished">Создание новой схемы шрифтов</translation>
     </message>
     <message>
-        <location line="+15"/>
+        <location line="-26"/>
         <source>Heading</source>
         <translation type="unfinished">Заголовок</translation>
     </message>
@@ -4332,7 +4354,7 @@ Back page story	4</source>
         <translation type="unfinished">Основной текст без лорем-ипсума: съешь же ещё этих мягких французских булок, да выпей чаю.</translation>
     </message>
     <message>
-        <location line="+18"/>
+        <location line="+30"/>
         <source>Font Scheme</source>
         <translation type="unfinished">Схема шрифтов</translation>
     </message>
@@ -4576,7 +4598,7 @@ Back page story	4</source>
         <translation type="unfinished">Изменить текст художественного текста</translation>
     </message>
     <message>
-        <location filename="../apps/pub/app/dialogs.cpp" line="+43"/>
+        <location filename="../apps/pub/app/dialogs.cpp" line="+45"/>
         <source>Calendar</source>
         <translation type="unfinished">Календарь</translation>
     </message>
@@ -4942,7 +4964,7 @@ Back page story	4</source>
     <message>
         <location filename="../libs/page/app/saveoptions.cpp" line="-15"/>
         <location filename="../apps/pub/app/mainwindow.cpp" line="+418"/>
-        <location filename="../apps/write/app/writewindow.cpp" line="+794"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="+797"/>
         <source>Save</source>
         <translation type="unfinished">Сохранить</translation>
     </message>
@@ -4993,7 +5015,8 @@ Back page story	4</source>
         <translation type="unfinished">Автоматически расставлять переносы в новых текстовых полях</translation>
     </message>
     <message>
-        <location line="-14"/>
+        <location filename="../libs/page/app/textdialogs.cpp" line="-1028"/>
+        <location filename="../apps/pub/app/dialogs.cpp" line="-14"/>
         <location filename="../apps/pub/app/mainwindow.cpp" line="+0"/>
         <location filename="../apps/write/app/writewindow.cpp" line="+0"/>
         <location filename="../apps/write/app/writewindow_options.cpp" line="-16"/>
@@ -5179,7 +5202,7 @@ Back page story	4</source>
         <translation type="unfinished">Масштаб текста</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/textdialogs.cpp" line="+9"/>
+        <location filename="../libs/page/app/textdialogs.cpp" line="+1037"/>
         <source>Tints</source>
         <translation type="unfinished">Оттенки</translation>
     </message>
@@ -7010,7 +7033,7 @@ Save without a backup?</source>
 <context>
     <name>Help</name>
     <message>
-        <location filename="../libs/shell/app/help.cpp" line="+272"/>
+        <location filename="../libs/shell/app/help.cpp" line="+275"/>
         <source>Quick Toolbar</source>
         <translation type="unfinished">Панель быстрого доступа</translation>
     </message>
@@ -7489,9 +7512,9 @@ Open them with your email program to send.</source>
     </message>
     <message>
         <location line="+3"/>
-        <location filename="../apps/deck/main.cpp" line="+91"/>
-        <location filename="../apps/write/main.cpp" line="+93"/>
-        <location filename="../apps/crunch/main.cpp" line="+95"/>
+        <location filename="../apps/deck/main.cpp" line="+92"/>
+        <location filename="../apps/write/main.cpp" line="+94"/>
+        <location filename="../apps/crunch/main.cpp" line="+96"/>
         <source>Save a screenshot of the window and quit.</source>
         <translation type="unfinished">Сохранить снимок окна и выйти.</translation>
     </message>
@@ -7826,7 +7849,7 @@ Download it from %2 now? (%3, once.)</source>
 <context>
     <name>OdpExport</name>
     <message>
-        <location filename="../apps/deck/io/odpexport.cpp" line="+426"/>
+        <location filename="../apps/deck/io/odpexport.cpp" line="+427"/>
         <location line="+9"/>
         <source>Slide Master</source>
         <translation type="unfinished">Образец слайдов</translation>
@@ -7848,7 +7871,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Главная страница «%1»</translation>
     </message>
     <message>
-        <location line="+175"/>
+        <location line="+195"/>
         <location line="+5"/>
         <source>Slide %1</source>
         <translation type="unfinished">Слайд %1</translation>
@@ -7875,7 +7898,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">%1: таблица, диаграмма или другой объект, который нельзя прочитать, пропущен.</translation>
     </message>
     <message>
-        <location line="+153"/>
+        <location line="+189"/>
         <source>The presentation has no slides.</source>
         <translation type="unfinished">Презентация не содержит слайдов.</translation>
     </message>
@@ -7948,7 +7971,7 @@ Download it from %2 now? (%3, once.)</source>
 <context>
     <name>OdpImport</name>
     <message>
-        <location filename="../apps/deck/io/odpimport.cpp" line="+92"/>
+        <location filename="../apps/deck/io/odpimport.cpp" line="+93"/>
         <source>The part is missing from the file.</source>
         <translation type="unfinished">В файле отсутствует часть.</translation>
     </message>
@@ -7958,7 +7981,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Размер слайдов в файле нельзя использовать, поэтому слайды будут 13,333 на 7,5 дюйма.</translation>
     </message>
     <message>
-        <location line="+22"/>
+        <location line="+138"/>
         <source>Slide Master</source>
         <translation type="unfinished">Образец слайдов</translation>
     </message>
@@ -8319,7 +8342,7 @@ Download it from %2 now? (%3, once.)</source>
 <context>
     <name>Paper</name>
     <message>
-        <location filename="../libs/office/sheet/pagesetup.cpp" line="+452"/>
+        <location filename="../libs/office/sheet/pagesetup.cpp" line="+485"/>
         <source>Letter</source>
         <translation type="unfinished">Letter</translation>
     </message>
@@ -9063,7 +9086,7 @@ Download it from %2 now? (%3, once.)</source>
 <context>
     <name>PptxExport</name>
     <message>
-        <location filename="../apps/deck/io/pptxexport.cpp" line="+789"/>
+        <location filename="../apps/deck/io/pptxexport.cpp" line="+791"/>
         <source>%1: a table, chart, or other frame that can&apos;t be read was left out.</source>
         <translation type="unfinished">%1: таблица, диаграмма или другой фрейм, который нельзя прочитать, пропущен.</translation>
     </message>
@@ -9148,12 +9171,12 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">анимация</translation>
     </message>
     <message>
-        <location line="+485"/>
+        <location line="+604"/>
         <source>The presentation has more slide masters and layouts than a file can number.</source>
         <translation type="unfinished">В презентации больше образцов слайдов и макетов, чем может пронумеровать файл.</translation>
     </message>
     <message>
-        <location line="+17"/>
+        <location line="+19"/>
         <source>Links to a slide that is no longer in the presentation were left out (%1).</source>
         <translation type="unfinished">Ссылки на слайд, которого больше нет в презентации, были пропущены (%1).</translation>
     </message>
@@ -9163,7 +9186,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Не удалось собрать файл презентации.</translation>
     </message>
     <message>
-        <location line="+85"/>
+        <location line="+94"/>
         <source>The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Не удалось установить пароль на файл.</translation>
     </message>
@@ -9210,7 +9233,7 @@ Download it from %2 now? (%3, once.)</source>
 <context>
     <name>PptxImport</name>
     <message>
-        <location filename="../apps/deck/io/pptximport.cpp" line="+358"/>
+        <location filename="../apps/deck/io/pptximport.cpp" line="+360"/>
         <source>Only the first %1 comments and replies of the file are read.</source>
         <translation type="unfinished">Прочитаны только первые примечания и ответы в файле: %1.</translation>
     </message>
@@ -9331,7 +9354,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Размер слайда в файле не может быть использован, поэтому слайды имеют размер 13,333 на 7,5 дюйма.</translation>
     </message>
     <message>
-        <location line="+128"/>
+        <location line="+210"/>
         <source>The slide show settings can&apos;t be read (%1), so the defaults are used.</source>
         <translation type="unfinished">Параметры показа слайдов не могут быть прочитаны (%1), поэтому используются значения по умолчанию.</translation>
     </message>
@@ -9466,12 +9489,17 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">И ещё %1.</translation>
     </message>
     <message>
-        <location line="+26"/>
+        <location line="+17"/>
+        <source>The macros in this file are too large to keep, and were left out.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+14"/>
         <source>This file is in an older format, which %1 can&apos;t open yet.</source>
         <translation type="unfinished">Этот файл сохранён в более старом формате, который %1 пока не может открыть.</translation>
     </message>
     <message>
-        <location filename="../apps/deck/io/pptxshow.cpp" line="+135"/>
+        <location filename="../apps/deck/io/pptxshow.cpp" line="+137"/>
         <source>Only the first %1 custom slide shows are read.</source>
         <translation type="unfinished">Читаются только первые произвольные показы слайдов (не более %1).</translation>
     </message>
@@ -9486,7 +9514,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Произвольный показ слайдов содержит слайд, которого нет в презентации; он пропущен.</translation>
     </message>
     <message>
-        <location line="+55"/>
+        <location line="+63"/>
         <source>The slide show was set to play a custom slide show that is not in the file, so it plays every slide.</source>
         <translation type="unfinished">Показ слайдов настроен на произвольный показ, которого нет в файле, поэтому воспроизводятся все слайды.</translation>
     </message>
@@ -9792,8 +9820,8 @@ Download it from %2 now? (%3, once.)</source>
     </message>
     <message>
         <location line="+77"/>
-        <source>Grammar and style:</source>
-        <translation type="unfinished">Грамматика и стиль:</translation>
+        <source>Grammar and style</source>
+        <translation>Грамматика и стиль</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -11190,7 +11218,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Стрелки</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+3"/>
         <source>Bevel</source>
         <translation type="unfinished">Рельеф</translation>
     </message>
@@ -11201,8 +11229,8 @@ Download it from %2 now? (%3, once.)</source>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/deck/app/ribbon_strings.cpp" line="+6"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+3"/>
+        <location filename="../apps/deck/app/ribbon_strings.cpp" line="+7"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+4"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+4"/>
         <source>Borders</source>
         <translation type="unfinished">Границы</translation>
@@ -11295,7 +11323,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location line="+1"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="+2"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+2"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+3"/>
         <source>Columns</source>
         <translation>Столбцы</translation>
     </message>
@@ -11384,6 +11412,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location line="+1"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="+1"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+1"/>
         <source>Fonts</source>
         <translation type="unfinished">Шрифты</translation>
     </message>
@@ -11422,7 +11451,7 @@ Download it from %2 now? (%3, once.)</source>
     </message>
     <message>
         <location line="+2"/>
-        <location filename="../apps/deck/app/ribbon_strings.cpp" line="+4"/>
+        <location filename="../apps/deck/app/ribbon_strings.cpp" line="+6"/>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="+4"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+3"/>
         <source>Home</source>
@@ -11579,6 +11608,7 @@ Download it from %2 now? (%3, once.)</source>
     </message>
     <message>
         <location line="+1"/>
+        <location filename="../apps/deck/app/ribbon_strings.cpp" line="+2"/>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="+4"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+3"/>
         <source>Page Setup</source>
@@ -11642,7 +11672,7 @@ Download it from %2 now? (%3, once.)</source>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/deck/app/ribbon_strings.cpp" line="+5"/>
+        <location filename="../apps/deck/app/ribbon_strings.cpp" line="+6"/>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="+1"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+4"/>
         <source>Proofing</source>
@@ -11771,7 +11801,7 @@ Download it from %2 now? (%3, once.)</source>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/deck/app/ribbon_strings.cpp" line="+6"/>
+        <location filename="../apps/deck/app/ribbon_strings.cpp" line="+7"/>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="+4"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+5"/>
         <source>Speech</source>
@@ -11903,7 +11933,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location line="+1"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="+11"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+6"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+7"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+4"/>
         <source>View</source>
         <translation type="unfinished">Вид</translation>
@@ -11979,8 +12009,8 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location line="+5"/>
         <location filename="../apps/pub/app/ribbon_strings.cpp" line="-85"/>
-        <location filename="../apps/deck/app/ribbon_strings.cpp" line="-80"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="-93"/>
+        <location filename="../apps/deck/app/ribbon_strings.cpp" line="-84"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="-94"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-81"/>
         <source>Help</source>
         <translation type="unfinished">Справка</translation>
@@ -12090,7 +12120,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Показать панель быстрого доступа под лентой</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/ribbon_strings.cpp" line="-52"/>
+        <location filename="../apps/deck/app/ribbon_strings.cpp" line="-55"/>
         <source>Accessibility</source>
         <translation type="unfinished">Специальные возможности</translation>
     </message>
@@ -12110,12 +12140,14 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Анимация</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location filename="../apps/pub/app/ribbon_strings.cpp" line="-50"/>
+        <location filename="../apps/deck/app/ribbon_strings.cpp" line="+2"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="-57"/>
         <source>Aspect Ratio</source>
         <translation type="unfinished">Соотношение сторон</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location filename="../apps/deck/app/ribbon_strings.cpp" line="+1"/>
         <source>Audio</source>
         <translation type="unfinished">Аудио</translation>
     </message>
@@ -12126,25 +12158,31 @@ Download it from %2 now? (%3, once.)</source>
     </message>
     <message>
         <location line="+1"/>
+        <source>Background Color</source>
+        <translation type="unfinished">Цвет фона</translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Background Styles</source>
         <translation type="unfinished">Стили фона</translation>
     </message>
     <message>
         <location line="+3"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="-46"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+9"/>
         <source>Cell Size</source>
         <translation type="unfinished">Размер ячейки</translation>
     </message>
     <message>
         <location line="+11"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+14"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-30"/>
         <source>Colors</source>
         <translation>Цвета</translation>
     </message>
     <message>
-        <location filename="../apps/pub/app/ribbon_strings.cpp" line="-23"/>
+        <location filename="../apps/pub/app/ribbon_strings.cpp" line="+27"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="+2"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+15"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+2"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+1"/>
         <source>Comments</source>
         <translation>Примечания</translation>
@@ -12213,7 +12251,17 @@ Download it from %2 now? (%3, once.)</source>
     </message>
     <message>
         <location line="+3"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+21"/>
+        <source>Handout Master</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Handout Orientation</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+22"/>
         <source>Height:</source>
         <translation type="unfinished">Высота:</translation>
     </message>
@@ -12263,12 +12311,22 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Мониторы</translation>
     </message>
     <message>
+        <location line="+2"/>
+        <source>Notes Master</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location line="+3"/>
         <source>Picture Border</source>
         <translation type="unfinished">Граница рисунка</translation>
     </message>
     <message>
         <location line="+5"/>
+        <source>Placeholders</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Playback</source>
         <translation type="unfinished">Воспроизведение</translation>
     </message>
@@ -12344,6 +12402,11 @@ Download it from %2 now? (%3, once.)</source>
         <translation>Слайды</translation>
     </message>
     <message>
+        <location line="+1"/>
+        <source>Slides Per Page</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location line="+2"/>
         <source>Square</source>
         <translation type="unfinished">По прямоугольнику</translation>
@@ -12400,6 +12463,7 @@ Download it from %2 now? (%3, once.)</source>
     </message>
     <message>
         <location line="+1"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+3"/>
         <source>Themes</source>
         <translation type="unfinished">Темы</translation>
     </message>
@@ -12435,13 +12499,13 @@ Download it from %2 now? (%3, once.)</source>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+8"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+6"/>
         <source>Width:</source>
         <translation type="unfinished">Ширина:</translation>
     </message>
     <message>
-        <location line="-131"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="-150"/>
+        <location line="-138"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="-154"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-119"/>
         <source>About</source>
         <translation type="unfinished">О программе</translation>
@@ -12459,7 +12523,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location filename="../apps/pub/app/ribbon_strings.cpp" line="-26"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="+12"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+5"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+6"/>
         <source>Axes</source>
         <translation type="unfinished">Оси</translation>
     </message>
@@ -12497,7 +12561,7 @@ Download it from %2 now? (%3, once.)</source>
     </message>
     <message>
         <location filename="../apps/pub/app/ribbon_strings.cpp" line="+15"/>
-        <location filename="../apps/deck/app/ribbon_strings.cpp" line="+7"/>
+        <location filename="../apps/deck/app/ribbon_strings.cpp" line="+8"/>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="+3"/>
         <source>Change Chart Type</source>
         <translation type="unfinished">Изменить тип диаграммы</translation>
@@ -12544,7 +12608,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation>Цвет</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+4"/>
         <source>Compare</source>
         <translation type="unfinished">Сравнить</translation>
     </message>
@@ -12607,7 +12671,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Фокус</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+3"/>
         <source>Footer from Bottom:</source>
         <translation type="unfinished">Нижний колонтитул от низа:</translation>
     </message>
@@ -12648,7 +12712,7 @@ Download it from %2 now? (%3, once.)</source>
     </message>
     <message>
         <location filename="../apps/pub/app/ribbon_strings.cpp" line="+28"/>
-        <location filename="../apps/deck/app/ribbon_strings.cpp" line="+28"/>
+        <location filename="../apps/deck/app/ribbon_strings.cpp" line="+30"/>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="+6"/>
         <source>Legend</source>
         <translation type="unfinished">Легенда</translation>
@@ -12809,7 +12873,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Деформация текста</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="+2"/>
         <source>Tracking</source>
         <translation>Трекинг</translation>
     </message>
@@ -12860,8 +12924,8 @@ Download it from %2 now? (%3, once.)</source>
     </message>
     <message>
         <location filename="../apps/pub/app/ribbon_strings.cpp" line="-41"/>
-        <location filename="../apps/deck/app/ribbon_strings.cpp" line="-41"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="-128"/>
+        <location filename="../apps/deck/app/ribbon_strings.cpp" line="-43"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="-131"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+1"/>
         <source>Chart</source>
         <translation type="unfinished">Диаграмма</translation>
@@ -12972,7 +13036,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location filename="../apps/pub/app/ribbon_strings.cpp" line="+26"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="+28"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+35"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+37"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+1"/>
         <source>Gridlines</source>
         <translation type="unfinished">Сетка</translation>
@@ -13378,7 +13442,7 @@ Open it in your email program, add recipients and send.</source>
 <context>
     <name>Sheet</name>
     <message>
-        <location filename="../libs/office/sheet/odssave.cpp" line="+221"/>
+        <location filename="../libs/office/sheet/odssave.cpp" line="+222"/>
         <location filename="../libs/office/sheet/xlssave.cpp" line="+212"/>
         <source>%1 formulas the format cannot hold (they keep the value they came to)</source>
         <translation type="unfinished">%1 формул, которые формат не может сохранить (они сохранят вычисленные значения)</translation>
@@ -13389,7 +13453,7 @@ Open it in your email program, add recipients and send.</source>
         <translation type="unfinished">таблицы данных «что если» (их ячейки сохранят хранящиеся в них числа)</translation>
     </message>
     <message>
-        <location line="+635"/>
+        <location line="+653"/>
         <location line="+224"/>
         <location line="+42"/>
         <location filename="../libs/office/sheet/xlssave.cpp" line="-32"/>
@@ -13693,13 +13757,13 @@ Open it in your email program, add recipients and send.</source>
     <message>
         <location line="+10"/>
         <location line="+1555"/>
-        <location line="+574"/>
+        <location line="+577"/>
         <location line="+3"/>
         <source>A string is longer than any real file has.</source>
         <translation type="unfinished">Строка длиннее, чем у любого настоящего файла.</translation>
     </message>
     <message>
-        <location line="-1981"/>
+        <location line="-1984"/>
         <location line="+247"/>
         <source>The part is not a list of styles.</source>
         <translation type="unfinished">Часть не является списком стилей.</translation>
@@ -13844,13 +13908,13 @@ Open it in your email program, add recipients and send.</source>
     </message>
     <message>
         <location line="+448"/>
-        <location line="+505"/>
+        <location line="+508"/>
         <source>The part is not a worksheet.</source>
         <translation type="unfinished">Этот фрагмент не является листом.</translation>
     </message>
     <message>
-        <location line="-600"/>
-        <location line="+580"/>
+        <location line="-603"/>
+        <location line="+583"/>
         <source>A formula is longer than any real file has.</source>
         <translation type="unfinished">Формула длиннее, чем допускается в любом реальном файле.</translation>
     </message>
@@ -14457,6 +14521,31 @@ Open it in your email program, add recipients and send.</source>
         <location line="+43"/>
         <source>groups nested deeper than %1</source>
         <translation type="unfinished">группы, вложенные глубже %1</translation>
+    </message>
+</context>
+<context>
+    <name>SheetBackground</name>
+    <message>
+        <location filename="../apps/crunch/app/pagesetupdialog.cpp" line="+26"/>
+        <source>The picture&apos;s file could not be opened.</source>
+        <translation type="unfinished">Не удалось открыть файл рисунка.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location line="+3"/>
+        <source>That picture&apos;s file is too large for a background.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <location line="+3"/>
+        <source>That file is not a picture of a kind a background can be. Use a PNG, JPEG, GIF, or BMP picture.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-1"/>
+        <source>That picture is too large for a background.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -17070,7 +17159,7 @@ Desktop publishing</source>
         <translation type="unfinished">Украинский</translation>
     </message>
     <message>
-        <location filename="../libs/text/text/textengine.cpp" line="+158"/>
+        <location filename="../libs/text/text/textengine.cpp" line="+160"/>
         <source>«Greeting Line»</source>
         <translation type="unfinished">«Строка приветствия»</translation>
     </message>
@@ -17100,7 +17189,7 @@ Desktop publishing</source>
         <translation type="unfinished">(Продолжение со страницы %1)</translation>
     </message>
     <message>
-        <location line="+6343"/>
+        <location line="+6499"/>
         <source>Notes</source>
         <translation>Заметки</translation>
     </message>
@@ -17116,6 +17205,89 @@ Desktop publishing</source>
         <location line="+3"/>
         <source>The theme has no colors.</source>
         <translation type="unfinished">У темы нет цветов.</translation>
+    </message>
+</context>
+<context>
+    <name>ThemeLibrary</name>
+    <message>
+        <location filename="../libs/office/office/themelib.cpp" line="+112"/>
+        <source>The file of your own theme sets could not be read. It was kept as %1.bad, and a new file was started.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+126"/>
+        <source>Dark 1</source>
+        <translation type="unfinished">Темный 1</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Light 1</source>
+        <translation type="unfinished">Светлый 1</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Dark 2</source>
+        <translation type="unfinished">Темный 2</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Light 2</source>
+        <translation type="unfinished">Светлый 2</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Accent 1</source>
+        <translation type="unfinished">Акцент 1</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Accent 2</source>
+        <translation type="unfinished">Акцент 2</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Accent 3</source>
+        <translation type="unfinished">Акцент 3</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Accent 4</source>
+        <translation type="unfinished">Акцент 4</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Accent 5</source>
+        <translation type="unfinished">Акцент 5</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Accent 6</source>
+        <translation type="unfinished">Акцент 6</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Hyperlink</source>
+        <translation type="unfinished">Гиперссылка</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Followed Hyperlink</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+238"/>
+        <source>The file is not a package.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+29"/>
+        <source>The theme parts of the file are too large.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The file holds no theme.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -17710,7 +17882,7 @@ Desktop publishing</source>
 <context>
     <name>jp::BackgroundStyles</name>
     <message>
-        <location filename="../apps/deck/app/themegallery.cpp" line="+476"/>
+        <location filename="../apps/deck/app/themegallery.cpp" line="+485"/>
         <source>Background styles</source>
         <translation type="unfinished">Стили фона</translation>
     </message>
@@ -17760,7 +17932,7 @@ Desktop publishing</source>
     </message>
     <message>
         <location line="+4"/>
-        <location line="+547"/>
+        <location line="+546"/>
         <location line="+2"/>
         <location line="+368"/>
         <location line="+37"/>
@@ -17768,24 +17940,24 @@ Desktop publishing</source>
         <translation>Печать</translation>
     </message>
     <message>
-        <location line="-953"/>
-        <location line="+998"/>
+        <location line="-952"/>
+        <location line="+997"/>
         <source>Export</source>
         <translation type="unfinished">Экспорт</translation>
     </message>
     <message>
-        <location line="-1002"/>
+        <location line="-1001"/>
         <source>Save As</source>
         <translation type="unfinished">Сохранить как</translation>
     </message>
     <message>
         <location line="+5"/>
-        <location line="+966"/>
+        <location line="+965"/>
         <source>Share</source>
         <translation type="unfinished">Общий доступ</translation>
     </message>
     <message>
-        <location line="-964"/>
+        <location line="-963"/>
         <source>Close</source>
         <translation type="unfinished">Закрыть</translation>
     </message>
@@ -17895,7 +18067,7 @@ Desktop publishing</source>
         <translation type="unfinished">Пустой 11 × 8,5&quot;</translation>
     </message>
     <message>
-        <location line="+150"/>
+        <location line="+149"/>
         <source>Browse</source>
         <translation type="unfinished">Обзор</translation>
     </message>
@@ -17955,7 +18127,7 @@ Desktop publishing</source>
         <translation type="unfinished">Все страницы</translation>
     </message>
     <message>
-        <location line="-398"/>
+        <location line="-397"/>
         <source>Color scheme</source>
         <translation>Цветовая схема</translation>
     </message>
@@ -17975,7 +18147,7 @@ Desktop publishing</source>
         <translation type="unfinished">JeffPub не может использовать этот шаблон. Если он запрашивает пароль, создайте публикацию на его основе командой «Создать», а не открывайте шаблон.</translation>
     </message>
     <message>
-        <location line="+130"/>
+        <location line="+129"/>
         <source>Print each copy of all the pages in turn (1, 2, 3, 1, 2, 3), not each page&apos;s copies together (1, 1, 2, 2, 3, 3).</source>
         <translation type="unfinished">Печатать каждую копию всех страниц по очереди (1, 2, 3, 1, 2, 3), а не копии каждой страницы вместе (1, 1, 2, 2, 3, 3).</translation>
     </message>
@@ -18336,18 +18508,18 @@ Desktop publishing</source>
         <translation type="unfinished">Сохраняется как автор публикации, если автор не указан, и как последний изменивший её пользователь.</translation>
     </message>
     <message>
-        <location line="-1045"/>
-        <location line="+1034"/>
+        <location line="-1044"/>
+        <location line="+1033"/>
         <source>Save as Template</source>
         <translation type="unfinished">Сохранить как шаблон</translation>
     </message>
     <message>
-        <location line="-1030"/>
+        <location line="-1029"/>
         <source>Info</source>
         <translation type="unfinished">Сведения</translation>
     </message>
     <message>
-        <location line="+627"/>
+        <location line="+626"/>
         <source>Page Setup…</source>
         <translation type="unfinished">Параметры страницы…</translation>
     </message>
@@ -18610,7 +18782,7 @@ Desktop publishing</source>
     </message>
     <message>
         <location filename="../apps/pub/app/backstage.cpp" line="+2"/>
-        <location filename="../apps/write/app/writefilescreen.cpp" line="+648"/>
+        <location filename="../apps/write/app/writefilescreen.cpp" line="+647"/>
         <source>Translate (opens in your browser)</source>
         <translation type="unfinished">Перевести (откроется в браузере)</translation>
     </message>
@@ -19769,7 +19941,7 @@ Source: %3</source>
         <translation type="unfinished">Начните с пустой книги, содержащей один лист.</translation>
     </message>
     <message>
-        <location line="+59"/>
+        <location line="+58"/>
         <source>Browse</source>
         <translation type="unfinished">Обзор</translation>
     </message>
@@ -20292,14 +20464,14 @@ Source: %3</source>
         <location line="+67"/>
         <location line="+166"/>
         <location line="+15"/>
-        <location line="+46"/>
+        <location line="+48"/>
         <location filename="../apps/crunch/app/crunchwindow_filter.cpp" line="+242"/>
         <location filename="../apps/crunch/app/crunchwindow_find.cpp" line="+172"/>
         <location line="+19"/>
         <location line="+118"/>
         <location line="+10"/>
         <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="+900"/>
-        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="+346"/>
+        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="+347"/>
         <location filename="../apps/crunch/app/crunchwindow_savecopy.cpp" line="+157"/>
         <location filename="../apps/crunch/app/crunchwindow_sort.cpp" line="+293"/>
         <location line="+22"/>
@@ -20324,7 +20496,7 @@ Source: %3</source>
     </message>
     <message>
         <location line="+9"/>
-        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-475"/>
+        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-477"/>
         <location line="+106"/>
         <location line="+77"/>
         <location line="+66"/>
@@ -20357,7 +20529,7 @@ Source: %3</source>
     <message>
         <location line="+0"/>
         <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-274"/>
-        <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="+1160"/>
+        <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="+1198"/>
         <source>All Files (*)</source>
         <translation type="unfinished">Все файлы (*)</translation>
     </message>
@@ -20377,14 +20549,14 @@ Source: %3</source>
         <location filename="../apps/crunch/app/crunchwindow_drawings.cpp" line="+102"/>
         <location filename="../apps/crunch/app/crunchwindow_oldformat.cpp" line="+37"/>
         <location line="+10"/>
-        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="-289"/>
+        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="-290"/>
         <location line="+34"/>
         <location line="+14"/>
         <location line="+5"/>
         <location line="+70"/>
         <location line="+4"/>
         <location line="+55"/>
-        <location line="+72"/>
+        <location line="+73"/>
         <location line="+34"/>
         <location filename="../apps/crunch/app/crunchwindow_savecopy.cpp" line="-108"/>
         <location line="+26"/>
@@ -20407,7 +20579,7 @@ Source: %3</source>
     </message>
     <message>
         <location line="+3"/>
-        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="-127"/>
+        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="-128"/>
         <source>Save a Copy…</source>
         <translation type="unfinished">Сохранить копию…</translation>
     </message>
@@ -20897,7 +21069,7 @@ Source: %3</source>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_calc.cpp" line="-79"/>
         <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="+127"/>
-        <location filename="../apps/crunch/app/crunchwindow_page.cpp" line="+183"/>
+        <location filename="../apps/crunch/app/crunchwindow_page.cpp" line="+193"/>
         <source>Automatic</source>
         <translation type="unfinished">Автоматически</translation>
     </message>
@@ -22303,6 +22475,7 @@ Source: %3</source>
     <message>
         <location line="+0"/>
         <location filename="../apps/crunch/app/crunchwindow_pagelayout.cpp" line="+531"/>
+        <location line="+9"/>
         <source>Picture</source>
         <translation type="unfinished">Рисунок</translation>
     </message>
@@ -22814,7 +22987,7 @@ Source: %3</source>
         <location line="-18"/>
         <location filename="../apps/crunch/app/crunchwindow_csv.cpp" line="-60"/>
         <location line="+54"/>
-        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="+85"/>
+        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="+86"/>
         <location filename="../apps/crunch/app/crunchwindow_savecopy.cpp" line="+0"/>
         <source>%1 couldn&apos;t save &quot;%2&quot;.
 %3
@@ -22855,7 +23028,7 @@ The file that was there is as it was.</source>
         <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-362"/>
         <location filename="../apps/crunch/app/crunchwindow_print.cpp" line="+44"/>
         <location filename="../apps/crunch/app/crunchwindow_protect.cpp" line="+67"/>
-        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="-125"/>
+        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="-126"/>
         <source>Cancel</source>
         <translation type="unfinished">Отмена</translation>
     </message>
@@ -22875,7 +23048,7 @@ The file that was there is as it was.</source>
         <translation type="unfinished">Не сохранено как .csv.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_datatools.cpp" line="+22"/>
+        <location filename="../apps/crunch/app/crunchwindow_datatools.cpp" line="+23"/>
         <source>Edit Links…</source>
         <translation type="unfinished">Изменить связи…</translation>
     </message>
@@ -22886,7 +23059,7 @@ The file that was there is as it was.</source>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+70"/>
+        <location line="+93"/>
         <location line="+23"/>
         <location line="+7"/>
         <location line="+5"/>
@@ -22896,15 +23069,26 @@ The file that was there is as it was.</source>
         <translation type="unfinished">Удалить дубликаты</translation>
     </message>
     <message>
-        <location line="-104"/>
-        <location line="+125"/>
+        <location line="-127"/>
+        <location line="+148"/>
         <location line="+19"/>
         <location line="+6"/>
         <source>Text to Columns</source>
         <translation type="unfinished">Текст по столбцам</translation>
     </message>
     <message>
-        <location line="-112"/>
+        <location line="-172"/>
+        <source>Form…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <location line="+2"/>
+        <source>Form</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+46"/>
         <source>Links</source>
         <translation type="unfinished">Связи</translation>
     </message>
@@ -23172,7 +23356,7 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished">В этой книге требуется выполнить больше вычислений, чем за один проход. Оставшиеся формулы сохраняют прежние значения и будут вычислены при следующем изменении данных.</translation>
     </message>
     <message>
-        <location line="+48"/>
+        <location line="+50"/>
         <source>Calculating… %1%</source>
         <translation type="unfinished">Вычисление… %1%</translation>
     </message>
@@ -24006,8 +24190,8 @@ This file is protected with a password. Password:</source>
     <message>
         <location line="+42"/>
         <location line="+511"/>
-        <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="-570"/>
-        <location line="+713"/>
+        <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="-597"/>
+        <location line="+742"/>
         <source>No Fill</source>
         <translation type="unfinished">Без заливки</translation>
     </message>
@@ -24065,7 +24249,7 @@ This file is protected with a password. Password:</source>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="+29"/>
+        <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="+30"/>
         <source>Dashed</source>
         <translation type="unfinished">Штриховая</translation>
     </message>
@@ -24185,7 +24369,7 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished">Пользовательский</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_formulas.cpp" line="+101"/>
+        <location filename="../apps/crunch/app/crunchwindow_formulas.cpp" line="+105"/>
         <source>A table.</source>
         <translation type="unfinished">Таблица.</translation>
     </message>
@@ -24650,7 +24834,7 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished">(Нет вариантов)</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_pagelayout.cpp" line="-74"/>
+        <location filename="../apps/crunch/app/crunchwindow_pagelayout.cpp" line="-83"/>
         <location filename="../apps/crunch/app/crunchwindow_tabs2.cpp" line="+16"/>
         <source>Replace</source>
         <translation>Заменить</translation>
@@ -25022,7 +25206,9 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished">Мгновенное заполнение</translation>
     </message>
     <message>
-        <location line="-437"/>
+        <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="-534"/>
+        <location line="+484"/>
+        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-437"/>
         <location line="+86"/>
         <location line="+105"/>
         <location line="+114"/>
@@ -25036,7 +25222,7 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished">Заполнить</translation>
     </message>
     <message>
-        <location line="-334"/>
+        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-334"/>
         <source>There are too many cells to copy.</source>
         <translation type="unfinished">Слишком много ячеек для копирования.</translation>
     </message>
@@ -25212,7 +25398,7 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished">Скрыть детали</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="-736"/>
+        <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="-716"/>
         <location line="+5"/>
         <location filename="../apps/crunch/app/crunchwindow_outline.cpp" line="+1"/>
         <location line="+9"/>
@@ -25249,7 +25435,7 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished">Эти %1 не входят в группу.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_page.cpp" line="-129"/>
+        <location filename="../apps/crunch/app/crunchwindow_page.cpp" line="-137"/>
         <source>Page Setup…</source>
         <translation type="unfinished">Параметры страницы…</translation>
     </message>
@@ -25372,6 +25558,22 @@ This file is protected with a password. Password:</source>
     </message>
     <message>
         <location line="+5"/>
+        <location line="+211"/>
+        <location line="+3"/>
+        <location line="+4"/>
+        <location line="+12"/>
+        <location line="+3"/>
+        <source>Background</source>
+        <translation type="unfinished">Фон</translation>
+    </message>
+    <message>
+        <location line="-232"/>
+        <location line="+1"/>
+        <source>Delete Background</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
         <source>Print Titles</source>
         <translation type="unfinished">Печатать заголовки</translation>
     </message>
@@ -25459,18 +25661,18 @@ This file is protected with a password. Password:</source>
     </message>
     <message>
         <location line="+2"/>
-        <location line="+100"/>
+        <location line="+114"/>
         <source>1 page</source>
         <translation type="unfinished">1 страница</translation>
     </message>
     <message>
-        <location line="-100"/>
-        <location line="+100"/>
+        <location line="-114"/>
+        <location line="+114"/>
         <source>%1 pages</source>
         <translation type="unfinished">Страницы: %1</translation>
     </message>
     <message>
-        <location line="-94"/>
+        <location line="-108"/>
         <source>Scale to fit</source>
         <translation type="unfinished">Вписать в страницу</translation>
     </message>
@@ -25490,11 +25692,16 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished">Масштаб</translation>
     </message>
     <message>
-        <location line="+89"/>
-        <location line="+10"/>
-        <location line="+17"/>
+        <location line="+103"/>
+        <location line="+53"/>
+        <location line="+18"/>
         <source>Page Setup</source>
         <translation type="unfinished">Параметры страницы</translation>
+    </message>
+    <message>
+        <location line="-34"/>
+        <source>This picture would make the pictures of the workbook (backgrounds, headers, and footers) larger than a file can keep, %1 MB. Delete a background you don&apos;t need first, or use a smaller picture.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_pagelayout.cpp" line="-338"/>
@@ -25716,7 +25923,13 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished">Выбор рисунка</translation>
     </message>
     <message>
-        <location line="+0"/>
+        <location line="+16"/>
+        <source>This picture would make the pictures of the workbook (backgrounds, headers, and footers) larger than a file can keep, %1 MB. Delete a picture you don&apos;t need first.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../apps/crunch/app/crunchwindow_page.cpp" line="-16"/>
+        <location filename="../apps/crunch/app/crunchwindow_pagelayout.cpp" line="-16"/>
         <source>Pictures (*.png *.jpg *.jpeg *.gif *.bmp)</source>
         <translation type="unfinished">Изображения (*.png *.jpg *.jpeg *.gif *.bmp)</translation>
     </message>
@@ -26411,7 +26624,7 @@ This file is protected with a password. Password:</source>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="+122"/>
+        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="+123"/>
         <source>Saved %1</source>
         <translation type="unfinished">Сохранено: %1</translation>
     </message>
@@ -26558,7 +26771,7 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished">Лист защищён и не позволяет выделять незаблокированные ячейки.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="-274"/>
+        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="-275"/>
         <source>This workbook is open for reading only, so it is saved under a new name.</source>
         <translation type="unfinished">Эта книга открыта только для чтения, поэтому она сохраняется под новым именем.</translation>
     </message>
@@ -26624,7 +26837,7 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished">Не сохранено: %1 изменён другой программой.</translation>
     </message>
     <message>
-        <location line="+51"/>
+        <location line="+52"/>
         <location filename="../apps/crunch/app/crunchwindow_savecopy.cpp" line="+78"/>
         <location filename="../apps/crunch/app/crunchwindow_versions.cpp" line="-6"/>
         <source>The workbook could not be protected with the password.</source>
@@ -27238,19 +27451,19 @@ This file is protected with a password. Password:</source>
     </message>
     <message>
         <location line="+41"/>
-        <location line="+713"/>
+        <location line="+742"/>
         <source>Shape Fill</source>
         <translation type="unfinished">Заливка фигуры</translation>
     </message>
     <message>
-        <location line="-707"/>
-        <location line="+708"/>
+        <location line="-736"/>
+        <location line="+738"/>
         <location line="+1"/>
         <source>No Outline</source>
         <translation type="unfinished">Без контура</translation>
     </message>
     <message>
-        <location line="-509"/>
+        <location line="-539"/>
         <source>Flip</source>
         <translation type="unfinished">Отразить</translation>
     </message>
@@ -27270,7 +27483,7 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished">Сбросить обрезку</translation>
     </message>
     <message>
-        <location line="+39"/>
+        <location line="+66"/>
         <location line="+113"/>
         <source>Compress Pictures</source>
         <translation type="unfinished">Сжать рисунки</translation>
@@ -27350,13 +27563,13 @@ This file is protected with a password. Password:</source>
     <message>
         <location line="+2"/>
         <location line="+1"/>
-        <location line="+160"/>
+        <location line="+163"/>
         <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="+11"/>
         <source>Weight</source>
         <translation>Толщина</translation>
     </message>
     <message>
-        <location line="-158"/>
+        <location line="-161"/>
         <source>Wrap to the shape</source>
         <translation type="unfinished">Обтекание по контуру фигуры</translation>
     </message>
@@ -27376,7 +27589,7 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished">Светло-синий</translation>
     </message>
     <message>
-        <location line="-530"/>
+        <location line="-557"/>
         <source>Picture Style</source>
         <translation type="unfinished">Стиль рисунка</translation>
     </message>
@@ -27387,24 +27600,35 @@ This file is protected with a password. Password:</source>
     </message>
     <message>
         <location line="+14"/>
-        <location line="+536"/>
+        <location line="+563"/>
         <source>Reset Picture &amp; Size</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-536"/>
-        <location line="+535"/>
+        <location line="-563"/>
+        <location line="+562"/>
         <source>Reset Picture</source>
         <translation type="unfinished">Сбросить рисунок</translation>
     </message>
     <message>
-        <location line="-506"/>
-        <location line="+501"/>
+        <location line="-533"/>
+        <location line="+528"/>
         <source>Change Picture</source>
         <translation type="unfinished">Заменить рисунок</translation>
     </message>
     <message>
-        <location line="-37"/>
+        <location line="-467"/>
+        <location line="+485"/>
+        <source>Fit</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-463"/>
+        <source>Crop to Shape</source>
+        <translation type="unfinished">Обрезать по фигуре</translation>
+    </message>
+    <message>
+        <location line="+408"/>
         <source>Light Green</source>
         <translation type="unfinished">Светло-зелёный</translation>
     </message>
@@ -27504,12 +27728,12 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished">Вертикальная 9:16</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="+3"/>
         <source>Show the Whole Picture</source>
         <translation type="unfinished">Показать весь рисунок</translation>
     </message>
     <message>
-        <location line="+19"/>
+        <location line="+20"/>
         <source>Picture Border</source>
         <translation type="unfinished">Граница рисунка</translation>
     </message>
@@ -28339,7 +28563,7 @@ The file can&apos;t be read.</source>
         <location line="+8"/>
         <location line="+15"/>
         <location line="+20"/>
-        <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="-562"/>
+        <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="-592"/>
         <source>&quot;%1&quot; is not a picture JeffCrunch can read, or it is too large.</source>
         <translation type="unfinished">«%1» не является рисунком, который может прочитать JeffCrunch, или он слишком большой.</translation>
     </message>
@@ -28354,7 +28578,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Книга содержит столько новых объектов, сколько можно сохранить за один раз. Оставшиеся штрихкоды будут созданы заново по их ячейкам после сохранения.</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+6"/>
         <source>Update Barcodes</source>
         <translation type="unfinished">Обновить штрихкоды</translation>
     </message>
@@ -28435,7 +28659,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Это уравнение здесь нельзя изменить.</translation>
     </message>
     <message>
-        <location line="-605"/>
+        <location line="-607"/>
         <location line="+178"/>
         <source>Picture inserted</source>
         <translation type="unfinished">Рисунок вставлен</translation>
@@ -28485,7 +28709,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Штрихкод изменён</translation>
     </message>
     <message>
-        <location line="+251"/>
+        <location line="+253"/>
         <source>Insert Shape</source>
         <translation type="unfinished">Вставка фигуры</translation>
     </message>
@@ -29488,6 +29712,113 @@ The file can&apos;t be read.</source>
     </message>
 </context>
 <context>
+    <name>jp::DataFormDialog</name>
+    <message>
+        <location filename="../apps/crunch/app/dataformdialog.cpp" line="+23"/>
+        <source>This list is very long. The form shows only its first %1 rows.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+63"/>
+        <source>New</source>
+        <translation type="unfinished">Создать</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Delete</source>
+        <translation type="unfinished">Удалить</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location line="+35"/>
+        <source>Restore</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-33"/>
+        <source>Find Prev</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Find Next</source>
+        <translation type="unfinished">Найти далее</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <location line="+33"/>
+        <location line="+49"/>
+        <source>Criteria</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-81"/>
+        <source>Close</source>
+        <translation type="unfinished">Закрыть</translation>
+    </message>
+    <message>
+        <location line="+29"/>
+        <source>Clear</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Form</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+24"/>
+        <source>This field holds a formula. Change it in the sheet.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>%1 of %2</source>
+        <translation type="unfinished">%1 из %2</translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <source>This column works out its own value.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>New Record</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+46"/>
+        <source>Delete this record? It is taken out of the list and the rows under it move up. You can undo this in the sheet.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+38"/>
+        <location line="+31"/>
+        <source>No record meets the criteria.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-15"/>
+        <source>No more records meet the criteria.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>This is the last record.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+28"/>
+        <source>No earlier record meets the criteria.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>This is the first record.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>jp::DeckCanvas</name>
     <message>
         <location filename="../libs/page/canvas/canvas_comments.cpp" line="+99"/>
@@ -29555,19 +29886,19 @@ The file can&apos;t be read.</source>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+167"/>
+        <location line="+166"/>
         <location line="+1"/>
         <source>Print</source>
         <translation>Печать</translation>
     </message>
     <message>
-        <location line="-167"/>
-        <location line="+482"/>
+        <location line="-166"/>
+        <location line="+481"/>
         <source>Export</source>
         <translation type="unfinished">Экспорт</translation>
     </message>
     <message>
-        <location line="-481"/>
+        <location line="-480"/>
         <source>Close</source>
         <translation type="unfinished">Закрыть</translation>
     </message>
@@ -29592,7 +29923,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Пустая презентация</translation>
     </message>
     <message>
-        <location line="+24"/>
+        <location line="+23"/>
         <source>Browse</source>
         <translation type="unfinished">Обзор</translation>
     </message>
@@ -29878,7 +30209,7 @@ The file can&apos;t be read.</source>
     <name>jp::DeckWindow</name>
     <message>
         <location filename="../apps/deck/app/deckfilescreen.cpp" line="-333"/>
-        <location filename="../apps/deck/app/deckwindow_output.cpp" line="+69"/>
+        <location filename="../apps/deck/app/deckwindow_output.cpp" line="+70"/>
         <source>Print what</source>
         <translation>Печатать</translation>
     </message>
@@ -29900,7 +30231,7 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+1"/>
         <location filename="../apps/deck/app/deckwindow_output.cpp" line="+1"/>
-        <location filename="../apps/deck/app/deckwindow_ribbon.cpp" line="+121"/>
+        <location filename="../apps/deck/app/deckwindow_ribbon.cpp" line="+122"/>
         <source>Outline</source>
         <translation type="unfinished">Контур</translation>
     </message>
@@ -30007,7 +30338,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Презентация1</translation>
     </message>
     <message>
-        <location line="+141"/>
+        <location line="+142"/>
         <source>%1 (%2)</source>
         <translation type="unfinished">%1 (%2)</translation>
     </message>
@@ -30022,20 +30353,15 @@ The file can&apos;t be read.</source>
         <location line="+1"/>
         <location line="+53"/>
         <location line="+1"/>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="+363"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="+384"/>
         <source>Open</source>
         <translation type="unfinished">Открыть</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_file.cpp" line="-133"/>
-        <source>Presentations (*.pptx *.potx *.ppsx *.ppt *.pps *.pot *.odp *.otp)</source>
-        <translation type="unfinished">Презентации (*.pptx *.potx *.ppsx *.ppt *.pps *.pot *.odp *.otp)</translation>
-    </message>
-    <message>
         <location filename="../apps/deck/app/deckwindow_actions.cpp" line="+267"/>
         <location line="+155"/>
-        <location filename="../apps/deck/app/deckwindow_design.cpp" line="+144"/>
-        <location filename="../apps/deck/app/deckwindow_file.cpp" line="+0"/>
+        <location filename="../apps/deck/app/deckwindow_design.cpp" line="+164"/>
+        <location filename="../apps/deck/app/deckwindow_file.cpp" line="-133"/>
         <location filename="../apps/deck/app/deckwindow_media.cpp" line="+104"/>
         <location line="+102"/>
         <location filename="../apps/deck/app/deckwindow_picture.cpp" line="+130"/>
@@ -30088,7 +30414,7 @@ The file can&apos;t be read.</source>
         <location filename="../apps/deck/app/deckwindow_comments.cpp" line="+33"/>
         <location filename="../apps/deck/app/deckwindow_master.cpp" line="+36"/>
         <location line="+4"/>
-        <location line="+283"/>
+        <location line="+289"/>
         <location filename="../apps/deck/app/deckwindow_save.cpp" line="+1"/>
         <location line="+7"/>
         <source>Delete</source>
@@ -30096,30 +30422,30 @@ The file can&apos;t be read.</source>
     </message>
     <message>
         <location line="+2"/>
-        <location line="+243"/>
+        <location line="+244"/>
         <source>New Slide</source>
         <translation type="unfinished">Создать слайд</translation>
     </message>
     <message>
-        <location line="-242"/>
-        <location line="+253"/>
+        <location line="-243"/>
+        <location line="+254"/>
         <source>Duplicate Slide</source>
         <translation type="unfinished">Дублировать слайд</translation>
     </message>
     <message>
-        <location line="-252"/>
-        <location line="+303"/>
+        <location line="-253"/>
+        <location line="+304"/>
         <source>Delete Slide</source>
         <translation type="unfinished">Удалить слайд</translation>
     </message>
     <message>
-        <location line="-302"/>
-        <location line="+313"/>
+        <location line="-303"/>
+        <location line="+314"/>
         <source>Hide Slide</source>
         <translation type="unfinished">Скрыть слайд</translation>
     </message>
     <message>
-        <location line="-312"/>
+        <location line="-313"/>
         <source>Reset</source>
         <translation type="unfinished">Сбросить</translation>
     </message>
@@ -30201,7 +30527,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">По размеру окна</translation>
     </message>
     <message>
-        <location line="+24"/>
+        <location line="+25"/>
         <source>Slide %1 of %2</source>
         <translation type="unfinished">Слайд %1 из %2</translation>
     </message>
@@ -30329,7 +30655,7 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+0"/>
         <location filename="../apps/deck/app/deckwindow_table.cpp" line="+114"/>
-        <location filename="../apps/deck/app/deckwindow_views.cpp" line="+50"/>
+        <location filename="../apps/deck/app/deckwindow_views.cpp" line="+56"/>
         <source>Normal</source>
         <translation type="unfinished">Обычный</translation>
     </message>
@@ -30514,6 +30840,7 @@ The file can&apos;t be read.</source>
     </message>
     <message>
         <location line="+10"/>
+        <location filename="../apps/deck/app/deckwindow_notesmaster.cpp" line="+52"/>
         <source>Header and Footer</source>
         <translation type="unfinished">Колонтитулы</translation>
     </message>
@@ -30751,6 +31078,7 @@ The file can&apos;t be read.</source>
         <location line="+57"/>
         <location line="+8"/>
         <location line="+21"/>
+        <location filename="../apps/deck/app/deckwindow_notesmaster.cpp" line="-11"/>
         <source>Slide Number</source>
         <translation type="unfinished">Номер слайда</translation>
     </message>
@@ -30959,7 +31287,12 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Помещает в файл шрифты, поставляемые с программой и используемые слайдами, чтобы слайды выглядели одинаково на компьютере, где их нет. Файл становится больше. Шрифты, которые есть на каждом компьютере, например Calibri и Arial, никогда не внедряются.</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_file.cpp" line="+77"/>
+        <location filename="../apps/deck/app/deckwindow_file.cpp" line="+0"/>
+        <source>Presentations (*.pptx *.pptm *.potx *.potm *.ppsx *.ppsm *.ppt *.pps *.pot *.odp *.otp)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+77"/>
         <location filename="../apps/deck/app/deckwindow_media.cpp" line="-72"/>
         <location line="+97"/>
         <source>%1 can&apos;t open &quot;%2&quot;.
@@ -31094,13 +31427,13 @@ The file can&apos;t be read.</source>
     </message>
     <message>
         <location line="+49"/>
-        <location line="+175"/>
+        <location line="+214"/>
         <location line="+0"/>
         <source>PDF (*.pdf)</source>
         <translation type="unfinished">PDF (*.pdf)</translation>
     </message>
     <message>
-        <location line="-163"/>
+        <location line="-202"/>
         <source>%1 couldn&apos;t export &quot;%2&quot;.
 %3%4</source>
         <translation type="unfinished">%1 не удалось экспортировать «%2».
@@ -31108,50 +31441,75 @@ The file can&apos;t be read.</source>
     </message>
     <message>
         <location line="+3"/>
-        <location line="+32"/>
+        <location line="+62"/>
         <source>Exported %1</source>
         <translation type="unfinished">Экспортировано: %1</translation>
     </message>
     <message>
-        <location line="-31"/>
+        <location line="-61"/>
         <source>(not tagged for screen readers: %1)</source>
         <translation type="unfinished">(не помечено для программ чтения с экрана: %1)</translation>
     </message>
     <message>
-        <location line="+11"/>
+        <location line="+15"/>
         <source>PNG Picture (*.png)</source>
         <translation type="unfinished">Рисунок PNG (*.png)</translation>
     </message>
     <message>
-        <location line="+0"/>
+        <location line="+1"/>
         <source>JPEG Picture (*.jpg *.jpeg)</source>
         <translation type="unfinished">Рисунок JPEG (*.jpg *.jpeg)</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
+        <source>GIF Picture (*.gif)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>TIFF Picture (*.tif *.tiff)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>BMP Picture (*.bmp)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>SVG Drawing (*.svg)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
         <source>%1 - Slide %2</source>
         <translation type="unfinished">%1 — слайд %2</translation>
     </message>
     <message>
-        <location line="+2"/>
-        <location line="+12"/>
+        <location line="+1"/>
+        <location line="+31"/>
         <source>Export Slide as Picture</source>
         <translation type="unfinished">Экспорт слайда как рисунка</translation>
     </message>
     <message>
-        <location line="-1"/>
+        <location line="-7"/>
+        <source>This computer can&apos;t write that type of picture.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
         <source>The picture can&apos;t be made.</source>
         <translation type="unfinished">Не удалось создать рисунок.</translation>
     </message>
     <message>
         <location line="+14"/>
-        <location line="+17"/>
-        <location line="+183"/>
+        <location line="+22"/>
+        <location line="+187"/>
         <source>Save Slides as Pictures</source>
         <translation type="unfinished">Сохранить слайды как рисунки</translation>
     </message>
     <message>
-        <location line="-196"/>
+        <location line="-205"/>
         <source>PNG</source>
         <translation type="unfinished">PNG</translation>
     </message>
@@ -31159,6 +31517,26 @@ The file can&apos;t be read.</source>
         <location line="+1"/>
         <source>JPEG</source>
         <translation type="unfinished">JPEG</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>GIF</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>TIFF</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>BMP</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>SVG (drawing)</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+1"/>
@@ -31186,17 +31564,17 @@ The file can&apos;t be read.</source>
         <translation type="unfinished"> пикселей</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+5"/>
         <source>Include hidden slides</source>
         <translation type="unfinished">Включать скрытые слайды</translation>
     </message>
     <message>
-        <location line="+46"/>
+        <location line="+48"/>
         <source>That is more pages than one job can send. Print fewer slides or fewer copies.</source>
         <translation type="unfinished">Это больше страниц, чем может отправить одно задание. Выведите меньше слайдов или меньше копий.</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_email.cpp" line="+65"/>
+        <location filename="../apps/deck/app/deckwindow_email.cpp" line="+66"/>
         <location line="+3"/>
         <location line="+25"/>
         <source>Email</source>
@@ -31231,10 +31609,10 @@ The file can&apos;t be read.</source>
     </message>
     <message>
         <location line="+7"/>
-        <location filename="../apps/deck/app/deckwindow_output.cpp" line="-84"/>
-        <location line="+194"/>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-203"/>
-        <location line="+80"/>
+        <location filename="../apps/deck/app/deckwindow_output.cpp" line="-93"/>
+        <location line="+203"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-207"/>
+        <location line="+82"/>
         <source>%1 couldn&apos;t save &quot;%2&quot;.
 %3%4</source>
         <translation type="unfinished">%1 не удалось сохранить «%2».
@@ -31735,12 +32113,11 @@ The file can&apos;t be read.</source>
     </message>
     <message>
         <location line="+18"/>
-        <location line="+80"/>
         <source>Crop to Shape</source>
         <translation type="unfinished">Обрезать по фигуре</translation>
     </message>
     <message>
-        <location line="-67"/>
+        <location line="+13"/>
         <source>Change Picture</source>
         <translation type="unfinished">Заменить рисунок</translation>
     </message>
@@ -31769,26 +32146,26 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Без контура</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_master.cpp" line="-179"/>
-        <location line="+235"/>
+        <location filename="../apps/deck/app/deckwindow_master.cpp" line="-185"/>
+        <location line="+241"/>
         <source>Insert Slide Master</source>
         <translation type="unfinished">Вставить образец слайдов</translation>
     </message>
     <message>
-        <location line="-234"/>
-        <location line="+247"/>
+        <location line="-240"/>
+        <location line="+253"/>
         <source>Insert Layout</source>
         <translation type="unfinished">Вставить макет</translation>
     </message>
     <message>
-        <location line="-240"/>
+        <location line="-246"/>
         <location line="+4"/>
-        <location line="+288"/>
+        <location line="+294"/>
         <source>Rename</source>
         <translation type="unfinished">Переименовать</translation>
     </message>
     <message>
-        <location line="-288"/>
+        <location line="-294"/>
         <source>Slide master name:</source>
         <translation type="unfinished">Имя образца слайдов:</translation>
     </message>
@@ -31799,18 +32176,18 @@ The file can&apos;t be read.</source>
     </message>
     <message>
         <location line="+3"/>
-        <location line="+292"/>
+        <location line="+298"/>
         <source>Preserve</source>
         <translation type="unfinished">Сохранить</translation>
     </message>
     <message>
-        <location line="-291"/>
-        <location line="+327"/>
+        <location line="-297"/>
+        <location line="+333"/>
         <source>Master Layout</source>
         <translation type="unfinished">Макет образца</translation>
     </message>
     <message>
-        <location line="-319"/>
+        <location line="-325"/>
         <source>Content</source>
         <translation type="unfinished">Содержимое</translation>
     </message>
@@ -31847,25 +32224,26 @@ The file can&apos;t be read.</source>
     </message>
     <message>
         <location line="+5"/>
-        <location line="+294"/>
+        <location line="+300"/>
         <source>Title</source>
         <translation>Название</translation>
     </message>
     <message>
-        <location line="-293"/>
-        <location line="+300"/>
+        <location line="-299"/>
+        <location line="+306"/>
         <source>Footers</source>
         <translation type="unfinished">Колонтитулы</translation>
     </message>
     <message>
-        <location line="-299"/>
-        <location line="+316"/>
+        <location line="-305"/>
+        <location line="+322"/>
         <location line="+6"/>
         <source>Hide Background Graphics</source>
         <translation type="unfinished">Скрыть фоновые графические объекты</translation>
     </message>
     <message>
-        <location line="-320"/>
+        <location line="-326"/>
+        <location filename="../apps/deck/app/deckwindow_notesmaster.cpp" line="+24"/>
         <source>Close Master View</source>
         <translation type="unfinished">Закрыть режим образца</translation>
     </message>
@@ -31875,7 +32253,12 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Найти темы…</translation>
     </message>
     <message>
-        <location line="+196"/>
+        <location line="+1"/>
+        <source>Save Current Theme…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+201"/>
         <source>There is nothing to delete.</source>
         <translation type="unfinished">Нечего удалять.</translation>
     </message>
@@ -31973,63 +32356,82 @@ The file can&apos;t be read.</source>
     </message>
     <message>
         <location filename="../apps/deck/app/deckwindow.cpp" line="+0"/>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-190"/>
-        <location line="+146"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-209"/>
+        <location line="+111"/>
+        <location line="+52"/>
         <location line="+1"/>
         <location line="+6"/>
-        <location line="+37"/>
+        <location line="+39"/>
         <location line="+3"/>
         <source>Save</source>
         <translation type="unfinished">Сохранить</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-192"/>
-        <location line="+69"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-211"/>
+        <location line="+73"/>
         <source>Save As</source>
         <translation type="unfinished">Сохранить как</translation>
     </message>
     <message>
-        <location line="-37"/>
+        <location line="-40"/>
         <source>This presentation is open for reading only, so it is saved under a new name.</source>
         <translation type="unfinished">Эта презентация открыта только для чтения, поэтому она будет сохранена под новым именем.</translation>
     </message>
     <message>
         <location line="+18"/>
-        <location line="+30"/>
+        <location line="+33"/>
         <source>%1 copy</source>
         <translation type="unfinished">%1 копия</translation>
     </message>
     <message>
         <location filename="../apps/deck/app/deckwindow_dialogs.cpp" line="-4"/>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-27"/>
-        <location line="+28"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-30"/>
+        <location line="+31"/>
         <source>Presentation (*.pptx)</source>
         <translation type="unfinished">Презентация (*.pptx)</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-28"/>
-        <location line="+28"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-31"/>
+        <location line="+31"/>
         <source>Template (*.potx)</source>
         <translation type="unfinished">Шаблон (*.potx)</translation>
     </message>
     <message>
-        <location line="-28"/>
-        <location line="+28"/>
+        <location line="-31"/>
+        <location line="+31"/>
         <source>Show (*.ppsx)</source>
         <translation type="unfinished">Показ (*.ppsx)</translation>
     </message>
     <message>
         <location filename="../apps/deck/app/deckwindow_dialogs.cpp" line="+0"/>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-27"/>
-        <location line="+28"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-30"/>
+        <location line="+31"/>
         <source>OpenDocument Presentation (*.odp)</source>
         <translation type="unfinished">Презентация OpenDocument (*.odp)</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-28"/>
-        <location line="+28"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-31"/>
+        <location line="+31"/>
         <source>OpenDocument Presentation Template (*.otp)</source>
         <translation type="unfinished">Шаблон презентации OpenDocument (*.otp)</translation>
+    </message>
+    <message>
+        <location line="-30"/>
+        <location line="+31"/>
+        <source>Macro-Enabled Presentation (*.pptm)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-31"/>
+        <location line="+31"/>
+        <source>Macro-Enabled Template (*.potm)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-31"/>
+        <location line="+31"/>
+        <source>Macro-Enabled Show (*.ppsm)</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+8"/>
@@ -32037,7 +32439,12 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Сохранить копию</translation>
     </message>
     <message>
-        <location line="+19"/>
+        <location line="+15"/>
+        <source>The macros in this presentation aren&apos;t saved, because a .%1 file can&apos;t hold them.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+16"/>
         <location line="+3"/>
         <source>Save as Template</source>
         <translation type="unfinished">Сохранить как шаблон</translation>
@@ -32068,7 +32475,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Эта презентация защищена паролем, а файл .%1 пока не может хранить пароль. Сохраните её как файл .pptx или сначала удалите пароль (Файл &gt; Сведения).</translation>
     </message>
     <message>
-        <location line="+44"/>
+        <location line="+46"/>
         <source>Saved a copy as %1</source>
         <translation type="unfinished">Копия сохранена как %1</translation>
     </message>
@@ -32098,7 +32505,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Эта презентация защищена паролем, поэтому её копия для восстановления не сохраняется. Сохраните её, чтобы не потерять работу.</translation>
     </message>
     <message>
-        <location line="+47"/>
+        <location line="+49"/>
         <location line="+4"/>
         <location line="+42"/>
         <source>Recover Unsaved Work</source>
@@ -32333,7 +32740,12 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Знаки</translation>
     </message>
     <message>
-        <location line="+243"/>
+        <location line="+139"/>
+        <source>After</source>
+        <translation>Через</translation>
+    </message>
+    <message>
+        <location line="+104"/>
         <source>The slide show is set to play slides %1 to %2, and the presentation has only %3. Change this in Set Up Slide Show.</source>
         <translation type="unfinished">Показ слайдов настроен на воспроизведение слайдов с %1 по %2, а в презентации только %3. Измените это в разделе «Настройка показа слайдов».</translation>
     </message>
@@ -32621,12 +33033,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">По щелчку мыши: показ переходит к следующему слайду по щелчку докладчика.</translation>
     </message>
     <message>
-        <location line="+12"/>
-        <source>After:</source>
-        <translation type="unfinished">Через:</translation>
-    </message>
-    <message>
-        <location line="+2"/>
+        <location line="+14"/>
         <source>After: the slide show moves on from this slide by itself after this many seconds.</source>
         <translation type="unfinished">Через: показ автоматически переходит с этого слайда через указанное количество секунд.</translation>
     </message>
@@ -32662,16 +33069,33 @@ The file can&apos;t be read.</source>
     </message>
     <message>
         <location line="+1"/>
+        <source>Notes Page</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Slide Master</source>
         <translation type="unfinished">Образец слайдов</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_design.cpp" line="-52"/>
+        <location line="+1"/>
+        <source>Notes Master</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Handout Master</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../apps/deck/app/deckwindow_design.cpp" line="-68"/>
+        <location line="+37"/>
         <source>Theme</source>
         <translation>Тема</translation>
     </message>
     <message>
-        <location line="+30"/>
+        <location line="-4"/>
+        <location line="+13"/>
         <location line="+7"/>
         <location line="+4"/>
         <location line="+9"/>
@@ -32679,12 +33103,14 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Найти темы</translation>
     </message>
     <message>
-        <location line="-20"/>
+        <location line="-33"/>
+        <location line="+13"/>
         <source>%1 can&apos;t be read: %2</source>
         <translation type="unfinished">Не удалось прочитать %1: %2</translation>
     </message>
     <message>
-        <location line="+0"/>
+        <location line="-13"/>
+        <location line="+13"/>
         <source>The file can&apos;t be read.</source>
         <translation type="unfinished">Не удалось прочитать файл.</translation>
     </message>
@@ -32700,11 +33126,32 @@ The file can&apos;t be read.</source>
     </message>
     <message>
         <location line="+11"/>
-        <source>Presentations and Templates (*.pptx *.potx *.ppsx *.ppt *.pps *.pot)</source>
-        <translation type="unfinished">Презентации и шаблоны (*.pptx *.potx *.ppsx *.ppt *.pps *.pot)</translation>
+        <source>Themes, Presentations, and Templates (*.thmx *.pptx *.potx *.ppsx *.pptm *.potm *.ppsm *.ppt *.pps *.pot *.docx *.dotx)</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+13"/>
+        <location line="+16"/>
+        <location line="+11"/>
+        <source>Save Current Theme</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-11"/>
+        <source>%1 can&apos;t be written.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>Theme Files (*.thmx)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+19"/>
+        <source>Reset Theme</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+21"/>
         <source>Variant</source>
         <translation type="unfinished">Вариант</translation>
     </message>
@@ -32729,17 +33176,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Эта презентация</translation>
     </message>
     <message>
-        <location line="+4"/>
-        <source>Built-In</source>
-        <translation type="unfinished">Встроенные</translation>
-    </message>
-    <message>
-        <location line="+21"/>
-        <source>%1  (%2 / %3)</source>
-        <translation type="unfinished">%1  (%2 / %3)</translation>
-    </message>
-    <message>
-        <location line="+52"/>
+        <location line="+90"/>
         <source>Colors</source>
         <translation>Цвета</translation>
     </message>
@@ -33513,7 +33950,7 @@ The file can&apos;t be read.</source>
         <location line="+11"/>
         <location line="+5"/>
         <location line="+17"/>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-124"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-126"/>
         <source>Version History</source>
         <translation type="unfinished">Журнал версий</translation>
     </message>
@@ -33644,9 +34081,69 @@ The file can&apos;t be read.</source>
     </message>
     <message>
         <location line="+0"/>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-40"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-42"/>
         <source>presentation</source>
         <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../apps/deck/app/deckwindow_notesmaster.cpp" line="-27"/>
+        <source>Header</source>
+        <translation type="unfinished">Верхний колонтитул</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Date</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Footer</source>
+        <translation type="unfinished">Нижний колонтитул</translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>Header and Footer…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Reset Layout</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Background Color…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Background Color</source>
+        <translation type="unfinished">Цвет фона</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>No Background Color</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>1 Slide</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>%1 Slides</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Portrait</source>
+        <translation type="unfinished">Книжная</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Landscape</source>
+        <translation type="unfinished">Альбомная</translation>
     </message>
 </context>
 <context>
@@ -37554,7 +38051,7 @@ Effective resolution: %3 ppi</source>
 <context>
     <name>jp::HeaderFooterEditor</name>
     <message>
-        <location filename="../apps/crunch/app/pagesetupdialog.cpp" line="+25"/>
+        <location filename="../apps/crunch/app/pagesetupdialog.cpp" line="+12"/>
         <source>Header Text</source>
         <translation type="unfinished">Текст верхнего колонтитула</translation>
     </message>
@@ -37786,6 +38283,11 @@ Effective resolution: %3 ppi</source>
         <translation type="unfinished">В колонтитулах уже максимально возможное количество рисунков.</translation>
     </message>
     <message>
+        <location line="+1"/>
+        <source>This picture would make the pictures of the workbook (backgrounds, headers, and footers) larger than a file can keep, %1 MB. Delete a picture you don&apos;t need first.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location line="+50"/>
         <source>It prints nothing here.</source>
         <translation type="unfinished">Здесь ничего не печатается.</translation>
@@ -37860,7 +38362,7 @@ Effective resolution: %3 ppi</source>
         <translation type="unfinished">Раздел справки</translation>
     </message>
     <message>
-        <location line="+57"/>
+        <location line="+78"/>
         <source># Help is not installed
 
 Help&apos;s files were not found beside the program. Reinstalling %1 puts them back.</source>
@@ -39364,7 +39866,7 @@ Source: %3</source>
     <name>jp::MainWindow</name>
     <message>
         <location filename="../apps/pub/app/mainwindow.cpp" line="-1608"/>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+602"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+603"/>
         <source>%1 (%2)</source>
         <translation type="unfinished">%1 (%2)</translation>
     </message>
@@ -39618,7 +40120,7 @@ Source: %3</source>
     <message>
         <location line="+9"/>
         <location line="+7"/>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+546"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+549"/>
         <location filename="../apps/pub/app/mainwindow_comments.cpp" line="+25"/>
         <source>Delete</source>
         <translation type="unfinished">Удалить</translation>
@@ -39661,7 +40163,7 @@ Source: %3</source>
         <location line="+4"/>
         <location line="+16"/>
         <location line="+51"/>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-542"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-545"/>
         <source>Create PDF</source>
         <translation type="unfinished">Создать PDF</translation>
     </message>
@@ -39777,7 +40279,7 @@ Source: %3</source>
     </message>
     <message>
         <location line="+296"/>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+1245"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+1263"/>
         <source>Page %1</source>
         <translation type="unfinished">Страница %1</translation>
     </message>
@@ -39829,7 +40331,7 @@ Source: %3</source>
     <message>
         <location line="-1086"/>
         <location line="+560"/>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-682"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-697"/>
         <source>All Files (*)</source>
         <translation type="unfinished">Все файлы (*)</translation>
     </message>
@@ -39929,8 +40431,8 @@ Source: %3</source>
         <location line="+21"/>
         <location line="+8"/>
         <location line="+4"/>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-562"/>
-        <location line="+1115"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-565"/>
+        <location line="+1133"/>
         <source>Save as Picture</source>
         <translation type="unfinished">Сохранить как рисунок</translation>
     </message>
@@ -40020,7 +40522,7 @@ Source: %3</source>
     </message>
     <message>
         <location line="+75"/>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-1114"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-1132"/>
         <source>Save as Web Page</source>
         <translation type="unfinished">Сохранить как веб-страницу</translation>
     </message>
@@ -40042,7 +40544,7 @@ Source: %3</source>
     </message>
     <message>
         <location line="-47"/>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+1016"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+1021"/>
         <source>Change Picture</source>
         <translation type="unfinished">Заменить рисунок</translation>
     </message>
@@ -40063,7 +40565,7 @@ Source: %3</source>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-784"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-789"/>
         <source>An equation can&apos;t be put here.</source>
         <translation type="unfinished">Формулу нельзя поместить здесь.</translation>
     </message>
@@ -40085,7 +40587,7 @@ Source: %3</source>
     <message>
         <location line="+23"/>
         <location line="+33"/>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+675"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+678"/>
         <location line="+10"/>
         <source>Text Fit</source>
         <translation type="unfinished">Подогнать текст</translation>
@@ -40097,15 +40599,15 @@ Source: %3</source>
     </message>
     <message>
         <location line="+5"/>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-530"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-533"/>
         <source>Wrap Text</source>
         <translation type="unfinished">Обтекание текстом</translation>
     </message>
     <message>
         <location line="+36"/>
-        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="+345"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="+346"/>
         <location line="+1"/>
-        <location line="+689"/>
+        <location line="+715"/>
         <source>Zoom</source>
         <translation>Масштаб</translation>
     </message>
@@ -40188,12 +40690,12 @@ Source: %3</source>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+514"/>
+        <location line="+517"/>
         <source>Duplicate</source>
         <translation type="unfinished">Дублировать</translation>
     </message>
     <message>
-        <location line="-513"/>
+        <location line="-516"/>
         <source>Delete Object</source>
         <translation type="unfinished">Удалить объект</translation>
     </message>
@@ -40247,7 +40749,7 @@ Source: %3</source>
     </message>
     <message>
         <location line="-148"/>
-        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="-627"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="-633"/>
         <location line="+1"/>
         <source>Shapes</source>
         <translation type="unfinished">Фигуры</translation>
@@ -40348,12 +40850,12 @@ Source: %3</source>
     <message>
         <location line="+1"/>
         <location line="+3"/>
-        <location line="+918"/>
+        <location line="+921"/>
         <source>Small Caps</source>
         <translation type="unfinished">Капитель</translation>
     </message>
     <message>
-        <location line="-916"/>
+        <location line="-919"/>
         <location line="+3"/>
         <source>All Caps</source>
         <translation type="unfinished">Все прописные</translation>
@@ -40390,38 +40892,38 @@ Source: %3</source>
     </message>
     <message>
         <location line="+15"/>
-        <location line="+1087"/>
+        <location line="+1105"/>
         <source>Very Tight</source>
         <translation type="unfinished">Очень узкий</translation>
     </message>
     <message>
-        <location line="-1087"/>
+        <location line="-1105"/>
         <location line="+279"/>
-        <location line="+808"/>
+        <location line="+826"/>
         <source>Tight</source>
         <translation type="unfinished">Узкий</translation>
     </message>
     <message>
-        <location line="-1087"/>
-        <location line="+418"/>
-        <location line="+669"/>
+        <location line="-1105"/>
+        <location line="+421"/>
+        <location line="+684"/>
         <source>Normal</source>
         <translation type="unfinished">Обычный</translation>
     </message>
     <message>
-        <location line="-1087"/>
-        <location line="+1087"/>
+        <location line="-1105"/>
+        <location line="+1105"/>
         <source>Loose</source>
         <translation type="unfinished">Разреженный</translation>
     </message>
     <message>
-        <location line="-1087"/>
-        <location line="+1087"/>
+        <location line="-1105"/>
+        <location line="+1105"/>
         <source>Very Loose</source>
         <translation type="unfinished">Очень разреженный</translation>
     </message>
     <message>
-        <location line="-1081"/>
+        <location line="-1099"/>
         <source>Character Spacing</source>
         <translation type="unfinished">Интервал между знаками</translation>
     </message>
@@ -40448,14 +40950,14 @@ Source: %3</source>
     <message>
         <location line="+260"/>
         <location line="+88"/>
-        <location line="+77"/>
+        <location line="+80"/>
         <location line="+390"/>
         <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="+118"/>
         <source>None</source>
         <translation type="unfinished">Нет</translation>
     </message>
     <message>
-        <location line="-812"/>
+        <location line="-815"/>
         <source>Bullets and Numbering…</source>
         <translation type="unfinished">Маркеры и нумерация…</translation>
     </message>
@@ -40492,12 +40994,12 @@ Source: %3</source>
     </message>
     <message>
         <location line="-229"/>
-        <location line="+1071"/>
+        <location line="+1089"/>
         <source>Center</source>
         <translation type="unfinished">По центру</translation>
     </message>
     <message>
-        <location line="-1070"/>
+        <location line="-1088"/>
         <location line="+230"/>
         <source>Align Right</source>
         <translation type="unfinished">По правому краю</translation>
@@ -40829,7 +41331,7 @@ Source: %3</source>
     </message>
     <message>
         <location line="+2"/>
-        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="+411"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="+417"/>
         <source>Group</source>
         <translation type="unfinished">Группировать</translation>
     </message>
@@ -40856,24 +41358,24 @@ Source: %3</source>
     </message>
     <message>
         <location line="+2"/>
-        <location line="+549"/>
+        <location line="+552"/>
         <source>Align Top</source>
         <translation type="unfinished">Выровнять по верхнему краю</translation>
     </message>
     <message>
-        <location line="-548"/>
-        <location line="+548"/>
+        <location line="-551"/>
+        <location line="+551"/>
         <source>Align Middle</source>
         <translation type="unfinished">Выровнять по середине</translation>
     </message>
     <message>
-        <location line="-547"/>
-        <location line="+547"/>
+        <location line="-550"/>
+        <location line="+550"/>
         <source>Align Bottom</source>
         <translation type="unfinished">Выровнять по нижнему краю</translation>
     </message>
     <message>
-        <location line="-546"/>
+        <location line="-549"/>
         <source>Distribute Horizontally</source>
         <translation type="unfinished">Распределить по горизонтали</translation>
     </message>
@@ -41078,42 +41580,42 @@ Source: %3</source>
     </message>
     <message>
         <location line="+6"/>
-        <location line="+467"/>
+        <location line="+470"/>
         <source>Narrow</source>
         <translation type="unfinished">Узкие</translation>
     </message>
     <message>
-        <location line="-467"/>
-        <location line="+467"/>
+        <location line="-470"/>
+        <location line="+470"/>
         <source>Moderate</source>
         <translation type="unfinished">Умеренные</translation>
     </message>
     <message>
-        <location line="-467"/>
-        <location line="+467"/>
+        <location line="-470"/>
+        <location line="+470"/>
         <source>Wide</source>
         <translation type="unfinished">Широкие</translation>
     </message>
     <message>
-        <location line="-467"/>
+        <location line="-470"/>
         <source>Extra Wide</source>
         <translation type="unfinished">Очень широкие</translation>
     </message>
     <message>
         <location line="+4"/>
-        <location line="+468"/>
+        <location line="+471"/>
         <location line="+1"/>
         <source>Margins</source>
         <translation>Поля</translation>
     </message>
     <message>
-        <location line="-466"/>
-        <location line="+458"/>
+        <location line="-469"/>
+        <location line="+461"/>
         <source>Custom Margins…</source>
         <translation type="unfinished">Настраиваемые поля…</translation>
     </message>
     <message>
-        <location line="-457"/>
+        <location line="-460"/>
         <source>Create New Page Size…</source>
         <translation type="unfinished">Создать новый размер страницы…</translation>
     </message>
@@ -41128,7 +41630,7 @@ Source: %3</source>
         <translation type="unfinished">Создать новую цветовую схему…</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="+4"/>
         <source>Create New Font Scheme…</source>
         <translation type="unfinished">Создать новую схему шрифтов…</translation>
     </message>
@@ -41140,7 +41642,7 @@ Source: %3</source>
     </message>
     <message>
         <location line="+4"/>
-        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="-472"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="-478"/>
         <location line="+0"/>
         <source>No Background</source>
         <translation type="unfinished">Без фона</translation>
@@ -41259,7 +41761,7 @@ Source: %3</source>
         <translation type="unfinished">Не вписывать</translation>
     </message>
     <message>
-        <location line="-632"/>
+        <location line="-635"/>
         <source>Insert Date</source>
         <translation type="unfinished">Вставить дату</translation>
     </message>
@@ -41376,7 +41878,7 @@ Source: %3</source>
         <translation type="unfinished">Область выделения</translation>
     </message>
     <message>
-        <location line="+207"/>
+        <location line="+210"/>
         <source>Data Sources (*.csv *.txt *.tsv *.xlsx *.xlsm *.xls *.ods *.fods *.vcf)</source>
         <translation type="unfinished">Источники данных (*.csv *.txt *.tsv *.xlsx *.xlsm *.xls *.ods *.fods *.vcf)</translation>
     </message>
@@ -41846,7 +42348,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+2"/>
         <location line="+57"/>
-        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="-134"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="-154"/>
         <source>%1 pt</source>
         <translation type="unfinished">%1 пт</translation>
     </message>
@@ -41910,14 +42412,14 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+4"/>
         <location line="+10"/>
-        <location line="+253"/>
+        <location line="+255"/>
         <location line="+1"/>
         <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="-72"/>
         <source>Fill</source>
         <translation type="unfinished">Заливка</translation>
     </message>
     <message>
-        <location line="-262"/>
+        <location line="-264"/>
         <source>Picture Fill…</source>
         <translation type="unfinished">Заливка рисунком…</translation>
     </message>
@@ -42320,7 +42822,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Все лигатуры</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="+3"/>
         <source>Ligatures</source>
         <translation type="unfinished">Лигатуры</translation>
     </message>
@@ -42467,6 +42969,71 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Вписать</translation>
     </message>
     <message>
+        <location line="+7"/>
+        <source>Square 1:1</source>
+        <translation type="unfinished">Квадрат 1:1</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Portrait 2:3</source>
+        <translation type="unfinished">Портрет 2:3</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Portrait 3:4</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Portrait 3:5</source>
+        <translation type="unfinished">Портрет 3:5</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Portrait 4:5</source>
+        <translation type="unfinished">Портрет 4:5</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Portrait 9:16</source>
+        <translation type="unfinished">Портрет 9:16</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Landscape 3:2</source>
+        <translation type="unfinished">Альбом 3:2</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Landscape 4:3</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Landscape 5:3</source>
+        <translation type="unfinished">Альбом 5:3</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Landscape 5:4</source>
+        <translation type="unfinished">Альбом 5:4</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Landscape 16:9</source>
+        <translation type="unfinished">Альбом 16:9</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Landscape 16:10</source>
+        <translation type="unfinished">Альбом 16:10</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Aspect Ratio</source>
+        <translation type="unfinished">Соотношение сторон</translation>
+    </message>
+    <message>
         <location line="+5"/>
         <location line="+1"/>
         <source>Clear Crop</source>
@@ -42490,7 +43057,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     </message>
     <message>
         <location line="+0"/>
-        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="+216"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="+236"/>
         <source>Picture Shape</source>
         <translation type="unfinished">Форма рисунка</translation>
     </message>
@@ -42762,7 +43329,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Свернуть ленту (Ctrl+F1): видны только названия вкладок, больше места для страницы. Повторное нажатие покажет ленту.</translation>
     </message>
     <message>
-        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="-255"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="-275"/>
         <source>Font Color</source>
         <translation type="unfinished">Цвет шрифта</translation>
     </message>
@@ -42861,7 +43428,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Таблица</translation>
     </message>
     <message>
-        <location line="+32"/>
+        <location line="+52"/>
         <source>Lines</source>
         <translation>Линии</translation>
     </message>
@@ -42964,12 +43531,13 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Объявления</translation>
     </message>
     <message>
-        <location line="+44"/>
+        <location line="+36"/>
+        <location line="+7"/>
         <source>Color Scheme</source>
         <translation type="unfinished">Цветовая схема</translation>
     </message>
     <message>
-        <location line="+19"/>
+        <location line="+20"/>
         <source>Solid Background</source>
         <translation type="unfinished">Сплошной фон</translation>
     </message>
@@ -43130,7 +43698,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">(%1) %2</translation>
     </message>
     <message>
-        <location line="+16"/>
+        <location line="+21"/>
         <source>%1 — %2 / %3</source>
         <translation type="unfinished">%1 — %2 / %3</translation>
     </message>
@@ -43140,7 +43708,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Схема шрифтов</translation>
     </message>
     <message>
-        <location line="+13"/>
+        <location line="+14"/>
         <source>(Select recipients first)</source>
         <translation type="unfinished">(Сначала выберите получателей)</translation>
     </message>
@@ -43910,6 +44478,108 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     </message>
 </context>
 <context>
+    <name>jp::NotesPageView</name>
+    <message>
+        <location filename="../apps/deck/app/notespageview.cpp" line="+33"/>
+        <source>Slide Image</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Notes</source>
+        <translation type="unfinished">Заметки</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location line="+10"/>
+        <source>Header</source>
+        <translation type="unfinished">Верхний колонтитул</translation>
+    </message>
+    <message>
+        <location line="-9"/>
+        <location line="+10"/>
+        <source>Date</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-9"/>
+        <location line="+10"/>
+        <source>Footer</source>
+        <translation type="unfinished">Нижний колонтитул</translation>
+    </message>
+    <message>
+        <location line="-9"/>
+        <location line="+10"/>
+        <source>Page Number</source>
+        <translation type="unfinished">Номер страницы</translation>
+    </message>
+    <message>
+        <location line="-4"/>
+        <source>Slides</source>
+        <translation type="unfinished">Слайды</translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>Notes Page</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+258"/>
+        <source>First level</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Second level</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Third level</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+130"/>
+        <source>Edit Notes Master</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Edit Handout Master</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>Reset Notes Master</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Reset Handout Master</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Page Background</source>
+        <translation type="unfinished">Фон страницы</translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <source>Slides Per Page</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Landscape</source>
+        <translation type="unfinished">Альбомная</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Portrait</source>
+        <translation type="unfinished">Книжная</translation>
+    </message>
+</context>
+<context>
     <name>jp::NotesPane</name>
     <message>
         <location filename="../apps/deck/app/notespane.cpp" line="+20"/>
@@ -44135,6 +44805,113 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <location filename="../libs/page/app/onlinepictures.cpp" line="+3"/>
         <source>Inserted. Check that its license fits how you&apos;ll use it.</source>
         <translation type="unfinished">Вставлено. Проверьте, подходит ли его лицензия для вашего использования.</translation>
+    </message>
+</context>
+<context>
+    <name>jp::OpenTypeBox</name>
+    <message>
+        <location filename="../libs/shell/app/opentypebox.cpp" line="+23"/>
+        <source>Font features</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>Ligatures</source>
+        <translation type="unfinished">Лигатуры</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+3"/>
+        <source>(default)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-6"/>
+        <source>None</source>
+        <translation type="unfinished">Нет</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Standard only</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Standard and contextual</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Historical and discretionary</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>All</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Number spacing</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Proportional</source>
+        <translation type="unfinished">Пропорциональные</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Tabular</source>
+        <translation type="unfinished">Табличные</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Number forms</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Lining</source>
+        <translation type="unfinished">Строчные</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Old-style</source>
+        <translation type="unfinished">Старого стиля</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Stylistic set</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Contextual alternates</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>On</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Off</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+39"/>
+        <source>(mixed)</source>
+        <translation type="unfinished">(смешанный)</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>(other)</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -44618,7 +45395,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation>Нижний колонтитул</translation>
     </message>
     <message>
-        <location line="+127"/>
+        <location line="+128"/>
         <source>Repeat these rows at the top</source>
         <translation>Повторять эти строки вверху</translation>
     </message>
@@ -44628,7 +45405,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation>Повторять эти столбцы слева</translation>
     </message>
     <message>
-        <location line="-268"/>
+        <location line="-269"/>
         <location line="+4"/>
         <source>Print quality</source>
         <translation>Качество печати</translation>
@@ -44763,7 +45540,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Выкл.: они начинаются и заканчиваются близко к краям бумаги.</translation>
     </message>
     <message>
-        <location line="+62"/>
+        <location line="+63"/>
         <source>%1: %2</source>
         <translation type="unfinished">%1: %2</translation>
     </message>
@@ -45131,6 +45908,19 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     </message>
 </context>
 <context>
+    <name>jp::PictureFile</name>
+    <message>
+        <location filename="../libs/base/render/picturefile.cpp" line="+343"/>
+        <source>The picture is empty.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>The picture can&apos;t be made a GIF.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>jp::PictureStyles</name>
     <message>
         <location filename="../libs/draw/core/picturestyles.cpp" line="+30"/>
@@ -45266,7 +46056,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
 <context>
     <name>jp::PictureTools</name>
     <message>
-        <location filename="../libs/page/app/picturetools.cpp" line="+86"/>
+        <location filename="../libs/page/app/picturetools.cpp" line="+88"/>
         <location line="+14"/>
         <source>Picture Style</source>
         <translation type="unfinished">Стиль рисунка</translation>
@@ -45385,6 +46175,11 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <location line="+5"/>
         <source>More Effects Options…</source>
         <translation type="unfinished">Другие параметры эффектов…</translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <source>Crop to Shape</source>
+        <translation type="unfinished">Обрезать по фигуре</translation>
     </message>
 </context>
 <context>
@@ -46544,13 +47339,13 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     </message>
     <message>
         <location line="+23"/>
-        <source>Presentations (*.pptx *.potx *.ppsx *.ppt *.pps *.pot)</source>
-        <translation type="unfinished">Презентации (*.pptx *.potx *.ppsx *.ppt *.pps *.pot)</translation>
+        <source>All Files (*)</source>
+        <translation type="unfinished">Все файлы (*)</translation>
     </message>
     <message>
         <location line="+0"/>
-        <source>All Files (*)</source>
-        <translation type="unfinished">Все файлы (*)</translation>
+        <source>Presentations (*.pptx *.pptm *.potx *.potm *.ppsx *.ppsm *.ppt *.pps *.pot)</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+17"/>
@@ -48965,16 +49760,140 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     </message>
 </context>
 <context>
+    <name>jp::ThemeDialogs</name>
+    <message>
+        <location filename="../libs/shell/app/themedialogs.cpp" line="+113"/>
+        <source>Heading</source>
+        <translation type="unfinished">Заголовок</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Body text</source>
+        <translation type="unfinished">Основной текст</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>A link</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>Theme Sets</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Custom %1</source>
+        <translation type="unfinished">Пользовательский %1</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <location line="+198"/>
+        <location line="+39"/>
+        <source>Custom</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-215"/>
+        <source>Create New Theme Colors</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+28"/>
+        <location line="+90"/>
+        <source>Name</source>
+        <translation>Имя</translation>
+    </message>
+    <message>
+        <location line="-53"/>
+        <location line="+78"/>
+        <source>A built-in set has the name &quot;%1&quot;. Choose another name.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-72"/>
+        <source>You already have colors named &quot;%1&quot;. Replace them?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>The colors could not be saved.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Create New Theme Fonts</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+27"/>
+        <source>Heading font</source>
+        <translation type="unfinished">Шрифт заголовков</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Body font</source>
+        <translation type="unfinished">Шрифт основного текста</translation>
+    </message>
+    <message>
+        <location line="+32"/>
+        <source>You already have fonts named &quot;%1&quot;. Replace them?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>The fonts could not be saved.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <location line="+39"/>
+        <source>Built-In</source>
+        <translation type="unfinished">Встроенные</translation>
+    </message>
+    <message>
+        <location line="-36"/>
+        <source>Create New Theme Colors…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Delete Custom Colors</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <location line="+39"/>
+        <source>Reset to the Template&apos;s Theme</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-29"/>
+        <source>%1  (%2 / %3)</source>
+        <translation type="unfinished">%1  (%2 / %3)</translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <source>Create New Theme Fonts…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Delete Custom Fonts</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>jp::ThemeGallery</name>
     <message>
-        <location filename="../apps/deck/app/themegallery.cpp" line="-183"/>
+        <location filename="../apps/deck/app/themegallery.cpp" line="-192"/>
         <location line="+8"/>
-        <location line="+81"/>
+        <location line="+82"/>
         <source>Themes</source>
         <translation type="unfinished">Темы</translation>
     </message>
     <message>
-        <location line="-88"/>
+        <location line="-89"/>
         <source>The arrow keys move between themes, and Enter applies one to every slide.</source>
         <translation type="unfinished">Клавиши со стрелками перемещают между темами, а Enter применяет тему ко всем слайдам.</translation>
     </message>
@@ -49005,12 +49924,18 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     </message>
     <message>
         <location line="+2"/>
-        <location line="+20"/>
+        <location line="+21"/>
         <source>Browse for Themes…</source>
         <translation type="unfinished">Найти темы…</translation>
     </message>
     <message>
-        <location line="-7"/>
+        <location line="-20"/>
+        <location line="+24"/>
+        <source>Save Current Theme…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-11"/>
         <source>Built-In</source>
         <translation type="unfinished">Встроенные</translation>
     </message>
@@ -49750,7 +50675,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
 <context>
     <name>jp::VariantGallery</name>
     <message>
-        <location filename="../apps/deck/app/themegallery.cpp" line="+31"/>
+        <location filename="../apps/deck/app/themegallery.cpp" line="+39"/>
         <location line="+7"/>
         <source>Variants</source>
         <translation type="unfinished">Варианты</translation>
@@ -49937,7 +50862,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
 <context>
     <name>jp::WriteFileScreen</name>
     <message>
-        <location filename="../apps/write/app/writefilescreen.cpp" line="-539"/>
+        <location filename="../apps/write/app/writefilescreen.cpp" line="-538"/>
         <source>Back to document</source>
         <translation type="unfinished">Вернуться к документу</translation>
     </message>
@@ -49995,19 +50920,19 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     </message>
     <message>
         <location line="+1"/>
-        <location line="+209"/>
+        <location line="+208"/>
         <location line="+1"/>
         <source>Print</source>
         <translation>Печать</translation>
     </message>
     <message>
-        <location line="-209"/>
-        <location line="+483"/>
+        <location line="-208"/>
+        <location line="+482"/>
         <source>Export</source>
         <translation type="unfinished">Экспорт</translation>
     </message>
     <message>
-        <location line="-482"/>
+        <location line="-481"/>
         <source>Close</source>
         <translation type="unfinished">Закрыть</translation>
     </message>
@@ -50032,7 +50957,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Пустой документ</translation>
     </message>
     <message>
-        <location line="+49"/>
+        <location line="+48"/>
         <source>Browse</source>
         <translation type="unfinished">Обзор</translation>
     </message>
@@ -51141,7 +52066,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
 <context>
     <name>jp::WriteWindow</name>
     <message>
-        <location filename="../apps/write/app/writewindow.cpp" line="-705"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="-707"/>
         <source>Document%1</source>
         <translation type="unfinished">Документ%1</translation>
     </message>
@@ -51171,7 +52096,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">%1 (%2)</translation>
     </message>
     <message>
-        <location line="+105"/>
+        <location line="+106"/>
         <source> (Protected)</source>
         <translation type="unfinished"> (Защищён)</translation>
     </message>
@@ -51181,7 +52106,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished"> (Только чтение)</translation>
     </message>
     <message>
-        <location line="+43"/>
+        <location line="+44"/>
         <source>Formatting is limited in this document. Only styles that are not locked can be used.</source>
         <translation type="unfinished">В этом документе форматирование ограничено. Можно использовать только стили, которые не заблокированы.</translation>
     </message>
@@ -51765,9 +52690,10 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+0"/>
         <location filename="../apps/write/app/writewindow_insert.cpp" line="+138"/>
-        <location filename="../apps/write/app/writewindow_pictures.cpp" line="+190"/>
+        <location filename="../apps/write/app/writewindow_pictures.cpp" line="+254"/>
         <location filename="../apps/write/app/writewindow_shapes.cpp" line="+470"/>
         <location line="+60"/>
+        <location filename="../apps/write/app/writewindow_themes.cpp" line="+44"/>
         <source>All Files (*)</source>
         <translation type="unfinished">Все файлы (*)</translation>
     </message>
@@ -52822,11 +53748,13 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     </message>
     <message>
         <location line="+3"/>
+        <location filename="../apps/write/app/writewindow_pictures.cpp" line="+200"/>
         <source>Left</source>
         <translation>Слева</translation>
     </message>
     <message>
         <location line="+0"/>
+        <location filename="../apps/write/app/writewindow_pictures.cpp" line="+0"/>
         <source>Right</source>
         <translation>Справа</translation>
     </message>
@@ -52847,7 +53775,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location filename="../apps/write/app/writewindow_home.cpp" line="+56"/>
         <location filename="../apps/write/app/writewindow_layout.cpp" line="-22"/>
-        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+151"/>
+        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+152"/>
         <source>Automatic</source>
         <translation type="unfinished">Автоматически</translation>
     </message>
@@ -53093,12 +54021,12 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Штрихкод из поля</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_notes.cpp" line="+14"/>
+        <location filename="../apps/write/app/writewindow_notes.cpp" line="+25"/>
         <source>Insert Footnote</source>
         <translation type="unfinished">Вставить сноску</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="+1"/>
         <source>Insert Endnote</source>
         <translation type="unfinished">Вставить концевую сноску</translation>
     </message>
@@ -53468,7 +54396,67 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Отправлено на принтер: %1</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_pictures.cpp" line="-151"/>
+        <location filename="../apps/write/app/writewindow_pictures.cpp" line="-400"/>
+        <source>Square 1:1</source>
+        <translation type="unfinished">Квадрат 1:1</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Portrait 2:3</source>
+        <translation type="unfinished">Портрет 2:3</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Portrait 3:4</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Portrait 3:5</source>
+        <translation type="unfinished">Портрет 3:5</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Portrait 4:5</source>
+        <translation type="unfinished">Портрет 4:5</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Portrait 9:16</source>
+        <translation type="unfinished">Портрет 9:16</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Landscape 3:2</source>
+        <translation type="unfinished">Альбом 3:2</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Landscape 4:3</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Landscape 5:3</source>
+        <translation type="unfinished">Альбом 5:3</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Landscape 5:4</source>
+        <translation type="unfinished">Альбом 5:4</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Landscape 16:9</source>
+        <translation type="unfinished">Альбом 16:9</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Landscape 16:10</source>
+        <translation type="unfinished">Альбом 16:10</translation>
+    </message>
+    <message>
+        <location line="+8"/>
         <source>Picture…</source>
         <translation type="unfinished">Рисунок…</translation>
     </message>
@@ -53524,7 +54512,42 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Перед текстом</translation>
     </message>
     <message>
-        <location line="+13"/>
+        <location line="+15"/>
+        <source>Fill</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Edit Wrap Points</source>
+        <translation type="unfinished">Изменить узлы обтекания</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Text on Both Sides</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Text on the Left Only</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Text on the Right Only</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Text on the Larger Side</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Distance from Text…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
         <source>Bring to Front</source>
         <translation type="unfinished">На передний план</translation>
     </message>
@@ -53559,7 +54582,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Сохранять пропорции</translation>
     </message>
     <message>
-        <location line="+33"/>
+        <location line="+39"/>
         <source>Picture height</source>
         <translation type="unfinished">Высота рисунка</translation>
     </message>
@@ -53616,14 +54639,44 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">В буфере обмена нет рисунка.</translation>
     </message>
     <message>
-        <location line="+53"/>
+        <location line="+66"/>
         <source>Wrap Text</source>
         <translation type="unfinished">Обтекание текстом</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+3"/>
         <source>Arrange</source>
         <translation type="unfinished">Упорядочить</translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <source>Text Sides</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+35"/>
+        <source>Distance from Text</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>How much room the text leaves around the picture, in points.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Top</source>
+        <translation>Сверху</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Bottom</source>
+        <translation>Снизу</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source> pt</source>
+        <translation type="unfinished"> пт</translation>
     </message>
     <message>
         <location filename="../apps/write/app/writewindow_protect.cpp" line="+0"/>
@@ -53724,7 +54777,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Сноска и концевая сноска…</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+11"/>
         <source>Convert…</source>
         <translation type="unfinished">Преобразовать…</translation>
     </message>
@@ -55388,12 +56441,13 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Выделить</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location filename="../apps/write/app/writewindow_pictures.cpp" line="-359"/>
+        <location filename="../apps/write/app/writewindow_tables.cpp" line="+6"/>
         <source>Fit</source>
         <translation type="unfinished">По размеру</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location filename="../apps/write/app/writewindow_tables.cpp" line="+4"/>
         <source>Text Direction</source>
         <translation type="unfinished">Направление текста</translation>
     </message>
@@ -55749,6 +56803,80 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <source>Headers</source>
         <translation type="unfinished">Верхние колонтитулы</translation>
     </message>
+    <message>
+        <location filename="../apps/write/app/writewindow_themes.cpp" line="-13"/>
+        <location line="+23"/>
+        <source>Theme</source>
+        <translation type="unfinished">Тема</translation>
+    </message>
+    <message>
+        <location line="-23"/>
+        <source>The theme could not be applied to this document. Nothing was changed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Browse for Themes…</source>
+        <translation type="unfinished">Найти темы…</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <location line="+37"/>
+        <location line="+4"/>
+        <source>Browse for Themes</source>
+        <translation type="unfinished">Найти темы</translation>
+    </message>
+    <message>
+        <location line="-39"/>
+        <source>Themes, Documents, and Presentations (*.thmx *.docx *.dotx *.pptx *.potx)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Save Current Theme…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <location line="+41"/>
+        <source>Save Current Theme</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-40"/>
+        <source>Theme Files (*.thmx)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Reset to the Template&apos;s Theme</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+20"/>
+        <source>%1 can&apos;t be read: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>The file can&apos;t be read.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>This document has no theme part, so it can&apos;t take a theme. Nothing was changed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>%1 can&apos;t be written.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+20"/>
+        <source>Built-In</source>
+        <translation type="unfinished">Встроенные</translation>
+    </message>
 </context>
 <context>
     <name>jp::calc::Formula</name>
@@ -56015,7 +57143,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
 <context>
     <name>jp::crunch::AdvancedFilter</name>
     <message>
-        <location filename="../apps/crunch/core/advancedfilter.cpp" line="+131"/>
+        <location filename="../apps/crunch/core/advancedfilter.cpp" line="+150"/>
         <source>The list needs a heading row and at least one row under it.</source>
         <translation type="unfinished">Список должен содержать строку заголовков и хотя бы одну строку под ней.</translation>
     </message>
@@ -56121,6 +57249,70 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <location filename="../apps/crunch/core/csvexport.cpp" line="+100"/>
         <source>The file could not be written.</source>
         <translation type="unfinished">Не удалось записать файл.</translation>
+    </message>
+</context>
+<context>
+    <name>jp::crunch::DataForm</name>
+    <message>
+        <location filename="../apps/crunch/core/dataform.cpp" line="+55"/>
+        <source>There is no list here.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>The form needs a list: a row of names for the fields, and at least one row of data under it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Column %1</source>
+        <translation type="unfinished">Столбец %1</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>The list has no data under its names yet (or every row of it is hidden). Type a row of data under the names first.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+141"/>
+        <location line="+59"/>
+        <source>There is no such record.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-51"/>
+        <source>Edit Record</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>There is no list.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>The table has a row of totals under its data. Turn the totals off to add a record here, or type the new row in the sheet.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>The list is at the last row of the sheet.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>The list can&apos;t be extended: there is something under it. Move it away, or insert a row.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>New Record</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+21"/>
+        <source>A table keeps at least one row of data.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -63813,17 +65005,23 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
 <context>
     <name>jp::deck::Output</name>
     <message>
-        <location filename="../apps/deck/io/deckoutput.cpp" line="+37"/>
+        <location filename="../apps/deck/io/deckoutput.cpp" line="+49"/>
+        <location line="+38"/>
         <source>Slide %1</source>
         <translation type="unfinished">Слайд %1</translation>
     </message>
     <message>
-        <location line="+26"/>
+        <location line="-9"/>
+        <source>The pictures on slide %1 come to more than %2 million pixels, too many for an SVG drawing, which holds each at its full size. Save the slide as a PNG instead.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+35"/>
         <source>The folder &quot;%1&quot; is not there.</source>
         <translation type="unfinished">Папка &quot;%1&quot; не найдена.</translation>
     </message>
     <message>
-        <location line="+13"/>
+        <location line="+27"/>
         <source>The picture of slide %1 can&apos;t be made.</source>
         <translation type="unfinished">Не удалось создать рисунок слайда %1.</translation>
     </message>
@@ -64885,18 +66083,18 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Рисунок примечаний в файле имеет формат, который эта программа не изменяет.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/sheetpatch.cpp" line="+1952"/>
+        <location filename="../libs/office/sheet/sheetpatch.cpp" line="+2001"/>
         <location line="+76"/>
         <location line="+37"/>
         <location line="+267"/>
-        <location line="+38"/>
+        <location line="+39"/>
         <location filename="../libs/office/sheet/structsave.cpp" line="+813"/>
         <location line="+495"/>
         <source>The sheet&apos;s part is damaged.</source>
         <translation type="unfinished">Часть листа повреждена.</translation>
     </message>
     <message>
-        <location line="-418"/>
+        <location line="-419"/>
         <location filename="../libs/office/sheet/structsave.cpp" line="-486"/>
         <source>The sheet&apos;s file has no place for cells in it, so it can&apos;t be saved.</source>
         <translation type="unfinished">В файле листа нет места для ячеек, поэтому его нельзя сохранить.</translation>
@@ -64904,7 +66102,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+72"/>
         <location line="+306"/>
-        <location line="+37"/>
+        <location line="+38"/>
         <location filename="../libs/office/sheet/structsave.cpp" line="+76"/>
         <location line="+47"/>
         <location line="+261"/>
@@ -64912,14 +66110,14 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <location filename="../libs/office/sheet/xlsxbase.cpp" line="+833"/>
         <location line="+48"/>
         <location line="+13"/>
-        <location filename="../libs/office/sheet/xlsxsave.cpp" line="+2060"/>
-        <location line="+1454"/>
+        <location filename="../libs/office/sheet/xlsxsave.cpp" line="+2137"/>
+        <location line="+1512"/>
         <location line="+61"/>
         <source>The save was stopped.</source>
         <translation type="unfinished">Сохранение остановлено.</translation>
     </message>
     <message>
-        <location line="-339"/>
+        <location line="-340"/>
         <location line="+37"/>
         <location line="+3"/>
         <location line="+37"/>
@@ -64941,7 +66139,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Ячейки листа имеют формат, который эта программа не изменяет.</translation>
     </message>
     <message>
-        <location line="+392"/>
+        <location line="+395"/>
         <location filename="../libs/office/sheet/structsave.cpp" line="+458"/>
         <source>The sheet could not be saved.</source>
         <translation type="unfinished">Не удалось сохранить лист.</translation>
@@ -64962,7 +66160,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Диаграммы листа изменились во время сохранения книги.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/xlsxsave.cpp" line="-3353"/>
+        <location filename="../libs/office/sheet/xlsxsave.cpp" line="-3487"/>
         <location line="+21"/>
         <source>The shared strings part is not in the form this program changes.</source>
         <translation type="unfinished">Часть общих строк имеет формат, который эта программа не изменяет.</translation>
@@ -64975,7 +66173,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+365"/>
         <location line="+120"/>
-        <location line="+2479"/>
+        <location line="+2613"/>
         <location line="+5"/>
         <location line="+5"/>
         <location line="+5"/>
@@ -64984,20 +66182,20 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Часть книги имеет формат, который эта программа не изменяет.</translation>
     </message>
     <message>
-        <location line="-1835"/>
+        <location line="-1969"/>
         <source>The workbook was not opened from a file this program can save over.</source>
         <translation type="unfinished">Книга была открыта не из файла, поверх которого эта программа может сохранить.</translation>
     </message>
     <message>
         <location line="+10"/>
-        <location line="+159"/>
-        <location line="+172"/>
+        <location line="+233"/>
+        <location line="+174"/>
         <location line="+71"/>
         <source>A change is to a sheet the workbook does not have.</source>
         <translation type="unfinished">Изменение относится к листу, которого нет в книге.</translation>
     </message>
     <message>
-        <location line="-397"/>
+        <location line="-473"/>
         <source>Objects were put on a sheet this program can&apos;t put them on.</source>
         <translation type="unfinished">Объекты размещены на листе, где эта программа не может их разместить.</translation>
     </message>
@@ -65007,23 +66205,33 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Рисунок в верхнем или нижнем колонтитуле слишком велик для сохранения.</translation>
     </message>
     <message>
-        <location line="+55"/>
+        <location line="+45"/>
+        <source>The pictures in the headers, footers, and backgrounds of the sheets are too large together to be saved.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <source>The picture behind the sheet is too large, or is not a kind of picture that can be saved.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+62"/>
         <source>Notes and links can&apos;t be saved on this sheet.</source>
         <translation type="unfinished">Примечания и ссылки нельзя сохранить на этом листе.</translation>
     </message>
     <message>
-        <location line="+174"/>
+        <location line="+176"/>
         <source>A table was made that this program can&apos;t put in the file.</source>
         <translation type="unfinished">Таблица, которую эта программа не может сохранить в файл.</translation>
     </message>
     <message>
         <location line="+46"/>
-        <location line="+1560"/>
+        <location line="+1618"/>
         <source>The file this workbook was opened from is damaged.</source>
         <translation type="unfinished">Файл, из которого была открыта эта книга, повреждён.</translation>
     </message>
     <message>
-        <location line="-1532"/>
+        <location line="-1590"/>
         <source>A sheet that changed has no part in the file.</source>
         <translation type="unfinished">Изменённый лист не имеет части в файле.</translation>
     </message>
@@ -65036,14 +66244,15 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <location line="+16"/>
         <location line="+6"/>
         <location line="+7"/>
-        <location line="+1478"/>
+        <location line="+1536"/>
         <source>A sheet of the file could not be read to be saved.</source>
         <translation type="unfinished">Один из листов файла не удалось прочитать для сохранения.</translation>
     </message>
     <message>
-        <location line="-1244"/>
+        <location line="-1299"/>
         <location line="+146"/>
         <location line="+79"/>
+        <location line="+56"/>
         <location line="+77"/>
         <location line="+75"/>
         <location line="+140"/>
@@ -65051,13 +66260,23 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">В файле нет списка типов частей.</translation>
     </message>
     <message>
-        <location line="-507"/>
+        <location line="-563"/>
         <location line="+143"/>
         <source>A drawing of the file is not in the form this program changes.</source>
         <translation type="unfinished">Рисунок в файле имеет вид, который эта программа не умеет изменять.</translation>
     </message>
     <message>
         <location line="+79"/>
+        <source>The picture behind a sheet could not be put in the file&apos;s list of parts.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>The pictures behind the sheets are too large to be saved.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+49"/>
         <source>A table could not be put in the file&apos;s list of parts.</source>
         <translation type="unfinished">Таблицу не удалось поместить в список частей файла.</translation>
     </message>
@@ -65124,7 +66343,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Изменённая диаграмма не имеет части в файле.</translation>
     </message>
     <message>
-        <location line="+119"/>
+        <location line="+118"/>
         <source>This kind of workbook file can&apos;t be written.</source>
         <translation type="unfinished">Книгу такого типа записать нельзя.</translation>
     </message>
@@ -65146,8 +66365,8 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Связи книги отсутствуют в файле.</translation>
     </message>
     <message>
-        <location line="-1062"/>
-        <location line="+1085"/>
+        <location line="-1117"/>
+        <location line="+1140"/>
         <location line="+5"/>
         <source>The workbook&apos;s relationships are not in the form this program changes.</source>
         <translation type="unfinished">Связи книги имеют вид, который эта программа не умеет изменять.</translation>
@@ -65349,7 +66568,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
 <context>
     <name>jp::office::wml</name>
     <message>
-        <location filename="../libs/office/wml/wmlread.cpp" line="+432"/>
+        <location filename="../libs/office/wml/wmlread.cpp" line="+442"/>
         <source>[picture]</source>
         <translation type="unfinished">[рисунок]</translation>
     </message>
@@ -65359,7 +66578,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">[Таблица: строк — %1, столбцов — %2]</translation>
     </message>
     <message>
-        <location line="+552"/>
+        <location line="+555"/>
         <source>The file has no document in it.</source>
         <translation type="unfinished">В файле нет документа.</translation>
     </message>
@@ -65412,7 +66631,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         </translation>
     </message>
     <message>
-        <location filename="../libs/office/wml/wmlwrite.cpp" line="+958"/>
+        <location filename="../libs/office/wml/wmlwrite.cpp" line="+998"/>
         <source>The document could not be packaged.</source>
         <translation type="unfinished">Документ не удалось упаковать.</translation>
     </message>
@@ -66015,30 +67234,30 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Альтернативный текст</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writedialogs.cpp" line="+124"/>
-        <location line="+599"/>
+        <location filename="../apps/write/app/writedialogs.cpp" line="+126"/>
+        <location line="+619"/>
         <source>(none)</source>
         <translation type="unfinished">(нет)</translation>
     </message>
     <message>
-        <location line="-598"/>
-        <location line="+618"/>
+        <location line="-618"/>
+        <location line="+638"/>
         <source>Single</source>
         <translation type="unfinished">Одинарная</translation>
     </message>
     <message>
-        <location line="-617"/>
+        <location line="-637"/>
         <source>Words only</source>
         <translation type="unfinished">Только слова</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+616"/>
+        <location line="+636"/>
         <source>Double</source>
         <translation type="unfinished">Двойная</translation>
     </message>
     <message>
-        <location line="-615"/>
+        <location line="-635"/>
         <source>Thick</source>
         <translation type="unfinished">Толстая</translation>
     </message>
@@ -66074,11 +67293,17 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     </message>
     <message>
         <location line="+91"/>
+        <location line="+8"/>
         <source>Font</source>
         <translation>Шрифт</translation>
     </message>
     <message>
-        <location line="+41"/>
+        <location line="+1"/>
+        <source>Advanced</source>
+        <translation type="unfinished">Дополнительно</translation>
+    </message>
+    <message>
+        <location line="+40"/>
         <source>Regular</source>
         <translation type="unfinished">Обычный</translation>
     </message>
@@ -66174,7 +67399,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Скрытый</translation>
     </message>
     <message>
-        <location line="+16"/>
+        <location line="+17"/>
         <source>Character spacing</source>
         <translation type="unfinished">Интервал между знаками</translation>
     </message>
@@ -66200,7 +67425,12 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation>Положение</translation>
     </message>
     <message>
-        <location line="+221"/>
+        <location line="+43"/>
+        <source>AaBbYyZz fi ffl 0123456789</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+189"/>
         <source>Tab stop position</source>
         <translation>Положение позиции табуляции</translation>
     </message>
@@ -66262,7 +67492,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     </message>
     <message>
         <location filename="../apps/write/app/pagesetupdialog.cpp" line="-183"/>
-        <location filename="../apps/write/app/writedialogs.cpp" line="-548"/>
+        <location filename="../apps/write/app/writedialogs.cpp" line="-559"/>
         <source>Normal</source>
         <translation type="unfinished">Обычный</translation>
     </message>
@@ -66299,29 +67529,30 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Опущенный</translation>
     </message>
     <message>
-        <location line="+37"/>
+        <location line="+42"/>
+        <location line="+20"/>
         <source>AaBbYyZz</source>
         <translation type="unfinished">АаБбЯяЗз</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="-18"/>
         <source>Preview</source>
         <translation>Образец</translation>
     </message>
     <message>
         <location filename="../apps/write/app/pagesetupdialog.cpp" line="+122"/>
-        <location filename="../apps/write/app/writedialogs.cpp" line="+35"/>
-        <location line="+345"/>
+        <location filename="../apps/write/app/writedialogs.cpp" line="+39"/>
+        <location line="+347"/>
         <source>Set as Default…</source>
         <translation type="unfinished">Установить по умолчанию…</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writedialogs.cpp" line="-338"/>
+        <location filename="../apps/write/app/writedialogs.cpp" line="-340"/>
         <source>the font, size, and look chosen here</source>
         <translation type="unfinished">шрифт, размер и начертание, выбранные здесь</translation>
     </message>
     <message>
-        <location line="+129"/>
+        <location line="+131"/>
         <source>Tabs</source>
         <translation type="unfinished">Табуляция</translation>
     </message>
@@ -69394,7 +70625,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Только текст</translation>
     </message>
     <message>
-        <location line="+253"/>
+        <location line="+259"/>
         <source>Overtype: typing replaces the letters after the caret. Press Insert to go back.</source>
         <translation type="unfinished">Замена: при вводе текст заменяет буквы после курсора. Нажмите Insert, чтобы вернуться.</translation>
     </message>
@@ -69414,7 +70645,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">JeffWrite переходит только по ссылкам на веб-адреса и адреса электронной почты.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview_pictures.cpp" line="+111"/>
+        <location filename="../apps/write/app/pageview_pictures.cpp" line="+112"/>
         <source>Select three or more objects first: click one, then hold Ctrl and click the others.</source>
         <translation type="unfinished">Сначала выберите три или более объектов: щёлкните один, затем, удерживая Ctrl, щёлкайте остальные.</translation>
     </message>
@@ -69469,7 +70700,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Эту группу нельзя разгруппировать: она повёрнута или содержит другую группу.</translation>
     </message>
     <message>
-        <location line="+946"/>
+        <location line="+976"/>
         <source>This text box holds too many paragraphs to be typed in here.</source>
         <translation type="unfinished">Это текстовое поле содержит слишком много абзацев для ввода здесь.</translation>
     </message>
@@ -69519,7 +70750,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location filename="../apps/write/app/pageview_input.cpp" line="-176"/>
         <location filename="../apps/write/app/pageview_pictures.cpp" line="+18"/>
-        <location filename="../apps/write/core/pictureops.cpp" line="+1906"/>
+        <location filename="../apps/write/core/pictureops.cpp" line="+2015"/>
         <source>That shape can&apos;t be put here.</source>
         <translation type="unfinished">Эту фигуру нельзя вставить сюда.</translation>
     </message>
@@ -69559,37 +70790,37 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Не удаётся открыть %1 как рисунок.</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/editops.cpp" line="+2073"/>
-        <location filename="../apps/write/core/pictureops.cpp" line="-1334"/>
-        <location line="+323"/>
-        <location line="+1836"/>
-        <location line="+1333"/>
+        <location filename="../apps/write/core/editops.cpp" line="+2086"/>
+        <location filename="../apps/write/core/pictureops.cpp" line="-1440"/>
+        <location line="+329"/>
+        <location line="+1936"/>
+        <location line="+1381"/>
         <source>The pictures in this document are as large together as JeffWrite puts in one, so this one is not added.</source>
         <translation type="unfinished">Рисунки в этом документе вместе занимают столько же места, сколько JeffWrite может вставить за раз, поэтому этот рисунок не добавлен.</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/pictureops.cpp" line="-3501"/>
-        <location line="+346"/>
-        <location line="+640"/>
-        <location line="+2705"/>
+        <location filename="../apps/write/core/pictureops.cpp" line="-3655"/>
+        <location line="+352"/>
+        <location line="+740"/>
+        <location line="+2753"/>
         <source>A picture can&apos;t be put in a header, a footer, or a note yet.</source>
         <translation type="unfinished">Пока нельзя вставить рисунок в верхний или нижний колонтитул либо в примечание.</translation>
     </message>
     <message>
-        <location line="-3658"/>
-        <location line="+338"/>
-        <location line="+638"/>
-        <location line="+2707"/>
+        <location line="-3812"/>
+        <location line="+344"/>
+        <location line="+738"/>
+        <location line="+2755"/>
         <source>A picture can&apos;t be put here, or this document holds as many pictures and drawn objects as JeffWrite can show.</source>
         <translation type="unfinished">Рисунок нельзя вставить сюда, или в этом документе уже столько рисунков и рисованных объектов, сколько JeffWrite может показать.</translation>
     </message>
     <message>
-        <location line="-3647"/>
+        <location line="-3801"/>
         <source>This document holds as many pictures and drawn objects as JeffWrite can show. Save it, and open it again, to change more.</source>
         <translation type="unfinished">В этом документе уже столько рисунков и рисованных объектов, сколько JeffWrite может показать. Сохраните его и откройте снова, чтобы изменить больше.</translation>
     </message>
     <message>
-        <location line="+1405"/>
+        <location line="+1511"/>
         <source>Edit Points is not offered for a shape that is flipped.</source>
         <translation type="unfinished">Изменение узлов недоступно для отражённой фигуры.</translation>
     </message>
@@ -69617,7 +70848,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Ряд %1</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/pictureops.cpp" line="+1847"/>
+        <location filename="../apps/write/core/pictureops.cpp" line="+1895"/>
         <source>This chart has parts that JeffWrite does not change, so it is kept as it is.</source>
         <translation type="unfinished">Эта диаграмма содержит части, которые JeffWrite не изменяет, поэтому она сохранена без изменений.</translation>
     </message>
@@ -70307,7 +71538,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
 <context>
     <name>odt</name>
     <message>
-        <location filename="../libs/office/odt/odtbody.cpp" line="+113"/>
+        <location filename="../libs/office/odt/odtbody.cpp" line="+115"/>
         <source>more spaces than are kept</source>
         <translation type="unfinished">больше пробелов, чем сохраняется</translation>
     </message>
@@ -70322,29 +71553,29 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">рисунки неподдерживаемого типа</translation>
     </message>
     <message>
-        <location line="+314"/>
+        <location line="+332"/>
         <location line="+59"/>
         <location line="+7"/>
         <location line="+320"/>
-        <location line="+206"/>
+        <location line="+210"/>
         <location line="+10"/>
         <source>drawing shapes</source>
         <translation type="unfinished">графические фигуры</translation>
     </message>
     <message>
-        <location line="-437"/>
+        <location line="-441"/>
         <source>objects such as formulas and charts</source>
         <translation type="unfinished">объекты, например формулы и диаграммы</translation>
     </message>
     <message>
-        <location line="+385"/>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="+136"/>
+        <location line="+389"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="+137"/>
         <source>content nested too deeply</source>
         <translation type="unfinished">содержимое слишком глубоко вложено</translation>
     </message>
     <message>
         <location line="+303"/>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="+1368"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="+1402"/>
         <source>tables nested too deeply</source>
         <translation type="unfinished">таблицы слишком глубоко вложены</translation>
     </message>
@@ -70410,7 +71641,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">В файле нет текста.</translation>
     </message>
     <message>
-        <location filename="../libs/office/odt/odtwrite.cpp" line="+82"/>
+        <location filename="../libs/office/odt/odtwrite.cpp" line="+83"/>
         <source>The document has no main part.</source>
         <translation type="unfinished">В документе нет основной части.</translation>
     </message>
@@ -70420,7 +71651,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Не удаётся прочитать текст документа.</translation>
     </message>
     <message>
-        <location line="+605"/>
+        <location line="+636"/>
         <source>columns of different widths (saved as equal ones)</source>
         <translation type="unfinished">колонки разной ширины (сохранены как равные)</translation>
     </message>
@@ -70475,24 +71706,24 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">метки «не проверять орфографию»</translation>
     </message>
     <message>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="-773"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="-807"/>
         <source>form fields (kept as the text they show)</source>
         <translation type="unfinished">поля форм (сохраняются как показываемый в них текст)</translation>
     </message>
     <message>
         <location line="+181"/>
         <location line="+49"/>
-        <location line="+378"/>
+        <location line="+412"/>
         <source>drawings, shapes, and charts</source>
         <translation type="unfinished">рисунки, фигуры и диаграммы</translation>
     </message>
     <message>
-        <location line="-224"/>
+        <location line="-249"/>
         <source>pictures that can&apos;t be read</source>
         <translation type="unfinished">рисунки, которые не удаётся прочитать</translation>
     </message>
     <message>
-        <location line="+225"/>
+        <location line="+250"/>
         <source>embedded objects</source>
         <translation type="unfinished">внедрённые объекты</translation>
     </message>
@@ -70513,9 +71744,14 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">таблица с большим количеством ячеек, чем сохраняется</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/writedoc_export.cpp" line="+326"/>
+        <location filename="../apps/write/core/writedoc_export.cpp" line="+327"/>
         <source>drop caps (the letters are saved as ordinary ones)</source>
         <translation type="unfinished">буквицы (буквы сохраняются как обычные)</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>footnote columns (the footnotes are saved in one column)</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 </TS>

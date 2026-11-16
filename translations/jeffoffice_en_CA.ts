@@ -86,6 +86,10 @@
         <translation>Line colour</translation>
     </message>
     <message>
+        <source>You already have colors named "%1". Replace them?</source>
+        <translation>You already have colours named "%1". Replace them?</translation>
+    </message>
+    <message>
         <source>Color model</source>
         <translation>Colour model</translation>
     </message>
@@ -268,6 +272,10 @@ Download it from %2 now? (%3, once.)</translation>
     <message>
         <source>Catalog Pages</source>
         <translation>Catalogue Pages</translation>
+    </message>
+    <message>
+        <source>Background Color</source>
+        <translation>Background Colour</translation>
     </message>
     <message>
         <source>Colors</source>
@@ -632,6 +640,18 @@ Download it from %2 now? (%3, once.)</translation>
     <message>
         <source>Pen Color</source>
         <translation>Pen Colour</translation>
+    </message>
+    <message>
+        <source>Background Color…</source>
+        <translation>Background Colour…</translation>
+    </message>
+    <message>
+        <source>Background Color</source>
+        <translation>Background Colour</translation>
+    </message>
+    <message>
+        <source>No Background Color</source>
+        <translation>No Background Colour</translation>
     </message>
 </context>
 <context>
@@ -1014,6 +1034,29 @@ Download it from %2 now? (%3, once.)</translation>
     <message>
         <source>The twelve colors of this presentation's theme.</source>
         <translation>The twelve colours of this presentation's theme.</translation>
+    </message>
+</context>
+<context>
+    <name>jp::ThemeDialogs</name>
+    <message>
+        <source>Create New Theme Colors</source>
+        <translation>Create New Theme Colours</translation>
+    </message>
+    <message>
+        <source>You already have colors named "%1". Replace them?</source>
+        <translation>You already have colours named "%1". Replace them?</translation>
+    </message>
+    <message>
+        <source>The colors could not be saved.</source>
+        <translation>The colours could not be saved.</translation>
+    </message>
+    <message>
+        <source>Create New Theme Colors…</source>
+        <translation>Create New Theme Colours…</translation>
+    </message>
+    <message>
+        <source>Delete Custom Colors</source>
+        <translation>Delete Custom Colours</translation>
     </message>
 </context>
 <context>

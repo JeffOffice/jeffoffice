@@ -892,6 +892,13 @@ Download it from %2 now? (%3, once.)</source>
     </message>
 </context>
 <context>
+    <name>SheetBackground</name>
+    <message>
+        <source>The picture's file could not be opened.</source>
+        <translation type="unfinished">No se pudo abrir el fichero de la imagen.</translation>
+    </message>
+</context>
+<context>
     <name>Telemetry</name>
     <message>
         <source>%1 can send anonymous usage statistics once a day (and when it's updated): its version, your operating system and language, and how often each of its commands is used, and if it ever closes unexpectedly, where in the program that happened. That shows how many people use it, which parts matter most, and what to fix first.&lt;br&gt;&lt;br&gt;It never sends your files, their names, or anything in them. &lt;a href="%2"&gt;What's sent&lt;/a&gt;&lt;br&gt;&lt;br&gt;You can change this anytime in File &amp;gt; Options.</source>
@@ -1895,6 +1902,10 @@ No se encontraron los ficheros de la Ayuda junto al programa. Volver a instalar 
     <message>
         <source>Save the document first. A version is kept for a file, under the file's name.</source>
         <translation type="unfinished">Guarde primero el documento. Se guarda una versión de un fichero con el nombre del fichero.</translation>
+    </message>
+    <message>
+        <source>The file can't be read.</source>
+        <translation type="unfinished">No se puede leer el fichero.</translation>
     </message>
 </context>
 <context>

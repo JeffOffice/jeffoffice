@@ -15,7 +15,7 @@
 <context>
     <name>Dialogs</name>
     <message numerus="yes">
-        <location filename="../apps/pub/app/dialogs.cpp" line="+1976"/>
+        <location filename="../apps/pub/app/dialogs.cpp" line="+2013"/>
         <source>Added %n page(s) for the rest of the text.</source>
         <translation>
             <numerusform>Added %n page for the rest of the text.</numerusform>
@@ -119,7 +119,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/crunch/app/crunchwindow_formulas.cpp" line="+205"/>
+        <location filename="../apps/crunch/app/crunchwindow_formulas.cpp" line="+209"/>
         <source>%n name(s) made. %1 left out: empty, repeated, or already there.</source>
         <translation>
             <numerusform>%n name made. %1 left out: empty, repeated, or already there.</numerusform>
@@ -212,7 +212,7 @@
 <context>
     <name>jp::DeckWindow</name>
     <message numerus="yes">
-        <location filename="../apps/deck/app/deckwindow_output.cpp" line="+210"/>
+        <location filename="../apps/deck/app/deckwindow_output.cpp" line="+211"/>
         <source>%n page(s)</source>
         <translation>
             <numerusform>%n page</numerusform>
@@ -220,7 +220,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="+272"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="+291"/>
         <source>Saved %1, but %n object(s) can&apos;t be saved in this kind of file yet.</source>
         <translation>
             <numerusform>Saved %1, but %n object can&apos;t be saved in this kind of file yet.</numerusform>
@@ -316,7 +316,7 @@
 <context>
     <name>jp::WriteWindow</name>
     <message numerus="yes">
-        <location filename="../apps/write/app/writewindow.cpp" line="+770"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="+773"/>
         <source>%1 of %n word(s)</source>
         <translation>
             <numerusform>%1 of %n word</numerusform>
@@ -467,7 +467,7 @@
 <context>
     <name>jp::office::wml</name>
     <message numerus="yes">
-        <location filename="../libs/office/wml/wmlread.cpp" line="+1565"/>
+        <location filename="../libs/office/wml/wmlread.cpp" line="+1578"/>
         <source>%n part or link of the file had a name that could not be used, and was left out.</source>
         <translation>
             <numerusform>%n part or link of the file had a name that could not be used, and was left out.</numerusform>
