@@ -1471,7 +1471,7 @@
         },
         {
          "status": "partly",
-         "text": "72dee83a567c47153ee56d33c7e8c4d81f03e837018c655e247662ac0beb200e"
+         "text": "1ff1fff02415ab55d5976f9295df475d824eb802d10d30d665434c22790f02fb"
         },
         {
          "status": "partly",
@@ -2405,7 +2405,7 @@
         {
          "hide_soon": true,
          "status": "done",
-         "text": "8d0985e424ee9683c990f6771651888a9ada4b108450ef551fabb578ff2963c2"
+         "text": "5884021f54e4f5ccbf16ba141545eef188032d789094182c5222870cc0706ac4"
         },
         {
          "status": "partly",
@@ -2966,7 +2966,7 @@
         },
         {
          "status": "partly",
-         "text": "2888dcdb79489fb65d491c893f36e94956edc3c90ae7a366e123b6a81fa847bb"
+         "text": "d056e7ed6194bcba3ce02d16ffd7ad2bcd10938298e53276bdd967e3b82b8f86"
         }
        ]
       },
@@ -3654,7 +3654,7 @@
         },
         {
          "status": "partly",
-         "text": "16e990a95633f5d14ffa4d5d10e2554909ef7c1b0721ea0010aef554e7133cb4"
+         "text": "21b29843b2414872faff41857681efee59dda43dadc21e2f861bd5f25218d30d"
         },
         {
          "hide_soon": true,
@@ -3773,7 +3773,7 @@
       {
        "hide_soon": true,
        "status": "done",
-       "text": "aa7f87daaab292fab1fa84805be2f800bd3a1e6549f6864f3800f891265e4a27"
+       "text": "7c82e13cd1711b7477420796e8388ea80b84129970e43496a3ff0af168c57766"
       },
       {
        "status": "partly",
@@ -4081,7 +4081,7 @@
         {
          "hide_soon": true,
          "status": "done",
-         "text": "e3d11fcdddd2993de706bc666d8beeee4a40eb649f6907b3aefeb024f73f0074"
+         "text": "bf504e713841053754930ec67d42e7c7770adbf7bb4a40200aafe27090f7fe71"
         },
         {
          "status": "todo",
@@ -6954,7 +6954,7 @@
        "items": [
         {
          "status": "partly",
-         "text": "8a089cac5c76235ce5edada3152c96dcec9eb4c1aeaea3af1682a53aeed2cdc1"
+         "text": "fbff3445a9c9af034b5ec3b52368570967db4466b22c4ea0937ffee6ea7393a0"
         },
         {
          "status": "todo",
@@ -6986,7 +6986,7 @@
       },
       {
        "status": "partly",
-       "text": "d2d26d34661cf2d2bfecbc2f35a22a6e1f3bbb534cdf72e2bad35a972ce2357f"
+       "text": "a966f17e43e787982650e8eddd1b2f14a16dda87a31cd0584466f5ac8a5a5437"
       },
       {
        "status": "partly",
@@ -9168,18 +9168,6 @@
     "fr": ""
    }
   },
-  "16e990a95633f5d14ffa4d5d10e2554909ef7c1b0721ea0010aef554e7133cb4": {
-   "drop": false,
-   "en": "Add chart elements: axes, axis titles, chart title, data labels, gridlines, legend, error bars, lines, and trendline. Quick Layout sets several at once.",
-   "es": "Agregue elementos de gráfico: ejes, títulos de ejes, título del gráfico, etiquetas de datos, líneas de cuadrícula, leyenda, barras de error, líneas y línea de tendencia. El diseño rápido establece varios a la vez.",
-   "fr": "Ajoutez des éléments de graphique : axes, titres d’axes, titre du graphique, étiquettes de données, quadrillage, légende, barres d’erreur, lignes et courbe de tendance. La disposition rapide en règle plusieurs à la fois.",
-   "soon": {
-    "drop": false,
-    "en": "Data table chart element",
-    "es": "Elemento de tabla de datos del gráfico",
-    "fr": "Élément de tableau de données du graphique"
-   }
-  },
   "170abbe3fda5186dc803a541603034e8e85e1daeff0c7ba0e064e9b210f263fb": {
    "drop": false,
    "en": "Check accessibility in a pane, also reached from Info. It lists pictures without alt text, tables without a header row, blank cells, merged cells, skipped heading levels, low-contrast text, floating pictures, and unhelpful link text, with a click to go to each.",
@@ -9924,6 +9912,18 @@
     "fr": "Notes de fin de section ou de document, avec leur propre numérotation"
    }
   },
+  "1ff1fff02415ab55d5976f9295df475d824eb802d10d30d665434c22790f02fb": {
+   "drop": false,
+   "en": "Add trendlines of every kind, with the equation and R-squared, drawn over the plot with a legend entry. Add drop lines, high-low lines, up/down bars, and error bars (fixed value, percentage, standard deviation, standard error, and custom amounts from cells). Show a data table under columns, lines, and area charts.",
+   "es": "Agregue líneas de tendencia de todos los tipos, con la ecuación y R cuadrado, dibujadas sobre el área de trazado con una entrada en la leyenda. Agregue líneas de caída, líneas máximo-mínimo, barras ascendentes y descendentes, y barras de error (valor fijo, porcentaje, desviación estándar, error estándar e importes personalizados de celdas). Muestre una tabla de datos bajo los gráficos de columnas, líneas y áreas.",
+   "fr": "Ajoutez des courbes de tendance de tous types, avec l’équation et le R carré, tracées sur la zone de traçage avec une entrée de légende. Ajoutez des lignes de projection, des lignes haut-bas, des barres hausse/baisse et des barres d’erreur (valeur fixe, pourcentage, écart type, erreur standard et montants personnalisés issus de cellules). Affichez un tableau de données sous les graphiques en colonnes, en lignes et en aires.",
+   "soon": {
+    "drop": false,
+    "en": "Series lines, and controls for trendline forecast, intercept, polynomial order, and moving average period",
+    "es": "Líneas de series, y controles para la previsión, la intersección, el orden polinómico y el período del promedio móvil de las líneas de tendencia",
+    "fr": "Lignes de série, et commandes de prévision, d’ordonnée à l’origine, d’ordre polynomial et de période de moyenne mobile des courbes de tendance"
+   }
+  },
   "1fff3fb27385bf9a7e4925c9861c07c75dabe90bad078468d9b32014d6cad816": {
    "drop": false,
    "en": "Read and draw pictures in PNG, JPEG, GIF, BMP, TIFF, WebP, SVG, EMF, and WMF formats. Vector pictures stay vector in print and PDF.",
@@ -10126,6 +10126,18 @@
     "en": "Embed fonts when saving, where each font’s license allows it",
     "es": "Incrustar fuentes al guardar, cuando la licencia de cada fuente lo permita",
     "fr": "Incorporation des polices à l’enregistrement, lorsque la licence de chaque police le permet"
+   }
+  },
+  "21b29843b2414872faff41857681efee59dda43dadc21e2f861bd5f25218d30d": {
+   "drop": false,
+   "en": "Add chart elements: axes, axis titles, chart title, data labels, gridlines, legend, error bars, lines, and trendline. Apply a quick layout to set several at once. Show a data table under the plot area, with options for lines between rows and columns, outline, and legend keys.",
+   "es": "Agregue elementos al gráfico: ejes, títulos de ejes, título del gráfico, etiquetas de datos, líneas de cuadrícula, leyenda, barras de error, líneas y línea de tendencia. Aplique un diseño rápido para configurar varios a la vez. Muestre una tabla de datos bajo el área de trazado, con opciones de líneas entre filas y columnas, contorno y claves de leyenda.",
+   "fr": "Ajoutez des éléments au graphique : axes, titres d’axes, titre du graphique, étiquettes de données, quadrillage, légende, barres d’erreur, lignes et courbe de tendance. Appliquez une disposition rapide pour en définir plusieurs à la fois. Affichez un tableau de données sous la zone de traçage, avec des options de lignes entre les lignes et les colonnes, de contour et de clés de légende.",
+   "soon": {
+    "drop": false,
+    "en": "Data table on bar charts with horizontal bars, scatter charts, and pie charts",
+    "es": "Tabla de datos en gráficos de barras horizontales, de dispersión y circulares",
+    "fr": "Tableau de données pour les graphiques à barres horizontales, nuages de points et secteurs"
    }
   },
   "21ca934a6c2fc57a9574021a25395f20ca78515985126a3ed081a49825d2e121": {
@@ -10678,18 +10690,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "2888dcdb79489fb65d491c893f36e94956edc3c90ae7a366e123b6a81fa847bb": {
-   "drop": false,
-   "en": "Insert a chart in one of 12 types with sample numbers, placed in the middle of the slide. Move, resize, rotate, and undo changes to the chart like other objects, and edit its data in a grid. A `.pptx` file keeps the chart as an editable chart, and a `.odp` file keeps it as a picture. Charts read from a `.pptx` file are editable within 255 series and 400,000 points.",
-   "es": "Inserte un gráfico de uno de 12 tipos con números de muestra, colocado en el centro de la diapositiva. Mueva, cambie el tamaño, gire y deshaga cambios del gráfico como en otros objetos, y edite sus datos en una cuadrícula. Un archivo `.pptx` conserva el gráfico como gráfico editable y un archivo `.odp` lo conserva como imagen. Los gráficos leídos de un archivo `.pptx` son editables hasta 255 series y 400 000 puntos.",
-   "fr": "Insérez un graphique parmi 12 types avec des valeurs d’exemple, placé au centre de la diapositive. Déplacez, redimensionnez, faites pivoter et annulez les modifications du graphique comme pour les autres objets, et modifiez ses données dans une grille. Un fichier `.pptx` conserve le graphique sous forme de graphique modifiable, et un fichier `.odp` le conserve sous forme d’image. Les graphiques lus depuis un fichier `.pptx` sont modifiables jusqu’à 255 séries et 400 000 points.",
-   "soon": {
-    "drop": false,
-    "en": "Embedded workbook in the chart for editing in other programs",
-    "es": "Libro incrustado en el gráfico para editarlo en otros programas",
-    "fr": "Classeur intégré au graphique pour le modifier dans d’autres programmes"
    }
   },
   "289878ae82d1fb6063d6d668bf5b96a1b3cad564b9c96e8a5597f330cda7a6bd": {
@@ -14208,6 +14208,18 @@
     "fr": ""
    }
   },
+  "5884021f54e4f5ccbf16ba141545eef188032d789094182c5222870cc0706ac4": {
+   "drop": false,
+   "en": "Mark a presentation as final so it opens read-only with a note, encrypt a `.pptx` or `.odp` file with a password, and set a presentation to always open read-only.",
+   "es": "Marque una presentación como final para que se abra en modo de solo lectura con una nota, cifre un archivo `.pptx` o `.odp` con una contraseña y configure una presentación para que siempre se abra en modo de solo lectura.",
+   "fr": "Marquez une présentation comme finale pour qu’elle s’ouvre en lecture seule avec une note, chiffrez un fichier `.pptx` ou `.odp` avec un mot de passe et réglez une présentation pour qu’elle s’ouvre toujours en lecture seule.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "58cc9e1557531891621cb230c4c7f598f8a1f95c08f1abae9d24e74a9c836822": {
    "drop": false,
    "en": "Save your own templates with File > Save as Template and find them under My Templates on the New page.",
@@ -16440,18 +16452,6 @@
     "fr": ""
    }
   },
-  "72dee83a567c47153ee56d33c7e8c4d81f03e837018c655e247662ac0beb200e": {
-   "drop": false,
-   "en": "Add trendlines to a chart and set their kind, equation, and R-squared from the Trendline menu. Show drop lines, high-low lines, up/down bars, and error bars (fixed value, percentage, standard deviation, standard error, and custom amounts from cells) on supported chart types.",
-   "es": "Agregue líneas de tendencia a un gráfico y defina su tipo, ecuación y R cuadrado desde el menú de línea de tendencia. Muestre líneas de caída, líneas máximo-mínimo, barras ascendentes y descendentes, y barras de error (valor fijo, porcentaje, desviación estándar, error estándar e importes personalizados de celdas) en los tipos de gráfico compatibles.",
-   "fr": "Ajoutez des courbes de tendance à un graphique et réglez leur type, leur équation et leur R carré depuis le menu des courbes de tendance. Affichez des lignes de projection, des lignes haut-bas, des barres haussières et baissières, et des barres d’erreur (valeur fixe, pourcentage, écart type, erreur standard et montants personnalisés issus de cellules) sur les types de graphiques pris en charge.",
-   "soon": {
-    "drop": false,
-    "en": "Trendline controls for forward and backward forecast, intercept, polynomial order, and average period; error bar look; data table; series lines",
-    "es": "Controles de línea de tendencia para pronóstico hacia adelante y atrás, intersección, orden polinómico y período de promedio; aspecto de las barras de error; tabla de datos; líneas de serie",
-    "fr": "Commandes de courbe de tendance pour la prévision vers l’avant et vers l’arrière, l’ordonnée à l’origine, l’ordre polynomial et la période de moyenne ; apparence des barres d’erreur ; tableau de données ; lignes de séries"
-   }
-  },
   "73566caba80190a92c89998696ab05f73c4c8e0ad150d89c8eb7e3cdb01362bc": {
    "drop": false,
    "en": "Edit a header and footer with a left, center, and right part in the page layout view or the Page Setup dialog. Codes are supported for page (`&P`), pages (`&N`), date (`&D`), time (`&T`), file (`&F`), path (`&Z`), sheet name (`&A`), picture (`&G`), bold (`&B`), italic (`&I`), underline (`&U`), font, size, color, and an ampersand (`&&`).",
@@ -17069,6 +17069,18 @@
    "en": "Drag the yellow diamond handles to adjust a shape.",
    "es": "Arrastre los controladores amarillos en forma de rombo para ajustar una forma.",
    "fr": "Faites glisser les poignées en losange jaunes pour ajuster une forme.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "7c82e13cd1711b7477420796e8388ea80b84129970e43496a3ff0af168c57766": {
+   "drop": false,
+   "en": "Right-click an object on a slide, or press `Shift+F10` or the Menu key, to Cut, Copy, Paste, Delete, edit text, group or ungroup, set order and text alignment, add a link, add a comment, use Paste Options, save as a picture, set size and position, format the shape or picture, and edit alt text. On a chart, the menu also has chart data, swap rows and columns, chart kind, and axis formatting.",
+   "es": "Haga clic con el botón derecho en un objeto de una diapositiva, o pulse `Shift+F10` o la tecla Menú, para cortar, copiar, pegar, eliminar, editar el texto, agrupar o desagrupar, definir el orden y la alineación del texto, agregar un vínculo, agregar un comentario, usar las opciones de pegado, guardar como imagen, definir el tamaño y la posición, dar formato a la forma o a la imagen y editar el texto alternativo. En un gráfico, el menú también incluye los datos del gráfico, el intercambio de filas y columnas, el tipo de gráfico y el formato de los ejes.",
+   "fr": "Faites un clic droit sur un objet d’une diapositive, ou appuyez sur `Shift+F10` ou sur la touche Menu, pour couper, copier, coller, supprimer, modifier le texte, grouper ou dissocier, définir l’ordre et l’alignement du texte, ajouter un lien, ajouter un commentaire, utiliser les options de collage, enregistrer comme image, définir la taille et la position, mettre en forme la forme ou l’image et modifier le texte alternatif. Sur un graphique, le menu propose aussi les données du graphique, l’inversion des lignes et colonnes, le type de graphique et la mise en forme des axes.",
    "soon": {
     "drop": true,
     "en": "",
@@ -17976,18 +17988,6 @@
     "fr": "Barre d’état : modes Modifier, Entrer et Pointer, nombre de filtres et choix des statistiques"
    }
   },
-  "8a089cac5c76235ce5edada3152c96dcec9eb4c1aeaea3af1682a53aeed2cdc1": {
-   "drop": false,
-   "en": "Add chart elements, apply quick layouts, colors, and styles, switch row and column, select and edit data, change the chart type (also per series), and format the chart parts and axes. Buttons beside a selected chart open Chart Elements, Chart Colors and Styles, and Chart Filters.",
-   "es": "Agregue elementos de gráfico, aplique diseños rápidos, colores y estilos, cambie fila y columna, seleccione y edite datos, cambie el tipo de gráfico (también por serie) y dé formato a las partes y a los ejes del gráfico. Los botones junto a un gráfico seleccionado abren Elementos, Colores y estilos, y Filtros del gráfico.",
-   "fr": "Ajoutez des éléments de graphique, appliquez des dispositions rapides, des couleurs et des styles, basculez ligne et colonne, sélectionnez et modifiez les données, changez le type de graphique (aussi par série) et mettez en forme les parties et les axes. Des boutons à côté d’un graphique sélectionné ouvrent Éléments, Couleurs et styles, et Filtres du graphique.",
-   "soon": {
-    "drop": false,
-    "en": "Data table element, embedded workbook editing, Current Selection, Reset to Match Style, and text styles of chart elements",
-    "es": "Elemento de tabla de datos, edición del libro incrustado, selección actual, restablecer estilo y estilos de texto de los elementos del gráfico",
-    "fr": "Élément de tableau de données, modification du classeur incorporé, sélection active, rétablissement du style et styles de texte des éléments du graphique"
-   }
-  },
   "8a42fc06a073286a989aecd9cf5282ffb8fb68a231b1877807257d11f9696176": {
    "drop": false,
    "en": "Cut, copy, and paste cells within a workbook and between workbooks. Values, formulas with their relative references moved, formats, and merged cells are pasted, and a cut moves the cells and what refers to them. Tab-separated text and HTML tables go in and out.",
@@ -18125,18 +18125,6 @@
    "en": "Use the ribbon by keyboard: `Tab` and the arrow keys move among its tabs and controls, with a visible focus ring; `Escape` returns to the page; `F6` moves between the ribbon, the page thumbnails, and the page.",
    "es": "Use la cinta de opciones con el teclado: `Tab` y las teclas de flecha se desplazan entre sus pestañas y controles, con un anillo de foco visible; `Escape` vuelve a la página; `F6` alterna entre la cinta, las miniaturas de página y la página.",
    "fr": "Utilisez le ruban au clavier : `Tab` et les touches fléchées se déplacent entre ses onglets et ses contrôles, avec un anneau de focus visible ; `Escape` revient à la page ; `F6` passe du ruban aux miniatures de pages, puis à la page.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "8d0985e424ee9683c990f6771651888a9ada4b108450ef551fabb578ff2963c2": {
-   "drop": false,
-   "en": "Mark a presentation as final so it opens read-only with a note, encrypt a `.pptx`, `.odp`, or `.otp` file with a password, and set a presentation to always open read-only.",
-   "es": "Marque una presentación como final para que se abra en modo de solo lectura con una nota, cifre un archivo `.pptx`, `.odp` u `.otp` con una contraseña y configure una presentación para que siempre se abra en modo de solo lectura.",
-   "fr": "Marquez une présentation comme finale pour qu’elle s’ouvre en lecture seule avec une note, chiffrez un fichier `.pptx`, `.odp` ou `.otp` avec un mot de passe et réglez une présentation pour qu’elle s’ouvre toujours en lecture seule.",
    "soon": {
     "drop": true,
     "en": "",
@@ -20004,6 +19992,18 @@
     "fr": "Graphiques : axes, quadrillage, courbes de tendance, barres d’erreur, dispositions rapides, couleurs et styles"
    }
   },
+  "a966f17e43e787982650e8eddd1b2f14a16dda87a31cd0584466f5ac8a5a5437": {
+   "drop": false,
+   "en": "On a picture, shape, or text box, the right-click menu has Wrap Text, Alt Text, Group, and Ungroup. On a chart, it also has chart data, swap rows and columns, chart kind, chart part formatting, and the two axes.",
+   "es": "En una imagen, forma o cuadro de texto, el menú contextual incluye ajuste del texto, texto alternativo, agrupar y desagrupar. En un gráfico, también incluye los datos del gráfico, el intercambio de filas y columnas, el tipo de gráfico, el formato de las partes del gráfico y los dos ejes.",
+   "fr": "Sur une image, une forme ou une zone de texte, le menu contextuel propose l’habillage du texte, le texte alternatif, le regroupement et la dissociation. Sur un graphique, il propose aussi les données du graphique, l’inversion des lignes et colonnes, le type de graphique, la mise en forme des éléments du graphique et les deux axes.",
+   "soon": {
+    "drop": false,
+    "en": "Cut, Copy, Paste, Bring to Front, Send to Back, Size and Position, and Format on objects",
+    "es": "Cortar, copiar, pegar, traer al frente, enviar al fondo, tamaño y posición, y formato en objetos",
+    "fr": "Couper, copier, coller, premier plan, arrière-plan, taille et position, et mise en forme sur les objets"
+   }
+  },
   "a96884d5e4cd243b4f143d9dfe088f0d37d3913647d8ad507b53bd7b7bca6b73": {
    "drop": false,
    "en": "Insert and delete rows and columns in a table to make it larger or smaller. New rows get the calculated columns’ formulas, and new columns are named in the row of names. Above, below, left, and right of the selection are in the right-click menu, and they insert whole rows and columns of the sheet.",
@@ -20069,18 +20069,6 @@
    "en": "Built-in Help that works offline: a Help pane with 51 topics in plain language, a contents page, links between topics, Back and Forward, and a search that finds topics and commands and runs the commands. Press `F1` to open the topic for what you are doing: the ribbon tab, task pane, File page, dialog, or selected object.",
    "es": "Ayuda integrada que funciona sin conexión: un panel de ayuda con 51 temas en lenguaje sencillo, una página de contenido, vínculos entre temas, Atrás y Adelante, y una búsqueda que encuentra temas y comandos y ejecuta los comandos. Pulse `F1` para abrir el tema correspondiente a lo que está haciendo: la pestaña de la cinta de opciones, el panel de tareas, la página Archivo, el cuadro de diálogo o el objeto seleccionado.",
    "fr": "Aide intégrée qui fonctionne hors ligne : un volet d’aide de 51 sujets en langage clair, une page de sommaire, des liens entre sujets, Précédent et Suivant, et une recherche qui trouve des sujets et des commandes et exécute les commandes. Appuyez sur `F1` pour ouvrir le sujet correspondant à ce que vous faites : l’onglet du ruban, le volet de tâches, la page Fichier, la boîte de dialogue ou l’objet sélectionné.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "aa7f87daaab292fab1fa84805be2f800bd3a1e6549f6864f3800f891265e4a27": {
-   "drop": false,
-   "en": "Right-click an object, or press `Shift+F10` or the Menu key, for Cut, Copy, Paste, Paste Options, Delete, Edit Text, Group or Ungroup, Order, Save as Picture, Size and Position, Format Shape, Alt Text, Link, and New Comment.",
-   "es": "Haga clic con el botón derecho en un objeto, o pulse `Shift+F10` o la tecla Menú, para Cortar, Copiar, Pegar, Opciones de pegado, Eliminar, Editar texto, Agrupar o Desagrupar, Orden, Guardar como imagen, Tamaño y posición, Formato de forma, Texto alternativo, Vínculo y Nuevo comentario.",
-   "fr": "Faites un clic droit sur un objet, ou appuyez sur `Shift+F10` ou sur la touche Menu, pour Couper, Copier, Coller, Options de collage, Supprimer, Modifier le texte, Grouper ou Dissocier, Ordre, Enregistrer comme image, Taille et position, Format de la forme, Texte de remplacement, Lien et Nouveau commentaire.",
    "soon": {
     "drop": true,
     "en": "",
@@ -21281,6 +21269,18 @@
    "en": "Align text in nine positions, set the number and spacing of columns, and choose preset or custom margins for a text box.",
    "es": "Alinee el texto en nueve posiciones, defina el número y el espaciado de las columnas y elija márgenes predefinidos o personalizados para un cuadro de texto.",
    "fr": "Alignez le texte selon neuf positions, définissez le nombre et l’espacement des colonnes et choisissez des marges prédéfinies ou personnalisées pour une zone de texte.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "bf504e713841053754930ec67d42e7c7770adbf7bb4a40200aafe27090f7fe71": {
+   "drop": false,
+   "en": "Open encrypted `.pptx`, `.potx`, `.ppsx`, `.odp`, and `.otp` files with a password, open an older `.ppt` file with a password, and save with a password in the `.pptx`, `.potx`, `.ppsx`, `.odp`, and `.otp` formats.",
+   "es": "Abra con contraseña archivos cifrados `.pptx`, `.potx`, `.ppsx`, `.odp` y `.otp`, abra con contraseña un archivo `.ppt` antiguo y guarde con contraseña en los formatos `.pptx`, `.potx`, `.ppsx`, `.odp` y `.otp`.",
+   "fr": "Ouvrez avec un mot de passe des fichiers chiffrés `.pptx`, `.potx`, `.ppsx`, `.odp` et `.otp`, ouvrez avec un mot de passe un ancien fichier `.ppt` et enregistrez avec un mot de passe aux formats `.pptx`, `.potx`, `.ppsx`, `.odp` et `.otp`.",
    "soon": {
     "drop": true,
     "en": "",
@@ -22620,6 +22620,18 @@
     "fr": "Afficher les notes et volet des notes"
    }
   },
+  "d056e7ed6194bcba3ce02d16ffd7ad2bcd10938298e53276bdd967e3b82b8f86": {
+   "drop": false,
+   "en": "Insert a chart from a gallery of 12 types with sample numbers, then move, resize, rotate, and undo it like other objects. Edit its numbers in a data grid. Charts are saved as editable charts in `.pptx` files and as pictures in `.odp` files.",
+   "es": "Inserte un gráfico de una galería de 12 tipos con números de ejemplo y luego muévalo, cambie su tamaño, gírelo y deshaga los cambios como con otros objetos. Edite sus números en una cuadrícula de datos. Los gráficos se guardan como gráficos editables en archivos `.pptx` y como imágenes en archivos `.odp`.",
+   "fr": "Insérez un graphique parmi une galerie de 12 types avec des chiffres d’exemple, puis déplacez-le, redimensionnez-le, faites-le pivoter et annulez les modifications comme pour les autres objets. Modifiez ses chiffres dans une grille de données. Les graphiques sont enregistrés comme graphiques modifiables dans les fichiers `.pptx` et comme images dans les fichiers `.odp`.",
+   "soon": {
+    "drop": false,
+    "en": "Embedded workbook in the chart for editing in other programs",
+    "es": "Libro de trabajo incrustado en el gráfico para editarlo en otros programas",
+    "fr": "Classeur intégré au graphique pour le modifier dans d’autres programmes"
+   }
+  },
   "d075d8622f8d6e75ac71c4046ceb3f6d96b420659707b8dd3e5650c6d2dd8c6b": {
    "drop": false,
    "en": "Collapse and expand headings in the document with a small triangle in the margin. Collapsing hides the paragraphs under a heading on the screen only; printing, PDF, and saving still include every paragraph.",
@@ -22774,18 +22786,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "d2d26d34661cf2d2bfecbc2f35a22a6e1f3bbb534cdf72e2bad35a972ce2357f": {
-   "drop": false,
-   "en": "Right-click a picture to set text wrapping and alt text. Right-click an object to group or ungroup it.",
-   "es": "Haga clic con el botón derecho en una imagen para definir el ajuste del texto y el texto alternativo. Haga clic con el botón derecho en un objeto para agruparlo o desagruparlo.",
-   "fr": "Faites un clic droit sur une image pour définir l’habillage du texte et le texte alternatif. Faites un clic droit sur un objet pour le grouper ou le dissocier.",
-   "soon": {
-    "drop": false,
-    "en": "Shortcut menu for pictures, shapes, and text boxes: cut, copy, paste, bring to front, send to back, size and position, and format",
-    "es": "Menú contextual de imágenes, formas y cuadros de texto: cortar, copiar, pegar, traer al frente, enviar al fondo, tamaño y posición, y formato",
-    "fr": "Menu contextuel des images, formes et zones de texte : couper, copier, coller, premier plan, arrière-plan, taille et position, et format"
    }
   },
   "d308e235596fdf2b84368825bfdd6e04f2773431b7cb3a375d729c6c4488cdef": {
@@ -23921,18 +23921,6 @@
    "en": "Use 23 text functions, including CONCATENATE, TEXT, LEFT, MID, RIGHT, FIND, SEARCH, SUBSTITUTE, TRIM, and PROPER.",
    "es": "Utilice 23 funciones de texto, entre ellas CONCATENATE, TEXT, LEFT, MID, RIGHT, FIND, SEARCH, SUBSTITUTE, TRIM y PROPER.",
    "fr": "Utilisez 23 fonctions de texte, dont CONCATENATE, TEXT, LEFT, MID, RIGHT, FIND, SEARCH, SUBSTITUTE, TRIM et PROPER.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "e3d11fcdddd2993de706bc666d8beeee4a40eb649f6907b3aefeb024f73f0074": {
-   "drop": false,
-   "en": "Open encrypted `.pptx`, `.potx`, `.ppsx`, `.odp`, and `.otp` files and save them with a password.",
-   "es": "Abra archivos cifrados `.pptx`, `.potx`, `.ppsx`, `.odp` y `.otp` y guárdelos con una contraseña.",
-   "fr": "Ouvrez des fichiers chiffrés `.pptx`, `.potx`, `.ppsx`, `.odp` et `.otp` et enregistrez-les avec un mot de passe.",
    "soon": {
     "drop": true,
     "en": "",
@@ -25714,6 +25702,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "fbff3445a9c9af034b5ec3b52368570967db4466b22c4ea0937ffee6ea7393a0": {
+   "drop": false,
+   "en": "Add chart elements (axes, axis titles, title, data labels, gridlines, legend, error bars, lines, trendline, and data table), apply quick layouts, change colors and styles, switch rows and columns, select and edit data, change the chart type, and format chart parts and axes.",
+   "es": "Agregue elementos al gráfico (ejes, títulos de ejes, título, etiquetas de datos, líneas de cuadrícula, leyenda, barras de error, líneas, línea de tendencia y tabla de datos), aplique diseños rápidos, cambie colores y estilos, cambie filas y columnas, seleccione y edite datos, cambie el tipo de gráfico y dé formato a las partes del gráfico y a los ejes.",
+   "fr": "Ajoutez des éléments au graphique (axes, titres d’axes, titre, étiquettes de données, quadrillage, légende, barres d’erreur, lignes, courbe de tendance et tableau de données), appliquez des dispositions rapides, changez les couleurs et les styles, inversez les lignes et les colonnes, sélectionnez et modifiez les données, changez le type de graphique et mettez en forme les éléments du graphique et les axes.",
+   "soon": {
+    "drop": false,
+    "en": "Embedded workbook for charts created here",
+    "es": "Libro de trabajo incrustado para los gráficos creados aquí",
+    "fr": "Classeur intégré pour les graphiques créés ici"
    }
   },
   "fc996b463501e61051c61f934abec7a1d51e50ef6657ea3f015b24ab36289175": {
