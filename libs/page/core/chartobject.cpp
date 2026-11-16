@@ -282,7 +282,13 @@ QByteArray chartWorkbookOf(const Document &doc, const PictureItem &pic)
     if (data.size() > office::sheet::kMostEmbeddedWorkbookBytes / 3 * 4 + 8) return QByteArray();
     const QByteArray bytes = QByteArray::fromBase64(data.toLatin1());
     if (!sha.isEmpty()) {
-        if (g_decoded.size() >= 4) g_decoded.removeFirst();
+        // (at most 4 workbooks and 32 MB in all, oldest out first: a closed document's stay here until pushed out)
+        qint64 held = bytes.size();
+        for (const auto &d : std::as_const(g_decoded)) held += d.second.size();
+        while (!g_decoded.isEmpty() && (g_decoded.size() >= 4 || held > 32 * 1024 * 1024)) {
+            held -= g_decoded.first().second.size();
+            g_decoded.removeFirst();
+        }
         g_decoded.append({sha, bytes});
     }
     return bytes;

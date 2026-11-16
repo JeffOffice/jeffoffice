@@ -307,16 +307,22 @@ thread_local QVector<Said> g_said;
 struct Digested {
     QByteArray bytes, digest;
 };
-thread_local Digested g_digested[8];
-thread_local int g_digestedNext = 0;
+// (it holds the buffers it knows, so a closed document's workbook stays in memory while it is here: at most 8 of them and 32 MB in all, oldest out first)
+thread_local QVector<Digested> g_digested;
+constexpr qint64 kMostDigestedBytes = 32 * 1024 * 1024;
 
 QByteArray digestOf(const QByteArray &book)
 {
-    for (const Digested &d : g_digested)
+    for (const Digested &d : std::as_const(g_digested))
         if (!d.bytes.isNull() && d.bytes.constData() == book.constData() && d.bytes.size() == book.size()) return d.digest;
     Digested made{book, QCryptographicHash::hash(book, QCryptographicHash::Sha1)};
-    g_digested[g_digestedNext] = made;
-    g_digestedNext = (g_digestedNext + 1) % 8;
+    qint64 held = book.size();
+    for (const Digested &d : std::as_const(g_digested)) held += d.bytes.size();
+    while (!g_digested.isEmpty() && (g_digested.size() >= 8 || held > kMostDigestedBytes)) {
+        held -= g_digested.first().bytes.size();
+        g_digested.removeFirst();
+    }
+    if (book.size() <= kMostDigestedBytes) g_digested.append(made);
     return made.digest;
 }
 
