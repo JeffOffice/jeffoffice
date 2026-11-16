@@ -19,6 +19,7 @@
 #include <QCryptographicHash>
 #include <QHash>
 #include <QMap>
+#include <QPolygonF>
 #include <QSet>
 #include <QJsonObject>
 #include <QString>
