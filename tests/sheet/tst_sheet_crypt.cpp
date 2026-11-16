@@ -7,7 +7,8 @@
 #include "io/crypto.h"
 #include "office/officecrypt.h"
 #include "sheet/ods.h"
-#include "sheet/odscrypt.h"
+#include "office/odfcrypt.h"
+#include "office/odraw_inflate.h"
 #include "sheet/sheetcrypt.h"
 #include "sheet/xlscrypt.h"
 
@@ -16,10 +17,12 @@
 #include <QElapsedTimer>
 #include <QFileInfo>
 #include <QPasswordDigestor>
+#include <QSet>
 #include <QProcess>
 #include <QStandardPaths>
 #include <QTemporaryDir>
 
+#include <atomic>
 #include <random>
 
 using namespace xlstest;
@@ -210,6 +213,50 @@ QByteArray deflate(const QByteArray &data)
 {
     const QByteArray z = qCompress(data, 9);   // 4 bytes of size, the 2 of the zlib header, the data, 4 of check value
     return z.mid(6, z.size() - 10);
+}
+
+
+// The known-answer file: made by tools/odf_encrypt_kat.py from the standard alone (Python's hashlib, zlib, and the cryptography package's AES), never by the program's own encoder.
+const char *const kOdfKnownAnswer =
+    "UEsDBBQAAAAAAAAAcF1exjIMJwAAACcAAAAIAAAAbWltZXR5cGVhcHBsaWNhdGlvbi92bmQub2FzaXMub3BlbmRvY3VtZW50LnRl"
+    "eHRQSwMEFAAAAAAAAABwXQxIG52gAAAAoAAAAAsAAABjb250ZW50LnhtbNOX2sr7NyiSWl0T1JOuKQmW/rJpPxKl64EutHRLoxvn"
+    "EIhpaw8xGulTlYFXtmcx7w9YLfgHHcwtVzozOZsYZ9fn9p5ob/RX+sCnkzxkVgw6sugaXjHuwMqexwP3xIBEKfWsjzDEP1IkNLY2"
+    "TiWKvCchg4Puwj0ThLtMkUJ2G4nl4GwLJoV/gEX4pXmXN6n9CL88VzkDJTOXV8jBWtWFslxQSwMEFAAAAAAAAABwXQq0k7NwAAAA"
+    "cAAAAAoAAABzdHlsZXMueG1sNcytU9tDSzgVj/EKApHayop5xsArgbpf04nuuSKANK4/N/iBRuvlilmIGSg1XtUdSyMx6LozYW+F"
+    "7rphsa8na6KWfQaYabfeJUSGeLR9siz4c3gfueXzMB6tHyf3P7soXhVPD8I/VJk6v2H0COIX6FBLAwQUAAAACAAAAHBdCTZ3UCgC"
+    "AAAcBwAAFQAAAE1FVEEtSU5GL21hbmlmZXN0LnhtbNVTW3OiMBj9K0z6uANBrNQypZ31Wq+jtXXXxxiipEKCSRD01xdcW3E7drr7"
+    "st235Lucc77bzV0aBtqGCEk5c0HJMIFGGOYeZUsXPD229Cq4u70JEaMLIpXz+tCyNCbfvi6IBXM4klQ6DIVEOgo7PCLM4zgOCVPO"
+    "abyzJ3r7FfgtUGBb0IDoWbbYHmMXcRDoEVK+C2ABIiQeRbraRsQFKIoCipHKIOGGecZel1GUYyiSKgA/T4U5U3leVsYZ0hwRnrol"
+    "3WWOctUu1pR1V2yjXJvuIYWO0dgneCXj8ID35w29kD6yKrZeWoH3qC6Y2l1oYTgYDAWtNy5pb/wzlf5jtz2rpVNfbOC4DEcNPEm/"
+    "d9yiYBQsuaDKD7X3Jj3X5gJfqciBMEkSIykbXCyhZZolaF7mDckKvkBE5srwHBekUUYVRQGV+0npG4IVF1nhfWKp+WQnRTsRtq1E"
+    "L16vx657Mq4V2eoeEXSzz9XO2A/yRrVeo2WB06jDcIpmqoj4lYd5zLKlLplmcU0lCjJjs9acNNPxtOXjWfuBz+9rJrlPftMnFRJK"
+    "z3mWhB1QtQ+9H7XShOZ13kpP0uVhyueqyUTAc7tWdB33/fNHINU2IPJvbqBkXX2JG6D0qhFUr9tyNaedBZnVx5XFQ510vw3LciO4"
+    "GETD3Wjwgzw94396A+seCSM0eebr9pJVbI91YxR+oRvo1Ju0sx0HXYp5b8JFv27G/f/6Bo7W18ftC1BLAQIUAxQAAAAAAAAAcF1e"
+    "xjIMJwAAACcAAAAIAAAAAAAAAAAAAACAAQAAAABtaW1ldHlwZVBLAQIUAxQAAAAAAAAAcF0MSBudoAAAAKAAAAALAAAAAAAAAAAA"
+    "AACAAU0AAABjb250ZW50LnhtbFBLAQIUAxQAAAAAAAAAcF0KtJOzcAAAAHAAAAAKAAAAAAAAAAAAAACAARYBAABzdHlsZXMueG1s"
+    "UEsBAhQDFAAAAAgAAABwXQk2d1AoAgAAHAcAABUAAAAAAAAAAAAAAIABrgEAAE1FVEEtSU5GL21hbmlmZXN0LnhtbFBLBQYAAAAA"
+    "BAAEAOoAAAAJBAAAAAA=";
+const char *const kOdfKnownContentSha256 = "3e185c60452d5e06fb1217ab2f3ed5b3cdab289aa98621c4278a4b367d13eb8c";
+const QString kOdfKnownPassword = QString::fromUtf8("P\xc3\xa4ssword \xe2\x98\x83");
+
+// A package of the plain kind with the parts of a text document, for the protection tests.
+QByteArray plainOdfPackage(int pictures = 2)
+{
+    jp::ZipWriter z;
+    z.add(QStringLiteral("mimetype"), "application/vnd.oasis.opendocument.text", false);
+    QString manifest = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<manifest:manifest xmlns:manifest=\"urn:oasis:names:tc:opendocument:xmlns:manifest:1.0\" manifest:version=\"1.3\">\n"
+                                      " <manifest:file-entry manifest:full-path=\"/\" manifest:media-type=\"application/vnd.oasis.opendocument.text\"/>\n");
+    auto part = [&](const QString &name, const QByteArray &data) {
+        z.add(name, data, true);
+        manifest += QStringLiteral(" <manifest:file-entry manifest:full-path=\"%1\" manifest:media-type=\"text/xml\"/>\n").arg(name);
+    };
+    part(QStringLiteral("content.xml"), "<office:document-content>" + QByteArray("hello world ").repeated(300) + "</office:document-content>");
+    part(QStringLiteral("styles.xml"), "<office:document-styles/>");
+    part(QStringLiteral("meta.xml"), "<office:document-meta><dc:title>Secret</dc:title></office:document-meta>");
+    for (int i = 0; i < pictures; ++i) part(QStringLiteral("Pictures/p%1.png").arg(i), QByteArray(5000, char('a' + i)));
+    manifest += QStringLiteral("</manifest:manifest>\n");
+    z.add(QStringLiteral("META-INF/manifest.xml"), manifest.toUtf8(), true);
+    return z.finish();
 }
 
 struct OdsMake;
@@ -647,7 +694,7 @@ private Q_SLOTS:
             QElapsedTimer t;
             t.start();
             QByteArray out;
-            QCOMPARE(oc::sheet::decryptOds(z.finish(), QStringLiteral("test"), 1 << 30, false, &out), oc::CryptResult::Damaged);
+            QCOMPARE(oc::decryptOdf(z.finish(), QStringLiteral("test"), 1 << 30, false, &out), oc::CryptResult::Damaged);
             QVERIFY2(t.elapsed() < 300, c.name);
         }
     }
@@ -670,7 +717,7 @@ private Q_SLOTS:
         for (auto it = parts.constBegin(); it != parts.constEnd(); ++it)
             if (it.key() != QLatin1String("mimetype")) z.add(it.key(), it.key() == QLatin1String("META-INF/manifest.xml") ? manifest : it.value(), false);
         QByteArray out;
-        QCOMPARE(oc::sheet::decryptOds(z.finish(), QStringLiteral("test"), 1 << 30, false, &out), oc::CryptResult::Damaged);
+        QCOMPARE(oc::decryptOdf(z.finish(), QStringLiteral("test"), 1 << 30, false, &out), oc::CryptResult::Damaged);
     }
 
     // The digest that tells a protected file from one another program changed is of the bytes the reader read; a file that is not protected has none.
@@ -756,7 +803,7 @@ private Q_SLOTS:
         t.start();
         int asked = 0;
         QByteArray out;
-        QCOMPARE(oc::sheet::decryptOds(file, QStringLiteral("test"), 1 << 30, false, &out, [&asked] { return ++asked > 1; }), oc::CryptResult::Cancelled);
+        QCOMPARE(oc::decryptOdf(file, QStringLiteral("test"), 1 << 30, false, &out, [&asked] { return ++asked > 1; }), oc::CryptResult::Cancelled);
         QVERIFY(t.elapsed() < 2000);
     }
 
@@ -768,7 +815,7 @@ private Q_SLOTS:
         QCOMPARE(QPasswordDigestor::deriveKeyPbkdf2(QCryptographicHash::Sha1, "password", "salt", 4096, 20), hex("4b007901b765489abead49d926f721d065a429c1"));
         const QByteArray file = protectOds(odsBook(), make);
         QByteArray out;
-        QCOMPARE(oc::sheet::decryptOds(file, QStringLiteral("test"), 1 << 30, false, &out), oc::CryptResult::Ok);
+        QCOMPARE(oc::decryptOdf(file, QStringLiteral("test"), 1 << 30, false, &out), oc::CryptResult::Ok);
     }
 
     void aPackageWithNoCheckOfChangesIsDamaged()
@@ -1136,7 +1183,7 @@ private Q_SLOTS:
             make.sha256 = f.sha256;
             make.omitStartKey = f.omitStart;
             const QByteArray file = protectOds(odsBook(42), make);
-            QVERIFY2(oc::sheet::odsEncrypted(file), f.name);
+            QVERIFY2(oc::odfEncrypted(file), f.name);
             Workbook wb;
             QString why;
             QVERIFY2(!openBytes(file, QStringLiteral("a.ods"), &wb, &why), f.name);
@@ -1172,7 +1219,7 @@ private Q_SLOTS:
         QElapsedTimer t;
         t.start();
         QByteArray out;
-        QCOMPARE(oc::sheet::decryptOds(z.finish(), QStringLiteral("test"), 1 << 30, false, &out), oc::CryptResult::Damaged);
+        QCOMPARE(oc::decryptOdf(z.finish(), QStringLiteral("test"), 1 << 30, false, &out), oc::CryptResult::Damaged);
         QVERIFY(t.elapsed() < 5000);
     }
 
@@ -1190,9 +1237,183 @@ private Q_SLOTS:
             if (it.key() != QLatin1String("mimetype")) z.add(it.key(), it.value(), false);
         QByteArray out;
         // (a part that does not hold what the checksum says is, to the reader, a password that is not the one: the message says "not correct", and a person can try again)
-        const oc::CryptResult r = oc::sheet::decryptOds(z.finish(), QStringLiteral("test"), 1 << 30, false, &out);
+        const oc::CryptResult r = oc::decryptOdf(z.finish(), QStringLiteral("test"), 1 << 30, false, &out);
         QVERIFY(r == oc::CryptResult::WrongPassword || r == oc::CryptResult::Damaged);
     }
+    void aKnownAnswerFileFromASeparateScriptOpensWithItsPasswordOnly()
+    {
+        const QByteArray file = QByteArray::fromBase64(kOdfKnownAnswer);
+        QVERIFY(oc::odfEncrypted(file));
+        QByteArray out;
+        QCOMPARE(oc::decryptOdf(file, QStringLiteral("wrong"), 1 << 30, false, &out), oc::CryptResult::WrongPassword);
+        QVERIFY(out.isEmpty());   // (nothing is given for a wrong password)
+        QCOMPARE(oc::decryptOdf(file, kOdfKnownPassword, 1 << 30, true, &out), oc::CryptResult::Ok);
+        QVERIFY(out.isEmpty());
+        QCOMPARE(oc::decryptOdf(file, kOdfKnownPassword, 1 << 30, false, &out), oc::CryptResult::Ok);
+        QMap<QString, QByteArray> parts;
+        QVERIFY(jp::readZip(out, parts));
+        QCOMPARE(QString::fromLatin1(QCryptographicHash::hash(parts.value(QStringLiteral("content.xml")), QCryptographicHash::Sha256).toHex()), QString::fromLatin1(kOdfKnownContentSha256));
+        QVERIFY(parts.value(QStringLiteral("content.xml")).startsWith("<?xml"));
+        QVERIFY(!parts.value(QStringLiteral("META-INF/manifest.xml")).contains("encryption-data"));
+    }
+
+    void aPackageIsProtectedInTheFormOfTheStandardAndOpensAgain()
+    {
+        const QByteArray plain = plainOdfPackage();
+        oc::OdfEncryptOptions fast;
+        fast.rounds = 1024;
+        const QByteArray file = oc::encryptOdf(plain, QStringLiteral("secret"), 1 << 30, fast);
+        QVERIFY(!file.isEmpty());
+        QVERIFY(oc::odfEncrypted(file));
+        QVERIFY(!oc::odfEncrypted(plain));
+        // what is in the file: the type first and plain, the manifest plain, and no word of the text anywhere in clear
+        QVERIFY(file.startsWith("PK"));
+        QVERIFY(file.mid(30, 8) == "mimetype");
+        QVERIFY(!file.contains("hello world"));
+        QVERIFY(!file.contains("Secret"));
+        QMap<QString, QByteArray> parts;
+        QVERIFY(jp::readZip(file, parts));
+        QCOMPARE(parts.value(QStringLiteral("mimetype")), QByteArray("application/vnd.oasis.opendocument.text"));
+        const QByteArray manifest = parts.value(QStringLiteral("META-INF/manifest.xml"));
+        QCOMPARE(manifest.count("<manifest:encryption-data"), 5);   // content, styles, meta, and two pictures
+        QVERIFY(manifest.contains("aes256-cbc"));
+        QVERIFY(manifest.contains("iteration-count=\"1024\""));
+        // a salt and an iv for each part, all different
+        QSet<QByteArray> salts, ivs;
+        int at = 0;
+        while ((at = manifest.indexOf("manifest:salt=\"", at)) >= 0) {
+            at += 15;
+            salts.insert(manifest.mid(at, manifest.indexOf('"', at) - at));
+        }
+        at = 0;
+        while ((at = manifest.indexOf("initialisation-vector=\"", at)) >= 0) {
+            at += 23;
+            ivs.insert(manifest.mid(at, manifest.indexOf('"', at) - at));
+        }
+        QCOMPARE(salts.size(), 5);
+        QCOMPARE(ivs.size(), 5);
+        // opened with the password: every part as it was
+        QByteArray out;
+        QCOMPARE(oc::decryptOdf(file, QStringLiteral("secret"), 1 << 30, false, &out), oc::CryptResult::Ok);
+        QMap<QString, QByteArray> before, after;
+        QVERIFY(jp::readZip(plain, before));
+        QVERIFY(jp::readZip(out, after));
+        for (auto it = before.constBegin(); it != before.constEnd(); ++it)
+            if (it.key() != QLatin1String("META-INF/manifest.xml")) QCOMPARE(after.value(it.key()), it.value());
+        QCOMPARE(after.size(), before.size());
+        // a wrong password is refused, with nothing given, and so is a password that differs in its last letter
+        QByteArray none;
+        QCOMPARE(oc::decryptOdf(file, QStringLiteral("secreT"), 1 << 30, false, &none), oc::CryptResult::WrongPassword);
+        QVERIFY(none.isEmpty());
+        QCOMPARE(oc::decryptOdf(file, QString(), 1 << 30, false, &none), oc::CryptResult::WrongPassword);
+        QVERIFY(none.isEmpty());
+        // the same package protected twice is not the same bytes (random salts and ivs)
+        QVERIFY(oc::encryptOdf(plain, QStringLiteral("secret"), 1 << 30, fast) != file);
+    }
+
+    void aProtectedPackageIsReadByTheStandardsOwnRulesWithoutTheProgramsDecoder()
+    {
+        // (the key is made with Qt's PBKDF2 and the part opened with the cipher directly: a mistake the encoder and decoder share would show here)
+        oc::OdfEncryptOptions fast;
+        fast.rounds = 2048;
+        const QString password = QString::fromUtf8("p\xc3\xa4ss");
+        const QByteArray file = oc::encryptOdf(plainOdfPackage(0), password, 1 << 30, fast);
+        QVERIFY(!file.isEmpty());
+        QMap<QString, QByteArray> parts;
+        QVERIFY(jp::readZip(file, parts));
+        const QByteArray manifest = parts.value(QStringLiteral("META-INF/manifest.xml"));
+        const int entry = manifest.indexOf("full-path=\"styles.xml\"");
+        QVERIFY(entry > 0);
+        auto attr = [&](const char *name) {
+            const int a = manifest.indexOf(QByteArray(name) + "=\"", entry) + int(strlen(name)) + 2;
+            return manifest.mid(a, manifest.indexOf('"', a) - a);
+        };
+        const QByteArray salt = QByteArray::fromBase64(attr("manifest:salt")), iv = QByteArray::fromBase64(attr("manifest:initialisation-vector"));
+        const QByteArray start = QCryptographicHash::hash(password.toUtf8(), QCryptographicHash::Sha256);
+        const QByteArray key = QPasswordDigestor::deriveKeyPbkdf2(QCryptographicHash::Sha1, start, salt, 2048, 32);
+        QByteArray plain = crypto::aesCbc(key, iv, parts.value(QStringLiteral("styles.xml")), false);
+        QVERIFY(!plain.isEmpty());
+        const int pad = quint8(plain.back());
+        QVERIFY(pad >= 1 && pad <= 16);
+        plain.chop(pad);
+        QCOMPARE(QString::fromLatin1(attr("manifest:checksum")), QString::fromLatin1(QCryptographicHash::hash(plain.left(1024), QCryptographicHash::Sha256).toBase64()));
+        bool ok = false;
+        const QByteArray inflated = oc::odrawInflate(plain, 1000, &ok);
+        QVERIFY(ok);
+        QCOMPARE(inflated, QByteArray("<office:document-styles/>"));
+        QCOMPARE(attr("manifest:size").toInt(), int(inflated.size()));
+    }
+
+    void protectingAPackageIsBoundedAndRefusesWhatItCannotDo()
+    {
+        const QByteArray plain = plainOdfPackage();
+        oc::OdfEncryptOptions fast;
+        fast.rounds = 1024;
+        QVERIFY(oc::encryptOdf(plain, QStringLiteral("x"), 100, fast).isEmpty());   // (more than the most the caller allows)
+        QVERIFY(!oc::encryptOdf(plain, QStringLiteral("x"), 1 << 30, fast).isEmpty());
+        oc::OdfEncryptOptions costly;
+        costly.rounds = int(oc::kMaxOdfKeyRounds) + 1;
+        QVERIFY(oc::encryptOdf(plain, QStringLiteral("x"), 1 << 30, costly).isEmpty());
+        costly.rounds = 0;
+        QVERIFY(oc::encryptOdf(plain, QStringLiteral("x"), 1 << 30, costly).isEmpty());
+        QVERIFY(oc::encryptOdf(QByteArray("not a zip"), QStringLiteral("x"), 1 << 30, fast).isEmpty());
+        // a package without a manifest, and one that is protected already, are not protected again
+        jp::ZipWriter bare;
+        bare.add(QStringLiteral("mimetype"), "application/vnd.oasis.opendocument.text", false);
+        QVERIFY(oc::encryptOdf(bare.finish(), QStringLiteral("x"), 1 << 30, fast).isEmpty());
+        QVERIFY(oc::encryptOdf(oc::encryptOdf(plain, QStringLiteral("x"), 1 << 30, fast), QStringLiteral("y"), 1 << 30, fast).isEmpty());
+        // stopped while the keys are made
+        std::atomic<int> asked{0};
+        QVERIFY(oc::encryptOdf(plain, QStringLiteral("x"), 1 << 30, fast, [&asked] { return ++asked > 2; }).isEmpty());
+    }
+
+    void aManifestOfTooManyProtectedPartsOrTooMuchKeyStretchingIsRefusedBeforeAnyKeyIsMade()
+    {
+        auto entry = [](int i, qint64 rounds, const QByteArray &salt) {
+            return QStringLiteral("<manifest:file-entry manifest:full-path=\"p%1\" manifest:size=\"1\"><manifest:encryption-data manifest:checksum-type=\"urn:oasis:names:tc:opendocument:xmlns:manifest:1.0#sha256-1k\" manifest:checksum=\"AAAA\">"
+                                  "<manifest:algorithm manifest:algorithm-name=\"http://www.w3.org/2001/04/xmlenc#aes256-cbc\" manifest:initialisation-vector=\"AAAAAAAAAAAAAAAAAAAAAA==\"/>"
+                                  "<manifest:key-derivation manifest:key-derivation-name=\"PBKDF2\" manifest:key-size=\"32\" manifest:iteration-count=\"%2\" manifest:salt=\"%3\"/>"
+                                  "<manifest:start-key-generation manifest:start-key-generation-name=\"http://www.w3.org/2000/09/xmldsig#sha256\"/>"
+                                  "</manifest:encryption-data></manifest:file-entry>").arg(i).arg(rounds).arg(QString::fromLatin1(salt.toBase64()));
+        };
+        const QString head = QStringLiteral("<?xml version=\"1.0\"?><manifest:manifest xmlns:manifest=\"urn:oasis:names:tc:opendocument:xmlns:manifest:1.0\">");
+        // (counts: one more than the most parts)
+        {
+            QString manifest = head;
+            for (int i = 0; i <= oc::kMaxOdfParts; ++i) manifest += entry(i, 1, QByteArray(16, 'a'));
+            manifest += QStringLiteral("</manifest:manifest>");
+            jp::ZipWriter z;
+            z.add(QStringLiteral("mimetype"), "application/vnd.oasis.opendocument.text", false);
+            z.add(QStringLiteral("META-INF/manifest.xml"), manifest.toUtf8(), true);
+            QByteArray out;
+            int asked = 0;
+            QCOMPARE(oc::decryptOdf(z.finish(), QStringLiteral("x"), 1 << 30, false, &out, [&asked] { ++asked; return false; }), oc::CryptResult::Damaged);
+            QCOMPARE(asked, 0);
+        }
+        // (work: parts with salts of their own, a million rounds each; the limit for all is six million, so seven are refused before any key is begun, and four are tried)
+        for (const int parts : {7, 4}) {
+            QString manifest = head;
+            jp::ZipWriter z;
+            z.add(QStringLiteral("mimetype"), "application/vnd.oasis.opendocument.text", false);
+            for (int i = 0; i < parts; ++i) {
+                z.add(QStringLiteral("p%1").arg(i), QByteArray(16, 'x'), false);
+                manifest += entry(i, 1000000, QByteArray(16, char(i + 1)));
+            }
+            manifest += QStringLiteral("</manifest:manifest>");
+            z.add(QStringLiteral("META-INF/manifest.xml"), manifest.toUtf8(), true);
+            QByteArray out;
+            int asked = 0;
+            const oc::CryptResult r = oc::decryptOdf(z.finish(), QStringLiteral("x"), 1 << 30, false, &out, [&asked] { ++asked; return false; });
+            if (parts == 7) {
+                QCOMPARE(r, oc::CryptResult::Damaged);
+                QCOMPARE(asked, 0);   // (refused before the first key was begun)
+            } else {
+                QCOMPARE(r, oc::CryptResult::WrongPassword);   // (four million: within the limit, so the work is done for the first part, and the password is not the one)
+                QVERIFY(asked > 0);
+            }
+        }
+    }
+
     void anArgon2PackageOpensWithItsPasswordAndNoOther()
     {
         QTemporaryDir dir;
@@ -1203,7 +1424,7 @@ private Q_SLOTS:
             make.omitStartKey = omitStart;
             const QByteArray file = protectOdsArgon(odsBook(42), make);
             QVERIFY(jp::office::sheet::looksLikeOpenDocumentZip(file));
-            QVERIFY(oc::sheet::odsEncrypted(file));
+            QVERIFY(oc::odfEncrypted(file));
             Workbook wb;
             QString why;
             QVERIFY(!openBytes(file, QStringLiteral("a.ods"), &wb, &why));
@@ -1261,7 +1482,7 @@ private Q_SLOTS:
             QByteArray out;
             QElapsedTimer t;
             t.start();
-            QVERIFY2(oc::sheet::decryptOds(bytes, QStringLiteral("test"), 1 << 30, false, &out) == oc::CryptResult::TooCostly, a.what);
+            QVERIFY2(oc::decryptOdf(bytes, QStringLiteral("test"), 1 << 30, false, &out) == oc::CryptResult::TooCostly, a.what);
             QVERIFY2(t.elapsed() < 2000, a.what);
             Workbook wb;
             QString why;
@@ -1289,7 +1510,7 @@ private Q_SLOTS:
             return z.finish();
         }();
         QByteArray out;
-        QCOMPARE(oc::sheet::decryptOds(bytes, QStringLiteral("test"), 1 << 30, false, &out, [] { return true; }), oc::CryptResult::Cancelled);
+        QCOMPARE(oc::decryptOdf(bytes, QStringLiteral("test"), 1 << 30, false, &out, [] { return true; }), oc::CryptResult::Cancelled);
     }
 
     void aPackageOfTheNewestKindWithAChangedPartIsNotOpened()
@@ -1304,9 +1525,9 @@ private Q_SLOTS:
         z.add(QStringLiteral("encrypted-package"), sealed, false);
         z.add(QStringLiteral("META-INF/manifest.xml"), parts.value(QStringLiteral("META-INF/manifest.xml")), false);
         QByteArray out;
-        QCOMPARE(oc::sheet::decryptOds(z.finish(), QStringLiteral("test"), 1 << 30, false, &out), oc::CryptResult::WrongPassword);
+        QCOMPARE(oc::decryptOdf(z.finish(), QStringLiteral("test"), 1 << 30, false, &out), oc::CryptResult::WrongPassword);
         // a package larger than the reader is allowed is refused without a key
-        QCOMPARE(oc::sheet::decryptOds(file, QStringLiteral("test"), 10, false, &out), oc::CryptResult::TooLarge);
+        QCOMPARE(oc::decryptOdf(file, QStringLiteral("test"), 10, false, &out), oc::CryptResult::TooLarge);
     }
 
     void aProtectedFileFromTheCurrentOriginalProgramOpens()

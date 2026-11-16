@@ -3,12 +3,15 @@
 #include "dochelpers.h"
 
 #include "io/cfb.h"
+#include "io/crypto.h"
 
 #include <QBuffer>
+#include <QCryptographicHash>
 #include <QHash>
 #include <QPair>
 #include <QImage>
 #include <algorithm>
+#include <functional>
 
 namespace dochelp {
 
@@ -461,7 +464,7 @@ QByteArray DocWriter::build() const
     }
 
     // The table stream.
-    QByteArray tbl;
+    QByteArray tbl(tableReserve, '\0');
     struct Slot {
         quint32 fc = 0, lcb = 0;
     };
@@ -874,5 +877,132 @@ QByteArray DocWriter::build() const
     if (!data.isEmpty()) stream(QStringLiteral("Data"), data);
     return jp::cfb::write(f);
 }
+
+namespace {
+
+QByteArray le32(quint32 v)
+{
+    QByteArray b(4, 0);
+    for (int i = 0; i < 4; ++i) b[i] = char((v >> (8 * i)) & 0xFF);
+    return b;
+}
+
+QByteArray utf16le(const QString &s)
+{
+    QByteArray b;
+    for (QChar c : s) {
+        b.append(char(c.unicode() & 0xFF));
+        b.append(char(c.unicode() >> 8));
+    }
+    return b;
+}
+
+// Enciphers `stream` from byte `from` in blocks of 512, the key of block n made by `keyFor(n)`.
+template <class F> void encipher(QByteArray *stream, int from, F keyFor)
+{
+    for (int block = from / 512; block * 512 < stream->size(); ++block) {
+        QByteArray key = keyFor(block);
+        jp::crypto::Rc4 rc4(key);
+        QByteArray ks = rc4.apply(QByteArray(512, 0));
+        for (int p = std::max(block * 512, from); p < std::min<int>(int(stream->size()), block * 512 + 512); ++p) (*stream)[p] = char((*stream)[p] ^ ks[p - block * 512]);
+    }
+}
+
+} // namespace
+
+QByteArray DocWriter::buildProtected(const QString &password, int form) const
+{
+    const QByteArray salt = QByteArray::fromHex("0f1e2d3c4b5a69788796a5b4c3d2e1f0"), verifier = QByteArray::fromHex("a1b2c3d4e5f60718293a4b5c6d7e8f90");
+    QByteArray pw = utf16le(password);
+    QByteArray description;
+    std::function<QByteArray(int)> keyFor;
+    if (form == 0) {
+        const QByteArray h0 = QCryptographicHash::hash(pw, QCryptographicHash::Md5);
+        QByteArray rep;
+        for (int i = 0; i < 16; ++i) rep += h0.left(5) + salt;
+        const QByteArray base = QCryptographicHash::hash(rep, QCryptographicHash::Md5).left(5);
+        keyFor = [base](int block) { return QCryptographicHash::hash(base + le32(quint32(block)), QCryptographicHash::Md5); };
+        QByteArray key0 = keyFor(0);
+        jp::crypto::Rc4 rc4(key0);
+        description = QByteArray::fromHex("01000100") + salt + rc4.apply(verifier + QCryptographicHash::hash(verifier, QCryptographicHash::Md5));
+    } else if (form == 1) {
+        const QByteArray base = QCryptographicHash::hash(salt + pw, QCryptographicHash::Sha1);
+        keyFor = [base](int block) { return QCryptographicHash::hash(base + le32(quint32(block)), QCryptographicHash::Sha1).left(16); };
+        QByteArray header = le32(0x24) + le32(0) + le32(0x6801) + le32(0x8004) + le32(128) + le32(1) + le32(0) + le32(0) + utf16le(QStringLiteral("Provider")) + QByteArray(2, 0);
+        QByteArray key0 = keyFor(0);
+        jp::crypto::Rc4 rc4(key0);
+        const QByteArray enc = rc4.apply(verifier + QCryptographicHash::hash(verifier, QCryptographicHash::Sha1));
+        description = QByteArray::fromHex("04000200") + le32(0x24) + le32(quint32(header.size())) + header + le32(16) + salt + enc.left(16) + le32(20) + enc.mid(16, 20);
+    }
+    DocWriter w = *this;
+    w.password = true;
+    w.tableReserve = int(description.size());
+    jp::cfb::File f;
+    if (!jp::cfb::read(w.build(), &f)) return QByteArray();
+    QByteArray wd = f.stream(QStringLiteral("WordDocument")), tbl = f.stream(QStringLiteral("1Table")), dat = f.stream(QStringLiteral("Data"));
+    if (form == 2) {
+        // the obfuscation: the key and the verifier of the rules, kept in the header, and the bytes XORed with the table made from the password
+        const QByteArray ansi = password.toLatin1().left(15);
+        static const quint16 initial[15] = {0xE1F0, 0x1D0F, 0xCC9C, 0x84C0, 0x110C, 0x0E10, 0xF1CE, 0x313E, 0x1872, 0xE139, 0xD40F, 0x84F9, 0x280C, 0xA96A, 0x4EC3};
+        static const quint8 pad[15] = {0xBB, 0xFF, 0xFF, 0xBA, 0xFF, 0xFF, 0xB9, 0x80, 0x00, 0xBE, 0x0F, 0x00, 0xBF, 0x0F, 0x00};
+        // (the matrix of the key: row r holds the 7 values of the r-th place, each the step of a 16-bit check value from the one before)
+        auto step = [](quint16 x) { return quint16((x << 1) ^ ((x & 0x8000) ? 0x1021 : 0)); };
+        quint16 matrix[105];
+        for (int row = 0; row < 15; ++row) {
+            quint16 x = 1;
+            for (int i = 0; i < 16 + 8 * (14 - row); ++i) x = step(x);
+            for (int j = 0; j < 7; ++j) {
+                matrix[row * 7 + j] = x;
+                x = step(x);
+            }
+        }
+        quint16 key = initial[ansi.size() - 1];
+        int element = 104;
+        for (int i = int(ansi.size()) - 1; i >= 0; --i) {
+            quint8 c = quint8(ansi[i]);
+            for (int j = 0; j < 7; ++j, --element, c = quint8(c << 1))
+                if (c & 0x40) key ^= matrix[element];
+        }
+        quint16 verify = 0;
+        QByteArray all;
+        all.append(char(ansi.size()));
+        all.append(ansi);
+        for (int i = int(all.size()) - 1; i >= 0; --i) verify = quint16((((verify & 0x4000) ? 1 : 0) | ((verify * 2) & 0x7FFF)) ^ quint8(all[i]));
+        verify ^= 0xCE4B;
+        quint8 table[16];
+        for (int p = 0; p < 16; ++p) {
+            const quint8 k = (p & 1) ? quint8(key >> 8) : quint8(key & 0xFF);
+            const quint8 src = p < ansi.size() ? quint8(ansi[p]) : pad[p - ansi.size()];
+            const quint8 x = quint8(src ^ k);
+            table[p] = quint8((x >> 1) | (x << 7));
+        }
+        auto obfuscate = [&](QByteArray *s, int from) {
+            for (int q = from; q < s->size(); ++q) {
+                const quint8 b = quint8((*s)[q]);
+                const quint8 r = quint8((b >> 3) | (b << 5));   // (the inverse of the rotation the reader ends with)
+                (*s)[q] = char(r ^ table[q % 16]);
+            }
+        };
+        obfuscate(&wd, 68);
+        obfuscate(&tbl, 0);
+        obfuscate(&dat, 0);
+        const quint16 flags = quint16(quint8(wd[10]) | quint8(wd[11]) << 8) | 0x8000;
+        wd[10] = char(flags & 0xFF);
+        wd[11] = char(flags >> 8);
+        const quint32 lKey = quint32(key) | quint32(verify) << 16;
+        for (int i = 0; i < 4; ++i) wd[14 + i] = char((lKey >> (8 * i)) & 0xFF);
+    } else {
+        for (int i = 0; i < 4; ++i) wd[14 + i] = char((quint32(description.size()) >> (8 * i)) & 0xFF);
+        encipher(&wd, 68, keyFor);
+        encipher(&tbl, int(description.size()), keyFor);
+        if (!dat.isEmpty()) encipher(&dat, 0, keyFor);
+        for (int i = 0; i < description.size(); ++i) tbl[i] = description[i];
+    }
+    f.setStream(QStringLiteral("WordDocument"), wd);
+    f.setStream(QStringLiteral("1Table"), tbl);
+    if (!dat.isEmpty()) f.setStream(QStringLiteral("Data"), dat);
+    return jp::cfb::write(f);
+}
+
 
 } // namespace dochelp

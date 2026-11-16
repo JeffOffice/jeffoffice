@@ -1,6 +1,7 @@
 // Tests of libs/office/doc: reading an old binary word processing file into the document the .docx reader makes. Every file is built in
 // memory by dochelpers.h; the hostile ones are that file changed.
 #include "dochelpers.h"
+#include "doc/doccrypt.h"
 #include "office/package.h"
 
 #include "doc/doc.h"
@@ -28,6 +29,118 @@ using jp::office::wml::ReadNotes;
 using jp::office::Package;
 
 namespace {
+
+// The known-answer streams: made by tools/doc_encrypt_kat.py from the published rules alone, never by the program's own code (password "Pa\xc3\x9fw\xc3\xb6rd1").
+const char *const kDocKatRC440_wd =
+    "7KURGB8mLTQ7QgADV140AAAAgYiPlp2kq7K5wMfO1dzj6vH4/wYNFBsiKTA3PkVMU1phaG92fYSLkpmgp661vMPK0dhTG1hSjTLX"
+    "ARxFZqP/YAlNqehZgQueIokPF6kj8GuT+xILTwMSYiHrsGjDyGLpoWg14bTm+EDjnEPzD4O6qbgMMSQri1ufOEFVpuKfcXddusuj"
+    "a/e+c/EqJRqhTDJFfVfi+BuAtvlEFKXAADR//wGVMii73DZLz4gaDQij3MZHnM2uMY3D+xTarYuK63qeIqljjfhaDob/Xoz5HF4Y"
+    "r6eiikjvV9aoOLid6PoiZFrsGd18oRrC4NEwEkWMyp0Gzc9JFtR1RsYZ2G39+g+ZrlS/inEdolnmkS6Pyf2h/XPIjzABPhqoqS2x"
+    "dn+zAGDYph+d6YAY0qMWcUfLpGYW+i3aHafAWp5If3aeANXgLCtWl4Sff24H8rB53M8yj1g17OYJyS61ObLt8At5YSofVFvw9MZu"
+    "FlrpINucT+d5VIzEAdeZ/RnIKE/jnaRMvw4NipJOxKvE4L3hK2wUk/dqDbpFQFUJb/8vy0cdrwBbuB8z/FcMS40DygvzjJjEqWGV"
+    "tPNfmepxgcsjUAe7DKKH8pWp63+HA3L2P1CcC8b0j33/Df+Ga6vNFk8eo4/XpyG2LurK3bQmeTKGdd40yFq6Fz2wr4L4XF3IamrX"
+    "f/akhg76nSjpOOUWW9GbiaUdMrYs86bIrPK10V1TiDT6H4Arce09VE/j+fId/LuniTjvd+lupcJMiHpYDvE3vQhRrAri8CPGN43n"
+    "WNrzfKIz2Z4Wfx+OmNNvleMlCJhI+4Sep9oopaYh9KnsqtPOLBAU0H0PMN3yF/li3TcT+mAjkJTU+pdYysfEynUe9CSYS4+bXrvD"
+    "uFcFyijt1k9hzEFWS4paKA+zkzYPw6kbuFa38LEEDVO/ni4VCGnMPZ8vkwMqWwegkihWt4XV0bFMsNvR5xrZMD0jBvuJ9qhecPQn"
+    "KA55SJILnAV21JH7vLjfSt3y/jdXJttq7LE7mDXNHr+KuvkTPAWYvRYW6IWRZqfaOK5LHe3g0jDLG4xb/1hX2thOsqCh50aDIakI"
+    "T3qz8V96upaxoVzU2q5ED3H+h/bgjC6JDYL2BqM27DCa8/3Fq+9Cu73lWzEw0CLXaF0OvpxnhTfShdoHN0COzQiacQDHrTLZ8xRm"
+    "p6aeSrkXRIzvpfYpq11RK7Lkm8AKnl9AUD3rMQN5efYyXBcYU+C3k5oSx7VCFQy5n235JvIsU5SObRR9jZB0IOPHobo2BApJQi1V"
+    "ONvjb/5eLIcOCUs5T4fbZWxOdnOCf2ILffVr5dhZYAR2o52FScf02drifLGNwFvHBYcHiRPGXYtANfLu/P8aIH7ltmbY8Zzqb+yR"
+    "14B5hwWIncW+WZ0dn4f33aTGSbYv/eFiBOu7dI/VvWK34gd8DCMDCpAYz0/5tf0sLEM=";
+const char *const kDocKatRC440_table =
+    "AQABAAUSHyw5RlNgbXqHlKGuu8jvZ1qDD7TA9Rm0OjxkQvAIL9g8CdsYsiVFgK8BPWfZjhOB+vdb+02vSzruKpCNKvr/hzQu+aZD"
+    "taDp+k8LlJ3ZBVT1HZ/qVh2TuxWPZP9nD/6X47+m9rWfzARfZNZdNfzZHVh6bPRXCN+fc+8uPQy4nbjHd68LrPXpCn7zBQPJLmcf"
+    "x2sqhwW+ubYd4KbRCSOOZLc8Am3Q4FksnJjLS5UBXlTXQKL/exyG4fRPSFLzKGEyXfG3b4BuEScWB45qtj3PMVTGmvKLyhBVoPKM"
+    "O1NWZtRD62I8rMzhhGaO0O54jTGATYZWVGWkjinwpgmSeXvlijiJslKNbNFRZmPt2sArJs2xPs0SZboTZUENaee8+1ydkqYcPblF"
+    "ipMvrNRsMovxleyERhei5dsnWIqCbplusTusJurc68IirEkM2N/CAygj0/KThsTtQGOOI8yhGBLlVYIJjSZ5hHcV/Yar4M9kGDqC"
+    "is5dlE8AI5sVwBhwtXsFEeU8vNtXIQjQ03p5HgbieAdYdEkVv/C4L1v+mc4xLMml00u7X7PhQ5z3DKunaDtwJxGXfr9nEHQ4RfUB"
+    "AEfzBYYN9V+35LsXkE5zBgE9R8Mrn+aCS8QAp3pYG+kL+RMaxxd5gttq3+NLC5UCun4mIVi67YYy4UJYtDYug4kEAx4UoKlc/t5r"
+    "02rI8npuCYRVlHmCryUPFQmhniK4h9KkMF4JZcnHfMgWgyyfxXmpODOPZWapSC87ZcQD433aEW7Q5AYsmmWDAaTNQP4WZLdqiyF7"
+    "zK6H6D6fZTKC6+t6dE/DKVexnOw0lxgyE268MUrdGDV4HmdasHxovOmbhGleixWeKaOHTtyPDPigjgPMZntoVuHqALAE5zM3yi+3"
+    "zDuZZpRZQtuVMK3K5z7uvJvf71qTVx2vLMpbDF2QmecLMrJ5dB1YqSuTP5/Gr/M0BoTqGxlBpcXYLHdtS45NxMnPmlc1QjzKBIhL"
+    "tKLN/AafcPmaSAVPCCxDJqGeaqPjknf2AE3PDKF5ohMW1o1nqJE0AbqKfHFl8jt2hALfiZmUvqxnpzjPa6yrNkTiBhQ1cyr/TTWc"
+    "+84nbbOGVgIlFeh4RsI4e+VqM0pMEMJ9+RZiqh+acKTuh2lZB1PuLykRr92sfJ5j/Ml6wvD7KYNmEU7ry6wSWbwu5Zyr0V5NZ6DS"
+    "Czpytk2D0DhTCWpF3ynFvx5YN1yeaqvUzJFXnZftDYJewLuk53QjZ2b+Wxn2oZgt8xGVug==";
+const char *const kDocKatRC440_data =
+    "50UO+W8OVBfR5l4mVJg02pbYppaWbz/89uaALk40mMhnH7bzVT0J0qCzetC6AFzeMz7lOH/9lmvPT/k719YSxgQZnk5TG1hSjTLX"
+    "ARxFZqP/YAlNqehZgQueIokPF6kj8GuT+xILTwMSYiHrsGjDyGLpoWg14bTm+EDjnEPzD4O6qbgMMSQri1ufOEFVpuKfcXddusuj"
+    "a/e+c/EqJRqhTDJFfVfi+BuAtvlEFKXAADR//wGVMii73DZLz4gaDQij3MZHnM2uMY3D+xTarYuK63qeIqljjfhaDob/Xoz5HF4Y"
+    "r6eiikjvV9aoOLid6PoiZFrsGd18oRrC4NEwEkWMyp0Gzc9JFtR1RsYZ2G39+g+ZrlS/inEdolnmkS6Pyf2h/XPIjzABPhqoqS2x"
+    "dn+zAGDYph+d6YAY0qMWcUfLpGYW+i3aHafAWp5If3aeANXgLCtWl4Sff24H8rB53M8yj1g17OYJyS61ObLt8At5YSofVFvw9MZu"
+    "FlrpINucT+d5VIzEAdeZ/RnIKE/jnaRMvw4NipJOxKvE4L3hK2wUk/dqDbpFQFUJb/8vy0cdrwBbuB8z/FcMS40DygvzjJjEqWGV"
+    "tPNfmepxgcsjUAe7DKKH8pWp63+HA3L2P1CcC8b0j33/Df+Ga6vNFk8eo4/XpyG2LurK3bQmeTKGdd40yFq6Fz2wr4L4XF3IamrX"
+    "f/akhg76nSjpOOUWW9GbiaUdMrYs86bIrPK10V1TiDT6H4Arce09VE/j+fId/LuniTjvd+lupcJMiHpYDvE3vQhRrAri8CPGN43n"
+    "WNrzfKIz2Z4Wfx+OmNNvleMlCJhI+4Sep9oopaYh9KnsqtPOLBAU0H0PMN3yF/li3TcT+mAjkJTU+pdYysfEynUe9CSYS4+bXrvD"
+    "uFcFyijt1k9hzEFWS4paKA+zkzYPw6kbuA==";
+const char *const kDocKatCRYPTOAPI_wd =
+    "7KURGB8mLTQ7QgADV17GAAAAgYiPlp2kq7K5wMfO1dzj6vH4/wYNFBsiKTA3PkVMU1phaG92fYSLkpmgp661vMPK0difjKw36s1B"
+    "Yf2r2h9lFDsgLUpvkarLBY5Ox9k2grtBGpdEy+mnoClftyJOpwPDT+y74qzYhxh3Kh5eJseB1bh09PEc77XGTtwXQFueMkVMp9yK"
+    "KOTwF2nkaRFMqAh+/4+uuRDU46ODmU0sfH/+qMks+bcgIam9AmVj/IbKHzbA3+4leNcWRafRFTL/ndRrjkWk6cFFPQDoCYXRAEqL"
+    "UuiBVZEljw3DNre5DqP40YP+vHome0gNttQ3xPr3TjRInqQ8sPVAnAGQ1722DbsQKB+gs34yhi3BIJdcWzSYoXjB/lJhUkad/zC4"
+    "13rfV6PEKjTHUwMztbDoKwBw1MnfZqhF3ICaB7P3PMSZmuTYDXS8O7OqYn1SDmKJ2581tDVBI+t34X58YjHnBX/UpDfZUvTWDXUF"
+    "+R80rgGlrPICTCDa+uP+9gqLwh/0J75ovAsPAe4Yv58Gsj402BmhMiqFs9GxVZ64Xm71WN7a4mqvA6Wsl1vLUwWJuHFAzFMi7MY3"
+    "9SPYmAAxW86G5kbTjnPLddvKCwX1DmDq/im867bWpMD8/BTzTivaGoDLZeHxgeT3s95nY6Jla8Z0B6iHXUuBQXHXgWFcHhM3pTtZ"
+    "1Vil9DkBLswqZiIZXLNuvRtAcQMKkV1tVRGbIRnsiYjlQd8uvhAs4YgLgIIAUqKXr2xzrd0fImoUbCHk9W/i3MteCwFvcRtTOs6r"
+    "LfRXaF2cPvC8KCsTVHfe+y8/XQyW8cbU4nYzTT560ezotbLCI++AsctDLj2NaGRappFtztLPQb8PJOl15X7VAjahR+Y3j2gKdB+L"
+    "gRV718TFDdU26iDombCzs+Ppn0Xu8H72sNzbGfbUtOic2IOjRiqIIWx4GtliIVbBIIw/RwkCMxvqT+NUcJo6m78mqqfiZj9Hef0l"
+    "XtubHk7i23HIAHmi1DmHTr41ld/V+ciY1coiSQ1QJiZnVgzOLk9vI6QFBFnHFPKUkDfhk88nzbnnk1PugjEa5RTiU8/Or00FF7Z4"
+    "N0P0vx0ggHs6J0qq+5cuKyWNdBDMOau0mKbs8zNh+psdqGi0yBJvkr8WPUzrs2Z0WtVkJwPt837FAAYB/h2i+LTjK3EYinxyCOmC"
+    "IVk/B4DOr6d53tAhOCuLZqyNJfGawavQJ7WrAAGC4zAV40vvWo2xA6SOHEWIX7wqNDqLexDq5lzXbVrGYolT1xEFJ4lEF9dIsZF6"
+    "H4PkmUiLX3cvoYY8c8E2UpYA1gVhCoCpCVDe6Aa2qBw33eIBRK/O6Y2/WlujSjfUEzswGKKbOGbGSB46rkPaJqyQYVsnG0z6gOce"
+    "OwrO1n9Ai1iaoyAktTJjg1ItrmBRb5ZGfj6l6ify/zaCEm7Wtz+tTIk3ClsryPBCOfM=";
+const char *const kDocKatCRYPTOAPI_table =
+    "BAACACQAAAB+AAAAJAAAAAAAAAABaAAABIAAAIAAAAABAAAAAAAAAAAAAABFAG4AaABhAG4AYwBlAGQAIABDAHIAeQBwAHQAbwBn"
+    "AHIAYQBwAGgAaQBjACAAUAByAG8AdgBpAGQAZQByACwAIAB2AGUAcgBzAGkAbwBuACAAMQAuADAALgAwAAAAEAAAAAUSHyw5RlNg"
+    "bXqHlKGuu8gA8U6KUgS9RX22jQ/HEBl6FAAAAOTYI1PPxTVMXPJPuY8sjir5Xu3KFql83zFnr5hhcy6BGNMOU2/bV3qenx97vuQR"
+    "uB53vwuLMadZoMHDZD1WayloKpDcldanDGKhXpCJIK7iKBKWKhu+dpsGYQcck9VqQok2GcScGMc71gHG8Yo2OxK3iDj7/Pg3ZaZO"
+    "LZBB+RluvKKtKW2tHwpevZqaKidFzB7zdhr0edltqnIjMHo2954qrRkQzOM4dBQfQTWLGq+r1R2de9DCyKtxcwW+Oplj+GJA54/r"
+    "Z7WOGJc/xoxs1opsTElkGPRhWIlCnRT20nFll3iyBTGYWMTCToMLjIQf2afHPwQW4MRvziggCPQBuQ86ATGxPZsjAsfWVrncAlyd"
+    "Q5VyAm5PMVQQUPx5EJ0xn01cob9bkAqQiL8mQQh4PioKCv5p4JVwgBa9H4tvL15dJUiNmUz7wXzCkTLtIyUb68dhK/uy4PmtM43j"
+    "f8bLjlOXuGaQyLzzpkX4J7H+35lg5ysHz78li4N6f3IP33GUFIa6i/JlHii65DQNRZKdN3eplMCOAl+Ob/lUZmHA5fuF5435gGA1"
+    "R44h/sc2gF4mwt3lvu1wRYWly3rsm1h6WNyl29SAP3JCDwRUuYX+31HpmIsn8oqkTAv7eGhl39F1Tn/jT8R7nNxbsXCtJdak7nX9"
+    "93/heXpvl0PAEMp2NwoZJXWD5StwWsRAJkYx5xhOHl4qchnNOEASt9rCsEeM27xXtiaF6ZdoSW181Unq3gDQbUnMMAlczKXRD4dP"
+    "wHUhtNh0MYsmntMYYq8dJMBbD3VjT2ICOzTI05vmnIz5OHakuNnFmQqb7qMxgmg+Lpl7+blRpyNJLfl0FMfgD4pM6WVYOSd/eSjS"
+    "jfViJffebuGQkfwAYflQQb8bwqpmp0VOcjB6WYnPZPFn3v4uYqzBCFXgy6ZxHdjewEMSXWlzXcRvlpDrBPM8Ug5Vvety9BLool80"
+    "i8PR+WpUORHDdE5PQkEd8AY3i29wO11GvR8VrpvolUZ/eeVR8Bcn9V5kgusy9Sq8XkDl5bpQUMpNh6Qo+CPlYbufSfcujUH+Czvk"
+    "8XkOD94h5dmxy/xK5Vuc7DiaPPOX4BoHt/pEfnDMwoKZZ0iX0kU0BxMV4O010F2qfaGarhQxoog4ooSsGPlwuMLqC82xsfZUHg3k"
+    "zZxUfMHuETLs1Uq+G4zJGcTbVIrPwSzs6KjPkElsVYw0hPQ8SdE35j+BoMFFtprY";
+const char *const kDocKatCRYPTOAPI_data =
+    "CNMa8DK+Kae15OkV98rdqAnnSALyi8T9olw3RVuR03ghplLCYrZb21Fc2ujCOpFMeBQ4CM714Po1QKYeCz7iUDHItmCfjKw36s1B"
+    "Yf2r2h9lFDsgLUpvkarLBY5Ox9k2grtBGpdEy+mnoClftyJOpwPDT+y74qzYhxh3Kh5eJseB1bh09PEc77XGTtwXQFueMkVMp9yK"
+    "KOTwF2nkaRFMqAh+/4+uuRDU46ODmU0sfH/+qMks+bcgIam9AmVj/IbKHzbA3+4leNcWRafRFTL/ndRrjkWk6cFFPQDoCYXRAEqL"
+    "UuiBVZEljw3DNre5DqP40YP+vHome0gNttQ3xPr3TjRInqQ8sPVAnAGQ1722DbsQKB+gs34yhi3BIJdcWzSYoXjB/lJhUkad/zC4"
+    "13rfV6PEKjTHUwMztbDoKwBw1MnfZqhF3ICaB7P3PMSZmuTYDXS8O7OqYn1SDmKJ2581tDVBI+t34X58YjHnBX/UpDfZUvTWDXUF"
+    "+R80rgGlrPICTCDa+uP+9gqLwh/0J75ovAsPAe4Yv58Gsj402BmhMiqFs9GxVZ64Xm71WN7a4mqvA6Wsl1vLUwWJuHFAzFMi7MY3"
+    "9SPYmAAxW86G5kbTjnPLddvKCwX1DmDq/im867bWpMD8/BTzTivaGoDLZeHxgeT3s95nY6Jla8Z0B6iHXUuBQXHXgWFcHhM3pTtZ"
+    "1Vil9DkBLswqZiIZXLNuvRtAcQMKkV1tVRGbIRnsiYjlQd8uvhAs4YgLgIIAUqKXr2xzrd0fImoUbCHk9W/i3MteCwFvcRtTOs6r"
+    "LfRXaF2cPvC8KCsTVHfe+y8/XQyW8cbU4nYzTT560ezotbLCI++AsctDLj2NaGRappFtztLPQb8PJOl15X7VAjahR+Y3j2gKdB+L"
+    "gRV718TFDdU26iDombCzs+Ppn0Xu8H72sA==";
+
+// A compound file of the three streams, as the documents are.
+QByteArray compoundOf(const QByteArray &wd, const QByteArray &table, const QByteArray &data)
+{
+    jp::cfb::File f;
+    jp::cfb::Entry root;
+    root.type = jp::cfb::Entry::Root;
+    root.name = QStringLiteral("Root Entry");
+    f.entries.push_back(root);
+    for (const auto &s : {qMakePair(QStringLiteral("WordDocument"), wd), qMakePair(QStringLiteral("1Table"), table), qMakePair(QStringLiteral("Data"), data)}) {
+        jp::cfb::Entry e;
+        e.type = jp::cfb::Entry::Stream;
+        e.name = s.first;
+        e.data = s.second;
+        f.entries[0].children.push_back(int(f.entries.size()));
+        f.entries.push_back(e);
+    }
+    return jp::cfb::write(f);
+}
+
+QByteArray pattern(int n)
+{
+    QByteArray b(n, 0);
+    for (int i = 0; i < n; ++i) b[i] = char((i * 7 + 3) & 255);
+    return b;
+}
 
 QString paragraphText(const Block &b)
 {
@@ -1049,6 +1162,128 @@ private Q_SLOTS:
         QVERIFY(read(jp::cfb::write(f), &d, &notes));
         QCOMPARE(bodyTexts(d), QStringList{QStringLiteral("xy")});
         QVERIFY(notes.leftOut);
+    }
+
+    // ---- encrypted documents
+
+    void knownAnswerStreamsFromASeparateScriptAreDeciphered()
+    {
+        const QString password = QString::fromUtf8("Pa\xc3\x9fw\xc3\xb6rd1");
+        struct Form {
+            const char *name, *wd, *table, *data;
+            int description;
+        };
+        for (const Form &form : {Form{"RC4 40", kDocKatRC440_wd, kDocKatRC440_table, kDocKatRC440_data, 52}, Form{"CryptoAPI", kDocKatCRYPTOAPI_wd, kDocKatCRYPTOAPI_table, kDocKatCRYPTOAPI_data, 198}}) {
+            const QByteArray file = compoundOf(QByteArray::fromBase64(form.wd), QByteArray::fromBase64(form.table), QByteArray::fromBase64(form.data));
+            QVERIFY2(doc::docEncrypted(file), form.name);
+            QByteArray out;
+            QCOMPARE(doc::decryptDoc(file, QStringLiteral("not it"), 1 << 30, false, &out), CryptResult::WrongPassword);
+            QVERIFY(out.isEmpty());   // (nothing is given for a wrong password)
+            QCOMPARE(doc::decryptDoc(file, QString(), 1 << 30, false, &out), CryptResult::WrongPassword);
+            QCOMPARE(doc::decryptDoc(file, password, 1 << 30, true, &out), CryptResult::Ok);
+            QVERIFY(out.isEmpty());
+            QCOMPARE(doc::decryptDoc(file, password, 1 << 30, false, &out), CryptResult::Ok);
+            QVERIFY(!doc::docEncrypted(out));
+            jp::cfb::File f;
+            QVERIFY(jp::cfb::read(out, &f));
+            const QByteArray wd = f.stream(QStringLiteral("WordDocument")), table = f.stream(QStringLiteral("1Table")), data = f.stream(QStringLiteral("Data"));
+            // (a document stream's first 68 bytes were never enciphered; past them, and past the block of 512, the plain pattern is back)
+            QCOMPARE(wd.size(), 1100);
+            QCOMPARE(wd.mid(68), pattern(1100).mid(68));
+            QCOMPARE(table.mid(form.description), pattern(900));
+            QCOMPARE(data, pattern(700));
+            QVERIFY2(!(quint16(quint8(wd[10]) | quint8(wd[11]) << 8) & 0x0100), form.name);
+        }
+    }
+
+    void aProtectedDocumentOpensWithItsPasswordInEveryForm()
+    {
+        const QString password = QString::fromUtf8("p\xc3\xa4ss word");
+        const QStringList forms = {QStringLiteral("RC4, 40 bits"), QStringLiteral("CryptoAPI"), QStringLiteral("obfuscation")};
+        for (int form = 0; form < 3; ++form) {
+            DocWriter w = simple(QStringLiteral("Secret plans\r") + QString(600, QLatin1Char('x')) + QStringLiteral("\rEnd\r"));
+            const QByteArray file = w.buildProtected(form == 2 ? QStringLiteral("pass word") : password, form);
+            QVERIFY2(!file.isEmpty(), qPrintable(forms[form]));
+            // as it is, the file does not read, and says why
+            Document d;
+            QString why;
+            QVERIFY2(!read(file, &d, nullptr, &why), qPrintable(forms[form]));
+            QVERIFY2(why.contains(QLatin1String("password")), qPrintable(why));
+            QVERIFY(doc::docEncrypted(file));
+            QByteArray plain;
+            QCOMPARE(doc::decryptDoc(file, QStringLiteral("wrong"), 1 << 30, false, &plain), CryptResult::WrongPassword);
+            QVERIFY(plain.isEmpty());
+            QCOMPARE(doc::decryptDoc(file, form == 2 ? QStringLiteral("pass word") : password, 1 << 30, false, &plain), CryptResult::Ok);
+            QVERIFY2(read(plain, &d, nullptr, &why), qPrintable(forms[form] + why));
+            const QStringList texts = bodyTexts(d);
+            QCOMPARE(texts.size(), 3);
+            QCOMPARE(texts[0], QStringLiteral("Secret plans"));
+            QCOMPARE(texts[1].size(), 600);
+            QCOMPARE(texts[2], QStringLiteral("End"));
+        }
+    }
+
+    void aProtectedDocumentIsRefusedWhenItsHeaderOrSizesAreHostile()
+    {
+        DocWriter w = simple(QStringLiteral("x\r"));
+        const QByteArray file = w.buildProtected(QStringLiteral("pw"), 1);
+        QByteArray out;
+        QCOMPARE(doc::decryptDoc(file, QStringLiteral("pw"), file.size() - 1, false, &out), CryptResult::TooLarge);
+        jp::cfb::File f;
+        QVERIFY(jp::cfb::read(file, &f));
+        // the description of the protection said to be larger than the table stream, or than anything the form has, or too small to hold what it must
+        for (const quint32 claim : {quint32(1) << 30, quint32(5000), quint32(10), quint32(0)}) {
+            QByteArray wd = f.stream(QStringLiteral("WordDocument"));
+            for (int i = 0; i < 4; ++i) wd[14 + i] = char((claim >> (8 * i)) & 0xFF);
+            jp::cfb::File g = f;
+            g.setStream(QStringLiteral("WordDocument"), wd);
+            QCOMPARE(doc::decryptDoc(jp::cfb::write(g), QStringLiteral("pw"), 1 << 30, false, &out), CryptResult::Damaged);
+            QVERIFY(out.isEmpty());
+        }
+        // a header from before 1997 is not taken for a protected document (the reader says what it says of such files)
+        QByteArray wd = f.stream(QStringLiteral("WordDocument"));
+        wd[2] = char(0x65);
+        wd[3] = 0;
+        jp::cfb::File g = f;
+        g.setStream(QStringLiteral("WordDocument"), wd);
+        QVERIFY(!doc::docEncrypted(jp::cfb::write(g)));
+        // stopped while the blocks are deciphered
+        DocWriter big = simple(QString(30000, QLatin1Char('y')) + QStringLiteral("\r"));
+        int asked = 0;
+        QCOMPARE(doc::decryptDoc(big.buildProtected(QStringLiteral("pw"), 0), QStringLiteral("pw"), 1 << 30, false, &out, [&asked] { ++asked; return true; }), CryptResult::Cancelled);
+        QVERIFY(asked > 0);
+        QVERIFY(out.isEmpty());
+        // not a compound file, and a compound file with no document in it
+        QVERIFY(!doc::docEncrypted(QByteArray("plain text")));
+        QCOMPARE(doc::decryptDoc(QByteArray("plain text"), QStringLiteral("pw"), 1 << 30, false, &out), CryptResult::Damaged);
+    }
+
+
+    // ---- real files of other programs, when the collections are there (never copied into the repository; without JO_CORPORA the rows skip)
+
+    void realProtectedDocumentsOpen_data()
+    {
+        QTest::addColumn<QString>("path");
+        QTest::addColumn<QString>("password");
+        const QString poi = qEnvironmentVariable("JO_CORPORA") + QStringLiteral("/poi/test-data/document/");
+        QTest::newRow("RC4, 40 bits") << poi + QStringLiteral("password_tika_binaryrc4.doc") << QStringLiteral("tika");
+        QTest::newRow("CryptoAPI") << poi + QStringLiteral("password_password_cryptoapi.doc") << QStringLiteral("password");
+    }
+
+    void realProtectedDocumentsOpen()
+    {
+        QFETCH(QString, path);
+        QFETCH(QString, password);
+        QByteArray file;
+        if (!readWholeFile(path, &file)) QSKIP("the collection is not here");
+        QVERIFY(doc::docEncrypted(file));
+        QByteArray plain;
+        QCOMPARE(doc::decryptDoc(file, QStringLiteral("wrong"), 1 << 30, false, &plain), CryptResult::WrongPassword);
+        QCOMPARE(doc::decryptDoc(file, password, 1 << 30, false, &plain), CryptResult::Ok);
+        Document d;
+        QString why;
+        QVERIFY2(read(plain, &d, nullptr, &why), qPrintable(why));
+        QVERIFY(!bodyTexts(d).join(QLatin1Char(' ')).trimmed().isEmpty());
     }
 
     // ---- files that are not read

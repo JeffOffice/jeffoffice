@@ -108,6 +108,7 @@ public:
     int defaultTab = 720;
     QByteArray data;                   // the data stream: pictures
     bool password = false;             // the header says the file is protected
+    int tableReserve = 0;              // bytes left at the start of the table stream (where a protected file keeps its description of the protection)
     bool oldVersion = false;           // a header from before 1997
     int repeatText = 1;                // the main text's pieces are listed this many times over the same stored text, one after another (a hostile file;
                                        // use it with no notes, headers, or shapes): the text is that many times as long
@@ -121,6 +122,9 @@ public:
     int footnoteFormat = 0;            // how the document numbers its footnotes (4 lower-case letters)
     // The file: a compound file with the three streams.
     QByteArray build() const;
+    // The file protected with `password`, made here from the published rules (not by the program's own code): `form` 0 is RC4 with a 40-bit key, 1 is RC4 with the cryptographic
+    // provider's key (128 bits, SHA-1), 2 is the obfuscation (XOR). The document stream from its byte 68, the table stream after the description, and the data stream are enciphered.
+    QByteArray buildProtected(const QString &password, int form) const;
 };
 
 // A small PNG picture.

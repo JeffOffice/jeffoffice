@@ -117,7 +117,7 @@ bool Converter::open(const QByteArray &file, QString *error)
     if (fileWd.isEmpty()) return fail(QCoreApplication::translate("jp::office::doc", "The file holds no word processing document."));
     wd = Span(fileWd);
     if (!readFib(wd, &fib, &why)) return fail(why);
-    if (fib.encrypted) return fail(QCoreApplication::translate("jp::office::doc", "The document is protected with a password, which this program can't open yet."));
+    if (fib.encrypted) return fail(QCoreApplication::translate("jp::office::doc", "The document is protected with a password, which has to be given when the file is opened."));
     fileTable = cf.stream(fib.whichTable1 ? QStringLiteral("1Table") : QStringLiteral("0Table"));
     if (fileTable.isEmpty()) return fail(QCoreApplication::translate("jp::office::doc", "The document's tables are missing, so its text can't be read."));
     tbl = Span(fileTable);

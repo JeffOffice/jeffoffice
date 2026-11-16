@@ -22,7 +22,7 @@
 #include "sheet/ods.h"
 #include "sheet/xls.h"
 #include "sheet/xlscrypt.h"
-#include "sheet/odscrypt.h"
+#include "office/odfcrypt.h"
 #include "sheet/sheetcrypt.h"
 #include "sheet/xlsxbase.h"
 #include "sheet/pagesetup.h"

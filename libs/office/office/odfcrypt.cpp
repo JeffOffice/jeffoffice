@@ -1,6 +1,6 @@
-// The protection of OpenDocument packages; see odscrypt.h.
+// The protection of OpenDocument packages; see odfcrypt.h.
 
-#include "sheet/odscrypt.h"
+#include "office/odfcrypt.h"
 
 #include "io/crypto.h"
 #include "io/zip.h"
@@ -11,11 +11,19 @@
 #include <QHash>
 #include <QMessageAuthenticationCode>
 #include <QRegularExpression>
+#include <QRandomGenerator>
+#include <QSet>
 #include <QXmlStreamReader>
+#include <QXmlStreamWriter>
 
 #include <algorithm>
+#include <atomic>
+#include <thread>
+#include <vector>
 
-namespace jp::office::sheet {
+#include <zlib.h>
+
+namespace jp::office {
 
 namespace {
 
@@ -190,7 +198,7 @@ CryptResult decryptArgonPackage(const QByteArray &zip, const QVector<jp::ZipEntr
 
 } // namespace
 
-bool odsEncrypted(const QByteArray &zip)
+bool odfEncrypted(const QByteArray &zip)
 {
     QVector<jp::ZipEntry> entries;
     if (!jp::readZipDirectory(zip, &entries)) return false;
@@ -198,12 +206,12 @@ bool odsEncrypted(const QByteArray &zip)
     return readManifest(zip, entries, &found) && !found.isEmpty();
 }
 
-CryptResult decryptOds(const QByteArray &zip, const QString &password, qint64 maxBytes, bool verifyOnly, QByteArray *plain, const std::function<bool()> &cancelled)
+CryptResult decryptOdf(const QByteArray &zip, const QString &password, qint64 maxBytes, bool verifyOnly, QByteArray *plain, const std::function<bool()> &cancelled)
 {
     QVector<jp::ZipEntry> entries;
     if (!jp::readZipDirectory(zip, &entries)) return CryptResult::Damaged;
     QHash<QString, Protection> protection;
-    if (!readManifest(zip, entries, &protection) || protection.isEmpty()) return CryptResult::Damaged;
+    if (!readManifest(zip, entries, &protection) || protection.isEmpty() || protection.size() > kMaxOdfParts) return CryptResult::Damaged;
     // Every part's sizes and counts are checked, all of them, before any key is made for any: a manifest with one bad part costs no work.
     auto checkPart = [](const Protection &p, bool *aes, int *keySize) {
         if (isArgon(p)) {
@@ -211,7 +219,7 @@ CryptResult decryptOds(const QByteArray &zip, const QString &password, qint64 ma
             const bool gcm = p.algorithm.contains(QLatin1String("aes"), Qt::CaseInsensitive) && p.algorithm.contains(QLatin1String("gcm"), Qt::CaseInsensitive);
             if (!gcm) return CryptResult::Unsupported;
             *keySize = p.keySize > 0 ? p.keySize : p.algorithm.contains(QLatin1String("128")) ? 16 : p.algorithm.contains(QLatin1String("192")) ? 24 : 32;
-            if (p.argonIterations > kMaxOdsArgonIterations || p.argonMemory > kMaxOdsArgonMemoryKiB || p.argonLanes > kMaxOdsArgonLanes) return CryptResult::TooCostly;
+            if (p.argonIterations > kMaxOdfArgonIterations || p.argonMemory > kMaxOdfArgonMemoryKiB || p.argonLanes > kMaxOdfArgonLanes) return CryptResult::TooCostly;
             if (p.argonIterations < 1 || p.argonLanes < 1 || p.argonMemory < 8 * p.argonLanes) return CryptResult::Damaged;
             if ((*keySize != 16 && *keySize != 24 && *keySize != 32) || p.salt.size() < 8 || p.salt.size() > 1024 || p.iv.size() != 12 || p.size < 0 || p.size > jp::kMaxZipEntryBytes)
                 return CryptResult::Damaged;
@@ -226,18 +234,27 @@ CryptResult decryptOds(const QByteArray &zip, const QString &password, qint64 ma
         *keySize = p.keySize;
         if (*keySize <= 0) *keySize = !*aes ? 16 : p.algorithm.contains(QLatin1String("128")) ? 16 : p.algorithm.contains(QLatin1String("192")) ? 24 : 32;
         const bool keyFits = *aes ? (*keySize == 16 || *keySize == 24 || *keySize == 32) : (*keySize >= 4 && *keySize <= 56);
-        if (!keyFits || p.rounds < 1 || p.rounds > kMaxOdsKeyRounds || p.salt.isEmpty() || p.salt.size() > 1024 || p.iv.size() != (*aes ? 16 : 8) || p.size < 0 || p.size > jp::kMaxZipEntryBytes)
+        if (!keyFits || p.rounds < 1 || p.rounds > kMaxOdfKeyRounds || p.salt.isEmpty() || p.salt.size() > 1024 || p.iv.size() != (*aes ? 16 : 8) || p.size < 0 || p.size > jp::kMaxZipEntryBytes)
             return CryptResult::Damaged;
         return CryptResult::Ok;
     };
+    // (the keys that will be made, counted before any is: parts that share a salt and a count share a key, and a manifest that names no start key has two made for each)
     qint64 roundsOfAll = 0;
+    QSet<QByteArray> stretches;
     for (auto it = protection.constBegin(); it != protection.constEnd(); ++it) {
         bool aes = false;
         int keySize = 0;
         const CryptResult r = checkPart(it.value(), &aes, &keySize);
         if (r != CryptResult::Ok) return r;
-        roundsOfAll += it.value().rounds;   // (each is within the limit: the sum of some thousands of them cannot overflow)
-        if (roundsOfAll > kMaxOdsKeyRounds * 64) return CryptResult::Damaged;
+        const Protection &p = it.value();
+        if (isArgon(p)) continue;
+        const int variants = p.startKey.isEmpty() ? 2 : 1;
+        for (int v = 0; v < variants; ++v)
+            if (!stretches.contains(p.salt + QByteArray::number(p.rounds) + ':' + QByteArray::number(keySize) + ':' + char('0' + v) + p.startKey.toUtf8())) {
+                stretches.insert(p.salt + QByteArray::number(p.rounds) + ':' + QByteArray::number(keySize) + ':' + char('0' + v) + p.startKey.toUtf8());
+                roundsOfAll += p.rounds;   // (each is within the limit, and there are at most kMaxOdfParts of them: the sum cannot overflow)
+            }
+        if (roundsOfAll > kMaxOdfTotalKeyRounds) return CryptResult::Damaged;
     }
     for (const Protection &p : std::as_const(protection))
         if (isArgon(p)) return protection.size() == 1 && protection.contains(QStringLiteral("encrypted-package")) ? decryptArgonPackage(zip, entries, protection.constBegin().value(), password, maxBytes, verifyOnly, plain, cancelled) : CryptResult::Unsupported;
@@ -299,7 +316,7 @@ CryptResult decryptOds(const QByteArray &zip, const QString &password, qint64 ma
             if (key.isEmpty()) {
                 // (each part was checked against the limit above, so the sum cannot overflow)
                 rounds += p.rounds;
-                if (rounds > kMaxOdsKeyRounds) {
+                if (rounds > kMaxOdfTotalKeyRounds) {
                     result = CryptResult::Damaged;
                     broke = true;
                     break;
@@ -364,4 +381,219 @@ CryptResult decryptOds(const QByteArray &zip, const QString &password, qint64 ma
     return result;
 }
 
-} // namespace jp::office::sheet
+namespace {
+
+QByteArray randomBytes(int n)
+{
+    QByteArray b(n, 0);
+    QRandomGenerator *g = QRandomGenerator::system();
+    for (int i = 0; i < n; ++i) b[i] = char(g->generate() & 0xFF);
+    return b;
+}
+
+// Raw deflate (no zlib header), as the parts of a package hold it before they are enciphered; empty if it fails.
+QByteArray deflateRaw(const QByteArray &in)
+{
+    z_stream zs{};
+    if (deflateInit2(&zs, 9, Z_DEFLATED, -15, 8, Z_DEFAULT_STRATEGY) != Z_OK) return QByteArray();
+    QByteArray out(qsizetype(deflateBound(&zs, uLong(in.size()))), Qt::Uninitialized);
+    zs.next_in = reinterpret_cast<Bytef *>(const_cast<char *>(in.constData()));
+    zs.avail_in = uInt(in.size());
+    zs.next_out = reinterpret_cast<Bytef *>(out.data());
+    zs.avail_out = uInt(out.size());
+    const int r = ::deflate(&zs, Z_FINISH);
+    out.truncate(qsizetype(zs.total_out));
+    deflateEnd(&zs);
+    return r == Z_STREAM_END ? out : QByteArray();
+}
+
+struct Sealed {
+    QByteArray data, salt, iv, checksum;
+    qint64 size = 0;
+    int rounds = 0;
+};
+
+} // namespace
+
+QByteArray encryptOdf(const QByteArray &zip, const QString &password, qint64 maxBytes, const OdfEncryptOptions &options, const std::function<bool()> &cancelled)
+{
+    if (options.rounds < 1 || options.rounds > kMaxOdfKeyRounds) return QByteArray();
+    QVector<jp::ZipEntry> entries;
+    if (!jp::readZipDirectory(zip, &entries) || entries.size() > kMaxOdfParts) return QByteArray();
+    QHash<QString, Protection> existing;
+    if (readManifest(zip, entries, &existing) && !existing.isEmpty()) return QByteArray();
+    const jp::ZipEntry *manifest = nullptr;
+    for (const jp::ZipEntry &e : entries)
+        if (cleanName(e.name) == QLatin1String("META-INF/manifest.xml")) manifest = &e;
+    if (!manifest || manifest->usize > (qint64(8) << 20)) return QByteArray();
+    QByteArray manifestXml;
+    if (!jp::inflateZipEntry(zip, *manifest, &manifestXml)) return QByteArray();
+
+    QByteArray pw = password.toUtf8();
+    QByteArray start = QCryptographicHash::hash(pw, QCryptographicHash::Sha256);
+    crypto::wipe(pw);
+    QHash<QString, Sealed> sealed;
+    QVector<QString> order;
+    qint64 total = 0;
+    bool failed = false;
+    for (const jp::ZipEntry &e : entries) {
+        const QString name = cleanName(e.name);
+        if (name == QLatin1String("mimetype") || name == QLatin1String("META-INF/manifest.xml") || name.endsWith(QLatin1Char('/'))) continue;
+        if (cancelled && cancelled()) {
+            failed = true;
+            break;
+        }
+        QByteArray plain;
+        total += e.usize;
+        if (total > maxBytes || !jp::inflateZipEntry(zip, e, &plain)) {
+            failed = true;
+            break;
+        }
+        Sealed s;
+        s.size = plain.size();
+        s.rounds = options.rounds;
+        s.salt = randomBytes(16);
+        s.iv = randomBytes(16);
+        QByteArray packed = deflateRaw(plain);
+        if (packed.isEmpty() && !plain.isEmpty()) {
+            failed = true;
+            break;
+        }
+        s.checksum = QCryptographicHash::hash(QByteArrayView(packed).left(1024), QCryptographicHash::Sha256);
+        s.data = packed;   // (enciphered below, all the parts at once)
+        crypto::wipe(plain);
+        sealed.insert(name, s);
+        order.append(e.name);
+    }
+    // Each part's key is its own stretch of the password, so the parts are done side by side, on as many threads as the machine has cores (at most eight).
+    if (!failed) {
+        QList<Sealed *> work;
+        for (auto it = sealed.begin(); it != sealed.end(); ++it) work.append(&it.value());
+        std::atomic<int> next{0};
+        std::atomic<bool> bad{false};
+        auto run = [&] {
+            for (int i = next++; i < work.size() && !bad; i = next++) {
+                Sealed &s = *work[i];
+                QByteArray key = pbkdf2Sha1(start, s.salt, s.rounds, 32, cancelled);
+                if (key.isEmpty()) {
+                    bad = true;
+                    break;
+                }
+                const int pad = 16 - int(s.data.size() % 16);
+                QByteArray padded = s.data + QByteArray(pad, char(pad));
+                crypto::wipe(s.data);
+                s.data = crypto::aesCbc(key, s.iv, padded, true);
+                crypto::wipe(key);
+                crypto::wipe(padded);
+                if (s.data.isEmpty()) bad = true;
+            }
+        };
+        const int threads = std::max(1, std::min({8, int(std::thread::hardware_concurrency()), int(work.size())}));
+        std::vector<std::thread> pool;
+        for (int i = 1; i < threads; ++i) pool.emplace_back(run);
+        run();
+        for (std::thread &t : pool) t.join();
+        failed = bad;
+    }
+    crypto::wipe(start);
+    if (failed) return QByteArray();
+
+    // The manifest: each part that was enciphered gets its size and how it was.
+    QByteArray newManifest;
+    {
+        QXmlStreamReader r(manifestXml);
+        QXmlStreamWriter w(&newManifest);
+        w.setAutoFormatting(false);
+        w.writeStartDocument();
+        QString prefix = QStringLiteral("manifest");
+        const Sealed *current = nullptr;
+        QSet<QString> listed;
+        int depth = 0;
+        auto writeData = [&](const Sealed &sd) {
+            const QString p = prefix.isEmpty() ? QString() : prefix + QLatin1Char(':');
+            w.writeStartElement(p + QLatin1String("encryption-data"));
+            w.writeAttribute(p + QLatin1String("checksum-type"), QStringLiteral("urn:oasis:names:tc:opendocument:xmlns:manifest:1.0#sha256-1k"));
+            w.writeAttribute(p + QLatin1String("checksum"), QString::fromLatin1(sd.checksum.toBase64()));
+            w.writeEmptyElement(p + QLatin1String("algorithm"));
+            w.writeAttribute(p + QLatin1String("algorithm-name"), QStringLiteral("http://www.w3.org/2001/04/xmlenc#aes256-cbc"));
+            w.writeAttribute(p + QLatin1String("initialisation-vector"), QString::fromLatin1(sd.iv.toBase64()));
+            w.writeEmptyElement(p + QLatin1String("key-derivation"));
+            w.writeAttribute(p + QLatin1String("key-derivation-name"), QStringLiteral("PBKDF2"));
+            w.writeAttribute(p + QLatin1String("key-size"), QStringLiteral("32"));
+            w.writeAttribute(p + QLatin1String("iteration-count"), QString::number(sd.rounds));
+            w.writeAttribute(p + QLatin1String("salt"), QString::fromLatin1(sd.salt.toBase64()));
+            w.writeEmptyElement(p + QLatin1String("start-key-generation"));
+            w.writeAttribute(p + QLatin1String("start-key-generation-name"), QStringLiteral("http://www.w3.org/2000/09/xmldsig#sha256"));
+            w.writeAttribute(p + QLatin1String("key-size"), QStringLiteral("32"));
+            w.writeEndElement();   // encryption-data
+        };
+        while (!r.atEnd()) {
+            r.readNext();
+            if (r.isStartDocument() || r.isEndDocument() || r.isDTD()) continue;
+            if (r.isStartElement()) ++depth;
+            struct Leave {
+                QXmlStreamReader &r;
+                int &depth;
+                ~Leave() { if (r.isEndElement()) --depth; }
+            } leave{r, depth};
+            if (r.isStartElement() && r.name() == QLatin1String("file-entry")) {
+                prefix = r.prefix().toString();
+                const QString entryName = cleanName(r.attributes().value(QLatin1String("full-path")).toString());
+                listed.insert(entryName);
+                const auto it = sealed.constFind(entryName);
+                if (it == sealed.constEnd()) {
+                    w.writeCurrentToken(r);
+                    continue;
+                }
+                current = &*it;
+                w.writeStartElement(r.qualifiedName().toString());
+                for (const QXmlStreamNamespaceDeclaration &d : r.namespaceDeclarations()) w.writeNamespace(d.namespaceUri().toString(), d.prefix().toString());
+                for (const QXmlStreamAttribute &a : r.attributes())
+                    if (a.name() != QLatin1String("size")) w.writeAttribute(a.qualifiedName().toString(), a.value().toString());
+                const QString p = prefix.isEmpty() ? QString() : prefix + QLatin1Char(':');
+                w.writeAttribute(p + QLatin1String("size"), QString::number(current->size));
+                continue;
+            }
+            if (r.isEndElement() && r.name() == QLatin1String("file-entry") && current) {
+                writeData(*current);
+                w.writeEndElement();   // file-entry
+                current = nullptr;
+                continue;
+            }
+            if (r.isEndElement() && depth == 1) {
+                // (a part that the manifest did not list is listed now: it could not be opened otherwise)
+                for (auto it = sealed.constBegin(); it != sealed.constEnd(); ++it) {
+                    if (listed.contains(it.key())) continue;
+                    const QString p = prefix.isEmpty() ? QString() : prefix + QLatin1Char(':');
+                    w.writeStartElement(p + QLatin1String("file-entry"));
+                    w.writeAttribute(p + QLatin1String("full-path"), it.key());
+                    w.writeAttribute(p + QLatin1String("media-type"), QString());
+                    w.writeAttribute(p + QLatin1String("size"), QString::number(it->size));
+                    writeData(*it);
+                    w.writeEndElement();
+                }
+            }
+            w.writeCurrentToken(r);
+        }
+        if (r.hasError()) return QByteArray();
+    }
+
+    jp::ZipWriter out;
+    for (const jp::ZipEntry &e : entries) {
+        const QString name = cleanName(e.name);
+        if (name == QLatin1String("META-INF/manifest.xml")) {
+            out.add(e.name, newManifest, true);
+            continue;
+        }
+        const auto it = sealed.constFind(name);
+        if (it == sealed.constEnd()) {
+            if (e.dataAt < 0 || e.csize < 0 || e.dataAt + e.csize > zip.size()) return QByteArray();
+            out.addRaw(e.name, e.method, e.crc, quint32(e.csize), quint32(e.usize), zip.constData() + e.dataAt);
+            continue;
+        }
+        out.add(e.name, it->data, false);
+    }
+    return out.finish();
+}
+
+} // namespace jp::office

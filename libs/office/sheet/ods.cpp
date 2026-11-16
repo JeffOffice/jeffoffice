@@ -1,5 +1,5 @@
 #include "sheet/ods.h"
-#include "sheet/odscrypt.h"
+#include "office/odfcrypt.h"
 #include "sheet/sheetcrypt.h"
 
 #include "calc/dates.h"
@@ -1986,9 +1986,9 @@ bool Workbook::openOpenDocument(const QByteArray &given, bool flat, QString *err
     QByteArray file = given;
     bool decrypted = false;
     // (a package with parts protected by a password is read as the package of those parts, plain)
-    if (!flat && odsEncrypted(file)) {
+    if (!flat && odfEncrypted(file)) {
         QByteArray plain;
-        if (!passwordGate(limits, error, [&](const QString &password) { return decryptOds(file, password, limits.fileBytes, false, &plain, limits.cancelled); })) {
+        if (!passwordGate(limits, error, [&](const QString &password) { return decryptOdf(file, password, limits.fileBytes, false, &plain, limits.cancelled); })) {
             *this = Workbook();
             return false;
         }

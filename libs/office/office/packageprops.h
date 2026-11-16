@@ -45,6 +45,12 @@ bool isMarkedFinal(const QVector<CustomProperty> &custom);
 // The list with the mark set or taken off.
 QVector<CustomProperty> withMarkAsFinal(QVector<CustomProperty> custom, bool on);
 
+// The custom property that says the person chose to have the file always open for reading only (one of this program's own: other programs do not read it), and whether it is there and
+// true.
+extern const char *const kAlwaysOpenReadOnlyName;
+bool isAlwaysOpenReadOnly(const QVector<CustomProperty> &custom);
+QVector<CustomProperty> withAlwaysOpenReadOnly(QVector<CustomProperty> custom, bool on);
+
 constexpr const char *kCorePartType = "application/vnd.openxmlformats-package.core-properties+xml";
 constexpr const char *kAppPartType = "application/vnd.openxmlformats-officedocument.extended-properties+xml";
 constexpr const char *kCustomPartType = "application/vnd.openxmlformats-officedocument.custom-properties+xml";

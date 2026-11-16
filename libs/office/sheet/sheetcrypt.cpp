@@ -2,7 +2,7 @@
 
 #include "io/crypto.h"
 #include "office/package.h"
-#include "sheet/odscrypt.h"
+#include "office/odfcrypt.h"
 #include "sheet/xlscrypt.h"
 #include "sheet/xls.h"
 

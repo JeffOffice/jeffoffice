@@ -126,6 +126,7 @@ bool validType(const QString &t) { return t == QLatin1String("lpwstr") || t == Q
 } // namespace
 
 const char *const kMarkAsFinalName = "_MarkAsFinal";
+const char *const kAlwaysOpenReadOnlyName = "JeffOffice_AlwaysOpenReadOnly";
 
 PackageProps readPackageProps(const QByteArray &core, const QByteArray &app, const QByteArray &custom)
 {
@@ -391,6 +392,21 @@ QVector<CustomProperty> withMarkAsFinal(QVector<CustomProperty> custom, bool on)
     for (qsizetype i = custom.size() - 1; i >= 0; --i)
         if (custom[i].name == QLatin1String(kMarkAsFinalName)) custom.removeAt(i);
     if (on) custom.push_back({QString::fromLatin1(kMarkAsFinalName), QStringLiteral("bool"), QStringLiteral("true")});
+    return custom;
+}
+
+bool isAlwaysOpenReadOnly(const QVector<CustomProperty> &custom)
+{
+    for (const CustomProperty &c : custom)
+        if (c.name == QLatin1String(kAlwaysOpenReadOnlyName)) return c.type == QLatin1String("bool") && (c.value == QLatin1String("true") || c.value == QLatin1String("1"));
+    return false;
+}
+
+QVector<CustomProperty> withAlwaysOpenReadOnly(QVector<CustomProperty> custom, bool on)
+{
+    for (qsizetype i = custom.size() - 1; i >= 0; --i)
+        if (custom[i].name == QLatin1String(kAlwaysOpenReadOnlyName)) custom.removeAt(i);
+    if (on) custom.push_back({QString::fromLatin1(kAlwaysOpenReadOnlyName), QStringLiteral("bool"), QStringLiteral("true")});
     return custom;
 }
 
