@@ -119,47 +119,40 @@ MissingFontsHost pageMissingFontsHost(Editor *ed, const std::function<QString(co
         if (refuse && refuse()) return -1;
         int changed = 0;
         ed->change(QCoreApplication::translate("jp::MissingFonts", "Replace Font"), [&] {
-            const Document &doc = *ed->doc();
+            Document &doc = *ed->doc();
+            // Text that names no font is set in the story's own (default) font, which is the missing one then: it is named, and the default is changed too.
             for (const FindStory &s : findStories(doc, kEveryStory)) {
                 QTextDocument *d = wordsOf(doc, s);
-                if (!d) continue;
-                QVector<std::pair<int, int>> runs;
-                // Text that names no font is set in the story's own (default) font, which is the missing one then: it is named, and the default is changed too.
-                const bool ownIsFrom = d->defaultFont().family().compare(from, Qt::CaseInsensitive) == 0;
+                if (!d || d->defaultFont().family().compare(from, Qt::CaseInsensitive) != 0) continue;
+                int uses = 0;
+                bool named = false;
+                QVector<std::pair<int, int>> unnamed;
                 for (QTextBlock b = d->begin(); b.isValid(); b = b.next())
                     for (auto f = b.begin(); !f.atEnd(); ++f) {
-                        const QStringList fams = f.fragment().charFormat().fontFamilies().toStringList();
-                        if (fams.isEmpty() ? ownIsFrom : fams.first().compare(from, Qt::CaseInsensitive) == 0) runs.push_back({f.fragment().position(), f.fragment().length()});
+                        const QStringList fams = fontFamiliesOf(f.fragment().charFormat());
+                        if (fams.isEmpty()) unnamed.push_back({f.fragment().position(), f.fragment().length()});
+                        else named = named || fams.contains(from, Qt::CaseInsensitive);
                     }
-                if (ownIsFrom) {
-                    QFont own = d->defaultFont();
-                    own.setFamily(to);
-                    d->setDefaultFont(own);
-                    if (runs.isEmpty()) ++changed;   // (a story with no text: its font is a place the font was used)
-                }
+                QFont own = d->defaultFont();
+                own.setFamily(to);
+                d->setDefaultFont(own);
+                uses = int(unnamed.size());
                 QTextCursor edit(d);
                 edit.beginEditBlock();
-                // The paragraph marks (and the marks of list items) that name the font.
-                for (QTextBlock b = d->begin(); b.isValid(); b = b.next()) {
-                    const QStringList fams = b.charFormat().fontFamilies().toStringList();
-                    if (fams.isEmpty() || fams.first().compare(from, Qt::CaseInsensitive) != 0) continue;
-                    QTextCharFormat mark = b.charFormat();
-                    mark.setFontFamilies({to});
-                    QTextCursor bc(b);
-                    bc.setBlockCharFormat(mark);
-                    ++changed;
-                }
-                for (const auto &r : std::as_const(runs)) {
+                for (const auto &r : std::as_const(unnamed)) {
                     QTextCursor c(d);
                     c.setPosition(r.first);
                     c.setPosition(r.first + r.second, QTextCursor::KeepAnchor);
                     QTextCharFormat f;
                     f.setFontFamilies({to});
                     c.mergeCharFormat(f);
-                    ++changed;
                 }
                 edit.endEditBlock();
+                if (uses == 0 && !named) ++changed;   // (a story with no text: its font is a place the font was used)
+                changed += uses;
             }
+            // Then the one swap every app shares: the runs and paragraph marks of every story, the styles, the Text Art, and the fonts the document lists.
+            changed += replacePageFont(doc, from, to);
         });
         return changed;
     };

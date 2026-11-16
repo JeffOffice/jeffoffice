@@ -140,6 +140,42 @@ private Q_SLOTS:
         QCOMPARE(static_cast<TextArtItem *>(ed.doc()->pages[0]->items[2].get())->font, QStringLiteral("Zephyr Test"));
     }
 
+    // The missing-fonts Replace goes through the same swap: the styles, the Text Art, a font later in a run's list, and the document's list of fonts change too, in one step.
+    void theMissingFontsReplaceChangesWhatTheSharedSwapChanges()
+    {
+        Editor ed;
+        Document &d = *ed.doc();
+        auto t = std::make_shared<TextItem>();
+        t->id = QStringLiteral("a");
+        t->rect = QRectF(20, 20, 200, 50);
+        t->storyId = d.createStory();
+        QTextCursor c(d.storyDoc(t->storyId));
+        QTextCharFormat f;
+        f.setFontFamilies(QStringList{QStringLiteral("Zephyr Fallback"), QStringLiteral("Zephyr Test")});
+        c.insertText(QStringLiteral("listed second"), f);
+        d.pages[0]->items.push_back(t);
+        auto art = std::make_shared<TextArtItem>();
+        art->id = QStringLiteral("art");
+        art->font = QStringLiteral("Zephyr Test");
+        d.pages[0]->items.push_back(art);
+        TextStyle style;
+        style.name = QStringLiteral("Loud");
+        style.chr.setFontFamilies(QStringList{QStringLiteral("Zephyr Test")});
+        d.styles.push_back(style);
+        d.pubFonts = QStringList{QStringLiteral("Zephyr Test")};
+
+        const MissingFontsHost host = pageMissingFontsHost(&ed, [](const FindStory &) { return QString(); });
+        const int steps = ed.undoStack()->count();
+        QVERIFY(host.replace(QStringLiteral("Zephyr Test"), QStringLiteral("Zephyr Other")) >= 3);
+        QCOMPARE(ed.undoStack()->count(), steps + 1);
+        QCOMPARE(fontFamiliesOf(d.styles.last().chr).value(0), QStringLiteral("Zephyr Other"));
+        QCOMPARE(static_cast<TextArtItem *>(d.pages[0]->items[1].get())->font, QStringLiteral("Zephyr Other"));
+        QCOMPARE(d.pubFonts, QStringList{QStringLiteral("Zephyr Other")});
+        QTextCursor at(d.storyDoc(t->storyId));
+        at.setPosition(1);
+        QCOMPARE(fontFamiliesOf(at.charFormat()), (QStringList{QStringLiteral("Zephyr Fallback"), QStringLiteral("Zephyr Other")}));
+    }
+
     // The list is made one way for every app: families that differ only in case are one font, uses count the content only, and a font only styles name has none ("styles only").
     void theListMergesCaseAndMarksFontsOnlyStylesName()
     {
