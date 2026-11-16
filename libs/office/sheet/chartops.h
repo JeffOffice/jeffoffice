@@ -46,6 +46,7 @@ struct ChartInfo {
     QString legendPosition;
     bool dataLabels = false;
     bool dataEditable = false;
+    bool dataFromWorkbook = false;   // the numbers are the cells of a workbook kept with the chart: they can be edited, but no row or column added, taken away, or swapped
     ChartData data;
     // The axes: whether each is shown (a pie has none), whether the value axis has major and minor gridlines and the category axis major ones, the words of each axis's title (empty for
     // none), and the style number (1 to 48).
@@ -58,7 +59,7 @@ struct ChartInfo {
 // A chart of the kind plotting the data, in the theme's colors; the usual look of a new chart (a legend, a title only when asked). The data must be usable.
 Chart chartOfData(ChartForm form, const ChartData &data, const Theme &theme);
 // The chart's kind, looks, and data as ChartInfo says them; `part` is the chart part it was read from (for whether it is only what this writes). Not valid for a chart with no plot.
-ChartInfo chartInfoOf(const Chart &chart, const QByteArray &part);
+ChartInfo chartInfoOf(const Chart &chart, const QByteArray &part, const QByteArray &workbook = QByteArray());
 // Text as a chart keeps it: a character XML refuses is a space, a pair of surrogates whole and a lone one dropped, at most `limit` UTF-16 units.
 QString cleanChartText(const QString &text, int limit = 500);
 // The axis of the chart that is its category (or x) axis or its value axis, or null (a chart with no axes, a pie).
@@ -79,7 +80,9 @@ bool chartSetStyle(Chart &chart, int style);
 // Why the numbers of the chart can't be edited as the chart's own, in a sentence; empty when they can. They can't when the chart reads cells or a workbook kept with it (what the chart stores is a
 // copy of that workbook's numbers, and a copy changed here would drift from it), is a pivot chart, has no series, or has more series or points than a chart made here holds. `data`, when given, is
 // what the chart plots (set when the chart has series).
-QString chartDataProblem(const Chart &chart, ChartData *data = nullptr);
+// A chart that keeps a workbook beside it (c:externalData) can have them edited when `workbook` (its bytes) is given and every reference can be followed (sheet/chartembed.h): `data` is then
+// what the workbook's cells hold, and a reference that can't be followed is the reason.
+QString chartDataProblem(const Chart &chart, ChartData *data = nullptr, const QByteArray &workbook = QByteArray());
 // New numbers and words; false for a chart that reads cells (its data is theirs) or data that is not usable. The look of the series that were there stays with them.
 bool chartSetData(Chart &chart, const ChartData &data, const Theme &theme);
 

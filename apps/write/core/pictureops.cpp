@@ -11,6 +11,7 @@
 #include "office/barcodemarker.h"
 #include "office/chart.h"
 #include "office/chart_write.h"
+#include "sheet/chartembed.h"
 #include "office/drawingml_color.h"
 #include "office/drawingml_write.h"
 #include "render/textart.h"
@@ -4424,6 +4425,23 @@ bool chartPartOf(const WriteDoc &doc, const QByteArray &graphic, QString *id, QB
     return !bytes->isEmpty();
 }
 
+// The part a relationship of the main part names (a chart's), and the workbook part the chart's own relationship `relId` names (its c:externalData).
+QString mainTargetOf(const WriteDoc &doc, const QString &id)
+{
+    for (const office::Relationship &r : doc.mainRelationshipsForTest())
+        if (r.id == id && !r.external) return r.target;
+    return QString();
+}
+
+QString workbookTargetOf(const WriteDoc &doc, const QString &chartPart, const QString &relId)
+{
+    for (const office::Relationship &r : doc.relationshipsOfPart(chartPart))
+        if (r.id == relId && !r.external) return r.target;
+    return QString();
+}
+
+const char kWorkbookContentType[] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
 // Changes the chart the drawing at `position` names: the part is read, `edit` changes the model, and the part is written again as a new one (so that Undo has the old one).
 bool editChart(WriteDoc &doc, int position, const std::function<bool(Chart &)> &edit)
 {
@@ -4464,7 +4482,55 @@ ChartInfo chartAt(const WriteDoc &doc, int position)
     if (!chartPartOf(doc, m.graphic, &id, &bytes)) return ChartInfo();
     Chart chart;
     if (!office::readChart(bytes, chartTheme(doc), office::ColorMap(), &chart)) return ChartInfo();
-    return office::sheet::chartInfoOf(chart, bytes);
+    // (a chart that reads a workbook kept with it says what the cells hold)
+    QByteArray book;
+    if (!chart.externalDataId.isEmpty()) book = doc.partData(workbookTargetOf(doc, mainTargetOf(doc, id), chart.externalDataId));
+    return office::sheet::chartInfoOf(chart, bytes, book);
+}
+
+QByteArray chartWorkbookAt(const WriteDoc &doc, int position)
+{
+    const QTextDocument *story = doc.story();
+    if (!story || position < 0 || position + 1 > story->characterCount() - 1) return QByteArray();
+    Inline atom;
+    Model m;
+    if (!drawingAtomOf(formatAfter(story, position), &atom) || !parseDrawing(atom.raw, &m)) return QByteArray();
+    QString id;
+    QByteArray bytes;
+    Chart chart;
+    if (!chartPartOf(doc, m.graphic, &id, &bytes) || !office::readChart(bytes, chartTheme(doc), office::ColorMap(), &chart) || chart.externalDataId.isEmpty()) return QByteArray();
+    return doc.partData(workbookTargetOf(doc, mainTargetOf(doc, id), chart.externalDataId));
+}
+
+bool setChartWorkbookData(WriteDoc &doc, int position, const ChartData &data)
+{
+    return changePicture(doc, position, [&](Model &m) {
+        QString id;
+        QByteArray old;
+        if (!chartPartOf(doc, m.graphic, &id, &old)) return false;
+        Chart chart;
+        if (!office::readChart(old, chartTheme(doc), office::ColorMap(), &chart) || chart.externalDataId.isEmpty()) return false;
+        if (!office::chartIsFullyModeled(old)) {
+            doc.pictureNotice = QCoreApplication::translate("jp::write::Pictures", "This chart has parts that JeffWrite does not change, so it is kept as it is.");
+            return false;
+        }
+        // The cells of the workbook and the values the chart stores of them, from the grid; both are put in new parts, so that Undo has the old ones.
+        const QString oldTarget = mainTargetOf(doc, id);
+        const QString oldBook = workbookTargetOf(doc, oldTarget, chart.externalDataId);
+        const QByteArray book = oldBook.isEmpty() ? QByteArray() : doc.partData(oldBook);
+        QByteArray made;
+        if (!office::sheet::embeddedChartSetData(chart, book, data, &made)) return false;
+        const QByteArray now = office::writeChartPart(chart);
+        if (now.isEmpty() || (now == old && made == book)) return false;
+        const QString rid = doc.addRelatedPart(QStringLiteral("/word/charts"), QStringLiteral("chart"), QStringLiteral("xml"), now, QString::fromLatin1(kChartContentType), QString::fromLatin1(kChartRelationship), oldTarget);
+        if (made != book) {
+            const QString part = doc.addOwnedPart(QStringLiteral("/word/embeddings"), QStringLiteral("chartdata"), QStringLiteral("xlsx"), made, QString::fromLatin1(kWorkbookContentType));
+            doc.retargetPartRelationship(mainTargetOf(doc, rid), chart.externalDataId, part);
+        }
+        doc.releaseRelatedPart(id, oldBook);
+        m.graphic.replace("r:id=\"" + id.toUtf8() + "\"", "r:id=\"" + rid.toUtf8() + "\"");
+        return true;
+    });
 }
 
 bool readChartAt(const WriteDoc &doc, int position, Chart *chart)

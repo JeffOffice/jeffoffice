@@ -449,13 +449,28 @@ bool switchedChartData(const ChartData &data, ChartData *out)
 bool ChartDesign::dataEditable() const
 {
     Chart chart;
-    return m_host->chartNow(&chart) && chartOwnData(chart, nullptr);
+    return m_host->chartNow(&chart) && (chartOwnData(chart, nullptr) || (!chart.externalDataId.isEmpty() && dataProblem().isEmpty()));
 }
 
 QString ChartDesign::dataProblem() const
 {
     Chart chart;
-    return m_host->chartNow(&chart) ? chartDataProblem(chart) : QString();
+    if (!m_host->chartNow(&chart)) return QString();
+    return chartDataProblem(chart, nullptr, chart.externalDataId.isEmpty() ? QByteArray() : m_host->chartWorkbook());
+}
+
+QString ChartDesign::structureProblem() const
+{
+    Chart chart;
+    if (!m_host->chartNow(&chart)) return QString();
+    const QString why = chartDataProblem(chart, nullptr, chart.externalDataId.isEmpty() ? QByteArray() : m_host->chartWorkbook());
+    if (!why.isEmpty() || chart.externalDataId.isEmpty()) return why;
+    return workbookShapeProblem();
+}
+
+QString ChartDesign::workbookShapeProblem()
+{
+    return tr("The numbers of this chart are cells of a workbook that is kept with it, so a row or column can't be added, taken away, or swapped here. Edit Data changes the numbers and names.");
 }
 
 void ChartDesign::editData()
@@ -463,13 +478,18 @@ void ChartDesign::editData()
     Chart chart;
     ChartData data;
     if (!m_host->chartNow(&chart)) return;
-    if (const QString why = chartDataProblem(chart, &data); !why.isEmpty()) {
+    const bool inWorkbook = !chart.externalDataId.isEmpty();
+    if (const QString why = chartDataProblem(chart, &data, inWorkbook ? m_host->chartWorkbook() : QByteArray()); !why.isEmpty()) {
         m_host->chartNotice(tr("Edit Data"), why);
         return;
     }
     QString notice;
-    if (!askChartData(m_host->chartParent(), &data, &notice)) {
+    if (!askChartData(m_host->chartParent(), &data, &notice, inWorkbook)) {
         if (!notice.isEmpty()) m_host->chartNotice(tr("Edit Data"), notice, false);
+        return;
+    }
+    if (inWorkbook) {
+        m_host->changeChartWorkbookData(tr("Edit Data"), data);
         return;
     }
     const Theme theme = m_host->chartTheme();
@@ -481,7 +501,7 @@ void ChartDesign::selectData()
     Chart chart;
     ChartData data;
     if (!m_host->chartNow(&chart)) return;
-    if (const QString why = chartDataProblem(chart, &data); !why.isEmpty()) {
+    if (const QString why = chart.externalDataId.isEmpty() ? chartDataProblem(chart, &data) : structureProblem(); !why.isEmpty()) {
         m_host->chartNotice(tr("Chart Data"), why);
         return;
     }
@@ -497,7 +517,7 @@ bool ChartDesign::switchRowsAndColumns()
     Chart chart;
     ChartData data, switched;
     if (!m_host->chartNow(&chart)) return false;
-    if (const QString why = chartDataProblem(chart, &data); !why.isEmpty()) {
+    if (const QString why = chart.externalDataId.isEmpty() ? chartDataProblem(chart, &data) : structureProblem(); !why.isEmpty()) {
         m_host->chartNotice(tr("Swap Rows and Columns"), why);
         return false;
     }

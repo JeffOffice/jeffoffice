@@ -456,6 +456,20 @@ void WriteWindow::chartNotice(const QString &title, const QString &text, bool wa
     statusBar()->showMessage(text, 8000);
 }
 
+QByteArray WriteWindow::chartWorkbook()
+{
+    const int at = m_doc ? m_view->selectedPicture() : -1;
+    return at >= 0 ? write::chartWorkbookAt(*m_doc, at) : QByteArray();
+}
+
+bool WriteWindow::changeChartWorkbookData(const QString &label, const office::sheet::ChartData &data)
+{
+    Q_UNUSED(label);
+    const bool done = m_view->changeSelectedPicture([data](write::WriteDoc &d, int position) { return write::setChartWorkbookData(d, position, data); });
+    m_view->setFocus(Qt::OtherFocusReason);
+    return done;
+}
+
 // The three buttons stand beside a chart that is selected and can be changed.
 void WriteWindow::placeChartButtons()
 {
@@ -544,11 +558,13 @@ void WriteWindow::refreshChartUi()
     for (QAction *a : m_actions)
         if (a->objectName().startsWith(QLatin1String("chart."))) a->setEnabled(editable);
     // (the commands for the numbers are off for a chart whose numbers are not its own, and the tooltip says why)
-    const QString problem = editable ? m_chartDesign->dataProblem() : QString();
+    const QString problem = editable && !info.dataEditable ? m_chartDesign->dataProblem() : QString();
     for (const char *id : {"chart.editData", "chartdesign.editData", "chartdesign.selectData", "chartdesign.switch"}) {
         QAction *a = act(QString::fromLatin1(id));
-        a->setEnabled(editable && info.dataEditable && problem.isEmpty());
-        a->setToolTip(plainToolTip(problem));
+        // (the numbers of a workbook kept with the chart are edited cell by cell: a row or column can't be added, taken away, or swapped)
+        const bool rearranges = info.dataFromWorkbook && (QLatin1String(id) == QLatin1String("chartdesign.selectData") || QLatin1String(id) == QLatin1String("chartdesign.switch"));
+        a->setEnabled(editable && info.dataEditable && !rearranges);
+        a->setToolTip(plainToolTip(rearranges && editable ? ChartDesign::workbookShapeProblem() : problem));
     }
     for (const char *id : {"chartdesign.changeType", "chartdesign.formatPart"}) act(QString::fromLatin1(id))->setEnabled(editable);
     act("chartdesign.axisH")->setEnabled(editable && info.hasAxes);
@@ -604,6 +620,10 @@ void WriteWindow::editChartData()
     if (!info.dataEditable) {
         const QString why = m_chartDesign->dataProblem();
         statusBar()->showMessage(why.isEmpty() ? tr("This chart has parts that are kept as they are, so its numbers can't be changed here.") : why, 8000);
+        return;
+    }
+    if (info.dataFromWorkbook) {
+        m_chartDesign->editData();   // (the cells of the workbook kept with the chart: the shared editor's grid)
         return;
     }
     write::ChartData data = info.data;

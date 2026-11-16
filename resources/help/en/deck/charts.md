@@ -24,6 +24,12 @@ Click **Add Row** or **Add Column** for more, or **Remove Last Row** or **Remove
 
 For a scatter chart, the first column holds the numbers that place the points from left to right.
 
+## Charts saved by another program
+
+Some charts that other programs saved keep their numbers in a small **workbook** (a spreadsheet file) stored inside your file. Select such a chart and click **Chart Format > Edit Data**. The table shows the cells of that workbook that the chart reads. Change a number, a name under a point, or the name of a series, and click **OK**. The change goes into the workbook and into the chart together, as one step to undo, so other programs show the new numbers too.
+
+You cannot add or remove a row or a column of such a chart, and **Chart Data** and **Swap Rows and Columns** are dimmed, because the chart is tied to those cells. The same is true when the chart reads cells in another file, in a block that is not one column or one row, or in cells that hold a formula, a date, or words where a number should be. The command is dimmed, and its tip says why.
+
 ## Change how it looks
 
 These commands are on the **Chart Format** tab. Each one is a single step to undo, and the chart keeps its colors and the rest of its look.

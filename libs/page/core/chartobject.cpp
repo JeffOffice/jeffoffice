@@ -2,10 +2,12 @@
 #include "core/items.h"
 
 #include "office/chart_write.h"
+#include "sheet/chartembed.h"
 
 #include <QCoreApplication>
 #include <QCryptographicHash>
 #include <QJsonArray>
+#include <QJsonObject>
 #include <algorithm>
 #include <cmath>
 
@@ -27,6 +29,55 @@ void eachChart(Document &doc, const std::function<void(PictureItem &)> &fn)
     for (const auto &m : doc.masters) list(m->items);
     list(doc.scratch);
     list(doc.extra);
+}
+
+// The page's kept chart of the picture (its "charts" entry: the parts of the chart as the file had them, by name, with their relationships).
+struct KeptChart {
+    PageBase *page = nullptr;
+    int at = -1;
+    QJsonObject entry;
+};
+
+KeptChart keptChartOf(const Document &doc, const QString &itemId)
+{
+    auto look = [&](PageBase *p) {
+        KeptChart k;
+        const QJsonArray charts = p->props.value(QStringLiteral("charts")).toArray();
+        for (int i = 0; i < charts.size(); ++i)
+            if (charts[i].toObject().value(QStringLiteral("item")).toString() == itemId && charts[i].toObject().value(QStringLiteral("kind")).toString().isEmpty()) {
+                k.page = p;
+                k.at = i;
+                k.entry = charts[i].toObject();
+                break;
+            }
+        return k;
+    };
+    for (const auto &p : doc.pages)
+        if (KeptChart k = look(p.get()); k.page) return k;
+    for (const auto &m : doc.masters)
+        if (KeptChart k = look(m.get()); k.page) return k;
+    return KeptChart();
+}
+
+// The id of the relationship the chart part's c:externalData names, read from the part's bytes without reading the chart.
+QString externalIdOf(const QByteArray &chartXml)
+{
+    const qsizetype at = chartXml.indexOf("externalData");
+    if (at < 0) return QString();
+    const qsizetype id = chartXml.indexOf("id=\"", at);
+    if (id < 0 || id - at > 200) return QString();
+    const qsizetype end = chartXml.indexOf('"', id + 4);
+    return end < 0 || end - id > 100 ? QString() : QString::fromUtf8(chartXml.mid(id + 4, end - id - 4));
+}
+
+// The name of the workbook part among the kept parts, and the kept part's place.
+QString workbookPartOf(const QJsonObject &kept, const QString &relId)
+{
+    const QJsonObject parts = kept.value(QStringLiteral("parts")).toObject();
+    const QJsonObject main = parts.value(kept.value(QStringLiteral("main")).toString()).toObject();
+    for (const QJsonValue &r : main.value(QStringLiteral("rels")).toArray())
+        if (r.toObject().value(QStringLiteral("id")).toString() == relId && !r.toObject().value(QStringLiteral("external")).toBool()) return r.toObject().value(QStringLiteral("target")).toString();
+    return QString();
 }
 
 QSizeF clampedSize(const QSizeF &s)
@@ -156,13 +207,16 @@ const Said *said(const Document &doc, const PictureItem &pic)
 {
     if (pic.chartXml.isEmpty()) return nullptr;
     // (What a chart says does not depend on the colors it is read with, but whether it reads does not either: the key is the part.)
-    const QByteArray key = QCryptographicHash::hash(pic.chartXml, QCryptographicHash::Sha1);
+    // (A chart that reads a workbook kept with it says what the cells hold: the workbook is part of the key.)
+    const QByteArray book = chartWorkbookOf(doc, pic);
+    QByteArray key = QCryptographicHash::hash(pic.chartXml, QCryptographicHash::Sha1);
+    if (!book.isEmpty()) key += QCryptographicHash::hash(book, QCryptographicHash::Sha1);
     if (const auto it = g_said.constFind(key); it != g_said.cend()) return &*it;
     office::Chart chart;
     Said made;
     if (readChartOf(doc, pic, &chart)) {
         ++g_infosMade;
-        made.info = office::sheet::chartInfoOf(chart, pic.chartXml);
+        made.info = office::sheet::chartInfoOf(chart, pic.chartXml, book);
         made.fullyModeled = office::chartIsFullyModeled(pic.chartXml);
     }
     if (g_said.size() >= kSaidKept) g_said.clear();
@@ -182,6 +236,44 @@ bool chartIsChangeable(const Document &doc, const PictureItem &pic)
 {
     const Said *s = said(doc, pic);
     return s && s->fullyModeled;
+}
+
+QByteArray chartWorkbookOf(const Document &doc, const PictureItem &pic)
+{
+    const QString id = externalIdOf(pic.chartXml);
+    if (id.isEmpty()) return QByteArray();
+    const KeptChart kept = keptChartOf(doc, pic.id);
+    if (!kept.page) return QByteArray();
+    const QString part = workbookPartOf(kept.entry, id);
+    if (part.isEmpty()) return QByteArray();
+    const QString data = kept.entry.value(QStringLiteral("parts")).toObject().value(part).toObject().value(QStringLiteral("data")).toString();
+    // (a workbook past what a chart's is read with is not read: the base64 is a third larger than the bytes)
+    if (data.size() > office::sheet::kMostEmbeddedWorkbookBytes / 3 * 4 + 8) return QByteArray();
+    return QByteArray::fromBase64(data.toLatin1());
+}
+
+bool changeChartDataOf(Document &doc, PictureItem &pic, const office::sheet::ChartData &data)
+{
+    office::Chart chart;
+    if (!readChartOf(doc, pic, &chart) || chart.externalDataId.isEmpty()) return false;
+    const Said *s = said(doc, pic);
+    if (!s || !s->fullyModeled) return false;
+    const KeptChart kept = keptChartOf(doc, pic.id);
+    const QByteArray book = chartWorkbookOf(doc, pic);
+    QByteArray made;
+    if (!kept.page || book.isEmpty() || !office::sheet::embeddedChartSetData(chart, book, data, &made)) return false;
+    const QString part = workbookPartOf(kept.entry, chart.externalDataId);
+    QJsonObject entry = kept.entry;
+    QJsonObject parts = entry.value(QStringLiteral("parts")).toObject();
+    QJsonObject workbook = parts.value(part).toObject();
+    workbook[QStringLiteral("data")] = QString::fromLatin1(made.toBase64());
+    parts[part] = workbook;
+    entry[QStringLiteral("parts")] = parts;
+    if (!setChartOf(doc, pic, chart, pic.rect.size())) return false;
+    QJsonArray charts = kept.page->props.value(QStringLiteral("charts")).toArray();
+    charts[kept.at] = entry;
+    kept.page->props[QStringLiteral("charts")] = charts;
+    return true;
 }
 
 bool changeChartOf(Document &doc, PictureItem &pic, const std::function<bool(office::Chart &)> &edit)

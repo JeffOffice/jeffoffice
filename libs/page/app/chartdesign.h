@@ -49,6 +49,15 @@ public:
     }
     // Puts what the cells hold now in the chart.
     virtual void chartReadCells(office::Chart *chart) { Q_UNUSED(chart); }
+    // The workbook kept beside the selected chart (the bytes of the part its c:externalData names); empty for a chart with none, and for an app that does not keep one.
+    virtual QByteArray chartWorkbook() { return QByteArray(); }
+    // Changes the numbers of a chart that reads cells of that workbook: the cells and the values the chart stores, from the grid, as one step named `label`. False when nothing changed or it can't be.
+    virtual bool changeChartWorkbookData(const QString &label, const office::sheet::ChartData &data)
+    {
+        Q_UNUSED(label);
+        Q_UNUSED(data);
+        return false;
+    }
 };
 
 class JO_COMMON_EXPORT ChartDesign : public QObject {
@@ -78,6 +87,11 @@ public:
     bool dataEditable() const;
     // Why not, in a sentence (empty when it can, and for no chart): for the tooltip of a command that is off, and what a command says when it is chosen anyway.
     QString dataProblem() const;
+    // The same for the commands that change the rows and columns (Select Data, Swap Rows and Columns): numbers that are the cells of a workbook kept with the chart can be edited but not
+    // rearranged, and that is the reason then; empty when the numbers are the chart's own and can be.
+    QString structureProblem() const;
+    // That reason, for a chart known to read the cells of its workbook.
+    static QString workbookShapeProblem();
     void editData();
     void selectData();
     // The data with rows and columns the other way (the series become the categories); false (with a notice) when it can't be.

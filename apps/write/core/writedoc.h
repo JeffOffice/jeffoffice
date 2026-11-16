@@ -668,6 +668,13 @@ public:
     // folder/base1.ext and on (it has the relationships of `likePart`, a part it takes the place of); the Id of the relationship. Like a picture's, it is left out of the file when nothing names it (a chart taken back by Undo).
     QByteArray relatedPartData(const QString &id) const;
     QString addRelatedPart(const QString &folder, const QString &base, const QString &extension, const QByteArray &data, const QString &contentType, const QString &relationshipType, const QString &likePart = QString());
+    // The relationships a part has of its own (a chart's link to its workbook); and a part that only another part's relationship names (a chart's new workbook), put in the file under
+    // folder/base1.ext and on, that is left out of the file when nothing names it. retargetPartRelationship points a relationship of `part` (by its Id) at another part. releaseRelatedPart says
+    // that the main part's relationship `id` (a chart's) is let go when nothing names it any more, with the parts only it named: the document keeps it for the steps of the history that name it.
+    QVector<office::Relationship> relationshipsOfPart(const QString &part) const;
+    QString addOwnedPart(const QString &folder, const QString &base, const QString &extension, const QByteArray &data, const QString &contentType);
+    void retargetPartRelationship(const QString &part, const QString &id, const QString &target);
+    void releaseRelatedPart(const QString &id, const QString &workbookPart);
     // The relationships of the main part (for the code that edits a part and puts the new one beside it).
     const QVector<office::Relationship> &mainRelationshipsForTest() const { return m_wml.mainRelationships; }
 
@@ -771,6 +778,7 @@ private:
     quint64 m_objectsSeen = 0;                     // the serial the next step had when the pending ones were last attached
     qsizetype m_collectAt = 2000;
     QSet<QString> m_madeLinks;                     // the Ids of the relationships to addresses outside the file that the program added (a link taken back by Undo leaves its own unused)
+    QSet<QString> m_ownedParts;                    // the parts only another part's relationship names (a chart's workbook) that were put in or let go of: left out of the file when no relationship names them
     QHash<QString, QString> m_madeMedia;           // the pictures' parts the program added: the Id of the relationship, and the part
     quint64 m_id = 0;
     bool m_hadMacros = false, m_leftOut = false;

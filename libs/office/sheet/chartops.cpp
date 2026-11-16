@@ -1,4 +1,5 @@
 #include "sheet/chartops.h"
+#include "sheet/chartembed.h"
 
 #include "office/chart_write.h"
 
@@ -165,7 +166,7 @@ Chart chartOfData(ChartForm form, const ChartData &data, const Theme &theme)
     return chartFromSeries(series, kinds, theme);
 }
 
-ChartInfo chartInfoOf(const Chart &made, const QByteArray &part)
+ChartInfo chartInfoOf(const Chart &made, const QByteArray &part, const QByteArray &workbook)
 {
     ChartInfo info;
     Chart chart = made;
@@ -190,8 +191,14 @@ ChartInfo chartInfoOf(const Chart &made, const QByteArray &part)
         info.valueAxisTitle = a->title.present ? a->title.text : QString();
     }
     const QVector<ChartSeries> series = chartAllSeries(chart);
-    info.dataEditable = !series.isEmpty() && chartIsFullyModeled(part) && chartDataProblem(chart).isEmpty();
+    ChartData embedded;   // (the cells of a workbook kept with the chart)
+    info.dataEditable = !series.isEmpty() && chartIsFullyModeled(part) && chartDataProblem(chart, &embedded, workbook).isEmpty();
     for (const ChartSeries &s : series) info.dataLabels = info.dataLabels || s.labels.shown();
+    if (info.dataEditable && !chart.externalDataId.isEmpty()) {
+        info.data = embedded;
+        info.dataFromWorkbook = true;
+        return info;
+    }
     if (!series.isEmpty()) {
         info.data.categories = series.first().categories;
         // (A scatter's x numbers are its categories.)
@@ -305,12 +312,15 @@ bool chartSetStyle(Chart &chart, int style)
     return true;
 }
 
-QString chartDataProblem(const Chart &chart, ChartData *data)
+QString chartDataProblem(const Chart &chart, ChartData *data, const QByteArray &workbook)
 {
     const QVector<ChartSeries> series = chartAllSeries(chart);
     if (series.isEmpty()) return QCoreApplication::translate("jp::ChartData", "This chart has no series.");
     if (!chart.pivotName.isEmpty()) return QCoreApplication::translate("jp::ChartData", "This chart follows a pivot table, so its numbers are the table's.");
-    if (!chart.externalDataId.isEmpty()) return QCoreApplication::translate("jp::ChartData", "The numbers of this chart are in a workbook that is kept with it, so they can't be changed here.");
+    if (!chart.externalDataId.isEmpty()) {
+        if (workbook.isEmpty()) return QCoreApplication::translate("jp::ChartData", "The numbers of this chart are in a workbook that is kept with it, so they can't be changed here.");
+        return embeddedChartProblem(chart, workbook, data);
+    }
     for (const ChartSeries &s : series)
         if (!s.valueRef.isEmpty() || !s.categoryRef.isEmpty() || !s.nameRef.isEmpty() || !s.xRef.isEmpty()) return QCoreApplication::translate("jp::ChartData", "This chart reads its numbers from cells, so they can't be changed here.");
     ChartData out;

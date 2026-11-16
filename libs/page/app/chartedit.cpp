@@ -53,6 +53,16 @@ bool changeSelectedChart(Editor *ed, const QString &label, const std::function<b
     return done;
 }
 
+bool changeSelectedChartData(Editor *ed, const QString &label, const office::sheet::ChartData &data)
+{
+    PictureItem *pic = selectedChart(ed);
+    if (!pic || ed->readOnly()) return false;
+    ed->beginChange(label);
+    const bool done = changeChartDataOf(*ed->doc(), *pic, data);
+    ed->endChange();
+    return done;
+}
+
 office::sheet::ChartInfo selectedChartInfo(Editor *ed)
 {
     const PictureItem *pic = selectedChart(ed);
@@ -90,7 +100,7 @@ bool askChartAxisTitle(QWidget *parent, bool values, QString *text)
                    values ? QCoreApplication::translate("jp::ChartDialogs", "Title of the Axis of Values") : QCoreApplication::translate("jp::ChartDialogs", "Title of the Axis of Categories"), QCoreApplication::translate("jp::ChartDialogs", "Words for the title of the axis (leave empty for none):"), text);
 }
 
-bool askChartData(QWidget *parent, office::sheet::ChartData *data, QString *notice)
+bool askChartData(QWidget *parent, office::sheet::ChartData *data, QString *notice, bool fixedShape)
 {
     using namespace office::sheet;
     QDialog dlg(parent);
@@ -117,6 +127,10 @@ bool askChartData(QWidget *parent, office::sheet::ChartData *data, QString *noti
     auto *removeRow = new QPushButton(QCoreApplication::translate("jp::ChartDialogs", "Remove Last Row"), &dlg);
     auto *removeColumn = new QPushButton(QCoreApplication::translate("jp::ChartDialogs", "Remove Last Column"), &dlg);
     for (QPushButton *b : {addRow, addColumn, removeRow, removeColumn}) row->addWidget(b);
+    if (fixedShape) {
+        for (QPushButton *b : {addRow, addColumn, removeRow, removeColumn}) b->hide();
+        help->setText(QCoreApplication::translate("jp::ChartDialogs", "These are the cells of the workbook kept with the chart. The first column holds the words under the points. The first row holds the names of the series. The other cells are numbers."));
+    }
     layout->addLayout(row);
     QObject::connect(addRow, &QPushButton::clicked, table, [table] {
         if (table->rowCount() <= kMostChartCategories) table->setRowCount(table->rowCount() + 1);

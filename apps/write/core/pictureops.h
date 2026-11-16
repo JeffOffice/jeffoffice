@@ -432,6 +432,10 @@ using office::sheet::kMostChartCategories;
 using office::sheet::kMostChartSeries;
 using office::sheet::sampleChartData;
 ChartInfo chartAt(const WriteDoc &doc, int position);
+// The workbook kept beside the chart at `position` (the part its c:externalData names); empty for a chart with none. And the chart's numbers changed when they are cells of that workbook (the cells
+// and the values the chart stores, from the grid; one step that undoes; false when it can't be done or changes nothing).
+QByteArray chartWorkbookAt(const WriteDoc &doc, int position);
+bool setChartWorkbookData(WriteDoc &doc, int position, const ChartData &data);
 // A chart of the kind at the cursor (in line with the text), in place of a selection, one step that undoes; `size` (points; empty for the usual 360 by 216) is held to the least and most
 // a picture's is. Unreadable for data that is empty, or has more than the most categories or series, or numbers that are not numbers.
 PictureResult insertChart(WriteDoc &doc, QTextCursor &c, ChartForm form, const ChartData &data = sampleChartData(), const QSizeF &size = QSizeF());

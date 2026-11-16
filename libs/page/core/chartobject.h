@@ -40,6 +40,11 @@ office::sheet::ChartInfo chartInfoOfPicture(const Document &doc, const PictureIt
 qint64 chartInfosMadeForTest();
 // Whether the chart of the picture is one that is written back whole (changed in what the model holds without losing a part of the file's).
 bool chartIsChangeable(const Document &doc, const PictureItem &pic);
+// The workbook a chart keeps beside it (the part its c:externalData names), from the parts a file's chart was read with (the page's "charts" kept for the picture); empty for a chart with none.
+QByteArray chartWorkbookOf(const Document &doc, const PictureItem &pic);
+// Changes the numbers of a chart that reads cells of its workbook (sheet/chartembed.h): the cells of the workbook and the values the chart stores, from the grid, as one change; false when nothing
+// changed, or the chart can't be followed (chartDataProblem says why).
+bool changeChartDataOf(Document &doc, PictureItem &pic, const office::sheet::ChartData &data);
 // Changes the chart of the picture: `edit` changes the model and says whether it did; the picture is drawn again and keeps the new part. False if nothing changed.
 bool changeChartOf(Document &doc, PictureItem &pic, const std::function<bool(office::Chart &)> &edit);
 // Draws again the charts (on every page, master, and the scratch area) whose frames are another size than they were drawn at. True if any was.

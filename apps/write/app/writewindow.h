@@ -430,6 +430,8 @@ private:
     office::Theme chartTheme() override;
     bool changeChart(const QString &label, const std::function<void(office::Chart *)> &edit) override;
     void chartNotice(const QString &title, const QString &text, bool warning) override;
+    QByteArray chartWorkbook() override;
+    bool changeChartWorkbookData(const QString &label, const office::sheet::ChartData &data) override;
     ChartDesign *m_chartDesign = nullptr;
     ChartButtons *m_chartButtons = nullptr;
     QTimer m_chartButtonsTimer;

@@ -89,6 +89,17 @@ public:
         Q_UNUSED(warning);
         if (m_notice) m_notice(text);
     }
+    QByteArray chartWorkbook() override
+    {
+        const PictureItem *pic = selectedChart(m_ed);
+        return pic ? chartWorkbookOf(*m_ed->doc(), *pic) : QByteArray();
+    }
+    bool changeChartWorkbookData(const QString &label, const office::sheet::ChartData &data) override
+    {
+        const bool done = changeSelectedChartData(m_ed, label, data);
+        if (m_done) m_done();
+        return done;
+    }
 
 private:
     Editor *m_ed;
@@ -187,6 +198,10 @@ void ChartActions::editData()
 {
     office::sheet::ChartInfo info = selectedChartInfo(m_ed);
     if (!info.valid) return;
+    if (info.dataEditable && info.dataFromWorkbook) {
+        m_design->editData();   // (the cells of the workbook kept with the chart: the grid of the shared editor, one step)
+        return;
+    }
     if (!info.dataEditable) {
         if (m_hooks.notice) m_hooks.notice(m_design->dataProblem().isEmpty() ? QCoreApplication::translate("jp::ChartActions", "This chart has parts that are kept as they are, so its numbers can't be changed here.") : m_design->dataProblem());
         return;
@@ -233,11 +248,13 @@ bool ChartActions::refresh()
         if (id.startsWith(QLatin1String("chart."))) m_hooks.find(id)->setEnabled(editable);
     auto act = m_hooks.find;
     // (the commands for the numbers are off for a chart whose numbers are not its own, and the tooltip says why)
-    const QString problem = editable ? m_design->dataProblem() : QString();
+    const QString problem = editable && !info.dataEditable ? m_design->dataProblem() : QString();
     for (const char *id : {"chart.editData", "chartdesign.editData", "chartdesign.selectData", "chartdesign.switch"}) {
         QAction *a = act(QString::fromLatin1(id));
-        a->setEnabled(editable && info.dataEditable && problem.isEmpty());
-        a->setToolTip(plainToolTip(problem));
+        // (the numbers of a workbook kept with the chart are edited cell by cell: a row or column can't be added, taken away, or swapped)
+        const bool rearranges = info.dataFromWorkbook && (QLatin1String(id) == QLatin1String("chartdesign.selectData") || QLatin1String(id) == QLatin1String("chartdesign.switch"));
+        a->setEnabled(editable && info.dataEditable && !rearranges);
+        a->setToolTip(plainToolTip(rearranges && editable ? ChartDesign::workbookShapeProblem() : problem));
     }
     act(QStringLiteral("chartdesign.changeType"))->setEnabled(editable);
     act(QStringLiteral("chartdesign.formatPart"))->setEnabled(editable);

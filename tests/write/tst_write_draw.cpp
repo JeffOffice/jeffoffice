@@ -5,9 +5,15 @@
 #include "../withdialog.h"
 #include "../chartmenu.h"
 #include <QStatusBar>
+#include <QTableWidget>
+#include "sheet/sheetreader.h"
 #include "app/chartdesign.h"
 #include "app/chartdialogs.h"
 #include "sheet/chartedit.h"
+#include "sheet/chartmake.h"
+#include "sheet/chartembed.h"
+#include "../chartembedhelpers.h"
+#include "office/chart_write.h"
 #include "../office/diagramsample.h"
 #include "rtcheck.h"
 #include "app/compresspictures.h"
@@ -460,6 +466,32 @@ QByteArray withPartReplaced(const QByteArray &docx, const QString &part, const s
     return out.finish();
 }
 
+
+// A document with a chart another program could have saved: its series read the cells A1:C4 of a workbook that is kept beside the chart part (c:externalData); the chart is at position 7.
+QByteArray workbookChartDocx()
+{
+    office::PackageWriter w;
+    const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
+    const QString charts = QStringLiteral("application/vnd.openxmlformats-officedocument.drawingml.chart+xml");
+    const QString bookRid = w.addRelationship(QStringLiteral("/word/charts/chart7.xml"), rel + QStringLiteral("package"), QStringLiteral("../embeddings/book1.xlsx"));
+    office::Chart chart = office::sheet::makeChart(office::sheet::ChartKind::Column, office::sheet::planChartFrom(QStringLiteral("Sheet1"), [] {
+        office::sheet::CellRange r;
+        office::sheet::parseRangeRef(QStringLiteral("A1:C4"), &r);
+        return r;
+    }(), true, true, false, office::sheet::ChartKind::Column), office::defaultTheme(), 3);
+    chart.externalDataId = bookRid;
+    w.addPart(QStringLiteral("/word/charts/chart7.xml"), office::writeChartPart(chart), charts);
+    w.addPart(QStringLiteral("/word/embeddings/book1.xlsx"), jp::testing::salesBook(), QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
+    const QString rid = w.addRelationship(QStringLiteral("/word/document.xml"), rel + QStringLiteral("chart"), QStringLiteral("charts/chart7.xml"));
+    const QByteArray run = "<w:r><w:drawing><wp:inline distT=\"0\" distB=\"0\" distL=\"0\" distR=\"0\"><wp:extent cx=\"4572000\" cy=\"2743200\"/><wp:docPr id=\"4\" name=\"Chart 4\"/><wp:cNvGraphicFramePr/>"
+                           "<a:graphic><a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/chart\"><c:chart xmlns:c=\"http://schemas.openxmlformats.org/drawingml/2006/chart\" r:id=\"" + rid.toUtf8() +
+                           "\"/></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>";
+    w.addPart(QStringLiteral("/word/document.xml"),
+              QByteArray("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n<w:document ") + kNs + "><w:body><w:p><w:r><w:t xml:space=\"preserve\">Chart: </w:t></w:r>" + run + "</w:p></w:body></w:document>",
+              QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"));
+    w.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+    return w.finish();
+}
 
 struct Win {
     WriteWindow w;
@@ -4865,6 +4897,110 @@ private Q_SLOTS:
         for (const QString &name : p.partNames())
             if (name.startsWith(QLatin1String("/word/charts/")) && name.endsWith(QLatin1String(".xml")) && !p.relationships(name).isEmpty()) ++withBook;
         QVERIFY(withBook >= 1);
+    }
+
+    // The numbers of a chart that reads cells of the workbook kept with it are edited: the cells of the workbook and what the chart stores change together as one step of Undo, the file keeps one
+    // chart part and one workbook (the new ones), and the saved workbook opens with the new numbers.
+    void theNumbersOfAChartWithItsWorkbookAreEditedKeepingOneChartPartAndOneWorkbook()
+    {
+        auto doc = open(workbookChartDocx());
+        QVERIFY(doc);
+        const ChartInfo before = chartAt(*doc, 7);
+        QVERIFY(before.valid && before.dataEditable && before.dataFromWorkbook);
+        QCOMPARE(before.data.categories, QStringList({"Q1", "Q2", "Q3"}));
+        QCOMPARE(before.data.values, (QVector<QVector<double>>{{1, 2, 3}, {4, 5, 6}}));
+        ChartData data = before.data;
+        data.values[1][2] = 60;
+        data.seriesNames[0] = QStringLiteral("Revenue");
+        QVERIFY(setChartWorkbookData(*doc, 7, data));
+        const ChartInfo after = chartAt(*doc, 7);
+        QVERIFY(after.dataEditable);
+        QCOMPARE(after.data.values, data.values);
+        QCOMPARE(after.data.seriesNames[0], QStringLiteral("Revenue"));
+        // saved: one chart part and one workbook, which are the new ones
+        auto count = [](const QByteArray &docx, QByteArray *book) {
+            office::Package p;
+            int charts = 0, books = 0;
+            if (!p.read(docx)) return QPair<int, int>(-1, -1);
+            for (const QString &name : p.partNames()) {
+                if (name.startsWith(QLatin1String("/word/charts/")) && name.endsWith(QLatin1String(".xml"))) ++charts;
+                if (name.endsWith(QLatin1String(".xlsx"))) {
+                    ++books;
+                    if (book) *book = p.part(name);
+                }
+            }
+            return QPair<int, int>(charts, books);
+        };
+        QByteArray book;
+        const QByteArray saved = doc->toDocx();
+        QCOMPARE(count(saved, &book), (QPair<int, int>(1, 1)));
+        office::Chart chart;
+        ChartData cells;
+        QVERIFY(readChartAt(*doc, 7, &chart));
+        QVERIFY2(office::sheet::embeddedChartProblem(chart, book, &cells).isEmpty(), qPrintable(office::sheet::embeddedChartProblem(chart, book)));
+        QCOMPARE(cells.values, data.values);
+        // (the workbook opens as a workbook with the new number, as JeffCrunch reads it)
+        office::Package inner;
+        QVERIFY(inner.readLazy(book));
+        office::sheet::Workbook wb;
+        QVERIFY(wb.open(inner));
+        office::sheet::Sheet sheet;
+        QVERIFY(wb.readSheet(0, &sheet));
+        const office::sheet::Cell *cell = sheet.cells.find(3, 2);
+        QVERIFY(cell && cell->number == 60);
+        // and reads again
+        auto again = open(saved);
+        QVERIFY(again);
+        QCOMPARE(chartAt(*again, 7).data.values, data.values);
+        QVERIFY(chartAt(*again, 7).dataEditable);
+        // One step: Undo brings back the old numbers in the chart and in the workbook that goes with it.
+        QVERIFY(doc->undo());
+        QCOMPARE(chartAt(*doc, 7).data.values, before.data.values);
+        QCOMPARE(count(doc->toDocx(), &book), (QPair<int, int>(1, 1)));
+        QVERIFY(doc->redo());
+        QCOMPARE(chartAt(*doc, 7).data.values, data.values);
+        // a grid that changes nothing makes no step
+        QVERIFY(!setChartWorkbookData(*doc, 7, data));
+    }
+
+    // From the window: the commands that change numbers and names are on, the grid is the cells (no row or column to add), and a row or column can't be swapped, with the reason.
+    void aChartWithItsWorkbookHasItsGridInTheWindowAndOneStepOfUndo()
+    {
+        WriteWindow w;
+        w.resize(1100, 800);
+        w.show();
+        w.setDocument(open(workbookChartDocx()), QString());
+        w.view()->refresh();
+        w.view()->selectPicture(7);
+        QTRY_VERIFY(w.act("chartdesign.editData")->isEnabled());
+        QVERIFY(w.act("chart.editData")->isEnabled());
+        for (const char *id : {"chartdesign.selectData", "chartdesign.switch"}) {
+            QVERIFY2(!w.act(id)->isEnabled(), id);
+            QVERIFY2(w.act(id)->toolTip().contains(QStringLiteral("workbook")), id);
+        }
+        const QByteArray bookBefore = write::chartWorkbookAt(*w.document(), 7);
+        withDialog([&] { w.act("chartdesign.editData")->trigger(); }, QStringLiteral("chartDataDialog"), [&](QDialog *dlg) {
+            auto *table = dlg->findChild<QTableWidget *>(QStringLiteral("chartDataTable"));
+            QVERIFY(table);
+            QCOMPARE(table->rowCount(), 4);
+            QCOMPARE(table->item(1, 0)->text(), QStringLiteral("Q1"));
+            table->item(1, 1)->setText(QStringLiteral("11"));
+        });
+        QCOMPARE(chartAt(*w.document(), 7).data.values[0], (QVector<double>{11, 2, 3}));
+        QVERIFY(write::chartWorkbookAt(*w.document(), 7) != bookBefore);
+        QVERIFY(w.document()->undo());
+        QCOMPARE(chartAt(*w.document(), 7).data.values[0], (QVector<double>{1, 2, 3}));
+        QCOMPARE(write::chartWorkbookAt(*w.document(), 7), bookBefore);
+    }
+
+    // A reference that can't be followed (a second series on the first one's cells) leaves the numbers read-only, with the reason.
+    void aChartWithItsWorkbookWhoseReferencesCantBeFollowedStaysReadOnly()
+    {
+        auto doc = open(workbookChartDocx());
+        QVERIFY(doc);
+        QVERIFY(changeChartAt(*doc, 7, [](office::Chart *c) { c->plots[0].series[1].valueRef = c->plots[0].series[0].valueRef; }));
+        QVERIFY(!chartAt(*doc, 7).dataEditable);
+        QVERIFY(!setChartWorkbookData(*doc, 7, chartAt(*doc, 7).data));
     }
 
     void aChartFromTheWindowShowsTheChartFormatTabAndItsCommandsChangeItOneStepEach()

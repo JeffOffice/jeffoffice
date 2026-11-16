@@ -250,7 +250,7 @@ void WriteDoc::exportInto(BlockSink &sink, QTextDocument *whose, QTextBlock firs
 // the history that can bring a picture back, and only the file leaves them out.
 void WriteDoc::pruneUnusedMedia(office::wml::Document *out) const
 {
-    if (m_madeMedia.isEmpty() && m_madeLinks.isEmpty()) return;
+    if (m_madeMedia.isEmpty() && m_madeLinks.isEmpty() && m_ownedParts.isEmpty()) return;
     QSet<QString> named;
     // (Every quoted value is a candidate, in either quote character, each closed by the same one: a relationship's Id is whatever the file chose, "rId7" or 'img1', and the attribute that
     // names it is the format's, not ours to list.)
@@ -279,7 +279,8 @@ void WriteDoc::pruneUnusedMedia(office::wml::Document *out) const
         }
     }
     for (const office::wml::KeptPart &part : std::as_const(out->parts))
-        if (part.contentType.contains(QLatin1String("xml"))) collect(part.data);
+        // (A chart's Ids are those of its own relationships, a workbook's and a drawing's: they name nothing of the main part's.)
+        if (part.contentType.contains(QLatin1String("xml")) && !part.contentType.contains(QLatin1String("drawingml.chart+xml"))) collect(part.data);
     // (An address a link was made to and then taken back, or never used, is no relationship of the file.)
     for (const QString &id : std::as_const(m_madeLinks)) {
         if (named.contains(id)) continue;
@@ -308,6 +309,22 @@ void WriteDoc::pruneUnusedMedia(office::wml::Document *out) const
         for (qsizetype i = 0; i < out->parts.size(); ++i)
             if (out->parts[i].name.compare(target, Qt::CaseInsensitive) == 0) {
                 out->partRelationships.remove(out->parts[i].name);   // (a part made from another has the relationships of its own)
+                out->parts.removeAt(i);
+                break;
+            }
+    }
+    // The workbooks of charts that were put in another part (or taken back) are left out when no part's relationships name them any more.
+    for (const QString &owned : std::as_const(m_ownedParts)) {
+        auto targets = [&owned](const QVector<office::Relationship> &rels) {
+            for (const office::Relationship &r : rels)
+                if (!r.external && r.target.compare(owned, Qt::CaseInsensitive) == 0) return true;
+            return false;
+        };
+        bool held = targets(out->mainRelationships) || targets(out->packageRelationships);
+        for (auto r = out->partRelationships.cbegin(); !held && r != out->partRelationships.cend(); ++r) held = targets(r.value());
+        if (held) continue;
+        for (qsizetype i = 0; i < out->parts.size(); ++i)
+            if (out->parts[i].name.compare(owned, Qt::CaseInsensitive) == 0) {
                 out->parts.removeAt(i);
                 break;
             }

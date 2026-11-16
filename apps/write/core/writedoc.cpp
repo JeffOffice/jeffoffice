@@ -613,6 +613,39 @@ void WriteDoc::letGoOfMediaIfUnused(const QString &id)
         if (r.id == id && !r.external && r.type.endsWith(QLatin1String("/image"))) m_madeMedia.insert(id, r.target);
 }
 
+QVector<Relationship> WriteDoc::relationshipsOfPart(const QString &part) const { return m_wml.partRelationships.value(part); }
+
+QString WriteDoc::addOwnedPart(const QString &folder, const QString &base, const QString &extension, const QByteArray &data, const QString &contentType)
+{
+    QSet<QString> taken;
+    for (const KeptPart &p : m_wml.parts) taken.insert(p.name.toLower());
+    QString name;
+    for (int n = 1;; ++n) {
+        name = QStringLiteral("%1/%2%3.%4").arg(folder, base).arg(n).arg(extension);
+        if (!taken.contains(name.toLower())) break;
+    }
+    KeptPart part;
+    part.name = name;
+    part.contentType = contentType;
+    part.data = data;
+    m_wml.parts.push_back(part);
+    m_ownedParts.insert(name);
+    return name;
+}
+
+void WriteDoc::retargetPartRelationship(const QString &part, const QString &id, const QString &target)
+{
+    for (Relationship &r : m_wml.partRelationships[part])
+        if (r.id == id) r.target = target;
+}
+
+void WriteDoc::releaseRelatedPart(const QString &id, const QString &workbookPart)
+{
+    for (const Relationship &r : m_wml.mainRelationships)
+        if (r.id == id && !r.external) m_madeMedia.insert(id, r.target);
+    if (!workbookPart.isEmpty()) m_ownedParts.insert(workbookPart);
+}
+
 QByteArray WriteDoc::relatedPartData(const QString &id) const
 {
     for (const Relationship &r : m_wml.mainRelationships)

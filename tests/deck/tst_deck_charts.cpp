@@ -13,6 +13,10 @@
 #include "office/chart_write.h"
 #include "office/package.h"
 #include "core/items.h"
+#include "sheet/chartembed.h"
+#include "sheet/sheetreader.h"
+#include "../chartembedhelpers.h"
+#include <QTableWidget>
 
 #include <QCheckBox>
 #include <QSet>
@@ -818,6 +822,142 @@ private Q_SLOTS:
         for (const QString &name : pkg.partNames())
             if (name.startsWith(QStringLiteral("/ppt/charts/chart")))
                 for (const office::Relationship &r : pkg.relationships(name)) QVERIFY2(r.external || pkg.hasPart(r.target), qPrintable(r.target));
+    }
+
+    // ---- the numbers of a chart another program saved with its workbook
+    // The sample chart with a workbook that is a workbook (the cells its references name) and a second series that reads its own column.
+    static Parts workbookChartPptx()
+    {
+        Parts p = chartPptx();
+        QString chart = QString::fromUtf8(p.data["/ppt/charts/chart1.xml"].xml);
+        const int second = chart.indexOf(QStringLiteral("<c:ser>"), chart.indexOf(QStringLiteral("<c:ser>")) + 1);
+        QString tail = chart.mid(second);
+        tail.replace(QStringLiteral("$B$"), QStringLiteral("$C$"));
+        p.data["/ppt/charts/chart1.xml"].xml = (chart.left(second) + tail).toUtf8();
+        p.data["/ppt/embeddings/Sheet1.xlsx"].xml = jp::testing::salesBook();
+        return p;
+    }
+
+    // Edit Data on such a chart is the grid of the cells: values and names change in the workbook and in the chart, as one step; saved, the workbook part is the new workbook (and only it), the chart
+    // part has the new numbers, and both read again.
+    void theNumbersOfAChartWithItsWorkbookAreEditedAsOneStepAndSavedInBoth()
+    {
+        QString err;
+        auto d = deck::importPresentation(pack(workbookChartPptx()), &err);
+        QVERIFY2(d, qPrintable(err));
+        DeckWindow w;
+        w.editor()->setDocument(std::move(d));
+        Editor *ed = w.editor();
+        ed->setCurrentPage(0);
+        PictureItem *pic = chartsOn(*ed->doc()).first();
+        ed->select(pic->id);
+        w.chartActions()->refresh();
+        // The commands that change numbers and names are on; the ones that would add, take away, or swap a row or column say why they are not.
+        QVERIFY(w.act(QStringLiteral("chartdesign.editData"))->isEnabled());
+        QVERIFY(w.act(QStringLiteral("chart.editData"))->isEnabled());
+        for (const char *id : {"chartdesign.selectData", "chartdesign.switch"}) {
+            QVERIFY2(!w.act(QString::fromLatin1(id))->isEnabled(), id);
+            QVERIFY2(w.act(QString::fromLatin1(id))->toolTip().contains(QStringLiteral("workbook")), id);
+        }
+        const QByteArray bookBefore = jp::chartWorkbookOf(*ed->doc(), *pic);
+        QVERIFY(bookBefore.startsWith("PK"));
+        withDialog([&] { w.act(QStringLiteral("chartdesign.editData"))->trigger(); }, QStringLiteral("chartDataDialog"), [&](QDialog *dlg) {
+            auto *table = dlg->findChild<QTableWidget *>(QStringLiteral("chartDataTable"));
+            QVERIFY(table);
+            QCOMPARE(table->rowCount(), 4);
+            QCOMPARE(table->columnCount(), 3);
+            QCOMPARE(table->item(0, 1)->text(), QStringLiteral("Sales"));
+            QCOMPARE(table->item(2, 0)->text(), QStringLiteral("Q2"));
+            QCOMPARE(table->item(3, 2)->text(), QStringLiteral("6"));
+            table->item(2, 1)->setText(QStringLiteral("42"));
+            table->item(0, 2)->setText(QStringLiteral("Expenses"));
+        });
+        QVERIFY(jp::chartWorkbookOf(*ed->doc(), *pic) != bookBefore);
+        office::Chart now;
+        QVERIFY(jp::readChartOf(*ed->doc(), *pic, &now));
+        QCOMPARE(now.plots[0].series[0].values, (QVector<double>{1, 42, 3}));
+        QCOMPARE(now.plots[0].series[1].name, QStringLiteral("Expenses"));
+        QVERIFY(jp::chartInfoOfPicture(*ed->doc(), *pic).dataEditable);
+        // One step: Undo puts back the chart and the workbook, Redo the edit.
+        ed->undo();
+        pic = chartsOn(*ed->doc()).first();
+        QCOMPARE(jp::chartWorkbookOf(*ed->doc(), *pic), bookBefore);
+        QVERIFY(jp::readChartOf(*ed->doc(), *pic, &now));
+        QCOMPARE(now.plots[0].series[0].values, (QVector<double>{10, 20, 40}));
+        ed->redo();
+        pic = chartsOn(*ed->doc()).first();
+        QVERIFY(jp::readChartOf(*ed->doc(), *pic, &now));
+        QCOMPARE(now.plots[0].series[0].values, (QVector<double>{1, 42, 3}));
+        // Saved: one workbook part, the new one, which opens as a workbook with the new numbers; the chart part names the same cells with the new values; and it all reads again.
+        const QByteArray bytes = deck::exportPresentation(*ed->doc(), &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        office::Package pkg;
+        QVERIFY(pkg.read(bytes, &err));
+        int books = 0;
+        for (const QString &name : pkg.partNames())
+            if (name.endsWith(QStringLiteral(".xlsx"))) ++books;
+        QCOMPARE(books, 1);
+        const QByteArray book = pkg.part(QStringLiteral("/ppt/embeddings/Sheet1.xlsx"));
+        office::sheet::ChartData cells;
+        office::Chart saved;
+        QVERIFY(office::readChart(pkg.part(QStringLiteral("/ppt/charts/chart1.xml")), office::defaultTheme(), office::ColorMap(), &saved));
+        QCOMPARE(saved.plots[0].series[0].values, (QVector<double>{1, 42, 3}));
+        QCOMPARE(saved.plots[0].series[0].valueRef, QStringLiteral("Sheet1!$B$2:$B$4"));
+        QVERIFY2(office::sheet::embeddedChartProblem(saved, book, &cells).isEmpty(), qPrintable(office::sheet::embeddedChartProblem(saved, book)));
+        QCOMPARE(cells.values[0], (QVector<double>{1, 42, 3}));
+        QCOMPARE(cells.seriesNames[1], QStringLiteral("Expenses"));
+        // (the workbook opens as a workbook with the numbers, as JeffCrunch reads it)
+        office::Package inner;
+        QVERIFY(inner.readLazy(book));
+        office::sheet::Workbook wb;
+        QVERIFY(wb.open(inner));
+        office::sheet::Sheet sheet;
+        QVERIFY(wb.readSheet(0, &sheet));
+        const office::sheet::Cell *cell = sheet.cells.find(2, 1);
+        QVERIFY(cell && cell->number == 42);
+        auto again = deck::importPresentation(bytes, &err);
+        QVERIFY2(again, qPrintable(err));
+        PictureItem *back = chartsOn(*again).first();
+        QCOMPARE(jp::chartWorkbookOf(*again, *back), book);
+        QVERIFY(jp::chartInfoOfPicture(*again, *back).dataEditable);
+        QCOMPARE(jp::chartInfoOfPicture(*again, *back).data.values[0], (QVector<double>{1, 42, 3}));
+    }
+
+    // A reference that can't be followed keeps the chart read-only, with the reason (here a second series that reads the cells of the first).
+    void aChartWhoseReferencesCantBeFollowedStaysReadOnlyWithItsWorkbook()
+    {
+        Parts p = workbookChartPptx();
+        QString chart = QString::fromUtf8(p.data["/ppt/charts/chart1.xml"].xml);
+        chart.replace(QStringLiteral("$C$"), QStringLiteral("$B$"));
+        p.data["/ppt/charts/chart1.xml"].xml = chart.toUtf8();
+        QString err;
+        auto d = deck::importPresentation(pack(p), &err);
+        QVERIFY2(d, qPrintable(err));
+        const PictureItem *pic = chartsOn(*d).first();
+        QVERIFY(!jp::chartInfoOfPicture(*d, *pic).dataEditable);
+        DeckWindow w;
+        w.editor()->setDocument(std::move(d));
+        w.editor()->setCurrentPage(0);
+        w.editor()->select(chartsOn(*w.editor()->doc()).first()->id);
+        w.chartActions()->refresh();
+        QVERIFY(!w.act(QStringLiteral("chartdesign.editData"))->isEnabled());
+        QVERIFY(w.act(QStringLiteral("chartdesign.editData"))->toolTip().contains(QStringLiteral("workbook")));
+    }
+
+    // A screenshot of the data grid on such a chart (only when JO_SHOT_DIR is set).
+    void shotOfTheGridOfAChartWithItsWorkbook()
+    {
+        if (qEnvironmentVariableIsEmpty("JO_SHOT_DIR")) QSKIP("set JO_SHOT_DIR for a screenshot");
+        jp::applyUiTheme(1);
+        QString err;
+        auto d = deck::importPresentation(pack(workbookChartPptx()), &err);
+        QVERIFY2(d, qPrintable(err));
+        DeckWindow w;
+        w.editor()->setDocument(std::move(d));
+        w.editor()->setCurrentPage(0);
+        w.editor()->select(chartsOn(*w.editor()->doc()).first()->id);
+        w.chartActions()->refresh();
+        withDialog([&] { w.act(QStringLiteral("chartdesign.editData"))->trigger(); }, QStringLiteral("chartDataDialog"), [](QDialog *dlg) { shotOf(dlg, QStringLiteral("deck-embedded-chart-data")); }, false);
     }
 
     // A frame's turn is the file's rot: sixty-thousandths of a degree, clockwise. Turned back to zero it says nothing.
