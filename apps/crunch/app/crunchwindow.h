@@ -288,6 +288,8 @@ public:
     void editLinksCommand();
     // What happens to the links when the file has been opened and worked out: updated, left, or asked (see EditSession::UpdateLinks).
     void linksOnOpen();
+    crunch::EditSession::UpdateLinks linksOpeningMode() const;
+    bool pivotFilesOnOpenAllowed(int tables);
     void openLinkSource(const QString &path) { openFile(path); }
     // Paste > Set Default Paste: what the Paste button and Ctrl+V put in (all, or values, formulas, and so on) when cells are on the clipboard; asked as the number of the choice.
     bool setDefaultPaste();

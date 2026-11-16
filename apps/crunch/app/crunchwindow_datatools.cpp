@@ -66,19 +66,35 @@ void CrunchWindow::editLinksCommand()
     dialog.exec();
 }
 
-// When a workbook that reads others has been opened and worked out: the choice the file has (Startup prompt in Edit Links) decides. Only links whose file is on this computer are asked about.
-void CrunchWindow::linksOnOpen()
+// What the person has chosen for the links of a file as it opens (the file's own word is a question). Options > Security decides for a file whose Startup prompt the person has not set here: "Never" leaves
+// the stored values (as a file that says "never" does), and "Update them" updates without asking (a file that says "never" is still left, and a source on another computer is never read).
+crunch::EditSession::UpdateLinks CrunchWindow::linksOpeningMode() const
 {
-    if (!m_session || !m_loaded || isReadOnly()) return;
-    // (no file is touched before the person says yes: the question is made from the link parts of the workbook alone, since asking whether a file is there would reach a computer on a network)
     crunch::EditSession::UpdateLinks mode = m_session->openingChoice();
-    // Options > Security decides for a file whose Startup prompt the person has not set here: "Never" leaves the stored values (as a file that says "never" does), and "Update them" updates without
-    // asking (a file that says "never" is still left, and a source on another computer is never read, below).
     if (!m_session->updateLinksChosen() && mode != crunch::EditSession::UpdateLinks::Never) {
         const jp::trust::Choice trusted = jp::trust::linkedFiles();
         if (trusted == jp::trust::Choice::Never) mode = crunch::EditSession::UpdateLinks::Never;
         else if (trusted == jp::trust::Choice::Yes) mode = crunch::EditSession::UpdateLinks::Always;
     }
+    return mode;
+}
+
+// Whether the files that pivot tables are made from may be read as the workbook opens: the same question and the same choice as for its links.
+bool CrunchWindow::pivotFilesOnOpenAllowed(int tables)
+{
+    const crunch::EditSession::UpdateLinks mode = linksOpeningMode();
+    if (mode == crunch::EditSession::UpdateLinks::Never) return false;
+    if (mode == crunch::EditSession::UpdateLinks::Always) return true;
+    if (m_linksAsker) return m_linksAsker(tables, 0);
+    return plainQuestion(this, tr("Pivot Tables"), tr("%n pivot table(s) in this workbook read their data from other files. Read those files now?", nullptr, tables)) == QMessageBox::Yes;
+}
+
+// When a workbook that reads others has been opened and worked out: the choice the file has (Startup prompt in Edit Links) decides. Only links whose file is on this computer are asked about.
+void CrunchWindow::linksOnOpen()
+{
+    if (!m_session || !m_loaded || isReadOnly()) return;
+    // (no file is touched before the person says yes: the question is made from the link parts of the workbook alone, since asking whether a file is there would reach a computer on a network)
+    crunch::EditSession::UpdateLinks mode = linksOpeningMode();
     if (mode == crunch::EditSession::UpdateLinks::Never) return;
     const std::vector<crunch::EditSession::ExternalSource> sources = m_session->externalLinkSources(false);
     if (sources.empty()) return;

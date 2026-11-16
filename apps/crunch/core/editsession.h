@@ -20,6 +20,7 @@
 #include "grid/valuestore.h"
 #include "sheet/entry.h"
 #include "sheet/namerefs.h"
+#include "sheet/pivotexternal.h"
 #include "calc/numfmt.h"
 #include "sheet/textmatch.h"
 #include "sheet/xlsxsave.h"
@@ -410,7 +411,9 @@ public:
     // Move pivot table: the table drawn again with its first cell at (row, col) of its own sheet, the cells it left emptied; one step of Undo. Not ok, and nothing changed, if what is there is in the way.
     Outcome movePivot(int table, quint32 row, quint32 col);
     // The pivot tables whose cache says to refresh when the file opens are refreshed, as one step (nothing is done when there are none, or when the calculation has not finished).
-    Outcome refreshPivotsOnOpen();
+    Outcome refreshPivotsOnOpen(bool external = false);
+    // How many pivot tables whose data is in another file say to be read again when the file opens. They are not read on open unless the person allows it (`external`).
+    int externalPivotsOnOpen() const;
     // The most cells of source data that are read again when a file opens, all the tables together (0: the usual); for tests.
     static void setRefreshOnOpenLimit(qint64 cells);
     // Groups the dates (by the parts in `levels`: seconds, minutes, hours, days, months, quarters, years) or the numbers (no levels: from `start` to `end` in steps of `step`) of a field the table
@@ -1150,7 +1153,8 @@ public:
         std::map<int, QString> headerDrawings;                 // set by the save: the drawing of header and footer pictures each sheet names now (see SaveReport)
     };
     // `pivotParts` false: the pivot tables' changed parts are not made (a copy as .xls or .ods does not keep the tables, only what they show in the cells)
-    bool takeSnapshot(Snapshot *out, QString *why, bool pivotParts = true);
+    // `savePath`, when given, is the file the snapshot is written as: a pivot source in another file that the workbook stores by a path from its folder is then written to name the same file from the folder of `savePath`.
+    bool takeSnapshot(Snapshot *out, QString *why, bool pivotParts = true, const QString &savePath = QString());
     // The file was written from this snapshot: it is the base now. `package` is the new file's.
     void saved(const Snapshot &snapshot, const jp::office::Package &package);
 
@@ -1298,10 +1302,13 @@ private:
         jp::office::sheet::CellRange range;
         QString name;
         bool external = false;   // the data is in the file `file` (a path the person chose), at `where`
-        QString file, where;
+        QString file, where;   // (`file` as a path on this computer)
+        QString target;        // the address the cache keeps, when the file is the one it has (as the file stores it)
     };
     // A source in another file, read: the cells, and what the cache stores of where they are. `chosen`: a path the person picked just now (else the cache's address). False, with the notice to show, when the file can't be read (`keeps`: the notice says the pivot table keeps the data it has).
-    bool readExternalPivotSource(const QString &target, bool chosen, bool keeps, const QString &where, jp::office::sheet::PivotSource *ps, QString *sheet, QString *ref, QString *name, QString *why) const;
+    bool readExternalPivotSource(const QString &target, bool keeps, const QString &where, jp::office::sheet::PivotExternalReads *reads, jp::office::sheet::PivotSource *ps, QString *sheet, QString *ref, QString *name, QString *why) const;
+    // A file the person chose or typed for a source: a path on this computer (a relative one from this workbook's folder, which it must have), with the checks an address in a file has. False, with `why`.
+    bool chosenPivotFile(const QString &file, QString *path, QString *why) const;
     bool pivotSourceRange(int cache, int *sheet, jp::office::sheet::CellRange *range, QString *why, const SourceOver *over = nullptr) const;
     // A pivot source's cells and their number formats, read from the sheet as the calculation has them.
     // What the text of a source says: a range (of the sheet named, else `defaultSheet`), or the name of a table or defined name (given in `*name`, with its cells in `*sheet` and `*range`). False, with `why`.

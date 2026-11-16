@@ -9,6 +9,7 @@
 
 #include <QCoreApplication>
 #include <QElapsedTimer>
+#include <QFileInfo>
 #include <QThread>
 #include <QUndoCommand>
 
@@ -1563,7 +1564,7 @@ void EditSession::noteResults(const std::vector<ValueStore::Item> &items)
     }
 }
 
-bool EditSession::takeSnapshot(Snapshot *out, QString *why, bool pivotParts)
+bool EditSession::takeSnapshot(Snapshot *out, QString *why, bool pivotParts, const QString &savePath)
 {
     auto refuse = [&](const QString &text) {
         if (why) *why = text;
@@ -1941,7 +1942,9 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why, bool pivotParts)
     for (auto &[part, bytes] : jp::office::sheet::slicerPartPatches(book)) changes.replacedParts[part] = std::move(bytes);
     // (the pivot parts are made by the thread that writes the file: a cache with many records takes long to write; a copy in another form does not take them)
     if (pivotParts) {
-        for (auto &[part, make] : book.changedPivotPartProducers()) changes.producedParts[part] = std::move(make);
+        const QString fromFolder = !m_book->path.isEmpty() ? QFileInfo(m_book->path).absolutePath() : QString();
+        const QString toFolder = !savePath.isEmpty() ? QFileInfo(savePath).absolutePath() : QString();
+        for (auto &[part, make] : book.changedPivotPartProducers(fromFolder, toFolder)) changes.producedParts[part] = std::move(make);
         // (the selection a sheet's view keeps for a table that changed is left out of the sheets that have one)
         const jp::office::sheet::PivotBook &pb = book.pivots();
         for (int t = 0; t < pb.tableCount(); ++t) {
@@ -1950,7 +1953,7 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why, bool pivotParts)
         // the tables made here: their parts, made by the thread that writes the file
         QStringList sheetNames;
         for (const jp::office::sheet::SheetEntry &se : book.info().sheets) sheetNames << (se.deleted ? QString() : se.name);
-        for (const jp::office::sheet::PivotBook::AddedParts &a : pb.addedParts(sheetNames)) {
+        for (const jp::office::sheet::PivotBook::AddedParts &a : pb.addedParts(sheetNames, fromFolder, toFolder)) {
             SaveChanges::AddedPivot added;
             added.sheet = a.sheet;
             added.tablePart = a.tablePart;

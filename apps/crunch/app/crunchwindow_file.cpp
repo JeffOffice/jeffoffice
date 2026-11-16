@@ -646,7 +646,11 @@ void CrunchWindow::onCalcBatch(const std::shared_ptr<crunch::CalcBatch> &batch)
                 QPointer<CrunchWindow> self(this);
                 QTimer::singleShot(0, this, [self] {
                     if (!self || !self->m_session) return;
-                    const auto refreshed = self->m_session->refreshPivotsOnOpen();
+                    // (a table made from another file is read only when the person allows the files to be: a workbook that arrives must not choose which files of this computer are read)
+                    const int files = self->isReadOnly() ? 0 : self->m_session->externalPivotsOnOpen();
+                    const bool allowed = files > 0 && self->pivotFilesOnOpenAllowed(files);
+                    if (!self || !self->m_session) return;
+                    const auto refreshed = self->m_session->refreshPivotsOnOpen(allowed);
                     if (!refreshed.problem.isEmpty()) self->setStatus(refreshed.problem.section(QLatin1Char('\n'), 0, 0));
                 });
             }

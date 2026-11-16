@@ -235,7 +235,7 @@ bool CrunchWindow::startSave(const QString &path)
     }
     auto snapshot = std::make_shared<crunch::EditSession::Snapshot>();
     QString why;
-    if (!m_session->takeSnapshot(snapshot.get(), &why)) {
+    if (!m_session->takeSnapshot(snapshot.get(), &why, true, path)) {
         notice(tr("Save"), why);
         return false;
     }

@@ -82,9 +82,11 @@ You can also point the table at a range in another file. In the box, choose **A 
 
 ## Data in another file
 
-A pivot table made from another file keeps the data it was made from inside this workbook, so you can open, change, and save the workbook when the other file is gone. **Refresh** reads the other file again. If the file has moved, is missing, is too big, is not a workbook, or no longer has the range, the table keeps the data it had, and a message says that the file could not be read. A file that is on another computer on your network is not read until you choose it yourself in **Change Data Source**.
+A pivot table made from another file keeps the data it was made from inside this workbook, so you can open, change, and save the workbook when the other file is gone. **Refresh** reads the other file again. If the file has moved, is missing, is too big, is not a workbook, or no longer has the range, the table keeps the data it had, and a message says that the file could not be read. A file that is on another computer on your network is not read until you choose it yourself in **Change Data Source**. One refresh reads each file once, and at most 32 files, 1 GB, and 30 seconds in all; a table past that keeps its data.
 
-A workbook saved as .xlsx stores where the file is. Choosing the file in the box stores its full address. A workbook that another program made, whose table points at a file by a short path such as `Prices.xlsx`, keeps that path, and JeffCrunch looks for the file in the same folder as the workbook. Refresh does not follow any links the other file has to still other files.
+If a workbook says its table should be read again when it opens, and the table's data is in another file, JeffCrunch asks first, in the same way it does for the links to other workbooks. Until you say yes, no file is read.
+
+A workbook saved as .xlsx stores where the file is. Choosing the file in the box stores its full address. A workbook that another program made, whose table points at a file by a short path such as `Prices.xlsx`, keeps that path, and JeffCrunch looks for the file in the same folder as the workbook. When you use **Save As** to save the workbook in another folder, a path like that is rewritten so that it still names the same file. Refresh does not follow any links the other file has to still other files.
 
 ## Clear
 

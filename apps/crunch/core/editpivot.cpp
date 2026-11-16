@@ -136,19 +136,38 @@ QString EditSession::pivotSourceFile(int table) const
     return path.isEmpty() ? c.cache->externalTarget : QDir::toNativeSeparators(QDir::cleanPath(path));
 }
 
-bool EditSession::readExternalPivotSource(const QString &target, bool chosen, bool keeps, const QString &where, PivotSource *ps, QString *sheet, QString *ref, QString *name, QString *why) const
+bool EditSession::chosenPivotFile(const QString &file, QString *path, QString *why) const
 {
-    // (the file is named by the cache as the file stores it: a path from this workbook's folder, or absolute; one on another computer is read only when the person chose it just now)
+    // (a file the person typed or chose is checked as a link in a file is: nothing on another computer, no stream or device, no web address; a name with no folder is from this workbook's)
     const QString folder = m_book && !m_book->path.isEmpty() ? QFileInfo(m_book->path).absolutePath() : QString();
     bool network = false;
-    const QString path = chosen ? QFileInfo(target).absoluteFilePath() : jp::office::sheet::externalFilePath(target, folder, &network);
+    const QString resolved = jp::office::sheet::externalFilePath(file.trimmed(), folder, &network);
+    const QString shown = QFileInfo(resolved.isEmpty() ? file : resolved).fileName();
+    if (resolved.isEmpty() || network) {
+        *why = tr("The file \"%1\" can't be read from here.").arg(shown.isEmpty() ? file : shown);
+        return false;
+    }
+    if (!QDir::isAbsolutePath(resolved)) {
+        *why = tr("Save this workbook first: a file named without its folder is looked for in the folder this workbook is in.");
+        return false;
+    }
+    *path = QDir::cleanPath(resolved);
+    return true;
+}
+
+bool EditSession::readExternalPivotSource(const QString &target, bool keeps, const QString &where, jp::office::sheet::PivotExternalReads *reads, PivotSource *ps, QString *sheet, QString *ref, QString *name, QString *why) const
+{
+    // (the file is named by the cache as the file stores it: a path from this workbook's folder, or absolute; one on another computer is never read)
+    const QString folder = m_book && !m_book->path.isEmpty() ? QFileInfo(m_book->path).absolutePath() : QString();
+    bool network = false;
+    const QString path = jp::office::sheet::externalFilePath(target, folder, &network);
     const QString shown = QFileInfo(path.isEmpty() ? target : path).fileName();
     if (path.isEmpty() || network) {
         *why = keeps ? tr("The file \"%1\" could not be read; the pivot keeps its last data.").arg(shown.isEmpty() ? target : shown) : tr("The file \"%1\" can't be read from here.").arg(shown.isEmpty() ? target : shown);
         return false;
     }
     QString reason;
-    if (!jp::office::sheet::readPivotExternalSource(path, where, ps, sheet, ref, name, &reason)) {
+    if (!reads->read(path, where, ps, sheet, ref, name, &reason)) {
         *why = keeps ? tr("The file \"%1\" could not be read; the pivot keeps its last data.").arg(shown) : tr("The data in \"%1\" can't be read: %2.").arg(shown, reason);
         return false;
     }
@@ -584,12 +603,15 @@ EditSession::Outcome EditSession::createPivot(const QString &source, int sheet, 
     auto cache = std::make_shared<PivotCache>();
     if (!file.isEmpty()) {
         // (a range of another file: read now, on this thread, within the bounds an opened file has)
+        QString path;
+        if (!chosenPivotFile(file, &path, &why)) return refuse(why);
         PivotSource ps;
         QString extSheet, extRef, extName;
-        if (!readExternalPivotSource(file, true, false, source, &ps, &extSheet, &extRef, &extName, &why)) return refuse(why);
+        jp::office::sheet::PivotExternalReads reads;
+        if (!readExternalPivotSource(path, false, source, &reads, &ps, &extSheet, &extRef, &extName, &why)) return refuse(why);
         if (!buildPivotCache(ps, PivotCache(), cache.get(), &why)) return refuse(tr("The data can't be read: %1.").arg(why));
         cache->externalSource = true;
-        cache->externalTarget = jp::office::sheet::pivotExternalAddress(file);
+        cache->externalTarget = jp::office::sheet::pivotExternalAddress(path);
         cache->sheet = extSheet;
         cache->ref = extRef;
         cache->name = extName;
@@ -828,6 +850,7 @@ EditSession::Outcome EditSession::refreshPivotCaches(const std::vector<int> &cac
     PivotBook &pb = book.pivots();
     std::vector<PivotChange> changes;
     QStringList notDone;
+    jp::office::sheet::PivotExternalReads reads;   // (every file once, all within the limits together)
     for (int ci : caches) {
         const size_t changesBefore = changes.size();
         const QString problem = [&]() -> QString {
@@ -842,9 +865,9 @@ EditSession::Outcome EditSession::refreshPivotCaches(const std::vector<int> &cac
         if (toFile) {
             // (the data is in another file: read again from it; when it can't be, the cache stays as it is)
             const bool chosen = over && over->cache == ci;
-            extTarget = chosen ? jp::office::sheet::pivotExternalAddress(over->file) : ce.cache->externalTarget;
+            extTarget = chosen ? (over->target.isEmpty() ? jp::office::sheet::pivotExternalAddress(over->file) : over->target) : ce.cache->externalTarget;
             const QString where = chosen ? over->where : (!ce.cache->name.isEmpty() ? ce.cache->name : sheetNamePrefix(ce.cache->sheet) + ce.cache->ref);
-            if (!readExternalPivotSource(chosen ? over->file : extTarget, chosen, !chosen, where, &ps, &extSheet, &extRef, &extName, &why)) return why;
+            if (!readExternalPivotSource(chosen ? over->file : extTarget, !chosen, where, &reads, &ps, &extSheet, &extRef, &extName, &why)) return why;
         } else if (!pivotSourceRange(ci, &sheet, &range, &why, over)) {
             return why;
         }
@@ -865,7 +888,7 @@ EditSession::Outcome EditSession::refreshPivotCaches(const std::vector<int> &cac
         if (toFile) {
             fresh->externalSource = true;
             fresh->externalTarget = extTarget;
-            fresh->externalRelId = over && over->cache == ci ? QString() : ce.cache->externalRelId;
+            fresh->externalRelId = over && over->cache == ci && over->target.isEmpty() ? QString() : ce.cache->externalRelId;
             fresh->sheet = extSheet;
             fresh->ref = extRef;
             fresh->name = extName;
@@ -1224,7 +1247,19 @@ void EditSession::setRefreshOnOpenLimit(qint64 cells)
     gRefreshOnOpenLimit = cells;
 }
 
-EditSession::Outcome EditSession::refreshPivotsOnOpen()
+int EditSession::externalPivotsOnOpen() const
+{
+    if (!m_book || !m_book->book) return 0;
+    PivotBook &pb = m_book->book->pivots();
+    std::set<int> caches;
+    for (int t = 0; t < pb.tableCount(); ++t) {
+        const int ci = pb.table(t).cache;
+        if (ci >= 0 && pb.cache(ci).cache && pb.cache(ci).cache->refreshOnLoad && pb.cache(ci).cache->externalSource && pivotUsable(t)) caches.insert(ci);
+    }
+    return int(caches.size());
+}
+
+EditSession::Outcome EditSession::refreshPivotsOnOpen(bool external)
 {
     Outcome out;
     QString why;
@@ -1236,6 +1271,7 @@ EditSession::Outcome EditSession::refreshPivotsOnOpen()
     for (int t = 0; t < pb.tableCount(); ++t) {
         const int ci = pb.table(t).cache;
         if (ci < 0 || !pb.cache(ci).cache || !pb.cache(ci).cache->refreshOnLoad || !pivotUsable(t)) continue;
+        if (!external && pb.cache(ci).cache->externalSource) continue;   // (a file is read only when the person has said so: a workbook that arrives must not choose what is read)
         if (std::find(caches.begin(), caches.end(), ci) != caches.end()) continue;
         const PivotCache &pc = *pb.cache(ci).cache;
         const qint64 size = pc.fields.isEmpty() ? 0 : qint64(pc.fields[0].records.size()) * pc.fields.size();
@@ -1841,8 +1877,17 @@ EditSession::Outcome EditSession::changePivotSource(int table, const QString &wh
         SourceOver over;
         over.cache = ci;
         over.external = true;
-        over.file = QFileInfo(file).absoluteFilePath();
+        QString path;
+        if (!chosenPivotFile(file, &path, &why)) return refuse(why);
+        over.file = path;
         over.where = where;
+        // (the file it has: its address stays as the file stores it, a path from this workbook's folder, say)
+        if (ce.external && ce.cache && !ce.cache->externalTarget.isEmpty()) {
+            const QString folder = !m_book->path.isEmpty() ? QFileInfo(m_book->path).absolutePath() : QString();
+            const QString now = jp::office::sheet::externalFilePath(ce.cache->externalTarget, folder);
+            const QString a = QFileInfo(now).canonicalFilePath(), b = QFileInfo(path).canonicalFilePath();
+            if (!now.isEmpty() && (a.isEmpty() || b.isEmpty() ? QDir::cleanPath(now) == path : a == b)) over.target = ce.cache->externalTarget;
+        }
         return refreshPivotCaches({ci}, tr("Change Pivot Table Data Source"), &over);
     }
     // what the person typed: "Sheet1!A1:D100", "A1:D100", the name of a table, or a defined name

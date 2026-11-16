@@ -123,6 +123,13 @@ public:
     // empty: the data is in this workbook
     QString file() const { return m_other->isChecked() ? m_file->text().trimmed() : QString(); }
     QString range() const { return m_other->isChecked() ? m_rangeThere->text() : m_rangeHere->text(); }
+    // "Another file" with no file named is not a choice: the data would be read from this workbook, which was not asked for.
+    bool complete() const { return !m_other->isChecked() || !m_file->text().trimmed().isEmpty(); }
+    void onChange(const std::function<void()> &changed)
+    {
+        QObject::connect(m_file, &QLineEdit::textChanged, this, [changed] { changed(); });
+        QObject::connect(m_other, &QRadioButton::toggled, this, [changed] { changed(); });
+    }
 
 private:
     void update(bool other)
@@ -168,6 +175,8 @@ public:
         QObject::connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
         QObject::connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
         layout->addWidget(buttons);
+        m_picker->onChange([this, buttons] { buttons->button(QDialogButtonBox::Ok)->setEnabled(m_picker->complete()); });
+        buttons->button(QDialogButtonBox::Ok)->setEnabled(m_picker->complete());
     }
     QString source() const { return m_picker->range(); }
     QString file() const { return m_picker->file(); }
@@ -195,6 +204,8 @@ public:
         QObject::connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
         QObject::connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
         layout->addWidget(buttons);
+        m_picker->onChange([this, buttons] { buttons->button(QDialogButtonBox::Ok)->setEnabled(m_picker->complete()); });
+        buttons->button(QDialogButtonBox::Ok)->setEnabled(m_picker->complete());
     }
     QString source() const { return m_picker->range(); }
     QString file() const { return m_picker->file(); }
