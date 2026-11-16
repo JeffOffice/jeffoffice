@@ -324,7 +324,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/write/app/writewindow_home.cpp" line="+246"/>
+        <location filename="../apps/write/app/writewindow_home.cpp" line="+247"/>
         <source>There are too many paragraphs to sort at once. Select %n paragraph(s) or fewer.</source>
         <translation>
             <numerusform>There are too many paragraphs to sort at once. Select %n paragraph or fewer.</numerusform>
