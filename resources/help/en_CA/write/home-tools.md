@@ -1,5 +1,5 @@
 # Change case, sort, and paste in other ways
-<!-- keywords: paste options button, smart cut and paste, spaces when pasting, horizontal line, rule, reveal formatting, style inspector, shift+f1, tabs, tab stops, leader, keep with next, keep lines together, page break before, widow, orphan, outline level, line and page breaks, change case, uppercase, lowercase, sentence case, capitalize, toggle case, shift+f3, sort, sort paragraphs, alphabetical, order, paste, paste special, continue list, new list, merge list, nest table, spreadsheet cells, keep text only, merge formatting, unformatted text, picture, clipboard -->
+<!-- keywords: paste options button, smart cut and paste, spaces when pasting, horizontal line, rule, reveal formatting, style inspector, shift+f1, tabs, tab stops, leader, keep with next, keep lines together, page break before, widow, orphan, outline level, line and page breaks, change case, uppercase, lowercase, sentence case, capitalize, toggle case, shift+f3, sort, sort paragraphs, alphabetical, order, paste, paste special, continue list, new list, merge list, nest table, spreadsheet cells, keep text only, merge formatting, rtf, rich text, formatted text, drop, drag text, unformatted text, picture, clipboard -->
 
 These tools are on the **Home** tab. They work on the text you select.
 
@@ -40,10 +40,11 @@ Each place keeps its own paragraph look. Sorting cannot be used while Track Chan
 
 Click the small arrow under **Paste** for more choices:
 
+- When the text comes from another program that puts rich text (RTF) on the clipboard, **Ctrl+V** keeps its look: fonts, sizes, colours, bold, lists, tables, links, and pictures. If the program gave no rich text, JeffWrite uses the web page form of it (HTML), and then plain words. Rich text over 16 MB is not read, and the paste uses the next form. Dropping formatted text from another program on the page does the same.
 - **Merge Formatting** pastes the text in the look of the place it goes to. Only bold, italic, underline, and strikethrough are kept.
 - **Keep Text Only** pastes the words with no look at all.
 - **Picture** pastes a picture from the clipboard. It is dimmed when the clipboard holds no picture.
-- **Paste Special** (**Ctrl+Alt+V**) lists every way the clipboard can be pasted now, and lets you pick one.
+- **Paste Special** (**Ctrl+Alt+V**) lists every way the clipboard can be pasted now, and lets you pick one, such as **Formatted text (RTF)**, **Unformatted text**, or **HTML**.
 
 A choice is dimmed when the clipboard has nothing it can use.
 

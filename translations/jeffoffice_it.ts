@@ -7512,7 +7512,7 @@ Aprili con il programma di posta elettronica per inviarli.</translation>
         <location line="+3"/>
         <location filename="../apps/deck/main.cpp" line="+92"/>
         <location filename="../apps/write/main.cpp" line="+94"/>
-        <location filename="../apps/crunch/main.cpp" line="+96"/>
+        <location filename="../apps/crunch/main.cpp" line="+108"/>
         <source>Save a screenshot of the window and quit.</source>
         <translation type="unfinished">Salva uno screenshot della finestra ed esci.</translation>
     </message>
@@ -7639,9 +7639,29 @@ Aprili con il programma di posta elettronica per inviarli.</translation>
         <translation type="unfinished">Per --screenshot: inserisci prima un&apos;immagine o una forma nel foglio.</translation>
     </message>
     <message>
+        <location line="+1"/>
+        <source>For a .csv, .tsv, or .txt file: what separates its fields (comma, semicolon, tab, space, bar, or one character). No question is asked, for the files on this command line only.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>For a .csv, .tsv, or .txt file: its encoding (utf-8, utf-8-bom, utf-16le, utf-16be, latin1, mac-roman, windows-1252 or another page, iso-8859-N).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>For a .csv, .tsv, or .txt file: the mark in its numbers (point or comma).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location line="+2"/>
         <source>Workbooks to open.</source>
         <translation type="unfinished">Cartelle di lavoro da aprire.</translation>
+    </message>
+    <message>
+        <location line="+66"/>
+        <source>The command line is not understood</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -20348,7 +20368,7 @@ Origine: %3</translation>
 <context>
     <name>jp::CrunchWindow</name>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+300"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+302"/>
         <source>%1 (%2)</source>
         <translation type="unfinished">%1 (%2)</translation>
     </message>
@@ -20433,7 +20453,7 @@ Origine: %3</translation>
         <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+336"/>
         <location line="+53"/>
         <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="+118"/>
-        <location line="+217"/>
+        <location line="+222"/>
         <location line="+67"/>
         <location line="+166"/>
         <location line="+15"/>
@@ -20469,8 +20489,8 @@ Origine: %3</translation>
     </message>
     <message>
         <location line="+9"/>
-        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-477"/>
-        <location line="+106"/>
+        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-482"/>
+        <location line="+111"/>
         <location line="+77"/>
         <location line="+66"/>
         <location line="+3"/>
@@ -20612,13 +20632,18 @@ Origine: %3</translation>
         <translation type="unfinished">Il nome %1 ora indica le celle selezionate.</translation>
     </message>
     <message>
-        <location line="+181"/>
+        <location line="+173"/>
+        <source>That text is too long to put in. Copy less of it, and try again.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+44"/>
         <source>Close the window when Goal Seek or the Scenario Summary is done.</source>
         <translation type="unfinished">Chiudi la finestra al termine di Ricerca obiettivo o Riepilogo scenari.</translation>
     </message>
     <message>
-        <location line="-639"/>
-        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-274"/>
+        <location line="-675"/>
+        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-279"/>
         <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="+1198"/>
         <source>All Files (*)</source>
         <translation type="unfinished">Tutti i file (*)</translation>
@@ -21716,7 +21741,7 @@ Origine: %3</translation>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_calc.cpp" line="+102"/>
         <location line="+15"/>
-        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="+270"/>
+        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="+275"/>
         <source>Calculating…</source>
         <translation type="unfinished">Calcolo in corso…</translation>
     </message>
@@ -21732,17 +21757,19 @@ Origine: %3</translation>
         <translation type="unfinished">Taglia</translation>
     </message>
     <message>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+394"/>
         <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+422"/>
         <location line="+17"/>
         <location line="+12"/>
         <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="+2"/>
         <location line="+298"/>
-        <location line="+247"/>
+        <location line="+136"/>
+        <location line="+156"/>
         <source>Paste</source>
         <translation type="unfinished">Incolla</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-325"/>
+        <location line="-719"/>
         <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-162"/>
         <location line="+1"/>
         <location line="+41"/>
@@ -23870,7 +23897,7 @@ Origine: %3</translation>
         <translation type="unfinished">Questa posizione non è più presente nella cartella di lavoro.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="-538"/>
+        <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="-583"/>
         <location line="+294"/>
         <location line="+44"/>
         <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="+107"/>
@@ -23953,14 +23980,14 @@ Origine: %3</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+379"/>
+        <location line="+415"/>
         <location line="+11"/>
         <source>Paste Link</source>
         <translation type="unfinished">Incolla collegamento</translation>
     </message>
     <message>
-        <location line="-389"/>
-        <location line="+402"/>
+        <location line="-425"/>
+        <location line="+438"/>
         <location line="+2"/>
         <location line="+5"/>
         <location line="+14"/>
@@ -23971,7 +23998,7 @@ Origine: %3</translation>
         <translation type="unfinished">Incolla come collegamento ipertestuale</translation>
     </message>
     <message>
-        <location line="-439"/>
+        <location line="-475"/>
         <source>Set Default Paste…</source>
         <translation type="unfinished">Imposta incolla predefinito…</translation>
     </message>
@@ -24069,17 +24096,23 @@ Origine: %3</translation>
     </message>
     <message>
         <location line="+21"/>
-        <location line="+22"/>
+        <location line="+11"/>
+        <location line="+25"/>
         <source>Paste Text Import</source>
         <translation type="unfinished">Incolla importazione testo</translation>
     </message>
     <message>
-        <location line="-22"/>
+        <location line="-36"/>
         <source>The clipboard has no text to split. Copy some text, and try again.</source>
         <translation type="unfinished">Gli Appunti non contengono testo da dividere. Copia del testo e riprova.</translation>
     </message>
     <message>
-        <location line="+39"/>
+        <location line="+11"/>
+        <source>That text is too long to split. Copy less of it, and try again.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+64"/>
         <source>Copy some cells of this workbook first, and try again.</source>
         <translation type="unfinished">Copia prima alcune celle di questa cartella di lavoro e riprova.</translation>
     </message>
@@ -24094,7 +24127,7 @@ Origine: %3</translation>
         <location line="+101"/>
         <location line="+15"/>
         <location line="+73"/>
-        <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="-139"/>
+        <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="-175"/>
         <location filename="../apps/crunch/app/crunchwindow_tables.cpp" line="-212"/>
         <source>None</source>
         <translation type="unfinished">Nessuno</translation>
@@ -24140,7 +24173,7 @@ Origine: %3</translation>
         <translation type="unfinished"> (Sola lettura)</translation>
     </message>
     <message>
-        <location line="+149"/>
+        <location line="+185"/>
         <source>Calculation stopped</source>
         <translation type="unfinished">Calcolo interrotto</translation>
     </message>
@@ -24219,14 +24252,14 @@ Origine: %3</translation>
         <translation type="unfinished">Annullato: %1</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-469"/>
+        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-474"/>
         <source>%1 can&apos;t open &quot;%2&quot;.
 The file isn&apos;t there.</source>
         <translation type="unfinished">%1 non può aprire &quot;%2&quot;.
 Il file non esiste.</translation>
     </message>
     <message>
-        <location line="+59"/>
+        <location line="+64"/>
         <location line="+194"/>
         <source>Open and Repair</source>
         <translation type="unfinished">Apri e ripara</translation>
@@ -24441,7 +24474,7 @@ Il file non esiste.</translation>
         <translation type="unfinished">È possibile salvare il lavoro come copia e mantenere entrambi i file, oppure sovrascrivere il file.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-599"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-635"/>
         <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="+1"/>
         <source>Save a Copy…</source>
         <translation type="unfinished">Salva una copia…</translation>
@@ -54416,7 +54449,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <translation type="unfinished">%1 inviato alla stampante</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_home.cpp" line="+306"/>
+        <location filename="../apps/write/app/writewindow_home.cpp" line="+307"/>
         <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+152"/>
         <source>Font Color</source>
         <translation type="unfinished">Colore carattere</translation>
@@ -55741,7 +55774,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <translation type="unfinished">Vai a nota a piè di pagina</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_home.cpp" line="-263"/>
+        <location filename="../apps/write/app/writewindow_home.cpp" line="-264"/>
         <source>Sentence case</source>
         <translation type="unfinished">Maiuscole e minuscole della frase</translation>
     </message>
@@ -55777,17 +55810,22 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
     </message>
     <message>
         <location line="+1"/>
-        <location line="+9"/>
+        <location line="+10"/>
         <source>Picture</source>
         <translation type="unfinished">Immagine</translation>
     </message>
     <message>
-        <location line="-8"/>
+        <location line="-9"/>
         <source>Paste Special…</source>
         <translation type="unfinished">Incolla speciale…</translation>
     </message>
     <message>
         <location line="+4"/>
+        <source>Formatted text (RTF)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Formatted text</source>
         <translation type="unfinished">Testo formattato</translation>
     </message>
@@ -65057,6 +65095,34 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
     </message>
 </context>
 <context>
+    <name>jp::crunch::TextOptions</name>
+    <message>
+        <location filename="../apps/crunch/core/clipdata.cpp" line="+536"/>
+        <source>The separator is empty. Use comma, semicolon, tab, space, bar, or one character.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>The separator &quot;%1&quot; is not comma, semicolon, tab, space, bar, or one character.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <source>The encoding &quot;%1&quot; is not one JeffCrunch reads text in. Use utf-8, utf-8-bom, utf-16le, utf-16be, latin1, mac-roman, windows-1252 (or another page), or iso-8859-N.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>The decimal mark &quot;%1&quot; is not a point or a comma.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>The separator and the decimal mark are the same character. Choose different ones.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>jp::deck::GoToPlace</name>
     <message>
         <location filename="../apps/deck/core/gotoplace.cpp" line="+28"/>
@@ -67099,7 +67165,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
 <context>
     <name>jp::write::CoverPage</name>
     <message>
-        <location filename="../apps/write/core/insertops.cpp" line="+72"/>
+        <location filename="../apps/write/core/insertops.cpp" line="+75"/>
         <source>A cover page can&apos;t go before a table at the very start of the document. Put a paragraph before the table first.</source>
         <translation type="unfinished">Una copertina non può essere inserita prima di una tabella all&apos;inizio del documento. Inserisci prima un paragrafo davanti alla tabella.</translation>
     </message>
@@ -70706,7 +70772,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <translation>Intestazione</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview.cpp" line="+251"/>
+        <location filename="../apps/write/app/pageview.cpp" line="+253"/>
         <source>Place in this document: %1</source>
         <translation type="unfinished">Posizione in questo documento: %1</translation>
     </message>
@@ -70731,7 +70797,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <translation type="unfinished">Eliminato: %1</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview_input.cpp" line="+443"/>
+        <location filename="../apps/write/app/pageview_input.cpp" line="+531"/>
         <location line="+1"/>
         <source>Paste Options</source>
         <translation type="unfinished">Opzioni incolla</translation>

@@ -7489,7 +7489,7 @@ Open them with your email program to send.</source>
         <location line="+3"/>
         <location filename="../apps/deck/main.cpp" line="+92"/>
         <location filename="../apps/write/main.cpp" line="+94"/>
-        <location filename="../apps/crunch/main.cpp" line="+96"/>
+        <location filename="../apps/crunch/main.cpp" line="+108"/>
         <source>Save a screenshot of the window and quit.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -7616,8 +7616,28 @@ Open them with your email program to send.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <location line="+1"/>
+        <source>For a .csv, .tsv, or .txt file: what separates its fields (comma, semicolon, tab, space, bar, or one character). No question is asked, for the files on this command line only.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>For a .csv, .tsv, or .txt file: its encoding (utf-8, utf-8-bom, utf-16le, utf-16be, latin1, mac-roman, windows-1252 or another page, iso-8859-N).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>For a .csv, .tsv, or .txt file: the mark in its numbers (point or comma).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location line="+2"/>
         <source>Workbooks to open.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+66"/>
+        <source>The command line is not understood</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -20286,7 +20306,7 @@ Source: %3</source>
 <context>
     <name>jp::CrunchWindow</name>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+173"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+175"/>
         <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+176"/>
         <source>The new workbook is getting ready. It can be changed in a moment.</source>
         <translation type="unfinished"></translation>
@@ -20393,7 +20413,7 @@ Source: %3</source>
         <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+336"/>
         <location line="+53"/>
         <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="+118"/>
-        <location line="+217"/>
+        <location line="+222"/>
         <location line="+67"/>
         <location line="+166"/>
         <location line="+15"/>
@@ -20429,8 +20449,8 @@ Source: %3</source>
     </message>
     <message>
         <location line="+9"/>
-        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-477"/>
-        <location line="+106"/>
+        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-482"/>
+        <location line="+111"/>
         <location line="+77"/>
         <location line="+66"/>
         <location line="+3"/>
@@ -20461,7 +20481,7 @@ Source: %3</source>
     </message>
     <message>
         <location line="+0"/>
-        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-274"/>
+        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-279"/>
         <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="+1198"/>
         <source>All Files (*)</source>
         <translation type="unfinished"></translation>
@@ -20808,7 +20828,7 @@ Source: %3</source>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_calc.cpp" line="+102"/>
         <location line="+15"/>
-        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="+270"/>
+        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="+275"/>
         <source>Calculating…</source>
         <translation type="unfinished"></translation>
     </message>
@@ -20865,7 +20885,12 @@ Source: %3</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+149"/>
+        <location line="+157"/>
+        <source>That text is too long to put in. Copy less of it, and try again.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+28"/>
         <source>Calculation stopped</source>
         <translation type="unfinished"></translation>
     </message>
@@ -22416,17 +22441,19 @@ Source: %3</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+30"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-44"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+30"/>
         <location line="+17"/>
         <location line="+12"/>
         <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="-262"/>
         <location line="+298"/>
-        <location line="+247"/>
+        <location line="+136"/>
+        <location line="+156"/>
         <source>Paste</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-29"/>
+        <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-29"/>
         <source>The chart on the clipboard can&apos;t be read.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -22456,7 +22483,7 @@ Source: %3</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="-547"/>
+        <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="-592"/>
         <source>Cut</source>
         <translation type="unfinished"></translation>
     </message>
@@ -22544,14 +22571,14 @@ Source: %3</source>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+379"/>
+        <location line="+415"/>
         <location line="+11"/>
         <source>Paste Link</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-389"/>
-        <location line="+402"/>
+        <location line="-425"/>
+        <location line="+438"/>
         <location line="+2"/>
         <location line="+5"/>
         <location line="+14"/>
@@ -22562,7 +22589,7 @@ Source: %3</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-439"/>
+        <location line="-475"/>
         <source>Set Default Paste…</source>
         <translation type="unfinished"></translation>
     </message>
@@ -22685,17 +22712,23 @@ Source: %3</source>
     </message>
     <message>
         <location line="+21"/>
-        <location line="+22"/>
+        <location line="+11"/>
+        <location line="+25"/>
         <source>Paste Text Import</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-22"/>
+        <location line="-36"/>
         <source>The clipboard has no text to split. Copy some text, and try again.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+39"/>
+        <location line="+11"/>
+        <source>That text is too long to split. Copy less of it, and try again.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+64"/>
         <source>Copy some cells of this workbook first, and try again.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -23182,13 +23215,13 @@ The file that was there is as it was.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-107"/>
+        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-112"/>
         <source>%1 can&apos;t open &quot;%2&quot;.
 The file isn&apos;t there.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+59"/>
+        <location line="+64"/>
         <location line="+194"/>
         <source>Open and Repair</source>
         <translation type="unfinished"></translation>
@@ -23511,7 +23544,7 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-218"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-210"/>
         <location filename="../apps/crunch/app/crunchwindow_find.cpp" line="-187"/>
         <location line="+5"/>
         <location line="+22"/>
@@ -53132,17 +53165,22 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     </message>
     <message>
         <location line="+1"/>
-        <location line="+9"/>
+        <location line="+10"/>
         <source>Picture</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-8"/>
+        <location line="-9"/>
         <source>Paste Special…</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+4"/>
+        <source>Formatted text (RTF)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Formatted text</source>
         <translation type="unfinished"></translation>
     </message>
@@ -64876,6 +64914,34 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     </message>
 </context>
 <context>
+    <name>jp::crunch::TextOptions</name>
+    <message>
+        <location filename="../apps/crunch/core/clipdata.cpp" line="+536"/>
+        <source>The separator is empty. Use comma, semicolon, tab, space, bar, or one character.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>The separator &quot;%1&quot; is not comma, semicolon, tab, space, bar, or one character.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <source>The encoding &quot;%1&quot; is not one JeffCrunch reads text in. Use utf-8, utf-8-bom, utf-16le, utf-16be, latin1, mac-roman, windows-1252 (or another page), or iso-8859-N.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>The decimal mark &quot;%1&quot; is not a point or a comma.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>The separator and the decimal mark are the same character. Choose different ones.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>jp::deck::GoToPlace</name>
     <message>
         <location filename="../apps/deck/core/gotoplace.cpp" line="+28"/>
@@ -66909,7 +66975,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
 <context>
     <name>jp::write::CoverPage</name>
     <message>
-        <location filename="../apps/write/core/insertops.cpp" line="+72"/>
+        <location filename="../apps/write/core/insertops.cpp" line="+75"/>
         <source>A cover page can&apos;t go before a table at the very start of the document. Put a paragraph before the table first.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -70515,7 +70581,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview.cpp" line="+251"/>
+        <location filename="../apps/write/app/pageview.cpp" line="+253"/>
         <source>Place in this document: %1</source>
         <translation type="unfinished"></translation>
     </message>
@@ -70540,7 +70606,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview_input.cpp" line="+443"/>
+        <location filename="../apps/write/app/pageview_input.cpp" line="+531"/>
         <location line="+1"/>
         <source>Paste Options</source>
         <translation type="unfinished"></translation>
