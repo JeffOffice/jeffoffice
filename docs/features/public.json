@@ -648,7 +648,7 @@
         },
         {
          "status": "partly",
-         "text": "a77c9801626636a74bde61cb0af65d195fea027e26e53205f0f093e44dc586e5"
+         "text": "1d45741a0b38459a182cfbd49012dc3aa791410e3bb7b84d5f25c468e8beae2b"
         },
         {
          "hide_soon": true,
@@ -1545,7 +1545,7 @@
         },
         {
          "status": "partly",
-         "text": "ac69bfac923d9c93ec5119a731c0a8d4761e2550491fab0d75244bfb9cab8ef4"
+         "text": "5965c3a676d2a3e4b1db411e838032ef86ba3b675ce0921c90e6e90d91f351ae"
         },
         {
          "status": "partly",
@@ -5044,7 +5044,7 @@
         {
          "hide_soon": true,
          "status": "done",
-         "text": "72567a3d0197070f1111bb5b413e73b4c2491f192f7d1ce8898244da9681633a"
+         "text": "1affd6b5e834a6bf4924dd4884f838092cbb516ac8d2724aa9c06f0686cc8ad1"
         },
         {
          "hide_soon": true,
@@ -5934,8 +5934,8 @@
          "text": "a888720261fbafaa95105469f72db62a657333a6d7427f7496e5f732a25dcafb"
         },
         {
-         "status": "todo",
-         "text": "8e376ec2dcfae855851b7015b5324bfba865d8c25fe9d806fc50303d71c9d24a"
+         "status": "partly",
+         "text": "c130705cfa2629984348120c6f324c9e2fcdc1cf482ab6d9711d4d56b7093fa9"
         },
         {
          "hide_soon": true,
@@ -6371,15 +6371,15 @@
        "items": [
         {
          "status": "partly",
-         "text": "24449725d348df394ed396e045041128b9edb9eb566ed088808f8e753f95869b"
+         "text": "1d2698a850fc71fb45fd985129cde4481d84a9d6de3fb6c9a7a3033bbf8938ad"
         },
         {
          "status": "partly",
          "text": "216c52721693e443f90aaa4fdbf5da02e65616357ca25c9c69d6822e245ecc98"
         },
         {
-         "status": "todo",
-         "text": "7bfc791bc79adeabbd52694ec08cec23c2123c03cdb322dc988cb2df373cc35d"
+         "status": "partly",
+         "text": "e30c637a7126519215bc255d9d2f14b534466486da0b874d44f44d69dd796167"
         },
         {
          "status": "partly",
@@ -6421,8 +6421,9 @@
        "heading": "2e7c0d8333bd4daeb29cde73fab318e3149842f9cbf028c7a04d638721f6d625",
        "items": [
         {
-         "status": "partly",
-         "text": "504272f5b7697fe6a457a2afdca08dbfcba262bdbf00ee987ddc7f502573c1cd"
+         "hide_soon": true,
+         "status": "done",
+         "text": "81e698460912ca59e8959d505c89ea28e63ef6ad26f07783bcc3474b256c46e5"
         },
         {
          "status": "partly",
@@ -6839,7 +6840,7 @@
        "items": [
         {
          "status": "partly",
-         "text": "6baf46adc3c24734d03ff60ad5fe8019106eac09df8ea2a4aeaa1ef0f40e648c"
+         "text": "32d5e56a47afd009921a822677e27e558c5c359b50b649d956663e0d46f19553"
         },
         {
          "status": "partly",
@@ -9450,6 +9451,18 @@
     "fr": "Segments dessinés sur les cellules et modification des tableaux filtrés par un segment"
    }
   },
+  "1affd6b5e834a6bf4924dd4884f838092cbb516ac8d2724aa9c06f0686cc8ad1": {
+   "drop": false,
+   "en": "Crop a picture with handles or by dragging it inside its frame, crop to a shape, set an aspect ratio from 12 shapes, and use Fit, Fill, Clear Crop, and pan the picture.",
+   "es": "Recorte una imagen con los controladores o arrastrándola dentro de su marco, recorte a una forma, establezca una relación de aspecto entre 12 formas y use Ajustar, Rellenar, Borrar recorte y desplazar la imagen.",
+   "fr": "Rognez une image avec les poignées ou en la faisant glisser dans son cadre, rognez selon une forme, choisissez un rapport d’aspect parmi 12 formes, et utilisez Ajuster, Remplir, Effacer le rognage et le déplacement de l’image.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "1b390ec037e1d33847d0c6b521d480232d32fe623f7444d585a33f6dee7aa181": {
    "drop": false,
    "en": "Contextual tabs",
@@ -9580,6 +9593,30 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "1d2698a850fc71fb45fd985129cde4481d84a9d6de3fb6c9a7a3033bbf8938ad": {
+   "drop": false,
+   "en": "Set a picture’s text wrap to in line with text, square, tight, top and bottom, behind text, or in front of text. Tight and through wrap outlines are read, laid out, and saved.",
+   "es": "Establezca el ajuste de texto de una imagen: en línea con el texto, cuadrado, estrecho, superior e inferior, detrás del texto o delante del texto. Los contornos de ajuste estrecho y a través se leen, se aplican y se guardan.",
+   "fr": "Réglez l’habillage d’une image : aligné sur le texte, carré, rapproché, haut et bas, derrière le texte ou devant le texte. Les contours d’habillage rapproché et traversant sont lus, appliqués et enregistrés.",
+   "soon": {
+    "drop": false,
+    "en": "Wrap Text for shapes and text boxes",
+    "es": "Ajuste de texto para formas y cuadros de texto",
+    "fr": "Habillage du texte pour les formes et les zones de texte"
+   }
+  },
+  "1d45741a0b38459a182cfbd49012dc3aa791410e3bb7b84d5f25c468e8beae2b": {
+   "drop": false,
+   "en": "Insert a pivot table from a range, a table, or a range in another file (.xlsx, .xlsm, .xls, .ods, or .csv), onto a new sheet or at a cell, with the field list pane. Refresh reads the source again, and the pivot table is saved in .xlsx files. Insert is one undo step.",
+   "es": "Inserte una tabla dinámica desde un rango, una tabla o un rango de otro archivo (.xlsx, .xlsm, .xls, .ods o .csv), en una hoja nueva o en una celda, con el panel de lista de campos. Actualizar vuelve a leer el origen y la tabla dinámica se guarda en archivos .xlsx. Insertar es un solo paso de deshacer.",
+   "fr": "Insérez un tableau croisé dynamique à partir d’une plage, d’un tableau ou d’une plage d’un autre fichier (.xlsx, .xlsm, .xls, .ods ou .csv), dans une nouvelle feuille ou à une cellule, avec le volet de liste de champs. Actualiser relit la source, et le tableau croisé dynamique est enregistré dans les fichiers .xlsx. L’insertion est une seule étape d’annulation.",
+   "soon": {
+    "drop": false,
+    "en": "Pivot table saved in .xls and .ods copies",
+    "es": "Tabla dinámica guardada en copias .xls y .ods",
+    "fr": "Tableau croisé dynamique enregistré dans les copies .xls et .ods"
    }
   },
   "1d55b6a515cddda234fb3e9758e85f86c642911dd2064037687ab9d48361dd93": {
@@ -10264,18 +10301,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "24449725d348df394ed396e045041128b9edb9eb566ed088808f8e753f95869b": {
-   "drop": false,
-   "en": "Set a picture’s wrap to in line, square, tight, top and bottom, behind text, or in front of text, in one step. Square, tight, and top-and-bottom wraps in files are laid out with their distances.",
-   "es": "Defina el ajuste de una imagen como en línea, cuadrado, estrecho, superior e inferior, detrás del texto o delante del texto, en un solo paso. Los ajustes cuadrado, estrecho y superior e inferior de los ficheros se disponen con sus distancias.",
-   "fr": "Définissez l’habillage d’une image : en ligne, carré, rapproché, haut et bas, derrière le texte ou devant le texte, en une seule étape. Les habillages carré, rapproché et haut et bas des fichiers sont mis en page avec leurs distances.",
-   "soon": {
-    "drop": false,
-    "en": "Wrap Text: through, wrap points, and wrap for shapes and text boxes",
-    "es": "Ajuste del texto: a través, puntos de ajuste y ajuste para formas y cuadros de texto",
-    "fr": "Habillage du texte : au travers, points d’habillage et habillage des formes et zones de texte"
    }
   },
   "2459f8f7ab217d3dddf4c58b145695e4ab99127ac8b461b01be4669ea85fdc08": {
@@ -11356,6 +11381,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "32d5e56a47afd009921a822677e27e558c5c359b50b649d956663e0d46f19553": {
+   "drop": false,
+   "en": "Crop a picture by percent on each edge, to a shape, or to an aspect ratio from 12 shapes, with Fill and Fit. Set the size by handles or height and width with the aspect ratio locked or not, rotate a quarter turn, reset the picture, and compress pictures to 300, 220, or 96 pixels per inch, optionally removing cropped areas.",
+   "es": "Recorte una imagen por porcentaje en cada borde, a una forma o a una relación de aspecto entre 12 formas, con Rellenar y Ajustar. Establezca el tamaño con los controladores o con alto y ancho, con la relación de aspecto bloqueada o no, gire un cuarto de vuelta, restablezca la imagen y comprima imágenes a 300, 220 o 96 píxeles por pulgada, eliminando opcionalmente las áreas recortadas.",
+   "fr": "Rognez une image par pourcentage sur chaque bord, selon une forme ou selon un rapport d’aspect parmi 12 formes, avec Remplir et Ajuster. Réglez la taille avec les poignées ou la hauteur et la largeur, avec le rapport d’aspect verrouillé ou non, faites pivoter d’un quart de tour, réinitialisez l’image et compressez les images à 300, 220 ou 96 pixels par pouce, en supprimant si vous le souhaitez les zones rognées.",
+   "soon": {
+    "drop": false,
+    "en": "Picture cropping in headers, text boxes, and shapes",
+    "es": "Recorte de imágenes en encabezados, cuadros de texto y formas",
+    "fr": "Rognage des images dans les en-têtes, les zones de texte et les formes"
    }
   },
   "32d63ac3523db07941c8032c1df2334143ac7b7b50e4175362685b5f9da901d2": {
@@ -13470,18 +13507,6 @@
     "fr": ""
    }
   },
-  "504272f5b7697fe6a457a2afdca08dbfcba262bdbf00ee987ddc7f502573c1cd": {
-   "drop": false,
-   "en": "Insert Footnote and Insert Endnote (`Ctrl+Alt+F` and `Ctrl+Alt+D`) add numbered notes. The References tab sets the number format (1, a, A, i, I, or symbols), the starting number, restarting each section or page, and where endnotes go (end of section or end of document).",
-   "es": "Insertar nota al pie e Insertar nota al final (`Ctrl+Alt+F` y `Ctrl+Alt+D`) agregan notas numeradas. La pestaña Referencias define el formato de número (1, a, A, i, I o símbolos), el número inicial, el reinicio en cada sección o página y la ubicación de las notas al final (fin de sección o fin del documento).",
-   "fr": "Insérer une note de bas de page et Insérer une note de fin (`Ctrl+Alt+F` et `Ctrl+Alt+D`) ajoutent des notes numérotées. L’onglet Références définit le format de numérotation (1, a, A, i, I ou symboles), le numéro de départ, le redémarrage à chaque section ou page et l’emplacement des notes de fin (fin de section ou fin du document).",
-   "soon": {
-    "drop": false,
-    "en": "Footnotes below text, typed note marks, and notes in columns",
-    "es": "Notas al pie debajo del texto, marcas de nota escritas y notas en columnas",
-    "fr": "Notes sous le texte, marques de note saisies et notes en colonnes"
-   }
-  },
   "504c5677a2a2345c814b8fcc5e63470f8ef2cfe91e07c325af91e67f334e5ebd": {
    "drop": false,
    "en": "Show a single page or a two-page spread.",
@@ -14212,6 +14237,18 @@
     "en": "Objects set in the inside or outside margin strip: mirrored on even pages",
     "es": "Objetos situados en la franja de margen interior o exterior: simetría en páginas pares",
     "fr": "Objets placés dans la bande de marge intérieure ou extérieure : miroir sur les pages paires"
+   }
+  },
+  "5965c3a676d2a3e4b1db411e838032ef86ba3b675ce0921c90e6e90d91f351ae": {
+   "drop": false,
+   "en": "Crop a picture to a shape or to 1:1, 4:3, 3:4, 16:9, or 9:16, use Fill and Fit, and show the whole picture. Set a name and alt text for any chart, picture, or shape.",
+   "es": "Recorte una imagen a una forma o a 1:1, 4:3, 3:4, 16:9 o 9:16, use Rellenar y Ajustar, y muestre la imagen completa. Establezca un nombre y un texto alternativo para cualquier gráfico, imagen o forma.",
+   "fr": "Rognez une image selon une forme ou en 1:1, 4:3, 3:4, 16:9 ou 9:16, utilisez Remplir et Ajuster, et affichez l’image entière. Définissez un nom et un texte de remplacement pour tout graphique, image ou forme.",
+   "soon": {
+    "drop": false,
+    "en": "Crop by dragging a handle, Size, and Arrange",
+    "es": "Recorte arrastrando un controlador, Tamaño y Organizar",
+    "fr": "Rognage par poignée, Taille et Organiser"
    }
   },
   "597087dad1134a1019f80fad5f1c30bcde62e7ee6fd587eb73a4659efe38d026": {
@@ -15714,18 +15751,6 @@
     "fr": ""
    }
   },
-  "6baf46adc3c24734d03ff60ad5fe8019106eac09df8ea2a4aeaa1ef0f40e648c": {
-   "drop": false,
-   "en": "Set the size of a picture with the handles or with Height and Width, with the aspect ratio locked or not. Crop cuts each edge by a percent of the whole picture, Crop to Shape cuts it to any shape of the gallery, and Rotate turns it a quarter turn either way. Reset Picture removes the crop, colors, and border. Compress Pictures reduces each picture to 300, 220, or 96 pixels per inch for the size it is shown at, for all pictures or the selected one, and can remove cropped areas. Each is one step of Undo.",
-   "es": "Cambie el tamaño de una imagen con los controladores o con Alto y Ancho, con la relación de aspecto bloqueada o no. Recortar corta cada borde según un porcentaje de la imagen completa, Recortar a forma la corta con cualquier forma de la galería y Girar la gira un cuarto de vuelta en cualquier sentido. Restablecer imagen quita el recorte, los colores y el borde. Comprimir imágenes reduce cada imagen a 300, 220 o 96 píxeles por pulgada según el tamaño en que se muestra, para todas las imágenes o la seleccionada, y puede eliminar las áreas recortadas. Cada acción es un paso de Deshacer.",
-   "fr": "Réglez la taille d’une image avec les poignées ou avec Hauteur et Largeur, proportions verrouillées ou non. Rogner coupe chaque bord selon un pourcentage de l’image entière, Rogner selon la forme la découpe selon n’importe quelle forme de la galerie, et Pivoter la tourne d’un quart de tour dans les deux sens. Réinitialiser l’image retire le rognage, les couleurs et la bordure. Compresser les images ramène chaque image à 300, 220 ou 96 pixels par pouce selon la taille d’affichage, pour toutes les images ou celle sélectionnée, et peut supprimer les zones rognées. Chaque action correspond à une étape d’annulation.",
-   "soon": {
-    "drop": false,
-    "en": "Crop to an aspect ratio, fill, and fit",
-    "es": "Recorte a una relación de aspecto, relleno y ajuste",
-    "fr": "Rognage selon un format, remplissage et ajustement"
-   }
-  },
   "6baf5e555acd10b45b014804b701e70670d3dfb96194e1731835b2d67a6fa13c": {
    "drop": false,
    "en": "Insert a table by sliding across a grid to pick rows and columns, or by typing the numbers in Insert Table. `Tab` moves to the next cell, `Shift+Tab` goes back, and `Tab` in the last cell adds a row.",
@@ -16307,18 +16332,6 @@
    "en": "",
    "es": "",
    "fr": "",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "72567a3d0197070f1111bb5b413e73b4c2491f192f7d1ce8898244da9681633a": {
-   "drop": false,
-   "en": "Crop with handles or by dragging the picture inside its frame, crop to a shape, fit or fill the frame, clear the crop, and pan the picture.",
-   "es": "Recorte con los controladores o arrastrando la imagen dentro de su marco, recorte a una forma, ajuste o rellene el marco, borre el recorte y desplace la imagen.",
-   "fr": "Recadrez avec les poignées ou en faisant glisser l’image dans son cadre, recadrez selon une forme, ajustez ou remplissez le cadre, effacez le recadrage et déplacez l’image.",
    "soon": {
     "drop": true,
     "en": "",
@@ -16926,18 +16939,6 @@
     "fr": ""
    }
   },
-  "7bfc791bc79adeabbd52694ec08cec23c2123c03cdb322dc988cb2df373cc35d": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Edit Wrap Points, distance from text, wrap on one or both sides, and Set as Default Layout",
-    "es": "Modificar puntos de ajuste, distancia del texto, ajuste a uno o ambos lados y Establecer como diseño predeterminado",
-    "fr": "Modifier les points d’habillage, distance du texte, habillage d’un ou des deux côtés et Définir comme disposition par défaut"
-   }
-  },
   "7bfe2866aaca6ba14062a9e2be59feb4df0fb5184a6e185e205778a22d0f1ab8": {
    "drop": false,
    "en": "Scale to Fit",
@@ -17363,6 +17364,18 @@
    "en": "Print",
    "es": "Imprimir",
    "fr": "Imprimer",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "81e698460912ca59e8959d505c89ea28e63ef6ad26f07783bcc3474b256c46e5": {
+   "drop": false,
+   "en": "Insert footnotes and endnotes with `Ctrl+Alt+F` and `Ctrl+Alt+D`. Set the number format, start number, restart each section or page, location, and columns, or use a mark you type or pick as a symbol.",
+   "es": "Inserte notas al pie y notas finales con `Ctrl+Alt+F` y `Ctrl+Alt+D`. Establezca el formato de número, el número inicial, el reinicio por sección o página, la ubicación y las columnas, o use una marca que escriba o elija como símbolo.",
+   "fr": "Insérez des notes de bas de page et des notes de fin avec `Ctrl+Alt+F` et `Ctrl+Alt+D`. Réglez le format de numérotation, le numéro de départ, le redémarrage par section ou par page, l’emplacement et les colonnes, ou utilisez une marque saisie ou choisie comme symbole.",
    "soon": {
     "drop": true,
     "en": "",
@@ -18136,18 +18149,6 @@
     "en": "Text Art warps Wave 2, Wave 4, and the bottom and top forms of Inflate and Deflate: saved in `.ods` files with their shape",
     "es": "Deformaciones de estilos de texto Onda 2, Onda 4 y las formas inferior y superior de Inflar y Desinflar: guardado en archivos `.ods` con su forma",
     "fr": "Déformations de styles de texte Vague 2, Vague 4 et formes basse et haute de Gonfler et Dégonfler : enregistrement dans des fichiers `.ods` avec leur forme"
-   }
-  },
-  "8e376ec2dcfae855851b7015b5324bfba865d8c25fe9d806fc50303d71c9d24a": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Paste choices for lists and tables: continue, restart, or merge a list; paste spreadsheet cells as a table, nested table, new rows, or picture; Set Default Paste",
-    "es": "Opciones de pegado para listas y tablas: continuar, reiniciar o combinar una lista; pegar celdas de una hoja de cálculo como tabla, tabla anidada, filas nuevas o imagen; definir el pegado predeterminado",
-    "fr": "Options de collage pour les listes et les tableaux : poursuivre, redémarrer ou fusionner une liste ; coller des cellules de tableur comme tableau, tableau imbriqué, nouvelles lignes ou image ; définir le collage par défaut"
    }
   },
   "8e6792a8544ba1291503f34da971418b79034d765d1cd01e92af12c8a4d4737d": {
@@ -19782,18 +19783,6 @@
     "fr": ""
    }
   },
-  "a77c9801626636a74bde61cb0af65d195fea027e26e53205f0f093e44dc586e5": {
-   "drop": false,
-   "en": "Insert a pivot table from a range or a table onto a new sheet or an existing one, with the field list pane. The table is saved in `.xlsx` files, and a table made from a table or a name reads rows added under it when refreshed.",
-   "es": "Inserte una tabla dinámica a partir de un rango o una tabla en una hoja nueva o una existente, con el panel de la lista de campos. La tabla se guarda en archivos `.xlsx`, y una tabla creada a partir de una tabla o un nombre lee las filas añadidas debajo al actualizarse.",
-   "fr": "Insérez un tableau croisé dynamique à partir d’une plage ou d’un tableau, sur une nouvelle feuille ou une feuille existante, avec le volet de la liste des champs. Le tableau est enregistré dans les fichiers `.xlsx`, et un tableau créé à partir d’un tableau ou d’un nom lit les lignes ajoutées en dessous lors de l’actualisation.",
-   "soon": {
-    "drop": false,
-    "en": "Pivot table from another workbook’s data",
-    "es": "Tabla dinámica a partir de los datos de otro libro",
-    "fr": "Tableau croisé dynamique à partir des données d’un autre classeur"
-   }
-  },
   "a77d1267dc8984acde4d2c5f67b57802afd0e7a79d36b5fabd8048da7e037d03": {
    "drop": false,
    "en": "Advanced Find and Replace with wildcards and groups, sounds like, all word forms, ignoring punctuation and spaces, a Special menu for codes such as paragraph marks and section breaks, and find by format. Each Replace All is one step.",
@@ -20152,18 +20141,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "ac69bfac923d9c93ec5119a731c0a8d4761e2550491fab0d75244bfb9cab8ef4": {
-   "drop": false,
-   "en": "The Picture Format tab has Crop to 1:1, 4:3, 3:4, 16:9, or 9:16, cut from the middle of what shows, and Show the Whole Picture. Name and Alt Text can be set for any chart, picture, or shape in Properties.",
-   "es": "La pestaña Formato de imagen incluye Recortar a 1:1, 4:3, 3:4, 16:9 o 9:16, desde el centro de lo que se ve, y Mostrar la imagen completa. El nombre y el texto alternativo se pueden establecer para cualquier gráfico, imagen o forma en Propiedades.",
-   "fr": "L’onglet Format de l’image propose Rogner à 1:1, 4:3, 3:4, 16:9 ou 9:16, à partir du milieu de ce qui est visible, et Afficher l’image entière. Le nom et le texte de remplacement peuvent être définis pour tout graphique, image ou forme dans Propriétés.",
-   "soon": {
-    "drop": false,
-    "en": "Crop to a shape, fill and fit, and crop by dragging a handle",
-    "es": "Recorte a una forma, relleno y ajuste, y recorte arrastrando un controlador",
-    "fr": "Rognage selon une forme, remplissage et ajustement, et rognage par glissement d’une poignée"
    }
   },
   "ac8c74a64b7e5263a8a9d25822133c8e143db9a239b18d11cbd3256390124356": {
@@ -21352,6 +21329,18 @@
     "en": "Other chart types and chart styling from `.xls`: 3-D looks, radar, surface, bubble, and stock charts, fonts and fills, axis number formats, and points of other colors",
     "es": "Otros tipos y estilos de gráfico desde `.xls`: aspectos 3D, gráficos de radar, de superficie, de burbujas y de cotizaciones, fuentes y rellenos, formatos numéricos de los ejes y puntos de otros colores",
     "fr": "Autres types et styles de graphique depuis `.xls` : aspects 3D, graphiques radar, de surface, à bulles et boursiers, polices et remplissages, formats numériques des axes et points d’autres couleurs"
+   }
+  },
+  "c130705cfa2629984348120c6f324c9e2fcdc1cf482ab6d9711d4d56b7093fa9": {
+   "drop": false,
+   "en": "Paste list items to continue a list, start a new one, or merge with it. Paste spreadsheet cells as a table, and with the caret in a table, nest the table, merge it, insert it as new rows, or overwrite cells. Each paste is one undo step.",
+   "es": "Pegue elementos de lista para continuar una lista, iniciar una nueva o combinarla. Pegue celdas de hoja de cálculo como tabla y, con el cursor en una tabla, anide la tabla, combínela, insértela como filas nuevas o sobrescriba celdas. Cada pegado es un solo paso de deshacer.",
+   "fr": "Collez des éléments de liste pour poursuivre une liste, en commencer une nouvelle ou la fusionner. Collez des cellules de tableur sous forme de tableau et, le curseur dans un tableau, imbriquez le tableau, fusionnez-le, insérez-le comme nouvelles lignes ou remplacez des cellules. Chaque collage est une seule étape d’annulation.",
+   "soon": {
+    "drop": false,
+    "en": "Paste as the source’s table style, paste as a picture, and Set Default Paste",
+    "es": "Pegar con el estilo de tabla del origen, pegar como imagen y Establecer pegado predeterminado",
+    "fr": "Collage avec le style de tableau de la source, collage en image et Définir le collage par défaut"
    }
   },
   "c1385eff263b71d5bf4c43563cb48d761cf5da35ad0b84a7a18fdbb01004e3e0": {
@@ -23836,6 +23825,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "e30c637a7126519215bc255d9d2f14b534466486da0b874d44f44d69dd796167": {
+   "drop": false,
+   "en": "Edit wrap points by dragging a corner of the dashed outline, with `Ctrl` and a click to add or remove a corner. Choose the text sides (both, left only, right only, or the larger side) and set the distance from text on the top, bottom, left, and right.",
+   "es": "Edite los puntos de ajuste arrastrando una esquina del contorno discontinuo, con `Ctrl` y un clic para agregar o quitar una esquina. Elija los lados del texto (ambos, solo izquierdo, solo derecho o el lado más grande) y establezca la distancia al texto arriba, abajo, a la izquierda y a la derecha.",
+   "fr": "Modifiez les points d’habillage en faisant glisser un coin du contour en pointillés, avec `Ctrl` et un clic pour ajouter ou retirer un coin. Choisissez les côtés du texte (les deux, gauche seulement, droite seulement ou le plus grand) et réglez la distance au texte en haut, en bas, à gauche et à droite.",
+   "soon": {
+    "drop": false,
+    "en": "Set as Default Layout, and edit wrap points for shapes and text boxes",
+    "es": "Establecer como diseño predeterminado y edición de puntos de ajuste para formas y cuadros de texto",
+    "fr": "Définir comme disposition par défaut et modification des points d’habillage pour les formes et les zones de texte"
    }
   },
   "e3228dd740386e7e1bc1b44946efe97810d19163d18f4325efdfc08b87d0ec61": {
