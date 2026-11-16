@@ -55,6 +55,20 @@ public:
         const int depth = idx.data(MasterPane::DepthRole).toInt();
         const QRect thumb(opt.rect.left() + kPad + depth * kIndent, opt.rect.top() + (opt.rect.height() - opt.decorationSize.height()) / 2, opt.decorationSize.width(),
                           opt.decorationSize.height());
+        // The tree line: from a slide master down to each of its layouts, in the quiet line color. It hangs from the master's own thumbnail and runs down the gap the layouts are
+        // indented by, with a tick to each layout.
+        {
+            const QAbstractItemModel *model = idx.model();
+            const bool nextIsLayout = idx.row() + 1 < model->rowCount() && model->index(idx.row() + 1, 0).data(MasterPane::DepthRole).toInt() == 1;
+            const int x = opt.rect.left() + kPad + kIndent / 2;
+            p->setPen(QPen(uiLine(), 1));
+            if (depth == 0 && nextIsLayout) {
+                p->drawLine(x, thumb.bottom() + 2, x, opt.rect.bottom());
+            } else if (depth == 1) {
+                p->drawLine(x, opt.rect.top(), x, nextIsLayout ? opt.rect.bottom() : thumb.center().y());
+                p->drawLine(x, thumb.center().y(), thumb.left() - 3, thumb.center().y());
+            }
+        }
         idx.data(Qt::DecorationRole).value<QIcon>().paint(p, thumb, Qt::AlignCenter, QIcon::Normal);
         p->setBrush(Qt::NoBrush);
         const QColor edge = uiDark() ? QColor(hover ? 0x78 : 0x4A, hover ? 0x80 : 0x52, hover ? 0x8C : 0x5E) : QColor(hover ? 0x9A : 0xC4, hover ? 0xA0 : 0xC8, hover ? 0xAA : 0xD0);

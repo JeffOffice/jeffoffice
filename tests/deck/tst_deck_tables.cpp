@@ -403,12 +403,26 @@ private Q_SLOTS:
         };
         const QImage on = picture(true, false), off = picture(false, false);
         QVERIFY(on != off);
-        // The dashes lie along the edge between the columns: a column of pixels there that differs.
-        const int x = int((4.0 + t->colW[0]) * 4.0);
-        int marks = 0;
-        for (int y = 0; y < on.height(); ++y)
-            if (on.pixel(x, y) != off.pixel(x, y)) ++marks;
-        QVERIFY(marks > 4);
+        // The dashes lie along the edge between the columns: the column of pixels that differs most is a dash pattern (runs of marked pixels with gaps between), not a solid line.
+        int bestX = 0, bestMarks = 0;
+        for (int x = 0; x < on.width(); ++x) {
+            int marks = 0;
+            for (int y = 0; y < on.height(); ++y)
+                if (on.pixel(x, y) != off.pixel(x, y)) ++marks;
+            if (marks > bestMarks) {
+                bestMarks = marks;
+                bestX = x;
+            }
+        }
+        int runs = 0, gaps = 0;
+        bool inRun = false;
+        for (int y = 0; y < on.height(); ++y) {
+            const bool marked = on.pixel(bestX, y) != off.pixel(bestX, y);
+            if (marked && !inRun) ++runs;
+            if (!marked && inRun) ++gaps;
+            inRun = marked;
+        }
+        QVERIFY2(runs >= 4 && gaps >= 3, qPrintable(QStringLiteral("%1 runs, %2 gaps").arg(runs).arg(gaps)));
         QVERIFY(picture(true, true) == off && picture(false, true) == off);
         // The command shows and hides them, and the saved file is the same either way.
         const QString saved = savedSlideXml(*ed->doc());
@@ -418,6 +432,142 @@ private Q_SLOTS:
         QCOMPARE(savedSlideXml(*ed->doc()), saved);
         QVERIFY(command(w, "tbl.gridlines"));
         QCOMPARE(ed->view.gridlines, was);
+    }
+
+    // Only the editing view draws the gridlines (and only with View Gridlines on): the slide thumbnails and the slide show's frames of a table with no lines have none.
+    void gridlinesAreNotInThumbnailsOrTheSlideShow()
+    {
+        DeckWindow w;
+        w.resize(1200, 800);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        Editor *ed = w.editor();
+        tableOnSlide(w, 2, 2);
+        ed->selectCells(theTable(ed)->id, 0, 0, 1, 1);
+        setTableRowHeight(ed, 80);
+        setTableColumnWidth(ed, 150);
+        ed->select(theTable(ed)->id);
+        setTableShading(ed, ColorRef());   // (no fill: only the table's lines and words are on the white slide)
+        setTableBorders(ed, BorderSides::None, Stroke::none());
+        QVERIFY(ed->view.gridlines);
+        const TableItem *t = theTable(ed);
+        const QSizeF page = ed->doc()->pageSize();
+        // The edge between the columns, as a strip of pixels (no word is near it) in a picture of the slide `width` pixels wide.
+        auto dashesAt = [&](const QImage &img) {
+            const double k = img.width() / img.devicePixelRatio() / page.width();
+            const int x = int(std::lround((t->rect.left() + t->colW[0]) * k * img.devicePixelRatio()));
+            int marks = 0;
+            for (int y = int(t->rect.top() * k * img.devicePixelRatio()); y < int((t->rect.top() + t->rect.height()) * k * img.devicePixelRatio()); ++y)
+                for (int dx = -1; dx <= 1; ++dx)
+                    if (qGray(img.pixel(x + dx, y)) < 235) ++marks;
+            return marks;
+        };
+        // The show's frame, drawn at the size of the slide's own pixels.
+        const QImage frame = renderSlideImage(ed->doc(), &ed->cache(), 0, QSize(int(page.width()), int(page.height())), 1.0, Qt::white);
+        QCOMPARE(dashesAt(frame), 0);
+        // The thumbnail in the slides pane.
+        QTRY_VERIFY(!w.slidesPane()->thumbnailRect(0).isEmpty());
+        const QImage pane = w.slidesPane()->viewport()->grab(w.slidesPane()->thumbnailRect(0)).toImage();
+        QVERIFY(!pane.isNull());
+        // (the thumbnail is the slide at the width of the pane's icons: the edge is where the slide's scale puts it)
+        const double k = pane.width() / page.width();
+        const int x = int(std::lround((t->rect.left() + t->colW[0]) * k));
+        int marks = 0;
+        for (int y = int(t->rect.top() * k) + 1; y < int((t->rect.top() + t->rect.height()) * k) - 1; ++y)
+            if (qGray(pane.pixel(x, y)) < 235) ++marks;
+        QCOMPARE(marks, 0);
+        // The editing picture does have them, with the view's option on.
+        PaintContext ctx;
+        ctx.doc = ed->doc();
+        ctx.cache = &ed->cache();
+        ctx.opt = ed->renderOptions();
+        QVERIFY(ctx.opt.tableGridlines);
+        QImage edit(int(page.width()), int(page.height()), QImage::Format_ARGB32_Premultiplied);
+        edit.fill(Qt::white);
+        QPainter p(&edit);
+        Renderer::paintPage(&p, ctx, 0);
+        p.end();
+        QVERIFY(dashesAt(edit) > 4);
+        QVERIFY(!RenderOptions().tableGridlines);
+    }
+
+    // A table whose cells all claim the whole table (a damaged file) is held to the work of a few looks at each position: the pen and the eraser do not multiply it. The work is
+    // counted, and a table read back has its spans clamped to its grid.
+    void hostileSpansDoNotMultiplyTheWorkOfThePenAndTheEraser()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        auto t = std::make_shared<TableItem>();
+        t->rows = t->cols = 256;
+        t->colW.fill(10, 256);
+        t->rowH.fill(10, 256);
+        t->cells.resize(256 * 256);
+        for (TableCell &c : t->cells) {
+            c.rowSpan = c.colSpan = 100000;
+            c.storyId = ed->doc()->createStory();
+        }
+        t->syncRect();
+        t->rect.moveTo(10, 10);
+        ed->surfaceItems().push_back(t);
+        ed->select(t->id);
+        const QByteArray before = documentJson(ed);
+        tableEditWork(true);
+        TableItem *table = theTable(ed);
+        eraseTableLine(ed, table, QPointF(5, 5), QPointF(2400, 2400));
+        const Stroke pen = Stroke::line(ColorRef::rgb(Qt::black), 1);
+        drawTableLine(ed, table, QPointF(10, 12), QPointF(2000, 12), pen);
+        drawTableLine(ed, table, QPointF(1000, 2), QPointF(1000, 2000), pen);
+        eraseTableLine(ed, table, QPointF(10, 1000), QPointF(2000, 1000));
+        // (each call looks at each of the 65536 positions a few times at most: without the hold, one call is 4 thousand million looks)
+        QVERIFY2(tableEditWork() <= qint64(65536) * 2 * 16, qPrintable(QString::number(tableEditWork())));
+        Q_UNUSED(before);
+        // A table written with such spans is read back with spans no larger than its grid.
+        QJsonObject json = table->toJson();
+        TableItem back;
+        back.fromJson(json);
+        for (int r = 0; r < back.rows; r += 37)
+            for (int c = 0; c < back.cols; c += 41) {
+                QVERIFY(back.cell(r, c).rowSpan <= back.rows - r);
+                QVERIFY(back.cell(r, c).colSpan <= back.cols - c);
+            }
+    }
+
+    // A stroke of the pen along an edge that runs through a merged cell divides that cell at the edge (the cells that end there get the border); the eraser says why when there is
+    // nothing to join.
+    void penAlongAnEdgeThroughAMergedCellDividesItAndTheEraserSaysWhy()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        tableOnSlide(w, 3, 3);
+        ed->selectCells(theTable(ed)->id, 0, 0, 1,1);
+        setTableRowHeight(ed, 60);
+        setTableColumnWidth(ed, 120);
+        ed->selectCells(theTable(ed)->id, 0, 0, 1, 0);   // the first column's two top cells
+        QVERIFY(command(w, "tbl.merge"));
+        const Stroke pen = Stroke::line(ColorRef::rgb(QColor(0, 0, 200)), 2);
+        TableItem *t = theTable(ed);
+        QCOMPARE(t->cell(0, 0).rowSpan, 2);
+        // Along the edge between the first and second row across the whole table: the merged cell at the left is divided, the cells at its right get a border.
+        const double y = t->rowH[0];
+        QCOMPARE(drawTableLine(ed, t, QPointF(3, y), QPointF(t->rect.width() - 3, y), pen), TableStroke::Split);
+        t = theTable(ed);
+        QCOMPARE(t->cell(0, 0).rowSpan, 1);
+        QVERIFY(!t->cell(1, 0).covered);
+        QVERIFY(t->cell(0, 1).border.bottom == pen && t->cell(1, 1).border.top == pen);
+        QVERIFY(t->cell(0, 0).border.bottom == pen);
+        // The eraser, along an edge inside a merged cell, or on cells already one: a message, and no step.
+        ed->undo();
+        t = theTable(ed);
+        QString said;
+        const QMetaObject::Connection c = connect(ed, &Editor::status, this, [&](const QString &m) { said = m; });
+        const QByteArray before = documentJson(ed);
+        QCOMPARE(eraseTableLine(ed, t, QPointF(3, t->rowH[0] + 0.5), QPointF(100, t->rowH[0] - 0.5)), TableStroke::Nothing);
+        QVERIFY2(!said.isEmpty(), "says why");
+        said.clear();
+        QCOMPARE(eraseTableLine(ed, t, QPointF(5, 5), QPointF(6, t->rowH[0] + 20)), TableStroke::Nothing);
+        QVERIFY2(!said.isEmpty(), "says why for cells already one");
+        QCOMPARE(documentJson(ed), before);
+        disconnect(c);
     }
 
     // Select Row, Column, and Table choose cells; Distribute makes the rows or columns the same size, and Row Height and Column Width set

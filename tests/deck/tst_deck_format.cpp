@@ -1128,6 +1128,84 @@ private Q_SLOTS:
         for (QAction *a : menu->actions()) QVERIFY(a->objectName() != QLatin1String("shape.saveAsPicture"));
     }
 
+    // Save as Picture: a group is one picture of all its objects; a turned object's picture holds its whole turned shape; a shadow or glow is inside the picture, not cut off at a
+    // fixed edge; a picture larger than the limit is made smaller and says so; a slide number says the number of its slide.
+    void saveAsPictureHoldsGroupsTurnsShadowsAndFields()
+    {
+        PaneGuard guard;
+        DeckWindow w;
+        Editor *ed = w.editor();
+        ed->surfaceItems().clear();
+        auto shape = [&](QRectF r) {
+            auto s = std::make_shared<ShapeItem>();
+            s->rect = r;
+            s->fill = Fill::solid(ColorRef::rgb(QColor(30, 30, 200)));
+            s->storyId = ed->doc()->createStory();
+            return s;
+        };
+        // A group of two shapes.
+        auto group = std::make_shared<GroupItem>();
+        group->children = {shape(QRectF(100, 100, 100, 50)), shape(QRectF(300, 200, 100, 50))};
+        group->rect = unionBounds(group->children);
+        ed->addItem(group, true);
+        QImage picture = ed->selectionPicture(2.0);
+        QVERIFY(picture.width() >= 2 * 300 && picture.height() >= 2 * 150);
+        // A shape turned a quarter: the picture is as tall as it is wide.
+        ed->surfaceItems().clear();
+        auto turned = shape(QRectF(100, 100, 200, 40));
+        turned->rotation = 90;
+        ed->addItem(turned, true);
+        picture = ed->selectionPicture(2.0);
+        QVERIFY(picture.height() >= 2 * 200 && picture.height() < 2 * 215);
+        QVERIFY(picture.width() >= 2 * 40 && picture.width() < 2 * 60);
+        // A shadow: the picture is larger than the plain one by the shadow's reach, and the shadow's pixels are in it.
+        ed->surfaceItems().clear();
+        auto plain = shape(QRectF(100, 100, 100, 50));
+        ed->addItem(plain, true);
+        const QImage plainPicture = ed->selectionPicture(2.0);
+        ed->surfaceItems().clear();
+        auto shadowed = shape(QRectF(100, 100, 100, 50));
+        shadowed->fx.shadow.on = true;
+        shadowed->fx.shadow.blur = 12;
+        shadowed->fx.shadow.distance = 10;
+        shadowed->fx.shadow.transparency = 0.2;
+        ed->addItem(shadowed, true);
+        const QImage shadowPicture = ed->selectionPicture(2.0);
+        QVERIFY(shadowPicture.width() >= plainPicture.width() + 2 * 10);
+        int shadowPixels = 0;
+        for (int y = 0; y < shadowPicture.height(); ++y)
+            if (qAlpha(shadowPicture.pixel(plainPicture.width() + 12, y)) > 0) ++shadowPixels;
+        QVERIFY(shadowPixels > 0);   // (a fixed 4 point edge would have cut the shadow off before the picture's last pixels)
+        // Larger than the limit: made at a smaller scale, and it says so.
+        ed->surfaceItems().clear();
+        ed->addItem(shape(QRectF(0, 0, 5000, 100)), true);
+        bool reduced = false;
+        const QImage big = ed->selectionPicture(2.0, &reduced);
+        QVERIFY(reduced);
+        QVERIFY(big.width() <= Editor::kMostPictureSide && big.width() >= Editor::kMostPictureSide - 2);
+        reduced = true;
+        ed->selectionPicture(0.5, &reduced);
+        QVERIFY(!reduced);
+        // A slide number is the number of the slide it is on.
+        fillSlides(w, {"One", "Two"});
+        auto numberBox = [&](int slide) {
+            ed->setCurrentPage(slide);
+            ed->surfaceItems().clear();
+            auto box = std::make_shared<TextItem>();
+            box->rect = QRectF(100, 100, 60, 30);
+            box->storyId = ed->doc()->createStory();
+            QTextCursor c(ed->doc()->storyDoc(box->storyId));
+            QTextCharFormat f;
+            f.setProperty(tp::Field, QStringLiteral("page"));
+            f.setFontPointSize(24);
+            c.insertText(QString(QChar::ObjectReplacementCharacter), f);
+            ed->addItem(box, true);
+            return ed->selectionPicture(2.0);
+        };
+        const QImage one = numberBox(0), two = numberBox(1);
+        QVERIFY(one.size() == two.size() && one != two);
+    }
+
     // A shape has the margins, wrap, vertical alignment, and columns too.
     void shapeTextOptionsAreKept()
     {

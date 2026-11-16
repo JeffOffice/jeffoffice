@@ -273,7 +273,7 @@ private Q_SLOTS:
         QVERIFY(std::abs(master.items[0]->rect.y() - 15.25 / 2.54 * 72) < 0.01);
         QVERIFY(std::abs(master.items[1]->rect.x() - 1.4 / 2.54 * 72) < 0.01);
         QVERIFY(std::abs(master.items[1]->rect.width() - 25.199 / 2.54 * 72) < 0.01);
-        QCOMPARE(textOf(*d, *master.items[1]), QStringLiteral("Click to edit Master title style"));
+        QCOMPARE(textOf(*d, *master.items[1]), QStringLiteral("Master title: change its look here"));
         QCOMPARE(static_cast<const TextItem *>(master.items[1].get())->valign, VAlign::Middle);
 
         QStringList types;

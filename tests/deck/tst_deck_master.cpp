@@ -1,5 +1,7 @@
 // JeffDeck's tests of the slide master view.
 #include "deckhelpers.h"
+#include <QScrollBar>
+#include "app/theme.h"
 #include "app/ribbonbuilder.h"
 
 class DeckMasterTests : public QObject {
@@ -191,7 +193,7 @@ private Q_SLOTS:
         DeckWindow w;
         fillSlides(w, {"One", "Two"}, {{"sub"}, {"a", "b"}});
         Document *d = w.editor()->doc();
-        const QStringList words = {"First level", "Second level", "Third level", "Fourth level", "Fifth level"};
+        const QStringList words = {"Level 1 text", "Level 2 text", "Level 3 text", "Level 4 text", "Level 5 text"};
         auto check = [&](const QTextDocument *sd) {
             QVERIFY(sd);
             QCOMPARE(sd->blockCount(), 5);
@@ -207,7 +209,7 @@ private Q_SLOTS:
                 lastMargin = b.blockFormat().leftMargin();
                 lastSize = size;
             }
-            QCOMPARE(sd->findBlockByNumber(0).begin().fragment().charFormat().fontPointSize(), 28.0 * 28 / 28);
+            QCOMPARE(sd->findBlockByNumber(0).begin().fragment().charFormat().fontPointSize(), 28.0);
             QCOMPARE(sd->findBlockByNumber(1).begin().fragment().charFormat().fontPointSize(), 24.0);
             QCOMPARE(sd->findBlockByNumber(2).begin().fragment().charFormat().fontPointSize(), 20.0);
         };
@@ -279,8 +281,9 @@ private Q_SLOTS:
             if (it.key().startsWith(QLatin1String("ppt/slideLayouts/slideLayout")) && it.key().endsWith(QLatin1String(".xml")) && QString::fromUtf8(it.value()).contains(QLatin1String("name=\"Title and Content\"")))
                 layoutXml = QString::fromUtf8(it.value());
         QVERIFY(!layoutXml.isEmpty());
-        const qsizetype list = layoutXml.indexOf(QLatin1String("<a:lstStyle><a:lvl1pPr"));
+        const qsizetype list = layoutXml.indexOf(QLatin1String("<a:lstStyle><a:lvl2pPr"));   // (the first level has no look of its own: no bullet, no indent)
         QVERIFY(list > 0);
+        QVERIFY(layoutXml.indexOf(QLatin1String("<a:lvl1pPr"), list) < 0 || layoutXml.indexOf(QLatin1String("<a:lvl1pPr"), list) > layoutXml.indexOf(QLatin1String("</a:lstStyle>"), list));
         QVERIFY(layoutXml.indexOf(second, list) > 0);
         QVERIFY(layoutXml.indexOf(QLatin1String("<a:lvl5pPr"), list) > 0 && layoutXml.indexOf(QLatin1String("<a:lvl6pPr"), list) < 0);
         // Read back: the master's and the layout's lines have the levels' looks, and the slide's second line is at its level with the size.
@@ -301,14 +304,195 @@ private Q_SLOTS:
         if (!odpBody) odpBody = holderOn(*odpBack->master(odpBack->masters.first()->id), QStringLiteral("obj"));
         QVERIFY(odpBody);
         const QTextDocument *odpMaster = odpBack->storyDoc(odpBody->storyId);
-        QVERIFY(odpMaster->blockCount() >= 3);
-        QCOMPARE(sizeOfLine(odpMaster, 1), 32.0);
-        QCOMPARE(sizeOfLine(odpMaster, 2), 20.0);
-        QCOMPARE(odpMaster->findBlockByNumber(2).blockFormat().leftMargin(), 72.0);
+        // Each level's look, line by line: the edited second level, and the others as they were (size and indent).
+        const double sizes[5] = {28, 32, 20, 18, 18};
+        for (int level = 0; level < 5; ++level) {
+            QTextBlock line = odpMaster->begin();
+            for (; line.isValid(); line = line.next())
+                if (line.text() == QStringLiteral("Level %1 text").arg(level + 1)) break;
+            QVERIFY2(line.isValid(), qPrintable(QString::number(level)));
+            QCOMPARE(line.begin().fragment().charFormat().fontPointSize(), sizes[level]);
+            QCOMPARE(line.blockFormat().leftMargin(), 36.0 * level);
+        }
         // The edit is one step: undone, the level has its old size again, on the master and on the slide.
         w.editor()->undo();
         QCOMPARE(sizeOfLine(d->storyDoc(holderOn(*d->master(QStringLiteral("SM1")), QStringLiteral("body"))->storyId), 1), 24.0);
         QCOMPARE(sizeOfLine(d->storyDoc(holderOn(*d->pages[1], QStringLiteral("obj"))->storyId), 1), 24.0);
+    }
+
+    // In the Slide Master view's pane a thin line in the quiet line color runs from each slide master down to its layouts (the layouts are indented), and ends at the last layout of
+    // that master: with two slide masters, the second master's layouts hang from their own line.
+    void theMasterPaneDrawsATreeLineFromEachMasterToItsLayouts()
+    {
+        jp::applyUiTheme(1);
+        DeckWindow w;
+        fillSlides(w, {"One"});
+        w.resize(1300, 900);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        QVERIFY(!w.insertSlideMaster().isEmpty());
+        w.editMasters(QStringLiteral("SM1"));
+        MasterPane *pane = w.masterPane();
+        QTRY_VERIFY(pane->ids().size() > 12);
+        QTRY_VERIFY(!pane->thumbnailRect(pane->ids().first()).isEmpty());
+        pane->scrollToTop();
+        const QImage view = pane->viewport()->grab().toImage();
+        const QStringList ids = pane->ids();
+        const QColor line = jp::uiLine();
+        // The line's column: in the gap the layouts are indented by, left of a layout's thumbnail.
+        const QRect firstLayout = pane->thumbnailRect(ids[1]);
+        const int x = firstLayout.left() - 11;
+        auto isLine = [&](int y) { return y >= 0 && y < view.height() && view.pixelColor(x, y) == line; };
+        QVERIFY(!pane->thumbnailRect(ids[0]).isEmpty());
+        QVERIFY2(isLine(firstLayout.center().y()), "a line to the first layout");
+        // The layouts of the first master: a line beside each (between two layouts it runs through the gap).
+        int last = 0;
+        for (int i = 1; i < ids.size() && pane->depthOf(ids[i]) == 1; ++i) {
+            const QRect r = pane->thumbnailRect(ids[i]);
+            if (r.bottom() >= view.height() - 4) break;
+            QVERIFY2(isLine(r.center().y()), qPrintable(ids[i]));
+            last = i;
+        }
+        QVERIFY(last >= 3);
+        // Between the master's own thumbnail and its first layout the line runs; below the last layout of a master it stops, and the next master has none beside its own thumbnail.
+        const QRect master = pane->thumbnailRect(ids[0]);
+        QVERIFY(isLine(master.bottom() + 4));
+        // Scrolled to the second slide master: no line beside its own thumbnail or above it (the first master's last layout has ended at its tick), and one from it to its layouts.
+        int second = -1;
+        for (int i = 1; i < ids.size(); ++i)
+            if (pane->depthOf(ids[i]) == 0) second = i;
+        QVERIFY(second > 0);
+        pane->verticalScrollBar()->setValue(pane->verticalScrollBar()->value() + pane->thumbnailRect(ids[second]).top() - 20);
+        QTest::qWait(100);
+        const QImage lower = pane->viewport()->grab().toImage();
+        auto isLineLower = [&](int y) { return y >= 0 && y < lower.height() && lower.pixelColor(x, y) == line; };
+        const QRect r2 = pane->thumbnailRect(ids[second]);
+        QVERIFY(!r2.isEmpty() && r2.bottom() < lower.height());
+        QVERIFY(!isLineLower(r2.center().y()));
+        QVERIFY(!isLineLower(r2.top() - 3));
+        QVERIFY(isLineLower(r2.bottom() + 4));
+        QVERIFY(isLineLower(pane->thumbnailRect(ids[second + 1]).center().y()));
+    }
+
+    // A new presentation's master, layouts, and notes master use our own words for what the places show, never another program's.
+    void masterSampleWordsAreOurOwn()
+    {
+        auto d = deck::newPresentation();
+        QStringList all;
+        for (const auto &m : d->masters)
+            for (const auto &it : m->items)
+                if (it->type() == ItemType::Text) all << d->storyDoc(static_cast<TextItem &>(*it).storyId)->toPlainText();
+        const QString joined = all.join(QLatin1Char('\n'));
+        QVERIFY(joined.contains(QLatin1String("Master title: change its look here")));
+        QVERIFY(joined.contains(QLatin1String("Master subtitle: change its look here")));
+        QVERIFY(joined.contains(QLatin1String("Level 1 text")) && joined.contains(QLatin1String("Level 5 text")));
+        for (const char *old : {"Click to edit", "Second level", "Third level", "Fourth level", "Fifth level", "First level"}) QVERIFY2(!joined.contains(QLatin1String(old)), old);
+        QString err;
+        QMap<QString, QByteArray> zip;
+        QVERIFY(readZip(deck::exportPresentation(*d, &err), zip, &err));
+        for (auto it = zip.cbegin(); it != zip.cend(); ++it)
+            if (it.key().endsWith(QLatin1String(".xml"))) {
+                const QString xml = QString::fromUtf8(it.value());
+                QVERIFY2(!xml.contains(QLatin1String("Click to edit")) && !xml.contains(QLatin1String("Second level")), qPrintable(it.key()));
+            }
+        QVERIFY(QString::fromUtf8(zip.value(QStringLiteral("ppt/notesMasters/notesMaster1.xml"))).contains(QLatin1String("Notes text: change its look here")));
+    }
+
+    // A layout whose text is plain (one level, no bullet, no indent) is saved with no list style, so that a file that had none draws the same when read again: no hanging indent comes in.
+    void aPlainLayoutGainsNoIndentWhenSaved()
+    {
+        DeckWindow w;
+        fillSlides(w, {"One", "Two"}, {{"sub"}, {QString(120, QLatin1Char('w')).replace(5, 1, ' ').replace(20, 1, ' ').replace(40, 1, ' ').replace(70, 1, ' ')}});
+        Document *d = w.editor()->doc();
+        MasterPage &layout = *deck::layoutOfType(*d, QStringLiteral("obj"));
+        QTextDocument *ls = d->storyDoc(holderOn(layout, QStringLiteral("obj"))->storyId);
+        QTextCursor lc(ls);
+        lc.setPosition(ls->begin().position() + ls->begin().length() - 1);
+        lc.movePosition(QTextCursor::End, QTextCursor::KeepAnchor);
+        lc.removeSelectedText();
+        QCOMPARE(ls->blockCount(), 1);
+        QMap<QString, QByteArray> zip;
+        auto back = throughPptx(*d, &zip);
+        QVERIFY(back);
+        for (auto it = zip.cbegin(); it != zip.cend(); ++it)
+            if (it.key().startsWith(QLatin1String("ppt/slideLayouts/slideLayout")) && it.key().endsWith(QLatin1String(".xml")) && QString::fromUtf8(it.value()).contains(QLatin1String("name=\"Title and Content\"")))
+                QVERIFY2(!QString::fromUtf8(it.value()).contains(QLatin1String("<a:lstStyle><a:lvl")), "no list style for a plain level");
+        // The slide's words stand where they stood.
+        auto leftmostInk = [](const Document &doc) {
+            LayoutCache cache;
+            const QSizeF page = doc.pageSize();
+            const QImage img = renderSlideImage(&doc, &cache, 1, QSize(int(page.width()), int(page.height())), 1.0, Qt::white);
+            const TextItem *body = holderOn(*doc.pages[1], QStringLiteral("obj"));
+            int left = img.width();
+            for (int y = int(body->rect.top()); y < int(body->rect.bottom()); ++y)
+                for (int x = int(body->rect.left()); x < left; ++x)
+                    if (qGray(img.pixel(x, y)) < 128) { left = x; break; }
+            return left;
+        };
+        QVERIFY(leftmostInk(*d) < 400);
+        QCOMPARE(leftmostInk(*back), leftmostInk(*d));
+    }
+
+    // Tab on a layout whose second level says nothing but a list style without a bullet or an indent behaves as it did: the layout has no level look to take.
+    void aLayoutLevelWithNoLookDoesNotTakeTab()
+    {
+        auto d = deck::newPresentation();
+        deck::addSlide(*d, *deck::layoutOfType(*d, QStringLiteral("obj")));
+        MasterPage &layout = *deck::layoutOfType(*d, QStringLiteral("obj"));
+        QTextDocument *ls = d->storyDoc(holderOn(layout, QStringLiteral("obj"))->storyId);
+        const TextItem *body = holderOn(*d->pages[1], QStringLiteral("obj"));
+        QVERIFY(deck::layoutHasList(*d, *body));   // (a new layout's levels have looks: indents)
+        for (QTextBlock b = ls->begin(); b.isValid(); b = b.next()) {
+            QTextCursor c(b);
+            QTextBlockFormat bf = c.blockFormat();
+            bf.setLeftMargin(0);
+            c.setBlockFormat(bf);
+        }
+        QCOMPARE(ls->blockCount(), 5);
+        QVERIFY(!deck::layoutHasList(*d, *body));
+        QVERIFY(!deck::changeListLevel(*d, *body, 0, 0, 1));
+        // With a bullet on a level, or an indent, it takes the level.
+        QTextCursor c(ls->findBlockByNumber(1));
+        QTextBlockFormat bf = c.blockFormat();
+        bf.setLeftMargin(30);
+        c.setBlockFormat(bf);
+        QVERIFY(deck::layoutHasList(*d, *body));
+    }
+
+    // The levels of a layout's text are saved on the shape of the placeholder they belong to, matched by its number (idx), not by the order or the count of the layout's places.
+    void layoutLevelsAreSavedOnThePlaceholderWithTheSameNumber()
+    {
+        auto d = deck::newPresentation();
+        MasterPage &layout = *deck::layoutOfType(*d, QStringLiteral("twoObj"));
+        TextItem *one = nullptr, *two = nullptr;
+        for (const auto &it : layout.items)
+            if (it->type() == ItemType::Text && deck::placeholderType(*it) == QLatin1String("obj")) (one ? two : one) = static_cast<TextItem *>(it.get());
+        QVERIFY(one && two);
+        // The second place's second level gets a size of its own; the first's stays.
+        QTextDocument *sd = d->storyDoc(two->storyId);
+        QTextCursor c(sd->findBlockByNumber(1));
+        c.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
+        QTextCharFormat f;
+        f.setFontPointSize(31);
+        c.mergeCharFormat(f);
+        // The order of the layout's items is not the order of its numbers.
+        std::swap(layout.items[std::find_if(layout.items.begin(), layout.items.end(), [&](const ItemPtr &i) { return i.get() == one; }) - layout.items.begin()],
+                  layout.items[std::find_if(layout.items.begin(), layout.items.end(), [&](const ItemPtr &i) { return i.get() == two; }) - layout.items.begin()]);
+        QMap<QString, QByteArray> zip;
+        QVERIFY(throughPptx(*d, &zip));
+        QString xml;
+        for (auto it = zip.cbegin(); it != zip.cend(); ++it)
+            if (it.key().startsWith(QLatin1String("ppt/slideLayouts/slideLayout")) && it.key().endsWith(QLatin1String(".xml")) && QString::fromUtf8(it.value()).contains(QLatin1String("name=\"Two Content\"")))
+                xml = QString::fromUtf8(it.value());
+        QVERIFY(!xml.isEmpty());
+        auto listOf = [&](const QString &idx) {
+            const qsizetype ph = xml.indexOf(QStringLiteral("idx=\"%1\"").arg(idx));
+            const qsizetype lst = xml.indexOf(QLatin1String("<a:lstStyle"), ph);
+            return xml.mid(lst, xml.indexOf(QLatin1String("</p:sp>"), lst) - lst);
+        };
+        const QString first = listOf(QStringLiteral("1")), secondList = listOf(QStringLiteral("2"));
+        QVERIFY(first.contains(QLatin1String("<a:lvl2pPr")) && first.contains(QLatin1String("sz=\"2400\"")) && !first.contains(QLatin1String("sz=\"3100\"")));
+        QVERIFY(secondList.contains(QLatin1String("sz=\"3100\"")));
     }
 
     // A change to a layout shows on every slide that stands on it at once: a placeholder where the layout had it moves with it (one a slide

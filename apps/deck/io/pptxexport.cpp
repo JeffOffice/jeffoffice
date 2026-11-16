@@ -284,10 +284,11 @@ QVector<Level> levelsOf(const QTextDocument *doc, bool heading, const office::Th
     return levels;
 }
 
-QString levelXml(int level, const Level &l, const office::Theme &theme, bool dark, bool heading, bool body, double defaultSize)
+// `inList`: the level of a shape's list style, which says nothing where the paragraph had none (no margin: none, and no hanging indent).
+QString levelXml(int level, const Level &l, const office::Theme &theme, bool dark, bool heading, bool body, double defaultSize, bool inList = false)
 {
-    const double marL = l.marL >= 0 ? l.marL : body ? 18 + 36 * level : (heading ? 0 : 36 * level);
-    const double indent = l.marL >= 0 || !body ? l.indent : -18;
+    const double marL = l.marL >= 0 ? l.marL : inList ? 0 : body ? 18 + 36 * level : (heading ? 0 : 36 * level);
+    const double indent = l.marL >= 0 || !body ? l.indent : inList ? 0 : -18;
     QString out = QStringLiteral("<a:lvl%1pPr marL=\"%2\" indent=\"%3\" algn=\"%4\" defTabSz=\"914400\" rtl=\"0\" eaLnBrk=\"1\" latinLnBrk=\"0\" hangingPunct=\"1\">")
                       .arg(level + 1).arg(emu(std::clamp(marL, 0.0, 4000.0))).arg(emu(std::clamp(indent, -4000.0, 4000.0)), l.align);
     if (l.lineHeight > 0)
@@ -1327,7 +1328,7 @@ QString Exporter::withLevelStyles(const QString &xml, const MasterPage &page, co
     // (The text is changed where it stands, not read and written again: the rest of the layout stays as it was written.)
     struct Spot {
         qsizetype at;
-        QString type;
+        QString idx;
     };
     QVector<Spot> lists;
     for (qsizetype from = 0;;) {
@@ -1346,18 +1347,26 @@ QString Exporter::withLevelStyles(const QString &xml, const MasterPage &page, co
         if (!type.isEmpty() && type != QLatin1String("body") && type != QLatin1String("obj")) continue;
         const qsizetype lst = xml.indexOf(QLatin1String("<a:lstStyle/>"), ph);
         if (lst < 0 || lst > close) return xml;
-        lists << Spot{lst, type};
+        static const QRegularExpression idxAttr(QStringLiteral("\\bidx=\"([^\"]*)\""));
+        const QRegularExpressionMatch im = idxAttr.match(tag);
+        lists << Spot{lst, im.hasMatch() ? im.captured(1) : QStringLiteral("0")};
     }
-    if (lists.size() != bodies.size()) return xml;
     const bool dark = isDarkBackground(page.background);
     static const double bodySizes[9] = {28, 24, 20, 18, 18, 18, 18, 18, 18};
     QString out = xml;
-    for (int k = int(bodies.size()) - 1; k >= 0; --k) {   // (from the last, so that the places found stay where they are)
+    for (int k = int(lists.size()) - 1; k >= 0; --k) {   // (from the last, so that the places found stay where they are)
+        // The shape's text is the layout's placeholder with the same number (idx), whatever else the layout has.
+        const TextItem *body = nullptr;
+        for (const TextItem *b : std::as_const(bodies)) {
+            const QStringList parts = b->role.split(QLatin1Char(':'));
+            if ((parts.size() > 2 && !parts[2].isEmpty() ? parts[2] : QStringLiteral("0")) == lists[k].idx) body = b;
+        }
+        if (!body) continue;
         QVector<bool> said;
-        const QVector<Level> levels = levelsOf(m_doc.storyDoc(bodies[k]->storyId), false, master.theme, &said);
+        const QVector<Level> levels = levelsOf(m_doc.storyDoc(body->storyId), false, master.theme, &said);
         QString inner;
         for (int i = 0; i < 9; ++i)
-            if (said[i]) inner += levelXml(i, levels[i], master.theme, dark, false, true, bodySizes[i]);
+            if (said[i] && (levels[i].bullet || levels[i].marL >= 0)) inner += levelXml(i, levels[i], master.theme, dark, false, true, bodySizes[i], true);
         if (!inner.isEmpty()) out.replace(lists[k].at, int(QLatin1String("<a:lstStyle/>").size()), QStringLiteral("<a:lstStyle>") + inner + QStringLiteral("</a:lstStyle>"));
     }
     return out;
@@ -1592,7 +1601,7 @@ void Exporter::writeNotesMaster()
     const QString date = QStringLiteral("<a:p><a:fld id=\"{9A1B2C3D-0000-4000-8000-000000000002}\" type=\"datetimeFigureOut\"><a:rPr lang=\"en-US\"/><a:t>%1</a:t></a:fld><a:endParaRPr lang=\"en-US\"/></a:p>")
                              .arg(esc(m_doc.props.modified.date().toString(Qt::ISODate)));
     const QString dateParagraph = chose && !hf.dateText.isEmpty() ? typed(hf.dateText) : date;
-    static const char *const samples[5] = {"Click to edit Master text styles", "Second level", "Third level", "Fourth level", "Fifth level"};
+    static const char *const samples[5] = {"Notes text: change its look here", "Level 2 text", "Level 3 text", "Level 4 text", "Level 5 text"};
     QString texts;
     for (int level = 0; level < 5; ++level)
         texts += QStringLiteral("<a:p><a:pPr lvl=\"%1\"/><a:r><a:rPr lang=\"en-US\"/><a:t>%2</a:t></a:r></a:p>").arg(level).arg(QLatin1String(samples[level]));

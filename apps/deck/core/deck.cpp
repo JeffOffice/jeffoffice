@@ -153,8 +153,8 @@ Look titleLook() { Look l; l.size = 44; l.heading = true; return l; }
 Look bodyLook(double size = 28) { Look l; l.size = size; return l; }
 Look smallLook(Qt::Alignment a) { Look l; l.size = 12; l.color = 0; l.tint = kFooterTint; l.align = a; return l; }
 
-const QString kTitleSample = QStringLiteral("Click to edit Master title style");
-const QString kBodySample = QStringLiteral("First level\nSecond level\nThird level\nFourth level\nFifth level");
+const QString kTitleSample = QStringLiteral("Master title: change its look here");
+const QString kBodySample = QStringLiteral("Level 1 text\nLevel 2 text\nLevel 3 text\nLevel 4 text\nLevel 5 text");
 
 QVector<Place> footers()
 {
@@ -189,32 +189,32 @@ QVector<LayoutDef> layoutDefs()
     return {
         {QStringLiteral("title"), QStringLiteral("Title Slide"),
          {{QStringLiteral("ctrTitle"), 0, QRectF(120, 88.4, 720, 188), centerBig, VAlign::Bottom, kTitleSample},
-          {QStringLiteral("subTitle"), 1, QRectF(120, 283.6, 720, 130.4), sub, VAlign::Top, QStringLiteral("Click to edit Master subtitle style")}}},
+          {QStringLiteral("subTitle"), 1, QRectF(120, 283.6, 720, 130.4), sub, VAlign::Top, QStringLiteral("Master subtitle: change its look here")}}},
         {QStringLiteral("obj"), QStringLiteral("Title and Content"),
          {{t, 0, title, titleLook(), VAlign::Middle, kTitleSample}, {o, 1, body, bodyLook(), VAlign::Top, kBodySample}}},
         {QStringLiteral("secHead"), QStringLiteral("Section Header"),
          {{t, 0, QRectF(65.5, 134.6, 828, 224.6), big, VAlign::Bottom, kTitleSample},
-          {b, 1, QRectF(65.5, 361.4, 828, 118.1), sectionText, VAlign::Top, QStringLiteral("First level")}}},
+          {b, 1, QRectF(65.5, 361.4, 828, 118.1), sectionText, VAlign::Top, QStringLiteral("Level 1 text")}}},
         {QStringLiteral("twoObj"), QStringLiteral("Two Content"),
          {{t, 0, title, titleLook(), VAlign::Middle, kTitleSample},
           {o, 1, QRectF(66, 143.75, 408, 342.6), bodyLook(), VAlign::Top, kBodySample},
           {o, 2, QRectF(486, 143.75, 408, 342.6), bodyLook(), VAlign::Top, kBodySample}}},
         {QStringLiteral("twoTxTwoObj"), QStringLiteral("Comparison"),
          {{t, 0, QRectF(66.1, 28.75, 828, 104.4), titleLook(), VAlign::Middle, kTitleSample},
-          {b, 1, QRectF(66.1, 132.4, 406.1, 64.9), head, VAlign::Bottom, QStringLiteral("First level")},
+          {b, 1, QRectF(66.1, 132.4, 406.1, 64.9), head, VAlign::Bottom, QStringLiteral("Level 1 text")},
           {o, 2, QRectF(66.1, 197.3, 406.1, 290.2), bodyLook(24), VAlign::Top, kBodySample},
-          {b, 3, QRectF(486, 132.4, 408.1, 64.9), head, VAlign::Bottom, QStringLiteral("First level")},
+          {b, 3, QRectF(486, 132.4, 408.1, 64.9), head, VAlign::Bottom, QStringLiteral("Level 1 text")},
           {o, 4, QRectF(486, 197.3, 408.1, 290.2), bodyLook(24), VAlign::Top, kBodySample}}},
         {QStringLiteral("titleOnly"), QStringLiteral("Title Only"), {{t, 0, title, titleLook(), VAlign::Middle, kTitleSample}}},
         {QStringLiteral("blank"), QStringLiteral("Blank"), {}},
         {QStringLiteral("objTx"), QStringLiteral("Content with Caption"),
          {{t, 0, QRectF(66.1, 36, 309.6, 126), caption, VAlign::Bottom, kTitleSample},
           {o, 1, QRectF(408.1, 77.8, 486, 383.8), bodyLook(32), VAlign::Top, kBodySample},
-          {b, 2, QRectF(66.1, 162, 309.6, 300.1), note, VAlign::Top, QStringLiteral("First level")}}},
+          {b, 2, QRectF(66.1, 162, 309.6, 300.1), note, VAlign::Top, QStringLiteral("Level 1 text")}}},
         {QStringLiteral("picTx"), QStringLiteral("Picture with Caption"),
          {{t, 0, QRectF(66.1, 36, 309.6, 126), caption, VAlign::Bottom, kTitleSample},
           {QStringLiteral("pic"), 1, QRectF(408.1, 77.8, 486, 383.8), bodyLook(32), VAlign::Top, QString()},
-          {b, 2, QRectF(66.1, 162, 309.6, 300.1), note, VAlign::Top, QStringLiteral("First level")}}},
+          {b, 2, QRectF(66.1, 162, 309.6, 300.1), note, VAlign::Top, QStringLiteral("Level 1 text")}}},
     };
 }
 
@@ -1025,7 +1025,7 @@ bool layoutHasList(const Document &d, const Item &placeholder)
     const QTextDocument *ls = place ? d.storyDoc(static_cast<const TextItem *>(place)->storyId) : nullptr;
     if (!ls) return false;
     for (QTextBlock b = ls->begin(); b.isValid(); b = b.next())
-        if (b.textList() || levelOfBlock(b) > 0) return true;
+        if (b.textList() || (levelOfBlock(b) > 0 && b.blockFormat().leftMargin() > 0)) return true;   // (a level that has a look: a list, or an indent of its own)
     return false;
 }
 

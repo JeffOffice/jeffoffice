@@ -26,7 +26,7 @@ struct RenderOptions {
     QDateTime now;
     bool shadeFields = false;
     bool showSpecial = false;
-    bool tableGridlines = true;   // dashed gridlines along the edges of table cells that have no line (screen only: never printed, exported, or saved)
+    bool tableGridlines = false;   // dashed gridlines along the edges of table cells that have no line (screen only: never printed, exported, or saved)
     bool grayscale = false;
     // Text editing visuals for one story.
     QString editStory;
@@ -165,7 +165,7 @@ public:
     // shown: a picture drawn into pixels smaller than it is comes back at that size, each pixel the average of those it covers.
     static QImage processedImage(const Document &doc, const PictureItem &pic, const QSizeF &deviceSize, const QSizeF &shown = QSizeF());
     static QImage renderToImage(const PaintContext &ctx, int pageIndex, double scale, bool transparent = false);
-    static QImage renderItemsToImage(const PaintContext &ctx, const ItemList &items, double scale);
+    static QImage renderItemsToImage(const PaintContext &ctx, const ItemList &items, double scale, double pad = 4);
 
     // The objects looked at, and the wrap shapes made, for text boxes since the program began on this thread: a count for tests of cost.
     static qint64 wrapWorkForTest();
