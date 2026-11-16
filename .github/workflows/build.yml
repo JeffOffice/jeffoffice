@@ -181,8 +181,8 @@ jobs:
       MAC_ARCHS: ${{ github.event_name == 'workflow_dispatch' && inputs.mac_both && matrix.part == 'checks' && matrix.shard == 1 && 'arm64;x86_64' || 'arm64' }}
       # Which half of its part this job is ("1/2" or "2/2"; none on Linux, which runs a part in one job): tools/ci_targets.sh says what each half builds and runs.
       SHARD: ${{ matrix.name == 'linux' && '' || format('{0}/2', matrix.shard) }}
-      # Our own machine keeps its compiler cache in a folder of its own, kept from run to run; GitHub's machines keep it in GitHub's cache.
-      CCACHE_DIR: ${{ (matrix.name == 'linux' && github.event_name != 'pull_request') && '/ccache' || (matrix.name == 'macos' && github.event_name != 'pull_request') && '/Users/Shared/jo-ccache' || format('{0}/.ccache', github.workspace) }}
+      # Our own machines keep the compiler cache in a folder of their own, kept from run to run; GitHub's machines keep it in GitHub's cache.
+      CCACHE_DIR: ${{ (matrix.name == 'linux' && github.event_name != 'pull_request') && '/ccache' || (matrix.name == 'macos' && github.event_name != 'pull_request') && '/Users/Shared/jo-ccache' || (matrix.name == 'windows' && github.event_name != 'pull_request' && !(matrix.part == 'checks' && matrix.shard == 1)) && 'C:\jo\ccache' || format('{0}/.ccache', github.workspace) }}
       # (precompiled headers: without these, ccache caches no file that reads one; the header times because a fresh checkout's files are all new)
       CCACHE_SLOPPINESS: pch_defines,time_macros,include_file_mtime,include_file_ctime
     strategy:
@@ -209,7 +209,9 @@ jobs:
             os: macos-15
     # Linux runs on our own machine (labels self-hosted + jo-linux) and macOS on our own Mac (self-hosted + jo-mac), except for pull requests, which run on
     # GitHub's: no one else's code runs there. (GitHub's Macs were often not there at all: whole runs waited, then were cancelled, Nov 16.)
-    runs-on: ${{ (matrix.name == 'linux' && github.event_name != 'pull_request') && fromJSON('["self-hosted", "jo-linux"]') || (matrix.os == 'macos-15' && github.event_name != 'pull_request') && fromJSON('["self-hosted", "jo-mac"]') || matrix.os }}
+    # Windows runs on our own Windows machine (self-hosted + jo-win) too, except the job that packages and signs the installer (checks, 1/2), which
+    # stays on GitHub's: its image has the installer and signing tools.
+    runs-on: ${{ (matrix.name == 'linux' && github.event_name != 'pull_request') && fromJSON('["self-hosted", "jo-linux"]') || (matrix.name == 'windows' && github.event_name != 'pull_request' && !(matrix.part == 'checks' && matrix.shard == 1)) && fromJSON('["self-hosted", "jo-win"]') || (matrix.os == 'macos-15' && github.event_name != 'pull_request') && fromJSON('["self-hosted", "jo-mac"]') || matrix.os }}
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -230,7 +232,7 @@ jobs:
 
       # Windows builds with MinGW-w64 (GCC), the compiler Qt ships for Windows.
       - uses: jurplel/install-qt-action@b344308e4483fc892e0d27b3cd1b173ebdd95f06 # v4.5.0
-        if: runner.os == 'Windows'
+        if: runner.os == 'Windows' && runner.environment != 'self-hosted'
         with:
           # (aqtinstall 3.3.0, the newest release, looks for Windows MinGW Qt 6.11 in the wrong folder: pinned to the commit that lists it)
           aqtsource: 'git+https://github.com/miurahr/aqtinstall.git@5a49f2b391ae8ee1d3c0dd87f8b33c1d49a4deb7'
@@ -239,6 +241,22 @@ jobs:
           modules: 'qtimageformats qtmultimedia qtspeech'
           tools: 'tools_mingw1310'
           cache: true
+
+      # Our own Windows machine keeps Qt and its MinGW in C:\Qt (the same version and modules, from the same aqtinstall commit); each job works on a copy
+      # of Qt, made in about 15 seconds, because a job puts our FFmpeg into its copy of Qt (below) and the next job needs Qt's own.
+      - name: Qt (our Windows)
+        if: runner.os == 'Windows' && runner.environment == 'self-hosted'
+        shell: pwsh
+        run: |
+          $base = 'C:\Qt\6.11.3\mingw_64'
+          if (-not (Test-Path "$base\lib\cmake\Qt6\Qt6Config.cmake")) { throw "Qt 6.11.3 is missing from $base" }
+          $q = "$env:RUNNER_TEMP\qt"
+          if (Test-Path $q) { Remove-Item -Recurse -Force $q }
+          robocopy $base $q /E /MT:16 /NFL /NDL /NJH /NJS /NP | Out-Null
+          if ($LASTEXITCODE -ge 8) { throw "robocopy failed: $LASTEXITCODE" }
+          "QT_ROOT_DIR=$q", "Qt6_DIR=$q\lib\cmake\Qt6", "QT_PLUGIN_PATH=$q\plugins", "QML2_IMPORT_PATH=$q\qml", "IQTA_TOOLS=C:\Qt\Tools" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "$q\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          exit 0
 
       - uses: jurplel/install-qt-action@b344308e4483fc892e0d27b3cd1b173ebdd95f06 # v4.5.0
         if: runner.os == 'macOS' && runner.environment != 'self-hosted'
