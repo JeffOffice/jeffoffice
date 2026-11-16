@@ -1397,7 +1397,8 @@ private Q_SLOTS:
                 for (const auto &item : doc->pager().materialize(p)->doc->pages[0]->items) all << item->rect;
             return all;
         };
-        const QVector<QRectF> plain = layout(QByteArray()), said = layout("<w:footnotePr><w:pos w:val=\"pageBottom\"/></w:footnotePr><w15:footnoteColumns xmlns:w15=\"http://schemas.microsoft.com/office/word/2012/wordml\" w:val=\"1\"/>");
+        const QByteArray zoom = "<w:zoom w:percent=\"100\"/>";   // (a settings part, for both)
+        const QVector<QRectF> plain = layout(zoom), said = layout(zoom + "<w:footnotePr><w:pos w:val=\"pageBottom\"/></w:footnotePr><w15:footnoteColumns xmlns:w15=\"http://schemas.microsoft.com/office/word/2012/wordml\" w:val=\"1\"/>");
         QVERIFY(plain.size() > 30);
         QCOMPARE(said, plain);
         // (Notes a page cannot hold go on to the next, in one column, as they did.)
