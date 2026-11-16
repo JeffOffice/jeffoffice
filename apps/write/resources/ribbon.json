@@ -2592,9 +2592,13 @@
           ]
         },
         {
-          "name": "Axes",
+          "name": "Format",
           "keytip": "ZX",
           "items": [
+            {
+              "small": "chartdesign.formatPart",
+              "keytip": "FP"
+            },
             {
               "small": "chartdesign.axisH",
               "keytip": "AH"

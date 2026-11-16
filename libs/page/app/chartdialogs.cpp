@@ -3,6 +3,9 @@
 #include "app/plaintext.h"
 
 #include <QCheckBox>
+#include <QColorDialog>
+#include <QIcon>
+#include <QPainter>
 #include <QCoreApplication>
 #include <QComboBox>
 #include <QDialogButtonBox>
@@ -564,6 +567,163 @@ void SelectChartDataDialog::switchRowsAndColumns()
     m_data = made;
     fill();
 }
+
+// ---- Format Chart Part
+
+namespace {
+
+QIcon swatchOf(const QColor &color)
+{
+    QPixmap pm(28, 14);
+    pm.fill(color.isValid() ? color : Qt::transparent);
+    QPainter p(&pm);
+    p.setPen(Qt::gray);
+    p.drawRect(pm.rect().adjusted(0, 0, -1, -1));
+    return QIcon(pm);
+}
+
+const ChartMarker::Symbol kMarkers[] = {ChartMarker::Auto, ChartMarker::None, ChartMarker::Circle, ChartMarker::Square, ChartMarker::Diamond, ChartMarker::Triangle, ChartMarker::X, ChartMarker::Star, ChartMarker::Plus, ChartMarker::Dash, ChartMarker::Dot};
+
+} // namespace
+
+FormatChartPartDialog::FormatChartPartDialog(const Chart &chart, int part, QWidget *parent) : QDialog(parent), m_chart(chart)
+{
+    setWindowTitle(tr("Format Chart Part"));
+    setObjectName(QStringLiteral("formatChartPartDialog"));
+    auto *form = new QFormLayout(this);
+    m_parts = new QComboBox(this);
+    m_parts->setObjectName(QStringLiteral("chartPartChoice"));
+    m_parts->setAccessibleName(tr("Part of the chart"));
+    m_parts->addItem(tr("Chart Area"));
+    m_parts->addItem(tr("Plot Area"));
+    const QVector<ChartSeries> series = seriesOf(chart);
+    for (int i = 0; i < series.size(); ++i) m_parts->addItem(series[i].name.isEmpty() ? tr("Series %1").arg(i + 1) : series[i].name);
+    m_looks.resize(m_parts->count());
+    for (int i = 0; i < m_looks.size(); ++i) m_looks[i] = partLookOf(chart, i == 0 ? ChartPart::Area : i == 1 ? ChartPart::Plot : ChartPart::Series, i - 2);
+    form->addRow(tr("Part"), m_parts);
+    m_noFill = new QCheckBox(tr("No fill"), this);
+    m_noFill->setObjectName(QStringLiteral("chartPartNoFill"));
+    m_fillButton = new QPushButton(tr("Choose a Color…"), this);
+    m_fillButton->setObjectName(QStringLiteral("chartPartFill"));
+    form->addRow(tr("Fill"), m_fillButton);
+    form->addRow(QString(), m_noFill);
+    m_noLine = new QCheckBox(tr("No line"), this);
+    m_noLine->setObjectName(QStringLiteral("chartPartNoLine"));
+    m_lineButton = new QPushButton(tr("Choose a Color…"), this);
+    m_lineButton->setObjectName(QStringLiteral("chartPartLine"));
+    m_width = new QDoubleSpinBox(this);
+    m_width->setObjectName(QStringLiteral("chartPartWidth"));
+    m_width->setAccessibleName(tr("Width of the line in points"));
+    m_width->setRange(0, 20);
+    m_width->setSingleStep(0.25);
+    m_width->setSuffix(tr(" pt"));
+    form->addRow(tr("Line"), m_lineButton);
+    form->addRow(tr("Line width"), m_width);
+    form->addRow(QString(), m_noLine);
+    m_smooth = new QCheckBox(tr("Smooth line"), this);
+    m_smooth->setObjectName(QStringLiteral("chartPartSmooth"));
+    m_marker = new QComboBox(this);
+    m_marker->setObjectName(QStringLiteral("chartPartMarker"));
+    m_marker->setAccessibleName(tr("Mark at each point"));
+    const QStringList markerNames = {tr("Automatic"), tr("None"), tr("Circle"), tr("Square"), tr("Diamond"), tr("Triangle"), tr("Cross"), tr("Star"), tr("Plus"), tr("Dash"), tr("Dot")};
+    for (const QString &n : markerNames) m_marker->addItem(n);
+    form->addRow(QString(), m_smooth);
+    form->addRow(tr("Mark"), m_marker);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
+    connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
+    connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
+    form->addRow(buttons);
+    connect(m_fillButton, &QPushButton::clicked, this, [this] { pickColor(true); });
+    connect(m_lineButton, &QPushButton::clicked, this, [this] { pickColor(false); });
+    connect(m_parts, &QComboBox::currentIndexChanged, this, [this](int i) {
+        store();
+        load(i);
+    });
+    load(std::clamp(part, 0, int(m_looks.size()) - 1));
+    m_parts->setCurrentIndex(m_part);
+}
+
+void FormatChartPartDialog::pickColor(bool fill)
+{
+    const QColor chosen = QColorDialog::getColor(fill ? m_fill : m_line, this, fill ? tr("Fill") : tr("Line"));
+    if (!chosen.isValid()) return;
+    if (fill) setFill(chosen);
+    else setLineColor(chosen);
+}
+
+void FormatChartPartDialog::load(int index)
+{
+    m_part = index;
+    const ChartPartLook &look = m_looks[index];
+    const bool series = index >= 2;
+    m_fill = look.fill;
+    m_line = look.line.color;
+    m_noFill->setChecked(look.noFill);
+    m_noLine->setChecked(look.line.none);
+    m_width->setValue(look.line.width);
+    m_fillButton->setIcon(swatchOf(m_fill));
+    m_lineButton->setIcon(swatchOf(m_line));
+    m_smooth->setChecked(look.smooth);
+    if (auto *form = qobject_cast<QFormLayout *>(layout())) {
+        form->setRowVisible(m_smooth, series);
+        form->setRowVisible(m_marker, series);
+    }
+    for (int i = 0; i < int(std::size(kMarkers)); ++i)
+        if (kMarkers[i] == look.marker) m_marker->setCurrentIndex(i);
+}
+
+void FormatChartPartDialog::store()
+{
+    if (m_part < 0 || m_part >= m_looks.size()) return;
+    ChartPartLook &look = m_looks[m_part];
+    look.fill = m_fill;
+    look.noFill = m_noFill->isChecked();
+    look.line.color = m_line;
+    look.line.none = m_noLine->isChecked();
+    look.line.width = m_width->value();
+    look.line.set = m_line.isValid() || look.line.none || look.line.width > 0;
+    look.smooth = m_smooth->isChecked();
+    look.marker = kMarkers[std::clamp(m_marker->currentIndex(), 0, int(std::size(kMarkers)) - 1)];
+}
+
+Chart FormatChartPartDialog::result() const
+{
+    const_cast<FormatChartPartDialog *>(this)->store();
+    Chart out = m_chart;
+    for (int i = 0; i < m_looks.size(); ++i) {
+        const ChartPart part = i == 0 ? ChartPart::Area : i == 1 ? ChartPart::Plot : ChartPart::Series;
+        // (a part the person left alone is not set again: the file's own look for it stays)
+        const ChartPartLook now = partLookOf(m_chart, part, i - 2);
+        const ChartPartLook &look = m_looks[i];
+        if (now.fill == look.fill && now.noFill == look.noFill && now.line.color == look.line.color && now.line.none == look.line.none && now.line.width == look.line.width && now.smooth == look.smooth && now.marker == look.marker) continue;
+        setPartLook(&out, part, i - 2, look);
+    }
+    return out;
+}
+
+int FormatChartPartDialog::partsShown() const { return m_parts->count(); }
+
+void FormatChartPartDialog::choosePart(int index) { m_parts->setCurrentIndex(index); }
+
+void FormatChartPartDialog::setFill(const QColor &color)
+{
+    m_fill = color;
+    m_noFill->setChecked(false);
+    m_fillButton->setIcon(swatchOf(color));
+}
+
+void FormatChartPartDialog::setNoFill(bool on) { m_noFill->setChecked(on); }
+
+void FormatChartPartDialog::setLineColor(const QColor &color)
+{
+    m_line = color;
+    m_noLine->setChecked(false);
+    m_lineButton->setIcon(swatchOf(color));
+}
+
+void FormatChartPartDialog::setLineWidth(double points) { m_width->setValue(points); }
+
+void FormatChartPartDialog::setSmooth(bool on) { m_smooth->setChecked(on); }
 
 ChangeChartTypeDialog::ChangeChartTypeDialog(const QStringList &seriesNames, const QVector<SeriesKind> &now, const KindsPreviewFn &preview, QWidget *parent)
     : QDialog(parent), m_names(seriesNames), m_preview(preview)

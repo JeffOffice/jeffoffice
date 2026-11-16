@@ -66,6 +66,7 @@
     QT_TRANSLATE_NOOP("Ribbon", "Footer from Bottom:"),
     QT_TRANSLATE_NOOP("Ribbon", "Footnote and Endnote"),
     QT_TRANSLATE_NOOP("Ribbon", "Footnotes"),
+    QT_TRANSLATE_NOOP("Ribbon", "Format"),
     QT_TRANSLATE_NOOP("Ribbon", "Gradient"),
     QT_TRANSLATE_NOOP("Ribbon", "Gridlines"),
     QT_TRANSLATE_NOOP("Ribbon", "Header & Footer"),

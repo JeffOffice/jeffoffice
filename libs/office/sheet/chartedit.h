@@ -128,6 +128,21 @@ int chartLayoutCount();
 QString chartLayoutName(int index);
 void applyChartLayout(Chart *chart, int layout);
 
+// The looks a format pane sets one part at a time: the chart area (the page the chart is drawn on), the plot area (the box the marks stand in), and each series (the fill of its bars, areas, and slices, or
+// the color of its line; the stroke round them; whether its line is smooth; and the mark at each point).
+enum class ChartPart : quint8 { Area, Plot, Series };
+struct ChartPartLook {
+    QColor fill;                // invalid: none was set (the usual)
+    bool noFill = false;
+    ChartLine line;
+    bool smooth = false;        // a series only
+    ChartMarker::Symbol marker = ChartMarker::Auto;   // a series only
+};
+// The look of the part now. `series` is the place of the series (in order, plot by plot) for ChartPart::Series; a place the chart has none at gives an empty look.
+ChartPartLook partLookOf(const Chart &chart, ChartPart part, int series = 0);
+// Gives the part the look: a fill color replaces what the file had (a gradient too), and `noFill` takes the fill away. Nothing for a series the chart does not have.
+void setPartLook(Chart *chart, ChartPart part, int series, const ChartPartLook &look);
+
 // ---- kinds
 // What each series is drawn as, in the order of the chart's series (the plots' in turn).
 QVector<SeriesKind> seriesKindsOf(const Chart &chart);
