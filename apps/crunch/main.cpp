@@ -21,7 +21,9 @@
 #include "app/telemetry.h"
 #include "app/theme.h"
 #include "app/updater.h"
+#include "core/clipdata.h"
 #include "core/fonts.h"
+#include "sheet/csvimport.h"
 #include "core/startuptrace.h"
 
 #include <QApplication>
@@ -100,7 +102,10 @@ int main(int argc, char **argv)
     QCommandLineOption stageOpt(QStringLiteral("backstage"), QCoreApplication::translate("Main", "Open on a File page."), QStringLiteral("page"));
     QCommandLineOption tabOpt(QStringLiteral("tab"), QCoreApplication::translate("Main", "Show this ribbon tab."), QStringLiteral("name"));
     QCommandLineOption insertOpt(QStringLiteral("insert"), QCoreApplication::translate("Main", "For --screenshot: put a picture or a shape on the sheet first."), QStringLiteral("picture|shape"));
-    cli.addOptions({shotOpt, sizeOpt, zoomOpt, sheetOpt, stageOpt, tabOpt, insertOpt});
+    QCommandLineOption sepOpt(QStringLiteral("separator"), QCoreApplication::translate("Main", "For a .csv, .tsv, or .txt file: what separates its fields (comma, semicolon, tab, space, bar, or one character). No question is asked."), QStringLiteral("separator"));
+    QCommandLineOption encOpt(QStringLiteral("encoding"), QCoreApplication::translate("Main", "For a .csv, .tsv, or .txt file: its encoding (utf-8, utf-8-bom, utf-16le, utf-16be, latin1, mac-roman, windows-1252 or another page, iso-8859-N)."), QStringLiteral("encoding"));
+    QCommandLineOption decOpt(QStringLiteral("decimal"), QCoreApplication::translate("Main", "For a .csv, .tsv, or .txt file: the mark in its numbers (point or comma)."), QStringLiteral("mark"));
+    cli.addOptions({shotOpt, sizeOpt, zoomOpt, sheetOpt, stageOpt, tabOpt, insertOpt, sepOpt, encOpt, decOpt});
     cli.addPositionalArgument(QStringLiteral("files"), QCoreApplication::translate("Main", "Workbooks to open."), QStringLiteral("[files...]"));
     cli.process(app);
     const bool plain = !cli.isSet(shotOpt);   // (not a job that makes a file and quits)
@@ -158,6 +163,15 @@ int main(int argc, char **argv)
         return app.exec();
     }
     w->setPromptForText(true);   // (a text file asks how it is read)
+    if (cli.isSet(sepOpt) || cli.isSet(encOpt) || cli.isSet(decOpt)) {   // (unless the command line says)
+        jp::office::sheet::CsvImport how;
+        QString why;
+        if (!jp::crunch::textImportFromOptions(cli.value(sepOpt), cli.value(encOpt), cli.value(decOpt), &how, &why)) {
+            fprintf(stderr, "%s\n", qPrintable(why));
+            return 2;
+        }
+        w->setTextImport(std::make_shared<const jp::office::sheet::CsvImport>(how));
+    }
 #ifdef Q_OS_WIN
     // Lets the installer see that JeffCrunch is running and ask to close it first (before the window shows).
     if (plain) CreateMutexW(nullptr, FALSE, L"JeffCrunchRunning");

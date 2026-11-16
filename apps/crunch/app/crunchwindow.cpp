@@ -48,6 +48,7 @@
 #include <QAction>
 #include <QDockWidget>
 #include <QApplication>
+#include <QTimer>
 #include <QClipboard>
 #include <QCloseEvent>
 #include <QDragEnterEvent>
@@ -477,6 +478,7 @@ void CrunchWindow::createActions()
         w->setAttribute(Qt::WA_DeleteOnClose);
         w->setNotifier(m_notifier);
         w->m_promptForText = m_promptForText;
+        w->m_textImport = m_textImport;
         w->m_anchorHooks = m_anchorHooks;
         w->newBlank();
         w->show();
@@ -1078,7 +1080,10 @@ bool CrunchWindow::eventFilter(QObject *o, QEvent *e)
 
 void CrunchWindow::dragEnterEvent(QDragEnterEvent *e)
 {
-    if (!e->mimeData()->hasUrls()) return;
+    if (!e->mimeData()->hasUrls()) {
+        if (e->mimeData()->hasText() && !e->mimeData()->hasImage()) e->acceptProposedAction();   // (text from another program)
+        return;
+    }
     for (const QUrl &u : e->mimeData()->urls())
         if (u.isLocalFile()) {
             e->acceptProposedAction();
@@ -1088,6 +1093,12 @@ void CrunchWindow::dragEnterEvent(QDragEnterEvent *e)
 
 void CrunchWindow::dropEvent(QDropEvent *e)
 {
+    if (!e->mimeData()->hasUrls() && e->mimeData()->hasText()) {
+        e->acceptProposedAction();
+        // (the window that asks is opened after the drop has ended, so the program it came from is not held up)
+        QTimer::singleShot(0, this, [this, text = e->mimeData()->text()] { dropText(text); });
+        return;
+    }
     for (const QUrl &u : e->mimeData()->urls())
         if (u.isLocalFile()) openFile(u.toLocalFile());
 }

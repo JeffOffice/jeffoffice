@@ -33,6 +33,7 @@
 #include "core/fonts.h"
 #include "core/findops.h"
 #include "core/homeops.h"
+#include "core/insertops.h"
 #include "core/styleops.h"
 #include "flow/flowdocument.h"
 #include "core/proofops.h"
@@ -2305,6 +2306,100 @@ private Q_SLOTS:
             QVERIFY(w.view()->changeLastPaste(jp::write::PageView::PasteKind::TextOnly));
             QVERIFY(w.document()->story()->toPlainText().contains(QStringLiteral("some bold words")));
             QVERIFY(!w.document()->story()->toPlainText().contains(QStringLiteral("something")));
+        }
+    }
+
+    static QMimeData *rtfMime()
+    {
+        auto *mime = new QMimeData;
+        mime->setData(QStringLiteral("text/rtf"), QByteArray("{\\rtf1\\ansi{\\fonttbl{\\f0 Arial;}}\\f0 plain \\b strong\\b0  words\\par}"));
+        mime->setText(QStringLiteral("TEXTCOPY"));
+        mime->setHtml(QStringLiteral("<p>HTMLCOPY</p>"));
+        return mime;
+    }
+
+    static bool boldAt(WriteWindow &w, const QString &word)
+    {
+        const QTextDocument *s = w.document()->story();
+        const int at = s->toPlainText().indexOf(word);
+        QTextCursor c(const_cast<QTextDocument *>(s));
+        c.setPosition(at + 1);
+        return c.charFormat().fontWeight() >= QFont::DemiBold;
+    }
+
+    static void emptyWindow(WriteWindow &w)
+    {
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        w.setDocument(open(makeDocx(para(QByteArray()))), QString());
+    }
+
+    void formattedTextFromAnotherProgramPastesAsRtfThenHtmlThenText()
+    {
+        {   // RTF first, over the HTML and the text that come with it; its looks stay.
+            WriteWindow w;
+            emptyWindow(w);
+            QApplication::clipboard()->setMimeData(rtfMime());
+            w.view()->paste();
+            QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("plain strong words"));
+            QVERIFY(boldAt(w, QStringLiteral("strong")));
+            QVERIFY(!boldAt(w, QStringLiteral("plain")));
+            QVERIFY(w.view()->pasteOptionsAvailable());
+            // The choices apply to it: keep text only, then merge formatting (which keeps the bold).
+            QVERIFY(w.view()->changeLastPaste(jp::write::PageView::PasteKind::TextOnly));
+            QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("TEXTCOPY"));
+            QVERIFY(w.view()->changeLastPaste(jp::write::PageView::PasteKind::Merge));
+            QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("plain strong words"));
+            QVERIFY(w.view()->canPaste(jp::write::PageView::PasteKind::Rtf));
+        }
+        {   // Without RTF: the HTML, then the text.
+            WriteWindow w;
+            emptyWindow(w);
+            auto *mime = new QMimeData;
+            mime->setText(QStringLiteral("TEXTCOPY"));
+            mime->setHtml(QStringLiteral("<p>HTMLCOPY</p>"));
+            QApplication::clipboard()->setMimeData(mime);
+            QVERIFY(!w.view()->canPaste(jp::write::PageView::PasteKind::Rtf));
+            w.view()->paste();
+            QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("HTMLCOPY"));
+        }
+        {   // RTF that is not RTF is not read.
+            WriteWindow w;
+            emptyWindow(w);
+            auto *mime = new QMimeData;
+            mime->setData(QStringLiteral("text/rtf"), QByteArray("not rich text"));
+            mime->setText(QStringLiteral("TEXTCOPY"));
+            QApplication::clipboard()->setMimeData(mime);
+            w.view()->paste();
+            QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("TEXTCOPY"));
+        }
+    }
+
+    void rtfOnTheClipboardIsReadOnlyUpToSixteenMegabytes()
+    {
+        QCOMPARE(jp::write::kMostPastedRtf, qint64(16) << 20);
+        auto big = [](qint64 bytes) {
+            const QByteArray head("{\\rtf1\\ansi big text{\\*\\pad "), tail("}}");
+            const QByteArray rtf = head + QByteArray(int(bytes - head.size() - tail.size()), 'a') + tail;
+            auto *mime = new QMimeData;
+            mime->setData(QStringLiteral("text/rtf"), rtf);
+            mime->setText(QStringLiteral("TEXTCOPY"));
+            return mime;
+        };
+        {
+            WriteWindow w;
+            emptyWindow(w);
+            QApplication::clipboard()->setMimeData(big(jp::write::kMostPastedRtf));
+            w.view()->paste();
+            QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("big text"));
+        }
+        {
+            WriteWindow w;
+            emptyWindow(w);
+            QApplication::clipboard()->setMimeData(big(jp::write::kMostPastedRtf + 1));
+            QVERIFY(!w.view()->canPaste(jp::write::PageView::PasteKind::Rtf));
+            w.view()->paste();
+            QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("TEXTCOPY"));
         }
     }
 

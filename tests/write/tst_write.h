@@ -1711,6 +1711,7 @@ private Q_SLOTS:
     void aDragOfTheMouseInTextEndsWhenNoButtonIsHeld();
     void goToOpensWithCtrlGAndPutsTheCaretAtThePlaceNamed();
     void dragAndDropMovesSelectedTextOrCopiesItWithCtrlInOneStep();
+    void rtfDroppedFromAnotherProgramKeepsItsLooks();
     void aClickInsideTheSelectionPutsTheCaretThereAndWithTheDragOffAPressStartsANewSelection();
     void theStylesPaneOfADocumentWithTenThousandStylesListsAtMostWhatItHolds();
     void aCancelledStyleDialogOnABuiltInStyleTheDocumentLacksChangesNothing();

@@ -103,6 +103,8 @@ PageView::PageView(QWidget *parent) : QAbstractScrollArea(parent)
     connect(QApplication::clipboard(), &QClipboard::dataChanged, this, [this] {   // (the cells parsed of the clipboard are of the one that was)
         m_clipCells.reset();
         m_clipCellsOf = nullptr;
+        m_clipRtf.reset();
+        m_clipRtfOf = nullptr;
     });
     m_blink.setInterval(QApplication::cursorFlashTime() > 0 ? QApplication::cursorFlashTime() / 2 : 530);
     connect(&m_blink, &QTimer::timeout, this, &PageView::blink);
