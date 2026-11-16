@@ -61,7 +61,7 @@ On the **Open** page, click **More Ways to Open**. You can also right-click a na
 
 ## Files with a password
 
-A **.pptx** file that asks for a password opens as usual: JeffDeck asks for the password, and you can try again if it is not right, or click **Cancel**. The file stays protected when you save it. To change or take off the password, use **File > Info > Encrypt with Password** (see The File screen). An **.odp** file can't hold a password yet.
+A **.pptx** or **.odp** file that asks for a password opens as usual: JeffDeck asks for the password, and you can try again if it is not right, or click **Cancel**. The file stays protected when you save it. To change or take off the password, use **File > Info > Encrypt with Password** (see The File screen). A copy saved as an .odp file keeps the password too.
 
 ## Fonts in the file
 

@@ -7808,7 +7808,7 @@ Pretende transferi-lo de %2 agora? (%3, uma única vez.)</translation>
 <context>
     <name>NewPasswordDialog</name>
     <message>
-        <location filename="../libs/shell/app/passworddialogs.cpp" line="+58"/>
+        <location filename="../libs/shell/app/passworddialogs.cpp" line="+60"/>
         <source>Encrypt with Password</source>
         <translation type="unfinished">Cifrar com Palavra-passe</translation>
     </message>
@@ -7867,7 +7867,7 @@ Pretende transferi-lo de %2 agora? (%3, uma única vez.)</translation>
 <context>
     <name>OdpExport</name>
     <message>
-        <location filename="../apps/deck/io/odpexport.cpp" line="+428"/>
+        <location filename="../apps/deck/io/odpexport.cpp" line="+430"/>
         <location line="+9"/>
         <source>Slide Master</source>
         <translation type="unfinished">Modelo Global de Diapositivos</translation>
@@ -7929,6 +7929,11 @@ Pretende transferi-lo de %2 agora? (%3, uma única vez.)</translation>
         <location line="+20"/>
         <source>There&apos;s no file name to save to.</source>
         <translation type="unfinished">Não existe nenhum nome de ficheiro com o qual guardar.</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>The password couldn&apos;t be put on the file.</source>
+        <translation type="unfinished">Não foi possível colocar a palavra-passe no ficheiro.</translation>
     </message>
     <message>
         <location filename="../apps/deck/io/odpexport_text.cpp" line="+494"/>
@@ -9552,12 +9557,7 @@ Pretende transferi-lo de %2 agora? (%3, uma única vez.)</translation>
 <context>
     <name>PresentationFile</name>
     <message>
-        <location filename="../apps/deck/io/presentationfile.cpp" line="+43"/>
-        <source>An .odp file can&apos;t hold a password yet.</source>
-        <translation type="unfinished">Um ficheiro .odp ainda não pode conter uma palavra-passe.</translation>
-    </message>
-    <message>
-        <location line="+9"/>
+        <location filename="../apps/deck/io/presentationfile.cpp" line="+48"/>
         <source>A picture was left out: it is too large or too complex to show, or it would draw from outside the file.</source>
         <translation type="unfinished">Foi omitida uma imagem: é demasiado grande ou complexa para mostrar, ou seria obtida de fora do ficheiro.</translation>
     </message>
@@ -20445,7 +20445,7 @@ Origem: %3</translation>
         <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="+182"/>
         <location line="+123"/>
         <location line="+5"/>
-        <location filename="../apps/crunch/app/crunchwindow_copy.cpp" line="+120"/>
+        <location filename="../apps/crunch/app/crunchwindow_copy.cpp" line="+134"/>
         <location line="+22"/>
         <location line="+28"/>
         <location filename="../apps/crunch/app/crunchwindow_csv.cpp" line="+99"/>
@@ -20666,10 +20666,10 @@ Origem: %3</translation>
     <message>
         <location line="+7"/>
         <location line="+489"/>
-        <location filename="../apps/crunch/app/crunchwindow_copy.cpp" line="-138"/>
+        <location filename="../apps/crunch/app/crunchwindow_copy.cpp" line="-148"/>
         <location line="+6"/>
         <location line="+14"/>
-        <location line="+89"/>
+        <location line="+99"/>
         <location line="+14"/>
         <location filename="../apps/crunch/app/crunchwindow_csv.cpp" line="-25"/>
         <location line="+6"/>
@@ -24349,7 +24349,7 @@ O ficheiro não existe.</translation>
         <translation type="unfinished">Guardar como .xlsx…</translation>
     </message>
     <message>
-        <location line="-123"/>
+        <location line="-133"/>
         <location filename="../apps/crunch/app/crunchwindow_csv.cpp" line="+40"/>
         <source>The workbook is still being read. Save it when the status bar says Ready.</source>
         <translation type="unfinished">O livro ainda está a ser lido. Guarde-o quando a barra de estado indicar Pronto.</translation>
@@ -24362,7 +24362,7 @@ O ficheiro não existe.</translation>
         <translation type="unfinished">A guardar quando o cálculo terminar…</translation>
     </message>
     <message>
-        <location line="+48"/>
+        <location line="+58"/>
         <location line="+7"/>
         <location line="+23"/>
         <location line="+5"/>
@@ -24485,14 +24485,15 @@ O ficheiro não existe.</translation>
         <translation type="unfinished">Substituir</translation>
     </message>
     <message>
-        <location line="+64"/>
+        <location filename="../apps/crunch/app/crunchwindow_copy.cpp" line="-110"/>
+        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="+64"/>
         <location filename="../apps/crunch/app/crunchwindow_savecopy.cpp" line="+78"/>
         <location filename="../apps/crunch/app/crunchwindow_versions.cpp" line="-6"/>
         <source>The workbook could not be protected with the password.</source>
         <translation type="unfinished">Não foi possível proteger o livro com a palavra-passe.</translation>
     </message>
     <message>
-        <location line="+59"/>
+        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="+59"/>
         <source>Saved %1. Rows, columns, and cells deleted before this save can&apos;t be undone now, nor can what you did before that.</source>
         <translation type="unfinished">%1 guardado. As linhas, colunas e células eliminadas antes desta gravação já não podem ser anuladas, nem o que fez antes disso.</translation>
     </message>
@@ -24620,7 +24621,7 @@ O ficheiro não existe.</translation>
         <translation type="unfinished">Não guardado: %1 foi alterado por outro programa.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_copy.cpp" line="-122"/>
+        <location filename="../apps/crunch/app/crunchwindow_copy.cpp" line="-22"/>
         <location filename="../apps/crunch/app/crunchwindow_csv.cpp" line="+123"/>
         <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="+29"/>
         <source>Saving %1…</source>
@@ -24638,7 +24639,7 @@ O ficheiro não existe.</translation>
         <translation type="unfinished">%1 guardado</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_copy.cpp" line="+81"/>
+        <location filename="../apps/crunch/app/crunchwindow_copy.cpp" line="+91"/>
         <location filename="../apps/crunch/app/crunchwindow_csv.cpp" line="-60"/>
         <location line="+54"/>
         <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="+3"/>
@@ -30231,7 +30232,7 @@ Não é possível ler o ficheiro.</translation>
     <message>
         <location line="+1"/>
         <location line="+22"/>
-        <location filename="../apps/deck/app/deckwindow_info.cpp" line="+102"/>
+        <location filename="../apps/deck/app/deckwindow_info.cpp" line="+134"/>
         <location filename="../apps/deck/app/deckwindow_output.cpp" line="+1"/>
         <location line="+22"/>
         <source>Slides</source>
@@ -30364,11 +30365,11 @@ Não é possível ler o ficheiro.</translation>
     </message>
     <message>
         <location line="+5"/>
-        <location filename="../apps/deck/app/deckwindow_file.cpp" line="+121"/>
+        <location filename="../apps/deck/app/deckwindow_file.cpp" line="+132"/>
         <location line="+1"/>
-        <location line="+53"/>
+        <location line="+59"/>
         <location line="+1"/>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="+384"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="+381"/>
         <source>Open</source>
         <translation type="unfinished">Abrir</translation>
     </message>
@@ -30376,7 +30377,7 @@ Não é possível ler o ficheiro.</translation>
         <location filename="../apps/deck/app/deckwindow_actions.cpp" line="+267"/>
         <location line="+155"/>
         <location filename="../apps/deck/app/deckwindow_design.cpp" line="+164"/>
-        <location filename="../apps/deck/app/deckwindow_file.cpp" line="-133"/>
+        <location filename="../apps/deck/app/deckwindow_file.cpp" line="-149"/>
         <location filename="../apps/deck/app/deckwindow_media.cpp" line="+104"/>
         <location line="+102"/>
         <location filename="../apps/deck/app/deckwindow_picture.cpp" line="+130"/>
@@ -31312,7 +31313,7 @@ Não é possível ler o ficheiro.</translation>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+77"/>
+        <location line="+87"/>
         <location filename="../apps/deck/app/deckwindow_media.cpp" line="-72"/>
         <location line="+97"/>
         <source>%1 can&apos;t open &quot;%2&quot;.
@@ -31334,6 +31335,11 @@ Não é possível ler o ficheiro.</translation>
         <location line="+19"/>
         <source>Marked as final: this presentation is open for reading only. Open File &gt; Info and choose Marked as Final to edit it.</source>
         <translation type="unfinished">Marcada como final: esta apresentação está aberta apenas para leitura. Abra Ficheiro &gt; Informações e escolha Marcar como Final para a editar.</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>This presentation is open for reading only, as you chose. Open File &gt; Info and choose Always Opens Read-Only to edit it.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+10"/>
@@ -31630,8 +31636,8 @@ Não é possível ler o ficheiro.</translation>
         <location line="+7"/>
         <location filename="../apps/deck/app/deckwindow_output.cpp" line="-93"/>
         <location line="+203"/>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-207"/>
-        <location line="+82"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-204"/>
+        <location line="+79"/>
         <source>%1 couldn&apos;t save &quot;%2&quot;.
 %3%4</source>
         <translation type="unfinished">O %1 não conseguiu guardar &quot;%2&quot;.
@@ -32368,18 +32374,17 @@ Não é possível ler o ficheiro.</translation>
     </message>
     <message>
         <location filename="../apps/deck/app/deckwindow.cpp" line="+0"/>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-209"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-206"/>
         <location line="+111"/>
-        <location line="+52"/>
+        <location line="+53"/>
         <location line="+1"/>
-        <location line="+6"/>
-        <location line="+39"/>
+        <location line="+41"/>
         <location line="+3"/>
         <source>Save</source>
         <translation type="unfinished">Guardar</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-211"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-208"/>
         <location line="+73"/>
         <source>Save As</source>
         <translation type="unfinished">Guardar como</translation>
@@ -32472,6 +32477,11 @@ Não é possível ler o ficheiro.</translation>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <location line="+1"/>
+        <source>The choice to always open the presentation for reading only.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location line="+8"/>
         <source>A copy can&apos;t be saved over &quot;%1&quot;. Choose another name.</source>
         <translation type="unfinished">Não é possível guardar uma cópia sobre &quot;%1&quot;. Escolha outro nome.</translation>
@@ -32482,12 +32492,7 @@ Não é possível ler o ficheiro.</translation>
         <translation type="unfinished">Esta apresentação está aberta apenas para leitura. Escolha outro nome para ela.</translation>
     </message>
     <message>
-        <location line="+8"/>
-        <source>This presentation is protected with a password, and a .%1 file can&apos;t hold a password yet. Save it as a .pptx file, or remove the password first (File &gt; Info).</source>
-        <translation type="unfinished">Esta apresentação está protegida com palavra-passe, e um ficheiro .%1 ainda não pode conter palavra-passe. Guarde-a como ficheiro .pptx, ou remova primeiro a palavra-passe (Ficheiro &gt; Informações).</translation>
-    </message>
-    <message>
-        <location line="+46"/>
+        <location line="+50"/>
         <source>Saved a copy as %1</source>
         <translation type="unfinished">Cópia guardada como %1</translation>
     </message>
@@ -33908,23 +33913,48 @@ Não é possível ler o ficheiro.</translation>
         <translation type="unfinished">Largura da Coluna</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_info.cpp" line="-34"/>
+        <location filename="../apps/deck/app/deckwindow_info.cpp" line="-66"/>
         <source>Properties</source>
         <translation type="unfinished">Propriedades</translation>
     </message>
     <message>
-        <location line="+35"/>
-        <location line="+151"/>
+        <location line="+25"/>
+        <source>This file has more properties than %1 reads, so this choice can&apos;t be kept.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>An .odp file can&apos;t hold this choice. Save the presentation as a .pptx file first.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Always Open Read-Only</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>This presentation will open for reading only. Save it to keep this choice.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>This presentation will open for editing again. Save it to keep this choice.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+21"/>
+        <location line="+154"/>
         <source>Hidden slides</source>
         <translation type="unfinished">Diapositivos ocultos</translation>
     </message>
     <message>
-        <location line="-150"/>
+        <location line="-153"/>
         <source>Slides with notes</source>
         <translation type="unfinished">Diapositivos com notas</translation>
     </message>
     <message>
-        <location line="+33"/>
+        <location line="+36"/>
         <source>This file has more properties than %1 reads, so the mark can&apos;t be added.</source>
         <translation type="unfinished">Este ficheiro tem mais propriedades do que %1 consegue ler, por isso a marca não pode ser adicionada.</translation>
     </message>
@@ -34089,17 +34119,12 @@ Não é possível ler o ficheiro.</translation>
     </message>
     <message>
         <location line="+30"/>
-        <source>The password: a .odp file can&apos;t hold a password yet.</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+1"/>
         <source>Check Compatibility</source>
         <translation type="unfinished">Verificar Compatibilidade</translation>
     </message>
     <message>
         <location line="+0"/>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-42"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-43"/>
         <source>presentation</source>
         <translation type="unfinished"></translation>
     </message>
@@ -38672,7 +38697,28 @@ Não existe nenhum tópico da Ajuda chamado &quot;%1&quot;.</translation>
         <translation type="unfinished">Indique aos leitores que este documento está concluído. Abre apenas para leitura, com uma nota.</translation>
     </message>
     <message>
-        <location line="+11"/>
+        <location line="+6"/>
+        <location line="+6"/>
+        <source>Always Open Read-Only</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Always Opens Read-Only</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>This file opens for reading only, with a note. Choose this to let it open for editing again.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Open this file for reading only each time, so nobody changes it by accident. Editing is one choice away.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
         <source>Change or Remove the Password</source>
         <translation type="unfinished">Alterar ou Remover a Palavra-passe</translation>
     </message>
@@ -38683,7 +38729,7 @@ Não existe nenhum tópico da Ajuda chamado &quot;%1&quot;.</translation>
         <translation type="unfinished">Encriptar com Palavra-passe</translation>
     </message>
     <message>
-        <location line="-380"/>
+        <location line="-396"/>
         <location line="+330"/>
         <source>Open File Location</source>
         <translation type="unfinished">Abrir Localização do Ficheiro</translation>
@@ -38694,7 +38740,7 @@ Não existe nenhum tópico da Ajuda chamado &quot;%1&quot;.</translation>
         <translation type="unfinished">Este ficheiro está noutro computador. Abrir a sua localização pode demorar algum tempo, e o computador vai notar que o pediu. Abrir?</translation>
     </message>
     <message>
-        <location line="+380"/>
+        <location line="+396"/>
         <source>This file is protected: it asks for a password when it is opened. Change the password or take it away.</source>
         <translation type="unfinished">Este ficheiro está protegido: pede uma palavra-passe ao ser aberto. Altere a palavra-passe ou remova-a.</translation>
     </message>
@@ -45885,12 +45931,12 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
         <translation type="unfinished">Cancelar</translation>
     </message>
     <message>
-        <location line="+35"/>
+        <location line="+40"/>
         <source>Checking the password…</source>
         <translation type="unfinished">A verificar a palavra-passe…</translation>
     </message>
     <message>
-        <location line="+33"/>
+        <location line="+35"/>
         <source>This file is protected in a way this program doesn&apos;t read.</source>
         <translation type="unfinished">Este ficheiro está protegido de uma forma que este programa não consegue ler.</translation>
     </message>
@@ -53665,7 +53711,7 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
         </translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_file.cpp" line="+91"/>
+        <location filename="../apps/write/app/writewindow_file.cpp" line="+92"/>
         <source>New</source>
         <translation type="unfinished">Novo</translation>
     </message>
@@ -53673,13 +53719,13 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
         <location line="+5"/>
         <location line="+115"/>
         <location line="+45"/>
-        <location line="+424"/>
+        <location line="+426"/>
         <location filename="../apps/write/core/designops.cpp" line="+27"/>
         <source>Open</source>
         <translation type="unfinished">Abrir</translation>
     </message>
     <message>
-        <location line="-557"/>
+        <location line="-559"/>
         <location filename="../apps/write/app/writewindow_insert.cpp" line="+138"/>
         <location filename="../apps/write/app/writewindow_pictures.cpp" line="+161"/>
         <location filename="../apps/write/app/writewindow_shapes.cpp" line="-310"/>
@@ -53720,11 +53766,11 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
         <location line="+86"/>
         <location line="+5"/>
         <location line="+12"/>
-        <location line="+8"/>
-        <location line="+7"/>
+        <location line="+10"/>
         <location line="+19"/>
         <location line="+4"/>
-        <location line="+45"/>
+        <location line="+40"/>
+        <location line="+12"/>
         <location line="+4"/>
         <location line="+2"/>
         <location line="+3"/>
@@ -53734,7 +53780,7 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
         <translation type="unfinished">Guardar</translation>
     </message>
     <message>
-        <location line="-395"/>
+        <location line="-397"/>
         <location line="+205"/>
         <source>Save As</source>
         <translation type="unfinished">Guardar Como</translation>
@@ -53897,14 +53943,20 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
         <translation type="unfinished">As macros deste documento não são guardadas, porque um ficheiro %1 não as pode conter.</translation>
     </message>
     <message>
-        <location line="+146"/>
-        <location filename="../apps/write/app/writewindow_info.cpp" line="+209"/>
+        <location line="+73"/>
+        <source>%1 couldn&apos;t save &quot;%2&quot;.
+The password couldn&apos;t be put on the file.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+75"/>
+        <location filename="../apps/write/app/writewindow_info.cpp" line="+208"/>
         <source>document</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-177"/>
-        <location line="+114"/>
+        <location line="-179"/>
+        <location line="+116"/>
         <location filename="../apps/write/app/writewindow_output.cpp" line="+457"/>
         <location line="+329"/>
         <source>%1 couldn&apos;t save &quot;%2&quot;.
@@ -53913,7 +53965,7 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
 %3%4</translation>
     </message>
     <message>
-        <location line="-338"/>
+        <location line="-340"/>
         <source>Documents (*.docx *.docm *.dotx *.dotm *.doc *.dot *.rtf *.odt *.fodt *.ott *.txt *.html *.htm)</source>
         <translation type="unfinished">Documentos (*.docx *.docm *.dotx *.dotm *.doc *.dot *.rtf *.odt *.fodt *.ott *.txt *.html *.htm)</translation>
     </message>
@@ -53941,12 +53993,7 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
         <translation type="unfinished">Texto Simples (*.txt)</translation>
     </message>
     <message>
-        <location line="+69"/>
-        <source>This document is protected with a password, and a .odt file can&apos;t hold a password yet. Save it as a .docx file, or remove the password first (File &gt; Info).</source>
-        <translation type="unfinished">Este documento está protegido com palavra-passe, e um ficheiro .odt ainda não pode conter uma palavra-passe. Guarde-o como ficheiro .docx ou remova primeiro a palavra-passe (Ficheiro &gt; Informações).</translation>
-    </message>
-    <message>
-        <location line="+7"/>
+        <location line="+71"/>
         <source>This document is marked as final, and a .odt file can&apos;t hold that mark. The file is saved without it.</source>
         <translation type="unfinished">Este documento está marcado como final, e um ficheiro .odt não pode conter essa marca. O ficheiro é guardado sem ela.</translation>
     </message>
@@ -53966,7 +54013,7 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
         <translation type="unfinished">O ficheiro conterá apenas as palavras do documento e mais nada: sem tipos de letra, imagens ou limites de tabelas. Escolha a forma como os carateres e os finais de linha são escritos. Um carácter que a codificação não consiga representar é guardado como ponto de interrogação.</translation>
     </message>
     <message>
-        <location line="+45"/>
+        <location line="+52"/>
         <source>A plain text file holds only the words of this document, so its fonts, pictures, tables, and other formatting aren&apos;t saved in it.</source>
         <translation type="unfinished">Um ficheiro de texto simples contém apenas as palavras deste documento, por isso os seus tipos de letra, imagens, tabelas e outra formatação não são guardados.</translation>
     </message>
@@ -54150,7 +54197,7 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
         <translation type="unfinished">%1 exportado</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_file.cpp" line="-277"/>
+        <location filename="../apps/write/app/writewindow_file.cpp" line="-284"/>
         <location filename="../apps/write/app/writewindow_output.cpp" line="-22"/>
         <location line="+3"/>
         <location line="+152"/>
@@ -54159,7 +54206,7 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
         <translation type="unfinished">Guardar como Texto Simples</translation>
     </message>
     <message>
-        <location line="+42"/>
+        <location line="+49"/>
         <location filename="../apps/write/app/writewindow_output.cpp" line="-159"/>
         <source>Some characters couldn&apos;t be saved in this encoding (%1 in all). They were saved as question marks.</source>
         <translation type="unfinished">Alguns carateres não puderam ser guardados nesta codificação (%1 no total). Foram guardados como pontos de interrogação.</translation>
@@ -54846,7 +54893,7 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
         <translation>Formatação</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_info.cpp" line="-172"/>
+        <location filename="../apps/write/app/writewindow_info.cpp" line="-171"/>
         <source>Pages</source>
         <translation>Páginas</translation>
     </message>
@@ -54987,12 +55034,7 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
         <translation type="unfinished">Inspecionar Documento</translation>
     </message>
     <message>
-        <location line="+15"/>
-        <source>The password: a .odt file can&apos;t hold a password yet.</source>
-        <translation type="unfinished">A palavra-passe: um ficheiro .odt ainda não consegue conter uma palavra-passe.</translation>
-    </message>
-    <message>
-        <location line="+7"/>
+        <location line="+21"/>
         <source>Check Compatibility</source>
         <translation type="unfinished">Verificar Compatibilidade</translation>
     </message>
@@ -65436,8 +65478,8 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
     </message>
     <message>
         <location line="+3"/>
-        <source>The document is protected with a password, which this program can&apos;t open yet.</source>
-        <translation type="unfinished">O documento está protegido por palavra-passe, que este programa ainda não consegue abrir.</translation>
+        <source>The document is protected with a password, which has to be given when the file is opened.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+2"/>

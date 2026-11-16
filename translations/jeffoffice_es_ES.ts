@@ -284,6 +284,10 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">No hay ningún nombre de fichero en el que guardar.</translation>
     </message>
     <message>
+        <source>The password couldn't be put on the file.</source>
+        <translation type="unfinished">No se pudo poner la contraseña en el fichero.</translation>
+    </message>
+    <message>
         <source>Effects that start when an object is clicked can't be saved in this kind of file, except those that play a movie or sound.</source>
         <translation type="unfinished">Los efectos que se inician al hacer clic en un objeto no se pueden guardar en este tipo de fichero, salvo los que reproducen un vídeo o un sonido.</translation>
     </message>
@@ -538,10 +542,6 @@ Download it from %2 now? (%3, once.)</source>
 </context>
 <context>
     <name>PresentationFile</name>
-    <message>
-        <source>An .odp file can't hold a password yet.</source>
-        <translation type="unfinished">Un fichero .odp todavía no puede tener contraseña.</translation>
-    </message>
     <message>
         <source>A picture was left out: it is too large or too complex to show, or it would draw from outside the file.</source>
         <translation type="unfinished">Se ha omitido una imagen: es demasiado grande o compleja para mostrarla, o se generaría a partir de contenido externo al fichero.</translation>
@@ -1224,10 +1224,6 @@ No se puede leer el fichero.</translation>
         <translation type="unfinished">Ya hay ficheros con estos nombres en la carpeta (%1 de %2). ¿Reemplazarlos?</translation>
     </message>
     <message>
-        <source>This presentation is protected with a password, and a .%1 file can't hold a password yet. Save it as a .pptx file, or remove the password first (File &gt; Info).</source>
-        <translation type="unfinished">Esta presentación está protegida con contraseña, y un fichero .%1 todavía no puede contenerla. Guárdela como fichero .pptx o quite antes la contraseña (Archivo &gt; Información).</translation>
-    </message>
-    <message>
         <source>Saved %1. Left out, as this kind of file can't hold it: %2</source>
         <translation type="unfinished">Se guardó %1. Se omitió lo siguiente, porque este tipo de fichero no lo admite: %2</translation>
     </message>
@@ -1776,10 +1772,6 @@ No se encontraron los ficheros de la Ayuda junto al programa. Volver a instalar 
         <translation type="unfinished">Este documento procede de una página web, que %1 no sobrescribe; por eso se guarda como un nuevo fichero .docx.</translation>
     </message>
     <message>
-        <source>This document is protected with a password, and a .odt file can't hold a password yet. Save it as a .docx file, or remove the password first (File &gt; Info).</source>
-        <translation type="unfinished">Este documento está protegido con contraseña, y un fichero .odt todavía no puede guardar una contraseña. Guárdelo como fichero .docx o quite antes la contraseña (Archivo &gt; Información).</translation>
-    </message>
-    <message>
         <source>This document is marked as final, and a .odt file can't hold that mark. The file is saved without it.</source>
         <translation type="unfinished">Este documento está marcado como final, y un fichero .odt no puede guardar esa marca. El fichero se guarda sin ella.</translation>
     </message>
@@ -1858,10 +1850,6 @@ No se encontraron los ficheros de la Ayuda junto al programa. Volver a instalar 
     <message>
         <source>Data that other programs added to the file, which you can't see on a page.</source>
         <translation type="unfinished">Datos que otros programas añadieron al fichero, que no se ven en la página.</translation>
-    </message>
-    <message>
-        <source>The password: a .odt file can't hold a password yet.</source>
-        <translation type="unfinished">La contraseña: un fichero .odt todavía no puede guardar contraseñas.</translation>
     </message>
     <message>
         <source>File Name</source>
