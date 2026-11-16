@@ -6378,8 +6378,9 @@
          "text": "216c52721693e443f90aaa4fdbf5da02e65616357ca25c9c69d6822e245ecc98"
         },
         {
-         "status": "partly",
-         "text": "e30c637a7126519215bc255d9d2f14b534466486da0b874d44f44d69dd796167"
+         "hide_soon": true,
+         "status": "done",
+         "text": "387aff113e2104ecffafc1626314b2127299785c36f9d3c6192953c42baeb4e6"
         },
         {
          "status": "partly",
@@ -11789,6 +11790,18 @@
     "en": "Links to slides and files that open in a slide show",
     "es": "Enlaces a diapositivas y archivos que se abren en una presentación con diapositivas",
     "fr": "Liens vers des diapositives et des fichiers qui s’ouvrent dans un diaporama"
+   }
+  },
+  "387aff113e2104ecffafc1626314b2127299785c36f9d3c6192953c42baeb4e6": {
+   "drop": false,
+   "en": "Edit the wrap points of a picture by dragging a corner of the dashed outline, set the distance from text, and choose whether text wraps on both sides, the left only, the right only, or the larger side. Set a picture's wrap, side, and spacing as the default for pictures added afterward; these options also work for shapes and text boxes.",
+   "es": "Edite los puntos de ajuste de una imagen arrastrando una esquina del contorno discontinuo, defina la distancia al texto y elija si el texto se ajusta a ambos lados, solo a la izquierda, solo a la derecha o al lado más amplio. Defina el ajuste, el lado y el espaciado de una imagen como valores predeterminados para las imágenes que agregue después; estas opciones también funcionan con formas y cuadros de texto.",
+   "fr": "Modifiez les points d’habillage d’une image en faisant glisser un coin du contour en pointillés, réglez la distance par rapport au texte et choisissez si le texte épouse les deux côtés, uniquement la gauche, uniquement la droite ou le côté le plus large. Définissez l’habillage, le côté et l’espacement d’une image comme valeurs par défaut pour les images ajoutées ensuite ; ces options fonctionnent aussi avec les formes et les zones de texte.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "38f80dd25e054340785caa4b13252652c82771d51182f80b03aa6c19294af356": {
@@ -23825,18 +23838,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "e30c637a7126519215bc255d9d2f14b534466486da0b874d44f44d69dd796167": {
-   "drop": false,
-   "en": "Edit wrap points by dragging a corner of the dashed outline, with `Ctrl` and a click to add or remove a corner. Choose the text sides (both, left only, right only, or the larger side) and set the distance from text on the top, bottom, left, and right.",
-   "es": "Edite los puntos de ajuste arrastrando una esquina del contorno discontinuo, con `Ctrl` y un clic para agregar o quitar una esquina. Elija los lados del texto (ambos, solo izquierdo, solo derecho o el lado más grande) y establezca la distancia al texto arriba, abajo, a la izquierda y a la derecha.",
-   "fr": "Modifiez les points d’habillage en faisant glisser un coin du contour en pointillés, avec `Ctrl` et un clic pour ajouter ou retirer un coin. Choisissez les côtés du texte (les deux, gauche seulement, droite seulement ou le plus grand) et réglez la distance au texte en haut, en bas, à gauche et à droite.",
-   "soon": {
-    "drop": false,
-    "en": "Set as Default Layout, and edit wrap points for shapes and text boxes",
-    "es": "Establecer como diseño predeterminado y edición de puntos de ajuste para formas y cuadros de texto",
-    "fr": "Définir comme disposition par défaut et modification des points d’habillage pour les formes et les zones de texte"
    }
   },
   "e3228dd740386e7e1bc1b44946efe97810d19163d18f4325efdfc08b87d0ec61": {
