@@ -31,9 +31,9 @@ constexpr int kMaxSlides = 10000, kMaxMasters = 1000, kMaxLayouts = 1000, kMaxNo
 constexpr double kMinSlide = 1, kMaxSlide = 4032;
 
 
-const QString kTitleSample = QStringLiteral("Click to edit Master title style");
-const QString kSubtitleSample = QStringLiteral("Click to edit Master subtitle style");
-const QString kBodySample = QStringLiteral("Click to edit Master text styles");
+const QString kTitleSample = QStringLiteral("Master title: change its look here");
+const QString kSubtitleSample = QStringLiteral("Master subtitle: change its look here");
+const QString kBodySample = QStringLiteral("Level 1 text");
 
 QString sampleFor(const QString &type)
 {

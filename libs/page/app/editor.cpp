@@ -1661,17 +1661,46 @@ void Editor::copy()
     QApplication::clipboard()->setMimeData(md);
 }
 
-QImage Editor::selectionPicture(double scale)
+// How far an object's look reaches past its frame: the larger of its shadow (blur and distance), glow, reflection, and half its line; a group's is the largest of its objects'.
+static double reachOf(const Item &it)
 {
+    double reach = 0;
+    if (it.type() == ItemType::Group)
+        for (const auto &child : static_cast<const GroupItem &>(it).children) reach = std::max(reach, reachOf(*child));
+    const Effects &fx = it.fx;
+    if (fx.shadow.on && !fx.shadow.inner) reach = std::max(reach, fx.shadow.blur + std::hypot(fx.shadow.offset().x(), fx.shadow.offset().y()) + it.rect.size().height() * std::max(0.0, fx.shadow.size / 100 - 1));
+    if (fx.glow.on) reach = std::max(reach, fx.glow.size);
+    if (fx.reflection.on) reach = std::max(reach, it.rect.height() * fx.reflection.size + fx.reflection.distance);
+    return reach;
+}
+
+QImage Editor::selectionPicture(double scale, bool *reduced)
+{
+    if (reduced) *reduced = false;
     const QStringList ids = topLevelSelection();
     if (ids.isEmpty()) return QImage();
     PaintContext ctx;
     ctx.doc = m_doc.get();
     ctx.cache = &m_cache;
+    ctx.opt = renderOptions();
     ctx.opt.output = true;
+    ctx.opt.tableGridlines = false;
+    ctx.pageNumber = surfacePageNumber();
+    ctx.pageCount = std::max(1, int(m_doc->pages.size()));
     ItemList list;
-    for (const auto &id : ids) list.push_back(m_doc->itemPtr(id));
-    return Renderer::renderItemsToImage(ctx, list, scale);
+    double pad = 4;
+    for (const auto &id : ids) {
+        list.push_back(m_doc->itemPtr(id));
+        if (list.back()) pad = std::max(pad, 4 + std::ceil(reachOf(*list.back())));
+    }
+    // Held to a size a picture file can have.
+    const QRectF b = unionBounds(list).adjusted(-pad, -pad, pad, pad);
+    const double side = std::max(b.width(), b.height()), area = b.width() * b.height();
+    double k = scale;
+    if (side * k > kMostPictureSide) k = kMostPictureSide / side;
+    if (area * k * k > double(kMostPicturePixels)) k = std::sqrt(double(kMostPicturePixels) / area);
+    if (reduced && k < scale) *reduced = true;
+    return Renderer::renderItemsToImage(ctx, list, k, pad);
 }
 
 void Editor::cut()

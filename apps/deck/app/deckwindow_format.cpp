@@ -347,8 +347,12 @@ void DeckWindow::formatSelection(FormatPane::Tab tab)
 // Save as Picture: the selected objects as they look on the slide (output quality, twice the size they have), as a .png or .jpg file.
 void DeckWindow::saveSelectionAsPicture()
 {
-    const QImage image = m_ed->selectionPicture(2.0);
-    if (image.isNull()) return;
+    bool reduced = false;
+    const QImage image = m_ed->selectionPicture(2.0, &reduced);
+    if (image.isNull()) {
+        m_ed->status(tr("Select an object to save as a picture."));
+        return;
+    }
     const QString filter = tr("PNG Picture (*.png)") + QStringLiteral(";;") + tr("JPEG Picture (*.jpg *.jpeg)");
     const QString suggested = QDir(QFileInfo(m_ed->filePath()).absolutePath()).filePath(tr("%1 - Picture").arg(m_ed->displayName()) + QStringLiteral(".png"));
     QString path = m_pathChooser ? m_pathChooser(suggested, filter) : askSavePath(this, tr("Save as Picture"), suggested, filter);
@@ -356,6 +360,7 @@ void DeckWindow::saveSelectionAsPicture()
     const QString suffix = QFileInfo(path).suffix().toLower();
     if (suffix != QLatin1String("png") && suffix != QLatin1String("jpg") && suffix != QLatin1String("jpeg")) path += QStringLiteral(".png");
     if (!image.save(path)) m_ed->status(tr("The picture could not be saved to \"%1\".").arg(QDir::toNativeSeparators(path)));
+    else if (reduced) m_ed->status(tr("The picture is larger than %1 pixels on a side, so it was saved smaller.").arg(Editor::kMostPictureSide));
 }
 
 // The Shape Format tab shows while a shape, a text box, a line, or what is made of them is selected; its size boxes show the first one's size.

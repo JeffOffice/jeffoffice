@@ -2228,7 +2228,7 @@ private Q_SLOTS:
             sd->clear();
             QTextCursor c(sd);
             static const double margins[5] = {27, 58.5, 90, 126, 162}, hangs[5] = {-27, -22.5, -18, -18, -18}, sizes[5] = {18, 16, 14, 12, 12};
-            static const char *words[5] = {"Click to edit Master text styles", "Second level", "Third level", "Fourth level", "Fifth level"};
+            static const char *words[5] = {"Level 1 text", "Level 2 text", "Level 3 text", "Level 4 text", "Level 5 text"};
             for (int i = 0; i < 5; ++i) {
                 QTextBlockFormat bf;
                 bf.setLeftMargin(margins[i]);

@@ -282,7 +282,11 @@ public:
     // ---- clipboard ----
     void copy();
     // What Save as Picture saves: the selected objects as they look in output, at `scale` pixels to the point (a null image with nothing selected).
-    QImage selectionPicture(double scale);
+    // The picture is padded by how far the objects' shadows, glows, reflections, and lines reach, and is never more than kMostPictureSide pixels on a side or kMostPicturePixels in all: a
+    // larger one is made at a smaller scale, and `*reduced` says so.
+    static constexpr int kMostPictureSide = 8000;
+    static constexpr qint64 kMostPicturePixels = 40'000'000;
+    QImage selectionPicture(double scale, bool *reduced = nullptr);
     void cut();
     void paste(bool textOnly = false);
     // The Paste Cells command: the spreadsheet cells the clipboard holds (an HTML table, or lines with tabs) are written over the selected table's cells, else made a table of their own (paste

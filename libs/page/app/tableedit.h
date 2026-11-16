@@ -51,6 +51,8 @@ void splitTableCells(Editor *ed);
 // size) divides it in two, one more row or column for the whole table that the other cells in it span, or, for a merged cell, the merge undone at the nearest edge
 // inside it, and the new edge has `pen`'s line. The eraser's stroke from one cell to another joins them (and the cells between); along an edge it joins the cells on
 // each side of it; along the table's outside edge it takes the border away. Each is one step that undoes and says what it did, or why not in the status bar.
+// How many grid positions the pen and the eraser have looked at (since the last call with `reset`): the work a stroke does is held to a few looks at each position of the table.
+qint64 tableEditWork(bool reset = false);
 enum class TableStroke { Nothing, Border, Split, Joined };
 TableStroke drawTableLine(Editor *ed, TableItem *t, const QPointF &a, const QPointF &b, const Stroke &pen);
 TableStroke eraseTableLine(Editor *ed, TableItem *t, const QPointF &a, const QPointF &b);

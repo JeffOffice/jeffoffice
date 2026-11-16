@@ -112,9 +112,9 @@ bool isWebLink(const QString &href)
 
 QString masterPrompt(const QString &cls)
 {
-    if (cls == QLatin1String("title")) return QCoreApplication::translate("OdpImport", "Click to edit Master title style");
-    if (cls == QLatin1String("subtitle")) return QCoreApplication::translate("OdpImport", "Click to edit Master subtitle style");
-    if (cls == QLatin1String("outline")) return QCoreApplication::translate("OdpImport", "Click to edit Master text styles");
+    if (cls == QLatin1String("title")) return QCoreApplication::translate("OdpImport", "Master title: change its look here");
+    if (cls == QLatin1String("subtitle")) return QCoreApplication::translate("OdpImport", "Master subtitle: change its look here");
+    if (cls == QLatin1String("outline")) return QCoreApplication::translate("OdpImport", "Level 1 text");
     return QString();
 }
 

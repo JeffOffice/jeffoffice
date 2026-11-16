@@ -311,7 +311,7 @@ void NotesPageView::paintMaster(QPainter &p)
                 p.fillRect(QRectF(page.x() + g.slideImage.x() * k, page.y() + g.slideImage.y() * k, g.slideImage.width() * k, g.slideImage.height() * k), fill);
             } else if (part == deck::NotesPart::Body) {
                 p.setPen(label);
-                static const char *const samples[] = {QT_TR_NOOP("First level"), QT_TR_NOOP("Second level"), QT_TR_NOOP("Third level")};
+                static const char *const samples[] = {QT_TR_NOOP("Notes text: change its look here"), QT_TR_NOOP("Level 2 text"), QT_TR_NOOP("Level 3 text")};
                 QRectF line = r.adjusted(4, 2 + font.pixelSize() * 1.6, -4, 0);
                 for (int i = 0; i < 3; ++i) {
                     p.drawText(QRectF(line.x() + i * font.pixelSize() * 1.5, line.y() + i * font.pixelSize() * 1.4, line.width(), font.pixelSize() * 1.4), Qt::AlignLeft | Qt::AlignVCenter,

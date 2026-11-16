@@ -1829,9 +1829,9 @@ QImage Renderer::renderToImage(const PaintContext &ctx, int pageIndex, double sc
     return img;
 }
 
-QImage Renderer::renderItemsToImage(const PaintContext &ctx, const ItemList &items, double scale)
+QImage Renderer::renderItemsToImage(const PaintContext &ctx, const ItemList &items, double scale, double pad)
 {
-    const QRectF b = unionBounds(items).adjusted(-4, -4, 4, 4);
+    const QRectF b = unionBounds(items).adjusted(-pad, -pad, pad, pad);
     QImage img((b.size() * scale).toSize().expandedTo(QSize(1, 1)), QImage::Format_ARGB32_Premultiplied);
     img.fill(Qt::transparent);
     QPainter p(&img);

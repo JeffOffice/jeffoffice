@@ -1255,7 +1255,9 @@ void MainWindow::createActions()
         if (!it) return;
         const QString p = askSavePath(this, tr("Save as Picture"), QString(), tr("PNG (*.png)") + QStringLiteral(";;") + tr("JPEG (*.jpg)"));
         if (p.isEmpty()) return;
-        m_ed->selectionPicture(300.0 / 72).save(p);
+        bool reduced = false;
+        m_ed->selectionPicture(300.0 / 72, &reduced).save(p);
+        if (reduced) m_ed->status(tr("The picture is larger than %1 pixels on a side, so it was saved smaller.").arg(Editor::kMostPictureSide));
     });
     mk("pic.caption", tr("Caption"), "captions", QKeySequence(), [ed] {
         auto *p = dynamic_cast<PictureItem *>(ed->single());
