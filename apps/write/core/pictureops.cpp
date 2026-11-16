@@ -4467,6 +4467,30 @@ ChartInfo chartAt(const WriteDoc &doc, int position)
     return office::sheet::chartInfoOf(chart, bytes);
 }
 
+bool readChartAt(const WriteDoc &doc, int position, Chart *chart)
+{
+    const QTextDocument *story = doc.story();
+    if (!story || position < 0 || position + 1 > story->characterCount() - 1) return false;
+    Inline atom;
+    if (!drawingAtomOf(formatAfter(story, position), &atom)) return false;
+    Model m;
+    if (!parseDrawing(atom.raw, &m)) return false;
+    QString id;
+    QByteArray bytes;
+    if (!chartPartOf(doc, m.graphic, &id, &bytes)) return false;
+    return office::readChart(bytes, chartTheme(doc), office::ColorMap(), chart);
+}
+
+office::Theme chartThemeOf(const WriteDoc &doc) { return chartTheme(doc); }
+
+bool changeChartAt(WriteDoc &doc, int position, const std::function<void(Chart *)> &edit)
+{
+    return editChart(doc, position, [&](Chart &chart) {
+        edit(&chart);
+        return true;
+    });
+}
+
 PictureResult insertChart(WriteDoc &doc, QTextCursor &c, ChartForm form, const ChartData &data, const QSizeF &size)
 {
     if (c.document() != doc.story()) {

@@ -6,6 +6,7 @@
 #include "office/chart.h"
 #include "sheet/chartedit.h"
 #include "sheet/chartmake.h"
+#include "sheet/chartops.h"
 #include "sheet/drawing.h"
 
 #include <QDialog>
@@ -125,6 +126,30 @@ private:
     QTableWidget *m_table = nullptr;
     QLabel *m_big = nullptr;
     bool m_loading = false;
+};
+
+// Select Data for a chart that holds its own numbers: the series it plots (a check box to draw each, its name, its place in the order), and Switch Row/Column, which makes the series the
+// categories and the categories the series. It is given the data and gives back the data as the person left it.
+class SelectChartDataDialog : public QDialog {
+    Q_OBJECT
+public:
+    SelectChartDataDialog(const jp::office::sheet::ChartData &data, QWidget *parent = nullptr);
+    jp::office::sheet::ChartData result() const;
+    // For tests and the window: the list and its commands.
+    int seriesShown() const;
+    QString seriesName(int index) const;
+    bool seriesChecked(int index) const;
+    void setSeriesChecked(int index, bool on);
+    void moveSeries(int index, int delta);
+    void switchRowsAndColumns();
+
+private:
+    void fill();
+    // The data with the changes of the list made (names, checks, order); the series the list left out are gone.
+    jp::office::sheet::ChartData fromList() const;
+    jp::office::sheet::ChartData m_data;
+    QListWidget *m_list = nullptr;
+    QLabel *m_problem = nullptr;
 };
 
 // Format Axis: the bounds and units (automatic or a number), the order, where the other axis crosses, the labels' number format, turn, and place, and the tick marks of one axis. It is given the

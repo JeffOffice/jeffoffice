@@ -29,6 +29,7 @@
 #include "app/widgets.h"
 #include "core/color.h"
 #include "core/auditing.h"
+#include "app/chartdesign.h"
 #include "core/editsession.h"
 #include "core/errorcheck.h"
 #include "core/formulasteps.h"
@@ -139,7 +140,7 @@ enum class ObjectAlign;
 class SheetTabBar;
 }
 
-class CrunchWindow : public AppWindow {
+class CrunchWindow : public AppWindow, private ChartDesignHost {
     Q_OBJECT
 public:
     explicit CrunchWindow(QWidget *parent = nullptr);
@@ -1572,9 +1573,9 @@ public:
     bool alignObjects(crunch::ObjectAlign how);
     jp::ObjectPicker *objectPicker() const { return m_picker; }
     // The chart buttons beside the picked chart (the elements, the looks), and what the context menu of an object has; for tests.
-    QToolButton *chartElementsButton() const { return m_chartPlus; }
-    QToolButton *chartLooksButton() const { return m_chartBrush; }
-    QToolButton *chartFiltersButton() const { return m_chartFilter; }
+    QToolButton *chartElementsButton() const { return m_chartButtons ? m_chartButtons->elements() : nullptr; }
+    QToolButton *chartLooksButton() const { return m_chartButtons ? m_chartButtons->looks() : nullptr; }
+    QToolButton *chartFiltersButton() const { return m_chartButtons ? m_chartButtons->filters() : nullptr; }
     // Chart Filters: the series of the picked chart (those drawn, then those filtered out), and whether each is drawn. A filtered series is left out of the drawing; the file keeps it as a series like the others (so it shows again
     // when the file is opened); the last one drawn can't be filtered out.
     struct ChartFilterEntry {
@@ -1651,7 +1652,18 @@ private:
     std::function<bool(const ObjectProperties &, ObjectProperties *)> m_propertiesAsker;
     QString m_workbookId;   // which workbook this is, among all that are open in any program: random for each one opened (what a copy says it came from)
     jp::office::sheet::CellRange m_previewBlock;   // the block of cells the pictures of the New Chart dialog are drawn from, found once for all of them
-    QToolButton *m_chartPlus = nullptr, *m_chartBrush = nullptr, *m_chartFilter = nullptr;
+    // (the chart editor that every app shares: app/chartdesign.h; these are what it asks of this window)
+    QWidget *chartParent() override;
+    bool chartNow(jp::office::Chart *out) override;
+    jp::office::Theme chartTheme() override;
+    bool changeChart(const QString &label, const std::function<void(jp::office::Chart *)> &edit) override;
+    void chartNotice(const QString &title, const QString &text, bool warning) override;
+    bool askChartText(const QString &caption, const QString &prompt, QString *text) override;
+    bool chartHasCells() const override { return true; }
+    QString chartCellRef(const QString &typed, bool oneCell, const QString &caption) override;
+    void chartReadCells(jp::office::Chart *chart) override;
+    ChartDesign *m_design = nullptr;
+    ChartButtons *m_chartButtons = nullptr;
     QTimer m_chartButtonsTimer;
     QStringList m_chartActions;
 

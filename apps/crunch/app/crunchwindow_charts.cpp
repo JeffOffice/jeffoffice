@@ -163,34 +163,10 @@ void CrunchWindow::createChartActions()
 
 void CrunchWindow::chartRibbonParts(RibbonParts &parts)
 {
-    parts.menus[QStringLiteral("chartElements")] = [this](QWidget *owner) { return buildChartElementsMenu(owner); };
-    parts.menus[QStringLiteral("chartLayouts")] = [this](QWidget *owner) {
-        auto *menu = new QMenu(owner);
-        menu->setObjectName(QStringLiteral("chartLayoutsMenu"));
-        for (int i = 0; i < chartLayoutCount(); ++i) {
-            QAction *a = menu->addAction(chartLayoutName(i));
-            connect(a, &QAction::triggered, this, [this, i] { changePickedChart(tr("Layouts"), [i](Chart *c) { applyChartLayout(c, i); }); });
-        }
-        return menu;
-    };
-    parts.menus[QStringLiteral("chartColors")] = [this](QWidget *owner) {
-        auto *menu = new QMenu(owner);
-        menu->setObjectName(QStringLiteral("chartColorsMenu"));
-        for (int i = 0; i < chartColorSchemeCount(); ++i) {
-            QAction *a = menu->addAction(chartColorSchemeName(i));
-            connect(a, &QAction::triggered, this, [this, i] { changePickedChart(tr("Colors"), [i](Chart *c) { applyColorScheme(c, i); }); });
-        }
-        return menu;
-    };
-    parts.menus[QStringLiteral("chartStyles")] = [this](QWidget *owner) {
-        auto *menu = new QMenu(owner);
-        menu->setObjectName(QStringLiteral("chartStylesMenu"));
-        for (int i = 0; i < chartStyleCount(); ++i) {
-            QAction *a = menu->addAction(chartStyleName(i));
-            connect(a, &QAction::triggered, this, [this, i] { changePickedChart(tr("Chart Look"), [i](Chart *c) { applyChartStyle(c, i); }); });
-        }
-        return menu;
-    };
+    parts.menus[QStringLiteral("chartElements")] = [this](QWidget *owner) { return m_design->elementsMenu(owner); };
+    parts.menus[QStringLiteral("chartLayouts")] = [this](QWidget *owner) { return m_design->layoutsMenu(owner); };
+    parts.menus[QStringLiteral("chartColors")] = [this](QWidget *owner) { return m_design->colorsMenu(owner); };
+    parts.menus[QStringLiteral("chartStyles")] = [this](QWidget *owner) { return m_design->stylesMenu(owner); };
     parts.colors[QStringLiteral("chartDesign")] = QColor(0x13, 0x77, 0x3A);
 }
 
@@ -853,383 +829,73 @@ void CrunchWindow::changeChartTypeDialog()
 
 // ---- the chart's menus
 
-QMenu *CrunchWindow::buildChartElementsMenu(QWidget *owner)
-{
-    auto *menu = new QMenu(owner);
-    menu->setObjectName(QStringLiteral("chartElementsMenu"));
-    connect(menu, &QMenu::aboutToShow, this, [this, menu] {
-        menu->clear();
-        const int id = pickedObject();
-        if (id < 0 || !m_objects) return;
-        const Chart chart = m_objects->chartNow(m_sheet, id);
-        const ChartElements e = elementsOf(chart);
-        auto check = [&](QMenu *into, const QString &text, bool on, const std::function<void(Chart *)> &change, const QString &step) {
-            QAction *a = into->addAction(text);
-            a->setCheckable(true);
-            a->setChecked(on);
-            connect(a, &QAction::triggered, this, [this, change, step] { changePickedChart(step, change); });
-            return a;
-        };
-        auto choice = [&](QMenu *into, QActionGroup *group, const QString &text, bool on, const std::function<void(Chart *)> &change, const QString &step) {
-            QAction *a = check(into, text, on, change, step);
-            group->addAction(a);
-            return a;
-        };
-        // Title text: typed words, or "=Sheet1!A1" for the words of a cell (the title follows that cell).
-        auto titleText = [this](QMenu *into, const QString &label, const QString &caption, const ChartTitle &now, std::function<void(Chart *, const QString &, const QString &)> put) {
-            QAction *a = into->addAction(label);
-            connect(a, &QAction::triggered, this, [this, caption, now, put] {
-                QString text = now.ref.isEmpty() ? now.text : QStringLiteral("=") + now.ref;
-                bool ok = false;
-                if (m_chartTextAsker) ok = m_chartTextAsker(caption, &text);
-                else text = QInputDialog::getText(this, caption, tr("The words, or = and a cell such as =Sheet1!A1 to show what that cell holds:"), QLineEdit::Normal, text, &ok);
-                if (!ok) return;
-                text = text.trimmed();
-                QString ref, words = text;
-                if (text.startsWith(QLatin1Char('='))) {
-                    const int id = pickedObject();
-                    if (id < 0 || !m_objects || !m_objects->cells() || !m_loaded || !m_loaded->book) return;
-                    ref = text.mid(1).trimmed();
-                    if (!ref.contains(QLatin1Char('!'))) {
-                        const QString own = m_loaded->book->info().sheets[m_sheet].name;
-                        ref = (own.contains(QRegularExpression(QStringLiteral("[^A-Za-z0-9_]"))) ? QStringLiteral("'") + QString(own).replace(QLatin1Char('\''), QStringLiteral("''")) + QStringLiteral("'") : own) + QLatin1Char('!') + ref;
-                    }
-                    // (one cell, written with $ the way a chart keeps it)
-                    QVector<ChartBlock> blocks;
-                    if (!chartBlocks(ref, m_sheet, *m_objects->cells(), &blocks) || blocks.size() != 1 || blocks[0].range.row1 != blocks[0].range.row2 || blocks[0].range.col1 != blocks[0].range.col2) {
-                        notice(caption, tr("\"%1\" isn't one cell JeffCrunch can find. Write it like =Sheet1!$A$1.").arg(text.mid(1)));
-                        return;
-                    }
-                    const int bang = int(ref.lastIndexOf(QLatin1Char('!')));
-                    ref = ref.left(bang + 1) + QStringLiteral("$") + columnName(blocks[0].range.col1) + QStringLiteral("$") + QString::number(qint64(blocks[0].range.row1) + 1);
-                    words = QString();
-                }
-                const int sheet = m_sheet;
-                changePickedChart(caption, [this, put, words, ref, sheet](Chart *c) {
-                    put(c, words, ref);
-                    if (!ref.isEmpty() && m_objects->cells()) applyChartCells(c, sheet, *m_objects->cells());
-                });
-            });
-        };
-        if (e.hasHorizontal || e.hasVertical) {
-            QMenu *axes = menu->addMenu(tr("Axes"));
-            axes->setObjectName(QStringLiteral("axesMenu"));
-            if (e.hasHorizontal) check(axes, tr("Horizontal"), e.axisHorizontal, [on = !e.axisHorizontal](Chart *c) { setAxisShown(c, true, on); }, tr("Axes"));
-            if (e.hasVertical) check(axes, tr("Vertical"), e.axisVertical, [on = !e.axisVertical](Chart *c) { setAxisShown(c, false, on); }, tr("Axes"));
-            QMenu *titles = menu->addMenu(tr("Axis Titles"));
-            titles->setObjectName(QStringLiteral("axisTitlesMenu"));
-            if (e.hasHorizontal) check(titles, tr("Horizontal"), e.axisTitleHorizontal, [on = !e.axisTitleHorizontal](Chart *c) { setAxisTitle(c, true, on); }, tr("Axis Titles"));
-            if (e.hasVertical) check(titles, tr("Vertical"), e.axisTitleVertical, [on = !e.axisTitleVertical](Chart *c) { setAxisTitle(c, false, on); }, tr("Axis Titles"));
-            titles->addSeparator();
-            if (e.hasHorizontal)
-                if (const ChartAxis *a = primaryAxis(chart, true))
-                    titleText(titles, tr("Horizontal Title Text…"), tr("Axis Titles"), a->title, [](Chart *c, const QString &t, const QString &r) { setAxisTitleText(c, true, t, r); });
-            if (e.hasVertical)
-                if (const ChartAxis *a = primaryAxis(chart, false))
-                    titleText(titles, tr("Vertical Title Text…"), tr("Axis Titles"), a->title, [](Chart *c, const QString &t, const QString &r) { setAxisTitleText(c, false, t, r); });
-            if (e.hasSecondaryHorizontal) {
-                check(axes, tr("Second Horizontal"), e.axisSecondaryHorizontal, [on = !e.axisSecondaryHorizontal](Chart *c) { setAxisShown(c, true, on, true); }, tr("Axes"));
-                check(titles, tr("Second Horizontal"), e.axisTitleSecondaryHorizontal, [on = !e.axisTitleSecondaryHorizontal](Chart *c) { setAxisTitle(c, true, on, true); }, tr("Axis Titles"));
-            }
-            if (e.hasSecondaryVertical) {
-                check(axes, tr("Second Vertical"), e.axisSecondaryVertical, [on = !e.axisSecondaryVertical](Chart *c) { setAxisShown(c, false, on, true); }, tr("Axes"));
-                check(titles, tr("Second Vertical"), e.axisTitleSecondaryVertical, [on = !e.axisTitleSecondaryVertical](Chart *c) { setAxisTitle(c, false, on, true); }, tr("Axis Titles"));
-            }
-        }
-        QMenu *title = menu->addMenu(tr("Chart Title"));
-        title->setObjectName(QStringLiteral("chartTitleMenu"));
-        auto *titleGroup = new QActionGroup(title);
-        choice(title, titleGroup, tr("None"), !e.title, [](Chart *c) { setChartTitle(c, TitleMode::None); }, tr("Chart Title"));
-        choice(title, titleGroup, tr("Above"), e.title && !e.titleOverlay, [](Chart *c) { setChartTitle(c, TitleMode::Above); }, tr("Chart Title"));
-        choice(title, titleGroup, tr("On Top"), e.titleOverlay, [](Chart *c) { setChartTitle(c, TitleMode::Overlay); }, tr("Chart Title"));
-        title->addSeparator();
-        titleText(title, tr("Title Text…"), tr("Chart Title"), chart.title, [](Chart *c, const QString &t, const QString &r) { setChartTitleText(c, t, r); });
-        QMenu *labels = menu->addMenu(tr("Data Labels"));
-        labels->setObjectName(QStringLiteral("dataLabelsMenu"));
-        auto *labelGroup = new QActionGroup(labels);
-        choice(labels, labelGroup, tr("None"), !e.labels, [](Chart *c) { setDataLabels(c, false); }, tr("Data Labels"));
-        choice(labels, labelGroup, tr("Usual place"), e.labels && e.labelPosition.isEmpty(), [](Chart *c) { setDataLabels(c, true); }, tr("Data Labels"));
-        static const struct { const char *code; const char *name; } places[] = {{"ctr", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Center")}, {"inEnd", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Inside End")}, {"inBase", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Inside Base")},
-                                                                                  {"outEnd", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Outside End")}, {"bestFit", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Best Fit")}, {"l", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Left")},
-                                                                                  {"r", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Right")}, {"t", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Above")}, {"b", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Below")}};
-        const QStringList allowed = labelPositionsFor(chart);
-        for (const auto &p : places) {
-            const QString code = QString::fromLatin1(p.code);
-            if (!allowed.contains(code)) continue;
-            choice(labels, labelGroup, QCoreApplication::translate("jp::CrunchWindow", p.name), e.labels && e.labelPosition == code, [code](Chart *c) { setDataLabels(c, true, code); }, tr("Data Labels"));
-        }
-        {
-            labels->addSeparator();
-            const ChartLabelParts parts = labelPartsOf(chart);
-            QMenu *contains = labels->addMenu(tr("Label Contains"));
-            contains->setObjectName(QStringLiteral("labelContainsMenu"));
-            struct Part {
-                QString text;
-                bool on;
-                bool ChartLabelParts::*member;
-            };
-            const Part list[] = {{tr("Value"), parts.value, &ChartLabelParts::value}, {tr("Category Name"), parts.category, &ChartLabelParts::category},
-                                 {tr("Series Name"), parts.series, &ChartLabelParts::series}, {tr("Percentage"), parts.percent, &ChartLabelParts::percent},
-                                 {tr("Legend Key"), parts.legendKey, &ChartLabelParts::legendKey}};
-            for (const Part &part : list)
-                check(contains, part.text, part.on, [parts, member = part.member, on = !part.on](Chart *c) {
-                    ChartLabelParts now = parts;
-                    now.*member = on;
-                    setDataLabelParts(c, now);
-                }, tr("Data Labels"));
-            QMenu *separator = labels->addMenu(tr("Separator"));
-            separator->setObjectName(QStringLiteral("labelSeparatorMenu"));
-            auto *separatorGroup = new QActionGroup(separator);
-            const struct { QString text, code; } separators[] = {{tr("Comma"), QString()}, {tr("Semicolon"), QStringLiteral("; ")}, {tr("Period"), QStringLiteral(". ")},
-                                                                  {tr("New Line"), QStringLiteral("\n")}, {tr("Space"), QStringLiteral(" ")}};
-            for (const auto &sep : separators)
-                choice(separator, separatorGroup, sep.text, parts.separator == sep.code, [parts, code = sep.code](Chart *c) {
-                    ChartLabelParts now = parts;
-                    now.separator = code;
-                    setDataLabelParts(c, now);
-                }, tr("Data Labels"));
-            // Value From Cells: the labels show the words of a range of cells, one for each point (empty: none).
-            QAction *fromCells = labels->addAction(tr("Value From Cells…"));
-            fromCells->setObjectName(QStringLiteral("labelsFromCellsAction"));
-            fromCells->setCheckable(true);
-            fromCells->setChecked(!dataLabelsCellsRef(chart).isEmpty());
-            connect(fromCells, &QAction::triggered, this, [this, now = dataLabelsCellsRef(chart)] {
-                QString text = now;
-                bool ok = false;
-                if (m_chartTextAsker) ok = m_chartTextAsker(tr("Value From Cells"), &text);
-                else text = QInputDialog::getText(this, tr("Value From Cells"), tr("The cells that hold the words for the labels, such as =Sheet1!$D$2:$D$4 (leave empty to take them away):"), QLineEdit::Normal, text, &ok);
-                if (!ok) return;
-                text = text.trimmed();
-                if (text.startsWith(QLatin1Char('='))) text = text.mid(1).trimmed();
-                if (!text.isEmpty()) {
-                    if (!m_objects || !m_objects->cells() || !m_loaded || !m_loaded->book) return;
-                    if (!text.contains(QLatin1Char('!'))) {
-                        const QString own = m_loaded->book->info().sheets[m_sheet].name;
-                        text = (own.contains(QRegularExpression(QStringLiteral("[^A-Za-z0-9_]"))) ? QStringLiteral("'") + QString(own).replace(QLatin1Char('\''), QStringLiteral("''")) + QStringLiteral("'") : own) + QLatin1Char('!') + text;
-                    }
-                    QVector<ChartBlock> blocks;
-                    if (!chartBlocks(text, m_sheet, *m_objects->cells(), &blocks) || blocks.size() != 1) {
-                        notice(tr("Value From Cells"), tr("\"%1\" isn't a range JeffCrunch can find. Write it like =Sheet1!$D$2:$D$4.").arg(text));
-                        return;
-                    }
-                    const auto r = blocks[0].range;
-                    const int bang = int(text.lastIndexOf(QLatin1Char('!')));
-                    text = text.left(bang + 1) + QStringLiteral("$") + columnName(r.col1) + QStringLiteral("$") + QString::number(qint64(r.row1) + 1);
-                    if (r.row1 != r.row2 || r.col1 != r.col2) text += QStringLiteral(":$") + columnName(r.col2) + QStringLiteral("$") + QString::number(qint64(r.row2) + 1);
-                }
-                const int sheet = m_sheet;
-                changePickedChart(tr("Data Labels"), [this, text, sheet](Chart *c) {
-                    setDataLabelsFromCells(c, text);
-                    if (!text.isEmpty() && m_objects->cells()) applyChartCells(c, sheet, *m_objects->cells());
-                });
-            });
-            QAction *format = labels->addAction(tr("Number Format…"));
-            connect(format, &QAction::triggered, this, [this, parts] {
-                QString code = parts.format;
-                bool ok = false;
-                if (m_chartTextAsker) ok = m_chartTextAsker(tr("Number Format"), &code);
-                else code = QInputDialog::getText(this, tr("Number Format"), tr("Format code for the numbers in the labels (leave empty to show the numbers as they are):"), QLineEdit::Normal, code, &ok);
-                if (!ok) return;
-                changePickedChart(tr("Data Labels"), [parts, code](Chart *c) {
-                    ChartLabelParts now = parts;
-                    now.format = code.trimmed();
-                    setDataLabelParts(c, now);
-                });
-            });
-        }
-        if (e.hasHorizontal || e.hasVertical) {
-            QMenu *grid = menu->addMenu(tr("Gridlines"));
-            grid->setObjectName(QStringLiteral("gridlinesMenu"));
-            check(grid, tr("Lines Across, Major"), e.gridHorizontal, [on = !e.gridHorizontal](Chart *c) { setGridlines(c, true, false, on); }, tr("Gridlines"));
-            check(grid, tr("Lines Up and Down, Major"), e.gridVertical, [on = !e.gridVertical](Chart *c) { setGridlines(c, false, false, on); }, tr("Gridlines"));
-            check(grid, tr("Lines Across, Minor"), e.minorGridHorizontal, [on = !e.minorGridHorizontal](Chart *c) { setGridlines(c, true, true, on); }, tr("Gridlines"));
-            check(grid, tr("Lines Up and Down, Minor"), e.minorGridVertical, [on = !e.minorGridVertical](Chart *c) { setGridlines(c, false, true, on); }, tr("Gridlines"));
-        }
-        QMenu *legend = menu->addMenu(tr("Legend"));
-        legend->setObjectName(QStringLiteral("legendMenu"));
-        auto *legendGroup = new QActionGroup(legend);
-        choice(legend, legendGroup, tr("None"), !e.legend, [](Chart *c) { setLegend(c, QString()); }, tr("Legend"));
-        const struct { const char *code; const char *name; } sides[] = {{"r", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Right")}, {"t", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Top")}, {"l", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Left")}, {"b", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Bottom")}};
-        for (const auto &s : sides) {
-            const QString code = QString::fromLatin1(s.code);
-            choice(legend, legendGroup, QCoreApplication::translate("jp::CrunchWindow", s.name), e.legend && e.legendPosition == code, [code, over = e.legendOverlay](Chart *c) { setLegend(c, code, over); }, tr("Legend"));
-        }
-        if (e.legend) {
-            legend->addSeparator();
-            check(legend, tr("Over the Chart"), e.legendOverlay, [code = e.legendPosition, on = !e.legendOverlay](Chart *c) { setLegend(c, code, on); }, tr("Legend"));
-        }
-        if (errorBarsApply(chart)) {
-            QMenu *bars = menu->addMenu(tr("Error Bars"));
-            bars->setObjectName(QStringLiteral("errorBarsMenu"));
-            auto *barGroup = new QActionGroup(bars);
-            const QString kind = errorBarsKind(chart);
-            choice(bars, barGroup, tr("None"), kind.isEmpty(), [](Chart *c) { setErrorBars(c, QString()); }, tr("Error Bars"));
-            choice(bars, barGroup, tr("Standard Error"), kind == QLatin1String("stdErr"), [](Chart *c) { setErrorBars(c, QStringLiteral("stdErr")); }, tr("Error Bars"));
-            choice(bars, barGroup, tr("Percentage (5%)"), kind == QLatin1String("percentage"), [](Chart *c) { setErrorBars(c, QStringLiteral("percentage"), 5); }, tr("Error Bars"));
-            choice(bars, barGroup, tr("Standard Deviation"), kind == QLatin1String("stdDev"), [](Chart *c) { setErrorBars(c, QStringLiteral("stdDev"), 1); }, tr("Error Bars"));
-            choice(bars, barGroup, tr("Fixed Value (1)"), kind == QLatin1String("fixedVal"), [](Chart *c) { setErrorBars(c, QStringLiteral("fixedVal"), 1); }, tr("Error Bars"));
-            // Custom: the amounts above and below each point are read from cells typed in (empty: none on that side).
-            QAction *custom = bars->addAction(tr("Custom…"));
-            custom->setObjectName(QStringLiteral("customErrorBarsAction"));
-            custom->setCheckable(true);
-            custom->setChecked(kind == QLatin1String("cust"));
-            connect(custom, &QAction::triggered, this, [this, now = customErrorBarRefs(chart)] {
-                QStringList refs{now.value(0), now.value(1)};
-                for (int side = 0; side < 2; ++side) {
-                    const QString title = side == 0 ? tr("Custom Error Bars: Positive") : tr("Custom Error Bars: Negative");
-                    QString text = refs[side];
-                    bool ok = false;
-                    if (m_chartTextAsker) ok = m_chartTextAsker(title, &text);
-                    else text = QInputDialog::getText(this, title, tr("The cells that hold the amounts, such as =Sheet1!$D$2:$D$4 (leave empty for none):"), QLineEdit::Normal, text, &ok);
-                    if (!ok) return;
-                    text = text.trimmed();
-                    if (text.startsWith(QLatin1Char('='))) text = text.mid(1).trimmed();
-                    if (!text.isEmpty()) {
-                        if (!m_objects || !m_objects->cells() || !m_loaded || !m_loaded->book) return;
-                        if (!text.contains(QLatin1Char('!'))) {
-                            const QString own = m_loaded->book->info().sheets[m_sheet].name;
-                            text = (own.contains(QRegularExpression(QStringLiteral("[^A-Za-z0-9_]"))) ? QStringLiteral("'") + QString(own).replace(QLatin1Char('\''), QStringLiteral("''")) + QStringLiteral("'") : own) + QLatin1Char('!') + text;
-                        }
-                        QVector<ChartBlock> blocks;
-                        if (!chartBlocks(text, m_sheet, *m_objects->cells(), &blocks) || blocks.size() != 1) {
-                            notice(tr("Custom Error Bars"), tr("\"%1\" isn't a range JeffCrunch can find. Write it like =Sheet1!$D$2:$D$4.").arg(text));
-                            return;
-                        }
-                        const auto r = blocks[0].range;
-                        const int bang = int(text.lastIndexOf(QLatin1Char('!')));
-                        text = text.left(bang + 1) + QStringLiteral("$") + columnName(r.col1) + QStringLiteral("$") + QString::number(qint64(r.row1) + 1);
-                        if (r.row1 != r.row2 || r.col1 != r.col2) text += QStringLiteral(":$") + columnName(r.col2) + QStringLiteral("$") + QString::number(qint64(r.row2) + 1);
-                    }
-                    refs[side] = text;
-                }
-                if (refs[0].isEmpty() && refs[1].isEmpty()) return;
-                const int sheet = m_sheet;
-                changePickedChart(tr("Error Bars"), [this, refs, sheet](Chart *c) {
-                    setCustomErrorBars(c, refs[0], refs[1]);
-                    if (m_objects->cells()) applyChartCells(c, sheet, *m_objects->cells());
-                });
-            });
-        }
-        if (!chart.pivotName.isEmpty()) {
-            QMenu *buttons = menu->addMenu(tr("Field Buttons"));
-            buttons->setObjectName(QStringLiteral("fieldButtonsMenu"));
-            const struct { const char *name; PivotButton which; } kinds[] = {{QT_TRANSLATE_NOOP("jp::CrunchWindow", "Report Filter Field Buttons"), PivotButton::Filter},
-                                                                             {QT_TRANSLATE_NOOP("jp::CrunchWindow", "Axis Field Buttons"), PivotButton::Axis},
-                                                                             {QT_TRANSLATE_NOOP("jp::CrunchWindow", "Legend Field Buttons"), PivotButton::Legend},
-                                                                             {QT_TRANSLATE_NOOP("jp::CrunchWindow", "Value Field Buttons"), PivotButton::Value}};
-            for (const auto &k : kinds)
-                check(buttons, QCoreApplication::translate("jp::CrunchWindow", k.name), pivotButtonsOn(chart, k.which), [which = k.which, on = !pivotButtonsOn(chart, k.which)](Chart *c) { setPivotButtons(c, which, on); }, tr("Field Buttons"));
-            buttons->addSeparator();
-            check(buttons, tr("Show All"), pivotButtonsOn(chart, PivotButton::All), [](Chart *c) { setPivotButtons(c, PivotButton::All, true); }, tr("Field Buttons"));
-            check(buttons, tr("Hide All"), chart.pivotButtons.set && !chart.pivotButtons.filter && !chart.pivotButtons.categories && !chart.pivotButtons.series && !chart.pivotButtons.data, [](Chart *c) { setPivotButtons(c, PivotButton::All, false); }, tr("Field Buttons"));
-        }
-        if (plotLinesApply(chart, PlotLines::Drop)) {
-            QMenu *lines = menu->addMenu(tr("Lines"));
-            lines->setObjectName(QStringLiteral("plotLinesMenu"));
-            check(lines, tr("Drop Lines"), plotLinesOn(chart, PlotLines::Drop), [on = !plotLinesOn(chart, PlotLines::Drop)](Chart *c) { setPlotLines(c, PlotLines::Drop, on); }, tr("Lines"));
-            if (plotLinesApply(chart, PlotLines::HighLow)) {
-                check(lines, tr("High-Low Lines"), plotLinesOn(chart, PlotLines::HighLow), [on = !plotLinesOn(chart, PlotLines::HighLow)](Chart *c) { setPlotLines(c, PlotLines::HighLow, on); }, tr("Lines"));
-                check(lines, tr("Up/Down Bars"), plotLinesOn(chart, PlotLines::UpDown), [on = !plotLinesOn(chart, PlotLines::UpDown)](Chart *c) { setPlotLines(c, PlotLines::UpDown, on); }, tr("Lines"));
-            }
-        }
-        if (chart.type() != ChartType::Pie && chart.type() != ChartType::Doughnut) {
-            QMenu *trend = menu->addMenu(tr("Trendline"));
-            trend->setObjectName(QStringLiteral("trendlineMenu"));
-            auto *trendGroup = new QActionGroup(trend);
-            choice(trend, trendGroup, tr("None"), e.trendline.isEmpty(), [](Chart *c) { setTrendlines(c, QString()); }, tr("Trendline"));
-            static const struct { const char *code; const char *name; } kinds[] = {{"linear", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Linear")}, {"exp", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Exponential")}, {"log", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Logarithmic")},
-                                                                                  {"poly", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Polynomial")}, {"power", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Power")}, {"movingAvg", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Moving Average")}};
-            for (const auto &k : kinds) {
-                const QString code = QString::fromLatin1(k.code);
-                choice(trend, trendGroup, QCoreApplication::translate("jp::CrunchWindow", k.name), e.trendline == code, [code](Chart *c) { setTrendlines(c, code); }, tr("Trendline"));
-            }
-            if (!e.trendline.isEmpty()) {
-                trend->addSeparator();
-                check(trend, tr("Show Equation"), e.trendlineEquation, [on = !e.trendlineEquation, r = e.trendlineRSquared](Chart *c) { setTrendlineDisplay(c, on, r); }, tr("Trendline"));
-                check(trend, tr("Show R-squared"), e.trendlineRSquared, [on = !e.trendlineRSquared, q = e.trendlineEquation](Chart *c) { setTrendlineDisplay(c, q, on); }, tr("Trendline"));
-            }
-        }
-    });
-    return menu;
-}
+QMenu *CrunchWindow::buildChartElementsMenu(QWidget *owner) { return m_design->elementsMenu(owner); }
 
-QMenu *CrunchWindow::buildChartLooksMenu(QWidget *owner)
-{
-    auto *menu = new QMenu(owner);
-    menu->setObjectName(QStringLiteral("chartLooksMenu"));
-    menu->addSection(tr("Colors"));
-    for (int i = 0; i < chartColorSchemeCount(); ++i) {
-        QAction *a = menu->addAction(chartColorSchemeName(i));
-        connect(a, &QAction::triggered, this, [this, i] { changePickedChart(tr("Colors"), [i](Chart *c) { applyColorScheme(c, i); }); });
-    }
-    menu->addSection(tr("Looks"));
-    for (int i = 0; i < chartStyleCount(); ++i) {
-        QAction *a = menu->addAction(chartStyleName(i));
-        connect(a, &QAction::triggered, this, [this, i] { changePickedChart(tr("Chart Look"), [i](Chart *c) { applyChartStyle(c, i); }); });
-    }
-    return menu;
-}
+QMenu *CrunchWindow::buildChartLooksMenu(QWidget *owner) { return m_design->looksMenu(owner); }
 
 QVector<CrunchWindow::ChartFilterEntry> CrunchWindow::chartFilterEntries() const
 {
     QVector<ChartFilterEntry> out;
-    const int id = pickedObject();
-    if (id < 0 || !m_objects || m_objects->kindOf(m_sheet, id) != ObjectKind::Chart) return out;
-    int n = 0;
-    for (const ChartPlot &plot : m_objects->chartNow(m_sheet, id).plots)
-        for (const ChartSeries &s : plot.series) {
-            ++n;
-            out.append({s.name.isEmpty() ? tr("Series %1").arg(n) : s.name, !s.filtered});
-        }
+    for (const ChartDesign::FilterEntry &e : m_design->filterEntries()) out.append({e.name, e.shown});
     return out;
 }
 
-bool CrunchWindow::setChartSeriesShown(int entry, bool shown)
+bool CrunchWindow::setChartSeriesShown(int entry, bool shown) { return m_design->setSeriesShown(entry, shown); }
+
+QMenu *CrunchWindow::buildChartFiltersMenu(QWidget *owner) { return m_design->filtersMenu(owner); }
+
+// ---- what the shared chart editor (app/chartdesign.h) asks of this window
+
+QWidget *CrunchWindow::chartParent() { return this; }
+
+bool CrunchWindow::chartNow(Chart *out)
 {
     const int id = pickedObject();
     if (id < 0 || !m_objects || m_objects->kindOf(m_sheet, id) != ObjectKind::Chart) return false;
-    const Chart now = m_objects->chartNow(m_sheet, id);
-    int drawn = 0, total = 0;
-    for (const ChartPlot &plot : now.plots)
-        for (const ChartSeries &s : plot.series) {
-            ++total;
-            drawn += !s.filtered;
-        }
-    if (entry < 0 || entry >= total) return false;
-    int at = 0;
-    bool already = false;
-    for (const ChartPlot &plot : now.plots)
-        for (const ChartSeries &s : plot.series)
-            if (at++ == entry) already = !s.filtered;
-    if (already == shown) return false;
-    if (!shown && drawn <= 1) {
-        notice(tr("Chart Filters"), tr("A chart needs at least one series. Check another series first."), false);
-        return false;
-    }
-    return changePickedChart(tr("Chart Filters"), [entry, shown](Chart *c) {
-        int n = 0;
-        for (ChartPlot &plot : c->plots)
-            for (ChartSeries &s : plot.series)
-                if (n++ == entry) s.filtered = !shown;
-    });
+    *out = m_objects->chartNow(m_sheet, id);
+    return true;
 }
 
-QMenu *CrunchWindow::buildChartFiltersMenu(QWidget *owner)
+Theme CrunchWindow::chartTheme() { return m_objects ? m_objects->theme() : Theme(); }
+
+bool CrunchWindow::changeChart(const QString &label, const std::function<void(Chart *)> &edit) { return changePickedChart(label, edit); }
+
+void CrunchWindow::chartNotice(const QString &title, const QString &text, bool warning) { notice(title, text, warning); }
+
+bool CrunchWindow::askChartText(const QString &caption, const QString &prompt, QString *text)
 {
-    auto *menu = new QMenu(owner);
-    menu->setObjectName(QStringLiteral("chartFiltersMenu"));
-    connect(menu, &QMenu::aboutToShow, this, [this, menu] {
-        menu->clear();
-        menu->addSection(tr("Series"));
-        const QVector<ChartFilterEntry> entries = chartFilterEntries();
-        for (int i = 0; i < entries.size(); ++i) {
-            QAction *a = menu->addAction(entries[i].name);
-            a->setCheckable(true);
-            a->setChecked(entries[i].shown);
-            connect(a, &QAction::triggered, this, [this, i](bool on) { setChartSeriesShown(i, on); });
-        }
-    });
-    return menu;
+    if (m_chartTextAsker) return m_chartTextAsker(caption, text);
+    bool ok = false;
+    const QString typed = QInputDialog::getText(this, caption, prompt, QLineEdit::Normal, *text, &ok);
+    if (ok) *text = typed;
+    return ok;
+}
+
+QString CrunchWindow::chartCellRef(const QString &typed, bool oneCell, const QString &caption)
+{
+    if (!m_objects || !m_objects->cells() || !m_loaded || !m_loaded->book) return QString();
+    QString ref = oneCell ? typed.trimmed() : typed;
+    if (!ref.contains(QLatin1Char('!'))) {
+        const QString own = m_loaded->book->info().sheets[m_sheet].name;
+        ref = (own.contains(QRegularExpression(QStringLiteral("[^A-Za-z0-9_]"))) ? QStringLiteral("'") + QString(own).replace(QLatin1Char('\''), QStringLiteral("''")) + QStringLiteral("'") : own) + QLatin1Char('!') + ref;
+    }
+    QVector<ChartBlock> blocks;
+    const bool found = chartBlocks(ref, m_sheet, *m_objects->cells(), &blocks) && blocks.size() == 1;
+    if (oneCell ? !found || blocks[0].range.row1 != blocks[0].range.row2 || blocks[0].range.col1 != blocks[0].range.col2 : !found) {
+        notice(caption, oneCell ? tr("\"%1\" isn't one cell JeffCrunch can find. Write it like =Sheet1!$A$1.").arg(typed) : tr("\"%1\" isn't a range JeffCrunch can find. Write it like =Sheet1!$D$2:$D$4.").arg(ref));
+        return QString();
+    }
+    // (written with $ the way a chart keeps it)
+    const auto r = blocks[0].range;
+    const int bang = int(ref.lastIndexOf(QLatin1Char('!')));
+    ref = ref.left(bang + 1) + QStringLiteral("$") + columnName(r.col1) + QStringLiteral("$") + QString::number(qint64(r.row1) + 1);
+    if (!oneCell && (r.row1 != r.row2 || r.col1 != r.col2)) ref += QStringLiteral(":$") + columnName(r.col2) + QStringLiteral("$") + QString::number(qint64(r.row2) + 1);
+    return ref;
+}
+
+void CrunchWindow::chartReadCells(Chart *chart)
+{
+    if (m_objects && m_objects->cells()) applyChartCells(chart, m_sheet, *m_objects->cells());
 }
 
 // ---- the picked object: its commands, buttons, and menu
@@ -1294,61 +960,13 @@ void CrunchWindow::placeChartButtons()
     if (id >= 0 && m_objects->kindOf(m_sheet, id) == ObjectKind::Chart && m_session && !m_saving && !m_objects->layer()->dragging() && m_objects->canEditChart(m_sheet, id)) {
         const QRect r = m_objects->layer()->deviceRect(id, grid::Pane::Body);
         if (!r.isEmpty()) {
-            if (!m_chartPlus) {
-                m_chartPlus = new QToolButton(m_view->viewport());
-                m_chartPlus->setObjectName(QStringLiteral("chartElementsButton"));
-                m_chartPlus->setIcon(icon(QStringLiteral("plus")));
-                m_chartPlus->setToolTip(tr("Chart Elements"));
-                m_chartPlus->setAccessibleName(tr("Chart Elements"));
-                m_chartPlus->setPopupMode(QToolButton::InstantPopup);
-                m_chartPlus->setAutoRaise(false);
-                m_chartPlus->setFocusPolicy(Qt::NoFocus);
-                m_chartPlus->setMenu(buildChartElementsMenu(m_chartPlus));
-                m_chartBrush = new QToolButton(m_view->viewport());
-                m_chartBrush->setObjectName(QStringLiteral("chartLooksButton"));
-                m_chartBrush->setIcon(icon(QStringLiteral("brush")));
-                m_chartBrush->setToolTip(tr("Chart Colors and Styles"));
-                m_chartBrush->setAccessibleName(tr("Chart Colors and Styles"));
-                m_chartBrush->setPopupMode(QToolButton::InstantPopup);
-                m_chartBrush->setFocusPolicy(Qt::NoFocus);
-                m_chartBrush->setMenu(buildChartLooksMenu(m_chartBrush));
-                m_chartFilter = new QToolButton(m_view->viewport());
-                m_chartFilter->setObjectName(QStringLiteral("chartFiltersButton"));
-                m_chartFilter->setIcon(icon(QStringLiteral("filter")));
-                m_chartFilter->setToolTip(tr("Chart Filters"));
-                m_chartFilter->setAccessibleName(tr("Chart Filters"));
-                m_chartFilter->setPopupMode(QToolButton::InstantPopup);
-                m_chartFilter->setFocusPolicy(Qt::NoFocus);
-                m_chartFilter->setMenu(buildChartFiltersMenu(m_chartFilter));
-            }
-            const int size = 26;
-            const QRect vp = m_view->viewport()->rect();
-            int x = r.right() + 6;
-            if (x + size > vp.right()) x = r.right() - size - 4;   // (no room beside it: inside its corner)
-            x = std::clamp(x, 0, std::max(0, vp.right() - size));
-            const int y = std::clamp(r.top(), 0, std::max(0, vp.bottom() - 3 * size - 8));
-            for (QToolButton *b : {m_chartPlus, m_chartBrush, m_chartFilter}) {
-                b->setFixedSize(size, size);
-                b->setIconSize(QSize(16, 16));
-            }
-            m_chartPlus->move(x, y);
-            m_chartBrush->move(x, y + size + 4);
-            m_chartFilter->move(x, y + 2 * (size + 4));
+            if (!m_chartButtons) m_chartButtons = new ChartButtons(m_design, m_view->viewport(), [this](const QString &name) { return icon(name); }, this);
+            m_chartButtons->place(r);
             show = true;
         }
     }
-    if (m_chartPlus) {
-        m_chartPlus->setVisible(show);
-        m_chartBrush->setVisible(show);
-        m_chartFilter->setVisible(show);
-        if (show) {
-            m_chartPlus->raise();
-            m_chartBrush->raise();
-            m_chartFilter->raise();
-        }
-    }
+    if (!show && m_chartButtons) m_chartButtons->hide();
 }
-
 void CrunchWindow::objectContextMenu(int id, const QPoint &global)
 {
     if (crunch::isControlId(id)) {
