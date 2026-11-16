@@ -302,6 +302,7 @@ public:
     void setTextFit(int how);   // the selected text boxes and shapes: 0 do not autofit, 1 shrink text on overflow, 2 resize shape to fit text
     // Opens it at a place on the screen, and does nothing while it is already open.
     void showSlideContextMenu(const QPoint &global);
+    void saveSelectionAsPicture();
     // Find and Replace (Home > Editing, Ctrl+F and Ctrl+H): the pane on the right, with the cursor in Find what, or
     // in Replace with. (deckwindow_find.cpp)
     DeckFindPane *findPane() const { return m_find; }

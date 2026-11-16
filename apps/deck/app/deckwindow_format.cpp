@@ -5,6 +5,7 @@
 
 #include "app/deckcanvas.h"
 #include "app/editor.h"
+#include "app/filedialogs.h"
 #include "app/formatops.h"
 #include "app/formatpresets.h"
 #include "app/icons.h"
@@ -24,7 +25,9 @@
 
 #include <QAction>
 #include <QActionGroup>
+#include <QDir>
 #include <QDockWidget>
+#include <QFileInfo>
 #include <QMenu>
 #include <QPainter>
 #include <QTextBlock>
@@ -77,6 +80,10 @@ void DeckWindow::createShapeFormatActions()
             if (auto *field = s->bodyWidget()->findChild<QWidget *>(QStringLiteral("altDescription"))) field->setFocus(Qt::OtherFocusReason);
         }
     });
+
+    // Size and Position opens the Format pane at the size and position boxes; Save as Picture saves what is selected as a picture file.
+    mk("shape.sizePos", tr("Size and Position…"), "move-diagonal", QKeySequence(), [this] { formatSelection(FormatPane::Tab::SizeProperties); });
+    mk("shape.saveAsPicture", tr("Save as Picture…"), "image-down", QKeySequence(), [this] { saveSelectionAsPicture(); });
 
     auto sync = [this] { refreshShapeFormat(); };
     connect(m_ed, &Editor::selectionChanged, this, sync);
@@ -337,6 +344,20 @@ void DeckWindow::formatSelection(FormatPane::Tab tab)
     m_formatPane->frame()->focusTabs();
 }
 
+// Save as Picture: the selected objects as they look on the slide (output quality, twice the size they have), as a .png or .jpg file.
+void DeckWindow::saveSelectionAsPicture()
+{
+    const QImage image = m_ed->selectionPicture(2.0);
+    if (image.isNull()) return;
+    const QString filter = tr("PNG Picture (*.png)") + QStringLiteral(";;") + tr("JPEG Picture (*.jpg *.jpeg)");
+    const QString suggested = QDir(QFileInfo(m_ed->filePath()).absolutePath()).filePath(tr("%1 - Picture").arg(m_ed->displayName()) + QStringLiteral(".png"));
+    QString path = m_pathChooser ? m_pathChooser(suggested, filter) : askSavePath(this, tr("Save as Picture"), suggested, filter);
+    if (path.isEmpty()) return;
+    const QString suffix = QFileInfo(path).suffix().toLower();
+    if (suffix != QLatin1String("png") && suffix != QLatin1String("jpg") && suffix != QLatin1String("jpeg")) path += QStringLiteral(".png");
+    if (!image.save(path)) m_ed->status(tr("The picture could not be saved to \"%1\".").arg(QDir::toNativeSeparators(path)));
+}
+
 // The Shape Format tab shows while a shape, a text box, a line, or what is made of them is selected; its size boxes show the first one's size.
 void DeckWindow::refreshShapeFormat()
 {
@@ -346,6 +367,8 @@ void DeckWindow::refreshShapeFormat()
     if (m_ribbon) m_ribbon->setContextVisible(QStringLiteral("Drawing Tools"), shows);
     act("shape.format")->setEnabled(!items.isEmpty());
     act("shape.altText")->setEnabled(!items.isEmpty());
+    act("shape.sizePos")->setEnabled(!items.isEmpty());
+    act("shape.saveAsPicture")->setEnabled(!items.isEmpty());
     bool geometry = false;
     for (const Item *it : m_formatPane->session()->leaves()) geometry = geometry || formatops::takesGeometry(*it);
     for (QWidget *w : m_changeShapeButtons) w->setEnabled(geometry);

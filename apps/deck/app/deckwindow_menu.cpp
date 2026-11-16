@@ -26,6 +26,14 @@ QMenu *DeckWindow::slideContextMenu(QWidget *parent)
         a->setObjectName(id);
         a->setEnabled(act(id)->isEnabled());
     };
+    // Paste Options: the forms the clipboard can go in as, each a command of its own.
+    auto pasteOptions = [this, menu] {
+        QMenu *options = menu->addMenu(act("edit.paste")->icon(), tr("Paste Options"));
+        options->menuAction()->setObjectName(QStringLiteral("edit.pasteOptions"));
+        options->addAction(act("edit.pasteKeep"));
+        options->addAction(act("edit.pasteText"));
+        options->addAction(act("edit.pasteSpecial"));
+    };
     const QString kind = m_ed->selectionKind();
     // Format Shape opens the Format pane; Format Picture, when that is all that is selected.
     act("shape.format")->setText(kind == QLatin1String("picture") ? tr("Format Picture…") : tr("Format Shape…"));
@@ -33,6 +41,7 @@ QMenu *DeckWindow::slideContextMenu(QWidget *parent)
         addSpellingSuggestions(*menu, m_ed);
         addGrammarSuggestions(*menu, m_ed);
         add(nullptr, {"edit.cut", "edit.copy", "edit.paste"});
+        pasteOptions();
         menu->addSeparator();
         add(nullptr, {"fmt.fontDialog", "para.dialog", "para.bullets", "para.numbers"});
         menu->addSeparator();
@@ -40,7 +49,9 @@ QMenu *DeckWindow::slideContextMenu(QWidget *parent)
         menu->addSeparator();
         add(nullptr, {"shape.format", "comment.new"});
     } else if (!kind.isEmpty()) {
-        add(nullptr, {"edit.cut", "edit.copy", "edit.paste", "edit.delete"});
+        add(nullptr, {"edit.cut", "edit.copy", "edit.paste"});
+        pasteOptions();
+        add(nullptr, {"edit.delete"});
         menu->addSeparator();
         const Item *one = m_ed->single();
         const bool holdsText = one && (one->type() == ItemType::Text || one->type() == ItemType::Shape || one->type() == ItemType::Table || one->type() == ItemType::TextArt);
@@ -74,9 +85,10 @@ QMenu *DeckWindow::slideContextMenu(QWidget *parent)
             add(align, {"fmt.alignLeft", "fmt.alignCenter", "fmt.alignRight", "fmt.justify"});
         }
         menu->addSeparator();
-        add(nullptr, {"shape.format", "insert.link", "comment.new"});
+        add(nullptr, {"shape.saveAsPicture", "shape.sizePos", "shape.format", "shape.altText", "insert.link", "comment.new"});
     } else {
         add(nullptr, {"edit.paste"});
+        pasteOptions();
         menu->addSeparator();
         if (m_view != View::Master) {   // (a slide's, not a master's)
             QMenu *layout = layoutMenu(menu, true);
