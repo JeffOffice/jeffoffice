@@ -1,5 +1,6 @@
 #include "app/chartactions.h"
 
+#include "app/plaintext.h"
 #include "canvas/canvas.h"
 #include "office/chart_write.h"
 
@@ -235,7 +236,7 @@ bool ChartActions::refresh()
     for (const char *id : {"chart.editData", "chartdesign.editData", "chartdesign.selectData", "chartdesign.switch"}) {
         QAction *a = act(QString::fromLatin1(id));
         a->setEnabled(editable && info.dataEditable && problem.isEmpty());
-        a->setToolTip(problem);
+        a->setToolTip(plainToolTip(problem));
     }
     act(QStringLiteral("chartdesign.changeType"))->setEnabled(editable);
     act(QStringLiteral("chartdesign.formatPart"))->setEnabled(editable);

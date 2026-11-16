@@ -548,7 +548,7 @@ void WriteWindow::refreshChartUi()
     for (const char *id : {"chart.editData", "chartdesign.editData", "chartdesign.selectData", "chartdesign.switch"}) {
         QAction *a = act(QString::fromLatin1(id));
         a->setEnabled(editable && info.dataEditable && problem.isEmpty());
-        a->setToolTip(problem);
+        a->setToolTip(plainToolTip(problem));
     }
     for (const char *id : {"chartdesign.changeType", "chartdesign.formatPart"}) act(QString::fromLatin1(id))->setEnabled(editable);
     act("chartdesign.axisH")->setEnabled(editable && info.hasAxes);
