@@ -4167,9 +4167,15 @@ bool applyCropPlan(Model &m, const CropPlan &plan)
 {
     if (!plan.valid) return false;
     const double now[4] = {plan.shares.left, plan.shares.top, plan.shares.right, plan.shares.bottom};
+    const qint64 least = qint64(kLeastPictureSize * kEmuPerPoint), most = qint64(kMostPictureSize * kEmuPerPoint);
+    const qint64 w = std::clamp<qint64>(qint64(std::llround(plan.frame.width())), least, most);
+    const qint64 h = std::clamp<qint64>(qint64(std::llround(plan.frame.height())), least, most);
+    // The frame and the cut go in together or not at all: a frame the size limits change would show the cut at another scale, and a cut applyCut refuses would be left with a new frame.
+    if (std::abs(double(w) - plan.frame.width()) > 1 || std::abs(double(h) - plan.frame.height()) > 1) return false;
+    double was[4];
+    cutOf(m.graphic, was);
+    if (1 - was[0] - was[2] < 0.02 || 1 - was[1] - was[3] < 0.02 || 1 - now[0] - now[2] < 0.02 || 1 - now[1] - now[3] < 0.02) return false;
     bool changed = applyCut(m, now);
-    const qint64 w = std::clamp<qint64>(qint64(std::llround(plan.frame.width())), qint64(kLeastPictureSize * kEmuPerPoint), qint64(kMostPictureSize * kEmuPerPoint));
-    const qint64 h = std::clamp<qint64>(qint64(std::llround(plan.frame.height())), qint64(kLeastPictureSize * kEmuPerPoint), qint64(kMostPictureSize * kEmuPerPoint));
     if (m.cx != w || m.cy != h) {
         m.graphic = graphicWithSize(m.graphic, w, h);
         m.cx = w;
