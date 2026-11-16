@@ -665,7 +665,7 @@ void WriteTests::eachWrapOfAPictureShowsOnThePageIsOneStepAndSavesAndOpensTheSam
         QTextCursor c(doc->story());
         QCOMPARE(insertPicture(*doc, c, pngOf(160, 160)), PictureResult::Ok);   // 120 points square, in line with the text
         QVERIFY(pictureItemsOfPage(*doc).isEmpty());
-        QVERIFY2(firstLineRect(*doc).height() >= 119, qPrintable(QString::number(firstLineRect(*doc).height())));
+        QVERIFY2(firstLineRect(*doc).height() >= pictureAt(*doc, doc->story(), 0).height - 1, qPrintable(QString::number(firstLineRect(*doc).height())));   // (the line is as tall as the picture)
         QVERIFY(setPictureWrap(*doc, 0, k.wrap));
         const PictureInfo info = pictureAt(*doc, doc->story(), 0);
         QVERIFY(info.floating && info.wrap == k.wrap);
@@ -673,9 +673,9 @@ void WriteTests::eachWrapOfAPictureShowsOnThePageIsOneStepAndSavesAndOpensTheSam
         // On the page: a picture set at a place, and the text going round it as the wrap says.
         QCOMPARE(pictureItemsOfPage(*doc).size(), 1);
         const QRectF line = firstLineRect(*doc);
-        if (k.wrap == PictureWrap::Square || k.wrap == PictureWrap::Tight) QVERIFY2(line.left() >= 118, qPrintable(QString::number(line.left())));
-        else if (k.wrap == PictureWrap::TopAndBottom) QVERIFY2(line.top() >= 118, qPrintable(QString::number(line.top())));
-        else QVERIFY2(line.left() < 2 && line.height() < 40, qPrintable(QString::number(line.left())));
+        if (k.wrap == PictureWrap::Square || k.wrap == PictureWrap::Tight) QVERIFY2(line.left() >= info.width - 1, qPrintable(QString::number(line.left())));
+        else if (k.wrap == PictureWrap::TopAndBottom) QVERIFY2(line.top() >= info.height - 1, qPrintable(QString::number(line.top())));
+        else QVERIFY2(line.left() < 2 && line.height() < info.height / 2, qPrintable(QString::number(line.left())));
         // One Undo, and the picture is in line again; one more takes the picture away.
         QVERIFY(doc->undo());
         QVERIFY(pictureAt(*doc, doc->story(), 0).wrap == PictureWrap::Inline);
@@ -751,7 +751,7 @@ void WriteTests::aWrapSideAndTheRoomRoundAPictureAreOneStepEachAndSave()
     QVERIFY(setPictureWrapDistances(*doc, 0, 0, 0, 0, 5));
     const double near = firstLineRect(*doc).left();
     QVERIFY(setPictureWrapDistances(*doc, 0, 0, 0, 0, 60));
-    QVERIFY2(firstLineRect(*doc).left() > near + 40, qPrintable(QString::number(firstLineRect(*doc).left()) + " vs " + QString::number(near)));
+    QVERIFY2(firstLineRect(*doc).left() > near + 50, qPrintable(QString::number(firstLineRect(*doc).left()) + " vs " + QString::number(near)));
     // A file's own distances on the wrap element are the ones kept when the side changes (they come before the anchor's when read).
     QVERIFY(doc->undo());
     QVERIFY(doc->undo());
@@ -766,7 +766,7 @@ void WriteTests::theOutlineOfATightWrapIsEditedSavedAndFollowedByTheText()
     QTextCursor c(doc->story());
     QCOMPARE(insertPicture(*doc, c, pngOf(160, 160)), PictureResult::Ok);
     QVERIFY(setPictureWrap(*doc, 0, PictureWrap::Tight));   // (tight until it has an outline of its own goes round its frame)
-    QVERIFY2(firstLineRect(*doc).left() >= 118, qPrintable(QString::number(firstLineRect(*doc).left())));
+    QVERIFY2(firstLineRect(*doc).left() >= pictureAt(*doc, doc->story(), 0).width - 1, qPrintable(QString::number(firstLineRect(*doc).left())));
     PictureInfo info = pictureAt(*doc, doc->story(), 0);
     QCOMPARE(startingWrapOutline(info).size(), 8);   // (the corners and the middles of the sides)
     QPolygonF triangle;
@@ -778,20 +778,25 @@ void WriteTests::theOutlineOfATightWrapIsEditedSavedAndFollowedByTheText()
     QCOMPARE(info.wrapOutline.size(), 3);
     QCOMPARE(info.wrapOutline[0], QPointF(0.5, 0));
     // The first line is at the point of the triangle: it goes on past the point's side, not past the whole frame.
-    QVERIFY2(firstLineRect(*doc).left() < 100, qPrintable(QString::number(firstLineRect(*doc).left())));
+    QVERIFY2(firstLineRect(*doc).left() < pictureAt(*doc, doc->story(), 0).width * triangle[0].x(), qPrintable(QString::number(firstLineRect(*doc).left())));
     const QByteArray xml = documentXml(doc->toDocx());
     QVERIFY(xml.contains("<wp:wrapPolygon edited=\"1\">") && xml.contains("<wp:start x=\"10800\" y=\"0\"/>"));
     auto back = open(doc->toDocx());
     QVERIFY(back);
     QCOMPARE(pictureAt(*back, back->story(), 0).wrapOutline, triangle);
-    QVERIFY2(firstLineRect(*back).left() < 100, "the outline lays out after opening");
+    QVERIFY2(firstLineRect(*back).left() < pictureAt(*back, back->story(), 0).width * triangle[0].x(), "the outline lays out after opening");
     // A square wrap given an outline becomes a tight one; an empty one gives the frame back; one that is not an outline is refused.
     QVERIFY(setPictureWrap(*doc, 0, PictureWrap::Square));
     QVERIFY(setPictureWrapOutline(*doc, 0, triangle));
     QVERIFY(pictureAt(*doc, doc->story(), 0).wrap == PictureWrap::Tight);
     QVERIFY(setPictureWrapOutline(*doc, 0, QPolygonF()));
-    QVERIFY(pictureAt(*doc, doc->story(), 0).wrapOutline.size() >= 3);   // (the frame's four corners)
-    QVERIFY2(firstLineRect(*doc).left() >= 118, qPrintable(QString::number(firstLineRect(*doc).left())));
+    QSet<QPair<int, int>> corners;
+    for (const QPointF &p : pictureAt(*doc, doc->story(), 0).wrapOutline) {
+        QVERIFY2((p.x() == 0 || p.x() == 1) && (p.y() == 0 || p.y() == 1), "a point that is not a corner");
+        corners.insert({int(p.x()), int(p.y())});
+    }
+    QCOMPARE(corners.size(), 4);   // (the frame's four corners, each there)
+    QVERIFY2(firstLineRect(*doc).left() >= pictureAt(*doc, doc->story(), 0).width - 1, qPrintable(QString::number(firstLineRect(*doc).left())));
     QPolygonF two;
     two << QPointF(0, 0) << QPointF(1, 1);
     QVERIFY(!setPictureWrapOutline(*doc, 0, two));
@@ -800,6 +805,41 @@ void WriteTests::theOutlineOfATightWrapIsEditedSavedAndFollowedByTheText()
     // The outline of a picture in line, behind the text, or in front of it is not set.
     QVERIFY(setPictureWrap(*doc, 0, PictureWrap::BehindText));
     QVERIFY(!setPictureWrapOutline(*doc, 0, triangle));
+}
+
+
+// The paginator and the page layer give the text the same room round a Tight outline, whichever side it is asked for: the lines they make start and end in the same places.
+void WriteTests::thePaginatorAndThePageLayerLeaveTheSameRoomRoundATightOutline()
+{
+    for (const PictureWrapSide side : {PictureWrapSide::Left, PictureWrapSide::Right, PictureWrapSide::Both}) {
+        auto doc = textDoc({longText()});
+        QTextCursor c(doc->story());
+        QCOMPARE(insertPicture(*doc, c, pngOf(160, 160)), PictureResult::Ok);
+        QVERIFY(setPicturePlace(*doc, 0, 200, 72));   // (in the column, with room on both sides)
+        QVERIFY(setPictureWrap(*doc, 0, PictureWrap::Tight));
+        QPolygonF outline;
+        outline << QPointF(0.5, 0) << QPointF(1, 1) << QPointF(0, 1);
+        QVERIFY(setPictureWrapOutline(*doc, 0, outline));
+        if (side != PictureWrapSide::Both) QVERIFY(setPictureWrapSide(*doc, 0, side));
+        const auto page = doc->pager().materialize(0);
+        QVERIFY(page && !page->boxes.isEmpty());
+        const auto *item = dynamic_cast<const TextItem *>(page->doc->item(page->boxes[0]));
+        QVERIFY(item);
+        LayoutCache cache;
+        const LayoutCache::FrameLayout fl = cache.textFrame(*page->doc, *item, page->number, RenderOptions());
+        QVERIFY(fl.layout);
+        const auto drawn = fl.layout->lineInfo(0);
+        const auto laid = doc->pager().lines(0);
+        QVERIFY2(drawn.size() >= 4 && laid.size() >= 4, qPrintable(QString::number(drawn.size()) + " " + QString::number(laid.size())));
+        // (The lines beside the picture: the first ones, within its height.)
+        const double height = pictureAt(*doc, doc->story(), 0).height;
+        int compared = 0;
+        for (int i = 0; i < std::min(drawn.size(), laid.size()) && drawn[i].rect.top() < height; ++i, ++compared) {
+            QVERIFY2(std::abs(drawn[i].rect.left() - laid[i].rect.left()) < 0.5 && std::abs(drawn[i].rect.right() - laid[i].rect.right()) < 0.5,
+                     qPrintable(QStringLiteral("side %1 line %2: page %3..%4, paginator %5..%6").arg(int(side)).arg(i).arg(drawn[i].rect.left()).arg(drawn[i].rect.right()).arg(laid[i].rect.left()).arg(laid[i].rect.right())));
+        }
+        QVERIFY2(compared >= 2, qPrintable(QStringLiteral("height %1, first lines at %2 and %3").arg(height).arg(drawn[0].rect.top()).arg(laid[0].rect.top())));
+    }
 }
 
 

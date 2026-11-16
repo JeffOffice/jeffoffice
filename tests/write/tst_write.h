@@ -1619,6 +1619,7 @@ private Q_SLOTS:
     void eachWrapOfAPictureShowsOnThePageIsOneStepAndSavesAndOpensTheSame();
     void aWrapSideAndTheRoomRoundAPictureAreOneStepEachAndSave();
     void theOutlineOfATightWrapIsEditedSavedAndFollowedByTheText();
+    void thePaginatorAndThePageLayerLeaveTheSameRoomRoundATightOutline();
     void aLongWrapOutlineIsHeldToTheMostPointsWhenSetAndWhenRead();
     void aPictureIsCutToAnAspectRatioFilledAndFittedInOneStepEach();
     void aPictureMarkedAsDecorativeHasNoDescriptionAndKeepsTheMarkWhenSaved();
