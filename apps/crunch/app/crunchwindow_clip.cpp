@@ -418,26 +418,57 @@ void CrunchWindow::pasteTextImport()
         notice(tr("Paste Text Import"), tr("The clipboard has no text to split. Copy some text, and try again."));
         return;
     }
-    const QString text = md->text();
+    importPastedText(md->text(), true);
+}
+
+// The text asked about in the import window (the one that opens a .csv): its dialect guessed from the text (the tabs of text copied from a sheet, else the commas, semicolons, or bars, or the
+// columns of fixed width it has, else a comma), the choices put to the person, and the fields entered as if typed, one step of Undo. False when the person cancelled or nothing was entered.
+bool CrunchWindow::importPastedText(const QString &text, bool any)
+{
     TextImportRequest req;
     req.locale = QLocale();
     req.head = text.toUtf8().left(jp::office::sheet::kCsvPreviewBytes);
     req.size = text.toUtf8().size();
     req.choices.encodingSet = true;
-    req.choices.separators = text.contains(QLatin1Char('\t')) ? QStringLiteral("\t") : QStringLiteral(",");
+    if (!crunch::guessDelimitedText(text, &req.choices)) {
+        if (!any) return false;
+        req.choices.separators = text.contains(QLatin1Char('\t')) ? QStringLiteral("\t") : QStringLiteral(",");
+    }
     if (m_anchorHooks.textImportAsker) {
-        if (!m_anchorHooks.textImportAsker(&req)) return;
+        if (!m_anchorHooks.textImportAsker(&req)) return true;
     } else {
         TextImportDialog dialog(req, this);
-        if (dialog.exec() != QDialog::Accepted) return;
+        if (dialog.exec() != QDialog::Accepted) return true;
         req.choices = dialog.choices();
     }
     const QVector<QStringList> table = crunch::splitDelimitedText(text, req.choices);
-    if (table.isEmpty()) return;
+    if (table.isEmpty()) return true;
     const qint64 before = m_loader.changesMade();
     const crunch::EditSession::Outcome o = m_session->pasteText(m_sheet, selectedRange(), table, crunch::EditSession::PasteOptions());
     if (!o.ok) {
         if (!o.confirm) notice(tr("Paste Text Import"), o.problem);
+        return true;
+    }
+    if (m_loader.changesMade() != before) m_calculating = true;
+    if (o.range.valid) {
+        widenForCells(m_sheet, o.range);
+        m_view->selectRange(o.range.row1, o.range.col1, o.range.row2, o.range.col2);
+    }
+    return true;
+}
+
+// Text dropped from another program: as a paste is (cells of tab-separated text go straight in; clearly delimited text asks in the import window), at the selected cell.
+void CrunchWindow::dropText(const QString &text)
+{
+    if (m_edit.active) commitEdit(CellEditor::Way::Stay);
+    if (m_edit.active || !m_session || !editingAllowed() || text.isEmpty()) return;
+    if (importPastedText(text, false)) return;
+    const QVector<QStringList> table = crunch::parseTabSeparated(text);
+    if (table.isEmpty()) return;
+    const qint64 before = m_loader.changesMade();
+    const crunch::EditSession::Outcome o = m_session->pasteText(m_sheet, selectedRange(), table, crunch::EditSession::PasteOptions());
+    if (!o.ok) {
+        if (!o.confirm) notice(tr("Paste"), o.problem);
         return;
     }
     if (m_loader.changesMade() != before) m_calculating = true;
@@ -553,7 +584,13 @@ void CrunchWindow::pasteClipboard(const crunch::EditSession::PasteOptions &optio
     using Options = crunch::EditSession::PasteOptions;
     const bool rich = md->hasFormat(QLatin1String(crunch::kClipMime)) && ClipData::fromBytes(md->data(QLatin1String(crunch::kClipMime)), &clip) && clip.valid();
     QVector<QStringList> table;
+    jp::office::sheet::CsvImport guessed;
     if (!rich) {
+        // Text that is clearly commas, semicolons, bars, or columns of fixed width asks in the import window (a tab in it keeps it going straight into cells).
+        if (md->hasText() && crunch::guessDelimitedText(md->text(), &guessed)) {
+            importPastedText(md->text(), false);
+            return;
+        }
         if (md->hasText()) table = crunch::parseTabSeparated(md->text());
         if (table.isEmpty() && md->hasHtml()) table = crunch::parseHtmlTable(md->html());
         if (table.isEmpty()) return;

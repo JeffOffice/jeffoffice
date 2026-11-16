@@ -164,7 +164,7 @@ public:
     void paste();
     // Paste with a choice: keep the source's formatting (as Paste), merge with the formatting around (the emphasis stays), text only, a picture, or the clipboard's HTML. Which of them the
     // clipboard can give now.
-    enum class PasteKind { Keep, Merge, TextOnly, Picture, Html };
+    enum class PasteKind { Keep, Merge, TextOnly, Picture, Html, Rtf };
     bool canPaste(PasteKind kind) const;
     void pasteAs(PasteKind kind);
     // After a paste, the Paste Options button offers the other ways to paste the same clipboard. The offer holds until anything else changes the text or the caret moves.
@@ -644,8 +644,13 @@ private:
         bool parsed = false;
         std::optional<office::wml::ClipTable> cells;
     };
+    struct RtfOfClip {
+        bool parsed = false;
+        std::optional<Clip> clip;
+    };
     struct PasteSource {
         std::shared_ptr<const QMimeData> mime;
+        std::shared_ptr<RtfOfClip> rtf;
         Clip clip;
         QString clipText;
         bool clipWhole = true;
@@ -655,9 +660,13 @@ private:
     PasteSource clipboardSource() const;
     PasteSource source() const { return m_pasteAgain ? *m_pasteAgain : clipboardSource(); }
     const std::optional<office::wml::ClipTable> &cellsOf(const PasteSource &from) const;
+    // The formatted text (RTF) another program put on the clipboard or in a drop, read once; none when there is none or it can't be read.
+    const std::optional<Clip> &rtfOf(const PasteSource &from) const;
     bool canPasteFrom(const PasteSource &from, PasteKind kind) const;
     mutable std::shared_ptr<CellsOfClip> m_clipCells;   // the clipboard's cells, parsed: for as long as the clipboard is what it is
     mutable const QMimeData *m_clipCellsOf = nullptr;
+    mutable std::shared_ptr<RtfOfClip> m_clipRtf;
+    mutable const QMimeData *m_clipRtfOf = nullptr;
     std::optional<PasteSource> m_pasteAgain;            // while a choice pastes the last paste again: what that was made from
     struct LastPaste {
         int from = -1, selectionEnd = -1, to = -1;   // the place the paste began (and where the selection it replaced ended), and where it ended

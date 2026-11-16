@@ -1,8 +1,10 @@
 #pragma once
 // What Insert, Design, and Layout put into a document that the editing operations (editops.h) do not: a symbol in a font of its own, and a blank page.
 
+#include <QByteArray>
 #include <QString>
 
+class QMimeData;
 class QTextCursor;
 
 namespace jp::write {
@@ -28,5 +30,13 @@ constexpr int kMostInsertedParagraphs = 200000;
 // The text of another file (a `.docx`, `.doc`, `.rtf`, or `.odt` document, with its looks, pictures, and links; or a plain text file) put in at the caret, replacing the selection;
 // one step of the history. False, with `problem` told as a sentence, where the file is too large or is neither.
 bool insertTextFromFile(WriteDoc &doc, QTextCursor &c, const QByteArray &bytes, QString *problem = nullptr);
+
+// Formatted text from another program (the clipboard or a drop) as Rich Text Format: the most bytes of it that are read (what is more is left alone, and the
+// paste goes by the HTML or the text), the bytes the mime data holds of it (empty when it holds none, or what it holds does not begin as Rich Text Format does),
+// and the copy that the RTF reader makes of it, as a clip to paste with its looks, pictures, and links.
+constexpr qint64 kMostPastedRtf = qint64(16) << 20;
+QByteArray rtfOfMime(const QMimeData *mime);
+struct Clip;
+bool clipFromRtf(const QByteArray &bytes, Clip *out, QString *problem = nullptr);
 
 } // namespace jp::write

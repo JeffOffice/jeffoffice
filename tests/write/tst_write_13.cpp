@@ -1410,6 +1410,28 @@ void WriteTests::goToOpensWithCtrlGAndPutsTheCaretAtThePlaceNamed()
 }
 
 
+void WriteTests::rtfDroppedFromAnotherProgramKeepsItsLooks()
+{
+    auto w = styWindow("<w:p><w:r><w:t>One two</w:t></w:r></w:p>");
+    PageView *view = w->view();
+    QMimeData mime;
+    mime.setData(QStringLiteral("text/rtf"), QByteArray("{\\rtf1\\ansi{\\fonttbl{\\f0 Arial;}}\\f0 \\b dropped\\b0\\par}"));
+    mime.setText(QStringLiteral("TEXTCOPY"));
+    const QPoint at = styPointOf(view, 3);
+    QDragEnterEvent enter(at, Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(view->viewport(), &enter);
+    QVERIFY(enter.isAccepted());
+    QDropEvent e(QPointF(at), Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(view->viewport(), &e);
+    QVERIFY(e.isAccepted());
+    const QString text = w->document()->story()->toPlainText();
+    QVERIFY(text.contains(QStringLiteral("dropped")));
+    QVERIFY(!text.contains(QStringLiteral("TEXTCOPY")));
+    QTextCursor c(w->document()->story());
+    c.setPosition(text.indexOf(QStringLiteral("dropped")) + 1);
+    QVERIFY(c.charFormat().fontWeight() >= QFont::DemiBold);
+}
+
 void WriteTests::dragAndDropMovesSelectedTextOrCopiesItWithCtrlInOneStep()
 {
     auto w = styWindow("<w:p><w:r><w:t>One two three four five</w:t></w:r></w:p>");

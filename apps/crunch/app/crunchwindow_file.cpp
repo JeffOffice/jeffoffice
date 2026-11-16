@@ -173,6 +173,7 @@ bool CrunchWindow::openFile(const QString &path, OpenHow how)
         w->m_closeIfOpenFails = true;
         w->setNotifier(m_notifier);
         w->m_promptForText = m_promptForText;
+        w->m_textImport = m_textImport;
         w->m_forceTextPrompt = m_forceTextPrompt;
         w->m_anchorHooks = m_anchorHooks;
         m_forceTextPrompt = false;
@@ -189,7 +190,9 @@ bool CrunchWindow::openFile(const QString &path, OpenHow how)
     how = trust::openHowFor(path, how, &heldBack);
     // a text file of values: how it is read is asked first (the window that opens it asks)
     std::shared_ptr<const jp::office::sheet::CsvImport> csv;
-    if ((m_promptForText && jp::office::sheet::isDelimitedName(path)) || m_forceTextPrompt) {
+    if (m_textImport && jp::office::sheet::isDelimitedName(path) && !m_forceTextPrompt) {
+        csv = m_textImport;   // (the command line gave how it is read)
+    } else if ((m_promptForText && jp::office::sheet::isDelimitedName(path)) || m_forceTextPrompt) {
         m_forceTextPrompt = false;
         if (!askTextImport(path, &csv)) return false;
     }

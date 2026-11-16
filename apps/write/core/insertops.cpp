@@ -5,10 +5,12 @@
 #include "core/refops.h"
 #include "core/tableops.h"
 #include "core/writedoc.h"
+#include "rtf/rtf.h"
 
 #include <QCoreApplication>
 #include <QDate>
 #include <QLocale>
+#include <QMimeData>
 #include <QTextCursor>
 #include <memory>
 
@@ -165,6 +167,37 @@ bool insertTextFromFile(WriteDoc &doc, QTextCursor &c, const QByteArray &bytes, 
     if (text.isEmpty()) return fail(QCoreApplication::translate("jp::write::InsertText", "That file has no text."));
     insertText(doc, c, text);
     return true;
+}
+
+static const QStringList &rtfFormats()
+{
+    static const QStringList f = {QStringLiteral("text/rtf"), QStringLiteral("application/rtf"), QStringLiteral("text/richtext"),
+                                  QStringLiteral("application/x-qt-windows-mime;value=\"Rich Text Format\"")};
+    return f;
+}
+
+QByteArray rtfOfMime(const QMimeData *mime)
+{
+    if (!mime) return {};
+    for (const QString &f : rtfFormats()) {
+        if (!mime->hasFormat(f)) continue;
+        const QByteArray bytes = mime->data(f);
+        if (bytes.size() <= kMostPastedRtf && office::rtf::looksLikeRtf(bytes)) return bytes;
+    }
+    return {};
+}
+
+bool clipFromRtf(const QByteArray &bytes, Clip *out, QString *problem)
+{
+    if (bytes.size() > kMostPastedRtf) return false;
+    std::unique_ptr<WriteDoc> other = WriteDoc::fromRtf(bytes, problem);
+    if (!other || other->story()->blockCount() > kMostInsertedParagraphs) return false;
+    QTextCursor all(other->story());
+    all.setPosition(0);
+    all.setPosition(editableEnd(other->story()), QTextCursor::KeepAnchor);
+    if (!all.hasSelection()) return false;
+    *out = copySelection(*other, all);
+    return !out->isEmpty();
 }
 
 } // namespace jp::write

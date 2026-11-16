@@ -16,6 +16,11 @@
 #include <QAction>
 #include <QApplication>
 #include <QClipboard>
+#include <QDialog>
+#include <QDir>
+#include <QDragEnterEvent>
+#include <QTimer>
+#include "app/theme.h"
 #include <QMenu>
 #include <QToolButton>
 #include <QDataStream>
@@ -468,6 +473,136 @@ private Q_SLOTS:
         QCOMPARE(e.valueAt(QStringLiteral("C3")), QStringLiteral("n:12"));
         QCOMPARE(e.valueAt(QStringLiteral("D4")), QStringLiteral("n:0.25"));
         QCOMPARE(e.win.w.undoStack()->count(), 1);
+    }
+
+    static void putText(const QString &text)
+    {
+        auto *md = new QMimeData;
+        md->setText(text);
+        QApplication::clipboard()->setMimeData(md);
+    }
+
+    // Text from another program that is clearly comma-, semicolon-, bar-, or fixed-width-separated across lines asks in the import window, with the dialect guessed; tabs go straight in.
+    void delimitedTextPastedFromAnotherProgramOpensTheImportWindow()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1"})));
+        int asked = 0;
+        TextImportRequest seen;
+        e.win.w.anchorHooks().textImportAsker = [&](TextImportRequest *r) {
+            ++asked;
+            seen = *r;
+            return true;
+        };
+        // tab-separated: straight in, nothing asked
+        putText(QStringLiteral("a\tb\nc\td\n"));
+        e.select(QStringLiteral("A5"));
+        e.win.w.act(QStringLiteral("edit.paste"))->trigger();
+        QVERIFY(e.settle());
+        QCOMPARE(asked, 0);
+        QCOMPARE(e.valueAt(QStringLiteral("B6")), QStringLiteral("s:d"));
+        // one line, or lines that do not match: words
+        for (const QString &words : {QStringLiteral("Hello, world"), QStringLiteral("one, two\nthree, four, five\n"), QStringLiteral("just some words\nand more words\n")}) {
+            putText(words);
+            e.select(QStringLiteral("A9"));
+            e.win.w.act(QStringLiteral("edit.paste"))->trigger();
+            QVERIFY(e.settle());
+        }
+        QCOMPARE(asked, 0);
+        // commas
+        putText(QStringLiteral("name,qty\nApple,12\n\"Pear, green\",3\n"));
+        e.select(QStringLiteral("C1"));
+        e.win.w.act(QStringLiteral("edit.paste"))->trigger();
+        QVERIFY(e.settle());
+        QCOMPARE(asked, 1);
+        QCOMPARE(seen.choices.separators, QStringLiteral(","));
+        QCOMPARE(e.valueAt(QStringLiteral("C3")), QStringLiteral("s:Pear, green"));
+        QCOMPARE(e.valueAt(QStringLiteral("D3")), QStringLiteral("n:3"));
+        // semicolons, the commas of the numbers being decimal marks
+        putText(QStringLiteral("x;y\n1,5;2,25\n3;4\n"));
+        e.select(QStringLiteral("A20"));
+        e.win.w.act(QStringLiteral("edit.paste"))->trigger();
+        QCOMPARE(asked, 2);
+        QCOMPARE(seen.choices.separators, QStringLiteral(";"));
+        QCOMPARE(seen.choices.decimalMark, QChar(','));
+        // columns of fixed width
+        putText(QStringLiteral("Name   Qty Price\nApple   12  1.5\nPear     3  0.25\n"));
+        e.select(QStringLiteral("B30"));
+        e.win.w.act(QStringLiteral("edit.paste"))->trigger();
+        QVERIFY(e.settle());
+        QCOMPARE(asked, 3);
+        QVERIFY(seen.choices.fixedWidth);
+        QCOMPARE(seen.choices.breaks, (QVector<int>{7, 11}));
+        // the person cancels: nothing is put in
+        e.win.w.anchorHooks().textImportAsker = [&](TextImportRequest *) {
+            ++asked;
+            return false;
+        };
+        putText(QStringLiteral("p,q\n1,2\n"));
+        e.select(QStringLiteral("H40"));
+        e.win.w.act(QStringLiteral("edit.paste"))->trigger();
+        QCOMPARE(asked, 4);
+        QCOMPARE(e.valueAt(QStringLiteral("H40")), QStringLiteral("-"));
+    }
+
+    // The import window opened by a paste, as pictures for the docs (only with CR_SHOT_DIR: a folder).
+    void picturesOfTheImportWindowFromAPaste()
+    {
+        const QString dir = qEnvironmentVariable("CR_SHOT_DIR");
+        if (dir.isEmpty()) QSKIP("CR_SHOT_DIR is not set");
+        jp::applyUiTheme(1);
+        const QStringList texts = {QStringLiteral("name,qty,price\nApple,12,1.50\n\"Pear, green\",3,0.25\nPlum,40,0.1\n"),
+                                   QStringLiteral("Name   Qty Price\nApple   12  1.5\nPear     3  0.25\nPlum    40  0.1\n")};
+        const QStringList names = {QStringLiteral("paste-comma.png"), QStringLiteral("paste-fixed.png")};
+        for (int i = 0; i < texts.size(); ++i) {
+            EditWindow e;
+            QVERIFY(e.open(sheetOf({"A1=1"})));
+            e.win.w.show();
+            putText(texts[i]);
+            bool grabbed = false;
+            QTimer poll;
+            poll.setInterval(20);
+            connect(&poll, &QTimer::timeout, &poll, [&] {
+                auto *d = e.win.w.findChild<QDialog *>(QStringLiteral("textImportDialog"));
+                if (!d || !d->isVisible()) return;
+                grabbed = d->grab().save(QDir(dir).filePath(names[i]));
+                d->accept();
+            });
+            poll.start();
+            e.win.w.act(QStringLiteral("edit.paste"))->trigger();
+            QVERIFY(grabbed);
+        }
+    }
+
+    // Text dropped from another program is handled as a paste is.
+    void delimitedTextDroppedFromAnotherProgramOpensTheImportWindow()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1"})));
+        int asked = 0;
+        e.win.w.anchorHooks().textImportAsker = [&](TextImportRequest *r) {
+            ++asked;
+            r->choices.separators = QStringLiteral("|");
+            return true;
+        };
+        auto drop = [&](const QString &text) {
+            QMimeData mime;
+            mime.setText(text);
+            QDragEnterEvent enter(QPoint(50, 50), Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
+            QApplication::sendEvent(&e.win.w, &enter);
+            QVERIFY(enter.isAccepted());
+            QDropEvent drop(QPointF(50, 50), Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
+            QApplication::sendEvent(&e.win.w, &drop);
+            QVERIFY(drop.isAccepted());
+        };
+        e.select(QStringLiteral("A5"));
+        drop(QStringLiteral("a\tb\nc\td\n"));
+        QTRY_COMPARE(e.valueAt(QStringLiteral("B6")), QStringLiteral("s:d"));
+        QCOMPARE(asked, 0);
+        e.select(QStringLiteral("A10"));
+        drop(QStringLiteral("n,m\n1,2\n3,4\n"));
+        QTRY_COMPARE(asked, 1);
+        QTRY_COMPARE(e.valueAt(QStringLiteral("A10")), QStringLiteral("s:n,m"));   // (the asker chose bars: the commas stay in the words)
     }
 
     // Set Default Paste: what Paste (and Ctrl+V) puts in when cells are on the clipboard is the choice kept in the settings; Paste Special and the menu's own choices are not changed by it.

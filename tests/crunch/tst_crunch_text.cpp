@@ -5,6 +5,7 @@
 #include "app/crunchwindow.h"
 #include "app/textimportdialog.h"
 #include "core/appinfo.h"
+#include "core/clipdata.h"
 #include "core/fonts.h"
 #include "crunchbooks.h"
 #include "crunchwindowhelpers.h"
@@ -60,6 +61,69 @@ private Q_SLOTS:
         QVERIFY(e.open("a;b\n1;2\n", QStringLiteral("data.csv")));
         QVERIFY(!asked);
         QCOMPARE(e.shownAt(QStringLiteral("B2")), QStringLiteral("2"));
+    }
+
+    // The command line says how a text file is read (--separator, --encoding, --decimal): no question, and what it says is used.
+    void theCommandLineChoicesAreUnderstood()
+    {
+        using jp::office::sheet::CsvEncoding;
+        jp::office::sheet::CsvImport how;
+        QString why;
+        QVERIFY(crunch::textImportFromOptions(QStringLiteral("semicolon"), QStringLiteral("Windows-1250"), QStringLiteral("comma"), &how, &why));
+        QCOMPARE(how.separators, QStringLiteral(";"));
+        QVERIFY(how.encodingSet);
+        QVERIFY(how.encoding == CsvEncoding::Legacy);
+        QCOMPARE(how.codePage, 1250);
+        QCOMPARE(how.decimalMark, QChar(','));
+        QVERIFY(crunch::textImportFromOptions(QStringLiteral("tab"), QStringLiteral("utf-16le"), QString(), &how, &why));
+        QCOMPARE(how.separators, QStringLiteral("\t"));
+        QVERIFY(how.encoding == CsvEncoding::Utf16Le);
+        QVERIFY(crunch::textImportFromOptions(QStringLiteral("#"), QStringLiteral("iso-8859-15"), QStringLiteral("."), &how, &why));
+        QCOMPARE(how.codePage, 28605);
+        QVERIFY(crunch::textImportFromOptions(QString(), QString(), QString(), &how, &why));
+        QVERIFY(how.separators.isEmpty() && !how.encodingSet);
+        QVERIFY(!crunch::textImportFromOptions(QStringLiteral("two"), QString(), QString(), &how, &why));
+        QVERIFY(why.contains(QStringLiteral("two")));
+        QVERIFY(!crunch::textImportFromOptions(QString(), QStringLiteral("klingon"), QString(), &how, &why));
+        QVERIFY(!crunch::textImportFromOptions(QString(), QString(), QStringLiteral("x"), &how, &why));
+    }
+
+    // The guess for pasted text looks at 100 lines and 64 KB, nothing more.
+    void theGuessForPastedTextLooksAtTheFirstHundredLinesOnly()
+    {
+        jp::office::sheet::CsvImport c;
+        QString text;
+        for (int i = 0; i < 100; ++i) text += QStringLiteral("a,b\n");
+        text += QStringLiteral("a,b,c,d\n");   // (line 101: not looked at)
+        QVERIFY(crunch::guessDelimitedText(text, &c));
+        QCOMPARE(c.separators, QStringLiteral(","));
+        QVERIFY(!crunch::guessDelimitedText(QStringLiteral("a,b\n") + QStringLiteral("a,b,c\n"), &c));
+        // one line past the bytes looked at, with no line end before it: no guess, and nothing is split
+        QVERIFY(!crunch::guessDelimitedText(QString(crunch::kGuessBytes + 10, QLatin1Char(',')), &c));
+        // tabs, one line, and ordinary words are not guessed
+        QVERIFY(!crunch::guessDelimitedText(QStringLiteral("a,b\tc\nd,e\tf\n"), &c));
+        QVERIFY(!crunch::guessDelimitedText(QStringLiteral("a,b\n"), &c));
+        QVERIFY(!crunch::guessDelimitedText(QStringLiteral("some words here\nmore words there\nand a third line\n"), &c));
+    }
+
+    void aFileOpenedWithTheCommandLineChoicesAsksNothingAndReadsAsTheyAre()
+    {
+        EditWindow e;
+        e.win.w.setPromptForText(true);
+        bool asked = false;
+        e.win.w.anchorHooks().textImportAsker = [&asked](TextImportRequest *) {
+            asked = true;
+            return true;
+        };
+        jp::office::sheet::CsvImport how;
+        QString why;
+        QVERIFY(crunch::textImportFromOptions(QStringLiteral("|"), QStringLiteral("windows-1252"), QStringLiteral("comma"), &how, &why));
+        e.win.w.setTextImport(std::make_shared<const jp::office::sheet::CsvImport>(how));
+        QVERIFY(e.open(QByteArray("a|b;c\n1,5|caf\xe9\n"), QStringLiteral("data.csv")));
+        QVERIFY(!asked);
+        QCOMPARE(e.shownAt(QStringLiteral("B1")), QStringLiteral("b;c"));
+        QCOMPARE(e.shownAt(QStringLiteral("A2")), QStringLiteral("1.5"));
+        QCOMPARE(e.shownAt(QStringLiteral("B2")), QString::fromUtf8("caf\xc3\xa9"));
     }
 
     void aTextFileAsksHowItIsReadAndOpensAsTheAnswerSays()

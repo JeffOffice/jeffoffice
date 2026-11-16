@@ -215,6 +215,8 @@ public:
     AnchorHooks &anchorHooks();
     // Whether opening a .csv, .tsv, or .txt file asks how it is read (the program turns it on; a window made for a test leaves it off, and the file is detected). Open Text File asks always.
     void setPromptForText(bool on) { m_promptForText = on; }
+    // How a text file of values is read when the command line said (--separator, --encoding, --decimal): no question is asked for it.
+    void setTextImport(std::shared_ptr<const jp::office::sheet::CsvImport> how) { m_textImport = std::move(how); }
     // The person's language: how numbers are typed and shown (the decimal mark, the grouping of digits, the order of a date). The window begins with the system's.
     void setLocale(const QLocale &locale);
     // The objects over the cells (null before the window is built).
@@ -1268,6 +1270,8 @@ private:
     void pasteClipboard(const crunch::EditSession::PasteOptions &options);
     void pasteSpecial();
     void pasteTextImport();
+    bool importPastedText(const QString &text, bool any);
+    void dropText(const QString &text);
     void pasteLink();
     void pasteAsHyperlinks();
     bool ownClipboardBlock(crunch::ClipData *clip, const QString &title);
@@ -1828,6 +1832,7 @@ private:
     void protectWithPassword();
     void forgetFilePassword();
     bool m_promptForText = false, m_forceTextPrompt = false;
+    std::shared_ptr<const jp::office::sheet::CsvImport> m_textImport;
     // ---- automatic row heights (crunchwindow_autoheight.cpp)
     void scheduleAutoHeights();
     void stepAutoHeights();

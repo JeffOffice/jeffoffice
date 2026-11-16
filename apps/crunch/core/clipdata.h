@@ -75,4 +75,17 @@ QVector<QStringList> parseHtmlTable(const QString &html);
 // text), a column read as a date turned to year-month-day when it is one in the order given, and a column to skip left out. At most kMaxClipCells fields are made.
 QVector<QStringList> splitDelimitedText(const QString &text, const jp::office::sheet::CsvImport &choices);
 
+// Whether text that came from another program is clearly delimited text, and how: no tab in it (tab-separated text goes straight into cells), at least two lines, and either the
+// same number of fields on every line (two or more) by commas, semicolons, or bars (a semicolon or bar wins over a comma that is there too; quotes are kept whole; a semicolon file whose
+// numbers have commas in them reads them as decimal marks), or, from three lines, columns of fixed width (the same gaps of spaces in every line, at least two of them). Only the first
+// kGuessBytes of the text and kGuessLines lines are looked at. The choices come back set to what was found (the rest left as they are); false when it is not clear.
+constexpr qsizetype kGuessBytes = 65536;
+constexpr int kGuessLines = 100;
+bool guessDelimitedText(const QString &text, jp::office::sheet::CsvImport *choices);
+
+// How a text file of values is read when the command line says (--separator, --encoding, --decimal; each may be empty for "as the file is found to be"). The separator is comma,
+// semicolon, tab, space, or bar, or one character; the encoding is utf-8, utf-8-bom, utf-16le, utf-16be, latin1, mac-roman, windows-NNNN (a code page such as 1250), or iso-8859-N;
+// the decimal mark is a point, a comma, or the word point or comma. False, with `error` saying which value is not understood, otherwise.
+bool textImportFromOptions(const QString &separator, const QString &encoding, const QString &decimal, jp::office::sheet::CsvImport *out, QString *error);
+
 } // namespace jp::crunch
