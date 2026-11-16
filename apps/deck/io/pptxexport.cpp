@@ -214,10 +214,11 @@ QString alignName(Qt::Alignment a)
 
 // The first paragraph at each level of a text, as the master's placeholder
 // holds them; levels it has none for are left unset.
-QVector<Level> levelsOf(const QTextDocument *doc, bool heading, const office::Theme &theme)
+QVector<Level> levelsOf(const QTextDocument *doc, bool heading, const office::Theme &theme, QVector<bool> *said = nullptr)
 {
     QVector<Level> levels(9);
     QVector<bool> found(9, false);
+    if (said) *said = found;
     if (!doc) return levels;
     for (QTextBlock b = doc->begin(); b.isValid(); b = b.next()) {
         const int at = std::clamp(b.blockFormat().property(tp::ListLevel).toInt(), 0, 8);
@@ -268,6 +269,7 @@ QVector<Level> levelsOf(const QTextDocument *doc, bool heading, const office::Th
             l.bulletSize = lf.property(tp::BulletSize).toDouble();
         }
     }
+    if (said) *said = found;
     // A level the placeholder has none of looks like the first, smaller the deeper it goes.
     static const double standard[9] = {28, 24, 20, 18, 18, 18, 18, 18, 18};
     for (int i = 1; i < 9; ++i) {
@@ -554,6 +556,7 @@ private:
                          const QSet<qint64> &mediaIds, const QString *xmlGiven = nullptr);
     QString background(const PageBase &page, const QString &part, bool required, const QString &where);
     QString textStyles(const MasterOut &master);
+    QString withLevelStyles(const QString &xml, const MasterPage &page, const MasterOut &master);
     QString titleOf(const Page &slide, int number) const;
     QByteArray thumbnail() const;
     void note(const QString &text) { m_skipped << text; }
@@ -1310,6 +1313,56 @@ void Exporter::writeMaster(int i)
     add(master.part, kTypeBase + QStringLiteral("slideMaster+xml"), xml);
 }
 
+// A layout's text placeholders say how each level of their text looks (the list style of the shape), so the slides on the layout take what was set for a level here
+// where the layout's text styles differ from the master's: a level the placeholder has a paragraph for is written, from that paragraph. Shapes are matched to the layout's
+// placeholders in order; if their numbers differ, the file is left as it is.
+QString Exporter::withLevelStyles(const QString &xml, const MasterPage &page, const MasterOut &master)
+{
+    QVector<const TextItem *> bodies;
+    for (const ItemPtr &it : page.items) {
+        const QString type = placeholderType(*it);
+        if (it->type() == ItemType::Text && (type == QLatin1String("body") || type == QLatin1String("obj"))) bodies << static_cast<const TextItem *>(it.get());
+    }
+    if (bodies.isEmpty()) return xml;
+    // (The text is changed where it stands, not read and written again: the rest of the layout stays as it was written.)
+    struct Spot {
+        qsizetype at;
+        QString type;
+    };
+    QVector<Spot> lists;
+    for (qsizetype from = 0;;) {
+        const qsizetype open = xml.indexOf(QLatin1String("<p:sp>"), from);
+        if (open < 0) break;
+        const qsizetype close = xml.indexOf(QLatin1String("</p:sp>"), open);
+        if (close < 0) return xml;
+        from = close;
+        const qsizetype ph = xml.indexOf(QLatin1String("<p:ph"), open);
+        if (ph < 0 || ph > close) continue;
+        const qsizetype phEnd = xml.indexOf(QLatin1Char('>'), ph);
+        const QString tag = xml.mid(ph, phEnd - ph);
+        static const QRegularExpression typeAttr(QStringLiteral("\\btype=\"([^\"]*)\""));
+        const QRegularExpressionMatch m = typeAttr.match(tag);
+        const QString type = m.hasMatch() ? m.captured(1) : QString();
+        if (!type.isEmpty() && type != QLatin1String("body") && type != QLatin1String("obj")) continue;
+        const qsizetype lst = xml.indexOf(QLatin1String("<a:lstStyle/>"), ph);
+        if (lst < 0 || lst > close) return xml;
+        lists << Spot{lst, type};
+    }
+    if (lists.size() != bodies.size()) return xml;
+    const bool dark = isDarkBackground(page.background);
+    static const double bodySizes[9] = {28, 24, 20, 18, 18, 18, 18, 18, 18};
+    QString out = xml;
+    for (int k = int(bodies.size()) - 1; k >= 0; --k) {   // (from the last, so that the places found stay where they are)
+        QVector<bool> said;
+        const QVector<Level> levels = levelsOf(m_doc.storyDoc(bodies[k]->storyId), false, master.theme, &said);
+        QString inner;
+        for (int i = 0; i < 9; ++i)
+            if (said[i]) inner += levelXml(i, levels[i], master.theme, dark, false, true, bodySizes[i]);
+        if (!inner.isEmpty()) out.replace(lists[k].at, int(QLatin1String("<a:lstStyle/>").size()), QStringLiteral("<a:lstStyle>") + inner + QStringLiteral("</a:lstStyle>"));
+    }
+    return out;
+}
+
 void Exporter::writeLayout(int i)
 {
     const LayoutOut &layout = m_layouts[i];
@@ -1327,6 +1380,7 @@ void Exporter::writeLayout(int i)
     const QString fill = background(page, layout.part, false, where);
     xml += fill + tree(page, layout.part, where, nullptr) + QStringLiteral("</p:cSld>");
     xml += QStringLiteral("<p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sldLayout>");
+    xml = withLevelStyles(xml, page, m_masters[layout.master]);
     add(layout.part, kTypeBase + QStringLiteral("slideLayout+xml"), xml);
 }
 

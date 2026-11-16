@@ -2414,6 +2414,15 @@ private Q_SLOTS:
         QCOMPARE(sd->findBlockByNumber(2).blockFormat().leftMargin(), 162.0 + 3 * 36.0);
         // A layout with no list gives the levels nothing to take: the call says so and changes nothing.
         auto plain = deck::newPresentation();
+        {
+            // (a layout whose text is one plain paragraph at the first level)
+            QTextDocument *ls = plain->storyDoc(static_cast<TextItem *>(const_cast<Item *>(placeholderOn(layoutOf(*plain, QStringLiteral("obj")), QStringLiteral("obj"))))->storyId);
+            QTextCursor lc(ls);
+            lc.setPosition(ls->begin().position() + ls->begin().length() - 1);
+            lc.movePosition(QTextCursor::End, QTextCursor::KeepAnchor);
+            lc.removeSelectedText();
+            QCOMPARE(ls->blockCount(), 1);
+        }
         deck::addSlide(*plain, layoutOf(*plain, QStringLiteral("obj")));
         const TextItem *plainBody = bodyOf(*plain->pages[1]);
         QVERIFY(!deck::layoutHasList(*plain, *plainBody));
