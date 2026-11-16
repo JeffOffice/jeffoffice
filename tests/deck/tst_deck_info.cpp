@@ -311,11 +311,11 @@ private Q_SLOTS:
             QVERIFY(w.saveTo(dir.filePath(QString::fromLatin1(name)), true));
             QVERIFY2(fileBytes(dir.filePath(QString::fromLatin1(name))).startsWith(QByteArray("\xD0\xCF\x11\xE0", 4)), name);
         }
-        QVERIFY(!w.saveTo(dir.filePath(QStringLiteral("d.otp")), true));
-        QVERIFY(!QFileInfo::exists(dir.filePath(QStringLiteral("d.otp"))));
-        QVERIFY(!quiet.said.isEmpty());
-        // (the message names the kind of file it refused)
-        QVERIFY2(quiet.said.last().contains(QLatin1String(".otp")) && !quiet.said.last().contains(QLatin1String(".odp")), qPrintable(quiet.said.last()));
+        // an .otp holds the password too (OpenDocument form)
+        QVERIFY(w.saveTo(dir.filePath(QStringLiteral("d.otp")), true));
+        const QByteArray otp = fileBytes(dir.filePath(QStringLiteral("d.otp")));
+        QVERIFY(otp.startsWith("PK"));
+        QVERIFY(office::odfEncrypted(otp));
         w.editor()->markSaved();
     }
 

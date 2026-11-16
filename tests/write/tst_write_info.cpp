@@ -857,7 +857,7 @@ private Q_SLOTS:
             return NewPasswordChoice::Set;
         });
         w.encryptWithPassword();
-        QVERIFY(w.incompatibilities().join(QLatin1Char(' ')).contains(QLatin1String("password")));
+        QVERIFY(!w.incompatibilities().join(QLatin1Char(' ')).contains(QLatin1String("password")));   // (an .odt file holds the password now)
     }
 
     void theInfoPageHasItsCardsAndEditsProperties()
