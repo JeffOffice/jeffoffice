@@ -478,12 +478,12 @@ const PageView::ShapeCache &PageView::shapeCache() const
     if (m_doc && position >= 0 && !m_readOnly) {
         c.info = pictureAt(*m_doc, m_doc->story(), position);
         if (c.info.valid && c.info.editable && (c.info.kind == DrawnKind::Shape || c.info.kind == DrawnKind::TextBox)) {
-            c.handles = shapeAdjustHandles(*m_doc, position);
+            if (!m_editWrap) c.handles = shapeAdjustHandles(*m_doc, position);
             if (m_editPoints) c.points = shapePoints(*m_doc, position);
         }
         // The points of a tight wrap's outline, in points from the picture's corner.
         // (A square wrap shows the outline it would start with; it becomes a tight one with the first point that is moved, put in, or taken out, so that ending the mode with none leaves it as it was.)
-        const bool wrapEdited = m_editWrap && c.info.valid && c.info.editable && c.info.kind == DrawnKind::Picture && c.info.floating;
+        const bool wrapEdited = m_editWrap && c.info.valid && c.info.editable && hasWrapPoints(c.info.kind) && c.info.floating;
         if (wrapEdited) c.info.wrapOutline = startingWrapOutline(c.info);
         if (wrapEdited && (c.info.wrap == PictureWrap::Tight || c.info.wrap == PictureWrap::Square))
             for (const QPointF &p : c.info.wrapOutline) c.points.push_back(QPointF(p.x() * c.info.width, p.y() * c.info.height));
@@ -500,12 +500,14 @@ void PageView::setEditWrap(bool on)
 {
     if (m_editWrap == on) return;
     m_editWrap = on;
+    if (on) m_editPoints = false;   // (the outline the text goes round and the shape's own points are not edited together)
     viewport()->update();
 }
 
 void PageView::setEditPoints(bool on)
 {
     m_editPoints = on;
+    if (on) m_editWrap = false;
     viewport()->update();
 }
 
@@ -884,7 +886,9 @@ bool PageView::insertPictureBytes(const QByteArray &bytes, const QString &name, 
     if (!m_doc) return false;
     m_doc->pictureNotice.clear();
     QTextCursor c = m_cursor;
-    const PictureResult result = insertPicture(*m_doc, c, bytes, name, wrap);
+    // (A picture put in with no wrap asked for takes the layout Set as Default Layout kept.)
+    const PictureWrapDefault layout = pictureWrapDefault();
+    const PictureResult result = insertPicture(*m_doc, c, bytes, name, wrap, QString(), wrap == PictureWrap::Inline && layout.wrap != PictureWrap::Inline ? &layout : nullptr);
     if (result == PictureResult::Ok) {
         m_cursor = c;
         selectPicture(c.position() - 1);
@@ -939,7 +943,8 @@ bool PageView::insertPictureImage(const QImage &image, PictureWrap wrap)
     if (!m_doc) return false;
     m_doc->pictureNotice.clear();
     QTextCursor c = m_cursor;
-    const PictureResult result = write::insertPictureImage(*m_doc, c, image, wrap);
+    const PictureWrapDefault layout = pictureWrapDefault();
+    const PictureResult result = write::insertPictureImage(*m_doc, c, image, wrap, wrap == PictureWrap::Inline && layout.wrap != PictureWrap::Inline ? &layout : nullptr);
     if (result == PictureResult::Ok) {
         m_cursor = c;
         selectPicture(c.position() - 1);

@@ -30,7 +30,7 @@ Click the small arrow in the corner of the **Footnotes** group on the **Referenc
 - **Location** says where the notes are set. For footnotes, **Bottom of page** sets them at the foot of the page, and **Below text** sets them right after the last line of text on the page, so a short page has its notes close under the words. For endnotes, it puts them at the end of each section or at the end of the document.
 - **Columns** (footnotes only) sets the footnotes in two or more columns side by side at the foot of the page. Each note stays whole in one column, and a note that is too tall for its column is not cut.
 
-The footnotes change at once. For endnotes, JeffWrite reads the document again so that every mark and note takes the new look, and the **Undo** list starts over. The change is saved with the file, so other programs show the same numbers.
+The footnotes and the endnotes change at once, and one **Undo** takes the change back, with the marks and notes as they were. The change is saved with the file, so other programs show the same numbers.
 
 ## Turn footnotes into endnotes, or endnotes into footnotes
 

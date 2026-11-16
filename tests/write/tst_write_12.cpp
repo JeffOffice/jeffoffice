@@ -808,6 +808,72 @@ void WriteTests::theOutlineOfATightWrapIsEditedSavedAndFollowedByTheText()
 }
 
 
+// A shape and a text box go through Edit Wrap Points, Text Sides, and Distance from Text as a picture does: the text goes round the outline (found from its own geometry), it is
+// saved as a wrap polygon on the anchor and read back, the points are held to the most, and one step undoes.
+void WriteTests::aShapeAndATextBoxHaveAnOutlineTheTextFollowsSavedAndUndone()
+{
+    for (const bool textBox : {false, true}) {
+        const QByteArray what = textBox ? "text box" : "shape";
+        auto doc = textDoc({longText()});
+        QTextCursor c(doc->story());
+        if (textBox) {
+            TextBoxDesign design = textBoxDesigns().first();
+            design.size = QSizeF(160, 160);
+            QCOMPARE(insertTextBox(*doc, c, design), PictureResult::Ok);
+        } else {
+            QCOMPARE(insertShape(*doc, c, QStringLiteral("rect"), QSizeF(160, 160)), PictureResult::Ok);
+        }
+        int at = -1;
+        for (int p = 0; at < 0 && p < doc->story()->characterCount() - 1; ++p)
+            if (isDrawnObjectAt(doc->story(), p)) at = p;
+        QVERIFY(at >= 0);
+        const DrawnKind kind = textBox ? DrawnKind::TextBox : DrawnKind::Shape;
+        QCOMPARE(pictureAt(*doc, doc->story(), at).kind, kind);
+        QVERIFY(setPictureWrap(*doc, at, PictureWrap::Tight));
+        const double width = pictureAt(*doc, doc->story(), at).width, height = pictureAt(*doc, doc->story(), at).height;
+        // (Tight with no outline of its own goes round the frame.)
+        const double framed = firstLineRect(*doc).left();
+        QVERIFY2(framed >= width - 1, what.constData());
+        QPolygonF triangle;
+        triangle << QPointF(0.5, 0) << QPointF(1, 1) << QPointF(0, 1);
+        QVERIFY(setPictureWrapOutline(*doc, at, triangle));
+        QVERIFY(!setPictureWrapOutline(*doc, at, triangle));
+        QCOMPARE(pictureAt(*doc, doc->story(), at).wrapOutline, triangle);
+        // The first line goes on to the right of the apex, where the outline is: it starts well before the frame's right edge, and no earlier than the apex.
+        const QRectF line = firstLineRect(*doc);
+        QVERIFY2(line.left() < framed - 10 && line.left() < width * 0.5 + width * 0.5 * (line.bottom() / height) + 20, qPrintable(QString::fromLatin1(what) + QString::number(line.left())));
+        // Text on one side only, and the room: both move the line by what they are given.
+        QVERIFY(setPictureWrapSide(*doc, at, PictureWrapSide::Right));
+        QCOMPARE(pictureAt(*doc, doc->story(), at).wrapSide, PictureWrapSide::Right);
+        QVERIFY(setPictureWrapDistances(*doc, at, 0, 0, 0, 5));
+        const double near = firstLineRect(*doc).left();
+        QVERIFY(setPictureWrapDistances(*doc, at, 0, 0, 0, 60));
+        QVERIFY2(firstLineRect(*doc).left() > near + 40, what.constData());   // (the room is round the outline: 55 points more, a little less where the edge slants)
+        QVERIFY(!setPictureWrapDistances(*doc, at, 0, 0, 0, kMostWrapDistance + 1));
+        QVERIFY(!setPictureWrapDistances(*doc, at, -1, 0, 0, 0));
+        // At most kMostWrapPoints points are kept.
+        QPolygonF many;
+        for (int i = 0; i < 300; ++i) many << QPointF(0.5 + 0.5 * std::cos(i * 0.0209), 0.5 + 0.5 * std::sin(i * 0.0209));
+        QVERIFY(setPictureWrapOutline(*doc, at, many));
+        QVERIFY(pictureAt(*doc, doc->story(), at).wrapOutline.size() <= kMostWrapPoints);
+        QVERIFY(setPictureWrapOutline(*doc, at, triangle));
+        // It is saved as a wrap polygon on the anchor and read back, and the text goes round it after opening.
+        const QByteArray xml = documentXml(doc->toDocx());
+        QVERIFY2(xml.contains("<wp:wrapPolygon edited=\"1\">") && xml.contains("<wp:start x=\"10800\" y=\"0\"/>") && xml.contains("distR=\"762000\""), what.constData());
+        auto back = open(doc->toDocx());
+        QVERIFY(back);
+        QCOMPARE(pictureAt(*back, back->story(), at).wrapOutline, triangle);
+        QCOMPARE(pictureAt(*back, back->story(), at).wrapSide, PictureWrapSide::Right);
+        QCOMPARE(pictureAt(*back, back->story(), at).kind, kind);
+        QVERIFY2(std::abs(firstLineRect(*back).left() - firstLineRect(*doc).left()) < 0.5, what.constData());
+        // One step: an undo gives the earlier outline back.
+        QVERIFY(setPictureWrapOutline(*doc, at, QPolygonF()));
+        QVERIFY(doc->undo());
+        QCOMPARE(pictureAt(*doc, doc->story(), at).wrapOutline, triangle);
+    }
+}
+
+
 // The paginator and the page layer give the text the same room round a Tight outline, whichever side it is asked for: the lines they make start and end in the same places.
 void WriteTests::thePaginatorAndThePageLayerLeaveTheSameRoomRoundATightOutline()
 {

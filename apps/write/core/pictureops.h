@@ -103,6 +103,19 @@ struct PictureInfo {
     QJsonObject barcode;        // a barcode of Insert > Barcode: the settings its marker holds (empty for any other picture)
 };
 
+// The layout Set as Default Layout keeps for the pictures put in afterward: the kind of wrap, the side the text goes on, and the room round the picture in points. It is the program's
+// (one setting, not the document's); where none was kept, a picture goes in line, as it always did.
+struct PictureWrapDefault {
+    PictureWrap wrap = PictureWrap::Inline;
+    PictureWrapSide side = PictureWrapSide::Both;
+    double top = 0, bottom = 0, left = 0, right = 0;
+    bool operator==(const PictureWrapDefault &o) const { return wrap == o.wrap && side == o.side && top == o.top && bottom == o.bottom && left == o.left && right == o.right; }
+};
+PictureWrapDefault pictureWrapDefault();
+void setPictureWrapDefault(const PictureWrapDefault &layout);
+// The wrap, side, and room of a picture, as a layout to keep.
+PictureWrapDefault pictureWrapDefaultOf(const PictureInfo &info);
+
 // The picture at a place of the story (the character just after `position`); `valid` is false for any other character.
 PictureInfo pictureAt(const WriteDoc &doc, const QTextDocument *story, int position);
 // The character format of the character just after `position`.
@@ -115,12 +128,12 @@ bool isDrawnObjectAt(const QTextDocument *story, int position);
 // A picture from the bytes of a picture file (PNG, JPEG, GIF, BMP, and TIFF are kept as they are; any other form the program can read is kept as PNG) at the cursor, in place of a
 // selection, as one step that undoes. It is made as large as the picture asks (96 pixels to the inch) but no wider than the column or taller than the page's text. `name` is the file's
 // name (the picture's name in the file); `alt` its alt text.
-PictureResult insertPicture(WriteDoc &doc, QTextCursor &c, const QByteArray &bytes, const QString &name = QString(), PictureWrap wrap = PictureWrap::Inline, const QString &alt = QString());
+PictureResult insertPicture(WriteDoc &doc, QTextCursor &c, const QByteArray &bytes, const QString &name = QString(), PictureWrap wrap = PictureWrap::Inline, const QString &alt = QString(), const PictureWrapDefault *layout = nullptr);
 // An online picture (Insert > Online Pictures): in line at the cursor like a picture of a file, with `title` as its alt text and, when `credit` is not empty, a paragraph under it with the
 // credit line, in small italic letters; one step that undoes. The caret is left after the credit, and the picture is at the place the cursor was.
 PictureResult insertOnlinePicture(WriteDoc &doc, QTextCursor &c, const QByteArray &bytes, const QString &title, const QString &credit);
 // The same for an image (from the clipboard), kept as PNG.
-PictureResult insertPictureImage(WriteDoc &doc, QTextCursor &c, const QImage &image, PictureWrap wrap = PictureWrap::Inline);
+PictureResult insertPictureImage(WriteDoc &doc, QTextCursor &c, const QImage &image, PictureWrap wrap = PictureWrap::Inline, const PictureWrapDefault *layout = nullptr);
 
 // Changes to the picture at `position` of the body text; each is one step, and false (nothing done) when the character is no picture that can be changed or the change would
 // make no difference. Sizes are in points and held to the least and most above.
@@ -136,6 +149,8 @@ bool setPictureWrapDistances(WriteDoc &doc, int position, double top, double bot
 // The outline a tight wrap follows (shares of the picture's frame; see core/wrapoutline.h for what is kept: at most kMostWrapPoints, none outside the reach). A square wrap becomes a
 // tight one; an empty outline gives the frame back. One step; false when it makes no difference.
 bool setPictureWrapOutline(WriteDoc &doc, int position, const QPolygonF &outline);
+// The kinds of drawn object whose wrap has an outline to edit (Edit Wrap Points): a picture, a shape, and a text box.
+inline bool hasWrapPoints(DrawnKind kind) { return kind == DrawnKind::Picture || kind == DrawnKind::Shape || kind == DrawnKind::TextBox; }
 // The outline Edit Wrap Points starts from: the picture's own if it has one, else the frame's corners and the middles of its sides.
 QPolygonF startingWrapOutline(const PictureInfo &info);
 // Moves the floating picture at `position` in the layers as `order` says, as one step that undoes (the pictures it passes are given heights to keep their order). False where it does

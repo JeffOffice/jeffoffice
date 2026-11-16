@@ -91,9 +91,10 @@ Only pictures in the body of the document are made smaller. Pictures in a header
 
 At the bottom of the **Wrap Text** menu:
 
-- **Edit Wrap Points** shows the outline the words go round, as a dashed line with a small square at each corner. Drag a square to move that corner, and the words follow it. Hold **Ctrl** and click the line to add a corner, or **Ctrl** and click a corner to take it away (at least three stay). Press **Esc** or choose **Edit Wrap Points** again when you are done. A picture with a **Square** wrap becomes **Tight** when you start. The outline is saved with the picture, and a file that has one shows the words round it. An outline can have at most 128 corners.
-- **Text Sides** says where the words go beside a **Square** or **Tight** picture: **Text on Both Sides**, **Text on the Left Only**, **Text on the Right Only**, or **Text on the Larger Side**.
-- **Distance from Text…** sets how much room the words leave round the picture: top, bottom, left, and right, in points (a point is 1/72 of an inch).
+- **Edit Wrap Points** shows the outline the words go round, as a dashed line with a small square at each corner. It works for a picture, a shape, and a text box. Drag a square to move that corner, and the words follow it. Hold **Ctrl** and click the line to add a corner, or **Ctrl** and click a corner to take it away (at least three stay). Press **Esc** or choose **Edit Wrap Points** again when you are done. One with a **Square** wrap becomes **Tight** when you start. The outline is saved with the object, in .docx and .odt files, and a file that has one shows the words round it. Pressing **Esc** with no change leaves nothing to undo. An outline can have at most 128 corners.
+- **Text Sides** says where the words go beside a **Square** or **Tight** picture, shape, or text box: **Text on Both Sides**, **Text on the Left Only**, **Text on the Right Only**, or **Text on the Larger Side**.
+- **Distance from Text…** sets how much room the words leave round the picture, shape, or text box: top, bottom, left, and right, in points (a point is 1/72 of an inch).
+- **Set as Default Layout** makes the selected picture's wrap, text side, and distances the layout of the pictures you put in from then on, in every document. Until you use it, pictures go in in line with the text.
 
 ## Put one picture over another
 

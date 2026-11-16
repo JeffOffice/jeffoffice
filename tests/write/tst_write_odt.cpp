@@ -958,6 +958,40 @@ private Q_SLOTS:
         QVERIFY(std::abs(info.distLeft - 5.0) < 0.1 && std::abs(info.distTop - 3.0) < 0.1);
     }
 
+    // A shape's and a text box's outline is the contour polygon of its frame too, and is read back as it was.
+    void aShapeAndATextBoxKeepTheirWrapOutlineInAnOdt()
+    {
+        for (const bool textBox : {false, true}) {
+            auto doc = WriteDoc::blank();
+            QTextCursor c(doc->story());
+            if (textBox) {
+                TextBoxDesign design = textBoxDesigns().first();
+                design.size = QSizeF(160, 160);
+                QCOMPARE(insertTextBox(*doc, c, design), PictureResult::Ok);
+            } else {
+                QCOMPARE(insertShape(*doc, c, QStringLiteral("rect"), QSizeF(160, 160)), PictureResult::Ok);
+            }
+            QVERIFY(setPictureWrap(*doc, 0, PictureWrap::Tight));
+            QPolygonF triangle;
+            triangle << QPointF(0.5, 0) << QPointF(1, 1) << QPointF(0, 1);
+            QVERIFY(setPictureWrapOutline(*doc, 0, triangle));
+            QVERIFY(setPictureWrapDistances(*doc, 0, 3, 4, 5, 6));
+            QString err;
+            const QByteArray odt = doc->toOdt(&err);
+            QVERIFY2(!odt.isEmpty(), qPrintable(err));
+            const QByteArray content = odtPart(odt, QStringLiteral("content.xml"));
+            QVERIFY(content.contains("draw:points=\"10800,0 21600,21600 0,21600\""));
+            auto back = WriteDoc::fromFile(odt, &err);
+            QVERIFY2(back, qPrintable(err));
+            const PictureInfo info = pictureAt(*back, back->story(), 0);
+            QCOMPARE(info.kind, textBox ? DrawnKind::TextBox : DrawnKind::Shape);
+            QVERIFY(info.wrap == PictureWrap::Tight);
+            QCOMPARE(info.wrapOutline.size(), 3);
+            QVERIFY(std::abs(info.wrapOutline[0].x() - 0.5) < 0.0001 && std::abs(info.wrapOutline[2].y() - 1.0) < 0.0001);
+            QVERIFY(std::abs(info.distLeft - 5.0) < 0.1 && std::abs(info.distTop - 3.0) < 0.1);
+        }
+    }
+
     // The file is the same bytes each time it is saved, in whatever process.
     void aSavedOdtIsTheSameBytesInEachProcess() { JP_VERIFY_SAME_SAVES("savesAnOdtForTheChecks"); }
 };

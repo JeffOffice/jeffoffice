@@ -1106,7 +1106,7 @@ QByteArray Writer::drawingXml(const T &t, int drawing, ParaCtx *pc, int depth)
         QByteArray shape = "<draw:path draw:style-name=\"" + esc(pathStyleName) + "\"" + frameAttrs + " svg:width=\"" + emuLength(cx) + "\" svg:height=\"" + emuLength(cy) + "\" svg:viewBox=\"0 0 " +
                            QByteArray::number(pathW) + " " + QByteArray::number(pathH) + "\" svg:d=\"" + pathD + "\">";
         if (!descr.isEmpty()) shape += "<svg:desc>" + esc(descr, false) + "</svg:desc>";
-        return shape + "</draw:path>";
+        return shape + contour + "</draw:path>";
     }
     if (blip >= 0 && !barcodeSettings.isEmpty()) frameAttrs += " xmlns:jo=\"urn:jeffoffice:names:extension:1.0\" jo:barcode=\"" + esc(barcodeSettingsText(barcodeSettings)) + "\" jo:barcode-sha256=\"" + esc(barcodeHash) + "\"";
     const QString style = m_sink->make("fr", "graphic", " style:parent-style-name=\"" + QByteArray(blip >= 0 ? "Graphics" : "Frame") + "\"", "<style:graphic-properties" + gp + boxProps + "/>");
@@ -1116,7 +1116,7 @@ QByteArray Writer::drawingXml(const T &t, int drawing, ParaCtx *pc, int depth)
         x = "<draw:custom-shape draw:style-name=\"" + esc(style) + "\"" + frameAttrs + shapeAttrs + " svg:width=\"" + emuLength(cx) + "\" svg:height=\"" + emuLength(cy) +
             "\"><draw:enhanced-geometry svg:viewBox=\"0 0 21600 21600\" draw:type=\"ooxml-" + shapePrst.toLatin1() + "\"" + geomAttrs + "/>";
         if (!descr.isEmpty()) x += "<svg:desc>" + esc(descr, false) + "</svg:desc>";
-        return x + "</draw:custom-shape>";
+        return x + contour + "</draw:custom-shape>";
     }
     if (blip >= 0) {
         QString href;
@@ -1134,7 +1134,7 @@ QByteArray Writer::drawingXml(const T &t, int drawing, ParaCtx *pc, int depth)
     if (pc->depth >= kMaxNesting - 6) return QByteArray();
     QByteArray inner;
     emitBlocks(t, txbx, &inner, pc->depth + 6, false);
-    x += "><draw:text-box fo:min-height=\"" + emuLength(cy) + "\">" + (inner.isEmpty() ? QByteArray("<text:p text:style-name=\"Standard\"/>") : inner) + "</draw:text-box></draw:frame>";
+    x += "><draw:text-box fo:min-height=\"" + emuLength(cy) + "\">" + (inner.isEmpty() ? QByteArray("<text:p text:style-name=\"Standard\"/>") : inner) + "</draw:text-box>" + contour + "</draw:frame>";
     Q_UNUSED(depth);
     return x;
 }

@@ -10,6 +10,8 @@
 #include "app/onlinepictures.h"
 #include "app/pageview.h"
 #include "app/shapetextedit.h"
+#include "app/theme.h"
+#include "app/settings.h"
 #include "app/widgets.h"
 #include "../shell/shapetexttest.h"
 #include "app/ribbon.h"
@@ -2026,7 +2028,6 @@ private Q_SLOTS:
         QTextCursor c(doc->story());
         c.setPosition(0);
         QCOMPARE(insertPicture(*doc, c, pngOf(160, 160)), PictureResult::Ok);
-        QVERIFY(setPictureWrap(*doc, 0, PictureWrap::Square));
         auto steps = [&] {
             int n = 0;
             while (doc->canUndo() && doc->undo()) ++n;
@@ -2065,6 +2066,134 @@ private Q_SLOTS:
         QTest::mouseRelease(vp, Qt::LeftButton, Qt::NoModifier, corner + QPoint(int(-30 * s), int(-20 * s)));
         QVERIFY(pictureAt(*doc, doc->story(), 0).wrap == PictureWrap::Tight);
         QCOMPARE(steps(), before + 1);
+    }
+
+    void editWrapPointsOnAShapeAndATextBoxMakeAnOutlineInOneStepAndEscLeavesNoStep()
+    {
+        for (const bool textBox : {false, true}) {
+            Win win;
+            write::WriteDoc *doc = win.w.document();
+            QTextCursor c(doc->story());
+            c.setPosition(0);
+            if (textBox) {
+                TextBoxDesign design = textBoxDesigns().first();
+                design.size = QSizeF(160, 160);
+                QCOMPARE(insertTextBox(*doc, c, design), PictureResult::Ok);
+            } else {
+                QCOMPARE(insertShape(*doc, c, QStringLiteral("rect"), QSizeF(160, 160)), PictureResult::Ok);
+            }
+            auto steps = [&] {
+                int n = 0;
+                while (doc->canUndo() && doc->undo()) ++n;
+                for (int i = 0; i < n; ++i) doc->redo();
+                return n;
+            };
+            const int before = steps();
+            const QByteArray xml = doc->toDocx();
+            win.w.view()->refresh();
+            win.w.view()->selectPicture(0);
+            win.w.refreshNow();
+            QVERIFY(win.w.act("picture.wrap.editPoints")->isEnabled());
+            win.w.act("picture.wrap.editPoints")->trigger();
+            QVERIFY(win.w.view()->editingWrap());
+            QTest::keyClick(win.w.view()->viewport(), Qt::Key_Escape);
+            QVERIFY(!win.w.view()->editingWrap());
+            QVERIFY(!doc->canRedo());
+            QCOMPARE(steps(), before);
+            QCOMPARE(doc->toDocx(), xml);
+            // The first point that moves makes it a tight one, in one step; the outline has that point where it was dropped.
+            win.w.view()->refresh();
+            win.w.view()->selectPicture(0);
+            win.w.refreshNow();
+            win.w.act("picture.wrap.editPoints")->trigger();
+            QRectF r;
+            QTRY_VERIFY(win.w.view()->pictureRect(0, &r));
+            const double s = win.w.view()->zoom() * 96.0 / 72.0;
+            QWidget *vp = win.w.view()->viewport();
+            const QPoint corner = r.bottomRight().toPoint();
+            QTest::mousePress(vp, Qt::LeftButton, Qt::NoModifier, corner);
+            QTest::mouseMove(vp, corner + QPoint(-10, -5));
+            QTest::mouseMove(vp, corner + QPoint(int(-30 * s), int(-20 * s)));
+            QTest::mouseRelease(vp, Qt::LeftButton, Qt::NoModifier, corner + QPoint(int(-30 * s), int(-20 * s)));
+            const PictureInfo info = pictureAt(*doc, doc->story(), 0);
+            QVERIFY(info.wrap == PictureWrap::Tight);
+            bool moved = false;
+            for (const QPointF &p : info.wrapOutline) moved = moved || (std::abs(p.x() - (1 - 30.0 / 160)) < 0.03 && std::abs(p.y() - (1 - 20.0 / 160)) < 0.03);
+            QVERIFY2(moved, textBox ? "text box" : "shape");
+            QCOMPARE(steps(), before + 1);
+        }
+    }
+
+    // A picture of text round an edited outline, for a person to look at (JW_SHOT_DIR names the folder; nothing is made without it).
+    void wrapPointsOfAShapeScreenshot()
+    {
+        const QString dir = qEnvironmentVariable("JW_SHOT_DIR");
+        if (dir.isEmpty()) QSKIP("JW_SHOT_DIR is not set");
+        jp::applyUiTheme(1);   // the program's own look, as a person sees it; a bare test has none
+        QString words;
+        for (int i = 0; i < 40; ++i) words += QStringLiteral("The text goes round the outline of the shape and not round its frame. ");
+        Win win("<w:p><w:r><w:t xml:space=\"preserve\">" + words.toUtf8() + "</w:t></w:r></w:p>");
+        write::WriteDoc *doc = win.w.document();
+        QTextCursor c(doc->story());
+        c.setPosition(0);
+        QCOMPARE(insertShape(*doc, c, QStringLiteral("rect"), QSizeF(200, 200)), PictureResult::Ok);
+        QVERIFY(setPictureWrap(*doc, 0, PictureWrap::Tight));
+        QPolygonF outline;
+        outline << QPointF(0.5, 0) << QPointF(1, 0.6) << QPointF(0.8, 1) << QPointF(0.2, 1) << QPointF(0, 0.6);
+        QVERIFY(setPictureWrapOutline(*doc, 0, outline));
+        win.w.view()->refresh();
+        win.w.view()->selectPicture(0);
+        win.w.refreshNow();
+        win.w.act("picture.wrap.editPoints")->trigger();
+        QVERIFY(win.w.view()->editingWrap());
+        QDir().mkpath(dir);
+        QVERIFY(win.w.grab().save(dir + QStringLiteral("/shape-wrap-points.png")));
+    }
+
+    void setAsDefaultLayoutMakesTheWrapOfNewPicturesAndAFreshRunKeepsTheOldDefault()
+    {
+        Settings::get().setValue(QStringLiteral("pictures/wrapDefault"), QVariant());   // (this run's own settings: see isolatesettings.h)
+        Win win;
+        write::WriteDoc *doc = win.w.document();
+        QTextCursor c(doc->story());
+        c.setPosition(0);
+        QCOMPARE(insertPicture(*doc, c, pngOf(160, 160)), PictureResult::Ok);
+        // With no setting, a picture goes in line, as before.
+        QVERIFY(win.w.view()->insertPictureBytes(pngOf(40, 40), QStringLiteral("none")));
+        PictureInfo now = pictureAt(*doc, doc->story(), win.w.view()->selectedPicture());
+        QVERIFY(!now.floating && now.wrap == PictureWrap::Inline);
+        QVERIFY(setPictureWrap(*doc, 0, PictureWrap::Square));
+        QVERIFY(setPictureWrapSide(*doc, 0, PictureWrapSide::Right));
+        QVERIFY(setPictureWrapDistances(*doc, 0, 3, 4, 5, 6));
+        win.w.view()->refresh();
+        win.w.view()->selectPicture(0);
+        win.w.refreshNow();
+        QVERIFY(win.w.act("picture.wrap.setDefault")->isEnabled());
+        win.w.act("picture.wrap.setDefault")->trigger();
+        // The next pictures, put in by file and from the clipboard, take it; the picture it was taken from stays as it is.
+        QVERIFY(win.w.view()->insertPictureBytes(pngOf(50, 50), QStringLiteral("next")));
+        now = pictureAt(*doc, doc->story(), win.w.view()->selectedPicture());
+        QVERIFY(now.floating && now.wrap == PictureWrap::Square);
+        QCOMPARE(now.wrapSide, PictureWrapSide::Right);
+        QCOMPARE(now.distTop, 3.0);
+        QCOMPARE(now.distBottom, 4.0);
+        QCOMPARE(now.distLeft, 5.0);
+        QCOMPARE(now.distRight, 6.0);
+        QImage image(30, 30, QImage::Format_RGB32);
+        image.fill(Qt::blue);
+        QVERIFY(win.w.view()->insertPictureImage(image));
+        QVERIFY(pictureAt(*doc, doc->story(), win.w.view()->selectedPicture()).wrap == PictureWrap::Square);
+        QVERIFY(documentXml(doc->toDocx()).contains("wrapText=\"right\""));
+        // Another wrap asked for in the call is the caller's. A fresh run, with no setting, puts pictures in line again.
+        QVERIFY(win.w.view()->insertPictureBytes(pngOf(50, 50), QStringLiteral("asked"), PictureWrap::BehindText));
+        QVERIFY(pictureAt(*doc, doc->story(), win.w.view()->selectedPicture()).wrap == PictureWrap::BehindText);
+        Settings::get().setValue(QStringLiteral("pictures/wrapDefault"), QVariant());
+        QVERIFY(win.w.view()->insertPictureBytes(pngOf(50, 50), QStringLiteral("again")));
+        QVERIFY(pictureAt(*doc, doc->story(), win.w.view()->selectedPicture()).wrap == PictureWrap::Inline);
+        // A setting that is not a layout is no layout.
+        Settings::get().setValue(QStringLiteral("pictures/wrapDefault"), QStringLiteral("square;sideways;1;2;3"));
+        QVERIFY(pictureWrapDefault() == PictureWrapDefault());
+        Settings::get().setValue(QStringLiteral("pictures/wrapDefault"), QVariant());
     }
 
     void aCropWhoseFrameTheLimitsWouldChangeLeavesThePictureAsItWas()

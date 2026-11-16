@@ -120,6 +120,15 @@ void WriteWindow::createPictureActions()
         }, true);
     }
     mk("picture.wrap.distance", tr("Distance from Text…"), "wrap-text", QKeySequence(), [this] { wrapDistanceDialog(); });
+    // The wrap, side, and room of the selected picture become the layout of the pictures put in afterward (kept with the program's settings, not the file).
+    mk("picture.wrap.setDefault", tr("Set as Default Layout"), "wrap-text", QKeySequence(), [this] {
+        const int at = m_view->selectedPicture();
+        if (!m_doc || at < 0) return;
+        const write::PictureInfo info = write::pictureAt(*m_doc, m_doc->story(), at);
+        if (!info.valid || info.kind != write::DrawnKind::Picture) return;
+        write::setPictureWrapDefault(write::pictureWrapDefaultOf(info));
+        statusBar()->showMessage(tr("Pictures you put in from now on are laid out like this one."), 6000);
+    });
     struct Order {
         const char *id;
         const char *text;
@@ -375,8 +384,9 @@ void WriteWindow::refreshPictureUi()
         act(QStringLiteral("picture.wrap.side.") + QLatin1String(w.first))->setChecked(sided && info.wrapSide == w.second);
     }
     act("picture.wrap.distance")->setEnabled(round);
-    act("picture.wrap.editPoints")->setEnabled(editable && info.floating && info.kind == write::DrawnKind::Picture && (info.wrap == write::PictureWrap::Square || info.wrap == write::PictureWrap::Tight));
-    if (!editable || !info.floating || info.kind != write::DrawnKind::Picture || (info.wrap != write::PictureWrap::Tight && info.wrap != write::PictureWrap::Square)) m_view->setEditWrap(false);
+    act("picture.wrap.setDefault")->setEnabled(editable && info.kind == write::DrawnKind::Picture);
+    act("picture.wrap.editPoints")->setEnabled(editable && info.floating && write::hasWrapPoints(info.kind) && (info.wrap == write::PictureWrap::Square || info.wrap == write::PictureWrap::Tight));
+    if (!editable || !info.floating || !write::hasWrapPoints(info.kind) || (info.wrap != write::PictureWrap::Tight && info.wrap != write::PictureWrap::Square)) m_view->setEditWrap(false);
     act("picture.wrap.editPoints")->setChecked(m_view->editingWrap());
     for (const auto &w : wraps) act(QStringLiteral("picture.wrap.") + QLatin1String(w.first))->setChecked(editable && info.wrap == w.second);
     m_updatingFields = true;
@@ -416,6 +426,8 @@ void WriteWindow::addWrapDetails(QMenu *menu)
         sides->addAction(a);
     }
     menu->addAction(act("picture.wrap.distance"));
+    menu->addSeparator();
+    menu->addAction(act("picture.wrap.setDefault"));
 }
 
 // Edit Wrap Points: a square wrap becomes a tight one, with the frame's points to drag (Ctrl and a click on the outline puts one in, on a point takes it away); Esc, or this again, ends it.
@@ -429,7 +441,7 @@ void WriteWindow::editWrapPoints()
         return;
     }
     const write::PictureInfo info = write::pictureAt(*m_doc, m_doc->story(), at);
-    if (!info.valid || !info.editable || !info.floating || info.kind != write::DrawnKind::Picture) return;
+    if (!info.valid || !info.editable || !info.floating || !write::hasWrapPoints(info.kind)) return;
     m_view->setEditWrap(true);
     refreshPictureUi();
     m_view->setFocus(Qt::OtherFocusReason);

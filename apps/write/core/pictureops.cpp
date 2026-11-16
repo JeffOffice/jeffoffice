@@ -28,6 +28,7 @@
 #include "wml/xmltree.h"
 #include "wml/wmlwrap.h"
 #include "core/wrapoutline.h"
+#include "app/settings.h"
 #include "core/picturecrop.h"
 
 #include <QBuffer>
@@ -560,8 +561,9 @@ QSizeF fitted(WriteDoc &doc, int position, QSizeF size)
     return QSizeF(std::clamp(size.width(), kLeastPictureSize, kMostPictureSize), std::clamp(size.height(), kLeastPictureSize, kMostPictureSize));
 }
 
-PictureResult insertPrepared(WriteDoc &doc, QTextCursor &c, const Prepared &p, const QString &name, PictureWrap wrap, const QString &alt)
+PictureResult insertPrepared(WriteDoc &doc, QTextCursor &c, const Prepared &p, const QString &name, PictureWrap wrap, const QString &alt, const PictureWrapDefault *layout = nullptr)
 {
+    if (layout) wrap = layout->wrap;
     if (c.document() != doc.story()) {
         doc.pictureNotice = QCoreApplication::translate("jp::write::Pictures", "A picture can't be put in a header, a footer, or a note yet.");
         return PictureResult::Refused;
@@ -588,6 +590,17 @@ PictureResult insertPrepared(WriteDoc &doc, QTextCursor &c, const Prepared &p, c
     if (m.floating) {
         m.distL = m.distR = 114300;
         if (wrap == PictureWrap::BehindText) m.relativeHeight = 251658240 - 1;
+        // (A layout kept by Set as Default Layout: the side, and the room round it where the text goes round.)
+        if (layout && (wrap == PictureWrap::Square || wrap == PictureWrap::Tight || wrap == PictureWrap::TopAndBottom)) {
+            auto emu = [](double points) { return qint64(std::llround(std::clamp(points, 0.0, kMostWrapDistance) * kEmuPerPoint)); };
+            m.distT = emu(layout->top);
+            m.distB = emu(layout->bottom);
+            m.distL = emu(layout->left);
+            m.distR = emu(layout->right);
+            const char *side = layout->side == PictureWrapSide::Left ? "left" : layout->side == PictureWrapSide::Right ? "right" : layout->side == PictureWrapSide::Largest ? "largest" : "bothSides";
+            m.wrapRaw = wrapElement(wrap);
+            m.wrapRaw.replace("wrapText=\"bothSides\"", QByteArray("wrapText=\"") + side + "\"");
+        }
     }
     m.graphic = pictureGraphic(rid, m.cx, m.cy, pictureName, id);
     Inline atom;
@@ -847,11 +860,11 @@ bool isDrawnObjectAt(const QTextDocument *story, int position)
     return !readShapes(atom.raw).isEmpty();
 }
 
-PictureResult insertPicture(WriteDoc &doc, QTextCursor &c, const QByteArray &bytes, const QString &name, PictureWrap wrap, const QString &alt)
+PictureResult insertPicture(WriteDoc &doc, QTextCursor &c, const QByteArray &bytes, const QString &name, PictureWrap wrap, const QString &alt, const PictureWrapDefault *layout)
 {
     Prepared p;
     if (const PictureResult r = prepare(bytes, &p); r != PictureResult::Ok) return r;
-    return insertPrepared(doc, c, p, name, wrap, alt);
+    return insertPrepared(doc, c, p, name, wrap, alt, layout);
 }
 
 PictureResult insertOnlinePicture(WriteDoc &doc, QTextCursor &c, const QByteArray &bytes, const QString &title, const QString &credit)
@@ -870,11 +883,11 @@ PictureResult insertOnlinePicture(WriteDoc &doc, QTextCursor &c, const QByteArra
     return result;
 }
 
-PictureResult insertPictureImage(WriteDoc &doc, QTextCursor &c, const QImage &image, PictureWrap wrap)
+PictureResult insertPictureImage(WriteDoc &doc, QTextCursor &c, const QImage &image, PictureWrap wrap, const PictureWrapDefault *layout)
 {
     Prepared p;
     if (const PictureResult r = encodeImage(image, &p); r != PictureResult::Ok) return r;
-    return insertPrepared(doc, c, p, QString(), wrap, QString());
+    return insertPrepared(doc, c, p, QString(), wrap, QString(), layout);
 }
 
 namespace {
@@ -1122,6 +1135,55 @@ bool setPictureWrapOutline(WriteDoc &doc, int position, const QPolygonF &outline
         m.wrapRawOf = m.wrap;
         return true;
     }, true);
+}
+
+namespace {
+constexpr char kWrapDefaultKey[] = "pictures/wrapDefault";
+const char *const kWrapNames[] = {"inline", "square", "tight", "topBottom", "behind", "front"};
+const char *const kSideNames[] = {"both", "left", "right", "largest"};
+}
+
+PictureWrapDefault pictureWrapDefault()
+{
+    PictureWrapDefault out;
+    const QStringList parts = Settings::get().value(QLatin1String(kWrapDefaultKey)).toString().split(QLatin1Char(';'));
+    if (parts.size() != 6) return out;
+    int wrap = -1, side = -1;
+    for (int i = 0; i < 6; ++i)
+        if (parts[0] == QLatin1String(kWrapNames[i])) wrap = i;
+    for (int i = 0; i < 4; ++i)
+        if (parts[1] == QLatin1String(kSideNames[i])) side = i;
+    double room[4];
+    for (int i = 0; i < 4; ++i) {
+        bool ok = false;
+        room[i] = parts[2 + i].toDouble(&ok);
+        if (!ok || !std::isfinite(room[i])) return out;
+    }
+    if (wrap < 0 || side < 0) return out;
+    out.wrap = PictureWrap(wrap);
+    out.side = PictureWrapSide(side);
+    out.top = std::clamp(room[0], 0.0, kMostWrapDistance);
+    out.bottom = std::clamp(room[1], 0.0, kMostWrapDistance);
+    out.left = std::clamp(room[2], 0.0, kMostWrapDistance);
+    out.right = std::clamp(room[3], 0.0, kMostWrapDistance);
+    return out;
+}
+
+void setPictureWrapDefault(const PictureWrapDefault &layout)
+{
+    Settings::get().setValue(QLatin1String(kWrapDefaultKey), QStringLiteral("%1;%2;%3;%4;%5;%6").arg(QLatin1String(kWrapNames[int(layout.wrap)]), QLatin1String(kSideNames[int(layout.side)])).arg(layout.top).arg(layout.bottom).arg(layout.left).arg(layout.right));
+}
+
+PictureWrapDefault pictureWrapDefaultOf(const PictureInfo &info)
+{
+    PictureWrapDefault out;
+    out.wrap = info.floating ? info.wrap : PictureWrap::Inline;
+    out.side = info.wrapSide;
+    out.top = info.distTop;
+    out.bottom = info.distBottom;
+    out.left = info.distLeft;
+    out.right = info.distRight;
+    return out;
 }
 
 QPolygonF startingWrapOutline(const PictureInfo &info)
