@@ -30,6 +30,10 @@ constexpr qint64 kMaxExternalReadMillis = 30000;
 // The most cells one reference to a source gives (a whole column of a sheet is as many rows as the sheet holds).
 constexpr qint64 kMaxExternalRefCells = 2000000;
 
+// The file on this computer an address names (a path, absolute or from `baseDir`, or a file: address); empty for a web address or none. `network` says it is on another computer (such a file is
+// never opened without the person asking). Nothing is looked at.
+QString externalFilePath(const QString &target, const QString &baseDir, bool *network = nullptr);
+
 class ExternalBooks {
 public:
     ExternalBooks();

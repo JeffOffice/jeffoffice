@@ -186,7 +186,8 @@ QByteArray writePivotCacheDefinition(const QByteArray &original, const PivotCach
     QDomElement source = childNamed(root, QStringLiteral("cacheSource"));
     QDomElement ws = source.isNull() ? QDomElement() : childNamed(source, QStringLiteral("worksheetSource"));
     if (!ws.isNull()) {
-        ws.removeAttribute(QStringLiteral("r:id"));   // (a source that was in another workbook is now where the cache says)
+        if (cache.externalSource && !cache.externalRelId.isEmpty()) ws.setAttribute(QStringLiteral("r:id"), cache.externalRelId);
+        else ws.removeAttribute(QStringLiteral("r:id"));   // (a source that was in another workbook is now where the cache says)
         if (!cache.name.isEmpty()) {
             ws.setAttribute(QStringLiteral("name"), cache.name);
             ws.removeAttribute(QStringLiteral("ref"));

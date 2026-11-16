@@ -111,7 +111,9 @@ struct PivotCalcItem {
 struct PivotCache {
     QString sourceType = QStringLiteral("worksheet");
     QString sheet, ref, name;    // the source: a range on a sheet, or a table or a name
-    bool externalSource = false; // (from the head of the definition only) the source names a link to another workbook
+    bool externalSource = false; // the source names another workbook (sheet, ref, and name are in that file)
+    QString externalRelId;       // (as the file has it) the relationship id the source's r:id names
+    QString externalTarget;      // the file the source is in, as the file's relationship (or a person's choice, an absolute address) stores it
     QVector<PivotCacheField> fields;
     QVector<PivotCalcItem> calcItems;
     bool calcItemsEdited = false;   // (not in the file) the items were changed here: the part's calculatedItems are written again, else the file's own stay as they are

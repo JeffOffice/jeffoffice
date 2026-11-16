@@ -320,6 +320,7 @@ struct SaveChanges {
         int sheet = 0;
         QString tablePart, definitionPart, recordsPart;
         bool newCache = false;
+        QString externalTarget;   // the file the new cache's data is in (a relationship of the definition, rId2, that its source names), or empty
         std::function<QByteArray(int cacheId)> table;
         std::function<QByteArray()> definition, records;
     };

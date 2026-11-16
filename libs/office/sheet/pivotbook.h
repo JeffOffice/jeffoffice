@@ -35,7 +35,7 @@ struct PivotCacheEntry {
     bool unreadable = false;                       // too big, or nested too deep, to be worked with (the part is kept as it is)
     bool isNew = false;                            // made by a person in this session: its parts are not in the file
     QByteArray created;                            // for a new one: the definition the parts are made from
-    bool external = false;                         // the data is in another workbook (the source names a link): it is not worked from, moved, or read again here
+    bool external = false;                         // the data is in another workbook file (the cache's externalTarget; its sheet, ref, and name are in that file): it is not a range of this one, and is not moved when rows move
 };
 
 struct PivotTableEntry {
@@ -112,6 +112,7 @@ public:
         int table = -1, cache = -1, sheet = -1;
         QString tablePart, definitionPart, recordsPart;
         bool newCache = false;
+        QString externalTarget;   // (a new cache) the file its data is in, written as a relationship of the definition (rId2) the source's r:id names; empty for a range of this workbook
     };
     // (`sheetNames`: the sheets' names now, empty for one that is deleted: a table on a deleted sheet is not written)
     std::vector<AddedParts> addedParts(const QStringList &sheetNames) const;

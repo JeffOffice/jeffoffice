@@ -74,6 +74,54 @@ QByteArray headOf(const Package *package, const QString &part, qint64 bytes)
     return device->read(bytes);
 }
 
+// The file a cache's source names: the relationship the source's r:id says, of the definition (an external link to a path), or a part of the workbook's own links (an externalLink part, whose own
+// relationships have the path). Empty when it is neither.
+QString externalTargetOf(const Package *package, const QString &definition, const QString &relId)
+{
+    for (const Relationship &r : package->relationships(definition)) {
+        if (r.id != relId) continue;
+        if (r.external && r.type.endsWith(QLatin1String("/externalLinkPath"))) return r.target;
+        if (!r.external && r.type.endsWith(QLatin1String("/externalLink"))) {
+            for (const Relationship &p : package->relationshipsOfType(resolvePartName(definition, r.target), QStringLiteral("/externalLinkPath")))
+                if (p.external) return p.target;
+        }
+    }
+    return QString();
+}
+
+QString relationshipsPartName(const QString &part)
+{
+    const int slash = int(part.lastIndexOf(QLatin1Char('/')));
+    return (slash < 0 ? QString() : part.left(slash + 1)) + QStringLiteral("_rels/") + (slash < 0 ? part : part.mid(slash + 1)) + QStringLiteral(".rels");
+}
+
+QString xmlAttr(const QString &v)
+{
+    return v.toHtmlEscaped().replace(QLatin1Char('"'), QLatin1String("&quot;"));
+}
+
+// The relationships of a cache definition when its source is `target` (a file) with the id `relId`, or none: empty when they stay as the file has them.
+QByteArray definitionRelsWith(const Package *package, const QString &definition, const PivotCache &cache, const PivotCache *fileCache, const QString &relId)
+{
+    if (fileCache && fileCache->externalSource == cache.externalSource && (!cache.externalSource || (fileCache->externalTarget == cache.externalTarget && fileCache->externalRelId == cache.externalRelId))) return QByteArray();
+    QVector<Relationship> rels = package->relationships(definition);
+    QVector<Relationship> now;
+    for (const Relationship &r : rels)
+        if (!(r.external && r.type.endsWith(QLatin1String("/externalLinkPath"))) && r.id != relId) now.append(r);
+    if (cache.externalSource) {
+        Relationship r;
+        r.id = relId;
+        r.type = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/externalLinkPath");
+        r.target = cache.externalTarget;
+        r.external = true;
+        now.append(r);
+    }
+    QByteArray xml = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">";
+    for (const Relationship &r : now)
+        xml += QStringLiteral("<Relationship Id=\"%1\" Type=\"%2\" Target=\"%3\"%4/>").arg(xmlAttr(r.id), xmlAttr(r.type), xmlAttr(r.target), r.external ? QStringLiteral(" TargetMode=\"External\"") : QString()).toUtf8();
+    return xml + "</Relationships>";
+}
+
 } // namespace
 
 PivotBook::PivotBook(const Package *package, const QVector<QString> &sheetParts, const QStringList &sheetNames, jp::calc::DateSystem dates)
@@ -128,9 +176,9 @@ PivotBook::PivotBook(const Package *package, const QVector<QString> &sheetParts,
                             found = readPivotCacheSource(def, &head);
                         }
                         if (found) {
-                            c.sourceName = head.name;
-                            c.fileSheetName = head.sheet;
                             c.external = head.externalSource;
+                            c.sourceName = c.external ? QString() : head.name;
+                            c.fileSheetName = head.sheet;
                             // (a source in another workbook is not a range of this one: it is not followed when rows move, and is not read again from here)
                             if (!c.external && head.sourceType == QLatin1String("worksheet") && head.name.isEmpty()) {
                                 for (int s2 = 0; s2 < m_names.size(); ++s2)
@@ -192,6 +240,7 @@ void PivotBook::load(int i) const
         c.why = why;
         return;
     }
+    if (cache->externalSource) cache->externalTarget = externalTargetOf(m_package, c.definitionPart, cache->externalRelId);
     c.cache = c.fileCache = cache;
     if (!cache->unsupported.isEmpty()) c.why = cache->unsupported;
 }
@@ -300,6 +349,7 @@ void PivotBook::setCache(int i, std::shared_ptr<const PivotCache> cache, const C
     load(i);
     PivotCacheEntry &c = m_caches[size_t(i)];
     c.cache = std::move(cache);
+    c.external = c.cache && c.cache->externalSource;
     c.source = source;
     c.sourceSheet = sourceSheet;
     c.sourceName = sourceName;
@@ -383,6 +433,7 @@ int PivotBook::addCache(std::shared_ptr<const PivotCache> cache, const CellRange
     c.definitionPart = QStringLiteral("/xl/pivotCache/pivotCacheDefinition%1.xml").arg(std::max(n, r));
     c.recordsPart = QStringLiteral("/xl/pivotCache/pivotCacheRecords%1.xml").arg(std::max(n, r));
     c.cache = std::move(cache);
+    c.external = c.cache && c.cache->externalSource;
     c.tried = true;
     c.source = source;
     c.sourceSheet = sourceSheet;
@@ -441,6 +492,7 @@ std::vector<PivotBook::AddedParts> PivotBook::addedParts(const QStringList &shee
         const PivotCacheEntry &c = m_caches[size_t(t.cache)];
         a.definitionPart = c.definitionPart;
         a.recordsPart = c.recordsPart;
+        if (c.cache && c.cache->externalSource) a.externalTarget = c.cache->externalTarget;
         a.newCache = c.isNew && !cachesSeen.contains(t.cache);
         cachesSeen.insert(t.cache);
         out.push_back(a);
@@ -481,9 +533,13 @@ std::function<QByteArray()> PivotBook::definitionProducer(int cache, const QStri
     const double day = unixDays + (dates == jp::calc::DateSystem::Date1904 ? 24107.0 : 25569.0);
     return [original, now, sheet, ref, name, day, dates] {
         PivotCache made = *now;
-        made.sheet = sheet;
-        made.ref = ref;
-        made.name = name;
+        if (made.externalSource) {
+            made.externalRelId = QStringLiteral("rId2");
+        } else {
+            made.sheet = sheet;
+            made.ref = ref;
+            made.name = name;
+        }
         const QByteArray def = writePivotCacheDefinition(original, made, made.recordCount, day, dates);
         return def.isEmpty() ? original : def;
     };
@@ -529,9 +585,20 @@ std::map<QString, std::function<QByteArray()>> PivotBook::changedPartProducers(c
                 name = c.sourceName;
             }
             const bool hasRecords = !c.recordsPart.isEmpty();
-            out[c.definitionPart] = [original, cache, sheet, ref, name, now, dates] {
+            // (a source in another file: its relationship, and the id the definition names it by, which is the file's own when the file had one)
+            const bool ext = cache->externalSource;
+            const QString relId = !cache->externalRelId.isEmpty() ? cache->externalRelId : QStringLiteral("rIdExtSource");
+            if ((ext || (c.fileCache && c.fileCache->externalSource)) && !m_package->relationships(c.definitionPart).isEmpty()) {
+                PivotCache withId = *cache;
+                withId.externalRelId = relId;
+                const QByteArray rels = definitionRelsWith(m_package, c.definitionPart, withId, c.fileCache.get(), relId);
+                if (!rels.isEmpty()) out[relationshipsPartName(c.definitionPart)] = [rels] { return rels; };
+            }
+            out[c.definitionPart] = [original, cache, sheet, ref, name, now, dates, ext, relId] {
                 PivotCache made = *cache;
-                if (!sheet.isEmpty()) {
+                if (ext) {
+                    made.externalRelId = relId;
+                } else if (!sheet.isEmpty()) {
                     made.sheet = sheet;
                     made.ref = ref;
                     made.name.clear();

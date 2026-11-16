@@ -2085,7 +2085,8 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
     }
     auto entryOfPart = [&](const QString &part) -> int {
         const QString name = package.entryName(part);
-        return name.isEmpty() ? -1 : entryAt.value(plain(name), -1);
+        if (name.isEmpty()) return part.endsWith(QLatin1String(".rels"), Qt::CaseInsensitive) ? entryAt.value(plain(part), -1) : -1;   // (a part's relationships are not parts: they are named by where they are)
+        return entryAt.value(plain(name), -1);
     };
     auto inflate = [&](int index, QByteArray *data) { return index >= 0 && inflateZipEntry(bytes, directory[index], data); };
 
@@ -2868,7 +2869,8 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
                     newEntries.emplace_back(entryName(a.definitionPart), a.definition());
                     newEntries.emplace_back(entryName(relationshipsPartOf(a.definitionPart)),
                                             "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">"
-                                                + relationshipXml(QStringLiteral("rId1"), QStringLiteral("pivotCacheRecords"), relativeTarget(a.definitionPart, a.recordsPart)) + "</Relationships>");
+                                                + relationshipXml(QStringLiteral("rId1"), QStringLiteral("pivotCacheRecords"), relativeTarget(a.definitionPart, a.recordsPart))
+                                                + (a.externalTarget.isEmpty() ? QByteArray() : relationshipXml(QStringLiteral("rId2"), QStringLiteral("externalLinkPath"), a.externalTarget, true)) + "</Relationships>");
                     newEntries.emplace_back(entryName(a.recordsPart), a.records());
                 }
             }

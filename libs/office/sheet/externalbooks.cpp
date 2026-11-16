@@ -1042,4 +1042,11 @@ QStringList ExternalBooks::sheetsRead(int index) const
 
 int ExternalBooks::fileReads() const { return d->reads.load(); }
 
+QString externalFilePath(const QString &target, const QString &baseDir, bool *network)
+{
+    const Resolved r = resolveTarget(target, baseDir);
+    if (network) *network = r.network;
+    return r.web ? QString() : r.path;
+}
+
 } // namespace jp::office::sheet
