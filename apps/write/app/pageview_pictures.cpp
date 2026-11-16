@@ -482,7 +482,10 @@ const PageView::ShapeCache &PageView::shapeCache() const
             if (m_editPoints) c.points = shapePoints(*m_doc, position);
         }
         // The points of a tight wrap's outline, in points from the picture's corner.
-        if (m_editWrap && c.info.valid && c.info.editable && c.info.kind == DrawnKind::Picture && c.info.floating && c.info.wrap == PictureWrap::Tight)
+        // (A square wrap shows the outline it would start with; it becomes a tight one with the first point that is moved, put in, or taken out, so that ending the mode with none leaves it as it was.)
+        const bool wrapEdited = m_editWrap && c.info.valid && c.info.editable && c.info.kind == DrawnKind::Picture && c.info.floating;
+        if (wrapEdited) c.info.wrapOutline = startingWrapOutline(c.info);
+        if (wrapEdited && (c.info.wrap == PictureWrap::Tight || c.info.wrap == PictureWrap::Square))
             for (const QPointF &p : c.info.wrapOutline) c.points.push_back(QPointF(p.x() * c.info.width, p.y() * c.info.height));
     }
     return c;

@@ -376,7 +376,7 @@ void WriteWindow::refreshPictureUi()
     }
     act("picture.wrap.distance")->setEnabled(round);
     act("picture.wrap.editPoints")->setEnabled(editable && info.floating && info.kind == write::DrawnKind::Picture && (info.wrap == write::PictureWrap::Square || info.wrap == write::PictureWrap::Tight));
-    if (!editable || !info.floating || info.kind != write::DrawnKind::Picture || info.wrap != write::PictureWrap::Tight) m_view->setEditWrap(false);
+    if (!editable || !info.floating || info.kind != write::DrawnKind::Picture || (info.wrap != write::PictureWrap::Tight && info.wrap != write::PictureWrap::Square)) m_view->setEditWrap(false);
     act("picture.wrap.editPoints")->setChecked(m_view->editingWrap());
     for (const auto &w : wraps) act(QStringLiteral("picture.wrap.") + QLatin1String(w.first))->setChecked(editable && info.wrap == w.second);
     m_updatingFields = true;
@@ -430,10 +430,6 @@ void WriteWindow::editWrapPoints()
     }
     const write::PictureInfo info = write::pictureAt(*m_doc, m_doc->story(), at);
     if (!info.valid || !info.editable || !info.floating || info.kind != write::DrawnKind::Picture) return;
-    if (info.wrap != write::PictureWrap::Tight || info.wrapOutline.size() < 3) {
-        const QPolygonF start = write::startingWrapOutline(info);
-        m_view->changeSelectedPicture([start](write::WriteDoc &d, int position) { return write::setPictureWrapOutline(d, position, start); });
-    }
     m_view->setEditWrap(true);
     refreshPictureUi();
     m_view->setFocus(Qt::OtherFocusReason);

@@ -2019,6 +2019,68 @@ private Q_SLOTS:
         QVERIFY(!win.w.view()->editingPoints());
     }
 
+    void editWrapPointsOnASquarePictureChangesNothingUntilAPointIsMovedAndEscLeavesItAsItWas()
+    {
+        Win win;
+        write::WriteDoc *doc = win.w.document();
+        QTextCursor c(doc->story());
+        c.setPosition(0);
+        QCOMPARE(insertPicture(*doc, c, pngOf(160, 160)), PictureResult::Ok);
+        QVERIFY(setPictureWrap(*doc, 0, PictureWrap::Square));
+        auto steps = [&] {
+            int n = 0;
+            while (doc->canUndo() && doc->undo()) ++n;
+            for (int i = 0; i < n; ++i) doc->redo();
+            return n;
+        };
+        const int before = steps();
+        QVERIFY(before >= 2);
+        const QByteArray xml = doc->toDocx();
+        win.w.view()->refresh();
+        win.w.view()->selectPicture(0);
+        win.w.refreshNow();
+        QVERIFY(win.w.act("picture.wrap.editPoints")->isEnabled());
+        win.w.act("picture.wrap.editPoints")->trigger();
+        QVERIFY(win.w.view()->editingWrap());
+        QVERIFY(pictureAt(*doc, doc->story(), 0).wrap == PictureWrap::Square);
+        QTest::keyClick(win.w.view()->viewport(), Qt::Key_Escape);
+        QVERIFY(!win.w.view()->editingWrap());
+        QVERIFY(pictureAt(*doc, doc->story(), 0).wrap == PictureWrap::Square);
+        QVERIFY(!doc->canRedo());
+        QCOMPARE(steps(), before);
+        QCOMPARE(doc->toDocx(), xml);
+        // The first point that moves makes it a tight one, in one step.
+        win.w.view()->refresh();
+        win.w.view()->selectPicture(0);
+        win.w.refreshNow();
+        win.w.act("picture.wrap.editPoints")->trigger();
+        QRectF r;
+        QTRY_VERIFY(win.w.view()->pictureRect(0, &r));
+        const double s = win.w.view()->zoom() * 96.0 / 72.0;
+        QWidget *vp = win.w.view()->viewport();
+        const QPoint corner = r.bottomRight().toPoint();
+        QTest::mousePress(vp, Qt::LeftButton, Qt::NoModifier, corner);
+        QTest::mouseMove(vp, corner + QPoint(10, 5));
+        QTest::mouseMove(vp, corner + QPoint(int(-30 * s), int(-20 * s)));
+        QTest::mouseRelease(vp, Qt::LeftButton, Qt::NoModifier, corner + QPoint(int(-30 * s), int(-20 * s)));
+        QVERIFY(pictureAt(*doc, doc->story(), 0).wrap == PictureWrap::Tight);
+        QCOMPARE(steps(), before + 1);
+    }
+
+    void aCropWhoseFrameTheLimitsWouldChangeLeavesThePictureAsItWas()
+    {
+        auto doc = textDoc({"Before after"});
+        QTextCursor c(doc->story());
+        QCOMPARE(insertPicture(*doc, c, pngOf(200, 100)), PictureResult::Ok);
+        // A frame the size limits would change shows the cut at another scale: nothing is done.
+        const PictureInfo whole = pictureAt(*doc, doc->story(), 0);
+        QVERIFY(!setPictureCropAspect(*doc, 0, 90, 1));
+        PictureInfo info = pictureAt(*doc, doc->story(), 0);
+        QCOMPARE(info.width, whole.width);
+        QCOMPARE(info.height, whole.height);
+        QCOMPARE(info.cropTop, 0.0);
+    }
+
     void aShapeInAChoiceOfAlternateContentIsSelectableAndEditableAndKeptAsTheFileHadItUntilEdited()
     {
         const QByteArray run = anchoredGraphic(7, kShapeUri, plainShape(120, 60, "star5"), 200, 150, 120, 60);
