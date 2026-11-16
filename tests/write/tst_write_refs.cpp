@@ -49,6 +49,7 @@
 #include <QTextBlock>
 #include <QTextCursor>
 #include <QTextDocument>
+#include "app/theme.h"
 
 using namespace jp;
 using namespace jp::write;
@@ -1467,6 +1468,7 @@ private Q_SLOTS:
     {
         const QString dir = qEnvironmentVariable("JW_SHOT_DIR");
         if (dir.isEmpty()) QSKIP("JW_SHOT_DIR is not set");
+        jp::applyUiTheme(1);   // the program's own look (style sheet, light), as a person sees it; a bare test has none
         QByteArray notes = kSeparators, refs;
         for (int i = 2; i <= 5; ++i) {
             notes += noteXml("footnote", i, "Note number " + QByteArray::number(i - 1) + " says a little more about the words before it.");
