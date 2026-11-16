@@ -21,6 +21,7 @@ namespace jp::deck {
 namespace {
 
 const QString kPh = QStringLiteral("ph:");
+constexpr double kLevelStep = 36;   // how far each level of a text is indented past the one above
 
 // How a placeholder's text looks.
 struct Look {
@@ -113,6 +114,25 @@ void clearStory(Document &d, const QString &storyId)
     givePara(sd, first);
 }
 
+// The paragraphs of a body's sample text stand at the levels one to five: each is indented a step (36 points) further than the one above and has the text
+// size the usual list gives it (28, 24, 20, 18, 18 for a text of 28 points), so each level of the master's text has a look of its own to edit.
+void giveLevels(QTextDocument *sd, double size)
+{
+    static const double ratio[5] = {28, 24, 20, 18, 18};
+    for (int n = 0; n < sd->blockCount() && n < 5; ++n) {
+        QTextCursor c(sd->findBlockByNumber(n));
+        QTextBlockFormat bf = c.blockFormat();
+        bf.setLeftMargin(kLevelStep * n);
+        if (n) bf.setProperty(tp::ListLevel, n);
+        c.setBlockFormat(bf);
+        QTextCharFormat cf;
+        cf.setFontPointSize(std::round(size * ratio[n] / ratio[0] * 2) / 2);
+        c.mergeBlockCharFormat(cf);
+        c.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
+        c.mergeCharFormat(cf);
+    }
+}
+
 ItemPtr placeholder(Document &d, const Place &pl, const DeckTheme &theme)
 {
     auto t = std::make_shared<TextItem>();
@@ -125,6 +145,7 @@ ItemPtr placeholder(Document &d, const Place &pl, const DeckTheme &theme)
     t->hyphenate = false;
     t->storyId = d.createStory(pl.sample);
     styleStory(d, t->storyId, pl.look, theme);
+    if (pl.sample.count(QLatin1Char('\n')) == 4) giveLevels(d.storyDoc(t->storyId), pl.look.size);
     return t;
 }
 
@@ -133,7 +154,7 @@ Look bodyLook(double size = 28) { Look l; l.size = size; return l; }
 Look smallLook(Qt::Alignment a) { Look l; l.size = 12; l.color = 0; l.tint = kFooterTint; l.align = a; return l; }
 
 const QString kTitleSample = QStringLiteral("Click to edit Master title style");
-const QString kBodySample = QStringLiteral("Click to edit Master text styles\nSecond level\nThird level\nFourth level\nFifth level");
+const QString kBodySample = QStringLiteral("First level\nSecond level\nThird level\nFourth level\nFifth level");
 
 QVector<Place> footers()
 {
@@ -173,27 +194,27 @@ QVector<LayoutDef> layoutDefs()
          {{t, 0, title, titleLook(), VAlign::Middle, kTitleSample}, {o, 1, body, bodyLook(), VAlign::Top, kBodySample}}},
         {QStringLiteral("secHead"), QStringLiteral("Section Header"),
          {{t, 0, QRectF(65.5, 134.6, 828, 224.6), big, VAlign::Bottom, kTitleSample},
-          {b, 1, QRectF(65.5, 361.4, 828, 118.1), sectionText, VAlign::Top, QStringLiteral("Click to edit Master text styles")}}},
+          {b, 1, QRectF(65.5, 361.4, 828, 118.1), sectionText, VAlign::Top, QStringLiteral("First level")}}},
         {QStringLiteral("twoObj"), QStringLiteral("Two Content"),
          {{t, 0, title, titleLook(), VAlign::Middle, kTitleSample},
           {o, 1, QRectF(66, 143.75, 408, 342.6), bodyLook(), VAlign::Top, kBodySample},
           {o, 2, QRectF(486, 143.75, 408, 342.6), bodyLook(), VAlign::Top, kBodySample}}},
         {QStringLiteral("twoTxTwoObj"), QStringLiteral("Comparison"),
          {{t, 0, QRectF(66.1, 28.75, 828, 104.4), titleLook(), VAlign::Middle, kTitleSample},
-          {b, 1, QRectF(66.1, 132.4, 406.1, 64.9), head, VAlign::Bottom, QStringLiteral("Click to edit Master text styles")},
+          {b, 1, QRectF(66.1, 132.4, 406.1, 64.9), head, VAlign::Bottom, QStringLiteral("First level")},
           {o, 2, QRectF(66.1, 197.3, 406.1, 290.2), bodyLook(24), VAlign::Top, kBodySample},
-          {b, 3, QRectF(486, 132.4, 408.1, 64.9), head, VAlign::Bottom, QStringLiteral("Click to edit Master text styles")},
+          {b, 3, QRectF(486, 132.4, 408.1, 64.9), head, VAlign::Bottom, QStringLiteral("First level")},
           {o, 4, QRectF(486, 197.3, 408.1, 290.2), bodyLook(24), VAlign::Top, kBodySample}}},
         {QStringLiteral("titleOnly"), QStringLiteral("Title Only"), {{t, 0, title, titleLook(), VAlign::Middle, kTitleSample}}},
         {QStringLiteral("blank"), QStringLiteral("Blank"), {}},
         {QStringLiteral("objTx"), QStringLiteral("Content with Caption"),
          {{t, 0, QRectF(66.1, 36, 309.6, 126), caption, VAlign::Bottom, kTitleSample},
           {o, 1, QRectF(408.1, 77.8, 486, 383.8), bodyLook(32), VAlign::Top, kBodySample},
-          {b, 2, QRectF(66.1, 162, 309.6, 300.1), note, VAlign::Top, QStringLiteral("Click to edit Master text styles")}}},
+          {b, 2, QRectF(66.1, 162, 309.6, 300.1), note, VAlign::Top, QStringLiteral("First level")}}},
         {QStringLiteral("picTx"), QStringLiteral("Picture with Caption"),
          {{t, 0, QRectF(66.1, 36, 309.6, 126), caption, VAlign::Bottom, kTitleSample},
           {QStringLiteral("pic"), 1, QRectF(408.1, 77.8, 486, 383.8), bodyLook(32), VAlign::Top, QString()},
-          {b, 2, QRectF(66.1, 162, 309.6, 300.1), note, VAlign::Top, QStringLiteral("Click to edit Master text styles")}}},
+          {b, 2, QRectF(66.1, 162, 309.6, 300.1), note, VAlign::Top, QStringLiteral("First level")}}},
     };
 }
 
@@ -822,7 +843,7 @@ ParaLook levelLook(const QTextDocument *story, int level, int *past)
     return paraLook(best);
 }
 
-constexpr double kLevelPoints = 36;   // a level the layout has no paragraph for is indented this much further
+constexpr double kLevelPoints = kLevelStep;   // a level the layout has no paragraph for is indented this much further
 
 // Whether a paragraph is set as `was` says (a layout's paragraph): the same list, indent, and spacing.
 bool sameList(const QTextListFormat &a, const QTextListFormat &b)
@@ -1004,7 +1025,7 @@ bool layoutHasList(const Document &d, const Item &placeholder)
     const QTextDocument *ls = place ? d.storyDoc(static_cast<const TextItem *>(place)->storyId) : nullptr;
     if (!ls) return false;
     for (QTextBlock b = ls->begin(); b.isValid(); b = b.next())
-        if (b.textList()) return true;
+        if (b.textList() || levelOfBlock(b) > 0) return true;
     return false;
 }
 

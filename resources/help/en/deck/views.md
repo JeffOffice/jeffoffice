@@ -42,6 +42,8 @@ A **slide master** is the page behind all your slides. It holds the title style,
 
 **Edit it like a slide.** Type in a placeholder, change its font, size, or color, drag it, or resize it. Add a picture, a shape, or a line, such as a logo or a band along the bottom. A picture or shape on a slide master shows on every slide. One on a layout shows on the slides that use that layout. **Format Background** changes the background of the page you are editing.
 
+**Levels of text.** The text on a slide master has five lines, **First level** to **Fifth level**. Each line is a level of the text on your slides. A **level** is how far in a line sits: a first-level line is at the left, and each level after it is a step further in. Each level has its own look: its bullet, font, size, color, indent, and the space around it. A new presentation starts with a bigger size and no indent for the first level, and a smaller size and a bigger indent for each level after it. To change a level, click its line and use the Home tab or the **Paragraph** window. Only that level changes. The same level changes on the layouts and slides that had its look. When you press Tab at the start of a line on a slide, the line moves in a level and takes that level's look. All of this is saved in .pptx and .odp files.
+
 **Slides follow.** When you change a placeholder on a slide master or a layout, the slides below it change at once. A slide follows when its text looked the way the layout's text did before. Change the title font of the slide master, and every title that had the old font takes the new one. A word or a box you changed by hand on a slide keeps your change. A slide you give a layout of another slide master takes that slide master's fonts and colors.
 
 **Edit Master**

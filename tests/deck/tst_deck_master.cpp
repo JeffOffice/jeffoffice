@@ -184,6 +184,133 @@ private Q_SLOTS:
         for (QTextBlock b = story->begin(); b.isValid(); b = b.next()) QCOMPARE(b.begin().fragment().charFormat().fontPointSize(), 40.0);
     }
 
+    // The text of the slide master's body has five levels, each paragraph at its own level with its own indent (a step of 36 points further each) and text size, in our own
+    // words for each; so does the body of every layout that has one. A line on a slide moved in a level takes that level's look.
+    void aNewMastersTextHasFiveLevelsEachWithItsOwnLook()
+    {
+        DeckWindow w;
+        fillSlides(w, {"One", "Two"}, {{"sub"}, {"a", "b"}});
+        Document *d = w.editor()->doc();
+        const QStringList words = {"First level", "Second level", "Third level", "Fourth level", "Fifth level"};
+        auto check = [&](const QTextDocument *sd) {
+            QVERIFY(sd);
+            QCOMPARE(sd->blockCount(), 5);
+            double lastMargin = -1, lastSize = 1000;
+            for (int i = 0; i < 5; ++i) {
+                const QTextBlock b = sd->findBlockByNumber(i);
+                QCOMPARE(b.text(), words[i]);
+                QCOMPARE(b.blockFormat().intProperty(tp::ListLevel), i);
+                QCOMPARE(b.blockFormat().leftMargin(), 36.0 * i);
+                QVERIFY(b.blockFormat().leftMargin() > lastMargin);
+                const double size = b.begin().fragment().charFormat().fontPointSize();
+                QVERIFY(size > 0 && size <= lastSize);
+                lastMargin = b.blockFormat().leftMargin();
+                lastSize = size;
+            }
+            QCOMPARE(sd->findBlockByNumber(0).begin().fragment().charFormat().fontPointSize(), 28.0 * 28 / 28);
+            QCOMPARE(sd->findBlockByNumber(1).begin().fragment().charFormat().fontPointSize(), 24.0);
+            QCOMPARE(sd->findBlockByNumber(2).begin().fragment().charFormat().fontPointSize(), 20.0);
+        };
+        check(d->storyDoc(holderOn(*d->master(QStringLiteral("SM1")), QStringLiteral("body"))->storyId));
+        check(d->storyDoc(holderOn(*deck::layoutOfType(*d, QStringLiteral("obj")), QStringLiteral("obj"))->storyId));
+        // A paragraph on a slide moved in a level takes the indent and size of that level (the layout has a look for each).
+        const TextItem *body = holderOn(*d->pages[1], QStringLiteral("obj"));
+        QVERIFY(deck::layoutHasList(*d, *body));
+        QVERIFY(deck::changeListLevel(*d, *body, 1, 1, 1));
+        const QTextBlock second = d->storyDoc(body->storyId)->findBlockByNumber(1);
+        QCOMPARE(second.blockFormat().leftMargin(), 36.0);
+        QCOMPARE(second.begin().fragment().charFormat().fontPointSize(), 24.0);
+        QCOMPARE(d->storyDoc(body->storyId)->findBlockByNumber(0).blockFormat().leftMargin(), 0.0);
+    }
+
+    // Editing a level of the slide master's text (the cursor on its line, the Home tab's tools) is the look of that level on every layout and slide that had it, and of no other level; it
+    // is one step that undoes. The levels are saved in a .pptx as the master's body style (lvl1pPr to lvl9pPr) and as the list style of each layout's text, and in an .odp as the
+    // master's outline levels, and read back as they were.
+    void editingALevelOfTheMastersTextReachesTheSlidesAndIsSaved()
+    {
+        DeckWindow w;
+        fillSlides(w, {"One", "Two"}, {{"sub"}, {"a", "b"}});
+        Document *d = w.editor()->doc();
+        const TextItem *slideBody = holderOn(*d->pages[1], QStringLiteral("obj"));
+        QVERIFY(slideBody);
+        QVERIFY(deck::changeListLevel(*d, *slideBody, 1, 1, 1));   // the second line of the first content slide is at the second level
+        auto sizeOfLine = [&](const QTextDocument *sd, int line) { return sd->findBlockByNumber(line).begin().fragment().charFormat().fontPointSize(); };
+        QCOMPARE(sizeOfLine(d->storyDoc(slideBody->storyId), 0), 28.0);
+        QCOMPARE(sizeOfLine(d->storyDoc(slideBody->storyId), 1), 24.0);
+        const int steps = w.editor()->undoStack()->count();
+        w.editMasters(QStringLiteral("SM1"));
+        const TextItem *masterBody = holderOn(*d->master(QStringLiteral("SM1")), QStringLiteral("body"));
+        QVERIFY(masterBody);
+        Editor *ed = w.editor();
+        ed->select(masterBody->id);
+        ed->beginTextEdit(masterBody->id, 0);
+        // The second line: its whole text selected, then its size and its left indent set.
+        QTextCursor line(d->storyDoc(masterBody->storyId)->findBlockByNumber(1));
+        line.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
+        ed->setCursor(line);
+        ed->setFontSize(32);
+        QCOMPARE(w.editor()->undoStack()->count(), steps + 1);
+        const QTextDocument *master = d->storyDoc(masterBody->storyId);
+        QCOMPARE(sizeOfLine(master, 1), 32.0);
+        QCOMPARE(sizeOfLine(master, 0), 28.0);
+        QCOMPARE(sizeOfLine(master, 2), 20.0);
+        ed->endTextEdit();
+        // Reaches the layouts that had that level's size, and the slide's line at that level; the first level of the slide and the other layouts' own sizes stay.
+        const MasterPage &contentLayout = *deck::layoutOfType(*d, QStringLiteral("obj"));
+        QVERIFY(holderOn(contentLayout, QStringLiteral("obj")));
+        QCOMPARE(sizeOfLine(d->storyDoc(holderOn(contentLayout, QStringLiteral("obj"))->storyId), 1), 32.0);
+        QCOMPARE(sizeOfLine(d->storyDoc(holderOn(contentLayout, QStringLiteral("obj"))->storyId), 0), 28.0);
+        QCOMPARE(sizeOfLine(d->storyDoc(slideBody->storyId), 1), 32.0);
+        QCOMPARE(sizeOfLine(d->storyDoc(slideBody->storyId), 0), 28.0);
+        w.closeMasters();
+        // Saved in a .pptx: the master's levels, and the layout's list style that its slides follow.
+        QMap<QString, QByteArray> zip;
+        auto back = throughPptx(*d, &zip);
+        QVERIFY(back);
+        QVERIFY(back->master(QStringLiteral("SM1")) && holderOn(*back->pages[1], QStringLiteral("obj")));
+        const QString masterXml = QString::fromUtf8(zip.value(QStringLiteral("ppt/slideMasters/slideMaster1.xml")));
+        const qsizetype bodyStyle = masterXml.indexOf(QLatin1String("<p:bodyStyle>"));
+        QVERIFY(bodyStyle > 0);
+        for (int level = 1; level <= 9; ++level) QVERIFY2(masterXml.indexOf(QStringLiteral("<a:lvl%1pPr").arg(level), bodyStyle) > 0, qPrintable(QString::number(level)));
+        QRegularExpression second(QStringLiteral("<a:lvl2pPr marL=\"457200\"[^>]*>.*?<a:defRPr sz=\"3200\""), QRegularExpression::DotMatchesEverythingOption);
+        QVERIFY(masterXml.indexOf(second, bodyStyle) > 0);
+        QString layoutXml;
+        for (auto it = zip.cbegin(); it != zip.cend(); ++it)
+            if (it.key().startsWith(QLatin1String("ppt/slideLayouts/slideLayout")) && it.key().endsWith(QLatin1String(".xml")) && QString::fromUtf8(it.value()).contains(QLatin1String("name=\"Title and Content\"")))
+                layoutXml = QString::fromUtf8(it.value());
+        QVERIFY(!layoutXml.isEmpty());
+        const qsizetype list = layoutXml.indexOf(QLatin1String("<a:lstStyle><a:lvl1pPr"));
+        QVERIFY(list > 0);
+        QVERIFY(layoutXml.indexOf(second, list) > 0);
+        QVERIFY(layoutXml.indexOf(QLatin1String("<a:lvl5pPr"), list) > 0 && layoutXml.indexOf(QLatin1String("<a:lvl6pPr"), list) < 0);
+        // Read back: the master's and the layout's lines have the levels' looks, and the slide's second line is at its level with the size.
+        const TextItem *backBody = holderOn(*back->master(QStringLiteral("SM1")), QStringLiteral("body"));
+        QVERIFY(backBody);
+        const QTextDocument *backMaster = back->storyDoc(backBody->storyId);
+        QCOMPARE(sizeOfLine(backMaster, 1), 32.0);
+        QCOMPARE(backMaster->findBlockByNumber(1).blockFormat().leftMargin(), 36.0);
+        QCOMPARE(backMaster->findBlockByNumber(2).blockFormat().leftMargin(), 72.0);
+        QCOMPARE(sizeOfLine(back->storyDoc(holderOn(*back->pages[1], QStringLiteral("obj"))->storyId), 1), 32.0);
+        // Saved in an .odp.
+        QString err;
+        const QByteArray odp = deck::exportOdp(*d, false, &err);
+        QVERIFY2(!odp.isEmpty(), qPrintable(err));
+        auto odpBack = deck::importOdp(odp, &err);
+        QVERIFY2(odpBack, qPrintable(err));
+        const TextItem *odpBody = holderOn(*odpBack->master(odpBack->masters.first()->id), QStringLiteral("body"));
+        if (!odpBody) odpBody = holderOn(*odpBack->master(odpBack->masters.first()->id), QStringLiteral("obj"));
+        QVERIFY(odpBody);
+        const QTextDocument *odpMaster = odpBack->storyDoc(odpBody->storyId);
+        QVERIFY(odpMaster->blockCount() >= 3);
+        QCOMPARE(sizeOfLine(odpMaster, 1), 32.0);
+        QCOMPARE(sizeOfLine(odpMaster, 2), 20.0);
+        QCOMPARE(odpMaster->findBlockByNumber(2).blockFormat().leftMargin(), 72.0);
+        // The edit is one step: undone, the level has its old size again, on the master and on the slide.
+        w.editor()->undo();
+        QCOMPARE(sizeOfLine(d->storyDoc(holderOn(*d->master(QStringLiteral("SM1")), QStringLiteral("body"))->storyId), 1), 24.0);
+        QCOMPARE(sizeOfLine(d->storyDoc(holderOn(*d->pages[1], QStringLiteral("obj"))->storyId), 1), 24.0);
+    }
+
     // A change to a layout shows on every slide that stands on it at once: a placeholder where the layout had it moves with it (one a slide
     // moved by hand stays), and what the layout draws is drawn under the slides. Slides on other layouts don't change.
     void layoutEditShowsOnItsSlidesAtOnce()
