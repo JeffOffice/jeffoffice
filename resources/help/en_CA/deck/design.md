@@ -1,5 +1,5 @@
 # Slide size, background, and footers
-<!-- keywords: design, theme, themes, variants, variant, colors, fonts, background styles, slide master, layouts, browse for themes, apply to all slides, apply to selected slides, slide size, widescreen, 16:9, standard, 4:3, aspect ratio, ensure fit, background, background color, format background, header, footer, slide number, date, title slide, colours, background colour -->
+<!-- keywords: design, theme, themes, variants, variant, colors, fonts, create new theme colors, create new theme fonts, custom colors, theme file, thmx, save current theme, reset theme, background styles, slide master, layouts, browse for themes, apply to all slides, apply to selected slides, slide size, widescreen, 16:9, standard, 4:3, aspect ratio, ensure fit, background, background color, format background, header, footer, slide number, date, title slide, colours, create new theme colours, custom colours, background colour -->
 
 The **Design** tab changes how every slide looks: its theme, its shape, its background, and the footer along its bottom edge.
 
@@ -67,7 +67,8 @@ Right-click a picture for three choices:
 
 - **Apply to All Slides** is the same as a click.
 - **Apply to Selected Slides** changes only the slides you selected (in Slide Sorter) or the slide you are on. Those slides get a slide master of their own, and the other slides keep theirs. Choose the same theme and variant for other slides later, and they go onto that same slide master instead of getting another copy of it.
-- **Browse for Themes…** lets you pick a presentation or template file (.pptx, .potx, .ppsx, .ppt, .pps, or .pot) and takes its theme for every slide. If the file has no slide master, or its master has no layouts, JeffDeck says so and changes nothing.
+- **Browse for Themes…** lets you pick a presentation or template file (.pptx, .potx, .ppsx, .ppt, .pps, or .pot) and takes its theme for every slide. If the file has no slide master, or its master has no layouts, JeffDeck says so and changes nothing. You can also pick a theme file (.thmx) or a document (.docx or .dotx). A file like that holds no slides or layouts, only a theme's colours and fonts, so your slides keep their layouts and take the new colours and fonts, in one step.
+- **Save Current Theme…** writes your theme's twelve colours, its two fonts, and its effect styles to a theme file (.thmx). Other JeffOffice apps and other programs can take the theme from it.
 
 A theme made for slides of another shape (wide, or 4 by 3) is stretched to fit yours. Circles and squares in its design stay round and square, and bands and rules still reach the edges.
 
@@ -77,11 +78,21 @@ A theme made for slides of another shape (wide, or 4 by 3) is stretched to fit y
 
 The arrow at the right of the group opens a menu:
 
-- **Colours** shows the twelve colours your theme has now. Below them is a list of colour schemes. Click one, and every colour of the old scheme turns into the matching colour of the new one, wherever it was used. Colours you picked yourself stay.
+- **Colours** shows the twelve colours your theme has now. Below them is a list of colour schemes: the ones you made, then the built-in ones. Click one, and every colour of the old scheme turns into the matching colour of the new one, wherever it was used. Colours you picked yourself stay.
 - **Fonts** lists pairs of fonts: one for headings and one for the body text. Click a pair, and text that used the old fonts takes the new ones.
 - **Background Styles** shows twelve swatches. Across are the theme's four colours: Light 1, Light 2, Dark 2, and Dark 1. Down are three kinds: flat, a soft gradient, and a stronger gradient. A gradient fades from one colour to another. Click a swatch to use it for every slide. Backgrounds that slides and layouts had of their own give way. On a dark background text turns light, and on a light one it turns dark. Hyperlinks change too, so they stay easy to read: JeffDeck picks link colours that read on the background and, where it can, on the bands and panels some layouts draw behind their text.
 
 Each choice is one step that Ctrl+Z takes back.
+
+### Make your own colours and fonts
+
+At the bottom of the **Colours** list, click **Create New Theme Colours…**. The box has a button for each of the twelve colours. Click a button to pick a colour for that place. The strip under the buttons shows the colours with a sample heading, a line of text, and a link. Type a name and click **Save**. The colours go on your slides at once, and they stay in the list. **Create New Theme Fonts…** at the bottom of the **Fonts** list works the same way: pick a heading font and a body font, check the sample, name the pair, and save it. A name that a built-in set has already can't be used.
+
+Your own sets are kept in your settings folder, so JeffWrite shows them too. To take one out of the list, use **Delete Custom Colours** or **Delete Custom Fonts** in the same menu.
+
+### Reset to the template's theme
+
+**Reset to the Template's Theme** at the bottom of the **Colours** and **Fonts** lists puts back the colours and fonts the presentation had when you opened it, or when you made it. It is one step, and Ctrl+Z takes it back. The choice is grey when nothing has changed.
 
 ## Saving
 

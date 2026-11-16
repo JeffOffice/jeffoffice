@@ -1,7 +1,21 @@
 # Change the colour and borders of the pages
-<!-- keywords: page color, paragraph spacing, line spacing, spacing presets, compact, relaxed, watermark, draft, confidential, stamp, remove watermark, background, page background, colour, page borders, border, borders, box, line style, design, double line, dotted, dashed, remove border, no color, page colour, no colour -->
+<!-- keywords: themes, theme colors, theme fonts, create new theme colors, create new theme fonts, theme file, thmx, save current theme, browse for themes, reset theme, page color, paragraph spacing, line spacing, spacing presets, compact, relaxed, watermark, draft, confidential, stamp, remove watermark, background, page background, colour, page borders, border, borders, box, line style, design, double line, dotted, dashed, remove border, no color, theme colours, create new theme colours, page colour, no colour -->
 
 The **Design** tab changes how every page looks.
+
+## Themes, colours, and fonts
+
+A **theme** is a set of twelve colours, two fonts (one for headings and one for body text), and the effect styles that shapes take their look from. A document keeps its theme in the file. Text and shapes that take a colour or a font from the theme change when the theme does, so one click can restyle the whole document: the pages, the headers and footers, the notes, and the shapes.
+
+Open the **Design** tab. In **Document Formatting**:
+
+- **Themes** lists ready-made themes. Click one to change the colours and the fonts together. **Browse for Themes…** takes the theme from a theme file (.thmx), a document, or a presentation. **Save Current Theme…** writes the document's theme to a theme file (.thmx) that you can use again. **Reset to the Template's Theme** puts back the theme the document had when you opened it.
+- **Colours** lists sets of twelve colours: the ones you made first, then the built-in ones. Click one to use it. Text that took its colour from the theme changes. Text you coloured by hand keeps its colour.
+- **Fonts** lists pairs of fonts. Click one to change the heading and body fonts. Text set in the theme's fonts changes. Text set in a font you picked keeps it.
+
+At the bottom of **Colours**, **Create New Theme Colours…** opens a box with a button for each of the twelve colours, a preview, and a place for a name. At the bottom of **Fonts**, **Create New Theme Fonts…** opens a box for a heading font, a body font, a preview, and a name. Your sets are kept in your settings folder, and JeffDeck shows them too. **Delete Custom Colours** and **Delete Custom Fonts** take them out of the lists.
+
+Each change is one step. **Undo** brings the old theme back, and **Redo** does the change again. A document that has no theme part, such as some older files, can't take a theme, and the lists stay empty.
 
 ## Page colour
 

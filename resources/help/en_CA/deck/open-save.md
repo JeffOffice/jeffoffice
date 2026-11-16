@@ -1,5 +1,5 @@
 # Open and save presentations
-<!-- keywords: open, save, save as, otp, libreoffice, left out, close, new, recent files, pinned, file types, pptx, potx, ppsx, ppt, odp, template, show, rename, Ctrl+S, backup, file formats, old files, open document, kept, not shown, fonts, embed fonts, embedded fonts, missing font, save a copy, read-only, read only, open as copy, new window, backup copy, my templates, save as template, repair, open and repair, damaged -->
+<!-- keywords: macros, macro-enabled, pptm, potm, ppsm, open, save, save as, otp, libreoffice, left out, close, new, recent files, pinned, file types, pptx, potx, ppsx, ppt, odp, template, show, rename, Ctrl+S, backup, file formats, old files, open document, kept, not shown, fonts, embed fonts, embedded fonts, missing font, save a copy, read-only, read only, open as copy, new window, backup copy, my templates, save as template, repair, open and repair, damaged -->
 
 JeffDeck saves your work in .pptx files, and in .odp files, and opens several kinds of presentation files.
 
@@ -22,6 +22,7 @@ Click **File > Save As**, or press F12. Type a name, pick the kind, and click **
 - **Presentation (*.pptx)** is the normal choice.
 - **Template (*.potx)** saves the slides as a pattern to start new presentations from.
 - **Show (*.ppsx)** saves a presentation to be played.
+- **Macro-Enabled Presentation (*.pptm)**, **Macro-Enabled Template (*.potm)**, and **Macro-Enabled Show (*.ppsm)** are the same three kinds for a presentation that holds **macros**. A macro is a small program that comes with a file. JeffDeck never runs macros, and it never reads or shows them. If you open one of these files and save it as the same kind, the macros are kept just as they were. If you save it as .pptx, .potx, or .ppsx, the macros are left out, and JeffDeck tells you so. A presentation that has no macros can be saved as these kinds too, but it has no macros to keep. If the macros in a file are too large to keep (more than 32 MB in one part, or 64 MB in all), JeffDeck leaves them out and tells you when you open it.
 - **OpenDocument Presentation (*.odp)** saves the slides in the file kind that LibreOffice and other free programs use.
 - **OpenDocument Presentation Template (*.otp)** is the template form of that kind.
 

@@ -44,6 +44,10 @@ To **crop** a picture is to cut off part of its edges. Select the picture and cl
 
 The picture frame gets smaller by the same amount, so the part that is left keeps its size. Crop again later and you start from the whole picture, so you can always get back what you cut. A number below zero leaves empty room around the picture. The cut on two opposite sides can add up to no more than 98 percent.
 
+## Cut a picture to an aspect ratio, or fill or fit its frame
+
+On the **Picture Format** tab, **Aspect Ratio** cuts the part of the picture that shows to a shape: a square, 2 wide by 3 tall, 4 wide by 3 tall, 16 wide by 9 tall, and others. The cut is made evenly from the middle of what shows, and the frame gets smaller with it, so the part that is left keeps its size. **Fill** keeps the frame as it is and cuts the picture so that it covers all of it. **Fit** keeps the frame and shows the whole picture in it, with empty room above and below it (or at its sides); if that would be more room than the picture's own size, the frame shrinks to the picture's shape instead. Each is one step you can undo, and the crop is saved in the file.
+
 ## Cut a picture to a shape
 
 Select the picture and click **Picture Format > Crop to Shape**. Pick a shape, such as an oval, a star, or a rounded rectangle. The picture is shown only inside that shape. Pick the plain rectangle to put the corners back. The picture file itself is not changed.
@@ -80,10 +84,16 @@ Only pictures in the body of the document are made smaller. Pictures in a header
 
 - **In Line with Text**: the picture is a character of its line, and moves with the words around it.
 - **Square**: the words go round a rectangle that holds the picture.
-- **Tight**: the words go as close to the picture as a rectangle allows (JeffWrite treats it as Square).
+- **Tight**: the words go round the picture's outline. Until you change the outline, it is the picture's frame (see **Edit Wrap Points**, below).
 - **Top and Bottom**: the words stop above the picture and start again under it.
 - **Behind Text**: the picture is under the words, which go straight over it.
 - **In Front of Text**: the picture is over the words, which go straight under it.
+
+At the bottom of the **Wrap Text** menu:
+
+- **Edit Wrap Points** shows the outline the words go round, as a dashed line with a small square at each corner. Drag a square to move that corner, and the words follow it. Hold **Ctrl** and click the line to add a corner, or **Ctrl** and click a corner to take it away (at least three stay). Press **Esc** or choose **Edit Wrap Points** again when you are done. A picture with a **Square** wrap becomes **Tight** when you start. The outline is saved with the picture, and a file that has one shows the words round it. An outline can have at most 128 corners.
+- **Text Sides** says where the words go beside a **Square** or **Tight** picture: **Text on Both Sides**, **Text on the Left Only**, **Text on the Right Only**, or **Text on the Larger Side**.
+- **Distance from Text…** sets how much room the words leave round the picture: top, bottom, left, and right, in points (a point is 1/72 of an inch).
 
 ## Put one picture over another
 
