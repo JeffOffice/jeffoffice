@@ -1077,6 +1077,57 @@ private Q_SLOTS:
         QCOMPARE(checked->objectName(), QStringLiteral("text.fit1"));
     }
 
+    // The right-click menu of an object has Paste Options (keep the source formatting, keep the text only, Paste Special), Save as Picture, Size and Position, Format, and Alt Text;
+    // each does what its ribbon command does.
+    void theRightClickMenuOfAnObjectHasPasteOptionsPictureSizeFormatAndAltText()
+    {
+        PaneGuard guard;
+        DeckWindow w;
+        w.show();
+        QVERIFY(QTest::qWaitForWindowActive(&w));
+        Editor *ed = w.editor();
+        ed->surfaceItems().clear();
+        auto shape = std::make_shared<ShapeItem>();
+        shape->rect = QRectF(100, 100, 200, 100);
+        shape->fill = Fill::solid(ColorRef::rgb(QColor(200, 30, 30)));
+        shape->storyId = ed->doc()->createStory(QStringLiteral("Words"));
+        ed->addItem(shape, true);
+        std::unique_ptr<QMenu> menu(w.slideContextMenu());
+        QStringList names;
+        QMenu *options = nullptr;
+        for (QAction *a : menu->actions()) {
+            names << a->objectName();
+            if (a->objectName() == QLatin1String("edit.pasteOptions")) options = a->menu();
+        }
+        for (const char *id : {"shape.saveAsPicture", "shape.sizePos", "shape.format", "shape.altText"}) QVERIFY2(names.contains(QLatin1String(id)), id);
+        QVERIFY(options);
+        QStringList choices;
+        for (QAction *a : options->actions()) choices << a->objectName();
+        QCOMPARE(choices, (QStringList{"edit.pasteKeep", "edit.pasteText", "edit.pasteSpecial"}));
+        // Size and Position opens the Format pane at the size and position boxes; Alt Text, at the alt text.
+        w.act(QStringLiteral("shape.sizePos"))->trigger();
+        QVERIFY(!w.formatDock()->isHidden());
+        QCOMPARE(w.formatPane()->currentTab(), FormatPane::Tab::SizeProperties);
+        w.showFormatPane(false);
+        w.act(QStringLiteral("shape.format"))->trigger();
+        QCOMPARE(w.formatPane()->currentTab(), FormatPane::Tab::FillLine);
+        // Save as Picture writes the object as a picture file of its look: a red picture a little larger than the object.
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString path = dir.filePath(QStringLiteral("shape.png"));
+        w.setSavePathChooser([&](const QString &, const QString &) { return path; });
+        w.act(QStringLiteral("shape.saveAsPicture"))->trigger();
+        QImage picture(path);
+        QVERIFY(!picture.isNull());
+        QVERIFY(picture.width() >= 400 && picture.width() < 420 && picture.height() >= 200 && picture.height() < 220);
+        QCOMPARE(picture.pixelColor(picture.width() / 2, picture.height() / 2).red(), 200);
+        // Nothing selected: the commands are off, and the menu is the slide's.
+        ed->clearSelection();
+        QVERIFY(!w.act(QStringLiteral("shape.saveAsPicture"))->isEnabled() && !w.act(QStringLiteral("shape.sizePos"))->isEnabled());
+        menu.reset(w.slideContextMenu());
+        for (QAction *a : menu->actions()) QVERIFY(a->objectName() != QLatin1String("shape.saveAsPicture"));
+    }
+
     // A shape has the margins, wrap, vertical alignment, and columns too.
     void shapeTextOptionsAreKept()
     {

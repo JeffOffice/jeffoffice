@@ -1961,6 +1961,14 @@
           "keytip": "ZD",
           "items": [
             {
+              "large": "tbl.drawTable",
+              "keytip": "DT"
+            },
+            {
+              "large": "tbl.eraser",
+              "keytip": "ER"
+            },
+            {
               "row": [
                 {
                   "widget": "penStyle",
@@ -2011,6 +2019,10 @@
                 "tbl.selectCol",
                 "tbl.selectTable"
               ]
+            },
+            {
+              "large": "tbl.gridlines",
+              "keytip": "VG"
             }
           ]
         },

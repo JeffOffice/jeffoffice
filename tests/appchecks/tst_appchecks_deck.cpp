@@ -359,7 +359,7 @@ private Q_SLOTS:
         };
         m_app.prepare = [](AppWindow *w, const QString &id, bool) {
             asDeck(w)->showFormatPane(false);   // (the pane is open or shut as the person left it, in the next window too)
-            if (id == QLatin1String("edit.paste") || id == QLatin1String("edit.pasteText") || id == QLatin1String("edit.pasteSpecial")) QGuiApplication::clipboard()->setText(QStringLiteral("Pasted words"));
+            if (id == QLatin1String("edit.paste") || id == QLatin1String("edit.pasteText") || id == QLatin1String("edit.pasteKeep") || id == QLatin1String("edit.pasteSpecial")) QGuiApplication::clipboard()->setText(QStringLiteral("Pasted words"));
             if (id == QLatin1String("edit.pasteCells")) QGuiApplication::clipboard()->setText(QStringLiteral("a\tb\nc\td\n"));
         };
         m_app.skipped = {};
@@ -367,6 +367,7 @@ private Q_SLOTS:
             {QStringLiteral("design.slideSize"), QStringLiteral("the name of the Slide Size menu: its choices are the commands, and it has none of its own")},
             {QStringLiteral("design.setDefaultSlideSize"), QStringLiteral("it keeps this slide size for new presentations, and nothing changes in this one")},
             {QStringLiteral("design.setDefaultTheme"), QStringLiteral("it keeps this theme for new presentations, and nothing changes in this one")},
+            {QStringLiteral("tbl.gridlines"), QStringLiteral("it draws the edges of the cells that have no line, and the tables the checks make have lines; the window's tests check the drawing")},
             {QStringLiteral("anim.painter"), QStringLiteral("it arms the animation painter, and nothing shows until a shape is clicked")},
             {QStringLiteral("review.wordCount"), QStringLiteral("it tells the counts in a message and changes nothing")},
         };

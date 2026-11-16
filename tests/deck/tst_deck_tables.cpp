@@ -200,6 +200,226 @@ private Q_SLOTS:
         QCOMPARE(theTable(ed)->cell(2, 0).colSpan, 2);
     }
 
+    // Draw Table's pen: a stroke along the edge between two cells draws a border there, with the pen's line, on both sides of it; a stroke across a cell divides
+    // it, one more row or column for the table that the other cells run across; one step that undoes, and saved and read again.
+    void tablePenDrawsBordersAndDividesCells()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        tableOnSlide(w, 2, 2);
+        ed->selectCells(theTable(ed)->id, 0, 0, 1, 1);
+        setTableRowHeight(ed, 80);   // (rows tall enough that the halves of a divided one still hold the words)
+        setTableColumnWidth(ed, 150);
+        ed->select(theTable(ed)->id);
+        setTableBorders(ed, BorderSides::None, Stroke::none());
+        const Stroke pen = Stroke::line(ColorRef::rgb(QColor(200, 0, 0)), 3);
+        TableItem *t = theTable(ed);
+        const double x1 = t->colW[0], y1 = t->rowH[0];
+        QVERIFY(t->cell(0, 0).border.right.isNone() && t->cell(0, 1).border.left.isNone());
+        // Along the edge between the columns, down the first row.
+        QCOMPARE(drawTableLine(ed, t, QPointF(x1 + 1, 2), QPointF(x1 - 1, y1 - 2), pen), TableStroke::Border);
+        t = theTable(ed);
+        QVERIFY(t->cell(0, 0).border.right == pen && t->cell(0, 1).border.left == pen);
+        QVERIFY(t->cell(1, 0).border.right.isNone() && t->cell(1, 1).border.left.isNone());
+        ed->undo();
+        QVERIFY(theTable(ed)->cell(0, 0).border.right.isNone());
+        // A stroke too short, or not straight, draws nothing and is no step.
+        const QByteArray before = documentJson(ed);
+        QCOMPARE(drawTableLine(ed, theTable(ed), QPointF(x1, 2), QPointF(x1, 5), pen), TableStroke::Nothing);
+        QCOMPARE(drawTableLine(ed, theTable(ed), QPointF(5, 5), QPointF(x1 + 20, y1 + 20), pen), TableStroke::Nothing);
+        QCOMPARE(documentJson(ed), before);
+        // Across the cell in the second row and second column, from side to side: a new row, the cell above it keeps its text, the one beside it runs across both rows.
+        t = theTable(ed);
+        const double height = t->rect.height(), top = t->rowH[0], mid = top + t->rowH[1] / 2;
+        QCOMPARE(drawTableLine(ed, t, QPointF(x1 + 2, mid), QPointF(t->rect.width() - 2, mid), pen), TableStroke::Split);
+        t = theTable(ed);
+        QCOMPARE(t->rows, 3);
+        QCOMPARE(t->cols, 2);
+        QVERIFY(std::abs(t->rect.height() - height) < 0.01);
+        QVERIFY(std::abs(t->rowH[1] - (mid - top)) < 0.01);
+        QCOMPARE(t->cell(1, 0).rowSpan, 2);
+        QVERIFY(t->cell(2, 0).covered && !t->cell(2, 1).covered && !t->cell(1, 1).covered);
+        QCOMPARE(cellText(ed, 1, 1), QStringLiteral("B2"));
+        QCOMPARE(cellText(ed, 2, 1), QString());
+        QVERIFY(t->cell(1, 1).border.bottom == pen && t->cell(2, 1).border.top == pen);
+        for (bool odp : {false, true}) {
+            auto back = savedAndRead(*ed->doc(), odp);
+            QVERIFY(back);
+            const TableItem *bt = firstTable(*back);
+            QVERIFY(bt);
+            QCOMPARE(bt->rows, 3);
+            QCOMPARE(bt->cell(1, 0).rowSpan, 2);
+            QVERIFY(bt->cell(2, 0).covered && !bt->cell(2, 1).covered);
+        }
+        ed->undo();
+        QCOMPARE(theTable(ed)->rows, 2);
+        QVERIFY(theTable(ed)->cell(1, 1).border.bottom.isNone());
+        ed->redo();
+        QCOMPARE(theTable(ed)->rows, 3);
+        ed->undo();
+        // Down the first cell: a new column, the cell below runs across both.
+        t = theTable(ed);
+        const double width = t->rect.width(), across = t->colW[0] / 2;
+        QCOMPARE(drawTableLine(ed, t, QPointF(across, 2), QPointF(across, t->rowH[0] - 2), pen), TableStroke::Split);
+        t = theTable(ed);
+        QCOMPARE(t->cols, 3);
+        QVERIFY(std::abs(t->rect.width() - width) < 0.01);
+        QVERIFY(std::abs(t->colW[0] - across) < 0.01 && std::abs(t->colW[1] - across) < 0.01);
+        QCOMPARE(t->cell(1, 0).colSpan, 2);
+        QVERIFY(t->cell(1, 1).covered && !t->cell(0, 1).covered);
+        QCOMPARE(cellText(ed, 0, 0), QStringLiteral("A1"));
+        // A merged cell is divided at the edge inside it that is nearest: the merge ends there.
+        ed->undo();
+        ed->selectCells(theTable(ed)->id, 0, 0, 1, 1);
+        QVERIFY(command(w, "tbl.merge"));
+        t = theTable(ed);
+        const double cut = t->rowH[0] + 1;
+        QCOMPARE(drawTableLine(ed, t, QPointF(2, cut), QPointF(t->rect.width() - 2, cut), pen), TableStroke::Split);
+        t = theTable(ed);
+        QCOMPARE(t->rows, 2);
+        QCOMPARE(t->cell(0, 0).rowSpan, 1);
+        QCOMPARE(t->cell(0, 0).colSpan, 2);
+        QVERIFY(!t->cell(1, 0).covered);
+        QCOMPARE(t->cell(1, 0).colSpan, 2);
+        QVERIFY(t->cell(0, 0).border.bottom == pen && t->cell(1, 0).border.top == pen);
+    }
+
+    // The Eraser joins cells: dragged from one to another, or along the edge between them (each pair on its sides); along the table's outside edge it takes the border away.
+    void tableEraserJoinsCellsAndTakesBordersAway()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        tableOnSlide(w, 3, 3);
+        TableItem *t = theTable(ed);
+        const double x1 = t->colW[0], x2 = x1 + t->colW[1], y1 = t->rowH[0], y2 = y1 + t->rowH[1];
+        // From the first cell to the one beside it.
+        QCOMPARE(eraseTableLine(ed, t, QPointF(x1 / 2, y1 / 2), QPointF(x1 + t->colW[1] / 2, y1 / 2)), TableStroke::Joined);
+        t = theTable(ed);
+        QCOMPARE(t->cell(0, 0).colSpan, 2);
+        QVERIFY(t->cell(0, 1).covered);
+        QCOMPARE(cellText(ed, 0, 0).split(QLatin1Char('\n')), (QStringList{QStringLiteral("A1"), QStringLiteral("A2")}));
+        ed->undo();
+        QVERIFY(!theTable(ed)->cell(0, 1).covered);
+        // Along the edge between the first and second rows, from the left across two columns: both pairs are joined.
+        t = theTable(ed);
+        QCOMPARE(eraseTableLine(ed, t, QPointF(3, y1 + 1), QPointF(x2 - 3, y1 - 1)), TableStroke::Joined);
+        t = theTable(ed);
+        QCOMPARE(t->cell(0, 0).rowSpan, 2);
+        QCOMPARE(t->cell(0, 1).rowSpan, 2);
+        QVERIFY(t->cell(1, 0).covered && t->cell(1, 1).covered && !t->cell(0, 2).covered && !t->cell(1, 2).covered);
+        QVERIFY(t->cell(2, 0).rowSpan == 1);
+        for (bool odp : {false, true}) {
+            auto back = savedAndRead(*ed->doc(), odp);
+            QVERIFY(back);
+            const TableItem *bt = firstTable(*back);
+            QVERIFY(bt);
+            QCOMPARE(bt->cell(0, 0).rowSpan, 2);
+            QCOMPARE(bt->cell(0, 1).rowSpan, 2);
+        }
+        ed->undo();
+        // Along the outside edge there is nothing to join: the border goes.
+        t = theTable(ed);
+        const Stroke line = Stroke::line(ColorRef::rgb(Qt::black), 2);
+        setTableBorders(ed, BorderSides::All, line);
+        t = theTable(ed);
+        QVERIFY(t->cell(0, 0).border.top == line && t->cell(0, 1).border.top == line);
+        QCOMPARE(eraseTableLine(ed, t, QPointF(2, 1), QPointF(x2 - 2, -1)), TableStroke::Border);
+        t = theTable(ed);
+        QVERIFY(t->cell(0, 0).border.top.isNone() && t->cell(0, 1).border.top.isNone() && t->cell(0, 2).border.top == line);
+        QVERIFY(t->cell(0, 0).border.bottom == line);
+        // One cell, or nowhere: nothing changes.
+        const QByteArray before = documentJson(ed);
+        QCOMPARE(eraseTableLine(ed, theTable(ed), QPointF(5, 5), QPointF(x1 - 5, y1 - 5)), TableStroke::Nothing);
+        QCOMPARE(documentJson(ed), before);
+        Q_UNUSED(y2);
+    }
+
+    // Draw Table and the Eraser are modes of the mouse: switched on from the Table Design tab, a drag on the slide's table does the stroke when the button is let go and the
+    // mode stays; Esc, or the button again, switches it off.
+    void tablePenAndEraserAreModesOfTheMouse()
+    {
+        DeckWindow w;
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        Editor *ed = w.editor();
+        tableOnSlide(w, 2, 2);
+        QVERIFY(w.act(QStringLiteral("tbl.drawTable"))->isEnabled() && w.act(QStringLiteral("tbl.eraser"))->isEnabled());
+        QVERIFY(command(w, "tbl.drawTable"));
+        QCOMPARE(ed->tool(), Tool::TablePen);
+        QVERIFY(w.act(QStringLiteral("tbl.drawTable"))->isChecked() && !w.act(QStringLiteral("tbl.eraser"))->isChecked());
+        const TableItem *t = theTable(ed);
+        const QRectF r = t->rect;
+        const double midX = r.left() + t->colW[0] * 1.5;
+        auto drag = [&](QPointF from, QPointF to) {
+            const QPoint a = w.canvas()->pageToView(from).toPoint(), b = w.canvas()->pageToView(to).toPoint();
+            QWidget *vp = w.canvas()->viewport();
+            QTest::mousePress(vp, Qt::LeftButton, Qt::NoModifier, a);
+            QTest::mouseMove(vp, (a + b) / 2);
+            QTest::mouseMove(vp, b);
+            QTest::mouseRelease(vp, Qt::LeftButton, Qt::NoModifier, b);
+        };
+        // Across the first row's second cell, down: one more column.
+        drag(QPointF(midX, r.top() + 3), QPointF(midX, r.top() + t->rowH[0] - 3));
+        QCOMPARE(theTable(ed)->cols, 3);
+        QCOMPARE(ed->tool(), Tool::TablePen);
+        // The pen's line is the one the Draw Borders pen says (its color and weight).
+        QVERIFY(!theTable(ed)->cell(0, 1).border.right.isNone());
+        // A press off the table does nothing.
+        drag(QPointF(r.left() - 30, r.top() - 30), QPointF(r.left() - 30, r.top() - 10));
+        QCOMPARE(theTable(ed)->cols, 3);
+        ed->undo();
+        QCOMPARE(theTable(ed)->cols, 2);
+        // The eraser: from the first cell to the next.
+        QVERIFY(command(w, "tbl.eraser"));
+        QCOMPARE(ed->tool(), Tool::TableEraser);
+        QVERIFY(!w.act(QStringLiteral("tbl.drawTable"))->isChecked() && w.act(QStringLiteral("tbl.eraser"))->isChecked());
+        t = theTable(ed);
+        drag(QPointF(r.left() + t->colW[0] / 2, r.top() + t->rowH[0] / 2), QPointF(r.left() + t->colW[0] * 1.5, r.top() + t->rowH[0] / 2));
+        QCOMPARE(theTable(ed)->cell(0, 0).colSpan, 2);
+        QTest::keyClick(w.canvas(), Qt::Key_Escape);
+        QCOMPARE(ed->tool(), Tool::Select);
+        QVERIFY(!w.act(QStringLiteral("tbl.eraser"))->isChecked());
+    }
+
+    // View Gridlines draws the edges of the cells that have no line, dashed, on the screen only: with it on, the picture of a table of cells with no lines has marks along the
+    // edge between two columns, and none with it off; a picture made for output (a printout, a PDF, the saved file) has none either way.
+    void viewGridlinesShowsTheEdgesOfCellsWithNoLineOnTheScreenOnly()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        tableOnSlide(w, 2, 2);
+        setTableBorders(ed, BorderSides::None, Stroke::none());
+        const TableItem *t = theTable(ed);
+        QVERIFY(w.act(QStringLiteral("tbl.gridlines"))->isChecked() == ed->view.gridlines);
+        const bool was = ed->view.gridlines;
+        auto picture = [&](bool gridlines, bool output) {
+            PaintContext ctx;
+            ctx.doc = ed->doc();
+            ctx.cache = &ed->cache();
+            ctx.opt = ed->renderOptions();
+            ctx.opt.tableGridlines = gridlines;
+            ctx.opt.output = output;
+            return Renderer::renderItemsToImage(ctx, {ed->doc()->itemPtr(t->id)}, 4.0);
+        };
+        const QImage on = picture(true, false), off = picture(false, false);
+        QVERIFY(on != off);
+        // The dashes lie along the edge between the columns: a column of pixels there that differs.
+        const int x = int((4.0 + t->colW[0]) * 4.0);
+        int marks = 0;
+        for (int y = 0; y < on.height(); ++y)
+            if (on.pixel(x, y) != off.pixel(x, y)) ++marks;
+        QVERIFY(marks > 4);
+        QVERIFY(picture(true, true) == off && picture(false, true) == off);
+        // The command shows and hides them, and the saved file is the same either way.
+        const QString saved = savedSlideXml(*ed->doc());
+        QVERIFY(command(w, "tbl.gridlines"));
+        QCOMPARE(ed->view.gridlines, !was);
+        QCOMPARE(w.act(QStringLiteral("tbl.gridlines"))->isChecked(), !was);
+        QCOMPARE(savedSlideXml(*ed->doc()), saved);
+        QVERIFY(command(w, "tbl.gridlines"));
+        QCOMPARE(ed->view.gridlines, was);
+    }
+
     // Select Row, Column, and Table choose cells; Distribute makes the rows or columns the same size, and Row Height and Column Width set
     // the size of those of the selected cells.
     void tableToolsSelectAndSizeCells()

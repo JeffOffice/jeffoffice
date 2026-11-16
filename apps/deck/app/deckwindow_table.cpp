@@ -146,6 +146,21 @@ void DeckWindow::createTableActions()
         mk(QString::fromLatin1(b.id), b.text, "", QKeySequence(), [ed, sides] { setTableBorders(ed, sides, pen()); });
     }
 
+    // Draw Table and the Eraser are modes of the mouse until switched off (or Esc is pressed): the pen draws a border along an edge between cells, or divides a cell by a line
+    // across it; the eraser joins the cells it is dragged across. View Gridlines shows the edges of the cells that have no line (on the screen only).
+    m_ed->tablePen = [] { return pen(); };
+    mk("tbl.drawTable", tr("Draw Table"), "pencil", QKeySequence(), [ed] { ed->setTool(ed->tool() == Tool::TablePen ? Tool::Select : Tool::TablePen); }, true);
+    mk("tbl.eraser", tr("Eraser"), "eraser", QKeySequence(), [ed] { ed->setTool(ed->tool() == Tool::TableEraser ? Tool::Select : Tool::TableEraser); }, true);
+    mk("tbl.gridlines", tr("View Gridlines"), "grid-2x2", QKeySequence(), [ed] { ed->setView([](ViewOptions &v) { v.gridlines = !v.gridlines; }); }, true);
+    act("tbl.gridlines")->setChecked(m_ed->view.gridlines);   // (on, as a new window has it; a tab made late shows the same)
+    connect(m_ed, &Editor::toolChanged, this, [this] {
+        const bool pencil = m_ed->tool() == Tool::TablePen, eraser = m_ed->tool() == Tool::TableEraser;
+        act("tbl.drawTable")->setChecked(pencil);
+        act("tbl.eraser")->setChecked(eraser);
+        act("tbl.drawTable")->setEnabled(pencil || selectedTable(m_ed));
+        act("tbl.eraser")->setEnabled(eraser || selectedTable(m_ed));
+    });
+
     // Rows and columns that come and go keep the table in its style: the bands go on, and a new row has its neighbors' look.
     m_ed->tableEdited = [this](TableItem *t, const Editor::TableEdit &edit) { keepTableStyle(m_ed, t, edit, tableStyles(*m_ed->doc())); };
 
@@ -180,7 +195,8 @@ void DeckWindow::refreshTable()
     TableItem *t = selectedTable(m_ed);
     if (m_ribbon) m_ribbon->setContextVisible(QStringLiteral("Table Tools"), t != nullptr);
     for (QAction *a : m_actions)
-        if (a->objectName().startsWith(QLatin1String("tbl.")) || a->objectName().startsWith(QLatin1String("border."))) a->setEnabled(t != nullptr);
+        if (a->objectName().startsWith(QLatin1String("tbl.")) || a->objectName().startsWith(QLatin1String("border."))) a->setEnabled(t != nullptr || (a->isChecked() && (a->objectName() == QLatin1String("tbl.drawTable") || a->objectName() == QLatin1String("tbl.eraser"))));
+    act("tbl.gridlines")->setChecked(m_ed->view.gridlines);
     if (!t) return;
     const TableStyleParts parts = TableStyleParts::of(*t);
     const struct { const char *id; bool on; } options[] = {{"tbl.optHeader", parts.header}, {"tbl.optTotal", parts.totalRow}, {"tbl.optBanded", parts.banded},
