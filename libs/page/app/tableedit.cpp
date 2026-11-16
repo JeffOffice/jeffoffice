@@ -293,6 +293,40 @@ void deleteTable(Editor *ed)
     }
 }
 
+namespace {
+
+// Joins the cells of a block into its first: their text goes in the first cell's, a paragraph each, and the cells under it are covered.
+void joinCells(Editor *ed, TableItem *t, const CellRange &rg)
+{
+    TableCell &head = t->cell(rg.r0, rg.c0);
+    QTextDocument *dst = ed->doc()->storyDoc(head.storyId);
+    for (int r = rg.r0; r <= rg.r1; ++r)
+        for (int c = rg.c0; c <= rg.c1; ++c) {
+            if (r == rg.r0 && c == rg.c0) continue;
+            TableCell &cell = t->cell(r, c);
+            if (!cell.storyId2.isEmpty()) joinHalves(ed->doc(), cell);   // a divided cell is one again
+            // The other cells' text joins the first cell's, a paragraph each.
+            QTextDocument *src = cell.covered ? nullptr : ed->doc()->storyDoc(cell.storyId);
+            if (dst && src && !src->toPlainText().isEmpty()) {
+                QTextCursor dc(dst);
+                dc.movePosition(QTextCursor::End);
+                if (!dst->toPlainText().isEmpty()) dc.insertBlock();
+                dc.insertFragment(QTextDocumentFragment(src));
+                QTextCursor sc(src);
+                sc.select(QTextCursor::Document);
+                sc.removeSelectedText();
+            }
+            cell.covered = true;
+            cell.rowSpan = cell.colSpan = 1;
+        }
+    head.rowSpan = rg.r1 - rg.r0 + 1;
+    head.colSpan = rg.c1 - rg.c0 + 1;
+    ed->fitTableRows(t);   // all the words are in one cell now
+    dropUnusedStories(ed->doc());
+}
+
+} // namespace
+
 void mergeTableCells(Editor *ed)
 {
     TableItem *t = selectedTable(ed);
@@ -308,33 +342,7 @@ void mergeTableCells(Editor *ed)
         rg = t->cellsBetween(rg.r0, rg.c0, rg.r1, rg.c1 + 1);
     }
     ed->endTextEdit();
-    ed->change(QCoreApplication::translate("TableEdit", "Merge Cells"), [&] {
-        TableCell &head = t->cell(rg.r0, rg.c0);
-        QTextDocument *dst = ed->doc()->storyDoc(head.storyId);
-        for (int r = rg.r0; r <= rg.r1; ++r)
-            for (int c = rg.c0; c <= rg.c1; ++c) {
-                if (r == rg.r0 && c == rg.c0) continue;
-                TableCell &cell = t->cell(r, c);
-                if (!cell.storyId2.isEmpty()) joinHalves(ed->doc(), cell);   // a divided cell is one again
-                // The other cells' text joins the first cell's, a paragraph each.
-                QTextDocument *src = cell.covered ? nullptr : ed->doc()->storyDoc(cell.storyId);
-                if (dst && src && !src->toPlainText().isEmpty()) {
-                    QTextCursor dc(dst);
-                    dc.movePosition(QTextCursor::End);
-                    if (!dst->toPlainText().isEmpty()) dc.insertBlock();
-                    dc.insertFragment(QTextDocumentFragment(src));
-                    QTextCursor sc(src);
-                    sc.select(QTextCursor::Document);
-                    sc.removeSelectedText();
-                }
-                cell.covered = true;
-                cell.rowSpan = cell.colSpan = 1;
-            }
-        head.rowSpan = rg.r1 - rg.r0 + 1;
-        head.colSpan = rg.c1 - rg.c0 + 1;
-        ed->fitTableRows(t);   // all the words are in one cell now
-        dropUnusedStories(ed->doc());
-    });
+    ed->change(QCoreApplication::translate("TableEdit", "Merge Cells"), [&] { joinCells(ed, t, rg); });
     ed->selectCells(t->id, rg.r0, rg.c0, rg.r1, rg.c1);
 }
 
@@ -358,6 +366,304 @@ void splitTableCells(Editor *ed)
         dropUnusedStories(ed->doc());
     });
     ed->selectCells(t->id, rg.r0, rg.c0, rg.r1, rg.c1);
+}
+
+namespace {
+
+constexpr double kEdgeReach = 4;        // points: how near an edge between cells a stroke along it has to be to draw on (or erase) the edge
+constexpr double kStrokeCrossing = 0.5; // the share of a cell's size a stroke across it has to cover to divide it
+constexpr double kLeastCell = 6;        // points: a cell is not divided into parts smaller than this
+
+// The block (its first cell: column in x, row in y) that each grid position is part of; a position no block claims is its own.
+QVector<QPoint> blockGrid(const TableItem *t)
+{
+    QVector<QPoint> heads(t->rows * t->cols, QPoint(-1, -1));
+    for (int r = 0; r < t->rows; ++r)
+        for (int c = 0; c < t->cols; ++c) {
+            const TableCell &cell = t->cell(r, c);
+            if (cell.covered) continue;
+            for (int rr = r; rr < std::min(t->rows, r + std::max(1, cell.rowSpan)); ++rr)
+                for (int cc = c; cc < std::min(t->cols, c + std::max(1, cell.colSpan)); ++cc) heads[rr * t->cols + cc] = QPoint(c, r);
+        }
+    for (int r = 0; r < t->rows; ++r)
+        for (int c = 0; c < t->cols; ++c)
+            if (heads[r * t->cols + c].x() < 0) heads[r * t->cols + c] = QPoint(c, r);
+    return heads;
+}
+
+// The position of the edge `k` (0 is the table's first edge) of rows or columns of those sizes, and the edge nearest `at`.
+double edgeAt(const QVector<double> &sizes, int k)
+{
+    double v = 0;
+    for (int i = 0; i < k && i < sizes.size(); ++i) v += sizes[i];
+    return v;
+}
+
+int nearestEdge(const QVector<double> &sizes, double at, double *distance)
+{
+    int best = 0;
+    double bestDistance = std::abs(at);
+    double v = 0;
+    for (int i = 0; i < sizes.size(); ++i) {
+        v += sizes[i];
+        if (std::abs(at - v) < bestDistance) {
+            bestDistance = std::abs(at - v);
+            best = i + 1;
+        }
+    }
+    *distance = bestDistance;
+    return best;
+}
+
+// A stroke, as along (rows' edges, for a horizontal one) or across, the part of a table it is on.
+struct Stroked {
+    bool horizontal = true;
+    double at = 0, from = 0, to = 0;   // the stroke's place across it (y for a horizontal one), and its ends along it
+    bool ok = false;
+};
+
+Stroked strokeOf(const QPointF &a, const QPointF &b)
+{
+    Stroked s;
+    const double dx = std::abs(b.x() - a.x()), dy = std::abs(b.y() - a.y());
+    s.horizontal = dx >= dy;
+    const double along = s.horizontal ? dx : dy, across = s.horizontal ? dy : dx;
+    s.ok = along >= 6 && across <= along * 0.35;
+    s.at = s.horizontal ? (a.y() + b.y()) / 2 : (a.x() + b.x()) / 2;
+    s.from = s.horizontal ? std::min(a.x(), b.x()) : std::min(a.y(), b.y());
+    s.to = s.horizontal ? std::max(a.x(), b.x()) : std::max(a.y(), b.y());
+    return s;
+}
+
+// The blocks that touch edge `k` between rows (columns), on the side before or after it, that a stroke from..to covers at least half of.
+QVector<QPoint> blocksAlongEdge(const TableItem *t, const QVector<QPoint> &heads, const Stroked &s, int k, bool after)
+{
+    QVector<QPoint> out;
+    const int count = s.horizontal ? t->cols : t->rows;
+    const int line = after ? k : k - 1;
+    if (line < 0 || line >= (s.horizontal ? t->rows : t->cols)) return out;
+    for (int i = 0; i < count; ++i) {
+        const QPoint h = heads[s.horizontal ? line * t->cols + i : i * t->cols + line];
+        const TableCell &cell = t->cell(h.y(), h.x());
+        // The block must end (begin) at this edge, not run through it.
+        if (s.horizontal ? (after ? h.y() != k : h.y() + cell.rowSpan - 1 != k - 1) : (after ? h.x() != k : h.x() + cell.colSpan - 1 != k - 1)) continue;
+        if (out.contains(h)) continue;
+        const QRectF rc = t->cellRect(h.y(), h.x());
+        const double lo = s.horizontal ? rc.left() : rc.top(), hi = s.horizontal ? rc.right() : rc.bottom();
+        if (std::min(hi, s.to) - std::max(lo, s.from) >= (hi - lo) * kStrokeCrossing) out << h;
+    }
+    return out;
+}
+
+} // namespace
+
+TableStroke drawTableLine(Editor *ed, TableItem *t, const QPointF &a, const QPointF &b, const Stroke &pen)
+{
+    if (!t || t->rows < 1 || t->cols < 1) return TableStroke::Nothing;
+    const Stroked s = strokeOf(a, b);
+    if (!s.ok) {
+        Q_EMIT ed->status(QCoreApplication::translate("TableEdit", "Draw a straight line along the edge of a cell, or across a cell to divide it."));
+        return TableStroke::Nothing;
+    }
+    const QVector<double> &across = s.horizontal ? t->rowH : t->colW;
+    double distance = 0;
+    const int k = nearestEdge(across, s.at, &distance);
+    const QVector<QPoint> heads = blockGrid(t);
+    if (distance <= kEdgeReach) {
+        // Along an edge: the pen's line on it, for the cells on each side.
+        const QVector<QPoint> before = blocksAlongEdge(t, heads, s, k, false), after = blocksAlongEdge(t, heads, s, k, true);
+        // (An edge inside a merged cell is no edge between cells: a stroke along it divides the cell, below.)
+        if (!before.isEmpty() || !after.isEmpty()) {
+            ed->endTextEdit();
+            ed->change(QCoreApplication::translate("TableEdit", "Draw Border"), [&] {
+                for (const QPoint &h : before) (s.horizontal ? t->cell(h.y(), h.x()).border.bottom : t->cell(h.y(), h.x()).border.right) = pen;
+                for (const QPoint &h : after) (s.horizontal ? t->cell(h.y(), h.x()).border.top : t->cell(h.y(), h.x()).border.left) = pen;
+            });
+            return TableStroke::Border;
+        }
+    }
+    // Across a cell: the cell under the middle of the stroke, if the stroke covers enough of it.
+    int row = 0, col = 0;
+    t->cellAt(s.horizontal ? QPointF((s.from + s.to) / 2, s.at) : QPointF(s.at, (s.from + s.to) / 2), &row, &col);
+    const QPoint head = heads[row * t->cols + col];
+    row = head.y();
+    col = head.x();
+    const TableCell original = t->cell(row, col);
+    const QRectF rc = t->cellRect(row, col);
+    const double lo = s.horizontal ? rc.left() : rc.top(), hi = s.horizontal ? rc.right() : rc.bottom();
+    if (std::min(hi, s.to) - std::max(lo, s.from) < (hi - lo) * kStrokeCrossing) {
+        Q_EMIT ed->status(QCoreApplication::translate("TableEdit", "Draw the line all the way across the cell to divide it."));
+        return TableStroke::Nothing;
+    }
+    const int span = s.horizontal ? original.rowSpan : original.colSpan;
+    const double start = s.horizontal ? rc.top() : rc.left(), size = s.horizontal ? rc.height() : rc.width();
+    ed->endTextEdit();
+    if (span > 1) {
+        // A merged cell: the merge ends at the edge inside it that is nearest.
+        int edge = (s.horizontal ? row : col) + 1;
+        double best = 1e9;
+        for (int e = (s.horizontal ? row : col) + 1; e < (s.horizontal ? row : col) + span; ++e) {
+            const double d = std::abs(edgeAt(across, e) - s.at);
+            if (d < best) {
+                best = d;
+                edge = e;
+            }
+        }
+        ed->change(QCoreApplication::translate("TableEdit", "Split Cells"), [&] {
+            TableCell &first = t->cell(row, col);
+            const int rows = s.horizontal ? first.rowSpan : 0, cols = s.horizontal ? 0 : first.colSpan;
+            TableCell &second = s.horizontal ? t->cell(edge, col) : t->cell(row, edge);
+            const QString kept = second.storyId;   // (a covered cell kept its own, empty, text)
+            second = first;
+            second.covered = false;
+            second.storyId = kept.isEmpty() ? ed->doc()->createStory() : kept;
+            second.storyId2.clear();
+            if (s.horizontal) {
+                second.rowSpan = row + rows - edge;
+                first.rowSpan = edge - row;
+                first.border.bottom = pen;
+                second.border.top = pen;
+            } else {
+                second.colSpan = col + cols - edge;
+                first.colSpan = edge - col;
+                first.border.right = pen;
+                second.border.left = pen;
+            }
+            ed->fitTableRows(t);
+        });
+        return TableStroke::Split;
+    }
+    // A cell of one row (column): the table gets one more of them, and the cell is divided between the two.
+    if ((s.horizontal ? t->rows : t->cols) >= kMaxTableRowsOrColumns) {
+        Q_EMIT ed->status((s.horizontal ? QCoreApplication::translate("TableEdit", "A table has at most %1 rows.") : QCoreApplication::translate("TableEdit", "A table has at most %1 columns."))
+                              .arg(kMaxTableRowsOrColumns));
+        return TableStroke::Nothing;
+    }
+    const double first = s.at - start, second = size - first;
+    if (first < kLeastCell || second < kLeastCell) {
+        Q_EMIT ed->status(QCoreApplication::translate("TableEdit", "The cell is too small to divide there."));
+        return TableStroke::Nothing;
+    }
+    // The cells of the other columns (rows) in this row (column) that end here are made one bigger, so that they run across the new one.
+    const int line = s.horizontal ? row : col;
+    QVector<QPoint> through;
+    for (int i = 0; i < (s.horizontal ? t->cols : t->rows); ++i) {
+        const QPoint h = heads[s.horizontal ? line * t->cols + i : i * t->cols + line];
+        const TableCell &cell = t->cell(h.y(), h.x());
+        if (h == head || through.contains(h)) continue;
+        if ((s.horizontal ? h.y() + cell.rowSpan - 1 : h.x() + cell.colSpan - 1) == line) through << h;
+    }
+    const QVector<double> oldWidths = t->colW;
+    ed->change(QCoreApplication::translate("TableEdit", "Split Cells"), [&] {
+        Editor::TableEdit done;
+        if (s.horizontal) {
+            tableInsertRow(ed, t, row + 1);
+            t->rowH[row] = first;
+            t->rowH[row + 1] = second;
+            t->syncRect();
+            done = Editor::TableEdit{true, row + 1, 1};
+        } else {
+            tableInsertCol(ed, t, col + 1);
+            t->colW = oldWidths;
+            t->colW[col] = first;
+            t->colW.insert(col + 1, second);
+            t->syncRect();
+            done = Editor::TableEdit{false, col + 1, 1};
+        }
+        for (const QPoint &h : through) {
+            TableCell &cell = t->cell(h.y(), h.x());
+            if (s.horizontal) {
+                ++cell.rowSpan;
+                for (int cc = h.x(); cc < std::min(t->cols, h.x() + cell.colSpan); ++cc) t->cell(row + 1, cc).covered = true;
+            } else {
+                ++cell.colSpan;
+                for (int rr = h.y(); rr < std::min(t->rows, h.y() + cell.rowSpan); ++rr) t->cell(rr, col + 1).covered = true;
+            }
+        }
+        // The new cell is as wide (tall) as the one divided, and has what it had.
+        TableCell &now = t->cell(row, col);
+        TableCell &made = s.horizontal ? t->cell(row + 1, col) : t->cell(row, col + 1);
+        if (s.horizontal) {
+            made.colSpan = original.colSpan;
+            for (int cc = col + 1; cc < std::min(t->cols, col + original.colSpan); ++cc) t->cell(row + 1, cc).covered = true;
+        } else {
+            made.rowSpan = original.rowSpan;
+            for (int rr = row + 1; rr < std::min(t->rows, row + original.rowSpan); ++rr) t->cell(rr, col + 1).covered = true;
+        }
+        if (ed->tableEdited) ed->tableEdited(t, done);
+        made.fill = original.fill;
+        made.valign = original.valign;
+        made.margins = original.margins;
+        made.border = original.border;
+        if (s.horizontal) {
+            now.border.bottom = pen;
+            made.border.top = pen;
+        } else {
+            now.border.right = pen;
+            made.border.left = pen;
+        }
+        dropUnusedStories(ed->doc());
+        ed->fitTableRows(t);
+    });
+    return TableStroke::Split;
+}
+
+TableStroke eraseTableLine(Editor *ed, TableItem *t, const QPointF &a, const QPointF &b)
+{
+    if (!t || t->rows < 1 || t->cols < 1) return TableStroke::Nothing;
+    const Stroked s = strokeOf(a, b);
+    double distance = 0;
+    if (s.ok) {
+        const QVector<double> &across = s.horizontal ? t->rowH : t->colW;
+        const int k = nearestEdge(across, s.at, &distance);
+        if (distance <= kEdgeReach) {
+            const int edges = s.horizontal ? t->rows : t->cols;
+            QVector<QPoint> heads = blockGrid(t);
+            if (k == 0 || k == edges) {
+                // The table's outside edge: nothing to join, so the border goes.
+                const QVector<QPoint> side = blocksAlongEdge(t, heads, s, k, k == 0);
+                if (side.isEmpty()) return TableStroke::Nothing;
+                ed->endTextEdit();
+                ed->change(QCoreApplication::translate("TableEdit", "Erase Border"), [&] {
+                    for (const QPoint &h : side) {
+                        CellBorder &bd = t->cell(h.y(), h.x()).border;
+                        (s.horizontal ? (k == 0 ? bd.top : bd.bottom) : (k == 0 ? bd.left : bd.right)) = Stroke::none();
+                    }
+                });
+                return TableStroke::Border;
+            }
+            // Between two rows (columns): each pair of cells on the two sides of the stroke is joined.
+            const QVector<QPoint> before = blocksAlongEdge(t, heads, s, k, false);
+            if (before.isEmpty()) return TableStroke::Nothing;
+            ed->endTextEdit();
+            ed->change(QCoreApplication::translate("TableEdit", "Merge Cells"), [&] {
+                for (const QPoint &first : before) {
+                    heads = blockGrid(t);   // (the cells joined before this one changed the blocks)
+                    const QPoint h = heads[first.y() * t->cols + first.x()];
+                    const TableCell &cell = t->cell(h.y(), h.x());
+                    const int nextRow = s.horizontal ? h.y() + cell.rowSpan : h.y(), nextCol = s.horizontal ? h.x() : h.x() + cell.colSpan;
+                    if (nextRow >= t->rows || nextCol >= t->cols || (s.horizontal ? nextRow : nextCol) != k) continue;
+                    const QPoint other = heads[nextRow * t->cols + nextCol];
+                    joinCells(ed, t, t->cellsBetween(h.y(), h.x(), other.y(), other.x()));
+                }
+            });
+            return TableStroke::Joined;
+        }
+    }
+    // From one cell to another: those cells, and the ones between, are one.
+    int r0 = 0, c0 = 0, r1 = 0, c1 = 0;
+    t->cellAt(a, &r0, &c0);
+    t->cellAt(b, &r1, &c1);
+    const CellRange rg = t->cellsBetween(r0, c0, r1, c1);
+    if (!rg.valid() || (rg.r0 == rg.r1 && rg.c0 == rg.c1)) {
+        Q_EMIT ed->status(QCoreApplication::translate("TableEdit", "Drag the eraser from one cell to the next, or along the edge between them, to join them."));
+        return TableStroke::Nothing;
+    }
+    const TableCell &only = t->cell(rg.r0, rg.c0);
+    if (!only.covered && rg.r1 == rg.r0 + only.rowSpan - 1 && rg.c1 == rg.c0 + only.colSpan - 1) return TableStroke::Nothing;   // (one merged cell already)
+    ed->endTextEdit();
+    ed->change(QCoreApplication::translate("TableEdit", "Merge Cells"), [&] { joinCells(ed, t, rg); });
+    return TableStroke::Joined;
 }
 
 void selectTable(Editor *ed)

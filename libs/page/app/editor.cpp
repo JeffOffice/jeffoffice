@@ -1661,6 +1661,19 @@ void Editor::copy()
     QApplication::clipboard()->setMimeData(md);
 }
 
+QImage Editor::selectionPicture(double scale)
+{
+    const QStringList ids = topLevelSelection();
+    if (ids.isEmpty()) return QImage();
+    PaintContext ctx;
+    ctx.doc = m_doc.get();
+    ctx.cache = &m_cache;
+    ctx.opt.output = true;
+    ItemList list;
+    for (const auto &id : ids) list.push_back(m_doc->itemPtr(id));
+    return Renderer::renderItemsToImage(ctx, list, scale);
+}
+
 void Editor::cut()
 {
     copy();

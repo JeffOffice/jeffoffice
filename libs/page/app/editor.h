@@ -11,6 +11,7 @@
 #include "core/style.h"
 #include "render/renderer.h"
 
+#include <QImage>
 #include <QObject>
 #include <QTextCursor>
 #include <QTimer>
@@ -45,7 +46,7 @@ struct ViewOptions {
 // The drag-and-drop format of Extra Content: the ids of the items, one a line.
 constexpr const char *kExtraContentMime = "application/x-jeffpub-extra";
 
-enum class Tool { Select, Text, Table, Picture, Shape, Line, Arrow, DoubleArrow, Freeform, TextArt, Link, FormatPainter };
+enum class Tool { Select, Text, Table, Picture, Shape, Line, Arrow, DoubleArrow, Freeform, TextArt, Link, FormatPainter, TablePen, TableEraser };
 
 class JO_COMMON_EXPORT Editor : public QObject {
     Q_OBJECT
@@ -173,6 +174,8 @@ public:
         int at = 0, count = 0;
     };
     std::function<void(TableItem *, const TableEdit &)> tableEdited;
+    // The line the table pen (Draw Table) draws along the edge of a cell; unset, a thin black line. A window sets it to its pen.
+    std::function<Stroke()> tablePen;
 
     // ---- changes and undo ----
     void beginChange(const QString &label);
@@ -278,6 +281,8 @@ public:
 
     // ---- clipboard ----
     void copy();
+    // What Save as Picture saves: the selected objects as they look in output, at `scale` pixels to the point (a null image with nothing selected).
+    QImage selectionPicture(double scale);
     void cut();
     void paste(bool textOnly = false);
     // The Paste Cells command: the spreadsheet cells the clipboard holds (an HTML table, or lines with tabs) are written over the selected table's cells, else made a table of their own (paste

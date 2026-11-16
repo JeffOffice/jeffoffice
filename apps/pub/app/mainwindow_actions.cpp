@@ -1255,11 +1255,7 @@ void MainWindow::createActions()
         if (!it) return;
         const QString p = askSavePath(this, tr("Save as Picture"), QString(), tr("PNG (*.png)") + QStringLiteral(";;") + tr("JPEG (*.jpg)"));
         if (p.isEmpty()) return;
-        PaintContext ctx;
-        ctx.doc = m_ed->doc();
-        ctx.cache = &m_ed->cache();
-        ctx.opt.output = true;
-        Renderer::renderItemsToImage(ctx, {m_ed->doc()->itemPtr(it->id)}, 300.0 / 72).save(p);
+        m_ed->selectionPicture(300.0 / 72).save(p);
     });
     mk("pic.caption", tr("Caption"), "captions", QKeySequence(), [ed] {
         auto *p = dynamic_cast<PictureItem *>(ed->single());

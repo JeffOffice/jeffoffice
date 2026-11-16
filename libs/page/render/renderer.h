@@ -26,7 +26,7 @@ struct RenderOptions {
     QDateTime now;
     bool shadeFields = false;
     bool showSpecial = false;
-    bool tableGridlines = true;   // dotted gridlines on borderless tables (screen only)
+    bool tableGridlines = true;   // dashed gridlines along the edges of table cells that have no line (screen only: never printed, exported, or saved)
     bool grayscale = false;
     // Text editing visuals for one story.
     QString editStory;
