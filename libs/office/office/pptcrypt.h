@@ -14,14 +14,18 @@
 
 namespace jp::office::ppt {
 
-// True if the bytes are a compound file whose Current User stream says the presentation is protected (or whose newest edit names a description of protection).
-bool pptEncrypted(const QByteArray &file);
+// True if the bytes are a compound file whose Current User stream says the presentation is protected. Only that small stream is read (a document, a workbook, or a presentation that is not
+// protected is not parsed whole); `isPpt`, when given, says whether the file has the stream of a presentation at all.
+bool pptEncrypted(const QByteArray &file, bool *isPpt = nullptr);
 
 // Checks the password and, unless `verifyOnly`, gives the file with its streams deciphered and the mark of protection taken off. A file or its streams larger than `maxBytes` is TooLarge;
-// a protection of another kind (a cipher other than RC4, a key held by a certificate) is Unsupported.
+// a protection of another kind (a cipher other than RC4, the 40-bit form of a workbook, a key held by a certificate) is Unsupported, and that is said before any password is used: with `verifyOnly` and an empty password,
+// Unsupported and Damaged come back as they would with the right one, and WrongPassword means the form is one that is read.
 CryptResult decryptPpt(const QByteArray &file, const QString &password, qint64 maxBytes, bool verifyOnly, QByteArray *plain, const std::function<bool()> &cancelled = nullptr);
 
-// What is bounded: the edits followed (1,000), the persist entries read (one for each 4 bytes of the stream), the description (8 KiB), and every offset and length against the stream's size.
+// What is bounded: the edits followed, the words of all the persist directories together (an eighth of the stream's bytes, headers and entries both), the description, the ids that name
+// one offset, and every offset and length against the stream's size; atoms of edits and directories, and persist objects, may not overlap.
 constexpr int kMaxPptEdits = 1000;
+constexpr qint64 kMaxDescription = 8192;
 
 } // namespace jp::office::ppt

@@ -412,8 +412,10 @@ PackageUnlock unlockProtectedPackage(QWidget *parent, const QString &fileName, Q
     // (an OpenDocument package keeps its parts enciphered one by one, and an old binary document its streams: neither has a password that files protected only against changes by accident carry)
     const bool packaged = office::splitProtectedPackage(*bytes, &info, &package);
     const bool odf = !packaged && office::odfEncrypted(*bytes);
-    const bool binaryPpt = !packaged && !odf && office::ppt::pptEncrypted(*bytes);
-    const bool binary = binaryPpt || (!packaged && !odf && office::doc::docEncrypted(*bytes));
+    // (a presentation is told from the one small stream it has; a compound file that is one is not parsed again whole to see whether it is a document)
+    bool isPpt = false;
+    const bool binaryPpt = !packaged && !odf && office::ppt::pptEncrypted(*bytes, &isPpt);
+    const bool binary = binaryPpt || (!packaged && !odf && !isPpt && office::doc::docEncrypted(*bytes));
     if (!packaged && !odf && !binary) return PackageUnlock::Opened;
     const QByteArray otherFile = odf || binary ? *bytes : QByteArray();
     // (the file's own bytes are let go: the package inside is what is worked on, and a file of a gigabyte is not held twice more)
@@ -430,7 +432,21 @@ PackageUnlock unlockProtectedPackage(QWidget *parent, const QString &fileName, Q
         });
         if (!finished) *result = office::CryptResult::Cancelled;
     };
+    auto failure = [](office::CryptResult r) {
+        return r == office::CryptResult::Unsupported ? QCoreApplication::translate("jp::PasswordDialogs", "This file is protected in a way this program doesn't read.")
+             : r == office::CryptResult::TooLarge    ? QCoreApplication::translate("jp::PasswordDialogs", "The file is too large to open.")
+             : r == office::CryptResult::TooCostly   ? QCoreApplication::translate("jp::PasswordDialogs", "The password protection of this file asks for more work than this program allows.")
+                                                     : QCoreApplication::translate("jp::PasswordDialogs", "The file is damaged.");
+    };
     office::CryptResult r = office::CryptResult::Unsupported;
+    if (binaryPpt) {
+        // (the kind of protection is read before a password is asked for: one this program doesn't read is said at once, not after a wrong password again and again)
+        const office::CryptResult form = office::ppt::decryptPpt(otherFile, QString(), office::kMaxOpenFileBytes, true, &zip);
+        if (form != office::CryptResult::WrongPassword && form != office::CryptResult::Ok) {
+            *error = failure(form);
+            return PackageUnlock::Failed;
+        }
+    }
     if (packaged) decrypt(office::defaultPassword(), &r);
     if (parent && !alive) return PackageUnlock::WindowGone;
     if (r == office::CryptResult::Ok) {
@@ -458,10 +474,7 @@ PackageUnlock unlockProtectedPackage(QWidget *parent, const QString &fileName, Q
             wrong = true;
             continue;
         }
-        *error = r == office::CryptResult::Unsupported ? QCoreApplication::translate("jp::PasswordDialogs", "This file is protected in a way this program doesn't read.")
-               : r == office::CryptResult::TooLarge    ? QCoreApplication::translate("jp::PasswordDialogs", "The file is too large to open.")
-               : r == office::CryptResult::TooCostly   ? QCoreApplication::translate("jp::PasswordDialogs", "The password protection of this file asks for more work than this program allows.")
-                                                       : QCoreApplication::translate("jp::PasswordDialogs", "The file is damaged.");
+        *error = failure(r);
         return PackageUnlock::Failed;
     }
 }

@@ -266,7 +266,14 @@ QByteArray persistDirectory(const QVector<QPair<quint32, quint32>> &entries);
 // A .ppt made protected with a password, the way [MS-PPT] says (nothing here reads the routine under test): `plain` is a file from buildPpt; each persist object is enciphered with the key
 // of its persist id, the pictures field by field with block 0, and a description of the protection is added as a persist object the newest edit names. `keyBits` is 40 to 128;
 // `headerFlags` is the flags of the description's header (0x04: made by the provider; 0x24 would say AES).
-QByteArray encryptPpt(const QByteArray &plain, const QString &password, int keyBits = 128, quint32 headerFlags = 0x04, quint32 algId = 0x6801);
+QByteArray encryptPpt(const QByteArray &plain, const QString &password, int keyBits = 128, quint32 headerFlags = 0x04, quint32 algId = 0x6801, int descriptionPad = 0, quint16 major = 3, quint16 minor = 2);
+// One block's enciphering (or deciphering) of `data` by the provider's key for the password: the keystream of that block XORed in.
+QByteArray pptCryptBlock(const QString &password, int keyBits, quint32 block, const QByteArray &data);
+// Where each persist object is (offset -> persist id), by the edits from the newest one on.
+QMap<quint32, quint32> pptPersistOffsets(const QByteArray &stream, quint32 newestEdit);
+// A file with `objects` (raw bytes, put where the stream ends) and then one edit for each of `directories` (each a whole PersistDirectoryAtom) added after the newest edit, all carrying
+// `ref` as the description of the protection (0: none); the first edit added names the newest of the file as the one before it.
+QByteArray appendEdits(const QByteArray &file, const QByteArray &objects, const QList<QByteArray> &directories, quint32 ref = 50);
 QByteArray buildPpt(bool titleMaster = false, bool cycle = false, bool links = false, bool notesByAtom = false, const QByteArray &bodyGroup = QByteArray(),
                            const QByteArray &drawingGroup = QByteArray(), const QByteArray &firstSlideShapes = QByteArray(), const QByteArray &masterTitleProps = QByteArray(), const QByteArray &masterBackground = QByteArray(),
                            const QByteArray &masterExtra = QByteArray(), quint16 titleMasterRecord = 1016, const QByteArray &documentExtra = QByteArray(),

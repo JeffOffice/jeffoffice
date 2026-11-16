@@ -284,22 +284,17 @@ bool read(const QByteArray &bytes, File *out, QString *error)
     return true;
 }
 
-QByteArray readStream(const QString &filePath, const QString &streamPath, QString *error)
+namespace {
+
+// The lookup of one stream, over whatever gives the file's bytes: `size` of the whole, `read` a sector (by the offset of its first byte) and the header.
+template <class Read>
+QByteArray streamFrom(const QByteArray &header, qint64 size, const Read &readAt, const QString &streamPath, QString *error)
 {
-    QFile file(filePath);
-    if (!file.open(QIODevice::ReadOnly)) {
-        if (error) *error = file.errorString();
-        return {};
-    }
-    const QByteArray header = file.read(512);
     const qsizetype ss = header.size() >= 32 ? qsizetype(1) << std::clamp(int(u16(header, 30)), 9, 12) : 512;
     Reader rd;
-    rd.sector = [&file, ss](quint32 n) {
-        if (!file.seek((qint64(n) + 1) * ss)) return QByteArray();
-        return file.read(ss);
-    };
-    if (!rd.open(header, (file.size() - ss + ss - 1) / ss, error)) return {};
-    rd.budget = 2 * file.size() + (1 << 20);
+    rd.sector = [&readAt, ss](quint32 n) { return readAt((qint64(n) + 1) * ss, ss); };
+    if (!rd.open(header, (size - ss + ss - 1) / ss, error)) return {};
+    rd.budget = 2 * size + (1 << 20);
     QVector<bool> seen(rd.raw.size(), false);
     quint32 cur = 0;
     for (const QString &part : streamPath.split(QLatin1Char('/'), Qt::SkipEmptyParts)) {
@@ -314,6 +309,24 @@ QByteArray readStream(const QString &filePath, const QString &streamPath, QStrin
     }
     if (rd.raw[cur].type != Entry::Stream) return {};
     return rd.data(rd.raw[cur]);
+}
+
+} // namespace
+
+QByteArray readStream(const QString &filePath, const QString &streamPath, QString *error)
+{
+    QFile file(filePath);
+    if (!file.open(QIODevice::ReadOnly)) {
+        if (error) *error = file.errorString();
+        return {};
+    }
+    const QByteArray header = file.read(512);
+    return streamFrom(header, file.size(), [&file](qint64 at, qint64 n) { return file.seek(at) ? file.read(n) : QByteArray(); }, streamPath, error);
+}
+
+QByteArray readStream(const QByteArray &bytes, const QString &streamPath, QString *error)
+{
+    return streamFrom(bytes.left(512), bytes.size(), [&bytes](qint64 at, qint64 n) { return at >= 0 && at <= bytes.size() ? bytes.mid(at, n) : QByteArray(); }, streamPath, error);
 }
 
 // ---------------- write ----------------

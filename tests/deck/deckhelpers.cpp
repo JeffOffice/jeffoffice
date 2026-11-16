@@ -556,50 +556,60 @@ QByteArray buildPpt(bool titleMaster, bool cycle, bool links, bool notesByAtom, 
     return cfb::write(f);
 }
 
-QByteArray encryptPpt(const QByteArray &plain, const QString &password, int keyBits, quint32 headerFlags, quint32 algId)
+static quint32 pptU32(const QByteArray &b, qint64 at) { return quint32(quint8(b[at])) | quint32(quint8(b[at + 1])) << 8 | quint32(quint8(b[at + 2])) << 16 | quint32(quint8(b[at + 3])) << 24; }
+
+QByteArray pptCryptBlock(const QString &password, int keyBits, quint32 block, const QByteArray &data)
+{
+    const QByteArray salt = QByteArray::fromHex("00112233445566778899aabbccddeeff");
+    QByteArray typed;
+    for (const QChar c : password) typed += le(c.unicode(), 2);
+    const QByteArray base = QCryptographicHash::hash(salt + typed, QCryptographicHash::Sha1);
+    QByteArray key = QCryptographicHash::hash(base + le(block, 4), QCryptographicHash::Sha1).left(keyBits / 8);
+    key += QByteArray(16 - key.size(), 0);
+    return crypto::Rc4(key).apply(data);
+}
+
+QMap<quint32, quint32> pptPersistOffsets(const QByteArray &s, quint32 newestEdit)
+{
+    QMap<quint32, quint32> objects;
+    for (quint32 edit = newestEdit;;) {
+        const quint32 directory = pptU32(s, edit + 8 + 12);
+        const quint32 end = directory + 8 + pptU32(s, directory + 4);
+        for (quint32 p = directory + 8; p + 8 <= end; p += 8) objects.insert(pptU32(s, p + 4), pptU32(s, p) & 0xFFFFF);
+        const quint32 older = pptU32(s, edit + 8 + 8);
+        if (!older) break;
+        edit = older;
+    }
+    return objects;
+}
+
+QByteArray encryptPpt(const QByteArray &plain, const QString &password, int keyBits, quint32 headerFlags, quint32 algId, int descriptionPad, quint16 major, quint16 minor)
 {
     cfb::File f;
     if (!cfb::read(plain, &f)) return QByteArray();
     QByteArray s = f.stream(pptDocumentStream()), pictures = f.stream(QStringLiteral("Pictures")), user = f.stream(QStringLiteral("Current User"));
-    auto u32 = [](const QByteArray &b, qint64 at) { return quint32(quint8(b[at])) | quint32(quint8(b[at + 1])) << 8 | quint32(quint8(b[at + 2])) << 16 | quint32(quint8(b[at + 3])) << 24; };
-    const quint32 newestEdit = u32(user, 16);
+    const quint32 newestEdit = pptU32(user, 16);
+    auto crypt = [&](quint32 block, const QByteArray &data) { return pptCryptBlock(password, keyBits, block, data); };
 
     const QByteArray salt = QByteArray::fromHex("00112233445566778899aabbccddeeff"), verifier = QByteArray::fromHex("a1b2c3d4e5f60718293a4b5c6d7e8f90");
-    QByteArray typed;
-    for (const QChar c : password) typed += le(c.unicode(), 2);
-    office::bincrypt::Rc4Keys keys;
-    keys.cryptoApi = true;
-    keys.keyBytes = keyBits / 8;
-    keys.base = QCryptographicHash::hash(salt + typed, QCryptographicHash::Sha1);
-    auto crypt = [&](quint32 block, QByteArray data) {
-        QByteArray key = QCryptographicHash::hash(keys.base + le(block, 4), QCryptographicHash::Sha1).left(keys.keyBytes);
-        key += QByteArray(16 - key.size(), 0);
-        return crypto::Rc4(key).apply(data);
-    };
     const QByteArray csp = utf16(QStringLiteral("Provider")) + le(0, 2);
     const QByteArray header = le(headerFlags, 4) + le(0, 4) + le(algId, 4) + le(0x8004, 4) + le(quint32(keyBits), 4) + le(1, 4) + le(0, 4) + le(0, 4) + csp;
     // (the verifier and its hash are one run of the keystream: 16 bytes, then 20)
     const QByteArray both = crypt(0, verifier + QCryptographicHash::hash(verifier, QCryptographicHash::Sha1));
-    const QByteArray description = le(3, 2) + le(2, 2) + le(0x04, 4) + le(quint32(header.size()), 4) + header + le(16, 4) + salt + both.left(16) + le(20, 4) + both.mid(16);
+    QByteArray description = le(major, 2) + le(minor, 2) + le(0x04, 4) + le(quint32(header.size()), 4) + header + le(16, 4) + salt + both.left(16) + le(20, 4) + both.mid(16);
+    if (major == 1) description = le(major, 2) + le(minor, 2) + salt + QByteArray(32, 'x');   // (the other form: a salt, and the verifier with its hash)
+    description += QByteArray(descriptionPad, 'p');
 
     // every persist object the edits list
-    QMap<quint32, quint32> objects;   // offset -> persist id
-    for (quint32 edit = newestEdit;;) {
-        const quint32 directory = u32(s, edit + 8 + 12);
-        const quint32 end = directory + 8 + u32(s, directory + 4);
-        for (quint32 p = directory + 8; p + 8 <= end; p += 8) objects.insert(u32(s, p + 4), u32(s, p) & 0xFFFFF);
-        const quint32 older = u32(s, edit + 8 + 8);
-        if (!older) break;
-        edit = older;
-    }
+    const QMap<quint32, quint32> objects = pptPersistOffsets(s, newestEdit);
     for (auto it = objects.cbegin(); it != objects.cend(); ++it) {
-        const qint64 length = 8 + u32(s, it.key() + 4);
+        const qint64 length = 8 + pptU32(s, it.key() + 4);
         s.replace(it.key(), int(length), crypt(it.value(), s.mid(it.key(), int(length))));
     }
     // each picture: the header, the ids, the 34 bytes of a picture program's header or the one tag byte, and the rest, each from block 0
     for (qint64 pos = 0; pos + 8 <= pictures.size();) {
         const quint16 verInst = quint16(quint8(pictures[pos]) | quint8(pictures[pos + 1]) << 8), type = quint16(quint8(pictures[pos + 2]) | quint8(pictures[pos + 3]) << 8);
-        const qint64 end = pos + 8 + u32(pictures, pos + 4);
+        const qint64 end = pos + 8 + pptU32(pictures, pos + 4);
         QList<int> sizes{8, 16};
         if ((verInst >> 4) & 1) sizes << 16;
         sizes << (type >= 0xF01A && type <= 0xF01C ? 34 : 1);
@@ -621,6 +631,26 @@ QByteArray encryptPpt(const QByteArray &plain, const QString &password, int keyB
     user.replace(16, 4, le(edit, 4));
     f.setStream(pptDocumentStream(), s);
     f.setStream(QStringLiteral("Pictures"), pictures);
+    f.setStream(QStringLiteral("Current User"), user);
+    return cfb::write(f);
+}
+
+QByteArray appendEdits(const QByteArray &file, const QByteArray &objects, const QList<QByteArray> &directories, quint32 ref)
+{
+    cfb::File f;
+    if (!cfb::read(file, &f)) return QByteArray();
+    QByteArray s = f.stream(pptDocumentStream()), user = f.stream(QStringLiteral("Current User"));
+    quint32 newest = pptU32(user, 16);
+    s += objects;
+    for (const QByteArray &dir : directories) {
+        const quint32 directory = quint32(s.size());
+        s += dir;
+        const quint32 edit = quint32(s.size());
+        s += userEdit(newest, directory, 1, ref);
+        newest = edit;
+    }
+    user.replace(16, 4, le(newest, 4));
+    f.setStream(pptDocumentStream(), s);
     f.setStream(QStringLiteral("Current User"), user);
     return cfb::write(f);
 }

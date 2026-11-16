@@ -185,6 +185,53 @@ private Q_SLOTS:
         QVERIFY(!w.isPasswordProtected());
     }
 
+    // The first form of the 40-bit kind is said to be one this program doesn't read before any password is asked for.
+    void aProtectedBinaryPresentationOfAnUnreadKindAsksNoPassword()
+    {
+        QTemporaryDir dir;
+        const QString path = putFile(dir, QStringLiteral("first.ppt"), encryptPpt(buildPpt(), QStringLiteral("hunter2"), 128, 0x04, 0x6801, 0, 1, 1));
+        int asked = 0;
+        setOpenPasswordStandIn([&](const QString &, bool, QString *password) {
+            ++asked;
+            *password = QStringLiteral("hunter2");
+            return true;
+        });
+        DeckWindow w;
+        Quiet quiet(w);
+        QVERIFY(!w.openFile(path));
+        QCOMPARE(asked, 0);
+        QCOMPARE(quiet.said.size(), 1);
+        QVERIFY2(quiet.said.first().contains(QLatin1String("protected in a way")), qPrintable(quiet.said.first()));
+    }
+
+    // Save (Ctrl+S) on a protected old presentation asks where to save, offering the new form; what is written keeps the password. Nothing is written to the old file.
+    void saveOfAProtectedBinaryPresentationWritesTheNewFormWithThePassword()
+    {
+        QTemporaryDir dir;
+        const QByteArray original = encryptPpt(buildPpt(), QStringLiteral("hunter2"));
+        const QString path = putFile(dir, QStringLiteral("old.ppt"), original);
+        setOpenPasswordStandIn([](const QString &, bool, QString *password) {
+            *password = QStringLiteral("hunter2");
+            return true;
+        });
+        const QString target = dir.filePath(QStringLiteral("saved.pptx"));
+        int chosen = 0;
+        {
+            DeckWindow w;
+            Quiet quiet(w);
+            QVERIFY(w.openFile(path));
+            w.setSavePathChooser([&](const QString &suggested, const QString &) {
+                ++chosen;
+                return suggested.endsWith(QLatin1String(".pptx")) ? target : QString();
+            });
+            QVERIFY(w.save());
+            w.editor()->markSaved();
+        }
+        QCOMPARE(chosen, 1);
+        QCOMPARE(fileBytes(path), original);
+        verifyProtected(target, QStringLiteral("hunter2"));
+    }
+
     void cancellingTheQuestionOpensNothingAndSaysNothing()
     {
         QTemporaryDir dir;

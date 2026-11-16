@@ -36,6 +36,8 @@ qint64 chainWorkForTest();
 // One stream ("Quill/QuillSub/CONTENTS") read straight from a file, touching
 // only its sectors and the tables that find them.
 QByteArray readStream(const QString &filePath, const QString &streamPath, QString *error = nullptr);
+// The same for a compound file already in memory: only the tables and the stream's own sectors are looked at, and nothing of the rest is copied.
+QByteArray readStream(const QByteArray &bytes, const QString &streamPath, QString *error = nullptr);
 QByteArray write(const File &f);   // version 3 (512-byte sectors)
 
 } // namespace jp::cfb
