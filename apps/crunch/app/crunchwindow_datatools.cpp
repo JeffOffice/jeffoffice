@@ -86,7 +86,7 @@ bool CrunchWindow::pivotFilesOnOpenAllowed(int tables)
     if (mode == crunch::EditSession::UpdateLinks::Never) return false;
     if (mode == crunch::EditSession::UpdateLinks::Always) return true;
     if (m_linksAsker) return m_linksAsker(tables, 0);
-    return plainQuestion(this, tr("Pivot Tables"), tr("%n pivot table(s) in this workbook read their data from other files. Read those files now?", nullptr, tables)) == QMessageBox::Yes;
+    return plainQuestion(this, tr("Pivot Tables"), tr("Pivot tables in this workbook read their data from other files. Read those files now?")) == QMessageBox::Yes;
 }
 
 // When a workbook that reads others has been opened and worked out: the choice the file has (Startup prompt in Edit Links) decides. Only links whose file is on this computer are asked about.
