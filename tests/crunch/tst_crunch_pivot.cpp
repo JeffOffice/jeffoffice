@@ -930,7 +930,9 @@ private Q_SLOTS:
             QVERIFY2(changed.ok, qPrintable(changed.problem));
             QCOMPARE(cachedAmountTotal(s, 0), 139.0);
             // a name a device has, in any folder, is not read
-            const QString device = e.folder.write(QStringLiteral("nul.xlsx"), otherBook(100));
+            // (Windows will not make a file of that name, so its write fails and returned no path: the path is named here, and refused whether or not the file is there)
+            const QString device = e.folder.dir.filePath(QStringLiteral("nul.xlsx"));
+            e.folder.write(QStringLiteral("nul.xlsx"), otherBook(100));
             const int tables = s->workbook()->pivots().tableCount(), steps = s->undoStack()->count(), before = pivotExternalFilesOpened();
             QVERIFY(!s->createPivot(QStringLiteral("Sheet1!A1:C7"), 0, 30, 9, nullptr, device).ok);
             QVERIFY(!s->changePivotSource(1, QStringLiteral("Sheet1!A1:C7"), device).ok);
