@@ -2081,24 +2081,49 @@ bool insertReadyTable(WriteDoc &doc, QTextCursor &c, ReadyTable kind, const QDat
     return true;
 }
 
+namespace {
+
+// The least width in points of a column of a table made in a cell: narrower columns are slivers no words fit in.
+constexpr double kNarrowestNestedColumn = 18.0;
+
+// The width in points a table made in the cell at `position` has to be in (the cell's, less its margins).
+double roomInCell(WriteDoc &doc, int position)
+{
+    if (const auto outer = viewAt(doc, position)) {
+        const int li = outer->layout->cellOfPosition(position);
+        if (li >= 0) return std::max(36.0, outer->layout->cell(li).w - outer->layout->cell(li).margins.left() - outer->layout->cell(li).margins.right());
+    }
+    return textWidthAt(doc, position);
+}
+
+// Whether a table of `columns` columns may be made in the cell at `position`: it is no deeper than a saved file reads as tables (office::wml::kMaxTableDepth, so that it opens again as the
+// tables it is), and its columns are not slivers. False says why (the table's `tableNotice`), and nothing is changed either way.
+bool roomToNest(WriteDoc &doc, int position, int columns)
+{
+    const flow::TableStore &store = doc.flow().tables;
+    int inside = 0;   // the tables the cell is in
+    for (const flow::CellRecord *r = store.get(cellKeyOf(doc.story()->findBlock(position))); r && inside <= office::wml::kMaxTableDepth; r = store.get(r->parent)) ++inside;
+    if (inside >= office::wml::kMaxTableDepth) return refuse(doc, tableText(QT_TRANSLATE_NOOP("jp::write::Tables", "A table can't be nested deeper than 8 tables.")));
+    if (roomInCell(doc, position) / columns < kNarrowestNestedColumn) return refuse(doc, tableText(QT_TRANSLATE_NOOP("jp::write::Tables", "A table with that many columns is too wide for the cell it would be in.")));
+    return true;
+}
+
+} // namespace
+
 bool insertTable(WriteDoc &doc, QTextCursor &c, const NewTable &table)
 {
     TableCommand command(doc);
     if (table.rows < 1 || table.columns < 1 || table.rows > 500 || table.columns > 63) return false;
     QTextDocument *d = doc.story();
     if (c.document() != d || (cellKeyOf(d->findBlock(c.selectionStart())) && !table.nested) || inEndnoteWords(c)) return false;   // (a note's words are paragraphs and no more: the notes the pages set hold no table)
+    if (table.nested && cellKeyOf(d->findBlock(c.selectionStart())) && !roomToNest(doc, c.selectionStart(), table.columns)) return false;
     c.beginEditBlock();
     c.setPosition(c.selectionStart());
     const int inCell = cellKeyOf(c.block());   // (a table made in a cell is that cell's: its cells have it as their parent)
     if (c.position() > c.block().position()) insertParagraph(doc, c);
     const QTextBlock after = c.block();
     if (!table.style.isEmpty()) doc.ensureTableStyle(table.style);
-    double room = textWidthAt(doc, after.position());
-    if (inCell)
-        if (const auto outer = viewAt(doc, after.position())) {
-            const int li = outer->layout->cellOfPosition(after.position());
-            if (li >= 0) room = std::max(36.0, outer->layout->cell(li).w - outer->layout->cell(li).margins.left() - outer->layout->cell(li).margins.right());   // (a table in a cell fits the cell)
-        }
+    const double room = inCell ? roomInCell(doc, after.position()) : textWidthAt(doc, after.position());   // (a table in a cell fits the cell)
     const double each = table.columnWidth > 0 ? table.columnWidth : room / table.columns;
     QVector<double> columns(table.columns, each);
     if (table.fit == TableFit::Window && table.columnWidth <= 0) columns = QVector<double>(table.columns, room / table.columns);
@@ -2881,27 +2906,58 @@ bool convertTextToTable(WriteDoc &doc, QTextCursor &c, TextSeparator separator, 
 namespace {
 
 struct CellPlace {
-    int from = 0, to = 0;
+    int from = 0;
     QString text;
 };
 
-// Writes the words of the cells (the later cells first, so that the places of the earlier ones stand): what a cell held is taken out.
+// Takes everything out of the cell whose first paragraph is at `from` (its paragraphs, and the tables in it, however deep): it is left with one empty paragraph.
+void emptyCell(WriteDoc &doc, int from)
+{
+    QTextDocument *d = doc.story();
+    const int key = cellKeyOf(d->findBlock(from));
+    const flow::TableStore &store = doc.flow().tables;
+    auto within = [&](int k) {
+        for (const flow::CellRecord *r = store.get(k); r; r = store.get(r->parent))
+            if (r->key == key) return true;
+        return false;
+    };
+    for (int guard = 0; guard < 4096; ++guard) {
+        QTextBlock foreign;
+        for (QTextBlock b = d->findBlock(from); b.isValid() && within(cellKeyOf(b)); b = b.next())
+            if (cellKeyOf(b) != key) {
+                foreign = b;
+                break;
+            }
+        if (!foreign.isValid()) break;
+        QTextCursor at(d);
+        at.setPosition(foreign.position());
+        deleteTable(doc, at);   // (the innermost table there; the cell keeps a paragraph to end with)
+    }
+    QTextBlock last = d->findBlock(from);
+    for (QTextBlock b = last; b.isValid() && cellKeyOf(b) == key; b = b.next()) last = b;
+    QTextCursor t(d);
+    t.setPosition(from);
+    t.setPosition(last.position() + last.length() - 1, QTextCursor::KeepAnchor);
+    if (t.hasSelection()) removeSelection(doc, t);
+}
+
+// Writes the words of the cells (the later cells first, so that the places of the earlier ones stand): what a cell held is taken out, and it is left with the words.
 void putCellWords(WriteDoc &doc, QVector<CellPlace> places)
 {
     std::sort(places.begin(), places.end(), [](const CellPlace &a, const CellPlace &b) { return a.from > b.from; });
     QTextDocument *d = doc.story();
     for (const CellPlace &p : std::as_const(places)) {
+        emptyCell(doc, p.from);
         QTextCursor t(d);
         t.setPosition(p.from);
-        t.setPosition(std::max(p.from, p.to - 1), QTextCursor::KeepAnchor);
-        if (t.hasSelection()) removeSelection(doc, t);
         QString text = p.text;
         text.replace(QLatin1Char('\n'), QLatin1Char(' ')).replace(QLatin1Char('\r'), QLatin1Char(' '));
         if (!text.isEmpty()) insertText(doc, t, text);
     }
 }
 
-// The cells' words in the table at `position`, the first at row `r0` and grid column `c0`; true when some cells were past the table's edge and are left out.
+// The cells' words in the table at `position`, the first at row `r0` and grid column `c0`: by grid column, so a cell that spans columns takes the first of the words over it. True when some
+// words were left out: past the table's edge, or over a cell that has an earlier one's place.
 bool fillCells(WriteDoc &doc, int position, int r0, int c0, const office::wml::ClipTable &cells, int *end)
 {
     const auto v = viewAt(doc, position);
@@ -2912,16 +2968,18 @@ bool fillCells(WriteDoc &doc, int position, int r0, int c0, const office::wml::C
     bool cut = r0 + cells.rows.size() > t.rowCount();
     for (int rr = 0; rr < cells.rows.size() && r0 + rr < t.rowCount(); ++rr) {
         const flow::TableLayout::Row &row = t.row(r0 + rr);
-        int used = 0;
+        const int wide = int(cells.rows[rr].size());
+        int delivered = 0;
         for (int i = row.cell0; i < row.cell0 + row.cells; ++i) {
             const flow::TableLayout::Cell &cell = t.cell(i);
-            const int at = cell.col - c0;
-            if (cell.covered || at < 0 || at >= cells.rows[rr].size()) continue;
-            places.push_back({cell.from, cell.to, cells.rows[rr][at]});
+            if (cell.covered) continue;
+            const int first = std::max(cell.col, c0) - c0;   // the first of the words over the cell's columns
+            if (cell.col + cell.span <= c0 || first >= wide) continue;
+            places.push_back({cell.from, cells.rows[rr][first]});
+            ++delivered;
             if (r0 + rr > lastRow || (r0 + rr == lastRow && cell.col > lastCol)) lastRow = r0 + rr, lastCol = cell.col;
-            ++used;
         }
-        if (used < cells.rows[rr].size() && c0 + cells.rows[rr].size() > columnCountOf(t)) cut = true;
+        if (delivered < wide) cut = true;
     }
     putCellWords(doc, places);
     // (The end of the last cell written: where the cursor goes.)
@@ -2951,10 +3009,20 @@ bool pasteCells(WriteDoc &doc, QTextCursor &c, const office::wml::ClipTable &cel
     if (cells.rows.isEmpty() || cells.rows[0].isEmpty() || !canPasteCells(doc, c, how)) return false;
     const int rows = int(cells.rows.size()), cols = int(cells.rows[0].size());
     if (rows > office::wml::kMostClipRows || cols > office::wml::kMostClipColumns) return refuse(doc, tableText(QT_TRANSLATE_NOOP("jp::write::Tables", "A table pasted from cells can have at most 500 rows and 63 columns.")));
+    // Every limit is looked at before anything is changed: what does not fit leaves the document as it was.
+    if (how == TablePaste::Nest && !roomToNest(doc, c.selectionStart(), cols)) return false;
+    if (how == TablePaste::Merge || how == TablePaste::NewRows) {
+        const auto v = viewAt(doc, c.selectionStart());
+        if (!v) return false;
+        const flow::TableLayout &t = *v->layout;
+        const int now = columnCountOf(t), wider = how == TablePaste::Merge ? std::max(now, cols) : now;   // (the grid the table has when the new rows are in)
+        if (pastTheLimits(doc, t.rowCount() + rows, wider, t.cellCount() + qint64(wider - now) * t.rowCount() + qint64(rows) * wider)) return false;
+    }
     QTextDocument *d = doc.story();
     bool cut = false;
+    c.beginEditBlock();
     if (how == TablePaste::NewTable || how == TablePaste::Nest) {
-        c.beginEditBlock();
+        // (A table made here fits: the limits were looked at, and the place is one a table can be made at, so the selection a new table takes the place of goes only when it will be made.)
         if (how == TablePaste::NewTable && c.hasSelection()) removeSelection(doc, c);
         NewTable made;
         made.rows = rows;
@@ -2967,46 +3035,43 @@ bool pasteCells(WriteDoc &doc, QTextCursor &c, const office::wml::ClipTable &cel
             return false;
         }
         int end = at.position();
-        fillCells(doc, at.position(), 0, 0, cells, &end);
+        cut = fillCells(doc, at.position(), 0, 0, cells, &end);
         c.setPosition(end);
-        c.endEditBlock();
-        return true;
-    }
-    c.setPosition(c.selectionStart());
-    int end = c.position();
-    c.beginEditBlock();
-    if (how == TablePaste::Overwrite) {
-        const auto v = viewAt(doc, c.position());
-        const Area area = areaOf(*v, c);
-        cut = fillCells(doc, c.position(), area.r0, area.c0, cells, &end);
     } else {
-        // New rows below the cursor's row; Merge first adds the columns the cells need on the right.
-        if (how == TablePaste::Merge) {
-            for (int guard = 0; guard < office::wml::kMostClipColumns; ++guard) {
-                const auto v = viewAt(doc, c.position());
-                const flow::TableLayout &t = *v->layout;
-                if (columnCountOf(t) >= cols) break;
-                const flow::TableLayout::Row &row = t.row(0);
-                QTextCursor last(d);
-                last.setPosition(t.cell(row.cell0 + row.cells - 1).from);
-                const int before = columnCountOf(t);
-                insertTableColumn(doc, last, true);
-                const auto again = viewAt(doc, c.position());
-                if (columnCountOf(*again->layout) <= before) break;
+        c.setPosition(c.selectionStart());
+        int end = c.position();
+        if (how == TablePaste::Overwrite) {
+            const auto v = viewAt(doc, c.position());
+            const Area area = areaOf(*v, c);
+            cut = fillCells(doc, c.position(), area.r0, area.c0, cells, &end);
+        } else {
+            // New rows below the cursor's row; Merge first adds the columns the cells need on the right.
+            if (how == TablePaste::Merge) {
+                for (int guard = 0; guard < office::wml::kMostClipColumns; ++guard) {
+                    const auto v = viewAt(doc, c.position());
+                    const flow::TableLayout &t = *v->layout;
+                    if (columnCountOf(t) >= cols) break;
+                    const flow::TableLayout::Row &row = t.row(0);
+                    QTextCursor last(d);
+                    last.setPosition(t.cell(row.cell0 + row.cells - 1).from);
+                    const int before = columnCountOf(t);
+                    insertTableColumn(doc, last, true);
+                    const auto again = viewAt(doc, c.position());
+                    if (columnCountOf(*again->layout) <= before) break;
+                }
             }
+            auto v = viewAt(doc, c.position());
+            const Area area = areaOf(*v, c);
+            for (int n = 0; n < rows; ++n) addRow(doc, *v, area.r1, true);
+            restyleTable(doc, c);
+            cut = fillCells(doc, c.position(), area.r1 + 1, 0, cells, &end);
         }
-        auto v = viewAt(doc, c.position());
-        const Area area = areaOf(*v, c);
-        if (pastTheLimits(doc, v->layout->rowCount() + rows, columnCountOf(*v->layout), v->layout->cellCount() + qint64(rows) * v->layout->row(area.r1).cells)) {
-            c.endEditBlock();
-            return false;
-        }
-        for (int n = 0; n < rows; ++n) addRow(doc, *v, area.r1, true);
-        restyleTable(doc, c);
-        cut = fillCells(doc, c.position(), area.r1 + 1, 0, cells, &end);
+        c.setPosition(end);
     }
-    if (cut) doc.tableNotice = tableText(QT_TRANSLATE_NOOP("jp::write::Tables", "Some of the pasted cells did not fit in the table and were left out."));
-    c.setPosition(end);
+    QString said;
+    if (cells.truncated) said = tableText(QT_TRANSLATE_NOOP("jp::write::Tables", "Some of the pasted cells were left out: a pasted table has at most 500 rows, 63 columns, and 4,000 characters in a cell."));
+    if (cut) said += (said.isEmpty() ? QString() : QStringLiteral(" ")) + tableText(QT_TRANSLATE_NOOP("jp::write::Tables", "Some of the pasted cells did not fit in the table and were left out."));
+    if (!said.isEmpty()) doc.tableNotice = said;
     c.endEditBlock();
     return true;
 }
