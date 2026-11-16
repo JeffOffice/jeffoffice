@@ -258,7 +258,7 @@ The tabs that appear only while something is selected or being edited: master pa
 - [x] **1.0** Insert: Change Picture, Remove Picture, Swap (between picture frames), Arrange Thumbnails
 - [x] **1.0** Adjust: Corrections (brightness and contrast presets), Recolor (presets, more variations, set transparent color), Compress Pictures, Reset Picture
 - [x] **1.0** Picture Styles gallery, Picture Border, Picture Effects, Caption gallery, Picture Shape (any closed shape)
-- [x] **1.0** Crop (handles, drag picture inside frame), Crop to Shape, Fit, Fill, Clear Crop, Pan picture
+- [x] **1.0** Crop (handles, drag picture inside frame), Crop to Shape, Aspect Ratio (12 shapes, as in JeffDeck), Fit, Fill, Clear Crop, Pan picture
 - [x] **1.0** Arrange and Size
 - [x] **1.0** Picture placeholders with click-to-insert
 - [x] **1.0** Scratch-area picture tray behavior (pictures parked on the scratch area): inserting several pictures at once puts them beside the page as thumbnails, Arrange Thumbnails tidies them, and Swap trades two pictures

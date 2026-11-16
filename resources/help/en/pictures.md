@@ -58,7 +58,7 @@ Cropping hides the edges of a picture.
 2. Drag a handle to hide part of the picture. Drag the picture to slide it inside the frame.
 3. Click **Crop** again, or press **Esc**.
 
-Also in the **Crop** group: **Fit** shows the whole picture in its frame, **Fill** fills the frame, **Crop to Shape** trims to a shape such as an oval, and **Clear Crop** shows the whole picture again.
+Also in the **Crop** group: **Aspect Ratio** cuts the frame to a shape such as a square, 4 wide by 3 tall, or 16 by 9, around its middle (the picture stays where it is on the page), **Fit** shows the whole picture in its frame, **Fill** fills the frame, **Crop to Shape** trims to a shape such as an oval, and **Clear Crop** shows the whole picture again.
 
 ## Change how a picture looks
 
