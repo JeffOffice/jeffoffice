@@ -7,6 +7,7 @@
 #include "core/writedoc.h"
 
 #include "flow/tabledata.h"
+#include "wml/wmlhtmlread.h"
 
 #include <QTextBlock>
 #include <QDate>
@@ -60,6 +61,7 @@ struct NewTable {
     TableFit fit = TableFit::Fixed;
     QString style = QStringLiteral("TableGrid");
     double columnWidth = 0;             // points; 0: the columns share the text area's width
+    bool nested = false;                // allowed in a cell: the table goes in the cell the cursor is in
 };
 // A table at the cursor: before the paragraph the cursor is in (the paragraph is cut in two when the cursor is inside its text), with the cursor in its first cell.
 // False (nothing done) in a table, or for a table of no rows or columns, or more than the file can hold.
@@ -68,6 +70,12 @@ bool insertTable(WriteDoc &doc, QTextCursor &c, const NewTable &table);
 // and first column, a list a header row with four columns, and a schedule a time in the first column and a day over each of the others.
 enum class ReadyTable { Calendar, Matrix, List, Schedule };
 bool insertReadyTable(WriteDoc &doc, QTextCursor &c, ReadyTable kind, const QDate &month = QDate::currentDate());
+// ---- Pasting spreadsheet cells (the cells of a clipboard table, plain words each): one step that undoes. A new table, a table in the cell the cursor is in, or, with the cursor in a table: new rows
+// below its row that the cells fill (Merge also adds the columns the cells need), or the cells written over the table's from the cursor's cell on. What does not fit the table is left out
+// (the table's `tableNotice` says so). False, nothing done, when the choice does not fit where the cursor is (a table needs the cursor out of one; the rest need it in one).
+enum class TablePaste { NewTable, Nest, Merge, NewRows, Overwrite };
+bool canPasteCells(WriteDoc &doc, const QTextCursor &c, TablePaste how);
+bool pasteCells(WriteDoc &doc, QTextCursor &c, const office::wml::ClipTable &cells, TablePaste how);
 // The width in points of the text area the cursor's paragraph is set in.
 double textWidthAt(WriteDoc &doc, int position);
 

@@ -534,6 +534,10 @@ void WriteWindow::fillContextMenu(QMenu &menu)
     // The ways to paste: with the source's formatting, merged into the text round it, or as text only.
     QMenu *paste = menu.addMenu(tr("Paste Options"));
     for (const char *id : {"edit.paste", "edit.pasteMerge", "edit.pasteText"}) paste->addAction(act(QString::fromLatin1(id)));
+    paste->addSeparator();
+    for (const char *id : {"edit.pasteListContinue", "edit.pasteListNew", "edit.pasteListMerge"}) paste->addAction(act(QString::fromLatin1(id)));
+    paste->addSeparator();
+    for (const char *id : {"edit.pasteTable", "edit.pasteTableNest", "edit.pasteTableMerge", "edit.pasteTableRows", "edit.pasteTableOverwrite"}) paste->addAction(act(QString::fromLatin1(id)));
     menu.addSeparator();
     menu.addAction(act("fmt.fontDialog"));
     menu.addAction(act("para.dialog"));

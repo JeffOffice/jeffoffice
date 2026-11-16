@@ -229,6 +229,15 @@ void setListLevel(WriteDoc &doc, QTextCursor &c, int level);
 // Set Numbering Value: the item the caret is in, and the items of its list after it, go on with the list above (`continuePrevious`, none when there is no list of the definition above: false), or
 // begin a list of their own; with `value` the item has that number. False when nothing was done.
 bool setNumberingValue(WriteDoc &doc, QTextCursor &c, bool continuePrevious, std::optional<int> value);
+// ---- pasting list items: what becomes of the list paragraphs just pasted at [from, to) (the choices of the Paste Options button), as part of the paste's own step. Continue: numbers go on from the
+// item the pasted ones follow (or precede), with their own look; New: a list of its own that begins at 1; Merge: items of the list beside them, in its look (a level deeper keeps its depth);
+// Default: Continue where the items stand in a list of the same kind, else as they came. The list beside the paste is the paragraph before it, else the one after.
+enum class ListPaste { Default, Continue, New, Merge };
+// How many paragraphs in [from, to) are list items that a paste put there (not the paragraph pasted into).
+int pastedListItems(const WriteDoc &doc, int from, int to);
+// Whether the paste has a list beside it that Continue and Merge go by, and the items are of its kind for Continue to mean anything.
+bool listBesidePaste(const WriteDoc &doc, int from, int to);
+void applyListPaste(WriteDoc &doc, QTextCursor &c, int from, int to, ListPaste how);
 void applyParagraphStyle(WriteDoc &doc, QTextCursor &c, const QString &styleId);
 void applyCharacterStyle(WriteDoc &doc, QTextCursor &c, const QString &styleId);
 // Takes a character style off the characters that have it (their look goes back to the paragraph's).

@@ -6,7 +6,9 @@ namespace jp { class ShapeTextEdit; }
 // worked out. The view also takes the keyboard and the mouse: the caret is drawn on the page that holds it, and what is typed goes to
 // the story through the commands of core/editops.h.
 
+#include "core/editops.h"
 #include "core/pictureops.h"
+#include "core/tableops.h"
 #include "core/writedoc.h"
 
 #include <QAbstractScrollArea>
@@ -167,6 +169,20 @@ public:
     bool pasteOptionsAvailable() const;
     // Takes the last paste back (one step) and pastes the clipboard again the way `kind` says; false when the offer is over or the clipboard has nothing for `kind`.
     bool changeLastPaste(PasteKind kind);
+    // The choices for what a paste brings: list paragraphs go on with the list beside them, begin one of their own, or take the look of the list beside them; spreadsheet cells (the clipboard's HTML
+    // table, or text of tab-separated lines) are a table, a table in the cell the caret is in, or, with the caret in a table, new rows or cells written over its own (core/tableops.h, TablePaste).
+    // A paste is one step that undoes whatever the choice. Without a choice, list items go on with a list of their kind beside them, and cells make a table (a nested one in a cell).
+    void pasteListAs(ListPaste how);
+    bool caretBesideList() const;   // the caret is in a list item, or in the paragraph after one
+    bool clipboardHasCells() const;
+    bool canPasteCellsAs(TablePaste how) const;
+    void pasteCellsAs(TablePaste how);
+    bool changeLastPasteList(ListPaste how);
+    bool changeLastPasteCells(TablePaste how);
+    // What the last paste has choices for.
+    bool lastPasteHasListItems() const { return m_lastPaste.lists; }
+    bool lastPasteWasCells() const { return m_lastPaste.cells; }
+    bool lastPasteStartedInTable() const { return m_lastPaste.inTable; }
     void selectAll();
     void insertText(const QString &text);
     void typeKey(int key, Qt::KeyboardModifiers modifiers);   // the keys that edit and move, as the keyboard sends them
@@ -620,7 +636,15 @@ private:
         int from = -1, selectionEnd = -1, to = -1;   // the place the paste began (and where the selection it replaced ended), and where it ended
         int revision = -1;
         QTextDocument *story = nullptr;
+        bool lists = false, cells = false, inTable = false;   // it put list items beside a list, it made cells of the clipboard's table, it began in a table
     } m_lastPaste;
+    struct PasteChoice {
+        ListPaste list = ListPaste::Default;
+        int table = -1;   // a TablePaste, or -1: the one that suits the place
+    } m_choice;
+    bool redoLastPaste(const std::function<void()> &again);
+    void runPaste(bool smart, const std::function<void()> &put, int from);
+    void fillPasteMenu();
     QToolButton *m_pasteButton = nullptr;
     void notePaste(int from, int selectionEnd);
     void updatePasteButton();

@@ -323,6 +323,29 @@ bool looksLikeHtml(const QByteArray &bytes)
     return t.startsWith("<!doctype html") || t.startsWith("<html") || t.startsWith("<head") || t.startsWith("<body");
 }
 
+// The rows of cell texts of a table of the page (the first `rows` rows and `cols` columns).
+static HtmlTable rowsOf(QTextTable *table, int rows, int cols)
+{
+    HtmlTable out;
+    for (int r = 0; r < rows; ++r) {
+        QStringList row;
+        for (int c = 0; c < cols; ++c) {
+            const QTextTableCell cell = table->cellAt(r, c);
+            QString text;
+            if (cell.isValid() && cell.row() == r && cell.column() == c) {
+                QTextCursor cursor = cell.firstCursorPosition();
+                cursor.setPosition(cell.lastCursorPosition().position(), QTextCursor::KeepAnchor);
+                text = cursor.selectedText();
+                text.replace(QChar(0x2029), QLatin1Char('\n')).replace(QChar(0x2028), QLatin1Char('\n'));
+                text = text.trimmed();
+            }
+            row << text;
+        }
+        out.rows.push_back(row);
+    }
+    return out;
+}
+
 QVector<HtmlTable> readHtmlTables(const QByteArray &html, bool *tooMany, QString *error)
 {
     QVector<HtmlTable> tables;
@@ -345,26 +368,67 @@ QVector<HtmlTable> readHtmlTables(const QByteArray &html, bool *tooMany, QString
         const int rows = table->rows(), cols = table->columns();
         if (rows <= 0 || cols <= 0 || cells + qint64(rows) * cols > 4 * qint64(kMaxTableCells)) continue;
         cells += qint64(rows) * cols;
-        HtmlTable out;
-        for (int r = 0; r < rows; ++r) {
-            QStringList row;
-            for (int c = 0; c < cols; ++c) {
-                const QTextTableCell cell = table->cellAt(r, c);
-                QString text;
-                if (cell.isValid() && cell.row() == r && cell.column() == c) {
-                    QTextCursor cursor = cell.firstCursorPosition();
-                    cursor.setPosition(cell.lastCursorPosition().position(), QTextCursor::KeepAnchor);
-                    text = cursor.selectedText();
-                    text.replace(QChar(0x2029), QLatin1Char('\n')).replace(QChar(0x2028), QLatin1Char('\n'));
-                    text = text.trimmed();
-                }
-                row << text;
-            }
-            out.rows.push_back(row);
-        }
+        HtmlTable out = rowsOf(table, rows, cols);
         tables.push_back(out);
     }
     return tables;
+}
+
+std::optional<ClipTable> clipTable(const QString &html, const QString &text)
+{
+    ClipTable out;
+    if (!html.isEmpty() && html.size() <= kMostClipHtmlBytes && html.contains(QLatin1String("<table"), Qt::CaseInsensitive)) {
+        QTextDocument page;
+        page.setUndoRedoEnabled(false);
+        page.setHtml(html);
+        QTextTable *only = nullptr;
+        for (QTextFrame::iterator it = page.rootFrame()->begin(); !it.atEnd(); ++it) {
+            if (auto *table = qobject_cast<QTextTable *>(it.currentFrame())) {
+                if (only) return std::nullopt;
+                only = table;
+            } else if (it.currentBlock().isValid() && !it.currentBlock().text().trimmed().isEmpty()) {
+                return std::nullopt;
+            }
+        }
+        if (!only || only->rows() <= 0 || only->columns() <= 0) return std::nullopt;
+        const int rows = std::min(only->rows(), kMostClipRows), cols = std::min(only->columns(), kMostClipColumns);
+        out.truncated = rows < only->rows() || cols < only->columns();
+        out.rows = rowsOf(only, rows, cols).rows;
+    } else {
+        const QString body = text.left(kMostClipChars);
+        out.truncated = body.size() < text.size();
+        const QStringList lines = body.split(QLatin1Char('\n'));
+        int count = 0;
+        for (int i = 0; i < lines.size(); ++i) {
+            QString line = lines[i];
+            if (line.endsWith(QLatin1Char('\r'))) line.chop(1);
+            if (line.isEmpty() && i == lines.size() - 1) break;
+            if (!line.contains(QLatin1Char('\t'))) return std::nullopt;
+            if (++count > kMostClipRows) {
+                out.truncated = true;
+                break;
+            }
+            QStringList cells = line.split(QLatin1Char('\t'));
+            if (cells.size() > kMostClipColumns) {
+                cells = cells.mid(0, kMostClipColumns);
+                out.truncated = true;
+            }
+            out.rows.push_back(cells);
+        }
+        if (out.rows.size() < 2) return std::nullopt;
+    }
+    int wide = 0;
+    for (const QStringList &r : std::as_const(out.rows)) wide = std::max(wide, int(r.size()));
+    if (qint64(wide) * out.rows.size() < 2) return std::nullopt;
+    for (QStringList &r : out.rows) {
+        while (r.size() < wide) r << QString();
+        for (QString &cell : r)
+            if (cell.size() > kMostClipCellChars) {
+                cell.truncate(kMostClipCellChars);
+                out.truncated = true;
+            }
+    }
+    return out;
 }
 
 bool readHtml(const QByteArray &html, Document *out, QString *error, const QString &baseDir)

@@ -62,13 +62,21 @@ void WriteWindow::createHomeActions()
     mk("edit.pastePicture", tr("Picture"), "image", QKeySequence(), [pasteWith] { pasteWith(Kind::Picture); });
     mk("edit.pasteSpecial", tr("Paste Special…"), "clipboard-list", QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_V), [this, pasteWith] {
         if (!m_doc || refuseIfReadOnly()) return;
-        struct Choice { Kind kind; QString name; };
+        struct Choice { Kind kind; QString name; QString command; };
         QVector<Choice> choices;
-        if (m_view->canPaste(Kind::Keep) && !QApplication::clipboard()->mimeData()->hasImage()) choices.push_back({Kind::Keep, tr("Formatted text")});
-        if (m_view->canPaste(Kind::Merge)) choices.push_back({Kind::Merge, tr("Formatted text, merged with the formatting around it")});
-        if (m_view->canPaste(Kind::TextOnly)) choices.push_back({Kind::TextOnly, tr("Unformatted text")});
-        if (m_view->canPaste(Kind::Html)) choices.push_back({Kind::Html, tr("HTML")});
-        if (m_view->canPaste(Kind::Picture)) choices.push_back({Kind::Picture, tr("Picture")});
+        if (m_view->canPaste(Kind::Keep) && !QApplication::clipboard()->mimeData()->hasImage()) choices.push_back({Kind::Keep, tr("Formatted text"), QString()});
+        if (m_view->canPaste(Kind::Merge)) choices.push_back({Kind::Merge, tr("Formatted text, merged with the formatting around it"), QString()});
+        if (m_view->canPaste(Kind::TextOnly)) choices.push_back({Kind::TextOnly, tr("Unformatted text"), QString()});
+        if (m_view->canPaste(Kind::Html)) choices.push_back({Kind::Html, tr("HTML"), QString()});
+        if (m_view->canPaste(Kind::Picture)) choices.push_back({Kind::Picture, tr("Picture"), QString()});
+        // The list items and the cells the clipboard has: the choices the Paste Options button offers, by their commands.
+        if (m_view->caretBesideList() && m_view->canPaste(Kind::Keep) && !QApplication::clipboard()->mimeData()->hasImage()) {
+            for (const char *id : {"edit.pasteListContinue", "edit.pasteListNew", "edit.pasteListMerge"}) choices.push_back({Kind::Keep, act(QString::fromLatin1(id))->text(), QString::fromLatin1(id)});
+        }
+        if (m_view->clipboardHasCells()) {
+            for (const char *id : {"edit.pasteTable", "edit.pasteTableNest", "edit.pasteTableMerge", "edit.pasteTableRows", "edit.pasteTableOverwrite"})
+                if (act(QString::fromLatin1(id))->isEnabled()) choices.push_back({Kind::Keep, act(QString::fromLatin1(id))->text(), QString::fromLatin1(id)});
+        }
         if (choices.isEmpty()) {
             statusBar()->showMessage(tr("There is nothing on the clipboard to paste."), 5000);
             return;
@@ -76,14 +84,42 @@ void WriteWindow::createHomeActions()
         QStringList names;
         for (const Choice &c : std::as_const(choices)) names << c.name;
         const int pick = write::pasteSpecialDialog(this, names);
-        if (pick >= 0) pasteWith(choices.at(pick).kind);
+        if (pick < 0) return;
+        if (choices.at(pick).command.isEmpty()) pasteWith(choices.at(pick).kind);
+        else act(choices.at(pick).command)->trigger();
     });
+    // The choices for list items and spreadsheet cells: the same as the Paste Options button's, as commands.
+    auto pasteList = [this](write::ListPaste how) {
+        if (!m_doc || refuseIfReadOnly()) return;
+        m_view->pasteListAs(how);
+        m_view->setFocus(Qt::OtherFocusReason);
+    };
+    mk("edit.pasteListContinue", tr("Continue List"), "list-ordered", QKeySequence(), [pasteList] { pasteList(write::ListPaste::Continue); });
+    mk("edit.pasteListNew", tr("New List"), "list-ordered", QKeySequence(), [pasteList] { pasteList(write::ListPaste::New); });
+    mk("edit.pasteListMerge", tr("Merge List"), "list-ordered", QKeySequence(), [pasteList] { pasteList(write::ListPaste::Merge); });
+    auto pasteCells = [this](write::TablePaste how) {
+        if (!m_doc || refuseIfReadOnly()) return;
+        if (!m_view->canPasteCellsAs(how)) {
+            statusBar()->showMessage(how == write::TablePaste::NewTable ? tr("Put the caret outside a table to paste the cells as a table.") : tr("Put the caret in a table to paste the cells this way."), 5000);
+            return;
+        }
+        m_view->pasteCellsAs(how);
+        m_view->setFocus(Qt::OtherFocusReason);
+    };
+    mk("edit.pasteTable", tr("Table"), "table", QKeySequence(), [pasteCells] { pasteCells(write::TablePaste::NewTable); });
+    mk("edit.pasteTableNest", tr("Nest Table"), "table", QKeySequence(), [pasteCells] { pasteCells(write::TablePaste::Nest); });
+    mk("edit.pasteTableMerge", tr("Merge Table"), "table", QKeySequence(), [pasteCells] { pasteCells(write::TablePaste::Merge); });
+    mk("edit.pasteTableRows", tr("Insert as New Rows"), "table", QKeySequence(), [pasteCells] { pasteCells(write::TablePaste::NewRows); });
+    mk("edit.pasteTableOverwrite", tr("Overwrite Cells"), "table", QKeySequence(), [pasteCells] { pasteCells(write::TablePaste::Overwrite); });
     auto syncPaste = [this] {
         if (!m_view) return;
         act("edit.pasteMerge")->setEnabled(bool(m_doc) && m_view->canPaste(Kind::Merge));
         act("edit.pasteText")->setEnabled(bool(m_doc) && m_view->canPaste(Kind::TextOnly));
         act("edit.pastePicture")->setEnabled(bool(m_doc) && m_view->canPaste(Kind::Picture));
         act("edit.pasteSpecial")->setEnabled(bool(m_doc));
+        const bool cells = bool(m_doc) && m_view->clipboardHasCells();
+        for (const char *id : {"edit.pasteListContinue", "edit.pasteListNew", "edit.pasteListMerge"}) act(QString::fromLatin1(id))->setEnabled(bool(m_doc) && m_view->canPaste(Kind::Keep));
+        for (const char *id : {"edit.pasteTable", "edit.pasteTableNest", "edit.pasteTableMerge", "edit.pasteTableRows", "edit.pasteTableOverwrite"}) act(QString::fromLatin1(id))->setEnabled(cells);
     };
     connect(QApplication::clipboard(), &QClipboard::dataChanged, this, syncPaste);
     syncPaste();

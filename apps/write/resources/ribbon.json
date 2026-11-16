@@ -19,6 +19,16 @@
                 "edit.pasteText",
                 "edit.pastePicture",
                 "-",
+                "edit.pasteListContinue",
+                "edit.pasteListNew",
+                "edit.pasteListMerge",
+                "-",
+                "edit.pasteTable",
+                "edit.pasteTableNest",
+                "edit.pasteTableMerge",
+                "edit.pasteTableRows",
+                "edit.pasteTableOverwrite",
+                "-",
                 "edit.pasteSpecial"
               ],
               "keytip": "V"

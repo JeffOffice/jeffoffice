@@ -8,6 +8,9 @@
 
 #include <QByteArray>
 #include <QString>
+#include <QStringList>
+#include <QVector>
+#include <optional>
 
 namespace jp::office::wml {
 
@@ -27,6 +30,16 @@ struct HtmlTable {
     QVector<QStringList> rows;
 };
 QVector<HtmlTable> readHtmlTables(const QByteArray &html, bool *tooMany = nullptr, QString *error = nullptr);
+// Cells that a clipboard holds as a table (a spreadsheet's copy): the HTML when it is a table and nothing else, else the text when every line has tabs in it. Nothing when there are fewer than two cells,
+// two lines of text, or when the HTML has anything but one table in it. The table is cut to kMostClipRows rows, kMostClipColumns columns, and kMostClipCellChars characters a cell (`truncated`),
+// and no more than kMostClipChars characters of the text or kMostClipHtmlBytes of the HTML are looked at, so a hostile clipboard costs a bounded amount.
+constexpr int kMostClipRows = 500, kMostClipColumns = 63, kMostClipCellChars = 4000;
+constexpr int kMostClipChars = 1 << 20, kMostClipHtmlBytes = 2 << 20;
+struct ClipTable {
+    QVector<QStringList> rows;     // every row has as many cells as the widest
+    bool truncated = false;
+};
+std::optional<ClipTable> clipTable(const QString &html, const QString &text);
 // The page made into a new document (newDocument()'s styles and page); false, with the reason, when it is too large.
 // A picture is read only from a data: address, or from a file under `baseDir` (the page's own folder; empty: no files) that a relative address or a file: address names, and no
 // address of the network is ever opened; a link is kept when it goes to http, https, or mailto.

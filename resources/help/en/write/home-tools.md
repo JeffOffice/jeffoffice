@@ -1,5 +1,5 @@
 # Change case, sort, and paste in other ways
-<!-- keywords: paste options button, smart cut and paste, spaces when pasting, horizontal line, rule, reveal formatting, style inspector, shift+f1, tabs, tab stops, leader, keep with next, keep lines together, page break before, widow, orphan, outline level, line and page breaks, change case, uppercase, lowercase, sentence case, capitalize, toggle case, shift+f3, sort, sort paragraphs, alphabetical, order, paste, paste special, keep text only, merge formatting, unformatted text, picture, clipboard -->
+<!-- keywords: paste options button, smart cut and paste, spaces when pasting, horizontal line, rule, reveal formatting, style inspector, shift+f1, tabs, tab stops, leader, keep with next, keep lines together, page break before, widow, orphan, outline level, line and page breaks, change case, uppercase, lowercase, sentence case, capitalize, toggle case, shift+f3, sort, sort paragraphs, alphabetical, order, paste, paste special, continue list, new list, merge list, nest table, spreadsheet cells, keep text only, merge formatting, unformatted text, picture, clipboard -->
 
 These tools are on the **Home** tab. They work on the text you select.
 
@@ -48,6 +48,10 @@ Click the small arrow under **Paste** for more choices:
 A choice is dimmed when the clipboard has nothing it can use.
 
 Right after you paste, a small **Paste Options** button shows up next to your cursor. Click it to pick **Keep Source Formatting**, **Merge Formatting**, or **Keep Text Only**. JeffWrite takes the paste back and does it again that way. The button goes away as soon as you type, or move the cursor.
+
+When the paste brought list paragraphs next to a list, the button also offers **Continue List** (the numbers go on from the list beside them), **New List** (the numbering starts over at 1), and **Merge List** (the items join the list beside them and take its look). Pasting numbered items inside a list of the same kind goes on with its numbers. The same choices are commands in the Paste menu on the Home tab and in **Paste Special**, so the keyboard reaches them too.
+
+When the clipboard holds spreadsheet cells (copied from JeffCrunch or another program as a table or as lines with tabs between the cells), pasting makes a table. With the cursor inside a table, the button offers **Nest Table** (a table in the cell), **Merge Table** (the cells join the table, which gets the columns they need), **Insert as New Rows**, and **Overwrite Cells** (the cells replace the table's own, from the cursor's cell on). A pasted table has at most 500 rows and 63 columns, and a cell holds at most 4,000 characters; what is past that is left out. Each paste is one step: Undo takes all of it back, and Redo puts it back.
 
 **Smart cut and paste** keeps the spaces right when you move words. If you cut whole words from between two spaces, JeffWrite takes one of the spaces too, so you are not left with a double space. If you paste a word right up against another word, it adds a space between them. It leaves the middle of a word alone. To turn it off, click **File > Options > Advanced** and clear **Smart cut and paste**.
 

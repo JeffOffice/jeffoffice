@@ -3023,6 +3023,47 @@ private Q_SLOTS:
         QCOMPARE(wide.frame, QSizeF(100, 12.5));
         QCOMPARE(wide.shares.top, 0.0);
     }
+
+    // ---- spreadsheet cells on the clipboard
+    void clipboardCellsComeFromAnHtmlTableOrTabSeparatedLines()
+    {
+        const auto html = clipTable(QStringLiteral("<html><body><table><tr><td>a</td><td>b</td></tr><tr><td>c</td><td>d</td></tr></table></body></html>"), QString());
+        QVERIFY(html);
+        QCOMPARE(html->rows.size(), 2);
+        QCOMPARE(html->rows[1], (QStringList{QStringLiteral("c"), QStringLiteral("d")}));
+        const auto tsv = clipTable(QString(), QStringLiteral("1\t2\t3\r\n4\t5\t6\r\n"));
+        QVERIFY(tsv);
+        QCOMPARE(tsv->rows.size(), 2);
+        QCOMPARE(tsv->rows[0].size(), 3);
+        // One cell, plain words, a line of tabs alone, or words around a table are no spreadsheet.
+        QVERIFY(!clipTable(QStringLiteral("<table><tr><td>one</td></tr></table>"), QString()));
+        QVERIFY(!clipTable(QString(), QStringLiteral("just words\nand more")));
+        QVERIFY(!clipTable(QString(), QStringLiteral("a\tb")));
+        QVERIFY(!clipTable(QString(), QStringLiteral("a\tb\nwords without a tab")));
+        QVERIFY(!clipTable(QStringLiteral("<p>Before</p><table><tr><td>a</td><td>b</td></tr></table>"), QString()));
+    }
+
+    void aClipboardTableIsBoundedInRowsColumnsAndCellText()
+    {
+        QString big;
+        for (int r = 0; r < kMostClipRows + 40; ++r) {
+            for (int c = 0; c < kMostClipColumns + 20; ++c) big += (c ? QStringLiteral("\t") : QString()) + QStringLiteral("x");
+            big += QLatin1Char('\n');
+        }
+        auto t = clipTable(QString(), big);
+        QVERIFY(t);
+        QCOMPARE(t->rows.size(), kMostClipRows);
+        QCOMPARE(t->rows[0].size(), kMostClipColumns);
+        QVERIFY(t->truncated);
+        // The same through HTML, and a cell's words are cut.
+        QString h = QStringLiteral("<table>");
+        for (int r = 0; r < kMostClipRows + 5; ++r) h += QStringLiteral("<tr><td>") + QString(kMostClipCellChars + 100, QLatin1Char('w')) + QStringLiteral("</td><td>y</td></tr>");
+        h += QStringLiteral("</table>");
+        t = clipTable(h, QString());
+        QVERIFY(t);
+        QCOMPARE(t->rows.size(), kMostClipRows);
+        QCOMPARE(t->rows[0][0].size(), kMostClipCellChars);
+    }
 };
 
 QTEST_MAIN(WmlTests)
