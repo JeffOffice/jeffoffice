@@ -40,6 +40,10 @@ struct ClipTable {
     bool truncated = false;
 };
 std::optional<ClipTable> clipTable(const QString &html, const QString &text);
+// A look without a parse: whether the clipboard may hold cells (the HTML has a table in it, or the text has a tab and more than one line), for commands to be on or off by; clipTable says for sure.
+bool mayBeClipTable(const QString &html, const QString &text);
+// How many times clipTable has parsed a clipboard (the tests count what a command costs).
+int clipTableParses();
 // The page made into a new document (newDocument()'s styles and page); false, with the reason, when it is too large.
 // A picture is read only from a data: address, or from a file under `baseDir` (the page's own folder; empty: no files) that a relative address or a file: address names, and no
 // address of the network is ever opened; a link is kept when it goes to http, https, or mailto.

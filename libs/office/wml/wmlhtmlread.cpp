@@ -9,6 +9,7 @@
 #include <QImageReader>
 #include <QTextImageFormat>
 #include <QUrl>
+#include <atomic>
 #include <QTextBlock>
 #include <QTextCursor>
 #include <QTextDocument>
@@ -374,8 +375,20 @@ QVector<HtmlTable> readHtmlTables(const QByteArray &html, bool *tooMany, QString
     return tables;
 }
 
+static std::atomic<int> g_clipTableParses{0};
+
+int clipTableParses() { return g_clipTableParses; }
+
+bool mayBeClipTable(const QString &html, const QString &text)
+{
+    if (!html.isEmpty() && html.size() <= kMostClipHtmlBytes && html.contains(QLatin1String("<table"), Qt::CaseInsensitive)) return true;
+    const qsizetype tab = text.indexOf(QLatin1Char('\t'));
+    return tab >= 0 && text.indexOf(QLatin1Char('\n')) >= 0;
+}
+
 std::optional<ClipTable> clipTable(const QString &html, const QString &text)
 {
+    ++g_clipTableParses;
     ClipTable out;
     if (!html.isEmpty() && html.size() <= kMostClipHtmlBytes && html.contains(QLatin1String("<table"), Qt::CaseInsensitive)) {
         QTextDocument page;

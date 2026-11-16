@@ -3043,6 +3043,20 @@ private Q_SLOTS:
         QVERIFY(!clipTable(QStringLiteral("<p>Before</p><table><tr><td>a</td><td>b</td></tr></table>"), QString()));
     }
 
+    // A look at the clipboard that costs no parse: the commands that need cells are on or off by it.
+    void aCheapLookTellsWhetherTheClipboardMayHoldCells()
+    {
+        QVERIFY(mayBeClipTable(QStringLiteral("<html><BODY><TABLE><tr><td>a</td></tr></TABLE>"), QString()));
+        QVERIFY(mayBeClipTable(QString(), QStringLiteral("a\tb\nc\td")));
+        QVERIFY(!mayBeClipTable(QStringLiteral("<p>words</p>"), QStringLiteral("words\nmore words")));
+        QVERIFY(!mayBeClipTable(QString(), QStringLiteral("a\tb")));
+        const int before = clipTableParses();
+        mayBeClipTable(QStringLiteral("<table><tr><td>a</td></tr></table>"), QStringLiteral("a\tb\n"));
+        QCOMPARE(clipTableParses(), before);
+        clipTable(QString(), QStringLiteral("a\tb\nc\td"));
+        QCOMPARE(clipTableParses(), before + 1);
+    }
+
     void aClipboardTableIsBoundedInRowsColumnsAndCellText()
     {
         QString big;
