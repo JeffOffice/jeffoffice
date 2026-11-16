@@ -1331,6 +1331,24 @@ private Q_SLOTS:
         QVERIFY(w.act(QStringLiteral("review.view.all"))->isChecked());
     }
 
+    // A message on the status bar is not covered by the Track Changes item: the item steps aside for it, even when the review
+    // state is brought up to date while the message shows, and comes back after (Nov 16: "Track Changes: Off" stood over a message).
+    void aStatusMessageIsNotCoveredByTheTrackChangesItem()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        auto *track = w.findChild<QToolButton *>(QStringLiteral("trackStatus"));
+        QVERIFY(track);
+        QTRY_VERIFY(track->isVisible());
+        w.statusBar()->showMessage(QStringLiteral("A message"));
+        w.act(QStringLiteral("review.trackChanges"))->trigger();   // (brings the item up to date while the message shows)
+        QVERIFY(!track->isVisible());
+        w.statusBar()->clearMessage();
+        QTRY_VERIFY(track->isVisible());
+        QCOMPARE(track->text(), QStringLiteral("Track Changes: On"));
+    }
+
     void trackChangesTurnsOnAndOffAndTypingInTheWindowIsRecorded()
     {
         WriteWindow w;

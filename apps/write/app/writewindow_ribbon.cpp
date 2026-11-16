@@ -20,6 +20,7 @@
 #include <QPainter>
 #include <QPixmap>
 #include <QSlider>
+#include <QHBoxLayout>
 #include <QStatusBar>
 #include <QToolButton>
 #include <cmath>
@@ -255,6 +256,22 @@ void WriteWindow::ribbonParts(RibbonParts &parts)
 }
 
 // "Page 2 of 5" and the words, then at the right the view, and the zoom.
+namespace {
+// A status-bar item that shows and hides itself goes in a holder: a message on the status bar hides its items and shows them all
+// again after, which made such an item stand over the message (Nov 16: "Track Changes: Off" over a chart's message). The bar hides
+// and shows the holder; the item's own showing stays its own.
+QWidget *statusHolder(QWidget *item)
+{
+    auto *holder = new QWidget;
+    auto *l = new QHBoxLayout(holder);
+    l->setContentsMargins(0, 0, 0, 0);
+    l->setSpacing(0);
+    l->addWidget(item);
+    holder->setObjectName(item->objectName() + QStringLiteral("Holder"));
+    return holder;
+}
+} // namespace
+
 void WriteWindow::buildStatusBar()
 {
     QStatusBar *sb = statusBar();
@@ -267,7 +284,7 @@ void WriteWindow::buildStatusBar()
     m_sectionLabel->setObjectName(QStringLiteral("sectionNumber"));
     m_sectionLabel->setToolTip(tr("The section the caret is in"));
     m_sectionLabel->hide();
-    sb->addWidget(m_sectionLabel);
+    sb->addWidget(statusHolder(m_sectionLabel));
     m_wordLabel = new QLabel(this);
     m_wordLabel->setObjectName(QStringLiteral("wordCount"));
     m_wordLabel->setTextFormat(Qt::PlainText);
@@ -282,7 +299,7 @@ void WriteWindow::buildStatusBar()
     m_trackLabel->setToolTip(tr("Track Changes (Ctrl+Shift+E)"));
     m_trackLabel->setAccessibleName(tr("Track Changes"));
     connect(m_trackLabel, &QToolButton::clicked, this, [this] { act(QStringLiteral("review.trackChanges"))->trigger(); });
-    sb->addWidget(m_trackLabel);
+    sb->addWidget(statusHolder(m_trackLabel));
     // The language the text at the caret is checked in, which a click changes.
     m_langLabel = new QToolButton();
     m_langLabel->setObjectName(QStringLiteral("languageStatus"));
