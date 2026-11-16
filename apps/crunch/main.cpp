@@ -48,6 +48,7 @@
 
 #ifdef Q_OS_WIN
 #include <windows.h>
+#undef MessageBox   // (windows.h makes it MessageBoxW, which breaks jp::MessageBox below)
 #endif
 
 namespace {
