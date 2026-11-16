@@ -1,7 +1,6 @@
 // JeffDeck's tests of the slide master view.
 #include "deckhelpers.h"
 #include <QScrollBar>
-#include "app/theme.h"
 #include "app/ribbonbuilder.h"
 
 class DeckMasterTests : public QObject {
@@ -324,7 +323,6 @@ private Q_SLOTS:
     // that master: with two slide masters, the second master's layouts hang from their own line.
     void theMasterPaneDrawsATreeLineFromEachMasterToItsLayouts()
     {
-        jp::applyUiTheme(1);
         DeckWindow w;
         fillSlides(w, {"One"});
         w.resize(1300, 900);
