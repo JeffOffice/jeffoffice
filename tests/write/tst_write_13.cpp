@@ -1414,22 +1414,46 @@ void WriteTests::rtfDroppedFromAnotherProgramKeepsItsLooks()
 {
     auto w = styWindow("<w:p><w:r><w:t>One two</w:t></w:r></w:p>");
     PageView *view = w->view();
+    WriteDoc &doc = *w->document();
+    auto drop = [&](QMimeData &mime) {
+        const QPoint at = styPointOf(view, 3);
+        QDragEnterEvent enter(at, Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
+        QApplication::sendEvent(view->viewport(), &enter);
+        QDropEvent e(QPointF(at), Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
+        e.setAccepted(false);   // (an event is accepted until someone says no: what the drop answers is what counts)
+        QApplication::sendEvent(view->viewport(), &e);
+        return e.isAccepted();
+    };
+    {   // RTF that can't be read, and nothing else: the drop is refused and nothing changes
+        QMimeData broken;
+        broken.setData(QStringLiteral("text/rtf"), QByteArray("not rich text"));
+        const quint64 serial = doc.nextStepSerial();
+        QVERIFY(!drop(broken));
+        QCOMPARE(plain(doc), QStringLiteral("One two"));
+        QCOMPARE(doc.nextStepSerial(), serial);
+    }
+    {   // RTF that can't be read, with words: the words
+        QMimeData mime;
+        mime.setData(QStringLiteral("text/rtf"), QByteArray("not rich text"));
+        mime.setText(QStringLiteral("WORDS"));
+        QVERIFY(drop(mime));
+        QVERIFY(plain(doc).contains(QStringLiteral("WORDS")));
+        QVERIFY(doc.undo());
+        QCOMPARE(plain(doc), QStringLiteral("One two"));
+    }
     QMimeData mime;
-    mime.setData(QStringLiteral("text/rtf"), QByteArray("{\\rtf1\\ansi{\\fonttbl{\\f0 Arial;}}\\f0 \\b dropped\\b0\\par}"));
+    mime.setData(QStringLiteral("application/rtf"), QByteArray("{\\rtf1\\ansi{\\fonttbl{\\f0 Arial;}}\\f0 \\b dropped\\b0\\par}"));
     mime.setText(QStringLiteral("TEXTCOPY"));
-    const QPoint at = styPointOf(view, 3);
-    QDragEnterEvent enter(at, Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
-    QApplication::sendEvent(view->viewport(), &enter);
-    QVERIFY(enter.isAccepted());
-    QDropEvent e(QPointF(at), Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
-    QApplication::sendEvent(view->viewport(), &e);
-    QVERIFY(e.isAccepted());
-    const QString text = w->document()->story()->toPlainText();
+    const quint64 serial = doc.nextStepSerial();
+    QVERIFY(drop(mime));
+    QCOMPARE(doc.nextStepSerial(), serial + 1);   // (one step)
+    const QString text = plain(doc);
     QVERIFY(text.contains(QStringLiteral("dropped")));
     QVERIFY(!text.contains(QStringLiteral("TEXTCOPY")));
-    QTextCursor c(w->document()->story());
+    QTextCursor c(doc.story());
     c.setPosition(text.indexOf(QStringLiteral("dropped")) + 1);
     QVERIFY(c.charFormat().fontWeight() >= QFont::DemiBold);
+    QVERIFY(view->pasteOptionsAvailable());   // (the same path as a paste: the Paste Options button is offered)
 }
 
 void WriteTests::dragAndDropMovesSelectedTextOrCopiesItWithCtrlInOneStep()

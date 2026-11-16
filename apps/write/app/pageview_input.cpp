@@ -154,11 +154,11 @@ PageView::PasteSource PageView::clipboardSource() const
         m_clipCellsOf = mime;
     }
     out.cells = m_clipCells;
-    if (!m_clipRtf || m_clipRtfOf != mime) {
-        m_clipRtf = std::make_shared<RtfOfClip>();
-        m_clipRtfOf = mime;
+    if (!m_clipFetched || m_clipFetchedOf != mime) {
+        m_clipFetched = std::make_shared<Fetched>();
+        m_clipFetchedOf = mime;
     }
-    out.rtf = m_clipRtf;
+    out.fetched = m_clipFetched;
     return out;
 }
 
@@ -168,7 +168,7 @@ const std::optional<office::wml::ClipTable> &PageView::cellsOf(const PasteSource
     if (!from.mime || !from.cells || from.mime->hasFormat(fragmentFormat())) return none;
     if (!from.cells->parsed) {
         from.cells->parsed = true;
-        from.cells->cells = office::wml::clipTable(from.mime->hasHtml() ? from.mime->html() : QString(), from.mime->hasText() ? from.mime->text() : QString());
+        from.cells->cells = office::wml::clipTable(htmlOf(from), textOf(from));
     }
     return from.cells->cells;
 }
@@ -176,14 +176,87 @@ const std::optional<office::wml::ClipTable> &PageView::cellsOf(const PasteSource
 const std::optional<Clip> &PageView::rtfOf(const PasteSource &from) const
 {
     static const std::optional<Clip> none;
-    if (!from.mime || !from.rtf || from.mime->hasFormat(fragmentFormat())) return none;
-    if (!from.rtf->parsed) {
-        from.rtf->parsed = true;
-        const QByteArray bytes = rtfOfMime(from.mime.get());
+    if (!from.mime || !from.fetched || from.mime->hasFormat(fragmentFormat()) || !hasRtfFormat(from.mime.get())) return none;
+    Fetched &f = *from.fetched;
+    if (!f.rtfDone) {
+        f.rtfDone = true;
+        f.rtfBytes = rtfOfMime(from.mime.get());   // (read once, held to kMostPastedRtf before it is parsed)
         Clip clip;
-        if (!bytes.isEmpty() && clipFromRtf(bytes, &clip)) from.rtf->clip = clip;
+        if (!f.rtfBytes.isEmpty() && clipFromRtf(f.rtfBytes, &clip)) f.clip = clip;
     }
-    return from.rtf->clip;
+    return f.clip;
+}
+
+const QString &PageView::htmlOf(const PasteSource &from) const
+{
+    static const QString none;
+    if (!from.mime || !from.fetched || !from.mime->hasHtml()) return none;
+    Fetched &f = *from.fetched;
+    if (!f.htmlDone) {
+        f.htmlDone = true;
+        // (a mime object can't say how big a format is without reading it: the size is checked on the one read, before anything is converted or parsed)
+        if (from.mime->data(QStringLiteral("text/html")).size() <= kMostPastedHtml) f.html = safeClipHtml(from.mime->html());
+    }
+    return f.html;
+}
+
+const QString &PageView::textOf(const PasteSource &from) const
+{
+    static const QString none;
+    if (!from.mime || !from.fetched || !from.mime->hasText()) return none;
+    Fetched &f = *from.fetched;
+    if (!f.textDone) {
+        f.textDone = true;
+        f.text = from.mime->text();
+    }
+    return f.text;
+}
+
+PageView::PasteSource PageView::sourceOfDrop(const QMimeData *mime) const
+{
+    PasteSource out;
+    out.mime = std::shared_ptr<const QMimeData>(mime, [](const QMimeData *) {});
+    out.cells = std::make_shared<CellsOfClip>();
+    out.fetched = std::make_shared<Fetched>();
+    return out;
+}
+
+// What a paste puts in, by the order: this program's own copy, then spreadsheet cells as their words (Paste Options and Paste Special make a table of them), then RTF, then HTML, then the words.
+std::function<void()> PageView::putOf(const PasteSource &src)
+{
+    const QMimeData *mime = src.mime.get();
+    PageView *self = this;
+    if (src.ours()) return [self, &src] { pasteClip(*self->m_doc, self->m_cursor, src.clip); };
+    const bool cells = mime->hasText() && office::wml::mayBeClipTable(htmlOf(src), textOf(src));
+    if (!cells) {
+        if (const auto &rtf = rtfOf(src)) {
+            const Clip clip = *rtf;
+            return [self, clip] { pasteClip(*self->m_doc, self->m_cursor, clip); };
+        }
+        if (!htmlOf(src).isEmpty()) {
+            const QTextDocumentFragment fragment = QTextDocumentFragment::fromHtml(htmlOf(src));
+            return [self, fragment] { pasteFragment(*self->m_doc, self->m_cursor, fragment); };
+        }
+    }
+    if (mime->hasText()) {
+        const QString text = textOf(src);
+        return [self, text] { pasteText(*self->m_doc, self->m_cursor, text); };
+    }
+    return {};
+}
+
+// The paste and the drop both end here: smart paste, one step, the note for the Paste Options button.
+bool PageView::pasteSource(const PasteSource &src)
+{
+    const int pasteFrom = m_cursor.selectionStart(), pasteSelectionEnd = m_cursor.selectionEnd();
+    const bool startedInTable = inTable(m_cursor.block());
+    const std::function<void()> put = putOf(src);
+    if (!put) return false;
+    const bool ours = src.ours();
+    runPaste(smartCutPaste() && (!ours || src.clipWhole), put, pasteFrom);
+    notePaste(pasteFrom, pasteSelectionEnd, src, startedInTable);
+    caretMoved();
+    return true;
 }
 
 void PageView::paste()
@@ -210,33 +283,14 @@ void PageView::paste()
         caretMoved();
         return;
     }
-    const bool ours = src.ours();
-    std::function<void()> put;
-    if (ours) {
-        put = [this, &src] { pasteClip(*m_doc, m_cursor, src.clip); };
-    } else if (rtfOf(src)) {
-        // Formatted text from another program (RTF): its looks, pictures, and links come in.
-        const Clip clip = *rtfOf(src);
-        put = [this, clip] { pasteClip(*m_doc, m_cursor, clip); };
-    } else if (mime->hasImage() && !mime->hasText() && !mime->hasHtml()) {
-        // A picture on the clipboard (a screenshot, say) goes in as a picture.
+    // A picture on the clipboard (a screenshot, say) goes in as a picture.
+    if (!src.ours() && mime->hasImage() && !mime->hasText() && !mime->hasHtml() && !hasRtfFormat(mime)) {
         const QVariant data = mime->imageData();
         if (!data.canConvert<QImage>()) return;
         insertPictureImage(data.value<QImage>());
         return;
-    } else if (mime->hasHtml() && !(mime->hasText() && office::wml::mayBeClipTable(mime->html(), mime->text()))) {
-        // (HTML before the words; except spreadsheet cells, which Paste puts in as the words, as before: the Paste Options and Paste Special make a table of them)
-        const QTextDocumentFragment fragment = QTextDocumentFragment::fromHtml(mime->html());
-        put = [this, fragment] { pasteFragment(*m_doc, m_cursor, fragment); };
-    } else if (mime->hasText()) {
-        const QString text = mime->text();
-        put = [this, text] { pasteText(*m_doc, m_cursor, text); };
-    } else {
-        return;
     }
-    runPaste(smartCutPaste() && (!ours || src.clipWhole), put, pasteFrom);
-    notePaste(pasteFrom, pasteSelectionEnd, src, startedInTable);
-    caretMoved();
+    pasteSource(src);
 }
 
 // One step: the paste, and then, when a list choice was made, what it makes of the list items the paste put in.
@@ -267,7 +321,8 @@ bool PageView::clipboardMayHaveCells() const
 {
     const QMimeData *mime = QApplication::clipboard()->mimeData();
     if (!m_doc || !mime || mime->hasFormat(fragmentFormat())) return false;
-    return office::wml::mayBeClipTable(mime->hasHtml() ? mime->html() : QString(), mime->hasText() ? mime->text() : QString());
+    const PasteSource from = clipboardSource();   // (read once for as long as the clipboard is what it is)
+    return office::wml::mayBeClipTable(htmlOf(from), textOf(from));
 }
 
 bool PageView::clipboardHasCells() const
@@ -297,7 +352,7 @@ bool PageView::canPasteFrom(const PasteSource &from, PasteKind kind) const
     const QMimeData *mime = from.mime.get();
     if (!m_doc || !mime) return false;
     const bool ours = mime->hasFormat(fragmentFormat()) && !from.clip.isEmpty();
-    const bool rtf = !ours && !rtfOfMime(mime).isEmpty();
+    const bool rtf = !ours && hasRtfFormat(mime);   // (the names of the formats only: nothing is read to find out)
     switch (kind) {
     case PasteKind::Keep: return ours || rtf || mime->hasText() || mime->hasHtml() || mime->hasImage();
     case PasteKind::Merge: return ours || rtf || mime->hasHtml();
@@ -323,12 +378,12 @@ void PageView::pasteAs(PasteKind kind)
         paste();
         return;
     case PasteKind::Merge: {
-        const QTextDocumentFragment fragment = ours ? src.clip.fragment : rtfOf(src) ? rtfOf(src)->fragment : QTextDocumentFragment::fromHtml(mime->html());
+        const QTextDocumentFragment fragment = ours ? src.clip.fragment : rtfOf(src) ? rtfOf(src)->fragment : QTextDocumentFragment::fromHtml(htmlOf(src));
         put([&] { pasteMerged(*m_doc, m_cursor, fragment); });
         break;
     }
     case PasteKind::TextOnly: {
-        const QString text = ours ? plainTextOf(src.clip.fragment) : (mime->hasText() ? mime->text() : rtfOf(src) ? plainTextOf(rtfOf(src)->fragment) : QTextDocumentFragment::fromHtml(mime->html()).toPlainText());
+        const QString text = ours ? plainTextOf(src.clip.fragment) : (mime->hasText() ? textOf(src) : rtfOf(src) ? plainTextOf(rtfOf(src)->fragment) : QTextDocumentFragment::fromHtml(htmlOf(src)).toPlainText());
         put([&] { pasteText(*m_doc, m_cursor, text); });
         break;
     }
@@ -339,7 +394,7 @@ void PageView::pasteAs(PasteKind kind)
         return;
     }
     case PasteKind::Html: {
-        const QTextDocumentFragment fragment = QTextDocumentFragment::fromHtml(mime->html());
+        const QTextDocumentFragment fragment = QTextDocumentFragment::fromHtml(htmlOf(src));
         put([&] { pasteFragment(*m_doc, m_cursor, fragment); });
         break;
     }
@@ -361,16 +416,16 @@ void PageView::notePaste(int from, int selectionEnd, const PasteSource &made, bo
     if (!m_pasteAgain && made.mime) {
         auto copy = std::make_shared<QMimeData>();
         const QMimeData *mime = made.mime.get();
-        if (mime->hasText()) copy->setText(mime->text());
-        if (mime->hasHtml()) copy->setHtml(mime->html());
-        if (const QByteArray rtf = rtfOfMime(mime); !rtf.isEmpty()) copy->setData(QStringLiteral("text/rtf"), rtf);
+        if (mime->hasText()) copy->setText(textOf(made));
+        if (mime->hasHtml()) copy->setHtml(htmlOf(made));
+        if (made.fetched && !made.fetched->rtfBytes.isEmpty()) copy->setData(QStringLiteral("text/rtf"), made.fetched->rtfBytes);
         if (mime->hasImage()) copy->setImageData(mime->imageData());
         if (mime->hasFormat(fragmentFormat())) copy->setData(fragmentFormat(), mime->data(fragmentFormat()));
         kept.mime = copy;
     }
     m_lastPaste = LastPaste{from, selectionEnd, m_cursor.position(), m_doc ? m_doc->story()->revision() : -1, m_doc ? m_doc->story() : nullptr, m_doc && listBesidePaste(*m_doc, from, m_cursor.position()), asCells, startedInTable, false, kept};
     if (kept.mime && !kept.mime->hasFormat(fragmentFormat()))
-        m_lastPaste.offersCells = asCells || office::wml::mayBeClipTable(kept.mime->hasHtml() ? kept.mime->html() : QString(), kept.mime->hasText() ? kept.mime->text() : QString());
+        m_lastPaste.offersCells = asCells || office::wml::mayBeClipTable(htmlOf(kept), textOf(kept));
 }
 
 bool PageView::pasteOptionsAvailable() const
@@ -1298,7 +1353,7 @@ void PageView::startTextDrag()
 
 bool PageView::wantsTextDrop(const QMimeData *mime) const
 {
-    return m_doc && !m_readOnly && !m_hf.active && !m_note.active && mime && (mime->hasFormat(QString::fromLatin1(kTextDragMime)) || ((mime->hasText() || !rtfOfMime(mime).isEmpty()) && !mime->hasUrls()));
+    return m_doc && !m_readOnly && !m_hf.active && !m_note.active && mime && (mime->hasFormat(QString::fromLatin1(kTextDragMime)) || ((mime->hasText() || mime->hasHtml() || hasRtfFormat(mime)) && !mime->hasUrls()));
 }
 
 bool PageView::dropText(QDropEvent *e)
@@ -1328,14 +1383,14 @@ bool PageView::dropText(QDropEvent *e)
         }
         return true;
     }
-    QTextCursor c = m_cursor;
-    c.setPosition(at);
-    // Formatted text from another program (RTF) keeps its looks; else the words.
-    Clip rtf;
-    if (const QByteArray bytes = rtfOfMime(mime); !bytes.isEmpty() && clipFromRtf(bytes, &rtf)) pasteClip(*m_doc, c, rtf);
-    else pasteText(*m_doc, c, mime->text());
-    m_cursor = c;
-    caretMoved();
+    // Text from another program goes in as a paste does (the same order of forms, smart paste, one step, the Paste Options button); nothing usable in it, the drop is refused.
+    const QTextCursor before = m_cursor;
+    m_cursor.setPosition(at);
+    if (!pasteSource(sourceOfDrop(mime))) {
+        m_cursor = before;
+        e->ignore();
+        return true;
+    }
     e->acceptProposedAction();
     return true;
 }

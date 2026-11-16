@@ -419,33 +419,54 @@ QVector<QStringList> splitDelimitedText(const QString &text, const jp::office::s
     return rows;
 }
 
-bool guessDelimitedText(const QString &text, jp::office::sheet::CsvImport *choices)
+bool guessDelimitedText(const QString &text, jp::office::sheet::CsvImport *choices, bool strict)
 {
     if (text.contains(QLatin1Char('\t'))) return false;
-    // the first lines whole (a cut line would count wrong)
+    // the first lines whole: a cut line would count wrong, and a line end inside quotes is no end of a line
     QString head = text.left(kGuessBytes);
     if (head.size() < text.size()) {
-        const qsizetype nl = head.lastIndexOf(QLatin1Char('\n'));
-        if (nl <= 0) return false;
-        head.truncate(nl);
+        bool inQuote = false;
+        qsizetype cut = -1;
+        for (qsizetype i = 0; i < head.size(); ++i) {
+            const QChar ch = head[i];
+            if (ch == QLatin1Char('"')) inQuote = !inQuote;
+            else if (!inQuote && (ch == QLatin1Char('\n') || ch == QLatin1Char('\r'))) cut = i;
+        }
+        if (cut <= 0) return false;
+        head.truncate(cut);
     }
-    QStringList lines = head.split(QRegularExpression(QStringLiteral("\r\n|\r|\n")));
-    QStringList kept;
-    for (const QString &l : std::as_const(lines))
-        if (!l.trimmed().isEmpty()) kept << l;
-    if (kept.size() < 2) return false;
-    if (kept.size() > kGuessLines) kept = kept.mid(0, kGuessLines);
-    const QString body = kept.join(QLatin1Char('\n'));
-    // by a mark: the same count of fields on every line
+    const int minFields = strict ? 3 : 2;
+    // by a mark: the same count of fields on every row (a blank line is no row; a line end inside a quoted field is part of the field)
     for (const QChar mark : {QLatin1Char(';'), QLatin1Char('|'), QLatin1Char(',')}) {
-        if (!body.contains(mark)) continue;
+        if (!head.contains(mark)) continue;
         jp::office::sheet::CsvImport c;
         c.separators = QString(mark);
-        const QVector<QStringList> table = splitDelimitedText(body, c);
-        bool same = table.size() >= 2 && table.first().size() >= 2;
-        for (const QStringList &row : table)
+        QVector<QStringList> table;
+        for (const QStringList &row : splitDelimitedText(head, c)) {
+            if (row.size() == 1 && row.first().trimmed().isEmpty()) continue;
+            table << row;
+            if (table.size() >= kGuessLines) break;
+        }
+        bool same = table.size() >= 2 && table.first().size() >= minFields;
+        for (const QStringList &row : std::as_const(table))
             if (row.size() != table.first().size()) same = false;
         if (!same) continue;
+        if (strict) {
+            // no column that is empty on every row ("int x = 1;" lines, a list with a comma at the end of each line)
+            for (qsizetype col = 0; col < table.first().size(); ++col) {
+                bool any = false;
+                for (const QStringList &row : std::as_const(table)) any = any || !row[col].trimmed().isEmpty();
+                if (!any) same = false;
+            }
+            // numbers with their thousands marks (1,234 and 5,678) are not fields
+            if (mark == QLatin1Char(',')) {
+                static const QRegularExpression grouped(QStringLiteral("^\\s*-?\\d{1,3}(,\\d{3})+\\s*$"));
+                bool all = true;
+                for (const QStringList &row : std::as_const(table)) all = all && grouped.match(row.join(QLatin1Char(','))).hasMatch();
+                if (all) same = false;
+            }
+            if (!same) continue;
+        }
         choices->separators = c.separators;
         choices->mergeSeparators = false;
         choices->fixedWidth = false;
@@ -453,7 +474,7 @@ bool guessDelimitedText(const QString &text, jp::office::sheet::CsvImport *choic
         if (mark == QLatin1Char(';')) {
             static const QRegularExpression commaNumber(QStringLiteral("^-?\\d+,\\d+$")), dotNumber(QStringLiteral("^-?\\d+\\.\\d+$"));
             bool comma = false, dot = false;
-            for (const QStringList &row : table)
+            for (const QStringList &row : std::as_const(table))
                 for (const QString &f : row) {
                     comma = comma || commaNumber.match(f.trimmed()).hasMatch();
                     dot = dot || dotNumber.match(f.trimmed()).hasMatch();
@@ -463,6 +484,9 @@ bool guessDelimitedText(const QString &text, jp::office::sheet::CsvImport *choic
         return true;
     }
     // columns of fixed width: gaps of spaces that every line has
+    QStringList kept;
+    for (const QString &l : head.split(QRegularExpression(QStringLiteral("\r\n|\r|\n"))))
+        if (!l.trimmed().isEmpty() && kept.size() < kGuessLines) kept << l;
     if (kept.size() < 3) return false;
     qsizetype longest = 0;
     for (QString &l : kept) {
@@ -508,17 +532,19 @@ bool textImportFromOptions(const QString &separator, const QString &encoding, co
         return false;
     };
     jp::office::sheet::CsvImport c;
-    if (!separator.isEmpty()) {
+    // (a null text is an option that was not given; an empty one was given, and is refused)
+    if (!separator.isNull() && separator.isEmpty()) return fail(QCoreApplication::translate("jp::crunch::TextOptions", "The separator is empty. Use comma, semicolon, tab, space, bar, or one character."));
+    if (!separator.isNull()) {
         const QString k = separator.toLower();
         if (k == QLatin1String("comma")) c.separators = QStringLiteral(",");
         else if (k == QLatin1String("semicolon")) c.separators = QStringLiteral(";");
         else if (k == QLatin1String("tab") || separator == QLatin1String("\\t")) c.separators = QStringLiteral("\t");
         else if (k == QLatin1String("space")) c.separators = QStringLiteral(" ");
         else if (k == QLatin1String("bar") || k == QLatin1String("pipe")) c.separators = QStringLiteral("|");
-        else if (separator.size() == 1 && separator != QLatin1String("\"")) c.separators = separator;
+        else if (separator.size() == 1 && separator != QLatin1String("\"") && (separator.at(0).category() != QChar::Other_Control || separator.at(0).unicode() == 9) && separator.at(0).unicode() != 0x2028 && separator.at(0).unicode() != 0x2029) c.separators = separator;
         else return fail(QCoreApplication::translate("jp::crunch::TextOptions", "The separator \"%1\" is not comma, semicolon, tab, space, bar, or one character.").arg(separator));
     }
-    if (!encoding.isEmpty()) {
+    if (!encoding.isNull()) {
         const QString k = encoding.toLower().remove(QLatin1Char('-')).remove(QLatin1Char('_')).remove(QLatin1Char(' '));
         c.encodingSet = true;
         auto legacy = [&](int page) {
@@ -536,12 +562,14 @@ bool textImportFromOptions(const QString &separator, const QString &encoding, co
         else if (const auto m2 = iso.match(k); m2.hasMatch() && QList<int>{1, 2, 5, 7, 9, 15}.contains(m2.captured(1).toInt())) legacy(28590 + m2.captured(1).toInt());
         else return fail(QCoreApplication::translate("jp::crunch::TextOptions", "The encoding \"%1\" is not one JeffCrunch reads text in. Use utf-8, utf-8-bom, utf-16le, utf-16be, latin1, mac-roman, windows-1252 (or another page), or iso-8859-N.").arg(encoding));
     }
-    if (!decimal.isEmpty()) {
+    if (!decimal.isNull()) {
         const QString k = decimal.toLower();
         if (k == QLatin1String(".") || k == QLatin1String("point")) c.decimalMark = QLatin1Char('.');
         else if (k == QLatin1String(",") || k == QLatin1String("comma")) c.decimalMark = QLatin1Char(',');
         else return fail(QCoreApplication::translate("jp::crunch::TextOptions", "The decimal mark \"%1\" is not a point or a comma.").arg(decimal));
     }
+    if (!c.separators.isEmpty() && !c.decimalMark.isNull() && c.separators.contains(c.decimalMark))
+        return fail(QCoreApplication::translate("jp::crunch::TextOptions", "The separator and the decimal mark are the same character. Choose different ones."));
     *out = c;
     return true;
 }

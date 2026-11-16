@@ -216,6 +216,18 @@ int picturesIn(WriteDoc &doc)
 
 } // namespace
 
+// A counting mime object: the data of a format is read only through retrieveData, so the count says how often it was.
+struct CountingMime : QMimeData {
+    mutable int reads = 0;
+protected:
+    QVariant retrieveData(const QString &format, QMetaType type) const override
+    {
+        ++reads;
+        return QMimeData::retrieveData(format, type);
+    }
+};
+
+
 class HomeTests : public QObject {
     Q_OBJECT
 private Q_SLOTS:
@@ -2352,6 +2364,15 @@ private Q_SLOTS:
             QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("plain strong words"));
             QVERIFY(w.view()->canPaste(jp::write::PageView::PasteKind::Rtf));
         }
+        {   // one step of Undo
+            WriteWindow w;
+            emptyWindow(w);
+            QApplication::clipboard()->setMimeData(rtfMime());
+            w.view()->paste();
+            QVERIFY(w.document()->undo());
+            QCOMPARE(w.document()->story()->toPlainText(), QString());
+            QVERIFY(!w.document()->canUndo());
+        }
         {   // Without RTF: the HTML, then the text.
             WriteWindow w;
             emptyWindow(w);
@@ -2375,9 +2396,113 @@ private Q_SLOTS:
         }
     }
 
+    void rtfIsReadFromEveryNameTheSystemsGiveItAndFromLinesEndedWithReturnAndLineFeed()
+    {
+        const QByteArray rtf("{\\rtf1\\ansi\r\n{\\fonttbl{\\f0 Arial;}}\r\n\\f0 plain \\b strong\\b0  words\\par}\r\n");
+        for (const QString &name : {QStringLiteral("text/rtf"), QStringLiteral("application/rtf"), QStringLiteral("application/x-qt-windows-mime;value=\"Rich Text Format\"")}) {
+            WriteWindow w;
+            emptyWindow(w);
+            auto *mime = new QMimeData;
+            mime->setData(name, rtf);
+            mime->setText(QStringLiteral("TEXTCOPY"));
+            QApplication::clipboard()->setMimeData(mime);
+            w.view()->paste();
+            QVERIFY2(w.document()->story()->toPlainText() == QStringLiteral("plain strong words"), qPrintable(name));
+            QVERIFY(boldAt(w, QStringLiteral("strong")));
+        }
+    }
+
+    void spreadsheetCellsPasteAsTheirWordsEvenWithRtfAndHtmlBesideThem()
+    {
+        WriteWindow w;
+        emptyWindow(w);
+        auto *mime = rtfMime();
+        mime->setHtml(QStringLiteral("<html><body><table><tr><td>a</td><td>b</td></tr><tr><td>c</td><td>d</td></tr></table></body></html>"));
+        mime->setText(QStringLiteral("a\tb\nc\td\n"));
+        QApplication::clipboard()->setMimeData(mime);
+        w.view()->paste();
+        QVERIFY(w.document()->story()->toPlainText().startsWith(QStringLiteral("a\tb")));
+        QVERIFY(!w.document()->story()->toPlainText().contains(QStringLiteral("strong")));
+    }
+
+    void htmlFromABrowserPastesFormattedAndKeepTextOnlyGivesTheWords()
+    {
+        WriteWindow w;
+        emptyWindow(w);
+        auto *mime = new QMimeData;
+        mime->setHtml(QStringLiteral("<p>some <b>bold</b> words</p>"));
+        mime->setText(QStringLiteral("PLAINCOPY"));
+        QApplication::clipboard()->setMimeData(mime);
+        w.view()->paste();
+        QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("some bold words"));
+        QVERIFY(boldAt(w, QStringLiteral("bold")));
+        QVERIFY(w.view()->changeLastPaste(jp::write::PageView::PasteKind::TextOnly));
+        QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("PLAINCOPY"));
+        QApplication::clipboard()->setMimeData([] { auto *m = new QMimeData; m->setHtml(QStringLiteral("<p>one <i>step</i></p>")); return m; }());
+        WriteWindow one;
+        emptyWindow(one);
+        one.view()->paste();
+        QVERIFY(one.document()->undo());
+        QCOMPARE(one.document()->story()->toPlainText(), QString());
+        QVERIFY(!one.document()->canUndo());
+    }
+
+    void pastedHtmlNeverReadsAFileOffTheDiskAndIsHeldToItsSize()
+    {
+        QTemporaryDir dir;
+        QImage image(4, 4, QImage::Format_RGB32);
+        image.fill(Qt::red);
+        const QString png = dir.filePath(QStringLiteral("secret.png"));
+        QVERIFY(image.save(png));
+        const QString html = QStringLiteral("<p>x<img src=\"%1\">y<img src='file:///etc/hostname'>z<span style=\"background:url(%1)\">w</span><img src=\"https://example.com/a.png\"></p>").arg(QUrl::fromLocalFile(png).toString());
+        const QString safe = jp::write::safeClipHtml(html);
+        QVERIFY(!safe.contains(QStringLiteral("file:")));
+        QVERIFY(safe.contains(QStringLiteral("https://example.com/a.png")));
+        QVERIFY(jp::write::safeClipHtml(QStringLiteral("<img src=\"data:image/png;base64,AAAA\">")).contains(QStringLiteral("data:image")));
+        WriteWindow w;
+        emptyWindow(w);
+        auto *mime = new QMimeData;
+        mime->setHtml(html);
+        QApplication::clipboard()->setMimeData(mime);
+        w.view()->paste();
+        int images = 0;
+        for (QTextBlock b = w.document()->story()->begin(); b.isValid(); b = b.next())
+            for (auto it = b.begin(); !it.atEnd(); ++it) {
+                const QString name = it.fragment().charFormat().toImageFormat().name();
+                if (it.fragment().charFormat().isImageFormat() && name.startsWith(QStringLiteral("file:"))) ++images;
+            }
+        QCOMPARE(images, 0);
+        // over the limit: the words are used, the HTML is not parsed
+        WriteWindow big;
+        emptyWindow(big);
+        auto *large = new QMimeData;
+        large->setHtml(QStringLiteral("<p>HTMLCOPY") + QString(int(jp::write::kMostPastedHtml), QLatin1Char(' ')) + QStringLiteral("</p>"));
+        large->setText(QStringLiteral("TEXTCOPY"));
+        QApplication::clipboard()->setMimeData(large);
+        big.view()->paste();
+        QCOMPARE(big.document()->story()->toPlainText(), QStringLiteral("TEXTCOPY"));
+    }
+
+    void askingWhetherAPasteIsPossibleReadsNothing()
+    {
+        WriteWindow w;
+        emptyWindow(w);
+        auto *mime = new CountingMime;
+        mime->setData(QStringLiteral("text/rtf"), QByteArray("{\\rtf1 abc}"));
+        mime->setText(QStringLiteral("TEXTCOPY"));
+        mime->setHtml(QStringLiteral("<p>HTMLCOPY</p>"));
+        QApplication::clipboard()->setMimeData(mime);
+        mime->reads = 0;
+        using Kind = jp::write::PageView::PasteKind;
+        for (Kind k : {Kind::Keep, Kind::Merge, Kind::TextOnly, Kind::Html, Kind::Rtf, Kind::Picture}) w.view()->canPaste(k);
+        QCOMPARE(mime->reads, 0);
+        w.view()->paste();
+        QVERIFY(mime->reads > 0);
+        QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("abc"));
+    }
+
     void rtfOnTheClipboardIsReadOnlyUpToSixteenMegabytes()
     {
-        QCOMPARE(jp::write::kMostPastedRtf, qint64(16) << 20);
         auto big = [](qint64 bytes) {
             const QByteArray head("{\\rtf1\\ansi big text{\\*\\pad "), tail("}}");
             const QByteArray rtf = head + QByteArray(int(bytes - head.size() - tail.size()), 'a') + tail;
@@ -2397,7 +2522,6 @@ private Q_SLOTS:
             WriteWindow w;
             emptyWindow(w);
             QApplication::clipboard()->setMimeData(big(jp::write::kMostPastedRtf + 1));
-            QVERIFY(!w.view()->canPaste(jp::write::PageView::PasteKind::Rtf));
             w.view()->paste();
             QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("TEXTCOPY"));
         }

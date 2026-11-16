@@ -173,12 +173,14 @@ bool CrunchWindow::openFile(const QString &path, OpenHow how)
         w->m_closeIfOpenFails = true;
         w->setNotifier(m_notifier);
         w->m_promptForText = m_promptForText;
-        w->m_textImport = m_textImport;
+        w->m_textImport = m_textImport;   // (for this file only)
         w->m_forceTextPrompt = m_forceTextPrompt;
         w->m_anchorHooks = m_anchorHooks;
         m_forceTextPrompt = false;
         w->show();
-        if (w->openFile(path, how == OpenHow::NewWindow ? OpenHow::Normal : how)) {
+        const bool opened = w->openFile(path, how == OpenHow::NewWindow ? OpenHow::Normal : how);
+        w->m_textImport.reset();
+        if (opened) {
             hideFileScreen();   // (the Open page is done with, as when the file opens in this window)
             return true;
         }

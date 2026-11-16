@@ -35,7 +35,16 @@ bool insertTextFromFile(WriteDoc &doc, QTextCursor &c, const QByteArray &bytes, 
 // paste goes by the HTML or the text), the bytes the mime data holds of it (empty when it holds none, or what it holds does not begin as Rich Text Format does),
 // and the copy that the RTF reader makes of it, as a clip to paste with its looks, pictures, and links.
 constexpr qint64 kMostPastedRtf = qint64(16) << 20;
+// (rtfOfMime reads the data, once: a mime object has no way to say how big a format is before it is read, so one read is the least that can be done; it is not asked for to find out
+// whether a paste is possible: hasRtfFormat looks at the names of the formats only.)
 QByteArray rtfOfMime(const QMimeData *mime);
+bool hasRtfFormat(const QMimeData *mime);
+// HTML from another program: the most bytes of it that are read, and the HTML made safe to read into the document: a picture, a background, or a style that names anything but a
+// data: or http(s): address is taken out, so that nothing on this computer is read because a page asked.
+constexpr qint64 kMostPastedHtml = qint64(16) << 20;
+QString safeClipHtml(const QString &html);
+// The most characters of text from another program that are split, pasted, or dropped.
+constexpr qint64 kMostPastedTextChars = qint64(16) << 20;
 struct Clip;
 bool clipFromRtf(const QByteArray &bytes, Clip *out, QString *problem = nullptr);
 

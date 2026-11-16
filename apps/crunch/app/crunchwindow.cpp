@@ -2,6 +2,7 @@
 #include "app/keymap.h"
 #include "app/ribboncustom.h"
 #include "app/crunchwindow.h"
+#include "core/clipdata.h"
 #include "app/saveoptions.h"
 #include "app/help.h"
 #include "core/startuptrace.h"
@@ -478,7 +479,6 @@ void CrunchWindow::createActions()
         w->setAttribute(Qt::WA_DeleteOnClose);
         w->setNotifier(m_notifier);
         w->m_promptForText = m_promptForText;
-        w->m_textImport = m_textImport;
         w->m_anchorHooks = m_anchorHooks;
         w->newBlank();
         w->show();
@@ -1078,10 +1078,17 @@ bool CrunchWindow::eventFilter(QObject *o, QEvent *e)
     return AppWindow::eventFilter(o, e);
 }
 
+// (text from another program goes in only when it is dropped on the grid)
+bool CrunchWindow::overGrid(const QPoint &windowPoint) const
+{
+    QWidget *v = m_view->viewport();
+    return v->rect().contains(v->mapFrom(this, windowPoint));
+}
+
 void CrunchWindow::dragEnterEvent(QDragEnterEvent *e)
 {
     if (!e->mimeData()->hasUrls()) {
-        if (e->mimeData()->hasText() && !e->mimeData()->hasImage()) e->acceptProposedAction();   // (text from another program)
+        if (e->mimeData()->hasText() && !e->mimeData()->hasImage() && overGrid(e->position().toPoint())) e->acceptProposedAction();
         return;
     }
     for (const QUrl &u : e->mimeData()->urls())
@@ -1091,12 +1098,32 @@ void CrunchWindow::dragEnterEvent(QDragEnterEvent *e)
         }
 }
 
+void CrunchWindow::dragMoveEvent(QDragMoveEvent *e)
+{
+    if (e->mimeData()->hasUrls()) {
+        e->acceptProposedAction();
+        return;
+    }
+    if (e->mimeData()->hasText() && overGrid(e->position().toPoint())) e->acceptProposedAction();
+    else e->ignore();
+}
+
 void CrunchWindow::dropEvent(QDropEvent *e)
 {
     if (!e->mimeData()->hasUrls() && e->mimeData()->hasText()) {
+        if (!overGrid(e->position().toPoint())) {
+            e->ignore();
+            return;
+        }
+        const QString text = e->mimeData()->text();   // (read once; what is held for later is this, and only if it is not past the limit)
+        if (text.size() > crunch::kMostPastedChars) {
+            e->ignore();
+            notice(tr("Paste"), tr("That text is too long to put in. Copy less of it, and try again."));
+            return;
+        }
         e->acceptProposedAction();
         // (the window that asks is opened after the drop has ended, so the program it came from is not held up)
-        QTimer::singleShot(0, this, [this, text = e->mimeData()->text()] { dropText(text); });
+        QTimer::singleShot(0, this, [this, text] { dropText(text); });
         return;
     }
     for (const QUrl &u : e->mimeData()->urls())

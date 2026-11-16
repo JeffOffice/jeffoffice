@@ -644,13 +644,16 @@ private:
         bool parsed = false;
         std::optional<office::wml::ClipTable> cells;
     };
-    struct RtfOfClip {
-        bool parsed = false;
+    // What was read of a clipboard or a drop (each form once, when a paste asks: the RTF read into a clip, the HTML made safe and held to its size, and the words).
+    struct Fetched {
+        bool rtfDone = false, htmlDone = false, textDone = false;
+        QByteArray rtfBytes;
         std::optional<Clip> clip;
+        QString html, text;
     };
     struct PasteSource {
         std::shared_ptr<const QMimeData> mime;
-        std::shared_ptr<RtfOfClip> rtf;
+        std::shared_ptr<Fetched> fetched;
         Clip clip;
         QString clipText;
         bool clipWhole = true;
@@ -662,11 +665,17 @@ private:
     const std::optional<office::wml::ClipTable> &cellsOf(const PasteSource &from) const;
     // The formatted text (RTF) another program put on the clipboard or in a drop, read once; none when there is none or it can't be read.
     const std::optional<Clip> &rtfOf(const PasteSource &from) const;
+    const QString &htmlOf(const PasteSource &from) const;   // empty when there is none or it is over the size limit
+    const QString &textOf(const PasteSource &from) const;
+    // What puts the source in, by the order: this program's own copy, spreadsheet cells as their words, RTF, HTML, the words; empty when there is nothing usable.
+    std::function<void()> putOf(const PasteSource &from);
+    bool pasteSource(const PasteSource &from);   // (the one path of a paste and a drop)
+    PasteSource sourceOfDrop(const QMimeData *mime) const;
     bool canPasteFrom(const PasteSource &from, PasteKind kind) const;
     mutable std::shared_ptr<CellsOfClip> m_clipCells;   // the clipboard's cells, parsed: for as long as the clipboard is what it is
     mutable const QMimeData *m_clipCellsOf = nullptr;
-    mutable std::shared_ptr<RtfOfClip> m_clipRtf;
-    mutable const QMimeData *m_clipRtfOf = nullptr;
+    mutable std::shared_ptr<Fetched> m_clipFetched;
+    mutable const QMimeData *m_clipFetchedOf = nullptr;
     std::optional<PasteSource> m_pasteAgain;            // while a choice pastes the last paste again: what that was made from
     struct LastPaste {
         int from = -1, selectionEnd = -1, to = -1;   // the place the paste began (and where the selection it replaced ended), and where it ended

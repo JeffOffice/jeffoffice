@@ -64,7 +64,7 @@ void WriteWindow::createHomeActions()
         if (!m_doc || refuseIfReadOnly()) return;
         struct Choice { Kind kind; QString name; QString command; };
         QVector<Choice> choices;
-        if (m_view->canPaste(Kind::Rtf)) choices.push_back({Kind::Rtf, tr("Formatted Text (RTF)"), QString()});
+        if (m_view->canPaste(Kind::Rtf)) choices.push_back({Kind::Rtf, tr("Formatted text (RTF)"), QString()});
         else if (m_view->canPaste(Kind::Keep) && !QApplication::clipboard()->mimeData()->hasImage()) choices.push_back({Kind::Keep, tr("Formatted text"), QString()});
         if (m_view->canPaste(Kind::Merge)) choices.push_back({Kind::Merge, tr("Formatted text, merged with the formatting around it"), QString()});
         if (m_view->canPaste(Kind::TextOnly)) choices.push_back({Kind::TextOnly, tr("Unformatted text"), QString()});

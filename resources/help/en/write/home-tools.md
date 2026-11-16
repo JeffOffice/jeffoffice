@@ -44,7 +44,7 @@ Click the small arrow under **Paste** for more choices:
 - **Merge Formatting** pastes the text in the look of the place it goes to. Only bold, italic, underline, and strikethrough are kept.
 - **Keep Text Only** pastes the words with no look at all.
 - **Picture** pastes a picture from the clipboard. It is dimmed when the clipboard holds no picture.
-- **Paste Special** (**Ctrl+Alt+V**) lists every way the clipboard can be pasted now, and lets you pick one, such as **Formatted Text (RTF)**, **Unformatted text**, or **HTML**.
+- **Paste Special** (**Ctrl+Alt+V**) lists every way the clipboard can be pasted now, and lets you pick one, such as **Formatted text (RTF)**, **Unformatted text**, or **HTML**.
 
 A choice is dimmed when the clipboard has nothing it can use.
 

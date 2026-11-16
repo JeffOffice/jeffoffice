@@ -86,6 +86,13 @@ private Q_SLOTS:
         QVERIFY(why.contains(QStringLiteral("two")));
         QVERIFY(!crunch::textImportFromOptions(QString(), QStringLiteral("klingon"), QString(), &how, &why));
         QVERIFY(!crunch::textImportFromOptions(QString(), QString(), QStringLiteral("x"), &how, &why));
+        // an empty separator, a line end, a character that is not one, and the separator being the decimal mark are refused
+        QVERIFY(!crunch::textImportFromOptions(QStringLiteral(""), QString(), QString(), &how, &why));
+        QVERIFY(!crunch::textImportFromOptions(QStringLiteral("\n"), QString(), QString(), &how, &why));
+        QVERIFY(!crunch::textImportFromOptions(QStringLiteral("\r"), QString(), QString(), &how, &why));
+        QVERIFY(!crunch::textImportFromOptions(QString(QChar(0)), QString(), QString(), &how, &why));
+        QVERIFY(!crunch::textImportFromOptions(QStringLiteral(","), QString(), QStringLiteral("comma"), &how, &why));
+        QVERIFY(why.contains(QStringLiteral("same")));
     }
 
     // The guess for pasted text looks at 100 lines and 64 KB, nothing more.
@@ -93,17 +100,35 @@ private Q_SLOTS:
     {
         jp::office::sheet::CsvImport c;
         QString text;
-        for (int i = 0; i < 100; ++i) text += QStringLiteral("a,b\n");
+        for (int i = 0; i < 100; ++i) text += QStringLiteral("a,b,c\n");
         text += QStringLiteral("a,b,c,d\n");   // (line 101: not looked at)
         QVERIFY(crunch::guessDelimitedText(text, &c));
         QCOMPARE(c.separators, QStringLiteral(","));
-        QVERIFY(!crunch::guessDelimitedText(QStringLiteral("a,b\n") + QStringLiteral("a,b,c\n"), &c));
-        // one line past the bytes looked at, with no line end before it: no guess, and nothing is split
+        QVERIFY(!crunch::guessDelimitedText(QStringLiteral("a,b,c\n") + QStringLiteral("a,b,c,d\n"), &c));
+        // one line past the bytes looked at, with no line end before it: no guess
         QVERIFY(!crunch::guessDelimitedText(QString(crunch::kGuessBytes + 10, QLatin1Char(',')), &c));
         // tabs, one line, and ordinary words are not guessed
-        QVERIFY(!crunch::guessDelimitedText(QStringLiteral("a,b\tc\nd,e\tf\n"), &c));
-        QVERIFY(!crunch::guessDelimitedText(QStringLiteral("a,b\n"), &c));
+        QVERIFY(!crunch::guessDelimitedText(QStringLiteral("a,b,c\td\ne,f,g\th\n"), &c));
+        QVERIFY(!crunch::guessDelimitedText(QStringLiteral("a,b,c\n"), &c));
         QVERIFY(!crunch::guessDelimitedText(QStringLiteral("some words here\nmore words there\nand a third line\n"), &c));
+    }
+
+    // A paste is guessed only when it is clearly a table; what is asked for (Paste Text Import) takes two columns.
+    void theGuessIsStrictForAPasteAndLooseWhenAskedFor()
+    {
+        jp::office::sheet::CsvImport c;
+        for (const QString &not_table : {QStringLiteral("int x = 1;\nint y = 2;\n"), QStringLiteral("a,b,c,\nd,e,f,\n"), QStringLiteral("1,234\n5,678\n"), QStringLiteral("1,234,567\n8,901,234\n"),
+                                         QStringLiteral("Hello, world\nBye, moon\n"), QStringLiteral("a;b;c;\nd;e;f;\n")})
+            QVERIFY2(!crunch::guessDelimitedText(not_table, &c, true), qPrintable(not_table));
+        QVERIFY(crunch::guessDelimitedText(QStringLiteral("Hello, world\nBye, moon\n"), &c, false));
+        QVERIFY(crunch::guessDelimitedText(QStringLiteral("a,b,c\n1,2,3\n"), &c, true));
+        // a line end in quotes is not the end of a line, and a blank line in quotes is kept: the cut at the byte limit is made outside quotes
+        QString text = QStringLiteral("a,b,c\n\"x\n\ny\",2,3\n");
+        QVERIFY(crunch::guessDelimitedText(text, &c, true));
+        QString big;
+        while (big.size() < crunch::kGuessBytes - 30) big += QStringLiteral("\"q\n\nq\",2,3\n");
+        big += QStringLiteral("\"cut here\n\nstill in the quotes\",2,3\n") + QString(100, QLatin1Char('z')) + QStringLiteral(",1,2\n");
+        QVERIFY(crunch::guessDelimitedText(big, &c, true));
     }
 
     void aFileOpenedWithTheCommandLineChoicesAsksNothingAndReadsAsTheyAre()

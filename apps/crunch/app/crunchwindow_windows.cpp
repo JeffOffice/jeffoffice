@@ -28,7 +28,6 @@ void CrunchWindow::createWindowActions()
         w->m_closeIfOpenFails = true;
         w->setNotifier(m_notifier);
         w->m_promptForText = m_promptForText;
-        w->m_textImport = m_textImport;
         w->m_anchorHooks = m_anchorHooks;
         w->m_secondView = true;
         w->show();
