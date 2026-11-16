@@ -4,7 +4,10 @@
 
 #include "sheet/pivot.h"
 
+#include <QHash>
 #include <QString>
+
+#include <memory>
 
 namespace jp::office::sheet {
 
@@ -13,7 +16,39 @@ namespace jp::office::sheet {
 // name it does not have, or a range past the bounds a pivot table is made within.
 bool readPivotExternalSource(const QString &path, const QString &where, PivotSource *source, QString *sheet, QString *ref, QString *name, QString *why);
 
+// What the reads of one refresh may come to together: the sizes of the files opened, the time, and the number of different files (the rest keep their data).
+struct PivotExternalLimits {
+    qint64 bytes = qint64(1) << 30;
+    qint64 millis = 30000;
+    int files = 32;
+};
+// (a test lowers them; a default one puts them back)
+void setPivotExternalLimits(const PivotExternalLimits &limits);
+// How many files have been opened by these reads in all (for tests).
+int pivotExternalFilesOpened();
+
+struct PivotExternalHeld;
+
+// The reads of one refresh: each file is opened once however many caches name it, and all of them are held to the limits above together.
+class PivotExternalReads {
+public:
+    PivotExternalReads();
+    ~PivotExternalReads();
+    // As readPivotExternalSource; a file that would pass a limit is refused (`why` says so).
+    bool read(const QString &path, const QString &where, PivotSource *source, QString *sheet, QString *ref, QString *name, QString *why);
+
+private:
+    struct File;
+    QHash<QString, std::shared_ptr<File>> m_files;
+    QHash<QString, std::shared_ptr<PivotExternalHeld>> m_sheets;
+    qint64 m_used = 0, m_deadline = 0;
+};
+
 // The address a file is stored under in a cache definition for a person's choice of file: absolute, as a file: address.
 QString pivotExternalAddress(const QString &path);
+
+// A target a cache stores, as it is when the workbook is saved in folder `to` instead of `from`: a relative one is made relative to `to` (so that it names the same file); an absolute one, a web
+// address, or a file on another computer is as it was.
+QString pivotExternalRebased(const QString &target, const QString &from, const QString &to);
 
 } // namespace jp::office::sheet

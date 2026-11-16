@@ -3667,12 +3667,12 @@ PivotBook &Workbook::pivots() const
     return *m_pivotBook;
 }
 
-std::map<QString, std::function<QByteArray()>> Workbook::changedPivotPartProducers() const
+std::map<QString, std::function<QByteArray()>> Workbook::changedPivotPartProducers(const QString &fromFolder, const QString &toFolder) const
 {
     if (!m_pivotBook) return {};
     QStringList names;
     for (const SheetEntry &e : m_info.sheets) names.append(e.deleted ? QString() : e.name);
-    return m_pivotBook->changedPartProducers(names);
+    return m_pivotBook->changedPartProducers(names, fromFolder, toFolder);
 }
 
 int Workbook::tableHeaderAt(int sheet, quint32 row, quint32 col, int *column) const

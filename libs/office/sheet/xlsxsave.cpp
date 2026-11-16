@@ -2085,8 +2085,7 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
     }
     auto entryOfPart = [&](const QString &part) -> int {
         const QString name = package.entryName(part);
-        if (name.isEmpty()) return part.endsWith(QLatin1String(".rels"), Qt::CaseInsensitive) ? entryAt.value(plain(part), -1) : -1;   // (a part's relationships are not parts: they are named by where they are)
-        return entryAt.value(plain(name), -1);
+        return name.isEmpty() ? -1 : entryAt.value(plain(name), -1);
     };
     auto inflate = [&](int index, QByteArray *data) { return index >= 0 && inflateZipEntry(bytes, directory[index], data); };
 
@@ -3232,7 +3231,13 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
         replaced.insert(index, data);
     }
     for (const auto &[part, make] : changes.producedParts) {
-        const int index = entryOfPart(part);
+        // (the relationships of a part are not parts: they are named by where they are, and a part that had none gets them as a new entry)
+        const bool relationships = part.endsWith(QLatin1String(".rels"), Qt::CaseInsensitive);
+        const int index = relationships ? entryAt.value(plain(part), -1) : entryOfPart(part);
+        if (index < 0 && relationships) {
+            newEntries.emplace_back(part.startsWith(QLatin1Char('/')) ? part.mid(1) : part, make());
+            continue;
+        }
         if (index < 0) return fail(QCoreApplication::translate("jp::office::sheet::Save", "A chart that changed has no part in the file."));
         replaced.insert(index, make());
     }

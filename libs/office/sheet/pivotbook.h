@@ -100,7 +100,7 @@ public:
 
     // The same parts, to be made later by the thread that writes the file: what is needed is taken now (the files' own small parts, the table and cache as they are), and the work, which for
     // a cache with many records is long, is done by the caller of each function.
-    std::map<QString, std::function<QByteArray()>> changedPartProducers(const QStringList &sheetNames) const;
+    std::map<QString, std::function<QByteArray()>> changedPartProducers(const QStringList &sheetNames, const QString &fromFolder = QString(), const QString &toFolder = QString()) const;
     // ---- a table made by a person (Undo takes the last one away again, in the order they were made)
     // The cache for a new table, and the table; both in the book at the end. The parts they will be written as get names no part of the file has.
     int addCache(std::shared_ptr<const PivotCache> cache, const CellRange &source, int sourceSheet, const QString &sourceName, const QByteArray &created, const QString &sourceSheetName);
@@ -115,7 +115,7 @@ public:
         QString externalTarget;   // (a new cache) the file its data is in, written as a relationship of the definition (rId2) the source's r:id names; empty for a range of this workbook
     };
     // (`sheetNames`: the sheets' names now, empty for one that is deleted: a table on a deleted sheet is not written)
-    std::vector<AddedParts> addedParts(const QStringList &sheetNames) const;
+    std::vector<AddedParts> addedParts(const QStringList &sheetNames, const QString &fromFolder = QString(), const QString &toFolder = QString()) const;
     // The bytes of the parts of a new table and its cache, made when called (the table's takes the id the file's list of caches gives its cache).
     std::function<QByteArray(int cacheId)> tableProducer(int table) const;
     std::function<QByteArray()> definitionProducer(int cache, const QStringList &sheetNames) const;

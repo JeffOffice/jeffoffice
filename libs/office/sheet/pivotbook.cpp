@@ -1,10 +1,12 @@
 #include "sheet/pivotbook.h"
 
 #include "office/package.h"
+#include "sheet/pivotexternal.h"
 #include "sheet/sheetreader.h"
 #include "sheet/tables.h"
 
 #include <QDateTime>
+#include <QDir>
 #include <QIODevice>
 
 namespace jp::office::sheet {
@@ -475,7 +477,7 @@ void PivotBook::removeLastCache()
     if (!m_caches.empty()) m_caches.pop_back();
 }
 
-std::vector<PivotBook::AddedParts> PivotBook::addedParts(const QStringList &sheetNames) const
+std::vector<PivotBook::AddedParts> PivotBook::addedParts(const QStringList &sheetNames, const QString &fromFolder, const QString &toFolder) const
 {
     std::lock_guard<std::recursive_mutex> lock(m_lock);
     std::vector<AddedParts> out;
@@ -492,7 +494,7 @@ std::vector<PivotBook::AddedParts> PivotBook::addedParts(const QStringList &shee
         const PivotCacheEntry &c = m_caches[size_t(t.cache)];
         a.definitionPart = c.definitionPart;
         a.recordsPart = c.recordsPart;
-        if (c.cache && c.cache->externalSource) a.externalTarget = c.cache->externalTarget;
+        if (c.cache && c.cache->externalSource) a.externalTarget = pivotExternalRebased(c.cache->externalTarget, fromFolder, toFolder);
         a.newCache = c.isNew && !cachesSeen.contains(t.cache);
         cachesSeen.insert(t.cache);
         out.push_back(a);
@@ -553,7 +555,7 @@ std::function<QByteArray()> PivotBook::recordsProducer(int cache) const
     return [now, dates] { return writePivotCacheRecords(*now, dates); };
 }
 
-std::map<QString, std::function<QByteArray()>> PivotBook::changedPartProducers(const QStringList &sheetNames) const
+std::map<QString, std::function<QByteArray()>> PivotBook::changedPartProducers(const QStringList &sheetNames, const QString &fromFolder, const QString &toFolder) const
 {
     std::map<QString, std::function<QByteArray()>> out;
     for (const PivotTableEntry &t : m_tables) {
@@ -570,7 +572,10 @@ std::map<QString, std::function<QByteArray()>> PivotBook::changedPartProducers(c
     const double unixDays = double(QDateTime::currentDateTimeUtc().toSecsSinceEpoch()) / 86400.0;
     const jp::calc::DateSystem dates = m_dates;
     const double now = unixDays + (dates == jp::calc::DateSystem::Date1904 ? 24107.0 : 25569.0);
-    for (const PivotCacheEntry &c : m_caches) {
+    const bool otherFolder = !fromFolder.isEmpty() && !toFolder.isEmpty() && QDir::cleanPath(fromFolder) != QDir::cleanPath(toFolder);
+    for (size_t at = 0; at < m_caches.size(); ++at) {
+        if (otherFolder && m_caches[at].external && !m_caches[at].tried) load(int(at));   // (its file is named from the folder: that is known when it is read)
+        const PivotCacheEntry &c = m_caches[at];
         if (c.isNew) continue;
         const bool sourceMoved = c.sourceSheet >= 0 && c.sourceSheet < sheetNames.size() && !sheetNames[c.sourceSheet].isEmpty() && c.source.valid && c.fileSource.valid
                                  && (!(c.source == c.fileSource) || sheetNames[c.sourceSheet].compare(c.fileSheetName, Qt::CaseInsensitive) != 0);
@@ -588,10 +593,13 @@ std::map<QString, std::function<QByteArray()>> PivotBook::changedPartProducers(c
             // (a source in another file: its relationship, and the id the definition names it by, which is the file's own when the file had one)
             const bool ext = cache->externalSource;
             const QString relId = !cache->externalRelId.isEmpty() ? cache->externalRelId : QStringLiteral("rIdExtSource");
-            if ((ext || (c.fileCache && c.fileCache->externalSource)) && !m_package->relationships(c.definitionPart).isEmpty()) {
+            // (a source in another file always has its relationship written: the definition names it, and a definition that had no relationships has none else)
+            if (ext || (c.fileCache && c.fileCache->externalSource && !m_package->relationships(c.definitionPart).isEmpty())) {
                 PivotCache withId = *cache;
                 withId.externalRelId = relId;
-                const QByteArray rels = definitionRelsWith(m_package, c.definitionPart, withId, c.fileCache.get(), relId);
+                withId.externalTarget = pivotExternalRebased(cache->externalTarget, fromFolder, toFolder);
+                const bool rebased = withId.externalTarget != cache->externalTarget;
+                const QByteArray rels = definitionRelsWith(m_package, c.definitionPart, withId, rebased ? nullptr : c.fileCache.get(), relId);
                 if (!rels.isEmpty()) out[relationshipsPartName(c.definitionPart)] = [rels] { return rels; };
             }
             out[c.definitionPart] = [original, cache, sheet, ref, name, now, dates, ext, relId] {
@@ -609,6 +617,17 @@ std::map<QString, std::function<QByteArray()>> PivotBook::changedPartProducers(c
                 return def.isEmpty() ? original : def;
             };
             if (hasRecords) out[c.recordsPart] = [cache, dates] { return writePivotCacheRecords(*cache, dates); };
+        } else if (c.cache && c.cache->externalSource && !c.cache->externalRelId.isEmpty() && pivotExternalRebased(c.cache->externalTarget, fromFolder, toFolder) != c.cache->externalTarget) {
+            // (saved in another folder: the file's relationship to a file named from the folder it was in is written to name the same file from this one)
+            PivotCache withNew = *c.cache;
+            withNew.externalTarget = pivotExternalRebased(c.cache->externalTarget, fromFolder, toFolder);
+            const QByteArray rels = definitionRelsWith(m_package, c.definitionPart, withNew, nullptr, c.cache->externalRelId);
+            out[relationshipsPartName(c.definitionPart)] = [rels] { return rels; };
+            if (sourceMoved) {
+                const QByteArray original = m_package->part(c.definitionPart);
+                const QString sheet = sheetNames[c.sourceSheet], ref = pivotRangeRef(c.source.row1, c.source.col1, c.source.row2, c.source.col2);
+                out[c.definitionPart] = [original, sheet, ref] { return patchPivotCacheSource(original, sheet, ref); };
+            }
         } else if (sourceMoved) {
             const QByteArray original = m_package->part(c.definitionPart);
             const QString sheet = sheetNames[c.sourceSheet], ref = pivotRangeRef(c.source.row1, c.source.col1, c.source.row2, c.source.col2);
