@@ -395,6 +395,8 @@ public:
     CommentThreadsPane *commentsPane() const { return m_commentsPane.data(); }
     int slicerFills() const { return m_slicerFills; }   // (for tests: how many times the pane was filled)
     void setPivotOptionsAsker(std::function<bool(bool *)> asker) { m_pivotOptionsAsker = std::move(asker); }   // test hook: whether a click writes GETPIVOTDATA
+    // (test hook) the file a pivot table's data is in, asked after the cells of Create Pivot Table or Change Data Source: set `*file` to a path for data in another file, or leave it empty
+    void setPivotFileAsker(std::function<bool(QString *)> asker) { m_pivotFileAsker = std::move(asker); }
     void setPivotSourceAsker(std::function<bool(QString *)> asker) { m_pivotSourceAsker = std::move(asker); }
     void setValueFieldAsker(std::function<bool(QString *, QString *)> asker) { m_valueFieldAsker = std::move(asker); }
     void setCalculatedFieldAsker(std::function<bool(jp::CalculatedFieldChoice *)> asker) { m_calculatedAsker = std::move(asker); }   // test hook: all of Calculated Field
@@ -1095,6 +1097,7 @@ private:
     std::function<bool(const QStringList &, QList<int> *)> m_removeDuplicatesAsker;
     std::function<void(DataFormDialog *)> m_dataFormAsker;
     std::function<bool(bool *)> m_pivotOptionsAsker;
+    std::function<bool(QString *)> m_pivotFileAsker;
     std::function<bool(QString *)> m_pivotSourceAsker;         // test hook: the cells the data is in
     std::function<bool(QString *, QString *)> m_valueFieldAsker;   // test hook: the name and function of a value
     std::function<bool(jp::ValueFieldSettings *)> m_valueSettingsAsker;

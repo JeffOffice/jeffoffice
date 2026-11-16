@@ -1957,6 +1957,7 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why, bool pivotParts)
             added.definitionPart = a.definitionPart;
             added.recordsPart = a.recordsPart;
             added.newCache = a.newCache;
+            added.externalTarget = a.externalTarget;
             added.table = pb.tableProducer(a.table);
             if (a.newCache) {
                 added.definition = pb.definitionProducer(a.cache, sheetNames);

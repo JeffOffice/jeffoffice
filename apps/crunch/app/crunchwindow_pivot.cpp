@@ -18,14 +18,19 @@
 #include <QDate>
 #include <QUndoStack>
 #include <QAction>
+#include <QButtonGroup>
 #include <QCheckBox>
 #include <QDialog>
 #include <QDialogButtonBox>
+#include <QFileDialog>
+#include <QFileInfo>
 #include <QFormLayout>
+#include <QHBoxLayout>
 #include <QGuiApplication>
 #include <QLabel>
 #include <QListWidget>
 #include <QLineEdit>
+#include <QPushButton>
 #include <QRadioButton>
 #include <QRegularExpression>
 #include <QVBoxLayout>
@@ -72,6 +77,66 @@ void CrunchWindow::editPivot(const std::function<void(PivotTable *)> &change, co
 
 namespace {
 
+// Where a pivot table's data is: cells of this workbook, or a range, table, or name in another file (picked with Browse).
+class PivotSourcePicker : public QWidget {
+public:
+    PivotSourcePicker(const QString &range, const QString &file, QWidget *parent) : QWidget(parent)
+    {
+        auto *layout = new QVBoxLayout(this);
+        layout->setContentsMargins(0, 0, 0, 0);
+        m_here = new QRadioButton(tr("A range in this workbook"), this);
+        m_here->setObjectName(QStringLiteral("pivotSource.here"));
+        m_rangeHere = new QLineEdit(file.isEmpty() ? range : QString(), this);
+        m_rangeHere->setObjectName(QStringLiteral("pivotSource.range"));
+        m_rangeHere->setPlaceholderText(tr("Sheet1!A1:D100, or the name of a table"));
+        auto *choice = new QButtonGroup(this);   // (a group of its own: the dialog's radio buttons would otherwise share one with these)
+        choice->addButton(m_here);
+        m_other = new QRadioButton(tr("A range in another file"), this);
+        choice->addButton(m_other);
+        m_other->setObjectName(QStringLiteral("pivotSource.other"));
+        m_file = new QLineEdit(file, this);
+        m_file->setObjectName(QStringLiteral("pivotSource.file"));
+        m_file->setPlaceholderText(tr("The file"));
+        m_browse = new QPushButton(tr("Browse…"), this);
+        m_browse->setObjectName(QStringLiteral("pivotSource.browse"));
+        m_rangeThere = new QLineEdit(file.isEmpty() ? QString() : range, this);
+        m_rangeThere->setObjectName(QStringLiteral("pivotSource.fileRange"));
+        m_rangeThere->setPlaceholderText(tr("Sheet1!A1:D100, or the name of a table or range in that file"));
+        auto *pick = new QHBoxLayout;
+        pick->addWidget(m_file, 1);
+        pick->addWidget(m_browse);
+        layout->addWidget(m_here);
+        layout->addWidget(m_rangeHere);
+        layout->addWidget(m_other);
+        layout->addLayout(pick);
+        layout->addWidget(m_rangeThere);
+        QObject::connect(m_other, &QRadioButton::toggled, this, [this](bool on) { update(on); });
+        QObject::connect(m_browse, &QPushButton::clicked, this, [this] {
+            const QString start = m_file->text().isEmpty() ? QString() : QFileInfo(m_file->text()).absolutePath();
+            const QString path = QFileDialog::getOpenFileName(this, tr("Choose the File"), start, tr("Workbooks and data files (*.xlsx *.xlsm *.xls *.ods *.csv);;All files (*)"));
+            if (!path.isEmpty()) m_file->setText(path);
+        });
+        m_other->setChecked(!file.isEmpty());
+        m_here->setChecked(file.isEmpty());
+        update(!file.isEmpty());
+    }
+    // empty: the data is in this workbook
+    QString file() const { return m_other->isChecked() ? m_file->text().trimmed() : QString(); }
+    QString range() const { return m_other->isChecked() ? m_rangeThere->text() : m_rangeHere->text(); }
+
+private:
+    void update(bool other)
+    {
+        m_rangeHere->setEnabled(!other);
+        m_file->setEnabled(other);
+        m_browse->setEnabled(other);
+        m_rangeThere->setEnabled(other);
+    }
+    QRadioButton *m_here = nullptr, *m_other = nullptr;
+    QLineEdit *m_rangeHere = nullptr, *m_file = nullptr, *m_rangeThere = nullptr;
+    QPushButton *m_browse = nullptr;
+};
+
 // Insert > Pivot Table: where the data is, and where the table goes.
 class PivotCreateDialog : public QDialog {
 public:
@@ -80,16 +145,17 @@ public:
         setWindowTitle(tr("Create Pivot Table"));
         setObjectName(QStringLiteral("pivotCreateDialog"));
         auto *layout = new QVBoxLayout(this);
-        auto *form = new QFormLayout;
-        m_source = new QLineEdit(source, this);
-        m_source->setObjectName(QStringLiteral("pivotCreate.source"));
-        form->addRow(tr("The cells the data is in, with a row of names above it, or the name of a table"), m_source);
-        layout->addLayout(form);
+        layout->addWidget(new QLabel(tr("Where the data is, with a row of names above it"), this));
+        m_picker = new PivotSourcePicker(source, QString(), this);
+        layout->addWidget(m_picker);
         m_newSheet = new QRadioButton(tr("A new sheet"), this);
         m_newSheet->setObjectName(QStringLiteral("pivotCreate.newSheet"));
         m_newSheet->setChecked(true);
         m_existing = new QRadioButton(tr("This sheet or another, at the cell:"), this);
         m_existing->setObjectName(QStringLiteral("pivotCreate.existing"));
+        auto *placing = new QButtonGroup(this);
+        placing->addButton(m_newSheet);
+        placing->addButton(m_existing);
         m_where = new QLineEdit(this);
         m_where->setObjectName(QStringLiteral("pivotCreate.where"));
         m_where->setEnabled(false);
@@ -103,13 +169,38 @@ public:
         QObject::connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
         layout->addWidget(buttons);
     }
-    QString source() const { return m_source->text(); }
+    QString source() const { return m_picker->range(); }
+    QString file() const { return m_picker->file(); }
     bool newSheet() const { return m_newSheet->isChecked(); }
     QString where() const { return m_where->text(); }
 
 private:
-    QLineEdit *m_source = nullptr, *m_where = nullptr;
+    PivotSourcePicker *m_picker = nullptr;
+    QLineEdit *m_where = nullptr;
     QRadioButton *m_newSheet = nullptr, *m_existing = nullptr;
+};
+
+// Change Data Source: the same choice of where the data is.
+class PivotSourceDialog : public QDialog {
+public:
+    PivotSourceDialog(const QString &range, const QString &file, QWidget *parent) : QDialog(parent)
+    {
+        setWindowTitle(tr("Change Pivot Table Data Source"));
+        setObjectName(QStringLiteral("pivotSourceDialog"));
+        auto *layout = new QVBoxLayout(this);
+        layout->addWidget(new QLabel(tr("Where the data is, with a row of names above it"), this));
+        m_picker = new PivotSourcePicker(range, file, this);
+        layout->addWidget(m_picker);
+        auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
+        QObject::connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
+        QObject::connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
+        layout->addWidget(buttons);
+    }
+    QString source() const { return m_picker->range(); }
+    QString file() const { return m_picker->file(); }
+
+private:
+    PivotSourcePicker *m_picker = nullptr;
 };
 
 } // namespace
@@ -132,13 +223,15 @@ void CrunchWindow::insertPivotCommand()
         if (range.valid && range.row2 > range.row1) source = sheetNamePrefix(m_loaded->book->info().sheets[m_sheet].name) + rangeName(range);
     }
     bool newSheet = true;
-    QString where;
+    QString where, file;
     if (m_pivotCreateAsker) {
         if (!m_pivotCreateAsker(&source, &newSheet, &where)) return;
+        if (m_pivotFileAsker) m_pivotFileAsker(&file);
     } else {
         PivotCreateDialog dialog(source, this);
         if (dialog.exec() != QDialog::Accepted) return;
         source = dialog.source();
+        file = dialog.file();
         newSheet = dialog.newSheet();
         where = dialog.where();
     }
@@ -166,7 +259,7 @@ void CrunchWindow::insertPivotCommand()
     }
     int made = -1;
     QGuiApplication::setOverrideCursor(Qt::WaitCursor);   // (the data is read on this thread: a big range takes a moment)
-    const auto o = m_session->createPivot(source, sheet, row, col, &made);
+    const auto o = m_session->createPivot(source, sheet, row, col, &made, file);
     QGuiApplication::restoreOverrideCursor();
     if (!o.ok) {
         notice(tr("Create Pivot Table"), o.problem);
@@ -369,14 +462,20 @@ void CrunchWindow::createPivotActions()
         if (!editingAllowed()) return;
         if (m_edit.active && !commitEdit(CellEditor::Way::Stay)) return;
         QString where = m_session->pivotSourceText(t);
+        QString file = m_session->pivotSourceFile(t);
         if (m_pivotSourceAsker) {
             if (!m_pivotSourceAsker(&where)) return;
+            if (m_pivotFileAsker) m_pivotFileAsker(&file);
         } else {
-            bool ok = false;
-            where = QInputDialog::getText(this, tr("Change Pivot Table Data Source"), tr("The cells the data is in, with a row of names above it (for example Sheet1!A1:D100), or the name of a table:"), QLineEdit::Normal, where, &ok);
-            if (!ok) return;
+            PivotSourceDialog dialog(where, file, this);
+            if (dialog.exec() != QDialog::Accepted) return;
+            where = dialog.source();
+            file = dialog.file();
         }
-        pivotProblem(tr("Change Data Source"), m_session->changePivotSource(t, where));
+        QGuiApplication::setOverrideCursor(Qt::WaitCursor);   // (a file is read on this thread)
+        const auto o = m_session->changePivotSource(t, where, file);
+        QGuiApplication::restoreOverrideCursor();
+        pivotProblem(tr("Change Data Source"), o);
     });
     mk("pivot.clearAll", tr("Clear All"), "eraser", QKeySequence(), [this] {
         const int t = selectedPivot();

@@ -397,7 +397,8 @@ public:
     Outcome refreshPivot(int table);
     // Makes a pivot table from the cells or the table `source` names (as Change Data Source takes them), with an empty layout, at the cell (row, col) of the sheet `sheet`, or on a sheet of its own at A3
     // when `sheet` is -1 (the sheet is made first: a step of Undo of its own). The cells the empty table covers must be empty. `*made` is the new table's place.
-    Outcome createPivot(const QString &source, int sheet, quint32 row, quint32 col, int *made = nullptr);
+    // `file`, when given, is a workbook file (or a file of values) on this computer: `source` is then a range, table, or name in it, and the pivot table is made from a copy of that data (the cache keeps it).
+    Outcome createPivot(const QString &source, int sheet, quint32 row, quint32 col, int *made = nullptr, const QString &file = QString());
     // Recommended pivot tables: the layouts that suit the data `source` names (core/pivotadvice.h), best first; none, and `why` says why, if the data can't be read. And one of them made as a table
     // on a sheet of its own, with the fields placed: one step of Undo for the table (the sheet it is on is a step of its own, taken back with it).
     QVector<PivotAdvice> recommendPivots(const QString &source, QString *why = nullptr);
@@ -455,13 +456,15 @@ public:
     // Chooses the items (by place) of the slicer: every table it filters shows only them (all, when none is given), as one step of Undo.
     Outcome chooseSlicerItems(int slicer, const QSet<qint32> &chosen);
     // Makes the table from other cells ("Sheet1!A1:D100", "A1:D100" on the same sheet as the source now is, a table's name, or a defined name), then reads them.
-    Outcome changePivotSource(int table, const QString &where);
+    Outcome changePivotSource(int table, const QString &where, const QString &file = QString());   // (`file`: as for createPivot)
     // Puts the table's layout, fields, and options as `changed` has them (a copy of the table with its fields moved, its totals switched, a filter set): the cells are worked out again.
     Outcome setPivot(int table, const jp::office::sheet::PivotTable &changed, bool structureChanged, const QString &text);
     // Clear: every field out of the table (all), or the filters and hidden items only.
     Outcome clearPivot(int table, bool filtersOnly);
     // Where the data of a table's cache is, as the cache says it ("Data!A1:D100", or the name), for the dialog that changes it.
     QString pivotSourceText(int table) const;
+    // The file a pivot table's data is in when it is not this workbook (its path, from this workbook's folder when the file stores it so), else empty; pivotSourceText then says the range, table, or name in it.
+    QString pivotSourceFile(int table) const;
 
     // Sum and the functions of its menu (`function` is SUM, AVERAGE, COUNT, MAX, or MIN) for what is selected. With one cell: the numbers above it, or if there are none left of it,
     // are the range, and the formula is to be edited in the cell (`text`, with the cursor `cursorBack` characters before its end: inside the brackets of one with no range). With a
@@ -1294,7 +1297,11 @@ private:
         int sheet = -1;
         jp::office::sheet::CellRange range;
         QString name;
+        bool external = false;   // the data is in the file `file` (a path the person chose), at `where`
+        QString file, where;
     };
+    // A source in another file, read: the cells, and what the cache stores of where they are. `chosen`: a path the person picked just now (else the cache's address). False, with the notice to show, when the file can't be read (`keeps`: the notice says the pivot table keeps the data it has).
+    bool readExternalPivotSource(const QString &target, bool chosen, bool keeps, const QString &where, jp::office::sheet::PivotSource *ps, QString *sheet, QString *ref, QString *name, QString *why) const;
     bool pivotSourceRange(int cache, int *sheet, jp::office::sheet::CellRange *range, QString *why, const SourceOver *over = nullptr) const;
     // A pivot source's cells and their number formats, read from the sheet as the calculation has them.
     // What the text of a source says: a range (of the sheet named, else `defaultSheet`), or the name of a table or defined name (given in `*name`, with its cells in `*sheet` and `*range`). False, with `why`.

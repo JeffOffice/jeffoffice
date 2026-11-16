@@ -7,10 +7,14 @@
 #include "calc/numfmt.h"
 #include "sheet/cellref.h"
 #include "sheet/pivot.h"
+#include "sheet/externalbooks.h"
 #include "sheet/pivotbook.h"
+#include "sheet/pivotexternal.h"
 #include "sheet/pivotformula.h"
 
 #include <QDate>
+#include <QDir>
+#include <QFileInfo>
 #include <QCoreApplication>
 #include <QRegularExpression>
 
@@ -112,10 +116,43 @@ QString EditSession::pivotSourceText(int table) const
     const int ci = pb.table(table).cache;
     if (ci < 0) return QString();
     const PivotCacheEntry &c = pb.cache(ci);
+    if (c.external && c.cache) return !c.cache->name.isEmpty() ? c.cache->name : (c.cache->sheet.isEmpty() ? QString() : sheetNamePrefix(c.cache->sheet) + c.cache->ref);
     if (!c.sourceName.isEmpty()) return c.sourceName;
     if (c.source.valid && c.sourceSheet >= 0 && c.sourceSheet < m_book->book->info().sheets.size())
         return sheetNamePrefix(m_book->book->info().sheets[c.sourceSheet].name) + rangeName(c.source);
     return QString();
+}
+
+QString EditSession::pivotSourceFile(int table) const
+{
+    if (!m_book || !m_book->book || table < 0 || table >= m_book->book->pivots().tableCount()) return QString();
+    PivotBook &pb = m_book->book->pivots();
+    const int ci = pb.table(table).cache;
+    if (ci < 0) return QString();
+    const PivotCacheEntry &c = pb.cache(ci);
+    if (!c.external || !c.cache) return QString();
+    const QString folder = m_book && !m_book->path.isEmpty() ? QFileInfo(m_book->path).absolutePath() : QString();
+    const QString path = jp::office::sheet::externalFilePath(c.cache->externalTarget, folder);
+    return path.isEmpty() ? c.cache->externalTarget : QDir::toNativeSeparators(QDir::cleanPath(path));
+}
+
+bool EditSession::readExternalPivotSource(const QString &target, bool chosen, bool keeps, const QString &where, PivotSource *ps, QString *sheet, QString *ref, QString *name, QString *why) const
+{
+    // (the file is named by the cache as the file stores it: a path from this workbook's folder, or absolute; one on another computer is read only when the person chose it just now)
+    const QString folder = m_book && !m_book->path.isEmpty() ? QFileInfo(m_book->path).absolutePath() : QString();
+    bool network = false;
+    const QString path = chosen ? QFileInfo(target).absoluteFilePath() : jp::office::sheet::externalFilePath(target, folder, &network);
+    const QString shown = QFileInfo(path.isEmpty() ? target : path).fileName();
+    if (path.isEmpty() || network) {
+        *why = keeps ? tr("The file \"%1\" could not be read; the pivot keeps its last data.").arg(shown.isEmpty() ? target : shown) : tr("The file \"%1\" can't be read from here.").arg(shown.isEmpty() ? target : shown);
+        return false;
+    }
+    QString reason;
+    if (!jp::office::sheet::readPivotExternalSource(path, where, ps, sheet, ref, name, &reason)) {
+        *why = keeps ? tr("The file \"%1\" could not be read; the pivot keeps its last data.").arg(shown) : tr("The data in \"%1\" can't be read: %2.").arg(shown, reason);
+        return false;
+    }
+    return true;
 }
 
 bool EditSession::pivotNameRange(const QString &nameText, int *sheet, CellRange *range) const
@@ -527,7 +564,7 @@ EditSession::Outcome EditSession::pivotStep(std::vector<PivotChange> changes, co
     return out;
 }
 
-EditSession::Outcome EditSession::createPivot(const QString &source, int sheet, quint32 row, quint32 col, int *made)
+EditSession::Outcome EditSession::createPivot(const QString &source, int sheet, quint32 row, quint32 col, int *made, const QString &file)
 {
     Outcome out;
     auto refuse = [&](const QString &why) {
@@ -543,9 +580,22 @@ EditSession::Outcome EditSession::createPivot(const QString &source, int sheet, 
     int srcSheet = -1;
     CellRange range;
     QString name;
+    const auto &sheets = book.info().sheets;
+    auto cache = std::make_shared<PivotCache>();
+    if (!file.isEmpty()) {
+        // (a range of another file: read now, on this thread, within the bounds an opened file has)
+        PivotSource ps;
+        QString extSheet, extRef, extName;
+        if (!readExternalPivotSource(file, true, false, source, &ps, &extSheet, &extRef, &extName, &why)) return refuse(why);
+        if (!buildPivotCache(ps, PivotCache(), cache.get(), &why)) return refuse(tr("The data can't be read: %1.").arg(why));
+        cache->externalSource = true;
+        cache->externalTarget = jp::office::sheet::pivotExternalAddress(file);
+        cache->sheet = extSheet;
+        cache->ref = extRef;
+        cache->name = extName;
+    } else {
     if (!parsePivotSource(source, sheet >= 0 ? sheet : 0, &srcSheet, &range, &name, &why)) return refuse(why);
     if (!name.isEmpty() && !pivotNameRange(name, &srcSheet, &range)) return refuse(tr("JeffCrunch can't find the cells \"%1\" stands for.").arg(name));
-    const auto &sheets = book.info().sheets;
     if (srcSheet < 0 || srcSheet >= sheets.size() || sheets[srcSheet].deleted || sheets[srcSheet].kind != SheetKind::Worksheet) return refuse(tr("The data must be on a sheet of cells."));
     if (range.row2 <= range.row1) return refuse(tr("The data needs a row of names and at least one row of data under it."));
     if (range.col2 - range.col1 + 1 > quint32(kPivotMaxFields) || range.row2 - range.row1 > quint32(kPivotMaxRecords)) return refuse(tr("There is too much data for a pivot table."));
@@ -553,8 +603,8 @@ EditSession::Outcome EditSession::createPivot(const QString &source, int sheet, 
     if (qint64(range.row2 - range.row1) * qint64(range.col2 - range.col1 + 1) > kPivotMaxCreateCells) return refuse(tr("There is too much data to make a pivot table of in one step (more than %1 million cells). Use fewer rows or columns.").arg(kPivotMaxCreateCells / 1000000));
     PivotSource ps;
     fillPivotSource(&ps, srcSheet, range);
-    auto cache = std::make_shared<PivotCache>();
     if (!buildPivotCache(ps, PivotCache(), cache.get(), &why)) return refuse(tr("The data can't be read: %1.").arg(why));
+    }
     cache->sourceType = QStringLiteral("worksheet");
     // where it goes: a cell of a sheet (checked now), or a sheet of its own (made last: a refusal leaves no sheet behind)
     int target = sheet;
@@ -636,8 +686,8 @@ EditSession::Outcome EditSession::createPivot(const QString &source, int sheet, 
     pe.sheet = target;
     pe.tableAfter = table;
     pe.cacheAfter = cache;
-    pe.sourceAfter = name.isEmpty() ? range : CellRange();
-    pe.sheetAfter = name.isEmpty() ? srcSheet : -1;
+    pe.sourceAfter = name.isEmpty() && file.isEmpty() ? range : CellRange();
+    pe.sheetAfter = name.isEmpty() && file.isEmpty() ? srcSheet : -1;
     pe.nameAfter = name;
     pe.tableCreated = tableXml.toUtf8();
     pe.cacheCreated = definitionXml.toUtf8();
@@ -786,11 +836,21 @@ EditSession::Outcome EditSession::refreshPivotCaches(const std::vector<int> &cac
         if (!ce.cache->unsupported.isEmpty()) return tr("This pivot table uses %1, which JeffCrunch can't read again yet.").arg(ce.cache->unsupported);
         int sheet = -1;
         CellRange range;
-        if (!pivotSourceRange(ci, &sheet, &range, &why, over)) return why;
+        const bool toFile = over && over->cache == ci ? over->external : ce.external;
+        PivotSource ps;
+        QString extSheet, extRef, extName, extTarget;
+        if (toFile) {
+            // (the data is in another file: read again from it; when it can't be, the cache stays as it is)
+            const bool chosen = over && over->cache == ci;
+            extTarget = chosen ? jp::office::sheet::pivotExternalAddress(over->file) : ce.cache->externalTarget;
+            const QString where = chosen ? over->where : (!ce.cache->name.isEmpty() ? ce.cache->name : sheetNamePrefix(ce.cache->sheet) + ce.cache->ref);
+            if (!readExternalPivotSource(chosen ? over->file : extTarget, chosen, !chosen, where, &ps, &extSheet, &extRef, &extName, &why)) return why;
+        } else if (!pivotSourceRange(ci, &sheet, &range, &why, over)) {
+            return why;
+        }
         // the source: its first row names the fields
         std::vector<int> tables = pb.tablesOfCache(ci);
-        PivotSource ps;
-        fillPivotSource(&ps, sheet, range);
+        if (!toFile) fillPivotSource(&ps, sheet, range);
         for (int t : tables) {
             const PivotTableEntry &te = pb.table(t);
             if (!te.table) return tr("JeffCrunch can't read a pivot table made from this data.");
@@ -802,6 +862,14 @@ EditSession::Outcome EditSession::refreshPivotCaches(const std::vector<int> &cac
         QString problem;
         if (!buildPivotCache(ps, *ce.cache, fresh.get(), &problem)) return tr("The data can't be read again: %1.").arg(problem);
         fresh->sourceType = ce.cache->sourceType;
+        if (toFile) {
+            fresh->externalSource = true;
+            fresh->externalTarget = extTarget;
+            fresh->externalRelId = over && over->cache == ci ? QString() : ce.cache->externalRelId;
+            fresh->sheet = extSheet;
+            fresh->ref = extRef;
+            fresh->name = extName;
+        }
         for (int t : tables) {
             PivotChange ch;
             ch.table = t;
@@ -1754,7 +1822,7 @@ EditSession::Outcome EditSession::setPivotRefreshOnOpen(int table, bool on)
     return pivotStep({ch}, tr("Pivot Table Options"));
 }
 
-EditSession::Outcome EditSession::changePivotSource(int table, const QString &where)
+EditSession::Outcome EditSession::changePivotSource(int table, const QString &where, const QString &file)
 {
     Outcome out;
     auto refuse = [&](const QString &why) {
@@ -1768,6 +1836,15 @@ EditSession::Outcome EditSession::changePivotSource(int table, const QString &wh
     PivotBook &pb = m_book->book->pivots();
     const int ci = pb.table(table).cache;
     const PivotCacheEntry &ce = pb.cache(ci);
+    if (!file.isEmpty()) {
+        // the data is in another file: the range, table, or name is in that file
+        SourceOver over;
+        over.cache = ci;
+        over.external = true;
+        over.file = QFileInfo(file).absoluteFilePath();
+        over.where = where;
+        return refreshPivotCaches({ci}, tr("Change Pivot Table Data Source"), &over);
+    }
     // what the person typed: "Sheet1!A1:D100", "A1:D100", the name of a table, or a defined name
     int sheet = ce.sourceSheet >= 0 ? ce.sourceSheet : pb.table(table).sheet;
     CellRange range;
