@@ -62,7 +62,7 @@ QByteArray packSection(const SectionProps &s)
     d << s.type << qint32(s.pageW) << qint32(s.pageH) << s.orient << qint32(s.top) << qint32(s.right) << qint32(s.bottom) << qint32(s.left) << qint32(s.header)
       << qint32(s.footer) << qint32(s.gutter) << qint32(s.cols) << qint32(s.colSpace) << s.colSep << s.colEqual << qint32(s.colDefs.size());
     for (const ColumnDef &c : s.colDefs) d << qint32(c.width) << qint32(c.space);
-    d << qint32(s.pageStart.value_or(-1)) << s.pageFormat << s.titlePg << s.hasPgSz << s.hasPgMar << s.hasCols << s.attrs << packRaw(s.extra) << s.pgSzAttrs << s.pgMarAttrs << s.pgNumAttrs << s.colsAttrs << s.oddEvenHeaders << s.mirrorMargins << s.autoHyphenation << s.pageColor << qint32(s.hyphenationZone) << qint32(s.consecutiveHyphenLimit) << s.doNotHyphenateCaps << s.footnoteSettings;
+    d << qint32(s.pageStart.value_or(-1)) << s.pageFormat << s.titlePg << s.hasPgSz << s.hasPgMar << s.hasCols << s.attrs << packRaw(s.extra) << s.pgSzAttrs << s.pgMarAttrs << s.pgNumAttrs << s.colsAttrs << s.oddEvenHeaders << s.mirrorMargins << s.autoHyphenation << s.pageColor << qint32(s.hyphenationZone) << qint32(s.consecutiveHyphenLimit) << s.doNotHyphenateCaps << s.footnoteSettings << s.endnoteSettings;
     return out;
 }
 
@@ -115,6 +115,9 @@ SectionProps unpackSection(const QByteArray &packed)
     QByteArray notes;
     d >> notes;
     if (d.status() == QDataStream::Ok) s.footnoteSettings = notes;
+    QByteArray endnotes;
+    d >> endnotes;
+    if (d.status() == QDataStream::Ok) s.endnoteSettings = endnotes;   // (a record made before the endnotes' has none)
     return s;
 }
 
@@ -695,6 +698,10 @@ void WriteDoc::syncSections()
         // (And so are the footnotes' settings the person changed, so that an undo brings them back.)
         if (m_last.footnoteSettings != m_footnoteBytes) {
             followFootnoteSettings(m_last.footnoteSettings);
+            oddEvenChanged = true;
+        }
+        if (m_last.endnoteSettings != m_endnoteBytes) {
+            followEndnoteSettings(m_last.endnoteSettings);
             oddEvenChanged = true;
         }
         if (m_last.autoHyphenation != m_flow->hyphenate) {

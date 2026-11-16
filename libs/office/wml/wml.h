@@ -175,6 +175,7 @@ struct SectionProps {
     bool mirrorMargins = false, autoHyphenation = false;
     bool doNotHyphenateCaps = false;   // w:doNotHyphenateCaps: words in capitals are left whole
     QByteArray footnoteSettings;       // the same for the footnotes' settings the person changed (a program's own record of them; empty: as the file has them)
+    QByteArray endnoteSettings;        // and for the endnotes'
     int hyphenationZone = 360, consecutiveHyphenLimit = 0;   // w:hyphenationZone (twentieths of a point) and w:consecutiveHyphenLimit (0: none), the settings' own
     QString pageColor;                // and the page color (w:background): "RRGGBB", empty for none
     bool hasPgSz = false, hasPgMar = false, hasCols = false;   // stated in the file

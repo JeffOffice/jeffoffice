@@ -57,7 +57,7 @@ void WriteWindow::createRefsActions()
             // (A note can be put in where the caret is in the text, not in a header, a footer, or a note.)
             write::NoteInsertion insertion;
             const bool canInsert = !m_view->inHeaderFooter() && !m_view->inNote();
-            if (write::notesOptionsDialog(this, m_doc.get(), &endnotes, canInsert ? &insertion : nullptr) && endnotes) reloadDocument();
+            write::notesOptionsDialog(this, m_doc.get(), &endnotes, canInsert ? &insertion : nullptr);
             if (insertion.insert) insertNoteWithMark(insertion.endnote, insertion.mark);
         }
         after();

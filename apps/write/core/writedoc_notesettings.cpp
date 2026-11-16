@@ -24,6 +24,29 @@ NoteProperties propertiesOf(const WriteDoc::NoteSettings &s)
     p.columns = s.columns;
     return p;
 }
+
+QByteArray packedNoteSettings(const WriteDoc::NoteSettings &s)
+{
+    QByteArray bytes;
+    QDataStream d(&bytes, QIODevice::WriteOnly);
+    d.setVersion(QDataStream::Qt_6_0);
+    d << s.format << qint32(s.start) << s.restart << s.position << qint32(s.columns);
+    return bytes;
+}
+
+bool unpackedNoteSettings(const QByteArray &bytes, WriteDoc::NoteSettings *out)
+{
+    QDataStream d(bytes);
+    d.setVersion(QDataStream::Qt_6_0);
+    WriteDoc::NoteSettings s;
+    qint32 start = 1, columns = 1;
+    d >> s.format >> start >> s.restart >> s.position >> columns;
+    if (d.status() != QDataStream::Ok) return false;
+    s.start = start;
+    s.columns = std::clamp<int>(columns, 1, office::wml::kMaxFootnoteColumns);
+    *out = s;
+    return true;
+}
 } // namespace
 
 WriteDoc::NoteSettings WriteDoc::noteSettings(bool endnotes) const
@@ -48,27 +71,20 @@ WriteDoc::NoteSettings WriteDoc::noteSettings(bool endnotes) const
 
 void WriteDoc::setNoteSettings(bool endnotes, const NoteSettings &s)
 {
-    const int k = endnotes ? 1 : 0;
     if (noteSettings(endnotes) == s) return;
+    const StepGroup group(*this);   // (the record and the endnotes' numbers made again are one step)
+    // (The notes' settings are in the last section's record, so that the change is a step of the history, and an undo and a redo bring them back.)
+    const QByteArray bytes = packedNoteSettings(s);
+    SectionProps last = m_last;
+    (endnotes ? last.endnoteSettings : last.footnoteSettings) = bytes;
+    setSectionProps(sectionCount() - 1, last);
     if (!endnotes) {
-        // (The footnotes' settings are in the last section's record, so that the change is a step of the history, and an undo and a redo bring them back.)
-        QByteArray bytes;
-        QDataStream d(&bytes, QIODevice::WriteOnly);
-        d.setVersion(QDataStream::Qt_6_0);
-        d << s.format << qint32(s.start) << s.restart << s.position << qint32(s.columns);
-        SectionProps last = m_last;
-        last.footnoteSettings = bytes;
-        setSectionProps(sectionCount() - 1, last);
         if (m_footnoteBytes != bytes) followFootnoteSettings(bytes);   // (the story did not report it: it was not a change of the record)
         return;
     }
-    m_noteEdit[k] = s;
-    m_noteEdited[k] = true;
-    // (What the endnotes' numbers show is made again when the document is read from what is saved.)
-    m_endnoteFormat = s.format;
-    m_endnoteStart = std::max(1, s.start);
-    m_endnotePosition = s.position;
-    m_endnoteRestartSections = s.restart == QLatin1String("eachSect");
+    if (m_endnoteBytes != bytes) followEndnoteSettings(bytes);
+    // (What the endnotes' numbers show is made again, in the step of the change.)
+    rebuildEndnoteTails();
     setModified(true);
 }
 
@@ -77,21 +93,31 @@ void WriteDoc::followFootnoteSettings(const QByteArray &bytes)
 {
     m_footnoteBytes = bytes;
     m_noteEdited[0] = false;
-    if (!bytes.isEmpty()) {
-        QDataStream d(bytes);
-        d.setVersion(QDataStream::Qt_6_0);
-        NoteSettings s;
-        qint32 start = 1, columns = 1;
-        d >> s.format >> start >> s.restart >> s.position >> columns;
-        if (d.status() == QDataStream::Ok) {
-            s.start = start;
-            s.columns = std::clamp<int>(columns, 1, office::wml::kMaxFootnoteColumns);
-            m_noteEdit[0] = s;
-            m_noteEdited[0] = true;
-        }
+    NoteSettings s;
+    if (!bytes.isEmpty() && unpackedNoteSettings(bytes, &s)) {
+        m_noteEdit[0] = s;
+        m_noteEdited[0] = true;
     }
     applyFootnoteSettings();
     if (m_pager) m_pager->invalidate();
+}
+
+// The endnotes' settings as the record has them, made the document's, or, for none, the file's again. (The numbers the endnotes' references show are in the story, and an undo
+// brings them back with the record: nothing is made again here.)
+void WriteDoc::followEndnoteSettings(const QByteArray &bytes)
+{
+    m_endnoteBytes = bytes;
+    m_noteEdited[1] = false;
+    NoteSettings s;
+    if (!bytes.isEmpty() && unpackedNoteSettings(bytes, &s)) {
+        m_noteEdit[1] = s;
+        m_noteEdited[1] = true;
+    }
+    s = noteSettings(true);
+    m_endnoteFormat = s.format;
+    m_endnoteStart = std::max(1, s.start);
+    m_endnotePosition = s.position;
+    m_endnoteRestartSections = s.restart == QLatin1String("eachSect");
 }
 
 QString NoteFields::noteMarkText(bool endnote, int number) const

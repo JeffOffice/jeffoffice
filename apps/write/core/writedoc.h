@@ -1039,6 +1039,8 @@ private:
     void applyFootnoteSettings();
     QByteArray m_footnoteBytes;   // the footnote settings as the last section's record has them (empty: as the file's), as last applied
     void followFootnoteSettings(const QByteArray &bytes);
+    QByteArray m_endnoteBytes;   // the same for the endnotes
+    void followEndnoteSettings(const QByteArray &bytes);
     NoteSettings m_noteEdit[2];
     bool m_noteEdited[2] = {false, false};
     mutable NoteSettings m_noteRead[2];   // (what the settings part says, read once: the part does not change until the file is written)

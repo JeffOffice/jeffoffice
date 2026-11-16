@@ -880,6 +880,43 @@ private Q_SLOTS:
         QCOMPARE(marks(*sections).mid(0, 2), (QStringList{QStringLiteral("1"), QStringLiteral("1")}));
     }
 
+    void endnoteSettingsAreOneUndoableStepAndKeepTheEarlierHistory()
+    {
+        const QByteArray body = para(run("Text") + "<w:r><w:endnoteReference w:id=\"2\"/></w:r>" + run(" more") + "<w:r><w:endnoteReference w:id=\"3\"/></w:r>");
+        const QByteArray notes = "<w:endnote w:type=\"separator\" w:id=\"-1\"><w:p><w:r><w:separator/></w:r></w:p></w:endnote>" + noteXml("endnote", 2, "One") + noteXml("endnote", 3, "Two");
+        auto doc = open(makeDocxNotes(body, QByteArray(), notes));
+        QVERIFY(doc);
+        auto marks = [](WriteDoc &d) {
+            QStringList out;
+            for (QTextBlock b = d.story()->begin(); b.isValid(); b = b.next())
+                for (auto it = b.begin(); !it.atEnd(); ++it) {
+                    const QString code = it.fragment().charFormat().stringProperty(tp::Field);
+                    if (code.startsWith(QLatin1String("raw:")) && !code.mid(4).isEmpty()) out << code.mid(4);
+                }
+            return out;
+        };
+        QTextCursor c(doc->story());
+        c.setPosition(0);
+        c.insertText(QStringLiteral("Typed "));
+        const QString typed = doc->story()->toPlainText();
+        WriteDoc::NoteSettings s = doc->noteSettings(true);
+        QCOMPARE(s.format, QStringLiteral("lowerRoman"));
+        s.format = QStringLiteral("upperLetter");
+        doc->setNoteSettings(true, s);
+        QVERIFY(marks(*doc).contains(QStringLiteral("A")));
+        QVERIFY(doc->undo());
+        QCOMPARE(doc->noteSettings(true).format, QStringLiteral("lowerRoman"));
+        QVERIFY2(marks(*doc).contains(QStringLiteral("i")) && marks(*doc).contains(QStringLiteral("ii")), qPrintable(marks(*doc).join('|')));
+        QCOMPARE(doc->story()->toPlainText(), typed);   // (the typing before it is still there: the history was not cleared)
+        QVERIFY(doc->redo());
+        QCOMPARE(doc->noteSettings(true).format, QStringLiteral("upperLetter"));
+        QVERIFY(marks(*doc).contains(QStringLiteral("B")));
+        QVERIFY(doc->undo());
+        QVERIFY(doc->undo());   // (the typing)
+        QVERIFY(!doc->story()->toPlainText().startsWith(QLatin1String("Typed ")));
+        QCOMPARE(doc->noteSettings(true).format, QStringLiteral("lowerRoman"));
+    }
+
     // ---- converting notes
     void footnotesConvertToEndnotesAndBackWithTheirWords()
     {
