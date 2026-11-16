@@ -141,6 +141,50 @@ private Q_SLOTS:
         QVERIFY(quiet.said.isEmpty());
     }
 
+    // An old binary presentation with a password asks for it as often as it takes, opens, and saves as a new-form file that keeps the password.
+    void aProtectedBinaryPresentationOpensWithItsPassword()
+    {
+        QTemporaryDir dir;
+        const QString path = putFile(dir, QStringLiteral("old.ppt"), encryptPpt(buildPpt(), QStringLiteral("hunter2")));
+        QStringList tries = {QStringLiteral("nope"), QStringLiteral("hunter2")};
+        QList<bool> wrongFlags;
+        setOpenPasswordStandIn([&](const QString &, bool wrong, QString *password) {
+            wrongFlags << wrong;
+            if (tries.isEmpty()) return false;
+            *password = tries.takeFirst();
+            return true;
+        });
+        const QString saved = dir.filePath(QStringLiteral("new.pptx"));
+        {
+            DeckWindow w;
+            Quiet quiet(w);
+            QVERIFY(w.openFile(path));
+            QCOMPARE(wrongFlags, (QList<bool>{false, true}));
+            QVERIFY(quiet.said.isEmpty());
+            QVERIFY(w.isPasswordProtected());
+            QCOMPARE(int(w.editor()->doc()->pages.size()), 2);
+            QVERIFY(w.saveTo(saved));
+            w.editor()->markSaved();
+        }
+        verifyProtected(saved, QStringLiteral("hunter2"));
+    }
+
+    void aProtectedBinaryPresentationWithAnotherCipherSaysSo()
+    {
+        QTemporaryDir dir;
+        const QString path = putFile(dir, QStringLiteral("aes.ppt"), encryptPpt(buildPpt(), QStringLiteral("hunter2"), 128, 0x24, 0x660E));
+        setOpenPasswordStandIn([](const QString &, bool, QString *password) {
+            *password = QStringLiteral("hunter2");
+            return true;
+        });
+        DeckWindow w;
+        Quiet quiet(w);
+        QVERIFY(!w.openFile(path));
+        QCOMPARE(quiet.said.size(), 1);
+        QVERIFY2(quiet.said.first().contains(QLatin1String("protected in a way")), qPrintable(quiet.said.first()));
+        QVERIFY(!w.isPasswordProtected());
+    }
+
     void cancellingTheQuestionOpensNothingAndSaysNothing()
     {
         QTemporaryDir dir;

@@ -2,6 +2,7 @@
 // What the old binary forms of protection share (a workbook's FILEPASS record, a document's table stream): the obfuscation that XORs the bytes with a table made from the password, and the
 // two kinds of RC4 (a 40-bit key from the password's MD5, and a key made by the cryptographic provider, CryptoAPI). The callers walk their own streams; this makes the keys.
 
+#include "io/crypto.h"
 #include "office/officecrypt.h"
 
 #include <QByteArray>
@@ -31,6 +32,8 @@ struct Rc4Keys {
     QByteArray base;      // the hash that the block number is added to
     int keyBytes = 16;
     QByteArray forBlock(quint32 block) const;
+    // The cipher for one block, started at its first byte (the key it was made from is wiped here).
+    crypto::Rc4 cipher(quint32 block) const;
 };
 
 // `fp` is the form's header as a workbook's FILEPASS record holds it: two bytes (the kind of protection, not read here), the version (major, minor, two bytes each), and then the form's own

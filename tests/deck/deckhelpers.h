@@ -263,6 +263,10 @@ QByteArray persistDirectory(const QVector<QPair<quint32, quint32>> &entries);
 // shapes for the first slide's drawing, `masterTitleProps` a property record for the main master's title shape, `masterBackground`
 // a shape for its drawing, `masterExtra` more records for the main master, `documentExtra` more records for the document, and `firstSlideExtra` more
 // records for the first slide (a headers and footers record of its own), and `titleMasterShapes` shapes for the title master's drawing.
+// A .ppt made protected with a password, the way [MS-PPT] says (nothing here reads the routine under test): `plain` is a file from buildPpt; each persist object is enciphered with the key
+// of its persist id, the pictures field by field with block 0, and a description of the protection is added as a persist object the newest edit names. `keyBits` is 40 to 128;
+// `headerFlags` is the flags of the description's header (0x04: made by the provider; 0x24 would say AES).
+QByteArray encryptPpt(const QByteArray &plain, const QString &password, int keyBits = 128, quint32 headerFlags = 0x04, quint32 algId = 0x6801);
 QByteArray buildPpt(bool titleMaster = false, bool cycle = false, bool links = false, bool notesByAtom = false, const QByteArray &bodyGroup = QByteArray(),
                            const QByteArray &drawingGroup = QByteArray(), const QByteArray &firstSlideShapes = QByteArray(), const QByteArray &masterTitleProps = QByteArray(), const QByteArray &masterBackground = QByteArray(),
                            const QByteArray &masterExtra = QByteArray(), quint16 titleMasterRecord = 1016, const QByteArray &documentExtra = QByteArray(),

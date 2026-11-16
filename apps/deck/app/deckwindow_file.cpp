@@ -11,6 +11,7 @@
 #include "canvas/canvas.h"
 #include "core/appinfo.h"
 #include "io/odpimport.h"
+#include "io/pptimport.h"
 #include "io/pptximport.h"
 #include "io/presentationfile.h"
 #include "app/passworddialogs.h"
@@ -112,6 +113,10 @@ bool DeckWindow::openFile(const QString &path, OpenHow how)
                     notes = doc ? skipped.join(QLatin1Char('\n')) : why;
                     handled = true;
                 }
+            } else if (wasProtected && !bytes.startsWith("PK")) {
+                // (an old binary presentation that was protected: its streams are plain now, and it is read as one)
+                doc = deck::importBinaryPresentation(bytes, &notes);
+                handled = true;
             } else if (bytes.startsWith("PK")) {
                 // (a package: one with the password every program knows opens without a question, and is not one that asks for a password)
                 doc = deck::importPresentation(bytes, &notes);

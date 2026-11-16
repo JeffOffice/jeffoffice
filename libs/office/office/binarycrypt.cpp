@@ -135,6 +135,14 @@ QByteArray Rc4Keys::forBlock(quint32 block) const
     return QCryptographicHash::hash(base + le32(block), QCryptographicHash::Md5);
 }
 
+crypto::Rc4 Rc4Keys::cipher(quint32 block) const
+{
+    QByteArray key = forBlock(block);
+    crypto::Rc4 rc4(key);
+    crypto::wipe(key);
+    return rc4;
+}
+
 CryptResult rc4Setup(const QByteArray &fp, bool verifyOnly, const QString &password, Rc4Keys *keys)
 {
     (void)verifyOnly;

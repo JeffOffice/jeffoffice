@@ -3,6 +3,7 @@
 #include "app/plaintext.h"
 #include "io/crypto.h"
 #include "doc/doccrypt.h"
+#include "office/pptcrypt.h"
 #include "office/odfcrypt.h"
 #include "office/officecrypt.h"
 #include "office/package.h"
@@ -411,7 +412,8 @@ PackageUnlock unlockProtectedPackage(QWidget *parent, const QString &fileName, Q
     // (an OpenDocument package keeps its parts enciphered one by one, and an old binary document its streams: neither has a password that files protected only against changes by accident carry)
     const bool packaged = office::splitProtectedPackage(*bytes, &info, &package);
     const bool odf = !packaged && office::odfEncrypted(*bytes);
-    const bool binary = !packaged && !odf && office::doc::docEncrypted(*bytes);
+    const bool binaryPpt = !packaged && !odf && office::ppt::pptEncrypted(*bytes);
+    const bool binary = binaryPpt || (!packaged && !odf && office::doc::docEncrypted(*bytes));
     if (!packaged && !odf && !binary) return PackageUnlock::Opened;
     const QByteArray otherFile = odf || binary ? *bytes : QByteArray();
     // (the file's own bytes are let go: the package inside is what is worked on, and a file of a gigabyte is not held twice more)
@@ -422,6 +424,7 @@ PackageUnlock unlockProtectedPackage(QWidget *parent, const QString &fileName, Q
     auto decrypt = [&](const QString &password, office::CryptResult *result) {
         const bool finished = runWithCancel(parent, QCoreApplication::translate("jp::PasswordDialogs", "Checking the password…"), [&](const std::atomic<bool> *cancel) {
             *result = odf    ? office::decryptOdf(otherFile, password, office::kMaxOpenFileBytes, false, &zip, [cancel] { return cancel->load(); })
+                    : binaryPpt ? office::ppt::decryptPpt(otherFile, password, office::kMaxOpenFileBytes, false, &zip, [cancel] { return cancel->load(); })
                     : binary ? office::doc::decryptDoc(otherFile, password, office::kMaxOpenFileBytes, false, &zip, [cancel] { return cancel->load(); })
                           : office::decryptPackage(info, package, password, office::kMaxOpenFileBytes, false, &zip, [cancel] { return cancel->load(); });
         });

@@ -2,6 +2,8 @@
 #include "deckhelpers.h"
 #include "../timing.h"
 
+#include "office/pptcrypt.h"
+
 class DeckBinaryImportTests : public QObject {
     Q_OBJECT
 
@@ -249,6 +251,111 @@ private Q_SLOTS:
             w.editor()->markSaved();
             Settings::get().removeRecentFile(path);
         }
+    }
+
+    // A presentation protected with a password: each persist object is enciphered on its own with the key of its persist id, the pictures field by field. The right password gives the
+    // slides and the picture as they were; the file without it says it is protected; a wrong password is refused, and nothing is read.
+    void protectedBinaryPresentationOpensWithItsPassword()
+    {
+        const QByteArray blip = pptRec(0xF01E, QByteArray(16, 'u') + QByteArray(1, '\xFF') + QByteArray("png-bytes-of-a-picture"), 0x6E0);
+        const QByteArray secondBlip = pptRec(0xF01A, QByteArray(32, 'v') + QByteArray(34, 'h') + QByteArray("metafile-bytes"), 0x3D5);
+        const QByteArray plain = withStream(buildPpt(), QStringLiteral("Pictures"), blip + secondBlip);
+        const QByteArray locked = encryptPpt(plain, QStringLiteral("secret"));
+        QVERIFY(office::ppt::pptEncrypted(locked));
+        QVERIFY(!office::ppt::pptEncrypted(plain));
+        QString err;
+        QVERIFY(!deck::importBinaryPresentation(locked, &err));
+        QVERIFY2(err.contains(QStringLiteral("password")), qPrintable(err));
+
+        QByteArray open;
+        QCOMPARE(office::ppt::decryptPpt(locked, QStringLiteral("secret"), 1 << 28, false, &open), office::CryptResult::Ok);
+        auto d = deck::importBinaryPresentation(open, &err);
+        QVERIFY2(d, qPrintable(err));
+        QCOMPARE(int(d->pages.size()), 2);
+        QCOMPARE(placeholderText(*d, *d->pages[0], QStringLiteral("ph:title")), QStringLiteral("Quarterly Results"));
+        QCOMPARE(deck::notesText(*d, *d->pages[0]), QStringLiteral("Remember the demo"));
+        cfb::File f;
+        QVERIFY(cfb::read(open, &f));
+        QCOMPARE(f.stream(QStringLiteral("Pictures")), blip + secondBlip);
+        QCOMPARE(f.stream(pptDocumentStream()).size() > 0, true);
+
+        // the other keys sizes the provider makes
+        QByteArray small;
+        QCOMPARE(office::ppt::decryptPpt(encryptPpt(plain, QStringLiteral("p\u00e4ss"), 40), QStringLiteral("p\u00e4ss"), 1 << 28, false, &small), office::CryptResult::Ok);
+        QVERIFY(deck::importBinaryPresentation(small, &err));
+
+        QByteArray none = QByteArray("kept");
+        QCOMPARE(office::ppt::decryptPpt(locked, QStringLiteral("Secret"), 1 << 28, false, &none), office::CryptResult::WrongPassword);
+        QCOMPARE(none, QByteArray("kept"));
+        QCOMPARE(office::ppt::decryptPpt(locked, QString(), 1 << 28, true, &none), office::CryptResult::WrongPassword);
+        QCOMPARE(office::ppt::decryptPpt(locked, QStringLiteral("secret"), 1 << 28, true, &none), office::CryptResult::Ok);
+        QCOMPARE(none, QByteArray("kept"));
+        QCOMPARE(office::ppt::decryptPpt(locked, QStringLiteral("secret"), 100, false, &none), office::CryptResult::TooLarge);
+    }
+
+    // A protection this program doesn't read says so, and a damaged one is refused: never a half-opened file.
+    void protectedBinaryPresentationRefusesWhatItCannotRead()
+    {
+        const QByteArray plain = buildPpt();
+        auto result = [](const QByteArray &file) {
+            QByteArray out;
+            return office::ppt::decryptPpt(file, QStringLiteral("secret"), 1 << 28, false, &out);
+        };
+        QCOMPARE(result(encryptPpt(plain, QStringLiteral("secret"))), office::CryptResult::Ok);
+        // another cipher (AES): the header says so
+        QCOMPARE(result(encryptPpt(plain, QStringLiteral("secret"), 128, 0x24, 0x660E)), office::CryptResult::Unsupported);
+        QCOMPARE(result(encryptPpt(plain, QStringLiteral("secret"), 128, 0x04, 0x660E)), office::CryptResult::Unsupported);
+
+        const QByteArray locked = encryptPpt(plain, QStringLiteral("secret"));
+        cfb::File f;
+        QVERIFY(cfb::read(locked, &f));
+        const QByteArray stream = f.stream(pptDocumentStream());
+        const qsizetype container = stream.indexOf(pptRec(12052, QByteArray(), 0, 0xF).left(4));
+        QVERIFY(container > 0);
+        // the description cut short (its record says it is shorter), or a header that claims more than there is
+        QByteArray cut = stream;
+        cut.replace(container + 4, 4, le(10, 4));
+        QCOMPARE(result(withStream(locked, pptDocumentStream(), cut)), office::CryptResult::Damaged);
+        QByteArray big = stream;
+        big.replace(container + 8 + 8, 4, le(0x7FFFFFF0, 4));
+        QCOMPARE(result(withStream(locked, pptDocumentStream(), big)), office::CryptResult::Damaged);
+        // a record that is no description where the edit points; and a stream cut in half
+        QByteArray notIt = stream;
+        notIt.replace(container + 2, 2, le(1000, 2));
+        QCOMPARE(result(withStream(locked, pptDocumentStream(), notIt)), office::CryptResult::Damaged);
+        QCOMPARE(result(withStream(locked, pptDocumentStream(), stream.left(stream.size() / 2))), office::CryptResult::Damaged);
+        QCOMPARE(result(QByteArray("not a compound file")), office::CryptResult::Damaged);
+        // a persist object that runs past the end of the stream (its record says it is huge once deciphered)
+        QByteArray user = f.stream(QStringLiteral("Current User"));
+        QByteArray noEdit = user;
+        noEdit.replace(16, 4, le(3, 4));
+        QCOMPARE(result(withStream(locked, QStringLiteral("Current User"), noEdit)), office::CryptResult::Damaged);
+        // through the reader: whatever the file is, it is refused with a reason and nothing is left half read
+        QString err;
+        QVERIFY(!deck::importBinaryPresentation(withStream(locked, pptDocumentStream(), cut), &err));
+        QVERIFY(!err.isEmpty());
+    }
+
+    // The edits of a protected file that go round in a circle are refused, and so is an offset that two persist ids claim.
+    void protectedBinaryPresentationBoundsWhatItReads()
+    {
+        const QByteArray locked = encryptPpt(buildPpt(), QStringLiteral("secret"));
+        cfb::File f;
+        QVERIFY(cfb::read(locked, &f));
+        const QByteArray stream = f.stream(pptDocumentStream());
+        QByteArray user = f.stream(QStringLiteral("Current User"));
+        const quint32 newest = quint32(quint8(user[16])) | quint32(quint8(user[17])) << 8 | quint32(quint8(user[18])) << 16;
+        QByteArray out;
+        QByteArray round = stream;
+        round.replace(newest + 8 + 8, 4, le(newest, 4));
+        QCOMPARE(office::ppt::decryptPpt(withStream(locked, pptDocumentStream(), round), QStringLiteral("secret"), 1 << 28, false, &out), office::CryptResult::Damaged);
+        // the new directory's one entry (id 50) moved to the offset where id 1 is: the description is not there, and two ids claim one record
+        const qsizetype container = stream.indexOf(pptRec(12052, QByteArray(), 0, 0xF).left(4));
+        const qsizetype dir = stream.indexOf(pptRec(6002, QByteArray()).left(4), container);
+        QVERIFY(dir > 0);
+        QByteArray two = stream;
+        two.replace(dir + 8 + 4, 4, le(0, 4));
+        QCOMPARE(office::ppt::decryptPpt(withStream(locked, pptDocumentStream(), two), QStringLiteral("secret"), 1 << 28, false, &out), office::CryptResult::Damaged);
     }
 
     // Files that can't be read say why: protected with a password, cut short,

@@ -1062,7 +1062,7 @@ bool Importer::openStreams(QString *why)
     }
     if (!found) {
         if (m_cfb.find(QStringLiteral("EncryptedPackage")) >= 0)
-            *why = QCoreApplication::translate("PptImport", "The presentation is protected with a password, which %1 can't open yet.").arg(appInfo().name);
+            *why = QCoreApplication::translate("PptImport", "The presentation is protected with a password, so it has to be opened with the password.");
         else
             *why = QCoreApplication::translate("PptImport", "This file holds no presentation.");
         return false;
@@ -1084,7 +1084,7 @@ bool Importer::readEdits(QString *why)
     c.u32();   // the size of the fixed part
     const quint32 token = c.u32();
     quint32 offset = c.u32();
-    const QString password = QCoreApplication::translate("PptImport", "The presentation is protected with a password, which %1 can't open yet.").arg(appInfo().name);
+    const QString password = QCoreApplication::translate("PptImport", "The presentation is protected with a password, so it has to be opened with the password.");
     if (token == 0xF3D1C4DF) {
         *why = password;
         return false;
