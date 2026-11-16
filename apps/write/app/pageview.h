@@ -10,6 +10,7 @@ namespace jp { class ShapeTextEdit; }
 #include "core/pictureops.h"
 #include "core/tableops.h"
 #include "core/writedoc.h"
+#include "wml/wmlhtmlread.h"
 
 #include <QAbstractScrollArea>
 #include <QPixmap>
@@ -18,6 +19,7 @@ namespace jp { class ShapeTextEdit; }
 #include <functional>
 #include <QHash>
 #include <memory>
+#include <optional>
 
 class QMenu;
 class QMimeData;
@@ -171,9 +173,11 @@ public:
     bool changeLastPaste(PasteKind kind);
     // The choices for what a paste brings: list paragraphs go on with the list beside them, begin one of their own, or take the look of the list beside them; spreadsheet cells (the clipboard's HTML
     // table, or text of tab-separated lines) are a table, a table in the cell the caret is in, or, with the caret in a table, new rows or cells written over its own (core/tableops.h, TablePaste).
-    // A paste is one step that undoes whatever the choice. Without a choice, list items go on with a list of their kind beside them, and cells make a table (a nested one in a cell).
+    // A choice is one step that undoes. Paste itself (Ctrl+V) is none of them: list items and tab-separated words go in as they came.
     void pasteListAs(ListPaste how);
     bool caretBesideList() const;   // the caret is in a list item, or in the paragraph after one
+    // Whether the clipboard may hold cells (a look that parses nothing, for commands to be on or off by), and whether it does (parsed once for every clipboard, and kept).
+    bool clipboardMayHaveCells() const;
     bool clipboardHasCells() const;
     bool canPasteCellsAs(TablePaste how) const;
     void pasteCellsAs(TablePaste how);
@@ -632,21 +636,44 @@ private:
     bool m_marks = false;
     QVector<QPair<int, int>> m_findHighlights;
     std::function<QVector<QPair<int, int>>(const QTextDocument *)> m_findSide;
+    // What a paste was made from, kept so that the choices after it paste the same, whatever the clipboard holds by then: a copy of the clipboard's words, HTML, and picture, and the copy this
+    // program made last (what pasting it again keeps), and the cells the clipboard holds as a table, parsed when they are asked for.
+    struct CellsOfClip {
+        bool parsed = false;
+        std::optional<office::wml::ClipTable> cells;
+    };
+    struct PasteSource {
+        std::shared_ptr<const QMimeData> mime;
+        Clip clip;
+        QString clipText;
+        bool clipWhole = true;
+        std::shared_ptr<CellsOfClip> cells;
+        bool ours() const;
+    };
+    PasteSource clipboardSource() const;
+    PasteSource source() const { return m_pasteAgain ? *m_pasteAgain : clipboardSource(); }
+    const std::optional<office::wml::ClipTable> &cellsOf(const PasteSource &from) const;
+    bool canPasteFrom(const PasteSource &from, PasteKind kind) const;
+    mutable std::shared_ptr<CellsOfClip> m_clipCells;   // the clipboard's cells, parsed: for as long as the clipboard is what it is
+    mutable const QMimeData *m_clipCellsOf = nullptr;
+    std::optional<PasteSource> m_pasteAgain;            // while a choice pastes the last paste again: what that was made from
     struct LastPaste {
         int from = -1, selectionEnd = -1, to = -1;   // the place the paste began (and where the selection it replaced ended), and where it ended
         int revision = -1;
         QTextDocument *story = nullptr;
         bool lists = false, cells = false, inTable = false;   // it put list items beside a list, it made cells of the clipboard's table, it began in a table
+        bool offersCells = false;                              // what it pasted may be cells, for the choices of cells to be offered
+        std::optional<PasteSource> source;
     } m_lastPaste;
     struct PasteChoice {
-        ListPaste list = ListPaste::Default;
-        int table = -1;   // a TablePaste, or -1: the one that suits the place
+        std::optional<ListPaste> list;
+        int table = -1;   // a TablePaste, or -1: none
     } m_choice;
     bool redoLastPaste(const std::function<void()> &again);
     void runPaste(bool smart, const std::function<void()> &put, int from);
     void fillPasteMenu();
     QToolButton *m_pasteButton = nullptr;
-    void notePaste(int from, int selectionEnd);
+    void notePaste(int from, int selectionEnd, const PasteSource &from_, bool startedInTable, bool asCells = false);
     void updatePasteButton();
     bool m_gridlines = false;
     bool m_shadeFields = false;

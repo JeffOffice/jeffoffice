@@ -16,6 +16,7 @@
 #include "text/textprops.h"
 
 #include <QApplication>
+#include <QClipboard>
 #include <QHelpEvent>
 #include <QImage>
 #include <QToolTip>
@@ -98,6 +99,10 @@ PageView::PageView(QWidget *parent) : QAbstractScrollArea(parent)
     m_pagination.setSingleShot(true);
     m_pagination.setInterval(0);
     connect(&m_pagination, &QTimer::timeout, this, &PageView::paginationStep);
+    connect(QApplication::clipboard(), &QClipboard::dataChanged, this, [this] {   // (the cells parsed of the clipboard are of the one that was)
+        m_clipCells.reset();
+        m_clipCellsOf = nullptr;
+    });
     m_blink.setInterval(QApplication::cursorFlashTime() > 0 ? QApplication::cursorFlashTime() / 2 : 530);
     connect(&m_blink, &QTimer::timeout, this, &PageView::blink);
     m_autoscroll.setInterval(40);

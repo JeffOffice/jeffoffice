@@ -117,7 +117,7 @@ void WriteWindow::createHomeActions()
         act("edit.pasteText")->setEnabled(bool(m_doc) && m_view->canPaste(Kind::TextOnly));
         act("edit.pastePicture")->setEnabled(bool(m_doc) && m_view->canPaste(Kind::Picture));
         act("edit.pasteSpecial")->setEnabled(bool(m_doc));
-        const bool cells = bool(m_doc) && m_view->clipboardHasCells();
+        const bool cells = bool(m_doc) && m_view->clipboardMayHaveCells();
         for (const char *id : {"edit.pasteListContinue", "edit.pasteListNew", "edit.pasteListMerge"}) act(QString::fromLatin1(id))->setEnabled(bool(m_doc) && m_view->canPaste(Kind::Keep));
         for (const char *id : {"edit.pasteTable", "edit.pasteTableNest", "edit.pasteTableMerge", "edit.pasteTableRows", "edit.pasteTableOverwrite"}) act(QString::fromLatin1(id))->setEnabled(cells);
     };

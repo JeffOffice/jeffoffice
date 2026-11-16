@@ -29,6 +29,7 @@
 #include "core/pictureops.h"
 #include "core/reviewops.h"
 #include "core/tableops.h"
+#include "wml/wml.h"
 #include "core/fonts.h"
 #include "core/findops.h"
 #include "core/homeops.h"
@@ -1770,6 +1771,137 @@ private Q_SLOTS:
         w.view()->setCursor(range(2, 2));
     }
 
+    // The numbers the list items of the blocks `first` on show (the first number of the list, and the item's place in it).
+    static QVector<int> listNumbers(WriteWindow &w, int first, int count)
+    {
+        QVector<int> out;
+        const QTextDocument *s = w.document()->story();
+        for (int i = first; i < first + count; ++i) {
+            const QTextBlock b = s->findBlockByNumber(i);
+            out << (b.textList() ? b.textList()->itemNumber(b) + b.textList()->format().start() : 0);
+        }
+        return out;
+    }
+
+    // A window with the list A1, A2, A3, a gap, and the list B1, B2; the two B items, with their paragraph marks, are copied; the caret is at the start of A2.
+    void windowWithAListToPasteInto(WriteWindow &w)
+    {
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        w.setDocument(open(makeDocx(para(run("A1")) + para(run("A2")) + para(run("A3")) + para(QByteArray()) + para(run("B1")) + para(run("B2")) + para(run("tail")))), QString());
+        QTextDocument *s = w.document()->story();
+        auto range = [&](int a, int b) {
+            QTextCursor c(s);
+            c.setPosition(s->findBlockByNumber(a).position());
+            c.setPosition(s->findBlockByNumber(b).position(), QTextCursor::KeepAnchor);
+            return c;
+        };
+        for (const auto &pair : {std::pair<int, int>(0, 2), std::pair<int, int>(4, 5)}) {
+            QTextCursor c = range(pair.first, pair.second);
+            c.setPosition(s->findBlockByNumber(pair.second).position() + 1, QTextCursor::KeepAnchor);
+            toggleList(*w.document(), c, true);
+        }
+        w.view()->setCursor(range(4, 6));
+        w.view()->copy();
+        w.view()->setCursor(range(1, 1));
+    }
+
+    void continuedListItemsJoinTheListSoTheNumbersFollowEveryLaterEdit()
+    {
+        jp::Settings::get().setValue(QStringLiteral("edit/smartCutPaste"), true);
+        // Continue: the items go in the list beside them: one list, numbered 1 to 5 with no number twice, and a later edit renumbers.
+        {
+            WriteWindow w;
+            windowWithAListToPasteInto(w);
+            w.act(QStringLiteral("edit.pasteListContinue"))->trigger();
+            QCOMPARE(w.document()->story()->toPlainText().left(15), QStringLiteral("A1\n\nB1\nB2\nA2\nA3"));   // (the paragraph pasted into stays, a list item of its own)
+            QCOMPARE(listNumbers(w, 0, 6), (QVector<int>{1, 2, 3, 4, 5, 6}));
+            const QTextDocument *s = w.document()->story();
+            for (int i = 1; i < 6; ++i) QCOMPARE(s->findBlockByNumber(i).blockFormat().intProperty(prop::NumId), s->findBlockByNumber(0).blockFormat().intProperty(prop::NumId));
+            QTextCursor gone(w.document()->story());
+            gone.setPosition(s->findBlockByNumber(2).position());
+            gone.setPosition(s->findBlockByNumber(3).position(), QTextCursor::KeepAnchor);
+            removeSelection(*w.document(), gone);
+            QCOMPARE(listNumbers(w, 0, 5), (QVector<int>{1, 2, 3, 4, 5}));
+        }
+        // New: a list of its own that begins at 1; the list it was put in goes on by itself.
+        {
+            WriteWindow w;
+            windowWithAListToPasteInto(w);
+            w.act(QStringLiteral("edit.pasteListNew"))->trigger();
+            QCOMPARE(listNumbers(w, 0, 6), (QVector<int>{1, 1, 1, 2, 2, 3}));   // (A1; the paragraph pasted into and the B items, each list begun at 1; A2 and A3)
+        }
+        // Merge: the look of the list beside them, so the numbers go on too.
+        {
+            WriteWindow w;
+            windowWithAListToPasteInto(w);
+            w.act(QStringLiteral("edit.pasteListMerge"))->trigger();
+            QCOMPARE(listNumbers(w, 0, 6), (QVector<int>{1, 2, 3, 4, 5, 6}));
+        }
+    }
+
+    // Ctrl+V pastes as it always did: list items keep the list they came from, a tab in the text is a tab, and a table in HTML comes in with its links.
+    void ordinaryPasteDoesNothingTheChoicesDo()
+    {
+        jp::Settings::get().setValue(QStringLiteral("edit/smartCutPaste"), true);
+        {
+            WriteWindow w;
+            windowWithTwoLists(w);
+            w.view()->paste();
+            const QTextDocument *s = w.document()->story();
+            QCOMPARE(s->toPlainText(), QStringLiteral("A1\nA2\n\nB1\nB2\n\ngap\nB1\nB2\ntail"));
+            QCOMPARE(s->findBlockByNumber(3).blockFormat().intProperty(prop::NumId), s->findBlockByNumber(7).blockFormat().intProperty(prop::NumId));
+            QVERIFY(s->findBlockByNumber(3).blockFormat().intProperty(prop::NumId) != s->findBlockByNumber(1).blockFormat().intProperty(prop::NumId));
+            QVERIFY(w.view()->lastPasteHasListItems());
+        }
+        // Tab-indented words are words: no table, and no parse of the clipboard.
+        {
+            WriteWindow w;
+            w.setNotifier([](const QString &, const QString &) {});
+            w.show();
+            w.setDocument(open(makeDocx(para(QByteArray()))), QString());
+            auto *mime = new QMimeData;
+            mime->setText(QStringLiteral("a\tb\nc\td\n"));
+            QApplication::clipboard()->setMimeData(mime);
+            const int parses = office::wml::clipTableParses();
+            w.view()->paste();
+            QCOMPARE(cellTexts(w), QStringList());
+            QVERIFY(w.document()->story()->toPlainText().startsWith(QStringLiteral("a\tb")));
+            QCOMPARE(office::wml::clipTableParses(), parses);
+            QVERIFY(w.view()->pasteOptionsAvailable());
+            QVERIFY(!w.view()->lastPasteWasCells());
+        }
+        // HTML that is one formatted table with a link stays what the HTML says (no cells of plain words).
+        {
+            WriteWindow w;
+            w.setNotifier([](const QString &, const QString &) {});
+            w.show();
+            w.setDocument(open(makeDocx(para(QByteArray()))), QString());
+            auto *mime = new QMimeData;
+            mime->setHtml(QStringLiteral("<html><body><table><tr><td><a href=\"https://example.com/x\">linked</a></td><td><b>strong</b></td></tr><tr><td>c</td><td>d</td></tr></table></body></html>"));
+            QApplication::clipboard()->setMimeData(mime);
+            w.view()->paste();
+            QVERIFY(w.document()->story()->toPlainText().contains(QStringLiteral("linked")));
+            bool linked = false;
+            for (QTextBlock b = w.document()->story()->begin(); b.isValid(); b = b.next())
+                for (auto it = b.begin(); !it.atEnd(); ++it)
+                    if (it.fragment().charFormat().isAnchor() && it.fragment().text().contains(QStringLiteral("linked"))) linked = true;
+            QVERIFY(linked);
+            QVERIFY(!w.view()->lastPasteWasCells());
+        }
+    }
+
+    // The Paste Options button of the last paste, its menu open.
+    static void openOptions(WriteWindow &w, QMenu **menu)
+    {
+        auto *button = w.view()->findChild<QToolButton *>(QStringLiteral("pasteOptionsButton"));
+        QVERIFY(button);
+        QTRY_VERIFY(button->isVisible());
+        *menu = button->menu();
+        (*menu)->popup(button->mapToGlobal(QPoint(0, button->height())));
+        QTRY_VERIFY((*menu)->isVisible());
+    }
+
     void pastedListItemsContinueStartOverOrJoinTheListBeside()
     {
         jp::Settings::get().setValue(QStringLiteral("edit/smartCutPaste"), true);
@@ -1781,25 +1913,24 @@ private Q_SLOTS:
             return Outcome{b.textList() ? b.textList()->format().start() : -1, b.blockFormat().intProperty(prop::NumId) == besideId ? 1 : 0, b.textList() == s->findBlockByNumber(1).textList() ? 1 : 0, s->toPlainText()};
         };
         const QString plain = QStringLiteral("A1\nA2\n\nB1\nB2\n\ngap\nB1\nB2\ntail");
-        // The default: the pasted numbers go on from the list beside them (A1, A2, then 3 and 4), in the look they came in.
+        // Continue and Merge: the pasted items are items of the list beside them; New: a list of its own that begins at 1.
         {
             WriteWindow w;
             windowWithTwoLists(w);
             const QString before = w.document()->story()->toPlainText();
-            w.view()->paste();
+            w.act(QStringLiteral("edit.pasteListContinue"))->trigger();
             const Outcome o = after(w);
             QCOMPARE(o.text, plain);
-            QCOMPARE(o.start, 3);
-            QCOMPARE(o.listIsBesides, 0);
+            QCOMPARE(o.numId, 1);
+            QCOMPARE(o.listIsBesides, 1);
             QVERIFY(w.view()->lastPasteHasListItems());
             // One Undo takes it all back, and Redo does it again.
             QVERIFY(w.document()->undo());
             QCOMPARE(w.document()->story()->toPlainText(), before);
             QVERIFY(w.document()->redo());
-            QCOMPARE(after(w).start, 3);
+            QCOMPARE(after(w).listIsBesides, 1);
             QCOMPARE(w.document()->story()->toPlainText(), plain);
         }
-        // New List: the pasted items begin at 1; Merge List: they are items of the list beside them.
         {
             WriteWindow w;
             windowWithTwoLists(w);
@@ -1829,14 +1960,12 @@ private Q_SLOTS:
             WriteWindow w;
             windowWithTwoLists(w);
             w.view()->paste();
-            auto *button = w.view()->findChild<QToolButton *>(QStringLiteral("pasteOptionsButton"));
-            QVERIFY(button);
-            QTRY_VERIFY(button->isVisible());
-            QAction *merge = button->menu()->findChild<QAction *>(QStringLiteral("pasteList%1").arg(int(ListPaste::Merge)));
-            QVERIFY(merge);
-            QVERIFY(button->menu()->findChild<QAction *>(QStringLiteral("pasteList%1").arg(int(ListPaste::Continue))));
-            QVERIFY(button->menu()->findChild<QAction *>(QStringLiteral("pasteList%1").arg(int(ListPaste::New))));
-            shotMenu(w, QStringLiteral("paste-options-list.png"));
+            QMenu *menu = nullptr;
+            openOptions(w, &menu);
+            QVERIFY(menu->findChild<QAction *>(QStringLiteral("pasteList%1").arg(int(ListPaste::Merge))));
+            QVERIFY(menu->findChild<QAction *>(QStringLiteral("pasteList%1").arg(int(ListPaste::Continue))));
+            QVERIFY(menu->findChild<QAction *>(QStringLiteral("pasteList%1").arg(int(ListPaste::New))));
+            menu->close();
             QVERIFY(w.view()->changeLastPasteList(ListPaste::Merge));
             QCOMPARE(after(w).listIsBesides, 1);
             QVERIFY(w.view()->changeLastPasteList(ListPaste::New));
@@ -1880,28 +2009,44 @@ private Q_SLOTS:
         return second > 0 && second < xml.indexOf("</w:tc>");
     }
 
-    // The Paste Options button's menu, open, as a picture (when JP_SHOT_DIR names a folder).
-    static void shotMenu(WriteWindow &w, const QString &name)
-    {
-        auto *button = w.view()->findChild<QToolButton *>(QStringLiteral("pasteOptionsButton"));
-        QVERIFY(button);
-        QMenu *menu = button->menu();
-        menu->popup(button->mapToGlobal(QPoint(0, button->height())));
-        QTRY_VERIFY(menu->isVisible());
-        shot(menu, name);
-        menu->close();
-    }
-
-    static int count(WriteWindow &w, const char *what)
+    static QByteArray bodyXml(const QByteArray &docx)
     {
         office::Package p;
-        p.read(w.document()->toDocx());
-        return int(p.part(QStringLiteral("/word/document.xml")).count(what));
+        p.read(docx);
+        return p.part(QStringLiteral("/word/document.xml"));
+    }
+
+    static int count(WriteWindow &w, const char *what) { return int(bodyXml(w.document()->toDocx()).count(what)); }
+
+    // A window with one table of rows by columns, the caret in its first cell.
+    static void tableWindow(WriteWindow &w, int rows = 2, int columns = 2)
+    {
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        w.setDocument(open(makeDocx(para(run("top")))), QString());
+        QTextCursor at(w.document()->story());
+        at.setPosition(0);
+        NewTable t;
+        t.rows = rows;
+        t.columns = columns;
+        QVERIFY(insertTable(*w.document(), at, t));
+        w.view()->setCursor(at);
+    }
+
+    static void toFirstCell(WriteWindow &w)
+    {
+        QTextCursor first(w.document()->story());
+        for (QTextBlock b = w.document()->story()->begin(); b.isValid(); b = b.next())
+            if (cellKeyOf(b)) {
+                first.setPosition(b.position());
+                break;
+            }
+        w.view()->setCursor(first);
     }
 
     void pastedSpreadsheetCellsMakeATableAndInATableTheChoicesApply()
     {
-        // Outside a table: a table, one step.
+        // Outside a table: the Table choice makes one, in one step.
         {
             WriteWindow w;
             w.setNotifier([](const QString &, const QString &) {});
@@ -1911,7 +2056,7 @@ private Q_SLOTS:
             QTextCursor c(w.document()->story());
             c.setPosition(w.document()->story()->findBlockByNumber(1).position());
             w.view()->setCursor(c);
-            w.view()->paste();
+            w.act(QStringLiteral("edit.pasteTable"))->trigger();
             QCOMPARE(cellTexts(w), (QStringList{QStringLiteral("a"), QStringLiteral("b"), QStringLiteral("c"), QStringLiteral("d")}));
             QCOMPARE(count(w, "<w:tr>"), 2);
             QVERIFY(w.view()->lastPasteWasCells());
@@ -1921,7 +2066,7 @@ private Q_SLOTS:
             QVERIFY(w.document()->redo());
             QCOMPARE(count(w, "<w:tr>"), 2);
         }
-        // One cell, or words with a tab in them, are text.
+        // One cell is text.
         {
             WriteWindow w;
             w.setNotifier([](const QString &, const QString &) {});
@@ -1931,34 +2076,16 @@ private Q_SLOTS:
             w.view()->paste();
             QCOMPARE(cellTexts(w), QStringList());
             QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("only\n"));
+            w.view()->pasteCellsAs(TablePaste::NewTable);
+            QCOMPARE(cellTexts(w), QStringList());
         }
         // In a table.
-        auto inTableWindow = [&](WriteWindow &w) {
-            w.setNotifier([](const QString &, const QString &) {});
-            w.show();
-            w.setDocument(open(makeDocx(para(run("top")))), QString());
-            QTextCursor at(w.document()->story());
-            at.setPosition(0);
-            NewTable t;
-            t.rows = t.columns = 2;
-            QVERIFY(insertTable(*w.document(), at, t));
-            w.view()->setCursor(at);
-        };
         {
             WriteWindow w;
-            inTableWindow(w);
+            tableWindow(w);
             putCells({QStringLiteral("a|b|c"), QStringLiteral("d|e|f")});
-            // Nest Table (the default): a table in the cell, with a paragraph after it.
-            auto toFirstCell = [&] {
-                QTextCursor first(w.document()->story());
-                for (QTextBlock b = w.document()->story()->begin(); b.isValid(); b = b.next())
-                    if (cellKeyOf(b)) {
-                        first.setPosition(b.position());
-                        break;
-                    }
-                w.view()->setCursor(first);
-            };
-            w.view()->paste();
+            // Nest Table: a table in the cell, with a paragraph after it.
+            w.act(QStringLiteral("edit.pasteTableNest"))->trigger();
             QCOMPARE(count(w, "<w:tbl>"), 2);
             QVERIFY(tableIsNested(w));
             QCOMPARE(cellTexts(w).count(QStringLiteral("a")), 1);
@@ -1968,11 +2095,11 @@ private Q_SLOTS:
             QVERIFY(w.document()->redo());
             QCOMPARE(count(w, "<w:tbl>"), 2);
             QVERIFY(w.document()->undo());
-            toFirstCell();
-            w.view()->paste();
+            toFirstCell(w);
+            w.view()->paste();   // (Ctrl+V: the words, as ever)
             QVERIFY(w.view()->pasteOptionsAvailable());
-            shotMenu(w, QStringLiteral("paste-options-table.png"));
-            // The same choices as the options button's, one at a time.
+            QCOMPARE(count(w, "<w:tbl>"), 1);
+            // The same choices as the options button's, one at a time (the first from the plain paste of the same words).
             QVERIFY(w.view()->changeLastPasteCells(TablePaste::NewRows));
             QCOMPARE(count(w, "<w:tbl>"), 1);
             QCOMPARE(count(w, "<w:tr>"), 4);
@@ -1985,6 +2112,7 @@ private Q_SLOTS:
             QCOMPARE(count(w, "<w:gridCol "), 2);
             // (Three columns on two: the third is left out.)
             QCOMPARE(cellTexts(w), (QStringList{QStringLiteral("a"), QStringLiteral("b"), QStringLiteral("d"), QStringLiteral("e")}));
+            QVERIFY(!w.document()->tableNotice.isEmpty());
             QVERIFY(w.document()->undo());
             QCOMPARE(count(w, "<w:tr>"), 2);
             QVERIFY(cellTexts(w).first().isEmpty());
@@ -1992,7 +2120,7 @@ private Q_SLOTS:
         // The commands: only where they fit.
         {
             WriteWindow w;
-            inTableWindow(w);
+            tableWindow(w);
             putCells({QStringLiteral("1|2"), QStringLiteral("3|4")});
             w.act(QStringLiteral("edit.pasteTableMerge"))->trigger();
             QCOMPARE(count(w, "<w:tr>"), 4);
@@ -2001,7 +2129,7 @@ private Q_SLOTS:
         }
     }
 
-    void aPastedTableHasAtMostFiveHundredRowsAndHostileCellTextIsCut()
+    void aPastedTableHasAtMostFiveHundredRowsAndHostileCellTextIsCutAndSaid()
     {
         WriteWindow w;
         w.setNotifier([](const QString &, const QString &) {});
@@ -2010,10 +2138,224 @@ private Q_SLOTS:
         QStringList rows;
         for (int r = 0; r < 520; ++r) rows << QString::number(r) + QStringLiteral("|") + QString(r == 0 ? 5000 : 3, QLatin1Char('w'));
         putCells(rows);
-        w.view()->paste();
+        w.view()->pasteCellsAs(TablePaste::NewTable);
         QCOMPARE(count(w, "<w:tr>"), 500);
         QCOMPARE(count(w, "<w:tc>"), 1000);
         QCOMPARE(cellTexts(w).at(1).size(), 4000);
+        // What was cut is said.
+        QVERIFY(w.statusBar()->currentMessage().contains(QStringLiteral("left out")));
+        QVERIFY(w.document()->tableNotice.contains(QStringLiteral("500")));
+    }
+
+    // A table nested again and again stops where a saved file still reads it as tables (kMaxTableDepth), and one whose columns would be slivers is refused; a refusal changes nothing.
+    void nestingStopsAtTheDepthAFileReadsAndAtSliverColumns()
+    {
+        {
+            WriteWindow w;
+            tableWindow(w);
+            putCells({QStringLiteral("a"), QStringLiteral("b")});
+            for (int i = 0; i < 12; ++i) w.view()->pasteCellsAs(TablePaste::Nest);
+            QCOMPARE(count(w, "<w:tbl>"), office::wml::kMaxTableDepth);
+            QVERIFY(!w.document()->tableNotice.isEmpty());
+            // It opens again with every table a table (none a stand-in).
+            auto again = open(w.document()->toDocx());
+            QCOMPARE(int(bodyXml(again->toDocx()).count("<w:tbl>")), office::wml::kMaxTableDepth);
+        }
+        {
+            WriteWindow w;
+            tableWindow(w);
+            QStringList wide;
+            for (int r = 0; r < 2; ++r) wide << QStringLiteral("x|").repeated(19) + QStringLiteral("x");
+            putCells(wide);
+            const QByteArray before = w.document()->toDocx();
+            w.view()->pasteCellsAs(TablePaste::Nest);
+            QCOMPARE(count(w, "<w:tbl>"), 1);
+            QCOMPARE(w.document()->toDocx(), before);
+            QVERIFY(!w.document()->tableNotice.isEmpty());
+            QVERIFY(!w.view()->lastPasteWasCells());   // (a paste that did nothing is not one to offer choices for)
+            putCells({QStringLiteral("a|b|c"), QStringLiteral("d|e|f")});
+            w.view()->pasteCellsAs(TablePaste::Nest);
+            QCOMPARE(count(w, "<w:tbl>"), 2);
+        }
+    }
+
+    // Every limit is looked at before anything is changed: a choice that does not fit leaves the document as it was.
+    void aPasteOfCellsThatDoesNotFitChangesNothing()
+    {
+        WriteWindow w;
+        tableWindow(w, 300, 2);
+        QStringList rows;
+        for (int r = 0; r < 500; ++r) rows << QStringLiteral("x|").repeated(62) + QStringLiteral("x");
+        putCells(rows);
+        const QByteArray before = w.document()->toDocx();
+        const int revision = w.document()->story()->revision();
+        w.view()->pasteCellsAs(TablePaste::Merge);   // (300 + 500 rows of 63 cells are more than a table can hold)
+        QCOMPARE(w.document()->toDocx(), before);
+        QCOMPARE(count(w, "<w:gridCol "), 2);
+        QCOMPARE(w.document()->story()->revision(), revision);
+        QVERIFY(!w.document()->tableNotice.isEmpty());
+        QVERIFY(!w.view()->lastPasteWasCells());
+        // A selection that a table would replace stays when the cells are too many for a table.
+        office::wml::ClipTable big;
+        for (int r = 0; r < 501; ++r) big.rows.push_back(QStringList{QStringLiteral("a"), QStringLiteral("b")});
+        WriteWindow v;
+        v.setNotifier([](const QString &, const QString &) {});
+        v.setDocument(open(makeDocx(para(run("keep this")))), QString());
+        QTextCursor sel(v.document()->story());
+        sel.select(QTextCursor::Document);
+        QVERIFY(!pasteCells(*v.document(), sel, big, TablePaste::NewTable));
+        QCOMPARE(v.document()->story()->toPlainText(), QStringLiteral("keep this"));
+    }
+
+    // Overwrite Cells puts a cell's words in place of all it held (several paragraphs, a table in it), and a cell that spans columns takes the first of the cells' words that are over it.
+    void overwritingCellsReplacesWholeCellsAndMapsMergedColumns()
+    {
+        auto tc = [](const QByteArray &content, int span = 1) {
+            return "<w:tc><w:tcPr><w:tcW w:w=\"" + QByteArray::number(2400 * span) + "\" w:type=\"dxa\"/>" + (span > 1 ? "<w:gridSpan w:val=\"" + QByteArray::number(span) + "\"/>" : QByteArray()) + "</w:tcPr>" + content + "</w:tc>";
+        };
+        auto tbl = [](int columns, const QByteArray &rows) {
+            QByteArray grid;
+            for (int i = 0; i < columns; ++i) grid += "<w:gridCol w:w=\"2400\"/>";
+            return "<w:tbl><w:tblPr><w:tblW w:w=\"0\" w:type=\"auto\"/></w:tblPr><w:tblGrid>" + grid + "</w:tblGrid>" + rows + "</w:tbl>";
+        };
+        auto tr = [](const QByteArray &cells) { return "<w:tr>" + cells + "</w:tr>"; };
+        {
+            WriteWindow w;
+            w.setNotifier([](const QString &, const QString &) {});
+            w.show();
+            const QByteArray inner = tbl(1, tr(tc(para(run("n1")))) + tr(tc(para(run("n2")))));
+            w.setDocument(open(makeDocx(tbl(2, tr(tc(para(run("x")) + para(run("y")) + inner + para(run("z"))) + tc(para(run("old")))) + tr(tc(para(run("c"))) + tc(para(run("d"))))) + para(run("end")))), QString());
+            toFirstCell(w);
+            putCells({QStringLiteral("a|b"), QStringLiteral("e|f")});
+            w.view()->pasteCellsAs(TablePaste::Overwrite);
+            QCOMPARE(cellTexts(w), (QStringList{QStringLiteral("a"), QStringLiteral("b"), QStringLiteral("e"), QStringLiteral("f")}));
+            QCOMPARE(count(w, "<w:tbl>"), 1);
+            const QByteArray xml = bodyXml(w.document()->toDocx());
+            for (qsizetype at = xml.indexOf("</w:tc>"); at >= 0; at = xml.indexOf("</w:tc>", at + 1)) QCOMPARE(xml.mid(at - 6, 6), QByteArray("</w:p>"));
+            QVERIFY(w.document()->undo());
+            QCOMPARE(count(w, "<w:tbl>"), 2);
+            QVERIFY(cellTexts(w).contains(QStringLiteral("n2")));
+        }
+        {
+            WriteWindow w;
+            w.setNotifier([](const QString &, const QString &) {});
+            w.show();
+            w.setDocument(open(makeDocx(tbl(3, tr(tc(para(run("p"))) + tc(para(run("q")), 2)) + tr(tc(para(run("r"))) + tc(para(run("s"))) + tc(para(run("t"))))) + para(run("end")))), QString());
+            toFirstCell(w);
+            putCells({QStringLiteral("a|b|c"), QStringLiteral("d|e|f")});
+            w.view()->pasteCellsAs(TablePaste::Overwrite);
+            QCOMPARE(cellTexts(w), (QStringList{QStringLiteral("a"), QStringLiteral("b"), QStringLiteral("d"), QStringLiteral("e"), QStringLiteral("f")}));
+            QVERIFY(w.document()->tableNotice.contains(QStringLiteral("left out")));   // (the c over the second half of the spanning cell)
+        }
+    }
+
+    // Commands are on or off by a look at the clipboard that parses nothing; the cells are parsed once for all that is done with them, and the menu is built when it opens.
+    void theClipboardOfCellsIsParsedOnceAndTheMenuBuiltWhenOpened()
+    {
+        WriteWindow w;
+        tableWindow(w);
+        const int parses = office::wml::clipTableParses();
+        putCells({QStringLiteral("a|b"), QStringLiteral("c|d")});
+        QTRY_VERIFY(w.act(QStringLiteral("edit.pasteTableNest"))->isEnabled());
+        QCOMPARE(office::wml::clipTableParses(), parses);
+        w.act(QStringLiteral("edit.pasteTableNest"))->trigger();
+        QCOMPARE(office::wml::clipTableParses(), parses + 1);
+        for (int i = 0; i < 3; ++i) QVERIFY(w.view()->canPasteCellsAs(TablePaste::Overwrite));
+        QVERIFY(w.view()->clipboardHasCells());
+        QVERIFY(w.view()->changeLastPasteCells(TablePaste::NewRows));
+        QVERIFY(w.view()->changeLastPasteCells(TablePaste::Merge));
+        QCOMPARE(office::wml::clipTableParses(), parses + 1);
+        auto *button = w.view()->findChild<QToolButton *>(QStringLiteral("pasteOptionsButton"));
+        QVERIFY(button);
+        QVERIFY(button->menu()->actions().isEmpty());   // (nothing was built for a menu nobody opened)
+        QMenu *menu = nullptr;
+        openOptions(w, &menu);
+        QVERIFY(!menu->actions().isEmpty());
+        menu->close();
+    }
+
+    // What a choice pastes is what was pasted, whatever the clipboard holds by then.
+    void aChoiceAfterAPasteUsesTheClipboardOfThePaste()
+    {
+        {
+            WriteWindow w;
+            tableWindow(w);
+            putCells({QStringLiteral("a|b"), QStringLiteral("c|d")});
+            w.view()->pasteCellsAs(TablePaste::Nest);
+            auto *other = new QMimeData;
+            other->setText(QStringLiteral("something else"));
+            QApplication::clipboard()->setMimeData(other);
+            QVERIFY(w.view()->changeLastPasteCells(TablePaste::NewRows));
+            QCOMPARE(count(w, "<w:tr>"), 4);
+            QVERIFY(cellTexts(w).contains(QStringLiteral("d")));
+            QVERIFY(!w.document()->story()->toPlainText().contains(QStringLiteral("something")));
+        }
+        {
+            WriteWindow w;
+            w.setNotifier([](const QString &, const QString &) {});
+            w.show();
+            w.setDocument(open(makeDocx(para(QByteArray()))), QString());
+            auto *mime = new QMimeData;
+            mime->setHtml(QStringLiteral("<p>some <b>bold</b> words</p>"));
+            QApplication::clipboard()->setMimeData(mime);
+            w.view()->paste();
+            auto *other = new QMimeData;
+            other->setText(QStringLiteral("something else"));
+            QApplication::clipboard()->setMimeData(other);
+            QVERIFY(w.view()->changeLastPaste(jp::write::PageView::PasteKind::TextOnly));
+            QVERIFY(w.document()->story()->toPlainText().contains(QStringLiteral("some bold words")));
+            QVERIFY(!w.document()->story()->toPlainText().contains(QStringLiteral("something")));
+        }
+    }
+
+    // The Paste Options of a list and of cells, open, as pictures for the docs (only with JW_SHOT_DIR: a folder).
+    void picturesOfThePasteOptions()
+    {
+        const QString dir = qEnvironmentVariable("JW_SHOT_DIR");
+        if (dir.isEmpty()) QSKIP("JW_SHOT_DIR names no folder");
+        jp::applyUiTheme(1);
+        jp::Settings::get().setValue(QStringLiteral("edit/smartCutPaste"), true);
+        auto grabMenu = [&](WriteWindow &w, const QString &name) {
+            QMenu *menu = nullptr;
+            openOptions(w, &menu);
+            QVERIFY(menu->grab().save(dir + QLatin1Char('/') + name));
+            menu->close();
+        };
+        {
+            WriteWindow w;
+            windowWithTwoLists(w);
+            w.view()->paste();
+            grabMenu(w, QStringLiteral("paste-options-list.png"));
+        }
+        {
+            WriteWindow w;
+            tableWindow(w);
+            putCells({QStringLiteral("a|b|c"), QStringLiteral("d|e|f")});
+            w.view()->paste();
+            grabMenu(w, QStringLiteral("paste-options-table.png"));
+        }
+    }
+
+    // A nested table is written with a paragraph after it in its cell (a cell ends with one), and reads again.
+    void aNestedTableSavesWithAParagraphAfterItAndOpensAgain()
+    {
+        WriteWindow w;
+        tableWindow(w);
+        putCells({QStringLiteral("a|b"), QStringLiteral("c|d")});
+        w.view()->pasteCellsAs(TablePaste::Nest);
+        auto check = [](const QByteArray &xml) {
+            QCOMPARE(int(xml.count("<w:tbl>")), 2);
+            int ends = 0;
+            for (qsizetype at = xml.indexOf("</w:tbl>"); at >= 0; at = xml.indexOf("</w:tbl>", at + 1)) {
+                QVERIFY(xml.mid(at + 8, 5) == "<w:p>" || xml.mid(at + 8, 5) == "<w:p ");
+                ++ends;
+            }
+            QCOMPARE(ends, 2);
+            for (qsizetype at = xml.indexOf("</w:tc>"); at >= 0; at = xml.indexOf("</w:tc>", at + 1)) QCOMPARE(xml.mid(at - 6, 6), QByteArray("</w:p>"));
+        };
+        check(bodyXml(w.document()->toDocx()));
+        auto again = open(w.document()->toDocx());
+        check(bodyXml(again->toDocx()));
     }
 
     void findCountsTheMatchesAndHighlightsThemOnThePages()
