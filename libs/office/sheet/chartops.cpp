@@ -4,6 +4,7 @@
 #include "office/chart_write.h"
 
 #include <QCoreApplication>
+#include <QLocale>
 #include <algorithm>
 #include <cmath>
 
@@ -115,6 +116,8 @@ bool chartDataIsUsable(const ChartData &data)
     return true;
 }
 
+QString chartNumberText(double value) { return QLocale::c().toString(value, 'g', QLocale::FloatingPointShortest); }
+
 QString cleanChartText(const QString &text, int limit)
 {
     QString clean;
@@ -203,7 +206,7 @@ ChartInfo chartInfoOf(const Chart &made, const QByteArray &part, const QByteArra
         info.data.categories = series.first().categories;
         // (A scatter's x numbers are its categories.)
         if (info.data.categories.isEmpty())
-            for (double x : series.first().xValues) info.data.categories << QString::number(x, 'g', 15);
+            for (double x : series.first().xValues) info.data.categories << chartNumberText(x);
     }
     for (const ChartSeries &s : series) {
         info.data.seriesNames << s.name;
@@ -220,7 +223,7 @@ bool chartSetForm(Chart &chart, ChartForm form, const Theme &theme)
     // (A scatter's x numbers are the categories of a chart of another kind.)
     for (ChartSeries &s : series)
         if (s.categories.isEmpty())
-            for (double x : s.xValues) s.categories << QString::number(x, 'g', 15);
+            for (double x : s.xValues) s.categories << chartNumberText(x);
     // (A scatter's points are placed by x numbers: the categories, read as numbers, or 1, 2, 3.)
     if (form == ChartForm::Scatter)
         for (ChartSeries &s : series)
@@ -327,7 +330,7 @@ QString chartDataProblem(const Chart &chart, ChartData *data, const QByteArray &
     out.categories = series.first().categories;
     // (A scatter's x numbers are its categories.)
     if (out.categories.isEmpty())
-        for (double x : series.first().xValues) out.categories << QString::number(x, 'g', 15);
+        for (double x : series.first().xValues) out.categories << chartNumberText(x);
     for (const ChartSeries &s : series) {
         out.seriesNames << s.name;
         out.values << s.values;

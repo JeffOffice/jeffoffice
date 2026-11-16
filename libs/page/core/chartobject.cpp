@@ -194,6 +194,37 @@ std::shared_ptr<PictureItem> makeChartObject(Document &doc, office::sheet::Chart
 }
 
 namespace {
+// The part of the kept chart that is the chart's workbook, as the page keeps it (its bytes in base64, and their digest, set where the bytes are: the reader that kept the part, and a change).
+struct KeptWorkbook {
+    QString part;
+    QJsonObject object;
+};
+
+KeptWorkbook keptWorkbookOf(const Document &doc, const PictureItem &pic, KeptChart *kept = nullptr)
+{
+    KeptWorkbook w;
+    const QString id = externalIdOf(pic.chartXml);
+    if (id.isEmpty()) return w;
+    const KeptChart k = keptChartOf(doc, pic.id);
+    if (!k.page) return w;
+    w.part = workbookPartOf(k.entry, id);
+    if (!w.part.isEmpty()) w.object = k.entry.value(QStringLiteral("parts")).toObject().value(w.part).toObject();
+    if (kept) *kept = k;
+    return w;
+}
+
+// The workbooks decoded lately, by digest: a chart is asked for its workbook with every refresh of the window's commands.
+thread_local QVector<QPair<QString, QByteArray>> g_decoded;
+
+QString digestOfKept(const KeptWorkbook &w)
+{
+    const QString sha = w.object.value(QStringLiteral("sha")).toString();
+    if (!sha.isEmpty() || w.object.isEmpty()) return sha;
+    return QString::fromLatin1(QCryptographicHash::hash(QByteArray::fromBase64(w.object.value(QStringLiteral("data")).toString().toLatin1()), QCryptographicHash::Sha1).toHex());
+}
+} // namespace
+
+namespace {
 // What the last charts said of themselves, by their part: selecting a chart and showing its tab asks again and again, and a part is read and checked whole each time otherwise.
 struct Said {
     office::sheet::ChartInfo info;
@@ -208,15 +239,15 @@ const Said *said(const Document &doc, const PictureItem &pic)
     if (pic.chartXml.isEmpty()) return nullptr;
     // (What a chart says does not depend on the colors it is read with, but whether it reads does not either: the key is the part.)
     // (A chart that reads a workbook kept with it says what the cells hold: the workbook is part of the key.)
-    const QByteArray book = chartWorkbookOf(doc, pic);
+    // (the digest the page kept with the workbook is in the key: the workbook is decoded only for a chart not said yet)
     QByteArray key = QCryptographicHash::hash(pic.chartXml, QCryptographicHash::Sha1);
-    if (!book.isEmpty()) key += QCryptographicHash::hash(book, QCryptographicHash::Sha1);
+    if (pic.chartXml.contains("externalData")) key += digestOfKept(keptWorkbookOf(doc, pic)).toLatin1();
     if (const auto it = g_said.constFind(key); it != g_said.cend()) return &*it;
     office::Chart chart;
     Said made;
     if (readChartOf(doc, pic, &chart)) {
         ++g_infosMade;
-        made.info = office::sheet::chartInfoOf(chart, pic.chartXml, book);
+        made.info = office::sheet::chartInfoOf(chart, pic.chartXml, chart.externalDataId.isEmpty() ? QByteArray() : chartWorkbookOf(doc, pic));
         made.fullyModeled = office::chartIsFullyModeled(pic.chartXml);
     }
     if (g_said.size() >= kSaidKept) g_said.clear();
@@ -240,16 +271,21 @@ bool chartIsChangeable(const Document &doc, const PictureItem &pic)
 
 QByteArray chartWorkbookOf(const Document &doc, const PictureItem &pic)
 {
-    const QString id = externalIdOf(pic.chartXml);
-    if (id.isEmpty()) return QByteArray();
-    const KeptChart kept = keptChartOf(doc, pic.id);
-    if (!kept.page) return QByteArray();
-    const QString part = workbookPartOf(kept.entry, id);
-    if (part.isEmpty()) return QByteArray();
-    const QString data = kept.entry.value(QStringLiteral("parts")).toObject().value(part).toObject().value(QStringLiteral("data")).toString();
+    const KeptWorkbook w = keptWorkbookOf(doc, pic);
+    if (w.object.isEmpty()) return QByteArray();
+    const QString sha = w.object.value(QStringLiteral("sha")).toString();
+    if (!sha.isEmpty())
+        for (const auto &d : std::as_const(g_decoded))
+            if (d.first == sha) return d.second;
+    const QString data = w.object.value(QStringLiteral("data")).toString();
     // (a workbook past what a chart's is read with is not read: the base64 is a third larger than the bytes)
     if (data.size() > office::sheet::kMostEmbeddedWorkbookBytes / 3 * 4 + 8) return QByteArray();
-    return QByteArray::fromBase64(data.toLatin1());
+    const QByteArray bytes = QByteArray::fromBase64(data.toLatin1());
+    if (!sha.isEmpty()) {
+        if (g_decoded.size() >= 4) g_decoded.removeFirst();
+        g_decoded.append({sha, bytes});
+    }
+    return bytes;
 }
 
 bool changeChartDataOf(Document &doc, PictureItem &pic, const office::sheet::ChartData &data)
@@ -267,6 +303,7 @@ bool changeChartDataOf(Document &doc, PictureItem &pic, const office::sheet::Cha
     QJsonObject parts = entry.value(QStringLiteral("parts")).toObject();
     QJsonObject workbook = parts.value(part).toObject();
     workbook[QStringLiteral("data")] = QString::fromLatin1(made.toBase64());
+    workbook[QStringLiteral("sha")] = QString::fromLatin1(QCryptographicHash::hash(made, QCryptographicHash::Sha1).toHex());
     parts[part] = workbook;
     entry[QStringLiteral("parts")] = parts;
     if (!setChartOf(doc, pic, chart, pic.rect.size())) return false;

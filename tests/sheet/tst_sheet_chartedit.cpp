@@ -9,6 +9,8 @@
 #include "sheet/chartembed.h"
 #include "../chartembedhelpers.h"
 
+#include <QRandomGenerator>
+
 using namespace jp::office;
 
 namespace {
@@ -891,29 +893,6 @@ private Q_SLOTS:
         for (const QString &row : {formula, words, blank}) QVERIFY2(problem(bookChart(), bookOf(names + cats3 + row + rest)).contains(QStringLiteral("workbook")), qPrintable(row));
     }
 
-    // What is read is bounded: the cells of the sheet (Crunch's limit for a chart), and the series and points of a chart made here.
-    void aWorkbookPastTheLimitsIsNotRead()
-    {
-        using namespace jp::testing;
-        QString rows = bookRow(1, {bookText(QStringLiteral("B1"), QStringLiteral("Sales")), bookText(QStringLiteral("C1"), QStringLiteral("Costs"))});
-        rows += bookRow(2, {bookText(QStringLiteral("A2"), QStringLiteral("Q1")), bookNumber(QStringLiteral("B2"), 1), bookNumber(QStringLiteral("C2"), 4)});
-        rows += bookRow(3, {bookText(QStringLiteral("A3"), QStringLiteral("Q2")), bookNumber(QStringLiteral("B3"), 2), bookNumber(QStringLiteral("C3"), 5)});
-        rows += bookRow(4, {bookText(QStringLiteral("A4"), QStringLiteral("Q3")), bookNumber(QStringLiteral("B4"), 3), bookNumber(QStringLiteral("C4"), 6)});
-        QVERIFY(embeddedChartProblem(bookChart(), bookOf(rows)).isEmpty());
-        // (the cells of the sheet's other rows count: Limits::cellsPerSheet is kMaxChartCells)
-        QString many = rows;
-        for (int r = 5; r < 5 + kMaxChartCells / 10 + 1; ++r) {
-            QStringList cells;
-            for (int c = 0; c < 10; ++c) cells << bookNumber(QStringLiteral("%1%2").arg(QChar('A' + c)).arg(r), c);
-            many += bookRow(r, cells);
-        }
-        QVERIFY(embeddedChartProblem(bookChart(), bookOf(many)).contains(QStringLiteral("can't be read")));
-        // a chart with more series than a chart made here holds
-        Chart wide = bookChart();
-        while (wide.plots[0].series.size() < kMostChartSeries + 1) wide.plots[0].series.append(wide.plots[0].series.last());
-        QVERIFY(embeddedChartProblem(wide, bookOf(rows)).contains(QString::number(kMostChartSeries)));
-    }
-
     // The edit changes the cells that changed, in the workbook and in what the chart stores; nothing else of the workbook.
     void aChangedGridIsWrittenToTheCellsAndToTheChartsStoredValues()
     {
@@ -975,6 +954,169 @@ private Q_SLOTS:
         const QByteArray xml = p.part(QStringLiteral("/xl/worksheets/sheet1.xml"));
         QVERIFY(xml.contains("<v>2021</v>"));
         QVERIFY(!xml.contains("2021</t>"));
+    }
+    // ---- review fixes
+    // The cells of a chart that sits on a richer workbook (two sheets, shared strings, styles, a formula, a defined name) are edited, and all the rest of it is as it was.
+    void aRicherWorkbookIsLeftAsItWasButForTheChangedCells()
+    {
+        using namespace jp::testing;
+        const QString rows = bookRow(1, {bookShared(QStringLiteral("B1"), 0), bookShared(QStringLiteral("C1"), 1)}) + bookRow(2, {bookShared(QStringLiteral("A2"), 2), bookStyled(QStringLiteral("B2"), 2, 1), bookNumber(QStringLiteral("C2"), 4)}) +
+                             bookRow(3, {bookShared(QStringLiteral("A3"), 3), bookNumber(QStringLiteral("B3"), 2), bookNumber(QStringLiteral("C3"), 5)}) + bookRow(4, {bookShared(QStringLiteral("A4"), 4), bookNumber(QStringLiteral("B4"), 3), bookNumber(QStringLiteral("C4"), 6)});
+        const QByteArray book = richBook(rows);
+        Chart chart = bookChart();
+        ChartData grid;
+        QVERIFY2(embeddedChartProblem(chart, book, &grid).isEmpty(), qPrintable(embeddedChartProblem(chart, book)));
+        QCOMPARE(grid.categories, QStringList({"Q1", "Q2", "Q3"}));
+        grid.values[0][1] = 22;
+        grid.categories[0] = QStringLiteral("First");
+        QByteArray after;
+        QVERIFY(embeddedChartSetData(chart, book, grid, &after));
+        Package was, now;
+        QVERIFY(was.read(book));
+        QVERIFY(now.read(after));
+        QCOMPARE(now.partNames(), was.partNames());
+        for (const char *part : {"/xl/worksheets/sheet2.xml", "/xl/styles.xml", "/xl/sharedStrings.xml"}) QCOMPARE(now.part(QString::fromLatin1(part)), was.part(QString::fromLatin1(part)));
+        const QByteArray names = now.part(QStringLiteral("/xl/workbook.xml"));
+        QVERIFY(names.contains("definedName name=\"Total\"") && names.contains("Sheet1!$B$2:$B$4"));
+        // (the formula that reads the cells is worked out again when the workbook is opened)
+        QVERIFY(names.contains("fullCalcOnLoad=\"1\""));
+        QVERIFY(!was.part(QStringLiteral("/xl/workbook.xml")).contains("fullCalcOnLoad"));
+        const QByteArray sheet = now.part(QStringLiteral("/xl/worksheets/sheet1.xml"));
+        QVERIFY(sheet.contains("22"));
+        QVERIFY(sheet.contains("s=\"2\""));   // (the changed cell keeps its cell format)
+        ChartData again;
+        QVERIFY(embeddedChartProblem(chart, after, &again).isEmpty());
+        QCOMPARE(again.values[0], (QVector<double>{1, 22, 3}));
+        QCOMPARE(again.categories[0], QStringLiteral("First"));
+        QCOMPARE(again.categories[1], QStringLiteral("Q2"));
+    }
+
+    // Dates are not plain numbers: a cell in a date's format keeps the chart's numbers read-only, with the reason; a number with a format of its own is fine as a value (its format code stays) but not as a name or a word.
+    void aDateFormattedCellKeepsTheNumbersReadOnlyWithTheReason()
+    {
+        using namespace jp::testing;
+        auto rows = [](int catStyle, int valueStyle) {
+            return bookRow(1, {bookShared(QStringLiteral("B1"), 0), bookShared(QStringLiteral("C1"), 1)}) + bookRow(2, {bookStyled(QStringLiteral("A2"), catStyle, 45292), bookStyled(QStringLiteral("B2"), valueStyle, 1), bookNumber(QStringLiteral("C2"), 4)}) +
+                   bookRow(3, {bookStyled(QStringLiteral("A3"), catStyle, 45293), bookNumber(QStringLiteral("B3"), 2), bookNumber(QStringLiteral("C3"), 5)}) + bookRow(4, {bookStyled(QStringLiteral("A4"), catStyle, 45294), bookNumber(QStringLiteral("B4"), 3), bookNumber(QStringLiteral("C4"), 6)});
+        };
+        // dates as the words under the points, and as numbers
+        const QString dateWhy = embeddedChartProblem(bookChart(), richBook(rows(1, 0)));
+        QVERIFY2(dateWhy.contains(QStringLiteral("date")), qPrintable(dateWhy));
+        QVERIFY(embeddedChartProblem(bookChart(), richBook(rows(0, 1))).contains(QStringLiteral("date")));
+        // a number with a format of its own as a word (0.00) is not read as a plain one; as a value it is, and the format code the chart stores stays
+        QVERIFY(embeddedChartProblem(bookChart(), richBook(rows(2, 0))).contains(QStringLiteral("workbook")));
+        Chart chart = bookChart();
+        chart.plots[0].series[0].format = QStringLiteral("0.00");
+        ChartData grid;
+        const QByteArray plain = richBook(rows(3, 2));
+        QVERIFY2(embeddedChartProblem(chart, plain, &grid).isEmpty(), qPrintable(embeddedChartProblem(chart, plain)));
+        grid.values[0][2] = 9;
+        QByteArray after;
+        QVERIFY(embeddedChartSetData(chart, plain, grid, &after));
+        QCOMPARE(roundTrip(chart).plots[0].series[0].format, QStringLiteral("0.00"));
+    }
+
+    // Only the cells that were changed are written: long words, 17-digit numbers, and a number as a name are as they were.
+    void onlyTheChangedCellsAreWrittenAndNumbersKeepEveryDigit()
+    {
+        using namespace jp::testing;
+        const QString longWords(600, QLatin1Char('w'));
+        const QString rows = bookRow(1, {bookNumber(QStringLiteral("B1"), 2020), bookText(QStringLiteral("C1"), QStringLiteral("Costs"))}) +
+                             bookRow(2, {bookText(QStringLiteral("A2"), longWords), bookStyled(QStringLiteral("B2"), 0, 0.30000000000000004), bookStyled(QStringLiteral("C2"), 0, 1234567890.1234567)}) +
+                             bookRow(3, {bookText(QStringLiteral("A3"), QStringLiteral("Q2")), bookNumber(QStringLiteral("B3"), 2), bookNumber(QStringLiteral("C3"), 5)}) + bookRow(4, {bookText(QStringLiteral("A4"), QStringLiteral("Q3")), bookNumber(QStringLiteral("B4"), 3), bookNumber(QStringLiteral("C4"), 6)});
+        const QByteArray book = bookOf(rows);
+        Chart chart = bookChart();
+        ChartData grid;
+        QVERIFY2(embeddedChartProblem(chart, book, &grid).isEmpty(), qPrintable(embeddedChartProblem(chart, book)));
+        QCOMPARE(chartNumberText(grid.values[0][0]), QStringLiteral("0.30000000000000004"));
+        QCOMPARE(grid.seriesNames[0], QStringLiteral("2020"));
+        QCOMPARE(grid.categories[0].size(), 600);
+        // another cell changes, and the name that is a number changes as a number
+        grid.values[0][2] = 30;
+        grid.seriesNames[0] = QStringLiteral("2021");
+        QByteArray after;
+        QVERIFY(embeddedChartSetData(chart, book, grid, &after));
+        Package p;
+        QVERIFY(p.read(after));
+        const QByteArray sheet = p.part(QStringLiteral("/xl/worksheets/sheet1.xml"));
+        QVERIFY(sheet.contains(longWords.toUtf8()));                  // (not cut to what a chart keeps of words)
+        QVERIFY(sheet.contains("0.30000000000000004"));
+        QVERIFY(sheet.contains("1234567890.1234567"));
+        QVERIFY(sheet.contains("<v>2021</v>") && !sheet.contains("2021</t>"));   // (a number as a name stays a number)
+    }
+
+    // A number past 1e15 has its own reason.
+    void aNumberPastTheOneAChartHoldsSaysSo()
+    {
+        using namespace jp::testing;
+        const QString rows = bookRow(1, {bookText(QStringLiteral("B1"), QStringLiteral("Sales")), bookText(QStringLiteral("C1"), QStringLiteral("Costs"))}) + bookRow(2, {bookText(QStringLiteral("A2"), QStringLiteral("Q1")), bookNumber(QStringLiteral("B2"), 2e15), bookNumber(QStringLiteral("C2"), 4)}) +
+                             bookRow(3, {bookText(QStringLiteral("A3"), QStringLiteral("Q2")), bookNumber(QStringLiteral("B3"), 2), bookNumber(QStringLiteral("C3"), 5)}) + bookRow(4, {bookText(QStringLiteral("A4"), QStringLiteral("Q3")), bookNumber(QStringLiteral("B4"), 3), bookNumber(QStringLiteral("C4"), 6)});
+        const QString why = embeddedChartProblem(bookChart(), bookOf(rows));
+        QVERIFY2(why.contains(QStringLiteral("1,000,000,000,000,000")) && !why.contains(QStringLiteral("series")), qPrintable(why));
+    }
+
+    // The limits: a workbook file of more than 16 MB, one that inflates past 64 MB (a bomb of zeros), a sheet of more than a million cells (but not one with a large formatted blank area), a
+    // whole-column reference, and more series than a chart made here has. Each fails if its limit is removed.
+    void aWorkbookPastTheLimitsIsNotReadAndSaysItIsTooLarge()
+    {
+        using namespace jp::testing;
+        const QString names = bookRow(1, {bookText(QStringLiteral("B1"), QStringLiteral("Sales")), bookText(QStringLiteral("C1"), QStringLiteral("Costs"))});
+        const QString rows = names + bookRow(2, {bookText(QStringLiteral("A2"), QStringLiteral("Q1")), bookNumber(QStringLiteral("B2"), 1), bookNumber(QStringLiteral("C2"), 4)}) +
+                             bookRow(3, {bookText(QStringLiteral("A3"), QStringLiteral("Q2")), bookNumber(QStringLiteral("B3"), 2), bookNumber(QStringLiteral("C3"), 5)}) + bookRow(4, {bookText(QStringLiteral("A4"), QStringLiteral("Q3")), bookNumber(QStringLiteral("B4"), 3), bookNumber(QStringLiteral("C4"), 6)});
+        QVERIFY(embeddedChartProblem(bookChart(), bookOf(rows)).isEmpty());
+        // more than 16 MB of file (random bytes do not shrink)
+        QByteArray noise(kMostEmbeddedWorkbookBytes, '\0');
+        for (qsizetype i = 0; i < noise.size(); i += 4) {
+            const quint32 r = QRandomGenerator::global()->generate();
+            memcpy(noise.data() + i, &r, 4);
+        }
+        const QByteArray fat = bookOf(rows, QStringLiteral("Sheet1"), noise);
+        QVERIFY(fat.size() > kMostEmbeddedWorkbookBytes);
+        QVERIFY2(embeddedChartProblem(bookChart(), fat).contains(QStringLiteral("too large to edit here")), qPrintable(embeddedChartProblem(bookChart(), fat)));
+        // a file that is small and inflates to more than 64 MB
+        const QByteArray bomb = bookOf(rows, QStringLiteral("Sheet1"), QByteArray(kMostEmbeddedInflatedBytes + (1 << 20), '\0'));
+        QVERIFY(bomb.size() < (4 << 20));
+        QVERIFY2(embeddedChartProblem(bookChart(), bomb).contains(QStringLiteral("too large to edit here")), qPrintable(embeddedChartProblem(bookChart(), bomb)));
+        // a sheet of more than a million cells is too large; one with 150,000 formatted blank cells (more than the old limit) is edited
+        auto blanks = [&](int cells) {
+            QString out;
+            for (int r = 10; cells > 0; ++r) {
+                QString row = QStringLiteral("<row r=\"%1\">").arg(r);
+                for (int c = 0; c < 100 && cells > 0; ++c, --cells) row += QStringLiteral("<c r=\"%1%2\" s=\"1\"/>").arg(columnName(quint32(c))).arg(r);
+                out += row + QStringLiteral("</row>");
+            }
+            return out;
+        };
+        const QString big = embeddedChartProblem(bookChart(), bookOf(rows + blanks(int(kMostEmbeddedSheetCells) + 100)));
+        QVERIFY2(big.contains(QStringLiteral("too large to edit here")), qPrintable(big));
+        QVERIFY2(embeddedChartProblem(bookChart(), bookOf(rows + blanks(150000))).isEmpty(), qPrintable(embeddedChartProblem(bookChart(), bookOf(rows + blanks(150000)))));
+        // a whole column is not followed (it is not read as a million points), and more series than a chart made here has
+        Chart column = bookChart();
+        column.plots[0].series[0].valueRef = QStringLiteral("Sheet1!$A:$A");
+        QVERIFY(embeddedChartProblem(column, bookOf(rows)).contains(QStringLiteral("can't be followed")));
+        Chart wide = bookChart();
+        while (wide.plots[0].series.size() < kMostChartSeries + 1) wide.plots[0].series.append(wide.plots[0].series.last());
+        QVERIFY(embeddedChartProblem(wide, bookOf(rows)).contains(QString::number(kMostChartSeries)));
+    }
+
+    // A chart is asked about again and again (each refresh of the window's commands), and its workbook is opened once.
+    void aWorkbookIsOpenedOnceForAChartThatIsAskedAboutAgainAndAgain()
+    {
+        const QByteArray book = jp::testing::salesBook();
+        const Chart chart = bookChart();
+        QVERIFY(chartInfoOf(chart, writeChartPart(chart), book).dataEditable);
+        const qint64 before = embeddedWorkbooksOpenedForTest();
+        for (int i = 0; i < 20; ++i) {
+            QVERIFY(chartInfoOf(chart, writeChartPart(chart), book).dataEditable);
+            QVERIFY(chartDataProblem(chart, nullptr, QByteArray(book)).isEmpty());
+        }
+        QCOMPARE(embeddedWorkbooksOpenedForTest() - before, qint64(0));
+        // (another workbook, or other cells to read, is asked once each)
+        Chart other = chart;
+        other.plots[0].series[0].valueRef = QStringLiteral("Sheet1!$C$2:$C$4");
+        other.plots[0].series[1].valueRef = QStringLiteral("Sheet1!$B$2:$B$4");
+        for (int i = 0; i < 5; ++i) QVERIFY(chartDataProblem(other, nullptr, book).isEmpty());
+        QCOMPARE(embeddedWorkbooksOpenedForTest() - before, qint64(1));
     }
 };
 

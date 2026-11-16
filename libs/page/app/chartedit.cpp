@@ -118,7 +118,7 @@ bool askChartData(QWidget *parent, office::sheet::ChartData *data, QString *noti
     for (int s = 0; s < data->values.size(); ++s) table->setItem(0, s + 1, new QTableWidgetItem(data->seriesNames.value(s)));
     for (int r = 0; r < data->categories.size(); ++r) {
         table->setItem(r + 1, 0, new QTableWidgetItem(data->categories[r]));
-        for (int s = 0; s < data->values.size(); ++s) table->setItem(r + 1, s + 1, new QTableWidgetItem(QString::number(data->values[s].value(r), 'g', 15)));
+        for (int s = 0; s < data->values.size(); ++s) table->setItem(r + 1, s + 1, new QTableWidgetItem(chartNumberText(data->values[s].value(r))));
     }
     layout->addWidget(table);
     auto *row = new QHBoxLayout();

@@ -826,7 +826,7 @@ private Q_SLOTS:
 
     // ---- the numbers of a chart another program saved with its workbook
     // The sample chart with a workbook that is a workbook (the cells its references name) and a second series that reads its own column.
-    static Parts workbookChartPptx()
+    static Parts workbookChartPptx(const QByteArray &book = jp::testing::salesBook())
     {
         Parts p = chartPptx();
         QString chart = QString::fromUtf8(p.data["/ppt/charts/chart1.xml"].xml);
@@ -834,7 +834,7 @@ private Q_SLOTS:
         QString tail = chart.mid(second);
         tail.replace(QStringLiteral("$B$"), QStringLiteral("$C$"));
         p.data["/ppt/charts/chart1.xml"].xml = (chart.left(second) + tail).toUtf8();
-        p.data["/ppt/embeddings/Sheet1.xlsx"].xml = jp::testing::salesBook();
+        p.data["/ppt/embeddings/Sheet1.xlsx"].xml = book;
         return p;
     }
 
@@ -861,6 +861,16 @@ private Q_SLOTS:
         }
         const QByteArray bookBefore = jp::chartWorkbookOf(*ed->doc(), *pic);
         QVERIFY(bookBefore.startsWith("PK"));
+        // Refreshing the commands again and again, with the same chart selected, opens its workbook no more.
+        const qint64 opened = office::sheet::embeddedWorkbooksOpenedForTest();
+        const qint64 said = jp::chartInfosMadeForTest();
+        for (int i = 0; i < 12; ++i) {
+            w.chartActions()->refresh();
+            QVERIFY(w.chartActions()->design()->dataProblem().isEmpty());
+            QVERIFY(!w.chartActions()->design()->structureProblem().isEmpty());
+        }
+        QCOMPARE(office::sheet::embeddedWorkbooksOpenedForTest() - opened, qint64(0));
+        QCOMPARE(jp::chartInfosMadeForTest() - said, qint64(0));
         withDialog([&] { w.act(QStringLiteral("chartdesign.editData"))->trigger(); }, QStringLiteral("chartDataDialog"), [&](QDialog *dlg) {
             auto *table = dlg->findChild<QTableWidget *>(QStringLiteral("chartDataTable"));
             QVERIFY(table);
@@ -921,6 +931,38 @@ private Q_SLOTS:
         QCOMPARE(jp::chartWorkbookOf(*again, *back), book);
         QVERIFY(jp::chartInfoOfPicture(*again, *back).dataEditable);
         QCOMPARE(jp::chartInfoOfPicture(*again, *back).data.values[0], (QVector<double>{1, 42, 3}));
+    }
+
+    // The grid shows every digit of a number and an edit elsewhere leaves it, and every other cell, as it was in the workbook.
+    void theGridKeepsEveryDigitOfANumberAndAnEditElsewhereLeavesItAsItWas()
+    {
+        using namespace jp::testing;
+        const QByteArray book = bookOf(bookRow(1, {bookText(QStringLiteral("B1"), QStringLiteral("Sales")), bookText(QStringLiteral("C1"), QStringLiteral("Costs"))}) +
+                                       bookRow(2, {bookText(QStringLiteral("A2"), QStringLiteral("Q1")), bookNumber(QStringLiteral("B2"), 0.30000000000000004), bookNumber(QStringLiteral("C2"), 4)}) +
+                                       bookRow(3, {bookText(QStringLiteral("A3"), QStringLiteral("Q2")), bookNumber(QStringLiteral("B3"), 2), bookNumber(QStringLiteral("C3"), 5)}) +
+                                       bookRow(4, {bookText(QStringLiteral("A4"), QStringLiteral("Q3")), bookNumber(QStringLiteral("B4"), 3), bookNumber(QStringLiteral("C4"), 6)}));
+        QString err;
+        auto d = deck::importPresentation(pack(workbookChartPptx(book)), &err);
+        QVERIFY2(d, qPrintable(err));
+        DeckWindow w;
+        w.editor()->setDocument(std::move(d));
+        w.editor()->setCurrentPage(0);
+        w.editor()->select(chartsOn(*w.editor()->doc()).first()->id);
+        w.chartActions()->refresh();
+        withDialog([&] { w.act(QStringLiteral("chartdesign.editData"))->trigger(); }, QStringLiteral("chartDataDialog"), [&](QDialog *dlg) {
+            auto *table = dlg->findChild<QTableWidget *>(QStringLiteral("chartDataTable"));
+            QVERIFY(table);
+            QCOMPARE(table->item(1, 1)->text(), QStringLiteral("0.30000000000000004"));
+            table->item(3, 2)->setText(QStringLiteral("7"));
+        });
+        const QByteArray bytes = deck::exportPresentation(*w.editor()->doc(), &err);
+        office::Package pkg;
+        QVERIFY(pkg.read(bytes, &err));
+        office::Package inner;
+        QVERIFY(inner.readLazy(pkg.part(QStringLiteral("/ppt/embeddings/Sheet1.xlsx"))));
+        const QByteArray sheet = inner.part(QStringLiteral("/xl/worksheets/sheet1.xml"));
+        QVERIFY(sheet.contains("0.30000000000000004"));
+        QVERIFY(sheet.contains("<v>7</v>"));
     }
 
     // A reference that can't be followed keeps the chart read-only, with the reason (here a second series that reads the cells of the first).

@@ -91,6 +91,26 @@ private Q_SLOTS:
     }
 
     // .jpub keeps the chart model: it opens as the same chart, with the same data, that can still be changed.
+    // JeffPub shares the chart editor of libs/page, but a publication keeps no parts of a file's chart (no workbook beside it), so a chart that names one is read-only with the reason.
+    void aChartThatNamesAWorkbookIsReadOnlyForWantOfTheWorkbookParts()
+    {
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        w.act(QStringLiteral("insert.chart.column"))->trigger();
+        jp::PictureItem *chart = jp::selectedChart(ed);
+        QVERIFY(chart);
+        QVERIFY(jp::changeChartOf(*ed->doc(), *chart, [](jp::office::Chart &c) {
+            for (jp::office::ChartSeries &s : c.plots[0].series) {
+                s.valueRef = QStringLiteral("Sheet1!$B$2:$B$4");
+                s.categoryRef = QStringLiteral("Sheet1!$A$2:$A$4");
+            }
+            c.externalDataId = QStringLiteral("rId1");
+            return true;
+        }));
+        QVERIFY(jp::chartWorkbookOf(*ed->doc(), *chart).isEmpty());
+        QVERIFY(!jp::selectedChartInfo(ed).dataEditable);
+    }
+
     void jpubKeepsTheChart()
     {
         QTemporaryDir dir;

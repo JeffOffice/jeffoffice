@@ -1,4 +1,5 @@
 #include "io/pptximport.h"
+#include <QCryptographicHash>
 #include "core/items.h"
 #include "office/macroparts.h"
 #include "core/notesmaster.h"
@@ -1447,7 +1448,7 @@ bool Importer::keepChartPart(const QString &part, QJsonObject *parts, QSet<QStri
         else if (!keepChartPart(r.target, parts, seen, bytes, depth + 1)) return false;
         links.append(link);
     }
-    parts->insert(part, QJsonObject{{"type", m_pkg.contentType(part)}, {"data", QString::fromLatin1(data.toBase64())}, {"rels", links}});
+    parts->insert(part, QJsonObject{{"type", m_pkg.contentType(part)}, {"data", QString::fromLatin1(data.toBase64())}, {"sha", QString::fromLatin1(QCryptographicHash::hash(data, QCryptographicHash::Sha1).toHex())}, {"rels", links}});
     return true;
 }
 

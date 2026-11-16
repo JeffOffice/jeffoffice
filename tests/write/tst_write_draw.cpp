@@ -4979,6 +4979,14 @@ private Q_SLOTS:
             QVERIFY2(w.act(id)->toolTip().contains(QStringLiteral("workbook")), id);
         }
         const QByteArray bookBefore = write::chartWorkbookAt(*w.document(), 7);
+        // Asking again and again about the chart that is selected (the window's refresh, its commands' reasons) opens its workbook no more.
+        const qint64 opened = office::sheet::embeddedWorkbooksOpenedForTest();
+        for (int i = 0; i < 12; ++i) {
+            QVERIFY(chartAt(*w.document(), 7).dataEditable);
+            QVERIFY(w.chartDesign()->dataProblem().isEmpty());
+            QVERIFY(!w.chartDesign()->structureProblem().isEmpty());
+        }
+        QCOMPARE(office::sheet::embeddedWorkbooksOpenedForTest() - opened, qint64(0));
         withDialog([&] { w.act("chartdesign.editData")->trigger(); }, QStringLiteral("chartDataDialog"), [&](QDialog *dlg) {
             auto *table = dlg->findChild<QTableWidget *>(QStringLiteral("chartDataTable"));
             QVERIFY(table);

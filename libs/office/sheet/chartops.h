@@ -61,6 +61,8 @@ Chart chartOfData(ChartForm form, const ChartData &data, const Theme &theme);
 // The chart's kind, looks, and data as ChartInfo says them; `part` is the chart part it was read from (for whether it is only what this writes). Not valid for a chart with no plot.
 ChartInfo chartInfoOf(const Chart &chart, const QByteArray &part, const QByteArray &workbook = QByteArray());
 // Text as a chart keeps it: a character XML refuses is a space, a pair of surrogates whole and a lone one dropped, at most `limit` UTF-16 units.
+// A number as the data grid shows it and reads it again: the shortest text that is the same number (0.30000000000000004 stays that, 2 is "2").
+QString chartNumberText(double value);
 QString cleanChartText(const QString &text, int limit = 500);
 // The axis of the chart that is its category (or x) axis or its value axis, or null (a chart with no axes, a pie).
 ChartAxis *chartAxisOf(Chart &chart, ChartAxisKind which);

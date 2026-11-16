@@ -5,9 +5,11 @@
 // programs and our drawing agree. The grid keeps the shape the references give: no row or column is added or taken away.
 //
 // Followed only when each reference is plain: one block of one sheet that is there, one column (or one row) of the same length for every series, the numbers in cells that hold
-// numbers (no formula, date, text, or blank), names and words in cells that hold words or numbers (or none), no cell read for two things, nothing past the sheet's cells; else the chart's
-// numbers stay read-only, with the reason (embeddedChartProblem). Bounded (a workbook comes from a file): at most kMostEmbeddedWorkbookBytes of file, kMostEmbeddedInflatedBytes once
-// inflated, and Crunch's own chart limit of cells in the sheet (kMaxChartCells, 100,000: the Limits::cellsPerSheet it is read with), and no more series and points than a chart made here has.
+// numbers (no formula, date, text, or blank), names and words in cells that hold words or plain (General) numbers, or none; no cell read for two things; nothing past the sheet's cells; else
+// the chart's numbers stay read-only, with the reason (embeddedChartProblem). A workbook comes from a file, so it is bounded: at most kMostEmbeddedWorkbookBytes of file, at most
+// kMostEmbeddedInflatedBytes once inflated, at most kMostEmbeddedSheetCells cells in the sheet read, and no more series and points than a chart made here has (kMostChartSeries and
+// kMostChartCategories). A number past +-1e15 can't be a chart's. After an edit the saved workbook asks to be worked out again when it is opened (fullCalcOnLoad), so that formulas of
+// its that read the cells show the new numbers.
 
 #include "office/chart.h"
 #include "sheet/chartops.h"
@@ -19,6 +21,10 @@ namespace jp::office::sheet {
 
 constexpr qint64 kMostEmbeddedWorkbookBytes = kMostChartBytesInFile;   // 16 MB, the most the chart parts of one file come to
 constexpr qint64 kMostEmbeddedInflatedBytes = qint64(64) << 20;
+constexpr qint64 kMostEmbeddedSheetCells = 1000000;                   // cells of the sheet that are read (Limits::cellsPerSheet: a cell with only a format counts)
+// How many workbooks have been opened to say what a chart's cells hold, on this thread since the program began: a count for tests of cost (a chart is asked about again and again, and its
+// workbook is opened once for each workbook and set of references).
+qint64 embeddedWorkbooksOpenedForTest();
 
 // Why the numbers of a chart that keeps a workbook can't be edited, in a sentence; empty when they can, and then `data` (when given) is the grid read from the workbook's cells.
 // `workbook` is the .xlsx part's bytes (empty: none to be read).
