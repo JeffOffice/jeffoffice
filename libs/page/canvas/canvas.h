@@ -157,8 +157,9 @@ public:
     int textPosAt(const QString &itemId, const QPointF &page, int row = -1, int col = -1, int half = -1) const;
 
 private:
-    enum class Drag { None, Pending, Move, Resize, Rotate, LineEnd, LineBend, Free, Adjust, Marquee, Draw, TextSelect, CellBlock, TextMove, Guide, Crop, CropMove, ColResize, RowResize, Pan, Point, WrapPoint };
+    enum class Drag { None, Pending, Move, Resize, Rotate, LineEnd, LineBend, Free, Adjust, Marquee, Draw, TableLine, TextSelect, CellBlock, TextMove, Guide, Crop, CropMove, ColResize, RowResize, Pan, Point, WrapPoint };
 
+    QString m_tableLineItem;   // the table a stroke of the table pen or eraser is on
     void updateScrollBars();
     // The comment markers (canvas_comments.cpp): drawn, and the mouse events they take before the page's own.
     void paintComments(QPainter &p);

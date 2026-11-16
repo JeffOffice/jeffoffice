@@ -46,6 +46,15 @@ void deleteTable(Editor *ed);
 void mergeTableCells(Editor *ed);
 void splitTableCells(Editor *ed);
 
+// Draw Table's pen and eraser, for a stroke from `a` to `b` (points in the table's own frame, the top left cell corner 0, 0). The pen along the edge between two
+// cells (within a few points of it, for the part of the edge the stroke covers) draws a border there with `pen`; a straight stroke across a cell (at least half its
+// size) divides it in two, one more row or column for the whole table that the other cells in it span, or, for a merged cell, the merge undone at the nearest edge
+// inside it, and the new edge has `pen`'s line. The eraser's stroke from one cell to another joins them (and the cells between); along an edge it joins the cells on
+// each side of it; along the table's outside edge it takes the border away. Each is one step that undoes and says what it did, or why not in the status bar.
+enum class TableStroke { Nothing, Border, Split, Joined };
+TableStroke drawTableLine(Editor *ed, TableItem *t, const QPointF &a, const QPointF &b, const Stroke &pen);
+TableStroke eraseTableLine(Editor *ed, TableItem *t, const QPointF &a, const QPointF &b);
+
 // Select Table, Row, Column, and Cell.
 void selectTable(Editor *ed);
 void selectTableRow(Editor *ed);

@@ -6,6 +6,7 @@
 #include "app/icons.h"
 
 #include "app/settings.h"
+#include "app/tableedit.h"
 #include "app/shapetextedit.h"
 #include "render/shapes.h"
 #include "text/textprops.h"
@@ -1037,6 +1038,11 @@ void Canvas::paintOverlay(QPainter &p)
                 p.drawRect(QRectF(c - QPointF(3.5, 3.5), QSizeF(7, 7)));
             }
         }
+    // The stroke of the table pen or eraser, up to the pointer.
+    if (m_drag == Drag::TableLine) {
+        p.setPen(QPen(m_ed->tool() == Tool::TableEraser ? QColor(200, 40, 40) : QColor(30, 30, 30), 1, Qt::DashLine));
+        p.drawLine(pageToView(m_pressPage), pageToView(m_lastPage));
+    }
     // Rubber band / draw preview.
     if (!m_rubber.isNull()) {
         const QRectF r(pageToView(m_rubber.topLeft()), pageToView(m_rubber.bottomRight()));
@@ -1536,6 +1542,16 @@ void Canvas::mousePressEvent(QMouseEvent *e)
         m_freePts << m_pressPage;
         m_drag = Drag::Free;
         viewport()->update();
+        return;
+    }
+    if (tool == Tool::TablePen || tool == Tool::TableEraser) {
+        // A stroke on a table: it is applied when the button is let go. A press off any table does nothing.
+        const Hit over = hitTest(e->position());
+        if (over.kind != HitKind::Item || !dynamic_cast<TableItem *>(m_ed->doc()->item(over.id))) return;
+        m_ed->endTextEdit();
+        m_tableLineItem = over.id;
+        m_drag = Drag::TableLine;
+        m_lastPage = m_pressPage;
         return;
     }
     if (tool == Tool::Text || tool == Tool::Table || tool == Tool::Picture || tool == Tool::Shape || tool == Tool::Line ||
@@ -2106,6 +2122,9 @@ void Canvas::mouseMoveEvent(QMouseEvent *e)
         m_ed->notifyLive();
         return;
     }
+    case Drag::TableLine:
+        viewport()->update();
+        return;
     case Drag::Marquee:
     case Drag::Draw: {
         QPointF a = m_pressPage, b = page;
@@ -2309,6 +2328,17 @@ void Canvas::mouseReleaseEvent(QMouseEvent *e)
             if (m_ed->view.scratch && m_ed->masterView().isEmpty()) take(d->scratch);
             m_ed->select(ids, e->modifiers() & Qt::ShiftModifier);
         }
+        viewport()->update();
+        break;
+    }
+    case Drag::TableLine: {
+        auto *table = dynamic_cast<TableItem *>(m_ed->doc()->item(m_tableLineItem));
+        m_tableLineItem.clear();
+        if (!table) break;
+        const QTransform inv = table->transform().inverted();
+        const QPointF from = inv.map(m_pressPage), to = inv.map(toPage(e->position()));
+        if (m_ed->tool() == Tool::TableEraser) eraseTableLine(m_ed, table, from, to);
+        else drawTableLine(m_ed, table, from, to, m_ed->tablePen ? m_ed->tablePen() : Stroke::line(ColorRef::rgb(Qt::black), 1));
         viewport()->update();
         break;
     }

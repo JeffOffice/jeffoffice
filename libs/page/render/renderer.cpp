@@ -1172,13 +1172,21 @@ static void paintTable(QPainter *p, const PaintContext &ctx, const TableItem &t)
             if (!c.fill.isNone()) p->fillRect(cr, c.fill.brush(cr, cs, lookupFor(*ctx.doc)));
         }
     if (!ctx.opt.output && ctx.opt.tableGridlines) {
+        // Dashed, on the edges of the cells that have no line of their own.
         QPen g(QColor(160, 160, 160), 0);
-        g.setStyle(Qt::DotLine);
+        g.setStyle(Qt::DashLine);
         p->setPen(g);
         p->setBrush(Qt::NoBrush);
         for (int row = 0; row < t.rows; ++row)
-            for (int col = 0; col < t.cols; ++col)
-                if (!t.cell(row, col).covered) p->drawRect(t.cellRect(row, col));
+            for (int col = 0; col < t.cols; ++col) {
+                const TableCell &c = t.cell(row, col);
+                if (c.covered) continue;
+                const QRectF cr = t.cellRect(row, col);
+                if (c.border.top.isNone()) p->drawLine(cr.topLeft(), cr.topRight());
+                if (c.border.bottom.isNone()) p->drawLine(cr.bottomLeft(), cr.bottomRight());
+                if (c.border.left.isNone()) p->drawLine(cr.topLeft(), cr.bottomLeft());
+                if (c.border.right.isNone()) p->drawLine(cr.topRight(), cr.bottomRight());
+            }
     }
     for (int row = 0; row < t.rows; ++row)
         for (int col = 0; col < t.cols; ++col) {
