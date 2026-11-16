@@ -2,6 +2,7 @@
 // JeffWrite's main window: the ribbon, the pages, and the status bar, with the File screen over them.
 
 #include "app/appwindow.h"
+#include "app/chartdesign.h"
 #include "app/infopage.h"
 #include "app/recovery.h"
 #include "app/printpage.h"
@@ -105,7 +106,7 @@ struct WriteOutputOptions {
     jp::PrintTurn turn = jp::PrintTurn::AsSet;   // the paper turned tall or wide, whichever way each page is (its page is scaled to fit); as set: each page's own way
 };
 
-class WriteWindow : public AppWindow {
+class WriteWindow : public AppWindow, private ChartDesignHost {
     Q_OBJECT
 public:
     explicit WriteWindow(QWidget *parent = nullptr);
@@ -121,6 +122,9 @@ public:
     void refreshKeyCommands();
     // Each icon of the names at the caret, one step each (the picker's choice).
     void insertIcons(const QStringList &names);
+    // The editor every program shares for charts (app/chartdesign.h) and the three buttons beside a selected chart (null until a chart is selected).
+    ChartDesign *chartDesign() const { return m_chartDesign; }
+    ChartButtons *chartButtons() const { return m_chartButtons; }
     write::PageView *view() const { return m_view; }
     // Fills a menu with what a right click offers where the pointer was (or the caret): the commands for text, and for a link, a field, a note, a picture, a table, or a change under it.
     void fillContextMenu(QMenu &menu);
@@ -418,6 +422,16 @@ private:
     void createChartActions();
     void chartRibbonParts(RibbonParts &parts);
     void refreshChartUi();
+    void placeChartButtons();
+    // (the shared chart editor, app/chartdesign.h, asks these of the window)
+    QWidget *chartParent() override { return this; }
+    bool chartNow(office::Chart *out) override;
+    office::Theme chartTheme() override;
+    bool changeChart(const QString &label, const std::function<void(office::Chart *)> &edit) override;
+    void chartNotice(const QString &title, const QString &text, bool warning) override;
+    ChartDesign *m_chartDesign = nullptr;
+    ChartButtons *m_chartButtons = nullptr;
+    QTimer m_chartButtonsTimer;
     void editChartData();
     void editChartTitle();
     void editChartAxisTitle(bool values);

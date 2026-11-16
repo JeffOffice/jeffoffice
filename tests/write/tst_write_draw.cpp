@@ -3,6 +3,10 @@
 
 #include "../isolatesettings.h"
 #include "../withdialog.h"
+#include "../chartmenu.h"
+#include "app/chartdesign.h"
+#include "app/chartdialogs.h"
+#include "sheet/chartedit.h"
 #include "../office/diagramsample.h"
 #include "rtcheck.h"
 #include "app/compresspictures.h"
@@ -4918,6 +4922,62 @@ private Q_SLOTS:
         again.start(0);
         win.w.act("chart.editData")->trigger();
         QCOMPARE(info().data.values.value(0).value(0), 99.0);
+    }
+
+    // The Chart Design tab, the buttons beside the chart, and the menus every program shares: each entry changes the chart one step, and what was added is kept in the .docx and read again.
+    void theChartDesignTabAndTheButtonsBesideAChartChangeItAndTheFileKeepsTheChanges()
+    {
+        Win win;
+        win.w.act("insert.chart.column")->trigger();
+        const int at = win.w.view()->selectedPicture();
+        QVERIFY(at >= 0);
+        QTRY_VERIFY(win.tabShown(QStringLiteral("Chart Design")));
+        QTRY_VERIFY(win.w.chartButtons() && win.w.chartButtons()->elements()->isVisible());
+        QVERIFY(win.w.chartButtons()->looks()->isVisible() && win.w.chartButtons()->filters()->isVisible());
+        for (const char *id : {"chartdesign.editData", "chartdesign.selectData", "chartdesign.switch", "chartdesign.changeType", "chartdesign.axisH", "chartdesign.axisV"}) QTRY_VERIFY(win.w.act(id)->isEnabled());
+        auto chart = [&] {
+            office::Chart c;
+            [&] { QVERIFY(readChartAt(*win.w.document(), at, &c)); }();
+            return c;
+        };
+        QMenu *menu = win.w.chartButtons()->elements()->menu();
+        QVERIFY(fireChartMenu(menu, {QStringLiteral("Chart Title"), QStringLiteral("Above")}));
+        QVERIFY(chartAt(*win.w.document(), at).titleShown);
+        QVERIFY(fireChartMenu(menu, {QStringLiteral("Error Bars"), QStringLiteral("Fixed Value (1)")}));
+        QCOMPARE(office::sheet::errorBarsKind(chart()), QStringLiteral("fixedVal"));
+        QVERIFY(fireChartMenu(menu, {QStringLiteral("Trendline"), QStringLiteral("Linear")}));
+        QCOMPARE(office::sheet::elementsOf(chart()).trendline, QStringLiteral("linear"));
+        QVERIFY(!findChartMenuEntry(menu, {QStringLiteral("Data Labels"), QStringLiteral("Value From Cells…")}));
+        // The ribbon's menus are the same ones.
+        std::unique_ptr<QMenu> colors(win.w.chartDesign()->colorsMenu(nullptr));
+        const QByteArray before = win.w.document()->toDocx();
+        colors->actions().last()->trigger();
+        QVERIFY(win.w.document()->toDocx() != before);
+        // Switch Row/Column, Select Data, and the filters.
+        const ChartData first = chartAt(*win.w.document(), at).data;
+        win.w.act("chartdesign.switch")->trigger();
+        QCOMPARE(chartAt(*win.w.document(), at).data.categories, first.seriesNames);
+        win.w.act("edit.undo")->trigger();
+        QCOMPARE(chartAt(*win.w.document(), at).data.values, first.values);
+        withDialog([&] { win.w.act("chartdesign.selectData")->trigger(); }, QStringLiteral("selectChartDataDialog"), [](QDialog *d) { static_cast<SelectChartDataDialog *>(d)->setSeriesChecked(1, false); });
+        QCOMPARE(int(chartAt(*win.w.document(), at).data.seriesNames.size()), 1);
+        win.w.act("edit.undo")->trigger();
+        QVERIFY(win.w.chartDesign()->setSeriesShown(0, false));
+        QVERIFY(!win.w.chartDesign()->setSeriesShown(1, false));
+        win.w.act("edit.undo")->trigger();
+        // Save, open again: the chart still has what was added and can be changed.
+        const QByteArray saved = win.w.document()->toDocx();
+        auto back = open(saved);
+        QVERIFY(back);
+        office::Chart again;
+        QVERIFY(readChartAt(*back, at, &again));
+        QCOMPARE(office::sheet::errorBarsKind(again), QStringLiteral("fixedVal"));
+        QVERIFY(again.title.present);
+        QVERIFY(changeChartAt(*back, at, [](office::Chart *c) { office::sheet::setErrorBars(c, QStringLiteral("percentage"), 5); }));
+        QVERIFY(readChartAt(*back, at, &again));
+        QCOMPARE(office::sheet::errorBarsKind(again), QStringLiteral("percentage"));
+        // A change that makes no difference is no change.
+        QVERIFY(!changeChartAt(*back, at, [](office::Chart *) {}));
     }
 
     // ---------------------------------------------------------------- diagrams

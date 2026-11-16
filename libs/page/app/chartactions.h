@@ -3,15 +3,20 @@
 // show for the chart that is selected. The window gives the way it makes an action (so the action is in its list, with its keys and its Help) and finds one; the changes are core/
 // chartobject.h's, made through the editor as one step each.
 
+#include "app/chartdesign.h"
 #include "app/chartedit.h"
 
 #include <QAction>
 #include <QMenu>
 #include <QObject>
 #include <QString>
+#include <QTimer>
 #include <functional>
+#include <memory>
 
 namespace jp {
+
+class Canvas;
 
 class ChartActions : public QObject {
 public:
@@ -37,6 +42,16 @@ public:
     QMenu *gridlinesMenu(QWidget *owner) const;
     QMenu *stylesMenu(QWidget *owner) const;
     QMenu *legendMenu(QWidget *owner) const;
+    // The Chart Design tab: the editor every program shares (app/chartdesign.h). Its commands are chartdesign.switch, .selectData, .editData, .changeType, .axisH, and .axisV; its menus are the ribbon's
+    // @chartElements, @chartLayouts, @chartColors, and @chartLooks.
+    ChartDesign *design() const { return m_design; }
+    QMenu *elementsMenu(QWidget *owner) const;
+    QMenu *layoutsMenu(QWidget *owner) const;
+    QMenu *colorsMenu(QWidget *owner) const;
+    QMenu *looksMenu(QWidget *owner) const;
+    // The three buttons beside a selected chart, on `canvas`; they follow the chart as it moves, sizes, and scrolls.
+    void attachButtons(Canvas *canvas, const std::function<QIcon(const QString &)> &icon);
+    ChartButtons *buttons() const { return m_buttons; }
 
 private:
     void editData();
@@ -44,10 +59,18 @@ private:
     void editAxisTitle(bool values);
     void change(const QString &label, const std::function<bool(office::Chart &)> &edit);
 
+    void placeButtons();
+
     Editor *m_ed;
     QWidget *m_window;
     Hooks m_hooks;
     QStringList m_ids;   // every action made, for refresh
+    std::unique_ptr<ChartDesignHost> m_host;
+    ChartDesign *m_design = nullptr;
+    ChartButtons *m_buttons = nullptr;
+    Canvas *m_canvas = nullptr;
+    std::function<QIcon(const QString &)> m_icon;
+    QTimer m_buttonsTimer;
 };
 
 } // namespace jp

@@ -505,6 +505,9 @@ private:
     void addChartParts(struct RibbonParts &parts);
     void refreshChart();
     ChartActions *m_chartActions = nullptr;
+public:
+    ChartActions *chartActions() const { return m_chartActions; }
+private:
     void createCropActions();     // deckwindow_picture.cpp
     void addCropParts(struct RibbonParts &parts);
     void refreshCrop();

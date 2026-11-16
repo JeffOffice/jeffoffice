@@ -1,11 +1,18 @@
 // JeffDeck's tests of charts the person makes: Insert > Chart, the Chart tab's changes, and how they are saved.
 #include "deckhelpers.h"
+#include "../chartmenu.h"
+#include "../withdialog.h"
+#include "app/chartactions.h"
+#include "app/chartdialogs.h"
+#include "sheet/chartedit.h"
 #include "app/chartedit.h"
 #include "core/chartobject.h"
 #include "office/chart_write.h"
 #include "office/package.h"
 #include "core/items.h"
 
+#include <QCheckBox>
+#include <QDoubleSpinBox>
 #include <QXmlStreamReader>
 
 class DeckChartTests : public QObject {
@@ -113,6 +120,141 @@ private Q_SLOTS:
             QVERIFY(QTest::qWaitForWindowExposed(&w));
             QVERIFY(w.grab().save(shots + QStringLiteral("/deck-chart.png")));
         }
+    }
+
+    // The Chart Design tab and the buttons beside a selected chart (the editor every program shares): each entry of Add Chart Element changes the chart as one step, and Undo gives it back.
+    void theElementsMenuChangesTheChartOneStepEach()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        w.resize(1280, 800);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        w.act(QStringLiteral("insert.chart.column"))->trigger();
+        QVERIFY(selectedChart(ed));
+        ChartActions *actions = w.chartActions();
+        QTRY_VERIFY(actions->buttons() && actions->buttons()->elements()->isVisible());
+        QVERIFY(actions->buttons()->looks()->isVisible());
+        QVERIFY(actions->buttons()->filters()->isVisible());
+        QMenu *menu = actions->buttons()->elements()->menu();
+        QVERIFY(menu);
+        auto chart = [&] {
+            office::Chart c;
+            [&] { QVERIFY(readChartOf(*ed->doc(), *selectedChart(ed), &c)); }();
+            return c;
+        };
+        QVERIFY(!selectedChartInfo(ed).titleShown);
+        QVERIFY(fireChartMenu(menu, {QStringLiteral("Chart Title"), QStringLiteral("Above")}));
+        QVERIFY(selectedChartInfo(ed).titleShown);
+        QVERIFY(fireChartMenu(menu, {QStringLiteral("Error Bars"), QStringLiteral("Fixed Value (1)")}));
+        QCOMPARE(office::sheet::errorBarsKind(chart()), QStringLiteral("fixedVal"));
+        QVERIFY(fireChartMenu(menu, {QStringLiteral("Trendline"), QStringLiteral("Linear")}));
+        QCOMPARE(office::sheet::elementsOf(chart()).trendline, QStringLiteral("linear"));
+        QVERIFY(fireChartMenu(menu, {QStringLiteral("Data Labels"), QStringLiteral("Outside End")}));
+        QCOMPARE(office::sheet::elementsOf(chart()).labelPosition, QStringLiteral("outEnd"));
+        QVERIFY(fireChartMenu(menu, {QStringLiteral("Gridlines"), QStringLiteral("Lines Across, Minor")}));
+        QVERIFY(office::sheet::elementsOf(chart()).minorGridHorizontal);
+        // (A deck has no cells: the entries that read cells are not offered.)
+        QVERIFY(!findChartMenuEntry(menu, {QStringLiteral("Data Labels"), QStringLiteral("Value From Cells…")}));
+        QVERIFY(!findChartMenuEntry(menu, {QStringLiteral("Error Bars"), QStringLiteral("Custom…")}));
+        // Each was a step: five undos bring back the chart that was inserted.
+        for (int i = 0; i < 5; ++i) ed->undo();
+        QVERIFY(!selectedChartInfo(ed).titleShown);
+        QVERIFY(office::sheet::errorBarsKind(chart()).isEmpty());
+        QVERIFY(office::sheet::elementsOf(chart()).trendline.isEmpty());
+        // What was added is kept in the file and read again.
+        ed->redo();
+        ed->redo();
+        QString err;
+        const QByteArray bytes = deck::exportPresentation(*ed->doc(), &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        auto back = deck::importPresentation(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        office::Chart again;
+        QVERIFY(readChartOf(*back, *chartsOn(*back).first(), &again));
+        QVERIFY(again.title.present);
+        QCOMPARE(office::sheet::errorBarsKind(again), QStringLiteral("fixedVal"));
+    }
+
+    void quickLayoutColorsAndStylesChangeTheChart()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        w.act(QStringLiteral("insert.chart.column"))->trigger();
+        ChartDesign *design = w.chartActions()->design();
+        const QByteArray first = selectedChart(ed)->chartXml;
+        std::unique_ptr<QMenu> layouts(design->layoutsMenu(nullptr)), colors(design->colorsMenu(nullptr)), looks(design->stylesMenu(nullptr));
+        QVERIFY(layouts->actions().size() >= 2);
+        QVERIFY(colors->actions().size() >= 2);
+        QVERIFY(looks->actions().size() >= 2);
+        colors->actions().last()->trigger();
+        const QByteArray colored = selectedChart(ed)->chartXml;
+        QVERIFY(colored != first);
+        looks->actions().last()->trigger();
+        QVERIFY(selectedChart(ed)->chartXml != colored);
+        const QByteArray styled = selectedChart(ed)->chartXml;
+        layouts->actions().last()->trigger();
+        QVERIFY(selectedChart(ed)->chartXml != styled);
+        for (int i = 0; i < 3; ++i) ed->undo();
+        QCOMPARE(selectedChart(ed)->chartXml, first);
+    }
+
+    void switchRowAndColumnSelectDataAndChangeType()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        w.act(QStringLiteral("insert.chart.column"))->trigger();
+        const office::sheet::ChartData first = selectedChartInfo(ed).data;
+        QVERIFY(w.act(QStringLiteral("chartdesign.switch"))->isEnabled());
+        w.act(QStringLiteral("chartdesign.switch"))->trigger();
+        office::sheet::ChartData now = selectedChartInfo(ed).data;
+        QCOMPARE(now.categories, first.seriesNames);
+        QCOMPARE(now.seriesNames, first.categories);
+        QCOMPARE(now.values[0][0], first.values[0][0]);
+        QCOMPARE(now.values[1][0], first.values[0][1]);
+        ed->undo();
+        QCOMPARE(selectedChartInfo(ed).data.values, first.values);
+        // Select Data: a series left out is not in the chart.
+        QCOMPARE(int(first.seriesNames.size()), 2);
+        withDialog([&] { w.act(QStringLiteral("chartdesign.selectData"))->trigger(); }, QStringLiteral("selectChartDataDialog"), [](QDialog *d) {
+            auto *dialog = static_cast<SelectChartDataDialog *>(d);
+            QCOMPARE(dialog->seriesShown(), 2);
+            dialog->moveSeries(0, 1);
+            dialog->setSeriesChecked(0, false);
+        });
+        now = selectedChartInfo(ed).data;
+        QCOMPARE(int(now.seriesNames.size()), 1);
+        QCOMPARE(now.seriesNames[0], first.seriesNames[0]);
+        ed->undo();
+        QCOMPARE(int(selectedChartInfo(ed).data.seriesNames.size()), 2);
+        // Change Chart Type: one kind for the whole chart.
+        withDialog([&] { w.act(QStringLiteral("chartdesign.changeType"))->trigger(); }, QStringLiteral("changeTypeDialog"), [](QDialog *d) { static_cast<ChangeChartTypeDialog *>(d)->chooseKind(office::sheet::ChartKind::Line); });
+        QCOMPARE(selectedChartInfo(ed).form, office::sheet::ChartForm::Line);
+        // Format Axis: a lowest value for the vertical axis.
+        withDialog([&] { w.act(QStringLiteral("chartdesign.axisV"))->trigger(); }, QStringLiteral("formatAxisDialog"), [](QDialog *d) {
+            d->findChild<QCheckBox *>(QStringLiteral("axisMinAuto"))->setChecked(false);
+            d->findChild<QDoubleSpinBox *>(QStringLiteral("axisMin"))->setValue(-5);
+        });
+        office::Chart c;
+        QVERIFY(readChartOf(*ed->doc(), *selectedChart(ed), &c));
+        const office::ChartAxis *axis = office::sheet::primaryAxis(c, false);
+        QVERIFY(axis && !axis->autoMin);
+        QCOMPARE(axis->min, -5.0);
+    }
+
+    void chartFiltersLeaveASeriesOutAndKeepTheLastOne()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        w.act(QStringLiteral("insert.chart.column"))->trigger();
+        ChartDesign *design = w.chartActions()->design();
+        QCOMPARE(int(design->filterEntries().size()), 2);
+        QVERIFY(design->setSeriesShown(0, false));
+        QVERIFY(!design->filterEntries()[0].shown);
+        QVERIFY(!design->setSeriesShown(1, false));
+        QVERIFY(design->filterEntries()[1].shown);
+        ed->undo();
+        QVERIFY(design->filterEntries()[0].shown);
     }
 
     // A chart made here is a chart part in the .pptx, and opens as a chart that can be changed, with the same data.
