@@ -552,6 +552,24 @@ Download it from %2 now? (%3, once.)</translation>
     </message>
 </context>
 <context>
+    <name>jp::ChartButtons</name>
+    <message>
+        <source>Chart Colors and Styles</source>
+        <translation>Chart Colours and Styles</translation>
+    </message>
+</context>
+<context>
+    <name>jp::ChartDesign</name>
+    <message>
+        <source>Center</source>
+        <translation>Centre</translation>
+    </message>
+    <message>
+        <source>Colors</source>
+        <translation>Colours</translation>
+    </message>
+</context>
+<context>
     <name>jp::ColorButton</name>
     <message>
         <source>Applies the color shown; Down arrow or F4 opens more colors.</source>
@@ -596,16 +614,8 @@ Download it from %2 now? (%3, once.)</translation>
         <translation>Gridline colour</translation>
     </message>
     <message>
-        <source>Colors</source>
-        <translation>Colours</translation>
-    </message>
-    <message>
         <source>Center</source>
         <translation>Centre</translation>
-    </message>
-    <message>
-        <source>Chart Colors and Styles</source>
-        <translation>Chart Colours and Styles</translation>
     </message>
     <message>
         <source>Align Center</source>
@@ -856,6 +866,13 @@ Download it from %2 now? (%3, once.)</translation>
     <message>
         <source>From the center out</source>
         <translation>From the centre out</translation>
+    </message>
+</context>
+<context>
+    <name>jp::FormatChartPartDialog</name>
+    <message>
+        <source>Choose a Color…</source>
+        <translation>Choose a Colour…</translation>
     </message>
 </context>
 <context>

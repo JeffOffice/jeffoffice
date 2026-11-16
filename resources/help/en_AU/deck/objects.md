@@ -111,6 +111,7 @@ Click a table to select it, or click a cell to type in it. The **Table Design** 
 **Table Layout** is for the shape of the table:
 
 - **Select** picks the cell, the row, the column, or the whole table you are in.
+- **View Gridlines** shows the edges of the cells that have no line, as dashed grey lines. They help you see where the cells are. They show on your screen only. They are never printed, never put in a PDF, and never saved in the file. Click the button again to hide them.
 - **Delete** removes the rows or the columns you picked, or the whole table. A table keeps at least one row and one column.
 - **Insert Above**, **Insert Below**, **Insert Left**, and **Insert Right** add a row or a column next to the one you are in. A table can have at most 256 rows and 256 columns.
 - **Merge Cells** joins the cells you picked into one cell that holds all their words. **Split Cells** makes a merged cell into separate cells again.
@@ -123,6 +124,8 @@ Click a table to select it, or click a cell to type in it. The **Table Design** 
 - **Table Styles** is a gallery of looks, in groups called Light, Medium, and Dark, in the colours of the theme. Click one to give every cell its look. It replaces the shades and the lines you gave cells by hand. A new table starts with Medium Style 2, Accent 1.
 - **Shading** colours the cells you picked.
 - **Borders** draws a line on the edges of the cells you picked: all of them, the outside, the inside, only the inside rows or the inside columns, or only the top, bottom, left, or right. Choose **No Border** to take the lines away. **Pen Style**, **Pen Weight**, and **Pen Colour** under **Draw Borders** say how the line looks.
+- **Draw Table** turns your mouse into a pen. Drag the pen along the edge between two cells, and it draws a border there, in the pen's style, weight, and colour. Drag it across the middle of a cell, from one side to the other, and it divides the cell in two. The table gets one more row or column, and the cells beside the new one stretch across it, so the table stays a grid. A merged cell divides at the edge inside it that is nearest. The words stay in the first part. The pen stays on until you click **Draw Table** again or press Esc.
+- **Eraser** turns your mouse into an eraser. Drag it from one cell to the next, and the two cells join into one that holds all their words. Drag it along the edge between cells, and the cells on the two sides of that edge join. Drag it along the outside edge of the table, and the border there goes away. It stays on until you click **Eraser** again or press Esc.
 
 New rows and columns keep the table's style. The bands go on in step, and the first row stays the first row. When you save a .pptx file, the table keeps its style and which parts are on. An .odp file keeps how each cell looks, but not the style's name or the six boxes. Tables made in other programs show as they were made.
 
