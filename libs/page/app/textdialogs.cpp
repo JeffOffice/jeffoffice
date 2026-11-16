@@ -614,6 +614,8 @@ void pasteSpecialDialog(QWidget *p, Editor *ed)
     auto *list = new QListWidget(&dlg.d);
     list->setObjectName(QStringLiteral("pasteSpecialList"));
     list->addItems({QCoreApplication::translate("Dialogs", "Keep source formatting"), QCoreApplication::translate("Dialogs", "Keep text only (unformatted text)"), QCoreApplication::translate("Dialogs", "Picture (PNG)")});
+    const bool cells = Editor::clipboardMayHaveCells(QApplication::clipboard()->mimeData());
+    if (cells) list->addItem(QCoreApplication::translate("Dialogs", "Spreadsheet cells as a table"));
     list->setCurrentRow(0);
     dlg.v->addWidget(list);
     if (!dlg.exec()) return;
@@ -629,6 +631,7 @@ void pasteSpecialDialog(QWidget *p, Editor *ed)
         }
         return;
     }
+    if (i == 3 && cells) { ed->pasteCells(QApplication::clipboard()->mimeData()); return; }
     ed->paste(false);
 }
 

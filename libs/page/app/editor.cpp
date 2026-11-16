@@ -1753,12 +1753,21 @@ QStringList Editor::insertItemsJson(const QByteArray &json, const QString &label
     }
 }
 
+bool Editor::clipboardMayHaveCells(const QMimeData *md)
+{
+    return md && office::wml::mayBeClipTable(md->hasHtml() ? md->html() : QString(), md->hasText() ? md->text() : QString());
+}
+
 // Spreadsheet cells on the clipboard: written over the cells of the table that is selected (from its selected cell on; what is past its edge is left out), else a table of their own in the
-// middle of the page. One step. False when the clipboard holds no cells.
+// middle of the page. One step. False, with a word of why, when the clipboard holds no cells. Only a command of its own does this: Paste itself pastes the clipboard as it is.
 bool Editor::pasteCells(const QMimeData *md)
 {
-    const auto cells = office::wml::clipTable(md->hasHtml() ? md->html() : QString(), md->hasText() ? md->text() : QString());
-    if (!cells || cells->rows.isEmpty()) return false;
+    const auto cells = md ? office::wml::clipTable(md->hasHtml() ? md->html() : QString(), md->hasText() ? md->text() : QString()) : std::nullopt;
+    if (!cells || cells->rows.isEmpty()) {
+        Q_EMIT status(tr("The clipboard has no spreadsheet cells to paste."));
+        return false;
+    }
+    if (isEditingText()) endTextEdit();
     auto put = [this](TableItem *t, int r, int c, const QString &text) {
         TableCell &cell = t->cell(r, c);
         if (cell.covered) return;
@@ -1769,6 +1778,9 @@ bool Editor::pasteCells(const QMimeData *md)
         cur.insertText(QString(text).replace(QLatin1Char('\n'), QLatin1Char(' ')));
     };
     const int rows = std::min(int(cells->rows.size()), kMaxTableRowsOrColumns), cols = std::min(int(cells->rows[0].size()), kMaxTableRowsOrColumns);
+    QStringList said;
+    if (cells->truncated || rows < int(cells->rows.size()) || cols < int(cells->rows[0].size()))
+        said << tr("Some of the pasted cells were left out: a pasted table has at most %1 rows and columns, and 4,000 characters in a cell.").arg(kMaxTableRowsOrColumns);
     if (auto *t = dynamic_cast<TableItem *>(single())) {
         const CellRange at = targetCells();
         const int r0 = at.valid() ? at.r0 : 0, c0 = at.valid() ? at.c0 : 0;
@@ -1776,7 +1788,8 @@ bool Editor::pasteCells(const QMimeData *md)
             for (int r = 0; r < rows && r0 + r < t->rows; ++r)
                 for (int c = 0; c < cols && c0 + c < t->cols; ++c) put(t, r0 + r, c0 + c, cells->rows[r][c]);
         });
-        if (r0 + rows > t->rows || c0 + cols > t->cols) Q_EMIT status(tr("Some of the pasted cells did not fit in the table and were left out."));
+        if (r0 + rows > t->rows || c0 + cols > t->cols) said << tr("Some of the pasted cells did not fit in the table and were left out.");
+        if (!said.isEmpty()) Q_EMIT status(said.join(QLatin1Char(' ')));
         return true;
     }
     const QSizeF ps = m_doc->pageSize();
@@ -1789,6 +1802,7 @@ bool Editor::pasteCells(const QMimeData *md)
         m_sel = QStringList{t->id};
     });
     Q_EMIT selectionChanged();
+    if (!said.isEmpty()) Q_EMIT status(said.join(QLatin1Char(' ')));
     return true;
 }
 
@@ -1817,7 +1831,6 @@ void Editor::paste(bool textOnly)
         insertItemsJson(md->data(kItemsMime), tr("Paste"));
         return;
     }
-    if (!textOnly && !md->hasImage() && pasteCells(md)) return;
     if (md->hasImage() && !textOnly) {
         const QImage img = qvariant_cast<QImage>(md->imageData());
         QByteArray png;

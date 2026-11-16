@@ -17,6 +17,7 @@
               "menu": [
                 "edit.paste",
                 "edit.pasteText",
+                "edit.pasteCells",
                 "edit.pasteSpecial"
               ]
             },

@@ -278,8 +278,10 @@ public:
     void copy();
     void cut();
     void paste(bool textOnly = false);
-    // Pastes the spreadsheet cells the clipboard holds (an HTML table, or lines with tabs): over the selected table's cells, else as a table of their own. False when there are none.
+    // The Paste Cells command: the spreadsheet cells the clipboard holds (an HTML table, or lines with tabs) are written over the selected table's cells, else made a table of their own (paste
+    // does not: it pastes the clipboard as it is). False, with a status, when there are none. A look that parses nothing says whether the clipboard may hold some.
     bool pasteCells(const QMimeData *md);
+    static bool clipboardMayHaveCells(const QMimeData *md);
     // Objects as copying writes them (pictures and text with them), added to
     // the page being edited and selected: what pasting and building blocks
     // saved by Save as Building Block do. Returns their ids.

@@ -137,6 +137,7 @@ void MainWindow::createActions()
     mk("edit.copy", tr("Copy"), "copy", QKeySequence::Copy, [ed] { ed->copy(); });
     mk("edit.paste", tr("Paste"), "clipboard-paste", QKeySequence::Paste, [ed] { ed->paste(); });
     mk("edit.pasteText", tr("Keep Text Only"), "clipboard-type", QKeySequence(), [ed] { ed->paste(true); });
+    mk("edit.pasteCells", tr("Spreadsheet Cells as Table"), "table", QKeySequence(), [ed] { ed->pasteCells(QApplication::clipboard()->mimeData()); });
     mk("edit.pasteSpecial", tr("Paste Special…"), "clipboard-list", QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_V), [this] { pasteSpecialDialog(this, m_ed); });
     mk("edit.duplicate", tr("Duplicate"), "copy-plus", QKeySequence(Qt::CTRL | Qt::Key_D), [ed] { ed->duplicateSelection(); });
     mk("edit.delete", tr("Delete Object"), "trash-2", QKeySequence(), [ed] { ed->deleteSelection(); });

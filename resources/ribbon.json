@@ -24,7 +24,7 @@
   "tabs": [
     {"name": "Home", "keytip": "H", "groups": [
       {"name": "Clipboard", "keytip": "ZC", "items": [
-        {"large": "edit.paste", "keytip": "V", "split": true, "menu": ["edit.paste", "edit.pasteText", "edit.pasteSpecial"]},
+        {"large": "edit.paste", "keytip": "V", "split": true, "menu": ["edit.paste", "edit.pasteText", "edit.pasteCells", "edit.pasteSpecial"]},
         {"small": "edit.cut", "keytip": "X"},
         {"small": "edit.copy", "keytip": "C"},
         {"small": "edit.formatPainter", "keytip": "FP"}

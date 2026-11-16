@@ -1,6 +1,7 @@
 // JeffPub's tests of tables: editing, dividing cells, and saving them.
 #include "pubhelpers.h"
 #include "app/tableedit.h"
+#include "wml/wmlhtmlread.h"
 #include <QClipboard>
 #include <QMimeData>
 
@@ -42,8 +43,8 @@ private Q_SLOTS:
         QCOMPARE(t->rows, 2);
     }
 
-    // Several table cells at once, as in Publisher: dragging across cells, or
-    // Spreadsheet cells on the clipboard (an HTML table, or lines with tabs) paste as a table of their own; with a table selected they are written over its cells, from the selected cell on.
+    // Spreadsheet cells on the clipboard (an HTML table, or lines with tabs) become a table of their own by the Paste Cells command; with a table selected they are written over its cells,
+    // from the selected cell on. Ctrl+V pastes the clipboard as it always did.
     void pastedSpreadsheetCellsMakeATableOrFillTheSelectedOne()
     {
         auto setCells = [](int rows, const QString &prefix = QStringLiteral("r")) {
@@ -66,8 +67,16 @@ private Q_SLOTS:
             return out;
         };
         auto text = [&](jp::TableItem *t, int r, int c) { return ed->doc()->storyDoc(t->cell(r, c).storyId)->toPlainText(); };
+        QString said;
+        QObject::connect(ed, &jp::Editor::status, &w, [&said](const QString &t) { said = t; });
+        // Ctrl+V: words with tabs are words, and a table of HTML is a text box of it: no table of cells.
         setCells(3);
+        const int parses = jp::office::wml::clipTableParses();
         ed->paste();
+        QCOMPARE(tables().size(), 0);
+        QCOMPARE(jp::office::wml::clipTableParses(), parses);
+        ed->undo();
+        w.act(QStringLiteral("edit.pasteCells"))->trigger();
         QCOMPARE(tables().size(), 1);
         jp::TableItem *made = tables().first();
         QCOMPARE(made->rows, 3);
@@ -81,21 +90,51 @@ private Q_SLOTS:
         // With the table selected: written over its cells, and what is past its edge is left out.
         ed->select(tables().first()->id);
         setCells(5, QStringLiteral("x"));
-        ed->paste();
+        w.act(QStringLiteral("edit.pasteCells"))->trigger();
         QCOMPARE(tables().size(), 1);
         QCOMPARE(tables().first()->rows, 3);
         QCOMPARE(text(tables().first(), 2, 0), QStringLiteral("x2"));
+        QVERIFY(said.contains(QStringLiteral("did not fit")));
         ed->undo();
         QCOMPARE(tables().size(), 1);
         QCOMPARE(text(tables().first(), 2, 0), QStringLiteral("r2"));   // (back to the first paste's)
-        // A table pasted is bounded: at most as many rows as a table has.
+        // A table pasted is bounded: at most as many rows as a table has, and what is cut is said.
         ed->clearSelection();
         setCells(jp::kMaxTableRowsOrColumns + 40);
-        ed->paste();
+        said.clear();
+        w.act(QStringLiteral("edit.pasteCells"))->trigger();
         QCOMPARE(tables().size(), 2);
         QCOMPARE(tables().last()->rows, jp::kMaxTableRowsOrColumns);
+        QVERIFY(said.contains(QStringLiteral("left out")));
     }
 
+    // Tab-indented words paste as the words (a text box), with Ctrl+V, in a text box, and through Paste Special's other choices.
+    void tabIndentedTextPastesAsTextInJeffPub()
+    {
+        auto *mime = new QMimeData;
+        mime->setText(QStringLiteral("a\tb\nc\td\n"));
+        QGuiApplication::clipboard()->setMimeData(mime);
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        ed->paste();
+        int tables = 0, boxes = 0;
+        for (const auto &it : ed->doc()->pages[0]->items) {
+            if (dynamic_cast<jp::TableItem *>(it.get())) ++tables;
+            if (dynamic_cast<jp::TextItem *>(it.get())) ++boxes;
+        }
+        QCOMPARE(tables, 0);
+        QCOMPARE(boxes, 1);
+        // The command says so when the clipboard has no cells.
+        auto *words = new QMimeData;
+        words->setText(QStringLiteral("just words"));
+        QGuiApplication::clipboard()->setMimeData(words);
+        QString said;
+        QObject::connect(ed, &jp::Editor::status, &w, [&said](const QString &t) { said = t; });
+        w.act(QStringLiteral("edit.pasteCells"))->trigger();
+        QVERIFY(!said.isEmpty());
+    }
+
+    // Several table cells at once, as in Publisher: dragging across cells, or
     // Shift+click, selects a block, shaded the way selected text is; a block
     // that touches part of a merged cell takes the whole cell.
     void tableCellsSelectedAsABlock()

@@ -34,6 +34,7 @@
 
 #include <QAction>
 #include <QApplication>
+#include <QClipboard>
 #include <QCloseEvent>
 #include <QFile>
 #include <QFileDialog>
@@ -258,6 +259,7 @@ void DeckWindow::createActions()
     mk("edit.copy", tr("Copy"), "copy", QKeySequence::Copy, [this, ed] { if (slideListFocused()) copySlides(); else ed->copy(); });
     mk("edit.paste", tr("Paste"), "clipboard-paste", QKeySequence::Paste, [this, ed] { if (slideListFocused()) pasteSlides(true); else ed->paste(); });
     mk("edit.pasteText", tr("Keep Text Only"), "clipboard-type", QKeySequence(), [ed] { ed->paste(true); });
+    mk("edit.pasteCells", tr("Spreadsheet Cells as Table"), "table", QKeySequence(), [ed] { ed->pasteCells(QApplication::clipboard()->mimeData()); });
     mk("edit.pasteSpecial", tr("Paste Special…"), "clipboard-list", QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_V), [this, ed] { pasteSpecialDialog(this, ed); });
     mk("edit.delete", tr("Delete"), "trash-2", QKeySequence(), [ed] { ed->deleteSelection(); });
 

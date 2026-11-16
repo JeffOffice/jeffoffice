@@ -2052,6 +2052,7 @@ void MainWindow::contextMenu(const QPoint &global)
         menu.addAction(act("edit.copy"));
         menu.addAction(act("edit.paste"));
         menu.addAction(act("edit.pasteText"));
+        menu.addAction(act("edit.pasteCells"));
         menu.addSeparator();
         menu.addAction(act("fmt.fontDialog"));
         menu.addAction(act("para.dialog"));
