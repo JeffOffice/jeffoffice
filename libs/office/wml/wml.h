@@ -591,6 +591,7 @@ struct Shape {
     Wrap wrap = WrapNone;
     Side side = SideBoth;
     double gapLeft = 9, gapRight = 9, gapTop = 0, gapBottom = 0;   // room the wrapping text leaves
+    QPolygonF wrapOutline;                // a tight or through wrap's outline, as shares of the frame (core/wrapoutline.h); empty for the frame itself
     bool filled = false, stroked = false;
     QString fillColor, strokeColor;       // "RRGGBB", or empty
     double strokeWeight = 0.75;

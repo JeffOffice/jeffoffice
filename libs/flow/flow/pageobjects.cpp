@@ -2,6 +2,7 @@
 // them are here, apart from its layout of the text.)
 
 #include "flow/paginator.h"
+#include "core/wrapoutline.h"
 
 #include <QJsonDocument>
 #include <QPainterPath>
@@ -200,6 +201,16 @@ QRectF Paginator::roomOf(const FloatingObject &o, const Wrapped &w)
     return room;
 }
 
+// A Tight wrap's outline placed on the page (its points are shares of the frame), with the room round it that the object's distances ask for.
+QPainterPath Paginator::wrapOutlinePath(const FloatingObject &o, const Wrapped &w)
+{
+    QPolygonF placed;
+    for (const QPointF &p : o.outline) placed << QPointF(w.rect.left() + p.x() * w.rect.width(), w.rect.top() + p.y() * w.rect.height());
+    QPainterPath path;
+    path.addPolygon(placed);
+    return jp::wrapRoomAround(path, std::max({o.gap.left(), o.gap.right(), o.gap.top(), o.gap.bottom()}));
+}
+
 QVector<QPolygonF> Paginator::obstaclesFor(const QVector<Wrapped> &wrapped, const QRectF &column) const
 {
     QVector<QPolygonF> out;
@@ -208,10 +219,25 @@ QVector<QPolygonF> Paginator::obstaclesFor(const QVector<Wrapped> &wrapped, cons
         // A text box that does not reach into the column's text pushes none of it (by more than a hair: boxes are set edge to edge).
         if (o.item->type() == ItemType::Text && !w.rect.adjusted(0.55, 0.55, -0.55, -0.55).intersects(column)) continue;
         QRectF b = roomOf(o, w);
-        if (!b.intersects(column)) continue;
+        const bool outlined = o.wrap == FloatingObject::Wrap::Tight && o.outline.size() >= 3;
+        if (!outlined && !b.intersects(column)) continue;
         if (o.wrap == FloatingObject::Wrap::TopBottom) {
             b.setLeft(-1e5);
             b.setRight(1e5);
+        } else if (o.wrap == FloatingObject::Wrap::Tight && o.outline.size() >= 3) {
+            // The outline the text goes round, as the page layer's wall makes it (core/wrapoutline.h), and the side asked for as the rectangle's is below.
+            QPainterPath path = wrapOutlinePath(o, w);
+            const QRectF pb = path.boundingRect();
+            if (!pb.intersects(column)) continue;
+            if (o.side != FloatingObject::Side::Both) {
+                const bool leftOnly = o.side == FloatingObject::Side::Left || (o.side == FloatingObject::Side::Largest && pb.left() - column.left() >= column.right() - pb.right());
+                QPainterPath beyond;
+                if (leftOnly) beyond.addRect(QRectF(pb.left(), pb.top(), 1e5, pb.height()));
+                else beyond.addRect(QRectF(-1e5, pb.top(), pb.right() + 1e5, pb.height()));
+                path = path.united(beyond);
+            }
+            out << path.toFillPolygon().translated(-column.left(), -column.top());
+            continue;
         } else if (o.side != FloatingObject::Side::Both) {
             // The side asked for is the room beside it: the other side is a wall as well. (The page layer makes the wall of a path and joins the two, as here, so that the
             // edges of the polygons are the same numbers: a line that touches one has the page layer put it where the paginator did.)
@@ -444,7 +470,22 @@ void Paginator::addObjects(Document *d, const QVector<Anchor> &anchors, const Se
                     top = std::max(top, bodyTop);
                     bottom = std::min(bottom, bodyBottom);
                 }
-                if (bottom > top) {
+                if (o.wrap == FloatingObject::Wrap::Tight && o.outline.size() >= 3) {
+                    // The outline itself is the wall: the page layer makes its room as the paginator did, round the same points.
+                    auto shape = std::make_shared<ShapeItem>();
+                    shape->id = QStringLiteral("flow-wall-%1-%2-%3").arg(d->pages[0]->id).arg(id).arg(made);
+                    shape->rect = wall->rect;
+                    shape->fill = Fill::none();
+                    shape->stroke = Stroke::none();
+                    shape->wrap.mode = Wrap::Tight;
+                    shape->wrap.side = side;
+                    shape->wrap.left = o.gap.left();
+                    shape->wrap.top = o.gap.top();
+                    shape->wrap.right = o.gap.right();
+                    shape->wrap.bottom = o.gap.bottom();
+                    for (const QPointF &p : o.outline) shape->wrap.points << QPointF(p.x() * wall->rect.width(), p.y() * wall->rect.height());
+                    made_.push_back({o.z, shape, false, true});
+                } else if (bottom > top) {
                     auto shape = std::make_shared<ShapeItem>();
                     shape->id = QStringLiteral("flow-wall-%1-%2-%3").arg(d->pages[0]->id).arg(id).arg(made);
                     shape->rect = QRectF(QPointF(room.left(), top), QPointF(room.right(), bottom));

@@ -9,6 +9,7 @@
 
 #include <QColor>
 #include <QMarginsF>
+#include <QPolygonF>
 #include <QChar>
 #include <QRectF>
 #include <QSizeF>
@@ -82,6 +83,7 @@ struct FloatingObject {
     Wrap wrap = Wrap::None;
     Side side = Side::Both;
     QMarginsF gap;                          // the room the text round it leaves
+    QPolygonF outline;                      // a Tight wrap's outline (core/wrapoutline.h): shares of its frame; empty for the frame itself
     int next = 0;                           // the one after it at the same anchor (counted from 1), or none
     // A frame: the paragraphs of the story that have its key (fp::Frame) are its text. `item` is a TextItem and `story` is not given: the paginator makes both from the paragraphs,
     // at the width `frameWidth` says (0: as wide as the column, or as the longest line of the text if the frame shrinks) and the height the text asks (`frameHeight` is the least of it, or all of it).

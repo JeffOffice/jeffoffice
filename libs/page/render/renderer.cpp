@@ -11,6 +11,7 @@
 #include "core/fonts.h"
 #include "core/svg.h"
 #include "core/texteffects.h"
+#include "core/wrapoutline.h"
 #include "wml/wmlmathpath.h"
 
 #include <atomic>
@@ -214,11 +215,7 @@ QVector<QPolygonF> Renderer::wrapObstacles(const Document &doc, const TextItem &
             else local = silhouette(doc, *o);
             pagePath = o->transform().map(local);
             const double d = std::max({w.left, w.right, w.top, w.bottom});
-            if (d > 0) {
-                QPainterPathStroker st;
-                st.setWidth(d * 2);
-                pagePath = pagePath.united(st.createStroke(pagePath));
-            }
+            pagePath = wrapRoomAround(pagePath, d);
             covers = pagePath.contains(fb);
             }
         }

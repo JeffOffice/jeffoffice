@@ -6,6 +6,9 @@
 #include "wml/wmlhtml.h"
 #include "wml/wmlhtmlread.h"
 #include "wml/wmlmath.h"
+#include "wml/wmlwrap.h"
+#include "core/picturecrop.h"
+#include "core/wrapoutline.h"
 #include "wml/xmltree.h"
 
 #include "core/fonts.h"
@@ -2870,6 +2873,92 @@ private Q_SLOTS:
         MailMergeSettings none;
         QVERIFY(!readMailMerge(settingsWithMailMerge(added, none), &back));
         QVERIFY(settingsWithMailMerge(added, none).contains("<w:trackRevisions/>"));
+    }
+
+    // The outline of a tight wrap is read as shares of the frame; a file's points are bounded: the first kMostWrapPoints are kept, none is outside the reach, and fewer than three make none.
+    void aWrapOutlineIsReadAsSharesAndHeldToTheLimits()
+    {
+        const QByteArray ok = "<wp:wrapTight wrapText=\"bothSides\"><wp:wrapPolygon edited=\"1\"><wp:start x=\"0\" y=\"0\"/><wp:lineTo x=\"21600\" y=\"10800\"/><wp:lineTo x=\"0\" y=\"21600\"/></wp:wrapPolygon></wp:wrapTight>";
+        const QPolygonF read = readWrapPolygonXml(ok);
+        QCOMPARE(read.size(), 3);
+        QCOMPARE(read[1], QPointF(1.0, 0.5));
+        QCOMPARE(readWrapPolygonXml("<wp:wrapSquare wrapText=\"bothSides\"/>").size(), 0);
+        QCOMPARE(readWrapPolygonXml("<wp:wrapTight><wp:wrapPolygon><wp:start x=\"0\" y=\"0\"/><wp:lineTo x=\"5\" y=\"5\"/></wp:wrapPolygon></wp:wrapTight>").size(), 0);
+        // A thousand points: exactly the most are kept, and a point far outside is held to the reach.
+        QByteArray many = "<wp:wrapTight><wp:wrapPolygon><wp:start x=\"99999999\" y=\"-99999999\"/>";
+        for (int i = 0; i < 1000; ++i) many += "<wp:lineTo x=\"" + QByteArray::number(i * 20) + "\" y=\"100\"/>";
+        many += "</wp:wrapPolygon></wp:wrapTight>";
+        const QPolygonF held = readWrapPolygonXml(many);
+        QCOMPARE(held.size(), jp::kMostWrapPoints);
+        QCOMPARE(held[0], QPointF(1.0 + jp::kWrapOutlineReach, -jp::kWrapOutlineReach));
+        // What is written is read back, and a long outline is written no longer than the most.
+        const QByteArray written = wrapPolygonXml(read);
+        QCOMPARE(readWrapPolygonXml("<wp:wrapTight>" + written + "</wp:wrapTight>"), read);
+        QPolygonF big;
+        for (int i = 0; i < 500; ++i) big << QPointF(i / 500.0, (i % 7) / 7.0);
+        QCOMPARE(wrapPolygonXml(big).count("<wp:lineTo"), jp::kMostWrapPoints);
+    }
+
+    // Moving, adding, and taking away a point of an outline: a point is added only on an edge, never past the most, and an outline keeps three.
+    void aWrapOutlineIsEditedAPointAtATime()
+    {
+        QPolygonF square;
+        square << QPointF(0, 0) << QPointF(1, 0) << QPointF(1, 1) << QPointF(0, 1);
+        int at = 0;
+        const QPolygonF more = jp::wrapOutlineWithPoint(square, QPointF(0.5, 0.01), 3.0, QSizeF(100, 100), &at);
+        QCOMPARE(more.size(), 5);
+        QCOMPARE(at, 1);
+        QCOMPARE(more[1], QPointF(0.5, 0));
+        QCOMPARE(jp::wrapOutlineWithPoint(square, QPointF(0.5, 0.5), 3.0, QSizeF(100, 100), &at).size(), 4);   // (the middle is no edge)
+        QCOMPARE(at, -1);
+        QCOMPARE(jp::wrapOutlineMoved(square, 2, QPointF(5, -5))[2], QPointF(1.0 + jp::kWrapOutlineReach, -jp::kWrapOutlineReach));
+        QCOMPARE(jp::wrapOutlineMoved(square, 9, QPointF(0, 0)), square);
+        QCOMPARE(jp::wrapOutlineWithout(square, 1).size(), 3);
+        QCOMPARE(jp::wrapOutlineWithout(jp::wrapOutlineWithout(square, 1), 0).size(), 3);
+        QPolygonF full;
+        for (int i = 0; i < jp::kMostWrapPoints; ++i) full << QPointF(i / double(jp::kMostWrapPoints), 0.0) << QPointF(0, 0);
+        full = jp::boundedWrapOutline(QVector<QPointF>(full.begin(), full.end()));
+        QCOMPARE(full.size(), jp::kMostWrapPoints);
+        QCOMPARE(jp::wrapOutlineWithPoint(full, QPointF(0.01, 0), 100.0, QSizeF(100, 100), &at).size(), jp::kMostWrapPoints);
+        QCOMPARE(at, -1);
+    }
+
+    // Aspect Ratio, Fill, and Fit: what is cut, and the frame that goes with it.
+    void theCropPlansCutFromTheMiddleAndKeepTheScale()
+    {
+        // A 200 x 100 frame showing all of a picture, cut to a square: the sides lose a quarter each, and the frame is 100 wide.
+        jp::CropPlan a = jp::planCropAspect(QSizeF(200, 100), jp::CropShares(), 1, 1);
+        QVERIFY(a.valid);
+        QCOMPARE(a.frame, QSizeF(100, 100));
+        QCOMPARE(a.shares.left, 0.25);
+        QCOMPARE(a.shares.right, 0.25);
+        QCOMPARE(a.shares.top, 0.0);
+        // Cut again to 1:2, from what shows now: the top and bottom, in proportion to what shows.
+        a = jp::planCropAspect(a.frame, a.shares, 1, 2);
+        QCOMPARE(a.frame, QSizeF(100, 200) * 0.5);
+        QCOMPARE(a.shares.left, 0.375);
+        QCOMPARE(1.0 - a.shares.left - a.shares.right, 0.25);
+        // Nothing usable: no plan.
+        QVERIFY(!jp::planCropAspect(QSizeF(0, 5), jp::CropShares(), 1, 1).valid);
+        QVERIFY(!jp::planCropAspect(QSizeF(5, 5), jp::CropShares(), 0, 1).valid);
+        QVERIFY(!jp::planCropAspect(QSizeF(5, 5), jp::CropShares{0.6, 0, 0.6, 0}, 1, 1).valid);
+        // Fill: the frame stays, and the picture (2 : 1) covers a square frame, cut a quarter off each side.
+        const jp::CropPlan f = jp::planCropFill(QSizeF(100, 100), QSizeF(200, 100));
+        QVERIFY(f.valid);
+        QCOMPARE(f.frame, QSizeF(100, 100));
+        QCOMPARE(f.shares.left, 0.25);
+        QCOMPARE(f.shares.top, 0.0);
+        // Fit: room above and below (half the picture's height each), the frame stays; with no room, the frame takes the picture's shape.
+        const jp::CropPlan room = jp::planCropFit(QSizeF(100, 100), QSizeF(200, 100), true);
+        QCOMPARE(room.frame, QSizeF(100, 100));
+        QCOMPARE(room.shares.top, -0.5);
+        QCOMPARE(room.shares.bottom, -0.5);
+        QCOMPARE(jp::planCropFit(QSizeF(100, 100), QSizeF(200, 100), false).frame, QSizeF(100, 50));
+        QCOMPARE(jp::planCropFit(QSizeF(100, 100), QSizeF(200, 100), false).shares.top, 0.0);
+        // (A picture far wider than the frame is tall would be more room than the picture is high: the frame is made smaller.)
+        const jp::CropPlan wide = jp::planCropFit(QSizeF(100, 100), QSizeF(800, 100), true);
+        QCOMPARE(wide.frame, QSizeF(100, 12.5));
+        QCOMPARE(wide.shares.top, 0.0);
     }
 };
 

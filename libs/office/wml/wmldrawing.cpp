@@ -3,6 +3,7 @@
 #include "wml/wml.h"
 
 #include "wml/xmltree.h"
+#include "wml/wmlwrap.h"
 #include "office/barcodemarker.h"
 
 #include <QHash>
@@ -652,6 +653,7 @@ void readDrawing(const XmlTree &t, int drawing, QVector<Shape> *out)
                 if (t.has(k, "distR")) s.gapRight = emu(t.attr(k, "distR"));
                 if (t.has(k, "distT")) s.gapTop = emu(t.attr(k, "distT"));
                 if (t.has(k, "distB")) s.gapBottom = emu(t.attr(k, "distB"));
+                if (tag == "wrapTight" || tag == "wrapThrough") s.wrapOutline = readWrapPolygon(t, k);
             } else if (tag == "docPr") {
                 s.alt = t.attr(k, "descr");
                 s.hidden = t.attr(k, "hidden") == QLatin1String("1") || t.attr(k, "hidden") == QLatin1String("true");

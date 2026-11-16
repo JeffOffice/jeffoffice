@@ -15,6 +15,7 @@
 #include "core/document.h"
 
 #include <QObject>
+#include <QPainterPath>
 #include <QTextBlock>
 #include <QTextCursor>
 #include <QVector>
@@ -328,6 +329,7 @@ private:
     // The room a wrapped object takes: its rectangle and the distances round it (and what is kept clear under it). The distance above an object that is set from its paragraph or its
     // line does not reach up into the lines before them: they are laid out first, and the object is set from where the paragraph begins.
     static QRectF roomOf(const FloatingObject &o, const Wrapped &w);
+    static QPainterPath wrapOutlinePath(const FloatingObject &o, const Wrapped &w);
     bool breakContinuesAt(const StoryLayout::LineBrief &last, PageStart *next) const;
     int numberOf(int index) const;
     bool beginsPageOf(int section, const PageStart &page) const;   // the page is the first of the section (not the page after one that a continuous section began in the middle of)
