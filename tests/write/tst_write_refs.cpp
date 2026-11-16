@@ -24,6 +24,7 @@
 #include "core/writeprops.h"
 #include "../localepin.h"
 #include "office/package.h"
+#include "text/textengine.h"
 #include "text/textprops.h"
 #include "wml/wml.h"
 #include "wml/xmltree.h"
@@ -204,8 +205,6 @@ QStringList lines(const WriteDoc &doc)
     return out;
 }
 
-} // namespace
-
 QRectF noteRectOf(WriteDoc &doc, const QString &text)
 {
     const auto page = doc.pager().materialize(0);
@@ -228,6 +227,53 @@ QByteArray paragraphsWithNote(int paragraphs)
     for (int i = 0; i < paragraphs; ++i) body += para(run("Line of the text"));
     return body + para(run("Last line") + "<w:r><w:footnoteReference w:id=\"2\"/></w:r>");
 }
+// The rectangles of the pages' text items, by page, whose text holds `marker`.
+QVector<QRectF> itemsWith(WriteDoc &doc, const QString &marker, QVector<int> *pageOf = nullptr)
+{
+    QVector<QRectF> out;
+    for (int p = 0; p < doc.pager().pageCount(); ++p) {
+        const auto page = doc.pager().materialize(p);
+        for (const auto &item : page->doc->pages[0]->items)
+            if (const auto *t = dynamic_cast<const TextItem *>(item.get()))
+                if (const Story *s = page->doc->story(t->storyId))
+                    if (s->doc->toPlainText().contains(marker)) {
+                        out << t->rect;
+                        if (pageOf) *pageOf << p;
+                    }
+    }
+    return out;
+}
+// How many times each of NOTE01..NOTE<count> is on the pages (the notes, whole or in pieces, that are set).
+QVector<int> noteCountsOnPages(WriteDoc &doc, int count)
+{
+    QVector<int> seen(count, 0);
+    for (int p = 0; p < doc.pager().pageCount(); ++p) {
+        const auto page = doc.pager().materialize(p);
+        for (const auto &item : page->doc->pages[0]->items)
+            if (const auto *t = dynamic_cast<const TextItem *>(item.get()))
+                if (const Story *s = page->doc->story(t->storyId)) {
+                    const QString text = s->doc->toPlainText();
+                    for (int i = 0; i < count; ++i)
+                        if (text.contains(QStringLiteral("NOTE%1 ").arg(i + 1, 2, 10, QLatin1Char('0')))) ++seen[i];
+                }
+    }
+    return seen;
+}
+// A body of one paragraph that cites `count` notes (ids 2 and on), and the notes: each NOTEnn and then `words` words.
+void manyNotes(int count, int words, QByteArray *body, QByteArray *notes)
+{
+    *notes = kSeparators;
+    QByteArray refs;
+    for (int i = 0; i < count; ++i) {
+        QByteArray text = QByteArray("NOTE") + QByteArray::number(i + 1).rightJustified(2, '0') + " ";
+        for (int w = 0; w < words; ++w) text += "word ";
+        *notes += noteXml("footnote", i + 2, text);
+        refs += "<w:r><w:footnoteReference w:id=\"" + QByteArray::number(i + 2) + "\"/></w:r>" + run(" and");
+    }
+    *body = para(run("Some words") + refs);
+}
+
+} // namespace
 
 class RefsTests : public QObject {
     Q_OBJECT
@@ -1105,7 +1151,7 @@ private Q_SLOTS:
         QVERIFY(one[1].top() > one[0].top());
         QVERIFY2(two[0].width() < one[0].width() * 0.6, qPrintable(QString::number(two[0].width())));
         QVERIFY(two[0].left() < two[3].left() && two[2].left() > two[0].left());
-        QVERIFY(two[2].top() < two[1].top() + 0.5 || two[2].top() < two[3].top() + 0.5);
+        QVERIFY2(two[2].top() < two[1].top(), "the third note begins the second column, above the second note");
         QCOMPARE(two[0].left(), two[1].left());
         // The whole block is shorter than the stack (the lowest note ends where it did, the first begins lower).
         QVERIFY2(two[0].top() > one[0].top() + 5, qPrintable(QString::number(two[0].top()) + " vs " + QString::number(one[0].top())));
@@ -1208,7 +1254,7 @@ private Q_SLOTS:
         QVERIFY(insertEndnote(*doc, c, QStringLiteral("*")));
         const QString xmlText = QString::fromUtf8(documentXml(doc->toDocx()));
         QVERIFY2(xmlText.contains(QRegularExpression(QStringLiteral("<w:endnoteReference[^>]*w:customMarkFollows=\"1\"[^>]*/><w:t[^>]*>\\*</w:t></w:r>"))), qPrintable(xmlText));
-        QVERIFY(doc->story()->toPlainText().contains(QStringLiteral("words*")) || doc->story()->toPlainText().contains(QLatin1Char('*')));
+        QVERIFY(QString(doc->story()->toPlainText()).remove(QChar::ObjectReplacementCharacter).contains(QStringLiteral("First*")));   // (the mark follows the reference)
         QCOMPARE(doc->undo(), doc->story());
         QVERIFY(!doc->story()->toPlainText().contains(QLatin1Char('*')));
         QVERIFY(!doc->canUndo());
@@ -1234,6 +1280,183 @@ private Q_SLOTS:
         QVERIFY(w.document()->story()->toPlainText().contains(QStringLiteral("§")));
         QVERIFY(w.view()->inNote());
         QVERIFY(w.document()->editableFootnote(1)->toPlainText().startsWith(QStringLiteral("§")));
+    }
+
+    void theNotesDialogLeavesWhatItDoesNotShowAsTheFileHasIt()
+    {
+        const QByteArray body = para(run("Text") + "<w:r><w:footnoteReference w:id=\"2\"/></w:r>");
+        const QByteArray notes = QByteArray(kSeparators) + noteXml("footnote", 2, "One");
+        const QByteArray settings = "<w:footnotePr><w:pos w:val=\"sectEnd\"/><w:numFmt w:val=\"ordinal\"/></w:footnotePr>" + beneathSettings(false, 12);
+        WriteWindow w;
+        w.setDocument(open(makeDocxNotes(body, notes, QByteArray(), settings)), QString());
+        w.show();
+        QCOMPARE(w.document()->noteSettings(false).columns, 12);
+        QCOMPARE(w.document()->noteSettings(false).position, QStringLiteral("sectEnd"));
+        // Accepted as it opened: nothing is changed, so nothing is written (12 columns did not become 8, an unsupported place did not become the page's foot).
+        onNextDialog(QStringLiteral("notes-options-dialog"), [](QDialog *d) { d->accept(); });
+        bool endnotes = false;
+        QVERIFY(!notesOptionsDialog(&w, w.document(), &endnotes));
+        QCOMPARE(w.document()->noteSettings(false).columns, 12);
+        QCOMPARE(w.document()->noteSettings(false).position, QStringLiteral("sectEnd"));
+        QCOMPARE(w.document()->noteSettings(false).format, QStringLiteral("ordinal"));
+        // Only the box that was changed is written.
+        onNextDialog(QStringLiteral("notes-options-dialog"), [](QDialog *d) {
+            auto *start = d->findChild<QWidget *>(QStringLiteral("footnoteOptions"))->findChild<QSpinBox *>();
+            QVERIFY(start);
+            start->setValue(5);
+            d->accept();
+        });
+        QVERIFY(notesOptionsDialog(&w, w.document(), &endnotes));
+        QCOMPARE(w.document()->noteSettings(false).start, 5);
+        QCOMPARE(w.document()->noteSettings(false).columns, 12);
+        QCOMPARE(w.document()->noteSettings(false).position, QStringLiteral("sectEnd"));
+        QCOMPARE(w.document()->noteSettings(false).format, QStringLiteral("ordinal"));
+    }
+
+    void applyingAndInsertingANoteAreStepsThatUndoAndRedoWithoutReloading()
+    {
+        const QByteArray body = para(run("First words and more"));
+        WriteWindow w;
+        w.setDocument(open(makeDocxNotes(body, QByteArray(), QByteArray())), QString());
+        w.show();
+        WriteDoc *doc = w.document();
+        w.view()->cursor().setPosition(8);
+        onNextDialog(QStringLiteral("notes-options-dialog"), [](QDialog *d) {
+            auto *columns = d->findChild<QSpinBox *>(QStringLiteral("footnoteColumns"));
+            QVERIFY(columns);
+            columns->setValue(3);
+            d->findChild<QLineEdit *>(QStringLiteral("noteCustomMark"))->setText(QStringLiteral("§"));
+            d->findChild<QPushButton *>(QStringLiteral("insertNote"))->click();
+        });
+        w.act(QStringLiteral("refs.notesOptions"))->trigger();
+        QCOMPARE(doc, w.document());   // (the document is not read again)
+        QCOMPARE(doc->noteSettings(false).columns, 3);
+        QVERIFY(doc->story()->toPlainText().contains(QStringLiteral("§")));
+        QVERIFY(doc->canUndo());
+        // The note goes first, then the setting.
+        doc->undo();
+        QVERIFY(!doc->story()->toPlainText().contains(QStringLiteral("§")));
+        QCOMPARE(doc->noteSettings(false).columns, 3);
+        QVERIFY(doc->canUndo());
+        doc->undo();
+        QCOMPARE(doc->noteSettings(false).columns, 1);
+        QVERIFY(!doc->canUndo());
+        QVERIFY(!doc->isModified());
+        doc->redo();
+        QCOMPARE(doc->noteSettings(false).columns, 3);
+        QVERIFY(!doc->story()->toPlainText().contains(QStringLiteral("§")));
+        doc->redo();
+        QVERIFY(doc->story()->toPlainText().contains(QStringLiteral("§")));
+        // What the redo brought back is what is saved.
+        office::Package p;
+        QVERIFY(p.read(doc->toDocx()));
+        QVERIFY(p.part(QStringLiteral("/word/settings.xml")).contains("footnoteColumns"));
+    }
+
+    void footnotesInColumnsThatWouldFillMorePagesLoseNone()
+    {
+        QByteArray body, notes;
+        manyNotes(30, 60, &body, &notes);
+        auto check = [&](const QByteArray &settings) {
+            auto doc = open(makeDocxNotes(body, notes, QByteArray(), settings));
+            QVERIFY(doc);
+            QVERIFY(doc->pager().pageCount() >= 1);
+            const QVector<int> seen = noteCountsOnPages(*doc, 30);
+            for (int i = 0; i < seen.size(); ++i) QVERIFY2(seen[i] >= 1, qPrintable(QStringLiteral("NOTE%1 is on no page (%2)").arg(i + 1).arg(QString::fromLatin1(settings))));
+            // Every piece is on its page.
+            for (const QRectF &r : itemsWith(*doc, QStringLiteral("NOTE"))) QVERIFY2(r.top() >= -0.5 && r.bottom() <= 792.5, qPrintable(QStringLiteral("a note's piece is at %1 to %2").arg(r.top()).arg(r.bottom())));
+        };
+        check(beneathSettings(false, 1));
+        check(beneathSettings(false, 2));
+        check(beneathSettings(false, 4));
+        check(beneathSettings(true, 2));
+    }
+
+    void aHostileCountOfFootnoteColumnsIsKeptInsideWhatIsOffered()
+    {
+        QByteArray body, notes;
+        manyNotes(6, 8, &body, &notes);
+        for (const char *value : {"-1", "0", "1", "64", "65", "99999", "junk", "99999999999999999999"}) {
+            const QByteArray settings = QByteArray("<w15:footnoteColumns xmlns:w15=\"http://schemas.microsoft.com/office/word/2012/wordml\" w:val=\"") + value + "\"/>";
+            auto doc = open(makeDocxNotes(body, notes, QByteArray(), settings));
+            QVERIFY2(doc, value);
+            const int columns = doc->noteSettings(false).columns;
+            QVERIFY2(columns >= 1 && columns <= 64, value);
+            for (int n : noteCountsOnPages(*doc, 6)) QVERIFY2(n >= 1, value);
+        }
+    }
+
+    void aDocumentWithNoFootnoteSettingsIsLaidOutAsItAlwaysWas()
+    {
+        QByteArray body, notes;
+        manyNotes(30, 60, &body, &notes);
+        auto layout = [&](const QByteArray &settings) {
+            auto doc = open(makeDocxNotes(body, notes, QByteArray(), settings));
+            QVector<QRectF> all;
+            for (int p = 0; doc && p < doc->pager().pageCount(); ++p)
+                for (const auto &item : doc->pager().materialize(p)->doc->pages[0]->items) all << item->rect;
+            return all;
+        };
+        const QVector<QRectF> plain = layout(QByteArray()), said = layout("<w:footnotePr><w:pos w:val=\"pageBottom\"/></w:footnotePr><w15:footnoteColumns xmlns:w15=\"http://schemas.microsoft.com/office/word/2012/wordml\" w:val=\"1\"/>");
+        QVERIFY(plain.size() > 30);
+        QCOMPARE(said, plain);
+        // (Notes a page cannot hold go on to the next, in one column, as they did.)
+        QByteArray fewBody, fewNotes;
+        manyNotes(3, 4, &fewBody, &fewNotes);
+        auto doc = open(makeDocxNotes(fewBody, fewNotes, QByteArray()));
+        QCOMPARE(doc->pager().pageCount(), 1);
+        const QVector<QRectF> three = itemsWith(*doc, QStringLiteral("NOTE"));
+        QVERIFY(three.size() >= 1);
+        QCOMPARE(three[0].left(), 72.0);
+        QCOMPARE(three[0].width(), 468.0);
+    }
+
+    void footnotesBelowTheTextStayClearOfATable()
+    {
+        const QByteArray cell = "<w:tc><w:tcPr><w:tcW w:w=\"4000\" w:type=\"dxa\"/></w:tcPr><w:p><w:r><w:t>CELLTEXT</w:t></w:r></w:p></w:tc>";
+        const QByteArray table = "<w:tbl><w:tblPr><w:tblW w:w=\"8000\" w:type=\"dxa\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"4000\"/><w:gridCol w:w=\"4000\"/></w:tblGrid><w:tr>" + cell + cell + "</w:tr></w:tbl>";
+        const QByteArray body = para(run("Text before the table") + "<w:r><w:footnoteReference w:id=\"2\"/></w:r>") + table + para(run("Text after"));
+        const QByteArray notes = QByteArray(kSeparators) + noteXml("footnote", 2, "TABLENOTE");
+        auto doc = open(makeDocxNotes(body, notes, QByteArray(), beneathSettings(true, 1)));
+        QVERIFY(doc);
+        const QRectF note = noteRectOf(*doc, QStringLiteral("TABLENOTE"));
+        QVERIFY(note.height() > 0);
+        QRectF tableRect;
+        for (const auto &item : doc->pager().materialize(0)->doc->pages[0]->items)
+            if (dynamic_cast<const TableItem *>(item.get())) tableRect = item->rect;
+        QVERIFY(tableRect.height() > 0);
+        QVERIFY2(!note.intersects(tableRect), qPrintable(QStringLiteral("note %1..%2, table %3..%4").arg(note.top()).arg(note.bottom()).arg(tableRect.top()).arg(tableRect.bottom())));
+    }
+
+    void theNotesOfAColumnAreBalancedOnlyUpToAFewHundred()
+    {
+        QByteArray body, notes;
+        manyNotes(450, 1, &body, &notes);
+        StoryLayout::resetNotesBalancedForTest();
+        auto doc = open(makeDocxNotes(body, notes, QByteArray(), beneathSettings(false, 2)));
+        QVERIFY(doc);
+        QVERIFY(doc->pager().pageCount() >= 1);
+        for (int n : noteCountsOnPages(*doc, 450)) QVERIFY(n >= 1);
+        QVERIFY2(StoryLayout::mostNotesBalancedForTest() <= 200, qPrintable(QString::number(StoryLayout::mostNotesBalancedForTest())));
+        QVERIFY(StoryLayout::mostNotesBalancedForTest() > 20);   // (the columns were balanced while there were few notes)
+    }
+
+    void aReferenceThatSaysItsMarkDoesNotFollowIsWrittenAsItWas()
+    {
+        const QByteArray notes = QByteArray(kSeparators) + noteXml("footnote", 2, "One") + noteXml("footnote", 3, "Two");
+        auto saved = [&](const char *says) {
+            const QByteArray body = para(run("A") + "<w:r><w:footnoteReference w:customMarkFollows=\"" + says + "\" w:id=\"2\"/></w:r>" + run("1 and more") + "<w:r><w:footnoteReference w:id=\"3\"/></w:r>");
+            auto doc = open(makeDocxNotes(body, notes, QByteArray()));
+            return doc ? QString::fromUtf8(documentXml(doc->toDocx())) : QString();
+        };
+        // "0" and "false" say the mark does not follow: the text after the reference is its own, as it was.
+        for (const char *off : {"0", "false"}) {
+            const QString text = saved(off);
+            QVERIFY2(text.contains(QStringLiteral("1 and more")), off);
+            QVERIFY2(!text.contains(QRegularExpression(QStringLiteral("customMarkFollows=\"%1\"[^>]*/><w:t").arg(QLatin1String(off)))), qPrintable(text));
+        }
+        // "true" and "on" do: the mark is in the reference's run.
+        for (const char *on : {"true", "on", "1"}) QVERIFY2(saved(on).contains(QRegularExpression(QStringLiteral("customMarkFollows=\"%1\"[^>]*/><w:t[^>]*>1</w:t></w:r>").arg(QLatin1String(on)))), on);
     }
 
     // Pictures for a person to look at (JW_SHOT_DIR names the folder; nothing is made without it).

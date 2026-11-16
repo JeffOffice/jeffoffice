@@ -1455,6 +1455,83 @@ private Q_SLOTS:
         QVERIFY(!settingsWithNoteProperties(settings, true, e).contains("footnoteColumns"));
     }
 
+    // The mark a note's reference says follows it is the child of the run right after it, as a boolean attribute says so, and at most sixteen characters; a run of thousands of references is read
+    // in time in proportion to their number.
+    void aNoteMarkThatFollowsItsReferenceIsReadFromThatRunAlone()
+    {
+        auto shown = [&](const QByteArray &run) {
+            Made m;
+            m.body = "<w:p>" + run + "</w:p>";
+            Document d;
+            QStringList out;
+            if (readDocx(m.build(), &d))
+                for (const Inline &in : d.body[0].para.content)
+                    if (in.kind == Inline::RunAtom && in.tag == QLatin1String("footnoteReference")) out << in.display;
+            return out;
+        };
+        const QByteArray ref = "<w:r><w:footnoteReference w:id=\"2\" w:customMarkFollows=\"";
+        QCOMPARE(shown(ref + "1\"/><w:t>*</w:t></w:r>"), QStringList{QStringLiteral("*")});
+        QCOMPARE(shown(ref + "true\"/><w:t>*</w:t></w:r>"), QStringList{QStringLiteral("*")});
+        QCOMPARE(shown(ref + "on\"/><w:t>*</w:t></w:r>"), QStringList{QStringLiteral("*")});
+        QCOMPARE(shown(ref + "0\"/><w:t>*</w:t></w:r>"), QStringList{QStringLiteral("1")});
+        QCOMPARE(shown(ref + "false\"/><w:t>*</w:t></w:r>"), QStringList{QStringLiteral("1")});
+        QCOMPARE(shown(ref + "1\"/><w:br/><w:t>*</w:t></w:r>"), QStringList{QStringLiteral("1")});   // (only the child right after it)
+        QCOMPARE(shown(ref + "1\"/><w:t>0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ</w:t></w:r>"), QStringList{QStringLiteral("0123456789ABCDEF")});
+        auto steps = [&](int count) {
+            Made m;
+            QByteArray refs;
+            for (int i = 0; i < count; ++i) refs += "<w:footnoteReference w:id=\"2\" w:customMarkFollows=\"1\"/>";
+            m.body = "<w:p><w:r>" + refs + "</w:r></w:p>";
+            Document d;
+            const qint64 before = treeStepsForTest();
+            return readDocx(m.build(), &d) ? treeStepsForTest() - before : qint64(-1);
+        };
+        const qint64 few = steps(2000), lots = steps(20000);
+        QVERIFY2(few > 0 && lots < 12 * few, qPrintable(QStringLiteral("2,000 references %1 steps, 20,000 references %2 steps").arg(few).arg(lots)));
+    }
+
+    // A hostile count of footnote columns is kept to what the program writes and offers, and what is not a number is none.
+    void hostileFootnoteColumnsAreKeptInsideTheLimit()
+    {
+        auto columnsOf = [&](const QByteArray &value) {
+            return readNoteNumbering(xmlDoc(QByteArray("<w:settings ") + kW + " xmlns:w15=\"http://schemas.microsoft.com/office/word/2012/wordml\"><w15:footnoteColumns w:val=\"" + value + "\"/></w:settings>"), "footnotePr").columns;
+        };
+        QCOMPARE(columnsOf("-1"), 0);
+        QCOMPARE(columnsOf("0"), 0);
+        QCOMPARE(columnsOf("1"), 1);
+        QCOMPARE(columnsOf("64"), 64);
+        QCOMPARE(columnsOf("65"), 64);
+        QCOMPARE(columnsOf("99999"), 64);
+        QCOMPARE(columnsOf("junk"), 0);
+        QCOMPARE(columnsOf("99999999999999999999"), 0);
+        // The writer stops at the same number.
+        NoteProperties p;
+        p.columns = 1000;
+        QCOMPARE(readNoteNumbering(settingsWithNoteProperties(xmlDoc(QByteArray("<w:settings ") + kW + "/>"), false, p), "footnotePr").columns, columnsOf("99999"));
+    }
+
+    // The element is an extension: its namespace is declared on the root and listed as ignorable, whatever the part had.
+    void theFootnoteColumnsElementIsAnIgnorableExtension()
+    {
+        NoteProperties p;
+        p.columns = 2;
+        auto written = [&](const QByteArray &root) { return settingsWithNoteProperties(xmlDoc(root + "><w:zoom w:percent=\"100\"/></w:settings>"), false, p); };
+        const QByteArray plain = written(QByteArray("<w:settings ") + kW);
+        const int rootEnd = plain.indexOf('>', plain.indexOf("<w:settings"));
+        const QByteArray root = plain.mid(plain.indexOf("<w:settings"), rootEnd - plain.indexOf("<w:settings"));
+        QVERIFY2(root.contains("xmlns:w15=\"http://schemas.microsoft.com/office/word/2012/wordml\"") && root.contains("xmlns:mc=") && root.contains("mc:Ignorable=\"w15\""), root.constData());
+        QVERIFY(!plain.mid(rootEnd).contains("xmlns:w15"));
+        QCOMPARE(readNoteNumbering(plain, "footnotePr").columns, 2);
+        // A list that is there has it added, once; a namespace that is declared is not declared again.
+        const QByteArray listed = written(QByteArray("<w:settings ") + kW + " xmlns:mc=\"http://schemas.openxmlformats.org/markup-compatibility/2006\" xmlns:w14=\"http://schemas.microsoft.com/office/word/2010/wordml\" mc:Ignorable=\"w14\"");
+        QVERIFY2(listed.contains("mc:Ignorable=\"w14 w15\""), listed.constData());
+        QCOMPARE(listed.count("xmlns:mc="), 1);
+        const QByteArray again = settingsWithNoteProperties(listed, false, p);
+        QCOMPARE(again.count("xmlns:w15="), 1);
+        QCOMPARE(again.count("w15\""), 2);   // (the declaration and the list: one each)
+        QCOMPARE(again.count("footnoteColumns"), 1);
+    }
+
     // The numbering of the notes is written in the group the schema has for it, in the order its elements have, with the separator notes kept, and read back.
     void theSettingsSayHowTheNotesAreNumbered()
     {

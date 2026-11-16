@@ -281,6 +281,42 @@ private Q_SLOTS:
         QVERIFY(!odtPart(back->toOdt(&err, &notes), QStringLiteral("styles.xml")).contains("text:footnotes-position"));
     }
 
+    void aFootnoteMarkThatWasTypedIsTheCitationsLabelInAnOdtAndTheColumnsAreToldAsLost()
+    {
+        QString err;
+        const QByteArray body = "<text:p text:style-name=\"Standard\">Cited<text:note text:id=\"ftn1\" text:note-class=\"footnote\"><text:note-citation text:label=\"\u2020\u2020\">\u2020\u2020</text:note-citation>"
+                                "<text:note-body><text:p text:style-name=\"Standard\">NOTEWORDS</text:p></text:note-body></text:note> after</text:p>";
+        auto doc = WriteDoc::fromFile(makeOdt(body, QByteArray()), &err);
+        QVERIFY2(doc, qPrintable(err));
+        const QString mark = QString(2, QChar(0x2020));
+        QVERIFY2(doc->story()->toPlainText().contains(mark + QStringLiteral(" after")), qPrintable(doc->story()->toPlainText()));
+        QVERIFY(doc->editableFootnote(1)->toPlainText().startsWith(mark));
+        QStringList notes;
+        const QByteArray odt = doc->toOdt(&err, &notes);
+        QVERIFY2(!odt.isEmpty(), qPrintable(err));
+        const QString content = QString::fromUtf8(odtPart(odt, QStringLiteral("content.xml")));
+        QVERIFY2(content.contains(QStringLiteral("text:label=\"%1\">%1</text:note-citation>").arg(mark)), qPrintable(content));
+        // (The mark is the citation's alone: not again in the text after the note, nor at the start of the note.)
+        QCOMPARE(content.count(mark), 2);
+        QVERIFY2(content.contains(QStringLiteral("<text:note-body><text:p text:style-name=\"Standard\">NOTEWORDS")), qPrintable(content));
+        auto back = WriteDoc::fromFile(odt, &err);
+        QVERIFY2(back, qPrintable(err));
+        QVERIFY(back->story()->toPlainText().contains(mark + QStringLiteral(" after")));
+        QVERIFY(back->editableFootnote(1)->toPlainText().startsWith(mark));
+        QCOMPARE(back->editableFootnote(1)->toPlainText().count(mark), 1);
+        // Footnotes in columns are not kept by the format: the person is told.
+        auto noted = [&](int columns) {
+            WriteDoc::NoteSettings s;
+            s.columns = columns;
+            back->setNoteSettings(false, s);
+            QStringList lost;
+            back->toOdt(&err, &lost);
+            return lost.filter(QStringLiteral("footnote columns")).size();
+        };
+        QCOMPARE(noted(3), 1);
+        QCOMPARE(noted(1), 0);
+    }
+
     void anOdtMadeFromADocxKeepsItsHeadingListAndTable()
     {
         QString err;

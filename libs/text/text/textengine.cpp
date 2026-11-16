@@ -1672,6 +1672,9 @@ qint64 StoryLayout::unbreakableParagraphsForTest() { return g_unbreakableParagra
 qint64 StoryLayout::defaultTabStopsListedForTest() { return g_defaultTabStopsListed.load(); }
 qint64 StoryLayout::defaultTabStopsMadeForTest() { return g_defaultTabStopsMade.load(); }
 qint64 StoryLayout::runsPassedForTest() { return g_runsPassed.load(); }
+static std::atomic<int> g_mostNotesBalanced{0};
+int StoryLayout::mostNotesBalancedForTest() { return g_mostNotesBalanced.load(); }
+void StoryLayout::resetNotesBalancedForTest() { g_mostNotesBalanced = 0; }
 qint64 StoryLayout::notesSetInTypeForTest() { return g_notesSetInType.load(); }
 
 // The absolute position tabs of the runs of a paragraph (the tp::AlignTab of each tab character), in order, as many as a paragraph may have, from the paragraph's start to the first run that
@@ -3128,6 +3131,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
     };
     // The least height that holds the heights, in their order, in `cols` columns.
     auto balanced = [](const QVector<double> &hs, int cols) {
+        if (cols > 1 && int(hs.size()) > g_mostNotesBalanced.load()) g_mostNotesBalanced = int(hs.size());
         double lo = 0, hi = 0;
         for (double h : hs) {
             lo = std::max(lo, h);
