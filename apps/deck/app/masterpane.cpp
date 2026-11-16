@@ -88,7 +88,7 @@ public:
     }
     QSize sizeHint(const QStyleOptionViewItem &opt, const QModelIndex &idx) const override
     {
-        return QSize(kPad * 2 + idx.data(MasterPane::DepthRole).toInt() * kIndent + opt.decorationSize.width() + 80, opt.decorationSize.height() + 14);
+        return QSize(kPad * 2 + idx.data(MasterPane::DepthRole).toInt() * kIndent + opt.decorationSize.width() + 80, opt.decorationSize.height() + 16);
     }
 };
 } // namespace
@@ -100,7 +100,7 @@ MasterPane::MasterPane(Editor *ed, QWidget *parent) : QListWidget(parent), m_ed(
     setAccessibleDescription(tr("The slide masters, each with its layouts under it. The Up and Down arrows move between them."));
     setViewMode(QListView::ListMode);
     setIconSize(QSize(kThumbWidth, kThumbWidth * 9 / 16));
-    setSpacing(2);
+    setSpacing(0);   // (the gap between rows is inside each row, so the tree line runs unbroken)
     setFrameShape(QFrame::NoFrame);
     setItemDelegate(new PageDelegate(this));
     setMouseTracking(true);

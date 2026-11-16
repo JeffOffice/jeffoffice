@@ -359,6 +359,9 @@ private Q_SLOTS:
             const QRect r = pane->thumbnailRect(ids[i]);
             if (r.bottom() >= view.height() - 4) break;
             QVERIFY2(isLine(r.center().y()), qPrintable(ids[i]));
+            // Between this layout's thumbnail and the next one's, in the gap between the rows, the line runs on: every pixel from this tick to the next is the line (not dashed).
+            if (i + 1 < ids.size() && pane->depthOf(ids[i + 1]) == 1 && pane->thumbnailRect(ids[i + 1]).bottom() < view.height() - 4)
+                for (int y = r.center().y(); y <= pane->thumbnailRect(ids[i + 1]).center().y(); ++y) QVERIFY2(isLine(y), qPrintable(QStringLiteral("gap after %1 at %2").arg(ids[i]).arg(y)));
             last = i;
         }
         QVERIFY(last >= 3);
