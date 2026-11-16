@@ -1816,7 +1816,16 @@ bool insertDrawnAtom(WriteDoc &doc, QTextCursor &c, const office::wml::Inline &a
     return true;
 }
 
-QTextDocument *insertFootnote(WriteDoc &doc, QTextCursor &c)
+namespace {
+// The look of the typed mark that follows a note's reference: the reference's, as plain text.
+QTextCharFormat markTextFormat(QTextCharFormat reference)
+{
+    for (int key : {int(prop::Atom), int(tp::Field), int(tp::NoteMarkCustom), int(tp::InlineObject)}) reference.clearProperty(key);
+    return reference;
+}
+} // namespace
+
+QTextDocument *insertFootnote(WriteDoc &doc, QTextCursor &c, const QString &mark)
 {
     if (c.document() != doc.story()) return nullptr;   // (a header, a footer, or a note takes none)
     QTextCursor at = c;
@@ -1824,12 +1833,14 @@ QTextDocument *insertFootnote(WriteDoc &doc, QTextCursor &c)
     if (at.hasSelection()) at.setPosition(at.selectionEnd());
     if (isLocked(at.block())) return nullptr;
     NumberGuard numbers(doc, doc.story());
-    const int id = doc.makeFootnote();
+    const int id = doc.makeFootnote(mark);
     if (!id) return nullptr;
     const QString style = at.blockFormat().stringProperty(tp::StyleName);
     at.beginEditBlock();
     settleBesideDeletions(at);
-    at.insertText(QString(QChar::ObjectReplacementCharacter), doc.footnoteReferenceFormat(id, style));
+    const QTextCharFormat reference = doc.footnoteReferenceFormat(id, style, mark);
+    at.insertText(QString(QChar::ObjectReplacementCharacter), reference);
+    if (!mark.isEmpty()) at.insertText(mark, markTextFormat(reference));
     at.endEditBlock();
     QTextDocument *note = doc.editableFootnote(id);
     if (!note) return nullptr;
@@ -1839,7 +1850,7 @@ QTextDocument *insertFootnote(WriteDoc &doc, QTextCursor &c)
     return note;
 }
 
-bool insertEndnote(WriteDoc &doc, QTextCursor &c)
+bool insertEndnote(WriteDoc &doc, QTextCursor &c, const QString &mark)
 {
     if (c.document() != doc.story()) return false;   // (a header, a footer, or a note takes none)
     QTextCursor at = c;
@@ -1849,12 +1860,14 @@ bool insertEndnote(WriteDoc &doc, QTextCursor &c)
     int id = 0;
     {
         NumberGuard numbers(doc, doc.story());
-        id = doc.makeEndnote();
+        id = doc.makeEndnote(mark);
         if (!id) return false;
         const QString style = at.blockFormat().stringProperty(tp::StyleName);
         at.beginEditBlock();
         settleBesideDeletions(at);
-        at.insertText(QString(QChar::ObjectReplacementCharacter), doc.endnoteReferenceFormat(id, style));
+        const QTextCharFormat reference = doc.endnoteReferenceFormat(id, style, mark);
+        at.insertText(QString(QChar::ObjectReplacementCharacter), reference);
+        if (!mark.isEmpty()) at.insertText(mark, markTextFormat(reference));
         at.endEditBlock();
     }   // (the notes are set again as the guard ends, the new one among them, and the notes and their references are numbered anew)
     int from = 0, to = 0;

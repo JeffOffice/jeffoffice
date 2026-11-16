@@ -70,6 +70,10 @@ public:
     int bookmarkPosition(const QString &name) const override;
     QString noteMarkText(bool endnote, int number) const override;
     bool restartNotesEachPage() const override { return eachPage; }
+    bool footnotesBeneathText() const override { return beneathText; }
+    int footnoteColumns() const override { return columns; }
+    bool beneathText = false;  // the footnotes follow the text of the page (w:pos beneathText), not the page's foot
+    int columns = 1;           // the footnotes are set in this many columns
     QString footnoteFormat;    // how the footnotes' numbers are shown (w:numFmt of the settings; empty: 1, 2, 3)
     int footnoteStart = 1;     // the number the first footnote shows
     bool eachPage = false;     // the numbers begin again on each page
@@ -297,7 +301,8 @@ public:
     // A new footnote, for a reference to be put in the text: its Id (one more than any the file or its references use), with a story that begins with its number mark and a blank;
     // 0 where none can be made (the document has the most notes, or its notes part is one the program cannot add to). A note is the document's only while the text cites it:
     // one whose last reference was taken out is not written, and one whose reference comes back (an undo, a paste of what was cut) is again.
-    int makeFootnote();
+    // (With a `mark`, the note begins with that text, not its number: the reference says the mark follows it, and takes no number.)
+    int makeFootnote(const QString &mark = QString());
     // Whether a footnote or an endnote can be made now (the document is not one with the most notes, and its part is one the program can add to).
     bool roomForFootnote();
     bool roomForEndnote();
@@ -308,7 +313,7 @@ public:
     int duplicateFootnote(int id);
     // The look and the pieces of a reference to footnote `id`: its character format (the reference character style over the look of a paragraph of this style), to put
     // where the reference is.
-    QTextCharFormat footnoteReferenceFormat(int id, const QString &paragraphStyle);
+    QTextCharFormat footnoteReferenceFormat(int id, const QString &paragraphStyle, const QString &mark = QString());
     // Whether the story is one the document's header or footer, or a note, has: the stories that take no page break, section break, or note.
     bool isSideStory(const QTextDocument *story) const { return isHeaderFooterStory(story) || footnoteIdOf(story); }
 
@@ -327,10 +332,10 @@ public:
     bool endnoteWords(int id, int *from, int *to);
     // A new endnote for a reference to be put in the text: its Id (one more than any the file or its references use); 0 where none can be made (the document has the most notes, or its
     // endnotes part is one the program cannot add to). As with footnotes, a note is the document's while the text cites it.
-    int makeEndnote();
+    int makeEndnote(const QString &mark = QString());
     // A copy of an endnote as a note of its own (what a pasted copy of a reference cites): its Id, 0 for none.
     int duplicateEndnote(int id);
-    QTextCharFormat endnoteReferenceFormat(int id, const QString &paragraphStyle);
+    QTextCharFormat endnoteReferenceFormat(int id, const QString &paragraphStyle, const QString &mark = QString());
     // A copy of a footnote as a new endnote (`toEndnote`), or of an endnote as a new footnote, with the note styles and the number mark of its new kind: its Id, 0 for none. `lastMade` is the Id of the note of that kind that the caller made just before (0 for none): the new one is the Id above it,
     // so that a run of conversions does not look for the highest Id each time.
     int convertedNote(int id, bool toEndnote, int lastMade = 0);
@@ -414,7 +419,8 @@ public:
         int start = 1;
         QString restart = QStringLiteral("continuous");
         QString position;
-        bool operator==(const NoteSettings &o) const { return format == o.format && start == o.start && restart == o.restart && position == o.position; }
+        int columns = 1;   // the footnotes' columns (w15:footnoteColumns; 1: one)
+        bool operator==(const NoteSettings &o) const { return format == o.format && start == o.start && restart == o.restart && position == o.position && columns == o.columns; }
     };
     NoteSettings noteSettings(bool endnotes) const;
     // The separators of the notes: "separator" (between the text and the notes), "continuationSeparator" (above a note that goes on from the page before), and "continuationNotice" (the words

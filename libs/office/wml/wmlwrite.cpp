@@ -575,6 +575,8 @@ void writeInlines(QByteArray &out, const QVector<Inline> &content, qsizetype fro
         pendingProps = nullptr;
         pending.clear();
     };
+    qsizetype markAt = -1;   // the text after a note's reference whose first characters are its mark, which is written in the run of the reference, and how long it is
+    qsizetype markLength = 0;
     for (qsizetype i = from; i < to && i < content.size(); ++i) {
         if (whole && !whole->inlineKept(int(b), int(i))) continue;
         const Inline &a = content[i];
@@ -583,12 +585,14 @@ void writeInlines(QByteArray &out, const QVector<Inline> &content, qsizetype fro
             deletedDepth = std::max(0, deletedDepth + (a.role == Inline::Open ? 1 : -1));
         }
         if (a.kind == Inline::Text) {
+            const QString text = i == markAt ? a.text.mid(int(markLength)) : a.text;
+            if (text.isEmpty()) continue;
             if (pendingProps && *pendingProps == a.props) {
-                pending += a.text;
+                pending += text;
             } else {
                 flush();
                 pendingProps = &a.props;
-                pending = a.text;
+                pending = text;
             }
             continue;
         }
@@ -597,6 +601,14 @@ void writeInlines(QByteArray &out, const QVector<Inline> &content, qsizetype fro
             const QByteArray rpr = runPropsXml(a.props);
             out += "<w:r>";
             if (!rpr.isEmpty()) out += "<w:rPr>" + rpr + "</w:rPr>";
+            // (A note's reference that says its mark follows has the mark in its own run: w:customMarkFollows names the next child of the run.)
+            if ((a.tag == QLatin1String("footnoteReference") || a.tag == QLatin1String("endnoteReference")) && !a.display.isEmpty() && a.raw.contains("customMarkFollows") && deletedDepth == 0 && i + 1 < content.size() &&
+                content[i + 1].kind == Inline::Text && content[i + 1].text.startsWith(a.display) && !(whole && !whole->inlineKept(int(b), int(i + 1)))) {
+                out += a.raw + "<w:t xml:space=\"preserve\">" + escapeXml(xmlSafe(a.display)) + "</w:t></w:r>";
+                markAt = i + 1;
+                markLength = a.display.size();
+                continue;
+            }
             // (The code of a field is w:delInstrText inside a deletion and w:instrText outside one, whichever the file had.)
             if (a.tag == QLatin1String("instrText") || a.tag == QLatin1String("delInstrText")) {
                 QByteArray raw = a.raw;

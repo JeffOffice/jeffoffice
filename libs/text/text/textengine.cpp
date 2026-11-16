@@ -3117,6 +3117,42 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
     const double continuedGap = continuationH > 0 ? continuationH * scale + noticeGap : ruleGap;
     m_continuedGap = continuedGap;
     QHash<qint64, double> gapOf;   // the gap above the notes of a column that begins with the part of a note from the column before, by rkey
+    // (A word processor's footnotes in columns: the notes of each column of the text are set side by side, in as many columns as the settings say that fit under it, each note whole in
+    // one of them, so such notes are not cut at the foot.)
+    const int wantCols = env.wordLines && notesDoc ? std::max(1, notesDoc->footnoteColumns()) : 1;
+    const double noteColGap = 18 * scale;
+    auto noteCols = [&](const QRectF &col) { return wantCols > 1 ? std::max(1, std::min(wantCols, int((col.width() + noteColGap) / (36 * scale + noteColGap)))) : 1; };
+    auto noteWidth = [&](const QRectF &col) {
+        const int n = noteCols(col);
+        return n > 1 ? (col.width() - (n - 1) * noteColGap) / n : col.width();
+    };
+    // The least height that holds the heights, in their order, in `cols` columns.
+    auto balanced = [](const QVector<double> &hs, int cols) {
+        double lo = 0, hi = 0;
+        for (double h : hs) {
+            lo = std::max(lo, h);
+            hi += h;
+        }
+        if (cols <= 1 || hs.isEmpty()) return hi;
+        auto fits = [&](double limit) {
+            int used = 1;
+            double at = 0;
+            for (double h : hs) {
+                if (at > 0 && at + h > limit + 1e-9) {
+                    ++used;
+                    at = 0;
+                }
+                at += h;
+            }
+            return used <= cols;
+        };
+        for (int i = 0; i < 40 && hi - lo > 1e-6; ++i) {
+            const double mid = (lo + hi) / 2;
+            (fits(mid) ? hi : lo) = mid;
+        }
+        return hi;
+    };
+    QHash<qint64, QVector<double>> noteHeights;   // the notes' heights (and gaps) of each column that sets them in columns, by rkey
     auto noteFrame = [&](const Note &n, double width, double height) {
         FrameSpec fs = frames.first();
         fs.size = QSizeF(width, height);
@@ -4075,6 +4111,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             QHash<qint64, double> reserve;
             QVector<Note> notes;
             QVector<int> carry, seeded;
+            QHash<qint64, QVector<double>> noteHeights;
         };
         // A word processor's paragraph borders and shading: the box, whether it goes on from the paragraph before and to the one after, and the room the
         // lines above and below the text take.
@@ -4103,7 +4140,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             if (sameStyle(b, head.previous())) before = 0;
             if (sameStyle(b, b.next())) after = 0;
         }
-        const Spot startSpot{f, c, y, overflowY, rowH, row, rowIdx, rowActive, columnEmpty, m_overflow, m_blankPast, m_used, reserve, m_notes, carry, seeded};
+        const Spot startSpot{f, c, y, overflowY, rowH, row, rowIdx, rowActive, columnEmpty, m_overflow, m_blankPast, m_used, reserve, m_notes, carry, seeded, noteHeights};
         const bool breakPending = columnBreakNext;
         const bool windowCut = B->cut;
         const int windowCutAt = B->cutAt;
@@ -4718,19 +4755,25 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     }
                     if (!lineNotes.isEmpty()) {
                         if (!reserve.contains(rkey(f, c))) pending += ruleGap;
-                        for (int ni : lineNotes) notesH += measureNote(m_notes[ni], col.width()) + noteGap;
+                        if (const int cols = noteCols(col); cols > 1) {
+                            QVector<double> next = noteHeights.value(rkey(f, c));
+                            const double before = balanced(next, cols);
+                            for (int ni : lineNotes) next << measureNote(m_notes[ni], noteWidth(col)) + noteGap;
+                            notesH = balanced(next, cols) - before;
+                        } else
+                            for (int ni : lineNotes) notesH += measureNote(m_notes[ni], col.width()) + noteGap;
                         pending += notesH;
                     }
                     // (The space after the last note of the column hangs below its foot where there is no room for it: a note that is whole is as tall as its text.)
                     double hang = 0;
-                    if (env.wordLines && env.wordWholePointLines) {
+                    if (env.wordLines && env.wordWholePointLines && noteCols(col) == 1) {
                         if (!lineNotes.isEmpty())
                             if (const Note &lastNote = m_notes[lineNotes.last()]; lastNote.layout) hang = lastNote.layout->trailingSpace();
                     }
                     double bottom = col.bottom() - reserve.value(rkey(f, c)) - pending + hang;
                     bool cutting = false;
                     if (col.top() + y + fitH > bottom + fitTol) {
-                        if (!lineNotes.isEmpty() && (env.wordLines || fitH + ruleGap + notesH > col.height() + fitTol)) {
+                        if (!lineNotes.isEmpty() && noteCols(col) == 1 && (env.wordLines || fitH + ruleGap + notesH > col.height() + fitTol)) {
                             // Room here for the line and a line of the note?
                             // (A word processor cuts a note that does not fit where three of its lines do, or one of them where its first paragraph has no widow and orphan control.)
                             const double least = heightOf(m_notes[lineNotes.first()].numberFont) * (env.wordLines && widowControlled(m_notes[lineNotes.first()]) ? (noticeGap > 0 && env.wordWholePointLines ? 2 : 3) : 1) + noteGap;   // (where a file asks for the older spacing, the notice that a note goes on is in the room the notes take, and is the third)
@@ -4829,6 +4872,9 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         const bool firstNotes = !reserve.contains(rkey(f, c));
                         double &room = reserve[rkey(f, c)];
                         if (firstNotes) room += ruleGap;
+                        const int cols = noteCols(col);
+                        QVector<double> &heights = noteHeights[rkey(f, c)];
+                        const double balancedBefore = cols > 1 ? balanced(heights, cols) : 0.0;
                         for (int k = 0; k < lineNotes.size(); ++k) {
                             Note &n = m_notes[lineNotes[k]];
                             if (cut.at >= 0 && k > cut.at) {   // after the one cut: first in the next column
@@ -4843,12 +4889,14 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                                 n.from = cut.rest;
                                 if (cut.rest >= 0) carry << lineNotes[k];
                             }
-                            room += n.height + noteGap;
-                            if (env.wordLines && env.wordWholePointLines) {
+                            if (cols > 1) heights << n.height + noteGap;
+                            else room += n.height + noteGap;
+                            if (env.wordLines && env.wordWholePointLines && cols == 1) {
                                 if (k + 1 == lineNotes.size() && n.layout && !(k == cut.at && cut.rest >= 0)) lastTrail[rkey(f, c)] = n.layout->trailingSpace();
                                 else lastTrail.remove(rkey(f, c));
                             }
                         }
+                        if (cols > 1) room += balanced(heights, cols) - balancedBefore;
                     }
                     m_used[f] = std::max(m_used[f], col.top() + y + textH);
                     columnEmpty = false;
@@ -4914,6 +4962,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             m_notes = startSpot.notes;
             carry = startSpot.carry;
             seeded = startSpot.seeded;
+            noteHeights = startSpot.noteHeights;
             columnBreakNext = breakPending;
             B->lines.clear();
             placeLines(startNext, breakAfter < 0 ? firstBreak : breakAfter);
@@ -5298,6 +5347,18 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         if (fi < 0 || fi >= nF) continue;
         const QRectF col = colRect(fi, ci);
         double areaTop = col.bottom() - it.value();
+        // (Footnotes set below the text follow its last line, not the foot of the page.)
+        if (notesDoc && notesDoc->footnotesBeneathText()) {
+            if (bodyEnds.isEmpty()) {
+                for (const auto &B : m_blocks)
+                    for (const Line &l : B->lines) {
+                        double &low = bodyEnds[rkey(l.frame, l.column)];
+                        low = std::max(low, l.rect.bottom() - l.below);
+                    }
+                bodyEnds.insert(-1, 0.0);
+            }
+            if (const double end = bodyEnds.value(it.key()); end > col.top() && end < areaTop) areaTop = end;
+        }
         // (Where the text of the column goes over the room the notes were counted to take, by what the space after the last note could hang below the foot, the notes go down by that
         // much, and the space hangs below the column.)
         if (lastTrail.value(it.key()) > 0) {
@@ -5315,9 +5376,22 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         const double gap = gapOf.value(it.key(), ruleGap);
         double ny = areaTop + gap - noticeGap;
         bool goesOn = false, first = true;
+        const int inColumns = noteCols(col);
+        const double columnTop = ny, columnsHeight = inColumns > 1 ? balanced(noteHeights.value(it.key()), inColumns) : 0.0;
+        int across = 0;
         for (Note &n : m_notes) {
             if (n.endnote) continue;
-            if (n.frame == fi && n.column == ci) {
+            if (n.frame == fi && n.column == ci && inColumns > 1) {
+                // (Side by side: the next column begins where the notes of this one would pass the height they are balanced to.)
+                if (ny > columnTop && ny + n.height + noteGap > columnTop + columnsHeight + 1e-9 && across + 1 < inColumns) {
+                    ++across;
+                    ny = columnTop;
+                }
+                const double w = noteWidth(col);
+                n.rect = QRectF(col.left() + across * (w + noteColGap), ny, w, n.height);
+                ny += n.height + noteGap;
+                first = false;
+            } else if (n.frame == fi && n.column == ci) {
                 n.rect = QRectF(col.left(), ny, col.width(), n.height);
                 ny += n.height + noteGap;
                 first = false;

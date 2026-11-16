@@ -206,6 +206,29 @@ QStringList lines(const WriteDoc &doc)
 
 } // namespace
 
+QRectF noteRectOf(WriteDoc &doc, const QString &text)
+{
+    const auto page = doc.pager().materialize(0);
+    for (const auto &item : page->doc->pages[0]->items)
+        if (const auto *t = dynamic_cast<const TextItem *>(item.get()))
+            if (const Story *s = page->doc->story(t->storyId))
+                if (s->doc->toPlainText().contains(text)) return t->rect;
+    return QRectF();
+}
+QByteArray beneathSettings(bool beneath, int columns)
+{
+    QByteArray out;
+    if (beneath) out += "<w:footnotePr><w:pos w:val=\"beneathText\"/></w:footnotePr>";
+    if (columns > 1) out += "<w15:footnoteColumns xmlns:w15=\"http://schemas.microsoft.com/office/word/2012/wordml\" w:val=\"" + QByteArray::number(columns) + "\"/>";
+    return out;
+}
+QByteArray paragraphsWithNote(int paragraphs)
+{
+    QByteArray body;
+    for (int i = 0; i < paragraphs; ++i) body += para(run("Line of the text"));
+    return body + para(run("Last line") + "<w:r><w:footnoteReference w:id=\"2\"/></w:r>");
+}
+
 class RefsTests : public QObject {
     Q_OBJECT
 private Q_SLOTS:
@@ -1033,6 +1056,214 @@ private Q_SLOTS:
         QCOMPARE(w.document()->noteSettings(false).start, 4);
         QCOMPARE(w.document()->noteSettings(true).restart, QStringLiteral("eachSect"));
         QVERIFY(shownMarks(*w.document(), 0).contains(QStringLiteral("IV")));
+    }
+
+    // ---- footnotes below the text, in columns, and with a mark that is typed
+    void footnotesBelowTheTextAreSetRightAfterTheLastLine()
+    {
+        const QByteArray notes = QByteArray(kSeparators) + noteXml("footnote", 2, "BELOWWORDS");
+        auto at = [&](int paragraphs, bool beneath) {
+            auto doc = open(makeDocxNotes(paragraphsWithNote(paragraphs), notes, QByteArray(), beneathSettings(beneath, 1)));
+            return doc ? noteRectOf(*doc, QStringLiteral("BELOWWORDS")).top() : -1.0;
+        };
+        // At the foot of the page the note is in one place however long the text is, and low on the page.
+        const double footShort = at(0, false), footLong = at(6, false);
+        QVERIFY(footShort > 500);
+        QCOMPARE(footShort, footLong);
+        // Below the text it follows the text: five more lines put it five lines lower, and it is far above the foot.
+        const double shortBelow = at(0, true), longBelow = at(6, true);
+        QVERIFY2(shortBelow > 0 && shortBelow < footShort - 300, qPrintable(QString::number(shortBelow)));
+        QVERIFY2(longBelow > shortBelow + 40, qPrintable(QString::number(longBelow)));
+        QVERIFY(longBelow < footLong - 200);
+        auto doc = open(makeDocxNotes(paragraphsWithNote(6), notes, QByteArray(), beneathSettings(true, 1)));
+        QCOMPARE(doc->noteSettings(false).position, QStringLiteral("beneathText"));
+        QCOMPARE(doc->pager().pageCount(), 1);
+    }
+
+    void footnotesInColumnsAreSetSideBySideAtTheFootOfThePage()
+    {
+        QByteArray notes = kSeparators;
+        QByteArray refs;
+        for (int i = 2; i <= 5; ++i) {
+            notes += noteXml("footnote", i, "COLNOTE" + QByteArray::number(i));
+            refs += "<w:r><w:footnoteReference w:id=\"" + QByteArray::number(i) + "\"/></w:r>" + run(" and");
+        }
+        const QByteArray body = para(run("Some words") + refs);
+        auto rects = [&](int columns, bool beneath = false) {
+            auto doc = open(makeDocxNotes(body, notes, QByteArray(), beneathSettings(beneath, columns)));
+            QVector<QRectF> out;
+            if (doc)
+                for (int i = 2; i <= 5; ++i) out << noteRectOf(*doc, QStringLiteral("COLNOTE%1").arg(i));
+            return out;
+        };
+        const QVector<QRectF> one = rects(1), two = rects(2);
+        QCOMPARE(one.size(), 4);
+        QCOMPARE(two.size(), 4);
+        for (int i = 0; i < 4; ++i) QVERIFY(one[i].width() > 0 && two[i].width() > 0);
+        // One column: stacked, each at the same left edge. Two: the notes after the first half sit to the right of the first, higher up, and each is about half as wide.
+        QCOMPARE(one[0].left(), one[3].left());
+        QVERIFY(one[1].top() > one[0].top());
+        QVERIFY2(two[0].width() < one[0].width() * 0.6, qPrintable(QString::number(two[0].width())));
+        QVERIFY(two[0].left() < two[3].left() && two[2].left() > two[0].left());
+        QVERIFY(two[2].top() < two[1].top() + 0.5 || two[2].top() < two[3].top() + 0.5);
+        QCOMPARE(two[0].left(), two[1].left());
+        // The whole block is shorter than the stack (the lowest note ends where it did, the first begins lower).
+        QVERIFY2(two[0].top() > one[0].top() + 5, qPrintable(QString::number(two[0].top()) + " vs " + QString::number(one[0].top())));
+        // Below the text and in columns both hold.
+        const QVector<QRectF> both = rects(2, true);
+        QVERIFY(both[0].top() < one[0].top() - 200);
+        QVERIFY(both[2].left() > both[0].left());
+    }
+
+    void footnotesBelowTheTextAndInColumnsAreSavedAndReadBack()
+    {
+        const QByteArray body = para(run("Text") + "<w:r><w:footnoteReference w:id=\"2\"/></w:r>");
+        const QByteArray notes = QByteArray(kSeparators) + noteXml("footnote", 2, "One");
+        auto doc = open(makeDocxNotes(body, notes, QByteArray()));
+        QVERIFY(doc);
+        WriteDoc::NoteSettings s;
+        s.position = QStringLiteral("beneathText");
+        s.columns = 3;
+        doc->setNoteSettings(false, s);
+        QVERIFY(doc->isModified());
+        const QByteArray zip = doc->toDocx();
+        office::Package p;
+        QVERIFY(p.read(zip));
+        const QByteArray settings = p.part(QStringLiteral("/word/settings.xml"));
+        QVERIFY2(settings.contains("<w:pos w:val=\"beneathText\"/>") && settings.contains("footnoteColumns") && settings.contains("w:val=\"3\""), settings.constData());
+        auto again = open(zip);
+        QVERIFY(again);
+        QCOMPARE(again->noteSettings(false).position, QStringLiteral("beneathText"));
+        QCOMPARE(again->noteSettings(false).columns, 3);
+        s.position = QStringLiteral("pageBottom");
+        s.columns = 1;
+        again->setNoteSettings(false, s);
+        office::Package q;
+        QVERIFY(q.read(again->toDocx()));
+        QVERIFY(!q.part(QStringLiteral("/word/settings.xml")).contains("footnoteColumns"));
+    }
+
+    void theNotesOptionsDialogSetsWhereTheFootnotesAreAndTheirColumns()
+    {
+        const QByteArray body = para(run("Text") + "<w:r><w:footnoteReference w:id=\"2\"/></w:r>");
+        const QByteArray notes = QByteArray(kSeparators) + noteXml("footnote", 2, "One");
+        WriteWindow w;
+        w.setDocument(open(makeDocxNotes(body, notes, QByteArray())), QString());
+        w.show();
+        onNextDialog(QStringLiteral("notes-options-dialog"), [](QDialog *d) {
+            auto *where = d->findChild<QComboBox *>(QStringLiteral("footnotePosition"));
+            QVERIFY(where);
+            where->setCurrentIndex(where->findData(QStringLiteral("beneathText")));
+            auto *columns = d->findChild<QSpinBox *>(QStringLiteral("footnoteColumns"));
+            QVERIFY(columns);
+            columns->setValue(2);
+            d->accept();
+        });
+        bool endnotes = false;
+        QVERIFY(notesOptionsDialog(&w, w.document(), &endnotes));
+        QCOMPARE(w.document()->noteSettings(false).position, QStringLiteral("beneathText"));
+        QCOMPARE(w.document()->noteSettings(false).columns, 2);
+    }
+
+    void aFootnoteWithATypedMarkShowsItTakesNoNumberAndIsOneStep()
+    {
+        const QByteArray body = para(run("First") + "<w:r><w:footnoteReference w:id=\"2\"/></w:r>" + run(" second words"));
+        const QByteArray notes = QByteArray(kSeparators) + noteXml("footnote", 2, "Numbered");
+        auto doc = open(makeDocxNotes(body, notes, QByteArray()));
+        QVERIFY(doc);
+        QTextCursor c(doc->story());
+        c.setPosition(doc->story()->characterCount() - 1);
+        QTextDocument *note = insertFootnote(*doc, c, QStringLiteral("††"));
+        QVERIFY(note);
+        QVERIFY(note->toPlainText().startsWith(QStringLiteral("††")));
+        QVERIFY(doc->story()->toPlainText().contains(QStringLiteral("††")));
+        bool custom = false;
+        for (QTextBlock b = doc->story()->begin(); b.isValid(); b = b.next())
+            for (auto it = b.begin(); !it.atEnd(); ++it) custom |= it.fragment().charFormat().boolProperty(tp::NoteMarkCustom);
+        QVERIFY(custom);
+        QVERIFY(shownMarks(*doc, 0).contains(QStringLiteral("1")));
+        QVERIFY(!shownMarks(*doc, 0).contains(QStringLiteral("2")));   // (it took no number)
+        // Saved as the format has it: the reference says the mark follows, and the mark is in the run of the reference.
+        const QByteArray zip = doc->toDocx();
+        const QString xmlText = QString::fromUtf8(documentXml(zip));
+        QVERIFY2(xmlText.contains(QRegularExpression(QStringLiteral("<w:footnoteReference[^>]*w:customMarkFollows=\"1\"[^>]*/><w:t[^>]*>††</w:t></w:r>"))), qPrintable(xmlText));
+        auto again = open(zip);
+        QVERIFY(again);
+        QVERIFY(again->story()->toPlainText().contains(QStringLiteral("††")));
+        QCOMPARE(again->heldFootnotesForTest(), 2);
+        // One step takes the reference, the mark, and the note.
+        QCOMPARE(doc->undo(), doc->story());
+        QVERIFY(!doc->story()->toPlainText().contains(QStringLiteral("†")));
+        QVERIFY(!doc->canUndo());
+    }
+
+    void anEndnoteWithATypedMarkShowsItTakesNoNumberAndIsOneStep()
+    {
+        const QByteArray body = para(run("First") + "<w:r><w:endnoteReference w:id=\"2\"/></w:r>" + run(" second words"));
+        const QByteArray notes = "<w:endnote w:type=\"separator\" w:id=\"-1\"><w:p><w:r><w:separator/></w:r></w:p></w:endnote>" + noteXml("endnote", 2, "Numbered");
+        auto doc = open(makeDocxNotes(body, QByteArray(), notes));
+        QVERIFY(doc);
+        QTextCursor c(doc->story());
+        c.setPosition(doc->story()->findBlockByNumber(0).position() + 5);
+        QVERIFY(insertEndnote(*doc, c, QStringLiteral("*")));
+        const QString xmlText = QString::fromUtf8(documentXml(doc->toDocx()));
+        QVERIFY2(xmlText.contains(QRegularExpression(QStringLiteral("<w:endnoteReference[^>]*w:customMarkFollows=\"1\"[^>]*/><w:t[^>]*>\\*</w:t></w:r>"))), qPrintable(xmlText));
+        QVERIFY(doc->story()->toPlainText().contains(QStringLiteral("words*")) || doc->story()->toPlainText().contains(QLatin1Char('*')));
+        QCOMPARE(doc->undo(), doc->story());
+        QVERIFY(!doc->story()->toPlainText().contains(QLatin1Char('*')));
+        QVERIFY(!doc->canUndo());
+    }
+
+    void theNotesOptionsDialogInsertsANoteWithTheMarkTypedInIt()
+    {
+        const QByteArray body = para(run("First words and more"));
+        WriteWindow w;
+        w.setDocument(open(makeDocxNotes(body, QByteArray(), QByteArray())), QString());
+        w.show();
+        w.view()->cursor().setPosition(8);
+        onNextDialog(QStringLiteral("notes-options-dialog"), [](QDialog *d) {
+            auto *mark = d->findChild<QLineEdit *>(QStringLiteral("noteCustomMark"));
+            QVERIFY(mark);
+            QVERIFY(d->findChild<QPushButton *>(QStringLiteral("noteSymbol")));
+            mark->setText(QStringLiteral("§"));
+            auto *insert = d->findChild<QPushButton *>(QStringLiteral("insertNote"));
+            QVERIFY(insert);
+            insert->click();
+        });
+        w.act(QStringLiteral("refs.notesOptions"))->trigger();
+        QVERIFY(w.document()->story()->toPlainText().contains(QStringLiteral("§")));
+        QVERIFY(w.view()->inNote());
+        QVERIFY(w.document()->editableFootnote(1)->toPlainText().startsWith(QStringLiteral("§")));
+    }
+
+    // Pictures for a person to look at (JW_SHOT_DIR names the folder; nothing is made without it).
+    void footnoteScreenshots()
+    {
+        const QString dir = qEnvironmentVariable("JW_SHOT_DIR");
+        if (dir.isEmpty()) QSKIP("JW_SHOT_DIR is not set");
+        QByteArray notes = kSeparators, refs;
+        for (int i = 2; i <= 5; ++i) {
+            notes += noteXml("footnote", i, "Note number " + QByteArray::number(i - 1) + " says a little more about the words before it.");
+            refs += "<w:r><w:footnoteReference w:id=\"" + QByteArray::number(i) + "\"/></w:r>" + run(" and more words follow here.");
+        }
+        const QByteArray body = para(run("A short page of text that cites four notes.") + refs) + para(run("A second paragraph, after which the notes are set."));
+        auto shoot = [&](const QByteArray &settings, const QString &file) {
+            WriteWindow w;
+            w.resize(1100, 1250);
+            w.setDocument(open(makeDocxNotes(body, notes, QByteArray(), settings)), QString());
+            w.show();
+            QVERIFY(QTest::qWaitForWindowActive(&w));
+            w.view()->paginateAll();
+            w.grab().save(dir + QLatin1Char('/') + file);
+        };
+        shoot(beneathSettings(true, 1), QStringLiteral("footnotes-below-text.png"));
+        shoot(beneathSettings(false, 2), QStringLiteral("footnotes-two-columns.png"));
+        WriteWindow w;
+        w.setDocument(open(makeDocxNotes(body, notes, QByteArray())), QString());
+        w.show();
+        w.view()->cursor().setPosition(8);
+        onNextDialog(QStringLiteral("notes-options-dialog"), [](QDialog *d) { d->findChild<QPushButton *>(QStringLiteral("applyNotes"))->click(); });
+        w.act(QStringLiteral("refs.notesOptions"))->trigger();
     }
 
     // ---- the work a pass does is bounded (a hostile file has thousands of marks and of tables)

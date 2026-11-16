@@ -258,6 +258,29 @@ private Q_SLOTS:
         QVERIFY(off && !off->bookFold());
     }
 
+    void footnotesBelowTheTextSurviveSavingAsOdtAndOpeningAgain()
+    {
+        QString err;
+        auto doc = WriteDoc::fromFile(makeOdt(kBody, kAuto), &err);
+        QVERIFY(doc);
+        QCOMPARE(doc->noteSettings(false).position, QString());
+        WriteDoc::NoteSettings s;
+        s.position = QStringLiteral("beneathText");
+        doc->setNoteSettings(false, s);
+        QStringList notes;
+        const QByteArray odt = doc->toOdt(&err, &notes);
+        QVERIFY2(!odt.isEmpty(), qPrintable(err));
+        const QByteArray styles = odtPart(odt, QStringLiteral("styles.xml"));
+        QVERIFY2(styles.contains("text:notes-configuration") && styles.contains("text:footnotes-position=\"text\""), styles.constData());
+        auto back = WriteDoc::fromFile(odt, &err);
+        QVERIFY(back);
+        QCOMPARE(back->noteSettings(false).position, QStringLiteral("beneathText"));
+        // At the foot of the page there is no such element.
+        s.position = QStringLiteral("pageBottom");
+        back->setNoteSettings(false, s);
+        QVERIFY(!odtPart(back->toOdt(&err, &notes), QStringLiteral("styles.xml")).contains("text:footnotes-position"));
+    }
+
     void anOdtMadeFromADocxKeepsItsHeadingListAndTable()
     {
         QString err;

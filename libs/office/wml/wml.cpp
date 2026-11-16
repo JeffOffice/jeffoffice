@@ -810,7 +810,33 @@ QByteArray settingsWithNoteSeparators(const QByteArray &settings, bool endnotes)
     return settings.left(at) + open + inside + close + settings.mid(at);
 }
 
+namespace {
+// The settings with the footnotes' columns (w15:footnoteColumns, a child of the settings that no group holds) made as `columns` says: one element, and none for one column.
+QByteArray settingsWithFootnoteColumns(const QByteArray &settings, int columns)
+{
+    QVector<SettingsChild> children;
+    qsizetype rootEnd = 0;
+    QByteArray prefix;
+    if (!settingsChildren(settings, &children, &rootEnd, &prefix)) return settings;
+    QByteArray out = settings;
+    for (qsizetype i = children.size() - 1; i >= 0; --i)
+        if (children[i].name == "footnoteColumns") out.remove(children[i].begin, children[i].end - children[i].begin);
+    if (columns <= 1) return out;
+    if (!settingsChildren(out, &children, &rootEnd, &prefix)) return settings;
+    return out.left(rootEnd) + "<w15:footnoteColumns xmlns:w15=\"http://schemas.microsoft.com/office/word/2012/wordml\" " + prefix + "val=\"" + QByteArray::number(std::min(columns, 64)) + "\"/>" + out.mid(rootEnd);
+}
+
+QByteArray settingsWithNotePropertiesIn(const QByteArray &settings, bool endnotes, const NoteProperties &p);
+} // namespace
+
 QByteArray settingsWithNoteProperties(const QByteArray &settings, bool endnotes, const NoteProperties &p)
+{
+    const QByteArray made = settingsWithNotePropertiesIn(settings, endnotes, p);
+    return endnotes ? made : settingsWithFootnoteColumns(made, p.columns);
+}
+
+namespace {
+QByteArray settingsWithNotePropertiesIn(const QByteArray &settings, bool endnotes, const NoteProperties &p)
 {
     static const char kXml[] = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n";
     const QByteArray group = endnotes ? "endnotePr" : "footnotePr", note = endnotes ? "endnote" : "footnote";
@@ -856,6 +882,7 @@ QByteArray settingsWithNoteProperties(const QByteArray &settings, bool endnotes,
     }
     return settings.left(at) + "<" + prefix + group + ">" + inner(prefix, QByteArray()) + "</" + prefix + group + ">" + settings.mid(at);
 }
+} // namespace
 
 bool settingsAcceptNoteProperties(const QByteArray &settings)
 {

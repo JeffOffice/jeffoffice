@@ -5,6 +5,7 @@
 
 #include "app/pageview.h"
 #include "app/plaintext.h"
+#include "app/textdialogs.h"
 #include "core/captionops.h"
 #include "core/citeops.h"
 #include "core/editops.h"
@@ -723,7 +724,7 @@ bool citationStyleDialog(QWidget *parent, WriteDoc *doc)
     return true;
 }
 
-bool notesOptionsDialog(QWidget *parent, WriteDoc *doc, bool *endnotesChanged)
+bool notesOptionsDialog(QWidget *parent, WriteDoc *doc, bool *endnotesChanged, NoteInsertion *insertion)
 {
     if (!doc) return false;
     if (endnotesChanged) *endnotesChanged = false;
@@ -737,7 +738,7 @@ bool notesOptionsDialog(QWidget *parent, WriteDoc *doc, bool *endnotesChanged)
     auto *v = new QVBoxLayout(&dlg);
     struct Box {
         QComboBox *position = nullptr, *format = nullptr, *restart = nullptr;
-        QSpinBox *start = nullptr;
+        QSpinBox *start = nullptr, *columns = nullptr;
     };
     auto formats = [&](QComboBox *c) {
         c->addItem(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "1, 2, 3, ...")), QStringLiteral("decimal"));
@@ -752,13 +753,16 @@ bool notesOptionsDialog(QWidget *parent, WriteDoc *doc, bool *endnotesChanged)
         group->setObjectName(endnotes ? QStringLiteral("endnoteOptions") : QStringLiteral("footnoteOptions"));
         auto *form = new QFormLayout(group);
         Box b;
+        b.position = new QComboBox(group);
+        b.position->setObjectName(endnotes ? QStringLiteral("endnotePosition") : QStringLiteral("footnotePosition"));
         if (endnotes) {
-            b.position = new QComboBox(group);
-            b.position->setObjectName(QStringLiteral("endnotePosition"));
             b.position->addItem(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "End of section")), QStringLiteral("sectEnd"));
             b.position->addItem(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "End of document")), QStringLiteral("docEnd"));
-            form->addRow(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Location:")), b.position);
+        } else {
+            b.position->addItem(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Bottom of page")), QStringLiteral("pageBottom"));
+            b.position->addItem(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Below text")), QStringLiteral("beneathText"));
         }
+        form->addRow(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Location")), b.position);
         b.format = new QComboBox(group);
         b.format->setObjectName(endnotes ? QStringLiteral("endnoteFormat") : QStringLiteral("footnoteFormat"));
         formats(b.format);
@@ -770,25 +774,88 @@ bool notesOptionsDialog(QWidget *parent, WriteDoc *doc, bool *endnotesChanged)
         b.restart->addItem(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Continuous")), QStringLiteral("continuous"));
         b.restart->addItem(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Restart each section")), QStringLiteral("eachSect"));
         if (!endnotes) b.restart->addItem(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Restart each page")), QStringLiteral("eachPage"));
-        form->addRow(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Number format:")), b.format);
-        form->addRow(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Start at:")), b.start);
-        form->addRow(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Numbering:")), b.restart);
+        form->addRow(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Number format")), b.format);
+        form->addRow(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Start at")), b.start);
+        form->addRow(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Numbering")), b.restart);
+        if (!endnotes) {
+            b.columns = new QSpinBox(group);
+            b.columns->setObjectName(QStringLiteral("footnoteColumns"));
+            b.columns->setRange(1, 8);
+            form->addRow(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Columns")), b.columns);
+        }
         const WriteDoc::NoteSettings now = doc->noteSettings(endnotes);
         b.format->setCurrentIndex(std::max(0, b.format->findData(now.format)));
         b.start->setValue(now.start);
         b.restart->setCurrentIndex(std::max(0, b.restart->findData(now.restart)));
-        if (b.position) b.position->setCurrentIndex(std::max(0, b.position->findData(now.position.isEmpty() ? QStringLiteral("docEnd") : now.position)));
+        if (b.position) b.position->setCurrentIndex(std::max(0, b.position->findData(now.position.isEmpty() ? (endnotes ? QStringLiteral("docEnd") : QStringLiteral("pageBottom")) : now.position)));
+        if (b.columns) b.columns->setValue(now.columns);
         v->addWidget(group);
         return b;
     };
     const Box foot = makeBox(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Footnotes")), false), end = makeBox(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Endnotes")), true);
-    v->addWidget(okCancel(&dlg));
+    QRadioButton *newEndnote = nullptr;
+    QLineEdit *newMark = nullptr;
+    if (insertion) {
+        auto *group = new jp::Section(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "New note")), &dlg);
+        group->setObjectName(QStringLiteral("newNote"));
+        auto *form = new QFormLayout(group);
+        auto *kinds = new QWidget(group);
+        auto *kindRow = new QHBoxLayout(kinds);
+        kindRow->setContentsMargins(0, 0, 0, 0);
+        auto *newFootnote = new QRadioButton(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Footnote")), kinds);
+        newFootnote->setObjectName(QStringLiteral("newFootnote"));
+        newFootnote->setChecked(true);
+        newEndnote = new QRadioButton(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Endnote")), kinds);
+        newEndnote->setObjectName(QStringLiteral("newEndnote"));
+        kindRow->addWidget(newFootnote);
+        kindRow->addWidget(newEndnote);
+        kindRow->addStretch(1);
+        form->addRow(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Insert")), kinds);
+        auto *markRow = new QWidget(group);
+        auto *markLayout = new QHBoxLayout(markRow);
+        markLayout->setContentsMargins(0, 0, 0, 0);
+        newMark = new QLineEdit(markRow);
+        newMark->setObjectName(QStringLiteral("noteCustomMark"));
+        newMark->setMaxLength(16);
+        auto *symbol = new QPushButton(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Symbol…")), markRow);
+        symbol->setObjectName(QStringLiteral("noteSymbol"));
+        QObject::connect(symbol, &QPushButton::clicked, &dlg, [&dlg, mark = newMark] {
+            symbolDialog(&dlg, [mark](QWidget *, const QString &ch, const QString &) {
+                mark->setText(mark->text() + ch);
+                return true;
+            });
+        });
+        markLayout->addWidget(newMark, 1);
+        markLayout->addWidget(symbol);
+        form->addRow(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Custom mark")), markRow);
+        form->addRow(jp::noteLabel(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Leave the custom mark empty to number the note.")), group));
+        v->addWidget(group);
+    }
+    bool insertChosen = false;
+    if (insertion) {
+        auto *buttons = new jp::ButtonBox(QDialogButtonBox::Cancel, &dlg);
+        auto *apply = buttons->addButton(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Apply")), QDialogButtonBox::ActionRole);
+        apply->setObjectName(QStringLiteral("applyNotes"));
+        auto *insert = buttons->addButton(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "Insert")), QDialogButtonBox::AcceptRole);
+        insert->setObjectName(QStringLiteral("insertNote"));
+        QObject::connect(apply, &QPushButton::clicked, &dlg, &QDialog::accept);
+        QObject::connect(insert, &QPushButton::clicked, &dlg, [&] {
+            insertChosen = true;
+            dlg.accept();
+        });
+        QObject::connect(buttons, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
+        v->addWidget(buttons);
+    } else
+        v->addWidget(okCancel(&dlg));
     if (dlg.exec() != QDialog::Accepted) return false;
     WriteDoc::NoteSettings f = doc->noteSettings(false), e = doc->noteSettings(true);
     const WriteDoc::NoteSettings f0 = f, e0 = e;
     f.format = foot.format->currentData().toString();
     f.start = foot.start->value();
     f.restart = foot.restart->currentData().toString();
+    f.columns = foot.columns->value();
+    // (Where the footnotes are set is left as the file has it when the choice is the one that shows.)
+    if (!(f0.position.isEmpty() && foot.position->currentData().toString() == QLatin1String("pageBottom"))) f.position = foot.position->currentData().toString();
     e.format = end.format->currentData().toString();
     e.start = end.start->value();
     e.restart = end.restart->currentData().toString();
@@ -798,6 +865,11 @@ bool notesOptionsDialog(QWidget *parent, WriteDoc *doc, bool *endnotesChanged)
     if (footChanged) doc->setNoteSettings(false, f);
     if (endChanged) doc->setNoteSettings(true, e);
     if (endnotesChanged) *endnotesChanged = endChanged;
+    if (insertion && insertChosen) {
+        insertion->insert = true;
+        insertion->endnote = newEndnote->isChecked();
+        insertion->mark = newMark->text().trimmed();
+    }
     return footChanged || endChanged;
 }
 

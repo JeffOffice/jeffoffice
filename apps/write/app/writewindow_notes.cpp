@@ -9,24 +9,21 @@
 
 namespace jp {
 
+// A note at the caret, numbered or (with a `mark`) with that text for its mark.
+void WriteWindow::insertNoteWithMark(bool endnote, const QString &mark)
+{
+    // (A header, a footer, or a note takes no note.)
+    if (m_doc && !m_view->inHeaderFooter() && !m_view->inNote()) {
+        QTextCursor c = m_view->cursor();
+        if (endnote ? write::insertEndnote(*m_doc, c, mark) : bool(write::insertFootnote(*m_doc, c, mark))) m_view->setCursor(c);
+    }
+    m_view->setFocus(Qt::OtherFocusReason);
+}
+
 void WriteWindow::createNoteActions()
 {
-    mk("refs.footnote", tr("Insert Footnote"), "superscript", QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_F), [this] {
-        // (A header, a footer, or a note takes no note.)
-        if (m_doc && !m_view->inHeaderFooter() && !m_view->inNote()) {
-            QTextCursor c = m_view->cursor();
-            if (write::insertFootnote(*m_doc, c)) m_view->setCursor(c);
-        }
-        m_view->setFocus(Qt::OtherFocusReason);
-    });
-    mk("refs.endnote", tr("Insert Endnote"), "list-end", QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_D), [this] {
-        // (A header, a footer, or a note takes no note.)
-        if (m_doc && !m_view->inHeaderFooter() && !m_view->inNote()) {
-            QTextCursor c = m_view->cursor();
-            if (write::insertEndnote(*m_doc, c)) m_view->setCursor(c);
-        }
-        m_view->setFocus(Qt::OtherFocusReason);
-    });
+    mk("refs.footnote", tr("Insert Footnote"), "superscript", QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_F), [this] { insertNoteWithMark(false, QString()); });
+    mk("refs.endnote", tr("Insert Endnote"), "list-end", QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_D), [this] { insertNoteWithMark(true, QString()); });
 }
 
 } // namespace jp

@@ -1064,7 +1064,11 @@ bool Writer::run(const QByteArray &docx, QByteArray *out, QString *error, QStrin
     // Pictures and the parts.
     jp::ZipWriter zip;
     zip.add(QStringLiteral("mimetype"), QByteArray("application/vnd.oasis.opendocument.text"), false);
-    const QByteArray styles = stylesPart();   // (after the body: it names the list styles it uses)
+    QByteArray styles = stylesPart();   // (after the body: it names the list styles it uses)
+    if (m_settings)
+        if (const int notes = m_settings->child(m_settings->root(), "footnotePr"); notes >= 0)
+            if (const int position = m_settings->child(notes, "pos"); position >= 0 && m_settings->val(position) == QLatin1String("beneathText"))
+                styles += "<text:notes-configuration text:note-class=\"footnote\" text:footnotes-position=\"text\"/>";   // (the notes set after the text, not at the foot of the page)
     const QByteArray faces = fontFacesXml();
     zip.add(QStringLiteral("content.xml"), contentXml(), true);
     QByteArray stylesXml = QByteArray(kXml) + "<office:document-styles" + kOdfNamespaces + " office:version=\"1.2\"><office:font-face-decls>" + faces + "</office:font-face-decls><office:styles>" + styles +

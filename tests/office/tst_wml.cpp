@@ -1428,6 +1428,33 @@ private Q_SLOTS:
         QVERIFY(!settingsAcceptNoteProperties(xmlDoc(QByteArray("<w:settings ") + kW + "/>")));
     }
 
+    // The footnotes' columns are the settings' w15:footnoteColumns: written outside the group, read back, replaced, and removed when it is one column again.
+    void theSettingsSayHowManyColumnsTheFootnotesAreSetIn()
+    {
+        const QByteArray settings = xmlDoc(QByteArray("<w:settings ") + kW + "><w:zoom w:percent=\"100\"/><w:footnotePr><w:numFmt w:val=\"lowerRoman\"/></w:footnotePr><w:compat/></w:settings>");
+        NoteProperties p;
+        p.format = QStringLiteral("lowerRoman");
+        p.position = QStringLiteral("beneathText");
+        p.columns = 2;
+        const QByteArray out = settingsWithNoteProperties(settings, false, p);
+        QVERIFY2(out.contains("footnoteColumns") && out.contains("w:val=\"2\"/></w:settings>"), out.constData());
+        QCOMPARE(readNoteNumbering(out, "footnotePr").columns, 2);
+        QCOMPARE(readNoteNumbering(out, "footnotePr").position, QStringLiteral("beneathText"));
+        QCOMPARE(settingsWithNoteProperties(out, false, p), out);   // (written again as it was: one element)
+        p.columns = 3;
+        const QByteArray three = settingsWithNoteProperties(out, false, p);
+        QCOMPARE(readNoteNumbering(three, "footnotePr").columns, 3);
+        QCOMPARE(three.count("footnoteColumns"), 1);
+        p.columns = 1;
+        const QByteArray one = settingsWithNoteProperties(three, false, p);
+        QVERIFY(!one.contains("footnoteColumns"));
+        QCOMPARE(readNoteNumbering(one, "footnotePr").columns, 0);
+        // (The endnotes have none.)
+        NoteProperties e;
+        e.columns = 2;
+        QVERIFY(!settingsWithNoteProperties(settings, true, e).contains("footnoteColumns"));
+    }
+
     // The numbering of the notes is written in the group the schema has for it, in the order its elements have, with the separator notes kept, and read back.
     void theSettingsSayHowTheNotesAreNumbered()
     {

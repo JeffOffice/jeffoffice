@@ -419,7 +419,16 @@ public:
                 Inline a = atom(c, Inline::RunAtom);
                 a.props = props;
                 if (name == "br" || name == "fldChar") a.key = t.attr(c, name == "br" ? "type" : "fldCharType");
-                if (name == "footnoteReference") a.display = QString::number(++footnotes);
+                // (A reference whose mark follows it in its run shows that text, and takes no number.)
+                QString followingMark;
+                if (name == "footnoteReference" || name == "endnoteReference") {
+                    const QString says = t.attr(c, "customMarkFollows");
+                    if (!says.isEmpty() && says != QLatin1String("0") && says != QLatin1String("false") && says != QLatin1String("off"))
+                        for (int k = t.next(c); k >= 0 && followingMark.size() < 64; k = t.next(k))
+                            if (t.localName(k) == "t") followingMark += textOf(k);
+                }
+                if (!followingMark.isEmpty()) a.display = followingMark;
+                else if (name == "footnoteReference") a.display = QString::number(++footnotes);
                 else if (name == "endnoteReference") a.display = QString::number(++endnotes);
                 else if (name == "sym") a.display = symbolDisplay(t.attr(c, "font"), t.attr(c, "char"));
                 else if (name == "ruby") {
@@ -1422,6 +1431,9 @@ NoteNumbering readNoteNumbering(const QByteArray &settings, const char *group)
     NoteNumbering n;
     XmlTree tree;
     if (!tree.parse(settings, nullptr)) return n;
+    if (QByteArrayView(group) == "footnotePr")
+        if (const int w15 = tree.namespaceId("http://schemas.microsoft.com/office/word/2012/wordml"); w15 >= 0)
+            if (const int columns = tree.child(tree.root(), "footnoteColumns", w15); columns >= 0) n.columns = std::clamp(tree.val(columns).toInt(), 0, 64);
     const int notes = tree.child(tree.root(), group);
     if (notes < 0) return n;
     if (const int format = tree.child(notes, "numFmt"); format >= 0) n.format = tree.val(format);

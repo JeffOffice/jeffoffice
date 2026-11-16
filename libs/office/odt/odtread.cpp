@@ -793,7 +793,12 @@ bool Reader::read(const QByteArray &file, QString *error, QStringList *notes)
         }
         bool ok = false;
         const qint64 tab = lengthToTwips(m_defaults.value(QStringLiteral("paragraph")).value(QStringLiteral("para:style:tab-stop-distance")), &ok);
-        s += "<w:defaultTabStop w:val=\"" + num(ok && tab > 0 ? tab : 720) + "\"/></w:settings>";
+        s += "<w:defaultTabStop w:val=\"" + num(ok && tab > 0 ? tab : 720) + "\"/>";
+        // Footnotes set after the text (text:footnotes-position "text") are the settings' w:pos beneathText.
+        static const QRegularExpression footnoteConfig(QStringLiteral("<text:notes-configuration\\b[^>]*text:note-class=\"footnote\"[^>]*>"));
+        const QRegularExpressionMatch config = footnoteConfig.match(QString::fromUtf8(m_stylesXml.left(4 << 20)));
+        if (config.hasMatch() && config.captured(0).contains(QLatin1String("text:footnotes-position=\"text\""))) s += "<w:footnotePr><w:pos w:val=\"beneathText\"/></w:footnotePr>";
+        s += "</w:settings>";
         m_out.addPart(QStringLiteral("/word/settings.xml"), s, wml + QStringLiteral("settings+xml"));
         m_out.addRelationship(mainName, rel + QStringLiteral("settings"), QStringLiteral("/word/settings.xml"));
     }

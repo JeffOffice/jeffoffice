@@ -353,7 +353,7 @@ void WriteDoc::reclaimDeadNotes(bool endnotes, int keep)
     }
 }
 
-int WriteDoc::makeFootnote()
+int WriteDoc::makeFootnote(const QString &customMark)
 {
     reclaimDeadNotes(false, 0);   // (the edit that makes the note makes any redo impossible)
     if (!roomForFootnote()) return 0;
@@ -367,9 +367,12 @@ int WriteDoc::makeFootnote()
     Block note;
     note.para.props.style = QStringLiteral("FootnoteText");
     Inline mark;
-    mark.kind = Inline::RunAtom;
-    mark.tag = QStringLiteral("footnoteRef");
-    mark.raw = "<w:footnoteRef/>";
+    if (customMark.isEmpty()) {
+        mark.kind = Inline::RunAtom;
+        mark.tag = QStringLiteral("footnoteRef");
+        mark.raw = "<w:footnoteRef/>";
+    } else
+        mark.text = customMark;   // (a note of a mark that was typed begins with it, as text)
     mark.props.style = QStringLiteral("FootnoteReference");
     note.para.content.push_back(mark);
     Inline blank;
@@ -479,7 +482,7 @@ int WriteDoc::convertedNote(int id, bool toEndnote, int lastMade)
     return fresh;
 }
 
-QTextCharFormat WriteDoc::footnoteReferenceFormat(int id, const QString &paragraphStyle)
+QTextCharFormat WriteDoc::footnoteReferenceFormat(int id, const QString &paragraphStyle, const QString &mark)
 {
     ensureStyle(QStringLiteral("FootnoteReference"));
     QTextCharFormat f = styleCharFormat(paragraphStyle.isEmpty() ? defaultParagraphStyle() : paragraphStyle, QStringLiteral("FootnoteReference"));
@@ -487,10 +490,12 @@ QTextCharFormat WriteDoc::footnoteReferenceFormat(int id, const QString &paragra
     ref.kind = Inline::RunAtom;
     ref.tag = QStringLiteral("footnoteReference");
     ref.key = QString::number(id);
-    ref.raw = "<w:footnoteReference w:id=\"" + QByteArray::number(id) + "\"/>";
+    ref.raw = "<w:footnoteReference" + QByteArray(mark.isEmpty() ? "" : " w:customMarkFollows=\"1\"") + " w:id=\"" + QByteArray::number(id) + "\"/>";
+    ref.display = mark;
     ref.props.style = QStringLiteral("FootnoteReference");
     setStored(f, prop::Atom, packAtom(ref));
     f.setProperty(tp::Field, QStringLiteral("footnote:fn%1").arg(id));
+    if (!mark.isEmpty()) f.setProperty(tp::NoteMarkCustom, true);
     return f;
 }
 
@@ -820,7 +825,7 @@ int WriteDoc::nextEndnoteId()
         if (!used.contains(id) && id > m_endnoteIdFloor) return id;
 }
 
-int WriteDoc::makeEndnote()
+int WriteDoc::makeEndnote(const QString &customMark)
 {
     reclaimDeadNotes(true, 0);   // (the edit that makes the note makes any redo impossible)
     if (!roomForEndnote()) return 0;
@@ -833,9 +838,12 @@ int WriteDoc::makeEndnote()
     Block note;
     note.para.props.style = QStringLiteral("EndnoteText");
     Inline mark;
-    mark.kind = Inline::RunAtom;
-    mark.tag = QStringLiteral("endnoteRef");
-    mark.raw = "<w:endnoteRef/>";
+    if (customMark.isEmpty()) {
+        mark.kind = Inline::RunAtom;
+        mark.tag = QStringLiteral("endnoteRef");
+        mark.raw = "<w:endnoteRef/>";
+    } else
+        mark.text = customMark;
     mark.props.style = QStringLiteral("EndnoteReference");
     note.para.content.push_back(mark);
     Inline blank;
@@ -866,7 +874,7 @@ int WriteDoc::duplicateEndnote(int id)
     return fresh;
 }
 
-QTextCharFormat WriteDoc::endnoteReferenceFormat(int id, const QString &paragraphStyle)
+QTextCharFormat WriteDoc::endnoteReferenceFormat(int id, const QString &paragraphStyle, const QString &mark)
 {
     ensureStyle(QStringLiteral("EndnoteReference"));
     QTextCharFormat f = styleCharFormat(paragraphStyle.isEmpty() ? defaultParagraphStyle() : paragraphStyle, QStringLiteral("EndnoteReference"));
@@ -874,10 +882,12 @@ QTextCharFormat WriteDoc::endnoteReferenceFormat(int id, const QString &paragrap
     ref.kind = Inline::RunAtom;
     ref.tag = QStringLiteral("endnoteReference");
     ref.key = QString::number(id);
-    ref.raw = "<w:endnoteReference w:id=\"" + QByteArray::number(id) + "\"/>";
+    ref.raw = "<w:endnoteReference" + QByteArray(mark.isEmpty() ? "" : " w:customMarkFollows=\"1\"") + " w:id=\"" + QByteArray::number(id) + "\"/>";
+    ref.display = mark;
     ref.props.style = QStringLiteral("EndnoteReference");
     setStored(f, prop::Atom, packAtom(ref));
     f.setProperty(tp::Field, QStringLiteral("raw:"));   // (the number it shows is given when the notes are set)
+    if (!mark.isEmpty()) f.setProperty(tp::NoteMarkCustom, true);
     return f;
 }
 

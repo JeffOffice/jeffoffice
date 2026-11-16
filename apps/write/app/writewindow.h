@@ -405,6 +405,7 @@ private:
     void createEditingActions();
     void createHeaderFooterActions();
     void createNoteActions();
+    void insertNoteWithMark(bool endnote, const QString &mark);
     void createFieldActions();
     void createRefsActions();
     void reloadDocument();

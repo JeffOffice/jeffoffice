@@ -21,6 +21,7 @@ NoteProperties propertiesOf(const WriteDoc::NoteSettings &s)
     p.start = s.start;
     p.restart = s.restart;
     p.position = s.position;
+    p.columns = s.columns;
     return p;
 }
 } // namespace
@@ -37,6 +38,7 @@ WriteDoc::NoteSettings WriteDoc::noteSettings(bool endnotes) const
     else if (endnotes) out.format = QStringLiteral("lowerRoman");   // (the endnotes' own where the settings say none)
     if (n.start > 0) out.start = n.start;
     out.position = n.position;
+    if (!endnotes && n.columns > 1) out.columns = n.columns;
     const QString restart = noteNumberRestart(settings, group);
     if (!restart.isEmpty()) out.restart = restart;
     m_noteRead[endnotes ? 1 : 0] = out;
@@ -77,6 +79,8 @@ void WriteDoc::applyFootnoteSettings()
         m_noteFields->footnoteFormat = s.format;
         m_noteFields->footnoteStart = s.start;
         m_noteFields->eachPage = s.restart == QLatin1String("eachPage");
+        m_noteFields->beneathText = s.position == QLatin1String("beneathText");
+        m_noteFields->columns = std::max(1, s.columns);
     }
 }
 

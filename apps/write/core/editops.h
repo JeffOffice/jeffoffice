@@ -93,7 +93,8 @@ int noteStartOf(const QTextCursor &c);
 // Insert > Endnote (Ctrl+Alt+D): a reference to a new endnote where the cursor is (the end of a selection), and the note, set with the others after the text or at the end of the
 // section, which begins with its number and a blank; the later notes are numbered anew. `c` is put in the note's words, at their end, for the person to type the note in. False,
 // with `c` where it was, where no note can be made (in a header, a footer, or a note, in a paragraph that stands for a kept element, or when the document has the most notes).
-bool insertEndnote(WriteDoc &doc, QTextCursor &c);
+// With a `mark`, the note has that text for its mark and takes no number (as for a footnote).
+bool insertEndnote(WriteDoc &doc, QTextCursor &c, const QString &mark = QString());
 
 // References > Convert: the footnotes become endnotes, the endnotes become footnotes, or each kind becomes the other (Swap), as one step of the history. The words of a note go with it,
 // and its styles and number mark are those of its new kind. `onlyFootnote` or `onlyEndnote` (a note's Id) limits it to that note's references. Returns how many references were converted.
@@ -130,7 +131,8 @@ bool insertDrawnAtom(WriteDoc &doc, QTextCursor &c, const office::wml::Inline &a
 // blank, as one step of the history with the reference. Every later note's number follows from its place among the references. `c` is put in the new note's story, after its number
 // and the blank, for the person to type the note in; null, with `c` where it was, where no note can be made (in a header, a footer, or a note, in the endnotes the pages set,
 // in a paragraph that stands for a kept element, or when the document has the most notes).
-QTextDocument *insertFootnote(WriteDoc &doc, QTextCursor &c);
+// With a `mark`, the note has that text for its mark (w:customMarkFollows) and takes no number: the reference shows it, and the note begins with it.
+QTextDocument *insertFootnote(WriteDoc &doc, QTextCursor &c, const QString &mark = QString());
 // The place in a note's story where its text begins: just after its number mark (0 for a story that is not a note's).
 int noteTextStart(const QTextDocument *story);
 

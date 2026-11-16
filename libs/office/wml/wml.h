@@ -686,6 +686,7 @@ struct NoteProperties {
     QString format;     // numFmt (empty: not said)
     int start = 0;      // numStart (0: not said)
     QString restart;    // continuous, eachSect, or eachPage (empty: not said)
+    int columns = 0;    // the footnotes' columns (w15:footnoteColumns of the settings; 0 or 1: not said)
 };
 // The settings with that group made as these properties say (what was in it about the numbering is replaced; the notes it names for the separators stay); a part with none is made.
 QByteArray settingsWithNoteProperties(const QByteArray &settings, bool endnotes, const NoteProperties &properties);
@@ -712,6 +713,7 @@ struct NoteNumbering {
     QString format;
     int start = 0;
     QString position;   // w:pos: where the notes are set (pageBottom, beneathText, sectEnd, docEnd); empty where the part says none
+    int columns = 0;    // w15:footnoteColumns of the settings (footnotes only; 0 where it says none)
 };
 NoteNumbering readNoteNumbering(const QByteArray &settings, const char *group);
 NoteNumbering noteNumberingOf(const SectionProps &section, const char *group);

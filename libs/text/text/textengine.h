@@ -53,6 +53,9 @@ public:
     // How a note's number is shown (a word processor numbers its notes in a format of its own: 1, i, a, symbols...), and whether the numbers begin again on each page.
     virtual QString noteMarkText(bool endnote, int number) const { Q_UNUSED(endnote); return QString::number(number); }
     virtual bool restartNotesEachPage() const { return false; }
+    // Where a word processor's footnotes are set: right after the last line of the text of their column (not at the foot of the page), and in how many columns.
+    virtual bool footnotesBeneathText() const { return false; }
+    virtual int footnoteColumns() const { return 1; }
     virtual int endnotesBefore() const { return 0; }
     virtual QStringList carriedNotes() const { return {}; }
     virtual double noteSeparatorHeight() const { return 0; }
