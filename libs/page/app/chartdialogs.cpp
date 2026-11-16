@@ -1,4 +1,5 @@
 #include "app/chartdialogs.h"
+#include "app/chartdesign.h"
 #include "app/plaintext.h"
 
 #include <QCheckBox>
@@ -444,6 +445,125 @@ Chart SelectDataDialog::result() const
 }
 
 // ---- Chart Kind
+
+// ---- Select Data for a chart that holds its own numbers
+
+SelectChartDataDialog::SelectChartDataDialog(const ChartData &data, QWidget *parent) : QDialog(parent), m_data(data)
+{
+    setWindowTitle(tr("Select Data"));
+    setObjectName(QStringLiteral("selectChartDataDialog"));
+    auto *outer = new QVBoxLayout(this);
+    auto *help = plainLabel(new QLabel(tr("Check the series the chart draws. Change their names and their order here."), this));
+    help->setWordWrap(true);
+    outer->addWidget(help);
+    auto *row = new QHBoxLayout;
+    m_list = new QListWidget(this);
+    m_list->setObjectName(QStringLiteral("chartSeriesList"));
+    m_list->setAccessibleName(tr("Series of the chart"));
+    m_list->setMinimumSize(260, 180);
+    row->addWidget(m_list, 1);
+    auto *side = new QVBoxLayout;
+    auto *up = new QPushButton(tr("Move Up"), this);
+    auto *down = new QPushButton(tr("Move Down"), this);
+    auto *flip = new QPushButton(tr("Switch Row/Column"), this);
+    up->setObjectName(QStringLiteral("seriesUp"));
+    down->setObjectName(QStringLiteral("seriesDown"));
+    flip->setObjectName(QStringLiteral("seriesSwitch"));
+    for (QPushButton *b : {up, down, flip}) side->addWidget(b);
+    side->addStretch(1);
+    row->addLayout(side);
+    outer->addLayout(row, 1);
+    m_problem = plainLabel(new QLabel(this));
+    m_problem->setWordWrap(true);
+    outer->addWidget(m_problem);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
+    connect(buttons, &QDialogButtonBox::accepted, this, [this] {
+        const ChartData made = fromList();
+        if (!office::sheet::chartDataIsUsable(made)) {
+            m_problem->setText(tr("A chart needs at least one series. Check one first."));
+            return;
+        }
+        accept();
+    });
+    connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
+    outer->addWidget(buttons);
+    connect(up, &QPushButton::clicked, this, [this] { moveSeries(m_list->currentRow(), -1); });
+    connect(down, &QPushButton::clicked, this, [this] { moveSeries(m_list->currentRow(), 1); });
+    connect(flip, &QPushButton::clicked, this, [this] { switchRowsAndColumns(); });
+    fill();
+    resize(460, 320);
+}
+
+void SelectChartDataDialog::fill()
+{
+    m_list->clear();
+    for (int i = 0; i < m_data.seriesNames.size(); ++i) {
+        auto *item = new QListWidgetItem(m_data.seriesNames[i].isEmpty() ? tr("Series %1").arg(i + 1) : m_data.seriesNames[i], m_list);
+        item->setFlags(item->flags() | Qt::ItemIsUserCheckable | Qt::ItemIsEditable);
+        item->setCheckState(Qt::Checked);
+        item->setData(Qt::UserRole, i);
+    }
+    if (m_list->count() > 0) m_list->setCurrentRow(0);
+}
+
+ChartData SelectChartDataDialog::fromList() const
+{
+    ChartData out;
+    out.categories = m_data.categories;
+    for (int r = 0; r < m_list->count(); ++r) {
+        const QListWidgetItem *item = m_list->item(r);
+        if (item->checkState() != Qt::Checked) continue;
+        const int at = item->data(Qt::UserRole).toInt();
+        // (a name nobody typed stays empty, as the list shows it with a number)
+        const bool numbered = m_data.seriesNames.value(at).isEmpty() && item->text() == tr("Series %1").arg(at + 1);
+        out.seriesNames << (numbered ? QString() : item->text());
+        out.values << m_data.values.value(at);
+    }
+    return out;
+}
+
+ChartData SelectChartDataDialog::result() const { return fromList(); }
+
+int SelectChartDataDialog::seriesShown() const { return m_list->count(); }
+
+QString SelectChartDataDialog::seriesName(int index) const { return m_list->item(index) ? m_list->item(index)->text() : QString(); }
+
+bool SelectChartDataDialog::seriesChecked(int index) const { return m_list->item(index) && m_list->item(index)->checkState() == Qt::Checked; }
+
+void SelectChartDataDialog::setSeriesChecked(int index, bool on)
+{
+    if (QListWidgetItem *item = m_list->item(index)) item->setCheckState(on ? Qt::Checked : Qt::Unchecked);
+}
+
+void SelectChartDataDialog::moveSeries(int index, int delta)
+{
+    const int to = index + delta;
+    if (index < 0 || index >= m_list->count() || to < 0 || to >= m_list->count()) return;
+    QListWidgetItem *item = m_list->takeItem(index);
+    m_list->insertItem(to, item);
+    m_list->setCurrentRow(to);
+}
+
+void SelectChartDataDialog::switchRowsAndColumns()
+{
+    // (what the list holds is kept: the names and order made so far are the data that is switched)
+    ChartData now = m_data;
+    ChartData asListed;
+    asListed.categories = now.categories;
+    for (int r = 0; r < m_list->count(); ++r) {
+        const int at = m_list->item(r)->data(Qt::UserRole).toInt();
+        asListed.seriesNames << m_list->item(r)->text();
+        asListed.values << now.values.value(at);
+    }
+    ChartData made;
+    if (!switchedChartData(asListed, &made)) {
+        m_problem->setText(tr("The rows and columns of this chart can't be turned the other way."));
+        return;
+    }
+    m_problem->clear();
+    m_data = made;
+    fill();
+}
 
 ChangeChartTypeDialog::ChangeChartTypeDialog(const QStringList &seriesNames, const QVector<SeriesKind> &now, const KindsPreviewFn &preview, QWidget *parent)
     : QDialog(parent), m_names(seriesNames), m_preview(preview)

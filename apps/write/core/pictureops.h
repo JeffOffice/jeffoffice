@@ -449,5 +449,10 @@ bool setChartAxis(WriteDoc &doc, int position, ChartAxisKind axis, bool shown);
 bool setChartGridlines(WriteDoc &doc, int position, ChartAxisKind axis, bool major, bool minor);
 bool setChartAxisTitle(WriteDoc &doc, int position, ChartAxisKind axis, const QString &text);
 bool setChartStyle(WriteDoc &doc, int position, int style);
+// The chart at `position` as the shared chart editor reads it (false for no chart that can be read), the theme it is colored by, and a change of the model as one step that undoes: `edit` is given the
+// chart; false when the chart can't be changed (one the program does not write whole is refused, with a notice) or the edit made no difference.
+bool readChartAt(const WriteDoc &doc, int position, office::Chart *chart);
+office::Theme chartThemeOf(const WriteDoc &doc);
+bool changeChartAt(WriteDoc &doc, int position, const std::function<void(office::Chart *)> &edit);
 
 } // namespace jp::write
