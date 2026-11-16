@@ -1,6 +1,7 @@
 // Pivot tables in an open workbook (core/editpivot.cpp): Refresh and Refresh All, Change Data Source, the fields and options of a table, Clear, one step of Undo each, and what a save writes: a
 // table nobody changed is the file's own to the byte, and the parts of one that was changed are well formed and read back to the cells the sheet holds. The workbook is built here.
 #include "app/crunchinfo.h"
+#include "app/theme.h"
 #include "app/crunchwindow.h"
 #include "app/settings.h"
 #include "findbooks.h"
@@ -39,6 +40,7 @@
 #include <QSet>
 #include <QSettings>
 #include <QSignalSpy>
+#include <QTimer>
 #include <QTemporaryDir>
 #include <QUndoStack>
 
@@ -284,6 +286,47 @@ void finish(EditWindow &e)
 {
     e.win.w.session()->finishFills();
     e.settle();
+}
+
+// The amounts of the cache a table is made from, added (what the table is made of, whether or not it was worked out again).
+double cachedAmountTotal(crunch::EditSession *s, int table)
+{
+    PivotBook &pb = s->workbook()->pivots();
+    const PivotCacheEntry &c = pb.cache(pb.table(table).cache);
+    if (!c.cache || c.cache->fields.size() < 3) return -1;
+    const PivotCacheField &f = c.cache->fields[2];
+    double sum = 0;
+    for (qint32 r : f.records) sum += f.items[r].number;
+    return sum;
+}
+
+// The fixture's data as another file, with the amount in C2 changed.
+QByteArray otherBook(int c2)
+{
+    return repack(pivotWorkbook(), [&](Parts &p) { p[kSheetPart].replace(num(QStringLiteral("C2"), 10).toUtf8(), num(QStringLiteral("C2"), c2).toUtf8()); });
+}
+
+// A workbook as another program writes one whose table is made from a file: the source names a relationship (r:id) of the cache definition, which is a link to `target` (as the file stores it), or,
+// with `throughPart`, a link to a part of the workbook's own links that has the path.
+QByteArray externalSourceBook(const QString &target, bool throughPart = false)
+{
+    PivotBookOptions o;
+    o.tweak = [=](Parts &p) {
+        const QString def = QStringLiteral("xl/pivotCache/pivotCacheDefinition1.xml"), rels = QStringLiteral("xl/pivotCache/_rels/pivotCacheDefinition1.xml.rels");
+        p[def].replace("sheet=\"Sheet1\"/>", "sheet=\"Sheet1\" r:id=\"rId9\"/>");
+        const QString link = QStringLiteral("<Relationship Id=\"%1\" Type=\"%2externalLinkPath\" Target=\"%3\" TargetMode=\"External\"/>");
+        if (!throughPart) {
+            p[rels].replace("</Relationships>", (link.arg(QStringLiteral("rId9"), kRelBase, target.toHtmlEscaped()) + QStringLiteral("</Relationships>")).toUtf8());
+        } else {
+            relate(p, rels, QStringLiteral("rId9"), QStringLiteral("externalLink"), QStringLiteral("../externalLinks/externalLink1.xml"));
+            p[QStringLiteral("xl/externalLinks/externalLink1.xml")] = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<externalLink xmlns=\"%1\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\">"
+                                                                                  "<externalBook r:id=\"rId1\"><sheetNames><sheetName val=\"Sheet1\"/></sheetNames></externalBook></externalLink>").arg(QLatin1String(kNs)).toUtf8();
+            p[QStringLiteral("xl/externalLinks/_rels/externalLink1.xml.rels")] = (QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">")
+                                                                                   + link.arg(QStringLiteral("rId1"), kRelBase, target.toHtmlEscaped()) + QStringLiteral("</Relationships>")).toUtf8();
+            addType(p, QStringLiteral("xl/externalLinks/externalLink1.xml"), QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.externalLink+xml"));
+        }
+    };
+    return pivotWorkbook(o);
 }
 
 } // namespace
@@ -545,6 +588,351 @@ private Q_SLOTS:
         for (const QString &part : {QStringLiteral("xl/pivotTables/pivotTable1.xml"), QStringLiteral("xl/pivotCache/pivotCacheDefinition1.xml"), QStringLiteral("xl/pivotCache/pivotCacheRecords1.xml")})
             QVERIFY2(after.value(part) == before.value(part), qPrintable(part));
     }
+
+    // A table made from a range in another file: the cache keeps the data, and Refresh reads the file again, in one step.
+    void aPivotTableIsMadeFromAnotherFileAndRefreshedAfterItChanged()
+    {
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook()));
+        const QString other = e.folder.write(QStringLiteral("other.xlsx"), pivotWorkbook());
+        crunch::EditSession *s = e.win.w.session();
+        const int steps = s->undoStack()->count();
+        int made = -1;
+        const auto o = s->createPivot(QStringLiteral("Sheet1!A1:C7"), 0, 9, 9, &made, other);
+        QVERIFY2(o.ok, qPrintable(o.problem));
+        QCOMPARE(made, 1);
+        QCOMPARE(s->undoStack()->count(), steps + 1);   // one step
+        QCOMPARE(cachedAmountTotal(s, 1), 49.0);
+        QCOMPARE(s->pivotSourceText(1), QStringLiteral("Sheet1!A1:C7"));
+        QCOMPARE(QFileInfo(s->pivotSourceFile(1)).canonicalFilePath(), QFileInfo(other).canonicalFilePath());
+        QVERIFY(s->pivotSourceFile(0).isEmpty());
+        // the file changes: the cache keeps the data until Refresh
+        QVERIFY(QFile::remove(other));
+        e.folder.write(QStringLiteral("other.xlsx"), otherBook(100));
+        QCOMPARE(cachedAmountTotal(s, 1), 49.0);
+        const auto r = s->refreshPivot(1);
+        QVERIFY2(r.ok, qPrintable(r.problem));
+        QCOMPARE(s->undoStack()->count(), steps + 2);
+        QCOMPARE(cachedAmountTotal(s, 1), 139.0);
+        QCOMPARE(cachedAmountTotal(s, 0), 49.0);   // (the table made from this workbook is not touched)
+        s->undoStack()->undo();
+        QCOMPARE(cachedAmountTotal(s, 1), 49.0);
+        s->undoStack()->redo();
+        QCOMPARE(cachedAmountTotal(s, 1), 139.0);
+        // the creation is one step to undo, and to redo
+        s->undoStack()->undo();
+        s->undoStack()->undo();
+        QCOMPARE(s->undoStack()->count(), steps + 2);
+        QCOMPARE(s->workbook()->pivots().tableCount(), 1);
+        s->undoStack()->redo();
+        s->undoStack()->redo();
+        QCOMPARE(s->workbook()->pivots().tableCount(), 2);
+        QCOMPARE(cachedAmountTotal(s, 1), 139.0);
+        // a table too wide or too long for a pivot table is refused as any source is
+        const int tables = s->workbook()->pivots().tableCount();
+        const int now = s->undoStack()->count();
+        QVERIFY(!s->createPivot(QStringLiteral("Sheet1!A1:CZZ3"), 0, 30, 9, nullptr, other).ok);
+        QVERIFY(!s->createPivot(QStringLiteral("Sheet1!A1:Z500000"), 0, 30, 9, nullptr, other).ok);
+        QVERIFY(!s->createPivot(QStringLiteral("Nothing!A1:C7"), 0, 30, 9, nullptr, other).ok);
+        QVERIFY(!s->createPivot(QStringLiteral("Sheet1!A1:C7"), 0, 30, 9, nullptr, e.folder.dir.path() + QStringLiteral("/missing.xlsx")).ok);
+        QCOMPARE(s->workbook()->pivots().tableCount(), tables);
+        QCOMPARE(s->undoStack()->count(), now);
+    }
+
+    // The file is gone, moved, or has no such range: the table keeps its data, and the notice says so.
+    void aFileThatCanNotBeReadKeepsTheDataAndSaysSo()
+    {
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook()));
+        const QString other = e.folder.write(QStringLiteral("other.xlsx"), pivotWorkbook());
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(s->createPivot(QStringLiteral("Sheet1!A1:C7"), 0, 9, 9, nullptr, other).ok);
+        const int steps = s->undoStack()->count();
+        const QString notice = QStringLiteral("could not be read; the pivot keeps its last data");
+        QVERIFY(QFile::remove(other));
+        auto r = s->refreshPivot(1);
+        QVERIFY(!r.ok);
+        QVERIFY2(r.problem.contains(notice), qPrintable(r.problem));
+        QCOMPARE(s->undoStack()->count(), steps);
+        QCOMPARE(cachedAmountTotal(s, 1), 49.0);
+        r = s->refreshAllPivots();   // (the other table is read again; this one says it was not)
+        QVERIFY2(r.problem.contains(notice), qPrintable(r.problem));
+        QCOMPARE(cachedAmountTotal(s, 1), 49.0);
+        // a file with no such sheet
+        e.folder.write(QStringLiteral("other.xlsx"), repack(pivotWorkbook(), [](Parts &p) { p[QStringLiteral("xl/workbook.xml")].replace("name=\"Sheet1\"", "name=\"Other\""); }));
+        r = s->refreshPivot(1);
+        QVERIFY(!r.ok);
+        QVERIFY2(r.problem.contains(notice), qPrintable(r.problem));
+        QCOMPARE(cachedAmountTotal(s, 1), 49.0);
+        // and it reads again once the file is as it was
+        QVERIFY(QFile::remove(other));
+        e.folder.write(QStringLiteral("other.xlsx"), otherBook(1));
+        QVERIFY2(s->refreshPivot(1).ok, "refresh");
+        QCOMPARE(cachedAmountTotal(s, 1), 40.0);
+    }
+
+    // Saved, the cache's source names a link to the file (r:id, a relationship of the definition), and the records are in; reopened, the table works with the file gone, and is read again when it is there.
+    void aTableMadeFromAnotherFileKeepsItsSourceThroughASave()
+    {
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook()));
+        const QString other = e.folder.write(QStringLiteral("other.xlsx"), pivotWorkbook());
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(s->createPivot(QStringLiteral("Sheet1!A1:C7"), 0, 9, 9, nullptr, other).ok);
+        QVERIFY(saveNow(e));
+        const Parts parts = readParts(e.path);
+        checkShapes(parts);
+        checkPackage(parts);
+        const QString def = QString::fromUtf8(parts.value(QStringLiteral("xl/pivotCache/pivotCacheDefinition2.xml")));
+        QVERIFY2(QRegularExpression(QStringLiteral("<worksheetSource[^>]*sheet=\"Sheet1\"[^>]*r:id=\"rId2\"|<worksheetSource[^>]*r:id=\"rId2\"[^>]*sheet=\"Sheet1\"")).match(def).hasMatch(), qPrintable(def));
+        const QString rels = QString::fromUtf8(parts.value(QStringLiteral("xl/pivotCache/_rels/pivotCacheDefinition2.xml.rels")));
+        QVERIFY2(rels.contains(QLatin1String("externalLinkPath")) && rels.contains(QLatin1String("TargetMode=\"External\"")) && rels.contains(QLatin1String("other.xlsx")) && rels.contains(QLatin1String("pivotCacheRecords")), qPrintable(rels));
+        QVERIFY(parts.value(QStringLiteral("xl/pivotCache/pivotCacheRecords2.xml")).contains("v=\"20\""));
+        // reopened with the file gone: the cached records show, and a refresh keeps them
+        QFile saved(e.path);
+        QVERIFY(saved.open(QIODevice::ReadOnly));
+        const QByteArray bytes = saved.readAll();
+        saved.close();
+        EditWindow again;
+        QVERIFY(again.open(bytes, QStringLiteral("again.xlsx")));
+        crunch::EditSession *t = again.win.w.session();
+        QCOMPARE(t->workbook()->pivots().tableCount(), 2);
+        QCOMPARE(cachedAmountTotal(t, 1), 49.0);
+        QCOMPARE(t->pivotSourceText(1), QStringLiteral("Sheet1!A1:C7"));
+        QCOMPARE(QFileInfo(t->pivotSourceFile(1)).canonicalFilePath(), QFileInfo(other).canonicalFilePath());
+        QVERIFY(QFile::remove(other));
+        const auto missing = t->refreshPivot(1);
+        QVERIFY(!missing.ok);
+        QVERIFY2(missing.problem.contains(QLatin1String("keeps its last data")), qPrintable(missing.problem));
+        QVERIFY(saveNow(again));
+        const Parts kept = readParts(again.path);
+        QVERIFY(kept.value(QStringLiteral("xl/pivotCache/pivotCacheDefinition2.xml")) == parts.value(QStringLiteral("xl/pivotCache/pivotCacheDefinition2.xml")));
+        QVERIFY(kept.value(QStringLiteral("xl/pivotCache/pivotCacheRecords2.xml")) == parts.value(QStringLiteral("xl/pivotCache/pivotCacheRecords2.xml")));
+        // with the file back, changed, the table is read again
+        e.folder.write(QStringLiteral("other.xlsx"), otherBook(100));
+        QVERIFY2(t->refreshPivot(1).ok, "refresh");
+        QCOMPARE(cachedAmountTotal(t, 1), 139.0);
+        QVERIFY(saveNow(again));
+        const Parts after = readParts(again.path);
+        checkShapes(after);
+        QVERIFY(after.value(QStringLiteral("xl/pivotCache/_rels/pivotCacheDefinition2.xml.rels")).contains("other.xlsx"));
+        QVERIFY(after.value(QStringLiteral("xl/pivotCache/pivotCacheRecords2.xml")).contains("v=\"100\""));
+    }
+
+    // A workbook whose table is made from a file (as another program writes it, relative path and all) opens with its cached records, is read again when the file is beside it, and keeps the path as it was.
+    void aFileWithATableMadeFromAnotherFileOpensAndRefreshes()
+    {
+        for (const bool throughPart : {false, true}) {
+            EditWindow e;
+            e.folder.write(QStringLiteral("other.xlsx"), otherBook(100));
+            QVERIFY(e.open(externalSourceBook(QStringLiteral("other.xlsx"), throughPart)));
+            crunch::EditSession *s = e.win.w.session();
+            QCOMPARE(s->workbook()->pivots().tableCount(), 1);
+            QCOMPARE(pivotShown(e), QStringLiteral("Sum of Amount|Month||\nRegion|Jan|Feb|Grand Total\nEast|15|20|35\nWest|7|7|14\nGrand Total|22|27|49"));
+            QCOMPARE(cachedAmountTotal(s, 0), 49.0);
+            QCOMPARE(QFileInfo(s->pivotSourceFile(0)).canonicalFilePath(), QFileInfo(e.folder.dir.path() + QStringLiteral("/other.xlsx")).canonicalFilePath());
+            QCOMPARE(s->pivotSourceText(0), QStringLiteral("Sheet1!A1:C7"));
+            // untouched, a save keeps the cache to the byte
+            const QByteArray book = externalSourceBook(QStringLiteral("other.xlsx"), throughPart);
+            QVERIFY(saveNow(e));
+            Parts before;
+            readZip(book, before);
+            Parts same = readParts(e.path);
+            for (const QString &part : {QStringLiteral("xl/pivotCache/pivotCacheDefinition1.xml"), QStringLiteral("xl/pivotCache/_rels/pivotCacheDefinition1.xml.rels"), QStringLiteral("xl/pivotCache/pivotCacheRecords1.xml")})
+                QVERIFY2(same.value(part) == before.value(part), qPrintable(part));
+            const auto r = s->refreshPivot(0);
+            QVERIFY2(r.ok, qPrintable(r.problem));
+            finish(e);
+            QCOMPARE(cachedAmountTotal(s, 0), 139.0);
+            QCOMPARE(pivotShown(e), QStringLiteral("Sum of Amount|Month||\nRegion|Jan|Feb|Grand Total\nEast|105|20|125\nWest|7|7|14\nGrand Total|112|27|139"));
+            QVERIFY(saveNow(e));
+            const Parts after = readParts(e.path);
+            checkShapes(after);
+            checkPackage(after);
+            const QString def = QString::fromUtf8(after.value(QStringLiteral("xl/pivotCache/pivotCacheDefinition1.xml")));
+            QVERIFY2(def.contains(QLatin1String("r:id=\"rId9\"")), qPrintable(def));
+            const QString link = QString::fromUtf8(after.value(throughPart ? QStringLiteral("xl/externalLinks/_rels/externalLink1.xml.rels") : QStringLiteral("xl/pivotCache/_rels/pivotCacheDefinition1.xml.rels")));
+            QVERIFY2(link.contains(QLatin1String("Target=\"other.xlsx\"")), qPrintable(link));   // (the path as the file had it)
+            QVERIFY(after.value(QStringLiteral("xl/pivotCache/pivotCacheRecords1.xml")).contains("v=\"100\""));
+        }
+    }
+
+    // Hostile sources: a link to the workbook itself, to a file too big, to something that is not a workbook, or on another computer: the table keeps its data and nothing is followed.
+    void aLinkToItselfOrToAFileThatIsNotAWorkbookIsHarmless()
+    {
+        {
+            // (to itself: the file is read as any other, and what it links to is not followed)
+            EditWindow e;
+            QVERIFY(e.open(externalSourceBook(QStringLiteral("book.xlsx"))));
+            crunch::EditSession *s = e.win.w.session();
+            const auto r = s->refreshPivot(0);
+            QVERIFY2(r.ok, qPrintable(r.problem));
+            QCOMPARE(cachedAmountTotal(s, 0), 49.0);
+        }
+        {
+            // (to a file that links back, the first reading the second's cells only)
+            EditWindow e;
+            e.folder.write(QStringLiteral("other.xlsx"), externalSourceBook(QStringLiteral("book.xlsx")));
+            QVERIFY(e.open(externalSourceBook(QStringLiteral("other.xlsx"))));
+            crunch::EditSession *s = e.win.w.session();
+            QVERIFY2(s->refreshPivot(0).ok, "refresh");
+            QCOMPARE(cachedAmountTotal(s, 0), 49.0);
+        }
+        const QString notice = QStringLiteral("keeps its last data");
+        const auto refused = [&](const QString &target, const std::function<void(EditWindow &)> &prepare) {
+            EditWindow e;
+            if (prepare) prepare(e);
+            if (!e.open(externalSourceBook(target))) return QStringLiteral("did not open");
+            crunch::EditSession *s = e.win.w.session();
+            const int steps = s->undoStack()->count();
+            const auto r = s->refreshPivot(0);
+            if (r.ok || !r.problem.contains(notice)) return QStringLiteral("not refused: ") + r.problem;
+            if (s->undoStack()->count() != steps || cachedAmountTotal(s, 0) != 49.0) return QStringLiteral("the data changed");
+            return QString();
+        };
+        // too big: refused before any of it is read
+        QCOMPARE(refused(QStringLiteral("huge.xlsx"), [](EditWindow &e) {
+                     QFile f(e.folder.dir.path() + QStringLiteral("/huge.xlsx"));
+                     QVERIFY(f.open(QIODevice::WriteOnly));
+                     QVERIFY(f.resize((qint64(1) << 30) + 1));
+                 }),
+                 QString());
+        // not a workbook
+        QCOMPARE(refused(QStringLiteral("notes.xlsx"), [](EditWindow &e) { e.folder.write(QStringLiteral("notes.xlsx"), QByteArray("PK\x03\x04 this is not a workbook, and not a zip")); }), QString());
+        QCOMPARE(refused(QStringLiteral("picture.xlsx"), [](EditWindow &e) { e.folder.write(QStringLiteral("picture.xlsx"), QByteArray("\x89PNG\r\n\x1a\n", 8) + QByteArray(64, '\0')); }), QString());
+        // a folder, a file that is not there, a computer on the network
+        QCOMPARE(refused(QStringLiteral("."), nullptr), QString());
+        QCOMPARE(refused(QStringLiteral("nothing.xlsx"), nullptr), QString());
+        QCOMPARE(refused(QStringLiteral("file://server/share/other.xlsx"), nullptr), QString());
+        QCOMPARE(refused(QStringLiteral("\\\\server\\share\\other.xlsx"), nullptr), QString());
+        QCOMPARE(refused(QStringLiteral("https://example.com/other.xlsx"), nullptr), QString());
+    }
+
+    // Change Data Source to a file is one step of Undo, and so is the change back; saved, the cache's links follow.
+    void changingTheSourceToAnotherFileIsOneStep()
+    {
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook()));
+        const QString other = e.folder.write(QStringLiteral("other.xlsx"), otherBook(100));
+        crunch::EditSession *s = e.win.w.session();
+        const int steps = s->undoStack()->count();
+        const auto o = s->changePivotSource(0, QStringLiteral("Sheet1!A1:C7"), other);
+        QVERIFY2(o.ok, qPrintable(o.problem));
+        QCOMPARE(s->undoStack()->count(), steps + 1);
+        QCOMPARE(cachedAmountTotal(s, 0), 139.0);
+        QVERIFY(!s->pivotSourceFile(0).isEmpty());
+        s->undoStack()->undo();
+        QCOMPARE(s->undoStack()->count(), steps + 1);
+        QCOMPARE(s->undoStack()->index(), steps);
+        QCOMPARE(cachedAmountTotal(s, 0), 49.0);
+        QVERIFY(s->pivotSourceFile(0).isEmpty());
+        QCOMPARE(s->pivotSourceText(0), QStringLiteral("Sheet1!A1:C7"));
+        s->undoStack()->redo();
+        QVERIFY(!s->pivotSourceFile(0).isEmpty());
+        QCOMPARE(cachedAmountTotal(s, 0), 139.0);
+        // a file that can't be used changes nothing
+        QVERIFY(!s->changePivotSource(0, QStringLiteral("Sheet1!A1:C7"), e.folder.dir.path() + QStringLiteral("/missing.xlsx")).ok);
+        QCOMPARE(s->undoStack()->index(), steps + 1);
+        QVERIFY(saveNow(e));
+        const Parts parts = readParts(e.path);
+        checkShapes(parts);
+        const QString rels = QString::fromUtf8(parts.value(QStringLiteral("xl/pivotCache/_rels/pivotCacheDefinition1.xml.rels")));
+        QVERIFY2(rels.contains(QLatin1String("externalLinkPath")) && rels.contains(QLatin1String("other.xlsx")) && rels.contains(QLatin1String("pivotCacheRecords1.xml")), qPrintable(rels));
+        QVERIFY(QString::fromUtf8(parts.value(QStringLiteral("xl/pivotCache/pivotCacheDefinition1.xml"))).contains(QLatin1String("r:id=\"rIdExtSource\"")));
+        // reopened, and back to a range of the workbook: the link goes
+        QFile saved(e.path);
+        QVERIFY(saved.open(QIODevice::ReadOnly));
+        const QByteArray bytes = saved.readAll();
+        saved.close();
+        EditWindow again;
+        QVERIFY(again.open(bytes, QStringLiteral("again.xlsx")));
+        crunch::EditSession *t = again.win.w.session();
+        QCOMPARE(cachedAmountTotal(t, 0), 139.0);
+        QVERIFY(!t->pivotSourceFile(0).isEmpty());
+        QVERIFY2(t->changePivotSource(0, QStringLiteral("Sheet1!A1:C7")).ok, "back");
+        QVERIFY(t->pivotSourceFile(0).isEmpty());
+        QCOMPARE(cachedAmountTotal(t, 0), 49.0);
+        QVERIFY(saveNow(again));
+        const Parts back = readParts(again.path);
+        checkShapes(back);
+        QVERIFY(!back.value(QStringLiteral("xl/pivotCache/_rels/pivotCacheDefinition1.xml.rels")).contains("externalLinkPath"));
+        QVERIFY(!QRegularExpression(QStringLiteral("<worksheetSource[^>]*r:id")).match(QString::fromUtf8(back.value(QStringLiteral("xl/pivotCache/pivotCacheDefinition1.xml")))).hasMatch());
+    }
+
+    // The window's command: the file chosen in the dialog's place is used.
+    void theCreateCommandTakesAFileChosenInTheDialogsPlace()
+    {
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook()));
+        const QString other = e.folder.write(QStringLiteral("other.xlsx"), otherBook(100));
+        e.win.w.setPivotCreateAsker([&](QString *source, bool *newSheet, QString *where) {
+            *source = QStringLiteral("Sheet1!A1:C7");
+            *newSheet = false;
+            *where = QStringLiteral("J10");
+            return true;
+        });
+        e.win.w.setPivotFileAsker([&](QString *file) {
+            *file = other;
+            return true;
+        });
+        e.select(QStringLiteral("A3"));
+        e.win.w.act(QStringLiteral("insert.pivot"))->trigger();
+        crunch::EditSession *s = e.win.w.session();
+        QCOMPARE(s->workbook()->pivots().tableCount(), 2);
+        QCOMPARE(cachedAmountTotal(s, 1), 139.0);
+    }
+
+    // The Create Pivot Table dialog offers a range in another file (a picture of it, only with JW_SHOT_DIR).
+    void thePivotDialogOffersARangeInAnotherFile()
+    {
+        const QString shots = qEnvironmentVariable("JW_SHOT_DIR");
+        if (shots.isEmpty()) QSKIP("JW_SHOT_DIR is not set");
+        jp::applyUiTheme(1);
+        EditWindow e;
+        QVERIFY(e.open(pivotWorkbook()));
+        const QString other = e.folder.write(QStringLiteral("other.xlsx"), otherBook(100));
+        crunch::EditSession *s = e.win.w.session();
+        QTimer *timer = new QTimer(this);
+        QElapsedTimer waited;
+        waited.start();
+        bool done = false;
+        connect(timer, &QTimer::timeout, this, [&] {
+            QDialog *dialog = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+            if (!dialog) {
+                if (waited.elapsed() > 10000) {
+                    timer->stop();
+                    QTest::qFail("the dialog did not open", __FILE__, __LINE__);
+                }
+                return;
+            }
+            timer->stop();
+            auto *rb = dialog->findChild<QAbstractButton *>(QStringLiteral("pivotSource.other"));
+            auto *file = dialog->findChild<QLineEdit *>(QStringLiteral("pivotSource.file"));
+            auto *range = dialog->findChild<QLineEdit *>(QStringLiteral("pivotSource.fileRange"));
+            auto *where = dialog->findChild<QLineEdit *>(QStringLiteral("pivotCreate.where"));
+            auto *existing = dialog->findChild<QAbstractButton *>(QStringLiteral("pivotCreate.existing"));
+            if (rb && file && range && where && existing) {
+                rb->click();
+                file->setText(other);
+                range->setText(QStringLiteral("Sheet1!A1:C7"));
+                existing->click();
+                where->setText(QStringLiteral("J30"));
+            }
+            QDir().mkpath(shots);
+            dialog->grab().save(shots + QStringLiteral("/pivotsrc-dialog.png"));
+            done = rb && file && range && where && existing && existing->isChecked() && !dialog->findChild<QAbstractButton *>(QStringLiteral("pivotCreate.newSheet"))->isChecked();
+            dialog->accept();
+        });
+        timer->start(20);
+        e.select(QStringLiteral("A3"));
+        e.win.w.act(QStringLiteral("insert.pivot"))->trigger();
+        QVERIFY(done);
+        QCOMPARE(s->workbook()->pivots().tableCount(), 2);
+        QCOMPARE(cachedAmountTotal(s, 1), 139.0);
+        QVERIFY(!s->pivotSourceFile(1).isEmpty());
+        QCOMPARE(s->pivotAt(0, rowOf(QStringLiteral("J30")), colOf(QStringLiteral("J30"))), 1);
+    }
+
 
     // Refresh All reads every table's cache again; a sheet protected against it refuses.
     void refreshAllAndAProtectedSheet()
