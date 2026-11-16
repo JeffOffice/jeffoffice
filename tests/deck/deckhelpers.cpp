@@ -250,7 +250,10 @@ void fillSlides(DeckWindow &w, const QStringList &titles, const QList<QStringLis
     for (int i = 0; i < titles.size(); ++i)
         for (const auto &it : d->pages[i]->items) {
             const QString kind = deck::placeholderType(*it);
-            QTextDocument *story = d->storyDoc(static_cast<TextItem *>(it.get())->storyId);
+            // (only a text box has a story: a picture or table placeholder is passed by)
+            auto *text = dynamic_cast<TextItem *>(it.get());
+            if (!text) continue;
+            QTextDocument *story = d->storyDoc(text->storyId);
             if (kind == QLatin1String("title") || kind == QLatin1String("ctrTitle")) type(titles[i], story);
             else if ((kind == QLatin1String("obj") || kind == QLatin1String("subTitle")) && !bodies.value(i).isEmpty()) type(bodies[i].join(QLatin1Char('\n')), story);
         }
