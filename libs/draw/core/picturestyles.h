@@ -3,7 +3,6 @@
 // space), each made of what the drawing engine already draws. A style sets only those three things; the picture's size, place, crop, and colors stay.
 
 #include "core/itemsfwd.h"
-#include <QSize>
 
 namespace jp {
 

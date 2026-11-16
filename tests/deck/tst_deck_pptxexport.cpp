@@ -41,9 +41,7 @@ private Q_SLOTS:
     // byte, with the types and links other programs need; saved as a plain kind the project is left out whole.
     void aMacroPresentationKeepsItsProjectInItsOwnKind()
     {
-        // (the lengths from the literals themselves: they hold zero bytes, so strlen would stop short; a count typed by hand read past one's end)
-        static const char kProject[] = "\xD0\xCF\x11\xE0 our own bytes, not a project \x00\x01\x02\xFF", kSignature[] = "\xD0\xCF\x11\xE0 signature bytes \x00\x10\x20";
-        const QByteArray project(kProject, sizeof kProject - 1), signature(kSignature, sizeof kSignature - 1);
+        const QByteArray project("\xD0\xCF\x11\xE0 our own bytes, not a project \x00\x01\x02\xFF", 40), signature("\xD0\xCF\x11\xE0 signature bytes \x00\x10\x20", 24);
         struct Case { const char *ending, *mainType; } cases[] = {
             {"pptm", "application/vnd.ms-powerpoint.presentation.macroEnabled.main+xml"},
             {"ppsm", "application/vnd.ms-powerpoint.slideshow.macroEnabled.main+xml"},

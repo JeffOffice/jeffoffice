@@ -9,7 +9,6 @@
 #include <QString>
 #include <QVector>
 #include <functional>
-#include <QSizeF>
 
 namespace jp {
 

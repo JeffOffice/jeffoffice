@@ -34,7 +34,7 @@
 },
 "crunch/charts": {
 "en": "f9cfff19c61034f1",
-"out": "bd197253fc6ce003"
+"out": "f5a963c3b14aa620"
 },
 "crunch/clipboard": {
 "en": "da1407ab2e446248",
@@ -134,7 +134,7 @@
 },
 "crunch/pivot-tables": {
 "en": "5a93a6b5f15122ea",
-"out": "2856a7e65eab6e2c"
+"out": "4f123ebae4835e4c"
 },
 "crunch/printing": {
 "en": "393d46641ad5deb4",
@@ -198,7 +198,7 @@
 },
 "deck/file-screen": {
 "en": "e42a62fba10f452b",
-"out": "ddf2ff66cf75db2c"
+"out": "3a3ef0e735cd00e4"
 },
 "deck/format-shape": {
 "en": "3b10a08571c56b68",
@@ -222,11 +222,11 @@
 },
 "deck/objects": {
 "en": "61e32650b6a46589",
-"out": "2772ceb7f03761bf"
+"out": "6905a3dde2c67cb3"
 },
 "deck/open-save": {
 "en": "20ad92a7e40293f7",
-"out": "780f7ea1303cfb18"
+"out": "87d04b85b70b9408"
 },
 "deck/options": {
 "en": "5c22268af0650f4b",
@@ -374,7 +374,7 @@
 },
 "open-save": {
 "en": "3c5fab101c3429d6",
-"out": "8ca4d892310ab64d"
+"out": "d2eacbd68bb3a31d"
 },
 "options": {
 "en": "793347f477ea63da",
@@ -394,7 +394,7 @@
 },
 "pictures": {
 "en": "0c958945752bcd19",
-"out": "2ac4fd0c8c25ddcd"
+"out": "ec3f2f628a124ce6"
 },
 "printing": {
 "en": "7d18e74d77f3bb5d",

@@ -10,7 +10,6 @@
 #include <QPair>
 #include <QStringList>
 #include <QVector>
-#include <QPointF>
 
 class QWidget;
 

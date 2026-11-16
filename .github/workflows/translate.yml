@@ -68,7 +68,8 @@ jobs:
           # translator crashed. Only 3 lets the run go on to commit what was translated.)
           rc=0
           python3 tools/translate/translate.py ${LANGUAGES:+--lang "$LANGUAGES"} --report report.md || rc=$?
-          cat report.md >> "$GITHUB_STEP_SUMMARY" || true
+          # (the summary holds at most 1 MB: Nov 16 the whole report was 1.2 MB and its upload was refused)
+          head -c 900000 report.md >> "$GITHUB_STEP_SUMMARY" || true
           # (Topics whose English changed under a person's edit are left alone: listed here, to update by hand.)
           { echo; echo "### Help topics to update by hand (a person edited them)"; echo; grep "person edited" report.md || echo "None."; } >> "$GITHUB_STEP_SUMMARY" || true
           if [ "$rc" = 2 ]; then echo "::error::The translation service refused ANTHROPIC_API_KEY: replace the secret."; exit 1; fi
@@ -78,6 +79,10 @@ jobs:
         if: steps.key.outputs.have == 'yes'
         run: |
           # Bot commits start no CI, so a translation that changed a link target (Nov 15: 10 languages) would go in unseen.
+          # (the Spanish for Spain and the English variants are made from the new text first: they are checked too, and Nov 16 the old
+          # Spain page, made from the Spanish before this run, failed the check and the run's 110 minutes of translation were not committed)
+          python3 tools/translate/spanish_variants.py
+          python3 tools/translate/english_variants.py
           python3 -I tools/check_help_links.py > links.txt || rc=$?
           if [ "${rc:-0}" != 0 ]; then
             { echo "### Help links that differ from English"; echo; echo '```'; cat links.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
@@ -85,6 +90,17 @@ jobs:
             echo "::error::Translated Help links differ from English; nothing was committed."
             exit 1
           fi
+
+      # (a run that fails after translating keeps what it made: the translations as a download for a week, to commit by hand)
+      - name: Keep the translations of a failed run
+        if: failure() && steps.key.outputs.have == 'yes'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: translations-${{ github.run_id }}
+          path: |
+            translations
+            resources/help
+          retention-days: 7
 
       - name: Commit
         if: steps.key.outputs.have == 'yes'

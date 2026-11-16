@@ -6,7 +6,6 @@
 
 #include <QSizeF>
 #include <QString>
-#include <QPointF>
 
 namespace jp {
 
