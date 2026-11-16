@@ -441,6 +441,22 @@ QWidget *buildInfoPage(QWidget *parent, const InfoHost &h)
                            : kind == InfoHost::Kind::Publication  ? QCoreApplication::translate("jp::InfoPage", "Tell readers this publication is finished. It opens for reading only, with a note.")
                                                                   : QCoreApplication::translate("jp::InfoPage", "Tell readers this document is finished. It opens for reading only, with a note.")),
              [h, final] { h.setMarkedFinal(!final); });
+    if (h.setAlwaysReadOnly) {
+        const bool always = h.alwaysReadOnly && h.alwaysReadOnly();
+        const QString why = h.alwaysReadOnlyBlocked ? h.alwaysReadOnlyBlocked() : QString();
+        if (!why.isEmpty()) {
+            auto *b = new ActionCard(QStringLiteral("book-lock"), QCoreApplication::translate("jp::InfoPage", "Always Open Read-Only"), why, page);
+            b->setObjectName(QStringLiteral("infoAlwaysReadOnly"));
+            b->setToolTip(jp::plainToolTip(why));
+            b->setEnabled(false);
+            left->addWidget(b);
+        } else {
+            card(QStringLiteral("infoAlwaysReadOnly"), QStringLiteral("book-lock"), always ? QCoreApplication::translate("jp::InfoPage", "Always Opens Read-Only") : QCoreApplication::translate("jp::InfoPage", "Always Open Read-Only"),
+                 always ? QCoreApplication::translate("jp::InfoPage", "This file opens for reading only, with a note. Choose this to let it open for editing again.")
+                        : QCoreApplication::translate("jp::InfoPage", "Open this file for reading only each time, so nobody changes it by accident. Editing is one choice away."),
+                 [h, always] { h.setAlwaysReadOnly(!always); });
+        }
+    }
     if (h.encrypt && h.encryptBlocked && !h.encryptBlocked().isEmpty()) {
         const QString why = h.encryptBlocked();
         auto *b = new ActionCard(QStringLiteral("lock"), QCoreApplication::translate("jp::InfoPage", "Encrypt with Password"), why, page);

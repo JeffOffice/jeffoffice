@@ -30,9 +30,11 @@ Click **Encrypt with Password** to ask for a password whenever the file is opene
 - A password **can't be found again** if you forget it. Keep it somewhere safe.
 - The versions you kept and the backup copy follow the password: they are protected with it, and change when you change or remove it.
 - To change the password, click the same card again. Click **Remove Password** to take it off. The change is saved the next time you save.
-- Passwords work for **.docx** files. A **.odt** file can't hold a password yet, so JeffWrite will not save a protected document as .odt. It tells you instead of saving without the password.
+- Passwords work for **.docx** files and for **.odt** files. An .odt file is protected in the way the OpenDocument standard describes, so other programs that follow the standard can open it with the password too. A plain text or .rtf file can't hold a password, so JeffWrite will not save a protected document as one. It tells you instead of saving without the password.
 
 To open a protected file, open it as usual. JeffWrite asks for the password. If it is not right, you can try again, or click **Cancel**.
+
+JeffWrite also opens an old **.doc** file that asks for a password. It asks the same way. JeffWrite never saves a .doc file, so **Save As** asks for a new name, and the .docx copy keeps the same password.
 
 ## Inspect Document
 

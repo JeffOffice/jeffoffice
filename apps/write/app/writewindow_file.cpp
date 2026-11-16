@@ -19,6 +19,7 @@
 #include "core/templates.h"
 #include "app/passworddialogs.h"
 #include "io/crypto.h"
+#include "office/odfcrypt.h"
 #include "office/officecrypt.h"
 #include "office/package.h"
 #include "office/privacy.h"
@@ -381,11 +382,6 @@ bool WriteWindow::saveTo(const QString &path, bool asCopy)
     const bool tmpl = ending == QLatin1String("dotx") || ending == QLatin1String("dotm");
     const bool ott = QFileInfo(path).suffix().compare(QLatin1String("ott"), Qt::CaseInsensitive) == 0;
     const bool odt = ott || QFileInfo(path).suffix().compare(QLatin1String("odt"), Qt::CaseInsensitive) == 0;
-    // A password protects a .docx file; an .odt file can't be protected yet, and is never written without the protection the person asked for.
-    if (m_fileProtected && odt) {
-        notice(tr("Save"), tr("This document is protected with a password, and a .odt file can't hold a password yet. Save it as a .docx file, or remove the password first (File > Info)."));
-        return false;
-    }
     // The mark that a document is final is a property a .odt file does not keep: said, so that the window and the file do not disagree.
     office::PackageProps markedProps;
     bool unmarkedForSave = false;
@@ -449,7 +445,7 @@ bool WriteWindow::saveTo(const QString &path, bool asCopy)
     QApplication::setOverrideCursor(Qt::WaitCursor);
     if (namesOut && !text && !rtf && !bytes.isEmpty()) bytes = office::removePersonalFromPackage(bytes, nullptr, &namesProblems);
     if (ott && !bytes.isEmpty()) bytes = office::odt::odfAsTemplate(bytes);
-    if (m_fileProtected && !bytes.isEmpty()) bytes = office::encryptPackage(bytes, m_filePassword);
+    if (m_fileProtected && !bytes.isEmpty()) bytes = odt ? office::encryptOdf(bytes, m_filePassword, office::kMaxOpenFileBytes) : office::encryptPackage(bytes, m_filePassword);
     bool ok = text || !bytes.isEmpty();
     if (ok) {
         QSaveFile out(path);

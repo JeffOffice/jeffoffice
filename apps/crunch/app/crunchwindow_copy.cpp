@@ -12,9 +12,13 @@
 #include "core/appinfo.h"
 #include "core/loader.h"
 #include "core/sheetobjects.h"
+#include "io/crypto.h"
 #include "odt/odttemplate.h"
+#include "office/odfcrypt.h"
 #include "sheet/oldsave.h"
 #include "sheet/xlsxsave.h"
+
+#include <memory>
 
 #include <QAction>
 #include <QFileInfo>
@@ -60,7 +64,9 @@ bool CrunchWindow::exportCopy(const QString &path)
     setStatus(tr("Saving %1…").arg(QFileInfo(path).fileName()));
     const std::shared_ptr<office::sheet::Workbook> book = m_loaded->book;
     const QPointer<CrunchWindow> self(this);
-    QThread *thread = QThread::create([self, book, snapshot, path, xls, ots] {
+    // (an .ods or .ots copy of a workbook that has a password is protected with it, enciphered on the thread that makes the copy; the copy of the password goes with the thread and is wiped)
+    const auto secret = std::make_shared<QString>(!xls && hasUserPassword() ? m_filePassword : QString());
+    QThread *thread = QThread::create([self, book, snapshot, path, xls, ots, secret] {
         QByteArray xlsx, copy;
         QString message;
         office::sheet::SaveReport report;
@@ -73,7 +79,15 @@ bool CrunchWindow::exportCopy(const QString &path)
             ok = package.readLazy(xlsx, &message) && made.open(package, &message);
             if (ok) ok = xls ? office::sheet::saveXls(made, &copy, &copyReport, &message) : office::sheet::saveOds(made, &copy, &copyReport, &message);
             if (ok && ots) copy = office::odt::odfAsTemplate(copy);
+            if (ok && !secret->isEmpty()) {
+                copy = office::encryptOdf(copy, *secret, office::kMaxOpenFileBytes);
+                if (copy.isEmpty()) {
+                    ok = false;
+                    message = QCoreApplication::translate("jp::CrunchWindow", "The workbook could not be protected with the password.");
+                }
+            }
         }
+        jp::crypto::wipe(*secret);
         QMetaObject::invokeMethod(qApp, [self, ok, message, path, copy, copyReport] {
             if (self) self->onCopyMade(ok, message, path, copy, copyReport.notKept, copyReport.trimmed);
         }, Qt::QueuedConnection);

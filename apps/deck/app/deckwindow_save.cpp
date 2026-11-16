@@ -199,7 +199,7 @@ bool embedFontsOnSave() { return Settings::get().value(QStringLiteral("save/embe
 } // namespace
 
 // What the open document kind would leave out of the presentation: what the writer leaves out (found by writing to memory as a save would, kept until the presentation changes; nothing is put on
-// disk), and the mark that it is final. A password is not here: a protected presentation is never saved as .odp (saveTo says so first). Check Compatibility lists the same, and the password.
+// disk), and the mark that it is final. Check Compatibility lists the same.
 QStringList DeckWindow::odpLosses(const QString &path)
 {
     const bool tmpl = deck::presentationKindOf(path) == deck::PresentationKind::Template;
@@ -222,12 +222,7 @@ bool DeckWindow::saveTo(const QString &path, bool asCopy)
         else jp::plainWarning(this, tr("Save"), text);
         return false;
     }
-    // A password protects a .pptx file; an .odp file can't be protected yet, and is never written without the protection the person asked for.
     const bool odf = deck::formatOfFileName(path) == deck::FileFormat::Odp;
-    if (m_fileProtected && odf) {
-        notice(tr("Save"), tr("This presentation is protected with a password, and a .%1 file can't hold a password yet. Save it as a .pptx file, or remove the password first (File > Info).").arg(QFileInfo(path).suffix().toLower()));
-        return false;
-    }
     // What was typed in the notes or a slide's text goes into the file.
     m_notes->commit();
     if (m_outline) m_outline->commit();

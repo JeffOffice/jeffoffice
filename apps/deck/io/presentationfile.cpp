@@ -39,11 +39,7 @@ bool isWrittenEnding(const QString &path)
 
 bool saveAnyPresentationFile(const Document &doc, const QString &path, QString *error, QStringList *skipped, bool embedFonts, const QString &password, bool removePersonal, QStringList *personalProblems)
 {
-    if (formatOfFileName(path) == FileFormat::Odp && !password.isEmpty()) {
-        if (error) *error = QCoreApplication::translate("PresentationFile", "An .odp file can't hold a password yet.");
-        return false;
-    }
-    return formatOfFileName(path) == FileFormat::Odp ? saveOdpFile(doc, path, error, skipped, removePersonal, personalProblems) : savePresentationFile(doc, path, error, skipped, embedFonts, password, removePersonal, personalProblems);
+    return formatOfFileName(path) == FileFormat::Odp ? saveOdpFile(doc, path, error, skipped, removePersonal, personalProblems, password) : savePresentationFile(doc, path, error, skipped, embedFonts, password, removePersonal, personalProblems);
 }
 
 QStringList leftOutNotes(int pictures, int parts)

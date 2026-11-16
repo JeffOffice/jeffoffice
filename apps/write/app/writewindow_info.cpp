@@ -199,7 +199,6 @@ QStringList WriteWindow::incompatibilities()
     const QByteArray bytes = m_doc->toOdt(&err, &notKept);
     if (bytes.isEmpty()) kept << err;
     else kept = notKept;
-    if (m_fileProtected) kept << tr("The password: a .odt file can't hold a password yet.");
     return kept;
 }
 

@@ -10,6 +10,7 @@
 #include "app/telemetry.h"
 #include "canvas/canvas.h"
 #include "core/appinfo.h"
+#include "io/odpimport.h"
 #include "io/pptximport.h"
 #include "io/presentationfile.h"
 #include "app/passworddialogs.h"
@@ -86,7 +87,9 @@ bool DeckWindow::openFile(const QString &path, OpenHow how)
         const bool compound = probe.open(QIODevice::ReadOnly) && probe.read(8) == QByteArray::fromHex("D0CF11E0A1B11AE1");
         probe.close();
         QByteArray bytes;
-        if (compound && office::readWholeFile(path, &bytes, &notes)) {
+        // (an open document presentation protected with a password is a zip whose parts are enciphered: it is unlocked the same way)
+        const bool odf = !compound && deck::formatOfFileName(path) == deck::FileFormat::Odp;
+        if ((compound || odf) && office::readWholeFile(path, &bytes, &notes)) {
             QApplication::restoreOverrideCursor();
             const PackageUnlock unlocked = unlockProtectedPackage(this, QFileInfo(path).fileName(), &bytes, &openedWith, &wasProtected, &notes);
             QApplication::setOverrideCursor(Qt::WaitCursor);
@@ -101,6 +104,14 @@ bool DeckWindow::openFile(const QString &path, OpenHow how)
                 handled = true;
             } else if (unlocked == PackageUnlock::Failed) {
                 handled = true;
+            } else if (odf) {
+                if (wasProtected) {
+                    QStringList skipped;
+                    QString why;
+                    doc = deck::importOdp(bytes, &why, &skipped);
+                    notes = doc ? skipped.join(QLatin1Char('\n')) : why;
+                    handled = true;
+                }
             } else if (bytes.startsWith("PK")) {
                 // (a package: one with the password every program knows opens without a question, and is not one that asks for a password)
                 doc = deck::importPresentation(bytes, &notes);
@@ -157,6 +168,11 @@ bool DeckWindow::openFile(const QString &path, OpenHow how)
         else if (how == OpenHow::Normal && target->markedAsFinal() && deck::presentationKindOf(path) != deck::PresentationKind::Template) {
             target->setReadOnly(true);
             target->statusBar()->showMessage(tr("Marked as final: this presentation is open for reading only. Open File > Info and choose Marked as Final to edit it."), 12000);
+        }
+        // A presentation set to always open for reading only does (the Info page lets it be edited).
+        else if (how == OpenHow::Normal && target->alwaysOpensReadOnly() && deck::presentationKindOf(path) != deck::PresentationKind::Template) {
+            target->setReadOnly(true);
+            target->statusBar()->showMessage(tr("This presentation is open for reading only, as you chose. Open File > Info and choose Always Opens Read-Only to edit it."), 12000);
         }
     }
     crypto::wipe(openedWith);

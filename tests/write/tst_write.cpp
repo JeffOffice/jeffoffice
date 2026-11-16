@@ -1,4 +1,5 @@
 #include "tst_write.h"
+#include "app/passworddialogs.h"
 
 // The run's settings are its own, and none reached the person's (checked at the end).
 void WriteTests::cleanupTestCase() { QVERIFY(jptest::settingsStayInTheRunsFolder()); }
@@ -642,6 +643,50 @@ void WriteTests::anOldBinaryFileOpensAndShowsItsText()
     QVERIFY2(w.windowTitle().startsWith(QLatin1String("letter.doc")), qPrintable(w.windowTitle()));
     // (And the layout made pages of it.)
     QVERIFY(w.document()->pager().pageCount() >= 1);
+}
+
+
+void WriteTests::anOldBinaryFileWithAPasswordOpensWithItAndSavesAsDocxProtected()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    dochelp::DocWriter doc;
+    doc.text = QStringLiteral("Secret old letter.\r");
+    for (const int form : {0, 1}) {
+        const QString path = dir.filePath(QStringLiteral("secret%1.doc").arg(form));
+        QFile f(path);
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write(doc.buildProtected(QStringLiteral("open sesame"), form));
+        f.close();
+        // asked for the password, a wrong one first
+        QStringList tries = {QStringLiteral("wrong"), QStringLiteral("open sesame")};
+        QList<bool> wrongFlags;
+        setOpenPasswordStandIn([&](const QString &, bool wrong, QString *password) {
+            wrongFlags << wrong;
+            if (tries.isEmpty()) return false;
+            *password = tries.takeFirst();
+            return true;
+        });
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        QVERIFY(w.openFile(path));
+        QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("Secret old letter."));
+        QCOMPARE(wrongFlags, (QList<bool>{false, true}));
+        QVERIFY(w.isPasswordProtected());
+        // the copy saved as .docx holds the same password (a .doc is never written)
+        QVERIFY(w.saveTo(dir.filePath(QStringLiteral("copy%1.docx").arg(form)), true));
+        QFile in(dir.filePath(QStringLiteral("copy%1.docx").arg(form)));
+        QVERIFY(in.open(QIODevice::ReadOnly));
+        const QByteArray bytes = in.readAll();
+        QVERIFY(bytes.startsWith(QByteArray("\xD0\xCF\x11\xE0", 4)));
+        QVERIFY(!bytes.contains("Secret old letter"));
+        // cancelling the question opens nothing
+        setOpenPasswordStandIn([](const QString &, bool, QString *) { return false; });
+        WriteWindow c;
+        c.setNotifier([](const QString &, const QString &) {});
+        QVERIFY(!c.openFile(path));
+    }
+    setOpenPasswordStandIn(nullptr);
 }
 
 

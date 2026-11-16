@@ -11,6 +11,7 @@
 #include "app/filescreen.h"
 #include "app/infopage.h"
 #include "app/passworddialogs.h"
+#include "office/odfcrypt.h"
 #include "app/settings.h"
 #include "app/writeinfo.h"
 #include "app/writewindow.h"
@@ -721,21 +722,51 @@ private Q_SLOTS:
         QVERIFY(!w.isReadOnly());
     }
 
-    void aProtectedDocumentIsNotSavedAsAnOdtWithoutItsPassword()
+    void aProtectedDocumentIsSavedAsAnOdtWithItsPasswordAndOpensAgainWithIt()
     {
         QTemporaryDir dir;
         QVERIFY(dir.isValid());
         WriteWindow a;
         Quiet quiet(a);
-        typeText(*a.document(), a.view()->cursor(), QStringLiteral("x"));
-        setNewPasswordStandIn([](bool, QString *password) {
-            *password = QStringLiteral("pw");
-            return NewPasswordChoice::Set;
+        typeText(*a.document(), a.view()->cursor(), QStringLiteral("Secret odt plans"));
+        protect(a, QStringLiteral("pw odt"));
+        const QString path = dir.filePath(QStringLiteral("o.odt"));
+        QVERIFY(a.saveTo(path));
+        QVERIFY(quiet.said.isEmpty());
+        // a zip whose parts are enciphered: the type first and plain, and none of the text in the clear
+        const QByteArray bytes = fileBytes(path);
+        QVERIFY(bytes.startsWith("PK"));
+        QVERIFY(bytes.mid(30, 8) == "mimetype");
+        QVERIFY(!bytes.contains("Secret odt plans"));
+        QVERIFY(office::odfEncrypted(bytes));
+        // a wrong password is asked again, then the right one opens it, and the window holds the password
+        QStringList tries = {QStringLiteral("wrong"), QStringLiteral("pw odt")};
+        QList<bool> wrongFlags;
+        setOpenPasswordStandIn([&](const QString &, bool wrong, QString *password) {
+            wrongFlags << wrong;
+            if (tries.isEmpty()) return false;
+            *password = tries.takeFirst();
+            return true;
         });
-        a.encryptWithPassword();
-        QVERIFY(!a.saveTo(dir.filePath(QStringLiteral("o.odt"))));
-        QVERIFY(!QFileInfo::exists(dir.filePath(QStringLiteral("o.odt"))));
-        QVERIFY(quiet.said.last().contains(QLatin1String("password")));
+        WriteWindow b;
+        QVERIFY(b.openFile(path));
+        QCOMPARE(b.document()->story()->toPlainText(), QStringLiteral("Secret odt plans"));
+        QCOMPARE(wrongFlags, (QList<bool>{false, true}));
+        QVERIFY(b.isPasswordProtected());
+        // a plain save keeps the protection; cancelling the question opens nothing
+        typeText(*b.document(), b.view()->cursor(), QStringLiteral("!"));
+        QVERIFY(b.save());
+        QVERIFY(office::odfEncrypted(fileBytes(path)));
+        setOpenPasswordStandIn([](const QString &, bool, QString *) { return false; });
+        WriteWindow c;
+        c.setNotifier([](const QString &, const QString &) {});
+        QVERIFY(!c.openFile(path));
+        // the password taken off: the next save is plain
+        setNewPasswordStandIn([](bool has, QString *) { return has ? NewPasswordChoice::Removed : NewPasswordChoice::Cancelled; });
+        b.encryptWithPassword();
+        QVERIFY(b.save());
+        QVERIFY(!office::odfEncrypted(fileBytes(path)));
+        QVERIFY(fileBytes(path).contains("PK"));
     }
 
     void inspectFindsAndRemovesWhatIsThere()

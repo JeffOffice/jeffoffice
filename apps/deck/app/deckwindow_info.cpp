@@ -83,6 +83,34 @@ bool DeckWindow::markedAsFinal() const
     return office::isMarkedFinal(properties().custom);
 }
 
+bool DeckWindow::alwaysOpensReadOnly() const
+{
+    return office::isAlwaysOpenReadOnly(properties().custom);
+}
+
+QString DeckWindow::alwaysReadOnlyBlocked() const
+{
+    if (properties().truncated) return tr("This file has more properties than %1 reads, so this choice can't be kept.").arg(appInfo().name);
+    if (deck::formatOfFileName(m_ed->filePath()) == deck::FileFormat::Odp && !m_ed->filePath().isEmpty())
+        return tr("An .odp file can't hold this choice. Save the presentation as a .pptx file first.");
+    return {};
+}
+
+void DeckWindow::setAlwaysOpenReadOnly(bool on)
+{
+    if (!m_ed->doc() || m_ed->doc()->pages.isEmpty()) return;
+    if (on && !alwaysReadOnlyBlocked().isEmpty()) {
+        notice(tr("Always Open Read-Only"), alwaysReadOnlyBlocked());
+        return;
+    }
+    office::PackageProps p = properties();
+    p.custom = office::withAlwaysOpenReadOnly(p.custom, on);
+    if (!on) setReadOnly(false);   // (the editor changes nothing while it is read-only)
+    applyProperties(p);
+    statusBar()->showMessage(on ? tr("This presentation will open for reading only. Save it to keep this choice.") : tr("This presentation will open for editing again. Save it to keep this choice."), 8000);
+    if (m_fileScreen) showFileScreen(QStringLiteral("info"));
+}
+
 QWidget *DeckWindow::buildInfoPage(QWidget *parent)
 {
     InfoHost h;
@@ -104,6 +132,9 @@ QWidget *DeckWindow::buildInfoPage(QWidget *parent)
         rows.push_back({tr("Slides with notes"), QLocale().toString(withNotes)});
         return rows;
     };
+    h.alwaysReadOnly = [this] { return alwaysOpensReadOnly(); };
+    h.setAlwaysReadOnly = [this](bool on) { setAlwaysOpenReadOnly(on); };
+    h.alwaysReadOnlyBlocked = [this] { return alwaysReadOnlyBlocked(); };
     h.markFinalBlocked = [this] { return markFinalBlocked(); };
     h.markedFinal = [this] { return markedAsFinal(); };
     h.setMarkedFinal = [this](bool on) { setMarkedFinal(on); };
@@ -402,7 +433,6 @@ void DeckWindow::checkCompatibility()
     if (m_outline) m_outline->commit();
     m_ed->endTextEdit();
     QStringList lost = odpLosses(QStringLiteral("x.odp"));
-    if (m_fileProtected) lost << tr("The password: a .odp file can't hold a password yet.");
     notice(tr("Check Compatibility"), lossyReport({QString(), tr("presentation"), QStringLiteral(".odp"), QStringLiteral(".pptx"), lost}), !lost.isEmpty());
 }
 

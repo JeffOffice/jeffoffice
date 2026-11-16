@@ -844,6 +844,7 @@ private Q_SLOTS:
     void aDocumentCanBeSavedAsAnOpenDocumentTemplate();
     void aDamagedDocxOpensRepairedWithWhatCouldBeRead();
     void anOldBinaryFileOpensAndShowsItsText();
+    void anOldBinaryFileWithAPasswordOpensWithItAndSavesAsDocxProtected();
     void savingAnOldBinaryFileAsksForADocxName();
     void whatAnOldFileHoldsThatCannotBeShownIsSaid();
     void trackedChangesOfAnOldFileComeInWithTheirAuthorsAndDates();

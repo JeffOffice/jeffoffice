@@ -352,6 +352,10 @@ public:
     bool markedAsFinal() const;
     QString markFinalBlocked() const;
     void setMarkedFinal(bool on);
+    // Whether the presentation is set to open for reading only each time (a property it keeps in its file); turning it off also lets this window edit.
+    bool alwaysOpensReadOnly() const;
+    QString alwaysReadOnlyBlocked() const;
+    void setAlwaysOpenReadOnly(bool on);
     // Whether the file asks for a password when it is opened (it was opened with one, or Encrypt with Password was used); the password is put on when the presentation is saved.
     bool isPasswordProtected() const { return m_fileProtected; }
     void encryptWithPassword();

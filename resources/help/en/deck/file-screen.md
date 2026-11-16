@@ -1,5 +1,5 @@
 # The File screen
-<!-- keywords: file, file screen, backstage, new, open, save, save as, print, export, close, options, about, version, license, report a problem, source code, downloads, back to presentation, info, properties, title, author, subject, keywords, categories, comments, company, manager, custom properties, mark as final, final, read-only, password, encrypt, protect, open password, inspect presentation, personal information, speaker notes, hidden slides, off the slide, version history, versions, keep a version, go back, restore, show in folder, copy path, check compatibility, save anyway, dont ask again -->
+<!-- keywords: file, file screen, backstage, new, open, save, save as, print, export, close, options, about, version, license, report a problem, source code, downloads, back to presentation, info, properties, title, author, subject, keywords, categories, comments, company, manager, custom properties, mark as final, final, read-only, password, encrypt, protect, open password, inspect presentation, personal information, speaker notes, hidden slides, off the slide, version history, versions, keep a version, go back, restore, show in folder, copy path, check compatibility, save anyway, dont ask again, always open read-only -->
 
 The **File** button, left of the tabs, opens the File screen. It covers the window and holds everything that works on the whole file: starting, opening, saving, printing, and exporting. Press Esc, or click **Back to presentation**, to return to your slides. **Alt+F** also opens it.
 
@@ -30,6 +30,10 @@ Properties are facts about the presentation, such as its title and who wrote it.
 
 Under the boxes, the page shows when the presentation was made, saved, and printed, and how many slides it has, how many are hidden, and how many have speaker notes. Click **Custom Properties** to make properties of your own, such as **Project** or **Client**. Click **Add**, type a name, choose what kind of value it is (text, a whole number, a number, yes or no, or a date), and type the value.
 
+### Always Open Read-Only
+
+Click **Always Open Read-Only** to have the presentation open for reading only each time, so nobody changes it by accident. The choice is saved with the file when you save it. The next time someone opens the file, the status bar says it is open for reading only. To edit it, open **File > Info** and click **Always Opens Read-Only**. It is one click, so this is a reminder and not a lock. Other programs don't read this choice, and an .odp file can't hold it.
+
 ### Mark as Final
 
 Click **Mark as Final** to tell readers the presentation is finished. JeffDeck saves the presentation and then holds it for reading only. When someone opens it, the title bar says it is read-only, and a note tells them it was marked as final. This is a gentle way to say "please don't change this". It is not a lock, because anyone can choose **Marked as Final** again to edit it. An **.odp** file can't hold the mark, so save the presentation as a **.pptx** file first.
@@ -40,7 +44,7 @@ Click **Encrypt with Password** to ask for a password whenever the file is opene
 
 - A password **can't be found again** if you forget it. Keep it somewhere safe.
 - To change the password, click the same card again. Click **Remove Password** to take it off. The change is saved the next time you save.
-- Passwords work for **.pptx**, **.potx**, and **.ppsx** files. An **.odp** file can't hold a password yet, so JeffDeck will not save a protected presentation as .odp. It tells you instead of saving without the password.
+- Passwords work for **.pptx**, **.potx**, and **.ppsx** files, and for **.odp** and **.otp** files. An .odp file is protected in the way the OpenDocument standard describes, so other programs that follow the standard can open it with the password too.
 - The versions you kept and the backup copy follow the password: they are protected with it, and change when you change or remove it.
 - While a presentation has a password, JeffDeck keeps no recovery copy of it, because that copy would not be protected. Save often.
 

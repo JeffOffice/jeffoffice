@@ -9,6 +9,7 @@
 #include "app/filetasks.h"
 #include "app/infopage.h"
 #include "app/passworddialogs.h"
+#include "office/odfcrypt.h"
 #include "deckhelpers.h"
 #include "office/officecrypt.h"
 #include "office/packageprops.h"
@@ -240,9 +241,38 @@ private Q_SLOTS:
         b.editor()->change(QStringLiteral("x"), [&] { b.editor()->doc()->props.title = QStringLiteral("Changed"); });
         b.autoRecover();
         QVERIFY(b.recoveryCopy().isEmpty());
-        // a file for another program's kind can't hold the password
-        QVERIFY(!b.saveTo(dir.filePath(QStringLiteral("s.odp"))));
-        QVERIFY(!quietB.said.isEmpty());
+        // a copy as an .odp holds the password too: its parts are enciphered, and it opens with the password and not without
+        const QString odp = dir.filePath(QStringLiteral("s.odp"));
+        QVERIFY(b.saveTo(odp, true));
+        const QByteArray odpBytes = fileBytes(odp);
+        QVERIFY(odpBytes.startsWith("PK"));
+        QVERIFY(odpBytes.mid(30, 8) == "mimetype");
+        QVERIFY(office::odfEncrypted(odpBytes));
+        QVERIFY(!odpBytes.contains("Say hello first"));
+        {
+            QStringList tries = {QStringLiteral("wrong"), QStringLiteral("hunter2")};
+            QList<bool> wrongFlags;
+            setOpenPasswordStandIn([&](const QString &, bool wrong, QString *password) {
+                wrongFlags << wrong;
+                if (tries.isEmpty()) return false;
+                *password = tries.takeFirst();
+                return true;
+            });
+            DeckWindow o;
+            Quiet quietO(o);
+            QVERIFY(o.openFile(odp));
+            QCOMPARE(wrongFlags, (QList<bool>{false, true}));
+            QVERIFY(o.isPasswordProtected());
+            QCOMPARE(deck::notesText(*o.editor()->doc(), *o.editor()->doc()->pages[0]), QStringLiteral("Say hello first"));
+            setOpenPasswordStandIn([](const QString &, bool, QString *) { return false; });
+            DeckWindow n;
+            Quiet quietN(n);
+            QVERIFY(!n.openFile(odp));
+        }
+        setOpenPasswordStandIn([](const QString &, bool, QString *password) {
+            *password = QStringLiteral("hunter2");
+            return true;
+        });
         // the password taken off
         setNewPasswordStandIn([](bool has, QString *) { return has ? NewPasswordChoice::Removed : NewPasswordChoice::Cancelled; });
         b.encryptWithPassword();
@@ -684,6 +714,50 @@ private Q_SLOTS:
         Quiet quietC(c);
         QVERIFY(c.openFile(dir.filePath(QStringLiteral("f.pptx")), OpenHow::Copy));
         QVERIFY(!c.isReadOnly());
+    }
+
+    void alwaysOpenReadOnlyIsKeptInTheFileAndOpensItForReadingOnly()
+    {
+        QTemporaryDir dir;
+        DeckWindow a;
+        Quiet quiet(a);
+        a.editor()->setDocument(sample());
+        QVERIFY(!a.alwaysOpensReadOnly());
+        a.setAlwaysOpenReadOnly(true);
+        QVERIFY(a.alwaysOpensReadOnly());
+        QVERIFY(!a.isReadOnly());   // (it applies the next time the file is opened)
+        QVERIFY(a.saveTo(dir.filePath(QStringLiteral("r.pptx"))));
+        // opened, it is for reading only, with a note; the Info page's card turns it off and lets the window edit
+        DeckWindow b;
+        Quiet quietB(b);
+        QVERIFY(b.openFile(dir.filePath(QStringLiteral("r.pptx"))));
+        QVERIFY(b.isReadOnly());
+        QVERIFY(b.alwaysOpensReadOnly());
+        QVERIFY(b.statusBar()->currentMessage().contains(QLatin1String("reading only")));
+        b.showFileScreen(QStringLiteral("info"));
+        auto *card = b.findChild<FileScreen *>()->findChild<QAbstractButton *>(QStringLiteral("infoAlwaysReadOnly"));
+        QVERIFY(card);
+        QVERIFY(card->isEnabled());
+        card->click();
+        QVERIFY(!b.alwaysOpensReadOnly());
+        QVERIFY(!b.isReadOnly());
+        QVERIFY(b.save());
+        DeckWindow c;
+        Quiet quietC(c);
+        QVERIFY(c.openFile(dir.filePath(QStringLiteral("r.pptx"))));
+        QVERIFY(!c.isReadOnly());
+        // opened as a copy it is a presentation to edit, and an .odp can't hold the choice (the card says so)
+        a.setAlwaysOpenReadOnly(true);
+        QVERIFY(a.saveTo(dir.filePath(QStringLiteral("r2.pptx"))));
+        DeckWindow d;
+        Quiet quietD(d);
+        QVERIFY(d.openFile(dir.filePath(QStringLiteral("r2.pptx")), OpenHow::Copy));
+        QVERIFY(!d.isReadOnly());
+        QVERIFY(a.saveTo(dir.filePath(QStringLiteral("r3.odp")), true));
+        DeckWindow e;
+        Quiet quietE(e);
+        QVERIFY(e.openFile(dir.filePath(QStringLiteral("r3.odp"))));
+        QVERIFY(!e.alwaysReadOnlyBlocked().isEmpty());
     }
 
     void inspectFindsNotesCommentsHiddenSlidesAndWhatIsOffTheSlide()
@@ -1316,7 +1390,7 @@ private Q_SLOTS:
         QCOMPARE(screen->currentPage(), QStringLiteral("info"));
         QWidget *page = screen->findChild<QWidget *>(QStringLiteral("infoPage"));
         QVERIFY(page);
-        for (const char *name : {"infoMarkFinal", "infoEncrypt", "infoInspect", "infoVersions", "infoCustom", "infoShowFolder", "infoCopyPath"})
+        for (const char *name : {"infoMarkFinal", "infoAlwaysReadOnly", "infoEncrypt", "infoInspect", "infoVersions", "infoCustom", "infoShowFolder", "infoCopyPath"})
             QVERIFY2(page->findChild<QWidget *>(QString::fromLatin1(name)), name);
         QVERIFY(page->findChild<QWidget *>(QStringLiteral("infoAccessibility")));
         QVERIFY(!page->findChild<QPushButton *>(QStringLiteral("infoCopyPath"))->isEnabled());   // (nothing saved yet)

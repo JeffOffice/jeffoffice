@@ -32,6 +32,9 @@ struct InfoHost {
     std::function<QString()> markFinalBlocked;   // why the file can't be marked as final ("" when it can); none: always
     std::function<bool()> markedFinal;
     std::function<void(bool)> setMarkedFinal;
+    std::function<bool()> alwaysReadOnly;          // whether the file is set to always open for reading only
+    std::function<void(bool)> setAlwaysReadOnly;   // none: no card
+    std::function<QString()> alwaysReadOnlyBlocked;   // why that can't be set ("" when it can); none: always
     std::function<bool()> hasPassword;
     std::function<void()> encrypt;   // asks for the password (the app does what follows)
     std::function<QString()> encryptBlocked;   // why the file can't have a password ("" when it can); none: always

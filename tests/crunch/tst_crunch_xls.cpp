@@ -15,6 +15,7 @@
 #include "core/fonts.h"
 #include "grid/gridview.h"
 
+#include "office/odfcrypt.h"
 #include <QApplication>
 #include <QDir>
 #include <QFile>
@@ -307,8 +308,9 @@ private Q_SLOTS:
         QCOMPARE(win.told.size(), 0);
     }
 
-    // A copy of a protected workbook in a kind of file that can't be protected is said to be unprotected before it is made, and the person may cancel.
-    void aProtectedWorkbookSavedAsAnOpenDocumentCopyIsWarnedAbout()
+    // A copy of a protected workbook in a kind of file that can't be protected (.xls) is said to be unprotected before it is made, and the person may cancel; a copy as .ods or .ots is
+    // protected with the same password, and says nothing.
+    void aProtectedWorkbookSavedAsAnOpenDocumentCopyIsProtectedAndAnXlsCopyIsWarnedAbout()
     {
         Folder folder;
         const QString path = folder.write(QStringLiteral("secret.xlsx"), protectedBook(QStringLiteral("pw")));
@@ -319,16 +321,31 @@ private Q_SLOTS:
         };
         QVERIFY(win.open(path));
         QStringList said;
-        bool go = false;
         win.w.setLossAsker([&](const QString &, const QString &text) {
             said << text;
-            return go ? CrunchWindow::LossAnswer::Continue : CrunchWindow::LossAnswer::Cancel;
+            return CrunchWindow::LossAnswer::Cancel;
         });
-        const QString copy = folder.dir.filePath(QStringLiteral("copy.ods"));
-        QVERIFY(!win.w.saveAs(copy));
+        const QString old = folder.dir.filePath(QStringLiteral("copy.xls"));
+        QVERIFY(!win.w.saveAs(old));
         QCOMPARE(said.size(), 1);
         QVERIFY2(said.first().contains(QLatin1String("protected with a password")) && said.first().contains(QLatin1String("not be protected")), qPrintable(said.first()));
-        QVERIFY(!QFile::exists(copy));
+        QVERIFY(!QFile::exists(old));
+        said.clear();
+        for (const char *name : {"copy.ods", "copy.ots"}) {
+            const QString copy = folder.dir.filePath(QString::fromLatin1(name));
+            QVERIFY(win.w.saveAs(copy, true));
+            QTRY_VERIFY(!win.w.isSaving());
+            QVERIFY2(said.isEmpty(), name);
+            QVERIFY(QFile::exists(copy));
+            QFile in(copy);
+            QVERIFY(in.open(QIODevice::ReadOnly));
+            const QByteArray bytes = in.readAll();
+            QVERIFY(bytes.startsWith("PK"));
+            QVERIFY(jp::office::odfEncrypted(bytes));
+            QCOMPARE(passwordNeedOf(copy, QString()), jp::office::sheet::PasswordNeed::Needed);
+            QCOMPARE(passwordNeedOf(copy, QStringLiteral("other")), jp::office::sheet::PasswordNeed::Wrong);
+            QCOMPARE(passwordNeedOf(copy, QStringLiteral("pw")), jp::office::sheet::PasswordNeed::None);
+        }
     }
 
     // A file protected only with the password every program knows opens with no question, says nothing of a password of the person's (no Remove, no warning on a copy), and is saved the way it came.

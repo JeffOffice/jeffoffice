@@ -14,6 +14,8 @@
 #include "render/renderer.h"
 #include "text/textprops.h"
 
+#include "office/odfcrypt.h"
+#include "office/package.h"
 #include "office/privacy.h"
 #include <QBuffer>
 #include <QCoreApplication>
@@ -1137,7 +1139,7 @@ QByteArray exportOdp(const Document &doc, bool asTemplate, QString *error, QStri
     return odpw::Exporter(doc, asTemplate, skipped).run(error);
 }
 
-bool saveOdpFile(const Document &doc, const QString &path, QString *error, QStringList *skipped, bool removePersonal, QStringList *personalProblems)
+bool saveOdpFile(const Document &doc, const QString &path, QString *error, QStringList *skipped, bool removePersonal, QStringList *personalProblems, const QString &password)
 {
     auto fail = [&](const QString &why) {
         if (error) *error = why;
@@ -1148,6 +1150,10 @@ bool saveOdpFile(const Document &doc, const QString &path, QString *error, QStri
     QByteArray bytes = exportOdp(doc, asTemplate, error, skipped);
     if (bytes.isEmpty()) return false;
     if (removePersonal) bytes = office::removePersonalFromPackage(bytes, nullptr, personalProblems);
+    if (!password.isEmpty()) {
+        bytes = office::encryptOdf(bytes, password, office::kMaxOpenFileBytes);
+        if (bytes.isEmpty()) return fail(QCoreApplication::translate("OdpExport", "The password couldn't be put on the file."));
+    }
     // The old file stays whole until the new one is complete.
     QSaveFile file(path);
     if (!file.open(QIODevice::WriteOnly)) return fail(file.errorString());
