@@ -338,7 +338,15 @@ private Q_SLOTS:
         pane->scrollToTop();
         const QImage view = pane->viewport()->grab().toImage();
         const QStringList ids = pane->ids();
-        const QColor line = jp::uiLine();
+        const QColor line = jp::uiMuted();
+        // The line reads at a glance: at least 3:1 against the pane's own background, as the pixels are.
+        auto luminance = [](const QColor &c) {
+            auto channel = [](double v) { return v <= 0.03928 ? v / 12.92 : std::pow((v + 0.055) / 1.055, 2.4); };
+            return 0.2126 * channel(c.redF()) + 0.7152 * channel(c.greenF()) + 0.0722 * channel(c.blueF());
+        };
+        const QColor paneBackground = view.pixelColor(2, 2);
+        const double hi = std::max(luminance(line), luminance(paneBackground)), lo = std::min(luminance(line), luminance(paneBackground));
+        QVERIFY2((hi + 0.05) / (lo + 0.05) >= 3.0, qPrintable(QString::number((hi + 0.05) / (lo + 0.05))));
         // The line's column: in the gap the layouts are indented by, left of a layout's thumbnail.
         const QRect firstLayout = pane->thumbnailRect(ids[1]);
         const int x = firstLayout.left() - 11;
