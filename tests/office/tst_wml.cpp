@@ -2899,6 +2899,69 @@ private Q_SLOTS:
         QCOMPARE(wrapPolygonXml(big).count("<wp:lineTo"), jp::kMostWrapPoints);
     }
 
+    // Points that are not numbers (nan, inf) are dropped where an outline is read, and what is left is an outline only if three remain.
+    void aWrapOutlineWithPointsThatAreNotNumbersKeepsTheOthers()
+    {
+        auto outlineOf = [](const QByteArray &points) { return readWrapPolygonXml("<wp:wrapTight><wp:wrapPolygon><wp:start x=\"0\" y=\"0\"/>" + points + "</wp:wrapPolygon></wp:wrapTight>"); };
+        const QPolygonF mixed = outlineOf("<wp:lineTo x=\"21600\" y=\"0\"/><wp:lineTo x=\"nan\" y=\"5\"/><wp:lineTo x=\"inf\" y=\"-inf\"/><wp:lineTo x=\"21600\" y=\"21600\"/>");
+        QCOMPARE(mixed.size(), 3);
+        for (const QPointF &p : mixed) QVERIFY(std::isfinite(p.x()) && std::isfinite(p.y()));
+        QCOMPARE(mixed[2], QPointF(1, 1));
+        QCOMPARE(outlineOf("<wp:lineTo x=\"nan\" y=\"nan\"/><wp:lineTo x=\"inf\" y=\"1\"/><wp:lineTo x=\"3\" y=\"-inf\"/>").size(), 0);
+    }
+
+    // The room round a wrap is held to what a page can use wherever it is read (a file's distances are numbers of any size): not past kMostWrapDistance points, not below nothing, and nan is none.
+    void aFilesWrapDistancesAreHeldToTheLimits()
+    {
+        const QByteArray ns = "xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" "
+                              "xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" "
+                              "xmlns:pic=\"http://schemas.openxmlformats.org/drawingml/2006/picture\"";
+        auto read = [&](const QByteArray &anchorAttributes, const QByteArray &wrapAttributes) {
+            const QByteArray xml = "<w:drawing " + ns + "><wp:anchor " + anchorAttributes + "><wp:positionH relativeFrom='column'><wp:posOffset>0</wp:posOffset></wp:positionH><wp:positionV relativeFrom='paragraph'><wp:posOffset>0</wp:posOffset></wp:positionV>"
+                                   "<wp:extent cx='2540000' cy='1270000'/><wp:wrapSquare wrapText='bothSides' " + wrapAttributes + "/><wp:docPr id='1' name='p'/><a:graphic><a:graphicData><pic:pic><pic:blipFill><a:blip r:embed='rId7'/></pic:blipFill></pic:pic></a:graphicData></a:graphic></wp:anchor></w:drawing>";
+            return readShapes(xml);
+        };
+        for (const QByteArray &bad : {QByteArray("9e15"), QByteArray("-5000000"), QByteArray("nan"), QByteArray("inf"), QByteArray("-inf")}) {
+            for (const bool onWrap : {false, true}) {
+                const QByteArray all = "distT='" + bad + "' distB='" + bad + "' distL='" + bad + "' distR='" + bad + "'";
+                const QVector<Shape> shapes = onWrap ? read("", all) : read(all, "");
+                QCOMPARE(int(shapes.size()), 1);
+                for (const double g : {shapes[0].gapLeft, shapes[0].gapRight, shapes[0].gapTop, shapes[0].gapBottom})
+                    QVERIFY2(g >= 0 && g <= jp::kMostWrapDistance, qPrintable(bad + " " + QString::number(g)));
+            }
+        }
+        // A distance in range is as it was written (and the biggest is kept as the most).
+        const QVector<Shape> ok = read("distL='127000' distR='" + QByteArray::number(qint64(jp::kMostWrapDistance * 12700)) + "'", "");
+        QCOMPARE(ok[0].gapLeft, 10.0);
+        QCOMPARE(ok[0].gapRight, jp::kMostWrapDistance);
+    }
+
+    // The room round an outline at distance 0 is the outline's whole inside, even one that crosses itself (a star's middle or a bow tie's waist is not a hole the text flows into).
+    void theRoomRoundAnOutlineThatCrossesItselfIsSolid()
+    {
+        QPainterPath star;
+        QPolygonF points;
+        for (int i = 0; i < 5; ++i) {
+            const double a = -M_PI / 2 + i * 4 * M_PI / 5;
+            points << QPointF(100 + 80 * std::cos(a), 100 + 80 * std::sin(a));
+        }
+        star.addPolygon(points);
+        QPainterPath bow;
+        bow.addPolygon(QPolygonF({QPointF(0, 0), QPointF(100, 100), QPointF(100, 0), QPointF(0, 100)}));
+        for (const double distance : {0.0, -3.0, 4.0}) {
+            const QPolygonF room = jp::wrapRoomAround(star, distance).toFillPolygon();
+            QVERIFY2(room.containsPoint(QPointF(100, 100), Qt::OddEvenFill), qPrintable(QString::number(distance)));
+            QVERIFY2(room.containsPoint(QPointF(100, 100), Qt::WindingFill), qPrintable(QString::number(distance)));
+            QVERIFY2(jp::wrapRoomAround(star, distance).contains(QPointF(100, 100)), qPrintable(QString::number(distance)));
+            const QPolygonF waist = jp::wrapRoomAround(bow, distance).toFillPolygon();
+            QVERIFY2(waist.containsPoint(QPointF(80, 50), Qt::OddEvenFill) && waist.containsPoint(QPointF(20, 50), Qt::OddEvenFill), qPrintable(QString::number(distance)));   // (both halves of the bow tie)
+        }
+        // A distance that is huge or not a number is held to the most.
+        const QRectF big = jp::wrapRoomAround(star, 1e300).boundingRect();
+        QVERIFY2(big.width() < star.boundingRect().width() + 8 * jp::kMostWrapDistance && big.width() > star.boundingRect().width() + 1000, qPrintable(QString::number(big.width())));   // (a band of the most, not of 1e300)
+        QCOMPARE(jp::wrapRoomAround(star, std::nan("")).boundingRect().size().toSize(), star.boundingRect().size().toSize());
+    }
+
     // Moving, adding, and taking away a point of an outline: a point is added only on an edge, never past the most, and an outline keeps three.
     void aWrapOutlineIsEditedAPointAtATime()
     {

@@ -132,10 +132,6 @@ void Renderer::strokePath(QPainter *p, const QPainterPath &path, const Stroke &s
 
 // ---------- layout cache ----------
 namespace {
-constexpr int kMaxWrapObstacles = 32, kMaxWrapCandidates = 512;
-// The shapes (outlines, not rectangles) a page makes for wrapping text while it is painted: each costs about a millisecond, and a page where every
-// box wraps around hundreds of others would take minutes. The boxes after the budget is spent wrap around rectangles only.
-constexpr int kMaxWrapShapesPerPage = 1024;
 thread_local qint64 g_wrapWork = 0;
 thread_local int g_wrapShapesLeft = std::numeric_limits<int>::max();
 }

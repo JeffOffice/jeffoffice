@@ -1607,6 +1607,7 @@ private Q_SLOTS:
     void wrapSidesPutTheTextOnTheSidesAsked();
     void objectsBehindAndOverTheTextMoveNoLine();
     void tightWrapIsSquareWrapForNow();
+    void aPageOfThousandsOfOutlinedObjectsIsSetAroundAtMostTheLimits();
     void objectsInTheMarginStripsAreWhereTheStripPutsThem();
     void aParagraphThatRunsOnPastTheObjectsPageIsWhole();
     void aParagraphOfSeveralPagesWithAWallLosesNoText();

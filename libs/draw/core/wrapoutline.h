@@ -12,14 +12,22 @@ namespace jp {
 // The most points an outline has (a file that has more has its first ones) and how far outside the frame a point may be, as a share of the frame.
 constexpr int kMostWrapPoints = 128;
 constexpr double kWrapOutlineReach = 0.5;
+// The most room a wrap leaves round an object, in points (a distance from a file is held to 0 up to this, nan being 0).
+constexpr double kMostWrapDistance = 1584;
+// What a layer sets text around at most, the page layer and the paginator alike: a box's text goes round at most kMaxWrapObstacles objects, found among the next kMaxWrapCandidates (more would
+// be a page where every box wraps around every other), and no more than kMaxWrapShapesPerPage outlines are made (each costs about a millisecond) for a page's painting or a column's lines;
+// the objects after that budget wrap around their rectangles.
+constexpr int kMaxWrapObstacles = 32, kMaxWrapCandidates = 512, kMaxWrapShapesPerPage = 1024;
 // The unit DrawingML gives a polygon's coordinates: the frame's width and height are each this many.
 constexpr double kWrapPolygonUnits = 21600.0;
 
 // The points kept as an outline: at most kMostWrapPoints (the first), a point that is not a number dropped, each clamped to the reach; fewer than three left makes no outline (empty).
 QPolygonF boundedWrapOutline(const QVector<QPointF> &points);
-// The room the text leaves round an outline already placed on the page: the outline and a band of `distance` round it (a distance of 0 or less is the outline alone). The page layer
+// The room the text leaves round an outline already placed on the page: the outline and a band of `distance` round it (a distance of 0 or less is the outline alone, its inside solid: an outline that crosses itself has no holes). The page layer
 // and the paginator both take this, so that a line meets the same edge in both.
 QPainterPath wrapRoomAround(const QPainterPath &outline, double distance);
+// A wrap distance as the layers use it: 0 for a number that is not one or is below 0, at most kMostWrapDistance.
+double boundedWrapDistance(double distance);
 
 // The outline with point `index` moved to `to` (shares of the frame; kept inside the reach); unchanged for a number that is not one of its points.
 QPolygonF wrapOutlineMoved(const QPolygonF &outline, int index, const QPointF &to);

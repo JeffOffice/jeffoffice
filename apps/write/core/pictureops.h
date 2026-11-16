@@ -6,6 +6,7 @@
 // (a picture of the older drawing format, a group) is kept as it is.
 
 #include "core/picturestyles.h"
+#include "core/wrapoutline.h"
 #include "core/writedoc.h"
 #include "sheet/chartops.h"
 
@@ -129,7 +130,7 @@ bool setPictureWrap(WriteDoc &doc, int position, PictureWrap wrap);
 // Where the text goes beside a square or tight wrap (a picture in line, behind, or in front of the text has no side: false). One step; false when it makes no difference.
 bool setPictureWrapSide(WriteDoc &doc, int position, PictureWrapSide side);
 // The room the wrapping text leaves round the picture, each at most kMostWrapDistance points. One step; false when it makes no difference or a value is not usable.
-constexpr double kMostWrapDistance = 1584;
+using jp::kMostWrapDistance;
 bool setPictureWrapDistances(WriteDoc &doc, int position, double top, double bottom, double left, double right);
 // The outline a tight wrap follows (shares of the picture's frame; see core/wrapoutline.h for what is kept: at most kMostWrapPoints, none outside the reach). A square wrap becomes a
 // tight one; an empty outline gives the frame back. One step; false when it makes no difference.

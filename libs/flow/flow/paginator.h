@@ -217,6 +217,11 @@ public:
     qint64 pagesLaidOut() const { return m_laidOut; }
     // How many page references have been looked at to find their pages since the program began (a cost test: a page's are bounded).
     static qint64 pageRefsAskedForTest();
+    // What setting text round objects has cost since the program began: the columns asked for their obstacles, the objects looked at for them, and the outlines made (a cost test: each is bounded
+    // by core/wrapoutline.h for a column, whatever the document holds).
+    static qint64 wrapColumnsForTest();
+    static qint64 wrapCandidatesForTest();
+    static qint64 wrapShapesForTest();
     // How many times a page has been laid out, the passes that find where its walls are included: for tests of what asking for a page costs.
     qint64 pagePassesForTest() const { return m_passes; }
     // How many times the frames of a header or footer were made, and how far down the page its wrapped shapes reach was worked out (each once for a story as it is, not for each page):

@@ -1,4 +1,5 @@
 #include "tst_flow.h"
+#include "core/wrapoutline.h"
 
 
 // Rows put in at the top of a table set at a place, by an edit that begins in the paragraph before the table (the end of its text, where the new cells' paragraphs are
@@ -569,6 +570,33 @@ void FlowTests::tightWrapIsSquareWrapForNow()
         return out;
     };
     QCOMPARE(linesOf(FloatingObject::Wrap::Tight), linesOf(FloatingObject::Wrap::Square));
+}
+
+
+// A page that holds thousands of objects with outlines costs the paginator no more than the limits (kMostWrapped, and those of core/wrapoutline.h): each column sets the text round at most kMaxWrapObstacles of the first kMaxWrapCandidates objects, and makes
+// no more than kMaxWrapShapesPerPage outlines (the work is counted, not timed: take the limits away and a column looks at them all).
+void FlowTests::aPageOfThousandsOfOutlinedObjectsIsSetAroundAtMostTheLimits()
+{
+    FlowDocument fd;
+    fd.env.wordLines = true;
+    fillStory(fd.story(), 200, 25, {}, 1, 3);   // (short paragraphs: many to a page)
+    QPolygonF triangle;
+    triangle << QPointF(0.5, 0) << QPointF(1, 1) << QPointF(0, 1);
+    const int n = 3000;
+    for (int i = 0; i < n; ++i) {
+        const int id = addWrapped(&fd, 20, 20, fd.story()->findBlockByNumber(i % 200).position(), FloatingObject::Wrap::Tight, 10 + (i % 20) * 22, 0, QMarginsF(2, 2, 2, 2), i % 2 ? FloatingObject::Side::Left : FloatingObject::Side::Right);
+        fd.objects[size_t(id) - 1].outline = triangle;
+    }
+    const qint64 columns0 = Paginator::wrapColumnsForTest(), candidates0 = Paginator::wrapCandidatesForTest(), shapes0 = Paginator::wrapShapesForTest();
+    Paginator pg(&fd);
+    QVERIFY(pg.pageCount() >= 1);
+    for (int k = 0; k < pg.pageCount(); ++k) QVERIFY(!pg.lines(k).isEmpty());
+    const qint64 columns = Paginator::wrapColumnsForTest() - columns0, candidates = Paginator::wrapCandidatesForTest() - candidates0, shapes = Paginator::wrapShapesForTest() - shapes0;
+    QVERIFY2(columns > 0 && candidates > 0 && shapes > 0, qPrintable(QStringLiteral("%1 %2 %3").arg(columns).arg(candidates).arg(shapes)));
+    QVERIFY2(candidates <= columns * jp::kMaxWrapCandidates, qPrintable(QStringLiteral("%1 columns, %2 objects looked at").arg(columns).arg(candidates)));
+    QVERIFY2(shapes <= columns * jp::kMaxWrapShapesPerPage, qPrintable(QStringLiteral("%1 columns, %2 outlines").arg(columns).arg(shapes)));
+    QVERIFY2(shapes <= columns * jp::kMaxWrapObstacles, qPrintable(QStringLiteral("%1 columns, %2 outlines: all the objects are in the way, so no more than the most obstacles are made").arg(columns).arg(shapes)));
+    QVERIFY2(shapes <= candidates, "an outline is made only for an object looked at");
 }
 
 

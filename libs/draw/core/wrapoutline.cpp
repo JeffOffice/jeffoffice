@@ -18,12 +18,21 @@ QPolygonF boundedWrapOutline(const QVector<QPointF> &points)
     return out.size() < 3 ? QPolygonF() : out;
 }
 
+double boundedWrapDistance(double distance)
+{
+    return std::isfinite(distance) ? std::clamp(distance, 0.0, kMostWrapDistance) : (distance > 0 ? kMostWrapDistance : 0.0);
+}
+
 QPainterPath wrapRoomAround(const QPainterPath &outline, double distance)
 {
-    if (!(distance > 0)) return outline;
+    // (Filled by winding, so that the middle of a star is inside it as the stroke's band is: odd-even leaves it a hole.)
+    QPainterPath solid = outline;
+    solid.setFillRule(Qt::WindingFill);
+    distance = boundedWrapDistance(distance);
+    if (!(distance > 0)) return solid.simplified();
     QPainterPathStroker st;
     st.setWidth(distance * 2);
-    return outline.united(st.createStroke(outline));
+    return solid.united(st.createStroke(solid));
 }
 
 QPolygonF wrapOutlineMoved(const QPolygonF &outline, int index, const QPointF &to)

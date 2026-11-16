@@ -4,6 +4,7 @@
 
 #include "wml/xmltree.h"
 #include "wml/wmlwrap.h"
+#include "core/wrapoutline.h"
 #include "office/barcodemarker.h"
 
 #include <QHash>
@@ -623,10 +624,10 @@ void readDrawing(const XmlTree &t, int drawing, QVector<Shape> *out)
         s.kind = Shape::Picture;
         s.behind = t.attr(c, "behindDoc") == QLatin1String("1") || t.attr(c, "behindDoc") == QLatin1String("true");
         s.z = int(std::clamp<qint64>(t.attr(c, "relativeHeight").toLongLong(), -2000000000, 2000000000));
-        s.gapLeft = emu(t.attr(c, "distL"));
-        s.gapRight = emu(t.attr(c, "distR"));
-        s.gapTop = emu(t.attr(c, "distT"));
-        s.gapBottom = emu(t.attr(c, "distB"));
+        s.gapLeft = jp::boundedWrapDistance(emu(t.attr(c, "distL")));
+        s.gapRight = jp::boundedWrapDistance(emu(t.attr(c, "distR")));
+        s.gapTop = jp::boundedWrapDistance(emu(t.attr(c, "distT")));
+        s.gapBottom = jp::boundedWrapDistance(emu(t.attr(c, "distB")));
         for (int k = t.firstChild(c); k >= 0; k = t.next(k)) {
             const QByteArray tag = t.localName(k);
             if (tag == "extent") {
@@ -649,10 +650,10 @@ void readDrawing(const XmlTree &t, int drawing, QVector<Shape> *out)
                 s.wrap = tag == "wrapSquare" ? Shape::Square : tag == "wrapTopAndBottom" ? Shape::TopBottom : Shape::Tight;
                 s.side = sideOf(t.attr(k, "wrapText"));
                 // The wrap's own distances come before the object's.
-                if (t.has(k, "distL")) s.gapLeft = emu(t.attr(k, "distL"));
-                if (t.has(k, "distR")) s.gapRight = emu(t.attr(k, "distR"));
-                if (t.has(k, "distT")) s.gapTop = emu(t.attr(k, "distT"));
-                if (t.has(k, "distB")) s.gapBottom = emu(t.attr(k, "distB"));
+                if (t.has(k, "distL")) s.gapLeft = jp::boundedWrapDistance(emu(t.attr(k, "distL")));
+                if (t.has(k, "distR")) s.gapRight = jp::boundedWrapDistance(emu(t.attr(k, "distR")));
+                if (t.has(k, "distT")) s.gapTop = jp::boundedWrapDistance(emu(t.attr(k, "distT")));
+                if (t.has(k, "distB")) s.gapBottom = jp::boundedWrapDistance(emu(t.attr(k, "distB")));
                 if (tag == "wrapTight" || tag == "wrapThrough") s.wrapOutline = readWrapPolygon(t, k);
             } else if (tag == "docPr") {
                 s.alt = t.attr(k, "descr");

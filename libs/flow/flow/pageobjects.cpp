@@ -12,6 +12,7 @@
 #include <QTextList>
 #include <QTextDocument>
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 
 namespace jp::flow {
@@ -201,6 +202,11 @@ QRectF Paginator::roomOf(const FloatingObject &o, const Wrapped &w)
     return room;
 }
 
+static std::atomic<qint64> g_wrapColumns{0}, g_wrapCandidates{0}, g_wrapShapes{0};
+qint64 Paginator::wrapColumnsForTest() { return g_wrapColumns.load(); }
+qint64 Paginator::wrapCandidatesForTest() { return g_wrapCandidates.load(); }
+qint64 Paginator::wrapShapesForTest() { return g_wrapShapes.load(); }
+
 // A Tight wrap's outline placed on the page (its points are shares of the frame), with the room round it that the object's distances ask for.
 QPainterPath Paginator::wrapOutlinePath(const FloatingObject &o, const Wrapped &w)
 {
@@ -214,18 +220,27 @@ QPainterPath Paginator::wrapOutlinePath(const FloatingObject &o, const Wrapped &
 QVector<QPolygonF> Paginator::obstaclesFor(const QVector<Wrapped> &wrapped, const QRectF &column) const
 {
     QVector<QPolygonF> out;
+    ++g_wrapColumns;
+    // (As the page layer sets a box's text: round at most kMaxWrapObstacles objects, found among the first kMaxWrapCandidates, and outlines for kMaxWrapShapesPerPage of them; the rest are
+    // rectangles. A column's work is bounded whatever the story holds.)
+    int candidates = 0, shapesLeft = jp::kMaxWrapShapesPerPage;
     for (const Wrapped &w : wrapped) {
+        if (out.size() >= jp::kMaxWrapObstacles || candidates >= jp::kMaxWrapCandidates) break;
+        ++candidates;
+        ++g_wrapCandidates;
         const FloatingObject &o = w.frame ? *w.frame : m_doc->objects[w.object - 1];
         // A text box that does not reach into the column's text pushes none of it (by more than a hair: boxes are set edge to edge).
         if (o.item->type() == ItemType::Text && !w.rect.adjusted(0.55, 0.55, -0.55, -0.55).intersects(column)) continue;
         QRectF b = roomOf(o, w);
-        const bool outlined = o.wrap == FloatingObject::Wrap::Tight && o.outline.size() >= 3;
+        const bool outlined = o.wrap == FloatingObject::Wrap::Tight && o.outline.size() >= 3 && shapesLeft > 0;
         if (!outlined && !b.intersects(column)) continue;
         if (o.wrap == FloatingObject::Wrap::TopBottom) {
             b.setLeft(-1e5);
             b.setRight(1e5);
-        } else if (o.wrap == FloatingObject::Wrap::Tight && o.outline.size() >= 3) {
+        } else if (outlined) {
             // The outline the text goes round, as the page layer's wall makes it (core/wrapoutline.h), and the side asked for as the rectangle's is below.
+            ++g_wrapShapes;
+            --shapesLeft;
             QPainterPath path = wrapOutlinePath(o, w);
             const QRectF pb = path.boundingRect();
             if (!pb.intersects(column)) continue;
