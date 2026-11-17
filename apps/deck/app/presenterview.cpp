@@ -468,6 +468,7 @@ bool PresenterView::eventFilter(QObject *o, QEvent *e)
 {
     if (o == m_notes) {
         if (e->type() == QEvent::FocusOut) commitNotes();
+        if (m_show && (e->type() == QEvent::FocusIn || e->type() == QEvent::KeyPress)) m_notes->setReadOnly(m_notesPage.isEmpty() || m_show->notesReadOnly());   // (the file can become read only during the show)
         // Whoever else holds typed notes saves them before these are typed in.
         if (m_show && (e->type() == QEvent::FocusIn || (e->type() == QEvent::KeyPress && !static_cast<QKeyEvent *>(e)->text().isEmpty() && !m_notes->isReadOnly())))
             m_show->startNotesTyping();

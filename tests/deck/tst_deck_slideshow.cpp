@@ -1100,6 +1100,10 @@ private Q_SLOTS:
         QVERIFY(is(chooseScreens(two, QString(), 9), 1, 0));
         // The label of a list entry: the name and the size.
         QCOMPARE(two.at(1).label(), QStringLiteral("B (1920 x 1080)"));
+        // A screen with no name is "Screen N" by its place in the list.
+        QCOMPARE(screenName(QString(), 2), QStringLiteral("Screen 2"));
+        QCOMPARE(screenName(QStringLiteral("DP-1"), 2), QStringLiteral("DP-1"));
+        QCOMPARE((ScreenInfo{screenName(QString(), 1), QRect(0, 0, 800, 800), QRect(), true}).label(), QStringLiteral("Screen 1 (800 x 800)"));
     }
 
     // The choice is kept for the computer (a presentation file has no place for it), and the Slide Show tab lists Automatic and each screen.
@@ -1309,6 +1313,14 @@ private Q_SLOTS:
         QTRY_VERIFY(edit->hasFocus());
         QTest::mousePress(pv->findChild<QAbstractButton *>(QStringLiteral("nextButton")), Qt::LeftButton);
         QVERIFY(!edit->hasFocus());
+        edit->setFocus();
+        QTRY_VERIFY(edit->hasFocus());
+        QTest::mousePress(pv->findChild<QAbstractButton *>(QStringLiteral("endButton")), Qt::LeftButton);   // (pressed only: the show goes on)
+        QVERIFY(!edit->hasFocus());
+        edit->setFocus();
+        QTRY_VERIFY(edit->hasFocus());
+        QTest::mouseClick(pv->findChild<QWidget *>(QStringLiteral("currentSlide")), Qt::LeftButton, Qt::NoModifier, QPoint(5, 5));
+        QVERIFY(!edit->hasFocus());
         show->close();
         QTRY_VERIFY(!w.slideShow());
     }
@@ -1323,7 +1335,15 @@ private Q_SLOTS:
         SlideShow *show = w.slideShow();
         QVERIFY(show && show->presenterView());
         QVERIFY(show->notesReadOnly());
-        QVERIFY(show->presenterView()->findChild<QPlainTextEdit *>(QStringLiteral("notesText"))->isReadOnly());
+        QPlainTextEdit *box = show->presenterView()->findChild<QPlainTextEdit *>(QStringLiteral("notesText"));
+        QVERIFY(box->isReadOnly());
+        // And it follows the file becoming writable and read only again during the show.
+        w.editor()->setReadOnly(false);
+        show->presenterView()->refresh();
+        QVERIFY(!box->isReadOnly());
+        w.editor()->setReadOnly(true);
+        box->setFocus();   // (the box has the keyboard again)
+        QTRY_VERIFY(box->isReadOnly());
         show->close();
         QTRY_VERIFY(!w.slideShow());
         w.editor()->setReadOnly(false);
@@ -1361,6 +1381,7 @@ private Q_SLOTS:
         QTRY_VERIFY(box->isVisible());
         shotOf(&w, QStringLiteral("show-ribbon"));
         box->showPopup();
+        QVERIFY(box->view());
         QTRY_VERIFY(box->view()->isVisible());
         shotOf(box->view()->window(), QStringLiteral("show-ribbon-list"));
         box->hidePopup();

@@ -111,6 +111,8 @@ struct ScreenInfo {
 struct ScreenChoice {
     int audience = -1, presenter = -1;
 };
+// What a screen is called in the list and in the saved choice: its own name, or "Screen N" (N from 1, its place in the list) when it has none.
+QString screenName(const QString &name, int position);
 // The screens the computer has now.
 QVector<ScreenInfo> screensNow();
 // Where the show and Presenter View go. `setting` is the name of the screen chosen to show the slides, empty for Automatic (a name no screen has is
@@ -285,8 +287,9 @@ public:
     // Notes typed in Presenter View for a slide (by its page): the window makes them a step of Undo; the show's own presentation is read only.
     void editNotes(const QString &pageId, const QString &text);
     // A presentation open for reading only keeps no typed notes: Presenter View's notes are read only too.
-    void setNotesReadOnly(bool on) { m_notesReadOnly = on; }
-    bool notesReadOnly() const { return m_notesReadOnly; }
+    // `query` is asked each time (the file can become read only while the show plays).
+    void setNotesReadOnly(std::function<bool()> query) { m_notesReadOnly = std::move(query); }
+    bool notesReadOnly() const { return m_notesReadOnly && m_notesReadOnly(); }
     // Someone is about to type in Presenter View's notes: whoever holds typed notes that are not saved yet saves them first.
     void startNotesTyping() { Q_EMIT notesTypingStarted(); }
 
@@ -449,7 +452,8 @@ private:
     qreal m_nowRatio = 1;
     bool m_nowValid = false;
     QPointer<PresenterView> m_presenter;
-    bool m_notesReadOnly = false, m_watchingScreens = false;
+    std::function<bool()> m_notesReadOnly;
+    bool m_watchingScreens = false;
     ScreenInfo m_audience, m_presenterScreen;   // where placeOn put them
     ShowMedia *m_media = nullptr;   // the movies and sounds (showmedia.h)
     // The pointer, and the ink the pen and highlighter left, by slide.

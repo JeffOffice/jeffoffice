@@ -2163,10 +2163,12 @@ void SlideShow::setVisible(bool visible)
 
 QString ScreenInfo::label() const { return QStringLiteral("%1 (%2 x %3)").arg(name).arg(geometry.width()).arg(geometry.height()); }
 
+QString screenName(const QString &name, int position) { return name.isEmpty() ? QCoreApplication::translate("Show", "Screen %1").arg(position) : name; }
+
 QVector<ScreenInfo> screensNow()
 {
     QVector<ScreenInfo> out;
-    for (QScreen *s : QGuiApplication::screens()) out << ScreenInfo{s->name(), s->geometry(), s->availableGeometry(), s == QGuiApplication::primaryScreen()};
+    for (QScreen *s : QGuiApplication::screens()) out << ScreenInfo{screenName(s->name(), int(out.size()) + 1), s->geometry(), s->availableGeometry(), s == QGuiApplication::primaryScreen()};
     return out;
 }
 
