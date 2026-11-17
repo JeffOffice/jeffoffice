@@ -86,6 +86,17 @@ template <class Win> void floats(Win &w, Rig<Win> &r, const QString &shot, const
     r.ed->clearSelection();
     MINI_SELECT(r);
     QVERIFY(r.button(boldId)->isChecked());
+    // A new selection while the bar is up: Bold shows the new words' state at once (plain words first, then the bold ones).
+    MINI_SELECT(r, 20, 24);
+    QVERIFY(!r.button(boldId)->isChecked());
+    QTextCursor boldWords = r.ed->cursor();
+    boldWords.setPosition(5 + r.lead);
+    boldWords.setPosition(10 + r.lead, QTextCursor::KeepAnchor);
+    r.ed->setCursor(boldWords);
+    QVERIFY(r.mini->isVisible());
+    QTest::mouseRelease(r.view, Qt::LeftButton, Qt::NoModifier, r.at(10 + r.lead));
+    QCoreApplication::sendPostedEvents(nullptr, QEvent::MetaCall);
+    QVERIFY(r.button(boldId)->isChecked());
     // A click that leaves no selection brings none.
     r.ed->beginTextEdit(r.boxId, 0);
     QTest::mouseClick(r.view, Qt::LeftButton, Qt::NoModifier, r.at(3 + r.lead));

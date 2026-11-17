@@ -39,7 +39,7 @@ void EditorMiniToolbar::update(bool show)
         m_bar->hide();
         return;
     }
-    if (show && !m_bar->isVisible() && m_refresh) m_refresh();
+    if (show && m_refresh) m_refresh();   // (every new selection: the words it holds may look different from the last)
     QWidget *view = m_canvas->viewport();
     m_bar->showBeside(QRect(view->mapFromGlobal(a.topLeft()), a.size()), QRect(view->mapFromGlobal(b.topLeft()), b.size()));
 }
