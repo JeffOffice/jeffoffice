@@ -84,6 +84,10 @@
 "en": "64af7ec17b52d006",
 "out": "5a9ed174429bedab"
 },
+"crunch/functions-engineering": {
+"en": "2867d320d9e93adb",
+"out": "3dea6676ddece366"
+},
 "crunch/functions-financial": {
 "en": "6898450851a90b8f",
 "out": "701042f9347bd1f2"
@@ -91,6 +95,10 @@
 "crunch/functions-information": {
 "en": "4a0088ab333274d3",
 "out": "e60197fe2648c5b2"
+},
+"crunch/functions-logical": {
+"en": "28622856598fa5c1",
+"out": "3e4c7bfaff8d214d"
 },
 "crunch/functions-lookup-reference": {
 "en": "cf34798a53f97d4c",
@@ -609,8 +617,8 @@
 "out": "7a58b9a0ccfc0437"
 },
 "write/home-tools": {
-"en": "fccb3457204267d4",
-"out": "8bb02d0391a87892"
+"en": "74d703bc4924c28a",
+"out": "7b2c7d6477fff0a5"
 },
 "write/index": {
 "en": "834f5794c007fc4c",

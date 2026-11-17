@@ -33,8 +33,8 @@
 "out": "a2631ca77504a818"
 },
 "crunch/charts": {
-"en": "f9cfff19c61034f1",
-"out": "721edd60e0483cb3"
+"en": "4abd7ed74232d004",
+"out": "d0677ce33c5e28f7"
 },
 "crunch/clipboard": {
 "en": "18258850ea63148c",
@@ -129,8 +129,8 @@
 "out": "67def73fba3e764d"
 },
 "crunch/insert-function": {
-"en": "c0ead6151d57ade9",
-"out": "74a75cea701021fd"
+"en": "99b6cba3b3099287",
+"out": "65ecde919157bb99"
 },
 "crunch/keyboard": {
 "en": "ed83f0a3d155dbd5",
@@ -261,8 +261,8 @@
 "out": "f78a899d29dc4cc8"
 },
 "deck/objects": {
-"en": "61e32650b6a46589",
-"out": "46cb1bde0a42a08e"
+"en": "6d2d514a46cd7278",
+"out": "1fd50935a3c59990"
 },
 "deck/open-save": {
 "en": "c0b25536863e9a7a",
@@ -273,8 +273,8 @@
 "out": "0829571728211faf"
 },
 "deck/printing": {
-"en": "63b266c6ba8dcac2",
-"out": "618c6c9152d0fd27"
+"en": "3c8c7fe75a9c0ee4",
+"out": "cdb8051437cc0367"
 },
 "deck/recover": {
 "en": "4fbff2a452961ab4",
@@ -669,8 +669,8 @@
 "out": "04f9d6ef861c84f6"
 },
 "write/page-look": {
-"en": "287bf54175722749",
-"out": "2e5063955ded922c"
+"en": "4a80e1c29b4716fd",
+"out": "463afd4354847f62"
 },
 "write/page-setup": {
 "en": "2382fa9011ebc1a0",

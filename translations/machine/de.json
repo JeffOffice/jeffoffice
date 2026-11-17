@@ -337,16 +337,16 @@
 "out": "b8d1e57360540bbd"
 },
 "deck/text": {
-"en": "95528ec37a649136",
-"out": "5ba9d5060f54c8df"
+"en": "47e76ab6b304c389",
+"out": "3c53b35be1d289a1"
 },
 "deck/transitions": {
 "en": "43d897e87e3c1f52",
 "out": "a662da95855e9127"
 },
 "deck/views": {
-"en": "3768ac5f399ff898",
-"out": "ec4aff2802cff353"
+"en": "6b868650fc6486dd",
+"out": "45b24b0f83ca6d7a"
 },
 "deck/window": {
 "en": "f77b00c1f699e6f4",
@@ -433,8 +433,8 @@
 "out": "6fe6e1936c4b90d0"
 },
 "pictures": {
-"en": "0c958945752bcd19",
-"out": "afe163a14b64944d"
+"en": "7bca5a80516a3922",
+"out": "06609d1101032546"
 },
 "printing": {
 "en": "7d18e74d77f3bb5d",
@@ -617,8 +617,8 @@
 "out": "afdb0c56c7f9c9f1"
 },
 "write/home-tools": {
-"en": "fccb3457204267d4",
-"out": "0dceb35cf900db31"
+"en": "74d703bc4924c28a",
+"out": "7feb9b301aa8826c"
 },
 "write/index": {
 "en": "834f5794c007fc4c",

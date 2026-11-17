@@ -1,82 +1,86 @@
 # Text eingeben und formatieren
-<!-- keywords: Text, eingeben, tippen, Platzhalter, Titel, Untertitel, Textfeld, Schriftart, Schriftgrad, Schriftgröße, fett, kursiv, unterstrichen, Farbe, Schriftfarbe, Aufzählungszeichen, Aufzählung, Nummerierung, Listenebene, Ausrichtung, Zeilenabstand, Spalten, Zeichenabstand, Groß-/Kleinschreibung, Formatierung kopieren, Formatierung löschen, verkleinern, Sonderzeichen, Symbol, Datum, Link, Hyperlink, Rechtschreibung, suchen, ersetzen, alle ersetzen, Suche, Groß-/Kleinschreibung beachten, ganze Wörter, Rechtsklick, Kontextmenü, Umschalt+F10, Menütaste -->
+<!-- keywords: Text, eingeben, Platzhalter, Titel, Untertitel, Textfeld, Schriftart, Schriftgrad, Größe, fett, kursiv, unterstrichen, Farbe, Aufzählungszeichen, Nummerierung, Listenebene, Ausrichtung, Zeilenabstand, Spalten, Zeichenabstand, Groß-/Kleinschreibung, Formatierung übertragen, Formatierung löschen, verkleinern, Symbol, Datum, Link, Hyperlink, Rechtschreibung, Suchen, Ersetzen, Alle ersetzen, Suche, Groß-/Kleinschreibung beachten, ganze Wörter, Kontextmenü, Rechtsklick, Umschalt+F10, Menütaste -->
 
-Die meisten Folien bestehen vor allem aus Text. In diesem Thema erfahren Sie, wo Text auf einer Folie steht und wie Sie ihn formatieren.
+Die meisten Folien bestehen überwiegend aus Text. Dieses Thema zeigt, wo Text auf einer Folie steht und wie Sie ihn formatieren.
 
-## Text in einen Platzhalter eingeben
+## In einem Platzhalter eingeben
 
-Ein **Platzhalter** ist ein Feld in einem Layout, das den Titel, Untertitel, Text oder ein Bild einer Folie aufnimmt. Eine neue Folie erhält eine Kopie jedes Platzhalters ihres Layouts. Ein leerer Platzhalter zeigt eine gepunktete Kontur und einen Hinweis, z. B. **Titel durch Klicken hinzufügen**, **Untertitel durch Klicken hinzufügen** oder **Text durch Klicken hinzufügen**. Kontur und Hinweis werden nur im Bearbeitungsfenster angezeigt. Sie werden nie gedruckt und erscheinen nie in der Bildschirmpräsentation.
+Ein **Platzhalter** ist ein Feld auf einem Layout, das den Titel, den Untertitel, Text oder ein Bild einer Folie aufnimmt. Eine neue Folie erhält eine Kopie jedes Platzhalters, den ihr Layout hat. Ein leerer Platzhalter zeigt einen gepunkteten Rahmen und einen Hinweis, etwa **Titel durch Klicken hinzufügen**, **Untertitel durch Klicken hinzufügen** oder **Text durch Klicken hinzufügen**. Rahmen und Hinweis sind nur in der Bearbeitungsansicht sichtbar. Sie werden nie gedruckt und nie in der Bildschirmpräsentation angezeigt.
 
-Klicken Sie in einen Platzhalter, und geben Sie den Text ein. Drücken Sie Esc, um die Eingabe zu beenden. Das Feld bleibt markiert. Drücken Sie erneut Esc, um die Markierung aufzuheben. Sie können auch ein Feld markieren und einfach mit der Eingabe beginnen.
+Klicken Sie in einen Platzhalter, und geben Sie dann Text ein. Drücken Sie Esc, um die Texteingabe zu beenden. Das Feld bleibt markiert. Drücken Sie noch einmal Esc, um die Markierung aufzuheben. Sie können auch ein Feld markieren und sofort mit der Eingabe beginnen.
 
-Text, der für seinen Platzhalter zu lang ist, wird verkleinert, bis er passt. Ziehen Sie einen Platzhalter, um ihn zu verschieben, oder ziehen Sie einen Ziehpunkt, um seine Größe zu ändern. Um die Platzhalter wieder an die Stelle zu setzen, die das Layout vorsieht, klicken Sie auf **Start > Folien > Zurücksetzen**. Siehe [Folien hinzufügen, ändern und löschen](slides).
+Text, der zu lang für seinen Platzhalter ist, wird kleiner dargestellt, damit er hineinpasst. Ziehen Sie an einem Platzhalter, um ihn zu verschieben, oder an einem Ziehpunkt, um seine Größe zu ändern. Um die Platzhalter wieder dorthin zu setzen, wo das Layout sie vorsieht, klicken Sie auf **Start > Folien > Zurücksetzen**. Siehe [Folien hinzufügen, ändern und löschen](slides).
 
-## Ein Textfeld hinzufügen
+## Textfeld einfügen
 
-Für Text außerhalb eines Platzhalters klicken Sie auf **Einfügen > Text > Textfeld**, ziehen dann ein Feld auf der Folie auf und geben den Text ein. Ein Textfeld lässt sich wie jedes Objekt verschieben und in der Größe ändern. Siehe [Formen, Bilder, Tabellen und Textkunst](objects).
+Für Text, der nicht in einem Platzhalter steht, klicken Sie auf **Einfügen > Text > Textfeld**, ziehen dann auf der Folie ein Feld auf und geben Text ein. Ein Textfeld lässt sich wie jedes andere Objekt verschieben und in der Größe ändern. Siehe [Formen, Bilder, Tabellen und Textkunst](objects).
 
-## Zeichen formatieren
+## Schrift formatieren
 
-Markieren Sie den Text, den Sie ändern möchten: Ziehen Sie darüber, oder doppelklicken Sie auf ein Wort. Markieren Sie das ganze Feld, um seinen gesamten Text zu ändern. Verwenden Sie dann die Gruppe **Start > Schriftart**:
+Markieren Sie den Text, den Sie ändern möchten: Ziehen Sie darüber, oder doppelklicken Sie auf ein Wort. Markieren Sie das ganze Feld, um seinen gesamten Text zu ändern. Verwenden Sie danach die Gruppe **Start > Schriftart**:
 
-- Die Felder für **Schriftart** und **Schriftgrad**. **Schriftgrad vergrößern** und **Schriftgrad verkleinern** ändern die Größe schrittweise (Strg+Umschalt+> und Strg+Umschalt+<).
-- **Fett** (Strg+B), **Kursiv** (Strg+I), **Unterstrichen** (Strg+U), **Durchgestrichen** und **Schatten**.
+- Die Felder **Schriftart** und **Schriftgrad**. Mit **Schriftgrad vergrößern** und **Schriftgrad verkleinern** ändern Sie die Größe schrittweise (Strg+Umschalt+> bzw. Strg+Umschalt+<).
+- **Fett** (Strg+B), **Kursiv** (Strg+I), **Unterstreichung** (Strg+U), **Durchgestrichen** und **Schatten**.
 - **Zeichenabstand** legt fest, wie eng oder weit die Buchstaben stehen, von **Sehr eng** bis **Sehr weit**. **Weitere Abstände…** öffnet ein Fenster für einen eigenen Wert.
-- **Groß-/Kleinschreibung** bietet **Ersten Buchstaben im Satz großschreiben.**, **kleinbuchstaben**, **GROSSBUCHSTABEN**, **Ersten Buchstaben Jedes Wortes Großschreiben** und **gROSS-/kLEINSCHREIBUNG uMKEHREN**.
+- **Groß-/Kleinschreibung** bietet **Satzbeginn groß**, **kleinbuchstaben**, **GROSSBUCHSTABEN**, **Ersten Buchstaben Jedes Wortes Großschreiben** und **gROSS-/kLEINSCHREIBUNG uMKEHREN**.
 - **Schriftfarbe** öffnet die Farben des Designs der Präsentation und weitere Farben.
-- **Alle Formatierungen löschen** (Strg+Leertaste) entfernt die von Ihnen hinzugefügte Formatierung.
+- **Alle Formatierungen löschen** (Strg+Leertaste) entfernt die Formatierungen, die Sie hinzugefügt haben.
 
-Die kleine Schaltfläche mit drei Punkten in der Ecke der Gruppe öffnet das Fenster **Schriftart** (Strg+T), in dem alle diese Einstellungen an einer Stelle zusammengefasst sind.
+Die kleine Schaltfläche mit den drei Punkten in der Ecke der Gruppe öffnet das Fenster **Schriftart** (Strg+T), in dem alle diese Optionen an einer Stelle stehen.
 
-Text kann **Effekte** haben. Ein Effekt ist eine zusätzliche Gestaltung der Buchstaben, z. B. ein Schatten, ein Leuchten oder eine Spiegelung. Ein **Schatten** ist eine weiche, dunkle Kopie des Texts, etwas nach rechts unten versetzt. Ein **Leuchten** ist ein weicher Farbsaum um die Buchstaben. Eine **Spiegelung** ist eine verblasste, auf dem Kopf stehende Kopie des Texts darunter. Ein **Schatten innen** dunkelt die Buchstaben an einer Innenkante ab. JeffDeck zeigt die Effekte an, die eine Präsentation bereits enthält, und behält sie beim Speichern bei. Die Schaltfläche **Schatten** versieht den markierten Text mit einem Schatten; ein zweiter Klick entfernt ihn wieder. Ein Schatten wird direkt unter seinen Buchstaben gezeichnet und verdeckt daher nie anderen Text. In einer Präsentation, die zum Anpassen verkleinert wurde, werden die Schatten mit dem Text verkleinert.
+Wörter können **Effekte** haben. Ein Effekt ist eine Optik, die den Buchstaben hinzugefügt wird, etwa ein Schatten, ein Leuchten oder eine Spiegelung. Ein **Schatten** ist eine weiche, dunkle Kopie des Wortes, die leicht nach unten und rechts versetzt ist. Ein **Leuchten** ist ein weicher Farbring um die Buchstaben. Eine **Spiegelung** ist eine verblasste, auf den Kopf gestellte Kopie des Wortes unter dem Wort. Ein **Innenschatten** verdunkelt die Buchstaben entlang einer inneren Kante. JeffDeck zeigt die Effekte an, die eine Präsentation bereits hat, und behält sie beim Speichern bei. Die Schaltfläche **Schatten** gibt den markierten Wörtern einen Schatten, und ein zweiter Klick entfernt ihn. Ein Schatten wird direkt unter seinen Buchstaben gezeichnet, sodass er nie andere Wörter überdeckt. In einer Präsentation, die passend verkleinert wurde, werden die Schatten zusammen mit den Wörtern verkleinert.
 
-**Formatierung kopieren** überträgt das Aussehen von Text oder einem Objekt. Markieren Sie, was Sie kopieren möchten, klicken Sie auf **Formatierung kopieren**, und klicken oder ziehen Sie dann über das, was genauso aussehen soll. Halten Sie beim Klicken auf die Schaltfläche die Umschalttaste gedrückt, um die Formatierung mehrmals zu übertragen. Klicken Sie erneut auf die Schaltfläche, oder drücken Sie Esc, um aufzuhören.
+**Formatierung übertragen** kopiert, wie Text oder ein Objekt aussieht. Markieren Sie, was Sie kopieren möchten, klicken Sie auf **Formatierung übertragen**, und klicken Sie dann auf oder ziehen Sie über das, was gleich aussehen soll. Halten Sie beim Klicken auf die Schaltfläche die Umschalttaste gedrückt, um die Formatierung mehrmals zu übertragen. Klicken Sie erneut auf die Schaltfläche oder drücken Sie Esc, um aufzuhören.
 
 ## Absätze formatieren
 
-Klicken Sie in einen Absatz, oder markieren Sie mehrere. Verwenden Sie dann die Gruppe **Start > Absatz**:
+Klicken Sie in einen Absatz, oder markieren Sie mehrere. Verwenden Sie danach die Gruppe **Start > Absatz**:
 
-- **Aufzählungszeichen** und **Nummerierung** schalten eine Liste ein oder aus. Der Pfeil daneben öffnet jeweils eine Auswahl an Formaten. Aufzählungszeichen können ein gefüllter Kreis, ein Kreis, ein Quadrat, eine Raute, ein Pfeil, ein Häkchen, ein Stern oder ein Strich sein. Als Nummerierung stehen 1. 2. 3., a. b. c., A. B. C., i. ii. iii., I. II. III., 1) 2) 3) oder (1) (2) (3) zur Verfügung. **Aufzählungszeichen und Nummerierung…** öffnet ein Fenster mit weiteren Optionen.
-- **Listenebene verringern** und **Listenebene erhöhen** rücken eine Zeile um eine Ebene aus oder ein. Jede Ebene ist weiter eingezogen. Im Textplatzhalter einer Folie übernimmt eine verschobene Zeile das Aufzählungszeichen, den Einzug und die Größe, die das Folienlayout für die neue Ebene vorsieht, und sieht so aus wie die Beispielzeilen im Layout.
-- **Zeilenabstand** bietet 1,0, 1,15, 1,5, 2,0, 2,5 und 3,0 sowie **Absatz…** für weitere Einstellungen.
+- **Aufzählungszeichen** und **Nummerierung** schalten eine Liste ein oder aus. Der Pfeil daneben öffnet eine Auswahl an Formaten. Aufzählungszeichen können ein Punkt, ein Kreis, ein Quadrat, eine Raute, ein Pfeil, ein Häkchen, ein Stern oder ein Strich sein. Nummerierungen können 1. 2. 3., a. b. c., A. B. C., i. ii. iii., I. II. III., 1) 2) 3) oder (1) (2) (3) sein. **Aufzählungszeichen und Nummerierung…** öffnet ein Fenster mit weiteren Auswahlmöglichkeiten.
+- **Listenebene verringern** und **Listenebene erhöhen** rücken eine Zeile um eine Ebene nach außen oder innen. Jede Ebene ist weiter eingerückt. Im Textplatzhalter einer Folie übernimmt eine verschobene Zeile das Aufzählungszeichen, den Einzug und die Schriftgröße, die das Layout der Folie für die neue Ebene vorsieht, sodass sie wie die Beispielzeilen auf dem Layout aussieht.
+- **Zeilenabstand** bietet 1, 1,15, 1,5, 2, 2,5 und 3, und **Absatz…** für weitere Einstellungen.
 - **Linksbündig** (Strg+L), **Zentriert** (Strg+E), **Rechtsbündig** (Strg+R) und **Blocksatz** (Strg+J).
 
-Ein Textplatzhalter auf einer neuen Folie hat bereits die Aufzählungszeichen seines Layouts, sodass Ihre Eingabe dort von Anfang an als Aufzählung erscheint. Das erste Design, JeffOffice, hat keine, und ein Layout ohne Aufzählungszeichen gibt auch keine vor.
+Ein Textplatzhalter auf einer neuen Folie hat bereits die Aufzählungszeichen seines Layouts, sodass Ihr Text dort von Anfang an mit Aufzählungszeichen erscheint. Das erste Design, JeffOffice, hat keine Aufzählungszeichen, und ein Layout ohne Aufzählungszeichen zeigt auch keine.
 
-Drei Schaltflächen ändern das ganze Feld und nicht nur einen Absatz. **Textrichtung** stellt **Horizontal** oder **Gesamten Text um 90° drehen** ein. **Text ausrichten** setzt den Text **Oben**, in die **Mitte** oder **Unten** in sein Feld. **Spalten** legt eine, zwei oder drei Spalten in einem Textfeld fest.
+Drei Schaltflächen ändern das ganze Feld und nicht nur einen Absatz. **Textrichtung** legt **Horizontal** oder **Gesamten Text um 90° drehen** fest. **Text ausrichten** setzt den Text an den **Oberen Rand**, die **Mitte** oder den **Unteren Rand** seines Feldes. **Spalten** legt in einem Textfeld eine, zwei oder drei Spalten fest.
 
-## Text suchen und ersetzen
+## Wörter suchen und ersetzen
 
-Um nach Text zu suchen, drücken Sie **Strg+F**, oder klicken Sie auf **Start > Bearbeiten > Suchen**. Rechts öffnet sich der Bereich **Suchen und Ersetzen**. Geben Sie den Text in **Suchen nach** ein. Drücken Sie dann die Eingabetaste, oder klicken Sie auf **Weitersuchen**.
+Um nach Wörtern zu suchen, drücken Sie **Strg+F** oder klicken Sie auf **Start > Bearbeiten > Suchen**. Der Bereich **Suchen und Ersetzen** öffnet sich rechts. Geben Sie die Wörter in **Suchen nach** ein. Drücken Sie dann die Eingabetaste, oder klicken Sie auf **Weitersuchen**.
 
-JeffDeck beginnt auf der aktuellen Folie. Durchsucht werden Titel, Textfelder, Formen, Tabellen, Textkunst und Sprechernotizen, auch auf ausgeblendeten Folien. Wird der Text gefunden, zeigt JeffDeck die Folie an und markiert den Text. Bei Textkunst wird die gesamte Textkunst markiert. Ein Treffer in den Sprechernotizen wird im Notizenfeld unter der Folie markiert. Klicken Sie erneut auf **Weitersuchen**, um zum nächsten Treffer zu gelangen. Nach der letzten Folie wird die Suche bei der ersten fortgesetzt.
+JeffDeck beginnt auf der Folie, die gerade angezeigt wird. Es durchsucht Titel, Textfelder, Formen, Tabellen, Textkunst und Sprechernotizen. Auch ausgeblendete Folien werden durchsucht. Sobald die Wörter gefunden sind, zeigt das Programm die Folie an und markiert die Wörter. Bei Textkunst wird die gesamte Textkunst markiert. Ein Treffer in den Sprechernotizen wird im Notizenfeld unter der Folie markiert. Klicken Sie erneut auf **Weitersuchen**, um zum nächsten Treffer zu gelangen. Nach der letzten Folie beginnt die Suche wieder bei der ersten.
 
-- **Groß-/Kleinschreibung beachten** findet nur Text mit derselben Groß- und Kleinschreibung. „Plan“ findet nicht „plan“.
-- **Nur ganze Wörter suchen** überspringt längere Wörter, die Ihren Suchbegriff enthalten. „Plan“ findet nicht „Planet“.
-- **Sprechernotizen durchsuchen** ist zunächst aktiviert. Deaktivieren Sie die Option, um nur die Folien zu durchsuchen.
+- **Groß-/Kleinschreibung beachten** findet nur Wörter mit denselben Großbuchstaben. „Plan“ findet nicht „plan“.
+- **Nur ganze Wörter suchen** überspringt längere Wörter, die Ihren Suchbegriff enthalten. „plan“ findet nicht „Planet“.
+- **Sprechernotizen durchsuchen** ist anfangs aktiviert. Deaktivieren Sie die Option, um nur die Folien zu durchsuchen.
 
-Um Text zu ersetzen, drücken Sie **Strg+H**, oder klicken Sie auf **Start > Bearbeiten > Ersetzen**. Geben Sie den neuen Text in **Ersetzen durch** ein. Klicken Sie auf **Ersetzen**, um den angezeigten Treffer zu ersetzen und zum nächsten zu wechseln. Klicken Sie auf **Alle ersetzen**, um alle Treffer zu ersetzen. Der Bereich zeigt an, wie viele Ersetzungen vorgenommen wurden. „Alle ersetzen“ ist ein einziger Schritt, daher stellt ein einziges **Rückgängig** (Strg+Z) alle Wörter wieder her.
+Um Wörter zu ändern, drücken Sie **Strg+H** oder klicken Sie auf **Start > Bearbeiten > Ersetzen**. Geben Sie die neuen Wörter in **Ersetzen durch** ein. Klicken Sie auf **Ersetzen**, um den angezeigten Treffer zu ändern und zum nächsten zu wechseln. Klicken Sie auf **Alle ersetzen**, um jeden Treffer zu ändern. Der Bereich zeigt an, wie viele Treffer geändert wurden. Alle ersetzen ist ein einziger Schritt, sodass ein Klick auf **Rückgängig** (Strg+Z) alle Wörter wiederherstellt.
 
 ## Das Kontextmenü
 
-Klicken Sie mit der rechten Maustaste auf die Folie, um die Befehle zu sehen, die zu Ihrer aktuellen Tätigkeit passen. Sie können auch **Umschalt+F10** oder die **Menütaste** auf Ihrer Tastatur drücken. Das Menü öffnet sich an der Einfügemarke oder am markierten Objekt.
+Klicken Sie mit der rechten Maustaste auf die Folie, um die Befehle zu sehen, die zu Ihrer Tätigkeit passen. Sie können auch **Umschalt+F10** oder die **Menütaste** auf Ihrer Tastatur drücken. Das Menü öffnet sich an der Textmarke oder am markierten Objekt.
 
-- **Bei der Texteingabe:** Ist ein Wort als falsch geschrieben markiert, beginnt das Menü mit Rechtschreibvorschlägen. Klicken Sie auf einen Vorschlag, um das Wort zu korrigieren. **Alle ignorieren** lässt das Wort vorerst unverändert, **Zum Wörterbuch hinzufügen** speichert es dauerhaft. Danach folgen **Ausschneiden**, **Kopieren**, **Einfügen**, **Schriftart…**, **Absatz…**, **Aufzählungszeichen**, **Nummerierung**, **Link**, **Thesaurus** und **Neuer Kommentar**.
-- **Bei einem Objekt:** **Ausschneiden**, **Kopieren**, **Einfügen**, **Löschen**, **Text bearbeiten**, **Gruppieren** oder **Gruppierung aufheben**, **Reihenfolge** (In den Vordergrund, Eine Ebene nach vorne, Eine Ebene nach hinten und In den Hintergrund), **Ausrichtung**, **Link** und **Neuer Kommentar**. **Text bearbeiten** setzt die Einfügemarke in das Feld, die Form oder die Tabelle, damit Sie Text eingeben können. **Ausrichtung** ist verfügbar, wenn das Objekt Text enthält. Damit richten Sie den Text links, zentriert oder rechts aus oder verteilen ihn über die ganze Zeile.
-- **Auf einem leeren Bereich der Folie:** **Einfügen**, **Layout**, **Folie zurücksetzen**, **Hintergrund formatieren**, **Raster und Führungslinien**, **Lineal** und **Neuer Kommentar**.
+- **Bei Wörtern, die Sie gerade eingeben:** Ist ein Wort als falsch geschrieben markiert, beginnt das Menü mit Rechtschreibvorschlägen. Klicken Sie auf einen Vorschlag, um das Wort zu korrigieren. **Alle ignorieren** lässt das Wort vorerst unverändert, und **Zum Wörterbuch hinzufügen** behält es bei. Danach folgen **Ausschneiden**, **Kopieren**, **Einfügen**, **Schriftart…**, **Absatz…**, **Aufzählungszeichen**, **Nummerierung**, **Link**, **Thesaurus** und **Neuer Kommentar**.
+- **Bei einem Objekt:** **Ausschneiden**, **Kopieren**, **Einfügen**, **Einfügeoptionen**, **Löschen**, **Text bearbeiten**, **Gruppieren** oder **Gruppierung aufheben**, **Anordnen** (In den Vordergrund, Eine Ebene nach vorne, Eine Ebene nach hinten und In den Hintergrund), **Ausrichten**, **Als Bild speichern**, **Größe und Position**, **Form formatieren** (bei einem Bild **Bild formatieren**), **Alternativtext**, **Link** und **Neuer Kommentar**. **Einfügeoptionen** erlaubt das Einfügen mit der Formatierung, die der Text hatte, nur mit dem Text oder mit **Inhalte einfügen…**, wobei gefragt wird, welche Form Sie möchten. **Als Bild speichern** speichert das Objekt als PNG- oder JPG-Datei. **Größe und Position** öffnet den Bereich „Format“ bei den Feldern für Größe und Position. **Form formatieren** öffnet den Bereich „Format“ für dieses Objekt. **Alternativtext** öffnet den Bereich „Format“, in dem Sie das Objekt für Menschen beschreiben können, die es nicht sehen. **Text bearbeiten** setzt die Einfügemarke in das Feld, die Form oder die Tabelle, damit Sie schreiben können. **Ausrichten** steht zur Verfügung, wenn das Objekt Text enthält. Es richtet die Wörter links, zentriert oder rechts aus oder verteilt sie über die ganze Zeile.
+- **Auf einer leeren Stelle der Folie:** **Einfügen**, **Layout**, **Folie zurücksetzen**, **Hintergrund formatieren**, **Raster und Führungslinien**, **Lineal** und **Neuer Kommentar**.
 
-Jeder Befehl ist derselbe wie im Menüband und funktioniert daher genauso.
+Jeder Befehl ist derselbe, der auch im Menüband steht, und funktioniert deshalb genauso.
 
-## Weitere Inhalte für Text
+## Weitere Möglichkeiten für Text
 
-- **Einfügen > Symbole > Sonderzeichen** fügt ein Zeichen ein, das nicht auf der Tastatur vorhanden ist.
-- **Einfügen > Text > Datum und Uhrzeit** fügt das Datum oder die Uhrzeit ein. Informationen zu einem Datum auf jeder Folie finden Sie unter [Foliengröße, Hintergrund und Fußzeilen](design).
-- **Einfügen > Links > Link** (Strg+K) macht den markierten Text oder das markierte Objekt zu einem Link auf eine Webseite, eine Stelle in der Präsentation oder eine E-Mail-Adresse. In der Bildschirmpräsentation öffnet ein Klick auf einen Link Webseiten und E-Mail-Adressen. Andere Links haben derzeit noch keine Funktion.
-- **Überprüfen > Dokumentprüfung > Rechtschreibung** (F7) prüft die Rechtschreibung. **Thesaurus** (Umschalt+F7) schlägt andere Wörter nach. **Wörter zählen** zählt die Wörter auf den Folien und bei der Texteingabe in der Markierung. Wie Sie die Rechtschreibung während der Eingabe prüfen, erfahren Sie unter [Einstellungen von JeffDeck ändern](options).
+- **Einfügen > Symbole > Symbol** fügt ein Zeichen ein, das nicht auf der Tastatur steht.
+- **Einfügen > Text > Datum und Uhrzeit** fügt das Datum oder die Uhrzeit ein. Ein Datum auf jeder Folie finden Sie unter [Foliengröße, Hintergrund und Fußzeilen](design).
+- **Einfügen > Links > Link** (Strg+K) macht den markierten Text oder das markierte Objekt zu einem Link auf eine Webseite, auf eine Stelle in der Präsentation oder auf eine E-Mail-Adresse. In der Bildschirmpräsentation öffnet ein Klick auf einen Link Webseiten und E-Mail-Adressen. Andere Links haben derzeit keine Funktion.
+- **Überprüfen > Dokumentprüfung > Rechtschreibung** (F7) prüft die Rechtschreibung. **Thesaurus** (Umschalt+F7) sucht nach anderen Wörtern. **Wortanzahl** zählt die Wörter auf den Folien und, wenn Sie gerade schreiben, in der Auswahl. Um die Rechtschreibung während der Eingabe zu prüfen, siehe [JeffDeck-Einstellungen ändern](options).
 
 ## Verwandte Themen
 
-- [Registerkarte „Start“](tab-home)
-- [Registerkarte „Einfügen“](tab-insert)
+- [Start-Registerkarte](tab-home)
+- [Einfügen-Registerkarte](tab-insert)
 - [Sprechernotizen](notes)
 - [Gliederungsansicht und Foliensortierung](views)
+
+## Schriftartfunktionen
+
+Im Feld **Schriftart** enthält die Registerkarte **Erweitert** Ligaturen, Zahlenabstand, Zahlenformen, stilistische Sätze und kontextabhängige Alternativen. Folientext hat keine Ligaturen, sofern Sie sie hier nicht anfordern. Eine gespeicherte Präsentationsdatei kann diese Einstellungen nicht speichern, deshalb bleiben sie nur während der Arbeit erhalten.

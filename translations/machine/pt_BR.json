@@ -112,6 +112,10 @@
 "en": "0db8563961807dd8",
 "out": "057968f81006bbef"
 },
+"crunch/functions-text": {
+"en": "65872b082111e400",
+"out": "d887673efa611dda"
+},
 "crunch/index": {
 "en": "43388c9ec18f7363",
 "out": "31971c7ef1177777"
@@ -221,8 +225,8 @@
 "out": "0e333002d640ba42"
 },
 "deck/charts": {
-"en": "8a27a6f457d98015",
-"out": "64ba5f0272311a40"
+"en": "4a899a34c00a2803",
+"out": "cfc54dc0932c0e94"
 },
 "deck/comments": {
 "en": "d293c804c1a3453a",
