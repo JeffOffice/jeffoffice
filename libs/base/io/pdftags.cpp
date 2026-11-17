@@ -127,6 +127,7 @@ PdfTagResult tagPdf(const QByteArray &pdf, const PdfTagger &tagger, const PdfTag
     QVector<QVector<int>> mcids(pageIds.size());   // per page, the tag of each marked content in order
     bool any = false;
     for (int k = 0; k < pageIds.size(); ++k) {
+        if (options.progress && !options.progress(k, int(pageIds.size()))) return PdfTagResult{QByteArray(), false, QString(), true};
         QtPdf::Obj *page = q.object(pageIds[k]);
         const int contents = QtPdf::ref(page->body, "/Contents");
         if (!contents) {

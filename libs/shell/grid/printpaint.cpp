@@ -153,7 +153,8 @@ void PagePainter::paint(QPainter *p, const SheetPrint &print, const PageCut &pag
     int table = -1;
     QHash<qint64, int> rowTags;
     int cellTag = -1;
-    if (m_tagger) {
+    if (m_tagger && m_tagger->tags().size() + 3 > mostSheetTags()) m_tagger->markFull();
+    if (m_tagger && !m_tagger->full()) {
         table = m_tagger->add({QStringLiteral("Table"), QString(), -1, false});
         options.cellText = [&](bool begin, qint64 row, qint64 col) {
             if (!begin) {
@@ -163,7 +164,10 @@ void PagePainter::paint(QPainter *p, const SheetPrint &print, const PageCut &pag
                 artifact(p, true);
                 return;
             }
-            if (m_tagger->tags().size() + 2 > kMostSheetTags) return;   // (past the bound the words stay in the decoration)
+            if (m_tagger->tags().size() + 2 > mostSheetTags()) {
+                m_tagger->markFull();   // (the PDF is made again without tags)
+                return;
+            }
             artifact(p, false);
             int &tr = rowTags[row];
             if (tr == 0) tr = 1 + m_tagger->add({QStringLiteral("TR"), QString(), table, false, double(row)});

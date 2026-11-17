@@ -855,6 +855,11 @@ private Q_SLOTS:
         for (const jp::QtPdf::Obj &obj : q.objects)
             if (obj.body.contains("/Type /StructElem") && obj.body.contains("/S /H1")) ++headings;
         QCOMPARE(headings, 5);
+        // nothing is drawn outside marked content on a tagged page: the frames round the pages are decoration, marked as such
+        const QVector<QByteArray> contents = pdfcheck::pageContents(pdf);
+        QCOMPARE(int(contents.size()), 2);
+        for (const QByteArray &c : contents) QCOMPARE(pdfcheck::drawnOutsideMarkedContent(c), 0);
+        QCOMPARE(pdfcheck::structureProblems(pdf), QString());
     }
 
     // A link in a table or in a header has its box where its words are, and a bookmark link (HYPERLINK \l) goes to the spot of its bookmark on the page, not the page's top.

@@ -230,7 +230,6 @@ QByteArray WriteWindow::pdfSheets(write::WriteDoc &source, int sourcePages, cons
     const office::PackageProps props = m_doc->packageProps();
     const QString title = props.title.isEmpty() ? displayName() : props.title;
     // (a sheet of several pages is one page of the PDF: its pages are tagged one after the other, in the order they are laid out on it, which is the order they are read in)
-    const QSize grid = write::sheetGrid(layout.perSheet);
     write::WriteTagger tagger;
     const bool tagging = options.pdfTags;
     {
@@ -269,7 +268,8 @@ QByteArray WriteWindow::pdfSheets(write::WriteDoc &source, int sourcePages, cons
     }
     if (options.pdfBookmarks) {
         QVector<PdfBookmark> marks = write::headingBookmarks(source, sheets);
-        for (PdfBookmark &m : marks) m.page /= std::max(1, grid.width() * grid.height());
+        const QVector<int> sheetOf = write::sheetOfPages(source, sheets, layout);
+        for (PdfBookmark &m : marks) m.page = m.page >= 0 && m.page < sheetOf.size() ? sheetOf[m.page] : -1;
         bytes = write::addPdfBookmarks(bytes, marks);
     }
     // The links are clickable: over the words on the sheet, where the page's place on its sheet puts them (several pages to a sheet, or scaled to a paper).
@@ -776,7 +776,8 @@ bool WriteWindow::printOutput(const WriteOutputOptions &options)
         if (ok) {
             // (the bookmarks and the links go to the sheet their page is on)
             QVector<PdfBookmark> marks = write::headingBookmarks(*source, sheets);
-            for (PdfBookmark &m : marks) m.page /= per;
+            const QVector<int> sheetOf = write::sheetOfPages(*source, sheets, layout);
+            for (PdfBookmark &m : marks) m.page = m.page >= 0 && m.page < sheetOf.size() ? sheetOf[m.page] : -1;
             bytes = write::addPdfBookmarks(bytes, marks);
             bytes = addPdfLinks(bytes, write::sheetLinks(*source, sheets, layout));
         }

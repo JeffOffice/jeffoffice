@@ -513,11 +513,13 @@ QWidget *CrunchFileScreen::buildExport()
     // A password for the next PDF, the one export only; PDF/A is not offered with it (that standard forbids a password).
     auto *protect = new PdfProtectionRow(w);
     v->addWidget(protect);
-    // (made here, shown below the cards: the PDFs the cards make are tagged when it is on)
-    auto *tags = new QCheckBox(tr("Document structure tags for accessibility"), w);
+    // The choice for every PDF made here (the three PDF cards): kept for the next time.
+    auto *tags = new QCheckBox(tr("Add document structure tags for accessibility to every PDF"), w);
     tags->setObjectName(QStringLiteral("exportPdfTags"));
-    tags->setChecked(true);
+    tags->setChecked(Settings::get().value(QStringLiteral("export/pdfTags"), true).toBool());
     tags->setToolTip(tr("Tags the cells of each sheet as a table, so that a screen reader reads the PDF row by row."));
+    connect(tags, &QCheckBox::toggled, w, [](bool on) { Settings::get().setValue(QStringLiteral("export/pdfTags"), on); });
+    v->addWidget(tags);
     auto *sheet = new ActionCard(QStringLiteral("file-output"), tr("Export this sheet to PDF"), tr("The pages of the sheet you are on, as a PDF that looks the same everywhere."), w);
     sheet->setObjectName(QStringLiteral("exportSheetPdf"));
     connect(sheet, &QAbstractButton::clicked, this, [this, protect, tags] {
@@ -550,7 +552,6 @@ QWidget *CrunchFileScreen::buildExport()
     });
     v->addWidget(archive);
     protect->forbiddenBy({archive}, tr("PDF/A is turned off, because a PDF with a password can't be a PDF/A file."));
-    v->addWidget(tags);
     auto *mail = new ActionCard(QStringLiteral("mail"), tr("Make an Email"), tr("A message file with the workbook, or a PDF of it, in it. Open it in your email program, add who it is for, and send it."), w);
     mail->setObjectName(QStringLiteral("exportEmail"));
     connect(mail, &QAbstractButton::clicked, this, [this, protect] {

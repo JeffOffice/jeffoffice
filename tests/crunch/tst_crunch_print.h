@@ -196,6 +196,8 @@ private Q_SLOTS:
     void aPdfOfThousandsOfSheetsHasBoundedBookmarks();
     void aTaggedPdfHasTheCellsAsATable();
     void theTaggedCellsAreReadRowByRow();
+    void aPdfTooBigToTagIsMadeUntaggedAndSaysSo();
+    void taggingCountsInTheProgressAndCanBeCancelled();
     void thePagesGoToAPdfFile();
     void pageSetupFollowsTheSheetOperations();
     void anExportShowsProgressAndCanBeCancelled();
@@ -306,4 +308,7 @@ private Q_SLOTS:
     void theCacheCountsTheFilesItHoldsOnTo();
     void firstAndEvenPagePicturesAreWrittenWithTheLongIds();
     void thePrintScreensPaintClosureIsFreedWithTheScreen();
+
+private:
+    QByteArray m_made;
 };

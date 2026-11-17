@@ -238,6 +238,13 @@ QVector<PdfLink> sheetLinks(WriteDoc &doc, const QVector<int> &sheets, const She
     return out;
 }
 
+QVector<int> sheetOfPages(WriteDoc &doc, const QVector<int> &pages, const SheetLayout &layout)
+{
+    QVector<int> out;
+    for (const PagePlace &place : placesOfPages(doc, pages, layout)) out << place.sheet;
+    return out;
+}
+
 bool paintSheets(WriteDoc &doc, QPagedPaintDevice *device, const QVector<int> &pages, int pageCount, bool grayscale, const SheetLayout &layout, double maxImageDpi, WriteTagger *tagger)
 {
     auto *printer = dynamic_cast<QPrinter *>(device);
@@ -247,6 +254,7 @@ bool paintSheets(WriteDoc &doc, QPagedPaintDevice *device, const QVector<int> &p
     const QSize grid = sheetGrid(layout.perSheet);
     const int perSheet = grid.width() * grid.height();
     const bool shared = perSheet > 1 || (layout.paper.width() > 0 && layout.paper.height() > 0) || layout.turn != PrintTurn::AsSet;
+    const int frameTag = tagger ? tagger->tags().add({QStringLiteral("Artifact"), QString(), -1, false}) : -1;
     auto draw = [&](flow::MaterializedPage &page) {
         const double scale = double(device->logicalDpiX()) / 72.0;
         p.save();
@@ -331,7 +339,10 @@ bool paintSheets(WriteDoc &doc, QPagedPaintDevice *device, const QVector<int> &p
                 pen.setWidthF(0.5);
                 p.setPen(pen);
                 p.setBrush(Qt::NoBrush);
+                // (the frame is decoration)
+                if (tagger) tagger->tags().begin(&p, frameTag);
                 p.drawRect(QRectF(x, y, w, h));
+                if (tagger) tagger->tags().end(&p, frameTag);
                 p.restore();
             }
         }

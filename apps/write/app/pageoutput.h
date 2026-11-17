@@ -30,6 +30,9 @@ QSize sheetGrid(int perSheet);
 // `maxImageDpi`: pictures are downsampled to that many pixels to the inch (a PDF of minimum size; 0 leaves them as they are).
 bool paintSheets(WriteDoc &doc, QPagedPaintDevice *device, const QVector<int> &pages, int pageCount, bool grayscale = false, const SheetLayout &layout = SheetLayout(), double maxImageDpi = 0, WriteTagger *tagger = nullptr);
 
+// The sheet (from 0) of the PDF that each of the pages is on, as paintSheets makes them (-1: a page it leaves out); the links and the bookmarks go by it.
+QVector<int> sheetOfPages(WriteDoc &doc, const QVector<int> &pages, const SheetLayout &layout);
+
 // The links of the pages as a PDF holds them (see core/linkops.h): over the words of each link on the page. `sheets` are the pages the PDF holds, in order (paintSheets' `pages`); with a
 // `layout` the areas and the spots are where the page's place on its sheet puts them (several pages to a sheet, or scaled to a paper); a link to a page the PDF leaves out is left out.
 QVector<PdfLink> sheetLinks(WriteDoc &doc, const QVector<int> &sheets, const SheetLayout &layout = SheetLayout());

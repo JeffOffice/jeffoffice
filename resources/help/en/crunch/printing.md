@@ -38,7 +38,7 @@ Pick a printer from the list, or **Save as PDF**. **Printer settings** opens you
 
 Each sheet gets a **bookmark**, an entry in the list that a PDF reader shows beside the pages. Click a bookmark to jump to the first page of its sheet.
 
-The box **Document structure tags for accessibility** is checked at first. It adds a map of each page for people who listen to a PDF with a screen reader. The map says that the cells of a page are a table, so the reader can say them row by row, from left to right. Backgrounds, lines, headings, headers, footers, and charts are left out of what is read. Uncheck the box if you don't want the map.
+The box **Add document structure tags for accessibility to every PDF** is checked at first, and it is kept for the next time. It adds a map of each page for people who listen to a PDF with a screen reader. The map says that the cells of a page are a table, so the reader can say them row by row, from left to right. Backgrounds, lines, headings, headers, footers, and charts are left out of what is read. Uncheck the box if you don't want the map.
 
 **Export the whole workbook as PDF/A** makes a PDF in the form made for keeping for years. Every font is put inside the file, so it reads the same long from now. Programs that archive documents ask for this form. It is the PDF/A-1b form, and it can be tagged too.
 

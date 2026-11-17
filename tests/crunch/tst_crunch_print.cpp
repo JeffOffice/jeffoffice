@@ -1,5 +1,6 @@
 #include "tst_crunch_print.h"
 #include "app/theme.h"
+#include "app/settings.h"
 #include <QBuffer>
 #include <QPdfWriter>
 #include <QPainter>
@@ -503,6 +504,75 @@ void CrunchPrintTests::aPdfOfThousandsOfSheetsHasBoundedBookmarks()
     QCOMPARE(int(readOutline(jp::addPdfBookmarks(made, marks)).titles.size()), jp::kMostPdfBookmarks);
 }
 
+// An export that would pass the most tags a PDF is given is made without any (never half tagged), and says so; the bound is a count of tags, not of time.
+void CrunchPrintTests::aPdfTooBigToTagIsMadeUntaggedAndSaysSo()
+{
+    EditWindow e;
+    QVERIFY(e.open(rowsWithFormulas(300, {})));
+    crunch::PrintJobOptions options;
+    options.pdfTags = true;
+    options.what = crunch::PrintWhat::Workbook;
+    QString why;
+    const auto restore = qScopeGuard([old = jp::grid::mostSheetTags()] { jp::grid::mostSheetTags() = old; });
+    auto make = [&](const QString &name, QStringList *said) {
+        std::unique_ptr<crunch::PrintJob> job = e.win.w.makePrintJob(options, &why);
+        QVERIFY2(job, qPrintable(why));
+        QVector<int> pages;
+        for (int i = 0; i < job->pageCount(); ++i) pages << i;
+        const QString path = e.folder.dir.filePath(name);
+        QVERIFY2(job->exportPdf(path, pages, &why), qPrintable(why));
+        *said = job->messages();
+        QFile f(path);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        m_made = f.readAll();
+    };
+    QStringList said;
+    make(QStringLiteral("fits.pdf"), &said);
+    QVERIFY(m_made.contains("/StructTreeRoot"));
+    QVERIFY(said.isEmpty());
+    jp::grid::mostSheetTags() = 40;
+    make(QStringLiteral("big.pdf"), &said);
+    QVERIFY(m_made.startsWith("%PDF-"));
+    QVERIFY2(!m_made.contains("/StructTreeRoot") && !m_made.contains("/MarkInfo"), "half tagged");
+    QCOMPARE(pdfcheck::marksLeft(m_made), 0);
+    QVERIFY(said.join(QLatin1Char(' ')).contains(QLatin1String("too large to tag")));
+}
+
+// The tagging is part of the progress (the bar counts it as a second share, as long as the pages), and Cancel during it stops cleanly: no file is made.
+void CrunchPrintTests::taggingCountsInTheProgressAndCanBeCancelled()
+{
+    EditWindow e;
+    QVERIFY(e.open(rowsWithFormulas(200, {})));
+    crunch::PrintJobOptions options;
+    options.pdfTags = true;
+    options.what = crunch::PrintWhat::Workbook;
+    QString why;
+    std::unique_ptr<crunch::PrintJob> job = e.win.w.makePrintJob(options, &why);
+    QVERIFY2(job, qPrintable(why));
+    QVector<int> pages;
+    for (int i = 0; i < job->pageCount(); ++i) pages << i;
+    const int n = int(pages.size());
+    QVERIFY(n >= 2);
+    const QString path = e.folder.dir.filePath(QStringLiteral("progress.pdf"));
+    int last = 0, total = 0, tagging = 0;
+    QVERIFY2(job->exportPdf(path, pages, &why, [&](int done, int count) {
+        total = count;
+        if (done > n) ++tagging;
+        last = done;
+        return true;
+    }), qPrintable(why));
+    QCOMPARE(total, 2 * n);
+    QVERIFY(tagging > 0);
+    QVERIFY(last >= 2 * n - 1);
+    // Cancel once the tagging has begun
+    QFile::remove(path);
+    std::unique_ptr<crunch::PrintJob> again = e.win.w.makePrintJob(options, &why);
+    QVERIFY(again);
+    QVERIFY(!again->exportPdf(path, pages, &why, [&](int done, int) { return done <= n; }));
+    QVERIFY(again->wasCancelled());
+    QVERIFY(!QFile::exists(path));
+}
+
 // A PDF can be tagged for screen readers: each page's cells are a table (a row for each row that has text, a cell for each cell that has), the marks are all gone, and the language
 // is named; without the option there is no structure.
 void CrunchPrintTests::aTaggedPdfHasTheCellsAsATable()
@@ -531,6 +601,7 @@ void CrunchPrintTests::aTaggedPdfHasTheCellsAsATable()
         QVERIFY(pdf.contains("/MarkInfo"));
         QVERIFY(pdf.contains("/Lang ("));
         QCOMPARE(pdfcheck::marksLeft(pdf), 0);
+        QCOMPARE(pdfcheck::structureProblems(pdf), QString());
         jp::QtPdf q;
         QVERIFY(q.loadBytes(pdf));
         QMap<QString, int> types;
@@ -545,12 +616,13 @@ void CrunchPrintTests::aTaggedPdfHasTheCellsAsATable()
     }
 }
 
-// The cells are read in their order (a row from left to right, rows from the top down), whatever order the grid paints them in, and each cell's words are in the cell that holds them.
+// The cells are read in their order (a row from left to right, rows from the top down), whatever order the grid paints them in, and each cell's words are in the cell that holds them: the
+// cells' words are 1, 2, 3, and 4 letters long, so the glyphs under each TD, read in the tree's order, are counted 1, 2, 3, 4 (the merged range, painted last, is the fourth).
 void CrunchPrintTests::theTaggedCellsAreReadRowByRow()
 {
-    const QByteArray sheet = worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\" t=\"inlineStr\"><is><t>first</t></is></c><c r=\"B1\" t=\"inlineStr\"><is><t>second</t></is></c></row>"
-                                                      "<row r=\"2\"><c r=\"A2\" t=\"inlineStr\"><is><t>third</t></is></c></row>"
-                                                      "<row r=\"3\"><c r=\"A3\" t=\"inlineStr\"><is><t>merged</t></is></c></row>"),
+    const QByteArray sheet = worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\" t=\"inlineStr\"><is><t>a</t></is></c><c r=\"B1\" t=\"inlineStr\"><is><t>bb</t></is></c></row>"
+                                                      "<row r=\"2\"><c r=\"A2\" t=\"inlineStr\"><is><t>ccc</t></is></c></row>"
+                                                      "<row r=\"3\"><c r=\"A3\" t=\"inlineStr\"><is><t>dddd</t></is></c></row>"),
                                        QStringLiteral("<mergeCells count=\"1\"><mergeCell ref=\"A3:B3\"/></mergeCells>"));
     EditWindow e;
     QVERIFY(e.open(buildXlsx({sheet})));
@@ -561,9 +633,22 @@ void CrunchPrintTests::theTaggedCellsAreReadRowByRow()
     QVERIFY2(e.win.w.exportPdfTo(path, options, QString(), &why), qPrintable(why));
     QFile f(path);
     QVERIFY(f.open(QIODevice::ReadOnly));
+    const QByteArray pdf = f.readAll();
+    QCOMPARE(pdfcheck::structureProblems(pdf), QString());
     jp::QtPdf q;
-    QVERIFY(q.loadBytes(f.readAll()));
-    // The structure elements in the order the tree reads them: the Table's rows, each row's cells.
+    QVERIFY(q.loadBytes(pdf));
+    // the glyphs of each marked content of the page, by MCID
+    const QVector<QByteArray> pages = pdfcheck::pageContents(pdf);
+    QCOMPARE(int(pages.size()), 1);
+    QHash<int, int> glyphs;
+    const QString content = QString::fromLatin1(pages[0]);
+    for (auto it = QRegularExpression(QStringLiteral("/TD <</MCID (\\d+)>> BDC\\n(.*?)EMC\\n"), QRegularExpression::DotMatchesEverythingOption).globalMatch(content); it.hasNext();) {
+        const auto m = it.next();
+        int digits = 0;
+        for (auto h = QRegularExpression(QStringLiteral("<([0-9A-Fa-f]+)>")).globalMatch(m.captured(2)); h.hasNext();) digits += int(h.next().captured(1).size());
+        glyphs.insert(m.captured(1).toInt(), digits / 4);
+    }
+    QCOMPARE(int(glyphs.size()), 4);
     QHash<int, QByteArray> body;
     for (const jp::QtPdf::Obj &obj : q.objects) body.insert(obj.id, obj.body);
     int table = -1;
@@ -577,12 +662,17 @@ void CrunchPrintTests::theTaggedCellsAreReadRowByRow()
         for (auto it = ref.globalMatch(k); it.hasNext();) out << it.next().captured(1).toInt();
         return out;
     };
-    const QVector<int> rows = kids(table);
-    QCOMPARE(int(rows.size()), 3);
-    QCOMPARE(int(kids(rows[0]).size()), 2);
-    QCOMPARE(int(kids(rows[1]).size()), 1);
-    QCOMPARE(int(kids(rows[2]).size()), 1);   // (the merged range's one cell: painted after the others, read in its row)
-    QVERIFY(body[rows[2]].contains("/S /TR"));
+    QVector<int> read;
+    for (const int row : kids(table)) {
+        QVERIFY(body[row].contains("/S /TR"));
+        for (const int cell : kids(row)) {
+            QVERIFY(body[cell].contains("/S /TD"));
+            const auto k = QRegularExpression(QStringLiteral("/K (\\d+)\\b")).match(QString::fromLatin1(body[cell]));
+            QVERIFY(k.hasMatch());
+            read << glyphs.value(k.captured(1).toInt(), -1);
+        }
+    }
+    QCOMPARE(read, (QVector<int>{1, 2, 3, 4}));
 }
 
 
@@ -2670,11 +2760,12 @@ void CrunchPrintTests::theExportPageOffersTagsForScreenReaders()
     CrunchWindow &w = e.win.w;
     const QString path = e.folder.dir.filePath(QStringLiteral("page.pdf"));
     w.setSavePicker([&](const QString &, const QString &) { return path; });
+    jp::Settings::get().setValue(QStringLiteral("export/pdfTags"), true);
     w.showFileScreen(QStringLiteral("export"));
     auto *tags = w.findChild<QCheckBox *>(QStringLiteral("exportPdfTags"));
     QVERIFY(tags);
     QVERIFY(tags->isChecked());
-    QCOMPARE(tags->text(), QStringLiteral("Document structure tags for accessibility"));
+    QVERIFY(tags->text().contains(QLatin1String("every PDF")));
     auto exported = [&](const char *card) {
         w.showFileScreen(QStringLiteral("export"));
         w.findChild<QAbstractButton *>(QString::fromLatin1(card))->click();
@@ -2685,10 +2776,16 @@ void CrunchPrintTests::theExportPageOffersTagsForScreenReaders()
     QVERIFY(exported("exportBookPdfA").contains("/StructTreeRoot"));
     w.showFileScreen(QStringLiteral("export"));
     w.findChild<QCheckBox *>(QStringLiteral("exportPdfTags"))->setChecked(false);
+    // (the choice is kept: the page shows it off the next time)
+    w.showFileScreen(QStringLiteral("export"));
+    QVERIFY(!w.findChild<QCheckBox *>(QStringLiteral("exportPdfTags"))->isChecked());
     w.findChild<QAbstractButton *>(QStringLiteral("exportBookPdf"))->click();
     QFile f(path);
     QVERIFY(f.open(QIODevice::ReadOnly));
     QVERIFY(!f.readAll().contains("/StructTreeRoot"));
+    f.close();
+    w.showFileScreen(QStringLiteral("export"));
+    w.findChild<QCheckBox *>(QStringLiteral("exportPdfTags"))->setChecked(true);
 }
 
 

@@ -993,7 +993,10 @@ bool PrintJob::exportPdf(const QString &path, const QVector<int> &pages, QString
             int done = 0;
             // (no more pages than a job may send, as printing holds it)
             const int total = int(std::min<qint64>(groups.size(), kMaxSentPages));
+            // (a tagged PDF's tagging is a second part of the work, as long as the pages: the bar counts both)
+            const int span = tagger ? 2 * total : total;
             for (int at = 0; at < total; ++at) {
+                if (tagger && tagger->full()) break;
                 const QVector<int> &group = groups[at];
                 if (group.isEmpty() || group.first() < 0 || group.first() >= pageCount()) continue;
                 const QSizeF sheet = sheetFor(group, perSheet);
@@ -1011,7 +1014,7 @@ bool PrintJob::exportPdf(const QString &path, const QVector<int> &pages, QString
                 p.scale(kResolution / 72.0, kResolution / 72.0);
                 paintGroup(&p, group, sheet, perSheet);
                 p.restore();
-                if (progress && !progress(++done, total)) {
+                if (progress && !progress(++done, span)) {
                     m_cancelled = true;
                     ok = false;
                     break;
@@ -1026,7 +1029,10 @@ bool PrintJob::exportPdf(const QString &path, const QVector<int> &pages, QString
         return ok;
     };
     jp::PdfTagger tagger;
-    const bool ok = make(tagging ? &tagger : nullptr);
+    bool ok = make(tagging ? &tagger : nullptr);
+    // A PDF that would have more tags than the bound is made again without any, never half tagged.
+    const bool tooBig = tagging && ok && tagger.full();
+    if (tooBig) ok = make(nullptr);
     if (!ok) {
         file.cancelWriting();
         if (m_cancelled) return fail(QCoreApplication::translate("jp::crunch::PrintJob", "It was cancelled, and no file was made."));
@@ -1034,9 +1040,22 @@ bool PrintJob::exportPdf(const QString &path, const QVector<int> &pages, QString
     }
     if (inMemory) {
         QByteArray bytes = memory.data();
-        if (tagging) {
-            QString language = QLocale().bcp47Name();
-            const jp::PdfTagResult made = jp::tagPdf(bytes, tagger, {language, QFileInfo(m_options.fileName).completeBaseName()});
+        if (tooBig) {
+            const QString said = QCoreApplication::translate("jp::crunch::PrintJob", "This PDF is too large to tag for screen readers, so it was saved without tags.");
+            if (!m_messages.contains(said)) m_messages << said;
+        } else if (tagging) {
+            jp::PdfTagOptions tagOptions;
+            tagOptions.language = QLocale().bcp47Name();
+            tagOptions.title = QFileInfo(m_options.fileName).completeBaseName();
+            const int pagesMade = std::max<int>(1, int(std::min<qint64>(groups.size(), kMaxSentPages)));
+            if (progress)
+                tagOptions.progress = [&](int done, int count) { return progress(pagesMade + int(qint64(done) * pagesMade / std::max(1, count)), 2 * pagesMade); };
+            const jp::PdfTagResult made = jp::tagPdf(bytes, tagger, tagOptions);
+            if (made.cancelled) {
+                m_cancelled = true;
+                file.cancelWriting();
+                return fail(QCoreApplication::translate("jp::crunch::PrintJob", "It was cancelled, and no file was made."));
+            }
             if (made.pdf.isEmpty()) {
                 // The marks could not be taken out: the pages are made again, without them.
                 if (!make(nullptr)) {

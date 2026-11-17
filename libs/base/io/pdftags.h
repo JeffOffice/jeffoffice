@@ -7,6 +7,8 @@
 #include <QString>
 #include <QVector>
 
+#include <functional>
+
 class QPainter;
 
 namespace jp {
@@ -29,6 +31,9 @@ public:
     void begin(QPainter *p, int id);
     void end(QPainter *p, int id);
     const QVector<PdfTag> &tags() const { return m_tags; }
+    // An app that holds the number of tags to a bound says when it is passed (it stops adding tags): the PDF is then to be made again without them.
+    void markFull() { m_full = true; }
+    bool full() const { return m_full; }
     // The size of the squares this export's marks are (device units), as tagPdf looks for them.
     double markWidth() const { return m_w; }
     double markHeight() const { return m_h; }
@@ -36,17 +41,20 @@ public:
 private:
     QVector<PdfTag> m_tags;
     double m_w = 4, m_h = 4;
+    bool m_full = false;
 };
 
 struct PdfTagOptions {
     QString language;     // as the file says it (en-US)
     QString title;        // shown by a reader in its title bar, instead of the file name
+    std::function<bool(int done, int total)> progress;   // told the pages done and their number as they are looked at; says false to stop (the result is then `cancelled`)
 };
 
 struct PdfTagResult {
     QByteArray pdf;       // the PDF with its marks taken out, tagged when `tagged`; empty when the marks could not be taken out (the pages must be made again without them)
     bool tagged = false;
     QString why;          // when it is not tagged: the reason, in words for a person
+    bool cancelled = false;   // the progress function said to stop (`pdf` is empty)
 };
 
 // The PDF with the marks turned into marked content and the structure tree added. It never hands back a PDF that still has marks: where it can't tag (a PDF it doesn't know the
