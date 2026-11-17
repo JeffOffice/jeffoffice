@@ -840,7 +840,7 @@ QString sizeName(int type, const QSizeF &size)
 }
 
 // A slide's transition from the numbers of its slide show info: the effect (0 none, 4 cover, 5 dissolve, 6 fade, 7 uncover,
-// 10 wipe, 11 zoom, 13 split, 1 random, 2 blinds, 3 checkerboard, 8 random bars, 9 strips, 17 diamond, 18 plus, 19 wedge,
+// 10 wipe, 11 zoom, 13 split, 20 push, 1 random, 2 blinds, 3 checkerboard, 8 random bars, 9 strips, 17 diamond, 18 plus, 19 wedge,
 // 21 comb, 22 newsflash, 26 wheel, 27 circle; any other is a fade), its direction (left, up, right, down; for a split or a zoom,
 // 0 and 1 go out and in; horizontal or vertical for blinds, checkerboard, random bars, and comb; right-up, left-up, right-down,
 // left-down as 4 to 7 for strips; the spokes of a wheel), its speed (slow, medium, fast), when the slide moves on by itself, and whether a click moves it on.
@@ -854,6 +854,7 @@ Transition transitionOf(int effect, int direction, int speed, int flags, qint32 
     case 10: t.type = QStringLiteral("wipe"); break;
     case 11: t.type = QStringLiteral("zoom"); break;
     case 13: t.type = QStringLiteral("split"); break;
+    case 20: t.type = QStringLiteral("push"); break;
     case 1: t.type = QStringLiteral("random"); break;
     case 2: t.type = QStringLiteral("blinds"); break;
     case 3: t.type = QStringLiteral("checkerboard"); break;
