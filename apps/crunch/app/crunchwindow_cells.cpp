@@ -630,6 +630,7 @@ void CrunchWindow::showContextMenu(const QPoint &globalPos)
     auto *menu = new QMenu(this);
     menu->setAttribute(Qt::WA_DeleteOnClose);
     menu->setObjectName(QStringLiteral("cellMenu"));
+    addMiniToolbarTo(menu);
     auto add = [&](const char *id) {
         if (QAction *a = act(QString::fromLatin1(id))) menu->addAction(a);
     };

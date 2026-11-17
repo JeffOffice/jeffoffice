@@ -64,6 +64,9 @@ QString openFolder();
 bool spellAsYouType();
 void setSpellAsYouType(bool on);
 void migrateSpellSetting(QSettings &app, QSettings &suite);
+// "Show Mini Toolbar on selection": whether the small formatting bar floats by selected text (and by cells, in JeffCrunch). One choice for every app; on unless turned off.
+bool miniToolbarOnSelection();
+void setMiniToolbarOnSelection(bool on);
 // Tells every open window of this app, at once, when the choice changes.
 class JO_COMMON_EXPORT SpellSettingNotifier : public QObject {
     Q_OBJECT

@@ -71,6 +71,12 @@ private Q_SLOTS:
     void theKeysThatFinishAnEntry();
     void enterGoesWhereTheOptionSays();
     void autoCompleteOffersTheRestOfAnEntryInTheColumn();
+    void theMiniToolbarFloatsByCharactersSelectedWithTheMouseInAnEntry();
+    void everyButtonOfTheMiniToolbarFormatsTheSelectedCharactersInOneStep();
+    void theMiniToolbarGoesWhenTheEntryTakesAKeyAndWhenTheOptionIsOff();
+    void aRightClickOnCellsShowsTheMiniToolbarOverTheMenu();
+    void everyButtonOfTheMiniToolbarFormatsTheCellsInOneStep();
+    void theMiniToolbarFadesAsThePointerMovesAway();
     void theFillHandleCanBeTurnedOff();
     void automaticDecimalPlacesPutThePointIn();
     void zerosCanBeHiddenOnASheetAndAreSavedThatWay();

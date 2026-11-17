@@ -131,6 +131,10 @@ void setSpellAsYouType(bool on)
     Q_EMIT SpellSettingNotifier::get().changed(on);
 }
 
+bool miniToolbarOnSelection() { return Settings::get().value(QStringLiteral("ui/miniToolbarOnSelection"), true).toBool(); }
+
+void setMiniToolbarOnSelection(bool on) { Settings::get().setValue(QStringLiteral("ui/miniToolbarOnSelection"), on); }
+
 GrammarSettingNotifier &GrammarSettingNotifier::get()
 {
     static GrammarSettingNotifier n;

@@ -1,15 +1,21 @@
 #include "app/minitoolbar.h"
 #include "app/uistyle.h"
+#include "app/settings.h"
 #include "app/widgets.h"
 #include <QAbstractScrollArea>
 #include <QAction>
 #include <QCoreApplication>
+#include <QCursor>
+#include <QGraphicsOpacityEffect>
 #include <QHBoxLayout>
 #include <QKeyEvent>
 #include <QScrollBar>
+#include <QShowEvent>
+#include <QTimer>
 #include <QToolButton>
 #include <QVBoxLayout>
 #include <algorithm>
+#include <cmath>
 
 namespace jp {
 
@@ -26,7 +32,19 @@ MiniToolbar::MiniToolbar(QWidget *host, std::unique_ptr<MiniTarget> owned) : QFr
     if (target->supportsFont()) {
         m_font = new FontCombo(this);
         connect(m_font, &FontCombo::familyChosen, this, [target](const QString &f) { target->chooseFont(f); });
-        column->addWidget(m_font);
+        if (target->supportsSize()) {
+            auto *top = new QHBoxLayout;
+            top->setContentsMargins(0, 0, 0, 0);
+            top->setSpacing(2);
+            m_size = new SizeCombo(this);
+            m_size->setFocusPolicy(Qt::NoFocus);
+            connect(m_size, &SizeCombo::sizeChosen, this, [target](double pt) { target->chooseSize(pt); });
+            top->addWidget(m_font, 1);
+            top->addWidget(m_size);
+            column->addLayout(top);
+        } else {
+            column->addWidget(m_font);
+        }
     }
     auto *row = new QHBoxLayout;
     row->setContentsMargins(0, 0, 0, 0);
@@ -43,6 +61,15 @@ MiniToolbar::MiniToolbar(QWidget *host, std::unique_ptr<MiniTarget> owned) : QFr
         button->setFocusPolicy(Qt::NoFocus);   // (the text keeps the keyboard)
         row->addWidget(button);
     }
+    if (target->supportsFill()) {
+        m_fill = new ColorButton(QStringLiteral("paint-bucket"), QCoreApplication::translate("MiniToolbar", "Fill Color"), true, QCoreApplication::translate("MiniToolbar", "No Fill"), this);
+        m_fill->setCurrent(ColorRef::rgb(QColor(0xFF, 0xFF, 0x00)));
+        connect(m_fill, &ColorButton::colorPicked, this, [this, target](const ColorRef &c) {
+            m_fill->setCurrent(c);
+            target->chooseFill(c);
+        });
+        row->addWidget(m_fill);
+    }
     if (target->supportsColor()) {
         m_color = new ColorButton(QStringLiteral("baseline"), QCoreApplication::translate("MiniToolbar", "Font Color"), true, QCoreApplication::translate("MiniToolbar", "Automatic"), this);
         m_color->setCurrent(ColorRef::rgb(QColor(0xC0, 0, 0)));
@@ -50,11 +77,32 @@ MiniToolbar::MiniToolbar(QWidget *host, std::unique_ptr<MiniTarget> owned) : QFr
         connect(m_color, &ColorButton::colorPicked, this, [target](const ColorRef &c) { target->chooseColor(c); });
         row->addWidget(m_color);
     }
+    const QList<QAction *> more = target->moreActions();
+    if (!more.isEmpty()) {
+        auto *extra = new QHBoxLayout;
+        extra->setContentsMargins(0, 0, 0, 0);
+        extra->setSpacing(1);
+        column->addLayout(extra);
+        for (QAction *a : more) {
+            auto *button = new QToolButton(this);
+            button->setDefaultAction(a);
+            button->setToolButtonStyle(Qt::ToolButtonIconOnly);
+            button->setAutoRaise(true);
+            button->setFocusPolicy(Qt::NoFocus);
+            if (a->menu()) button->setPopupMode(QToolButton::InstantPopup);
+            extra->addWidget(button);
+        }
+        extra->addStretch(1);
+    }
     hide();
 }
 
 void MiniToolbar::showBeside(const QRect &first, const QRect &last)
 {
+    if (!miniToolbarOnSelection()) {   // (Options: Show Mini Toolbar on selection)
+        hide();
+        return;
+    }
     const QSize size = sizeHint();
     const QRect area = parentWidget()->rect();
     int y = first.top() - size.height() - 6;
@@ -62,6 +110,56 @@ void MiniToolbar::showBeside(const QRect &first, const QRect &last)
     setGeometry(QRect(QPoint(std::clamp(first.left(), 0, std::max(0, area.width() - size.width())), std::clamp(y, 0, std::max(0, area.height() - size.height()))), size));
     show();
     raise();
+}
+
+void MiniToolbar::fadeAwayFromPointer(bool on)
+{
+    if (!on) {
+        delete m_fadeTimer;
+        m_fadeTimer = nullptr;
+        if (m_fade) m_fade->setOpacity(1);
+        return;
+    }
+    if (m_fadeTimer) return;
+    if (!m_fade) {
+        m_fade = new QGraphicsOpacityEffect(this);
+        setGraphicsEffect(m_fade);
+    }
+    m_fadeTimer = new QTimer(this);
+    m_fadeTimer->setInterval(60);
+    connect(m_fadeTimer, &QTimer::timeout, this, [this] { fadeTo(QCursor::pos()); });
+    if (isVisible()) m_fadeTimer->start();
+}
+
+// Fully opaque within 40 pixels of the bar, fading out by 180, and gone past that.
+double MiniToolbar::opacityFor(const QRect &bar, const QPoint &p)
+{
+    const int dx = std::max({bar.left() - p.x(), 0, p.x() - bar.right()}), dy = std::max({bar.top() - p.y(), 0, p.y() - bar.bottom()});
+    const double d = std::hypot(dx, dy);
+    return std::clamp(1.0 - (d - 40.0) / 140.0, 0.0, 1.0);
+}
+
+void MiniToolbar::fadeTo(const QPoint &global)
+{
+    const double o = opacityFor(QRect(mapToGlobal(QPoint(0, 0)), size()), global);
+    if (o <= 0) {
+        hide();
+        return;
+    }
+    if (m_fade) m_fade->setOpacity(o);
+}
+
+void MiniToolbar::showEvent(QShowEvent *event)
+{
+    QFrame::showEvent(event);
+    if (m_fade) m_fade->setOpacity(1);
+    if (m_fadeTimer) m_fadeTimer->start();
+}
+
+void MiniToolbar::hideEvent(QHideEvent *event)
+{
+    QFrame::hideEvent(event);
+    if (m_fadeTimer) m_fadeTimer->stop();
 }
 
 void MiniToolbar::hideOnTypingAndScrolling(QAbstractScrollArea *area)

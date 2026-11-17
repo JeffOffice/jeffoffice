@@ -57,6 +57,36 @@ private Q_SLOTS:
         }
     }
 
+    // The mini toolbar: at the top of the shortcut menu of cells, and by words selected in a cell being edited.
+    void grabTheMiniToolbar()
+    {
+        const QString dir = qEnvironmentVariable("JO_SHOT_DIR");
+        if (dir.isEmpty()) QSKIP("JO_SHOT_DIR is not set");
+        QDir().mkpath(dir);
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        QVERIFY(e.settle());
+        e.win.w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&e.win.w));
+        e.view()->selectRange(0, 0, 2, 1);
+        QTest::mouseClick(e.view()->viewport(), Qt::RightButton, Qt::NoModifier, e.view()->cellRect(1, 1).center());
+        QMenu *menu = e.win.w.findChild<QMenu *>(QStringLiteral("cellMenu"));
+        QVERIFY(menu);
+        QVERIFY(QTest::qWaitForWindowExposed(menu));
+        QVERIFY(menu->grab().save(dir + QStringLiteral("/mini-toolbar-cells.png")));
+        menu->close();
+        e.select(QStringLiteral("C1"));
+        QTest::keyClick(e.view(), Qt::Key_F2);
+        CellEditor *ed = e.win.w.cellEditor();
+        QVERIFY(ed->isVisible());
+        ed->setSelection(1, 3);   // (the mouse's release is what shows the bar)
+        QMetaObject::invokeMethod(ed, [ed] { QMouseEvent up(QEvent::MouseButtonRelease, QPointF(4, 4), QPointF(4, 4), Qt::LeftButton, Qt::NoButton, Qt::NoModifier); QApplication::sendEvent(ed, &up); }, Qt::QueuedConnection);
+        QFrame *bar = e.view()->viewport()->findChild<QFrame *>(QStringLiteral("miniToolbar"));
+        QVERIFY(bar);
+        QTRY_VERIFY(bar->isVisible());
+        QVERIFY(e.view()->viewport()->grab().save(dir + QStringLiteral("/mini-toolbar-text.png")));
+    }
+
     // Forecast Sheet: the dialog with its preview, and the sheet it makes.
     void grabForecastSheet()
     {

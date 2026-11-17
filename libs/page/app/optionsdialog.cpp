@@ -173,6 +173,10 @@ bool optionsDialog(QWidget *p, Editor *, const QVector<OptionsPage> &appPages, b
     beta->setAccessibleDescription(betaAbout);
     beta->setChecked(Updater::betaChannel());
     gf->addRow(beta);
+    auto *miniBar = new QCheckBox(QCoreApplication::translate("Dialogs", "Show Mini Toolbar on selection"), gen);
+    miniBar->setObjectName(QStringLiteral("miniToolbarOption"));
+    miniBar->setChecked(miniToolbarOnSelection());
+    gf->addRow(miniBar);
     for (QWidget *box : {statsRow, static_cast<QWidget *>(updates), static_cast<QWidget *>(beta)}) gf->setRowVisible(box, online);
     tabs->addTab(gen, QCoreApplication::translate("Dialogs", "General"));
     auto *proof = new QWidget();
@@ -281,6 +285,7 @@ bool optionsDialog(QWidget *p, Editor *, const QVector<OptionsPage> &appPages, b
         Updater::setBetaChannel(beta->isChecked());
     }
     setSpellAsYouType(asType->isChecked());
+    setMiniToolbarOnSelection(miniBar->isChecked());
     if (grammarAsType) setGrammarAsYouType(grammarAsType->isChecked());
     if (grammarSettings) setGrammarKinds(grammarChoice);
     if (keyboard) keyboard->apply();   // (every open window of the app takes the keys now)

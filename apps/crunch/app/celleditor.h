@@ -40,6 +40,8 @@ public:
     // Whether Options > Proofing has "Check spelling as you type" on (it is, unless turned off).
     static bool spellingOn();
     void checkSpelling();
+    // How far along the line (in the entry's own coordinates) the character at `position` begins, as the text is scrolled (for the mini toolbar and its tests).
+    int xOfPosition(int position) const;
     // Puts the dictionary's words for the misspelled word at `position`, Ignore All, and Add to Dictionary in the menu, and a separator after them. False, with nothing put in, if the
     // word there is spelled right (or the entry is a formula).
     bool addSpellingSuggestions(QMenu &menu, int position);

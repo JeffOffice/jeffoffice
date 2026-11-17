@@ -1777,6 +1777,12 @@ private:
     // editing
     std::unique_ptr<crunch::EditSession> m_session;
     CellEditor *m_cellEditor = nullptr;
+    // mini toolbar (v1-cellmini)
+    void createMiniToolbar();
+    QFrame *makeMiniBar(bool inCells, QWidget *parent);
+    void addMiniToolbarTo(QMenu *menu);
+    void updateMiniToolbar(bool show);
+    QPointer<QFrame> m_miniText;
     struct EditState {
         bool active = false;
         int sheet = 0;

@@ -44,6 +44,14 @@ bool CellEditor::spellingOn() { return jp::spellAsYouType(); }
 
 bool CellEditor::isFormulaEntry(const QString &text) { return jp::office::sheet::isFormulaEntry(text); }
 
+int CellEditor::xOfPosition(int position) const
+{
+    const QFontMetrics fm = fontMetrics();
+    const QString entry = text();
+    const int origin = cursorRect().x() - fm.horizontalAdvance(entry.left(cursorPosition()));
+    return origin + fm.horizontalAdvance(entry.left(position));
+}
+
 void CellEditor::checkSpelling()
 {
     m_spellTimer.stop();

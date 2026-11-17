@@ -240,6 +240,7 @@ CrunchWindow::CrunchWindow(QWidget *parent) : AppWindow(parent)
         m_zoomSlider->setValue(int(std::lround(std::log(z) / std::log(1.05))));
     });
     connect(m_view, &grid::GridView::contextMenuRequested, this, [this](const QPoint &globalPos) { showContextMenu(globalPos); });
+    createMiniToolbar();
     connect(&m_loader, &crunch::WorkbookLoader::firstScreen, this, &CrunchWindow::onFirstScreen);
     connect(&m_loader, &crunch::WorkbookLoader::progress, this, &CrunchWindow::onProgress);
     connect(&m_loader, &crunch::WorkbookLoader::finished, this, &CrunchWindow::onFinished);
