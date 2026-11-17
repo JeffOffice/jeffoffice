@@ -425,7 +425,7 @@
         },
         {
          "status": "partly",
-         "text": "2d46adb0c966afca27c8d0785328b4e607d4b4ce19e3ccb2b066665d86873e06"
+         "text": "081326f11e8060a36d8abd8d6b2075ee93e2f59898bd4dc36998e942eff58e5c"
         }
        ]
       },
@@ -3280,8 +3280,9 @@
        "text": "78be05f22ff08d256ae672131e3678bcae31bd5e062f5ede808ca5e465a01d2b"
       },
       {
-       "status": "todo",
-       "text": "23fd5cc048f070e73188d96572c256002a7ebb11dad6f0031e103c761aac6ed2"
+       "hide_soon": true,
+       "status": "done",
+       "text": "dabc607dc1e6797ac11dae7e11524356fbde0ca0663318ff8aaf28b4d002c11f"
       }
      ]
     },
@@ -3513,8 +3514,9 @@
        "text": "287c8f85a69248671b7fb5207fa0727391e518d506be5310f4848fdec0e6b991"
       },
       {
-       "status": "todo",
-       "text": "b4cda088ed8b25f87a7d970c8811e890b8c40b86108255a1744fe8d3be7a51a0"
+       "hide_soon": true,
+       "status": "done",
+       "text": "9c71d4938b82914c68a361074f32be63f2e4eaae1697aee738d26ceec37ce02b"
       },
       {
        "hide_soon": true,
@@ -3644,8 +3646,9 @@
          "text": "eb8507fa2ba7c3a8a2e86fad4969bf4c3d839ff52cf53396d80377f01e2efd59"
         },
         {
-         "status": "todo",
-         "text": "1cddfff1071a8cd8d1b636616e185ca9a98d5331cbaf090dba87a8a069c0195d"
+         "hide_soon": true,
+         "status": "done",
+         "text": "22f2ec284d7caf0331ee53f3f162a78b2d6f6258bae654aa945faf6276efd870"
         }
        ]
       },
@@ -3792,6 +3795,11 @@
        "hide_soon": true,
        "status": "done",
        "text": "6bfd4e5c133470f76f9f6400d5beea42bf6deb7e967f48f55a6fefd47cadfd05"
+      },
+      {
+       "hide_soon": true,
+       "status": "done",
+       "text": "eccbf06eb89b41df891e1bd6a2015d3f4b110b40d5df28b3ae1e218adff8f5b2"
       }
      ]
     },
@@ -5186,6 +5194,11 @@
        "hide_soon": true,
        "status": "done",
        "text": "3da8498795b105e60b5ffb2cb543eaf26c88d3dd2133f08054db5bf90c556051"
+      },
+      {
+       "hide_soon": true,
+       "status": "done",
+       "text": "de7792614c022aa6bb09a7aece9e4e9ea8c45e210e62b14325e23a94c50b4b05"
       }
      ]
     },
@@ -6079,7 +6092,7 @@
         },
         {
          "status": "partly",
-         "text": "42fdf7297296c1d8c1af46ce07dcef8b75622babe5d543d076e6d0b27194a30b"
+         "text": "3bab5dcb0b60c0491ea71a1bfbe5418260323e71d4e54a2ac1cdc8883ab23e84"
         },
         {
          "status": "partly",
@@ -8126,6 +8139,18 @@
     "fr": ""
    }
   },
+  "081326f11e8060a36d8abd8d6b2075ee93e2f59898bd4dc36998e942eff58e5c": {
+   "drop": false,
+   "en": "Copied cells paste into other apps as a table that keeps the font, underline, strikethrough, alignment, fills, text colors, and borders.",
+   "es": "Las celdas copiadas se pegan en otras aplicaciones como una tabla que conserva la fuente, el subrayado, el tachado, la alineación, los rellenos, los colores de texto y los bordes.",
+   "fr": "Les cellules copiées se collent dans d’autres applications sous forme de tableau qui conserve la police, le soulignement, le barré, l’alignement, les remplissages, les couleurs de texte et les bordures.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "08151836b0aae0e22b99ccb9d6b8757073bfab5f108a4762c0deb7e21e81821a": {
    "drop": false,
    "en": "Home tab",
@@ -9674,18 +9699,6 @@
     "fr": ""
    }
   },
-  "1cddfff1071a8cd8d1b636616e185ca9a98d5331cbaf090dba87a8a069c0195d": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Cells copied from JeffCrunch or a document paste as a table with fonts, fills, borders, and number formats",
-    "es": "Celdas copiadas de JeffCrunch o de un documento se pegan como tabla con fuentes, rellenos, bordes y formatos de número",
-    "fr": "Cellules copiées depuis JeffCrunch ou un document collées comme tableau avec polices, remplissages, bordures et formats numériques"
-   }
-  },
   "1cf16e73e883a7400a919953384a7fcea717b80b0bafab0bc90b4afde8277009": {
    "drop": false,
    "en": "Hyperlinks in text are drawn in the theme’s link colors and kept readable on any background, including the bands and panels some layouts draw behind text. The words of a link stay inside the link when saved to an `.odp`.",
@@ -10358,6 +10371,18 @@
     "fr": ""
    }
   },
+  "22f2ec284d7caf0331ee53f3f162a78b2d6f6258bae654aa945faf6276efd870": {
+   "drop": false,
+   "en": "Paste an HTML table onto a slide to get a table that keeps each cell's font, fill, borders, text alignment, and merged cells.",
+   "es": "Pegue una tabla HTML en una diapositiva para obtener una tabla que conserva la fuente, el relleno, los bordes, la alineación del texto y las celdas combinadas de cada celda.",
+   "fr": "Collez un tableau HTML sur une diapositive pour obtenir un tableau qui conserve la police, le remplissage, les bordures, l’alignement du texte et les cellules fusionnées de chaque cellule.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "22fe70b551a9fba31549382b064bf3a4c02db5ea3abc7837cea15c89e45b515e": {
    "drop": false,
    "en": "Print > Both sides by hand prints the odd pages, shows a message to turn the stack over, then prints the even pages last first. It is not available for PDF files.",
@@ -10428,18 +10453,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "23fd5cc048f070e73188d96572c256002a7ebb11dad6f0031e103c761aac6ed2": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Show Presentation On: choose which screen shows the slides and which holds Presenter View, and swap them",
-    "es": "Mostrar presentación en: elegir qué pantalla muestra las diapositivas y cuál contiene la vista del presentador, e intercambiarlas",
-    "fr": "Afficher le diaporama sur : choisir quel écran affiche les diapositives et lequel contient le mode Présentateur, et les échanger"
    }
   },
   "24091501f543cf265e34fb32c802bd5215db872383735a81131b12e9fa59e27a": {
@@ -11160,18 +11173,6 @@
     "en": "Sharpen and soften, saturation and tone, transparent color, and artistic effects",
     "es": "Nitidez y suavizado, saturación y tono, color transparente y efectos artísticos",
     "fr": "Netteté et adoucissement, saturation et teinte, couleur transparente et effets artistiques"
-   }
-  },
-  "2d46adb0c966afca27c8d0785328b4e607d4b4ce19e3ccb2b066665d86873e06": {
-   "drop": false,
-   "en": "Copied cells are put on the clipboard as a table that carries the font where it differs from the sheet’s usual one, underline and strikethrough, alignment, fills, text colors, and borders.",
-   "es": "Las celdas copiadas se colocan en el portapapeles como una tabla que conserva la fuente cuando difiere de la habitual de la hoja, el subrayado y el tachado, la alineación, los rellenos, los colores de texto y los bordes.",
-   "fr": "Les cellules copiées sont placées dans le presse-papiers sous forme de tableau qui conserve la police lorsqu’elle diffère de celle habituelle de la feuille, le soulignement et le barré, l’alignement, les remplissages, les couleurs de texte et les bordures.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
    }
   },
   "2da2eb67c09fefbeb5314717959c00c1da27cb0a505f700a8d8665aff360be81": {
@@ -12122,6 +12123,18 @@
     "fr": ""
    }
   },
+  "3bab5dcb0b60c0491ea71a1bfbe5418260323e71d4e54a2ac1cdc8883ab23e84": {
+   "drop": false,
+   "en": "Multilevel lists with nine levels: set each level's number format, indent, tab or space after, restart rule, and link to a heading style, and keep them in `.docx` and `.odt` files.",
+   "es": "Listas multinivel de nueve niveles: defina el formato de número, la sangría, el tabulador o espacio posterior, la regla de reinicio y el vínculo a un estilo de título de cada nivel, y consérvelos en archivos `.docx` y `.odt`.",
+   "fr": "Listes à plusieurs niveaux, sur neuf niveaux : définissez le format de numéro, le retrait, la tabulation ou l’espace après, la règle de redémarrage et le lien vers un style de titre de chaque niveau, et conservez-les dans des fichiers `.docx` et `.odt`.",
+   "soon": {
+    "drop": false,
+    "en": "Choosing each level's options in the program, and drawing picture bullets",
+    "es": "Elección de las opciones de cada nivel en el programa y dibujo de viñetas de imagen",
+    "fr": "Choix des options de chaque niveau dans le programme et affichage des puces image"
+   }
+  },
   "3c59d3c6c19bc79e78b88ceaaf8ad405ac36fb6b5e886502cf0552f705e6992f": {
    "drop": false,
    "en": "Spelling marks appear as you type in text being edited.",
@@ -12660,18 +12673,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "42fdf7297296c1d8c1af46ce07dcef8b75622babe5d543d076e6d0b27194a30b": {
-   "drop": false,
-   "en": "Use multilevel lists with nine levels, with each level’s number format, alignment, indent, and link to a heading style, kept in `.docx` and `.odt` files.",
-   "es": "Use listas multinivel de nueve niveles, con el formato de número, la alineación, la sangría y el vínculo a un estilo de título de cada nivel, conservados en archivos `.docx` y `.odt`.",
-   "fr": "Utilisez des listes à plusieurs niveaux, avec neuf niveaux, le format de numéro, l’alignement, le retrait et le lien vers un style de titre pour chaque niveau, conservés dans les fichiers `.docx` et `.odt`.",
-   "soon": {
-    "drop": false,
-    "en": "Choosing each level's options in the program, and drawing picture bullets",
-    "es": "Elección de las opciones de cada nivel en el programa y dibujo de viñetas de imagen",
-    "fr": "Choix des options de chaque niveau dans le programme et affichage des puces image"
    }
   },
   "4310f176870837d9bede601afc8c63c027acd101256c46dc5327473287692874": {
@@ -19190,6 +19191,18 @@
     "fr": ""
    }
   },
+  "9c71d4938b82914c68a361074f32be63f2e4eaae1697aee738d26ceec37ce02b": {
+   "drop": false,
+   "en": "Edit the slide notes in Presenter View; each edit is saved in the file and can be undone in the main window.",
+   "es": "Edite las notas de la diapositiva en la vista del presentador; cada edición se guarda en el archivo y se puede deshacer en la ventana principal.",
+   "fr": "Modifiez les notes de la diapositive dans le mode Présentateur ; chaque modification est enregistrée dans le fichier et peut être annulée dans la fenêtre principale.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "9c7823e8e430fad030b8c6e424b3f128305ba326c9304cd2c8693757b505f0df": {
    "drop": false,
    "en": "Styles",
@@ -20700,18 +20713,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "b4cda088ed8b25f87a7d970c8811e890b8c40b86108255a1744fe8d3be7a51a0": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Edit the notes in Presenter View",
-    "es": "Edición de las notas en la Vista del presentador",
-    "fr": "Modification des notes dans le mode Présentateur"
    }
   },
   "b4cdd04c658f0f42fccb612e44468da67f996571d5aa55af0dc470fe9bc56fde": {
@@ -23306,6 +23307,18 @@
     "fr": "Zones de texte : dessin à la souris, orientation verticale et zones liées"
    }
   },
+  "dabc607dc1e6797ac11dae7e11524356fbde0ca0663318ff8aaf28b4d002c11f": {
+   "drop": false,
+   "en": "Choose which screen shows the slides and which holds Presenter View, and swap them during the show.",
+   "es": "Elija qué pantalla muestra las diapositivas y cuál contiene la vista del presentador, e intercámbielas durante la presentación.",
+   "fr": "Choisissez quel écran affiche les diapositives et lequel contient le mode Présentateur, et échangez-les pendant le diaporama.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "db4683de064e1ff34cb5fd3925259c131d1bb3ed9969ff37f71cf674453f419c": {
    "drop": false,
    "en": "Themes",
@@ -23539,6 +23552,18 @@
    "en": "",
    "es": "",
    "fr": "",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "de7792614c022aa6bb09a7aece9e4e9ea8c45e210e62b14325e23a94c50b4b05": {
+   "drop": false,
+   "en": "A small bar floats above words selected with the mouse in a text frame, shape, or table cell, with the font box, Bold, Italic, Underline, Decrease and Increase Font Size, the three alignments, Bullets, Numbering, and Font Color.",
+   "es": "Al seleccionar palabras con el ratón en un marco de texto, una forma o una celda de tabla, aparece sobre ellas una barra pequeña con el cuadro de fuente, Negrita, Cursiva, Subrayado, Reducir y Aumentar tamaño de fuente, las tres alineaciones, Viñetas, Numeración y Color de fuente.",
+   "fr": "Lorsque vous sélectionnez des mots à la souris dans un cadre de texte, une forme ou une cellule de tableau, une petite barre apparaît au-dessus avec la zone de police, Gras, Italique, Souligné, Réduire et Augmenter la taille de police, les trois alignements, Puces, Numérotation et Couleur de police.",
    "soon": {
     "drop": true,
     "en": "",
@@ -24696,6 +24721,18 @@
     "en": "Format Picture for header and footer pictures",
     "es": "Formato de imagen para las imágenes del encabezado y del pie de página",
     "fr": "Format de l’image pour les images d’en-tête et de pied de page"
+   }
+  },
+  "eccbf06eb89b41df891e1bd6a2015d3f4b110b40d5df28b3ae1e218adff8f5b2": {
+   "drop": false,
+   "en": "A small bar floats above words selected with the mouse in a box, with the font box, Bold, Italic, Underline, Decrease and Increase Font Size, the three alignments, Bullets, Numbering, and Font Color.",
+   "es": "Al seleccionar palabras con el ratón en un cuadro, aparece sobre ellas una barra pequeña con el cuadro de fuente, Negrita, Cursiva, Subrayado, Reducir y Aumentar tamaño de fuente, las tres alineaciones, Viñetas, Numeración y Color de fuente.",
+   "fr": "Lorsque vous sélectionnez des mots à la souris dans une zone, une petite barre apparaît au-dessus avec la zone de police, Gras, Italique, Souligné, Réduire et Augmenter la taille de police, les trois alignements, Puces, Numérotation et Couleur de police.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "ecd22afbdf0c4b9772ec879b4cd6d9c28df0a7e69711162ff082e62ac7b7ef73": {
