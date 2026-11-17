@@ -910,6 +910,7 @@ private Q_SLOTS:
     void thePrintPageRemembersWhatPrints();
     void saveAsPdfIsNotChangedByWhatThePrintPageKept();
     void thePrintPageCountsThePagesOfThePrintedView();
+    void thePrintedViewFollowsTheCaretAndSizesItsOwnPages();
     void thePrintPreviewLaysOutOnlyWhenAChoiceChanges();
     void commentBalloonsNeverGoPastThePageAndTheOnesLeftOutAreCounted();
     void withoutMarkupDropsMovedAwayWordsAndShowsFormattingChangesPlainly();

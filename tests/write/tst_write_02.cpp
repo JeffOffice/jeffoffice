@@ -893,6 +893,45 @@ void WriteTests::thePrintPageCountsThePagesOfThePrintedView()
     QTRY_VERIFY(!w.findChild<QPushButton *>(QStringLiteral("printButton"))->isEnabled());
 }
 
+// The pages of the printed view are asked for again when the caret moves: "Current page" is the page the caret is on, and the page sizes are the printed view's own.
+void WriteTests::thePrintedViewFollowsTheCaretAndSizesItsOwnPages()
+{
+    const PrintKeysGuard keys;
+    const QByteArray stamp = " w:author=\"Ann\" w:date=\"2020-01-01T00:00:00Z\"";
+    const QByteArray breakPara = "<w:p><w:r><w:br w:type=\"page\"/></w:r></w:p>";
+    const QByteArray body = "<w:p><w:r><w:t>one</w:t></w:r></w:p>" + breakPara
+                            + "<w:p><w:pPr><w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/></w:sectPr></w:pPr><w:r><w:t>two</w:t></w:r></w:p>"
+                            + "<w:p><w:del w:id=\"2\"" + stamp + "><w:r><w:delText>" + QByteArray("removed words go on and on. ").repeated(900) + "</w:delText></w:r></w:del><w:r><w:t>end</w:t></w:r></w:p>"
+                            + "<w:sectPr><w:pgSz w:w=\"15840\" w:h=\"12240\" w:orient=\"landscape\"/></w:sectPr>";
+    WriteWindow w;
+    w.setDocument(open(makeDocx(body, kStyles)), QString());
+    w.setReviewView(WriteWindow::ReviewView::AllMarkup);
+    w.view()->paginateAll();
+    w.resize(1300, 1100);
+    WriteOutputOptions with, without;
+    without.markup = false;
+    with.range = without.range = WriteOutputOptions::Range::Current;
+    const int shown = w.outputPageCount(with);
+    QCOMPARE(w.outputPageCount(without), 3);
+    QVERIFY(shown > 3);
+    // The pages' sizes are the printed view's: the last page of each is in the landscape section, and the markup's extra pages are no pages of the other.
+    QVERIFY(w.outputPageSize(with, shown - 1).width() > w.outputPageSize(with, shown - 1).height());
+    QVERIFY(w.outputPageSize(without, 2).width() > w.outputPageSize(without, 2).height());
+    QVERIFY(w.outputPageSize(without, 1).width() < w.outputPageSize(without, 1).height());
+    QVERIFY(w.outputPageSize(without, shown - 1).isEmpty());
+    // "Current page" follows the caret, for each view (the view asked for again and again: the pages are kept between the asks).
+    for (const bool markup : {false, true}) {
+        const WriteOutputOptions &options = markup ? with : without;
+        const int last = markup ? shown - 1 : 2;
+        w.view()->cursor().setPosition(0);
+        QCOMPARE(w.outputPages(options), (QVector<int>{0}));
+        w.view()->cursor().setPosition(w.document()->story()->characterCount() - 1);
+        QCOMPARE(w.outputPages(options), (QVector<int>{last}));
+        w.view()->cursor().setPosition(0);
+        QCOMPARE(w.outputPages(options), (QVector<int>{0}));
+    }
+}
+
 // The preview does not lay the document out again for each repaint: with the choices as they were, the layouts are not counted again.
 void WriteTests::thePrintPreviewLaysOutOnlyWhenAChoiceChanges()
 {

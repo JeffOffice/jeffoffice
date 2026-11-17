@@ -121,13 +121,13 @@ write::PrintLook WriteWindow::printLook(const WriteOutputOptions &options, const
     return look;
 }
 
-// The pages of the printed view: counted once for each choice of markup and hidden text, and kept until a choice, the text, or the way the changes are shown changes.
+// The pages of the printed view: counted once for each choice of markup and hidden text, and kept until a choice, the text, the caret, or the way the changes are shown changes.
 WriteWindow::PrintedView &WriteWindow::printedView(const WriteOutputOptions &options)
 {
     const write::PageView::ReviewMarks marks = m_view->reviewMarks();
-    const QString key = QStringLiteral("%1|%2|%3|%4|%5|%6|%7").arg(quintptr(m_doc.get())).arg(m_doc ? m_doc->story()->revision() : -1).arg(options.markup).arg(options.hidden)
+    const QString key = QStringLiteral("%1|%2|%3|%4|%5|%6|%7|%8|%9").arg(quintptr(m_doc.get())).arg(m_doc ? m_doc->story()->revision() : -1).arg(options.markup).arg(options.hidden)
                             .arg(m_doc ? m_doc->revisionView() : 0).arg(marks.changeBars + 2 * marks.formatBars + 4 * marks.comments + 8 * marks.deletions + 16 * marks.carets)
-                            .arg(m_doc && m_doc->showsHiddenText());
+                            .arg(m_doc && m_doc->showsHiddenText()).arg(m_view->cursor().position()).arg(m_view->currentPage());
     if (m_printedView.key == key || !m_doc) return m_printedView;
     ++m_printedLayouts;
     m_printedView = PrintedView();
