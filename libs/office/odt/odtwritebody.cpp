@@ -6,6 +6,9 @@
 
 #include "core/fonts.h"
 #include "office/barcodemarker.h"
+#include "office/chart.h"
+#include "office/theme.h"
+#include "sheet/odschart.h"
 #include "wml/wmlwrap.h"
 
 #include <QColor>
@@ -769,6 +772,42 @@ QByteArray Writer::imagePart(const QString &rid, QString *href)
 }
 
 namespace {
+// The most charts one document is written with.
+constexpr int kMostChartObjects = 200;
+}
+
+QString Writer::chartObject(const QString &rid, qint64 widthEmu, qint64 heightEmu)
+{
+    const Relationship r = m_pkg.relationship(m_source, rid);
+    if (r.id.isEmpty() || r.external) return QString();
+    const auto done = m_chartDone.constFind(r.target);
+    if (done != m_chartDone.constEnd()) return done.value();
+    if (m_chartObjects.size() >= kMostChartObjects) {
+        left(QCoreApplication::translate("odt", "charts past the %1 a document may have").arg(kMostChartObjects));
+        return QString();
+    }
+    if (m_pkg.partSize(r.target) > sheet::odschart::kMaxPartBytes) return QString();
+    const QByteArray bytes = m_pkg.part(r.target);
+    if (bytes.isEmpty()) return QString();
+    themeColor(QStringLiteral("dk1"));   // (reads the theme part once)
+    Theme theme = defaultTheme();
+    if (!m_themeXml.isEmpty()) readTheme(m_themeXml.toUtf8(), &theme);
+    Chart chart;
+    if (!readChart(bytes, theme, ColorMap(), &chart)) {
+        left(QCoreApplication::translate("odt", "charts that could not be read"));
+        return QString();
+    }
+    QStringList notes;
+    const QByteArray content = sheet::odschart::chartToOdf(chart, widthEmu, heightEmu, &notes);
+    for (const QString &n : std::as_const(notes)) left(n);
+    if (content.isEmpty()) return QString();
+    const QString dir = QStringLiteral("Object %1").arg(m_chartObjects.size() + 1);
+    m_chartObjects.push_back({dir, content});
+    m_chartDone.insert(r.target, dir);
+    return dir;
+}
+
+namespace {
 
 QByteArray emuLength(qint64 emu)
 {
@@ -794,7 +833,7 @@ QByteArray Writer::drawingXml(const T &t, int drawing, ParaCtx *pc, int depth)
     QString name, descr;
     QJsonObject barcodeSettings;
     QString barcodeHash;
-    int blip = -1, txbx = -1;
+    int blip = -1, txbx = -1, chartNode = -1;
     QString shapePrst;
     {
         const int ext = t.child(anchor, "extent", wp);
@@ -823,9 +862,10 @@ QByteArray Writer::drawingXml(const T &t, int drawing, ParaCtx *pc, int depth)
     {
         QVector<int> stack{anchor};
         int guard = 0;
-        while (!stack.isEmpty() && guard++ < 4000 && blip < 0 && txbx < 0) {
+        while (!stack.isEmpty() && guard++ < 4000 && blip < 0 && txbx < 0 && chartNode < 0) {
             const int n = stack.takeLast();
-            if (t.localName(n) == "blip" && blip < 0) blip = n;
+            if (t.localName(n) == "chart" && t.localName(t.parent(n)) == "graphicData" && !t.attr(n, "id", wml::NsR).isEmpty()) chartNode = n;
+            else if (t.localName(n) == "blip" && blip < 0) blip = n;
             else if (t.localName(n) == "txbxContent" && txbx < 0) txbx = n;
             else if (t.localName(n) == "prstGeom" && shapePrst.isEmpty() && t.localName(t.parent(t.parent(n))) == "wsp") shapePrst = t.attr(n, "prst");
             for (int k = t.firstChild(n); k >= 0; k = t.next(k)) stack.push_back(k);
@@ -840,7 +880,7 @@ QByteArray Writer::drawingXml(const T &t, int drawing, ParaCtx *pc, int depth)
     }
     // A shape's turn, flips, adjustments, and line ends: the turn and the ends in attributes of ours (the format has no plain one), the flips and the adjustments as the format has them.
     QByteArray shapeAttrs, geomAttrs;
-    if (blip < 0 && txbx < 0 && !shapePrst.isEmpty()) {
+    if (blip < 0 && txbx < 0 && chartNode < 0 && !shapePrst.isEmpty()) {
         int xfrm = -1, prstNode = -1, ln = -1;
         QVector<int> stack{anchor};
         for (int guard = 0; !stack.isEmpty() && guard < 4000; ++guard) {
@@ -884,7 +924,7 @@ QByteArray Writer::drawingXml(const T &t, int drawing, ParaCtx *pc, int depth)
     QByteArray pathD;
     qint64 pathW = 0, pathH = 0;
     QByteArray pathStyle;
-    if (blip < 0 && txbx < 0 && shapePrst.isEmpty()) {
+    if (blip < 0 && txbx < 0 && chartNode < 0 && shapePrst.isEmpty()) {
         int geom = -1, shapeProps = -1;
         QVector<int> stack{anchor};
         for (int guard = 0; !stack.isEmpty() && guard < 4000; ++guard) {
@@ -968,7 +1008,7 @@ QByteArray Writer::drawingXml(const T &t, int drawing, ParaCtx *pc, int depth)
         }
         for (auto it = pr.constBegin(); it != pr.constEnd(); ++it) pathStyle += " " + it.key() + "=\"" + it.value() + "\"";
     }
-    if (blip < 0 && txbx < 0 && shapePrst.isEmpty() && pathD.isEmpty()) {
+    if (blip < 0 && txbx < 0 && chartNode < 0 && shapePrst.isEmpty() && pathD.isEmpty()) {
         left(QCoreApplication::translate("odt", "drawings, shapes, and charts"));
         return QByteArray();
     }
@@ -1121,8 +1161,19 @@ QByteArray Writer::drawingXml(const T &t, int drawing, ParaCtx *pc, int depth)
         return shape + "</draw:path>";
     }
     if (blip >= 0 && !barcodeSettings.isEmpty()) frameAttrs += " xmlns:jo=\"urn:jeffoffice:names:extension:1.0\" jo:barcode=\"" + esc(barcodeSettingsText(barcodeSettings)) + "\" jo:barcode-sha256=\"" + esc(barcodeHash) + "\"";
-    const QString style = m_sink->make("fr", "graphic", " style:parent-style-name=\"" + QByteArray(blip >= 0 ? "Graphics" : "Frame") + "\"", "<style:graphic-properties" + gp + boxProps + "/>");
+    const QString style = m_sink->make("fr", "graphic", " style:parent-style-name=\"" + QByteArray(blip >= 0 || chartNode >= 0 ? "Graphics" : "Frame") + "\"", "<style:graphic-properties" + gp + boxProps + "/>");
     QByteArray x = "<draw:frame draw:style-name=\"" + esc(style) + "\"" + frameAttrs + " svg:width=\"" + emuLength(cx) + "\"";
+    if (chartNode >= 0) {
+        // A chart: an embedded object of its own, as the format keeps one (its numbers and looks in a document of the chart's own).
+        const QString dir = chartObject(t.attr(chartNode, "id", wml::NsR), cx, cy);
+        if (dir.isEmpty()) {
+            left(QCoreApplication::translate("odt", "charts that could not be read"));
+            return QByteArray();
+        }
+        x += " svg:height=\"" + emuLength(cy) + "\"><draw:object xlink:href=\"./" + esc(dir) + "\" xlink:type=\"simple\" xlink:show=\"embed\" xlink:actuate=\"onLoad\"/>";
+        if (!descr.isEmpty()) x += "<svg:desc>" + esc(descr, false) + "</svg:desc>";
+        return x + contour + "</draw:frame>";
+    }
     if (blip < 0 && txbx < 0) {
         // A shape with no words: a custom shape that names its preset (the drawing format's), which other programs read as that shape.
         x = "<draw:custom-shape draw:style-name=\"" + esc(style) + "\"" + frameAttrs + shapeAttrs + " svg:width=\"" + emuLength(cx) + "\" svg:height=\"" + emuLength(cy) +

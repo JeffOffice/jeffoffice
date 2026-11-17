@@ -98,6 +98,8 @@ private:
     QByteArray pictureFrame(const T &t, int anchor, int blip, bool inlineOk, int depth);
     QByteArray frameStyle(const T &t, int anchor, bool inlineFrame, QString *anchorType, QString *extra);
     QByteArray imagePart(const QString &rid, QString *href);
+    // The chart part the relationship names, as the directory of an embedded object of the new file (empty when it can't be made).
+    QString chartObject(const QString &rid, qint64 widthEmu, qint64 heightEmu);
     QByteArray noteXml(const T &t, int ref, bool endnote, int depth, const QString &mark = QString());
     QByteArray commentStart(int id);
     // sections
@@ -161,6 +163,8 @@ private:
     QByteArray m_bodyXml;
     QHash<QString, QString> m_images;                  // relationship Id of the part -> its path in the package
     QVector<QPair<QString, QByteArray>> m_pictures;
+    QVector<QPair<QString, QByteArray>> m_chartObjects;   // an embedded chart's directory -> its content.xml
+    QHash<QString, QString> m_chartDone;                  // a chart part of the package -> its directory
     int m_imageCount = 0, m_frameCount = 0, m_noteCount = 0, m_endnoteCount = 0, m_tableCount = 0, m_sectionCount = 0, m_commentCounter = 0, m_bookmarkSeq = 0, m_galleryMarks = 0;
     QSet<QString> m_sequences;
     QMap<QString, QString> m_fontFaces;                // name -> generic

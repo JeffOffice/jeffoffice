@@ -1168,6 +1168,11 @@ bool Writer::run(const QByteArray &docx, QByteArray *out, QString *error, QStrin
         manifest += "<manifest:file-entry manifest:full-path=\"" + esc(p.first) + "\" manifest:media-type=\"" + type + "\"/>";
         zip.add(p.first, p.second, false);
     }
+    for (const auto &c : std::as_const(m_chartObjects)) {
+        manifest += "<manifest:file-entry manifest:full-path=\"" + esc(c.first) + "/\" manifest:media-type=\"application/vnd.oasis.opendocument.chart\"/>"
+                    "<manifest:file-entry manifest:full-path=\"" + esc(c.first) + "/content.xml\" manifest:media-type=\"text/xml\"/>";
+        zip.add(c.first + QStringLiteral("/content.xml"), c.second, true);
+    }
     manifest += "</manifest:manifest>";
     zip.add(QStringLiteral("META-INF/manifest.xml"), manifest, true);
     *out = zip.finish();

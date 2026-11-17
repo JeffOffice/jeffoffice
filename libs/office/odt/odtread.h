@@ -165,6 +165,8 @@ private:
     QByteArray pictureDrawing(const Odf &o, int frame, int image, int docPrId, bool anchored, const QString &styleName);
     QByteArray textBoxDrawing(const Odf &o, int frame, int box, ParaCtx *pc, bool anchored, const QString &styleName);
     QString imageRelationship(const Odf &o, int image);
+    // The chart an embedded object holds, as a chart part of the new package (its relationship Id); empty when it holds none that is read.
+    QString chartRelationship(const Odf &o, int object);
     QByteArray anchorXml(const Odf &o, int frame, const QString &styleName, qint64 cx, qint64 cy, const QByteArray &graphic, int docPrId);
     QByteArray noteReference(const Odf &o, int note, ParaCtx *pc, const RunFmt &fmt);
     QByteArray commentXml(const Odf &o, int annotation, ParaCtx *pc);
@@ -218,6 +220,7 @@ private:
     PackageWriter m_out;
     QHash<QString, QString> m_imageRel;               // the picture's path in the package -> its relationship Id
     QHash<QString, QString> m_linkRel;                // address -> relationship Id
+    int m_chartCount = 0;                             // the chart parts made (at most kMostCharts)
     int m_imageCount = 0, m_docPrId = 0, m_bookmarkId = 0, m_footnoteCount = 0, m_endnoteCount = 0, m_commentCount = 0;
     QByteArray m_footnotesBody, m_endnotesBody, m_commentsBody;
     QHash<QString, QString> m_headerParts;            // "tree:node" -> relationship Id

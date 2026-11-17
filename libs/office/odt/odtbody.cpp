@@ -4,6 +4,9 @@
 #include "office/barcodemarker.h"
 #include "wml/wmlwrap.h"
 #include "core/wrapoutline.h"
+#include "office/chart.h"
+#include "office/chart_write.h"
+#include "sheet/odschart.h"
 
 #include <QCoreApplication>
 #include <QDateTime>
@@ -178,6 +181,54 @@ QString Reader::imageRelationship(const Odf &o, int image)
     m_out.addDefault(ext, QString::fromLatin1(contentTypeOf(ext)));
     m_out.addPart(name, bytes, QString::fromLatin1(contentTypeOf(ext)));
     const QString rid = m_out.addRelationship(m_owner, QString::fromLatin1(kRelBase) + QStringLiteral("image"), name);
+    m_imageRel.insert(m_owner + QLatin1Char('|') + key, rid);
+    return rid;
+}
+
+// ---- charts
+
+namespace {
+// The most chart parts one document makes.
+constexpr int kMostCharts = 200;
+}
+
+QString Reader::chartRelationship(const Odf &o, int object)
+{
+    if (m_flat) return QString();
+    QString path = o.at(object, "xlink:href");
+    if (path.startsWith(QLatin1String("./"))) path.remove(0, 2);
+    while (path.endsWith(QLatin1Char('/'))) path.chop(1);
+    if (path.isEmpty() || path.contains(QLatin1String("..")) || path.contains(QLatin1Char(':')) || path.startsWith(QLatin1Char('/')) || path.startsWith(QLatin1Char('#'))) return QString();
+    const QString key = QStringLiteral("chart:") + path;
+    const auto done = m_imageRel.constFind(m_owner + QLatin1Char('|') + key);
+    if (done != m_imageRel.constEnd()) return done.value();
+    const QString part = QStringLiteral("/") + path + QStringLiteral("/content.xml");
+    if (!m_pkg.hasPart(part) || m_pkg.partSize(part) > sheet::odschart::kMaxPartBytes) return QString();
+    const QByteArray content = m_pkg.part(part);
+    // (an equation is an embedded object too: it has no chart in it)
+    if (!content.contains("<chart:chart")) return QString();
+    if (m_chartCount >= kMostCharts) {
+        left(QCoreApplication::translate("odt", "charts past the %1 a document may have").arg(kMostCharts));
+        return QString();
+    }
+    sheet::ods::StyleStore store;
+    QString why;
+    if (!sheet::odschart::parseStyles(content, sheet::Limits(), &store, &why)) {
+        left(QCoreApplication::translate("odt", "charts that could not be read"));
+        return QString();
+    }
+    Chart chart;
+    QStringList notes;
+    if (!sheet::odschart::chartFromOdf(content, store, nullptr, &chart, &why, &notes)) {
+        left(QCoreApplication::translate("odt", "charts that could not be read"));
+        return QString();
+    }
+    for (const QString &n : std::as_const(notes)) left(n);
+    const QByteArray bytes = writeChartPart(chart);
+    if (bytes.isEmpty()) return QString();
+    const QString name = QStringLiteral("/word/charts/chart%1.xml").arg(++m_chartCount);
+    m_out.addPart(name, bytes, QStringLiteral("application/vnd.openxmlformats-officedocument.drawingml.chart+xml"));
+    const QString rid = m_out.addRelationship(m_owner, QString::fromLatin1(kRelBase) + QStringLiteral("chart"), name);
     m_imageRel.insert(m_owner + QLatin1Char('|') + key, rid);
     return rid;
 }
@@ -507,6 +558,16 @@ QByteArray Reader::drawing(const Odf &o, int frame, ParaCtx *pc, bool *ok)
         }
     }
     const int id = nextDocPrId();
+    if (box < 0 && shapePrst.isEmpty())
+        for (int c = t.firstChild(frame); c >= 0; c = t.next(c))
+            if (o.is(c, "draw:object")) {
+                const QString rid = chartRelationship(o, c);
+                if (rid.isEmpty()) break;
+                const QByteArray graphic = "<a:graphic><a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/chart\"><c:chart xmlns:c=\"http://schemas.openxmlformats.org/drawingml/2006/chart\" r:id=\"" +
+                                           rid.toUtf8() + "\"/></a:graphicData></a:graphic>";
+                *ok = true;
+                return anchorXml(o, frame, QString(), cx, cy, graphic, id);
+            }
     if (!shapePrst.isEmpty()) {
         // A shape with no words: its preset, fill, and line, as a shape of the file format.
         const Props &sp = resolved(QStringLiteral("graphic"), o.at(frame, "draw:style-name"));
