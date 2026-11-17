@@ -86,7 +86,7 @@ Click **File > Export > Export to PDF**. Choose which pages to include: all, the
 - **Create bookmarks from headings** makes each heading a **bookmark**, an entry in the list that a PDF reader shows beside the pages. Click a bookmark to jump to its page.
 - **Document structure tags for accessibility** tags the headings, paragraphs, lists, tables (with their header rows), and pictures (with their alternative text), and names the language, so that a screen reader reads the PDF in order.
 
-Then choose a name. The PDF looks the same on every computer, because the fonts go inside it. The PDF that **Print** makes when you choose a PDF file has the bookmarks and the tags too.
+Then choose a name. The PDF looks the same on every computer, because the fonts go inside it. The PDF that **Print** makes when you choose a PDF file has the bookmarks and the tags too. When it puts several pages on one sheet, each bookmark and each link goes to the sheet that holds its page, and the pages on a sheet are read in the order they lie on it: left to right, then top to bottom.
 
 ## Save as a web page
 
@@ -107,7 +107,7 @@ A forgotten password can't be recovered, so keep it somewhere safe. The password
 
 ## Make a PDF/A
 
-In the **Export to PDF** box, tick **PDF/A, for keeping for a long time**. A PDF/A file (PDF/A-2b) holds every font it uses, names its colors, and follows a standard made for keeping files for many years. It can be tagged for screen readers, and it can't have a password.
+In the **Export to PDF** box, tick **PDF/A, for keeping for a long time**. A PDF/A file (PDF/A-1b) holds every font it uses, names its colors, and follows a standard made for keeping files for many years. It can be tagged for screen readers, and it can't have a password.
 
 ## Make an email
 

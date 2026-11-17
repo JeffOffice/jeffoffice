@@ -1006,7 +1006,7 @@ private Q_SLOTS:
         QVERIFY(keptDoc.isTagged());
         QVERIFY2(keptDoc.structure(0).size() > 2, "the PDF/A has a tag tree with nothing in it");
         QCOMPARE(keptDoc.outline().size(), 2);
-        QVERIFY2(kept.contains("pdfaid:part"), "no PDF/A identification");
+        QVERIFY2(kept.contains("pdfaid:part=\"1\""), "no PDF/A-1 identification");
         QVERIFY2(kept.contains("GTS_PDFA1"), "no PDF/A output intent");
     }
 

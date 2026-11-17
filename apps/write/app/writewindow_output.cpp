@@ -229,19 +229,20 @@ QByteArray WriteWindow::pdfSheets(write::WriteDoc &source, int sourcePages, cons
     bool ok = false;
     const office::PackageProps props = m_doc->packageProps();
     const QString title = props.title.isEmpty() ? displayName() : props.title;
-    // (a sheet of several pages is one page of the PDF, and is not tagged)
+    // (a sheet of several pages is one page of the PDF: its pages are tagged one after the other, in the order they are laid out on it, which is the order they are read in)
     const QSize grid = write::sheetGrid(layout.perSheet);
     write::WriteTagger tagger;
-    const bool tagging = options.pdfTags && grid == QSize(1, 1);
+    const bool tagging = options.pdfTags;
     {
         QPdfWriter pdf(&made);
         pdf.setCreator(appInfo().name);
+        // PDF/A-1b: that is the file Qt makes (its output intent names PDF/A-1), so the metadata below names part 1
         if (options.pdfArchive) pdf.setPdfVersion(QPdfWriter::PdfVersion_A1b);
         if (options.pdfProperties) {
             pdf.setTitle(title);
-            pdf.setDocumentXmpMetadata(write::pdfPropertiesXmp(title, m_personalInfoRemoved ? QString() : props.creator, props.subject, props.keywords, appInfo().name, options.pdfArchive, 2));
+            pdf.setDocumentXmpMetadata(write::pdfPropertiesXmp(title, m_personalInfoRemoved ? QString() : props.creator, props.subject, props.keywords, appInfo().name, options.pdfArchive, 1));
         } else if (options.pdfArchive) {
-            pdf.setDocumentXmpMetadata(write::pdfPropertiesXmp(QString(), QString(), QString(), QString(), appInfo().name, true, 2));
+            pdf.setDocumentXmpMetadata(write::pdfPropertiesXmp(QString(), QString(), QString(), QString(), appInfo().name, true, 1));
         }
         pdf.setResolution(1200);
         pdf.setPageMargins(QMarginsF(0, 0, 0, 0));
@@ -271,8 +272,8 @@ QByteArray WriteWindow::pdfSheets(write::WriteDoc &source, int sourcePages, cons
         for (PdfBookmark &m : marks) m.page /= std::max(1, grid.width() * grid.height());
         bytes = write::addPdfBookmarks(bytes, marks);
     }
-    // The links are clickable (one page to a sheet, and the pages as they are laid out: not scaled or turned).
-    if (grid == QSize(1, 1) && layout.paper.isEmpty() && layout.turn == PrintTurn::AsSet) bytes = addPdfLinks(bytes, write::sheetLinks(source, sheets));
+    // The links are clickable: over the words on the sheet, where the page's place on its sheet puts them (several pages to a sheet, or scaled to a paper).
+    bytes = addPdfLinks(bytes, write::sheetLinks(source, sheets, layout));
     return bytes;
 }
 
@@ -326,7 +327,7 @@ bool WriteWindow::exportPdfAsk()
     layout->addWidget(tags);
     auto *archive = new QCheckBox(tr("PDF/A, for keeping for a long time"), &dialog);
     archive->setObjectName(QStringLiteral("pdfArchive"));
-    archive->setToolTip(tr("Makes a PDF/A-2b file: every font is in the file, so it looks the same in years."));
+    archive->setToolTip(tr("Makes a PDF/A-1b file: every font is in the file, so it looks the same in years."));
     layout->addWidget(archive);
     auto *protect = new jp::PdfProtectionRow(&dialog);
     protect->forbiddenBy({archive}, tr("PDF/A is turned off, because a PDF with a password can't be a PDF/A file."));
@@ -754,9 +755,9 @@ bool WriteWindow::printOutput(const WriteOutputOptions &options)
     layout.perSheet = options.perSheet;
     layout.paper = options.scaleTo;
     layout.turn = options.turn;
-    // (a PDF file is tagged as the export's is, one page to a sheet)
+    // (a PDF file is tagged as the export's is)
     write::WriteTagger tagger;
-    const bool tagging = options.toFile && write::sheetGrid(options.perSheet) == QSize(1, 1);
+    const bool tagging = options.toFile;
     bool ok = write::paintSheets(*source, &printer, sheets, sourcePages, printer.colorMode() == QPrinter::GrayScale, layout, 0, tagging ? &tagger : nullptr);
     QString err;
     if (ok && made) {
@@ -772,7 +773,13 @@ bool WriteWindow::printOutput(const WriteOutputOptions &options)
             if (!ok) err = result.why;
             else bytes = result.pdf;
         }
-        if (ok) bytes = write::addPdfBookmarks(bytes, write::headingBookmarks(*source, sheets));
+        if (ok) {
+            // (the bookmarks and the links go to the sheet their page is on)
+            QVector<PdfBookmark> marks = write::headingBookmarks(*source, sheets);
+            for (PdfBookmark &m : marks) m.page /= per;
+            bytes = write::addPdfBookmarks(bytes, marks);
+            bytes = addPdfLinks(bytes, write::sheetLinks(*source, sheets, layout));
+        }
         if (ok) {
             QSaveFile file(path);
             ok = file.open(QIODevice::WriteOnly) && file.write(bytes) == bytes.size() && file.commit();

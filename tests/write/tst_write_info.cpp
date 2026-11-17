@@ -1306,7 +1306,8 @@ private Q_SLOTS:
         const QByteArray plain = fileBytes(dir.filePath(QStringLiteral("plain.pdf"))), kept = fileBytes(target);
         QVERIFY(plain.startsWith("%PDF") && kept.startsWith("%PDF"));
         QVERIFY(!plain.contains("pdfaid:part"));
-        QVERIFY2(kept.contains("pdfaid:part") || kept.contains("<pdfaid:part>1</pdfaid:part>"), "no PDF/A mark");
+        QVERIFY2(kept.contains("<pdfaid:part>1</pdfaid:part>"), "no PDF/A mark");
+        QVERIFY(!kept.contains("<pdfaid:part>2</pdfaid:part>"));
         QVERIFY(kept.contains("GTS_PDFA1") || kept.contains("OutputIntent"));
     }
 
@@ -1426,6 +1427,39 @@ private Q_SLOTS:
         QVERIFY(jp::readPdfEncryption(made, QStringLiteral("pw"), &info));
         QVERIFY(info.encrypted);
         QVERIFY(!jp::decryptPdf(made, QStringLiteral("pw")).contains("pdfaid:part"));
+    }
+
+    // The PDF/A choice names the part the file has (part 1: what Qt's writer makes).
+    void thePdfAChoiceNamesPartOne()
+    {
+        QTemporaryDir dir;
+        WriteWindow w;
+        Quiet quiet(w);
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("boxed"));
+        const QString target = dir.filePath(QStringLiteral("boxed.pdf"));
+        w.setSavePathChooser([&](const QString &, const QString &) { return target; });
+        QString tip;
+        std::function<void(int)> answer = [&](int tries) {
+            QTimer::singleShot(10, [&, tries] {
+                auto *d = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+                if (!d || d->objectName() != QLatin1String("pdfDialog")) {
+                    if (tries > 0) answer(tries - 1);
+                    return;
+                }
+                auto *archive = d->findChild<QCheckBox *>(QStringLiteral("pdfArchive"));
+                if (archive) {
+                    tip = archive->toolTip();
+                    archive->setChecked(true);
+                }
+                d->accept();
+            });
+        };
+        answer(200);
+        QVERIFY(w.exportPdfAsk());
+        QVERIFY2(tip.contains(QLatin1String("PDF/A-1b")) && !tip.contains(QLatin1String("2b")), qPrintable(tip));
+        const QByteArray made = fileBytes(target);
+        QVERIFY(made.contains("<pdfaid:part>1</pdfaid:part>"));
+        QVERIFY(!made.contains("<pdfaid:part>2</pdfaid:part>"));
     }
 
     void textFilesAreReadAndWrittenInTheEncodingAndLineEndsChosen()

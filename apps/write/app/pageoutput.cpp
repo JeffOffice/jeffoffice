@@ -31,6 +31,77 @@ void setSheet(QPagedPaintDevice *device, const QSizeF &points)
     device->setPageMargins(QMarginsF(0, 0, 0, 0), QPageLayout::Point);
 }
 
+// The size of the sheet that pages share, from the first of them: its own, or the paper asked for (put the first page's way up), on its side for a grid that is wider than tall, and
+// turned as the layout says. A page alone on a sheet of its own size is that size.
+QSizeF sharedSheetSize(QSizeF sheet, const QSize &grid, const SheetLayout &layout)
+{
+    const bool wide = sheet.width() > sheet.height();
+    if (layout.paper.width() > 0 && layout.paper.height() > 0) sheet = wide ? QSizeF(layout.paper.height(), layout.paper.width()) : layout.paper;
+    if (grid.width() > grid.height() && sheet.width() < sheet.height()) sheet.transpose();
+    return turnedSheet(sheet, layout.turn);
+}
+
+// Where page `k` of a sheet's group is put on the sheet (from its top left, in points), and how much it is scaled to fit its place of the grid.
+struct SheetSlot {
+    double x = 0, y = 0, fit = 1;
+};
+SheetSlot slotOnSheet(const QSizeF &sheet, const QSize &grid, int k, const QSizeF &page, int perSheet)
+{
+    const double inset = perSheet > 1 ? 8.0 : 0.0;
+    const double cellW = sheet.width() / grid.width(), cellH = sheet.height() / grid.height();
+    const double boxW = cellW - 2 * inset, boxH = cellH - 2 * inset;
+    SheetSlot slot;
+    slot.fit = std::min(boxW / page.width(), boxH / page.height());
+    const double w = page.width() * slot.fit, h = page.height() * slot.fit;
+    slot.x = (k % grid.width()) * cellW + (cellW - w) / 2;
+    slot.y = (k / grid.width()) * cellH + (cellH - h) / 2;
+    return slot;
+}
+
+// Where each of the pages is in the PDF paintSheets makes of them: the sheet (from 0, in the order the sheets are begun), its size, and the page's place on it.
+struct PagePlace {
+    int sheet = -1;
+    QSizeF sheetSize;
+    SheetSlot slot;
+};
+QVector<PagePlace> placesOfPages(WriteDoc &doc, const QVector<int> &pages, const SheetLayout &layout)
+{
+    QVector<PagePlace> out(pages.size());
+    const QSize grid = sheetGrid(layout.perSheet);
+    const int perSheet = grid.width() * grid.height();
+    const bool shared = perSheet > 1 || (layout.paper.width() > 0 && layout.paper.height() > 0) || layout.turn != PrintTurn::AsSet;
+    // (a blank sheet is made only when some page gives it its size)
+    bool some = false;
+    for (int i = 0; !some && i < pages.size(); ++i) some = pages[i] >= 0 && doc.pager().materialize(pages[i]);
+    int sheetNumber = 0;
+    for (qsizetype first = 0; first < pages.size(); first += perSheet) {
+        QVector<int> at;
+        QVector<QSizeF> sizes;
+        bool blank = true;
+        for (qsizetype i = first; i < pages.size() && i < first + perSheet; ++i) {
+            blank = blank && pages[i] < 0;
+            const std::shared_ptr<flow::MaterializedPage> page = pages[i] < 0 ? nullptr : doc.pager().materialize(pages[i]);
+            if (!page) continue;
+            at << int(i);
+            sizes << page->size;
+        }
+        if (at.isEmpty() && !blank) continue;
+        if (blank) {
+            if (some) ++sheetNumber;
+            continue;
+        }
+        const QSizeF sheet = shared ? sharedSheetSize(sizes[0], grid, layout) : sizes[0];
+        for (int k = 0; k < at.size(); ++k) {
+            PagePlace &place = out[at[k]];
+            place.sheet = sheetNumber;
+            place.sheetSize = sheet;
+            if (shared) place.slot = slotOnSheet(sheet, grid, k, sizes[k], perSheet);
+        }
+        ++sheetNumber;
+    }
+    return out;
+}
+
 } // namespace
 
 QSize sheetGrid(int perSheet)
@@ -45,9 +116,10 @@ QSize sheetGrid(int perSheet)
     }
 }
 
-QVector<PdfLink> sheetLinks(WriteDoc &doc, const QVector<int> &sheets)
+QVector<PdfLink> sheetLinks(WriteDoc &doc, const QVector<int> &sheets, const SheetLayout &layout)
 {
     QVector<PdfLink> out;
+    const QVector<PagePlace> places = placesOfPages(doc, sheets, layout);
     const QVector<LinkSpan> spans = linkSpans(doc);
     LayoutCache cache;
     PaintContext ctx;
@@ -55,10 +127,11 @@ QVector<PdfLink> sheetLinks(WriteDoc &doc, const QVector<int> &sheets)
     ctx.opt.textOutput = TextOutput::Pdf;
     const StoryScan scan = scanStory(doc.story());
     // Where a place of the text is on its page: the spot, from the page's bottom left (false where the page is not one the PDF has, or the place is not on a line of it).
-    auto spotOf = [&](int position, QPointF *spot) {
+    auto spotOf = [&](int position, QPointF *spot, double *pageHeight) {
         const std::shared_ptr<flow::MaterializedPage> page = doc.pager().materialize(doc.pager().pageOfPosition(position));
         if (!page) return false;
         const double height = page->size.height();
+        *pageHeight = height;
         for (const auto &fragment : page->tables) {
             QLineF line;
             if (fragment->contains(position) && fragment->caretLine(position, &line)) {
@@ -80,15 +153,23 @@ QVector<PdfLink> sheetLinks(WriteDoc &doc, const QVector<int> &sheets)
         }
         return false;
     };
-    auto link = [&](int sheet, const flow::MaterializedPage &page, const LinkSpan &s, const QRectF &r) {
+    // A point of a page (from its top left) as a PDF counts it on the sheet the page is on (from the sheet's bottom left).
+    auto onSheet = [](const PagePlace &pl, double x, double yFromTop) { return QPointF(pl.slot.x + x * pl.slot.fit, pl.sheetSize.height() - (pl.slot.y + yFromTop * pl.slot.fit)); };
+    auto link = [&](int index, const flow::MaterializedPage &page, const LinkSpan &s, const QRectF &r) {
+        const PagePlace &pl = places[index];
+        if (pl.sheet < 0) return;
         PdfLink k;
-        k.page = sheet;
-        k.rect = QRectF(QPointF(r.left(), page.size.height() - r.bottom()), QPointF(r.right(), page.size.height() - r.top()));
+        k.page = pl.sheet;
+        k.rect = QRectF(onSheet(pl, r.left(), r.bottom()), onSheet(pl, r.right(), r.top())).normalized();
         k.uri = s.uri;
         if (s.uri.isEmpty()) {
-            k.toPage = int(sheets.indexOf(doc.pager().pageOfPosition(s.target)));
-            if (k.toPage < 0) return;
-            k.hasSpot = spotOf(s.target, &k.spot);
+            const int target = int(sheets.indexOf(doc.pager().pageOfPosition(s.target)));
+            if (target < 0 || places[target].sheet < 0) return;
+            k.toPage = places[target].sheet;
+            QPointF spot;
+            double height = 0;
+            k.hasSpot = spotOf(s.target, &spot, &height);
+            if (k.hasSpot) k.spot = onSheet(places[target], spot.x(), height - spot.y());
         }
         out.push_back(k);
     };
@@ -217,36 +298,23 @@ bool paintSheets(WriteDoc &doc, QPagedPaintDevice *device, const QVector<int> &p
                 }
             }
             if (size.isEmpty()) continue;
-            if (shared) {
-                if (layout.paper.width() > 0 && layout.paper.height() > 0) size = size.width() > size.height() ? QSizeF(layout.paper.height(), layout.paper.width()) : layout.paper;
-                if (grid.width() > grid.height() && size.width() < size.height()) size.transpose();
-                size = turnedSheet(size, layout.turn);
-            }
+            if (shared) size = sharedSheetSize(size, grid, layout);
             setSheet(device, size);
             if (!begin()) return false;
             continue;
         }
-        QSizeF sheet = group[0]->size;
-        if (shared) {
-            const bool wide = sheet.width() > sheet.height();
-            if (layout.paper.width() > 0 && layout.paper.height() > 0) sheet = wide ? QSizeF(layout.paper.height(), layout.paper.width()) : layout.paper;
-            if (grid.width() > grid.height() && sheet.width() < sheet.height()) sheet.transpose();
-            sheet = turnedSheet(sheet, layout.turn);
-        }
+        const QSizeF sheet = shared ? sharedSheetSize(group[0]->size, grid, layout) : group[0]->size;
         setSheet(device, sheet);
         if (!begin()) return false;
         if (!shared) {
             draw(*group[0]);
             continue;
         }
-        const double inset = perSheet > 1 ? 8.0 : 0.0;
-        const double cellW = sheet.width() / grid.width(), cellH = sheet.height() / grid.height();
         for (qsizetype k = 0; k < group.size(); ++k) {
             flow::MaterializedPage &page = *group[k];
-            const double boxW = cellW - 2 * inset, boxH = cellH - 2 * inset;
-            const double fit = std::min(boxW / page.size.width(), boxH / page.size.height());
+            const SheetSlot slot = slotOnSheet(sheet, grid, int(k), page.size, perSheet);
+            const double fit = slot.fit, x = slot.x, y = slot.y;
             const double w = page.size.width() * fit, h = page.size.height() * fit;
-            const double x = (k % grid.width()) * cellW + (cellW - w) / 2, y = (k / grid.width()) * cellH + (cellH - h) / 2;
             p.save();
             const double dpi = double(device->logicalDpiX()) / 72.0;
             p.scale(dpi, dpi);

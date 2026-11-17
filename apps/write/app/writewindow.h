@@ -95,7 +95,7 @@ struct WriteOutputOptions {
     bool pagesGiven = false;    // both sides by hand: the pages of the run are `pageList` (the pages of its sheets one after another, a short sheet padded with -1, -1 for a blank page), not the range
     QVector<int> pageList;
     bool byHand = false;        // both sides of the paper with a printer that has no duplex: the odd pages, a prompt to turn the stack over, then the even pages last first
-    bool pdfArchive = false;    // Export to PDF: a PDF/A-2b file, for keeping (fonts embedded, an sRGB output intent, and the standard's mark in its metadata)
+    bool pdfArchive = false;    // Export to PDF: a PDF/A-1b file, for keeping (fonts embedded, an sRGB output intent, and the standard's mark in its metadata)
     bool pdfMinimum = false;    // Export to PDF: Minimum size (pictures downsampled to 150 ppi, and compressed); else Standard
     bool pdfProperties = true;  // Export to PDF: the document's properties (title, author, subject, keywords) are the PDF's
     bool pdfBookmarks = true;   // Export to PDF: a bookmark for each heading

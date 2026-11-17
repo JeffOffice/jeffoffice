@@ -26,12 +26,12 @@ struct SheetLayout {
 };
 // The columns and rows that a number of pages on a sheet makes (1 for any number that isn't one of 1, 2, 4, 6, 9, 16).
 QSize sheetGrid(int perSheet);
-// `tagger`: the pages are marked for a tagged PDF (one page to a sheet).
+// `tagger`: the pages are marked for a tagged PDF (the pages of a sheet in the order they are laid out on it, which is the order they are read in).
 // `maxImageDpi`: pictures are downsampled to that many pixels to the inch (a PDF of minimum size; 0 leaves them as they are).
 bool paintSheets(WriteDoc &doc, QPagedPaintDevice *device, const QVector<int> &pages, int pageCount, bool grayscale = false, const SheetLayout &layout = SheetLayout(), double maxImageDpi = 0, WriteTagger *tagger = nullptr);
 
-// The links of the pages as a PDF with one page to a sheet holds them (see core/linkops.h): over the words of each link in the text of the page (a link in a table, a header, or a
-// note is not given). `sheets` are the pages the PDF holds, in order; a link to a page the PDF leaves out is left out.
-QVector<PdfLink> sheetLinks(WriteDoc &doc, const QVector<int> &sheets);
+// The links of the pages as a PDF holds them (see core/linkops.h): over the words of each link on the page. `sheets` are the pages the PDF holds, in order (paintSheets' `pages`); with a
+// `layout` the areas and the spots are where the page's place on its sheet puts them (several pages to a sheet, or scaled to a paper); a link to a page the PDF leaves out is left out.
+QVector<PdfLink> sheetLinks(WriteDoc &doc, const QVector<int> &sheets, const SheetLayout &layout = SheetLayout());
 
 } // namespace jp::write

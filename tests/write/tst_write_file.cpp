@@ -662,8 +662,9 @@ private Q_SLOTS:
         QVERIFY(!fileBytes(target).contains("/StructTreeRoot"));
     }
 
-    // PDF/A-2b: the metadata names part 2, conformance B; the output intent is there; every font is embedded.
-    void aPdfA2bFileHasItsMarksFontsAndOutputIntent()
+    // PDF/A-1b, which is what Qt's writer makes (its output intent names PDF/A-1): the metadata names part 1, conformance B, never part 2; the output intent is there; every font is
+    // embedded.
+    void aPdfA1bFileHasItsMarksFontsAndOutputIntent()
     {
         QTemporaryDir dir;
         WriteWindow w;
@@ -677,9 +678,9 @@ private Q_SLOTS:
         QVERIFY(w.exportPdfPages(o));
         const QByteArray pdf = fileBytes(target);
         QVERIFY(pdf.startsWith("%PDF"));
-        QVERIFY2(pdf.contains("<pdfaid:part>2</pdfaid:part>"), "not part 2");
+        QVERIFY2(pdf.contains("<pdfaid:part>1</pdfaid:part>"), "not part 1");
         QVERIFY(pdf.contains("<pdfaid:conformance>B</pdfaid:conformance>"));
-        QVERIFY(!pdf.contains("<pdfaid:part>1</pdfaid:part>"));
+        QVERIFY(!pdf.contains("<pdfaid:part>2</pdfaid:part>"));
         QVERIFY(pdf.contains("/OutputIntents"));
         QVERIFY(pdf.contains("GTS_PDFA1"));
         QVERIFY(pdf.contains("/DestOutputProfile"));
@@ -766,8 +767,94 @@ private Q_SLOTS:
             const QByteArray toSecond = "/Dest [" + QByteArray::number(pageIds[1]) + " 0 R";
             QVERIFY2(pdf.count(toSecond) >= 2, qPrintable(QStringLiteral("links to the second page: %1").arg(pdf.count(toSecond))));
             QVERIFY(pdf.count("/Subtype /Link") >= 3);
-            if (archive) QVERIFY(pdf.contains("<pdfaid:part>2</pdfaid:part>"));
+            if (archive) QVERIFY(pdf.contains("<pdfaid:part>1</pdfaid:part>"));
         }
+    }
+
+    // Several pages to a sheet (printed to a PDF file): a bookmark goes to the sheet its heading's page is on, a link is over its words where the page's place on the sheet puts them (and
+    // a link to another page goes to that page's place on its sheet), and the pages are tagged in the order they lie on the sheet.
+    void aPdfOfSeveralPagesToASheetHasBookmarksLinksAndTags()
+    {
+        QTemporaryDir dir;
+        const QString docx = dir.filePath(QStringLiteral("shared.docx"));
+        {
+            office::PackageWriter w;
+            const QByteArray jump = "<w:p><w:r><w:fldChar w:fldCharType=\"begin\"/></w:r><w:r><w:instrText xml:space=\"preserve\"> HYPERLINK \\l \"third\" </w:instrText></w:r>"
+                                    "<w:r><w:fldChar w:fldCharType=\"separate\"/></w:r><w:r><w:t>jump</w:t></w:r><w:r><w:fldChar w:fldCharType=\"end\"/></w:r></w:p>";
+            const QByteArray web = "<w:p><w:r><w:t xml:space=\"preserve\">See </w:t></w:r><w:hyperlink r:id=\"rId20\"><w:r><w:t>the site</w:t></w:r></w:hyperlink></w:p>";
+            QByteArray body = para("Heading1", "Page one") + jump + kPageBreak + para("Heading1", "Page two") + web + kPageBreak +
+                              "<w:p><w:pPr><w:pStyle w:val=\"Heading1\"/></w:pPr><w:bookmarkStart w:id=\"7\" w:name=\"third\"/><w:r><w:t>Page three</w:t></w:r><w:bookmarkEnd w:id=\"7\"/></w:p>" +
+                              kPageBreak + para("Heading1", "Page four") + kPageBreak + para("Heading1", "Page five");
+            w.addPart(QStringLiteral("/word/document.xml"), QByteArray("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n<w:document ") + kNs + "><w:body>" + body + "</w:body></w:document>",
+                      kWord + QStringLiteral("document.main+xml"));
+            w.addRelationship(QStringLiteral("/"), kRel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+            w.addPart(QStringLiteral("/word/styles.xml"),
+                      QByteArray("<?xml version=\"1.0\"?><w:styles ") + kNs +
+                          "><w:style w:type=\"paragraph\" w:default=\"1\" w:styleId=\"Normal\"><w:name w:val=\"Normal\"/></w:style>"
+                          "<w:style w:type=\"paragraph\" w:styleId=\"Heading1\"><w:name w:val=\"heading 1\"/><w:pPr><w:outlineLvl w:val=\"0\"/></w:pPr></w:style></w:styles>",
+                      kWord + QStringLiteral("styles+xml"));
+            w.addRelationship(QStringLiteral("/word/document.xml"), kRel + QStringLiteral("styles"), QStringLiteral("/word/styles.xml"));
+            w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rId20"), kRel + QStringLiteral("hyperlink"), QStringLiteral("https://example.com/two"), true);
+            QFile f(docx);
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write(w.finish());
+        }
+        WriteWindow w;
+        Quiet quiet(w);
+        QVERIFY(w.openFile(docx));
+        const QString target = dir.filePath(QStringLiteral("shared.pdf"));
+        w.setSavePathChooser([&](const QString &, const QString &) { return target; });
+        WriteOutputOptions o;
+        o.toFile = true;
+        o.perSheet = 4;   // (five pages: pages 1 to 4 on the first sheet, page 5 on the second)
+        QVERIFY(w.printOutput(o));
+        const QByteArray pdf = fileBytes(target);
+        QVERIFY(pdf.startsWith("%PDF"));
+        jp::QtPdf q;
+        QVERIFY(q.loadBytes(pdf));
+        QVector<int> pageIds;
+        QMap<int, QSizeF> sheetSize;
+        for (const jp::QtPdf::Obj &obj : q.objects)
+            if (obj.body.contains("/Type /Page\n")) {
+                const auto box = QRegularExpression(QStringLiteral("/MediaBox \\[0 0 ([-0-9.]+) ([-0-9.]+)\\]")).match(QString::fromLatin1(obj.body));
+                QVERIFY(box.hasMatch());
+                sheetSize.insert(obj.id, QSizeF(box.captured(1).toDouble(), box.captured(2).toDouble()));
+                pageIds << obj.id;
+            }
+        QCOMPARE(pageIds.size(), 2);
+        // the bookmarks: the first four headings go to the first sheet, the fifth to the second
+        QVector<int> goes;
+        {
+            const QRegularExpression entry(QStringLiteral("/Title <[0-9A-F]+> /Parent \\d+ 0 R[^>]*?/Dest \\[(\\d+) 0 R"));
+            for (auto it = entry.globalMatch(QString::fromLatin1(pdf)); it.hasNext();) goes << int(pageIds.indexOf(it.next().captured(1).toInt()));
+        }
+        QCOMPARE(goes, (QVector<int>{0, 0, 0, 0, 1}));
+        // the web link on page 2 is in the top right quarter of the first sheet (2 by 2 pages)
+        const QSizeF sheet = sheetSize[pageIds[0]];
+        const auto rect = QRegularExpression(QStringLiteral("/URI \\(https://example.com/two\\)")).match(QString::fromLatin1(pdf));
+        QVERIFY2(rect.hasMatch(), "no link to the web address");
+        bool found = false;
+        for (const QByteArray &line : pdf.split('\n')) {
+            if (!line.contains("https://example.com/two")) continue;
+            const auto r = QRegularExpression(QStringLiteral("/Rect \\[([-0-9.]+) ([-0-9.]+) ([-0-9.]+) ([-0-9.]+)\\]")).match(QString::fromLatin1(line));
+            QVERIFY(r.hasMatch());
+            found = true;
+            QVERIFY2(r.captured(1).toDouble() > sheet.width() / 2 && r.captured(3).toDouble() < sheet.width(), qPrintable(r.captured(1) + QLatin1Char(' ') + r.captured(3)));
+            QVERIFY2(r.captured(2).toDouble() > sheet.height() / 2 && r.captured(4).toDouble() < sheet.height(), qPrintable(r.captured(2) + QLatin1Char(' ') + r.captured(4)));
+        }
+        QVERIFY(found);
+        // the link to the bookmark on page 3 goes to its spot in the bottom left quarter of the first sheet
+        const QRegularExpression xyz(QStringLiteral("/Dest \\[%1 0 R /XYZ ([-0-9.]+) ([-0-9.]+) null\\]").arg(pageIds[0]));
+        const auto spot = xyz.match(QString::fromLatin1(pdf));
+        QVERIFY2(spot.hasMatch(), "no link to the third page");
+        QVERIFY2(spot.captured(1).toDouble() < sheet.width() / 2 && spot.captured(2).toDouble() < sheet.height() / 2, qPrintable(spot.captured(1) + QLatin1Char(' ') + spot.captured(2)));
+        // the tags: each page's words in order, and no mark left
+        QVERIFY(pdf.contains("/StructTreeRoot"));
+        QCOMPARE(pdfcheck::marksLeft(pdf), 0);
+        int headings = 0;
+        for (const jp::QtPdf::Obj &obj : q.objects)
+            if (obj.body.contains("/Type /StructElem") && obj.body.contains("/S /H1")) ++headings;
+        QCOMPARE(headings, 5);
     }
 
     // A link in a table or in a header has its box where its words are, and a bookmark link (HYPERLINK \l) goes to the spot of its bookmark on the page, not the page's top.
