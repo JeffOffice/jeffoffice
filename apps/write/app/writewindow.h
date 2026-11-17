@@ -52,6 +52,7 @@ namespace jp {
 
 class ColorButton;
 class FontCombo;
+class MiniToolbar;
 class HelpView;
 class HelpWindow;
 class MeasureSpin;
@@ -641,7 +642,7 @@ private:
     QTimer m_refreshTimer, m_recoverTimer, m_wordTimer;
     quint64 m_serial = 0;
     bool m_updatingFields = false;
-    QFrame *m_mini = nullptr;
+    MiniToolbar *m_mini = nullptr;
     std::function<QString(const QString &, const QString &)> m_pathChooser;
     std::function<QString()> m_pictureChooser;
     std::function<bool(const QUrl &)> m_urlOpener;

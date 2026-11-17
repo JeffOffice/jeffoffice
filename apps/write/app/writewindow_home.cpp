@@ -6,6 +6,7 @@
 
 #include "app/homedialogs.h"
 #include "app/widgets.h"
+#include "app/minitoolbar.h"
 #include "app/pageview.h"
 #include "app/writefilescreen.h"
 #include "app/pageview.h"
@@ -275,47 +276,40 @@ namespace jp {
 
 void WriteWindow::createMiniToolbar()
 {
-    m_mini = new QFrame(m_view->viewport());
-    m_mini->setObjectName(QStringLiteral("miniToolbar"));
-    jp::softPanel(m_mini);
-    m_mini->setAutoFillBackground(true);
-    auto *column = new QVBoxLayout(m_mini);
-    column->setContentsMargins(3, 2, 3, 2);
-    column->setSpacing(1);
-    // The font box on top, then the buttons and the font color (the same commands as the ribbon's, and they follow the selection as its boxes do).
-    auto *font = new FontCombo(m_mini);
-    connect(font, &FontCombo::familyChosen, this, [this](const QString &f) {
+    auto target = std::make_unique<FunctionMiniTarget>();
+    target->actionFor = [this](MiniTarget::Command c) {
+        using C = MiniTarget::Command;
+        switch (c) {
+        case C::Bold: return act(QStringLiteral("fmt.bold"));
+        case C::Italic: return act(QStringLiteral("fmt.italic"));
+        case C::Underline: return act(QStringLiteral("fmt.underline"));
+        case C::Shrink: return act(QStringLiteral("fmt.shrink"));
+        case C::Grow: return act(QStringLiteral("fmt.grow"));
+        case C::AlignLeft: return act(QStringLiteral("fmt.alignLeft"));
+        case C::AlignCenter: return act(QStringLiteral("fmt.alignCenter"));
+        case C::AlignRight: return act(QStringLiteral("fmt.alignRight"));
+        case C::Bullets: return act(QStringLiteral("para.bullets"));
+        case C::Numbering: return act(QStringLiteral("para.numbers"));
+        }
+        return static_cast<QAction *>(nullptr);
+    };
+    target->setFont = [this](const QString &f) {
         if (refuseIfReadOnly()) return;
         if (auto *typing = m_view->shapeEditor()) typing->setFontFamilyName(f);
         else if (m_doc) write::setFontFamily(*m_doc, m_view->cursor(), f);
         m_view->focusText();
-    });
-    m_fontCombos << font;
-    column->addWidget(font);
-    auto *row = new QHBoxLayout;
-    row->setContentsMargins(0, 0, 0, 0);
-    row->setSpacing(1);
-    column->addLayout(row);
-    for (const char *id : {"fmt.bold", "fmt.italic", "fmt.underline", "fmt.shrink", "fmt.grow", "fmt.alignLeft", "fmt.alignCenter", "fmt.alignRight", "para.bullets", "para.numbers"}) {
-        auto *button = new QToolButton(m_mini);
-        button->setDefaultAction(act(QString::fromLatin1(id)));
-        button->setToolButtonStyle(Qt::ToolButtonIconOnly);
-        button->setAutoRaise(true);
-        button->setFocusPolicy(Qt::NoFocus);   // (the text keeps the keyboard)
-        row->addWidget(button);
-    }
-    auto *color = new ColorButton(QStringLiteral("baseline"), tr("Font Color"), true, tr("Automatic"), m_mini);
-    color->setCurrent(ColorRef::rgb(QColor(0xC0, 0, 0)));
-    connect(color, &ColorButton::colorPicked, this, [this](const ColorRef &c) {
+    };
+    target->setColor = [this](const ColorRef &c) {
         if (!m_doc || refuseIfReadOnly()) return;
         const QColor chosen = c.isNone() ? QColor() : c.resolve(m_doc->flow().env.colors);
         if (auto *typing = m_view->shapeEditor()) typing->setColor(chosen.isValid() ? chosen : QColor(Qt::black));
         else write::setTextColor(*m_doc, m_view->cursor(), chosen);
         m_view->focusText();
-    });
-    m_colorButtons << color;
-    row->addWidget(color);
-    m_mini->hide();
+    };
+    auto *mini = new MiniToolbar(m_view->viewport(), std::move(target));
+    m_mini = mini;
+    m_fontCombos << mini->fontBox();
+    m_colorButtons << mini->colorButton();
     connect(m_view, &write::PageView::selectionMade, this, [this] { updateMiniToolbar(true); });
     connect(m_view, &write::PageView::caretChanged, this, [this] { updateMiniToolbar(false); });
 }
@@ -334,13 +328,7 @@ void WriteWindow::updateMiniToolbar(bool show)
         m_mini->hide();
         return;
     }
-    const QSize size = m_mini->sizeHint();
-    const QRect area = m_view->viewport()->rect();
-    int y = first.top() - size.height() - 6;
-    if (y < 0) y = last.bottom() + 8;
-    m_mini->setGeometry(QRect(QPoint(std::clamp(first.left(), 0, std::max(0, area.width() - size.width())), std::clamp(y, 0, std::max(0, area.height() - size.height()))), size));
-    m_mini->show();
-    m_mini->raise();
+    m_mini->showBeside(first, last);
 }
 
 
