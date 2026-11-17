@@ -643,6 +643,29 @@ QVector<QTextLayout::FormatRange> applyWordLetterWidths(const QVector<QTextLayou
 // The date and time formats Publisher offers (US English), in its order and
 // in Qt's letters: a .pub date field's format number is the place here plus 1.
 const QStringList &dateTimeFormats();
+// A date or time field keeps the language its month and day names are in after a bar in its code ("date:MMMM d, yyyy|de-DE"); a code with no
+// bar shows them as the program does. Only a language tag (letters, digits, and hyphens, at most 16) is taken as one.
+struct DateFieldCode {
+    QString kind, format, language;
+};
+DateFieldCode splitDateFieldCode(const QString &code);
+QString makeDateFieldCode(const QString &kind, const QString &format, const QString &language);
+// "date", "time", or "datetime": what the letters of a Qt format show (outside quotes, d M y for a date and h H m s A a z t for a time).
+QString dateFieldKindOf(const QString &format);
+// The date, the time, or both of `moment` in the format and the language (the program's own for an empty one).
+QString dateFieldText(const QString &kind, const QString &format, const QString &language, const QDateTime &moment);
+// The languages the Date and Time dialogs offer (the program's languages and common ones), a tag and the name in that language itself, and the
+// formats to offer in one (its own short and long dates, then the usual ones).
+struct DateLanguage {
+    QString tag, name;
+};
+QVector<DateLanguage> dateLanguages();
+// That language's own short and long dates, short date and time, and short time (none for US English, and for a tag that is not valid).
+QStringList dateNativeFormats(const QString &language);
+QStringList dateTimeFormatsFor(const QString &language);
+// The format a presentation's date field type ("datetime1", "datetime2", "datetime8", "datetime12") has in a language: that language's own short date,
+// long date, short date and time, and short time. Empty for another type or a language that is not valid.
+QString dateFieldTypeFormat(const QString &type, const QString &language);
 QFont baseFontFor(const QTextBlock &b, const LayoutEnv &env);
 // While one page is painted, the pictures its text effects make (blurred shadows, glows, reflections) share a budget of pixels, all
 // frames and both passes together, so that a file with many or large effects can't stall the painting: past it, the words are drawn

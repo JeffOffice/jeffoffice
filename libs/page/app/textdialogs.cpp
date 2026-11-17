@@ -861,23 +861,46 @@ void dateTimeDialog(QWidget *p, Editor *ed)
         return;
     }
     Dlg dlg(p, QCoreApplication::translate("Dialogs", "Date and Time"));
+    dlg.d.setObjectName(QStringLiteral("dateTimeDialog"));
+    auto *language = new QComboBox(&dlg.d);
+    language->setObjectName(QStringLiteral("dateLanguage"));
+    const QVector<DateLanguage> languages = dateLanguages();
+    for (const DateLanguage &l : languages) language->addItem(l.name, l.tag);
+    // The language of the text being edited, when the list has it.
+    const QString own = ed->currentCharFormat().stringProperty(tp::Language);
+    if (const int at = language->findData(own); at >= 0) language->setCurrentIndex(at);
     auto *list = new QListWidget(&dlg.d);
-    const QStringList &formats = dateTimeFormats();
+    list->setObjectName(QStringLiteral("dateFormats"));
     const QDateTime now = QDateTime::currentDateTime();
-    for (const QString &f : formats) {
-        auto *it = new QListWidgetItem(now.toString(f));
-        it->setData(Qt::UserRole, f);
-        list->addItem(it);
-    }
-    list->setCurrentRow(0);
+    auto fill = [list, language, now] {
+        const QString before = list->currentItem() ? list->currentItem()->data(Qt::UserRole).toString() : QString();
+        const QString tag = language->currentData().toString();
+        list->clear();
+        for (const QString &f : dateTimeFormatsFor(tag)) {
+            auto *it = new QListWidgetItem(dateFieldText(dateFieldKindOf(f), f, tag, now));
+            it->setData(Qt::UserRole, f);
+            list->addItem(it);
+        }
+        int row = 0;
+        for (int i = 0; i < list->count(); ++i)
+            if (list->item(i)->data(Qt::UserRole).toString() == before) row = i;
+        list->setCurrentRow(row);
+    };
+    fill();
+    QObject::connect(language, &QComboBox::currentIndexChanged, &dlg.d, fill);
     auto *update = new QCheckBox(QCoreApplication::translate("Dialogs", "Update automatically"), &dlg.d);
+    update->setObjectName(QStringLiteral("dateUpdate"));
+    auto *form = new QFormLayout();
+    form->addRow(QCoreApplication::translate("Dialogs", "Language"), language);
+    dlg.v->addLayout(form);
     dlg.v->addWidget(list);
     dlg.v->addWidget(update);
     QObject::connect(list, &QListWidget::itemDoubleClicked, &dlg.d, &QDialog::accept);
-    if (!dlg.exec()) return;
+    if (!dlg.exec() || !list->currentItem()) return;
     const QString f = list->currentItem()->data(Qt::UserRole).toString();
-    if (update->isChecked()) ed->insertField(QStringLiteral("datetime:") + f);
-    else ed->insertTextBlock(now.toString(f), QCoreApplication::translate("Dialogs", "Insert Date and Time"));
+    const QString tag = language->currentData().toString();
+    if (update->isChecked()) ed->insertField(makeDateFieldCode(QStringLiteral("datetime"), f, tag));
+    else ed->insertTextBlock(dateFieldText(dateFieldKindOf(f), f, tag, now), QCoreApplication::translate("Dialogs", "Insert Date and Time"));
 }
 
 // ---------------- Hyperlink ----------------

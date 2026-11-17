@@ -11,6 +11,7 @@
 #include <QCache>
 #include <QScopeGuard>
 #include <QCoreApplication>
+#include <QLocale>
 #include <QFontDatabase>
 #include <QFontMetricsF>
 #include <QJsonDocument>
@@ -139,9 +140,11 @@ QString FieldContext::resolve(const QString &code) const
         const int total = doc ? doc->sectionPageTotal() : 0;
         return QString::number(total > 0 ? total : pageCount);
     }
-    if (kind == "date") return now.date().toString(arg.isEmpty() ? QStringLiteral("MMMM d, yyyy") : arg);
-    if (kind == "time") return now.time().toString(arg.isEmpty() ? QStringLiteral("h:mm AP") : arg);
-    if (kind == "datetime") return now.toString(arg.isEmpty() ? QStringLiteral("M/d/yyyy h:mm AP") : arg);
+    if (kind == "date" || kind == "time" || kind == "datetime") {
+        const DateFieldCode dc = splitDateFieldCode(code);
+        const QString fallback = kind == "date" ? QStringLiteral("MMMM d, yyyy") : kind == "time" ? QStringLiteral("h:mm AP") : QStringLiteral("M/d/yyyy h:mm AP");
+        return dateFieldText(dc.kind, dc.format.isEmpty() ? fallback : dc.format, dc.language, now);
+    }
     if (kind == "biz") {
         // "address:oneline" joins a multi-line value with commas, for use inside a line.
         const bool oneLine = arg.endsWith(QLatin1String(":oneline"));
@@ -202,6 +205,97 @@ const QStringList &dateTimeFormats()
                                      "d MMMM yyyy", "MMMM yy", "MMM-yy", "M/d/yyyy h:mm AP", "M/d/yyyy h:mm:ss AP", "h:mm AP", "h:mm:ss AP", "HH:mm",
                                      "HH:mm:ss"};
     return formats;
+}
+
+namespace {
+bool isLanguageTag(const QString &t)
+{
+    static const QRegularExpression re(QStringLiteral("^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8}){0,2}$"));
+    return t.size() <= 16 && re.match(t).hasMatch();
+}
+} // namespace
+
+DateFieldCode splitDateFieldCode(const QString &code)
+{
+    DateFieldCode out;
+    out.kind = code.section(QLatin1Char(':'), 0, 0);
+    out.format = code.section(QLatin1Char(':'), 1);
+    const qsizetype bar = out.format.lastIndexOf(QLatin1Char('|'));
+    if (bar >= 0 && isLanguageTag(out.format.mid(bar + 1))) {
+        out.language = out.format.mid(bar + 1);
+        out.format.truncate(bar);
+    }
+    return out;
+}
+
+QString makeDateFieldCode(const QString &kind, const QString &format, const QString &language)
+{
+    return kind + QLatin1Char(':') + format + (isLanguageTag(language) ? QLatin1Char('|') + language : QString());
+}
+
+QString dateFieldKindOf(const QString &format)
+{
+    bool date = false, time = false, quoted = false;
+    for (const QChar c : format) {
+        if (c == QLatin1Char('\'')) { quoted = !quoted; continue; }
+        if (quoted) continue;
+        if (c == QLatin1Char('d') || c == QLatin1Char('M') || c == QLatin1Char('y')) date = true;
+        else if (c == QLatin1Char('h') || c == QLatin1Char('H') || c == QLatin1Char('m') || c == QLatin1Char('s') || c == QLatin1Char('A') || c == QLatin1Char('a') || c == QLatin1Char('z') || c == QLatin1Char('t')) time = true;
+    }
+    return date && time ? QStringLiteral("datetime") : time ? QStringLiteral("time") : QStringLiteral("date");
+}
+
+QString dateFieldText(const QString &kind, const QString &format, const QString &language, const QDateTime &moment)
+{
+    if (language.isEmpty() || !isLanguageTag(language))
+        return kind == QLatin1String("date") ? moment.date().toString(format) : kind == QLatin1String("time") ? moment.time().toString(format) : moment.toString(format);
+    const QLocale locale(language);
+    return kind == QLatin1String("date") ? locale.toString(moment.date(), format) : kind == QLatin1String("time") ? locale.toString(moment.time(), format) : locale.toString(moment, format);
+}
+
+QVector<DateLanguage> dateLanguages()
+{
+    static const char *const tags[] = {"en-US", "en-GB", "en-CA", "en-AU", "de-DE", "fr-FR", "es-ES", "it-IT", "nl-NL", "pt-BR", "pt-PT", "ru-RU", "uk-UA", "id-ID", "ja-JP", "zh-CN",
+                                       "zh-TW", "ko-KR", "pl-PL", "tr-TR", "sv-SE", "da-DK", "nb-NO", "fi-FI", "cs-CZ", "el-GR", "hu-HU", "ar-SA", "hi-IN", "vi-VN"};
+    QVector<DateLanguage> out;
+    for (const char *t : tags) {
+        const QLocale l{QLatin1String(t)};
+        QString name = l.nativeLanguageName();
+        const QString where = l.nativeTerritoryName();
+        if (!where.isEmpty()) name += QStringLiteral(" (") + where + QLatin1Char(')');
+        out.push_back({QString::fromLatin1(t), name});
+    }
+    return out;
+}
+
+QString dateFieldTypeFormat(const QString &type, const QString &language)
+{
+    if (!isLanguageTag(language)) return QString();
+    const QLocale l(language);
+    if (type == QLatin1String("datetime") || type == QLatin1String("datetime1")) return l.dateFormat(QLocale::ShortFormat);
+    if (type == QLatin1String("datetime2")) return l.dateFormat(QLocale::LongFormat);
+    if (type == QLatin1String("datetime8")) return l.dateTimeFormat(QLocale::ShortFormat);
+    if (type == QLatin1String("datetime12")) return l.timeFormat(QLocale::ShortFormat);
+    return QString();
+}
+
+QStringList dateNativeFormats(const QString &language)
+{
+    QStringList out;
+    if (isLanguageTag(language) && language != QLatin1String("en-US")) {
+        const QLocale l(language);
+        for (const QString &f : {l.dateFormat(QLocale::ShortFormat), l.dateFormat(QLocale::LongFormat), l.dateTimeFormat(QLocale::ShortFormat), l.timeFormat(QLocale::ShortFormat)})
+            if (!f.isEmpty() && !out.contains(f)) out << f;
+    }
+    return out;
+}
+
+QStringList dateTimeFormatsFor(const QString &language)
+{
+    QStringList out = dateNativeFormats(language);
+    for (const QString &f : dateTimeFormats())
+        if (!out.contains(f)) out << f;
+    return out;
 }
 
 StoryFields storyFields(const QTextDocument *doc, const FieldSource *source)

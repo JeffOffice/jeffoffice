@@ -14,6 +14,7 @@
 #include "app/toc.h"
 #include <QBuffer>
 #include "../timing.h"
+#include "../withdialog.h"
 #include <libmspub/jp_hooks.h>
 
 class PubTextTests : public QObject {
@@ -3194,6 +3195,56 @@ private Q_SLOTS:
                               " d MMMM yyyy", " MMMM yy", " MMM-yy", " M/d/yyyy h:mm am/pm", " M/d/yyyy h:mm:ss am/pm", " h:mm am/pm", " h:mm:ss am/pm",
                               " HH:mm", " HH:mm:ss"})
             QVERIFY2(jp::dateTimeFormats().contains(jp::pubDateFormat(QString::fromLatin1(f))), f);
+    }
+
+    // Date & Time has a Language list in JeffPub too (the same dialog as the other apps): the field it makes keeps the language, shows the names in it, and is saved in the file's own
+    // kind of date field with the format (that kind of file has no place for the language here, so the text is what is kept of it).
+    void theDateAndTimeDialogKeepsALanguage()
+    {
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        auto box = std::static_pointer_cast<jp::TextItem>(ed->newTextBox(QRectF(72, 72, 300, 40)));
+        ed->addItem(box);
+        ed->beginTextEdit(box->id, 0);
+        withDialog([&] { w.act(QStringLiteral("ins.datetime"))->trigger(); }, QStringLiteral("dateTimeDialog"), [&](QDialog *d) {
+            auto *language = d->findChild<QComboBox *>(QStringLiteral("dateLanguage"));
+            auto *formats = d->findChild<QListWidget *>(QStringLiteral("dateFormats"));
+            QVERIFY(language && formats);
+            QVERIFY(language->findData(QStringLiteral("de-DE")) >= 0 && language->findData(QStringLiteral("ja-JP")) >= 0);
+            language->setCurrentIndex(language->findData(QStringLiteral("de-DE")));
+            for (int i = 0; i < formats->count(); ++i)
+                if (formats->item(i)->data(Qt::UserRole).toString() == QLatin1String("dddd, MMMM d, yyyy")) formats->setCurrentRow(i);
+            QVERIFY2(formats->currentItem()->text().contains(QStringLiteral("20")), "no year");
+            d->findChild<QCheckBox *>(QStringLiteral("dateUpdate"))->setChecked(true);
+        });
+        ed->endTextEdit();
+        QTextDocument *story = ed->doc()->storyDoc(box->storyId);
+        QString code;
+        for (QTextBlock b = story->begin(); b.isValid(); b = b.next())
+            for (auto f = b.begin(); !f.atEnd(); ++f)
+                if (code.isEmpty()) code = f.fragment().charFormat().stringProperty(tp::Field);
+        QCOMPARE(code, QStringLiteral("datetime:dddd, MMMM d, yyyy|de-DE"));
+        jp::FieldContext ctx;
+        ctx.doc = ed->doc();
+        ctx.now = QDateTime(QDate(2026, 11, 17), QTime(14, 5, 9));
+        QCOMPARE(ctx.resolve(code), QStringLiteral("Dienstag, November 17, 2026"));
+        // A code with no language is shown as before, and a bar that is not followed by a language is part of the format.
+        QCOMPARE(ctx.resolve(QStringLiteral("datetime:MMMM d, yyyy")), ctx.now.toString(QStringLiteral("MMMM d, yyyy")));
+        QCOMPARE(ctx.resolve(QStringLiteral("datetime:d|MMMM yyyy")), ctx.now.toString(QStringLiteral("d|MMMM yyyy")));
+        QCOMPARE(ctx.resolve(QStringLiteral("time:H:mm|ja-JP")), QStringLiteral("14:05"));
+        // The file's own kind: the format is kept as a date field of its own.
+        QTemporaryDir dir;
+        QString err;
+        QVERIFY2(jp::exportPublisher(*ed->doc(), dir.filePath(QStringLiteral("date.pub")), &err), qPrintable(err));
+        auto back = jp::importPublisherFile(dir.filePath(QStringLiteral("date.pub")), &err);
+        QVERIFY2(back, qPrintable(err));
+        QString backCode;
+        for (const auto &it : back->pages[0]->items)
+            if (auto *t = dynamic_cast<jp::TextItem *>(it.get()))
+                for (QTextBlock b = back->storyDoc(t->storyId)->begin(); b.isValid(); b = b.next())
+                    for (auto f = b.begin(); !f.atEnd(); ++f)
+                        if (backCode.isEmpty()) backCode = f.fragment().charFormat().stringProperty(tp::Field);
+        QCOMPARE(backCode, QStringLiteral("datetime:dddd, MMMM d, yyyy"));
     }
 
     // "Next page" and "previous page" numbers show the page of the next or

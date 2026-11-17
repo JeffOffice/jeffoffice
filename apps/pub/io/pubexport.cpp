@@ -1121,7 +1121,7 @@ void PubWriter::addStory(int textId, const QVector<const QTextDocument *> &docs,
                 FieldContext fc;
                 fc.doc = &m_doc;
                 const QString kind = field.section(QLatin1Char(':'), 0, 0);
-                QString format = field.section(QLatin1Char(':'), 1);
+                QString format = splitDateFieldCode(field).format;   // (its language, if it has one, is in the text it shows)
                 if (format.isEmpty())
                     format = kind == QLatin1String("date") ? QStringLiteral("MMMM d, yyyy") : kind == QLatin1String("time") ? QStringLiteral("h:mm AP")
                                                                                                                           : QStringLiteral("M/d/yyyy h:mm AP");
