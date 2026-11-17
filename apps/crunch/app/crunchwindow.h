@@ -532,6 +532,8 @@ public:
     // What Format Cells asks: given the format of the cell with the cursor, what the person changed (a dialog unless this stands in for it: tests); false gives it up.
     void setFormatAsker(const std::function<bool(const FormatCellsDialog::Input &, FormatCellsDialog::Result *)> &asker) { m_formatAsker = asker; }
     // What is asked before a step that throws something away (merging cells that hold values): the title and the sentence; true goes on. A message box unless this stands in for it (tests).
+    // How many bars of the cell menu have been made (one for the window, however many times the menu was opened: for the tests).
+    int miniCellBarsBuilt() const { return m_miniCellsBuilt; }
     void setConfirmAsker(const std::function<bool(const QString &title, const QString &text)> &asker) { m_confirmAsker = asker; }
     // Copy Formatting: whether it is waiting for cells to paint, and whether it stays on after painting (a double click).
     // How many times the buttons of formatting were made to show a cell's format (they are not, for a cell that has the format they already show).
@@ -1782,7 +1784,12 @@ private:
     QFrame *makeMiniBar(bool inCells, QWidget *parent);
     void addMiniToolbarTo(QMenu *menu);
     void updateMiniToolbar(bool show);
+    void refreshMiniBar(QFrame *bar);
+    QMenu *newCellMenu();
     QPointer<QFrame> m_miniText;
+    QPointer<QFrame> m_miniCells;   // the bar of the cell menu: made once, and lent to each menu
+    QPointer<QMenu> m_cellMenu;
+    int m_miniCellsBuilt = 0;
     struct EditState {
         bool active = false;
         int sheet = 0;

@@ -42,6 +42,9 @@ public:
     void checkSpelling();
     // How far along the line (in the entry's own coordinates) the character at `position` begins, as the text is scrolled (for the mini toolbar and its tests).
     int xOfPosition(int position) const;
+    // The list of a box on the mini toolbar takes the keyboard when it opens (as a list does: not as a popup, so the entry would drop what is selected); asked for before it opens, the entry
+    // keeps its selection (and the bar over it stays) until the keyboard comes back.
+    void keepSelectionWhileAListOpens() { m_keepSelection = true; }
     // Puts the dictionary's words for the misspelled word at `position`, Ignore All, and Add to Dictionary in the menu, and a separator after them. False, with nothing put in, if the
     // word there is spelled right (or the entry is a formula).
     bool addSpellingSuggestions(QMenu &menu, int position);
@@ -56,6 +59,8 @@ Q_SIGNALS:
 
 protected:
     void keyPressEvent(QKeyEvent *e) override;
+    void focusInEvent(QFocusEvent *e) override;
+    void focusOutEvent(QFocusEvent *e) override;
     bool focusNextPrevChild(bool) override { return false; }
     void paintEvent(QPaintEvent *e) override;
     void contextMenuEvent(QContextMenuEvent *e) override;
@@ -70,6 +75,7 @@ private:
     bool m_noProof = false;
     QVector<QPair<int, int>> m_wrong;
     QTimer m_spellTimer;
+    bool m_keepSelection = false;
     QString m_measuredText;       // the text whose characters are measured in m_advances (how far along the line each starts), with the font they were measured in
     QFont m_measuredFont;
     QVector<int> m_advances;

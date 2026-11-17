@@ -1,5 +1,7 @@
 // Developer tool, not a test of behavior: with JO_SHOT_DIR set, opens JeffCrunch's dialogs one by one and saves a picture of each (for looking at the style, docs/design/STYLE.md).
 //   JO_SHOT_DIR=/some/folder QT_QPA_PLATFORM=offscreen ./jo_uigrab_crunch
+#include <QScopeGuard>
+#include "app/minitoolbar.h"
 #include "../crunch/editwindow.h"
 #include "core/fonts.h"
 #include "core/sheetobjects.h"
@@ -83,6 +85,8 @@ private Q_SLOTS:
         QMetaObject::invokeMethod(ed, [ed] { QMouseEvent up(QEvent::MouseButtonRelease, QPointF(4, 4), QPointF(4, 4), Qt::LeftButton, Qt::NoButton, Qt::NoModifier); QApplication::sendEvent(ed, &up); }, Qt::QueuedConnection);
         QFrame *bar = e.view()->viewport()->findChild<QFrame *>(QStringLiteral("miniToolbar"));
         QVERIFY(bar);
+        jp::MiniToolbar::setPointerSource([bar] { return bar->mapToGlobal(bar->rect().center()); });   // (the fade looks at the pointer: it is at the bar)
+        const auto restore = qScopeGuard([] { jp::MiniToolbar::setPointerSource({}); });
         QTRY_VERIFY(bar->isVisible());
         QVERIFY(e.view()->viewport()->grab().save(dir + QStringLiteral("/mini-toolbar-text.png")));
     }

@@ -1,5 +1,8 @@
 #include "tst_crunch_edit.h"
 #include "app/minitoolbar.h"
+#include "app/settings.h"
+#include <QComboBox>
+#include <QScopeGuard>
 #include <QScrollBar>
 #include <QToolButton>
 #include <QWheelEvent>
@@ -211,7 +214,15 @@ struct MiniRig {
     EditWindow &e;
     CrunchWindow &w;
     QFrame *bar = nullptr;
-    explicit MiniRig(EditWindow &window) : e(window), w(window.win.w) { bar = e.view()->viewport()->findChild<QFrame *>(QStringLiteral("miniToolbar")); }
+    explicit MiniRig(EditWindow &window) : e(window), w(window.win.w)
+    {
+        bar = e.view()->viewport()->findChild<QFrame *>(QStringLiteral("miniToolbar"));
+        // (the fade looks at the pointer: here it is always at the bar, so that no test races it; the tests of the fade move it)
+        jp::MiniToolbar::setPointerSource([this] { return bar ? bar->mapToGlobal(bar->rect().center()) : QPoint(); });
+    }
+    ~MiniRig() { jp::MiniToolbar::setPointerSource({}); }
+    MiniRig(const MiniRig &) = delete;
+    MiniRig &operator=(const MiniRig &) = delete;
     // A point in the middle of the places the entry's own hit test gives `pos` for (so it is not on a boundary, whichever way the platform rounds: BRIEF's third of a character).
     QPoint inside(int pos)
     {
@@ -224,7 +235,8 @@ struct MiniRig {
             }
         return QPoint((lo + hi) / 2, ed->height() / 2);
     }
-    bool selectEll()
+    // The drag of the mouse over "ell", once the release has been handled (the bar shows, or not, by then).
+    bool dragEll()
     {
         e.select(QStringLiteral("C1"));
         QTest::keyClick(e.view(), Qt::Key_F2);
@@ -235,7 +247,17 @@ struct MiniRig {
         const bool early = bar && bar->isVisible();   // (not while the mouse is still down)
         QTest::mouseMove(ed, inside(4));
         QTest::mouseRelease(ed, Qt::LeftButton, Qt::NoModifier, inside(4));
-        return !early && QTest::qWaitFor([&] { return bar && bar->isVisible(); }, 5000) && ed->selectedText() == QLatin1String("ell");
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::MetaCall);   // (the bar is shown by a call the release queued)
+        return !early && ed->selectedText() == QLatin1String("ell");
+    }
+    bool selectEll() { return dragEll() && QTest::qWaitFor([&] { return bar && bar->isVisible(); }, 5000); }
+    // The font of the characters picked out, as runs: the family of run `i` of C1's entry.
+    QString familyOfRun(int i) const
+    {
+        const auto rich = w.session()->richOf(0, 0, 2);
+        if (!rich || i >= int(rich->runs.size())) return QString();
+        const quint32 f = rich->runs[i].font;
+        return f < quint32(rich->fonts.size()) ? rich->fonts[int(f)].name : QString();
     }
     QToolButton *button(const char *id, QWidget *in = nullptr) const
     {
@@ -355,7 +377,7 @@ void CrunchEditTests::theMiniToolbarGoesWhenTheEntryTakesAKeyAndWhenTheOptionIsO
     {
         const jptest::SettingGuard off(QStringLiteral("ui/miniToolbarOnSelection"), false, true);
         r.e.view()->verticalScrollBar()->setValue(0);
-        QVERIFY(!r.selectEll());
+        QVERIFY(r.dragEll());   // (the release is handled: the bar would be up by now)
         QVERIFY(!r.bar->isVisible());
         QCOMPARE(r.w.cellEditor()->selectedText(), QStringLiteral("ell"));
         r.w.cancelEdit();
@@ -421,17 +443,18 @@ void CrunchEditTests::aRightClickOnCellsShowsTheMiniToolbarOverTheMenu()
         for (int i = 0; i < 5; ++i) QVERIFY2(std::abs(mid(lines.first()[i]) - mid(lines.last()[i])) <= 1, qPrintable(QString::number(i)));
     }
     // the commands under the bar are all in view (Cut, Copy, and Paste are not scrolled out of a menu that is too tall)
-    const QRect screen = menu->screen()->availableGeometry();
     for (const char *id : {"edit.cut", "edit.copy", "edit.paste"}) {
         QAction *a = e.win.w.act(QString::fromLatin1(id));
         const QRect r = menu->actionGeometry(a);
-        QVERIFY2(!r.isNull() && menu->rect().contains(r) && r.top() >= bar->geometry().bottom(), id);
+        QVERIFY2(!r.isNull() && menu->rect().intersects(r) && r.top() >= bar->geometry().bottom(), id);   // (in the menu's own rectangle, under the bar: whatever the size of the screen)
     }
-    QVERIFY(menu->height() <= screen.height());
     // Escape closes the menu and the bar with it
-    QPointer<QFrame> gone = bar;
+    QPointer<QMenu> gone = menu;
     QTest::keyClick(menu, Qt::Key_Escape);
     QTRY_VERIFY(!gone);
+    QVERIFY(bar);   // (the bar is the window's: it goes back to it, and is made again by no menu)
+    QCOMPARE(bar->parentWidget(), static_cast<QWidget *>(&e.win.w));
+    QVERIFY(!bar->isVisible());
 }
 
 // A workbook with the lists of fonts, fills, and borders a cell format is made from, and four cells (G5:H6) with nothing in them.
@@ -503,8 +526,6 @@ void CrunchEditTests::everyButtonOfTheMiniToolbarFormatsTheCellsInOneStep()
     step("decimals down", [&] { button("fmt.decimalDec")->click(); });
     step("comma", [&] { button("fmt.comma")->click(); });
     step("currency", [&] { button("fmt.currency")->click(); });
-    step("merge", [&] { button("fmt.merge")->click(); });
-    QVERIFY(e.view()->sheet().layout().merges.at(5, 7) >= 0);
     // the borders menu is the ribbon's, and one of its commands is one step
     QMenu *bordersMenu = nullptr;
     for (QToolButton *t : bar->findChildren<QToolButton *>())
@@ -515,8 +536,10 @@ void CrunchEditTests::everyButtonOfTheMiniToolbarFormatsTheCellsInOneStep()
     button("fmt.painter")->click();
     QVERIFY(w.act(QStringLiteral("fmt.painter"))->isChecked());
     w.act(QStringLiteral("fmt.painter"))->trigger();
-    menu->close();
-    delete menu;
+    // merging closes the menu first and is done once it is gone (see the tests of the commands that ask): still one step
+    step("merge", [&] { button("fmt.merge")->click(); });
+    QVERIFY(e.view()->sheet().layout().merges.at(5, 7) >= 0);
+    QTRY_VERIFY(!w.findChild<QMenu *>(QStringLiteral("cellMenu")));
 }
 
 // Past 40 pixels from the bar it starts to fade, and by 180 it is gone.
@@ -539,6 +562,278 @@ void CrunchEditTests::theMiniToolbarFadesAsThePointerMovesAway()
     mini->fadeTo(far);
     QVERIFY(!r.bar->isVisible());
     r.w.cancelEdit();
+}
+
+// A click on the font box of the bar over an entry leaves the characters picked and the bar where they are, and the font chosen from its list is the characters' alone.
+void CrunchEditTests::theFontBoxOfTheMiniToolbarKeepsTheSelectionAndFormatsOnlyTheCharactersPicked()
+{
+    EditWindow e;
+    QVERIFY(e.open(editBook()));
+    MiniRig r(e);
+    QVERIFY(r.bar);
+    e.win.w.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&e.win.w));
+    QVERIFY(QTest::qWaitForWindowActive(&e.win.w));
+    QVERIFY(r.selectEll());
+    auto *font = r.bar->findChild<jp::FontCombo *>();
+    QVERIFY(font);
+    CellEditor *ed = r.w.cellEditor();
+    // a real click on the text part of the box, then on its arrow
+    QTest::mouseClick(font->lineEdit(), Qt::LeftButton, Qt::NoModifier, QPoint(5, font->lineEdit()->height() / 2));
+    QCOMPARE(ed->selectedText(), QStringLiteral("ell"));
+    QVERIFY(r.bar->isVisible());
+    QCOMPARE(QApplication::focusWidget(), static_cast<QWidget *>(ed));
+    QTest::mouseClick(font, Qt::LeftButton, Qt::NoModifier, QPoint(font->width() - 8, font->height() / 2));
+    QTRY_VERIFY(font->view()->isVisible());
+    QCOMPARE(ed->selectedText(), QStringLiteral("ell"));
+    QVERIFY(r.bar->isVisible());
+    // a click on a font of the list: the first one the list holds that is a real font
+    int row = -1;
+    for (int i = font->count() - 1; i >= 0 && row < 0; --i)
+        if (!font->itemData(i, Qt::UserRole).toString().isEmpty() && !font->itemData(i, Qt::UserRole).toString().startsWith(QLatin1Char('+')) && (font->model()->flags(font->model()->index(i, 0)) & Qt::ItemIsEnabled)) row = i;
+    QVERIFY(row >= 0);
+    const QString family = font->itemData(row, Qt::UserRole).toString();
+    font->view()->scrollTo(font->model()->index(row, 0));
+    QTest::mouseMove(font->view()->viewport(), font->view()->visualRect(font->model()->index(row, 0)).center());
+    QTest::mouseClick(font->view()->viewport(), Qt::LeftButton, Qt::NoModifier, font->view()->visualRect(font->model()->index(row, 0)).center());
+    QTRY_VERIFY(!font->view()->isVisible());
+    QCOMPARE(ed->selectedText(), QStringLiteral("ell"));
+    QVERIFY(r.bar->isVisible());
+    QCOMPARE(ed->text(), QStringLiteral("hello"));
+    e.key(Qt::Key_Return);
+    QVERIFY(e.settle());
+    QCOMPARE(r.familyOfRun(1), family);   // (the characters picked)
+    QVERIFY(r.familyOfRun(0) != family);
+    QVERIFY(r.familyOfRun(2) != family);
+}
+
+// The bar keeps showing while a list of its own is open, however far the pointer is, and is not judged by a pointer that may be stale for the first few looks.
+void CrunchEditTests::theMiniToolbarStaysWhileAListOfItsOwnIsOpenAndFadesOnlyAfterAGraceTime()
+{
+    EditWindow e;
+    QVERIFY(e.open(editBook()));
+    MiniRig r(e);
+    QVERIFY(r.bar);
+    auto *mini = static_cast<jp::MiniToolbar *>(r.bar);
+    e.win.w.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&e.win.w));
+    QVERIFY(QTest::qWaitForWindowActive(&e.win.w));
+    bool far = false;
+    jp::MiniToolbar::setPointerSource([&] { return far ? r.bar->mapToGlobal(QPoint(0, 0)) + QPoint(0, 600) : r.bar->mapToGlobal(r.bar->rect().center()); });
+    // the pointer far away from the first look on: the bar waits some looks, and then goes
+    far = true;
+    QVERIFY(r.selectEll());
+    QVERIFY(r.bar->isVisible());
+    QTRY_VERIFY(!r.bar->isVisible());
+    QVERIFY2(mini->looks() >= 1 && mini->ticksAtLook() > 5, qPrintable(QString::number(mini->ticksAtLook())));   // (not before the grace was over)
+    r.w.cancelEdit();
+    // with a list open, the same pointer does not take it away
+    for (int which = 0; which < 2; ++which) {
+        far = false;
+        QVERIFY(r.selectEll());
+        QComboBox *box = which == 0 ? static_cast<QComboBox *>(r.bar->findChild<jp::FontCombo *>()) : static_cast<QComboBox *>(r.bar->findChild<jp::SizeCombo *>());
+        QTest::mouseClick(box, Qt::LeftButton, Qt::NoModifier, QPoint(box->width() - 8, box->height() / 2));   // (its arrow, as a person opens the list)
+        QTRY_VERIFY(QApplication::activePopupWidget());
+        far = true;
+        const int looks = mini->looks();
+        QTRY_VERIFY2(mini->looks() >= looks + 4, "looked at the pointer several times");
+        QVERIFY2(r.bar->isVisible(), which == 0 ? "font list" : "size list");
+        box->hidePopup();
+        QTRY_VERIFY(!QApplication::activePopupWidget());
+        QTRY_VERIFY(!r.bar->isVisible());   // (the list gone, the far pointer takes it)
+        r.w.cancelEdit();
+    }
+}
+
+// "Show Mini Toolbar on selection" turned off takes a bar that is showing away at once (the Options dialog turns it off by this call).
+void CrunchEditTests::turningTheMiniToolbarOptionOffTakesAShowingBarAway()
+{
+    const bool was = jp::miniToolbarOnSelection();
+    const auto restore = qScopeGuard([was] { jp::setMiniToolbarOnSelection(was); });
+    jp::setMiniToolbarOnSelection(true);
+    EditWindow e;
+    QVERIFY(e.open(editBook()));
+    MiniRig r(e);
+    QVERIFY(r.selectEll());
+    QVERIFY(r.bar->isVisible());
+    jp::setMiniToolbarOnSelection(false);
+    QVERIFY(!r.bar->isVisible());
+    r.w.cancelEdit();
+}
+
+namespace {
+
+// The cells of A1:B2 (with numbers in them) of a sheet that is protected.
+QByteArray protectedBook()
+{
+    const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c><c r=\"B1\"><v>2</v></c></row><row r=\"2\"><c r=\"A2\"><v>3</v></c><c r=\"B2\"><v>4</v></c></row>");
+    return buildXlsx({worksheet(rows, QStringLiteral("<sheetProtection sheet=\"1\"/>"))});
+}
+
+// A right click inside A1:B2 (selected): the menu, with its bar.
+QMenu *openCellMenu(EditWindow &e)
+{
+    e.view()->selectRange(0, 0, 1, 1);
+    e.view()->contextMenuRequested(e.view()->viewport()->mapToGlobal(e.view()->cellRect(0, 0).center()));
+    return e.win.w.findChild<QMenu *>(QStringLiteral("cellMenu"));
+}
+
+QToolButton *barButton(QFrame *bar, QAction *action)
+{
+    for (QToolButton *t : bar->findChildren<QToolButton *>())
+        if (t->defaultAction() == action) return t;
+    return nullptr;
+}
+
+} // namespace
+
+// A button that gets a refusal for an answer on a protected sheet: the notice is shown once the menu is gone, not from a click in it, nothing is formatted, and nothing is deleted under the click.
+void CrunchEditTests::aRefusalOfAProtectedSheetComesAfterTheCellMenuIsGone()
+{
+    EditWindow e;
+    QVERIFY(e.open(protectedBook()));
+    CrunchWindow &w = e.win.w;
+    QMenu *menu = openCellMenu(e);
+    QVERIFY(menu);
+    QPointer<QMenu> guard = menu;
+    QFrame *bar = menu->findChild<QFrame *>(QStringLiteral("miniToolbar"));
+    QVERIFY(bar);
+    QStringList notices;
+    bool menuUpAtTheNotice = true;
+    w.setNotifier([&](const QString &, const QString &text) {
+        notices << text;
+        menuUpAtTheNotice = guard && guard->isVisible();
+    });
+    QToolButton *bold = barButton(bar, w.act(QStringLiteral("fmt.bold")));
+    QVERIFY(bold);
+    QTest::mouseClick(bold, Qt::LeftButton);
+    QTRY_VERIFY(!notices.isEmpty());
+    QVERIFY2(!menuUpAtTheNotice, "the notice is shown with the menu closed");
+    QCOMPARE(notices.size(), 1);
+    QTRY_VERIFY(!guard);
+    const grid::GridSheet &gs = e.view()->sheet();
+    QVERIFY(!gs.looks().look(gs.styleOf(0, 0, gs.cellAt(0, 0))).bold);
+    QCOMPARE(w.undoStack()->count(), 0);
+}
+
+// Merging cells that hold data asks first: the question is put once the menu is gone, and the answer Yes merges them.
+void CrunchEditTests::mergingCellsWithDataAsksAfterTheCellMenuIsGone()
+{
+    EditWindow e;
+    QVERIFY(e.open(editBook()));
+    CrunchWindow &w = e.win.w;
+    QMenu *menu = openCellMenu(e);
+    QVERIFY(menu);
+    QPointer<QMenu> guard = menu;
+    QFrame *bar = menu->findChild<QFrame *>(QStringLiteral("miniToolbar"));
+    QVERIFY(bar);
+    int asked = 0;
+    bool menuUpWhenAsked = true;
+    w.setConfirmAsker([&](const QString &, const QString &) {
+        ++asked;
+        menuUpWhenAsked = guard && guard->isVisible();
+        return true;
+    });
+    QToolButton *merge = barButton(bar, w.act(QStringLiteral("fmt.merge")));
+    QVERIFY(merge);
+    QTest::mouseClick(merge, Qt::LeftButton);
+    QTRY_COMPARE(asked, 1);
+    QVERIFY2(!menuUpWhenAsked, "the question is put with the menu closed");
+    QVERIFY(e.settle());
+    QVERIFY(e.view()->sheet().layout().merges.at(1, 1) >= 0);
+    QCOMPARE(w.undoStack()->count(), 1);
+    QTRY_VERIFY(!guard);
+}
+
+// One bar for the window, lent to each menu (not made again for every right click), and showing the cell's own font and size each time: after a button changed them too.
+void CrunchEditTests::theCellMenusBarIsMadeOnceAndShowsTheSizeOfTheCell()
+{
+    EditWindow e;
+    QVERIFY(e.open(formatBook()));
+    QVERIFY(e.settle());
+    CrunchWindow &w = e.win.w;
+    QCOMPARE(w.miniCellBarsBuilt(), 0);
+    auto sizeOfCell = [&] {
+        const grid::GridSheet &gs = e.view()->sheet();
+        return gs.looks().look(gs.styleOf(4, 6, gs.cellAt(4, 6))).pointSize;
+    };
+    auto open = [&] {
+        e.view()->selectRange(4, 6, 5, 7);
+        e.view()->contextMenuRequested(e.view()->viewport()->mapToGlobal(e.view()->cellRect(4, 6).center()));
+        return w.findChild<QMenu *>(QStringLiteral("cellMenu"));
+    };
+    QMenu *first = open();
+    QVERIFY(first);
+    QFrame *bar = first->findChild<QFrame *>(QStringLiteral("miniToolbar"));
+    QVERIFY(bar);
+    QCOMPARE(w.miniCellBarsBuilt(), 1);
+    auto *size = bar->findChild<jp::SizeCombo *>();
+    QVERIFY(size);
+    const double before = sizeOfCell();
+    QCOMPARE(size->currentText().toDouble(), before);
+    QTest::mouseClick(barButton(bar, w.act(QStringLiteral("fmt.growFont"))), Qt::LeftButton);
+    QVERIFY(e.settle());
+    QVERIFY(sizeOfCell() > before);
+    QCOMPARE(size->currentText().toDouble(), sizeOfCell());   // (the menu is still up: the box shows the size the button made)
+    first->close();
+    delete first;
+    QVERIFY(bar);   // (the bar is the window's: it is not taken down with the menu)
+    QMenu *second = open();
+    QVERIFY(second && second != first);
+    QCOMPARE(w.miniCellBarsBuilt(), 1);
+    QFrame *again = second->findChild<QFrame *>(QStringLiteral("miniToolbar"));
+    QCOMPARE(again, bar);
+    QCOMPARE(again->findChild<jp::SizeCombo *>()->currentText().toDouble(), sizeOfCell());
+    QTRY_VERIFY(again->isVisible());
+    second->close();
+    delete second;
+}
+
+// The pages scroll under an entry as the grid does: the bar over the entry goes with the wheel there, and with the pages' scroll bar.
+void CrunchEditTests::scrollingThePageViewTakesTheMiniToolbarAway()
+{
+    EditWindow e;
+    QVERIFY(e.open(editBook()));
+    MiniRig r(e);
+    QVERIFY(r.bar);
+    QVERIFY(e.win.w.pageView());
+    QVERIFY(r.selectEll());
+    QWheelEvent wheel(QPointF(5, 5), QPointF(5, 5), QPoint(), QPoint(0, -120), Qt::NoButton, Qt::NoModifier, Qt::NoScrollPhase, false);
+    QApplication::sendEvent(e.win.w.pageView()->viewport(), &wheel);
+    QVERIFY(!r.bar->isVisible());
+    QVERIFY(r.selectEll());
+    QScrollBar *bar = e.win.w.pageView()->verticalScrollBar();
+    bar->setRange(0, 100);
+    bar->setValue(3);
+    QVERIFY(!r.bar->isVisible());
+    r.w.cancelEdit();
+}
+
+// Where the bar is put follows the characters as the line lays them out: right-to-left text, kerning, and an entry that has scrolled, and never outside the entry.
+void CrunchEditTests::theMiniToolbarIsPutWhereTheEntrysCharactersAre()
+{
+    EditWindow e;
+    QVERIFY(e.open(editBook()));
+    e.select(QStringLiteral("C1"));
+    QTest::keyClick(e.view(), Qt::Key_F2);
+    CellEditor *ed = e.win.w.cellEditor();
+    QVERIFY(ed->isVisible());
+    ed->resize(400, ed->height());
+    // a run of right-to-left text after Latin text: its first character is at its right end
+    // (a run forced right to left, so that the letters of the program's own fonts are used, whichever fonts the machine has)
+    ed->setText(QStringLiteral("a \u202Ebcd"));
+    ed->setCursorPosition(0);
+    QVERIFY2(ed->xOfPosition(4) > ed->xOfPosition(5) && ed->xOfPosition(5) > ed->xOfPosition(6), qPrintable(QStringLiteral("%1 %2 %3").arg(ed->xOfPosition(4)).arg(ed->xOfPosition(5)).arg(ed->xOfPosition(6))));
+    // plain text: each position's x is at (or next to: the hit test rounds as the platform does) the entry's own idea of it
+    ed->setText(QStringLiteral("AVAVAV To Wa"));
+    for (int p = 0; p < ed->text().size(); ++p) QVERIFY2(qAbs(ed->cursorPositionAt(QPoint(ed->xOfPosition(p) + 1, ed->height() / 2)) - p) <= 1, qPrintable(QString::number(p)));
+    // an entry that has scrolled keeps the bar inside it
+    ed->resize(100, ed->height());
+    ed->setText(QString(300, QLatin1Char('m')));
+    ed->setCursorPosition(300);
+    QVERIFY(ed->xOfPosition(0) >= 0 && ed->xOfPosition(0) <= ed->width());
+    QVERIFY(ed->xOfPosition(300) >= 0 && ed->xOfPosition(300) <= ed->width());
+    e.win.w.cancelEdit();
 }
 
 // The dialog has a Special Characters tab: the characters the other programs list (dashes, nonbreaking marks, quotation marks) with their names; one chosen goes into the entry.

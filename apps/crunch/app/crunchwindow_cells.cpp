@@ -627,7 +627,7 @@ void CrunchWindow::widenForEntry(int sheet, quint32 row, quint32 col)
 
 void CrunchWindow::showContextMenu(const QPoint &globalPos)
 {
-    auto *menu = new QMenu(this);
+    QMenu *menu = newCellMenu();
     menu->setAttribute(Qt::WA_DeleteOnClose);
     menu->setObjectName(QStringLiteral("cellMenu"));
     addMiniToolbarTo(menu);

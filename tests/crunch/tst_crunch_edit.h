@@ -77,6 +77,14 @@ private Q_SLOTS:
     void aRightClickOnCellsShowsTheMiniToolbarOverTheMenu();
     void everyButtonOfTheMiniToolbarFormatsTheCellsInOneStep();
     void theMiniToolbarFadesAsThePointerMovesAway();
+    void theFontBoxOfTheMiniToolbarKeepsTheSelectionAndFormatsOnlyTheCharactersPicked();
+    void theMiniToolbarStaysWhileAListOfItsOwnIsOpenAndFadesOnlyAfterAGraceTime();
+    void turningTheMiniToolbarOptionOffTakesAShowingBarAway();
+    void aRefusalOfAProtectedSheetComesAfterTheCellMenuIsGone();
+    void mergingCellsWithDataAsksAfterTheCellMenuIsGone();
+    void theCellMenusBarIsMadeOnceAndShowsTheSizeOfTheCell();
+    void scrollingThePageViewTakesTheMiniToolbarAway();
+    void theMiniToolbarIsPutWhereTheEntrysCharactersAre();
     void theFillHandleCanBeTurnedOff();
     void automaticDecimalPlacesPutThePointIn();
     void zerosCanBeHiddenOnASheetAndAreSavedThatWay();

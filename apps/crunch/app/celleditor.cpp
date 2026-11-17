@@ -1,4 +1,8 @@
 #include "app/celleditor.h"
+#include <QTextLayout>
+#include <QTextOption>
+#include <algorithm>
+#include <cmath>
 
 #include "app/icons.h"
 #include "app/settings.h"
@@ -46,10 +50,36 @@ bool CellEditor::isFormulaEntry(const QString &text) { return jp::office::sheet:
 
 int CellEditor::xOfPosition(int position) const
 {
-    const QFontMetrics fm = fontMetrics();
-    const QString entry = text();
-    const int origin = cursorRect().x() - fm.horizontalAdvance(entry.left(cursorPosition()));
-    return origin + fm.horizontalAdvance(entry.left(position));
+    // The entry's own line, laid out as the entry lays it out (kerning and right-to-left text place a character as the line does), and moved by how far the entry has scrolled it:
+    // the cursor's own rectangle says where the cursor is, so the line's x for the cursor is taken away from that.
+    QTextLayout layout(text(), font());
+    QTextOption option;
+    option.setTextDirection(layoutDirection());
+    layout.setTextOption(option);
+    layout.beginLayout();
+    QTextLine line = layout.createLine();
+    line.setLineWidth(1e6);
+    layout.endLayout();
+    if (!line.isValid()) return 0;
+    const int origin = cursorRect().x() - int(std::lround(line.cursorToX(cursorPosition())));
+    const int x = origin + int(std::lround(line.cursorToX(std::clamp(position, 0, int(text().size())))));
+    return std::clamp(x, 0, width());
+}
+
+void CellEditor::focusInEvent(QFocusEvent *e)
+{
+    m_keepSelection = false;
+    QLineEdit::focusInEvent(e);
+}
+
+void CellEditor::focusOutEvent(QFocusEvent *e)
+{
+    if (m_keepSelection && e->reason() == Qt::OtherFocusReason) {
+        QFocusEvent asPopup(QEvent::FocusOut, Qt::PopupFocusReason);   // (a line edit leaves what is selected for a popup)
+        QLineEdit::focusOutEvent(&asPopup);
+        return;
+    }
+    QLineEdit::focusOutEvent(e);
 }
 
 void CellEditor::checkSpelling()
