@@ -333,11 +333,11 @@ InspectDialog::InspectDialog(const QString &heading, const QVector<InspectItem> 
         auto *count = plainLabel(new QLabel(this));
         count->setObjectName(QStringLiteral("inspectCount%1").arg(i));
         m_counts.push_back(count);
-        grid->addWidget(count, i, 1);
+        grid->addWidget(count, i, 1, Qt::AlignTop);
         auto *button = new QPushButton(m_items[i].action.isEmpty() ? QCoreApplication::translate("jp::InfoPage", "Remove All") : m_items[i].action, this);
         button->setObjectName(QStringLiteral("inspectRemove%1").arg(i));
         m_buttons.push_back(button);
-        grid->addWidget(button, i, 2);
+        grid->addWidget(button, i, 2, Qt::AlignTop);
         connect(button, &QPushButton::clicked, this, [this, i] { removeRow(i); });
     }
     layout->addLayout(grid);
@@ -346,6 +346,16 @@ InspectDialog::InspectDialog(const QString &heading, const QVector<InspectItem> 
     connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
     layout->addWidget(buttons);
     refresh();
+    resize(560, std::max(120, layout->totalHeightForWidth(560)));
+}
+
+void InspectDialog::resizeEvent(QResizeEvent *event)
+{
+    QDialog::resizeEvent(event);
+    if (!layout()) return;
+    const int needed = layout()->totalHeightForWidth(width());
+    if (needed > minimumHeight()) setMinimumHeight(needed);
+    if (needed > height()) resize(width(), needed);
 }
 
 void InspectDialog::refresh()

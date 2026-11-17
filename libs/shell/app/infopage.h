@@ -113,6 +113,10 @@ public:
     QStringList summaries() const;
     void removeRow(int row);
 
+protected:
+    // (the rows' descriptions wrap, so the dialog is never shorter than they need at its width)
+    void resizeEvent(QResizeEvent *event) override;
+
 private:
     void refresh();
     QVector<InspectItem> m_items;

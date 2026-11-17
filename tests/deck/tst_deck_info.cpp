@@ -1008,6 +1008,31 @@ private Q_SLOTS:
         QCOMPARE(find(none, "Custom XML data")->count(), 0);
     }
 
+    // Every row's description is shown in full (wrapped, not cut off), at the box's own width and when it is made narrower.
+    void inspectDescriptionsWrapInFull()
+    {
+        QVector<InspectItem> items;
+        for (int i = 0; i < 3; ++i)
+            items.push_back({QStringLiteral("Kind %1").arg(i), QStringLiteral("A long description of what this is and why you may want to take it out before you share the file with anyone, which needs several lines. ").repeated(2 + i),
+                             [] { return 1; }, [] { return 1; }, true, QString()});
+        InspectDialog dialog(QStringLiteral("Inspect"), items, nullptr);
+        dialog.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&dialog));
+        for (const int width : {560, 360}) {
+            dialog.resize(width, 100);
+            QTRY_VERIFY(dialog.width() == width);
+            QTRY_VERIFY2(dialog.height() >= dialog.layout()->totalHeightForWidth(width), "the box is shorter than its rows need");
+            int checked = 0;
+            for (QLabel *label : dialog.findChildren<QLabel *>()) {
+                if (!label->wordWrap() || !label->text().startsWith(QLatin1String("A long description"))) continue;
+                QTRY_VERIFY2(label->height() >= label->heightForWidth(label->width()), qPrintable(QStringLiteral("cut off at width %1").arg(width)));
+                QVERIFY(label->heightForWidth(label->width()) > label->fontMetrics().height() * 2);   // (it does take several lines)
+                ++checked;
+            }
+            QCOMPARE(checked, 3);
+        }
+    }
+
     // Pictures for a person to look at (JD_SHOT_DIR names the folder; nothing is made without it).
     void shotInspectDialog()
     {
