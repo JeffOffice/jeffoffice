@@ -538,7 +538,7 @@ void Canvas::paintGuides(QPainter &p, const Slot &s)
     const QSizeF ps = d->pageSize();
     const MasterPage *m = s.page < 0 ? d->master(m_ed->masterView()) : d->masterFor(*d->pages[s.page]);
     const int halves = (s.page < 0 && m && m->twoPage) ? 2 : 1;
-    for (int half = 0; half < halves; ++half) {
+    for (int half = 0; half < halves && !m_ed->view.sharedGuides; ++half) {
         const double x0 = half * ps.width();
         const QRectF content = QRectF(x0, 0, ps.width(), ps.height()).marginsRemoved(d->setup.margins);
         QPen margin(QColor(232, 96, 196), 0);
@@ -585,6 +585,10 @@ void Canvas::paintGuides(QPainter &p, const Slot &s)
         for (double x : g.v) p.drawLine(QPointF(x, -ps.height() * 2), QPointF(x, ps.height() * 3));
     };
     p.setPen(rg);
+    if (m_ed->view.sharedGuides) {
+        drawRulerGuides(d->viewGuides);
+        return;
+    }
     if (m) drawRulerGuides(m->guides);
     if (s.page >= 0) drawRulerGuides(d->pages[s.page]->guides);
 }
@@ -1342,7 +1346,7 @@ Canvas::Hit Canvas::hitTest(const QPointF &view) const
                 if (std::abs(page.x() - g.v[i]) <= tol) { h = Hit{HitKind::Guide, master ? QStringLiteral("m") : QString(), i}; h.row = 1; return true; }
             return false;
         };
-        if (check(m_ed->surface()->guides, !m_ed->masterView().isEmpty())) return h;
+        if (check(m_ed->rulerGuides(), !m_ed->view.sharedGuides && !m_ed->masterView().isEmpty())) return h;
     }
     return h;
 }
@@ -1381,6 +1385,13 @@ int Canvas::textPosAt(const QString &itemId, const QPointF &page, int row, int c
 }
 
 // ---------------- snapping ----------------
+// The multiple of the grid's spacing nearest to `v` (a spacing under a point is taken as a point).
+static double gridNearest(double v, double spacing)
+{
+    const double g = std::max(1.0, spacing);
+    return std::round(v / g) * g;
+}
+
 void Canvas::collectSnapTargets(QVector<double> &xs, QVector<double> &ys, const QSet<QString> &exclude) const
 {
     const Document *d = m_ed->doc();
@@ -1402,11 +1413,16 @@ void Canvas::collectSnapTargets(QVector<double> &xs, QVector<double> &ys, const 
                 const double rh = (content.height() - g.rowGap * (g.rows - 1)) / g.rows;
                 for (int r = 1; r < g.rows; ++r) { const double y = content.top() + r * rh + (r - 1) * g.rowGap; ys << y << y + g.rowGap; }
             }
-            for (double v : m->guides.v) xs << v;
-            for (double v : m->guides.h) ys << v;
+            if (!m_ed->view.sharedGuides) {
+                for (double v : m->guides.v) xs << v;
+                for (double v : m->guides.h) ys << v;
+            }
         }
-        for (double v : m_ed->surface()->guides.v) xs << v;
-        for (double v : m_ed->surface()->guides.h) ys << v;
+        // (a guide being dragged is not something to snap to)
+        const bool dragging = m_drag == Drag::Guide && m_ed->view.sharedGuides;
+        const RulerGuides &rg = m_ed->rulerGuides();
+        for (int i = 0; i < rg.v.size(); ++i) if (!(dragging && m_guideOrient == Qt::Vertical && i == m_guideIndex)) xs << rg.v[i];
+        for (int i = 0; i < rg.h.size(); ++i) if (!(dragging && m_guideOrient == Qt::Horizontal && i == m_guideIndex)) ys << rg.h[i];
     }
     if (m_ed->view.snapObjects) {
         for (const auto &it : m_ed->surfaceItems()) {
@@ -1427,6 +1443,10 @@ QPointF Canvas::snapPoint(const QPointF &pt, QVector<QLineF> *lines, const QSet<
     double bx = thr, by = thr;
     for (double x : xs) if (std::abs(x - pt.x()) < bx) { bx = std::abs(x - pt.x()); out.setX(x); }
     for (double y : ys) if (std::abs(y - pt.y()) < by) { by = std::abs(y - pt.y()); out.setY(y); }
+    if (m_ed->view.snapGrid) {
+        if (out.x() == pt.x()) out.setX(gridNearest(pt.x(), m_ed->view.gridSpacing));
+        if (out.y() == pt.y()) out.setY(gridNearest(pt.y(), m_ed->view.gridSpacing));
+    }
     if (lines) {
         const QSizeF ps = m_ed->surfaceSize();
         if (out.x() != pt.x()) *lines << QLineF(out.x(), -ps.height(), out.x(), ps.height() * 2);
@@ -1448,6 +1468,15 @@ QPointF Canvas::snapMove(const QRectF &box, QVector<QLineF> *lines, const QSet<Q
     for (double cand : {box.top(), box.center().y(), box.bottom()})
         for (double y : ys)
             if (std::abs(y - cand) < by) { by = std::abs(y - cand); dy = y - cand; sy = y; hy = true; }
+    if (m_ed->view.snapGrid) {
+        const double g = m_ed->view.gridSpacing;
+        auto nearer = [&](double a, double b) {
+            const double da = gridNearest(a, g) - a, db = gridNearest(b, g) - b;
+            return std::abs(da) <= std::abs(db) ? da : db;
+        };
+        if (!hx) dx = nearer(box.left(), box.right());
+        if (!hy) dy = nearer(box.top(), box.bottom());
+    }
     if (lines) {
         const QSizeF ps = m_ed->surfaceSize();
         if (hx) *lines << QLineF(sx, -ps.height(), sx, ps.height() * 2);
@@ -1676,7 +1705,7 @@ void Canvas::mousePressEvent(QMouseEvent *e)
         m_guideIndex = h.index;
         m_guideOnMaster = !h.id.isEmpty();
         m_ed->beginChange(QCoreApplication::translate("Canvas", "Move Guide"));
-        RulerGuides &g = m_ed->surface()->guides;
+        RulerGuides &g = m_ed->rulerGuides();
         m_guidePos = m_guideOrient == Qt::Horizontal ? g.h[h.index] : g.v[h.index];
         return;
     }
@@ -2223,7 +2252,7 @@ void Canvas::mouseMoveEvent(QMouseEvent *e)
             const QPointF sp = snapPoint(page, nullptr, {});
             m_guidePos = m_guideOrient == Qt::Horizontal ? sp.y() : sp.x();
         }
-        RulerGuides &g = m_ed->surface()->guides;
+        RulerGuides &g = m_ed->rulerGuides();
         if (m_guideIndex >= 0) (m_guideOrient == Qt::Horizontal ? g.h : g.v)[m_guideIndex] = m_guidePos;
         m_tip = st.format(m_guidePos);
         m_ed->notifyLive();
@@ -2306,7 +2335,7 @@ void Canvas::mouseReleaseEvent(QMouseEvent *e)
         // Dragging a guide back onto a ruler (off the page area) deletes it.
         const QPoint vp = e->position().toPoint();
         if (vp.x() < 0 || vp.y() < 0) {
-            RulerGuides &g = m_ed->surface()->guides;
+            RulerGuides &g = m_ed->rulerGuides();
             if (m_guideIndex >= 0) {
                 auto &v = m_guideOrient == Qt::Horizontal ? g.h : g.v;
                 if (m_guideIndex < v.size()) v.removeAt(m_guideIndex);
@@ -3128,8 +3157,9 @@ void Canvas::dropEvent(QDropEvent *e)
 
 void Canvas::startGuideDrag(Qt::Orientation o, const QPoint &globalPos)
 {
+    if (m_ed->view.sharedGuides && !m_ed->view.guides) m_ed->setView([](ViewOptions &v) { v.guides = true; });
     m_ed->beginChange(QCoreApplication::translate("Canvas", "Add Ruler Guide"));
-    RulerGuides &g = m_ed->surface()->guides;
+    RulerGuides &g = m_ed->rulerGuides();
     const QPointF page = toPage(viewport()->mapFromGlobal(globalPos));
     m_guideOrient = o;
     m_guidePos = o == Qt::Horizontal ? page.y() : page.x();

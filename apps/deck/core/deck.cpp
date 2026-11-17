@@ -1115,6 +1115,7 @@ void setSlideSize(Document &d, const QSizeF &size, bool scale)
         scaleItems(d, p->items, from, whole, fitted, k, true, stories);
         scaleGuides(p->guides, sx, sy);
     }
+    scaleGuides(d.viewGuides, sx, sy);
     d.setup.size = d.setup.sheet = size;
     d.setup.sizeName = slideSizeName(size);
 }

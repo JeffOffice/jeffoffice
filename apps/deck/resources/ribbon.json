@@ -1024,6 +1024,10 @@
             {
               "large": "view.notes",
               "keytip": "N"
+            },
+            {
+              "large": "view.gridGuides",
+              "keytip": "GG"
             }
           ]
         },

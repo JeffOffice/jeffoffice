@@ -14,6 +14,7 @@
 #include "render/diagramdrawing.h"
 #include "io/pptxfonts.h"
 #include "io/pptxshow.h"
+#include "io/pptxview.h"
 #include "io/pptxtablestyles.h"
 #include "io/pptxtransition.h"
 #include "io/presentationfile.h"
@@ -665,6 +666,7 @@ private:
     void readPrintHeaderFooter(const QString &mainPart);
     void readSections(const QDomElement &presentation, const QHash<qint64, int> &pageOfSlideId);
     void readShowSettings(const QDomElement &presentation, const QHash<QString, int> &pageOfRel);
+    void readViewSettings();
     MasterCtx *readMaster(const QString &part);
     LayoutCtx *readLayout(const QString &part, MasterCtx &master);
     bool readSlide(int number, const QString &part);
@@ -1094,6 +1096,17 @@ void Importer::readShowSettings(const QDomElement &presentation, const QHash<QSt
             notes << QCoreApplication::translate("PptxImport", "The slide show settings can't be read (%1), so the defaults are used.").arg(why);
     }
     for (const QString &text : std::as_const(notes)) note(text);
+}
+
+// The grid and the guides, from the view properties (ppt/viewProps.xml).
+void Importer::readViewSettings()
+{
+    const QVector<office::Relationship> rels = m_pkg.relationshipsOfType(m_mainPart, QStringLiteral("/viewProps"));
+    if (rels.isEmpty() || rels[0].external) return;
+    QDomDocument &dom = newDom();
+    QDomElement root;
+    QString why;
+    if (parsePart(rels[0].target, QStringLiteral("viewPr"), "http://schemas.openxmlformats.org/presentationml/2006/main", &dom, &root, &why)) readViewProperties(root, m_doc);
 }
 
 PhList Importer::placeholdersIn(const QDomElement &tree)
@@ -2021,6 +2034,7 @@ bool Importer::run(const QString &mainPart, QString *error)
     if (!ensureASlide(m_doc)) return fail(QCoreApplication::translate("PptxImport", "The presentation has no slides."));
     readSections(root, pageOfSlideId);
     readShowSettings(root, pageOfRel);
+    readViewSettings();
     {
         QStringList notes;
         readTableStyleDefs(tableStyles(), [](const QDomElement &e) { return standaloneXml(e); }, m_doc, &notes);

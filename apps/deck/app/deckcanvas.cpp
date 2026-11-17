@@ -22,7 +22,7 @@ bool DeckCanvas::viewportEvent(QEvent *e)
 
 void DeckCanvas::setGuides(bool on)
 {
-    m_guides = on;
+    editor()->setView([on](ViewOptions &v) { v.guides = on; });
     viewport()->update();
 }
 
@@ -126,14 +126,14 @@ void DeckCanvas::paintEvent(QPaintEvent *e)
     const QSizeF ps = d->pageSize();
     const QRectF slide(pageToView(QPointF(0, 0)), pageToView(QPointF(ps.width(), ps.height())));
     if (m_grid) {
-        // A twelfth of an inch, or a multiple of it where that would crowd.
-        double step = 6;
+        // The grid's spacing, or a multiple of it where that would crowd.
+        double step = std::max(1.0, editor()->view.gridSpacing);
         while (step * ppp() < 7) step *= 2;
         p.setPen(QColor(0x80, 0x84, 0x8C, 150));
         for (double y = step; y < ps.height(); y += step)
             for (double x = step; x < ps.width(); x += step) p.drawPoint(pageToView(QPointF(x, y)).toPoint());
     }
-    if (m_guides) {
+    if (guides()) {
         QPen dash(QColor(0x80, 0x84, 0x8C), 1, Qt::DashLine);
         p.setPen(dash);
         const QPointF mid = slide.center();

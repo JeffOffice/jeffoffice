@@ -79,6 +79,7 @@ DeckWindow::DeckWindow(QWidget *parent) : AppWindow(parent)
     m_ed->view.guides = false;
     m_ed->view.boundaries = false;
     m_ed->view.rulers = false;
+    m_ed->view.sharedGuides = true;
     m_canvas = new DeckCanvas(m_ed, this);
     m_canvas->setRulersVisible(false);
     m_ribbon = new Ribbon(this);
@@ -105,6 +106,7 @@ DeckWindow::DeckWindow(QWidget *parent) : AppWindow(parent)
     createInsertActions();
     createDesignActions();
     createViewActions();
+    createGridActions();
     createShapeFormatActions();
     startupMark("win: before ribbon");
     buildRibbon();
@@ -167,11 +169,13 @@ DeckWindow::DeckWindow(QWidget *parent) : AppWindow(parent)
         // The fonts the presentation before it carried go (the new one's were added as it was read).
         deck::EmbeddedFonts::release(m_fontsOf);
         m_fontsOf = m_ed->doc();
+        applyGridView(true);
         m_slides->refresh();
         m_notes->reload();
         updateTitle();
         refreshUi();
     });
+    connect(m_ed, &Editor::changed, this, [this] { applyGridView(false); });   // (an undo of the dialog's step changes them back)
     connect(m_ed, &Editor::modifiedChanged, this, &DeckWindow::updateTitle);
     connect(m_slides, &SlidesPane::newSlideWanted, this, [this] { newSlide(); });
     connect(m_slides, &SlidesPane::duplicateWanted, this, &DeckWindow::duplicateSlide);

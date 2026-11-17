@@ -1,5 +1,7 @@
 // JeffDeck's tests of writing a presentation file.
 #include "deckhelpers.h"
+#include "core/gridview.h"
+#include "app/guidesdialog.h"
 #include "core/notesmaster.h"
 #include "core/printheaderfooter.h"
 #include "io/zip.h"
@@ -206,6 +208,73 @@ private Q_SLOTS:
         QVERIFY(lazy.readLazy(zip.finish()));
         QVERIFY(lazy.partSize(QStringLiteral("/ppt/vba0.bin")) > office::kMaxMacroPartBytes);
         QVERIFY(office::readMacroProject(lazy, QStringLiteral("/ppt/presentation.xml")).leftOut);
+    }
+
+    // The grid and the guides are in the file's view properties: the spacing, the snap and show attributes, and the guide list (positions in eighths of a point), and
+    // they read back as they were. A presentation with none writes the part it always has.
+    void theGridAndGuidesRoundTripInThePptx()
+    {
+        auto d = deck::newPresentation();
+        QString err, why;
+        Exported plain;
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &plain, &why), qPrintable(why));
+        QVERIFY(part(plain, QStringLiteral("/ppt/viewProps.xml")).contains(QStringLiteral("<p:guideLst/>")));
+        QVERIFY(part(plain, QStringLiteral("/ppt/viewProps.xml")).contains(QStringLiteral("<p:gridSpacing cx=\"76200\" cy=\"76200\"/>")));
+        deck::GridView g;
+        g.spacing = 18;
+        g.snapGrid = true;
+        g.snapObjects = false;
+        g.showGuides = true;
+        deck::setGridView(*d, g);
+        d->viewGuides.h = {270};
+        d->viewGuides.v = {100.5, 480};
+        Exported out;
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &out, &why), qPrintable(why));
+        const QString xml = part(out, QStringLiteral("/ppt/viewProps.xml"));
+        QVERIFY(xml.contains(QStringLiteral("<p:guide orient=\"horz\" pos=\"2160\"/><p:guide pos=\"804\"/><p:guide pos=\"3840\"/>")));
+        QVERIFY(xml.contains(QStringLiteral("<p:gridSpacing cx=\"228600\" cy=\"228600\"/>")));
+        QVERIFY(xml.contains(QStringLiteral("showGuides=\"1\"")) && xml.contains(QStringLiteral("snapToGrid=\"1\"")) && xml.contains(QStringLiteral("snapToObjects=\"0\"")));
+        auto back = deck::importPresentation(deck::exportPresentation(*d, &err), &err);
+        QVERIFY2(back, qPrintable(err));
+        QCOMPARE(deck::gridViewOf(*back), g);
+        QCOMPARE(back->viewGuides.h, QVector<double>({270}));
+        QCOMPARE(back->viewGuides.v, QVector<double>({100.5, 480}));
+        // (the package is still sound, and the part is in it once)
+        QVERIFY2(packageProblem(out).isEmpty(), qPrintable(packageProblem(out)));
+    }
+
+    // What a file says about its guides is read within bounds: at most kMaxGuidesPerAxis of a kind, each put inside the slide, a position that is not a number left out,
+    // and only the first 4096 elements of the list looked at.
+    void theGuidesOfAFileAreBounded()
+    {
+        auto d = deck::newPresentation();
+        QString err, why;
+        Exported base;
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &base, &why), qPrintable(why));
+        QString list = QStringLiteral("<p:guide pos=\"1e12\"/><p:guide pos=\"-5000\"/><p:guide pos=\"abc\"/>");
+        for (int i = 0; i < 200; ++i) list += QStringLiteral("<p:guide orient=\"horz\" pos=\"%1\"/>").arg(i * 16);
+        for (int i = 0; i < 4000; ++i) list += QStringLiteral("<p:guide pos=\"nope\"/>");
+        list += QStringLiteral("<p:guide pos=\"1600\"/>");   // (past the 4096th element)
+        ZipWriter zip;
+        for (auto it = base.zip.cbegin(); it != base.zip.cend(); ++it) {
+            QByteArray data = it.value();
+            if (it.key() == QLatin1String("ppt/viewProps.xml")) {
+                QVERIFY(data.contains("<p:guideLst/>"));
+                data.replace("<p:guideLst/>", ("<p:guideLst>" + list + "</p:guideLst>").toUtf8());
+                data.replace("<p:gridSpacing cx=\"76200\"", "<p:gridSpacing cx=\"9999999999\"");
+            }
+            zip.add(it.key(), data, true);
+        }
+        auto doc = deck::importPresentation(zip.finish(), &err);
+        QVERIFY2(doc, qPrintable(err));
+        const QSizeF size = doc->pageSize();
+        QCOMPARE(doc->viewGuides.h.size(), jp::kMaxGuidesPerAxis);   // (200 in the file)
+        QCOMPARE(doc->viewGuides.v.size(), 2);                       // (the far one on the edge, the negative one on 0; the sentinel and the word are not read)
+        for (double v : doc->viewGuides.v) QVERIFY(v >= 0 && v <= size.width());
+        for (double v : doc->viewGuides.h) QVERIFY(v >= 0 && v <= size.height());
+        QVERIFY(doc->viewGuides.v.contains(size.width()) && doc->viewGuides.v.contains(0));
+        // The spacing too is bounded.
+        QVERIFY(deck::gridViewOf(*doc).spacing.value_or(0) <= 720);
     }
 
     // A project survives the path that settles live text fits first (a shape that shrinks its text), and a name the writer already holds is not written twice.

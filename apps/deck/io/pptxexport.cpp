@@ -19,6 +19,7 @@
 #include "render/diagramdrawing.h"
 #include "io/pptxfonts.h"
 #include "io/pptxshow.h"
+#include "io/pptxview.h"
 #include "io/pptxtablestyles.h"
 #include "io/pptxtransition.h"
 #include "office/chart.h"
@@ -1901,12 +1902,7 @@ void Exporter::writeProperties()
 {
     const QString presProps = QStringLiteral("/ppt/presProps.xml"), viewProps = QStringLiteral("/ppt/viewProps.xml"), tableStyles = QStringLiteral("/ppt/tableStyles.xml");
     add(presProps, kTypeBase + QStringLiteral("presProps+xml"), deck::presentationPropertiesXml(m_doc, kNamespaces));
-    add(viewProps, kTypeBase + QStringLiteral("viewProps+xml"),
-        QStringLiteral("<p:viewPr%1><p:normalViewPr><p:restoredLeft sz=\"15620\"/><p:restoredTop sz=\"94660\"/></p:normalViewPr><p:slideViewPr><p:cSldViewPr><p:cViewPr varScale=\"1\">"
-                       "<p:scale><a:sx n=\"100\" d=\"100\"/><a:sy n=\"100\" d=\"100\"/></p:scale><p:origin x=\"0\" y=\"0\"/></p:cViewPr><p:guideLst/></p:cSldViewPr></p:slideViewPr>"
-                       "<p:notesTextViewPr><p:cViewPr><p:scale><a:sx n=\"1\" d=\"1\"/><a:sy n=\"1\" d=\"1\"/></p:scale><p:origin x=\"0\" y=\"0\"/></p:cViewPr></p:notesTextViewPr>"
-                       "<p:gridSpacing cx=\"76200\" cy=\"76200\"/></p:viewPr>")
-            .arg(kNamespaces));
+    add(viewProps, kTypeBase + QStringLiteral("viewProps+xml"), deck::viewPropertiesXml(m_doc, kNamespaces));
     // The styles the file defined are written back as they were (a table that names one is drawn and edited with them).
     add(tableStyles, kTypeBase + QStringLiteral("tableStyles+xml"), deck::tableStylesPartXml(m_doc));
 

@@ -17,6 +17,7 @@
 #include "app/textdialogs.h"
 #include "canvas/canvas.h"
 #include "core/deck.h"
+#include "core/gridview.h"
 #include "text/textprops.h"
 
 #include <QAction>
@@ -306,6 +307,10 @@ void DeckWindow::createViewActions()
     }, true);
     mk("view.guides", tr("Guides"), "layout-grid", QKeySequence(Qt::ALT | Qt::Key_F9), [this] {
         m_canvas->setGuides(!m_canvas->guides());
+        // (what the file says about showing them follows, with no step of Undo)
+        deck::GridView g = deck::gridViewOf(*m_ed->doc());
+        g.showGuides = m_canvas->guides();
+        deck::setGridView(*m_ed->doc(), g);
         refreshUi();
     }, true);
     mk("zoom.in", tr("Zoom In"), "zoom-in", QKeySequence::ZoomIn, [this] {

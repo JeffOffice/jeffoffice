@@ -221,6 +221,8 @@ PageBase *Editor::surface() const
     return m_doc->pages[std::clamp(m_page, 0, std::max(0, int(m_doc->pages.size()) - 1))].get();
 }
 
+RulerGuides &Editor::rulerGuides() const { return view.sharedGuides ? m_doc->viewGuides : surface()->guides; }
+
 ItemList &Editor::surfaceItems() const { return surface()->items; }
 
 QSizeF Editor::surfaceSize() const

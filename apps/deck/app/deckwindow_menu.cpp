@@ -107,7 +107,7 @@ QMenu *DeckWindow::slideContextMenu(QWidget *parent)
         }
         add(nullptr, {"design.formatBackground"});
         QMenu *grid = menu->addMenu(act("view.gridlines")->icon(), tr("Grid and Guides"));
-        add(grid, {"view.gridlines", "view.guides"});
+        add(grid, {"view.gridlines", "view.guides", "view.gridGuides"});
         add(nullptr, {"view.rulers"});
         menu->addSeparator();
         add(nullptr, {"comment.new"});

@@ -371,6 +371,8 @@ public:
     // What an app keeps about the whole document besides its pages (a
     // presentation's theme and sections); saved and undone with it.
     QJsonObject appData;
+    // Ruler guides of the whole document, for an app whose guides belong to the presentation and not to a page (ViewOptions::sharedGuides).
+    RulerGuides viewGuides;
     // The fonts the file this came from carries (a presentation's embedded fonts): each family they are for (lower-cased) and the private family
     // the font was added to the font database under, so that this document draws with them and nothing else does (LayoutEnv::familyAliases).
     // Never saved; set by the reader that adds the fonts.

@@ -1,11 +1,11 @@
 # View tab
-<!-- keywords: full screen, f11, view tab, ribbon, slide master, master views, normal, outline view, slide sorter, notes page, notes master, handout master, reading view, ruler, gridlines, guides, notes, zoom, fit to window, presentation views -->
+<!-- keywords: full screen, f11, view tab, ribbon, slide master, master views, normal, outline view, slide sorter, notes page, notes master, handout master, reading view, ruler, gridlines, guides, grid and guides, grid spacing, snap to grid, notes, zoom, fit to window, presentation views -->
 
 The **View** tab changes how the slides look on screen while you work. These choices do not change the slides themselves.
 
 - **Presentation Views** switches between **Normal**, **Outline View**, **Slide Sorter**, and **Notes Page**. See [Outline view, the Slide Sorter, and Slide Master view](views).
 - **Master Views** has **Slide Master**, which opens Slide Master view to edit the slide masters and layouts. **Notes Master** and **Handout Master** edit the plan of the printed notes page and handout.
-- **Show** has check boxes for the **Ruler**, **Gridlines**, and **Guides** on the slide, and the **Notes** button, which shows or hides the notes box. See [Speaker notes](notes).
+- **Show** has check boxes for the **Ruler**, **Gridlines**, and **Guides** on the slide, the **Notes** button, which shows or hides the notes box, and **Grid and Guides**, which opens a box for the grid and the guides. See [Speaker notes](notes) and [Objects](objects).
 - **Zoom** has a **Zoom** menu, from 400% down to 10%, and **Fit to Window**, which sizes the slide to fill the window. See [Find your way around the window](window).
 - **Window** has **Full Screen** (F11), which fills the whole screen with the window; press **F11** or **Esc** to come back (**Esc** first puts away a selected object or text you are typing). It also has **New Window**, which opens the presentation's file again in a second window (a presentation with no file yet opens a new, empty one), and **Switch Windows**, which lists the open windows so you can bring one forward. Example: a change made in one window shows in the other after you save it and open the file there again.
 

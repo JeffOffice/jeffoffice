@@ -13,6 +13,11 @@
 #include "app/notespageview.h"
 #include "core/notesmaster.h"
 #include "core/printheaderfooter.h"
+#include "core/gridview.h"
+#include "app/deckcanvas.h"
+#include "app/guidesdialog.h"
+#include <QDoubleSpinBox>
+#include "app/theme.h"
 
 class DeckWindowTests : public QObject {
     Q_OBJECT
@@ -2785,6 +2790,199 @@ private Q_SLOTS:
         return minitest::Rig<DeckWindow>(w, boxId, storyId, 0);
         }();
         minitest::goesWhenTheWordsMove(w, rig, "fmt.alignRight");
+    }
+
+    // The Grid and Guides dialog of the View tab sets the grid's spacing and what snaps, saves them with the presentation as one step of Undo, and shows the grid.
+    void theGridDialogSetsSpacingAndSnap()
+    {
+        DeckWindow w;
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        Editor *ed = w.editor();
+        QCOMPARE(ed->view.gridSpacing, 6.0);
+        QVERIFY(!ed->view.snapGrid);
+        QVERIFY(!w.canvas()->gridlines());
+        withDialog([&] { w.act(QStringLiteral("view.gridGuides"))->trigger(); }, QStringLiteral("gridGuidesDialog"), [&](QDialog *d) {
+            auto *spacing = d->findChild<QDoubleSpinBox *>(QStringLiteral("gridSpacing"));
+            QVERIFY(spacing);
+            spacing->setValue(18);
+            d->findChild<QCheckBox *>(QStringLiteral("snapGrid"))->setChecked(true);
+            d->findChild<QCheckBox *>(QStringLiteral("showGrid"))->setChecked(true);
+            d->findChild<QCheckBox *>(QStringLiteral("snapObjects"))->setChecked(false);
+        });
+        QCOMPARE(ed->view.gridSpacing, 18.0);
+        QVERIFY(ed->view.snapGrid);
+        QVERIFY(!ed->view.snapObjects);
+        QVERIFY(w.canvas()->gridlines());
+        const deck::GridView saved = deck::gridViewOf(*ed->doc());
+        QCOMPARE(saved.spacing.value_or(0), 18.0);
+        QVERIFY(saved.snapGrid.value_or(false));
+        QVERIFY(!saved.snapObjects.value_or(true));
+        ed->undo();
+        // (the file has none again; the view uses the last choice the program kept)
+        QVERIFY(!deck::gridViewOf(*ed->doc()).spacing && !deck::gridViewOf(*ed->doc()).snapGrid);
+        // Cancel changes nothing.
+        const bool snapBefore = ed->view.snapGrid;
+        withDialog([&] { w.act(QStringLiteral("view.gridGuides"))->trigger(); }, QStringLiteral("gridGuidesDialog"), [&](QDialog *d) {
+            d->findChild<QCheckBox *>(QStringLiteral("snapGrid"))->setChecked(!snapBefore);
+            d->findChild<QCheckBox *>(QStringLiteral("snapObjects"))->setChecked(false);
+        }, false);
+        QCOMPARE(ed->view.snapGrid, snapBefore);
+        QVERIFY(!deck::gridViewOf(*ed->doc()).snapGrid);
+    }
+
+    // The dialog adds guides of both kinds to the presentation (never two at one place), shows them, and offers no more past the most one way.
+    void theGridDialogAddsGuides()
+    {
+        DeckWindow w;
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        Editor *ed = w.editor();
+        QVERIFY(!w.canvas()->guides());
+        withDialog([&] { w.act(QStringLiteral("view.gridGuides"))->trigger(); }, QStringLiteral("gridGuidesDialog"), [&](QDialog *d) {
+            auto *addV = d->findChild<QPushButton *>(QStringLiteral("addVertical"));
+            auto *addH = d->findChild<QPushButton *>(QStringLiteral("addHorizontal"));
+            QVERIFY(addV && addH);
+            addV->click();
+            addV->click();
+            addH->click();
+        });
+        const RulerGuides &g = ed->doc()->viewGuides;
+        QCOMPARE(g.v.size(), 2);
+        QCOMPARE(g.h.size(), 1);
+        QVERIFY(std::abs(g.v[0] - g.v[1]) > 0.5);
+        QVERIFY(std::abs(g.h[0] - ed->doc()->pageSize().height() / 2) < 1e-9);
+        QVERIFY(w.canvas()->guides());
+        QVERIFY(ed->doc()->pages[0]->guides.v.isEmpty());   // (the presentation's, not the slide's)
+        ed->undo();
+        QVERIFY(ed->doc()->viewGuides.v.isEmpty() && ed->doc()->viewGuides.h.isEmpty());
+        // At the most, the button is off.
+        for (int i = 0; i < kMaxGuidesPerAxis; ++i) ed->doc()->viewGuides.v << 5.0 + i;
+        withDialog([&] { w.act(QStringLiteral("view.gridGuides"))->trigger(); }, QStringLiteral("gridGuidesDialog"), [&](QDialog *d) {
+            QVERIFY(!d->findChild<QPushButton *>(QStringLiteral("addVertical"))->isEnabled());
+            QVERIFY(d->findChild<QPushButton *>(QStringLiteral("addHorizontal"))->isEnabled());
+        }, false);
+    }
+
+    // An object dragged on a grid lands on it (its edge on a multiple of the spacing, worked out from the grid, not from pixels); Alt leaves snapping off.
+    void aDraggedObjectSnapsToTheGrid()
+    {
+        DeckWindow w;
+        w.resize(1440, 900);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        Editor *ed = w.editor();
+        ed->surfaceItems().clear();
+        auto shape = std::make_shared<ShapeItem>();
+        shape->rect = QRectF(100.3, 77.2, 120, 80);
+        ed->addItem(shape, false);
+        const QString id = shape->id;
+        ed->clearSelection();
+        deck::GridView grid;   // (the presentation's choices, which the view follows)
+        grid.spacing = 18;
+        grid.snapGrid = true;
+        grid.snapObjects = false;
+        deck::setGridView(*ed->doc(), grid);
+        ed->setView([](ViewOptions &v) {
+            v.snapGrid = true;
+            v.gridSpacing = 18;
+            v.snapObjects = false;
+            v.snapGuides = false;
+        });
+        const QPointF startCenter = shape->rect.center();
+        auto drag = [&](QPointF by, Qt::KeyboardModifiers mods) {
+            QWidget *vp = w.canvas()->viewport();
+            const QPoint a = w.canvas()->pageToView(startCenter).toPoint(), b = w.canvas()->pageToView(startCenter + by).toPoint();
+            QTest::mousePress(vp, Qt::LeftButton, Qt::NoModifier, a);
+            QMouseEvent step(QEvent::MouseMove, (a + b) / 2, vp->mapToGlobal((a + b) / 2), Qt::NoButton, Qt::LeftButton, mods);
+            QApplication::sendEvent(vp, &step);
+            QMouseEvent last(QEvent::MouseMove, b, vp->mapToGlobal(b), Qt::NoButton, Qt::LeftButton, mods);
+            QApplication::sendEvent(vp, &last);
+            QTest::mouseRelease(vp, Qt::LeftButton, mods, b);
+        };
+        // Alt: where the mouse put it, not on the grid.
+        drag(QPointF(40, 25), Qt::AltModifier);
+        const QRectF free = ed->doc()->item(id)->bounds();
+        QVERIFY(std::abs(free.left() - 140.3) < 3 && std::abs(free.top() - 102.2) < 3);
+        QVERIFY(std::abs(free.left() / 18 - std::round(free.left() / 18)) > 0.02 && std::abs(free.top() / 18 - std::round(free.top() / 18)) > 0.02);
+        ed->undo();
+        QCOMPARE(ed->doc()->item(id)->bounds().left(), 100.3);
+        // Without it: an edge on the grid, the nearer of the two on each side.
+        drag(QPointF(40, 25), Qt::NoModifier);
+        const QRectF now = ed->doc()->item(id)->bounds();
+        auto onGrid = [](double v) { return std::abs(v / 18 - std::round(v / 18)) < 1e-9; };
+        QVERIFY(onGrid(now.left()) || onGrid(now.right()));
+        QVERIFY(onGrid(now.top()) || onGrid(now.bottom()));
+        QCOMPARE(now.left(), 144.0);   // (140.3: its left edge is 3.7 away from 144, its right edge 8.3 from 252)
+        QCOMPARE(now.top(), 100.0);    // (102.2: its bottom edge, 182.2, is 2.2 from 180)
+        QCOMPARE(now.width(), 120.0);
+    }
+
+    // A guide dragged from the ruler is the presentation's, snaps to the grid, follows the mouse in small steps (not held where it started), and undoes.
+    void aGuideDraggedFromTheRulerSnapsAndUndoes()
+    {
+        DeckWindow w;
+        w.resize(1440, 900);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        Editor *ed = w.editor();
+        auto global = [&](double x, double y) { return w.canvas()->viewport()->mapToGlobal(w.canvas()->pageToView(QPointF(x, y)).toPoint()); };
+        deck::GridView grid;
+        grid.spacing = 18;
+        grid.snapGrid = true;
+        grid.snapObjects = false;
+        deck::setGridView(*ed->doc(), grid);
+        ed->setView([](ViewOptions &v) {
+            v.snapGrid = true;
+            v.gridSpacing = 18;
+            v.snapObjects = false;
+        });
+        w.canvas()->startGuideDrag(Qt::Vertical, global(200, 100));
+        w.canvas()->updateGuideDrag(global(300, 100));
+        w.canvas()->endGuideDrag(global(300, 100));
+        QCOMPARE(ed->doc()->viewGuides.v.size(), 1);
+        QCOMPARE(ed->doc()->viewGuides.v[0], 306.0);   // (300 is 6 from 306 and 12 from 288)
+        QVERIFY(ed->doc()->pages[0]->guides.v.isEmpty());
+        QVERIFY(w.canvas()->guides());   // (a guide dragged out is shown)
+        ed->undo();
+        QVERIFY(ed->doc()->viewGuides.v.isEmpty());
+        // In small steps with nothing to snap to: it goes where the mouse goes.
+        grid.snapGrid = false;
+        deck::setGridView(*ed->doc(), grid);
+        ed->setView([](ViewOptions &v) { v.snapGrid = false; });
+        w.canvas()->startGuideDrag(Qt::Horizontal, global(300, 200));
+        for (int y = 203; y <= 215; y += 3) w.canvas()->updateGuideDrag(global(300, y));
+        w.canvas()->endGuideDrag(global(300, 215));
+        QCOMPARE(ed->doc()->viewGuides.h.size(), 1);
+        QVERIFY(std::abs(ed->doc()->viewGuides.h[0] - 215) < 3);
+    }
+
+    // Pictures for the change's notes (only with JO_SHOT_DIR set): a slide with the grid and two guides, and the dialog.
+    void gridAndGuidesPictures()
+    {
+        if (qEnvironmentVariable("JO_SHOT_DIR").isEmpty()) QSKIP("no JO_SHOT_DIR");
+        jp::applyUiTheme(1);
+        DeckWindow w;
+        w.resize(1440, 900);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        Editor *ed = w.editor();
+        ed->doc()->viewGuides.v = {240, 720};
+        ed->doc()->viewGuides.h = {135};
+        deck::GridView grid;
+        grid.spacing = 18;
+        grid.snapGrid = true;
+        deck::setGridView(*ed->doc(), grid);
+        ed->setView([](ViewOptions &v) { v.gridSpacing = 18; v.snapGrid = true; });
+        w.canvas()->setGridlines(true);
+        w.canvas()->setGuides(true);
+        w.canvas()->viewport()->update();
+        QTRY_VERIFY(w.isVisible());
+        shotOf(&w, QStringLiteral("deck-grid-and-guides-slide"));
+        withDialog([&] { w.act(QStringLiteral("view.gridGuides"))->trigger(); }, QStringLiteral("gridGuidesDialog"), [&](QDialog *d) {
+            d->findChild<QCheckBox *>(QStringLiteral("showGrid"))->setChecked(true);
+            shotOf(d, QStringLiteral("deck-grid-and-guides-dialog"));
+        }, false);
     }
 
     // Another page takes the bar away.

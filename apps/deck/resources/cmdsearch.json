@@ -114,6 +114,12 @@
    "gridlines",
    "rulers"
   ],
+  "view.gridGuides": [
+   "snap",
+   "grid spacing",
+   "guides",
+   "align"
+  ],
   "fmt.bold": [
    "heavy",
    "strong"

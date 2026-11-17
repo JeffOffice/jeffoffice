@@ -473,6 +473,8 @@ private:
     void createInsertActions();
     void createDesignActions();
     void createViewActions();
+    void createGridActions();   // deckwindow_grid.cpp: Grid and Guides
+    void applyGridView(bool showGuides);
     void buildRibbon();           // deckwindow_ribbon.cpp
     void ribbonControlParts(RibbonParts &parts);
     void ribbonGalleryParts(RibbonParts &parts);

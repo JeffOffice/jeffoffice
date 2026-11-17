@@ -41,6 +41,11 @@ struct ViewOptions {
     bool spelling = true;
     bool grammar = true;   // "check grammar as you type": the suite's one choice, as the spelling's is
     bool gridlines = true;
+    // A presentation's guides: one list for the whole document (Document::viewGuides), not each page's; no margin or column guides drawn.
+    bool sharedGuides = false;
+    // Snap to a grid of this spacing (points) from the page's top left, when nothing nearer to snap to.
+    bool snapGrid = false;
+    double gridSpacing = 6;
 };
 
 // The drag-and-drop format of Extra Content: the ids of the items, one a line.
@@ -93,6 +98,8 @@ public:
 
     // ---- surface (page or master being edited) ----
     PageBase *surface() const;
+    // The ruler guides being shown and edited: the page's or master's, or the document's own when the view says they are shared.
+    RulerGuides &rulerGuides() const;
     ItemList &surfaceItems() const;
     QSizeF surfaceSize() const;
     int surfacePageNumber() const;     // for fields on master pages

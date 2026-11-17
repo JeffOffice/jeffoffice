@@ -2,7 +2,7 @@
 // The slide being edited: the shared page canvas, with what a presentation
 // shows on it. A placeholder has a dotted outline while it is empty, selected,
 // or being typed in (never every object); Guides are dashed lines through the
-// slide's center and Gridlines are dots a twelfth of an inch apart. While
+// slide's center and Gridlines are dots a grid spacing apart (a twelfth of an inch to begin with), and the presentation's own guides are lines. While
 // comments are shown, the shared canvas draws a marker for each of the slide's comments.
 // While the Animations tab or the Animation Pane shows, a small number sits by each
 // shape that is animated (the click its effect plays at).
@@ -19,7 +19,7 @@ public:
     explicit DeckCanvas(Editor *ed, QWidget *parent = nullptr);
     // The movies and sounds on the slide: their control bars, and playing them in place.
     EditorMedia *media() const { return m_media; }
-    bool guides() const { return m_guides; }
+    bool guides() const { return editor()->view.guides; }
     void setGuides(bool on);
     bool gridlines() const { return m_grid; }
     void setGridlines(bool on);
@@ -47,7 +47,7 @@ protected:
 
 private:
     void paintMasterPlaceholders();
-    bool m_guides = false, m_grid = false;
+    bool m_grid = false;
     QVector<AnimationBadge> m_badges;
     EditorMedia *m_media = nullptr;
 };

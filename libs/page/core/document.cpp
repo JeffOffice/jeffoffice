@@ -2322,6 +2322,8 @@ QJsonObject Document::toJson() const
     if (std::abs(defaultTabStop - 36) > 1e-9) o["defaultTab"] = defaultTabStop;
     if (!rulerZero.isNull()) o["rulerZero"] = QJsonArray{rulerZero.x(), rulerZero.y()};
     if (!appData.isEmpty()) o["appData"] = appData;
+    if (!viewGuides.h.isEmpty()) o["viewGuidesH"] = dblJ(viewGuides.h);
+    if (!viewGuides.v.isEmpty()) o["viewGuidesV"] = dblJ(viewGuides.v);
     if (!pubFonts.isEmpty()) o["pubFonts"] = QJsonArray::fromStringList(pubFonts);
     QJsonArray spots;
     for (int i = 0; i < print.spotColors.size(); ++i)
@@ -2489,6 +2491,8 @@ void Document::fromJson(const QJsonObject &o)
     facingPages = o["facing"].toBool();
     defaultTabStop = std::clamp(o["defaultTab"].toDouble(36), 1.0, 1584.0);
     appData = o["appData"].toObject();
+    viewGuides.h = dblF(o["viewGuidesH"]);
+    viewGuides.v = dblF(o["viewGuidesV"]);
     const QJsonArray rz = o["rulerZero"].toArray();
     rulerZero = rz.size() == 2 ? QPointF(rz[0].toDouble(), rz[1].toDouble()) : QPointF();
     pubFonts.clear();
