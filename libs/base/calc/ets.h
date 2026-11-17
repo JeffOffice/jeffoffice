@@ -63,6 +63,12 @@ int detectSeason(const std::vector<double> &y);
 // `season`: 0 for none, else the length (the series must hold two of them: otherwise null).
 std::shared_ptr<const Model> fit(const std::vector<double> &y, int season);
 
+// What the calls of the three heavy steps have been so far, all threads together (for a test to tell that a series was worked on once, not once for each cell that reads it).
+struct Counts {
+    long long prepares = 0, detects = 0, fits = 0;
+};
+Counts counts();
+
 // The same series and season, fitted again, is not worked again: the last few fits are kept (this thread's).
 std::shared_ptr<const Model> fitCached(const std::vector<double> &y, int season);
 

@@ -5,12 +5,15 @@
 #include <QDate>
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 #include <limits>
 
 namespace jp::calc::ets {
 
 namespace {
+
+std::atomic<long long> g_prepares{0}, g_detects{0}, g_fits{0};
 
 constexpr double kEven = 1e-6;                  // how far from a whole number of steps a time may be and still be on the grid
 
@@ -81,6 +84,7 @@ double Timeline::timeAt(long long k) const
 
 Problem prepare(std::vector<std::pair<double, double>> pairs, Aggregation aggregation, bool interpolate, DateSystem system, Prepared *out)
 {
+    g_prepares.fetch_add(1, std::memory_order_relaxed);
     std::stable_sort(pairs.begin(), pairs.end(), [](const auto &a, const auto &b) { return a.first < b.first; });
     std::vector<double> times, vals;
     for (size_t i = 0; i < pairs.size();) {
@@ -100,45 +104,43 @@ Problem prepare(std::vector<std::pair<double, double>> pairs, Aggregation aggreg
     Timeline tl;
     tl.system = system;
     tl.t0 = times.front();
-    double step = std::numeric_limits<double>::infinity();
-    for (size_t i = 1; i < times.size(); ++i) step = std::min(step, times[i] - times[i - 1]);
-    bool even = step > 0;
-    for (size_t i = 0; i < times.size() && even; ++i) {
-        const double r = (times[i] - tl.t0) / step;
-        if (std::fabs(r - std::round(r)) > kEven) even = false;
-    }
     std::vector<double> index(times.size());
-    if (even) {
-        tl.step = step;
-        for (size_t i = 0; i < times.size(); ++i) index[i] = std::round((times[i] - tl.t0) / step);
-    } else {
-        // whole months apart, on one day of the month (or each on the last)
+    // whole months apart, on one day of the month (or each on the last): preferred to a count of days when the dates are so (Jul 1, Aug 1, and Sep 1 are a month apart, not 31 days)
+    auto monthly = [&]() {
         std::vector<long long> months(times.size());
         std::vector<int> days(times.size());
-        std::vector<bool> lasts(times.size());
-        bool ok = true;
-        for (size_t i = 0; i < times.size() && ok; ++i) {
-            bool l;
-            ok = serialMonth(times[i], system, &months[i], &days[i], &l);
-            lasts[i] = l;
-        }
-        if (!ok) return Problem::Uneven;
         bool sameDay = true, allLast = true;
         for (size_t i = 0; i < times.size(); ++i) {
+            bool l;
+            if (!serialMonth(times[i], system, &months[i], &days[i], &l)) return false;
             if (days[i] != days[0]) sameDay = false;
-            if (!lasts[i]) allLast = false;
+            if (!l) allLast = false;
         }
-        if (!sameDay && !allLast) return Problem::Uneven;
+        if (!sameDay && !allLast) return false;
         long long ms = std::numeric_limits<long long>::max();
         for (size_t i = 1; i < months.size(); ++i) ms = std::min(ms, months[i] - months[i - 1]);
-        if (ms < 1) return Problem::Uneven;
+        if (ms < 1) return false;
         for (size_t i = 0; i < months.size(); ++i)
-            if ((months[i] - months[0]) % ms != 0) return Problem::Uneven;
+            if ((months[i] - months[0]) % ms != 0) return false;
         tl.months = true;
         tl.step = double(ms);
         tl.day = days[0];
         tl.lastDay = allLast && !sameDay;
         for (size_t i = 0; i < times.size(); ++i) index[i] = double((months[i] - months[0]) / ms);
+        return true;
+    };
+    if (!monthly()) {
+        double step = std::numeric_limits<double>::infinity();
+        for (size_t i = 1; i < times.size(); ++i) step = std::min(step, times[i] - times[i - 1]);
+        bool even = step > 0;
+        for (size_t i = 0; i < times.size() && even; ++i) {
+            const double r = (times[i] - tl.t0) / step;
+            if (std::fabs(r - std::round(r)) > kEven) even = false;
+        }
+        if (!even) return Problem::Uneven;
+        tl.months = false;
+        tl.step = step;
+        for (size_t i = 0; i < times.size(); ++i) index[i] = std::round((times[i] - tl.t0) / step);
     }
     const double span = index.back() + 1;
     if (span > double(kMaxPoints)) return Problem::TooMany;
@@ -245,7 +247,8 @@ struct Search {
             pen += std::fabs(p[size_t(i)] - q[i]);
         }
         const double sse = run(y, m, q[0], q[1], q[2], nullptr).sse;
-        return sse * (1 + pen);
+        const double cost = sse * (1 + pen);
+        return std::isfinite(cost) ? cost : std::numeric_limits<double>::infinity();   // (an overflow is the worst there is: a NaN would break the order the sort needs)
     }
 
     std::vector<double> go(const std::vector<double> &start, int budget, double *best)
@@ -349,6 +352,7 @@ bool Model::interval(long long h, double confidence, double *halfWidth) const
 
 int detectSeason(const std::vector<double> &all)
 {
+    g_detects.fetch_add(1, std::memory_order_relaxed);
     // a long series is looked at by its last part
     const size_t cap = 20000;
     const std::vector<double> y(all.size() > cap ? all.end() - long(cap) : all.begin(), all.end());
@@ -392,8 +396,14 @@ int detectSeason(const std::vector<double> &all)
     return 0;
 }
 
+Counts counts()
+{
+    return {g_prepares.load(), g_detects.load(), g_fits.load()};
+}
+
 std::shared_ptr<const Model> fit(const std::vector<double> &y, int season)
 {
+    g_fits.fetch_add(1, std::memory_order_relaxed);
     const size_t n = y.size();
     if (n < 2) return nullptr;
     if (season < 2) season = 0;

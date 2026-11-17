@@ -2,6 +2,7 @@
 // the one the published definition of the function gives (the examples of its documentation, or worked out by hand from the formula).
 #include "calchelpers.h"
 
+#include "calc/ets.h"
 #include "calc/machine.h"
 
 #include <QElapsedTimer>
@@ -351,7 +352,7 @@ private Q_SLOTS:
             {"FORECAST.ETS.SEASONALITY(C1:C16,A1:A16)", "n:1"},             {"FORECAST.ETS(5,C1:C16,A1:A16,0)", "~11"},
             {"FORECAST.ETS.CONFINT(20,B1:B16,A1:A16)", "~0"},               {"FORECAST.ETS.STAT(B1:B16,A1:A16,8)", "n:1"},
             {"FORECAST.ETS.STAT(B1:B16,A1:A16,7)", "~0"},                   {"FORECAST.ETS.STAT(B1:B16,A1:A16,9)", "e:#NUM!"},
-            {"FORECAST.ETS.STAT(B1:B16,A1:A16,3,1)", "~0.0", },
+            {"FORECAST.ETS.STAT(B1:B16,A1:A16,3,0)", "~0.0"},
             {"FORECAST.ETS(5,B1:B16,A1:A16,17)", "e:#NUM!"},                {"FORECAST.ETS(17,B1:B16,A1:A15)", "e:#N/A"},
             {"FORECAST.ETS(5,F1:F4,E1:E4)", "e:#NUM!"},                     {"FORECAST.ETS(5,M1:M2,M3:M4)", "e:#NUM!"},
             {"FORECAST.ETS(5,N1:N4,M1:M4)", "e:#VALUE!"},                   {"FORECAST.ETS(17,B1:B16,A1:A16,0,2)", "e:#NUM!"},
@@ -362,9 +363,161 @@ private Q_SLOTS:
         };
         for (const auto &c : cases) {
             const QString problem = check(c, g, Settings());
-            if (QString::fromUtf8(c.value) == QLatin1String("~0.0")) continue;
             QVERIFY2(problem.isEmpty(), qPrintable(problem));
         }
+    }
+
+    // The half width of the interval, worked out by hand from the definition for a series of 8 points with no season (the fourth argument 0): with alpha and beta the constants the fit found and
+    // RMSE its root mean square error over the k = n - 1 = 7 points after the first, sigma = RMSE * sqrt(k / (k - 2)) (the squares of the errors over k less the 2 constants), and the half width h steps on
+    // is z * sigma * sqrt(1 + c_1^2 + ... + c_(h-1)^2) with c_j = alpha * (1 + j * beta) and z = 1.959963984540054 for 95% (the point of the normal curve at 0.975).
+    void forecastIntervalFollowsItsDefinition()
+    {
+        Grid g;
+        g.column("A1", {1, 2, 3, 4, 5, 6, 7, 8}).column("B1", {3, 5, 4, 7, 6, 9, 8, 11.5});
+        auto number = [&](const QString &formula) {
+            const QString got = ev(withPrefixes(formula), g, Settings());
+            if (!got.startsWith(QLatin1String("n:"))) {
+                QTest::qFail(qPrintable(formula + QStringLiteral(" gave ") + got), __FILE__, __LINE__);
+                return 0.0;
+            }
+            return got.mid(2).toDouble();
+        };
+        const double alpha = number("FORECAST.ETS.STAT(B1:B8,A1:A8,1,0)"), beta = number("FORECAST.ETS.STAT(B1:B8,A1:A8,2,0)"), rmse = number("FORECAST.ETS.STAT(B1:B8,A1:A8,7,0)");
+        const double z = 1.959963984540054, sigma = rmse * std::sqrt(7.0 / 5.0);
+        QVERIFY(rmse > 0.1 && alpha > 0 && alpha <= 1);
+        double sumSquares = 1;
+        for (int h = 1; h <= 4; ++h) {
+            if (h > 1) {
+                const double c = alpha * (1 + (h - 1) * beta);
+                sumSquares += c * c;
+            }
+            const double want = z * sigma * std::sqrt(sumSquares), got = number(QStringLiteral("FORECAST.ETS.CONFINT(%1,B1:B8,A1:A8,0.95,0)").arg(8 + h));
+            QVERIFY2(want > 0.5, "the expected half width is not a real one");
+            QVERIFY2(std::fabs(got - want) <= 1e-9 * want, qPrintable(QStringLiteral("h=%1 gave %2, expected %3").arg(h).arg(got, 0, 'g', 15).arg(want, 0, 'g', 15)));
+        }
+        // 90% is narrower: z = 1.6448536269514722
+        QVERIFY(std::fabs(number("FORECAST.ETS.CONFINT(9,B1:B8,A1:A8,0.9,0)") - 1.6448536269514722 * sigma) <= 1e-9 * sigma);
+    }
+
+    // The forecast of 12 days of values, and the forecast another program stored in a file for the 4 days after (6696.40, 7924.82, 9153.25, and 10381.67): the fitting is not the same, and ours are
+    // within 2% of those (1.2% at the most when this was written). This pins how near we are; the fit is not to be tuned to pass it.
+    void forecastIsNearTheStoredResultsOfAnotherProgram()
+    {
+        Grid g;
+        QVariantList days, values;
+        const double y[] = {403, 531, 615, 984, 1254, 1520, 1820, 2251, 2612, 3420, 4189, 5469};
+        for (int i = 0; i < 12; ++i) {
+            days << 43888 + i;
+            values << y[i];
+        }
+        g.column("A1", days).column("B1", values);
+        const double stored[] = {6696.401622952164, 7924.8248271791599, 9153.248031406154, 10381.67123563315};
+        for (int h = 0; h < 4; ++h) {
+            const QString got = ev(withPrefixes(QStringLiteral("FORECAST.ETS(%1,B1:B12,A1:A12)").arg(43900 + h)), g, Settings());
+            QVERIFY2(got.startsWith(QLatin1String("n:")), qPrintable(got));
+            const double ours = got.mid(2).toDouble();
+            QVERIFY2(std::fabs(ours - stored[h]) <= 0.02 * stored[h], qPrintable(QStringLiteral("day %1: %2, stored %3").arg(h + 1).arg(ours).arg(stored[h])));
+        }
+    }
+
+    // The cells of a Forecast Sheet read one series and differ in the time they ask about: the series is prepared, its season found, and its constants fitted once, not once for each cell; a change
+    // of the values, or another way of reading them, is another series.
+    void forecastWorksASeriesOncePerInput()
+    {
+        Grid g;
+        QVariantList t, y;
+        const double pat[] = {2, -3, -2, 3};
+        for (int i = 1; i <= 24; ++i) {
+            t << i;
+            y << 31 + 0.7 * i + pat[(i - 1) % 4] + (i * 13 % 7) * 0.05;
+        }
+        g.column("A1", t).column("B1", y);
+        namespace ets = jp::calc::ets;
+        auto works = [&](const QStringList &formulas) {
+            const ets::Counts before = ets::counts();
+            for (const QString &f : formulas) {
+                const QString got = ev(withPrefixes(f), g, Settings());
+                if (!got.startsWith(QLatin1String("n:"))) QTest::qFail(qPrintable(f + QStringLiteral(" gave ") + got), __FILE__, __LINE__);
+            }
+            const ets::Counts after = ets::counts();
+            return std::array<long long, 3>{after.prepares - before.prepares, after.detects - before.detects, after.fits - before.fits};
+        };
+        QStringList cells;
+        for (int k = 25; k <= 36; ++k) {
+            cells << QStringLiteral("FORECAST.ETS(%1,B1:B24,A1:A24)").arg(k) << QStringLiteral("FORECAST.ETS.CONFINT(%1,B1:B24,A1:A24,0.95)").arg(k);
+        }
+        cells << QStringLiteral("FORECAST.ETS.STAT(B1:B24,A1:A24,7)") << QStringLiteral("FORECAST.ETS.SEASONALITY(B1:B24,A1:A24)");
+        QCOMPARE((works(cells)), (std::array<long long, 3>{1, 1, 1}));
+        // the same series again: nothing is worked out
+        QCOMPARE((works({QStringLiteral("FORECAST.ETS(40,B1:B24,A1:A24)")})), (std::array<long long, 3>{0, 0, 0}));
+        // a season given (the one found, or not) is no search for one; a season that is another is another fit, once
+        QCOMPARE((works({QStringLiteral("FORECAST.ETS(40,B1:B24,A1:A24,4)")})), (std::array<long long, 3>{0, 0, 0}));
+        QCOMPARE((works({QStringLiteral("FORECAST.ETS(40,B1:B24,A1:A24,2)"), QStringLiteral("FORECAST.ETS(41,B1:B24,A1:A24,2)")})), (std::array<long long, 3>{0, 0, 1}));
+        // another way of making the grid is another series
+        QCOMPARE((works({QStringLiteral("FORECAST.ETS(40,B1:B24,A1:A24,1,1,7)")})), (std::array<long long, 3>{1, 1, 1}));
+        // a value changed is another series, and its forecast follows
+        const QString before = ev(withPrefixes(QStringLiteral("FORECAST.ETS(40,B1:B24,A1:A24)")), g, Settings());
+        g.n("B24", 900);
+        QCOMPARE((works({QStringLiteral("FORECAST.ETS(40,B1:B24,A1:A24)"), QStringLiteral("FORECAST.ETS(41,B1:B24,A1:A24)")})), (std::array<long long, 3>{1, 1, 1}));
+        QVERIFY(ev(withPrefixes(QStringLiteral("FORECAST.ETS(40,B1:B24,A1:A24)")), g, Settings()) != before);
+    }
+
+    // The work of a series is charged to the evaluation: a limit of steps that the fit passes stops it, and a series that is read from the cells costs steps for the grid and the fit as well.
+    void forecastChargesItsWork()
+    {
+        Grid g;
+        QVariantList t, y;
+        for (int i = 1; i <= 200; ++i) {
+            t << i;
+            y << 5 + i * 0.3 + ((i * 7919) % 11) * 0.4;
+        }
+        g.column("A1", t).column("B1", y);
+        jp::calc::EvalStatus status = jp::calc::EvalStatus::Ok;
+        const QString plain = evStatus(withPrefixes(QStringLiteral("FORECAST.ETS(201,B1:B200,A1:A200,0)")), g, Settings(), &status, 5000);
+        QCOMPARE(int(status), int(jp::calc::EvalStatus::TooMuchWork));
+        const Outcome whole = evOutcome(withPrefixes(QStringLiteral("FORECAST.ETS(201,B1:B200,A1:A200,0)")), g);
+        QVERIFY2(whole.text.startsWith(QLatin1String("n:")), qPrintable(whole.text));
+        QVERIFY2(whole.work > 20000, qPrintable(QString::number(whole.work)));
+        Q_UNUSED(plain);
+    }
+
+    // A range of rows and columns is no line of values or times: it is #VALUE!, as the original refuses it (it is not read as one long line).
+    void forecastRefusesRangesOfRowsAndColumns()
+    {
+        Grid g;
+        g.column("A1", {1, 2, 3, 4, 5, 6}).column("B1", {3, 5, 4, 7, 6, 9});
+        g.column("D1", {1, 3}).column("E1", {2, 4}).column("G1", {5, 7}).column("H1", {6, 8});
+        const E cases[] = {
+            {"FORECAST.ETS(9,B1:B6,A1:A6)", "~11"},
+            {"FORECAST.ETS(9,G1:H2,D1:E2)", "e:#VALUE!"},          // 2 by 2 and 2 by 2: as long a line as 4 points, but not one
+            {"FORECAST.ETS(9,G1:H2,A1:A4)", "e:#VALUE!"},
+            {"FORECAST.ETS.SEASONALITY(G1:H2,D1:E2)", "e:#VALUE!"},
+            {"FORECAST.ETS.STAT(G1:H2,D1:E2,1)", "e:#VALUE!"},
+        };
+        for (const auto &c : cases) {
+            const QString problem = check(c, g, Settings());
+            QVERIFY2(problem.isEmpty(), qPrintable(problem));
+        }
+    }
+
+    // Values so large that the measure of fit overflows (to infinity, and to NaN where a level overflows): the search treats such a point as the worst and goes on, so the constants it gives are numbers from 0
+    // to 1 and the functions give a number or an error. (A NaN in the search's sort is undefined, which no test can show: this checks that the case is handled and ends.)
+    void forecastSurvivesOverflow()
+    {
+        namespace ets = jp::calc::ets;
+        srand(7);
+        for (int k = 0; k < 20; ++k) {
+            std::vector<double> y;
+            for (int i = 0; i < 30; ++i) y.push_back(1.79e308 * ((rand() % 1000) / 1000.0) * (k % 2 ? 1.0 : (i % 2 ? 1.0 : 0.3)) + (k % 4 == 0 ? 1e200 * i : 0));
+            const std::shared_ptr<const ets::Model> m = ets::fit(y, 0);
+            QVERIFY(m);
+            QVERIFY(std::isfinite(m->alpha) && m->alpha >= 0 && m->alpha <= 1);
+            QVERIFY(std::isfinite(m->beta) && m->beta >= 0 && m->beta <= 1);
+        }
+        Grid g;
+        g.column("A1", {1, 2, 3, 4, 5, 6, 7, 8}).column("B1", {1.7e308, 1.1e308, 1.75e308, 2e307, 1.7e308, 1.2e308, 1.79e308, 1e307});
+        const QString got = ev(withPrefixes(QStringLiteral("FORECAST.ETS(9,B1:B8,A1:A8,0)")), g, Settings());
+        QVERIFY2(got.startsWith(QLatin1String("n:")) || got.startsWith(QLatin1String("e:")), qPrintable(got));
     }
 
     void fittedLinesAndCurves()
