@@ -114,6 +114,9 @@ jobs:
           git config user.name "JeffOffice LLC"
           git config user.email "info@jeffoffice.com"
           git commit -q -m "Translations of new and changed text"
+          # (only from main: started from another branch, the checkout holds that branch's last commit alone, and the rebase below
+          # replayed its whole tree over main's newer files; Nov 16 it undid the 0.41.0 version commit)
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then echo "::error::Translations are committed from main only (this run is on $GITHUB_REF)."; exit 1; fi
           for i in 1 2 3 4 5; do
             # On a clash in a translation file, this run's version wins: it
             # holds lupdate's latest list and the new translations.
@@ -158,6 +161,9 @@ jobs:
           git config user.name "JeffOffice LLC"
           git config user.email "info@jeffoffice.com"
           git commit -q -m "English and Spanish variants of new and changed text"
+          # (only from main: started from another branch, the checkout holds that branch's last commit alone, and the rebase below
+          # replayed its whole tree over main's newer files; Nov 16 it undid the 0.41.0 version commit)
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then echo "::error::Translations are committed from main only (this run is on $GITHUB_REF)."; exit 1; fi
           for i in 1 2 3 4 5; do
             git pull -q --rebase -X theirs origin main && git push -q origin HEAD:main && exit 0
             git rebase --abort 2>/dev/null || true
