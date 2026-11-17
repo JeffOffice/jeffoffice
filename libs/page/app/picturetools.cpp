@@ -47,14 +47,20 @@ bool holdsPicture(const Item *it)
 
 } // namespace
 
-QPixmap pictureStylePixmap(int k, const ColorScheme &scheme, const QSize &tile)
+QPixmap pictureStylePixmap(int k, const ColorScheme &scheme, const QSize &tile, const QImage &given)
 {
     // A picture of the size a slide's would be (200 by 140 points) is drawn small, so that a border, a blur, and a bevel are as thick in the tile as they are in use.
-    constexpr double kWidth = 200, kHeight = 140;
+    double kWidth = 200, kHeight = 140;
     const double ratio = 2;
     Document doc;
     doc.colors = scheme;
-    const QImage sample = samplePicture();
+    const QImage sample = given.isNull() ? samplePicture() : given;
+    if (!given.isNull()) {
+        // (A picture given keeps its shape inside the same box.)
+        const double fit = std::min(kWidth / sample.width(), kHeight / sample.height());
+        kWidth = std::max(1.0, sample.width() * fit);
+        kHeight = std::max(1.0, sample.height() * fit);
+    }
     QByteArray bytes;
     {
         QBuffer buffer(&bytes);
@@ -81,16 +87,17 @@ QPixmap pictureStylePixmap(int k, const ColorScheme &scheme, const QSize &tile)
     return pm;
 }
 
-QVector<GalleryItem> pictureStyleItems(const ColorScheme &scheme, const QSize &tile)
+QVector<GalleryItem> pictureStyleItems(const ColorScheme &scheme, const QSize &tile, const QImage &sample)
 {
     // The tiles are drawn once for a set of colors (and the names are as the language was when they were made).
     static QHash<QString, QVector<GalleryItem>> made;
     QString key = QStringLiteral("%1x%2").arg(tile.width()).arg(tile.height()) + QCoreApplication::translate("jp::PictureTools", "Picture Style");
     for (const QColor &c : scheme.c) key += c.name(QColor::HexRgb);
+    if (!sample.isNull()) key += QStringLiteral("|%1").arg(sample.cacheKey());
     const auto it = made.constFind(key);
     if (it != made.constEnd()) return *it;
     QVector<GalleryItem> items;
-    for (int k = 0; k < pictureStyleCount(); ++k) items << GalleryItem{QString::number(k), pictureStyleName(k), QIcon(pictureStylePixmap(k, scheme, tile)), QString()};
+    for (int k = 0; k < pictureStyleCount(); ++k) items << GalleryItem{QString::number(k), pictureStyleName(k), QIcon(pictureStylePixmap(k, scheme, tile, sample)), QString()};
     if (made.size() > 16) made.clear();
     made.insert(key, items);
     return items;

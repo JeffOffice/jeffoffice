@@ -14,6 +14,7 @@
 #include "core/pictureops.h"
 
 #include <QAction>
+#include <QCryptographicHash>
 #include <QFileInfo>
 #include <QMenu>
 #include <QStandardPaths>
@@ -63,6 +64,20 @@ void WriteWindow::graphicsRibbonParts(RibbonParts &parts)
         });
         return m;
     };
+    parts.widgets[QStringLiteral("graphicsStyles")] = [this]() -> QWidget * {
+        auto *g = new Gallery(QSize(60, 46), 6);
+        g->setObjectName(QStringLiteral("graphicsStyles"));
+        g->setTitle(tr("Graphic Styles"));
+        g->setItemsProvider([this] { return pictureStyleItems(m_doc ? m_doc->flow().env.colors : builtinColorSchemes().value(0), QSize(60, 46), m_graphicSample); });
+        connect(g, &Gallery::activated, this, [this](const QString &id) {
+            const int i = id.toInt();
+            if (i < 0 || i >= pictureStyleCount()) return;
+            m_view->changeSelectedPicture([i](write::WriteDoc &d, int position) { return write::setPictureStyle(d, position, i); });
+            m_view->setFocus(Qt::OtherFocusReason);
+        });
+        m_graphicStyles = g;
+        return g;
+    };
     parts.widgets[QStringLiteral("graphicsFill")] = [this]() -> QWidget * {
         auto *b = new ColorButton(QStringLiteral("paint-bucket"), tr("Graphics Fill"), true, tr("No Fill"));
         b->setObjectName(QStringLiteral("graphicsFill"));
@@ -110,7 +125,7 @@ void WriteWindow::graphicsRibbonParts(RibbonParts &parts)
 void WriteWindow::refreshGraphicsUi(const write::PictureInfo &info)
 {
     const bool graphic = info.valid && info.kind == write::DrawnKind::Picture && info.svg;
-    m_ribbon->setContextVisible(QStringLiteral("Graphics Tools"), graphic, false);
+    m_ribbon->setContextVisible(QStringLiteral("Graphics Tools"), graphic, true);
     const bool editable = graphic && info.editable && !(m_view && m_view->readOnly());
     for (const char *id : {"graphics.change.file", "graphics.change.icons", "graphics.convert"}) act(QString::fromLatin1(id))->setEnabled(editable);
     m_updatingFields = true;
@@ -120,6 +135,16 @@ void WriteWindow::refreshGraphicsUi(const write::PictureInfo &info)
         m_graphicFields[i + 1]->setPoints(info.width);
     }
     m_updatingFields = false;
+    // The gallery's tiles show the graphic that is selected, in each style (made again when another graphic is selected, or this one is changed).
+    if (graphic && m_graphicStyles) {
+        const QByteArray svg = write::graphicSvgAt(*m_doc, m_view->selectedPicture());
+        const QByteArray key = QCryptographicHash::hash(svg, QCryptographicHash::Sha1);
+        if (key != m_graphicSampleKey) {
+            m_graphicSampleKey = key;
+            m_graphicSample = write::graphicSample(*m_doc, m_view->selectedPicture());
+            m_graphicStyles->reload();
+        }
+    }
 }
 
 // Graphics Format > Change Graphic: another SVG, from a file or from the icons, goes in the frame of the one selected; the frame's size and place stay.

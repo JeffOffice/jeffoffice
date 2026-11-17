@@ -657,6 +657,9 @@ private:
     QList<MeasureSpin *> m_pictureFields;   // the height and width of the Picture Format tab
     QList<MeasureSpin *> m_shapeFields;     // the height and width of the Shape Format tab
     QList<MeasureSpin *> m_graphicFields;   // the height and width of the Graphics Format tab
+    QPointer<Gallery> m_graphicStyles;      // its styles, drawn on the graphic that is selected (`m_graphicSample`, made for the SVG whose SHA-1 is `m_graphicSampleKey`)
+    QImage m_graphicSample;
+    QByteArray m_graphicSampleKey;
     write::Ruler *m_ruler = nullptr;
     write::VerticalRuler *m_vruler = nullptr;
     QList<MeasureSpin *> m_hfFields;        // the header and footer distances of the Header & Footer tab

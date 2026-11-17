@@ -364,8 +364,8 @@ void WriteWindow::refreshPictureUi()
     act("insert.barcode")->setEnabled(body);
     const int at = m_doc ? m_view->selectedPicture() : -1;
     const write::PictureInfo info = at >= 0 ? write::pictureAt(*m_doc, m_doc->story(), at) : write::PictureInfo();
-    // (A graphic, an SVG picture, has its own tab in place of the Picture Format one.)
-    m_ribbon->setContextVisible(QStringLiteral("Picture Tools"), info.valid && info.kind == write::DrawnKind::Picture && !info.svg, false);
+    // (A graphic, an SVG picture, has the Graphics Format tab first and the Picture Format tab too: its crop, border, corrections, recolor, compression, and alt text are the picture's.)
+    m_ribbon->setContextVisible(QStringLiteral("Picture Tools"), info.valid && info.kind == write::DrawnKind::Picture, false);
     const bool editable = info.valid && info.editable;
     for (QAction *a : m_actions)
         if (a->objectName().startsWith(QLatin1String("picture."))) a->setEnabled(editable);

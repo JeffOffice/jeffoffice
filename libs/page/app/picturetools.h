@@ -13,9 +13,10 @@
 namespace jp {
 
 // The gallery's tiles, one for each style (the id is the style's number, as text) with the style's name for a tip; drawn in the colors of `scheme`.
-QVector<GalleryItem> pictureStyleItems(const ColorScheme &scheme, const QSize &tile = QSize(60, 46));
-// One style's tile: the sample picture of the gallery in that style (-1 for the picture as it comes).
-QPixmap pictureStylePixmap(int k, const ColorScheme &scheme, const QSize &tile);
+// With `sample` (not null), the tiles show that picture in each style, fitted to the sample picture's own shape, in place of the gallery's landscape.
+QVector<GalleryItem> pictureStyleItems(const ColorScheme &scheme, const QSize &tile = QSize(60, 46), const QImage &sample = QImage());
+// One style's tile: the sample picture of the gallery in that style (-1 for the picture as it comes), or `sample` where it is given.
+QPixmap pictureStylePixmap(int k, const ColorScheme &scheme, const QSize &tile, const QImage &sample = QImage());
 
 // The selected pictures (those that hold a picture, not a movie or a chart) take the style, as one step.
 void applyPictureStyleToSelection(Editor *ed, int k);
