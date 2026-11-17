@@ -39,6 +39,53 @@ using namespace jp::write;
 
 namespace {
 
+// A document of another program with a graphic (an inline picture whose blip names a PNG and holds `svg` in its svgBlip).
+QByteArray foreignGraphicDocx(const QByteArray &svg)
+{
+    QByteArray png;
+    {
+        QImage image(40, 40, QImage::Format_RGB32);
+        image.fill(Qt::red);
+        QBuffer buffer(&png);
+        buffer.open(QIODevice::WriteOnly);
+        image.save(&buffer, "PNG");
+    }
+    office::PackageWriter w;
+    const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
+    const QByteArray run = "<w:r><w:drawing><wp:inline distT=\"0\" distB=\"0\" distL=\"0\" distR=\"0\"><wp:extent cx=\"1270000\" cy=\"1270000\"/><wp:docPr id=\"1\" name=\"g\"/><wp:cNvGraphicFramePr/>"
+                           "<a:graphic><a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/picture\"><pic:pic xmlns:pic=\"http://schemas.openxmlformats.org/drawingml/2006/picture\">"
+                           "<pic:nvPicPr><pic:cNvPr id=\"0\" name=\"g\"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed=\"rIdP\"><a:extLst><a:ext uri=\"{96DAC541-7B7A-43D3-8B79-37D633B846F1}\">"
+                           "<asvg:svgBlip xmlns:asvg=\"http://schemas.microsoft.com/office/drawing/2016/SVG/main\" r:embed=\"rIdS\"/></a:ext></a:extLst></a:blip><a:stretch><a:fillRect/></a:stretch>"
+                           "</pic:blipFill><pic:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"1270000\" cy=\"1270000\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></pic:spPr></pic:pic>"
+                           "</a:graphicData></a:graphic></wp:inline></w:drawing></w:r>";
+    w.addPart(QStringLiteral("/word/document.xml"),
+              QByteArray("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" "
+                         "xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\" "
+                         "xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><w:body><w:p><w:r><w:t xml:space=\"preserve\">Before </w:t></w:r>") + run + "</w:p></w:body></w:document>",
+              QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"));
+    w.addPart(QStringLiteral("/word/media/image1.png"), png, QStringLiteral("image/png"));
+    w.addPart(QStringLiteral("/word/media/image2.svg"), svg, QStringLiteral("image/svg+xml"));
+    w.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+    w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdP"), rel + QStringLiteral("image"), QStringLiteral("media/image1.png"));
+    w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdS"), rel + QStringLiteral("image"), QStringLiteral("media/image2.svg"));
+    return w.finish();
+}
+
+// The pictures of the .odt a document of another program is saved as: the SVG of its graphic, or its PNG.
+QStringList odtPicturesOf(const QByteArray &docx)
+{
+    QString err;
+    auto doc = WriteDoc::fromDocx(docx, &err);
+    if (!doc) return {};
+    const QByteArray odt = doc->toOdt(&err);
+    QMap<QString, QByteArray> parts;
+    QStringList out;
+    if (odt.isEmpty() || !jp::readZip(odt, parts)) return out;
+    for (auto it = parts.constBegin(); it != parts.constEnd(); ++it)
+        if (it.key().startsWith(QLatin1String("Pictures/"))) out << it.key().section(QLatin1Char('.'), -1);
+    return out;
+}
+
 const char kNs[] =
     " xmlns:office=\"urn:oasis:names:tc:opendocument:xmlns:office:1.0\" xmlns:style=\"urn:oasis:names:tc:opendocument:xmlns:style:1.0\""
     " xmlns:text=\"urn:oasis:names:tc:opendocument:xmlns:text:1.0\" xmlns:table=\"urn:oasis:names:tc:opendocument:xmlns:table:1.0\""
@@ -1324,6 +1371,34 @@ private Q_SLOTS:
         QCOMPARE(content.count("<draw:path "), 3);
         QVERIFY(!content.contains("<draw:image"));
         QVERIFY(content.toLower().contains("draw:fill-color=\"#ff0000\"") && content.toLower().contains("draw:fill-color=\"#0000ff\""));
+    }
+
+    // An SVG that another program put in a .docx beside a picture is taken into the .odt only if it passes what an SVG put in a document does (no references outside it or pictures in it, within the
+    // size, and no more to draw than the limit); else the .odt keeps the PNG.
+    void aForeignSvgIsKeptInAnOdtOnlyWhereAGraphicMayBe()
+    {
+        const QByteArray ok = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"48\" height=\"48\" viewBox=\"0 0 48 48\"><rect width=\"20\" height=\"20\" fill=\"#ff0000\"/></svg>";
+        QCOMPARE(odtPicturesOf(foreignGraphicDocx(ok)), QStringList{QStringLiteral("svg")});
+        auto inside = [&](const QByteArray &part) { return QByteArray(ok).replace("<rect", part + "<rect"); };
+        // Outside itself: an address, a file, a picture as data, a definition of its own.
+        QCOMPARE(odtPicturesOf(foreignGraphicDocx(inside("<image href=\"http://example.com/x.png\" width=\"4\" height=\"4\"/>"))), QStringList{QStringLiteral("png")});
+        QCOMPARE(odtPicturesOf(foreignGraphicDocx(inside("<image href=\"data:image/png;base64,iVBORw0KGgo=\" width=\"4\" height=\"4\"/>"))), QStringList{QStringLiteral("png")});
+        QCOMPARE(odtPicturesOf(foreignGraphicDocx(inside("<use href=\"other.svg#a\"/>"))), QStringList{QStringLiteral("png")});
+        QCOMPARE(odtPicturesOf(foreignGraphicDocx("<!DOCTYPE svg [<!ENTITY a \"b\">]>" + ok)), QStringList{QStringLiteral("png")});
+        // Too large (a byte over 4 MB).
+        QByteArray large = ok;
+        large.insert(large.size() - 6, "<!--" + QByteArray(int((qint64(4) << 20) + 1 - large.size() - 7), 'x') + "-->");
+        QCOMPARE(large.size(), int((qint64(4) << 20) + 1));
+        QCOMPARE(odtPicturesOf(foreignGraphicDocx(large)), QStringList{QStringLiteral("png")});
+        // Too much to draw: a group that <use>s the one before it ten times, nine deep.
+        QByteArray bomb = "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" width=\"48\" height=\"48\" viewBox=\"0 0 48 48\"><defs><g id=\"g0\"><rect width=\"1\" height=\"1\"/></g>";
+        for (int i = 1; i <= 9; ++i) {
+            bomb += "<g id=\"g" + QByteArray::number(i) + "\">";
+            for (int k = 0; k < 10; ++k) bomb += "<use xlink:href=\"#g" + QByteArray::number(i - 1) + "\" x=\"" + QByteArray::number(k) + "\"/>";
+            bomb += "</g>";
+        }
+        bomb += "</defs><use xlink:href=\"#g9\"/></svg>";
+        QCOMPARE(odtPicturesOf(foreignGraphicDocx(bomb)), QStringList{QStringLiteral("png")});
     }
 
     // The file is the same bytes each time it is saved, in whatever process.

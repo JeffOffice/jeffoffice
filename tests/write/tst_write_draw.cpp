@@ -19,6 +19,10 @@
 #include "app/compresspictures.h"
 #include "app/help.h"
 #include "app/iconpicker.h"
+#include "core/barcode.h"
+#include "core/svg.h"
+#include <QScrollBar>
+#include <QSvgRenderer>
 #include "app/onlinepictures.h"
 #include "app/pageview.h"
 #include "app/shapetextedit.h"
@@ -301,6 +305,107 @@ QImage graphicPngOf(const QByteArray &docx)
     return QImage::fromData(pkg.part(r.target.startsWith(QLatin1Char('/')) ? r.target : QStringLiteral("/word/") + r.target));
 }
 
+// A document of another program with a graphic in the text after "Before " (position 7): an inline picture of `cx` by `cy` EMU whose blip names `png` and holds `svg` in its extension
+// list (the svgBlip written with `prefix`, in an extension of the id `uri`).
+QByteArray foreignGraphicDocx(const QByteArray &svg, const QByteArray &png, const QByteArray &prefix = "asvg", const QByteArray &uri = "{96DAC541-7B7A-43D3-8B79-37D633B846F1}",
+                              qint64 cx = 1270000, qint64 cy = 1270000)
+{
+    office::PackageWriter w;
+    const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
+    const QByteArray size = "cx=\"" + QByteArray::number(cx) + "\" cy=\"" + QByteArray::number(cy) + "\"";
+    const QByteArray run = "<w:r><w:drawing><wp:inline distT=\"0\" distB=\"0\" distL=\"0\" distR=\"0\"><wp:extent " + size + "/><wp:docPr id=\"1\" name=\"g\"/><wp:cNvGraphicFramePr/>"
+                           "<a:graphic><a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/picture\"><pic:pic xmlns:pic=\"http://schemas.openxmlformats.org/drawingml/2006/picture\">"
+                           "<pic:nvPicPr><pic:cNvPr id=\"0\" name=\"g\"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed=\"rIdP\"><a:extLst><a:ext uri=\"" + uri + "\"><" + prefix +
+                           ":svgBlip xmlns:" + prefix + "=\"http://schemas.microsoft.com/office/drawing/2016/SVG/main\" r:embed=\"rIdS\"/></a:ext></a:extLst></a:blip><a:stretch><a:fillRect/></a:stretch>"
+                           "</pic:blipFill><pic:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext " + size + "/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>";
+    w.addPart(QStringLiteral("/word/document.xml"),
+              QByteArray("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n<w:document ") + kNs + "><w:body><w:p><w:r><w:t xml:space=\"preserve\">Before </w:t></w:r>" + run + "</w:p></w:body></w:document>",
+              QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"));
+    w.addPart(QStringLiteral("/word/media/image1.png"), png, QStringLiteral("image/png"));
+    w.addPart(QStringLiteral("/word/media/image2.svg"), svg, QStringLiteral("image/svg+xml"));
+    w.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+    w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdP"), rel + QStringLiteral("image"), QStringLiteral("media/image1.png"));
+    w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdS"), rel + QStringLiteral("image"), QStringLiteral("media/image2.svg"));
+    return w.finish();
+}
+
+// The parts of a saved file that end with `suffix`.
+QStringList partsEndingWith(const QByteArray &docx, const QString &suffix)
+{
+    office::Package pkg;
+    pkg.read(docx);
+    QStringList out;
+    for (const QString &n : pkg.partNames())
+        if (n.endsWith(suffix)) out << n;
+    return out;
+}
+
+// One path of `points` points, drawn by <use> `uses` times (130,000 points and 1,000 copies are 130 million points).
+QByteArray useFanOutSvg(int points, int uses)
+{
+    QByteArray d = "M0 0";
+    for (int i = 1; i < points; ++i) d += " L" + QByteArray::number(i % 47) + " " + QByteArray::number(i % 31);
+    QByteArray out = "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" width=\"48\" height=\"48\" viewBox=\"0 0 48 48\"><defs><path id=\"p\" d=\"" + d + "\"/></defs>";
+    for (int i = 0; i < uses; ++i) out += "<use xlink:href=\"#p\"/>";
+    return out + "</svg>";
+}
+
+// A group that <use>s the one before it ten times, `levels` deep: a billion parts at nine.
+QByteArray nestedUseSvg(int levels, int fan = 10)
+{
+    QByteArray out = "<svg xmlns=\"http://www.w3.org/2000/svg\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" width=\"48\" height=\"48\" viewBox=\"0 0 48 48\"><defs><g id=\"g0\"><rect width=\"1\" height=\"1\" fill=\"#336699\"/></g>";
+    for (int i = 1; i <= levels; ++i) {
+        out += "<g id=\"g" + QByteArray::number(i) + "\">";
+        for (int k = 0; k < fan; ++k) out += "<use xlink:href=\"#g" + QByteArray::number(i - 1) + "\" x=\"" + QByteArray::number(k) + "\"/>";
+        out += "</g>";
+    }
+    return out + "</defs><use xlink:href=\"#g" + QByteArray::number(levels) + "\"/></svg>";
+}
+
+// The PNG in a saved file that names the first blip, and the SVG that its svgBlip names.
+QByteArray svgPartOf(const QByteArray &docx)
+{
+    const QStringList names = partsEndingWith(docx, QStringLiteral(".svg"));
+    office::Package pkg;
+    pkg.read(docx);
+    return names.isEmpty() ? QByteArray() : pkg.part(names.first());
+}
+
+// The bounds of what is not white in a picture of a page (a pixel is white where its three channels are above 215), or an empty rect.
+QRect inkOf(const QImage &img, const QRect &within = QRect())
+{
+    const QRect area = within.isNull() ? img.rect() : within.intersected(img.rect());
+    int x0 = area.right() + 1, y0 = area.bottom() + 1, x1 = -1, y1 = -1;
+    for (int y = area.top(); y <= area.bottom(); ++y)
+        for (int x = area.left(); x <= area.right(); ++x) {
+            const QColor c = img.pixelColor(x, y);
+            if (c.alpha() > 0 && (c.red() < 216 || c.green() < 216 || c.blue() < 216)) {
+                x0 = std::min(x0, x);
+                y0 = std::min(y0, y);
+                x1 = std::max(x1, x);
+                y1 = std::max(y1, y);
+            }
+        }
+    return x1 < 0 ? QRect() : QRect(QPoint(x0, y0), QPoint(x1, y1));
+}
+
+// The bounds of the pixels of `img` that are near `want`.
+QRect colorBoundsOf(const QImage &img, QColor want)
+{
+    int x0 = img.width(), y0 = img.height(), x1 = -1, y1 = -1;
+    for (int y = 0; y < img.height(); ++y)
+        for (int x = 0; x < img.width(); ++x) {
+            const QColor c = img.pixelColor(x, y);
+            if (std::abs(c.red() - want.red()) < 40 && std::abs(c.green() - want.green()) < 40 && std::abs(c.blue() - want.blue()) < 40) {
+                x0 = std::min(x0, x);
+                y0 = std::min(y0, y);
+                x1 = std::max(x1, x);
+                y1 = std::max(y1, y);
+            }
+        }
+    return x1 < 0 ? QRect() : QRect(QPoint(x0, y0), QPoint(x1, y1));
+}
+
 // A picture file of noise (a PNG that compresses badly), this many pixels across and down: the left half is red-tinted and the right half blue-tinted, so a cut shows.
 quint32 crc32Of(const QByteArray &bytes)
 {
@@ -562,6 +667,12 @@ struct Win {
         for (int i = 0; i < w.ribbon()->tabCount(); ++i)
             if (w.ribbon()->tabName(i) == name) return w.ribbon()->tabVisible(i);
         return false;
+    }
+    int tabIndex(const QString &name)
+    {
+        for (int i = 0; i < w.ribbon()->tabCount(); ++i)
+            if (w.ribbon()->tabName(i) == name) return i;
+        return -1;
     }
 };
 
@@ -4541,15 +4652,18 @@ private Q_SLOTS:
 
     // ---------------------------------------------------------------- the Draw tab: ink in a file
     // ---------------------------------------------------------------- Graphics Format: an SVG picture (a graphic)
-    // An SVG picture is kept as the SVG with a PNG beside it; the Graphics Format tab is for it alone, and the Picture Format tab for the others.
-    void aGraphicIsKeptWithItsPngAndHasTheGraphicsFormatTabAlone()
+    // An SVG picture is kept as the SVG with a PNG beside it; it has the Graphics Format tab first and the Picture Format tab, the other pictures the Picture Format tab alone.
+    void aGraphicIsKeptWithItsPngAndHasTheGraphicsFormatTabFirst()
     {
         Win win;
         QVERIFY(win.w.view()->insertPictureBytes(graphicSvg(), QStringLiteral("g")));
         const int at = win.w.view()->selectedPicture();
         QCOMPARE(at, 5);
         QTRY_VERIFY(win.tabShown(QStringLiteral("Graphics Format")));
-        QVERIFY(!win.tabShown(QStringLiteral("Picture Format")));
+        // (A graphic is a picture too: the Picture Format tab stays, after the Graphics Format tab, with its crop, border, corrections, recolor, compression, and alt text.)
+        QVERIFY(win.tabShown(QStringLiteral("Picture Format")));
+        QVERIFY(win.tabIndex(QStringLiteral("Graphics Format")) < win.tabIndex(QStringLiteral("Picture Format")));
+        QVERIFY(win.w.act("picture.altText")->isEnabled() && win.w.act("picture.recolor.gray")->isEnabled());
         QVERIFY(pictureAt(*win.w.document(), win.w.document()->story(), at).svg);
         QVERIFY(win.w.act("graphics.convert")->isEnabled() && win.w.act("graphics.change.file")->isEnabled());
         // (The file: the SVG linked in the blip's extension list, and the PNG that is the blip's own picture, each a part with its content type.)
@@ -4830,7 +4944,9 @@ private Q_SLOTS:
         // Converted, the deep one is cut where the shared reader stops, with the note that something was left out (or refused), and nothing crashes.
         QCOMPARE(changeGraphic(*doc, 0, nested(kMostGraphicNesting + 20)), PictureResult::Ok);
         const GraphicConversion deep = convertGraphicToShapes(*doc, 0);
-        QVERIFY(deep.partial || deep.result != GraphicConvert::Done);
+        // (Nothing is drawn below the depth the reader stops at, so there is nothing to turn into shapes, and the note says that something was left out.)
+        QCOMPARE(int(deep.result), int(GraphicConvert::Nothing));
+        QVERIFY(deep.partial);
     }
 
     // The group of a converted graphic holds a shape for each part: a file's group is read to 10,000 parts, and no more.
@@ -4852,6 +4968,519 @@ private Q_SLOTS:
     }
 
     // With JO_SHOT_DIR set: pictures of the Graphics Format tab with an icon selected, and of the shapes after Convert to Shape with the graphic recolored first.
+    // ---- the review round: bounds, tabs, vectors, placement
+    // A graphic whose SVG uses one path of 130,000 points a thousand times is refused as it is read, with the work and the points kept to the limit (the first copy is all that is made).
+    void aUseFanOutIsStoppedAtThePointLimitWhileItIsRead()
+    {
+        const QByteArray fan = useFanOutSvg(130000, 1000);
+        svg::ReadLimits limits;
+        limits.points = 20 * qint64(kMostGraphicShapes);
+        limits.elements = kMostGraphicShapes + 1;
+        const qint64 steps = svg::walkStepsForTest();
+        const svg::Drawing d = svg::read(fan, Qt::black, &limits);
+        QVERIFY(d.overLimit);
+        QCOMPARE(d.elements.size(), 1);
+        qint64 points = 0;
+        for (const svg::Element &e : d.elements) points += e.path.elementCount();
+        QVERIFY(points <= limits.points);
+        QVERIFY(svg::walkStepsForTest() - steps < 20);
+        // The same graphic from another program: Convert to Shape refuses it with the note, and nothing changes.
+        auto doc = open(foreignGraphicDocx(fan, pngOf(40, 40)));
+        QVERIFY(doc);
+        QVERIFY(pictureAt(*doc, doc->story(), 7).svg);
+        const QByteArray before = documentXml(doc->toDocx());
+        doc->pictureNotice.clear();
+        const qint64 walked = svg::walkStepsForTest();
+        QCOMPARE(int(convertGraphicToShapes(*doc, 7).result), int(GraphicConvert::TooMany));
+        QVERIFY(svg::walkStepsForTest() - walked < 20);
+        QVERIFY(!doc->pictureNotice.isEmpty());
+        QCOMPARE(documentXml(doc->toDocx()), before);
+        // (And it is no graphic to draw: the pages draw its PNG.)
+        QVERIFY(!graphicDrawable(fan));
+    }
+
+    // A <use> of a group of <use> nested nine deep is ten to the ninth parts: it is counted as it is walked and refused at the limit, on insert, on Change, and on the colors, and nothing is rendered.
+    void aNestedUseBombIsNotRendered()
+    {
+        const QByteArray bomb = nestedUseSvg(9);
+        auto doc = textDoc({"Before after"});
+        QTextCursor c(doc->story());
+        c.setPosition(0);
+        qint64 steps = svg::walkStepsForTest();
+        QCOMPARE(insertPicture(*doc, c, bomb, QStringLiteral("bomb")), PictureResult::TooLarge);
+        QVERIFY(svg::walkStepsForTest() - steps <= svg::kMostDrawSteps + 10);
+        QVERIFY(picturePositions(*doc).isEmpty());
+        QCOMPARE(int(svg::vetGraphic(bomb)), int(svg::Vet::TooComplex));
+        // (One level less in a few parts is a drawing, and is put in.)
+        QCOMPARE(insertPicture(*doc, c, nestedUseSvg(3), QStringLiteral("fine")), PictureResult::Ok);
+        const QByteArray was = graphicSvgAt(*doc, 0);
+        const QByteArray bytes = documentXml(doc->toDocx());
+        steps = svg::walkStepsForTest();
+        doc->pictureNotice.clear();
+        QCOMPARE(changeGraphic(*doc, 0, bomb), PictureResult::TooLarge);
+        QVERIFY(!doc->pictureNotice.isEmpty());
+        QVERIFY(svg::walkStepsForTest() - steps <= svg::kMostDrawSteps + 10);
+        QCOMPARE(graphicSvgAt(*doc, 0), was);
+        QCOMPARE(documentXml(doc->toDocx()), bytes);
+        // The same from another program: its colors are not changed (the old PNG stays), it is not turned into shapes, and the page draws its PNG.
+        auto foreign = open(foreignGraphicDocx(bomb, pngOf(40, 40)));
+        QVERIFY(foreign);
+        QVERIFY(pictureAt(*foreign, foreign->story(), 7).svg);
+        const QByteArray old = documentXml(foreign->toDocx());
+        GraphicColors green;
+        green.fill = GraphicColors::Color;
+        green.fillColor = QColor(0, 170, 68);
+        foreign->pictureNotice.clear();
+        steps = svg::walkStepsForTest();
+        QVERIFY(!setGraphicColors(*foreign, 7, green));
+        QVERIFY(!foreign->pictureNotice.isEmpty());
+        QCOMPARE(int(convertGraphicToShapes(*foreign, 7).result), int(GraphicConvert::TooMany));
+        QVERIFY(svg::walkStepsForTest() - steps < 500000);
+        QCOMPARE(documentXml(foreign->toDocx()), old);
+        QVERIFY(!graphicDrawable(bomb));
+        foreign->pager().materialize(0);
+        for (const auto &img : foreign->flow().images) QVERIFY(img.format != QLatin1String("svg"));
+    }
+
+    // A clipped drawing is painted in runs, each the whole drawing again: asked for no more than a count of them, the parts after the last are painted whole.
+    void theRunsOfAClippedDrawingAreCapped()
+    {
+        QByteArray inner = "<defs>";
+        for (int i = 0; i < 40; ++i) inner += "<clipPath id=\"k" + QByteArray::number(i) + "\"><rect x=\"" + QByteArray::number(i) + "\" y=\"0\" width=\"1\" height=\"1\"/></clipPath>";
+        inner += "</defs>";
+        for (int i = 0; i < 40; ++i) inner += "<rect width=\"48\" height=\"48\" fill=\"#000000\" clip-path=\"url(#k" + QByteArray::number(i) + ")\"/>";
+        const QByteArray bytes = graphicSvg(inner);
+        auto inked = [&](int maxRuns) {
+            QSvgRenderer renderer(bytes);
+            QImage image(96, 96, QImage::Format_ARGB32_Premultiplied);
+            image.fill(Qt::transparent);
+            QPainter painter(&image);
+            svg::paint(renderer, bytes, &painter, QRectF(0, 0, 96, 96), maxRuns);
+            painter.end();
+            int n = 0;
+            for (int y = 0; y < image.height(); ++y)
+                for (int x = 0; x < image.width(); ++x) n += qAlpha(image.pixel(x, y)) > 128;
+            return n;
+        };
+        const int all = inked(0), capped = inked(svg::kMostClipRuns);
+        QVERIFY(all < 200);          // (each part is cut to its own square)
+        QVERIFY(capped > 96 * 96 / 2);   // (the parts past the runs are painted whole)
+    }
+
+    // A graphic that carries a picture (an image element, with its picture as data or at an address) is refused, on insert, on Change, for its colors, and for Convert to Shape; the page draws its PNG.
+    void aGraphicWithPicturesInItIsRefused()
+    {
+        const QByteArray png64 = pngOf(4, 4).toBase64();
+        const QByteArray image = "<image width=\"4\" height=\"4\" href=\"data:image/png;base64," + png64 + "\"/>";
+        const QByteArray bad = graphicSvg(image);
+        auto doc = textDoc({"Before after"});
+        QTextCursor c(doc->story());
+        c.setPosition(0);
+        QCOMPARE(insertPicture(*doc, c, bad, QStringLiteral("img")), PictureResult::External);
+        QVERIFY(picturePositions(*doc).isEmpty());
+        QCOMPARE(insertPicture(*doc, c, graphicSvg(), QStringLiteral("g")), PictureResult::Ok);
+        const QByteArray was = graphicSvgAt(*doc, 0);
+        QCOMPARE(changeGraphic(*doc, 0, bad), PictureResult::External);
+        QCOMPARE(graphicSvgAt(*doc, 0), was);
+        GraphicColors red;
+        red.fill = GraphicColors::Color;
+        red.fillColor = QColor(Qt::red);
+        QVERIFY(svgWithColors(bad, red).isEmpty());
+        // (A link written with a character reference is read as what it says.)
+        QVERIFY(svg::reachesOutside(graphicSvg("<use href=\"&#104;ttp://x.example/a.svg#b\"/>")));
+        QVERIFY(svg::reachesOutside(graphicSvg("<style>.a { fill: url(&#39;http://x.example/a#b&#39;) }</style>")));
+        QVERIFY(!svg::reachesOutside(graphicSvg("<defs><linearGradient id=\"g\"/></defs><rect width=\"4\" height=\"4\" fill=\"url(#g)\"/>")));
+        // From another program: not turned into shapes, colors not changed, and the page draws the PNG.
+        auto foreign = open(foreignGraphicDocx(bad, pngOf(40, 40)));
+        QVERIFY(foreign);
+        QVERIFY(pictureAt(*foreign, foreign->story(), 7).svg);
+        const QByteArray old = documentXml(foreign->toDocx());
+        QCOMPARE(int(convertGraphicToShapes(*foreign, 7).result), int(GraphicConvert::Outside));
+        QVERIFY(!setGraphicColors(*foreign, 7, red));
+        QVERIFY(!graphicDrawable(bad));
+        foreign->pager().materialize(0);
+        for (const auto &img : foreign->flow().images) QVERIFY(img.format != QLatin1String("svg"));
+        QCOMPARE(documentXml(foreign->toDocx()), old);
+    }
+
+    // Groups: the parts of the groups set in the text are counted over the whole document (20,000 in all), and a group's element is read once however often the picture is asked about.
+    void theGroupsOfADocumentHaveATotalOfPartsAndAreReadOncePerAtom()
+    {
+        QByteArray members;
+        for (int i = 0; i < 10000; ++i)
+            members += "<wps:wsp><wps:cNvPr id=\"" + QByteArray::number(i + 10) + "\" name=\"p\"/><wps:cNvSpPr/><wps:spPr><a:xfrm><a:off x=\"" + QByteArray::number(i) + "\" y=\"0\"/><a:ext cx=\"10\" cy=\"10\"/></a:xfrm>"
+                       "<a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></wps:spPr><wps:bodyPr/></wps:wsp>";
+        auto group = [&](int id) {
+            return "<w:r><w:drawing><wp:inline><wp:extent cx=\"200000\" cy=\"200000\"/><wp:docPr id=\"" + QByteArray::number(id) + "\" name=\"g\"/><a:graphic><a:graphicData uri=\"http://schemas.microsoft.com/office/word/2010/wordprocessingGroup\">"
+                   "<wpg:wgp><wpg:cNvGrpSpPr/><wpg:grpSpPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"200000\" cy=\"200000\"/><a:chOff x=\"0\" y=\"0\"/><a:chExt cx=\"200000\" cy=\"200000\"/></a:xfrm></wpg:grpSpPr>" +
+                   members + "</wpg:wgp></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>";
+        };
+        // Three groups of ten thousand: the parts drawn are twenty thousand in all (the third group has none), whichever groups they are.
+        auto doc = open(makeDocx("<w:p>" + group(1) + group(2) + group(3) + "<w:r><w:t>x</w:t></w:r></w:p>"));
+        QVERIFY(doc);
+        int parts = 0, groups = 0;
+        for (QTextBlock b = doc->story()->begin(); b.isValid(); b = b.next())
+            for (auto it = b.begin(); !it.atEnd(); ++it) {
+                const QString json = it.fragment().charFormat().stringProperty(tp::InlineObject);
+                if (json.isEmpty()) continue;
+                const ItemPtr item = Item::fromJsonAny(QJsonDocument::fromJson(json.toUtf8()).object());
+                if (!item || item->type() != ItemType::Group) continue;
+                ++groups;
+                parts += int(static_cast<const GroupItem &>(*item).children.size()) - 1;   // (the first is the frame, which is no part)
+            }
+        QCOMPARE(groups, 2);   // (the third is left with no part at all: it is the empty frame it says it is)
+        QCOMPARE(parts, 20000);
+        // One group is read once: the object's kind, its place, and its picture's facts come from the one reading.
+        auto one = open(makeDocx("<w:p>" + group(1) + "</w:p>"));
+        QVERIFY(one);
+        const qint64 parses = office::wml::readShapesParsesForTest();
+        for (int i = 0; i < 10; ++i) {
+            (void)isPictureAt(one->story(), 0);
+            QVERIFY(!pictureAt(*one, one->story(), 0).svg);
+            QVERIFY(isGroupAt(*one, 0));
+        }
+        QVERIFY(office::wml::readShapesParsesForTest() - parses <= 1);
+    }
+
+    // The Picture Format tab and the Graphics Format tab are both shown for a graphic from another program too, with the commands of the picture.
+    void aGraphicFromAnotherProgramHasBothTabsAndThePictureCommands()
+    {
+        Win win;
+        win.w.setDocument(open(foreignGraphicDocx(graphicSvg(), pngOf(60, 60), "svg16", "{96dac541-7b7a-43d3-8b79-37d633b846f1}")), QString());
+        win.w.view()->refresh();
+        win.w.view()->selectPicture(7);
+        QTRY_VERIFY(win.tabShown(QStringLiteral("Graphics Format")));
+        QVERIFY(win.tabShown(QStringLiteral("Picture Format")));
+        QVERIFY(win.tabIndex(QStringLiteral("Graphics Format")) < win.tabIndex(QStringLiteral("Picture Format")));
+        for (const char *id : {"picture.altText", "picture.recolor.gray", "picture.recolor.bw", "picture.fill", "picture.fit"}) QVERIFY2(win.w.act(id)->isEnabled(), id);
+    }
+
+    // A graphic is drawn on the screen from its SVG, as vectors: at 100% and at 200% an edge between the page and a black square on whole pixels is one pixel, with no band of gray between them.
+    void aGraphicIsDrawnFromItsSvgOnTheScreenAndSharp()
+    {
+        Win win("<w:p/>");
+        WriteDoc *doc = win.w.document();
+        QTextCursor c(doc->story());
+        c.setPosition(0);
+        // A square from 8 to 40 of 48 units, in a frame 72 points (96 pixels at 100%) across: two pixels a unit, so the edges are whole pixels at 100% and at 200%.
+        QCOMPARE(insertPicture(*doc, c, graphicSvg("<rect x=\"8\" y=\"8\" width=\"32\" height=\"32\" fill=\"#000000\"/>"), QStringLiteral("sq"), PictureWrap::Inline), PictureResult::Ok);
+        QVERIFY(setPictureSize(*doc, 0, 72, 72));
+        win.w.view()->refresh();
+        doc->pager().materialize(0);
+        bool vector = false;
+        for (const auto &img : doc->flow().images) vector = vector || (img.format == QLatin1String("svg") && img.graphic);
+        QVERIFY(vector);
+        for (const double zoom : {1.0, 2.0}) {
+            win.w.view()->setZoom(zoom);
+            // (The page at 200% is wider than the window: the window shows its left edge, where the square is.)
+            win.w.view()->horizontalScrollBar()->setValue(win.w.view()->horizontalScrollBar()->minimum());
+            win.w.view()->verticalScrollBar()->setValue(win.w.view()->verticalScrollBar()->minimum());
+            QImage shot;
+            QRect box;
+            QTRY_VERIFY((shot = win.w.view()->grab().toImage(), box = colorBoundsOf(shot, QColor(0, 0, 0)), !box.isNull()));
+            QVERIFY2(std::abs(box.width() - 64 * zoom) <= 2, qPrintable(QStringLiteral("width %1 at zoom %2").arg(box.width()).arg(zoom)));
+            // The widest run of pixels that are neither the page's white nor the square's black, across the middle of the square, at each edge.
+            const int y = box.center().y();
+            int widest = 0, run = 0;
+            for (int x = box.left() - 6; x <= box.right() + 6; ++x) {
+                const int v = shot.pixelColor(x, y).red();
+                const bool between = v > 40 && v < 215;
+                run = between ? run + 1 : 0;
+                widest = std::max(widest, run);
+            }
+            QVERIFY2(widest <= 1, qPrintable(QStringLiteral("a band of %1 pixels at zoom %2").arg(widest).arg(zoom)));
+        }
+    }
+
+    // The PNG beside the SVG keeps the frame's shape, with the drawing placed in it as preserveAspectRatio says: a square drawing in a frame twice as wide as it is high is centered (or at the left).
+    void theFallbackPngHonorsTheFramesShapeAndPreserveAspectRatio()
+    {
+        for (const bool left : {false, true}) {
+            const QByteArray svgBytes = QByteArray("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"200\" height=\"100\" viewBox=\"0 0 10 10\"") + (left ? " preserveAspectRatio=\"xMinYMid meet\"" : "") +
+                                        "><rect width=\"10\" height=\"10\" fill=\"#ff0000\"/></svg>";
+            auto doc = textDoc({"Before after"});
+            QTextCursor c(doc->story());
+            c.setPosition(0);
+            QCOMPARE(insertPicture(*doc, c, svgBytes, QStringLiteral("wide")), PictureResult::Ok);
+            const PictureInfo info = pictureAt(*doc, doc->story(), 0);
+            QVERIFY(std::abs(info.width / info.height - 2.0) < 0.01);
+            const QImage png = graphicPngOf(doc->toDocx());
+            QVERIFY(!png.isNull());
+            QVERIFY2(std::abs(double(png.width()) / png.height() - 2.0) < 0.02, qPrintable(QStringLiteral("%1 x %2").arg(png.width()).arg(png.height())));
+            const int mid = png.height() / 2;
+            QCOMPARE(png.pixelColor(left ? png.width() / 10 : png.width() / 2, mid).red(), 255);
+            QCOMPARE(png.pixelColor(left ? png.width() / 10 : png.width() / 2, mid).alpha(), 255);
+            QCOMPARE(png.pixelColor(png.width() * 9 / 10, mid).alpha(), 0);
+            QCOMPARE(png.pixelColor(left ? png.width() * 6 / 10 : png.width() / 10, mid).alpha(), 0);
+            // (The drawing, on a page, is the same: drawn into the frame as a square in the middle.)
+            QCOMPARE(svg::fittedBox(svgBytes, QRectF(0, 0, 10, 10), QRectF(0, 0, 200, 100)), left ? QRectF(0, 0, 100, 100) : QRectF(50, 0, 100, 100));
+        }
+    }
+
+    // The Graphics Styles gallery shows the graphic that is selected in each style, where the Picture Styles gallery shows its own landscape.
+    void theGraphicsStylesGalleryShowsTheSelectedGraphic()
+    {
+        Win win;
+        WriteDoc *doc = win.w.document();
+        QTextCursor c(doc->story());
+        c.setPosition(0);
+        QCOMPARE(insertPicture(*doc, c, graphicSvg("<rect width=\"48\" height=\"48\" fill=\"#ff00ff\"/>"), QStringLiteral("magenta")), PictureResult::Ok);
+        win.w.view()->refresh();
+        win.w.view()->selectPicture(0);
+        win.w.refreshNow();
+        win.w.ribbon()->buildAllTabs();
+        auto *styles = win.w.ribbon()->findChild<Gallery *>(QStringLiteral("graphicsStyles"));
+        QVERIFY(styles);
+        auto magentaIn = [](const QIcon &icon) {
+            const QImage img = icon.pixmap(QSize(60, 46)).toImage();
+            int n = 0;
+            for (int y = 0; y < img.height(); ++y)
+                for (int x = 0; x < img.width(); ++x) {
+                    const QColor c = img.pixelColor(x, y);
+                    n += c.red() > 200 && c.green() < 60 && c.blue() > 200;
+                }
+            return n;
+        };
+        const QVector<GalleryItem> items = styles->items();
+        QVERIFY(items.size() > 10);
+        for (const GalleryItem &item : items) QVERIFY2(magentaIn(item.icon) > 20, qPrintable(item.tip));
+        // Another graphic selected: the tiles are made of it.
+        QTextCursor d(doc->story());
+        d.setPosition(1);
+        QCOMPARE(insertPicture(*doc, d, graphicSvg("<rect width=\"48\" height=\"48\" fill=\"#00ffff\"/>"), QStringLiteral("cyan")), PictureResult::Ok);
+        win.w.view()->refresh();
+        win.w.view()->selectPicture(1);
+        win.w.refreshNow();
+        for (const GalleryItem &item : styles->items()) QCOMPARE(magentaIn(item.icon), 0);
+        // (The Picture Styles gallery is generic.)
+        auto *generic = win.w.ribbon()->findChild<Gallery *>(QStringLiteral("pictureStyles"));
+        QVERIFY(generic);
+        for (const GalleryItem &item : generic->items()) QCOMPARE(magentaIn(item.icon), 0);
+    }
+
+    // Convert to Shape puts the shapes where the graphic was drawn, in line with the text or at a place: the group's frame is the picture's, each part is where the SVG puts it, nothing is left of the
+    // picture, and the page looks the same (the bounds of what is drawn, and of each part's color, are within a pixel or two).
+    void convertedShapesLandExactlyWhereTheGraphicWasDrawn()
+    {
+        for (const bool floating : {false, true}) {
+            Win win("<w:p><w:r><w:t>Words</w:t></w:r></w:p>");
+            WriteDoc *doc = win.w.document();
+            QTextCursor c(doc->story());
+            c.setPosition(0);
+            QCOMPARE(insertPicture(*doc, c, graphicSvg(), QStringLiteral("g"), floating ? PictureWrap::Square : PictureWrap::Inline), PictureResult::Ok);
+            QVERIFY(setPictureSize(*doc, 0, 140, 140));
+            if (floating) QVERIFY(setPicturePlace(*doc, 0, 100, 90));
+            win.w.view()->refresh();
+            QRectF oldFrame;
+            if (floating)
+                for (const auto &it : objectsOfPage(*doc))
+                    if (it->type() == ItemType::Picture) oldFrame = it->rect;
+            const QImage before = win.w.view()->pageImage(0, 816);
+            QCOMPARE(int(convertGraphicToShapes(*doc, 0).result), int(GraphicConvert::Done));
+            win.w.view()->refresh();
+            const QImage after = win.w.view()->pageImage(0, 816);
+            // Nothing is left of the picture.
+            QVERIFY(!documentXml(doc->toDocx()).contains("<pic:pic"));
+            QVERIFY(!pictureOfPage(*doc));
+            // The frame is the picture's, and the parts are where the drawing puts them (red square at 2 to 22 of 48, green circle 28 to 44, the triangle 4 to 22 across and 30 to 46 down, its line round it).
+            const double k = 140.0 / 48;
+            auto near = [](const QRectF &a, const QRectF &b) { return std::abs(a.left() - b.left()) < 0.75 && std::abs(a.top() - b.top()) < 0.75 && std::abs(a.width() - b.width()) < 0.75 && std::abs(a.height() - b.height()) < 0.75; };
+            QRectF frame;
+            QVector<QRectF> parts;
+            if (floating) {
+                for (const auto &it : objectsOfPage(*doc)) {
+                    if (it->type() == ItemType::Shape && it->fill.isNone()) frame = it->rect;
+                    else if (it->type() == ItemType::Shape) parts << it->rect;
+                }
+                QVERIFY2(near(frame, oldFrame), "the frame");
+                QCOMPARE(parts.size(), 3);
+                std::sort(parts.begin(), parts.end(), [](const QRectF &a, const QRectF &b) { return a.top() < b.top() || (a.top() == b.top() && a.left() < b.left()); });
+                for (QRectF &part : parts) part.translate(-oldFrame.topLeft());
+            } else {
+                for (QTextBlock b = doc->story()->begin(); b.isValid(); b = b.next())
+                    for (auto it = b.begin(); !it.atEnd(); ++it) {
+                        const QString json = it.fragment().charFormat().stringProperty(tp::InlineObject);
+                        if (json.isEmpty()) continue;
+                        const ItemPtr item = Item::fromJsonAny(QJsonDocument::fromJson(json.toUtf8()).object());
+                        QVERIFY(item && item->type() == ItemType::Group);
+                        const auto &group = static_cast<const GroupItem &>(*item);
+                        QCOMPARE(group.rect, QRectF(0, 0, 140, 140));
+                        QRectF united;
+                        for (const ItemPtr &child : group.children) {
+                            united = united.united(child->rect);
+                            if (!child->fill.isNone()) parts << child->rect;
+                        }
+                        QVERIFY2(near(united, QRectF(0, 0, 140, 140)), "the parts together are the frame");
+                    }
+                QCOMPARE(parts.size(), 3);
+            }
+            std::sort(parts.begin(), parts.end(), [](const QRectF &a, const QRectF &b) { return a.top() < b.top() || (a.top() == b.top() && a.left() < b.left()); });
+            QVERIFY2(near(parts[0], QRectF(2 * k, 2 * k, 20 * k, 20 * k)), "the red square");
+            QVERIFY2(near(parts[1], QRectF(28 * k, 4 * k, 16 * k, 16 * k)), "the green circle");
+            QVERIFY2(near(parts[2], QRectF(4 * k, 30 * k, 18 * k, 16 * k)), "the triangle");
+            // The pages look the same: what is drawn, and each part, is in the same place, to a pixel or two.
+            const QRect inkBefore = inkOf(before), inkAfter = inkOf(after);
+            QVERIFY(!inkBefore.isNull() && !inkAfter.isNull());
+            QVERIFY2(std::abs(inkBefore.left() - inkAfter.left()) <= 1 && std::abs(inkBefore.top() - inkAfter.top()) <= 1 && std::abs(inkBefore.right() - inkAfter.right()) <= 1 &&
+                     std::abs(inkBefore.bottom() - inkAfter.bottom()) <= 1,
+                     qPrintable(QStringLiteral("%1,%2 %3x%4 became %5,%6 %7x%8").arg(inkBefore.x()).arg(inkBefore.y()).arg(inkBefore.width()).arg(inkBefore.height())
+                                    .arg(inkAfter.x()).arg(inkAfter.y()).arg(inkAfter.width()).arg(inkAfter.height())));
+            for (const QColor &color : {QColor(255, 0, 0), QColor(0, 255, 0), QColor(0, 0, 255)}) {
+                const QRect was = colorBoundsOf(before, color), now = colorBoundsOf(after, color);
+                QVERIFY(!was.isNull() && !now.isNull());
+                QVERIFY2(std::abs(was.left() - now.left()) <= 2 && std::abs(was.top() - now.top()) <= 2 && std::abs(was.right() - now.right()) <= 2 && std::abs(was.bottom() - now.bottom()) <= 2,
+                         qPrintable(color.name()));
+            }
+        }
+    }
+
+    // A saved .docx keeps what a recolor and Change Graphic made: the svgBlip and its SVG part, the PNG drawn from it, and the colors, and reads again as the same graphic.
+    void aRecoloredAndChangedGraphicIsKeptByASaveAndReopen()
+    {
+        auto doc = textDoc({"Before after"});
+        QTextCursor c(doc->story());
+        c.setPosition(0);
+        QCOMPARE(insertPicture(*doc, c, graphicSvg(), QStringLiteral("g")), PictureResult::Ok);
+        GraphicColors green;
+        green.fill = GraphicColors::Color;
+        green.fillColor = QColor(0x00, 0xaa, 0x44);
+        QVERIFY(setGraphicColors(*doc, 0, green));
+        QByteArray docx = doc->toDocx();
+        QVERIFY(documentXml(docx).contains("<asvg:svgBlip "));
+        QCOMPARE(partsEndingWith(docx, QStringLiteral(".svg")).size(), 1);
+        QCOMPARE(partsEndingWith(docx, QStringLiteral(".png")).size(), 1);
+        QVERIFY(svgPartOf(docx).contains("#00aa44") && !svgPartOf(docx).contains("#ff0000"));
+        QImage png = graphicPngOf(docx);
+        QVERIFY(!png.isNull());
+        QVERIFY(png.pixelColor(png.width() * 12 / 48, png.height() * 12 / 48).green() > 150 && png.pixelColor(png.width() * 12 / 48, png.height() * 12 / 48).red() < 30);
+        auto back = open(docx);
+        QVERIFY(back);
+        QVERIFY(pictureAt(*back, back->story(), 0).svg);
+        QCOMPARE(graphicSvgAt(*back, 0), graphicSvgAt(*doc, 0));
+        // Change Graphic on the reopened document, saved and reopened again.
+        const QByteArray ellipse = graphicSvg("<ellipse cx=\"24\" cy=\"24\" rx=\"20\" ry=\"10\" fill=\"#123456\"/>");
+        QCOMPARE(changeGraphic(*back, 0, ellipse), PictureResult::Ok);
+        docx = back->toDocx();
+        QVERIFY(documentXml(docx).contains("<asvg:svgBlip "));
+        QCOMPARE(partsEndingWith(docx, QStringLiteral(".svg")).size(), 1);
+        QCOMPARE(partsEndingWith(docx, QStringLiteral(".png")).size(), 1);
+        QVERIFY(svgPartOf(docx).contains("123456") && !svgPartOf(docx).contains("#00aa44"));
+        png = graphicPngOf(docx);
+        QVERIFY(!png.isNull());
+        QVERIFY(std::abs(png.pixelColor(png.width() / 2, png.height() / 2).red() - 0x12) < 8 && std::abs(png.pixelColor(png.width() / 2, png.height() / 2).blue() - 0x56) < 8);
+        auto again = open(docx);
+        QVERIFY(again);
+        QVERIFY(pictureAt(*again, again->story(), 0).svg);
+        QCOMPARE(graphicSvgAt(*again, 0), graphicSvgAt(*back, 0));
+        // A recolor of the one that was changed keeps both parts as well.
+        QVERIFY(setGraphicColors(*again, 0, green));
+        const QByteArray last = again->toDocx();
+        QVERIFY(svgPartOf(last).contains("#00aa44") && documentXml(last).contains("<asvg:svgBlip "));
+        QCOMPARE(partsEndingWith(last, QStringLiteral(".svg")).size(), 1);
+    }
+
+    // The limit on a graphic's size is exact: an SVG of 4 MB is put in, one byte more is refused (on insert and on Change, with a note), and its colors are not changed.
+    void aGraphicOfMoreThanFourMegabytesIsRefused()
+    {
+        auto padded = [](qint64 size) {
+            QByteArray bytes = graphicSvg();
+            const qint64 pad = size - bytes.size() - 7;
+            bytes.insert(bytes.size() - 6, "<!--" + QByteArray(int(pad), 'x') + "-->");
+            return bytes;
+        };
+        const QByteArray atLimit = padded(kMostSvgBytes), over = padded(kMostSvgBytes + 1);
+        QCOMPARE(atLimit.size(), int(kMostSvgBytes));
+        QCOMPARE(over.size(), int(kMostSvgBytes + 1));
+        auto doc = textDoc({"Before after"});
+        QTextCursor c(doc->story());
+        c.setPosition(0);
+        QCOMPARE(insertPicture(*doc, c, over, QStringLiteral("big")), PictureResult::TooLarge);
+        QVERIFY(picturePositions(*doc).isEmpty());
+        QCOMPARE(insertPicture(*doc, c, atLimit, QStringLiteral("big")), PictureResult::Ok);
+        QVERIFY(pictureAt(*doc, doc->story(), 0).svg);
+        QCOMPARE(insertPicture(*doc, c, graphicSvg(), QStringLiteral("small")), PictureResult::Ok);
+        const QByteArray was = graphicSvgAt(*doc, 0);
+        doc->pictureNotice.clear();
+        QCOMPARE(changeGraphic(*doc, 0, over), PictureResult::TooLarge);
+        QVERIFY(!doc->pictureNotice.isEmpty());
+        QCOMPARE(graphicSvgAt(*doc, 0), was);
+        GraphicColors red;
+        red.fill = GraphicColors::Color;
+        red.fillColor = QColor(Qt::red);
+        QVERIFY(svgWithColors(over, red).isEmpty());
+        QCOMPARE(int(svg::vetGraphic(over)), int(svg::Vet::TooLarge));
+        QCOMPARE(int(svg::vetGraphic(atLimit)), int(svg::Vet::Ok));
+    }
+
+    // A barcode has an SVG beside its PNG but is no graphic: Convert to Shape, the colors, and Change Graphic refuse it in the core, and nothing is changed.
+    void aBarcodeIsNoGraphicToConvertRecolorOrChange()
+    {
+        auto doc = textDoc({"Before after"});
+        QTextCursor c(doc->story());
+        c.setPosition(0);
+        QCOMPARE(insertBarcodeInline(*doc, c, QJsonObject{{"type", int(barcode::Type::Qr)}, {"data", "hello"}}), PictureResult::Ok);
+        QVERIFY(!pictureAt(*doc, doc->story(), 0).barcode.isEmpty());
+        const QByteArray before = doc->toDocx();
+        QVERIFY(graphicSvgAt(*doc, 0).isEmpty());
+        QCOMPARE(int(convertGraphicToShapes(*doc, 0).result), int(GraphicConvert::NotGraphic));
+        GraphicColors red;
+        red.fill = GraphicColors::Color;
+        red.fillColor = QColor(Qt::red);
+        QVERIFY(!setGraphicColors(*doc, 0, red));
+        QCOMPARE(changeGraphic(*doc, 0, graphicSvg()), PictureResult::Refused);
+        QCOMPARE(documentXml(doc->toDocx()), documentXml(before));
+        QVERIFY(!pictureAt(*doc, doc->story(), 0).barcode.isEmpty());
+    }
+
+    // Compress Pictures leaves a graphic's PNG alone (it is drawn from the SVG when it is made, and is never shrunk).
+    void compressPicturesLeavesAGraphicsPngAlone()
+    {
+        auto doc = textDoc({"Before after"});
+        QTextCursor c(doc->story());
+        c.setPosition(0);
+        QCOMPARE(insertPicture(*doc, c, graphicSvg(), QStringLiteral("g")), PictureResult::Ok);
+        QVERIFY(setPictureSize(*doc, 0, 20, 20));
+        const QMap<QString, QByteArray> before = mediaOf(doc->toDocx());
+        QVERIFY(!before.isEmpty());
+        QCOMPARE(compressPictures(*doc, 30, QVector<int>({0}), true), qint64(0));
+        QCOMPARE(mediaOf(doc->toDocx()), before);
+        QVERIFY(pictureAt(*doc, doc->story(), 0).svg);
+    }
+
+    // Only the start of a part is looked at for an SVG: after a byte order mark, white space, an XML declaration, and comments; a part that has "<svg" later in its bytes is no SVG.
+    void aPartIsAnSvgOnlyWhereItBeginsLikeOne()
+    {
+        const QByteArray body = graphicSvg();
+        QVERIFY(svg::startsLikeSvg(body));
+        QVERIFY(svg::startsLikeSvg("\xEF\xBB\xBF  \n<?xml version=\"1.0\"?>\n<!-- made by hand -->\n" + body));
+        QVERIFY(!svg::startsLikeSvg("not an svg at all " + body));
+        QVERIFY(!svg::startsLikeSvg("<html><body>" + body + "</body></html>"));
+        QVERIFY(!svg::startsLikeSvg("<!-- <svg " + QByteArray(2000, ' ') + "-->"));
+        QVERIFY(!svg::startsLikeSvg("<svgs width=\"4\"/>"));
+        // In a file: a picture whose SVG part has the drawing after other bytes is not a graphic (its PNG is the picture).
+        auto good = open(foreignGraphicDocx("<?xml version=\"1.0\"?><!-- c -->" + body, pngOf(40, 40)));
+        QVERIFY(good);
+        QVERIFY(pictureAt(*good, good->story(), 7).svg);
+        auto bad = open(foreignGraphicDocx("junk " + body, pngOf(40, 40)));
+        QVERIFY(bad);
+        QVERIFY(!pictureAt(*bad, bad->story(), 7).svg);
+    }
+
+    // Change Graphic takes the svgBlip of the old graphic out whatever prefix it was written with and whatever its extension is called: one svgBlip is left, and the old SVG is let go of.
+    void changeGraphicRemovesAnOldSvgBlipOfAnyPrefix()
+    {
+        auto doc = open(foreignGraphicDocx(graphicSvg(), pngOf(40, 40), "svg16", "{96dac541-7b7a-43d3-8b79-37d633b846f1}"));
+        QVERIFY(doc);
+        QVERIFY(pictureAt(*doc, doc->story(), 7).svg);
+        const QByteArray ellipse = graphicSvg("<ellipse cx=\"24\" cy=\"24\" rx=\"20\" ry=\"10\" fill=\"#123456\"/>");
+        QCOMPARE(changeGraphic(*doc, 7, ellipse), PictureResult::Ok);
+        const QByteArray docx = doc->toDocx();
+        const QByteArray body = documentXml(docx);
+        QCOMPARE(body.count("svgBlip "), 1);
+        QCOMPARE(partsEndingWith(docx, QStringLiteral(".svg")).size(), 1);
+        QCOMPARE(svgPartOf(docx), ellipse);
+    }
+
     void shotTheGraphicsFormatTabAndTheShapesAfterConvert()
     {
         const QString dir = qEnvironmentVariable("JO_SHOT_DIR");
@@ -4863,16 +5492,17 @@ private Q_SLOTS:
         QTextCursor c(doc->story());
         c.setPosition(0);
         QVERIFY(insertPicture(*doc, c, iconSvg(QStringLiteral("rocket"), QColor(0x2a, 0x6f, 0xb4)), QStringLiteral("Rocket icon"), PictureWrap::Inline, QStringLiteral("A rocket")) == PictureResult::Ok);
-        QVERIFY(setPictureSize(*doc, 0, 96, 96));
+        QVERIFY(setPictureSize(*doc, 0, 24, 24));
         win.w.view()->refresh();
         win.w.view()->selectPicture(0);
         QTRY_VERIFY(win.tabShown(QStringLiteral("Graphics Format")));
+        win.w.refreshNow();
         win.w.ribbon()->buildAllTabs();
         win.w.ribbon()->showTab(win.w.ribbon()->tab(QStringLiteral("Graphics Format")));
         QDir().mkpath(dir);
         QTest::qWait(200);
-        QVERIFY(win.w.grab().save(dir + QStringLiteral("/write-graphics-format-tab.png")));
-        // Shapes: a graphic of three parts, recolored (its fills one color), then converted to shapes.
+        QVERIFY(win.w.grab().save(dir + QStringLiteral("/fix-graphics-format-tab.png")));
+        // Shapes: a graphic of three parts, recolored (its fills one color), selected, then converted to shapes; the page before and after.
         QTextCursor d(doc->story());
         d.setPosition(doc->story()->characterCount() - 1);
         QVERIFY(insertPicture(*doc, d, graphicSvg(), QStringLiteral("Three parts"), PictureWrap::Inline, QStringLiteral("Three parts")) == PictureResult::Ok);
@@ -4882,12 +5512,18 @@ private Q_SLOTS:
         orange.fill = GraphicColors::Color;
         orange.fillColor = QColor(0xe0, 0x7b, 0x20);
         QVERIFY(setGraphicColors(*doc, second, orange));
+        win.w.view()->refresh();
+        win.w.view()->selectPicture(second);
+        win.w.refreshNow();
+        QTest::qWait(200);
+        QVERIFY(win.w.grab().save(dir + QStringLiteral("/fix-convert-before.png")));
         const GraphicConversion done = convertGraphicToShapes(*doc, second);
         QCOMPARE(int(done.result), int(GraphicConvert::Done));
         win.w.view()->refresh();
         win.w.view()->selectPicture(second);
+        win.w.refreshNow();
         QTest::qWait(200);
-        QVERIFY(win.w.grab().save(dir + QStringLiteral("/write-graphics-converted-shapes.png")));
+        QVERIFY(win.w.grab().save(dir + QStringLiteral("/fix-convert-after.png")));
     }
 
     void inkDrawnInAFileIsKeptWithItsPartAndWrittenBackAsItWas()
