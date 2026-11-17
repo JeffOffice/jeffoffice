@@ -37,7 +37,7 @@ Turn on **Home > Show/Hide** to see the marks for these in your text.
 
 ## The date and time
 
-**Insert > Date & Time** lists ways to write today's date and the time. Pick one. With **Update automatically** ticked, it goes in as a field, which shows the new date each time you press F9 or open the document. With it off, it goes in as plain words that stay as they are.
+**Insert > Date & Time** lists ways to write today's date and the time. Pick one. With **Update automatically** ticked, it goes in as a field, which shows the new date each time you press F9 or open the document. With it off, it goes in as plain words that stay as they are. Pick a **Language** to see the names of the days and months in that language, such as German or Japanese. A date that updates keeps that language, in the file too.
 
 ## Drop cap
 
