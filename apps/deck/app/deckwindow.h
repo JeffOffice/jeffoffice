@@ -249,7 +249,7 @@ public:
     // bar, for a line that makes none. editEquation changes the line of the equation `id` (one step); a double click on an equation, or the command with
     // one selected, opens the shared editor on it. (deckwindow_equation.cpp)
     bool insertEquation(const QString &linear);
-    bool editEquation(const QString &id);
+    bool editEquation(QString id);   // (by value: `id` is often an item's own id, and an edit replaces that item, Nov 17)
     void insertEquationDialog();
     // The Online Pictures pane on the right (Insert > Pictures > Online Pictures), once it has been opened: a
     // picture chosen in it is put on the slide, with its credit under it when asked.

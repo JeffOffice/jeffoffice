@@ -21,6 +21,6 @@ QString insertEquation(Editor *ed, const QString &linear);
 
 // Changes the line of the equation `id`, keeping its middle and the size its letters are at; one step that undoes ("Edit Equation"). False for a line that makes no equation, or where
 // there is no such equation, or the line is the one it has.
-bool changeEquation(Editor *ed, const QString &id, const QString &linear);
+bool changeEquation(Editor *ed, QString id, const QString &linear);
 
 } // namespace jp

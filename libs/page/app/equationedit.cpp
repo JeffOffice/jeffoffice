@@ -36,7 +36,7 @@ QString insertEquation(Editor *ed, const QString &linear)
     return ed->addItem(w);
 }
 
-bool changeEquation(Editor *ed, const QString &id, const QString &linear)
+bool changeEquation(Editor *ed, QString id, const QString &linear)
 {
     auto *w = dynamic_cast<EquationItem *>(ed->doc()->item(id));
     if (!w || w->linear == linear.trimmed()) return false;

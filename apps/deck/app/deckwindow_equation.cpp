@@ -141,7 +141,7 @@ bool DeckWindow::insertEquation(const QString &linear)
     return true;
 }
 
-bool DeckWindow::editEquation(const QString &id)
+bool DeckWindow::editEquation(QString id)
 {
     // The picture that stands for an equation a file brought is drawn and saved as the file has it until the equation is changed here: then it is made an equation,
     // from the line it reads as and the line typed, in the same place, as one step that undoes.

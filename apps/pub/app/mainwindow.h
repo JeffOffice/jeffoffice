@@ -223,7 +223,7 @@ public:
     void changePictureLink(const QString &pictureId);
     void editTextArt(const QString &id);
     void insertEquationDialog();
-    void editEquation(const QString &id);
+    void editEquation(QString id);   // (by value: an edit replaces the item whose id this often is, Nov 17)
     void refreshUi();
     void screenshotTo(const QString &path);
 

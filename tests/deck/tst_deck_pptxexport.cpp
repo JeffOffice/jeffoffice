@@ -129,7 +129,7 @@ private Q_SLOTS:
     // another type, a place outside the file, or an address is not taken.
     void aMacroLinkToAnythingButAProjectIsNotTaken()
     {
-        const QByteArray project("\xD0\xCF\x11\xE0 our own bytes", 20);
+        const QByteArray project("\xD0\xCF\x11\xE0 our own bytes");   // (no length: 20 read past its 18 bytes, memory checker Nov 17)
         const QString macroType = QStringLiteral("application/vnd.ms-powerpoint.presentation.macroEnabled.main+xml");
         struct Case { const char *target; bool external; } cases[] = {{"slides/slide1.xml", false}, {"../docProps/app.xml", false}, {"../../vbaProject.bin", false}, {"http://example.com/vbaProject.bin", true}};
         for (const Case &c : cases) {
@@ -152,7 +152,7 @@ private Q_SLOTS:
     // A plain file with a link to a macro project does not carry the project into a macro-enabled kind when it is saved as one.
     void aPlainFileCarriesNoMacroProject()
     {
-        const QByteArray project("\xD0\xCF\x11\xE0 our own bytes", 20);
+        const QByteArray project("\xD0\xCF\x11\xE0 our own bytes");   // (no length: 20 read past its 18 bytes, memory checker Nov 17)
         const QByteArray bytes = macroPptx(QStringLiteral("application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"), project, QByteArray());
         QVERIFY(!bytes.isEmpty());
         QString err;
@@ -211,7 +211,7 @@ private Q_SLOTS:
     // A project survives the path that settles live text fits first (a shape that shrinks its text), and a name the writer already holds is not written twice.
     void aMacroProjectSurvivesTheLiveFitPathAndTakenNames()
     {
-        const QByteArray project("\xD0\xCF\x11\xE0 our own bytes", 20);
+        const QByteArray project("\xD0\xCF\x11\xE0 our own bytes");   // (no length: 20 read past its 18 bytes, memory checker Nov 17)
         auto doc = deck::importPresentation(macroPptx(QStringLiteral("application/vnd.ms-powerpoint.presentation.macroEnabled.main+xml"), project, QByteArray()));
         QVERIFY(doc);
         auto s = std::make_shared<ShapeItem>();

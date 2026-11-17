@@ -2073,7 +2073,7 @@ void MainWindow::insertEquationDialog()
 }
 
 // An equation that was typed in a line is changed in the same dialog; one a file brought, which no line makes, is changed only by putting in another.
-void MainWindow::editEquation(const QString &id)
+void MainWindow::editEquation(QString id)
 {
     auto *w = dynamic_cast<EquationItem *>(m_ed->doc()->item(id));
     if (!w) return;
