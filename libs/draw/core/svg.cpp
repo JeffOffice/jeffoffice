@@ -408,7 +408,7 @@ QPainterPath pathData(const QString &d)
 
 // `leaves`, when given, is filled with the drawing's parts in the order they
 // are drawn, each with the clipping that covers it, and nothing is drawn.
-static Drawing readParts(const QByteArray &svg, const QColor &currentColor, std::vector<Leaf> *leaves)
+static Drawing readParts(const QByteArray &svg, const QColor &currentColor, std::vector<Leaf> *leaves, const ReadLimits *limits = nullptr)
 {
     Drawing out;
     std::vector<Node> nodes;
@@ -582,6 +582,17 @@ static Drawing readParts(const QByteArray &svg, const QColor &currentColor, std:
         const QString id = v.mid(4, close - 4).trimmed().remove('"').remove('\'');
         return id.startsWith('#') ? byId.value(id.mid(1), -1) : -1;
     };
+    // A read with limits ends at the first passed: `stop` ends the walk, with what was made so far kept.
+    bool stop = false;
+    qint64 points = 0;
+    auto passed = [&] {
+        stop = true;
+        out.skipped = out.overLimit = true;
+    };
+    auto counted = [&](size_t from) {
+        for (size_t i = from; i < size_t(out.elements.size()); ++i) points += out.elements[int(i)].path.elementCount();
+        if (limits && limits->points > 0 && points > limits->points) passed();
+    };
     // An element cut to a clip: its fill inside the clip, and its stroke
     // inside it as an area of the stroke's color (a shape's line can't be cut).
     auto clipElement = [&](const Element &e, const QPainterPath &clip) {
@@ -627,7 +638,17 @@ static Drawing readParts(const QByteArray &svg, const QColor &currentColor, std:
             leaves->push_back({current, st.clipped, st.clip});
             return;
         }
-        if (st.hidden || local.isEmpty()) return;
+        if (st.hidden || local.isEmpty() || stop) return;
+        // (The outline is counted before it is copied, so that a path used again and again stops where the points are too many, not after they are all made.)
+        if (limits && limits->points > 0 && points + local.elementCount() > limits->points) {
+            passed();
+            return;
+        }
+        if (limits && limits->elements > 0 && out.elements.size() >= limits->elements) {
+            passed();
+            return;
+        }
+        const size_t before = size_t(out.elements.size());
         Element e;
         e.path = t.map(local);
         e.path.setFillRule(st.evenOdd ? Qt::OddEvenFill : Qt::WindingFill);
@@ -644,6 +665,7 @@ static Drawing readParts(const QByteArray &svg, const QColor &currentColor, std:
         if (!e.fill.isValid() && !e.stroke.isValid()) return;
         if (st.clipped) clipElement(e, st.clip);
         else out.elements << e;
+        counted(before);
     };
 
     auto attr = [](const Node &n, const char *name, double ref) { return length(n.attrs.value(QLatin1String(name)), ref); };
@@ -654,8 +676,13 @@ static Drawing readParts(const QByteArray &svg, const QColor &currentColor, std:
     int budget = 200000;
     std::function<void(int, QTransform, Style, int, const Node *)> walk = [&](int idx, QTransform ctm, Style st, int depth, const Node *use) {
         ++g_walkSteps;
-        if (depth > 32 || --budget < 0 || out.elements.size() >= 100000) {
+        ++out.steps;
+        if (depth > 32) {
             out.skipped = true;
+            return;
+        }
+        if (stop || --budget < 0 || out.elements.size() >= 100000 || (limits && limits->steps > 0 && out.steps > limits->steps)) {
+            passed();
             return;
         }
         const Node &n = nodes[idx];
@@ -676,7 +703,10 @@ static Drawing readParts(const QByteArray &svg, const QColor &currentColor, std:
             }
         current = idx;
         auto children = [&](const QTransform &t) {
-            for (int ch : n.children) walk(ch, t, st, depth + 1, nullptr);
+            for (int ch : n.children) {
+                if (stop) break;
+                walk(ch, t, st, depth + 1, nullptr);
+            }
         };
         if (name == QLatin1String("g") || name == QLatin1String("a") || (name == QLatin1String("svg") && idx == 0)) {
             children(ctm);
@@ -813,9 +843,9 @@ static Drawing readParts(const QByteArray &svg, const QColor &currentColor, std:
     return out;
 }
 
-Drawing read(const QByteArray &svg, const QColor &currentColor)
+Drawing read(const QByteArray &svg, const QColor &currentColor, const ReadLimits *limits)
 {
-    return readParts(svg, currentColor, nullptr);
+    return readParts(svg, currentColor, nullptr, limits);
 }
 
 // `svg` without the elements numbered in `drop` (counted as readParts counts
@@ -989,23 +1019,23 @@ private:
 
 } // namespace
 
-static void paintOn(QSvgRenderer &renderer, const QByteArray &svg, QPainter *p, const QRectF &bounds);
+static void paintOn(QSvgRenderer &renderer, const QByteArray &svg, QPainter *p, const QRectF &bounds, int most);
 
-void paint(QSvgRenderer &renderer, const QByteArray &svg, QPainter *p, const QRectF &bounds)
+void paint(QSvgRenderer &renderer, const QByteArray &svg, QPainter *p, const QRectF &bounds, int maxRuns)
 {
     if (!p->paintEngine() || p->paintEngine()->type() != QPaintEngine::Pdf) {
-        paintOn(renderer, svg, p, bounds);
+        paintOn(renderer, svg, p, bounds, maxRuns);
         return;
     }
     OutlineTextDevice device(p);
     QPainter outline(&device);
-    paintOn(renderer, svg, &outline, bounds);
+    paintOn(renderer, svg, &outline, bounds, maxRuns);
 }
 
-static void paintOn(QSvgRenderer &renderer, const QByteArray &svg, QPainter *p, const QRectF &bounds)
+static void paintOn(QSvgRenderer &renderer, const QByteArray &svg, QPainter *p, const QRectF &bounds, int most)
 {
     std::vector<Leaf> leaves;
-    if (svg.size() <= (8 << 20) && svg.contains("clip-path")) readParts(svg, Qt::black, &leaves);
+    if (svg.size() <= (8 << 20) && svg.contains("clip-path")) readParts(svg, Qt::black, &leaves, nullptr);
     // The parts drawn in a row under the same clip make a run.
     struct Run {
         bool clipped;
@@ -1016,7 +1046,8 @@ static void paintOn(QSvgRenderer &renderer, const QByteArray &svg, QPainter *p, 
     bool any = false;
     // Each run is another parse of the drawing: the bigger it is, the fewer
     // runs are cut, and the parts after the last of them show unclipped.
-    const size_t maxRuns = size_t(std::clamp<qsizetype>((8 << 20) / std::max<qsizetype>(svg.size(), 1), 8, 100));
+    size_t maxRuns = size_t(std::clamp<qsizetype>((8 << 20) / std::max<qsizetype>(svg.size(), 1), 8, 100));
+    if (most > 0) maxRuns = std::min(maxRuns, size_t(most));
     for (size_t i = 0; i < leaves.size(); ++i) {
         const Leaf &l = leaves[i];
         if (!runs.empty() && runs.back().clipped == l.clipped && (!l.clipped || runs.back().clip == l.clip)) {
@@ -1382,6 +1413,160 @@ ItemPtr pictureShapes(const QByteArray &bytes, const PictureItem &pic, bool *par
     it->name = pic.name;
     it->altText = pic.altText;
     return it;
+}
+
+
+namespace {
+
+// The root element's preserveAspectRatio, as align (0 to 2 across and down; -1 for none) and whether the drawing is cut ("slice") rather than whole ("meet").
+struct Aspect {
+    int x = 1, y = 1;
+    bool slice = false;
+    bool none = false;
+};
+
+Aspect aspectOf(const QByteArray &svg)
+{
+    Aspect a;
+    QXmlStreamReader r(svg.left(8192));
+    while (!r.atEnd()) {
+        if (r.readNext() != QXmlStreamReader::StartElement) continue;
+        const QStringList words = r.attributes().value(QLatin1String("preserveAspectRatio")).toString().split(QRegularExpression(QStringLiteral("\\s+")), Qt::SkipEmptyParts);
+        for (const QString &w : words) {
+            if (w == QLatin1String("defer")) continue;
+            if (w == QLatin1String("none")) a.none = true;
+            else if (w == QLatin1String("slice")) a.slice = true;
+            else if (w.size() == 8 && w[0] == QLatin1Char('x') && w[4] == QLatin1Char('Y')) {
+                const QString h = w.mid(1, 3), v = w.mid(5, 3);
+                a.x = h == QLatin1String("Min") ? 0 : h == QLatin1String("Max") ? 2 : 1;
+                a.y = v == QLatin1String("Min") ? 0 : v == QLatin1String("Max") ? 2 : 1;
+            }
+        }
+        break;
+    }
+    return a;
+}
+
+} // namespace
+
+QRectF fittedBox(const QByteArray &svg, const QRectF &box, const QRectF &bounds, bool *cut)
+{
+    if (cut) *cut = false;
+    if (box.width() <= 0 || box.height() <= 0 || bounds.isEmpty()) return bounds;
+    const Aspect a = aspectOf(svg);
+    if (a.none) return bounds;
+    const double sx = bounds.width() / box.width(), sy = bounds.height() / box.height(), k = a.slice ? std::max(sx, sy) : std::min(sx, sy);
+    const QSizeF size(box.width() * k, box.height() * k);
+    if (cut) *cut = a.slice && (size.width() > bounds.width() + 1e-9 || size.height() > bounds.height() + 1e-9);
+    return QRectF(QPointF(bounds.x() + (bounds.width() - size.width()) * a.x / 2, bounds.y() + (bounds.height() - size.height()) * a.y / 2), size);
+}
+
+void paintFitted(QSvgRenderer &renderer, const QByteArray &svg, QPainter *p, const QRectF &bounds, int maxRuns)
+{
+    bool cut = false;
+    const QRectF at = fittedBox(svg, renderer.viewBoxF(), bounds, &cut);
+    if (cut) {
+        p->save();
+        p->setClipRect(bounds, Qt::IntersectClip);
+    }
+    paint(renderer, svg, p, at, maxRuns);
+    if (cut) p->restore();
+}
+
+bool startsLikeSvg(const QByteArray &bytes)
+{
+    if (bytes.startsWith("\x1f\x8b")) return false;
+    const QByteArray head = bytes.left(65536);
+    qsizetype i = 0;
+    const qsizetype n = head.size();
+    if (head.startsWith("\xEF\xBB\xBF")) i = 3;
+    for (;;) {
+        while (i < n && (head[i] == ' ' || head[i] == '\t' || head[i] == '\r' || head[i] == '\n')) ++i;
+        if (head.mid(i, 5) == "<?xml") {
+            const qsizetype end = head.indexOf("?>", i);
+            if (end < 0) return false;
+            i = end + 2;
+        } else if (head.mid(i, 4) == "<!--") {
+            const qsizetype end = head.indexOf("-->", i + 4);
+            if (end < 0) return false;
+            i = end + 3;
+        } else {
+            break;
+        }
+    }
+    const QByteArray tag = head.mid(i, 5);
+    if (tag.size() < 5 || !(tag.startsWith("<svg") || tag.startsWith("<SVG"))) return false;
+    const char next = tag[4];
+    return next == ' ' || next == '\t' || next == '\r' || next == '\n' || next == '>' || next == '/';
+}
+
+namespace {
+
+// Whether what a style or a paint says (`text`) leaves the SVG: a url( that is not a part of it, or an import.
+bool leavesFrom(const QString &text)
+{
+    if (text.contains(QLatin1String("@import"), Qt::CaseInsensitive)) return true;
+    for (qsizetype at = text.indexOf(QLatin1String("url("), 0, Qt::CaseInsensitive); at >= 0; at = text.indexOf(QLatin1String("url("), at + 4, Qt::CaseInsensitive)) {
+        const qsizetype end = text.indexOf(QLatin1Char(')'), at + 4);
+        QString target = (end < 0 ? text.mid(at + 4) : text.mid(at + 4, end - at - 4)).trimmed();
+        while (!target.isEmpty() && (target.front() == QLatin1Char('"') || target.front() == QLatin1Char('\''))) target.remove(0, 1);
+        if (!target.trimmed().startsWith(QLatin1Char('#'))) return true;
+    }
+    return false;
+}
+
+} // namespace
+
+bool reachesOutside(const QByteArray &svg)
+{
+    // (What the text says in its own words, before any reading: a definition of its own, a style sheet to fetch.)
+    const QString text = QString::fromUtf8(svg);
+    static const QRegularExpression raw(QStringLiteral("<!\\s*(DOCTYPE|ENTITY)|<\\?xml-stylesheet|@import"), QRegularExpression::CaseInsensitiveOption);
+    if (raw.match(text).hasMatch()) return true;
+    QXmlStreamReader r(svg);
+    QString style;
+    while (!r.atEnd()) {
+        switch (r.readNext()) {
+        case QXmlStreamReader::DTD:
+        case QXmlStreamReader::EntityReference:
+            return true;
+        case QXmlStreamReader::StartElement: {
+            const QString name = r.name().toString().toLower();
+            // (A picture in it, carried as data or not, is not drawn: it would be read by a reader of pictures that has the limits of its own.)
+            if (name == QLatin1String("image") || name == QLatin1String("foreignobject") || name == QLatin1String("script") || name == QLatin1String("feimage")) return true;
+            for (const QXmlStreamAttribute &a : r.attributes()) {
+                const QString local = a.name().toString().toLower(), value = a.value().toString().trimmed();
+                if ((local == QLatin1String("href") || local == QLatin1String("src")) && !value.startsWith(QLatin1Char('#'))) return true;
+                if (leavesFrom(value)) return true;
+            }
+            break;
+        }
+        case QXmlStreamReader::Characters:
+            style += r.text();
+            if (style.size() > (8 << 20)) return true;
+            break;
+        case QXmlStreamReader::EndElement:
+            if (leavesFrom(style)) return true;
+            style.clear();
+            break;
+        default: break;
+        }
+    }
+    return false;
+}
+
+Vet vetGraphic(const QByteArray &svg)
+{
+    if (svg.size() > kMostGraphicBytes) return Vet::TooLarge;
+    if (!startsLikeSvg(svg) && !(svg.contains("<svg") || svg.contains("<SVG"))) return Vet::Unreadable;
+    if (svg.startsWith("\x1f\x8b")) return Vet::Unreadable;
+    if (reachesOutside(svg)) return Vet::Outside;
+    ReadLimits limits;
+    limits.points = kMostDrawPoints;
+    limits.elements = kMostDrawElements;
+    limits.steps = kMostDrawSteps;
+    const Drawing d = read(svg, Qt::black, &limits);
+    return d.overLimit ? Vet::TooComplex : Vet::Ok;
 }
 
 } // namespace jp::svg
