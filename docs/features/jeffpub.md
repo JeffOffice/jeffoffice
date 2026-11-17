@@ -288,7 +288,7 @@ What a right-click offers depends on what is under the pointer: text being edite
 - [x] **1.0** On a selected object: Cut, Copy, Paste, Duplicate, and Delete; Group, Ungroup, and Regroup; the Order and Wrap Text menus; Lock; Save in Building Blocks; Format Object (Format Table for a table); and Hyperlink; with Change Picture, Crop, Save as Picture, Caption, and Convert to Shapes for a picture, Link, Break Link, and Text Fit for a text box, Add Text for a shape, and Edit Text for Text Art
 - [x] **1.0** On the page itself: Paste, Insert Page, Insert Duplicate Page, Delete Page, Page Setup, Guides, and Zoom (Whole Page, Page Width, and 100%)
 - [x] **1.0** A recent or pinned publication in the Open list: Pin to list or Unpin from list, and Remove from list
-- [ ] **later** The mini toolbar that floats by selected text, with the font, size, bold, italic, color, alignment, and bullet buttons
+- [x] **1.0** The mini toolbar that floats by selected text, with the font, size, bold, italic, color, alignment, and bullet buttons *(done November 17, 2026: when words in a text frame, shape, or table cell are selected with the mouse, a small bar floats above them with the font box, Bold, Italic, Underline, Decrease and Increase Font Size, the three alignments, Bullets, Numbering, and Font Color, the ribbon's own commands, each one step of Undo; it never takes the keyboard, and goes with typing, Esc, scrolling, and the selection; shared with JeffWrite and JeffDeck; not done: a size box (the two size buttons step it), and fading as the pointer moves away)*
 
 ## Under the ribbon: object behavior and canvas
 - [x] **1.0** Frames: text box, picture, shape, line, arrow, table, Text Art, group, embedded object

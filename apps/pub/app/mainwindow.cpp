@@ -4,6 +4,7 @@
 #include "app/keymap.h"
 #include "app/ribboncustom.h"
 #include "app/mainwindow.h"
+#include "canvas/editorminitoolbar.h"
 #include "app/picturetools.h"
 #include "core/comments.h"
 #include "core/version.h"
@@ -154,6 +155,37 @@ MainWindow::MainWindow(QWidget *parent) : AppWindow(parent)
     startupMark("win: before ribbon");
     buildRibbon();
     startupMark("win: ribbon built");
+    // The mini toolbar by words selected with the mouse: the ribbon's own commands, on the text being typed in.
+    {
+        auto target = std::make_unique<FunctionMiniTarget>();
+        target->actionFor = [this](MiniTarget::Command c) {
+            using C = MiniTarget::Command;
+            switch (c) {
+            case C::Bold: return act("fmt.bold");
+            case C::Italic: return act("fmt.italic");
+            case C::Underline: return act("fmt.underline");
+            case C::Shrink: return act("fmt.shrink");
+            case C::Grow: return act("fmt.grow");
+            case C::AlignLeft: return act("para.left");
+            case C::AlignCenter: return act("para.center");
+            case C::AlignRight: return act("para.right");
+            case C::Bullets: return act("para.bullets");
+            case C::Numbering: return act("para.numbers");
+            }
+            return static_cast<QAction *>(nullptr);
+        };
+        target->setFont = [this](const QString &f) {
+            m_ed->setFontFamily(f);
+            m_canvas->setFocus();
+        };
+        target->setColor = [this](const ColorRef &c) {
+            m_ed->setTextColor(c);
+            m_canvas->setFocus();
+        };
+        auto *mini = new EditorMiniToolbar(m_canvas, std::move(target), [this] { return isReadOnly(); });
+        m_fontCombos << mini->bar()->fontBox();
+        m_colorButtons << mini->bar()->colorButton();
+    }
     KeyMap::apply(this);   // (the keys the person chose in Options > Customize)
     RibbonCustom::apply(this);   // (and the tabs and groups the person shows, hides, and adds)
     buildStatusBar();

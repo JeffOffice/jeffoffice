@@ -1,5 +1,5 @@
 # Format text
-<!-- keywords: font, font size, bold, italic, underline, font color, text color, character spacing, kerning, align text, line spacing, indent, drop cap, copy formatting, copy formatting, paste formatting, change case -->
+<!-- keywords: mini toolbar, floating toolbar, font, font size, bold, italic, underline, font color, text color, character spacing, kerning, align text, line spacing, indent, drop cap, copy formatting, copy formatting, paste formatting, change case -->
 
 You format text on the **Home** tab. The **Font** group changes letters. The **Paragraph** group changes whole paragraphs.
 
@@ -22,6 +22,10 @@ To set many things at once, click the corner button of the **Font** group (or pr
 ## Color
 
 Click **Font Color** and pick a scheme, standard, or recent color. **More Colors…** opens the full picker, **Eyedropper** picks up a color from the page, and **Tints…** lists lighter and darker versions of a scheme color. **Automatic** brings back the style's color.
+
+## The mini toolbar
+
+When you select words with the mouse, a small bar floats above them. It has the buttons you use most: **Bold**, **Italic**, **Underline**, make the text smaller or bigger, left, center, and right alignment, bullets, and numbers. A **font box** sits above them, and a **font color** button is at their end. They are the same buttons as on the ribbon, and each one is a single step you can undo. The bar never takes the keyboard from your text. It goes away when you type, press Esc, scroll the page, or click so that no words are selected.
 
 ## Character spacing
 

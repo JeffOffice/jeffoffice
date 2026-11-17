@@ -3,6 +3,7 @@
 #include "app/keymap.h"
 #include "app/ribboncustom.h"
 #include "app/deckwindow.h"
+#include "canvas/editorminitoolbar.h"
 #include "core/startuptrace.h"
 
 #include "app/deckcanvas.h"
@@ -186,6 +187,37 @@ DeckWindow::DeckWindow(QWidget *parent) : AppWindow(parent)
             if (insertPicture(path, where) && where.x() >= 0) where += QPointF(18, 18);
     });
     connect(m_canvas, &Canvas::contextMenuWanted, this, &DeckWindow::showSlideContextMenu);
+    // The mini toolbar by words selected with the mouse: the ribbon's own commands, on the text being typed in.
+    {
+        auto target = std::make_unique<FunctionMiniTarget>();
+        target->actionFor = [this](MiniTarget::Command c) {
+            using C = MiniTarget::Command;
+            switch (c) {
+            case C::Bold: return act("fmt.bold");
+            case C::Italic: return act("fmt.italic");
+            case C::Underline: return act("fmt.underline");
+            case C::Shrink: return act("fmt.shrink");
+            case C::Grow: return act("fmt.grow");
+            case C::AlignLeft: return act("fmt.alignLeft");
+            case C::AlignCenter: return act("fmt.alignCenter");
+            case C::AlignRight: return act("fmt.alignRight");
+            case C::Bullets: return act("para.bullets");
+            case C::Numbering: return act("para.numbers");
+            }
+            return static_cast<QAction *>(nullptr);
+        };
+        target->setFont = [this](const QString &f) {
+            m_ed->setFontFamily(f);
+            m_canvas->setFocus();
+        };
+        target->setColor = [this](const ColorRef &c) {
+            m_ed->setTextColor(c);
+            m_canvas->setFocus();
+        };
+        auto *mini = new EditorMiniToolbar(m_canvas, std::move(target), [this] { return isReadOnly(); });
+        m_fontCombos << mini->bar()->fontBox();
+        m_colorButtons << mini->bar()->colorButton();
+    }
     m_canvas->zoomToFit(Canvas::Fit::WholePage);
     resize(1280, 800);
     updateTitle();

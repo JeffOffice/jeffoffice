@@ -1,5 +1,5 @@
 # Type and format text
-<!-- keywords: text, type, placeholder, title, subtitle, text box, font, size, bold, italic, underline, color, bullets, numbering, list level, alignment, line spacing, columns, character spacing, change case, copy formatting, clear formatting, shrink, symbol, date, link, hyperlink, spelling, find, replace, replace all, search, match case, whole words, right-click, shortcut menu, context menu, shift+f10, menu key -->
+<!-- keywords: mini toolbar, floating toolbar, text, type, placeholder, title, subtitle, text box, font, size, bold, italic, underline, color, bullets, numbering, list level, alignment, line spacing, columns, character spacing, change case, copy formatting, clear formatting, shrink, symbol, date, link, hyperlink, spelling, find, replace, replace all, search, match case, whole words, right-click, shortcut menu, context menu, shift+f10, menu key -->
 
 Most slides are mostly words. This topic shows where text goes on a slide and how to format it.
 
@@ -31,6 +31,10 @@ The small button with three dots in the corner of the group opens the **Font** w
 Words can have **effects**. An effect is a look added to the letters, such as a shadow, a glow, or a reflection. A **shadow** is a soft dark copy of the words, set a little down and to the right. A **glow** is a soft ring of color around the letters. A **reflection** is a faded, upside-down copy of the words under them. An **inner shadow** darkens the letters along one inside edge. JeffDeck shows the effects a presentation already has, and keeps them when you save. The **Shadow** button gives the selected words a shadow, and a second click takes it off. A shadow is drawn right under its letters, so it never covers other words. In a presentation that has been shrunk to fit, the shadows shrink with the words.
 
 **Copy Formatting** copies how text or an object looks. Select what you want to copy, click **Copy Formatting**, and then click or drag over what should look the same. Hold Shift while you click the button to paint more than once. Click the button again, or press Esc, to stop.
+
+## The mini toolbar
+
+When you select words with the mouse, a small bar floats above them. It has the buttons you use most: **Bold**, **Italic**, **Underline**, make the text smaller or bigger, left, center, and right alignment, bullets, and numbers. A **font box** sits above them, and a **font color** button is at their end. They are the same buttons as on the ribbon, and each one is a single step you can undo. The bar never takes the keyboard from your text. It goes away when you type, press Esc, scroll the slide, or click so that no words are selected.
 
 ## Format paragraphs
 

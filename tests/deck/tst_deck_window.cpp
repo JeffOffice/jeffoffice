@@ -1,6 +1,8 @@
 #include "core/datafolder.h"
 #include "app/keymap.h"
 #include <QScopeGuard>
+#include <QScrollBar>
+#include <QToolButton>
 // JeffDeck's tests of the window: ribbon, help, status bar, headers and footers, backgrounds, the slide menu, and find.
 #include "deckhelpers.h"
 #include "../withdialog.h"
@@ -2733,6 +2735,84 @@ private Q_SLOTS:
         QVERIFY(qAbs(v->placeRect(deck::NotesPart::Footer).center().x() - (from.x() - 15)) < 2);
         w.editor()->undo();
         QVERIFY(qAbs(v->placeRect(deck::NotesPart::Footer).center().x() - from.x()) < 2);
+    }
+
+    // The mini toolbar floats above words selected with the mouse, never takes the keyboard, does the ribbon's commands as one step of Undo each, and goes with typing, Escape, and scrolling.
+    void theMiniToolbarFloatsByWordsSelectedWithTheMouse()
+    {
+        DeckWindow w;
+        w.resize(1440, 900);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        Editor *ed = w.editor();
+        const auto *title = placeholderOfSlide(*ed->doc(), 0, 0);
+        const QString boxId = title->id, storyId = title->storyId;
+        QTextCursor(ed->doc()->storyDoc(storyId)).insertText(QStringLiteral("Some words to pick out of the line"));
+        auto *canvas = w.canvas();
+        QWidget *view = canvas->viewport();
+        auto *mini = view->findChild<QFrame *>(QStringLiteral("miniToolbar"));
+        QVERIFY(mini);
+        QVERIFY(!mini->isVisible());
+        const int o = 0;
+        auto at = [&](int pos) { return view->mapFromGlobal(canvas->caretScreenRect(pos).center()); };
+        auto select = [&] {
+            ed->beginTextEdit(boxId, 0);
+            QTest::mousePress(view, Qt::LeftButton, Qt::NoModifier, at(5 + o));
+            QTest::mouseMove(view, at(8 + o));
+            QVERIFY(!mini->isVisible());   // (not while the mouse is still down)
+            QTest::mouseMove(view, at(10 + o));
+            QTest::mouseRelease(view, Qt::LeftButton, Qt::NoModifier, at(10 + o));
+            QTRY_VERIFY(mini->isVisible());
+        };
+        select();
+        QCOMPARE(ed->cursor().selectedText(), QStringLiteral("words"));
+        const QRect first = QRect(view->mapFromGlobal(canvas->caretScreenRect(5 + o).topLeft()), canvas->caretScreenRect(5 + o).size());
+        QVERIFY2(mini->geometry().bottom() <= first.top() + 2 || mini->geometry().top() > first.bottom(), "above the words, or below them when there is no room above");
+        QVERIFY(view->rect().contains(mini->geometry()));
+        // The buttons are the window's own commands, one step of Undo each; the bar stays for the next choice and keeps no keyboard.
+        QToolButton *bold = nullptr;
+        for (QToolButton *b : mini->findChildren<QToolButton *>())
+            if (b->defaultAction() == w.act(QStringLiteral("fmt.bold"))) bold = b;
+        QVERIFY(bold);
+        QVERIFY(mini->findChildren<QToolButton *>().size() >= 6);
+        QVERIFY(mini->findChild<jp::FontCombo *>() && mini->findChild<jp::ColorButton *>());
+        auto boldAt = [&](int pos) {
+            QTextCursor probe(ed->doc()->storyDoc(storyId));
+            probe.setPosition(pos);
+            probe.setPosition(pos + 1, QTextCursor::KeepAnchor);
+            return probe.charFormat().fontWeight() >= QFont::DemiBold;
+        };
+        QTRY_VERIFY(bold->isEnabled());   // (the ribbon catches up with the selection a moment after it)
+        QTRY_VERIFY(mini->findChild<jp::FontCombo *>()->isEnabled());
+        shotOf(&w, QStringLiteral("deck-mini-toolbar"));
+        const bool wasBold = boldAt(6 + o);
+        const int steps = ed->undoStack()->index();
+        bold->click();
+        QCOMPARE(boldAt(6 + o), !wasBold);
+        QCOMPARE(ed->undoStack()->index(), steps + 1);
+        QVERIFY(mini->isVisible());
+        QVERIFY(!QApplication::focusWidget() || !mini->isAncestorOf(QApplication::focusWidget()));
+        ed->undo();
+        QCOMPARE(boldAt(6 + o), wasBold);
+        // Typing takes it away; so does Escape; so does scrolling (the wheel, or the scroll bar).
+        select();
+        QTest::keyClick(canvas, Qt::Key_X);
+        QVERIFY(!mini->isVisible());
+        select();
+        QTest::keyClick(canvas, Qt::Key_Escape);
+        QVERIFY(!mini->isVisible());
+        select();
+        QWheelEvent wheel(QPointF(20, 20), QPointF(view->mapToGlobal(QPoint(20, 20))), QPoint(), QPoint(0, -120), Qt::NoButton, Qt::NoModifier, Qt::NoScrollPhase, false);
+        QApplication::sendEvent(view, &wheel);
+        QVERIFY(!mini->isVisible());
+        select();
+        canvas->verticalScrollBar()->triggerAction(QAbstractSlider::SliderPageStepAdd);
+        QVERIFY(!mini->isVisible());
+        // A click that leaves no selection brings none.
+        ed->beginTextEdit(boxId, 0);
+        QTest::mouseClick(view, Qt::LeftButton, Qt::NoModifier, at(3 + o));
+        QTest::qWait(30);
+        QVERIFY(!mini->isVisible());
     }
 };
 
