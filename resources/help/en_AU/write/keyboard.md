@@ -19,6 +19,7 @@ You can do everything in JeffWrite with the keyboard. This page lists the keys.
 - **Esc** closes a header or footer you are editing, and leaves a footnote you are editing for the text.
 - **Tab** adds a tab. In a list, it makes the item one level deeper. **Shift+Tab** makes it one level shallower.
 - **Backspace** and **Delete** remove text. Hold **Ctrl** to remove a word.
+- **Ctrl+F3** cuts the selected text onto the Spike, a holder that gathers several cuts one after another. **Ctrl+Shift+F3** pastes everything on the Spike, in the order you cut it, as one step, and empties it. The Spike keeps its cuts, with their formatting, until you paste it or close JeffWrite.
 
 ## Reach the ribbon
 

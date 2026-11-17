@@ -1,5 +1,5 @@
 # Print
-<!-- keywords: grayscale, black and white, paper turned, tall, wide, pages per sheet, several pages on a sheet, scale to paper size, shrink, fit to paper, odd pages, even pages, reverse, last page first, both sides, selection, section, p2s3, zoom, several pages, both sides by hand, sides, one side, long edge, short edge, flip, duplex, turn the stack over, print, printer, printing, copies, collate, collated, page range, pages, current page, preview, paper, orientation, landscape, portrait, pdf, save as pdf, ctrl+p, sheet, section, greyscale -->
+<!-- keywords: what prints, markup, print markup, without markup, tracked changes, comments, hidden text, background colors, page color, grayscale, black and white, paper turned, tall, wide, pages per sheet, several pages on a sheet, scale to paper size, shrink, fit to paper, odd pages, even pages, reverse, last page first, both sides, selection, section, p2s3, zoom, several pages, both sides by hand, sides, one side, long edge, short edge, flip, duplex, turn the stack over, print, printer, printing, copies, collate, collated, page range, pages, current page, preview, paper, orientation, landscape, portrait, pdf, save as pdf, ctrl+p, sheet, section, background colours, page colour, greyscale -->
 
 Press **Ctrl+P**, or click **File > Print**, to open the Print page. The choices are on the left. On the right is a picture of each page as it will print. Use the arrows under it to look at the other pages. **Show** above it picks one, two, or four pages at once. **Zoom** makes the pages larger than the size that fits. Scroll to see the rest.
 
@@ -20,10 +20,17 @@ Press **Ctrl+P**, or click **File > Print**, to open the Print page. The choices
 - **Paper turned** makes every sheet tall or wide, whichever way its page is. **As each section says** is the usual choice. With **Tall** or **Wide**, JeffWrite makes each page smaller to fit the sheet and puts it in the middle. The picture on the right shows the sheet.
 - **Greyscale** prints every colour in shades of grey, on paper and in a PDF file. The picture on the right is grey too.
 - **Paper** says what paper the page in the preview is printed on.
+- **Markup** is under **What prints**. **Print Markup** prints a document under review the way the screen shows it: the tracked changes in their colours, a bar beside each changed line, and each comment in a box in the margin. When there are more boxes than fit on a page, a small note at the bottom says how many were left out. **Without Markup** prints the text as if every change were accepted: the added words stay, the deleted words are left out, and there are no comments. The picture on the right shows the choice.
+- **Hidden text** prints the words you formatted as hidden. Off, they stay out of the printing, as on the screen when the formatting marks are off.
+- **Background colours** prints the colour of the page. Off, the paper stays white. Printing to a PDF file from this page follows this choice too.
 
 Pages print in the order you type them, once each. A number that is not a page of the document is passed by. If none of the numbers you typed is a page, the box gets a red edge and the **Print** button waits.
 
 Click **Print** to send the pages. The Print page closes when the printer has them.
+
+## What prints is remembered
+
+JeffWrite keeps your choices of **Markup**, **Hidden text**, and **Background colours** for next time. They apply to printing, including **Save as PDF** on this page. **Export to PDF** in the File menu is separate: it keeps the page colour and shows the changes as the screen does.
 
 ## Page ranges count places, not printed numbers
 

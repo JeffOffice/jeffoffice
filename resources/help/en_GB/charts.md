@@ -1,5 +1,5 @@
 # Charts
-<!-- keywords: chart, charts, graph, column chart, bar chart, line chart, pie chart, doughnut, area, scatter, insert chart, chart data, edit data, chart title, legend, data labels, chart type, chart format, axes, axis title, gridlines, chart style -->
+<!-- keywords: chart, charts, graph, column chart, bar chart, line chart, pie chart, doughnut, area, scatter, insert chart, chart data, edit data, chart title, legend, data labels, chart type, chart format, axes, axis title, gridlines, chart style, trendline, error bars, chart colors, quick layout, format chart part, chart colours -->
 
 A **chart** turns numbers into a picture, such as columns, a line, or slices of a pie. This topic shows how to put a chart on a page, how to type its numbers, and how to change how it looks.
 
@@ -35,6 +35,19 @@ These commands are on the **Chart Format** tab. Each one is a single step to und
 - **Gridlines** draws faint lines across the chart to help your eye follow the numbers. The **major** lines sit at the main numbers on the side, and the **minor** lines sit between them.
 - **Chart Styles** picks one of eight overall styles.
 - **Data Labels** writes each number on its column, point, or slice.
+
+## Add trendlines, error bars, and colours
+
+Select the chart. Three small buttons stand beside it, and the same commands are on the **Chart Format** tab.
+
+- **Chart Parts** (the plus button) adds or takes away a part of the chart: the title, labels, a table of the numbers, and more. Its **Trendline** entry draws a line through the points that shows where they are heading (linear, exponential, and other kinds), and can write the line's equation on the chart. Its **Error Bars** entry draws a small bar at each point for how far the true number may be from the one shown: a fixed amount, a percentage, or a spread of the numbers.
+- **Layouts** picks one of several ready-made placements of the title, legend, and labels.
+- **Colours** changes the colours the series are drawn in. **Looks** (the brush button) picks an overall look.
+- **Chart Filters** (the funnel button) hides a series without deleting its numbers.
+- **Format Chart** opens a window for the look of one part: the whole chart, the plot area, or one series. **Format Horizontal Axis** and **Format Vertical Axis** set the range, steps, and number format of an axis.
+- **Chart Data** and **Swap Rows and Columns** change which numbers are the series and which are the categories.
+
+Each of these is one step to undo.
 
 ## Saving, printing, and PDF
 

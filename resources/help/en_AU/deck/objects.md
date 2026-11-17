@@ -189,6 +189,20 @@ Point at a movie to show its control bar. Click the movie to play it or pause it
 
 Turn on **View > Show > Ruler**, **Gridlines**, or **Guides** for help placing objects. **File > Options > View** has **Snap objects to other objects**. See [View tab](tab-view) and [Change JeffDeck's settings](options).
 
+**View > Show > Grid and Guides** opens a box with these choices:
+- **Grid spacing** is how far apart the grid's dots are. The grid starts at the top left corner of the slide. Example: with a spacing of 0.25 in, the dots sit 0.25 in, 0.5 in, 0.75 in, and so on from the left edge and from the top edge.
+- **Show grid on the slide** draws the dots. It is the same as the **Gridlines** check box.
+- **Snap objects to the grid** makes an object you move or resize jump to the nearest grid line, so its edges line up with the grid. A snap to another object or a guide that is close enough wins over the grid.
+- **Snap objects to other objects** makes an object jump to line up with the edges and middles of other objects.
+- **Show guides on the slide** draws the guides. It is the same as the **Guides** check box.
+- **Add Vertical Guide** and **Add Horizontal Guide** put in a guide at the middle of the slide (or a bit along when one is already there). **Remove All Guides** takes them all away. A guide can sit off the slide, up to one slide's width or height beyond its edge. A presentation can have up to 1,000 of each kind.
+
+A guide is a straight line that helps you line things up. To add one by hand, turn on **Ruler** and drag from a ruler onto the slide. Drag a guide to move it. Drag it back onto the ruler to remove it. Guides belong to the whole presentation, so they show on every slide. They are never printed and never shown in the slide show.
+
+Hold **Alt** while you drag an object or a guide to leave snapping off for that drag.
+
+The choices are saved in the presentation file, and guides too, when you save it as a .pptx file, so they are there when you open it again. A .odp file does not keep the grid settings or the guides: after you save as .odp and open it again, the grid is back to your last choices and the guides are gone, so save as .pptx to keep them. JeffDeck remembers your last spacing and snap choices for presentations that don't have their own. Each change in the box is one step you can undo.
+
 ## Objects JeffDeck shows but can't make yet
 
 A presentation made elsewhere can hold things JeffDeck has no tools for yet. It shows them as well as it can, and it keeps them when you save.

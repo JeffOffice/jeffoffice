@@ -42,7 +42,7 @@ On the **Header & Footer** tab, the **Position** group has two boxes. **Header f
 
 ## Move between headers and footers
 
-On the **Header & Footer** tab, **Go to Footer** and **Go to Header** switch between the two on the same page. **Previous Section** and **Next Section** go to the same kind of header or footer in the section before or after. **Date & Time** puts in today's date or the time, and it can update itself.
+On the **Header & Footer** tab, **Go to Footer** and **Go to Header** switch between the two on the same page. **Previous Section** and **Next Section** go to the same kind of header or footer in the section before or after. **Date & Time** puts in today's date or the time, and it can update itself. Pick a **Language** to show the day and month names in that language. A date that updates keeps its language.
 
 ## Add a page number
 

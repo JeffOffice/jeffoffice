@@ -41,7 +41,7 @@ Click **Insert > Text > Business Information** and choose a detail, such as Orga
 
 - **Insert > Text > Insert File** brings in text from a .txt, .rtf, .html, .docx, or .md file.
 - **Symbol** inserts a special character, such as © or é. Click in a text box first.
-- **Date & Time**: click in a text box first, choose a format, and check **Update automatically** to keep it current.
+- **Date & Time**: click in a text box first, pick a **Language** for the names of the days and months, choose a format, and check **Update automatically** to keep it current. The field keeps its language. A `.pub` file keeps the format but not the language, so a date saved there shows in the language of the computer when it is opened again.
 - **Insert > Links > Link** (Ctrl+K) makes a hyperlink to a web page, a page in your publication, or an email address. Select text or an object first. Choose **Remove Link** to take it off.
 - **Bookmark** gives a name to the selected text or object.
 - **Object** lets you choose a file and places it as a picture.

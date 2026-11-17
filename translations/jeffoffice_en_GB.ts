@@ -329,6 +329,14 @@ Download it from %2 now? (%3, once.)</translation>
         <source>Color as it is, shades of gray, or black and white alone (every point is black or white).</source>
         <translation>Colour as it is, shades of grey, or black and white alone (every point is black or white).</translation>
     </message>
+    <message>
+        <source>Background colors</source>
+        <translation>Background colours</translation>
+    </message>
+    <message>
+        <source>Print the color of the page. Paper is left white unless this is on.</source>
+        <translation>Print the colour of the page. Paper is left white unless this is on.</translation>
+    </message>
 </context>
 <context>
     <name>Ribbon</name>
