@@ -33,7 +33,8 @@ constexpr size_t kManyReaders = 4096;   // a cell read by more formulas than thi
 CellArea takeChanged(std::vector<CellArea> *changed, bool many)
 {
     size_t first = changed->size();
-    while (first > 0 && (*changed)[first - 1].single()) --first;
+    if (many)
+        while (first > 0 && (*changed)[first - 1].single()) --first;
     if (many && changed->size() - first >= 2) {
         std::vector<CellArea> cells(changed->begin() + std::ptrdiff_t(first), changed->end());
         changed->resize(first);
@@ -1742,7 +1743,7 @@ void Calculation::markDependentsOfIds(std::vector<CellArea> *changed)
         if (a.single()) liveGraph()->dependentsOfCell(a.sheet1, a.row1, a.col1, &found);
         else liveGraph()->dependentsOfArea(a, &found);
         m_readersFound += qint64(found.size());
-        many = a.single() && found.size() > kManyReaders;
+        many = many || (a.single() && found.size() > kManyReaders);
         for (const quint32 id : found) {
             Node &n = m_nodes[id];
             if ((n.flags & Dead) || dormant(n)) continue;
@@ -2182,7 +2183,7 @@ bool Calculation::stepBegin(const std::function<bool()> &timeUp, qint64 *spent)
         // (what the graph gave: a cell that very many formulas read is one query of that many, which is as small as the step can be made. The slice may be over after it: the formulas it found are
         // marked by the next, from where they are kept. The answer of this call is not to be dropped: it is the one place in the loop where a chunk ends, when the areas found have none.)
         m_readersFound += qint64(j.found.size());
-        j.many = a.single() && j.found.size() > kManyReaders;
+        j.many = j.many || (a.single() && j.found.size() > kManyReaders);
         if (!a.single() && j.askedAreas.size() < kMaxAskedAreas) j.askedAreas.insert(a);
         m_askedPeak = std::max<qint64>(m_askedPeak, qint64(j.askedAreas.size()));
         if (!ck.next(j.found.size())) return false;
