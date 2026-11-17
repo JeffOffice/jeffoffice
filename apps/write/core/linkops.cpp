@@ -4,11 +4,13 @@
 #include "core/fieldcode.h"
 #include "core/fieldops.h"
 #include "core/refops.h"
+#include "office/hyperlink.h"
 #include "core/writeprops.h"
 #include "text/textprops.h"
 #include "wml/xmltree.h"
 
 #include <QCoreApplication>
+#include <QDir>
 #include <QRegularExpression>
 #include <QTextBlock>
 #include <QTextCursor>
@@ -90,19 +92,39 @@ bool allowedAddress(const QString &address)
     return url.isValid() && (scheme == QLatin1String("http") || scheme == QLatin1String("https") || scheme == QLatin1String("mailto") || scheme == QLatin1String("ftp") || scheme == QLatin1String("tel"));
 }
 
+const QString kHeadingPrefix = QStringLiteral("heading:");
+
+int headingPositionOf(const QString &anchor)
+{
+    if (!anchor.startsWith(kHeadingPrefix)) return -1;
+    bool ok = false;
+    const int n = anchor.mid(kHeadingPrefix.size()).toInt(&ok);
+    return ok && n >= 0 ? n : -1;
+}
+
+bool isHeadingBlock(const QTextBlock &b)
+{
+    return b.isValid() && b.blockFormat().hasProperty(prop::Outline) && b.blockFormat().intProperty(prop::Outline) < 9;
+}
+
 bool checkTarget(WriteDoc &doc, const QString &address, const QString &anchor, QString *problem)
 {
     auto fail = [&](const QString &why) {
         if (problem) *problem = why;
         return false;
     };
+    if (anchor.startsWith(kHeadingPrefix)) {
+        const int at = headingPositionOf(anchor);
+        if (at < 0 || at >= doc.story()->characterCount() || !isHeadingBlock(doc.story()->findBlock(at))) return fail(QCoreApplication::translate("jp::write::Hyperlinks", "That heading is no longer in this document."));
+        return true;
+    }
     if (!anchor.isEmpty()) {
         const StoryScan scan = scanStory(doc.story());
         if (!scan.bookmarkByName.contains(anchor.toLower())) return fail(QCoreApplication::translate("jp::write::Hyperlinks", "There is no bookmark with that name in this document."));
         return true;
     }
     if (address.isEmpty()) return fail(QCoreApplication::translate("jp::write::Hyperlinks", "Type an address for the link to go to."));
-    if (address.size() > kMostAddress || !allowedAddress(address)) return fail(QCoreApplication::translate("jp::write::Hyperlinks", "That is not a web or email address."));
+    if (address.size() > kMostAddress || !(allowedAddress(address) || isFileLink(address))) return fail(QCoreApplication::translate("jp::write::Hyperlinks", "That is not a web address, an email address, or a file on this computer."));
     return true;
 }
 
@@ -124,12 +146,31 @@ QString normalizedAddress(const QString &typed)
     return QStringLiteral("https://") + t;
 }
 
+bool isFileLink(const QString &address)
+{
+    if (address.size() > kMostAddress || !address.startsWith(QLatin1String("file:"), Qt::CaseInsensitive)) return false;
+    const QUrl url(address, QUrl::TolerantMode);
+    if (!url.isValid() || !url.isLocalFile() || (!url.host().isEmpty() && url.host().compare(QLatin1String("localhost"), Qt::CaseInsensitive) != 0)) return false;
+    const QString path = url.toLocalFile();
+    return !path.isEmpty() && !office::isProgramPath(path) && !office::isRemoteFile(address);
+}
+
+QString fileLinkOfPath(const QString &typed)
+{
+    const QString t = typed.trimmed();
+    if (t.isEmpty() || t.size() > kMostAddress) return QString();
+    const QString link = t.startsWith(QLatin1String("file:"), Qt::CaseInsensitive) ? t : QDir::isAbsolutePath(t) && !t.startsWith(QLatin1String("//")) ? QUrl::fromLocalFile(t).toString() : QString();
+    return isFileLink(link) ? link : QString();
+}
+
+QString pathOfFileLink(const QString &address) { return isFileLink(address) ? QUrl(address, QUrl::TolerantMode).toLocalFile() : QString(); }
+
 bool mayFollow(const QString &address) { return address.size() <= kMostAddress && allowedAddress(address); }
 
 bool linkNeedsAsking(const QString &address, const QString &shown)
 {
     const QString scheme = QUrl(address, QUrl::TolerantMode).scheme().toLower();
-    if (scheme == QLatin1String("mailto") || scheme == QLatin1String("tel")) return true;
+    if (scheme == QLatin1String("mailto") || scheme == QLatin1String("tel") || scheme == QLatin1String("file")) return true;
     // The words look like an address of their own, and it is not where the link goes.
     const QString words = shown.trimmed();
     static const QRegularExpression looksLikeAddress(QStringLiteral("^(?:[A-Za-z][A-Za-z0-9+.-]*://|www\\.)\\S+$|^[A-Za-z0-9-]+(?:\\.[A-Za-z0-9-]+)+(?::[0-9]+)?(?:[/?#]\\S*)?$"));
@@ -289,20 +330,71 @@ QVector<LinkSpan> linkSpansIn(WriteDoc &doc, QTextDocument *story, const QTextDo
     return out;
 }
 
-bool insertHyperlink(WriteDoc &doc, QTextCursor &c, const QString &address, const QString &anchor, const QString &screenTip, const QString &text, QString *problem)
+QString headingPlace(int paragraphPosition) { return kHeadingPrefix + QString::number(paragraphPosition); }
+
+QString headingBookmark(WriteDoc &doc, int paragraphPosition, bool make, QString *problem)
+{
+    QTextDocument *story = doc.story();
+    const QTextBlock b = paragraphPosition >= 0 && paragraphPosition < story->characterCount() ? story->findBlock(paragraphPosition) : QTextBlock();
+    if (!isHeadingBlock(b)) {
+        if (problem) *problem = QCoreApplication::translate("jp::write::Hyperlinks", "That heading is no longer in this document.");
+        return QString();
+    }
+    const StoryScan scan = scanStory(story);
+    const int first = b.position(), last = b.position() + b.length() - 1;
+    for (const BookmarkSpan &s : scan.bookmarks)
+        if (s.hidden && (s.name.startsWith(QLatin1String("_Toc")) || s.name.startsWith(QLatin1String("_Ref"))) && s.start >= first && s.start <= last && s.end >= s.start && s.end <= last + 1) return s.name;
+    if (!make) return QString();
+    // The text of the paragraph, past a page break and the marks that begin it.
+    const QString t = b.text();
+    int from = 0;
+    while (from < t.size() && (t[from] == QChar(0x000C) || t[from] == QChar::ObjectReplacementCharacter)) ++from;
+    QString name;
+    int serial = 0;
+    do name = QStringLiteral("_Toc%1").arg(100000001 + serial++);
+    while (scan.bookmarkByName.contains(name.toLower()));
+    QTextCursor over(story);
+    over.setPosition(b.position() + std::min<int>(from, int(t.size())));
+    over.setPosition(b.position() + int(t.size()), QTextCursor::KeepAnchor);
+    if (!addBookmark(doc, over, name, problem, true)) return QString();
+    return name;
+}
+
+QString placeOfAnchor(WriteDoc &doc, const QString &anchor)
+{
+    if (anchor.isEmpty() || !anchor.startsWith(QLatin1Char('_'))) return anchor;
+    const StoryScan scan = scanStory(doc.story());
+    const auto found = scan.bookmarkByName.constFind(anchor.toLower());
+    if (found == scan.bookmarkByName.constEnd()) return anchor;
+    const QTextBlock b = doc.story()->findBlock(scan.bookmarks[found.value()].start);
+    return isHeadingBlock(b) ? headingPlace(b.position()) : anchor;
+}
+
+namespace {
+// The bookmark's name a link is to hold: a name as it is; a heading's place made into its hidden bookmark. Empty (with the reason) where it can't be.
+QString resolvedAnchor(WriteDoc &doc, const QString &anchor, QString *problem)
+{
+    if (!anchor.startsWith(kHeadingPrefix)) return anchor;
+    return headingBookmark(doc, headingPositionOf(anchor), true, problem);
+}
+}
+
+bool insertHyperlink(WriteDoc &doc, QTextCursor &c, const QString &address, const QString &anchorAsked, const QString &screenTip, const QString &text, QString *problem)
 {
     QTextDocument *story = doc.story();
     if (c.document() != story) {
         if (problem) *problem = QCoreApplication::translate("jp::write::Hyperlinks", "A link goes in the text, not in a header, a footer, or a note.");
         return false;
     }
-    if (!checkTarget(doc, address, anchor, problem)) return false;
+    if (!checkTarget(doc, address, anchorAsked, problem)) return false;
     if (isLocked(c.block())) return false;
     const WriteDoc::StepGroup group(doc);
     EditScope scope(doc, story);
+    const QString anchor = resolvedAnchor(doc, anchorAsked, problem);
+    if (!anchorAsked.isEmpty() && anchor.isEmpty()) return false;
     // The text the link covers: the selection, or the words typed for it.
     if (!c.hasSelection()) {
-        const QString shown = text.isEmpty() ? (anchor.isEmpty() ? address : anchor) : text;
+        const QString shown = text.isEmpty() ? (anchorAsked.isEmpty() ? address : anchorAsked.startsWith(kHeadingPrefix) ? doc.story()->findBlock(headingPositionOf(anchorAsked)).text().remove(QChar::ObjectReplacementCharacter).trimmed().left(120) : anchor) : text;
         insertText(doc, c, shown);
         c.setPosition(c.position() - int(shown.size()));
         c.setPosition(c.position() + int(shown.size()), QTextCursor::KeepAnchor);
@@ -359,14 +451,20 @@ bool removeHyperlink(WriteDoc &doc, int position)
     return true;
 }
 
-bool changeHyperlink(WriteDoc &doc, int position, const QString &address, const QString &anchor, const QString &screenTip, const QString &text, QString *problem)
+bool changeHyperlink(WriteDoc &doc, int positionAsked, const QString &address, const QString &anchorAsked, const QString &screenTip, const QString &text, QString *problem)
 {
-    const Hyperlink link = hyperlinkAt(doc, position);
+    Hyperlink link = hyperlinkAt(doc, positionAsked);
     if (!link.valid()) return false;
-    if (!checkTarget(doc, address, anchor, problem)) return false;
+    if (!checkTarget(doc, address, anchorAsked, problem)) return false;
     QTextDocument *story = doc.story();
     const WriteDoc::StepGroup group(doc);
     EditScope scope(doc, story);
+    QTextCursor inside(story);   // (stays in the link when a new bookmark moves it)
+    inside.setPosition(link.start + 1);
+    const QString anchor = resolvedAnchor(doc, anchorAsked, problem);
+    if (!anchorAsked.isEmpty() && anchor.isEmpty()) return false;
+    link = hyperlinkAt(doc, inside.position());
+    if (!link.valid()) return false;
     QTextCursor edit(story);
     edit.beginEditBlock();
     // The opening tag is made again; the words change only where new ones are given.

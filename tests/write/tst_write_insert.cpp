@@ -3,9 +3,11 @@
 
 #include "../isolatesettings.h"
 #include "app/barcodedialog.h"
+#include "app/linktargetpicker.h"
 #include "app/navpane.h"
 #include "app/pageview.h"
 #include "app/settings.h"
+#include "app/theme.h"
 #include "app/textdialogs.h"
 #include "core/items.h"
 #include "flow/paginator.h"
@@ -61,6 +63,7 @@
 #include <QTextCursor>
 #include <QTextDocument>
 #include <QTimer>
+#include <QUrl>
 
 using namespace jp;
 using namespace jp::write;
@@ -309,7 +312,7 @@ private Q_SLOTS:
         win.w.view()->setCursor(c);
         QVERIFY(win.w.act("insert.hyperlink"));
         withDialog([&] { win.w.act("insert.hyperlink")->trigger(); }, QStringLiteral("linkDialog"), [&](QDialog *dlg) {
-            dlg->findChild<QLineEdit *>(QStringLiteral("address"))->setText(QStringLiteral("example.com/page"));
+            dlg->findChild<QLineEdit *>(QStringLiteral("linkAddress"))->setText(QStringLiteral("example.com/page"));
             dlg->findChild<QLineEdit *>(QStringLiteral("screenTip"))->setText(QStringLiteral("Our home"));
         });
         const write::Hyperlink link = write::hyperlinkAt(*win.w.document(), 8);
@@ -336,6 +339,198 @@ private Q_SLOTS:
         QCOMPARE(win.text().remove(QChar::ObjectReplacementCharacter), QStringLiteral("Visit our site now"));
     }
 
+    // ---------------------------------------------------------------- the link target picker: a heading, a file, a new document
+    static QByteArray headingBody()
+    {
+        auto heading = [](const char *t) { return QByteArray("<w:p><w:pPr><w:outlineLvl w:val=\"0\"/></w:pPr><w:r><w:t>") + t + "</w:t></w:r></w:p>"; };
+        return heading("Intro") + para("Some text") + heading("Details") + para("Go to the intro now");
+    }
+    static void pick(QDialog *dlg, jp::LinkTargetPicker::Kind kind, const QString &place = QString(), const QString &address = QString())
+    {
+        auto *picker = dlg->findChild<jp::LinkTargetPicker *>();
+        QVERIFY(picker);
+        picker->setKind(kind);
+        if (!place.isEmpty()) QVERIFY(picker->setPlaceValue(place));
+        if (!address.isEmpty()) picker->setAddress(address);
+    }
+
+    void aLinkToAHeadingMakesAHiddenBookmarkAndSurvivesDocxAndOdt()
+    {
+        WriteWindow w;
+        w.resize(1100, 800);
+        w.show();
+        w.setDocument(open(makeDocx(headingBody())), QString());
+        WriteDoc &doc = *w.document();
+        const int intro = doc.story()->findBlockByNumber(0).position();
+        const int target = doc.story()->findBlockByNumber(3).position();
+        QTextCursor c(doc.story());
+        c.setPosition(target + 10);
+        c.setPosition(target + 15, QTextCursor::KeepAnchor);   // "intro"
+        QCOMPARE(c.selectedText(), QStringLiteral("intro"));
+        w.view()->setCursor(c);
+        QVERIFY(bookmarkList(doc, true).isEmpty());
+        withDialog([&] { w.act("insert.hyperlink")->trigger(); }, QStringLiteral("linkDialog"), [&](QDialog *dlg) {
+            auto *places = dlg->findChild<QComboBox *>(QStringLiteral("linkPlace"));
+            QVERIFY(places->findText(QStringLiteral("Heading: Intro")) >= 0);
+            QVERIFY(places->findText(QStringLiteral("Heading: Details")) >= 0);
+            pick(dlg, jp::LinkTargetPicker::Place, write::headingPlace(intro));
+        });
+        const write::Hyperlink link = write::hyperlinkAt(doc, doc.story()->findBlockByNumber(3).position() + 12);
+        QVERIFY(link.valid());
+        QVERIFY2(link.anchor.startsWith(QLatin1String("_Toc")), qPrintable(link.anchor));
+        QVERIFY(link.address.isEmpty());
+        QCOMPARE(link.text, QStringLiteral("intro"));
+        // The bookmark is hidden (not in the list a person sees), and covers the heading.
+        QVERIFY(bookmarkList(doc, false).isEmpty());
+        const QVector<BookmarkItem> hidden = bookmarkList(doc, true);
+        QCOMPARE(hidden.size(), 1);
+        QCOMPARE(hidden[0].name, link.anchor);
+        QCOMPARE(doc.story()->findBlock(hidden[0].start).position(), intro);
+        QCOMPARE(write::placeOfAnchor(doc, link.anchor), write::headingPlace(intro));
+        // A second link to the same heading uses the bookmark that is there.
+        QTextCursor again(doc.story());
+        again.setPosition(doc.story()->findBlockByNumber(1).position());
+        again.setPosition(doc.story()->findBlockByNumber(1).position() + 4, QTextCursor::KeepAnchor);
+        w.view()->setCursor(again);
+        withDialog([&] { w.act("insert.hyperlink")->trigger(); }, QStringLiteral("linkDialog"), [&](QDialog *dlg) { pick(dlg, jp::LinkTargetPicker::Place, write::headingPlace(intro)); });
+        QCOMPARE(bookmarkList(doc, true).size(), 1);
+        QCOMPARE(write::hyperlinkAt(doc, doc.story()->findBlockByNumber(1).position() + 2).anchor, link.anchor);
+        // Both links were one step each: undo takes the second, then the first with its bookmark.
+        doc.undo();
+        QVERIFY(!write::hyperlinkAt(doc, doc.story()->findBlockByNumber(1).position() + 2).valid());
+        doc.undo();
+        QVERIFY(bookmarkList(doc, true).isEmpty());
+        QVERIFY(!write::hyperlinkAt(doc, doc.story()->findBlockByNumber(3).position() + 12).valid());
+        doc.redo();
+        QCOMPARE(bookmarkList(doc, true).size(), 1);
+        const QString name = write::hyperlinkAt(doc, doc.story()->findBlockByNumber(3).position() + 12).anchor;
+        QVERIFY(name.startsWith(QLatin1String("_Toc")));
+        // .docx: w:hyperlink w:anchor and the w:bookmarkStart and w:bookmarkEnd, and back.
+        const QByteArray saved = doc.toDocx();
+        const QByteArray xmlOut = documentXml(saved);
+        QVERIFY2(xmlOut.contains("w:anchor=\"" + name.toUtf8() + "\""), xmlOut.constData());
+        QVERIFY2(xmlOut.contains("<w:bookmarkStart") && xmlOut.contains("w:name=\"" + name.toUtf8() + "\"") && xmlOut.contains("<w:bookmarkEnd"), xmlOut.constData());
+        auto docx = open(saved);
+        QVERIFY(docx);
+        const write::Hyperlink fromDocx = write::hyperlinkAt(*docx, docx->story()->findBlockByNumber(3).position() + 12);
+        QCOMPARE(fromDocx.anchor, name);
+        QCOMPARE(docx->story()->findBlock(write::linkTargetAt(*docx, docx->story()->findBlockByNumber(3).position() + 12)).blockNumber(), 0);
+        QCOMPARE(write::placeOfAnchor(*docx, name), write::headingPlace(docx->story()->findBlockByNumber(0).position()));
+        // .odt: text:a xlink:href="#name" and the text:bookmark-start of the same name, and back.
+        QString err;
+        const QByteArray odt = doc.toOdt(&err);
+        QVERIFY2(!odt.isEmpty(), qPrintable(err));
+        auto back = WriteDoc::fromOdt(odt, &err);
+        QVERIFY2(back, qPrintable(err));
+        const write::Hyperlink fromOdt = write::hyperlinkAt(*back, back->story()->findBlockByNumber(3).position() + 12);
+        QVERIFY(fromOdt.valid());
+        QCOMPARE(fromOdt.anchor, name);
+        QCOMPARE(back->story()->findBlock(write::linkTargetAt(*back, back->story()->findBlockByNumber(3).position() + 12)).blockNumber(), 0);
+        QVERIFY(bookmarkList(*back, false).isEmpty());   // (still hidden)
+        // A heading that is gone is refused with a reason, and nothing is made.
+        QString why;
+        QTextCursor none(doc.story());
+        none.setPosition(doc.story()->findBlockByNumber(1).position());
+        none.setPosition(doc.story()->findBlockByNumber(1).position() + 4, QTextCursor::KeepAnchor);
+        QVERIFY(!write::insertHyperlink(doc, none, QString(), write::headingPlace(doc.story()->findBlockByNumber(1).position()), QString(), QString(), &why));
+        QVERIFY(!why.isEmpty());
+        QCOMPARE(bookmarkList(doc, true).size(), 1);
+    }
+
+    void aLinkToAFileIsKeptAndANewDocumentIsMadeAndLinkedTo()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        Win win({"See the file here"});
+        QTextCursor c(win.w.document()->story());
+        c.setPosition(8);
+        c.setPosition(16, QTextCursor::KeepAnchor);   // "the file"
+        win.w.view()->setCursor(c);
+        const QString existing = dir.filePath(QStringLiteral("notes.txt"));
+        QFile out(existing);
+        QVERIFY(out.open(QIODevice::WriteOnly));
+        out.write("x");
+        out.close();
+        withDialog([&] { win.w.act("insert.hyperlink")->trigger(); }, QStringLiteral("linkDialog"), [&](QDialog *dlg) { pick(dlg, jp::LinkTargetPicker::File, QString(), existing); });
+        write::Hyperlink link = write::hyperlinkAt(*win.w.document(), 10);
+        QCOMPARE(link.address, QUrl::fromLocalFile(existing).toString());
+        QCOMPARE(write::pathOfFileLink(link.address), existing);
+        QVERIFY(write::isFileLink(link.address));
+        // Saved with the address as an outside relationship, and read back; a link to a file is not a box of a PDF's.
+        auto again = open(win.w.document()->toDocx());
+        QVERIFY(again);
+        QCOMPARE(write::hyperlinkAt(*again, 10).address, link.address);
+        for (const write::LinkSpan &span : write::linkSpans(*win.w.document())) QVERIFY(span.uri.isEmpty());
+        // Ctrl+click asks first (a file link) and hands the address to the opener only on a yes; a program is refused.
+        QStringList opened, asked;
+        bool yes = false;
+        win.w.setLinkOpener([&](const QString &a) { opened << a; });
+        win.w.setLinkAsker([&](const QString &q) { asked << q; return yes; });
+        Q_EMIT win.w.view()->linkFollowed(link.address, link.text);
+        QCOMPARE(asked.size(), 1);
+        QVERIFY(opened.isEmpty());
+        yes = true;
+        Q_EMIT win.w.view()->linkFollowed(link.address, link.text);
+        QCOMPARE(opened, (QStringList{link.address}));
+        QVERIFY(!write::isFileLink(QStringLiteral("file:///home/a/run.exe")));
+        QVERIFY(!write::isFileLink(QStringLiteral("file://server/share/a.txt")));
+        QVERIFY(write::fileLinkOfPath(QStringLiteral("relative/path.txt")).isEmpty());
+        // A new document: an empty one of this app's kind is made at the path, and the link goes to it; nothing there is overwritten.
+        const QString made = dir.filePath(QStringLiteral("brand new.docx"));
+        QVERIFY(!QFile::exists(made));
+        QTextCursor c2(win.w.document()->story());
+        c2.setPosition(0);
+        c2.setPosition(3, QTextCursor::KeepAnchor);   // "See"
+        win.w.view()->setCursor(c2);
+        withDialog([&] { win.w.act("insert.hyperlink")->trigger(); }, QStringLiteral("linkDialog"), [&](QDialog *dlg) { pick(dlg, jp::LinkTargetPicker::NewDocument, QString(), made); });
+        QVERIFY(QFile::exists(made));
+        QFile in(made);
+        QVERIFY(in.open(QIODevice::ReadOnly));
+        const QByteArray bytes = in.readAll();
+        in.close();
+        QString err;
+        auto empty = WriteDoc::fromDocx(bytes, &err);
+        QVERIFY2(empty, qPrintable(err));
+        QCOMPARE(empty->story()->toPlainText().remove(QChar::ObjectReplacementCharacter), QString());
+        QCOMPARE(write::hyperlinkAt(*win.w.document(), 1).address, QUrl::fromLocalFile(made).toString());
+        // The same path again is refused, with the file as it was.
+        QTextCursor c3(win.w.document()->story());
+        c3.setPosition(win.w.document()->story()->characterCount() - 1);
+        win.w.view()->setCursor(c3);
+        QString why;
+        {
+            jp::LinkTargetPicker picker;
+            picker.enableNewDocument(QStringLiteral("x"), QStringLiteral("docx"), [](const QString &, QString *) { return true; });
+            picker.setKind(jp::LinkTargetPicker::NewDocument);
+            picker.setAddress(made);
+            QVERIFY(!picker.prepare(&why));
+            QVERIFY(!why.isEmpty());
+        }
+        QVERIFY(in.open(QIODevice::ReadOnly));
+        QCOMPARE(in.readAll(), bytes);
+    }
+
+    // Pictures of the link box for the change's report (only with JO_SHOT_DIR set).
+    void theLinkBoxPictures()
+    {
+        const QString shots = qEnvironmentVariable("JO_SHOT_DIR");
+        if (shots.isEmpty()) QSKIP("JO_SHOT_DIR is not set");
+        jp::applyUiTheme(1);
+        WriteWindow w;
+        w.resize(1100, 800);
+        w.show();
+        w.setDocument(open(makeDocx(headingBody())), QString());
+        QTextCursor c(w.document()->story());
+        const int at = w.document()->story()->findBlockByNumber(3).position();
+        c.setPosition(at + 10);
+        c.setPosition(at + 15, QTextCursor::KeepAnchor);
+        w.view()->setCursor(c);
+        withDialog([&] { w.act("insert.hyperlink")->trigger(); }, QStringLiteral("linkDialog"), [&](QDialog *dlg) {
+            pick(dlg, jp::LinkTargetPicker::Place, write::headingPlace(0));
+            dlg->grab().save(shots + QStringLiteral("/write-link-place.png"));
+        }, false);
+    }
+
     void anEmailAddressGetsMailtoAndABadOneIsRefusedWithAReason()
     {
         QCOMPARE(write::normalizedAddress(QStringLiteral("a.b@example.com")), QStringLiteral("mailto:a.b@example.com"));
@@ -344,7 +539,10 @@ private Q_SLOTS:
         Win win;
         QString why;
         QTextCursor &c = win.w.view()->cursor();
-        QVERIFY(!write::insertHyperlink(*win.w.document(), c, QStringLiteral("file:///etc/passwd"), QString(), QString(), QStringLiteral("x"), &why));
+        QVERIFY(!write::insertHyperlink(*win.w.document(), c, QStringLiteral("file:///usr/bin/run.exe"), QString(), QString(), QStringLiteral("x"), &why));
+        QVERIFY(!why.isEmpty());
+        why.clear();
+        QVERIFY(!write::insertHyperlink(*win.w.document(), c, QStringLiteral("file://server/share/a.txt"), QString(), QString(), QStringLiteral("x"), &why));
         QVERIFY(!why.isEmpty());
         why.clear();
         QVERIFY(!write::insertHyperlink(*win.w.document(), c, QString(), QStringLiteral("nowhere"), QString(), QStringLiteral("x"), &why));
@@ -370,7 +568,7 @@ private Q_SLOTS:
         QVERIFY(write::linkTargetAt(*win.w.document(), 2) > 0);
         QVERIFY(write::mayFollow(QStringLiteral("https://example.com")));
         QVERIFY(write::mayFollow(QStringLiteral("mailto:a@example.com")));
-        QVERIFY(!write::mayFollow(QStringLiteral("file:///etc/passwd")));
+        QVERIFY(!write::mayFollow(QStringLiteral("file:///etc/passwd")));   // (a file link is followed only after a question: see isFileLink)
         QVERIFY(!write::mayFollow(QStringLiteral("javascript:alert(1)")));
         QVERIFY(!write::mayFollow(QStringLiteral("smb://host/share")));
         QStringList opened;
@@ -1128,7 +1326,7 @@ private Q_SLOTS:
 
     void ctrlClickOnALinkAsksBeforeAnAddressThatIsNotWhatItShows()
     {
-        const QByteArray file = makeLinkDocx({"https://good.example", "https://evil.example?x=1", "mailto:a@example.com", "tel:+15555550100", "file:///etc/passwd", "https://plain.example"}, [](const QStringList &ids) {
+        const QByteArray file = makeLinkDocx({"https://good.example", "https://evil.example?x=1", "mailto:a@example.com", "tel:+15555550100", "file:///usr/bin/run.exe", "https://plain.example"}, [](const QStringList &ids) {
             return linkRun(ids[0], "Safe words") + linkRun(ids[1], "https://good.example") + linkRun(ids[2], "Mail me") + linkRun(ids[3], "Call me") + linkRun(ids[4], "Local file") +
                    linkRun(ids[5], "Plain words");
         });
@@ -1169,7 +1367,7 @@ private Q_SLOTS:
         clickIn(3);
         QCOMPARE(asked.size(), 2);
         QCOMPARE(opened, (QStringList{"mailto:a@example.com", "tel:+15555550100"}));
-        // A link to a file is never followed, and the person is told.
+        // A link to a program is never followed, and the person is told.
         asked.clear();
         opened.clear();
         clickIn(4);

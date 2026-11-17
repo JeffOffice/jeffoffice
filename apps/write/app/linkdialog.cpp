@@ -1,13 +1,16 @@
 // The Hyperlink dialog (the work on the document is core/linkops.h).
 
+#include "app/linktargetpicker.h"
 #include "app/uistyle.h"
 #include "app/writedialogs.h"
 
 #include "app/pageview.h"
 #include "core/gotoops.h"
 #include "core/linkops.h"
+#include "core/refops.h"
 
-#include <QComboBox>
+#include <QFile>
+#include <QFileInfo>
 #include <QCoreApplication>
 #include <QDialog>
 #include <QDialogButtonBox>
@@ -15,7 +18,6 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
-#include <QRadioButton>
 #include <QVBoxLayout>
 #include <functional>
 
@@ -46,33 +48,54 @@ bool linkDialog(QWidget *parent, WriteDoc *doc, PageView *view)
     dlg.setObjectName(QStringLiteral("linkDialog"));
     dlg.setWindowTitle(existing.valid() ? QCoreApplication::translate("jp::write::LinkDialog", "Edit Hyperlink") : QCoreApplication::translate("jp::write::LinkDialog", "Insert Hyperlink"));
     auto *v = new QVBoxLayout(&dlg);
-    auto *web = new QRadioButton(QCoreApplication::translate("jp::write::LinkDialog", "Web or email address"), &dlg);
-    web->setObjectName(QStringLiteral("kindWeb"));
-    auto *place = new QRadioButton(QCoreApplication::translate("jp::write::LinkDialog", "Place in this document"), &dlg);
-    place->setObjectName(QStringLiteral("kindPlace"));
-    v->addWidget(web);
-    v->addWidget(place);
     auto *form = new QFormLayout;
     auto *display = new QLineEdit(&dlg);
     display->setObjectName(QStringLiteral("display"));
     display->setText(selecting ? c.selectedText().remove(QChar::ObjectReplacementCharacter) : existing.text);
     display->setEnabled(!selecting);
-    auto *address = new QLineEdit(&dlg);
-    address->setObjectName(QStringLiteral("address"));
-    address->setText(existing.address);
-    address->setPlaceholderText(QCoreApplication::translate("jp::write::LinkDialog", "https://example.com"));
-    auto *bookmark = new QComboBox(&dlg);
-    bookmark->setObjectName(QStringLiteral("place"));
-    for (const GoToItem &b : goToItems(*doc, GoToKind::Bookmark)) bookmark->addItem(b.label);
-    bookmark->setCurrentText(existing.anchor);
+    form->addRow(QCoreApplication::translate("jp::write::LinkDialog", "Text to display"), display);
+    v->addLayout(form);
+    auto *picker = new LinkTargetPicker(&dlg);
+    picker->setPlaceNames(QCoreApplication::translate("jp::write::LinkDialog", "Place in this document"), QCoreApplication::translate("jp::write::LinkDialog", "Place"));
+    // The places: the headings, then the bookmarks a person made (the hidden ones belong to headings).
+    QVector<LinkPlace> places;
+    for (const RefTarget &t : crossReferenceTargets(*doc, RefKind::Heading)) places.push_back({QCoreApplication::translate("jp::write::LinkDialog", "Heading: %1").arg(t.label), headingPlace(t.position)});
+    for (const BookmarkItem &b : bookmarkList(*doc, false, false)) places.push_back({QCoreApplication::translate("jp::write::LinkDialog", "Bookmark: %1").arg(b.name), b.name});
+    const QString here = existing.anchor.isEmpty() ? QString() : placeOfAnchor(*doc, existing.anchor);
+    if (!here.isEmpty()) {
+        bool listed = false;
+        for (const LinkPlace &p : places) listed |= p.value == here;
+        if (!listed) places.push_back({QCoreApplication::translate("jp::write::LinkDialog", "Bookmark: %1").arg(existing.anchor), existing.anchor});
+    }
+    picker->setPlaces(places);
+    picker->enableNewDocument(QCoreApplication::translate("jp::write::LinkDialog", "Documents (*.docx)"), QStringLiteral("docx"), [](const QString &path, QString *why) {
+        const QByteArray bytes = WriteDoc::blank()->toDocx();
+        QFile f(path);
+        if (bytes.isEmpty() || !f.open(QIODevice::WriteOnly | QIODevice::NewOnly) || f.write(bytes) != bytes.size()) {
+            if (why) *why = QCoreApplication::translate("jp::write::LinkDialog", "The new document could not be written there.");
+            return false;
+        }
+        return true;
+    });
+    if (!existing.anchor.isEmpty()) {
+        picker->setKind(LinkTargetPicker::Place);
+        picker->setPlaceValue(here);
+    } else if (existing.address.startsWith(QLatin1String("mailto:"), Qt::CaseInsensitive)) {
+        picker->setKind(LinkTargetPicker::Email);
+        picker->setAddress(existing.address.mid(7));
+    } else if (isFileLink(existing.address)) {
+        picker->setKind(LinkTargetPicker::File);
+        picker->setAddress(pathOfFileLink(existing.address));
+    } else {
+        picker->setAddress(existing.address);
+    }
+    v->addWidget(picker);
+    auto *form2 = new QFormLayout;
     auto *tip = new QLineEdit(&dlg);
     tip->setObjectName(QStringLiteral("screenTip"));
     tip->setText(existing.screenTip);
-    form->addRow(QCoreApplication::translate("jp::write::LinkDialog", "Text to display"), display);
-    form->addRow(QCoreApplication::translate("jp::write::LinkDialog", "Address"), address);
-    form->addRow(QCoreApplication::translate("jp::write::LinkDialog", "Bookmark"), bookmark);
-    form->addRow(QCoreApplication::translate("jp::write::LinkDialog", "Screen tip"), tip);
-    v->addLayout(form);
+    form2->addRow(QCoreApplication::translate("jp::write::LinkDialog", "Screen tip"), tip);
+    v->addLayout(form2);
     auto *problem = new QLabel(&dlg);
     problem->setObjectName(QStringLiteral("problem"));
     problem->setWordWrap(true);
@@ -85,13 +108,6 @@ bool linkDialog(QWidget *parent, WriteDoc *doc, PageView *view)
         remove->setObjectName(QStringLiteral("remove"));
     }
     v->addWidget(bb);
-    auto enable = [=] {
-        address->setEnabled(web->isChecked());
-        bookmark->setEnabled(place->isChecked());
-    };
-    (existing.anchor.isEmpty() ? web : place)->setChecked(true);
-    QObject::connect(web, &QRadioButton::toggled, &dlg, enable);
-    enable();
     bool removed = false;
     if (remove)
         QObject::connect(remove, &QPushButton::clicked, &dlg, [&] {
@@ -104,12 +120,30 @@ bool linkDialog(QWidget *parent, WriteDoc *doc, PageView *view)
     QObject::connect(bb, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
     dlg.check = [&] {
         QString why;
-        const QString target = web->isChecked() ? normalizedAddress(address->text()) : QString();
-        const QString anchor = place->isChecked() ? bookmark->currentText() : QString();
+        QString target, anchor;
+        QString words = display->text();
+        const LinkTargetPicker::Kind kind = picker->kind();
+        if (kind == LinkTargetPicker::Place) {
+            anchor = picker->placeValue();
+            if (anchor.isEmpty()) why = QCoreApplication::translate("jp::write::LinkDialog", "Choose a place for the link to go to.");
+        } else if (kind == LinkTargetPicker::File || kind == LinkTargetPicker::NewDocument) {
+            if (kind == LinkTargetPicker::NewDocument) {
+                if (picker->prepare(&why)) target = fileLinkOfPath(picker->target());
+            } else {
+                target = fileLinkOfPath(picker->address());
+                if (target.isEmpty()) why = QCoreApplication::translate("jp::write::LinkDialog", "Type the whole path of a file on this computer, or press Browse. A link can't go to a program.");
+            }
+            if (!target.isEmpty() && words.isEmpty()) words = QFileInfo(pathOfFileLink(target)).fileName();
+        } else {
+            target = normalizedAddress(picker->target());
+            if (target.isEmpty() && why.isEmpty()) why = QCoreApplication::translate("jp::write::LinkDialog", "Type an address for the link to go to.");
+        }
         bool ok = false;
-        if (existing.valid()) ok = changeHyperlink(*doc, existing.start, target, anchor, tip->text(), display->text(), &why);
-        else ok = insertHyperlink(*doc, c, target, anchor, tip->text(), display->text(), &why);
-        if (web->isChecked() && target.isEmpty() && why.isEmpty()) why = QCoreApplication::translate("jp::write::LinkDialog", "Type an address for the link to go to.");
+        if (why.isEmpty()) {
+            if (existing.valid()) ok = changeHyperlink(*doc, existing.start, target, anchor, tip->text(), words, &why);
+            else ok = insertHyperlink(*doc, c, target, anchor, tip->text(), words, &why);
+            if (!ok && kind == LinkTargetPicker::NewDocument) picker->discardCreated();
+        }
         if (!ok) problem->setText(why);
         return ok;
     };

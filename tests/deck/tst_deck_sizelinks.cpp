@@ -7,9 +7,14 @@
 #include "core/shapetypes.h"
 #include "io/presentationfile.h"
 #include "office/hyperlink.h"
+#include "app/deckdialogs.h"
+#include "app/linktargetpicker.h"
+#include "app/theme.h"
 
 #include <QDesktopServices>
 #include <QMessageBox>
+#include <QTemporaryDir>
+#include <QFile>
 
 namespace {
 
@@ -1284,6 +1289,71 @@ private Q_SLOTS:
         // (and a program file's name is judged by its name alone)
         QVERIFY(office::isProgramFile(QStringLiteral("\\\\no-such-server\\share\\run.exe")));
         QCOMPARE(office::linkFileLooks(), looked);
+    }
+
+    // The link box's picker: a link to a slide is kept, and a new presentation is made at the path chosen and linked to (never over a file that is there).
+    void aLinkToANewPresentationMakesAnEmptyOneAndALinkToASlideIsKept()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        DeckWindow w;
+        Editor *ed = w.editor();
+        auto shape = linkShape(*ed->doc()->pages[0], QRectF(100, 300, 100, 60), QString());
+        ed->select(shape->id);
+        withDialog([&] { w.act("insert.link")->trigger(); }, QStringLiteral("linkDialog"), [](QDialog *dlg) {
+            auto *kind = dlg->findChild<QComboBox *>(QStringLiteral("linkKind"));
+            auto *place = dlg->findChild<QComboBox *>(QStringLiteral("linkPlace"));
+            kind->setCurrentIndex(2);
+            QVERIFY(place->findData(office::slideLink(1)) >= 0);
+            place->setCurrentIndex(place->findData(office::slideLink(1)));
+        });
+        QCOMPARE(shape->hyperlink, office::slideLink(1));
+        const QString made = dir.filePath(QStringLiteral("next talk.pptx"));
+        withDialog([&] { w.act("insert.link")->trigger(); }, QStringLiteral("linkDialog"), [&](QDialog *dlg) {
+            auto *picker = dlg->findChild<LinkTargetPicker *>();
+            QVERIFY(picker);
+            picker->setKind(LinkTargetPicker::NewDocument);
+            picker->setAddress(made);
+        });
+        QCOMPARE(shape->hyperlink, office::presentationLink(made));
+        QString err;
+        auto fresh = deck::importPresentationFile(made, &err);
+        QVERIFY2(fresh, qPrintable(err));
+        QCOMPARE(int(fresh->pages.size()), 1);
+        // The path again: the box stays open, saying why, and the file is as it was.
+        QFile before(made);
+        QVERIFY(before.open(QIODevice::ReadOnly));
+        const QByteArray bytes = before.readAll();
+        before.close();
+        LinkDialog dlg(QString(), 3, {});
+        dlg.show();
+        auto *picker = dlg.findChild<LinkTargetPicker *>();
+        picker->setKind(LinkTargetPicker::NewDocument);
+        picker->setAddress(made);
+        dlg.accept();
+        QVERIFY(dlg.isVisible());
+        QVERIFY(!dlg.findChild<QLabel *>(QStringLiteral("linkProblem"))->text().isEmpty());
+        QVERIFY(before.open(QIODevice::ReadOnly));
+        QCOMPARE(before.readAll(), bytes);
+        // The places are at most kMostLinkPlaces: a presentation of more slides lists that many.
+        LinkDialog big(QString(), 3 * kMostLinkPlaces, {});
+        QCOMPARE(big.findChild<LinkTargetPicker *>()->placeCount(), kMostLinkPlaces);
+    }
+
+    // Pictures of the link box for the change's report (only with JO_SHOT_DIR set).
+    void theLinkBoxPicture()
+    {
+        if (qEnvironmentVariable("JO_SHOT_DIR").isEmpty()) QSKIP("JO_SHOT_DIR is not set");
+        jp::applyUiTheme(1);
+        DeckWindow w;
+        Editor *ed = w.editor();
+        auto shape = linkShape(*ed->doc()->pages[0], QRectF(100, 300, 100, 60), QString());
+        ed->select(shape->id);
+        withDialog([&] { w.act("insert.link")->trigger(); }, QStringLiteral("linkDialog"), [](QDialog *dlg) {
+            dlg->findChild<LinkTargetPicker *>()->setKind(LinkTargetPicker::NewDocument);
+            dlg->findChild<LinkTargetPicker *>()->setAddress(QStringLiteral("/home/user/talks/next talk.pptx"));
+            shotOf(dlg, QStringLiteral("deck-link-new-document"));
+        }, false);
     }
 
     // The slides' PDF has a clickable box for each link: the web ones go to the web, the jumps to the pages; a file and the end of the show have none.

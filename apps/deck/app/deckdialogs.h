@@ -14,12 +14,14 @@
 #include <functional>
 
 class QCheckBox;
+class QLabel;
 class QLineEdit;
 class QSpinBox;
 
 namespace jp {
 
 class ColorButton;
+class LinkTargetPicker;
 
 // What to show on the slides (the date, the slide number, a line of text),
 // for the slide being edited (Apply) or for all of them (Apply to All).
@@ -90,11 +92,13 @@ public:
     // The words shown for a link with no selected words to carry it.
     QString displayText() const;
     void setDisplayShown(const QString &text, bool shown);
+    // OK makes the new presentation when that is the kind of link chosen.
+    void accept() override;
 
 private:
-    QComboBox *m_kind, *m_place;
-    QLineEdit *m_address, *m_display;
-    QLabel *m_displayLabel;
+    LinkTargetPicker *m_picker;
+    QLineEdit *m_display;
+    QLabel *m_displayLabel, *m_problem;
     bool m_removed = false;
 };
 

@@ -1,12 +1,16 @@
 #include "app/deckdialogs.h"
+#include "app/linktargetpicker.h"
 #include "app/uistyle.h"
 
 #include "app/widgets.h"
+#include "io/pptxexport.h"
+#include "io/presentationdefaults.h"
 #include "office/hyperlink.h"
 
 #include <QButtonGroup>
 #include <QCheckBox>
 #include <QDialogButtonBox>
+#include <QFile>
 #include <QFileDialog>
 #include <QFormLayout>
 #include <QHBoxLayout>
@@ -185,90 +189,91 @@ LinkDialog::LinkDialog(const QString &current, int slides, const QVector<QPair<i
     setObjectName(QStringLiteral("linkDialog"));
     auto *lay = new QVBoxLayout(this);
     auto *form = new QFormLayout();
-    m_kind = new QComboBox(this);
-    m_kind->setObjectName(QStringLiteral("linkKind"));
-    m_kind->addItems({tr("Web page"), tr("Email address"), tr("Place in this presentation"), tr("File"), tr("Another presentation")});
     m_display = new QLineEdit(this);
     m_display->setObjectName(QStringLiteral("linkText"));
-    m_address = new QLineEdit(this);
-    m_address->setObjectName(QStringLiteral("linkAddress"));
-    m_place = new QComboBox(this);
-    m_place->setObjectName(QStringLiteral("linkPlace"));
-    m_place->addItem(tr("Next slide"), QStringLiteral("#next"));
-    m_place->addItem(tr("Previous slide"), QStringLiteral("#previous"));
-    m_place->addItem(tr("First slide"), QStringLiteral("#first"));
-    m_place->addItem(tr("Last slide"), QStringLiteral("#last"));
-    m_place->addItem(tr("Last slide viewed"), QStringLiteral("#lastviewed"));
-    for (int i = 1; i <= slides; ++i) m_place->addItem(tr("Slide %1").arg(i), office::slideLink(i));
-    for (const auto &show : shows) {
-        m_place->addItem(tr("Custom show: %1").arg(show.second), office::customShowLink(show.first, false));
-        m_place->addItem(tr("Custom show, then back: %1").arg(show.second), office::customShowLink(show.first, true));
-    }
-    m_place->addItem(tr("End show"), QStringLiteral("#end"));
-    form->addRow(tr("Link to"), m_kind);
     m_displayLabel = new QLabel(tr("Text to display"), this);
     form->addRow(m_displayLabel, m_display);
-    auto *addressRow = new QWidget(this);
-    auto *addressLay = new QHBoxLayout(addressRow);
-    addressLay->setContentsMargins(0, 0, 0, 0);
-    addressLay->addWidget(m_address);
-    auto *browse = new QPushButton(tr("Browse…"), addressRow);
-    addressLay->addWidget(browse);
-    form->addRow(tr("Address"), addressRow);
-    if (auto *label = qobject_cast<QLabel *>(form->labelForField(addressRow))) label->setBuddy(m_address);
-    form->addRow(tr("Place"), m_place);
     lay->addLayout(form);
+    m_picker = new LinkTargetPicker(this);
+    m_picker->setPlaceNames(tr("Place in this presentation"), tr("Place"));
+    QVector<LinkPlace> places = {{tr("Next slide"), QStringLiteral("#next")}, {tr("Previous slide"), QStringLiteral("#previous")}, {tr("First slide"), QStringLiteral("#first")},
+                                 {tr("Last slide"), QStringLiteral("#last")}, {tr("Last slide viewed"), QStringLiteral("#lastviewed")}};
+    for (int i = 1; i <= slides && places.size() < kMostLinkPlaces - 1; ++i) places.push_back({tr("Slide %1").arg(i), office::slideLink(i)});
+    for (const auto &show : shows) {
+        if (places.size() >= kMostLinkPlaces - 1) break;
+        places.push_back({tr("Custom show: %1").arg(show.second), office::customShowLink(show.first, false)});
+        places.push_back({tr("Custom show, then back: %1").arg(show.second), office::customShowLink(show.first, true)});
+    }
+    places.push_back({tr("End show"), QStringLiteral("#end")});
+    m_picker->setPlaces(places);
+    m_picker->enableAppDocument(tr("Another presentation"), tr("Presentations (*.pptx *.ppsx *.pptm *.ppsm *.ppt *.pps *.odp)"));
+    m_picker->enableNewDocument(tr("Presentations (*.pptx)"), QStringLiteral("pptx"), [](const QString &path, QString *why) {
+        QString error;
+        const QByteArray bytes = deck::exportPresentation(*deck::newDefaultPresentation(), &error);
+        QFile f(path);
+        if (bytes.isEmpty() || !f.open(QIODevice::WriteOnly | QIODevice::NewOnly) || f.write(bytes) != bytes.size()) {
+            if (why) *why = tr("The new presentation could not be written there.");
+            return false;
+        }
+        return true;
+    });
+    lay->addWidget(m_picker);
+    m_problem = new QLabel(this);
+    m_problem->setObjectName(QStringLiteral("linkProblem"));
+    m_problem->setWordWrap(true);
+    m_problem->setTextFormat(Qt::PlainText);
+    lay->addWidget(m_problem);
     setDisplayShown(QString(), false);
     const office::LinkTarget now = office::parseLink(current);
     switch (now.kind) {
-    case office::LinkKind::Mail: m_kind->setCurrentIndex(1); m_address->setText(now.address.mid(7)); break;
-    case office::LinkKind::File: m_kind->setCurrentIndex(3); m_address->setText(now.address); break;
-    case office::LinkKind::Deck: m_kind->setCurrentIndex(4); m_address->setText(now.address); break;
+    case office::LinkKind::Mail: m_picker->setKind(LinkTargetPicker::Email); m_picker->setAddress(now.address.mid(7)); break;
+    case office::LinkKind::File: m_picker->setKind(LinkTargetPicker::File); m_picker->setAddress(now.address); break;
+    case office::LinkKind::Deck: m_picker->setKind(LinkTargetPicker::AppDocument); m_picker->setAddress(now.address); break;
     case office::LinkKind::None:
-        if (!current.trimmed().isEmpty()) m_address->setText(current.trimmed());
+        if (!current.trimmed().isEmpty()) m_picker->setAddress(current.trimmed());
         break;
-    case office::LinkKind::Web: m_address->setText(now.address); break;
+    case office::LinkKind::Web: m_picker->setAddress(now.address); break;
     default:
-        m_kind->setCurrentIndex(2);
-        if (const int at = m_place->findData(now.kind == office::LinkKind::Slide ? office::slideLink(now.slide) : now.kind == office::LinkKind::CustomShow ? office::customShowLink(now.slide, now.back) : current.trimmed().toLower()); at >= 0)
-            m_place->setCurrentIndex(at);
+        m_picker->setKind(LinkTargetPicker::Place);
+        m_picker->setPlaceValue(now.kind == office::LinkKind::Slide ? office::slideLink(now.slide) : now.kind == office::LinkKind::CustomShow ? office::customShowLink(now.slide, now.back) : current.trimmed().toLower());
         break;
     }
-    auto refresh = [this, browse] {
-        const int k = m_kind->currentIndex();
-        m_place->setEnabled(k == 2);
-        m_address->setEnabled(k != 2);
-        browse->setEnabled(k == 3 || k == 4);
-        m_address->setPlaceholderText(k == 1 ? tr("name@example.com") : k == 3 ? tr("Path of the file") : k == 4 ? tr("Path of the presentation") : QStringLiteral("https://"));
-    };
-    connect(m_kind, &QComboBox::currentIndexChanged, this, refresh);
-    refresh();
     // (A file chosen here is a path on this computer; one typed may be anywhere, and is never looked for.)
-    connect(browse, &QPushButton::clicked, this, [this] {
-        const QString path = QFileDialog::getOpenFileName(this, tr("Link to File"));
-        if (!path.isEmpty()) m_address->setText(path);
-    });
     auto *box = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
     auto *remove = box->addButton(tr("Remove Link"), QDialogButtonBox::ResetRole);
     connect(remove, &QPushButton::clicked, this, [this] {
         m_removed = true;
-        accept();
+        QDialog::accept();
     });
     connect(box, &QDialogButtonBox::accepted, this, &QDialog::accept);
     connect(box, &QDialogButtonBox::rejected, this, &QDialog::reject);
     lay->addWidget(box);
 }
 
+// A new presentation is made when OK is pressed (never over a file that is there); the box stays open, saying why, when it can't be.
+void LinkDialog::accept()
+{
+    QString why;
+    if (!m_picker->prepare(&why)) {
+        m_problem->setText(why);
+        return;
+    }
+    QDialog::accept();
+}
+
 QString LinkDialog::link() const
 {
-    const int k = m_kind->currentIndex();
-    if (k == 2) return m_place->currentData().toString();
-    QString text = m_address->text().trimmed();
+    switch (m_picker->kind()) {
+    case LinkTargetPicker::Place: return m_picker->placeValue();
+    case LinkTargetPicker::Email: return m_picker->target();
+    case LinkTargetPicker::AppDocument: return m_picker->target().isEmpty() ? QString() : office::presentationLink(m_picker->target());
+    case LinkTargetPicker::NewDocument: return m_picker->target().isEmpty() ? QString() : office::presentationLink(m_picker->target());
+    default: break;
+    }
+    const QString text = m_picker->target();
     if (text.isEmpty()) return QString();
-    if (k == 1) return QStringLiteral("mailto:") + text.remove(QStringLiteral("mailto:"), Qt::CaseInsensitive);
-    if (k == 4) return office::presentationLink(text);
     // A web address typed without its scheme is one; a file is as typed, and is never looked for.
-    if (k == 0 && !text.contains(QLatin1String("://"))) return QStringLiteral("https://") + text;
+    if (m_picker->kind() == LinkTargetPicker::Web && !text.contains(QLatin1String("://"))) return QStringLiteral("https://") + text;
     return text;
 }
 
