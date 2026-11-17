@@ -641,6 +641,15 @@ bool SlideShow::usePresenterView() { return Settings::get().value(QStringLiteral
 
 void SlideShow::setUsePresenterView(bool on) { Settings::get().setValue(QStringLiteral("show/usePresenterView"), on); }
 
+QString SlideShow::showOn() { return Settings::get().value(QStringLiteral("show/showOn")).toString(); }
+
+void SlideShow::setShowOn(const QString &name)
+{
+    Settings::get().setValue(QStringLiteral("show/showOn"), name);
+}
+
+void SlideShow::editNotes(const QString &pageId, const QString &text) { Q_EMIT notesEdited(pageId, text); }
+
 void SlideShow::setRehearsal(bool on)
 {
     m_rehearsal = on;
@@ -2136,6 +2145,7 @@ void SlideShow::closeEvent(QCloseEvent *e)
     // The slide on the screen has its time.
     timeSlide(-1);
     m_drawing = m_erasing = false;
+    if (m_presenter) m_presenter->commitNotes();
     Q_EMIT ended(m_atEnd ? m_slide : targetSlide());
     QWidget::closeEvent(e);
 }
@@ -2151,6 +2161,40 @@ void SlideShow::setVisible(bool visible)
     QWidget::setVisible(visible);
 }
 
+QString ScreenInfo::label() const { return QStringLiteral("%1 (%2 x %3)").arg(name).arg(geometry.width()).arg(geometry.height()); }
+
+QVector<ScreenInfo> screensNow()
+{
+    QVector<ScreenInfo> out;
+    for (QScreen *s : QGuiApplication::screens()) out << ScreenInfo{s->name(), s->geometry(), s->availableGeometry(), s == QGuiApplication::primaryScreen()};
+    return out;
+}
+
+ScreenChoice chooseScreens(const QVector<ScreenInfo> &screens, const QString &setting, int windowScreen)
+{
+    const int n = int(screens.size());
+    if (n == 0) return {};
+    if (n == 1) return {0, -1};
+    int primary = 0;
+    for (int i = 0; i < n; ++i)
+        if (screens.at(i).primary) {
+            primary = i;
+            break;
+        }
+    const int window = windowScreen >= 0 && windowScreen < n ? windowScreen : primary;
+    int chosen = -1;
+    if (!setting.isEmpty())
+        for (int i = 0; i < n && chosen < 0; ++i)
+            if (screens.at(i).name == setting) chosen = i;
+    // Any screen but `not`, the main one when it will do.
+    auto other = [&](int skip) { return primary != skip ? primary : (skip == 0 ? 1 : 0); };
+    ScreenChoice c;
+    if (chosen >= 0) c.audience = chosen;
+    else c.audience = window != primary ? primary : (primary == 0 ? 1 : 0);
+    c.presenter = window != c.audience ? window : other(c.audience);
+    return c;
+}
+
 // Where the show and Presenter View go, the first time the show is shown.
 void SlideShow::place()
 {
@@ -2164,27 +2208,79 @@ void SlideShow::place()
         openPresenterView(mine);
         return;
     }
-    if (QGuiApplication::screens().size() < 2 || !usePresenterView() || m_settings.type != deck::ShowSettings::Type::Speaker || m_recording) return;
-    // The other screen is the audience's: the primary one when the window is not on it.
-    QScreen *other = mine == QGuiApplication::primaryScreen() ? nullptr : QGuiApplication::primaryScreen();
+    if (QGuiApplication::screens().size() < 2 || m_settings.type != deck::ShowSettings::Type::Speaker || m_recording) return;
+    const QVector<ScreenInfo> screens = screensNow();
+    int window = 0;
+    for (int i = 0; i < screens.size(); ++i)
+        if (screens.at(i).name == mine->name() && screens.at(i).geometry == mine->geometry()) window = i;
+    const ScreenChoice c = chooseScreens(screens, showOn(), window);
+    if (c.audience < 0 || c.presenter < 0) return;
+    // Without Presenter View, only a chosen screen moves the show.
+    if (!usePresenterView()) {
+        if (showOn().isEmpty() || screens.at(c.audience).name != showOn()) return;
+        m_audience = screens.at(c.audience);
+        applyScreens();
+        return;
+    }
+    placeOn(screens.at(c.audience), screens.at(c.presenter));
+}
+
+void SlideShow::placeOn(const ScreenInfo &audience, const ScreenInfo &presenter)
+{
+    m_audience = audience;
+    m_presenterScreen = presenter;
+    applyScreens();
+    if (m_presenter) m_presenter->refresh();
+}
+
+static QScreen *screenOf(const ScreenInfo &info)
+{
     for (QScreen *s : QGuiApplication::screens())
-        if (!other && s != mine) other = s;
-    if (!other) return;
-    setScreen(other);
-    setGeometry(other->geometry());
-    openPresenterView(mine);
+        if (s->name() == info.name && s->geometry() == info.geometry) return s;
+    return nullptr;
+}
+
+// The windows go where m_audience and m_presenterScreen say; a screen that is not one of the computer's (a test's) is only a place.
+void SlideShow::applyScreens()
+{
+    if (!m_audience.geometry.isEmpty()) {
+        if (QScreen *s = screenOf(m_audience)) setScreen(s);
+        const bool full = isVisible() && isFullScreen();
+        if (full) showNormal();
+        setGeometry(m_audience.geometry);
+        if (full) showFullScreen();
+    }
+    if (m_presenterScreen.geometry.isEmpty()) return;
+    if (!m_presenter) {
+        openPresenterView(screenOf(m_presenterScreen));
+        return;
+    }
+    if (QScreen *s = screenOf(m_presenterScreen)) m_presenter->setScreen(s);
+    m_presenter->setGeometry(m_presenterScreen.available);
+}
+
+bool SlideShow::canSwapScreens() const
+{
+    return m_presenter && !m_rehearsal && !m_audience.geometry.isEmpty() && !m_presenterScreen.geometry.isEmpty() && m_audience.geometry != m_presenterScreen.geometry;
+}
+
+void SlideShow::swapScreens()
+{
+    if (!canSwapScreens()) return;
+    std::swap(m_audience, m_presenterScreen);
+    applyScreens();
 }
 
 void SlideShow::openPresenterView(QScreen *on)
 {
     m_presenter = new PresenterView(this);
-    const QRect area = on->availableGeometry();
     if (m_rehearsal) {
+        const QRect area = on->availableGeometry();
         const int right = geometry().left() - 12;
         m_presenter->setGeometry(QRect(area.left() + 12, area.top() + 12, std::max(640, right - area.left() - 12), area.height() - 24));
     } else {
-        m_presenter->setScreen(on);
-        m_presenter->setGeometry(area);
+        if (on) m_presenter->setScreen(on);
+        m_presenter->setGeometry(m_presenterScreen.available);
     }
     m_presenter->show();
 }

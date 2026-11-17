@@ -1,5 +1,5 @@
 # Play the slide show and use Presenter View
-<!-- keywords: slide show, play, present, start, full screen, from beginning, from current slide, presenter view, rehearse, rehearsal, timer, notes, next slide, two screens, monitors, black screen, white screen, keys, esc, end show, hidden slides, links, right-click, menu, pen, highlighter, laser pointer, eraser, ink, ink color, annotations, draw, keep ink, set up slide show, show type, kiosk, loop, loop continuously, without animation, show slides, advance slides, manually, custom show, custom slide show, rehearse timings, recording, use timings, timings, pen color, laser pointer color -->
+<!-- keywords: slide show, play, present, start, full screen, from beginning, from current slide, presenter view, rehearse, rehearsal, timer, notes, next slide, two screens, monitors, black screen, white screen, keys, esc, end show, hidden slides, links, right-click, menu, pen, highlighter, laser pointer, eraser, ink, ink color, annotations, draw, keep ink, set up slide show, show type, kiosk, loop, loop continuously, without animation, show slides, advance slides, manually, custom show, custom slide show, rehearse timings, recording, use timings, timings, pen color, laser pointer color, show presentation on, swap, screens, monitor, edit notes -->
 
 The slide show plays your slides one at a time, full screen. Presenter View is a second window just for you, with your notes, a timer, and a look at the next slide. You can write on the slides while you talk, play only some of the slides, and record how long each slide takes.
 
@@ -90,6 +90,8 @@ Go through the show as you would give it. At the end, JeffDeck asks if you want 
 
 With two screens, the slide show goes to one screen for the audience, and Presenter View opens on the screen the window is on. This happens when **Slide Show > Monitors > Use Presenter View** is checked, which it is unless you clear it. With one screen, the show fills it, and Presenter View does not open. A show by an individual, or at a kiosk, never opens Presenter View.
 
+To choose the screen for the slides, use **Slide Show > Monitors > Show Presentation On**. **Automatic** keeps the slides off the screen the window is on. Or pick a screen from the list. Each screen is listed by its name and size. This choice belongs to the computer, not to the presentation, so it is not saved in the file. If the screen you picked is not plugged in, JeffDeck uses **Automatic**. If the screens are the wrong way round once the show starts, click **Swap** in Presenter View. The slides go to the other screen, and Presenter View comes to this one.
+
 ## Rehearse with Presenter View
 
 To try your show on one screen, click **Slide Show > Monitors > Presenter View**, or press Alt+F5. The slide show opens as a small window in a corner of the screen, and Presenter View opens beside it.
@@ -100,10 +102,10 @@ To record how long each slide takes, use **Rehearse Timings** instead. To make a
 
 - The slide the audience sees now, large. A click on it moves on.
 - Under **Next**, the slide a click brings, or the same slide when it has steps left to play.
-- Your **Notes** for the slide. Click **A+** and **A-** to make the text bigger or smaller. You read the notes here, and you edit them in the notes box of the main window.
+- Your **Notes** for the slide. Click **A+** and **A-** to make the text bigger or smaller. Click in the notes to type. Your changes go into the presentation, and Ctrl+Z in the main window takes back each one. They are saved when you stop typing, when you click elsewhere, and when the show ends. While you are typing, the keys belong to the notes. Press Esc to go back to the keys of the show.
 - A timer that counts from the start of the show, with **Pause** (it becomes **Resume**) and **Reset**.
 - The time of day, and the slide number, such as "Slide 3 of 12".
-- **Previous** and **Next** buttons, **Pen and Pointer**, **Black Screen**, **See All Slides**, and **End Slide Show**. **See All Slides** shows every slide in a grid. Click one to go to it.
+- **Previous** and **Next** buttons, **Pen and Pointer**, **Black Screen**, **See All Slides**, **Swap** (trades the two screens), and **End Slide Show**. **See All Slides** shows every slide in a grid. Click one to go to it.
 
 **Pen and Pointer** opens the same menu as a right-click in the show. With the pen, highlighter, or eraser chosen, you draw on the large slide, and the audience sees it. With the laser pointer chosen, the dot follows your mouse over the large slide and shows on the audience's screen too.
 

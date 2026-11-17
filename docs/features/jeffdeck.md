@@ -319,7 +319,7 @@ PowerPoint's Draw tab is for ink on slides while editing. JeffDeck has ink only 
 - [x] **1.0** Set Up Slide Show: Presented by a speaker (full screen), Browsed by an individual (window), and Browsed at a kiosk (full screen, always loops, moves on only by timings); loop until Esc; show without animation; pen color and laser color; all slides, a range, or a custom show; advance manually or by timings; saved in the file *(kiosk or loop: ours 0 of 19; slides that advance by a time: 0 of 19)*
 - [x] **1.0** Hide Slide, Rehearse Timings (a bar with Next, Pause, this slide's time, Repeat, and the total; offers to keep the times at the end), and Use Timings
 - [x] **1.0** Monitors: Use Presenter View, and Presenter View (Alt+F5) to rehearse on one screen with the show in a small window
-- [ ] **1.0** Show Presentation On: choose which screen shows the slides and which holds Presenter View, and swap them *(the screens are picked by where the window is)*
+- [x] **1.0** Show Presentation On: choose which screen shows the slides and which holds Presenter View, and swap them *(done November 17, 2026: Slide Show > Monitors > Show Presentation On lists Automatic and each screen by name and size; the choice is kept for the computer in the program's settings, since a presentation file has no place for a screen; the rule is the tested function `chooseScreens` (Automatic as before; a saved screen that is gone is Automatic), and Swap in Presenter View trades the two screens for the rest of the show; not done: Swap is not remembered, and the screens could not be tried on real second monitors here, only by the function and by fake screen areas)*
 - [ ] **later** Resolution: the display size the show uses
 - [ ] **later** Record Slide Show (see Record)
 - [ ] **later** Play Narrations
@@ -397,7 +397,7 @@ PowerPoint has a Record tab that records a show with the speaker's voice, ink, l
 - [ ] **1.0** Animations that wait for a click on a shape (triggers), and sounds with effects *(see Animations)*
 - [x] **1.0** Presenter View on a second screen: the slide the audience sees, large (a click moves on); the next slide, or the same slide when steps remain; the notes, with A+ and A- for their size; a timer from the start with Pause (then Resume) and Reset; the time of day; the slide number; Previous and Next; Pen and Pointer; Black Screen; See All Slides (a grid; click one to go there); and End Slide Show; closing it ends the show
 - [x] **1.0** Ink drawn in Presenter View appears on the audience's screen, and so does the laser dot
-- [ ] **1.0** Edit the notes in Presenter View *(read only there; edited in the main window)*
+- [x] **1.0** Edit the notes in Presenter View *(done November 17, 2026: the notes there are typed in a text box like the notes pane; each edit is one step of Undo in the main window, saved when typing pauses, when the box is left, on another slide, and when the show ends, and kept in the saved file; A+ and A- work; Esc in the box returns to the show's keys instead of ending the show; not done: no spelling or grammar marks in that box)*
 - [ ] **later** Presenter View extras: zoom into the slide, swap the two screens, show the taskbar, and a strip of slide thumbnails
 - [x] **1.0** The show of a presentation being edited: a Browsed by an individual window stays on its slide, follows the edits, and ends if the document is replaced
 - [ ] **later** Run the show from a phone or another device as a remote (next, back, laser, and notes)

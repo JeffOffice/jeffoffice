@@ -57,6 +57,9 @@
 #include <QImage>
 #include <QMap>
 #include <QPointer>
+#include <QRect>
+#include <QString>
+#include <QVector>
 #include <QTimer>
 #include <QVariantAnimation>
 #include <QUrl>
@@ -95,6 +98,26 @@ void paintTransition(QPainter *p, const deck::Transition &t, const QImage &from,
 // progress `before` (a wipe changes a strip, a cut changes at two moments),
 // in the images' coordinates: all that needs painting again over the last frame.
 QRegion transitionChange(const deck::Transition &t, const QSizeF &size, double before, double after);
+
+// A screen as the show needs it: its name, its whole area, the area without the taskbar, and whether it is the main one.
+struct ScreenInfo {
+    QString name;
+    QRect geometry, available;
+    bool primary = false;
+    // "Name (1920 x 1080)", as the Slide Show tab lists it.
+    QString label() const;
+};
+// Which screens, as places in a list of them: the one the audience watches and the one that holds Presenter View (-1: none).
+struct ScreenChoice {
+    int audience = -1, presenter = -1;
+};
+// The screens the computer has now.
+QVector<ScreenInfo> screensNow();
+// Where the show and Presenter View go. `setting` is the name of the screen chosen to show the slides, empty for Automatic (a name no screen has is
+// Automatic too): the audience gets the main screen, or the first other one when the window is on the main screen, and Presenter View goes where the
+// window is. A chosen screen shows the slides, and Presenter View goes where the window is, or to another screen when the window is on the chosen
+// one. `windowScreen` is the window's place in the list (outside it: the main screen). One screen is the audience's, with none for Presenter View.
+ScreenChoice chooseScreens(const QVector<ScreenInfo> &screens, const QString &setting, int windowScreen);
 
 class SlideShow : public QWidget {
     Q_OBJECT
@@ -245,10 +268,24 @@ public:
     // Whether a show on a computer with two screens opens Presenter View.
     static bool usePresenterView();
     static void setUsePresenterView(bool on);
+    // Show Presentation On: the name of the screen that shows the slides, empty for Automatic. Kept for the computer (the screens are its own).
+    static QString showOn();
+    static void setShowOn(const QString &name);
+
+    // Puts the show on the audience's screen and Presenter View on the other (Presenter View is made when there is none and the show has one
+    // to open); Swap trades them. Neither is possible without a second screen.
+    void placeOn(const ScreenInfo &audience, const ScreenInfo &presenter);
+    bool canSwapScreens() const;
+    void swapScreens();
+    const ScreenInfo &audienceScreen() const { return m_audience; }
+    const ScreenInfo &presenterScreen() const { return m_presenterScreen; }
+    // Notes typed in Presenter View for a slide (by its page): the window makes them a step of Undo; the show's own presentation is read only.
+    void editNotes(const QString &pageId, const QString &text);
 
     void setVisible(bool visible) override;
 
 Q_SIGNALS:
+    void notesEdited(const QString &pageId, const QString &text);
     // The show was ended; `lastSlide` is the slide it was on.
     void ended(int lastSlide);
     // The ink or the laser pointer changed, or the pointer did.
@@ -307,6 +344,7 @@ private:
     void showSlide(int pos, int steps = 0);
     void place();
     void openPresenterView(QScreen *on);
+    void applyScreens();
     // The link under a point of the window, if the slide on it has one.
     QString linkAt(const QPointF &pos) const;
     // The areas of the slide on the screen (worked out once), the states its animations have it in, and the click areas among them that are on the screen, one for each link.
@@ -402,6 +440,7 @@ private:
     qreal m_nowRatio = 1;
     bool m_nowValid = false;
     QPointer<PresenterView> m_presenter;
+    ScreenInfo m_audience, m_presenterScreen;   // where placeOn put them
     ShowMedia *m_media = nullptr;   // the movies and sounds (showmedia.h)
     // The pointer, and the ink the pen and highlighter left, by slide.
     Pointer m_pointer = Pointer::Arrow;

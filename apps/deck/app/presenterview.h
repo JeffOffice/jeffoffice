@@ -10,7 +10,7 @@
 // effect partway through included, and Next shows what the next click gives.
 // "Pen and Pointer" opens the show's pointer menu; with the pen, the
 // highlighter, or the eraser in hand, the large slide takes strokes, and the
-// laser pointer's dot follows the mouse over it, for the audience's screen too.
+// laser pointer's dot follows the mouse over it, for the audience's screen too. The notes can be typed in; "Swap" trades the two screens.
 
 #include <QElapsedTimer>
 #include <QImage>
@@ -38,6 +38,9 @@ public:
     // "Slide 2 of 12", or "End of slide show".
     QString counterText() const;
     QString notesText() const;
+    // The notes are typed here: what was typed goes to the show (the window makes it a step of Undo) when typing pauses, when the box is left, when the
+    // show moves to another slide, and when the show ends. Esc in the box goes back to the keys of the show.
+    void commitNotes();
     // What the next click shows, under Next: the slide (the one on the screen,
     // while it has steps left to play), -1 for none, how many of its steps have
     // played, and its picture.
@@ -82,7 +85,10 @@ private:
     QPlainTextEdit *m_notes = nullptr;
     QStackedWidget *m_pages = nullptr;
     QListWidget *m_grid = nullptr;
-    QAbstractButton *m_pause = nullptr, *m_black = nullptr, *m_all = nullptr, *m_pointerButton = nullptr;
+    QAbstractButton *m_pause = nullptr, *m_black = nullptr, *m_all = nullptr, *m_pointerButton = nullptr, *m_swap = nullptr;
+    QTimer m_notesIdle;
+    QString m_notesPage;       // the page the box's text is of
+    bool m_loadingNotes = false, m_typed = false;   // typed since the last save or load
     QTimer m_tick;
     QElapsedTimer m_since;     // when the timer last started running
     qint64 m_before = 0;       // what it had counted before that

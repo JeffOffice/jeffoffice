@@ -188,8 +188,9 @@ PresenterView::PresenterView(SlideShow *show) : QWidget(nullptr, Qt::Window), m_
     m_notes = new QPlainTextEdit(main);
     m_notes->setObjectName(QStringLiteral("notesText"));
     m_notes->setAccessibleName(tr("Notes"));
-    m_notes->setReadOnly(true);
-    m_notes->setFocusPolicy(Qt::NoFocus);
+    m_notes->setPlaceholderText(tr("Click to add notes"));
+    m_notes->setFocusPolicy(Qt::ClickFocus);   // a click starts typing; Esc goes back to the keys of the show
+    m_notes->installEventFilter(this);
     side->addWidget(nextLabel);
     side->addWidget(m_nextView, 2);
     side->addLayout(notesRow);
@@ -224,6 +225,10 @@ PresenterView::PresenterView(SlideShow *show) : QWidget(nullptr, Qt::Window), m_
     m_all = button(QStringLiteral("allSlidesButton"), tr("See All Slides"));
     m_all->setCheckable(true);
     QAbstractButton *end = button(QStringLiteral("endButton"), tr("End Slide Show"));
+    m_swap = button(QStringLiteral("swapScreens"), tr("Swap"));
+    m_swap->setToolTip(tr("Swap: the slide show goes to the screen Presenter View is on, and Presenter View to the screen the slide show was on."));
+    m_swap->setAccessibleName(tr("Swap screens"));
+    m_swap->setEnabled(false);
     bottom->addWidget(previous);
     bottom->addWidget(m_counter);
     bottom->addWidget(next);
@@ -231,6 +236,7 @@ PresenterView::PresenterView(SlideShow *show) : QWidget(nullptr, Qt::Window), m_
     bottom->addWidget(m_pointerButton);
     bottom->addWidget(m_black);
     bottom->addWidget(m_all);
+    bottom->addWidget(m_swap);
     bottom->addWidget(end);
     root->addLayout(bottom);
 
@@ -245,6 +251,17 @@ PresenterView::PresenterView(SlideShow *show) : QWidget(nullptr, Qt::Window), m_
         m_pointerButton->setChecked(m_show->pointer() != SlideShow::Pointer::Arrow);
     });
     connect(m_all, &QAbstractButton::clicked, this, [this](bool on) { showAllSlides(on); });
+    connect(m_swap, &QAbstractButton::clicked, this, [this] {
+        if (m_show) m_show->swapScreens();
+    });
+    m_notesIdle.setSingleShot(true);
+    m_notesIdle.setInterval(700);
+    connect(&m_notesIdle, &QTimer::timeout, this, &PresenterView::commitNotes);
+    connect(m_notes, &QPlainTextEdit::textChanged, this, [this] {
+        if (m_loadingNotes) return;
+        m_typed = true;
+        m_notesIdle.start();
+    });
     connect(end, &QAbstractButton::clicked, this, [this] { if (m_show) m_show->close(); });
     connect(m_pause, &QAbstractButton::clicked, this, [this] { setPaused(!m_paused); });
     connect(reset, &QAbstractButton::clicked, this, &PresenterView::resetTimer);
@@ -304,8 +321,19 @@ void PresenterView::refresh()
     m_current->setView(m_show->currentView(), m_show->currentMs());
     m_nextView->setView(next, -1);
     m_counter->setText(slide >= 0 ? tr("Slide %1 of %2").arg(slide + 1).arg(doc->pages.size()) : tr("End of slide show"));
-    const QString notes = slide >= 0 && slide < doc->pages.size() ? deck::notesText(*doc, *doc->pages[slide]) : QString();
-    if (notes != m_notes->toPlainText()) m_notes->setPlainText(notes);
+    const bool onSlide = slide >= 0 && slide < doc->pages.size();
+    const QString pageId = onSlide ? doc->pages[slide]->id : QString();
+    // What was typed is kept before another slide's notes come; on the same slide, the deck changing under it does not take typing away.
+    if (!(m_typed && pageId == m_notesPage)) {
+        commitNotes();
+        const QString notes = onSlide ? deck::notesText(*doc, *doc->pages[slide]) : QString();
+        m_loadingNotes = true;
+        if (notes != m_notes->toPlainText()) m_notes->setPlainText(notes);
+        m_loadingNotes = false;
+        m_notesPage = pageId;
+        m_notes->setReadOnly(!onSlide);
+    }
+    m_swap->setEnabled(m_show->canSwapScreens());
     m_black->setChecked(m_show->blankColor() == QColor(Qt::black));
     if (isShowingAllSlides() && slide >= 0 && slide < m_grid->count()) m_grid->setCurrentRow(slide);
 }
@@ -318,6 +346,19 @@ void PresenterView::frame()
 QString PresenterView::counterText() const { return m_counter->text(); }
 
 QString PresenterView::notesText() const { return m_notes->toPlainText(); }
+
+void PresenterView::commitNotes()
+{
+    m_notesIdle.stop();
+    if (!m_typed) return;
+    m_typed = false;
+    if (!m_show || m_notesPage.isEmpty()) return;
+    const Document *doc = m_show->document();
+    const int at = doc->pageIndexOf(m_notesPage);
+    const QString text = m_notes->toPlainText();
+    if (at < 0 || deck::notesText(*doc, *doc->pages[at]) == text) return;
+    m_show->editNotes(m_notesPage, text);
+}
 
 QImage PresenterView::nextImage() const { return m_nextView->image(); }
 
@@ -412,6 +453,17 @@ void PresenterView::keyPressEvent(QKeyEvent *e)
 
 bool PresenterView::eventFilter(QObject *o, QEvent *e)
 {
+    if (o == m_notes) {
+        if (e->type() == QEvent::FocusOut) commitNotes();
+        // Esc leaves the box (the arrow keys and the rest are the box's while it has the keyboard) instead of ending the show.
+        if (e->type() == QEvent::KeyPress && static_cast<QKeyEvent *>(e)->key() == Qt::Key_Escape && m_notes->hasFocus()) {
+            commitNotes();
+            m_notes->clearFocus();
+            setFocus();
+            return true;
+        }
+        return QWidget::eventFilter(o, e);
+    }
     if (o == m_current && m_show) {
         const auto page = [this](QEvent *ev) { return m_current->pageAt(static_cast<QMouseEvent *>(ev)->position()); };
         if (e->type() == QEvent::MouseButtonPress) {

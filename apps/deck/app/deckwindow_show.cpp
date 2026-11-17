@@ -12,6 +12,7 @@
 #include "app/notespane.h"
 #include "app/outlineview.h"
 #include "app/presenterview.h"
+#include "text/storyio.h"
 #include "app/ribbon.h"
 #include "app/ribbonbuilder.h"
 #include "app/slideshow.h"
@@ -28,6 +29,9 @@
 #include <QFileInfo>
 #include <QAction>
 #include <QCheckBox>
+#include <QComboBox>
+#include <QLabel>
+#include <QVBoxLayout>
 #include <QDoubleSpinBox>
 #include <QMenu>
 #include <QMessageBox>
@@ -473,6 +477,41 @@ void DeckWindow::addShowParts(RibbonParts &parts)
         return menu;
     };
 
+    // Slide Show > Monitors > Show Presentation On: Automatic, then each screen the computer has. The choice is kept for the computer.
+    parts.widgets[QStringLiteral("showOn")] = [this] {
+        auto *box = new QComboBox();
+        box->setObjectName(QStringLiteral("showOn"));
+        box->setAccessibleName(tr("Show Presentation On"));
+        box->setToolTip(tr("Show Presentation On: the screen that shows the slides while Presenter View is on the other. Automatic keeps the slides off the screen this window is on."));
+        box->setSizeAdjustPolicy(QComboBox::AdjustToContents);
+        auto fill = [box] {
+            const QSignalBlocker block(box);
+            box->clear();
+            box->addItem(QCoreApplication::translate("Show", "Automatic"), QString());
+            const QVector<ScreenInfo> screens = screensNow();
+            int at = 0;
+            for (int i = 0; i < screens.size(); ++i) {
+                box->addItem(screens.at(i).label(), screens.at(i).name);
+                if (!SlideShow::showOn().isEmpty() && screens.at(i).name == SlideShow::showOn() && at == 0) at = i + 1;
+            }
+            box->setCurrentIndex(at);   // a saved screen that is not there is shown as Automatic
+        };
+        fill();
+        connect(box, &QComboBox::activated, box, [box](int i) { SlideShow::setShowOn(box->itemData(i).toString()); });
+        connect(qApp, &QGuiApplication::screenAdded, box, fill);
+        connect(qApp, &QGuiApplication::screenRemoved, box, fill);
+        auto *row = new QWidget();
+        auto *column = new QVBoxLayout(row);
+        column->setContentsMargins(0, 0, 0, 0);
+        column->setSpacing(2);
+        auto *caption = new QLabel(tr("Show Presentation On"), row);
+        caption->setTextFormat(Qt::PlainText);
+        caption->setBuddy(box);
+        column->addWidget(caption);
+        column->addWidget(box);
+        return row;
+    };
+
     // Slide Show > Monitors.
     parts.widgets[QStringLiteral("usePresenterView")] = [this] {
         QAction *a = act(QStringLiteral("show.usePresenterView"));
@@ -569,6 +608,19 @@ void DeckWindow::watchShow(SlideShow *show, bool recording)
     // A show in a window leaves the deck open to editing: it follows the slides by their pages; a presentation put in the window in
     // place of this one ends it.
     connect(m_ed, &Editor::changed, show, &SlideShow::documentChanged);
+    // Notes typed in Presenter View: one step of Undo for each, as the notes pane makes them (the show is only a reader of the deck).
+    connect(show, &SlideShow::notesEdited, this, [this](const QString &pageId, const QString &text) {
+        Document *d = m_ed->doc();
+        const int i = d->pageIndexOf(pageId);
+        if (i < 0 || m_ed->readOnly()) return;
+        Page &slide = *d->pages[i];
+        if (deck::notesText(*d, slide) == text) return;
+        m_ed->endTextEdit();
+        m_ed->beginChange(tr("Notes"));
+        if (slide.notesStoryId.isEmpty() || !d->storyDoc(slide.notesStoryId)) slide.notesStoryId = d->createStory();
+        setStoryText(d->storyDoc(slide.notesStoryId), text);
+        m_ed->endChange();
+    });
     connect(m_ed, &Editor::documentReplaced, show, [this, show] {
         show->rebind(m_ed->doc());
         show->close();

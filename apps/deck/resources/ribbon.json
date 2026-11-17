@@ -846,6 +846,10 @@
               "keytip": "V"
             },
             {
+              "widget": "showOn",
+              "keytip": "O"
+            },
+            {
               "large": "show.presenterView",
               "keytip": "P"
             }

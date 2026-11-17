@@ -1,5 +1,7 @@
 // JeffDeck's tests of the slide show: settings, custom shows, ink, and rehearsal.
 #include "deckhelpers.h"
+#include "../withdialog.h"
+#include "app/theme.h"
 
 class DeckSlideShowTests : public QObject {
     Q_OBJECT
@@ -1062,6 +1064,193 @@ private Q_SLOTS:
         QVERIFY(menu);
         QVERIFY(menu->findChild<QAction *>(QStringLiteral("pointerLaser")));
         delete menu;
+    }
+
+    // Which screen shows the slides and which holds Presenter View: Automatic keeps the old way (the audience on the main screen, or the
+    // first other one when the window is on it, Presenter View where the window is); a chosen screen shows the slides; one that is gone is Automatic.
+    void chooseScreensPicksTheAudienceAndPresenterScreens()
+    {
+        auto screen = [](const QString &name, int x, bool primary) { return ScreenInfo{name, QRect(x, 0, 1920, 1080), QRect(x, 0, 1920, 1040), primary}; };
+        const QVector<ScreenInfo> one{screen(QStringLiteral("A"), 0, true)};
+        const QVector<ScreenInfo> two{screen(QStringLiteral("A"), 0, true), screen(QStringLiteral("B"), 1920, false)};
+        const QVector<ScreenInfo> three{screen(QStringLiteral("A"), 0, true), screen(QStringLiteral("B"), 1920, false), screen(QStringLiteral("C"), 3840, false)};
+        auto is = [](const ScreenChoice &c, int audience, int presenter) { return c.audience == audience && c.presenter == presenter; };
+        QVERIFY(is(chooseScreens({}, QString(), 0), -1, -1));
+        // One screen: the show fills it and there is no other for Presenter View, whatever was chosen.
+        QVERIFY(is(chooseScreens(one, QString(), 0), 0, -1));
+        QVERIFY(is(chooseScreens(one, QStringLiteral("A"), 0), 0, -1));
+        QVERIFY(is(chooseScreens(one, QStringLiteral("Z"), 0), 0, -1));
+        // Two screens, Automatic: the window on the main screen sends the show to the other; the window on the other, the show to the main.
+        QVERIFY(is(chooseScreens(two, QString(), 0), 1, 0));
+        QVERIFY(is(chooseScreens(two, QString(), 1), 0, 1));
+        // Chosen: that screen shows the slides, Presenter View is where the window is, or on another screen when the window is on the chosen one.
+        QVERIFY(is(chooseScreens(two, QStringLiteral("A"), 0), 0, 1));
+        QVERIFY(is(chooseScreens(two, QStringLiteral("B"), 1), 1, 0));
+        QVERIFY(is(chooseScreens(two, QStringLiteral("B"), 0), 1, 0));
+        // Three screens.
+        QVERIFY(is(chooseScreens(three, QString(), 0), 1, 0));
+        QVERIFY(is(chooseScreens(three, QString(), 2), 0, 2));
+        QVERIFY(is(chooseScreens(three, QStringLiteral("C"), 1), 2, 1));
+        QVERIFY(is(chooseScreens(three, QStringLiteral("C"), 2), 2, 0));   // the window is on it: Presenter View takes the main screen
+        QVERIFY(is(chooseScreens(three, QStringLiteral("A"), 0), 0, 1));
+        // A saved screen that is gone is Automatic; so is a window on no screen (the main one).
+        QVERIFY(is(chooseScreens(two, QStringLiteral("Gone"), 0), 1, 0));
+        QVERIFY(is(chooseScreens(three, QStringLiteral("Gone"), 2), 0, 2));
+        QVERIFY(is(chooseScreens(two, QString(), -1), 1, 0));
+        QVERIFY(is(chooseScreens(two, QString(), 9), 1, 0));
+        // The label of a list entry: the name and the size.
+        QCOMPARE(two.at(1).label(), QStringLiteral("B (1920 x 1080)"));
+    }
+
+    // The choice is kept for the computer (a presentation file has no place for it), and the Slide Show tab lists Automatic and each screen.
+    void windowShowPresentationOnList()
+    {
+        SlideShow::setShowOn(QString());
+        DeckWindow w;
+        w.ribbon()->showTab(w.ribbon()->tab(QStringLiteral("Slide Show")));
+        auto *box = w.ribbon()->findChild<QComboBox *>(QStringLiteral("showOn"));
+        QVERIFY(box);
+        QCOMPARE(box->itemText(0), QStringLiteral("Automatic"));
+        const QVector<ScreenInfo> now = screensNow();
+        QVERIFY(!now.isEmpty());
+        QCOMPARE(box->count(), int(now.size()) + 1);
+        QCOMPARE(box->itemText(1), now.at(0).label());
+        QVERIFY(SlideShow::showOn().isEmpty());
+        QCOMPARE(box->currentIndex(), 0);
+        box->setCurrentIndex(1);
+        Q_EMIT box->activated(1);
+        QCOMPARE(SlideShow::showOn(), now.at(0).name);
+        // A saved screen that is not there shows as Automatic, and is kept until another is chosen.
+        SlideShow::setShowOn(QStringLiteral("No Such Screen"));
+        DeckWindow w2;
+        w2.ribbon()->showTab(w2.ribbon()->tab(QStringLiteral("Slide Show")));
+        QCOMPARE(w2.ribbon()->findChild<QComboBox *>(QStringLiteral("showOn"))->currentIndex(), 0);
+        QCOMPARE(SlideShow::showOn(), QStringLiteral("No Such Screen"));
+        box->setCurrentIndex(0);
+        Q_EMIT box->activated(0);
+        QVERIFY(SlideShow::showOn().isEmpty());
+        SlideShow::setShowOn(QString());
+    }
+
+    // Swap in Presenter View trades the two screens: the show goes where Presenter View was, and Presenter View where the show was.
+    void presenterViewSwapTradesTheScreens()
+    {
+        auto d = showDeck(2);
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        QVERIFY(!show.canSwapScreens());   // no second screen yet
+        QVERIFY(!show.presenterView());
+        const ScreenInfo a{QStringLiteral("A"), QRect(0, 0, 1920, 1080), QRect(0, 0, 1920, 1040), true};
+        const ScreenInfo b{QStringLiteral("B"), QRect(1920, 0, 1280, 720), QRect(1920, 0, 1280, 720), false};
+        show.placeOn(a, b);
+        PresenterView &pv = *show.presenterView();
+        auto *swap = pv.findChild<QAbstractButton *>(QStringLiteral("swapScreens"));
+        QVERIFY(swap);
+        QCOMPARE(show.audienceScreen().name, QStringLiteral("A"));
+        QCOMPARE(show.presenterScreen().name, QStringLiteral("B"));
+        QCOMPARE(show.geometry(), a.geometry);
+        QCOMPARE(pv.geometry(), b.available);
+        QVERIFY(show.canSwapScreens());
+        QTRY_VERIFY(swap->isEnabled());
+        swap->click();
+        QCOMPARE(show.audienceScreen().name, QStringLiteral("B"));
+        QCOMPARE(show.presenterScreen().name, QStringLiteral("A"));
+        QCOMPARE(show.geometry(), b.geometry);
+        QCOMPARE(pv.geometry(), a.available);
+        swap->click();   // and back
+        QCOMPARE(show.geometry(), a.geometry);
+        QCOMPARE(pv.geometry(), b.available);
+    }
+
+    // The notes in Presenter View are typed in the same kind of box as the notes pane: each edit is one step of the window's Undo, the notes stay
+    // when the show ends and in the saved file, and A+ and A- still change their size.
+    void presenterViewNotesAreEdited()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        w.newSlide();
+        ed->setCurrentPage(0);
+        QTest::keyClicks(w.notesPane(), QStringLiteral("First notes"));
+        w.notesPane()->commit();
+        auto notes = [&](int i) { return deck::notesText(*ed->doc(), *ed->doc()->pages[i]); };
+        QCOMPARE(notes(0), QStringLiteral("First notes"));
+        w.act("show.presenterView")->trigger();
+        SlideShow *show = w.slideShow();
+        QVERIFY(show && show->presenterView());
+        PresenterView *pv = show->presenterView();
+        QPlainTextEdit *edit = pv->findChild<QPlainTextEdit *>(QStringLiteral("notesText"));
+        QVERIFY(edit && !edit->isReadOnly());
+        QCOMPARE(edit->toPlainText(), QStringLiteral("First notes"));
+        // Typing is not a key of the show: the slide stays.
+        edit->setFocus();
+        edit->moveCursor(QTextCursor::End);
+        QTest::keyClicks(edit, QStringLiteral(" and more"));
+        QCOMPARE(show->currentSlide(), 0);
+        pv->commitNotes();
+        QCOMPARE(notes(0), QStringLiteral("First notes and more"));
+        ed->undo();   // one step
+        QCOMPARE(notes(0), QStringLiteral("First notes"));
+        QTRY_COMPARE(edit->toPlainText(), QStringLiteral("First notes"));
+        ed->redo();
+        QCOMPARE(notes(0), QStringLiteral("First notes and more"));
+        QTRY_COMPARE(edit->toPlainText(), QStringLiteral("First notes and more"));
+        // A+ and A- still work.
+        const int size = pv->notesPointSize();
+        pv->findChild<QAbstractButton *>(QStringLiteral("notesBigger"))->click();
+        QCOMPARE(pv->notesPointSize(), size + 2);
+        pv->findChild<QAbstractButton *>(QStringLiteral("notesSmaller"))->click();
+        QCOMPARE(pv->notesPointSize(), size);
+        // Typed and not yet saved when the show ends: kept.
+        edit->moveCursor(QTextCursor::End);
+        QTest::keyClicks(edit, QStringLiteral("!"));
+        show->close();
+        QTRY_VERIFY(!w.slideShow());
+        QCOMPARE(notes(0), QStringLiteral("First notes and more!"));
+        QCOMPARE(w.notesPane()->toPlainText(), QStringLiteral("First notes and more!"));
+        // And in the saved file.
+        QString err;
+        auto back = deck::importPresentation(deck::exportPresentation(*ed->doc(), &err), &err);
+        QVERIFY2(back, qPrintable(err));
+        QCOMPARE(deck::notesText(*back, *back->pages[0]), QStringLiteral("First notes and more!"));
+        ed->undo();
+        QCOMPARE(notes(0), QStringLiteral("First notes and more"));
+    }
+
+    // With JO_SHOT_DIR set: pictures of Presenter View with notes being typed, and of the Slide Show tab's list.
+    void presenterViewShots()
+    {
+        if (qEnvironmentVariableIsEmpty("JO_SHOT_DIR")) QSKIP("JO_SHOT_DIR is not set");
+        jp::applyUiTheme(1);
+        DeckWindow w;
+        w.resize(1400, 900);
+        Editor *ed = w.editor();
+        ed->setDocument(showDeck(3));
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        QTest::keyClicks(w.notesPane(), QStringLiteral("Welcome everyone. Start with the numbers."));
+        w.notesPane()->commit();
+        w.act("show.presenterView")->trigger();
+        SlideShow *show = w.slideShow();
+        QVERIFY(show && show->presenterView());
+        PresenterView *pv = show->presenterView();
+        pv->resize(1200, 760);
+        QPlainTextEdit *edit = pv->findChild<QPlainTextEdit *>(QStringLiteral("notesText"));
+        edit->setFocus();
+        edit->moveCursor(QTextCursor::End);
+        QTest::keyClicks(edit, QStringLiteral(" Then pause for questions."));
+        QTest::qWait(300);
+        shotOf(pv, QStringLiteral("show-presenter-view-notes"));
+        show->close();
+        QTRY_VERIFY(!w.slideShow());
+        w.ribbon()->showTab(w.ribbon()->tab(QStringLiteral("Slide Show")));
+        QTest::qWait(300);
+        auto *box = w.ribbon()->findChild<QComboBox *>(QStringLiteral("showOn"));
+        QVERIFY(box);
+        shotOf(&w, QStringLiteral("show-ribbon"));
+        box->showPopup();
+        QTest::qWait(300);
+        if (QAbstractItemView *view = box->view()) shotOf(view->window(), QStringLiteral("show-ribbon-list"));
+        box->hidePopup();
     }
 
     // Rehearse Timings: the show times each slide from when it comes on the screen to when it goes, with the bar's next, pause, repeat,
