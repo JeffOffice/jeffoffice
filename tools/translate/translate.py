@@ -51,6 +51,23 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 
 MODEL = "claude-haiku-5-5"   # (a French trial, Nov 2026: as good as Opus 5.5 on this text at about a fortieth of the cost; --model to change)
 WORKERS = 12  # parallel requests; was 4 (a 95k-word language took ~35 min at 4)
+# TRANSLATE_MINUTES: after this many minutes no new request starts; what is done is kept and committed, and the rest waits for the
+# next run (Nov 16: a run cancelled or failed after ~110 min lost everything, because the workflow commits only at the end). 0 = no limit.
+import time as _time
+DEADLINE = (_time.monotonic() + float(os.environ.get("TRANSLATE_MINUTES", "0")) * 60) if float(os.environ.get("TRANSLATE_MINUTES", "0") or 0) > 0 else None
+REQUEST_TIMEOUT = 600   # seconds for one request, so one stuck request can't hold the run
+
+
+def out_of_time(report):
+    """True once the deadline has passed (noted once in the report as a problem, so the run commits and says text was left)."""
+    if DEADLINE is None or _time.monotonic() < DEADLINE:
+        return False
+    with report.lock:
+        first = not getattr(report, "timed_out", False)
+        report.timed_out = True
+    if first:
+        report.problem(f"Stopped starting new work after TRANSLATE_MINUTES={os.environ.get('TRANSLATE_MINUTES')}; the rest is left for the next run")
+    return True
 
 # The languages, in Qt's names (the .ts file's and Help folder's suffix).
 # Most have two plural forms in Qt (the singular, then the plural); PLURAL_FORMS lists the others.
@@ -158,7 +175,7 @@ class KeyRefused(BaseException):
 class Api:
     def __init__(self, effort):
         import anthropic
-        self.client = anthropic.Anthropic(max_retries=6)
+        self.client = anthropic.Anthropic(max_retries=6, timeout=REQUEST_TIMEOUT)
         self.effort = effort
 
     def ask(self, system, user, schema=None, max_tokens=16000):
@@ -454,6 +471,8 @@ def item(i, m):
 
 def translate_chunk(api, system, chunk, report):
     """{message: translation} for the messages it could translate."""
+    if out_of_time(report):
+        return {}
     done, notes = {}, {}
     for attempt in range(2):
         todo = [m for m in chunk if m not in done]
@@ -490,6 +509,8 @@ def translate_chunk(api, system, chunk, report):
 
 def review_chunk(api, system, pairs, report):
     """Corrections the reviewer made that pass the checks: {message: translation}."""
+    if out_of_time(report):
+        return {}
     items = []
     for i, (m, out) in enumerate(pairs):
         d = item(i, m)
@@ -641,6 +662,8 @@ List each place where the translation's meaning drifted: something said differen
 
 
 def translate_topic(api, system, rsystem, tid, en, report):
+    if out_of_time(report):
+        return None
     notes, failed = "", ""
     for attempt in range(2):
         # (a translation that failed a check is sent back to be corrected: a fresh one tends to repeat the same habit)
@@ -727,6 +750,8 @@ def run_help(lang, api, dry, report):
                 save_state(lang, state)   # after each topic: a stopped run must not leave pages it wrote looking like a person's edits
                 report.topics += 1
                 wrote = True
+                if report.topics % 10 == 0:
+                    print(f"[{lang}] Help: {report.topics} topics written", flush=True)
     if wrote:
         save_state(lang, state)
         subprocess.run([sys.executable, os.path.join(ROOT, "tools", "help_files.py")], check=True, stdout=subprocess.DEVNULL)

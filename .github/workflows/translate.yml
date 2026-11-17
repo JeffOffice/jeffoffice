@@ -62,6 +62,8 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           LANGUAGES: ${{ inputs.languages }}
+          # (no new request after 300 minutes, so the job's 360-minute limit never cancels a run and loses all it translated)
+          TRANSLATE_MINUTES: "300"
         run: |
           pip install -q -r tools/translate/requirements.txt
           # (2: the service refused the key, so nothing can be translated; 3: some text was left, as before; anything else, such as 1, the
