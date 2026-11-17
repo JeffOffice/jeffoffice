@@ -27,6 +27,8 @@
 #include <QRandomGenerator>
 #include <QSet>
 #include <QXmlStreamReader>
+#include <QMessageBox>
+#include <QProgressDialog>
 #include <QTextBrowser>
 #include <QImageWriter>
 #include <QTimer>
@@ -1808,6 +1810,67 @@ private Q_SLOTS:
         };
         QVERIFY(!epubFromDocument(snapshot, o, &err).isEmpty());
         QCOMPARE(calls.size(), 3);
+    }
+
+    // A note past the bound keeps all its words as plain text, those a kept element shows in its place too.
+    void aPlainNoteKeepsTheWordsOfKeptElements()
+    {
+        office::wml::Block text, kept;
+        office::wml::Inline run;
+        run.kind = office::wml::Inline::Text;
+        run.text = QStringLiteral("Words & more");
+        text.para.content << run;
+        kept.isRaw = true;
+        kept.tag = QStringLiteral("tbl");
+        kept.display = QStringLiteral("[Table: 9 rows by 9 columns]");
+        office::wml::Block quiet;
+        quiet.isRaw = true;
+        QCOMPARE(epubPlainNote({text, kept, quiet}), QStringLiteral("<p>Words &amp; more</p>\n<p>[Table: 9 rows by 9 columns]</p>\n"));
+    }
+
+    // A bookmark named in the body and in a note of the chapter is one id in the chapter, and a link to it goes to the one that is there.
+    void aBookmarkNamedInTheBodyAndInANoteIsOneIdInTheChapter()
+    {
+        QByteArray notes = footnotesPart(QStringLiteral("x"));
+        notes.replace("<w:r><w:footnoteRef/></w:r>", "<w:bookmarkStart w:id=\"9\" w:name=\"dup\"/><w:r><w:footnoteRef/></w:r><w:bookmarkEnd w:id=\"9\"/>");
+        const QByteArray body = "<w:p><w:bookmarkStart w:id=\"1\" w:name=\"dup\"/><w:r><w:t>Here</w:t></w:r><w:r><w:footnoteReference w:id=\"2\"/></w:r><w:bookmarkEnd w:id=\"1\"/></w:p>"
+                                "<w:p><w:hyperlink w:anchor=\"dup\"><w:r><w:t>back to dup</w:t></w:r></w:hyperlink></w:p>";
+        const QMap<QString, QByteArray> z = bookOfDocx(makeDocx(body, {{QStringLiteral("/word/footnotes.xml"), kWord + QStringLiteral("footnotes+xml"), notes, kRel + QStringLiteral("footnotes"), QString(), QString()}}));
+        const QString chapter = QString::fromUtf8(z.value(QStringLiteral("OEBPS/chapter1.xhtml")));
+        QCOMPARE(problemsOf(z), QString());
+        QCOMPARE(chapter.count(QStringLiteral("id=\"bm_dup\"")), 1);
+        QVERIFY2(chapter.contains(QStringLiteral("<a href=\"chapter1.xhtml#bm_dup\">back to dup</a>")), qPrintable(chapter));
+    }
+
+    // Cancel in the box that opens while the book is made stops it: no warning and no file.
+    void cancellingTheEbookExportShowsNoWarningAndLeavesNoFile()
+    {
+        WriteWindow w;
+        Quiet quiet(w);
+        buildBook(w);
+        QTemporaryDir dir;
+        const QString path = dir.filePath(QStringLiteral("gone.epub"));
+        w.setSavePathChooser([&](const QString &, const QString &) { return path; });
+        QStringList warnings;
+        auto *timer = new QTimer;
+        timer->setInterval(1);
+        QObject::connect(timer, &QTimer::timeout, [&w, timer, &warnings] {
+            if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                warnings << box->text();
+                box->accept();
+            }
+            if (auto *progress = w.findChild<QProgressDialog *>(QStringLiteral("epubProgress"))) {
+                progress->cancel();
+                timer->stop();
+                timer->deleteLater();
+            }
+        });
+        timer->start();
+        onNextEpubDialog([](QDialog *) {});
+        QVERIFY(!w.exportEpubAsk());
+        QVERIFY2(warnings.isEmpty(), qPrintable(warnings.join(QLatin1Char('|'))));
+        QVERIFY(quiet.said.isEmpty());
+        QVERIFY(!QFileInfo::exists(path));
     }
 
     // A hostile document is held to the bounds: the chapters, the contents' lines, and the pictures (a count and a size) are cut off, and nothing is lost from the text.

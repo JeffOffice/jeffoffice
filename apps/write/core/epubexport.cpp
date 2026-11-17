@@ -52,7 +52,11 @@ QString plainNote(const QVector<wml::Block> &blocks)
 {
     QString out;
     for (const wml::Block &b : blocks) {
-        if (b.isRaw) continue;
+        if (b.isRaw) {
+            // (a kept element shows its words in its place)
+            if (!b.display.trimmed().isEmpty()) out += QStringLiteral("<p>") + office::epub::xml(b.display.trimmed()) + QStringLiteral("</p>\n");
+            continue;
+        }
         QString text;
         for (const wml::Inline &in : b.para.content) {
             if (in.kind == wml::Inline::Text) text += in.text;
@@ -90,6 +94,11 @@ bool readableForm(const QByteArray &data, const QString &mime, QByteArray *bytes
 }
 
 } // namespace
+
+QString epubPlainNote(const QVector<wml::Block> &blocks)
+{
+    return plainNote(blocks);
+}
 
 QByteArray epubFromDocument(const wml::Document &doc, const EpubExportOptions &options, QString *error)
 {

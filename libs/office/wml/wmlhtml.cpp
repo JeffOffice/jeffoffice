@@ -110,7 +110,11 @@ struct Segment {
 
 class Writer {
 public:
-    Writer(const Document &doc, const HtmlOptions &options) : d(doc), o(options) {}
+    Writer(const Document &doc, const HtmlOptions &options) : d(doc), o(options)
+    {
+        // (A page made after another of the same chapter goes on from its bookmarks: no id is written twice.)
+        if (o.bookmarks) bookmarksSeen = QSet<QString>(o.bookmarks->cbegin(), o.bookmarks->cend());
+    }
 
     QByteArray run()
     {

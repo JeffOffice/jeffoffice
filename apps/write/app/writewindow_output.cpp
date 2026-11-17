@@ -531,18 +531,20 @@ bool WriteWindow::exportEpub(const QString &path, const QString &title, const QS
     progress.setWindowModality(Qt::WindowModal);
     progress.setMinimumDuration(500);
     progress.setValue(0);
-    options.progress = [&progress](int done, int total) {
+    bool cancelled = false;   // (said by the callback: the box forgets it when it is reset)
+    options.progress = [&progress, &cancelled](int done, int total) {
         progress.setMaximum(std::max(1, total));
         progress.setValue(done);
         QCoreApplication::processEvents();
-        return !progress.wasCanceled();
+        if (progress.wasCanceled()) cancelled = true;
+        return !cancelled;
     };
     office::wml::Document snapshot;
     QString err;
     QByteArray bytes;
     if (m_doc->docxSnapshot(&snapshot)) bytes = write::epubFromDocument(snapshot, options, &err);
     progress.reset();
-    if (bytes.isEmpty() && progress.wasCanceled()) return false;
+    if (cancelled) return false;   // (cancelled: no warning, no file)
     QSaveFile file(path);
     const bool ok = !bytes.isEmpty() && file.open(QIODevice::WriteOnly) && file.write(bytes) == bytes.size() && file.commit();
     if (!ok) {

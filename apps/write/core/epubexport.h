@@ -35,6 +35,9 @@ struct EpubExportOptions {
     qint64 mostPictureBytes = kMostEpubPictureBytes, mostPicturesBytes = kMostEpubPicturesBytes;
 };
 
+// A note's words alone, a paragraph each (what a kept element shows in its place too): how a note past the bound on notes written with their looks is written.
+QString epubPlainNote(const QVector<office::wml::Block> &blocks);
+
 // The book as bytes (empty, with the reason, when it can't be made).
 QByteArray epubFromDocument(const office::wml::Document &doc, const EpubExportOptions &options, QString *error = nullptr);
 
