@@ -207,6 +207,11 @@ bool DeckWindow::editEquation(const QString &id)
     const QString start = w->linear.isEmpty() ? office::wml::equationLine(w->markup) : w->linear;
     QString line = start;
     if (!askEquation(this, tr("Edit Equation"), &line) || line.trimmed() == start.trimmed()) return false;
+    // (The new math counts toward the presentation's total of math, as a new equation's does, less what the old held.)
+    if (const auto made = makeEquation(line, QPointF(), w->size); made && !equationRoom(*m_ed->doc(), qint64(made->markup.size()) - w->markup.size())) {
+        statusBar()->showMessage(tr("This presentation has as many equations as it can hold."), 6000);
+        return false;
+    }
     if (!changeEquation(m_ed, id, line)) {
         statusBar()->showMessage(tr("This equation can't be changed."), 6000);
         return false;

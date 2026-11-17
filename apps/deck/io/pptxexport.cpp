@@ -78,9 +78,9 @@ const QString kPresentationPart = QStringLiteral("/ppt/presentation.xml");
 const QString kNotesMasterPart = QStringLiteral("/ppt/notesMasters/notesMaster1.xml");
 const QString kHandoutMasterPart = QStringLiteral("/ppt/handoutMasters/handoutMaster1.xml");
 
-// The ids of slide masters and layouts count up from here, in one range.
 // The pixels of all the pictures an equation is written with, in one file (past it each is drawn smaller).
 constexpr qint64 kMostEquationPixels = qint64(64) << 20;
+// The ids of slide masters and layouts count up from here, in one range.
 constexpr qint64 kFirstMasterId = 2147483648LL, kLastMasterId = 4294967295LL;
 // A slide is numbered from here; the standard keeps these below the masters'.
 constexpr qint64 kFirstSlideId = 256;

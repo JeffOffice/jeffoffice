@@ -3,6 +3,9 @@
 #include "deckhelpers.h"
 #include "../withdialog.h"
 #include "app/equationedit.h"
+#include "office/drawingml_write.h"
+#include "office/xml.h"
+#include <QXmlStreamWriter>
 #include "wml/wmlmathedit.h"
 #include "wml/wmlmathpath.h"
 
@@ -501,9 +504,82 @@ private Q_SLOTS:
         QCOMPARE(shared, 1);   // the three equal equations have one picture
         QVERIFY2(pixels <= (qint64(64) << 20) + 50 * 4096, qPrintable(QString::number(pixels)));
         QVERIFY(pixels > (qint64(32) << 20));   // (the budget was spent: not every picture was cut to nothing)
-        // The two with no size are written, with a clear pixel.
+        // The two with no size are written, each with a picture of one clear pixel.
+        int clear = 0;
+        for (auto it = e.zip.cbegin(); it != e.zip.cend(); ++it) {
+            QImage img;
+            if (!it.key().startsWith(QLatin1String("ppt/media/")) || !img.loadFromData(it.value()) || img.width() != 1 || img.height() != 1) continue;
+            QCOMPARE(qAlpha(img.convertToFormat(QImage::Format_ARGB32).pixel(0, 0)), 0);
+            ++clear;
+        }
+        QCOMPARE(clear, 2);   // (one for each: they are not the same math)
         QVERIFY(part(e, QStringLiteral("/ppt/slides/slide1.xml")).contains(QStringLiteral("cx=\"0\"")));
         QVERIFY(part(e, QStringLiteral("/ppt/slides/slide1.xml")).contains(QStringLiteral("cy=\"0\"")));
+    }
+
+    // Editing the line of an equation counts toward the total of math too: a change that would go past 16 MB is refused and the equation stays.
+    void changingALineIsHeldToTheMarkupTotalToo()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        Document *doc = ed->doc();
+        insertLine(w, QStringLiteral("a"));
+        const QString id = firstEquation(*doc)->id;
+        const QByteArray before = firstEquation(*doc)->markup;
+        // 15 MB of math elsewhere, so that the one new line (a few hundred bytes) fits but not 1 MB more.
+        for (int i = 0; i < 15; ++i) {
+            auto big = std::make_shared<EquationItem>();
+            big->markup = QByteArray(1 << 20, 'm');
+            big->rect = QRectF(0, 0, 10, 10);
+            doc->pages[0]->items.push_back(big);
+        }
+        auto edit = [&](const QString &line) {
+            withDialog([&] { Q_EMIT w.canvas()->editEquationWanted(id); }, QStringLiteral("equationDialog"), [&](QDialog *d) {
+                d->findChild<QLineEdit *>(QStringLiteral("equationInput"))->setText(line);
+            });
+        };
+        edit(QStringLiteral("a/b"));
+        QCOMPARE(doc->item(id) ? static_cast<EquationItem *>(doc->item(id))->linear : QString(), QStringLiteral("a/b"));
+        // Now the rest of the room is used: a longer line is refused.
+        auto filler = std::make_shared<EquationItem>();
+        filler->markup = QByteArray(Document::kMaxEquationMarkupBytes - (15 << 20) - static_cast<EquationItem *>(doc->item(id))->markup.size() - 10, 'm');
+        filler->rect = QRectF(0, 0, 10, 10);
+        doc->pages[0]->items.push_back(filler);
+        const QByteArray now = static_cast<EquationItem *>(doc->item(id))->markup;
+        edit(QStringLiteral("\\sum_(k=0)^n x^k=(1-x^(n+1))/(1-x)"));
+        QCOMPARE(static_cast<EquationItem *>(doc->item(id))->markup, now);
+        QCOMPARE(static_cast<EquationItem *>(doc->item(id))->linear, QStringLiteral("a/b"));
+        Q_UNUSED(before)
+    }
+
+    // A fragment a caller hands the drawing writer that is not well formed writes nothing (a picture is written as itself instead), and what is written still parses.
+    void aDamagedRawFragmentWritesNothing()
+    {
+        for (const QByteArray &kind : {QByteArray("equation"), QByteArray("picture")}) {
+            office::DrawingWriteContext ctx;
+            ctx.rawFrame = [](const Item &) { return QStringLiteral("<a:unbalanced xmlns:a=\"urn:x\"><a:inner></a:unbalanced>"); };
+            ItemPtr item;
+            if (kind == "equation") {
+                auto eq = std::make_shared<EquationItem>();
+                eq->rect = QRectF(0, 0, 10, 10);
+                item = eq;
+            } else {
+                auto pic = std::make_shared<PictureItem>();
+                pic->rect = QRectF(0, 0, 10, 10);
+                item = pic;
+            }
+            QByteArray bytes;
+            QXmlStreamWriter out(&bytes);
+            out.writeStartElement(QStringLiteral("root"));
+            out.writeNamespace(QStringLiteral("http://schemas.openxmlformats.org/presentationml/2006/main"), QStringLiteral("p"));
+            out.writeNamespace(QStringLiteral("http://schemas.openxmlformats.org/drawingml/2006/main"), QStringLiteral("a"));
+            out.writeNamespace(QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships"), QStringLiteral("r"));
+            office::writeShape(out, *item, ctx);
+            out.writeEndElement();
+            QVERIFY2(!bytes.contains("unbalanced") && !bytes.contains("inner"), kind.constData());
+            QDomDocument dom;
+            QVERIFY2(office::parseXml(bytes, &dom), kind.constData());
+        }
     }
 
     // A control character in the name or the alternative text is taken out of what is written: the file parses, and opens with the text without it.
