@@ -1397,6 +1397,21 @@ void assignShapeIds(const ItemList &items, DrawingWriteContext &ctx)
     });
 }
 
+// Writes the XML of a caller's own frame as it is, but only when all of it is well formed: it is read through once first, so that a damaged fragment writes nothing
+// (and never leaves an element open). False when it wrote nothing.
+static bool writeRawFragment(QXmlStreamWriter &w, const QString &raw)
+{
+    {
+        QXmlStreamReader check(raw);
+        while (!check.atEnd()) check.readNext();
+        if (check.hasError()) return false;
+    }
+    QXmlStreamReader in(raw);
+    while (!in.atEnd())
+        if (in.readNext() != QXmlStreamReader::StartDocument && in.tokenType() != QXmlStreamReader::EndDocument && in.tokenType() != QXmlStreamReader::Invalid) w.writeCurrentToken(in);
+    return true;
+}
+
 void writeShape(QXmlStreamWriter &w, const Item &item, DrawingWriteContext &ctx, QStringList *skipped)
 {
     // What a connector can be attached to: the points the standard gives the shape.
@@ -1416,11 +1431,10 @@ void writeShape(QXmlStreamWriter &w, const Item &item, DrawingWriteContext &ctx,
         if (ctx.rawFrame) {
             const QString raw = ctx.rawFrame(item);
             if (!raw.isEmpty()) {
-                QXmlStreamReader in(raw);
-                while (!in.atEnd())
-                    if (in.readNext() != QXmlStreamReader::StartDocument && in.tokenType() != QXmlStreamReader::EndDocument && in.tokenType() != QXmlStreamReader::Invalid) w.writeCurrentToken(in);
-                remember(item);
-                break;
+                if (writeRawFragment(w, raw)) {
+                    remember(item);
+                    break;
+                }
             }
         }
         writePicture(w, static_cast<const PictureItem &>(item), ctx, skipped);
@@ -1442,11 +1456,7 @@ void writeShape(QXmlStreamWriter &w, const Item &item, DrawingWriteContext &ctx,
     case ItemType::Equation:   // (kept by JeffPub's own file and drawn by the programs that make one; one whose caller writes it itself, as JeffDeck does, has its raw frame)
         if (ctx.rawFrame) {
             const QString raw = ctx.rawFrame(item);
-            if (!raw.isEmpty()) {
-                QXmlStreamReader in(raw);
-                while (!in.atEnd())
-                    if (in.readNext() != QXmlStreamReader::StartDocument && in.tokenType() != QXmlStreamReader::EndDocument && in.tokenType() != QXmlStreamReader::Invalid) w.writeCurrentToken(in);
-            }
+            if (!raw.isEmpty()) writeRawFragment(w, raw);
         }
         break;
     }

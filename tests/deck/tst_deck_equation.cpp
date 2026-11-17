@@ -2,10 +2,12 @@
 // the format has (the math, and a picture of it for the programs that don't draw math), and opened again as the same equation; the show, the printer, and the PDF draw it.
 #include "deckhelpers.h"
 #include "../withdialog.h"
+#include "app/equationedit.h"
 #include "wml/wmlmathedit.h"
 #include "wml/wmlmathpath.h"
 
 #include <QBuffer>
+#include <QTemporaryDir>
 #include <QLineEdit>
 
 namespace {
@@ -34,15 +36,16 @@ void insertLine(DeckWindow &w, const QString &line)
 }
 
 // The part named by the first picture link in the fallback of the slide's pair of alternatives.
-QByteArray fallbackPicture(const Exported &e, QString *slideXml = nullptr)
+QByteArray fallbackPicture(const Exported &e, QString *slideXml = nullptr, int number = 1)
 {
-    const QString slide = part(e, QStringLiteral("/ppt/slides/slide1.xml"));
+    const QString slidePart = QStringLiteral("/ppt/slides/slide%1.xml").arg(number);
+    const QString slide = part(e, slidePart);
     if (slideXml) *slideXml = slide;
     const int fallback = int(slide.indexOf(QStringLiteral("<mc:Fallback")));
     if (fallback < 0) return QByteArray();
     const QRegularExpressionMatch m = QRegularExpression(QStringLiteral("r:embed=\"([^\"]*)\"")).match(slide, fallback);
     if (!m.hasMatch()) return QByteArray();
-    return e.pkg.part(e.pkg.relationship(QStringLiteral("/ppt/slides/slide1.xml"), m.captured(1)).target);
+    return e.pkg.part(e.pkg.relationship(slidePart, m.captured(1)).target);
 }
 
 // How much of `box` (a fraction of the image) holds ink: where the pixels that are not clear (or, for an opaque image, not the corner's color) are.
@@ -178,7 +181,6 @@ private Q_SLOTS:
         eq->rect = QRectF(50, 60, 300, 70);
         eq->name = QStringLiteral("Series");
         eq->altText = QStringLiteral("A geometric series");
-        const QString line = eq->linear;
         QString err;
         QStringList skipped;
         const QByteArray bytes = deck::exportPresentation(*ed->doc(), &err, &skipped);
@@ -195,18 +197,15 @@ private Q_SLOTS:
         QVERIFY(slide.contains(QStringLiteral("<m:oMathPara")));
         QVERIFY(slide.indexOf(QStringLiteral("<mc:Choice")) < slide.indexOf(QStringLiteral("<mc:Fallback")));
 
+        // Opened again it is the picture the pair holds, in the same place, with the math kept to write back (it becomes an equation when it is changed here).
         auto back = deck::importPresentation(bytes, &err);
         QVERIFY2(back, qPrintable(err));
-        QCOMPARE(equationCount(*back), 1);
-        EquationItem *again = firstEquation(*back);
-        QCOMPARE(again->linear, office::wml::equationLinear(eq->markup));
-        QVERIFY(!again->linear.isEmpty() && !line.isEmpty());
-        QCOMPARE(office::wml::equationLine(again->markup), office::wml::equationLine(eq->markup));
+        const PictureItem *again = keptPicture(*back, *back->pages[0], QStringLiteral("equation"));
+        QVERIFY(again);
         QVERIFY(qAbs(again->rect.x() - 50) < 0.2 && qAbs(again->rect.y() - 60) < 0.2 && qAbs(again->rect.width() - 300) < 0.2 && qAbs(again->rect.height() - 70) < 0.2);
         QCOMPARE(again->name, QStringLiteral("Series"));
         QCOMPARE(again->altText, QStringLiteral("A geometric series"));
-        // It is the equation, not a picture left beside it.
-        for (const ItemPtr &it : back->pages[0]->items) QVERIFY(it->type() != ItemType::Picture);
+        QCOMPARE(int(back->pages[0]->items.size()), int(ed->doc()->pages[0]->items.size()));
         // Saved a second time: still one pair, one picture.
         const QByteArray second = deck::exportPresentation(*back, &err);
         QVERIFY2(!second.isEmpty(), qPrintable(err));
@@ -246,66 +245,106 @@ private Q_SLOTS:
                  qPrintable(QStringLiteral("%1,%2 %3x%4 against %5,%6 %7x%8").arg(a.left()).arg(a.top()).arg(a.width()).arg(a.height()).arg(b.left()).arg(b.top()).arg(b.width()).arg(b.height())));
     }
 
-    // An equation read from a file (math alone in its shape) is an equation here, one that can be changed; nothing is left beside it as a picture.
-    void anEquationInAFileIsAnEquationHere()
+    // The pair of alternatives in a slide's XML, with the picture's link made alike (a saved file numbers its links as it likes).
+    static QString pairOf(const QString &slide)
     {
-        for (const QString &form : {QStringLiteral("pic"), QStringLiteral("shape")}) {
-            QString err;
-            auto d = deck::importPresentation(pack(equationPptx(form)), &err);
-            QVERIFY2(d, qPrintable(err));
-            QCOMPARE(equationCount(*d), 1);
-            EquationItem *eq = firstEquation(*d);
-            QVERIFY(eq->markup.contains("E=mc"));
-            QCOMPARE(eq->name, QStringLiteral("TextBox 8"));
-            QCOMPARE(eq->rect, QRectF(120, 174, 150, 40));
-            QVERIFY(d->pages[0]->props.value(QStringLiteral("charts")).toArray().isEmpty());
-            for (const ItemPtr &it : d->pages[0]->items) QVERIFY2(it->name != QStringLiteral("TextBox 8") || it->type() == ItemType::Equation, qPrintable(form));
-            // Saved, it is the pair again, with its math and a picture of it.
-            Exported e;
-            QVERIFY2(unpack(deck::exportPresentation(*d, &err), &e, &err), qPrintable(err));
-            QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
-            QString slide;
-            QVERIFY(!fallbackPicture(e, &slide).isEmpty());
-            QVERIFY(slide.contains(QStringLiteral("<m:t>E=mc</m:t>")));
-            QCOMPARE(int(slide.count(QStringLiteral("name=\"TextBox 8\""))), 2);
-            QCOMPARE(int(slide.count(QStringLiteral("<mc:AlternateContent"))), 1);
+        const int at = int(slide.indexOf(QStringLiteral("<mc:AlternateContent")));
+        if (at < 0) return QString();
+        QString pair = slide.mid(at, slide.indexOf(QStringLiteral("</mc:AlternateContent>"), at) + 22 - at);
+        // (The file's pair is written whole; the declarations of the prefixes may sit on another element of it, which is the one thing that is not compared.)
+        pair.replace(QRegularExpression(QStringLiteral(" xmlns:(p|a|r|m)=\"[^\"]*\"")), QString());
+        pair.replace(QRegularExpression(QStringLiteral("r:embed=\"[^\"]*\"")), QStringLiteral("r:embed=\"X\""));
+        // (The kept pair is serialized again from its parsed form, which orders each element's attributes as it likes: they are compared in order of name.)
+        static const QRegularExpression tag(QStringLiteral("<([\\w:]+)((?:\\s+[\\w:]+=\"[^\"]*\")+)(\\s*/?)>"));
+        static const QRegularExpression attribute(QStringLiteral("[\\w:]+=\"[^\"]*\""));
+        QString out;
+        qsizetype last = 0;
+        for (auto m = tag.globalMatch(pair); m.hasNext();) {
+            const QRegularExpressionMatch t = m.next();
+            QStringList attrs;
+            for (auto a = attribute.globalMatch(t.captured(2)); a.hasNext();) attrs << a.next().captured();
+            attrs.sort();
+            out += pair.mid(last, t.capturedStart() - last) + QLatin1Char('<') + t.captured(1) + QLatin1Char(' ') + attrs.join(QLatin1Char(' ')) + t.captured(3) + QLatin1Char('>');
+            last = t.capturedEnd();
         }
+        return out + pair.mid(last);
     }
 
-    // One a file brought, which no typed line makes, opens the editor on the line it reads as; changing it makes the math from the line.
-    void aFileEquationOpensTheEditorOnItsLine()
+    // An equation read from a file (math alone in its shape, with a fill, an outline, and its math at the left of a wide box) looks and is saved as the file had it
+    // until it is changed here: the picture the file keeps is drawn, and the pair is written back as it was. Changing it makes it an equation (the editor starts from
+    // the line it reads as), in the same place, as one step that undoes; then the pair written is ours.
+    void aFileEquationStaysAsTheFileHasItUntilItIsChanged()
     {
+        Parts p = equationPptx(QStringLiteral("pic"));
+        QString xml = QString::fromUtf8(p.data["/ppt/slides/slide1.xml"].xml);
+        xml.replace(QStringLiteral("cx=\"1905000\""), QStringLiteral("cx=\"6000000\""));
+        xml.replace(QStringLiteral("<a:noFill/></p:spPr><p:txBody>"), QStringLiteral("<a:solidFill><a:srgbClr val=\"FFFFC0\"/></a:solidFill><a:ln w=\"12700\"><a:solidFill><a:srgbClr val=\"FF0000\"/></a:solidFill></a:ln></p:spPr><p:txBody>"));
+        xml.replace(QStringLiteral("<a:p><a14:m>"), QStringLiteral("<a:p><a:pPr algn=\"l\"/><a14:m>"));
+        p.data["/ppt/slides/slide1.xml"].xml = xml.toUtf8();
+        const QString input = pairOf(xml);
+        QVERIFY(input.contains(QStringLiteral("algn=\"l\"")) && input.contains(QStringLiteral("FFFFC0")));
         QTemporaryDir dir;
         const QString path = dir.filePath(QStringLiteral("eq.pptx"));
         {
             QFile f(path);
             QVERIFY(f.open(QIODevice::WriteOnly));
-            f.write(pack(equationPptx()));
+            f.write(pack(p));
         }
         DeckWindow w;
         QVERIFY(w.openFile(path));
         Editor *ed = w.editor();
-        EquationItem *eq = firstEquation(*ed->doc());
-        QVERIFY(eq);
-        const QString id = eq->id;
-        const QRectF was = eq->rect;
-        const QString start = office::wml::equationLine(eq->markup);
-        QVERIFY(!start.isEmpty());
-        withDialog([&] { Q_EMIT w.canvas()->editEquationWanted(id); }, QStringLiteral("equationDialog"), [&](QDialog *dlg) {
-            auto *line = dlg->findChild<QLineEdit *>(QStringLiteral("equationInput"));
-            QCOMPARE(line->text(), start);
+        Document *doc = ed->doc();
+        // Not an equation yet: the picture the file keeps, at its size, drawn as it is.
+        QCOMPARE(equationCount(*doc), 0);
+        const PictureItem *pic = keptPicture(*doc, *doc->pages[0], QStringLiteral("equation"));
+        QVERIFY(pic);
+        QVERIFY(qAbs(pic->rect.width() - 6000000 / 12700.0) < 0.1);
+        QCOMPARE(doc->images.value(pic->imageId).bytes, equationPicture());
+        const QImage drawn = slideImage(*doc);
+        const double k = drawn.width() / doc->pageSize().width();
+        const QColor mid = drawn.pixelColor(int(pic->rect.center().x() * k), int(pic->rect.center().y() * k));
+        QVERIFY2(qAbs(mid.red() - 0xC0) < 4 && qAbs(mid.green() - 0x30) < 4, qPrintable(mid.name()));
+        // Saved, the pair is the file's whole (its text and its picture; only the order of an element's attributes can differ).
+        QString err;
+        Exported same;
+        QVERIFY2(unpack(deck::exportPresentation(*doc, &err), &same, &err), qPrintable(err));
+        QCOMPARE(pairOf(part(same, QStringLiteral("/ppt/slides/slide1.xml"))), input);
+        QCOMPARE(fallbackPicture(same), equationPicture());
+        // Changed: an equation, in the frame the picture had.
+        const QString id = pic->id;
+        const QRectF frame = pic->rect;
+        ed->select(id);
+        withDialog([&] { Q_EMIT w.canvas()->pictureTabWanted(); }, QStringLiteral("equationDialog"), [&](QDialog *d) {
+            QCOMPARE(d->windowTitle(), QStringLiteral("Edit Equation"));
+            auto *line = d->findChild<QLineEdit *>(QStringLiteral("equationInput"));
+            QVERIFY2(line->text().contains(QStringLiteral("E")) && line->text().contains(QStringLiteral("mc")), qPrintable(line->text()));
             line->setText(QStringLiteral("a/b"));
         });
-        eq = firstEquation(*ed->doc());
+        QCOMPARE(equationCount(*doc), 1);
+        EquationItem *eq = firstEquation(*doc);
+        QCOMPARE(eq->id, id);
         QCOMPARE(eq->linear, QStringLiteral("a/b"));
-        QVERIFY(!eq->markup.contains("E=mc"));
-        QVERIFY((eq->rect.center() - was.center()).manhattanLength() < 0.01);
+        QCOMPARE(eq->name, QStringLiteral("TextBox 8"));
+        QVERIFY(frame.contains(eq->rect) || (eq->rect.center() - frame.center()).manhattanLength() < 0.5);
+        QVERIFY(doc->pages[0]->props.value(QStringLiteral("charts")).toArray().isEmpty());
+        Exported ours;
+        QVERIFY2(unpack(deck::exportPresentation(*doc, &err), &ours, &err), qPrintable(err));
+        QVERIFY(pairOf(part(ours, QStringLiteral("/ppt/slides/slide1.xml"))) != input);
+        QVERIFY(part(ours, QStringLiteral("/ppt/slides/slide1.xml")).contains(QStringLiteral("<m:oMathPara")));
+        QVERIFY(fallbackPicture(ours) != equationPicture());
+        // One step back: the picture, and the pair as the file had it.
         ed->undoStack()->undo();
-        QVERIFY(firstEquation(*ed->doc())->markup.contains("E=mc"));
+        QCOMPARE(equationCount(*doc), 0);
+        QVERIFY(keptPicture(*doc, *doc->pages[0], QStringLiteral("equation")));
+        Exported back;
+        QVERIFY2(unpack(deck::exportPresentation(*doc, &err), &back, &err), qPrintable(err));
+        QCOMPARE(pairOf(part(back, QStringLiteral("/ppt/slides/slide1.xml"))), input);
         // Accepted as it was, nothing changes.
         const int steps = ed->undoStack()->index();
-        withDialog([&] { Q_EMIT w.canvas()->editEquationWanted(id); }, QStringLiteral("equationDialog"), [&](QDialog *) {});
+        ed->select(id);
+        withDialog([&] { Q_EMIT w.canvas()->pictureTabWanted(); }, QStringLiteral("equationDialog"), [&](QDialog *) {});
         QCOMPARE(ed->undoStack()->index(), steps);
+        QCOMPARE(equationCount(*doc), 0);
     }
 
     // Text around an equation is not lost: a box with words and math stays the picture it was and is written back whole.
@@ -320,40 +359,82 @@ private Q_SLOTS:
         QVERIFY(part(e, QStringLiteral("/ppt/slides/slide1.xml")).contains(QStringLiteral("<a:t>Energy </a:t>")));
     }
 
-    // Math nested past the layout's depth, or too large, is not made an equation (the box stays as it was read); and a file holds at most kMaxEquations of them.
-    void hostileMathIsBounded()
+    // A file with thousands of equations, or math nested hundreds deep, is read with no layout at all (it is a picture until changed here) and no equation objects.
+    void hostileMathCostsNothingToRead()
     {
         QString err;
-        // Nested 400 deep: the layout draws what it can (it says it cut) or refuses; either way the read finishes and the count of equations is within the bound.
         QString deep = QStringLiteral("<m:r><m:t>x</m:t></m:r>");
         for (int i = 0; i < 400; ++i) deep = QStringLiteral("<m:sSup><m:e>%1</m:e><m:sup><m:r><m:t>2</m:t></m:r></m:sup></m:sSup>").arg(deep);
-        Parts p = equationPptx();
-        QString xml = QString::fromUtf8(p.data["/ppt/slides/slide1.xml"].xml);
-        const QRegularExpression math(QStringLiteral("<m:oMath>.*?</m:oMath>"), QRegularExpression::DotMatchesEverythingOption);
-        const QString pair = xml.mid(xml.indexOf(QStringLiteral("<mc:AlternateContent")));
-        const QString hostile = QString(pair).replace(math, QStringLiteral("<m:oMath>") + deep + QStringLiteral("</m:oMath>"));
-        xml.replace(pair, hostile);
-        p.data["/ppt/slides/slide1.xml"].xml = xml.toUtf8();
-        auto d = deck::importPresentation(pack(p), &err);
-        QVERIFY2(d, qPrintable(err));
-        QVERIFY(equationCount(*d) <= 1);
-        if (EquationItem *eq = firstEquation(*d)) QVERIFY(eq->markup.size() <= (1 << 20));
-
-        // 2,100 equations on one slide: no more than kMaxEquations are read as equations.
         Parts many = equationPptx();
         QString slide = QString::fromUtf8(many.data["/ppt/slides/slide1.xml"].xml);
         const int at = int(slide.indexOf(QStringLiteral("<mc:AlternateContent")));
         const int to = int(slide.indexOf(QStringLiteral("</mc:AlternateContent>"), at)) + 22;
-        const QString one = slide.mid(at, to - at);
+        QString one = slide.mid(at, to - at);
+        one.replace(QRegularExpression(QStringLiteral("<m:oMath>.*?</m:oMath>"), QRegularExpression::DotMatchesEverythingOption), QStringLiteral("<m:oMath>") + deep + QStringLiteral("</m:oMath>"));
         QString all;
         for (int i = 0; i < Document::kMaxEquations + 100; ++i) all += QString(one).replace(QStringLiteral("id=\"9\""), QStringLiteral("id=\"%1\"").arg(100 + i));
-        slide.replace(one, all);
+        slide.replace(slide.mid(at, to - at), all);
         many.data["/ppt/slides/slide1.xml"].xml = slide.toUtf8();
+        const qint64 before = office::wml::equationLayoutsMadeForTest();
         auto big = deck::importPresentation(pack(many), &err);
         QVERIFY2(big, qPrintable(err));
         int total = 0;
         for (size_t i = 0; i < big->pages.size(); ++i) total += equationCount(*big, int(i));
-        QCOMPARE(total, Document::kMaxEquations);
+        QCOMPARE(total, 0);
+        QCOMPARE(office::wml::equationLayoutsMadeForTest(), before);
+    }
+
+    // A presentation holds at most Document::kMaxEquations equations and kMaxEquationMarkupBytes of their math, counted over its slides, masters, and layouts, and
+    // the groups in them; a new one past either is refused and nothing is added.
+    void aNewEquationIsRefusedPastTheCountAndByteLimits()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        Document *doc = ed->doc();
+        QVERIFY(deck::duplicateSlide(*doc, 0) == 1);
+        QVERIFY(!doc->masters.isEmpty());
+        auto make = [](qint64 bytes) {
+            auto e = std::make_shared<EquationItem>();
+            e->markup = QByteArray(int(bytes), 'm');
+            e->rect = QRectF(0, 0, 10, 10);
+            return e;
+        };
+        auto group = std::make_shared<GroupItem>();
+        doc->pages[0]->items.push_back(group);
+        // Spread over a slide, its copy, a group, and a master: 2,000 small ones.
+        for (int i = 0; i < Document::kMaxEquations; ++i) {
+            const int where = i % 4;
+            if (where == 0) doc->pages[0]->items.push_back(make(1));
+            else if (where == 1) doc->pages[1]->items.push_back(make(1));
+            else if (where == 2) group->children.push_back(make(1));
+            else doc->masters[0]->items.push_back(make(1));
+        }
+        int count = 0;
+        auto tally = [&] {
+            count = 0;
+            for (const auto &pg : doc->pages) walkItems(pg->items, [&](const ItemPtr &it) { count += it->type() == ItemType::Equation; });
+            for (const auto &m : doc->masters) walkItems(m->items, [&](const ItemPtr &it) { count += it->type() == ItemType::Equation; });
+        };
+        tally();
+        QCOMPARE(count, Document::kMaxEquations);
+        insertLine(w, QStringLiteral("a/b"));
+        tally();
+        QCOMPARE(count, Document::kMaxEquations);
+        // Take them away, and the bytes: 16 of 1 MB each fill the total.
+        for (auto &pg : doc->pages) pg->items.erase(std::remove_if(pg->items.begin(), pg->items.end(), [](const ItemPtr &it) { return it->type() == ItemType::Equation || it->type() == ItemType::Group; }), pg->items.end());
+        for (auto &m : doc->masters) m->items.erase(std::remove_if(m->items.begin(), m->items.end(), [](const ItemPtr &it) { return it->type() == ItemType::Equation; }), m->items.end());
+        tally();
+        QCOMPARE(count, 0);
+        for (int i = 0; i < 16; ++i) (i % 2 ? doc->pages[1]->items : doc->pages[0]->items).push_back(make(1 << 20));
+        insertLine(w, QStringLiteral("a/b"));
+        tally();
+        QCOMPARE(count, 16);
+        // One less, and it fits.
+        doc->pages[0]->items.pop_back();
+        doc->pages[1]->items.pop_back();
+        insertLine(w, QStringLiteral("a/b"));
+        tally();
+        QCOMPARE(count, 15);
     }
 
     // The slide show, the printer's picture of a slide, and the PDF draw the equation.
@@ -385,6 +466,113 @@ private Q_SLOTS:
         QVERIFY(with.isValid() && without.isValid());
         const QSize size(showWidth, int(page.height() * k));
         QVERIFY2(darkIn(with.render(0, size), area) > darkIn(without.render(0, size), area) + 100, "the PDF");
+    }
+
+    // The pictures of all the equations in a file are held to a total of pixels (past it each is drawn smaller, never to nothing); equal equations share one picture;
+    // a frame with no width or no height still has its equation, with a picture of one clear pixel.
+    void theFallbackPicturesAreBoundedSharedAndNeverMissing()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        auto add = [&](const QString &line, const QRectF &rect) {
+            auto eq = makeEquation(line, QPointF(100, 100));
+            eq->rect = rect;
+            ed->surfaceItems().push_back(eq);
+        };
+        for (int i = 0; i < 3; ++i) add(QStringLiteral("a/b"), QRectF(10, 10, 100, 50));
+        for (int i = 0; i < 40; ++i) add(QStringLiteral("x^%1+1").arg(i + 2), QRectF(0, 0, 1300, 1300));
+        add(QStringLiteral("q/r"), QRectF(10, 10, 0, 40));
+        add(QStringLiteral("s/t"), QRectF(10, 10, 80, 0));
+        QString err;
+        Exported e;
+        QVERIFY2(unpack(deck::exportPresentation(*ed->doc(), &err), &e, &err), qPrintable(err));
+        QCOMPARE(int(part(e, QStringLiteral("/ppt/slides/slide1.xml")).count(QStringLiteral("<mc:AlternateContent"))), 40 + 3 + 2);
+        qint64 pixels = 0;
+        int smallest = 1 << 30, shared = 0;
+        for (auto it = e.zip.cbegin(); it != e.zip.cend(); ++it) {
+            if (!it.key().startsWith(QLatin1String("ppt/media/")) || !it.key().endsWith(QLatin1String(".png"))) continue;
+            QImage img;
+            QVERIFY(img.loadFromData(it.value()));
+            pixels += qint64(img.width()) * img.height();
+            smallest = std::min(smallest, img.width() * img.height());
+            shared += img.width() == 300 && img.height() == 150;
+        }
+        QVERIFY(smallest >= 1);
+        QCOMPARE(shared, 1);   // the three equal equations have one picture
+        QVERIFY2(pixels <= (qint64(64) << 20) + 50 * 4096, qPrintable(QString::number(pixels)));
+        QVERIFY(pixels > (qint64(32) << 20));   // (the budget was spent: not every picture was cut to nothing)
+        // The two with no size are written, with a clear pixel.
+        QVERIFY(part(e, QStringLiteral("/ppt/slides/slide1.xml")).contains(QStringLiteral("cx=\"0\"")));
+        QVERIFY(part(e, QStringLiteral("/ppt/slides/slide1.xml")).contains(QStringLiteral("cy=\"0\"")));
+    }
+
+    // A control character in the name or the alternative text is taken out of what is written: the file parses, and opens with the text without it.
+    void controlCharactersInTextAreLeftOut()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        insertLine(w, QStringLiteral("a/b"));
+        EquationItem *eq = firstEquation(*ed->doc());
+        eq->name = QStringLiteral("Na\x0Bme");
+        eq->altText = QStringLiteral("Al\x0B" "t \"text\" <&>");
+        QString err;
+        const QByteArray bytes = deck::exportPresentation(*ed->doc(), &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        Exported e;
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+        auto back = deck::importPresentation(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        const PictureItem *pic = keptPicture(*back, *back->pages[0], QStringLiteral("equation"));
+        QVERIFY(pic);
+        QCOMPARE(pic->name, QStringLiteral("Name"));
+        QCOMPARE(pic->altText, QStringLiteral("Alt \"text\" <&>"));
+    }
+
+    // A duplicated slide's equation is written with its own picture, and a changed copy with a picture of its own math.
+    void aDuplicatedSlidesEquationsEachHaveTheirOwnPicture()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        insertLine(w, QStringLiteral("a/b"));
+        QCOMPARE(deck::duplicateSlide(*ed->doc(), 0), 1);
+        QString err;
+        Exported e;
+        QVERIFY2(unpack(deck::exportPresentation(*ed->doc(), &err), &e, &err), qPrintable(err));
+        QVERIFY(!fallbackPicture(e, nullptr, 1).isEmpty());
+        QCOMPARE(fallbackPicture(e, nullptr, 2), fallbackPicture(e, nullptr, 1));
+        EquationItem *second = firstEquation(*ed->doc(), 1);
+        QVERIFY(second);
+        auto other = makeEquation(QStringLiteral("\\sqrt(x)+y^2"), second->rect.center());
+        second->markup = other->markup;
+        second->linear = other->linear;
+        second->rect = other->rect;
+        Exported f;
+        QVERIFY2(unpack(deck::exportPresentation(*ed->doc(), &err), &f, &err), qPrintable(err));
+        QVERIFY(!fallbackPicture(f, nullptr, 2).isEmpty());
+        QVERIFY(fallbackPicture(f, nullptr, 2) != fallbackPicture(f, nullptr, 1));
+        QCOMPARE(fallbackPicture(f, nullptr, 1), fallbackPicture(e, nullptr, 1));
+    }
+
+    // The letters' color is written as the equation has it: a theme color as the theme's, a plain one as itself.
+    void aThemeColoredEquationWritesTheThemeColor()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        insertLine(w, QStringLiteral("a/b"));
+        EquationItem *eq = firstEquation(*ed->doc());
+        eq->fill = Fill::solid(ColorRef::scheme(Accent1));
+        QString err;
+        Exported e;
+        QVERIFY2(unpack(deck::exportPresentation(*ed->doc(), &err), &e, &err), qPrintable(err));
+        const QString slide = part(e, QStringLiteral("/ppt/slides/slide1.xml"));
+        const int end = int(slide.indexOf(QStringLiteral("<a:endParaRPr"), slide.indexOf(QStringLiteral("</a14:m>"))));
+        QVERIFY(end >= 0);
+        QVERIFY2(slide.mid(end, 200).contains(QStringLiteral("<a:schemeClr val=\"accent1\"/>")), qPrintable(slide.mid(end, 200)));
+        eq->fill = Fill::solid(ColorRef::rgb(QColor(0x12, 0x34, 0x56)));
+        Exported f;
+        QVERIFY2(unpack(deck::exportPresentation(*ed->doc(), &err), &f, &err), qPrintable(err));
+        QVERIFY(part(f, QStringLiteral("/ppt/slides/slide1.xml")).contains(QStringLiteral("<a:srgbClr val=\"123456\"")));
     }
 
     // Saved as an open document presentation, the equation is at least a picture of itself (it is not left out), and the message says so.

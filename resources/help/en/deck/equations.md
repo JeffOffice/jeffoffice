@@ -23,7 +23,7 @@ The equation goes in the middle of the slide, selected. Its letters are about as
 
 Double-click the equation, or select it and click **Insert > Symbols > Equation**, to open the box with its line. Change it and click **OK**. It stays where it is and keeps its size, and the change is one step to undo. Drag the equation to move it. Drag a handle to size it; the equation keeps its proportions inside its box.
 
-An equation that came from a file can be changed too. The box starts with a line that says what the equation is. If you change the line, JeffDeck sets the math again from what you typed, so any special fonts or colors in the old math are gone.
+An equation that came from a file can be changed too. Until you change it, JeffDeck shows the picture the file keeps and saves it back exactly as it was. Double-click it (or select it and click **Equation**). The box starts with a line that says what the equation is. If you change the line, the picture becomes an equation, in the same place, and JeffDeck sets the math again from what you typed, so any special fonts in the old math are gone. If you click **OK** without changing the line, nothing changes.
 
 ## Slide show, printing, and PDF
 
@@ -31,7 +31,7 @@ The slide show, printing, and PDF files draw the equation as shapes, so it stays
 
 ## Saving
 
-- **.pptx** keeps the equation as an equation, in the standard form for math, with a picture of it beside it for programs that can't read math. When you open the file again, it is an equation you can still change. If the math is too large or too deeply nested to draw, or a file has more than 2,000 equations, JeffDeck shows the picture the file keeps and saves it back as it was.
+- **.pptx** keeps the equation as an equation, in the standard form for math, with a picture of it beside it for programs that can't read math. When you open the file again, JeffDeck shows the picture and keeps the math, and you can still change it as described above. A presentation holds at most 2,000 equations and 16 MB of math in all. Past that, JeffDeck won't add another.
 - **.odp** has no equations in JeffDeck's copy. Each one is saved as a picture of it, in the same place, and the message after the save says so.
 - A text box with words around its math is not an equation here. It is shown as the picture the file keeps and saved back whole.
 

@@ -488,13 +488,13 @@ private:
     }
 
 private Q_SLOTS:
-    // A text box with words around its math is a shape whose text holds math that a picture stands for. The shape beside it, for the programs that don't know math, is
+    // An equation is a shape whose text holds math this reader can't draw. The shape beside it, for the programs that don't know math, is
     // a picture of it: that picture is what the equation looks like here, and the whole pair is kept to write back.
     void importReadsAnEquationAsItsPicture()
     {
         for (const QString &form : {QStringLiteral("pic"), QStringLiteral("shape")}) {
             QString err;
-            auto d = deck::importPresentation(pack(equationPptx(form, true)), &err);
+            auto d = deck::importPresentation(pack(equationPptx(form)), &err);
             QVERIFY2(d, qPrintable(err));
             const Page &page = *d->pages[0];
             const PictureItem *pic = keptPicture(*d, page, QStringLiteral("equation"));
@@ -533,7 +533,7 @@ private Q_SLOTS:
     void importReadsAnEquationWithoutAPictureAsAShape()
     {
         QString err;
-        Parts p = equationPptx(QStringLiteral("pic"), true, false);
+        Parts p = equationPptx(QStringLiteral("pic"), false, false);
         QString xml = QString::fromUtf8(p.data["/ppt/slides/slide1.xml"].xml);
         xml.replace(QRegularExpression(QStringLiteral("<mc:Fallback>.*?</mc:Fallback>")), QStringLiteral("<mc:Fallback/>"));
         p.data["/ppt/slides/slide1.xml"].xml = xml.toUtf8();
@@ -545,7 +545,7 @@ private Q_SLOTS:
         for (const ItemPtr &it : d->pages[0]->items) box = box || (it->name == QStringLiteral("TextBox 8") && it->type() == ItemType::Text);
         QVERIFY(box);
         // And so is a picture that can't be read.
-        p = equationPptx(QStringLiteral("pic"), true);
+        p = equationPptx();
         p.data["/ppt/media/equation1.png"].xml = "not a picture";
         d = deck::importPresentation(pack(p), &err);
         QVERIFY2(d, qPrintable(err));
@@ -557,7 +557,7 @@ private Q_SLOTS:
     {
         for (const QString &form : {QStringLiteral("pic"), QStringLiteral("shape")}) {
             QString err;
-            auto d = deck::importPresentation(pack(equationPptx(form, true)), &err);
+            auto d = deck::importPresentation(pack(equationPptx(form, form == QLatin1String("pic"))), &err);
             QVERIFY2(d, qPrintable(err));
             QStringList skipped;
             Exported e;
@@ -602,7 +602,7 @@ private Q_SLOTS:
     void exportPlacesBothAlternativesOfAnEquation()
     {
         QString err;
-        auto d = deck::importPresentation(pack(equationPptx(QStringLiteral("pic"), true)), &err);
+        auto d = deck::importPresentation(pack(equationPptx()), &err);
         QVERIFY2(d, qPrintable(err));
         Exported before;
         QVERIFY2(unpack(deck::exportPresentation(*d, &err), &before, &err), qPrintable(err));
@@ -654,7 +654,7 @@ private Q_SLOTS:
     void equationsSurviveDuplicatingAndAnotherRoundTrip()
     {
         QString err;
-        auto d = deck::importPresentation(pack(equationPptx(QStringLiteral("pic"), true)), &err);
+        auto d = deck::importPresentation(pack(equationPptx()), &err);
         QVERIFY2(d, qPrintable(err));
         QCOMPARE(deck::duplicateSlide(*d, 0), 1);
         const QByteArray bytes = deck::exportPresentation(*d, &err);

@@ -34,6 +34,7 @@
 #include "text/textprops.h"
 
 #include <QBuffer>
+#include <QCryptographicHash>
 #include <QCoreApplication>
 #include <QDate>
 #include <QDateTime>
@@ -78,6 +79,8 @@ const QString kNotesMasterPart = QStringLiteral("/ppt/notesMasters/notesMaster1.
 const QString kHandoutMasterPart = QStringLiteral("/ppt/handoutMasters/handoutMaster1.xml");
 
 // The ids of slide masters and layouts count up from here, in one range.
+// The pixels of all the pictures an equation is written with, in one file (past it each is drawn smaller).
+constexpr qint64 kMostEquationPixels = qint64(64) << 20;
 constexpr qint64 kFirstMasterId = 2147483648LL, kLastMasterId = 4294967295LL;
 // A slide is numbered from here; the standard keeps these below the masters'.
 constexpr qint64 kFirstSlideId = 256;
@@ -592,7 +595,8 @@ private:
     QStringList m_skipped;
     office::PackageWriter m_pkg;
     QHash<QString, QString> m_media;
-    QHash<QString, QByteArray> m_equationPictures;   // the picture each equation is written with, by "equation:" and its id (what imageBytes gives for them)
+    QHash<QString, QByteArray> m_equationPictures;   // the pictures equations are written with, by "equation:" and a fingerprint of the math, color, and pixel size (what imageBytes gives for them)
+    qint64 m_equationPixels = 0;                     // the pixels of all of them so far, held to kMostEquationPixels
     std::deque<MasterPage> m_synthesized;
     std::vector<MasterOut> m_masters;
     std::vector<LayoutOut> m_layouts;
@@ -1040,14 +1044,39 @@ QString Exporter::equationPair(const EquationItem &eq, office::DrawingWriteConte
 {
     const double w = eq.rect.width(), h = eq.rect.height();
     const QColor color = eq.fill.isNone() ? QColor(Qt::black) : eq.fill.color.resolve(m_doc.colors);
+    // The picture is three pixels to the point, at most 4,000 a side; the pictures of a whole file come to at most kMostEquationPixels, and past that each is drawn smaller
+    // (never to nothing). One with no size (a frame with no width or no height) has a picture of one clear pixel. Equal math, color, and size share one picture.
     const double px = std::min({3.0, 4000.0 / std::max(1.0, w), 4000.0 / std::max(1.0, h)});
-    const QByteArray png = w > 0 && h > 0 ? office::wml::equationPng(eq.markup, std::max(1, int(std::lround(w * px))), std::max(1, int(std::lround(h * px))), color) : QByteArray();
-    const QString key = QStringLiteral("equation:") + eq.id;
-    if (png.isEmpty()) {
-        note(QCoreApplication::translate("PptxExport", "%1: an equation that can't be drawn was left out.").arg(where));
-        return QString();
+    int pw = 1, ph = 1;
+    if (w > 0 && h > 0) {
+        pw = std::max(1, int(std::lround(w * px)));
+        ph = std::max(1, int(std::lround(h * px)));
+        const qint64 room = std::max<qint64>(kMostEquationPixels - m_equationPixels, 4096);
+        if (qint64(pw) * ph > room) {
+            const double k = std::sqrt(double(room) / (double(pw) * ph));
+            pw = std::max(1, int(pw * k));
+            ph = std::max(1, int(ph * k));
+        }
     }
-    m_equationPictures.insert(key, png);
+    const QString key = QStringLiteral("equation:") + QString::fromLatin1(QCryptographicHash::hash(eq.markup + QByteArray::number(color.rgba()) + ':' + QByteArray::number(pw) + 'x' + QByteArray::number(ph), QCryptographicHash::Sha1).toHex());
+    if (!m_equationPictures.contains(key)) {
+        QByteArray png;
+        if (w > 0 && h > 0) {
+            png = office::wml::equationPng(eq.markup, pw, ph, color);
+            m_equationPixels += qint64(pw) * ph;
+        } else {
+            QImage clear(1, 1, QImage::Format_ARGB32);
+            clear.fill(Qt::transparent);
+            QBuffer buffer(&png);
+            buffer.open(QIODevice::WriteOnly);
+            clear.save(&buffer, "PNG");
+        }
+        if (png.isEmpty()) {
+            note(QCoreApplication::translate("PptxExport", "%1: an equation that can't be drawn was left out.").arg(where));
+            return QString();
+        }
+        m_equationPictures.insert(key, png);
+    }
     const QString link = office::dmlwrite::relatePicture(ctx, key);
     if (link.isEmpty()) {
         note(QCoreApplication::translate("PptxExport", "%1: an equation's picture can't be written, so it was left out.").arg(where));
@@ -1058,10 +1087,21 @@ QString Exporter::equationPair(const EquationItem &eq, office::DrawingWriteConte
     while (next < INT_MAX && (ctx.usedIds.contains(next) || ctx.reservedIds.contains(next))) ++next;
     ctx.usedIds.insert(next);
     ctx.nextShapeId = next + 1;
-    const QString name = (eq.name.isEmpty() ? QCoreApplication::translate("PptxExport", "Equation") : eq.name).toHtmlEscaped();
-    auto attribute = [](const QString &text) { return text.toHtmlEscaped().replace(QLatin1Char('"'), QStringLiteral("&quot;")); };
+    // (What a file may not hold is taken out of the text: a control character in a name or the math would make the whole slide unreadable.)
+    auto legal = [](const QString &text) {
+        QString out;
+        out.reserve(text.size());
+        for (const QChar c : text) {
+            const ushort u = c.unicode();
+            if ((u < 0x20 && u != 9 && u != 10 && u != 13) || u == 0xFFFE || u == 0xFFFF) continue;
+            out += c;
+        }
+        return out;
+    };
+    auto attribute = [&legal](const QString &text) { return legal(text).toHtmlEscaped().replace(QLatin1Char('"'), QStringLiteral("&quot;")); };
+    const QString name = attribute(eq.name.isEmpty() ? QCoreApplication::translate("PptxExport", "Equation") : eq.name);
     // (The math's own markup, as a paragraph of its own: a made one is an m:oMath, put in a paragraph of math; one read from a file is the paragraph it was.)
-    QString math = QString::fromUtf8(eq.markup);
+    QString math = legal(QString::fromUtf8(eq.markup));
     const int open = int(math.indexOf(QLatin1Char('<')));
     if (!math.mid(open, 14).startsWith(QStringLiteral("<m:oMathPara")))
         math = QStringLiteral("<m:oMathPara xmlns:m=\"http://schemas.openxmlformats.org/officeDocument/2006/math\"><m:oMathParaPr><m:jc m:val=\"centerGroup\"/></m:oMathParaPr>") + math + QStringLiteral("</m:oMathPara>");
@@ -1075,7 +1115,15 @@ QString Exporter::equationPair(const EquationItem &eq, office::DrawingWriteConte
     if (eq.flipV) turn += QStringLiteral(" flipV=\"1\"");
     const QString place = QStringLiteral("<a:xfrm%1><a:off x=\"%2\" y=\"%3\"/><a:ext cx=\"%4\" cy=\"%5\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom>")
                               .arg(turn, emu(eq.rect.x()), emu(eq.rect.y()), emu(std::max(0.0, w)), emu(std::max(0.0, h)));
-    const QString paint = eq.fill.isNone() || eq.fill.color.kind() != ColorRef::Rgb ? QString() : QStringLiteral("<a:solidFill><a:srgbClr val=\"%1\"/></a:solidFill>").arg(hex(eq.fill.color.rgbValue()));
+    // The color of the letters as the equation has it: a theme color (with no lightening or darkening) stays the theme's; the picture is drawn in what it resolves to.
+    static const char *const themeNames[SlotCount] = {"tx1", "accent1", "accent2", "accent3", "accent4", "accent5", "hlink", "folHlink"};
+    QString paint;
+    if (eq.fill.type == Fill::Solid) {
+        if (eq.fill.color.kind() == ColorRef::Scheme && eq.fill.color.lighten() == 0 && eq.fill.color.darken() == 0 && eq.fill.color.slot() >= 0 && eq.fill.color.slot() < SlotCount)
+            paint = QStringLiteral("<a:solidFill><a:schemeClr val=\"%1\"/></a:solidFill>").arg(QLatin1String(themeNames[eq.fill.color.slot()]));
+        else
+            paint = QString::fromUtf8(fragment([&](QXmlStreamWriter &out) { office::writeFill(out, eq.fill, ctx); }));
+    }
     const QString descr = eq.altText.isEmpty() ? QString() : QStringLiteral(" descr=\"%1\"").arg(attribute(eq.altText));
     const QString picDescr = QStringLiteral(" descr=\"%1\"").arg(attribute(eq.altText.isEmpty() ? eq.linear : eq.altText));
     const QString hidden = eq.hidden ? QStringLiteral(" hidden=\"1\"") : QString();
