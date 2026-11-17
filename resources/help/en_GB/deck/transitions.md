@@ -1,12 +1,12 @@
 # Transitions between slides
-<!-- keywords: transition, transitions, morph, fade, push, wipe, split, reveal, cover, uncover, zoom, cut, effect options, objects, words, characters, match, pair, name, direction, duration, advance slide, on mouse click, after, automatic, timing, apply to all, preview, star -->
+<!-- keywords: transition, transitions, morph, fade, push, wipe, split, reveal, cover, uncover, zoom, cut, dissolve, blinds, checkerboard, comb, random bars, circle, diamond, plus, wedge, wheel, spokes, shape, flash, newsflash, strips, random, effect options, objects, words, characters, match, pair, name, direction, duration, advance slide, on mouse click, after, automatic, timing, apply to all, preview, star -->
 
 A **transition** is the effect that plays as the slide show moves from one slide to the next. A transition belongs to the slide it comes into. The slide show plays it when it moves forward onto that slide.
 
 ## Add a transition
 
 1. Click the slide in the slides pane.
-2. Click the **Transitions** tab. In the **Transition to This Slide** gallery, click an effect: **None**, **Morph**, **Fade**, **Push**, **Wipe**, **Split**, **Reveal**, **Cover**, **Uncover**, **Zoom**, or **Cut**. The slide's picture in the slides pane gets a small star to show that it has one.
+2. Click the **Transitions** tab. In the **Transition to This Slide** gallery, click an effect: **None**, **Morph**, **Fade**, **Push**, **Wipe**, **Split**, **Reveal**, **Cover**, **Uncover**, **Zoom**, **Cut**, **Dissolve**, **Blinds**, **Checkerboard**, **Comb**, **Random Bars**, **Circle**, **Diamond**, **Plus**, **Wedge**, **Wheel**, **Shape**, **Flash**, **Newsflash**, **Strips**, or **Random**. The slide's picture in the slides pane gets a small star to show that it has one.
 3. Click **Transitions > Preview > Preview** to see it played into the slide, over the slide area. Press Esc to stop it.
 
 Choose **None** to take a transition away.
@@ -17,8 +17,37 @@ Click **Effect Options** for the effect's choices:
 
 - **Push**, **Wipe**, **Reveal**, **Cover**, and **Uncover** have a direction: **From Right**, **From Left**, **From Bottom**, or **From Top**.
 - **Split** and **Zoom** go **Out** or **In**.
+- **Blinds**, **Checkerboard**, **Comb**, and **Random Bars** run **Horizontal** or **Vertical**.
+- **Strips** starts in a corner: **From Bottom Left**, **From Bottom Right**, **From Top Left**, or **From Top Right**.
+- **Wheel** has **1 Spoke**, **2 Spokes**, **3 Spokes**, **4 Spokes**, or **8 Spokes**.
+- **Shape** is a **Circle**, a **Diamond**, or a **Plus**.
 - **Morph** moves **Objects**, **Words**, or **Characters**. See below.
-- **Fade** and **Cut** have no choices. A cut goes through black.
+- **Fade**, **Cut**, **Dissolve**, **Circle**, **Diamond**, **Plus**, **Wedge**, **Flash**, **Newsflash**, and **Random** have no choices. A cut goes through black.
+
+What the newer effects do:
+
+- **Dissolve**: tiny blocks of the new slide appear all over the old one, one by one.
+- **Blinds**: the slide is cut into six bands, and the new slide opens in each band like slats.
+- **Checkerboard**: the slide is a checkerboard, and the new slide fills one colour of squares, then the other.
+- **Comb**: strips of the new slide slide in from alternate sides.
+- **Random Bars**: thin bars of the new slide appear in an order that looks random.
+- **Circle**, **Diamond**, **Plus**, and **Shape**: the new slide shows through a shape that grows from the middle.
+- **Wedge**: the new slide opens from the top, to both sides.
+- **Wheel**: the new slide is swept in clockwise like the hands of a clock, by 1, 2, 3, 4, or 8 spokes at once.
+- **Flash**: the slide goes to white, and the new slide comes out of it.
+- **Newsflash**: the new slide spins in from small over the old one.
+- **Strips**: diagonal steps of the new slide fill the slide from a corner.
+- **Random**: the show picks one of these effects each time it plays the transition.
+
+Some of these are in the file format of a presentation made elsewhere, and some are in the open document format. In an open document presentation, JeffDeck keeps the transition you chose, and other programs show the nearest effect they have for it. They show these differently:
+
+- **Plus** is shown as four boxes growing from the middle.
+- **Comb** is shown as **Blinds**.
+- **Strips** is shown as a diagonal wipe from the same corner.
+- **Newsflash** is shown as **Zoom**.
+- **Flash** is shown as a fade through white.
+- **Shape** with **Plus** is shown as four boxes growing from the middle. **Shape** with **Circle** or **Diamond** is shown as that shape.
+- **Random** is the standard "random" effect, and the other program picks its own.
 
 ## Morph
 

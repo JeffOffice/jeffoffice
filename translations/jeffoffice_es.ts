@@ -7126,7 +7126,7 @@ Save without a backup?</source>
 <context>
     <name>Help</name>
     <message>
-        <location filename="../libs/shell/app/help.cpp" line="+275"/>
+        <location filename="../libs/shell/app/help.cpp" line="+278"/>
         <source>Quick Toolbar</source>
         <translation type="unfinished">Barra de herramientas rápida</translation>
     </message>
@@ -8049,7 +8049,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Los objetos situados en medio del texto se omiten.</translation>
     </message>
     <message>
-        <location filename="../apps/deck/io/odpexport_motion.cpp" line="+483"/>
+        <location filename="../apps/deck/io/odpexport_motion.cpp" line="+544"/>
         <source>Effects that start when an object is clicked can&apos;t be saved in this kind of file, except those that play a movie or sound.</source>
         <translation type="unfinished">Los efectos que se inician al hacer clic en un objeto no se pueden guardar en este tipo de archivo, salvo los que reproducen un vídeo o un sonido.</translation>
     </message>
@@ -8102,7 +8102,7 @@ Download it from %2 now? (%3, once.)</source>
 <context>
     <name>OdpImport</name>
     <message>
-        <location filename="../apps/deck/io/odpimport.cpp" line="+94"/>
+        <location filename="../apps/deck/io/odpimport.cpp" line="+96"/>
         <source>The part is missing from the file.</source>
         <translation type="unfinished">Falta la parte en el archivo.</translation>
     </message>
@@ -8161,7 +8161,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Diseño personalizado %1</translation>
     </message>
     <message>
-        <location line="+117"/>
+        <location line="+153"/>
         <source>Only the first 10,000 slides are read.</source>
         <translation type="unfinished">Solo se leen las primeras 10.000 diapositivas.</translation>
     </message>
@@ -9071,7 +9071,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Diseño personalizado</translation>
     </message>
     <message>
-        <location line="+233"/>
+        <location line="+256"/>
         <source>And %1 more.</source>
         <translation type="unfinished">Y %1 más.</translation>
     </message>
@@ -11500,7 +11500,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location line="+1"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="+6"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+10"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+11"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+3"/>
         <source>Clipboard</source>
         <translation type="unfinished">Portapapeles</translation>
@@ -11631,7 +11631,7 @@ Download it from %2 now? (%3, once.)</source>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+7"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+11"/>
         <source>Header &amp; Footer</source>
         <translation type="unfinished">Encabezado y pie de página</translation>
     </message>
@@ -12334,7 +12334,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location filename="../apps/pub/app/ribbon_strings.cpp" line="-57"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="+2"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="-59"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="-64"/>
         <source>Aspect Ratio</source>
         <translation type="unfinished">Relación de aspecto</translation>
     </message>
@@ -12367,7 +12367,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location filename="../apps/pub/app/ribbon_strings.cpp" line="+23"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="+11"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+14"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+15"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-30"/>
         <source>Colors</source>
         <translation>Colores</translation>
@@ -12455,7 +12455,7 @@ Download it from %2 now? (%3, once.)</source>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+5"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+9"/>
         <source>Height:</source>
         <translation type="unfinished">Alto:</translation>
     </message>
@@ -12698,7 +12698,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Ancho:</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="-158"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="-163"/>
         <source>Accept</source>
         <translation type="unfinished">Aceptar</translation>
     </message>
@@ -12718,12 +12718,17 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Títulos</translation>
     </message>
     <message>
-        <location line="+38"/>
+        <location line="+4"/>
+        <source>Change Graphic</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+35"/>
         <source>Fit</source>
         <translation type="unfinished">Ajustar</translation>
     </message>
     <message>
-        <location line="-42"/>
+        <location line="-43"/>
         <source>Borders and Shading</source>
         <translation type="unfinished">Bordes y sombreado</translation>
     </message>
@@ -12767,7 +12772,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Cambiar tipo de gráfico</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+1"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+2"/>
         <source>Changes</source>
         <translation type="unfinished">Cambios</translation>
     </message>
@@ -12879,6 +12884,26 @@ Download it from %2 now? (%3, once.)</source>
         <location line="+2"/>
         <source>Gradient</source>
         <translation type="unfinished">Degradado</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Graphics Effects</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Graphics Format</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Graphics Styles</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Graphics Tools</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+3"/>
@@ -13094,7 +13119,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location filename="../apps/pub/app/ribbon_strings.cpp" line="-48"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="-44"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="-136"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="-140"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+15"/>
         <source>Chart</source>
         <translation type="unfinished">Gráfico</translation>
@@ -13166,7 +13191,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location filename="../apps/pub/app/ribbon_strings.cpp" line="-13"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="+30"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+38"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+42"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+10"/>
         <source>Layouts</source>
         <translation type="unfinished">Diseños</translation>
@@ -14550,47 +14575,43 @@ Open it in your email program, add recipients and send.</source>
         <translation type="unfinished">El archivo está dañado o se modificó después de protegerlo: no se puede leer su contenido protegido.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/odschart.cpp" line="+227"/>
-        <location line="+534"/>
+        <location filename="../libs/office/sheet/odschart.cpp" line="+241"/>
+        <location line="+619"/>
         <location line="+265"/>
         <source>series past the %1 a chart may have</source>
         <translation type="unfinished">series más allá de las %1 que puede tener un gráfico</translation>
     </message>
     <message>
-        <location line="-798"/>
-        <location line="+534"/>
+        <location line="-883"/>
+        <location line="+619"/>
         <location line="+286"/>
         <source>points past the %1 a series may have</source>
         <translation type="unfinished">puntos más allá de los %1 que puede tener una serie</translation>
     </message>
     <message>
-        <location line="-819"/>
+        <location line="-904"/>
         <source>points past the %1 a chart may have</source>
         <translation type="unfinished">puntos más allá de los %1 que puede tener un gráfico</translation>
     </message>
     <message>
-        <location line="+54"/>
-        <location line="+67"/>
+        <location line="+58"/>
+        <location line="+66"/>
         <source>secondary axes of charts (their series are drawn on the first axes)</source>
         <translation type="unfinished">ejes secundarios de gráficos (sus series se dibujan en los primeros ejes)</translation>
     </message>
     <message>
-        <location line="-15"/>
+        <location line="-14"/>
         <source>drop lines, high-low lines, and up-down bars of charts</source>
         <translation type="unfinished">líneas de caída, líneas de máximos y mínimos, y barras arriba-abajo de gráficos</translation>
     </message>
     <message>
         <location line="+2"/>
-        <source>trendlines of charts</source>
-        <translation type="unfinished">líneas de tendencia de gráficos</translation>
+        <location line="+197"/>
+        <source>trendlines of charts past the %1 a series may have</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>error bars of charts</source>
-        <translation type="unfinished">barras de error de gráficos</translation>
-    </message>
-    <message>
-        <location line="+1"/>
+        <location line="-196"/>
         <source>gradient and pattern fills of charts (they are written as one color)</source>
         <translation type="unfinished">rellenos de degradado y de trama de gráficos (se escriben como un solo color)</translation>
     </message>
@@ -14620,7 +14641,22 @@ Open it in your email program, add recipients and send.</source>
         <translation type="unfinished">formatos de número más allá de los 200 que contiene el documento de un gráfico (se muestran como General)</translation>
     </message>
     <message>
-        <location line="+295"/>
+        <location line="+143"/>
+        <source>trendlines of a kind the format does not have</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+31"/>
+        <source>error bars of charts past the 2 a series may have</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>error bars of charts whose amounts are typed in, not read from cells</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+192"/>
         <source>subtitles and footers of charts</source>
         <translation type="unfinished">subtítulos y pies de página de gráficos</translation>
     </message>
@@ -14628,6 +14664,11 @@ Open it in your email program, add recipients and send.</source>
         <location line="+269"/>
         <source>secondary axes of charts</source>
         <translation type="unfinished">ejes secundarios de gráficos</translation>
+    </message>
+    <message>
+        <location line="+288"/>
+        <source>error bars of charts that run by the variance</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../libs/office/sheet/odsdraw_write.cpp" line="+74"/>
@@ -14765,12 +14806,12 @@ Open it in your email program, add recipients and send.</source>
 <context>
     <name>Show</name>
     <message>
-        <location filename="../apps/deck/app/deckwindow_show.cpp" line="+490"/>
+        <location filename="../apps/deck/app/deckwindow_show.cpp" line="+494"/>
         <source>Automatic</source>
         <translation type="unfinished">Automático</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/slideshow.cpp" line="+2166"/>
+        <location filename="../apps/deck/app/slideshow.cpp" line="+2418"/>
         <source>Screen %1</source>
         <translation type="unfinished">Pantalla %1</translation>
     </message>
@@ -21374,18 +21415,18 @@ Origen: %3</translation>
 <context>
     <name>jp::CrunchWindow</name>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+302"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+306"/>
         <source>%1 (%2)</source>
         <translation type="unfinished">%1 (%2)</translation>
     </message>
     <message>
-        <location line="-127"/>
+        <location line="-131"/>
         <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+176"/>
         <source>The new workbook is getting ready. It can be changed in a moment.</source>
         <translation type="unfinished">El nuevo libro se está preparando. Podrá modificarlo en unos instantes.</translation>
     </message>
     <message>
-        <location line="+171"/>
+        <location line="+175"/>
         <source>Name box</source>
         <translation type="unfinished">Cuadro de nombres</translation>
     </message>
@@ -21457,8 +21498,8 @@ Origen: %3</translation>
         <location line="+28"/>
         <location filename="../apps/crunch/app/crunchwindow_csv.cpp" line="+99"/>
         <location filename="../apps/crunch/app/crunchwindow_drawborder.cpp" line="+40"/>
-        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+336"/>
-        <location line="+53"/>
+        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+338"/>
+        <location line="+55"/>
         <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="+118"/>
         <location line="+222"/>
         <location line="+74"/>
@@ -21563,12 +21604,12 @@ Origen: %3</translation>
     </message>
     <message>
         <location line="-64"/>
-        <location line="+406"/>
+        <location line="+407"/>
         <source>New Workbooks</source>
         <translation type="unfinished">Libros nuevos</translation>
     </message>
     <message>
-        <location line="-400"/>
+        <location line="-401"/>
         <location line="+2"/>
         <source>Font of a new workbook</source>
         <translation>Fuente de un libro nuevo</translation>
@@ -21585,12 +21626,12 @@ Origen: %3</translation>
     </message>
     <message>
         <location line="+14"/>
-        <location line="+374"/>
+        <location line="+375"/>
         <source>Display</source>
         <translation type="unfinished">Visualización</translation>
     </message>
     <message>
-        <location line="-369"/>
+        <location line="-370"/>
         <location line="+8"/>
         <location line="+3"/>
         <source>Gridline color</source>
@@ -21609,12 +21650,12 @@ Origen: %3</translation>
     </message>
     <message>
         <location line="+21"/>
-        <location line="+327"/>
+        <location line="+328"/>
         <source>Privacy</source>
         <translation type="unfinished">Privacidad</translation>
     </message>
     <message>
-        <location line="-264"/>
+        <location line="-265"/>
         <source>Split</source>
         <translation type="unfinished">Dividir</translation>
     </message>
@@ -21634,12 +21675,12 @@ Origen: %3</translation>
         <translation type="unfinished">Comentarios</translation>
     </message>
     <message>
-        <location line="+219"/>
+        <location line="+220"/>
         <source>The name %1 now stands for the cells selected.</source>
         <translation type="unfinished">El nombre %1 ahora representa las celdas seleccionadas.</translation>
     </message>
     <message>
-        <location line="+173"/>
+        <location line="+174"/>
         <source>That text is too long to put in. Copy less of it, and try again.</source>
         <translation type="unfinished">Ese texto es demasiado largo para insertarlo. Copie menos y vuelva a intentarlo.</translation>
     </message>
@@ -21649,9 +21690,9 @@ Origen: %3</translation>
         <translation type="unfinished">Cerrar la ventana cuando termine Buscar objetivo o el Resumen de escenarios.</translation>
     </message>
     <message>
-        <location line="-676"/>
+        <location line="-678"/>
         <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-286"/>
-        <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="+1198"/>
+        <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="+1200"/>
         <source>All Files (*)</source>
         <translation type="unfinished">Todos los archivos (*)</translation>
     </message>
@@ -21672,7 +21713,7 @@ Origen: %3</translation>
     </message>
     <message>
         <location line="+7"/>
-        <location line="+490"/>
+        <location line="+491"/>
         <location filename="../apps/crunch/app/crunchwindow_copy.cpp" line="-148"/>
         <location line="+6"/>
         <location line="+14"/>
@@ -21704,7 +21745,7 @@ Origen: %3</translation>
         <translation type="unfinished">Guardar</translation>
     </message>
     <message>
-        <location line="-489"/>
+        <location line="-490"/>
         <source>Save As…</source>
         <translation type="unfinished">Guardar como…</translation>
     </message>
@@ -21732,7 +21773,7 @@ Origen: %3</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="-462"/>
+        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="-466"/>
         <location line="+39"/>
         <source>Undo</source>
         <translation type="unfinished">Deshacer</translation>
@@ -21755,12 +21796,12 @@ Origen: %3</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+461"/>
+        <location line="+462"/>
         <source>Editing</source>
         <translation type="unfinished">Edición</translation>
     </message>
     <message>
-        <location line="-456"/>
+        <location line="-457"/>
         <location line="+4"/>
         <source>After pressing Enter, move the selection</source>
         <translation>Después de presionar Entrar, mover la selección</translation>
@@ -21772,12 +21813,12 @@ Origen: %3</translation>
     </message>
     <message>
         <location line="+143"/>
-        <location line="+312"/>
+        <location line="+313"/>
         <source>Custom Lists</source>
         <translation type="unfinished">Listas personalizadas</translation>
     </message>
     <message>
-        <location line="-309"/>
+        <location line="-310"/>
         <source>A custom list is a row of words that Fill goes through, like the days of the week. Type one list on each line, with commas between the words. Type the first word in a cell and drag the fill handle to get the rest.</source>
         <translation type="unfinished">Una lista personalizada es una fila de palabras que recorre la función Relleno, como los días de la semana. Escriba una lista por línea, con comas entre las palabras. Escriba la primera palabra en una celda y arrastre el controlador de relleno para obtener el resto.</translation>
     </message>
@@ -21807,7 +21848,7 @@ Origen: %3</translation>
         <translation type="unfinished">Volver a calcular todo</translation>
     </message>
     <message>
-        <location line="+163"/>
+        <location line="+164"/>
         <source>An object&apos;s name is one to 255 characters.</source>
         <translation type="unfinished">El nombre de un objeto tiene entre 1 y 255 caracteres.</translation>
     </message>
@@ -22215,7 +22256,7 @@ Origen: %3</translation>
         <translation type="unfinished">Gráfico pegado con los números que mostraba: no lee las celdas de este libro.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-205"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-206"/>
         <source>Select All</source>
         <translation type="unfinished">Seleccionar todo</translation>
     </message>
@@ -22323,7 +22364,7 @@ Origen: %3</translation>
         <translation type="unfinished">Cortar</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+395"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+397"/>
         <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-34"/>
         <location line="+17"/>
         <location line="+12"/>
@@ -22335,7 +22376,7 @@ Origen: %3</translation>
         <translation type="unfinished">Pegar</translation>
     </message>
     <message>
-        <location line="-720"/>
+        <location line="-722"/>
         <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-162"/>
         <location line="+1"/>
         <location line="+41"/>
@@ -22573,7 +22614,7 @@ Origen: %3</translation>
         <translation type="unfinished">Este libro solo tiene una hoja, por lo que no hay otra hoja que rellenar.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+454"/>
+        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+458"/>
         <location filename="../apps/crunch/app/crunchwindow_filter.cpp" line="-214"/>
         <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="-716"/>
         <location line="+589"/>
@@ -23445,7 +23486,7 @@ Origen: %3</translation>
         <translation>Ir a</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+380"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+381"/>
         <location filename="../apps/crunch/app/crunchwindow_find.cpp" line="-39"/>
         <location line="+5"/>
         <location line="+22"/>
@@ -23751,7 +23792,7 @@ Origen: %3</translation>
         <location line="+11"/>
         <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-960"/>
         <location line="+822"/>
-        <location filename="../apps/crunch/app/crunchwindow_drawings.cpp" line="+105"/>
+        <location filename="../apps/crunch/app/crunchwindow_drawings.cpp" line="+184"/>
         <location line="+6"/>
         <location line="+13"/>
         <location line="+7"/>
@@ -23951,7 +23992,7 @@ Origen: %3</translation>
         <location line="+20"/>
         <location line="+3"/>
         <location line="+2"/>
-        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="-253"/>
+        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="-257"/>
         <location line="+1"/>
         <source>Default Width</source>
         <translation type="unfinished">Ancho predeterminado</translation>
@@ -24187,7 +24228,7 @@ Origen: %3</translation>
         <translation type="unfinished">Celdas que abarcará la tabla (conserva su primera celda):</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-511"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-512"/>
         <location filename="../apps/crunch/app/crunchwindow_tables.cpp" line="+59"/>
         <source>Count</source>
         <translation type="unfinished">Recuento</translation>
@@ -24504,7 +24545,7 @@ Origen: %3</translation>
         <location line="+289"/>
         <location line="+44"/>
         <location filename="../apps/crunch/app/crunchwindow_find.cpp" line="-107"/>
-        <location filename="../apps/crunch/app/crunchwindow_tabs2.cpp" line="+119"/>
+        <location filename="../apps/crunch/app/crunchwindow_tabs2.cpp" line="+120"/>
         <source>Formulas</source>
         <translation type="unfinished">Fórmulas</translation>
     </message>
@@ -24748,7 +24789,7 @@ Origen: %3</translation>
         <translation type="unfinished">Saltar blancos</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+553"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+554"/>
         <source>&quot;%1&quot; is not an address JeffCrunch can go to.</source>
         <translation type="unfinished">&quot;%1&quot; no es una dirección a la que JeffCrunch pueda ir.</translation>
     </message>
@@ -24763,7 +24804,7 @@ Origen: %3</translation>
         <translation type="unfinished"> (Solo lectura)</translation>
     </message>
     <message>
-        <location line="+185"/>
+        <location line="+186"/>
         <source>Calculation stopped</source>
         <translation type="unfinished">Cálculo detenido</translation>
     </message>
@@ -24799,13 +24840,13 @@ Origen: %3</translation>
     </message>
     <message>
         <location line="+4"/>
-        <location line="+428"/>
+        <location line="+432"/>
         <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-48"/>
         <source>A large change is still being made. It can be changed again when that is done.</source>
         <translation type="unfinished">Todavía se está realizando un cambio grande. Podrá volver a modificarse cuando termine.</translation>
     </message>
     <message>
-        <location line="-424"/>
+        <location line="-428"/>
         <source>Finish the Function Arguments dialog first.</source>
         <translation type="unfinished">Termine primero el cuadro de diálogo Argumentos de función.</translation>
     </message>
@@ -24832,7 +24873,7 @@ Origen: %3</translation>
         <translation>Fórmula</translation>
     </message>
     <message>
-        <location line="+155"/>
+        <location line="+159"/>
         <source>Redone: %1</source>
         <translation type="unfinished">Rehecho: %1</translation>
     </message>
@@ -25073,7 +25114,7 @@ El archivo no existe.</translation>
         <translation type="unfinished">Puede guardar su trabajo como copia y conservar ambos, o sobrescribir el archivo.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-636"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-638"/>
         <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="+1"/>
         <source>Save a Copy…</source>
         <translation type="unfinished">Guardar una copia…</translation>
@@ -25252,17 +25293,37 @@ The file that was there is as it was.</source>
 El archivo existente no se ha modificado.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_drawings.cpp" line="-144"/>
+        <location filename="../apps/crunch/app/crunchwindow_drawings.cpp" line="-223"/>
         <source>Delete Objects</source>
         <translation type="unfinished">Eliminar objetos</translation>
     </message>
     <message>
-        <location line="+75"/>
+        <location line="+78"/>
         <source>This chart sheet&apos;s chart can&apos;t be shown here.</source>
         <translation type="unfinished">El gráfico de esta hoja de gráfico no se puede mostrar aquí.</translation>
     </message>
     <message>
-        <location line="+38"/>
+        <location line="+74"/>
+        <source>Link to Cell</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>A link starts with =, as in =A1. Clear the box to take the link off.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>Remove Shape Link</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Link Shape to Cell</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+20"/>
         <source>Delete Form Control</source>
         <translation type="unfinished">Eliminar control de formulario</translation>
     </message>
@@ -27380,19 +27441,19 @@ No se puede leer el archivo.</translation>
         <translation type="unfinished">Escriba los dos valores entre los que están las celdas.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_tabs2.cpp" line="-237"/>
-        <location line="+78"/>
+        <location filename="../apps/crunch/app/crunchwindow_tabs2.cpp" line="-238"/>
+        <location line="+79"/>
         <source>Workbook Statistics</source>
         <translation type="unfinished">Estadísticas del libro</translation>
     </message>
     <message>
-        <location line="-77"/>
-        <location line="+123"/>
+        <location line="-78"/>
+        <location line="+124"/>
         <source>Goal Seek</source>
         <translation type="unfinished">Buscar objetivo</translation>
     </message>
     <message>
-        <location line="-122"/>
+        <location line="-123"/>
         <source>Scenario Manager…</source>
         <translation type="unfinished">Administrador de escenarios…</translation>
     </message>
@@ -27418,14 +27479,14 @@ No se puede leer el archivo.</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+647"/>
+        <location line="+648"/>
         <location line="+3"/>
         <location line="+24"/>
         <source>Data Validation</source>
         <translation type="unfinished">Validación de datos</translation>
     </message>
     <message>
-        <location line="-673"/>
+        <location line="-674"/>
         <location line="+2"/>
         <source>Circle Invalid Data</source>
         <translation type="unfinished">Marcar con círculo datos no válidos</translation>
@@ -27452,13 +27513,13 @@ No se puede leer el archivo.</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+855"/>
+        <location line="+856"/>
         <location line="+108"/>
         <source>Thesaurus</source>
         <translation type="unfinished">Sinónimos</translation>
     </message>
     <message>
-        <location line="-962"/>
+        <location line="-963"/>
         <source>Check Accessibility</source>
         <translation type="unfinished">Comprobar accesibilidad</translation>
     </message>
@@ -27490,7 +27551,7 @@ No se puede leer el archivo.</translation>
     </message>
     <message>
         <location line="+2"/>
-        <location line="+659"/>
+        <location line="+660"/>
         <source>Consolidate</source>
         <translation type="unfinished">Consolidar</translation>
     </message>
@@ -29858,6 +29919,42 @@ No se puede leer el archivo.</translation>
         <source>Replace Font</source>
         <translation type="unfinished">Reemplazar fuente</translation>
     </message>
+    <message>
+        <location filename="../apps/crunch/app/crunchwindow_forecast.cpp" line="+78"/>
+        <source>The workbook is not open.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Choose the cells that hold the timeline and the cells that hold the values. Select two columns first (the timeline, then the values), or write the ranges here.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>%1 is not a range of cells. Write it as A2:A40, or Sheet2!A2:A40 for another sheet.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>%1 is not a range of cells. Write it as B2:B40, or Sheet2!B2:B40 for another sheet.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <location filename="../apps/crunch/app/crunchwindow_tabs2.cpp" line="-967"/>
+        <source>Forecast Sheet</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+26"/>
+        <source>Forecast</source>
+        <translation type="unfinished">Pronóstico</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Forecast %1</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>jp::CsvSaveDialog</name>
@@ -30944,12 +31041,14 @@ No se puede leer el archivo.</translation>
         <location line="+1"/>
         <location filename="../apps/deck/app/deckwindow_actions.cpp" line="+54"/>
         <location filename="../apps/deck/app/deckwindow_output.cpp" line="+1"/>
+        <location filename="../apps/deck/app/deckwindow_show.cpp" line="-232"/>
         <source>Horizontal</source>
         <translation type="unfinished">Horizontal</translation>
     </message>
     <message>
         <location line="+1"/>
         <location filename="../apps/deck/app/deckwindow_output.cpp" line="+1"/>
+        <location filename="../apps/deck/app/deckwindow_show.cpp" line="+0"/>
         <source>Vertical</source>
         <translation type="unfinished">Vertical</translation>
     </message>
@@ -31048,7 +31147,7 @@ No se puede leer el archivo.</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/deck/app/deckwindow_show.cpp" line="-253"/>
+        <location filename="../apps/deck/app/deckwindow_show.cpp" line="-23"/>
         <source>Cut</source>
         <translation type="unfinished">Cortar</translation>
     </message>
@@ -31191,7 +31290,7 @@ No se puede leer el archivo.</translation>
     </message>
     <message>
         <location line="+2"/>
-        <location filename="../apps/deck/app/deckwindow_show.cpp" line="+382"/>
+        <location filename="../apps/deck/app/deckwindow_show.cpp" line="+384"/>
         <source>Notes</source>
         <translation>Notas</translation>
     </message>
@@ -31361,7 +31460,7 @@ No se puede leer el archivo.</translation>
     <message>
         <location filename="../apps/deck/app/deckwindow_animations.cpp" line="-419"/>
         <location line="+256"/>
-        <location filename="../apps/deck/app/deckwindow_show.cpp" line="-383"/>
+        <location filename="../apps/deck/app/deckwindow_show.cpp" line="-385"/>
         <location filename="../apps/deck/app/deckwindow_table.cpp" line="+0"/>
         <source>None</source>
         <translation type="unfinished">Ninguno</translation>
@@ -33333,12 +33432,12 @@ No se puede leer el archivo.</translation>
     </message>
     <message>
         <location filename="../apps/deck/app/deckwindow_show.cpp" line="-29"/>
-        <location line="+125"/>
+        <location line="+129"/>
         <source>Transition</source>
         <translation type="unfinished">Transición</translation>
     </message>
     <message>
-        <location line="-125"/>
+        <location line="-129"/>
         <source>Apply Transition To All Slides</source>
         <translation type="unfinished">Aplicar transición a todas las diapositivas</translation>
     </message>
@@ -33354,23 +33453,23 @@ No se puede leer el archivo.</translation>
     </message>
     <message>
         <location line="+6"/>
-        <location line="+486"/>
+        <location line="+488"/>
         <source>Set Up Slide Show</source>
         <translation type="unfinished">Configurar presentación con diapositivas</translation>
     </message>
     <message>
-        <location line="-485"/>
+        <location line="-487"/>
         <source>Custom Shows…</source>
         <translation type="unfinished">Presentaciones personalizadas…</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+440"/>
+        <location line="+442"/>
         <source>Rehearse Timings</source>
         <translation type="unfinished">Ensayar intervalos</translation>
     </message>
     <message>
-        <location line="-439"/>
+        <location line="-441"/>
         <location line="+2"/>
         <source>Use Timings</source>
         <translation type="unfinished">Usar intervalos</translation>
@@ -33416,7 +33515,82 @@ No se puede leer el archivo.</translation>
         <translation type="unfinished">Descubrir</translation>
     </message>
     <message>
-        <location line="+18"/>
+        <location line="+1"/>
+        <source>Dissolve</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Blinds</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Checkerboard</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Comb</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Random Bars</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Circle</source>
+        <translation type="unfinished">Círculo</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Diamond</source>
+        <translation type="unfinished">Rombo</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Plus</source>
+        <translation type="unfinished">Más</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Wedge</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Wheel</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Shape</source>
+        <translation type="unfinished">Forma</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Flash</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Newsflash</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Strips</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Random</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+19"/>
         <source>From Right</source>
         <translation type="unfinished">Desde la derecha</translation>
     </message>
@@ -33446,6 +33620,26 @@ No se puede leer el archivo.</translation>
         <translation type="unfinished">Hacia dentro</translation>
     </message>
     <message>
+        <location line="+1"/>
+        <source>From Bottom Left</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>From Bottom Right</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>From Top Left</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>From Top Right</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location line="+10"/>
         <source>Objects</source>
         <translation type="unfinished">Objetos</translation>
@@ -33461,7 +33655,47 @@ No se puede leer el archivo.</translation>
         <translation type="unfinished">Caracteres</translation>
     </message>
     <message>
-        <location line="+139"/>
+        <location line="+1"/>
+        <source>1 Spoke</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>2 Spokes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>3 Spokes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>4 Spokes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>8 Spokes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Shape: Circle</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Shape: Diamond</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Shape: Plus</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+134"/>
         <source>After</source>
         <translation>Después de</translation>
     </message>
@@ -33523,7 +33757,7 @@ No se puede leer el archivo.</translation>
     </message>
     <message>
         <location filename="../apps/deck/app/deckwindow_animations.cpp" line="-229"/>
-        <location filename="../apps/deck/app/deckwindow_show.cpp" line="-444"/>
+        <location filename="../apps/deck/app/deckwindow_show.cpp" line="-439"/>
         <source>Preview</source>
         <translation>Vista previa</translation>
     </message>
@@ -33533,7 +33767,7 @@ No se puede leer el archivo.</translation>
         <translation type="unfinished">Aplicar a todo</translation>
     </message>
     <message>
-        <location line="+61"/>
+        <location line="+58"/>
         <source>Transition to This Slide</source>
         <translation type="unfinished">Transición a esta diapositiva</translation>
     </message>
@@ -33640,7 +33874,7 @@ No se puede leer el archivo.</translation>
     </message>
     <message>
         <location line="+20"/>
-        <location filename="../apps/deck/app/deckwindow_show.cpp" line="+21"/>
+        <location filename="../apps/deck/app/deckwindow_show.cpp" line="+19"/>
         <source>No Effect Options</source>
         <translation type="unfinished">Sin opciones de efectos</translation>
     </message>
@@ -37046,6 +37280,190 @@ No se puede leer el archivo.</translation>
         <location line="+3"/>
         <source>All Fonts</source>
         <translation type="unfinished">Todas las fuentes</translation>
+    </message>
+</context>
+<context>
+    <name>jp::ForecastDialog</name>
+    <message>
+        <location filename="../apps/crunch/app/forecastdialog.cpp" line="+133"/>
+        <source>Forecast Sheet</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Makes a new sheet with a table and a chart of future values, from a timeline and a series of values.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Chart type</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Line chart</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Column chart</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>What is wrong</source>
+        <translation type="unfinished">Qué está mal</translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <location line="+1"/>
+        <source>Timeline range</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <location line="+1"/>
+        <source>Values range</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <location line="+2"/>
+        <source>Forecast start</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-1"/>
+        <source>After the last point</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <location line="+1"/>
+        <source>Forecast end</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <location line="+4"/>
+        <source>Confidence interval</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <location line="+12"/>
+        <source>Seasonality</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-11"/>
+        <source>Detect automatically</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Set manually</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>None</source>
+        <translation>Ninguno</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Length of the season</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <location line="+3"/>
+        <source>Fill missing points using</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-2"/>
+        <source>Interpolation</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Zeros</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <location line="+8"/>
+        <source>Aggregate duplicates using</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-7"/>
+        <source>Average</source>
+        <translation type="unfinished">Promedio</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Count</source>
+        <translation>Recuento</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>CountA</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Max</source>
+        <translation>Máx.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Median</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Min</source>
+        <translation>Mín.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Sum</source>
+        <translation type="unfinished">Suma</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Include forecast statistics</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Create</source>
+        <translation type="unfinished">Crear</translation>
+    </message>
+    <message>
+        <location line="+86"/>
+        <source>The picture follows the last %1 points of the data. The sheet is made from all of them.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+20"/>
+        <source>Write the forecast start as a date or number, or leave it empty to start after the last point.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Write the forecast end as a date or number.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>jp::ForecastPreview</name>
+    <message>
+        <location line="-303"/>
+        <source>Preview of the forecast</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -47264,8 +47682,8 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
 <context>
     <name>jp::PictureTools</name>
     <message>
-        <location filename="../libs/page/app/picturetools.cpp" line="+88"/>
-        <location line="+14"/>
+        <location filename="../libs/page/app/picturetools.cpp" line="+94"/>
+        <location line="+15"/>
         <source>Picture Style</source>
         <translation type="unfinished">Estilo de imagen</translation>
     </message>
@@ -49658,7 +50076,7 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
 <context>
     <name>jp::SlideShow</name>
     <message>
-        <location filename="../apps/deck/app/slideshow.cpp" line="-1761"/>
+        <location filename="../apps/deck/app/slideshow.cpp" line="-1762"/>
         <location line="+104"/>
         <location line="+150"/>
         <source>Slide Show</source>
@@ -51340,7 +51758,7 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
 <context>
     <name>jp::TransitionPreview</name>
     <message>
-        <location filename="../apps/deck/app/slideshow.cpp" line="+299"/>
+        <location filename="../apps/deck/app/slideshow.cpp" line="+300"/>
         <source>Transition Preview</source>
         <translation type="unfinished">Vista previa de la transición</translation>
     </message>
@@ -54706,13 +55124,94 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
         <translation type="unfinished">Borde de imagen</translation>
     </message>
     <message>
-        <location line="+0"/>
+        <location filename="../apps/write/app/writewindow_graphics.cpp" line="+46"/>
+        <source>From a File…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>From Icons…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Convert to Shape</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <source>Graphic Styles</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>Graphics Fill</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+0"/>
         <location line="+168"/>
         <source>No Outline</source>
         <translation type="unfinished">Sin contorno</translation>
     </message>
     <message>
-        <location line="-100"/>
+        <location line="+0"/>
+        <source>Graphics Outline</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Graphic height</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Graphic width</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+62"/>
+        <source>That icon can&apos;t be put here.</source>
+        <translation type="unfinished">Ese icono no se puede colocar aquí.</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>SVG graphics (*.svg)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Change Graphic</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>That graphic is too large to put in a document.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>%1 can&apos;t be opened as a graphic.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>That can&apos;t be used as a graphic.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>Text and pictures inside this drawing can&apos;t become shapes, so they were left out. Undo brings the picture back.</source>
+        <translation type="unfinished">El texto y las imágenes de este dibujo no se pueden convertir en formas, por lo que se han omitido. Deshacer restaura la imagen.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>This graphic can&apos;t be turned into shapes here.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-100"/>
         <location line="+1"/>
         <source>Crop to Shape</source>
         <translation type="unfinished">Recortar a forma</translation>
@@ -54752,12 +55251,13 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
         <translation type="unfinished">Relleno de forma</translation>
     </message>
     <message>
-        <location line="+0"/>
+        <location filename="../apps/write/app/writewindow_graphics.cpp" line="-119"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+0"/>
         <source>No Fill</source>
         <translation type="unfinished">Sin relleno</translation>
     </message>
     <message>
-        <location line="+11"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+11"/>
         <source>Shape Outline</source>
         <translation type="unfinished">Contorno de forma</translation>
     </message>
@@ -54984,8 +55484,9 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
     </message>
     <message>
         <location line="-582"/>
+        <location filename="../apps/write/app/writewindow_graphics.cpp" line="+88"/>
         <location filename="../apps/write/app/writewindow_insert.cpp" line="+138"/>
-        <location filename="../apps/write/app/writewindow_pictures.cpp" line="+161"/>
+        <location filename="../apps/write/app/writewindow_pictures.cpp" line="+163"/>
         <location filename="../apps/write/app/writewindow_shapes.cpp" line="-310"/>
         <location line="+60"/>
         <location filename="../apps/write/app/writewindow_themes.cpp" line="+44"/>
@@ -55820,7 +56321,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
     </message>
     <message>
         <location line="+3"/>
-        <location filename="../apps/write/app/writewindow_pictures.cpp" line="+210"/>
+        <location filename="../apps/write/app/writewindow_pictures.cpp" line="+212"/>
         <source>Left</source>
         <translation>Izquierda</translation>
     </message>
@@ -56655,7 +57156,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">Insertar nota al final</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_pictures.cpp" line="-419"/>
+        <location filename="../apps/write/app/writewindow_pictures.cpp" line="-423"/>
         <source>Square 1:1</source>
         <translation type="unfinished">Cuadrado 1:1</translation>
     </message>
@@ -56851,7 +57352,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">Bloquear relación de aspecto</translation>
     </message>
     <message>
-        <location line="+39"/>
+        <location line="+41"/>
         <source>Picture height</source>
         <translation type="unfinished">Alto de imagen</translation>
     </message>
@@ -56908,7 +57409,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">No hay ninguna imagen en el Portapapeles.</translation>
     </message>
     <message>
-        <location line="+74"/>
+        <location line="+76"/>
         <source>Wrap Text</source>
         <translation type="unfinished">Ajustar texto</translation>
     </message>
@@ -59457,18 +59958,18 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <location line="+35"/>
         <location line="+8"/>
         <location line="+7"/>
-        <location line="+66"/>
+        <location line="+72"/>
         <location line="+58"/>
         <source>Pasting</source>
         <translation type="unfinished">Pegando</translation>
     </message>
     <message>
-        <location line="-146"/>
+        <location line="-152"/>
         <source>That is more than JeffCrunch pastes at once. Paste into fewer cells.</source>
         <translation type="unfinished">Es más de lo que JeffCrunch puede pegar a la vez. Pegue en menos celdas.</translation>
     </message>
     <message>
-        <location line="+93"/>
+        <location line="+99"/>
         <source>Moving cells</source>
         <translation type="unfinished">Moviendo celdas</translation>
     </message>
@@ -61616,6 +62117,155 @@ No se pudo aplicar la contraseña al archivo.</translation>
     </message>
 </context>
 <context>
+    <name>jp::crunch::ForecastSheet</name>
+    <message>
+        <location filename="../apps/crunch/core/forecastsheet.cpp" line="+26"/>
+        <source>Choose the cells that hold the timeline and the cells that hold the values.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>The timeline and the values must each be one column or one row of cells.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>The timeline and the values need the same number of cells.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>The data has more than 1,000,000 points. A forecast is not made from so many; choose a smaller range.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>The timeline needs dates or numbers, and %1 holds something else.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>The values need numbers, and %1 holds text or an error. Change it to a number, or empty the cell.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+32"/>
+        <source>Write the time the forecast ends.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>There are too few points to make a forecast from. Use at least 3 points with values, each at its own time.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>The timeline is not evenly spaced. The steps between its dates or numbers must be the same size (or whole months apart, on the same day of each month). Duplicate times are combined; make the other steps equal.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>The timeline spans more than 1,000,000 steps, which is too many to make a forecast from.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>The season is too long. The data must hold at least two whole seasons.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>The confidence interval must be more than 0% and less than 100%.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <location line="+25"/>
+        <source>A forecast could not be made from this data.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-17"/>
+        <source>The forecast would reach more than 100,000 steps past the last point, which is too far. Choose an earlier end.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>The forecast must end after the last point it is made from. Choose a later end.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>The forecast would be longer than 10,000 points. Choose an earlier end.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+57"/>
+        <source>Timeline</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Values</source>
+        <translation type="unfinished">Valores</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Forecast</source>
+        <translation type="unfinished">Pronóstico</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Lower Confidence Bound</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Upper Confidence Bound</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+23"/>
+        <source>Alpha</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Beta</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Gamma</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>MASE</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>SMAPE</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>MAE</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>RMSE</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Forecast Statistics</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>jp::crunch::FormatCodes</name>
     <message>
         <location filename="../apps/crunch/core/formatcodes.cpp" line="+116"/>
@@ -62382,12 +63032,12 @@ No se pudo aplicar la contraseña al archivo.</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+152"/>
+        <location line="+156"/>
         <source>Predicts a value along the best-fitting straight line.</source>
         <translation type="unfinished">Predice un valor a lo largo de la línea recta de mejor ajuste.</translation>
     </message>
     <message>
-        <location line="-151"/>
+        <location line="-155"/>
         <source>Gives how much two sets of numbers vary together.</source>
         <translation type="unfinished">Devuelve la covarianza de dos conjuntos de números.</translation>
     </message>
@@ -62408,24 +63058,24 @@ No se pudo aplicar la contraseña al archivo.</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+151"/>
+        <location line="+155"/>
         <source>Gives the z value for a share of the standard normal curve.</source>
         <translation type="unfinished">Devuelve el valor z correspondiente a una probabilidad de la distribución normal estándar.</translation>
     </message>
     <message>
-        <location line="-150"/>
-        <location line="+147"/>
+        <location line="-154"/>
+        <location line="+151"/>
         <source>Gives the normal curve&apos;s value or cumulative share at x.</source>
         <translation type="unfinished">Devuelve el valor de la distribución normal, o su valor acumulado, en x.</translation>
     </message>
     <message>
-        <location line="-146"/>
-        <location line="+147"/>
+        <location line="-150"/>
+        <location line="+151"/>
         <source>Gives the x value for a share of a normal curve.</source>
         <translation type="unfinished">Devuelve el valor x correspondiente a una probabilidad de una distribución normal.</translation>
     </message>
     <message>
-        <location line="-146"/>
+        <location line="-150"/>
         <source>Adds the numbers in a column of a list for the rows that meet the criteria.</source>
         <translation type="unfinished">Suma los números de una columna de una lista en las filas que cumplen los criterios.</translation>
     </message>
@@ -63131,6 +63781,26 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <location line="+1"/>
         <source>Gives the standard error of the predicted y values of a fitted line.</source>
         <translation type="unfinished">Devuelve el error típico de los valores de y predichos de una recta ajustada.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Predicts a future value of a series that has a trend and a season, by exponential smoothing.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Gives how far above and below a smoothed forecast the value is likely to lie.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Gives the length of the repeating season found in a series.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Gives one of the smoothing constants or measures of fit of a smoothed forecast.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+4"/>
@@ -63991,6 +64661,53 @@ No se pudo aplicar la contraseña al archivo.</translation>
     </message>
     <message>
         <location line="+1"/>
+        <location line="+5"/>
+        <source>The time to predict a value for.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-4"/>
+        <location line="+5"/>
+        <location line="+5"/>
+        <location line="+3"/>
+        <source>The dates or numbers of the values, the same distance apart.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-12"/>
+        <location line="+6"/>
+        <location line="+8"/>
+        <source>1 to find the season from the values, 0 for none, or the length of the season in points.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-13"/>
+        <location line="+6"/>
+        <location line="+3"/>
+        <location line="+5"/>
+        <source>1 to fill a missing point with a line between its neighbors, 0 to fill it with zero.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-13"/>
+        <location line="+6"/>
+        <location line="+3"/>
+        <location line="+5"/>
+        <source>How values at the same time are combined: 1 average, 2 count, 3 counta, 4 max, 5 median, 6 min, 7 sum.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-11"/>
+        <source>A number above 0 and below 1 for how sure the interval is (0.95 if left out).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Which to give: 1 Alpha, 2 Beta, 3 Gamma, 4 MASE, 5 SMAPE, 6 MAE, 7 RMSE, 8 the step of the timeline.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
         <source>The name of the value to give, in quotes, as the pivot table shows it (&quot;Sum of Amount&quot;).</source>
         <translation type="unfinished">El nombre del valor que se devuelve, entre comillas, tal como lo muestra la tabla dinámica (&quot;Suma de Importe&quot;).</translation>
     </message>
@@ -65324,7 +66041,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">El libro no tiene hojas.</translation>
     </message>
     <message>
-        <location line="+51"/>
+        <location line="+52"/>
         <source>Some of the workbook could not be read whole: %1.</source>
         <translation type="unfinished">No se pudo leer completamente parte del libro: %1.</translation>
     </message>
@@ -65857,7 +66574,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
 <context>
     <name>jp::crunch::SheetObjects</name>
     <message>
-        <location filename="../apps/crunch/core/sheetobjects.cpp" line="+327"/>
+        <location filename="../apps/crunch/core/sheetobjects.cpp" line="+359"/>
         <source>a drawing that could not be read (%1)</source>
         <translation type="unfinished">un dibujo que no se pudo leer (%1)</translation>
     </message>
@@ -65867,7 +66584,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">más de %1 objetos en un dibujo; el resto se omite</translation>
     </message>
     <message>
-        <location line="+184"/>
+        <location line="+186"/>
         <source>more objects than the %1 a workbook may show</source>
         <translation type="unfinished">más objetos que los %1 que puede mostrar un libro</translation>
     </message>
@@ -65882,7 +66599,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">un gráfico que no se pudo leer (%1)</translation>
     </message>
     <message>
-        <location line="+28"/>
+        <location line="+30"/>
         <source>a group with nothing in it that is drawn</source>
         <translation type="unfinished">un grupo sin nada que se dibuje</translation>
     </message>
@@ -65892,7 +66609,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">una forma o imagen que no se pudo leer</translation>
     </message>
     <message numerus="yes">
-        <location line="+440"/>
+        <location line="+461"/>
         <source>The file stores this object together with %n other(s), so they can&apos;t be deleted one at a time.</source>
         <translation type="unfinished">
             <numerusform>El archivo almacena este objeto junto con %n más, así que no se pueden eliminar de uno en uno.</numerusform>
@@ -65900,7 +66617,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
         </translation>
     </message>
     <message>
-        <location line="+683"/>
+        <location line="+720"/>
         <source>The charts made or changed here since the last save already hold as many numbers as JeffCrunch keeps (%1). Save the workbook first.</source>
         <translation type="unfinished">Los gráficos creados o cambiados aquí desde la última vez que se guardó ya contienen tantos números como admite JeffCrunch (%1). Guarde primero el libro.</translation>
     </message>
@@ -65920,7 +66637,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">Forma</translation>
     </message>
     <message>
-        <location line="+248"/>
+        <location line="+539"/>
         <source>JeffCrunch keeps no more of the objects taken away for Undo after a save.</source>
         <translation type="unfinished">JeffCrunch no conserva más de los objetos retirados para Deshacer después de guardar.</translation>
     </message>
@@ -65954,29 +66671,59 @@ No se pudo aplicar la contraseña al archivo.</translation>
     <message>
         <location line="-16"/>
         <location line="+19"/>
-        <location line="+220"/>
+        <location line="+221"/>
         <source>%1 new objects are as many as JeffCrunch saves in one go. Save the workbook, and then add more.</source>
         <translation type="unfinished">%1 objetos nuevos es el máximo que JeffCrunch guarda de una vez. Guarde el libro y, después, agregue más.</translation>
     </message>
     <message>
-        <location line="-1795"/>
+        <location line="-2147"/>
         <source>a diagram that could not be shown</source>
         <translation type="unfinished">un diagrama que no se pudo mostrar</translation>
     </message>
     <message>
-        <location line="+841"/>
+        <location line="+897"/>
         <source>The pictures that stand for equations come to more than %1, so the equations past that are saved as math alone.</source>
         <translation type="unfinished">Las imágenes que representan ecuaciones superan %1, así que las ecuaciones posteriores se guardan solo como matemáticas.</translation>
     </message>
     <message>
-        <location line="+716"/>
+        <location line="+548"/>
+        <source>a shape whose link to a cell can&apos;t be used (it must be one cell)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+255"/>
+        <source>The workbook is not ready yet.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Type a cell, such as =A1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>A shape can show one cell: type a reference such as =A1, =Sheet2!B3, or the name of a cell.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>That is not a cell, or the name of one, in this workbook.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>A shape can show one cell, not a range of cells.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+202"/>
         <location line="+19"/>
-        <location line="+220"/>
+        <location line="+221"/>
         <source>The workbook has as many objects as JeffCrunch holds (%1).</source>
         <translation type="unfinished">El libro tiene tantos objetos como admite JeffCrunch (%1).</translation>
     </message>
     <message numerus="yes">
-        <location line="-123"/>
+        <location line="-124"/>
         <source>The file stores this object together with %n other(s), so it can&apos;t be put in another place in the order they are drawn.</source>
         <translation type="unfinished">
             <numerusform>El archivo almacena este objeto junto con %n más, así que no se puede cambiar su posición en el orden de dibujo.</numerusform>
@@ -66015,7 +66762,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">Este objeto tiene una imagen que este programa no puede copiar.</translation>
     </message>
     <message>
-        <location line="+43"/>
+        <location line="+44"/>
         <source>There is nothing to paste here.</source>
         <translation type="unfinished">No hay nada que pegar aquí.</translation>
     </message>
@@ -66052,7 +66799,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">El libro de cálculo tiene tantos códigos de barras como dibuja JeffCrunch (%1).</translation>
     </message>
     <message>
-        <location line="+54"/>
+        <location line="+55"/>
         <source>This is not a chart.</source>
         <translation type="unfinished">Esto no es un gráfico.</translation>
     </message>
@@ -67674,12 +68421,12 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">El archivo tiene más formatos de celda que cualquier archivo real.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/odschart.cpp" line="-289"/>
+        <location filename="../libs/office/sheet/odschart.cpp" line="-577"/>
         <source>The chart is of a kind this program does not read.</source>
         <translation type="unfinished">El gráfico es de un tipo que este programa no lee.</translation>
     </message>
     <message>
-        <location line="+562"/>
+        <location line="+648"/>
         <source>The chart is larger than this program reads.</source>
         <translation type="unfinished">El gráfico es más grande de lo que este programa lee.</translation>
     </message>
@@ -67855,7 +68602,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <location line="+48"/>
         <location line="+13"/>
         <location filename="../libs/office/sheet/xlsxsave.cpp" line="+2142"/>
-        <location line="+1519"/>
+        <location line="+1525"/>
         <location line="+61"/>
         <source>The save was stopped.</source>
         <translation type="unfinished">Se detuvo el guardado.</translation>
@@ -67889,7 +68636,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">No se pudo guardar la hoja.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/xlsxsave.cpp" line="-3499"/>
+        <location filename="../libs/office/sheet/xlsxsave.cpp" line="-3505"/>
         <location line="+21"/>
         <source>The shared strings part is not in the form this program changes.</source>
         <translation type="unfinished">La parte de cadenas compartidas no tiene el formato que este programa modifica.</translation>
@@ -67902,7 +68649,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
     <message>
         <location line="+365"/>
         <location line="+120"/>
-        <location line="+2625"/>
+        <location line="+2631"/>
         <location line="+5"/>
         <location line="+5"/>
         <location line="+5"/>
@@ -67911,18 +68658,18 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">La parte del libro no tiene el formato que este programa modifica.</translation>
     </message>
     <message>
-        <location line="-1976"/>
+        <location line="-1982"/>
         <source>The workbook was not opened from a file this program can save over.</source>
         <translation type="unfinished">El libro no se abrió desde un archivo que este programa pueda sobrescribir.</translation>
     </message>
     <message>
         <location line="+468"/>
-        <location line="+1625"/>
+        <location line="+1631"/>
         <source>The file this workbook was opened from is damaged.</source>
         <translation type="unfinished">El archivo desde el que se abrió este libro está dañado.</translation>
     </message>
     <message>
-        <location line="-2083"/>
+        <location line="-2089"/>
         <location line="+233"/>
         <location line="+174"/>
         <location line="+71"/>
@@ -67935,7 +68682,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">Una hoja modificada no tiene ninguna parte en el archivo.</translation>
     </message>
     <message>
-        <location line="+1107"/>
+        <location line="+1113"/>
         <source>The shared strings part is not in the file.</source>
         <translation type="unfinished">La parte de cadenas compartidas no está en el archivo.</translation>
     </message>
@@ -67950,15 +68697,15 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">Una tabla modificada no tiene ninguna parte en el archivo.</translation>
     </message>
     <message>
-        <location line="-1088"/>
+        <location line="-1094"/>
         <location line="+6"/>
         <location line="+7"/>
-        <location line="+1543"/>
+        <location line="+1549"/>
         <source>A sheet of the file could not be read to be saved.</source>
         <translation type="unfinished">No se pudo leer una hoja del archivo para guardarla.</translation>
     </message>
     <message>
-        <location line="-2071"/>
+        <location line="-2077"/>
         <source>Objects were put on a sheet this program can&apos;t put them on.</source>
         <translation type="unfinished">Se colocaron objetos en una hoja en la que este programa no puede colocarlos.</translation>
     </message>
@@ -67993,7 +68740,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">Las filas y columnas de una hoja se han modificado demasiadas veces para poder guardarse.</translation>
     </message>
     <message>
-        <location line="+266"/>
+        <location line="+272"/>
         <location line="+146"/>
         <location line="+79"/>
         <location line="+56"/>
@@ -72777,7 +73524,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
     <message>
         <location filename="../apps/write/app/pageview_input.cpp" line="-294"/>
         <location filename="../apps/write/app/pageview_pictures.cpp" line="+18"/>
-        <location filename="../apps/write/core/pictureops.cpp" line="+2078"/>
+        <location filename="../apps/write/core/pictureops.cpp" line="+2162"/>
         <source>That shape can&apos;t be put here.</source>
         <translation type="unfinished">Esa forma no se puede colocar aquí.</translation>
     </message>
@@ -72818,36 +73565,37 @@ No se pudo aplicar la contraseña al archivo.</translation>
     </message>
     <message>
         <location filename="../apps/write/core/editops.cpp" line="+2123"/>
-        <location filename="../apps/write/core/pictureops.cpp" line="-1500"/>
-        <location line="+340"/>
+        <location filename="../apps/write/core/pictureops.cpp" line="-1502"/>
+        <location line="+342"/>
         <location line="+1985"/>
-        <location line="+1381"/>
+        <location line="+1416"/>
+        <location line="+445"/>
         <source>The pictures in this document are as large together as JeffWrite puts in one, so this one is not added.</source>
         <translation type="unfinished">Las imágenes de este documento ya alcanzan el tamaño total máximo que JeffWrite admite en un documento, por lo que no se agrega esta.</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/pictureops.cpp" line="-3715"/>
-        <location line="+363"/>
+        <location filename="../apps/write/core/pictureops.cpp" line="-4200"/>
+        <location line="+368"/>
         <location line="+789"/>
-        <location line="+2842"/>
+        <location line="+2883"/>
         <source>A picture can&apos;t be put in a header, a footer, or a note yet.</source>
         <translation type="unfinished">Todavía no se puede insertar una imagen en un encabezado, un pie de página o una nota.</translation>
     </message>
     <message>
-        <location line="-3950"/>
-        <location line="+344"/>
+        <location line="-3992"/>
+        <location line="+345"/>
         <location line="+787"/>
-        <location line="+2844"/>
+        <location line="+2885"/>
         <source>A picture can&apos;t be put here, or this document holds as many pictures and drawn objects as JeffWrite can show.</source>
         <translation type="unfinished">No se puede insertar una imagen aquí, o este documento ya contiene tantas imágenes y objetos de dibujo como JeffWrite puede mostrar.</translation>
     </message>
     <message>
-        <location line="-3939"/>
+        <location line="-3981"/>
         <source>This document holds as many pictures and drawn objects as JeffWrite can show. Save it, and open it again, to change more.</source>
         <translation type="unfinished">Este documento contiene tantas imágenes y objetos de dibujo como JeffWrite puede mostrar. Guárdelo y vuelva a abrirlo para hacer más cambios.</translation>
     </message>
     <message>
-        <location line="+1560"/>
+        <location line="+1561"/>
         <source>Edit Points is not offered for a shape that is flipped.</source>
         <translation type="unfinished">Modificar puntos no está disponible para una forma que esté volteada.</translation>
     </message>
@@ -72870,12 +73618,63 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">Este cuadro de texto contiene más que palabras (una tabla, una imagen, un campo o una lista), por lo que sus palabras no se pueden editar aquí.</translation>
     </message>
     <message>
+        <location line="+2210"/>
+        <source>That graphic has too much to draw, so it is left as it was.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>That graphic can&apos;t be drawn.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+66"/>
+        <source>That graphic is too large to put in a document.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>That graphic has too much to draw, so it is not put in the document.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>That graphic refers to files or addresses outside itself, or holds pictures, which JeffWrite doesn&apos;t open.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+165"/>
+        <source>The colors of this graphic can&apos;t be changed: it is too large, too deeply nested, or refers outside itself.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+58"/>
+        <source>This graphic is too large or refers to files or addresses outside itself, so it isn&apos;t turned into shapes.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>This graphic has too many parts to turn into shapes (the most is %1).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <location line="+7"/>
+        <source>This graphic has no lines or areas to turn into shapes.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+52"/>
+        <source>This graphic can&apos;t be turned into shapes here.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location filename="../libs/office/sheet/chartops.cpp" line="-267"/>
         <source>Series %1</source>
         <translation type="unfinished">Serie %1</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/pictureops.cpp" line="+1912"/>
+        <location filename="../apps/write/core/pictureops.cpp" line="-630"/>
         <location line="+59"/>
         <source>This chart has parts that JeffWrite does not change, so it is kept as it is.</source>
         <translation type="unfinished">Este gráfico tiene partes que JeffWrite no modifica, así que se mantiene tal como está.</translation>
@@ -73602,7 +74401,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
 <context>
     <name>odt</name>
     <message>
-        <location filename="../libs/office/odt/odtbody.cpp" line="+115"/>
+        <location filename="../libs/office/odt/odtbody.cpp" line="+118"/>
         <source>more spaces than are kept</source>
         <translation type="unfinished">más espacios de los que se conservan</translation>
     </message>
@@ -73617,8 +74416,42 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">imágenes de un tipo que no se puede leer</translation>
     </message>
     <message>
-        <location line="+332"/>
-        <location line="+59"/>
+        <location line="+38"/>
+        <source>charts the file does not hold</source>
+        <translation type="unfinished">gráficos que el archivo no contiene</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>charts larger than a chart may be</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>charts past the size all the charts of a document may come to</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="+787"/>
+        <source>charts past the %1 a document may have</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <location line="+3"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="+11"/>
+        <location line="+450"/>
+        <source>charts that could not be read</source>
+        <translation type="unfinished">gráficos que no se pudieron leer</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>charts past the number of points all the charts of a document may have</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+331"/>
+        <location line="+69"/>
         <location line="+7"/>
         <location line="+320"/>
         <location line="+210"/>
@@ -73633,13 +74466,13 @@ No se pudo aplicar la contraseña al archivo.</translation>
     </message>
     <message>
         <location line="+389"/>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="+137"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="-1107"/>
         <source>content nested too deeply</source>
         <translation type="unfinished">contenido anidado a demasiada profundidad</translation>
     </message>
     <message>
         <location line="+303"/>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="+1415"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="+1556"/>
         <source>tables nested too deeply</source>
         <translation type="unfinished">tablas anidadas a demasiada profundidad</translation>
     </message>
@@ -73770,25 +74603,26 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">marcas de «no comprobar ortografía»</translation>
     </message>
     <message>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="-810"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="-951"/>
         <source>form fields (kept as the text they show)</source>
         <translation type="unfinished">campos de formulario (se conservan como el texto que muestran)</translation>
     </message>
     <message>
-        <location line="+181"/>
-        <location line="+49"/>
-        <location line="+415"/>
+        <location line="+290"/>
+        <location line="+4"/>
+        <location line="+160"/>
+        <location line="+332"/>
         <source>drawings, shapes, and charts</source>
         <translation type="unfinished">dibujos, formas y gráficos</translation>
     </message>
     <message>
-        <location line="-267"/>
-        <location line="+11"/>
+        <location line="-294"/>
+        <location line="+22"/>
         <source>edited wrap points on shapes</source>
         <translation type="unfinished">puntos de ajuste de texto editados en formas</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+23"/>
         <source>pictures that can&apos;t be read</source>
         <translation type="unfinished">imágenes que no se pueden leer</translation>
     </message>

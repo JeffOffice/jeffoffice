@@ -1,5 +1,5 @@
 # Data tools
-<!-- keywords: form, data form, data entry, record, records, new record, find next, find prev, criteria, scenario manager, scenarios, what-if, what if, scenario summary, data, data tab, text to columns, split, separator, comma, tab, fixed width, remove duplicates, goal seek, subtotal, totals, advanced filter, conditions, data validation, circle invalid data, red oval, clear validation circles, consolidate, combine ranges, allow, list, drop-down, input message, error alert, repeated rows, unique, text file, csv, from text, columns, delimiter, quotes, edit links, update values, change source, links, external, source, break link, check status, open source -->
+<!-- keywords: forecast sheet, forecast, future values, confidence interval, seasonality, trend, smoothing, form, data form, data entry, record, records, new record, find next, find prev, criteria, scenario manager, scenarios, what-if, what if, scenario summary, data, data tab, text to columns, split, separator, comma, tab, fixed width, remove duplicates, goal seek, subtotal, totals, advanced filter, conditions, data validation, circle invalid data, red oval, clear validation circles, consolidate, combine ranges, allow, list, drop-down, input message, error alert, repeated rows, unique, text file, csv, from text, columns, delimiter, quotes, edit links, update values, change source, links, external, source, break link, check status, open source -->
 
 The **Data** tab has the tools that work on a list of values: getting text from a file, putting a list in order, cutting text into columns, and taking out repeated rows.
 
@@ -153,3 +153,28 @@ Use this to combine ranges that look alike, such as the same table from several 
 7. Press **OK**.
 
 With no names checked, the cell at the same place in each range is combined (the first cell of every range, then the second, and so on). With names checked, cells with the same names are combined, wherever they are in each range, and a name that only some ranges have still gets a row or column. Consolidate is one step that you can undo.
+
+## Forecast Sheet
+
+Forecast Sheet makes a new sheet with a table and a chart of future values, worked out from a timeline and a series of values. It finds the trend and the repeating season of the values, and adds a band that the future values are likely to stay inside.
+
+1. Select the timeline and the values, two columns side by side (the timeline first). The timeline is dates or numbers the same distance apart, such as every month or every 5 units. A first row of names is left out.
+2. Choose **Forecast Sheet** in the **Forecast** group of the **Data** tab.
+3. A picture shows the forecast, and changes as you change the choices. Pick **Line chart** or **Column chart**.
+4. Set the choices:
+   - **Timeline range** and **Values range** are the cells to read. Write other cells here if the selection was wrong.
+   - **Forecast start** is empty to start after the last point. A date or number before the last point starts there and uses only the points before it, so you can compare the forecast with what happened.
+   - **Forecast end** is the last time to forecast. At most 10,000 points are forecast.
+   - **Confidence interval** is how sure the band is, 95% to begin with.
+   - **Seasonality** is found by looking at the values, or you can set the length of the season in points, or choose none. The values must hold two whole seasons.
+   - **Fill missing points using** says what a time that has no value gets: a straight line between its neighbours, or zero.
+   - **Aggregate duplicates using** says how values at the same time are combined: Average, Count, CountA, Max, Median, Min, or Sum.
+   - **Include forecast statistics** adds a table of Alpha, Beta, Gamma, MASE, SMAPE, MAE, and RMSE, which say how well the forecast fits the values.
+5. If something is wrong, the dialog says what in plain words (steps that are not equal, too few points, text in the values), and **Create** waits.
+6. Press **Create**.
+
+The new sheet is put before the one you were on. Its table has the columns Timeline, Values, Forecast, Lower Confidence Bound, and Upper Confidence Bound. The Forecast and the bounds are formulas that use `FORECAST.ETS` and `FORECAST.ETS.CONFINT` on the table's own Timeline and Values columns, so they are worked out again when you change a value. The chart shows the values, the forecast, and the band. Forecast Sheet is one step that you can undo.
+
+The numbers can differ by a few percent from those of other spreadsheet programs, which use their own way of fitting the smoothing, and a forecast that a file already holds keeps the values the file stored until the data it reads is changed.
+
+A file with more than 1,000,000 points is not used.

@@ -2871,6 +2871,10 @@ No se pudo aplicar la contraseña al fichero.</translation>
         <translation type="unfinished">imágenes a las que el fichero solo está vinculado</translation>
     </message>
     <message>
+        <source>charts the file does not hold</source>
+        <translation type="unfinished">gráficos que el fichero no contiene</translation>
+    </message>
+    <message>
         <source>This is not an OpenDocument file.</source>
         <translation type="unfinished">No es un fichero OpenDocument.</translation>
     </message>

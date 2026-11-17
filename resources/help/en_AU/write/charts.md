@@ -65,6 +65,10 @@ Three small buttons stand at the right of a selected chart.
 - **Chart Colours and Styles** (the brush) lists the colour sets and looks.
 - **Chart Filters** (the funnel) lists the series. Uncheck a series to leave it out of the picture. The file still keeps it, so it comes back when you check it again. A chart always keeps at least one series in view.
 
+## Saving a chart in an OpenDocument file
+
+If you save the document as an **OpenDocument text** file (`.odt`), each chart goes in as an object of its own, and opens again as a chart you can change. The kind, numbers, title, legend, labels, colours, axes, gridlines, up to four trendlines for each series, and error bars all stay. A few parts do not fit that format, such as a data table, drop lines, high-low lines, up and down bars, and error bars whose amounts you typed. JeffWrite lists what was left out when you save.
+
 ## Charts in other documents
 
 JeffWrite shows the charts that a document holds, and keeps them as they were. It can change the kind, title, legend, and labels of a chart it can write whole. If a chart has parts JeffWrite does not change, such as special effects, it says so and leaves the chart alone. If a chart reads its numbers from a worksheet kept with it, you can change everything but the numbers.

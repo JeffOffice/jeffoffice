@@ -1168,6 +1168,13 @@ Download it from %2 now? (%3, once.)</translation>
     </message>
 </context>
 <context>
+    <name>jp::crunch::Functions</name>
+    <message>
+        <source>1 to fill a missing point with a line between its neighbors, 0 to fill it with zero.</source>
+        <translation>1 to fill a missing point with a line between its neighbours, 0 to fill it with zero.</translation>
+    </message>
+</context>
+<context>
     <name>jp::crunch::OtherFormats</name>
     <message>
         <source>number formats, fonts, colors, and column widths</source>
@@ -1287,6 +1294,13 @@ Download it from %2 now? (%3, once.)</translation>
     <message>
         <source>Number Color</source>
         <translation>Number Colour</translation>
+    </message>
+</context>
+<context>
+    <name>jp::write::Pictures</name>
+    <message>
+        <source>The colors of this graphic can't be changed: it is too large, too deeply nested, or refers outside itself.</source>
+        <translation>The colours of this graphic can't be changed: it is too large, too deeply nested, or refers outside itself.</translation>
     </message>
 </context>
 <context>
