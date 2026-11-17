@@ -57,7 +57,7 @@ On the **Open** page, click **More Ways to Open**. You can also right-click a na
 - **Open Read-Only** opens the presentation for reading only. You can look, move through the slides, and copy, but you can't change anything. The title bar says "Read-Only". If you press **Save**, JeffDeck asks for a new name, so the file you opened is not changed.
 - **Open as Copy** opens the slides as a new presentation with no file of its own. **Save** asks where to put it.
 - **Open in New Window** opens the file in a window of its own, even when the window you are in is empty.
-- **Open and Repair** is for a .pptx file that is damaged, for example one that was cut short when it was copied. JeffDeck reads every part that it can, keeps a part that stopped in the middle up to the place where it stopped, and leaves out a part it can't read. The repaired slides open as a copy called "Repaired" plus the name, and a message tells you what was left out. The damaged file is not changed.
+- **Open and Repair** is for a .pptx or .ppt file that is damaged, for example one that was cut short when it was copied. JeffDeck reads every part that it can, keeps a part that stopped in the middle up to the place where it stopped, and leaves out a part it can't read. For an old .ppt file, it finds the slides by what is in them when the lists that say where they are kept are damaged or lost. If the list that gives the order of the slides is lost, the slides come in the order they were stored, which may not be the order they had. A file that has a password can't be repaired. The repaired slides open as a copy called "Repaired" plus the name, and a message tells you what was left out. The damaged file is not changed.
 
 ## Files with a password
 

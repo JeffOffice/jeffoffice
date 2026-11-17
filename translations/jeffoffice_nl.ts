@@ -7667,7 +7667,7 @@ Open deze bestanden in uw e-mailprogramma om ze te verzenden.</translation>
 <context>
     <name>MainWindow</name>
     <message>
-        <location filename="../apps/pub/app/mainwindow.cpp" line="+584"/>
+        <location filename="../apps/pub/app/mainwindow.cpp" line="+596"/>
         <source>A picture on page %1 has low resolution (%2 ppi; printers ask for 300).</source>
         <translation type="unfinished">Een afbeelding op pagina %1 heeft een lage resolutie (%2 ppi; drukkerijen vragen 300).</translation>
     </message>
@@ -8853,12 +8853,12 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     </message>
     <message>
         <location line="+3"/>
-        <location line="+176"/>
+        <location line="+177"/>
         <source>the PDF has no catalog</source>
         <translation type="unfinished">De PDF heeft geen catalogus.</translation>
     </message>
     <message>
-        <location line="-172"/>
+        <location line="-173"/>
         <source>the PDF has no pages</source>
         <translation type="unfinished">De PDF heeft geen pagina&apos;s.</translation>
     </message>
@@ -8869,7 +8869,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <translation type="unfinished">De pagina&apos;s zijn in een vorm die niet getagd kan worden.</translation>
     </message>
     <message>
-        <location line="+12"/>
+        <location line="+13"/>
         <location line="+4"/>
         <source>a page&apos;s content is in a form that can&apos;t be tagged</source>
         <translation type="unfinished">De inhoud van een pagina is in een vorm die niet getagd kan worden.</translation>
@@ -9516,7 +9516,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <translation type="unfinished">De macro&apos;s in dit bestand zijn te groot om te bewaren en zijn weggelaten.</translation>
     </message>
     <message>
-        <location line="+14"/>
+        <location line="+22"/>
         <source>This file is in an older format, which %1 can&apos;t open yet.</source>
         <translation type="unfinished">Dit bestand is in een oudere indeling, die %1 nog niet kan openen.</translation>
     </message>
@@ -13593,7 +13593,7 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
     </message>
     <message>
         <location line="-54"/>
-        <location filename="../libs/office/sheet/xls.cpp" line="+475"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="+476"/>
         <source>The workbook has more names than any real file has.</source>
         <translation type="unfinished">De werkmap bevat meer namen dan een echt bestand.</translation>
     </message>
@@ -13638,7 +13638,7 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
     </message>
     <message>
         <location line="+127"/>
-        <location filename="../libs/office/sheet/xls.cpp" line="+1374"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="+1366"/>
         <source>The sheet has more merged ranges than any real file has.</source>
         <translation type="unfinished">Het blad bevat meer samengevoegde bereiken dan een echt bestand.</translation>
     </message>
@@ -13813,7 +13813,7 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
         <translation type="unfinished">Dit bestand is een samengesteld bestand, maar er zit geen werkmap in.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/xls.cpp" line="-1164"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="-1156"/>
         <location line="+2"/>
         <location line="+5"/>
         <location line="+10"/>
@@ -13822,7 +13822,7 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
     </message>
     <message>
         <location filename="../libs/office/sheet/sheetreader.cpp" line="+1132"/>
-        <location filename="../libs/office/sheet/xls.cpp" line="+1813"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="+1805"/>
         <source>There is no such sheet.</source>
         <translation type="unfinished">Dit blad bestaat niet.</translation>
     </message>
@@ -13833,7 +13833,7 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
         <translation type="unfinished">Het onderdeel van het blad staat niet in het bestand.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/xls.cpp" line="-1827"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="-1819"/>
         <location line="+13"/>
         <source>This workbook is in a file format older than this program reads.</source>
         <translation type="unfinished">Deze werkmap heeft een bestandsindeling die ouder is dan dit programma kan lezen.</translation>
@@ -14062,7 +14062,7 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
         <translation type="unfinished">macrobladen</translation>
     </message>
     <message>
-        <location line="+188"/>
+        <location line="+180"/>
         <source>The sheet&apos;s data is not where the workbook says it is.</source>
         <translation type="unfinished">De gegevens van het blad staan niet waar de werkmap aangeeft.</translation>
     </message>
@@ -14114,7 +14114,7 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
     </message>
     <message>
         <location filename="../libs/office/sheet/odssave.cpp" line="+222"/>
-        <location filename="../libs/office/sheet/xlssave.cpp" line="+212"/>
+        <location filename="../libs/office/sheet/xlssave.cpp" line="+218"/>
         <source>%1 formulas the format cannot hold (they keep the value they came to)</source>
         <translation type="unfinished">%1 formules die de indeling niet kan bevatten (ze behouden hun berekende waarde)</translation>
     </message>
@@ -14127,8 +14127,8 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
         <location line="+653"/>
         <location line="+224"/>
         <location line="+42"/>
-        <location filename="../libs/office/sheet/xlssave.cpp" line="-32"/>
-        <location line="+618"/>
+        <location filename="../libs/office/sheet/xlssave.cpp" line="-36"/>
+        <location line="+623"/>
         <location line="+14"/>
         <source>The save was stopped.</source>
         <translation type="unfinished">Het opslaan is gestopt.</translation>
@@ -14275,12 +14275,17 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
         <translation type="unfinished">De formule noemt meer functies dan de oude indeling aankan.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/xlssave.cpp" line="-899"/>
+        <location filename="../libs/office/sheet/xlssave.cpp" line="-904"/>
         <source>The workbook is larger than the old format can hold.</source>
         <translation type="unfinished">De werkmap is groter dan de oude indeling kan bevatten.</translation>
     </message>
     <message>
-        <location line="+113"/>
+        <location line="+4"/>
+        <source>The workbook could not be protected with the password.</source>
+        <translation type="unfinished">De werkmap kan niet met het wachtwoord worden beveiligd.</translation>
+    </message>
+    <message>
+        <location line="+114"/>
         <source>colors past the 56 the format holds (each is the nearest of the first 56)</source>
         <translation type="unfinished">kleuren boven de 56 die de indeling kan bevatten (elk wordt de dichtstbijzijnde van de eerste 56)</translation>
     </message>
@@ -21113,7 +21118,17 @@ Bron: %3</translation>
         <translation type="unfinished">De cellen worden afgedrukt op %1% van de ware grootte, dus de letters zijn klein.</translation>
     </message>
     <message>
-        <location line="+146"/>
+        <location line="+147"/>
+        <source>Add document structure tags for accessibility to every PDF</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Tags the cells of each sheet as a table, so that a screen reader reads the PDF row by row.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
         <source>Export this sheet to PDF</source>
         <translation type="unfinished">Dit blad exporteren naar PDF</translation>
     </message>
@@ -21247,7 +21262,7 @@ Bron: %3</translation>
         <location line="+53"/>
         <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="+118"/>
         <location line="+222"/>
-        <location line="+67"/>
+        <location line="+74"/>
         <location line="+166"/>
         <location line="+15"/>
         <location line="+48"/>
@@ -21257,7 +21272,7 @@ Bron: %3</translation>
         <location line="+118"/>
         <location line="+10"/>
         <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="+900"/>
-        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="+347"/>
+        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="+348"/>
         <location filename="../apps/crunch/app/crunchwindow_savecopy.cpp" line="+157"/>
         <location filename="../apps/crunch/app/crunchwindow_sort.cpp" line="+293"/>
         <location line="+22"/>
@@ -21282,10 +21297,10 @@ Bron: %3</translation>
     </message>
     <message>
         <location line="+9"/>
-        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-482"/>
+        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-489"/>
         <location line="+111"/>
         <location line="+77"/>
-        <location line="+66"/>
+        <location line="+73"/>
         <location line="+3"/>
         <location filename="../apps/crunch/app/crunchwindow_recover.cpp" line="+234"/>
         <location filename="../apps/crunch/app/crunchwindow_text.cpp" line="+22"/>
@@ -21436,7 +21451,7 @@ Bron: %3</translation>
     </message>
     <message>
         <location line="-676"/>
-        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-279"/>
+        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-286"/>
         <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="+1198"/>
         <source>All Files (*)</source>
         <translation type="unfinished">Alle bestanden (*)</translation>
@@ -21472,8 +21487,8 @@ Bron: %3</translation>
         <location filename="../apps/crunch/app/crunchwindow_drawings.cpp" line="+102"/>
         <location filename="../apps/crunch/app/crunchwindow_oldformat.cpp" line="+37"/>
         <location line="+10"/>
-        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="-290"/>
-        <location line="+34"/>
+        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="-291"/>
+        <location line="+35"/>
         <location line="+14"/>
         <location line="+5"/>
         <location line="+70"/>
@@ -22093,7 +22108,7 @@ Bron: %3</translation>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_calc.cpp" line="+102"/>
         <location line="+15"/>
-        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="+275"/>
+        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="+282"/>
         <source>Calculating…</source>
         <translation type="unfinished">Berekenen…</translation>
     </message>
@@ -24588,7 +24603,7 @@ Bron: %3</translation>
         <translation type="unfinished">Ongedaan gemaakt: %1</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-474"/>
+        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-481"/>
         <source>%1 can&apos;t open &quot;%2&quot;.
 The file isn&apos;t there.</source>
         <translation type="unfinished">%1 kan &quot;%2&quot; niet openen.
@@ -24596,12 +24611,12 @@ Het bestand bestaat niet.</translation>
     </message>
     <message>
         <location line="+64"/>
-        <location line="+194"/>
+        <location line="+201"/>
         <source>Open and Repair</source>
         <translation type="unfinished">Openen en herstellen</translation>
     </message>
     <message>
-        <location line="-194"/>
+        <location line="-201"/>
         <source>%1 can&apos;t repair &quot;%2&quot;.
 %3</source>
         <translation type="unfinished">%1 kan &quot;%2&quot; niet herstellen.
@@ -24640,7 +24655,12 @@ Het bestand bestaat niet.</translation>
         <translation type="unfinished">Hersteld %1</translation>
     </message>
     <message>
-        <location line="+37"/>
+        <location line="+14"/>
+        <source>This workbook is open for reading only, as you chose. Open File &gt; Info and choose Always Opens Read-Only to edit it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+30"/>
         <source>&quot;%1&quot; was opened as a repaired copy. Save it under a name of its own.
 
 %2</source>
@@ -24702,11 +24722,14 @@ Het bestand bestaat niet.</translation>
         <location line="+7"/>
         <location line="+23"/>
         <location line="+5"/>
+        <location filename="../apps/crunch/app/crunchwindow_info.cpp" line="+123"/>
+        <location line="+4"/>
         <source>Check Compatibility</source>
         <translation type="unfinished">Compatibiliteit controleren</translation>
     </message>
     <message>
         <location line="-35"/>
+        <location filename="../apps/crunch/app/crunchwindow_info.cpp" line="-4"/>
         <source>The workbook is still being read. Check it when the status bar says Ready.</source>
         <translation type="unfinished">De werkmap wordt nog steeds gelezen. Controleer hem wanneer de statusbalk Gereed aangeeft.</translation>
     </message>
@@ -24724,6 +24747,7 @@ Het bestand bestaat niet.</translation>
     <message>
         <location line="-31"/>
         <location line="+32"/>
+        <location filename="../apps/crunch/app/crunchwindow_info.cpp" line="+4"/>
         <source>workbook</source>
         <translation type="unfinished">werkmap</translation>
     </message>
@@ -24759,12 +24783,12 @@ Het bestand bestaat niet.</translation>
         <translation type="unfinished">De waarden van %1 zijn opgeslagen in %2</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="-140"/>
+        <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="-141"/>
         <source>This workbook is open for reading only, so it is saved under a new name.</source>
         <translation type="unfinished">Deze werkmap is alleen geopend om te lezen, daarom is ze opgeslagen onder een nieuwe naam.</translation>
     </message>
     <message>
-        <location line="+34"/>
+        <location line="+35"/>
         <source>This workbook is protected with a password, but a copy in this kind of file can&apos;t be. The copy you are saving will not be protected: anyone who has it can read it.</source>
         <translation type="unfinished">Deze werkmap is beveiligd met een wachtwoord, maar een kopie in dit soort bestand kan niet worden beveiligd. De kopie die u opslaat, wordt niet beveiligd: iedereen die deze heeft, kan hem lezen.</translation>
     </message>
@@ -24840,7 +24864,7 @@ Het bestand bestaat niet.</translation>
     </message>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_csv.cpp" line="-59"/>
-        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-416"/>
+        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-423"/>
         <location filename="../apps/crunch/app/crunchwindow_print.cpp" line="+18"/>
         <location filename="../apps/crunch/app/crunchwindow_protect.cpp" line="+67"/>
         <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="-122"/>
@@ -24849,31 +24873,31 @@ Het bestand bestaat niet.</translation>
     </message>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_print.cpp" line="+25"/>
-        <location line="+61"/>
+        <location line="+62"/>
         <source>Those page numbers are not pages of this job. The job has %1 pages.</source>
         <translation type="unfinished">Die paginanummers horen niet bij deze afdruktaak. De taak heeft %1 pagina&apos;s.</translation>
     </message>
     <message>
-        <location line="-57"/>
+        <location line="-58"/>
         <location line="+14"/>
-        <location line="+9"/>
+        <location line="+10"/>
         <location line="+10"/>
         <source>Export to PDF</source>
         <translation type="unfinished">Exporteren naar PDF</translation>
     </message>
     <message>
-        <location line="-33"/>
-        <location line="+68"/>
+        <location line="-34"/>
+        <location line="+69"/>
         <source>Making the pages...</source>
         <translation type="unfinished">Pagina&apos;s maken...</translation>
     </message>
     <message>
-        <location line="-54"/>
+        <location line="-55"/>
         <source>The workbook is still being opened. It can be exported when it is open.</source>
         <translation type="unfinished">De werkmap wordt nog geopend. U kunt deze exporteren zodra deze is geopend.</translation>
     </message>
     <message>
-        <location line="+9"/>
+        <location line="+10"/>
         <location line="+40"/>
         <source>PDF (*.pdf)</source>
         <translation type="unfinished">PDF (*.pdf)</translation>
@@ -27440,7 +27464,17 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Opzoeken</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_info.cpp" line="+68"/>
+        <location filename="../apps/crunch/app/crunchwindow_info.cpp" line="-60"/>
+        <source>Check .csv Compatibility</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>See what a .csv file would leave out of this workbook, without saving.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
         <source>This file has more properties than %1 reads, so the mark can&apos;t be added.</source>
         <translation type="unfinished">Dit bestand heeft meer eigenschappen dan %1 kan lezen, dus de markering kan niet worden toegevoegd.</translation>
     </message>
@@ -27450,7 +27484,47 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Een tekstbestand, een .xls-bestand en een .ods-bestand kunnen de markering niet bevatten. Sla de werkmap eerst op als .xlsx-bestand.</translation>
     </message>
     <message>
-        <location line="+13"/>
+        <location line="+6"/>
+        <source>This file has more properties than %1 reads, so this choice can&apos;t be kept.</source>
+        <translation type="unfinished">Dit bestand heeft meer eigenschappen dan %1 kan lezen, dus deze keuze kan niet worden behouden.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>A text file, an .xls file, and an .ods file can&apos;t hold this choice. Save the workbook as an .xlsx file first.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Always Open Read-Only</source>
+        <translation type="unfinished">Altijd openen als alleen-lezen</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>This workbook will open for reading only. Save it to keep this choice.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>This workbook will open for editing again. Save it to keep this choice.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>The rest of the sheet: it was read only in part, so the file has only the part that was read.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The mark that the workbook is final.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The choice to always open the workbook for reading only.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+24"/>
         <source>Marked as final: open for reading only</source>
         <translation type="unfinished">Als definitief gemarkeerd: wordt alleen-lezen geopend</translation>
     </message>
@@ -30698,7 +30772,7 @@ Het bestand kan niet worden gelezen.</translation>
     </message>
     <message>
         <location line="+5"/>
-        <location filename="../apps/deck/app/deckwindow_file.cpp" line="+137"/>
+        <location filename="../apps/deck/app/deckwindow_file.cpp" line="+150"/>
         <location line="+1"/>
         <location line="+59"/>
         <location line="+1"/>
@@ -30710,7 +30784,7 @@ Het bestand kan niet worden gelezen.</translation>
         <location filename="../apps/deck/app/deckwindow_actions.cpp" line="+267"/>
         <location line="+155"/>
         <location filename="../apps/deck/app/deckwindow_design.cpp" line="+164"/>
-        <location filename="../apps/deck/app/deckwindow_file.cpp" line="-153"/>
+        <location filename="../apps/deck/app/deckwindow_file.cpp" line="-165"/>
         <location filename="../apps/deck/app/deckwindow_media.cpp" line="+104"/>
         <location line="+102"/>
         <location filename="../apps/deck/app/deckwindow_picture.cpp" line="+130"/>
@@ -31651,7 +31725,7 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Presentaties (*.pptx *.pptm *.potx *.potm *.ppsx *.ppsm *.ppt *.pps *.pot *.odp *.otp)</translation>
     </message>
     <message>
-        <location line="+91"/>
+        <location line="+103"/>
         <location filename="../apps/deck/app/deckwindow_media.cpp" line="-72"/>
         <location line="+97"/>
         <source>%1 can&apos;t open &quot;%2&quot;.
@@ -34389,7 +34463,7 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">De presentatie wordt bij het opslaan beveiligd met een wachtwoord.</translation>
     </message>
     <message>
-        <location line="+122"/>
+        <location line="+167"/>
         <location line="+11"/>
         <location line="+5"/>
         <location line="+17"/>
@@ -34403,7 +34477,7 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Sommige eerder bewaarde versies kunnen het nieuwe wachtwoord niet krijgen en blijven zoals ze waren.</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_info.cpp" line="-140"/>
+        <location filename="../apps/deck/app/deckwindow_info.cpp" line="-185"/>
         <source>Comments</source>
         <translation>Opmerkingen</translation>
     </message>
@@ -34473,7 +34547,37 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Inhoud buiten de dia&apos;s verwijderen</translation>
     </message>
     <message>
-        <location line="+17"/>
+        <location line="+22"/>
+        <source>Headers and footers</source>
+        <translation>Koppen- en voetteksten</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>The footer text and fixed date at the foot of slides. Removing clears the text; the places and slide number stay.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Remove Headers and Footers</source>
+        <translation type="unfinished">Koptekst en voettekst verwijderen</translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <source>Custom XML data</source>
+        <translation type="unfinished">Aangepaste XML-gegevens</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Data that other programs added to the file. It is not kept when you save.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Remove Custom XML</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+14"/>
         <source>Inspect Presentation</source>
         <translation type="unfinished">Presentatie controleren</translation>
     </message>
@@ -39147,7 +39251,7 @@ Er is geen helponderwerp met de naam &quot;%1&quot;.</translation>
         <translation type="unfinished">Alles verwijderen</translation>
     </message>
     <message>
-        <location line="+18"/>
+        <location line="+28"/>
         <source>%1 found</source>
         <translation type="unfinished">%1 gevonden</translation>
     </message>
@@ -39270,18 +39374,18 @@ Er is geen helponderwerp met de naam &quot;%1&quot;.</translation>
         <translation type="unfinished">Versleutelen met wachtwoord</translation>
     </message>
     <message>
-        <location line="-396"/>
-        <location line="+330"/>
+        <location line="-406"/>
+        <location line="+340"/>
         <source>Open File Location</source>
         <translation type="unfinished">Bestandslocatie openen</translation>
     </message>
     <message>
-        <location line="-329"/>
+        <location line="-339"/>
         <source>This file is on another computer. Opening its location may take a while, and the computer will see that you asked. Open it?</source>
         <translation type="unfinished">Dit bestand staat op een andere computer. Het openen van de locatie kan even duren en de computer ziet dat je dit hebt gevraagd. Openen?</translation>
     </message>
     <message>
-        <location line="+396"/>
+        <location line="+406"/>
         <source>This file is protected: it asks for a password when it is opened. Change the password or take it away.</source>
         <translation type="unfinished">Dit bestand is beveiligd: bij het openen wordt om een wachtwoord gevraagd. Wijzig het wachtwoord of verwijder het.</translation>
     </message>
@@ -40493,7 +40597,7 @@ Bron: %3</translation>
 <context>
     <name>jp::MainWindow</name>
     <message>
-        <location filename="../apps/pub/app/mainwindow.cpp" line="-1608"/>
+        <location filename="../apps/pub/app/mainwindow.cpp" line="-1620"/>
         <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+604"/>
         <source>%1 (%2)</source>
         <translation type="unfinished">%1 (%2)</translation>
@@ -40522,15 +40626,15 @@ Bron: %3</translation>
         <location line="+47"/>
         <location line="+18"/>
         <location line="+34"/>
-        <location line="+41"/>
+        <location line="+48"/>
         <location line="+1"/>
-        <location line="+242"/>
+        <location line="+247"/>
         <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-489"/>
         <source>Open</source>
         <translation type="unfinished">Openen</translation>
     </message>
     <message>
-        <location line="-336"/>
+        <location line="-348"/>
         <location line="+18"/>
         <location line="+34"/>
         <source>JeffPub can&apos;t open &quot;%1&quot;.
@@ -40539,14 +40643,14 @@ Bron: %3</translation>
 %2</translation>
     </message>
     <message>
-        <location line="+45"/>
+        <location line="+52"/>
         <source>Opened .pub file. %1</source>
         <translation type="unfinished">.pub-bestand geopend. %1</translation>
     </message>
     <message>
         <location line="+26"/>
         <location line="+1"/>
-        <location line="+29"/>
+        <location line="+34"/>
         <location line="+20"/>
         <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+1"/>
         <source>Save</source>
@@ -40577,27 +40681,27 @@ Bron: %3</translation>
         <translation type="unfinished">JeffPub-publicatie (*.jpub)</translation>
     </message>
     <message>
-        <location line="-266"/>
-        <location line="+248"/>
+        <location line="-278"/>
+        <location line="+260"/>
         <location line="+18"/>
         <source>.pub Publication Files (*.pub)</source>
         <translation type="unfinished">.pub-publicatiebestanden (*.pub)</translation>
     </message>
     <message>
-        <location line="-477"/>
+        <location line="-489"/>
         <source> (Read-Only)</source>
         <translation type="unfinished"> (alleen-lezen)</translation>
     </message>
     <message>
         <location line="+277"/>
         <location line="+6"/>
-        <location line="+53"/>
+        <location line="+60"/>
         <location line="+1"/>
         <source>Open and Repair</source>
         <translation type="unfinished">Openen en herstellen</translation>
     </message>
     <message>
-        <location line="-60"/>
+        <location line="-67"/>
         <source>&quot;%1&quot; has a password, and a file with a password can&apos;t be repaired. Open it with its password instead.</source>
         <translation type="unfinished">&quot;%1&quot; heeft een wachtwoord, en een bestand met wachtwoord kan niet worden hersteld. Open het in plaats daarvan met het wachtwoord.</translation>
     </message>
@@ -40609,7 +40713,7 @@ Bron: %3</translation>
 %2</translation>
     </message>
     <message>
-        <location line="+33"/>
+        <location line="+34"/>
         <source>Repaired %1</source>
         <translation type="unfinished">%1 hersteld</translation>
     </message>
@@ -40622,6 +40726,11 @@ Bron: %3</translation>
         <location line="+12"/>
         <source>Marked as final: this publication is open for reading only. Open File &gt; Info and choose Marked as Final to edit it.</source>
         <translation type="unfinished">Gemarkeerd als definitief: deze publicatie is alleen open om te lezen. Open Bestand &gt; Info en kies Markeren als definitief om haar te bewerken.</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>This publication is open for reading only, as you chose. Open File &gt; Info and choose Always Opens Read-Only to edit it.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+7"/>
@@ -40658,7 +40767,7 @@ Bron: %3</translation>
         <translation type="unfinished">Deze publicatie is alleen-lezen geopend. Kies een andere naam ervoor.</translation>
     </message>
     <message>
-        <location line="+66"/>
+        <location line="+71"/>
         <source>Some versions kept before couldn&apos;t be given the new password, and stay as they were.</source>
         <translation type="unfinished">Sommige eerder bewaarde versies konden niet het nieuwe wachtwoord krijgen en blijven zoals ze waren.</translation>
     </message>
@@ -40896,20 +41005,20 @@ Bron: %3</translation>
         <translation type="unfinished">Kleurprofielen (*.icc *.icm)</translation>
     </message>
     <message>
-        <location line="-560"/>
-        <location line="+560"/>
+        <location line="-572"/>
+        <location line="+572"/>
         <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+567"/>
         <source>All Files (*)</source>
         <translation type="unfinished">Alle bestanden (*)</translation>
     </message>
     <message>
-        <location line="-388"/>
-        <location filename="../apps/pub/app/mainwindow_info.cpp" line="+319"/>
+        <location line="-393"/>
+        <location filename="../apps/pub/app/mainwindow_info.cpp" line="+354"/>
         <source>publication</source>
         <translation type="unfinished">publicatie</translation>
     </message>
     <message>
-        <location line="+60"/>
+        <location line="+65"/>
         <source>Saved a copy as %1. Left out, as this kind of file can&apos;t hold it: %2</source>
         <translation type="unfinished">Er is een kopie opgeslagen als %1. Weggelaten, omdat dit type bestand het niet kan bevatten: %2</translation>
     </message>
@@ -41248,7 +41357,7 @@ Bron: %3</translation>
         <translation type="unfinished">Nieuwe lege publicatie</translation>
     </message>
     <message>
-        <location filename="../apps/pub/app/mainwindow.cpp" line="-1599"/>
+        <location filename="../apps/pub/app/mainwindow.cpp" line="-1611"/>
         <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+179"/>
         <source>Publications (*.jpub *.pub)</source>
         <translation type="unfinished">Publicaties (*.jpub *.pub)</translation>
@@ -41270,7 +41379,7 @@ Bron: %3</translation>
         <translation type="unfinished">Sluiten</translation>
     </message>
     <message>
-        <location filename="../apps/pub/app/mainwindow_info.cpp" line="-261"/>
+        <location filename="../apps/pub/app/mainwindow_info.cpp" line="-296"/>
         <source>Properties</source>
         <translation type="unfinished">Eigenschappen</translation>
     </message>
@@ -42806,7 +42915,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location line="+11"/>
-        <location filename="../apps/pub/app/mainwindow_info.cpp" line="+26"/>
+        <location filename="../apps/pub/app/mainwindow_info.cpp" line="+29"/>
         <source>Run Design Checker</source>
         <translation type="unfinished">Ontwerpcontrole uitvoeren</translation>
     </message>
@@ -44374,8 +44483,8 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">%1 × %2</translation>
     </message>
     <message>
-        <location filename="../apps/pub/app/mainwindow.cpp" line="+528"/>
-        <location filename="../apps/pub/app/mainwindow_info.cpp" line="-28"/>
+        <location filename="../apps/pub/app/mainwindow.cpp" line="+540"/>
+        <location filename="../apps/pub/app/mainwindow_info.cpp" line="-31"/>
         <source>Pages</source>
         <translation>Pagina&apos;s</translation>
     </message>
@@ -44390,7 +44499,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation>Woorden</translation>
     </message>
     <message>
-        <location line="+21"/>
+        <location line="+24"/>
         <source>Business Information</source>
         <translation type="unfinished">Bedrijfsgegevens</translation>
     </message>
@@ -44443,6 +44552,31 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <location line="+1"/>
         <source>A .pub file can&apos;t hold the mark. Save the publication as a .jpub file first.</source>
         <translation type="unfinished">Een .pub-bestand kan de markering niet bevatten. Sla de publicatie eerst op als .jpub-bestand.</translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>This file has more properties than %1 reads, so this choice can&apos;t be kept.</source>
+        <translation type="unfinished">Dit bestand heeft meer eigenschappen dan %1 kan lezen, dus deze keuze kan niet worden behouden.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>A .pub file can&apos;t hold this choice. Save the publication as a .jpub file first.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Always Open Read-Only</source>
+        <translation type="unfinished">Altijd openen als alleen-lezen</translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>This publication will open for reading only. Save it to keep this choice.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>This publication will open for editing again. Save it to keep this choice.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+10"/>
@@ -44548,6 +44682,11 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <location line="+1"/>
         <source>The mark that the publication is final.</source>
         <translation type="unfinished">De markering dat de publicatie definitief is.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The choice to always open the publication for reading only.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+9"/>
@@ -54350,21 +54489,21 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         </translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_file.cpp" line="+92"/>
+        <location filename="../apps/write/app/writewindow_file.cpp" line="+93"/>
         <source>New</source>
         <translation type="unfinished">Nieuw</translation>
     </message>
     <message>
         <location line="+5"/>
-        <location line="+115"/>
-        <location line="+45"/>
-        <location line="+426"/>
+        <location line="+124"/>
+        <location line="+52"/>
+        <location line="+433"/>
         <location filename="../apps/write/core/designops.cpp" line="+27"/>
         <source>Open</source>
         <translation type="unfinished">Openen</translation>
     </message>
     <message>
-        <location line="-559"/>
+        <location line="-582"/>
         <location filename="../apps/write/app/writewindow_insert.cpp" line="+138"/>
         <location filename="../apps/write/app/writewindow_pictures.cpp" line="+161"/>
         <location filename="../apps/write/app/writewindow_shapes.cpp" line="-310"/>
@@ -54375,13 +54514,13 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location line="+0"/>
-        <location line="+173"/>
+        <location line="+189"/>
         <location line="+21"/>
         <source>Rich Text Format (*.rtf)</source>
         <translation type="unfinished">Rich Text Format (*.rtf)</translation>
     </message>
     <message>
-        <location line="-194"/>
+        <location line="-210"/>
         <source>OpenDocument Text (*.odt *.fodt *.ott)</source>
         <translation type="unfinished">OpenDocument-tekst (*.odt *.fodt *.ott)</translation>
     </message>
@@ -54397,7 +54536,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location filename="../apps/write/app/writewindow_file.cpp" line="+1"/>
-        <location line="+167"/>
+        <location line="+183"/>
         <location line="+5"/>
         <location line="+3"/>
         <location line="+1"/>
@@ -54410,7 +54549,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <location line="+4"/>
         <location line="+40"/>
         <location line="+12"/>
-        <location line="+4"/>
+        <location line="+11"/>
         <location line="+2"/>
         <location line="+3"/>
         <location line="+14"/>
@@ -54419,13 +54558,13 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Opslaan</translation>
     </message>
     <message>
-        <location line="-397"/>
-        <location line="+205"/>
+        <location line="-420"/>
+        <location line="+221"/>
         <source>Save As</source>
         <translation type="unfinished">Opslaan als</translation>
     </message>
     <message>
-        <location line="-204"/>
+        <location line="-220"/>
         <source>Print…</source>
         <translation type="unfinished">Afdrukken…</translation>
     </message>
@@ -54455,7 +54594,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">&quot;%1&quot; is een bestand met platte tekst. Het is geen Unicode, dus kies de codering die de tekens goed weergeeft; de eerste regels staan hieronder.</translation>
     </message>
     <message>
-        <location line="+34"/>
+        <location line="+43"/>
         <source>%1 can&apos;t open &quot;%2&quot;.
 %3</source>
         <translation type="unfinished">%1 kan &quot;%2&quot; niet openen.
@@ -54472,9 +54611,14 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Kopie van %1</translation>
     </message>
     <message>
-        <location line="+18"/>
+        <location line="+19"/>
         <source>Marked as final: this document is open for reading only. Open File &gt; Info and choose Marked as Final to edit it.</source>
         <translation type="unfinished">Als definitief markeren: dit document is alleen geopend om te lezen. Open Bestand &gt; Info en kies Als definitief markeren om het te bewerken.</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>This document is open for reading only, as you chose. Open File &gt; Info and choose Always Opens Read-Only to edit it.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+10"/>
@@ -54589,28 +54733,28 @@ The password couldn&apos;t be put on the file.</source>
 Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     </message>
     <message>
-        <location line="+75"/>
-        <location filename="../apps/write/app/writewindow_info.cpp" line="+208"/>
+        <location line="+82"/>
+        <location filename="../apps/write/app/writewindow_info.cpp" line="+246"/>
         <source>document</source>
         <translation type="unfinished">document</translation>
     </message>
     <message>
-        <location line="-179"/>
+        <location line="-186"/>
         <location line="+116"/>
-        <location filename="../apps/write/app/writewindow_output.cpp" line="+457"/>
-        <location line="+329"/>
+        <location filename="../apps/write/app/writewindow_output.cpp" line="+458"/>
+        <location line="+336"/>
         <source>%1 couldn&apos;t save &quot;%2&quot;.
 %3%4</source>
         <translation type="unfinished">%1 kan &quot;%2&quot; niet opslaan.
 %3%4</translation>
     </message>
     <message>
-        <location line="-340"/>
+        <location line="-356"/>
         <source>Documents (*.docx *.docm *.dotx *.dotm *.doc *.dot *.rtf *.odt *.fodt *.ott *.txt *.html *.htm)</source>
         <translation type="unfinished">Documenten (*.docx *.docm *.dotx *.dotm *.doc *.dot *.rtf *.odt *.fodt *.ott *.txt *.html *.htm)</translation>
     </message>
     <message>
-        <location line="+151"/>
+        <location line="+167"/>
         <source>This document came from a web page, which %1 doesn&apos;t write over, so it is saved as a new .docx file.</source>
         <translation type="unfinished">Dit document komt van een webpagina, die %1 niet overschrijft, dus wordt het opgeslagen als een nieuw .docx-bestand.</translation>
     </message>
@@ -54653,7 +54797,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Het bestand bevat alleen de woorden van het document en verder niets: geen lettertypen, afbeeldingen of randen van tabellen. Kies hoe de tekens en regeleinden worden geschreven. Een teken dat de codering niet kan bevatten, wordt opgeslagen als vraagteken.</translation>
     </message>
     <message>
-        <location line="+52"/>
+        <location line="+59"/>
         <source>A plain text file holds only the words of this document, so its fonts, pictures, tables, and other formatting aren&apos;t saved in it.</source>
         <translation type="unfinished">Een bestand met platte tekst bevat alleen de woorden van dit document, dus de lettertypen, afbeeldingen, tabellen en andere opmaak worden er niet in opgeslagen.</translation>
     </message>
@@ -54771,12 +54915,12 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Feedback</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_output.cpp" line="-591"/>
+        <location filename="../apps/write/app/writewindow_output.cpp" line="-599"/>
         <source>PDF (*.pdf)</source>
         <translation type="unfinished">PDF (*.pdf)</translation>
     </message>
     <message>
-        <location line="+90"/>
+        <location line="+91"/>
         <location line="+61"/>
         <location line="+13"/>
         <location line="+21"/>
@@ -54784,9 +54928,9 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Exporteren naar PDF</translation>
     </message>
     <message>
-        <location line="-168"/>
+        <location line="-169"/>
         <location line="+35"/>
-        <location line="+189"/>
+        <location line="+190"/>
         <source>The pages can&apos;t be made.</source>
         <translation type="unfinished">De pagina&apos;s kunnen niet worden gemaakt.</translation>
     </message>
@@ -54816,7 +54960,12 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Typ paginanummers en -bereiken, gescheiden door komma&apos;s. p2s3 is de tweede pagina van sectie 3, en s3 is de hele sectie 3.</translation>
     </message>
     <message>
-        <location line="+45"/>
+        <location line="+24"/>
+        <source>Makes a PDF/A-1b file: every font is in the file, so it looks the same in years.</source>
+        <translation type="unfinished">Maakt een PDF/A-1b-bestand: elk lettertype zit in het bestand, zodat het er over jaren hetzelfde uitziet.</translation>
+    </message>
+    <message>
+        <location line="+21"/>
         <source>None of those numbers is a page of the document. Type page numbers such as 1-3, 5.</source>
         <translation type="unfinished">Geen van die nummers is een pagina van het document. Typ paginanummers zoals 1-3, 5.</translation>
     </message>
@@ -54837,7 +54986,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">%1 geëxporteerd</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_file.cpp" line="-284"/>
+        <location filename="../apps/write/app/writewindow_file.cpp" line="-291"/>
         <location filename="../apps/write/app/writewindow_output.cpp" line="-22"/>
         <location line="+3"/>
         <location line="+152"/>
@@ -54846,7 +54995,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Opslaan als platte tekst</translation>
     </message>
     <message>
-        <location line="+49"/>
+        <location line="+56"/>
         <location filename="../apps/write/app/writewindow_output.cpp" line="-159"/>
         <source>Some characters couldn&apos;t be saved in this encoding (%1 in all). They were saved as question marks.</source>
         <translation type="unfinished">Sommige tekens konden in deze codering niet worden opgeslagen (%1 in totaal). Ze zijn opgeslagen als vraagtekens.</translation>
@@ -54894,12 +55043,12 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+12"/>
         <location line="+4"/>
-        <location line="+65"/>
+        <location line="+72"/>
         <source>Save as PDF</source>
         <translation type="unfinished">Opslaan als PDF</translation>
     </message>
     <message>
-        <location line="-65"/>
+        <location line="-72"/>
         <source>%1 couldn&apos;t make &quot;%2&quot;.
 %3</source>
         <translation type="unfinished">%1 kan &quot;%2&quot; niet maken.
@@ -54908,12 +55057,12 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="-16"/>
         <location line="+42"/>
-        <location line="+40"/>
+        <location line="+47"/>
         <source>Print</source>
         <translation>Afdrukken</translation>
     </message>
     <message>
-        <location line="-485"/>
+        <location line="-492"/>
         <source>Pages to include</source>
         <translation>Pagina&apos;s om op te nemen</translation>
     </message>
@@ -54996,12 +55145,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Labelt de koppen, alinea&apos;s, lijsten, tabellen en afbeeldingen (met hun alternatieve tekst), zodat een schermlezer de PDF in de juiste volgorde voorleest.</translation>
     </message>
     <message>
-        <location line="+4"/>
-        <source>Makes a PDF/A-2b file: every font is in the file, so it looks the same in years.</source>
-        <translation type="unfinished">Maakt een PDF/A-2b-bestand: alle lettertypen worden in het bestand opgenomen, zodat het er over jaren nog hetzelfde uitziet.</translation>
-    </message>
-    <message>
-        <location line="+58"/>
+        <location line="+62"/>
         <source>(not tagged for screen readers: %1)</source>
         <translation type="unfinished">(niet getagd voor schermlezers: %1)</translation>
     </message>
@@ -55126,7 +55270,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Dat zijn meer pagina&apos;s dan één taak kan verzenden. Druk minder pagina&apos;s af of minder exemplaren.</translation>
     </message>
     <message>
-        <location line="+40"/>
+        <location line="+47"/>
         <source>Couldn&apos;t print &quot;%1&quot; to %2.</source>
         <translation type="unfinished">Kan &quot;%1&quot; niet afdrukken naar %2.</translation>
     </message>
@@ -55533,7 +55677,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation>Opmaak</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_info.cpp" line="-171"/>
+        <location filename="../apps/write/app/writewindow_info.cpp" line="-209"/>
         <source>Pages</source>
         <translation>Pagina&apos;s</translation>
     </message>
@@ -55558,7 +55702,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation>Alinea&apos;s</translation>
     </message>
     <message>
-        <location line="+46"/>
+        <location line="+49"/>
         <source>This file has more properties than %1 reads, so the mark can&apos;t be added.</source>
         <translation type="unfinished">Dit bestand heeft meer eigenschappen dan %1 kan lezen, dus de markering kan niet worden toegevoegd.</translation>
     </message>
@@ -55566,6 +55710,31 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <location line="+3"/>
         <source>A .odt file can&apos;t hold the mark. Save the document as a .docx file first.</source>
         <translation type="unfinished">Een .odt-bestand kan de markering niet bevatten. Sla het document eerst op als .docx-bestand.</translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>This file has more properties than %1 reads, so this choice can&apos;t be kept.</source>
+        <translation type="unfinished">Dit bestand heeft meer eigenschappen dan %1 kan lezen, dus deze keuze kan niet worden behouden.</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>A .odt file can&apos;t hold this choice. Save the document as a .docx file first.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Always Open Read-Only</source>
+        <translation type="unfinished">Altijd openen als alleen-lezen</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>This document will open for reading only. Save it to keep this choice.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>This document will open for editing again. Save it to keep this choice.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+18"/>
@@ -55669,12 +55838,27 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Gegevens die andere programma&apos;s aan het bestand hebben toegevoegd en die u niet op een pagina ziet.</translation>
     </message>
     <message>
+        <location line="+2"/>
+        <source>External links</source>
+        <translation type="unfinished">Externe koppelingen</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Linked pictures and objects, and fields that read another file. Removing turns fields into text and takes out the linked ones. Web links stay.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location line="+8"/>
         <source>Inspect Document</source>
         <translation type="unfinished">Document controleren</translation>
     </message>
     <message>
-        <location line="+21"/>
+        <location line="+15"/>
+        <source>The choice to always open the document for reading only.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
         <source>Check Compatibility</source>
         <translation type="unfinished">Compatibiliteit controleren</translation>
     </message>
@@ -64900,7 +65084,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
 <context>
     <name>jp::crunch::PrintJob</name>
     <message>
-        <location filename="../apps/crunch/core/printjob.cpp" line="+196"/>
+        <location filename="../apps/crunch/core/printjob.cpp" line="+197"/>
         <source>Cell %1: </source>
         <translation type="unfinished">Cel %1: </translation>
     </message>
@@ -64941,27 +65125,39 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">De taak wordt afgebroken bij %1 pagina&apos;s.</translation>
     </message>
     <message>
-        <location line="+122"/>
+        <location line="+124"/>
         <source>There was not room to make the pages gray, so some are in color.</source>
         <translation type="unfinished">Er was niet genoeg ruimte om de pagina&apos;s grijs te maken, dus sommige zijn in kleur.</translation>
     </message>
     <message>
-        <location line="+388"/>
+        <location line="+410"/>
         <source>There are no pages to put in the file.</source>
         <translation type="unfinished">Er zijn geen pagina&apos;s om in het bestand op te nemen.</translation>
     </message>
     <message>
-        <location line="+62"/>
+        <location line="+92"/>
+        <location line="+19"/>
         <source>It was cancelled, and no file was made.</source>
         <translation type="unfinished">De bewerking is geannuleerd en er is geen bestand gemaakt.</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="-18"/>
+        <location line="+24"/>
         <source>The pages could not be put in the file.</source>
         <translation type="unfinished">De pagina&apos;s konden niet in het bestand worden opgenomen.</translation>
     </message>
     <message>
-        <location line="+23"/>
+        <location line="-19"/>
+        <source>This PDF is too large to tag for screen readers, so it was saved without tags.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+26"/>
+        <source>The PDF is not tagged for screen readers: %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+25"/>
         <location line="+6"/>
         <source>There are no pages to print.</source>
         <translation type="unfinished">Er zijn geen pagina&apos;s om af te drukken.</translation>
@@ -65912,6 +66108,40 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     </message>
 </context>
 <context>
+    <name>jp::deck::PptSalvage</name>
+    <message>
+        <location filename="../apps/deck/io/pptsalvage.cpp" line="+140"/>
+        <location line="+7"/>
+        <source>The presentation is protected with a password, and can&apos;t be repaired.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-4"/>
+        <source>No presentation could be found in the file: its first records are damaged or gone.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+41"/>
+        <source>The end of the presentation was lost, so it was opened as it was at its last save that is whole.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+38"/>
+        <source>The list that says where each slide is kept was lost, so the slides are in the order they are stored, which may not be the order they were in, and a slide may be an older version of itself.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>No slide of the presentation could be read.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>The pictures of the presentation, if it had any, could not be found.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>jp::grid::CondFormats</name>
     <message>
         <location filename="../libs/shell/grid/condformat.cpp" line="+180"/>
@@ -65989,6 +66219,49 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <location line="+1"/>
         <source>Sum</source>
         <translation type="unfinished">Som</translation>
+    </message>
+</context>
+<context>
+    <name>jp::office::CfbSalvage</name>
+    <message>
+        <location filename="../libs/office/office/cfbsalvage.cpp" line="+247"/>
+        <source>The file is too large to repair.</source>
+        <translation type="unfinished">Het bestand is te groot om te herstellen.</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Too many parts of the file were asked for.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+89"/>
+        <source>The file holds more than can be repaired.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+33"/>
+        <source>The container of the file was damaged, so its parts were followed from its directory, as far as the file goes.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The directory of the file was damaged or gone, so its parts were found by their own records.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The small parts kept in the mini stream of the file could not be read.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The file was cut short; what came after the cut is lost.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>No %1 could be found in the file.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -66175,6 +66448,40 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <location line="+268"/>
         <source>A table is larger than this program can show: the rest of it was left out.</source>
         <translation type="unfinished">Een tabel is groter dan dit programma kan weergeven: de rest ervan is weggelaten.</translation>
+    </message>
+</context>
+<context>
+    <name>jp::office::doc::Salvage</name>
+    <message>
+        <location filename="../libs/office/doc/docsalvage.cpp" line="+198"/>
+        <source>No document could be found in the file.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <location line="+6"/>
+        <source>The document is protected with a password, and can&apos;t be repaired.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <source>The document&apos;s tables are lost, and its text could not be found without them.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+27"/>
+        <source>The document&apos;s tables are lost, and its text could not be read without them.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>The tables that say how the text is formatted were lost, so the text is kept as plain paragraphs, without its styles, lists, tables, pictures, headers, footers, or footnotes.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>The pictures of the document, if it had any, could not be found.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -67418,27 +67725,22 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
 <context>
     <name>jp::office::sheet::Xls</name>
     <message>
-        <location filename="../libs/office/sheet/xls.cpp" line="-643"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="-635"/>
         <source>The file is too large to repair.</source>
         <translation type="unfinished">Het bestand is te groot om te herstellen.</translation>
     </message>
     <message>
-        <location line="+18"/>
+        <location line="+26"/>
         <source>The container of the file was sound. A sheet that is damaged keeps the cells before the damage.</source>
         <translation type="unfinished">De container van het bestand was intact. Een beschadigd blad behoudt de cellen vóór de beschadiging.</translation>
     </message>
     <message>
-        <location line="+16"/>
-        <source>The container of the file was damaged, so the workbook was found by its own records.</source>
-        <translation type="unfinished">De container van het bestand was beschadigd, dus de werkmap is gevonden aan de hand van de eigen records.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
+        <location line="+3"/>
         <source>A sheet that was cut short keeps the cells before the cut; whatever came after it is lost.</source>
         <translation type="unfinished">Een blad dat werd afgekapt behoudt de cellen vóór de afkapping; alles wat daarna kwam, is verloren.</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+5"/>
         <source>No workbook could be found in the file.</source>
         <translation type="unfinished">Er kon geen werkmap in het bestand worden gevonden.</translation>
     </message>

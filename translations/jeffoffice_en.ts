@@ -275,7 +275,7 @@
 <context>
     <name>jp::MainWindow</name>
     <message numerus="yes">
-        <location filename="../apps/pub/app/mainwindow.cpp" line="+1582"/>
+        <location filename="../apps/pub/app/mainwindow.cpp" line="+1594"/>
         <source>Saved %n drawing(s).</source>
         <translation>
             <numerusform>Saved %n drawing.</numerusform>

@@ -1214,6 +1214,10 @@ No se puede leer el fichero.</translation>
         <translation type="unfinished">Un fichero de texto, un fichero .xls y un fichero .ods no pueden contener la marca. Guarde primero el libro como fichero .xlsx.</translation>
     </message>
     <message>
+        <source>This file has more properties than %1 reads, so this choice can't be kept.</source>
+        <translation type="unfinished">Este fichero tiene más propiedades de las que lee %1, así que esta opción no se puede mantener.</translation>
+    </message>
+    <message>
         <source>The file that was saved can't hold the mark, so the workbook is not marked as final.</source>
         <translation type="unfinished">El fichero guardado no puede contener la marca, así que el libro no está marcado como final.</translation>
     </message>
@@ -1654,6 +1658,10 @@ No se encontraron los ficheros de la Ayuda junto al programa. Volver a instalar 
         <translation type="unfinished">Un fichero .pub no puede guardar la marca. Guarde primero la publicación como fichero .jpub.</translation>
     </message>
     <message>
+        <source>This file has more properties than %1 reads, so this choice can't be kept.</source>
+        <translation type="unfinished">Este fichero tiene más propiedades de las que lee %1, así que esta opción no se puede mantener.</translation>
+    </message>
+    <message>
         <source>The file that was saved can't hold the mark, so the publication is not marked as final.</source>
         <translation type="unfinished">El fichero guardado no puede contener la marca, así que la publicación no está marcada como final.</translation>
     </message>
@@ -1976,16 +1984,16 @@ No se pudo aplicar la contraseña al fichero.</translation>
 %1</translation>
     </message>
     <message>
+        <source>Makes a PDF/A-1b file: every font is in the file, so it looks the same in years.</source>
+        <translation type="unfinished">Crea un fichero PDF/A-1b: todas las fuentes se incluyen en el fichero, para que se vea igual con los años.</translation>
+    </message>
+    <message>
         <source>PDF/A is turned off, because a PDF with a password can't be a PDF/A file.</source>
         <translation type="unfinished">PDF/A está desactivado, porque un PDF con contraseña no puede ser un fichero PDF/A.</translation>
     </message>
     <message>
         <source>Minimum size makes the pictures no finer than 150 pixels to the inch, so that the file is smaller.</source>
         <translation type="unfinished">El tamaño mínimo hace que las imágenes no tengan más de 150 píxeles por pulgada, para que el fichero sea más pequeño.</translation>
-    </message>
-    <message>
-        <source>Makes a PDF/A-2b file: every font is in the file, so it looks the same in years.</source>
-        <translation type="unfinished">Crea un fichero PDF/A-2b: todas las fuentes se incluyen en el fichero, así se verá igual dentro de años.</translation>
     </message>
     <message>
         <source>This makes a message file. Nothing is sent. Open the file in your email program, add who it is for, and send it.</source>
@@ -2006,6 +2014,10 @@ No se pudo aplicar la contraseña al fichero.</translation>
     <message>
         <source>A .odt file can't hold the mark. Save the document as a .docx file first.</source>
         <translation type="unfinished">Un fichero .odt no puede guardar la marca. Guarde antes el documento como fichero .docx.</translation>
+    </message>
+    <message>
+        <source>This file has more properties than %1 reads, so this choice can't be kept.</source>
+        <translation type="unfinished">Este fichero tiene más propiedades de las que lee %1, así que esta opción no se puede mantener.</translation>
     </message>
     <message>
         <source>The file that was saved can't hold the mark, so the document is not marked as final.</source>
@@ -2251,6 +2263,13 @@ No se pudo aplicar la contraseña al fichero.</translation>
             <numerusform>El fichero almacena este gráfico junto con %n gráfico más, por lo que no se puede modificar aquí.</numerusform>
             <numerusform>El fichero almacena este gráfico junto con %n gráficos más, por lo que no se puede modificar aquí.</numerusform>
         </translation>
+    </message>
+</context>
+<context>
+    <name>jp::office::CfbSalvage</name>
+    <message>
+        <source>The file is too large to repair.</source>
+        <translation type="unfinished">El fichero es demasiado grande para repararlo.</translation>
     </message>
 </context>
 <context>
@@ -2593,10 +2612,6 @@ No se pudo aplicar la contraseña al fichero.</translation>
     <message>
         <source>The container of the file was sound. A sheet that is damaged keeps the cells before the damage.</source>
         <translation type="unfinished">El contenedor del fichero estaba intacto. Una hoja dañada conserva las celdas anteriores al daño.</translation>
-    </message>
-    <message>
-        <source>The container of the file was damaged, so the workbook was found by its own records.</source>
-        <translation type="unfinished">El contenedor del fichero estaba dañado, así que el libro se encontró mediante sus propios registros.</translation>
     </message>
     <message>
         <source>No workbook could be found in the file.</source>
