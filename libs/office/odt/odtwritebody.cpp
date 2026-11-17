@@ -5,6 +5,7 @@
 #include "office/drawingml_geometry.h"
 
 #include "core/fonts.h"
+#include "core/svg.h"
 #include "office/barcodemarker.h"
 #include "office/chart.h"
 #include "office/theme.h"
@@ -1271,7 +1272,12 @@ QByteArray Writer::drawingXml(const T &t, int drawing, ParaCtx *pc, int depth)
                         if (t.localName(m) == "svgBlip") svgRid = t.attr(m, "embed", wml::NsR);
             QString svgHref;
             // (A barcode keeps its PNG: its marker names the fingerprint of it.)
-            if (barcodeSettings.isEmpty() && !svgRid.isEmpty() && !imagePart(svgRid, &svgHref).isEmpty() && svgHref.endsWith(QLatin1String(".svg"), Qt::CaseInsensitive)) rid = svgRid;
+            // (And only an SVG that is one a graphic may be: the same look as when it is put in a document, for the references that go outside it, its size, and what it costs to draw. Else the
+            // PNG stays, and the SVG is not taken into the file.)
+            const Relationship svgLink = svgRid.isEmpty() ? Relationship() : m_pkg.relationship(m_source, svgRid);
+            const bool svgOk = !svgLink.id.isEmpty() && !svgLink.external && svgLink.target.endsWith(QLatin1String(".svg"), Qt::CaseInsensitive) && m_pkg.partSize(svgLink.target) <= svg::kMostGraphicBytes &&
+                               svg::vetGraphic(m_pkg.part(svgLink.target)) == svg::Vet::Ok;
+            if (barcodeSettings.isEmpty() && svgOk && !imagePart(svgRid, &svgHref).isEmpty() && svgHref.endsWith(QLatin1String(".svg"), Qt::CaseInsensitive)) rid = svgRid;
         }
         if (imagePart(rid, &href).isEmpty()) {
             left(QCoreApplication::translate("odt", "pictures that can't be read"));
