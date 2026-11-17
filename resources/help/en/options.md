@@ -39,6 +39,7 @@ These check boxes control spelling and typing help. See [Check spelling and hyph
 - **Show this number of Recent Publications** is how many names the **Open** page lists, from 0 to 50.
 - **When selecting, automatically select entire word** selects whole words as you drag across text.
 - **Allow text to be dragged and dropped** lets you move selected text by dragging it.
+- **Use the Insert key to turn overtype mode on and off** is off at first. When it is on, the **Insert** key switches between two ways of typing. Normally each letter you type pushes the letters after it along. In **overtype** mode each letter you type replaces the letter after the cursor, up to the end of the paragraph. The status bar shows **Insert** or **Overtype**. Press **Insert** again to go back.
 - **Automatically hyphenate in new text boxes** turns on hyphenation, which breaks long words at the end of a line, in text boxes you add.
 
 ## Customize

@@ -4,6 +4,7 @@
 // JeffDeck's tests of the window: ribbon, help, status bar, headers and footers, backgrounds, the slide menu, and find.
 #include "deckhelpers.h"
 #include "../withdialog.h"
+#include "app/theme.h"
 #include "../minitoolbartest.h"
 #include "app/findreplace.h"
 #include "app/deckfilescreen.h"
@@ -3083,6 +3084,90 @@ private Q_SLOTS:
         }();
         minitest::goesWithAnotherPage(rig);
     }
+    // Overtype in the slide's text: as for JeffPub (the Insert key, the status bar's mode, the paragraph's end, one undo step).
+    void overtypeReplacesLettersAndUndoesAsOneStep()
+    {
+        Settings::get().setValue(QStringLiteral("edit/insertKey"), false);
+        const auto restore = qScopeGuard([] { Settings::get().setValue(QStringLiteral("edit/insertKey"), false); });
+        DeckWindow w;
+        w.show();
+        Editor *ed = w.editor();
+        const auto *title = placeholderOfSlide(*ed->doc(), 0, 0);
+        QTextCursor(ed->doc()->storyDoc(title->storyId)).insertText(QStringLiteral("abcd\nxy"));
+        ed->beginTextEdit(title->id);
+        const QString boxId = title->id, story = title->storyId;   // (undo puts the items back anew)
+        auto textOf = [&] { return ed->doc()->storyDoc(story)->toPlainText(); };
+        auto put = [&](int at) {
+            QTextCursor c = ed->cursor();
+            c.setPosition(at);
+            ed->setCursor(c);
+        };
+        auto indicator = [&] { return w.statusBar()->findChild<QLabel *>(QStringLiteral("overtypeMode")); };
+        QVERIFY(indicator());
+        // The Insert key does nothing until Options lets it, and the indicator is not shown.
+        put(2);
+        QTest::keyClick(w.canvas(), Qt::Key_Insert);
+        QVERIFY(!ed->overtype());
+        QVERIFY(indicator()->isHidden());
+        withDialog([&] { w.act(QStringLiteral("file.options"))->trigger(); }, QStringLiteral("optionsDialog"), [](QDialog *d) {
+            auto *box = d->findChild<QCheckBox *>(QStringLiteral("insertKeyOvertype"));
+            QVERIFY(box);
+            QVERIFY(!box->isChecked());
+            box->setChecked(true);
+        });
+        QVERIFY(Settings::get().value(QStringLiteral("edit/insertKey"), false).toBool());
+        QVERIFY(!indicator()->isHidden());
+        QCOMPARE(indicator()->text(), QStringLiteral("Insert"));
+        // Insert turns overtype on: each letter takes the place of the one after the caret.
+        QTest::keyClick(w.canvas(), Qt::Key_Insert);
+        QVERIFY(ed->overtype());
+        QCOMPARE(indicator()->text(), QStringLiteral("Overtype"));
+        QTest::keyClicks(w.canvas(), QStringLiteral("12"));
+        QCOMPARE(textOf(), QStringLiteral("ab12\nxy"));
+        // At the end of the paragraph the letters are put in, and the next paragraph keeps its own.
+        QTest::keyClicks(w.canvas(), QStringLiteral("3"));
+        QCOMPARE(textOf(), QStringLiteral("ab123\nxy"));
+        // One undo step for the run typed.
+        ed->undo();
+        QCOMPARE(textOf(), QStringLiteral("abcd\nxy"));
+        ed->beginTextEdit(boxId);   // (undo leaves the text)
+        // Insert again goes back to pushing the letters along.
+        put(0);
+        QTest::keyClick(w.canvas(), Qt::Key_Insert);
+        QVERIFY(!ed->overtype());
+        QTest::keyClicks(w.canvas(), QStringLiteral("Z"));
+        QCOMPARE(textOf(), QStringLiteral("Zabcd\nxy"));
+        // Turning the choice off in Options puts the mode back to Insert.
+        QTest::keyClick(w.canvas(), Qt::Key_Insert);
+        QVERIFY(ed->overtype());
+        withDialog([&] { w.act(QStringLiteral("file.options"))->trigger(); }, QStringLiteral("optionsDialog"), [](QDialog *d) {
+            d->findChild<QCheckBox *>(QStringLiteral("insertKeyOvertype"))->setChecked(false);
+        });
+        QVERIFY(!ed->overtype());
+        QVERIFY(indicator()->isHidden());
+        ed->endTextEdit();
+    }
+
+    // A picture of the status bar in overtype mode, for the shot folder (JO_SHOT_DIR); skipped otherwise.
+    void overtypeStatusBarShotDeck()
+    {
+        if (qEnvironmentVariable("JO_SHOT_DIR").isEmpty()) QSKIP("JO_SHOT_DIR is not set");
+        jp::applyUiTheme(1);
+        Settings::get().setValue(QStringLiteral("edit/insertKey"), true);
+        const auto restore = qScopeGuard([] { Settings::get().setValue(QStringLiteral("edit/insertKey"), false); });
+        DeckWindow w;
+        w.resize(1100, 700);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        const auto *title = placeholderOfSlide(*w.editor()->doc(), 0, 0);
+        w.editor()->beginTextEdit(title->id);
+        w.editor()->syncOvertypeOption();
+        QTest::keyClick(w.canvas(), Qt::Key_Insert);
+        QVERIFY(w.editor()->overtype());
+        QTRY_VERIFY(w.statusBar()->findChild<QLabel *>(QStringLiteral("overtypeMode"))->isVisible());
+        shotOf(w.statusBar(), QStringLiteral("overtype-deck-statusbar"));
+    }
+
 };
 
 JP_TEST_CLASS(DeckWindowTests)

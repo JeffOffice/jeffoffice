@@ -1440,7 +1440,7 @@ void optionsDialog(QWidget *p, Editor *ed)
         QComboBox *units = nullptr;
         MeasureSpin *nudge = nullptr;
         QSpinBox *recent = nullptr;
-        QCheckBox *wholeWord = nullptr, *dragText = nullptr, *hyphenate = nullptr, *privacy = nullptr;
+        QCheckBox *wholeWord = nullptr, *dragText = nullptr, *hyphenate = nullptr, *insertKey = nullptr, *privacy = nullptr;
     };
     auto f = std::make_shared<Fields>();
     QVector<OptionsPage> pages;
@@ -1472,6 +1472,11 @@ void optionsDialog(QWidget *p, Editor *ed)
         af->addRow(wholeWord);
         af->addRow(dragText);
         af->addRow(hyphenate);
+        auto *insertKey = new QCheckBox(QCoreApplication::translate("Dialogs", "Use the Insert key to turn overtype mode on and off"), adv);
+        insertKey->setObjectName(QStringLiteral("insertKeyOvertype"));
+        insertKey->setChecked(st.value("edit/insertKey", false).toBool());
+        af->addRow(insertKey);
+        f->insertKey = insertKey;
         f->units = units;
         f->nudge = nudge;
         f->recent = recent;
@@ -1486,6 +1491,7 @@ void optionsDialog(QWidget *p, Editor *ed)
         st.setValue("edit/wholeWord", f->wholeWord->isChecked());
         st.setValue("edit/dragText", f->dragText->isChecked());
         st.setValue("edit/hyphenate", f->hyphenate->isChecked());
+        st.setValue("edit/insertKey", f->insertKey->isChecked());
     }};
     if (!optionsDialog(p, ed, pages, true)) return;   // (its "check grammar as you type" is the suite's one choice)
     // Every open window saves automatic recovery copies at the new interval.

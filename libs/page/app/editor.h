@@ -16,7 +16,10 @@
 #include <QTextCursor>
 #include <QTimer>
 
+class QKeyEvent;
+class QLabel;
 class QMimeData;
+class QStatusBar;
 class QThreadPool;
 class QWidget;
 #include <QUndoStack>
@@ -141,6 +144,12 @@ public:
         int half = 0;                  // 1: the second half of a cell divided by a diagonal
     };
     bool isEditingText() const { return !m_text.storyId.isEmpty(); }
+    // Overtype: each letter typed takes the place of the one after the caret, as far as the paragraph goes. The Insert key turns it on and off when Options > Use the Insert key
+    // to control overtype mode is on (the one setting, edit/insertKey, which JeffWrite uses too); `handleInsertKey` is false when it is not that key, or the setting is off.
+    bool overtype() const { return m_overtype; }
+    void setOvertype(bool on);
+    bool handleInsertKey(const QKeyEvent *e);
+    void syncOvertypeOption();   // the setting changed: off puts the mode back to Insert; the indicator is told either way
     // The words Read Aloud is saying, shown as a search match is (a tint behind them): not the selection, so what is typed is never put over them, and the text cursor stays where it was. The
     // range is of the story's characters; clearing takes it away.
     void setReadHighlight(const QString &storyId, int from, int to);
@@ -399,6 +408,7 @@ Q_SIGNALS:
     void viewChanged();
     void grammarStopped();   // the publication is past the limit of work grammar checking may do: it has stopped (said once for a document)
     void textCursorChanged();
+    void overtypeChanged();
     void toolChanged();
     void status(const QString &message);
     void modifiedChanged(bool);
@@ -459,7 +469,11 @@ private:
     QString m_masterBefore;
     QString m_label;
     bool m_typing = false;
+    bool m_overtype = false;
     QTimer m_typingTimer;
 };
+
+// The status bar's mode indicator ("Insert" or "Overtype"), shown while the Insert key is let to turn overtype on. Put in the bar, after the words already at its left.
+QLabel *makeOvertypeIndicator(Editor *ed, QStatusBar *bar);
 
 } // namespace jp

@@ -143,7 +143,7 @@ void DeckWindow::createDialogActions()
     // sets how every window opens (and the open ones, now).
     mk("file.options", tr("Options"), "settings", QKeySequence(), [this] {
         struct Fields {
-            QCheckBox *ruler = nullptr, *snap = nullptr, *embedFonts = nullptr, *removePersonal = nullptr;
+            QCheckBox *ruler = nullptr, *snap = nullptr, *insertKey = nullptr, *embedFonts = nullptr, *removePersonal = nullptr;
         };
         auto f = std::make_shared<Fields>();
         QVector<OptionsPage> pages;
@@ -170,6 +170,20 @@ void DeckWindow::createDialogActions()
                     deck->m_ed->view.snapObjects = f->snap->isChecked();
                     deck->refreshUi();
                 }
+        }};
+        pages << OptionsPage{tr("Advanced"), [f] {
+            auto *page = new QWidget();
+            auto *column = new QVBoxLayout(page);
+            f->insertKey = new QCheckBox(tr("Use the Insert key to turn overtype mode on and off"), page);
+            f->insertKey->setObjectName(QStringLiteral("insertKeyOvertype"));
+            f->insertKey->setChecked(Settings::get().value(QStringLiteral("edit/insertKey"), false).toBool());
+            column->addWidget(f->insertKey);
+            column->addStretch(1);
+            return page;
+        }, [f] {
+            Settings::get().setValue(QStringLiteral("edit/insertKey"), f->insertKey->isChecked());
+            for (AppWindow *w : AppWindow::windows())
+                if (auto *deck = qobject_cast<DeckWindow *>(w)) deck->m_ed->syncOvertypeOption();
         }};
         // Save: what goes in the file besides the slides. The fonts are the ones that come with the program, which other computers lack;
         // the ones every computer has (Calibri, Arial) are never put in.

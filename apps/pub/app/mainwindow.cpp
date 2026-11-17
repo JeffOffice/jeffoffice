@@ -192,6 +192,7 @@ MainWindow::MainWindow(QWidget *parent) : AppWindow(parent)
     KeyMap::apply(this);   // (the keys the person chose in Options > Customize)
     RibbonCustom::apply(this);   // (and the tabs and groups the person shows, hides, and adds)
     buildStatusBar();
+    makeOvertypeIndicator(m_ed, statusBar());
     describeForScreenReaders(m_split);   // the pages, the page, and the panes
     describeForScreenReaders(statusBar());
 
@@ -351,6 +352,8 @@ void MainWindow::resizeEvent(QResizeEvent *e)
 
 bool MainWindow::eventFilter(QObject *o, QEvent *e)
 {
+    // Insert, in the publication's text: overtype mode on and off (when Options lets the key do it).
+    if (e->type() == QEvent::KeyPress && o == m_canvas && m_ed->handleInsertKey(static_cast<QKeyEvent *>(e))) return true;
     // Escape closes the backstage from anywhere.
     if (e->type() == QEvent::KeyPress && m_backstage && m_backstage->isVisible()) {
         auto *ke = static_cast<QKeyEvent *>(e);
@@ -387,6 +390,7 @@ void MainWindow::settingsChanged()
 {
     const int ms = std::max(1, Settings::get().autoRecoverMinutes()) * 60 * 1000;
     if (m_recoverTimer.interval() != ms) m_recoverTimer.start(ms);
+    m_ed->syncOvertypeOption();
 }
 
 HelpView *MainWindow::helpView() const { return m_task->findChild<HelpView *>(); }

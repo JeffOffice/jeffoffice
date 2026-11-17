@@ -10,11 +10,16 @@
 #include "core/texteffects.h"
 #include "text/autocorrect.h"
 #include "text/textprops.h"
+#include "app/plaintext.h"
 
+#include <QKeyEvent>
+#include <QLabel>
 #include <QRegularExpression>
+#include <QStatusBar>
 #include <QTextBlock>
 #include <QTextDocument>
 #include <QTextList>
+#include <algorithm>
 
 namespace jp {
 
@@ -948,7 +953,53 @@ void Editor::typeText(const QString &t)
         autoCorrectWord();
         autoFormatWord();
     }
+    // Overtype: the letters typed take the place of those after the caret, as far as the paragraph goes (the typing is the same undo step as ever).
+    if (m_overtype && !m_cursor.hasSelection()) {
+        const QTextBlock b = m_cursor.block();
+        const int room = b.position() + b.length() - 1 - m_cursor.position();
+        const int n = std::min<int>(room, int(s.size()));
+        if (n > 0) m_cursor.setPosition(m_cursor.position() + n, QTextCursor::KeepAnchor);
+    }
     insertText(s);
+}
+
+void Editor::setOvertype(bool on)
+{
+    if (m_overtype == on) return;
+    m_overtype = on;
+    Q_EMIT overtypeChanged();
+}
+
+bool Editor::handleInsertKey(const QKeyEvent *e)
+{
+    if (e->key() != Qt::Key_Insert || (e->modifiers() & (Qt::ControlModifier | Qt::ShiftModifier | Qt::AltModifier | Qt::MetaModifier))) return false;
+    if (!Settings::get().value(QStringLiteral("edit/insertKey"), false).toBool() || !isEditingText()) return false;
+    setOvertype(!m_overtype);
+    return true;
+}
+
+void Editor::syncOvertypeOption()
+{
+    if (!Settings::get().value(QStringLiteral("edit/insertKey"), false).toBool()) m_overtype = false;
+    Q_EMIT overtypeChanged();
+}
+
+QLabel *makeOvertypeIndicator(Editor *ed, QStatusBar *bar)
+{
+    auto *label = plainLabel(new QLabel(bar));
+    label->setObjectName(QStringLiteral("overtypeMode"));
+    label->setAccessibleName(QCoreApplication::translate("Editor", "Typing mode"));
+    label->setContentsMargins(8, 0, 8, 0);
+    label->setMinimumWidth(std::max(label->fontMetrics().horizontalAdvance(QCoreApplication::translate("Editor", "Overtype")), label->fontMetrics().horizontalAdvance(QCoreApplication::translate("Editor", "Insert"))) + 24);
+    auto refresh = [ed, label] {
+        const bool allowed = Settings::get().value(QStringLiteral("edit/insertKey"), false).toBool();
+        label->setVisible(allowed);
+        label->setText(ed->overtype() ? QCoreApplication::translate("Editor", "Overtype") : QCoreApplication::translate("Editor", "Insert"));
+    };
+    QObject::connect(ed, &Editor::overtypeChanged, label, refresh);
+    refresh();
+    bar->addWidget(label);
+    return label;
 }
 
 void Editor::editText(const std::function<void(QTextCursor &)> &fn)

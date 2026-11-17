@@ -114,6 +114,8 @@ DeckWindow::DeckWindow(QWidget *parent) : AppWindow(parent)
     KeyMap::apply(this);   // (the keys the person chose in Options > Customize)
     RibbonCustom::apply(this);   // (and the tabs and groups the person shows, hides, and adds)
     buildStatusBar();
+    makeOvertypeIndicator(m_ed, statusBar());
+    m_canvas->installEventFilter(this);   // (the Insert key, in the slide's text)
     describeForScreenReaders(m_split);
     describeForScreenReaders(statusBar());
     m_fileScreen = new DeckFileScreen(this);
@@ -505,6 +507,8 @@ void DeckWindow::resizeEvent(QResizeEvent *e)
 
 bool DeckWindow::eventFilter(QObject *o, QEvent *e)
 {
+    // Insert, in the slide's text: overtype mode on and off (when Options lets the key do it).
+    if (e->type() == QEvent::KeyPress && o == m_canvas && m_ed->handleInsertKey(static_cast<QKeyEvent *>(e))) return true;
     // Escape closes the File screen from anywhere in the window.
     if (e->type() == QEvent::KeyPress && static_cast<QKeyEvent *>(e)->key() == Qt::Key_Escape && m_fileScreen->isVisible()) {
         auto *w = qobject_cast<QWidget *>(o);

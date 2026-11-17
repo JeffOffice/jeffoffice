@@ -1,7 +1,7 @@
 # Change JeffDeck's settings
 <!-- keywords: options, settings, preferences, theme, dark mode, language, user name, initials, ruler, snap, spelling, autocorrect, quotes, updates, beta, usage statistics, about, save, embed fonts, fonts, customize keyboard, customize the ribbon, customize the quick toolbar, quick toolbar, add a command to the quick toolbar, hide a tab, hide a group, add a tab, add a group, rename a tab, reset the ribbon, change shortcut keys, reassign keys, reset keys -->
 
-Your settings are in the **JeffDeck Options** window. Click **File > Options** to open it. It has six tabs. Click **OK** to keep your changes, or **Cancel** to throw them away.
+Your settings are in the **JeffDeck Options** window. Click **File > Options** to open it. It has seven tabs. Click **OK** to keep your changes, or **Cancel** to throw them away.
 
 ## General
 
@@ -36,6 +36,10 @@ These check boxes control spelling and typing help. See [Type and format text](t
 
 - **Show the ruler** shows the rulers along the edges of the slide. This is the same as **View > Show > Ruler**, and it applies to every window, now and when you open new ones.
 - **Snap objects to other objects** makes an object you drag line up with the other objects on the slide.
+
+## Advanced
+
+- **Use the Insert key to turn overtype mode on and off** is off at first. When it is on, the **Insert** key switches between two ways of typing in a text box. Normally each letter you type pushes the letters after it along. In **overtype** mode each letter you type replaces the letter after the cursor, up to the end of the paragraph. The status bar shows **Insert** or **Overtype** so you can tell which mode you are in. Press **Insert** again to go back.
 
 ## Save
 
