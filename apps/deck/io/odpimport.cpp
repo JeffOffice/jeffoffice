@@ -562,7 +562,25 @@ void Reader::readTransition(const Bag &style, Page &page)
     };
     auto opposite = [](const QString &d) { return d == QLatin1String("l") ? QStringLiteral("r") : d == QLatin1String("r") ? QStringLiteral("l") : d == QLatin1String("u") ? QStringLiteral("d") : QStringLiteral("u"); };
     bool matched = true;
-    if (type == QLatin1String("fade") || type == QLatin1String("dissolve")) {
+    if (type == QLatin1String("dissolve")) {
+        t.type = QStringLiteral("dissolve");
+    } else if (type == QLatin1String("blindsWipe") || type == QLatin1String("randomBarWipe")) {
+        t.type = type == QLatin1String("blindsWipe") ? QStringLiteral("blinds") : QStringLiteral("randombars");
+        t.dir = subtype == QLatin1String("vertical") ? QStringLiteral("v") : QStringLiteral("h");
+    } else if (type == QLatin1String("checkerBoardWipe")) {
+        t.type = QStringLiteral("checkerboard");
+        t.dir = subtype == QLatin1String("down") ? QStringLiteral("v") : QStringLiteral("h");
+    } else if (type == QLatin1String("ellipseWipe") && subtype == QLatin1String("circle")) {
+        t.type = QStringLiteral("circle");
+    } else if (type == QLatin1String("irisWipe") && subtype == QLatin1String("diamond")) {
+        t.type = QStringLiteral("diamond");
+    } else if (type == QLatin1String("fanWipe")) {
+        t.type = QStringLiteral("wedge");
+    } else if (type == QLatin1String("pinWheelWipe")) {
+        t.type = QStringLiteral("wheel");
+        t.by = subtype == QLatin1String("oneBlade") ? QStringLiteral("1") : subtype.startsWith(QLatin1String("twoBlade")) ? QStringLiteral("2")
+             : subtype == QLatin1String("threeBlade") ? QStringLiteral("3") : subtype == QLatin1String("eightBlade") ? QStringLiteral("8") : QStringLiteral("4");
+    } else if (type == QLatin1String("fade")) {
         t.type = QStringLiteral("fade");
     } else if (type == QLatin1String("pushWipe")) {
         t.type = QStringLiteral("push");
@@ -588,7 +606,7 @@ void Reader::readTransition(const Bag &style, Page &page)
         else if (oldStyle.startsWith(QLatin1String("move-from-"))) { t.type = QStringLiteral("push"); t.dir = side(oldStyle); }
         else if (oldStyle.startsWith(QLatin1String("roll-from-"))) { t.type = QStringLiteral("cover"); t.dir = side(oldStyle); }
         else if (oldStyle.startsWith(QLatin1String("uncover-to-"))) { t.type = QStringLiteral("uncover"); t.dir = opposite(side(oldStyle)); }
-        else if (oldStyle == QLatin1String("dissolve")) t.type = QStringLiteral("fade");
+        else if (oldStyle == QLatin1String("dissolve")) t.type = QStringLiteral("dissolve");
         else if (oldStyle == QLatin1String("fade-from-center")) { t.type = QStringLiteral("zoom"); t.dir = QStringLiteral("in"); }
         else if (oldStyle == QLatin1String("fade-to-center")) { t.type = QStringLiteral("zoom"); t.dir = QStringLiteral("out"); }
         else if (oldStyle.startsWith(QLatin1String("open-"))) { t.type = QStringLiteral("split"); t.dir = QStringLiteral("out"); }

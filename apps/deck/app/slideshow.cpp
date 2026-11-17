@@ -32,7 +32,9 @@
 #include <QMenu>
 #include <QMouseEvent>
 #include <QPainter>
+#include <QPainterPath>
 #include <QPixmap>
+#include <QRandomGenerator>
 #include <QRadialGradient>
 #include <QScreen>
 #include <QSet>
@@ -63,6 +65,7 @@ struct Frame {
     const QImage &from, &to;
     double t;           // 0 to 1, eased
     QString dir;
+    QString by;         // a wheel's spokes, a shape's form
     QSizeF size;        // of the images, in the painter's units
     qreal dpr;
 };
@@ -198,6 +201,224 @@ void drawCut(const Frame &f)
 }
 
 void drawNone(const Frame &f) { f.p->drawImage(QPointF(0, 0), f.t < 1 ? f.from : f.to); }
+
+// ---- the common effects of the older programs: bands, cells, and shapes the new slide shows through
+
+// A random number from a place and a seed, so that a frame is the same each time it is drawn.
+quint32 noise(quint32 a, quint32 seed)
+{
+    quint32 h = a * 0x9E3779B1u + seed * 0x85EBCA6Bu;
+    h ^= h >> 15;
+    h *= 0x2C1B3C6Du;
+    h ^= h >> 12;
+    h *= 0x297A2D39u;
+    h ^= h >> 15;
+    return h;
+}
+
+// The part of an image in a rectangle (in whole device pixels, it is a plain copy).
+void drawPart(const Frame &f, const QImage &image, const QRectF &area)
+{
+    const QRectF r = area & QRectF(QPointF(0, 0), f.size);
+    if (r.width() <= 0 || r.height() <= 0) return;
+    f.p->drawImage(r, image, QRectF(r.topLeft() * f.dpr, r.size() * f.dpr));
+}
+
+// Draws the new slide in a shape over the old one.
+void drawThrough(const Frame &f, const QPainterPath &shape)
+{
+    f.p->drawImage(QPointF(0, 0), f.from);
+    f.p->setRenderHint(QPainter::Antialiasing);
+    f.p->setClipPath(shape, Qt::IntersectClip);
+    f.p->drawImage(QPointF(0, 0), f.to);
+}
+
+constexpr int kBlinds = 6, kCombStrips = 8, kRandomBars = 40, kCheckerColumns = 8, kStripColumns = 12;
+
+// Whether the effect's bands run across (their length is the width) for the orientation: "h" bands are horizontal.
+bool horizontal(const Frame &f) { return f.dir != QLatin1String("v"); }
+
+// Slats that open from one edge of each band.
+void drawBlinds(const Frame &f)
+{
+    const bool h = horizontal(f);
+    const double length = h ? f.size.height() : f.size.width(), w = f.size.width(), ht = f.size.height();
+    f.p->drawImage(QPointF(0, 0), f.from);
+    for (int i = 0; i < kBlinds; ++i) {
+        const double a = snapped(f, length * i / kBlinds), b = snapped(f, length * (i + 1) / kBlinds), open = snapped(f, (b - a) * f.t);
+        drawPart(f, f.to, h ? QRectF(0, a, w, open) : QRectF(a, 0, open, ht));
+    }
+}
+
+// Strips that slide in from alternate sides.
+void drawComb(const Frame &f)
+{
+    const bool h = horizontal(f);
+    const double across = h ? f.size.height() : f.size.width(), w = f.size.width(), ht = f.size.height();
+    f.p->drawImage(QPointF(0, 0), f.from);
+    for (int i = 0; i < kCombStrips; ++i) {
+        const double a = snapped(f, across * i / kCombStrips), b = snapped(f, across * (i + 1) / kCombStrips);
+        const double len = snapped(f, (h ? w : ht) * f.t), full = h ? w : ht;
+        const double start = i % 2 ? full - len : 0;
+        drawPart(f, f.to, h ? QRectF(start, a, len, b - a) : QRectF(a, start, b - a, len));
+    }
+}
+
+// Squares in a checkerboard that fill with the new slide, one color of them and then the other.
+void drawCheckerboard(const Frame &f)
+{
+    const bool h = horizontal(f);
+    const double w = f.size.width(), ht = f.size.height(), side = w / kCheckerColumns;
+    const int rows = std::max(1, int(std::ceil(ht / side - 1e-9)));
+    f.p->drawImage(QPointF(0, 0), f.from);
+    for (int j = 0; j < rows; ++j)
+        for (int i = 0; i < kCheckerColumns; ++i) {
+            const bool first = (i + j) % 2 == 0;
+            const double share = std::clamp(first ? f.t * 2 : f.t * 2 - 1, 0.0, 1.0);
+            const double x0 = snapped(f, side * i), x1 = snapped(f, side * (i + 1)), y0 = snapped(f, side * j), y1 = snapped(f, std::min(ht, side * (j + 1)));
+            drawPart(f, f.to, h ? QRectF(x0, y0, snapped(f, (x1 - x0) * share), y1 - y0) : QRectF(x0, y0, x1 - x0, snapped(f, (y1 - y0) * share)));
+        }
+}
+
+// Thin bars of the new slide that appear one by one in an order the seed gives.
+void drawRandomBars(const Frame &f)
+{
+    const bool h = horizontal(f);
+    const double length = h ? f.size.height() : f.size.width();
+    f.p->drawImage(QPointF(0, 0), f.from);
+    for (int i = 0; i < kRandomBars; ++i) {
+        if (f.t <= (noise(i, 7) >> 8) / double(1 << 24)) continue;
+        const double a = snapped(f, length * i / kRandomBars), b = snapped(f, length * (i + 1) / kRandomBars);
+        drawPart(f, f.to, h ? QRectF(0, a, f.size.width(), b - a) : QRectF(a, 0, b - a, f.size.height()));
+    }
+}
+
+// The new slide shows through a circle that grows from the middle.
+void drawCircle(const Frame &f)
+{
+    const double r = f.t * std::hypot(f.size.width(), f.size.height()) / 2;
+    QPainterPath shape;
+    shape.addEllipse(QPointF(f.size.width() / 2, f.size.height() / 2), r, r);
+    drawThrough(f, shape);
+}
+
+// ... through a diamond.
+void drawDiamond(const Frame &f)
+{
+    const double cx = f.size.width() / 2, cy = f.size.height() / 2, rx = f.size.width() * f.t, ry = f.size.height() * f.t;
+    QPainterPath shape;
+    shape.addPolygon(QPolygonF({QPointF(cx - rx, cy), QPointF(cx, cy - ry), QPointF(cx + rx, cy), QPointF(cx, cy + ry)}));
+    drawThrough(f, shape);
+}
+
+// ... through a plus whose arms thicken until they fill the slide.
+void drawPlus(const Frame &f)
+{
+    const double w = f.size.width(), h = f.size.height();
+    f.p->drawImage(QPointF(0, 0), f.from);
+    const double armH = snapped(f, h * f.t), armW = snapped(f, w * f.t);
+    drawPart(f, f.to, QRectF(0, snapped(f, (h - armH) / 2), w, armH));
+    drawPart(f, f.to, QRectF(snapped(f, (w - armW) / 2), 0, armW, h));
+}
+
+// A pie whose slices begin at an angle (Qt's: degrees counterclockwise from 3 o'clock) and sweep by it.
+void addSlice(QPainterPath &path, const QPointF &c, double radius, double start, double sweep)
+{
+    path.moveTo(c);
+    path.arcTo(QRectF(c.x() - radius, c.y() - radius, 2 * radius, 2 * radius), start, sweep);
+    path.closeSubpath();
+}
+
+// ... through a wedge that opens from the top, on both sides.
+void drawWedge(const Frame &f)
+{
+    const QPointF c(f.size.width() / 2, f.size.height() / 2);
+    QPainterPath shape;
+    addSlice(shape, c, std::hypot(f.size.width(), f.size.height()), 90 - 180 * f.t, 360 * f.t);
+    drawThrough(f, shape);
+}
+
+// ... through spokes that each sweep clockwise from the top.
+void drawWheel(const Frame &f)
+{
+    const QPointF c(f.size.width() / 2, f.size.height() / 2);
+    const int spokes = std::clamp(f.by.toInt(), 1, 8);
+    QPainterPath shape;
+    for (int k = 0; k < spokes; ++k) addSlice(shape, c, std::hypot(f.size.width(), f.size.height()), 90 - 360.0 * k / spokes, -360.0 / spokes * f.t);
+    drawThrough(f, shape);
+}
+
+// The shape's form is the option.
+void drawShape(const Frame &f)
+{
+    if (f.by == QLatin1String("diamond")) drawDiamond(f);
+    else if (f.by == QLatin1String("plus")) drawPlus(f);
+    else drawCircle(f);
+}
+
+// A flash of white: the old slide goes to white, and the new one comes out of it.
+void drawFlash(const Frame &f)
+{
+    f.p->drawImage(QPointF(0, 0), f.t < 0.5 ? f.from : f.to);
+    f.p->setOpacity(f.t < 0.5 ? f.t * 2 : (1 - f.t) * 2);
+    f.p->fillRect(QRectF(QPointF(0, 0), f.size), Qt::white);
+}
+
+// The new slide spins in from small over the old one.
+void drawNewsflash(const Frame &f)
+{
+    f.p->drawImage(QPointF(0, 0), f.from);
+    f.p->setRenderHint(QPainter::SmoothPixmapTransform);
+    f.p->translate(f.size.width() / 2, f.size.height() / 2);
+    f.p->rotate(540 * (1 - f.t));
+    f.p->scale(f.t, f.t);
+    f.p->drawImage(QPointF(-f.size.width() / 2, -f.size.height() / 2), f.to);
+}
+
+// Diagonal strips, a staircase of cells that fills from a corner. The direction is the way it travels, so it starts at the corner behind it.
+void drawStrips(const Frame &f)
+{
+    const double w = f.size.width(), h = f.size.height(), side = w / kStripColumns;
+    const int rows = std::max(1, int(std::ceil(h / side - 1e-9))), steps = kStripColumns + rows - 1;
+    const bool fromRight = f.dir.startsWith(QLatin1Char('l')), fromBottom = f.dir.endsWith(QLatin1Char('u'));
+    f.p->drawImage(QPointF(0, 0), f.from);
+    const double reach = f.t * steps;   // the diagonals whose cells are in
+    for (int j = 0; j < rows; ++j) {
+        const int row = fromBottom ? rows - 1 - j : j;
+        const int cells = std::clamp(int(std::floor(reach - row)), 0, kStripColumns);
+        if (cells == 0) continue;
+        const double y0 = snapped(f, side * j), y1 = snapped(f, std::min(h, side * (j + 1)));
+        const double len = cells == kStripColumns ? w : snapped(f, side * cells);
+        drawPart(f, f.to, QRectF(fromRight ? w - len : 0, y0, len, y1 - y0));
+    }
+}
+
+// A fine, even dissolve: blocks of pixels change one by one in an order the seed gives.
+void drawDissolve(const Frame &f)
+{
+    using Px = quint32;
+    const auto fits = [](const QImage &i) { return i.format() == QImage::Format_ARGB32_Premultiplied || i.format() == QImage::Format_RGB32; };
+    if (!fits(f.from) || !fits(f.to) || f.from.size() != f.to.size()) {
+        drawFade(f);
+        return;
+    }
+    static thread_local QImage scratch;
+    if (scratch.size() != f.from.size() || scratch.format() != QImage::Format_ARGB32_Premultiplied) scratch = QImage(f.from.size(), QImage::Format_ARGB32_Premultiplied);
+    scratch.setDevicePixelRatio(f.from.devicePixelRatio());
+    const quint32 limit = quint32(f.t * double(1 << 24));
+    constexpr int kBlock = 4;
+    const int w = f.from.width(), h = f.from.height(), blocks = (w + kBlock - 1) / kBlock;
+    for (int y = 0; y < h; ++y) {
+        const Px *a = reinterpret_cast<const Px *>(f.from.constScanLine(y)), *b = reinterpret_cast<const Px *>(f.to.constScanLine(y));
+        Px *out = reinterpret_cast<Px *>(scratch.scanLine(y));
+        const quint32 row = quint32(y / kBlock) * quint32(blocks);
+        for (int bx = 0, x = 0; bx < blocks; ++bx) {
+            const Px *src = (noise(row + bx, 11) >> 8) < limit ? b : a;
+            for (const int end = std::min(w, x + kBlock); x < end; ++x) out[x] = src[x] | 0xFF000000u * (f.from.format() == QImage::Format_RGB32);
+        }
+    }
+    f.p->drawImage(QPointF(0, 0), scratch);
+}
 
 // A band of the frame between two edges, a little wider than they are for the
 // pixels an edge is snapped to.
@@ -387,10 +608,20 @@ void paintTransition(QPainter *p, const deck::Transition &t, const QImage &from,
         {QStringLiteral("fade"), drawFade},     {QStringLiteral("morph"), drawFade}, {QStringLiteral("push"), drawPush},   {QStringLiteral("wipe"), drawWipe},
         {QStringLiteral("split"), drawSplit},   {QStringLiteral("reveal"), drawReveal}, {QStringLiteral("cover"), drawCover},
         {QStringLiteral("uncover"), drawUncover}, {QStringLiteral("zoom"), drawZoom}, {QStringLiteral("cut"), drawCut},
+        {QStringLiteral("dissolve"), drawDissolve}, {QStringLiteral("blinds"), drawBlinds}, {QStringLiteral("checkerboard"), drawCheckerboard},
+        {QStringLiteral("comb"), drawComb}, {QStringLiteral("randombars"), drawRandomBars}, {QStringLiteral("circle"), drawCircle},
+        {QStringLiteral("diamond"), drawDiamond}, {QStringLiteral("plus"), drawPlus}, {QStringLiteral("wedge"), drawWedge},
+        {QStringLiteral("wheel"), drawWheel}, {QStringLiteral("shape"), drawShape}, {QStringLiteral("flash"), drawFlash},
+        {QStringLiteral("newsflash"), drawNewsflash}, {QStringLiteral("strips"), drawStrips},
     };
-    const Frame f{p, from, to, std::clamp(progress, 0.0, 1.0), t.dir, from.deviceIndependentSize(), from.devicePixelRatio()};
+    // A random one is the same effect each time a frame is drawn; the show chooses before it plays.
+    const Transition tr = t.resolved(0);
+    const Frame f{p, from, to, std::clamp(progress, 0.0, 1.0), tr.dir, tr.by, from.deviceIndependentSize(), from.devicePixelRatio()};
     p->save();
-    draws.value(t.type, drawNone)(f);
+    // The two ends are the two slides, whatever the effect.
+    if (f.t >= 1 && tr.type != QLatin1String("none") && !tr.isMorph()) p->drawImage(QPointF(0, 0), to);
+    else if (f.t <= 0 && tr.type != QLatin1String("none") && !tr.isMorph() && tr.type != QLatin1String("cut")) p->drawImage(QPointF(0, 0), from);
+    else draws.value(tr.type, drawNone)(f);
     p->restore();
 }
 
@@ -803,7 +1034,7 @@ void SlideShow::startTransition(int pos, const deck::Transition &t)
     m_targetPos = pos;
     m_target = slide;
     timeSlide(slide);
-    m_trans = t;
+    m_trans = t.resolved(QRandomGenerator::global()->generate());
     m_animating = true;
     m_painted = -1;
     m_anim.stop();
@@ -2350,7 +2581,7 @@ TransitionPreview::TransitionPreview(const Document *doc, LayoutCache *cache, QW
 void TransitionPreview::play(int slide)
 {
     if (!m_doc || slide < 0 || slide >= m_doc->pages.size() || !parentWidget()) return;
-    m_trans = deck::transitionOf(*m_doc->pages[slide]);
+    m_trans = deck::transitionOf(*m_doc->pages[slide]).resolved(QRandomGenerator::global()->generate());
     if (m_trans.type == QLatin1String("none")) return;
     setGeometry(parentWidget()->rect());
     const QRectF at = fitSlide(m_doc->pageSize(), QSizeF(size()) * 0.94);

@@ -39,6 +39,15 @@ struct Transition {
     bool hasInOut() const;
     // Whether the type is a morph, which has Objects, Words, and Characters.
     bool isMorph() const;
+    // The directions the type's Effect Options list (the values dir may take), in the order they
+    // are listed; empty for a type with none. The first is not the default (see defaultDirection).
+    QStringList directions() const;
+    // What the type's other Effect Options are (by): a morph's units, a wheel's spokes, a shape's
+    // form; empty for a type with none.
+    QStringList options() const;
+    // The effect "random" stands for, chosen by the seed: a type that goes anywhere, with a
+    // direction and option of its own. Any other type is returned as it is.
+    Transition resolved(quint32 seed) const;
     // What a morph moves: its Effect Options, in the order they are listed.
     static QStringList morphUnits();
     // How long a morph takes when it is chosen (the others take 0.7).
@@ -48,8 +57,11 @@ struct Transition {
     QJsonObject toJson() const;
     // Anything missing or out of range takes its default.
     static Transition fromJson(const QJsonObject &o);
-    // The direction a type starts with.
+    // The direction and the option a type starts with.
     static QString defaultDirection(const QString &type);
+    static QString defaultOption(const QString &type);
+    // The types "random" picks from.
+    static QStringList randomTypes();
 };
 
 // The types, in the order the Transitions tab lists them.

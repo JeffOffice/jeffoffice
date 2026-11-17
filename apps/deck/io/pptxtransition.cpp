@@ -62,7 +62,7 @@ QDomElement pick(const QDomElement &root)
         // The newer form, when its effect is one the show knows or a plain one with its own time.
         bool known = true;
         for (QDomElement e = found.firstChildElement(); !e.isNull(); e = e.nextSiblingElement()) {
-            if (e.namespaceURI() == kP14 && e.localName() != QLatin1String("reveal")) known = false;
+            if (e.namespaceURI() == kP14 && e.localName() != QLatin1String("reveal") && e.localName() != QLatin1String("flash")) known = false;
             if (e.namespaceURI() == kP159 && e.localName() != QLatin1String("morph")) known = false;
         }
         if (known) return found;
@@ -110,9 +110,19 @@ Transition transitionFromXml(const QString &xml)
         }
         else if (name == QLatin1String("split")) t.type = QStringLiteral("split");
         else if (name == QLatin1String("zoom")) t.type = QStringLiteral("zoom");
+        else if (name == QLatin1String("dissolve") || name == QLatin1String("blinds") || name == QLatin1String("comb") || name == QLatin1String("circle") ||
+                 name == QLatin1String("diamond") || name == QLatin1String("plus") || name == QLatin1String("wedge") || name == QLatin1String("wheel") ||
+                 name == QLatin1String("newsflash") || name == QLatin1String("strips") || name == QLatin1String("random"))
+            t.type = name;
+        else if (name == QLatin1String("checker")) t.type = QStringLiteral("checkerboard");
+        else if (name == QLatin1String("randomBar")) t.type = QStringLiteral("randombars");
+        else if (name == QLatin1String("flash") && effect.namespaceURI() == kP14) t.type = QStringLiteral("flash");
         else t.type = QStringLiteral("fade");   // one the show has no form for
         if (t.hasDirection()) t.dir = dir.isEmpty() ? QStringLiteral("l") : dir.left(1);
         else if (t.hasInOut()) t.dir = dir.isEmpty() ? QStringLiteral("out") : dir;
+        else if (t.directions().contains(QLatin1String("h"))) t.dir = dir == QLatin1String("vert") ? QStringLiteral("v") : QStringLiteral("h");
+        else if (t.type == QLatin1String("strips")) t.dir = dir;
+        else if (t.type == QLatin1String("wheel")) t.by = effect.attribute(QStringLiteral("spokes"), QStringLiteral("4"));
     }
     // As the show keeps it: anything out of range takes its default.
     return Transition::fromJson(t.toJson());
@@ -134,16 +144,29 @@ QString transitionXml(const Transition &t)
     else if (t.type == QLatin1String("uncover")) effect = QStringLiteral("<p:pull dir=\"%1\"/>").arg(dir);
     else if (t.type == QLatin1String("split")) effect = QStringLiteral("<p:split orient=\"vert\" dir=\"%1\"/>").arg(dir);
     else if (t.type == QLatin1String("zoom")) effect = QStringLiteral("<p:zoom dir=\"%1\"/>").arg(dir);
-    // Reveal came with the program's 2010 version, and so did a time of the
+    else if (t.type == QLatin1String("dissolve") || t.type == QLatin1String("circle") || t.type == QLatin1String("diamond") || t.type == QLatin1String("plus") ||
+             t.type == QLatin1String("wedge") || t.type == QLatin1String("newsflash") || t.type == QLatin1String("random"))
+        effect = QStringLiteral("<p:%1/>").arg(t.type);
+    else if (t.type == QLatin1String("shape")) effect = QStringLiteral("<p:%1/>").arg(t.by);   // the file has the three forms as effects of their own
+    else if (t.type == QLatin1String("blinds") || t.type == QLatin1String("comb"))
+        effect = QStringLiteral("<p:%1 dir=\"%2\"/>").arg(t.type, dir == QLatin1String("v") ? QStringLiteral("vert") : QStringLiteral("horz"));
+    else if (t.type == QLatin1String("checkerboard")) effect = QStringLiteral("<p:checker dir=\"%1\"/>").arg(dir == QLatin1String("v") ? QStringLiteral("vert") : QStringLiteral("horz"));
+    else if (t.type == QLatin1String("randombars")) effect = QStringLiteral("<p:randomBar dir=\"%1\"/>").arg(dir == QLatin1String("v") ? QStringLiteral("vert") : QStringLiteral("horz"));
+    else if (t.type == QLatin1String("wheel")) effect = QStringLiteral("<p:wheel spokes=\"%1\"/>").arg(t.by);
+    else if (t.type == QLatin1String("strips")) effect = QStringLiteral("<p:strips dir=\"%1\"/>").arg(dir);
+    // Reveal and Flash came with the program's 2010 version, and so did a time of the
     // transition's own (p14:dur) beside the three speeds: programs before it
     // read the fallback, a fade at the nearest speed. Morph came with 2019's,
     // and its fallback is a fade too.
-    const bool reveal = t.type == QLatin1String("reveal"), morph = t.isMorph();
-    if (!reveal && !morph && std::abs(t.duration - secondsOf(speedOf(t.duration))) < 0.0005)
+    const bool reveal = t.type == QLatin1String("reveal"), morph = t.isMorph(), flash = t.type == QLatin1String("flash");
+    if (!reveal && !morph && !flash && std::abs(t.duration - secondsOf(speedOf(t.duration))) < 0.0005)
         return effect.isEmpty() ? QStringLiteral("<p:transition%1/>").arg(attrs) : QStringLiteral("<p:transition%1>%2</p:transition>").arg(attrs, effect);
     QString newer = effect, older = effect, requires = QStringLiteral("p14"), declared;
     if (reveal) {
         newer = QStringLiteral("<p14:reveal dir=\"%1\"/>").arg(dir == QLatin1String("r") ? QStringLiteral("r") : QStringLiteral("l"));
+        older = QStringLiteral("<p:fade/>");
+    } else if (flash) {
+        newer = QStringLiteral("<p14:flash/>");
         older = QStringLiteral("<p:fade/>");
     } else if (morph) {
         newer = QStringLiteral("<p159:morph option=\"%1\"/>").arg(optionOf(t.by));

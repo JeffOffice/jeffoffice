@@ -1363,6 +1363,45 @@ private Q_SLOTS:
         }
     }
 
+    // The common effects the standard has a name for come back as they were, with their direction or option; the ones it has none for
+    // (plus, comb, strips, newsflash, flash, random) are written without an effect.
+    void odpCommonTransitionsComeBack()
+    {
+        struct Case {
+            const char *type, *dir, *by, *readAs, *readBy, *readDir;
+        };
+        const Case cases[] = {{"dissolve", "l", "", "dissolve", "", ""},     {"blinds", "h", "", "blinds", "", "h"},       {"blinds", "v", "", "blinds", "", "v"},
+                              {"checkerboard", "h", "", "checkerboard", "", "h"}, {"checkerboard", "v", "", "checkerboard", "", "v"}, {"randombars", "h", "", "randombars", "", "h"},
+                              {"randombars", "v", "", "randombars", "", "v"}, {"circle", "l", "", "circle", "", ""},        {"diamond", "l", "", "diamond", "", ""},
+                              {"wedge", "l", "", "wedge", "", ""},           {"wheel", "l", "1", "wheel", "1", ""},        {"wheel", "l", "2", "wheel", "2", ""},
+                              {"wheel", "l", "3", "wheel", "3", ""},         {"wheel", "l", "4", "wheel", "4", ""},        {"wheel", "l", "8", "wheel", "8", ""},
+                              {"shape", "l", "circle", "circle", "", ""},    {"shape", "l", "diamond", "diamond", "", ""}, {"plus", "l", "", "none", "", ""},
+                              {"comb", "h", "", "none", "", ""},             {"strips", "rd", "", "none", "", ""},         {"newsflash", "l", "", "none", "", ""},
+                              {"flash", "l", "", "none", "", ""},            {"random", "l", "", "none", "", ""}};
+        auto d = deck::newPresentation();
+        for (size_t i = 0; i < std::size(cases); ++i) deck::addSlide(*d, *deck::layoutOfType(*d, QStringLiteral("blank")));
+        for (size_t i = 0; i < std::size(cases); ++i) {
+            deck::Transition t;
+            t.type = QString::fromLatin1(cases[i].type);
+            t.dir = QString::fromLatin1(cases[i].dir);
+            if (*cases[i].by) t.by = QString::fromLatin1(cases[i].by);
+            t.duration = 0.7;
+            deck::setTransition(*d->pages[i + 1], t);
+        }
+        QString err;
+        const QByteArray bytes = deck::exportOdp(*d, false, &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        auto back = deck::importOdp(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        for (size_t i = 0; i < std::size(cases); ++i) {
+            const deck::Transition now = deck::transitionOf(*back->pages[i + 1]);
+            const QString what = QStringLiteral("%1 %2 %3").arg(QLatin1String(cases[i].type), QLatin1String(cases[i].dir), QLatin1String(cases[i].by));
+            QCOMPARE(now.type, QString::fromLatin1(cases[i].readAs));
+            if (*cases[i].readBy) QVERIFY2(now.by == QLatin1String(cases[i].readBy), qPrintable(what + QLatin1String(" went ") + now.by));
+            if (*cases[i].readDir) QVERIFY2(now.dir == QLatin1String(cases[i].readDir), qPrintable(what + QLatin1String(" went ") + now.dir));
+        }
+    }
+
     // The animations are written as the other suite writes them: a timing root with the main sequence, a step for each click, the effects that
     // start with or after the one before in the groups of that step, each effect as the standard names it with the parts that do it (show,
     // fade, fly, wipe, zoom, spin, grow), aimed at objects by the ids they have, and at the paragraphs of a list by those they have.

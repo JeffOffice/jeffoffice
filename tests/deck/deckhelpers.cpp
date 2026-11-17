@@ -445,7 +445,7 @@ QByteArray persistDirectory(const QVector<QPair<quint32, quint32>> &entries)
 QByteArray buildPpt(bool titleMaster, bool cycle, bool links, bool notesByAtom, const QByteArray &bodyGroup,
                            const QByteArray &drawingGroup, const QByteArray &firstSlideShapes, const QByteArray &masterTitleProps, const QByteArray &masterBackground,
                            const QByteArray &masterExtra, quint16 titleMasterRecord, const QByteArray &documentExtra,
-                           const QByteArray &firstSlideExtra, const QByteArray &titleMasterShapes)
+                           const QByteArray &firstSlideExtra, const QByteArray &titleMasterShapes, const QByteArray &linksTransition)
 {
     constexpr quint32 kMaster = 0x80000001, kTitleMaster = 0x80000002;
     const QByteArray fonts = pptBox(2005, fontEntity(QStringLiteral("Alpha Sans")) + fontEntity(QStringLiteral("Beta Serif")) + fontEntity(QStringLiteral("Symbol")) + fontEntity(QStringLiteral("Wingdings 2")) + fontEntity(QStringLiteral("Wingdings")));
@@ -503,7 +503,8 @@ QByteArray buildPpt(bool titleMaster, bool cycle, bool links, bool notesByAtom, 
     const QByteArray second = slide(1, QByteArray("\x0D\x0E", 2), kMaster, 0, true, titleOnBody);
     const QByteArray third = slide(0, QByteArray("\x0F\x10", 2), kTitleMaster, 0, false, pptShape(0x402, 0xF, outlineRef(0)) + pptShape(0x403, 0x10, outlineRef(1)));
     // Three seconds, then the next slide; effect 6, direction 1, speed 2.
-    const QByteArray linksSlide = slide(1, QByteArray("\x0D\x0E", 2), kMaster, 0, false, titleOnBody, le(3000, 4) + le(0, 4) + raw({1, 6}) + le(0x501, 2) + raw({2, 0, 0, 0}));
+    const QByteArray linksSlide = slide(1, QByteArray("\x0D\x0E", 2), kMaster, 0, false, titleOnBody,
+                                    linksTransition.isEmpty() ? le(3000, 4) + le(0, 4) + raw({1, 6}) + le(0x501, 2) + raw({2, 0, 0, 0}) : linksTransition);
     const QByteArray notes = pptBox(1008, pptRec(1009, le(0x100, 4) + le(0, 4), 0, 1)
         + pptDrawing(pptShape(0x402, 0xC, pptRec(3999, le(2, 4)) + pptRec(4000, utf16(QStringLiteral("Remember the demo"))))));
 

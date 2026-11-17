@@ -840,8 +840,10 @@ QString sizeName(int type, const QSizeF &size)
 }
 
 // A slide's transition from the numbers of its slide show info: the effect (0 none, 4 cover, 5 dissolve, 6 fade, 7 uncover,
-// 10 wipe, 11 zoom, 13 split; any other is a fade), its direction (left, up, right, down; for a split or a zoom, 0 and 1 go
-// out and in), its speed (slow, medium, fast), when the slide moves on by itself, and whether a click moves it on.
+// 10 wipe, 11 zoom, 13 split, 1 random, 2 blinds, 3 checkerboard, 8 random bars, 9 strips, 17 diamond, 18 plus, 19 wedge,
+// 21 comb, 22 newsflash, 26 wheel, 27 circle; any other is a fade), its direction (left, up, right, down; for a split or a zoom,
+// 0 and 1 go out and in; horizontal or vertical for blinds, checkerboard, random bars, and comb; right-up, left-up, right-down,
+// left-down as 4 to 7 for strips; the spokes of a wheel), its speed (slow, medium, fast), when the slide moves on by itself, and whether a click moves it on.
 Transition transitionOf(int effect, int direction, int speed, int flags, qint32 timeMs)
 {
     Transition t;
@@ -852,6 +854,19 @@ Transition transitionOf(int effect, int direction, int speed, int flags, qint32 
     case 10: t.type = QStringLiteral("wipe"); break;
     case 11: t.type = QStringLiteral("zoom"); break;
     case 13: t.type = QStringLiteral("split"); break;
+    case 1: t.type = QStringLiteral("random"); break;
+    case 2: t.type = QStringLiteral("blinds"); break;
+    case 3: t.type = QStringLiteral("checkerboard"); break;
+    case 5: t.type = QStringLiteral("dissolve"); break;
+    case 8: t.type = QStringLiteral("randombars"); break;
+    case 9: t.type = QStringLiteral("strips"); break;
+    case 17: t.type = QStringLiteral("diamond"); break;
+    case 18: t.type = QStringLiteral("plus"); break;
+    case 19: t.type = QStringLiteral("wedge"); break;
+    case 21: t.type = QStringLiteral("comb"); break;
+    case 22: t.type = QStringLiteral("newsflash"); break;
+    case 26: t.type = QStringLiteral("wheel"); break;
+    case 27: t.type = QStringLiteral("circle"); break;
     default: t.type = QStringLiteral("fade"); break;
     }
     if (t.hasDirection()) {
@@ -859,6 +874,13 @@ Transition transitionOf(int effect, int direction, int speed, int flags, qint32 
         t.dir = QString::fromLatin1(dirs[direction & 3]);
     } else if (t.hasInOut()) {
         t.dir = direction & 1 ? QStringLiteral("in") : QStringLiteral("out");
+    } else if (t.directions().contains(QLatin1String("h"))) {
+        t.dir = direction == 1 ? QStringLiteral("v") : QStringLiteral("h");
+    } else if (t.type == QLatin1String("strips")) {
+        static const char *const corners[] = {"ru", "lu", "rd", "ld"};
+        t.dir = QString::fromLatin1(corners[(direction - 4) & 3]);
+    } else if (t.type == QLatin1String("wheel")) {
+        t.by = QString::number(direction);
     }
     if (effect != 0) t.duration = speed == 0 ? 1.0 : speed == 1 ? 0.7 : 0.5;
     if (flags & 0x100) t.advanceAfter = std::max(0.0, timeMs / 1000.0);

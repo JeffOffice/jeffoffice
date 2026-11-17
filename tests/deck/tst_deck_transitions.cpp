@@ -1,5 +1,7 @@
 // JeffDeck's tests of slide transitions, morph, and the presenter view.
 #include "deckhelpers.h"
+#include "../withdialog.h"
+#include "app/theme.h"
 
 class DeckTransitionTests : public QObject {
     Q_OBJECT
@@ -19,6 +21,7 @@ private Q_SLOTS:
             t.type = type;
             if (t.hasDirection()) t.dir = type == QLatin1String("reveal") ? QStringLiteral("r") : QStringLiteral("u");
             if (t.hasInOut()) t.dir = QStringLiteral("in");
+            t = deck::Transition::fromJson(t.toJson());   // as the show keeps it: a direction or option of the type's own
             t.duration = 1.0;
             t.advanceAfter = 4.5;
             t.advanceOnClick = false;
@@ -28,6 +31,11 @@ private Q_SLOTS:
             QDomDocument dom;
             QVERIFY2(office::parseXml(xml.toUtf8(), &dom), qPrintable(type + QLatin1Char(' ') + xml));
             const deck::Transition back = deck::transitionFromXml(xml);
+            // A shape is written as the circle, diamond, or plus it is.
+            if (type == QLatin1String("shape")) {
+                QCOMPARE(back.type, t.by);
+                continue;
+            }
             QVERIFY2(back == t, qPrintable(type + QLatin1Char(' ') + xml + QLatin1Char(' ') + QString::fromUtf8(QJsonDocument(back.toJson()).toJson(QJsonDocument::Compact))));
         }
         QVERIFY(deck::transitionXml(deck::Transition()).isEmpty());
@@ -40,7 +48,7 @@ private Q_SLOTS:
         QCOMPARE(deck::transitionOf(*d->pages[0]).type, QStringLiteral("fade"));
         QCOMPARE(deck::transitionOf(*d->pages[0]).duration, 0.75);
         // An effect the show has no form for plays as a fade, and is written back as read.
-        d->pages[0]->props[QStringLiteral("transitionXml")] = QStringLiteral("<p:transition xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\" spd=\"slow\"><p:dissolve/></p:transition>");
+        d->pages[0]->props[QStringLiteral("transitionXml")] = QStringLiteral("<p:transition xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\" spd=\"slow\"><p:ferris/></p:transition>");
         deck::setTransition(*d->pages[0], deck::transitionFromXml(d->pages[0]->props.value(QStringLiteral("transitionXml")).toString()));
         QCOMPARE(deck::transitionOf(*d->pages[0]).type, QStringLiteral("fade"));
         // A transition set here on the second slide.
@@ -52,7 +60,7 @@ private Q_SLOTS:
         QVERIFY2(!bytes.isEmpty(), qPrintable(err));
         Exported e;
         QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
-        QVERIFY(part(e, QStringLiteral("/ppt/slides/slide1.xml")).contains(QStringLiteral("<p:dissolve/>")));
+        QVERIFY(part(e, QStringLiteral("/ppt/slides/slide1.xml")).contains(QStringLiteral("<p:ferris/>")));
         QVERIFY(part(e, QStringLiteral("/ppt/slides/slide2.xml")).contains(QStringLiteral("<p:push dir=\"l\"/>")));
         auto back = deck::importPresentation(bytes, &err);
         QVERIFY2(back, qPrintable(err));
@@ -64,7 +72,7 @@ private Q_SLOTS:
         deck::setTransition(*d->pages[0], wipe);
         QVERIFY2(unpack(deck::exportPresentation(*d, &err), &e, &err), qPrintable(err));
         const QString first = part(e, QStringLiteral("/ppt/slides/slide1.xml"));
-        QVERIFY(first.contains(QStringLiteral("<p:wipe dir=\"d\"/>")) && !first.contains(QStringLiteral("dissolve")));
+        QVERIFY(first.contains(QStringLiteral("<p:wipe dir=\"d\"/>")) && !first.contains(QStringLiteral("ferris")));
     }
 
     // A transition lives in the slide's props and comes back whole; what is
@@ -118,7 +126,385 @@ private Q_SLOTS:
         QVERIFY(!slide.props.contains(QStringLiteral("transition")));
         QCOMPARE(slide.props.value("kind").toString(), QStringLiteral("other"));
         QCOMPARE(deck::transitionTypes(),
-                 (QStringList{"none", "morph", "fade", "push", "wipe", "split", "reveal", "cover", "uncover", "zoom", "cut"}));
+                 (QStringList{"none", "morph", "fade", "push", "wipe", "split", "reveal", "cover", "uncover", "zoom", "cut", "dissolve", "blinds", "checkerboard", "comb",
+                               "randombars", "circle", "diamond", "plus", "wedge", "wheel", "shape", "flash", "newsflash", "strips", "random"}));
+    }
+
+    // The common effects of the older programs, each with the directions and options its file format gives it.
+    void commonTransitionsKeepTheirOptions()
+    {
+        const QStringList types{"dissolve", "blinds", "checkerboard", "comb", "randombars", "circle", "diamond", "plus", "wedge", "wheel", "shape", "flash", "newsflash", "strips", "random"};
+        for (const QString &type : types)
+            QVERIFY2(deck::transitionTypes().contains(type), qPrintable(type));
+        deck::Transition t;
+        t.type = QStringLiteral("blinds");
+        QCOMPARE(t.directions(), (QStringList{"h", "v"}));
+        t.type = QStringLiteral("strips");
+        QCOMPARE(t.directions(), (QStringList{"ru", "lu", "rd", "ld"}));
+        t.type = QStringLiteral("wheel");
+        QCOMPARE(t.options(), (QStringList{"1", "2", "3", "4", "8"}));
+        QCOMPARE(deck::Transition::fromJson({{"type", "wheel"}}).by, QStringLiteral("4"));
+        QCOMPARE(deck::Transition::fromJson({{"type", "wheel"}, {"by", "8"}}).by, QStringLiteral("8"));
+        QCOMPARE(deck::Transition::fromJson({{"type", "wheel"}, {"by", "5"}}).by, QStringLiteral("4"));
+        QCOMPARE(deck::Transition::fromJson({{"type", "shape"}}).by, QStringLiteral("circle"));
+        QCOMPARE(deck::Transition::fromJson({{"type", "blinds"}, {"dir", "v"}}).dir, QStringLiteral("v"));
+        QCOMPARE(deck::Transition::fromJson({{"type", "blinds"}, {"dir", "l"}}).dir, QStringLiteral("h"));
+        QCOMPARE(deck::Transition::fromJson({{"type", "strips"}, {"dir", "lu"}}).dir, QStringLiteral("lu"));
+        QCOMPARE(deck::Transition::fromJson({{"type", "push"}, {"dir", "h"}}).dir, QStringLiteral("l"));
+        QVERIFY(!deck::Transition::fromJson({{"type", "wipe"}, {"by", "8"}}).toJson().contains(QStringLiteral("by")));
+        // A random one is a concrete effect once resolved, the same for a seed, and varies with it.
+        deck::Transition random;
+        random.type = QStringLiteral("random");
+        QSet<QString> seen;
+        for (quint32 seed = 0; seed < 300; ++seed) {
+            const deck::Transition r = random.resolved(seed);
+            QVERIFY(deck::Transition::randomTypes().contains(r.type));
+            QVERIFY(r.directions().isEmpty() || r.directions().contains(r.dir));
+            QVERIFY(r.options().isEmpty() || r.options().contains(r.by));
+            QVERIFY(r == random.resolved(seed));
+            seen << r.type;
+        }
+        QVERIFY(seen.size() > 12);
+        QVERIFY(deck::Transition().resolved(5) == deck::Transition());
+    }
+
+    // The effects' pictures: 0 is the old slide, 1 the new one, and in between each goes by its geometry.
+    void commonTransitionsDrawTheirGeometry()
+    {
+        const QSize px(192, 108);
+        const QColor red(220, 30, 30), blue(30, 30, 220);
+        QImage a(px, QImage::Format_RGB32), b(px, QImage::Format_RGB32);
+        a.fill(red);
+        b.fill(blue);
+        auto frame = [&](const QString &type, const QString &dir, const QString &by, double progress) {
+            deck::Transition t;
+            t.type = type;
+            t.dir = dir;
+            t.by = by;
+            QImage out(px, QImage::Format_RGB32);
+            out.fill(Qt::green);
+            QPainter p(&out);
+            paintTransition(&p, t, a, b, progress);
+            p.end();
+            return out;
+        };
+        auto isNew = [&](const QImage &f, double x, double y) {
+            const QRgb c = f.pixel(std::clamp(int(x * px.width()), 0, px.width() - 1), std::clamp(int(y * px.height()), 0, px.height() - 1));
+            const bool nu = c == blue.rgb();
+            if (!nu) return false;
+            return true;
+        };
+        auto isOld = [&](const QImage &f, double x, double y) { return f.pixel(std::clamp(int(x * px.width()), 0, px.width() - 1), std::clamp(int(y * px.height()), 0, px.height() - 1)) == red.rgb(); };
+        auto shareNew = [&](const QImage &f) {
+            int n = 0;
+            for (int y = 0; y < f.height(); ++y)
+                for (int x = 0; x < f.width(); ++x) n += f.pixel(x, y) == blue.rgb();
+            return double(n) / (f.width() * f.height());
+        };
+        struct Case { const char *type, *dir, *by; };
+        const Case cases[] = {{"dissolve", "l", ""}, {"blinds", "h", ""}, {"blinds", "v", ""}, {"checkerboard", "h", ""}, {"checkerboard", "v", ""}, {"comb", "h", ""}, {"comb", "v", ""},
+                              {"randombars", "h", ""}, {"randombars", "v", ""}, {"circle", "l", ""}, {"diamond", "l", ""}, {"plus", "l", ""}, {"wedge", "l", ""}, {"wheel", "l", "1"},
+                              {"wheel", "l", "2"}, {"wheel", "l", "3"}, {"wheel", "l", "4"}, {"wheel", "l", "8"}, {"shape", "l", "circle"}, {"shape", "l", "diamond"}, {"shape", "l", "plus"},
+                              {"flash", "l", ""}, {"newsflash", "l", ""}, {"strips", "ru", ""}, {"strips", "lu", ""}, {"strips", "rd", ""}, {"strips", "ld", ""}};
+        for (const Case &c : cases) {
+            const QString type = QString::fromLatin1(c.type), dir = QString::fromLatin1(c.dir), by = QString::fromLatin1(c.by);
+            const QString what = type + QLatin1Char(' ') + dir + QLatin1Char(' ') + by;
+            QVERIFY2(frame(type, dir, by, 0) == a, qPrintable(what + " at 0"));
+            QVERIFY2(frame(type, dir, by, 1) == b, qPrintable(what + " at 1"));
+            const QImage mid = frame(type, dir, by, 0.5);
+            QVERIFY2(mid != a && mid != b, qPrintable(what + " at 0.5"));
+            QVERIFY2(mid == frame(type, dir, by, 0.5), qPrintable(what + " repeats"));
+            // (Not through the fade: a different picture from the fade's.)
+            QVERIFY2(mid != frame(QStringLiteral("fade"), QStringLiteral("l"), QString(), 0.5), qPrintable(what));
+            if (type != QLatin1String("flash") && type != QLatin1String("newsflash")) {
+                const double share = shareNew(mid);
+                QVERIFY2(share > 0.2 && share < 0.8, qPrintable(what + QStringLiteral(" shares %1").arg(share)));
+            }
+        }
+        // Blinds: six bands, each open by half from its own edge (the top, or the left).
+        for (int i = 0; i < 6; ++i) {
+            const QImage h = frame("blinds", "h", "", 0.5), v = frame("blinds", "v", "", 0.5);
+            QVERIFY2(isNew(h, 0.5, (i + 0.25) / 6) && isOld(h, 0.5, (i + 0.75) / 6), qPrintable(QString::number(i)));
+            QVERIFY2(isNew(v, (i + 0.25) / 6, 0.5) && isOld(v, (i + 0.75) / 6, 0.5), qPrintable(QString::number(i)));
+        }
+        // Checkerboard: eight squares across; half the squares are all new, the others still old.
+        for (int j = 0; j < 4; ++j)
+            for (int i = 0; i < 8; ++i) {
+                const QImage f = frame("checkerboard", "h", "", 0.5);
+                const double x = (i + 0.5) / 8, y = (j + 0.5) / 8 * 192 / 108.0;
+                QVERIFY2((i + j) % 2 == 0 ? isNew(f, x, y) : isOld(f, x, y), qPrintable(QStringLiteral("%1 %2").arg(i).arg(j)));
+            }
+        // Comb: eight strips, the even ones in from the left and the odd ones from the right.
+        const QImage comb = frame("comb", "h", "", 0.5);
+        for (int i = 0; i < 8; ++i) {
+            const double y = (i + 0.5) / 8;
+            QVERIFY(i % 2 == 0 ? isNew(comb, 0.25, y) && isOld(comb, 0.75, y) : isOld(comb, 0.25, y) && isNew(comb, 0.75, y));
+        }
+        // Random bars: bars of the new slide, more of them as it goes, never one gone again, the same bars each time.
+        bool wholeBars = true;
+        auto barsOf = [&](double progress) {
+            const QImage f = frame("randombars", "h", "", progress);
+            QVector<bool> bars;
+            for (int i = 0; i < 40; ++i) {
+                const bool nu = isNew(f, 0.5, (i + 0.5) / 40);
+                bars << nu;
+                for (double x : {0.05, 0.95}) wholeBars = wholeBars && (nu ? isNew(f, x, (i + 0.5) / 40) : isOld(f, x, (i + 0.5) / 40));   // a whole bar or none
+            }
+            return bars;
+        };
+        const QVector<bool> few = barsOf(0.3), more = barsOf(0.6);
+        QCOMPARE(few.size(), 40);
+        QVERIFY(wholeBars);
+        int fewCount = 0, moreCount = 0;
+        for (int i = 0; i < 40; ++i) {
+            fewCount += few[i];
+            moreCount += more[i];
+            QVERIFY(!few[i] || more[i]);
+        }
+        QVERIFY(fewCount > 3 && fewCount < moreCount && moreCount < 37);
+        // Circle, diamond, plus: from the middle; the corners come last.
+        for (const QString &name : {QStringLiteral("circle"), QStringLiteral("diamond"), QStringLiteral("plus")}) {
+            const QImage f = frame(name, "l", "", 0.5);
+            QVERIFY2(isNew(f, 0.5, 0.5) && isOld(f, 0.02, 0.02) && isOld(f, 0.98, 0.98) && isOld(f, 0.02, 0.98), qPrintable(name));
+            // A shape is one of them.
+            QVERIFY(frame("shape", "l", name, 0.5) == f);
+        }
+        QVERIFY(isNew(frame("circle", "l", "", 0.5), 0.5, 0.05) && isNew(frame("circle", "l", "", 0.5), 0.5, 0.95));
+        QVERIFY(isNew(frame("diamond", "l", "", 0.5), 0.9, 0.5) && isOld(frame("diamond", "l", "", 0.5), 0.8, 0.8));
+        QVERIFY(isNew(frame("plus", "l", "", 0.5), 0.5, 0.02) && isNew(frame("plus", "l", "", 0.5), 0.02, 0.5) && isOld(frame("plus", "l", "", 0.5), 0.15, 0.15));
+        // Wedge: from the top, both ways, so that the top half is in at the half.
+        const QImage wedge = frame("wedge", "l", "", 0.5);
+        QVERIFY(isNew(wedge, 0.5, 0.1) && isNew(wedge, 0.9, 0.3) && isNew(wedge, 0.1, 0.3) && isOld(wedge, 0.5, 0.9) && isOld(wedge, 0.9, 0.7));
+        // Wheel: spokes of the new slide that each sweep clockwise from the top; two spokes, the top right and the bottom left quarters.
+        const QImage two = frame("wheel", "l", "2", 0.5);
+        QVERIFY(isNew(two, 0.7, 0.2) && isNew(two, 0.3, 0.8) && isOld(two, 0.3, 0.2) && isOld(two, 0.7, 0.8));
+        // (Half swept: about half of the slide is in, whatever the spokes.)
+        for (const char *spokes : {"1", "2", "3", "4", "8"}) {
+            const double share = shareNew(frame("wheel", "l", spokes, 0.5));
+            QVERIFY2(share > 0.4 && share < 0.6, spokes);
+        }
+        QVERIFY(frame("wheel", "l", "3", 0.5) != frame("wheel", "l", "4", 0.5));
+        // Strips: from the corner behind the way they go.
+        QVERIFY(isNew(frame("strips", "rd", "", 0.5), 0.05, 0.05) && isOld(frame("strips", "rd", "", 0.5), 0.95, 0.95));
+        QVERIFY(isNew(frame("strips", "ru", "", 0.5), 0.05, 0.95) && isOld(frame("strips", "ru", "", 0.5), 0.95, 0.05));
+        QVERIFY(isNew(frame("strips", "ld", "", 0.5), 0.95, 0.05) && isOld(frame("strips", "ld", "", 0.5), 0.05, 0.95));
+        QVERIFY(isNew(frame("strips", "lu", "", 0.5), 0.95, 0.95) && isOld(frame("strips", "lu", "", 0.5), 0.05, 0.05));
+        // Dissolve: bits of either, nothing between, a growing share of the new that never goes back.
+        const QImage d3 = frame("dissolve", "l", "", 0.3), d7 = frame("dissolve", "l", "", 0.7);
+        for (int y = 0; y < px.height(); ++y)
+            for (int x = 0; x < px.width(); ++x) {
+                QVERIFY(d3.pixel(x, y) == red.rgb() || d3.pixel(x, y) == blue.rgb());
+                if (d3.pixel(x, y) == blue.rgb()) QVERIFY(d7.pixel(x, y) == blue.rgb());
+            }
+        QVERIFY(std::abs(shareNew(d3) - 0.3) < 0.06 && std::abs(shareNew(d7) - 0.7) < 0.06);
+        // Flash: white in the middle, and each slide at its end of it.
+        QCOMPARE(frame("flash", "l", "", 0.5).pixel(50, 50), qRgb(255, 255, 255));
+        QVERIFY(frame("flash", "l", "", 0.2).pixel(50, 50) != red.rgb() && frame("flash", "l", "", 0.2).pixel(50, 50) != qRgb(255, 255, 255));
+        // Newsflash: the new slide small in the middle, the old one around it.
+        const QImage news = frame("newsflash", "l", "", 0.5);
+        QVERIFY(isNew(news, 0.5, 0.5) && isOld(news, 0.03, 0.03) && isOld(news, 0.97, 0.97));
+        // A random one is drawn as one effect, the same each time.
+        QVERIFY(frame("random", "l", "", 0.5) == frame("random", "l", "", 0.5));
+        QVERIFY(frame("random", "l", "", 0) == a && frame("random", "l", "", 1) == b);
+        // A name nothing knows still plays as nothing at all: the old slide, then the new one.
+        QVERIFY(frame("vortex", "l", "", 0.5) == a);
+    }
+
+    // Each effect's time for a full-size frame, with a bound that only a very slow machine would break.
+    void commonTransitionsDrawQuickly()
+    {
+        const QSize px(1920, 1080);
+        QImage a(px, QImage::Format_RGB32), b(px, QImage::Format_RGB32), out(px, QImage::Format_RGB32);
+        a.fill(QColor(220, 30, 30));
+        b.fill(QColor(30, 30, 220));
+        QStringList report;
+        for (const QString &type : {"dissolve", "blinds", "checkerboard", "comb", "randombars", "circle", "diamond", "plus", "wedge", "wheel", "shape", "flash", "newsflash", "strips"}) {
+            deck::Transition t;
+            t.type = type;
+            t.dir = deck::Transition::defaultDirection(type);
+            t.by = deck::Transition::defaultOption(type);
+            double best = 1e9;
+            for (int i = 0; i < 9; ++i) {
+                QPainter p(&out);
+                QElapsedTimer timer;
+                timer.start();
+                paintTransition(&p, t, a, b, 0.3 + i * 0.05);
+                p.end();
+                best = std::min(best, timer.nsecsElapsed() / 1e6);
+            }
+            report << QStringLiteral("%1 %2 ms").arg(type).arg(best, 0, 'f', 1);
+            QVERIFY2(best < 200, qPrintable(report.last()));
+        }
+        qInfo().noquote() << "1920x1080 frames, best of 9:" << report.join(QStringLiteral(", "));
+    }
+
+    // Each is written in the file as the format names it and comes back as it was, with its direction or option, after an edit.
+    void commonTransitionsAreSavedInPptx()
+    {
+        struct Case { const char *type, *dir, *by, *xml; };
+        const Case cases[] = {
+            {"dissolve", "l", "", "<p:dissolve/>"}, {"blinds", "h", "", "<p:blinds dir=\"horz\"/>"}, {"blinds", "v", "", "<p:blinds dir=\"vert\"/>"},
+            {"checkerboard", "h", "", "<p:checker dir=\"horz\"/>"}, {"checkerboard", "v", "", "<p:checker dir=\"vert\"/>"}, {"comb", "h", "", "<p:comb dir=\"horz\"/>"},
+            {"comb", "v", "", "<p:comb dir=\"vert\"/>"}, {"randombars", "h", "", "<p:randomBar dir=\"horz\"/>"}, {"randombars", "v", "", "<p:randomBar dir=\"vert\"/>"},
+            {"circle", "l", "", "<p:circle/>"}, {"diamond", "l", "", "<p:diamond/>"}, {"plus", "l", "", "<p:plus/>"}, {"wedge", "l", "", "<p:wedge/>"},
+            {"wheel", "l", "1", "<p:wheel spokes=\"1\"/>"}, {"wheel", "l", "2", "<p:wheel spokes=\"2\"/>"}, {"wheel", "l", "3", "<p:wheel spokes=\"3\"/>"},
+            {"wheel", "l", "4", "<p:wheel spokes=\"4\"/>"}, {"wheel", "l", "8", "<p:wheel spokes=\"8\"/>"}, {"flash", "l", "", "<p14:flash/>"},
+            {"newsflash", "l", "", "<p:newsflash/>"}, {"strips", "ru", "", "<p:strips dir=\"ru\"/>"}, {"strips", "lu", "", "<p:strips dir=\"lu\"/>"},
+            {"strips", "rd", "", "<p:strips dir=\"rd\"/>"}, {"strips", "ld", "", "<p:strips dir=\"ld\"/>"}, {"random", "l", "", "<p:random/>"},
+            {"shape", "l", "circle", "<p:circle/>"}, {"shape", "l", "diamond", "<p:diamond/>"}, {"shape", "l", "plus", "<p:plus/>"},
+        };
+        QString err;
+        for (const Case &c : cases) {
+            const QString type = QString::fromLatin1(c.type);
+            auto d = deck::importPresentation(pack(samplePptx()), &err);
+            QVERIFY2(d, qPrintable(err));
+            // An edit: the slide's own transition, with its timing.
+            deck::Transition t;
+            t.type = type;
+            t.dir = QString::fromLatin1(c.dir);
+            if (*c.by) t.by = QString::fromLatin1(c.by);
+            t.duration = 0.75;
+            t.advanceAfter = 2.5;
+            deck::setTransition(*d->pages[1], t);
+            const QByteArray bytes = deck::exportPresentation(*d, &err);
+            QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+            Exported e;
+            QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+            const QString slide = part(e, QStringLiteral("/ppt/slides/slide2.xml"));
+            QVERIFY2(slide.contains(QString::fromLatin1(c.xml)), qPrintable(type + QLatin1Char(' ') + QString::fromLatin1(c.xml)));
+            auto back = deck::importPresentation(bytes, &err);
+            QVERIFY2(back, qPrintable(err));
+            const deck::Transition got = deck::transitionOf(*back->pages[1]);
+            if (type == QLatin1String("shape")) {
+                QCOMPARE(got.type, t.by);
+            } else {
+                QCOMPARE(got.type, type);
+                QCOMPARE(got.dir, deck::Transition::fromJson(t.toJson()).dir);
+                QCOMPARE(got.by, deck::Transition::fromJson(t.toJson()).by);
+            }
+            QCOMPARE(got.duration, 0.75);
+            QCOMPARE(*got.advanceAfter, 2.5);
+            // Saved again unchanged, the same.
+            QVERIFY2(unpack(deck::exportPresentation(*back, &err), &e, &err), qPrintable(err));
+            QVERIFY2(part(e, QStringLiteral("/ppt/slides/slide2.xml")).contains(QString::fromLatin1(c.xml)), qPrintable(type));
+        }
+    }
+
+    // A file with each name opens and plays as that effect, not as a fade; one nothing knows still fades.
+    void commonTransitionNamesPlayInTheShow()
+    {
+        const QString head = QStringLiteral("<p:transition xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\" spd=\"med\">");
+        struct Case { const char *xml, *type, *dir, *by; };
+        const Case cases[] = {{"<p:dissolve/>", "dissolve", "", ""}, {"<p:blinds dir=\"vert\"/>", "blinds", "v", ""}, {"<p:blinds/>", "blinds", "h", ""},
+                              {"<p:checker dir=\"vert\"/>", "checkerboard", "v", ""}, {"<p:comb dir=\"horz\"/>", "comb", "h", ""}, {"<p:randomBar dir=\"vert\"/>", "randombars", "v", ""},
+                              {"<p:circle/>", "circle", "", ""}, {"<p:diamond/>", "diamond", "", ""}, {"<p:plus/>", "plus", "", ""}, {"<p:wedge/>", "wedge", "", ""},
+                              {"<p:wheel spokes=\"8\"/>", "wheel", "", "8"}, {"<p:wheel/>", "wheel", "", "4"}, {"<p:wheel spokes=\"5\"/>", "wheel", "", "4"},
+                              {"<p:newsflash/>", "newsflash", "", ""}, {"<p:strips dir=\"ld\"/>", "strips", "ld", ""}, {"<p:random/>", "random", "", ""}};
+        const QSize px(96, 54);
+        QImage a(px, QImage::Format_RGB32), b(px, QImage::Format_RGB32);
+        a.fill(Qt::red);
+        b.fill(Qt::blue);
+        auto frame = [&](const deck::Transition &t) {
+            QImage out(px, QImage::Format_RGB32);
+            QPainter p(&out);
+            paintTransition(&p, t, a, b, 0.5);
+            p.end();
+            return out;
+        };
+        deck::Transition fade;
+        fade.type = QStringLiteral("fade");
+        for (const Case &c : cases) {
+            const deck::Transition t = deck::transitionFromXml(head + QString::fromLatin1(c.xml) + QStringLiteral("</p:transition>"));
+            QCOMPARE(t.type, QString::fromLatin1(c.type));
+            if (*c.dir) QCOMPARE(t.dir, QString::fromLatin1(c.dir));
+            if (*c.by) QCOMPARE(t.by, QString::fromLatin1(c.by));
+            QVERIFY2(frame(t) != frame(fade), c.xml);
+        }
+        // The flash is the newer form, with a fade for the programs before it.
+        QString flashXml = deck::transitionXml(deck::Transition::fromJson({{"type", "flash"}}));
+        const deck::Transition flash = deck::transitionFromXml(QString(flashXml).insert(flashXml.indexOf(QLatin1Char(' ')), QStringLiteral(" xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\"")));
+        QCOMPARE(flash.type, QStringLiteral("flash"));
+        QVERIFY(flashXml.contains(QStringLiteral("<mc:Fallback><p:transition spd=\"med\"><p:fade/>")));
+        QCOMPARE(deck::transitionFromXml(head + QStringLiteral("<p:ferris/></p:transition>")).type, QStringLiteral("fade"));
+    }
+
+    // An old binary file's effect numbers: dissolve is 5, and the rest of the common ones come with their directions.
+    void binaryTransitionCodesGoToTheCommonEffects()
+    {
+        struct Case { int effect, direction; const char *type, *dir, *by; };
+        const Case cases[] = {{5, 0, "dissolve", "", ""}, {1, 0, "random", "", ""}, {2, 0, "blinds", "h", ""}, {2, 1, "blinds", "v", ""}, {3, 1, "checkerboard", "v", ""},
+                              {8, 0, "randombars", "h", ""}, {9, 4, "strips", "ru", ""}, {9, 5, "strips", "lu", ""}, {9, 6, "strips", "rd", ""}, {9, 7, "strips", "ld", ""},
+                              {17, 0, "diamond", "", ""}, {18, 0, "plus", "", ""}, {19, 0, "wedge", "", ""}, {21, 1, "comb", "v", ""}, {22, 0, "newsflash", "", ""},
+                              {26, 1, "wheel", "", "1"}, {26, 2, "wheel", "", "2"}, {26, 3, "wheel", "", "3"}, {26, 4, "wheel", "", "4"}, {26, 8, "wheel", "", "8"},
+                              {27, 0, "circle", "", ""}, {6, 0, "fade", "", ""}, {99, 0, "fade", "", ""}};
+        for (const Case &c : cases) {
+            const QByteArray info = le(0, 4) + le(0, 4) + raw({char(c.direction), char(c.effect)}) + le(0x501, 2) + raw({2, 0, 0, 0});
+            QString err;
+            auto d = deck::importBinaryPresentation(buildPpt(false, false, true, false, QByteArray(), QByteArray(), QByteArray(), QByteArray(), QByteArray(), QByteArray(), 1016, QByteArray(), QByteArray(), QByteArray(), info), &err);
+            QVERIFY2(d, qPrintable(err));
+            const deck::Transition t = deck::transitionOf(*d->pages[2]);
+            QVERIFY2(t.type == QString::fromLatin1(c.type), qPrintable(QStringLiteral("%1 gave %2").arg(c.effect).arg(t.type)));
+            if (*c.dir) QCOMPARE(t.dir, QString::fromLatin1(c.dir));
+            if (*c.by) QCOMPARE(t.by, QString::fromLatin1(c.by));
+        }
+    }
+
+    // (With JO_SHOT_DIR set: the Transitions tab with the gallery, and the middle of a Blinds and of a Wheel.)
+    void commonTransitionsShots()
+    {
+        if (qEnvironmentVariableIsEmpty("JO_SHOT_DIR")) QSKIP("JO_SHOT_DIR names no folder");
+        jp::applyUiTheme(1);
+        DeckWindow w;
+        w.newSlide();
+        w.resize(1280, 800);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        w.ribbon()->showTab(w.ribbon()->tab(QStringLiteral("Transitions")));
+        QApplication::processEvents();
+        shotOf(&w, QStringLiteral("deck-transitions-tab"));
+        auto *gallery = w.ribbon()->findChild<Gallery *>(QStringLiteral("transitionGallery"));
+        QVERIFY(gallery);
+        // The whole gallery, as Show all opens it.
+        QFrame *all = galleryPopup(gallery->items(), QSize(64, 40), 7, {}, [](const QString &) {}, gallery);
+        all->move(100, 100);
+        for (auto *l : all->findChildren<QListWidget *>()) l->setFixedHeight(5 * 52 + 10);
+        all->adjustSize();
+        all->show();
+        QApplication::processEvents();
+        shotOf(all, QStringLiteral("deck-transition-gallery-all"));
+        all->close();
+        // Two sample slides, and a frame halfway.
+        const QSize px(640, 360);
+        auto sample = [&](const QColor &paper, const QColor &ink, const QString &title) {
+            QImage img(px, QImage::Format_RGB32);
+            img.fill(paper);
+            QPainter p(&img);
+            p.setPen(ink);
+            QFont f = p.font();
+            f.setPixelSize(54);
+            p.setFont(f);
+            p.drawText(QRect(40, 40, 560, 100), Qt::AlignLeft | Qt::AlignVCenter, title);
+            p.setPen(Qt::NoPen);
+            p.setBrush(ink);
+            p.drawRoundedRect(QRect(40, 170, 440, 24), 6, 6);
+            p.drawRoundedRect(QRect(40, 220, 320, 24), 6, 6);
+            p.drawEllipse(QRect(440, 220, 140, 100));
+            return img;
+        };
+        const QImage a = sample(QColor(0xDC, 0xE3, 0xEB), QColor(0x2E, 0x4A, 0x6B), QStringLiteral("Quarterly review")), b = sample(QColor(0xF6, 0xDC, 0xCE), QColor(0x8A, 0x3B, 0x12), QStringLiteral("Next steps"));
+        auto save = [&](const QString &type, const QString &by, const QString &name) {
+            deck::Transition t;
+            t.type = type;
+            t.dir = deck::Transition::defaultDirection(type);
+            t.by = by.isEmpty() ? deck::Transition::defaultOption(type) : by;
+            QImage out(px, QImage::Format_RGB32);
+            QPainter p(&out);
+            paintTransition(&p, t, a, b, 0.5);
+            p.end();
+            out.save(qEnvironmentVariable("JO_SHOT_DIR") + QLatin1Char('/') + name + QStringLiteral(".png"));
+        };
+        save(QStringLiteral("blinds"), QString(), QStringLiteral("deck-transition-blinds-mid"));
+        save(QStringLiteral("wheel"), QStringLiteral("4"), QStringLiteral("deck-transition-wheel-mid"));
     }
 
     // Going forward onto a slide with a transition keeps the old slide on the

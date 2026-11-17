@@ -76,6 +76,32 @@ QString Exporter::transitionAttrs(const Page &page)
         subtype = QStringLiteral("rectangle");
         reverse = t.dir == QLatin1String("out");
     }
+    else if (t.type == QLatin1String("dissolve")) {
+        type = QStringLiteral("dissolve");
+        subtype = QStringLiteral("default");
+    } else if (t.type == QLatin1String("blinds")) {
+        type = QStringLiteral("blindsWipe");
+        subtype = t.dir == QLatin1String("v") ? QStringLiteral("vertical") : QStringLiteral("horizontal");
+    } else if (t.type == QLatin1String("checkerboard")) {
+        type = QStringLiteral("checkerBoardWipe");
+        subtype = t.dir == QLatin1String("v") ? QStringLiteral("down") : QStringLiteral("across");
+    } else if (t.type == QLatin1String("randombars")) {
+        type = QStringLiteral("randomBarWipe");
+        subtype = t.dir == QLatin1String("v") ? QStringLiteral("vertical") : QStringLiteral("horizontal");
+    } else if (t.type == QLatin1String("circle") || (t.type == QLatin1String("shape") && t.by == QLatin1String("circle"))) {
+        type = QStringLiteral("ellipseWipe");
+        subtype = QStringLiteral("circle");
+    } else if (t.type == QLatin1String("diamond") || (t.type == QLatin1String("shape") && t.by == QLatin1String("diamond"))) {
+        type = QStringLiteral("irisWipe");
+        subtype = QStringLiteral("diamond");
+    } else if (t.type == QLatin1String("wedge")) {
+        type = QStringLiteral("fanWipe");
+        subtype = QStringLiteral("centerTop");
+    } else if (t.type == QLatin1String("wheel")) {
+        type = QStringLiteral("pinWheelWipe");
+        subtype = t.by == QLatin1String("1") ? QStringLiteral("oneBlade") : t.by == QLatin1String("2") ? QStringLiteral("twoBladeVertical")
+                : t.by == QLatin1String("3") ? QStringLiteral("threeBlade") : t.by == QLatin1String("8") ? QStringLiteral("eightBlade") : QStringLiteral("fourBlade");
+    }
     if (!type.isEmpty()) {
         out += attrOf("smil:type", type) + attrOf("smil:subtype", subtype);
         if (reverse) out += attrOf("smil:direction", QStringLiteral("reverse"));

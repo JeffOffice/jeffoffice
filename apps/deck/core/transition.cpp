@@ -13,7 +13,10 @@ constexpr double kMinSeconds = 0.01, kMaxSeconds = 59;
 QStringList transitionTypes()
 {
     return {QStringLiteral("none"),   QStringLiteral("morph"),   QStringLiteral("fade"),    QStringLiteral("push"),    QStringLiteral("wipe"), QStringLiteral("split"),
-            QStringLiteral("reveal"), QStringLiteral("cover"),   QStringLiteral("uncover"), QStringLiteral("zoom"), QStringLiteral("cut")};
+            QStringLiteral("reveal"), QStringLiteral("cover"),   QStringLiteral("uncover"), QStringLiteral("zoom"), QStringLiteral("cut"),
+            QStringLiteral("dissolve"), QStringLiteral("blinds"), QStringLiteral("checkerboard"), QStringLiteral("comb"), QStringLiteral("randombars"), QStringLiteral("circle"),
+            QStringLiteral("diamond"), QStringLiteral("plus"), QStringLiteral("wedge"), QStringLiteral("wheel"), QStringLiteral("shape"), QStringLiteral("flash"),
+            QStringLiteral("newsflash"), QStringLiteral("strips"), QStringLiteral("random")};
 }
 
 bool Transition::hasDirection() const
@@ -28,8 +31,57 @@ bool Transition::isMorph() const { return type == QLatin1String("morph"); }
 
 QStringList Transition::morphUnits() { return {QStringLiteral("objects"), QStringLiteral("words"), QStringLiteral("characters")}; }
 
+QStringList Transition::directions() const
+{
+    if (hasInOut()) return {QStringLiteral("out"), QStringLiteral("in")};
+    if (hasDirection()) return {QStringLiteral("l"), QStringLiteral("r"), QStringLiteral("u"), QStringLiteral("d")};
+    if (type == QLatin1String("blinds") || type == QLatin1String("checkerboard") || type == QLatin1String("comb") || type == QLatin1String("randombars"))
+        return {QStringLiteral("h"), QStringLiteral("v")};
+    if (type == QLatin1String("strips")) return {QStringLiteral("ru"), QStringLiteral("lu"), QStringLiteral("rd"), QStringLiteral("ld")};
+    return {};
+}
+
+QStringList Transition::options() const
+{
+    if (isMorph()) return morphUnits();
+    if (type == QLatin1String("wheel")) return {QStringLiteral("1"), QStringLiteral("2"), QStringLiteral("3"), QStringLiteral("4"), QStringLiteral("8")};
+    if (type == QLatin1String("shape")) return {QStringLiteral("circle"), QStringLiteral("diamond"), QStringLiteral("plus")};
+    return {};
+}
+
+QStringList Transition::randomTypes()
+{
+    return {QStringLiteral("fade"),       QStringLiteral("push"),    QStringLiteral("wipe"),   QStringLiteral("split"),  QStringLiteral("cover"),   QStringLiteral("uncover"),
+            QStringLiteral("zoom"),       QStringLiteral("dissolve"), QStringLiteral("blinds"), QStringLiteral("checkerboard"), QStringLiteral("comb"), QStringLiteral("randombars"),
+            QStringLiteral("circle"),     QStringLiteral("diamond"), QStringLiteral("plus"),   QStringLiteral("wedge"), QStringLiteral("wheel"),   QStringLiteral("strips"),
+            QStringLiteral("newsflash"),  QStringLiteral("flash")};
+}
+
+Transition Transition::resolved(quint32 seed) const
+{
+    if (type != QLatin1String("random")) return *this;
+    Transition t = *this;
+    const QStringList types = randomTypes();
+    seed = seed * 2654435761u + 0x9E3779B9u;
+    t.type = types[(seed >> 8) % types.size()];
+    const QStringList dirs = t.directions(), opts = t.options();
+    t.dir = dirs.isEmpty() ? defaultDirection(t.type) : dirs[(seed >> 16) % dirs.size()];
+    t.by = opts.isEmpty() ? defaultOption(t.type) : opts[(seed >> 20) % opts.size()];
+    return t;
+}
+
+QString Transition::defaultOption(const QString &type)
+{
+    if (type == QLatin1String("wheel")) return QStringLiteral("4");
+    if (type == QLatin1String("shape")) return QStringLiteral("circle");
+    return QStringLiteral("objects");
+}
+
 QString Transition::defaultDirection(const QString &type)
 {
+    if (type == QLatin1String("blinds") || type == QLatin1String("checkerboard") || type == QLatin1String("comb") || type == QLatin1String("randombars"))
+        return QStringLiteral("h");
+    if (type == QLatin1String("strips")) return QStringLiteral("rd");
     if (type == QLatin1String("split")) return QStringLiteral("out");
     if (type == QLatin1String("zoom")) return QStringLiteral("in");
     return QStringLiteral("l");
@@ -45,7 +97,7 @@ QJsonObject Transition::toJson() const
     QJsonObject o;
     o["type"] = type;
     o["dir"] = dir;
-    if (isMorph()) o["by"] = by;
+    if (!options().isEmpty()) o["by"] = by;
     o["duration"] = duration;
     if (advanceAfter) o["advanceAfter"] = *advanceAfter;
     o["advanceOnClick"] = advanceOnClick;
@@ -59,14 +111,12 @@ Transition Transition::fromJson(const QJsonObject &o)
     if (transitionTypes().contains(type)) t.type = type;
     t.dir = defaultDirection(t.type);
     const QString dir = o.value(QLatin1String("dir")).toString();
-    const QStringList valid = t.hasInOut() ? QStringList{QStringLiteral("in"), QStringLiteral("out")}
-                                           : QStringList{QStringLiteral("l"), QStringLiteral("r"), QStringLiteral("u"), QStringLiteral("d")};
+    const QStringList valid = t.directions();
     if (valid.contains(dir)) t.dir = dir;
-    if (!t.hasDirection() && !t.hasInOut()) t.dir = defaultDirection(t.type);   // the others have none
-    if (t.isMorph()) {
-        const QString by = o.value(QLatin1String("by")).toString();
-        if (morphUnits().contains(by)) t.by = by;
-    }
+    if (valid.isEmpty()) t.dir = defaultDirection(t.type);   // the others have none
+    t.by = defaultOption(t.type);
+    const QString by = o.value(QLatin1String("by")).toString();
+    if (t.options().contains(by)) t.by = by;
     const double seconds = o.value(QLatin1String("duration")).toDouble(t.duration);
     if (std::isfinite(seconds)) t.duration = std::clamp(seconds, kMinSeconds, kMaxSeconds);
     const QJsonValue after = o.value(QLatin1String("advanceAfter"));

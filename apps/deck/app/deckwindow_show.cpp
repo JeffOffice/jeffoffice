@@ -150,8 +150,10 @@ QIcon transitionIcon(const QString &type)
             QPainter q(&frame);
             deck::Transition t;
             t.type = type;
+            t.dir = deck::Transition::defaultDirection(type);
+            t.by = deck::Transition::defaultOption(type);
             if (type == QLatin1String("morph")) paintMorphSample(&q, size, paperA, paperB, inkA, kStar);
-            else paintTransition(&q, t, from, to, type == QLatin1String("none") ? 0 : 0.5);
+            else paintTransition(&q, t, from, to, type == QLatin1String("none") ? 0 : type == QLatin1String("flash") ? 0.3 : 0.5);
         }
         p->drawImage(rc.topLeft(), frame);
         p->setPen(QPen(QColor(0x88, 0x88, 0x88), 1));
@@ -235,6 +237,9 @@ void DeckWindow::createShowActions()
     const struct { const char *type; QString text; } kinds[] = {
         {"none", tr("None")},       {"morph", tr("Morph")}, {"fade", tr("Fade")},       {"push", tr("Push")}, {"wipe", tr("Wipe")}, {"split", tr("Split")},
         {"reveal", tr("Reveal")},   {"cover", tr("Cover")}, {"uncover", tr("Uncover")}, {"zoom", tr("Zoom")}, {"cut", tr("Cut")},
+        {"dissolve", tr("Dissolve")}, {"blinds", tr("Blinds")}, {"checkerboard", tr("Checkerboard")}, {"comb", tr("Comb")}, {"randombars", tr("Random Bars")},
+        {"circle", tr("Circle")}, {"diamond", tr("Diamond")}, {"plus", tr("Plus")}, {"wedge", tr("Wedge")}, {"wheel", tr("Wheel")}, {"shape", tr("Shape")},
+        {"flash", tr("Flash")}, {"newsflash", tr("Newsflash")}, {"strips", tr("Strips")}, {"random", tr("Random")},
     };
     for (const auto &k : kinds) {
         const QString type = QString::fromLatin1(k.type);
@@ -243,7 +248,8 @@ void DeckWindow::createShowActions()
                 const bool wasMorph = t.isMorph();
                 t.type = type;
                 // A direction that means nothing to the new type gives way to its own.
-                if (t.hasInOut() != (t.dir == QLatin1String("in") || t.dir == QLatin1String("out"))) t.dir = deck::Transition::defaultDirection(type);
+                if (!t.directions().contains(t.dir)) t.dir = deck::Transition::defaultDirection(type);
+                if (!t.options().contains(t.by)) t.by = deck::Transition::defaultOption(type);
                 // A morph takes two seconds, and the others seven tenths, unless the time was chosen.
                 const double usual = deck::Transition().duration;
                 if (t.isMorph() && !wasMorph && t.duration == usual) t.duration = deck::Transition::kMorphSeconds;
@@ -253,6 +259,7 @@ void DeckWindow::createShowActions()
     }
     const struct { const char *dir; QString text; } directions[] = {
         {"l", tr("From Right")}, {"r", tr("From Left")}, {"u", tr("From Bottom")}, {"d", tr("From Top")}, {"out", tr("Out")}, {"in", tr("In")},
+        {"h", tr("Horizontal")}, {"v", tr("Vertical")}, {"ru", tr("From Bottom Left")}, {"lu", tr("From Bottom Right")}, {"rd", tr("From Top Left")}, {"ld", tr("From Top Right")},
     };
     for (const auto &k : directions) {
         const QString dir = QString::fromLatin1(k.dir);
@@ -261,8 +268,10 @@ void DeckWindow::createShowActions()
         }, true);
     }
 
-    // What a morph moves.
-    const struct { const char *by; QString text; } units[] = {{"objects", tr("Objects")}, {"words", tr("Words")}, {"characters", tr("Characters")}};
+    // What a morph moves, how many spokes a wheel has, and what form a shape takes.
+    const struct { const char *by; QString text; } units[] = {{"objects", tr("Objects")}, {"words", tr("Words")}, {"characters", tr("Characters")},
+                                                     {"1", tr("1 Spoke")}, {"2", tr("2 Spokes")}, {"3", tr("3 Spokes")}, {"4", tr("4 Spokes")}, {"8", tr("8 Spokes")},
+                                                     {"circle", tr("Circle")}, {"diamond", tr("Diamond")}, {"plus", tr("Plus")}};
     for (const auto &k : units) {
         const QString by = QString::fromLatin1(k.by);
         mk(QStringLiteral("transition.by.") + by, k.text, QString(), QKeySequence(), [ed, by, label] {
@@ -289,20 +298,17 @@ void DeckWindow::createShowActions()
     auto sync = [this] {
         const deck::Transition t = currentTransition(m_ed);
         for (const QString &type : deck::transitionTypes()) act(QStringLiteral("transition.") + type)->setChecked(t.type == type);
-        for (const QString &dir : {QStringLiteral("l"), QStringLiteral("r"), QStringLiteral("u"), QStringLiteral("d")}) {
+        for (const QString &dir : {QStringLiteral("l"), QStringLiteral("r"), QStringLiteral("u"), QStringLiteral("d"), QStringLiteral("out"), QStringLiteral("in"), QStringLiteral("h"),
+                                   QStringLiteral("v"), QStringLiteral("ru"), QStringLiteral("lu"), QStringLiteral("rd"), QStringLiteral("ld")}) {
             QAction *a = act(QStringLiteral("transition.dir.") + dir);
-            a->setEnabled(t.hasDirection());
-            a->setChecked(t.hasDirection() && t.dir == dir);
+            a->setEnabled(t.directions().contains(dir));
+            a->setChecked(a->isEnabled() && t.dir == dir);
         }
-        for (const QString &dir : {QStringLiteral("out"), QStringLiteral("in")}) {
-            QAction *a = act(QStringLiteral("transition.dir.") + dir);
-            a->setEnabled(t.hasInOut());
-            a->setChecked(t.hasInOut() && t.dir == dir);
-        }
-        for (const QString &by : deck::Transition::morphUnits()) {
+        for (const QString &by : {QStringLiteral("objects"), QStringLiteral("words"), QStringLiteral("characters"), QStringLiteral("1"), QStringLiteral("2"), QStringLiteral("3"), QStringLiteral("4"),
+                                  QStringLiteral("8"), QStringLiteral("circle"), QStringLiteral("diamond"), QStringLiteral("plus")}) {
             QAction *a = act(QStringLiteral("transition.by.") + by);
-            a->setEnabled(t.isMorph());
-            a->setChecked(t.isMorph() && t.by == by);
+            a->setEnabled(t.options().contains(by));
+            a->setChecked(a->isEnabled() && t.by == by);
         }
         act("transition.preview")->setEnabled(t.type != QLatin1String("none"));
     };
@@ -352,13 +358,11 @@ void DeckWindow::addShowParts(RibbonParts &parts)
         auto fill = [this, menu] {
             menu->clear();
             const deck::Transition t = currentTransition(m_ed);
-            QStringList ids;
-            if (t.hasInOut()) ids = {QStringLiteral("out"), QStringLiteral("in")};
-            else if (t.hasDirection()) ids = {QStringLiteral("l"), QStringLiteral("r"), QStringLiteral("u"), QStringLiteral("d")};
+            const QStringList ids = t.directions(), bys = t.options();
             for (const QString &id : ids) menu->addAction(act(QStringLiteral("transition.dir.") + id));
-            if (t.isMorph())
-                for (const QString &by : deck::Transition::morphUnits()) menu->addAction(act(QStringLiteral("transition.by.") + by));
-            if (ids.isEmpty() && !t.isMorph()) menu->addAction(tr("No Effect Options"))->setEnabled(false);
+            if (!ids.isEmpty() && !bys.isEmpty()) menu->addSeparator();
+            for (const QString &by : bys) menu->addAction(act(QStringLiteral("transition.by.") + by));
+            if (ids.isEmpty() && bys.isEmpty()) menu->addAction(tr("No Effect Options"))->setEnabled(false);
         };
         connect(menu, &QMenu::aboutToShow, menu, fill);
         fill();

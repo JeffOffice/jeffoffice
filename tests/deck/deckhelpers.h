@@ -277,7 +277,7 @@ QByteArray appendEdits(const QByteArray &file, const QByteArray &objects, const 
 QByteArray buildPpt(bool titleMaster = false, bool cycle = false, bool links = false, bool notesByAtom = false, const QByteArray &bodyGroup = QByteArray(),
                            const QByteArray &drawingGroup = QByteArray(), const QByteArray &firstSlideShapes = QByteArray(), const QByteArray &masterTitleProps = QByteArray(), const QByteArray &masterBackground = QByteArray(),
                            const QByteArray &masterExtra = QByteArray(), quint16 titleMasterRecord = 1016, const QByteArray &documentExtra = QByteArray(),
-                           const QByteArray &firstSlideExtra = QByteArray(), const QByteArray &titleMasterShapes = QByteArray());
+                           const QByteArray &firstSlideExtra = QByteArray(), const QByteArray &titleMasterShapes = QByteArray(), const QByteArray &linksTransition = QByteArray());
 
 // The text of a slide's placeholders by role.
 QString placeholderText(const Document &d, const Page &slide, const QString &role);
