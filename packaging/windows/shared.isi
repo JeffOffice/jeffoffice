@@ -73,7 +73,7 @@ begin
   end;
 end;
 
-{ Help's and the translations' files this installer put in the folder: help.rcc and fonts.rcc, the language folders of Help an earlier
+{ Help's and the translations' files this installer put in the folder: help.rcc, the language folders of Help an earlier
   version shipped as loose files, its context.json, the .qm files, and the stamp and manifest. A help or i18n folder of the person's own, or anything else in ours, stays; the folders go only
   when that leaves them empty. }
 procedure {#Pfx}RemoveOwnData(const Dir: String);
@@ -83,7 +83,6 @@ var
   N: String;
 begin
   DeleteFile(Dir + '\help.rcc');
-  DeleteFile(Dir + '\fonts.rcc');
   Langs := 'de,en,en_AU,en_CA,en_GB,es,es_ES,fr,id,it,nl,pt_BR,pt_PT,ru,uk,';
   while Langs <> '' do
   begin

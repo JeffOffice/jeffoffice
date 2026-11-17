@@ -47,6 +47,7 @@ namespace {
 
 QString readText(const QString &path)
 {
+    if (path.isEmpty()) return QString();   // (no Help installed)
     QFile f(path);
     return f.open(QIODevice::ReadOnly) ? QString::fromUtf8(f.readAll()).remove(QLatin1Char('\r')) : QString();   // (a page checked out with CRLF reads as LF)
 }
@@ -139,7 +140,8 @@ Cache &cache()
 {
     static Cache c;
     const QString lang = currentUiLanguage() + appFolder() + helpRoot() + QLatin1Char('#') + QString::number(dataFolderSearches());
-    if (c.lang != lang) c = Cache{lang, {}, {}};
+    // (with JO_HELP_DIR set, pages are read again each time: a developer is editing them)
+    if (c.lang != lang || qEnvironmentVariableIsSet("JO_HELP_DIR")) c = Cache{lang, {}, {}};
     return c;
 }
 
@@ -180,6 +182,7 @@ QString contextTopic(const QString &key)
     const QString folder = appInfo().helpFolder;
     const QString root = helpRoot();
     const QString mapKey = folder + QLatin1Char('|') + root + QLatin1Char('|') + QString::number(dataFolderSearches());
+    if (qEnvironmentVariableIsSet("JO_HELP_DIR")) maps.remove(mapKey);
     auto it = maps.find(mapKey);
     if (it == maps.end()) {
         const QString path = root.isEmpty() ? QString() : folder.isEmpty() ? root + QStringLiteral("/context.json") : root + QStringLiteral("/en") + appFolder() + QStringLiteral("/context.json");

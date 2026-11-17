@@ -48,7 +48,7 @@ bool makeBundle(const QString &dir, const QString &name, const QMap<QString, QBy
         if (!QDir().mkpath(QFileInfo(src).absolutePath())) return false;
         QFile f(src);
         if (!f.open(QIODevice::WriteOnly) || f.write(it.value()) != it.value().size()) return false;
-        qrc += QStringLiteral("<file alias=\"%1\">%2</file>").arg(it.key(), src);
+        qrc += QStringLiteral("<file alias=\"%1\">%2</file>").arg(it.key().toHtmlEscaped(), src.toHtmlEscaped());
     }
     qrc += QStringLiteral("</qresource></RCC>");
     QFile q(dir + QLatin1Char('/') + name + QStringLiteral(".qrc"));
@@ -841,6 +841,7 @@ private Q_SLOTS:
         QVERIFY(QFileInfo(jp::dataFolder(QStringLiteral("i18n")) + QStringLiteral("/jeffoffice_de.qm")).isFile());
         QTemporaryDir empty;
         QVERIFY(empty.isValid());
+        const auto emptyUnmap = qScopeGuard([] { jp::setDataFolderOverride(QString()); });   // (a mapped file stays open on Windows: unregistered before the folder goes)
         jp::setDataFolderOverride(empty.path());
         QVERIFY(jp::dataFolder(QStringLiteral("help")).isEmpty());
         QVERIFY(jp::dataFolder(QStringLiteral("i18n")).isEmpty());
@@ -851,6 +852,7 @@ private Q_SLOTS:
         // A folder whose help.rcc holds them is looked in first (and only).
         QTemporaryDir bundled;
         QVERIFY(bundled.isValid());
+        const auto bundledUnmap = qScopeGuard([] { jp::setDataFolderOverride(QString()); });   // (a mapped file stays open on Windows: unregistered before the folder goes)
         const QMap<QString, QByteArray> two{{QStringLiteral("en/index.md"), "# Only page\n"}, {QStringLiteral("en/stale.md"), "# In the bundle\n"}};
         // (a folder is the data folder only with the stamp of this version)
         QVERIFY(makeDataFolder(bundled.path(), two, false));
@@ -891,6 +893,7 @@ private Q_SLOTS:
         // (a page with CRLF lines is the same page: headings are found by "\n## Name\n")
         QTemporaryDir crlfDir;
         QVERIFY(crlfDir.isValid());
+        const auto crlfDirUnmap = qScopeGuard([] { jp::setDataFolderOverride(QString()); });   // (a mapped file stays open on Windows: unregistered before the folder goes)
         QVERIFY(makeDataFolder(crlfDir.path(), {{QStringLiteral("en/stale.md"), "# Crlf page\r\n\r\n## First\r\n\r\nText.\r\n"}}, false));
         jp::setDataFolderOverride(crlfDir.path());
         const jp::help::Topic crlf = jp::help::topic(QStringLiteral("stale"));
@@ -916,6 +919,7 @@ private Q_SLOTS:
         } restore;
         QTemporaryDir dir;
         QVERIFY(dir.isValid());
+        const auto dirUnmap = qScopeGuard([] { jp::setDataFolderOverride(QString()); });   // (a mapped file stays open on Windows: unregistered before the folder goes)
         const QMap<QString, QByteArray> files{
             {QStringLiteral("context.json"), "{\"tab:Home\": \"printing\"}"},
             {QStringLiteral("en/index.md"), "# Contents\n\n[Printing](printing)\n"},
@@ -941,6 +945,7 @@ private Q_SLOTS:
         // another bundle under the same path is another Help (what was read before is not kept)
         QTemporaryDir other;
         QVERIFY(other.isValid());
+        const auto otherUnmap = qScopeGuard([] { jp::setDataFolderOverride(QString()); });   // (a mapped file stays open on Windows: unregistered before the folder goes)
         QVERIFY(makeDataFolder(other.path(), {{QStringLiteral("en/index.md"), "# Second\n"}}, true));
         jp::setDataFolderOverride(other.path());
         QCOMPARE(jp::help::topicIds(), QStringList{QStringLiteral("index")});
@@ -957,6 +962,7 @@ private Q_SLOTS:
         } restore;
         QTemporaryDir dir;
         QVERIFY(dir.isValid());
+        const auto dirUnmap = qScopeGuard([] { jp::setDataFolderOverride(QString()); });   // (a mapped file stays open on Windows: unregistered before the folder goes)
         QVERIFY(QDir(dir.path()).mkpath(QStringLiteral("en")));
         QFile f(dir.path() + QStringLiteral("/en/index.md"));
         QVERIFY(f.open(QIODevice::WriteOnly));
@@ -969,29 +975,35 @@ private Q_SLOTS:
         QCOMPARE(jp::dataFolder(QStringLiteral("help")), QDir::cleanPath(dir.path()));
         QCOMPARE(jp::help::topicIds(), QStringList{QStringLiteral("index")});
         QCOMPARE(jp::help::topic(QStringLiteral("index")).title, QStringLiteral("From the folder"));
+        // (a page edited while the variable is set is read again)
+        QVERIFY(f.open(QIODevice::WriteOnly | QIODevice::Truncate));
+        f.write("# Edited\n");
+        f.close();
+        QCOMPARE(jp::help::topic(QStringLiteral("index")).title, QStringLiteral("Edited"));
         qunsetenv("JO_HELP_DIR");
         jp::setDataFolderOverride(QString());
         QCOMPARE(jp::help::topic(QStringLiteral("index")).title, bundled);
     }
 
-    // A missing, empty, or corrupt help.rcc is "no Help installed" (no topics, the notice in the pane), not a crash; fonts.rcc the same.
+    // A missing, empty, or corrupt help.rcc is "no Help installed" (no topics, the notice in the pane), not a crash and not a warning.
     void aMissingOrCorruptBundleMeansNoHelp()
     {
+        QTest::failOnWarning(QRegularExpression(QStringLiteral("QFSFileEngine|No file name")));   // (no path is opened when there is no Help)
         struct Restore {
             ~Restore() { jp::setDataFolderOverride(QString()); }
         } restore;
         QTemporaryDir dir;
         QVERIFY(dir.isValid());
+        const auto dirUnmap = qScopeGuard([] { jp::setDataFolderOverride(QString()); });   // (a mapped file stays open on Windows: unregistered before the folder goes)
         QVERIFY(makeDataFolder(dir.path(), {}, false));
         for (const QByteArray &bad : {QByteArray(), QByteArray("not a resource file at all, just text"), QByteArray("qres\0\0\0\x01\xff\xff\xff\xff\xff\xff\xff\xff", 16)}) {
-            for (const char *name : {"help.rcc", "fonts.rcc"}) {
+            for (const char *name : {"help.rcc"}) {
                 QFile f(dir.path() + QLatin1Char('/') + QLatin1String(name));
                 QVERIFY(f.open(QIODevice::WriteOnly));
                 f.write(bad);
             }
             jp::setDataFolderOverride(dir.path());
             QVERIFY(jp::dataFolder(QStringLiteral("help")).isEmpty());
-            QVERIFY(jp::dataFolder(QStringLiteral("fonts")).isEmpty());
             QVERIFY(jp::help::topicIds().isEmpty());
             QVERIFY(jp::help::topic(QStringLiteral("index")).isNull());
             QVERIFY(jp::help::searchTopics(QStringLiteral("print")).isEmpty());
@@ -1012,34 +1024,15 @@ private Q_SLOTS:
         QCOMPARE(jp::help::topic(QStringLiteral("index")).title, QStringLiteral("New copy"));
     }
 
-    // The programs' fonts come from fonts.rcc: a bundled font file is added to the font database from the resource folder.
-    void bundledFontsLoadFromTheFontBundle()
-    {
-        const QString folder = jp::dataFolder(QStringLiteral("fonts"));
-        QCOMPARE(folder, QStringLiteral(":/fonts"));
-        const QStringList files = QDir(folder).entryList({QStringLiteral("*.ttf")}, QDir::Files);
-        QVERIFY(files.contains(QStringLiteral("Arimo-Regular.ttf")));
-        QVERIFY(jp::bundledFontDirs().first() == folder);
-        QVERIFY(jp::bundledFamilies().contains(QStringLiteral("Arimo")));
-        QVERIFY(QFontDatabase::families().contains(QStringLiteral("Arimo")));
-        QFile ttf(folder + QStringLiteral("/Arimo-Regular.ttf"));
-        QVERIFY(ttf.open(QIODevice::ReadOnly));
-        QVERIFY(ttf.size() > 100000);
-        QFile onDisk(QStringLiteral(JP_TEST_DATA "/../../resources/fonts/Arimo-Regular.ttf"));
-        QVERIFY(onDisk.open(QIODevice::ReadOnly));
-        QCOMPARE(ttf.readAll(), onDisk.readAll());
-    }
-
-    // A fast test of the built data folder (the one the other tests read): Help and the fonts are each one file, and no folder of loose files.
+    // The built data folder (the one the other tests read): Help is one file, and no folder of loose files.
     void theBuiltDataFolderHoldsTheBundles()
     {
+        jp::setDataFolderOverride(QString());
         const QString root = QFileInfo(jp::dataFolder(QStringLiteral("i18n"))).absolutePath();
+        QVERIFY2(QFileInfo(root + QStringLiteral("/data.stamp")).isFile(), qPrintable(root));   // (found, not guessed from i18n: an empty path would pass the rest)
         QVERIFY(QFileInfo(root + QStringLiteral("/help.rcc")).isFile());
-        QVERIFY(QFileInfo(root + QStringLiteral("/fonts.rcc")).isFile());
         QVERIFY(!QFileInfo(root + QStringLiteral("/help")).exists());
-        QVERIFY(!QFileInfo(root + QStringLiteral("/fonts")).exists());
-        const QStringList all = jp::dataManifest(QStringLiteral("help"));
-        QVERIFY(all.contains(QStringLiteral("en/printing.md")));
+        QVERIFY(jp::dataManifest(QStringLiteral("help")).contains(QStringLiteral("en/printing.md")));
     }
 
     // F1 opens help on what is being done: the contents from the page, a

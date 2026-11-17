@@ -159,10 +159,9 @@ Name: "stats"; Description: "{#TaskStats}"; GroupDescription: "Usage statistics:
 Name: "{app}"; Flags: uninsalwaysuninstall
 
 [InstallDelete]
-; Help and the fonts are one file each now (help.rcc, fonts.rcc). The folders of loose files an earlier version left are taken out before
-; the files go in, so that an old copy neither lingers nor is read in place of the new one.
+; Help is one file now (help.rcc). The folder of loose files an earlier version left is taken out before the files go in, so that an old
+; copy neither lingers nor is read in place of the new one.
 Type: filesandordirs; Name: "{app}\help"
-Type: filesandordirs; Name: "{app}\fonts"
 
 [Files]
 Source: "..\..\dist\JeffOffice\*"; DestDir: "{app}"; Excludes: "{#NotApps}"; Flags: recursesubdirs createallsubdirs ignoreversion

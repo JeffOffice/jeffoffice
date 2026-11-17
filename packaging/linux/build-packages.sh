@@ -27,13 +27,14 @@ suite=(JeffPub JeffDeck)
 [ "${SHIP_WRITE:-}" = true ] && suite+=(JeffWrite)
 [ "${SHIP_CRUNCH:-}" = true ] && suite+=(JeffCrunch)
 
-# An AppDir with the given apps (JeffPub, JeffDeck, JeffWrite, JeffCrunch), Help, the fonts, and
-# the data they share (the dictionaries are in it), their desktop entries and icons, and the docs.
+# An AppDir with the given apps (JeffPub, JeffDeck, JeffWrite, JeffCrunch), the fonts and
+# data they share (the dictionaries are in it), their desktop entries and icons, and the docs.
 appdir() {
   local dir=$1; shift
   mkdir -p "$dir/usr/share/jeffoffice" "$dir/usr/share/doc/jeffoffice/pdfium"
-  # Help and the fonts (one file each: help.rcc, fonts.rcc), the translations, the dictionaries and thesaurus (compressed: dict), and the
-  # stamp and manifest that mark them (the build's data folder), which the apps read
+  cp -r "$src/resources/fonts" "$dir/usr/share/jeffoffice/"
+  # Help, the translations, the dictionaries and thesaurus (compressed: dict), and the stamp and manifest that mark them (the build's
+  # data folder; its help is help.rcc, one file), which the apps read
   # from here (jp::dataFolder, ../share/jeffoffice).
   cp -rL "$build/data/." "$dir/usr/share/jeffoffice/"
   python3 "$src/tools/gen_deb_copyright.py" "$dir/usr/share/doc/jeffoffice/copyright"

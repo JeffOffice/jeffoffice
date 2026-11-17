@@ -298,7 +298,7 @@ if(APPLE)
     MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION}
     MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION})
   add_custom_command(TARGET jeffpub POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different ${JO_BUILD_DATA_DIR}/fonts.rcc $<TARGET_BUNDLE_CONTENT_DIR:jeffpub>/Resources/fonts.rcc
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/resources/fonts $<TARGET_BUNDLE_CONTENT_DIR:jeffpub>/Resources/fonts
     COMMAND ${CMAKE_COMMAND} -E copy_directory ${JO_BUILD_DATA_DIR}/dict $<TARGET_BUNDLE_CONTENT_DIR:jeffpub>/Resources/dict
     VERBATIM)
 endif()
@@ -536,11 +536,12 @@ set_tests_properties(flowtests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen
 
 install(TARGETS jeffpub RUNTIME DESTINATION bin BUNDLE DESTINATION .)
 # The data folder the programs share (Help's topics, the fonts, and the translations), once.
-# (the build's data folder is complete: help.rcc, fonts.rcc, i18n, the stamp that marks it, and the manifest of what it holds)
-install(FILES ${JO_BUILD_DATA_DIR}/help.rcc ${JO_BUILD_DATA_DIR}/fonts.rcc DESTINATION share/jeffoffice)
+# (the build's data folder is complete: help.rcc, i18n, the stamp that marks it, and the manifest of what it holds)
+install(FILES ${JO_BUILD_DATA_DIR}/help.rcc DESTINATION share/jeffoffice)
 install(DIRECTORY ${JO_BUILD_DATA_DIR}/i18n DESTINATION share/jeffoffice OPTIONAL)
 install(FILES ${JO_BUILD_DATA_DIR}/data.stamp ${JO_BUILD_DATA_DIR}/manifest.txt DESTINATION share/jeffoffice)
 # (the dictionaries and the thesaurus are in the data folder, compressed, with their licenses: see jeffoffice_data)
+install(DIRECTORY resources/fonts DESTINATION share/jeffoffice)
 install(DIRECTORY ${JO_BUILD_DATA_DIR}/dict DESTINATION share/jeffoffice)
 
 # JeffDeck, the presentation app: like JeffPub, everything except main() is a
@@ -586,7 +587,7 @@ if(APPLE)
     MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION}
     MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION})
   add_custom_command(TARGET jeffdeck POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different ${JO_BUILD_DATA_DIR}/fonts.rcc $<TARGET_BUNDLE_CONTENT_DIR:jeffdeck>/Resources/fonts.rcc
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/resources/fonts $<TARGET_BUNDLE_CONTENT_DIR:jeffdeck>/Resources/fonts
     COMMAND ${CMAKE_COMMAND} -E copy_directory ${JO_BUILD_DATA_DIR}/dict $<TARGET_BUNDLE_CONTENT_DIR:jeffdeck>/Resources/dict
     VERBATIM)
 endif()
@@ -690,7 +691,7 @@ if(APPLE)
     MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION}
     MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION})
   add_custom_command(TARGET jeffwrite POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different ${JO_BUILD_DATA_DIR}/fonts.rcc $<TARGET_BUNDLE_CONTENT_DIR:jeffwrite>/Resources/fonts.rcc
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/resources/fonts $<TARGET_BUNDLE_CONTENT_DIR:jeffwrite>/Resources/fonts
     COMMAND ${CMAKE_COMMAND} -E copy_directory ${JO_BUILD_DATA_DIR}/dict $<TARGET_BUNDLE_CONTENT_DIR:jeffwrite>/Resources/dict
     VERBATIM)
 endif()
@@ -806,7 +807,7 @@ if(APPLE)
     MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION}
     MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION})
   add_custom_command(TARGET jeffcrunch POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different ${JO_BUILD_DATA_DIR}/fonts.rcc $<TARGET_BUNDLE_CONTENT_DIR:jeffcrunch>/Resources/fonts.rcc
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/resources/fonts $<TARGET_BUNDLE_CONTENT_DIR:jeffcrunch>/Resources/fonts
     COMMAND ${CMAKE_COMMAND} -E copy_directory ${JO_BUILD_DATA_DIR}/dict $<TARGET_BUNDLE_CONTENT_DIR:jeffcrunch>/Resources/dict
     VERBATIM)
 endif()
@@ -960,9 +961,8 @@ if(Qt6LinguistTools_FOUND)
 elseif(JO_REQUIRE_I18N)
   message(FATAL_ERROR "JO_REQUIRE_I18N: Qt's Linguist tools (lrelease) were not found, so there would be no translations")
 endif()
-# The data folder of the build tree: Help and the fonts (each one binary Qt resource file, help.rcc and fonts.rcc, made by rcc from the
-# folders of resources and installed as they are), the translations, data.stamp (its marker: the version), and manifest.txt (help.rcc,
-# fonts.rcc, every file inside Help, and every translation, which is what the programs list; see datafolder.h). A bundle is made again
+# The data folder of the build tree: Help (one binary Qt resource file, help.rcc, made by rcc from resources/help and installed as it is), the translations, data.stamp (its marker: the version), and manifest.txt (help.rcc,
+# every file inside Help, and every translation, which is what the programs list; see datafolder.h). A bundle is made again
 # when any file under its folder changes, is added, or is taken out (the list is read again at each configure).
 function(jo_add_bundle name srcdir compress)
   file(GLOB_RECURSE files CONFIGURE_DEPENDS ${srcdir}/*)
@@ -987,7 +987,6 @@ function(jo_add_bundle name srcdir compress)
   set(JO_BUNDLE_${name} ${JO_BUILD_DATA_DIR}/${name}.rcc PARENT_SCOPE)
 endfunction()
 jo_add_bundle(help ${CMAKE_SOURCE_DIR}/resources/help "--compress;9;--threshold;0")
-jo_add_bundle(fonts ${CMAKE_SOURCE_DIR}/resources/fonts "--no-compress")   # (fonts stay uncompressed: the program maps them, and the installers compress the file)
 # The dictionaries and the thesaurus, compressed at build time from the plain files of resources/dict (which the repository keeps) by
 # jo_dictpack: the spelling and hyphenation files (.dic, .aff) and the thesaurus (.dat) become name.jz in the data folder's dict, and
 # their licenses and READMEs are copied as they are. The programs inflate a file in memory when they first use it (text/dictpack.h).
@@ -1029,7 +1028,7 @@ add_custom_target(jeffoffice_data
   COMMAND ${CMAKE_COMMAND} -DDICT=${JO_BUILD_DATA_DIR}/dict -DEXPECTED=${CMAKE_BINARY_DIR}/dict-expected.txt -P ${CMAKE_SOURCE_DIR}/cmake/dictclean.cmake
   COMMAND ${CMAKE_COMMAND} -DHELP_SRC=${CMAKE_SOURCE_DIR}/resources/help -DDATA=${JO_BUILD_DATA_DIR} -DVERSION=${PROJECT_VERSION}
           -P ${CMAKE_SOURCE_DIR}/cmake/datamanifest.cmake
-  DEPENDS ${JO_I18N_COPIES} ${JO_DICT_OUTPUTS} ${JO_BUNDLE_help} ${JO_BUNDLE_fonts} VERBATIM)
+  DEPENDS ${JO_I18N_COPIES} ${JO_DICT_OUTPUTS} ${JO_BUNDLE_help} VERBATIM)
 add_dependencies(jeffoffice-common jeffoffice_data)
 
 # Measures the grammar rules on real text (tools/grammar/measure.py).

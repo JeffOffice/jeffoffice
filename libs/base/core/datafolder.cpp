@@ -25,11 +25,10 @@ QString s_root;
 QStringList s_manifest;
 int s_searches = 0;
 QStringList s_bundles;      // the .rcc files registered, to take out again when the search is made again
-QStringList s_bundled;      // the subfolders ("help", "fonts") that a registered bundle holds
+QStringList s_bundled;      // the subfolders ("help") that a registered bundle holds
 
-// Help and the fonts are each one compressed Qt resource file (help.rcc, fonts.rcc) in the data folder, not thousands of small files;
-// registered, they are the resource folders ":/help" and ":/fonts". A missing or corrupt file registers nothing.
-const char *const kBundles[] = {"help", "fonts"};
+// Help is one compressed Qt resource file (help.rcc) in the data folder, not thousands of small files; registered, it is the resource folder ":/help". A missing or corrupt file registers nothing.
+const char *const kBundles[] = {"help"};
 
 void unregisterBundles()
 {
@@ -109,7 +108,7 @@ QString dataFolder(const QString &subfolder)
     if (subfolder == QLatin1String("help"))
         if (const QString dir = helpOverride(); !dir.isEmpty()) return dir;
     if (s_bundled.contains(subfolder)) return QStringLiteral(":/") + subfolder;   // (a bundle's folder, and never a plain one beside it: an older version's copy does not win)
-    if (subfolder == QLatin1String("help") || subfolder == QLatin1String("fonts")) return QString();
+    if (subfolder == QLatin1String("help")) return QString();
     const QString dir = s_root + QLatin1Char('/') + subfolder;
     return QFileInfo(dir).isDir() ? dir : QString();
 }

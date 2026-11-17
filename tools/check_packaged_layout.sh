@@ -1,7 +1,7 @@
 #!/bin/bash
 # The packaged layout on Linux: installs the build into a temporary prefix (cmake --install, no LTO needed), checks with ldd that every
 # library each program needs resolves inside the prefix or to the system or Qt, launches each app from the prefix (offscreen), and runs
-# jo_datacheck there (Help topic (from help.rcc, which with fonts.rcc is installed instead of folders of loose files) and a German translation load from the prefix's data folder, and so do spelling, hyphenation, and the
+# jo_datacheck there (Help topic (from help.rcc, which is installed instead of a folder of loose files) and a German translation load from the prefix's data folder, and so do spelling, hyphenation, and the
 # thesaurus, from the compressed dictionary files; no plain dictionary file is installed).
 # Usage: tools/check_packaged_layout.sh <build dir>      Prints one line, "packaged layout: OK" or what is wrong; exit status 1 when wrong.
 set -u
@@ -50,10 +50,11 @@ src=$(sed -n 's/^CMAKE_HOME_DIRECTORY:INTERNAL=\(.*\)$/\1/p' "$B/CMakeCache.txt"
 want=$(cd "$src/resources/dict" 2>/dev/null && find . -type f | sed -E -e 's#^\./##' -e 's#\.(dic|aff|dat)$#&.jz#' | sort)
 have=$(cd "$P/share/jeffoffice/dict" 2>/dev/null && find . -type f | sed 's|^\./||' | sort)
 [ -n "$want" ] && [ "$want" = "$have" ] || note "the installed dictionary files are not the ones the sources make: $(diff <(echo "$want") <(echo "$have") | head -4 | tr '\n' ' ')"
-# Help and the fonts are one file each (help.rcc, fonts.rcc), never a folder of loose files
-for f in help.rcc fonts.rcc; do [ -s "$P/share/jeffoffice/$f" ] || note "$f was not installed"; done
-for d in help fonts; do [ ! -e "$P/share/jeffoffice/$d" ] || note "a $d folder of loose files was installed ($(find "$P/share/jeffoffice/$d" -type f | wc -l) files)"; done
-want=$(printf '%s\n' dict fonts.rcc help.rcc i18n data.stamp manifest.txt | sort)
+# Help is one file (help.rcc), never a folder of loose files; the fonts are a folder with their licenses
+[ -s "$P/share/jeffoffice/help.rcc" ] || note "help.rcc was not installed"
+[ ! -e "$P/share/jeffoffice/help" ] || note "a help folder of loose files was installed ($(find "$P/share/jeffoffice/help" -type f | wc -l) files)"
+for f in OFL.txt Apache-2.0.txt GUST-FONT-LICENSE.txt Arimo-Regular.ttf; do [ -s "$P/share/jeffoffice/fonts/$f" ] || note "fonts/$f was not installed"; done
+want=$(printf '%s\n' dict fonts help.rcc i18n data.stamp manifest.txt | sort)
 have=$(ls -A "$P/share/jeffoffice" | sort)
 [ "$want" = "$have" ] || note "share/jeffoffice holds: $(echo $have)"
 case "$r" in *"data folder $real/share/jeffoffice"*) ;; *) note "datacheck did not use the prefix's data folder: $r" ;; esac
