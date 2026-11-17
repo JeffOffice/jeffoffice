@@ -35,6 +35,37 @@ private Q_SLOTS:
         QVERIFY(QString::fromUtf8(z.value(QStringLiteral("OEBPS/nav.xhtml"))).contains(QStringLiteral("<a href=\"chapter1.xhtml\">T &amp; U</a>")));   // (no contents given: the book itself)
     }
 
+    // The contents are one list however the headings begin (a Heading 2 before the first Heading 1), and the list of landmarks is hidden.
+    void theContentsAreOneListAndTheLandmarksAreHidden()
+    {
+        epub::Book book;
+        book.title = QStringLiteral("T");
+        book.language = QStringLiteral("en");
+        book.chapters << epub::Chapter{QString(), QString()};
+        book.nav << epub::NavEntry{2, QStringLiteral("B"), QStringLiteral("chapter1.xhtml#h1")} << epub::NavEntry{1, QStringLiteral("A"), QStringLiteral("chapter1.xhtml#h2")}
+                 << epub::NavEntry{3, QStringLiteral("C"), QStringLiteral("chapter1.xhtml#h3")};
+        QMap<QString, QByteArray> z;
+        QVERIFY(readZip(epub::build(book), z));
+        QXmlStreamReader r(z.value(QStringLiteral("OEBPS/nav.xhtml")));
+        int depth = 0, toc = 0, topLists = 0;
+        bool inToc = false;
+        while (!r.atEnd()) {
+            r.readNext();
+            if (r.isStartElement()) {
+                ++depth;
+                if (r.name() == QLatin1String("nav")) inToc = r.attributes().value(QStringLiteral("http://www.idpf.org/2007/ops"), QStringLiteral("type")) == QLatin1String("toc");
+                if (inToc && r.name() == QLatin1String("ol") && depth == 4) ++topLists;   // html, body, nav, ol
+                if (inToc) toc += r.name() == QLatin1String("a");
+            } else if (r.isEndElement()) {
+                --depth;
+            }
+        }
+        QVERIFY2(!r.hasError(), qPrintable(r.errorString()));
+        QCOMPARE(topLists, 1);
+        QCOMPARE(toc, 3);
+        QVERIFY(QString::fromUtf8(z.value(QStringLiteral("OEBPS/nav.xhtml"))).contains(QStringLiteral("<nav epub:type=\"landmarks\" hidden=\"hidden\">")));
+    }
+
     // The contents nest by level in the navigation document and, when asked, in an NCX that the spine names; a level past the deepest is cut to it.
     void theContentsAreANavDocumentAndAnNcxForOlderReaders()
     {
@@ -51,7 +82,7 @@ private Q_SLOTS:
         QVERIFY2(nav.contains(QStringLiteral("<li><a href=\"chapter1.xhtml\">A</a><ol>\n<li><a href=\"chapter1.xhtml#h2\">B</a><ol>\n<li><a href=\"chapter1.xhtml#h3\">C</a></li>")), qPrintable(nav));
         const QString ncx = QString::fromUtf8(z.value(QStringLiteral("OEBPS/toc.ncx")));
         QVERIFY(ncx.contains(QStringLiteral("<navPoint id=\"n1\" playOrder=\"1\"><navLabel><text>A</text></navLabel><content src=\"chapter1.xhtml\"/>")));
-        QVERIFY(ncx.contains(QStringLiteral("playOrder=\"4\"><navLabel><text>D</text>")) && ncx.contains(QStringLiteral("name=\"dtb:depth\" content=\"6\"")));
+        QVERIFY(ncx.contains(QStringLiteral("playOrder=\"4\"><navLabel><text>D</text>")) && ncx.contains(QStringLiteral("name=\"dtb:depth\" content=\"3\"")));
         const QString opf = QString::fromUtf8(z.value(QStringLiteral("OEBPS/content.opf")));
         QVERIFY(opf.contains(QStringLiteral("<spine toc=\"ncx\">")) && opf.contains(QStringLiteral("media-type=\"application/x-dtbncx+xml\"")));
         QXmlStreamReader r(z.value(QStringLiteral("OEBPS/toc.ncx")));

@@ -24,8 +24,11 @@
 #include "core/pictureops.h"
 #include "core/tableops.h"
 #include <QRegularExpression>
+#include <QRandomGenerator>
+#include <QSet>
 #include <QXmlStreamReader>
 #include <QTextBrowser>
+#include <QImageWriter>
 #include <QTimer>
 #include <QBuffer>
 #include <QImage>
@@ -232,6 +235,164 @@ void buildBook(WriteWindow &w)
     table.rows = 2;
     table.columns = 2;
     QVERIFY(insertTable(doc, c, table));
+}
+
+// Acts on the next dialog that opens and closes it (the test's side of an exec() that waits).
+void onNextEpubDialog(const std::function<void(QDialog *)> &act)
+{
+    auto *timer = new QTimer;
+    timer->setInterval(20);
+    QObject::connect(timer, &QTimer::timeout, [timer, act] {
+        auto *dialog = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+        if (!dialog || dialog->objectName() != QLatin1String("epubDialog")) return;
+        timer->stop();
+        timer->deleteLater();
+        act(dialog);
+        dialog->accept();
+    });
+    timer->start();
+}
+
+QMap<QString, QByteArray> unzipped(const QByteArray &bytes)
+{
+    QMap<QString, QByteArray> z;
+    QString err;
+    if (!readZip(bytes, z, &err)) qWarning("not a zip: %s", qPrintable(err));
+    return z;
+}
+
+// The book of a .docx as the files it holds.
+QMap<QString, QByteArray> bookOfDocx(const QByteArray &docx, const EpubExportOptions &options = EpubExportOptions(), QByteArray *whole = nullptr)
+{
+    QString err;
+    auto doc = WriteDoc::fromDocx(docx, &err, nullptr);
+    office::wml::Document snapshot;
+    if (!doc || !doc->docxSnapshot(&snapshot)) return {};
+    const QByteArray bytes = epubFromDocument(snapshot, options, &err);
+    if (whole) *whole = bytes;
+    return unzipped(bytes);
+}
+
+// Every XML file of a book parses, no id is used twice in a page, and every link inside the book goes to a page and a place that are there.
+QString problemsOf(const QMap<QString, QByteArray> &z)
+{
+    QStringList problems;
+    QMap<QString, QSet<QString>> ids;
+    static const QRegularExpression idAttr(QStringLiteral("\\sid=\"([^\"]+)\"")), href(QStringLiteral("\\shref=\"([^\"]+)\""));
+    for (auto it = z.cbegin(); it != z.cend(); ++it) {
+        const QString &name = it.key();
+        if (!name.endsWith(QLatin1String(".xhtml")) && !name.endsWith(QLatin1String(".opf")) && !name.endsWith(QLatin1String(".ncx")) && !name.endsWith(QLatin1String(".xml"))) continue;
+        QString why;
+        if (!wellFormed(it.value(), &why)) problems << name + QStringLiteral(": ") + why;
+        const QString text = QString::fromUtf8(it.value());
+        QRegularExpressionMatchIterator m = idAttr.globalMatch(text);
+        while (m.hasNext()) {
+            const QString id = m.next().captured(1);
+            if (ids[name].contains(id)) problems << name + QStringLiteral(": id used twice: ") + id;
+            ids[name].insert(id);
+        }
+    }
+    for (auto it = z.cbegin(); it != z.cend(); ++it) {
+        if (!it.key().endsWith(QLatin1String(".xhtml"))) continue;
+        QRegularExpressionMatchIterator m = href.globalMatch(QString::fromUtf8(it.value()));
+        while (m.hasNext()) {
+            const QString link = m.next().captured(1);
+            if (link.contains(QLatin1Char(':')) || link == QLatin1String("style.css")) continue;
+            const QString file = link.section(QLatin1Char('#'), 0, 0), fragment = link.contains(QLatin1Char('#')) ? link.section(QLatin1Char('#'), 1) : QString();
+            const QString target = file.isEmpty() ? it.key() : QStringLiteral("OEBPS/") + file;
+            if (!z.contains(target)) problems << it.key() + QStringLiteral(": no page for ") + link;
+            else if (!fragment.isEmpty() && !ids.value(target).contains(fragment)) problems << it.key() + QStringLiteral(": no place for ") + link;
+        }
+    }
+    return problems.join(QLatin1Char('\n'));
+}
+
+const char kDrawingNs[] = " xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" xmlns:pic=\"http://schemas.openxmlformats.org/drawingml/2006/picture\"";
+
+QByteArray drawingRun(const QString &rid, const QString &alt)
+{
+    return QByteArray("<w:r><w:drawing><wp:inline") + kDrawingNs + "><wp:extent cx=\"914400\" cy=\"457200\"/><wp:docPr id=\"1\" name=\"P\" descr=\"" + alt.toUtf8() + "\"/>"
+           "<a:graphic><a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/picture\"><pic:pic><pic:nvPicPr><pic:cNvPr id=\"0\" name=\"p\"/><pic:cNvPicPr/></pic:nvPicPr>"
+           "<pic:blipFill><a:blip r:embed=\"" + rid.toUtf8() + "\"/></pic:blipFill><pic:spPr/></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>";
+}
+
+QByteArray emfBytes()
+{
+    auto le32 = [](QByteArray &b, quint32 v) { for (int i = 0; i < 4; ++i) b.append(char((v >> (8 * i)) & 0xFF)); };
+    QByteArray emf;
+    le32(emf, 1);
+    le32(emf, 88);
+    for (int v : {0, 0, 100, 100, 0, 0, 2540, 2540}) le32(emf, quint32(v));   // bounds, frame
+    le32(emf, 0x464D4520u);
+    le32(emf, 0x10000);
+    le32(emf, 88 + 24 + 20);
+    le32(emf, 3);
+    emf.append(char(1)).append(char(0)).append(char(0)).append(char(0));
+    for (int i = 0; i < 3; ++i) le32(emf, 0);
+    for (int v : {1024, 768, 320, 240}) le32(emf, quint32(v));
+    le32(emf, 43);   // a rectangle
+    le32(emf, 24);
+    for (int v : {10, 10, 90, 90}) le32(emf, quint32(v));
+    le32(emf, 14);   // the end
+    le32(emf, 20);
+    le32(emf, 0);
+    le32(emf, 16);
+    le32(emf, 20);
+    return emf;
+}
+
+QByteArray wmfBytes()
+{
+    auto le16 = [](QByteArray &b, int v) { b.append(char(v & 0xFF)); b.append(char((v >> 8) & 0xFF)); };
+    auto le32 = [](QByteArray &b, quint32 v) { for (int i = 0; i < 4; ++i) b.append(char((v >> (8 * i)) & 0xFF)); };
+    QByteArray wmf;
+    le32(wmf, 0x9AC6CDD7u);
+    le16(wmf, 0);
+    for (int v : {0, 0, 1000, 1000}) le16(wmf, v);
+    le16(wmf, 1440);
+    le32(wmf, 0);
+    le16(wmf, 0);
+    le16(wmf, 1);       // the header: a memory metafile, 9 words, version 3
+    le16(wmf, 9);
+    le16(wmf, 0x300);
+    le32(wmf, 19);      // words in all
+    le16(wmf, 0);
+    le32(wmf, 7);       // the longest record
+    le16(wmf, 0);
+    le32(wmf, 7);       // a rectangle
+    le16(wmf, 0x041B);
+    for (int v : {900, 900, 100, 100}) le16(wmf, v);
+    le32(wmf, 3);       // the end
+    le16(wmf, 0);
+    return wmf;
+}
+
+QByteArray noisePng(int side)
+{
+    QImage image(side, side, QImage::Format_RGB32);
+    QRandomGenerator random(7);
+    for (int y = 0; y < side; ++y)
+        for (int x = 0; x < side; ++x) image.setPixel(x, y, random.generate() | 0xFF000000u);
+    QByteArray bytes;
+    QBuffer buffer(&bytes);
+    buffer.open(QIODevice::WriteOnly);
+    image.save(&buffer, "PNG");
+    return bytes;
+}
+
+const QString kNotesNs = QStringLiteral("xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"");
+
+QByteArray footnotesPart(const QString &second)
+{
+    return QByteArray("<?xml version=\"1.0\"?><w:footnotes ") + kNotesNs.toUtf8() + "><w:footnote w:type=\"separator\" w:id=\"-1\"><w:p><w:r><w:separator/></w:r></w:p></w:footnote>"
+           "<w:footnote w:type=\"continuationSeparator\" w:id=\"0\"><w:p><w:r><w:continuationSeparator/></w:r></w:p></w:footnote>"
+           "<w:footnote w:id=\"2\"><w:p><w:r><w:footnoteRef/></w:r><w:r><w:t xml:space=\"preserve\"> " + second.toUtf8() + "</w:t></w:r></w:p></w:footnote>"
+           "<w:footnote w:id=\"3\"><w:p><w:r><w:footnoteRef/></w:r><w:r><w:t xml:space=\"preserve\"> Second note.</w:t></w:r></w:p></w:footnote></w:footnotes>";
+}
+
+QVector<Extra> notesExtra(const QString &second = QStringLiteral("First note."))
+{
+    return {{QStringLiteral("/word/footnotes.xml"), kWord + QStringLiteral("footnotes+xml"), footnotesPart(second), kRel + QStringLiteral("footnotes"), QString(), QString()}};
 }
 
 struct Quiet {
@@ -1311,7 +1472,6 @@ private Q_SLOTS:
         const QString path = dir.filePath(QStringLiteral("book.epub"));
         QVERIFY(!w.exportEpub(QString(), QString(), QString(), false));
         QVERIFY(w.exportEpub(path, QStringLiteral("My Book"), QStringLiteral("Pat Writer"), false));
-        if (!qEnvironmentVariableIsEmpty("JP_EPUB_DUMP")) QFile::copy(path, qEnvironmentVariable("JP_EPUB_DUMP") + QStringLiteral("/write.epub"));
         const QByteArray bytes = fileBytes(path);
         QCOMPARE(bytes.mid(30, 28), QByteArray("mimetypeapplication/epub+zip"));   // first, and stored
         QCOMPARE(int(bytes[8]), 0);
@@ -1359,8 +1519,8 @@ private Q_SLOTS:
         QVERIFY(QString::fromUtf8(cz.value(QStringLiteral("OEBPS/cover.xhtml"))).contains(QStringLiteral("images/cover.jpg")));
     }
 
-    // The title and the author come from the document's properties when none is given, the book's language from its text.
-    void anEbookTakesItsTitleAndAuthorFromTheProperties()
+    // The Save as E-book box starts with the title and the author of the document's properties; what it says goes in the book, and an emptied Author box is a book with no author.
+    void anEbookTakesItsTitleAndAuthorFromTheBoxThatStartsWithTheProperties()
     {
         WriteWindow w;
         Quiet quiet(w);
@@ -1370,12 +1530,284 @@ private Q_SLOTS:
         p.creator = QStringLiteral("Sam Author");
         w.applyProperties(p);
         QTemporaryDir dir;
-        QVERIFY(w.exportEpub(dir.filePath(QStringLiteral("a.epub")), QString(), QString(), false));
-        QMap<QString, QByteArray> z;
-        QVERIFY(readZip(fileBytes(dir.filePath(QStringLiteral("a.epub"))), z));
-        const QString opf = QString::fromUtf8(z.value(QStringLiteral("OEBPS/content.opf")));
+        int run = 0;
+        w.setSavePathChooser([&](const QString &, const QString &) { return dir.filePath(QStringLiteral("%1.epub").arg(run)); });
+        auto bookOf = [&](const std::function<void(QDialog *)> &act) {
+            ++run;
+            onNextEpubDialog(act);
+            return w.exportEpubAsk() ? unzipped(fileBytes(dir.filePath(QStringLiteral("%1.epub").arg(run)))) : QMap<QString, QByteArray>();
+        };
+        QString titleShown, authorShown;
+        QMap<QString, QByteArray> z = bookOf([&](QDialog *d) {
+            titleShown = d->findChild<QLineEdit *>(QStringLiteral("epubTitle"))->text();
+            authorShown = d->findChild<QLineEdit *>(QStringLiteral("epubAuthor"))->text();
+        });
+        QCOMPARE(titleShown, QStringLiteral("From Properties"));
+        QCOMPARE(authorShown, QStringLiteral("Sam Author"));
+        QString opf = QString::fromUtf8(z.value(QStringLiteral("OEBPS/content.opf")));
         QVERIFY2(opf.contains(QStringLiteral("<dc:title>From Properties</dc:title>")) && opf.contains(QStringLiteral("<dc:creator>Sam Author</dc:creator>")), qPrintable(opf));
-        QVERIFY(opf.contains(QRegularExpression(QStringLiteral("<dc:language>[a-z]{2,3}(-[A-Za-z0-9]+)?</dc:language>"))));
+        QVERIFY(opf.contains(QRegularExpression(QStringLiteral("<dc:language>[a-z]{2,3}(-[A-Za-z0-9]+)*</dc:language>"))));
+        // emptied, there is no author (the properties' creator is not put back)
+        z = bookOf([](QDialog *d) { d->findChild<QLineEdit *>(QStringLiteral("epubAuthor"))->clear(); });
+        opf = QString::fromUtf8(z.value(QStringLiteral("OEBPS/content.opf")));
+        QVERIFY2(opf.contains(QStringLiteral("<dc:title>From Properties</dc:title>")) && !opf.contains(QStringLiteral("dc:creator")), qPrintable(opf));
+        // a title and an author typed are the book's
+        z = bookOf([](QDialog *d) {
+            d->findChild<QLineEdit *>(QStringLiteral("epubTitle"))->setText(QStringLiteral("Typed & Title"));
+            d->findChild<QLineEdit *>(QStringLiteral("epubAuthor"))->setText(QStringLiteral("Lee"));
+        });
+        opf = QString::fromUtf8(z.value(QStringLiteral("OEBPS/content.opf")));
+        QVERIFY(opf.contains(QStringLiteral("<dc:title>Typed &amp; Title</dc:title>")) && opf.contains(QStringLiteral("<dc:creator>Lee</dc:creator>")));
+    }
+
+    // The book's language is a valid BCP 47 tag: underscores become hyphens, and anything that is not a tag is US English.
+    void anEbookNamesItsLanguageByAValidTag()
+    {
+        const QByteArray docx = makeDocx("<w:p><w:r><w:t>x</w:t></w:r></w:p>");
+        const QVector<QPair<QString, QString>> cases = {{QStringLiteral("en_US"), QStringLiteral("en-US")}, {QStringLiteral("x-none"), QStringLiteral("en-US")}, {QStringLiteral("de-AT"), QStringLiteral("de-AT")},
+                                                        {QStringLiteral("junk!!"), QStringLiteral("en-US")}, {QStringLiteral("fr"), QStringLiteral("fr")}, {QStringLiteral("zh_Hant_TW"), QStringLiteral("zh-Hant-TW")},
+                                                        {QStringLiteral("a<b"), QStringLiteral("en-US")}, {QStringLiteral("C"), QStringLiteral("en-US")}};
+        for (const auto &c : cases) {
+            EpubExportOptions o;
+            o.language = c.first;
+            const QMap<QString, QByteArray> z = bookOfDocx(docx, o);
+            const QString opf = QString::fromUtf8(z.value(QStringLiteral("OEBPS/content.opf")));
+            QVERIFY2(opf.contains(QStringLiteral("<dc:language>%1</dc:language>").arg(c.second)), qPrintable(c.first + QStringLiteral(": ") + opf));
+            QVERIFY2(opf.contains(QStringLiteral("xml:lang=\"%1\"").arg(c.second)), qPrintable(opf));
+        }
+    }
+
+    // The same saved document is the same book each time (a reader keeps its place), a document saved elsewhere another book, and one never saved a new book each time.
+    void anEbookKeepsItsIdentifierForTheSameDocument()
+    {
+        QTemporaryDir dir;
+        auto identifierOf = [&](WriteWindow &w) {
+            const QString path = dir.filePath(QStringLiteral("out.epub"));
+            QFile::remove(path);
+            if (!w.exportEpub(path, QStringLiteral("T"), QString(), false)) return QString();
+            const QString opf = QString::fromUtf8(unzipped(fileBytes(path)).value(QStringLiteral("OEBPS/content.opf")));
+            return opf.section(QStringLiteral("<dc:identifier id=\"bookid\">"), 1).section(QLatin1Char('<'), 0, 0);
+        };
+        WriteWindow w;
+        Quiet quiet(w);
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("words"));
+        const QString first = identifierOf(w), second = identifierOf(w);
+        QVERIFY(first.startsWith(QLatin1String("urn:uuid:")));
+        QVERIFY(first != second);   // never saved: a new book each time
+        w.setSavePathChooser([&](const QString &, const QString &) { return dir.filePath(QStringLiteral("doc.docx")); });
+        QVERIFY(w.save());
+        const QString saved = identifierOf(w);
+        QVERIFY(saved.startsWith(QLatin1String("urn:uuid:")));
+        QCOMPARE(identifierOf(w), saved);
+        WriteWindow other;
+        Quiet quietOther(other);
+        typeText(*other.document(), other.view()->cursor(), QStringLiteral("words"));
+        other.setSavePathChooser([&](const QString &, const QString &) { return dir.filePath(QStringLiteral("other.docx")); });
+        QVERIFY(other.save());
+        QVERIFY(identifierOf(other) != saved);
+        QVERIFY(QUuid(saved.mid(9)).version() == QUuid::Sha1);
+    }
+
+    // The characters XML forbids (a lone surrogate, U+FFFE) are left out of every page of the book, so each page parses.
+    void anEbookLeavesOutTheCharactersXmlForbids()
+    {
+        WriteWindow w;
+        Quiet quiet(w);
+        WriteDoc &doc = *w.document();
+        QTextCursor c = w.view()->cursor();
+        paragraphOf(doc, c, QStringLiteral("Chapter") + QString(QChar(0xFFFE)) + QStringLiteral(" One") + QString(QChar(0xD800)), QStringLiteral("Heading1"), true);
+        paragraphOf(doc, c, QStringLiteral("bad") + QString(QChar(0xFFFE)) + QStringLiteral("char") + QString(QChar(0xFFFF)) + QStringLiteral("s ") + QString(QChar(0xDC00)) + QStringLiteral("end"), QStringLiteral("Normal"));
+        QTemporaryDir dir;
+        QVERIFY(w.exportEpub(dir.filePath(QStringLiteral("a.epub")), QStringLiteral("T") + QString(QChar(0xFFFE)), QStringLiteral("A") + QString(QChar(0xD800)), false));
+        const QMap<QString, QByteArray> z = unzipped(fileBytes(dir.filePath(QStringLiteral("a.epub"))));
+        QCOMPARE(problemsOf(z), QString());
+        QVERIFY(QString::fromUtf8(z.value(QStringLiteral("OEBPS/chapter1.xhtml"))).contains(QStringLiteral("badchars end")));
+        QVERIFY(QString::fromUtf8(z.value(QStringLiteral("OEBPS/nav.xhtml"))).contains(QStringLiteral(">Chapter One</a>")));
+    }
+
+    // A table of contents of links to bookmarks, a link to a bookmark that is not there, a footnote inside a link, and a footnote in a heading: every link in the book goes where it says, a link
+    // with no place to go is its words alone, a link is never inside a link, and the contents' labels have no note numbers.
+    void anEbookLinksToBookmarksAndNeverNestsALink()
+    {
+        const QByteArray body =
+            "<w:p><w:r><w:t>Front</w:t></w:r></w:p>"
+            "<w:p><w:hyperlink w:anchor=\"_Toc1\"><w:r><w:t>to one</w:t></w:r></w:hyperlink><w:r><w:t xml:space=\"preserve\"> </w:t></w:r>"
+            "<w:hyperlink w:anchor=\"_Toc2\"><w:r><w:t>to two</w:t></w:r></w:hyperlink><w:r><w:t xml:space=\"preserve\"> </w:t></w:r>"
+            "<w:hyperlink w:anchor=\"_Missing\"><w:r><w:t>nowhere</w:t></w:r></w:hyperlink></w:p>"
+            "<w:p><w:pPr><w:outlineLvl w:val=\"0\"/></w:pPr><w:bookmarkStart w:id=\"1\" w:name=\"_Toc1\"/><w:r><w:t>Chapter One</w:t></w:r><w:r><w:footnoteReference w:id=\"2\"/></w:r><w:bookmarkEnd w:id=\"1\"/></w:p>"
+            "<w:p><w:hyperlink w:anchor=\"_Toc2\"><w:r><w:t>see two</w:t></w:r><w:r><w:footnoteReference w:id=\"3\"/></w:r></w:hyperlink></w:p>"
+            "<w:p><w:pPr><w:outlineLvl w:val=\"0\"/></w:pPr><w:bookmarkStart w:id=\"2\" w:name=\"_Toc2\"/><w:r><w:t>Chapter Two</w:t></w:r><w:bookmarkEnd w:id=\"2\"/></w:p>";
+        const QMap<QString, QByteArray> z = bookOfDocx(makeDocx(body, notesExtra()));
+        QVERIFY(z.contains(QStringLiteral("OEBPS/chapter3.xhtml")) && !z.contains(QStringLiteral("OEBPS/chapter4.xhtml")));
+        QCOMPARE(problemsOf(z), QString());
+        const QString c1 = QString::fromUtf8(z.value(QStringLiteral("OEBPS/chapter1.xhtml"))), c2 = QString::fromUtf8(z.value(QStringLiteral("OEBPS/chapter2.xhtml")));
+        QVERIFY2(c1.contains(QStringLiteral("<a href=\"chapter2.xhtml#bm__Toc1\">to one</a>")) && c1.contains(QStringLiteral("<a href=\"chapter3.xhtml#bm__Toc2\">to two</a>")), qPrintable(c1));
+        QVERIFY2(c1.contains(QStringLiteral("nowhere")) && !c1.contains(QStringLiteral("_Missing")), qPrintable(c1));
+        static const QRegularExpression nested(QStringLiteral("<a[ >](?:(?!</a>).)*<a[ >]"), QRegularExpression::DotMatchesEverythingOption);
+        for (auto it = z.cbegin(); it != z.cend(); ++it)
+            if (it.key().endsWith(QLatin1String(".xhtml"))) QVERIFY2(!nested.match(QString::fromUtf8(it.value())).hasMatch(), qPrintable(it.key()));
+        // the note in the link is where its note links back to; the note in the heading is a link of its own
+        QVERIFY2(c2.contains(QStringLiteral("<sup id=\"fnr-2\">")) && c2.contains(QStringLiteral("href=\"#fnr-2\"")), qPrintable(c2));
+        QVERIFY(c2.contains(QStringLiteral("id=\"fnr-1\"")) && c2.contains(QStringLiteral("href=\"#fnr-1\"")));
+        const QString nav = QString::fromUtf8(z.value(QStringLiteral("OEBPS/nav.xhtml")));
+        QVERIFY2(nav.contains(QStringLiteral(">Chapter One</a>")) && nav.contains(QStringLiteral(">Chapter Two</a>")), qPrintable(nav));
+        QVERIFY2(QString::fromUtf8(z.value(QStringLiteral("OEBPS/toc.ncx"))).contains(QStringLiteral("<text>Chapter One</text>")), "the NCX labels have no note numbers either");
+    }
+
+    // The contents are one list when the headings begin with a Heading 2.
+    void anEbooksContentsAreOneListWhateverTheFirstHeadingIs()
+    {
+        const QByteArray body = "<w:p><w:pPr><w:outlineLvl w:val=\"1\"/></w:pPr><w:r><w:t>Small first</w:t></w:r></w:p>"
+                                "<w:p><w:pPr><w:outlineLvl w:val=\"0\"/></w:pPr><w:r><w:t>Big</w:t></w:r></w:p>"
+                                "<w:p><w:pPr><w:outlineLvl w:val=\"1\"/></w:pPr><w:r><w:t>Small</w:t></w:r></w:p>";
+        const QMap<QString, QByteArray> z = bookOfDocx(makeDocx(body));
+        QXmlStreamReader r(z.value(QStringLiteral("OEBPS/nav.xhtml")));
+        int depth = 0, topLists = 0, links = 0;
+        bool inToc = false;
+        while (!r.atEnd()) {
+            r.readNext();
+            if (r.isStartElement()) {
+                ++depth;
+                if (r.name() == QLatin1String("nav")) inToc = r.attributes().value(QStringLiteral("http://www.idpf.org/2007/ops"), QStringLiteral("type")) == QLatin1String("toc");
+                if (inToc && r.name() == QLatin1String("ol") && depth == 4) ++topLists;
+                if (inToc && r.name() == QLatin1String("a")) ++links;
+            } else if (r.isEndElement()) {
+                --depth;
+            }
+        }
+        QCOMPARE(topLists, 1);
+        QCOMPARE(links, 3);
+    }
+
+    // A picture a reader can't show is drawn into a PNG (a metafile with our own drawing, a bitmap with the image readers), or is its alternative text; the kind comes from the bytes, not the name.
+    void anEbookShowsOnlyPicturesAReaderCanShow()
+    {
+        auto bookWith = [](const QByteArray &bytes, const QString &name, const QString &type) {
+            const QVector<Extra> extra = {{QStringLiteral("/word/media/") + name, type, bytes, kRel + QStringLiteral("image"), QString(), QStringLiteral("rIdP")}};
+            return bookOfDocx(makeDocx("<w:p>" + drawingRun(QStringLiteral("rIdP"), QStringLiteral("what it shows")) + "</w:p>", extra));
+        };
+        auto expectPng = [&](const QByteArray &bytes, const QString &name, const QString &type) {
+            const QMap<QString, QByteArray> z = bookWith(bytes, name, type);
+            const QString opf = QString::fromUtf8(z.value(QStringLiteral("OEBPS/content.opf")));
+            QVERIFY2(opf.contains(QStringLiteral("href=\"images/pic1.png\" media-type=\"image/png\"")), qPrintable(name + QStringLiteral(": ") + opf));
+            QVERIFY2(!QImage::fromData(z.value(QStringLiteral("OEBPS/images/pic1.png"))).isNull(), qPrintable(name));
+            QVERIFY(QString::fromUtf8(z.value(QStringLiteral("OEBPS/chapter1.xhtml"))).contains(QStringLiteral("<img src=\"images/pic1.png\" alt=\"what it shows\"/>")));
+            QCOMPARE(problemsOf(z), QString());
+        };
+        QImage small(30, 20, QImage::Format_RGB32);
+        small.fill(Qt::red);
+        auto encoded = [&](const char *format) {
+            QByteArray bytes;
+            QBuffer buffer(&bytes);
+            buffer.open(QIODevice::WriteOnly);
+            small.save(&buffer, format);
+            return bytes;
+        };
+        expectPng(emfBytes(), QStringLiteral("image1.emf"), QStringLiteral("image/x-emf"));
+        expectPng(wmfBytes(), QStringLiteral("image1.wmf"), QStringLiteral("image/x-wmf"));
+        expectPng(encoded("BMP"), QStringLiteral("image1.bmp"), QStringLiteral("image/bmp"));
+        if (QImageWriter::supportedImageFormats().contains("tiff")) expectPng(encoded("TIFF"), QStringLiteral("image1.tiff"), QStringLiteral("image/tiff"));
+        // the bytes decide, not the name: a PNG named like a metafile, and a JPEG named like a PNG, are shown as what they are
+        QMap<QString, QByteArray> z = bookWith(encoded("PNG"), QStringLiteral("image1.emf"), QStringLiteral("image/x-emf"));
+        QVERIFY(QString::fromUtf8(z.value(QStringLiteral("OEBPS/content.opf"))).contains(QStringLiteral("href=\"images/pic1.png\" media-type=\"image/png\"")));
+        QCOMPARE(z.value(QStringLiteral("OEBPS/images/pic1.png")), encoded("PNG"));
+        z = bookWith(encoded("JPG"), QStringLiteral("image1.png"), QStringLiteral("image/png"));
+        QVERIFY2(QString::fromUtf8(z.value(QStringLiteral("OEBPS/content.opf"))).contains(QStringLiteral("href=\"images/pic1.jpg\" media-type=\"image/jpeg\"")), qPrintable(QString::fromUtf8(z.value(QStringLiteral("OEBPS/content.opf")))));
+        // bytes that are no picture: no picture file, the alternative text where it was
+        z = bookWith(QByteArray("this is not a picture of any kind"), QStringLiteral("image1.png"), QStringLiteral("image/png"));
+        QVERIFY(!z.contains(QStringLiteral("OEBPS/images/pic1.png")));
+        const QString chapter = QString::fromUtf8(z.value(QStringLiteral("OEBPS/chapter1.xhtml")));
+        QVERIFY2(chapter.contains(QStringLiteral("what it shows")) && !chapter.contains(QStringLiteral("<img")), qPrintable(chapter));
+        QCOMPARE(problemsOf(z), QString());
+    }
+
+    // A picture used again and again is one file of the book, counted once: it is in every place, however many places and however large it is.
+    void aPictureUsedManyTimesIsOneFileAndNeverGoesMissing()
+    {
+        const QByteArray png = noisePng(1200);   // (a few megabytes: the pictures of the page writer's own total would be past its limit in a few dozen uses)
+        const QVector<Extra> extra = {{QStringLiteral("/word/media/logo.png"), QStringLiteral("image/png"), png, kRel + QStringLiteral("image"), QString(), QStringLiteral("rIdP")}};
+        QString err;
+        auto doc = WriteDoc::fromDocx(makeDocx("<w:p>" + drawingRun(QStringLiteral("rIdP"), QStringLiteral("logo")) + "</w:p>", extra), &err, nullptr);
+        office::wml::Document snapshot;
+        QVERIFY(doc && doc->docxSnapshot(&snapshot));
+        const office::wml::Block withPicture = snapshot.body.first();
+        const int uses = 70;
+        for (int i = 1; i < uses; ++i) snapshot.body.push_back(withPicture);
+        const QMap<QString, QByteArray> z = unzipped(epubFromDocument(snapshot, EpubExportOptions(), &err));
+        QCOMPARE(QString::fromUtf8(z.value(QStringLiteral("OEBPS/chapter1.xhtml"))).count(QStringLiteral("<img src=\"images/pic1.png\"")), uses);
+        QVERIFY(!z.contains(QStringLiteral("OEBPS/images/pic2.png")));
+        QCOMPARE(z.value(QStringLiteral("OEBPS/images/pic1.png")), png);
+        // counted once: a bound just above its size holds, and one just below it leaves every use as its words
+        EpubExportOptions tight;
+        tight.mostPicturesBytes = png.size() + 10;
+        QCOMPARE(QString::fromUtf8(unzipped(epubFromDocument(snapshot, tight, &err)).value(QStringLiteral("OEBPS/chapter1.xhtml"))).count(QStringLiteral("<img src=")), uses);
+        tight.mostPicturesBytes = png.size() - 10;
+        const QMap<QString, QByteArray> none = unzipped(epubFromDocument(snapshot, tight, &err));
+        QVERIFY(!none.contains(QStringLiteral("OEBPS/images/pic1.png")));
+        QVERIFY(QString::fromUtf8(none.value(QStringLiteral("OEBPS/chapter1.xhtml"))).count(QStringLiteral("logo")) >= uses);
+    }
+
+    // One large note referenced many times is written once, whatever the references: the book stays about the size of the note, and a note past the bound on notes written with their looks is
+    // still all there, as plain words.
+    void aLargeNoteReferencedManyTimesIsWrittenOnce()
+    {
+        const QString words = QStringLiteral("alpha beta gamma delta ").repeated(9000) + QStringLiteral("zzmarker");   // about 200 KB
+        const QByteArray body = "<w:p><w:r><w:t xml:space=\"preserve\">Text</w:t></w:r><w:r><w:footnoteReference w:id=\"2\"/></w:r></w:p>";
+        QString err;
+        QByteArray notes = footnotesPart(words);
+        notes.replace("<w:r><w:t xml:space=\"preserve\"> " + words.toUtf8(), "<w:r><w:rPr><w:b/></w:rPr><w:t xml:space=\"preserve\"> " + words.toUtf8());
+        auto doc = WriteDoc::fromDocx(makeDocx(body, {{QStringLiteral("/word/footnotes.xml"), kWord + QStringLiteral("footnotes+xml"), notes, kRel + QStringLiteral("footnotes"), QString(), QString()}}), &err, nullptr);
+        office::wml::Document snapshot;
+        QVERIFY(doc && doc->docxSnapshot(&snapshot));
+        const office::wml::Block referencing = snapshot.body.first();
+        const int references = 400;
+        for (int i = 1; i < references; ++i) snapshot.body.push_back(referencing);
+        auto sizeOfChapters = [](const QMap<QString, QByteArray> &z) {
+            qint64 n = 0;
+            for (auto it = z.cbegin(); it != z.cend(); ++it)
+                if (it.key().endsWith(QLatin1String(".xhtml"))) n += it.value().size();
+            return n;
+        };
+        const QMap<QString, QByteArray> z = unzipped(epubFromDocument(snapshot, EpubExportOptions(), &err));
+        const QString chapter = QString::fromUtf8(z.value(QStringLiteral("OEBPS/chapter1.xhtml")));
+        QCOMPARE(chapter.count(QStringLiteral("zzmarker")), 1);
+        QCOMPARE(chapter.count(QStringLiteral("<aside ")), references);
+        QVERIFY2(sizeOfChapters(z) < 700 * 1024, qPrintable(QString::number(sizeOfChapters(z))));   // (400 copies of the note would be 80 MB)
+        QVERIFY(chapter.contains(QStringLiteral("<b>")));
+        QCOMPARE(problemsOf(z), QString());
+        EpubExportOptions plain;
+        plain.mostNoteBytes = 1000;
+        const QString bare = QString::fromUtf8(unzipped(epubFromDocument(snapshot, plain, &err)).value(QStringLiteral("OEBPS/chapter1.xhtml")));
+        QCOMPARE(bare.count(QStringLiteral("zzmarker")), 1);   // (still all there)
+        QVERIFY(!bare.contains(QStringLiteral("<b>")));        // (without its looks)
+        QCOMPARE(bare.count(QStringLiteral("<aside ")), references);
+    }
+
+    // The book is made a chapter at a time, and Cancel stops it.
+    void anEbookStopsWhenCancelled()
+    {
+        const QByteArray body = "<w:p><w:pPr><w:outlineLvl w:val=\"0\"/></w:pPr><w:r><w:t>One</w:t></w:r></w:p><w:p><w:pPr><w:outlineLvl w:val=\"0\"/></w:pPr><w:r><w:t>Two</w:t></w:r></w:p>"
+                                "<w:p><w:pPr><w:outlineLvl w:val=\"0\"/></w:pPr><w:r><w:t>Three</w:t></w:r></w:p>";
+        QString err;
+        auto doc = WriteDoc::fromDocx(makeDocx(body), &err, nullptr);
+        office::wml::Document snapshot;
+        QVERIFY(doc && doc->docxSnapshot(&snapshot));
+        QList<QPair<int, int>> calls;
+        EpubExportOptions o;
+        o.progress = [&](int done, int total) {
+            calls << qMakePair(done, total);
+            return done < 2;
+        };
+        QVERIFY(epubFromDocument(snapshot, o, &err).isEmpty());
+        QCOMPARE(err, QStringLiteral("Cancelled."));
+        QCOMPARE(calls, (QList<QPair<int, int>>{{1, 3}, {2, 3}}));
+        calls.clear();
+        o.progress = [&](int done, int total) {
+            calls << qMakePair(done, total);
+            return true;
+        };
+        QVERIFY(!epubFromDocument(snapshot, o, &err).isEmpty());
+        QCOMPARE(calls.size(), 3);
     }
 
     // A hostile document is held to the bounds: the chapters, the contents' lines, and the pictures (a count and a size) are cut off, and nothing is lost from the text.
@@ -1443,7 +1875,7 @@ private Q_SLOTS:
         w.show();
         QVERIFY(QTest::qWaitForWindowActive(&w));
         w.showFileScreen(QStringLiteral("export"));
-        QTest::qWait(100);
+        QTRY_VERIFY(w.findChild<QAbstractButton *>(QStringLiteral("exportEpub")) && w.findChild<QAbstractButton *>(QStringLiteral("exportEpub"))->isVisible());
         w.grab().save(dir + QStringLiteral("/epub-export-page.png"));
         w.showFileScreen(QString());
         auto *timer = new QTimer;
@@ -1471,6 +1903,7 @@ private Q_SLOTS:
                 if (it.key().startsWith(QLatin1String("OEBPS/images/"))) view.document()->addResource(QTextDocument::ImageResource, QUrl(it.key().mid(6)), QImage::fromData(it.value()));
             QString html = QString::fromUtf8(z.value(QStringLiteral("OEBPS/") + chapter + QStringLiteral(".xhtml")));
             html.remove(QRegularExpression(QStringLiteral("^<\\?xml[^>]*>\\s*<!DOCTYPE html>")));
+            html.remove(QRegularExpression(QStringLiteral("<nav epub:type=\"landmarks\".*?</nav>"), QRegularExpression::DotMatchesEverythingOption));   // (a reader hides it; this view does not)
             view.setHtml(html);
             view.show();
             QVERIFY(QTest::qWaitForWindowExposed(&view));

@@ -7,25 +7,31 @@
 
 #include <QByteArray>
 #include <QString>
+#include <functional>
 
 namespace jp::write {
 
-// What a document's e-book holds at most; what is past these is left out (the chapters past the last are in it, in one).
+// What a document's e-book holds at most; what is past these is cut off (the chapters past the last are in it, in one; a picture past them is its alternative text; a note past them is plain words).
 constexpr int kMostEpubChapters = 500;
 constexpr int kMostEpubNavEntries = 4000;     // the contents' lines
 constexpr int kMostEpubHeadingLevel = 3;      // the contents lists Heading 1 to Heading 3
 constexpr int kMostEpubPictures = 1000;
 constexpr qint64 kMostEpubPictureBytes = qint64(32) * 1024 * 1024;     // one picture
 constexpr qint64 kMostEpubPicturesBytes = qint64(256) * 1024 * 1024;   // all of them
-constexpr int kMostEpubNotes = 5000;
+constexpr int kMostEpubNotes = 20000;                                   // note references made links
+constexpr qint64 kMostEpubNoteBytes = qint64(16) * 1024 * 1024;         // the notes' text written with its looks (past it, as plain words)
 
 struct EpubExportOptions {
-    QString title, author;       // empty: Untitled, and no author
-    QString language;            // empty: the language the document's default text says, else "en-US"
+    QString title, author;       // empty title: Untitled; empty author: none (the caller says what the properties hold)
+    QString language;            // empty: the language the document's default text says, else "en-US" (only a valid BCP 47 tag is kept)
     QString identifier;          // empty: a new one
     bool cover = false;          // the first picture of the document is the cover
     // The bounds (a test sets smaller ones).
     int mostChapters = kMostEpubChapters, mostNavEntries = kMostEpubNavEntries, mostPictures = kMostEpubPictures;
+    int mostNotes = kMostEpubNotes;
+    qint64 mostNoteBytes = kMostEpubNoteBytes;
+    // Called after each chapter with how many are made and how many there are; false stops the book (nothing is made, the error says "Cancelled.").
+    std::function<bool(int done, int total)> progress;
     qint64 mostPictureBytes = kMostEpubPictureBytes, mostPicturesBytes = kMostEpubPicturesBytes;
 };
 

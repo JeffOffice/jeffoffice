@@ -16,6 +16,9 @@
 #include "../settingguard.h"
 #include "app/optionsdialog.h"
 #include <QCheckBox>
+#include <QCryptographicHash>
+#include <QRegularExpression>
+#include <QtEndian>
 
 namespace {
 static QJsonObject qrSettings(const QString &text)
@@ -42,6 +45,37 @@ static QStringList extensionsOf(const QByteArray &inner, int *lists)
     }
     if (x.hasError()) uris << QStringLiteral("NOT WELL FORMED");
     return uris;
+}
+
+// What a book holds, as a list a test can pin: each entry's name, in order; for the text entries also how it is stored and a hash of it with the identifier and the modified time made the same each time.
+QByteArray fileBytes(const QString &path)
+{
+    QFile f(path);
+    return f.open(QIODevice::ReadOnly) ? f.readAll() : QByteArray();
+}
+
+QStringList epubListing(const QByteArray &epub)
+{
+    QMap<QString, QByteArray> entries;
+    readZip(epub, entries);
+    QStringList out;
+    qsizetype at = 0;
+    while (at + 30 <= epub.size() && qFromLittleEndian<quint32>(epub.constData() + at) == 0x04034b50) {
+        const int method = qFromLittleEndian<quint16>(epub.constData() + at + 8);
+        const qsizetype compressed = qFromLittleEndian<quint32>(epub.constData() + at + 18), nameLength = qFromLittleEndian<quint16>(epub.constData() + at + 26), extra = qFromLittleEndian<quint16>(epub.constData() + at + 28);
+        const QString name = QString::fromUtf8(epub.mid(at + 30, nameLength));
+        at += 30 + nameLength + extra + compressed;
+        const bool text = name == QLatin1String("mimetype") || name.endsWith(QLatin1String(".xhtml")) || name.endsWith(QLatin1String(".opf")) || name.endsWith(QLatin1String(".css")) || name.endsWith(QLatin1String(".xml"));
+        if (!text) {
+            out << name;
+            continue;
+        }
+        QString body = QString::fromUtf8(entries.value(name));
+        body.replace(QRegularExpression(QStringLiteral("urn:uuid:[0-9a-f-]+")), QStringLiteral("UUID"));
+        body.replace(QRegularExpression(QStringLiteral("\\d{4}-\\d\\d-\\d\\dT\\d\\d:\\d\\d:\\d\\dZ")), QStringLiteral("TIME"));
+        out << name + QLatin1Char('|') + QString::number(method) + QLatin1Char('|') + QString::fromLatin1(QCryptographicHash::hash(body.toUtf8(), QCryptographicHash::Sha1).toHex());
+    }
+    return out;
 }
 
 } // namespace
@@ -96,8 +130,22 @@ private Q_SLOTS:
         QVERIFY2(nav.contains(QStringLiteral("<a href=\"page1.xhtml\">Chapter One</a>")), qPrintable(nav));
         QVERIFY(nav.contains(QStringLiteral("epub:type=\"page-list\"")));
         QCOMPARE(zip.value(QStringLiteral("mimetype")), QByteArray("application/epub+zip"));
+        // JeffPub's page-for-page book is what it was before the package was made by libs/office/epub (listing made from main's writer): the same entries in the same order, stored the same way, with the same text.
+        {
+            const QStringList expected = {
+            "mimetype|0|8cae3584d360f721c4dd0ca38a4f2d8b36da74c7",
+            "META-INF/container.xml|8|4b626128e01a3b9cb1cf4ecde0affe66f9c3ee76",
+            "OEBPS/style.css|8|85a4ae27bd2cabf3f7f219633a8916b6cd190ddf",
+            "OEBPS/images/cover.jpg",
+            "OEBPS/page1.xhtml|8|25215ab3d91a400af2c75f822f5a5604d571ddd0",
+            "OEBPS/pages/page1.svg",
+            "OEBPS/page2.xhtml|8|491ee1da7c93979f9ed3170b24dca3f6cef4d406",
+            "OEBPS/pages/page2.svg",
+            "OEBPS/nav.xhtml|8|123d8a7464b894e83f2023675b43907c1cf5ebd1",
+            "OEBPS/content.opf|8|1600c52c2e25b7c1d5a049a4f556bb662233bee8"};
+            QCOMPARE(epubListing(fileBytes(path)).join(QLatin1Char('\n')), expected.join(QLatin1Char('\n')));
+        }
         if (!qEnvironmentVariableIsEmpty("JP_SHOT_DIR")) QFile::copy(path, qEnvironmentVariable("JP_SHOT_DIR") + QStringLiteral("/fixed.epub"));
-        if (!qEnvironmentVariableIsEmpty("JP_EPUB_DUMP")) QFile::copy(path, qEnvironmentVariable("JP_EPUB_DUMP") + QStringLiteral("/fixed.epub"));
     }
 
     // What is wrong with an EPUB's files: names that lead nowhere in it (the
@@ -1146,12 +1194,27 @@ private Q_SLOTS:
         const QString path = dir.filePath(QStringLiteral("book.epub"));
         QString err;
         QVERIFY2(w.exportEpubTo(path, QStringLiteral("My Book"), QString(), true, &err), qPrintable(err));
-        if (!qEnvironmentVariableIsEmpty("JP_EPUB_DUMP")) QFile::copy(path, qEnvironmentVariable("JP_EPUB_DUMP") + QStringLiteral("/reflow.epub"));
         QFile f(path);
         QVERIFY(f.open(QIODevice::ReadOnly));
         const QByteArray epub = f.readAll();
         QCOMPARE(epub.mid(30, 28), QByteArray("mimetypeapplication/epub+zip"));   // first, stored
         QCOMPARE(int(epub[8]), 0);
+        // JeffPub's reflowable book is what it was before the package was made by libs/office/epub (listing made from main's writer).
+        {
+            const QStringList expected = {
+            "mimetype|0|8cae3584d360f721c4dd0ca38a4f2d8b36da74c7",
+            "META-INF/container.xml|8|4b626128e01a3b9cb1cf4ecde0affe66f9c3ee76",
+            "OEBPS/style.css|8|85a4ae27bd2cabf3f7f219633a8916b6cd190ddf",
+            "OEBPS/images/cover.jpg",
+            "OEBPS/cover.xhtml|8|b33a6751fcb3ba671e491518efbd1fac4f3478ab",
+            "OEBPS/chapter1.xhtml|8|d1189d853380634822d70213f6c663383a45f45d",
+            "OEBPS/chapter2.xhtml|8|feabc3a4a99af186130119866079d06325318ba1",
+            "OEBPS/notes.xhtml|8|8d10d11d877503aa2f33b6160b4ccc7aff2e1a7b",
+            "OEBPS/nav.xhtml|8|5bc226d4d7ee416cfe317cc30e71fe3d7c8339a1",
+            "OEBPS/images/pic1.png",
+            "OEBPS/content.opf|8|72f439ef545188bb1c443f34815143e15837729a"};
+            QCOMPARE(epubListing(epub).join(QLatin1Char('\n')), expected.join(QLatin1Char('\n')));
+        }
         QMap<QString, QByteArray> z;
         QVERIFY2(readZip(epub, z, &err), qPrintable(err));
         QVERIFY(z.value(QStringLiteral("META-INF/container.xml")).contains("full-path=\"OEBPS/content.opf\""));

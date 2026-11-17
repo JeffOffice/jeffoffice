@@ -156,7 +156,12 @@ QByteArray build(const Book &book)
         spine += QStringLiteral("<itemref idref=\"cover\"/>\n");
     }
     QVector<NavEntry> nav = book.nav;
-    for (NavEntry &e : nav) e.level = qBound(1, e.level, kMostNavLevel);
+    // No entry is more than one level below the one before it, and the first is at the top: the contents are one list however the headings begin.
+    int above = 0;
+    for (NavEntry &e : nav) {
+        e.level = qBound(1, qMin(e.level, above + 1), kMostNavLevel);
+        above = e.level;
+    }
     QVector<Chapter> chapters = book.chapters;
     if (chapters.isEmpty()) chapters << Chapter();
     for (int i = 0; i < chapters.size(); ++i) {

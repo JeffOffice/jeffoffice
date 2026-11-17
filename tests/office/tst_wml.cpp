@@ -1,5 +1,6 @@
 // Tests of libs/office/wml: the tree the word processing parts are read into, and reading and writing a .docx.
 
+#include <QCryptographicHash>
 #include "office/package.h"
 #include "office/xml.h"
 #include "wml/wml.h"
@@ -1926,6 +1927,8 @@ private Q_SLOTS:
         QVERIFY(!html.contains(QLatin1String("<style>")));   // (filtered: no looks)
         QVERIFY(!html.contains(QLatin1String("width=\"100\"")));
         QVERIFY(html.trimmed().endsWith(QLatin1String("</html>")));
+        // The page made without the e-book options is what it was before them: the whole output, by its hash (made from main's writer).
+        QCOMPARE(QString::fromLatin1(QCryptographicHash::hash(html.toUtf8(), QCryptographicHash::Sha256).toHex()), QStringLiteral("67530e813fa12a15e8f84398384b0b36d34bdb5263c0d3b836ab51bccadf5602"));
     }
 
     // For an e-book, the page is XML a reader parses: its empty tags closed, no entity XML lacks, only the body, the pictures as files the caller names (and left out when it gives no name),
@@ -1952,7 +1955,12 @@ private Q_SLOTS:
             asked << name + QLatin1Char(' ') + mime + QLatin1Char(' ') + QString::number(data.size() > 0);
             return QStringLiteral("images/pic1.png");
         };
+        // (text with the characters XML forbids, which a file can't hold but a program's document can: a reader would refuse the page)
+        d.body[1].para.content[0].text += QString(QChar(0xFFFE)) + QStringLiteral("x") + QString(QChar(0xD800)) + QStringLiteral("y") + QString(QChar(0x0001));
         const QString html = QString::fromUtf8(documentToHtml(d, opt));
+        QVERIFY2(html.contains(QLatin1String("linexy")), qPrintable(html));
+        QVERIFY(!html.contains(QChar(0xFFFE)) && !html.contains(QChar(0x0001)));
+        for (const QChar c : html) QVERIFY(!c.isSurrogate());
         QVERIFY2(!html.contains(QLatin1String("<html")) && !html.contains(QLatin1String("<body")), qPrintable(html));
         QVERIFY2(html.contains(QLatin1String("<h1 id=\"h1\">Head &amp; one</h1>")), qPrintable(html));
         QVERIFY(html.contains(QLatin1String("<br/>")) && !html.contains(QLatin1String("<br>")) && !html.contains(QLatin1String("&nbsp;")) && html.contains(QLatin1String("&#160;")));
@@ -1973,6 +1981,7 @@ private Q_SLOTS:
         notes.clear();
         const QString bare = QString::fromUtf8(documentToHtml(d, opt));
         QVERIFY(!bare.contains(QLatin1String("<img")) && !bare.contains(QLatin1String("noteref")) && notes.isEmpty());
+        QVERIFY2(bare.contains(QLatin1String("logo")), qPrintable(bare));   // (left out of the book, what it says it shows stays as words)
         // without the options, the page is as it was: HTML with the picture inside it
         const QString plain = QString::fromUtf8(documentToHtml(d, HtmlOptions()));
         QVERIFY(plain.contains(QLatin1String("<br>")) && plain.contains(QLatin1String("data:image/png;base64,")) && plain.contains(QLatin1String("<h1>")));

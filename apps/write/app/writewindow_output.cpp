@@ -29,6 +29,8 @@
 #include <QFileInfo>
 #include <QMessageBox>
 #include <QPageLayout>
+#include <QProgressDialog>
+#include <QUuid>
 #include <QPageSize>
 #include <QPdfWriter>
 #include <QScopeGuard>
@@ -520,14 +522,27 @@ bool WriteWindow::exportEpub(const QString &path, const QString &title, const QS
     const office::PackageProps props = m_doc->packageProps();
     write::EpubExportOptions options;
     options.title = !title.isEmpty() ? title : props.title.isEmpty() ? displayName() : props.title;
-    options.author = !author.isEmpty() ? author : m_personalInfoRemoved ? QString() : props.creator;
+    options.author = author;   // (what the box says: emptied, the book has no author)
     options.cover = cover;
+    // The same document is the same book each time it is exported, so a reader keeps its place: the identifier comes from where the document is saved (none yet: a new one each time).
+    if (!m_path.isEmpty()) options.identifier = QStringLiteral("urn:uuid:") + QUuid::createUuidV5(QUuid(QStringLiteral("{6ba7b811-9dad-11d1-80b4-00c04fd430c8}")), QFileInfo(m_path).absoluteFilePath().toUtf8()).toString(QUuid::WithoutBraces);
+    QProgressDialog progress(tr("Making the e-book..."), tr("Cancel"), 0, 100, this);
+    progress.setObjectName(QStringLiteral("epubProgress"));
+    progress.setWindowModality(Qt::WindowModal);
+    progress.setMinimumDuration(500);
+    progress.setValue(0);
+    options.progress = [&progress](int done, int total) {
+        progress.setMaximum(std::max(1, total));
+        progress.setValue(done);
+        QCoreApplication::processEvents();
+        return !progress.wasCanceled();
+    };
     office::wml::Document snapshot;
     QString err;
     QByteArray bytes;
-    QApplication::setOverrideCursor(Qt::WaitCursor);
     if (m_doc->docxSnapshot(&snapshot)) bytes = write::epubFromDocument(snapshot, options, &err);
-    QApplication::restoreOverrideCursor();
+    progress.reset();
+    if (bytes.isEmpty() && progress.wasCanceled()) return false;
     QSaveFile file(path);
     const bool ok = !bytes.isEmpty() && file.open(QIODevice::WriteOnly) && file.write(bytes) == bytes.size() && file.commit();
     if (!ok) {

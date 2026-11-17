@@ -7,6 +7,7 @@
 
 #include <QByteArray>
 #include <QString>
+#include <QStringList>
 #include <QVector>
 #include <functional>
 
@@ -33,10 +34,12 @@ struct HtmlOptions {
     // For an e-book's chapters (all off by default; a page made without them is as it was):
     bool xhtml = false;        // well-formed XML: the empty tags closed ("<br/>"), no entity XML lacks
     bool bodyOnly = false;     // only what goes inside <body>, for the caller to put in its own page
-    // A picture is put in the book as a file: the function is given the name of its part, its bytes, and its type, and returns the address to name; empty leaves the picture out.
+    // A picture is put in the book as a file: the function is given the name of its part, its bytes, and its type (from the bytes, not the name: png, jpeg, gif, webp, svg, or empty for
+    // any other kind), and returns the address to name; empty leaves the picture out, and its alternative text is written in its place.
     std::function<QString(const QString &partName, const QByteArray &data, const QString &mime)> pictureHref;
     QString headingIdPrefix;                   // when set, each heading's tag has an id (the prefix and its number), and `headings` lists them
     QVector<HtmlHeading> *headings = nullptr;
+    QStringList *bookmarks = nullptr;          // when set, each bookmark gets an empty <span id="bm_..."/> and an internal link goes to "#bm_..."; the ids written are listed here
     QVector<HtmlNote> *notes = nullptr;        // when set, a note reference is a link to "#fn-N" (and has the id "fnr-N"), and each is listed here; the caller writes the notes
     int firstFootnote = 1, firstEndnote = 1;   // the number a note reference of this page that has none of its own shows first (a book's later chapters go on from the earlier)
     int mostNotes = 5000;                      // the note references that are made links (the rest show their numbers)

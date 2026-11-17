@@ -1,6 +1,7 @@
 #include "wml/wmlhtml.h"
 
 #include <QRegularExpression>
+#include <QSet>
 #include <QStringList>
 
 #include <algorithm>
@@ -23,6 +24,48 @@ QString escaped(const QString &text)
         else if (ch == QLatin1Char(' ') && i + 1 < text.size() && text[i + 1] == QLatin1Char(' ')) out += QLatin1String("&nbsp;");
         else if (ch.unicode() < 0x20 && ch != QLatin1Char('\n')) continue;
         else out += ch;
+    }
+    return out;
+}
+
+// The text with the characters XML 1.0 forbids taken out (U+FFFE, U+FFFF, lone surrogates, and the controls but tab, line feed, and carriage return).
+void dropXmlIllegal(QString *text)
+{
+    QString out;
+    out.reserve(text->size());
+    for (qsizetype i = 0; i < text->size(); ++i) {
+        const QChar c = text->at(i);
+        const ushort u = c.unicode();
+        if (c.isHighSurrogate() && i + 1 < text->size() && text->at(i + 1).isLowSurrogate()) {
+            out += c;
+            out += text->at(++i);
+            continue;
+        }
+        if (c.isSurrogate() || u == 0xFFFE || u == 0xFFFF || (u < 0x20 && u != '\t' && u != '\n' && u != '\r')) continue;
+        out += c;
+    }
+    *text = out;
+}
+
+// What a picture's bytes are, by their first bytes ("" for any kind a reader may not show).
+QString pictureTypeOf(const QByteArray &d)
+{
+    if (d.startsWith("\x89PNG\r\n\x1a\n")) return QStringLiteral("image/png");
+    if (d.startsWith("\xFF\xD8\xFF")) return QStringLiteral("image/jpeg");
+    if (d.startsWith("GIF87a") || d.startsWith("GIF89a")) return QStringLiteral("image/gif");
+    if (d.size() > 12 && d.startsWith("RIFF") && d.mid(8, 4) == "WEBP") return QStringLiteral("image/webp");
+    if (d.left(2048).contains("<svg")) return QStringLiteral("image/svg+xml");
+    return QString();
+}
+
+// A bookmark's name as an id: letters, digits, and "_.-" as they are, any other character as "-" and its code.
+QString bookmarkId(const QString &name)
+{
+    QString out = QStringLiteral("bm_");
+    for (const QChar c : name) {
+        if (c.isLetterOrNumber() && c.unicode() < 128) out += c;
+        else if (c == QLatin1Char('_') || c == QLatin1Char('.')) out += c;
+        else out += QStringLiteral("-") + QString::number(c.unicode(), 16) + QLatin1Char('-');
     }
     return out;
 }
@@ -72,7 +115,10 @@ public:
     QByteArray run()
     {
         QString body = range(0, int(d.body.size()), 0);
-        if (o.xhtml) body.replace(QLatin1String("<br>"), QLatin1String("<br/>")).replace(QLatin1String("&nbsp;"), QLatin1String("&#160;"));
+        if (o.xhtml) {
+            body.replace(QLatin1String("<br>"), QLatin1String("<br/>")).replace(QLatin1String("&nbsp;"), QLatin1String("&#160;"));
+            dropXmlIllegal(&body);
+        }
         if (o.bodyOnly) return body.toUtf8();
         QString head = QStringLiteral("<!DOCTYPE html>\n<html");
         if (!o.language.isEmpty()) head += QStringLiteral(" lang=\"") + escaped(o.language) + QLatin1Char('"');
@@ -105,6 +151,7 @@ private:
     const Document &d;
     HtmlOptions o;
     qint64 pictureBytes = 0;
+    QSet<QString> bookmarksSeen;
     int headingCount = 0, noteCount = 0, footnoteSeq = 0, endnoteSeq = 0;
 
     QString css() const
@@ -309,8 +356,9 @@ private:
                 id = o.headingIdPrefix + QString::number(headingCount + 1);
                 if (o.headings) {
                     static const QRegularExpression tags(QStringLiteral("<[^>]*>"));
+                    static const QRegularExpression noteMarks(QStringLiteral("<a class=\"noteref\"[^>]*><sup>[^<]*</sup></a>|<sup id=\"fnr-[^\"]*\">[^<]*</sup>"));
                     QString text = inner;
-                    text.remove(tags).replace(QLatin1String("&nbsp;"), QLatin1String(" ")).replace(QLatin1String("&#160;"), QLatin1String(" "));
+                    text.remove(noteMarks).remove(tags).replace(QLatin1String("&nbsp;"), QLatin1String(" ")).replace(QLatin1String("&#160;"), QLatin1String(" "));
                     o.headings->push_back({heading, unescapedXml(text).simplified(), id});
                 }
                 ++headingCount;
@@ -402,7 +450,7 @@ private:
     QString linkOpen(const QByteArray &raw) const
     {
         QString address = attributeOf(raw, QStringLiteral("anchor"));
-        if (!address.isEmpty()) address = QLatin1Char('#') + address;
+        if (!address.isEmpty()) address = QLatin1Char('#') + (o.bookmarks ? bookmarkId(address) : address);
         else address = safeAddress(addressOf(attributeOf(raw, QStringLiteral("id"))));
         if (address.isEmpty()) return QString();
         return QStringLiteral("<a href=\"") + escaped(address) + QStringLiteral("\">");
@@ -426,18 +474,22 @@ private:
         if (!part || part->data.isEmpty()) return QString();
         const QString lower = target.toLower();
         QString mime;
-        if (lower.endsWith(QLatin1String(".png"))) mime = QStringLiteral("image/png");
-        else if (lower.endsWith(QLatin1String(".jpg")) || lower.endsWith(QLatin1String(".jpeg"))) mime = QStringLiteral("image/jpeg");
-        else if (lower.endsWith(QLatin1String(".gif"))) mime = QStringLiteral("image/gif");
-        else if (lower.endsWith(QLatin1String(".svg"))) mime = QStringLiteral("image/svg+xml");
-        else if (lower.endsWith(QLatin1String(".webp"))) mime = QStringLiteral("image/webp");
-        else if (lower.endsWith(QLatin1String(".bmp"))) mime = QStringLiteral("image/bmp");
-        if (mime.isEmpty() || pictureBytes + part->data.size() > kMostHtmlPictureBytes) return QString();
-        pictureBytes += part->data.size();
+        if (o.pictureHref) {
+            mime = pictureTypeOf(part->data);   // (the bytes say what it is; the caller makes what a reader can't show into one it can, and counts what it keeps)
+        } else {
+            if (lower.endsWith(QLatin1String(".png"))) mime = QStringLiteral("image/png");
+            else if (lower.endsWith(QLatin1String(".jpg")) || lower.endsWith(QLatin1String(".jpeg"))) mime = QStringLiteral("image/jpeg");
+            else if (lower.endsWith(QLatin1String(".gif"))) mime = QStringLiteral("image/gif");
+            else if (lower.endsWith(QLatin1String(".svg"))) mime = QStringLiteral("image/svg+xml");
+            else if (lower.endsWith(QLatin1String(".webp"))) mime = QStringLiteral("image/webp");
+            else if (lower.endsWith(QLatin1String(".bmp"))) mime = QStringLiteral("image/bmp");
+            if (mime.isEmpty() || pictureBytes + part->data.size() > kMostHtmlPictureBytes) return QString();
+            pictureBytes += part->data.size();
+        }
         QString src;
         if (o.pictureHref) {
             src = o.pictureHref(part->name, part->data, mime);
-            if (src.isEmpty()) return QString();
+            if (src.isEmpty()) return escaped(attributeOf(atom.raw, QStringLiteral("descr")));   // (not a picture of the book: what it says it shows stays as words)
         } else {
             src = QStringLiteral("data:") + mime + QStringLiteral(";base64,") + QString::fromLatin1(part->data.toBase64());
         }
@@ -510,6 +562,15 @@ private:
                     } else if (in.role == Inline::Close && linkDepth > 0) {
                         out += QStringLiteral("</a>");
                         --linkDepth;
+                    }
+                } else if (in.tag == QLatin1String("bookmarkStart") && o.bookmarks) {
+                    const QString name = attributeOf(in.raw, QStringLiteral("name"));
+                    const QString id = bookmarkId(name);
+                    if (!name.isEmpty() && !bookmarksSeen.contains(id)) {
+                        flush();
+                        out += QStringLiteral("<span id=\"") + escaped(id) + QStringLiteral("\"/>");
+                        bookmarksSeen.insert(id);
+                        o.bookmarks->push_back(id);
                     }
                 } else if (in.tag == QLatin1String("del") || in.tag == QLatin1String("moveFrom")) {
                     if (in.role == Inline::Open) ++deleted;
@@ -601,8 +662,13 @@ private:
                             note.referenceId = QStringLiteral("fnr-%1").arg(++noteCount);
                             note.noteId = QStringLiteral("fn-%1").arg(noteCount);
                             o.notes->push_back(note);
-                            s.open = QStringLiteral("<a class=\"noteref\" epub:type=\"noteref\" id=\"") + note.referenceId + QStringLiteral("\" href=\"#") + note.noteId + QStringLiteral("\"><sup>");
-                            s.close = QStringLiteral("</sup></a>");
+                            if (linkDepth > 0) {
+                                // (Inside a link the number is not one itself: a link is not in a link. It is still where the note's link back comes to.)
+                                s.open = QStringLiteral("<sup id=\"") + note.referenceId + QStringLiteral("\">");
+                            } else {
+                                s.open = QStringLiteral("<a class=\"noteref\" epub:type=\"noteref\" id=\"") + note.referenceId + QStringLiteral("\" href=\"#") + note.noteId + QStringLiteral("\"><sup>");
+                                s.close = QStringLiteral("</sup></a>");
+                            }
                         }
                         addText(escaped(number), s);
                     }

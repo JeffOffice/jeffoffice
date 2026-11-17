@@ -113,7 +113,7 @@ How the book is made:
 - Pictures and tables stay where you put them. A picture's alternative text goes with it, so a screen reader can say what it shows.
 - Footnotes and endnotes are set at the end of the chapter they are in. Each note has a link back to the spot in the text, and each number in the text is a link to its note.
 
-A book is held to limits so that a damaged file cannot make a huge one: up to 500 chapters, 4,000 lines in the contents, 1,000 pictures (none over 32 MB), and 5,000 notes. Anything past a limit stays in the last chapter or is left out, and your words are never dropped.
+A book is held to limits so that a damaged file cannot make a huge one: up to 500 chapters, 4,000 lines in the contents, 1,000 pictures (none over 32 MB), and 20,000 notes. Anything past a limit stays in the last chapter, or becomes plain words, and your words are never dropped: a picture past its limit is its alternative text, and a note past its limit has no looks. A picture a reader can not show (a metafile, a bitmap, or a TIFF) is made into a PNG. Exporting the same saved document again makes the same book, so a reader keeps its place.
 
 ## Protect a PDF with a password
 
