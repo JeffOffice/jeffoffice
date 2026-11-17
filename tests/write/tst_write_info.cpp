@@ -1407,10 +1407,7 @@ private Q_SLOTS:
         const int before = text().size();
         QTest::keyClick(w.view(), Qt::Key_F3, Qt::ControlModifier | Qt::ShiftModifier);
         QCOMPARE(PageView::spikeCount(), 0);
-        QVERIFY(text().startsWith(QStringLiteral("beta")));
-        QVERIFY(text().contains(QStringLiteral("alpha")));
-        QVERIFY(text().indexOf(QStringLiteral("beta")) < text().indexOf(QStringLiteral("alpha")));
-        QVERIFY(text().size() > before);
+        QCOMPARE(text(), QStringLiteral("beta\nalpha gamma"));   // (each cut is a paragraph of its own)
         QTextCursor at(w.document()->story());
         at.setPosition(1);
         QCOMPARE(at.charFormat().fontWeight(), int(QFont::Bold));
@@ -1419,6 +1416,57 @@ private Q_SLOTS:
         QCOMPARE(text().size(), before);
         QTest::keyClick(w.view(), Qt::Key_F3, Qt::ControlModifier | Qt::ShiftModifier);
         QCOMPARE(text().size(), before);
+        PageView::emptySpike();
+    }
+
+    // The Spike holds only what was taken out of the text; and it holds a limited number of bytes.
+    void theSpikeTakesOnlyWhatWasCutAndHasALimit()
+    {
+        PageView::emptySpike();
+        const auto restore = qScopeGuard([] { PageView::emptySpike(); PageView::setSpikeByteLimit(64 * 1024 * 1024); });
+        // A cut in paragraphs that show nothing (a tracked deletion) takes nothing out, so puts nothing on the Spike.
+        {
+            QString err;
+            WriteWindow w;
+            w.resize(1100, 800);
+            w.show();
+            w.setDocument(WriteDoc::fromDocx(makeDocx("<w:p><w:pPr><w:rPr><w:del w:id=\"1\" w:author=\"a\" w:date=\"2020-01-01T00:00:00Z\"/></w:rPr></w:pPr><w:del w:id=\"2\" w:author=\"a\" w:date=\"2020-01-01T00:00:00Z\"><w:r><w:delText>gone</w:delText></w:r></w:del></w:p>"
+                                                      "<w:p><w:r><w:t>Zed</w:t></w:r></w:p>"), &err, nullptr), QString());
+            QTextDocument *story = w.document()->story();
+            const QString before = story->toPlainText();
+            QTextCursor c(story);
+            c.setPosition(0);
+            c.setPosition(story->findBlockByNumber(1).position(), QTextCursor::KeepAnchor);
+            w.view()->setCursor(c);
+            QTest::keyClick(w.view(), Qt::Key_F3, Qt::ControlModifier);
+            QCOMPARE(story->toPlainText(), before);
+            QCOMPARE(PageView::spikeCount(), 0);
+        }
+        // The limit: a cut that would take the Spike past it is refused, and the text keeps its words.
+        {
+            PageView::setSpikeByteLimit(15);
+            WriteWindow w;
+            w.resize(1100, 800);
+            w.show();
+            typeText(*w.document(), w.view()->cursor(), QStringLiteral("alpha beta"));
+            QTextDocument *story = w.document()->story();
+            auto select = [&](int from, int to) {
+                QTextCursor c(story);
+                c.setPosition(from);
+                c.setPosition(to, QTextCursor::KeepAnchor);
+                w.view()->setCursor(c);
+            };
+            QStringList said;
+            connect(w.view(), &PageView::notice, this, [&](const QString &t) { said << t; });
+            select(6, 10);   // "beta": 8 bytes
+            QTest::keyClick(w.view(), Qt::Key_F3, Qt::ControlModifier);
+            QCOMPARE(PageView::spikeCount(), 1);
+            select(0, 5);   // "alpha": 10 more, past 15
+            QTest::keyClick(w.view(), Qt::Key_F3, Qt::ControlModifier);
+            QCOMPARE(PageView::spikeCount(), 1);
+            QVERIFY(story->toPlainText().contains(QStringLiteral("alpha")));
+            QCOMPARE(said.size(), 1);
+        }
     }
 
     void printingOnlyOddOrEvenPagesAndInReverse()

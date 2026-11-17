@@ -191,8 +191,8 @@ MainWindow::MainWindow(QWidget *parent) : AppWindow(parent)
     }
     KeyMap::apply(this);   // (the keys the person chose in Options > Customize)
     RibbonCustom::apply(this);   // (and the tabs and groups the person shows, hides, and adds)
+    makeOvertypeIndicator(m_ed, statusBar());   // (the first at the right of the bar, before the buttons)
     buildStatusBar();
-    makeOvertypeIndicator(m_ed, statusBar());
     describeForScreenReaders(m_split);   // the pages, the page, and the panes
     describeForScreenReaders(statusBar());
 

@@ -139,19 +139,36 @@ static QVector<Clip> &spike()
 int PageView::spikeCount() { return int(spike().size()); }
 void PageView::emptySpike() { spike().clear(); }
 
+// What the Spike holds may not grow past this many bytes (the words, and the bytes of the pictures): a cut that would take it past is refused.
+static qint64 s_spikeLimit = 64 * 1024 * 1024;
+void PageView::setSpikeByteLimit(qint64 bytes) { s_spikeLimit = bytes; }
+
+static qint64 sizeOfClip(const Clip &clip)
+{
+    qint64 n = qint64(clip.fragment.toPlainText().size()) * 2;
+    for (const Clip::Link &l : clip.links) n += l.data.size();
+    return n;
+}
+
 void PageView::cutToSpike()
 {
     if (!m_doc || m_readOnly || m_shapeEditor || !m_cursor.hasSelection()) return;
     const Clip clip = copySelection(*m_doc, m_cursor);
     if (clip.isEmpty()) return;
-    // (A spike of at most 1000 cuts: the cut after that is let be, rather than lost.)
-    if (spike().size() >= 1000) {
+    // (A spike of at most 1000 cuts, and a limit of bytes: the cut after that is let be, rather than lost.)
+    qint64 held = sizeOfClip(clip);
+    for (const Clip &c : spike()) held += sizeOfClip(c);
+    if (spike().size() >= 1000 || held > s_spikeLimit) {
         Q_EMIT notice(tr("The Spike is full. Paste it to empty it."));
         return;
     }
-    spike() << clip;
+    bool removed = false;
+    const QMetaObject::Connection watch = connect(m_cursor.document(), &QTextDocument::contentsChanged, this, [&removed] { removed = true; });
     if (smartCutPaste()) smartRemoveSelection(*m_doc, m_cursor);
     else removeSelection(*m_doc, m_cursor);
+    disconnect(watch);
+    // (Only what was taken out of the text is on the Spike: a cut that changed nothing, in paragraphs that show nothing, adds nothing.)
+    if (removed) spike() << clip;
     caretMoved();
 }
 
@@ -161,13 +178,17 @@ void PageView::pasteSpike()
     const QVector<Clip> clips = spike();
     m_cursor.beginEditBlock();
     if (m_cursor.hasSelection()) removeSelection(*m_doc, m_cursor);
+    bool landed = false;
+    const QMetaObject::Connection watch = connect(m_cursor.document(), &QTextDocument::contentsChanged, this, [&landed] { landed = true; });
     for (int i = 0; i < clips.size(); ++i) {
         pasteClip(*m_doc, m_cursor, clips[i]);
         // Each cut is a paragraph of its own, unless it already ended one.
         if (i + 1 < clips.size() && !clips[i].fragment.toPlainText().endsWith(QLatin1Char('\n'))) pasteText(*m_doc, m_cursor, QStringLiteral("\n"));
     }
     m_cursor.endEditBlock();
-    spike().clear();
+    disconnect(watch);
+    // (The Spike is emptied when what it held is in the text: a paste that was refused keeps it.)
+    if (landed) spike().clear();
     caretMoved();
 }
 

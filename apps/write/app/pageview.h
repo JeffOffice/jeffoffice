@@ -179,6 +179,7 @@ public:
     void pasteSpike();
     static int spikeCount();
     static void emptySpike();
+    static void setSpikeByteLimit(qint64 bytes);   // (the tests make it small)
     // Paste with a choice: keep the source's formatting (as Paste), merge with the formatting around (the emphasis stays), text only, a picture, or the clipboard's HTML. Which of them the
     // clipboard can give now.
     enum class PasteKind { Keep, Merge, TextOnly, Picture, Html, Rtf };

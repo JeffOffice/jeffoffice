@@ -3021,7 +3021,7 @@ void Canvas::keyPressEvent(QKeyEvent *e)
 void Canvas::inputMethodEvent(QInputMethodEvent *e)
 {
     if (m_ed->readOnly()) return;
-    if (m_ed->isEditingText() && !e->commitString().isEmpty()) m_ed->insertText(e->commitString());
+    if (m_ed->isEditingText() && !e->commitString().isEmpty()) m_ed->commitText(e->commitString());
     e->accept();
 }
 

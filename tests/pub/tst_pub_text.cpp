@@ -7,6 +7,7 @@
 #include <QMimeData>
 #include <QClipboard>
 #include <QElapsedTimer>
+#include <QInputMethodEvent>
 #include <QLabel>
 #include <QLineEdit>
 #include <QDialogButtonBox>
@@ -4094,6 +4095,89 @@ private Q_SLOTS:
         QVERIFY(!ed->overtype());
         QVERIFY(indicator()->isHidden());
         ed->endTextEdit();
+    }
+
+    // Overtype takes whole characters and leaves objects, an input method's text goes over the letters too, and the mode in the status bar stays when a message comes.
+    void overtypeLeavesObjectsAndTakesWholeCharacters()
+    {
+        Settings::get().setValue(QStringLiteral("edit/insertKey"), false);
+        const auto restore = qScopeGuard([] { Settings::get().setValue(QStringLiteral("edit/insertKey"), false); });
+        jp::MainWindow w;
+        w.show();
+        jp::Editor *ed = w.editor();
+        auto box = std::static_pointer_cast<jp::TextItem>(ed->newTextBox(QRectF(72, 72, 400, 200), QStringLiteral("abcd")));
+        ed->addItem(box);
+        ed->beginTextEdit(box->id);
+        const QString story = box->storyId;
+        auto textOf = [&] { return ed->doc()->storyDoc(story)->toPlainText(); };
+        auto at = [&](int pos) {
+            QTextCursor c = ed->cursor();
+            c.setPosition(pos);
+            ed->setCursor(c);
+        };
+        auto fill = [&](const QString &words) {
+            QTextCursor c = ed->cursor();
+            c.select(QTextCursor::Document);
+            c.insertText(words);
+            ed->setCursor(c);
+            at(0);
+        };
+        Settings::get().setValue(QStringLiteral("edit/insertKey"), true);
+        ed->syncOvertypeOption();
+        ed->setOvertype(true);
+        // A letter typed takes a whole character: a pair of UTF-16 units, or a letter with its accent.
+        fill(QString::fromUtf8("\xF0\x9F\x98\x80" "b"));
+        QTest::keyClicks(w.canvas(), QStringLiteral("x"));
+        QCOMPARE(textOf(), QStringLiteral("xb"));
+        fill(QStringLiteral("e\u0301b"));
+        QTest::keyClicks(w.canvas(), QStringLiteral("x"));
+        QCOMPARE(textOf(), QStringLiteral("xb"));
+        // One typed character that is a pair of units takes one character, not two.
+        fill(QStringLiteral("abc"));
+        ed->commitText(QString::fromUtf8("\xF0\x9F\x98\x80"));
+        QCOMPARE(textOf(), QString::fromUtf8("\xF0\x9F\x98\x80" "bc"));
+        // What an input method commits goes over the letters too.
+        fill(QStringLiteral("abcd"));
+        QInputMethodEvent commit;
+        commit.setCommitString(QStringLiteral("XY"));
+        QVERIFY(QCoreApplication::sendEvent(w.canvas(), &commit));
+        QCOMPARE(textOf(), QStringLiteral("XYcd"));
+        // The mode shown in the status bar stays shown when a message comes and goes.
+        QLabel *mode = w.statusBar()->findChild<QLabel *>(QStringLiteral("overtypeMode"));
+        QVERIFY(mode && mode->isVisible());
+        w.statusBar()->showMessage(QStringLiteral("A message"));
+        QVERIFY(mode->isVisible());
+        w.statusBar()->clearMessage();
+        QVERIFY(mode->isVisible());
+        Settings::get().setValue(QStringLiteral("edit/insertKey"), false);
+        ed->syncOvertypeOption();
+        QVERIFY(!ed->overtype());
+        w.statusBar()->showMessage(QStringLiteral("A message"));
+        QVERIFY(!mode->isVisible());
+        w.statusBar()->clearMessage();
+        QVERIFY(!mode->isVisible());
+        // An object (a field) is never replaced: the letters go before it.
+        Settings::get().setValue(QStringLiteral("edit/insertKey"), true);
+        ed->syncOvertypeOption();
+        fill(QStringLiteral("ab"));
+        ed->insertField(QStringLiteral("page"));
+        at(0);
+        ed->setOvertype(true);
+        QTest::keyClicks(w.canvas(), QStringLiteral("Z"));
+        QCOMPARE(textOf(), QStringLiteral("Z\uFFFCab"));
+        QTest::keyClicks(w.canvas(), QStringLiteral("Y"));
+        QCOMPARE(textOf(), QStringLiteral("ZY\uFFFCab"));
+        // No AutoFormat while overtyping: "1." and a space starts a list only when pushing letters along.
+        auto listStarted = [&](bool over) {
+            fill(QStringLiteral("1."));
+            at(2);
+            ed->setOvertype(over);
+            QTest::keyClicks(w.canvas(), QStringLiteral(" "));
+            return ed->editDoc()->firstBlock().textList() != nullptr;
+        };
+        QVERIFY(!listStarted(true));
+        QVERIFY(listStarted(false));
+        Settings::get().setValue(QStringLiteral("edit/insertKey"), false);
     }
 
     // A picture of the status bar in overtype mode, for the shot folder (JO_SHOT_DIR); skipped otherwise.

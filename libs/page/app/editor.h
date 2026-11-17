@@ -148,6 +148,7 @@ public:
     // to control overtype mode is on (the one setting, edit/insertKey, which JeffWrite uses too); `handleInsertKey` is false when it is not that key, or the setting is off.
     bool overtype() const { return m_overtype; }
     void setOvertype(bool on);
+    void commitText(const QString &t);   // letters typed or committed by an input method: put in, or over the ones after the caret in overtype mode
     bool handleInsertKey(const QKeyEvent *e);
     void syncOvertypeOption();   // the setting changed: off puts the mode back to Insert; the indicator is told either way
     // The words Read Aloud is saying, shown as a search match is (a tint behind them): not the selection, so what is typed is never put over them, and the text cursor stays where it was. The
@@ -473,7 +474,7 @@ private:
     QTimer m_typingTimer;
 };
 
-// The status bar's mode indicator ("Insert" or "Overtype"), shown while the Insert key is let to turn overtype on. Put in the bar, after the words already at its left.
+// The status bar's mode indicator ("Insert" or "Overtype"), shown while the Insert key is let to turn overtype on.
 QLabel *makeOvertypeIndicator(Editor *ed, QStatusBar *bar);
 
 } // namespace jp

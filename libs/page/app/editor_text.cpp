@@ -15,6 +15,7 @@
 #include <QKeyEvent>
 #include <QLabel>
 #include <QRegularExpression>
+#include <QTextBoundaryFinder>
 #include <QStatusBar>
 #include <QTextBlock>
 #include <QTextDocument>
@@ -920,7 +921,7 @@ void Editor::typeText(const QString &t)
     QString s = t;
     // AutoFormat: "* " or "- " starts a bulleted list, "1. " or "1) " a
     // numbered one, at the start of a paragraph.
-    if (s == QLatin1String(" ") && !m_cursor.hasSelection() && !m_cursor.block().textList() && Settings::get().value("proof/autoformat", true).toBool()) {
+    if (!m_overtype && s == QLatin1String(" ") && !m_cursor.hasSelection() && !m_cursor.block().textList() && Settings::get().value("proof/autoformat", true).toBool()) {
         const QTextBlock b = m_cursor.block();
         const QString before = b.text().left(m_cursor.position() - b.position());
         const auto list = autotext::listStart(before);
@@ -941,26 +942,44 @@ void Editor::typeText(const QString &t)
     }
     // Smart quotes: opening after a space, an opening bracket or the start
     // of the paragraph; closing (and apostrophes) otherwise.
-    if ((s == QLatin1String("\"") || s == QLatin1String("'")) && Settings::get().value("proof/smartQuotes", true).toBool()) {
+    if (!m_overtype && (s == QLatin1String("\"") || s == QLatin1String("'")) && Settings::get().value("proof/smartQuotes", true).toBool()) {
         const QTextBlock b = m_cursor.block();
         const int rel = m_cursor.selectionStart() - b.position();
         const QChar before = rel > 0 ? b.text().at(rel - 1) : QChar();
         s = autotext::smartQuote(s, before, typingLanguage());
     }
     // A word ends: fix it before going on.
-    if (s.size() == 1 && (s[0].isSpace() || QStringLiteral(".,;:!?").contains(s[0]))) {
+    if (!m_overtype && s.size() == 1 && (s[0].isSpace() || QStringLiteral(".,;:!?").contains(s[0]))) {
         if (s[0].isSpace()) autoLinkWord();
         autoCorrectWord();
         autoFormatWord();
     }
-    // Overtype: the letters typed take the place of those after the caret, as far as the paragraph goes (the typing is the same undo step as ever).
-    if (m_overtype && !m_cursor.hasSelection()) {
+    commitText(s);
+}
+
+// Overtype: each letter (a whole grapheme: a pair of UTF-16 units, or a letter with its accent) typed takes the place of one after the caret, as far as the paragraph goes, and never an
+// object (a field, a picture): the typing goes before that. The typing is the same undo step as ever.
+void Editor::commitText(const QString &t)
+{
+    if (!isEditingText()) return;
+    if (m_overtype && !m_cursor.hasSelection() && !t.isEmpty()) {
         const QTextBlock b = m_cursor.block();
-        const int room = b.position() + b.length() - 1 - m_cursor.position();
-        const int n = std::min<int>(room, int(s.size()));
-        if (n > 0) m_cursor.setPosition(m_cursor.position() + n, QTextCursor::KeepAnchor);
+        const QString text = b.text();
+        const int from = m_cursor.position() - b.position();
+        int typed = 0;
+        QTextBoundaryFinder in(QTextBoundaryFinder::Grapheme, t);
+        while (in.toNextBoundary() >= 0) ++typed;
+        int end = from;
+        QTextBoundaryFinder after(QTextBoundaryFinder::Grapheme, text);
+        after.setPosition(from);
+        for (int i = 0; i < typed && end < text.size() && text[end] != QChar::ObjectReplacementCharacter; ++i) {
+            const int next = after.toNextBoundary();
+            if (next < 0) break;
+            end = next;
+        }
+        if (end > from) m_cursor.setPosition(b.position() + end, QTextCursor::KeepAnchor);
     }
-    insertText(s);
+    insertText(t);
 }
 
 void Editor::setOvertype(bool on)
@@ -998,7 +1017,7 @@ QLabel *makeOvertypeIndicator(Editor *ed, QStatusBar *bar)
     };
     QObject::connect(ed, &Editor::overtypeChanged, label, refresh);
     refresh();
-    bar->addWidget(label);
+    bar->addPermanentWidget(label);
     return label;
 }
 
