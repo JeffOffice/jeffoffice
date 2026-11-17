@@ -1,3 +1,4 @@
+#include "core/contentcontrolops.h"
 #include "core/fieldops.h"
 #include "core/editops.h"
 #include "core/listpresets.h"
@@ -904,6 +905,15 @@ void insertText(WriteDoc &doc, QTextCursor &c, const QString &typed)
     if ((doc.isSideStory(c.document()) || inEndnoteWords(c)) && (text.contains(flow::kPageBreak) || text.contains(flow::kColumnBreak))) text.remove(flow::kPageBreak).remove(flow::kColumnBreak);
     if (text.isEmpty()) return;
     if (isLocked(c.block()) && !c.hasSelection()) return;
+    // A content control keeps what its lock says; what is typed over a placeholder takes its place, in one step with the typing.
+    std::optional<WriteDoc::StepGroup> controlStep;
+    if (c.document() == doc.story()) {
+        if (!contentControlsAllow(doc, c.document(), c.selectionStart(), c.selectionEnd(), true)) return;
+        if (typingReplacesPlaceholder(doc, c)) {
+            controlStep.emplace(doc);
+            prepareTypingInControl(doc, c);
+        }
+    }
     // (Typing a character changes no number; a selection replaced, or a paragraph made by the text, may.)
     std::optional<NumberGuard> numbers;
     if (c.hasSelection() || text.contains(QLatin1Char('\n')) || text.contains(QLatin1Char('\r')) || text.contains(QChar::ParagraphSeparator)) numbers.emplace(doc, c.document());
@@ -997,6 +1007,7 @@ void insertParagraph(WriteDoc &doc, QTextCursor &c)
     const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c)) return;
     NumberGuard numbers(doc, c.document());
+    if (caretInKnownControl(doc, c) || !contentControlsAllow(doc, c.document(), c.selectionStart(), c.selectionEnd(), true)) return;   // (a content control's two ends stay in one paragraph)
     c.beginEditBlock();
     if (c.hasSelection()) removeSelection(doc, c);
     QTextBlock cur = c.block();
@@ -1165,6 +1176,7 @@ void removeSelection(WriteDoc &doc, QTextCursor &c)
     if (!intoBody(c)) return;
     NumberGuard numbers(doc, c.document());
     if (!c.hasSelection()) return;
+    if (!contentControlsAllow(doc, c.document(), c.selectionStart(), c.selectionEnd(), false)) return;
     const AdvanceGuard advance(c);
     {
         // A selection that begins or ends in a paragraph that shows nothing (a tracked change deleted it) begins or ends where the paragraphs that show do:
@@ -1318,6 +1330,7 @@ void deleteBack(WriteDoc &doc, QTextCursor &c, bool byWord)
         return;
     }
     const int at = visibleBefore(d, c.position());
+    if (at >= 0 && !contentControlsAllow(doc, d, at, at + 1, false)) return;
     if (at >= 0) {
         // (In an edit block: what the edit does to the notes after it joins its undo step, and Qt joins a step only to one that is a block.)
         if (at + 1 == c.position()) {
@@ -1394,6 +1407,7 @@ void deleteForward(WriteDoc &doc, QTextCursor &c, bool byWord)
         return;
     }
     const int at = visibleAfter(d, c.position());
+    if (at >= 0 && !contentControlsAllow(doc, d, at, at + 1, false)) return;
     if (at >= 0) {
         if (at == c.position()) {
             c.beginEditBlock();
@@ -1933,6 +1947,11 @@ void pasteFragment(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment &f
     if (!intoBody(c)) return;
     NumberGuard numbers(doc, c.document());
     if (fragment.isEmpty()) return;
+    if (c.document() == doc.story() && (caretInKnownControl(doc, c) || typingReplacesPlaceholder(doc, c))) {   // (in a content control only the words go in)
+        pasteText(doc, c, plainTextOf(fragment));
+        return;
+    }
+    if (!contentControlsAllow(doc, c.document(), c.selectionStart(), c.selectionEnd(), true)) return;
     int from = 0, to = 0;
     pasteInto(doc, c, fragment, &from, &to, true);
 }
@@ -2018,6 +2037,11 @@ void pasteClip(WriteDoc &doc, QTextCursor &c, const Clip &clip)
         pasteText(doc, c, plainTextOf(clip.fragment));   // (the kept bytes its formats stood for are gone)
         return;
     }
+    if (c.document() == doc.story() && (caretInKnownControl(doc, c) || typingReplacesPlaceholder(doc, c))) {   // (in a content control only the words go in)
+        pasteText(doc, c, plainTextOf(clip.fragment));
+        return;
+    }
+    if (!contentControlsAllow(doc, c.document(), c.selectionStart(), c.selectionEnd(), true)) return;
     c.beginEditBlock();
     int from = 0, to = 0;
     pasteInto(doc, c, clip.fragment, &from, &to, same);
