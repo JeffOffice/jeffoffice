@@ -43,7 +43,7 @@ MiniToolbar::MiniToolbar(QWidget *host, std::unique_ptr<MiniTarget> owned) : QFr
             m_size = new SizeCombo(this);
             m_size->setFocusPolicy(Qt::NoFocus);
             connect(m_size, &SizeCombo::sizeChosen, this, [target](double pt) { target->chooseSize(pt); });
-            top->addWidget(m_font, 1);
+            top->addWidget(m_font, 1, target->alignRows() ? Qt::AlignLeft : Qt::Alignment());   // (an aligned bar starts the font box where its icon rows start)
             top->addWidget(m_size);
             column->addLayout(top);
         } else {

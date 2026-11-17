@@ -414,6 +414,9 @@ void CrunchEditTests::aRightClickOnCellsShowsTheMiniToolbarOverTheMenu()
         auto left = [&](QToolButton *t) { return t->mapTo(bar, QPoint(0, 0)).x(); };
         auto mid = [&](QToolButton *t) { return t->mapTo(bar, QPoint(0, 0)).x() + t->width() / 2; };
         for (const auto &line : lines) QCOMPARE(left(line.first()), left(lines.first().first()));
+        jp::FontCombo *fontBox = bar->findChild<jp::FontCombo *>();
+        QVERIFY(fontBox);
+        QCOMPARE(fontBox->mapTo(bar, QPoint(0, 0)).x(), left(lines.first().first()));   // (the font box starts where the icon rows do)
         QCOMPARE(lines.last().size() >= 5, true);
         for (int i = 0; i < 5; ++i) QVERIFY2(std::abs(mid(lines.first()[i]) - mid(lines.last()[i])) <= 1, qPrintable(QString::number(i)));
     }
