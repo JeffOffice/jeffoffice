@@ -71,7 +71,7 @@ Each command is the same one that is on the ribbon, so it works the same way.
 
 - **Insert > Symbols > Symbol** adds a character that isn't on the keyboard.
 - **Insert > Text > Date and Time** adds the date or the time. See [Slide size, background, and footers](design) for a date on every slide.
-- **Insert > Links > Link** (Ctrl+K) turns the selected text, or the selected object, into a link to a web page, to a place in the presentation, or to an email address. In the slide show, a click on a link opens web pages and email addresses. Other links do nothing yet.
+- **Insert > Links > Link** (Ctrl+K) turns the selected text, or the selected object, into a link. In **Link to**, choose a web address, an email address, a place in the presentation (a slide, the next or previous slide, or the end of the show), an existing file, another presentation, or a new presentation. For a new presentation, type the whole path for it, or press **Browse**. JeffDeck makes an empty presentation there and links to it. It never writes over a file that is already there. In the slide show, a click on a link opens web pages and email addresses. Other links do nothing yet.
 - **Review > Proofing > Spelling** (F7) checks spelling. **Thesaurus** (Shift+F7) looks up other words. **Word Count** counts the words on the slides, and in the selection when you are typing. To check spelling as you type, see [Change JeffDeck's settings](options).
 
 ## Related

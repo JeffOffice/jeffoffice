@@ -1548,14 +1548,6 @@ No se encontraron los ficheros de la Ayuda junto al programa. Volver a instalar 
         <translation type="unfinished">Una página web o un fichero</translation>
     </message>
     <message>
-        <source>Path of the file</source>
-        <translation type="unfinished">Ruta del fichero</translation>
-    </message>
-    <message>
-        <source>Link to File</source>
-        <translation type="unfinished">Vincular a fichero</translation>
-    </message>
-    <message>
         <source>Recent files</source>
         <translation type="unfinished">Ficheros recientes</translation>
     </message>
@@ -1566,6 +1558,17 @@ No se encontraron los ficheros de la Ayuda junto al programa. Volver a instalar 
     <message>
         <source>That kind of address runs a script or carries a page inside itself, and JeffCrunch does not follow it. Use a web page, an e-mail address, or a file.</source>
         <translation type="unfinished">Ese tipo de dirección ejecuta un script o contiene una página en sí misma, y JeffCrunch no la sigue. Use una página web, una dirección de correo electrónico o un fichero.</translation>
+    </message>
+</context>
+<context>
+    <name>jp::LinkTargetPicker</name>
+    <message>
+        <source>Path of the file</source>
+        <translation type="unfinished">Ruta del fichero</translation>
+    </message>
+    <message>
+        <source>Link to File</source>
+        <translation>Vincular a fichero</translation>
     </message>
 </context>
 <context>

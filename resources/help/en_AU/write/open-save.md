@@ -1,5 +1,5 @@
 # Open, save, print, and export
-<!-- keywords: web page, html, save as web page, filtered web page, email, eml, bookmarks, pdf bookmarks, shift+f5, last edit, where you stopped, built-in templates, gallery, letter, report, brief, manuscript, newsletter, open, save, save as, docx, doc, dot, odt, opendocument, rtf, older files, template, dotx, recent, pin, new, close, print, pdf, export, recover, automatic recovery, unsaved, crash, file screen, file formats, save a copy, read-only, read only, open as copy, new window, backup copy, my templates, save as template, ott, repair, open and repair, damaged, password, encrypt, protect with a password -->
+<!-- keywords: e-book, ebook, epub, e-reader, chapters, contents, web page, html, save as web page, filtered web page, email, eml, bookmarks, pdf bookmarks, shift+f5, last edit, where you stopped, built-in templates, gallery, letter, report, brief, manuscript, newsletter, open, save, save as, docx, doc, dot, odt, opendocument, rtf, older files, template, dotx, recent, pin, new, close, print, pdf, export, recover, automatic recovery, unsaved, crash, file screen, file formats, save a copy, read-only, read only, open as copy, new window, backup copy, my templates, save as template, ott, repair, open and repair, damaged, password, encrypt, protect with a password -->
 
 Click **File** at the top left to see the File screen. It has pages for New, Open, Print, and Export, and commands for Save and Save As. Press **Esc** to go back to your document.
 
@@ -96,6 +96,24 @@ Click **File > Export** and choose one of two kinds of web page. A **web page** 
 - **Save as Filtered Web Page** makes a small .html file with only the structure: headings, bold and italic, lists, tables, links, and pictures. It has no fonts, sizes, or colours, so you can give it your own looks later.
 
 Both keep headings, bulleted and numbered lists, tables with joined cells, links, and pictures. Hidden text, the words that a tracked change deleted, comments, headers, footers, and notes are left out. A link that would start a program or run a script is saved as plain words.
+
+## Save as an e-book
+
+An **e-book** is a book you read on an e-reader, a phone, or a tablet. The file is an **EPUB**. The words flow to fit any screen, so the reader can make the letters bigger or smaller.
+
+1. Click **File > Export > Save as E-book (EPUB)**.
+2. Check the **Title** and the **Author**. They start as the title and author in your document's properties (**File > Info**). You can change them for this book only.
+3. Turn on **Use the first picture as the cover** if you want the first picture in your document to be the cover. Without it, the book has no cover.
+4. Click **OK**, then choose where to save the file.
+
+How the book is made:
+
+- Each **Heading 1** starts a new chapter. The words before the first Heading 1 are a chapter of their own.
+- The **contents** list shows every Heading 1, Heading 2, and Heading 3, and a reader can jump to each one. Smaller headings are in the book but not in the contents.
+- Pictures and tables stay where you put them. A picture's alternative text goes with it, so a screen reader can say what it shows.
+- Footnotes and endnotes are set at the end of the chapter they are in. Each note has a link back to the spot in the text, and each number in the text is a link to its note.
+
+A book is held to limits so that a damaged file cannot make a huge one: up to 500 chapters, 4,000 lines in the contents, 1,000 pictures (none over 32 MB), and 20,000 notes. Anything past a limit stays in the last chapter, or becomes plain words, and your words are never dropped: a picture past its limit is its alternative text, and a note past its limit has no looks. A picture a reader can not show (a metafile, a bitmap, or a TIFF) is made into a PNG. Exporting the same saved document again makes the same book, so a reader keeps its place.
 
 ## Protect a PDF with a password
 

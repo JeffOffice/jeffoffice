@@ -1,5 +1,5 @@
 # Change case, sort, and paste in other ways
-<!-- keywords: paste options button, smart cut and paste, spaces when pasting, horizontal line, rule, reveal formatting, style inspector, shift+f1, tabs, tab stops, leader, keep with next, keep lines together, page break before, widow, orphan, outline level, line and page breaks, change case, uppercase, lowercase, sentence case, capitalize, toggle case, shift+f3, sort, sort paragraphs, alphabetical, order, paste, paste special, continue list, new list, merge list, nest table, spreadsheet cells, keep text only, merge formatting, rtf, rich text, formatted text, drop, drag text, unformatted text, picture, clipboard, capitalise -->
+<!-- keywords: paste options button, smart cut and paste, spaces when pasting, horizontal line, rule, reveal formatting, style inspector, shift+f1, tabs, tab stops, bar tab, bar stop, default tab stops, tab distance, leader, keep with next, keep lines together, page break before, widow, orphan, outline level, line and page breaks, change case, uppercase, lowercase, sentence case, capitalize, toggle case, shift+f3, sort, sort paragraphs, alphabetical, order, paste, paste special, continue list, new list, merge list, nest table, spreadsheet cells, keep text only, merge formatting, rtf, rich text, formatted text, drop, drag text, unformatted text, picture, clipboard, capitalise -->
 
 These tools are on the **Home** tab. They work on the text you select.
 
@@ -70,6 +70,10 @@ Click the small button in the corner of the **Paragraph** group to open the **Pa
 - **Outline level** says where the paragraph is in the outline of the document: **Body text**, or a level from 1 to 9.
 
 Click **Tabs** in the box to set tab stops. A tab stop is a place the text jumps to when you press **Tab**. Type its position, choose how the text lines up there (left, centre, right, or decimal), and choose a leader. A leader is the row of dots, dashes, or a line that fills the space before the stop. Click **Set** to add it. To remove one, pick it in the list and click **Clear**. **Clear All** removes them all.
+
+Choose **Bar** to set a bar. A bar does not stop the text. It draws a thin straight line, up and down, at that place on every line of the paragraph. It is a way to put a rule between columns of text. A bar has no leader. The ruler does not show bars. A paragraph keeps up to 64 of them. Not yet: in a paragraph that reads right to left, bars are still measured from the left edge. Set and clear them in the **Tabs** box.
+
+**Default tab stops** is the distance between the stops that a paragraph gets when it has none of its own, and past the last stop it does have. The usual distance is half an inch. This one is for the whole document, not just the paragraph you are in. The new distance applies to every paragraph as soon as you click **OK**.
 
 ## Draw a horizontal line
 

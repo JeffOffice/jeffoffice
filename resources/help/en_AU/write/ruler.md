@@ -26,7 +26,7 @@ The box at the left end of the ruler shows the kind of tab stop a click adds: **
 - Drag a tab stop to move it. Its leader (the dots or line that fill the space before it) goes with it.
 - Drag a tab stop up or down off the ruler to take it away.
 
-A paragraph keeps up to 64 tab stops.
+A paragraph keeps up to 64 tab stops. The ruler shows the stops the text jumps to. Bar stops (a thin line drawn at a place) and the distance of the default stops are set in the **Tabs** box (see [Home tools](home-tools)).
 
 ## Margins
 

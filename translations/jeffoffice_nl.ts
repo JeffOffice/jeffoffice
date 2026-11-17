@@ -2261,7 +2261,7 @@ Artikel achterpagina	4</translation>
 <context>
     <name>DeckDialogs</name>
     <message>
-        <location filename="../apps/deck/app/deckdialogs.cpp" line="+26"/>
+        <location filename="../apps/deck/app/deckdialogs.cpp" line="+31"/>
         <source>Apply</source>
         <translation type="unfinished">Toepassen</translation>
     </message>
@@ -5639,6 +5639,19 @@ Artikel achterpagina	4</translation>
     </message>
 </context>
 <context>
+    <name>EpubExport</name>
+    <message>
+        <location filename="../apps/write/core/epubexport.cpp" line="+195"/>
+        <source>This reference is to the note above.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+28"/>
+        <source>Cancelled.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>EquationDialog</name>
     <message>
         <location filename="../libs/shell/app/equationdialog.cpp" line="+44"/>
@@ -7901,6 +7914,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     </message>
     <message>
         <location line="+1"/>
+        <location filename="../apps/deck/io/odpexport_shape.cpp" line="+211"/>
         <source>Equations are saved as pictures.</source>
         <translation type="unfinished">Vergelijkingen worden opgeslagen als afbeeldingen.</translation>
     </message>
@@ -7966,7 +7980,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <translation type="unfinished">De laatste dia van het weer te geven bereik kan niet worden opgeslagen; de voorstelling loopt door tot het einde.</translation>
     </message>
     <message>
-        <location filename="../apps/deck/io/odpexport_shape.cpp" line="+211"/>
+        <location filename="../apps/deck/io/odpexport_shape.cpp" line="+4"/>
         <source>Text Art is saved as a picture.</source>
         <translation type="unfinished">Tekstopmaak wordt opgeslagen als afbeelding.</translation>
     </message>
@@ -9109,7 +9123,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
 <context>
     <name>PptxExport</name>
     <message>
-        <location filename="../apps/deck/io/pptxexport.cpp" line="+796"/>
+        <location filename="../apps/deck/io/pptxexport.cpp" line="+807"/>
         <source>%1: a table, chart, or other frame that can&apos;t be read was left out.</source>
         <translation type="unfinished">%1: een onleesbare tabel, grafiek of ander kader is weggelaten.</translation>
     </message>
@@ -9149,12 +9163,23 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <translation type="unfinished">%1: de onderdelen van een diagram kunnen niet worden geschreven; het diagram is weggelaten.</translation>
     </message>
     <message>
-        <location line="+68"/>
+        <location line="+83"/>
+        <source>%1: an equation that can&apos;t be drawn was left out.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <location line="+81"/>
         <source>%1: an equation&apos;s picture can&apos;t be written, so it was left out.</source>
         <translation type="unfinished">%1: de afbeelding van een vergelijking kan niet worden geschreven; de vergelijking is weggelaten.</translation>
     </message>
     <message>
-        <location line="+191"/>
+        <location line="-61"/>
+        <source>Equation</source>
+        <translation type="unfinished">Vergelijking</translation>
+    </message>
+    <message>
+        <location line="+255"/>
         <source>%1: the background can&apos;t be saved yet.</source>
         <translation type="unfinished">%1: de achtergrond kan nog niet worden opgeslagen.</translation>
     </message>
@@ -11299,7 +11324,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/deck/app/ribbon_strings.cpp" line="+1"/>
+        <location filename="../apps/deck/app/ribbon_strings.cpp" line="+2"/>
         <source>Cell Margins</source>
         <translation type="unfinished">Celmarges</translation>
     </message>
@@ -12137,7 +12162,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <translation type="unfinished">Snelle werkbalk onder het lint weergeven</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/ribbon_strings.cpp" line="-55"/>
+        <location filename="../apps/deck/app/ribbon_strings.cpp" line="-56"/>
         <source>Accessibility</source>
         <translation type="unfinished">Toegankelijkheid</translation>
     </message>
@@ -12184,7 +12209,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <translation type="unfinished">Achtergrondstijlen</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+4"/>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="+9"/>
         <source>Cell Size</source>
         <translation type="unfinished">Celgrootte</translation>
@@ -12552,7 +12577,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <translation type="unfinished">Randen en arcering</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/ribbon_strings.cpp" line="-141"/>
+        <location filename="../apps/deck/app/ribbon_strings.cpp" line="-142"/>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="-11"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-119"/>
         <source>About</source>
@@ -12577,14 +12602,15 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <translation type="unfinished">Naar voren</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location filename="../apps/deck/app/ribbon_strings.cpp" line="+5"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+1"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+1"/>
         <source>Built-In Equations</source>
         <translation type="unfinished">Ingebouwde vergelijkingen</translation>
     </message>
     <message>
         <location filename="../apps/pub/app/ribbon_strings.cpp" line="+15"/>
-        <location filename="../apps/deck/app/ribbon_strings.cpp" line="+8"/>
+        <location filename="../apps/deck/app/ribbon_strings.cpp" line="+4"/>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="+4"/>
         <source>Change Chart Type</source>
         <translation type="unfinished">Grafiektype wijzigen</translation>
@@ -17274,7 +17300,7 @@ Desktop publishing</translation>
         <translation type="unfinished">(Vervolg van pagina %1)</translation>
     </message>
     <message>
-        <location line="+6499"/>
+        <location line="+6526"/>
         <source>Notes</source>
         <translation>Notities</translation>
     </message>
@@ -18867,7 +18893,7 @@ Desktop publishing</translation>
     </message>
     <message>
         <location filename="../apps/pub/app/backstage.cpp" line="+2"/>
-        <location filename="../apps/write/app/writefilescreen.cpp" line="+647"/>
+        <location filename="../apps/write/app/writefilescreen.cpp" line="+653"/>
         <source>Translate (opens in your browser)</source>
         <translation type="unfinished">Vertalen (wordt geopend in uw browser)</translation>
     </message>
@@ -30654,7 +30680,7 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+1"/>
         <location filename="../apps/deck/app/deckwindow_output.cpp" line="+1"/>
-        <location filename="../apps/deck/app/deckwindow_ribbon.cpp" line="+122"/>
+        <location filename="../apps/deck/app/deckwindow_ribbon.cpp" line="+123"/>
         <source>Outline</source>
         <translation type="unfinished">Overzicht</translation>
     </message>
@@ -30781,7 +30807,7 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Openen</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_actions.cpp" line="+267"/>
+        <location filename="../apps/deck/app/deckwindow_actions.cpp" line="+268"/>
         <location line="+155"/>
         <location filename="../apps/deck/app/deckwindow_design.cpp" line="+164"/>
         <location filename="../apps/deck/app/deckwindow_file.cpp" line="-165"/>
@@ -30904,7 +30930,7 @@ Het bestand kan niet worden gelezen.</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/deck/app/deckwindow_actions.cpp" line="-384"/>
+        <location filename="../apps/deck/app/deckwindow_actions.cpp" line="-385"/>
         <source>Align Left</source>
         <translation type="unfinished">Links uitlijnen</translation>
     </message>
@@ -31318,7 +31344,7 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Niet tonen op titeldia</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="+9"/>
         <source>Standard (4:3)</source>
         <translation type="unfinished">Standaard (4:3)</translation>
     </message>
@@ -34146,7 +34172,7 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Kolommen verdelen</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_actions.cpp" line="-386"/>
+        <location filename="../apps/deck/app/deckwindow_actions.cpp" line="-387"/>
         <location filename="../apps/deck/app/deckwindow_table.cpp" line="+4"/>
         <source>Align Top</source>
         <translation type="unfinished">Boven uitlijnen</translation>
@@ -34686,6 +34712,46 @@ Het bestand kan niet worden gelezen.</translation>
         <location line="+1"/>
         <source>Landscape</source>
         <translation type="unfinished">Liggend</translation>
+    </message>
+    <message>
+        <location filename="../apps/deck/app/deckwindow_equation.cpp" line="+102"/>
+        <source>Equation…</source>
+        <translation type="unfinished">Vergelijking…</translation>
+    </message>
+    <message>
+        <location line="+24"/>
+        <location line="+36"/>
+        <location line="+50"/>
+        <source>This presentation has as many equations as it can hold.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-82"/>
+        <source>An equation can&apos;t be put here.</source>
+        <translation type="unfinished">Hier kan geen vergelijking worden geplaatst.</translation>
+    </message>
+    <message>
+        <location line="+24"/>
+        <source>This equation can&apos;t be changed here.</source>
+        <translation type="unfinished">Deze vergelijking kan hier niet worden gewijzigd.</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <location line="+33"/>
+        <location line="+17"/>
+        <source>Edit Equation</source>
+        <translation type="unfinished">Vergelijking bewerken</translation>
+    </message>
+    <message>
+        <location line="-41"/>
+        <location line="+48"/>
+        <source>This equation can&apos;t be changed.</source>
+        <translation type="unfinished">Deze vergelijking kan niet worden gewijzigd.</translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <source>Insert Equation</source>
+        <translation type="unfinished">Vergelijking invoegen</translation>
     </message>
 </context>
 <context>
@@ -40018,54 +40084,38 @@ Er is geen helponderwerp met de naam &quot;%1&quot;.</translation>
         <translation type="unfinished">Een e-mailadres</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckdialogs.cpp" line="+162"/>
-        <location filename="../apps/crunch/app/anchordialogs.cpp" line="+10"/>
+        <location line="+10"/>
         <location line="+1"/>
         <source>Address</source>
         <translation>Adres</translation>
     </message>
     <message>
-        <location line="-33"/>
+        <location filename="../apps/deck/app/deckdialogs.cpp" line="+129"/>
         <source>Insert Link</source>
         <translation type="unfinished">Hyperlink invoegen</translation>
     </message>
     <message>
-        <location line="+6"/>
-        <source>Web page</source>
-        <translation type="unfinished">Webpagina</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Email address</source>
-        <translation type="unfinished">E-mailadres</translation>
-    </message>
-    <message>
-        <location line="+0"/>
+        <location line="+10"/>
         <source>Place in this presentation</source>
         <translation type="unfinished">Plaatsen in deze presentatie</translation>
     </message>
     <message>
-        <location line="+0"/>
-        <source>File</source>
-        <translation type="unfinished">Bestand</translation>
-    </message>
-    <message>
-        <location line="+0"/>
+        <location line="+24"/>
         <source>Another presentation</source>
         <translation type="unfinished">Andere presentatie</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="-23"/>
         <source>Next slide</source>
         <translation type="unfinished">Volgende dia</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="+0"/>
         <source>Previous slide</source>
         <translation type="unfinished">Vorige dia</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="+0"/>
         <source>First slide</source>
         <translation type="unfinished">Eerste dia</translation>
     </message>
@@ -40075,17 +40125,18 @@ Er is geen helponderwerp met de naam &quot;%1&quot;.</translation>
         <translation type="unfinished">Laatste dia</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="+0"/>
         <source>Last slide viewed</source>
         <translation type="unfinished">Laatst bekeken dia</translation>
     </message>
     <message>
         <location line="+1"/>
+        <location line="+16"/>
         <source>Slide %1</source>
         <translation type="unfinished">Dia %1</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="-13"/>
         <source>Custom show: %1</source>
         <translation type="unfinished">Aangepaste diavoorstelling: %1</translation>
     </message>
@@ -40100,47 +40151,37 @@ Er is geen helponderwerp met de naam &quot;%1&quot;.</translation>
         <translation type="unfinished">Diavoorstelling beëindigen</translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>Link to</source>
-        <translation>Koppelen aan</translation>
+        <location line="+10"/>
+        <source>Current link: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Presentations (*.pptx *.ppsx *.pptm *.ppsm *.ppt *.pps *.odp)</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+1"/>
+        <source>Presentations (*.pptx)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>The new presentation could not be written there.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-35"/>
         <source>Text to display</source>
         <translation>Weer te geven tekst</translation>
     </message>
     <message>
-        <location line="+10"/>
+        <location line="+4"/>
         <source>Place</source>
         <translation>Plaats</translation>
     </message>
     <message>
-        <location line="-4"/>
-        <source>Browse…</source>
-        <translation type="unfinished">Bladeren…</translation>
-    </message>
-    <message>
-        <location line="+27"/>
-        <source>name@example.com</source>
-        <translation type="unfinished">name@example.com</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Path of the file</source>
-        <translation type="unfinished">Pad van het bestand</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>Path of the presentation</source>
-        <translation type="unfinished">Pad van de presentatie</translation>
-    </message>
-    <message>
-        <location line="+6"/>
-        <source>Link to File</source>
-        <translation type="unfinished">Naar bestand koppelen</translation>
-    </message>
-    <message>
-        <location line="+4"/>
+        <location line="+58"/>
         <source>Remove Link</source>
         <translation type="unfinished">Koppeling verwijderen</translation>
     </message>
@@ -40224,6 +40265,121 @@ Er is geen helponderwerp met de naam &quot;%1&quot;.</translation>
         <location line="+9"/>
         <source>That address is too long for a link.</source>
         <translation type="unfinished">Dat adres is te lang voor een koppeling.</translation>
+    </message>
+</context>
+<context>
+    <name>jp::LinkTargetPicker</name>
+    <message>
+        <location filename="../libs/shell/app/linktargetpicker.cpp" line="+29"/>
+        <source>Web address</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location line="+159"/>
+        <source>Email address</source>
+        <translation type="unfinished">E-mailadres</translation>
+    </message>
+    <message>
+        <location line="-158"/>
+        <source>Place in this document</source>
+        <translation type="unfinished">Plaats in dit document</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Existing file</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Link to</source>
+        <translation type="unfinished">Koppelen aan</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Browse…</source>
+        <translation type="unfinished">Bladeren…</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <location line="+157"/>
+        <source>Address</source>
+        <translation type="unfinished">Adres</translation>
+    </message>
+    <message>
+        <location line="-151"/>
+        <source>Place</source>
+        <translation type="unfinished">Plaats</translation>
+    </message>
+    <message>
+        <location line="+42"/>
+        <source>Showing the first %1 places.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <source>New document</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+45"/>
+        <source>Choose where the new document goes: type its whole path on this computer, or press Browse.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>A new document here ends with %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>A file with that name is already there. Choose another name.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The folder for the new document is not there.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>The new document could not be made.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+24"/>
+        <source>name@example.com</source>
+        <translation>name@example.com</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>File</source>
+        <translation type="unfinished">Bestand</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Path of the file</source>
+        <translation type="unfinished">Pad van het bestand</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Save as</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Path of the new document</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>New Document</source>
+        <translation type="unfinished">Nieuw document</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Link to File</source>
+        <translation>Naar bestand koppelen</translation>
     </message>
 </context>
 <context>
@@ -49220,13 +49376,18 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Er is geen eerdere dia om naar terug te gaan.</translation>
     </message>
     <message>
-        <location line="+11"/>
+        <location line="+17"/>
         <source>This link opens a program, so it was not opened.</source>
         <translation type="unfinished">Deze koppeling opent een programma, dus is deze niet geopend.</translation>
     </message>
     <message>
+        <location line="+0"/>
+        <source>This link goes to a file that is not opened from a link, so it was not opened.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location line="+2"/>
-        <location line="+19"/>
+        <location line="+15"/>
         <location line="+122"/>
         <source>Open Link</source>
         <translation type="unfinished">Koppeling openen</translation>
@@ -49360,7 +49521,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
 <context>
     <name>jp::SlideSizeDialog</name>
     <message>
-        <location filename="../apps/deck/app/deckdialogs.cpp" line="+190"/>
+        <location filename="../apps/deck/app/deckdialogs.cpp" line="+204"/>
         <source>Slide Size</source>
         <translation type="unfinished">Diaformaat</translation>
     </message>
@@ -51746,7 +51907,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
 <context>
     <name>jp::WriteFileScreen</name>
     <message>
-        <location filename="../apps/write/app/writefilescreen.cpp" line="-538"/>
+        <location filename="../apps/write/app/writefilescreen.cpp" line="-544"/>
         <source>Back to document</source>
         <translation type="unfinished">Terug naar document</translation>
     </message>
@@ -51936,12 +52097,22 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation>Zoomen</translation>
     </message>
     <message>
-        <location line="+205"/>
+        <location line="+189"/>
+        <source>Save as E-book (EPUB)</source>
+        <translation type="unfinished">Opslaan als e-book (EPUB)</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>A book for e-readers and stores, with a chapter at each Heading 1, the contents, and the notes at the end of each chapter.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+22"/>
         <source>Saved as the name on your comments and tracked changes, and as who last changed a document.</source>
         <translation type="unfinished">Wordt opgeslagen als de naam bij uw opmerkingen en bijgehouden wijzigingen, en als wie een document het laatst heeft gewijzigd.</translation>
     </message>
     <message>
-        <location line="-308"/>
+        <location line="-314"/>
         <source>Print each copy of the whole document in turn (1, 2, 3, 1, 2, 3), not each page&apos;s copies together (1, 1, 2, 2, 3, 3).</source>
         <translation type="unfinished">Elk exemplaar van het hele document na elkaar afdrukken (1, 2, 3, 1, 2, 3), niet de exemplaren van elke pagina samen (1, 1, 2, 2, 3, 3).</translation>
     </message>
@@ -52167,7 +52338,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Een klein .html-bestand met alleen de structuur: koppen, lijsten, tabellen, koppelingen en afbeeldingen. De stijlen kiest u later.</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+13"/>
         <source>Make an Email</source>
         <translation type="unfinished">E-mail maken</translation>
     </message>
@@ -54741,8 +54912,8 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="-186"/>
         <location line="+116"/>
-        <location filename="../apps/write/app/writewindow_output.cpp" line="+458"/>
-        <location line="+336"/>
+        <location filename="../apps/write/app/writewindow_output.cpp" line="+461"/>
+        <location line="+414"/>
         <source>%1 couldn&apos;t save &quot;%2&quot;.
 %3%4</source>
         <translation type="unfinished">%1 kan &quot;%2&quot; niet opslaan.
@@ -54915,7 +55086,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Feedback</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_output.cpp" line="-599"/>
+        <location filename="../apps/write/app/writewindow_output.cpp" line="-677"/>
         <source>PDF (*.pdf)</source>
         <translation type="unfinished">PDF (*.pdf)</translation>
     </message>
@@ -54973,35 +55144,37 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <location line="+34"/>
         <location line="+91"/>
         <location line="+19"/>
+        <location line="+54"/>
         <source>%1 couldn&apos;t export &quot;%2&quot;.
 %3%4</source>
         <translation type="unfinished">%1 kan &quot;%2&quot; niet exporteren.
 %3%4</translation>
     </message>
     <message>
-        <location line="-107"/>
+        <location line="-161"/>
         <location line="+92"/>
         <location line="+18"/>
+        <location line="+54"/>
         <source>Exported %1</source>
         <translation type="unfinished">%1 geëxporteerd</translation>
     </message>
     <message>
         <location filename="../apps/write/app/writewindow_file.cpp" line="-291"/>
-        <location filename="../apps/write/app/writewindow_output.cpp" line="-22"/>
+        <location filename="../apps/write/app/writewindow_output.cpp" line="-76"/>
         <location line="+3"/>
-        <location line="+152"/>
+        <location line="+230"/>
         <location line="+7"/>
         <source>Save as Plain Text</source>
         <translation type="unfinished">Opslaan als platte tekst</translation>
     </message>
     <message>
         <location line="+56"/>
-        <location filename="../apps/write/app/writewindow_output.cpp" line="-159"/>
+        <location filename="../apps/write/app/writewindow_output.cpp" line="-237"/>
         <source>Some characters couldn&apos;t be saved in this encoding (%1 in all). They were saved as question marks.</source>
         <translation type="unfinished">Sommige tekens konden in deze codering niet worden opgeslagen (%1 in totaal). Ze zijn opgeslagen als vraagtekens.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_output.cpp" line="+89"/>
+        <location filename="../apps/write/app/writewindow_output.cpp" line="+167"/>
         <source>Unicode (UTF-8)</source>
         <translation type="unfinished">Unicode (UTF-8)</translation>
     </message>
@@ -55062,7 +55235,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation>Afdrukken</translation>
     </message>
     <message>
-        <location line="-492"/>
+        <location line="-570"/>
         <source>Pages to include</source>
         <translation>Pagina&apos;s om op te nemen</translation>
     </message>
@@ -55199,7 +55372,39 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Webpagina (*.html *.htm)</translation>
     </message>
     <message>
-        <location line="+14"/>
+        <location line="+12"/>
+        <location line="+44"/>
+        <location line="+25"/>
+        <source>Save as E-book</source>
+        <translation type="unfinished">Opslaan als e-book</translation>
+    </message>
+    <message>
+        <location line="-61"/>
+        <source>Making the e-book...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <source>The document could not be made into an e-book.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>Makes an EPUB book that readers and stores open. Each Heading 1 starts a new chapter, and the contents list Heading 1 to Heading 3.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>Use the first picture as the cover</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>E-book (*.epub)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
         <source>Make an Email</source>
         <translation type="unfinished">E-mail maken</translation>
     </message>
@@ -56112,11 +56317,13 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     </message>
     <message>
         <location line="+30"/>
+        <location filename="../apps/write/app/writewindow_output.cpp" line="-302"/>
         <source>Author</source>
         <translation>Auteur</translation>
     </message>
     <message>
         <location line="+0"/>
+        <location filename="../apps/write/app/writewindow_output.cpp" line="-3"/>
         <source>Title</source>
         <translation>Titel</translation>
     </message>
@@ -57250,13 +57457,14 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Streepjescode uit veld</translation>
     </message>
     <message>
+        <location filename="../apps/write/app/writewindow_output.cpp" line="-45"/>
         <location filename="../apps/write/app/writewindow_protect.cpp" line="+0"/>
         <location line="+55"/>
         <source>Cancel</source>
         <translation type="unfinished">Annuleren</translation>
     </message>
     <message>
-        <location line="-34"/>
+        <location filename="../apps/write/app/writewindow_protect.cpp" line="-34"/>
         <source>Change Tracking Options…</source>
         <translation type="unfinished">Opties voor wijzigingen bijhouden…</translation>
     </message>
@@ -67748,7 +67956,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
 <context>
     <name>jp::office::wml</name>
     <message>
-        <location filename="../libs/office/wml/wmlread.cpp" line="+442"/>
+        <location filename="../libs/office/wml/wmlread.cpp" line="+444"/>
         <source>[picture]</source>
         <translation type="unfinished">[afbeelding]</translation>
     </message>
@@ -68172,15 +68380,15 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
 <context>
     <name>jp::write::Dialogs</name>
     <message>
-        <location filename="../apps/write/app/writedialogs.cpp" line="+722"/>
+        <location filename="../apps/write/app/writedialogs.cpp" line="+762"/>
         <source>Paragraph</source>
         <translation type="unfinished">Alinea</translation>
     </message>
     <message>
         <location filename="../apps/write/app/pagesetupdialog.cpp" line="+84"/>
         <location line="+31"/>
-        <location filename="../apps/write/app/writedialogs.cpp" line="-82"/>
-        <location line="+89"/>
+        <location filename="../apps/write/app/writedialogs.cpp" line="-102"/>
+        <location line="+109"/>
         <source>Left</source>
         <translation>Links</translation>
     </message>
@@ -68192,8 +68400,8 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location filename="../apps/write/app/pagesetupdialog.cpp" line="-30"/>
         <location line="+31"/>
-        <location filename="../apps/write/app/writedialogs.cpp" line="-88"/>
-        <location line="+89"/>
+        <location filename="../apps/write/app/writedialogs.cpp" line="-108"/>
+        <location line="+109"/>
         <source>Right</source>
         <translation>Rechts</translation>
     </message>
@@ -68203,13 +68411,13 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Uitgevuld</translation>
     </message>
     <message>
-        <location line="-606"/>
-        <location line="+619"/>
+        <location line="-645"/>
+        <location line="+658"/>
         <source>(none)</source>
         <translation type="unfinished">(geen)</translation>
     </message>
     <message>
-        <location line="-320"/>
+        <location line="-357"/>
         <source>Spacing</source>
         <translation>Afstand</translation>
     </message>
@@ -68225,12 +68433,12 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation>Positie</translation>
     </message>
     <message>
-        <location line="+71"/>
+        <location line="+81"/>
         <source>the font, size, and look chosen here</source>
         <translation type="unfinished">het hier gekozen lettertype, de grootte en de stijl</translation>
     </message>
     <message>
-        <location line="+161"/>
+        <location line="+169"/>
         <source>Tab stop position</source>
         <translation>Positie van tabstop</translation>
     </message>
@@ -68241,17 +68449,17 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+72"/>
+        <location line="+91"/>
         <source>Alignment</source>
         <translation>Uitlijning</translation>
     </message>
     <message>
-        <location line="-71"/>
+        <location line="-90"/>
         <source>Leader</source>
         <translation>Opvulteken</translation>
     </message>
     <message>
-        <location line="+81"/>
+        <location line="+100"/>
         <source>First line</source>
         <translation>Eerste regel</translation>
     </message>
@@ -68261,8 +68469,8 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Verkeerd om</translation>
     </message>
     <message>
-        <location line="-618"/>
-        <location line="+638"/>
+        <location line="-657"/>
+        <location line="+677"/>
         <source>Single</source>
         <translation type="unfinished">Enkel</translation>
     </message>
@@ -68272,13 +68480,13 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">1,5 regel</translation>
     </message>
     <message>
-        <location line="-636"/>
-        <location line="+636"/>
+        <location line="-675"/>
+        <location line="+675"/>
         <source>Double</source>
         <translation type="unfinished">Dubbel</translation>
     </message>
     <message>
-        <location line="-637"/>
+        <location line="-676"/>
         <source>Words only</source>
         <translation type="unfinished">Alleen woorden</translation>
     </message>
@@ -68430,17 +68638,52 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Tekenafstand</translation>
     </message>
     <message>
-        <location line="+33"/>
+        <location line="+35"/>
         <source>Kerning for fonts of this size and above</source>
         <translation>Tekenspatiëring voor lettertypen van deze grootte en groter</translation>
     </message>
     <message>
-        <location line="+56"/>
+        <location line="+24"/>
+        <source>%</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Scale</source>
+        <translation type="unfinished">Schaal</translation>
+    </message>
+    <message>
+        <location line="+39"/>
         <source>AaBbYyZz fi ffl 0123456789</source>
         <translation type="unfinished">AaBbYyZz fi ffl 0123456789</translation>
     </message>
     <message>
-        <location line="+319"/>
+        <location line="+179"/>
+        <source>Bar</source>
+        <translation type="unfinished">Staaf</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>bar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>%1, %2%3</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>Default tab stops</source>
+        <translation type="unfinished">Standaardtabstops</translation>
+    </message>
+    <message>
+        <location line="+33"/>
+        <source>A paragraph keeps up to 64 bar stops.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+107"/>
         <source>Line spacing</source>
         <translation>Regelafstand</translation>
     </message>
@@ -68456,17 +68699,18 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     </message>
     <message>
         <location filename="../apps/write/app/pagesetupdialog.cpp" line="-17"/>
-        <location filename="../apps/write/app/writedialogs.cpp" line="-559"/>
+        <location filename="../apps/write/app/writedialogs.cpp" line="-596"/>
         <source>Normal</source>
         <translation type="unfinished">Normaal</translation>
     </message>
     <message>
         <location filename="../apps/write/app/writedialogs.cpp" line="+2"/>
+        <location line="+45"/>
         <source>(mixed)</source>
         <translation type="unfinished">(gemengd)</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="-37"/>
         <source>Expanded</source>
         <translation type="unfinished">Uitgebreid</translation>
     </message>
@@ -68493,7 +68737,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Verlaagd</translation>
     </message>
     <message>
-        <location line="+42"/>
+        <location line="+52"/>
         <location line="+20"/>
         <source>AaBbYyZz</source>
         <translation type="unfinished">AaBbYyZz</translation>
@@ -68506,12 +68750,12 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location filename="../apps/write/app/pagesetupdialog.cpp" line="+122"/>
         <location filename="../apps/write/app/writedialogs.cpp" line="+39"/>
-        <location line="+347"/>
+        <location line="+374"/>
         <source>Set as Default…</source>
         <translation type="unfinished">Instellen als standaard…</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writedialogs.cpp" line="-209"/>
+        <location filename="../apps/write/app/writedialogs.cpp" line="-229"/>
         <source>Tabs</source>
         <translation type="unfinished">Tabs</translation>
     </message>
@@ -68526,7 +68770,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Decimaal</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+4"/>
         <source>None</source>
         <translation type="unfinished">Geen</translation>
     </message>
@@ -68567,16 +68811,11 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     </message>
     <message>
         <location line="+2"/>
-        <source>%1 pt, %2%3</source>
-        <translation type="unfinished">%1 pt, %2%3</translation>
-    </message>
-    <message>
-        <location line="+0"/>
         <source>, with a leader</source>
         <translation type="unfinished">, met opvulteken</translation>
     </message>
     <message>
-        <location line="+14"/>
+        <location line="+20"/>
         <source>Set</source>
         <translation type="unfinished">Instellen</translation>
     </message>
@@ -68591,7 +68830,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Alles wissen</translation>
     </message>
     <message>
-        <location line="+77"/>
+        <location line="+90"/>
         <source>Indentation, left</source>
         <translation>Inspringing, links</translation>
     </message>
@@ -70564,7 +70803,13 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
 <context>
     <name>jp::write::Hyperlinks</name>
     <message>
-        <location filename="../apps/write/core/linkops.cpp" line="+101"/>
+        <location filename="../apps/write/core/linkops.cpp" line="+119"/>
+        <location line="+221"/>
+        <source>That heading is no longer in this document.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-216"/>
         <source>There is no bookmark with that name in this document.</source>
         <translation type="unfinished">Er is geen bladwijzer met die naam in dit document.</translation>
     </message>
@@ -70575,11 +70820,11 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>That is not a web or email address.</source>
-        <translation type="unfinished">Dat is geen web- of e-mailadres.</translation>
+        <source>That is not a web address, an email address, or a file on this computer.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+191"/>
+        <location line="+258"/>
         <source>A link goes in the text, not in a header, a footer, or a note.</source>
         <translation type="unfinished">Een koppeling hoort in de tekst, niet in een koptekst, voettekst of noot.</translation>
     </message>
@@ -71243,7 +71488,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
 <context>
     <name>jp::write::LinkDialog</name>
     <message>
-        <location filename="../apps/write/app/linkdialog.cpp" line="+47"/>
+        <location filename="../apps/write/app/linkdialog.cpp" line="+49"/>
         <source>Edit Hyperlink</source>
         <translation type="unfinished">Hyperlink bewerken</translation>
     </message>
@@ -71253,37 +71498,44 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Hyperlink invoegen</translation>
     </message>
     <message>
-        <location line="+2"/>
-        <source>Web or email address</source>
-        <translation type="unfinished">Webadres of e-mailadres</translation>
-    </message>
-    <message>
-        <location line="+2"/>
+        <location line="+10"/>
         <source>Place in this document</source>
         <translation type="unfinished">Plaats in dit document</translation>
     </message>
     <message>
-        <location line="+12"/>
-        <source>https://example.com</source>
-        <translation type="unfinished">https://example.com</translation>
-    </message>
-    <message>
-        <location line="+8"/>
+        <location line="-3"/>
         <source>Text to display</source>
         <translation>Weer te geven tekst</translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>Address</source>
-        <translation>Adres</translation>
+        <location line="+3"/>
+        <source>Place</source>
+        <translation type="unfinished">Plaats</translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>Bookmark</source>
-        <translation>Bladwijzer</translation>
+        <location line="+7"/>
+        <location line="+14"/>
+        <source>Heading: %1</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="-10"/>
+        <location line="+6"/>
+        <source>Bookmark: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Documents (*.docx *.odt)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>The new document could not be written there.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+22"/>
         <source>Screen tip</source>
         <translation>Schermtip</translation>
     </message>
@@ -71293,7 +71545,17 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Koppeling verwijderen</translation>
     </message>
     <message>
-        <location line="+28"/>
+        <location line="+21"/>
+        <source>Choose a place for the link to go to.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Type the whole path of a file on this computer, or press Browse. A link can&apos;t go to a program.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
         <source>Type an address for the link to go to.</source>
         <translation type="unfinished">Typ een adres waarnaar de koppeling moet verwijzen.</translation>
     </message>
@@ -71858,8 +72120,8 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     </message>
     <message>
         <location line="+418"/>
-        <source>JeffWrite only follows links to web and email addresses.</source>
-        <translation type="unfinished">JeffWrite volgt alleen koppelingen naar webadressen en e-mailadressen.</translation>
+        <source>JeffWrite opens links to web addresses, email addresses, and documents or pictures on this computer only.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../apps/write/app/pageview_pictures.cpp" line="+112"/>
@@ -72207,7 +72469,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">De marges, inspringingen en tabstops van de alinea waarin de cursor staat. Sleep een markering om deze te wijzigen.</translation>
     </message>
     <message>
-        <location line="+287"/>
+        <location line="+288"/>
         <source>First line indent</source>
         <translation>Inspringing eerste regel</translation>
     </message>
@@ -72894,7 +73156,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">De tekst van het document kan niet worden gelezen.</translation>
     </message>
     <message>
-        <location line="+636"/>
+        <location line="+643"/>
         <source>columns of different widths (saved as equal ones)</source>
         <translation type="unfinished">kolommen met verschillende breedten (opgeslagen als gelijke kolommen)</translation>
     </message>

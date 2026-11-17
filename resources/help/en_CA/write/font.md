@@ -1,5 +1,5 @@
 # Change how text looks
-<!-- keywords: mini toolbar, floating toolbar, character spacing, expanded, condensed, raised, lowered, position, kerning, set as default, default font, font, font box, font dialog, typeface, size, style, bold, italic, color, underline, underline color, strikethrough, double strikethrough, superscript, subscript, small caps, all caps, hidden, hidden text, effects, preview, ctrl+d, character formatting, character shading, shading, character border, border, box around letters, colour, underline colour -->
+<!-- keywords: mini toolbar, floating toolbar, character spacing, expanded, condensed, raised, lowered, position, kerning, scale, scaling, character scaling, wider, narrower, stretch, set as default, default font, font, font box, font dialog, typeface, size, style, bold, italic, color, underline, underline color, strikethrough, double strikethrough, superscript, subscript, small caps, all caps, hidden, hidden text, effects, preview, ctrl+d, character formatting, character shading, shading, character border, border, box around letters, colour, underline colour -->
 
 The **Home > Font** group has buttons for the common changes: font, size, bold, italic, and so on. The **Font** box has all of them in one place, and a few more.
 
@@ -49,6 +49,7 @@ The **Character spacing** part of the box changes the room between letters.
 - **Spacing** can be **Expanded** (letters farther apart) or **Condensed** (closer together). **By** says how many points.
 - **Position** can be **Raised** or **Lowered**. This moves the letters up or down from the line, by that many points, without making them smaller.
 - **Kerning** pulls pairs of letters such as A and V closer so that the gap looks even. Check the box and give the smallest size, in points, at which to do it.
+- **Scale** makes the letters wider or narrower without changing their height. It is a percent of their normal width: 100% is normal, 200% is twice as wide, and 50% is half as wide. It can be from 1% to 600%. Unlike **Spacing**, it stretches the letters themselves, not the gaps between them. Scaled letters print and save to a PDF as you see them.
 
 ## Make the choices the default
 

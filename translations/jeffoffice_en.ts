@@ -467,7 +467,7 @@
 <context>
     <name>jp::office::wml</name>
     <message numerus="yes">
-        <location filename="../libs/office/wml/wmlread.cpp" line="+1578"/>
+        <location filename="../libs/office/wml/wmlread.cpp" line="+1580"/>
         <source>%n part or link of the file had a name that could not be used, and was left out.</source>
         <translation>
             <numerusform>%n part or link of the file had a name that could not be used, and was left out.</numerusform>
