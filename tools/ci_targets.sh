@@ -22,6 +22,9 @@
 #           1/2: crunchtests:1/2 785, writetests 576, jdtests 450, officetests 72, wmltests, odttests, writeodttests 15: 1898
 #           2/2: crunchtests:2/2 547, jptests 629 (moved here from 1/2 on Nov 17), flowtests 344 (moved here Nov 17; 204-687), sheettests 256,
 #                the small write tests 100: 1876 (before the move 1/2 summed ~3200 and its Test step took 16 min, 2/2 ~950 and 9 min)
+#           Nov 17 run 44116676147 (first with that split): 1/2 Test 7 min, 2/2 21 min. Four heavy programs at once on 4 processors slowed each
+#           other (sheettests 256 -> 867 s, CrunchHostileTests 194 -> 838 s; both unchanged at 6 s locally), so flowtests went back to 1/2:
+#           three heavy programs a job (1/2: crunch part 1, flowtests, writetests, jdtests; 2/2: crunch part 2, jptests, sheettests).
 #           (the two parts of crunchtests are dealt equal by the weights in tools/ci_tests.sh and are not: the weights are stale, and each
 #           run prints the seconds of the slowest classes to set them again)
 # checks: the four app-check programs of the App checks step; the four apps (the PDF check, the screenshots of the packages, the
@@ -40,9 +43,9 @@ case "$part/$shard" in
 tests/)
     runs="flowtests crunchtests jdtests writetests writereviewtests writeinfotests writehometests writeinserttests sheettests jptests officetests wmltests odttests writeodttests writerefstests writemailtests writefieldtests" ;;
 tests/1/2)
-    runs="crunchtests:1/2 writetests jdtests officetests wmltests odttests writeodttests" ;;
+    runs="crunchtests:1/2 flowtests writetests jdtests officetests wmltests odttests writeodttests" ;;
 tests/2/2)
-    runs="crunchtests:2/2 jptests flowtests sheettests writereviewtests writeinfotests writehometests writeinserttests writerefstests writemailtests writefieldtests" ;;
+    runs="crunchtests:2/2 jptests sheettests writereviewtests writeinfotests writehometests writeinserttests writerefstests writemailtests writefieldtests" ;;
 checks/)
     runs="crunchchecks writechecks pubchecks deckchecks"
     extra="jeffpub jeffdeck jeffwrite jeffcrunch jpubtool jdecktool" ;;
