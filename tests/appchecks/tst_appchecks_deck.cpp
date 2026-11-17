@@ -372,6 +372,10 @@ private Q_SLOTS:
             {QStringLiteral("review.wordCount"), QStringLiteral("it tells the counts in a message and changes nothing")},
         };
         m_app.neverRun = {{QStringLiteral("pagemaster.close"), QStringLiteral("it closes the Notes Master or Handout Master view, and waits until one is open (the window tests open them)")}};
+        // The Effect Options of the newer transitions are on only while the slide has that transition (the checks use Push, Zoom, and Morph); the transition tests choose each.
+        for (const char *id : {"transition.dir.h", "transition.dir.v", "transition.dir.ru", "transition.dir.lu", "transition.dir.rd", "transition.dir.ld", "transition.by.1", "transition.by.2",
+                               "transition.by.3", "transition.by.4", "transition.by.8", "transition.by.circle", "transition.by.diamond", "transition.by.plus"})
+            m_app.neverRun.insert(QString::fromLatin1(id), QStringLiteral("it is on only while the slide has a transition with that option, and the transition tests choose each"));
     }
 
     // ---- 1. the first five minutes
