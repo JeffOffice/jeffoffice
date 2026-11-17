@@ -53,7 +53,8 @@ have=$(cd "$P/share/jeffoffice/dict" 2>/dev/null && find . -type f | sed 's|^\./
 # Help is one file (help.rcc), never a folder of loose files; the fonts are a folder with their licenses
 [ -s "$P/share/jeffoffice/help.rcc" ] || note "help.rcc was not installed"
 [ ! -e "$P/share/jeffoffice/help" ] || note "a help folder of loose files was installed ($(find "$P/share/jeffoffice/help" -type f | wc -l) files)"
-for f in OFL.txt Apache-2.0.txt GUST-FONT-LICENSE.txt Arimo-Regular.ttf; do [ -s "$P/share/jeffoffice/fonts/$f" ] || note "fonts/$f was not installed"; done
+# (every license text and the README of the sources' fonts folder goes along with the fonts: the OFL asks for it)
+for f in $(cd "$src/resources/fonts" && ls *.txt README.md) Arimo-Regular.ttf; do [ -s "$P/share/jeffoffice/fonts/$f" ] || note "fonts/$f was not installed"; done
 want=$(printf '%s\n' dict fonts help.rcc i18n data.stamp manifest.txt | sort)
 have=$(ls -A "$P/share/jeffoffice" | sort)
 [ "$want" = "$have" ] || note "share/jeffoffice holds: $(echo $have)"
