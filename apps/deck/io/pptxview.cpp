@@ -44,8 +44,8 @@ void readViewProperties(const QDomElement &viewPr, Document &doc)
     const QDomElement spacing = pChild(viewPr, "gridSpacing");
     bool ok = false;
     const double cx = spacing.attribute(QStringLiteral("cx")).toDouble(&ok);
-    // (the spacing every file has written, a twelfth of an inch, is the program's own)
-    if (ok && std::isfinite(cx) && cx > 0 && std::abs(cx - 76200) > 0.5) g.spacing = cx / kEmuPerPoint;
+    // (a file with no gridSpacing leaves the spacing to the program; one that has it, whatever the number, sets it)
+    if (ok && std::isfinite(cx) && cx > 0) g.spacing = cx / kEmuPerPoint;
     setGridView(doc, g);
 
     RulerGuides guides;
@@ -60,6 +60,8 @@ void readViewProperties(const QDomElement &viewPr, Document &doc)
         (e.attribute(QStringLiteral("orient")) == QLatin1String("horz") ? guides.h : guides.v) << pos / kGuideUnit;
     }
     fitGuides(guides, doc.pageSize());
+    if (guides.h.size() > kMaxGuidesPerAxis) guides.h.resize(kMaxGuidesPerAxis);
+    if (guides.v.size() > kMaxGuidesPerAxis) guides.v.resize(kMaxGuidesPerAxis);
     doc.viewGuides = guides;
 }
 
@@ -73,21 +75,22 @@ QString viewPropertiesXml(const Document &doc, const QString &namespaces)
     flag("showGuides", g.showGuides);
     flag("snapToGrid", g.snapGrid);
     flag("snapToObjects", g.snapObjects);
-    RulerGuides guides = doc.viewGuides;
-    fitGuides(guides, doc.pageSize());
+    const RulerGuides &guides = doc.viewGuides;
     QString list;
     auto add = [&](const QVector<double> &v, const char *orient) {
         for (double pos : v) {
+            if (!std::isfinite(pos)) continue;
             list += QStringLiteral("<p:guide%1 pos=\"%2\"/>").arg(orient ? QStringLiteral(" orient=\"%1\"").arg(QLatin1String(orient)) : QString()).arg(qint64(std::llround(pos * kGuideUnit)));
         }
     };
     add(guides.h, "horz");
     add(guides.v, nullptr);
-    const qint64 spacing = g.spacing ? std::max<qint64>(1, std::llround(*g.spacing * kEmuPerPoint)) : 76200;
+    // (no spacing set: no gridSpacing element, which the schema allows; a set one is always written, the twelfth of an inch too)
+    const QString spacing = g.spacing ? QStringLiteral("<p:gridSpacing cx=\"%1\" cy=\"%1\"/>").arg(std::max<qint64>(1, std::llround(*g.spacing * kEmuPerPoint))) : QString();
     return QStringLiteral("<p:viewPr%1><p:normalViewPr><p:restoredLeft sz=\"15620\"/><p:restoredTop sz=\"94660\"/></p:normalViewPr><p:slideViewPr><p:cSldViewPr%2><p:cViewPr varScale=\"1\">"
                           "<p:scale><a:sx n=\"100\" d=\"100\"/><a:sy n=\"100\" d=\"100\"/></p:scale><p:origin x=\"0\" y=\"0\"/></p:cViewPr>%3</p:cSldViewPr></p:slideViewPr>"
                           "<p:notesTextViewPr><p:cViewPr><p:scale><a:sx n=\"1\" d=\"1\"/><a:sy n=\"1\" d=\"1\"/></p:scale><p:origin x=\"0\" y=\"0\"/></p:cViewPr></p:notesTextViewPr>"
-                          "<p:gridSpacing cx=\"%4\" cy=\"%4\"/></p:viewPr>")
+                          "%4</p:viewPr>")
         .arg(namespaces, attrs, list.isEmpty() ? QStringLiteral("<p:guideLst/>") : QStringLiteral("<p:guideLst>%1</p:guideLst>").arg(list)).arg(spacing);
 }
 

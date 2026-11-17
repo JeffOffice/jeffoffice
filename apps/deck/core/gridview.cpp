@@ -16,9 +16,8 @@ void fitList(QVector<double> &list, double limit)
 {
     QVector<double> out;
     for (double v : std::as_const(list)) {
-        if (out.size() >= kMaxGuidesPerAxis) break;
         if (!std::isfinite(v)) continue;
-        v = std::clamp(v, 0.0, std::max(0.0, limit));
+        v = std::clamp(v, -std::max(0.0, limit), 2 * std::max(0.0, limit));
         if (!out.contains(v)) out << v;
     }
     list = out;

@@ -11,6 +11,7 @@
 
 #include <QAction>
 #include <algorithm>
+#include <cmath>
 
 namespace jp {
 
@@ -26,7 +27,10 @@ void DeckWindow::applyGridView(bool showGuides)
     const Document *d = m_ed->doc();
     if (!d) return;
     const deck::GridView g = deck::gridViewOf(*d);
-    const double spacing = g.spacing.value_or(std::clamp(Settings::get().value(kSpacingKey, deck::kDefaultGridSpacing).toDouble(), kMinGridSpacing, 720.0));
+    m_gridSeen = g;
+    double saved = Settings::get().value(kSpacingKey, deck::kDefaultGridSpacing).toDouble();
+    if (!std::isfinite(saved)) saved = deck::kDefaultGridSpacing;
+    const double spacing = g.spacing.value_or(std::clamp(saved, kMinGridSpacing, 720.0));
     const bool snapGrid = g.snapGrid.value_or(Settings::get().value(kSnapGridKey, false).toBool());
     const bool snapObjects = g.snapObjects.value_or(Settings::get().value(kSnapObjectsKey, true).toBool());
     ViewOptions &v = m_ed->view;
@@ -70,6 +74,7 @@ void DeckWindow::createGridActions()
             });
         Settings::get().setValue(kSpacingKey, now.spacing);
         Settings::get().setValue(kSnapGridKey, now.snapGrid);
+        Settings::get().setValue(kSnapObjectsKey, now.snapObjects);
         m_canvas->setGridlines(now.showGrid);
         applyGridView(true);
         refreshUi();

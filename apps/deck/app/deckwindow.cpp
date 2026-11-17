@@ -175,7 +175,10 @@ DeckWindow::DeckWindow(QWidget *parent) : AppWindow(parent)
         updateTitle();
         refreshUi();
     });
-    connect(m_ed, &Editor::changed, this, [this] { applyGridView(false); });   // (an undo of the dialog's step changes them back)
+    // (an undo of the dialog's step changes them back; nothing else is looked at)
+    connect(m_ed, &Editor::changed, this, [this] {
+        if (m_ed->doc() && !(deck::gridViewOf(*m_ed->doc()) == m_gridSeen)) applyGridView(true);
+    });
     connect(m_ed, &Editor::modifiedChanged, this, &DeckWindow::updateTitle);
     connect(m_slides, &SlidesPane::newSlideWanted, this, [this] { newSlide(); });
     connect(m_slides, &SlidesPane::duplicateWanted, this, &DeckWindow::duplicateSlide);

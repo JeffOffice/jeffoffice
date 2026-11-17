@@ -219,7 +219,7 @@ private Q_SLOTS:
         Exported plain;
         QVERIFY2(unpack(deck::exportPresentation(*d, &err), &plain, &why), qPrintable(why));
         QVERIFY(part(plain, QStringLiteral("/ppt/viewProps.xml")).contains(QStringLiteral("<p:guideLst/>")));
-        QVERIFY(part(plain, QStringLiteral("/ppt/viewProps.xml")).contains(QStringLiteral("<p:gridSpacing cx=\"76200\" cy=\"76200\"/>")));
+        QVERIFY(!part(plain, QStringLiteral("/ppt/viewProps.xml")).contains(QStringLiteral("gridSpacing")));
         deck::GridView g;
         g.spacing = 18;
         g.snapGrid = true;
@@ -243,8 +243,40 @@ private Q_SLOTS:
         QVERIFY2(packageProblem(out).isEmpty(), qPrintable(packageProblem(out)));
     }
 
-    // What a file says about its guides is read within bounds: at most kMaxGuidesPerAxis of a kind, each put inside the slide, a position that is not a number left out,
-    // and only the first 4096 elements of the list looked at.
+    // A spacing of 6 points set on purpose is kept through the file (it is the program's own too, but a presentation that sets it is told apart from one that does not).
+    void anExplicitSixPointGridSurvivesThePptx()
+    {
+        QString err;
+        auto d = deck::newPresentation();
+        deck::GridView g;
+        g.spacing = 6;
+        deck::setGridView(*d, g);
+        auto back = deck::importPresentation(deck::exportPresentation(*d, &err), &err);
+        QVERIFY2(back, qPrintable(err));
+        QVERIFY(deck::gridViewOf(*back).spacing.has_value());
+        QCOMPARE(deck::gridViewOf(*back).spacing.value_or(0), 6.0);
+        // (and one with no spacing set has none after)
+        auto none = deck::importPresentation(deck::exportPresentation(*deck::newPresentation(), &err), &err);
+        QVERIFY2(none, qPrintable(err));
+        QVERIFY(!deck::gridViewOf(*none).spacing.has_value());
+    }
+
+    // A guide may sit off the slide (on the pasteboard, within a slide's size of its edge): it is saved where it is and read back there.
+    void guidesOffTheSlideSurviveThePptx()
+    {
+        QString err;
+        auto d = deck::newPresentation();
+        const QSizeF size = d->pageSize();
+        d->viewGuides.v = {-100, size.width() * 1.5};
+        d->viewGuides.h = {size.height() + 40.5, -size.height() / 2};
+        auto back = deck::importPresentation(deck::exportPresentation(*d, &err), &err);
+        QVERIFY2(back, qPrintable(err));
+        QCOMPARE(back->viewGuides.v, d->viewGuides.v);
+        QCOMPARE(back->viewGuides.h, d->viewGuides.h);
+    }
+
+    // What a file says about its guides is read within bounds: at most kMaxGuidesPerAxis of a kind, each within a slide's size of the slide, a position that is not a
+    // number left out, and only the first 4096 elements of the list looked at.
     void theGuidesOfAFileAreBounded()
     {
         auto d = deck::newPresentation();
@@ -252,7 +284,8 @@ private Q_SLOTS:
         Exported base;
         QVERIFY2(unpack(deck::exportPresentation(*d, &err), &base, &why), qPrintable(why));
         QString list = QStringLiteral("<p:guide pos=\"1e12\"/><p:guide pos=\"-5000\"/><p:guide pos=\"abc\"/>");
-        for (int i = 0; i < 200; ++i) list += QStringLiteral("<p:guide orient=\"horz\" pos=\"%1\"/>").arg(i * 16);
+        list += QStringLiteral("<p:guide pos=\"-50000\"/>");
+        for (int i = 0; i < 1200; ++i) list += QStringLiteral("<p:guide orient=\"horz\" pos=\"%1\"/>").arg(i * 4);   // (a half point apart: all on and near the slide)
         for (int i = 0; i < 4000; ++i) list += QStringLiteral("<p:guide pos=\"nope\"/>");
         list += QStringLiteral("<p:guide pos=\"1600\"/>");   // (past the 4096th element)
         ZipWriter zip;
@@ -268,11 +301,11 @@ private Q_SLOTS:
         auto doc = deck::importPresentation(zip.finish(), &err);
         QVERIFY2(doc, qPrintable(err));
         const QSizeF size = doc->pageSize();
-        QCOMPARE(doc->viewGuides.h.size(), jp::kMaxGuidesPerAxis);   // (200 in the file)
-        QCOMPARE(doc->viewGuides.v.size(), 2);                       // (the far one on the edge, the negative one on 0; the sentinel and the word are not read)
-        for (double v : doc->viewGuides.v) QVERIFY(v >= 0 && v <= size.width());
-        for (double v : doc->viewGuides.h) QVERIFY(v >= 0 && v <= size.height());
-        QVERIFY(doc->viewGuides.v.contains(size.width()) && doc->viewGuides.v.contains(0));
+        QCOMPARE(doc->viewGuides.h.size(), 1000);                    // (1,200 in the file)
+        QCOMPARE(doc->viewGuides.v.size(), 3);                       // (the far ones at the limits, the near one where it is; the word is not read)
+        for (double v : doc->viewGuides.v) QVERIFY(v >= -size.width() && v <= 2 * size.width());
+        for (double v : doc->viewGuides.h) QVERIFY(v >= -size.height() && v <= 2 * size.height());
+        QVERIFY(doc->viewGuides.v.contains(2 * size.width()) && doc->viewGuides.v.contains(-size.width()) && doc->viewGuides.v.contains(-5000 / 8.0));
         // The spacing too is bounded.
         QVERIFY(deck::gridViewOf(*doc).spacing.value_or(0) <= 720);
     }

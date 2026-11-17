@@ -1441,16 +1441,17 @@ QPointF Canvas::snapPoint(const QPointF &pt, QVector<QLineF> *lines, const QSet<
     const double thr = 6.0 / ppp();
     QPointF out = pt;
     double bx = thr, by = thr;
-    for (double x : xs) if (std::abs(x - pt.x()) < bx) { bx = std::abs(x - pt.x()); out.setX(x); }
-    for (double y : ys) if (std::abs(y - pt.y()) < by) { by = std::abs(y - pt.y()); out.setY(y); }
+    bool hx = false, hy = false;
+    for (double x : xs) if (std::abs(x - pt.x()) < bx) { bx = std::abs(x - pt.x()); out.setX(x); hx = true; }
+    for (double y : ys) if (std::abs(y - pt.y()) < by) { by = std::abs(y - pt.y()); out.setY(y); hy = true; }
     if (m_ed->view.snapGrid) {
-        if (out.x() == pt.x()) out.setX(gridNearest(pt.x(), m_ed->view.gridSpacing));
-        if (out.y() == pt.y()) out.setY(gridNearest(pt.y(), m_ed->view.gridSpacing));
+        if (!hx) out.setX(gridNearest(pt.x(), m_ed->view.gridSpacing));
+        if (!hy) out.setY(gridNearest(pt.y(), m_ed->view.gridSpacing));
     }
     if (lines) {
         const QSizeF ps = m_ed->surfaceSize();
-        if (out.x() != pt.x()) *lines << QLineF(out.x(), -ps.height(), out.x(), ps.height() * 2);
-        if (out.y() != pt.y()) *lines << QLineF(-ps.width(), out.y(), ps.width() * 2, out.y());
+        if (hx || out.x() != pt.x()) *lines << QLineF(out.x(), -ps.height(), out.x(), ps.height() * 2);
+        if (hy || out.y() != pt.y()) *lines << QLineF(-ps.width(), out.y(), ps.width() * 2, out.y());
     }
     return out;
 }

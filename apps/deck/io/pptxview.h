@@ -13,7 +13,7 @@ namespace jp::deck {
 // millions), positions put inside the slide.
 void readViewProperties(const QDomElement &viewPr, Document &doc);
 
-// The whole part. A presentation with no grid or guides settings gets the part JeffDeck has always written.
+// The whole part. A presentation with no grid spacing set writes no gridSpacing element.
 QString viewPropertiesXml(const Document &doc, const QString &namespaces);
 
 } // namespace jp::deck

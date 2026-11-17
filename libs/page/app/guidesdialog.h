@@ -29,9 +29,9 @@ struct GridSettings {
     }
 };
 
-// The least spacing of a grid, and the most guides one way (a file can say more; they are left out).
+// The least spacing of a grid, and the most guides one way (a file that says more is read to this many).
 constexpr double kMinGridSpacing = 1;
-constexpr int kMaxGuidesPerAxis = 64;
+constexpr int kMaxGuidesPerAxis = 1000;
 
 // Grid and Guides for a page of `page` points. Returns whether it was accepted; `s` is changed only then.
 bool gridSettingsDialog(QWidget *p, GridSettings &s, const QSizeF &page);

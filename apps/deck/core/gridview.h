@@ -20,8 +20,8 @@ constexpr double kDefaultGridSpacing = 6;
 GridView gridViewOf(const Document &d);
 void setGridView(Document &d, const GridView &g);
 
-// Makes the guides fit a slide of `size` and the most one way: each position within the slide (a position past it is put on its edge), no more than
-// kMaxGuidesPerAxis of each kind (the rest are left out), none twice.
+// Makes the guides fit a slide of `size`: each position within a slide's width (height) before the slide to twice it (a guide may sit off the slide; one
+// farther is put at that limit), none twice, none that is not a number. The count is not limited here; a file that is read is limited by readViewProperties.
 void fitGuides(RulerGuides &g, const QSizeF &size);
 
 } // namespace jp::deck

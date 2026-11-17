@@ -130,8 +130,16 @@ void DeckCanvas::paintEvent(QPaintEvent *e)
         double step = std::max(1.0, editor()->view.gridSpacing);
         while (step * ppp() < 7) step *= 2;
         p.setPen(QColor(0x80, 0x84, 0x8C, 150));
-        for (double y = step; y < ps.height(); y += step)
-            for (double x = step; x < ps.width(); x += step) p.drawPoint(pageToView(QPointF(x, y)).toPoint());
+        // (only the dots in the area to paint)
+        const QRectF area = e->rect();
+        for (double y = step; y < ps.height(); y += step) {
+            const double vy = pageToView(QPointF(0, y)).y();
+            if (vy < area.top() - 1 || vy > area.bottom() + 1) continue;
+            for (double x = step; x < ps.width(); x += step) {
+                const QPoint at = pageToView(QPointF(x, y)).toPoint();
+                if (at.x() >= area.left() - 1 && at.x() <= area.right() + 1) p.drawPoint(at);
+            }
+        }
     }
     if (guides()) {
         QPen dash(QColor(0x80, 0x84, 0x8C), 1, Qt::DashLine);

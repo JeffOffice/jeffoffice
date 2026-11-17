@@ -18,6 +18,17 @@
 #include "app/guidesdialog.h"
 #include <QDoubleSpinBox>
 #include "app/theme.h"
+#include "app/settings.h"
+
+// What the program's settings hold for the grid, put back when the test ends (the dialog writes them).
+static auto keepGridSettings()
+{
+    const QStringList keys = {QStringLiteral("view/gridSpacing"), QStringLiteral("view/snapGrid"), QStringLiteral("view/snapObjects")};
+    const QVector<QVariant> was = {jp::Settings::get().value(keys[0], 6.0), jp::Settings::get().value(keys[1], false), jp::Settings::get().value(keys[2], true)};
+    return qScopeGuard([keys, was] {
+        for (int i = 0; i < keys.size(); ++i) jp::Settings::get().setValue(keys[i], was[i]);
+    });
+}
 
 class DeckWindowTests : public QObject {
     Q_OBJECT
@@ -2795,6 +2806,7 @@ private Q_SLOTS:
     // The Grid and Guides dialog of the View tab sets the grid's spacing and what snaps, saves them with the presentation as one step of Undo, and shows the grid.
     void theGridDialogSetsSpacingAndSnap()
     {
+        const auto keep = keepGridSettings();
         DeckWindow w;
         w.show();
         QVERIFY(QTest::qWaitForWindowExposed(&w));
@@ -2818,6 +2830,7 @@ private Q_SLOTS:
         QCOMPARE(saved.spacing.value_or(0), 18.0);
         QVERIFY(saved.snapGrid.value_or(false));
         QVERIFY(!saved.snapObjects.value_or(true));
+        QVERIFY(!Settings::get().value(QStringLiteral("view/snapObjects"), true).toBool());   // (the last choice is kept for other presentations)
         ed->undo();
         // (the file has none again; the view uses the last choice the program kept)
         QVERIFY(!deck::gridViewOf(*ed->doc()).spacing && !deck::gridViewOf(*ed->doc()).snapGrid);
@@ -2834,6 +2847,7 @@ private Q_SLOTS:
     // The dialog adds guides of both kinds to the presentation (never two at one place), shows them, and offers no more past the most one way.
     void theGridDialogAddsGuides()
     {
+        const auto keep = keepGridSettings();
         DeckWindow w;
         w.show();
         QVERIFY(QTest::qWaitForWindowExposed(&w));
@@ -2874,7 +2888,7 @@ private Q_SLOTS:
         Editor *ed = w.editor();
         ed->surfaceItems().clear();
         auto shape = std::make_shared<ShapeItem>();
-        shape->rect = QRectF(100.3, 77.2, 120, 80);
+        shape->rect = QRectF(107, 68, 114, 80);
         ed->addItem(shape, false);
         const QString id = shape->id;
         ed->clearSelection();
@@ -2903,19 +2917,87 @@ private Q_SLOTS:
         // Alt: where the mouse put it, not on the grid.
         drag(QPointF(40, 25), Qt::AltModifier);
         const QRectF free = ed->doc()->item(id)->bounds();
-        QVERIFY(std::abs(free.left() - 140.3) < 3 && std::abs(free.top() - 102.2) < 3);
+        QVERIFY(std::abs(free.left() - 147) < 3 && std::abs(free.top() - 93) < 3);
         QVERIFY(std::abs(free.left() / 18 - std::round(free.left() / 18)) > 0.02 && std::abs(free.top() / 18 - std::round(free.top() / 18)) > 0.02);
         ed->undo();
-        QCOMPARE(ed->doc()->item(id)->bounds().left(), 100.3);
+        QCOMPARE(ed->doc()->item(id)->bounds().left(), 107.0);
         // Without it: an edge on the grid, the nearer of the two on each side.
         drag(QPointF(40, 25), Qt::NoModifier);
         const QRectF now = ed->doc()->item(id)->bounds();
         auto onGrid = [](double v) { return std::abs(v / 18 - std::round(v / 18)) < 1e-9; };
         QVERIFY(onGrid(now.left()) || onGrid(now.right()));
         QVERIFY(onGrid(now.top()) || onGrid(now.bottom()));
-        QCOMPARE(now.left(), 144.0);   // (140.3: its left edge is 3.7 away from 144, its right edge 8.3 from 252)
-        QCOMPARE(now.top(), 100.0);    // (102.2: its bottom edge, 182.2, is 2.2 from 180)
-        QCOMPARE(now.width(), 120.0);
+        QCOMPARE(now.left(), 144.0);   // (at 147: its left edge is 3 from 144, its right edge, 261, 9 from the nearest line)
+        QCOMPARE(now.top(), 90.0);     // (at 93: its top edge is 3 from 90, its bottom edge, 173, 7 from 180)
+        QCOMPARE(now.width(), 114.0);
+    }
+
+    // An object or guide that is exactly where the point is still wins over the grid (the point is not moved by the grid then).
+    void anObjectSnapBeatsTheGridOnTheExactPoint()
+    {
+        DeckWindow w;
+        w.resize(1440, 900);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        Editor *ed = w.editor();
+        ed->surfaceItems().clear();
+        QWidget *vp = w.canvas()->viewport();
+        // A pixel whose page position is off the grid (the spacing is 18).
+        QPoint at;
+        QPointF page;
+        for (int x = 300;; ++x) {
+            at = vp->mapToGlobal(QPoint(x, 200));
+            page = w.canvas()->toPage(QPointF(vp->mapFromGlobal(at)));
+            if (std::abs(page.x() / 18 - std::round(page.x() / 18)) > 0.2) break;
+        }
+        auto shape = std::make_shared<ShapeItem>();
+        shape->rect = QRectF(page.x(), 20, 50, 30);   // (its left edge is exactly the point)
+        ed->addItem(shape, false);
+        ed->setView([](ViewOptions &v) {
+            v.snapGrid = true;
+            v.gridSpacing = 18;
+            v.snapObjects = true;
+        });
+        w.canvas()->startGuideDrag(Qt::Vertical, at);
+        w.canvas()->updateGuideDrag(at);
+        w.canvas()->endGuideDrag(at);
+        QCOMPARE(ed->doc()->viewGuides.v.size(), 1);
+        QCOMPARE(ed->doc()->viewGuides.v[0], page.x());
+    }
+
+    // The view takes the presentation's grid settings again when they change (an undo of the dialog hides the guides it showed), and not at every edit.
+    void theGridViewIsReappliedOnlyWhenItsSettingsChange()
+    {
+        const auto keep = keepGridSettings();
+        Settings::get().setValue(QStringLiteral("view/snapGrid"), false);
+        DeckWindow w;
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        Editor *ed = w.editor();
+        withDialog([&] { w.act(QStringLiteral("view.gridGuides"))->trigger(); }, QStringLiteral("gridGuidesDialog"), [&](QDialog *d) {
+            d->findChild<QPushButton *>(QStringLiteral("addVertical"))->click();
+        });
+        QVERIFY(w.canvas()->guides());
+        ed->undo();
+        QVERIFY(!w.canvas()->guides());
+        // An edit that is not about the grid leaves the view as it is (a changed program setting is not picked up by it).
+        Settings::get().setValue(QStringLiteral("view/snapGrid"), true);
+        auto shape = std::make_shared<ShapeItem>();
+        shape->rect = QRectF(10, 10, 50, 30);
+        ed->addItem(shape, false);
+        QVERIFY(!ed->view.snapGrid);
+    }
+
+    // A spacing in the program's settings that is not a number is the program's own spacing.
+    void aBrokenSpacingInTheSettingsIsIgnored()
+    {
+        const auto keep = keepGridSettings();
+        Settings::get().setValue(QStringLiteral("view/gridSpacing"), QStringLiteral("nan"));
+        DeckWindow w;
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        w.editor()->setDocument(deck::newPresentation());
+        QCOMPARE(w.editor()->view.gridSpacing, 6.0);
     }
 
     // A guide dragged from the ruler is the presentation's, snaps to the grid, follows the mouse in small steps (not held where it started), and undoes.
@@ -2931,7 +3013,7 @@ private Q_SLOTS:
         grid.spacing = 18;
         grid.snapGrid = true;
         grid.snapObjects = false;
-        deck::setGridView(*ed->doc(), grid);
+        ed->change(QStringLiteral("Grid"), [&] { deck::setGridView(*ed->doc(), grid); });   // (as the dialog sets it)
         ed->setView([](ViewOptions &v) {
             v.snapGrid = true;
             v.gridSpacing = 18;
@@ -2948,7 +3030,7 @@ private Q_SLOTS:
         QVERIFY(ed->doc()->viewGuides.v.isEmpty());
         // In small steps with nothing to snap to: it goes where the mouse goes.
         grid.snapGrid = false;
-        deck::setGridView(*ed->doc(), grid);
+        ed->change(QStringLiteral("Grid"), [&] { deck::setGridView(*ed->doc(), grid); });   // (as the dialog sets it)
         ed->setView([](ViewOptions &v) { v.snapGrid = false; });
         w.canvas()->startGuideDrag(Qt::Horizontal, global(300, 200));
         for (int y = 203; y <= 215; y += 3) w.canvas()->updateGuideDrag(global(300, y));
