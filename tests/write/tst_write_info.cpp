@@ -2720,7 +2720,11 @@ private Q_SLOTS:
         QElapsedTimer t;
         t.start();
         const bool finished = runWithCancel(nullptr, QStringLiteral("Checking"), [&](const std::atomic<bool> *cancel) {
-            result = office::decryptPackage(info, package, QStringLiteral("wrong"), office::kMaxOpenFileBytes, false, &out, [cancel] { return cancel->load(); });
+            // (again until the click lands: on a fast machine one key, at the most rounds a file may ask for, was made before the note's
+            // 300 ms, Windows CI Nov 17; a cancel between two tries is seen at the start of the next, so the result is still Cancelled)
+            do {
+                result = office::decryptPackage(info, package, QStringLiteral("wrong"), office::kMaxOpenFileBytes, false, &out, [cancel] { return cancel->load(); });
+            } while (result != office::CryptResult::Cancelled && t.elapsed() < 20000);
         });
         QVERIFY2(pressed, "the note with a Cancel button did not show");
         QVERIFY(!finished);
