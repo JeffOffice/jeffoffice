@@ -185,8 +185,7 @@ void CrunchWindow::setPrecisionAsShown(bool on)
             if (!o.ok && !o.problem.isEmpty()) notice(tr("Set Precision as Displayed"), o.problem);
             if (o.ok) {
                 if (m_loader.changesMade() != before) m_calculating = true;
-                const int rounded = int(qMin<qint64>(crunch::EditSession::precisionChanges(*plan), 1000000000));
-                setStatus(tr("Rounded %n number(s) to what the cells show", nullptr, rounded));
+                setStatus(crunch::EditSession::precisionChanges(*plan) == 0 ? tr("The numbers were all as the cells show them.") : tr("The numbers are rounded to what the cells show."));
             } else if (!m_calculating && !m_loading) {
                 setStatus(tr("Ready"));
             }
