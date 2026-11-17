@@ -62,7 +62,7 @@ The arrow next to **Copy** has **Copy as Picture** and **Copy as Bitmap**. Each 
 
 ## Between programs
 
-When you copy, JeffCrunch also puts the cells on the clipboard as text (cells apart by tabs, one row to a line) and as a table for web pages, so other programs can take them. When you paste something that did not come from JeffCrunch, text with tabs, or a table from a web page or another spreadsheet, each piece goes into its own cell and is read as if you typed it: numbers, dates, and formulas that start with an equals sign. Copying from another workbook open in JeffCrunch brings values, formulas, and number formats, but not the other formatting.
+When you copy, JeffCrunch also puts the cells on the clipboard as text (cells apart by tabs, one row to a line) and as a table for web pages, so other programs can take them. When you paste something that did not come from JeffCrunch, text with tabs, or a table from a web page or another spreadsheet, each piece goes into its own cell and is read as if you typed it: numbers, dates, and formulas that start with an equals sign. Copying from another workbook open in JeffCrunch brings values, formulas, and number formats, but not the other formatting. Paste them in JeffDeck or JeffPub, and they land as a table that keeps the fonts, shades, borders, and the numbers as they show (see **Paste cells as a table** in their Help).
 
 ## What can't be pasted
 

@@ -280,6 +280,13 @@ Download it from %2 now? (%3, once.)</translation>
     </message>
 </context>
 <context>
+    <name>MiniToolbar</name>
+    <message>
+        <source>Font Color</source>
+        <translation>Font Colour</translation>
+    </message>
+</context>
+<context>
     <name>PdfProtectionDialog</name>
     <message>
         <source>These limits are a request. Most PDF readers honor them, but they do not stop anyone who wants to get around them. Only the password that opens the PDF really protects it.</source>

@@ -275,7 +275,7 @@
 <context>
     <name>jp::MainWindow</name>
     <message numerus="yes">
-        <location filename="../apps/pub/app/mainwindow.cpp" line="+1594"/>
+        <location filename="../apps/pub/app/mainwindow.cpp" line="+1629"/>
         <source>Saved %n drawing(s).</source>
         <translation>
             <numerusform>Saved %n drawing.</numerusform>
@@ -324,7 +324,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/write/app/writewindow_home.cpp" line="+247"/>
+        <location filename="../apps/write/app/writewindow_home.cpp" line="+248"/>
         <source>There are too many paragraphs to sort at once. Select %n paragraph(s) or fewer.</source>
         <translation>
             <numerusform>There are too many paragraphs to sort at once. Select %n paragraph or fewer.</numerusform>
@@ -353,6 +353,14 @@
         <translation>
             <numerusform>%n word</numerusform>
             <numerusform>%n words</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../apps/write/app/writewindow_lists.cpp" line="+304"/>
+        <source>%n more list styles are in the Styles pane</source>
+        <translation>
+            <numerusform>%n more list style is in the Styles pane</numerusform>
+            <numerusform>%n more list styles are in the Styles pane</numerusform>
         </translation>
     </message>
 </context>

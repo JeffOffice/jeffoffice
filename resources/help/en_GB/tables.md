@@ -11,6 +11,12 @@ A table is a grid of rows and columns. Each box in the grid is a cell, and each 
 
 The table appears mid-page. Drag its edge to move it.
 
+## Paste cells as a table
+
+Copy cells in JeffCrunch, or a table from a document or a web page, and press **Ctrl+V**. The cells land as a table in the upper middle of the page. Each cell keeps its font, size, bold, italic, underline, and text colour, its shade, its borders, and how its text sits. Merged cells stay merged, and the words are what the cells showed, so a number shows as it did. The table is never wider than the page, and one **Ctrl+Z** takes it back.
+
+If you are typing in a table cell when you paste, the cells fill the table from that cell on. Each cell takes the look of the cell it came from, so a cell with no shade or border comes with none, and the one it replaces loses its own. Merged cells and column widths are not carried into a table that is already there. Cells past the edge of the table are left out, and the status bar says so. **Keep Source Formatting** makes the table too. **Keep Text Only** pastes just the words, and **Paste Special** still lists that and the other forms. A page that has other things besides the table is pasted as it always was. A table of more than 1,000 rows, 64 columns, or 100,000 cells, or of more than 256 rows (the most a table holds), is pasted as plain words, and the status bar says why.
+
 ## Type in a table
 
 Click a cell and type. Press Tab to go to the next cell and Shift+Tab to go back. Press Tab in the last cell to add a row. A row grows taller to fit its text.
