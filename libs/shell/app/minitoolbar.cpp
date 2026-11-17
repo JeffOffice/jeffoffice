@@ -19,6 +19,10 @@
 
 namespace jp {
 
+namespace {
+const QSize kCell(28, 26);   // a button of an aligned bar
+}
+
 MiniToolbar::MiniToolbar(QWidget *host, std::unique_ptr<MiniTarget> owned) : QFrame(host), m_target(std::move(owned))
 {
     MiniTarget *target = m_target.get();
@@ -59,6 +63,7 @@ MiniToolbar::MiniToolbar(QWidget *host, std::unique_ptr<MiniTarget> owned) : QFr
         button->setToolButtonStyle(Qt::ToolButtonIconOnly);
         button->setAutoRaise(true);
         button->setFocusPolicy(Qt::NoFocus);   // (the text keeps the keyboard)
+        if (target->alignRows()) button->setFixedSize(kCell);
         row->addWidget(button);
     }
     if (target->supportsFill()) {
@@ -77,6 +82,7 @@ MiniToolbar::MiniToolbar(QWidget *host, std::unique_ptr<MiniTarget> owned) : QFr
         connect(m_color, &ColorButton::colorPicked, this, [target](const ColorRef &c) { target->chooseColor(c); });
         row->addWidget(m_color);
     }
+    if (target->alignRows()) row->addStretch(1);   // (a row starts at the left edge and keeps its buttons' size)
     const QList<QAction *> more = target->moreActions();
     if (!more.isEmpty()) {
         auto *extra = new QHBoxLayout;
@@ -90,6 +96,7 @@ MiniToolbar::MiniToolbar(QWidget *host, std::unique_ptr<MiniTarget> owned) : QFr
             button->setAutoRaise(true);
             button->setFocusPolicy(Qt::NoFocus);
             if (a->menu()) button->setPopupMode(QToolButton::InstantPopup);
+            if (target->alignRows()) button->setFixedSize(kCell);
             extra->addWidget(button);
         }
         extra->addStretch(1);

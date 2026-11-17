@@ -38,6 +38,8 @@ public:
     virtual void chooseSize(double) {}
     virtual void chooseFill(const ColorRef &) {}
     virtual QList<QAction *> moreActions() const { return {}; }
+    // Whether the button rows are laid out on one grid (every button the same size, rows starting at the same left edge, so icons sit under icons); the others spread each row.
+    virtual bool alignRows() const { return false; }
 };
 
 // A target made of functions, for a window that would rather not be one.
@@ -50,6 +52,7 @@ public:
     std::function<void(double)> setSize;
     std::function<void(const ColorRef &)> setFill;
     QList<QAction *> more;
+    bool aligned = false;
     QAction *action(Command c) const override { return actionFor ? actionFor(c) : nullptr; }
     QList<QAction *> colorExtras() const override { return extras; }
     bool supportsFont() const override { return bool(setFont); }
@@ -61,6 +64,7 @@ public:
     void chooseSize(double pt) override { if (setSize) setSize(pt); }
     void chooseFill(const ColorRef &c) override { if (setFill) setFill(c); }
     QList<QAction *> moreActions() const override { return more; }
+    bool alignRows() const override { return aligned; }
 };
 
 class JO_COMMON_EXPORT MiniToolbar : public QFrame {

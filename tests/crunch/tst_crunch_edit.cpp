@@ -399,6 +399,24 @@ void CrunchEditTests::aRightClickOnCellsShowsTheMiniToolbarOverTheMenu()
     for (QToolButton *t : bar->findChildren<QToolButton *>())
         if (t->defaultAction() && t->defaultAction()->menu() && t->defaultAction()->menu()->objectName() == QLatin1String("bordersMenu")) borders = true;
     QVERIFY(borders);
+    // the icon rows are on one grid: the same left edge, and the button at an index sits under the one above it
+    {
+        QList<QToolButton *> all = bar->findChildren<QToolButton *>();
+        QMap<int, QList<QToolButton *>> rows;   // by top edge
+        for (QToolButton *t : all)
+            if (!qobject_cast<jp::ColorButton *>(t->parentWidget())) rows[t->mapTo(bar, QPoint(0, 0)).y() / 10] << t;
+        QList<QList<QToolButton *>> lines;
+        for (auto &r : rows) {
+            std::sort(r.begin(), r.end(), [&](QToolButton *x, QToolButton *y) { return x->mapTo(bar, QPoint(0, 0)).x() < y->mapTo(bar, QPoint(0, 0)).x(); });
+            lines << r;
+        }
+        QVERIFY2(lines.size() >= 2, qPrintable(QString::number(lines.size())));
+        auto left = [&](QToolButton *t) { return t->mapTo(bar, QPoint(0, 0)).x(); };
+        auto mid = [&](QToolButton *t) { return t->mapTo(bar, QPoint(0, 0)).x() + t->width() / 2; };
+        for (const auto &line : lines) QCOMPARE(left(line.first()), left(lines.first().first()));
+        QCOMPARE(lines.last().size() >= 5, true);
+        for (int i = 0; i < 5; ++i) QVERIFY2(std::abs(mid(lines.first()[i]) - mid(lines.last()[i])) <= 1, qPrintable(QString::number(i)));
+    }
     // the commands under the bar are all in view (Cut, Copy, and Paste are not scrolled out of a menu that is too tall)
     const QRect screen = menu->screen()->availableGeometry();
     for (const char *id : {"edit.cut", "edit.copy", "edit.paste"}) {

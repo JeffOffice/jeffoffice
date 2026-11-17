@@ -3556,6 +3556,22 @@ private Q_SLOTS:
         QTRY_COMPARE(pane->matchCount(), 1);
     }
 
+    // A picture of the Home ribbon (with JW_SHOT_DIR set), for looking at the Bold button's weight.
+    void grabTheHomeRibbonAndTheMiniToolbar()
+    {
+        const QString dir = qEnvironmentVariable("JW_SHOT_DIR");
+        if (dir.isEmpty()) QSKIP("JW_SHOT_DIR is not set");
+        jp::applyUiTheme(1);
+        QDir().mkpath(dir);
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(1100, 800);
+        w.show();
+        w.setDocument(open(makeDocx(para(run("Some words to pick out of the line.")))), QString());
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        QVERIFY(w.grab().save(dir + QStringLiteral("/write-ribbon.png")));
+    }
+
     void theMiniToolbarFloatsAboveWordsSelectedWithTheMouseAndGoesWhenTheSelectionDoes()
     {
         WriteWindow w;

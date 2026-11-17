@@ -41,6 +41,7 @@ private:
 QFrame *CrunchWindow::makeMiniBar(bool inCells, QWidget *parent)
 {
     auto target = std::make_unique<FunctionMiniTarget>();
+    target->aligned = true;
     target->actionFor = [this](MiniTarget::Command c) -> QAction * {
         using C = MiniTarget::Command;
         switch (c) {
