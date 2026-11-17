@@ -1823,7 +1823,11 @@ private Q_SLOTS:
         QTest::keyClick(edit, Qt::Key_B, Qt::ControlModifier);
         QTRY_VERIFY_WITH_TIMEOUT(!win.w.act(QStringLiteral("fmt.bold"))->isChecked(), 30000);
         edit->setFontSizePt(18);
-        QTRY_VERIFY_WITH_TIMEOUT(std::any_of(win.w.findChildren<SizeCombo *>().begin(), win.w.findChildren<SizeCombo *>().end(), [](SizeCombo *c) { return c->currentText().toDouble() == 18.0; }), 30000);
+        // (one list, asked each time: begin() and end() of two different lists are no range)
+        QTRY_VERIFY_WITH_TIMEOUT(([&] {
+            const QList<SizeCombo *> combos = win.w.findChildren<SizeCombo *>();
+            return std::any_of(combos.begin(), combos.end(), [](SizeCombo *c) { return c->currentText().toDouble() == 18.0; });
+        }()), 30000);
     }
 
     void aShapeTakesSeveralEffectsAndEachIsPutInAndTakenOutWithoutTouchingTheOthers()
