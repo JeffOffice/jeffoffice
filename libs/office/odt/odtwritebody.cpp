@@ -416,8 +416,7 @@ void Writer::emitParagraph(const T &t, int p, QByteArray *out, ListCtx *lc, int 
                 closeLists(lc);
                 const bool cont = m_numsSeen.contains(numId);
                 m_numsSeen.insert(numId);
-                m_numsUsed.insert(numId);
-                *out += "<text:list text:style-name=\"L" + num(numId) + "\"" + (cont ? " text:continue-numbering=\"true\"" : "") + ">";
+                *out += "<text:list text:style-name=\"" + listNameFor(numId) + "\"" + (cont ? " text:continue-numbering=\"true\"" : "") + ">";
                 *out += "<text:list-item>";
                 lc->numId = numId;
                 lc->depth = 1;

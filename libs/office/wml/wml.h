@@ -402,6 +402,9 @@ struct Num {
     QMap<int, Level> levelOverrides;  // level -> the level this id writes out itself (the w:lvl of a w:lvlOverride)
 };
 
+// The most numbering styles (list styles: definitions with a w:styleLink, and text:list-style in an .odt's styles) that a file is read for; the rest are not styles here.
+constexpr int kMostListStyles = 1000;
+
 struct Numbering {
     QByteArray rootStart, prefix;     // w:numbering's start tag, and the numPicBullet elements, as written
     QVector<AbstractNum> abstracts;

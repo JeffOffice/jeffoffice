@@ -8,6 +8,7 @@
 #include "app/writewindow.h"
 #include "core/editops.h"
 #include "core/listpresets.h"
+#include "core/styleops.h"
 #include "core/writedoc.h"
 #include "core/writeprops.h"
 
@@ -154,12 +155,53 @@ void WriteWindow::createListActions()
             QList<QPair<QString, QString>> styles;
             for (const write::StyleEntry &e : m_doc->styleEntries())
                 if (!e.character) styles.push_back({e.id, e.name});
-            if (!write::multilevelListDialog(this, &def, styles)) return;
+            write::ListStyleChoice choice;
+            choice.check = [this](const QString &name) { return write::styleNameProblem(*m_doc, name); };
+            if (!write::multilevelListDialog(this, &def, styles, &choice)) return;
+            if (choice.save) {
+                // The definition is kept as a list style, and the paragraphs have the style (so that changing it changes them).
+                QString problem;
+                const QString id = write::saveListStyle(*m_doc, choice.name, def, &problem);
+                if (!id.isEmpty()) {
+                    write::applyListStyle(*m_doc, m_view->cursor(), id);
+                    return;
+                }
+                statusBar()->showMessage(problem, 8000);
+            }
             write::applyMultilevelList(*m_doc, m_view->cursor(), def);
         });
     });
     for (int level = 0; level < 9; ++level)
         mk(QStringLiteral("list.level.%1").arg(level + 1), tr("Level %1").arg(level + 1), "", QKeySequence(), [this, edit, level] { edit([this, level] { write::setListLevel(*m_doc, m_view->cursor(), level); }); });
+}
+
+void WriteWindow::modifyListStyleDialog(const QString &id)
+{
+    if (!m_doc || refuseIfReadOnly()) return;
+    m_view->leaveHeaderFooter();
+    m_view->leaveNote();
+    int abstractId = -1;
+    QString name;
+    for (const write::WriteDoc::ListStyleEntry &e : m_doc->listStyleEntries())
+        if (e.id == id) {
+            abstractId = e.abstractId;
+            name = e.name;
+        }
+    if (abstractId < 0) return;
+    office::wml::AbstractNum def;
+    for (const office::wml::AbstractNum &a : m_doc->numbering().abstracts)
+        if (a.id == abstractId) {
+            def = a;
+            break;
+        }
+    write::ListStyleChoice choice;
+    choice.editing = true;
+    choice.name = name;
+    if (!write::multilevelListDialog(this, &def, {}, &choice)) return;
+    write::modifyListStyle(*m_doc, id, def);
+    m_view->setFocus(Qt::OtherFocusReason);
+    m_view->viewport()->update();
+    refreshUi();
 }
 
 void WriteWindow::listRibbonParts(RibbonParts &parts)
@@ -219,21 +261,48 @@ void WriteWindow::listRibbonParts(RibbonParts &parts)
     };
     parts.menus[QStringLiteral("multilevelMenu")] = [this](QWidget *owner) {
         auto *m = new QMenu(owner);
-        m->addSection(tr("List Library"));
-        const QVector<write::MultilevelPreset> presets = write::multilevelPresets();
-        for (int i = 0; i < presets.size(); ++i) {
-            QAction *a = m->addAction(presets[i].name);
-            connect(a, &QAction::triggered, this, [this, presets, i] {
-                if (!m_doc || refuseIfReadOnly()) return;
-                write::applyMultilevelList(*m_doc, m_view->cursor(), presets[i].def);
-                m_view->setFocus(Qt::OtherFocusReason);
-                m_view->viewport()->update();
-            });
-        }
-        m->addSeparator();
-        QMenu *levels = m->addMenu(tr("Change List Level"));
-        for (int i = 1; i <= 9; ++i) levels->addAction(act(QStringLiteral("list.level.%1").arg(i)));
-        m->addAction(act("list.defineMultilevel"));
+        connect(m, &QMenu::aboutToShow, this, [this, m] {
+            m->clear();
+            m->addSection(tr("List Library"));
+            const QVector<write::MultilevelPreset> presets = write::multilevelPresets();
+            for (int i = 0; i < presets.size(); ++i) {
+                QAction *a = m->addAction(presets[i].name);
+                connect(a, &QAction::triggered, this, [this, presets, i] {
+                    if (!m_doc || refuseIfReadOnly()) return;
+                    write::applyMultilevelList(*m_doc, m_view->cursor(), presets[i].def);
+                    m_view->setFocus(Qt::OtherFocusReason);
+                    m_view->viewport()->update();
+                });
+            }
+            const QVector<write::WriteDoc::ListStyleEntry> listStyles = m_doc ? m_doc->listStyleEntries() : QVector<write::WriteDoc::ListStyleEntry>();
+            if (!listStyles.isEmpty()) {
+                m->addSection(tr("List Styles"));
+                for (const write::WriteDoc::ListStyleEntry &e : listStyles) {
+                    QAction *a = m->addAction(e.name);
+                    a->setObjectName(QStringLiteral("listStyle:") + e.id);
+                    connect(a, &QAction::triggered, this, [this, id = e.id] {
+                        if (!m_doc || refuseIfReadOnly()) return;
+                        write::applyListStyle(*m_doc, m_view->cursor(), id);
+                        m_view->setFocus(Qt::OtherFocusReason);
+                        m_view->viewport()->update();
+                    });
+                }
+                QMenu *modify = m->addMenu(tr("Modify List Style"));
+                QMenu *remove = m->addMenu(tr("Delete List Style"));
+                for (const write::WriteDoc::ListStyleEntry &e : listStyles) {
+                    connect(modify->addAction(e.name), &QAction::triggered, this, [this, id = e.id] { modifyListStyleDialog(id); });
+                    connect(remove->addAction(e.name), &QAction::triggered, this, [this, id = e.id] {
+                        if (!m_doc || refuseIfReadOnly()) return;
+                        write::deleteListStyle(*m_doc, id);
+                        refreshUi();
+                    });
+                }
+            }
+            m->addSeparator();
+            QMenu *levels = m->addMenu(tr("Change List Level"));
+            for (int i = 1; i <= 9; ++i) levels->addAction(act(QStringLiteral("list.level.%1").arg(i)));
+            m->addAction(act("list.defineMultilevel"));
+        });
         return m;
     };
 }

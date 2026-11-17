@@ -1,6 +1,7 @@
 // OpenDocument text to .docx: the package, the styles, and what they say (see odt.h).
 
 #include "odt/odtread.h"
+#include "wml/wml.h"
 
 #include "io/zipindex.h"
 
@@ -253,12 +254,17 @@ void Reader::collectDefaults(const Odf &o, int node)
     m_defaults.insert(family, p);
 }
 
-void Reader::collectListStyle(const Odf &o, int node)
+void Reader::collectListStyle(const Odf &o, int node, bool named)
 {
     const wml::XmlTree &t = o.tree();
     ListStyleDef def;
     def.name = o.at(node, "style:name");
     if (def.name.isEmpty()) return;
+    if (named && !m_listStyles.contains(def.name) && m_namedLists.size() < wml::kMostListStyles) {
+        def.named = true;
+        def.display = o.at(node, "style:display-name");
+        m_namedLists.push_back(def.name);
+    } else if (named && m_listStyles.contains(def.name)) def.named = m_listStyles.value(def.name).named;
     for (int c = t.firstChild(node); c >= 0; c = t.next(c)) {
         const bool bullet = o.is(c, "text:list-level-style-bullet"), number = o.is(c, "text:list-level-style-number"), image = o.is(c, "text:list-level-style-image");
         if (!bullet && !number && !image) continue;
@@ -387,7 +393,7 @@ void Reader::collectStyles(const Odf &o, int root, bool automaticOnly)
         for (int c = t.firstChild(part); c >= 0; c = t.next(c)) {
             if (o.is(c, "style:style")) collectStyle(o, c, automatic);
             else if (o.is(c, "style:default-style")) collectDefaults(o, c);
-            else if (o.is(c, "text:list-style")) collectListStyle(o, c);
+            else if (o.is(c, "text:list-style")) collectListStyle(o, c, common);
             else if (o.is(c, "text:outline-style")) collectOutline(o, c);
             else if (o.is(c, "style:page-layout")) collectPageLayout(o, c);
             else if (o.is(c, "style:master-page")) collectMasterPage(o, c);

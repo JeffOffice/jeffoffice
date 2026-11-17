@@ -2908,6 +2908,83 @@ void applyMultilevelList(WriteDoc &doc, QTextCursor &c, const AbstractNum &def)
     if (!linked.isEmpty()) doc.settleStyleEdit();
 }
 
+QString saveListStyle(WriteDoc &doc, const QString &name, const AbstractNum &def, QString *problem)
+{
+    const QString trimmed = name.trimmed();
+    QString why = styleNameProblem(doc, trimmed);
+    if (why.isEmpty() && doc.listStyleEntries().size() >= office::wml::kMostListStyles) why = QCoreApplication::translate("jp::write::Styles", "The document has too many list styles.");
+    if (!why.isEmpty()) {
+        if (problem) *problem = why;
+        return {};
+    }
+    QTextCursor edit(doc.story());
+    edit.beginEditBlock();
+    const QString id = doc.saveListStyle(trimmed, def);
+    doc.markStyleStep();
+    edit.endEditBlock();
+    if (!doc.settleStyleEdit()) return {};
+    return id;
+}
+
+void applyListStyle(WriteDoc &doc, QTextCursor &c, const QString &styleId)
+{
+    const NoteScopeGuard scopeGuard(doc, c);
+    if (!intoBody(c)) return;
+    QVector<QTextBlock> blocks;
+    for (const QTextBlock &b : selectedBlocks(c))
+        if (!isLocked(b)) blocks.push_back(b);
+    if (blocks.isEmpty()) return;
+    int styleAbstract = -1;
+    for (const WriteDoc::ListStyleEntry &e : doc.listStyleEntries())
+        if (e.id == styleId) styleAbstract = e.abstractId;
+    if (styleAbstract < 0) return;
+    NumberGuard numbers(doc, c.document());
+    c.beginEditBlock();
+    int numId = 0;
+    const QTextBlock before = blocks.first().previous();
+    if (before.isValid() && inListNow(doc, before))
+        if (doc.numbering().definitionOf(before.blockFormat().intProperty(prop::NumId)) == styleAbstract) numId = before.blockFormat().intProperty(prop::NumId);
+    if (!numId) numId = doc.numberingIdForListStyle(styleId, true);
+    for (const QTextBlock &b : std::as_const(blocks)) {
+        const int own = inListNow(doc, b) ? std::clamp(b.blockFormat().intProperty(prop::NumLevel), 0, 8) : 0;
+        setBlockList(doc, b, numId, own, nullptr);
+    }
+    c.endEditBlock();
+}
+
+bool modifyListStyle(WriteDoc &doc, const QString &styleId, const AbstractNum &def)
+{
+    int styleAbstract = -1;
+    for (const WriteDoc::ListStyleEntry &e : doc.listStyleEntries())
+        if (e.id == styleId) styleAbstract = e.abstractId;
+    if (styleAbstract < 0) return false;
+    QTextCursor edit(doc.story());
+    NumberGuard numbers(doc, doc.story());
+    edit.beginEditBlock();
+    const bool done = doc.setListStyleDefinition(styleId, def);
+    if (done) {
+        doc.markStyleStep();
+        // Every paragraph of the style is set again, so that it has the new levels.
+        for (QTextBlock b = doc.story()->begin(); b.isValid(); b = b.next()) {
+            if (isLocked(b) || !inListNow(doc, b)) continue;
+            const int numId = b.blockFormat().intProperty(prop::NumId);
+            if (doc.numbering().definitionOf(numId) == styleAbstract) setBlockList(doc, b, numId, b.blockFormat().intProperty(prop::NumLevel), nullptr);
+        }
+    }
+    edit.endEditBlock();
+    return done && doc.settleStyleEdit();
+}
+
+bool deleteListStyle(WriteDoc &doc, const QString &styleId)
+{
+    QTextCursor edit(doc.story());
+    edit.beginEditBlock();
+    const bool done = doc.dropListStyle(styleId);
+    if (done) doc.markStyleStep();
+    edit.endEditBlock();
+    return done && doc.settleStyleEdit();
+}
+
 void setListLevel(WriteDoc &doc, QTextCursor &c, int level)
 {
     const NoteScopeGuard scopeGuard(doc, c);

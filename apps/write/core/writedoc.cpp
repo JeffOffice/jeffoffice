@@ -1477,6 +1477,141 @@ int WriteDoc::addNumberingId(int abstractId, int level, std::optional<int> start
     return num.id;
 }
 
+QVector<WriteDoc::ListStyleEntry> WriteDoc::listStyleEntries() const
+{
+    QHash<QString, int> defined;   // the first definition that carries each w:styleLink
+    for (const AbstractNum &a : m_wml.numbering.abstracts)
+        if (!a.styleLink.isEmpty() && !defined.contains(a.styleLink)) defined.insert(a.styleLink, a.id);
+    QVector<ListStyleEntry> out;
+    for (const Style &s : m_wml.styles.styles) {
+        if (out.size() >= kMostListStyles) break;
+        if (s.type != QLatin1String("numbering")) continue;
+        const auto found = defined.constFind(s.id);
+        if (found == defined.constEnd()) continue;
+        out.push_back(ListStyleEntry{s.id, s.name.isEmpty() ? s.id : s.name, found.value()});
+    }
+    return out;
+}
+
+QString WriteDoc::saveListStyle(const QString &name, const AbstractNum &def)
+{
+    if (listStyleEntries().size() >= kMostListStyles) return {};
+    QString base;
+    for (const QChar ch : name)
+        if (ch.isLetterOrNumber() && ch.unicode() < 128) base += ch;
+    if (base.isEmpty()) base = QStringLiteral("ListStyle");
+    QString id = base;
+    for (int k = 2; m_wml.styles.find(id); ++k) id = base + QString::number(k);
+    FontParts parts = fontParts();
+    Numbering &n = parts.numbering;
+    AbstractNum a = def;
+    a.id = n.nextAbstractId();
+    a.raw.clear();
+    a.head.clear();
+    a.tail.clear();
+    a.styleLink = id;
+    a.numStyleLink.clear();
+    for (Level &l : a.levels) l.pStyle.clear();
+    n.abstracts.push_back(a);
+    Num num;
+    num.id = n.nextNumId();
+    num.abstractId = a.id;
+    n.nums.push_back(num);
+    n.modified = true;
+    ensureNumberingPart();
+    putFontParts(parts);
+    Style s;
+    s.id = id;
+    s.name = name;
+    s.type = QStringLiteral("numbering");
+    s.customStyle = true;
+    s.uiPriority = 99;
+    s.pPr.numId = num.id;
+    putStyle(s);
+    return id;
+}
+
+int WriteDoc::numberingIdForListStyle(const QString &styleId, bool fresh)
+{
+    int styleAbstract = -1;
+    for (const ListStyleEntry &e : listStyleEntries())
+        if (e.id == styleId) styleAbstract = e.abstractId;
+    if (styleAbstract < 0) return 0;
+    Numbering &n = m_wml.numbering;
+    int users = -1;
+    for (const AbstractNum &a : n.abstracts)
+        if (a.numStyleLink == styleId) {
+            users = a.id;
+            break;
+        }
+    if (users < 0) {
+        AbstractNum a;
+        a.id = n.nextAbstractId();
+        a.multiLevelType = QStringLiteral("multilevel");
+        a.numStyleLink = styleId;
+        users = a.id;
+        n.abstracts.push_back(a);
+        n.modified = true;
+    }
+    if (!fresh)
+        for (const Num &num : n.nums)
+            if (num.abstractId == users && num.startOverrides.isEmpty() && num.levelOverrides.isEmpty()) return num.id;
+    const Level *first = n.levelOf(addNumberingId(users, 0, std::nullopt), 0);
+    const int made = n.nums.last().id;
+    if (fresh && first) n.nums.last().startOverrides.insert(0, first->start);
+    return made;
+}
+
+bool WriteDoc::setListStyleDefinition(const QString &styleId, const AbstractNum &def)
+{
+    FontParts parts = fontParts();
+    for (AbstractNum &a : parts.numbering.abstracts) {
+        if (a.styleLink != styleId) continue;
+        for (int i = 0; i < 9; ++i) {
+            a.levels[i] = def.levels[i];
+            a.levels[i].pStyle.clear();
+        }
+        a.raw.clear();
+        parts.numbering.modified = true;
+        putFontParts(parts);
+        return true;
+    }
+    return false;
+}
+
+bool WriteDoc::dropListStyle(const QString &styleId)
+{
+    FontParts parts = fontParts();
+    Numbering &n = parts.numbering;
+    int at = -1;
+    for (int i = 0; i < n.abstracts.size() && at < 0; ++i)
+        if (n.abstracts[i].styleLink == styleId) at = i;
+    if (at < 0) return false;
+    const int styleAbstract = n.abstracts[at].id;
+    // The ids that name the style go to the definition itself, so that every paragraph keeps its levels and its count.
+    for (Num &m : n.nums) {
+        const AbstractNum *eff = n.abstractOf(m.id);
+        if (eff && eff->id == styleAbstract && m.abstractId != styleAbstract) {
+            m.abstractId = styleAbstract;
+            m.raw.clear();
+        }
+    }
+    for (int i = n.abstracts.size() - 1; i >= 0; --i)
+        if (n.abstracts[i].numStyleLink == styleId && i != at) {
+            n.abstracts.remove(i);
+            if (i < at) --at;
+        }
+    AbstractNum &a = n.abstracts[at];
+    static const QRegularExpression link(QStringLiteral("<w:styleLink\\b[^>]*/>"));
+    a.head = QString::fromUtf8(a.head).remove(link).toUtf8();
+    a.styleLink.clear();
+    a.raw.clear();
+    n.modified = true;
+    putFontParts(parts);
+    removeStyle(styleId);
+    return true;
+}
+
 QByteArray WriteDoc::pictureBulletBytes(int id) const
 {
     const QString prefix = QString::fromUtf8(m_wml.numbering.prefix);

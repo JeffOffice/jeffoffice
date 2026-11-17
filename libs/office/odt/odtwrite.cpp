@@ -4,6 +4,7 @@
 
 #include "io/zip.h"
 #include "odt/odtread.h"
+#include "wml/wml.h"
 #include "text/opentype.h"
 
 #include <QCoreApplication>
@@ -542,8 +543,7 @@ QByteArray Writer::stylesPart()
                 const int idn = t.child(np, "numId");
                 const int numId = idn >= 0 ? t.val(idn).toInt() : -1;
                 if (numId > 0 && m_numDefs.contains(numId)) {
-                    m_numsUsed.insert(numId);
-                    listAttr = " style:list-style-name=\"L" + num(numId) + "\"";
+                    listAttr = " style:list-style-name=\"" + listNameFor(numId) + "\"";
                 }
             }
         }
@@ -554,6 +554,19 @@ QByteArray Writer::stylesPart()
         const QByteArray tAttrs = textAttrs(t, rPr);
         if (!tAttrs.isEmpty()) x += "<style:text-properties" + tAttrs + "/>";
         x += "</style:style>";
+    }
+    // The list styles: each numbering style's definition, by the name the styles of paragraphs and the lists name it.
+    {
+        QList<int> ids = m_abstracts.keys();
+        std::sort(ids.begin(), ids.end());
+        int written = 0;
+        for (int id : std::as_const(ids)) {
+            const AbstractDef &def = m_abstracts[id];
+            if (def.styleLink.isEmpty() || def.styled != def.styleLink || !m_dstyles.contains(def.styleLink) || m_dstyles[def.styleLink].type != QLatin1String("numbering")) continue;
+            if (++written > wml::kMostListStyles) break;
+            const DStyle &s = m_dstyles[def.styleLink];
+            x += listLevelsXml("<text:list-style style:name=\"" + esc(s.odfName) + "\" style:display-name=\"" + esc(s.name) + "\">", def, nullptr);
+        }
     }
     if (!standard) x = "<style:style style:name=\"Standard\" style:family=\"paragraph\" style:class=\"text\"/>" + x;
     // The styles a frame and a picture are given.
@@ -596,6 +609,10 @@ void Writer::collectNumbering()
                     }
                 }
             }
+            for (int l = t.firstChild(c); l >= 0; l = t.next(l)) {
+                if (t.is(l, "styleLink")) def.styleLink = t.val(l);
+                else if (t.is(l, "numStyleLink")) def.numStyleLink = t.val(l);
+            }
             m_abstracts.insert(t.attr(c, "abstractNumId").toInt(), def);
         } else if (t.is(c, "num")) {
             NumDef nd;
@@ -611,6 +628,37 @@ void Writer::collectNumbering()
             }
             m_numDefs.insert(t.attr(c, "numId").toInt(), nd);
         }
+    }
+    // A definition that names a numbering style (w:numStyleLink) has the levels of the definition that carries it (w:styleLink), through at most 8 of them; a ring, or a longer chain, is refused
+    // (the definition keeps the levels it has). At most kMostListStyles styles are taken.
+    QHash<QString, int> carrier;
+    QList<int> ids = m_abstracts.keys();
+    std::sort(ids.begin(), ids.end());
+    for (int id : std::as_const(ids)) {
+        const QString &link = m_abstracts[id].styleLink;
+        if (!link.isEmpty() && carrier.size() < wml::kMostListStyles && !carrier.contains(link)) carrier.insert(link, id);
+    }
+    for (int id : std::as_const(ids)) {
+        AbstractDef &def = m_abstracts[id];
+        if (def.numStyleLink.isEmpty()) {
+            if (carrier.value(def.styleLink, -1) == id) def.styled = def.styleLink;
+            continue;
+        }
+        int at = id;
+        bool refused = false;
+        for (int hops = 0; !m_abstracts[at].numStyleLink.isEmpty(); ++hops) {
+            const int next = carrier.value(m_abstracts[at].numStyleLink, -1);
+            if (next < 0 || next == at) break;
+            if (hops >= 8 || next == id) {
+                refused = true;
+                break;
+            }
+            at = next;
+        }
+        if (refused || at == id) continue;
+        const AbstractDef target = m_abstracts[at];
+        for (int lv = 0; lv < 9; ++lv) def.level[lv] = target.level[lv];
+        def.styled = target.styleLink;
     }
 }
 
@@ -640,8 +688,26 @@ QString bulletFor(const QString &text)
 QByteArray Writer::listStyleXml(int numId)
 {
     const NumDef nd = m_numDefs.value(numId);
+    return listLevelsXml("<text:list-style style:name=\"L" + num(numId) + "\">", m_abstracts.value(nd.abstractId), nd.startOverride);
+}
+
+QByteArray Writer::listNameFor(int numId)
+{
+    const NumDef nd = m_numDefs.value(numId);
     const AbstractDef def = m_abstracts.value(nd.abstractId);
-    QByteArray x = "<text:list-style style:name=\"L" + num(numId) + "\">";
+    if (!def.styled.isEmpty() && m_dstyles.contains(def.styled) && m_dstyles[def.styled].type == QLatin1String("numbering")) {
+        bool keeps = true;
+        for (int lv = 0; lv < 9; ++lv)
+            if (nd.startOverride[lv] >= 0 && nd.startOverride[lv] != std::max(0, def.level[lv].start)) keeps = false;
+        if (keeps) return esc(m_dstyles[def.styled].odfName);
+    }
+    m_numsUsed.insert(numId);
+    return "L" + num(numId);
+}
+
+QByteArray Writer::listLevelsXml(const QByteArray &head, const AbstractDef &def, const int *startOverride)
+{
+    QByteArray x = head;
     for (int lv = 0; lv < 9; ++lv) {
         LevelDef l = def.level[lv];
         if (!l.defined) {
@@ -688,7 +754,7 @@ QByteArray Writer::listStyleXml(int numId)
                                                          {QStringLiteral("none"), ""}};
         const QByteArray fmt = fmts.value(l.fmt, "1");
         int start = l.start;
-        if (nd.startOverride[lv] >= 0) start = nd.startOverride[lv];
+        if (startOverride && startOverride[lv] >= 0) start = startOverride[lv];
         x += "<text:list-level-style-number text:level=\"" + num(lv + 1) + "\" style:num-format=\"" + fmt + "\"" + (prefix.isEmpty() ? QByteArray() : " style:num-prefix=\"" + esc(prefix) + "\"") +
              (suffix.isEmpty() ? QByteArray() : " style:num-suffix=\"" + esc(suffix) + "\"") + " text:display-levels=\"" + num(std::min(shown, lv + 1)) + "\" text:start-value=\"" + num(std::max(0, start)) + "\">" +
              indent + "</text:list-level-style-number>";

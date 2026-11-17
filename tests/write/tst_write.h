@@ -1750,6 +1750,12 @@ private Q_SLOTS:
     void paragraphsInAHeadingStyleJoinALinkedList();
     void theLevelOfAListItemChangesInOneStep();
     void theListBoxesSetUpListsThroughTheWindow();
+    void aListStyleIsSavedAppliedModifiedAndDeleted();
+    void aListStyleIsKeptInTheDocxWithItsLinks();
+    void listStyleLinksThatLoopOrRunTooLongAreRefused();
+    void aFileOfThousandsOfListStylesIsReadUpToTheLimit();
+    void theListStyleDialogSavesAndChecksTheName();
+    void theListStylesAreInTheGalleryAndTheStylesPane();
     void theNumbersInWordsAndOtherFormatsOfARealListAreShown();
     void editingOneLevelOfARealListKeepsTheRest();
     void theAcceptanceSetOfRealListsKeepsItsNumbers();

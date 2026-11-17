@@ -603,6 +603,21 @@ public:
     int listFor(const office::wml::AbstractNum &def, bool fresh, int level = 0, std::optional<int> start = std::nullopt, int inherit = 0);
     // A new numbering id of a definition the document has (by its id), begun at `start` on `level` when given.
     int addNumberingId(int abstractId, int level, std::optional<int> start);
+    // List styles: a numbering style (w:style of type numbering) whose numbering id is of a definition that carries w:styleLink, and the definitions (w:numStyleLink) that name it,
+    // which the paragraphs that use the style have. At most office::wml::kMostListStyles are listed.
+    struct ListStyleEntry {
+        QString id, name;
+        int abstractId = -1;   // the definition that is the style
+    };
+    QVector<ListStyleEntry> listStyleEntries() const;
+    // Makes a list style of this name (a name no style has) from `def`, as part of the edit being made; its id, empty when the file has too many list styles. A paragraph style linked to a level is not kept.
+    QString saveListStyle(const QString &name, const office::wml::AbstractNum &def);
+    // A numbering id of the style for a paragraph to have: one that counts with the style's other paragraphs, or with `fresh` one that begins at the level's start. 0 for no such style.
+    int numberingIdForListStyle(const QString &styleId, bool fresh);
+    // The levels of the style (all users follow), as part of the edit being made. False for no such style.
+    bool setListStyleDefinition(const QString &styleId, const office::wml::AbstractNum &def);
+    // Takes the style away as part of the edit being made; the paragraphs that had it keep its levels and their count. False for no such style.
+    bool dropListStyle(const QString &styleId);
     // A picture bullet: the picture (PNG, JPEG, or what the image readers know, kept as a PNG of at most 64 pixels across) added to the numbering as a w:numPicBullet with its image part, and its id (for
     // a level's picBullet); -1 when the bytes are no picture.
     int addPictureBullet(const QByteArray &image);

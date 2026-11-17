@@ -28,7 +28,7 @@ namespace {
 
 } // namespace
 
-bool multilevelListDialog(QWidget *parent, AbstractNum *definition, const QList<QPair<QString, QString>> &styles)
+bool multilevelListDialog(QWidget *parent, AbstractNum *definition, const QList<QPair<QString, QString>> &styles, ListStyleChoice *listStyle)
 {
     AbstractNum work = *definition;
     for (Level &l : work.levels) {
@@ -40,7 +40,7 @@ bool multilevelListDialog(QWidget *parent, AbstractNum *definition, const QList<
     work.multiLevelType = QStringLiteral("multilevel");
     QDialog d(parent);
     d.setObjectName(QStringLiteral("multilevelListDialog"));
-    d.setWindowTitle(QCoreApplication::translate("jp::write::MultilevelDialog", "Define New Multilevel List"));
+    d.setWindowTitle(listStyle && listStyle->editing ? QCoreApplication::translate("jp::write::MultilevelDialog", "Modify List Style") : QCoreApplication::translate("jp::write::MultilevelDialog", "Define New Multilevel List"));
     auto *levels = new QListWidget(&d);
     levels->setObjectName(QStringLiteral("levels"));
     for (int i = 1; i <= 9; ++i) levels->addItem(QString::number(i));
@@ -255,13 +255,50 @@ bool multilevelListDialog(QWidget *parent, AbstractNum *definition, const QList<
     });
 
     auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &d);
-    QObject::connect(buttons, &QDialogButtonBox::accepted, &d, &QDialog::accept);
+    QCheckBox *saveStyle = nullptr;
+    QLineEdit *styleName = nullptr;
+    auto *problem = new QLabel(&d);
+    problem->setObjectName(QStringLiteral("listStyleProblem"));
+    problem->setTextFormat(Qt::PlainText);
+    problem->setWordWrap(true);
+    problem->hide();
+    auto *saveRow = new QHBoxLayout;
+    if (listStyle) {
+        styleName = new QLineEdit(listStyle->name, &d);
+        styleName->setObjectName(QStringLiteral("listStyleName"));
+        styleName->setAccessibleName(QCoreApplication::translate("jp::write::MultilevelDialog", "List style name"));
+        if (listStyle->editing) {
+            styleName->setReadOnly(true);
+            saveRow->addWidget(styleName);
+        } else {
+            saveStyle = new QCheckBox(QCoreApplication::translate("jp::write::MultilevelDialog", "Save as a list style"), &d);
+            saveStyle->setObjectName(QStringLiteral("saveAsListStyle"));
+            saveStyle->setChecked(listStyle->save);
+            styleName->setEnabled(listStyle->save);
+            QObject::connect(saveStyle, &QCheckBox::toggled, styleName, &QLineEdit::setEnabled);
+            saveRow->addWidget(saveStyle);
+            saveRow->addWidget(styleName, 1);
+        }
+    }
+    QObject::connect(buttons, &QDialogButtonBox::accepted, &d, [&] {
+        if (listStyle && saveStyle && saveStyle->isChecked() && listStyle->check) {
+            const QString why = listStyle->check(styleName->text().trimmed());
+            problem->setText(why);
+            problem->setVisible(!why.isEmpty());
+            if (!why.isEmpty()) return;
+        }
+        d.accept();
+    });
     QObject::connect(buttons, &QDialogButtonBox::rejected, &d, &QDialog::reject);
     auto *row = new QHBoxLayout;
     row->addWidget(levels);
     row->addLayout(form, 1);
     auto *column = new QVBoxLayout(&d);
     column->addLayout(row);
+    if (listStyle) {
+        column->addLayout(saveRow);
+        column->addWidget(problem);
+    }
     column->addWidget(buttons);
     load(0);
     levels->setCurrentRow(0);
@@ -269,6 +306,10 @@ bool multilevelListDialog(QWidget *parent, AbstractNum *definition, const QList<
     for (int i = 0; i < 9; ++i)
         if (work.levels[i].numFmt != QLatin1String("bullet") && work.levels[i].numFmt != QLatin1String("none") && !work.levels[i].text.contains(QLatin1Char('%'))) work.levels[i].text += QStringLiteral("%") + QString::number(i + 1);
     *definition = work;
+    if (listStyle && saveStyle) {
+        listStyle->save = saveStyle->isChecked();
+        listStyle->name = styleName->text().trimmed();
+    }
     return true;
 }
 

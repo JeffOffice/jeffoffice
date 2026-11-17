@@ -1405,8 +1405,9 @@ const TableStyleDef &StyleSheet::tableStyle(const QString &id) const
 
 // ---- Numbering
 
-// The most definitions that name one another through numbering styles that are followed (a file can link them in a ring).
-constexpr int kMostStyleLinks = 16;
+// The most definitions that name one another through numbering styles that are followed (a file can link them in a ring): a chain longer than this, or one that comes round to a
+// definition it began at, is refused, and the definition has the levels it writes itself.  Only the first kMostListStyles numbering styles of a file are followed.
+constexpr int kMostStyleLinks = 8;
 
 void Numbering::index() const
 {
@@ -1418,17 +1419,23 @@ void Numbering::index() const
     QHash<QString, int> styles;   // the first definition that is each numbering style
     for (int i = 0; i < abstracts.size(); ++i) {
         if (!m_abstracts.contains(abstracts[i].id)) m_abstracts.insert(abstracts[i].id, i);
-        if (!abstracts[i].styleLink.isEmpty() && !styles.contains(abstracts[i].styleLink)) styles.insert(abstracts[i].styleLink, i);
+        if (!abstracts[i].styleLink.isEmpty() && styles.size() < kMostListStyles && !styles.contains(abstracts[i].styleLink)) styles.insert(abstracts[i].styleLink, i);
     }
     // A definition that names a numbering style has the levels of the definition that is that style (and that one may name another).
     m_effective.resize(abstracts.size());
     for (int i = 0; i < abstracts.size(); ++i) {
         int at = i;
-        for (int hops = 0; hops < kMostStyleLinks && !abstracts[at].numStyleLink.isEmpty(); ++hops) {
+        bool refused = false;
+        for (int hops = 0; !abstracts[at].numStyleLink.isEmpty(); ++hops) {
             const auto it = styles.constFind(abstracts[at].numStyleLink);
             if (it == styles.constEnd() || it.value() == at) break;
+            if (hops >= kMostStyleLinks || it.value() == i) {
+                refused = true;
+                break;
+            }
             at = it.value();
         }
+        if (refused) at = i;
         m_effective[i] = at;
     }
     m_numCount = nums.size();

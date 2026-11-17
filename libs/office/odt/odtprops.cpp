@@ -412,6 +412,23 @@ QByteArray Reader::stylesXml()
         if (!rpr.isEmpty()) x += "<w:rPr>" + rpr + "</w:rPr>";
         x += "</w:style>";
     }
+    // The named list styles: a numbering style each, whose definition is the one that carries w:styleLink (numberingXml).
+    for (const QString &name : std::as_const(m_namedLists)) {
+        const ListStyleDef &def = m_listStyles[name];
+        if (!def.named) continue;
+        const int numId = numberOf(name, false) > 0 ? m_firstNumOf.value(name) : 0;
+        if (numId <= 0) continue;
+        const QString display = def.display.isEmpty() ? decodeStyleName(name) : def.display;
+        QString id;
+        for (const QChar c : display)
+            if (c.isLetterOrNumber() && c.unicode() < 128) id += c;
+        if (id.isEmpty() || id[0].isDigit()) id.prepend(QStringLiteral("List"));
+        const QString base = id;
+        for (int n = 2; m_idsTaken.contains(id); ++n) id = base + QString::number(n);
+        m_idsTaken.insert(id);
+        m_listStyleIds.insert(name, id);
+        x += "<w:style w:type=\"numbering\" w:customStyle=\"1\" w:styleId=\"" + esc(id) + "\"><w:name w:val=\"" + esc(display) + "\"/><w:pPr><w:numPr><w:numId w:val=\"" + num(numId) + "\"/></w:numPr></w:pPr></w:style>";
+    }
     if (!normal) x += "<w:style w:type=\"paragraph\" w:default=\"1\" w:styleId=\"Normal\"><w:name w:val=\"Normal\"/><w:qFormat/></w:style>";
     if (!footnoteRef) x += "<w:style w:type=\"character\" w:styleId=\"FootnoteReference\"><w:name w:val=\"footnote reference\"/><w:rPr><w:vertAlign w:val=\"superscript\"/></w:rPr></w:style>";
     if (!hyperlink) x += "<w:style w:type=\"character\" w:styleId=\"Hyperlink\"><w:name w:val=\"Hyperlink\"/><w:rPr><w:color w:val=\"0000FF\"/><w:u w:val=\"single\"/></w:rPr></w:style>";
@@ -494,7 +511,8 @@ QByteArray Reader::numberingXml() const
     for (int i = 0; i < m_abstractOrder.size(); ++i) {
         const QString &name = m_abstractOrder[i];
         ListStyleDef def = m_listStyles.value(name);
-        x += "<w:abstractNum w:abstractNumId=\"" + num(i) + "\"><w:multiLevelType w:val=\"multilevel\"/>";
+        x += "<w:abstractNum w:abstractNumId=\"" + num(i) + "\"><w:multiLevelType w:val=\"multilevel\"/>" +
+             (m_listStyleIds.contains(name) ? "<w:styleLink w:val=\"" + esc(m_listStyleIds.value(name)) + "\"/>" : QByteArray());
         for (int lv = 0; lv < 9; ++lv) {
             ListLevel l = def.level[lv];
             if (!l.defined) {

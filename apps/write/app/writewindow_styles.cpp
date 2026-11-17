@@ -100,6 +100,12 @@ void WriteWindow::showStyleDialog(bool create)
     m_view->leaveHeaderFooter();
     m_view->leaveNote();
     const QString id = create ? QString() : (m_styles && m_styles->isVisible() ? m_styles->chosenId() : write::paragraphStyleAt(*m_doc, m_view->cursor()));
+    if (!create)
+        for (const write::WriteDoc::ListStyleEntry &e : m_doc->listStyleEntries())
+            if (e.id == id) {
+                modifyListStyleDialog(id);
+                return;
+            }
     write::styleDialog(this, m_doc.get(), &m_view->cursor(), id);
     m_view->setFocus(Qt::OtherFocusReason);
     refreshUi();

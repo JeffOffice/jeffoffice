@@ -220,10 +220,18 @@ QVector<ListedStyle> listStyles(WriteDoc &doc, StyleFilter filter, const QString
     QVector<int> priority;
     QSet<QString> added;
     bool firstPass = true;
+    // The list styles, and which of them a paragraph has (its numbering id is of the style's definition).
+    QHash<QString, int> listIds;
+    QSet<int> listUsed;
+    for (const WriteDoc::ListStyleEntry &e : doc.listStyleEntries()) listIds.insert(e.id, e.abstractId);
+    if (!listIds.isEmpty())
+        for (QTextBlock b = doc.story()->begin(); b.isValid(); b = b.next())
+            if (b.blockFormat().hasProperty(prop::NumId)) listUsed.insert(doc.numbering().definitionOf(b.blockFormat().intProperty(prop::NumId)));
     auto consider = [&](const Style &s, bool inDocument) {
-        if (s.type != QLatin1String("paragraph") && s.type != QLatin1String("character")) return;
+        const bool isList = s.type == QLatin1String("numbering") && listIds.contains(s.id);
+        if (s.type != QLatin1String("paragraph") && s.type != QLatin1String("character") && !isList) return;
         if (added.contains(s.id)) return;
-        const bool inUse = used.contains(s.id);
+        const bool inUse = isList ? listUsed.contains(listIds.value(s.id)) : used.contains(s.id);
         if (firstPass && !inUse && s.id != caretStyle) return;
         // A style is recommended unless it is hidden, or half hidden until it is used; and it is either in the gallery, has a priority, or is used.
         const bool shownByDefault = s.qFormat || s.uiPriority.value_or(99) < 99 || inUse;
@@ -236,7 +244,8 @@ QVector<ListedStyle> listStyles(WriteDoc &doc, StyleFilter filter, const QString
         e.name = shownName(s);
         e.basedOn = s.basedOn;
         e.character = s.type == QLatin1String("character");
-        e.linked = !e.character && !s.link.isEmpty();
+        e.list = isList;
+        e.linked = !e.character && !isList && !s.link.isEmpty();
         e.inUse = inUse;
         e.recommended = recommended;
         e.inDocument = inDocument;

@@ -98,6 +98,7 @@ void StylesPane::apply(int row)
     if (!doc || key.size() < 3) return;
     QTextCursor &c = m_win->view()->cursor();
     if (key.startsWith(QLatin1String("c:"))) write::applyCharacterStyle(*doc, c, key.mid(2));
+    else if (key.startsWith(QLatin1String("l:"))) write::applyListStyle(*doc, c, key.mid(2));
     else write::applyParagraphStyle(*doc, c, key.mid(2));
     m_win->view()->setFocus(Qt::OtherFocusReason);
     refresh();
@@ -170,16 +171,16 @@ void StylesPane::rebuild()
     const QVector<write::ListedStyle> styles = write::listStyles(*doc, filter(), m_caretKey.mid(2), write::StyleSort(m_sort->currentData().toInt()));
     int shown = 0;
     for (const write::ListedStyle &s : styles) {
-        const QString key = (s.character ? QStringLiteral("c:") : QStringLiteral("p:")) + s.id;
+        const QString key = (s.list ? QStringLiteral("l:") : s.character ? QStringLiteral("c:") : QStringLiteral("p:")) + s.id;
         auto *item = new QListWidgetItem(s.name, m_list);
         item->setData(Qt::UserRole, key);
         item->setData(Qt::UserRole + 1, s.name);
-        QString tip = s.character ? QCoreApplication::translate("jp::StylesPane", "Character style") : s.linked ? QCoreApplication::translate("jp::StylesPane", "Linked style") : QCoreApplication::translate("jp::StylesPane", "Paragraph style");
+        QString tip = s.list ? QCoreApplication::translate("jp::StylesPane", "List style") : s.character ? QCoreApplication::translate("jp::StylesPane", "Character style") : s.linked ? QCoreApplication::translate("jp::StylesPane", "Linked style") : QCoreApplication::translate("jp::StylesPane", "Paragraph style");
         if (s.inUse) tip += QStringLiteral(", ") + QCoreApplication::translate("jp::StylesPane", "in use");
         // plain: reviewed: the tooltip is our own words (a style's name is never in it)
         item->setToolTip(tip);
         // The look of the style in its name (for the first of them).
-        if (shown++ < kMostPreviewed && s.inDocument) {
+        if (shown++ < kMostPreviewed && s.inDocument && !s.list) {
             const QTextCharFormat cf = doc->styleCharFormat(s.character ? doc->defaultParagraphStyle() : s.id, s.character ? s.id : QString());
             QFont f = cf.font();
             f.setPointSizeF(std::clamp(cf.fontPointSize() > 0 ? cf.fontPointSize() : 11.0, 9.0, 16.0));

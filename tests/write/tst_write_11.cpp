@@ -1,4 +1,5 @@
 #include "tst_write.h"
+#include "app/theme.h"
 
 
 // At the edge of the endnotes set at a section's end, Delete at the end of the section's last paragraph and Backspace at the start of the next section's join the two paragraphs and
@@ -2392,6 +2393,300 @@ void WriteTests::theListBoxesSetUpListsThroughTheWindow()
     auto again = open(doc.toDocx());
     QVERIFY(again);
     QCOMPARE(levelOfBlock(*again, 0).text, QStringLiteral("Article %1"));
+}
+
+// ---- list styles: a definition kept by name
+
+namespace {
+
+// A list of four paragraphs, with the first two and the last having a list style made from the first multilevel preset.
+struct StyledList {
+    std::unique_ptr<WriteDoc> doc;
+    QString id;
+};
+
+StyledList styledList(const QString &name = QStringLiteral("My List"))
+{
+    StyledList out;
+    QTextCursor all;
+    out.doc = listDoc(4, &all);
+    out.id = saveListStyle(*out.doc, name, multilevelPresets().at(0).def);
+    QTextCursor firstTwo(out.doc->story());
+    firstTwo.setPosition(out.doc->story()->findBlockByNumber(0).position());
+    firstTwo.setPosition(out.doc->story()->findBlockByNumber(1).position() + 2, QTextCursor::KeepAnchor);
+    applyListStyle(*out.doc, firstTwo, out.id);
+    QTextCursor last(out.doc->story());
+    last.setPosition(out.doc->story()->findBlockByNumber(3).position());
+    applyListStyle(*out.doc, last, out.id);
+    return out;
+}
+
+QByteArray linkPara(int numId)
+{
+    return "<w:p><w:pPr><w:numPr><w:ilvl w:val=\"0\"/><w:numId w:val=\"" + QByteArray::number(numId) + "\"/></w:numPr></w:pPr><w:r><w:t>x</w:t></w:r></w:p>";
+}
+
+int definitionOfBlock(const WriteDoc &doc, int index) { return doc.numbering().definitionOf(numIdOfBlock(doc, index)); }
+
+} // namespace
+
+// Save as a list style: the definition has a name; applying it makes the paragraphs follow it; changing it changes every one of them; deleting it leaves them as they look.
+void WriteTests::aListStyleIsSavedAppliedModifiedAndDeleted()
+{
+    auto made = styledList();
+    WriteDoc &doc = *made.doc;
+    QVERIFY(!made.id.isEmpty());
+    // The style is a numbering style that names the definition, which carries the link back.
+    const QVector<WriteDoc::ListStyleEntry> entries = doc.listStyleEntries();
+    QCOMPARE(entries.size(), 1);
+    QCOMPARE(entries[0].name, QStringLiteral("My List"));
+    const office::wml::Style *style = doc.styleSheet().find(made.id);
+    QVERIFY(style);
+    QCOMPARE(style->type, QStringLiteral("numbering"));
+    QVERIFY(style->pPr.numId.has_value());
+    QCOMPARE(doc.numbering().abstractOf(*style->pPr.numId)->styleLink, made.id);
+    // Applied: items 1, 2, and 4 are in lists of the style (the last begins a list of its own), the third is not.
+    for (int i : {0, 1, 3}) {
+        QVERIFY(listKindOf(doc, doc.story()->findBlockByNumber(i)) == ListKind::Numbers);
+        QCOMPARE(definitionOfBlock(doc, i), entries[0].abstractId);
+        QCOMPARE(levelOfBlock(doc, i).numFmt, QStringLiteral("decimal"));
+    }
+    QCOMPARE(numIdOfBlock(doc, 0), numIdOfBlock(doc, 1));
+    QVERIFY(numIdOfBlock(doc, 3) != numIdOfBlock(doc, 0));
+    QVERIFY(listKindOf(doc, doc.story()->findBlockByNumber(2)) == ListKind::None);
+    // A name that is empty or taken, or a second list style of a taken id, is refused with a reason.
+    QString why;
+    QVERIFY(saveListStyle(doc, QStringLiteral("  "), multilevelPresets().at(1).def, &why).isEmpty());
+    QVERIFY(!why.isEmpty());
+    why.clear();
+    QVERIFY(saveListStyle(doc, QStringLiteral("my list"), multilevelPresets().at(1).def, &why).isEmpty());
+    QVERIFY(!why.isEmpty());
+    QCOMPARE(doc.listStyleEntries().size(), 1);
+    // Modified: every paragraph that has the style changes with it, the others do not.
+    AbstractNum changed = multilevelPresets().at(2).def;
+    changed.levels[0].text = QStringLiteral("Part %1:");
+    changed.levels[0].numFmt = QStringLiteral("upperRoman");
+    QVERIFY(modifyListStyle(doc, made.id, changed));
+    for (int i : {0, 1, 3}) {
+        QCOMPARE(levelOfBlock(doc, i).text, QStringLiteral("Part %1:"));
+        QCOMPARE(levelOfBlock(doc, i).numFmt, QStringLiteral("upperRoman"));
+    }
+    QCOMPARE(doc.story()->findBlockByNumber(0).textList()->itemText(doc.story()->findBlockByNumber(0)).isEmpty(), false);
+    QVERIFY(!doc.story()->findBlockByNumber(2).blockFormat().hasProperty(prop::NumId));
+    doc.undo();
+    for (int i : {0, 1, 3}) QCOMPARE(levelOfBlock(doc, i).numFmt, QStringLiteral("decimal"));
+    doc.redo();
+    for (int i : {0, 1, 3}) QCOMPARE(levelOfBlock(doc, i).numFmt, QStringLiteral("upperRoman"));
+    // Deleted: the style is gone, and the paragraphs look and count as they did.
+    const int before = numIdOfBlock(doc, 0);
+    QVERIFY(deleteListStyle(doc, made.id));
+    QVERIFY(doc.listStyleEntries().isEmpty());
+    QVERIFY(!doc.styleSheet().find(made.id));
+    for (int i : {0, 1, 3}) {
+        QVERIFY(listKindOf(doc, doc.story()->findBlockByNumber(i)) == ListKind::Numbers);
+        QCOMPARE(levelOfBlock(doc, i).text, QStringLiteral("Part %1:"));
+    }
+    QCOMPARE(numIdOfBlock(doc, 0), before);
+    QCOMPARE(definitionOfBlock(doc, 0), definitionOfBlock(doc, 3));
+    QVERIFY(!deleteListStyle(doc, made.id));
+    doc.undo();
+    QCOMPARE(doc.listStyleEntries().size(), 1);
+    QVERIFY(doc.styleSheet().find(made.id));
+}
+
+// In a .docx the style is a w:style of type numbering whose numPr names a numbering id of a definition with w:styleLink, and the paragraphs' definitions carry w:numStyleLink; it is read back.
+void WriteTests::aListStyleIsKeptInTheDocxWithItsLinks()
+{
+    auto made = styledList();
+    const QByteArray docx = made.doc->toDocx();
+    const QByteArray styles = partOf(docx, QStringLiteral("/word/styles.xml")), numbering = partOf(docx, QStringLiteral("/word/numbering.xml"));
+    QVERIFY(styles.contains("w:type=\"numbering\""));
+    QVERIFY(styles.contains("w:styleId=\"" + made.id.toUtf8() + "\""));
+    QVERIFY(QString::fromUtf8(styles).contains(QRegularExpression(QStringLiteral("w:type=\"numbering\"[^>]*>.*?<w:numPr><w:numId w:val=\"\\d+\"/></w:numPr>"))));
+    QCOMPARE(numbering.count("<w:styleLink w:val=\"" + made.id.toUtf8() + "\"/>"), 1);
+    QCOMPARE(numbering.count("<w:numStyleLink w:val=\"" + made.id.toUtf8() + "\"/>"), 1);
+    auto again = open(docx);
+    QVERIFY(again);
+    const QVector<WriteDoc::ListStyleEntry> entries = again->listStyleEntries();
+    QCOMPARE(entries.size(), 1);
+    QCOMPARE(entries[0].name, QStringLiteral("My List"));
+    for (int i : {0, 1, 3}) {
+        QCOMPARE(definitionOfBlock(*again, i), entries[0].abstractId);
+        QCOMPARE(levelOfBlock(*again, i).text, levelOfBlock(*made.doc, i).text);
+    }
+    QCOMPARE(numIdOfBlock(*again, 0), numIdOfBlock(*again, 1));
+    // Changing it in the file read changes every user there, and the file after that has it.
+    AbstractNum changed = multilevelPresets().at(3).def;
+    changed.levels[0].text = QStringLiteral("Step %1");
+    QVERIFY(modifyListStyle(*again, entries[0].id, changed));
+    auto third = open(again->toDocx());
+    QVERIFY(third);
+    for (int i : {0, 1, 3}) QCOMPARE(levelOfBlock(*third, i).text, QStringLiteral("Step %1"));
+    // Deleted, the file has no style and no link, and the paragraphs keep their levels.
+    QVERIFY(deleteListStyle(*third, entries[0].id));
+    const QByteArray gone = third->toDocx();
+    QVERIFY(!partOf(gone, QStringLiteral("/word/styles.xml")).contains("w:type=\"numbering\""));
+    QVERIFY(!partOf(gone, QStringLiteral("/word/numbering.xml")).contains("StyleLink"));
+    auto fourth = open(gone);
+    QVERIFY(fourth);
+    QVERIFY(fourth->listStyleEntries().isEmpty());
+    for (int i : {0, 1, 3}) QCOMPARE(levelOfBlock(*fourth, i).text, QStringLiteral("Step %1"));
+}
+
+namespace {
+
+QByteArray abstractWithLink(int id, const QByteArray &styleLink, const QByteArray &numStyleLink, bool withLevel)
+{
+    QByteArray x = "<w:abstractNum w:abstractNumId=\"" + QByteArray::number(id) + "\">";
+    if (!styleLink.isEmpty()) x += "<w:styleLink w:val=\"" + styleLink + "\"/>";
+    if (!numStyleLink.isEmpty()) x += "<w:numStyleLink w:val=\"" + numStyleLink + "\"/>";
+    if (withLevel) x += "<w:lvl w:ilvl=\"0\"><w:start w:val=\"1\"/><w:numFmt w:val=\"upperRoman\"/><w:lvlText w:val=\"%1)\"/></w:lvl>";
+    return x + "</w:abstractNum>";
+}
+
+} // namespace
+
+// Links that come round to where they began, and chains of more than 8 definitions, are refused: the definition has the levels it writes itself (none here), and nothing loops.
+void WriteTests::listStyleLinksThatLoopOrRunTooLongAreRefused()
+{
+    // A ring of three: each names the next. A definition that names itself.
+    QByteArray numbering = abstractWithLink(0, "A", "B", false) + abstractWithLink(1, "B", "C", false) + abstractWithLink(2, "C", "A", false) + abstractWithLink(3, "D", "D", false);
+    // A chain: definition 10 has the levels; 11 names it, 12 names 11, and so on; definition 10 + k reaches 10 through k links.
+    numbering += abstractWithLink(10, "S0", "", true);
+    for (int k = 1; k <= 10; ++k) numbering += abstractWithLink(10 + k, "S" + QByteArray::number(k), "S" + QByteArray::number(k - 1), false);
+    QByteArray nums;
+    for (int id : {0, 1, 2, 3}) nums += "<w:num w:numId=\"" + QByteArray::number(id + 1) + "\"><w:abstractNumId w:val=\"" + QByteArray::number(id) + "\"/></w:num>";
+    for (int k = 0; k <= 10; ++k) nums += "<w:num w:numId=\"" + QByteArray::number(100 + k) + "\"><w:abstractNumId w:val=\"" + QByteArray::number(10 + k) + "\"/></w:num>";
+    auto doc = open(makeDocx(linkPara(1) + linkPara(100), kStyles, numbering + nums));
+    QVERIFY(doc);
+    const office::wml::Numbering &n = doc->numbering();
+    for (int numId : {1, 2, 3, 4}) QVERIFY2(!n.levelOf(numId, 0), "a ring is refused");
+    // Through up to 8 links the levels are found; the ninth link is refused.
+    for (int k = 0; k <= 8; ++k) QVERIFY2(n.levelOf(100 + k, 0) && n.levelOf(100 + k, 0)->numFmt == QLatin1String("upperRoman"), qPrintable(QStringLiteral("%1 links").arg(k)));
+    QVERIFY(!n.levelOf(109, 0));
+    QVERIFY(!n.levelOf(110, 0));
+    // The file still opens and saves.
+    QVERIFY(open(doc->toDocx()));
+}
+
+// A file with 1,500 numbering styles lists 1,000; a definition that names a style past the 1,000th has no styles' levels. The same for an .odt (in its own test file).
+void WriteTests::aFileOfThousandsOfListStylesIsReadUpToTheLimit()
+{
+    QByteArray styles = kStyles, numbering, nums;
+    const int count = 1500;
+    for (int i = 0; i < count; ++i) {
+        const QByteArray id = "LS" + QByteArray::number(i);
+        styles += "<w:style w:type=\"numbering\" w:styleId=\"" + id + "\"><w:name w:val=\"List " + QByteArray::number(i) + "\"/><w:pPr><w:numPr><w:numId w:val=\"" + QByteArray::number(i + 1) + "\"/></w:numPr></w:pPr></w:style>";
+        numbering += abstractWithLink(i, id, "", true);
+        nums += "<w:num w:numId=\"" + QByteArray::number(i + 1) + "\"><w:abstractNumId w:val=\"" + QByteArray::number(i) + "\"/></w:num>";
+    }
+    // Users of the 10th style and of the 1,200th.
+    numbering += abstractWithLink(5000, "", "LS10", false) + abstractWithLink(5001, "", "LS1200", false);
+    nums += "<w:num w:numId=\"5000\"><w:abstractNumId w:val=\"5000\"/></w:num><w:num w:numId=\"5001\"><w:abstractNumId w:val=\"5001\"/></w:num>";
+    auto doc = open(makeDocx(linkPara(5000) + linkPara(5001), styles, numbering + nums));
+    QVERIFY(doc);
+    QCOMPARE(doc->listStyleEntries().size(), office::wml::kMostListStyles);
+    QVERIFY(doc->numbering().levelOf(5000, 0));
+    QVERIFY(!doc->numbering().levelOf(5001, 0));
+    // A list style can't be added past the limit.
+    QString why;
+    QVERIFY(saveListStyle(*doc, QStringLiteral("One too many"), multilevelPresets().at(0).def, &why).isEmpty());
+    QVERIFY(!why.isEmpty());
+}
+
+// The Define New Multilevel List box saves the definition as a list style when asked, and says why a name can't be used.
+void WriteTests::theListStyleDialogSavesAndChecksTheName()
+{
+    WriteWindow w;
+    typeText(*w.document(), w.view()->cursor(), QStringLiteral("One\nTwo\nThree"));
+    QTextCursor all(w.document()->story());
+    all.select(QTextCursor::Document);
+    w.view()->cursor() = all;
+    WriteDoc &doc = *w.document();
+    // A name is asked for: with none, the box stays open and says why; with a name it closes.
+    bool saidWhy = false;
+    withDialog([&] { w.act(QStringLiteral("list.defineMultilevel"))->trigger(); }, QStringLiteral("multilevelListDialog"), [&](QDialog *d) {
+        auto *save = d->findChild<QCheckBox *>(QStringLiteral("saveAsListStyle"));
+        QVERIFY(save);
+        auto *name = d->findChild<QLineEdit *>(QStringLiteral("listStyleName"));
+        QVERIFY(!name->isEnabled());
+        save->setChecked(true);
+        QVERIFY(name->isEnabled());
+        d->findChild<QLineEdit *>(QStringLiteral("numberFormat"))->setText(QStringLiteral("Article %1"));
+        d->findChild<QDialogButtonBox *>()->button(QDialogButtonBox::Ok)->click();
+        saidWhy = d->isVisible() && !d->findChild<QLabel *>(QStringLiteral("listStyleProblem"))->isHidden() && !d->findChild<QLabel *>(QStringLiteral("listStyleProblem"))->text().isEmpty();
+        name->setText(QStringLiteral("Articles"));
+        d->findChild<QDialogButtonBox *>()->button(QDialogButtonBox::Ok)->click();
+    });
+    QVERIFY(saidWhy);
+    const QVector<WriteDoc::ListStyleEntry> entries = doc.listStyleEntries();
+    QCOMPARE(entries.size(), 1);
+    QCOMPARE(entries[0].name, QStringLiteral("Articles"));
+    // The paragraphs have the style, so a change of it reaches them.
+    QCOMPARE(definitionOfBlock(doc, 0), entries[0].abstractId);
+    QCOMPARE(definitionOfBlock(doc, 2), entries[0].abstractId);
+    QCOMPARE(levelOfBlock(doc, 1).text, QStringLiteral("Article %1"));
+    // Modify List Style opens the same box for the style, with its name kept; its change reaches the paragraphs.
+    QMenu *gallery = nullptr;
+    for (QMenu *m : w.findChildren<QMenu *>()) {
+        Q_EMIT m->aboutToShow();
+        for (QAction *a : m->actions())
+            if (a->objectName() == QLatin1String("listStyle:") + entries[0].id) gallery = m;
+        if (gallery) break;
+    }
+    QVERIFY(gallery);
+    QAction *modify = nullptr;
+    for (QAction *a : gallery->actions())
+        if (a->menu() && a->text() == tr("Modify List Style")) modify = a;
+    QVERIFY(modify);
+    withDialog([&] { modify->menu()->actions().first()->trigger(); }, QStringLiteral("multilevelListDialog"), [&](QDialog *d) {
+        QVERIFY(!d->findChild<QCheckBox *>(QStringLiteral("saveAsListStyle")));
+        QCOMPARE(d->findChild<QLineEdit *>(QStringLiteral("listStyleName"))->text(), QStringLiteral("Articles"));
+        d->findChild<QLineEdit *>(QStringLiteral("numberFormat"))->setText(QStringLiteral("Chapter %1"));
+    });
+    for (int i = 0; i < 3; ++i) QCOMPARE(levelOfBlock(doc, i).text, QStringLiteral("Chapter %1"));
+}
+
+// The multilevel gallery has a List Styles section, and the styles pane lists the style, which applies it. With JO_SHOT_DIR set, a picture of the gallery is saved.
+void WriteTests::theListStylesAreInTheGalleryAndTheStylesPane()
+{
+    WriteWindow w;
+    typeText(*w.document(), w.view()->cursor(), QStringLiteral("One\nTwo\nThree"));
+    WriteDoc &doc = *w.document();
+    QString why;
+    const QString id = saveListStyle(doc, QStringLiteral("Contract Clauses"), multilevelPresets().at(1).def, &why);
+    QVERIFY2(!id.isEmpty(), qPrintable(why));
+    QMenu *gallery = nullptr;
+    for (QMenu *m : w.findChildren<QMenu *>()) {
+        Q_EMIT m->aboutToShow();
+        for (QAction *a : m->actions())
+            if (a->objectName() == QLatin1String("listStyle:") + id) gallery = m;
+        if (gallery) break;
+    }
+    QVERIFY(gallery);
+    bool section = false;
+    for (QAction *a : gallery->actions()) section = section || (a->isSeparator() && a->text() == tr("List Styles"));
+    QVERIFY(section);
+    // Choosing it applies it to the selection.
+    QTextCursor all(doc.story());
+    all.select(QTextCursor::Document);
+    w.view()->cursor() = all;
+    for (QAction *a : gallery->actions())
+        if (a->objectName() == QLatin1String("listStyle:") + id) a->trigger();
+    for (int i = 0; i < 3; ++i) QCOMPARE(definitionOfBlock(doc, i), doc.listStyleEntries()[0].abstractId);
+    // The styles pane has it too, as a list style, and clicking it applies it.
+    bool listed = false;
+    for (const ListedStyle &s : listStyles(doc, StyleFilter::All, QString(), StyleSort::Default))
+        if (s.id == id) listed = s.list && s.name == QStringLiteral("Contract Clauses") && s.inUse;
+    QVERIFY(listed);
+    const QString dir = qEnvironmentVariable("JO_SHOT_DIR");
+    if (dir.isEmpty()) return;
+    jp::applyUiTheme(1);
+    saveListStyle(doc, QStringLiteral("Meeting Notes"), multilevelPresets().at(0).def);
+    gallery->popup(w.mapToGlobal(QPoint(60, 120)));
+    QTRY_VERIFY(gallery->isVisible());
+    gallery->grab().save(dir + QLatin1Char('/') + QStringLiteral("write-list-styles-gallery.png"));
+    gallery->close();
 }
 
 namespace {

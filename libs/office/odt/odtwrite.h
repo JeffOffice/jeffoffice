@@ -73,6 +73,8 @@ private:
     // numbering
     void collectNumbering();
     QByteArray listStyleXml(int numId);
+    // The name a list is given in the text: the named list style when the numbering id is a use of one that keeps its look (no restart that the style does not give), else its own.
+    QByteArray listNameFor(int numId);
     int numLevelOf(const T &t, int pPr, int *numId, QString pStyle) const;
     // the body
     struct ParaCtx;
@@ -140,6 +142,7 @@ private:
     };
     struct AbstractDef {
         LevelDef level[9];
+        QString styleLink, numStyleLink, styled;   // w:styleLink, and the numbering style whose levels these are (its own, or the one a w:numStyleLink chain reaches)
     };
     QHash<int, AbstractDef> m_abstracts;
     struct NumDef {
@@ -149,6 +152,7 @@ private:
     };
     QHash<int, NumDef> m_numDefs;
     QSet<int> m_numsUsed, m_numsSeen;
+    QByteArray listLevelsXml(const QByteArray &head, const AbstractDef &def, const int *startOverride);
     // output
     StyleSink m_content, m_stylesSink;
     StyleSink *m_sink = &m_content;

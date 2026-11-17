@@ -14,6 +14,8 @@
 #include "core/rulerops.h"
 #include "flow/flowdocument.h"
 #include "core/styleops.h"
+#include "core/listpresets.h"
+#include "core/writeprops.h"
 #include "core/tableops.h"
 #include "core/writedoc.h"
 #include "odt/odtread.h"
@@ -1097,6 +1099,80 @@ private Q_SLOTS:
             }
             QVERIFY(std::abs(info.distLeft - 5.0) < 0.1 && std::abs(info.distTop - 3.0) < 0.1);
         }
+    }
+
+    // A list style (a numbering style in the .docx model) is a text:list-style of the document's styles in an .odt, which the lists of its paragraphs name; read back it is a list style again, whose
+    // change reaches every paragraph that has it.
+    void aListStyleIsKeptInTheOdtAndFollowsItsChanges()
+    {
+        auto doc = WriteDoc::blank();
+        QTextCursor typing(doc->story());
+        insertText(*doc, typing, QStringLiteral("One"));
+        insertParagraph(*doc, typing);
+        insertText(*doc, typing, QStringLiteral("Two"));
+        insertParagraph(*doc, typing);
+        insertText(*doc, typing, QStringLiteral("Three"));
+        QTextCursor all(doc->story());
+        all.select(QTextCursor::Document);
+        const QString id = saveListStyle(*doc, QStringLiteral("Meeting Notes"), multilevelPresets().at(1).def);
+        QVERIFY(!id.isEmpty());
+        applyListStyle(*doc, all, id);
+        const QByteArray odt = doc->toOdt();
+        const QByteArray styles = odtPart(odt, QStringLiteral("styles.xml")), content = odtPart(odt, QStringLiteral("content.xml"));
+        QVERIFY2(styles.contains("<text:list-style style:name=\"Meeting_20_Notes\" style:display-name=\"Meeting Notes\">"), styles.constData());
+        QVERIFY2(content.contains("<text:list text:style-name=\"Meeting_20_Notes\""), content.constData());
+        QVERIFY(!content.contains("<text:list-style"));   // (the paragraphs' lists name the style: no list style of their own)
+        QString err;
+        auto again = WriteDoc::fromFile(odt, &err);
+        QVERIFY2(again, qPrintable(err));
+        const QVector<WriteDoc::ListStyleEntry> entries = again->listStyleEntries();
+        QCOMPARE(entries.size(), 1);
+        QCOMPARE(entries[0].name, QStringLiteral("Meeting Notes"));
+        for (int i = 0; i < 3; ++i) {
+            const QTextBlock b = again->story()->findBlockByNumber(i);
+            QCOMPARE(again->numbering().definitionOf(b.blockFormat().intProperty(prop::NumId)), entries[0].abstractId);
+        }
+        office::wml::AbstractNum changed = multilevelPresets().at(2).def;
+        changed.levels[0].text = QStringLiteral("Item %1:");
+        QVERIFY(modifyListStyle(*again, entries[0].id, changed));
+        for (int i = 0; i < 3; ++i) {
+            const QTextBlock b = again->story()->findBlockByNumber(i);
+            QCOMPARE(again->numbering().levelOf(b.blockFormat().intProperty(prop::NumId), 0)->text, QStringLiteral("Item %1:"));
+        }
+        // Saved again, it says the new text, still in one list style.
+        const QByteArray second = odtPart(again->toOdt(), QStringLiteral("styles.xml"));
+        QCOMPARE(second.count("<text:list-style"), 1);
+        QVERIFY(second.contains("text:prefix=\"Item \"") || second.contains("style:num-prefix=\"Item \""));
+        // The .docx of the file read has the numbering style, and the style's link.
+        const QByteArray docx = again->toDocx();
+        office::Package pkg;
+        QVERIFY(pkg.read(docx));
+        QVERIFY(pkg.part(QStringLiteral("/word/styles.xml")).contains("w:type=\"numbering\""));
+        QVERIFY(pkg.part(QStringLiteral("/word/numbering.xml")).contains("<w:styleLink"));
+    }
+
+    // A file with 1,500 list styles has 1,000 of them as list styles; the rest still number the lists that name them.
+    void aFileOfThousandsOfOdtListStylesIsReadUpToTheLimit()
+    {
+        QByteArray common;
+        for (int i = 0; i < 1500; ++i)
+            common += "<text:list-style style:name=\"LS" + QByteArray::number(i) + "\"><text:list-level-style-number text:level=\"1\" style:num-format=\"A\" style:num-suffix=\")\"/></text:list-style>";
+        const QByteArray body = "<text:list text:style-name=\"LS5\"><text:list-item><text:p>five</text:p></text:list-item></text:list>"
+                                "<text:list text:style-name=\"LS1400\"><text:list-item><text:p>far</text:p></text:list-item></text:list>";
+        QString err;
+        auto doc = WriteDoc::fromFile(makeOdt(body, QByteArray(), common), &err);
+        QVERIFY2(doc, qPrintable(err));
+        const QVector<WriteDoc::ListStyleEntry> entries = doc->listStyleEntries();
+        QCOMPARE(entries.size(), office::wml::kMostListStyles);
+        QCOMPARE(doc->story()->findBlockByNumber(1).textList() != nullptr, true);
+        const QTextBlock far = doc->story()->findBlockByNumber(1);
+        QCOMPARE(doc->numbering().levelOf(far.blockFormat().intProperty(prop::NumId), 0)->numFmt, QStringLiteral("upperLetter"));
+        const QTextBlock five = doc->story()->findBlockByNumber(0);
+        QCOMPARE(doc->numbering().definitionOf(five.blockFormat().intProperty(prop::NumId)), [&] {
+            for (const WriteDoc::ListStyleEntry &e : entries)
+                if (e.name == QLatin1String("LS5")) return e.abstractId;
+            return -1;
+        }());
     }
 
     // The file is the same bytes each time it is saved, in whatever process.

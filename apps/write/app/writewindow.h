@@ -488,6 +488,7 @@ private:
     std::shared_ptr<void> m_mailHolder;   // (the Mailings tab: app/writewindow_mail.cpp)
     MailUi *m_mail = nullptr;
     void showStyleDialog(bool create);
+    void modifyListStyleDialog(const QString &id);
     void pictureRibbonParts(RibbonParts &parts);
     void headerRibbonParts(RibbonParts &parts);
     void removeEdited(bool footer);

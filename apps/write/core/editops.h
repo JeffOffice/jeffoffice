@@ -224,6 +224,15 @@ void applyListLevel(WriteDoc &doc, QTextCursor &c, const office::wml::Level &lev
 // Makes the selected paragraphs items of a list of this definition (nine levels: formats, texts that name the levels above, start, restart, alignment, indents, the text after, legal style, and a style
 // linked to a level, which is then numbered by it). Each keeps its level.
 void applyMultilevelList(WriteDoc &doc, QTextCursor &c, const office::wml::AbstractNum &definition);
+// List styles: a definition kept by name (in the file a numbering style; in an .odt a list style), that paragraphs have and follow. saveListStyle makes the style from `def` (one step), and
+// returns its id; empty, with `problem` told, when the name is empty, too long, or taken, or the file has too many list styles.
+QString saveListStyle(WriteDoc &doc, const QString &name, const office::wml::AbstractNum &def, QString *problem = nullptr);
+// Makes the selected paragraphs items of the style's list (each keeps its level; the numbers begin at the start unless the list of the style is just above).
+void applyListStyle(WriteDoc &doc, QTextCursor &c, const QString &styleId);
+// Gives the style these levels: every paragraph that has it changes with it (one step). False for no such style.
+bool modifyListStyle(WriteDoc &doc, const QString &styleId, const office::wml::AbstractNum &def);
+// Takes the style away (one step): its paragraphs keep their look, as a list of their own. False for no such style.
+bool deleteListStyle(WriteDoc &doc, const QString &styleId);
 // Puts the list items among the selected paragraphs on level 0 to 8.
 void setListLevel(WriteDoc &doc, QTextCursor &c, int level);
 // Set Numbering Value: the item the caret is in, and the items of its list after it, go on with the list above (`continuePrevious`, none when there is no list of the definition above: false), or

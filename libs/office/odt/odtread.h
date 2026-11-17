@@ -38,7 +38,8 @@ struct ListLevel {
 };
 
 struct ListStyleDef {
-    QString name;
+    QString name, display;
+    bool named = false;        // a list style of the document's styles (not one a list makes for itself): in the file a numbering style
     ListLevel level[10];
 };
 
@@ -94,7 +95,7 @@ private:
     void collectStyles(const Odf &o, int root, bool automatic);
     void collectDefaults(const Odf &o, int styleNode);
     void collectStyle(const Odf &o, int node, bool automatic);
-    void collectListStyle(const Odf &o, int node);
+    void collectListStyle(const Odf &o, int node, bool named = false);
     void collectOutline(const Odf &o, int node);
     void collectPageLayout(const Odf &o, int node);
     void collectMasterPage(const Odf &o, int node);
@@ -211,6 +212,8 @@ private:
     QHash<QString, int> m_lastNumOf;
     QVector<QString> m_abstractOrder;                 // list styles that have an abstractNum, by id
     QHash<QString, int> m_abstractOf;
+    QVector<QString> m_namedLists;                    // the named list styles (at most kMostListStyles), in the order of the file
+    QHash<QString, QString> m_listStyleIds;           // a named list style -> the id of its numbering style, once the styles are written
     // package builder state
     PackageWriter m_out;
     QHash<QString, QString> m_imageRel;               // the picture's path in the package -> its relationship Id

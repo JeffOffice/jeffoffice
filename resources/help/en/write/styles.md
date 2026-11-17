@@ -1,5 +1,5 @@
 # Use styles
-<!-- keywords: manage styles, locked style, lock a style, limit formatting, restrict formatting, export styles, template file, dotx, hide a style, recommended styles, styles, style, styles pane, heading, normal, create style, new style, modify style, change style, based on, next style, update automatically, gallery, character style, paragraph style, ctrl+alt+shift+s -->
+<!-- keywords: list style, save a list style, multilevel list style, list styles, manage styles, locked style, lock a style, limit formatting, restrict formatting, export styles, template file, dotx, hide a style, recommended styles, styles, style, styles pane, heading, normal, create style, new style, modify style, change style, based on, next style, update automatically, gallery, character style, paragraph style, ctrl+alt+shift+s -->
 
 A **style** is a saved set of looks: a font, a size, spacing, and more. When you give a style to a paragraph, the paragraph takes all of its looks at once. When you change the style, every paragraph that has it changes too. That is why styles keep long documents tidy.
 
@@ -64,6 +64,23 @@ If you click **OK** without changing anything, the document is not changed.
 ## Update a style to match your text
 
 Format a paragraph the way you want. Then click **Update Style to Match Selection** on the **Home** tab. The style of that paragraph takes on the changes you made, and every paragraph with that style follows.
+
+## Save a list as a list style
+
+A **list style** is a numbered or bulleted list with a name. It keeps all nine levels: the number or bullet of each level, its text, where it starts, and where the text sits.
+
+1. Click **Multilevel List** on the **Home** tab, and then **Define New Multilevel List…**.
+2. Set up the levels the way you want.
+3. Tick **Save as a list style** and type a name. If the name is empty or already used, the box says so and stays open.
+4. Click **OK**. The selected paragraphs take the list style.
+
+The list style now shows in two places: under **List Styles** in the **Multilevel List** gallery, and in the **Styles** pane. Select paragraphs and click its name to give them the list style.
+
+- **Change it.** Click **Multilevel List**, **Modify List Style**, and the name, or choose the list style in the **Styles** pane and click **Modify…**. Every paragraph that has the list style changes with it, in one step.
+- **Delete it.** Click **Multilevel List**, **Delete List Style**, and the name. The paragraphs keep their numbers and bullets exactly as they look. They just no longer follow a style.
+- **Save it in a file.** A list style is kept in a `.docx` file as a numbering style, and in an `.odt` file as a list style. It comes back as a list style when you open the file again. A file can have up to 1,000 list styles, and the rest are used as plain lists.
+
+A list style does not link a level to a paragraph style. If you linked one in the box, the link is dropped when you save the list as a list style.
 
 ## Related
 

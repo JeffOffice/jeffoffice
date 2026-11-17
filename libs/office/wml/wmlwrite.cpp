@@ -752,7 +752,11 @@ QByteArray numberingXml(const Numbering &num)
             continue;
         }
         out += "<w:abstractNum w:abstractNumId=\"" + QByteArray::number(a.id) + "\">" + a.head;
-        if (a.head.isEmpty()) out += "<w:multiLevelType w:val=\"" + escapeXml(a.multiLevelType.isEmpty() ? QStringLiteral("hybridMultilevel") : a.multiLevelType, true) + "\"/>";
+        if (a.head.isEmpty()) {
+            out += "<w:multiLevelType w:val=\"" + escapeXml(a.multiLevelType.isEmpty() ? QStringLiteral("hybridMultilevel") : a.multiLevelType, true) + "\"/>";
+            if (!a.styleLink.isEmpty()) out += "<w:styleLink w:val=\"" + escapeXml(a.styleLink, true) + "\"/>";
+            if (!a.numStyleLink.isEmpty()) out += "<w:numStyleLink w:val=\"" + escapeXml(a.numStyleLink, true) + "\"/>";
+        }
         for (int i = 0; i < 9; ++i) {
             const Level &l = a.levels[i];
             if (!l.present) continue;

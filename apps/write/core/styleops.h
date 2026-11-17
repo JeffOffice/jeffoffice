@@ -24,6 +24,7 @@ struct ListedStyle {
     QString id, name;
     QString basedOn;            // the id of the style it is based on (empty for none)
     bool character = false;
+    bool list = false;          // a list style (a numbering style): applying it makes the paragraphs items of its list
     bool linked = false;        // a paragraph style with a character style of its own look (w:link)
     bool inUse = false;         // the text uses it (the default paragraph style always)
     bool recommended = false;
