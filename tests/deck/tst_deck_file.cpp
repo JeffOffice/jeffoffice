@@ -156,6 +156,8 @@ private Q_SLOTS:
         QVERIFY(dir.isValid());
         const QString recent = dir.filePath(QStringLiteral("quarterly.pptx")), pinned = dir.filePath(QStringLiteral("pinned.pptx"));
         for (const QString &path : {recent, pinned}) QVERIFY(deck::savePresentationFile(*deck::newPresentation(), path));
+        // Start from an empty list: files other test classes opened in this run stay in it (Windows keeps them listed).
+        for (const QString &old : Settings::get().recentFiles()) Settings::get().removeRecentFile(old);
         Settings::get().addRecentFile(recent);
         Settings::get().addRecentFile(pinned);
         Settings::get().setPinned(pinned, true);
