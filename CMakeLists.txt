@@ -601,6 +601,7 @@ qt_add_executable(jdtests
   tests/deck/deckhelpers.cpp
   tests/deck/tst_deck_animation.cpp
   tests/deck/tst_deck_barcode.cpp
+  tests/deck/tst_deck_equation.cpp
   tests/deck/tst_deck_binaryimport.cpp
   tests/deck/tst_deck_binaryshapes.cpp
   tests/deck/tst_deck_charts.cpp

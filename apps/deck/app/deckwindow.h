@@ -245,6 +245,12 @@ public:
     // A Text Art in a style of the Text Art gallery, in the middle of the slide and selected, and the box that
     // asks for its words, with the old ones selected so that typing replaces them. (deckwindow_insert.cpp)
     void insertTextArt(const QString &styleId);
+    // Insert > Equation: an equation typed in a line, put in the middle of the slide and selected (one step that undoes). False, with a note in the status
+    // bar, for a line that makes none. editEquation changes the line of the equation `id` (one step); a double click on an equation, or the command with
+    // one selected, opens the shared editor on it. (deckwindow_equation.cpp)
+    bool insertEquation(const QString &linear);
+    bool editEquation(const QString &id);
+    void insertEquationDialog();
     // The Online Pictures pane on the right (Insert > Pictures > Online Pictures), once it has been opened: a
     // picture chosen in it is put on the slide, with its credit under it when asked.
     OnlinePicturesPane *onlinePictures() const { return m_online; }
@@ -519,6 +525,8 @@ private:
     void refreshCrop();
     void createPictureActions();  // deckwindow_insert.cpp: Online Pictures, Icons, This Device
     void addInsertParts(struct RibbonParts &parts);
+    void createEquationActions();  // deckwindow_equation.cpp: Equation and the built-in equations
+    void addEquationParts(struct RibbonParts &parts);
     void addMediaParts(struct RibbonParts &parts);
     void insertMediaFromFile(const QString &kind);
     void trimMedia();

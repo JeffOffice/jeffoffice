@@ -47,6 +47,7 @@ void DeckWindow::buildRibbon()
     addChartParts(parts);
     addShapeFormatParts(parts);
     addInsertParts(parts);
+    addEquationParts(parts);
     addAnimationParts(parts);
     addDesignParts(parts);
     addMasterParts(parts);

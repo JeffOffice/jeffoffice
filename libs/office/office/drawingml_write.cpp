@@ -1439,7 +1439,15 @@ void writeShape(QXmlStreamWriter &w, const Item &item, DrawingWriteContext &ctx,
     case ItemType::TextArt:
         writeTextArt(w, static_cast<const TextArtItem &>(item), ctx);
         break;
-    case ItemType::Equation:   // (kept by JeffPub's own file and drawn by the programs that make one: no drawing is written for it here)
+    case ItemType::Equation:   // (kept by JeffPub's own file and drawn by the programs that make one; one whose caller writes it itself, as JeffDeck does, has its raw frame)
+        if (ctx.rawFrame) {
+            const QString raw = ctx.rawFrame(item);
+            if (!raw.isEmpty()) {
+                QXmlStreamReader in(raw);
+                while (!in.atEnd())
+                    if (in.readNext() != QXmlStreamReader::StartDocument && in.tokenType() != QXmlStreamReader::EndDocument && in.tokenType() != QXmlStreamReader::Invalid) w.writeCurrentToken(in);
+            }
+        }
         break;
     }
 }

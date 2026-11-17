@@ -30,6 +30,7 @@
 #include "core/fonts.h"
 #include "office/xml.h"
 #include "render/renderer.h"
+#include "wml/wmlmathpath.h"
 #include "text/textprops.h"
 
 #include <QBuffer>
@@ -549,6 +550,7 @@ private:
     QString keptFrame(const QString &xml, const QString &where);
     QString chartFrame(const QJsonObject &kept, const Item &item, const QString &slidePart, const QString &where);
     QString diagramFrame(const QJsonObject &kept, const Item &item, const QString &slidePart, const QString &where);
+    QString equationPair(const EquationItem &eq, office::DrawingWriteContext &ctx, const QString &where);
     QString equationBlock(const QJsonObject &kept, const Item &item, office::DrawingWriteContext &ctx, const QString &where);
     QHash<QString, QString> keptNames(const QJsonObject &parts, const QString &folder, bool keepMedia = false);
     void writeKeptParts(const QJsonObject &parts, const QHash<QString, QString> &names, const std::function<QByteArray(const QString &, const QByteArray &)> &rewrite = nullptr, const QString &asRead = QString());
@@ -590,6 +592,7 @@ private:
     QStringList m_skipped;
     office::PackageWriter m_pkg;
     QHash<QString, QString> m_media;
+    QHash<QString, QByteArray> m_equationPictures;   // the picture each equation is written with, by "equation:" and its id (what imageBytes gives for them)
     std::deque<MasterPage> m_synthesized;
     std::vector<MasterOut> m_masters;
     std::vector<LayoutOut> m_layouts;
@@ -764,6 +767,10 @@ office::DrawingWriteContext Exporter::context(const QString &part)
         }
     }
     ctx.imageBytes = [this](const QString &imageId, QString *format) {
+        if (const auto made = m_equationPictures.constFind(imageId); made != m_equationPictures.cend()) {
+            if (format) *format = QStringLiteral("png");
+            return *made;
+        }
         const auto it = m_doc.images.constFind(imageId);
         if (it == m_doc.images.cend()) return QByteArray();
         if (format) *format = it->format;
@@ -1026,6 +1033,65 @@ QString withShapePlace(const QString &xml, const Item &item)
     return xml.left(m.capturedStart()) + xfrm + xml.mid(m.capturedEnd());
 }
 
+// The pair of alternatives of an equation made here, or read from a file as one: the shape whose text is the math (a14:m, for the programs that know it), and a
+// picture of it for the others, drawn as JeffDeck draws the equation, with the frame's own proportions (twice as many pixels as points across, and at most 4,000).
+// Both are placed alike and have the equation's name; the shape has its number, the picture the next free one. Empty, with a note, if no picture can be made.
+QString Exporter::equationPair(const EquationItem &eq, office::DrawingWriteContext &ctx, const QString &where)
+{
+    const double w = eq.rect.width(), h = eq.rect.height();
+    const QColor color = eq.fill.isNone() ? QColor(Qt::black) : eq.fill.color.resolve(m_doc.colors);
+    const double px = std::min({3.0, 4000.0 / std::max(1.0, w), 4000.0 / std::max(1.0, h)});
+    const QByteArray png = w > 0 && h > 0 ? office::wml::equationPng(eq.markup, std::max(1, int(std::lround(w * px))), std::max(1, int(std::lround(h * px))), color) : QByteArray();
+    const QString key = QStringLiteral("equation:") + eq.id;
+    if (png.isEmpty()) {
+        note(QCoreApplication::translate("PptxExport", "%1: an equation that can't be drawn was left out.").arg(where));
+        return QString();
+    }
+    m_equationPictures.insert(key, png);
+    const QString link = office::dmlwrite::relatePicture(ctx, key);
+    if (link.isEmpty()) {
+        note(QCoreApplication::translate("PptxExport", "%1: an equation's picture can't be written, so it was left out.").arg(where));
+        return QString();
+    }
+    const int id = office::shapeNumber(ctx, eq);
+    int next = std::max(ctx.nextShapeId, 2);
+    while (next < INT_MAX && (ctx.usedIds.contains(next) || ctx.reservedIds.contains(next))) ++next;
+    ctx.usedIds.insert(next);
+    ctx.nextShapeId = next + 1;
+    const QString name = (eq.name.isEmpty() ? QCoreApplication::translate("PptxExport", "Equation") : eq.name).toHtmlEscaped();
+    auto attribute = [](const QString &text) { return text.toHtmlEscaped().replace(QLatin1Char('"'), QStringLiteral("&quot;")); };
+    // (The math's own markup, as a paragraph of its own: a made one is an m:oMath, put in a paragraph of math; one read from a file is the paragraph it was.)
+    QString math = QString::fromUtf8(eq.markup);
+    const int open = int(math.indexOf(QLatin1Char('<')));
+    if (!math.mid(open, 14).startsWith(QStringLiteral("<m:oMathPara")))
+        math = QStringLiteral("<m:oMathPara xmlns:m=\"http://schemas.openxmlformats.org/officeDocument/2006/math\"><m:oMathParaPr><m:jc m:val=\"centerGroup\"/></m:oMathParaPr>") + math + QStringLiteral("</m:oMathPara>");
+    // The letters' height as they are drawn: the layout's, at the scale of the frame.
+    const auto laid = office::wml::equationShapeCached(eq.markup, eq.size);
+    const double scale = laid && laid->valid() ? std::min(w / laid->box.width(), h / laid->box.height()) : 1.0;
+    const int size = std::clamp(int(std::lround(eq.size * scale * 100)), 100, 400000);
+    QString turn;
+    if (const qint64 t = std::llround(eq.rotation * 60000); t != 0) turn += QStringLiteral(" rot=\"%1\"").arg(t);
+    if (eq.flipH) turn += QStringLiteral(" flipH=\"1\"");
+    if (eq.flipV) turn += QStringLiteral(" flipV=\"1\"");
+    const QString place = QStringLiteral("<a:xfrm%1><a:off x=\"%2\" y=\"%3\"/><a:ext cx=\"%4\" cy=\"%5\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom>")
+                              .arg(turn, emu(eq.rect.x()), emu(eq.rect.y()), emu(std::max(0.0, w)), emu(std::max(0.0, h)));
+    const QString paint = eq.fill.isNone() || eq.fill.color.kind() != ColorRef::Rgb ? QString() : QStringLiteral("<a:solidFill><a:srgbClr val=\"%1\"/></a:solidFill>").arg(hex(eq.fill.color.rgbValue()));
+    const QString descr = eq.altText.isEmpty() ? QString() : QStringLiteral(" descr=\"%1\"").arg(attribute(eq.altText));
+    const QString picDescr = QStringLiteral(" descr=\"%1\"").arg(attribute(eq.altText.isEmpty() ? eq.linear : eq.altText));
+    const QString hidden = eq.hidden ? QStringLiteral(" hidden=\"1\"") : QString();
+    // (Joined, not filled in with arg(): the math is a file's text, and a %1 in it must stay as it is.)
+    const QString ids = QStringLiteral(" id=\"%1\" name=\"").arg(id);
+    return QStringLiteral("<mc:AlternateContent xmlns:mc=\"http://schemas.openxmlformats.org/markup-compatibility/2006\" xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\" "
+                          "xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\">"
+                          "<mc:Choice xmlns:a14=\"http://schemas.microsoft.com/office/drawing/2010/main\" Requires=\"a14\"><p:sp><p:nvSpPr><p:cNvPr")
+           + ids + name + QStringLiteral("\"") + descr + hidden + QStringLiteral("/><p:cNvSpPr txBox=\"1\"/><p:nvPr/></p:nvSpPr><p:spPr>") + place
+           + QStringLiteral("<a:noFill/></p:spPr><p:txBody><a:bodyPr wrap=\"none\" rtlCol=\"0\" anchor=\"ctr\"/><a:lstStyle/><a:p><a14:m>") + math
+           + QStringLiteral("</a14:m><a:endParaRPr lang=\"en-US\" sz=\"%1\">").arg(size) + paint
+           + QStringLiteral("</a:endParaRPr></a:p></p:txBody></p:sp></mc:Choice><mc:Fallback><p:pic><p:nvPicPr><p:cNvPr id=\"%1\" name=\"").arg(next) + name + QStringLiteral("\"") + picDescr + hidden
+           + QStringLiteral("/><p:cNvPicPr><a:picLocks noChangeAspect=\"1\"/></p:cNvPicPr><p:nvPr/></p:nvPicPr><p:blipFill><a:blip r:embed=\"") + link
+           + QStringLiteral("\"/><a:stretch><a:fillRect/></a:stretch></p:blipFill><p:spPr>") + place + QStringLiteral("</p:spPr></p:pic></mc:Fallback></mc:AlternateContent>");
+}
+
 // The pair of alternatives of an equation, for a picture that stands for it: as the reader kept it, with the picture's link (its image written
 // into the package as pictures are, and the link to it numbered as the slide has it), and the place of both shapes set to the picture's if
 // it was moved, resized, or turned. The hyperlinks in it are the one thing taken out. Empty, with a note, if what was kept can't be written.
@@ -1163,7 +1229,10 @@ QString Exporter::tree(const PageBase &page, const QString &part, const QString 
         take(xml);
     });
     // (The frames of the charts inside groups are written where the group writes the picture.)
-    ctx.rawFrame = [&](const Item &item) { return topLevel.contains(item.id) ? QString() : chartFrames.value(item.id); };
+    ctx.rawFrame = [&](const Item &item) {
+        if (item.type() == ItemType::Equation) return equationPair(static_cast<const EquationItem &>(item), ctx, where);
+        return topLevel.contains(item.id) ? QString() : chartFrames.value(item.id);
+    };
     ctx.emptyParagraphsInherit = frameIds != nullptr;   // a slide's (asked for the numbers of its frames), not a layout's or a master's
     ctx.nextShapeId = int(std::min<qint64>(highest + 1, 2000000000));
     // The tree's own number and the frames' are taken; the shapes read from a file keep theirs, which new ones leave alone.

@@ -699,6 +699,8 @@ private:
     int m_extraNotes = 0;
     bool m_layoutLimitSaid = false;
     QDomElement m_defaultStyle;
+    int m_equations = 0;                          // the equations read as equations so far, and the bytes of their math (Document::kMaxEquations and kMaxEquationMarkupBytes bound both for the whole file)
+    qint64 m_equationBytes = 0;
     office::DrawingBudget m_budget;               // what the whole file may keep (kMaxObjects...), drawn from by every read of it
     bool m_pageFull = false;                      // a page held more than one may keep
     // The charts drawn so far, by part, size, and look (readFrameChart), and the parts kept behind each chart part.
@@ -1678,6 +1680,24 @@ bool holdsMath(const QDomElement &shape)
     return false;
 }
 
+// Whether a shape's text is one math element and nothing else: no words, fields, or breaks beside it, and one paragraph's worth of it.
+bool onlyMath(const QDomElement &shape)
+{
+    int math = 0;
+    for (QDomElement body = shape.firstChildElement(); !body.isNull(); body = body.nextSiblingElement()) {
+        if (body.localName() != QLatin1String("txBody")) continue;
+        for (QDomElement p = body.firstChildElement(); !p.isNull(); p = p.nextSiblingElement()) {
+            if (p.localName() != QLatin1String("p")) continue;
+            for (QDomElement r = p.firstChildElement(); !r.isNull(); r = r.nextSiblingElement()) {
+                const QString name = r.localName();
+                if (name == QLatin1String("m") && r.namespaceURI() == kA14) ++math;
+                else if (name == QLatin1String("r") || name == QLatin1String("fld") || name == QLatin1String("br")) return false;
+            }
+        }
+    }
+    return math == 1;
+}
+
 // A picture in the place of a shape the picture fills, stretched over its frame; null for a shape with no picture fill.
 ItemPtr pictureFilling(const Item &shape)
 {
@@ -1717,7 +1737,32 @@ bool Importer::readEquation(const QDomElement &alternate, Scope &sc)
         for (QDomElement e = alt.firstChildElement(); !e.isNull() && !math; e = e.nextSiblingElement())
             if (e.localName() == QLatin1String("sp") && holdsMath(e)) math = true;
     }
-    if (!math || fallback.isNull()) return false;
+    if (!math) return false;
+    // Math alone in its shape is an equation here: it is drawn, moved, sized, and edited as one, and written back as the pair with a picture of its own.
+    // (Equations are held to what a presentation keeps: Document::kMaxEquations of them, and kMaxEquationMarkupBytes of math; the rest are read as the picture.)
+    for (QDomElement alt = alternate.firstChildElement(); !alt.isNull(); alt = alt.nextSiblingElement()) {
+        if (!office::isElement(alt, kMc, QStringLiteral("Choice"))) continue;
+        for (QDomElement e = alt.firstChildElement(); !e.isNull(); e = e.nextSiblingElement()) {
+            if (e.localName() != QLatin1String("sp") || !holdsMath(e) || !onlyMath(e) || m_equations >= Document::kMaxEquations) continue;
+            const bool was = sc.ctx.equations;
+            sc.ctx.equations = true;
+            ItemPtr it = readOne(e, sc);
+            sc.ctx.equations = was;
+            if (!it) continue;
+            const qint64 size = it->type() == ItemType::Equation ? static_cast<const EquationItem &>(*it).markup.size() : 0;
+            if (it->type() != ItemType::Equation || m_equationBytes + size > Document::kMaxEquationMarkupBytes) {
+                // (a text box, or math past the total: its story is of no use now)
+                if (it->type() == ItemType::Text) m_doc.removeStory(static_cast<const TextItem &>(*it).storyId);
+                if (it->type() == ItemType::Shape) m_doc.removeStory(static_cast<const ShapeItem &>(*it).storyId);
+                continue;
+            }
+            ++m_equations;
+            m_equationBytes += size;
+            sc.page->items.push_back(it);
+            return true;
+        }
+    }
+    if (fallback.isNull()) return false;
     for (QDomElement e = fallback.firstChildElement(); !e.isNull(); e = e.nextSiblingElement()) {
         if (!isOneOf(e.localName(), {"pic", "sp"})) continue;
         ItemPtr it = readOne(e, sc);

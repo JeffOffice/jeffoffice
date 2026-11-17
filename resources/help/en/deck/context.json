@@ -39,6 +39,7 @@
   "item:line": "objects",
   "item:table": "objects",
   "item:textart": "objects",
+  "item:equation": "equations",
   "item:group": "objects",
   "item:multi": "objects",
   "file:new": "open-save",
@@ -50,5 +51,7 @@
   "dialog:Custom Shows": "show",
   "dialog:Define Custom Show": "show",
   "dialog:Effect Options": "animations",
-  "dialog:Timing": "animations"
+  "dialog:Timing": "animations",
+  "dialog:Insert Equation": "equations",
+  "dialog:Edit Equation": "equations"
 }

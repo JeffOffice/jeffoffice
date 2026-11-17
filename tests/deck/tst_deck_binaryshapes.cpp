@@ -2682,7 +2682,7 @@ private Q_SLOTS:
     // made a picture, which has its own place for them).
     void importAnEquationsPictureKeepsItsEffects()
     {
-        Parts p = equationPptx(QStringLiteral("shape"));
+        Parts p = equationPptx(QStringLiteral("shape"), true);
         QString xml = QString::fromUtf8(p.data["/ppt/slides/slide1.xml"].xml);
         const int fallback = int(xml.indexOf(QStringLiteral("<mc:Fallback>")));
         QVERIFY(fallback > 0);

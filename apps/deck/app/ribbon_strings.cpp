@@ -21,6 +21,7 @@
     QT_TRANSLATE_NOOP("Ribbon", "Background Color"),
     QT_TRANSLATE_NOOP("Ribbon", "Background Styles"),
     QT_TRANSLATE_NOOP("Ribbon", "Borders"),
+    QT_TRANSLATE_NOOP("Ribbon", "Built-In Equations"),
     QT_TRANSLATE_NOOP("Ribbon", "Cell Margins"),
     QT_TRANSLATE_NOOP("Ribbon", "Cell Size"),
     QT_TRANSLATE_NOOP("Ribbon", "Change Case"),
