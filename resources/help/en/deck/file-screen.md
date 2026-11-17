@@ -65,6 +65,8 @@ Click **Inspect Presentation** before you send a presentation to someone. It lis
 - **Document properties and personal information** are the author, the person who last saved it, the company, and the manager.
 - **Hidden slides** are slides the slide show skips. **Show All** makes them show again.
 - **Content off the slides** is text, pictures, and shapes that lie outside a slide. They do not show, but they are in the file.
+- **Headers and footers** are the footer text and the fixed date at the foot of slides. **Remove All** clears that text and leaves the places, so the slide number stays. The header, footer, and date of printed notes and handouts are not looked in.
+- **Custom XML data** is data that other programs added to the file, which you can't see on a slide. JeffDeck does not keep it, so a presentation it saves has none. The count is of what the file had when you opened it. **Remove All** makes that so for the presentation you have open.
 
 Click **Remove All** next to a kind to take it out. You can undo it with **Ctrl+Z**. Save the presentation afterward to keep the clean copy.
 

@@ -8,6 +8,8 @@
 #include "app/recovery.h"
 #include "app/filetasks.h"
 #include "app/infopage.h"
+#include "app/theme.h"
+#include "core/fonts.h"
 #include "app/passworddialogs.h"
 #include "office/odfcrypt.h"
 #include "deckhelpers.h"
@@ -937,6 +939,96 @@ private Q_SLOTS:
         QVERIFY(w.properties().creator.isEmpty());
         InspectDialog dialog(QStringLiteral("Inspect"), items, nullptr);
         QVERIFY(dialog.summaries().first().contains(QLatin1String("None found")));
+    }
+
+    void inspectFindsAndRemovesTheFooterAndDateTextOfSlides()
+    {
+        DeckWindow w;
+        Quiet quiet(w);
+        auto d = sample();
+        QCOMPARE(d->pages.size(), size_t(2));
+        deck::FooterOptions o;
+        o.footer = true;
+        o.footerText = QStringLiteral("Confidential: Acme");
+        o.slideNumber = true;
+        deck::applyFooters(*d, o);
+        w.editor()->setDocument(std::move(d));
+        const QVector<InspectItem> items = w.inspectItems();
+        const InspectItem *hf = find(items, "Headers and footers");
+        QVERIFY(hf);
+        QVERIFY(hf->removable);
+        QCOMPARE(hf->count(), 2);   // (one footer text on each slide; the slide number is a field, not text)
+        QCOMPARE(hf->remove(), 2);
+        QCOMPARE(hf->count(), 0);
+        // the places stay (so the footer can be typed again), the text is gone, new slides are not given it, and it is one step that undoes
+        const Document &doc = *w.editor()->doc();
+        QCOMPARE(deck::footerOptions(doc).footerText, QString());
+        int places = 0;
+        for (const auto &page : doc.pages)
+            for (const ItemPtr &it : page->items) places += deck::placeholderType(*it) == QLatin1String("ftr");
+        QCOMPARE(places, 2);
+        w.editor()->undo();
+        const QVector<InspectItem> again = w.inspectItems();
+        QCOMPARE(find(again, "Headers and footers")->count(), 2);
+    }
+
+    // A file's custom XML is counted when it is opened; this program does not keep it, so a presentation it saves has none (and removing the count says so).
+    void inspectCountsTheCustomXmlAFileHadAndTheSavedFileHasNone()
+    {
+        Parts p = samplePptx();
+        p.data[QStringLiteral("/customXml/item1.xml")] = Part{QStringLiteral("application/xml"), "<a/>"};
+        p.data[QStringLiteral("/customXml/item2.xml")] = Part{QStringLiteral("application/xml"), "<b/>"};
+        p.rels << Rel{QStringLiteral("/ppt/presentation.xml"), QStringLiteral("customXml"), QStringLiteral("/customXml/item1.xml")};
+        p.rels << Rel{QStringLiteral("/ppt/presentation.xml"), QStringLiteral("customXml"), QStringLiteral("/customXml/item2.xml")};
+        QString err;
+        auto d = deck::importPresentation(pack(p), &err);
+        QVERIFY2(d, qPrintable(err));
+        DeckWindow w;
+        Quiet quiet(w);
+        w.editor()->setDocument(std::move(d));
+        const QVector<InspectItem> items = w.inspectItems();
+        const InspectItem *xml = find(items, "Custom XML data");
+        QVERIFY(xml);
+        QCOMPARE(xml->count(), 2);
+        QCOMPARE(find(items, "Headers and footers")->count(), 0);
+        // what is saved has no custom XML part, as the count says
+        const QByteArray saved = deck::exportPresentation(*w.editor()->doc(), &err);
+        QVERIFY2(!saved.isEmpty(), qPrintable(err));
+        office::Package pkg;
+        QVERIFY(pkg.read(saved));
+        for (const QString &name : pkg.partNames()) QVERIFY2(!name.startsWith(QLatin1String("/customXml/"), Qt::CaseInsensitive), qPrintable(name));
+        QCOMPARE(xml->remove(), 2);
+        QCOMPARE(xml->count(), 0);
+        QVERIFY(w.editor()->isModified());
+        // a presentation made here has none to find
+        DeckWindow v;
+        Quiet quietV(v);
+        v.editor()->setDocument(sample());
+        const QVector<InspectItem> none = v.inspectItems();
+        QCOMPARE(find(none, "Custom XML data")->count(), 0);
+    }
+
+    // Pictures for a person to look at (JD_SHOT_DIR names the folder; nothing is made without it).
+    void shotInspectDialog()
+    {
+        const QString dir = qEnvironmentVariable("JD_SHOT_DIR");
+        if (dir.isEmpty()) QSKIP("JD_SHOT_DIR is not set");
+        jp::initCore();
+        jp::applyUiTheme(1);
+        DeckWindow w;
+        Quiet quiet(w);
+        auto d = sample();
+        deck::FooterOptions o;
+        o.footer = true;
+        o.footerText = QStringLiteral("Confidential: Acme");
+        deck::applyFooters(*d, o);
+        d->appData[QStringLiteral("customXmlItems")] = 2;
+        w.editor()->setDocument(std::move(d));
+        InspectDialog dialog(QStringLiteral("Inspect Presentation"), w.inspectItems(), nullptr);
+        dialog.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&dialog));
+        QDir().mkpath(dir);
+        QVERIFY(dialog.grab().save(dir + QStringLiteral("/deck-inspect.png")));
     }
 
     void versionsAreKeptAndGoneBackTo()

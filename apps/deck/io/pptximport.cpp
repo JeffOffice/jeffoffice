@@ -2049,6 +2049,14 @@ std::unique_ptr<Document> importPackage(const office::Package &pkg, QString *err
     const office::MacroProject macros = office::isMacroMainType(pkg.contentType(pkg.mainPart())) ? office::readMacroProject(pkg, pkg.mainPart()) : office::MacroProject();
     if (!macros.isEmpty()) doc->appData[QStringLiteral("macros")] = office::macroProjectToJson(macros);
     else if (macros.leftOut && error) *error += (error->isEmpty() ? QString() : QStringLiteral("\n")) + QCoreApplication::translate("PptxImport", "The macros in this file are too large to keep, and were left out.");
+    // Custom XML parts (data for other programs) are not kept, but counted, so that Inspect Presentation can say the file had them.
+    {
+        static const QRegularExpression item(QStringLiteral("^/customXml/item[0-9]*\\.xml$"), QRegularExpression::CaseInsensitiveOption);
+        int customXml = 0;
+        for (const QString &name : pkg.partNames())
+            if (item.match(name).hasMatch()) ++customXml;
+        if (customXml > 0) doc->appData[QStringLiteral("customXmlItems")] = customXml;
+    }
     // The presentation's own fonts are available for as long as it is open (see core/embeddedfonts.h).
     EmbeddedFonts::use(doc.get(), importer.takeFonts());
     doc->fromFile = true;   // what the file names outside itself is read only from beside it

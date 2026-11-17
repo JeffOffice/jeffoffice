@@ -325,6 +325,51 @@ QVector<InspectItem> DeckWindow::inspectItems()
                          return n;
                      },
                      true, QString()});
+    // The footer and date places that hold text of the person's own (a field that shows the date or the number is not text): on a slide, they are what the slide says at its foot.
+    auto footerStories = [](Document &d) {
+        QVector<QTextDocument *> stories;
+        for (const auto &page : d.pages)
+            for (const ItemPtr &it : page->items) {
+                const QString type = deck::placeholderType(*it);
+                if ((type != QLatin1String("ftr") && type != QLatin1String("dt")) || it->type() != ItemType::Text) continue;
+                QTextDocument *story = d.storyDoc(static_cast<TextItem *>(it.get())->storyId);
+                if (story && !story->toPlainText().remove(QChar(QChar::ObjectReplacementCharacter)).trimmed().isEmpty()) stories.push_back(story);
+            }
+        return stories;
+    };
+    items.push_back({tr("Headers and footers"), tr("The footer text and fixed date at the foot of slides. Removing clears the text; the places and slide number stay."),
+                     [doc, footerStories] { return doc() ? int(footerStories(*doc()).size()) : 0; },
+                     [ed, footerStories] {
+                         int n = 0;
+                         ed->change(tr("Remove Headers and Footers"), [&] {
+                             Document *d = ed->doc();
+                             for (QTextDocument *story : footerStories(*d)) {
+                                 story->clear();
+                                 ++n;
+                             }
+                             // (what new slides are given goes too)
+                             deck::FooterOptions o = deck::footerOptions(*d);
+                             if (n > 0 && (!o.footerText.isEmpty() || !o.dateText.isEmpty())) {
+                                 o.footerText.clear();
+                                 o.dateText.clear();
+                                 d->appData[QStringLiteral("footerOptions")] = o.toJson();
+                             }
+                         });
+                         return n;
+                     },
+                     true, QString()});
+    // Custom XML: data other programs added to a .pptx file. JeffDeck does not keep it (a presentation it saves has none), so the count is of the parts the file had when it was opened.
+    items.push_back({tr("Custom XML data"), tr("Data that other programs added to the file. It is not kept when you save."),
+                     [doc] { return doc() ? doc()->appData.value(QStringLiteral("customXmlItems")).toInt() : 0; },
+                     [ed] {
+                         int n = 0;
+                         ed->change(tr("Remove Custom XML"), [&] {
+                             n = ed->doc()->appData.value(QStringLiteral("customXmlItems")).toInt();
+                             ed->doc()->appData.remove(QStringLiteral("customXmlItems"));
+                         });
+                         return n;
+                     },
+                     true, QString()});
     return items;
 }
 
