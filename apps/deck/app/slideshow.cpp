@@ -1334,25 +1334,24 @@ void SlideShow::followLink(const QString &link)
     }
     // Another presentation is judged by the path it is at, counted from the folder of this one: "evil.exe" and "sub/a.exe" are as much programs as a whole path is.
     const QString target = t.kind == office::LinkKind::Deck ? resolvedPresentationPath(t.address, m_baseDir) : t.address;
-    const bool remote = office::isRemoteFile(target);
-    // A program or a script is never run by a link: it is refused, and the person is told.
-    // A file on this computer is opened only when its ending is a document or picture type (from the text alone: the file is not looked at); a file on another computer is asked about as before.
-    const bool program = (t.kind == office::LinkKind::File && office::isProgramFile(t.address)) || (t.kind == office::LinkKind::Deck && office::isProgramPath(target));
-    const bool notAllowed = !program && t.kind == office::LinkKind::File && !remote && !office::isOpenableFileLink(t.address);
-    if (program || notAllowed) {
-        const QString text = notAllowed ? tr("This link goes to a kind of file that is not opened from a link, so it was not opened.") : tr("This link opens a program, so it was not opened.");
-        if (m_linkNotice) m_linkNotice(text);
-        else jp::plainWarning(this, tr("Open Link"), text);
-        return;
+    const bool isFile = t.kind == office::LinkKind::File || t.kind == office::LinkKind::Deck;
+    const bool remote = false;   // (a file on another computer is refused, never asked about)
+    QString local;
+    if (isFile) {
+        // A file or another presentation is opened only when the text of its link alone says it is a whole path on this computer of a document or picture type (another presentation: of a
+        // presentation type), as JeffWrite decides (office::isOpenableFileLink): a path on another computer, a relative path, a hidden character, a program, and any other ending are refused,
+        // and nothing is looked at (no file is touched before the question, and none for the refusal).
+        static const QStringList presentationEndings = {QStringLiteral("pptx"), QStringLiteral("ppt"), QStringLiteral("ppsx"), QStringLiteral("pps"), QStringLiteral("odp")};
+        if (!office::isOpenableFileLink(target, &local, t.kind == office::LinkKind::Deck ? &presentationEndings : nullptr)) {
+            const QString text = office::isProgramName(target) ? tr("This link opens a program, so it was not opened.") : tr("This link goes to a file that is not opened from a link, so it was not opened.");
+            if (m_linkNotice) m_linkNotice(text);
+            else jp::plainWarning(this, tr("Open Link"), text);
+            return;
+        }
     }
     QUrl url;
-    if (t.kind == office::LinkKind::Deck) {
-        url = QUrl::fromLocalFile(target);   // (only to ask with: another presentation is read by its path)
-    } else if (t.kind == office::LinkKind::File) {
-        if (remote) url = QUrl(t.address.startsWith(QLatin1String("file:"), Qt::CaseInsensitive) ? t.address : QUrl::fromLocalFile(t.address).toString());
-        else if (t.address.startsWith(QLatin1String("file:"), Qt::CaseInsensitive)) url = QUrl(t.address);
-        else if (QDir::isAbsolutePath(t.address)) url = QUrl::fromLocalFile(t.address);
-        if (url.isEmpty()) return;
+    if (isFile) {
+        url = QUrl::fromLocalFile(local);   // (for another presentation only to ask with: it is read by its path)
     } else {
         url = QUrl::fromUserInput(t.address);
         if (!url.isValid()) return;

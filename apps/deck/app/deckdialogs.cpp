@@ -217,7 +217,6 @@ LinkDialog::LinkDialog(const QString &current, int slides, const QVector<QPair<i
         for (const LinkPlace &p : places) listed |= p.value == here.value;
         if (!listed) here.label = now.kind == office::LinkKind::Slide ? tr("Slide %1").arg(now.slide) : tr("Current link: %1").arg(current.trimmed().left(120));
         else here = LinkPlace();
-        if (!here.value.isEmpty() && here.label.isEmpty()) here = LinkPlace();
     }
     }
     m_picker->setPlaces(places, here);

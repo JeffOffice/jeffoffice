@@ -666,8 +666,28 @@ private Q_SLOTS:
         });
         QCOMPARE(write::hyperlinkAt(doc, at + 2).anchor, QStringLiteral("heading:5"));
         QCOMPARE(write::hyperlinkAt(doc, at + 2).screenTip, QStringLiteral("tip"));
-        // A long bookmark name is shortened in the list, as a heading's text is.
         QCOMPARE(write::placeOfAnchor(doc, QStringLiteral("heading:5")), QStringLiteral("heading:5"));
+    }
+
+    // A bookmark's label in the list is cut at 120 characters, as a heading's text is.
+    void aLongBookmarkNameIsCutInThePlaceList()
+    {
+        const QByteArray longName(300, 'b');
+        const QByteArray body = "<w:p><w:bookmarkStart w:id=\"7\" w:name=\"" + longName + "\"/><w:r><w:t>odd</w:t></w:r><w:bookmarkEnd w:id=\"7\"/></w:p><w:p><w:r><w:t>link here</w:t></w:r></w:p>";
+        WriteWindow w;
+        w.resize(1100, 800);
+        w.show();
+        w.setDocument(open(makeDocx(body)), QString());
+        QTextCursor c(w.document()->story());
+        c.setPosition(w.document()->story()->findBlockByNumber(1).position());
+        c.setPosition(c.position() + 4, QTextCursor::KeepAnchor);
+        w.view()->setCursor(c);
+        withDialog([&] { w.act("insert.hyperlink")->trigger(); }, QStringLiteral("linkDialog"), [&](QDialog *dlg) {
+            auto *places = dlg->findChild<QComboBox *>(QStringLiteral("linkPlace"));
+            const int at = places->findData(QString::fromLatin1(longName));
+            QVERIFY(at >= 0);   // (the value is the whole name)
+            QCOMPARE(places->itemText(at), QStringLiteral("Bookmark: ") + QString(120, QLatin1Char('b')));
+        }, false);
     }
 
     void aHeadingLinkThatFailsLeavesNoBookmarkBehind()
@@ -683,6 +703,18 @@ private Q_SLOTS:
         QString why;
         QVERIFY(!write::insertHyperlink(doc, c, QString(), write::headingPlace(0), QString(), QString(), &why));
         QVERIFY(bookmarkList(doc, true).isEmpty());
+        // The same for a link that is changed to go to a heading: one that is not a heading (or is gone) is refused, and nothing is left; a heading makes exactly one.
+        QTextCursor over(doc.story());
+        const int x = doc.story()->findBlockByNumber(1).position();
+        over.setPosition(x);
+        over.setPosition(x + 1, QTextCursor::KeepAnchor);
+        QVERIFY(write::insertHyperlink(doc, over, QStringLiteral("https://example.com"), QString(), QString(), QString(), &why));
+        QVERIFY(!write::changeHyperlink(doc, x + 1, QString(), write::headingPlace(x), QString(), QString(), &why));
+        QVERIFY(!write::changeHyperlink(doc, x + 1, QString(), write::headingPlace(9999), QString(), QString(), &why));
+        QVERIFY(bookmarkList(doc, true).isEmpty());
+        QCOMPARE(write::hyperlinkAt(doc, x + 1).address, QStringLiteral("https://example.com"));
+        QVERIFY(write::changeHyperlink(doc, x + 1, QString(), write::headingPlace(0), QString(), QString(), &why));
+        QCOMPARE(bookmarkList(doc, true).size(), 1);
     }
 
     void anEmailAddressGetsMailtoAndABadOneIsRefusedWithAReason()

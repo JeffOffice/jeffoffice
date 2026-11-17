@@ -43,7 +43,10 @@ QString linkAddress(const QString &link);
 // What a link to a file may be followed to, decided from the text alone (nothing is looked at, so a path on another computer is never touched): an absolute path on this computer (or a
 // "file:" address with no host or "localhost"), with no control character, no "..%00"-style hidden character, no stream or device name, whose ending is a document or picture type (never a
 // script or a program, and not .svg, which can hold scripts). `path` gets the path when it is. A relative path, a path on another computer, and any other ending are refused.
-bool isOpenableFileLink(const QString &fileAddressOrPath, QString *path = nullptr);
+// With `endings`, only those endings (without the dot) are allowed, in place of the document and picture types (another presentation: .pptx, .ppt, .ppsx, .pps, and .odp).
+bool isOpenableFileLink(const QString &fileAddressOrPath, QString *path = nullptr, const QStringList *endings = nullptr);
+// Whether the name of a file (the last part of a path or address) ends as a program or script does: by its name alone, nothing is looked at.
+bool isProgramName(const QString &pathOrAddress);
 // Whether the text is a whole path on this computer (absolute, not on another computer, no control character), judged from the text alone.
 bool isLocalAbsolutePath(const QString &path);
 // Whether a path ends as one of these (compared without regard to case).

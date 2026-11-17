@@ -384,7 +384,7 @@ private Q_SLOTS:
         QCOMPARE(show.currentSlide(), 2);
     }
 
-    // A web, mail, or file link asks first; nothing opens unless it is said yes to. A file on another computer is asked about as one.
+    // A web, mail, or file link asks first; nothing opens unless it is said yes to. A file on another computer is refused.
     void showAsksBeforeOpeningAnything()
     {
         auto d = showDeck(2);
@@ -401,7 +401,7 @@ private Q_SLOTS:
         LayoutCache cache;
         SlideShow show(d.get(), &cache, 0);
         show.resize(960, 540);
-        QStringList asked;
+        QStringList asked, said;
         QList<bool> remote;
         bool yes = false;
         show.setLinkPrompt([&](const QString &address, bool isRemote) {
@@ -409,18 +409,20 @@ private Q_SLOTS:
             remote << isRemote;
             return yes;
         });
+        show.setLinkNotice([&](const QString &text) { said << text; });
         const int looked = office::linkFileLooks();
         QTest::mouseClick(&show, Qt::LeftButton, Qt::NoModifier, QPoint(60, 330));
         QTest::mouseClick(&show, Qt::LeftButton, Qt::NoModifier, QPoint(160, 330));
-        QCOMPARE(office::linkFileLooks(), looked);   // (the file on another computer was not looked at, nor was an address)
+        QCOMPARE(said.size(), 1);   // (the file on another computer is refused, not asked about)
+        QCOMPARE(office::linkFileLooks(), looked);   // (it was not looked at, nor was an address)
         QTest::mouseClick(&show, Qt::LeftButton, Qt::NoModifier, QPoint(260, 330));
-        QCOMPARE(asked, (QStringList{QStringLiteral("https://example.com/a"), QStringLiteral("\\\\server\\share\\b.pdf"), QStringLiteral("/home/user/a.pdf")}));
-        QCOMPARE(remote, (QList<bool>{false, true, false}));
+        QCOMPARE(asked, (QStringList{QStringLiteral("https://example.com/a"), QStringLiteral("/home/user/a.pdf")}));
+        QCOMPARE(remote, (QList<bool>{false, false}));
         QVERIFY2(catcher.urls.isEmpty(), "nothing opens when the answer is no");
         yes = true;
         QTest::mouseClick(&show, Qt::LeftButton, Qt::NoModifier, QPoint(60, 330));
         QCOMPARE(catcher.urls, QStringList{QStringLiteral("https://example.com/a")});
-        // A path on this computer opens as a file; the other computer's too, only when it is said yes to.
+        // A path on this computer opens as a file when it is said yes to.
         QTest::mouseClick(&show, Qt::LeftButton, Qt::NoModifier, QPoint(260, 330));
         QCOMPARE(catcher.urls.size(), 2);
         QVERIFY(catcher.urls.last().startsWith(QStringLiteral("file:")));
@@ -568,10 +570,11 @@ private Q_SLOTS:
         QTest::mouseClick(&show, Qt::LeftButton, Qt::NoModifier, QPoint(170, 450));
         QCOMPARE(asked.size(), 1);
         QCOMPARE(said.size(), 1);
-        // A file on another computer is asked about as one, never looked for until the answer is yes (and here it does not exist: nothing opens).
+        // A presentation on another computer is refused with a message, never asked about and never looked for.
         const int looked = office::linkFileLooks();
         QTest::mouseClick(&show, Qt::LeftButton, Qt::NoModifier, QPoint(280, 450));
-        QCOMPARE(remote.last(), true);
+        QCOMPARE(asked.size(), 1);
+        QCOMPARE(said.size(), 2);
         QCOMPARE(office::linkFileLooks(), looked);
         QVERIFY(!show.nestedShow());
         // Yes: it plays, its own slides, and at its end the show is back.
@@ -817,7 +820,7 @@ private Q_SLOTS:
         QVERIFY(!show.nestedShow());
     }
 
-    void aRelativePresentationLinkOnAShareIsRemote()
+    void aRelativePresentationLinkOnAShareIsRefused()
     {
         auto d = showDeck(2);
         linkShape(*d->pages[0], QRectF(10, 400, 100, 100), office::presentationLink(QStringLiteral("next.pptx")));
@@ -826,17 +829,64 @@ private Q_SLOTS:
         show.resize(960, 540);
         show.show();
         show.setBaseDirectory(QStringLiteral("\\\\server\\share\\decks"));
-        QList<bool> remote;
-        QStringList asked;
-        show.setLinkPrompt([&](const QString &address, bool isRemote) {
+        QStringList asked, said;
+        show.setLinkPrompt([&](const QString &address, bool) {
             asked << address;
-            remote << isRemote;
             return false;
         });
+        show.setLinkNotice([&](const QString &text) { said << text; });
         const int looked = office::linkFileLooks();
         QTest::mouseClick(&show, Qt::LeftButton, Qt::NoModifier, QPoint(60, 450));
-        QCOMPARE(remote, QList<bool>{true});
-        QVERIFY(asked.first().contains(QStringLiteral("server")));
+        QVERIFY(asked.isEmpty());
+        QCOMPARE(said.size(), 1);
+        QCOMPARE(office::linkFileLooks(), looked);
+    }
+
+    // A link to a file or another presentation is followed only when the text of the link alone says it is a whole path on this computer of a document or picture type (a presentation, for
+    // another presentation): through the real click in the show, nothing is looked at, and the rest is refused with a message and no question.
+    void showFollowsOnlyFileLinksThatTheirTextSaysAreSafe()
+    {
+        const QStringList bad = {QStringLiteral("\\\\server\\share\\a.pdf"), QStringLiteral("file://server/share/a.pdf"), QStringLiteral("relative/a.pdf"), QStringLiteral("file:a.pdf"),
+                                 QStringLiteral("file:///tmp/a%00.pdf"), QStringLiteral("/tmp/run.exe"), QStringLiteral("/tmp/a.svg"), QStringLiteral("/tmp/a.html")};
+        const QStringList badDecks = {QStringLiteral("\\\\server\\share\\a.pptx"), QStringLiteral("file://server/share/a.pptx"), QStringLiteral("/tmp/a.pdf"), QStringLiteral("file:///tmp/a%00.pptx"),
+                                      QStringLiteral("/tmp/run.exe"), QStringLiteral("/tmp/a.svg")};
+        auto d = showDeck(2);
+        QStringList links = bad;
+        for (const QString &p : badDecks) links << office::presentationLink(p);
+        links << QStringLiteral("/tmp/jo-no-such-folder/ok.pdf") << QStringLiteral("file:///tmp/jo-no-such-folder/ok.png");
+        for (int i = 0; i < links.size(); ++i) linkShape(*d->pages[0], QRectF(10 + 60 * (i % 15), 250 + 80 * (i / 15), 50, 50), links[i]);
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        show.resize(960, 540);
+        show.show();
+        QStringList asked, said;
+        QList<QUrl> opened;
+        show.setLinkPrompt([&](const QString &address, bool) {
+            asked << address;
+            return true;
+        });
+        show.setLinkNotice([&](const QString &text) { said << text; });
+        show.setLinkOpener([&](const QUrl &url) { opened << url; });
+        const int looked = office::linkFileLooks();
+        const int refused = int(bad.size() + badDecks.size());
+        for (int i = 0; i < links.size(); ++i) QTest::mouseClick(&show, Qt::LeftButton, Qt::NoModifier, QPoint(10 + 60 * (i % 15) + 25, 250 + 80 * (i / 15) + 25));
+        QCOMPARE(said.size(), refused);
+        QCOMPARE(asked.size(), 2);   // (the two allowed ones: a .pdf and a .png on this computer, not looked for)
+        QCOMPARE(opened.size(), 2);
+        QCOMPARE(office::linkFileLooks(), looked);
+        // An allowed presentation path is asked about (the answer here is no: nothing is played).
+        auto d2 = showDeck(2);
+        linkShape(*d2->pages[0], QRectF(10, 400, 100, 100), office::presentationLink(QStringLiteral("/tmp/jo-no-such-folder/next.PPTX")));
+        SlideShow show2(d2.get(), &cache, 0);
+        show2.resize(960, 540);
+        show2.show();
+        QStringList asked2;
+        show2.setLinkPrompt([&](const QString &address, bool) {
+            asked2 << address;
+            return false;
+        });
+        QTest::mouseClick(&show2, Qt::LeftButton, Qt::NoModifier, QPoint(60, 450));
+        QCOMPARE(asked2, QStringList{QStringLiteral("/tmp/jo-no-such-folder/next.PPTX")});
         QCOMPARE(office::linkFileLooks(), looked);
     }
 
@@ -1335,6 +1385,20 @@ private Q_SLOTS:
         QVERIFY(!dlg.findChild<QLabel *>(QStringLiteral("linkProblem"))->text().isEmpty());
         QVERIFY(before.open(QIODevice::ReadOnly));
         QCOMPARE(before.readAll(), bytes);
+        // A path that can't be a new presentation makes nothing and keeps the box open, saying why.
+        const QStringList badPaths = {QStringLiteral("relative.pptx"), QStringLiteral("//server/share/a.pptx"), QStringLiteral("\\\\server\\share\\a.pptx"), dir.filePath(QStringLiteral("run.exe")),
+                                      dir.filePath(QStringLiteral("a.docx")), dir.filePath(QStringLiteral("a\n.pptx"))};
+        for (const QString &bad : badPaths) {
+            LinkDialog refusing(QString(), 3, {});
+            refusing.show();
+            auto *p = refusing.findChild<LinkTargetPicker *>();
+            p->setKind(LinkTargetPicker::NewDocument);
+            p->setAddress(bad);
+            refusing.accept();
+            QVERIFY2(refusing.isVisible(), qPrintable(bad));
+            QVERIFY2(!refusing.findChild<QLabel *>(QStringLiteral("linkProblem"))->text().isEmpty(), qPrintable(bad));
+        }
+        QCOMPARE(QDir(dir.path()).entryList(QDir::Files).size(), 1);   // (only the presentation made above)
         // The places are at most kMostLinkPlaces: a presentation of more slides lists that many.
         LinkDialog big(QString(), 3 * kMostLinkPlaces, {});
         QCOMPARE(big.findChild<LinkTargetPicker *>()->placeCount(), kMostLinkPlaces);

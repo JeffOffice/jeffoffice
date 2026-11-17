@@ -467,10 +467,14 @@ bool changeHyperlink(WriteDoc &doc, int positionAsked, const QString &address, c
     EditScope scope(doc, story);
     QTextCursor inside(story);   // (stays in the link when a new bookmark moves it)
     inside.setPosition(link.start + 1);
+    const bool hadBookmark = anchorAsked.startsWith(kHeadingPrefix) && !headingBookmark(doc, headingPositionOf(anchorAsked), false).isEmpty();
     const QString anchor = resolvedAnchor(doc, anchorAsked, problem);
     if (!anchorAsked.isEmpty() && anchor.isEmpty()) return false;
     link = hyperlinkAt(doc, inside.position());
-    if (!link.valid()) return false;
+    if (!link.valid()) {   // (a bookmark made for this link goes again)
+        if (anchorAsked.startsWith(kHeadingPrefix) && !hadBookmark) deleteBookmark(doc, anchor);
+        return false;
+    }
     QTextCursor edit(story);
     edit.beginEditBlock();
     // The opening tag is made again; the words change only where new ones are given.

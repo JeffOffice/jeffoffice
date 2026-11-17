@@ -100,9 +100,8 @@ bool isProgramFile(const QString &link)
     return isProgramPath(t.address);
 }
 
-bool isProgramPath(const QString &address)
+bool isProgramName(const QString &address)
 {
-    const bool remote = isOnAnotherComputer(address);
     QString path = address;
     if (path.startsWith(QLatin1String("file:"), Qt::CaseInsensitive)) path = QUrl(path).toLocalFile();
     static const QStringList endings = {QStringLiteral("exe"), QStringLiteral("bat"), QStringLiteral("cmd"), QStringLiteral("com"), QStringLiteral("msi"), QStringLiteral("ps1"),
@@ -115,6 +114,15 @@ bool isProgramPath(const QString &address)
     name = name.section(QLatin1Char('/'), -1).trimmed();
     while (name.endsWith(QLatin1Char('.')) || name.endsWith(QLatin1Char(' '))) name.chop(1);   // (Windows ignores a trailing dot or space)
     if (name.contains(QLatin1Char('.')) && endings.contains(name.section(QLatin1Char('.'), -1).toLower())) return true;
+    return false;
+}
+
+bool isProgramPath(const QString &address)
+{
+    if (isProgramName(address)) return true;
+    const bool remote = isOnAnotherComputer(address);
+    QString path = address;
+    if (path.startsWith(QLatin1String("file:"), Qt::CaseInsensitive)) path = QUrl(path).toLocalFile();
     if (remote || path.isEmpty()) return false;
     ++g_fileLooks;
     const QFileInfo info(path);
@@ -147,7 +155,7 @@ bool pathEndsWithOneOf(const QString &path, const QStringList &endings)
     return dot > 0 && endings.contains(name.mid(dot + 1).toLower());
 }
 
-bool isOpenableFileLink(const QString &address, QString *pathOut)
+bool isOpenableFileLink(const QString &address, QString *pathOut, const QStringList *only)
 {
     if (pathOut) pathOut->clear();
     if (address.isEmpty() || address.size() > 2000 || hasControl(address)) return false;
@@ -169,7 +177,7 @@ bool isOpenableFileLink(const QString &address, QString *pathOut)
                                         QStringLiteral("xlsx"), QStringLiteral("xls"), QStringLiteral("ods"), QStringLiteral("csv"), QStringLiteral("pptx"), QStringLiteral("ppt"),
                                         QStringLiteral("ppsx"), QStringLiteral("pps"), QStringLiteral("odp"), QStringLiteral("pub"), QStringLiteral("png"), QStringLiteral("jpg"),
                                         QStringLiteral("jpeg"), QStringLiteral("gif"), QStringLiteral("bmp"), QStringLiteral("tif"), QStringLiteral("tiff"), QStringLiteral("md"), QStringLiteral("epub")};
-    if (!pathEndsWithOneOf(path, endings)) return false;
+    if (!pathEndsWithOneOf(path, only ? *only : endings)) return false;
     if (pathOut) *pathOut = path;
     return true;
 }
