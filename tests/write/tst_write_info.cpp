@@ -1373,6 +1373,54 @@ private Q_SLOTS:
         Settings::get().setValue(QStringLiteral("edit/insertKey"), false);
     }
 
+    // The Spike: Ctrl+F3 cuts onto it (adding), Ctrl+Shift+F3 pastes all of it as one step and empties it; bold stays.
+    void theSpikeCollectsCutsAndPastesThemTogether()
+    {
+        PageView::emptySpike();
+        WriteWindow w;
+        w.resize(1100, 800);
+        w.show();
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("alpha beta gamma"));
+        auto select = [&](int from, int to) {
+            QTextCursor c(w.document()->story());
+            c.setPosition(from);
+            c.setPosition(to, QTextCursor::KeepAnchor);
+            w.view()->setCursor(c);
+        };
+        auto text = [&] { return w.document()->story()->toPlainText(); };
+        select(6, 10);   // "beta"
+        QTextCursor bold = w.view()->cursor();
+        QTextCharFormat bf;
+        bf.setFontWeight(QFont::Bold);
+        bold.mergeCharFormat(bf);
+        w.view()->setCursor(bold);
+        QTest::keyClick(w.view(), Qt::Key_F3, Qt::ControlModifier);
+        QCOMPARE(PageView::spikeCount(), 1);
+        QCOMPARE(text(), QStringLiteral("alpha gamma"));   // (smart cut takes a space too)
+        select(0, 5);   // "alpha"
+        QTest::keyClick(w.view(), Qt::Key_F3, Qt::ControlModifier);
+        QCOMPARE(PageView::spikeCount(), 2);
+        // Nothing selected: nothing is added.
+        select(0, 0);
+        QTest::keyClick(w.view(), Qt::Key_F3, Qt::ControlModifier);
+        QCOMPARE(PageView::spikeCount(), 2);
+        const int before = text().size();
+        QTest::keyClick(w.view(), Qt::Key_F3, Qt::ControlModifier | Qt::ShiftModifier);
+        QCOMPARE(PageView::spikeCount(), 0);
+        QVERIFY(text().startsWith(QStringLiteral("beta")));
+        QVERIFY(text().contains(QStringLiteral("alpha")));
+        QVERIFY(text().indexOf(QStringLiteral("beta")) < text().indexOf(QStringLiteral("alpha")));
+        QVERIFY(text().size() > before);
+        QTextCursor at(w.document()->story());
+        at.setPosition(1);
+        QCOMPARE(at.charFormat().fontWeight(), int(QFont::Bold));
+        // One step undoes the whole paste; an empty Spike pastes nothing.
+        w.view()->undo();
+        QCOMPARE(text().size(), before);
+        QTest::keyClick(w.view(), Qt::Key_F3, Qt::ControlModifier | Qt::ShiftModifier);
+        QCOMPARE(text().size(), before);
+    }
+
     void printingOnlyOddOrEvenPagesAndInReverse()
     {
         WriteWindow w;

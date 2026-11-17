@@ -173,6 +173,12 @@ public:
     void cut();
     void copy();
     void paste();
+    // The Spike: Ctrl+F3 cuts the selection onto it (each cut is added after the ones before), Ctrl+Shift+F3 pastes everything on it, in order, as one step, and empties it. It is kept
+    // while the program runs, and is the same for every window. (Formatting stays, as it does for a cut.)
+    void cutToSpike();
+    void pasteSpike();
+    static int spikeCount();
+    static void emptySpike();
     // Paste with a choice: keep the source's formatting (as Paste), merge with the formatting around (the emphasis stays), text only, a picture, or the clipboard's HTML. Which of them the
     // clipboard can give now.
     enum class PasteKind { Keep, Merge, TextOnly, Picture, Html, Rtf };

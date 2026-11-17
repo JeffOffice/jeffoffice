@@ -129,6 +129,48 @@ void PageView::cut()
     caretMoved();
 }
 
+// The cuts on the Spike, oldest first: a program-wide list, so a cut in one window can be pasted in another.
+static QVector<Clip> &spike()
+{
+    static QVector<Clip> clips;
+    return clips;
+}
+
+int PageView::spikeCount() { return int(spike().size()); }
+void PageView::emptySpike() { spike().clear(); }
+
+void PageView::cutToSpike()
+{
+    if (!m_doc || m_readOnly || m_shapeEditor || !m_cursor.hasSelection()) return;
+    const Clip clip = copySelection(*m_doc, m_cursor);
+    if (clip.isEmpty()) return;
+    // (A spike of at most 1000 cuts: the cut after that is let be, rather than lost.)
+    if (spike().size() >= 1000) {
+        Q_EMIT notice(tr("The Spike is full. Paste it to empty it."));
+        return;
+    }
+    spike() << clip;
+    if (smartCutPaste()) smartRemoveSelection(*m_doc, m_cursor);
+    else removeSelection(*m_doc, m_cursor);
+    caretMoved();
+}
+
+void PageView::pasteSpike()
+{
+    if (!m_doc || m_readOnly || m_shapeEditor || spike().isEmpty()) return;
+    const QVector<Clip> clips = spike();
+    m_cursor.beginEditBlock();
+    if (m_cursor.hasSelection()) removeSelection(*m_doc, m_cursor);
+    for (int i = 0; i < clips.size(); ++i) {
+        pasteClip(*m_doc, m_cursor, clips[i]);
+        // Each cut is a paragraph of its own, unless it already ended one.
+        if (i + 1 < clips.size() && !clips[i].fragment.toPlainText().endsWith(QLatin1Char('\n'))) pasteText(*m_doc, m_cursor, QStringLiteral("\n"));
+    }
+    m_cursor.endEditBlock();
+    spike().clear();
+    caretMoved();
+}
+
 static const QString &fragmentFormat()
 {
     static const QString f = QStringLiteral("application/x-jeffwrite-fragment");
@@ -790,6 +832,12 @@ void PageView::keyPressEvent(QKeyEvent *e)
         return;
     default:
         break;
+    }
+    if (e->key() == Qt::Key_F3 && (e->modifiers() & Qt::ControlModifier) && !(e->modifiers() & (Qt::AltModifier | Qt::MetaModifier))) {
+        if (e->modifiers() & Qt::ShiftModifier) pasteSpike();
+        else cutToSpike();
+        e->accept();
+        return;
     }
     if (e->key() == Qt::Key_Insert && m_insertKeyOvertype && !(e->modifiers() & (Qt::ControlModifier | Qt::ShiftModifier))) {
         m_overtype = !m_overtype;
