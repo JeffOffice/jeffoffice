@@ -195,7 +195,7 @@ private Q_SLOTS:
         EditWindow e;
         QVERIFY(e.open(editBook()));
         e.win.w.setMarkedFinal(true);
-        QTRY_VERIFY(e.win.w.isReadOnly());
+        QTRY_VERIFY_WITH_TIMEOUT(e.win.w.isReadOnly(), 30000);   // (a busy Windows runner took 5.5 s, Nov 17)
         QVERIFY(!e.win.w.isWindowModified());
         const QString second = e.folder.dir.filePath(QStringLiteral("second.xlsx"));
         QVERIFY(QFile::copy(e.path, second));
@@ -731,7 +731,7 @@ private Q_SLOTS:
         QVERIFY(e.open(editBook()));
         QVERIFY(e.win.w.markFinalBlocked().isEmpty());
         e.win.w.setMarkedFinal(true);
-        QTRY_VERIFY(e.win.w.isReadOnly());
+        QTRY_VERIFY_WITH_TIMEOUT(e.win.w.isReadOnly(), 30000);   // (a busy Windows runner took 5.5 s, Nov 17)
         QLabel *note = e.win.w.findChild<QLabel *>(QStringLiteral("finalNote"));
         QVERIFY(note);
         QVERIFY(note->isVisibleTo(&e.win.w));
