@@ -1270,7 +1270,8 @@ QByteArray Writer::drawingXml(const T &t, int drawing, ParaCtx *pc, int depth)
                     for (int m = t.firstChild(ext); m >= 0; m = t.next(m))
                         if (t.localName(m) == "svgBlip") svgRid = t.attr(m, "embed", wml::NsR);
             QString svgHref;
-            if (!svgRid.isEmpty() && !imagePart(svgRid, &svgHref).isEmpty() && svgHref.endsWith(QLatin1String(".svg"), Qt::CaseInsensitive)) rid = svgRid;
+            // (A barcode keeps its PNG: its marker names the fingerprint of it.)
+            if (barcodeSettings.isEmpty() && !svgRid.isEmpty() && !imagePart(svgRid, &svgHref).isEmpty() && svgHref.endsWith(QLatin1String(".svg"), Qt::CaseInsensitive)) rid = svgRid;
         }
         if (imagePart(rid, &href).isEmpty()) {
             left(QCoreApplication::translate("odt", "pictures that can't be read"));
