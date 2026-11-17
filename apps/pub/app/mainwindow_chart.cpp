@@ -5,6 +5,7 @@
 
 #include "app/chartactions.h"
 #include "app/editor.h"
+#include "app/icons.h"
 #include "app/ribbon.h"
 #include "app/ribbonbuilder.h"
 #include "canvas/canvas.h"
@@ -28,6 +29,7 @@ void MainWindow::createChartActions()
     connect(m_ed, &Editor::changed, this, sync);
     connect(m_ed, &Editor::pageChanged, this, sync);
     connect(m_ed, &Editor::documentReplaced, this, sync);
+    m_chartActions->attachButtons(m_canvas, [](const QString &name) { return icon(name); });
     refreshChart();
 }
 
@@ -39,6 +41,10 @@ void MainWindow::addChartParts(RibbonParts &parts)
     parts.menus[QStringLiteral("chartAxes")] = [this](QWidget *owner) { return m_chartActions->axesMenu(owner); };
     parts.menus[QStringLiteral("chartGridlines")] = [this](QWidget *owner) { return m_chartActions->gridlinesMenu(owner); };
     parts.menus[QStringLiteral("chartStyles")] = [this](QWidget *owner) { return m_chartActions->stylesMenu(owner); };
+    parts.menus[QStringLiteral("chartElements")] = [this](QWidget *owner) { return m_chartActions->elementsMenu(owner); };
+    parts.menus[QStringLiteral("chartLayouts")] = [this](QWidget *owner) { return m_chartActions->layoutsMenu(owner); };
+    parts.menus[QStringLiteral("chartColors")] = [this](QWidget *owner) { return m_chartActions->colorsMenu(owner); };
+    parts.menus[QStringLiteral("chartLooks")] = [this](QWidget *owner) { return m_chartActions->looksMenu(owner); };
     parts.menus[QStringLiteral("chartLegend")] = [this](QWidget *owner) { return m_chartActions->legendMenu(owner); };
 }
 

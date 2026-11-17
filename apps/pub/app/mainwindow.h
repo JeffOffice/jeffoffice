@@ -238,6 +238,9 @@ private:
     void addChartParts(RibbonParts &parts);
     void refreshChart();
     ChartActions *m_chartActions = nullptr;
+public:
+    ChartActions *chartActions() const { return m_chartActions; }
+private:
     void createCommentActions();   // mainwindow_comments.cpp
     void updateCommentActions();
     void buildRibbon();

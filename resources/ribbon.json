@@ -522,6 +522,21 @@
         {"large": {"id": "ribbon.chartStyles", "text": "Chart Styles", "icon": "palette"}, "keytip": "CS", "menu": "@chartStyles"},
         {"large": "chart.dataLabels", "keytip": "DL"}
       ]},
+      {"name": "Chart Design", "keytip": "ZG", "items": [
+        {"large": {"id": "ribbon.addElement", "text": "Chart Parts", "icon": "plus"}, "keytip": "AE", "menu": "@chartElements"},
+        {"large": {"id": "ribbon.quickLayout", "text": "Layouts", "icon": "layers"}, "keytip": "QL", "menu": "@chartLayouts"},
+        {"large": {"id": "ribbon.chartColors", "text": "Colors", "icon": "palette"}, "keytip": "CC", "menu": "@chartColors"},
+        {"large": {"id": "ribbon.chartLooks", "text": "Looks", "icon": "brush"}, "keytip": "ST", "menu": "@chartLooks"}
+      ]},
+      {"name": "Chart Data", "keytip": "ZB", "items": [
+        {"large": "chartdesign.switch", "keytip": "SW"},
+        {"large": "chartdesign.selectData", "keytip": "SD"}
+      ]},
+      {"name": "Format Chart", "keytip": "ZX", "items": [
+        {"small": "chartdesign.formatPart", "keytip": "FP"},
+        {"small": "chartdesign.axisH", "keytip": "AH"},
+        {"small": "chartdesign.axisV", "keytip": "AV"}
+      ]},
       {"use": "Arrange"},
       {"use": "Size"}
     ]},

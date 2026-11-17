@@ -3,6 +3,15 @@
 #include "app/chartedit.h"
 #include "core/chartobject.h"
 #include "office/chart_write.h"
+#include "../chartmenu.h"
+#include "../withdialog.h"
+#include "app/chartactions.h"
+#include "app/chartdesign.h"
+#include "app/chartdialogs.h"
+#include "app/ribbon.h"
+#include "app/theme.h"
+#include "sheet/chartedit.h"
+#include <QToolButton>
 
 class PubChartTests : public QObject {
     Q_OBJECT
@@ -109,6 +118,84 @@ private Q_SLOTS:
         }));
         QVERIFY(jp::chartWorkbookOf(*ed->doc(), *chart).isEmpty());
         QVERIFY(!jp::selectedChartInfo(ed).dataEditable);
+    }
+
+    // The Chart Design commands (shared with JeffDeck): each entry of Chart Parts, Layouts, Colors, and Looks changes the chart as one step, and the buttons beside the chart show.
+    void chartPartsColorsAndLooksAreOneStepEach()
+    {
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        w.resize(1280, 800);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        w.act(QStringLiteral("insert.chart.column"))->trigger();
+        QVERIFY(jp::selectedChart(ed));
+        jp::ChartActions *actions = w.chartActions();
+        QTRY_VERIFY(actions->buttons() && actions->buttons()->elements()->isVisible());
+        QMenu *menu = actions->buttons()->elements()->menu();
+        QVERIFY(menu);
+        auto chart = [&] {
+            jp::office::Chart c;
+            [&] { QVERIFY(jp::readChartOf(*ed->doc(), *jp::selectedChart(ed), &c)); }();
+            return c;
+        };
+        const int steps = ed->undoStack()->count();
+        const QByteArray first = jp::selectedChart(ed)->chartXml;
+        QVERIFY(fireChartMenu(menu, QStringLiteral("errorBarsMenu.Fixed Value (1)")));
+        QCOMPARE(jp::office::sheet::errorBarsKind(chart()), QStringLiteral("fixedVal"));
+        QCOMPARE(ed->undoStack()->count(), steps + 1);
+        QVERIFY(fireChartMenu(menu, QStringLiteral("trendlineMenu.Linear")));
+        QCOMPARE(jp::office::sheet::elementsOf(chart()).trendline, QStringLiteral("linear"));
+        QCOMPARE(ed->undoStack()->count(), steps + 2);
+        std::unique_ptr<QMenu> layouts(actions->layoutsMenu(nullptr)), colors(actions->colorsMenu(nullptr)), looks(actions->looksMenu(nullptr));
+        QVERIFY(layouts->actions().size() >= 2 && colors->actions().size() >= 2 && looks->actions().size() >= 2);
+        QByteArray before = jp::selectedChart(ed)->chartXml;
+        for (QMenu *m : {colors.get(), looks.get(), layouts.get()}) {
+            m->actions().last()->trigger();
+            QVERIFY(jp::selectedChart(ed)->chartXml != before);
+            before = jp::selectedChart(ed)->chartXml;
+        }
+        QCOMPARE(ed->undoStack()->count(), steps + 5);
+        for (int i = 0; i < 5; ++i) ed->undo();
+        QCOMPARE(jp::selectedChart(ed)->chartXml, first);
+        for (int i = 0; i < 2; ++i) ed->redo();
+        QCOMPARE(jp::office::sheet::elementsOf(chart()).trendline, QStringLiteral("linear"));
+        // Format Chart Part: the look of the chart area and of one series, as one step.
+        const int formatSteps = ed->undoStack()->index();
+        withDialog([&] { w.act(QStringLiteral("chartdesign.formatPart"))->trigger(); }, QStringLiteral("formatChartPartDialog"), [](QDialog *d) {
+            auto *dialog = static_cast<jp::FormatChartPartDialog *>(d);
+            dialog->setFill(QColor(0xFF, 0xF0, 0xC0));
+            dialog->choosePart(2);
+            dialog->setFill(QColor(0x20, 0x40, 0x60));
+        });
+        QCOMPARE(ed->undoStack()->index(), formatSteps + 1);
+        QCOMPARE(jp::office::sheet::partLookOf(chart(), jp::office::sheet::ChartPart::Area).fill.name(), QStringLiteral("#fff0c0"));
+        QCOMPARE(jp::office::sheet::partLookOf(chart(), jp::office::sheet::ChartPart::Series, 0).fill.name(), QStringLiteral("#204060"));
+        ed->undo();
+        QVERIFY(jp::office::sheet::partLookOf(chart(), jp::office::sheet::ChartPart::Area).fill.name() != QStringLiteral("#fff0c0"));
+        // The ribbon shows them on the Chart Format tab.
+        QVERIFY(w.ribbon()->tab(QStringLiteral("Chart Format")));
+        // .jpub keeps what was added; .pub keeps a picture.
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QString err;
+        const QString path = dir.filePath(QStringLiteral("design.jpub"));
+        QVERIFY2(jp::savePublication(*ed->doc(), path, QImage(), &err), qPrintable(err));
+        auto back = jp::loadPublication(path, &err);
+        QVERIFY2(back, qPrintable(err));
+        QCOMPARE(int(chartsOn(*back).size()), 1);
+        jp::office::Chart again;
+        QVERIFY(jp::readChartOf(*back, *chartsOn(*back).first(), &again));
+        QCOMPARE(jp::office::sheet::errorBarsKind(again), QStringLiteral("fixedVal"));
+        QCOMPARE(jp::office::sheet::elementsOf(again).trendline, QStringLiteral("linear"));
+        QVERIFY(jp::exportPublisher(*ed->doc(), dir.filePath(QStringLiteral("design.pub")), &err));
+        if (!qEnvironmentVariable("JO_SHOT_DIR").isEmpty()) {
+            jp::applyUiTheme(1);
+            w.ribbon()->showTab(w.ribbon()->tab(QStringLiteral("Chart Format")));
+            QApplication::processEvents();
+            shotOf(&w, QStringLiteral("pub-chart-design"));
+            withDialog([&] { w.act(QStringLiteral("chartdesign.formatPart"))->trigger(); }, QStringLiteral("formatChartPartDialog"), [](QDialog *d) { shotOf(d, QStringLiteral("pub-format-chart-part")); }, false);
+        }
     }
 
     void jpubKeepsTheChart()
