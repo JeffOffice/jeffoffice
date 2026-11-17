@@ -24,6 +24,7 @@
 #include "app/toc.h"
 
 #include "app/dialogs.h"
+#include "app/guidesdialog.h"
 #include "app/help.h"
 #include "app/ribbon.h"
 #include "app/icons.h"

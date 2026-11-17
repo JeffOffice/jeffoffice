@@ -22,8 +22,6 @@ class Editor;
 class MainWindow;
 
 void pageSetupDialog(QWidget *p, Editor *ed);
-// Layout Guides: Margin Guides (tab 0), Grid Guides (1), Baseline Guides (2).
-void gridGuidesDialog(QWidget *p, Editor *ed, int startTab = 1);
 // Ruler Guides: the page's horizontal and vertical guides by position;
 // add one or a series, move, remove.
 void rulerGuidesDialog(QWidget *p, Editor *ed);
