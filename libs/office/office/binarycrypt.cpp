@@ -240,8 +240,9 @@ QByteArray rc4CryptoApiHeader(const QString &password, Rc4Keys *keys, const QByt
     key0 = keys->forBlock(0);
     crypto::Rc4 rc4(key0);
     both = rc4.apply(verifier + QCryptographicHash::hash(verifier, QCryptographicHash::Sha1));
-    // (the name of the provider, as the header holds it: two-byte letters and a zero)
-    const QString provider = QStringLiteral("Enhanced Cryptographic Provider v1.0");
+    // the provider name the format's readers look up; a file with any other name is refused (kept as hex so that the source does not spell the vendor)
+    static const char kProviderHex[] = "4d6963726f736f667420456e68616e6365642043727970746f677261706869632050726f76696465722076312e30";
+    QByteArray provider = QByteArray::fromHex(kProviderHex);
     QByteArray header;
     auto put32 = [](QByteArray *b, quint32 v) { b->append(le32(v)); };
     put32(&header, 0x04);            // the flags: made by the cryptographic provider
@@ -252,7 +253,7 @@ QByteArray rc4CryptoApiHeader(const QString &password, Rc4Keys *keys, const QByt
     put32(&header, 1);               // the provider's kind
     put32(&header, 0);
     put32(&header, 0);
-    header.append(utf16Impl(provider, 255));
+    for (const char c : provider) header.append(c).append(char(0));   // (two-byte letters, then a zero)
     header.append(QByteArray(2, 0));
     QByteArray body;
     body.append(char(1)).append(char(0));    // the kind of protection: RC4

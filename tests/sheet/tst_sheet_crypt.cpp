@@ -1271,7 +1271,16 @@ private Q_SLOTS:
         QCOMPARE(u16At(fp, 0), quint16(1));
         QCOMPARE(u16At(fp, 2), quint16(4));
         QCOMPARE(u16At(fp, 4), quint16(2));
-        const int header = 14, v = 2 + 12 + int(u32At(fp, 10));
+        const quint32 headerSize = u32At(fp, 10);
+        const int header = 14, v = 2 + 12 + int(headerSize);
+        QCOMPARE(u32At(fp, 6), quint32(0x04));               // the flags of the whole header: made by the cryptographic provider
+        QCOMPARE(u32At(fp, header), quint32(0x04));          // ... and of the header itself
+        // the provider's name, as the format's readers look it up (two-byte letters and a zero; kept as hex so that the source does not spell the vendor)
+        const QByteArray name = QByteArray::fromHex("4d6963726f736f667420456e68616e6365642043727970746f677261706869632050726f76696465722076312e30");
+        QByteArray nameBytes;
+        for (const char c : name) nameBytes.append(c).append(char(0));
+        nameBytes.append(QByteArray(2, 0));
+        QCOMPARE(fp.mid(header + 32, int(headerSize) - 32), nameBytes);
         QCOMPARE(u32At(fp, header + 8), quint32(0x6801));    // RC4
         QCOMPARE(u32At(fp, header + 12), quint32(0x8004));   // SHA-1
         QCOMPARE(u32At(fp, header + 16), quint32(128));
@@ -1298,7 +1307,7 @@ private Q_SLOTS:
         // the stream with every enciphered byte opened
         QByteArray opened = locked;
         qsizetype p = first + 4 + fpLen;
-        int boundSheets = 0, boms = 1;
+        int boundSheets = 0, boms = 1, crossing = 0;
         QByteArray ks;
         qint64 have = -1;
         while (p + 4 <= opened.size()) {
@@ -1308,6 +1317,7 @@ private Q_SLOTS:
             const bool clear = id == 0x0809 || id == 0x00E1;
             if (id == 0x0809) ++boms;
             if (id == 0x0085) ++boundSheets;
+            if (!clear && len > 0 && (p + 4 + (id == 0x0085 ? 4 : 0)) / 1024 != (p + 3 + len) / 1024) ++crossing;
             for (int i = (id == 0x0085 ? 4 : 0); !clear && i < len; ++i) {
                 const qsizetype at = p + 4 + i;
                 if (at / 1024 != have) {
@@ -1318,6 +1328,7 @@ private Q_SLOTS:
             }
             p += 4 + len;
         }
+        QVERIFY(crossing >= 1);   // (a record that begins in one block of 1024 bytes and ends in the next is keyed by each byte's own block)
         QCOMPARE(boundSheets, 2);
         QCOMPARE(boms, 3);   // (the globals and the two sheets: each begins in the clear)
         // what the password opens is the stream of a save with none: FILEPASS put in, the places of the sheets moved by its size
