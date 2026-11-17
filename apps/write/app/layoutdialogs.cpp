@@ -9,6 +9,9 @@
 #include "core/dropcapops.h"
 #include "core/layoutops.h"
 #include "core/pagenumbering.h"
+#include "core/proofops.h"
+#include "text/textengine.h"
+#include "text/textprops.h"
 #include "core/watermarkops.h"
 #include "app/pageview.h"
 
@@ -597,16 +600,43 @@ bool dateTimeDialog(QWidget *parent, WriteDoc *doc, PageView *view)
     dlg.setObjectName(QStringLiteral("dateTimeDialog"));
     dlg.setWindowTitle(QCoreApplication::translate("jp::write::LayoutDialogs", "Date and Time"));
     auto *v = new QVBoxLayout(&dlg);
+    // The language of the names: the text's own where the list has it (a field in another language keeps it, as the file's language of its runs).
+    auto *language = new QComboBox(&dlg);
+    language->setObjectName(QStringLiteral("language"));
+    for (const jp::DateLanguage &l : jp::dateLanguages()) language->addItem(l.name, l.tag);
+    QString here = view->cursor().charFormat().stringProperty(tp::Language);
+    if (here.isEmpty()) here = doc->proofingLanguage();
+    if (language->findData(here) < 0) here = QStringLiteral("en-US");
+    language->setCurrentIndex(language->findData(here));
+    auto *form = new QFormLayout();
+    form->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Language"), language);
+    v->addLayout(form);
     v->addWidget(new QLabel(QCoreApplication::translate("jp::write::LayoutDialogs", "Available formats"), &dlg));
     auto *list = new QListWidget(&dlg);
     list->setObjectName(QStringLiteral("formats"));
-    for (const Form &f : forms) {
-        auto *item = new QListWidgetItem(now.toString(QLatin1String(f.qt)), list);
-        item->setData(Qt::UserRole, QString::fromLatin1(f.picture));
-        item->setData(Qt::UserRole + 1, QString::fromLatin1(f.qt));
-        item->setData(Qt::UserRole + 2, f.time);
-    }
-    list->setCurrentRow(0);
+    auto fill = [list, language, now] {
+        const QString before = list->currentItem() ? list->currentItem()->data(Qt::UserRole + 1).toString() : QString();
+        const QString tag = language->currentData().toString();
+        list->clear();
+        auto add = [&](const QString &qt, const QString &picture, bool time) {
+            auto *item = new QListWidgetItem(jp::dateFieldText(QStringLiteral("datetime"), qt, tag, now), list);
+            item->setData(Qt::UserRole, picture);
+            item->setData(Qt::UserRole + 1, qt);
+            item->setData(Qt::UserRole + 2, time);
+        };
+        for (const QString &f : jp::dateNativeFormats(tag)) {
+            QString picture = f;
+            picture.replace(QLatin1String("AP"), QLatin1String("AM/PM"));
+            add(f, picture, jp::dateFieldKindOf(f) != QLatin1String("date"));
+        }
+        for (const Form &f : forms) add(QLatin1String(f.qt), QString::fromLatin1(f.picture), f.time);
+        int row = 0;
+        for (int i = 0; i < list->count(); ++i)
+            if (list->item(i)->data(Qt::UserRole + 1).toString() == before) row = i;
+        list->setCurrentRow(row);
+    };
+    fill();
+    QObject::connect(language, &QComboBox::currentIndexChanged, &dlg, fill);
     v->addWidget(list);
     auto *update = new QCheckBox(QCoreApplication::translate("jp::write::LayoutDialogs", "Update automatically"), &dlg);
     update->setObjectName(QStringLiteral("update"));
@@ -619,12 +649,23 @@ bool dateTimeDialog(QWidget *parent, WriteDoc *doc, PageView *view)
     QObject::connect(list, &QListWidget::itemDoubleClicked, &dlg, &QDialog::accept);
     if (dlg.exec() != QDialog::Accepted || !list->currentItem()) return false;
     const QListWidgetItem *chosen = list->currentItem();
+    const QString tag = language->currentData().toString();
+    const QString text = jp::dateFieldText(QStringLiteral("datetime"), chosen->data(Qt::UserRole + 1).toString(), tag, QDateTime::currentDateTime());
     QTextCursor &c = view->cursor();
     const WriteDoc::StepGroup group(*doc);
-    if (update->isChecked())
-        return insertField(*doc, c, QStringLiteral("%1 \\@ \"%2\"").arg(chosen->data(Qt::UserRole + 2).toBool() ? QStringLiteral("TIME") : QStringLiteral("DATE"), chosen->data(Qt::UserRole).toString()),
-                           QDateTime::currentDateTime().toString(chosen->data(Qt::UserRole + 1).toString()));
-    insertText(*doc, c, QDateTime::currentDateTime().toString(chosen->data(Qt::UserRole + 1).toString()));
+    if (!update->isChecked()) {
+        insertText(*doc, c, text);
+        return true;
+    }
+    if (!insertField(*doc, c, QStringLiteral("%1 \\@ \"%2\"").arg(chosen->data(Qt::UserRole + 2).toBool() ? QStringLiteral("TIME") : QStringLiteral("DATE"), chosen->data(Qt::UserRole).toString()), text)) return false;
+    // A field in a language other than the text's has its own (the field is the one character before the caret).
+    if (tag != here) {
+        QTextCursor atom(c.document());
+        atom.setPosition(c.position() - 1);
+        atom.setPosition(c.position(), QTextCursor::KeepAnchor);
+        setProofingLanguage(*doc, atom, tag);
+        updateFieldsAt(*doc, atom);   // (its result, in that language)
+    }
     return true;
 }
 

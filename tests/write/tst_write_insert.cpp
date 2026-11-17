@@ -24,6 +24,7 @@
 #include "core/designops.h"
 #include "core/dropcapops.h"
 #include "core/editops.h"
+#include "core/fieldops.h"
 #include "core/fonts.h"
 #include "core/insertops.h"
 #include "core/layoutops.h"
@@ -1462,6 +1463,41 @@ private Q_SLOTS:
         const QByteArray out = documentXml(win.w.document()->toDocx());
         QVERIFY2(out.contains("DATE") && out.contains("MMMM d, yyyy"), out.constData());
         QVERIFY2(out.contains(QDate::currentDate().toString(format).toUtf8()), "the field has no result");   // (a field is one character of the text, and its result is what the file keeps)
+    }
+
+    // The dialog has a Language list: the formats are shown in the language, and a field made in it keeps it (the language of its runs), so that it shows its names in that language
+    // when it is updated and when the file is opened again; the text of one that does not update is put in as it is.
+    void theDateAndTimeDialogHasALanguageAndTheFieldKeepsIt()
+    {
+        const struct { const char *tag, *weekday; } cases[] = {{"de-DE", "Dienstag"}, {"ja-JP", "\u706B\u66DC\u65E5"}};
+        for (const auto &c : cases) {
+            const QString tag = QString::fromUtf8(c.tag), weekday = QString::fromUtf8(c.weekday);
+            Win win;
+            QStringList languages;
+            QString listed;
+            withDialog([&] { win.w.act("insert.dateTime")->trigger(); }, QStringLiteral("dateTimeDialog"), [&](QDialog *dlg) {
+                auto *language = dlg->findChild<QComboBox *>(QStringLiteral("language"));
+                auto *formats = dlg->findChild<QListWidget *>(QStringLiteral("formats"));
+                QVERIFY(language && formats);
+                for (int i = 0; i < language->count(); ++i) languages << language->itemData(i).toString();
+                language->setCurrentIndex(language->findData(tag));
+                for (int i = 0; i < formats->count(); ++i)
+                    if (formats->item(i)->data(Qt::UserRole).toString() == QLatin1String("dddd, MMMM d, yyyy")) formats->setCurrentRow(i);
+                listed = formats->currentItem()->text();
+                QVERIFY(dlg->findChild<QCheckBox *>(QStringLiteral("update"))->isChecked());
+            });
+            QVERIFY(languages.contains(QStringLiteral("de-DE")) && languages.contains(QStringLiteral("ja-JP")) && languages.contains(QStringLiteral("en-US")));
+            QVERIFY2(listed.contains(weekday), qPrintable(listed));
+            // The field's result is in the language, and its runs say so.
+            const QByteArray out = documentXml(win.w.document()->toDocx());
+            QVERIFY2(out.contains("DATE") && out.contains(weekday.toUtf8()), out.constData());
+            QVERIFY2(out.contains(QStringLiteral("<w:lang w:val=\"%1\"").arg(tag).toUtf8()), out.constData());
+            // Opened again, its fields are worked out in that language.
+            auto again = open(win.w.document()->toDocx());
+            QVERIFY(again);
+            write::updateFields(*again);
+            QVERIFY2(documentXml(again->toDocx()).contains(weekday.toUtf8()), qPrintable(tag));
+        }
     }
 
     // ---------------------------------------------------------------- Insert > Cover Page
