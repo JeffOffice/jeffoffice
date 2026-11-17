@@ -55,6 +55,12 @@ PageMetrics pageMetrics(const SheetPrint &print, const PageCut &page, const Page
     return m;
 }
 
+int &mostSheetTags()
+{
+    static int most = 200000;
+    return most;
+}
+
 PagePainter::PagePainter(GridSheet *sheet) : m_sheet(sheet), m_painter(std::make_unique<GridPainter>(sheet))
 {
     m_base.setFamily(QStringLiteral("Calibri"));

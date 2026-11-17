@@ -25,11 +25,7 @@ namespace jp::grid {
 
 // The most tags a tagged PDF of a sheet takes from one export (the tables, rows, and cells of all its pages). An export that would pass it is made untagged: when the tag list reaches
 // it the tagger says it is full (PdfTagger::full) and no more tags are added. (A reference, so that a test can lower it.)
-inline int &mostSheetTags()
-{
-    static int most = 200000;
-    return most;
-}
+int &mostSheetTags();
 
 // What is drawn over the cells of a page: called with the painter set up as the cells were drawn in (the grid's pixels at the zoom the layout has), the layout, and the rectangle of the cells
 // in the painter's units. The objects that print are drawn by it, clipped to the page's cells.
