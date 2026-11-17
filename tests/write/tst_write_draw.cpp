@@ -5155,7 +5155,8 @@ private Q_SLOTS:
         for (const char *id : {"picture.altText", "picture.recolor.gray", "picture.recolor.bw", "picture.fill", "picture.fit"}) QVERIFY2(win.w.act(id)->isEnabled(), id);
     }
 
-    // A graphic is drawn on the screen from its SVG, as vectors: at 100% and at 200% an edge between the page and a black square on whole pixels is one pixel, with no band of gray between them.
+    // A graphic is drawn on the screen from its SVG, as vectors: at 100% and at 200% an edge between the page and a black square on whole pixels is exact, with no band of gray between them (the PNG scaled
+    // up leaves one; a band of more than a pixel is the blur of a small icon).
     void aGraphicIsDrawnFromItsSvgOnTheScreenAndSharp()
     {
         Win win("<w:p/>");
@@ -5179,7 +5180,7 @@ private Q_SLOTS:
             QRect box;
             QTRY_VERIFY((shot = win.w.view()->grab().toImage(), box = colorBoundsOf(shot, QColor(0, 0, 0)), !box.isNull()));
             QVERIFY2(std::abs(box.width() - 64 * zoom) <= 2, qPrintable(QStringLiteral("width %1 at zoom %2").arg(box.width()).arg(zoom)));
-            // The widest run of pixels that are neither the page's white nor the square's black, across the middle of the square, at each edge.
+            // The widest run of pixels that are neither the page's white nor the square's black, across the middle of the square, at each edge (none: the edges are on whole pixels).
             const int y = box.center().y();
             int widest = 0, run = 0;
             for (int x = box.left() - 6; x <= box.right() + 6; ++x) {
@@ -5188,8 +5189,31 @@ private Q_SLOTS:
                 run = between ? run + 1 : 0;
                 widest = std::max(widest, run);
             }
-            QVERIFY2(widest <= 1, qPrintable(QStringLiteral("a band of %1 pixels at zoom %2").arg(widest).arg(zoom)));
+            QVERIFY2(widest == 0, qPrintable(QStringLiteral("a band of %1 pixels at zoom %2").arg(widest).arg(zoom)));
         }
+    }
+
+    // A PDF made of a document with a graphic holds the drawing as vectors (no picture in it), where a PNG picture is a picture; the printer is given the same drawing.
+    void aGraphicIsAVectorInAPdf()
+    {
+        auto pdfOf = [](const QByteArray &picture, bool graphic) {
+            Win win;
+            WriteDoc *doc = win.w.document();
+            QTextCursor c(doc->story());
+            c.setPosition(0);
+            insertPicture(*doc, c, picture, graphic ? QStringLiteral("g") : QStringLiteral("p"));
+            QTemporaryDir dir;
+            const QString path = dir.filePath(QStringLiteral("g.pdf"));
+            win.w.setNotifier([](const QString &, const QString &) {});
+            win.w.setSavePathChooser([&](const QString &, const QString &) { return path; });
+            win.w.exportPdf();
+            QFile f(path);
+            return f.open(QIODevice::ReadOnly) ? f.readAll() : QByteArray();
+        };
+        const QByteArray plain = pdfOf(pngOf(60, 60), false), vector = pdfOf(graphicSvg(), true);
+        QVERIFY(plain.size() > 100 && vector.size() > 100);
+        QVERIFY(plain.contains("/Subtype /Image") || plain.contains("/Subtype/Image"));
+        QVERIFY2(!vector.contains("/Subtype /Image") && !vector.contains("/Subtype/Image"), "drawn as vectors");
     }
 
     // The PNG beside the SVG keeps the frame's shape, with the drawing placed in it as preserveAspectRatio says: a square drawing in a frame twice as wide as it is high is centered (or at the left).
