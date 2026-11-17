@@ -298,6 +298,7 @@ bool loadWhole(LoadedBook *out, const std::function<bool()> &cancelled, const st
     total.start();
     CalcOptions options;
     options.keepApart = true;                  // what the engine cannot work out keeps the result the file stored
+    options.keepStoredFirst = true;            // and FORECAST.ETS results of the file stay as stored until a cell they read changes
     options.workOutWhatHasNoResult = true;     // and a formula the file stored no result for is worked out (a program that wrote the file may not have)
     options.goRoundCircles = true;             // and a circle is gone round when the workbook is set to
     options.workOutTables = true;              // and the columns of tables are worked out (a formula that names them is no longer kept as the file has it)

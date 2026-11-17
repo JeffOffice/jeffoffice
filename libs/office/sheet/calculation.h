@@ -59,6 +59,7 @@ struct CalcOptions {
     bool goRoundCircles = false;      // a workbook that asks for iterative calculation (or is told to: setIteration) has its circles worked out by going round them, as a window does; else (as the yardstick does)
                                       // they are given 0, or, with keepApart, kept apart as the file has them
     bool workOutWhatHasNoResult = false;   // with keepApart: a formula the file stored no result for is worked out (the yardstick keeps it apart, for want of a result to compare with; a window has nothing else to show)
+    bool keepStoredFirst = false;     // with keepApart: a formula of FORECAST.ETS and its companions keeps the result the file stored until a cell it reads changes (a window opening a file)
     bool lazyGraph = true;            // load() tells the dependency graph what the formulas read when it is first needed (an edit, a recalculation that marks from it, a question), not while the workbook is read
     qint64 workLimit = 0;             // steps for one formula; 0: the engine's own
     qint64 recalcWorkLimit = 0;       // the most steps a recalculation takes in all its slices; 0: kMaxRecalcWork
@@ -979,6 +980,8 @@ private:
     bool drainBeforeRenumbering(int sheet);
     void queueDependents(const jp::calc::CellArea &area);
     void giveName(quint32 id, std::vector<jp::calc::CellArea> *changed);
+    void reviveStored(quint32 id, std::vector<jp::calc::CellArea> *changed);
+    static bool keepsStoredFirst(const jp::calc::Program &p);
     void markDirty(quint32 id, std::vector<jp::calc::CellArea> *changed);
     bool circleKeptForRetry(Node &n) const;
     void beginRecalculation();

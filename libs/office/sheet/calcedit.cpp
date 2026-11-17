@@ -246,7 +246,7 @@ void Calculation::specialNodes(std::vector<quint32> *out)
         size_t keep = 0;
         for (const quint32 id : m_special) {
             const Node &n = m_nodes[id];
-            if (!(n.flags & Dead) && (((n.flags & Told) && !(n.traits & IdTold)) || ((n.flags & Kept) && n.kept != 'U'))) m_special[keep++] = id;
+            if (!(n.flags & Dead) && (((n.flags & Told) && !(n.traits & IdTold)) || ((n.flags & Kept) && n.kept != 'U' && n.kept != 'S'))) m_special[keep++] = id;
         }
         m_special.resize(keep);
     }

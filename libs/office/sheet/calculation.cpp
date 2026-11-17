@@ -516,6 +516,7 @@ void Calculation::classify(quint32 id, const Cell &cell, const Formula &f)
                 else if (slot.changesByItself) kept = 'V';
                 else if (slot.iterative) kept = 'R';
                 else if (!cell.hasResult() && !m_options.workOutWhatHasNoResult) kept = 'N';
+                else if (m_options.keepStoredFirst && cell.hasResult() && keepsStoredFirst(p)) kept = 'S';
             }
         }
     }
@@ -524,7 +525,7 @@ void Calculation::classify(quint32 id, const Cell &cell, const Formula &f)
         else m_externalNodes.erase(id);
     }
     if (kept) {
-        if (kept != 'U') m_special.push_back(id);
+        if (kept != 'U' && kept != 'S') m_special.push_back(id);
         n.flags |= Kept;
         n.kept = kept;
         if (m_options.keepApart) n.flags |= NodeTainted;
@@ -539,6 +540,8 @@ void Calculation::classify(quint32 id, const Cell &cell, const Formula &f)
         }
         // A formula that reads a link keeps the result the file stored until something it reads here changes, or the links are worked out again: it is told to the graph, so that an edit finds it.
         if (kept == 'E' && m_options.externals) registerNode(id, nullptr);
+        // A formula of a function whose results are not ours to change (the file's own fitting) keeps the stored result until something it reads changes, then it is worked out: it is told to the graph.
+        if (kept == 'S') registerNode(id, nullptr);
         return;
     }
     if (always) {
@@ -1651,6 +1654,23 @@ void Calculation::giveName(quint32 id, std::vector<CellArea> *changed)
     changed->push_back(idAreaOfNode(n));
 }
 
+// A formula that kept the result the file stored (class S) is found to read a cell that has changed: from now it is worked out, and what reads it is to be worked out again.
+void Calculation::reviveStored(quint32 id, std::vector<CellArea> *changed)
+{
+    Node &n = m_nodes[id];
+    n.flags &= quint16(~(Kept | NodeTainted));
+    n.kept = 0;
+    markDirty(id, changed);
+}
+
+// Whether the program calls a function whose stored results a file keeps until its data changes (kFnKeepStored).
+bool Calculation::keepsStoredFirst(const Program &p)
+{
+    for (const auto &call : p.calls)
+        if (functionAt(call.first).flags & kFnKeepStored) return true;
+    return false;
+}
+
 // Marks what reads the blocks of places given, and what reads those, to be worked out. (Inside, `changed` holds the ids of the lines, as the graph is asked.)
 void Calculation::markDependents(std::vector<CellArea> *changed)
 {
@@ -1681,6 +1701,10 @@ void Calculation::markDependentsOfIds(std::vector<CellArea> *changed)
             if ((n.flags & Dead) || dormant(n)) continue;
             if ((n.flags & Kept) && n.kept == 'U' && n.state == Done) {
                 giveName(id, changed);
+                continue;
+            }
+            if ((n.flags & Kept) && n.kept == 'S' && n.state == Done) {
+                reviveStored(id, changed);
                 continue;
             }
             if (circleKeptForRetry(n)) {
@@ -2081,6 +2105,10 @@ bool Calculation::stepBegin(const std::function<bool()> &timeUp, qint64 *spent)
             }
             if ((n.flags & Kept) && n.kept == 'U' && n.state == Done) {
                 giveName(id, &j.changed);
+                continue;
+            }
+            if ((n.flags & Kept) && n.kept == 'S' && n.state == Done) {
+                reviveStored(id, &j.changed);
                 continue;
             }
             if (circleKeptForRetry(n)) {
