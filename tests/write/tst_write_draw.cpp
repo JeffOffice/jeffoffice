@@ -5178,6 +5178,126 @@ private Q_SLOTS:
         }
     }
 
+    // Each entry of Chart Parts, Layouts, Colors, and Looks is one step of Undo, and the .docx and the .odt keep what they made.
+    void everyChartDesignCommandIsOneStepAndBothFilesKeepTheResult()
+    {
+        Win win;
+        win.w.act("insert.chart.column")->trigger();
+        const int at = win.w.view()->selectedPicture();
+        QVERIFY(at >= 0);
+        QTRY_VERIFY(win.w.chartButtons() && win.w.chartButtons()->elements()->isVisible());
+        WriteDoc *doc = win.w.document();
+        auto chart = [&](const WriteDoc &d, int where) {
+            office::Chart c;
+            [&] { QVERIFY(readChartAt(d, where, &c)); }();
+            return c;
+        };
+        auto model = [&] { return office::writeChartPart(chart(*doc, at)); };
+        // One command: it changes the chart, and one Undo gives back exactly the chart it was (and Redo the changed one).
+        auto oneStep = [&](const QString &what, const std::function<void()> &run) {
+            const QByteArray before = model();
+            run();
+            const QByteArray after = model();
+            if (after == before) return false;
+            [&] { QVERIFY2(doc->undo(), qPrintable(what)); }();
+            [&] { QVERIFY2(model() == before, qPrintable(what)); }();
+            [&] { QVERIFY2(doc->redo(), qPrintable(what)); }();
+            [&] { QVERIFY2(model() == after, qPrintable(what)); }();
+            return true;
+        };
+        QMenu *elements = win.w.chartButtons()->elements()->menu();
+        QMetaObject::invokeMethod(elements, "aboutToShow", Qt::DirectConnection);
+        QStringList names;
+        for (QAction *a : elements->findChildren<QAction *>())
+            if (!a->objectName().isEmpty() && !a->menu() && a->isEnabled() && !a->objectName().contains(QLatin1String("Menu.Custom"))) names << a->objectName();
+        int changed = 0;
+        for (const QString &name : std::as_const(names)) {
+            QVERIFY2(findChartMenuEntry(elements, name), qPrintable(name));
+            if (oneStep(name, [&] { fireChartMenu(elements, name); })) ++changed;
+            if (QTest::currentTestFailed()) return;
+        }
+        QVERIFY2(changed >= 12, qPrintable(QString::number(changed)));
+        for (QMenu *(ChartDesign::*make)(QWidget *) : {&ChartDesign::layoutsMenu, &ChartDesign::colorsMenu, &ChartDesign::stylesMenu}) {
+            std::unique_ptr<QMenu> menu((win.w.chartDesign()->*make)(nullptr));
+            int made = 0;
+            for (QAction *a : menu->actions())
+                if (!a->isSeparator() && !a->menu() && a->isEnabled() && oneStep(a->text(), [&] { a->trigger(); })) ++made;
+            QVERIFY2(made >= 2, qPrintable(menu->objectName()));
+            if (QTest::currentTestFailed()) return;
+        }
+        QTRY_VERIFY(win.w.act("chartdesign.switch")->isEnabled());
+        QVERIFY(oneStep(QStringLiteral("swap"), [&] { win.w.act("chartdesign.switch")->trigger(); }));
+        QVERIFY(oneStep(QStringLiteral("format part"), [&] {
+            withDialog([&] { win.w.act("chartdesign.formatPart")->trigger(); }, QStringLiteral("formatChartPartDialog"), [](QDialog *d) {
+                auto *dialog = static_cast<FormatChartPartDialog *>(d);
+                dialog->choosePart(2);
+                dialog->setFill(QColor(0x12, 0x34, 0x56));
+            });
+        }));
+        // What is in the chart now, in words (the elements, the trendline, the error bars, the first series' fill, and the numbers).
+        auto features = [](const office::Chart &c) {
+            const office::sheet::ChartElements e = office::sheet::elementsOf(c);
+            return QStringList{QString::number(e.title), QString::number(e.axisHorizontal), QString::number(e.axisVertical), QString::number(e.gridHorizontal), QString::number(e.gridVertical),
+                               QString::number(e.minorGridVertical), QString::number(e.legend), e.legendPosition, QString::number(e.labels), e.trendline, office::sheet::errorBarsKind(c),
+                               office::sheet::partLookOf(c, office::sheet::ChartPart::Series, 0).fill.name()}.join(QLatin1Char('|'));
+        };
+        // (the entries above toggled: make sure the chart ends with a trendline and error bars, which the .odt has to keep too)
+        if (office::sheet::elementsOf(chart(*doc, at)).trendline.isEmpty()) QVERIFY(fireChartMenu(elements, QStringLiteral("trendlineMenu.Linear")));
+        if (office::sheet::errorBarsKind(chart(*doc, at)).isEmpty()) QVERIFY(fireChartMenu(elements, QStringLiteral("errorBarsMenu.Fixed Value (1)")));
+        const QString now = features(chart(*doc, at));
+        QVERIFY(now.contains(QStringLiteral("#123456")));
+        QVERIFY(!office::sheet::elementsOf(chart(*doc, at)).trendline.isEmpty() && !office::sheet::errorBarsKind(chart(*doc, at)).isEmpty());
+        // The .docx: the same chart part, once.
+        const QByteArray docx = doc->toDocx();
+        {
+            office::Package p;
+            QVERIFY(p.read(docx));
+            int charts = 0;
+            for (const QString &name : p.partNames())
+                if (name.startsWith(QLatin1String("/word/charts/")) && name.endsWith(QLatin1String(".xml"))) ++charts;
+            QCOMPARE(charts, 1);
+        }
+        auto positionOfChart = [](WriteDoc &d) {
+            for (int p = 0; p < d.story()->characterCount(); ++p)
+                if (isDrawnObjectAt(d.story(), p) && pictureAt(d, d.story(), p).kind == DrawnKind::Chart) return p;
+            return -1;
+        };
+        auto fromDocx = open(docx);
+        QVERIFY(fromDocx);
+        const int docxAt = positionOfChart(*fromDocx);
+        QVERIFY(docxAt >= 0);
+        QCOMPARE(features(chart(*fromDocx, docxAt)), now);
+        // The .odt: the chart is an object of its own in the file, and reads back with the same elements and numbers.
+        QString err;
+        QStringList notes;
+        const QByteArray odt = doc->toOdt(&err, &notes);
+        QVERIFY2(!odt.isEmpty(), qPrintable(err));
+        for (const QString &n : std::as_const(notes)) QVERIFY2(!n.contains(QLatin1String("chart")), qPrintable(n));
+        {
+            QMap<QString, QByteArray> files;
+            QVERIFY(readZip(odt, files));
+            QVERIFY(files.contains(QStringLiteral("Object 1/content.xml")));
+            QVERIFY(files.value(QStringLiteral("content.xml")).contains("<draw:object "));
+            QVERIFY(files.value(QStringLiteral("META-INF/manifest.xml")).contains("opendocument.chart"));
+        }
+        auto fromOdt = WriteDoc::fromFile(odt);
+        QVERIFY(fromOdt);
+        const int odtAt = positionOfChart(*fromOdt);
+        QVERIFY(odtAt >= 0);
+        QCOMPARE(features(chart(*fromOdt, odtAt)), now);
+        QCOMPARE(chartAt(*fromOdt, odtAt).data.values, chartAt(*doc, at).data.values);
+        QCOMPARE(chartAt(*fromOdt, odtAt).data.categories, chartAt(*doc, at).data.categories);
+        // The chart that came from an .odt is changed like any other, one step.
+        QVERIFY(setChartLegend(*fromOdt, odtAt, QStringLiteral("t")));
+        QVERIFY(fromOdt->undo());
+        // Saved as .odt again, the chart is still one object.
+        const QByteArray again = fromOdt->toOdt(&err, &notes);
+        QVERIFY2(!again.isEmpty(), qPrintable(err));
+        QMap<QString, QByteArray> files;
+        QVERIFY(readZip(again, files));
+        QVERIFY(files.contains(QStringLiteral("Object 1/content.xml")) && !files.contains(QStringLiteral("Object 2/content.xml")));
+    }
+
     // The names are JeffCrunch's, and the commands for the numbers of a chart whose numbers are not its own (c:f references and a workbook kept with it) are off, with the reason in the tooltip.
     void theChartTabHasJeffCrunchsNamesAndTheDataCommandsOfAWorkbookChartAreOffWithTheReason()
     {
