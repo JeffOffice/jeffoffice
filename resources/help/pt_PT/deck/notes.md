@@ -1,30 +1,34 @@
 # Notas do orador
-<!-- keywords: notas, notas do orador, painel de notas, caixa de notas, notas do apresentador, página de notas, tópicos de apresentação, imprimir notas, ocultar notas, mostrar notas -->
+<!-- keywords: notas, notas do orador, painel de notas, caixa de notas, notas do apresentador, página de notas, pontos de apoio, imprimir notas, ocultar notas, mostrar notas -->
 
-As **notas do orador** são as palavras de que pretende lembrar-se enquanto apresenta. O público nunca as vê. Cada diapositivo tem as suas.
+As **notas do orador** são as palavras que quer lembrar enquanto apresenta. O público nunca as vê. Cada diapositivo tem as suas.
 
 ## Escrever notas
 
-A caixa de notas fica por baixo do diapositivo. Clique nela e escreva. Enquanto estiver vazia, mostra **Clique para adicionar notas**. As notas são texto simples. Pertencem ao diapositivo em que se encontra, por isso clique noutro diapositivo para ver ou escrever as respetivas notas.
+A caixa de notas está por baixo do diapositivo. Clique nela e escreva. Enquanto estiver vazia, mostra **Clique para adicionar notas**. As notas são texto simples. Pertencem ao diapositivo em que está, por isso clique noutro diapositivo para ver ou escrever as respetivas notas.
 
-O que escrever torna-se um passo que Ctrl+Z pode anular depois de fazer uma pausa ou quando clicar noutro local.
+O que escrever torna-se um passo que o Ctrl+Z pode anular, depois de fazer uma pausa ou quando clicar noutro sítio.
 
-Para alterar a altura da caixa, arraste a linha entre a caixa e o diapositivo. Para a ocultar e obter mais espaço para o diapositivo, clique em **Ver > Mostrar > Notas** ou no botão **Notas** na barra de estado. Clique novamente para a voltar a mostrar.
+Para escrever numa página semelhante à página de notas impressa, clique em **Ver > Vistas de Apresentação > Página de Notas**.
 
-## Utilizar notas durante a apresentação
+Para alterar a altura da caixa, arraste a linha que a separa do diapositivo. Para a ocultar e ganhar mais espaço para o diapositivo, clique em **Ver > Mostrar > Notas**, ou no botão **Notas** da barra de estado. Clique novamente para a voltar a mostrar.
 
-A Vista de Apresentador mostra as notas do diapositivo no ecrã, num tamanho à sua escolha. Consulte [Reproduzir a apresentação de diapositivos e utilizar a Vista de Apresentador](show).
+## Usar notas durante a apresentação
+
+A Vista de Apresentador mostra as notas do diapositivo no ecrã, num tamanho que escolher. Veja [Iniciar a apresentação de diapositivos e usar a Vista de Apresentador](show).
 
 ## Imprimir notas
 
-Para imprimir os diapositivos com as respetivas notas por baixo, escolha **Páginas de Notas** na página Imprimir. As notas também podem ser incluídas num PDF. Consulte [Imprimir, PDF e imagens de diapositivos](printing).
+Para imprimir os diapositivos com as respetivas notas por baixo, escolha **Páginas de Notas** na página Imprimir. As notas também podem ser incluídas num PDF. Veja [Imprimir, PDF e imagens de diapositivos](printing).
+
+Para alterar a posição das notas, da imagem do diapositivo, do cabeçalho e do número de página na página impressa, abra **Ver > Vistas Modelo Global > Mestre de Notas**.
 
 ## Notas em cópias
 
-Um diapositivo que duplique, ou que reutilize de outra apresentação, leva consigo as respetivas notas. Consulte [Adicionar, alterar e eliminar diapositivos](slides) e [Reutilizar diapositivos de outra apresentação](reuse).
+Um diapositivo que duplicar, ou que reutilizar de outra apresentação, leva consigo as respetivas notas. Veja [Adicionar, alterar e eliminar diapositivos](slides) e [Reutilizar diapositivos de outra apresentação](reuse).
 
 ## Relacionados
 
-- [Reproduzir a apresentação de diapositivos e utilizar a Vista de Apresentador](show)
+- [Iniciar a apresentação de diapositivos e usar a Vista de Apresentador](show)
 - [Imprimir, PDF e imagens de diapositivos](printing)
 - [Separador Ver](tab-view)

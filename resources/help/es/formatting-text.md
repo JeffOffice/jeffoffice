@@ -1,42 +1,42 @@
-# Aplicar formato al texto
-<!-- keywords: fuente, tipo de letra, tamaño de fuente, negrita, cursiva, subrayado, color de fuente, color del texto, espaciado entre caracteres, interletraje, alinear texto, interlineado, sangría, letra capital, copiar formato, brocha, pegar formato, cambiar mayúsculas y minúsculas -->
+# Dar formato al texto
+<!-- keywords: fuente, tamaño de fuente, negrita, cursiva, subrayado, color de fuente, color de texto, espaciado entre caracteres, interletraje, alinear texto, interlineado, sangría, letra capital, copiar formato, pegar formato, cambiar mayúsculas y minúsculas -->
 
-El formato del texto se aplica en la pestaña **Inicio**. El grupo **Fuente** cambia las letras. El grupo **Párrafo** cambia párrafos completos.
+Puede dar formato al texto en la pestaña **Inicio**. El grupo **Fuente** cambia las letras. El grupo **Párrafo** cambia párrafos completos.
 
 ## Elegir qué cambiar
 
 - **Letras:** seleccione primero el texto. Si solo hace clic en una palabra, JeffPub cambia esa palabra y el texto que escriba a continuación.
-- **Párrafos:** haga clic en un párrafo o seleccione varios. La alineación, el espaciado y las sangrías cambian en todos los párrafos que abarque.
-- **Todo el contenido de un cuadro:** seleccione el cuadro, no el texto.
+- **Párrafos:** haga clic en un párrafo o seleccione varios. La alineación, el espaciado y las sangrías cambian en todos los párrafos que toque.
+- **Todo lo que hay en un cuadro:** seleccione el cuadro, no el texto.
 
 ## Fuentes, tamaño y estilo
 
-1. En **Inicio > Fuente**, elija una fuente en el cuadro de fuentes. Las **Fuentes de la combinación** de la parte superior siguen la combinación de fuentes de la publicación. Consulte [Combinaciones de colores y de fuentes](color-schemes).
-2. Escriba un tamaño en puntos en el cuadro de tamaño o elija uno. Un punto es 1/72 de pulgada.
-3. Use **Aumentar tamaño de fuente** y **Disminuir tamaño de fuente** para subir o bajar el tamaño paso a paso.
+1. En **Inicio > Fuente**, elija una fuente en el cuadro de fuentes. Las **Fuentes del tema** de la parte superior siguen la combinación de fuentes de la publicación. Consulte [Combinaciones de colores y fuentes](color-schemes).
+2. Escriba un tamaño en puntos en el cuadro de tamaño, o elíjalo de la lista. Un punto equivale a 1/72 de pulgada.
+3. Use **Aumentar tamaño de fuente** y **Disminuir tamaño de fuente** para subir o bajar el tamaño por pasos.
 
-**Negrita**, **Cursiva**, **Subrayado**, **Tachado**, **Subíndice** y **Superíndice** se aplican con un solo clic. La flecha junto a **Subrayado** ofrece líneas punteadas, discontinuas y onduladas. **Borrar todo el formato** devuelve el texto a lo que indica su estilo. **Cambiar mayúsculas y minúsculas** ofrece tipo oración, minúsculas, MAYÚSCULAS, poner en mayúsculas cada palabra, tipo inverso, **Versalitas** y **Mayúsculas**.
+**Negrita**, **Cursiva**, **Subrayado**, **Tachado**, **Subíndice** y **Superíndice** se aplican con un solo clic cada uno. La flecha junto a **Subrayado** ofrece líneas punteadas, discontinuas y onduladas. **Borrar todo el formato** devuelve el texto a lo que indica su estilo. **Cambiar mayúsculas y minúsculas** ofrece oración con mayúscula inicial, minúsculas, MAYÚSCULAS, poner en mayúscula cada palabra, tOGGLE cASE, **Versalitas** y **Todas las mayúsculas**.
 
-Para configurar muchas opciones a la vez, haga clic en el botón de la esquina del grupo **Fuente** (o presione Ctrl+Mayús+F) para abrir el cuadro de diálogo **Fuente**.
+Para cambiar muchas cosas a la vez, haga clic en el botón de esquina del grupo **Fuente** (o presione Ctrl+Mayús+F) para abrir el cuadro de diálogo **Fuente**.
 
 ## Color
 
-Haga clic en **Color de fuente** y elija un color de la combinación, estándar o reciente. **Más colores…** abre el selector completo, **Cuentagotas** toma un color de la página y **Tintes…** muestra versiones más claras y más oscuras de un color de la combinación. **Automático** recupera el color del estilo.
+Haga clic en **Color de fuente** y elija un color de la combinación, un color estándar o un color reciente. **Más colores…** abre el selector completo, **Cuentagotas** toma un color de la página, y **Tintes…** muestra versiones más claras y más oscuras de un color de la combinación. **Automático** restablece el color del estilo.
 
 ## Espaciado entre caracteres
 
-**Espaciado entre caracteres** acerca o separa las letras. Elija **Muy estrecho**, **Estrecho**, **Normal**, **Amplio** o **Muy amplio**. **Más espaciado…** abre el cuadro de diálogo **Espaciado entre caracteres**. Allí también puede ensanchar las letras, ajustar el interletraje (el espacio entre dos letras) y cambiar el espaciado entre palabras.
+**Espaciado entre caracteres** acerca o separa las letras. Elija **Muy estrecho**, **Estrecho**, **Normal**, **Amplio** o **Muy amplio**. **Más espaciado…** abre el cuadro de diálogo **Espaciado entre caracteres**. Allí también puede estirar las letras, ajustar el interletraje (la separación entre dos letras) y cambiar el espaciado entre palabras.
 
 ## Alineación, espaciado y sangrías
 
-- **Alinear a la izquierda**, **Centrar**, **Alinear a la derecha**, **Justificar** y **Distribuir** definen cómo se alinean las líneas. **Distribuir** es como **Justificar**, pero también ensancha la última línea.
-- **Interlineado** define el espacio entre líneas. **Espaciado entre párrafos** define el espacio antes o después de un párrafo.
-- **Aumentar sangría** y **Disminuir sangría** desplazan un párrafo 0,6 cm.
-- Para indicar valores exactos, elija **Párrafo…** en cualquiera de los menús de espaciado o haga clic en el botón de la esquina del grupo **Párrafo**.
+- **Alinear a la izquierda**, **Centrar**, **Alinear a la derecha**, **Justificar** y **Distribuir** determinan cómo se alinean las líneas. **Distribuir** es como **Justificar**, pero además estira la última línea.
+- **Interlineado** define la separación entre líneas. **Espaciado de párrafo** define la separación antes o después de un párrafo.
+- **Aumentar sangría** y **Disminuir sangría** desplazan un párrafo un cuarto de pulgada.
+- Para valores exactos, elija **Párrafo…** en cualquiera de los menús de espaciado, o haga clic en el botón de esquina del grupo **Párrafo**.
 
 ## Efectos, letras capitales y tipografía
 
-En la pestaña **Cuadro de texto**, **Efectos** agrega a las letras sombra, contorno, relieve, grabado, iluminado y rellenos degradados. Una letra capital es una primera letra de gran tamaño: haga clic en el párrafo y elija **Cuadro de texto > Tipografía > Letra capital**. Elija de 2 a 5 líneas o **Letra capital personalizada…**. El resto de **Tipografía**, como las ligaduras y los conjuntos estilísticos, depende de lo que ofrezca la fuente.
+En la pestaña **Cuadro de texto**, **Efectos** añade sombra, contorno, relieve, grabado, iluminado y rellenos degradados a las letras. Una letra capital es una primera letra grande: haga clic en el párrafo y elija **Cuadro de texto > Tipografía > Letra capital**. Elija de 2 a 5 líneas, o **Letra capital personalizada…**. El resto de **Tipografía**, como las ligaduras y los conjuntos estilísticos, depende de lo que ofrezca la fuente.
 
 ## Copiar formato con el botón
 
@@ -44,9 +44,9 @@ En la pestaña **Cuadro de texto**, **Efectos** agrega a las letras sombra, cont
 2. Haga clic en **Inicio > Portapapeles > Copiar formato**.
 3. Haga clic en el cuadro de texto que desea cambiar.
 
-Todo el cuadro adopta el aspecto del primer texto, además de su relleno y su contorno. Mantenga presionada la tecla Mayús al hacer clic en el botón para seguir aplicando el formato. Presione Esc para terminar.
+Todo el cuadro adopta el aspecto del primer texto, además de su relleno y su contorno. Mantenga pulsada la tecla Mayús al hacer clic en el botón para seguir aplicando el formato. Presione Esc para detenerlo.
 
-Con el teclado: seleccione el texto o el objeto cuyo aspecto desea y presione **Ctrl+Mayús+C** para copiar su formato. Después seleccione otro texto u otros objetos y presione **Ctrl+Mayús+V** para darles ese aspecto.
+Desde el teclado: seleccione el texto o el objeto cuyo aspecto quiere copiar y presione **Ctrl+Mayús+C** para copiar su formato. Después seleccione otro texto u otros objetos y presione **Ctrl+Mayús+V** para darles ese aspecto.
 
 ## Métodos abreviados de teclado
 
@@ -60,3 +60,7 @@ Con el teclado: seleccione el texto o el objeto cuyo aspecto desea y presione **
 - [Viñetas, numeración y tabulaciones](lists-tabs)
 - [Usar estilos](styles)
 - [La pestaña Inicio](tab-home)
+
+## Características de la fuente
+
+En el cuadro **Fuente**, la pestaña **Avanzadas** ofrece ligaduras, espaciado de números, formas de números, conjuntos estilísticos y alternativas contextuales. Cada una empieza con la elección propia de la fuente. Una fuente sin esas formas se ve igual. JeffPub guarda las opciones solo en sus propios archivos. Una presentación guardada no las incluye.

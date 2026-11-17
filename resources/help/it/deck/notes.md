@@ -1,30 +1,34 @@
 # Note del relatore
-<!-- keywords: note, note del relatore, riquadro note, casella note, note relatore, pagina note, appunti, punti chiave, stampare note, nascondere note, mostrare note -->
+<!-- keywords: note, note del relatore, riquadro note, casella note, note del presentatore, pagina note, punti di discussione, stampa note, nascondi note, mostra note -->
 
-Le **note del relatore** sono le parole che si desidera ricordare durante la presentazione. Il pubblico non le vede mai. Ogni diapositiva ha le proprie note.
+Le **note del relatore** sono le parole che vuoi ricordare mentre presenti. Il pubblico non le vede mai. Ogni diapositiva ha le sue.
 
 ## Scrivere le note
 
-La casella delle note si trova sotto la diapositiva. Fare clic al suo interno e digitare. Quando è vuota, mostra la scritta **Fare clic per inserire le note**. Le note sono testo normale e appartengono alla diapositiva corrente: per visualizzare o scrivere le note di un'altra diapositiva, fare clic su di essa.
+La casella delle note si trova sotto la diapositiva. Fai clic al suo interno e digita. Quando è vuota mostra **Fare clic per aggiungere note**. Le note sono testo normale. Appartengono alla diapositiva in cui ti trovi, quindi fai clic su un'altra diapositiva per vedere o scrivere le sue note.
 
-Il testo digitato diventa un unico passaggio, che CTRL+Z può annullare quando si fa una pausa o si fa clic altrove.
+Quanto digiti diventa un'unica operazione che Ctrl+Z può annullare, una volta che ti fermi o fai clic in un altro punto.
 
-Per modificare l'altezza della casella, trascinare la linea che la separa dalla diapositiva. Per nasconderla e lasciare più spazio alla diapositiva, fare clic su **Visualizza > Mostra > Note** oppure sul pulsante **Note** della barra di stato. Fare di nuovo clic per visualizzarla nuovamente.
+Per digitare su una pagina che somiglia alla pagina di note stampata, fai clic su **Visualizza > Visualizzazioni presentazione > Pagina note**.
+
+Per modificare l'altezza della casella, trascina la linea che la separa dalla diapositiva. Per nasconderla e avere più spazio per la diapositiva, fai clic su **Visualizza > Mostra > Note**, oppure sul pulsante **Note** nella barra di stato. Fai di nuovo clic per riportarla visibile.
 
 ## Usare le note durante la presentazione
 
-La Visualizzazione Relatore mostra le note della diapositiva sullo schermo, con le dimensioni scelte. Vedere [Eseguire la presentazione e usare la Visualizzazione Relatore](show).
+La **Visualizzazione Relatore** mostra sullo schermo le note della diapositiva, in una dimensione che scegli. Vedi [Avviare la presentazione e usare la Visualizzazione Relatore](show).
 
 ## Stampare le note
 
-Per stampare le diapositive con le note sotto, scegliere **Pagine note** nella pagina Stampa. Le note possono anche essere incluse in un PDF. Vedere [Stampa, PDF e immagini delle diapositive](printing).
+Per stampare le diapositive con le note sotto, scegli **Pagine note** nella pagina Stampa. Le note possono anche essere incluse in un PDF. Vedi [Stampa, PDF e immagini delle diapositive](printing).
+
+Per modificare la posizione delle note, dell'immagine della diapositiva, dell'intestazione e del numero di pagina sulla pagina stampata, apri **Visualizza > Visualizzazioni master > Master note**.
 
 ## Note nelle copie
 
-Una diapositiva duplicata, o riutilizzata da un'altra presentazione, porta con sé le proprie note. Vedere [Aggiungere, modificare ed eliminare diapositive](slides) e [Riutilizzare diapositive da un'altra presentazione](reuse).
+Una diapositiva che duplichi, o che riutilizzi da un'altra presentazione, porta con sé le proprie note. Vedi [Aggiungere, modificare ed eliminare diapositive](slides) e [Riutilizzare diapositive da un'altra presentazione](reuse).
 
-## Argomenti correlati
+## Vedi anche
 
-- [Eseguire la presentazione e usare la Visualizzazione Relatore](show)
+- [Avviare la presentazione e usare la Visualizzazione Relatore](show)
 - [Stampa, PDF e immagini delle diapositive](printing)
 - [Scheda Visualizza](tab-view)

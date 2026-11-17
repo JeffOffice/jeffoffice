@@ -1,7 +1,7 @@
 # Ayuda de JeffCrunch
 <!-- keywords: contenido, ayuda, temas, inicio -->
 
-Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando que ejecutar. Pulse **F1** en cualquier momento para obtener ayuda sobre lo que está haciendo: la pestaña de la cinta de opciones en la que se encuentra o la página de la pantalla Archivo en la que está.
+Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando que ejecutar. Pulse **F1** en cualquier momento para obtener ayuda sobre lo que está haciendo: la pestaña de la cinta de opciones en la que se encuentra, o la página de la pantalla Archivo en la que está.
 
 ## Primeros pasos
 
@@ -9,10 +9,10 @@ Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando 
 - [Abrir y guardar libros](open-save)
 - [Información: propiedades, contraseñas e Inspeccionar](info)
 - [Abrir libros protegidos con contraseña](open-password)
-- [Escribir en celdas](edit-cells)
+- [Escribir en las celdas](edit-cells)
 - [Reglas para el contenido de una celda](rules)
 
-## Ver un libro
+## Consultar un libro
 
 - [Seleccionar celdas y desplazarse](select-and-move)
 - [Cambiar la vista](view)
@@ -20,10 +20,10 @@ Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando 
 - [Nombres para celdas y valores](names)
 - [Formatos condicionales](conditional-formats)
 
-## Cambiar un libro
+## Modificar un libro
 
 - [Dar formato a las celdas](format-cells)
-- [Formatos de número e idioma](number-formats)
+- [Formatos de número y su idioma](number-formats)
 - [Estilos de celda](cell-styles)
 - [Trabajar con hojas](sheets)
 - [Insertar y eliminar filas, columnas y celdas](insert-delete)
@@ -36,11 +36,24 @@ Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando 
 - [Tablas](tables)
 - [Tablas dinámicas](pivot-tables)
 - [Insertar una función](insert-function)
-- [Escribir una función con el cuadro de diálogo Argumentos de función](function-arguments)
+- [Introducir una función con el cuadro de diálogo Argumentos de función](function-arguments)
 - [Gráficos, imágenes y formas](charts)
 - [Ecuaciones](equations)
 - [Notas y vínculos](notes-links)
 - [Proteger una hoja o el libro](protect)
+
+## Todas las funciones
+
+- [Funciones financieras](functions-financial)
+- [Funciones de fecha y hora](functions-date-time)
+- [Funciones matemáticas y trigonométricas](functions-math-trig)
+- [Funciones estadísticas](functions-statistical)
+- [Funciones de búsqueda y referencia](functions-lookup-reference)
+- [Funciones de texto](functions-text)
+- [Funciones lógicas](functions-logical)
+- [Funciones de información](functions-information)
+- [Funciones de base de datos](functions-database)
+- [Funciones de ingeniería](functions-engineering)
 
 ## Imprimir
 
@@ -52,5 +65,5 @@ Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando 
 
 - [Usar JeffCrunch con el teclado](keyboard)
 - [Cambiar la configuración de JeffCrunch](options)
-- [Seguridad: a qué puede acceder un archivo](security)
+- [Seguridad: a qué recursos externos puede conectarse un archivo](security)
 - [Elegir un idioma](language)

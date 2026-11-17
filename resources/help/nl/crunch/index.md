@@ -1,7 +1,7 @@
-# JeffCrunch-help
+# JeffCrunch Help
 <!-- keywords: inhoud, help, onderwerpen, start -->
 
-Typ in het zoekvak hierboven om een onderwerp of een opdracht te zoeken. Druk op **F1** om op elk moment hulp te krijgen bij wat u doet: het linttabblad waarop u staat, of de pagina van het scherm Bestand waarop u staat.
+Typ in het zoekvak hierboven om een onderwerp te zoeken, of een opdracht die u wilt uitvoeren. Druk op **F1** om op elk moment hulp te krijgen bij wat u doet: het linttabblad waarop u staat, of de pagina van het scherm Bestand waarop u staat.
 
 ## Aan de slag
 
@@ -14,7 +14,7 @@ Typ in het zoekvak hierboven om een onderwerp of een opdracht te zoeken. Druk op
 
 ## Een werkmap bekijken
 
-- [Cellen selecteren en navigeren](select-and-move)
+- [Cellen selecteren en zich verplaatsen](select-and-move)
 - [De weergave wijzigen](view)
 - [Hoe formules worden weergegeven en berekend](formulas)
 - [Namen voor cellen en waarden](names)
@@ -29,8 +29,8 @@ Typ in het zoekvak hierboven om een onderwerp of een opdracht te zoeken. Druk op
 - [Rijen, kolommen en cellen invoegen en verwijderen](insert-delete)
 - [De breedte van kolommen en de hoogte van rijen wijzigen](sizes)
 - [Knippen, kopiëren en plakken](clipboard)
-- [Cellen doorvoeren en optellen](fill-sum)
-- [Zoeken, vervangen en naar gaan](find-replace)
+- [Cellen opvullen en optellen](fill-sum)
+- [Zoeken, vervangen en naar een locatie gaan](find-replace)
 - [Sorteren en filteren](sort-filter)
 - [Gegevenshulpmiddelen](data-tools)
 - [Tabellen](tables)
@@ -42,6 +42,19 @@ Typ in het zoekvak hierboven om een onderwerp of een opdracht te zoeken. Druk op
 - [Notities en koppelingen](notes-links)
 - [Een blad of de werkmap beveiligen](protect)
 
+## Alle functies
+
+- [Financiële functies](functions-financial)
+- [Datum- en tijdfuncties](functions-date-time)
+- [Wiskunde- en goniometriefuncties](functions-math-trig)
+- [Statistische functies](functions-statistical)
+- [Zoek- en verwijzingsfuncties](functions-lookup-reference)
+- [Tekstfuncties](functions-text)
+- [Logische functies](functions-logical)
+- [Informatiefuncties](functions-information)
+- [Databasefuncties](functions-database)
+- [Technische functies](functions-engineering)
+
 ## Afdrukken
 
 - [De pagina's instellen](page-layout)
@@ -52,5 +65,5 @@ Typ in het zoekvak hierboven om een onderwerp of een opdracht te zoeken. Druk op
 
 - [JeffCrunch met het toetsenbord gebruiken](keyboard)
 - [De instellingen van JeffCrunch wijzigen](options)
-- [Beveiliging: waarmee een bestand contact mag maken](security)
+- [Beveiliging: waar een bestand verbinding mee mag maken](security)
 - [Een taal kiezen](language)

@@ -1,118 +1,131 @@
 # Bilder einfügen und ändern
-<!-- keywords: Bild, Bilder, Grafik, Bild einfügen, Foto, Zwischenablage, Bild einfügen aus Zwischenablage, Screenshot, Textumbruch, Text umbrechen, mit Text in Zeile, quadratisch, eng, oben und unten, hinter den Text, vor den Text, Alternativtext, Beschreibung, Größe ändern, Größe, Ziehpunkte, Bild verschieben, Bild ziehen, ablegen, Bildformat, Seitenverhältnis sperren, zuschneiden, ausschneiden, Helligkeit, Kontrast, Korrekturen, neu einfärben, Graustufen, Schwarzweiß, Ausgeblichen, Rahmen, Bildformatvorlagen, Bild ändern, Bild zurücksetzen, Bilder komprimieren, Bilder verkleinern, Dateigröße, ppi, Auflösung, zugeschnittene Bereiche löschen, nach vorne holen, nach hinten senden, Ebenen, Bilder anordnen, auf Form zuschneiden, drehen, ausrichten, Symbole, Symbol einfügen, Onlinebilder, freie Bilder, Openverse, Wikimedia Commons, Lizenz, Quellenangabe, Barcode, QR-Code -->
+<!-- keywords: Bild, Bilder, Grafik, Abbildung, Bild einfügen, Foto, Zwischenablage, Bild aus Zwischenablage einfügen, Bildschirmfoto, Screenshot, Textumbruch, Text umbrechen, mit Text in Zeile, quadratisch, eng, oben und unten, hinter den Text, vor den Text, Alternativtext, Beschreibung, Größe ändern, Größe, Ziehpunkte, Bild verschieben, Bild ziehen, ablegen, Bildformat, Seitenverhältnis sperren, zuschneiden, ausschneiden, Helligkeit, Kontrast, Korrekturen, neu einfärben, Graustufen, Schwarzweiß, Ausbleichen, Rahmen, Bildformatvorlagen, Bild ändern, Bild zurücksetzen, Bilder komprimieren, Bilder verkleinern, Dateigröße, ppi, Auflösung, zugeschnittene Bereiche löschen, nach vorne bringen, nach hinten senden, Ebenen, Bilder anordnen, auf Form zuschneiden, drehen, ausrichten, Symbole, Symbol einfügen, Onlinebilder, freie Bilder, Openverse, Wikimedia Commons, Lizenz, Quellenangabe, Barcode, QR-Code -->
 
-Ein **Bild** kann in einer Textzeile stehen, wie ein Buchstabe, oder frei auf der Seite schweben, während der Text es umfließt. Dieses Thema zeigt, wie Sie ein Bild in ein Dokument einfügen, wie Sie seine Größe und Position ändern, wie der Text es umfließt und wie Sie es für Menschen beschreiben, die es nicht sehen können.
+Ein **Bild** kann wie ein Buchstabe in einer Textzeile stehen oder frei auf der Seite schweben, während der Text um es herumläuft. Dieses Thema zeigt, wie Sie ein Bild in ein Dokument einfügen, wie Sie seine Größe und Position ändern, wie der Text um das Bild herumläuft und wie Sie es für Menschen beschreiben, die es nicht sehen können.
 
-## Ein Bild einfügen
+## Bild einfügen
 
-- Klicken Sie auf **Einfügen > Bilder**, dann auf **Bild**, wählen Sie eine Datei aus und klicken Sie auf **Öffnen**. JeffWrite liest die Dateiformate PNG, JPEG, GIF, BMP, TIFF, WebP und SVG. Ein Bild aus einer Datei wird im Dokument in dem Format gespeichert, in dem es vorliegt (ein WebP- oder SVG-Bild wird als PNG gespeichert).
-- Oder klicken Sie auf **Einfügen > Bilder > Bild aus Zwischenablage** bzw. drücken Sie **Strg+V**, wenn Sie ein Bild kopiert haben (zum Beispiel einen Screenshot). Das Bild wird im Dokument gespeichert, es ist also auch dann noch vorhanden, wenn Sie die Datei speichern und später wieder öffnen.
-- Oder ziehen Sie eine Bilddatei aus dem Dateimanager Ihres Computers auf eine Seite. Das Bild wird an der Stelle eingefügt, an der Sie es ablegen.
-- Oder klicken Sie auf **Einfügen > Symbole**. Ein Fenster zeigt kleine Zeichnungen von Dingen, etwa Pfeilen, Personen und Werkzeugen. Geben Sie ein Wort ein, um eines zu finden, wählen Sie ein oder mehrere aus und klicken Sie auf **OK**. Jedes Symbol wird an der Einfügemarke als Bild von etwa 1,7 cm im Quadrat eingefügt.
+- Klicken Sie auf **Einfügen > Bilder**, dann auf **Bild**, wählen Sie eine Datei aus und klicken Sie auf **Öffnen**. JeffWrite liest die Dateiformate PNG, JPEG, GIF, BMP, TIFF, WebP und SVG. Ein Bild, das aus einer Datei stammt, wird im Dokument in dem Format gespeichert, in dem es vorliegt (ein WebP- oder SVG-Bild wird als PNG gespeichert).
+- Oder klicken Sie auf **Einfügen > Bilder > Bild aus Zwischenablage** oder drücken Sie **Strg+V**, wenn Sie ein Bild kopiert haben (zum Beispiel ein Bildschirmfoto). Das Bild wird im Dokument gespeichert, sodass es auch nach dem Speichern und erneuten Öffnen der Datei noch vorhanden ist.
+- Oder ziehen Sie eine Bilddatei aus dem Dateimanager Ihres Computers auf eine Seite. Das Bild landet an der Stelle, an der Sie es ablegen.
+- Oder klicken Sie auf **Einfügen > Symbole**. Ein Feld zeigt kleine Zeichnungen von Dingen wie Pfeilen, Personen und Werkzeugen. Geben Sie ein Wort ein, um eines zu finden, wählen Sie eines oder mehrere aus und klicken Sie auf **OK**. Jedes Symbol wird an der Einfügemarke als Bild von etwa 1,7 cm Kantenlänge eingefügt.
 - Oder klicken Sie auf **Einfügen > Barcode**, um einen Barcode einzufügen (siehe unten).
 
-Das Bild wird an der Einfügemarke eingefügt und ersetzt dabei alles, was Sie markiert haben. Es wird so groß eingefügt, wie es verlangt, aber nicht breiter als die Spalte und nicht höher als der Textbereich der Seite, und die Proportionen bleiben erhalten. Anschließend ist das Bild markiert, und die Registerkarte **Bildformat** erscheint rechts im Menüband.
+Das Bild wird an der Einfügemarke eingefügt und ersetzt dabei alles, was Sie markiert haben. Es wird so groß eingefügt, wie es angegeben ist, aber nicht breiter als die Spalte und nicht höher als der Textbereich der Seite, wobei das Seitenverhältnis erhalten bleibt. Danach ist das Bild markiert, und die Registerkarte **Bildformat** erscheint rechts im Menüband.
 
-Ein Bild, das zu groß ist (mehr als 40 Millionen Pixel, eine Seite länger als 30.000 Pixel oder eine Datei mit mehr als 48 MB), wird nicht eingefügt, und die Statusleiste zeigt dies an. Das Gleiche gilt für eine Datei, die kein Bild ist.
+Ein Bild, das zu groß ist (mehr als 40 Millionen Pixel, eine Seite länger als 30.000 Pixel oder eine Datei mit mehr als 48 MB), wird nicht eingefügt, und die Statusleiste zeigt das an. Dasselbe gilt für eine Datei, die kein Bild ist.
 
 ## Kostenlose Bilder im Internet finden
 
-**Onlinebilder** findet kostenlose Bilder. Sie stammen aus zwei offenen Bibliotheken: Openverse, das viele Sammlungen durchsucht, und Wikimedia Commons, die Bildbibliothek von Wikipedia.
+Mit **Onlinebilder** finden Sie kostenlose Bilder. Sie stammen aus zwei offenen Bibliotheken: Openverse, das viele Sammlungen durchsucht, und Wikimedia Commons, die Bildbibliothek von Wikipedia.
 
-1. Klicken Sie auf **Einfügen > Bilder** und dann auf **Onlinebilder…**. Rechts öffnet sich ein Bereich.
+1. Klicken Sie auf **Einfügen > Bilder** und dann auf **Onlinebilder…**. Auf der rechten Seite öffnet sich ein Bereich.
 2. Wählen Sie eine Bibliothek, geben Sie ein, wonach Sie suchen, und klicken Sie auf **Suchen** (oder drücken Sie die Eingabetaste).
 3. Klicken Sie auf ein Bild, um zu sehen, von wem es stammt und welche Lizenz es hat. Eine **Lizenz** legt fest, wie Sie ein Bild verwenden dürfen. Klicken Sie auf den Namen der Lizenz, um sie zu lesen.
 4. Klicken Sie auf **Einfügen** (oder doppelklicken Sie auf das Bild).
 
-**Was JeffWrite sendet.** Ihre Suchbegriffe gehen an die von Ihnen gewählte Bibliothek, und zwar erst, wenn Sie auf **Suchen** klicken oder die Eingabetaste drücken. JeffWrite fordert danach von der Bibliothek die kleinen Vorschaubilder der Treffer an und das eine Bild, das Sie einfügen. Wie jede Webseite kann die Bibliothek die Internetadresse Ihres Computers sehen, und sie erfährt, dass JeffWrite diese Anfrage stellt. Inhalte Ihres Dokuments werden nicht gesendet.
+**Was JeffWrite sendet.** Ihre Suchbegriffe gehen an die von Ihnen gewählte Bibliothek, und zwar erst, wenn Sie auf **Suchen** klicken oder die Eingabetaste drücken. Danach fordert JeffWrite von der Bibliothek die kleinen Vorschaubilder der Treffer an sowie das eine Bild, das Sie einfügen. Wie jede Webseite kann die Bibliothek die Internetadresse Ihres Computers sehen, und ihr wird mitgeteilt, dass JeffWrite diese Bilder anfordert. Vom Inhalt Ihres Dokuments wird nichts gesendet.
 
-Das Bild wird an der Einfügemarke in der Textzeile eingefügt und im Dokument gespeichert. Sein Titel wird als **Alternativtext** gespeichert. Die meisten Lizenzen verlangen, dass Sie den Urheber nennen. Wenn **Quellenangabe unter dem Bild hinzufügen** aktiviert ist, fügt JeffWrite unter dem Bild eine kleine Textzeile mit Titel, Urheber und Lizenz ein. Sie ist ein Absatz, den Sie ändern oder löschen können. Das Einfügen ist ein einziger Schritt, und **Rückgängig** nimmt Bild und Quellenangabe gemeinsam zurück. Prüfen Sie, ob die Lizenz zu Ihrer Verwendung des Bildes passt.
+Das Bild wird an der Einfügemarke in die Textzeile eingefügt und im Dokument gespeichert. Sein Titel wird als **Alternativtext** gespeichert. Die meisten Lizenzen verlangen, dass Sie den Urheber nennen. Wenn **Quellenangabe unter dem Bild hinzufügen** aktiviert ist, fügt JeffWrite unter dem Bild eine kleine Textzeile mit Titel, Urheber und Lizenz ein. Sie ist ein Absatz, den Sie ändern oder löschen können. Das Einfügen ist ein einziger Schritt, und mit **Rückgängig** nehmen Sie das Bild und seine Quellenangabe gemeinsam zurück. Prüfen Sie, ob die Lizenz zu Ihrer Verwendung des Bildes passt.
 
-## Die Größe ändern
+## Größe ändern
 
-Klicken Sie auf das Bild, um es auszuwählen. Acht kleine Quadrate, die **Ziehpunkte**, erscheinen an den Ecken und Seiten.
+Klicken Sie auf das Bild, um es auszuwählen. Acht kleine Quadrate, die **Ziehpunkte**, erscheinen an seinen Ecken und Seiten.
 
-- Ziehen Sie an einem **Eckpunkt**, um das Bild in gleichen Proportionen größer oder kleiner zu machen.
+- Ziehen Sie an einem **Eckpunkt**, um das Bild unter Beibehaltung der Proportionen größer oder kleiner zu machen.
 - Ziehen Sie an einem **Seitenpunkt**, um nur eine Seite zu ändern.
-- Oder geben Sie unter **Bildformat > Höhe** oder **Breite** eine Zahl ein. Ist **Seitenverhältnis sperren** aktiviert, passt sich die andere Zahl an. Bilder bleiben auf einer Seite zwischen 2 und 2.000 Punkt.
+- Oder geben Sie einen Wert in **Bildformat > Höhe** oder **Breite** ein. Ist **Seitenverhältnis sperren** aktiviert, passt sich der andere Wert an. Bilder können an jeder Seite zwischen 2 pt und 2.000 pt groß sein.
 
 Jede Änderung ist ein Schritt, den Sie rückgängig machen können.
 
-## Ein Bild zuschneiden
+## Bild zuschneiden
 
-Ein Bild **zuschneiden** heißt, Teile seiner Ränder abzuschneiden. Wählen Sie das Bild aus und klicken Sie auf **Bildformat > Zuschneiden**. Geben Sie in Prozent des gesamten Bildes an, wie viel links, oben, rechts und unten abgeschnitten werden soll. Klicken Sie auf **OK**.
+**Zuschneiden** bedeutet, Teile am Rand eines Bildes abzuschneiden. Markieren Sie das Bild und klicken Sie auf **Bildformat > Zuschneiden**. Geben Sie ein, wie viel links, oben, rechts und unten abgeschnitten werden soll, als Prozentsatz des gesamten Bildes. Klicken Sie auf **OK**.
 
-Der Bildrahmen wird um denselben Betrag kleiner, sodass der verbleibende Teil seine Größe behält. Schneiden Sie später erneut zu, beginnen Sie vom ganzen Bild, sodass Sie das Abgeschnittene jederzeit zurückholen können. Ein Wert unter null lässt einen leeren Raum um das Bild entstehen. Der Zuschnitt zweier gegenüberliegender Seiten darf zusammen höchstens 98 Prozent ergeben.
+Der Bildrahmen wird um den gleichen Betrag kleiner, sodass der verbleibende Teil seine Größe behält. Wenn Sie später erneut zuschneiden, beginnen Sie wieder beim ganzen Bild, sodass Sie das Abgeschnittene immer zurückholen können. Ein Wert unter null lässt einen leeren Bereich um das Bild entstehen. Die Abschnitte an zwei gegenüberliegenden Seiten dürfen zusammen höchstens 98 Prozent ergeben.
 
-## Ein Bild auf eine Form zuschneiden
+## Bild auf ein Seitenverhältnis zuschneiden oder Rahmen füllen bzw. einpassen
 
-Wählen Sie das Bild aus und klicken Sie auf **Bildformat > Auf Form zuschneiden**. Wählen Sie eine Form, etwa eine Ellipse, einen Stern oder ein abgerundetes Rechteck. Das Bild wird nur innerhalb dieser Form angezeigt. Wählen Sie das einfache Rechteck, um die Ecken wiederherzustellen. Die Bilddatei selbst wird nicht verändert.
+Auf der Registerkarte **Bildformat** schneidet **Seitenverhältnis** den sichtbaren Teil des Bildes auf eine Form zu: ein Quadrat, 2 breit zu 3 hoch, 4 breit zu 3 hoch, 16 breit zu 9 hoch und andere. Der Zuschnitt erfolgt gleichmäßig von der Mitte des sichtbaren Bereichs aus, und der Rahmen wird entsprechend kleiner, sodass der verbleibende Teil seine Größe behält. **Füllen** behält den Rahmen bei und schneidet das Bild so zu, dass es den gesamten Rahmen ausfüllt. **Einpassen** behält den Rahmen bei und zeigt das ganze Bild darin, mit leerem Raum oberhalb und unterhalb (oder an den Seiten). Würde dadurch mehr Raum entstehen, als das Bild selbst braucht, schrumpft stattdessen der Rahmen auf die Form des Bildes. Jede dieser Einstellungen ist ein Schritt, den Sie rückgängig machen können, und der Zuschnitt wird in der Datei gespeichert.
 
-## Ein Bild drehen
+## Bild in eine Form zuschneiden
 
-Wählen Sie das Bild aus und klicken Sie auf **Bildformat > Drehen**. Drehen Sie es um eine Viertelumdrehung nach rechts oder links oder zurück auf keine Drehung.
+Markieren Sie das Bild und klicken Sie auf **Bildformat > Auf Form zuschneiden**. Wählen Sie eine Form, etwa ein Oval, einen Stern oder ein abgerundetes Rechteck. Das Bild wird nur innerhalb dieser Form angezeigt. Wählen Sie das einfache Rechteck, um die Ecken wiederherzustellen. Die Bilddatei selbst wird dabei nicht verändert.
+
+## Bild drehen
+
+Markieren Sie das Bild und klicken Sie auf **Bildformat > Drehen**. Drehen Sie es um eine Viertelumdrehung nach rechts oder links oder zurück in die Ausgangslage.
 
 ## Bilder ausrichten
 
-Klicken Sie auf der Registerkarte **Bildformat** auf **Ausrichten**. Wählen Sie **Linksbündig**, **Zentriert ausrichten** oder **Rechtsbündig**, um das Bild quer über die Seite auszurichten, und **Oben ausrichten**, **Mittig ausrichten** oder **Unten ausrichten**, um es senkrecht auf der Seite auszurichten. Standardmäßig richtet sich das Bild an den Seitenrändern aus. Aktivieren Sie **Auf Seite ausrichten**, um es stattdessen an den Seitenkanten auszurichten. Ein Bild, das in der Textzeile steht, wird dadurch zu einem schwebenden Bild vor dem Text.
+Klicken Sie auf der Registerkarte **Bildformat** auf **Ausrichten**. Wählen Sie **Links ausrichten**, **Zentriert ausrichten** oder **Rechts ausrichten**, um das Bild quer über die Seite auszurichten, und **Oben ausrichten**, **Mittig ausrichten** oder **Unten ausrichten**, um es an der Seite entlang auszurichten. Standardmäßig richtet sich das Bild nach den Seitenrändern aus. Aktivieren Sie **Auf Seite ausrichten**, um es stattdessen an den Seitenkanten auszurichten. Ein Bild, das in der Textzeile steht, wird dabei zu einem frei schwebenden Bild vor dem Text.
 
-## Das Aussehen eines Bildes ändern
+## Aussehen eines Bildes ändern
 
-Diese Befehle befinden sich auf der Registerkarte **Bildformat**. Jeder ist ein einzelner Schritt, den Sie rückgängig machen können, und keiner verändert die Bilddatei im Dokument.
+Diese Befehle finden Sie auf der Registerkarte **Bildformat**. Jeder ist ein einzelner Schritt, den Sie rückgängig machen können, und keiner ändert die Bilddatei im Dokument.
 
-- **Korrekturen** macht das Bild heller oder dunkler und verleiht ihm mehr oder weniger Kontrast. **Helligkeit** beschreibt, wie hell das Bild ist. **Kontrast** beschreibt, wie stark sich die hellen Teile von den dunklen unterscheiden.
-- **Farbe** stellt das Bild in Graustufen (**Graustufen**), in reines Schwarzweiß (**Schwarzweiß**) oder in einen blassen, verblassten Look (**Ausgeblichen**) um. **Nicht neu einfärben** stellt die Farben wieder her.
-- **Bildformatvorlagen** und **Bildrahmen** setzen einen Rahmen um das Bild. Wählen Sie eine Vorlage oder eine Farbe, dann eine **Stärke** (wie dick die Linie ist) und **Striche** (eine durchgezogene, gepunktete oder gestrichelte Linie). Wählen Sie **Kein Rahmen**, um den Rahmen zu entfernen.
-- **Bild ändern** setzt an derselben Stelle ein anderes Bild ein. Das neue Bild behält die Breite des alten, seine Position auf der Seite, die Art des Textumbruchs und den Alternativtext. Seine Höhe richtet sich nach seiner eigenen Form.
-- **Bild zurücksetzen** entfernt den Zuschnitt, die Korrekturen, die Farbänderung und den Rahmen. Das Bild erhält die Skalierung zurück, die es jetzt hat.
+- **Korrekturen** macht das Bild heller oder dunkler und gibt ihm mehr oder weniger Kontrast. **Helligkeit** bestimmt, wie hell das Bild ist. **Kontrast** bestimmt, wie stark sich die hellen von den dunklen Teilen unterscheiden.
+- **Farbe** färbt das Bild in Graustufen (**Graustufen**), in reines Schwarzweiß (**Schwarzweiß**) oder in einen blassen, verwaschenen Look (**Ausgewaschen**). **Keine Neueinfärbung** stellt die ursprünglichen Farben wieder her.
+- **Bildformatvorlagen** ist eine Galerie mit etwa zwei Dutzend fertigen Looks: Rahmen, Schatten, Spiegelungen, weiche Kanten, abgerundete und ovale Formen, eine Drehung im Raum, ein Leuchten und Abschrägungen (eine Abschrägung ist eine geneigte Kante, die das Bild erhaben wirken lässt). Klicken Sie auf eine Vorlage, um dem Bild diesen Look zu geben. Sie legt Form, Rahmen und Effekte gemeinsam fest und ersetzt die vorhandenen. Zuschnitt, Größe und Farben bleiben erhalten.
+- **Bildrahmen** legt die Farbe des Rahmens fest. **Stärke** (wie dick die Linie ist) und **Striche** (eine durchgehende, gepunktete oder gestrichelte Linie) legen den Rest fest. Ein gestrichelter Rahmen wird auf der Seite auch gestrichelt dargestellt.
+- **Bildeffekte** öffnet **Schatten**, **Spiegelung**, **Leuchten**, **Weiche Kanten**, **Abschrägung** und **3D-Drehung**, jeweils mit fertigen Auswahlmöglichkeiten und einem ersten Eintrag, etwa **Kein Schatten**, der den Effekt entfernt. Die übrigen Effekte bleiben erhalten, wenn Sie einen weiteren hinzufügen.
+- **Bild ändern** setzt an dieselbe Stelle ein anderes Bild. Das neue Bild behält die Stelle des alten auf der Seite, den Textumbruch, den Alternativtext, den Rahmen, die Form, die Effekte und die Farbänderungen. Hat es dieselbe Form wie das alte Bild, behält es auch Größe und Zuschnitt. Ist die Form anders, behält es die Breite, der Zuschnitt entfällt, und seine Höhe richtet sich nach seiner eigenen Form.
+- **Bild zurücksetzen** entfernt den Zuschnitt, die Korrekturen, die Farbänderung, den Rahmen, die Form und die Effekte. Das Bild erhält wieder die aktuelle Skalierung. Klicken Sie auf den Pfeil daneben, um **Bild und Größe zurücksetzen** zu wählen. Das setzt das Bild außerdem auf die Größe zurück, die es in seiner Datei hat.
 
 ## Bilder verkleinern
 
-Ein Foto aus einer Kamera kann viel größer sein, als es auf einer Seite angezeigt wird, und es macht die Datei groß. Klicken Sie auf ein Bild und dann auf **Bilder komprimieren…** in der Gruppe **Anpassen** der Registerkarte **Bildformat**. Wählen Sie, wo das Dokument verwendet wird: **Professioneller Druck (300 ppi)**, **Desktop-Druck (220 ppi)** oder **Web (96 ppi)**. Lassen Sie **Auf alle Bilder im Textteil des Dokuments anwenden** aktiviert, um alle Bilder zu verkleinern, oder deaktivieren Sie es, um nur das ausgewählte Bild zu verkleinern. **Zugeschnittene Bereiche von Bildern löschen** entfernt außerdem die verborgenen Teile, die Sie zugeschnitten haben; der Zuschnitt ist dann weg. Ein Bild wird nur ersetzt, wenn das neue kleiner ist. Seine Größe, Position, der Textumbruch und der Alternativtext bleiben unverändert. Mit **Rückgängig** (Strg+Z) erhalten Sie die Bilder zurück, und die Datei enthält beim Speichern nur die kleineren.
+Ein Foto aus einer Kamera kann viel größer sein, als es auf einer Seite angezeigt wird, und macht die Datei dadurch groß. Klicken Sie auf ein Bild und dann auf der Registerkarte **Bildformat** in der Gruppe **Anpassen** auf **Bilder komprimieren…**. Wählen Sie, wofür das Dokument verwendet wird: **Professioneller Druck (300 ppi)**, **Desktop-Druck (220 ppi)** oder **Web (96 ppi)**. Lassen Sie **Auf alle Bilder im Hauptteil des Dokuments anwenden** aktiviert, damit alle Bilder verkleinert werden, oder deaktivieren Sie es, damit nur das markierte Bild verkleinert wird. **Zugeschnittene Bereiche von Bildern löschen** entfernt außerdem die verborgenen Teile, die Sie abgeschnitten haben; der Zuschnitt ist dann nicht mehr vorhanden. Ein Bild wird nur ersetzt, wenn das neue kleiner ist. Größe, Position, Textumbruch und Alternativtext bleiben unverändert. Mit **Rückgängig** (Strg+Z) bekommen Sie die Bilder in ihrer ursprünglichen Form zurück, und beim Speichern enthält die Datei nur die kleineren Versionen.
 
-Nur Bilder im Textteil des Dokuments werden verkleinert. Bilder in einer Kopfzeile, einer Fußzeile, einem Textfeld oder einer Form bleiben unverändert, ebenso ein Bild, das eine Zeichnung (SVG, EMF oder WMF) oder eine Animation ist.
+Nur Bilder im Hauptteil des Dokuments werden verkleinert. Bilder in einer Kopfzeile, einer Fußzeile, einem Textfeld oder einer Form bleiben unverändert, ebenso ein Bild, das eine Zeichnung (SVG, EMF oder WMF) oder eine Animation ist.
 
-## Text um ein Bild umbrechen
+## Text um ein Bild herumlaufen lassen
 
-**Bildformat > Textumbruch** legt fest, wie der Text um das Bild läuft. Sie können auch mit der rechten Maustaste auf das Bild klicken und **Textumbruch** wählen.
+**Bildformat > Textumbruch** legt fest, wie der Text um das Bild herumläuft. Sie können auch mit der rechten Maustaste auf das Bild klicken und **Textumbruch** wählen.
 
 - **Mit Text in Zeile**: Das Bild ist ein Zeichen seiner Zeile und bewegt sich mit den Wörtern um sich herum.
-- **Quadratisch**: Der Text läuft um ein Rechteck, das das Bild aufnimmt.
-- **Eng**: Der Text läuft so nah am Bild, wie ein Rechteck es zulässt (JeffWrite behandelt dies wie **Quadratisch**).
-- **Oben und unten**: Der Text endet über dem Bild und beginnt darunter wieder.
-- **Hinter den Text**: Das Bild liegt unter dem Text, und die Wörter laufen direkt darüber.
-- **Vor den Text**: Das Bild liegt über dem Text, und die Wörter laufen direkt darunter.
+- **Quadratisch**: Der Text läuft um ein Rechteck, das das Bild umschließt.
+- **Eng**: Der Text läuft um die Umrisslinie des Bildes. Solange Sie die Umrisslinie nicht ändern, ist es der Bildrahmen (siehe **Umbruchpunkte bearbeiten** weiter unten).
+- **Oben und unten**: Der Text endet oberhalb des Bildes und beginnt darunter wieder.
+- **Hinter den Text**: Das Bild liegt unter dem Text, der direkt darüberläuft.
+- **Vor den Text**: Das Bild liegt über dem Text, der direkt darunter verläuft.
+
+Am Ende des Menüs **Textumbruch** finden Sie:
+
+- **Umbruchpunkte bearbeiten** zeigt die Umrisslinie, um die der Text läuft, als gestrichelte Linie mit einem kleinen Quadrat an jeder Ecke. Das funktioniert für Bilder, Formen und Textfelder. Ziehen Sie ein Quadrat, um diese Ecke zu verschieben; der Text folgt dann. Halten Sie **Strg** gedrückt und klicken Sie auf die Linie, um eine Ecke hinzuzufügen, oder halten Sie **Strg** gedrückt und klicken Sie auf eine Ecke, um sie zu entfernen (mindestens drei bleiben erhalten). Drücken Sie **Esc** oder wählen Sie **Umbruchpunkte bearbeiten** erneut, wenn Sie fertig sind. Ein Objekt mit dem Umbruch **Quadratisch** wird beim Start zu **Eng**. Die Umrisslinie wird mit dem Objekt gespeichert, in .docx- und .odt-Dateien, und eine Datei, die sie enthält, zeigt den Text entsprechend an. Drücken Sie **Esc** ohne Änderung, gibt es nichts rückgängig zu machen. Eine Umrisslinie kann höchstens 128 Ecken haben.
+- **Textseiten** legt fest, auf welcher Seite der Text neben einem Bild, einer Form oder einem Textfeld mit **Quadratisch** oder **Eng** Umbruch verläuft: **Text auf beiden Seiten**, **Text nur links**, **Text nur rechts** oder **Text auf der größeren Seite**.
+- **Abstand zum Text…** legt fest, wie viel Abstand der Text um das Bild, die Form oder das Textfeld lässt: oben, unten, links und rechts, in Punkt (1 pt ist 1/72 Zoll).
+- **Als Standardlayout festlegen** macht den Umbruch, die Textseite und die Abstände des markierten Bildes ab sofort zum Layout aller Bilder, die Sie einfügen, in jedem Dokument. Solange Sie das nicht verwenden, werden Bilder in der Textzeile eingefügt.
 
 ## Ein Bild über ein anderes legen
 
-Schwebende Bilder (jeder Umbruch außer **Mit Text in Zeile**) liegen in Ebenen wie Papierblätter übereinander. **Eine Ebene nach vorne** bringt das ausgewählte Bild eine Ebene nach oben. **Eine Ebene nach hinten** bringt es eine Ebene nach unten. Jede Schaltfläche hat ein kleines Menü mit **In den Vordergrund** und **In den Hintergrund**, die das Bild über oder unter alle anderen verschieben. Dieselben vier Befehle stehen im Kontextmenü unter **Anordnen**.
+Schwebende Bilder (jeder Umbruch außer **Mit Text in Zeile**) liegen in Ebenen wie Blätter Papier übereinander. **Eine Ebene nach vorne** verschiebt das markierte Bild um eine Ebene nach oben. **Eine Ebene nach hinten** verschiebt es um eine Ebene nach unten. Jede Schaltfläche hat ein kleines Menü mit **In den Vordergrund** und **In den Hintergrund**, die das Bild über oder unter alle anderen verschieben. Dieselben vier Befehle finden Sie im Kontextmenü unter **Anordnen**.
 
-Ein Bild ganz unten in den Ebenen vor dem Text geht bei einem weiteren Klick auf **Eine Ebene nach hinten** hinter den Text. Ein Bild hinter dem Text kommt bei einem weiteren Klick auf **Eine Ebene nach vorne** davor. Ein Befehl ist abgeblendet, wenn das Bild sich in diese Richtung nicht bewegen kann. Jeder Befehl ist ein Schritt, den **Rückgängig** zurücknimmt.
+Ein Bild ganz unten in den Ebenen vor dem Text wandert mit einem weiteren Klick auf **Eine Ebene nach hinten** hinter den Text. Ein Bild hinter dem Text kommt mit einem weiteren Klick auf **Eine Ebene nach vorne** vor den Text. Ein Befehl ist abgeblendet, wenn das Bild sich in diese Richtung nicht bewegen kann. Jeder Schritt lässt sich mit **Rückgängig** zurücknehmen.
 
-## Ein Bild verschieben
+## Bild verschieben
 
-Ziehen Sie das Bild. Ein Bild **in Zeile mit Text** wird an die Stelle im Text verschoben, an der Sie loslassen. Ein Bild mit einem anderen Umbruch wird an die Stelle auf der Seite verschoben, an der Sie loslassen, und bleibt dort, während sich der Text um es herum ändert (es bleibt bei dem Absatz, zu dem es gehört, auf der Seite dieses Absatzes).
+Ziehen Sie das Bild an die gewünschte Stelle. Ein Bild **in Textzeile** wird an die Stelle im Text verschoben, an der Sie die Maustaste loslassen. Ein Bild mit einem anderen Umbruch wird an die Stelle auf der Seite verschoben, an der Sie loslassen, und bleibt dort, während sich der umgebende Text ändert (es bleibt bei dem Absatz, zu dem es gehört, auf der Seite dieses Absatzes).
 
-Wenn Sie ein Bild, das in Zeile mit Text steht, ziehen, ändert sich sein Umbruch nicht. Um es schweben zu lassen, wählen Sie einen Umbruch wie **Quadratisch**.
+Wenn Sie ein Bild, das in der Textzeile steht, ziehen, ändert sich sein Umbruch nicht. Um es frei schweben zu lassen, wählen Sie einen Umbruch wie **Quadratisch**.
 
-## Ein Bild beschreiben
+## Bild beschreiben
 
-Ein Bild, das die Seite nur verziert, etwa eine Linie oder ein Rahmen, braucht keine Beschreibung. Wählen Sie es aus und klicken Sie auf **Bildformat > Als dekorativ markieren** (oder klicken Sie mit der rechten Maustaste darauf). Bildschirmleseprogramme überspringen es dann. Klicken Sie erneut darauf, um die Markierung zu entfernen.
+Ein Bild, das die Seite nur verziert, etwa eine Linie oder ein Rahmen, braucht keine Beschreibung. Markieren Sie es und klicken Sie auf **Bildformat > Als dekorativ markieren** (oder klicken Sie mit der rechten Maustaste darauf). Screenreader überspringen es dann. Klicken Sie erneut darauf, um die Markierung wieder zu entfernen.
 
-Der **Alternativtext** ist eine kurze Beschreibung, die Bildschirmleseprogramme vorlesen und die angezeigt wird, wenn ein Bild nicht dargestellt werden kann. Wählen Sie das Bild aus, klicken Sie auf **Bildformat > Alternativtext** (oder klicken Sie mit der rechten Maustaste auf das Bild und wählen Sie **Alternativtext**), geben Sie die Beschreibung ein und klicken Sie auf **OK**.
+**Alternativtext** ist eine kurze Beschreibung, die Screenreader vorlesen und die angezeigt wird, wenn ein Bild nicht dargestellt werden kann. Markieren Sie das Bild und klicken Sie auf **Bildformat > Alternativtext** (oder klicken Sie mit der rechten Maustaste auf das Bild und wählen Sie **Alternativtext**), geben Sie die Beschreibung ein und klicken Sie auf **OK**.
 
 ## Bilder aus anderen Dokumenten
 
-JeffWrite zeigt die Bilder der Dokumente, die es öffnet, und behält sie bei. Es kann Größe, Umbruch, Position und Alternativtext eines Bildes ändern, das das Dokument als einfaches Bild speichert. Ein Bild, das in einer Form gespeichert ist, die JeffWrite nicht ändert (zum Beispiel eine Gruppe von Zeichnungen), wird ausgewählt und so beibehalten, wie es war; seine Befehle sind deaktiviert.
+JeffWrite zeigt die Bilder der Dokumente, die es öffnet, und behält sie bei. Es kann Größe, Umbruch, Position und Alternativtext eines Bildes ändern, das das Dokument als einfaches Bild speichert. Ein Bild, das in einer Form gespeichert ist, die JeffWrite nicht ändert (zum Beispiel eine Gruppe von Zeichnungen), wird markiert und unverändert beibehalten; seine Befehle sind deaktiviert.
 
-## Einen Barcode einfügen
+## Barcode einfügen
 
-Ein **Barcode** ist ein Muster aus Strichen, das ein Scanner liest. JeffWrite erstellt ISBN-Barcodes für Bücher (mit oder ohne Preis), EAN-13, UPC-A, EAN-8, Code 128, Code 39 und QR-Codes. Ein QR-Code kann beliebigen Text enthalten, etwa eine Internetadresse.
+Ein **Barcode** ist ein Muster aus Balken, das ein Scanner liest. JeffWrite erstellt ISBN-Barcodes für Bücher (mit oder ohne Preis), EAN-13, UPC-A, EAN-8, Code 128, Code 39 und QR-Codes. Ein QR-Code kann beliebigen Text enthalten, etwa eine Internetadresse.
 
 1. Setzen Sie die Einfügemarke an die Stelle, an der der Barcode stehen soll, und klicken Sie auf **Einfügen > Barcode**.
 2. Wählen Sie einen **Typ** und geben Sie den Text oder die Ziffern ein. Das Fenster zeigt den Barcode während der Eingabe an und nennt in Rot, was nicht stimmt, falls er nicht erstellt werden kann.
 3. Klicken Sie auf **Einfügen**.
 
-Der Barcode wird als schwebendes Bild eingefügt, und der Text umläuft ihn. Ziehen Sie ihn, um ihn zu verschieben, ziehen Sie an einer Ecke, um die Größe zu ändern, und verwenden Sie die Registerkarte **Bildformat**, um den Textumbruch zu ändern. Lassen Sie **Weißer Hintergrund** aktiviert, denn ein Scanner benötigt den freien Raum um die Striche. Um den Barcode zu ändern, doppelklicken Sie darauf (oder wählen Sie ihn aus und klicken Sie erneut auf **Einfügen > Barcode**), ändern Sie den Text und klicken Sie auf **Aktualisieren**. Er behält seine Position und seine Breite. Jede Änderung ist ein Schritt, den Sie rückgängig machen können.
+Der Barcode wird als frei schwebendes Bild eingefügt, und der Text läuft um ihn herum. Ziehen Sie ihn, um ihn zu verschieben, ziehen Sie an einer Ecke, um seine Größe zu ändern, und verwenden Sie die Registerkarte **Bildformat**, um den Textumbruch zu ändern. Lassen Sie **Weißer Hintergrund** aktiviert, denn ein Scanner braucht den freien Raum um die Balken. Um den Barcode zu ändern, doppelklicken Sie darauf (oder markieren Sie ihn und klicken Sie erneut auf **Einfügen > Barcode**), ändern Sie den Text und klicken Sie auf **Aktualisieren**. Er behält seine Position und seine Breite. Jede Änderung ist ein Schritt, den Sie rückgängig machen können.
 
-Beim Speichern wird der Barcode als Bild gespeichert, und zwar als SVG, das scharf bleibt, sodass ihn jedes Programm anzeigen kann. JeffWrite speichert außerdem die Einstellungen des Barcodes in der Datei, sodass er sich beim erneuten Öffnen in JeffWrite weiterhin bearbeiten lässt. In anderen Programmen ist er ein gewöhnliches Bild. Sein Alternativtext nennt, was er enthält.
+Beim Speichern wird der Barcode als Bild gespeichert, und zwar als SVG, das auch vergrößert scharf bleibt, sodass ihn jedes Programm anzeigen kann. JeffWrite speichert außerdem die Einstellungen des Barcodes in der Datei, sodass er beim erneuten Öffnen mit JeffWrite weiterhin bearbeitet werden kann. In anderen Programmen ist er ein gewöhnliches Bild. Sein Alternativtext nennt, was er enthält.

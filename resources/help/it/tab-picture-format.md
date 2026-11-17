@@ -1,14 +1,15 @@
 # Scheda Formato immagine
-<!-- keywords: scheda formato immagine, strumenti immagine, ritaglia, ritaglio, ricolora, correzioni, luminosità, didascalia, stili immagine, barra multifunzione, scheda contestuale, foto -->
 
-La scheda **Formato immagine** viene visualizzata quando si seleziona un'immagine. Consente di cambiare l'immagine, correggerne i colori, ritagliarla e applicarle uno stile.
+<!-- keywords: scheda formato immagine, strumenti immagine, ritaglia, ricolora, correzioni, luminosità, didascalia, stili immagine, barra multifunzione, scheda contestuale, formato immagine, ritaglio, colori, contrasto -->
 
-- **Inserisci**: consente di cambiare un'immagine, scambiare due immagini o riordinare le immagini posizionate accanto alla pagina. Vedere [Aggiungere e regolare le immagini](pictures).
-- **Regola**: consente di modificare luminosità, contrasto e colore, impostare la trasparenza, comprimere o reimpostare l'immagine e convertire un'immagine SVG in forme. Vedere [Aggiungere e regolare le immagini](pictures).
-- **Stili immagine**: consente di aggiungere un bordo, effetti, una didascalia o una forma. Vedere [Aggiungere e regolare le immagini](pictures).
-- **Disponi**: consente di impostare la disposizione del testo, cambiare l'ordine di sovrapposizione, raggruppare, allineare e ruotare. Vedere [Spostare, allineare, raggruppare e sovrapporre oggetti](arrange) e [Disporre il testo intorno agli oggetti](wrap).
-- **Ritaglia**: consente di ritagliare l'immagine, adattarla alla cornice, riempire la cornice con l'immagine o cancellare il ritaglio. Vedere [Aggiungere e regolare le immagini](pictures).
-- **Dimensioni**: consente di digitare un'altezza e una larghezza esatte. Vedere [Spostare, allineare, raggruppare e sovrapporre oggetti](arrange).
+La scheda **Formato immagine** compare quando si seleziona un'immagine. Serve a modificare l'immagine, correggerne i colori, ritagliarla e assegnarle uno stile.
+
+- **Inserisci**: cambia un'immagine, scambia due immagini oppure sistema le immagini posizionate accanto alla pagina. Vedi [Aggiungere e regolare le immagini](pictures).
+- **Regola**: modifica luminosità, contrasto e colore, imposta la trasparenza, comprimi l'immagine oppure reimpostala (**Reimposta immagine** o **Reimposta immagine e dimensioni**), e trasforma un'immagine SVG in forme. Vedi [Aggiungere e regolare le immagini](pictures).
+- **Stili immagine**: scegli un aspetto predefinito dalla raccolta, aggiungi un bordo, aggiungi effetti (ombreggiatura, riflesso, alone, bordi sfumati, smussatura e rotazione 3D), una didascalia o una forma. Vedi [Aggiungere e regolare le immagini](pictures).
+- **Disponi**: disponi il testo attorno all'immagine, cambia l'ordine di sovrapposizione, raggruppa, allinea e ruota. Vedi [Spostare, allineare, raggruppare e sovrapporre gli oggetti](arrange) e [Disporre il testo attorno agli oggetti](wrap).
+- **Ritaglia**: ritaglia l'immagine, tagliala secondo un rapporto di proporzioni, adattala al suo riquadro, riempi il riquadro con l'immagine oppure rimuovi il ritaglio. Vedi [Aggiungere e regolare le immagini](pictures).
+- **Dimensioni**: digita un'altezza e una larghezza esatte. Vedi [Spostare, allineare, raggruppare e sovrapporre gli oggetti](arrange).
 
 ## Argomenti correlati
 

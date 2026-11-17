@@ -236,6 +236,21 @@ Open them with your email program to send.</source>
     </message>
 </context>
 <context>
+    <name>Main</name>
+    <message>
+        <source>For a .csv, .tsv, or .txt file: what separates its fields (comma, semicolon, tab, space, bar, or one character). No question is asked, for the files on this command line only.</source>
+        <translation type="unfinished">Para un fichero .csv, .tsv o .txt: qué separa sus campos (coma, punto y coma, tabulación, espacio, barra vertical o un carácter). No se pregunta nada, solo para los ficheros de esta línea de comandos.</translation>
+    </message>
+    <message>
+        <source>For a .csv, .tsv, or .txt file: its encoding (utf-8, utf-8-bom, utf-16le, utf-16be, latin1, mac-roman, windows-1252 or another page, iso-8859-N).</source>
+        <translation type="unfinished">Para un fichero .csv, .tsv o .txt: su codificación (utf-8, utf-8-bom, utf-16le, utf-16be, latin1, mac-roman, windows-1252 u otra página, iso-8859-N).</translation>
+    </message>
+    <message>
+        <source>For a .csv, .tsv, or .txt file: the mark in its numbers (point or comma).</source>
+        <translation type="unfinished">Para un fichero .csv, .tsv o .txt: el signo de sus números (punto o coma).</translation>
+    </message>
+</context>
+<context>
     <name>MainWindow</name>
     <message>
         <source>choose your printer's color profile (an .icc file) first</source>
@@ -285,7 +300,7 @@ Download it from %2 now? (%3, once.)</source>
     </message>
     <message>
         <source>The password couldn't be put on the file.</source>
-        <translation type="unfinished">No se pudo poner la contraseña en el fichero.</translation>
+        <translation type="unfinished">No se pudo poner la contraseña al fichero.</translation>
     </message>
     <message>
         <source>Effects that start when an object is clicked can't be saved in this kind of file, except those that play a movie or sound.</source>
@@ -530,6 +545,10 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <source>Slide %1 was left out: the file names no part for it.</source>
         <translation type="unfinished">Se ha omitido la diapositiva %1: el fichero no indica ninguna parte para ella.</translation>
+    </message>
+    <message>
+        <source>The macros in this file are too large to keep, and were left out.</source>
+        <translation type="unfinished">Las macros de este fichero son demasiado grandes para conservarlas, así que se omitieron.</translation>
     </message>
     <message>
         <source>This file is in an older format, which %1 can't open yet.</source>
@@ -897,12 +916,39 @@ Download it from %2 now? (%3, once.)</source>
         <source>The picture's file could not be opened.</source>
         <translation type="unfinished">No se pudo abrir el fichero de la imagen.</translation>
     </message>
+    <message>
+        <source>That picture's file is too large for a background.</source>
+        <translation type="unfinished">El fichero de esa imagen es demasiado grande para un fondo.</translation>
+    </message>
+    <message>
+        <source>That file is not a picture of a kind a background can be. Use a PNG, JPEG, GIF, or BMP picture.</source>
+        <translation type="unfinished">Ese fichero no es una imagen válida para fondo. Use una imagen PNG, JPEG, GIF o BMP.</translation>
+    </message>
 </context>
 <context>
     <name>Telemetry</name>
     <message>
         <source>%1 can send anonymous usage statistics once a day (and when it's updated): its version, your operating system and language, and how often each of its commands is used, and if it ever closes unexpectedly, where in the program that happened. That shows how many people use it, which parts matter most, and what to fix first.&lt;br&gt;&lt;br&gt;It never sends your files, their names, or anything in them. &lt;a href="%2"&gt;What's sent&lt;/a&gt;&lt;br&gt;&lt;br&gt;You can change this anytime in File &amp;gt; Options.</source>
         <translation type="unfinished">%1 puede enviar estadísticas de uso anónimas una vez al día (y cuando se actualiza): su versión, su sistema operativo e idioma, con qué frecuencia se usa cada uno de sus comandos y, si alguna vez se cierra inesperadamente, en qué parte del programa ocurrió. Esto muestra cuántas personas lo usan, qué partes son más importantes y qué corregir primero.&lt;br&gt;&lt;br&gt;Nunca envía sus ficheros, sus nombres ni nada de su contenido. &lt;a href="%2"&gt;Qué se envía&lt;/a&gt;&lt;br&gt;&lt;br&gt;Puede cambiar esto en cualquier momento en Archivo &amp;gt; Opciones.</translation>
+    </message>
+</context>
+<context>
+    <name>ThemeLibrary</name>
+    <message>
+        <source>The file of your own theme sets could not be read. It was kept as %1.bad, and a new file was started.</source>
+        <translation type="unfinished">No se pudo leer el fichero de sus propios conjuntos de temas. Se guardó como %1.bad y se creó un fichero nuevo.</translation>
+    </message>
+    <message>
+        <source>The file is not a package.</source>
+        <translation type="unfinished">El fichero no es un paquete.</translation>
+    </message>
+    <message>
+        <source>The theme parts of the file are too large.</source>
+        <translation type="unfinished">Las partes de tema del fichero son demasiado grandes.</translation>
+    </message>
+    <message>
+        <source>The file holds no theme.</source>
+        <translation type="unfinished">El fichero no contiene ningún tema.</translation>
     </message>
 </context>
 <context>
@@ -995,6 +1041,20 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <source>Choose the list of products or items (a spreadsheet, a CSV file or a list you type).</source>
         <translation type="unfinished">Elija la lista de productos o artículos (una hoja de cálculo, un fichero CSV o una lista que escriba).</translation>
+    </message>
+</context>
+<context>
+    <name>jp::ChartData</name>
+    <message>
+        <source>This chart reads cells of the workbook kept with it that can't be followed (another sheet or file, a block that is not one column or one row, or cells past the sheet's), so its numbers can't be changed here.</source>
+        <translation type="unfinished">Este gráfico lee celdas del libro de trabajo guardado con él que no pueden seguirse (otra hoja o fichero, un bloque que no es una sola columna ni una sola fila, o celdas más allá de las de la hoja), por lo que sus números no pueden cambiarse aquí.</translation>
+    </message>
+</context>
+<context>
+    <name>jp::ChartDesign</name>
+    <message>
+        <source>This file format doesn't keep a data table.</source>
+        <translation type="unfinished">Este formato de fichero no conserva una tabla de datos.</translation>
     </message>
 </context>
 <context>
@@ -1096,6 +1156,14 @@ The file that was there is as it was.</source>
 El fichero existente no se ha modificado.</translation>
     </message>
     <message>
+        <source>This picture would make the pictures of the workbook (backgrounds, headers, and footers) larger than a file can keep, %1 MB. Delete a background you don't need first, or use a smaller picture.</source>
+        <translation type="unfinished">Esta imagen haría que las imágenes del libro (fondos, encabezados y pies de página) superen lo que puede guardar un fichero, %1 MB. Elimine primero un fondo que no necesite o use una imagen más pequeña.</translation>
+    </message>
+    <message>
+        <source>Pivot tables in this workbook read their data from other files. Read those files now?</source>
+        <translation type="unfinished">Las tablas dinámicas de este libro leen sus datos de otros ficheros. ¿Leer esos ficheros ahora?</translation>
+    </message>
+    <message>
         <source>Workbook File</source>
         <translation type="unfinished">Nombre del fichero</translation>
     </message>
@@ -1106,6 +1174,22 @@ El fichero existente no se ha modificado.</translation>
     <message>
         <source>File Name, Page 1 of ?</source>
         <translation type="unfinished">Nombre del fichero, página 1 de ?</translation>
+    </message>
+    <message>
+        <source>This picture would make the pictures of the workbook (backgrounds, headers, and footers) larger than a file can keep, %1 MB. Delete a picture you don't need first.</source>
+        <translation type="unfinished">Esta imagen haría que las imágenes del libro (fondos, encabezados y pies de página) superen lo que puede guardar un fichero, %1 MB. Elimine primero una imagen que no necesite.</translation>
+    </message>
+    <message>
+        <source>The password is not correct.
+
+This file is protected with a password. Password:</source>
+        <translation type="unfinished">La contraseña no es correcta.
+
+Este fichero está protegido con contraseña. Contraseña:</translation>
+    </message>
+    <message>
+        <source>This file is protected with a password. Password:</source>
+        <translation type="unfinished">Este fichero está protegido con contraseña. Contraseña:</translation>
     </message>
     <message>
         <source>This file's password is kept in a form JeffCrunch can't check, so the protection can't be taken off here.</source>
@@ -1224,6 +1308,10 @@ No se puede leer el fichero.</translation>
         <translation type="unfinished">Ya hay ficheros con estos nombres en la carpeta (%1 de %2). ¿Reemplazarlos?</translation>
     </message>
     <message>
+        <source>The macros in this presentation aren't saved, because a .%1 file can't hold them.</source>
+        <translation type="unfinished">No se guardan las macros de esta presentación, porque un fichero .%1 no puede contenerlas.</translation>
+    </message>
+    <message>
         <source>Saved %1. Left out, as this kind of file can't hold it: %2</source>
         <translation type="unfinished">Se guardó %1. Se omitió lo siguiente, porque este tipo de fichero no lo admite: %2</translation>
     </message>
@@ -1245,6 +1333,10 @@ No se puede leer el fichero.</translation>
     <message>
         <source>The file can't be read.</source>
         <translation type="unfinished">No se puede leer el fichero.</translation>
+    </message>
+    <message>
+        <source>Theme Files (*.thmx)</source>
+        <translation type="unfinished">Ficheros de tema (*.thmx)</translation>
     </message>
     <message>
         <source>Insert Captions: add captions to the video from a WebVTT file.</source>
@@ -1277,6 +1369,14 @@ No se puede leer el fichero.</translation>
     <message>
         <source>%1 is too large to put in this presentation: with it, the file could not be opened again.</source>
         <translation type="unfinished">%1 es demasiado grande para incluirlo en esta presentación: con él, el fichero no se podría volver a abrir.</translation>
+    </message>
+    <message>
+        <source>This file has more properties than %1 reads, so this choice can't be kept.</source>
+        <translation type="unfinished">Este fichero tiene más propiedades de las que lee %1, así que esta opción no se puede mantener.</translation>
+    </message>
+    <message>
+        <source>An .odp file can't hold this choice. Save the presentation as a .pptx file first.</source>
+        <translation type="unfinished">Un fichero .odp no puede guardar esta opción. Guarde primero la presentación como fichero .pptx.</translation>
     </message>
     <message>
         <source>This file has more properties than %1 reads, so the mark can't be added.</source>
@@ -1378,6 +1478,10 @@ No se puede leer el fichero.</translation>
         <source>Puts a picture from a file in the part you are typing in</source>
         <translation type="unfinished">Inserta una imagen desde un fichero en la parte donde está escribiendo</translation>
     </message>
+    <message>
+        <source>This picture would make the pictures of the workbook (backgrounds, headers, and footers) larger than a file can keep, %1 MB. Delete a picture you don't need first.</source>
+        <translation type="unfinished">Esta imagen haría que las imágenes del libro (fondos, encabezados y pies de página) superen el tamaño máximo que puede guardar un fichero, %1 MB. Elimine primero una imagen que no necesite.</translation>
+    </message>
 </context>
 <context>
     <name>jp::HelpView</name>
@@ -1395,6 +1499,14 @@ No se encontraron los ficheros de la Ayuda junto al programa. Volver a instalar 
     <message>
         <source>A custom property is a name with a value that you choose, such as Project or Client. Fields in the file can show it.</source>
         <translation type="unfinished">Una propiedad personalizada es un nombre con un valor que usted elige, como Proyecto o Cliente. Los campos del fichero pueden mostrarla.</translation>
+    </message>
+    <message>
+        <source>This file opens for reading only, with a note. Choose this to let it open for editing again.</source>
+        <translation type="unfinished">Este fichero se abre solo para lectura, con una nota. Elija esta opción para que vuelva a abrirse para edición.</translation>
+    </message>
+    <message>
+        <source>Open this file for reading only each time, so nobody changes it by accident. Editing is one choice away.</source>
+        <translation type="unfinished">Abrir este fichero solo para lectura cada vez, para que nadie lo modifique por accidente. La edición está a una opción de distancia.</translation>
     </message>
     <message>
         <source>Open File Location</source>
@@ -1453,6 +1565,25 @@ No se encontraron los ficheros de la Ayuda junto al programa. Volver a instalar 
     </message>
 </context>
 <context>
+    <name>jp::LossyWarning</name>
+    <message>
+        <source>Nothing in this %1 is lost when it is saved as a %2 file.</source>
+        <translation type="unfinished">Ningún elemento de este %1 se pierde al guardarlo como fichero %2.</translation>
+    </message>
+    <message>
+        <source>A %1 file can't hold some of what this %2 has. If you save it that way, these parts are saved as they stand now or left out:
+
+%3</source>
+        <translation type="unfinished">Un fichero %1 no puede guardar parte del contenido de este %2. Si lo guarda en ese formato, estas partes se guardarán tal como están ahora o se omitirán:
+
+%3</translation>
+    </message>
+    <message>
+        <source>Don't ask again for this file</source>
+        <translation type="unfinished">No volver a preguntar para este fichero</translation>
+    </message>
+</context>
+<context>
     <name>jp::MainWindow</name>
     <message>
         <source>Opened .pub file. %1</source>
@@ -1479,8 +1610,12 @@ No se encontraron los ficheros de la Ayuda junto al programa. Volver a instalar 
         <translation type="unfinished">Todos los ficheros (*)</translation>
     </message>
     <message>
+        <source>Saved a copy as %1. Left out, as this kind of file can't hold it: %2</source>
+        <translation type="unfinished">Se guardó una copia como %1. Se omitió, porque este tipo de fichero no puede guardarlo: %2</translation>
+    </message>
+    <message>
         <source>Saved %1. Left out, as this kind of file can't hold it: %2</source>
-        <translation type="unfinished">Se guardó %1. Se omitió lo siguiente, porque este tipo de fichero no lo admite: %2</translation>
+        <translation type="unfinished">Se guardó %1. Se omitió, porque este tipo de fichero no puede guardarlo: %2</translation>
     </message>
     <message>
         <source>Formatting copied. Select text or objects and press %1 to apply it.</source>
@@ -1529,6 +1664,10 @@ No se encontraron los ficheros de la Ayuda junto al programa. Volver a instalar 
     <message>
         <source>Text, pictures, and shapes parked beside the pages: they do not print or export, but they are in the file.</source>
         <translation type="unfinished">Texto, imágenes y formas colocados junto a las páginas: no se imprimen ni se exportan, pero están en el fichero.</translation>
+    </message>
+    <message>
+        <source>The password: a .pub file can't keep a password.</source>
+        <translation type="unfinished">La contraseña: un fichero .pub no puede conservar una contraseña.</translation>
     </message>
 </context>
 <context>
@@ -1603,6 +1742,29 @@ No se encontraron los ficheros de la Ayuda junto al programa. Volver a instalar 
     <message>
         <source>Refresh the data when the file is opened</source>
         <translation type="unfinished">Actualizar los datos al abrir el fichero</translation>
+    </message>
+</context>
+<context>
+    <name>jp::PivotSourcePicker</name>
+    <message>
+        <source>A range in another file</source>
+        <translation type="unfinished">Un rango en otro fichero</translation>
+    </message>
+    <message>
+        <source>The file</source>
+        <translation type="unfinished">El fichero</translation>
+    </message>
+    <message>
+        <source>Sheet1!A1:D100, or the name of a table or range in that file</source>
+        <translation type="unfinished">Hoja1!A1:D100, o el nombre de una tabla o rango de ese fichero</translation>
+    </message>
+    <message>
+        <source>Choose the File</source>
+        <translation type="unfinished">Elija el fichero</translation>
+    </message>
+    <message>
+        <source>Workbooks and data files (*.xlsx *.xlsm *.xls *.ods *.csv);;All files (*)</source>
+        <translation type="unfinished">Libros y ficheros de datos (*.xlsx *.xlsm *.xls *.ods *.csv);;Todos los ficheros (*)</translation>
     </message>
 </context>
 <context>
@@ -1768,6 +1930,12 @@ No se encontraron los ficheros de la Ayuda junto al programa. Volver a instalar 
         <translation type="unfinished">Las macros de este documento no se guardan, porque un fichero %1 no puede contenerlas.</translation>
     </message>
     <message>
+        <source>%1 couldn't save "%2".
+The password couldn't be put on the file.</source>
+        <translation type="unfinished">%1 no pudo guardar "%2".
+No se pudo aplicar la contraseña al fichero.</translation>
+    </message>
+    <message>
         <source>This document came from a web page, which %1 doesn't write over, so it is saved as a new .docx file.</source>
         <translation type="unfinished">Este documento procede de una página web, que %1 no sobrescribe; por eso se guarda como un nuevo fichero .docx.</translation>
     </message>
@@ -1892,6 +2060,10 @@ No se encontraron los ficheros de la Ayuda junto al programa. Volver a instalar 
         <translation type="unfinished">Guarde primero el documento. Se guarda una versión de un fichero con el nombre del fichero.</translation>
     </message>
     <message>
+        <source>Theme Files (*.thmx)</source>
+        <translation type="unfinished">Ficheros de tema (*.thmx)</translation>
+    </message>
+    <message>
         <source>The file can't be read.</source>
         <translation type="unfinished">No se puede leer el fichero.</translation>
     </message>
@@ -1932,6 +2104,18 @@ No se encontraron los ficheros de la Ayuda junto al programa. Volver a instalar 
     <message>
         <source>The data of this pivot table is in another workbook, which JeffCrunch does not open, so it can't be read again here. The table keeps the values the file has. To read it from this workbook, use Change Data Source.</source>
         <translation type="unfinished">Los datos de esta tabla dinámica están en otro libro, que JeffCrunch no abre, por lo que no se pueden volver a leer aquí. La tabla conserva los valores que tiene el fichero. Para leerlos de este libro, use Cambiar origen de datos.</translation>
+    </message>
+    <message>
+        <source>The file "%1" can't be read from here.</source>
+        <translation type="unfinished">No se puede leer el fichero "%1" desde aquí.</translation>
+    </message>
+    <message>
+        <source>Save this workbook first: a file named without its folder is looked for in the folder this workbook is in.</source>
+        <translation type="unfinished">Guarde primero este libro: un fichero indicado sin su carpeta se busca en la carpeta donde está este libro.</translation>
+    </message>
+    <message>
+        <source>The file "%1" could not be read; the pivot keeps its last data.</source>
+        <translation type="unfinished">No se pudo leer el fichero "%1"; la tabla dinámica conserva sus últimos datos.</translation>
     </message>
     <message numerus="yes">
         <source>%n pivot table(s) were not read again when the file opened: there is too much data. Use Refresh All.</source>
@@ -2085,6 +2269,10 @@ No se encontraron los ficheros de la Ayuda junto al programa. Volver a instalar 
     <message>
         <source>The file holds no word processing document.</source>
         <translation type="unfinished">El fichero no contiene ningún documento de procesamiento de texto.</translation>
+    </message>
+    <message>
+        <source>The document is protected with a password, which has to be given when the file is opened.</source>
+        <translation type="unfinished">El documento está protegido con una contraseña, que debe indicarse al abrir el fichero.</translation>
     </message>
     <message>
         <source>The document's text can't be found in the file.</source>
@@ -2314,6 +2502,10 @@ No se encontraron los ficheros de la Ayuda junto al programa. Volver a instalar 
     <message>
         <source>A drawing of the file is not in the form this program changes.</source>
         <translation type="unfinished">Un dibujo del fichero no tiene el formato que este programa modifica.</translation>
+    </message>
+    <message>
+        <source>The picture behind a sheet could not be put in the file's list of parts.</source>
+        <translation type="unfinished">La imagen de fondo de una hoja no se pudo agregar a la lista de partes del fichero.</translation>
     </message>
     <message>
         <source>A table could not be put in the file's list of parts.</source>

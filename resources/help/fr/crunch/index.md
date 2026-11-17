@@ -1,16 +1,16 @@
 # Aide de JeffCrunch
-<!-- keywords: sommaire, aide, rubriques, démarrer, débuter, contenu -->
+<!-- keywords: sommaire, aide, rubriques, démarrer, début, contenu -->
 
-Tapez dans la zone de recherche ci-dessus pour trouver une rubrique ou une commande à exécuter. Appuyez sur **F1** à tout moment pour obtenir de l'aide sur ce que vous faites : l'onglet du ruban ou la page de l'écran Fichier où vous vous trouvez.
+Saisissez dans la zone de recherche ci-dessus une rubrique, ou une commande à exécuter. Appuyez sur **F1** à tout moment pour obtenir de l'aide sur ce que vous faites : l'onglet du ruban où vous vous trouvez, ou la page de l'écran Fichier où vous vous trouvez.
 
-## Pour bien démarrer
+## Premiers pas
 
 - [Bienvenue dans JeffCrunch](start)
 - [Ouvrir et enregistrer des classeurs](open-save)
-- [Informations : propriétés, mots de passe et Inspecter](info)
+- [Infos : propriétés, mots de passe et Inspecter le classeur](info)
 - [Ouvrir des classeurs protégés par un mot de passe](open-password)
 - [Saisir du texte dans les cellules](edit-cells)
-- [Règles de contenu d'une cellule](rules)
+- [Règles relatives au contenu d'une cellule](rules)
 
 ## Consulter un classeur
 
@@ -29,7 +29,7 @@ Tapez dans la zone de recherche ci-dessus pour trouver une rubrique ou une comma
 - [Insérer et supprimer des lignes, des colonnes et des cellules](insert-delete)
 - [Modifier la largeur des colonnes et la hauteur des lignes](sizes)
 - [Couper, copier et coller](clipboard)
-- [Remplir des cellules et faire la somme](fill-sum)
+- [Recopier des cellules et faire la somme](fill-sum)
 - [Rechercher, remplacer et atteindre](find-replace)
 - [Trier et filtrer](sort-filter)
 - [Outils de données](data-tools)
@@ -42,9 +42,22 @@ Tapez dans la zone de recherche ci-dessus pour trouver une rubrique ou une comma
 - [Notes et liens](notes-links)
 - [Protéger une feuille ou le classeur](protect)
 
+## Toutes les fonctions
+
+- [Fonctions financières](functions-financial)
+- [Fonctions de date et d'heure](functions-date-time)
+- [Fonctions mathématiques et trigonométriques](functions-math-trig)
+- [Fonctions statistiques](functions-statistical)
+- [Fonctions de recherche et de référence](functions-lookup-reference)
+- [Fonctions de texte](functions-text)
+- [Fonctions logiques](functions-logical)
+- [Fonctions d'information](functions-information)
+- [Fonctions de base de données](functions-database)
+- [Fonctions d'ingénierie](functions-engineering)
+
 ## Imprimer
 
-- [Mettre en page les pages](page-layout)
+- [Mettre en page les feuilles](page-layout)
 - [La boîte de dialogue Mise en page](page-setup)
 - [Imprimer et créer un PDF](printing)
 

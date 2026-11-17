@@ -1,16 +1,16 @@
 # Guia Formato da Imagem
-<!-- keywords: guia formato da imagem, aba formato da imagem, ferramentas de imagem, cortar, recortar imagem, recolorir, correções, brilho, contraste, legenda, estilos de imagem, faixa de opções, guia contextual -->
+<!-- keywords: guia formato da imagem, ferramentas de imagem, cortar, recolorir, correções, brilho, legenda, estilos de imagem, faixa de opções, guia contextual, formatar imagem, ajustar imagem -->
 
 A guia **Formato da Imagem** aparece quando você seleciona uma imagem. Use-a para alterar a imagem, corrigir as cores, cortá-la e aplicar um estilo.
 
-- **Inserir**: altere uma imagem, troque duas imagens de lugar ou organize as imagens deixadas ao lado da página. Consulte [Adicionar e ajustar imagens](pictures).
-- **Ajustar**: altere o brilho, o contraste e a cor, defina a transparência, compacte ou redefina a imagem e converta uma imagem SVG em formas. Consulte [Adicionar e ajustar imagens](pictures).
-- **Estilos de Imagem**: adicione uma borda, efeitos, uma legenda ou uma forma. Consulte [Adicionar e ajustar imagens](pictures).
-- **Organizar**: aplique quebra de texto, altere a ordem de empilhamento, agrupe, alinhe e gire. Consulte [Mover, alinhar, agrupar e organizar objetos em camadas](arrange) e [Aplicar quebra de texto ao redor de objetos](wrap).
-- **Cortar**: corte a imagem, ajuste-a dentro da moldura, preencha a moldura com ela ou limpe o corte. Consulte [Adicionar e ajustar imagens](pictures).
-- **Tamanho**: digite a altura e a largura exatas. Consulte [Mover, alinhar, agrupar e organizar objetos em camadas](arrange).
+- **Inserir**: alterar uma imagem, trocar duas imagens ou organizar imagens posicionadas ao lado da página. Veja [Adicionar e ajustar imagens](pictures).
+- **Ajustar**: alterar o brilho, o contraste e a cor, definir a transparência, compactar a imagem ou redefini-la (**Redefinir Imagem** ou **Redefinir Imagem e Tamanho**), e transformar uma imagem SVG em formas. Veja [Adicionar e ajustar imagens](pictures).
+- **Estilos de Imagem**: escolha um visual pronto na galeria, adicione uma borda, adicione efeitos (sombra, reflexo, brilho, bordas suaves, bisel e rotação 3D), uma legenda ou uma forma. Veja [Adicionar e ajustar imagens](pictures).
+- **Organizar**: ajustar a quebra de texto, alterar a ordem de sobreposição, agrupar, alinhar e girar. Veja [Mover, alinhar, agrupar e sobrepor objetos](arrange) e [Quebrar texto ao redor de objetos](wrap).
+- **Cortar**: cortar a imagem, recortá-la em uma proporção, ajustá-la dentro do seu quadro, preencher o quadro com ela ou limpar o corte. Veja [Adicionar e ajustar imagens](pictures).
+- **Tamanho**: digitar uma altura e uma largura exatas. Veja [Mover, alinhar, agrupar e sobrepor objetos](arrange).
 
-## Tópicos relacionados
+## Relacionados
 
 - [Desenhar formas e linhas](shapes)
 - [A guia Formato da Forma](tab-shape-format)

@@ -1,18 +1,18 @@
 # Bantuan JeffCrunch
-<!-- keywords: isi, bantuan, topik, mulai, daftar isi -->
+<!-- keywords: isi, bantuan, topik, mulai -->
 
-Ketik di kotak pencarian di atas untuk menemukan topik atau perintah yang ingin dijalankan. Tekan **F1** kapan saja untuk mendapatkan bantuan tentang yang sedang Anda kerjakan: tab pita yang sedang Anda gunakan, atau halaman layar Berkas yang sedang Anda lihat.
+Ketik di kotak pencarian di atas untuk menemukan topik, atau perintah yang ingin dijalankan. Tekan **F1** kapan saja untuk mendapatkan bantuan tentang yang sedang Anda kerjakan: tab pita yang sedang aktif, atau halaman layar Berkas yang sedang Anda buka.
 
-## Mulai
+## Memulai
 
 - [Selamat datang di JeffCrunch](start)
 - [Buka dan simpan buku kerja](open-save)
 - [Info: properti, kata sandi, dan Periksa Buku Kerja](info)
 - [Buka buku kerja yang dilindungi kata sandi](open-password)
-- [Mengetik di sel](edit-cells)
+- [Ketik di sel](edit-cells)
 - [Aturan untuk isi sebuah sel](rules)
 
-## Lihat buku kerja
+## Melihat buku kerja
 
 - [Pilih sel dan berpindah-pindah](select-and-move)
 - [Ubah tampilan](view)
@@ -20,7 +20,7 @@ Ketik di kotak pencarian di atas untuk menemukan topik atau perintah yang ingin 
 - [Nama untuk sel dan nilai](names)
 - [Format bersyarat](conditional-formats)
 
-## Ubah buku kerja
+## Mengubah buku kerja
 
 - [Format sel](format-cells)
 - [Format angka dan bahasa Anda](number-formats)
@@ -42,7 +42,20 @@ Ketik di kotak pencarian di atas untuk menemukan topik atau perintah yang ingin 
 - [Catatan dan tautan](notes-links)
 - [Lindungi lembar atau buku kerja](protect)
 
-## Cetak
+## Setiap fungsi
+
+- [Fungsi keuangan](functions-financial)
+- [Fungsi tanggal dan waktu](functions-date-time)
+- [Fungsi matematika dan trigonometri](functions-math-trig)
+- [Fungsi statistik](functions-statistical)
+- [Fungsi pencarian dan referensi](functions-lookup-reference)
+- [Fungsi teks](functions-text)
+- [Fungsi logika](functions-logical)
+- [Fungsi informasi](functions-information)
+- [Fungsi basis data](functions-database)
+- [Fungsi teknik](functions-engineering)
+
+## Mencetak
 
 - [Atur halaman](page-layout)
 - [Kotak dialog Pengaturan Halaman](page-setup)
@@ -50,7 +63,7 @@ Ketik di kotak pencarian di atas untuk menemukan topik atau perintah yang ingin 
 
 ## Bekerja lebih cepat
 
-- [Menggunakan JeffCrunch dengan papan ketik](keyboard)
+- [Gunakan JeffCrunch dengan papan ketik](keyboard)
 - [Ubah pengaturan JeffCrunch](options)
-- [Keamanan: ke mana berkas boleh menjangkau](security)
+- [Keamanan: ke mana berkas boleh terhubung](security)
 - [Pilih bahasa](language)
