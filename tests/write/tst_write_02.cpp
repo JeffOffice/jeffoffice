@@ -2,6 +2,7 @@
 #include "core/booklet.h"
 #include "core/datafolder.h"
 #include "tst_write.h"
+#include "../pdfmarkcheck.h"
 #include "render/pdfpage.h"
 #include "app/theme.h"
 
@@ -827,33 +828,107 @@ void WriteTests::thePrintPageRemembersWhatPrints()
     QVERIFY(calls >= 1);   // (the marks of the page it was made from were drawn)
 }
 
+// In a tagged PDF the change bars, the balloons, and the "+N more" note are decoration: marked as an Artifact, never as the content of a structure element, so a screen reader does not read them.
+void WriteTests::theMarksOfReviewAreArtifactsInATaggedPdf()
+{
+    const PrintKeysGuard keys;
+    QTemporaryDir dir;
+    ReviewedWindow r;
+    WriteWindow &w = r.w;
+    for (int i = 0; i < 300; ++i) {
+        QTextCursor c(w.document()->story());
+        c.setPosition(0);
+        c.setPosition(4, QTextCursor::KeepAnchor);
+        QVERIFY(addComment(*w.document(), c, QStringLiteral("Remark %1").arg(i)) >= 0);
+    }
+    w.document()->pager().invalidateFrom(0);
+    w.view()->paginateAll();
+    QString target;
+    w.setSavePathChooser([&](const QString &, const QString &) { return target; });
+    const MarkupGuard guard;
+    write::MarkupCounts drawn;
+    write::setMarkupObserver([&](int, const write::MarkupCounts &counts) { drawn.bars += counts.bars; drawn.comments += counts.comments; drawn.more += counts.more; });
+    QByteArray bytes[2];
+    for (const bool markup : {false, true}) {
+        target = dir.filePath(markup ? QStringLiteral("marked.pdf") : QStringLiteral("plain.pdf"));
+        WriteOutputOptions o;
+        o.pdfTags = true;
+        o.markup = markup;
+        QVERIFY(w.exportPdfPages(o));
+        QFile f(target);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        bytes[markup] = f.readAll();
+        QVERIFY(bytes[markup].contains("/StructTreeRoot"));
+    }
+    QVERIFY(drawn.bars > 0 && drawn.comments > 0 && drawn.more > 0);   // (the bars, the balloons, and the note were drawn)
+    // What is in a structure element, and what is an Artifact, on the pages of each file.
+    auto count = [](const QByteArray &pdf, const char *what) {
+        int n = 0;
+        for (const QByteArray &c : pdfcheck::pageContents(pdf)) n += int(c.count(what));
+        return n;
+    };
+    QVERIFY2(count(bytes[true], "/Artifact") > count(bytes[false], "/Artifact"), "the marks are not marked as an Artifact");
+    QCOMPARE(count(bytes[true], "/MCID"), count(bytes[false], "/MCID"));   // (no structure element has a mark as its content)
+    for (const QByteArray &pdf : bytes) {
+        QCOMPARE(pdfcheck::structureProblems(pdf), QString());
+        for (const QByteArray &c : pdfcheck::pageContents(pdf)) QCOMPARE(pdfcheck::drawnOutsideMarkedContent(c), 0);
+    }
+}
+
 // Save as PDF keeps what it always had, whatever the Print page has kept: the page's color, and the changes as the screen shows them.
 void WriteTests::saveAsPdfIsNotChangedByWhatThePrintPageKept()
 {
     const PrintKeysGuard keys;
     QTemporaryDir dir;
-    Settings::get().setValue(write::printMarkupKey(), false);
-    Settings::get().setValue(write::printBackgroundKey(), false);
-    Settings::get().setValue(write::printHiddenKey(), true);
-    ReviewedWindow r;
+    ReviewedWindow r(QByteArray("<w:p><w:r><w:rPr><w:vanish/></w:rPr><w:t>hiddensecretwords</w:t></w:r></w:p>"));
     WriteWindow &w = r.w;
     w.document()->flow().pageColor = QColor(0x00, 0xb8, 0xff);
     w.document()->pager().invalidateFrom(0);
     w.view()->paginateAll();
-    w.setSavePathChooser([&](const QString &, const QString &) { return dir.filePath(QStringLiteral("save.pdf")); });
+    QString target = dir.filePath(QStringLiteral("base.pdf"));
+    w.setSavePathChooser([&](const QString &, const QString &) { return target; });
     const MarkupGuard guard;
     const ObserverGuard observer;
     int marked = 0, colored = 0, lines = 0;
-    write::setMarkupObserver([&](int, const write::MarkupCounts &) { ++marked; });
+    write::MarkupCounts counts;
+    write::setMarkupObserver([&](int, const write::MarkupCounts &c) { ++marked; counts.bars += c.bars; counts.comments += c.comments; counts.deletions += c.deletions; counts.carets += c.carets; counts.more += c.more; });
     write::setPaintObserver([&](const flow::MaterializedPage &page, const write::PageDrawing &) {
         for (const auto &item : page.doc->pages[0]->items) colored += item->id.startsWith(QLatin1String("flow-page-color-"));
         lines = int(w.document()->pager().lines(0).size());
     });
+    auto textOf = [&] {
+        QFile f(target);
+        return f.open(QIODevice::ReadOnly) ? PdfDocument::shared(f.readAll())->text(0) : QString();
+    };
+    // The export before the Print page kept anything.
     QVERIFY(w.exportPdf());
-    const int withMarkup = lines;
+    const int baseLines = lines, baseMarked = marked;
+    const write::MarkupCounts baseCounts = counts;
+    const QString baseText = textOf();
+    QVERIFY(baseMarked >= 1 && baseCounts.bars + baseCounts.comments + baseCounts.deletions > 0);
+    QVERIFY(!baseText.isEmpty() && !baseText.contains(QStringLiteral("hiddensecretwords")));
+    // Then the Print page keeps no markup, no background, and hidden text on: the export is the same.
+    Settings::get().setValue(write::printMarkupKey(), false);
+    Settings::get().setValue(write::printBackgroundKey(), false);
+    Settings::get().setValue(write::printHiddenKey(), true);
+    marked = colored = 0;
+    counts = write::MarkupCounts();
+    target = dir.filePath(QStringLiteral("save.pdf"));
+    QVERIFY(w.exportPdf());
     QVERIFY2(marked >= 1, "the changes are not as the screen shows them");
+    QCOMPARE(marked, baseMarked);
+    QCOMPARE(counts.bars, baseCounts.bars);
+    QCOMPARE(counts.comments, baseCounts.comments);
+    QCOMPARE(counts.deletions, baseCounts.deletions);
+    QCOMPARE(counts.carets, baseCounts.carets);
+    QCOMPARE(counts.more, baseCounts.more);
     QCOMPARE(colored, 1);
-    QVERIFY(withMarkup > 1);
+    QCOMPARE(lines, baseLines);
+    QVERIFY(lines > 1);
+    // (hidden text stays out of the export: the Print page's choice is for printing)
+    const QString text = textOf();
+    QVERIFY(!text.contains(QStringLiteral("hiddensecretwords")));
+    QCOMPARE(text, baseText);
 }
 
 // The Print page counts the pages of the printed view: a document whose changes make more pages when they are shown has the pages of the view that is chosen, in the count, the range, and the preview.

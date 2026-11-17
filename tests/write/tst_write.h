@@ -909,6 +909,7 @@ private Q_SLOTS:
     void theBackgroundColorIsOnThePaperWhenAskedFor();
     void thePrintPageRemembersWhatPrints();
     void saveAsPdfIsNotChangedByWhatThePrintPageKept();
+    void theMarksOfReviewAreArtifactsInATaggedPdf();
     void thePrintPageCountsThePagesOfThePrintedView();
     void thePrintedViewFollowsTheCaretAndSizesItsOwnPages();
     void thePrintPreviewLaysOutOnlyWhenAChoiceChanges();
