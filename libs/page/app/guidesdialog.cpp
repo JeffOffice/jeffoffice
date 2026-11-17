@@ -161,8 +161,7 @@ bool gridSettingsDialog(QWidget *p, GridSettings &s, const QSizeF &page)
     auto *clear = new QPushButton(QCoreApplication::translate("GuidesDialog", "Remove All Guides"), &dlg.d);
     clear->setObjectName(QStringLiteral("removeGuides"));
     auto refresh = [&]() {
-        count->setText(QCoreApplication::translate("GuidesDialog", "%n vertical guide(s)", nullptr, int(guides.v.size())) + QStringLiteral(", ") +
-                       QCoreApplication::translate("GuidesDialog", "%n horizontal guide(s)", nullptr, int(guides.h.size())));
+        count->setText(QCoreApplication::translate("GuidesDialog", "Guides: %1 vertical, %2 horizontal").arg(guides.v.size()).arg(guides.h.size()));
         addV->setEnabled(guides.v.size() < kMaxGuidesPerAxis);
         addH->setEnabled(guides.h.size() < kMaxGuidesPerAxis);
         clear->setEnabled(!guides.v.isEmpty() || !guides.h.isEmpty());
